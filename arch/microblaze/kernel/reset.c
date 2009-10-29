@@ -87,7 +87,7 @@ void of_platform_reset_gpio_probe(void)
 	/* Setup output direction */
 	gpio_set_value(handle, 0);
 
-	printk(KERN_INFO "Registered reset device: %d\n", handle);
+	printk(KERN_INFO "RESET: Registered gpio device: %d\n", handle);
 	return;
 err:
 	gpio_free(handle);
