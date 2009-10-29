@@ -808,10 +808,11 @@ enum {
 	RX_GMF_AF_THR	= 0x0c44,/* 32 bit	Rx GMAC FIFO Almost Full Thresh. */
 	RX_GMF_CTRL_T	= 0x0c48,/* 32 bit	Rx GMAC FIFO Control/Test */
 	RX_GMF_FL_MSK	= 0x0c4c,/* 32 bit	Rx GMAC FIFO Flush Mask */
-	RX_GMF_FL_THR	= 0x0c50,/* 32 bit	Rx GMAC FIFO Flush Threshold */
+	RX_GMF_FL_THR	= 0x0c50,/* 16 bit	Rx GMAC FIFO Flush Threshold */
+	RX_GMF_FL_CTRL	= 0x0c52,/* 16 bit	Rx GMAC FIFO Flush Control */
 	RX_GMF_TR_THR	= 0x0c54,/* 32 bit	Rx Truncation Threshold (Yukon-2) */
-	RX_GMF_UP_THR	= 0x0c58,/*  8 bit	Rx Upper Pause Thr (Yukon-EC_U) */
-	RX_GMF_LP_THR	= 0x0c5a,/*  8 bit	Rx Lower Pause Thr (Yukon-EC_U) */
+	RX_GMF_UP_THR	= 0x0c58,/* 16 bit	Rx Upper Pause Thr (Yukon-EC_U) */
+	RX_GMF_LP_THR	= 0x0c5a,/* 16 bit	Rx Lower Pause Thr (Yukon-EC_U) */
 	RX_GMF_VLAN	= 0x0c5c,/* 32 bit	Rx VLAN Type Register (Yukon-2) */
 	RX_GMF_WP	= 0x0c60,/* 32 bit	Rx GMAC FIFO Write Pointer */
 

@@ -926,8 +926,14 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* On chips without ram buffer, pause is controled by MAC level */
 	if (!(hw->flags & SKY2_HW_RAM_BUFFER)) {
-		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
-		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
+		/* Pause threshold is scaled by 8 in bytes */
+		if (hw->chip_id == CHIP_ID_YUKON_FE_P
+			&& hw->chip_rev == CHIP_REV_YU_FE2_A0)
+			reg = 1568 / 8;
+		else
+			reg = 1024 / 8;
+		sky2_write16(hw, SK_REG(port, RX_GMF_UP_THR), reg);
+		sky2_write16(hw, SK_REG(port, RX_GMF_LP_THR), 768 / 8);
 
 		sky2_set_tx_stfwd(hw, port);
 	}
