@@ -49,6 +49,12 @@ maxcpus=n    Restrict boot time cpus to n. Say if you have 4 cpus, using
 additional_cpus=n (*)	Use this to limit hotpluggable cpus. This option sets
   			cpu_possible_map = cpu_present_map + additional_cpus
 
+cede_offline={"off","on"}  Use this option to disable/enable putting offlined
+		            processors to an extended H_CEDE state on
+			    supported pseries platforms.
+			    If nothing is specified,
+			    cede_offline is set to "on".
+
 (*) Option valid only for following architectures
 - ia64
 
