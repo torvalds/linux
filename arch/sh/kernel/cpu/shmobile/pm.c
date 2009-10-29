@@ -60,6 +60,12 @@ void sh_mobile_call_standby(unsigned long mode)
 				   mode, NULL);
 }
 
+void sh_mobile_register_self_refresh(unsigned long flags,
+				     void *pre_start, void *pre_end,
+				     void *post_start, void *post_end)
+{
+}
+
 static int sh_pm_enter(suspend_state_t state)
 {
 	local_irq_disable();

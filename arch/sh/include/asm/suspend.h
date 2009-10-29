@@ -30,6 +30,10 @@ extern struct atomic_notifier_head sh_mobile_post_sleep_notifier_list;
 #define SH_MOBILE_PRE(x)	(x)
 #define SH_MOBILE_POST(x)	(-(x))
 
+/* board code registration function for self-refresh assembly snippets */
+void sh_mobile_register_self_refresh(unsigned long flags,
+				     void *pre_start, void *pre_end,
+				     void *post_start, void *post_end);
 #endif
 
 /* flags passed to assembly suspend code */
