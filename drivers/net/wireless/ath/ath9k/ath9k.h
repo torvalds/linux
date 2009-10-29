@@ -620,6 +620,7 @@ struct ath_wiphy {
 		ATH_WIPHY_PAUSED,
 		ATH_WIPHY_SCAN,
 	} state;
+	bool idle;
 	int chan_idx;
 	int chan_is_ht;
 };
@@ -691,6 +692,7 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
 void ath9k_wiphy_work(struct work_struct *work);
 bool ath9k_all_wiphys_idle(struct ath_softc *sc);
+void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
 
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 #endif /* ATH9K_H */

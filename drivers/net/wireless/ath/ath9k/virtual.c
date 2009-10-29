@@ -668,15 +668,26 @@ void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int)
 bool ath9k_all_wiphys_idle(struct ath_softc *sc)
 {
 	unsigned int i;
-	if (sc->pri_wiphy->state != ATH_WIPHY_INACTIVE) {
+	if (!sc->pri_wiphy->idle)
 		return false;
-	}
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
 		if (!aphy)
 			continue;
-		if (aphy->state != ATH_WIPHY_INACTIVE)
+		if (!aphy->idle)
 			return false;
 	}
 	return true;
+}
+
+/* caller must hold wiphy_lock */
+void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle)
+{
+	struct ath_softc *sc = aphy->sc;
+
+	aphy->idle = idle;
+	ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+		  "Marking %s as %s\n",
+		  wiphy_name(aphy->hw->wiphy),
+		  idle ? "idle" : "not-idle");
 }

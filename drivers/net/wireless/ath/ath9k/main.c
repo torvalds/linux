@@ -2688,22 +2688,37 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ath_hw *ah = sc->sc_ah;
-	bool all_wiphys_idle = false, disable_radio = false;
+	bool disable_radio;
 
 	mutex_lock(&sc->mutex);
 
-	/* Leave this as the first check */
+	/*
+	 * Leave this as the first check because we need to turn on the
+	 * radio if it was disabled before prior to processing the rest
+	 * of the changes. Likewise we must only disable the radio towards
+	 * the end.
+	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		bool enable_radio;
+		bool all_wiphys_idle;
+		bool idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
 		spin_lock_bh(&sc->wiphy_lock);
 		all_wiphys_idle =  ath9k_all_wiphys_idle(sc);
+		ath9k_set_wiphy_idle(aphy, idle);
+
+		if (!idle && all_wiphys_idle)
+			enable_radio = true;
+
+		/*
+		 * After we unlock here its possible another wiphy
+		 * can be re-renabled so to account for that we will
+		 * only disable the radio toward the end of this routine
+		 * if by then all wiphys are still idle.
+		 */
 		spin_unlock_bh(&sc->wiphy_lock);
 
-		if (conf->flags & IEEE80211_CONF_IDLE){
-			if (all_wiphys_idle)
-				disable_radio = true;
-		}
-		else if (all_wiphys_idle) {
+		if (enable_radio) {
 			ath_radio_enable(sc);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
@@ -2778,6 +2793,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	disable_radio = ath9k_all_wiphys_idle(sc);
+	spin_unlock_bh(&sc->wiphy_lock);
 
 	if (disable_radio) {
 		ath_print(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
