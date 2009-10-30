@@ -26,8 +26,6 @@
 #include <sound/pcm_params.h>
 #include <sound/sh_fsi.h>
 #include <asm/atomic.h>
-#include <asm/dma.h>
-#include <asm/dma-sh.h>
 
 #define DO_FMT		0x0000
 #define DOFF_CTL	0x0004
@@ -97,7 +95,6 @@ struct fsi_priv {
 
 	int fifo_max;
 	int chan;
-	int dma_chan;
 
 	int byte_offset;
 	int period_len;
@@ -308,62 +305,6 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 	return residue;
 }
 
-static int fsi_get_residue(struct fsi_priv *fsi, int is_play)
-{
-	int residue;
-	int width;
-	struct snd_pcm_runtime *runtime;
-
-	runtime = fsi->substream->runtime;
-
-	/* get 1 channel data width */
-	width = frames_to_bytes(runtime, 1) / fsi->chan;
-
-	if (2 == width)
-		residue = fsi_get_fifo_residue(fsi, is_play);
-	else
-		residue = get_dma_residue(fsi->dma_chan);
-
-	return residue;
-}
-
-/************************************************************************
-
-
-		basic dma function
-
-
-************************************************************************/
-#define PORTA_DMA 0
-#define PORTB_DMA 1
-
-static int fsi_get_dma_chan(void)
-{
-	if (0 != request_dma(PORTA_DMA, "fsia"))
-		return -EIO;
-
-	if (0 != request_dma(PORTB_DMA, "fsib")) {
-		free_dma(PORTA_DMA);
-		return -EIO;
-	}
-
-	master->fsia.dma_chan = PORTA_DMA;
-	master->fsib.dma_chan = PORTB_DMA;
-
-	return 0;
-}
-
-static void fsi_free_dma_chan(void)
-{
-	dma_wait_for_completion(PORTA_DMA);
-	dma_wait_for_completion(PORTB_DMA);
-	free_dma(PORTA_DMA);
-	free_dma(PORTB_DMA);
-
-	master->fsia.dma_chan = -1;
-	master->fsib.dma_chan = -1;
-}
-
 /************************************************************************
 
 
@@ -435,44 +376,6 @@ static void fsi_soft_all_reset(void)
 	mdelay(10);
 }
 
-static void fsi_16data_push(struct fsi_priv *fsi,
-			   struct snd_pcm_runtime *runtime,
-			   int send)
-{
-	u16 *dma_start;
-	u32 snd;
-	int i;
-
-	/* get dma start position for FSI */
-	dma_start = (u16 *)runtime->dma_area;
-	dma_start += fsi->byte_offset / 2;
-
-	/*
-	 * soft dma
-	 * FSI can not use DMA when 16bpp
-	 */
-	for (i = 0; i < send; i++) {
-		snd = (u32)dma_start[i];
-		fsi_reg_write(fsi, DODT, snd << 8);
-	}
-}
-
-static void fsi_32data_push(struct fsi_priv *fsi,
-			   struct snd_pcm_runtime *runtime,
-			   int send)
-{
-	u32 *dma_start;
-
-	/* get dma start position for FSI */
-	dma_start = (u32 *)runtime->dma_area;
-	dma_start += fsi->byte_offset / 4;
-
-	dma_wait_for_completion(fsi->dma_chan);
-	dma_configure_channel(fsi->dma_chan, (SM_INC|0x400|TS_32|TM_BUR));
-	dma_write(fsi->dma_chan, (u32)dma_start,
-		  (u32)(fsi->base + DODT), send * 4);
-}
-
 /* playback interrupt */
 static int fsi_data_push(struct fsi_priv *fsi)
 {
@@ -481,6 +384,8 @@ static int fsi_data_push(struct fsi_priv *fsi)
 	int send;
 	int fifo_free;
 	int width;
+	u8 *start;
+	int i;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -515,12 +420,22 @@ static int fsi_data_push(struct fsi_priv *fsi)
 	if (fifo_free < send)
 		send = fifo_free;
 
-	if (2 == width)
-		fsi_16data_push(fsi, runtime, send);
-	else if (4 == width)
-		fsi_32data_push(fsi, runtime, send);
-	else
+	start = runtime->dma_area;
+	start += fsi->byte_offset;
+
+	switch (width) {
+	case 2:
+		for (i = 0; i < send; i++)
+			fsi_reg_write(fsi, DODT,
+				      ((u32)*((u16 *)start + i) << 8));
+		break;
+	case 4:
+		for (i = 0; i < send; i++)
+			fsi_reg_write(fsi, DODT, *((u32 *)start + i));
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	fsi->byte_offset += send * width;
 
@@ -664,8 +579,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	}
 
 	fsi_reg_write(fsi, reg, data);
-	dev_dbg(dai->dev, "use %s format (%d channel) use %d DMAC\n",
-		msg, fsi->chan, fsi->dma_chan);
 
 	/*
 	 * clear clk reset if master mode
@@ -780,10 +693,9 @@ static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsi_priv *fsi = fsi_get(substream);
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	long location;
 
-	location = (fsi->byte_offset - 1) - fsi_get_residue(fsi, is_play);
+	location = (fsi->byte_offset - 1);
 	if (location < 0)
 		location = 0;
 
@@ -912,22 +824,13 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.base	= master->base;
 	master->fsib.base	= master->base + 0x40;
 
-	master->fsia.dma_chan = -1;
-	master->fsib.dma_chan = -1;
-
-	ret = fsi_get_dma_chan();
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot get dma api\n");
-		goto exit_iounmap;
-	}
-
 	/* FSI is based on SPU mstp */
 	snprintf(clk_name, sizeof(clk_name), "spu%d", pdev->id);
 	master->clk = clk_get(NULL, clk_name);
 	if (IS_ERR(master->clk)) {
 		dev_err(&pdev->dev, "cannot get %s mstp\n", clk_name);
 		ret = -EIO;
-		goto exit_free_dma;
+		goto exit_iounmap;
 	}
 
 	fsi_soc_dai[0].dev		= &pdev->dev;
@@ -938,7 +841,7 @@ static int fsi_probe(struct platform_device *pdev)
 	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED, "fsi", master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
-		goto exit_free_dma;
+		goto exit_iounmap;
 	}
 
 	ret = snd_soc_register_platform(&fsi_soc_platform);
@@ -951,8 +854,6 @@ static int fsi_probe(struct platform_device *pdev)
 
 exit_free_irq:
 	free_irq(irq, master);
-exit_free_dma:
-	fsi_free_dma_chan();
 exit_iounmap:
 	iounmap(master->base);
 exit_kfree:
@@ -968,8 +869,6 @@ static int fsi_remove(struct platform_device *pdev)
 	snd_soc_unregister_platform(&fsi_soc_platform);
 
 	clk_put(master->clk);
-
-	fsi_free_dma_chan();
 
 	free_irq(master->irq, master);
 
