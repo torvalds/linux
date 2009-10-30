@@ -423,10 +423,34 @@ static struct resource sdhi0_cn3_resources[] = {
 
 static struct platform_device sdhi0_cn3_device = {
 	.name		= "sh_mobile_sdhi",
+	.id             = 0, /* "sdhi0" clock */
 	.num_resources	= ARRAY_SIZE(sdhi0_cn3_resources),
 	.resource	= sdhi0_cn3_resources,
 	.archdata = {
 		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
+static struct resource sdhi1_cn7_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start	= 0x04cf0000,
+		.end	= 0x04cf01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 24,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_cn7_device = {
+	.name		= "sh_mobile_sdhi",
+	.id             = 1, /* "sdhi1" clock */
+	.num_resources	= ARRAY_SIZE(sdhi1_cn7_resources),
+	.resource	= sdhi1_cn7_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI1,
 	},
 };
 
@@ -478,6 +502,7 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ceu_device,
 	&nand_flash_device,
 	&sdhi0_cn3_device,
+	&sdhi1_cn7_device,
 	&ap325rxa_camera[0],
 	&ap325rxa_camera[1],
 };
@@ -588,7 +613,7 @@ static int __init ap325rxa_devices_setup(void)
 
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 
-	/* SDHI0 */
+	/* SDHI0 - CN3 - SD CARD */
 	gpio_request(GPIO_FN_SDHI0CD_PTD, NULL);
 	gpio_request(GPIO_FN_SDHI0WP_PTD, NULL);
 	gpio_request(GPIO_FN_SDHI0D3_PTD, NULL);
@@ -597,6 +622,15 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_FN_SDHI0D0_PTD, NULL);
 	gpio_request(GPIO_FN_SDHI0CMD_PTD, NULL);
 	gpio_request(GPIO_FN_SDHI0CLK_PTD, NULL);
+
+	/* SDHI1 - CN7 - MICRO SD CARD */
+	gpio_request(GPIO_FN_SDHI1CD, NULL);
+	gpio_request(GPIO_FN_SDHI1D3, NULL);
+	gpio_request(GPIO_FN_SDHI1D2, NULL);
+	gpio_request(GPIO_FN_SDHI1D1, NULL);
+	gpio_request(GPIO_FN_SDHI1D0, NULL);
+	gpio_request(GPIO_FN_SDHI1CMD, NULL);
+	gpio_request(GPIO_FN_SDHI1CLK, NULL);
 
 	i2c_register_board_info(0, ap325rxa_i2c_devices,
 				ARRAY_SIZE(ap325rxa_i2c_devices));
