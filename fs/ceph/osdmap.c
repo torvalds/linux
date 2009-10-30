@@ -731,7 +731,7 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	u32 sc = le32_to_cpu(layout->fl_stripe_count);
 	u32 bl, stripeno, stripepos, objsetno;
 	u32 su_per_object;
-	u64 t;
+	u64 t, su_offset;
 
 	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
 	     osize, su);
@@ -755,10 +755,15 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
 	t = off;
-	*oxoff = do_div(t, su);
-	*oxoff += (stripeno % su_per_object) * su;
+	su_offset = do_div(t, su);
+	*oxoff = su_offset + (stripeno % su_per_object) * su;
 
-	*oxlen = min_t(u64, *plen, su - *oxoff);
+	/*
+	 * Calculate the length of the extent being written to the selected
+	 * object. This is the minimum of the full length requested (plen) or
+	 * the remainder of the current stripe being written to.
+	 */
+	*oxlen = min_t(u64, *plen, su - su_offset);
 	*plen = *oxlen;
 
 	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
