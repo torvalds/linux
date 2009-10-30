@@ -78,6 +78,7 @@ struct sd {
 	u8 cam_type;	/* 0 is CIF and 1 is VGA */
 	u8 sensor_type;	/* We use 0 and 1 here, too. */
 	u8 do_lcd_stop;
+	u8 adj_colors;
 
 	int brightness;
 	u16 exposure;
@@ -525,6 +526,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 		sd->sensor_type = 1;
 		sd->do_lcd_stop = 0;
+		sd->adj_colors = 0;
 		if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
 			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
@@ -532,6 +534,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			PDEBUG(D_ERR, "Defaults assumed, may not work");
 			PDEBUG(D_ERR, "Please report this");
 		}
+		/* Sakar Digital color needs to be adjusted. */
+		if ((gspca_dev->usb_buf[0] == 0x03) &&
+					(gspca_dev->usb_buf[1] == 0x50))
+			sd->adj_colors = 1;
 		if (gspca_dev->usb_buf[0] == 0x04) {
 			sd->do_lcd_stop = 1;
 			switch (gspca_dev->usb_buf[1]) {
@@ -759,9 +765,20 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, vga_sensor0_init_data,
 					 ARRAY_SIZE(vga_sensor0_init_data));
 	} else {	/* sd->sensor_type = 1 */
-		const struct sensor_w_data vga_sensor1_init_data[] = {
+		const struct sensor_w_data color_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
-				0x07, 0x00, 0x01}, 8},
+				/* adjusted blue, green, red gain correct
+				   too much blue from the Sakar Digital */
+				0x05, 0x01, 0x05}, 8}
+		};
+
+		const struct sensor_w_data color_no_adj[] = {
+			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
+				/* default blue, green, red gain settings */
+				0x07, 0x00, 0x01}, 8}
+		};
+
+		const struct sensor_w_data vga_sensor1_init_data[] = {
 			{0x11, 0x04, {0x01}, 1},
 			/*{0x0a, 0x00, {0x00, 0x01, 0x00, 0x00, 0x01, */
 			{0x0a, 0x00, {0x01, 0x06, 0x00, 0x00, 0x01,
@@ -771,6 +788,17 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 			{0x11, 0x04, {0x01}, 1},
 			{0, 0, {0}, 0}
 		};
+
+		if (sd->adj_colors)
+			err_code = sensor_write_regs(gspca_dev, color_adj,
+					 ARRAY_SIZE(color_adj));
+		else
+			err_code = sensor_write_regs(gspca_dev, color_no_adj,
+					 ARRAY_SIZE(color_no_adj));
+
+		if (err_code < 0)
+			return err_code;
+
 		err_code = sensor_write_regs(gspca_dev, vga_sensor1_init_data,
 					 ARRAY_SIZE(vga_sensor1_init_data));
 	}
