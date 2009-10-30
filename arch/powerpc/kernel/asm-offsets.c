@@ -190,6 +190,11 @@ int main(void)
 	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
 	DEFINE(PACA_DATA_OFFSET, offsetof(struct paca_struct, data_offset));
 	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+	DEFINE(PACA_KVM_IN_GUEST, offsetof(struct paca_struct, kvm_in_guest));
+	DEFINE(PACA_KVM_SLB, offsetof(struct paca_struct, kvm_slb));
+	DEFINE(PACA_KVM_SLB_MAX, offsetof(struct paca_struct, kvm_slb_max));
+#endif
 #endif /* CONFIG_PPC64 */
 
 	/* RTAS */
