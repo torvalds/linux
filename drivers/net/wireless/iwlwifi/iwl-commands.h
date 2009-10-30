@@ -3503,30 +3503,42 @@ struct iwl_led_cmd {
 } __attribute__ ((packed));
 
 /*
- * Coexistence WIFI/WIMAX  Command
- * COEX_PRIORITY_TABLE_CMD = 0x5a
- *
+ * station priority table entries
+ * also used as potential "events" value for both
+ * COEX_MEDIUM_NOTIFICATION and COEX_EVENT_CMD
  */
 enum {
+	/* un-association part */
 	COEX_UNASSOC_IDLE		= 0,
 	COEX_UNASSOC_MANUAL_SCAN	= 1,
 	COEX_UNASSOC_AUTO_SCAN		= 2,
+	/* calibration */
 	COEX_CALIBRATION		= 3,
 	COEX_PERIODIC_CALIBRATION	= 4,
+	/* connection */
 	COEX_CONNECTION_ESTAB		= 5,
+	/* association part */
 	COEX_ASSOCIATED_IDLE		= 6,
 	COEX_ASSOC_MANUAL_SCAN		= 7,
 	COEX_ASSOC_AUTO_SCAN		= 8,
 	COEX_ASSOC_ACTIVE_LEVEL		= 9,
+	/* RF ON/OFF */
 	COEX_RF_ON			= 10,
 	COEX_RF_OFF			= 11,
 	COEX_STAND_ALONE_DEBUG		= 12,
+	/* IPAN */
 	COEX_IPAN_ASSOC_LEVEL		= 13,
+	/* reserved */
 	COEX_RSRVD1			= 14,
 	COEX_RSRVD2			= 15,
 	COEX_NUM_OF_EVENTS		= 16
 };
 
+/*
+ * Coexistence WIFI/WIMAX  Command
+ * COEX_PRIORITY_TABLE_CMD = 0x5a
+ *
+ */
 struct iwl_wimax_coex_event_entry {
 	u8 request_prio;
 	u8 win_medium_prio;
@@ -3550,6 +3562,55 @@ struct iwl_wimax_coex_cmd {
 	u8 reserved[3];
 	struct iwl_wimax_coex_event_entry sta_prio[COEX_NUM_OF_EVENTS];
 } __attribute__ ((packed));
+
+/*
+ * Coexistence MEDIUM NOTIFICATION
+ * COEX_MEDIUM_NOTIFICATION = 0x5b
+ *
+ * notification from uCode to host to indicate medium changes
+ *
+ */
+/*
+ * status field
+ * bit 0 - 2: medium status
+ * bit 3: medium change indication
+ * bit 4 - 31: reserved
+ */
+/* status option values, (0 - 2 bits) */
+#define COEX_MEDIUM_BUSY	(0x0) /* radio belongs to WiMAX */
+#define COEX_MEDIUM_ACTIVE	(0x1) /* radio belongs to WiFi */
+#define COEX_MEDIUM_PRE_RELEASE	(0x2) /* received radio release */
+#define COEX_MEDIUM_MSK		(0x7)
+
+/* send notification status (1 bit) */
+#define COEX_MEDIUM_CHANGED	(0x8)
+#define COEX_MEDIUM_CHANGED_MSK	(0x8)
+#define COEX_MEDIUM_SHIFT	(3)
+
+struct iwl_coex_medium_notification {
+	__le32 status;
+	__le32 events;
+} __attribute__ ((packed));
+
+/*
+ * Coexistence EVENT  Command
+ * COEX_EVENT_CMD = 0x5c
+ *
+ * send from host to uCode for coex event request.
+ */
+/* flags options */
+#define COEX_EVENT_REQUEST_MSK	(0x1)
+
+struct iwl_coex_event_cmd {
+	u8 flags;
+	u8 event;
+	__le16 reserved;
+} __attribute__ ((packed));
+
+struct iwl_coex_event_resp {
+	__le32 status;
+} __attribute__ ((packed));
+
 
 /******************************************************************************
  * (13)
@@ -3587,6 +3648,8 @@ struct iwl_rx_packet {
 		struct iwl_notif_statistics stats;
 		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl_missed_beacon_notif missed_beacon;
+		struct iwl_coex_medium_notification coex_medium_notif;
+		struct iwl_coex_event_resp coex_event;
 		__le32 status;
 		u8 raw[0];
 	} u;
