@@ -86,6 +86,7 @@ SECTIONS {
 		_KERNEL_SDA_BASE_ = _ssro + (_ssro_size / 2) ;
 	}
 
+	. = ALIGN(PAGE_SIZE);
 	__init_begin = .;
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
