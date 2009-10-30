@@ -1581,6 +1581,8 @@ enum {
 	QL_ALLMULTI = 6,
 	QL_PORT_CFG = 7,
 	QL_CAM_RT_SET = 8,
+	QL_SELFTEST = 9,
+	QL_LB_LINK_UP = 10,
 };
 
 /* link_status bit definitions */
@@ -1717,6 +1719,7 @@ struct ql_adapter {
 	struct completion ide_completion;
 	struct nic_operations *nic_ops;
 	u16 device_id;
+	atomic_t lb_count;
 };
 
 /*
@@ -1808,6 +1811,9 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev);
 int ql_wait_fifo_empty(struct ql_adapter *qdev);
 void ql_gen_reg_dump(struct ql_adapter *qdev,
 			struct ql_reg_dump *mpi_coredump);
+netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
+void ql_check_lb_frame(struct ql_adapter *, struct sk_buff *);
+int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
 
 #if 1
 #define QL_ALL_DUMP

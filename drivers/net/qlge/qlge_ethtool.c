@@ -36,6 +36,11 @@
 
 #include "qlge.h"
 
+static const char ql_gstrings_test[][ETH_GSTRING_LEN] = {
+	"Loopback test  (offline)"
+};
+#define QLGE_TEST_LEN (sizeof(ql_gstrings_test) / ETH_GSTRING_LEN)
+
 static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 {
 	int i, status = 0;
@@ -251,6 +256,8 @@ static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 static int ql_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
+	case ETH_SS_TEST:
+		return QLGE_TEST_LEN;
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(ql_stats_str_arr);
 	default:
@@ -429,6 +436,110 @@ static int ql_phys_id(struct net_device *ndev, u32 data)
 	return 0;
 }
 
+static int ql_start_loopback(struct ql_adapter *qdev)
+{
+	if (netif_carrier_ok(qdev->ndev)) {
+		set_bit(QL_LB_LINK_UP, &qdev->flags);
+		netif_carrier_off(qdev->ndev);
+	} else
+		clear_bit(QL_LB_LINK_UP, &qdev->flags);
+	qdev->link_config |= CFG_LOOPBACK_PCS;
+	return ql_mb_set_port_cfg(qdev);
+}
+
+static void ql_stop_loopback(struct ql_adapter *qdev)
+{
+	qdev->link_config &= ~CFG_LOOPBACK_PCS;
+	ql_mb_set_port_cfg(qdev);
+	if (test_bit(QL_LB_LINK_UP, &qdev->flags)) {
+		netif_carrier_on(qdev->ndev);
+		clear_bit(QL_LB_LINK_UP, &qdev->flags);
+	}
+}
+
+static void ql_create_lb_frame(struct sk_buff *skb,
+					unsigned int frame_size)
+{
+	memset(skb->data, 0xFF, frame_size);
+	frame_size &= ~1;
+	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
+	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
+	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
+}
+
+void ql_check_lb_frame(struct ql_adapter *qdev,
+					struct sk_buff *skb)
+{
+	unsigned int frame_size = skb->len;
+
+	if ((*(skb->data + 3) == 0xFF) &&
+		(*(skb->data + frame_size / 2 + 10) == 0xBE) &&
+		(*(skb->data + frame_size / 2 + 12) == 0xAF)) {
+			atomic_dec(&qdev->lb_count);
+			return;
+	}
+}
+
+static int ql_run_loopback_test(struct ql_adapter *qdev)
+{
+	int i;
+	netdev_tx_t rc;
+	struct sk_buff *skb;
+	unsigned int size = SMALL_BUF_MAP_SIZE;
+
+	for (i = 0; i < 64; i++) {
+		skb = netdev_alloc_skb(qdev->ndev, size);
+		if (!skb)
+			return -ENOMEM;
+
+		skb->queue_mapping = 0;
+		skb_put(skb, size);
+		ql_create_lb_frame(skb, size);
+		rc = ql_lb_send(skb, qdev->ndev);
+		if (rc != NETDEV_TX_OK)
+			return -EPIPE;
+		atomic_inc(&qdev->lb_count);
+	}
+
+	ql_clean_lb_rx_ring(&qdev->rx_ring[0], 128);
+	return atomic_read(&qdev->lb_count) ? -EIO : 0;
+}
+
+static int ql_loopback_test(struct ql_adapter *qdev, u64 *data)
+{
+	*data = ql_start_loopback(qdev);
+	if (*data)
+		goto out;
+	*data = ql_run_loopback_test(qdev);
+out:
+	ql_stop_loopback(qdev);
+	return *data;
+}
+
+static void ql_self_test(struct net_device *ndev,
+				struct ethtool_test *eth_test, u64 *data)
+{
+	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	if (netif_running(ndev)) {
+		set_bit(QL_SELFTEST, &qdev->flags);
+		if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
+			/* Offline tests */
+			if (ql_loopback_test(qdev, &data[0]))
+				eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		} else {
+			/* Online tests */
+			data[0] = 0;
+		}
+		clear_bit(QL_SELFTEST, &qdev->flags);
+	} else {
+		QPRINTK(qdev, DRV, ERR,
+			"%s: is down, Loopback test will fail.\n", ndev->name);
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+	}
+}
+
 static int ql_get_regs_len(struct net_device *ndev)
 {
 	return sizeof(struct ql_reg_dump);
@@ -575,6 +686,7 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
 	.phys_id		 = ql_phys_id,
+	.self_test		 = ql_self_test,
 	.get_pauseparam		 = ql_get_pauseparam,
 	.set_pauseparam		 = ql_set_pauseparam,
 	.get_rx_csum = ql_get_rx_csum,

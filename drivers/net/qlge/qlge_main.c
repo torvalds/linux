@@ -1680,6 +1680,13 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		return;
 	}
 
+	/* loopback self test for ethtool */
+	if (test_bit(QL_SELFTEST, &qdev->flags)) {
+		ql_check_lb_frame(qdev, skb);
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
 	prefetch(skb->data);
 	skb->dev = ndev;
 	if (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) {
@@ -2247,6 +2254,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	atomic_dec(&tx_ring->tx_count);
 	return NETDEV_TX_OK;
 }
+
 
 static void ql_free_shadow_space(struct ql_adapter *qdev)
 {
@@ -4174,7 +4182,6 @@ err_out:
 	return err;
 }
 
-
 static const struct net_device_ops qlge_netdev_ops = {
 	.ndo_open		= qlge_open,
 	.ndo_stop		= qlge_close,
@@ -4243,8 +4250,19 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 	}
 	ql_link_off(qdev);
 	ql_display_dev_info(ndev);
+	atomic_set(&qdev->lb_count, 0);
 	cards_found++;
 	return 0;
+}
+
+netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev)
+{
+	return qlge_send(skb, ndev);
+}
+
+int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget)
+{
+	return ql_clean_inbound_rx_ring(rx_ring, budget);
 }
 
 static void __devexit qlge_remove(struct pci_dev *pdev)
