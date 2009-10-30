@@ -27,10 +27,10 @@ config PCI_LEGACY
 	default y
 	help
 	  Say Y here if you want to include support for the deprecated
-	  pci_find_slot() and pci_find_device() APIs.  Most drivers have
-	  been converted over to using the proper hotplug APIs, so this
-	  option serves to include/exclude only a few drivers that are
-	  still using this API.
+	  pci_find_device() API.  Most drivers have been converted over
+	  to using the proper hotplug APIs, so this option serves to
+	  include/exclude only a few drivers that are still using this
+	  API.
 
 config PCI_DEBUG
 	bool "PCI Debugging"
