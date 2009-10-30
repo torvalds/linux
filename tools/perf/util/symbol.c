@@ -1132,18 +1132,12 @@ static struct map *map__new2(u64 start, struct dso *dso)
 	struct map *self = malloc(sizeof(*self));
 
 	if (self != NULL) {
-		self->start = start;
 		/*
-		 * Will be filled after we load all the symbols
+		 * ->end will be filled after we load all the symbols
 		 */
-		self->end = 0;
-
-		self->pgoff = 0;
-		self->dso = dso;
-		self->map_ip = map__map_ip;
-		self->unmap_ip = map__unmap_ip;
-		RB_CLEAR_NODE(&self->rb_node);
+		map__init(self, start, 0, 0, dso);
 	}
+
 	return self;
 }
 

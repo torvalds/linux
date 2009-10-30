@@ -20,6 +20,18 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 	return n;
 }
 
+void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
+	       struct dso *dso)
+{
+	self->start    = start;
+	self->end      = end;
+	self->pgoff    = pgoff;
+	self->dso      = dso;
+	self->map_ip   = map__map_ip;
+	self->unmap_ip = map__unmap_ip;
+	RB_CLEAR_NODE(&self->rb_node);
+}
+
 struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 		     unsigned int sym_priv_size)
 {
@@ -28,6 +40,7 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 	if (self != NULL) {
 		const char *filename = event->filename;
 		char newfilename[PATH_MAX];
+		struct dso *dso;
 		int anon;
 
 		if (cwd) {
@@ -47,20 +60,15 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 			filename = newfilename;
 		}
 
-		self->start = event->start;
-		self->end   = event->start + event->len;
-		self->pgoff = event->pgoff;
-
-		self->dso = dsos__findnew(filename, sym_priv_size);
-		if (self->dso == NULL)
+		dso = dsos__findnew(filename, sym_priv_size);
+		if (dso == NULL)
 			goto out_delete;
+
+		map__init(self, event->start, event->start + event->len,
+			  event->pgoff, dso);
 
 		if (self->dso == vdso || anon)
 			self->map_ip = self->unmap_ip = identity__map_ip;
-		else {
-			self->map_ip = map__map_ip;
-			self->unmap_ip = map__unmap_ip;
-		}
 	}
 	return self;
 out_delete:
