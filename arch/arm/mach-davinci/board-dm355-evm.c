@@ -27,11 +27,11 @@
 #include <asm/mach/arch.h>
 
 #include <mach/dm355.h>
-#include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
 
 #define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
 #define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
@@ -338,7 +338,7 @@ static __init void dm355_evm_init(void)
 	gpio_request(2, "usb_id_toggle");
 	gpio_direction_output(2, USB_ID_VALUE);
 	/* irlml6401 switches over 1A in under 8 msec */
-	setup_usb(500, 8);
+	davinci_setup_usb(1000, 8);
 
 	davinci_setup_mmc(0, &dm355evm_mmc_config);
 	davinci_setup_mmc(1, &dm355evm_mmc_config);

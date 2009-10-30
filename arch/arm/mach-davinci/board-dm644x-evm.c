@@ -36,6 +36,7 @@
 #include <mach/mux.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -465,7 +466,7 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	/* irlml6401 switches over 1A, in under 8 msec;
 	 * now it can be managed by nDRV_VBUS ...
 	 */
-	setup_usb(500, 8);
+	davinci_setup_usb(1000, 8);
 
 	return 0;
 }

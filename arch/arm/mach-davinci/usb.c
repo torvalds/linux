@@ -83,10 +83,10 @@ static struct platform_device usb_dev = {
 	.num_resources  = ARRAY_SIZE(usb_resources),
 };
 
-void __init setup_usb(unsigned mA, unsigned potpgt_msec)
+void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 {
-	usb_data.power = mA / 2;
-	usb_data.potpgt = potpgt_msec / 2;
+	usb_data.power = mA > 510 ? 255 : mA / 2;
+	usb_data.potpgt = (potpgt_ms + 1) / 2;
 
 	if (cpu_is_davinci_dm646x()) {
 		/* Override the defaults as DM6467 uses different IRQs. */
@@ -100,7 +100,7 @@ void __init setup_usb(unsigned mA, unsigned potpgt_msec)
 
 #else
 
-void __init setup_usb(unsigned mA, unsigned potpgt_msec)
+void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 {
 }
 

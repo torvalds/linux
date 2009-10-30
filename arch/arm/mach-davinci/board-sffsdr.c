@@ -40,6 +40,7 @@
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
+#include <mach/usb.h>
 
 #define SFFSDR_PHY_MASK		(0x2)
 #define SFFSDR_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -152,7 +153,7 @@ static __init void davinci_sffsdr_init(void)
 	davinci_serial_init(&uart_config);
 	soc_info->emac_pdata->phy_mask = SFFSDR_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = SFFSDR_MDIO_FREQUENCY;
-	setup_usb(0, 0); /* We support only peripheral mode. */
+	davinci_setup_usb(0, 0); /* We support only peripheral mode. */
 
 	/* mux VLYNQ pins */
 	davinci_cfg_reg(DM644X_VLYNQEN);
