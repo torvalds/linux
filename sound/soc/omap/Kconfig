@@ -21,7 +21,18 @@ config SND_OMAP_SOC_AMS_DELTA
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_CX20442
 	help
-	  Say Y if you want to add support for SoC audio on Amstrad Delta.
+	  Say Y  if you want to add support  for SoC audio device  connected to
+	  a handset and a speakerphone found on Amstrad E3 (Delta) videophone.
+
+	  Note that in order to get those devices fully supported,  you have to
+	  build  the kernel  with  standard  serial port  driver  included  and
+	  configured for at least 4 ports.  Then, from userspace, you must load
+	  a line discipline #19 on the modem (ttyS3) serial line.  The simplest
+	  way to achieve this is to install util-linux-ng  and use the included
+	  ldattach  utility.  This  can be  started  automatically  from  udev,
+	  a simple rule like this one should do the trick (it does for me):
+	  	ACTION=="add", KERNEL=="controlC0", \
+				RUN+="/usr/sbin/ldattach 19 /dev/ttyS3"
 
 config SND_OMAP_SOC_OSK5912
 	tristate "SoC Audio support for omap osk5912"
