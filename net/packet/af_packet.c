@@ -984,10 +984,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		goto out_put;
 
 	size_max = po->tx_ring.frame_size
-		- sizeof(struct skb_shared_info)
-		- po->tp_hdrlen
-		- LL_ALLOCATED_SPACE(dev)
-		- sizeof(struct sockaddr_ll);
+		- (po->tp_hdrlen - sizeof(struct sockaddr_ll));
 
 	if (size_max > dev->mtu + reserve)
 		size_max = dev->mtu + reserve;

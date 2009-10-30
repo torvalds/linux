@@ -454,7 +454,8 @@ end:
  */
 static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
-	int status, count;
+	int status;
+	unsigned long count;
 
 
 	/* Begin polled mode for MPI */
@@ -475,9 +476,9 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	/* Wait for the command to complete. We loop
 	 * here because some AEN might arrive while
 	 * we're waiting for the mailbox command to
-	 * complete. If more than 5 arrive then we can
+	 * complete. If more than 5 seconds expire we can
 	 * assume something is wrong. */
-	count = 5;
+	count = jiffies + HZ * MAILBOX_TIMEOUT;
 	do {
 		/* Wait for the interrupt to come in. */
 		status = ql_wait_mbx_cmd_cmplt(qdev);
@@ -501,15 +502,15 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 					MB_CMD_STS_GOOD) ||
 			((mbcp->mbox_out[0] & 0x0000f000) ==
 					MB_CMD_STS_INTRMDT))
-			break;
-	} while (--count);
+			goto done;
+	} while (time_before(jiffies, count));
 
-	if (!count) {
-		QPRINTK(qdev, DRV, ERR,
-			"Timed out waiting for mailbox complete.\n");
-		status = -ETIMEDOUT;
-		goto end;
-	}
+	QPRINTK(qdev, DRV, ERR,
+		"Timed out waiting for mailbox complete.\n");
+	status = -ETIMEDOUT;
+	goto end;
+
+done:
 
 	/* Now we can clear the interrupt condition
 	 * and look at our status.

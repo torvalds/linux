@@ -97,6 +97,7 @@ enum {
 
 	/* Misc. stuff */
 	MAILBOX_COUNT = 16,
+	MAILBOX_TIMEOUT = 5,
 
 	PROC_ADDR_RDY = (1 << 31),
 	PROC_ADDR_R = (1 << 30),
