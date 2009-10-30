@@ -880,6 +880,7 @@ nextag:
 				 * Not in range - save last search
 				 * location and allocate a new inode
 				 */
+				xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
 				pag->pagl_leftrec = trec.ir_startino;
 				pag->pagl_rightrec = rec.ir_startino;
 				pag->pagl_pagino = pagino;
