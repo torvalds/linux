@@ -80,6 +80,7 @@ void __init da850_init(void);
 int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
+int da8xx_register_usb20(unsigned mA, unsigned potpgt);
 int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
 int da8xx_register_emac(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);

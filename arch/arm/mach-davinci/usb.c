@@ -13,6 +13,8 @@
 #include <mach/usb.h>
 
 #define DAVINCI_USB_OTG_BASE	0x01c64000
+
+#define DA8XX_USB0_BASE 	0x01e00000
 #define DA8XX_USB1_BASE 	0x01e25000
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
@@ -98,11 +100,44 @@ void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 	platform_device_register(&usb_dev);
 }
 
+#ifdef CONFIG_ARCH_DAVINCI_DA8XX
+static struct resource da8xx_usb20_resources[] = {
+	{
+		.start		= DA8XX_USB0_BASE,
+		.end		= DA8XX_USB0_BASE + SZ_64K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= IRQ_DA8XX_USB_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
+{
+	usb_data.clock  = "usb20";
+	usb_data.power	= mA > 510 ? 255 : mA / 2;
+	usb_data.potpgt = (potpgt + 1) / 2;
+
+	usb_dev.resource = da8xx_usb20_resources;
+	usb_dev.num_resources = ARRAY_SIZE(da8xx_usb20_resources);
+
+	return platform_device_register(&usb_dev);
+}
+#endif	/* CONFIG_DAVINCI_DA8XX */
+
 #else
 
 void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 {
 }
+
+#ifdef CONFIG_ARCH_DAVINCI_DA8XX
+int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
+{
+	return 0;
+}
+#endif
 
 #endif  /* CONFIG_USB_MUSB_HDRC */
 
