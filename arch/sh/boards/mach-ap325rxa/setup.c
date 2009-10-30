@@ -27,6 +27,7 @@
 #include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>
+#include <asm/suspend.h>
 #include <cpu/sh7723.h>
 
 static struct smsc911x_platform_config smsc911x_config = {
@@ -481,8 +482,20 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ap325rxa_camera[1],
 };
 
+extern char ap325rxa_sdram_enter_start;
+extern char ap325rxa_sdram_enter_end;
+extern char ap325rxa_sdram_leave_start;
+extern char ap325rxa_sdram_leave_end;
+
 static int __init ap325rxa_devices_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ap325rxa_sdram_enter_start,
+					&ap325rxa_sdram_enter_end,
+					&ap325rxa_sdram_leave_start,
+					&ap325rxa_sdram_leave_end);
+
 	/* LD3 and LD4 LEDs */
 	gpio_request(GPIO_PTX5, NULL); /* RUN */
 	gpio_direction_output(GPIO_PTX5, 1);
