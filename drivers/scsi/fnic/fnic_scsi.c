@@ -1225,22 +1225,6 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 
 }
 
-static void fnic_block_error_handler(struct scsi_cmnd *sc)
-{
-	struct Scsi_Host *shost = sc->device->host;
-	struct fc_rport *rport = starget_to_rport(scsi_target(sc->device));
-	unsigned long flags;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		msleep(1000);
-		spin_lock_irqsave(shost->host_lock, flags);
-	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
-
-}
-
 /*
  * This function is exported to SCSI for sending abort cmnds.
  * A SCSI IO is represented by a io_req in the driver.
@@ -1260,7 +1244,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	DECLARE_COMPLETION_ONSTACK(tm_done);
 
 	/* Wait for rport to unblock */
-	fnic_block_error_handler(sc);
+	fc_block_scsi_eh(sc);
 
 	/* Get local-port, check ready and link up */
 	lp = shost_priv(sc->device->host);
@@ -1542,7 +1526,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	DECLARE_COMPLETION_ONSTACK(tm_done);
 
 	/* Wait for rport to unblock */
-	fnic_block_error_handler(sc);
+	fc_block_scsi_eh(sc);
 
 	/* Get local-port, check ready and link up */
 	lp = shost_priv(sc->device->host);

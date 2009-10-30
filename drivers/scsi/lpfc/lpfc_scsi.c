@@ -2917,28 +2917,6 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 }
 
 /**
- * lpfc_block_error_handler - Routine to block error  handler
- * @cmnd: Pointer to scsi_cmnd data structure.
- *
- *  This routine blocks execution till fc_rport state is not FC_PORSTAT_BLCOEKD.
- **/
-static void
-lpfc_block_error_handler(struct scsi_cmnd *cmnd)
-{
-	struct Scsi_Host *shost = cmnd->device->host;
-	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
-
-	spin_lock_irq(shost->host_lock);
-	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
-		spin_unlock_irq(shost->host_lock);
-		msleep(1000);
-		spin_lock_irq(shost->host_lock);
-	}
-	spin_unlock_irq(shost->host_lock);
-	return;
-}
-
-/**
  * lpfc_abort_handler - scsi_host_template eh_abort_handler entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
@@ -2961,7 +2939,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
-	lpfc_block_error_handler(cmnd);
+	fc_block_scsi_eh(cmnd);
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
 	BUG_ON(!lpfc_cmd);
 
@@ -3259,7 +3237,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_event_header scsi_event;
 	int status;
 
-	lpfc_block_error_handler(cmnd);
+	fc_block_scsi_eh(cmnd);
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3318,7 +3296,7 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_scsi_event_header scsi_event;
 	int status;
 
-	lpfc_block_error_handler(cmnd);
+	fc_block_scsi_eh(cmnd);
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3384,7 +3362,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
-	lpfc_block_error_handler(cmnd);
+	fc_block_scsi_eh(cmnd);
 
 	/*
 	 * Since the driver manages a single bus device, reset all
