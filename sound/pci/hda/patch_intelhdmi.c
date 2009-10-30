@@ -213,6 +213,10 @@ static struct cea_channel_speaker_allocation channel_allocations[] = {
 };
 
 
+/*
+ * HDA/HDMI auto parsing
+ */
+
 static int hda_node_index(hda_nid_t *nids, hda_nid_t nid)
 {
 	int i;
@@ -223,6 +227,113 @@ static int hda_node_index(hda_nid_t *nids, hda_nid_t nid)
 
 	snd_printk(KERN_WARNING "HDMI: nid %d not registered\n", nid);
 	return -EINVAL;
+}
+
+static int intel_hdmi_read_pin_conn(struct hda_codec *codec, hda_nid_t pin_nid)
+{
+	struct intel_hdmi_spec *spec = codec->spec;
+	hda_nid_t conn_list[HDA_MAX_CONNECTIONS];
+	int conn_len, curr;
+	int index;
+
+	if (!(get_wcaps(codec, pin_nid) & AC_WCAP_CONN_LIST)) {
+		snd_printk(KERN_WARNING
+			   "HDMI: pin %d wcaps %#x "
+			   "does not support connection list\n",
+			   pin_nid, get_wcaps(codec, pin_nid));
+		return -EINVAL;
+	}
+
+	conn_len = snd_hda_get_connections(codec, pin_nid, conn_list,
+					   HDA_MAX_CONNECTIONS);
+	if (conn_len > 1)
+		curr = snd_hda_codec_read(codec, pin_nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+	else
+		curr = 0;
+
+	index = hda_node_index(spec->pin, pin_nid);
+	if (index < 0)
+		return -EINVAL;
+
+	spec->pin_cvt[index] = conn_list[curr];
+
+	return 0;
+}
+
+static int intel_hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
+{
+	struct intel_hdmi_spec *spec = codec->spec;
+
+	if (spec->num_pins >= INTEL_HDMI_PINS) {
+		snd_printk(KERN_WARNING
+			   "HDMI: no space for pin %d \n", pin_nid);
+		return -EINVAL;
+	}
+
+	spec->pin[spec->num_pins] = pin_nid;
+	spec->num_pins++;
+
+	/*
+	 * It is assumed that converter nodes come first in the node list and
+	 * hence have been registered and usable now.
+	 */
+	return intel_hdmi_read_pin_conn(codec, pin_nid);
+}
+
+static int intel_hdmi_add_cvt(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct intel_hdmi_spec *spec = codec->spec;
+
+	if (spec->num_cvts >= INTEL_HDMI_CVTS) {
+		snd_printk(KERN_WARNING
+			   "HDMI: no space for converter %d \n", nid);
+		return -EINVAL;
+	}
+
+	spec->cvt[spec->num_cvts] = nid;
+	spec->num_cvts++;
+
+	return 0;
+}
+
+static int intel_hdmi_parse_codec(struct hda_codec *codec)
+{
+	hda_nid_t nid;
+	int i, nodes;
+
+	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
+	if (!nid || nodes < 0) {
+		snd_printk(KERN_WARNING "HDMI: failed to get afg sub nodes\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nodes; i++, nid++) {
+		unsigned int caps;
+		unsigned int type;
+
+		caps = snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+		type = get_wcaps_type(caps);
+
+		if (!(caps & AC_WCAP_DIGITAL))
+			continue;
+
+		switch (type) {
+		case AC_WID_AUD_OUT:
+			if (intel_hdmi_add_cvt(codec, nid) < 0)
+				return -EINVAL;
+			break;
+		case AC_WID_PIN:
+			caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+			if (!(caps & AC_PINCAP_HDMI))
+				continue;
+			if (intel_hdmi_add_pin(codec, nid) < 0)
+				return -EINVAL;
+			break;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -756,8 +867,15 @@ static int do_patch_intel_hdmi(struct hda_codec *codec, int spec_id)
 	if (spec == NULL)
 		return -ENOMEM;
 
-	*spec = static_specs[spec_id];
 	codec->spec = spec;
+	if (intel_hdmi_parse_codec(codec) < 0) {
+		codec->spec = NULL;
+		kfree(spec);
+		return -EINVAL;
+	}
+	if (memcmp(spec, static_specs + spec_id, sizeof(*spec)))
+		snd_printk(KERN_WARNING
+			   "HDMI: auto parse disagree with known config\n");
 	codec->patch_ops = intel_hdmi_patch_ops;
 
 	for (i = 0; i < spec->num_pins; i++)
