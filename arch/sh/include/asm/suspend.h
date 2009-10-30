@@ -61,6 +61,9 @@ struct sh_sleep_data {
 	struct sh_sleep_regs data;
 };
 
+/* a bitmap of supported sleep modes (SUSP_SH..) */
+extern unsigned long sh_mobile_sleep_supported;
+
 #endif
 
 /* flags passed to assembly suspend code */

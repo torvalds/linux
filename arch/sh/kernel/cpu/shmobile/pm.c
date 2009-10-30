@@ -67,6 +67,8 @@ extern char sh_mobile_sleep_enter_end;
 extern char sh_mobile_sleep_resume_start;
 extern char sh_mobile_sleep_resume_end;
 
+unsigned long sh_mobile_sleep_supported = SUSP_SH_SLEEP;
+
 void sh_mobile_register_self_refresh(unsigned long flags,
 				     void *pre_start, void *pre_end,
 				     void *post_start, void *post_end)
@@ -103,10 +105,15 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 	vp = onchip_mem + 0x600; /* located at interrupt vector */
 	n = &sh_mobile_sleep_resume_end - &sh_mobile_sleep_resume_start;
 	memcpy(vp, &sh_mobile_sleep_resume_start, n);
+
+	sh_mobile_sleep_supported |= flags;
 }
 
 static int sh_pm_enter(suspend_state_t state)
 {
+	if (!(sh_mobile_sleep_supported & SUSP_MODE_STANDBY_SF))
+		return -ENXIO;
+
 	local_irq_disable();
 	set_bl_bit();
 	sh_mobile_call_standby(SUSP_MODE_STANDBY_SF);
