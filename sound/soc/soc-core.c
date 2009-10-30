@@ -37,7 +37,6 @@
 #include <sound/initval.h>
 
 static DEFINE_MUTEX(pcm_mutex);
-static DEFINE_MUTEX(io_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 
 #ifdef CONFIG_DEBUG_FS
@@ -1346,14 +1345,12 @@ int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
 	int change;
 	unsigned int old, new;
 
-	mutex_lock(&io_mutex);
 	old = snd_soc_read(codec, reg);
 	new = (old & ~mask) | value;
 	change = old != new;
 	if (change)
 		snd_soc_write(codec, reg, new);
 
-	mutex_unlock(&io_mutex);
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_update_bits);
@@ -1376,11 +1373,9 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
 	int change;
 	unsigned int old, new;
 
-	mutex_lock(&io_mutex);
 	old = snd_soc_read(codec, reg);
 	new = (old & ~mask) | value;
 	change = old != new;
-	mutex_unlock(&io_mutex);
 
 	return change;
 }
