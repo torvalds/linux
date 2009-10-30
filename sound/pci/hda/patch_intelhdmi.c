@@ -543,16 +543,9 @@ static void intel_hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
-static int intel_hdmi_playback_pcm_open(struct hda_pcm_stream *hinfo,
-					struct hda_codec *codec,
-					struct snd_pcm_substream *substream)
-{
-	return 0;
-}
-
-static int intel_hdmi_playback_pcm_close(struct hda_pcm_stream *hinfo,
-					 struct hda_codec *codec,
-					 struct snd_pcm_substream *substream)
+static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
 
@@ -582,9 +575,8 @@ static struct hda_pcm_stream intel_hdmi_pcm_playback = {
 	.channels_min = 2,
 	.channels_max = 8,
 	.ops = {
-		.open    = intel_hdmi_playback_pcm_open,
-		.close   = intel_hdmi_playback_pcm_close,
-		.prepare = intel_hdmi_playback_pcm_prepare
+		.prepare = intel_hdmi_playback_pcm_prepare,
+		.cleanup = intel_hdmi_playback_pcm_cleanup,
 	},
 };
 
