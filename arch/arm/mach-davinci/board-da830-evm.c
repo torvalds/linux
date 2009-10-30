@@ -171,7 +171,36 @@ static __init void da830_evm_usb_init(void)
 	cfgchip2 &= ~CFGCHIP2_USB1PHYCLKMUX;
 	cfgchip2 |=  CFGCHIP2_USB2PHYCLKMUX;
 
+	/*
+	 * We have to override VBUS/ID signals when MUSB is configured into the
+	 * host-only mode -- ID pin will float if no cable is connected, so the
+	 * controller won't be able to drive VBUS thinking that it's a B-device.
+	 * Otherwise, we want to use the OTG mode and enable VBUS comparators.
+	 */
+	cfgchip2 &= ~CFGCHIP2_OTGMODE;
+#ifdef	CONFIG_USB_MUSB_HOST
+	cfgchip2 |=  CFGCHIP2_FORCE_HOST;
+#else
+	cfgchip2 |=  CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN;
+#endif
+
 	__raw_writel(cfgchip2, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG));
+
+	/* USB_REFCLKIN is not used. */
+	ret = davinci_cfg_reg(DA830_USB0_DRVVBUS);
+	if (ret)
+		pr_warning("%s: USB 2.0 PinMux setup failed: %d\n",
+			   __func__, ret);
+	else {
+		/*
+		 * TPS2065 switch @ 5V supplies 1 A (sustains 1.5 A),
+		 * with the power on to power good time of 3 ms.
+		 */
+		ret = da8xx_register_usb20(1000, 3);
+		if (ret)
+			pr_warning("%s: USB 2.0 registration failed: %d\n",
+				   __func__, ret);
+	}
 
 	ret = da8xx_pinmux_setup(da830_evm_usb11_pins);
 	if (ret) {
