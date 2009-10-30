@@ -539,7 +539,6 @@ static int __init kfr2r09_devices_setup(void)
 
 	/* SDHI0 connected to yc304 */
 	gpio_request(GPIO_FN_SDHI0CD, NULL);
-	gpio_request(GPIO_FN_SDHI0WP, NULL);
 	gpio_request(GPIO_FN_SDHI0D3, NULL);
 	gpio_request(GPIO_FN_SDHI0D2, NULL);
 	gpio_request(GPIO_FN_SDHI0D1, NULL);
