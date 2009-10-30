@@ -560,13 +560,14 @@ static void hdmi_write_eld_info(struct snd_info_entry *entry,
 }
 
 
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld)
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
+			 int index)
 {
 	char name[32];
 	struct snd_info_entry *entry;
 	int err;
 
-	snprintf(name, sizeof(name), "eld#%d", codec->addr);
+	snprintf(name, sizeof(name), "eld#%d.%d", codec->addr, index);
 	err = snd_card_proc_new(codec->bus->card, name, &entry);
 	if (err < 0)
 		return err;
