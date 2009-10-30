@@ -229,6 +229,7 @@ struct iwl_mod_params {
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
  * @support_sm_ps: support spatial multiplexing power save
+ * @support_wimax_coexist: support wimax/wifi co-exist
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -285,6 +286,7 @@ struct iwl_cfg {
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
 	bool support_sm_ps;
+	const bool support_wimax_coexist;
 };
 
 /***************************
@@ -340,6 +342,7 @@ int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
 void iwlcore_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 				__le32 *tx_flags);
+int iwl_send_wimax_coex(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);

@@ -3507,6 +3507,98 @@ struct iwl_led_cmd {
  * also used as potential "events" value for both
  * COEX_MEDIUM_NOTIFICATION and COEX_EVENT_CMD
  */
+
+/*
+ * COEX events entry flag masks
+ * RP - Requested Priority
+ * WP - Win Medium Priority: priority assigned when the contention has been won
+ */
+#define COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG        (0x1)
+#define COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG        (0x2)
+#define COEX_EVT_FLAG_DELAY_MEDIUM_FREE_NTFY_FLG  (0x4)
+
+#define COEX_CU_UNASSOC_IDLE_RP               4
+#define COEX_CU_UNASSOC_MANUAL_SCAN_RP        4
+#define COEX_CU_UNASSOC_AUTO_SCAN_RP          4
+#define COEX_CU_CALIBRATION_RP                4
+#define COEX_CU_PERIODIC_CALIBRATION_RP       4
+#define COEX_CU_CONNECTION_ESTAB_RP           4
+#define COEX_CU_ASSOCIATED_IDLE_RP            4
+#define COEX_CU_ASSOC_MANUAL_SCAN_RP          4
+#define COEX_CU_ASSOC_AUTO_SCAN_RP            4
+#define COEX_CU_ASSOC_ACTIVE_LEVEL_RP         4
+#define COEX_CU_RF_ON_RP                      6
+#define COEX_CU_RF_OFF_RP                     4
+#define COEX_CU_STAND_ALONE_DEBUG_RP          6
+#define COEX_CU_IPAN_ASSOC_LEVEL_RP           4
+#define COEX_CU_RSRVD1_RP                     4
+#define COEX_CU_RSRVD2_RP                     4
+
+#define COEX_CU_UNASSOC_IDLE_WP               3
+#define COEX_CU_UNASSOC_MANUAL_SCAN_WP        3
+#define COEX_CU_UNASSOC_AUTO_SCAN_WP          3
+#define COEX_CU_CALIBRATION_WP                3
+#define COEX_CU_PERIODIC_CALIBRATION_WP       3
+#define COEX_CU_CONNECTION_ESTAB_WP           3
+#define COEX_CU_ASSOCIATED_IDLE_WP            3
+#define COEX_CU_ASSOC_MANUAL_SCAN_WP          3
+#define COEX_CU_ASSOC_AUTO_SCAN_WP            3
+#define COEX_CU_ASSOC_ACTIVE_LEVEL_WP         3
+#define COEX_CU_RF_ON_WP                      3
+#define COEX_CU_RF_OFF_WP                     3
+#define COEX_CU_STAND_ALONE_DEBUG_WP          6
+#define COEX_CU_IPAN_ASSOC_LEVEL_WP           3
+#define COEX_CU_RSRVD1_WP                     3
+#define COEX_CU_RSRVD2_WP                     3
+
+#define COEX_UNASSOC_IDLE_FLAGS                     0
+#define COEX_UNASSOC_MANUAL_SCAN_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_UNASSOC_AUTO_SCAN_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_CALIBRATION_FLAGS			\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_PERIODIC_CALIBRATION_FLAGS             0
+/*
+ * COEX_CONNECTION_ESTAB:
+ * we need DELAY_MEDIUM_FREE_NTFY to let WiMAX disconnect from network.
+ */
+#define COEX_CONNECTION_ESTAB_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG |	\
+	COEX_EVT_FLAG_DELAY_MEDIUM_FREE_NTFY_FLG)
+#define COEX_ASSOCIATED_IDLE_FLAGS                  0
+#define COEX_ASSOC_MANUAL_SCAN_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_ASSOC_AUTO_SCAN_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	 COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_ASSOC_ACTIVE_LEVEL_FLAGS               0
+#define COEX_RF_ON_FLAGS                            0
+#define COEX_RF_OFF_FLAGS                           0
+#define COEX_STAND_ALONE_DEBUG_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	 COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
+#define COEX_IPAN_ASSOC_LEVEL_FLAGS		\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	 COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG |	\
+	 COEX_EVT_FLAG_DELAY_MEDIUM_FREE_NTFY_FLG)
+#define COEX_RSRVD1_FLAGS                           0
+#define COEX_RSRVD2_FLAGS                           0
+/*
+ * COEX_CU_RF_ON is the event wrapping all radio ownership.
+ * We need DELAY_MEDIUM_FREE_NTFY to let WiMAX disconnect from network.
+ */
+#define COEX_CU_RF_ON_FLAGS			\
+	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
+	 COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG |	\
+	 COEX_EVT_FLAG_DELAY_MEDIUM_FREE_NTFY_FLG)
+
+
 enum {
 	/* un-association part */
 	COEX_UNASSOC_IDLE		= 0,
