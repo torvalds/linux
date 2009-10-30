@@ -245,11 +245,8 @@ void __rds_iw_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 	INIT_LIST_HEAD(list);
 	spin_unlock_irq(list_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
+	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node)
 		rds_conn_destroy(ic->conn);
-	}
 }
 
 static void rds_iw_set_scatterlist(struct rds_iw_scatterlist *sg,

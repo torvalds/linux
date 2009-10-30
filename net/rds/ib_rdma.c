@@ -187,11 +187,8 @@ void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 	INIT_LIST_HEAD(list);
 	spin_unlock_irq(list_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
+	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node)
 		rds_conn_destroy(ic->conn);
-	}
 }
 
 struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev)
