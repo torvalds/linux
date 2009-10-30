@@ -841,24 +841,7 @@ static struct hda_codec_ops intel_hdmi_patch_ops = {
 	.unsol_event		= intel_hdmi_unsol_event,
 };
 
-static struct intel_hdmi_spec static_specs[] = {
-	{
-		.num_cvts = 1,
-		.num_pins = 1,
-		.cvt	  = { 0x2 },
-		.pin	  = { 0x3 },
-		.pin_cvt  = { 0x2 },
-	},
-	{
-		.num_cvts = 2,
-		.num_pins = 3,
-		.cvt	  = { 0x2, 0x3 },
-		.pin	  = { 0x4, 0x5, 0x6 },
-		.pin_cvt  = { 0x2, 0x2, 0x2 },
-	},
-};
-
-static int do_patch_intel_hdmi(struct hda_codec *codec, int spec_id)
+static int patch_intel_hdmi(struct hda_codec *codec)
 {
 	struct intel_hdmi_spec *spec;
 	int i;
@@ -873,9 +856,6 @@ static int do_patch_intel_hdmi(struct hda_codec *codec, int spec_id)
 		kfree(spec);
 		return -EINVAL;
 	}
-	if (memcmp(spec, static_specs + spec_id, sizeof(*spec)))
-		snd_printk(KERN_WARNING
-			   "HDMI: auto parse disagree with known config\n");
 	codec->patch_ops = intel_hdmi_patch_ops;
 
 	for (i = 0; i < spec->num_pins; i++)
@@ -886,23 +866,13 @@ static int do_patch_intel_hdmi(struct hda_codec *codec, int spec_id)
 	return 0;
 }
 
-static int patch_intel_hdmi(struct hda_codec *codec)
-{
-	return do_patch_intel_hdmi(codec, 0);
-}
-
-static int patch_intel_hdmi_ibexpeak(struct hda_codec *codec)
-{
-	return do_patch_intel_hdmi(codec, 1);
-}
-
 static struct hda_codec_preset snd_hda_preset_intelhdmi[] = {
 	{ .id = 0x808629fb, .name = "G45 DEVCL",  .patch = patch_intel_hdmi },
 	{ .id = 0x80862801, .name = "G45 DEVBLC", .patch = patch_intel_hdmi },
 	{ .id = 0x80862802, .name = "G45 DEVCTG", .patch = patch_intel_hdmi },
 	{ .id = 0x80862803, .name = "G45 DEVELK", .patch = patch_intel_hdmi },
-	{ .id = 0x80862804, .name = "G45 DEVIBX", .patch = patch_intel_hdmi_ibexpeak },
-	{ .id = 0x80860054, .name = "Q57 DEVIBX", .patch = patch_intel_hdmi_ibexpeak },
+	{ .id = 0x80862804, .name = "G45 DEVIBX", .patch = patch_intel_hdmi },
+	{ .id = 0x80860054, .name = "Q57 DEVIBX", .patch = patch_intel_hdmi },
 	{ .id = 0x10951392, .name = "SiI1392 HDMI",     .patch = patch_intel_hdmi },
 	{} /* terminator */
 };
