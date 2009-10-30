@@ -153,7 +153,7 @@ LIST_HEAD(smd_ch_list_dsp);
 static unsigned char smd_ch_allocated[64];
 static struct work_struct probe_work;
 
-static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
+static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
 
 static void smd_channel_probe_worker(struct work_struct *work)
 {
@@ -186,8 +186,8 @@ static void smd_channel_probe_worker(struct work_struct *work)
 		type = shared[n].ctype & SMD_TYPE_MASK;
 		if ((type == SMD_TYPE_APPS_MODEM) ||
 		    (type == SMD_TYPE_APPS_DSP))
-			smd_alloc_channel(shared[n].name, shared[n].cid, ctype);
-		smd_ch_allocated[n] = 1;
+			if (!smd_alloc_channel(shared[n].name, shared[n].cid, ctype))
+				smd_ch_allocated[n] = 1;
 	}
 }
 
@@ -641,20 +641,20 @@ static int smd_alloc_v1(struct smd_channel *ch)
 }
 
 
-static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
+static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
 	struct smd_channel *ch;
 
 	ch = kzalloc(sizeof(struct smd_channel), GFP_KERNEL);
 	if (ch == 0) {
 		pr_err("smd_alloc_channel() out of memory\n");
-		return;
+		return -1;
 	}
 	ch->n = cid;
 
 	if (smd_alloc_v2(ch) && smd_alloc_v1(ch)) {
 		kfree(ch);
-		return;
+		return -1;
 	}
 
 	ch->fifo_mask = ch->fifo_size - 1;
@@ -696,6 +696,7 @@ static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	mutex_unlock(&smd_creation_mutex);
 
 	platform_device_register(&ch->pdev);
+	return 0;
 }
 
 static void do_nothing_notify(void *priv, unsigned flags)
