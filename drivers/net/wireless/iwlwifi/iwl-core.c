@@ -414,8 +414,12 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	if (priv->cfg->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
-			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
+	if (priv->cfg->support_sm_ps)
+		ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
+				     (WLAN_HT_CAP_SM_PS_DYNAMIC << 2));
+	else
+		ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
+				     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.ht40_channel & BIT(band)) {
@@ -963,17 +967,35 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 }
 
 /*
- * When we are in power saving, there's no difference between
- * using multiple chains or just a single chain, but due to the
- * lack of SM PS we lose a lot of throughput if we use just a
- * single chain.
- *
- * Therefore, use the active count here (which will use multiple
- * chains unless connected to a legacy AP).
+ * When we are in power saving mode, unless device support spatial
+ * multiplexing power save, use the active count for rx chain count.
  */
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 {
-	return active_cnt;
+	int idle_cnt = active_cnt;
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
+
+	if (priv->cfg->support_sm_ps) {
+		/* # Rx chains when idling and maybe trying to save power */
+		switch (priv->current_ht_config.sm_ps) {
+		case WLAN_HT_CAP_SM_PS_STATIC:
+		case WLAN_HT_CAP_SM_PS_DYNAMIC:
+			idle_cnt = (is_cam) ? IWL_NUM_IDLE_CHAINS_DUAL :
+				IWL_NUM_IDLE_CHAINS_SINGLE;
+			break;
+		case WLAN_HT_CAP_SM_PS_DISABLED:
+			idle_cnt = (is_cam) ? active_cnt :
+				IWL_NUM_IDLE_CHAINS_SINGLE;
+			break;
+		case WLAN_HT_CAP_SM_PS_INVALID:
+		default:
+			IWL_ERR(priv, "invalid sm_ps mode %d\n",
+				priv->current_ht_config.sm_ps);
+			WARN_ON(1);
+			break;
+		}
+	}
+	return idle_cnt;
 }
 
 /* up to 4 chains */
@@ -2256,6 +2278,12 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 				      IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
 					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 			maxstreams += 1;
+
+			ht_conf->sm_ps =
+				(u8)((ht_cap->cap & IEEE80211_HT_CAP_SM_PS)
+				>> 2);
+			IWL_DEBUG_MAC80211(priv, "sm_ps: 0x%x\n",
+				ht_conf->sm_ps);
 
 			if ((ht_cap->mcs.rx_mask[1] == 0) &&
 			    (ht_cap->mcs.rx_mask[2] == 0))

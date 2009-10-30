@@ -517,6 +517,7 @@ struct iwl_ht_config {
 	bool is_ht;
 	bool is_40mhz;
 	bool single_chain_sufficient;
+	u8 sm_ps;
 	/* BSS related data */
 	u8 extension_chan_offset;
 	u8 ht_protection;

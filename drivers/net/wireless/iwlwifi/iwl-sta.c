@@ -182,6 +182,11 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 		goto done;
 
 	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
+	IWL_DEBUG_ASSOC(priv, "spatial multiplexing power save mode: %s\n",
+			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ?
+			"static" :
+			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ?
+			"dynamic" : "disabled");
 
 	sta_flags = priv->stations[index].sta.station_flags;
 
