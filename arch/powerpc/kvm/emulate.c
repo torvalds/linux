@@ -66,12 +66,14 @@
 
 void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
+	unsigned long nr_jiffies;
+
 	if (vcpu->arch.tcr & TCR_DIE) {
 		/* The decrementer ticks at the same rate as the timebase, so
 		 * that's how we convert the guest DEC value to the number of
 		 * host ticks. */
-		unsigned long nr_jiffies;
 
+		vcpu->arch.dec_jiffies = mftb();
 		nr_jiffies = vcpu->arch.dec / tb_ticks_per_jiffy;
 		mod_timer(&vcpu->arch.dec_timer,
 		          get_jiffies_64() + nr_jiffies);
@@ -211,6 +213,15 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			/* Note: SPRG4-7 are user-readable, so we don't get
 			 * a trap. */
 
+			case SPRN_DEC:
+			{
+				u64 jd = mftb() - vcpu->arch.dec_jiffies;
+				vcpu->arch.gpr[rt] = vcpu->arch.dec - jd;
+#ifdef DEBUG_EMUL
+				printk(KERN_INFO "mfDEC: %x - %llx = %lx\n", vcpu->arch.dec, jd, vcpu->arch.gpr[rt]);
+#endif
+				break;
+			}
 			default:
 				emulated = kvmppc_core_emulate_mfspr(vcpu, sprn, rt);
 				if (emulated == EMULATE_FAIL) {
