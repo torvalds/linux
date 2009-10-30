@@ -650,7 +650,6 @@ static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 static struct hda_pcm_stream intel_hdmi_pcm_playback = {
 	.substreams = 1,
 	.channels_min = 2,
-	.channels_max = 8,
 	.ops = {
 		.prepare = intel_hdmi_playback_pcm_prepare,
 		.cleanup = intel_hdmi_playback_pcm_cleanup,
@@ -667,11 +666,17 @@ static int intel_hdmi_build_pcms(struct hda_codec *codec)
 	codec->pcm_info = info;
 
 	for (i = 0; i < codec->num_pcms; i++, info++) {
+		unsigned int chans;
+
+		chans = get_wcaps(codec, spec->cvt[i]);
+		chans = get_wcaps_channels(chans);
+
 		info->name = intel_hdmi_pcm_names[i];
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
 							intel_hdmi_pcm_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->cvt[i];
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = chans;
 	}
 
 	return 0;
