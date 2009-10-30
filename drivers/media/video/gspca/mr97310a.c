@@ -18,7 +18,9 @@
  * Several previously unsupported cameras are owned and have been tested by
  * Hans de Goede <hdgoede@redhat.com> and
  * Thomas Kaiser <thomas@kaiser-linux.li> and
- * Theodore Kilgore <kilgota@auburn.edu>
+ * Theodore Kilgore <kilgota@auburn.edu> and
+ * Edmond Rodriguez <erodrig_97@yahoo.com> and
+ * Aurelien Jacobs <aurel@gnuage.org>
  *
  * The MR97311A support in gspca/mars.c has been helpful in understanding some
  * of the registers in these cameras.
@@ -105,8 +107,8 @@ static void setgain(struct gspca_dev *gspca_dev);
 
 /* V4L2 controls supported by the driver */
 static struct ctrl sd_ctrls[] = {
-/* Seprate brightness control description for Argus QuickClix as it has
-   different limits from to other mr97310a camera's */
+/* Separate brightness control description for Argus QuickClix as it has
+   different limits from the other mr97310a cameras */
 	{
 #define NORM_BRIGHTNESS_IDX 0
 		{
@@ -428,7 +430,7 @@ static int isoc_enable(struct gspca_dev *gspca_dev)
 	return mr_write(gspca_dev, 2);
 }
 
-/* this function is called at probe time */
+/* This function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 		     const struct usb_device_id *id)
 {
@@ -441,11 +443,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 	sd->do_lcd_stop = 0;
 
-	/* Now, logical layout of the driver must fall sacrifice to the
-	 * realities of the hardware supported. We have to sort out several
-	 * cameras which share the USB ID but are in fact different inside.
-	 * We need to start the initialization process for the cameras in
-	 * order to classify them. Some of the supported cameras require the
+	/* Several of the supported CIF cameras share the same USB ID but
+	 * require different initializations and different control settings.
+	 * The same is true of the VGA cameras. Therefore, we are forced
+	 * to start the initialization process in order to determine which
+	 * camera is present. Some of the supported cameras require the
 	 * memory pointer to be set to 0 as the very first item of business
 	 * or else they will not stream. So we do that immediately.
 	 */
@@ -464,9 +466,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		if (err_code < 0)
 			return err_code;
 		/*
-		 * The various CIF cameras share the same USB ID but use
-		 * different init routines and different controls. We need to
-		 * detect which one is connected!
+		 * All but one of the known CIF cameras share the same USB ID,
+		 * but two different init routines are in use, and the control
+		 * settings are different, too. We need to detect which camera
+		 * of the two known varieties is connected!
 		 *
 		 * A list of known CIF cameras follows. They all report either
 		 * 0002 for type 0 or 0003 for type 1.
@@ -481,6 +484,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * Vivitar Mini		1		T. Kilgore
 		 * Elta-Media 8212dc	1		T. Kaiser
 		 * Philips dig. keych.	1		T. Kilgore
+		 * Trust Spyc@m 100	1		A. Jacobs
 		 */
 		switch (gspca_dev->usb_buf[1]) {
 		case 2:
