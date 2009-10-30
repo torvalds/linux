@@ -1353,39 +1353,39 @@ EXPORT_SYMBOL(iwl_irq_handle_error);
 
 int iwl_apm_stop_master(struct iwl_priv *priv)
 {
-	unsigned long flags;
+	int ret = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
+	/* stop device's busmaster DMA activity */
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	iwl_poll_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
+	ret = iwl_poll_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (ret)
+		IWL_WARN(priv, "Master Disable Timed Out, 100 usec\n");
 
-	spin_unlock_irqrestore(&priv->lock, flags);
 	IWL_DEBUG_INFO(priv, "stop master\n");
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwl_apm_stop_master);
 
 void iwl_apm_stop(struct iwl_priv *priv)
 {
-	unsigned long flags;
-
 	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
 
+	/* Stop device's DMA activity */
 	iwl_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
-
+	/* Reset the entire device */
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
 	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
+
+	/*
+	 * Clear "initialization complete" bit to move adapter from
+	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
+	 */
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL(iwl_apm_stop);
 
