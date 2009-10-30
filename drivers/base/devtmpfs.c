@@ -361,7 +361,7 @@ int __init devtmpfs_init(void)
 		return err;
 	}
 
-	mnt = kern_mount(&dev_fs_type);
+	mnt = kern_mount_data(&dev_fs_type, "mode=0755");
 	if (IS_ERR(mnt)) {
 		err = PTR_ERR(mnt);
 		printk(KERN_ERR "devtmpfs: unable to create devtmpfs %i\n", err);
