@@ -73,6 +73,8 @@ enum {
 	Opt_statfs_quantum,
 	Opt_statfs_percent,
 	Opt_quota_quantum,
+	Opt_barrier,
+	Opt_nobarrier,
 	Opt_error,
 };
 
@@ -107,6 +109,8 @@ static const match_table_t tokens = {
 	{Opt_statfs_quantum, "statfs_quantum=%d"},
 	{Opt_statfs_percent, "statfs_percent=%d"},
 	{Opt_quota_quantum, "quota_quantum=%d"},
+	{Opt_barrier, "barrier"},
+	{Opt_nobarrier, "nobarrier"},
 	{Opt_error, NULL}
 };
 
@@ -252,6 +256,12 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 				return -EINVAL;
 			}
 			args->ar_errors = GFS2_ERRORS_PANIC;
+			break;
+		case Opt_barrier:
+			args->ar_nobarrier = 0;
+			break;
+		case Opt_nobarrier:
+			args->ar_nobarrier = 1;
 			break;
 		case Opt_error:
 		default:
@@ -1143,6 +1153,10 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		sb->s_flags |= MS_POSIXACL;
 	else
 		sb->s_flags &= ~MS_POSIXACL;
+	if (sdp->sd_args.ar_nobarrier)
+		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
+	else
+		clear_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 	spin_lock(&gt->gt_spin);
 	gt->gt_log_flush_secs = args.ar_commit;
 	gt->gt_quota_quantum = args.ar_quota_quantum;
