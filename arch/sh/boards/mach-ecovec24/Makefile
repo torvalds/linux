@@ -6,4 +6,4 @@
 # for more details.
 #
 
-obj-y	 := setup.o
+obj-y	 := setup.o sdram.o

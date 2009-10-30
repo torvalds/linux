@@ -26,6 +26,7 @@
 #include <asm/sh_eth.h>
 #include <asm/sh_keysc.h>
 #include <asm/clock.h>
+#include <asm/suspend.h>
 #include <cpu/sh7724.h>
 
 /*
@@ -526,8 +527,21 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 
 #define PORT_HIZA 0xA4050158
 #define IODRIVEA  0xA405018A
+
+extern char ecovec24_sdram_enter_start;
+extern char ecovec24_sdram_enter_end;
+extern char ecovec24_sdram_leave_start;
+extern char ecovec24_sdram_leave_end;
+
 static int __init arch_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ecovec24_sdram_enter_start,
+					&ecovec24_sdram_enter_end,
+					&ecovec24_sdram_leave_start,
+					&ecovec24_sdram_leave_end);
+
 	/* enable STATUS0, STATUS2 and PDSTATUS */
 	gpio_request(GPIO_FN_STATUS0, NULL);
 	gpio_request(GPIO_FN_STATUS2, NULL);
