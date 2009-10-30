@@ -4656,9 +4656,19 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
 	unsigned long rflags;
-	int i;
+	int i, r;
 
 	vcpu_load(vcpu);
+
+	if (dbg->control & (KVM_GUESTDBG_INJECT_DB | KVM_GUESTDBG_INJECT_BP)) {
+		r = -EBUSY;
+		if (vcpu->arch.exception.pending)
+			goto unlock_out;
+		if (dbg->control & KVM_GUESTDBG_INJECT_DB)
+			kvm_queue_exception(vcpu, DB_VECTOR);
+		else
+			kvm_queue_exception(vcpu, BP_VECTOR);
+	}
 
 	/*
 	 * Read rflags as long as potentially injected trace flags are still
@@ -4695,14 +4705,12 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 	kvm_x86_ops->set_guest_debug(vcpu, dbg);
 
-	if (vcpu->guest_debug & KVM_GUESTDBG_INJECT_DB)
-		kvm_queue_exception(vcpu, DB_VECTOR);
-	else if (vcpu->guest_debug & KVM_GUESTDBG_INJECT_BP)
-		kvm_queue_exception(vcpu, BP_VECTOR);
+	r = 0;
 
+unlock_out:
 	vcpu_put(vcpu);
 
-	return 0;
+	return r;
 }
 
 /*
