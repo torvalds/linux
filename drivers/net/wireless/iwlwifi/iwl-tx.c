@@ -1121,11 +1121,6 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 		return;
 	}
 
-	pci_unmap_single(priv->pci_dev,
-		pci_unmap_addr(&txq->meta[cmd_idx], mapping),
-		pci_unmap_len(&txq->meta[cmd_idx], len),
-		PCI_DMA_BIDIRECTIONAL);
-
 	for (idx = iwl_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
@@ -1172,6 +1167,11 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
 	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
 	meta = &priv->txq[IWL_CMD_QUEUE_NUM].meta[cmd_index];
+
+	pci_unmap_single(priv->pci_dev,
+			 pci_unmap_addr(meta, mapping),
+			 pci_unmap_len(meta, len),
+			 PCI_DMA_BIDIRECTIONAL);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
