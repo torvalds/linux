@@ -46,6 +46,8 @@ struct kvm_regs {
 };
 
 struct kvm_sregs {
+	__u32 pvr;
+	char pad[1020];
 };
 
 struct kvm_fpu {
