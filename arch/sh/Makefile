@@ -136,6 +136,7 @@ machdir-$(CONFIG_SH_7751_SYSTEMH)		+= mach-systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= mach-edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
 machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
+machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
 machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
 machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
