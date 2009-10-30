@@ -39,7 +39,6 @@ static hda_nid_t pin_nid;	/* HDMI output pin */
 #define INTEL_HDMI_EVENT_TAG		0x08
 
 struct intel_hdmi_spec {
-	struct hda_multi_out multiout;
 	struct hda_pcm pcm_rec;
 	struct hdmi_eld sink_eld;
 };
@@ -548,9 +547,7 @@ static int intel_hdmi_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					struct snd_pcm_substream *substream)
 {
-	struct intel_hdmi_spec *spec = codec->spec;
-
-	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
+	return 0;
 }
 
 static int intel_hdmi_playback_pcm_close(struct hda_pcm_stream *hinfo,
@@ -561,7 +558,8 @@ static int intel_hdmi_playback_pcm_close(struct hda_pcm_stream *hinfo,
 
 	hdmi_stop_infoframe_trans(codec, pin_nid);
 
-	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	return 0;
 }
 
 static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
@@ -570,15 +568,12 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					   unsigned int format,
 					   struct snd_pcm_substream *substream)
 {
-	struct intel_hdmi_spec *spec = codec->spec;
-
-	snd_hda_multi_out_dig_prepare(codec, &spec->multiout, stream_tag,
-					     format, substream);
-
-	hdmi_set_channel_count(codec, cvt_nid, substream->runtime->channels);
+	hdmi_set_channel_count(codec, cvt_nid,
+			       substream->runtime->channels);
 
 	hdmi_setup_audio_infoframe(codec, cvt_nid, substream);
 
+	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
 	return 0;
 }
 
@@ -616,7 +611,7 @@ static int intel_hdmi_build_controls(struct hda_codec *codec)
 	struct intel_hdmi_spec *spec = codec->spec;
 	int err;
 
-	err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
+	err = snd_hda_create_spdif_out_ctls(codec, cvt_nid);
 	if (err < 0)
 		return err;
 
@@ -656,10 +651,6 @@ static int do_patch_intel_hdmi(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	spec->multiout.num_dacs = 0;	  /* no analog */
-	spec->multiout.max_channels = 8;
-	spec->multiout.dig_out_nid = cvt_nid;
 
 	codec->spec = spec;
 	codec->patch_ops = intel_hdmi_patch_ops;
