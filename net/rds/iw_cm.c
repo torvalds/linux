@@ -696,6 +696,8 @@ int rds_iw_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ic->iw_node);
+	tasklet_init(&ic->i_recv_tasklet, rds_iw_recv_tasklet_fn,
+		     (unsigned long) ic);
 	mutex_init(&ic->i_recv_mutex);
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);
