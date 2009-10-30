@@ -1985,7 +1985,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void ql_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
+static void qlge_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
@@ -2001,7 +2001,7 @@ static void ql_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
 	}
 }
 
-static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
+static void qlge_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	u32 enable_bit = MAC_ADDR_E;
@@ -2017,7 +2017,7 @@ static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
-static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
+static void qlge_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	u32 enable_bit = 0;
@@ -4192,9 +4192,9 @@ static const struct net_device_ops qlge_netdev_ops = {
 	.ndo_set_mac_address	= qlge_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= qlge_tx_timeout,
-	.ndo_vlan_rx_register	= ql_vlan_rx_register,
-	.ndo_vlan_rx_add_vid	= ql_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid	= ql_vlan_rx_kill_vid,
+	.ndo_vlan_rx_register	= qlge_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= qlge_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= qlge_vlan_rx_kill_vid,
 };
 
 static int __devinit qlge_probe(struct pci_dev *pdev,
