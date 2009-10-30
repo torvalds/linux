@@ -213,7 +213,7 @@ static int list_netdevice(struct net_device *dev)
 
 	write_lock_bh(&dev_base_lock);
 	list_add_tail(&dev->dev_list, &net->dev_base_head);
-	hlist_add_head(&dev->name_hlist, dev_name_hash(net, dev->name));
+	hlist_add_head_rcu(&dev->name_hlist, dev_name_hash(net, dev->name));
 	hlist_add_head_rcu(&dev->index_hlist,
 			   dev_index_hash(net, dev->ifindex));
 	write_unlock_bh(&dev_base_lock);
@@ -230,7 +230,7 @@ static void unlist_netdevice(struct net_device *dev)
 	/* Unlink dev from the device chain */
 	write_lock_bh(&dev_base_lock);
 	list_del(&dev->dev_list);
-	hlist_del(&dev->name_hlist);
+	hlist_del_rcu(&dev->name_hlist);
 	hlist_del_rcu(&dev->index_hlist);
 	write_unlock_bh(&dev_base_lock);
 }
@@ -599,6 +599,32 @@ struct net_device *__dev_get_by_name(struct net *net, const char *name)
 EXPORT_SYMBOL(__dev_get_by_name);
 
 /**
+ *	dev_get_by_name_rcu	- find a device by its name
+ *	@net: the applicable net namespace
+ *	@name: name to find
+ *
+ *	Find an interface by name.
+ *	If the name is found a pointer to the device is returned.
+ * 	If the name is not found then %NULL is returned.
+ *	The reference counters are not incremented so the caller must be
+ *	careful with locks. The caller must hold RCU lock.
+ */
+
+struct net_device *dev_get_by_name_rcu(struct net *net, const char *name)
+{
+	struct hlist_node *p;
+	struct net_device *dev;
+	struct hlist_head *head = dev_name_hash(net, name);
+
+	hlist_for_each_entry_rcu(dev, p, head, name_hlist)
+		if (!strncmp(dev->name, name, IFNAMSIZ))
+			return dev;
+
+	return NULL;
+}
+EXPORT_SYMBOL(dev_get_by_name_rcu);
+
+/**
  *	dev_get_by_name		- find a device by its name
  *	@net: the applicable net namespace
  *	@name: name to find
@@ -614,11 +640,11 @@ struct net_device *dev_get_by_name(struct net *net, const char *name)
 {
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
-	dev = __dev_get_by_name(net, name);
+	rcu_read_lock();
+	dev = dev_get_by_name_rcu(net, name);
 	if (dev)
 		dev_hold(dev);
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 	return dev;
 }
 EXPORT_SYMBOL(dev_get_by_name);
@@ -960,7 +986,12 @@ rollback:
 
 	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
-	hlist_add_head(&dev->name_hlist, dev_name_hash(net, dev->name));
+	write_unlock_bh(&dev_base_lock);
+
+	synchronize_rcu();
+
+	write_lock_bh(&dev_base_lock);
+	hlist_add_head_rcu(&dev->name_hlist, dev_name_hash(net, dev->name));
 	write_unlock_bh(&dev_base_lock);
 
 	ret = call_netdevice_notifiers(NETDEV_CHANGENAME, dev);
@@ -1062,9 +1093,9 @@ void dev_load(struct net *net, const char *name)
 {
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
-	dev = __dev_get_by_name(net, name);
-	read_unlock(&dev_base_lock);
+	rcu_read_lock();
+	dev = dev_get_by_name_rcu(net, name);
+	rcu_read_unlock();
 
 	if (!dev && capable(CAP_NET_ADMIN))
 		request_module("%s", name);
