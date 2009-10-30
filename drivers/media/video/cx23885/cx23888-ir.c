@@ -108,7 +108,7 @@ MODULE_PARM_DESC(ir_888_debug, "enable debug messages [CX23888 IR controller]");
 #define CX23888_IR_LEARN_REG	0x170044
 
 #define CX23888_VIDCLK_FREQ	108000000 /* 108 MHz, BT.656 */
-#define CX23888_IR_REFCLK_FREQ	(CX23888_VIDCLK_FREQ/2)
+#define CX23888_IR_REFCLK_FREQ	(CX23888_VIDCLK_FREQ / 2)
 
 #define CX23888_IR_RX_KFIFO_SIZE	(512 * sizeof(u32))
 #define CX23888_IR_TX_KFIFO_SIZE	(512 * sizeof(u32))
@@ -171,7 +171,7 @@ static inline int cx23888_ir_and_or4(struct cx23885_dev *dev, u32 addr,
  */
 static inline u16 count_to_clock_divider(unsigned int d)
 {
-	if (d > RXCLK_RCD+1)
+	if (d > RXCLK_RCD + 1)
 		d = RXCLK_RCD;
 	else if (d < 2)
 		d = 1;
@@ -183,14 +183,14 @@ static inline u16 count_to_clock_divider(unsigned int d)
 static inline u16 ns_to_clock_divider(unsigned int ns)
 {
 	return count_to_clock_divider(
-		  DIV_ROUND_CLOSEST(CX23888_IR_REFCLK_FREQ/1000000 * ns, 1000));
+		DIV_ROUND_CLOSEST(CX23888_IR_REFCLK_FREQ / 1000000 * ns, 1000));
 }
 
 static inline unsigned int clock_divider_to_ns(unsigned int divider)
 {
 	/* Period of the Rx or Tx clock in ns */
 	return DIV_ROUND_CLOSEST((divider + 1) * 1000,
-				 CX23888_IR_REFCLK_FREQ/1000000);
+				 CX23888_IR_REFCLK_FREQ / 1000000);
 }
 
 static inline u16 carrier_freq_to_clock_divider(unsigned int freq)
@@ -237,19 +237,20 @@ static inline u16 count_to_lpf_count(unsigned int d)
 static inline u16 ns_to_lpf_count(unsigned int ns)
 {
 	return count_to_lpf_count(
-		  DIV_ROUND_CLOSEST(CX23888_IR_REFCLK_FREQ/1000000 * ns, 1000));
+		DIV_ROUND_CLOSEST(CX23888_IR_REFCLK_FREQ / 1000000 * ns, 1000));
 }
 
 static inline unsigned int lpf_count_to_ns(unsigned int count)
 {
 	/* Duration of the Low Pass Filter rejection window in ns */
-	return DIV_ROUND_CLOSEST(count * 1000, CX23888_IR_REFCLK_FREQ/1000000);
+	return DIV_ROUND_CLOSEST(count * 1000,
+				 CX23888_IR_REFCLK_FREQ / 1000000);
 }
 
 static inline unsigned int lpf_count_to_us(unsigned int count)
 {
 	/* Duration of the Low Pass Filter rejection window in us */
-	return DIV_ROUND_CLOSEST(count, CX23888_IR_REFCLK_FREQ/1000000);
+	return DIV_ROUND_CLOSEST(count, CX23888_IR_REFCLK_FREQ / 1000000);
 }
 
 /*
@@ -263,7 +264,7 @@ static u32 clock_divider_to_resolution(u16 divider)
 	 * not readable, hence the << 2.  This function returns ns.
 	 */
 	return DIV_ROUND_CLOSEST((1 << 2)  * ((u32) divider + 1) * 1000,
-				 CX23888_IR_REFCLK_FREQ/1000000);
+				 CX23888_IR_REFCLK_FREQ / 1000000);
 }
 
 static u64 pulse_width_count_to_ns(u16 count, u16 divider)
@@ -276,8 +277,8 @@ static u64 pulse_width_count_to_ns(u16 count, u16 divider)
 	 * the (count << 2) | 0x3
 	 */
 	n = (((u64) count << 2) | 0x3) * (divider + 1) * 1000; /* millicycles */
-	rem = do_div(n, CX23888_IR_REFCLK_FREQ/1000000);       /* / MHz => ns */
-	if (rem >= CX23888_IR_REFCLK_FREQ/1000000/2)
+	rem = do_div(n, CX23888_IR_REFCLK_FREQ / 1000000);     /* / MHz => ns */
+	if (rem >= CX23888_IR_REFCLK_FREQ / 1000000 / 2)
 		n++;
 	return n;
 }
@@ -291,9 +292,9 @@ static unsigned int pulse_width_count_to_us(u16 count, u16 divider)
 	 * The 2 lsb's of the pulse width timer count are not readable, hence
 	 * the (count << 2) | 0x3
 	 */
-	n = (((u64) count << 2) | 0x3) * (divider + 1);  /* cycles      */
-	rem = do_div(n, CX23888_IR_REFCLK_FREQ/1000000); /* / MHz => us */
-	if (rem >= CX23888_IR_REFCLK_FREQ/1000000/2)
+	n = (((u64) count << 2) | 0x3) * (divider + 1);    /* cycles      */
+	rem = do_div(n, CX23888_IR_REFCLK_FREQ / 1000000); /* / MHz => us */
+	if (rem >= CX23888_IR_REFCLK_FREQ / 1000000 / 2)
 		n++;
 	return (unsigned int) n;
 }
@@ -310,9 +311,9 @@ static u64 ns_to_pulse_clocks(u32 ns)
 {
 	u64 clocks;
 	u32 rem;
-	clocks = CX23888_IR_REFCLK_FREQ/1000000 * (u64) ns; /* millicycles    */
+	clocks = CX23888_IR_REFCLK_FREQ / 1000000 * (u64) ns; /* millicycles  */
 	rem = do_div(clocks, 1000);                         /* /1000 = cycles */
-	if (rem >= 1000/2)
+	if (rem >= 1000 / 2)
 		clocks++;
 	return clocks;
 }
@@ -324,7 +325,7 @@ static u16 pulse_clocks_to_clock_divider(u64 count)
 	rem = do_div(count, (FIFO_RXTX << 2) | 0x3);
 
 	/* net result needs to be rounded down and decremented by 1 */
-	if (count > RXCLK_RCD+1)
+	if (count > RXCLK_RCD + 1)
 		count = RXCLK_RCD;
 	else if (count < 2)
 		count = 1;
@@ -484,7 +485,7 @@ static unsigned int cduty_tx_s_duty_cycle(struct cx23885_dev *dev,
 	if (n > 15)
 		n = 15;
 	cx23888_ir_write4(dev, CX23888_IR_CDUTY_REG, n);
-	return DIV_ROUND_CLOSEST((n+1) * 100, 16);
+	return DIV_ROUND_CLOSEST((n + 1) * 100, 16);
 }
 
 /*
@@ -630,7 +631,7 @@ static int cx23888_ir_irq_handler(struct v4l2_subdev *sd, u32 status,
 		cx23888_ir_write4(dev, CX23888_IR_CNTRL_REG, cntrl);
 		*handled = true;
 	}
-	if (kfifo_len(state->rx_kfifo) >= CX23888_IR_RX_KFIFO_SIZE/2)
+	if (kfifo_len(state->rx_kfifo) >= CX23888_IR_RX_KFIFO_SIZE / 2)
 		events |= V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ;
 
 	if (events)
