@@ -41,11 +41,15 @@ ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
  * U-standby mode is low priority since it needs bootloader hacks
  */
 
-#define ILRAM_BASE 0xe5200000
+#ifdef CONFIG_CPU_SUBTYPE_SH7724
+#define RAM_BASE 0xfd800000 /* RSMEM */
+#else
+#define RAM_BASE 0xe5200000 /* ILRAM */
+#endif
 
 void sh_mobile_call_standby(unsigned long mode)
 {
-	void *onchip_mem = (void *)ILRAM_BASE;
+	void *onchip_mem = (void *)RAM_BASE;
 	struct sh_sleep_data *sdp = onchip_mem;
 	void (*standby_onchip_mem)(unsigned long, unsigned long);
 
@@ -60,7 +64,7 @@ void sh_mobile_call_standby(unsigned long mode)
 		flush_cache_all();
 
 	/* Let assembly snippet in on-chip memory handle the rest */
-	standby_onchip_mem(mode, ILRAM_BASE);
+	standby_onchip_mem(mode, RAM_BASE);
 
 	atomic_notifier_call_chain(&sh_mobile_post_sleep_notifier_list,
 				   mode, NULL);
@@ -78,7 +82,7 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 				     void *pre_start, void *pre_end,
 				     void *post_start, void *post_end)
 {
-	void *onchip_mem = (void *)ILRAM_BASE;
+	void *onchip_mem = (void *)RAM_BASE;
 	void *vp;
 	struct sh_sleep_data *sdp;
 	int n;
