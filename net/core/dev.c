@@ -5258,6 +5258,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	netdev_init_queues(dev);
 
 	INIT_LIST_HEAD(&dev->napi_list);
+	INIT_LIST_HEAD(&dev->unreg_list);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE;
 	setup(dev);
 	strcpy(dev->name, name);
@@ -5339,7 +5340,7 @@ void unregister_netdevice_queue(struct net_device *dev, struct list_head *head)
 	ASSERT_RTNL();
 
 	if (head) {
-		list_add_tail(&dev->unreg_list, head);
+		list_move_tail(&dev->unreg_list, head);
 	} else {
 		rollback_registered(dev);
 		/* Finish processing unregister after unlock */
