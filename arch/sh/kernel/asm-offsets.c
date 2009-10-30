@@ -38,12 +38,15 @@ int main(void)
 	DEFINE(SH_SLEEP_MODE, offsetof(struct sh_sleep_data, mode));
 	DEFINE(SH_SLEEP_SF_PRE, offsetof(struct sh_sleep_data, sf_pre));
 	DEFINE(SH_SLEEP_SF_POST, offsetof(struct sh_sleep_data, sf_post));
+	DEFINE(SH_SLEEP_RESUME, offsetof(struct sh_sleep_data, resume));
 	DEFINE(SH_SLEEP_VBR, offsetof(struct sh_sleep_data, vbr));
 	DEFINE(SH_SLEEP_SPC, offsetof(struct sh_sleep_data, spc));
 	DEFINE(SH_SLEEP_SR, offsetof(struct sh_sleep_data, sr));
+	DEFINE(SH_SLEEP_SP, offsetof(struct sh_sleep_data, sp));
 	DEFINE(SH_SLEEP_BASE_ADDR, offsetof(struct sh_sleep_data, addr));
 	DEFINE(SH_SLEEP_BASE_DATA, offsetof(struct sh_sleep_data, data));
 	DEFINE(SH_SLEEP_REG_STBCR, offsetof(struct sh_sleep_regs, stbcr));
+	DEFINE(SH_SLEEP_REG_BAR, offsetof(struct sh_sleep_regs, bar));
 	DEFINE(SH_SLEEP_REG_PTEH, offsetof(struct sh_sleep_regs, pteh));
 	DEFINE(SH_SLEEP_REG_PTEL, offsetof(struct sh_sleep_regs, ptel));
 	DEFINE(SH_SLEEP_REG_TTB, offsetof(struct sh_sleep_regs, ttb));

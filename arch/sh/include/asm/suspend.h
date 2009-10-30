@@ -38,6 +38,7 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 /* register structure for address/data information */
 struct sh_sleep_regs {
 	unsigned long stbcr;
+	unsigned long bar;
 
 	/* MMU */
 	unsigned long pteh;
@@ -63,10 +64,14 @@ struct sh_sleep_data {
 	unsigned long sf_pre;
 	unsigned long sf_post;
 
+	/* address of resume code */
+	unsigned long resume;
+
 	/* register state saved and restored by the assembly code */
 	unsigned long vbr;
 	unsigned long spc;
 	unsigned long sr;
+	unsigned long sp;
 
 	/* structure for keeping register addresses */
 	struct sh_sleep_regs addr;

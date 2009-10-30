@@ -48,6 +48,9 @@ ENTRY(sh_mobile_sleep_enter_start)
 	stc	sr, r0
 	mov.l	r0, @(SH_SLEEP_SR, r5)
 
+	/* save sp */
+	mov.l	r15, @(SH_SLEEP_SP, r5)
+
 	/* save stbcr */
 	bsr     save_register
 	 mov    #SH_SLEEP_REG_STBCR, r0
@@ -124,6 +127,12 @@ skip_set_sf:
 test_rstandby:
 	tst	#SUSP_SH_RSTANDBY, r0
 	bt	test_ustandby
+
+	/* setup BAR register */
+	bsr	get_register
+	 mov	#SH_SLEEP_REG_BAR, r0
+	mov.l	@(SH_SLEEP_RESUME, r5), r1
+	mov.l	r1, @r0
 
 	/* set mode to "r-standby mode" */
 	bra	do_sleep
@@ -202,6 +211,9 @@ ENTRY(sh_mobile_sleep_resume_start)
 	/* setup ssr with saved sr */
 	mov.l	@(SH_SLEEP_SR, r5), r0
 	ldc	r0, ssr
+
+	/* restore sp */
+	mov.l   @(SH_SLEEP_SP, r5), r15
 
 	/* restore sleep mode register */
 	bsr     restore_register

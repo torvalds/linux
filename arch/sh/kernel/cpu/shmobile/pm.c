@@ -33,13 +33,10 @@ ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
 #define SUSP_MODE_SLEEP		(SUSP_SH_SLEEP)
 #define SUSP_MODE_SLEEP_SF	(SUSP_SH_SLEEP | SUSP_SH_SF)
 #define SUSP_MODE_STANDBY_SF	(SUSP_SH_STANDBY | SUSP_SH_SF)
-
-/*
- * The following modes are not there yet:
- *
- * R-standby mode is unsupported, but will be added in the future
- * U-standby mode is low priority since it needs bootloader hacks
- */
+#define SUSP_MODE_RSTANDBY	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_SF)
+ /*
+  * U-standby mode is unsupported since it needs bootloader hacks
+  */
 
 #ifdef CONFIG_CPU_SUBTYPE_SH7724
 #define RAM_BASE 0xfd800000 /* RSMEM */
@@ -90,6 +87,7 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 	/* part 0: data area */
 	sdp = onchip_mem;
 	sdp->addr.stbcr = 0xa4150020; /* STBCR */
+	sdp->addr.bar = 0xa4150040; /* BAR */
 	sdp->addr.pteh = 0xff000000; /* PTEH */
 	sdp->addr.ptel = 0xff000004; /* PTEL */
 	sdp->addr.ttb = 0xff000008; /* TTB */
@@ -124,6 +122,7 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 	vp = onchip_mem + 0x600; /* located at interrupt vector */
 	n = &sh_mobile_sleep_resume_end - &sh_mobile_sleep_resume_start;
 	memcpy(vp, &sh_mobile_sleep_resume_start, n);
+	sdp->resume = (unsigned long)vp;
 
 	sh_mobile_sleep_supported |= flags;
 }
