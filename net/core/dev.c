@@ -2586,18 +2586,15 @@ __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	return dev_gro_receive(napi, skb);
 }
 
-int napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
+gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 {
-	int err = NET_RX_SUCCESS;
-
 	switch (ret) {
 	case GRO_NORMAL:
-		return netif_receive_skb(skb);
+		if (netif_receive_skb(skb))
+			ret = GRO_DROP;
+		break;
 
 	case GRO_DROP:
-		err = NET_RX_DROP;
-		/* fall through */
-
 	case GRO_MERGED_FREE:
 		kfree_skb(skb);
 		break;
@@ -2607,7 +2604,7 @@ int napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 		break;
 	}
 
-	return err;
+	return ret;
 }
 EXPORT_SYMBOL(napi_skb_finish);
 
@@ -2627,7 +2624,7 @@ void skb_gro_reset_offset(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(skb_gro_reset_offset);
 
-int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	skb_gro_reset_offset(skb);
 
@@ -2657,26 +2654,21 @@ struct sk_buff *napi_get_frags(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_get_frags);
 
-int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb,
-		      gro_result_t ret)
+gro_result_t napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb,
+			       gro_result_t ret)
 {
-	int err = NET_RX_SUCCESS;
-
 	switch (ret) {
 	case GRO_NORMAL:
 	case GRO_HELD:
 		skb->protocol = eth_type_trans(skb, napi->dev);
 
-		if (ret == GRO_NORMAL)
-			return netif_receive_skb(skb);
-
-		skb_gro_pull(skb, -ETH_HLEN);
+		if (ret == GRO_HELD)
+			skb_gro_pull(skb, -ETH_HLEN);
+		else if (netif_receive_skb(skb))
+			ret = GRO_DROP;
 		break;
 
 	case GRO_DROP:
-		err = NET_RX_DROP;
-		/* fall through */
-
 	case GRO_MERGED_FREE:
 		napi_reuse_skb(napi, skb);
 		break;
@@ -2685,7 +2677,7 @@ int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb,
 		break;
 	}
 
-	return err;
+	return ret;
 }
 EXPORT_SYMBOL(napi_frags_finish);
 
@@ -2726,12 +2718,12 @@ out:
 }
 EXPORT_SYMBOL(napi_frags_skb);
 
-int napi_gro_frags(struct napi_struct *napi)
+gro_result_t napi_gro_frags(struct napi_struct *napi)
 {
 	struct sk_buff *skb = napi_frags_skb(napi);
 
 	if (!skb)
-		return NET_RX_DROP;
+		return GRO_DROP;
 
 	return napi_frags_finish(napi, skb, __napi_gro_receive(napi, skb));
 }
