@@ -3113,12 +3113,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 
-	/* amp init */
-	err = priv->cfg->ops->lib->apm_ops.init(priv);
-	if (err < 0) {
-		IWL_ERR(priv, "Failed to init APMG\n");
-		goto out_iounmap;
-	}
 	/*****************
 	 * 4. Read EEPROM
 	 *****************/

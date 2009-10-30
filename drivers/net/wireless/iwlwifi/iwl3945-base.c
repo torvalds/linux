@@ -4000,13 +4000,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 */
 	spin_lock_init(&priv->reg_lock);
 
-	/* amp init */
-	err = priv->cfg->ops->lib->apm_ops.init(priv);
-	if (err < 0) {
-		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
-		goto out_iounmap;
-	}
-
 	/***********************
 	 * 4. Read EEPROM
 	 * ********************/
