@@ -44,5 +44,15 @@ int main(void)
 	DEFINE(SH_SLEEP_BASE_ADDR, offsetof(struct sh_sleep_data, addr));
 	DEFINE(SH_SLEEP_BASE_DATA, offsetof(struct sh_sleep_data, data));
 	DEFINE(SH_SLEEP_REG_STBCR, offsetof(struct sh_sleep_regs, stbcr));
+	DEFINE(SH_SLEEP_REG_PTEH, offsetof(struct sh_sleep_regs, pteh));
+	DEFINE(SH_SLEEP_REG_PTEL, offsetof(struct sh_sleep_regs, ptel));
+	DEFINE(SH_SLEEP_REG_TTB, offsetof(struct sh_sleep_regs, ttb));
+	DEFINE(SH_SLEEP_REG_TEA, offsetof(struct sh_sleep_regs, tea));
+	DEFINE(SH_SLEEP_REG_MMUCR, offsetof(struct sh_sleep_regs, mmucr));
+	DEFINE(SH_SLEEP_REG_PTEA, offsetof(struct sh_sleep_regs, ptea));
+	DEFINE(SH_SLEEP_REG_PASCR, offsetof(struct sh_sleep_regs, pascr));
+	DEFINE(SH_SLEEP_REG_IRMCR, offsetof(struct sh_sleep_regs, irmcr));
+	DEFINE(SH_SLEEP_REG_CCR, offsetof(struct sh_sleep_regs, ccr));
+	DEFINE(SH_SLEEP_REG_RAMCR, offsetof(struct sh_sleep_regs, ramcr));
 	return 0;
 }

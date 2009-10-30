@@ -15,6 +15,7 @@
 #include <linux/suspend.h>
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 /*
  * Notifier lists for pre/post sleep notification
@@ -54,6 +55,10 @@ void sh_mobile_call_standby(unsigned long mode)
 	atomic_notifier_call_chain(&sh_mobile_pre_sleep_notifier_list,
 				   mode, NULL);
 
+	/* flush the caches if MMU flag is set */
+	if (mode & SUSP_SH_MMU)
+		flush_cache_all();
+
 	/* Let assembly snippet in on-chip memory handle the rest */
 	standby_onchip_mem(mode, ILRAM_BASE);
 
@@ -81,6 +86,16 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 	/* part 0: data area */
 	sdp = onchip_mem;
 	sdp->addr.stbcr = 0xa4150020; /* STBCR */
+	sdp->addr.pteh = 0xff000000; /* PTEH */
+	sdp->addr.ptel = 0xff000004; /* PTEL */
+	sdp->addr.ttb = 0xff000008; /* TTB */
+	sdp->addr.tea = 0xff00000c; /* TEA */
+	sdp->addr.mmucr = 0xff000010; /* MMUCR */
+	sdp->addr.ptea = 0xff000034; /* PTEA */
+	sdp->addr.pascr = 0xff000070; /* PASCR */
+	sdp->addr.irmcr = 0xff000078; /* IRMCR */
+	sdp->addr.ccr = 0xff00001c; /* CCR */
+	sdp->addr.ramcr = 0xff000074; /* RAMCR */
 	vp = sdp + 1;
 
 	/* part 1: common code to enter sleep mode */

@@ -38,6 +38,20 @@ void sh_mobile_register_self_refresh(unsigned long flags,
 /* register structure for address/data information */
 struct sh_sleep_regs {
 	unsigned long stbcr;
+
+	/* MMU */
+	unsigned long pteh;
+	unsigned long ptel;
+	unsigned long ttb;
+	unsigned long tea;
+	unsigned long mmucr;
+	unsigned long ptea;
+	unsigned long pascr;
+	unsigned long irmcr;
+
+	/* Cache */
+	unsigned long ccr;
+	unsigned long ramcr;
 };
 
 /* data area for low-level sleep code */
@@ -72,5 +86,6 @@ extern unsigned long sh_mobile_sleep_supported;
 #define SUSP_SH_RSTANDBY	(1 << 2) /* SH-Mobile R-standby mode */
 #define SUSP_SH_USTANDBY	(1 << 3) /* SH-Mobile U-standby mode */
 #define SUSP_SH_SF		(1 << 4) /* Enable self-refresh */
+#define SUSP_SH_MMU		(1 << 5) /* Save/restore MMU and cache */
 
 #endif /* _ASM_SH_SUSPEND_H */

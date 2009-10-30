@@ -52,6 +52,57 @@ ENTRY(sh_mobile_sleep_enter_start)
 	bsr     save_register
 	 mov    #SH_SLEEP_REG_STBCR, r0
 
+	/* save mmu and cache context if needed */
+	mov.l	@(SH_SLEEP_MODE, r5), r0
+	tst	#SUSP_SH_MMU, r0
+	bt	skip_mmu_save_disable
+
+       /* save mmu state */
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_PTEH, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_PTEL, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_TTB, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_TEA, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_MMUCR, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_PTEA, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_PASCR, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_IRMCR, r0
+
+	/* invalidate TLBs and disable the MMU */
+	bsr	get_register
+	 mov	#SH_SLEEP_REG_MMUCR, r0
+	mov	#4, r1
+	mov.l	r1, @r0
+	icbi	@r0
+
+	/* save cache registers and disable caches */
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_CCR, r0
+
+	bsr	save_register
+	 mov	#SH_SLEEP_REG_RAMCR, r0
+
+	bsr	get_register
+	 mov	#SH_SLEEP_REG_CCR, r0
+	mov	#0, r1
+	mov.l	r1, @r0
+	icbi	@r0
+
+skip_mmu_save_disable:
 	/* call self-refresh entering code if needed */
 	mov.l	@(SH_SLEEP_MODE, r5), r0
 	tst	#SUSP_SH_SF, r0
@@ -166,6 +217,47 @@ ENTRY(sh_mobile_sleep_resume_start)
 	 nop
 
 skip_restore_sf:
+	/* restore mmu and cache state if needed */
+	mov.l	@(SH_SLEEP_MODE, r5), r0
+	tst	#SUSP_SH_MMU, r0
+	bt	skip_restore_mmu
+
+	/* restore mmu state */
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_PTEH, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_PTEL, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_TTB, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_TEA, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_PTEA, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_PASCR, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_IRMCR, r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_MMUCR, r0
+	icbi	@r0
+
+	/* restore cache settings */
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_RAMCR, r0
+	icbi	@r0
+
+	bsr	restore_register
+	 mov	#SH_SLEEP_REG_CCR, r0
+	icbi	@r0
+
+skip_restore_mmu:
 	rte
 	 nop
 
