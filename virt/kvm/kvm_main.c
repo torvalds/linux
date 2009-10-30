@@ -48,6 +48,7 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm-generic/bitops/le.h>
 
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 #include "coalesced_mmio.h"
@@ -1665,8 +1666,8 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
 		/* avoid RMW */
-		if (!test_bit(rel_gfn, memslot->dirty_bitmap))
-			set_bit(rel_gfn, memslot->dirty_bitmap);
+		if (!generic_test_le_bit(rel_gfn, memslot->dirty_bitmap))
+			generic___set_le_bit(rel_gfn, memslot->dirty_bitmap);
 	}
 }
 
