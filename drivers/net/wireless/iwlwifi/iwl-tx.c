@@ -979,7 +979,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	       !(cmd->flags & CMD_SIZE_HUGE));
 
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
-		IWL_DEBUG_INFO(priv, "Not sending command - RF/CT KILL\n");
+		IWL_WARN(priv, "Not sending command - %s KILL\n",
+			 iwl_is_rfkill(priv) ? "RF" : "CT");
 		return -EIO;
 	}
 
