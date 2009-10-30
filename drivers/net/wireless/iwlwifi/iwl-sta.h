@@ -52,6 +52,7 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 			const u8 *addr, u32 iv32, u16 *phase1key);
 
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
+void iwl_add_bcast_station(struct iwl_priv *priv);
 int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
 void iwl_clear_stations_table(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
