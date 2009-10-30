@@ -508,7 +508,7 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 	/* Fill the receive configuration URB and initialise the Rx call back */
 	usb_fill_bulk_urb(cardp->rx_urb, cardp->udev,
 			  usb_rcvbulkpipe(cardp->udev, cardp->ep_in),
-			  (void *) (skb->tail + (size_t) IPFIELD_ALIGN_OFFSET),
+			  skb->data + IPFIELD_ALIGN_OFFSET,
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn,
 			  cardp);
 
