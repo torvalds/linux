@@ -543,18 +543,6 @@ static void intel_hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
-static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
-					   struct hda_codec *codec,
-					   struct snd_pcm_substream *substream)
-{
-	struct intel_hdmi_spec *spec = codec->spec;
-
-	hdmi_stop_infoframe_trans(codec, pin_nid);
-
-	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
-	return 0;
-}
-
 static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					   struct hda_codec *codec,
 					   unsigned int stream_tag,
@@ -567,6 +555,18 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hdmi_setup_audio_infoframe(codec, cvt_nid, substream);
 
 	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
+	return 0;
+}
+
+static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
+{
+	struct intel_hdmi_spec *spec = codec->spec;
+
+	hdmi_stop_infoframe_trans(codec, pin_nid);
+
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
