@@ -412,8 +412,9 @@ xfs_end_bio(
 
 STATIC void
 xfs_submit_ioend_bio(
-	xfs_ioend_t	*ioend,
-	struct bio	*bio)
+	struct writeback_control *wbc,
+	xfs_ioend_t		*ioend,
+	struct bio		*bio)
 {
 	atomic_inc(&ioend->io_remaining);
 	bio->bi_private = ioend;
@@ -426,7 +427,8 @@ xfs_submit_ioend_bio(
 	if (xfs_ioend_new_eof(ioend))
 		xfs_mark_inode_dirty_sync(XFS_I(ioend->io_inode));
 
-	submit_bio(WRITE, bio);
+	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
+		   WRITE_SYNC_PLUG : WRITE, bio);
 	ASSERT(!bio_flagged(bio, BIO_EOPNOTSUPP));
 	bio_put(bio);
 }
@@ -505,6 +507,7 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  */
 STATIC void
 xfs_submit_ioend(
+	struct writeback_control *wbc,
 	xfs_ioend_t		*ioend)
 {
 	xfs_ioend_t		*head = ioend;
@@ -533,19 +536,19 @@ xfs_submit_ioend(
  retry:
 				bio = xfs_alloc_ioend_bio(bh);
 			} else if (bh->b_blocknr != lastblock + 1) {
-				xfs_submit_ioend_bio(ioend, bio);
+				xfs_submit_ioend_bio(wbc, ioend, bio);
 				goto retry;
 			}
 
 			if (bio_add_buffer(bio, bh) != bh->b_size) {
-				xfs_submit_ioend_bio(ioend, bio);
+				xfs_submit_ioend_bio(wbc, ioend, bio);
 				goto retry;
 			}
 
 			lastblock = bh->b_blocknr;
 		}
 		if (bio)
-			xfs_submit_ioend_bio(ioend, bio);
+			xfs_submit_ioend_bio(wbc, ioend, bio);
 		xfs_finish_ioend(ioend, 0);
 	} while ((ioend = next) != NULL);
 }
@@ -1198,7 +1201,7 @@ xfs_page_state_convert(
 	}
 
 	if (iohead)
-		xfs_submit_ioend(iohead);
+		xfs_submit_ioend(wbc, iohead);
 
 	return page_dirty;
 
