@@ -886,12 +886,17 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		}
 	}
 
-	/* Drop data::nullfunc frames silently, since they are used only to
-	 * control station power saving mode. */
-	if (ieee80211_is_nullfunc(hdr->frame_control)) {
+	/*
+	 * Drop (qos-)data::nullfunc frames silently, since they
+	 * are used only to control station power saving mode.
+	 */
+	if (ieee80211_is_nullfunc(hdr->frame_control) ||
+	    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_nullfunc);
-		/* Update counter and free packet here to avoid counting this
-		 * as a dropped packed. */
+		/*
+		 * Update counter and free packet here to avoid
+		 * counting this as a dropped packed.
+		 */
 		sta->rx_packets++;
 		dev_kfree_skb(rx->skb);
 		return RX_QUEUED;

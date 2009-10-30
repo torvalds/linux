@@ -472,13 +472,23 @@ static inline int ieee80211_is_cfendack(__le16 fc)
 }
 
 /**
- * ieee80211_is_nullfunc - check if FTYPE=IEEE80211_FTYPE_DATA and STYPE=IEEE80211_STYPE_NULLFUNC
+ * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
 static inline int ieee80211_is_nullfunc(__le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC);
+}
+
+/**
+ * ieee80211_is_qos_nullfunc - check if frame is a QoS nullfunc frame
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee80211_is_qos_nullfunc(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
 }
 
 struct ieee80211s_hdr {
