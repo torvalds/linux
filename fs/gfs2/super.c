@@ -1336,6 +1336,9 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		}
 		seq_printf(s, ",errors=%s", state);
 	}
+	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
+		seq_printf(s, ",nobarrier");
+
 	return 0;
 }
 
