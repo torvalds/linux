@@ -1377,6 +1377,14 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	       IWL_UCODE_API(priv->ucode_ver),
 	       IWL_UCODE_SERIAL(priv->ucode_ver));
 
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%u.%u.%u.%u",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver));
+
 	if (build)
 		IWL_DEBUG_INFO(priv, "Build %u\n", build);
 

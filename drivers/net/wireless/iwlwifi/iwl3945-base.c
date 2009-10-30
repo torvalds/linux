@@ -2160,6 +2160,14 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		IWL_UCODE_API(priv->ucode_ver),
 		IWL_UCODE_SERIAL(priv->ucode_ver));
 
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%u.%u.%u.%u",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver));
+
 	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
 		       priv->ucode_ver);
 	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %u\n",
