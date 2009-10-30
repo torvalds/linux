@@ -447,6 +447,75 @@ static int fsi_data_push(struct fsi_priv *fsi)
 	return 0;
 }
 
+static int fsi_data_pop(struct fsi_priv *fsi)
+{
+	struct snd_pcm_runtime *runtime;
+	struct snd_pcm_substream *substream = NULL;
+	int free;
+	int fifo_fill;
+	int width;
+	u8 *start;
+	int i;
+
+	if (!fsi			||
+	    !fsi->substream		||
+	    !fsi->substream->runtime)
+		return -EINVAL;
+
+	runtime = fsi->substream->runtime;
+
+	/* FSI FIFO has limit.
+	 * So, this driver can not send periods data at a time
+	 */
+	if (fsi->byte_offset >=
+	    fsi->period_len * (fsi->periods + 1)) {
+
+		substream = fsi->substream;
+		fsi->periods = (fsi->periods + 1) % runtime->periods;
+
+		if (0 == fsi->periods)
+			fsi->byte_offset = 0;
+	}
+
+	/* get 1 channel data width */
+	width = frames_to_bytes(runtime, 1) / fsi->chan;
+
+	/* get free space for alsa */
+	free = (fsi->buffer_len - fsi->byte_offset) / width;
+
+	/* get recv size */
+	fifo_fill = fsi_get_fifo_residue(fsi, 0);
+
+	if (free < fifo_fill)
+		fifo_fill = free;
+
+	start = runtime->dma_area;
+	start += fsi->byte_offset;
+
+	switch (width) {
+	case 2:
+		for (i = 0; i < fifo_fill; i++)
+			*((u16 *)start + i) =
+				(u16)(fsi_reg_read(fsi, DIDT) >> 8);
+		break;
+	case 4:
+		for (i = 0; i < fifo_fill; i++)
+			*((u32 *)start + i) = fsi_reg_read(fsi, DIDT);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fsi->byte_offset += fifo_fill * width;
+
+	fsi_irq_enable(fsi, 0);
+
+	if (substream)
+		snd_pcm_period_elapsed(substream);
+
+	return 0;
+}
+
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
 	u32 status = fsi_master_read(SOFT_RST) & ~0x00000010;
@@ -460,6 +529,10 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 		fsi_data_push(&master->fsia);
 	if (int_st & INT_B_OUT)
 		fsi_data_push(&master->fsib);
+	if (int_st & INT_A_IN)
+		fsi_data_pop(&master->fsia);
+	if (int_st & INT_B_IN)
+		fsi_data_pop(&master->fsib);
 
 	fsi_master_write(INT_ST, 0x0000000);
 
@@ -612,16 +685,12 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
-	/* capture not supported */
-	if (!is_play)
-		return -ENODEV;
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		fsi_stream_push(fsi, substream,
 				frames_to_bytes(runtime, runtime->buffer_size),
 				frames_to_bytes(runtime, runtime->period_size));
-		ret = fsi_data_push(fsi);
+		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		fsi_irq_disable(fsi, is_play);
@@ -757,7 +826,12 @@ struct snd_soc_dai fsi_soc_dai[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		/* capture not supported */
+		.capture = {
+			.rates		= FSI_RATES,
+			.formats	= FSI_FMTS,
+			.channels_min	= 1,
+			.channels_max	= 8,
+		},
 		.ops = &fsi_dai_ops,
 	},
 	{
@@ -769,7 +843,12 @@ struct snd_soc_dai fsi_soc_dai[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		/* capture not supported */
+		.capture = {
+			.rates		= FSI_RATES,
+			.formats	= FSI_FMTS,
+			.channels_min	= 1,
+			.channels_max	= 8,
+		},
 		.ops = &fsi_dai_ops,
 	},
 };
