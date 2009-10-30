@@ -34,6 +34,33 @@ extern struct atomic_notifier_head sh_mobile_post_sleep_notifier_list;
 void sh_mobile_register_self_refresh(unsigned long flags,
 				     void *pre_start, void *pre_end,
 				     void *post_start, void *post_end);
+
+/* register structure for address/data information */
+struct sh_sleep_regs {
+	unsigned long stbcr;
+};
+
+/* data area for low-level sleep code */
+struct sh_sleep_data {
+	/* current sleep mode (SUSP_SH_...) */
+	unsigned long mode;
+
+	/* addresses of board specific self-refresh snippets */
+	unsigned long sf_pre;
+	unsigned long sf_post;
+
+	/* register state saved and restored by the assembly code */
+	unsigned long vbr;
+	unsigned long spc;
+	unsigned long sr;
+
+	/* structure for keeping register addresses */
+	struct sh_sleep_regs addr;
+
+	/* structure for saving/restoring register state */
+	struct sh_sleep_regs data;
+};
+
 #endif
 
 /* flags passed to assembly suspend code */

@@ -34,5 +34,15 @@ int main(void)
 	DEFINE(PBE_NEXT, offsetof(struct pbe, next));
 	DEFINE(SWSUSP_ARCH_REGS_SIZE, sizeof(struct swsusp_arch_regs));
 #endif
+
+	DEFINE(SH_SLEEP_MODE, offsetof(struct sh_sleep_data, mode));
+	DEFINE(SH_SLEEP_SF_PRE, offsetof(struct sh_sleep_data, sf_pre));
+	DEFINE(SH_SLEEP_SF_POST, offsetof(struct sh_sleep_data, sf_post));
+	DEFINE(SH_SLEEP_VBR, offsetof(struct sh_sleep_data, vbr));
+	DEFINE(SH_SLEEP_SPC, offsetof(struct sh_sleep_data, spc));
+	DEFINE(SH_SLEEP_SR, offsetof(struct sh_sleep_data, sr));
+	DEFINE(SH_SLEEP_BASE_ADDR, offsetof(struct sh_sleep_data, addr));
+	DEFINE(SH_SLEEP_BASE_DATA, offsetof(struct sh_sleep_data, data));
+	DEFINE(SH_SLEEP_REG_STBCR, offsetof(struct sh_sleep_regs, stbcr));
 	return 0;
 }

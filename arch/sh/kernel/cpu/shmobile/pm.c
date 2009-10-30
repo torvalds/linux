@@ -42,13 +42,14 @@ ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
 
 #define ILRAM_BASE 0xe5200000
 
-extern const unsigned char sh_mobile_standby[];
-extern const unsigned int sh_mobile_standby_size;
-
 void sh_mobile_call_standby(unsigned long mode)
 {
 	void *onchip_mem = (void *)ILRAM_BASE;
-	void (*standby_onchip_mem)(unsigned long, unsigned long) = onchip_mem;
+	struct sh_sleep_data *sdp = onchip_mem;
+	void (*standby_onchip_mem)(unsigned long, unsigned long);
+
+	/* code located directly after data structure */
+	standby_onchip_mem = (void *)(sdp + 1);
 
 	atomic_notifier_call_chain(&sh_mobile_pre_sleep_notifier_list,
 				   mode, NULL);
@@ -60,10 +61,48 @@ void sh_mobile_call_standby(unsigned long mode)
 				   mode, NULL);
 }
 
+extern char sh_mobile_sleep_enter_start;
+extern char sh_mobile_sleep_enter_end;
+
+extern char sh_mobile_sleep_resume_start;
+extern char sh_mobile_sleep_resume_end;
+
 void sh_mobile_register_self_refresh(unsigned long flags,
 				     void *pre_start, void *pre_end,
 				     void *post_start, void *post_end)
 {
+	void *onchip_mem = (void *)ILRAM_BASE;
+	void *vp;
+	struct sh_sleep_data *sdp;
+	int n;
+
+	/* part 0: data area */
+	sdp = onchip_mem;
+	sdp->addr.stbcr = 0xa4150020; /* STBCR */
+	vp = sdp + 1;
+
+	/* part 1: common code to enter sleep mode */
+	n = &sh_mobile_sleep_enter_end - &sh_mobile_sleep_enter_start;
+	memcpy(vp, &sh_mobile_sleep_enter_start, n);
+	vp += roundup(n, 4);
+
+	/* part 2: board specific code to enter self-refresh mode */
+	n = pre_end - pre_start;
+	memcpy(vp, pre_start, n);
+	sdp->sf_pre = (unsigned long)vp;
+	vp += roundup(n, 4);
+
+	/* part 3: board specific code to resume from self-refresh mode */
+	n = post_end - post_start;
+	memcpy(vp, post_start, n);
+	sdp->sf_post = (unsigned long)vp;
+	vp += roundup(n, 4);
+
+	/* part 4: common code to resume from sleep mode */
+	WARN_ON(vp > (onchip_mem + 0x600));
+	vp = onchip_mem + 0x600; /* located at interrupt vector */
+	n = &sh_mobile_sleep_resume_end - &sh_mobile_sleep_resume_start;
+	memcpy(vp, &sh_mobile_sleep_resume_start, n);
 }
 
 static int sh_pm_enter(suspend_state_t state)
@@ -83,13 +122,6 @@ static struct platform_suspend_ops sh_pm_ops = {
 
 static int __init sh_pm_init(void)
 {
-	void *onchip_mem = (void *)ILRAM_BASE;
-
-	/* Copy the assembly snippet to the otherwise ununsed ILRAM */
-	memcpy(onchip_mem, sh_mobile_standby, sh_mobile_standby_size);
-	wmb();
-	ctrl_barrier();
-
 	suspend_set_ops(&sh_pm_ops);
 	sh_mobile_setup_cpuidle();
 	return 0;
