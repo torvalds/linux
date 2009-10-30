@@ -1430,8 +1430,12 @@ int iwl_apm_init(struct iwl_priv *priv)
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
 	/*
-	 * HW bug W/A - costs negligible power consumption ...
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device
+	 * HW bug W/A for instability in PCIe bus L0->L0S->L1 transition.
+	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
+	 * If so (likely), disable L0S, so device moves directly L0->L1;
+	 *    costs negligible amount of power savings.
+	 * If not (unlikely), enable L0S, so there is at least some
+	 *    power savings, even without L1.
 	 */
 	if (priv->cfg->set_l0s) {
 		lctl = iwl_pcie_link_ctl(priv);
