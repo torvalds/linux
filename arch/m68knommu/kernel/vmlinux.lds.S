@@ -15,7 +15,7 @@
 #define	TEXT		ram
 #define	DATA		ram
 #define	INIT		ram
-#define	BSS		ram
+#define	BSSS		ram
 #endif
 #if defined(CONFIG_ROMKERNEL) || defined(CONFIG_HIMEMKERNEL)
 #define	RAM_START	CONFIG_RAMBASE
@@ -27,7 +27,7 @@
 #define	TEXT		rom
 #define	DATA		ram
 #define	INIT		ram
-#define	BSS		ram
+#define	BSSS		ram
 #endif
 
 #ifndef DATA_ADDR
@@ -192,7 +192,7 @@ SECTIONS {
 		. = ALIGN(4) ;
 		_ebss = . ;
 	 	_end = . ;
-	} > BSS
+	} > BSSS
 
 	DISCARDS
 }
