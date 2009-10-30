@@ -143,15 +143,16 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	int ret = -ENOMEM;
 
 	if (recv->r_ibinc == NULL) {
-		if (atomic_read(&rds_ib_allocation) >= rds_ib_sysctl_max_recv_allocation) {
+		if (!atomic_add_unless(&rds_ib_allocation, 1, rds_ib_sysctl_max_recv_allocation)) {
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
 			goto out;
 		}
 		recv->r_ibinc = kmem_cache_alloc(rds_ib_incoming_slab,
 						 kptr_gfp);
-		if (recv->r_ibinc == NULL)
+		if (recv->r_ibinc == NULL) {
+			atomic_dec(&rds_ib_allocation);
 			goto out;
-		atomic_inc(&rds_ib_allocation);
+		}
 		INIT_LIST_HEAD(&recv->r_ibinc->ii_frags);
 		rds_inc_init(&recv->r_ibinc->ii_inc, conn, conn->c_faddr);
 	}
