@@ -1266,7 +1266,7 @@ static const struct option options[] = {
 
 int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
+	symbol__init(0);
 
 	page_size = getpagesize();
 

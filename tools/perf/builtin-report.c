@@ -751,7 +751,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct map *map = map__new(&event->mmap, cwd, cwdlen, 0);
+	struct map *map = map__new(&event->mmap, cwd, cwdlen);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
@@ -1093,7 +1093,7 @@ static void setup_list(struct strlist **list, const char *list_str,
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
+	symbol__init(0);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 

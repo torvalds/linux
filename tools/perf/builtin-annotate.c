@@ -55,11 +55,11 @@ struct sym_priv {
 
 static const char *sym_hist_filter;
 
-static int symbol_filter(struct map *map, struct symbol *sym)
+static int symbol_filter(struct map *map __used, struct symbol *sym)
 {
 	if (sym_hist_filter == NULL ||
 	    strcmp(sym->name, sym_hist_filter) == 0) {
-		struct sym_priv *priv = dso__sym_priv(map->dso, sym);
+		struct sym_priv *priv = symbol__priv(sym);
 		const int size = (sizeof(*priv->hist) +
 				  (sym->end - sym->start) * sizeof(u64));
 
@@ -92,7 +92,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	if (!sym || !he->map)
 		return;
 
-	priv = dso__sym_priv(he->map->dso, sym);
+	priv = symbol__priv(sym);
 	if (!priv->hist)
 		return;
 
@@ -202,8 +202,7 @@ got_map:
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct map *map = map__new(&event->mmap, NULL, 0,
-				   sizeof(struct sym_priv));
+	struct map *map = map__new(&event->mmap, NULL, 0);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
@@ -355,7 +354,7 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		unsigned int hits = 0;
 		double percent = 0.0;
 		const char *color;
-		struct sym_priv *priv = dso__sym_priv(he->map->dso, sym);
+		struct sym_priv *priv = symbol__priv(sym);
 		struct sym_ext *sym_ext = priv->ext;
 		struct sym_hist *h = priv->hist;
 
@@ -422,7 +421,7 @@ static void insert_source_line(struct sym_ext *sym_ext)
 
 static void free_source_line(struct hist_entry *he, int len)
 {
-	struct sym_priv *priv = dso__sym_priv(he->map->dso, he->sym);
+	struct sym_priv *priv = symbol__priv(he->sym);
 	struct sym_ext *sym_ext = priv->ext;
 	int i;
 
@@ -446,7 +445,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 	int i;
 	char cmd[PATH_MAX * 2];
 	struct sym_ext *sym_ext;
-	struct sym_priv *priv = dso__sym_priv(he->map->dso, sym);
+	struct sym_priv *priv = symbol__priv(sym);
 	struct sym_hist *h = priv->hist;
 
 	if (!h->sum)
@@ -589,7 +588,7 @@ static void find_annotations(void)
 		if (he->sym == NULL)
 			continue;
 
-		priv = dso__sym_priv(he->map->dso, he->sym);
+		priv = symbol__priv(he->sym);
 		if (priv->hist == NULL)
 			continue;
 
@@ -637,7 +636,7 @@ static int __cmd_annotate(void)
 		exit(0);
 	}
 
-	if (load_kernel(sizeof(struct sym_priv), symbol_filter) < 0) {
+	if (load_kernel(symbol_filter) < 0) {
 		perror("failed to load kernel symbols");
 		return EXIT_FAILURE;
 	}
@@ -769,7 +768,7 @@ static void setup_sorting(void)
 
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
+	symbol__init(sizeof(struct sym_priv));
 
 	page_size = getpagesize();
 

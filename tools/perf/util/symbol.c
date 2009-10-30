@@ -26,6 +26,7 @@ static void dsos__add(struct dso *dso);
 static struct dso *dsos__find(const char *name);
 static struct map *map__new2(u64 start, struct dso *dso);
 static void kernel_maps__insert(struct map *map);
+unsigned int symbol__priv_size;
 
 static struct rb_root kernel_maps;
 
@@ -75,18 +76,17 @@ static void kernel_maps__fixup_end(void)
 	}
 }
 
-static struct symbol *symbol__new(u64 start, u64 len, const char *name,
-				  unsigned int priv_size)
+static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = calloc(1, priv_size + sizeof(*self) + namelen);
-
+	struct symbol *self = calloc(1, (symbol__priv_size +
+					 sizeof(*self) + namelen));
 	if (!self)
 		return NULL;
 
-	if (priv_size) {
-		memset(self, 0, priv_size);
-		self = ((void *)self) + priv_size;
+	if (symbol__priv_size) {
+		memset(self, 0, symbol__priv_size);
+		self = ((void *)self) + symbol__priv_size;
 	}
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
@@ -98,9 +98,9 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name,
 	return self;
 }
 
-static void symbol__delete(struct symbol *self, unsigned int priv_size)
+static void symbol__delete(struct symbol *self)
 {
-	free(((void *)self) - priv_size);
+	free(((void *)self) - symbol__priv_size);
 }
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
@@ -109,7 +109,7 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 		       self->start, self->end, self->name);
 }
 
-struct dso *dso__new(const char *name, unsigned int sym_priv_size)
+struct dso *dso__new(const char *name)
 {
 	struct dso *self = malloc(sizeof(*self) + strlen(name) + 1);
 
@@ -118,7 +118,6 @@ struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 		self->long_name = self->name;
 		self->short_name = self->name;
 		self->syms = RB_ROOT;
-		self->sym_priv_size = sym_priv_size;
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
@@ -136,7 +135,7 @@ static void dso__delete_symbols(struct dso *self)
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
 		rb_erase(&pos->rb_node, &self->syms);
-		symbol__delete(pos, self->sym_priv_size);
+		symbol__delete(pos);
 	}
 }
 
@@ -250,8 +249,7 @@ static int kernel_maps__load_all_kallsyms(void)
 		/*
 		 * Will fix up the end later, when we have all symbols sorted.
 		 */
-		sym = symbol__new(start, 0, symbol_name,
-				  kernel_map->dso->sym_priv_size);
+		sym = symbol__new(start, 0, symbol_name);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -317,8 +315,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter, int use_modules)
 			snprintf(dso_name, sizeof(dso_name), "[kernel].%d",
 				 kernel_range++);
 
-			dso = dso__new(dso_name,
-				       kernel_map->dso->sym_priv_size);
+			dso = dso__new(dso_name);
 			if (dso == NULL)
 				return -1;
 
@@ -336,7 +333,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter, int use_modules)
 		if (filter && filter(map, pos)) {
 delete_symbol:
 			rb_erase(&pos->rb_node, &kernel_map->dso->syms);
-			symbol__delete(pos, kernel_map->dso->sym_priv_size);
+			symbol__delete(pos);
 		} else {
 			if (map != kernel_map) {
 				rb_erase(&pos->rb_node, &kernel_map->dso->syms);
@@ -417,14 +414,13 @@ static int dso__load_perf_map(struct dso *self, struct map *map,
 		if (len + 2 >= line_len)
 			continue;
 
-		sym = symbol__new(start, size, line + len,
-				  self->sym_priv_size);
+		sym = symbol__new(start, size, line + len);
 
 		if (sym == NULL)
 			goto out_delete_line;
 
 		if (filter && filter(map, sym))
-			symbol__delete(sym, self->sym_priv_size);
+			symbol__delete(sym);
 		else {
 			dso__insert_symbol(self, sym);
 			nr_syms++;
@@ -616,7 +612,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self)
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size);
+					sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -634,7 +630,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self)
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size);
+					sympltname);
 			if (!f)
 				goto out_elf_end;
 
@@ -769,7 +765,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				if (kmodule)
 					start += map->start + shdr.sh_offset;
 
-				curr_dso = dso__new(dso_name, self->sym_priv_size);
+				curr_dso = dso__new(dso_name);
 				if (curr_dso == NULL)
 					goto out_elf_end;
 				curr_map = map__new2(start, curr_dso);
@@ -803,14 +799,13 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		if (demangled != NULL)
 			elf_name = demangled;
 new_symbol:
-		f = symbol__new(sym.st_value, sym.st_size, elf_name,
-				curr_dso->sym_priv_size);
+		f = symbol__new(sym.st_value, sym.st_size, elf_name);
 		free(demangled);
 		if (!f)
 			goto out_elf_end;
 
 		if (filter && filter(curr_map, f))
-			symbol__delete(f, curr_dso->sym_priv_size);
+			symbol__delete(f);
 		else {
 			dso__insert_symbol(curr_dso, f);
 			nr++;
@@ -1141,7 +1136,7 @@ static struct map *map__new2(u64 start, struct dso *dso)
 	return self;
 }
 
-static int dsos__load_modules(unsigned int sym_priv_size)
+static int dsos__load_modules(void)
 {
 	char *line = NULL;
 	size_t n;
@@ -1180,7 +1175,7 @@ static int dsos__load_modules(unsigned int sym_priv_size)
 		*sep = '\0';
 
 		snprintf(name, sizeof(name), "[%s]", line);
-		dso = dso__new(name, sym_priv_size);
+		dso = dso__new(name);
 
 		if (dso == NULL)
 			goto out_delete_line;
@@ -1224,11 +1219,11 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	return err;
 }
 
-int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
-		      symbol_filter_t filter, int use_modules)
+int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter,
+		      int use_modules)
 {
 	int err = -1;
-	struct dso *dso = dso__new(vmlinux, sym_priv_size);
+	struct dso *dso = dso__new(vmlinux);
 
 	if (dso == NULL)
 		return -1;
@@ -1240,7 +1235,7 @@ int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 
 	kernel_map->map_ip = kernel_map->unmap_ip = identity__map_ip;
 
-	if (use_modules && dsos__load_modules(sym_priv_size) < 0) {
+	if (use_modules && dsos__load_modules() < 0) {
 		pr_warning("Failed to load list of modules in use! "
 			   "Continuing...\n");
 		use_modules = 0;
@@ -1312,12 +1307,12 @@ static struct dso *dsos__find(const char *name)
 	return NULL;
 }
 
-struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size)
+struct dso *dsos__findnew(const char *name)
 {
 	struct dso *dso = dsos__find(name);
 
 	if (!dso) {
-		dso = dso__new(name, sym_priv_size);
+		dso = dso__new(name);
 		if (dso != NULL)
 			dsos__add(dso);
 	}
@@ -1333,13 +1328,12 @@ void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-int load_kernel(unsigned int sym_priv_size, symbol_filter_t filter)
+int load_kernel(symbol_filter_t filter)
 {
-	if (dsos__load_kernel(vmlinux_name, sym_priv_size, filter,
-			      modules) <= 0)
+	if (dsos__load_kernel(vmlinux_name, filter, modules) <= 0)
 		return -1;
 
-	vdso = dso__new("[vdso]", 0);
+	vdso = dso__new("[vdso]");
 	if (!vdso)
 		return -1;
 
@@ -1348,7 +1342,8 @@ int load_kernel(unsigned int sym_priv_size, symbol_filter_t filter)
 	return 0;
 }
 
-void symbol__init(void)
+void symbol__init(unsigned int priv_size)
 {
 	elf_version(EV_CURRENT);
+	symbol__priv_size = priv_size;
 }

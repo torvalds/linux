@@ -32,8 +32,7 @@ void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
 	RB_CLEAR_NODE(&self->rb_node);
 }
 
-struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size)
+struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -60,7 +59,7 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 			filename = newfilename;
 		}
 
-		dso = dsos__findnew(filename, sym_priv_size);
+		dso = dsos__findnew(filename);
 		if (dso == NULL)
 			goto out_delete;
 

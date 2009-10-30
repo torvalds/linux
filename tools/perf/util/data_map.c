@@ -130,7 +130,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		if (curr_handler->sample_type_check(sample_type) < 0)
 			exit(-1);
 
-	if (load_kernel(0, NULL) < 0) {
+	if (load_kernel(NULL) < 0) {
 		perror("failed to load kernel symbols");
 		return EXIT_FAILURE;
 	}

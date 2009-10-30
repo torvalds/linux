@@ -789,7 +789,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = dso__sym_priv(map->dso, sym);
+	syme = symbol__priv(sym);
 	syme->map = map;
 	pthread_mutex_init(&syme->source_lock, NULL);
 	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
@@ -807,8 +807,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 static int parse_symbols(void)
 {
-	if (dsos__load_kernel(vmlinux_name, sizeof(struct sym_entry),
-			      symbol_filter, 1) <= 0)
+	if (dsos__load_kernel(vmlinux_name, symbol_filter, 1) <= 0)
 		return -1;
 
 	if (dump_symtab)
@@ -859,7 +858,7 @@ static void event__process_sample(const event_t *self, int counter)
 		return;
 	}
 
-	syme = dso__sym_priv(map->dso, sym);
+	syme = symbol__priv(sym);
 
 	if (!syme->skip) {
 		syme->count[counter]++;
@@ -878,8 +877,7 @@ static void event__process_mmap(event_t *self)
 	struct thread *thread = threads__findnew(self->mmap.pid);
 
 	if (thread != NULL) {
-		struct map *map = map__new(&self->mmap, NULL, 0,
-					   sizeof(struct sym_entry));
+		struct map *map = map__new(&self->mmap, NULL, 0);
 		if (map != NULL)
 			thread__insert_map(thread, map);
 	}
@@ -1176,7 +1174,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init();
+	symbol__init(sizeof(struct sym_entry));
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
