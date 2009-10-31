@@ -271,10 +271,9 @@ ENTRY(v6_dma_flush_range)
  */
 ENTRY(v6_dma_map_area)
 	add	r1, r1, r0
-	cmp	r2, #DMA_TO_DEVICE
-	beq	v6_dma_clean_range
-	bcs	v6_dma_inv_range
-	b	v6_dma_flush_range
+	teq	r2, #DMA_FROM_DEVICE
+	beq	v6_dma_inv_range
+	b	v6_dma_clean_range
 ENDPROC(v6_dma_map_area)
 
 /*
@@ -284,6 +283,9 @@ ENDPROC(v6_dma_map_area)
  *	- dir	- DMA direction
  */
 ENTRY(v6_dma_unmap_area)
+	add	r1, r1, r0
+	teq	r2, #DMA_TO_DEVICE
+	bne	v6_dma_inv_range
 	mov	pc, lr
 ENDPROC(v6_dma_unmap_area)
 

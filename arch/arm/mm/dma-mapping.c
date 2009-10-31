@@ -404,34 +404,22 @@ EXPORT_SYMBOL(dma_free_coherent);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-static void dma_cache_maint(const void *start, size_t size, int direction)
-{
-	void (*outer_op)(unsigned long, unsigned long);
-
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
-
-	outer_op(__pa(start), __pa(start) + size);
-}
-
 void ___dma_single_cpu_to_dev(const void *kaddr, size_t size,
 	enum dma_data_direction dir)
 {
+	unsigned long paddr;
+
 	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
 
 	dmac_map_area(kaddr, size, dir);
-	dma_cache_maint(kaddr, size, dir);
+
+	paddr = __pa(kaddr);
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
+	} else {
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
 }
 EXPORT_SYMBOL(___dma_single_cpu_to_dev);
 
@@ -439,6 +427,13 @@ void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
 	enum dma_data_direction dir)
 {
 	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE) {
+		unsigned long paddr = __pa(kaddr);
+		outer_inv_range(paddr, paddr + size);
+	}
 
 	dmac_unmap_area(kaddr, size, dir);
 }
@@ -487,32 +482,29 @@ void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
 	unsigned long paddr;
-	void (*outer_op)(unsigned long, unsigned long);
-
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
 
 	dma_cache_maint_page(page, off, size, dir, dmac_map_area);
 
 	paddr = page_to_phys(page) + off;
-	outer_op(paddr, paddr + size);
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
+	} else {
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
 }
 EXPORT_SYMBOL(___dma_page_cpu_to_dev);
 
 void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
+	unsigned long paddr = page_to_phys(page) + off;
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE)
+		outer_inv_range(paddr, paddr + size);
+
 	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
 }
 EXPORT_SYMBOL(___dma_page_dev_to_cpu);
