@@ -573,8 +573,12 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
-					sg_dma_len(s), dir);
+		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					    sg_dma_len(s), dir))
+			continue;
+
+		__dma_page_dev_to_cpu(sg_page(s), s->offset,
+				      s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
@@ -597,9 +601,8 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 					sg_dma_len(s), dir))
 			continue;
 
-		if (!arch_is_coherent())
-			dma_cache_maint_page(sg_page(s), s->offset,
-					     s->length, dir);
+		__dma_page_cpu_to_dev(sg_page(s), s->offset,
+				      s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
