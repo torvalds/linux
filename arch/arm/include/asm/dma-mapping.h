@@ -257,9 +257,11 @@ extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
  */
 extern dma_addr_t dma_map_single(struct device *, void *, size_t,
 		enum dma_data_direction);
+extern void dma_unmap_single(struct device *, dma_addr_t, size_t,
+		enum dma_data_direction);
 extern dma_addr_t dma_map_page(struct device *, struct page *,
 		unsigned long, size_t, enum dma_data_direction);
-extern void dma_unmap_single(struct device *, dma_addr_t, size_t,
+extern void dma_unmap_page(struct device *, dma_addr_t, size_t,
 		enum dma_data_direction);
 
 /*
@@ -352,7 +354,6 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 {
 	/* nothing to do */
 }
-#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_unmap_page - unmap a buffer previously mapped through dma_map_page()
@@ -371,8 +372,9 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 static inline void dma_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	dma_unmap_single(dev, handle, size, dir);
+	/* nothing to do */
 }
+#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_sync_single_range_for_cpu
