@@ -134,6 +134,12 @@
 #define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
 #define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
+/*
+ * Convert a page to/from a physical address
+ */
+#define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
+#define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -291,11 +297,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #endif /* NODE_MEM_SIZE_BITS */
 
 #endif /* !CONFIG_DISCONTIGMEM */
-
-/*
- * For BIO.  "will die".  Kill me when bio_to_phys() and bvec_to_phys() die.
- */
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 /*
  * Optional coherency support.  Currently used only by selected
