@@ -1705,6 +1705,7 @@ static struct ir_scancode ir_codes_winfast[] = {
 	{ 0x37, KEY_RADIO },		/* FM */
 	{ 0x38, KEY_DVD },
 
+	{ 0x1a, KEY_MODE},		/* change to MCE mode on Y04G0051 */
 	{ 0x3e, KEY_F21 },		/* MCE +VOL, on Y04G0033 */
 	{ 0x3a, KEY_F22 },		/* MCE -VOL, on Y04G0033 */
 	{ 0x3b, KEY_F23 },		/* MCE +CH,  on Y04G0033 */

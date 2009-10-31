@@ -616,6 +616,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x003f00;
 		mask_keydown = 0x040000;
 		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S:
+		ir_codes     = &ir_codes_winfast_table;
+		mask_keycode = 0x5f00;
+		mask_keyup   = 0x020000;
+		polling      = 50; // ms
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
