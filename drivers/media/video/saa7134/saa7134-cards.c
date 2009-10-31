@@ -5304,6 +5304,22 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE2,
 		} },
 	},
+	[SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S] = {
+		.name           = "Leadtek Winfast DTV1000S",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs         = { {
+			.name = name_comp1,
+			.vmux = 3,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+		} },
+	},
 
 };
 
