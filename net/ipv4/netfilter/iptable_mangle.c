@@ -36,11 +36,7 @@ static const struct xt_table packet_mangler = {
 };
 
 static unsigned int
-ipt_local_hook(unsigned int hook,
-		   struct sk_buff *skb,
-		   const struct net_device *in,
-		   const struct net_device *out,
-		   int (*okfn)(struct sk_buff *))
+ipt_mangle_out(struct sk_buff *skb, const struct net_device *out)
 {
 	unsigned int ret;
 	const struct iphdr *iph;
@@ -60,7 +56,7 @@ ipt_local_hook(unsigned int hook,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(skb, hook, in, out,
+	ret = ipt_do_table(skb, NF_INET_LOCAL_OUT, NULL, out,
 			   dev_net(out)->ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
@@ -86,7 +82,7 @@ iptable_mangle_hook(unsigned int hook,
 		     int (*okfn)(struct sk_buff *))
 {
 	if (hook == NF_INET_LOCAL_OUT)
-		return ipt_local_hook(hook, skb, in, out, okfn);
+		return ipt_mangle_out(skb, out);
 	if (hook == NF_INET_POST_ROUTING)
 		return ipt_do_table(skb, hook, in, out,
 				    dev_net(out)->ipv4.iptable_mangle);

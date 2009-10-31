@@ -30,12 +30,8 @@ static const struct xt_table packet_mangler = {
 };
 
 static unsigned int
-ip6t_local_out_hook(unsigned int hook,
-		   struct sk_buff *skb,
-		   const struct net_device *out,
-		   int (*okfn)(struct sk_buff *))
+ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 {
-
 	unsigned int ret;
 	struct in6_addr saddr, daddr;
 	u_int8_t hop_limit;
@@ -60,7 +56,7 @@ ip6t_local_out_hook(unsigned int hook,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(skb, hook, NULL, out,
+	ret = ip6t_do_table(skb, NF_INET_LOCAL_OUT, NULL, out,
 			    dev_net(out)->ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN &&
@@ -80,7 +76,7 @@ ip6table_mangle_hook(unsigned int hook, struct sk_buff *skb,
 		     int (*okfn)(struct sk_buff *))
 {
 	if (hook == NF_INET_LOCAL_OUT)
-		return ip6t_local_out_hook(hook, skb, out, okfn);
+		return ip6t_mangle_out(skb, out);
 	if (hook == NF_INET_POST_ROUTING)
 		return ip6t_do_table(skb, hook, in, out,
 				     dev_net(out)->ipv6.ip6table_mangle);
