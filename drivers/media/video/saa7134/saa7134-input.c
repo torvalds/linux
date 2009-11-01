@@ -620,7 +620,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir_codes     = &ir_codes_winfast_table;
 		mask_keycode = 0x5f00;
 		mask_keyup   = 0x020000;
-		polling      = 50; // ms
+		polling      = 50; /* ms */
 		break;
 	}
 	if (NULL == ir_codes) {
