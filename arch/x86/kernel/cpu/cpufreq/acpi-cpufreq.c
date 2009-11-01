@@ -33,7 +33,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/dmi.h>
-#include <trace/power.h>
+#include <trace/events/power.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -71,8 +71,6 @@ struct acpi_cpufreq_data {
 static DEFINE_PER_CPU(struct acpi_cpufreq_data *, drv_data);
 
 static DEFINE_PER_CPU(struct aperfmperf, old_perf);
-
-DEFINE_TRACE(power_mark);
 
 /* acpi_perf_data is a pointer to percpu data. */
 static struct acpi_processor_performance *acpi_perf_data;
@@ -332,7 +330,6 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	unsigned int next_perf_state = 0; /* Index into perf table */
 	unsigned int i;
 	int result = 0;
-	struct power_trace it;
 
 	dprintk("acpi_cpufreq_target %d (%d)\n", target_freq, policy->cpu);
 
@@ -364,7 +361,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	trace_power_mark(&it, POWER_PSTATE, next_perf_state);
+	trace_power_frequency(POWER_PSTATE, data->freq_table[next_state].frequency);
 
 	switch (data->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:

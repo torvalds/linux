@@ -215,6 +215,12 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Region %p\n", object));
 
+		/* Invalidate the region address/length via the host OS */
+
+		acpi_os_invalidate_address(object->region.space_id,
+					  object->region.address,
+					  (acpi_size) object->region.length);
+
 		second_desc = acpi_ns_get_secondary_object(object);
 		if (second_desc) {
 			/*

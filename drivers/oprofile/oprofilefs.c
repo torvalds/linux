@@ -35,7 +35,7 @@ static struct inode *oprofilefs_get_inode(struct super_block *sb, int mode)
 }
 
 
-static struct super_operations s_ops = {
+static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode 	= generic_delete_inode,
 };

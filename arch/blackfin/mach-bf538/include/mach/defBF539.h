@@ -2325,7 +2325,7 @@
 #define	AMBEN_B0_B1	0x0004	/* Enable Asynchronous Memory Banks 0 &	1 only */
 #define	AMBEN_B0_B1_B2	0x0006	/* Enable Asynchronous Memory Banks 0, 1, and 2 */
 #define	AMBEN_ALL	0x0008	/* Enable Asynchronous Memory Banks (all) 0, 1,	2, and 3 */
-#define	CDPRIO		0x0100	/* DMA has priority over core for for external accesses */
+#define	CDPRIO		0x0100	/* DMA has priority over core for external accesses */
 
 /* EBIU_AMGCTL Bit Positions */
 #define	AMCKEN_P		0x0000	/* Enable CLKOUT */

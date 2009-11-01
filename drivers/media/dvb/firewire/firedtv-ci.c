@@ -215,7 +215,7 @@ static unsigned int fdtv_ca_io_poll(struct file *file, poll_table *wait)
 	return POLLIN;
 }
 
-static struct file_operations fdtv_ca_fops = {
+static const struct file_operations fdtv_ca_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= dvb_generic_ioctl,
 	.open		= dvb_generic_open,

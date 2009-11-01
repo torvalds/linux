@@ -12,7 +12,6 @@ struct clk {
 	unsigned int		cken;
 	unsigned int		delay;
 	unsigned int		enabled;
-	struct clk		*other;
 };
 
 #define INIT_CLKREG(_clk,_devname,_conname)		\

@@ -1320,6 +1320,23 @@ static struct tuner_params tuner_partsnic_pti_5nf05_params[] = {
 	},
 };
 
+/* --------- TUNER_PHILIPS_CU1216L - DVB-C NIM ------------------------- */
+
+static struct tuner_range tuner_cu1216l_ranges[] = {
+	{ 16 * 160.25 /*MHz*/, 0xce, 0x01 },
+	{ 16 * 444.25 /*MHz*/, 0xce, 0x02 },
+	{ 16 * 999.99        , 0xce, 0x04 },
+};
+
+static struct tuner_params tuner_philips_cu1216l_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_cu1216l_ranges,
+		.count  = ARRAY_SIZE(tuner_cu1216l_ranges),
+		.iffreq = 16 * 36.125, /*MHz*/
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1777,6 +1794,16 @@ struct tunertype tuners[] = {
 		.name = "Partsnic (Daewoo) PTI-5NF05",
 		.params = tuner_partsnic_pti_5nf05_params,
 		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_params),
+	},
+	[TUNER_PHILIPS_CU1216L] = {
+		.name = "Philips CU1216L",
+		.params = tuner_philips_cu1216l_params,
+		.count  = ARRAY_SIZE(tuner_philips_cu1216l_params),
+		.stepsize = 62500,
+	},
+	[TUNER_NXP_TDA18271] = {
+		.name   = "NXP TDA18271",
+		/* see tda18271-fe.c for details */
 	},
 };
 EXPORT_SYMBOL(tuners);

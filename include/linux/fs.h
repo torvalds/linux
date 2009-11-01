@@ -300,6 +300,10 @@ struct inodes_stat_t {
 #define BLKTRACESTOP _IO(0x12,117)
 #define BLKTRACETEARDOWN _IO(0x12,118)
 #define BLKDISCARD _IO(0x12,119)
+#define BLKIOMIN _IO(0x12,120)
+#define BLKIOOPT _IO(0x12,121)
+#define BLKALIGNOFF _IO(0x12,122)
+#define BLKPBSZGET _IO(0x12,123)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
@@ -595,6 +599,7 @@ struct address_space_operations {
 	int (*launder_page) (struct page *);
 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
 					unsigned long);
+	int (*error_remove_page)(struct address_space *, struct page *);
 };
 
 /*
@@ -640,7 +645,6 @@ struct block_device {
 	struct super_block *	bd_super;
 	int			bd_openers;
 	struct mutex		bd_mutex;	/* open/close mutex */
-	struct semaphore	bd_mount_sem;
 	struct list_head	bd_inodes;
 	void *			bd_holder;
 	int			bd_holders;
@@ -1066,8 +1070,8 @@ struct file_lock {
 	struct fasync_struct *	fl_fasync; /* for lease break notifications */
 	unsigned long fl_break_time;	/* for nonblocking lease breaks */
 
-	struct file_lock_operations *fl_ops;	/* Callbacks for filesystems */
-	struct lock_manager_operations *fl_lmops;	/* Callbacks for lockmanagers */
+	const struct file_lock_operations *fl_ops;	/* Callbacks for filesystems */
+	const struct lock_manager_operations *fl_lmops;	/* Callbacks for lockmanagers */
 	union {
 		struct nfs_lock_info	nfs_fl;
 		struct nfs4_lock_info	nfs4_fl;
@@ -1315,11 +1319,11 @@ struct super_block {
 	unsigned long		s_blocksize;
 	unsigned char		s_blocksize_bits;
 	unsigned char		s_dirt;
-	unsigned long long	s_maxbytes;	/* Max file size */
+	loff_t			s_maxbytes;	/* Max file size */
 	struct file_system_type	*s_type;
 	const struct super_operations	*s_op;
-	struct dquot_operations	*dq_op;
- 	struct quotactl_ops	*s_qcop;
+	const struct dquot_operations	*dq_op;
+	const struct quotactl_ops	*s_qcop;
 	const struct export_operations *s_export_op;
 	unsigned long		s_flags;
 	unsigned long		s_magic;
@@ -2156,6 +2160,7 @@ extern ino_t iunique(struct super_block *, ino_t);
 extern int inode_needs_sync(struct inode *inode);
 extern void generic_delete_inode(struct inode *inode);
 extern void generic_drop_inode(struct inode *inode);
+extern int generic_detach_inode(struct inode *inode);
 
 extern struct inode *ilookup5_nowait(struct super_block *sb,
 		unsigned long hashval, int (*test)(struct inode *, void *),
@@ -2334,6 +2339,7 @@ extern void get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);
 extern struct file_system_type *get_fs_type(const char *name);
 extern struct super_block *get_super(struct block_device *);
+extern struct super_block *get_active_super(struct block_device *bdev);
 extern struct super_block *user_get_super(dev_t);
 extern void drop_super(struct super_block *sb);
 
@@ -2381,7 +2387,8 @@ extern int buffer_migrate_page(struct address_space *,
 #define buffer_migrate_page NULL
 #endif
 
-extern int inode_change_ok(struct inode *, struct iattr *);
+extern int inode_change_ok(const struct inode *, struct iattr *);
+extern int inode_newsize_ok(const struct inode *, loff_t offset);
 extern int __must_check inode_setattr(struct inode *, struct iattr *);
 
 extern void file_update_time(struct file *file);
@@ -2443,7 +2450,7 @@ static int __fops ## _open(struct inode *inode, struct file *file)	\
 	__simple_attr_check_format(__fmt, 0ull);			\
 	return simple_attr_open(inode, file, __get, __set, __fmt);	\
 }									\
-static struct file_operations __fops = {				\
+static const struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
 	.open	 = __fops ## _open,					\
 	.release = simple_attr_release,					\
@@ -2467,7 +2474,7 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 			  size_t len, loff_t *ppos);
 
 struct ctl_table;
-int proc_nr_files(struct ctl_table *table, int write, struct file *filp,
+int proc_nr_files(struct ctl_table *table, int write,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
 int __init get_filesystem_list(char *buf);

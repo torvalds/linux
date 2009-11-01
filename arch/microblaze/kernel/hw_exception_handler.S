@@ -84,9 +84,10 @@
 #define NUM_TO_REG(num)		r ## num
 
 #ifdef CONFIG_MMU
-/* FIXME you can't change first load of MSR because there is
- * hardcoded jump bri 4 */
 	#define RESTORE_STATE			\
+		lwi	r5, r1, 0;		\
+		mts	rmsr, r5;		\
+		nop;				\
 		lwi	r3, r1, PT_R3;		\
 		lwi	r4, r1, PT_R4;		\
 		lwi	r5, r1, PT_R5;		\
@@ -309,6 +310,9 @@ _hw_exception_handler:
 	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE)) /* get saved current */
 #endif
 
+	mfs	r5, rmsr;
+	nop
+	swi	r5, r1, 0;
 	mfs	r3, resr
 	nop
 	mfs	r4, rear;
@@ -380,6 +384,8 @@ handle_other_ex: /* Handle Other exceptions here */
 	addk	r8, r17, r0; /* Load exception address */
 	bralid	r15, full_exception; /* Branch to the handler */
 	nop;
+	mts	r0, rfsr;	/* Clear sticky fsr */
+	nop
 
 	/*
 	 * Trigger execution of the signal handler by enabling

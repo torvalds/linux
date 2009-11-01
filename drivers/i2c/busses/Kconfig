@@ -113,7 +113,7 @@ config I2C_ISCH
 	  will be called i2c-isch.
 
 config I2C_PIIX4
-	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
+	tristate "Intel PIIX4 and compatible (ATI/AMD/Serverworks/Broadcom/SMSC)"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the Intel
@@ -128,6 +128,7 @@ config I2C_PIIX4
 	    ATI SB600
 	    ATI SB700
 	    ATI SB800
+	    AMD SB900
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
@@ -230,6 +231,22 @@ config I2C_VIAPRO
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
+
+if ACPI
+
+comment "ACPI drivers"
+
+config I2C_SCMI
+	tristate "SMBus Control Method Interface"
+	help
+	  This driver supports the SMBus Control Method Interface. It needs the
+	  BIOS to declare ACPI control methods as described in the SMBus Control
+	  Method Interface specification.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called i2c-scmi.
+
+endif # ACPI
 
 comment "Mac SMBus host controller drivers"
 	depends on PPC_CHRP || PPC_PMAC
@@ -460,8 +477,8 @@ config I2C_PNX
 	  will be called i2c-pnx.
 
 config I2C_PXA
-	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ARCH_PXA
+	tristate "Intel PXA2XX I2C adapter"
+	depends on ARCH_PXA || ARCH_MMP
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module

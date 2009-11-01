@@ -96,7 +96,6 @@ struct esp_struct {
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
-	wait_queue_head_t	delta_msr_wait;
 	wait_queue_head_t	break_wait;
 	struct async_icount	icount;	/* kernel counters for the 4 input interrupts */
 	struct hayes_esp_config config; /* port configuration */

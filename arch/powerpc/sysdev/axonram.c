@@ -165,7 +165,7 @@ axon_ram_direct_access(struct block_device *device, sector_t sector,
 	return 0;
 }
 
-static struct block_device_operations axon_ram_devops = {
+static const struct block_device_operations axon_ram_devops = {
 	.owner		= THIS_MODULE,
 	.direct_access	= axon_ram_direct_access
 };

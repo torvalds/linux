@@ -54,20 +54,23 @@ features surfaced as a result:
 
 3.1 General format of the API:
 struct dma_async_tx_descriptor *
-async_<operation>(<op specific parameters>,
-		  enum async_tx_flags flags,
-        	  struct dma_async_tx_descriptor *dependency,
-        	  dma_async_tx_callback callback_routine,
-		  void *callback_parameter);
+async_<operation>(<op specific parameters>, struct async_submit ctl *submit)
 
 3.2 Supported operations:
-memcpy       - memory copy between a source and a destination buffer
-memset       - fill a destination buffer with a byte value
-xor          - xor a series of source buffers and write the result to a
-	       destination buffer
-xor_zero_sum - xor a series of source buffers and set a flag if the
-	       result is zero.  The implementation attempts to prevent
-	       writes to memory
+memcpy  - memory copy between a source and a destination buffer
+memset  - fill a destination buffer with a byte value
+xor     - xor a series of source buffers and write the result to a
+	  destination buffer
+xor_val - xor a series of source buffers and set a flag if the
+	  result is zero.  The implementation attempts to prevent
+	  writes to memory
+pq	- generate the p+q (raid6 syndrome) from a series of source buffers
+pq_val  - validate that a p and or q buffer are in sync with a given series of
+	  sources
+datap	- (raid6_datap_recov) recover a raid6 data block and the p block
+	  from the given sources
+2data	- (raid6_2data_recov) recover 2 raid6 data blocks from the given
+	  sources
 
 3.3 Descriptor management:
 The return value is non-NULL and points to a 'descriptor' when the operation
@@ -80,8 +83,8 @@ acknowledged by the application before the offload engine driver is allowed to
 recycle (or free) the descriptor.  A descriptor can be acked by one of the
 following methods:
 1/ setting the ASYNC_TX_ACK flag if no child operations are to be submitted
-2/ setting the ASYNC_TX_DEP_ACK flag to acknowledge the parent
-   descriptor of a new operation.
+2/ submitting an unacknowledged descriptor as a dependency to another
+   async_tx call will implicitly set the acknowledged state.
 3/ calling async_tx_ack() on the descriptor.
 
 3.4 When does the operation execute?
@@ -119,30 +122,42 @@ of an operation.
 Perform a xor->copy->xor operation where each operation depends on the
 result from the previous operation:
 
-void complete_xor_copy_xor(void *param)
+void callback(void *param)
 {
-	printk("complete\n");
+	struct completion *cmp = param;
+
+	complete(cmp);
 }
 
-int run_xor_copy_xor(struct page **xor_srcs,
-		     int xor_src_cnt,
-		     struct page *xor_dest,
-		     size_t xor_len,
-		     struct page *copy_src,
-		     struct page *copy_dest,
-		     size_t copy_len)
+void run_xor_copy_xor(struct page **xor_srcs,
+		      int xor_src_cnt,
+		      struct page *xor_dest,
+		      size_t xor_len,
+		      struct page *copy_src,
+		      struct page *copy_dest,
+		      size_t copy_len)
 {
 	struct dma_async_tx_descriptor *tx;
+	addr_conv_t addr_conv[xor_src_cnt];
+	struct async_submit_ctl submit;
+	addr_conv_t addr_conv[NDISKS];
+	struct completion cmp;
 
-	tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len,
-		       ASYNC_TX_XOR_DROP_DST, NULL, NULL, NULL);
-	tx = async_memcpy(copy_dest, copy_src, 0, 0, copy_len,
-			  ASYNC_TX_DEP_ACK, tx, NULL, NULL);
-	tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len,
-		       ASYNC_TX_XOR_DROP_DST | ASYNC_TX_DEP_ACK | ASYNC_TX_ACK,
-		       tx, complete_xor_copy_xor, NULL);
+	init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST, NULL, NULL, NULL,
+			  addr_conv);
+	tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len, &submit)
+
+	submit->depend_tx = tx;
+	tx = async_memcpy(copy_dest, copy_src, 0, 0, copy_len, &submit);
+
+	init_completion(&cmp);
+	init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST | ASYNC_TX_ACK, tx,
+			  callback, &cmp, addr_conv);
+	tx = async_xor(xor_dest, xor_srcs, 0, xor_src_cnt, xor_len, &submit);
 
 	async_tx_issue_pending_all();
+
+	wait_for_completion(&cmp);
 }
 
 See include/linux/async_tx.h for more information on the flags.  See the

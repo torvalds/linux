@@ -263,8 +263,8 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct walk_control *wc, u64 gen)
 {
 	if (wc->pin)
-		btrfs_update_pinned_extents(log->fs_info->extent_root,
-					    eb->start, eb->len, 1);
+		btrfs_pin_extent(log->fs_info->extent_root,
+				 eb->start, eb->len, 0);
 
 	if (btrfs_buffer_uptodate(eb, gen)) {
 		if (wc->write)
@@ -534,7 +534,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
 	ret = btrfs_drop_extents(trans, root, inode,
-			 start, extent_end, extent_end, start, &alloc_hint);
+			 start, extent_end, extent_end, start, &alloc_hint, 1);
 	BUG_ON(ret);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -2605,7 +2605,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 								extent);
 				cs = btrfs_file_extent_offset(src, extent);
 				cl = btrfs_file_extent_num_bytes(src,
-								extent);;
+								extent);
 				if (btrfs_file_extent_compression(src,
 								  extent)) {
 					cs = 0;
@@ -2841,7 +2841,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			break;
 
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
@@ -2880,6 +2880,12 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_no_trans;
 	}
 
+	if (root != BTRFS_I(inode)->root ||
+	    btrfs_root_refs(&root->root_item) == 0) {
+		ret = 1;
+		goto end_no_trans;
+	}
+
 	ret = check_parent_dirs_for_sync(trans, inode, parent,
 					 sb, last_committed);
 	if (ret)
@@ -2907,12 +2913,15 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 			break;
 
 		inode = parent->d_inode;
+		if (root != BTRFS_I(inode)->root)
+			break;
+
 		if (BTRFS_I(inode)->generation >
 		    root->fs_info->last_trans_committed) {
 			ret = btrfs_log_inode(trans, root, inode, inode_only);
 			BUG_ON(ret);
 		}
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
@@ -2951,7 +2960,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_key tmp_key;
 	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
-	u64 highest_inode;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
 		.stage = 0,
@@ -3009,11 +3017,6 @@ again:
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
 						      path);
 			BUG_ON(ret);
-		}
-		ret = btrfs_find_highest_inode(wc.replay_dest, &highest_inode);
-		if (ret == 0) {
-			wc.replay_dest->highest_inode = highest_inode;
-			wc.replay_dest->last_inode_alloc = highest_inode;
 		}
 
 		key.offset = found_key.offset - 1;

@@ -20,6 +20,7 @@
 #define __LINUX_SPI_H
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -86,7 +87,7 @@ struct spi_device {
 	int			irq;
 	void			*controller_state;
 	void			*controller_data;
-	char			modalias[32];
+	char			modalias[SPI_NAME_SIZE];
 
 	/*
 	 * likely need more hooks for more protocol options affecting how
@@ -145,6 +146,7 @@ struct spi_message;
 
 /**
  * struct spi_driver - Host side "protocol" driver
+ * @id_table: List of SPI devices supported by this driver
  * @probe: Binds this driver to the spi device.  Drivers can verify
  *	that the device is actually present, and may need to configure
  *	characteristics (such as bits_per_word) which weren't needed for
@@ -170,6 +172,7 @@ struct spi_message;
  * MMC, RTC, filesystem character device nodes, and hardware monitoring.
  */
 struct spi_driver {
+	const struct spi_device_id *id_table;
 	int			(*probe)(struct spi_device *spi);
 	int			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
@@ -207,6 +210,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	each slave has a chipselect signal, but it's common that not
  *	every chipselect is connected to a slave.
  * @dma_alignment: SPI controller constraint on DMA buffers alignment.
+ * @mode_bits: flags understood by this controller driver
+ * @flags: other constraints relevant to this driver
  * @setup: updates the device mode and clocking records used by a
  *	device's SPI controller; protocol code may call this.  This
  *	must fail if an unrecognized or unsupported mode is requested.
@@ -253,6 +258,8 @@ struct spi_master {
 	/* other constraints relevant to this driver */
 	u16			flags;
 #define SPI_MASTER_HALF_DUPLEX	BIT(0)		/* can't do full duplex */
+#define SPI_MASTER_NO_RX	BIT(1)		/* can't do buffer read */
+#define SPI_MASTER_NO_TX	BIT(2)		/* can't do buffer write */
 
 	/* Setup mode and clock, etc (spi driver may call many times).
 	 *
@@ -533,42 +540,7 @@ static inline void spi_message_free(struct spi_message *m)
 }
 
 extern int spi_setup(struct spi_device *spi);
-
-/**
- * spi_async - asynchronous SPI transfer
- * @spi: device with which data will be exchanged
- * @message: describes the data transfers, including completion callback
- * Context: any (irqs may be blocked, etc)
- *
- * This call may be used in_irq and other contexts which can't sleep,
- * as well as from task contexts which can sleep.
- *
- * The completion callback is invoked in a context which can't sleep.
- * Before that invocation, the value of message->status is undefined.
- * When the callback is issued, message->status holds either zero (to
- * indicate complete success) or a negative error code.  After that
- * callback returns, the driver which issued the transfer request may
- * deallocate the associated memory; it's no longer in use by any SPI
- * core or controller driver code.
- *
- * Note that although all messages to a spi_device are handled in
- * FIFO order, messages may go to different devices in other orders.
- * Some device might be higher priority, or have various "hard" access
- * time requirements, for example.
- *
- * On detection of any fault during the transfer, processing of
- * the entire message is aborted, and the device is deselected.
- * Until returning from the associated message completion callback,
- * no other spi_message queued to that device will be processed.
- * (This rule applies equally to all the synchronous transfer calls,
- * which are wrappers around this core asynchronous primitive.)
- */
-static inline int
-spi_async(struct spi_device *spi, struct spi_message *message)
-{
-	message->spi = spi;
-	return spi->master->transfer(spi, message);
-}
+extern int spi_async(struct spi_device *spi, struct spi_message *message);
 
 /*---------------------------------------------------------------------------*/
 
@@ -732,7 +704,7 @@ struct spi_board_info {
 	 * controller_data goes to spi_device.controller_data,
 	 * irq is copied too
 	 */
-	char		modalias[32];
+	char		modalias[SPI_NAME_SIZE];
 	const void	*platform_data;
 	void		*controller_data;
 	int		irq;
@@ -799,5 +771,8 @@ spi_unregister_device(struct spi_device *spi)
 	if (spi)
 		device_unregister(&spi->dev);
 }
+
+extern const struct spi_device_id *
+spi_get_device_id(const struct spi_device *sdev);
 
 #endif /* __LINUX_SPI_H */

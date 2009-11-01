@@ -18,6 +18,14 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support.
 
+config DRM_KMS_HELPER
+	tristate
+	depends on DRM
+	select FB
+	select FRAMEBUFFER_CONSOLE if !EMBEDDED
+	help
+	  FB and CRTC helpers for KMS drivers.
+
 config DRM_TTM
 	tristate
 	depends on DRM
@@ -36,6 +44,7 @@ config DRM_TDFX
 config DRM_R128
 	tristate "ATI Rage 128"
 	depends on DRM && PCI
+	select FW_LOADER
 	help
 	  Choose this option if you have an ATI Rage 128 graphics card.  If M
 	  is selected, the module will be called r128.  AGP support for
@@ -47,8 +56,9 @@ config DRM_RADEON
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB
-	select FRAMEBUFFER_CONSOLE if !EMBEDDED
+	select FW_LOADER
+        select DRM_KMS_HELPER
+        select DRM_TTM
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -82,17 +92,17 @@ config DRM_I830
 config DRM_I915
 	tristate "i915 driver"
 	depends on AGP_INTEL
+	select DRM_KMS_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB
-	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	# i915 depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
 	select VIDEO_OUTPUT_CONTROL if ACPI
 	select BACKLIGHT_CLASS_DEVICE if ACPI
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
+	select ACPI_BUTTON if ACPI
 	help
 	  Choose this option if you have a system that has Intel 830M, 845G,
 	  852GM, 855GM 865G or 915G integrated graphics.  If M is selected, the
@@ -116,6 +126,7 @@ endchoice
 config DRM_MGA
 	tristate "Matrox g200/g400"
 	depends on DRM
+	select FW_LOADER
 	help
 	  Choose this option if you have a Matrox G200, G400 or G450 graphics
 	  card.  If M is selected, the module will be called mga.  AGP

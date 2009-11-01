@@ -1422,7 +1422,6 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 		goto err_submit_failed;
 
 	/* Add this URB to the QH */
-	urbp->qh = qh;
 	list_add_tail(&urbp->node, &qh->queue);
 
 	/* If the new URB is the first and only one on this QH then either

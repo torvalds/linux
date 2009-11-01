@@ -113,6 +113,8 @@ void pn_sock_unhash(struct sock *sk)
 }
 EXPORT_SYMBOL(pn_sock_unhash);
 
+static DEFINE_MUTEX(port_mutex);
+
 static int pn_socket_bind(struct socket *sock, struct sockaddr *addr, int len)
 {
 	struct sock *sk = sock->sk;
@@ -140,9 +142,11 @@ static int pn_socket_bind(struct socket *sock, struct sockaddr *addr, int len)
 		err = -EINVAL; /* attempt to rebind */
 		goto out;
 	}
+	WARN_ON(sk_hashed(sk));
+	mutex_lock(&port_mutex);
 	err = sk->sk_prot->get_port(sk, pn_port(handle));
 	if (err)
-		goto out;
+		goto out_port;
 
 	/* get_port() sets the port, bind() sets the address if applicable */
 	pn->sobject = pn_object(saddr, pn_port(pn->sobject));
@@ -150,6 +154,8 @@ static int pn_socket_bind(struct socket *sock, struct sockaddr *addr, int len)
 
 	/* Enable RX on the socket */
 	sk->sk_prot->hash(sk);
+out_port:
+	mutex_unlock(&port_mutex);
 out:
 	release_sock(sk);
 	return err;
@@ -357,8 +363,6 @@ const struct proto_ops phonet_stream_ops = {
 };
 EXPORT_SYMBOL(phonet_stream_ops);
 
-static DEFINE_MUTEX(port_mutex);
-
 /* allocate port for a socket */
 int pn_sock_get_port(struct sock *sk, unsigned short sport)
 {
@@ -370,9 +374,7 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 
 	memset(&try_sa, 0, sizeof(struct sockaddr_pn));
 	try_sa.spn_family = AF_PHONET;
-
-	mutex_lock(&port_mutex);
-
+	WARN_ON(!mutex_is_locked(&port_mutex));
 	if (!sport) {
 		/* search free port */
 		int port, pmin, pmax;
@@ -401,13 +403,10 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 		else
 			sock_put(tmpsk);
 	}
-	mutex_unlock(&port_mutex);
-
 	/* the port must be in use already */
 	return -EADDRINUSE;
 
 found:
-	mutex_unlock(&port_mutex);
 	pn->sobject = pn_object(pn_addr(pn->sobject), sport);
 	return 0;
 }

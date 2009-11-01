@@ -128,6 +128,14 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
+	 * These two counters are for delalloc metadata reservations.  We keep
+	 * track of how many extents we've accounted for vs how many extents we
+	 * have.
+	 */
+	int delalloc_reserved_extents;
+	int delalloc_extents;
+
+	/*
 	 * ordered_data_close is set by truncate when a file that used
 	 * to have good data has been truncated to zero.  When it is set
 	 * the btrfs file release call will add this inode to the
@@ -138,6 +146,7 @@ struct btrfs_inode {
 	 * of these.
 	 */
 	unsigned ordered_data_close:1;
+	unsigned dummy_inode:1;
 
 	struct inode vfs_inode;
 };

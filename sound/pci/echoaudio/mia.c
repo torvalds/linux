@@ -29,6 +29,7 @@
 #define ECHOCARD_HAS_ADAT	FALSE
 #define ECHOCARD_HAS_STEREO_BIG_ENDIAN32
 #define ECHOCARD_HAS_MIDI
+#define ECHOCARD_HAS_LINE_OUT_GAIN
 
 /* Pipe indexes */
 #define PX_ANALOG_OUT	0	/* 8 */

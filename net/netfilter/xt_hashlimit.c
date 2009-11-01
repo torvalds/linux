@@ -194,9 +194,9 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, u_int8_t family)
 	if (minfo->cfg.size)
 		size = minfo->cfg.size;
 	else {
-		size = ((num_physpages << PAGE_SHIFT) / 16384) /
+		size = ((totalram_pages << PAGE_SHIFT) / 16384) /
 		       sizeof(struct list_head);
-		if (num_physpages > (1024 * 1024 * 1024 / PAGE_SIZE))
+		if (totalram_pages > (1024 * 1024 * 1024 / PAGE_SIZE))
 			size = 8192;
 		if (size < 16)
 			size = 16;
@@ -266,9 +266,9 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 	if (minfo->cfg.size) {
 		size = minfo->cfg.size;
 	} else {
-		size = (num_physpages << PAGE_SHIFT) / 16384 /
+		size = (totalram_pages << PAGE_SHIFT) / 16384 /
 		       sizeof(struct list_head);
-		if (num_physpages > 1024 * 1024 * 1024 / PAGE_SIZE)
+		if (totalram_pages > 1024 * 1024 * 1024 / PAGE_SIZE)
 			size = 8192;
 		if (size < 16)
 			size = 16;

@@ -19,9 +19,6 @@ static int
 adfs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh,
 	       int create)
 {
-	if (block < 0)
-		goto abort_negative;
-
 	if (!create) {
 		if (block >= inode->i_blocks)
 			goto abort_toobig;
@@ -32,10 +29,6 @@ adfs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh,
 		return 0;
 	}
 	/* don't support allocation of blocks yet */
-	return -EIO;
-
-abort_negative:
-	adfs_error(inode->i_sb, "block %d < 0", block);
 	return -EIO;
 
 abort_toobig:

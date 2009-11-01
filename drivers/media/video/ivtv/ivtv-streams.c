@@ -261,8 +261,8 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	video_set_drvdata(s->vdev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
-	if (video_register_device(s->vdev, vfl_type, num)) {
-		IVTV_ERR("Couldn't register v4l2 device for %s kernel number %d\n",
+	if (video_register_device_no_warn(s->vdev, vfl_type, num)) {
+		IVTV_ERR("Couldn't register v4l2 device for %s (device node number %d)\n",
 				s->name, num);
 		video_device_release(s->vdev);
 		s->vdev = NULL;

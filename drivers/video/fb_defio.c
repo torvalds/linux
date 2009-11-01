@@ -125,7 +125,7 @@ page_already_added:
 	return 0;
 }
 
-static struct vm_operations_struct fb_deferred_io_vm_ops = {
+static const struct vm_operations_struct fb_deferred_io_vm_ops = {
 	.fault		= fb_deferred_io_fault,
 	.page_mkwrite	= fb_deferred_io_mkwrite,
 };

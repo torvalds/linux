@@ -104,7 +104,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 				     uint32_t supported_device,
 				     int *connector_type,
 				     struct radeon_i2c_bus_rec *i2c_bus,
-				     uint8_t *line_mux)
+				     uint16_t *line_mux)
 {
 
 	/* Asus M2A-VM HDMI board lists the DVI port as HDMI */
@@ -143,20 +143,31 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			return false;
 	}
 
-	/* some BIOSes seem to report DAC on HDMI - they hurt me with their lies */
-	if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) ||
-	    (*connector_type == DRM_MODE_CONNECTOR_HDMIB)) {
-		if (supported_device & (ATOM_DEVICE_CRT_SUPPORT)) {
-			return false;
-		}
-	}
-
 	/* ASUS HD 3600 XT board lists the DVI port as HDMI */
 	if ((dev->pdev->device == 0x9598) &&
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
 	    (dev->pdev->subsystem_device == 0x01da)) {
-		if (*connector_type == DRM_MODE_CONNECTOR_HDMIB) {
-			*connector_type = DRM_MODE_CONNECTOR_DVID;
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
+		}
+	}
+
+	/* ASUS HD 3450 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x95C5) &&
+	    (dev->pdev->subsystem_vendor == 0x1043) &&
+	    (dev->pdev->subsystem_device == 0x01e2)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
+		}
+	}
+
+	/* some BIOSes seem to report DAC on HDMI - usually this is a board with
+	 * HDMI + VGA reporting as HDMI
+	 */
+	if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+		if (supported_device & (ATOM_DEVICE_CRT_SUPPORT)) {
+			*connector_type = DRM_MODE_CONNECTOR_VGA;
+			*line_mux = 0;
 		}
 	}
 
@@ -192,10 +203,10 @@ const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Composite,
 	DRM_MODE_CONNECTOR_SVIDEO,
 	DRM_MODE_CONNECTOR_Unknown,
+	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_9PinDIN,
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_HDMIA,
-	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_HDMIB,
 	DRM_MODE_CONNECTOR_LVDS,
 	DRM_MODE_CONNECTOR_9PinDIN,
@@ -218,7 +229,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	ATOM_OBJECT_HEADER *obj_header;
 	int i, j, path_size, device_support;
 	int connector_type;
-	uint16_t igp_lane_info;
+	uint16_t igp_lane_info, conn_id;
 	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
 
@@ -261,12 +272,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
-			if ((le16_to_cpu(path->usDeviceTag) ==
-			     ATOM_DEVICE_TV1_SUPPORT)
-			    || (le16_to_cpu(path->usDeviceTag) ==
-				ATOM_DEVICE_TV2_SUPPORT)
-			    || (le16_to_cpu(path->usDeviceTag) ==
-				ATOM_DEVICE_CV_SUPPORT))
+			/* TODO CV support */
+			if (le16_to_cpu(path->usDeviceTag) ==
+				ATOM_DEVICE_CV_SUPPORT)
 				continue;
 
 			if ((rdev->family == CHIP_RS780) &&
@@ -370,10 +378,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						       && record->
 						       ucRecordType <=
 						       ATOM_MAX_OBJECT_RECORD_NUMBER) {
-							DRM_ERROR
-							    ("record type %d\n",
-							     record->
-							     ucRecordType);
 							switch (record->
 								ucRecordType) {
 							case ATOM_I2C_RECORD_TYPE:
@@ -409,9 +413,15 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			else
 				ddc_bus = radeon_lookup_gpio(dev, line_mux);
 
+			conn_id = le16_to_cpu(path->usConnObjectId);
+
+			if (!radeon_atom_apply_quirks
+			    (dev, le16_to_cpu(path->usDeviceTag), &connector_type,
+			     &ddc_bus, &conn_id))
+				continue;
+
 			radeon_add_atom_connector(dev,
-						  le16_to_cpu(path->
-							      usConnObjectId),
+						  conn_id,
 						  le16_to_cpu(path->
 							      usDeviceTag),
 						  connector_type, &ddc_bus,
@@ -427,7 +437,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 
 struct bios_connector {
 	bool valid;
-	uint8_t line_mux;
+	uint16_t line_mux;
 	uint16_t devices;
 	int connector_type;
 	struct radeon_i2c_bus_rec ddc_bus;
@@ -468,11 +478,6 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 		if (i == ATOM_DEVICE_CV_INDEX) {
 			DRM_DEBUG("Skipping Component Video\n");
-			continue;
-		}
-
-		if (i == ATOM_DEVICE_TV1_INDEX) {
-			DRM_DEBUG("Skipping TV Out\n");
 			continue;
 		}
 
@@ -711,9 +716,8 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
-struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
-							      radeon_encoder
-							      *encoder)
+bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
+				   struct radeon_encoder_int_tmds *tmds)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -724,7 +728,6 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 	uint8_t frev, crev;
 	uint16_t maxfreq;
 	int i;
-	struct radeon_encoder_int_tmds *tmds = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
 			       &crev, &data_offset);
@@ -734,12 +737,6 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 				       data_offset);
 
 	if (tmds_info) {
-		tmds =
-		    kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
-
-		if (!tmds)
-			return NULL;
-
 		maxfreq = le16_to_cpu(tmds_info->usMaxFrequency);
 		for (i = 0; i < 4; i++) {
 			tmds->tmds_pll[i].freq =
@@ -765,8 +762,9 @@ struct radeon_encoder_int_tmds *radeon_atombios_get_tmds_info(struct
 				break;
 			}
 		}
+		return true;
 	}
-	return tmds;
+	return false;
 }
 
 union lvds_info {
@@ -856,6 +854,72 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 
 	}
 	return p_dac;
+}
+
+bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
+				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
+				int32_t *pixel_clock)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	ATOM_ANALOG_TV_INFO *tv_info;
+	ATOM_ANALOG_TV_INFO_V1_2 *tv_info_v1_2;
+	ATOM_DTD_FORMAT *dtd_timings;
+	int data_index = GetIndexIntoMasterTable(DATA, AnalogTV_Info);
+	u8 frev, crev;
+	uint16_t data_offset;
+
+	atom_parse_data_header(mode_info->atom_context, data_index, NULL, &frev, &crev, &data_offset);
+
+	switch (crev) {
+	case 1:
+		tv_info = (ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
+		if (index > MAX_SUPPORTED_TV_TIMING)
+			return false;
+
+		crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
+		crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
+		crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
+		crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
+
+		crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
+		crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
+		crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
+		crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
+
+		crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
+
+		crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
+		crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
+		crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
+		crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
+		*pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+
+		if (index == 1) {
+			/* PAL timings appear to have wrong values for totals */
+			crtc_timing->usH_Total -= 1;
+			crtc_timing->usV_Total -= 1;
+		}
+		break;
+	case 2:
+		tv_info_v1_2 = (ATOM_ANALOG_TV_INFO_V1_2 *)(mode_info->atom_context->bios + data_offset);
+		if (index > MAX_SUPPORTED_TV_TIMING_V1_2)
+			return false;
+
+		dtd_timings = &tv_info_v1_2->aModeTimings[index];
+		crtc_timing->usH_Total = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHBlanking_Time);
+		crtc_timing->usH_Disp = le16_to_cpu(dtd_timings->usHActive);
+		crtc_timing->usH_SyncStart = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHSyncOffset);
+		crtc_timing->usH_SyncWidth = le16_to_cpu(dtd_timings->usHSyncWidth);
+		crtc_timing->usV_Total = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVBlanking_Time);
+		crtc_timing->usV_Disp = le16_to_cpu(dtd_timings->usVActive);
+		crtc_timing->usV_SyncStart = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVSyncOffset);
+		crtc_timing->usV_SyncWidth = le16_to_cpu(dtd_timings->usVSyncWidth);
+
+		crtc_timing->susModeMiscInfo.usAccess = le16_to_cpu(dtd_timings->susModeMiscInfo.usAccess);
+		*pixel_clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+		break;
+	}
+	return true;
 }
 
 struct radeon_encoder_tv_dac *
@@ -948,10 +1012,10 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 	uint32_t bios_2_scratch, bios_6_scratch;
 
 	if (rdev->family >= CHIP_R600) {
-		bios_2_scratch = RREG32(R600_BIOS_0_SCRATCH);
+		bios_2_scratch = RREG32(R600_BIOS_2_SCRATCH);
 		bios_6_scratch = RREG32(R600_BIOS_6_SCRATCH);
 	} else {
-		bios_2_scratch = RREG32(RADEON_BIOS_0_SCRATCH);
+		bios_2_scratch = RREG32(RADEON_BIOS_2_SCRATCH);
 		bios_6_scratch = RREG32(RADEON_BIOS_6_SCRATCH);
 	}
 
@@ -969,6 +1033,34 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 		WREG32(RADEON_BIOS_6_SCRATCH, bios_6_scratch);
 	}
 
+}
+
+void radeon_save_bios_scratch_regs(struct radeon_device *rdev)
+{
+	uint32_t scratch_reg;
+	int i;
+
+	if (rdev->family >= CHIP_R600)
+		scratch_reg = R600_BIOS_0_SCRATCH;
+	else
+		scratch_reg = RADEON_BIOS_0_SCRATCH;
+
+	for (i = 0; i < RADEON_BIOS_NUM_SCRATCH; i++)
+		rdev->bios_scratch[i] = RREG32(scratch_reg + (i * 4));
+}
+
+void radeon_restore_bios_scratch_regs(struct radeon_device *rdev)
+{
+	uint32_t scratch_reg;
+	int i;
+
+	if (rdev->family >= CHIP_R600)
+		scratch_reg = R600_BIOS_0_SCRATCH;
+	else
+		scratch_reg = RADEON_BIOS_0_SCRATCH;
+
+	for (i = 0; i < RADEON_BIOS_NUM_SCRATCH; i++)
+		WREG32(scratch_reg + (i * 4), rdev->bios_scratch[i]);
 }
 
 void radeon_atom_output_lock(struct drm_encoder *encoder, bool lock)

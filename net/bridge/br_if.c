@@ -432,6 +432,7 @@ err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_put(&p->kobj);
+	p = NULL; /* kobject_put frees */
 err0:
 	dev_set_promiscuity(dev, -1);
 put_back:

@@ -37,7 +37,7 @@ struct clk {
 static unsigned long get_uart_rate(struct clk *clk);
 
 static int set_keytchclk_rate(struct clk *clk, unsigned long rate);
-
+static int set_div_rate(struct clk *clk, unsigned long rate);
 
 static struct clk clk_uart1 = {
 	.sw_locked	= 1,
@@ -74,6 +74,13 @@ static struct clk clk_keypad = {
 };
 static struct clk clk_pwm = {
 	.rate		= EP93XX_EXT_CLK_RATE,
+};
+
+static struct clk clk_video = {
+	.sw_locked	= 1,
+	.enable_reg     = EP93XX_SYSCON_VIDCLKDIV,
+	.enable_mask    = EP93XX_SYSCON_CLKDIV_ENABLE,
+	.set_rate	= set_div_rate,
 };
 
 /* DMA Clocks */
@@ -140,6 +147,7 @@ static struct clk_lookup clocks[] = {
 	INIT_CK(NULL,			"pll2",		&clk_pll2),
 	INIT_CK("ep93xx-ohci",		NULL,		&clk_usb_host),
 	INIT_CK("ep93xx-keypad",	NULL,		&clk_keypad),
+	INIT_CK("ep93xx-fb",		NULL,		&clk_video),
 	INIT_CK(NULL,			"pwm_clk",	&clk_pwm),
 	INIT_CK(NULL,			"m2p0",		&clk_m2p0),
 	INIT_CK(NULL,			"m2p1",		&clk_m2p1),
@@ -233,6 +241,84 @@ static int set_keytchclk_rate(struct clk *clk, unsigned long rate)
 
 	ep93xx_syscon_swlocked_write(val, clk->enable_reg);
 	clk->rate = rate;
+	return 0;
+}
+
+static unsigned long calc_clk_div(unsigned long rate, int *psel, int *esel,
+				  int *pdiv, int *div)
+{
+	unsigned long max_rate, best_rate = 0,
+		actual_rate = 0, mclk_rate = 0, rate_err = -1;
+	int i, found = 0, __div = 0, __pdiv = 0;
+
+	/* Don't exceed the maximum rate */
+	max_rate = max(max(clk_pll1.rate / 4, clk_pll2.rate / 4),
+		       (unsigned long)EP93XX_EXT_CLK_RATE / 4);
+	rate = min(rate, max_rate);
+
+	/*
+	 * Try the two pll's and the external clock
+	 * Because the valid predividers are 2, 2.5 and 3, we multiply
+	 * all the clocks by 2 to avoid floating point math.
+	 *
+	 * This is based on the algorithm in the ep93xx raster guide:
+	 * http://be-a-maverick.com/en/pubs/appNote/AN269REV1.pdf
+	 *
+	 */
+	for (i = 0; i < 3; i++) {
+		if (i == 0)
+			mclk_rate = EP93XX_EXT_CLK_RATE * 2;
+		else if (i == 1)
+			mclk_rate = clk_pll1.rate * 2;
+		else if (i == 2)
+			mclk_rate = clk_pll2.rate * 2;
+
+		/* Try each predivider value */
+		for (__pdiv = 4; __pdiv <= 6; __pdiv++) {
+			__div = mclk_rate / (rate * __pdiv);
+			if (__div < 2 || __div > 127)
+				continue;
+
+			actual_rate = mclk_rate / (__pdiv * __div);
+
+			if (!found || abs(actual_rate - rate) < rate_err) {
+				*pdiv = __pdiv - 3;
+				*div = __div;
+				*psel = (i == 2);
+				*esel = (i != 0);
+				best_rate = actual_rate;
+				rate_err = abs(actual_rate - rate);
+				found = 1;
+			}
+		}
+	}
+
+	if (!found)
+		return 0;
+
+	return best_rate;
+}
+
+static int set_div_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long actual_rate;
+	int psel = 0, esel = 0, pdiv = 0, div = 0;
+	u32 val;
+
+	actual_rate = calc_clk_div(rate, &psel, &esel, &pdiv, &div);
+	if (actual_rate == 0)
+		return -EINVAL;
+	clk->rate = actual_rate;
+
+	/* Clear the esel, psel, pdiv and div bits */
+	val = __raw_readl(clk->enable_reg);
+	val &= ~0x7fff;
+
+	/* Set the new esel, psel, pdiv and div bits for the new clock rate */
+	val |= (esel ? EP93XX_SYSCON_CLKDIV_ESEL : 0) |
+		(psel ? EP93XX_SYSCON_CLKDIV_PSEL : 0) |
+		(pdiv << EP93XX_SYSCON_CLKDIV_PDIV_SHIFT) | div;
+	ep93xx_syscon_swlocked_write(val, clk->enable_reg);
 	return 0;
 }
 

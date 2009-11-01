@@ -255,15 +255,18 @@ static struct tda18271_std_map hauppauge_hvr1200_tda18271_std_map = {
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.std_map = &hauppauge_hvr1200_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_config hauppauge_hvr1210_tuner_config = {
 	.gate    = TDA18271_GATE_DIGITAL,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda18271_std_map hauppauge_hvr127x_std_map = {
@@ -275,6 +278,7 @@ static struct tda18271_std_map hauppauge_hvr127x_std_map = {
 
 static struct tda18271_config hauppauge_hvr127x_config = {
 	.std_map = &hauppauge_hvr127x_std_map,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct lgdt3305_config hauppauge_lgdt3305_config = {
@@ -743,6 +747,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	}
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
+	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 		i2c_bus = &dev->i2c_bus[0];
 
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,

@@ -223,10 +223,8 @@ ncp_set_charsets(struct ncp_server* server, struct ncp_nls_ioctl __user *arg)
 	oldset_io = server->nls_io;
 	server->nls_io = iocharset;
 
-	if (oldset_cp)
-		unload_nls(oldset_cp);
-	if (oldset_io)
-		unload_nls(oldset_io);
+	unload_nls(oldset_cp);
+	unload_nls(oldset_io);
 
 	return 0;
 }
@@ -442,7 +440,7 @@ static int __ncp_ioctl(struct inode *inode, struct file *filp,
 			if (dentry) {
 				struct inode* s_inode = dentry->d_inode;
 				
-				if (inode) {
+				if (s_inode) {
 					NCP_FINFO(s_inode)->volNumber = vnum;
 					NCP_FINFO(s_inode)->dirEntNum = de;
 					NCP_FINFO(s_inode)->DosDirNum = dosde;

@@ -153,7 +153,7 @@ static const struct file_operations rng_chrdev_ops = {
 static struct miscdevice rng_miscdev = {
 	.minor		= RNG_MISCDEV_MINOR,
 	.name		= RNG_MODULE_NAME,
-	.devnode	= "hwrng",
+	.nodename	= "hwrng",
 	.fops		= &rng_chrdev_ops,
 };
 

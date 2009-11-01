@@ -175,7 +175,7 @@ static dbdev_tab_t dbdev_tab[] = {
 #define DBDEV_TAB_SIZE	ARRAY_SIZE(dbdev_tab)
 
 #ifdef CONFIG_PM
-static u32 au1xxx_dbdma_pm_regs[NUM_DBDMA_CHANS + 1][8];
+static u32 au1xxx_dbdma_pm_regs[NUM_DBDMA_CHANS + 1][6];
 #endif
 
 
@@ -993,14 +993,13 @@ void au1xxx_dbdma_suspend(void)
 	au1xxx_dbdma_pm_regs[0][3] = au_readl(addr + 0x0c);
 
 	/* save channel configurations */
-	for (i = 1, addr = DDMA_CHANNEL_BASE; i < NUM_DBDMA_CHANS; i++) {
+	for (i = 1, addr = DDMA_CHANNEL_BASE; i <= NUM_DBDMA_CHANS; i++) {
 		au1xxx_dbdma_pm_regs[i][0] = au_readl(addr + 0x00);
 		au1xxx_dbdma_pm_regs[i][1] = au_readl(addr + 0x04);
 		au1xxx_dbdma_pm_regs[i][2] = au_readl(addr + 0x08);
 		au1xxx_dbdma_pm_regs[i][3] = au_readl(addr + 0x0c);
 		au1xxx_dbdma_pm_regs[i][4] = au_readl(addr + 0x10);
 		au1xxx_dbdma_pm_regs[i][5] = au_readl(addr + 0x14);
-		au1xxx_dbdma_pm_regs[i][6] = au_readl(addr + 0x18);
 
 		/* halt channel */
 		au_writel(au1xxx_dbdma_pm_regs[i][0] & ~1, addr + 0x00);
@@ -1027,14 +1026,13 @@ void au1xxx_dbdma_resume(void)
 	au_writel(au1xxx_dbdma_pm_regs[0][3], addr + 0x0c);
 
 	/* restore channel configurations */
-	for (i = 1, addr = DDMA_CHANNEL_BASE; i < NUM_DBDMA_CHANS; i++) {
+	for (i = 1, addr = DDMA_CHANNEL_BASE; i <= NUM_DBDMA_CHANS; i++) {
 		au_writel(au1xxx_dbdma_pm_regs[i][0], addr + 0x00);
 		au_writel(au1xxx_dbdma_pm_regs[i][1], addr + 0x04);
 		au_writel(au1xxx_dbdma_pm_regs[i][2], addr + 0x08);
 		au_writel(au1xxx_dbdma_pm_regs[i][3], addr + 0x0c);
 		au_writel(au1xxx_dbdma_pm_regs[i][4], addr + 0x10);
 		au_writel(au1xxx_dbdma_pm_regs[i][5], addr + 0x14);
-		au_writel(au1xxx_dbdma_pm_regs[i][6], addr + 0x18);
 		au_sync();
 		addr += 0x100;	/* next channel base */
 	}

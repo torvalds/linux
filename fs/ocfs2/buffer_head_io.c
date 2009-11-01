@@ -52,12 +52,12 @@ enum ocfs2_state_bits {
 BUFFER_FNS(NeedsValidate, needs_validate);
 
 int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
-		      struct inode *inode)
+		      struct ocfs2_caching_info *ci)
 {
 	int ret = 0;
 
-	mlog_entry("(bh->b_blocknr = %llu, inode=%p)\n",
-		   (unsigned long long)bh->b_blocknr, inode);
+	mlog_entry("(bh->b_blocknr = %llu, ci=%p)\n",
+		   (unsigned long long)bh->b_blocknr, ci);
 
 	BUG_ON(bh->b_blocknr < OCFS2_SUPER_BLOCK_BLKNO);
 	BUG_ON(buffer_jbd(bh));
@@ -70,7 +70,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		goto out;
 	}
 
-	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_lock(ci);
 
 	lock_buffer(bh);
 	set_buffer_uptodate(bh);
@@ -85,7 +85,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 	wait_on_buffer(bh);
 
 	if (buffer_uptodate(bh)) {
-		ocfs2_set_buffer_uptodate(inode, bh);
+		ocfs2_set_buffer_uptodate(ci, bh);
 	} else {
 		/* We don't need to remove the clustered uptodate
 		 * information for this bh as it's not marked locally
@@ -94,7 +94,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		put_bh(bh);
 	}
 
-	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_unlock(ci);
 out:
 	mlog_exit(ret);
 	return ret;
@@ -177,7 +177,7 @@ bail:
 	return status;
 }
 
-int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
+int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 		      struct buffer_head *bhs[], int flags,
 		      int (*validate)(struct super_block *sb,
 				      struct buffer_head *bh))
@@ -185,11 +185,12 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 	int status = 0;
 	int i, ignore_cache = 0;
 	struct buffer_head *bh;
+	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
 
-	mlog_entry("(inode=%p, block=(%llu), nr=(%d), flags=%d)\n",
-		   inode, (unsigned long long)block, nr, flags);
+	mlog_entry("(ci=%p, block=(%llu), nr=(%d), flags=%d)\n",
+		   ci, (unsigned long long)block, nr, flags);
 
-	BUG_ON(!inode);
+	BUG_ON(!ci);
 	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
 	       (flags & OCFS2_BH_IGNORE_CACHE));
 
@@ -212,12 +213,12 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 		goto bail;
 	}
 
-	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_lock(ci);
 	for (i = 0 ; i < nr ; i++) {
 		if (bhs[i] == NULL) {
-			bhs[i] = sb_getblk(inode->i_sb, block++);
+			bhs[i] = sb_getblk(sb, block++);
 			if (bhs[i] == NULL) {
-				mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+				ocfs2_metadata_cache_io_unlock(ci);
 				status = -EIO;
 				mlog_errno(status);
 				goto bail;
@@ -250,11 +251,11 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 		 *    before our is-it-in-flight check.
 		 */
 
-		if (!ignore_cache && !ocfs2_buffer_uptodate(inode, bh)) {
+		if (!ignore_cache && !ocfs2_buffer_uptodate(ci, bh)) {
 			mlog(ML_UPTODATE,
-			     "bh (%llu), inode %llu not uptodate\n",
+			     "bh (%llu), owner %llu not uptodate\n",
 			     (unsigned long long)bh->b_blocknr,
-			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+			     (unsigned long long)ocfs2_metadata_cache_owner(ci));
 			/* We're using ignore_cache here to say
 			 * "go to disk" */
 			ignore_cache = 1;
@@ -283,7 +284,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 			 * previously submitted request than we are
 			 * done here. */
 			if ((flags & OCFS2_BH_READAHEAD)
-			    && ocfs2_buffer_read_ahead(inode, bh))
+			    && ocfs2_buffer_read_ahead(ci, bh))
 				continue;
 
 			lock_buffer(bh);
@@ -305,7 +306,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 			 * buffer lock. */
 			if (!(flags & OCFS2_BH_IGNORE_CACHE)
 			    && !(flags & OCFS2_BH_READAHEAD)
-			    && ocfs2_buffer_uptodate(inode, bh)) {
+			    && ocfs2_buffer_uptodate(ci, bh)) {
 				unlock_buffer(bh);
 				continue;
 			}
@@ -327,7 +328,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 
 		if (!(flags & OCFS2_BH_READAHEAD)) {
 			/* We know this can't have changed as we hold the
-			 * inode sem. Avoid doing any work on the bh if the
+			 * owner sem. Avoid doing any work on the bh if the
 			 * journal has it. */
 			if (!buffer_jbd(bh))
 				wait_on_buffer(bh);
@@ -351,7 +352,7 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 				 * that better not have changed */
 				BUG_ON(buffer_jbd(bh));
 				clear_buffer_needs_validate(bh);
-				status = validate(inode->i_sb, bh);
+				status = validate(sb, bh);
 				if (status) {
 					put_bh(bh);
 					bhs[i] = NULL;
@@ -363,9 +364,9 @@ int ocfs2_read_blocks(struct inode *inode, u64 block, int nr,
 		/* Always set the buffer in the cache, even if it was
 		 * a forced read, or read-ahead which hasn't yet
 		 * completed. */
-		ocfs2_set_buffer_uptodate(inode, bh);
+		ocfs2_set_buffer_uptodate(ci, bh);
 	}
-	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_unlock(ci);
 
 	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
 	     (unsigned long long)block, nr,
@@ -399,7 +400,7 @@ static void ocfs2_check_super_or_backup(struct super_block *sb,
 
 /*
  * Write super block and backups doesn't need to collaborate with journal,
- * so we don't need to lock ip_io_mutex and inode doesn't need to bea passed
+ * so we don't need to lock ip_io_mutex and ci doesn't need to bea passed
  * into this function.
  */
 int ocfs2_write_super_or_backup(struct ocfs2_super *osb,

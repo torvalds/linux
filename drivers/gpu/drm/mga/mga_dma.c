@@ -444,7 +444,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
-	unsigned int warp_size = mga_warp_microcode_size(dev_priv);
+	unsigned int warp_size = MGA_WARP_UCODE_SIZE;
 	int err;
 	unsigned offset;
 	const unsigned secondary_size = dma_bs->secondary_bin_count
@@ -619,7 +619,7 @@ static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
 {
 	drm_mga_private_t *const dev_priv =
 	    (drm_mga_private_t *) dev->dev_private;
-	unsigned int warp_size = mga_warp_microcode_size(dev_priv);
+	unsigned int warp_size = MGA_WARP_UCODE_SIZE;
 	unsigned int primary_size;
 	unsigned int bin_count;
 	int err;

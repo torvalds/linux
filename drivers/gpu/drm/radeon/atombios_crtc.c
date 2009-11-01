@@ -31,6 +31,10 @@
 #include "atom.h"
 #include "atom-bits.h"
 
+/* evil but including atombios.h is much worse */
+bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
+				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
+				int32_t *pixel_clock);
 static void atombios_overscan_setup(struct drm_crtc *crtc,
 				    struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
@@ -89,17 +93,32 @@ static void atombios_scaler_setup(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	ENABLE_SCALER_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
+
 	/* fixme - fill in enc_priv for atom dac */
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
+	bool is_tv = false, is_cv = false;
+	struct drm_encoder *encoder;
 
 	if (!ASIC_IS_AVIVO(rdev) && radeon_crtc->crtc_id)
 		return;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
+				tv_std = tv_dac->tv_std;
+				is_tv = true;
+			}
+		}
+	}
 
 	memset(&args, 0, sizeof(args));
 
 	args.ucScaler = radeon_crtc->crtc_id;
 
-	if (radeon_crtc->devices & (ATOM_DEVICE_TV_SUPPORT)) {
+	if (is_tv) {
 		switch (tv_std) {
 		case TV_STD_NTSC:
 		default:
@@ -128,7 +147,7 @@ static void atombios_scaler_setup(struct drm_crtc *crtc)
 			break;
 		}
 		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
-	} else if (radeon_crtc->devices & (ATOM_DEVICE_CV_SUPPORT)) {
+	} else if (is_cv) {
 		args.ucTVStandard = ATOM_TV_CV;
 		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
 	} else {
@@ -151,9 +170,9 @@ static void atombios_scaler_setup(struct drm_crtc *crtc)
 		}
 	}
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-	if (radeon_crtc->devices & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT)
-	    && rdev->family >= CHIP_RV515 && rdev->family <= CHIP_RV570) {
-		atom_rv515_force_tv_scaler(rdev);
+	if ((is_tv || is_cv)
+	    && rdev->family >= CHIP_RV515 && rdev->family <= CHIP_R580) {
+		atom_rv515_force_tv_scaler(rdev, radeon_crtc);
 	}
 }
 
@@ -370,6 +389,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 					pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 			radeon_encoder = to_radeon_encoder(encoder);
+			break;
 		}
 	}
 
@@ -468,6 +488,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
+		    AVIVO_D1GRPH_CONTROL_8BPP_INDEXED;
+		break;
 	case 15:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
@@ -551,42 +576,68 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
 	SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
+	int need_tv_timings = 0;
+	bool ret;
 
 	/* TODO color tiling */
 	memset(&crtc_timing, 0, sizeof(crtc_timing));
 
-	/* TODO tv */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
+				if (tv_dac) {
+					if (tv_dac->tv_std == TV_STD_NTSC ||
+					    tv_dac->tv_std == TV_STD_NTSC_J ||
+					    tv_dac->tv_std == TV_STD_PAL_M)
+						need_tv_timings = 1;
+					else
+						need_tv_timings = 2;
+					break;
+				}
+			}
+		}
 	}
 
 	crtc_timing.ucCRTC = radeon_crtc->crtc_id;
-	crtc_timing.usH_Total = adjusted_mode->crtc_htotal;
-	crtc_timing.usH_Disp = adjusted_mode->crtc_hdisplay;
-	crtc_timing.usH_SyncStart = adjusted_mode->crtc_hsync_start;
-	crtc_timing.usH_SyncWidth =
-	    adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+	if (need_tv_timings) {
+		ret = radeon_atom_get_tv_timings(rdev, need_tv_timings - 1,
+						 &crtc_timing, &adjusted_mode->clock);
+		if (ret == false)
+			need_tv_timings = 0;
+	}
 
-	crtc_timing.usV_Total = adjusted_mode->crtc_vtotal;
-	crtc_timing.usV_Disp = adjusted_mode->crtc_vdisplay;
-	crtc_timing.usV_SyncStart = adjusted_mode->crtc_vsync_start;
-	crtc_timing.usV_SyncWidth =
-	    adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
+	if (!need_tv_timings) {
+		crtc_timing.usH_Total = adjusted_mode->crtc_htotal;
+		crtc_timing.usH_Disp = adjusted_mode->crtc_hdisplay;
+		crtc_timing.usH_SyncStart = adjusted_mode->crtc_hsync_start;
+		crtc_timing.usH_SyncWidth =
+			adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
+		crtc_timing.usV_Total = adjusted_mode->crtc_vtotal;
+		crtc_timing.usV_Disp = adjusted_mode->crtc_vdisplay;
+		crtc_timing.usV_SyncStart = adjusted_mode->crtc_vsync_start;
+		crtc_timing.usV_SyncWidth =
+			adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_CSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_CSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+
+		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+	}
 
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_crtc_set_timing(crtc, &crtc_timing);

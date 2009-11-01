@@ -24,7 +24,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_PERF_COUNTERS if (!M386 && !M486)
+	select HAVE_PERF_EVENTS if (!M386 && !M486)
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -431,6 +431,17 @@ config X86_NUMAQ
 	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
 	  of Flat Logical.  You will need a new lynxer.elf file to flash your
 	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
+
+config X86_SUPPORTS_MEMORY_FAILURE
+	bool
+	# MCE code calls memory_failure():
+	depends on X86_MCE
+	# On 32-bit this adds too big of NODES_SHIFT and we run out of page flags:
+	depends on !X86_NUMAQ
+	# On 32-bit SPARSEMEM adds too big of SECTIONS_WIDTH:
+	depends on X86_64 || !SPARSEMEM
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+	default y
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
@@ -1204,6 +1215,10 @@ config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA && X86_32
 
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on X86_64 && PROC_KCORE
+
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 	depends on X86_64
@@ -1662,6 +1677,8 @@ source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
 
+source "drivers/sfi/Kconfig"
+
 config X86_APM_BOOT
 	bool
 	default y
@@ -1857,7 +1874,7 @@ config PCI_DIRECT
 
 config PCI_MMCONFIG
 	def_bool y
-	depends on X86_32 && PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
+	depends on X86_32 && PCI && (ACPI || SFI) && (PCI_GOMMCONFIG || PCI_GOANY)
 
 config PCI_OLPC
 	def_bool y
@@ -1895,7 +1912,7 @@ config DMAR_DEFAULT_ON
 config DMAR_BROKEN_GFX_WA
 	def_bool n
 	prompt "Workaround broken graphics drivers (going away soon)"
-	depends on DMAR
+	depends on DMAR && BROKEN
 	---help---
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config

@@ -532,7 +532,7 @@ static void restore_state(struct pl022 *pl022)
 	GEN_MASK_BITS(SSP_DATA_BITS_12, SSP_CR0_MASK_DSS, 0)	| \
 	GEN_MASK_BITS(SSP_MICROWIRE_CHANNEL_FULL_DUPLEX, SSP_CR0_MASK_HALFDUP, 5) | \
 	GEN_MASK_BITS(SSP_CLK_POL_IDLE_LOW, SSP_CR0_MASK_SPO, 6) | \
-	GEN_MASK_BITS(SSP_CLK_FALLING_EDGE, SSP_CR0_MASK_SPH, 7) | \
+	GEN_MASK_BITS(SSP_CLK_SECOND_EDGE, SSP_CR0_MASK_SPH, 7) | \
 	GEN_MASK_BITS(NMDK_SSP_DEFAULT_CLKRATE, SSP_CR0_MASK_SCR, 8) | \
 	GEN_MASK_BITS(SSP_BITS_8, SSP_CR0_MASK_CSS, 16)	| \
 	GEN_MASK_BITS(SSP_INTERFACE_MOTOROLA_SPI, SSP_CR0_MASK_FRF, 21) \
@@ -1247,8 +1247,8 @@ static int verify_controller_parameters(struct pl022 *pl022,
 		return -EINVAL;
 	}
 	if (chip_info->iface == SSP_INTERFACE_MOTOROLA_SPI) {
-		if ((chip_info->clk_phase != SSP_CLK_RISING_EDGE)
-		    && (chip_info->clk_phase != SSP_CLK_FALLING_EDGE)) {
+		if ((chip_info->clk_phase != SSP_CLK_FIRST_EDGE)
+		    && (chip_info->clk_phase != SSP_CLK_SECOND_EDGE)) {
 			dev_err(chip_info->dev,
 				"Clock Phase is configured incorrectly\n");
 			return -EINVAL;
@@ -1485,7 +1485,7 @@ static int pl022_setup(struct spi_device *spi)
 		chip_info->data_size = SSP_DATA_BITS_12;
 		chip_info->rx_lev_trig = SSP_RX_1_OR_MORE_ELEM;
 		chip_info->tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC;
-		chip_info->clk_phase = SSP_CLK_FALLING_EDGE;
+		chip_info->clk_phase = SSP_CLK_SECOND_EDGE;
 		chip_info->clk_pol = SSP_CLK_POL_IDLE_LOW;
 		chip_info->ctrl_len = SSP_BITS_8;
 		chip_info->wait_state = SSP_MWIRE_WAIT_ZERO;

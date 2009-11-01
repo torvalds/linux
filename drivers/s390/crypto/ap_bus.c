@@ -60,6 +60,7 @@ static int ap_device_probe(struct device *dev);
 static void ap_interrupt_handler(void *unused1, void *unused2);
 static void ap_reset(struct ap_device *ap_dev);
 static void ap_config_timeout(unsigned long ptr);
+static int ap_select_domain(void);
 
 /*
  * Module description.
@@ -109,6 +110,10 @@ static unsigned long long poll_timeout = 250000;
 
 /* Suspend flag */
 static int ap_suspend_flag;
+/* Flag to check if domain was set through module parameter domain=. This is
+ * important when supsend and resume is done in a z/VM environment where the
+ * domain might change. */
+static int user_set_domain = 0;
 static struct bus_type ap_bus_type;
 
 /**
@@ -643,6 +648,7 @@ static int ap_bus_suspend(struct device *dev, pm_message_t state)
 			destroy_workqueue(ap_work_queue);
 			ap_work_queue = NULL;
 		}
+
 		tasklet_disable(&ap_tasklet);
 	}
 	/* Poll on the device until all requests are finished. */
@@ -653,7 +659,10 @@ static int ap_bus_suspend(struct device *dev, pm_message_t state)
 		spin_unlock_bh(&ap_dev->lock);
 	} while ((flags & 1) || (flags & 2));
 
-	ap_device_remove(dev);
+	spin_lock_bh(&ap_dev->lock);
+	ap_dev->unregistered = 1;
+	spin_unlock_bh(&ap_dev->lock);
+
 	return 0;
 }
 
@@ -666,11 +675,10 @@ static int ap_bus_resume(struct device *dev)
 		ap_suspend_flag = 0;
 		if (!ap_interrupts_available())
 			ap_interrupt_indicator = NULL;
-		ap_device_probe(dev);
-		ap_reset(ap_dev);
-		setup_timer(&ap_dev->timeout, ap_request_timeout,
-			    (unsigned long) ap_dev);
-		ap_scan_bus(NULL);
+		if (!user_set_domain) {
+			ap_domain_index = -1;
+			ap_select_domain();
+		}
 		init_timer(&ap_config_timer);
 		ap_config_timer.function = ap_config_timeout;
 		ap_config_timer.data = 0;
@@ -686,12 +694,14 @@ static int ap_bus_resume(struct device *dev)
 			tasklet_schedule(&ap_tasklet);
 		if (ap_thread_flag)
 			rc = ap_poll_thread_start();
-	} else {
-		ap_device_probe(dev);
-		ap_reset(ap_dev);
-		setup_timer(&ap_dev->timeout, ap_request_timeout,
-			    (unsigned long) ap_dev);
 	}
+	if (AP_QID_QUEUE(ap_dev->qid) != ap_domain_index) {
+		spin_lock_bh(&ap_dev->lock);
+		ap_dev->qid = AP_MKQID(AP_QID_DEVICE(ap_dev->qid),
+				       ap_domain_index);
+		spin_unlock_bh(&ap_dev->lock);
+	}
+	queue_work(ap_work_queue, &ap_config_work);
 
 	return rc;
 }
@@ -1079,6 +1089,8 @@ static void ap_scan_bus(struct work_struct *unused)
 			spin_lock_bh(&ap_dev->lock);
 			if (rc || ap_dev->unregistered) {
 				spin_unlock_bh(&ap_dev->lock);
+				if (ap_dev->unregistered)
+					i--;
 				device_unregister(dev);
 				put_device(dev);
 				continue;
@@ -1586,6 +1598,12 @@ int __init ap_module_init(void)
 			   ap_domain_index);
 		return -EINVAL;
 	}
+	/* In resume callback we need to know if the user had set the domain.
+	 * If so, we can not just reset it.
+	 */
+	if (ap_domain_index >= 0)
+		user_set_domain = 1;
+
 	if (ap_instructions_available() != 0) {
 		pr_warning("The hardware system does not support "
 			   "AP instructions\n");

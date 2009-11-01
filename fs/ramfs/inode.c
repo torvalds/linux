@@ -34,11 +34,9 @@
 #include <linux/ramfs.h>
 #include <linux/sched.h>
 #include <linux/parser.h>
+#include <linux/magic.h>
 #include <asm/uaccess.h>
 #include "internal.h"
-
-/* some random number */
-#define RAMFS_MAGIC	0x858458f6
 
 #define RAMFS_DEFAULT_MODE	0755
 

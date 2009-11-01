@@ -86,7 +86,6 @@ struct lx6464es {
 
 	/* messaging */
 	spinlock_t		msg_lock;          /* message spinlock */
-	atomic_t	        send_message_locked;
 	struct lx_rmh           rmh;
 
 	/* configuration */
@@ -95,7 +94,6 @@ struct lx6464es {
 	uint                    hardware_running[2];
 	u32                     board_sample_rate; /* sample rate read from
 						    * board */
-	u32                     sample_rate;	   /* our sample rate */
 	u16                     pcm_granularity;   /* board blocksize */
 
 	/* dma */

@@ -135,6 +135,30 @@ a high functionality RTC is integrated into the SOC.  That system might read
 the system clock from the discrete RTC, but use the integrated one for all
 other tasks, because of its greater functionality.
 
+SYSFS INTERFACE
+---------------
+
+The sysfs interface under /sys/class/rtc/rtcN provides access to various
+rtc attributes without requiring the use of ioctls. All dates and times
+are in the RTC's timezone, rather than in system time.
+
+date:  	   	 RTC-provided date
+hctosys:   	 1 if the RTC provided the system time at boot via the
+		 CONFIG_RTC_HCTOSYS kernel option, 0 otherwise
+max_user_freq:	 The maximum interrupt rate an unprivileged user may request
+		 from this RTC.
+name:		 The name of the RTC corresponding to this sysfs directory
+since_epoch:	 The number of seconds since the epoch according to the RTC
+time:		 RTC-provided time
+wakealarm:	 The time at which the clock will generate a system wakeup
+		 event. This is a one shot wakeup event, so must be reset
+		 after wake if a daily wakeup is required. Format is either
+		 seconds since the epoch or, if there's a leading +, seconds
+		 in the future.
+
+IOCTL INTERFACE
+---------------
+
 The ioctl() calls supported by /dev/rtc are also supported by the RTC class
 framework.  However, because the chips and systems are not standardized,
 some PC/AT functionality might not be provided.  And in the same way, some
@@ -184,6 +208,8 @@ driver returns ENOIOCTLCMD.  Some common examples:
 	init.  Make sure you check the requested frequency is in range of your
 	hardware in the irq_set_freq function.  If it isn't, return -EINVAL.  If
 	you cannot actually change the frequency, do not define irq_set_freq.
+
+    *	RTC_PIE_ON, RTC_PIE_OFF: the irq_set_state function will be called.
 
 If all else fails, check out the rtc-test.c driver!
 

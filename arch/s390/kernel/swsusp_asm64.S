@@ -9,6 +9,7 @@
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
 /*
@@ -40,6 +41,9 @@ swsusp_arch_suspend:
 
 	/* Get pointer to save area */
 	lghi	%r1,0x1000
+
+	/* Save CPU address */
+	stap	__LC_CPU_ADDRESS(%r1)
 
 	/* Store registers */
 	mvc	0x318(4,%r1),__SF_EMPTY(%r15)	/* move prefix to lowcore */
@@ -102,11 +106,10 @@ swsusp_arch_resume:
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r1,__SF_BACKCHAIN(%r15)
 
-#ifdef CONFIG_SMP
-	/* Save boot cpu number */
-	brasl	%r14,smp_get_phys_cpu_id
-	lgr	%r10,%r2
-#endif
+	/* Make all free pages stable */
+	lghi	%r2,1
+	brasl	%r14,arch_set_page_states
+
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
 
@@ -133,6 +136,69 @@ swsusp_arch_resume:
 2:
 	ptlb				/* flush tlb */
 
+	/* Reset System */
+	larl	%r1,restart_entry
+	larl	%r2,.Lrestart_diag308_psw
+	og	%r1,0(%r2)
+	stg	%r1,0(%r0)
+	larl	%r1,.Lnew_pgm_check_psw
+	epsw	%r2,%r3
+	stm	%r2,%r3,0(%r1)
+	mvc	__LC_PGM_NEW_PSW(16,%r0),0(%r1)
+	lghi	%r0,0
+	diag	%r0,%r0,0x308
+restart_entry:
+	lhi	%r1,1
+	sigp	%r1,%r0,0x12
+	sam64
+	larl	%r1,.Lnew_pgm_check_psw
+	lpswe	0(%r1)
+pgm_check_entry:
+
+	/* Switch to original suspend CPU */
+	larl	%r1,.Lresume_cpu		/* Resume CPU address: r2 */
+	stap	0(%r1)
+	llgh	%r2,0(%r1)
+	lghi	%r3,0x1000
+	llgh	%r1,__LC_CPU_ADDRESS(%r3)	/* Suspend CPU address: r1 */
+	cgr	%r1,%r2
+	je	restore_registers		/* r1 = r2 -> nothing to do */
+	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
+	mvc	__LC_RESTART_PSW(16,%r0),0(%r4)
+3:
+	sigp	%r9,%r1,__SIGP_INITIAL_CPU_RESET
+	brc	8,4f	/* accepted */
+	brc	2,3b	/* busy, try again */
+
+	/* Suspend CPU not available -> panic */
+	larl	%r15,init_thread_union
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER)
+	larl	%r2,.Lpanic_string
+	larl	%r3,_sclp_print_early
+	lghi	%r1,0
+	sam31
+	sigp	%r1,%r0,0x12
+	basr	%r14,%r3
+	larl	%r3,.Ldisabled_wait_31
+	lpsw	0(%r3)
+4:
+	/* Switch to suspend CPU */
+	sigp	%r9,%r1,__SIGP_RESTART	/* start suspend CPU */
+	brc	2,4b			/* busy, try again */
+5:
+	sigp	%r9,%r2,__SIGP_STOP	/* stop resume (current) CPU */
+6:	j	6b
+
+restart_suspend:
+	larl	%r1,.Lresume_cpu
+	llgh	%r2,0(%r1)
+7:
+	sigp	%r9,%r2,__SIGP_SENSE	/* Wait for resume CPU */
+	brc	2,7b			/* busy, try again */
+	tmll	%r9,0x40		/* Test if resume CPU is stopped */
+	jz	7b
+
+restore_registers:
 	/* Restore registers */
 	lghi	%r13,0x1000		/* %r1 = pointer to save arae */
 
@@ -166,19 +232,33 @@ swsusp_arch_resume:
 	/* Pointer to save area */
 	lghi	%r13,0x1000
 
-#ifdef CONFIG_SMP
-	/* Switch CPUs */
-	lgr	%r2,%r10		/* get cpu id */
-	llgf	%r3,0x318(%r13)
-	brasl	%r14,smp_switch_boot_cpu_in_resume
-#endif
 	/* Restore prefix register */
 	spx	0x318(%r13)
 
 	/* Activate DAT */
 	stosm	__SF_EMPTY(%r15),0x04
 
+	/* Make all free pages unstable */
+	lghi	%r2,0
+	brasl	%r14,arch_set_page_states
+
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
 	br	%r14
+
+	.section .data.nosave,"aw",@progbits
+	.align	8
+.Ldisabled_wait_31:
+	.long  0x000a0000,0x00000000
+.Lpanic_string:
+	.asciz	"Resume not possible because suspend CPU is no longer available"
+	.align	8
+.Lrestart_diag308_psw:
+	.long	0x00080000,0x80000000
+.Lrestart_suspend_psw:
+	.quad	0x0000000180000000,restart_suspend
+.Lnew_pgm_check_psw:
+	.quad	0,pgm_check_entry
+.Lresume_cpu:
+	.byte	0,0

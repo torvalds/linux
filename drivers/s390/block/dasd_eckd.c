@@ -706,7 +706,7 @@ static int dasd_eckd_generate_uid(struct dasd_device *device,
 	       sizeof(uid->serial) - 1);
 	EBCASC(uid->serial, sizeof(uid->serial) - 1);
 	uid->ssid = private->gneq->subsystemID;
-	uid->real_unit_addr = private->ned->unit_addr;;
+	uid->real_unit_addr = private->ned->unit_addr;
 	if (private->sneq) {
 		uid->type = private->sneq->sua_flags;
 		if (uid->type == UA_BASE_PAV_ALIAS)
@@ -935,6 +935,7 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 
 	private = (struct dasd_eckd_private *) device->private;
+	memset(&private->features, 0, sizeof(struct dasd_rssd_features));
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
 				   (sizeof(struct dasd_psf_prssd_data) +
 				    sizeof(struct dasd_rssd_features)),
@@ -982,7 +983,9 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 		features = (struct dasd_rssd_features *) (prssdp + 1);
 		memcpy(&private->features, features,
 		       sizeof(struct dasd_rssd_features));
-	}
+	} else
+		dev_warn(&device->cdev->dev, "Reading device feature codes"
+			 " failed with rc=%d\n", rc);
 	dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
@@ -1144,9 +1147,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	}
 
 	/* Read Feature Codes */
-	rc = dasd_eckd_read_features(device);
-	if (rc)
-		goto out_err3;
+	dasd_eckd_read_features(device);
 
 	/* Read Device Characteristics */
 	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
@@ -3241,9 +3242,7 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	}
 
 	/* Read Feature Codes */
-	rc = dasd_eckd_read_features(device);
-	if (rc)
-		goto out_err;
+	dasd_eckd_read_features(device);
 
 	/* Read Device Characteristics */
 	memset(&private->rdc_data, 0, sizeof(private->rdc_data));

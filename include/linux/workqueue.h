@@ -94,7 +94,7 @@ struct execute_work {
 /*
  * initialize all of a work item in one go
  *
- * NOTE! No point in using "atomic_long_set()": useing a direct
+ * NOTE! No point in using "atomic_long_set()": using a direct
  * assignment of the work data initializer allows the compiler
  * to generate better code.
  */

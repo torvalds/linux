@@ -176,7 +176,7 @@ static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)
 	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
 }
 
-static struct vm_operations_struct usb_stream_hwdep_vm_ops = {
+static const struct vm_operations_struct usb_stream_hwdep_vm_ops = {
 	.open = usb_stream_hwdep_vm_open,
 	.fault = usb_stream_hwdep_vm_fault,
 	.close = usb_stream_hwdep_vm_close,

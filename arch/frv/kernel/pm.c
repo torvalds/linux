@@ -150,7 +150,7 @@ static int user_atoi(char __user *ubuf, size_t len)
 /*
  * Send us to sleep.
  */
-static int sysctl_pm_do_suspend(ctl_table *ctl, int write, struct file *filp,
+static int sysctl_pm_do_suspend(ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int retval, mode;
@@ -198,13 +198,13 @@ static int try_set_cmode(int new_cmode)
 }
 
 
-static int cmode_procctl(ctl_table *ctl, int write, struct file *filp,
+static int cmode_procctl(ctl_table *ctl, int write,
 			 void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_cmode;
 
 	if (!write)
-		return proc_dointvec(ctl, write, filp, buffer, lenp, fpos);
+		return proc_dointvec(ctl, write, buffer, lenp, fpos);
 
 	new_cmode = user_atoi(buffer, *lenp);
 
@@ -301,13 +301,13 @@ static int try_set_cm(int new_cm)
 	return 0;
 }
 
-static int p0_procctl(ctl_table *ctl, int write, struct file *filp,
+static int p0_procctl(ctl_table *ctl, int write,
 		      void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_p0;
 
 	if (!write)
-		return proc_dointvec(ctl, write, filp, buffer, lenp, fpos);
+		return proc_dointvec(ctl, write, buffer, lenp, fpos);
 
 	new_p0 = user_atoi(buffer, *lenp);
 
@@ -345,13 +345,13 @@ static int p0_sysctl(ctl_table *table,
 	return 1;
 }
 
-static int cm_procctl(ctl_table *ctl, int write, struct file *filp,
+static int cm_procctl(ctl_table *ctl, int write,
 		      void __user *buffer, size_t *lenp, loff_t *fpos)
 {
 	int new_cm;
 
 	if (!write)
-		return proc_dointvec(ctl, write, filp, buffer, lenp, fpos);
+		return proc_dointvec(ctl, write, buffer, lenp, fpos);
 
 	new_cm = user_atoi(buffer, *lenp);
 

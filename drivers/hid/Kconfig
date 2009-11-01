@@ -205,13 +205,6 @@ config HID_NTRIG
 	Support for N-Trig touch screen.
 
 config HID_PANTHERLORD
-	tristate "Pantherlord devices support" if EMBEDDED
-	depends on USB_HID
-	default !EMBEDDED
-	---help---
-	Support for PantherLord/GreenAsia based device support.
-
-config HID_PANTHERLORD
 	tristate "Pantherlord support" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED

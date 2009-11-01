@@ -20,7 +20,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/interrupt.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -116,7 +116,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	/* Not an IO address, so reenable interrupts */
 	local_irq_enable();
 
-	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -201,11 +201,11 @@ survive:
 
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
 

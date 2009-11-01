@@ -339,23 +339,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int copied, ret;
 
 	switch (request) {
-	case PTRACE_PEEKTEXT:
-	case PTRACE_PEEKDATA:
-		/* Remove high order bit from address (only for 31 bit). */
-		addr &= PSW_ADDR_INSN;
-		/* read word at location addr. */
-		return generic_ptrace_peekdata(child, addr, data);
-
 	case PTRACE_PEEKUSR:
 		/* read the word at location addr in the USER area. */
 		return peek_user(child, addr, data);
-
-	case PTRACE_POKETEXT:
-	case PTRACE_POKEDATA:
-		/* Remove high order bit from address (only for 31 bit). */
-		addr &= PSW_ADDR_INSN;
-		/* write the word at location addr. */
-		return generic_ptrace_pokedata(child, addr, data);
 
 	case PTRACE_POKEUSR:
 		/* write the word at location addr in the USER area */
@@ -386,8 +372,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			copied += sizeof(unsigned long);
 		}
 		return 0;
+	default:
+		/* Removing high order bit from addr (only for 31 bit). */
+		addr &= PSW_ADDR_INSN;
+		return ptrace_request(child, request, addr, data);
 	}
-	return ptrace_request(child, request, addr, data);
 }
 
 #ifdef CONFIG_COMPAT

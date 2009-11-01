@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <asm/io_trapped.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
@@ -157,7 +157,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if ((regs->sr & SR_IMASK) != SR_IMASK)
 		local_irq_enable();
 
-	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
@@ -208,11 +208,11 @@ survive:
 	}
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
 

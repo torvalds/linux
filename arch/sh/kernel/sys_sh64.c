@@ -23,7 +23,6 @@
 #include <linux/stat.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/syscalls.h>
 #include <linux/ipc.h>
 #include <asm/uaccess.h>

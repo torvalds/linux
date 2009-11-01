@@ -1270,7 +1270,7 @@ putreg (struct task_struct *child, int regno, unsigned int value)
 	      case PT_CS:
 		if (value != __USER_CS)
 			printk(KERN_ERR
-			       "ia32.putreg: attempt to to set invalid segment register %d = %x\n",
+			       "ia32.putreg: attempt to set invalid segment register %d = %x\n",
 			       regno, value);
 		break;
 	      default:

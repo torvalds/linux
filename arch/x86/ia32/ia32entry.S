@@ -831,5 +831,5 @@ ia32_sys_call_table:
 	.quad compat_sys_preadv
 	.quad compat_sys_pwritev
 	.quad compat_sys_rt_tgsigqueueinfo	/* 335 */
-	.quad sys_perf_counter_open
+	.quad sys_perf_event_open
 ia32_syscall_end:

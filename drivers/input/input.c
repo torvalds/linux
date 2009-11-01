@@ -11,11 +11,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/types.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -514,7 +516,7 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * that there are no threads in the middle of input_open_device()
 	 */
 	mutex_lock(&dev->mutex);
-	dev->going_away = 1;
+	dev->going_away = true;
 	mutex_unlock(&dev->mutex);
 
 	spin_lock_irq(&dev->event_lock);
@@ -1259,20 +1261,81 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
+#define INPUT_DO_TOGGLE(dev, type, bits, on)			\
+	do {							\
+		int i;						\
+		if (!test_bit(EV_##type, dev->evbit))		\
+			break;					\
+		for (i = 0; i < type##_MAX; i++) {		\
+			if (!test_bit(i, dev->bits##bit) ||	\
+			    !test_bit(i, dev->bits))		\
+				continue;			\
+			dev->event(dev, EV_##type, i, on);	\
+		}						\
+	} while (0)
+
+#ifdef CONFIG_PM
+static void input_dev_reset(struct input_dev *dev, bool activate)
+{
+	if (!dev->event)
+		return;
+
+	INPUT_DO_TOGGLE(dev, LED, led, activate);
+	INPUT_DO_TOGGLE(dev, SND, snd, activate);
+
+	if (activate && test_bit(EV_REP, dev->evbit)) {
+		dev->event(dev, EV_REP, REP_PERIOD, dev->rep[REP_PERIOD]);
+		dev->event(dev, EV_REP, REP_DELAY, dev->rep[REP_DELAY]);
+	}
+}
+
+static int input_dev_suspend(struct device *dev)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	mutex_lock(&input_dev->mutex);
+	input_dev_reset(input_dev, false);
+	mutex_unlock(&input_dev->mutex);
+
+	return 0;
+}
+
+static int input_dev_resume(struct device *dev)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	mutex_lock(&input_dev->mutex);
+	input_dev_reset(input_dev, true);
+	mutex_unlock(&input_dev->mutex);
+
+	return 0;
+}
+
+static const struct dev_pm_ops input_dev_pm_ops = {
+	.suspend	= input_dev_suspend,
+	.resume		= input_dev_resume,
+	.poweroff	= input_dev_suspend,
+	.restore	= input_dev_resume,
+};
+#endif /* CONFIG_PM */
+
 static struct device_type input_dev_type = {
 	.groups		= input_dev_attr_groups,
 	.release	= input_dev_release,
 	.uevent		= input_dev_uevent,
+#ifdef CONFIG_PM
+	.pm		= &input_dev_pm_ops,
+#endif
 };
 
-static char *input_nodename(struct device *dev)
+static char *input_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }
 
 struct class input_class = {
 	.name		= "input",
-	.nodename	= input_nodename,
+	.devnode	= input_devnode,
 };
 EXPORT_SYMBOL_GPL(input_class);
 

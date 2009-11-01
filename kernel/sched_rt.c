@@ -1734,6 +1734,17 @@ static void set_curr_task_rt(struct rq *rq)
 	dequeue_pushable_task(rq, p);
 }
 
+unsigned int get_rr_interval_rt(struct task_struct *task)
+{
+	/*
+	 * Time slice is 0 for SCHED_FIFO tasks
+	 */
+	if (task->policy == SCHED_RR)
+		return DEF_TIMESLICE;
+	else
+		return 0;
+}
+
 static const struct sched_class rt_sched_class = {
 	.next			= &fair_sched_class,
 	.enqueue_task		= enqueue_task_rt,
@@ -1761,6 +1772,8 @@ static const struct sched_class rt_sched_class = {
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
+
+	.get_rr_interval	= get_rr_interval_rt,
 
 	.prio_changed		= prio_changed_rt,
 	.switched_to		= switched_to_rt,

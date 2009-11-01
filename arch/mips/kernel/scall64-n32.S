@@ -416,6 +416,6 @@ EXPORT(sysn32_call_table)
 	PTR	sys_preadv
 	PTR	sys_pwritev
 	PTR	compat_sys_rt_tgsigqueueinfo	/* 5295 */
-	PTR	sys_perf_counter_open
+	PTR	sys_perf_event_open
 	PTR	sys_accept4
 	.size	sysn32_call_table,.-sysn32_call_table

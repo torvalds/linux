@@ -1,5 +1,5 @@
 config VIDEO_GO7007
-	tristate "Go 7007 support"
+	tristate "WIS GO7007 MPEG encoder support"
 	depends on VIDEO_DEV && PCI && I2C && INPUT
 	depends on SND
 	select VIDEOBUF_DMA_SG
@@ -10,17 +10,19 @@ config VIDEO_GO7007
 	select CRC32
 	default N
 	---help---
-	  This is a video4linux driver for some weird device...
+	  This is a video4linux driver for the WIS GO7007 MPEG
+	  encoder chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called go7007
 
 config VIDEO_GO7007_USB
-	tristate "Go 7007 USB support"
+	tristate "WIS GO7007 USB support"
 	depends on VIDEO_GO7007 && USB
 	default N
 	---help---
-	  This is a video4linux driver for some weird device...
+	  This is a video4linux driver for the WIS GO7007 MPEG
+	  encoder chip over USB.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called go7007-usb
@@ -30,8 +32,78 @@ config VIDEO_GO7007_USB_S2250_BOARD
 	depends on VIDEO_GO7007_USB && DVB_USB
 	default N
 	---help---
-	  This is a video4linux driver for the Sensoray 2250/2251 device
+	  This is a video4linux driver for the Sensoray 2250/2251 device.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called s2250-board
+	  module will be called s2250
+
+config VIDEO_GO7007_OV7640
+	tristate "OV7640 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the OV7640 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-ov7640
+
+config VIDEO_GO7007_SAA7113
+	tristate "SAA7113 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the SAA7113 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-saa7113
+
+config VIDEO_GO7007_SAA7115
+	tristate "SAA7115 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the SAA7115 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-saa7115
+
+config VIDEO_GO7007_TW9903
+	tristate "TW9903 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the TW9903 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-tw9903
+
+config VIDEO_GO7007_UDA1342
+	tristate "UDA1342 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the UDA1342 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-uda1342
+
+config VIDEO_GO7007_SONY_TUNER
+	tristate "Sony tuner subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the Sony Tuner sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-sony-tuner
+
+config VIDEO_GO7007_TW2804
+	tristate "TW2804 subdev support"
+	depends on VIDEO_GO7007
+	default N
+	---help---
+	  This is a video4linux driver for the TW2804 sub-device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wis-tw2804
 

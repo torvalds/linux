@@ -775,7 +775,7 @@ static int mg_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations mg_disk_ops = {
+static const struct block_device_operations mg_disk_ops = {
 	.getgeo = mg_getgeo
 };
 

@@ -37,9 +37,10 @@ extern void omap_dispc_set_lcd_size(int width, int height);
 extern void omap_dispc_enable_lcd_out(int enable);
 extern void omap_dispc_enable_digit_out(int enable);
 
-extern int  omap_dispc_request_irq(void (*callback)(void *data), void *data);
-extern void omap_dispc_free_irq(void);
+extern int omap_dispc_request_irq(unsigned long irq_mask,
+				   void (*callback)(void *data), void *data);
+extern void omap_dispc_free_irq(unsigned long irq_mask,
+				 void (*callback)(void *data), void *data);
 
 extern const struct lcd_ctrl omap2_int_ctrl;
-
 #endif

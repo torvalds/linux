@@ -66,10 +66,7 @@
    solution, but it supposes maintaing new variable in ALL
    skb, even if no tunneling is used.
 
-   Current solution: t->recursion lock breaks dead loops. It looks
-   like dev->tbusy flag, but I preferred new variable, because
-   the semantics is different. One day, when hard_start_xmit
-   will be multithreaded we will have to use skb->encapsulation.
+   Current solution: HARD_TX_LOCK lock breaks dead loops.
 
 
 
@@ -678,11 +675,6 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	__be32 dst;
 	int    mtu;
 
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
-
 	if (dev->type == ARPHRD_ETHER)
 		IPCB(skb)->flags = 0;
 
@@ -820,7 +812,6 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -888,7 +879,6 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -897,7 +887,6 @@ tx_error_icmp:
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 }
 

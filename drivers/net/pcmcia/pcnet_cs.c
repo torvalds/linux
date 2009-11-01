@@ -340,12 +340,11 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 	base = &virt[hw_info[i].offset & (req.Size-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
-	    (readb(base+4) == hw_info[i].a2))
-	    break;
-    }
-    if (i < NR_INFO) {
-	for (j = 0; j < 6; j++)
-	    dev->dev_addr[j] = readb(base + (j<<1));
+	    (readb(base+4) == hw_info[i].a2)) {
+		for (j = 0; j < 6; j++)
+		    dev->dev_addr[j] = readb(base + (j<<1));
+		break;
+	}
     }
 
     iounmap(virt);

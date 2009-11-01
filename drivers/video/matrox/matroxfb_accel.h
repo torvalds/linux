@@ -3,6 +3,6 @@
 
 #include "matroxfb_base.h"
 
-void matrox_cfbX_init(WPMINFO2);
+void matrox_cfbX_init(struct matrox_fb_info *minfo);
 
 #endif

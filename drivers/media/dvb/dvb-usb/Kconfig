@@ -71,10 +71,11 @@ config DVB_USB_DIB0700
 	depends on DVB_USB
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
 	select DVB_DIB7000M if !DVB_FE_CUSTOMISE
+	select DVB_DIB8000 if !DVB_FE_CUSTOMISE
 	select DVB_DIB3000MC if !DVB_FE_CUSTOMISE
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT3305 if !DVB_FE_CUSTOMISE
-	select DVB_TUNER_DIB0070 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_DIB0070
 	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MT2266 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
@@ -87,7 +88,7 @@ config DVB_USB_DIB0700
 	  Avermedia and other big and small companies.
 
 	  For an up-to-date list of devices supported by this driver, have a look
-	  on the Linux-DVB Wiki at www.linuxtv.org.
+	  on the LinuxTV Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
@@ -315,3 +316,9 @@ config DVB_USB_CE6230
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Intel CE6230 DVB-T USB2.0 receiver
+
+config DVB_USB_FRIIO
+	tristate "Friio ISDB-T USB2.0 Receiver support"
+	depends on DVB_USB
+	help
+	  Say Y here to support the Japanese DTV receiver Friio.

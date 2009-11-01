@@ -8,7 +8,7 @@
 
 static struct thread *thread__new(pid_t pid)
 {
-	struct thread *self = malloc(sizeof(*self));
+	struct thread *self = calloc(1, sizeof(*self));
 
 	if (self != NULL) {
 		self->pid = pid;
@@ -85,7 +85,7 @@ register_idle_thread(struct rb_root *threads, struct thread **last_match)
 {
 	struct thread *thread = threads__findnew(0, threads, last_match);
 
-	if (!thread || thread__set_comm(thread, "[init]")) {
+	if (!thread || thread__set_comm(thread, "swapper")) {
 		fprintf(stderr, "problem inserting idle task.\n");
 		exit(-1);
 	}

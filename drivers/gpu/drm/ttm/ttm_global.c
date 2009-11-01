@@ -71,7 +71,7 @@ int ttm_global_item_ref(struct ttm_global_reference *ref)
 
 	mutex_lock(&item->mutex);
 	if (item->refcount == 0) {
-		item->object = kmalloc(ref->size, GFP_KERNEL);
+		item->object = kzalloc(ref->size, GFP_KERNEL);
 		if (unlikely(item->object == NULL)) {
 			ret = -ENOMEM;
 			goto out_err;
@@ -89,7 +89,6 @@ int ttm_global_item_ref(struct ttm_global_reference *ref)
 	mutex_unlock(&item->mutex);
 	return 0;
 out_err:
-	kfree(item->object);
 	mutex_unlock(&item->mutex);
 	item->object = NULL;
 	return ret;
@@ -105,7 +104,6 @@ void ttm_global_item_unref(struct ttm_global_reference *ref)
 	BUG_ON(ref->object != item->object);
 	if (--item->refcount == 0) {
 		ref->release(ref);
-		kfree(item->object);
 		item->object = NULL;
 	}
 	mutex_unlock(&item->mutex);

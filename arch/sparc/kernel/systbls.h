@@ -3,9 +3,10 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/utsname.h>
 #include <asm/utrap.h>
 #include <asm/signal.h>
+
+struct new_utsname;
 
 extern asmlinkage unsigned long sys_getpagesize(void);
 extern asmlinkage unsigned long sparc_brk(unsigned long brk);

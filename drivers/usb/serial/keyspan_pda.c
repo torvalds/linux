@@ -681,7 +681,7 @@ static int keyspan_pda_carrier_raised(struct usb_serial_port *port)
 
 
 static int keyspan_pda_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+					struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned char room;

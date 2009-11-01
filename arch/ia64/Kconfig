@@ -60,9 +60,7 @@ config IOMMU_HELPER
        bool
 
 config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
+	def_bool n
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
@@ -499,6 +497,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y
 	depends on NUMA
+
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on PROC_KCORE
 
 config IA32_SUPPORT
 	bool "Support for Linux/x86 binaries"

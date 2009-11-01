@@ -248,17 +248,9 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_read(p, merges[WRITE]),
 		(unsigned long long)part_stat_read(p, sectors[WRITE]),
 		jiffies_to_msecs(part_stat_read(p, ticks[WRITE])),
-		part_in_flight(p),
+		p->in_flight,
 		jiffies_to_msecs(part_stat_read(p, io_ticks)),
 		jiffies_to_msecs(part_stat_read(p, time_in_queue)));
-}
-
-ssize_t part_inflight_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct hd_struct *p = dev_to_part(dev);
-
-	return sprintf(buf, "%8u %8u\n", p->in_flight[0], p->in_flight[1]);
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
@@ -289,7 +281,6 @@ static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
-static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
@@ -301,7 +292,6 @@ static struct attribute *part_attrs[] = {
 	&dev_attr_size.attr,
 	&dev_attr_alignment_offset.attr,
 	&dev_attr_stat.attr,
-	&dev_attr_inflight.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
 #endif
@@ -581,7 +571,7 @@ try_scan:
 		}
 
 		if (from + size > get_capacity(disk)) {
-			struct block_device_operations *bdops = disk->fops;
+			const struct block_device_operations *bdops = disk->fops;
 			unsigned long long capacity;
 
 			printk(KERN_WARNING

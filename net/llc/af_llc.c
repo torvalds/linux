@@ -973,7 +973,7 @@ static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
  *	Set various connection specific parameters.
  */
 static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
-			     char __user *optval, int optlen)
+			     char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);

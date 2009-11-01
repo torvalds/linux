@@ -46,7 +46,7 @@
  * Version 0.11:	Converted to v4l2_device.
  *
  * Many things to do:
- * 	- Correct power managment of device (suspend & resume)
+ * 	- Correct power management of device (suspend & resume)
  * 	- Add code for scanning and smooth tuning
  * 	- Add code for sensitivity value
  * 	- Correct mistakes

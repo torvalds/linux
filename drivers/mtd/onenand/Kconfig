@@ -5,6 +5,7 @@
 menuconfig MTD_ONENAND
 	tristate "OneNAND Device Support"
 	depends on MTD
+	select MTD_PARTITIONS
 	help
 	  This enables support for accessing all type of OneNAND flash
 	  devices. For further information see
@@ -23,7 +24,6 @@ config MTD_ONENAND_VERIFY_WRITE
 
 config MTD_ONENAND_GENERIC
 	tristate "OneNAND Flash device via platform device driver"
-	depends on ARM
 	help
 	  Support for OneNAND flash via platform device driver.
 
@@ -66,7 +66,6 @@ config MTD_ONENAND_2X_PROGRAM
 
 config MTD_ONENAND_SIM
 	tristate "OneNAND simulator support"
-	depends on MTD_PARTITIONS
 	help
 	  The simulator may simulate various OneNAND flash chips for the
 	  OneNAND MTD layer.

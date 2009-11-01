@@ -247,7 +247,7 @@ static int pcd_block_media_changed(struct gendisk *disk)
 	return cdrom_media_changed(&cd->info);
 }
 
-static struct block_device_operations pcd_bdops = {
+static const struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
 	.open		= pcd_block_open,
 	.release	= pcd_block_release,

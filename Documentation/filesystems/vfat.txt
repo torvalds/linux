@@ -102,7 +102,7 @@ shortname=lower|win95|winnt|mixed
 		 winnt: emulate the Windows NT rule for display/create.
 		 mixed: emulate the Windows NT rule for display,
 			emulate the Windows 95 rule for create.
-		 Default setting is `lower'.
+		 Default setting is `mixed'.
 
 tz=UTC        -- Interpret timestamps as UTC rather than local time.
                  This option disables the conversion of timestamps

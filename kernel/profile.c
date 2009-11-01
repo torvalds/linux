@@ -442,48 +442,51 @@ void profile_tick(int type)
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <asm/uaccess.h>
 
-static int prof_cpu_mask_read_proc(char *page, char **start, off_t off,
-			int count, int *eof, void *data)
+static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 {
-	int len = cpumask_scnprintf(page, count, data);
-	if (count - len < 2)
-		return -EINVAL;
-	len += sprintf(page + len, "\n");
-	return len;
+	seq_cpumask(m, prof_cpu_mask);
+	seq_putc(m, '\n');
+	return 0;
 }
 
-static int prof_cpu_mask_write_proc(struct file *file,
-	const char __user *buffer,  unsigned long count, void *data)
+static int prof_cpu_mask_proc_open(struct inode *inode, struct file *file)
 {
-	struct cpumask *mask = data;
-	unsigned long full_count = count, err;
+	return single_open(file, prof_cpu_mask_proc_show, NULL);
+}
+
+static ssize_t prof_cpu_mask_proc_write(struct file *file,
+	const char __user *buffer, size_t count, loff_t *pos)
+{
 	cpumask_var_t new_value;
+	int err;
 
 	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
 		return -ENOMEM;
 
 	err = cpumask_parse_user(buffer, count, new_value);
 	if (!err) {
-		cpumask_copy(mask, new_value);
-		err = full_count;
+		cpumask_copy(prof_cpu_mask, new_value);
+		err = count;
 	}
 	free_cpumask_var(new_value);
 	return err;
 }
 
+static const struct file_operations prof_cpu_mask_proc_fops = {
+	.open		= prof_cpu_mask_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= prof_cpu_mask_proc_write,
+};
+
 void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
 {
-	struct proc_dir_entry *entry;
-
 	/* create /proc/irq/prof_cpu_mask */
-	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);
-	if (!entry)
-		return;
-	entry->data = prof_cpu_mask;
-	entry->read_proc = prof_cpu_mask_read_proc;
-	entry->write_proc = prof_cpu_mask_write_proc;
+	proc_create("prof_cpu_mask", 0600, root_irq_dir, &prof_cpu_mask_proc_fops);
 }
 
 /*

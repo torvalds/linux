@@ -67,8 +67,8 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 #ifdef CONFIG_SMP
 		preempt_disable();
 		load_LDT(pc);
-		if (!cpus_equal(current->mm->cpu_vm_mask,
-				cpumask_of_cpu(smp_processor_id())))
+		if (!cpumask_equal(mm_cpumask(current->mm),
+				   cpumask_of(smp_processor_id())))
 			smp_call_function(flush_ldt, current->mm, 1);
 		preempt_enable();
 #else

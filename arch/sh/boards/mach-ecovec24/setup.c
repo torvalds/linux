@@ -121,6 +121,7 @@ static struct resource sh_eth_resources[] = {
 struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8700 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.ether_link_active_low = 1
 };
 
 static struct platform_device sh_eth_device = {

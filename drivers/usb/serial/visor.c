@@ -36,8 +36,7 @@
 #define DRIVER_DESC "USB HandSpring Visor / Palm OS driver"
 
 /* function prototypes for a handspring visor */
-static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void visor_close(struct usb_serial_port *port);
 static int  visor_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
@@ -273,8 +272,7 @@ static int stats;
 /******************************************************************************
  * Handspring Visor specific driver functions
  ******************************************************************************/
-static int visor_open(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp)
+static int visor_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct visor_private *priv = usb_get_serial_port_data(port);

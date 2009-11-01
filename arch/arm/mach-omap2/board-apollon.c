@@ -87,7 +87,7 @@ static struct mtd_partition apollon_partitions[] = {
 	},
 };
 
-static struct flash_platform_data apollon_flash_data = {
+static struct onenand_platform_data apollon_flash_data = {
 	.parts		= apollon_partitions,
 	.nr_parts	= ARRAY_SIZE(apollon_partitions),
 };
@@ -99,7 +99,7 @@ static struct resource apollon_flash_resource[] = {
 };
 
 static struct platform_device apollon_onenand_device = {
-	.name		= "onenand",
+	.name		= "onenand-flash",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &apollon_flash_data,

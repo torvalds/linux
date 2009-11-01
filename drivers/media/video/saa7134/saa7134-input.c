@@ -251,6 +251,10 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (data[10] != 0x6b && data[11] != 0x86 && disable_other_ir)
 		return 0;
 
+	/* Wrong data decode fix */
+	if (data[9] != (unsigned char)(~data[8]))
+		return 0;
+
 	*ir_key = data[9];
 	*ir_raw = data[9];
 

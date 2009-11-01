@@ -81,9 +81,11 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		"Writeback:      %8lu kB\n"
 		"AnonPages:      %8lu kB\n"
 		"Mapped:         %8lu kB\n"
+		"Shmem:          %8lu kB\n"
 		"Slab:           %8lu kB\n"
 		"SReclaimable:   %8lu kB\n"
 		"SUnreclaim:     %8lu kB\n"
+		"KernelStack:    %8lu kB\n"
 		"PageTables:     %8lu kB\n"
 #ifdef CONFIG_QUICKLIST
 		"Quicklists:     %8lu kB\n"
@@ -95,7 +97,11 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		"Committed_AS:   %8lu kB\n"
 		"VmallocTotal:   %8lu kB\n"
 		"VmallocUsed:    %8lu kB\n"
-		"VmallocChunk:   %8lu kB\n",
+		"VmallocChunk:   %8lu kB\n"
+#ifdef CONFIG_MEMORY_FAILURE
+		"HardwareCorrupted: %8lu kB\n"
+#endif
+		,
 		K(i.totalram),
 		K(i.freeram),
 		K(i.bufferram),
@@ -124,10 +130,12 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		K(global_page_state(NR_WRITEBACK)),
 		K(global_page_state(NR_ANON_PAGES)),
 		K(global_page_state(NR_FILE_MAPPED)),
+		K(global_page_state(NR_SHMEM)),
 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
+		global_page_state(NR_KERNEL_STACK) * THREAD_SIZE / 1024,
 		K(global_page_state(NR_PAGETABLE)),
 #ifdef CONFIG_QUICKLIST
 		K(quicklist_total_size()),
@@ -140,6 +148,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		(unsigned long)VMALLOC_TOTAL >> 10,
 		vmi.used >> 10,
 		vmi.largest_chunk >> 10
+#ifdef CONFIG_MEMORY_FAILURE
+		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
+#endif
 		);
 
 	hugetlb_report_meminfo(m);

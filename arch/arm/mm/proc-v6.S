@@ -191,7 +191,7 @@ v6_crval:
 	.type	v6_processor_functions, #object
 ENTRY(v6_processor_functions)
 	.word	v6_early_abort
-	.word	pabort_noifar
+	.word	v6_pabort
 	.word	cpu_v6_proc_init
 	.word	cpu_v6_proc_fin
 	.word	cpu_v6_reset

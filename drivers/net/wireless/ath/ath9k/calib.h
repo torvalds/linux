@@ -28,6 +28,7 @@ extern const struct ath9k_percal_data adc_init_dc_cal;
 #define AR_PHY_CCA_MAX_AR5416_GOOD_VALUE	-85
 #define AR_PHY_CCA_MAX_AR9280_GOOD_VALUE	-112
 #define AR_PHY_CCA_MAX_AR9285_GOOD_VALUE	-118
+#define AR_PHY_CCA_MAX_AR9287_GOOD_VALUE	-118
 #define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
 #define AR_PHY_CCA_MIN_BAD_VALUE       		-140
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3

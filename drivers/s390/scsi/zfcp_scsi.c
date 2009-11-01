@@ -102,7 +102,7 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	if (unlikely((status & ZFCP_STATUS_COMMON_ERP_FAILED) ||
 		     !(status & ZFCP_STATUS_COMMON_RUNNING))) {
 		zfcp_scsi_command_fail(scpnt, DID_ERROR);
-		return 0;;
+		return 0;
 	}
 
 	ret = zfcp_fsf_send_fcp_command_task(unit, scpnt);

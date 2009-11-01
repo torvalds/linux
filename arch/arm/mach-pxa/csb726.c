@@ -130,61 +130,17 @@ static struct pxamci_platform_data csb726_mci_data;
 static int csb726_mci_init(struct device *dev,
 		irq_handler_t detect, void *data)
 {
-	int err;
-
 	csb726_mci_data.detect_delay = msecs_to_jiffies(500);
-
-	err = gpio_request(CSB726_GPIO_MMC_DETECT, "MMC detect");
-	if (err)
-		goto err_det_req;
-
-	err = gpio_direction_input(CSB726_GPIO_MMC_DETECT);
-	if (err)
-		goto err_det_dir;
-
-	err = gpio_request(CSB726_GPIO_MMC_RO, "MMC ro");
-	if (err)
-		goto err_ro_req;
-
-	err = gpio_direction_input(CSB726_GPIO_MMC_RO);
-	if (err)
-		goto err_ro_dir;
-
-	err = request_irq(gpio_to_irq(CSB726_GPIO_MMC_DETECT), detect,
-			IRQF_DISABLED, "MMC card detect", data);
-	if (err)
-		goto err_irq;
-
 	return 0;
-
-err_irq:
-err_ro_dir:
-	gpio_free(CSB726_GPIO_MMC_RO);
-err_ro_req:
-err_det_dir:
-	gpio_free(CSB726_GPIO_MMC_DETECT);
-err_det_req:
-	return err;
-}
-
-static int csb726_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(CSB726_GPIO_MMC_RO);
-}
-
-static void csb726_mci_exit(struct device *dev, void *data)
-{
-	free_irq(gpio_to_irq(CSB726_GPIO_MMC_DETECT), data);
-	gpio_free(CSB726_GPIO_MMC_RO);
-	gpio_free(CSB726_GPIO_MMC_DETECT);
 }
 
 static struct pxamci_platform_data csb726_mci = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init		= csb726_mci_init,
-	.get_ro		= csb726_mci_get_ro,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init			= csb726_mci_init,
 	/* FIXME setpower */
-	.exit		= csb726_mci_exit,
+	.gpio_card_detect	= CSB726_GPIO_MMC_DETECT,
+	.gpio_card_ro		= CSB726_GPIO_MMC_RO,
+	.gpio_power		= -1,
 };
 
 static struct pxaohci_platform_data csb726_ohci_platform_data = {

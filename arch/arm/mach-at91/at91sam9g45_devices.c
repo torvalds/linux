@@ -24,8 +24,56 @@
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9g45_matrix.h>
 #include <mach/at91sam9_smc.h>
+#include <mach/at_hdmac.h>
 
 #include "generic.h"
+
+
+/* --------------------------------------------------------------------
+ *  HDMAC - AHB DMA Controller
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_AT_HDMAC) || defined(CONFIG_AT_HDMAC_MODULE)
+static u64 hdmac_dmamask = DMA_BIT_MASK(32);
+
+static struct at_dma_platform_data atdma_pdata = {
+	.nr_channels	= 8,
+};
+
+static struct resource hdmac_resources[] = {
+	[0] = {
+		.start	= AT91_BASE_SYS + AT91_DMA,
+		.end	= AT91_BASE_SYS + AT91_DMA + SZ_512 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= AT91SAM9G45_ID_DMA,
+		.end	= AT91SAM9G45_ID_DMA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at_hdmac_device = {
+	.name		= "at_hdmac",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &hdmac_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &atdma_pdata,
+	},
+	.resource	= hdmac_resources,
+	.num_resources	= ARRAY_SIZE(hdmac_resources),
+};
+
+void __init at91_add_device_hdmac(void)
+{
+	dma_cap_set(DMA_MEMCPY, atdma_pdata.cap_mask);
+	dma_cap_set(DMA_SLAVE, atdma_pdata.cap_mask);
+	platform_device_register(&at_hdmac_device);
+}
+#else
+void __init at91_add_device_hdmac(void) {}
+#endif
 
 
 /* --------------------------------------------------------------------
@@ -546,6 +594,61 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 }
 #else
 void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) {}
+#endif
+
+
+/* --------------------------------------------------------------------
+ *  AC97
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_SND_ATMEL_AC97C) || defined(CONFIG_SND_ATMEL_AC97C_MODULE)
+static u64 ac97_dmamask = DMA_BIT_MASK(32);
+static struct ac97c_platform_data ac97_data;
+
+static struct resource ac97_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_AC97C,
+		.end	= AT91SAM9G45_BASE_AC97C + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_AC97C,
+		.end	= AT91SAM9G45_ID_AC97C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9g45_ac97_device = {
+	.name		= "atmel_ac97c",
+	.id		= 0,
+	.dev		= {
+				.dma_mask		= &ac97_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &ac97_data,
+	},
+	.resource	= ac97_resources,
+	.num_resources	= ARRAY_SIZE(ac97_resources),
+};
+
+void __init at91_add_device_ac97(struct ac97c_platform_data *data)
+{
+	if (!data)
+		return;
+
+	at91_set_A_periph(AT91_PIN_PD8, 0);	/* AC97FS */
+	at91_set_A_periph(AT91_PIN_PD9, 0);	/* AC97CK */
+	at91_set_A_periph(AT91_PIN_PD7, 0);	/* AC97TX */
+	at91_set_A_periph(AT91_PIN_PD6, 0);	/* AC97RX */
+
+	/* reset */
+	if (data->reset_pin)
+		at91_set_gpio_output(data->reset_pin, 0);
+
+	ac97_data = *data;
+	platform_device_register(&at91sam9g45_ac97_device);
+}
+#else
+void __init at91_add_device_ac97(struct ac97c_platform_data *data) {}
 #endif
 
 
@@ -1220,6 +1323,7 @@ void __init at91_add_device_serial(void) {}
  */
 static int __init at91_add_standard_devices(void)
 {
+	at91_add_device_hdmac();
 	at91_add_device_rtc();
 	at91_add_device_rtt();
 	at91_add_device_watchdog();

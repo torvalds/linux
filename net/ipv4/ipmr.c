@@ -931,7 +931,7 @@ static void mrtsock_destruct(struct sock *sk)
  *	MOSPF/PIM router set up we can clean this up.
  */
 
-int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int optlen)
+int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsigned int optlen)
 {
 	int ret;
 	struct vifctl vif;

@@ -393,7 +393,7 @@ out:
 EXPORT_SYMBOL_GPL(dccp_ioctl);
 
 static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
-				   char __user *optval, int optlen)
+				   char __user *optval, unsigned int optlen)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_service_list *sl = NULL;
@@ -464,7 +464,7 @@ static int dccp_setsockopt_cscov(struct sock *sk, int cscov, bool rx)
 }
 
 static int dccp_setsockopt_ccid(struct sock *sk, int type,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	u8 *val;
 	int rc = 0;
@@ -494,7 +494,7 @@ static int dccp_setsockopt_ccid(struct sock *sk, int type,
 }
 
 static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
-		char __user *optval, int optlen)
+		char __user *optval, unsigned int optlen)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	int val, err = 0;
@@ -546,7 +546,7 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 }
 
 int dccp_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_DCCP)
 		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
@@ -559,7 +559,7 @@ EXPORT_SYMBOL_GPL(dccp_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_dccp_setsockopt(struct sock *sk, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_DCCP)
 		return inet_csk_compat_setsockopt(sk, level, optname,
@@ -1049,10 +1049,10 @@ static int __init dccp_init(void)
 	 *
 	 * The methodology is similar to that of the buffer cache.
 	 */
-	if (num_physpages >= (128 * 1024))
-		goal = num_physpages >> (21 - PAGE_SHIFT);
+	if (totalram_pages >= (128 * 1024))
+		goal = totalram_pages >> (21 - PAGE_SHIFT);
 	else
-		goal = num_physpages >> (23 - PAGE_SHIFT);
+		goal = totalram_pages >> (23 - PAGE_SHIFT);
 
 	if (thash_entries)
 		goal = (thash_entries *

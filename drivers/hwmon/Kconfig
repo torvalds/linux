@@ -325,34 +325,6 @@ config SENSORS_F75375S
 	  This driver can also be built as a module.  If so, the module
 	  will be called f75375s.
 
-config SENSORS_FSCHER
-	tristate "FSC Hermes (DEPRECATED)"
-	depends on X86 && I2C
-	help
-	  This driver is DEPRECATED please use the new merged fschmd
-	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
-	  instead.
-
-	  If you say yes here you get support for Fujitsu Siemens
-	  Computers Hermes sensor chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called fscher.
-
-config SENSORS_FSCPOS
-	tristate "FSC Poseidon (DEPRECATED)"
-	depends on X86 && I2C
-	help
-	  This driver is DEPRECATED please use the new merged fschmd
-	  ("FSC Poseidon, Scylla, Hermes, Heimdall and Heracles") driver
-	  instead.
-
-	  If you say yes here you get support for Fujitsu Siemens
-	  Computers Poseidon sensor chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called fscpos.
-
 config SENSORS_FSCHMD
 	tristate "Fujitsu Siemens Computers sensor chips"
 	depends on X86 && I2C
@@ -401,12 +373,12 @@ config SENSORS_GL520SM
 	  will be called gl520sm.
 
 config SENSORS_CORETEMP
-	tristate "Intel Core (2) Duo/Solo temperature sensor"
+	tristate "Intel Core/Core2/Atom temperature sensor"
 	depends on X86 && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the temperature
-	  sensor inside your CPU. Supported all are all known variants
-	  of Intel Core family.
+	  sensor inside your CPU. Most of the family 6 CPUs
+	  are supported. Check documentation/driver for details.
 
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"

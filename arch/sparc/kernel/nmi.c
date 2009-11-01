@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/smp.h>
 
-#include <asm/perf_counter.h>
+#include <asm/perf_event.h>
 #include <asm/ptrace.h>
 #include <asm/local.h>
 #include <asm/pcr.h>
@@ -265,7 +265,7 @@ int __init nmi_init(void)
 		}
 	}
 	if (!err)
-		init_hw_perf_counters();
+		init_hw_perf_events();
 
 	return err;
 }

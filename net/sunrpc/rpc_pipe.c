@@ -860,7 +860,8 @@ static void rpc_clntdir_depopulate(struct dentry *dentry)
 
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
- * @path: path from the rpc_pipefs root to the new directory
+ * @dentry: dentry from the rpc_pipefs root to the new directory
+ * @name: &struct qstr for the name
  * @rpc_client: rpc client to associate with this directory
  *
  * This creates a directory at the given @path associated with
@@ -930,7 +931,7 @@ void rpc_remove_cache_dir(struct dentry *dentry)
 /*
  * populate the filesystem
  */
-static struct super_operations s_ops = {
+static const struct super_operations s_ops = {
 	.alloc_inode	= rpc_alloc_inode,
 	.destroy_inode	= rpc_destroy_inode,
 	.statfs		= simple_statfs,

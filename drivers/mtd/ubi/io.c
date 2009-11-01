@@ -269,6 +269,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
 			"%zd bytes", err, len, pnum, offset, written);
 		ubi_dbg_dump_stack();
+		ubi_dbg_dump_flash(ubi, pnum, offset, len);
 	} else
 		ubi_assert(written == len);
 
@@ -475,30 +476,46 @@ out:
  */
 static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 {
-	int err;
+	int err, err1;
 	size_t written;
 	loff_t addr;
 	uint32_t data = 0;
+	struct ubi_vid_hdr vid_hdr;
 
-	addr = (loff_t)pnum * ubi->peb_size;
+	addr = (loff_t)pnum * ubi->peb_size + ubi->vid_hdr_aloffset;
 	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
-	if (err) {
-		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
-			"%zd bytes", err, pnum, 0, written);
-		ubi_dbg_dump_stack();
-		return err;
+	if (!err) {
+		addr -= ubi->vid_hdr_aloffset;
+		err = ubi->mtd->write(ubi->mtd, addr, 4, &written,
+				      (void *)&data);
+		if (!err)
+			return 0;
 	}
 
-	addr += ubi->vid_hdr_aloffset;
-	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
-	if (err) {
-		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
-			"%zd bytes", err, pnum, ubi->vid_hdr_aloffset, written);
-		ubi_dbg_dump_stack();
-		return err;
-	}
+	/*
+	 * We failed to write to the media. This was observed with Spansion
+	 * S29GL512N NOR flash. Most probably the eraseblock erasure was
+	 * interrupted at a very inappropriate moment, so it became unwritable.
+	 * In this case we probably anyway have garbage in this PEB.
+	 */
+	err1 = ubi_io_read_vid_hdr(ubi, pnum, &vid_hdr, 0);
+	if (err1 == UBI_IO_BAD_VID_HDR)
+		/*
+		 * The VID header is corrupted, so we can safely erase this
+		 * PEB and not afraid that it will be treated as a valid PEB in
+		 * case of an unclean reboot.
+		 */
+		return 0;
 
-	return 0;
+	/*
+	 * The PEB contains a valid VID header, but we cannot invalidate it.
+	 * Supposedly the flash media or the driver is screwed up, so return an
+	 * error.
+	 */
+	ubi_err("cannot invalidate PEB %d, write returned %d read returned %d",
+		pnum, err, err1);
+	ubi_dbg_dump_flash(ubi, pnum, 0, ubi->peb_size);
+	return -EIO;
 }
 
 /**

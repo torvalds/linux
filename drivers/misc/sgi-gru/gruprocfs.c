@@ -340,10 +340,9 @@ static struct proc_dir_entry *proc_gru __read_mostly;
 
 static int create_proc_file(struct proc_entry *p)
 {
-	p->entry = create_proc_entry(p->name, p->mode, proc_gru);
+	p->entry = proc_create(p->name, p->mode, proc_gru, p->fops);
 	if (!p->entry)
 		return -1;
-	p->entry->proc_fops = p->fops;
 	return 0;
 }
 

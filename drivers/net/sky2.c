@@ -765,7 +765,7 @@ static void sky2_wol_init(struct sky2_port *sky2)
 	if (sky2->wol & WAKE_MAGIC)
 		ctrl |= WOL_CTL_ENA_PME_ON_MAGIC_PKT|WOL_CTL_ENA_MAGIC_PKT_UNIT;
 	else
-		ctrl |= WOL_CTL_DIS_PME_ON_MAGIC_PKT|WOL_CTL_DIS_MAGIC_PKT_UNIT;;
+		ctrl |= WOL_CTL_DIS_PME_ON_MAGIC_PKT|WOL_CTL_DIS_MAGIC_PKT_UNIT;
 
 	ctrl |= WOL_CTL_DIS_PME_ON_PATTERN|WOL_CTL_DIS_PATTERN_UNIT;
 	sky2_write16(hw, WOL_REGS(port, WOL_CTRL_STAT), ctrl);
@@ -1497,7 +1497,6 @@ static int sky2_up(struct net_device *dev)
 	if (ramsize > 0) {
 		u32 rxspace;
 
-		hw->flags |= SKY2_HW_RAM_BUFFER;
 		pr_debug(PFX "%s: ram buffer %dK\n", dev->name, ramsize);
 		if (ramsize < 16)
 			rxspace = ramsize / 2;
@@ -2925,6 +2924,9 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		if (!(sky2_read8(hw, B2_Y2_CLK_GATE) & Y2_STATUS_LNK2_INAC))
 			++hw->ports;
 	}
+
+	if (sky2_read8(hw, B2_E_0))
+		hw->flags |= SKY2_HW_RAM_BUFFER;
 
 	return 0;
 }
@@ -4485,13 +4487,16 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	wol_default = device_may_wakeup(&pdev->dev) ? WAKE_MAGIC : 0;
 
 	err = -ENOMEM;
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+
+	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:")
+		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
 	if (!hw) {
 		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
 		goto err_out_free_regions;
 	}
 
 	hw->pdev = pdev;
+	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
@@ -4537,7 +4542,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	err = request_irq(pdev->irq, sky2_intr,
 			  (hw->flags & SKY2_HW_USE_MSI) ? 0 : IRQF_SHARED,
-			  dev->name, hw);
+			  hw->irq_name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 		goto err_out_unregister;

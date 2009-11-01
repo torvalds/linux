@@ -1,0 +1,145 @@
+<refentry id="vidioc-g-frequency">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_FREQUENCY, VIDIOC_S_FREQUENCY</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_FREQUENCY</refname>
+    <refname>VIDIOC_S_FREQUENCY</refname>
+    <refpurpose>Get or set tuner or modulator radio
+frequency</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_frequency
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>const struct v4l2_frequency
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_FREQUENCY, VIDIOC_S_FREQUENCY</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To get the current tuner or modulator radio frequency
+applications set the <structfield>tuner</structfield> field of a
+&v4l2-frequency; to the respective tuner or modulator number (only
+input devices have tuners, only output devices have modulators), zero
+out the <structfield>reserved</structfield> array and
+call the <constant>VIDIOC_G_FREQUENCY</constant> ioctl with a pointer
+to this structure. The driver stores the current frequency in the
+<structfield>frequency</structfield> field.</para>
+
+    <para>To change the current tuner or modulator radio frequency
+applications initialize the <structfield>tuner</structfield>,
+<structfield>type</structfield> and
+<structfield>frequency</structfield> fields, and the
+<structfield>reserved</structfield> array of a &v4l2-frequency; and
+call the <constant>VIDIOC_S_FREQUENCY</constant> ioctl with a pointer
+to this structure. When the requested frequency is not possible the
+driver assumes the closest possible value. However
+<constant>VIDIOC_S_FREQUENCY</constant> is a write-only ioctl, it does
+not return the actual new frequency.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-frequency">
+      <title>struct <structname>v4l2_frequency</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>tuner</structfield></entry>
+	    <entry>The tuner or modulator index number. This is the
+same value as in the &v4l2-input; <structfield>tuner</structfield>
+field and the &v4l2-tuner; <structfield>index</structfield> field, or
+the &v4l2-output; <structfield>modulator</structfield> field and the
+&v4l2-modulator; <structfield>index</structfield> field.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-tuner-type;</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>The tuner type. This is the same value as in the
+&v4l2-tuner; <structfield>type</structfield> field. The field is not
+applicable to modulators, &ie; ignored by drivers.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>frequency</structfield></entry>
+	    <entry>Tuning frequency in units of 62.5 kHz, or if the
+&v4l2-tuner; or &v4l2-modulator; <structfield>capabilities</structfield> flag
+<constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
+Hz.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+	    applications must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <structfield>tuner</structfield> index is out of
+bounds or the value in the <structfield>type</structfield> field is
+wrong.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

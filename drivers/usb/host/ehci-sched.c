@@ -60,6 +60,20 @@ periodic_next_shadow(struct ehci_hcd *ehci, union ehci_shadow *periodic,
 	}
 }
 
+static __hc32 *
+shadow_next_periodic(struct ehci_hcd *ehci, union ehci_shadow *periodic,
+		__hc32 tag)
+{
+	switch (hc32_to_cpu(ehci, tag)) {
+	/* our ehci_shadow.qh is actually software part */
+	case Q_TYPE_QH:
+		return &periodic->qh->hw->hw_next;
+	/* others are hw parts */
+	default:
+		return periodic->hw_next;
+	}
+}
+
 /* caller must hold ehci->lock */
 static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 {
@@ -71,7 +85,8 @@ static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 	while (here.ptr && here.ptr != ptr) {
 		prev_p = periodic_next_shadow(ehci, prev_p,
 				Q_NEXT_TYPE(ehci, *hw_p));
-		hw_p = here.hw_next;
+		hw_p = shadow_next_periodic(ehci, &here,
+				Q_NEXT_TYPE(ehci, *hw_p));
 		here = *prev_p;
 	}
 	/* an interrupt entry (at list end) could have been shared */
@@ -83,7 +98,7 @@ static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 	 */
 	*prev_p = *periodic_next_shadow(ehci, &here,
 			Q_NEXT_TYPE(ehci, *hw_p));
-	*hw_p = *here.hw_next;
+	*hw_p = *shadow_next_periodic(ehci, &here, Q_NEXT_TYPE(ehci, *hw_p));
 }
 
 /* how many of the uframe's 125 usecs are allocated? */
@@ -93,18 +108,20 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 	__hc32			*hw_p = &ehci->periodic [frame];
 	union ehci_shadow	*q = &ehci->pshadow [frame];
 	unsigned		usecs = 0;
+	struct ehci_qh_hw	*hw;
 
 	while (q->ptr) {
 		switch (hc32_to_cpu(ehci, Q_NEXT_TYPE(ehci, *hw_p))) {
 		case Q_TYPE_QH:
+			hw = q->qh->hw;
 			/* is it in the S-mask? */
-			if (q->qh->hw_info2 & cpu_to_hc32(ehci, 1 << uframe))
+			if (hw->hw_info2 & cpu_to_hc32(ehci, 1 << uframe))
 				usecs += q->qh->usecs;
 			/* ... or C-mask? */
-			if (q->qh->hw_info2 & cpu_to_hc32(ehci,
+			if (hw->hw_info2 & cpu_to_hc32(ehci,
 					1 << (8 + uframe)))
 				usecs += q->qh->c_usecs;
-			hw_p = &q->qh->hw_next;
+			hw_p = &hw->hw_next;
 			q = &q->qh->qh_next;
 			break;
 		// case Q_TYPE_FSTN:
@@ -237,10 +254,10 @@ periodic_tt_usecs (
 			continue;
 		case Q_TYPE_QH:
 			if (same_tt(dev, q->qh->dev)) {
-				uf = tt_start_uframe(ehci, q->qh->hw_info2);
+				uf = tt_start_uframe(ehci, q->qh->hw->hw_info2);
 				tt_usecs[uf] += q->qh->tt_usecs;
 			}
-			hw_p = &q->qh->hw_next;
+			hw_p = &q->qh->hw->hw_next;
 			q = &q->qh->qh_next;
 			continue;
 		case Q_TYPE_SITD:
@@ -375,6 +392,7 @@ static int tt_no_collision (
 	for (; frame < ehci->periodic_size; frame += period) {
 		union ehci_shadow	here;
 		__hc32			type;
+		struct ehci_qh_hw	*hw;
 
 		here = ehci->pshadow [frame];
 		type = Q_NEXT_TYPE(ehci, ehci->periodic [frame]);
@@ -385,17 +403,18 @@ static int tt_no_collision (
 				here = here.itd->itd_next;
 				continue;
 			case Q_TYPE_QH:
+				hw = here.qh->hw;
 				if (same_tt (dev, here.qh->dev)) {
 					u32		mask;
 
 					mask = hc32_to_cpu(ehci,
-							here.qh->hw_info2);
+							hw->hw_info2);
 					/* "knows" no gap is needed */
 					mask |= mask >> 8;
 					if (mask & uf_mask)
 						break;
 				}
-				type = Q_NEXT_TYPE(ehci, here.qh->hw_next);
+				type = Q_NEXT_TYPE(ehci, hw->hw_next);
 				here = here.qh->qh_next;
 				continue;
 			case Q_TYPE_SITD:
@@ -498,7 +517,8 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
-		period, hc32_to_cpup(ehci, &qh->hw_info2) & (QH_CMASK | QH_SMASK),
+		period, hc32_to_cpup(ehci, &qh->hw->hw_info2)
+			& (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* high bandwidth, or otherwise every microframe */
@@ -517,7 +537,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			if (type == cpu_to_hc32(ehci, Q_TYPE_QH))
 				break;
 			prev = periodic_next_shadow(ehci, prev, type);
-			hw_p = &here.qh->hw_next;
+			hw_p = shadow_next_periodic(ehci, &here, type);
 			here = *prev;
 		}
 
@@ -528,14 +548,14 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			if (qh->period > here.qh->period)
 				break;
 			prev = &here.qh->qh_next;
-			hw_p = &here.qh->hw_next;
+			hw_p = &here.qh->hw->hw_next;
 			here = *prev;
 		}
 		/* link in this qh, unless some earlier pass did that */
 		if (qh != here.qh) {
 			qh->qh_next = here;
 			if (here.qh)
-				qh->hw_next = *hw_p;
+				qh->hw->hw_next = *hw_p;
 			wmb ();
 			prev->qh = qh;
 			*hw_p = QH_NEXT (ehci, qh->qh_dma);
@@ -581,7 +601,7 @@ static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	dev_dbg (&qh->dev->dev,
 		"unlink qh%d-%04x/%p start %d [%d/%d us]\n",
 		qh->period,
-		hc32_to_cpup(ehci, &qh->hw_info2) & (QH_CMASK | QH_SMASK),
+		hc32_to_cpup(ehci, &qh->hw->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* qh->qh_next still "live" to HC */
@@ -595,7 +615,19 @@ static int qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	unsigned	wait;
+	unsigned		wait;
+	struct ehci_qh_hw	*hw = qh->hw;
+	int			rc;
+
+	/* If the QH isn't linked then there's nothing we can do
+	 * unless we were called during a giveback, in which case
+	 * qh_completions() has to deal with it.
+	 */
+	if (qh->qh_state != QH_STATE_LINKED) {
+		if (qh->qh_state == QH_STATE_COMPLETING)
+			qh->needs_rescan = 1;
+		return;
+	}
 
 	qh_unlink_periodic (ehci, qh);
 
@@ -606,15 +638,33 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 */
 	if (list_empty (&qh->qtd_list)
 			|| (cpu_to_hc32(ehci, QH_CMASK)
-					& qh->hw_info2) != 0)
+					& hw->hw_info2) != 0)
 		wait = 2;
 	else
 		wait = 55;	/* worst case: 3 * 1024 */
 
 	udelay (wait);
 	qh->qh_state = QH_STATE_IDLE;
-	qh->hw_next = EHCI_LIST_END(ehci);
+	hw->hw_next = EHCI_LIST_END(ehci);
 	wmb ();
+
+	qh_completions(ehci, qh);
+
+	/* reschedule QH iff another request is queued */
+	if (!list_empty(&qh->qtd_list) &&
+			HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+		rc = qh_schedule(ehci, qh);
+
+		/* An error here likely indicates handshake failure
+		 * or no space left in the schedule.  Neither fault
+		 * should happen often ...
+		 *
+		 * FIXME kill the now-dysfunctional queued urbs
+		 */
+		if (rc != 0)
+			ehci_err(ehci, "can't reschedule qh %p, err %d\n",
+					qh, rc);
+	}
 }
 
 /*-------------------------------------------------------------------------*/
@@ -739,14 +789,15 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	unsigned	uframe;
 	__hc32		c_mask;
 	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
+	struct ehci_qh_hw	*hw = qh->hw;
 
 	qh_refresh(ehci, qh);
-	qh->hw_next = EHCI_LIST_END(ehci);
+	hw->hw_next = EHCI_LIST_END(ehci);
 	frame = qh->start;
 
 	/* reuse the previous schedule slots, if we can */
 	if (frame < qh->period) {
-		uframe = ffs(hc32_to_cpup(ehci, &qh->hw_info2) & QH_SMASK);
+		uframe = ffs(hc32_to_cpup(ehci, &hw->hw_info2) & QH_SMASK);
 		status = check_intr_schedule (ehci, frame, --uframe,
 				qh, &c_mask);
 	} else {
@@ -784,11 +835,11 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
-		qh->hw_info2 |= qh->period
+		hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
+		hw->hw_info2 |= qh->period
 			? cpu_to_hc32(ehci, 1 << uframe)
 			: cpu_to_hc32(ehci, QH_SMASK);
-		qh->hw_info2 |= c_mask;
+		hw->hw_info2 |= c_mask;
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
@@ -2188,10 +2239,11 @@ restart:
 			case Q_TYPE_QH:
 				/* handle any completions */
 				temp.qh = qh_get (q.qh);
-				type = Q_NEXT_TYPE(ehci, q.qh->hw_next);
+				type = Q_NEXT_TYPE(ehci, q.qh->hw->hw_next);
 				q = q.qh->qh_next;
 				modified = qh_completions (ehci, temp.qh);
-				if (unlikely (list_empty (&temp.qh->qtd_list)))
+				if (unlikely(list_empty(&temp.qh->qtd_list) ||
+						temp.qh->needs_rescan))
 					intr_deschedule (ehci, temp.qh);
 				qh_put (temp.qh);
 				break;

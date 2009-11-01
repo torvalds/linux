@@ -21,6 +21,7 @@
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_rng.h>
 
 /* The host will fill any buffer we give it with sweet, sweet randomness.  We
@@ -51,7 +52,7 @@ static void register_buffer(void)
 
 	sg_init_one(&sg, random_data+data_left, RANDOM_DATA_SIZE-data_left);
 	/* There should always be room for one buffer. */
-	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, random_data) != 0)
+	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, random_data) < 0)
 		BUG();
 	vq->vq_ops->kick(vq);
 }

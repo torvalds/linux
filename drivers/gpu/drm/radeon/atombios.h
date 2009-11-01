@@ -2374,6 +2374,17 @@ typedef struct _ATOM_ANALOG_TV_INFO {
 	ATOM_MODE_TIMING aModeTimings[MAX_SUPPORTED_TV_TIMING];
 } ATOM_ANALOG_TV_INFO;
 
+#define MAX_SUPPORTED_TV_TIMING_V1_2    3
+
+typedef struct _ATOM_ANALOG_TV_INFO_V1_2 {
+	ATOM_COMMON_TABLE_HEADER sHeader;
+	UCHAR                    ucTV_SupportedStandard;
+	UCHAR                    ucTV_BootUpDefaultStandard;
+	UCHAR                    ucExt_TV_ASIC_ID;
+	UCHAR                    ucExt_TV_ASIC_SlaveAddr;
+	ATOM_DTD_FORMAT          aModeTimings[MAX_SUPPORTED_TV_TIMING];
+} ATOM_ANALOG_TV_INFO_V1_2;
+
 /**************************************************************************/
 /*  VRAM usage and their defintions */
 

@@ -40,6 +40,7 @@
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
+#include "cache.h"
 
 static const struct inode_operations v9fs_dir_inode_operations;
 static const struct inode_operations v9fs_dir_inode_operations_ext;
@@ -197,6 +198,39 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 	wstat->extension = NULL;
 }
 
+#ifdef CONFIG_9P_FSCACHE
+/**
+ * v9fs_alloc_inode - helper function to allocate an inode
+ * This callback is executed before setting up the inode so that we
+ * can associate a vcookie with each inode.
+ *
+ */
+
+struct inode *v9fs_alloc_inode(struct super_block *sb)
+{
+	struct v9fs_cookie *vcookie;
+	vcookie = (struct v9fs_cookie *)kmem_cache_alloc(vcookie_cache,
+							 GFP_KERNEL);
+	if (!vcookie)
+		return NULL;
+
+	vcookie->fscache = NULL;
+	vcookie->qid = NULL;
+	spin_lock_init(&vcookie->lock);
+	return &vcookie->inode;
+}
+
+/**
+ * v9fs_destroy_inode - destroy an inode
+ *
+ */
+
+void v9fs_destroy_inode(struct inode *inode)
+{
+	kmem_cache_free(vcookie_cache, v9fs_inode2cookie(inode));
+}
+#endif
+
 /**
  * v9fs_get_inode - helper function to setup an inode
  * @sb: superblock
@@ -326,6 +360,21 @@ error:
 }
 */
 
+
+/**
+ * v9fs_clear_inode - release an inode
+ * @inode: inode to release
+ *
+ */
+void v9fs_clear_inode(struct inode *inode)
+{
+	filemap_fdatawrite(inode->i_mapping);
+
+#ifdef CONFIG_9P_FSCACHE
+	v9fs_cache_inode_put_cookie(inode);
+#endif
+}
+
 /**
  * v9fs_inode_from_fid - populate an inode by issuing a attribute request
  * @v9ses: session information
@@ -356,8 +405,14 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 
 	v9fs_stat2inode(st, ret, sb);
 	ret->i_ino = v9fs_qid2ino(&st->qid);
+
+#ifdef CONFIG_9P_FSCACHE
+	v9fs_vcookie_set_qid(ret, &st->qid);
+	v9fs_cache_inode_get_cookie(ret);
+#endif
 	p9stat_free(st);
 	kfree(st);
+
 	return ret;
 
 error:
@@ -751,7 +806,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	err = -EPERM;
 	v9ses = v9fs_inode2v9ses(dentry->d_inode);
-	if (v9ses->cache == CACHE_LOOSE)
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		return simple_getattr(mnt, dentry, stat);
 
 	fid = v9fs_fid_lookup(dentry);
@@ -872,10 +927,10 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	} else
 		inode->i_rdev = 0;
 
-	inode->i_size = stat->length;
+	i_size_write(inode, stat->length);
 
 	/* not real number of blocks, but 512 byte ones ... */
-	inode->i_blocks = (inode->i_size + 512 - 1) >> 9;
+	inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
 }
 
 /**

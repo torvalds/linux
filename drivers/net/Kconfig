@@ -1738,6 +1738,13 @@ config KS8851
        help
          SPI driver for Micrel KS8851 SPI attached network chip.
 
+config KS8851_MLL
+	tristate "Micrel KS8851 MLL"
+	depends on HAS_IOMEM
+	help
+	  This platform driver is for Micrel KS8851 Address/data bus
+	  multiplexed network chip.
+
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on NET_PCI && PCI
@@ -1875,7 +1882,7 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35 || ARCH_MX25
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.

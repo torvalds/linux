@@ -318,6 +318,8 @@ static int __init aer_service_init(void)
 {
 	if (pcie_aer_disable)
 		return -ENXIO;
+	if (!pci_msi_enabled())
+		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }
 

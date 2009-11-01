@@ -124,12 +124,13 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 	int ret;
 
 	size = stream->dev->uvc_version >= 0x0110 ? 34 : 26;
+	if ((stream->dev->quirks & UVC_QUIRK_PROBE_DEF) &&
+			query == UVC_GET_DEF)
+		return -EIO;
+
 	data = kmalloc(size, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
-
-	if ((stream->dev->quirks & UVC_QUIRK_PROBE_DEF) && query == UVC_GET_DEF)
-		return -EIO;
 
 	ret = __uvc_query_ctrl(stream->dev, query, 0, stream->intfnum,
 		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,

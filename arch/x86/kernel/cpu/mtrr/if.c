@@ -126,8 +126,8 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 		return -EINVAL;
 
 	base = simple_strtoull(line + 5, &ptr, 0);
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	if (strncmp(ptr, "size=", 5))
 		return -EINVAL;
@@ -135,14 +135,14 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	size = simple_strtoull(ptr + 5, &ptr, 0);
 	if ((base & 0xfff) || (size & 0xfff))
 		return -EINVAL;
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	if (strncmp(ptr, "type=", 5))
 		return -EINVAL;
 	ptr += 5;
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	for (i = 0; i < MTRR_NUM_TYPES; ++i) {
 		if (strcmp(ptr, mtrr_strings[i]))

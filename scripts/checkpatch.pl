@@ -10,7 +10,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.28';
+my $V = '0.29';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -28,6 +28,41 @@ my $mailback = 0;
 my $summary_file = 0;
 my $root;
 my %debug;
+my $help = 0;
+
+sub help {
+	my ($exitcode) = @_;
+
+	print << "EOM";
+Usage: $P [OPTION]... [FILE]...
+Version: $V
+
+Options:
+  -q, --quiet                quiet
+  --no-tree                  run without a kernel tree
+  --no-signoff               do not check for 'Signed-off-by' line
+  --patch                    treat FILE as patchfile (default)
+  --emacs                    emacs compile window format
+  --terse                    one line per report
+  -f, --file                 treat FILE as regular source file
+  --subjective, --strict     enable more subjective tests
+  --root=PATH                PATH to the kernel tree root
+  --no-summary               suppress the per-file summary
+  --mailback                 only produce a report in case of warnings/errors
+  --summary-file             include the filename in summary
+  --debug KEY=[0|1]          turn on/off debugging of KEY, where KEY is one of
+                             'values', 'possible', 'type', and 'attr' (default
+                             is all off)
+  --test-only=WORD           report only warnings/errors containing WORD
+                             literally
+  -h, --help, --version      display this help and exit
+
+When FILE is - read standard input.
+EOM
+
+	exit($exitcode);
+}
+
 GetOptions(
 	'q|quiet+'	=> \$quiet,
 	'tree!'		=> \$tree,
@@ -35,7 +70,7 @@ GetOptions(
 	'patch!'	=> \$chk_patch,
 	'emacs!'	=> \$emacs,
 	'terse!'	=> \$terse,
-	'file!'		=> \$file,
+	'f|file!'	=> \$file,
 	'subjective!'	=> \$check,
 	'strict!'	=> \$check,
 	'root=s'	=> \$root,
@@ -45,22 +80,16 @@ GetOptions(
 
 	'debug=s'	=> \%debug,
 	'test-only=s'	=> \$tst_only,
-) or exit;
+	'h|help'	=> \$help,
+	'version'	=> \$help
+) or help(1);
+
+help(0) if ($help);
 
 my $exit = 0;
 
 if ($#ARGV < 0) {
-	print "usage: $P [options] patchfile\n";
-	print "version: $V\n";
-	print "options: -q               => quiet\n";
-	print "         --no-tree        => run without a kernel tree\n";
-	print "         --terse          => one line per report\n";
-	print "         --emacs          => emacs compile window format\n";
-	print "         --file           => check a source file\n";
-	print "         --strict         => enable more subjective tests\n";
-	print "         --root           => path to the kernel tree root\n";
-	print "         --no-summary     => suppress the per-file summary\n";
-	print "         --summary-file   => include the filename in summary\n";
+	print "$P: no input files\n";
 	exit(1);
 }
 
@@ -153,7 +182,7 @@ our $UTF8	= qr {
 }x;
 
 our $typeTypedefs = qr{(?x:
-	(?:__)?(?:u|s|be|le)(?:\d|\d\d)|
+	(?:__)?(?:u|s|be|le)(?:8|16|32|64)|
 	atomic_t
 )};
 
@@ -356,6 +385,13 @@ sub sanitise_line {
 			$off++;
 			next;
 		}
+		if ($sanitise_quote eq '' && substr($line, $off, 2) eq '//') {
+			$sanitise_quote = '//';
+
+			substr($res, $off, 2, $sanitise_quote);
+			$off++;
+			next;
+		}
 
 		# A \ in a string means ignore the next character.
 		if (($sanitise_quote eq "'" || $sanitise_quote eq '"') &&
@@ -379,11 +415,17 @@ sub sanitise_line {
 		#print "c<$c> SQ<$sanitise_quote>\n";
 		if ($off != 0 && $sanitise_quote eq '*/' && $c ne "\t") {
 			substr($res, $off, 1, $;);
+		} elsif ($off != 0 && $sanitise_quote eq '//' && $c ne "\t") {
+			substr($res, $off, 1, $;);
 		} elsif ($off != 0 && $sanitise_quote && $c ne "\t") {
 			substr($res, $off, 1, 'X');
 		} else {
 			substr($res, $off, 1, $c);
 		}
+	}
+
+	if ($sanitise_quote eq '//') {
+		$sanitise_quote = '';
 	}
 
 	# The pathname on a #include may be surrounded by '<' and '>'.
@@ -1336,6 +1378,18 @@ sub process {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
 		}
 
+# Blackfin: use hi/lo macros
+		if ($realfile =~ m@arch/blackfin/.*\.S$@) {
+			if ($line =~ /\.[lL][[:space:]]*=.*&[[:space:]]*0x[fF][fF][fF][fF]/) {
+				my $herevet = "$here\n" . cat_vet($line) . "\n";
+				ERROR("use the LO() macro, not (... & 0xFFFF)\n" . $herevet);
+			}
+			if ($line =~ /\.[hH][[:space:]]*=.*>>[[:space:]]*16/) {
+				my $herevet = "$here\n" . cat_vet($line) . "\n";
+				ERROR("use the HI() macro, not (... >> 16)\n" . $herevet);
+			}
+		}
+
 # check we are in a valid source file C or perl if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|pl)$/);
 
@@ -1355,6 +1409,16 @@ sub process {
 			WARN("CVS style keyword markers, these will _not_ be updated\n". $herecurr);
 		}
 
+# Blackfin: don't use __builtin_bfin_[cs]sync
+		if ($line =~ /__builtin_bfin_csync/) {
+			my $herevet = "$here\n" . cat_vet($line) . "\n";
+			ERROR("use the CSYNC() macro in asm/blackfin.h\n" . $herevet);
+		}
+		if ($line =~ /__builtin_bfin_ssync/) {
+			my $herevet = "$here\n" . cat_vet($line) . "\n";
+			ERROR("use the SSYNC() macro in asm/blackfin.h\n" . $herevet);
+		}
+
 # Check for potential 'bare' types
 		my ($stat, $cond, $line_nr_next, $remain_next, $off_next);
 		if ($realcnt && $line =~ /.\s*\S/) {
@@ -1371,6 +1435,8 @@ sub process {
 
 			# Ignore functions being called
 			} elsif ($s =~ /^.\s*$Ident\s*\(/s) {
+
+			} elsif ($s =~ /^.\s*else\b/s) {
 
 			# declarations always start with types
 			} elsif ($prev_values eq 'E' && $s =~ /^.\s*(?:$Storage\s+)?(?:$Inline\s+)?(?:const\s+)?((?:\s*$Ident)+?)\b(?:\s+$Sparse)?\s*\**\s*(?:$Ident|\(\*[^\)]*\))(?:\s*$Modifier)?\s*(?:;|=|,|\()/s) {
@@ -1532,8 +1598,9 @@ sub process {
 				    $s =~ /^\s*#\s*?/ ||
 				    $s =~ /^\s*$Ident\s*:/) {
 					$continuation = ($s =~ /^.*?\\\n/) ? 1 : 0;
-					$s =~ s/^.*?\n//;
-					$cond_lines++;
+					if ($s =~ s/^.*?\n//) {
+						$cond_lines++;
+					}
 				}
 			}
 
@@ -1891,7 +1958,7 @@ sub process {
 						# A unary '*' may be const
 
 					} elsif ($ctx =~ /.xW/) {
-						ERROR("Aspace prohibited after that '$op' $at\n" . $hereptr);
+						ERROR("space prohibited after that '$op' $at\n" . $hereptr);
 					}
 
 				# unary ++ and unary -- are allowed no space on one side.
@@ -2243,7 +2310,8 @@ sub process {
 				DECLARE_PER_CPU|
 				DEFINE_PER_CPU|
 				__typeof__\(|
-				\.$Ident\s*=\s*
+				\.$Ident\s*=\s*|
+				^\"|\"$
 			}x;
 			#print "REST<$rest> dstat<$dstat>\n";
 			if ($rest ne '') {

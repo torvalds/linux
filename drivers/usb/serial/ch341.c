@@ -56,6 +56,18 @@
 #define CH341_BAUDBASE_FACTOR 1532620800
 #define CH341_BAUDBASE_DIVMAX 3
 
+/* Break support - the information used to implement this was gleaned from
+ * the Net/FreeBSD uchcom.c driver by Takanori Watanabe.  Domo arigato.
+ */
+
+#define CH341_REQ_WRITE_REG    0x9A
+#define CH341_REQ_READ_REG     0x95
+#define CH341_REG_BREAK1       0x05
+#define CH341_REG_BREAK2       0x18
+#define CH341_NBREAK_BITS_REG1 0x01
+#define CH341_NBREAK_BITS_REG2 0x40
+
+
 static int debug;
 
 static struct usb_device_id id_table [] = {
@@ -300,8 +312,7 @@ static void ch341_close(struct usb_serial_port *port)
 
 
 /* open this device, set default parameters */
-static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct ch341_private *priv = usb_get_serial_port_data(serial->port[0]);
@@ -333,7 +344,7 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -EPROTO;
 	}
 
-	r = usb_serial_generic_open(tty, port, filp);
+	r = usb_serial_generic_open(tty, port);
 
 out:	return r;
 }
@@ -372,6 +383,45 @@ static void ch341_set_termios(struct tty_struct *tty,
 	 * (cflag & PARENB) : parity {NONE, EVEN, ODD}
 	 * (cflag & CSTOPB) : stop bits [1, 2]
 	 */
+}
+
+static void ch341_break_ctl(struct tty_struct *tty, int break_state)
+{
+	const uint16_t ch341_break_reg =
+		CH341_REG_BREAK1 | ((uint16_t) CH341_REG_BREAK2 << 8);
+	struct usb_serial_port *port = tty->driver_data;
+	int r;
+	uint16_t reg_contents;
+	uint8_t break_reg[2];
+
+	dbg("%s()", __func__);
+
+	r = ch341_control_in(port->serial->dev, CH341_REQ_READ_REG,
+			ch341_break_reg, 0, break_reg, sizeof(break_reg));
+	if (r < 0) {
+		printk(KERN_WARNING "%s: USB control read error whilst getting"
+				" break register contents.\n", __FILE__);
+		return;
+	}
+	dbg("%s - initial ch341 break register contents - reg1: %x, reg2: %x",
+			__func__, break_reg[0], break_reg[1]);
+	if (break_state != 0) {
+		dbg("%s - Enter break state requested", __func__);
+		break_reg[0] &= ~CH341_NBREAK_BITS_REG1;
+		break_reg[1] &= ~CH341_NBREAK_BITS_REG2;
+	} else {
+		dbg("%s - Leave break state requested", __func__);
+		break_reg[0] |= CH341_NBREAK_BITS_REG1;
+		break_reg[1] |= CH341_NBREAK_BITS_REG2;
+	}
+	dbg("%s - New ch341 break register contents - reg1: %x, reg2: %x",
+			__func__, break_reg[0], break_reg[1]);
+	reg_contents = (uint16_t)break_reg[0] | ((uint16_t)break_reg[1] << 8);
+	r = ch341_control_out(port->serial->dev, CH341_REQ_WRITE_REG,
+			ch341_break_reg, reg_contents);
+	if (r < 0)
+		printk(KERN_WARNING "%s: USB control write error whilst setting"
+				" break register contents.\n", __FILE__);
 }
 
 static int ch341_tiocmset(struct tty_struct *tty, struct file *file,
@@ -577,6 +627,7 @@ static struct usb_serial_driver ch341_device = {
 	.close             = ch341_close,
 	.ioctl             = ch341_ioctl,
 	.set_termios       = ch341_set_termios,
+	.break_ctl         = ch341_break_ctl,
 	.tiocmget          = ch341_tiocmget,
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,

@@ -452,6 +452,12 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	u_int rm;
 	int ret, index;
 
+	/*
+	 * XXX: We can't handle mixed 16/32-bit instructions yet
+	 */
+	if (instruction_size(instruction) != 2)
+		return -EINVAL;
+
 	index = (instruction>>8)&15;	/* 0x0F00 */
 	rm = regs->regs[index];
 
@@ -619,9 +625,9 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 		se_user += 1;
 
-#ifndef CONFIG_CPU_SH2A
 		set_fs(USER_DS);
-		if (copy_from_user(&instruction, (u16 *)(regs->pc & ~1), 2)) {
+		if (copy_from_user(&instruction, (insn_size_t *)(regs->pc & ~1),
+				   sizeof(instruction))) {
 			set_fs(oldfs);
 			goto uspace_segv;
 		}
@@ -633,7 +639,6 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 			       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			       current->comm, current->pid, (void *)regs->pc,
 			       instruction);
-#endif
 
 		if (se_usermode & 2)
 			goto fixup;
@@ -673,12 +678,6 @@ uspace_segv:
 	} else {
 		se_sys += 1;
 
-		if (se_kernmode_warn)
-			printk(KERN_NOTICE "Unaligned kernel access "
-			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-			       current->comm, current->pid, (void *)regs->pc,
-			       instruction);
-
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
@@ -691,6 +690,12 @@ uspace_segv:
 			set_fs(oldfs);
 			die("insn faulting in do_address_error", regs, 0);
 		}
+
+		if (se_kernmode_warn)
+			printk(KERN_NOTICE "Unaligned kernel access "
+			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+			       current->comm, current->pid, (void *)regs->pc,
+			       instruction);
 
 		handle_unaligned_access(instruction, regs,
 					&user_mem_access, 0);

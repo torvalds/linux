@@ -873,7 +873,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 		/*
 		 ** It is important that the product code is an unsigned object!
 		 */
-		if (DownLoad.ProductCode > MAX_PRODUCT) {
+		if (DownLoad.ProductCode >= MAX_PRODUCT) {
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_DOWNLOAD: Bad product code %d passed\n", DownLoad.ProductCode);
 			p->RIOError.Error = NO_SUCH_PRODUCT;
 			return -ENXIO;

@@ -6,7 +6,7 @@ klibcdirs:;
 PHONY += klibcdirs
 
 
-# Gzip, but no bzip2
+# Gzip
 suffix_$(CONFIG_INITRAMFS_COMPRESSION_GZIP)   = .gz
 
 # Bzip2

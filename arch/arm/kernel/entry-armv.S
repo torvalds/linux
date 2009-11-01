@@ -272,7 +272,15 @@ __und_svc:
 	@
 	@  r0 - instruction
 	@
+#ifndef	CONFIG_THUMB2_KERNEL
 	ldr	r0, [r2, #-4]
+#else
+	ldrh	r0, [r2, #-2]			@ Thumb instruction at LR - 2
+	and	r9, r0, #0xf800
+	cmp	r9, #0xe800			@ 32-bit instruction if xx >= 0
+	ldrhhs	r9, [r2]			@ bottom 16 bits
+	orrhs	r0, r9, r0, lsl #16
+#endif
 	adr	r9, BSYM(1f)
 	bl	call_fpe
 
@@ -303,22 +311,16 @@ __pabt_svc:
 	tst	r3, #PSR_I_BIT
 	biceq	r9, r9, #PSR_I_BIT
 
-	@
-	@ set args, then call main handler
-	@
-	@  r0 - address of faulting instruction
-	@  r1 - pointer to registers on stack
-	@
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	msr	cpsr_c, r9			@ Maybe enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
 	@
@@ -678,7 +680,9 @@ ENTRY(fp_enter)
 	.word	no_fp
 	.previous
 
-no_fp:	mov	pc, lr
+ENTRY(no_fp)
+	mov	pc, lr
+ENDPROC(no_fp)
 
 __und_usr_unknown:
 	enable_irq
@@ -691,16 +695,16 @@ ENDPROC(__und_usr_unknown)
 __pabt_usr:
 	usr_entry
 
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	enable_irq				@ Enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
  UNWIND(.fnend		)
 	/* fall through */
@@ -733,13 +737,6 @@ ENTRY(__switch_to)
  THUMB(	str	lr, [ip], #4		   )
 #ifdef CONFIG_MMU
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
-#endif
-#if __LINUX_ARM_ARCH__ >= 6
-#ifdef CONFIG_CPU_32v6K
-	clrex
-#else
-	strex	r5, r4, [ip]			@ Clear exclusive monitor
-#endif
 #endif
 #if defined(CONFIG_HAS_TLS_REG)
 	mcr	p15, 0, r3, c13, c0, 3		@ set TLS register

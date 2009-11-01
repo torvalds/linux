@@ -1,12 +1,9 @@
 menu "DMA support"
 
-config SH_DMA_API
-	bool
 
 config SH_DMA
 	bool "SuperH on-chip DMA controller (DMAC) support"
 	depends on CPU_SH3 || CPU_SH4
-	select SH_DMA_API
 	default n
 
 config SH_DMA_IRQ_MULTI
@@ -18,6 +15,15 @@ config SH_DMA_IRQ_MULTI
 		     CPU_SUBTYPE_SH7763  || CPU_SUBTYPE_SH7764  || \
 		     CPU_SUBTYPE_SH7780  || CPU_SUBTYPE_SH7785  || \
 		     CPU_SUBTYPE_SH7760
+
+config SH_DMA_API
+	depends on SH_DMA
+	bool "SuperH DMA API support"
+	default n
+	help
+	  SH_DMA_API always enabled DMA API of used SuperH.
+	  If you want to use DMA ENGINE, you must not enable this.
+	  Please enable DMA_ENGINE and SH_DMAE.
 
 config NR_ONCHIP_DMA_CHANNELS
 	int

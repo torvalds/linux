@@ -453,8 +453,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 static void digi_write_bulk_callback(struct urb *urb);
 static int digi_write_room(struct tty_struct *tty);
 static int digi_chars_in_buffer(struct tty_struct *tty);
-static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
-	struct file *filp);
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void digi_close(struct usb_serial_port *port);
 static int digi_carrier_raised(struct usb_serial_port *port);
 static void digi_dtr_rts(struct usb_serial_port *port, int on);
@@ -1347,8 +1346,7 @@ static int digi_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int ret;
 	unsigned char buf[32];

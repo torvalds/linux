@@ -1381,15 +1381,15 @@ struct intr_context {
 
 /* adapter flags definitions. */
 enum {
-	QL_ADAPTER_UP = (1 << 0),	/* Adapter has been brought up. */
-	QL_LEGACY_ENABLED = (1 << 3),
-	QL_MSI_ENABLED = (1 << 3),
-	QL_MSIX_ENABLED = (1 << 4),
-	QL_DMA64 = (1 << 5),
-	QL_PROMISCUOUS = (1 << 6),
-	QL_ALLMULTI = (1 << 7),
-	QL_PORT_CFG = (1 << 8),
-	QL_CAM_RT_SET = (1 << 9),
+	QL_ADAPTER_UP = 0,	/* Adapter has been brought up. */
+	QL_LEGACY_ENABLED = 1,
+	QL_MSI_ENABLED = 2,
+	QL_MSIX_ENABLED = 3,
+	QL_DMA64 = 4,
+	QL_PROMISCUOUS = 5,
+	QL_ALLMULTI = 6,
+	QL_PORT_CFG = 7,
+	QL_CAM_RT_SET = 8,
 };
 
 /* link_status bit definitions */

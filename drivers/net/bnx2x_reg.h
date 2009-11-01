@@ -3122,7 +3122,7 @@
    The fields are:[4:0] - tail pointer; [10:5] - Link List size; 15:11] -
    header pointer. */
 #define TCM_REG_XX_TABLE					 0x50240
-/* [RW 4] Load value for for cfc ac credit cnt. */
+/* [RW 4] Load value for cfc ac credit cnt. */
 #define TM_REG_CFC_AC_CRDCNT_VAL				 0x164208
 /* [RW 4] Load value for cfc cld credit cnt. */
 #define TM_REG_CFC_CLD_CRDCNT_VAL				 0x164210

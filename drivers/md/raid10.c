@@ -631,6 +631,8 @@ static int raid10_congested(void *data, int bits)
 	conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks && ret == 0; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
@@ -882,7 +884,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
-		read_bio->bi_rw = READ | do_sync;
+		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 		read_bio->bi_private = r10_bio;
 
 		generic_make_request(read_bio);
@@ -950,7 +952,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			conf->mirrors[d].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync;
+		mbio->bi_rw = WRITE | (do_sync << BIO_RW_SYNCIO);
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
@@ -1623,7 +1625,7 @@ static void raid10d(mddev_t *mddev)
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
-				bio->bi_rw = READ | do_sync;
+				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 				bio->bi_private = r10_bio;
 				bio->bi_end_io = raid10_end_read_request;
 				unplug = 1;
@@ -1773,7 +1775,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	max_sync = RESYNC_PAGES << (PAGE_SHIFT-9);
 	if (!test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 		/* recovery... the complicated one */
-		int i, j, k;
+		int j, k;
 		r10_bio = NULL;
 
 		for (i=0 ; i<conf->raid_disks; i++)
@@ -2188,7 +2190,7 @@ static int run(mddev_t *mddev)
 	}
 
 
-	mddev->thread = md_register_thread(raid10d, mddev, "%s_raid10");
+	mddev->thread = md_register_thread(raid10d, mddev, NULL);
 	if (!mddev->thread) {
 		printk(KERN_ERR
 		       "raid10: couldn't allocate thread for %s\n",

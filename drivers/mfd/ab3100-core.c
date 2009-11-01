@@ -57,8 +57,6 @@
  * The AB3100 is usually assigned address 0x48 (7-bit)
  * The chip is defined in the platform i2c_board_data section.
  */
-static unsigned short normal_i2c[] = { 0x48, I2C_CLIENT_END };
-I2C_CLIENT_INSMOD_1(ab3100);
 
 u8 ab3100_get_chip_type(struct ab3100 *ab3100)
 {
@@ -647,7 +645,7 @@ struct ab3100_init_setting {
 	u8 setting;
 };
 
-static const struct ab3100_init_setting __initdata
+static const struct ab3100_init_setting __initconst
 ab3100_init_settings[] = {
 	{
 		.abreg = AB3100_MCA,
@@ -966,7 +964,7 @@ static int __exit ab3100_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ab3100_id[] = {
-	{ "ab3100", ab3100 },
+	{ "ab3100", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ab3100_id);

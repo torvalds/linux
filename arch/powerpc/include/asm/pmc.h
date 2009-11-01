@@ -29,7 +29,7 @@ int reserve_pmc_hardware(perf_irq_t new_perf_irq);
 void release_pmc_hardware(void);
 void ppc_enable_pmcs(void);
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/lppaca.h>
 
 static inline void ppc_set_pmu_inuse(int inuse)

@@ -370,7 +370,7 @@ void rose_destroy_socket(struct sock *sk)
  */
 
 static int rose_setsockopt(struct socket *sock, int level, int optname,
-	char __user *optval, int optlen)
+	char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct rose_sock *rose = rose_sk(sk);

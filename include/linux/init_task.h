@@ -106,13 +106,13 @@ extern struct group_info init_groups;
 
 extern struct cred init_cred;
 
-#ifdef CONFIG_PERF_COUNTERS
-# define INIT_PERF_COUNTERS(tsk)					\
-	.perf_counter_mutex = 						\
-		 __MUTEX_INITIALIZER(tsk.perf_counter_mutex),		\
-	.perf_counter_list = LIST_HEAD_INIT(tsk.perf_counter_list),
+#ifdef CONFIG_PERF_EVENTS
+# define INIT_PERF_EVENTS(tsk)					\
+	.perf_event_mutex = 						\
+		 __MUTEX_INITIALIZER(tsk.perf_event_mutex),		\
+	.perf_event_list = LIST_HEAD_INIT(tsk.perf_event_list),
 #else
-# define INIT_PERF_COUNTERS(tsk)
+# define INIT_PERF_EVENTS(tsk)
 #endif
 
 /*
@@ -178,7 +178,7 @@ extern struct cred init_cred;
 	},								\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
 	INIT_IDS							\
-	INIT_PERF_COUNTERS(tsk)						\
+	INIT_PERF_EVENTS(tsk)						\
 	INIT_TRACE_IRQFLAGS						\
 	INIT_LOCKDEP							\
 	INIT_FTRACE_GRAPH						\

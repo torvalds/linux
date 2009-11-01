@@ -1336,6 +1336,8 @@
 #define IXGBE_AUTOC_KX4_SUPP    0x80000000
 #define IXGBE_AUTOC_KX_SUPP     0x40000000
 #define IXGBE_AUTOC_PAUSE       0x30000000
+#define IXGBE_AUTOC_ASM_PAUSE   0x20000000
+#define IXGBE_AUTOC_SYM_PAUSE   0x10000000
 #define IXGBE_AUTOC_RF          0x08000000
 #define IXGBE_AUTOC_PD_TMR      0x06000000
 #define IXGBE_AUTOC_AN_RX_LOOSE 0x01000000
@@ -1404,6 +1406,8 @@
 #define IXGBE_LINK_UP_TIME      90 /* 9.0 Seconds */
 #define IXGBE_AUTO_NEG_TIME     45 /* 4.5 Seconds */
 
+#define IXGBE_LINKS2_AN_SUPPORTED   0x00000040
+
 /* PCS1GLSTA Bit Masks */
 #define IXGBE_PCS1GLSTA_LINK_OK         1
 #define IXGBE_PCS1GLSTA_SYNK_OK         0x10
@@ -1423,6 +1427,11 @@
 #define IXGBE_PCS1GLCTL_LOW_LINK_LATCH  0x40
 #define IXGBE_PCS1GLCTL_AN_ENABLE       0x10000
 #define IXGBE_PCS1GLCTL_AN_RESTART      0x20000
+
+/* ANLP1 Bit Masks */
+#define IXGBE_ANLP1_PAUSE               0x0C00
+#define IXGBE_ANLP1_SYM_PAUSE           0x0400
+#define IXGBE_ANLP1_ASM_PAUSE           0x0800
 
 /* SW Semaphore Register bitmasks */
 #define IXGBE_SWSM_SMBI 0x00000001 /* Driver Semaphore bit */

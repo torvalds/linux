@@ -722,7 +722,7 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 	return error;
 }
 
-static struct block_device_operations nbd_fops =
+static const struct block_device_operations nbd_fops =
 {
 	.owner =	THIS_MODULE,
 	.locked_ioctl =	nbd_ioctl,

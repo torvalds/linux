@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/serio.h>
+#include <linux/i8042.h>
 #include <linux/init.h>
 #include <linux/libps2.h>
 
@@ -54,6 +55,24 @@ int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
 }
 EXPORT_SYMBOL(ps2_sendbyte);
 
+void ps2_begin_command(struct ps2dev *ps2dev)
+{
+	mutex_lock(&ps2dev->cmd_mutex);
+
+	if (i8042_check_port_owner(ps2dev->serio))
+		i8042_lock_chip();
+}
+EXPORT_SYMBOL(ps2_begin_command);
+
+void ps2_end_command(struct ps2dev *ps2dev)
+{
+	if (i8042_check_port_owner(ps2dev->serio))
+		i8042_unlock_chip();
+
+	mutex_unlock(&ps2dev->cmd_mutex);
+}
+EXPORT_SYMBOL(ps2_end_command);
+
 /*
  * ps2_drain() waits for device to transmit requested number of bytes
  * and discards them.
@@ -66,7 +85,7 @@ void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
 		maxbytes = sizeof(ps2dev->cmdbuf);
 	}
 
-	mutex_lock(&ps2dev->cmd_mutex);
+	ps2_begin_command(ps2dev);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = PS2_FLAG_CMD;
@@ -76,7 +95,8 @@ void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
 	wait_event_timeout(ps2dev->wait,
 			   !(ps2dev->flags & PS2_FLAG_CMD),
 			   msecs_to_jiffies(timeout));
-	mutex_unlock(&ps2dev->cmd_mutex);
+
+	ps2_end_command(ps2dev);
 }
 EXPORT_SYMBOL(ps2_drain);
 
@@ -237,9 +257,9 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 {
 	int rc;
 
-	mutex_lock(&ps2dev->cmd_mutex);
+	ps2_begin_command(ps2dev);
 	rc = __ps2_command(ps2dev, param, command);
-	mutex_unlock(&ps2dev->cmd_mutex);
+	ps2_end_command(ps2dev);
 
 	return rc;
 }

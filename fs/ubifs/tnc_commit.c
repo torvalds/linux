@@ -245,7 +245,7 @@ static int layout_leb_in_gaps(struct ubifs_info *c, int *p)
 	 * it is more comprehensive and less efficient than is needed for this
 	 * purpose.
 	 */
-	sleb = ubifs_scan(c, lnum, 0, c->ileb_buf);
+	sleb = ubifs_scan(c, lnum, 0, c->ileb_buf, 0);
 	c->ileb_len = 0;
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);

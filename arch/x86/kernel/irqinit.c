@@ -208,7 +208,7 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 
 	/* Performance monitoring interrupts: */
-# ifdef CONFIG_PERF_COUNTERS
+# ifdef CONFIG_PERF_EVENTS
 	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
 # endif
 

@@ -1068,7 +1068,7 @@ int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc)
 }
 
 /* Uses mbox */
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num)
+int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *cap)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -1088,6 +1088,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num)
 	if (!status) {
 		struct be_cmd_resp_query_fw_cfg *resp = embedded_payload(wrb);
 		*port_num = le32_to_cpu(resp->phys_port);
+		*cap = le32_to_cpu(resp->function_cap);
 	}
 
 	spin_unlock(&adapter->mbox_lock);

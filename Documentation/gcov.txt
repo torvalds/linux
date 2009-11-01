@@ -47,7 +47,7 @@ Possible uses:
 
 Configure the kernel with:
 
-        CONFIG_DEBUGFS=y
+        CONFIG_DEBUG_FS=y
         CONFIG_GCOV_KERNEL=y
 
 and to get coverage data for the entire kernel:

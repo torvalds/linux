@@ -1,0 +1,87 @@
+<partinfo>
+<authorgroup>
+<author>
+<firstname>Ralph</firstname>
+<surname>Metzler</surname>
+<othername role="mi">J. K.</othername>
+<affiliation><address><email>rjkm@metzlerbros.de</email></address></affiliation>
+</author>
+<author>
+<firstname>Marcus</firstname>
+<surname>Metzler</surname>
+<othername role="mi">O. C.</othername>
+<affiliation><address><email>rjkm@metzlerbros.de</email></address></affiliation>
+</author>
+<author>
+<firstname>Mauro</firstname>
+<surname>Chehab</surname>
+<othername role="mi">Carvalho</othername>
+<affiliation><address><email>mchehab@redhat.com</email></address></affiliation>
+<contrib>Ported document to Docbook XML.</contrib>
+</author>
+</authorgroup>
+<copyright>
+	<year>2002</year>
+	<year>2003</year>
+	<year>2009</year>
+	<holder>Convergence GmbH</holder>
+</copyright>
+
+<revhistory>
+<!-- Put document revisions here, newest first. -->
+<revision>
+<revnumber>2.0.1</revnumber>
+<date>2009-09-16</date>
+<authorinitials>mcc</authorinitials>
+<revremark>
+Added ISDB-T test originally written by Patrick Boettcher
+</revremark>
+</revision>
+<revision>
+<revnumber>2.0.0</revnumber>
+<date>2009-09-06</date>
+<authorinitials>mcc</authorinitials>
+<revremark>Conversion from LaTex to DocBook XML. The
+	contents is the same as the original LaTex version.</revremark>
+</revision>
+<revision>
+<revnumber>1.0.0</revnumber>
+<date>2003-07-24</date>
+<authorinitials>rjkm</authorinitials>
+<revremark>Initial revision on LaTEX.</revremark>
+</revision>
+</revhistory>
+</partinfo>
+
+
+<title>LINUX DVB API</title>
+<subtitle>Version 3</subtitle>
+<!-- ADD THE CHAPTERS HERE -->
+  <chapter id="dvb_introdution">
+    &sub-intro;
+  </chapter>
+  <chapter id="dvb_frontend">
+    &sub-frontend;
+  </chapter>
+  <chapter id="dvb_demux">
+    &sub-demux;
+  </chapter>
+  <chapter id="dvb_video">
+    &sub-video;
+  </chapter>
+  <chapter id="dvb_audio">
+    &sub-audio;
+  </chapter>
+  <chapter id="dvb_ca">
+    &sub-ca;
+  </chapter>
+  <chapter id="dvb_net">
+    &sub-net;
+  </chapter>
+  <chapter id="dvb_kdapi">
+    &sub-kdapi;
+  </chapter>
+  <chapter id="dvb_examples">
+    &sub-examples;
+  </chapter>
+<!-- END OF CHAPTERS -->

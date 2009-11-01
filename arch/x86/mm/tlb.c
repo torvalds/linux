@@ -59,7 +59,8 @@ void leave_mm(int cpu)
 {
 	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		BUG();
-	cpu_clear(cpu, percpu_read(cpu_tlbstate.active_mm)->cpu_vm_mask);
+	cpumask_clear_cpu(cpu,
+			  mm_cpumask(percpu_read(cpu_tlbstate.active_mm)));
 	load_cr3(swapper_pg_dir);
 }
 EXPORT_SYMBOL_GPL(leave_mm);
@@ -234,8 +235,8 @@ void flush_tlb_current_task(void)
 	preempt_disable();
 
 	local_flush_tlb();
-	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(&mm->cpu_vm_mask, mm, TLB_FLUSH_ALL);
+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
 	preempt_enable();
 }
 
@@ -249,8 +250,8 @@ void flush_tlb_mm(struct mm_struct *mm)
 		else
 			leave_mm(smp_processor_id());
 	}
-	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(&mm->cpu_vm_mask, mm, TLB_FLUSH_ALL);
+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
 
 	preempt_enable();
 }
@@ -268,8 +269,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 			leave_mm(smp_processor_id());
 	}
 
-	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(&mm->cpu_vm_mask, mm, va);
+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(mm_cpumask(mm), mm, va);
 
 	preempt_enable();
 }

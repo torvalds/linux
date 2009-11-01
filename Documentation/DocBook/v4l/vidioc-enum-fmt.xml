@@ -1,0 +1,164 @@
+<refentry id="vidioc-enum-fmt">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_ENUM_FMT</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_ENUM_FMT</refname>
+    <refpurpose>Enumerate image formats</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_fmtdesc
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_ENUM_FMT</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To enumerate image formats applications initialize the
+<structfield>type</structfield> and <structfield>index</structfield>
+field of &v4l2-fmtdesc; and call the
+<constant>VIDIOC_ENUM_FMT</constant> ioctl with a pointer to this
+structure. Drivers fill the rest of the structure or return an
+&EINVAL;. All formats are enumerable by beginning at index zero and
+incrementing by one until <errorcode>EINVAL</errorcode> is
+returned.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-fmtdesc">
+      <title>struct <structname>v4l2_fmtdesc</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Number of the format in the enumeration, set by
+the application. This is in no way related to the <structfield>
+pixelformat</structfield> field.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-buf-type;</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the data stream, set by the application.
+Only these types are valid here:
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
+<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
+defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
+and higher.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>See <xref linkend="fmtdesc-flags" /></entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>description</structfield>[32]</entry>
+	    <entry>Description of the format, a NUL-terminated ASCII
+string. This information is intended for the user, for example: "YUV
+4:2:2".</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pixelformat</structfield></entry>
+	    <entry>The image format identifier. This is a
+four character code as computed by the v4l2_fourcc()
+macro:</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan"><para><programlisting id="v4l2-fourcc">
+#define v4l2_fourcc(a,b,c,d) (((__u32)(a)&lt;&lt;0)|((__u32)(b)&lt;&lt;8)|((__u32)(c)&lt;&lt;16)|((__u32)(d)&lt;&lt;24))
+</programlisting></para><para>Several image formats are already
+defined by this specification in <xref linkend="pixfmt" />. Note these
+codes are not the same as those used in the Windows world.</para></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers must set
+the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="fmtdesc-flags">
+      <title>Image Format Description Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_FMT_FLAG_COMPRESSED</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This is a compressed format.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_FMT_FLAG_EMULATED</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>This format is not native to the device but emulated
+through software (usually libv4l2), where possible try to use a native format
+instead for better performance.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-fmtdesc; <structfield>type</structfield>
+is not supported or the <structfield>index</structfield> is out of
+bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

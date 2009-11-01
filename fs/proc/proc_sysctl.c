@@ -153,7 +153,7 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 
 	/* careful: calling conventions are nasty here */
 	res = count;
-	error = table->proc_handler(table, write, filp, buf, &res, ppos);
+	error = table->proc_handler(table, write, buf, &res, ppos);
 	if (!error)
 		error = res;
 out:

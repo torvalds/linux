@@ -93,8 +93,7 @@ static int debug;
  */
 static int  mct_u232_startup(struct usb_serial *serial);
 static void mct_u232_release(struct usb_serial *serial);
-static int  mct_u232_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void mct_u232_close(struct usb_serial_port *port);
 static void mct_u232_dtr_rts(struct usb_serial_port *port, int on);
 static void mct_u232_read_int_callback(struct urb *urb);
@@ -421,8 +420,7 @@ static void mct_u232_release(struct usb_serial *serial)
 	}
 } /* mct_u232_release */
 
-static int  mct_u232_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
@@ -568,10 +566,13 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	 * Work-a-round: handle the 'usual' bulk-in pipe here
 	 */
 	if (urb->transfer_buffer_length > 2) {
-		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
+			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				tty_insert_flip_string(tty, data,
+						urb->actual_length);
+				tty_flip_buffer_push(tty);
+			}
 			tty_kref_put(tty);
 		}
 		goto exit;

@@ -329,7 +329,7 @@ static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_va
 }
 
 static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf)
+				uint8_t *buf, int page)
 {
 	int i, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
@@ -857,7 +857,6 @@ static int __exit flctl_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver flctl_driver = {
-	.probe		= flctl_probe,
 	.remove		= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
@@ -867,7 +866,7 @@ static struct platform_driver flctl_driver = {
 
 static int __init flctl_nand_init(void)
 {
-	return platform_driver_register(&flctl_driver);
+	return platform_driver_probe(&flctl_driver, flctl_probe);
 }
 
 static void __exit flctl_nand_cleanup(void)

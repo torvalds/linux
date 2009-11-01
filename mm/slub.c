@@ -3345,6 +3345,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 {
 	struct kmem_cache *s;
 
+	if (WARN_ON(!name))
+		return NULL;
+
 	down_write(&slub_lock);
 	s = find_mergeable(size, align, flags, name, ctor);
 	if (s) {

@@ -36,7 +36,7 @@ static void set_local_port_range(int range[2])
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
+static int ipv4_local_port_range(ctl_table *table, int write,
 				 void __user *buffer,
 				 size_t *lenp, loff_t *ppos)
 {
@@ -51,7 +51,7 @@ static int ipv4_local_port_range(ctl_table *table, int write, struct file *filp,
 	};
 
 	inet_get_local_port_range(range, range + 1);
-	ret = proc_dointvec_minmax(&tmp, write, filp, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		if (range[1] < range[0])
@@ -91,7 +91,7 @@ static int ipv4_sysctl_local_port_range(ctl_table *table,
 }
 
 
-static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * filp,
+static int proc_tcp_congestion_control(ctl_table *ctl, int write,
 				       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char val[TCP_CA_NAME_MAX];
@@ -103,7 +103,7 @@ static int proc_tcp_congestion_control(ctl_table *ctl, int write, struct file * 
 
 	tcp_get_default_congestion_control(val);
 
-	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = tcp_set_default_congestion_control(val);
 	return ret;
@@ -129,7 +129,7 @@ static int sysctl_tcp_congestion_control(ctl_table *table,
 }
 
 static int proc_tcp_available_congestion_control(ctl_table *ctl,
-						 int write, struct file * filp,
+						 int write,
 						 void __user *buffer, size_t *lenp,
 						 loff_t *ppos)
 {
@@ -140,13 +140,13 @@ static int proc_tcp_available_congestion_control(ctl_table *ctl,
 	if (!tbl.data)
 		return -ENOMEM;
 	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
-	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
 	return ret;
 }
 
 static int proc_allowed_congestion_control(ctl_table *ctl,
-					   int write, struct file * filp,
+					   int write,
 					   void __user *buffer, size_t *lenp,
 					   loff_t *ppos)
 {
@@ -158,7 +158,7 @@ static int proc_allowed_congestion_control(ctl_table *ctl,
 		return -ENOMEM;
 
 	tcp_get_allowed_congestion_control(tbl.data, tbl.maxlen);
-	ret = proc_dostring(&tbl, write, filp, buffer, lenp, ppos);
+	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = tcp_set_allowed_congestion_control(tbl.data);
 	kfree(tbl.data);

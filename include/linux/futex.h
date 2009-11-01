@@ -4,11 +4,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-struct inode;
-struct mm_struct;
-struct task_struct;
-union ktime;
-
 /* Second argument to futex syscall */
 
 
@@ -129,6 +124,11 @@ struct robust_list_head {
 #define FUTEX_BITSET_MATCH_ANY	0xffffffff
 
 #ifdef __KERNEL__
+struct inode;
+struct mm_struct;
+struct task_struct;
+union ktime;
+
 long do_futex(u32 __user *uaddr, int op, u32 val, union ktime *timeout,
 	      u32 __user *uaddr2, u32 val2, u32 val3);
 

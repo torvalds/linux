@@ -199,7 +199,7 @@ static void mux_break_ctl(struct uart_port *port, int break_state)
 static void mux_write(struct uart_port *port)
 {
 	int count;
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	if(port->x_char) {
 		UART_PUT_CHAR(port, port->x_char);
@@ -243,7 +243,7 @@ static void mux_write(struct uart_port *port)
 static void mux_read(struct uart_port *port)
 {
 	int data;
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	__u32 start_count = port->icount.rx;
 
 	while(1) {

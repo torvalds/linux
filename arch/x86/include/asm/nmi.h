@@ -40,8 +40,7 @@ extern unsigned int nmi_watchdog;
 #define NMI_INVALID	3
 
 struct ctl_table;
-struct file;
-extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
+extern int proc_nmi_enabled(struct ctl_table *, int ,
 			void __user *, size_t *, loff_t *);
 extern int unknown_nmi_panic;
 

@@ -82,7 +82,7 @@ enum lv1_ata_in_out {
 static int ps3disk_major;
 
 
-static struct block_device_operations ps3disk_fops = {
+static const struct block_device_operations ps3disk_fops = {
 	.owner		= THIS_MODULE,
 };
 

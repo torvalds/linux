@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/utsname.h>
 #include <linux/sunrpc/clnt.h>
 
 #ifdef RPC_DEBUG

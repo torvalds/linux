@@ -690,8 +690,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
-	ieee80211_rx_irqsafe(dev->wl->hw, skb);
+	ieee80211_rx(dev->wl->hw, skb);
 
+#if B43_DEBUG
+	dev->rx_count++;
+#endif
 	return;
 drop:
 	b43dbg(dev->wl, "RX: Packet dropped\n");

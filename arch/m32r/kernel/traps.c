@@ -104,8 +104,8 @@ static void set_eit_vector_entries(void)
 	eit_vector[186] = (unsigned long)smp_call_function_interrupt;
 	eit_vector[187] = (unsigned long)smp_ipi_timer_interrupt;
 	eit_vector[188] = (unsigned long)smp_flush_cache_all_interrupt;
-	eit_vector[189] = (unsigned long)smp_call_function_single_interrupt;
-	eit_vector[190] = 0;
+	eit_vector[189] = 0;	/* CPU_BOOT_IPI */
+	eit_vector[190] = (unsigned long)smp_call_function_single_interrupt;
 	eit_vector[191] = 0;
 #endif
 	_flush_cache_copyback_all();

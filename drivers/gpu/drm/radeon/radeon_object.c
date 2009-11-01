@@ -188,6 +188,7 @@ int radeon_object_kmap(struct radeon_object *robj, void **ptr)
 	if (ptr) {
 		*ptr = robj->kptr;
 	}
+	radeon_object_check_tiling(robj, 0, 0);
 	return 0;
 }
 
@@ -200,6 +201,7 @@ void radeon_object_kunmap(struct radeon_object *robj)
 	}
 	robj->kptr = NULL;
 	spin_unlock(&robj->tobj.lock);
+	radeon_object_check_tiling(robj, 0, 0);
 	ttm_bo_kunmap(&robj->kmap);
 }
 
@@ -369,6 +371,14 @@ void radeon_object_force_delete(struct radeon_device *rdev)
 
 int radeon_object_init(struct radeon_device *rdev)
 {
+	/* Add an MTRR for the VRAM */
+	rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
+			MTRR_TYPE_WRCOMB, 1);
+	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
+		rdev->mc.mc_vram_size >> 20,
+		(unsigned long long)rdev->mc.aper_size >> 20);
+	DRM_INFO("RAM width %dbits %cDR\n",
+			rdev->mc.vram_width, rdev->mc.vram_is_ddr ? 'D' : 'S');
 	return radeon_ttm_init(rdev);
 }
 

@@ -32,6 +32,8 @@
 
 #include "clock.h"
 #include "mmc.h"
+#include "spi.h"
+#include "i2c.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
@@ -378,14 +380,14 @@ static struct platform_device wdog_device = {
 };
 
 static struct platform_device i2c0_device = {
-	.name = "stddci2c",
+	.name = "stu300",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(i2c0_resources),
 	.resource = i2c0_resources,
 };
 
 static struct platform_device i2c1_device = {
-	.name = "stddci2c",
+	.name = "stu300",
 	.id = 1,
 	.num_resources = ARRAY_SIZE(i2c1_resources),
 	.resource = i2c1_resources,
@@ -611,6 +613,8 @@ void __init u300_init_devices(void)
 	/* Wait for the PLL208 to lock if not locked in yet */
 	while (!(readw(U300_SYSCON_VBASE + U300_SYSCON_CSR) &
 		 U300_SYSCON_CSR_PLL208_LOCK_IND));
+	/* Initialize SPI device with some board specifics */
+	u300_spi_init(&pl022_device);
 
 	/* Register the AMBA devices in the AMBA bus abstraction layer */
 	u300_clock_primecells();
@@ -621,6 +625,12 @@ void __init u300_init_devices(void)
 	u300_unclock_primecells();
 
 	u300_assign_physmem();
+
+	/* Register subdevices on the I2C buses */
+	u300_i2c_register_board_devices();
+
+	/* Register subdevices on the SPI bus */
+	u300_spi_register_board_devices();
 
 	/* Register the platform devices */
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));

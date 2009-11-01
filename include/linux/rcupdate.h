@@ -1,5 +1,5 @@
 /*
- * Read-Copy Update mechanism for mutual exclusion 
+ * Read-Copy Update mechanism for mutual exclusion
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  * Copyright IBM Corporation, 2001
  *
  * Author: Dipankar Sarma <dipankar@in.ibm.com>
- * 
+ *
  * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  * Papers:
@@ -26,7 +26,7 @@
  * http://lse.sourceforge.net/locking/rclock_OLS.2001.05.01c.sc.pdf (OLS2001)
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 		http://lse.sourceforge.net/locking/rcupdate.html
+ *		http://lse.sourceforge.net/locking/rcupdate.html
  *
  */
 
@@ -52,8 +52,13 @@ struct rcu_head {
 };
 
 /* Exported common interfaces */
+#ifdef CONFIG_TREE_PREEMPT_RCU
 extern void synchronize_rcu(void);
+#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+#define synchronize_rcu synchronize_sched
+#endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
 extern void synchronize_rcu_bh(void);
+extern void synchronize_sched(void);
 extern void rcu_barrier(void);
 extern void rcu_barrier_bh(void);
 extern void rcu_barrier_sched(void);
@@ -260,24 +265,6 @@ struct rcu_synchronize {
 };
 
 extern void wakeme_after_rcu(struct rcu_head  *head);
-
-/**
- * synchronize_sched - block until all CPUs have exited any non-preemptive
- * kernel code sequences.
- *
- * This means that all preempt_disable code sequences, including NMI and
- * hardware-interrupt handlers, in progress on entry will have completed
- * before this primitive returns.  However, this does not guarantee that
- * softirq handlers will have completed, since in some kernels, these
- * handlers can run in process context, and can block.
- *
- * This primitive provides the guarantees made by the (now removed)
- * synchronize_kernel() API.  In contrast, synchronize_rcu() only
- * guarantees that rcu_read_lock() sections will have completed.
- * In "classic RCU", these two guarantees happen to be one and
- * the same, but can differ in realtime RCU implementations.
- */
-#define synchronize_sched() __synchronize_sched()
 
 /**
  * call_rcu - Queue an RCU callback for invocation after a grace period.

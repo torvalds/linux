@@ -2027,7 +2027,8 @@ out:
  * instead a error will be indicated to the user.
  */
 static int sctp_setsockopt_disable_fragments(struct sock *sk,
-					    char __user *optval, int optlen)
+					     char __user *optval,
+					     unsigned int optlen)
 {
 	int val;
 
@@ -2043,7 +2044,7 @@ static int sctp_setsockopt_disable_fragments(struct sock *sk,
 }
 
 static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
-					int optlen)
+				  unsigned int optlen)
 {
 	if (optlen > sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
@@ -2064,7 +2065,7 @@ static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
  * association is closed.
  */
 static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
-					    int optlen)
+				     unsigned int optlen)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
 
@@ -2318,7 +2319,8 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 }
 
 static int sctp_setsockopt_peer_addr_params(struct sock *sk,
-					    char __user *optval, int optlen)
+					    char __user *optval,
+					    unsigned int optlen)
 {
 	struct sctp_paddrparams  params;
 	struct sctp_transport   *trans = NULL;
@@ -2430,7 +2432,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
  */
 
 static int sctp_setsockopt_delayed_ack(struct sock *sk,
-					    char __user *optval, int optlen)
+				       char __user *optval, unsigned int optlen)
 {
 	struct sctp_sack_info    params;
 	struct sctp_transport   *trans = NULL;
@@ -2546,7 +2548,7 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
  * by the change).  With TCP-style sockets, this option is inherited by
  * sockets derived from a listener socket.
  */
-static int sctp_setsockopt_initmsg(struct sock *sk, char __user *optval, int optlen)
+static int sctp_setsockopt_initmsg(struct sock *sk, char __user *optval, unsigned int optlen)
 {
 	struct sctp_initmsg sinit;
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -2583,7 +2585,8 @@ static int sctp_setsockopt_initmsg(struct sock *sk, char __user *optval, int opt
  *   to this call if the caller is using the UDP model.
  */
 static int sctp_setsockopt_default_send_param(struct sock *sk,
-						char __user *optval, int optlen)
+					      char __user *optval,
+					      unsigned int optlen)
 {
 	struct sctp_sndrcvinfo info;
 	struct sctp_association *asoc;
@@ -2622,7 +2625,7 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
  * association peer's addresses.
  */
 static int sctp_setsockopt_primary_addr(struct sock *sk, char __user *optval,
-					int optlen)
+					unsigned int optlen)
 {
 	struct sctp_prim prim;
 	struct sctp_transport *trans;
@@ -2651,7 +2654,7 @@ static int sctp_setsockopt_primary_addr(struct sock *sk, char __user *optval,
  *  integer boolean flag.
  */
 static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
-					int optlen)
+				   unsigned int optlen)
 {
 	int val;
 
@@ -2676,7 +2679,8 @@ static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
  * be changed.
  *
  */
-static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, int optlen) {
+static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, unsigned int optlen)
+{
 	struct sctp_rtoinfo rtoinfo;
 	struct sctp_association *asoc;
 
@@ -2728,7 +2732,7 @@ static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, int opt
  * See [SCTP] for more information.
  *
  */
-static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, int optlen)
+static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, unsigned int optlen)
 {
 
 	struct sctp_assocparams assocparams;
@@ -2800,7 +2804,7 @@ static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, int o
  * addresses and a user will receive both PF_INET6 and PF_INET type
  * addresses on the socket.
  */
-static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, int optlen)
+static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, unsigned int optlen)
 {
 	int val;
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -2844,7 +2848,7 @@ static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, int op
  *    changed (effecting future associations only).
  * assoc_value:  This parameter specifies the maximum size in bytes.
  */
-static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optlen)
+static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned int optlen)
 {
 	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
@@ -2899,7 +2903,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
  *   set primary request:
  */
 static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optval,
-					     int optlen)
+					     unsigned int optlen)
 {
 	struct sctp_sock	*sp;
 	struct sctp_endpoint	*ep;
@@ -2950,7 +2954,7 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 }
 
 static int sctp_setsockopt_adaptation_layer(struct sock *sk, char __user *optval,
-					  int optlen)
+					    unsigned int optlen)
 {
 	struct sctp_setadaptation adaptation;
 
@@ -2979,7 +2983,7 @@ static int sctp_setsockopt_adaptation_layer(struct sock *sk, char __user *optval
  * saved with outbound messages.
  */
 static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
-				   int optlen)
+				   unsigned int optlen)
 {
 	struct sctp_assoc_value params;
 	struct sctp_sock *sp;
@@ -3030,7 +3034,7 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
  */
 static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 					       char __user *optval,
-					       int optlen)
+					       unsigned int optlen)
 {
 	int val;
 
@@ -3063,7 +3067,7 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
  */
 static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
 						  char __user *optval,
-						  int optlen)
+						  unsigned int optlen)
 {
 	u32 val;
 
@@ -3096,7 +3100,7 @@ static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
  */
 static int sctp_setsockopt_maxburst(struct sock *sk,
 				    char __user *optval,
-				    int optlen)
+				    unsigned int optlen)
 {
 	struct sctp_assoc_value params;
 	struct sctp_sock *sp;
@@ -3140,8 +3144,8 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
  * will only effect future associations on the socket.
  */
 static int sctp_setsockopt_auth_chunk(struct sock *sk,
-				    char __user *optval,
-				    int optlen)
+				      char __user *optval,
+				      unsigned int optlen)
 {
 	struct sctp_authchunk val;
 
@@ -3172,8 +3176,8 @@ static int sctp_setsockopt_auth_chunk(struct sock *sk,
  * endpoint requires the peer to use.
  */
 static int sctp_setsockopt_hmac_ident(struct sock *sk,
-				    char __user *optval,
-				    int optlen)
+				      char __user *optval,
+				      unsigned int optlen)
 {
 	struct sctp_hmacalgo *hmacs;
 	u32 idents;
@@ -3215,7 +3219,7 @@ out:
  */
 static int sctp_setsockopt_auth_key(struct sock *sk,
 				    char __user *optval,
-				    int optlen)
+				    unsigned int optlen)
 {
 	struct sctp_authkey *authkey;
 	struct sctp_association *asoc;
@@ -3260,8 +3264,8 @@ out:
  * the association shared key.
  */
 static int sctp_setsockopt_active_key(struct sock *sk,
-					char __user *optval,
-					int optlen)
+				      char __user *optval,
+				      unsigned int optlen)
 {
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
@@ -3288,8 +3292,8 @@ static int sctp_setsockopt_active_key(struct sock *sk,
  * This set option will delete a shared secret key from use.
  */
 static int sctp_setsockopt_del_key(struct sock *sk,
-					char __user *optval,
-					int optlen)
+				   char __user *optval,
+				   unsigned int optlen)
 {
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
@@ -3332,7 +3336,7 @@ static int sctp_setsockopt_del_key(struct sock *sk,
  *   optlen  - the size of the buffer.
  */
 SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	int retval = 0;
 

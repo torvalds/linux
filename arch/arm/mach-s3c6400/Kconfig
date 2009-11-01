@@ -26,6 +26,7 @@ config MACH_SMDK6400
        bool "SMDK6400"
 	select CPU_S3C6400
 	select S3C_DEV_HSMMC
+	select S3C_DEV_NAND
 	select S3C6400_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDK6400

@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
+#include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 
@@ -105,37 +106,40 @@ static struct pcmcia_driver *get_pcmcia_driver(dev_info_t *dev_info)
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_pccard = NULL;
 
-static int proc_read_drivers_callback(struct device_driver *driver, void *d)
+static int proc_read_drivers_callback(struct device_driver *driver, void *_m)
 {
-	char **p = d;
+	struct seq_file *m = _m;
 	struct pcmcia_driver *p_drv = container_of(driver,
 						   struct pcmcia_driver, drv);
 
-	*p += sprintf(*p, "%-24.24s 1 %d\n", p_drv->drv.name,
+	seq_printf(m, "%-24.24s 1 %d\n", p_drv->drv.name,
 #ifdef CONFIG_MODULE_UNLOAD
 		      (p_drv->owner) ? module_refcount(p_drv->owner) : 1
 #else
 		      1
 #endif
 	);
-	d = (void *) p;
-
 	return 0;
 }
 
-static int proc_read_drivers(char *buf, char **start, off_t pos,
-			     int count, int *eof, void *data)
+static int pccard_drivers_proc_show(struct seq_file *m, void *v)
 {
-	char *p = buf;
-	int rc;
-
-	rc = bus_for_each_drv(&pcmcia_bus_type, NULL,
-			      (void *) &p, proc_read_drivers_callback);
-	if (rc < 0)
-		return rc;
-
-	return (p - buf);
+	return bus_for_each_drv(&pcmcia_bus_type, NULL,
+				m, proc_read_drivers_callback);
 }
+
+static int pccard_drivers_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pccard_drivers_proc_show, NULL);
+}
+
+static const struct file_operations pccard_drivers_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= pccard_drivers_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif
 
 
@@ -1011,7 +1015,7 @@ void __init pcmcia_setup_ioctl(void) {
 #ifdef CONFIG_PROC_FS
 	proc_pccard = proc_mkdir("bus/pccard", NULL);
 	if (proc_pccard)
-		create_proc_read_entry("drivers",0,proc_pccard,proc_read_drivers,NULL);
+		proc_create("drivers", 0, proc_pccard, &pccard_drivers_proc_fops);
 #endif
 }
 

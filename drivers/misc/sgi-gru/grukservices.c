@@ -937,6 +937,8 @@ static int quicktest1(unsigned long arg)
 
 	/* Need  1K cacheline aligned that does not cross page boundary */
 	p = kmalloc(4096, 0);
+	if (p == NULL)
+		return -ENOMEM;
 	mq = ALIGNUP(p, 1024);
 	memset(mes, 0xee, sizeof(mes));
 	dw = mq;

@@ -16,6 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/err.h>
 
+#include "drm_sysfs.h"
 #include "drm_core.h"
 #include "drmP.h"
 
@@ -76,7 +77,7 @@ static ssize_t version_show(struct class *dev, char *buf)
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 }
 
-static char *drm_nodename(struct device *dev)
+static char *drm_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -112,7 +113,7 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	if (err)
 		goto err_out_class;
 
-	class->nodename = drm_nodename;
+	class->devnode = drm_devnode;
 
 	return class;
 
@@ -253,6 +254,7 @@ static ssize_t subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_subconnector_property;
 			is_tv = 1;
 			break;
@@ -293,6 +295,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_select_subconnector_property;
 			is_tv = 1;
 			break;
@@ -391,6 +394,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			for (i = 0; i < ARRAY_SIZE(connector_attrs_opt1); i++) {
 				ret = device_create_file(&connector->kdev, &connector_attrs_opt1[i]);
 				if (ret)
@@ -519,3 +523,27 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 {
 	device_unregister(&minor->kdev);
 }
+
+
+/**
+ * drm_class_device_register - Register a struct device in the drm class.
+ *
+ * @dev: pointer to struct device to register.
+ *
+ * @dev should have all relevant members pre-filled with the exception
+ * of the class member. In particular, the device_type member must
+ * be set.
+ */
+
+int drm_class_device_register(struct device *dev)
+{
+	dev->class = drm_class;
+	return device_register(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_register);
+
+void drm_class_device_unregister(struct device *dev)
+{
+	return device_unregister(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_unregister);

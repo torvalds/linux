@@ -30,6 +30,7 @@
 #include <linux/major.h>
 #include <linux/hid.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/smp_lock.h>
 
 #include <linux/hidraw.h>

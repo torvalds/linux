@@ -34,35 +34,75 @@
 static void b43_led_turn_on(struct b43_wldev *dev, u8 led_index,
 			    bool activelow)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned long flags;
 	u16 ctl;
 
-	spin_lock_irqsave(&wl->leds_lock, flags);
 	ctl = b43_read16(dev, B43_MMIO_GPIO_CONTROL);
 	if (activelow)
 		ctl &= ~(1 << led_index);
 	else
 		ctl |= (1 << led_index);
 	b43_write16(dev, B43_MMIO_GPIO_CONTROL, ctl);
-	spin_unlock_irqrestore(&wl->leds_lock, flags);
 }
 
 static void b43_led_turn_off(struct b43_wldev *dev, u8 led_index,
 			     bool activelow)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned long flags;
 	u16 ctl;
 
-	spin_lock_irqsave(&wl->leds_lock, flags);
 	ctl = b43_read16(dev, B43_MMIO_GPIO_CONTROL);
 	if (activelow)
 		ctl |= (1 << led_index);
 	else
 		ctl &= ~(1 << led_index);
 	b43_write16(dev, B43_MMIO_GPIO_CONTROL, ctl);
-	spin_unlock_irqrestore(&wl->leds_lock, flags);
+}
+
+static void b43_led_update(struct b43_wldev *dev,
+			   struct b43_led *led)
+{
+	bool radio_enabled;
+	bool turn_on;
+
+	if (!led->wl)
+		return;
+
+	radio_enabled = (dev->phy.radio_on && dev->radio_hw_enable);
+
+	/* The led->state read is racy, but we don't care. In case we raced
+	 * with the brightness_set handler, we will be called again soon
+	 * to fixup our state. */
+	if (radio_enabled)
+		turn_on = atomic_read(&led->state) != LED_OFF;
+	else
+		turn_on = 0;
+	if (turn_on == led->hw_state)
+		return;
+	led->hw_state = turn_on;
+
+	if (turn_on)
+		b43_led_turn_on(dev, led->index, led->activelow);
+	else
+		b43_led_turn_off(dev, led->index, led->activelow);
+}
+
+static void b43_leds_work(struct work_struct *work)
+{
+	struct b43_leds *leds = container_of(work, struct b43_leds, work);
+	struct b43_wl *wl = container_of(leds, struct b43_wl, leds);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (unlikely(!dev || b43_status(dev) < B43_STAT_STARTED))
+		goto out_unlock;
+
+	b43_led_update(dev, &wl->leds.led_tx);
+	b43_led_update(dev, &wl->leds.led_rx);
+	b43_led_update(dev, &wl->leds.led_radio);
+	b43_led_update(dev, &wl->leds.led_assoc);
+
+out_unlock:
+	mutex_unlock(&wl->mutex);
 }
 
 /* Callback from the LED subsystem. */
@@ -70,21 +110,12 @@ static void b43_led_brightness_set(struct led_classdev *led_dev,
 				   enum led_brightness brightness)
 {
 	struct b43_led *led = container_of(led_dev, struct b43_led, led_dev);
-	struct b43_wldev *dev = led->dev;
-	bool radio_enabled;
+	struct b43_wl *wl = led->wl;
 
-	if (unlikely(b43_status(dev) < B43_STAT_INITIALIZED))
-		return;
-
-	/* Checking the radio-enabled status here is slightly racy,
-	 * but we want to avoid the locking overhead and we don't care
-	 * whether the LED has the wrong state for a second. */
-	radio_enabled = (dev->phy.radio_on && dev->radio_hw_enable);
-
-	if (brightness == LED_OFF || !radio_enabled)
-		b43_led_turn_off(dev, led->index, led->activelow);
-	else
-		b43_led_turn_on(dev, led->index, led->activelow);
+	if (likely(!wl->leds.stop)) {
+		atomic_set(&led->state, brightness);
+		ieee80211_queue_work(wl->hw, &wl->leds.work);
+	}
 }
 
 static int b43_register_led(struct b43_wldev *dev, struct b43_led *led,
@@ -93,15 +124,15 @@ static int b43_register_led(struct b43_wldev *dev, struct b43_led *led,
 {
 	int err;
 
-	b43_led_turn_off(dev, led_index, activelow);
-	if (led->dev)
+	if (led->wl)
 		return -EEXIST;
 	if (!default_trigger)
 		return -EINVAL;
-	led->dev = dev;
+	led->wl = dev->wl;
 	led->index = led_index;
 	led->activelow = activelow;
 	strncpy(led->name, name, sizeof(led->name));
+	atomic_set(&led->state, 0);
 
 	led->led_dev.name = led->name;
 	led->led_dev.default_trigger = default_trigger;
@@ -110,19 +141,19 @@ static int b43_register_led(struct b43_wldev *dev, struct b43_led *led,
 	err = led_classdev_register(dev->dev->dev, &led->led_dev);
 	if (err) {
 		b43warn(dev->wl, "LEDs: Failed to register %s\n", name);
-		led->dev = NULL;
+		led->wl = NULL;
 		return err;
 	}
+
 	return 0;
 }
 
 static void b43_unregister_led(struct b43_led *led)
 {
-	if (!led->dev)
+	if (!led->wl)
 		return;
 	led_classdev_unregister(&led->led_dev);
-	b43_led_turn_off(led->dev, led->index, led->activelow);
-	led->dev = NULL;
+	led->wl = NULL;
 }
 
 static void b43_map_led(struct b43_wldev *dev,
@@ -137,24 +168,20 @@ static void b43_map_led(struct b43_wldev *dev,
 	 * generic LED triggers. */
 	switch (behaviour) {
 	case B43_LED_INACTIVE:
-		break;
 	case B43_LED_OFF:
-		b43_led_turn_off(dev, led_index, activelow);
-		break;
 	case B43_LED_ON:
-		b43_led_turn_on(dev, led_index, activelow);
 		break;
 	case B43_LED_ACTIVITY:
 	case B43_LED_TRANSFER:
 	case B43_LED_APTRANSFER:
 		snprintf(name, sizeof(name),
 			 "b43-%s::tx", wiphy_name(hw->wiphy));
-		b43_register_led(dev, &dev->led_tx, name,
+		b43_register_led(dev, &dev->wl->leds.led_tx, name,
 				 ieee80211_get_tx_led_name(hw),
 				 led_index, activelow);
 		snprintf(name, sizeof(name),
 			 "b43-%s::rx", wiphy_name(hw->wiphy));
-		b43_register_led(dev, &dev->led_rx, name,
+		b43_register_led(dev, &dev->wl->leds.led_rx, name,
 				 ieee80211_get_rx_led_name(hw),
 				 led_index, activelow);
 		break;
@@ -164,18 +191,15 @@ static void b43_map_led(struct b43_wldev *dev,
 	case B43_LED_MODE_BG:
 		snprintf(name, sizeof(name),
 			 "b43-%s::radio", wiphy_name(hw->wiphy));
-		b43_register_led(dev, &dev->led_radio, name,
+		b43_register_led(dev, &dev->wl->leds.led_radio, name,
 				 ieee80211_get_radio_led_name(hw),
 				 led_index, activelow);
-		/* Sync the RF-kill LED state with radio and switch states. */
-		if (dev->phy.radio_on && b43_is_hw_radio_enabled(dev))
-			b43_led_turn_on(dev, led_index, activelow);
 		break;
 	case B43_LED_WEIRD:
 	case B43_LED_ASSOC:
 		snprintf(name, sizeof(name),
 			 "b43-%s::assoc", wiphy_name(hw->wiphy));
-		b43_register_led(dev, &dev->led_assoc, name,
+		b43_register_led(dev, &dev->wl->leds.led_assoc, name,
 				 ieee80211_get_assoc_led_name(hw),
 				 led_index, activelow);
 		break;
@@ -186,58 +210,150 @@ static void b43_map_led(struct b43_wldev *dev,
 	}
 }
 
-void b43_leds_init(struct b43_wldev *dev)
+static void b43_led_get_sprominfo(struct b43_wldev *dev,
+				  unsigned int led_index,
+				  enum b43_led_behaviour *behaviour,
+				  bool *activelow)
 {
 	struct ssb_bus *bus = dev->dev->bus;
 	u8 sprom[4];
-	int i;
-	enum b43_led_behaviour behaviour;
-	bool activelow;
 
 	sprom[0] = bus->sprom.gpio0;
 	sprom[1] = bus->sprom.gpio1;
 	sprom[2] = bus->sprom.gpio2;
 	sprom[3] = bus->sprom.gpio3;
 
-	for (i = 0; i < 4; i++) {
-		if (sprom[i] == 0xFF) {
-			/* There is no LED information in the SPROM
-			 * for this LED. Hardcode it here. */
-			activelow = 0;
-			switch (i) {
-			case 0:
-				behaviour = B43_LED_ACTIVITY;
-				activelow = 1;
-				if (bus->boardinfo.vendor == PCI_VENDOR_ID_COMPAQ)
-					behaviour = B43_LED_RADIO_ALL;
-				break;
-			case 1:
-				behaviour = B43_LED_RADIO_B;
-				if (bus->boardinfo.vendor == PCI_VENDOR_ID_ASUSTEK)
-					behaviour = B43_LED_ASSOC;
-				break;
-			case 2:
-				behaviour = B43_LED_RADIO_A;
-				break;
-			case 3:
-				behaviour = B43_LED_OFF;
-				break;
-			default:
-				B43_WARN_ON(1);
-				return;
-			}
-		} else {
-			behaviour = sprom[i] & B43_LED_BEHAVIOUR;
-			activelow = !!(sprom[i] & B43_LED_ACTIVELOW);
+	if (sprom[led_index] == 0xFF) {
+		/* There is no LED information in the SPROM
+		 * for this LED. Hardcode it here. */
+		*activelow = 0;
+		switch (led_index) {
+		case 0:
+			*behaviour = B43_LED_ACTIVITY;
+			*activelow = 1;
+			if (bus->boardinfo.vendor == PCI_VENDOR_ID_COMPAQ)
+				*behaviour = B43_LED_RADIO_ALL;
+			break;
+		case 1:
+			*behaviour = B43_LED_RADIO_B;
+			if (bus->boardinfo.vendor == PCI_VENDOR_ID_ASUSTEK)
+				*behaviour = B43_LED_ASSOC;
+			break;
+		case 2:
+			*behaviour = B43_LED_RADIO_A;
+			break;
+		case 3:
+			*behaviour = B43_LED_OFF;
+			break;
+		default:
+			B43_WARN_ON(1);
+			return;
 		}
-		b43_map_led(dev, i, behaviour, activelow);
+	} else {
+		*behaviour = sprom[led_index] & B43_LED_BEHAVIOUR;
+		*activelow = !!(sprom[led_index] & B43_LED_ACTIVELOW);
 	}
+}
+
+void b43_leds_init(struct b43_wldev *dev)
+{
+	struct b43_led *led;
+	unsigned int i;
+	enum b43_led_behaviour behaviour;
+	bool activelow;
+
+	/* Sync the RF-kill LED state (if we have one) with radio and switch states. */
+	led = &dev->wl->leds.led_radio;
+	if (led->wl) {
+		if (dev->phy.radio_on && b43_is_hw_radio_enabled(dev)) {
+			b43_led_turn_on(dev, led->index, led->activelow);
+			led->hw_state = 1;
+			atomic_set(&led->state, 1);
+		} else {
+			b43_led_turn_off(dev, led->index, led->activelow);
+			led->hw_state = 0;
+			atomic_set(&led->state, 0);
+		}
+	}
+
+	/* Initialize TX/RX/ASSOC leds */
+	led = &dev->wl->leds.led_tx;
+	if (led->wl) {
+		b43_led_turn_off(dev, led->index, led->activelow);
+		led->hw_state = 0;
+		atomic_set(&led->state, 0);
+	}
+	led = &dev->wl->leds.led_rx;
+	if (led->wl) {
+		b43_led_turn_off(dev, led->index, led->activelow);
+		led->hw_state = 0;
+		atomic_set(&led->state, 0);
+	}
+	led = &dev->wl->leds.led_assoc;
+	if (led->wl) {
+		b43_led_turn_off(dev, led->index, led->activelow);
+		led->hw_state = 0;
+		atomic_set(&led->state, 0);
+	}
+
+	/* Initialize other LED states. */
+	for (i = 0; i < B43_MAX_NR_LEDS; i++) {
+		b43_led_get_sprominfo(dev, i, &behaviour, &activelow);
+		switch (behaviour) {
+		case B43_LED_OFF:
+			b43_led_turn_off(dev, i, activelow);
+			break;
+		case B43_LED_ON:
+			b43_led_turn_on(dev, i, activelow);
+			break;
+		default:
+			/* Leave others as-is. */
+			break;
+		}
+	}
+
+	dev->wl->leds.stop = 0;
 }
 
 void b43_leds_exit(struct b43_wldev *dev)
 {
-	b43_unregister_led(&dev->led_tx);
-	b43_unregister_led(&dev->led_rx);
-	b43_unregister_led(&dev->led_assoc);
-	b43_unregister_led(&dev->led_radio);
+	struct b43_leds *leds = &dev->wl->leds;
+
+	b43_led_turn_off(dev, leds->led_tx.index, leds->led_tx.activelow);
+	b43_led_turn_off(dev, leds->led_rx.index, leds->led_rx.activelow);
+	b43_led_turn_off(dev, leds->led_assoc.index, leds->led_assoc.activelow);
+	b43_led_turn_off(dev, leds->led_radio.index, leds->led_radio.activelow);
+}
+
+void b43_leds_stop(struct b43_wldev *dev)
+{
+	struct b43_leds *leds = &dev->wl->leds;
+
+	leds->stop = 1;
+	cancel_work_sync(&leds->work);
+}
+
+void b43_leds_register(struct b43_wldev *dev)
+{
+	unsigned int i;
+	enum b43_led_behaviour behaviour;
+	bool activelow;
+
+	INIT_WORK(&dev->wl->leds.work, b43_leds_work);
+
+	/* Register the LEDs to the LED subsystem. */
+	for (i = 0; i < B43_MAX_NR_LEDS; i++) {
+		b43_led_get_sprominfo(dev, i, &behaviour, &activelow);
+		b43_map_led(dev, i, behaviour, activelow);
+	}
+}
+
+void b43_leds_unregister(struct b43_wldev *dev)
+{
+	struct b43_leds *leds = &dev->wl->leds;
+
+	b43_unregister_led(&leds->led_tx);
+	b43_unregister_led(&leds->led_rx);
+	b43_unregister_led(&leds->led_assoc);
+	b43_unregister_led(&leds->led_radio);
 }

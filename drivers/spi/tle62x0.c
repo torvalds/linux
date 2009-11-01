@@ -329,3 +329,4 @@ module_exit(tle62x0_exit);
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("TLE62x0 SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:tle62x0");

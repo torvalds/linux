@@ -445,6 +445,8 @@
 #define AVIVO_D1MODE_VBLANK_STATUS              0x6534
 #       define AVIVO_VBLANK_ACK                 (1 << 4)
 #define AVIVO_D1MODE_VLINE_START_END            0x6538
+#define AVIVO_D1MODE_VLINE_STATUS               0x653c
+#       define AVIVO_D1MODE_VLINE_STAT          (1 << 12)
 #define AVIVO_DxMODE_INT_MASK                   0x6540
 #       define AVIVO_D1MODE_INT_MASK            (1 << 0)
 #       define AVIVO_D2MODE_INT_MASK            (1 << 8)
@@ -502,6 +504,7 @@
 
 #define AVIVO_D2MODE_VBLANK_STATUS              0x6d34
 #define AVIVO_D2MODE_VLINE_START_END            0x6d38
+#define AVIVO_D2MODE_VLINE_STATUS               0x6d3c
 #define AVIVO_D2MODE_VIEWPORT_START             0x6d80
 #define AVIVO_D2MODE_VIEWPORT_SIZE              0x6d84
 #define AVIVO_D2MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6d88

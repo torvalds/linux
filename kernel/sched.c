@@ -39,7 +39,7 @@
 #include <linux/completion.h>
 #include <linux/kernel_stat.h>
 #include <linux/debug_locks.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/profile.h>
@@ -681,15 +681,9 @@ inline void update_rq_clock(struct rq *rq)
  * This interface allows printk to be called with the runqueue lock
  * held and know whether or not it is OK to wake up the klogd.
  */
-int runqueue_is_locked(void)
+int runqueue_is_locked(int cpu)
 {
-	int cpu = get_cpu();
-	struct rq *rq = cpu_rq(cpu);
-	int ret;
-
-	ret = spin_is_locked(&rq->lock);
-	put_cpu();
-	return ret;
+	return spin_is_locked(&cpu_rq(cpu)->lock);
 }
 
 /*
@@ -786,7 +780,7 @@ static int sched_feat_open(struct inode *inode, struct file *filp)
 	return single_open(filp, sched_feat_show, NULL);
 }
 
-static struct file_operations sched_feat_fops = {
+static const struct file_operations sched_feat_fops = {
 	.open		= sched_feat_open,
 	.write		= sched_feat_write,
 	.read		= seq_read,
@@ -2059,7 +2053,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		if (task_hot(p, old_rq->clock, NULL))
 			schedstat_inc(p, se.nr_forced2_migrations);
 #endif
-		perf_swcounter_event(PERF_COUNT_SW_CPU_MIGRATIONS,
+		perf_sw_event(PERF_COUNT_SW_CPU_MIGRATIONS,
 				     1, 1, NULL, 0);
 	}
 	p->se.vruntime -= old_cfsrq->min_vruntime -
@@ -2724,7 +2718,7 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	 */
 	prev_state = prev->state;
 	finish_arch_switch(prev);
-	perf_counter_task_sched_in(current, cpu_of(rq));
+	perf_event_task_sched_in(current, cpu_of(rq));
 	finish_lock_switch(rq, prev);
 
 	fire_sched_in_preempt_notifiers(current);
@@ -2909,6 +2903,19 @@ unsigned long nr_iowait(void)
 
 	return sum;
 }
+
+unsigned long nr_iowait_cpu(void)
+{
+	struct rq *this = this_rq();
+	return atomic_read(&this->nr_iowait);
+}
+
+unsigned long this_cpu_load(void)
+{
+	struct rq *this = this_rq();
+	return this->cpu_load[0];
+}
+
 
 /* Variables and functions for calc_load */
 static atomic_long_t calc_load_tasks;
@@ -5085,17 +5092,16 @@ void account_idle_time(cputime_t cputime)
  */
 void account_process_tick(struct task_struct *p, int user_tick)
 {
-	cputime_t one_jiffy = jiffies_to_cputime(1);
-	cputime_t one_jiffy_scaled = cputime_to_scaled(one_jiffy);
+	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
 	struct rq *rq = this_rq();
 
 	if (user_tick)
-		account_user_time(p, one_jiffy, one_jiffy_scaled);
+		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
 	else if ((p != rq->idle) || (irq_count() != HARDIRQ_OFFSET))
-		account_system_time(p, HARDIRQ_OFFSET, one_jiffy,
+		account_system_time(p, HARDIRQ_OFFSET, cputime_one_jiffy,
 				    one_jiffy_scaled);
 	else
-		account_idle_time(one_jiffy);
+		account_idle_time(cputime_one_jiffy);
 }
 
 /*
@@ -5199,7 +5205,7 @@ void scheduler_tick(void)
 	curr->sched_class->task_tick(rq, curr, 0);
 	spin_unlock(&rq->lock);
 
-	perf_counter_task_tick(curr, cpu);
+	perf_event_task_tick(curr, cpu);
 
 #ifdef CONFIG_SMP
 	rq->idle_at_tick = idle_cpu(cpu);
@@ -5415,7 +5421,7 @@ need_resched_nonpreemptible:
 
 	if (likely(prev != next)) {
 		sched_info_switch(prev, next);
-		perf_counter_task_sched_out(prev, next, cpu);
+		perf_event_task_sched_out(prev, next, cpu);
 
 		rq->nr_switches++;
 		rq->curr = next;
@@ -6825,23 +6831,8 @@ SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
 	if (retval)
 		goto out_unlock;
 
-	/*
-	 * Time slice is 0 for SCHED_FIFO tasks and for SCHED_OTHER
-	 * tasks that are on an otherwise idle runqueue:
-	 */
-	time_slice = 0;
-	if (p->policy == SCHED_RR) {
-		time_slice = DEF_TIMESLICE;
-	} else if (p->policy != SCHED_FIFO) {
-		struct sched_entity *se = &p->se;
-		unsigned long flags;
-		struct rq *rq;
+	time_slice = p->sched_class->get_rr_interval(p);
 
-		rq = task_rq_lock(p, &flags);
-		if (rq->cfs.load.weight)
-			time_slice = NS_TO_JIFFIES(sched_slice(&rq->cfs, se));
-		task_rq_unlock(rq, &flags);
-	}
 	read_unlock(&tasklist_lock);
 	jiffies_to_timespec(time_slice, &t);
 	retval = copy_to_user(interval, &t, sizeof(t)) ? -EFAULT : 0;
@@ -7692,7 +7683,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 /*
  * Register at high priority so that task migration (migrate_all_tasks)
  * happens before everything else.  This has to be lower priority than
- * the notifier in the perf_counter subsystem, though.
+ * the notifier in the perf_event subsystem, though.
  */
 static struct notifier_block __cpuinitdata migration_notifier = {
 	.notifier_call = migration_call,
@@ -9171,6 +9162,7 @@ void __init sched_init_smp(void)
 	cpumask_var_t non_isolated_cpus;
 
 	alloc_cpumask_var(&non_isolated_cpus, GFP_KERNEL);
+	alloc_cpumask_var(&fallback_doms, GFP_KERNEL);
 
 #if defined(CONFIG_NUMA)
 	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
@@ -9202,7 +9194,6 @@ void __init sched_init_smp(void)
 	sched_init_granularity();
 	free_cpumask_var(non_isolated_cpus);
 
-	alloc_cpumask_var(&fallback_doms, GFP_KERNEL);
 	init_sched_rt_class();
 }
 #else
@@ -9549,7 +9540,7 @@ void __init sched_init(void)
 	alloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
 #endif /* SMP */
 
-	perf_counter_init();
+	perf_event_init();
 
 	scheduler_running = 1;
 }
@@ -10321,7 +10312,7 @@ static int sched_rt_global_constraints(void)
 #endif /* CONFIG_RT_GROUP_SCHED */
 
 int sched_rt_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
 	int ret;
@@ -10332,7 +10323,7 @@ int sched_rt_handler(struct ctl_table *table, int write,
 	old_period = sysctl_sched_rt_period;
 	old_runtime = sysctl_sched_rt_runtime;
 
-	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (!ret && write) {
 		ret = sched_rt_global_constraints();
@@ -10386,8 +10377,7 @@ cpu_cgroup_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 }
 
 static int
-cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-		      struct task_struct *tsk)
+cpu_cgroup_can_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 {
 #ifdef CONFIG_RT_GROUP_SCHED
 	if (!sched_rt_can_attach(cgroup_tg(cgrp), tsk))
@@ -10397,15 +10387,45 @@ cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	if (tsk->sched_class != &fair_sched_class)
 		return -EINVAL;
 #endif
+	return 0;
+}
 
+static int
+cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+		      struct task_struct *tsk, bool threadgroup)
+{
+	int retval = cpu_cgroup_can_attach_task(cgrp, tsk);
+	if (retval)
+		return retval;
+	if (threadgroup) {
+		struct task_struct *c;
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
+			retval = cpu_cgroup_can_attach_task(cgrp, c);
+			if (retval) {
+				rcu_read_unlock();
+				return retval;
+			}
+		}
+		rcu_read_unlock();
+	}
 	return 0;
 }
 
 static void
 cpu_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-			struct cgroup *old_cont, struct task_struct *tsk)
+		  struct cgroup *old_cont, struct task_struct *tsk,
+		  bool threadgroup)
 {
 	sched_move_task(tsk);
+	if (threadgroup) {
+		struct task_struct *c;
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
+			sched_move_task(c);
+		}
+		rcu_read_unlock();
+	}
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED

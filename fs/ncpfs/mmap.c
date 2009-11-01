@@ -95,7 +95,7 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
 	return VM_FAULT_MAJOR;
 }
 
-static struct vm_operations_struct ncp_file_mmap =
+static const struct vm_operations_struct ncp_file_mmap =
 {
 	.fault = ncp_file_mmap_fault,
 };

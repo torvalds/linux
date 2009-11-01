@@ -19,9 +19,6 @@
 #include <linux/workqueue.h>
 #include <linux/leds-pca9532.h>
 
-static const unsigned short normal_i2c[] = { /*0x60,*/ I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(pca9532);
-
 #define PCA9532_REG_PSC(i) (0x2+(i)*2)
 #define PCA9532_REG_PWM(i) (0x3+(i)*2)
 #define PCA9532_REG_LS0  0x6
@@ -34,7 +31,7 @@ struct pca9532_data {
 	struct i2c_client *client;
 	struct pca9532_led leds[16];
 	struct mutex update_lock;
-	struct input_dev    *idev;
+	struct input_dev *idev;
 	struct work_struct work;
 	u8 pwm[2];
 	u8 psc[2];
@@ -53,9 +50,9 @@ MODULE_DEVICE_TABLE(i2c, pca9532_id);
 
 static struct i2c_driver pca9532_driver = {
 	.driver = {
-		.name   = "pca9532",
+		.name = "pca9532",
 	},
-	.probe  = pca9532_probe,
+	.probe = pca9532_probe,
 	.remove = pca9532_remove,
 	.id_table = pca9532_id,
 };
@@ -149,7 +146,7 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 
 	if (*delay_on == 0 && *delay_off == 0) {
 	/* led subsystem ask us for a blink rate */
-		*delay_on  = 1000;
+		*delay_on = 1000;
 		*delay_off = 1000;
 	}
 	if (*delay_on != *delay_off || *delay_on > 1690 || *delay_on < 6)
@@ -227,7 +224,7 @@ static int pca9532_configure(struct i2c_client *client,
 			break;
 		case PCA9532_TYPE_LED:
 			led->state = pled->state;
-			led->name =  pled->name;
+			led->name = pled->name;
 			led->ldev.name = led->name;
 			led->ldev.brightness = LED_OFF;
 			led->ldev.brightness_set = pca9532_set_brightness;
@@ -254,7 +251,7 @@ static int pca9532_configure(struct i2c_client *client,
 			data->idev->name = pled->name;
 			data->idev->phys = "i2c/pca9532";
 			data->idev->id.bustype = BUS_HOST;
-			data->idev->id.vendor  = 0x001f;
+			data->idev->id.vendor = 0x001f;
 			data->idev->id.product = 0x0001;
 			data->idev->id.version = 0x0100;
 			data->idev->evbit[0] = BIT_MASK(EV_SND);

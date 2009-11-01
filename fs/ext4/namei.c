@@ -2076,7 +2076,8 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	if (!ext4_handle_valid(handle))
+	/* ext4_handle_valid() assumes a valid handle_t pointer */
+	if (handle && !ext4_handle_valid(handle))
 		return 0;
 
 	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);

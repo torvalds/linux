@@ -2146,46 +2146,6 @@ static ssize_t ntfs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 }
 
 /**
- * ntfs_file_writev -
- *
- * Basically the same as generic_file_writev() except that it ends up calling
- * ntfs_file_aio_write_nolock() instead of __generic_file_aio_write_nolock().
- */
-static ssize_t ntfs_file_writev(struct file *file, const struct iovec *iov,
-		unsigned long nr_segs, loff_t *ppos)
-{
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	mutex_lock(&inode->i_mutex);
-	init_sync_kiocb(&kiocb, file);
-	ret = ntfs_file_aio_write_nolock(&kiocb, iov, nr_segs, ppos);
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
-	mutex_unlock(&inode->i_mutex);
-	if (ret > 0) {
-		int err = generic_write_sync(file, *ppos - ret, ret);
-		if (err < 0)
-			ret = err;
-	}
-	return ret;
-}
-
-/**
- * ntfs_file_write - simple wrapper for ntfs_file_writev()
- */
-static ssize_t ntfs_file_write(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	struct iovec local_iov = { .iov_base = (void __user *)buf,
-				   .iov_len = count };
-
-	return ntfs_file_writev(file, &local_iov, 1, ppos);
-}
-
-/**
  * ntfs_file_fsync - sync a file to disk
  * @filp:	file to be synced
  * @dentry:	dentry describing the file to sync
@@ -2247,7 +2207,7 @@ const struct file_operations ntfs_file_ops = {
 	.read		= do_sync_read,		 /* Read from file. */
 	.aio_read	= generic_file_aio_read, /* Async read from file. */
 #ifdef NTFS_RW
-	.write		= ntfs_file_write,	 /* Write to file. */
+	.write		= do_sync_write,	 /* Write to file. */
 	.aio_write	= ntfs_file_aio_write,	 /* Async write to file. */
 	/*.release	= ,*/			 /* Last file is closed.  See
 						    fs/ext2/file.c::

@@ -368,7 +368,7 @@ error:
 	return r;
 }
 
-/* MAC address: if custom mac addresses are to to be used CR_MAC_ADDR_P1 and
+/* MAC address: if custom mac addresses are to be used CR_MAC_ADDR_P1 and
  *              CR_MAC_ADDR_P2 must be overwritten
  */
 int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)

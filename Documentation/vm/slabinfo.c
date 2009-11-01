@@ -87,7 +87,7 @@ int page_size;
 
 regex_t pattern;
 
-void fatal(const char *x, ...)
+static void fatal(const char *x, ...)
 {
 	va_list ap;
 
@@ -97,7 +97,7 @@ void fatal(const char *x, ...)
 	exit(EXIT_FAILURE);
 }
 
-void usage(void)
+static void usage(void)
 {
 	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
 		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
@@ -131,7 +131,7 @@ void usage(void)
 	);
 }
 
-unsigned long read_obj(const char *name)
+static unsigned long read_obj(const char *name)
 {
 	FILE *f = fopen(name, "r");
 
@@ -151,7 +151,7 @@ unsigned long read_obj(const char *name)
 /*
  * Get the contents of an attribute
  */
-unsigned long get_obj(const char *name)
+static unsigned long get_obj(const char *name)
 {
 	if (!read_obj(name))
 		return 0;
@@ -159,7 +159,7 @@ unsigned long get_obj(const char *name)
 	return atol(buffer);
 }
 
-unsigned long get_obj_and_str(const char *name, char **x)
+static unsigned long get_obj_and_str(const char *name, char **x)
 {
 	unsigned long result = 0;
 	char *p;
@@ -178,7 +178,7 @@ unsigned long get_obj_and_str(const char *name, char **x)
 	return result;
 }
 
-void set_obj(struct slabinfo *s, const char *name, int n)
+static void set_obj(struct slabinfo *s, const char *name, int n)
 {
 	char x[100];
 	FILE *f;
@@ -192,7 +192,7 @@ void set_obj(struct slabinfo *s, const char *name, int n)
 	fclose(f);
 }
 
-unsigned long read_slab_obj(struct slabinfo *s, const char *name)
+static unsigned long read_slab_obj(struct slabinfo *s, const char *name)
 {
 	char x[100];
 	FILE *f;
@@ -215,7 +215,7 @@ unsigned long read_slab_obj(struct slabinfo *s, const char *name)
 /*
  * Put a size string together
  */
-int store_size(char *buffer, unsigned long value)
+static int store_size(char *buffer, unsigned long value)
 {
 	unsigned long divisor = 1;
 	char trailer = 0;
@@ -247,7 +247,7 @@ int store_size(char *buffer, unsigned long value)
 	return n;
 }
 
-void decode_numa_list(int *numa, char *t)
+static void decode_numa_list(int *numa, char *t)
 {
 	int node;
 	int nr;
@@ -272,7 +272,7 @@ void decode_numa_list(int *numa, char *t)
 	}
 }
 
-void slab_validate(struct slabinfo *s)
+static void slab_validate(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -280,7 +280,7 @@ void slab_validate(struct slabinfo *s)
 	set_obj(s, "validate", 1);
 }
 
-void slab_shrink(struct slabinfo *s)
+static void slab_shrink(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -290,7 +290,7 @@ void slab_shrink(struct slabinfo *s)
 
 int line = 0;
 
-void first_line(void)
+static void first_line(void)
 {
 	if (show_activity)
 		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
@@ -302,7 +302,7 @@ void first_line(void)
 /*
  * Find the shortest alias of a slab
  */
-struct aliasinfo *find_one_alias(struct slabinfo *find)
+static struct aliasinfo *find_one_alias(struct slabinfo *find)
 {
 	struct aliasinfo *a;
 	struct aliasinfo *best = NULL;
@@ -318,18 +318,18 @@ struct aliasinfo *find_one_alias(struct slabinfo *find)
 	return best;
 }
 
-unsigned long slab_size(struct slabinfo *s)
+static unsigned long slab_size(struct slabinfo *s)
 {
 	return 	s->slabs * (page_size << s->order);
 }
 
-unsigned long slab_activity(struct slabinfo *s)
+static unsigned long slab_activity(struct slabinfo *s)
 {
 	return 	s->alloc_fastpath + s->free_fastpath +
 		s->alloc_slowpath + s->free_slowpath;
 }
 
-void slab_numa(struct slabinfo *s, int mode)
+static void slab_numa(struct slabinfo *s, int mode)
 {
 	int node;
 
@@ -374,7 +374,7 @@ void slab_numa(struct slabinfo *s, int mode)
 	line++;
 }
 
-void show_tracking(struct slabinfo *s)
+static void show_tracking(struct slabinfo *s)
 {
 	printf("\n%s: Kernel object allocation\n", s->name);
 	printf("-----------------------------------------------------------------------\n");
@@ -392,7 +392,7 @@ void show_tracking(struct slabinfo *s)
 
 }
 
-void ops(struct slabinfo *s)
+static void ops(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -405,14 +405,14 @@ void ops(struct slabinfo *s)
 		printf("\n%s has no kmem_cache operations\n", s->name);
 }
 
-const char *onoff(int x)
+static const char *onoff(int x)
 {
 	if (x)
 		return "On ";
 	return "Off";
 }
 
-void slab_stats(struct slabinfo *s)
+static void slab_stats(struct slabinfo *s)
 {
 	unsigned long total_alloc;
 	unsigned long total_free;
@@ -477,7 +477,7 @@ void slab_stats(struct slabinfo *s)
 			s->deactivate_to_tail, (s->deactivate_to_tail * 100) / total);
 }
 
-void report(struct slabinfo *s)
+static void report(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -518,7 +518,7 @@ void report(struct slabinfo *s)
 	slab_stats(s);
 }
 
-void slabcache(struct slabinfo *s)
+static void slabcache(struct slabinfo *s)
 {
 	char size_str[20];
 	char dist_str[40];
@@ -593,7 +593,7 @@ void slabcache(struct slabinfo *s)
 /*
  * Analyze debug options. Return false if something is amiss.
  */
-int debug_opt_scan(char *opt)
+static int debug_opt_scan(char *opt)
 {
 	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
 		return 1;
@@ -642,7 +642,7 @@ int debug_opt_scan(char *opt)
 	return 1;
 }
 
-int slab_empty(struct slabinfo *s)
+static int slab_empty(struct slabinfo *s)
 {
 	if (s->objects > 0)
 		return 0;
@@ -657,7 +657,7 @@ int slab_empty(struct slabinfo *s)
 	return 1;
 }
 
-void slab_debug(struct slabinfo *s)
+static void slab_debug(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -717,7 +717,7 @@ void slab_debug(struct slabinfo *s)
 		set_obj(s, "trace", 1);
 }
 
-void totals(void)
+static void totals(void)
 {
 	struct slabinfo *s;
 
@@ -976,7 +976,7 @@ void totals(void)
 			b1,	b2,	b3);
 }
 
-void sort_slabs(void)
+static void sort_slabs(void)
 {
 	struct slabinfo *s1,*s2;
 
@@ -1005,7 +1005,7 @@ void sort_slabs(void)
 	}
 }
 
-void sort_aliases(void)
+static void sort_aliases(void)
 {
 	struct aliasinfo *a1,*a2;
 
@@ -1030,7 +1030,7 @@ void sort_aliases(void)
 	}
 }
 
-void link_slabs(void)
+static void link_slabs(void)
 {
 	struct aliasinfo *a;
 	struct slabinfo *s;
@@ -1048,7 +1048,7 @@ void link_slabs(void)
 	}
 }
 
-void alias(void)
+static void alias(void)
 {
 	struct aliasinfo *a;
 	char *active = NULL;
@@ -1079,7 +1079,7 @@ void alias(void)
 }
 
 
-void rename_slabs(void)
+static void rename_slabs(void)
 {
 	struct slabinfo *s;
 	struct aliasinfo *a;
@@ -1102,12 +1102,12 @@ void rename_slabs(void)
 	}
 }
 
-int slab_mismatch(char *slab)
+static int slab_mismatch(char *slab)
 {
 	return regexec(&pattern, slab, 0, NULL, 0);
 }
 
-void read_slab_dir(void)
+static void read_slab_dir(void)
 {
 	DIR *dir;
 	struct dirent *de;
@@ -1209,7 +1209,7 @@ void read_slab_dir(void)
 		fatal("Too many aliases\n");
 }
 
-void output_slabs(void)
+static void output_slabs(void)
 {
 	struct slabinfo *slab;
 

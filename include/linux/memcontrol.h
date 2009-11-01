@@ -118,6 +118,9 @@ static inline bool mem_cgroup_disabled(void)
 
 extern bool mem_cgroup_oom_called(struct task_struct *task);
 void mem_cgroup_update_mapped_file_stat(struct page *page, int val);
+unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+						gfp_t gfp_mask, int nid,
+						int zid);
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -274,6 +277,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 static inline void mem_cgroup_update_mapped_file_stat(struct page *page,
 							int val)
 {
+}
+
+static inline
+unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+					    gfp_t gfp_mask, int nid, int zid)
+{
+	return 0;
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */

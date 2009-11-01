@@ -28,6 +28,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon_fixed.h"
 #include "radeon.h"
+#include "atom.h"
 
 static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 				       struct drm_display_mode *mode,
@@ -340,6 +341,9 @@ void radeon_legacy_atom_set_surface(struct drm_crtc *crtc)
 	uint32_t crtc_pitch;
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
 	case 15:      /*  555 */
 		format = 3;
 		break;
@@ -400,10 +404,32 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint32_t crtc_offset, crtc_offset_cntl, crtc_tile_x0_y0 = 0;
 	uint32_t crtc_pitch, pitch_pixels;
 	uint32_t tiling_flags;
+	int format;
+	uint32_t gen_cntl_reg, gen_cntl_val;
 
 	DRM_DEBUG("\n");
 
 	radeon_fb = to_radeon_framebuffer(crtc->fb);
+
+	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
+	case 15:      /*  555 */
+		format = 3;
+		break;
+	case 16:      /*  565 */
+		format = 4;
+		break;
+	case 24:      /*  RGB */
+		format = 5;
+		break;
+	case 32:      /* xRGB */
+		format = 6;
+		break;
+	default:
+		return false;
+	}
 
 	obj = radeon_fb->obj;
 	if (radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &base)) {
@@ -457,6 +483,9 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	} else {
 		int offset = y * pitch_pixels + x;
 		switch (crtc->fb->bits_per_pixel) {
+		case 8:
+			offset *= 1;
+			break;
 		case 15:
 		case 16:
 			offset *= 2;
@@ -474,6 +503,16 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	base &= ~7;
+
+	if (radeon_crtc->crtc_id == 1)
+		gen_cntl_reg = RADEON_CRTC2_GEN_CNTL;
+	else
+		gen_cntl_reg = RADEON_CRTC_GEN_CNTL;
+
+	gen_cntl_val = RREG32(gen_cntl_reg);
+	gen_cntl_val &= ~(0xf << 8);
+	gen_cntl_val |= (format << 8);
+	WREG32(gen_cntl_reg, gen_cntl_val);
 
 	crtc_offset = (u32)base;
 
@@ -501,6 +540,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_encoder *encoder;
 	int format;
 	int hsync_start;
 	int hsync_wid;
@@ -509,10 +549,24 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	uint32_t crtc_h_sync_strt_wid;
 	uint32_t crtc_v_total_disp;
 	uint32_t crtc_v_sync_strt_wid;
+	bool is_tv = false;
 
 	DRM_DEBUG("\n");
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				is_tv = true;
+				DRM_INFO("crtc %d is connected to a TV\n", radeon_crtc->crtc_id);
+				break;
+			}
+		}
+	}
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
 	case 15:      /*  555 */
 		format = 3;
 		break;
@@ -642,6 +696,11 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 		WREG32(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl);
 	}
 
+	if (is_tv)
+		radeon_legacy_tv_adjust_crtc_reg(encoder, &crtc_h_total_disp,
+						 &crtc_h_sync_strt_wid, &crtc_v_total_disp,
+						 &crtc_v_sync_strt_wid);
+
 	WREG32(RADEON_CRTC_H_TOTAL_DISP + radeon_crtc->crtc_offset, crtc_h_total_disp);
 	WREG32(RADEON_CRTC_H_SYNC_STRT_WID + radeon_crtc->crtc_offset, crtc_h_sync_strt_wid);
 	WREG32(RADEON_CRTC_V_TOTAL_DISP + radeon_crtc->crtc_offset, crtc_v_total_disp);
@@ -668,7 +727,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	uint32_t pll_ref_div = 0;
 	uint32_t pll_fb_post_div = 0;
 	uint32_t htotal_cntl = 0;
-
+	bool is_tv = false;
 	struct radeon_pll *pll;
 
 	struct {
@@ -703,6 +762,13 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				is_tv = true;
+				break;
+			}
+
 			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 				pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
 			if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
@@ -766,6 +832,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 					  ~(RADEON_PIX2CLK_SRC_SEL_MASK)) |
 					 RADEON_PIX2CLK_SRC_SEL_P2PLLCLK);
 
+		if (is_tv) {
+			radeon_legacy_tv_adjust_pll2(encoder, &htotal_cntl,
+						     &pll_ref_div, &pll_fb_post_div,
+						     &pixclks_cntl);
+		}
+
 		WREG32_PLL_P(RADEON_PIXCLKS_CNTL,
 			     RADEON_PIX2CLK_SRC_SEL_CPUCLK,
 			     ~(RADEON_PIX2CLK_SRC_SEL_MASK));
@@ -820,6 +892,15 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 		WREG32_PLL(RADEON_PIXCLKS_CNTL, pixclks_cntl);
 	} else {
+		uint32_t pixclks_cntl;
+
+
+		if (is_tv) {
+			pixclks_cntl = RREG32_PLL(RADEON_PIXCLKS_CNTL);
+			radeon_legacy_tv_adjust_pll1(encoder, &htotal_cntl, &pll_ref_div,
+						     &pll_fb_post_div, &pixclks_cntl);
+		}
+
 		if (rdev->flags & RADEON_IS_MOBILITY) {
 			/* A temporal workaround for the occational blanking on certain laptop panels.
 			   This appears to related to the PLL divider registers (fail to lock?).
@@ -914,6 +995,8 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			     RADEON_VCLK_SRC_SEL_PPLLCLK,
 			     ~(RADEON_VCLK_SRC_SEL_MASK));
 
+		if (is_tv)
+			WREG32_PLL(RADEON_PIXCLKS_CNTL, pixclks_cntl);
 	}
 }
 

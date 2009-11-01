@@ -1,7 +1,8 @@
 /*
- * Copyright (C) 2008 Michael Hennerich, Analog Devices Inc.
+ * Copyright (C) 2008-2009 Michael Hennerich, Analog Devices Inc.
  *
- * Description:	AD7879 based touchscreen, and GPIO driver (I2C/SPI Interface)
+ * Description:	AD7879/AD7889 based touchscreen, and GPIO driver
+ *		(I2C/SPI Interface)
  *
  * Bugs:        Enter bugs at http://blackfin.uclinux.org/
  *
@@ -747,6 +748,7 @@ static int __devexit ad7879_remove(struct i2c_client *client)
 
 static const struct i2c_device_id ad7879_id[] = {
 	{ "ad7879", 0 },
+	{ "ad7889", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad7879_id);
@@ -779,3 +781,4 @@ module_exit(ad7879_exit);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:ad7879");

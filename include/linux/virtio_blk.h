@@ -5,9 +5,6 @@
 #include <linux/types.h>
 #include <linux/virtio_config.h>
 
-/* The ID for virtio_block */
-#define VIRTIO_ID_BLOCK	2
-
 /* Feature bits */
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
@@ -17,6 +14,7 @@
 #define VIRTIO_BLK_F_BLK_SIZE	6	/* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI	7	/* Supports scsi command passthru */
 #define VIRTIO_BLK_F_IDENTIFY	8	/* ATA IDENTIFY supported */
+#define VIRTIO_BLK_F_FLUSH	9	/* Cache flush command support */
 
 #define VIRTIO_BLK_ID_BYTES	(sizeof(__u16[256]))	/* IDENTIFY DATA */
 
@@ -38,12 +36,26 @@ struct virtio_blk_config {
 	__u8 identify[VIRTIO_BLK_ID_BYTES];
 } __attribute__((packed));
 
+/*
+ * Command types
+ *
+ * Usage is a bit tricky as some bits are used as flags and some are not.
+ *
+ * Rules:
+ *   VIRTIO_BLK_T_OUT may be combined with VIRTIO_BLK_T_SCSI_CMD or
+ *   VIRTIO_BLK_T_BARRIER.  VIRTIO_BLK_T_FLUSH is a command of its own
+ *   and may not be combined with any of the other flags.
+ */
+
 /* These two define direction. */
 #define VIRTIO_BLK_T_IN		0
 #define VIRTIO_BLK_T_OUT	1
 
 /* This bit says it's a scsi command, not an actual read or write. */
 #define VIRTIO_BLK_T_SCSI_CMD	2
+
+/* Cache flush command */
+#define VIRTIO_BLK_T_FLUSH	4
 
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER	0x80000000

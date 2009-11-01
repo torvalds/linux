@@ -165,7 +165,6 @@ static int dn_node_address_strategy(ctl_table *table,
 }
 
 static int dn_node_address_handler(ctl_table *table, int write,
-				struct file *filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
@@ -276,7 +275,6 @@ static int dn_def_dev_strategy(ctl_table *table,
 
 
 static int dn_def_dev_handler(ctl_table *table, int write,
-				struct file * filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {

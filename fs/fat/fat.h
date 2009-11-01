@@ -323,7 +323,7 @@ extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 /* fat/misc.c */
 extern void fat_fs_error(struct super_block *s, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3))) __cold;
-extern void fat_clusters_flush(struct super_block *sb);
+extern int fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
 extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
 			      __le16 __time, __le16 __date, u8 time_cs);

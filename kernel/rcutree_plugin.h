@@ -64,22 +64,31 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed);
  * not in a quiescent state.  There might be any number of tasks blocked
  * while in an RCU read-side critical section.
  */
-static void rcu_preempt_qs_record(int cpu)
+static void rcu_preempt_qs(int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
-	rdp->passed_quiesc = 1;
 	rdp->passed_quiesc_completed = rdp->completed;
+	barrier();
+	rdp->passed_quiesc = 1;
 }
 
 /*
- * We have entered the scheduler or are between softirqs in ksoftirqd.
- * If we are in an RCU read-side critical section, we need to reflect
- * that in the state of the rcu_node structure corresponding to this CPU.
- * Caller must disable hardirqs.
+ * We have entered the scheduler, and the current task might soon be
+ * context-switched away from.  If this task is in an RCU read-side
+ * critical section, we will no longer be able to rely on the CPU to
+ * record that fact, so we enqueue the task on the appropriate entry
+ * of the blocked_tasks[] array.  The task will dequeue itself when
+ * it exits the outermost enclosing RCU read-side critical section.
+ * Therefore, the current grace period cannot be permitted to complete
+ * until the blocked_tasks[] entry indexed by the low-order bit of
+ * rnp->gpnum empties.
+ *
+ * Caller must disable preemption.
  */
-static void rcu_preempt_qs(int cpu)
+static void rcu_preempt_note_context_switch(int cpu)
 {
 	struct task_struct *t = current;
+	unsigned long flags;
 	int phase;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
@@ -90,7 +99,7 @@ static void rcu_preempt_qs(int cpu)
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = rcu_preempt_state.rda[cpu];
 		rnp = rdp->mynode;
-		spin_lock(&rnp->lock);
+		spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
 		t->rcu_blocked_node = rnp;
 
@@ -103,11 +112,15 @@ static void rcu_preempt_qs(int cpu)
 		 * state for the current grace period), then as long
 		 * as that task remains queued, the current grace period
 		 * cannot end.
+		 *
+		 * But first, note that the current CPU must still be
+		 * on line!
 		 */
-		phase = !(rnp->qsmask & rdp->grpmask) ^ (rnp->gpnum & 0x1);
+		WARN_ON_ONCE((rdp->grpmask & rnp->qsmaskinit) == 0);
+		WARN_ON_ONCE(!list_empty(&t->rcu_node_entry));
+		phase = (rnp->gpnum + !(rnp->qsmask & rdp->grpmask)) & 0x1;
 		list_add(&t->rcu_node_entry, &rnp->blocked_tasks[phase]);
-		smp_mb();  /* Ensure later ctxt swtch seen after above. */
-		spin_unlock(&rnp->lock);
+		spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 
 	/*
@@ -119,9 +132,10 @@ static void rcu_preempt_qs(int cpu)
 	 * grace period, then the fact that the task has been enqueued
 	 * means that we continue to block the current grace period.
 	 */
-	rcu_preempt_qs_record(cpu);
-	t->rcu_read_unlock_special &= ~(RCU_READ_UNLOCK_NEED_QS |
-					RCU_READ_UNLOCK_GOT_QS);
+	rcu_preempt_qs(cpu);
+	local_irq_save(flags);
+	t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
+	local_irq_restore(flags);
 }
 
 /*
@@ -157,7 +171,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 	special = t->rcu_read_unlock_special;
 	if (special & RCU_READ_UNLOCK_NEED_QS) {
 		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
-		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_GOT_QS;
+		rcu_preempt_qs(smp_processor_id());
 	}
 
 	/* Hardware IRQ handlers cannot block. */
@@ -177,10 +191,10 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
-			spin_lock(&rnp->lock);
+			spin_lock(&rnp->lock);  /* irqs already disabled. */
 			if (rnp == t->rcu_blocked_node)
 				break;
-			spin_unlock(&rnp->lock);
+			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
 		}
 		empty = list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 		list_del_init(&t->rcu_node_entry);
@@ -194,9 +208,8 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		if (!empty && rnp->qsmask == 0 &&
 		    list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1])) {
-			t->rcu_read_unlock_special &=
-				~(RCU_READ_UNLOCK_NEED_QS |
-				  RCU_READ_UNLOCK_GOT_QS);
+			struct rcu_node *rnp_p;
+
 			if (rnp->parent == NULL) {
 				/* Only one rcu_node in the tree. */
 				cpu_quiet_msk_finish(&rcu_preempt_state, flags);
@@ -205,9 +218,10 @@ static void rcu_read_unlock_special(struct task_struct *t)
 			/* Report up the rest of the hierarchy. */
 			mask = rnp->grpmask;
 			spin_unlock_irqrestore(&rnp->lock, flags);
-			rnp = rnp->parent;
-			spin_lock_irqsave(&rnp->lock, flags);
-			cpu_quiet_msk(mask, &rcu_preempt_state, rnp, flags);
+			rnp_p = rnp->parent;
+			spin_lock_irqsave(&rnp_p->lock, flags);
+			WARN_ON_ONCE(rnp->qsmask);
+			cpu_quiet_msk(mask, &rcu_preempt_state, rnp_p, flags);
 			return;
 		}
 		spin_unlock(&rnp->lock);
@@ -259,6 +273,19 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 /*
+ * Check that the list of blocked tasks for the newly completed grace
+ * period is in fact empty.  It is a serious bug to complete a grace
+ * period that still has RCU readers blocked!  This function must be
+ * invoked -before- updating this rnp's ->gpnum, and the rnp's ->lock
+ * must be held by the caller.
+ */
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+{
+	WARN_ON_ONCE(!list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]));
+	WARN_ON_ONCE(rnp->qsmask);
+}
+
+/*
  * Check for preempted RCU readers for the specified rcu_node structure.
  * If the caller needs a reliable answer, it must hold the rcu_node's
  * >lock.
@@ -280,7 +307,8 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
  * The caller must hold rnp->lock with irqs disabled.
  */
 static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				      struct rcu_node *rnp)
+				      struct rcu_node *rnp,
+				      struct rcu_data *rdp)
 {
 	int i;
 	struct list_head *lp;
@@ -292,6 +320,9 @@ static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
 		WARN_ONCE(1, "Last CPU thought to be offlined?");
 		return;  /* Shouldn't happen: at least one CPU online. */
 	}
+	WARN_ON_ONCE(rnp != rdp->mynode &&
+		     (!list_empty(&rnp->blocked_tasks[0]) ||
+		      !list_empty(&rnp->blocked_tasks[1])));
 
 	/*
 	 * Move tasks up to root rcu_node.  Rely on the fact that the
@@ -335,20 +366,12 @@ static void rcu_preempt_check_callbacks(int cpu)
 	struct task_struct *t = current;
 
 	if (t->rcu_read_lock_nesting == 0) {
-		t->rcu_read_unlock_special &=
-			~(RCU_READ_UNLOCK_NEED_QS | RCU_READ_UNLOCK_GOT_QS);
-		rcu_preempt_qs_record(cpu);
+		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
+		rcu_preempt_qs(cpu);
 		return;
 	}
-	if (per_cpu(rcu_preempt_data, cpu).qs_pending) {
-		if (t->rcu_read_unlock_special & RCU_READ_UNLOCK_GOT_QS) {
-			rcu_preempt_qs_record(cpu);
-			t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_GOT_QS;
-		} else if (!(t->rcu_read_unlock_special &
-			     RCU_READ_UNLOCK_NEED_QS)) {
-			t->rcu_read_unlock_special |= RCU_READ_UNLOCK_NEED_QS;
-		}
-	}
+	if (per_cpu(rcu_preempt_data, cpu).qs_pending)
+		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_NEED_QS;
 }
 
 /*
@@ -434,7 +457,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed);
  * Because preemptable RCU does not exist, we never have to check for
  * CPUs being in quiescent states.
  */
-static void rcu_preempt_qs(int cpu)
+static void rcu_preempt_note_context_switch(int cpu)
 {
 }
 
@@ -449,6 +472,16 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 }
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+/*
+ * Because there is no preemptable RCU, there can be no readers blocked,
+ * so there is no need to check for blocked tasks.  So check only for
+ * bogus qsmask values.
+ */
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
+{
+	WARN_ON_ONCE(rnp->qsmask);
+}
 
 /*
  * Because preemptable RCU does not exist, there are never any preempted
@@ -466,7 +499,8 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
  * tasks that were blocked within RCU read-side critical sections.
  */
 static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				      struct rcu_node *rnp)
+				      struct rcu_node *rnp,
+				      struct rcu_data *rdp)
 {
 }
 

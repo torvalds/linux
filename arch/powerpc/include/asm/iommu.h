@@ -70,6 +70,16 @@ struct iommu_table {
 
 struct scatterlist;
 
+static inline void set_iommu_table_base(struct device *dev, void *base)
+{
+	dev->archdata.dma_data.iommu_table_base = base;
+}
+
+static inline void *get_iommu_table_base(struct device *dev)
+{
+	return dev->archdata.dma_data.iommu_table_base;
+}
+
 /* Frees table for an individual device node */
 extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
 

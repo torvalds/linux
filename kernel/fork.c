@@ -49,6 +49,7 @@
 #include <linux/ftrace.h>
 #include <linux/profile.h>
 #include <linux/rmap.h>
+#include <linux/ksm.h>
 #include <linux/acct.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
@@ -61,7 +62,8 @@
 #include <linux/blkdev.h>
 #include <linux/fs_struct.h>
 #include <linux/magic.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
+#include <linux/posix-timers.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -136,9 +138,17 @@ struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
+static void account_kernel_stack(struct thread_info *ti, int account)
+{
+	struct zone *zone = page_zone(virt_to_page(ti));
+
+	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
+}
+
 void free_task(struct task_struct *tsk)
 {
 	prop_local_destroy_single(&tsk->dirties);
+	account_kernel_stack(tsk->stack, -1);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
@@ -253,6 +263,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk->btrace_seq = 0;
 #endif
 	tsk->splice_pipe = NULL;
+
+	account_kernel_stack(ti, 1);
+
 	return tsk;
 
 out:
@@ -288,6 +301,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 	rb_link = &mm->mm_rb.rb_node;
 	rb_parent = NULL;
 	pprev = &mm->mmap;
+	retval = ksm_fork(mm, oldmm);
+	if (retval)
+		goto out;
 
 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
 		struct file *file;
@@ -418,22 +434,30 @@ __setup("coredump_filter=", coredump_filter_setup);
 
 #include <linux/init_task.h>
 
+static void mm_init_aio(struct mm_struct *mm)
+{
+#ifdef CONFIG_AIO
+	spin_lock_init(&mm->ioctx_lock);
+	INIT_HLIST_HEAD(&mm->ioctx_list);
+#endif
+}
+
 static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 {
 	atomic_set(&mm->mm_users, 1);
 	atomic_set(&mm->mm_count, 1);
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
-	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
+	mm->flags = (current->mm) ?
+		(current->mm->flags & MMF_INIT_MASK) : default_dump_filter;
 	mm->core_state = NULL;
 	mm->nr_ptes = 0;
 	set_mm_counter(mm, file_rss, 0);
 	set_mm_counter(mm, anon_rss, 0);
 	spin_lock_init(&mm->page_table_lock);
-	spin_lock_init(&mm->ioctx_lock);
-	INIT_HLIST_HEAD(&mm->ioctx_list);
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
 	mm->cached_hole_size = ~0UL;
+	mm_init_aio(mm);
 	mm_init_owner(mm, p);
 
 	if (likely(!mm_alloc_pgd(mm))) {
@@ -485,6 +509,7 @@ void mmput(struct mm_struct *mm)
 
 	if (atomic_dec_and_test(&mm->mm_users)) {
 		exit_aio(mm);
+		ksm_exit(mm);
 		exit_mmap(mm);
 		set_mm_exe_file(mm, NULL);
 		if (!list_empty(&mm->mmlist)) {
@@ -493,6 +518,8 @@ void mmput(struct mm_struct *mm)
 			spin_unlock(&mmlist_lock);
 		}
 		put_swap_token(mm);
+		if (mm->binfmt)
+			module_put(mm->binfmt->module);
 		mmdrop(mm);
 	}
 }
@@ -618,9 +645,14 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
 	mm->hiwater_rss = get_mm_rss(mm);
 	mm->hiwater_vm = mm->total_vm;
 
+	if (mm->binfmt && !try_module_get(mm->binfmt->module))
+		goto free_pt;
+
 	return mm;
 
 free_pt:
+	/* don't put binfmt in mmput, we haven't got module yet */
+	mm->binfmt = NULL;
 	mmput(mm);
 
 fail_nomem:
@@ -788,10 +820,10 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	thread_group_cputime_init(sig);
 
 	/* Expiration times and increments. */
-	sig->it_virt_expires = cputime_zero;
-	sig->it_virt_incr = cputime_zero;
-	sig->it_prof_expires = cputime_zero;
-	sig->it_prof_incr = cputime_zero;
+	sig->it[CPUCLOCK_PROF].expires = cputime_zero;
+	sig->it[CPUCLOCK_PROF].incr = cputime_zero;
+	sig->it[CPUCLOCK_VIRT].expires = cputime_zero;
+	sig->it[CPUCLOCK_VIRT].incr = cputime_zero;
 
 	/* Cached expiration times. */
 	sig->cputime_expires.prof_exp = cputime_zero;
@@ -849,6 +881,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
+	sig->maxrss = sig->cmaxrss = 0;
 	task_io_accounting_init(&sig->ioac);
 	sig->sum_sched_runtime = 0;
 	taskstats_tgid_init(sig);
@@ -862,6 +895,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	acct_init_pacct(&sig->pacct);
 
 	tty_audit_fork(sig);
+
+	sig->oom_adj = current->signal->oom_adj;
 
 	return 0;
 }
@@ -958,6 +993,16 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if ((clone_flags & CLONE_SIGHAND) && !(clone_flags & CLONE_VM))
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * Siblings of global init remain as zombies on exit since they are
+	 * not reaped by their parent (swapper). To solve this and to avoid
+	 * multi-rooted process trees, prevent global and container-inits
+	 * from creating siblings.
+	 */
+	if ((clone_flags & CLONE_PARENT) &&
+				current->signal->flags & SIGNAL_UNKILLABLE)
+		return ERR_PTR(-EINVAL);
+
 	retval = security_task_create(clone_flags);
 	if (retval)
 		goto fork_out;
@@ -998,9 +1043,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	if (!try_module_get(task_thread_info(p)->exec_domain->module))
 		goto bad_fork_cleanup_count;
-
-	if (p->binfmt && !try_module_get(p->binfmt->module))
-		goto bad_fork_cleanup_put_domain;
 
 	p->did_exec = 0;
 	delayacct_tsk_init(p);	/* Must remain after dup_task_struct() */
@@ -1075,10 +1117,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->bts = NULL;
 
+	p->stack_start = stack_start;
+
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	sched_fork(p, clone_flags);
 
-	retval = perf_counter_init_task(p);
+	retval = perf_event_init_task(p);
 	if (retval)
 		goto bad_fork_cleanup_policy;
 
@@ -1253,7 +1297,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
 	cgroup_post_fork(p);
-	perf_counter_fork(p);
+	perf_event_fork(p);
 	return p;
 
 bad_fork_free_pid:
@@ -1280,16 +1324,13 @@ bad_fork_cleanup_semundo:
 bad_fork_cleanup_audit:
 	audit_free(p);
 bad_fork_cleanup_policy:
-	perf_counter_free_task(p);
+	perf_event_free_task(p);
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
 bad_fork_cleanup_cgroup:
 #endif
 	cgroup_exit(p, cgroup_callbacks_done);
 	delayacct_tsk_free(p);
-	if (p->binfmt)
-		module_put(p->binfmt->module);
-bad_fork_cleanup_put_domain:
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
 	atomic_dec(&p->cred->user->processes);

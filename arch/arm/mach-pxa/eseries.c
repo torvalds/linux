@@ -47,44 +47,9 @@ struct pxa2xx_udc_mach_info e7xx_udc_mach_info = {
 	.gpio_pullup_inverted = 1
 };
 
-static void e7xx_irda_transceiver_mode(struct device *dev, int mode)
-{
-	if (mode & IR_OFF) {
-		gpio_set_value(GPIO_E7XX_IR_OFF, 1);
-		pxa2xx_transceiver_mode(dev, mode);
-	} else {
-		pxa2xx_transceiver_mode(dev, mode);
-		gpio_set_value(GPIO_E7XX_IR_OFF, 0);
-	}
-}
-
-int e7xx_irda_init(void)
-{
-	int ret;
-
-	ret = gpio_request(GPIO_E7XX_IR_OFF, "IrDA power");
-	if (ret)
-		goto out;
-
-	ret = gpio_direction_output(GPIO_E7XX_IR_OFF, 0);
-	if (ret)
-		goto out;
-
-	e7xx_irda_transceiver_mode(NULL, IR_SIRMODE | IR_OFF);
-out:
-	return ret;
-}
-
-static void e7xx_irda_shutdown(struct device *dev)
-{
-	e7xx_irda_transceiver_mode(dev, IR_SIRMODE | IR_OFF);
-	gpio_free(GPIO_E7XX_IR_OFF);
-}
-
 struct pxaficp_platform_data e7xx_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = e7xx_irda_transceiver_mode,
-	.shutdown = e7xx_irda_shutdown,
+	.gpio_pwdown		= GPIO_E7XX_IR_OFF,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 int eseries_tmio_enable(struct platform_device *dev)

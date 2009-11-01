@@ -33,6 +33,7 @@
  */
 
 #include <linux/mlx4/cmd.h>
+#include <linux/cache.h>
 
 #include "fw.h"
 #include "icm.h"
@@ -698,6 +699,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define INIT_HCA_IN_SIZE		 0x200
 #define INIT_HCA_VERSION_OFFSET		 0x000
 #define	 INIT_HCA_VERSION		 2
+#define INIT_HCA_CACHELINE_SZ_OFFSET	 0x0e
 #define INIT_HCA_FLAGS_OFFSET		 0x014
 #define INIT_HCA_QPC_OFFSET		 0x020
 #define	 INIT_HCA_QPC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x10)
@@ -734,6 +736,9 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	memset(inbox, 0, INIT_HCA_IN_SIZE);
 
 	*((u8 *) mailbox->buf + INIT_HCA_VERSION_OFFSET) = INIT_HCA_VERSION;
+
+	*((u8 *) mailbox->buf + INIT_HCA_CACHELINE_SZ_OFFSET) =
+		(ilog2(cache_line_size()) - 4) << 5;
 
 #if defined(__LITTLE_ENDIAN)
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) &= ~cpu_to_be32(1 << 1);

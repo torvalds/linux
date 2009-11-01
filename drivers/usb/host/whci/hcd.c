@@ -192,19 +192,23 @@ static void whc_endpoint_reset(struct usb_hcd *usb_hcd,
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	struct whc *whc = wusbhc_to_whc(wusbhc);
 	struct whc_qset *qset;
+	unsigned long flags;
+
+	spin_lock_irqsave(&whc->lock, flags);
 
 	qset = ep->hcpriv;
 	if (qset) {
 		qset->remove = 1;
+		qset->reset = 1;
 
 		if (usb_endpoint_xfer_bulk(&ep->desc)
 		    || usb_endpoint_xfer_control(&ep->desc))
 			queue_work(whc->workqueue, &whc->async_work);
 		else
 			queue_work(whc->workqueue, &whc->periodic_work);
-
-		qset_reset(whc, qset);
 	}
+
+	spin_unlock_irqrestore(&whc->lock, flags);
 }
 
 

@@ -139,8 +139,13 @@ static struct gpio_led gpio_leds[];
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	if (system_rev >= 0x20 && system_rev <= 0x34301000) {
+		omap_cfg_reg(AG9_34XX_GPIO23);
+		mmc[0].gpio_wp = 23;
+	} else {
+		omap_cfg_reg(AH8_34XX_GPIO29);
+	}
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_cfg_reg(AH8_34XX_GPIO29);
 	mmc[0].gpio_cd = gpio + 0;
 	twl4030_mmc_init(mmc);
 

@@ -204,10 +204,7 @@ static void print_mce_head(void)
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-#if (!defined(CONFIG_EDAC) || !defined(CONFIG_CPU_SUP_AMD))
-	       "Run through mcelog --ascii to decode and contact your hardware vendor\n"
-#endif
-	       );
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
@@ -305,13 +302,25 @@ static int msr_to_offset(u32 msr)
 static u64 mce_rdmsrl(u32 msr)
 {
 	u64 v;
+
 	if (__get_cpu_var(injectm).finished) {
 		int offset = msr_to_offset(msr);
+
 		if (offset < 0)
 			return 0;
 		return *(u64 *)((char *)&__get_cpu_var(injectm) + offset);
 	}
-	rdmsrl(msr, v);
+
+	if (rdmsrl_safe(msr, &v)) {
+		WARN_ONCE(1, "mce: Unable to read msr %d!\n", msr);
+		/*
+		 * Return zero in case the access faulted. This should
+		 * not happen normally but can happen if the CPU does
+		 * something weird, or if the code is buggy.
+		 */
+		v = 0;
+	}
+
 	return v;
 }
 
@@ -319,6 +328,7 @@ static void mce_wrmsrl(u32 msr, u64 v)
 {
 	if (__get_cpu_var(injectm).finished) {
 		int offset = msr_to_offset(msr);
+
 		if (offset >= 0)
 			*(u64 *)((char *)&__get_cpu_var(injectm) + offset) = v;
 		return;
@@ -415,7 +425,7 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 		m->ip = mce_rdmsrl(rip_msr);
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC 
+#ifdef CONFIG_X86_LOCAL_APIC
 /*
  * Called after interrupts have been reenabled again
  * when a MCE happened during an interrupts off region
@@ -1172,6 +1182,7 @@ static int mce_banks_init(void)
 		return -ENOMEM;
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
+
 		b->ctl = -1ULL;
 		b->init = 1;
 	}
@@ -1203,6 +1214,7 @@ static int __cpuinit mce_cap_init(void)
 	banks = b;
 	if (!mce_banks) {
 		int err = mce_banks_init();
+
 		if (err)
 			return err;
 	}
@@ -1237,6 +1249,7 @@ static void mce_init(void)
 
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
+
 		if (!b->init)
 			continue;
 		wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
@@ -1626,6 +1639,7 @@ static int mce_disable(void)
 
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
+
 		if (b->init)
 			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
@@ -1911,6 +1925,7 @@ static void mce_disable_cpu(void *h)
 		cmci_clear();
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
+
 		if (b->init)
 			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
@@ -1928,6 +1943,7 @@ static void mce_reenable_cpu(void *h)
 		cmci_reenable();
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
+
 		if (b->init)
 			wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
 	}

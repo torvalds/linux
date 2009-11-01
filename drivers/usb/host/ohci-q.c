@@ -418,7 +418,7 @@ static struct ed *ed_get (
 		is_out = !(ep->desc.bEndpointAddress & USB_DIR_IN);
 
 		/* FIXME usbcore changes dev->devnum before SET_ADDRESS
-		 * suceeds ... otherwise we wouldn't need "pipe".
+		 * succeeds ... otherwise we wouldn't need "pipe".
 		 */
 		info = usb_pipedevice (pipe);
 		ed->type = usb_pipetype(pipe);

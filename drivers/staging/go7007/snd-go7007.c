@@ -26,7 +26,7 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/i2c.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <asm/system.h>
 #include <sound/core.h>

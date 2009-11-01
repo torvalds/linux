@@ -41,6 +41,8 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
 
+#define PREFIX "ACPI: "
+
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_throttling");
@@ -75,7 +77,7 @@ static int acpi_processor_update_tsd_coord(void)
 	struct acpi_tsd_package *pdomain, *match_pdomain;
 	struct acpi_processor_throttling *pthrottling, *match_pthrottling;
 
-	if (!alloc_cpumask_var(&covered_cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	/*
@@ -103,7 +105,6 @@ static int acpi_processor_update_tsd_coord(void)
 	if (retval)
 		goto err_ret;
 
-	cpumask_clear(covered_cpus);
 	for_each_possible_cpu(i) {
 		pr = per_cpu(processors, i);
 		if (!pr)
@@ -1216,7 +1217,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 }
 
 /* proc interface */
-
+#ifdef CONFIG_ACPI_PROCFS
 static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 					      void *offset)
 {
@@ -1324,3 +1325,4 @@ const struct file_operations acpi_processor_throttling_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif

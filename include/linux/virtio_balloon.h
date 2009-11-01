@@ -4,9 +4,6 @@
  * compatible drivers/servers. */
 #include <linux/virtio_config.h>
 
-/* The ID for virtio_balloon */
-#define VIRTIO_ID_BALLOON	5
-
 /* The feature bitmap for virtio balloon */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
 

@@ -15,7 +15,16 @@ struct dev_archdata {
 
 	/* DMA operations on that device */
 	struct dma_map_ops	*dma_ops;
-	void			*dma_data;
+
+	/*
+	 * When an iommu is in use, dma_data is used as a ptr to the base of the
+	 * iommu_table.  Otherwise, it is a simple numerical offset.
+	 */
+	union {
+		dma_addr_t	dma_offset;
+		void		*iommu_table_base;
+	} dma_data;
+
 #ifdef CONFIG_SWIOTLB
 	dma_addr_t		max_direct_dma_addr;
 #endif

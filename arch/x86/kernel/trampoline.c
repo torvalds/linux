@@ -4,7 +4,7 @@
 #include <asm/e820.h>
 
 /* ready for x86_64 and x86 */
-unsigned char *trampoline_base = __va(TRAMPOLINE_BASE);
+unsigned char *__cpuinitdata trampoline_base = __va(TRAMPOLINE_BASE);
 
 void __init reserve_trampoline_memory(void)
 {
@@ -26,7 +26,7 @@ void __init reserve_trampoline_memory(void)
  * bootstrap into the page concerned. The caller
  * has made sure it's suitably aligned.
  */
-unsigned long setup_trampoline(void)
+unsigned long __cpuinit setup_trampoline(void)
 {
 	memcpy(trampoline_base, trampoline_data, TRAMPOLINE_SIZE);
 	return virt_to_phys(trampoline_base);

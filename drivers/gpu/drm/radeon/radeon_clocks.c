@@ -102,10 +102,12 @@ void radeon_get_clock_info(struct drm_device *dev)
 			p1pll->reference_div = 12;
 		if (p2pll->reference_div < 2)
 			p2pll->reference_div = 12;
-		if (spll->reference_div < 2)
-			spll->reference_div =
-			    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) &
-			    RADEON_M_SPLL_REF_DIV_MASK;
+		if (rdev->family < CHIP_RS600) {
+			if (spll->reference_div < 2)
+				spll->reference_div =
+					RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) &
+					RADEON_M_SPLL_REF_DIV_MASK;
+		}
 		if (mpll->reference_div < 2)
 			mpll->reference_div = spll->reference_div;
 	} else {

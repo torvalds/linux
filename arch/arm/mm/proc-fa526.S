@@ -191,7 +191,7 @@ fa526_cr1_set:
 	.type	fa526_processor_functions, #object
 fa526_processor_functions:
 	.word	v4_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_fa526_proc_init
 	.word	cpu_fa526_proc_fin
 	.word	cpu_fa526_reset

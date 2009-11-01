@@ -21,7 +21,7 @@ static void usage(void)
  * http://www.cse.yorku.ca/~oz/hash.html
  */
 
-unsigned int djb2_hash(char *str)
+static unsigned int djb2_hash(char *str)
 {
 	unsigned long hash = 5381;
 	int c;
@@ -34,7 +34,7 @@ unsigned int djb2_hash(char *str)
 	return (unsigned int)(hash & ((1 << DYNAMIC_DEBUG_HASH_BITS) - 1));
 }
 
-unsigned int r5_hash(char *str)
+static unsigned int r5_hash(char *str)
 {
 	unsigned long hash = 0;
 	int c;

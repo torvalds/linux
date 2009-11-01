@@ -124,7 +124,7 @@ static void pl011_enable_ms(struct uart_port *port)
 
 static void pl011_rx_chars(struct uart_amba_port *uap)
 {
-	struct tty_struct *tty = uap->port.info->port.tty;
+	struct tty_struct *tty = uap->port.state->port.tty;
 	unsigned int status, ch, flag, max_count = 256;
 
 	status = readw(uap->port.membase + UART01x_FR);
@@ -175,7 +175,7 @@ static void pl011_rx_chars(struct uart_amba_port *uap)
 
 static void pl011_tx_chars(struct uart_amba_port *uap)
 {
-	struct circ_buf *xmit = &uap->port.info->xmit;
+	struct circ_buf *xmit = &uap->port.state->xmit;
 	int count;
 
 	if (uap->port.x_char) {
@@ -226,7 +226,7 @@ static void pl011_modem_status(struct uart_amba_port *uap)
 	if (delta & UART01x_FR_CTS)
 		uart_handle_cts_change(&uap->port, status & UART01x_FR_CTS);
 
-	wake_up_interruptible(&uap->port.info->delta_msr_wait);
+	wake_up_interruptible(&uap->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t pl011_int(int irq, void *dev_id)

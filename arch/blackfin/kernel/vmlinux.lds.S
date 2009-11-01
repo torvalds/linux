@@ -96,8 +96,7 @@ SECTIONS
 	{
 		__sdata = .;
 		/* This gets done first, so the glob doesn't suck it in */
-		. = ALIGN(32);
-		*(.data.cacheline_aligned)
+		CACHELINE_ALIGNED_DATA(32)
 
 #if !L1_DATA_A_LENGTH
 		. = ALIGN(32);
@@ -116,12 +115,7 @@ SECTIONS
 		DATA_DATA
 		CONSTRUCTORS
 
-		/* make sure the init_task is aligned to the
-		 * kernel thread size so we can locate the kernel
-		 * stack properly and quickly.
-		 */
-		. = ALIGN(THREAD_SIZE);
-		*(.init_task.data)
+		INIT_TASK_DATA(THREAD_SIZE)
 
 		__edata = .;
 	}
@@ -134,39 +128,10 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	___init_begin = .;
 
-	.init.text :
-	{
-		. = ALIGN(PAGE_SIZE);
-		__sinittext = .;
-		INIT_TEXT
-		__einittext = .;
-	}
-	.init.data :
-	{
-		. = ALIGN(16);
-		INIT_DATA
-	}
-	.init.setup :
-	{
-		. = ALIGN(16);
-		___setup_start = .;
-		*(.init.setup)
-		___setup_end = .;
-	}
-	.initcall.init :
-	{
-		___initcall_start = .;
-		INITCALLS
-		___initcall_end = .;
-	}
-	.con_initcall.init :
-	{
-		___con_initcall_start = .;
-		*(.con_initcall.init)
-		___con_initcall_end = .;
-	}
+	INIT_TEXT_SECTION(PAGE_SIZE)
+	. = ALIGN(16);
+	INIT_DATA_SECTION(16)
 	PERCPU(4)
-	SECURITY_INIT
 
 	/* we have to discard exit text and such at runtime, not link time, to
 	 * handle embedded cross-section references (alt instructions, bug
@@ -181,18 +146,9 @@ SECTIONS
 		EXIT_DATA
 	}
 
-	.init.ramfs :
-	{
-		. = ALIGN(4);
-		___initramfs_start = .;
-		*(.init.ramfs)
-		. = ALIGN(4);
-		___initramfs_end = .;
-	}
-
 	__l1_lma_start = .;
 
-	.text_l1 L1_CODE_START : AT(LOADADDR(.init.ramfs) + SIZEOF(.init.ramfs))
+	.text_l1 L1_CODE_START : AT(LOADADDR(.exit.data) + SIZEOF(.exit.data))
 	{
 		. = ALIGN(4);
 		__stext_l1 = .;

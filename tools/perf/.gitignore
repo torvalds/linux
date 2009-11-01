@@ -10,6 +10,7 @@ perf-stat
 perf-top
 perf*.1
 perf*.xml
+perf*.html
 common-cmds.h
 tags
 TAGS

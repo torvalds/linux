@@ -117,8 +117,8 @@ receive_chars(struct uart_sunsab_port *up,
 	int count = 0;
 	int i;
 
-	if (up->port.info != NULL)		/* Unopened serial console */
-		tty = up->port.info->port.tty;
+	if (up->port.state != NULL)		/* Unopened serial console */
+		tty = up->port.state->port.tty;
 
 	/* Read number of BYTES (Character + Status) available. */
 	if (stat->sreg.isr0 & SAB82532_ISR0_RPF) {
@@ -229,7 +229,7 @@ static void sunsab_tx_idle(struct uart_sunsab_port *);
 static void transmit_chars(struct uart_sunsab_port *up,
 			   union sab82532_irq_status *stat)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int i;
 
 	if (stat->sreg.isr1 & SAB82532_ISR1_ALLS) {
@@ -297,7 +297,7 @@ static void check_status(struct uart_sunsab_port *up,
 		up->port.icount.dsr++;
 	}
 
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
@@ -429,7 +429,7 @@ static void sunsab_tx_idle(struct uart_sunsab_port *up)
 static void sunsab_start_tx(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int i;
 
 	up->interrupt_mask1 &= ~(SAB82532_IMR1_ALLS|SAB82532_IMR1_XPR);

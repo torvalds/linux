@@ -314,21 +314,18 @@ int s390_enable_sie(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-#ifdef CONFIG_HIBERNATION
+#if defined(CONFIG_DEBUG_PAGEALLOC) && defined(CONFIG_HIBERNATION)
 bool kernel_page_present(struct page *page)
 {
 	unsigned long addr;
 	int cc;
 
 	addr = page_to_phys(page);
-	asm("lra %1,0(%1)\n"
-	    "ipm %0\n"
-	    "srl %0,28"
-	    :"=d"(cc),"+a"(addr)::"cc");
+	asm volatile(
+		"	lra	%1,0(%1)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "+a" (addr) : : "cc");
 	return cc == 0;
 }
-
-#endif /* CONFIG_HIBERNATION */
-#endif /* CONFIG_DEBUG_PAGEALLOC */
-
+#endif /* CONFIG_HIBERNATION && CONFIG_DEBUG_PAGEALLOC */

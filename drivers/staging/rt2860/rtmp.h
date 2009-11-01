@@ -2060,7 +2060,7 @@ typedef struct _STA_ADMIN_CONFIG {
     BOOLEAN		AdhocBGJoined;		// Indicate Adhoc B/G Join.
     BOOLEAN		Adhoc20NJoined;		// Indicate Adhoc 20MHz N Join.
 #endif
-	// New for WPA, windows want us to to keep association information and
+	// New for WPA, windows want us to keep association information and
 	// Fixed IEs from last association response
 	NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
 	USHORT       ReqVarIELen;                // Length of next VIE include EID & Length

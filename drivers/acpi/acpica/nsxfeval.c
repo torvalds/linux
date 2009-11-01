@@ -535,10 +535,11 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	acpi_status status;
 	struct acpi_namespace_node *node;
 	u32 flags;
-	struct acpica_device_id hid;
-	struct acpi_compatible_id_list *cid;
+	struct acpica_device_id *hid;
+	struct acpica_device_id_list *cid;
 	u32 i;
-	int found;
+	u8 found;
+	int no_match;
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -582,10 +583,14 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 			return (AE_CTRL_DEPTH);
 		}
 
-		if (ACPI_STRNCMP(hid.value, info->hid, sizeof(hid.value)) != 0) {
+		no_match = ACPI_STRCMP(hid->string, info->hid);
+		ACPI_FREE(hid);
 
-			/* Get the list of Compatible IDs */
-
+		if (no_match) {
+			/*
+			 * HID does not match, attempt match within the
+			 * list of Compatible IDs (CIDs)
+			 */
 			status = acpi_ut_execute_CID(node, &cid);
 			if (status == AE_NOT_FOUND) {
 				return (AE_OK);
@@ -597,10 +602,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 			found = 0;
 			for (i = 0; i < cid->count; i++) {
-				if (ACPI_STRNCMP(cid->id[i].value, info->hid,
-						 sizeof(struct
-							acpi_compatible_id)) ==
-				    0) {
+				if (ACPI_STRCMP(cid->ids[i].string, info->hid)
+				    == 0) {
 					found = 1;
 					break;
 				}

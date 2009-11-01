@@ -6,9 +6,10 @@
  * During bootup, before any driver core device is registered,
  * devtmpfs, a tmpfs-based filesystem is created. Every driver-core
  * device which requests a device node, will add a node in this
- * filesystem. The node is named after the the name of the device,
- * or the susbsytem can provide a custom name. All devices are
- * owned by root and have a mode of 0600.
+ * filesystem.
+ * By default, all devices are named after the the name of the
+ * device, owned by root and have a default mode of 0600. Subsystems
+ * can overwrite the default setting if needed.
  */
 
 #include <linux/kernel.h>
@@ -20,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/shmem_fs.h>
 #include <linux/cred.h>
+#include <linux/sched.h>
 #include <linux/init_task.h>
 
 static struct vfsmount *dev_mnt;
@@ -134,7 +136,7 @@ int devtmpfs_create_node(struct device *dev)
 	const char *tmp = NULL;
 	const char *nodename;
 	const struct cred *curr_cred;
-	mode_t mode;
+	mode_t mode = 0;
 	struct nameidata nd;
 	struct dentry *dentry;
 	int err;
@@ -142,14 +144,16 @@ int devtmpfs_create_node(struct device *dev)
 	if (!dev_mnt)
 		return 0;
 
-	nodename = device_get_nodename(dev, &tmp);
+	nodename = device_get_devnode(dev, &mode, &tmp);
 	if (!nodename)
 		return -ENOMEM;
 
+	if (mode == 0)
+		mode = 0600;
 	if (is_blockdev(dev))
-		mode = S_IFBLK|0600;
+		mode |= S_IFBLK;
 	else
-		mode = S_IFCHR|0600;
+		mode |= S_IFCHR;
 
 	curr_cred = override_creds(&init_cred);
 	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
@@ -165,8 +169,12 @@ int devtmpfs_create_node(struct device *dev)
 
 	dentry = lookup_create(&nd, 0);
 	if (!IS_ERR(dentry)) {
+		int umask;
+
+		umask = sys_umask(0000);
 		err = vfs_mknod(nd.path.dentry->d_inode,
 				dentry, mode, dev->devt);
+		sys_umask(umask);
 		/* mark as kernel created inode */
 		if (!err)
 			dentry->d_inode->i_private = &dev_mnt;
@@ -271,7 +279,7 @@ int devtmpfs_delete_node(struct device *dev)
 	if (!dev_mnt)
 		return 0;
 
-	nodename = device_get_nodename(dev, &tmp);
+	nodename = device_get_devnode(dev, NULL, &tmp);
 	if (!nodename)
 		return -ENOMEM;
 

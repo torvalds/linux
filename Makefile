@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 31
-EXTRAVERSION =
+SUBLEVEL = 32
+EXTRAVERSION = -rc3
 NAME = Man-Eating Seals of Antiquity
 
 # *DOCUMENTATION*
@@ -179,9 +179,46 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Alternatively CROSS_COMPILE can be set in the environment.
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
+#
+# To force ARCH and CROSS_COMPILE settings include kernel.* files
+# in the kernel tree - do not patch this file.
 export KBUILD_BUILDHOST := $(SUBARCH)
-ARCH		?= $(SUBARCH)
-CROSS_COMPILE	?=
+
+# Kbuild save the ARCH and CROSS_COMPILE setting in kernel.* files.
+# Restore these settings and check that user did not specify
+# conflicting values.
+
+saved_arch  := $(shell cat include/generated/kernel.arch  2> /dev/null)
+saved_cross := $(shell cat include/generated/kernel.cross 2> /dev/null)
+
+ifneq ($(CROSS_COMPILE),)
+        ifneq ($(saved_cross),)
+                ifneq ($(CROSS_COMPILE),$(saved_cross))
+                        $(error CROSS_COMPILE changed from \
+                                "$(saved_cross)" to \
+                                 to "$(CROSS_COMPILE)". \
+                                 Use "make mrproper" to fix it up)
+                endif
+        endif
+else
+    CROSS_COMPILE := $(saved_cross)
+endif
+
+ifneq ($(ARCH),)
+        ifneq ($(saved_arch),)
+                ifneq ($(saved_arch),$(ARCH))
+                        $(error ARCH changed from \
+                                "$(saved_arch)" to "$(ARCH)". \
+                                 Use "make mrproper" to fix it up)
+                endif
+        endif
+else
+        ifneq ($(saved_arch),)
+                ARCH := $(saved_arch)
+        else
+                ARCH := $(SUBARCH)
+        endif
+endif
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -315,6 +352,7 @@ OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
 AWK		= awk
 GENKSYMS	= scripts/genksyms/genksyms
+INSTALLKERNEL  := installkernel
 DEPMOD		= /sbin/depmod
 KALLSYMS	= scripts/kallsyms
 PERL		= perl
@@ -353,7 +391,8 @@ KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
 export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
 export ARCH SRCARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
-export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
+export CPP AR NM STRIP OBJCOPY OBJDUMP
+export MAKE AWK GENKSYMS INSTALLKERNEL PERL UTS_MACHINE
 export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
 
 export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS LDFLAGS
@@ -443,6 +482,11 @@ ifeq ($(config-targets),1)
 # used for 'make defconfig'
 include $(srctree)/arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG
+
+# save ARCH & CROSS_COMPILE settings
+$(shell mkdir -p include/generated &&                            \
+        echo $(ARCH)          > include/generated/kernel.arch && \
+        echo $(CROSS_COMPILE) > include/generated/kernel.cross)
 
 config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config
@@ -571,6 +615,9 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 # revert to pre-gcc-4.4 behaviour of .eh_frame
 KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
 
+# conserve stack if available
+KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
+
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 # But warn user when we do so
 warn-assign = \
@@ -591,12 +638,12 @@ endif
 
 # Use --build-id when available.
 LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
-			      $(call ld-option, -Wl$(comma)--build-id,))
+			      $(call cc-ldoption, -Wl$(comma)--build-id,))
 LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
-LDFLAGS_vmlinux	+= -X
+LDFLAGS_vmlinux	+= $(call ld-option, -X,)
 endif
 
 # Default kernel image to build when no specific target is given.
@@ -979,11 +1026,6 @@ prepare0: archprepare FORCE
 
 # All the preparing..
 prepare: prepare0
-
-# Leave this as default for preprocessing vmlinux.lds.S, which is now
-# done in arch/$(ARCH)/kernel/Makefile
-
-export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
 # The asm symlink changes when $(ARCH) changes.
 # Detect this and ask user to run make mrproper

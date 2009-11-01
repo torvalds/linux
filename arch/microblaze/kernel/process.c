@@ -235,6 +235,7 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 	regs->pc = pc;
 	regs->r1 = usp;
 	regs->pt_mode = 0;
+	regs->msr |= MSR_UMS;
 }
 
 #ifdef CONFIG_MMU

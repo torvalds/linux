@@ -45,6 +45,14 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_TIME
+	bool
+	default y
+
+config ARCH_USES_GETTIMEOFFSET
+	bool
+	default y
+
 config ZONE_DMA
 	bool
 	default y

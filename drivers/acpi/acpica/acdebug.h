@@ -154,10 +154,6 @@ void
 acpi_db_display_argument_object(union acpi_operand_object *obj_desc,
 				struct acpi_walk_state *walk_state);
 
-void acpi_db_check_predefined_names(void);
-
-void acpi_db_batch_execute(void);
-
 /*
  * dbexec - debugger control method execution
  */

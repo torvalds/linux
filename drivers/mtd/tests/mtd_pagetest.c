@@ -116,11 +116,11 @@ static int verify_eraseblock(int ebnum)
 	loff_t addr = ebnum * mtd->erasesize;
 
 	addr0 = 0;
-	for (i = 0; bbt[i] && i < ebcnt; ++i)
+	for (i = 0; i < ebcnt && bbt[i]; ++i)
 		addr0 += mtd->erasesize;
 
 	addrn = mtd->size;
-	for (i = 0; bbt[ebcnt - i - 1] && i < ebcnt; ++i)
+	for (i = 0; i < ebcnt && bbt[ebcnt - i - 1]; ++i)
 		addrn -= mtd->erasesize;
 
 	set_random_data(writebuf, mtd->erasesize);
@@ -219,11 +219,11 @@ static int crosstest(void)
 	memset(pp1, 0, pgsize * 4);
 
 	addr0 = 0;
-	for (i = 0; bbt[i] && i < ebcnt; ++i)
+	for (i = 0; i < ebcnt && bbt[i]; ++i)
 		addr0 += mtd->erasesize;
 
 	addrn = mtd->size;
-	for (i = 0; bbt[ebcnt - i - 1] && i < ebcnt; ++i)
+	for (i = 0; i < ebcnt && bbt[ebcnt - i - 1]; ++i)
 		addrn -= mtd->erasesize;
 
 	/* Read 2nd-to-last page to pp1 */
@@ -317,7 +317,7 @@ static int erasecrosstest(void)
 
 	ebnum = 0;
 	addr0 = 0;
-	for (i = 0; bbt[i] && i < ebcnt; ++i) {
+	for (i = 0; i < ebcnt && bbt[i]; ++i) {
 		addr0 += mtd->erasesize;
 		ebnum += 1;
 	}
@@ -413,7 +413,7 @@ static int erasetest(void)
 
 	ebnum = 0;
 	addr0 = 0;
-	for (i = 0; bbt[i] && i < ebcnt; ++i) {
+	for (i = 0; i < ebcnt && bbt[i]; ++i) {
 		addr0 += mtd->erasesize;
 		ebnum += 1;
 	}

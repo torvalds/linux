@@ -1469,6 +1469,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 	}
 
 	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
+	return 0;
 
 err_out_detach:
 	netxen_nic_detach(adapter);
@@ -1903,12 +1904,13 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 
 		netif_wake_queue(adapter->netdev);
 
-		goto done;
+		clear_bit(__NX_RESETTING, &adapter->state);
 
 	} else {
+		clear_bit(__NX_RESETTING, &adapter->state);
 		if (!netxen_nic_reset_context(adapter)) {
 			adapter->netdev->trans_start = jiffies;
-			goto done;
+			return;
 		}
 
 		/* context reset failed, fall through for fw reset */
@@ -1916,8 +1918,6 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 
 request_reset:
 	adapter->need_fw_reset = 1;
-done:
-	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)

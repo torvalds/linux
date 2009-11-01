@@ -1331,7 +1331,7 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	res = alloc_bootmem(sizeof(struct resource) * e820.nr_map);
 	e820_res = res;
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;

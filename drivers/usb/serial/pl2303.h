@@ -130,3 +130,7 @@
 /* Sony, USB data cable for CMD-Jxx mobile phones */
 #define SONY_VENDOR_ID		0x054c
 #define SONY_QN3USB_PRODUCT_ID	0x0437
+
+/* Sanwa KB-USB2 multimeter cable (ID: 11ad:0001) */
+#define SANWA_VENDOR_ID		0x11ad
+#define SANWA_PRODUCT_ID	0x0001

@@ -1428,9 +1428,9 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 				ring->nr_failed_tx_packets++;
 			ring->nr_total_packet_tries += status->frame_count;
 #endif /* DEBUG */
-			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb);
+			ieee80211_tx_status(dev->wl->hw, meta->skb);
 
-			/* skb is freed by ieee80211_tx_status_irqsafe() */
+			/* skb is freed by ieee80211_tx_status() */
 			meta->skb = NULL;
 		} else {
 			/* No need to call free_descriptor_buffer here, as

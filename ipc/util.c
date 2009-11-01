@@ -942,7 +942,7 @@ static int sysvipc_proc_show(struct seq_file *s, void *it)
 	return iface->show(s, it);
 }
 
-static struct seq_operations sysvipc_proc_seqops = {
+static const struct seq_operations sysvipc_proc_seqops = {
 	.start = sysvipc_proc_start,
 	.stop  = sysvipc_proc_stop,
 	.next  = sysvipc_proc_next,

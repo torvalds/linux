@@ -1146,11 +1146,18 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		}
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
+		if (rxq->free_count > RX_LOW_WATERMARK)
+			priority |= __GFP_NOWARN;
 		/* Alloc a new receive buffer */
 		skb = alloc_skb(priv->hw_params.rx_buf_size, priority);
 		if (!skb) {
 			if (net_ratelimit())
-				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
+				IWL_DEBUG_INFO(priv, "Failed to allocate SKB buffer.\n");
+			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
+			    net_ratelimit())
+				IWL_CRIT(priv, "Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
+					 priority == GFP_ATOMIC ?  "GFP_ATOMIC" : "GFP_KERNEL",
+					 rxq->free_count);
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
@@ -1474,6 +1481,7 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUG
 static const char *desc_lookup(int i)
 {
 	switch (i) {
@@ -1497,7 +1505,7 @@ static const char *desc_lookup(int i)
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
 #define ERROR_ELEM_SIZE     (7 * sizeof(u32))
 
-static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
+void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 {
 	u32 i;
 	u32 desc, time, count, base, data1;
@@ -1591,7 +1599,7 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 }
 
-static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
+void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1633,6 +1641,16 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	iwl3945_print_event_log(priv, 0, next_entry, mode);
 
 }
+#else
+void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
+{
+}
+
+void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
+{
+}
+
+#endif
 
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 {
@@ -3676,21 +3694,6 @@ static ssize_t dump_error_log(struct device *d,
 
 static DEVICE_ATTR(dump_errors, S_IWUSR, NULL, dump_error_log);
 
-static ssize_t dump_event_log(struct device *d,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	char *p = (char *)buf;
-
-	if (p[0] == '1')
-		iwl3945_dump_nic_event_log(priv);
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
-
 /*****************************************************************************
  *
  * driver setup and tear down
@@ -3735,7 +3738,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_antenna.attr,
 	&dev_attr_channels.attr,
 	&dev_attr_dump_errors.attr,
-	&dev_attr_dump_events.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT

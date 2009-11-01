@@ -37,7 +37,7 @@ typedef __u16 __bitwise __hc16;
 #define __hc16	__le16
 #endif
 
-/* statistics can be kept for for tuning/monitoring */
+/* statistics can be kept for tuning/monitoring */
 struct ehci_stats {
 	/* irq usage */
 	unsigned long		normal;
@@ -126,6 +126,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
 	unsigned		has_amcc_usb23:1;
+	unsigned		need_io_watchdog:1;
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -135,6 +136,7 @@ struct ehci_hcd {			/* one per controller */
 	#define OHCI_HCCTRL_OFFSET      0x4
 	#define OHCI_HCCTRL_LEN         0x4
 	__hc32			*ohci_hcctrl_reg;
+	unsigned		has_hostpc:1;
 
 	u8			sbrn;		/* packed release number */
 
@@ -298,8 +300,8 @@ union ehci_shadow {
  * These appear in both the async and (for interrupt) periodic schedules.
  */
 
-struct ehci_qh {
-	/* first part defined by EHCI spec */
+/* first part defined by EHCI spec */
+struct ehci_qh_hw {
 	__hc32			hw_next;	/* see EHCI 3.6.1 */
 	__hc32			hw_info1;       /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
@@ -317,7 +319,10 @@ struct ehci_qh {
 	__hc32			hw_token;
 	__hc32			hw_buf [5];
 	__hc32			hw_buf_hi [5];
+} __attribute__ ((aligned(32)));
 
+struct ehci_qh {
+	struct ehci_qh_hw	*hw;
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
@@ -336,6 +341,7 @@ struct ehci_qh {
 	u32			refcount;
 	unsigned		stamp;
 
+	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */
@@ -357,7 +363,7 @@ struct ehci_qh {
 
 	struct usb_device	*dev;		/* access to TT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
-} __attribute__ ((aligned (32)));
+};
 
 /*-------------------------------------------------------------------------*/
 
@@ -544,7 +550,7 @@ static inline unsigned int
 ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 {
 	if (ehci_is_TDI(ehci)) {
-		switch ((portsc>>26)&3) {
+		switch ((portsc >> (ehci->has_hostpc ? 25 : 26)) & 3) {
 		case 0:
 			return 0;
 		case 1:

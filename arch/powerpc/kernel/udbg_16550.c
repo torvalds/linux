@@ -1,5 +1,5 @@
 /*
- * udbg for for NS16550 compatable serial ports
+ * udbg for NS16550 compatable serial ports
  *
  * Copyright (C) 2001-2005 PPC 64 Team, IBM Corp
  *

@@ -104,7 +104,7 @@
 #define DL_UNITDATA_IND		0x3108
 #define DL_INFORMATION_IND	0x0008
 
-/* intern layer 2 managment */
+/* intern layer 2 management */
 #define MDL_ASSIGN_REQ		0x1804
 #define MDL_ASSIGN_IND		0x1904
 #define MDL_REMOVE_REQ		0x1A04

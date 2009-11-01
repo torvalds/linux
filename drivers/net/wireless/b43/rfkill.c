@@ -28,7 +28,7 @@
 /* Returns TRUE, if the radio is enabled in hardware. */
 bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 {
-	if (dev->phy.rev >= 3) {
+	if (dev->phy.rev >= 3 || dev->phy.type == B43_PHYTYPE_LP) {
 		if (!(b43_read32(dev, B43_MMIO_RADIO_HWENABLED_HI)
 		      & B43_MMIO_RADIO_HWENABLED_HI_MASK))
 			return 1;

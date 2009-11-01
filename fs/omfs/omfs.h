@@ -44,16 +44,16 @@ extern int omfs_allocate_range(struct super_block *sb, int min_request,
 extern int omfs_clear_range(struct super_block *sb, u64 block, int count);
 
 /* dir.c */
-extern struct file_operations omfs_dir_operations;
-extern struct inode_operations omfs_dir_inops;
+extern const struct file_operations omfs_dir_operations;
+extern const struct inode_operations omfs_dir_inops;
 extern int omfs_make_empty(struct inode *inode, struct super_block *sb);
 extern int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 			u64 fsblock);
 
 /* file.c */
-extern struct file_operations omfs_file_operations;
-extern struct inode_operations omfs_file_inops;
-extern struct address_space_operations omfs_aops;
+extern const struct file_operations omfs_file_operations;
+extern const struct inode_operations omfs_file_inops;
+extern const struct address_space_operations omfs_aops;
 extern void omfs_make_empty_table(struct buffer_head *bh, int offset);
 extern int omfs_shrink_inode(struct inode *inode);
 

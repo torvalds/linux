@@ -65,7 +65,6 @@ static __always_inline void *__constant_memcpy(void *to, const void *from,
 	case 4:
 		*(int *)to = *(int *)from;
 		return to;
-
 	case 3:
 		*(short *)to = *(short *)from;
 		*((char *)to + 2) = *((char *)from + 2);

@@ -130,7 +130,7 @@ struct mapped_device {
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
-	atomic_t pending[2];
+	atomic_t pending;
 	wait_queue_head_t wait;
 	struct work_struct work;
 	struct bio_list deferred;
@@ -453,14 +453,13 @@ static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	int cpu;
-	int rw = bio_data_dir(io->bio);
 
 	io->start_time = jiffies;
 
 	cpu = part_stat_lock();
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_unlock();
-	dm_disk(md)->part0.in_flight[rw] = atomic_inc_return(&md->pending[rw]);
+	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -480,9 +479,8 @@ static void end_io_acct(struct dm_io *io)
 	 * After this is decremented the bio must not be touched if it is
 	 * a barrier.
 	 */
-	dm_disk(md)->part0.in_flight[rw] = pending =
-		atomic_dec_return(&md->pending[rw]);
-	pending += atomic_read(&md->pending[rw^0x1]);
+	dm_disk(md)->part0.in_flight = pending =
+		atomic_dec_return(&md->pending);
 
 	/* nudge anyone waiting on suspend queue */
 	if (!pending)
@@ -1716,7 +1714,7 @@ out:
 	return r;
 }
 
-static struct block_device_operations dm_blk_dops;
+static const struct block_device_operations dm_blk_dops;
 
 static void dm_wq_work(struct work_struct *work);
 
@@ -1787,8 +1785,7 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->disk)
 		goto bad_disk;
 
-	atomic_set(&md->pending[0], 0);
-	atomic_set(&md->pending[1], 0);
+	atomic_set(&md->pending, 0);
 	init_waitqueue_head(&md->wait);
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
@@ -2091,8 +2088,7 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 				break;
 			}
 			spin_unlock_irqrestore(q->queue_lock, flags);
-		} else if (!atomic_read(&md->pending[0]) &&
-					!atomic_read(&md->pending[1]))
+		} else if (!atomic_read(&md->pending))
 			break;
 
 		if (interruptible == TASK_INTERRUPTIBLE &&
@@ -2663,7 +2659,7 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 	kfree(pools);
 }
 
-static struct block_device_operations dm_blk_dops = {
+static const struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,

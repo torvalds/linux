@@ -361,7 +361,7 @@ static inline int sci_rxroom(struct uart_port *port)
 
 static void sci_transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int stopped = uart_tx_stopped(port);
 	unsigned short status;
 	unsigned short ctrl;
@@ -426,7 +426,7 @@ static void sci_transmit_chars(struct uart_port *port)
 static inline void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	int i, count, copied = 0;
 	unsigned short status;
 	unsigned char flag;
@@ -546,7 +546,7 @@ static inline int sci_handle_errors(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 
 	if (status & SCxSR_ORER(port)) {
 		/* overrun error */
@@ -600,7 +600,7 @@ static inline int sci_handle_errors(struct uart_port *port)
 
 static inline int sci_handle_fifo_overrun(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	int copied = 0;
 
 	if (port->type != PORT_SCIF)
@@ -623,7 +623,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 {
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	struct sci_port *s = to_sci_port(port);
 
 	if (uart_handle_break(port))

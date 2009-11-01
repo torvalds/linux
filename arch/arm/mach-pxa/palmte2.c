@@ -117,83 +117,11 @@ static unsigned long palmte2_pin_config[] __initdata = {
 /******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
-static int palmte2_mci_init(struct device *dev,
-				irq_handler_t palmte2_detect_int, void *data)
-{
-	int err = 0;
-
-	/* Setup an interrupt for detecting card insert/remove events */
-	err = gpio_request(GPIO_NR_PALMTE2_SD_DETECT_N, "SD IRQ");
-	if (err)
-		goto err;
-	err = gpio_direction_input(GPIO_NR_PALMTE2_SD_DETECT_N);
-	if (err)
-		goto err2;
-	err = request_irq(gpio_to_irq(GPIO_NR_PALMTE2_SD_DETECT_N),
-			palmte2_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"SD/MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
-				__func__);
-		goto err2;
-	}
-
-	err = gpio_request(GPIO_NR_PALMTE2_SD_POWER, "SD_POWER");
-	if (err)
-		goto err3;
-	err = gpio_direction_output(GPIO_NR_PALMTE2_SD_POWER, 0);
-	if (err)
-		goto err4;
-
-	err = gpio_request(GPIO_NR_PALMTE2_SD_READONLY, "SD_READONLY");
-	if (err)
-		goto err4;
-	err = gpio_direction_input(GPIO_NR_PALMTE2_SD_READONLY);
-	if (err)
-		goto err5;
-
-	printk(KERN_DEBUG "%s: irq registered\n", __func__);
-
-	return 0;
-
-err5:
-	gpio_free(GPIO_NR_PALMTE2_SD_READONLY);
-err4:
-	gpio_free(GPIO_NR_PALMTE2_SD_POWER);
-err3:
-	free_irq(gpio_to_irq(GPIO_NR_PALMTE2_SD_DETECT_N), data);
-err2:
-	gpio_free(GPIO_NR_PALMTE2_SD_DETECT_N);
-err:
-	return err;
-}
-
-static void palmte2_mci_exit(struct device *dev, void *data)
-{
-	gpio_free(GPIO_NR_PALMTE2_SD_READONLY);
-	gpio_free(GPIO_NR_PALMTE2_SD_POWER);
-	free_irq(gpio_to_irq(GPIO_NR_PALMTE2_SD_DETECT_N), data);
-	gpio_free(GPIO_NR_PALMTE2_SD_DETECT_N);
-}
-
-static void palmte2_mci_power(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-	gpio_set_value(GPIO_NR_PALMTE2_SD_POWER, p_d->ocr_mask & (1 << vdd));
-}
-
-static int palmte2_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_NR_PALMTE2_SD_READONLY);
-}
-
 static struct pxamci_platform_data palmte2_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.setpower	= palmte2_mci_power,
-	.get_ro		= palmte2_mci_get_ro,
-	.init 		= palmte2_mci_init,
-	.exit		= palmte2_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_NR_PALMTE2_SD_DETECT_N,
+	.gpio_card_ro		= GPIO_NR_PALMTE2_SD_READONLY,
+	.gpio_power		= GPIO_NR_PALMTE2_SD_POWER,
 };
 
 /******************************************************************************
@@ -287,35 +215,9 @@ static struct platform_device palmte2_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static int palmte2_irda_startup(struct device *dev)
-{
-	int err;
-	err = gpio_request(GPIO_NR_PALMTE2_IR_DISABLE, "IR DISABLE");
-	if (err)
-		goto err;
-	err = gpio_direction_output(GPIO_NR_PALMTE2_IR_DISABLE, 1);
-	if (err)
-		gpio_free(GPIO_NR_PALMTE2_IR_DISABLE);
-err:
-	return err;
-}
-
-static void palmte2_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMTE2_IR_DISABLE);
-}
-
-static void palmte2_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_PALMTE2_IR_DISABLE, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
 static struct pxaficp_platform_data palmte2_ficp_platform_data = {
-	.startup		= palmte2_irda_startup,
-	.shutdown		= palmte2_irda_shutdown,
-	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
-	.transceiver_mode	= palmte2_irda_transceiver_mode,
+	.gpio_pwdown		= GPIO_NR_PALMTE2_IR_DISABLE,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /******************************************************************************

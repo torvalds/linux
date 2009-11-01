@@ -346,6 +346,21 @@ static struct clocksource clocksource_u300_1mhz = {
 	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+/*
+ * Override the global weak sched_clock symbol with this
+ * local implementation which uses the clocksource to get some
+ * better resolution when scheduling the kernel. We accept that
+ * this wraps around for now, since it is just a relative time
+ * stamp. (Inspired by OMAP implementation.)
+ */
+unsigned long long notrace sched_clock(void)
+{
+	return clocksource_cyc2ns(clocksource_u300_1mhz.read(
+				  &clocksource_u300_1mhz),
+				  clocksource_u300_1mhz.mult,
+				  clocksource_u300_1mhz.shift);
+}
+
 
 /*
  * This sets up the system timers, clock source and clock event.

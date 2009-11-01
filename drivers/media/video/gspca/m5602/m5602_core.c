@@ -56,7 +56,7 @@ int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 	return (err < 0) ? err : 0;
 }
 
-/* Writes a byte to to the m5602 */
+/* Writes a byte to the m5602 */
 int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 {
 	int err;

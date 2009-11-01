@@ -808,8 +808,6 @@ static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!dummy))
-		return -EINVAL;
 	spin_lock_init(&dummy->mixer_lock);
 	strcpy(card->mixername, "Dummy Mixer");
 

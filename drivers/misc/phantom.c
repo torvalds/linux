@@ -271,7 +271,7 @@ static unsigned int phantom_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static struct file_operations phantom_file_ops = {
+static const struct file_operations phantom_file_ops = {
 	.open = phantom_open,
 	.release = phantom_release,
 	.unlocked_ioctl = phantom_ioctl,

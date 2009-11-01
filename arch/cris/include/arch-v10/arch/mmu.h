@@ -33,10 +33,10 @@ typedef struct
 
 /* CRIS PTE bits (see R_TLB_LO in the register description)
  *
- *   Bit:  31-13 12-------4    3        2       1       0  
- *         ________________________________________________
- *        | pfn | reserved | global | valid | kernel | we  |
- *        |_____|__________|________|_______|________|_____|
+ *   Bit:  31     30-13 12-------4    3        2       1       0
+ *         _______________________________________________________
+ *        | cache |pfn | reserved | global | valid | kernel | we  |
+ *        |_______|____|__________|________|_______|________|_____|
  *
  * (pfn = physical frame number)
  */
@@ -53,6 +53,7 @@ typedef struct
 #define _PAGE_VALID	   (1<<2) /* page is valid */
 #define _PAGE_SILENT_READ  (1<<2) /* synonym */
 #define _PAGE_GLOBAL       (1<<3) /* global page - context is ignored */
+#define _PAGE_NO_CACHE	   (1<<31) /* part of the uncached memory map */
 
 /* Bits the HW doesn't care about but the kernel uses them in SW */
 

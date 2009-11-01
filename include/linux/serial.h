@@ -122,6 +122,7 @@ struct serial_uart_config {
 
 /* Internal flags used only by kernel */
 #define ASYNCB_INITIALIZED	31 /* Serial port was initialized */
+#define ASYNCB_SUSPENDED	30 /* Serial port is suspended */
 #define ASYNCB_NORMAL_ACTIVE	29 /* Normal device is active */
 #define ASYNCB_BOOT_AUTOCONF	28 /* Autoconfigure port on bootup */
 #define ASYNCB_CLOSING		27 /* Serial port is closing */
@@ -133,6 +134,7 @@ struct serial_uart_config {
 #define ASYNCB_FIRST_KERNEL	22
 
 #define ASYNC_HUP_NOTIFY	(1U << ASYNCB_HUP_NOTIFY)
+#define ASYNC_SUSPENDED		(1U << ASYNCB_SUSPENDED)
 #define ASYNC_FOURPORT		(1U << ASYNCB_FOURPORT)
 #define ASYNC_SAK		(1U << ASYNCB_SAK)
 #define ASYNC_SPLIT_TERMIOS	(1U << ASYNCB_SPLIT_TERMIOS)

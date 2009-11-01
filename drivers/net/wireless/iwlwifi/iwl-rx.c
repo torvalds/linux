@@ -250,12 +250,20 @@ void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		}
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
+		if (rxq->free_count > RX_LOW_WATERMARK)
+			priority |= __GFP_NOWARN;
 		/* Alloc a new receive buffer */
 		skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
 						priority);
 
 		if (!skb) {
-			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
+			if (net_ratelimit())
+				IWL_DEBUG_INFO(priv, "Failed to allocate SKB buffer.\n");
+			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
+			    net_ratelimit())
+				IWL_CRIT(priv, "Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
+					 priority == GFP_ATOMIC ?  "GFP_ATOMIC" : "GFP_KERNEL",
+					 rxq->free_count);
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */

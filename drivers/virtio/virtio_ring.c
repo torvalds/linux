@@ -208,7 +208,11 @@ add_head:
 
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
-	return 0;
+
+	/* If we're indirect, we can fit many (assuming not OOM). */
+	if (vq->indirect)
+		return vq->num_free ? vq->vring.num : 0;
+	return vq->num_free;
 }
 
 static void vring_kick(struct virtqueue *_vq)

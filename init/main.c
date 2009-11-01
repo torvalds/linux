@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
-#include <linux/utsname.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
@@ -68,6 +67,7 @@
 #include <linux/async.h>
 #include <linux/kmemcheck.h>
 #include <linux/kmemtrace.h>
+#include <linux/sfi.h>
 #include <linux/shmem_fs.h>
 #include <trace/boot.h>
 
@@ -358,11 +358,6 @@ static inline void setup_nr_cpu_ids(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 
 #else
-
-#if NR_CPUS > BITS_PER_LONG
-cpumask_t cpu_mask_all __read_mostly = CPU_MASK_ALL;
-EXPORT_SYMBOL(cpu_mask_all);
-#endif
 
 /* Setup number of possible processor ids */
 int nr_cpu_ids __read_mostly = NR_CPUS;
@@ -668,12 +663,12 @@ asmlinkage void __init start_kernel(void)
 #endif
 	thread_info_cache_init();
 	cred_init();
-	fork_init(num_physpages);
+	fork_init(totalram_pages);
 	proc_caches_init();
 	buffer_init();
 	key_init();
 	security_init();
-	vfs_caches_init(num_physpages);
+	vfs_caches_init(totalram_pages);
 	radix_tree_init();
 	signals_init();
 	/* rootfs populating might need page-writeback */
@@ -689,6 +684,7 @@ asmlinkage void __init start_kernel(void)
 	check_bugs();
 
 	acpi_early_init(); /* before LAPIC and SMP init */
+	sfi_init_late();
 
 	ftrace_init();
 

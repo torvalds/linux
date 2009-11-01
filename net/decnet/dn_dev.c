@@ -164,7 +164,7 @@ static int max_t3[] = { 8191 }; /* Must fit in 16 bits when multiplied by BCT3MU
 static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
-static int dn_forwarding_proc(ctl_table *, int, struct file *,
+static int dn_forwarding_proc(ctl_table *, int,
 			void __user *, size_t *, loff_t *);
 static int dn_forwarding_sysctl(ctl_table *table,
 			void __user *oldval, size_t __user *oldlenp,
@@ -274,7 +274,6 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 }
 
 static int dn_forwarding_proc(ctl_table *table, int write,
-				struct file *filep,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
@@ -290,7 +289,7 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 	dn_db = dev->dn_ptr;
 	old = dn_db->parms.forwarding;
 
-	err = proc_dointvec(table, write, filep, buffer, lenp, ppos);
+	err = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if ((err >= 0) && write) {
 		if (dn_db->parms.forwarding < 0)

@@ -55,7 +55,8 @@
 #include "buffer_head_io.h"
 #include "super.h"
 #include "xattr.h"
-
+#include "refcounttree.h"
+#include "acl.h"
 
 struct ocfs2_xattr_def_value_root {
 	struct ocfs2_xattr_value_root	xv;
@@ -140,7 +141,7 @@ struct ocfs2_xattr_search {
 	int not_found;
 };
 
-static int ocfs2_xattr_bucket_get_name_value(struct inode *inode,
+static int ocfs2_xattr_bucket_get_name_value(struct super_block *sb,
 					     struct ocfs2_xattr_header *xh,
 					     int index,
 					     int *block_off,
@@ -157,7 +158,7 @@ static int ocfs2_xattr_index_block_find(struct inode *inode,
 					struct ocfs2_xattr_search *xs);
 
 static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
-					struct ocfs2_xattr_tree_root *xt,
+					struct buffer_head *blk_bh,
 					char *buffer,
 					size_t buffer_size);
 
@@ -170,12 +171,42 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 					     struct ocfs2_xattr_search *xs,
 					     struct ocfs2_xattr_set_ctxt *ctxt);
 
-static int ocfs2_delete_xattr_index_block(struct inode *inode,
-					  struct buffer_head *xb_bh);
+typedef int (xattr_tree_rec_func)(struct inode *inode,
+				  struct buffer_head *root_bh,
+				  u64 blkno, u32 cpos, u32 len, void *para);
+static int ocfs2_iterate_xattr_index_block(struct inode *inode,
+					   struct buffer_head *root_bh,
+					   xattr_tree_rec_func *rec_func,
+					   void *para);
+static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
+					struct ocfs2_xattr_bucket *bucket,
+					void *para);
+static int ocfs2_rm_xattr_cluster(struct inode *inode,
+				  struct buffer_head *root_bh,
+				  u64 blkno,
+				  u32 cpos,
+				  u32 len,
+				  void *para);
+
 static int ocfs2_mv_xattr_buckets(struct inode *inode, handle_t *handle,
 				  u64 src_blk, u64 last_blk, u64 to_blk,
 				  unsigned int start_bucket,
 				  u32 *first_hash);
+static int ocfs2_prepare_refcount_xattr(struct inode *inode,
+					struct ocfs2_dinode *di,
+					struct ocfs2_xattr_info *xi,
+					struct ocfs2_xattr_search *xis,
+					struct ocfs2_xattr_search *xbs,
+					struct ocfs2_refcount_tree **ref_tree,
+					int *meta_need,
+					int *credits);
+static int ocfs2_get_xattr_tree_value_root(struct super_block *sb,
+					   struct ocfs2_xattr_bucket *bucket,
+					   int offset,
+					   struct ocfs2_xattr_value_root **xv,
+					   struct buffer_head **bh);
+static int ocfs2_xattr_security_set(struct inode *inode, const char *name,
+				    const void *value, size_t size, int flags);
 
 static inline u16 ocfs2_xattr_buckets_per_cluster(struct ocfs2_super *osb)
 {
@@ -254,9 +285,9 @@ static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 			break;
 		}
 
-		if (!ocfs2_buffer_uptodate(bucket->bu_inode,
+		if (!ocfs2_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
 					   bucket->bu_bhs[i]))
-			ocfs2_set_new_buffer_uptodate(bucket->bu_inode,
+			ocfs2_set_new_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
 						      bucket->bu_bhs[i]);
 	}
 
@@ -271,7 +302,7 @@ static int ocfs2_read_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 {
 	int rc;
 
-	rc = ocfs2_read_blocks(bucket->bu_inode, xb_blkno,
+	rc = ocfs2_read_blocks(INODE_CACHE(bucket->bu_inode), xb_blkno,
 			       bucket->bu_blocks, bucket->bu_bhs, 0,
 			       NULL);
 	if (!rc) {
@@ -297,7 +328,8 @@ static int ocfs2_xattr_bucket_journal_access(handle_t *handle,
 	int i, rc = 0;
 
 	for (i = 0; i < bucket->bu_blocks; i++) {
-		rc = ocfs2_journal_access(handle, bucket->bu_inode,
+		rc = ocfs2_journal_access(handle,
+					  INODE_CACHE(bucket->bu_inode),
 					  bucket->bu_bhs[i], type);
 		if (rc) {
 			mlog_errno(rc);
@@ -399,7 +431,7 @@ static int ocfs2_read_xattr_block(struct inode *inode, u64 xb_blkno,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, xb_blkno, &tmp,
+	rc = ocfs2_read_block(INODE_CACHE(inode), xb_blkno, &tmp,
 			      ocfs2_validate_xattr_block);
 
 	/* If ocfs2_read_block() got us a new bh, pass it up. */
@@ -596,15 +628,14 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 	int status = 0;
 	handle_t *handle = ctxt->handle;
 	enum ocfs2_alloc_restarted why;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u32 prev_clusters, logical_start = le32_to_cpu(vb->vb_xv->xr_clusters);
 	struct ocfs2_extent_tree et;
 
 	mlog(0, "(clusters_to_add for xattr= %u)\n", clusters_to_add);
 
-	ocfs2_init_xattr_value_extent_tree(&et, inode, vb);
+	ocfs2_init_xattr_value_extent_tree(&et, INODE_CACHE(inode), vb);
 
-	status = vb->vb_access(handle, inode, vb->vb_bh,
+	status = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -612,13 +643,11 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 	}
 
 	prev_clusters = le32_to_cpu(vb->vb_xv->xr_clusters);
-	status = ocfs2_add_clusters_in_btree(osb,
-					     inode,
+	status = ocfs2_add_clusters_in_btree(handle,
+					     &et,
 					     &logical_start,
 					     clusters_to_add,
 					     0,
-					     &et,
-					     handle,
 					     ctxt->data_ac,
 					     ctxt->meta_ac,
 					     &why);
@@ -649,6 +678,7 @@ leave:
 static int __ocfs2_remove_xattr_range(struct inode *inode,
 				      struct ocfs2_xattr_value_buf *vb,
 				      u32 cpos, u32 phys_cpos, u32 len,
+				      unsigned int ext_flags,
 				      struct ocfs2_xattr_set_ctxt *ctxt)
 {
 	int ret;
@@ -656,16 +686,16 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 	handle_t *handle = ctxt->handle;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_xattr_value_extent_tree(&et, inode, vb);
+	ocfs2_init_xattr_value_extent_tree(&et, INODE_CACHE(inode), vb);
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	ret = ocfs2_remove_extent(inode, &et, cpos, len, handle, ctxt->meta_ac,
+	ret = ocfs2_remove_extent(handle, &et, cpos, len, ctxt->meta_ac,
 				  &ctxt->dealloc);
 	if (ret) {
 		mlog_errno(ret);
@@ -680,7 +710,14 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_cache_cluster_dealloc(&ctxt->dealloc, phys_blkno, len);
+	if (ext_flags & OCFS2_EXT_REFCOUNTED)
+		ret = ocfs2_decrease_refcount(inode, handle,
+					ocfs2_blocks_to_clusters(inode->i_sb,
+								 phys_blkno),
+					len, ctxt->meta_ac, &ctxt->dealloc, 1);
+	else
+		ret = ocfs2_cache_cluster_dealloc(&ctxt->dealloc,
+						  phys_blkno, len);
 	if (ret)
 		mlog_errno(ret);
 
@@ -695,6 +732,7 @@ static int ocfs2_xattr_shrink_size(struct inode *inode,
 				   struct ocfs2_xattr_set_ctxt *ctxt)
 {
 	int ret = 0;
+	unsigned int ext_flags;
 	u32 trunc_len, cpos, phys_cpos, alloc_size;
 	u64 block;
 
@@ -706,7 +744,7 @@ static int ocfs2_xattr_shrink_size(struct inode *inode,
 	while (trunc_len) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &phys_cpos,
 					       &alloc_size,
-					       &vb->vb_xv->xr_list);
+					       &vb->vb_xv->xr_list, &ext_flags);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -717,15 +755,15 @@ static int ocfs2_xattr_shrink_size(struct inode *inode,
 
 		ret = __ocfs2_remove_xattr_range(inode, vb, cpos,
 						 phys_cpos, alloc_size,
-						 ctxt);
+						 ext_flags, ctxt);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
 		block = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
-		ocfs2_remove_xattr_clusters_from_cache(inode, block,
-						       alloc_size);
+		ocfs2_remove_xattr_clusters_from_cache(INODE_CACHE(inode),
+						       block, alloc_size);
 		cpos += alloc_size;
 		trunc_len -= alloc_size;
 	}
@@ -810,6 +848,23 @@ static int ocfs2_xattr_list_entries(struct inode *inode,
 	return result;
 }
 
+int ocfs2_has_inline_xattr_value_outside(struct inode *inode,
+					 struct ocfs2_dinode *di)
+{
+	struct ocfs2_xattr_header *xh;
+	int i;
+
+	xh = (struct ocfs2_xattr_header *)
+		 ((void *)di + inode->i_sb->s_blocksize -
+		 le16_to_cpu(di->i_xattr_inline_size));
+
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++)
+		if (!ocfs2_xattr_is_local(&xh->xh_entries[i]))
+			return 1;
+
+	return 0;
+}
+
 static int ocfs2_xattr_ibody_list(struct inode *inode,
 				  struct ocfs2_dinode *di,
 				  char *buffer,
@@ -855,11 +910,9 @@ static int ocfs2_xattr_block_list(struct inode *inode,
 		struct ocfs2_xattr_header *header = &xb->xb_attrs.xb_header;
 		ret = ocfs2_xattr_list_entries(inode, header,
 					       buffer, buffer_size);
-	} else {
-		struct ocfs2_xattr_tree_root *xt = &xb->xb_attrs.xb_root;
-		ret = ocfs2_xattr_tree_list_index_block(inode, xt,
+	} else
+		ret = ocfs2_xattr_tree_list_index_block(inode, blk_bh,
 						   buffer, buffer_size);
-	}
 
 	brelse(blk_bh);
 
@@ -961,7 +1014,7 @@ static int ocfs2_xattr_get_value_outside(struct inode *inode,
 	cpos = 0;
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
-					       &num_clusters, el);
+					       &num_clusters, el, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -970,7 +1023,8 @@ static int ocfs2_xattr_get_value_outside(struct inode *inode,
 		blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
 		/* Copy ocfs2_xattr_value */
 		for (i = 0; i < num_clusters * bpc; i++, blkno++) {
-			ret = ocfs2_read_block(inode, blkno, &bh, NULL);
+			ret = ocfs2_read_block(INODE_CACHE(inode), blkno,
+					       &bh, NULL);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -1085,7 +1139,7 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 		i = xs->here - xs->header->xh_entries;
 
 		if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED) {
-			ret = ocfs2_xattr_bucket_get_name_value(inode,
+			ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
 								bucket_xh(xs->bucket),
 								i,
 								&block_off,
@@ -1183,7 +1237,7 @@ static int ocfs2_xattr_get(struct inode *inode,
 
 static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 					   handle_t *handle,
-					   struct ocfs2_xattr_value_root *xv,
+					   struct ocfs2_xattr_value_buf *vb,
 					   const void *value,
 					   int value_len)
 {
@@ -1194,28 +1248,34 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 	u32 clusters = ocfs2_clusters_for_bytes(inode->i_sb, value_len);
 	u64 blkno;
 	struct buffer_head *bh = NULL;
+	unsigned int ext_flags;
+	struct ocfs2_xattr_value_root *xv = vb->vb_xv;
 
 	BUG_ON(clusters > le32_to_cpu(xv->xr_clusters));
 
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
-					       &num_clusters, &xv->xr_list);
+					       &num_clusters, &xv->xr_list,
+					       &ext_flags);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
+		BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+
 		blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
 
 		for (i = 0; i < num_clusters * bpc; i++, blkno++) {
-			ret = ocfs2_read_block(inode, blkno, &bh, NULL);
+			ret = ocfs2_read_block(INODE_CACHE(inode), blkno,
+					       &bh, NULL);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
 			}
 
 			ret = ocfs2_journal_access(handle,
-						   inode,
+						   INODE_CACHE(inode),
 						   bh,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 			if (ret < 0) {
@@ -1266,7 +1326,7 @@ static int ocfs2_xattr_cleanup(struct inode *inode,
 	void *val = xs->base + offs;
 	size_t size = OCFS2_XATTR_SIZE(name_len) + OCFS2_XATTR_ROOT_SIZE;
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1294,7 +1354,7 @@ static int ocfs2_xattr_update_entry(struct inode *inode,
 {
 	int ret;
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1355,7 +1415,7 @@ static int ocfs2_xattr_set_value_outside(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
-	ret = __ocfs2_xattr_set_value_outside(inode, ctxt->handle, vb->vb_xv,
+	ret = __ocfs2_xattr_set_value_outside(inode, ctxt->handle, vb,
 					      xi->value, xi->value_len);
 	if (ret < 0)
 		mlog_errno(ret);
@@ -1594,7 +1654,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 
 				ret = __ocfs2_xattr_set_value_outside(inode,
 								handle,
-								vb.vb_xv,
+								&vb,
 								xi->value,
 								xi->value_len);
 				if (ret < 0)
@@ -1615,7 +1675,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 		}
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, xs->inode_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), xs->inode_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1623,7 +1683,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 	}
 
 	if (!(flag & OCFS2_INLINE_XATTR_FL)) {
-		ret = vb.vb_access(handle, inode, vb.vb_bh,
+		ret = vb.vb_access(handle, INODE_CACHE(inode), vb.vb_bh,
 				   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -1700,51 +1760,112 @@ out:
 	return ret;
 }
 
-static int ocfs2_remove_value_outside(struct inode*inode,
-				      struct ocfs2_xattr_value_buf *vb,
-				      struct ocfs2_xattr_header *header)
+/*
+ * In xattr remove, if it is stored outside and refcounted, we may have
+ * the chance to split the refcount tree. So need the allocators.
+ */
+static int ocfs2_lock_xattr_remove_allocators(struct inode *inode,
+					struct ocfs2_xattr_value_root *xv,
+					struct ocfs2_caching_info *ref_ci,
+					struct buffer_head *ref_root_bh,
+					struct ocfs2_alloc_context **meta_ac,
+					int *ref_credits)
 {
-	int ret = 0, i;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_xattr_set_ctxt ctxt = { NULL, NULL, };
+	int ret, meta_add = 0;
+	u32 p_cluster, num_clusters;
+	unsigned int ext_flags;
 
-	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
-
-	ctxt.handle = ocfs2_start_trans(osb,
-					ocfs2_remove_extent_credits(osb->sb));
-	if (IS_ERR(ctxt.handle)) {
-		ret = PTR_ERR(ctxt.handle);
+	*ref_credits = 0;
+	ret = ocfs2_xattr_get_clusters(inode, 0, &p_cluster,
+				       &num_clusters,
+				       &xv->xr_list,
+				       &ext_flags);
+	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	for (i = 0; i < le16_to_cpu(header->xh_count); i++) {
-		struct ocfs2_xattr_entry *entry = &header->xh_entries[i];
+	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
+		goto out;
 
-		if (!ocfs2_xattr_is_local(entry)) {
-			void *val;
-
-			val = (void *)header +
-				le16_to_cpu(entry->xe_name_offset);
-			vb->vb_xv = (struct ocfs2_xattr_value_root *)
-				(val + OCFS2_XATTR_SIZE(entry->xe_name_len));
-			ret = ocfs2_xattr_value_truncate(inode, vb, 0, &ctxt);
-			if (ret < 0) {
-				mlog_errno(ret);
-				break;
-			}
-		}
+	ret = ocfs2_refcounted_xattr_delete_need(inode, ref_ci,
+						 ref_root_bh, xv,
+						 &meta_add, ref_credits);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
 
-	ocfs2_commit_trans(osb, ctxt.handle);
-	ocfs2_schedule_truncate_log_flush(osb, 1);
-	ocfs2_run_deallocs(osb, &ctxt.dealloc);
+	ret = ocfs2_reserve_new_metadata_blocks(OCFS2_SB(inode->i_sb),
+						meta_add, meta_ac);
+	if (ret)
+		mlog_errno(ret);
+
 out:
 	return ret;
 }
 
+static int ocfs2_remove_value_outside(struct inode*inode,
+				      struct ocfs2_xattr_value_buf *vb,
+				      struct ocfs2_xattr_header *header,
+				      struct ocfs2_caching_info *ref_ci,
+				      struct buffer_head *ref_root_bh)
+{
+	int ret = 0, i, ref_credits;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_xattr_set_ctxt ctxt = { NULL, NULL, };
+	void *val;
+
+	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
+
+	for (i = 0; i < le16_to_cpu(header->xh_count); i++) {
+		struct ocfs2_xattr_entry *entry = &header->xh_entries[i];
+
+		if (ocfs2_xattr_is_local(entry))
+			continue;
+
+		val = (void *)header +
+			le16_to_cpu(entry->xe_name_offset);
+		vb->vb_xv = (struct ocfs2_xattr_value_root *)
+			(val + OCFS2_XATTR_SIZE(entry->xe_name_len));
+
+		ret = ocfs2_lock_xattr_remove_allocators(inode, vb->vb_xv,
+							 ref_ci, ref_root_bh,
+							 &ctxt.meta_ac,
+							 &ref_credits);
+
+		ctxt.handle = ocfs2_start_trans(osb, ref_credits +
+					ocfs2_remove_extent_credits(osb->sb));
+		if (IS_ERR(ctxt.handle)) {
+			ret = PTR_ERR(ctxt.handle);
+			mlog_errno(ret);
+			break;
+		}
+
+		ret = ocfs2_xattr_value_truncate(inode, vb, 0, &ctxt);
+		if (ret < 0) {
+			mlog_errno(ret);
+			break;
+		}
+
+		ocfs2_commit_trans(osb, ctxt.handle);
+		if (ctxt.meta_ac) {
+			ocfs2_free_alloc_context(ctxt.meta_ac);
+			ctxt.meta_ac = NULL;
+		}
+	}
+
+	if (ctxt.meta_ac)
+		ocfs2_free_alloc_context(ctxt.meta_ac);
+	ocfs2_schedule_truncate_log_flush(osb, 1);
+	ocfs2_run_deallocs(osb, &ctxt.dealloc);
+	return ret;
+}
+
 static int ocfs2_xattr_ibody_remove(struct inode *inode,
-				    struct buffer_head *di_bh)
+				    struct buffer_head *di_bh,
+				    struct ocfs2_caching_info *ref_ci,
+				    struct buffer_head *ref_root_bh)
 {
 
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
@@ -1759,13 +1880,21 @@ static int ocfs2_xattr_ibody_remove(struct inode *inode,
 		 ((void *)di + inode->i_sb->s_blocksize -
 		 le16_to_cpu(di->i_xattr_inline_size));
 
-	ret = ocfs2_remove_value_outside(inode, &vb, header);
+	ret = ocfs2_remove_value_outside(inode, &vb, header,
+					 ref_ci, ref_root_bh);
 
 	return ret;
 }
 
+struct ocfs2_rm_xattr_bucket_para {
+	struct ocfs2_caching_info *ref_ci;
+	struct buffer_head *ref_root_bh;
+};
+
 static int ocfs2_xattr_block_remove(struct inode *inode,
-				    struct buffer_head *blk_bh)
+				    struct buffer_head *blk_bh,
+				    struct ocfs2_caching_info *ref_ci,
+				    struct buffer_head *ref_root_bh)
 {
 	struct ocfs2_xattr_block *xb;
 	int ret = 0;
@@ -1773,19 +1902,29 @@ static int ocfs2_xattr_block_remove(struct inode *inode,
 		.vb_bh = blk_bh,
 		.vb_access = ocfs2_journal_access_xb,
 	};
+	struct ocfs2_rm_xattr_bucket_para args = {
+		.ref_ci = ref_ci,
+		.ref_root_bh = ref_root_bh,
+	};
 
 	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		struct ocfs2_xattr_header *header = &(xb->xb_attrs.xb_header);
-		ret = ocfs2_remove_value_outside(inode, &vb, header);
+		ret = ocfs2_remove_value_outside(inode, &vb, header,
+						 ref_ci, ref_root_bh);
 	} else
-		ret = ocfs2_delete_xattr_index_block(inode, blk_bh);
+		ret = ocfs2_iterate_xattr_index_block(inode,
+						blk_bh,
+						ocfs2_rm_xattr_cluster,
+						&args);
 
 	return ret;
 }
 
 static int ocfs2_xattr_free_block(struct inode *inode,
-				  u64 block)
+				  u64 block,
+				  struct ocfs2_caching_info *ref_ci,
+				  struct buffer_head *ref_root_bh)
 {
 	struct inode *xb_alloc_inode;
 	struct buffer_head *xb_alloc_bh = NULL;
@@ -1803,7 +1942,7 @@ static int ocfs2_xattr_free_block(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_xattr_block_remove(inode, blk_bh);
+	ret = ocfs2_xattr_block_remove(inode, blk_bh, ref_ci, ref_root_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -1863,6 +2002,9 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct ocfs2_refcount_tree *ref_tree = NULL;
+	struct buffer_head *ref_root_bh = NULL;
+	struct ocfs2_caching_info *ref_ci = NULL;
 	handle_t *handle;
 	int ret;
 
@@ -1872,8 +2014,21 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
 		return 0;
 
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL) {
+		ret = ocfs2_lock_refcount_tree(OCFS2_SB(inode->i_sb),
+					       le64_to_cpu(di->i_refcount_loc),
+					       1, &ref_tree, &ref_root_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+		ref_ci = &ref_tree->rf_ci;
+
+	}
+
 	if (oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL) {
-		ret = ocfs2_xattr_ibody_remove(inode, di_bh);
+		ret = ocfs2_xattr_ibody_remove(inode, di_bh,
+					       ref_ci, ref_root_bh);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1882,7 +2037,8 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 
 	if (di->i_xattr_loc) {
 		ret = ocfs2_xattr_free_block(inode,
-					     le64_to_cpu(di->i_xattr_loc));
+					     le64_to_cpu(di->i_xattr_loc),
+					     ref_ci, ref_root_bh);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1896,7 +2052,7 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 		mlog_errno(ret);
 		goto out;
 	}
-	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1916,6 +2072,9 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 out_commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
+	if (ref_tree)
+		ocfs2_unlock_refcount_tree(OCFS2_SB(inode->i_sb), ref_tree, 1);
+	brelse(ref_root_bh);
 	return ret;
 }
 
@@ -2083,6 +2242,84 @@ cleanup:
 	return ret;
 }
 
+static int ocfs2_create_xattr_block(handle_t *handle,
+				    struct inode *inode,
+				    struct buffer_head *inode_bh,
+				    struct ocfs2_alloc_context *meta_ac,
+				    struct buffer_head **ret_bh,
+				    int indexed)
+{
+	int ret;
+	u16 suballoc_bit_start;
+	u32 num_got;
+	u64 first_blkno;
+	struct ocfs2_dinode *di =  (struct ocfs2_dinode *)inode_bh->b_data;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct buffer_head *new_bh = NULL;
+	struct ocfs2_xattr_block *xblk;
+
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), inode_bh,
+				      OCFS2_JOURNAL_ACCESS_CREATE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto end;
+	}
+
+	ret = ocfs2_claim_metadata(osb, handle, meta_ac, 1,
+				   &suballoc_bit_start, &num_got,
+				   &first_blkno);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto end;
+	}
+
+	new_bh = sb_getblk(inode->i_sb, first_blkno);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), new_bh);
+
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode),
+				      new_bh,
+				      OCFS2_JOURNAL_ACCESS_CREATE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto end;
+	}
+
+	/* Initialize ocfs2_xattr_block */
+	xblk = (struct ocfs2_xattr_block *)new_bh->b_data;
+	memset(xblk, 0, inode->i_sb->s_blocksize);
+	strcpy((void *)xblk, OCFS2_XATTR_BLOCK_SIGNATURE);
+	xblk->xb_suballoc_slot = cpu_to_le16(osb->slot_num);
+	xblk->xb_suballoc_bit = cpu_to_le16(suballoc_bit_start);
+	xblk->xb_fs_generation = cpu_to_le32(osb->fs_generation);
+	xblk->xb_blkno = cpu_to_le64(first_blkno);
+
+	if (indexed) {
+		struct ocfs2_xattr_tree_root *xr = &xblk->xb_attrs.xb_root;
+		xr->xt_clusters = cpu_to_le32(1);
+		xr->xt_last_eb_blk = 0;
+		xr->xt_list.l_tree_depth = 0;
+		xr->xt_list.l_count = cpu_to_le16(
+					ocfs2_xattr_recs_per_xb(inode->i_sb));
+		xr->xt_list.l_next_free_rec = cpu_to_le16(1);
+		xblk->xb_flags = cpu_to_le16(OCFS2_XATTR_INDEXED);
+	}
+
+	ret = ocfs2_journal_dirty(handle, new_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto end;
+	}
+	di->i_xattr_loc = cpu_to_le64(first_blkno);
+	ocfs2_journal_dirty(handle, inode_bh);
+
+	*ret_bh = new_bh;
+	new_bh = NULL;
+
+end:
+	brelse(new_bh);
+	return ret;
+}
+
 /*
  * ocfs2_xattr_block_set()
  *
@@ -2095,63 +2332,24 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 				 struct ocfs2_xattr_set_ctxt *ctxt)
 {
 	struct buffer_head *new_bh = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_dinode *di =  (struct ocfs2_dinode *)xs->inode_bh->b_data;
 	handle_t *handle = ctxt->handle;
 	struct ocfs2_xattr_block *xblk = NULL;
-	u16 suballoc_bit_start;
-	u32 num_got;
-	u64 first_blkno;
 	int ret;
 
 	if (!xs->xattr_bh) {
-		ret = ocfs2_journal_access_di(handle, inode, xs->inode_bh,
-					      OCFS2_JOURNAL_ACCESS_CREATE);
-		if (ret < 0) {
+		ret = ocfs2_create_xattr_block(handle, inode, xs->inode_bh,
+					       ctxt->meta_ac, &new_bh, 0);
+		if (ret) {
 			mlog_errno(ret);
 			goto end;
 		}
 
-		ret = ocfs2_claim_metadata(osb, handle, ctxt->meta_ac, 1,
-					   &suballoc_bit_start, &num_got,
-					   &first_blkno);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto end;
-		}
-
-		new_bh = sb_getblk(inode->i_sb, first_blkno);
-		ocfs2_set_new_buffer_uptodate(inode, new_bh);
-
-		ret = ocfs2_journal_access_xb(handle, inode, new_bh,
-					      OCFS2_JOURNAL_ACCESS_CREATE);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto end;
-		}
-
-		/* Initialize ocfs2_xattr_block */
 		xs->xattr_bh = new_bh;
-		xblk = (struct ocfs2_xattr_block *)new_bh->b_data;
-		memset(xblk, 0, inode->i_sb->s_blocksize);
-		strcpy((void *)xblk, OCFS2_XATTR_BLOCK_SIGNATURE);
-		xblk->xb_suballoc_slot = cpu_to_le16(osb->slot_num);
-		xblk->xb_suballoc_bit = cpu_to_le16(suballoc_bit_start);
-		xblk->xb_fs_generation = cpu_to_le32(osb->fs_generation);
-		xblk->xb_blkno = cpu_to_le64(first_blkno);
-
+		xblk = (struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
 		xs->header = &xblk->xb_attrs.xb_header;
 		xs->base = (void *)xs->header;
 		xs->end = (void *)xblk + inode->i_sb->s_blocksize;
 		xs->here = xs->header->xh_entries;
-
-		ret = ocfs2_journal_dirty(handle, new_bh);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto end;
-		}
-		di->i_xattr_loc = cpu_to_le64(first_blkno);
-		ocfs2_journal_dirty(handle, xs->inode_bh);
 	} else
 		xblk = (struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
 
@@ -2273,7 +2471,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 		old_in_xb = 1;
 
 		if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED) {
-			ret = ocfs2_xattr_bucket_get_name_value(inode,
+			ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
 							bucket_xh(xbs->bucket),
 							i, &block_off,
 							&name_offset);
@@ -2428,6 +2626,7 @@ static int ocfs2_init_xattr_set_ctxt(struct inode *inode,
 				     struct ocfs2_xattr_search *xis,
 				     struct ocfs2_xattr_search *xbs,
 				     struct ocfs2_xattr_set_ctxt *ctxt,
+				     int extra_meta,
 				     int *credits)
 {
 	int clusters_add, meta_add, ret;
@@ -2444,6 +2643,7 @@ static int ocfs2_init_xattr_set_ctxt(struct inode *inode,
 		return ret;
 	}
 
+	meta_add += extra_meta;
 	mlog(0, "Set xattr %s, reserve meta blocks = %d, clusters = %d, "
 	     "credits = %d\n", xi->name, meta_add, clusters_add, *credits);
 
@@ -2598,7 +2798,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 
 	if (!ret) {
 		/* Update inode ctime. */
-		ret = ocfs2_journal_access_di(ctxt->handle, inode,
+		ret = ocfs2_journal_access_di(ctxt->handle, INODE_CACHE(inode),
 					      xis->inode_bh,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
@@ -2711,10 +2911,11 @@ int ocfs2_xattr_set(struct inode *inode,
 {
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dinode *di;
-	int ret, credits;
+	int ret, credits, ref_meta = 0, ref_credits = 0;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct ocfs2_xattr_set_ctxt ctxt = { NULL, NULL, };
+	struct ocfs2_refcount_tree *ref_tree = NULL;
 
 	struct ocfs2_xattr_info xi = {
 		.name_index = name_index,
@@ -2779,6 +2980,17 @@ int ocfs2_xattr_set(struct inode *inode,
 			goto cleanup;
 	}
 
+	/* Check whether the value is refcounted and do some prepartion. */
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL &&
+	    (!xis.not_found || !xbs.not_found)) {
+		ret = ocfs2_prepare_refcount_xattr(inode, di, &xi,
+						   &xis, &xbs, &ref_tree,
+						   &ref_meta, &ref_credits);
+		if (ret) {
+			mlog_errno(ret);
+			goto cleanup;
+		}
+	}
 
 	mutex_lock(&tl_inode->i_mutex);
 
@@ -2793,7 +3005,7 @@ int ocfs2_xattr_set(struct inode *inode,
 	mutex_unlock(&tl_inode->i_mutex);
 
 	ret = ocfs2_init_xattr_set_ctxt(inode, di, &xi, &xis,
-					&xbs, &ctxt, &credits);
+					&xbs, &ctxt, ref_meta, &credits);
 	if (ret) {
 		mlog_errno(ret);
 		goto cleanup;
@@ -2801,7 +3013,7 @@ int ocfs2_xattr_set(struct inode *inode,
 
 	/* we need to update inode's ctime field, so add credit for it. */
 	credits += OCFS2_INODE_UPDATE_CREDITS;
-	ctxt.handle = ocfs2_start_trans(osb, credits);
+	ctxt.handle = ocfs2_start_trans(osb, credits + ref_credits);
 	if (IS_ERR(ctxt.handle)) {
 		ret = PTR_ERR(ctxt.handle);
 		mlog_errno(ret);
@@ -2819,8 +3031,16 @@ int ocfs2_xattr_set(struct inode *inode,
 	if (ocfs2_dealloc_has_cluster(&ctxt.dealloc))
 		ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &ctxt.dealloc);
+
 cleanup:
+	if (ref_tree)
+		ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
 	up_write(&OCFS2_I(inode)->ip_xattr_sem);
+	if (!value && !ret) {
+		ret = ocfs2_try_remove_refcount_tree(inode, di_bh);
+		if (ret)
+			mlog_errno(ret);
+	}
 	ocfs2_inode_unlock(inode, 1);
 cleanup_nolock:
 	brelse(di_bh);
@@ -2849,7 +3069,8 @@ static int ocfs2_xattr_get_rec(struct inode *inode,
 	u64 e_blkno = 0;
 
 	if (el->l_tree_depth) {
-		ret = ocfs2_find_leaf(inode, el, name_hash, &eb_bh);
+		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, name_hash,
+				      &eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -2931,7 +3152,7 @@ static int ocfs2_find_xe_in_bucket(struct inode *inode,
 		if (cmp)
 			continue;
 
-		ret = ocfs2_xattr_bucket_get_name_value(inode,
+		ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
 							xh,
 							i,
 							&block_off,
@@ -3175,7 +3396,7 @@ struct ocfs2_xattr_tree_list {
 	size_t result;
 };
 
-static int ocfs2_xattr_bucket_get_name_value(struct inode *inode,
+static int ocfs2_xattr_bucket_get_name_value(struct super_block *sb,
 					     struct ocfs2_xattr_header *xh,
 					     int index,
 					     int *block_off,
@@ -3188,8 +3409,8 @@ static int ocfs2_xattr_bucket_get_name_value(struct inode *inode,
 
 	name_offset = le16_to_cpu(xh->xh_entries[index].xe_name_offset);
 
-	*block_off = name_offset >> inode->i_sb->s_blocksize_bits;
-	*new_offset = name_offset % inode->i_sb->s_blocksize;
+	*block_off = name_offset >> sb->s_blocksize_bits;
+	*new_offset = name_offset % sb->s_blocksize;
 
 	return 0;
 }
@@ -3209,7 +3430,7 @@ static int ocfs2_list_xattr_bucket(struct inode *inode,
 		prefix = ocfs2_xattr_prefix(type);
 
 		if (prefix) {
-			ret = ocfs2_xattr_bucket_get_name_value(inode,
+			ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
 								bucket_xh(bucket),
 								i,
 								&block_off,
@@ -3232,22 +3453,19 @@ static int ocfs2_list_xattr_bucket(struct inode *inode,
 	return ret;
 }
 
-static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
-					     struct ocfs2_xattr_tree_root *xt,
-					     char *buffer,
-					     size_t buffer_size)
+static int ocfs2_iterate_xattr_index_block(struct inode *inode,
+					   struct buffer_head *blk_bh,
+					   xattr_tree_rec_func *rec_func,
+					   void *para)
 {
-	struct ocfs2_extent_list *el = &xt->xt_list;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)blk_bh->b_data;
+	struct ocfs2_extent_list *el = &xb->xb_attrs.xb_root.xt_list;
 	int ret = 0;
 	u32 name_hash = UINT_MAX, e_cpos = 0, num_clusters = 0;
 	u64 p_blkno = 0;
-	struct ocfs2_xattr_tree_list xl = {
-		.buffer = buffer,
-		.buffer_size = buffer_size,
-		.result = 0,
-	};
 
-	if (le16_to_cpu(el->l_next_free_rec) == 0)
+	if (!el->l_next_free_rec || !rec_func)
 		return 0;
 
 	while (name_hash > 0) {
@@ -3255,22 +3473,52 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 					  &e_cpos, &num_clusters, el);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			break;
 		}
 
-		ret = ocfs2_iterate_xattr_buckets(inode, p_blkno, num_clusters,
-						  ocfs2_list_xattr_bucket,
-						  &xl);
+		ret = rec_func(inode, blk_bh, p_blkno, e_cpos,
+			       num_clusters, para);
 		if (ret) {
 			if (ret != -ERANGE)
 				mlog_errno(ret);
-			goto out;
+			break;
 		}
 
 		if (e_cpos == 0)
 			break;
 
 		name_hash = e_cpos - 1;
+	}
+
+	return ret;
+
+}
+
+static int ocfs2_list_xattr_tree_rec(struct inode *inode,
+				     struct buffer_head *root_bh,
+				     u64 blkno, u32 cpos, u32 len, void *para)
+{
+	return ocfs2_iterate_xattr_buckets(inode, blkno, len,
+					   ocfs2_list_xattr_bucket, para);
+}
+
+static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
+					     struct buffer_head *blk_bh,
+					     char *buffer,
+					     size_t buffer_size)
+{
+	int ret;
+	struct ocfs2_xattr_tree_list xl = {
+		.buffer = buffer,
+		.buffer_size = buffer_size,
+		.result = 0,
+	};
+
+	ret = ocfs2_iterate_xattr_index_block(inode, blk_bh,
+					      ocfs2_list_xattr_tree_rec, &xl);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
 
 	ret = xl.result;
@@ -3426,7 +3674,7 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	 */
 	down_write(&oi->ip_alloc_sem);
 
-	ret = ocfs2_journal_access_xb(handle, inode, xb_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), xb_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -4263,9 +4511,9 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     prev_cpos, (unsigned long long)bucket_blkno(first));
 
-	ocfs2_init_xattr_tree_extent_tree(&et, inode, root_bh);
+	ocfs2_init_xattr_tree_extent_tree(&et, INODE_CACHE(inode), root_bh);
 
-	ret = ocfs2_journal_access_xb(handle, inode, root_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -4319,7 +4567,7 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 
 	mlog(0, "Insert %u clusters at block %llu for xattr at %u\n",
 	     num_bits, (unsigned long long)block, v_start);
-	ret = ocfs2_insert_extent(osb, handle, inode, &et, v_start, block,
+	ret = ocfs2_insert_extent(handle, &et, v_start, block,
 				  num_bits, 0, ctxt->meta_ac);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -4798,10 +5046,13 @@ static int ocfs2_xattr_bucket_set_value_outside(struct inode *inode,
 	struct ocfs2_xattr_entry *xe = xs->here;
 	struct ocfs2_xattr_header *xh = bucket_xh(xs->bucket);
 	void *base;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_access = ocfs2_journal_access,
+	};
 
 	BUG_ON(!xs->base || !xe || ocfs2_xattr_is_local(xe));
 
-	ret = ocfs2_xattr_bucket_get_name_value(inode, xh,
+	ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb, xh,
 						xe - xh->xh_entries,
 						&block_off,
 						&offset);
@@ -4814,8 +5065,10 @@ static int ocfs2_xattr_bucket_set_value_outside(struct inode *inode,
 	xv = (struct ocfs2_xattr_value_root *)(base + offset +
 		 OCFS2_XATTR_SIZE(xe->xe_name_len));
 
+	vb.vb_xv = xv;
+	vb.vb_bh = xs->bucket->bu_bhs[block_off];
 	ret = __ocfs2_xattr_set_value_outside(inode, handle,
-					      xv, val, value_len);
+					      &vb, val, value_len);
 	if (ret)
 		mlog_errno(ret);
 out:
@@ -4826,7 +5079,8 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 				  struct buffer_head *root_bh,
 				  u64 blkno,
 				  u32 cpos,
-				  u32 len)
+				  u32 len,
+				  void *para)
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -4838,14 +5092,22 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 	struct ocfs2_cached_dealloc_ctxt dealloc;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_xattr_tree_extent_tree(&et, inode, root_bh);
+	ret = ocfs2_iterate_xattr_buckets(inode, blkno, len,
+					  ocfs2_delete_xattr_in_bucket, para);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ocfs2_init_xattr_tree_extent_tree(&et, INODE_CACHE(inode), root_bh);
 
 	ocfs2_init_dealloc_ctxt(&dealloc);
 
 	mlog(0, "rm xattr extent rec at %u len = %u, start from %llu\n",
 	     cpos, len, (unsigned long long)blkno);
 
-	ocfs2_remove_xattr_clusters_from_cache(inode, blkno, len);
+	ocfs2_remove_xattr_clusters_from_cache(INODE_CACHE(inode), blkno,
+					       len);
 
 	ret = ocfs2_lock_allocators(inode, &et, 0, 1, NULL, &meta_ac);
 	if (ret) {
@@ -4870,14 +5132,14 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_xb(handle, inode, root_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
 	}
 
-	ret = ocfs2_remove_extent(inode, &et, cpos, len, handle, meta_ac,
+	ret = ocfs2_remove_extent(handle, &et, cpos, len, meta_ac,
 				  &dealloc);
 	if (ret) {
 		mlog_errno(ret);
@@ -5220,7 +5482,7 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 					struct ocfs2_xattr_bucket *bucket,
 					void *para)
 {
-	int ret = 0;
+	int ret = 0, ref_credits;
 	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
 	u16 i;
 	struct ocfs2_xattr_entry *xe;
@@ -5228,7 +5490,9 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 	struct ocfs2_xattr_set_ctxt ctxt = {NULL, NULL,};
 	int credits = ocfs2_remove_extent_credits(osb->sb) +
 		ocfs2_blocks_per_xattr_bucket(inode->i_sb);
-
+	struct ocfs2_xattr_value_root *xv;
+	struct ocfs2_rm_xattr_bucket_para *args =
+			(struct ocfs2_rm_xattr_bucket_para *)para;
 
 	ocfs2_init_dealloc_ctxt(&ctxt.dealloc);
 
@@ -5237,7 +5501,16 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 		if (ocfs2_xattr_is_local(xe))
 			continue;
 
-		ctxt.handle = ocfs2_start_trans(osb, credits);
+		ret = ocfs2_get_xattr_tree_value_root(inode->i_sb, bucket,
+						      i, &xv, NULL);
+
+		ret = ocfs2_lock_xattr_remove_allocators(inode, xv,
+							 args->ref_ci,
+							 args->ref_root_bh,
+							 &ctxt.meta_ac,
+							 &ref_credits);
+
+		ctxt.handle = ocfs2_start_trans(osb, credits + ref_credits);
 		if (IS_ERR(ctxt.handle)) {
 			ret = PTR_ERR(ctxt.handle);
 			mlog_errno(ret);
@@ -5248,63 +5521,1490 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 							i, 0, &ctxt);
 
 		ocfs2_commit_trans(osb, ctxt.handle);
+		if (ctxt.meta_ac) {
+			ocfs2_free_alloc_context(ctxt.meta_ac);
+			ctxt.meta_ac = NULL;
+		}
 		if (ret) {
 			mlog_errno(ret);
 			break;
 		}
 	}
 
+	if (ctxt.meta_ac)
+		ocfs2_free_alloc_context(ctxt.meta_ac);
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &ctxt.dealloc);
 	return ret;
 }
 
-static int ocfs2_delete_xattr_index_block(struct inode *inode,
-					  struct buffer_head *xb_bh)
+/*
+ * Whenever we modify a xattr value root in the bucket(e.g, CoW
+ * or change the extent record flag), we need to recalculate
+ * the metaecc for the whole bucket. So it is done here.
+ *
+ * Note:
+ * We have to give the extra credits for the caller.
+ */
+static int ocfs2_xattr_bucket_post_refcount(struct inode *inode,
+					    handle_t *handle,
+					    void *para)
 {
-	struct ocfs2_xattr_block *xb =
-			(struct ocfs2_xattr_block *)xb_bh->b_data;
-	struct ocfs2_extent_list *el = &xb->xb_attrs.xb_root.xt_list;
+	int ret;
+	struct ocfs2_xattr_bucket *bucket =
+			(struct ocfs2_xattr_bucket *)para;
+
+	ret = ocfs2_xattr_bucket_journal_access(handle, bucket,
+						OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ocfs2_xattr_bucket_journal_dirty(handle, bucket);
+
+	return 0;
+}
+
+/*
+ * Special action we need if the xattr value is refcounted.
+ *
+ * 1. If the xattr is refcounted, lock the tree.
+ * 2. CoW the xattr if we are setting the new value and the value
+ *    will be stored outside.
+ * 3. In other case, decrease_refcount will work for us, so just
+ *    lock the refcount tree, calculate the meta and credits is OK.
+ *
+ * We have to do CoW before ocfs2_init_xattr_set_ctxt since
+ * currently CoW is a completed transaction, while this function
+ * will also lock the allocators and let us deadlock. So we will
+ * CoW the whole xattr value.
+ */
+static int ocfs2_prepare_refcount_xattr(struct inode *inode,
+					struct ocfs2_dinode *di,
+					struct ocfs2_xattr_info *xi,
+					struct ocfs2_xattr_search *xis,
+					struct ocfs2_xattr_search *xbs,
+					struct ocfs2_refcount_tree **ref_tree,
+					int *meta_add,
+					int *credits)
+{
 	int ret = 0;
-	u32 name_hash = UINT_MAX, e_cpos, num_clusters;
-	u64 p_blkno;
+	struct ocfs2_xattr_block *xb;
+	struct ocfs2_xattr_entry *xe;
+	char *base;
+	u32 p_cluster, num_clusters;
+	unsigned int ext_flags;
+	int name_offset, name_len;
+	struct ocfs2_xattr_value_buf vb;
+	struct ocfs2_xattr_bucket *bucket = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_post_refcount refcount;
+	struct ocfs2_post_refcount *p = NULL;
+	struct buffer_head *ref_root_bh = NULL;
 
-	if (le16_to_cpu(el->l_next_free_rec) == 0)
-		return 0;
+	if (!xis->not_found) {
+		xe = xis->here;
+		name_offset = le16_to_cpu(xe->xe_name_offset);
+		name_len = OCFS2_XATTR_SIZE(xe->xe_name_len);
+		base = xis->base;
+		vb.vb_bh = xis->inode_bh;
+		vb.vb_access = ocfs2_journal_access_di;
+	} else {
+		int i, block_off = 0;
+		xb = (struct ocfs2_xattr_block *)xbs->xattr_bh->b_data;
+		xe = xbs->here;
+		name_offset = le16_to_cpu(xe->xe_name_offset);
+		name_len = OCFS2_XATTR_SIZE(xe->xe_name_len);
+		i = xbs->here - xbs->header->xh_entries;
 
-	while (name_hash > 0) {
-		ret = ocfs2_xattr_get_rec(inode, name_hash, &p_blkno,
-					  &e_cpos, &num_clusters, el);
+		if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED) {
+			ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
+							bucket_xh(xbs->bucket),
+							i, &block_off,
+							&name_offset);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+			base = bucket_block(xbs->bucket, block_off);
+			vb.vb_bh = xbs->bucket->bu_bhs[block_off];
+			vb.vb_access = ocfs2_journal_access;
+
+			if (ocfs2_meta_ecc(osb)) {
+				/*create parameters for ocfs2_post_refcount. */
+				bucket = xbs->bucket;
+				refcount.credits = bucket->bu_blocks;
+				refcount.para = bucket;
+				refcount.func =
+					ocfs2_xattr_bucket_post_refcount;
+				p = &refcount;
+			}
+		} else {
+			base = xbs->base;
+			vb.vb_bh = xbs->xattr_bh;
+			vb.vb_access = ocfs2_journal_access_xb;
+		}
+	}
+
+	if (ocfs2_xattr_is_local(xe))
+		goto out;
+
+	vb.vb_xv = (struct ocfs2_xattr_value_root *)
+				(base + name_offset + name_len);
+
+	ret = ocfs2_xattr_get_clusters(inode, 0, &p_cluster,
+				       &num_clusters, &vb.vb_xv->xr_list,
+				       &ext_flags);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * We just need to check the 1st extent record, since we always
+	 * CoW the whole xattr. So there shouldn't be a xattr with
+	 * some REFCOUNT extent recs after the 1st one.
+	 */
+	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
+		goto out;
+
+	ret = ocfs2_lock_refcount_tree(osb, le64_to_cpu(di->i_refcount_loc),
+				       1, ref_tree, &ref_root_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * If we are deleting the xattr or the new size will be stored inside,
+	 * cool, leave it there, the xattr truncate process will remove them
+	 * for us(it still needs the refcount tree lock and the meta, credits).
+	 * And the worse case is that every cluster truncate will split the
+	 * refcount tree, and make the original extent become 3. So we will need
+	 * 2 * cluster more extent recs at most.
+	 */
+	if (!xi->value || xi->value_len <= OCFS2_XATTR_INLINE_SIZE) {
+
+		ret = ocfs2_refcounted_xattr_delete_need(inode,
+							 &(*ref_tree)->rf_ci,
+							 ref_root_bh, vb.vb_xv,
+							 meta_add, credits);
+		if (ret)
+			mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_refcount_cow_xattr(inode, di, &vb,
+				       *ref_tree, ref_root_bh, 0,
+				       le32_to_cpu(vb.vb_xv->xr_clusters), p);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	brelse(ref_root_bh);
+	return ret;
+}
+
+/*
+ * Add the REFCOUNTED flags for all the extent rec in ocfs2_xattr_value_root.
+ * The physical clusters will be added to refcount tree.
+ */
+static int ocfs2_xattr_value_attach_refcount(struct inode *inode,
+				struct ocfs2_xattr_value_root *xv,
+				struct ocfs2_extent_tree *value_et,
+				struct ocfs2_caching_info *ref_ci,
+				struct buffer_head *ref_root_bh,
+				struct ocfs2_cached_dealloc_ctxt *dealloc,
+				struct ocfs2_post_refcount *refcount)
+{
+	int ret = 0;
+	u32 clusters = le32_to_cpu(xv->xr_clusters);
+	u32 cpos, p_cluster, num_clusters;
+	struct ocfs2_extent_list *el = &xv->xr_list;
+	unsigned int ext_flags;
+
+	cpos = 0;
+	while (cpos < clusters) {
+		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
+					       &num_clusters, el, &ext_flags);
+
+		cpos += num_clusters;
+		if ((ext_flags & OCFS2_EXT_REFCOUNTED))
+			continue;
+
+		BUG_ON(!p_cluster);
+
+		ret = ocfs2_add_refcount_flag(inode, value_et,
+					      ref_ci, ref_root_bh,
+					      cpos - num_clusters,
+					      p_cluster, num_clusters,
+					      dealloc, refcount);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			break;
 		}
+	}
 
-		ret = ocfs2_iterate_xattr_buckets(inode, p_blkno, num_clusters,
-						  ocfs2_delete_xattr_in_bucket,
-						  NULL);
+	return ret;
+}
+
+/*
+ * Given a normal ocfs2_xattr_header, refcount all the entries which
+ * have value stored outside.
+ * Used for xattrs stored in inode and ocfs2_xattr_block.
+ */
+static int ocfs2_xattr_attach_refcount_normal(struct inode *inode,
+				struct ocfs2_xattr_value_buf *vb,
+				struct ocfs2_xattr_header *header,
+				struct ocfs2_caching_info *ref_ci,
+				struct buffer_head *ref_root_bh,
+				struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+
+	struct ocfs2_xattr_entry *xe;
+	struct ocfs2_xattr_value_root *xv;
+	struct ocfs2_extent_tree et;
+	int i, ret = 0;
+
+	for (i = 0; i < le16_to_cpu(header->xh_count); i++) {
+		xe = &header->xh_entries[i];
+
+		if (ocfs2_xattr_is_local(xe))
+			continue;
+
+		xv = (struct ocfs2_xattr_value_root *)((void *)header +
+			le16_to_cpu(xe->xe_name_offset) +
+			OCFS2_XATTR_SIZE(xe->xe_name_len));
+
+		vb->vb_xv = xv;
+		ocfs2_init_xattr_value_extent_tree(&et, INODE_CACHE(inode), vb);
+
+		ret = ocfs2_xattr_value_attach_refcount(inode, xv, &et,
+							ref_ci, ref_root_bh,
+							dealloc, NULL);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			break;
 		}
+	}
 
-		ret = ocfs2_rm_xattr_cluster(inode, xb_bh,
-					     p_blkno, e_cpos, num_clusters);
+	return ret;
+}
+
+static int ocfs2_xattr_inline_attach_refcount(struct inode *inode,
+				struct buffer_head *fe_bh,
+				struct ocfs2_caching_info *ref_ci,
+				struct buffer_head *ref_root_bh,
+				struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)fe_bh->b_data;
+	struct ocfs2_xattr_header *header = (struct ocfs2_xattr_header *)
+				(fe_bh->b_data + inode->i_sb->s_blocksize -
+				le16_to_cpu(di->i_xattr_inline_size));
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = fe_bh,
+		.vb_access = ocfs2_journal_access_di,
+	};
+
+	return ocfs2_xattr_attach_refcount_normal(inode, &vb, header,
+						  ref_ci, ref_root_bh, dealloc);
+}
+
+struct ocfs2_xattr_tree_value_refcount_para {
+	struct ocfs2_caching_info *ref_ci;
+	struct buffer_head *ref_root_bh;
+	struct ocfs2_cached_dealloc_ctxt *dealloc;
+};
+
+static int ocfs2_get_xattr_tree_value_root(struct super_block *sb,
+					   struct ocfs2_xattr_bucket *bucket,
+					   int offset,
+					   struct ocfs2_xattr_value_root **xv,
+					   struct buffer_head **bh)
+{
+	int ret, block_off, name_offset;
+	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
+	struct ocfs2_xattr_entry *xe = &xh->xh_entries[offset];
+	void *base;
+
+	ret = ocfs2_xattr_bucket_get_name_value(sb,
+						bucket_xh(bucket),
+						offset,
+						&block_off,
+						&name_offset);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	base = bucket_block(bucket, block_off);
+
+	*xv = (struct ocfs2_xattr_value_root *)(base + name_offset +
+			 OCFS2_XATTR_SIZE(xe->xe_name_len));
+
+	if (bh)
+		*bh = bucket->bu_bhs[block_off];
+out:
+	return ret;
+}
+
+/*
+ * For a given xattr bucket, refcount all the entries which
+ * have value stored outside.
+ */
+static int ocfs2_xattr_bucket_value_refcount(struct inode *inode,
+					     struct ocfs2_xattr_bucket *bucket,
+					     void *para)
+{
+	int i, ret = 0;
+	struct ocfs2_extent_tree et;
+	struct ocfs2_xattr_tree_value_refcount_para *ref =
+			(struct ocfs2_xattr_tree_value_refcount_para *)para;
+	struct ocfs2_xattr_header *xh =
+			(struct ocfs2_xattr_header *)bucket->bu_bhs[0]->b_data;
+	struct ocfs2_xattr_entry *xe;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_access = ocfs2_journal_access,
+	};
+	struct ocfs2_post_refcount refcount = {
+		.credits = bucket->bu_blocks,
+		.para = bucket,
+		.func = ocfs2_xattr_bucket_post_refcount,
+	};
+	struct ocfs2_post_refcount *p = NULL;
+
+	/* We only need post_refcount if we support metaecc. */
+	if (ocfs2_meta_ecc(OCFS2_SB(inode->i_sb)))
+		p = &refcount;
+
+	mlog(0, "refcount bucket %llu, count = %u\n",
+	     (unsigned long long)bucket_blkno(bucket),
+	     le16_to_cpu(xh->xh_count));
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++) {
+		xe = &xh->xh_entries[i];
+
+		if (ocfs2_xattr_is_local(xe))
+			continue;
+
+		ret = ocfs2_get_xattr_tree_value_root(inode->i_sb, bucket, i,
+						      &vb.vb_xv, &vb.vb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			break;
 		}
 
-		if (e_cpos == 0)
-			break;
+		ocfs2_init_xattr_value_extent_tree(&et,
+						   INODE_CACHE(inode), &vb);
 
-		name_hash = e_cpos - 1;
+		ret = ocfs2_xattr_value_attach_refcount(inode, vb.vb_xv,
+							&et, ref->ref_ci,
+							ref->ref_root_bh,
+							ref->dealloc, p);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+	}
+
+	return ret;
+
+}
+
+static int ocfs2_refcount_xattr_tree_rec(struct inode *inode,
+				     struct buffer_head *root_bh,
+				     u64 blkno, u32 cpos, u32 len, void *para)
+{
+	return ocfs2_iterate_xattr_buckets(inode, blkno, len,
+					   ocfs2_xattr_bucket_value_refcount,
+					   para);
+}
+
+static int ocfs2_xattr_block_attach_refcount(struct inode *inode,
+				struct buffer_head *blk_bh,
+				struct ocfs2_caching_info *ref_ci,
+				struct buffer_head *ref_root_bh,
+				struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	int ret = 0;
+	struct ocfs2_xattr_block *xb =
+				(struct ocfs2_xattr_block *)blk_bh->b_data;
+
+	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
+		struct ocfs2_xattr_header *header = &xb->xb_attrs.xb_header;
+		struct ocfs2_xattr_value_buf vb = {
+			.vb_bh = blk_bh,
+			.vb_access = ocfs2_journal_access_xb,
+		};
+
+		ret = ocfs2_xattr_attach_refcount_normal(inode, &vb, header,
+							 ref_ci, ref_root_bh,
+							 dealloc);
+	} else {
+		struct ocfs2_xattr_tree_value_refcount_para para = {
+			.ref_ci = ref_ci,
+			.ref_root_bh = ref_root_bh,
+			.dealloc = dealloc,
+		};
+
+		ret = ocfs2_iterate_xattr_index_block(inode, blk_bh,
+						ocfs2_refcount_xattr_tree_rec,
+						&para);
+	}
+
+	return ret;
+}
+
+int ocfs2_xattr_attach_refcount_tree(struct inode *inode,
+				     struct buffer_head *fe_bh,
+				     struct ocfs2_caching_info *ref_ci,
+				     struct buffer_head *ref_root_bh,
+				     struct ocfs2_cached_dealloc_ctxt *dealloc)
+{
+	int ret = 0;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)fe_bh->b_data;
+	struct buffer_head *blk_bh = NULL;
+
+	if (oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL) {
+		ret = ocfs2_xattr_inline_attach_refcount(inode, fe_bh,
+							 ref_ci, ref_root_bh,
+							 dealloc);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	if (!di->i_xattr_loc)
+		goto out;
+
+	ret = ocfs2_read_xattr_block(inode, le64_to_cpu(di->i_xattr_loc),
+				     &blk_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_xattr_block_attach_refcount(inode, blk_bh, ref_ci,
+						ref_root_bh, dealloc);
+	if (ret)
+		mlog_errno(ret);
+
+	brelse(blk_bh);
+out:
+
+	return ret;
+}
+
+typedef int (should_xattr_reflinked)(struct ocfs2_xattr_entry *xe);
+/*
+ * Store the information we need in xattr reflink.
+ * old_bh and new_bh are inode bh for the old and new inode.
+ */
+struct ocfs2_xattr_reflink {
+	struct inode *old_inode;
+	struct inode *new_inode;
+	struct buffer_head *old_bh;
+	struct buffer_head *new_bh;
+	struct ocfs2_caching_info *ref_ci;
+	struct buffer_head *ref_root_bh;
+	struct ocfs2_cached_dealloc_ctxt *dealloc;
+	should_xattr_reflinked *xattr_reflinked;
+};
+
+/*
+ * Given a xattr header and xe offset,
+ * return the proper xv and the corresponding bh.
+ * xattr in inode, block and xattr tree have different implementaions.
+ */
+typedef int (get_xattr_value_root)(struct super_block *sb,
+				   struct buffer_head *bh,
+				   struct ocfs2_xattr_header *xh,
+				   int offset,
+				   struct ocfs2_xattr_value_root **xv,
+				   struct buffer_head **ret_bh,
+				   void *para);
+
+/*
+ * Calculate all the xattr value root metadata stored in this xattr header and
+ * credits we need if we create them from the scratch.
+ * We use get_xattr_value_root so that all types of xattr container can use it.
+ */
+static int ocfs2_value_metas_in_xattr_header(struct super_block *sb,
+					     struct buffer_head *bh,
+					     struct ocfs2_xattr_header *xh,
+					     int *metas, int *credits,
+					     int *num_recs,
+					     get_xattr_value_root *func,
+					     void *para)
+{
+	int i, ret = 0;
+	struct ocfs2_xattr_value_root *xv;
+	struct ocfs2_xattr_entry *xe;
+
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++) {
+		xe = &xh->xh_entries[i];
+		if (ocfs2_xattr_is_local(xe))
+			continue;
+
+		ret = func(sb, bh, xh, i, &xv, NULL, para);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		*metas += le16_to_cpu(xv->xr_list.l_tree_depth) *
+			  le16_to_cpu(xv->xr_list.l_next_free_rec);
+
+		*credits += ocfs2_calc_extend_credits(sb,
+						&def_xv.xv.xr_list,
+						le32_to_cpu(xv->xr_clusters));
+
+		/*
+		 * If the value is a tree with depth > 1, We don't go deep
+		 * to the extent block, so just calculate a maximum record num.
+		 */
+		if (!xv->xr_list.l_tree_depth)
+			*num_recs += xv->xr_list.l_next_free_rec;
+		else
+			*num_recs += ocfs2_clusters_for_bytes(sb,
+							      XATTR_SIZE_MAX);
+	}
+
+	return ret;
+}
+
+/* Used by xattr inode and block to return the right xv and buffer_head. */
+static int ocfs2_get_xattr_value_root(struct super_block *sb,
+				      struct buffer_head *bh,
+				      struct ocfs2_xattr_header *xh,
+				      int offset,
+				      struct ocfs2_xattr_value_root **xv,
+				      struct buffer_head **ret_bh,
+				      void *para)
+{
+	struct ocfs2_xattr_entry *xe = &xh->xh_entries[offset];
+
+	*xv = (struct ocfs2_xattr_value_root *)((void *)xh +
+		le16_to_cpu(xe->xe_name_offset) +
+		OCFS2_XATTR_SIZE(xe->xe_name_len));
+
+	if (ret_bh)
+		*ret_bh = bh;
+
+	return 0;
+}
+
+/*
+ * Lock the meta_ac and caculate how much credits we need for reflink xattrs.
+ * It is only used for inline xattr and xattr block.
+ */
+static int ocfs2_reflink_lock_xattr_allocators(struct ocfs2_super *osb,
+					struct ocfs2_xattr_header *xh,
+					struct buffer_head *ref_root_bh,
+					int *credits,
+					struct ocfs2_alloc_context **meta_ac)
+{
+	int ret, meta_add = 0, num_recs = 0;
+	struct ocfs2_refcount_block *rb =
+			(struct ocfs2_refcount_block *)ref_root_bh->b_data;
+
+	*credits = 0;
+
+	ret = ocfs2_value_metas_in_xattr_header(osb->sb, NULL, xh,
+						&meta_add, credits, &num_recs,
+						ocfs2_get_xattr_value_root,
+						NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * We need to add/modify num_recs in refcount tree, so just calculate
+	 * an approximate number we need for refcount tree change.
+	 * Sometimes we need to split the tree, and after split,  half recs
+	 * will be moved to the new block, and a new block can only provide
+	 * half number of recs. So we multiple new blocks by 2.
+	 */
+	num_recs = num_recs / ocfs2_refcount_recs_per_rb(osb->sb) * 2;
+	meta_add += num_recs;
+	*credits += num_recs + num_recs * OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
+	if (le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL)
+		*credits += le16_to_cpu(rb->rf_list.l_tree_depth) *
+			    le16_to_cpu(rb->rf_list.l_next_free_rec) + 1;
+	else
+		*credits += 1;
+
+	ret = ocfs2_reserve_new_metadata_blocks(osb, meta_add, meta_ac);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	return ret;
+}
+
+/*
+ * Given a xattr header, reflink all the xattrs in this container.
+ * It can be used for inode, block and bucket.
+ *
+ * NOTE:
+ * Before we call this function, the caller has memcpy the xattr in
+ * old_xh to the new_xh.
+ *
+ * If args.xattr_reflinked is set, call it to decide whether the xe should
+ * be reflinked or not. If not, remove it from the new xattr header.
+ */
+static int ocfs2_reflink_xattr_header(handle_t *handle,
+				      struct ocfs2_xattr_reflink *args,
+				      struct buffer_head *old_bh,
+				      struct ocfs2_xattr_header *xh,
+				      struct buffer_head *new_bh,
+				      struct ocfs2_xattr_header *new_xh,
+				      struct ocfs2_xattr_value_buf *vb,
+				      struct ocfs2_alloc_context *meta_ac,
+				      get_xattr_value_root *func,
+				      void *para)
+{
+	int ret = 0, i, j;
+	struct super_block *sb = args->old_inode->i_sb;
+	struct buffer_head *value_bh;
+	struct ocfs2_xattr_entry *xe, *last;
+	struct ocfs2_xattr_value_root *xv, *new_xv;
+	struct ocfs2_extent_tree data_et;
+	u32 clusters, cpos, p_cluster, num_clusters;
+	unsigned int ext_flags = 0;
+
+	mlog(0, "reflink xattr in container %llu, count = %u\n",
+	     (unsigned long long)old_bh->b_blocknr, le16_to_cpu(xh->xh_count));
+
+	last = &new_xh->xh_entries[le16_to_cpu(new_xh->xh_count)];
+	for (i = 0, j = 0; i < le16_to_cpu(xh->xh_count); i++, j++) {
+		xe = &xh->xh_entries[i];
+
+		if (args->xattr_reflinked && !args->xattr_reflinked(xe)) {
+			xe = &new_xh->xh_entries[j];
+
+			le16_add_cpu(&new_xh->xh_count, -1);
+			if (new_xh->xh_count) {
+				memmove(xe, xe + 1,
+					(void *)last - (void *)xe);
+				memset(last, 0,
+				       sizeof(struct ocfs2_xattr_entry));
+			}
+
+			/*
+			 * We don't want j to increase in the next round since
+			 * it is already moved ahead.
+			 */
+			j--;
+			continue;
+		}
+
+		if (ocfs2_xattr_is_local(xe))
+			continue;
+
+		ret = func(sb, old_bh, xh, i, &xv, NULL, para);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		ret = func(sb, new_bh, new_xh, j, &new_xv, &value_bh, para);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		/*
+		 * For the xattr which has l_tree_depth = 0, all the extent
+		 * recs have already be copied to the new xh with the
+		 * propriate OCFS2_EXT_REFCOUNTED flag we just need to
+		 * increase the refount count int the refcount tree.
+		 *
+		 * For the xattr which has l_tree_depth > 0, we need
+		 * to initialize it to the empty default value root,
+		 * and then insert the extents one by one.
+		 */
+		if (xv->xr_list.l_tree_depth) {
+			memcpy(new_xv, &def_xv, sizeof(def_xv));
+			vb->vb_xv = new_xv;
+			vb->vb_bh = value_bh;
+			ocfs2_init_xattr_value_extent_tree(&data_et,
+					INODE_CACHE(args->new_inode), vb);
+		}
+
+		clusters = le32_to_cpu(xv->xr_clusters);
+		cpos = 0;
+		while (cpos < clusters) {
+			ret = ocfs2_xattr_get_clusters(args->old_inode,
+						       cpos,
+						       &p_cluster,
+						       &num_clusters,
+						       &xv->xr_list,
+						       &ext_flags);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+
+			BUG_ON(!p_cluster);
+
+			if (xv->xr_list.l_tree_depth) {
+				ret = ocfs2_insert_extent(handle,
+						&data_et, cpos,
+						ocfs2_clusters_to_blocks(
+							args->old_inode->i_sb,
+							p_cluster),
+						num_clusters, ext_flags,
+						meta_ac);
+				if (ret) {
+					mlog_errno(ret);
+					goto out;
+				}
+			}
+
+			ret = ocfs2_increase_refcount(handle, args->ref_ci,
+						      args->ref_root_bh,
+						      p_cluster, num_clusters,
+						      meta_ac, args->dealloc);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+
+			cpos += num_clusters;
+		}
 	}
 
 out:
 	return ret;
 }
 
+static int ocfs2_reflink_xattr_inline(struct ocfs2_xattr_reflink *args)
+{
+	int ret = 0, credits = 0;
+	handle_t *handle;
+	struct ocfs2_super *osb = OCFS2_SB(args->old_inode->i_sb);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)args->old_bh->b_data;
+	int inline_size = le16_to_cpu(di->i_xattr_inline_size);
+	int header_off = osb->sb->s_blocksize - inline_size;
+	struct ocfs2_xattr_header *xh = (struct ocfs2_xattr_header *)
+					(args->old_bh->b_data + header_off);
+	struct ocfs2_xattr_header *new_xh = (struct ocfs2_xattr_header *)
+					(args->new_bh->b_data + header_off);
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_inode_info *new_oi;
+	struct ocfs2_dinode *new_di;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = args->new_bh,
+		.vb_access = ocfs2_journal_access_di,
+	};
+
+	ret = ocfs2_reflink_lock_xattr_allocators(osb, xh, args->ref_root_bh,
+						  &credits, &meta_ac);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(args->new_inode),
+				      args->new_bh, OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	memcpy(args->new_bh->b_data + header_off,
+	       args->old_bh->b_data + header_off, inline_size);
+
+	new_di = (struct ocfs2_dinode *)args->new_bh->b_data;
+	new_di->i_xattr_inline_size = cpu_to_le16(inline_size);
+
+	ret = ocfs2_reflink_xattr_header(handle, args, args->old_bh, xh,
+					 args->new_bh, new_xh, &vb, meta_ac,
+					 ocfs2_get_xattr_value_root, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	new_oi = OCFS2_I(args->new_inode);
+	spin_lock(&new_oi->ip_lock);
+	new_oi->ip_dyn_features |= OCFS2_HAS_XATTR_FL | OCFS2_INLINE_XATTR_FL;
+	new_di->i_dyn_features = cpu_to_le16(new_oi->ip_dyn_features);
+	spin_unlock(&new_oi->ip_lock);
+
+	ocfs2_journal_dirty(handle, args->new_bh);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out:
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+	return ret;
+}
+
+static int ocfs2_create_empty_xattr_block(struct inode *inode,
+					  struct buffer_head *fe_bh,
+					  struct buffer_head **ret_bh,
+					  int indexed)
+{
+	int ret;
+	handle_t *handle;
+	struct ocfs2_alloc_context *meta_ac;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	ret = ocfs2_reserve_new_metadata_blocks(osb, 1, &meta_ac);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_XATTR_BLOCK_CREATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	mlog(0, "create new xattr block for inode %llu, index = %d\n",
+	     (unsigned long long)fe_bh->b_blocknr, indexed);
+	ret = ocfs2_create_xattr_block(handle, inode, fe_bh,
+				       meta_ac, ret_bh, indexed);
+	if (ret)
+		mlog_errno(ret);
+
+	ocfs2_commit_trans(osb, handle);
+out:
+	ocfs2_free_alloc_context(meta_ac);
+	return ret;
+}
+
+static int ocfs2_reflink_xattr_block(struct ocfs2_xattr_reflink *args,
+				     struct buffer_head *blk_bh,
+				     struct buffer_head *new_blk_bh)
+{
+	int ret = 0, credits = 0;
+	handle_t *handle;
+	struct ocfs2_inode_info *new_oi = OCFS2_I(args->new_inode);
+	struct ocfs2_dinode *new_di;
+	struct ocfs2_super *osb = OCFS2_SB(args->new_inode->i_sb);
+	int header_off = offsetof(struct ocfs2_xattr_block, xb_attrs.xb_header);
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)blk_bh->b_data;
+	struct ocfs2_xattr_header *xh = &xb->xb_attrs.xb_header;
+	struct ocfs2_xattr_block *new_xb =
+			(struct ocfs2_xattr_block *)new_blk_bh->b_data;
+	struct ocfs2_xattr_header *new_xh = &new_xb->xb_attrs.xb_header;
+	struct ocfs2_alloc_context *meta_ac;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_bh = new_blk_bh,
+		.vb_access = ocfs2_journal_access_xb,
+	};
+
+	ret = ocfs2_reflink_lock_xattr_allocators(osb, xh, args->ref_root_bh,
+						  &credits, &meta_ac);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/* One more credits in case we need to add xattr flags in new inode. */
+	handle = ocfs2_start_trans(osb, credits + 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (!(new_oi->ip_dyn_features & OCFS2_HAS_XATTR_FL)) {
+		ret = ocfs2_journal_access_di(handle,
+					      INODE_CACHE(args->new_inode),
+					      args->new_bh,
+					      OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+	}
+
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(args->new_inode),
+				      new_blk_bh, OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	memcpy(new_blk_bh->b_data + header_off, blk_bh->b_data + header_off,
+	       osb->sb->s_blocksize - header_off);
+
+	ret = ocfs2_reflink_xattr_header(handle, args, blk_bh, xh,
+					 new_blk_bh, new_xh, &vb, meta_ac,
+					 ocfs2_get_xattr_value_root, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ocfs2_journal_dirty(handle, new_blk_bh);
+
+	if (!(new_oi->ip_dyn_features & OCFS2_HAS_XATTR_FL)) {
+		new_di = (struct ocfs2_dinode *)args->new_bh->b_data;
+		spin_lock(&new_oi->ip_lock);
+		new_oi->ip_dyn_features |= OCFS2_HAS_XATTR_FL;
+		new_di->i_dyn_features = cpu_to_le16(new_oi->ip_dyn_features);
+		spin_unlock(&new_oi->ip_lock);
+
+		ocfs2_journal_dirty(handle, args->new_bh);
+	}
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out:
+	ocfs2_free_alloc_context(meta_ac);
+	return ret;
+}
+
+struct ocfs2_reflink_xattr_tree_args {
+	struct ocfs2_xattr_reflink *reflink;
+	struct buffer_head *old_blk_bh;
+	struct buffer_head *new_blk_bh;
+	struct ocfs2_xattr_bucket *old_bucket;
+	struct ocfs2_xattr_bucket *new_bucket;
+};
+
+/*
+ * NOTE:
+ * We have to handle the case that both old bucket and new bucket
+ * will call this function to get the right ret_bh.
+ * So The caller must give us the right bh.
+ */
+static int ocfs2_get_reflink_xattr_value_root(struct super_block *sb,
+					struct buffer_head *bh,
+					struct ocfs2_xattr_header *xh,
+					int offset,
+					struct ocfs2_xattr_value_root **xv,
+					struct buffer_head **ret_bh,
+					void *para)
+{
+	struct ocfs2_reflink_xattr_tree_args *args =
+			(struct ocfs2_reflink_xattr_tree_args *)para;
+	struct ocfs2_xattr_bucket *bucket;
+
+	if (bh == args->old_bucket->bu_bhs[0])
+		bucket = args->old_bucket;
+	else
+		bucket = args->new_bucket;
+
+	return ocfs2_get_xattr_tree_value_root(sb, bucket, offset,
+					       xv, ret_bh);
+}
+
+struct ocfs2_value_tree_metas {
+	int num_metas;
+	int credits;
+	int num_recs;
+};
+
+static int ocfs2_value_tree_metas_in_bucket(struct super_block *sb,
+					struct buffer_head *bh,
+					struct ocfs2_xattr_header *xh,
+					int offset,
+					struct ocfs2_xattr_value_root **xv,
+					struct buffer_head **ret_bh,
+					void *para)
+{
+	struct ocfs2_xattr_bucket *bucket =
+				(struct ocfs2_xattr_bucket *)para;
+
+	return ocfs2_get_xattr_tree_value_root(sb, bucket, offset,
+					       xv, ret_bh);
+}
+
+static int ocfs2_calc_value_tree_metas(struct inode *inode,
+				      struct ocfs2_xattr_bucket *bucket,
+				      void *para)
+{
+	struct ocfs2_value_tree_metas *metas =
+			(struct ocfs2_value_tree_metas *)para;
+	struct ocfs2_xattr_header *xh =
+			(struct ocfs2_xattr_header *)bucket->bu_bhs[0]->b_data;
+
+	/* Add the credits for this bucket first. */
+	metas->credits += bucket->bu_blocks;
+	return ocfs2_value_metas_in_xattr_header(inode->i_sb, bucket->bu_bhs[0],
+					xh, &metas->num_metas,
+					&metas->credits, &metas->num_recs,
+					ocfs2_value_tree_metas_in_bucket,
+					bucket);
+}
+
+/*
+ * Given a xattr extent rec starting from blkno and having len clusters,
+ * iterate all the buckets calculate how much metadata we need for reflinking
+ * all the ocfs2_xattr_value_root and lock the allocators accordingly.
+ */
+static int ocfs2_lock_reflink_xattr_rec_allocators(
+				struct ocfs2_reflink_xattr_tree_args *args,
+				struct ocfs2_extent_tree *xt_et,
+				u64 blkno, u32 len, int *credits,
+				struct ocfs2_alloc_context **meta_ac,
+				struct ocfs2_alloc_context **data_ac)
+{
+	int ret, num_free_extents;
+	struct ocfs2_value_tree_metas metas;
+	struct ocfs2_super *osb = OCFS2_SB(args->reflink->old_inode->i_sb);
+	struct ocfs2_refcount_block *rb;
+
+	memset(&metas, 0, sizeof(metas));
+
+	ret = ocfs2_iterate_xattr_buckets(args->reflink->old_inode, blkno, len,
+					  ocfs2_calc_value_tree_metas, &metas);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	*credits = metas.credits;
+
+	/*
+	 * Calculate we need for refcount tree change.
+	 *
+	 * We need to add/modify num_recs in refcount tree, so just calculate
+	 * an approximate number we need for refcount tree change.
+	 * Sometimes we need to split the tree, and after split,  half recs
+	 * will be moved to the new block, and a new block can only provide
+	 * half number of recs. So we multiple new blocks by 2.
+	 * In the end, we have to add credits for modifying the already
+	 * existed refcount block.
+	 */
+	rb = (struct ocfs2_refcount_block *)args->reflink->ref_root_bh->b_data;
+	metas.num_recs =
+		(metas.num_recs + ocfs2_refcount_recs_per_rb(osb->sb) - 1) /
+		 ocfs2_refcount_recs_per_rb(osb->sb) * 2;
+	metas.num_metas += metas.num_recs;
+	*credits += metas.num_recs +
+		    metas.num_recs * OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
+	if (le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL)
+		*credits += le16_to_cpu(rb->rf_list.l_tree_depth) *
+			    le16_to_cpu(rb->rf_list.l_next_free_rec) + 1;
+	else
+		*credits += 1;
+
+	/* count in the xattr tree change. */
+	num_free_extents = ocfs2_num_free_extents(osb, xt_et);
+	if (num_free_extents < 0) {
+		ret = num_free_extents;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (num_free_extents < len)
+		metas.num_metas += ocfs2_extend_meta_needed(xt_et->et_root_el);
+
+	*credits += ocfs2_calc_extend_credits(osb->sb,
+					      xt_et->et_root_el, len);
+
+	if (metas.num_metas) {
+		ret = ocfs2_reserve_new_metadata_blocks(osb, metas.num_metas,
+							meta_ac);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	if (len) {
+		ret = ocfs2_reserve_clusters(osb, len, data_ac);
+		if (ret)
+			mlog_errno(ret);
+	}
+out:
+	if (ret) {
+		if (*meta_ac) {
+			ocfs2_free_alloc_context(*meta_ac);
+			meta_ac = NULL;
+		}
+	}
+
+	return ret;
+}
+
+static int ocfs2_reflink_xattr_buckets(handle_t *handle,
+				u64 blkno, u64 new_blkno, u32 clusters,
+				struct ocfs2_alloc_context *meta_ac,
+				struct ocfs2_alloc_context *data_ac,
+				struct ocfs2_reflink_xattr_tree_args *args)
+{
+	int i, j, ret = 0;
+	struct super_block *sb = args->reflink->old_inode->i_sb;
+	u32 bpc = ocfs2_xattr_buckets_per_cluster(OCFS2_SB(sb));
+	u32 num_buckets = clusters * bpc;
+	int bpb = args->old_bucket->bu_blocks;
+	struct ocfs2_xattr_value_buf vb = {
+		.vb_access = ocfs2_journal_access,
+	};
+
+	for (i = 0; i < num_buckets; i++, blkno += bpb, new_blkno += bpb) {
+		ret = ocfs2_read_xattr_bucket(args->old_bucket, blkno);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		ret = ocfs2_init_xattr_bucket(args->new_bucket, new_blkno);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		/*
+		 * The real bucket num in this series of blocks is stored
+		 * in the 1st bucket.
+		 */
+		if (i == 0)
+			num_buckets = le16_to_cpu(
+				bucket_xh(args->old_bucket)->xh_num_buckets);
+
+		ret = ocfs2_xattr_bucket_journal_access(handle,
+						args->new_bucket,
+						OCFS2_JOURNAL_ACCESS_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		for (j = 0; j < bpb; j++)
+			memcpy(bucket_block(args->new_bucket, j),
+			       bucket_block(args->old_bucket, j),
+			       sb->s_blocksize);
+
+		ocfs2_xattr_bucket_journal_dirty(handle, args->new_bucket);
+
+		ret = ocfs2_reflink_xattr_header(handle, args->reflink,
+					args->old_bucket->bu_bhs[0],
+					bucket_xh(args->old_bucket),
+					args->new_bucket->bu_bhs[0],
+					bucket_xh(args->new_bucket),
+					&vb, meta_ac,
+					ocfs2_get_reflink_xattr_value_root,
+					args);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		/*
+		 * Re-access and dirty the bucket to calculate metaecc.
+		 * Because we may extend the transaction in reflink_xattr_header
+		 * which will let the already accessed block gone.
+		 */
+		ret = ocfs2_xattr_bucket_journal_access(handle,
+						args->new_bucket,
+						OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
+
+		ocfs2_xattr_bucket_journal_dirty(handle, args->new_bucket);
+		ocfs2_xattr_bucket_relse(args->old_bucket);
+		ocfs2_xattr_bucket_relse(args->new_bucket);
+	}
+
+	ocfs2_xattr_bucket_relse(args->old_bucket);
+	ocfs2_xattr_bucket_relse(args->new_bucket);
+	return ret;
+}
+/*
+ * Create the same xattr extent record in the new inode's xattr tree.
+ */
+static int ocfs2_reflink_xattr_rec(struct inode *inode,
+				   struct buffer_head *root_bh,
+				   u64 blkno,
+				   u32 cpos,
+				   u32 len,
+				   void *para)
+{
+	int ret, credits = 0;
+	u32 p_cluster, num_clusters;
+	u64 new_blkno;
+	handle_t *handle;
+	struct ocfs2_reflink_xattr_tree_args *args =
+			(struct ocfs2_reflink_xattr_tree_args *)para;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_extent_tree et;
+
+	ocfs2_init_xattr_tree_extent_tree(&et,
+					  INODE_CACHE(args->reflink->new_inode),
+					  args->new_blk_bh);
+
+	ret = ocfs2_lock_reflink_xattr_rec_allocators(args, &et, blkno,
+						      len, &credits,
+						      &meta_ac, &data_ac);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_claim_clusters(osb, handle, data_ac,
+				   len, &p_cluster, &num_clusters);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	new_blkno = ocfs2_clusters_to_blocks(osb->sb, p_cluster);
+
+	mlog(0, "reflink xattr buckets %llu to %llu, len %u\n",
+	     (unsigned long long)blkno, (unsigned long long)new_blkno, len);
+	ret = ocfs2_reflink_xattr_buckets(handle, blkno, new_blkno, len,
+					  meta_ac, data_ac, args);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	mlog(0, "insert new xattr extent rec start %llu len %u to %u\n",
+	     (unsigned long long)new_blkno, len, cpos);
+	ret = ocfs2_insert_extent(handle, &et, cpos, new_blkno,
+				  len, 0, meta_ac);
+	if (ret)
+		mlog_errno(ret);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out:
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+	if (data_ac)
+		ocfs2_free_alloc_context(data_ac);
+	return ret;
+}
+
+/*
+ * Create reflinked xattr buckets.
+ * We will add bucket one by one, and refcount all the xattrs in the bucket
+ * if they are stored outside.
+ */
+static int ocfs2_reflink_xattr_tree(struct ocfs2_xattr_reflink *args,
+				    struct buffer_head *blk_bh,
+				    struct buffer_head *new_blk_bh)
+{
+	int ret;
+	struct ocfs2_reflink_xattr_tree_args para;
+
+	memset(&para, 0, sizeof(para));
+	para.reflink = args;
+	para.old_blk_bh = blk_bh;
+	para.new_blk_bh = new_blk_bh;
+
+	para.old_bucket = ocfs2_xattr_bucket_new(args->old_inode);
+	if (!para.old_bucket) {
+		mlog_errno(-ENOMEM);
+		return -ENOMEM;
+	}
+
+	para.new_bucket = ocfs2_xattr_bucket_new(args->new_inode);
+	if (!para.new_bucket) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_iterate_xattr_index_block(args->old_inode, blk_bh,
+					      ocfs2_reflink_xattr_rec,
+					      &para);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	ocfs2_xattr_bucket_free(para.old_bucket);
+	ocfs2_xattr_bucket_free(para.new_bucket);
+	return ret;
+}
+
+static int ocfs2_reflink_xattr_in_block(struct ocfs2_xattr_reflink *args,
+					struct buffer_head *blk_bh)
+{
+	int ret, indexed = 0;
+	struct buffer_head *new_blk_bh = NULL;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)blk_bh->b_data;
+
+
+	if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)
+		indexed = 1;
+
+	ret = ocfs2_create_empty_xattr_block(args->new_inode, args->new_bh,
+					     &new_blk_bh, indexed);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED))
+		ret = ocfs2_reflink_xattr_block(args, blk_bh, new_blk_bh);
+	else
+		ret = ocfs2_reflink_xattr_tree(args, blk_bh, new_blk_bh);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	brelse(new_blk_bh);
+	return ret;
+}
+
+static int ocfs2_reflink_xattr_no_security(struct ocfs2_xattr_entry *xe)
+{
+	int type = ocfs2_xattr_get_type(xe);
+
+	return type != OCFS2_XATTR_INDEX_SECURITY &&
+	       type != OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS &&
+	       type != OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT;
+}
+
+int ocfs2_reflink_xattrs(struct inode *old_inode,
+			 struct buffer_head *old_bh,
+			 struct inode *new_inode,
+			 struct buffer_head *new_bh,
+			 bool preserve_security)
+{
+	int ret;
+	struct ocfs2_xattr_reflink args;
+	struct ocfs2_inode_info *oi = OCFS2_I(old_inode);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)old_bh->b_data;
+	struct buffer_head *blk_bh = NULL;
+	struct ocfs2_cached_dealloc_ctxt dealloc;
+	struct ocfs2_refcount_tree *ref_tree;
+	struct buffer_head *ref_root_bh = NULL;
+
+	ret = ocfs2_lock_refcount_tree(OCFS2_SB(old_inode->i_sb),
+				       le64_to_cpu(di->i_refcount_loc),
+				       1, &ref_tree, &ref_root_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ocfs2_init_dealloc_ctxt(&dealloc);
+
+	args.old_inode = old_inode;
+	args.new_inode = new_inode;
+	args.old_bh = old_bh;
+	args.new_bh = new_bh;
+	args.ref_ci = &ref_tree->rf_ci;
+	args.ref_root_bh = ref_root_bh;
+	args.dealloc = &dealloc;
+	if (preserve_security)
+		args.xattr_reflinked = NULL;
+	else
+		args.xattr_reflinked = ocfs2_reflink_xattr_no_security;
+
+	if (oi->ip_dyn_features & OCFS2_INLINE_XATTR_FL) {
+		ret = ocfs2_reflink_xattr_inline(&args);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_unlock;
+		}
+	}
+
+	if (!di->i_xattr_loc)
+		goto out_unlock;
+
+	ret = ocfs2_read_xattr_block(old_inode, le64_to_cpu(di->i_xattr_loc),
+				     &blk_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_unlock;
+	}
+
+	ret = ocfs2_reflink_xattr_in_block(&args, blk_bh);
+	if (ret)
+		mlog_errno(ret);
+
+	brelse(blk_bh);
+
+out_unlock:
+	ocfs2_unlock_refcount_tree(OCFS2_SB(old_inode->i_sb),
+				   ref_tree, 1);
+	brelse(ref_root_bh);
+
+	if (ocfs2_dealloc_has_cluster(&dealloc)) {
+		ocfs2_schedule_truncate_log_flush(OCFS2_SB(old_inode->i_sb), 1);
+		ocfs2_run_deallocs(OCFS2_SB(old_inode->i_sb), &dealloc);
+	}
+
+out:
+	return ret;
+}
+
+/*
+ * Initialize security and acl for a already created inode.
+ * Used for reflink a non-preserve-security file.
+ *
+ * It uses common api like ocfs2_xattr_set, so the caller
+ * must not hold any lock expect i_mutex.
+ */
+int ocfs2_init_security_and_acl(struct inode *dir,
+				struct inode *inode)
+{
+	int ret = 0;
+	struct buffer_head *dir_bh = NULL;
+	struct ocfs2_security_xattr_info si = {
+		.enable = 1,
+	};
+
+	ret = ocfs2_init_security_get(inode, dir, &si);
+	if (!ret) {
+		ret = ocfs2_xattr_security_set(inode, si.name,
+					       si.value, si.value_len,
+					       XATTR_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			goto leave;
+		}
+	} else if (ret != -EOPNOTSUPP) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_inode_lock(dir, &dir_bh, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_init_acl(NULL, inode, dir, NULL, dir_bh, NULL, NULL);
+	if (ret)
+		mlog_errno(ret);
+
+	ocfs2_inode_unlock(dir, 0);
+	brelse(dir_bh);
+leave:
+	return ret;
+}
 /*
  * 'security' attributes support
  */

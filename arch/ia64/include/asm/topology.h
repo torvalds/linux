@@ -33,7 +33,6 @@
 /*
  * Returns a bitmask of CPUs on Node 'node'.
  */
-#define node_to_cpumask(node) (node_to_cpu_mask[node])
 #define cpumask_of_node(node) (&node_to_cpu_mask[node])
 
 /*
@@ -104,8 +103,6 @@ void build_cpu_to_node_map(void);
 #ifdef CONFIG_SMP
 #define topology_physical_package_id(cpu)	(cpu_data(cpu)->socket_id)
 #define topology_core_id(cpu)			(cpu_data(cpu)->core_id)
-#define topology_core_siblings(cpu)		(cpu_core_map[cpu])
-#define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
 #define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])
 #define topology_thread_cpumask(cpu)		(&per_cpu(cpu_sibling_map, cpu))
 #define smt_capable() 				(smp_num_siblings > 1)

@@ -1374,8 +1374,10 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 		if (stat)
 			goto out_err;
 		break;
-	default:
-		goto out_err;
+	/*
+	 * For any other gc_svc value, svcauth_gss_accept() already set
+	 * the auth_error appropriately; just fall through:
+	 */
 	}
 
 out:

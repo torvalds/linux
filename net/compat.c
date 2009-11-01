@@ -331,7 +331,7 @@ struct compat_sock_fprog {
 };
 
 static int do_set_attach_filter(struct socket *sock, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
 	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
@@ -351,7 +351,7 @@ static int do_set_attach_filter(struct socket *sock, int level, int optname,
 }
 
 static int do_set_sock_timeout(struct socket *sock, int level,
-		int optname, char __user *optval, int optlen)
+		int optname, char __user *optval, unsigned int optlen)
 {
 	struct compat_timeval __user *up = (struct compat_timeval __user *) optval;
 	struct timeval ktime;
@@ -373,7 +373,7 @@ static int do_set_sock_timeout(struct socket *sock, int level,
 }
 
 static int compat_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	if (optname == SO_ATTACH_FILTER)
 		return do_set_attach_filter(sock, level, optname,
@@ -385,7 +385,7 @@ static int compat_sock_setsockopt(struct socket *sock, int level, int optname,
 }
 
 asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	int err;
 	struct socket *sock;
@@ -558,8 +558,8 @@ struct compat_group_filter {
 
 
 int compat_mc_setsockopt(struct sock *sock, int level, int optname,
-	char __user *optval, int optlen,
-	int (*setsockopt)(struct sock *,int,int,char __user *,int))
+	char __user *optval, unsigned int optlen,
+	int (*setsockopt)(struct sock *,int,int,char __user *,unsigned int))
 {
 	char __user	*koptval = optval;
 	int		koptlen = optlen;

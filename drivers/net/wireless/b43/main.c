@@ -8,6 +8,9 @@
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
+  SDIO support
+  Copyright (c) 2009 Albert Herranz <albert_herranz@yahoo.es>
+
   Some parts of the code in this file are derived from the ipw2200
   driver  Copyright(c) 2003 - 2004 Intel Corporation.
 
@@ -53,6 +56,8 @@
 #include "xmit.h"
 #include "lo.h"
 #include "pcmcia.h"
+#include "sdio.h"
+#include <linux/mmc/sdio_func.h>
 
 MODULE_DESCRIPTION("Broadcom B43 wireless driver");
 MODULE_AUTHOR("Martin Langer");
@@ -1587,7 +1592,7 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
-		if (0 /*FIXME dev->dev->bus->bustype == SSB_BUSTYPE_SDIO*/) {
+		if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
 			/* wl->mutex is enough. */
 			b43_do_beacon_update_trigger_work(dev);
 			mmiowb();
@@ -1825,6 +1830,16 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 
 	/* Re-enable interrupts on the device by restoring the current interrupt mask. */
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
+
+#if B43_DEBUG
+	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+		dev->irq_count++;
+		for (i = 0; i < ARRAY_SIZE(dev->irq_bit_count); i++) {
+			if (reason & (1 << i))
+				dev->irq_bit_count[i]++;
+		}
+	}
+#endif
 }
 
 /* Interrupt thread handler. Handles device interrupts in thread context. */
@@ -1903,6 +1918,21 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 	spin_unlock(&dev->wl->hardirq_lock);
 
 	return ret;
+}
+
+/* SDIO interrupt handler. This runs in process context. */
+static void b43_sdio_interrupt_handler(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	irqreturn_t ret;
+
+	mutex_lock(&wl->mutex);
+
+	ret = b43_do_interrupt(dev);
+	if (ret == IRQ_WAKE_THREAD)
+		b43_do_interrupt_thread(dev);
+
+	mutex_unlock(&wl->mutex);
 }
 
 void b43_do_release_fw(struct b43_firmware_file *fw)
@@ -2645,6 +2675,20 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 			cfp_pretbtt = 50;
 	}
 	b43_write16(dev, 0x612, cfp_pretbtt);
+
+	/* FIXME: We don't currently implement the PMQ mechanism,
+	 *        so always disable it. If we want to implement PMQ,
+	 *        we need to enable it here (clear DISCPMQ) in AP mode.
+	 */
+	if (0  /* ctl & B43_MACCTL_AP */) {
+		b43_write32(dev, B43_MMIO_MACCTL,
+			    b43_read32(dev, B43_MMIO_MACCTL)
+			    & ~B43_MACCTL_DISCPMQ);
+	} else {
+		b43_write32(dev, B43_MMIO_MACCTL,
+			    b43_read32(dev, B43_MMIO_MACCTL)
+			    | B43_MACCTL_DISCPMQ);
+	}
 }
 
 static void b43_rate_memory_write(struct b43_wldev *dev, u16 rate, int is_ofdm)
@@ -2873,6 +2917,27 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 	wmb();
+
+#if B43_DEBUG
+	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+		unsigned int i;
+
+		b43dbg(dev->wl, "Stats: %7u IRQs/sec, %7u TX/sec, %7u RX/sec\n",
+		       dev->irq_count / 15,
+		       dev->tx_count / 15,
+		       dev->rx_count / 15);
+		dev->irq_count = 0;
+		dev->tx_count = 0;
+		dev->rx_count = 0;
+		for (i = 0; i < ARRAY_SIZE(dev->irq_bit_count); i++) {
+			if (dev->irq_bit_count[i]) {
+				b43dbg(dev->wl, "Stats: %7u IRQ-%02u/sec (0x%08X)\n",
+				       dev->irq_bit_count[i] / 15, i, (1 << i));
+				dev->irq_bit_count[i] = 0;
+			}
+		}
+	}
+#endif
 }
 
 static void do_periodic_work(struct b43_wldev *dev)
@@ -3002,14 +3067,18 @@ static void b43_security_init(struct b43_wldev *dev)
 static int b43_rng_read(struct hwrng *rng, u32 *data)
 {
 	struct b43_wl *wl = (struct b43_wl *)rng->priv;
+	struct b43_wldev *dev;
+	int count = -ENODEV;
 
-	/* FIXME: We need to take wl->mutex here to make sure the device
-	 * is not going away from under our ass. However it could deadlock
-	 * with hwrng internal locking. */
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && b43_status(dev) >= B43_STAT_INITIALIZED)) {
+		*data = b43_read16(dev, B43_MMIO_RNG);
+		count = sizeof(u16);
+	}
+	mutex_unlock(&wl->mutex);
 
-	*data = b43_read16(wl->current_dev, B43_MMIO_RNG);
-
-	return (sizeof(u16));
+	return count;
 }
 #endif /* CONFIG_B43_HWRNG */
 
@@ -3068,6 +3137,9 @@ static void b43_tx_work(struct work_struct *work)
 			dev_kfree_skb(skb); /* Drop it */
 	}
 
+#if B43_DEBUG
+	dev->tx_count++;
+#endif
 	mutex_unlock(&wl->mutex);
 }
 
@@ -3820,7 +3892,7 @@ redo:
 
 	/* Disable interrupts on the device. */
 	b43_set_status(dev, B43_STAT_INITIALIZED);
-	if (0 /*FIXME dev->dev->bus->bustype == SSB_BUSTYPE_SDIO*/) {
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
 		/* wl->mutex is locked. That is enough. */
 		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, 0);
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* Flush */
@@ -3830,10 +3902,15 @@ redo:
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* Flush */
 		spin_unlock_irq(&wl->hardirq_lock);
 	}
-	/* Synchronize the interrupt handlers. Unlock to avoid deadlocks. */
+	/* Synchronize and free the interrupt handlers. Unlock to avoid deadlocks. */
 	orig_dev = dev;
 	mutex_unlock(&wl->mutex);
-	synchronize_irq(dev->dev->irq);
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
+		b43_sdio_free_irq(dev);
+	} else {
+		synchronize_irq(dev->dev->irq);
+		free_irq(dev->dev->irq, dev);
+	}
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev)
@@ -3850,7 +3927,7 @@ redo:
 		dev_kfree_skb(skb_dequeue(&wl->tx_queue));
 
 	b43_mac_suspend(dev);
-	free_irq(dev->dev->irq, dev);
+	b43_leds_exit(dev);
 	b43dbg(wl, "Wireless interface stopped\n");
 
 	return dev;
@@ -3864,12 +3941,20 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	B43_WARN_ON(b43_status(dev) != B43_STAT_INITIALIZED);
 
 	drain_txstatus_queue(dev);
-	err = request_threaded_irq(dev->dev->irq, b43_interrupt_handler,
-				   b43_interrupt_thread_handler,
-				   IRQF_SHARED, KBUILD_MODNAME, dev);
-	if (err) {
-		b43err(dev->wl, "Cannot request IRQ-%d\n", dev->dev->irq);
-		goto out;
+	if (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) {
+		err = b43_sdio_request_irq(dev, b43_sdio_interrupt_handler);
+		if (err) {
+			b43err(dev->wl, "Cannot request SDIO IRQ\n");
+			goto out;
+		}
+	} else {
+		err = request_threaded_irq(dev->dev->irq, b43_interrupt_handler,
+					   b43_interrupt_thread_handler,
+					   IRQF_SHARED, KBUILD_MODNAME, dev);
+		if (err) {
+			b43err(dev->wl, "Cannot request IRQ-%d\n", dev->dev->irq);
+			goto out;
+		}
 	}
 
 	/* We are ready to run. */
@@ -3882,8 +3967,10 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	/* Start maintainance work */
 	b43_periodic_tasks_setup(dev);
 
+	b43_leds_init(dev);
+
 	b43dbg(dev->wl, "Wireless interface started\n");
-      out:
+out:
 	return err;
 }
 
@@ -4160,10 +4247,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	macctl |= B43_MACCTL_PSM_JMP0;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
-	if (!dev->suspend_in_progress) {
-		b43_leds_exit(dev);
-		b43_rng_exit(dev->wl);
-	}
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
@@ -4180,7 +4263,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 /* Initialize a wireless core */
 static int b43_wireless_core_init(struct b43_wldev *dev)
 {
-	struct b43_wl *wl = dev->wl;
 	struct ssb_bus *bus = dev->dev->bus;
 	struct ssb_sprom *sprom = &bus->sprom;
 	struct b43_phy *phy = &dev->phy;
@@ -4264,7 +4346,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
-	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) || B43_FORCE_PIO) {
+	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) ||
+	    (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) ||
+	    B43_FORCE_PIO) {
 		dev->__using_pio_transfers = 1;
 		err = b43_pio_init(dev);
 	} else {
@@ -4280,15 +4364,13 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	ssb_bus_powerup(bus, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
-	if (!dev->suspend_in_progress)
-		b43_rng_init(wl);
+
+	ieee80211_wake_queues(dev->wl->hw);
 
 	ieee80211_wake_queues(dev->wl->hw);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 
-	if (!dev->suspend_in_progress)
-		b43_leds_init(dev);
 out:
 	return err;
 
@@ -4837,7 +4919,6 @@ static int b43_wireless_init(struct ssb_device *dev)
 
 	/* Initialize struct b43_wl */
 	wl->hw = hw;
-	spin_lock_init(&wl->leds_lock);
 	mutex_init(&wl->mutex);
 	spin_lock_init(&wl->hardirq_lock);
 	INIT_LIST_HEAD(&wl->devlist);
@@ -4878,6 +4959,8 @@ static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 		err = ieee80211_register_hw(wl->hw);
 		if (err)
 			goto err_one_core_detach;
+		b43_leds_register(wl->current_dev);
+		b43_rng_init(wl);
 	}
 
       out:
@@ -4906,12 +4989,15 @@ static void b43_remove(struct ssb_device *dev)
 		 * might have modified it. Restoring is important, so the networking
 		 * stack can properly free resources. */
 		wl->hw->queues = wl->mac80211_initially_registered_queues;
+		b43_leds_stop(wldev);
 		ieee80211_unregister_hw(wl->hw);
 	}
 
 	b43_one_core_detach(dev);
 
 	if (list_empty(&wl->devlist)) {
+		b43_rng_exit(wl);
+		b43_leds_unregister(wldev);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */
@@ -4929,80 +5015,17 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 	ieee80211_queue_work(dev->wl->hw, &dev->restart_work);
 }
 
-#ifdef CONFIG_PM
-
-static int b43_suspend(struct ssb_device *dev, pm_message_t state)
-{
-	struct b43_wldev *wldev = ssb_get_drvdata(dev);
-	struct b43_wl *wl = wldev->wl;
-
-	b43dbg(wl, "Suspending...\n");
-
-	mutex_lock(&wl->mutex);
-	wldev->suspend_in_progress = true;
-	wldev->suspend_init_status = b43_status(wldev);
-	if (wldev->suspend_init_status >= B43_STAT_STARTED)
-		wldev = b43_wireless_core_stop(wldev);
-	if (wldev && wldev->suspend_init_status >= B43_STAT_INITIALIZED)
-		b43_wireless_core_exit(wldev);
-	mutex_unlock(&wl->mutex);
-
-	b43dbg(wl, "Device suspended.\n");
-
-	return 0;
-}
-
-static int b43_resume(struct ssb_device *dev)
-{
-	struct b43_wldev *wldev = ssb_get_drvdata(dev);
-	struct b43_wl *wl = wldev->wl;
-	int err = 0;
-
-	b43dbg(wl, "Resuming...\n");
-
-	mutex_lock(&wl->mutex);
-	if (wldev->suspend_init_status >= B43_STAT_INITIALIZED) {
-		err = b43_wireless_core_init(wldev);
-		if (err) {
-			b43err(wl, "Resume failed at core init\n");
-			goto out;
-		}
-	}
-	if (wldev->suspend_init_status >= B43_STAT_STARTED) {
-		err = b43_wireless_core_start(wldev);
-		if (err) {
-			b43_leds_exit(wldev);
-			b43_rng_exit(wldev->wl);
-			b43_wireless_core_exit(wldev);
-			b43err(wl, "Resume failed at core start\n");
-			goto out;
-		}
-	}
-	b43dbg(wl, "Device resumed.\n");
- out:
-	wldev->suspend_in_progress = false;
-	mutex_unlock(&wl->mutex);
-	return err;
-}
-
-#else /* CONFIG_PM */
-# define b43_suspend	NULL
-# define b43_resume	NULL
-#endif /* CONFIG_PM */
-
 static struct ssb_driver b43_ssb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= b43_ssb_tbl,
 	.probe		= b43_probe,
 	.remove		= b43_remove,
-	.suspend	= b43_suspend,
-	.resume		= b43_resume,
 };
 
 static void b43_print_driverinfo(void)
 {
 	const char *feat_pci = "", *feat_pcmcia = "", *feat_nphy = "",
-		   *feat_leds = "";
+		   *feat_leds = "", *feat_sdio = "";
 
 #ifdef CONFIG_B43_PCI_AUTOSELECT
 	feat_pci = "P";
@@ -5016,11 +5039,14 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_LEDS
 	feat_leds = "L";
 #endif
+#ifdef CONFIG_B43_SDIO
+	feat_sdio = "S";
+#endif
 	printk(KERN_INFO "Broadcom 43xx driver loaded "
-	       "[ Features: %s%s%s%s, Firmware-ID: "
+	       "[ Features: %s%s%s%s%s, Firmware-ID: "
 	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
 	       feat_pci, feat_pcmcia, feat_nphy,
-	       feat_leds);
+	       feat_leds, feat_sdio);
 }
 
 static int __init b43_init(void)
@@ -5031,13 +5057,18 @@ static int __init b43_init(void)
 	err = b43_pcmcia_init();
 	if (err)
 		goto err_dfs_exit;
-	err = ssb_driver_register(&b43_ssb_driver);
+	err = b43_sdio_init();
 	if (err)
 		goto err_pcmcia_exit;
+	err = ssb_driver_register(&b43_ssb_driver);
+	if (err)
+		goto err_sdio_exit;
 	b43_print_driverinfo();
 
 	return err;
 
+err_sdio_exit:
+	b43_sdio_exit();
 err_pcmcia_exit:
 	b43_pcmcia_exit();
 err_dfs_exit:
@@ -5048,6 +5079,7 @@ err_dfs_exit:
 static void __exit b43_exit(void)
 {
 	ssb_driver_unregister(&b43_ssb_driver);
+	b43_sdio_exit();
 	b43_pcmcia_exit();
 	b43_debugfs_exit();
 }

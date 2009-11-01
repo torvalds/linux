@@ -1,0 +1,332 @@
+<refentry id="vidioc-g-parm">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_PARM, VIDIOC_S_PARM</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_PARM</refname>
+    <refname>VIDIOC_S_PARM</refname>
+    <refpurpose>Get or set streaming parameters</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>v4l2_streamparm *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_PARM, VIDIOC_S_PARM</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>The current video standard determines a nominal number of
+frames per second. If less than this number of frames is to be
+captured or output, applications can request frame skipping or
+duplicating on the driver side. This is especially useful when using
+the <function>read()</function> or <function>write()</function>, which
+are not augmented by timestamps or sequence counters, and to avoid
+unneccessary data copying.</para>
+
+    <para>Further these ioctls can be used to determine the number of
+buffers used internally by a driver in read/write mode. For
+implications see the section discussing the &func-read;
+function.</para>
+
+    <para>To get and set the streaming parameters applications call
+the <constant>VIDIOC_G_PARM</constant> and
+<constant>VIDIOC_S_PARM</constant> ioctl, respectively. They take a
+pointer to a struct <structname>v4l2_streamparm</structname> which
+contains a union holding separate parameters for input and output
+devices.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-streamparm">
+      <title>struct <structname>v4l2_streamparm</structname></title>
+      <tgroup cols="4">
+	&cs-ustr;
+	<tbody valign="top">
+	  <row>
+	    <entry>&v4l2-buf-type;</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry></entry>
+	    <entry>The buffer (stream) type, same as &v4l2-format;
+<structfield>type</structfield>, set by the application.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry><structfield>parm</structfield></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-captureparm;</entry>
+	    <entry><structfield>capture</structfield></entry>
+	    <entry>Parameters for capture devices, used when
+<structfield>type</structfield> is
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-outputparm;</entry>
+	    <entry><structfield>output</structfield></entry>
+	    <entry>Parameters for output devices, used when
+<structfield>type</structfield> is
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u8</entry>
+	    <entry><structfield>raw_data</structfield>[200]</entry>
+	    <entry>A place holder for future extensions and custom
+(driver defined) buffer types <constant>V4L2_BUF_TYPE_PRIVATE</constant> and
+higher.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-captureparm">
+      <title>struct <structname>v4l2_captureparm</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capability</structfield></entry>
+	    <entry>See <xref linkend="parm-caps" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capturemode</structfield></entry>
+	    <entry>Set by drivers and applications, see <xref linkend="parm-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-fract;</entry>
+	    <entry><structfield>timeperframe</structfield></entry>
+	    <entry><para>This is is the desired period between
+successive frames captured by the driver, in seconds. The
+field is intended to skip frames on the driver side, saving I/O
+bandwidth.</para><para>Applications store here the desired frame
+period, drivers return the actual frame period, which must be greater
+or equal to the nominal frame period determined by the current video
+standard (&v4l2-standard; <structfield>frameperiod</structfield>
+field). Changing the video standard (also implicitly by switching the
+video input) may reset this parameter to the nominal frame period. To
+reset manually applications can just set this field to
+zero.</para><para>Drivers support this function only when they set the
+<constant>V4L2_CAP_TIMEPERFRAME</constant> flag in the
+<structfield>capability</structfield> field.</para></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>extendedmode</structfield></entry>
+	    <entry>Custom (driver specific) streaming parameters. When
+unused, applications and drivers must set this field to zero.
+Applications using this field should check the driver name and
+version, see <xref linkend="querycap" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>readbuffers</structfield></entry>
+	    <entry>Applications set this field to the desired number
+of buffers used internally by the driver in &func-read; mode. Drivers
+return the actual number of buffers. When an application requests zero
+buffers, drivers should just return the current setting rather than
+the minimum or an error code. For details see <xref
+		linkend="rw" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-outputparm">
+      <title>struct <structname>v4l2_outputparm</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capability</structfield></entry>
+	    <entry>See <xref linkend="parm-caps" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>outputmode</structfield></entry>
+	    <entry>Set by drivers and applications, see <xref
+	    linkend="parm-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-fract;</entry>
+	    <entry><structfield>timeperframe</structfield></entry>
+	    <entry>This is is the desired period between
+successive frames output by the driver, in seconds.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan"><para>The field is intended to
+repeat frames on the driver side in &func-write; mode (in streaming
+mode timestamps can be used to throttle the output), saving I/O
+bandwidth.</para><para>Applications store here the desired frame
+period, drivers return the actual frame period, which must be greater
+or equal to the nominal frame period determined by the current video
+standard (&v4l2-standard; <structfield>frameperiod</structfield>
+field). Changing the video standard (also implicitly by switching the
+video output) may reset this parameter to the nominal frame period. To
+reset manually applications can just set this field to
+zero.</para><para>Drivers support this function only when they set the
+<constant>V4L2_CAP_TIMEPERFRAME</constant> flag in the
+<structfield>capability</structfield> field.</para></entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>extendedmode</structfield></entry>
+	    <entry>Custom (driver specific) streaming parameters. When
+unused, applications and drivers must set this field to zero.
+Applications using this field should check the driver name and
+version, see <xref linkend="querycap" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>writebuffers</structfield></entry>
+	    <entry>Applications set this field to the desired number
+of buffers used internally by the driver in
+<function>write()</function> mode. Drivers return the actual number of
+buffers. When an application requests zero buffers, drivers should
+just return the current setting rather than the minimum or an error
+code. For details see <xref linkend="rw" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="parm-caps">
+      <title>Streaming Parameters Capabilites</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_CAP_TIMEPERFRAME</constant></entry>
+	    <entry>0x1000</entry>
+	    <entry>The frame skipping/repeating controlled by the
+<structfield>timeperframe</structfield> field is supported.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="parm-flags">
+      <title>Capture Parameters Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_MODE_HIGHQUALITY</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry><para>High quality imaging mode. High quality mode
+is intended for still imaging applications. The idea is to get the
+best possible image quality that the hardware can deliver. It is not
+defined how the driver writer may achieve that; it will depend on the
+hardware and the ingenuity of the driver writer. High quality mode is
+a different mode from the the regular motion video capture modes. In
+high quality mode:<itemizedlist>
+		  <listitem>
+		    <para>The driver may be able to capture higher
+resolutions than for motion capture.</para>
+		  </listitem>
+		  <listitem>
+		    <para>The driver may support fewer pixel formats
+than motion capture (eg; true color).</para>
+		  </listitem>
+		  <listitem>
+		    <para>The driver may capture and arithmetically
+combine multiple successive fields or frames to remove color edge
+artifacts and reduce the noise in the video data.
+</para>
+		  </listitem>
+		  <listitem>
+		    <para>The driver may capture images in slices like
+a scanner in order to handle larger format images than would otherwise
+be possible. </para>
+		  </listitem>
+		  <listitem>
+		    <para>An image capture operation may be
+significantly slower than motion capture. </para>
+		  </listitem>
+		  <listitem>
+		    <para>Moving objects in the image might have
+excessive motion blur. </para>
+		  </listitem>
+		  <listitem>
+		    <para>Capture might only work through the
+<function>read()</function> call.</para>
+		  </listitem>
+		</itemizedlist></para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>This ioctl is not supported.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

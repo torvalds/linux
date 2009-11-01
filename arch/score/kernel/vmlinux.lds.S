@@ -24,6 +24,8 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
 
 OUTPUT_ARCH(score)
 ENTRY(_stext)
@@ -49,21 +51,9 @@ SECTIONS
 	. = ALIGN(16);
 	RODATA
 
-	/* Exception table */
-	. = ALIGN(16);
-	__ex_table : {
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-	}
+	EXCEPTION_TABLE(16)
 
-	/* writeable */
-	.data ALIGN (4096): {
-		*(.data.init_task)
-
-		DATA_DATA
-		CONSTRUCTORS
-	}
+	RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
 
 	/* We want the small data sections together, so single-instruction offsets
 	   can access them all, and initialized data all before uninitialized, so
@@ -72,45 +62,14 @@ SECTIONS
 	.sdata : {
 		*(.sdata)
 	}
-
-	. = ALIGN(32);
-	.data.cacheline_aligned : {
-		*(.data.cacheline_aligned)
-	}
 	_edata =  .;			/* End of data section */
 
 	/* will be freed after init */
-	. = ALIGN(4096);		/* Init code and data */
+	. = ALIGN(PAGE_SIZE);		/* Init code and data */
 	__init_begin = .;
 
-	. = ALIGN(4096);
-	.init.text : {
-		_sinittext = .;
-		INIT_TEXT
-		_einittext = .;
-	}
-	.init.data : {
-		INIT_DATA
-	}
-	. = ALIGN(16);
-	.init.setup : {
-		__setup_start = .;
-		*(.init.setup)
-		__setup_end = .;
-	}
-
-	.initcall.init : {
-		__initcall_start = .;
-		INITCALLS
-		__initcall_end = .;
-	}
-
-	.con_initcall.init : {
-		__con_initcall_start = .;
-		*(.con_initcall.init)
-		__con_initcall_end = .;
-	}
-	SECURITY_INIT
+	INIT_TEXT_SECTION(PAGE_SIZE)
+	INIT_DATA_SECTION(16)
 
 	/* .exit.text is discarded at runtime, not link time, to deal with
 	 * references from .rodata
@@ -121,28 +80,10 @@ SECTIONS
 	.exit.data : {
 		EXIT_DATA
 	}
-#if defined(CONFIG_BLK_DEV_INITRD)
-	.init.ramfs ALIGN(4096): {
-		__initramfs_start = .;
-		*(.init.ramfs)
-		__initramfs_end = .;
-		. = ALIGN(4);
-		LONG(0);
-	}
-#endif
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 	/* freed after init ends here */
 
-	__bss_start = .;	/* BSS */
-	.sbss  : {
-		*(.sbss)
-		*(.scommon)
-	}
-	.bss : {
-		*(.bss)
-		*(COMMON)
-	}
-	__bss_stop = .;
+	BSS_SECTION(0, 0, 0)
 	_end = .;
 }

@@ -50,7 +50,7 @@ static int tapeblock_ioctl(struct block_device *, fmode_t, unsigned int,
 static int tapeblock_medium_changed(struct gendisk *);
 static int tapeblock_revalidate_disk(struct gendisk *);
 
-static struct block_device_operations tapeblock_fops = {
+static const struct block_device_operations tapeblock_fops = {
 	.owner		 = THIS_MODULE,
 	.open		 = tapeblock_open,
 	.release	 = tapeblock_release,

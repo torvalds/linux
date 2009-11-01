@@ -228,6 +228,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
+
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
 	dev_priv->savePIPEASRC = I915_READ(PIPEASRC);
@@ -285,6 +286,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
 	return;
 }
+
 static void i915_restore_modeset_reg(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -379,19 +381,10 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 
 	return;
 }
-int i915_save_state(struct drm_device *dev)
+
+void i915_save_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
-
-	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
-
-	/* Render Standby */
-	if (IS_I965G(dev) && IS_MOBILE(dev))
-		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
-
-	/* Hardware status page */
-	dev_priv->saveHWS = I915_READ(HWS_PGA);
 
 	/* Display arbitration control */
 	dev_priv->saveDSPARB = I915_READ(DSPARB);
@@ -399,6 +392,7 @@ int i915_save_state(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't save them in KMS mode */
 	i915_save_modeset_reg(dev);
+
 	/* Cursor state */
 	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
 	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
@@ -448,81 +442,22 @@ int i915_save_state(struct drm_device *dev)
 	dev_priv->saveFBC_CONTROL2 = I915_READ(FBC_CONTROL2);
 	dev_priv->saveFBC_CONTROL = I915_READ(FBC_CONTROL);
 
-	/* Interrupt state */
-	dev_priv->saveIIR = I915_READ(IIR);
-	dev_priv->saveIER = I915_READ(IER);
-	dev_priv->saveIMR = I915_READ(IMR);
-
 	/* VGA state */
 	dev_priv->saveVGA0 = I915_READ(VGA0);
 	dev_priv->saveVGA1 = I915_READ(VGA1);
 	dev_priv->saveVGA_PD = I915_READ(VGA_PD);
 	dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
-	/* Clock gating state */
-	dev_priv->saveD_STATE = I915_READ(D_STATE);
-	dev_priv->saveCG_2D_DIS = I915_READ(CG_2D_DIS);
-
-	/* Cache mode state */
-	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
-
-	/* Memory Arbitration state */
-	dev_priv->saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
-
-	/* Scratch space */
-	for (i = 0; i < 16; i++) {
-		dev_priv->saveSWF0[i] = I915_READ(SWF00 + (i << 2));
-		dev_priv->saveSWF1[i] = I915_READ(SWF10 + (i << 2));
-	}
-	for (i = 0; i < 3; i++)
-		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
-
-	/* Fences */
-	if (IS_I965G(dev)) {
-		for (i = 0; i < 16; i++)
-			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
-	} else {
-		for (i = 0; i < 8; i++)
-			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
-
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
-	}
 	i915_save_vga(dev);
-
-	return 0;
 }
 
-int i915_restore_state(struct drm_device *dev)
+void i915_restore_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
-
-	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
-
-	/* Render Standby */
-	if (IS_I965G(dev) && IS_MOBILE(dev))
-		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
-
-	/* Hardware status page */
-	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
 
 	/* Display arbitration */
 	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
-	/* Fences */
-	if (IS_I965G(dev)) {
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
-	} else {
-		for (i = 0; i < 8; i++)
-			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
-	}
-	
 	/* Display port ratios (must be done before clock is set) */
 	if (SUPPORTS_INTEGRATED_DP(dev)) {
 		I915_WRITE(PIPEA_GMCH_DATA_M, dev_priv->savePIPEA_GMCH_DATA_M);
@@ -534,9 +469,11 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(PIPEA_DP_LINK_N, dev_priv->savePIPEA_DP_LINK_N);
 		I915_WRITE(PIPEB_DP_LINK_N, dev_priv->savePIPEB_DP_LINK_N);
 	}
+
 	/* This is only meaningful in non-KMS mode */
 	/* Don't restore them in KMS mode */
 	i915_restore_modeset_reg(dev);
+
 	/* Cursor state */
 	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
 	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
@@ -586,9 +523,98 @@ int i915_restore_state(struct drm_device *dev)
 	I915_WRITE(VGA_PD, dev_priv->saveVGA_PD);
 	DRM_UDELAY(150);
 
+	i915_restore_vga(dev);
+}
+
+int i915_save_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
+
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
+
+	/* Hardware status page */
+	dev_priv->saveHWS = I915_READ(HWS_PGA);
+
+	i915_save_display(dev);
+
+	/* Interrupt state */
+	dev_priv->saveIER = I915_READ(IER);
+	dev_priv->saveIMR = I915_READ(IMR);
+
+	/* Clock gating state */
+	dev_priv->saveD_STATE = I915_READ(D_STATE);
+	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D); /* Not sure about this */
+
+	/* Cache mode state */
+	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
+
+	/* Memory Arbitration state */
+	dev_priv->saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
+
+	/* Scratch space */
+	for (i = 0; i < 16; i++) {
+		dev_priv->saveSWF0[i] = I915_READ(SWF00 + (i << 2));
+		dev_priv->saveSWF1[i] = I915_READ(SWF10 + (i << 2));
+	}
+	for (i = 0; i < 3; i++)
+		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
+
+	/* Fences */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
+	} else {
+		for (i = 0; i < 8; i++)
+			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
+
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
+	}
+
+	return 0;
+}
+
+int i915_restore_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
+
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
+
+	/* Hardware status page */
+	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
+
+	/* Fences */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
+	} else {
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
+	}
+
+	i915_restore_display(dev);
+
+	/* Interrupt state */
+	I915_WRITE (IER, dev_priv->saveIER);
+	I915_WRITE (IMR,  dev_priv->saveIMR);
+
 	/* Clock gating state */
 	I915_WRITE (D_STATE, dev_priv->saveD_STATE);
-	I915_WRITE (CG_2D_DIS, dev_priv->saveCG_2D_DIS);
+	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
@@ -602,8 +628,6 @@ int i915_restore_state(struct drm_device *dev)
 	}
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
-
-	i915_restore_vga(dev);
 
 	return 0;
 }

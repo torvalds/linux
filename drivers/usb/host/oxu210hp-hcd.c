@@ -33,7 +33,6 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/reboot.h>
 #include <linux/usb.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>

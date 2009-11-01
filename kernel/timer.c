@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/sched.h>
 
 #include <asm/uaccess.h>
@@ -45,6 +45,9 @@
 #include <asm/div64.h>
 #include <asm/timex.h>
 #include <asm/io.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/timer.h>
 
 u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
@@ -521,6 +524,25 @@ static inline void debug_timer_activate(struct timer_list *timer) { }
 static inline void debug_timer_deactivate(struct timer_list *timer) { }
 #endif
 
+static inline void debug_init(struct timer_list *timer)
+{
+	debug_timer_init(timer);
+	trace_timer_init(timer);
+}
+
+static inline void
+debug_activate(struct timer_list *timer, unsigned long expires)
+{
+	debug_timer_activate(timer);
+	trace_timer_start(timer, expires);
+}
+
+static inline void debug_deactivate(struct timer_list *timer)
+{
+	debug_timer_deactivate(timer);
+	trace_timer_cancel(timer);
+}
+
 static void __init_timer(struct timer_list *timer,
 			 const char *name,
 			 struct lock_class_key *key)
@@ -549,7 +571,7 @@ void init_timer_key(struct timer_list *timer,
 		    const char *name,
 		    struct lock_class_key *key)
 {
-	debug_timer_init(timer);
+	debug_init(timer);
 	__init_timer(timer, name, key);
 }
 EXPORT_SYMBOL(init_timer_key);
@@ -568,7 +590,7 @@ static inline void detach_timer(struct timer_list *timer,
 {
 	struct list_head *entry = &timer->entry;
 
-	debug_timer_deactivate(timer);
+	debug_deactivate(timer);
 
 	__list_del(entry->prev, entry->next);
 	if (clear_pending)
@@ -632,7 +654,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 			goto out_unlock;
 	}
 
-	debug_timer_activate(timer);
+	debug_activate(timer, expires);
 
 	new_base = __get_cpu_var(tvec_bases);
 
@@ -787,7 +809,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	BUG_ON(timer_pending(timer) || !timer->function);
 	spin_lock_irqsave(&base->lock, flags);
 	timer_set_base(timer, base);
-	debug_timer_activate(timer);
+	debug_activate(timer, timer->expires);
 	if (time_before(timer->expires, base->next_timer) &&
 	    !tbase_get_deferrable(timer->base))
 		base->next_timer = timer->expires;
@@ -1000,7 +1022,9 @@ static inline void __run_timers(struct tvec_base *base)
 				 */
 				lock_map_acquire(&lockdep_map);
 
+				trace_timer_expire_entry(timer);
 				fn(data);
+				trace_timer_expire_exit(timer);
 
 				lock_map_release(&lockdep_map);
 
@@ -1187,7 +1211,7 @@ static void run_timer_softirq(struct softirq_action *h)
 {
 	struct tvec_base *base = __get_cpu_var(tvec_bases);
 
-	perf_counter_do_pending();
+	perf_event_do_pending();
 
 	hrtimer_run_pending();
 

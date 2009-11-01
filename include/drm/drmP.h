@@ -88,7 +88,37 @@ struct drm_device;
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
-#define DRM_UT_MODE		0x08
+/*
+ * Three debug levels are defined.
+ * drm_core, drm_driver, drm_kms
+ * drm_core level can be used in the generic drm code. For example:
+ * 	drm_ioctl, drm_mm, drm_memory
+ * The macro definiton of DRM_DEBUG is used.
+ * 	DRM_DEBUG(fmt, args...)
+ * 	The debug info by using the DRM_DEBUG can be obtained by adding
+ * 	the boot option of "drm.debug=1".
+ *
+ * drm_driver level can be used in the specific drm driver. It is used
+ * to add the debug info related with the drm driver. For example:
+ * i915_drv, i915_dma, i915_gem, radeon_drv,
+ * 	The macro definition of DRM_DEBUG_DRIVER can be used.
+ * 	DRM_DEBUG_DRIVER(fmt, args...)
+ * 	The debug info by using the DRM_DEBUG_DRIVER can be obtained by
+ * 	adding the boot option of "drm.debug=0x02"
+ *
+ * drm_kms level can be used in the KMS code related with specific drm driver.
+ * It is used to add the debug info related with KMS mode. For example:
+ * the connector/crtc ,
+ * 	The macro definition of DRM_DEBUG_KMS can be used.
+ * 	DRM_DEBUG_KMS(fmt, args...)
+ * 	The debug info by using the DRM_DEBUG_KMS can be obtained by
+ * 	adding the boot option of "drm.debug=0x04"
+ *
+ * If we add the boot option of "drm.debug=0x06", we can get the debug info by
+ * using the DRM_DEBUG_KMS and DRM_DEBUG_DRIVER.
+ * If we add the boot option of "drm.debug=0x05", we can get the debug info by
+ * using the DRM_DEBUG_KMS and DRM_DEBUG.
+ */
 
 extern void drm_ut_debug_printk(unsigned int request_level,
 				const char *prefix,
@@ -174,19 +204,14 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 					__func__, fmt, ##args);		\
 	} while (0)
 
-#define DRM_DEBUG_DRIVER(prefix, fmt, args...)				\
+#define DRM_DEBUG_DRIVER(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_DRIVER, prefix,		\
+		drm_ut_debug_printk(DRM_UT_DRIVER, DRM_NAME,		\
 					__func__, fmt, ##args);		\
 	} while (0)
-#define DRM_DEBUG_KMS(prefix, fmt, args...)				\
+#define DRM_DEBUG_KMS(fmt, args...)				\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_KMS, prefix, 		\
-					 __func__, fmt, ##args);	\
-	} while (0)
-#define DRM_DEBUG_MODE(prefix, fmt, args...)				\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_MODE, prefix, 		\
+		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
 					 __func__, fmt, ##args);	\
 	} while (0)
 #define DRM_LOG(fmt, args...)						\
@@ -210,9 +235,8 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 					NULL, fmt, ##args);		\
 	} while (0)
 #else
-#define DRM_DEBUG_DRIVER(prefix, fmt, args...) do { } while (0)
-#define DRM_DEBUG_KMS(prefix, fmt, args...)	do { } while (0)
-#define DRM_DEBUG_MODE(prefix, fmt, args...)	do { } while (0)
+#define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
+#define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #define DRM_LOG(fmt, arg...)		do { } while (0)
 #define DRM_LOG_KMS(fmt, args...) do { } while (0)
@@ -785,6 +809,9 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
+
+	/* vga arb irq handler */
+	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
 	/* Driver private ops for this object */
 	struct vm_operations_struct *gem_vm_ops;
@@ -1417,7 +1444,7 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
-			  int *handlep);
+			  u32 *handlep);
 
 static inline void
 drm_gem_object_handle_reference(struct drm_gem_object *obj)
@@ -1443,7 +1470,7 @@ drm_gem_object_handle_unreference(struct drm_gem_object *obj)
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,
-					     int handle);
+					     u32 handle);
 int drm_gem_close_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int drm_gem_flink_ioctl(struct drm_device *dev, void *data,

@@ -2146,7 +2146,7 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-struct block_device_operations
+const struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,

@@ -311,7 +311,7 @@ static void sunsu_enable_ms(struct uart_port *port)
 static struct tty_struct *
 receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 {
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch, flag;
 	int max_count = 256;
 	int saw_console_brk = 0;
@@ -389,7 +389,7 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 
 static void transmit_chars(struct uart_sunsu_port *up)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
 
 	if (up->port.x_char) {
@@ -441,7 +441,7 @@ static void check_modem_status(struct uart_sunsu_port *up)
 	if (status & UART_MSR_DCTS)
 		uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
 
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)

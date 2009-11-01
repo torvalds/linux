@@ -44,6 +44,8 @@ struct ps2dev {
 void ps2_init(struct ps2dev *ps2dev, struct serio *serio);
 int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout);
 void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout);
+void ps2_begin_command(struct ps2dev *ps2dev);
+void ps2_end_command(struct ps2dev *ps2dev);
 int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command);
 int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command);
 int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data);

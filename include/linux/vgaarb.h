@@ -1,5 +1,6 @@
 /*
- * vgaarb.c
+ * The VGA aribiter manages VGA space routing and VGA resource decode to
+ * allow multiple VGA devices to be used in a system in a safe way.
  *
  * (C) Copyright 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  * (C) Copyright 2007 Paulo R. Zanoni <przanoni@gmail.com>
@@ -41,7 +42,7 @@
  *     interrupts at any time.
  */
 extern void vga_set_legacy_decoding(struct pci_dev *pdev,
-									unsigned int decodes);
+				    unsigned int decodes);
 
 /**
  *     vga_get         - acquire & locks VGA resources
@@ -193,8 +194,17 @@ static inline int vga_conflicts(struct pci_dev *p1, struct pci_dev *p2)
  * They driver will get a callback when VGA arbitration is first used
  * by userspace since we some older X servers have issues.
  */
+#if defined(CONFIG_VGA_ARB)
 int vga_client_register(struct pci_dev *pdev, void *cookie,
 			void (*irq_set_state)(void *cookie, bool state),
 			unsigned int (*set_vga_decode)(void *cookie, bool state));
+#else
+static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
+				      void (*irq_set_state)(void *cookie, bool state),
+				      unsigned int (*set_vga_decode)(void *cookie, bool state))
+{
+	return 0;
+}
+#endif
 
 #endif /* LINUX_VGA_H */

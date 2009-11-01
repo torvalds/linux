@@ -155,7 +155,7 @@ static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 		    seq_print_ip_sym(seq, it->from, symflags) &&
 		    trace_seq_printf(seq, "\n"))
 			return TRACE_TYPE_HANDLED;
-		return TRACE_TYPE_PARTIAL_LINE;;
+		return TRACE_TYPE_PARTIAL_LINE;
 	}
 	return TRACE_TYPE_UNHANDLED;
 }

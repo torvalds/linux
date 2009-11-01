@@ -289,6 +289,13 @@ config MACH_NEOCORE926
 	help
 	  Select this if you are using the Adeneo Neocore 926 board.
 
+config MACH_AT91SAM9G20EK_2MMC
+	bool "Atmel AT91SAM9G20-EK Evaluation Kit modified for 2 MMC Slots"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
+	  Rev A or B modified for 2 MMC Slots.
+
 endif
 
 # ----------------------------------------------------------

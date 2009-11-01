@@ -956,7 +956,7 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 }
 #endif
 
-static struct block_device_operations sd_fops = {
+static const struct block_device_operations sd_fops = {
 	.owner			= THIS_MODULE,
 	.open			= sd_open,
 	.release		= sd_release,

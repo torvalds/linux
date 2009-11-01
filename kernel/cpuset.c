@@ -1324,9 +1324,10 @@ static int fmeter_getrate(struct fmeter *fmp)
 static cpumask_var_t cpus_attach;
 
 /* Called by cgroups to determine if a cpuset is usable; cgroup_mutex held */
-static int cpuset_can_attach(struct cgroup_subsys *ss,
-			     struct cgroup *cont, struct task_struct *tsk)
+static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+			     struct task_struct *tsk, bool threadgroup)
 {
+	int ret;
 	struct cpuset *cs = cgroup_cs(cont);
 
 	if (cpumask_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
@@ -1343,18 +1344,51 @@ static int cpuset_can_attach(struct cgroup_subsys *ss,
 	if (tsk->flags & PF_THREAD_BOUND)
 		return -EINVAL;
 
-	return security_task_setscheduler(tsk, 0, NULL);
+	ret = security_task_setscheduler(tsk, 0, NULL);
+	if (ret)
+		return ret;
+	if (threadgroup) {
+		struct task_struct *c;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
+			ret = security_task_setscheduler(c, 0, NULL);
+			if (ret) {
+				rcu_read_unlock();
+				return ret;
+			}
+		}
+		rcu_read_unlock();
+	}
+	return 0;
 }
 
-static void cpuset_attach(struct cgroup_subsys *ss,
-			  struct cgroup *cont, struct cgroup *oldcont,
-			  struct task_struct *tsk)
+static void cpuset_attach_task(struct task_struct *tsk, nodemask_t *to,
+			       struct cpuset *cs)
+{
+	int err;
+	/*
+	 * can_attach beforehand should guarantee that this doesn't fail.
+	 * TODO: have a better way to handle failure here
+	 */
+	err = set_cpus_allowed_ptr(tsk, cpus_attach);
+	WARN_ON_ONCE(err);
+
+	task_lock(tsk);
+	cpuset_change_task_nodemask(tsk, to);
+	task_unlock(tsk);
+	cpuset_update_task_spread_flag(cs, tsk);
+
+}
+
+static void cpuset_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+			  struct cgroup *oldcont, struct task_struct *tsk,
+			  bool threadgroup)
 {
 	nodemask_t from, to;
 	struct mm_struct *mm;
 	struct cpuset *cs = cgroup_cs(cont);
 	struct cpuset *oldcs = cgroup_cs(oldcont);
-	int err;
 
 	if (cs == &top_cpuset) {
 		cpumask_copy(cpus_attach, cpu_possible_mask);
@@ -1363,15 +1397,19 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 		guarantee_online_cpus(cs, cpus_attach);
 		guarantee_online_mems(cs, &to);
 	}
-	err = set_cpus_allowed_ptr(tsk, cpus_attach);
-	if (err)
-		return;
 
-	task_lock(tsk);
-	cpuset_change_task_nodemask(tsk, &to);
-	task_unlock(tsk);
-	cpuset_update_task_spread_flag(cs, tsk);
+	/* do per-task migration stuff possibly for each in the threadgroup */
+	cpuset_attach_task(tsk, &to, cs);
+	if (threadgroup) {
+		struct task_struct *c;
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
+			cpuset_attach_task(c, &to, cs);
+		}
+		rcu_read_unlock();
+	}
 
+	/* change mm; only needs to be done once even if threadgroup */
 	from = oldcs->mems_allowed;
 	to = cs->mems_allowed;
 	mm = get_task_mm(tsk);

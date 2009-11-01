@@ -46,6 +46,10 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	depends on GENERIC_CLOCKEVENTS
 	default y if SMP && !LOCAL_TIMERS
 
+config HAVE_TCM
+	bool
+	select GENERIC_ALLOCATOR
+
 config NO_IOPORT
 	bool
 
@@ -649,6 +653,7 @@ config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
 	select CPU_ARM926T
+	select HAVE_TCM
 	select ARM_AMBA
 	select ARM_VIC
 	select GENERIC_TIME

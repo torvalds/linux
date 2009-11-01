@@ -18,7 +18,8 @@ static void up_send_ipi_single(int cpu, unsigned int action)
 	panic(KERN_ERR "%s called", __func__);
 }
 
-static inline void up_send_ipi_mask(cpumask_t mask, unsigned int action)
+static inline void up_send_ipi_mask(const struct cpumask *mask,
+				    unsigned int action)
 {
 	panic(KERN_ERR "%s called", __func__);
 }

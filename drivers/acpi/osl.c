@@ -58,6 +58,7 @@ struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
 	void *context;
 	struct work_struct work;
+	int wait;
 };
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -88,6 +89,7 @@ struct acpi_res_list {
 	char name[5];   /* only can have a length of 4 chars, make use of this
 			   one instead of res->name, no need to kalloc then */
 	struct list_head resource_list;
+	int count;
 };
 
 static LIST_HEAD(resource_list_head);
@@ -191,7 +193,7 @@ acpi_status __init acpi_os_initialize(void)
 
 static void bind_to_cpu0(struct work_struct *work)
 {
-	set_cpus_allowed(current, cpumask_of_cpu(0));
+	set_cpus_allowed_ptr(current, cpumask_of(0));
 	kfree(work);
 }
 
@@ -697,31 +699,12 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 static void acpi_os_execute_deferred(struct work_struct *work)
 {
 	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
-	if (!dpc) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
+
+	if (dpc->wait)
+		acpi_os_wait_events_complete(NULL);
 
 	dpc->function(dpc->context);
 	kfree(dpc);
-
-	return;
-}
-
-static void acpi_os_execute_hp_deferred(struct work_struct *work)
-{
-	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
-	if (!dpc) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	acpi_os_wait_events_complete(NULL);
-
-	dpc->function(dpc->context);
-	kfree(dpc);
-
-	return;
 }
 
 /*******************************************************************************
@@ -745,14 +728,10 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
-	work_func_t func;
 	int ret;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
-
-	if (!function)
-		return AE_BAD_PARAMETER;
 
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
@@ -778,8 +757,8 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	 */
 	queue = hp ? kacpi_hotplug_wq :
 		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
-	func = hp ? acpi_os_execute_hp_deferred : acpi_os_execute_deferred;
-	INIT_WORK(&dpc->work, func);
+	dpc->wait = hp ? 1 : 0;
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 	ret = queue_work(queue, &dpc->work);
 
 	if (!ret) {
@@ -1182,7 +1161,13 @@ int acpi_check_resource_conflict(struct resource *res)
 			       res_list_elem->name,
 			       (long long) res_list_elem->start,
 			       (long long) res_list_elem->end);
-			printk(KERN_INFO "ACPI: Device needs an ACPI driver\n");
+			if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
+				printk(KERN_NOTICE "ACPI: This conflict may"
+				       " cause random problems and system"
+				       " instability\n");
+			printk(KERN_INFO "ACPI: If an ACPI driver is available"
+			       " for this device, you should use it instead of"
+			       " the native driver\n");
 		}
 		if (acpi_enforce_resources == ENFORCE_RESOURCES_STRICT)
 			return -EBUSY;
@@ -1358,6 +1343,89 @@ acpi_os_validate_interface (char *interface)
 	return AE_SUPPORT;
 }
 
+static inline int acpi_res_list_add(struct acpi_res_list *res)
+{
+	struct acpi_res_list *res_list_elem;
+
+	list_for_each_entry(res_list_elem, &resource_list_head,
+			    resource_list) {
+
+		if (res->resource_type == res_list_elem->resource_type &&
+		    res->start == res_list_elem->start &&
+		    res->end == res_list_elem->end) {
+
+			/*
+			 * The Region(addr,len) already exist in the list,
+			 * just increase the count
+			 */
+
+			res_list_elem->count++;
+			return 0;
+		}
+	}
+
+	res->count = 1;
+	list_add(&res->resource_list, &resource_list_head);
+	return 1;
+}
+
+static inline void acpi_res_list_del(struct acpi_res_list *res)
+{
+	struct acpi_res_list *res_list_elem;
+
+	list_for_each_entry(res_list_elem, &resource_list_head,
+			    resource_list) {
+
+		if (res->resource_type == res_list_elem->resource_type &&
+		    res->start == res_list_elem->start &&
+		    res->end == res_list_elem->end) {
+
+			/*
+			 * If the res count is decreased to 0,
+			 * remove and free it
+			 */
+
+			if (--res_list_elem->count == 0) {
+				list_del(&res_list_elem->resource_list);
+				kfree(res_list_elem);
+			}
+			return;
+		}
+	}
+}
+
+acpi_status
+acpi_os_invalidate_address(
+    u8                   space_id,
+    acpi_physical_address   address,
+    acpi_size               length)
+{
+	struct acpi_res_list res;
+
+	switch (space_id) {
+	case ACPI_ADR_SPACE_SYSTEM_IO:
+	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+		/* Only interference checks against SystemIO and SytemMemory
+		   are needed */
+		res.start = address;
+		res.end = address + length - 1;
+		res.resource_type = space_id;
+		spin_lock(&acpi_res_lock);
+		acpi_res_list_del(&res);
+		spin_unlock(&acpi_res_lock);
+		break;
+	case ACPI_ADR_SPACE_PCI_CONFIG:
+	case ACPI_ADR_SPACE_EC:
+	case ACPI_ADR_SPACE_SMBUS:
+	case ACPI_ADR_SPACE_CMOS:
+	case ACPI_ADR_SPACE_PCI_BAR_TARGET:
+	case ACPI_ADR_SPACE_DATA_TABLE:
+	case ACPI_ADR_SPACE_FIXED_HARDWARE:
+		break;
+	}
+	return AE_OK;
+}
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_validate_address
@@ -1382,6 +1450,7 @@ acpi_os_validate_address (
     char *name)
 {
 	struct acpi_res_list *res;
+	int added;
 	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
 		return AE_OK;
 
@@ -1399,14 +1468,17 @@ acpi_os_validate_address (
 		res->end = address + length - 1;
 		res->resource_type = space_id;
 		spin_lock(&acpi_res_lock);
-		list_add(&res->resource_list, &resource_list_head);
+		added = acpi_res_list_add(res);
 		spin_unlock(&acpi_res_lock);
-		pr_debug("Added %s resource: start: 0x%llx, end: 0x%llx, "
-			 "name: %s\n", (space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		pr_debug("%s %s resource: start: 0x%llx, end: 0x%llx, "
+			 "name: %s\n", added ? "Added" : "Already exist",
+			 (space_id == ACPI_ADR_SPACE_SYSTEM_IO)
 			 ? "SystemIO" : "System Memory",
 			 (unsigned long long)res->start,
 			 (unsigned long long)res->end,
 			 res->name);
+		if (!added)
+			kfree(res);
 		break;
 	case ACPI_ADR_SPACE_PCI_CONFIG:
 	case ACPI_ADR_SPACE_EC:

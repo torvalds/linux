@@ -248,7 +248,7 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 }
 
 static int rds_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
 	int ret;

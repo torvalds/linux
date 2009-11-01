@@ -50,7 +50,6 @@ int stv06xx_write_bridge(struct sd *sd, u16 address, u16 i2c_data)
 			      0x04, 0x40, address, 0, buf, len,
 			      STV06XX_URB_MSG_TIMEOUT);
 
-
 	PDEBUG(D_CONF, "Written 0x%x to address 0x%x, status: %d",
 	       i2c_data, address, err);
 
@@ -69,7 +68,7 @@ int stv06xx_read_bridge(struct sd *sd, u16 address, u8 *i2c_data)
 
 	*i2c_data = buf[0];
 
-	PDEBUG(D_CONF, "Read 0x%x from address 0x%x, status %d",
+	PDEBUG(D_CONF, "Reading 0x%x from address 0x%x, status %d",
 	       *i2c_data, address, err);
 
 	return (err < 0) ? err : 0;
@@ -111,14 +110,14 @@ int stv06xx_write_sensor_bytes(struct sd *sd, const u8 *data, u8 len)
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
-	PDEBUG(D_USBO, "I2C: Command buffer contains %d entries", len);
+	PDEBUG(D_CONF, "I2C: Command buffer contains %d entries", len);
 	for (i = 0; i < len;) {
 		/* Build the command buffer */
 		memset(buf, 0, I2C_BUFFER_LENGTH);
 		for (j = 0; j < I2C_MAX_BYTES && i < len; j++, i++) {
 			buf[j] = data[2*i];
 			buf[0x10 + j] = data[2*i+1];
-			PDEBUG(D_USBO, "I2C: Writing 0x%02x to reg 0x%02x",
+			PDEBUG(D_CONF, "I2C: Writing 0x%02x to reg 0x%02x",
 			data[2*i+1], data[2*i]);
 		}
 		buf[0x20] = sd->sensor->i2c_addr;
@@ -128,8 +127,8 @@ int stv06xx_write_sensor_bytes(struct sd *sd, const u8 *data, u8 len)
 				      0x04, 0x40, 0x0400, 0, buf,
 				      I2C_BUFFER_LENGTH,
 				      STV06XX_URB_MSG_TIMEOUT);
-				      if (err < 0)
-					return err;
+		if (err < 0)
+			return err;
 	}
 	return stv06xx_write_sensor_finish(sd);
 }
@@ -140,7 +139,7 @@ int stv06xx_write_sensor_words(struct sd *sd, const u16 *data, u8 len)
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
-	PDEBUG(D_USBO, "I2C: Command buffer contains %d entries", len);
+	PDEBUG(D_CONF, "I2C: Command buffer contains %d entries", len);
 
 	for (i = 0; i < len;) {
 		/* Build the command buffer */
@@ -149,7 +148,7 @@ int stv06xx_write_sensor_words(struct sd *sd, const u16 *data, u8 len)
 			buf[j] = data[2*i];
 			buf[0x10 + j * 2] = data[2*i+1];
 			buf[0x10 + j * 2 + 1] = data[2*i+1] >> 8;
-			PDEBUG(D_USBO, "I2C: Writing 0x%04x to reg 0x%02x",
+			PDEBUG(D_CONF, "I2C: Writing 0x%04x to reg 0x%02x",
 				data[2*i+1], data[2*i]);
 		}
 		buf[0x20] = sd->sensor->i2c_addr;
@@ -189,7 +188,7 @@ int stv06xx_read_sensor(struct sd *sd, const u8 address, u16 *value)
 			      0x04, 0x40, 0x1400, 0, buf, I2C_BUFFER_LENGTH,
 			      STV06XX_URB_MSG_TIMEOUT);
 	if (err < 0) {
-		PDEBUG(D_ERR, "I2C Read: error writing address: %d", err);
+		PDEBUG(D_ERR, "I2C: Read error writing address: %d", err);
 		return err;
 	}
 
@@ -201,7 +200,7 @@ int stv06xx_read_sensor(struct sd *sd, const u8 address, u16 *value)
 	else
 		*value = buf[0];
 
-	PDEBUG(D_USBO, "I2C: Read 0x%x from address 0x%x, status: %d",
+	PDEBUG(D_CONF, "I2C: Read 0x%x from address 0x%x, status: %d",
 	       *value, address, err);
 
 	return (err < 0) ? err : 0;

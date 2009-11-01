@@ -66,6 +66,19 @@ static inline void default_inquire_remote_apic(int apicid)
 }
 
 /*
+ * With 82489DX we can't rely on apic feature bit
+ * retrieved via cpuid but still have to deal with
+ * such an apic chip so we assume that SMP configuration
+ * is found from MP table (64bit case uses ACPI mostly
+ * which set smp presence flag as well so we are safe
+ * to use this helper too).
+ */
+static inline bool apic_from_smp_config(void)
+{
+	return smp_found_config && !disable_apic;
+}
+
+/*
  * Basic functions accessing APICs.
  */
 #ifdef CONFIG_PARAVIRT

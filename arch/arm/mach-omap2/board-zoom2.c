@@ -27,7 +27,7 @@
 #include "mmc-twl4030.h"
 
 /* Zoom2 has Qwerty keyboard*/
-static int zoom2_twl4030_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_E),
 	KEY(1, 0, KEY_R),
 	KEY(2, 0, KEY_T),
@@ -82,11 +82,15 @@ static int zoom2_twl4030_keymap[] = {
 	0
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data zoom2_kp_twl4030_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= zoom2_twl4030_keymap,
-	.keymapsize	= ARRAY_SIZE(zoom2_twl4030_keymap),
 	.rep		= 1,
 };
 

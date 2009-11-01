@@ -936,7 +936,7 @@ static int serial_polled;
 static int mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
-	struct tty_struct *tty = pi->port.info->port.tty;
+	struct tty_struct *tty = pi->port.state->port.tty;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;
@@ -1109,7 +1109,7 @@ static void mpsc_setup_tx_desc(struct mpsc_port_info *pi, u32 count, u32 intr)
 
 static void mpsc_copy_tx_data(struct mpsc_port_info *pi)
 {
-	struct circ_buf *xmit = &pi->port.info->xmit;
+	struct circ_buf *xmit = &pi->port.state->xmit;
 	u8 *bp;
 	u32 i;
 

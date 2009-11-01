@@ -104,6 +104,16 @@ config M25PXX_USE_FAST_READ
 	help
 	  This option enables FAST_READ access supported by ST M25Pxx.
 
+config MTD_SST25L
+	tristate "Support SST25L (non JEDEC) SPI Flash chips"
+	depends on SPI_MASTER
+	help
+	  This enables access to the non JEDEC SST25L SPI flash chips, used
+	  for program and data storage.
+
+	  Set up your spi devices with the right board-specific platform data,
+	  if you want to specify device partitioning.
+
 config MTD_SLRAM
 	tristate "Uncached system RAM"
 	help

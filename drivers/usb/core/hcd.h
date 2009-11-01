@@ -267,6 +267,11 @@ struct hc_driver {
 	void	(*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
 		/* Returns the hardware-chosen device address */
 	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
+		/* Notifies the HCD after a hub descriptor is fetched.
+		 * Will block.
+		 */
+	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
+			struct usb_tt *tt, gfp_t mem_flags);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

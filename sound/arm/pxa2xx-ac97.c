@@ -137,9 +137,9 @@ static int pxa2xx_ac97_do_resume(struct snd_card *card)
 	return 0;
 }
 
-static int pxa2xx_ac97_suspend(struct platform_device *dev, pm_message_t state)
+static int pxa2xx_ac97_suspend(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -148,9 +148,9 @@ static int pxa2xx_ac97_suspend(struct platform_device *dev, pm_message_t state)
 	return ret;
 }
 
-static int pxa2xx_ac97_resume(struct platform_device *dev)
+static int pxa2xx_ac97_resume(struct device *dev)
 {
-	struct snd_card *card = platform_get_drvdata(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -159,9 +159,10 @@ static int pxa2xx_ac97_resume(struct platform_device *dev)
 	return ret;
 }
 
-#else
-#define pxa2xx_ac97_suspend	NULL
-#define pxa2xx_ac97_resume	NULL
+static struct dev_pm_ops pxa2xx_ac97_pm_ops = {
+	.suspend	= pxa2xx_ac97_suspend,
+	.resume		= pxa2xx_ac97_resume,
+};
 #endif
 
 static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
@@ -241,11 +242,12 @@ static int __devexit pxa2xx_ac97_remove(struct platform_device *dev)
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_probe,
 	.remove		= __devexit_p(pxa2xx_ac97_remove),
-	.suspend	= pxa2xx_ac97_suspend,
-	.resume		= pxa2xx_ac97_resume,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &pxa2xx_ac97_pm_ops,
+#endif
 	},
 };
 

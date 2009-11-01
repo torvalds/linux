@@ -580,7 +580,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 
 	lock_sock(sk);
 
-	timeo = sock_rcvtimeo(sk, flags & SPLICE_F_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, sock->file->f_flags & O_NONBLOCK);
 	while (tss.len) {
 		ret = __tcp_splice_read(sk, &tss);
 		if (ret < 0)
@@ -2032,7 +2032,7 @@ int tcp_disconnect(struct sock *sk, int flags)
  *	Socket option code for TCP.
  */
 static int do_tcp_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+		int optname, char __user *optval, unsigned int optlen)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2047,7 +2047,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			return -EINVAL;
 
 		val = strncpy_from_user(name, optval,
-					min(TCP_CA_NAME_MAX-1, optlen));
+					min_t(long, TCP_CA_NAME_MAX-1, optlen));
 		if (val < 0)
 			return -EFAULT;
 		name[val] = 0;
@@ -2220,7 +2220,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 }
 
 int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
-		   int optlen)
+		   unsigned int optlen)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
@@ -2232,7 +2232,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 
 #ifdef CONFIG_COMPAT
 int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_TCP)
 		return inet_csk_compat_setsockopt(sk, level, optname,
@@ -2862,7 +2862,7 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP established",
 					sizeof(struct inet_ehash_bucket),
 					thash_entries,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					13 : 15,
 					0,
 					&tcp_hashinfo.ehash_size,
@@ -2879,7 +2879,7 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP bind",
 					sizeof(struct inet_bind_hashbucket),
 					tcp_hashinfo.ehash_size,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					13 : 15,
 					0,
 					&tcp_hashinfo.bhash_size,

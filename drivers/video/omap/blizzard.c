@@ -44,6 +44,7 @@
 #define BLIZZARD_CLK_SRC			0x0e
 #define BLIZZARD_MEM_BANK0_ACTIVATE		0x10
 #define BLIZZARD_MEM_BANK0_STATUS		0x14
+#define BLIZZARD_PANEL_CONFIGURATION		0x28
 #define BLIZZARD_HDISP				0x2a
 #define BLIZZARD_HNDP				0x2c
 #define BLIZZARD_VDISP0				0x2e
@@ -162,6 +163,10 @@ struct blizzard_struct {
 	int			vid_scaled;
 	int			last_color_mode;
 	int			zoom_on;
+	int			zoom_area_gx1;
+	int			zoom_area_gx2;
+	int			zoom_area_gy1;
+	int			zoom_area_gy2;
 	int			screen_width;
 	int			screen_height;
 	unsigned		te_connected:1;
@@ -513,6 +518,13 @@ static int do_full_screen_update(struct blizzard_request *req)
 	return REQ_PENDING;
 }
 
+static int check_1d_intersect(int a1, int a2, int b1, int b2)
+{
+	if (a2 <= b1 || b2 <= a1)
+		return 0;
+	return 1;
+}
+
 /* Setup all planes with an overlapping area with the update window. */
 static int do_partial_update(struct blizzard_request *req, int plane,
 			     int x, int y, int w, int h,
@@ -525,6 +537,7 @@ static int do_partial_update(struct blizzard_request *req, int plane,
 	int color_mode;
 	int flags;
 	int zoom_off;
+	int have_zoom_for_this_update = 0;
 
 	/* Global coordinates, relative to pixel 0,0 of the LCD */
 	gx1 = x + blizzard.plane[plane].pos_x;
@@ -544,10 +557,6 @@ static int do_partial_update(struct blizzard_request *req, int plane,
 		gx2_out = gx1_out + w_out;
 		gy2_out = gy1_out + h_out;
 	}
-	zoom_off = blizzard.zoom_on && gx1 == 0 && gy1 == 0 &&
-		w == blizzard.screen_width && h == blizzard.screen_height;
-	blizzard.zoom_on = (!zoom_off && blizzard.zoom_on) ||
-			   (w < w_out || h < h_out);
 
 	for (i = 0; i < OMAPFB_PLANE_NUM; i++) {
 		struct plane_info *p = &blizzard.plane[i];
@@ -653,8 +662,49 @@ static int do_partial_update(struct blizzard_request *req, int plane,
 	else
 		disable_tearsync();
 
+	if ((gx2_out - gx1_out) != (gx2 - gx1) ||
+	    (gy2_out - gy1_out) != (gy2 - gy1))
+		have_zoom_for_this_update = 1;
+
+	/* 'background' type of screen update (as opposed to 'destructive')
+	   can be used to disable scaling if scaling is active */
+	zoom_off = blizzard.zoom_on && !have_zoom_for_this_update &&
+	    (gx1_out == 0) && (gx2_out == blizzard.screen_width) &&
+	    (gy1_out == 0) && (gy2_out == blizzard.screen_height) &&
+	    (gx1 == 0) && (gy1 == 0);
+
+	if (blizzard.zoom_on && !have_zoom_for_this_update && !zoom_off &&
+	    check_1d_intersect(blizzard.zoom_area_gx1, blizzard.zoom_area_gx2,
+			       gx1_out, gx2_out) &&
+	    check_1d_intersect(blizzard.zoom_area_gy1, blizzard.zoom_area_gy2,
+			       gy1_out, gy2_out)) {
+		/* Previous screen update was using scaling, current update
+		 * is not using it. Additionally, current screen update is
+		 * going to overlap with the scaled area. Scaling needs to be
+		 * disabled in order to avoid 'magnifying glass' effect.
+		 * Dummy setup of background window can be used for this.
+		 */
+		set_window_regs(0, 0, blizzard.screen_width,
+				blizzard.screen_height,
+				0, 0, blizzard.screen_width,
+				blizzard.screen_height,
+				BLIZZARD_COLOR_RGB565, 1, flags);
+		blizzard.zoom_on = 0;
+	}
+
+	/* remember scaling settings if we have scaled update */
+	if (have_zoom_for_this_update) {
+		blizzard.zoom_on = 1;
+		blizzard.zoom_area_gx1 = gx1_out;
+		blizzard.zoom_area_gx2 = gx2_out;
+		blizzard.zoom_area_gy1 = gy1_out;
+		blizzard.zoom_area_gy2 = gy2_out;
+	}
+
 	set_window_regs(gx1, gy1, gx2, gy2, gx1_out, gy1_out, gx2_out, gy2_out,
 			color_mode, zoom_off, flags);
+	if (zoom_off)
+		blizzard.zoom_on = 0;
 
 	blizzard.extif->set_bits_per_cycle(16);
 	/* set_window_regs has left the register index at the right
@@ -904,6 +954,35 @@ static int blizzard_set_scale(int plane, int orig_w, int orig_h,
 		blizzard.vid_scaled &= ~(1 << plane);
 	else
 		blizzard.vid_scaled |= 1 << plane;
+
+	return 0;
+}
+
+static int blizzard_set_rotate(int angle)
+{
+	u32 l;
+
+	l = blizzard_read_reg(BLIZZARD_PANEL_CONFIGURATION);
+	l &= ~0x03;
+
+	switch (angle) {
+	case 0:
+		l = l | 0x00;
+		break;
+	case 90:
+		l = l | 0x03;
+		break;
+	case 180:
+		l = l | 0x02;
+		break;
+	case 270:
+		l = l | 0x01;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	blizzard_write_reg(BLIZZARD_PANEL_CONFIGURATION, l);
 
 	return 0;
 }
@@ -1285,7 +1364,8 @@ static void blizzard_get_caps(int plane, struct omapfb_caps *caps)
 	caps->ctrl |= OMAPFB_CAPS_MANUAL_UPDATE |
 		OMAPFB_CAPS_WINDOW_PIXEL_DOUBLE |
 		OMAPFB_CAPS_WINDOW_SCALE |
-		OMAPFB_CAPS_WINDOW_OVERLAY;
+		OMAPFB_CAPS_WINDOW_OVERLAY |
+		OMAPFB_CAPS_WINDOW_ROTATE;
 	if (blizzard.te_connected)
 		caps->ctrl |= OMAPFB_CAPS_TEARSYNC;
 	caps->wnd_color |= (1 << OMAPFB_COLOR_RGB565) |
@@ -1560,6 +1640,7 @@ struct lcd_ctrl blizzard_ctrl = {
 	.setup_plane		= blizzard_setup_plane,
 	.set_scale		= blizzard_set_scale,
 	.enable_plane		= blizzard_enable_plane,
+	.set_rotate		= blizzard_set_rotate,
 	.update_window		= blizzard_update_window_async,
 	.sync			= blizzard_sync,
 	.suspend		= blizzard_suspend,

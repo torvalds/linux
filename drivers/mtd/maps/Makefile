@@ -58,5 +58,4 @@ obj-$(CONFIG_MTD_PLATRAM)	+= plat-ram.o
 obj-$(CONFIG_MTD_OMAP_NOR)	+= omap_nor.o
 obj-$(CONFIG_MTD_INTEL_VR_NOR)	+= intel_vr_nor.o
 obj-$(CONFIG_MTD_BFIN_ASYNC)	+= bfin-async-flash.o
-obj-$(CONFIG_MTD_RBTX4939)	+= rbtx4939-flash.o
-obj-$(CONFIG_MTD_VMU)		+= vmu-flash.o
+obj-$(CONFIG_MTD_GPIO_ADDR)	+= gpio-addr-flash.o

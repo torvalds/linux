@@ -144,8 +144,7 @@ exit:
 	spin_unlock(&priv->lock);
 }
 
-static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port,
-			struct file *filp)
+static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;

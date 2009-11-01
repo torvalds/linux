@@ -807,7 +807,7 @@ static int pd_revalidate(struct gendisk *p)
 	return 0;
 }
 
-static struct block_device_operations pd_fops = {
+static const struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pd_open,
 	.release	= pd_release,

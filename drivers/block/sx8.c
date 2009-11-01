@@ -423,7 +423,7 @@ static struct pci_driver carm_driver = {
 	.remove		= carm_remove_one,
 };
 
-static struct block_device_operations carm_bd_ops = {
+static const struct block_device_operations carm_bd_ops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= carm_bdev_getgeo,
 };

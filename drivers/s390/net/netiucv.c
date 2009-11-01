@@ -2113,7 +2113,7 @@ static ssize_t remove_write (struct device_driver *drv,
 	IUCV_DBF_TEXT(trace, 3, __func__);
 
         if (count >= IFNAMSIZ)
-                count = IFNAMSIZ - 1;;
+                count = IFNAMSIZ - 1;
 
 	for (i = 0, p = buf; i < count && *p; i++, p++) {
 		if (*p == '\n' || *p == ' ')

@@ -321,7 +321,7 @@ static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
 	return drive->disk_ops->ioctl(drive, bdev, mode, cmd, arg);
 }
 
-static struct block_device_operations ide_gd_ops = {
+static const struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= ide_gd_open,
 	.release		= ide_gd_release,
