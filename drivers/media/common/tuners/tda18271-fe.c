@@ -1198,10 +1198,6 @@ static int tda18271_setup_configuration(struct dvb_frontend *fe,
 	priv->output_opt = (cfg) ?
 		cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
 
-	/* override default std map with values in config struct */
-	if ((cfg) && (cfg->std_map))
-		tda18271_update_std_map(fe, cfg->std_map);
-
 	return 0;
 }
 
@@ -1223,6 +1219,10 @@ static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (tda18271_need_cal_on_startup(cfg))
 		tda18271_init(fe);
+
+	/* override default std map with values in config struct */
+	if ((cfg) && (cfg->std_map))
+		tda18271_update_std_map(fe, cfg->std_map);
 
 	return 0;
 }
@@ -1306,6 +1306,10 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 			tda18271_init(fe);
 		break;
 	}
+
+	/* override default std map with values in config struct */
+	if ((cfg) && (cfg->std_map))
+		tda18271_update_std_map(fe, cfg->std_map);
 
 	mutex_unlock(&tda18271_list_mutex);
 
