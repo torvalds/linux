@@ -405,11 +405,12 @@ struct in_device *inetdev_by_index(struct net *net, int ifindex)
 {
 	struct net_device *dev;
 	struct in_device *in_dev = NULL;
-	read_lock(&dev_base_lock);
-	dev = __dev_get_by_index(net, ifindex);
+
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(net, ifindex);
 	if (dev)
 		in_dev = in_dev_get(dev);
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 	return in_dev;
 }
 
