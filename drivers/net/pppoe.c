@@ -250,20 +250,19 @@ static inline struct pppox_sock *get_item_by_addr(struct net *net,
 {
 	struct net_device *dev;
 	struct pppoe_net *pn;
-	struct pppox_sock *pppox_sock;
+	struct pppox_sock *pppox_sock = NULL;
 
 	int ifindex;
 
-	dev = dev_get_by_name(net, sp->sa_addr.pppoe.dev);
-	if (!dev)
-		return NULL;
-
-	ifindex = dev->ifindex;
-	pn = net_generic(net, pppoe_net_id);
-	pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
+	rcu_read_lock();
+	dev = dev_get_by_name_rcu(net, sp->sa_addr.pppoe.dev);
+	if (dev) {
+		ifindex = dev->ifindex;
+		pn = net_generic(net, pppoe_net_id);
+		pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
 				sp->sa_addr.pppoe.remote, ifindex);
-	dev_put(dev);
-
+	}
+	rcu_read_unlock();
 	return pppox_sock;
 }
 
