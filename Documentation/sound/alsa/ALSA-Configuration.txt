@@ -1454,6 +1454,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for internal PC-Speaker.
 
+    nopcm	- Disable PC-Speaker PCM sound. Only beeps remain.
     nforce_wa	- enable NForce chipset workaround. Expect bad sound.
 
     This module supports system beeps, some kind of PCM playback and
