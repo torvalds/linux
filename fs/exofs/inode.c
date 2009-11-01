@@ -41,6 +41,8 @@
 #  define EXOFS_DEBUG_OBJ_ISIZE 1
 #endif
 
+#define EXOFS_DBGMSG2(M...) do {} while (0)
+
 struct page_collect {
 	struct exofs_sb_info *sbi;
 	struct request_queue *req_q;
@@ -198,7 +200,7 @@ static int __readpages_done(struct osd_request *or, struct page_collect *pcol,
 		else
 			page_stat = ret;
 
-		EXOFS_DBGMSG("    readpages_done(0x%lx, 0x%lx) %s\n",
+		EXOFS_DBGMSG2("    readpages_done(0x%lx, 0x%lx) %s\n",
 			  inode->i_ino, page->index,
 			  page_stat ? "bad_bytes" : "good_bytes");
 
@@ -370,12 +372,12 @@ try_again:
 	if (len != PAGE_CACHE_SIZE)
 		zero_user(page, len, PAGE_CACHE_SIZE - len);
 
-	EXOFS_DBGMSG("    readpage_strip(0x%lx, 0x%lx) len=0x%zx\n",
+	EXOFS_DBGMSG2("    readpage_strip(0x%lx, 0x%lx) len=0x%zx\n",
 		     inode->i_ino, page->index, len);
 
 	ret = pcol_add_page(pcol, page, len);
 	if (ret) {
-		EXOFS_DBGMSG("Failed pcol_add_page pages[i]=%p "
+		EXOFS_DBGMSG2("Failed pcol_add_page pages[i]=%p "
 			  "this_len=0x%zx nr_pages=%u length=0x%lx\n",
 			  page, len, pcol->nr_pages, pcol->length);
 
@@ -482,7 +484,7 @@ static void writepages_done(struct osd_request *or, void *p)
 
 		update_write_page(page, page_stat);
 		unlock_page(page);
-		EXOFS_DBGMSG("    writepages_done(0x%lx, 0x%lx) status=%d\n",
+		EXOFS_DBGMSG2("    writepages_done(0x%lx, 0x%lx) status=%d\n",
 			     inode->i_ino, page->index, page_stat);
 
 		length += bvec->bv_len;
@@ -609,7 +611,7 @@ try_again:
 			goto fail;
 	}
 
-	EXOFS_DBGMSG("    writepage_strip(0x%lx, 0x%lx) len=0x%zx\n",
+	EXOFS_DBGMSG2("    writepage_strip(0x%lx, 0x%lx) len=0x%zx\n",
 		     inode->i_ino, page->index, len);
 
 	ret = pcol_add_page(pcol, page, len);
