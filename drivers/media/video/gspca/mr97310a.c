@@ -814,9 +814,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* Some of the VGA cameras require the memory pointer
 	 * to be set to 0 again. We have been forced to start the
-	 * stream somewhere else to detect the hardware, and closed it,
-	 * and now since we are restarting the stream we need to do a
-	 * completely fresh and clean start. */
+	 * stream in sd_config() to detect the hardware, and closed it.
+	 * Thus, we need here to do a completely fresh and clean start. */
 	err_code = zero_the_pointer(gspca_dev);
 	if (err_code < 0)
 		return err_code;
@@ -875,7 +874,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		value_reg += 4;
 	}
 
-	/* Note register 7 is also seen as 0x8x or 0xCx in dumps */
+	/* Note register 7 is also seen as 0x8x or 0xCx in some dumps */
 	if (sd->brightness > 0) {
 		sensor_write1(gspca_dev, sign_reg, 0x00);
 		val = sd->brightness;
@@ -900,7 +899,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		return;
 
 	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
-		/* This cam does not like exposure settings > 300,
+		/* This cam does not like exposure settings < 300,
 		   so scale 0 - 4095 to 300 - 4095 */
 		exposure = (sd->exposure * 9267) / 10000 + 300;
 		sensor_write1(gspca_dev, 3, exposure >> 4);
@@ -908,7 +907,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	} else {
 		/* We have both a clock divider and an exposure register.
 		   We first calculate the clock divider, as that determines
-		   the maximum exposure and then we calculayte the exposure
+		   the maximum exposure and then we calculate the exposure
 		   register setting (which goes from 0 - 511).
 
 		   Note our 0 - 4095 exposure is mapped to 0 - 511
