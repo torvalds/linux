@@ -4315,12 +4315,12 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 EXPORT_SYMBOL(dev_set_mac_address);
 
 /*
- *	Perform the SIOCxIFxxx calls, inside read_lock(dev_base_lock)
+ *	Perform the SIOCxIFxxx calls, inside rcu_read_lock()
  */
 static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cmd)
 {
 	int err;
-	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
+	struct net_device *dev = dev_get_by_name_rcu(net, ifr->ifr_name);
 
 	if (!dev)
 		return -ENODEV;
@@ -4552,9 +4552,9 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCGIFINDEX:
 	case SIOCGIFTXQLEN:
 		dev_load(net, ifr.ifr_name);
-		read_lock(&dev_base_lock);
+		rcu_read_lock();
 		ret = dev_ifsioc_locked(net, &ifr, cmd);
-		read_unlock(&dev_base_lock);
+		rcu_read_unlock();
 		if (!ret) {
 			if (colon)
 				*colon = ':';
