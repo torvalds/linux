@@ -100,9 +100,11 @@ ENTRY(clmul_ghash_mul)
 	movups (%rdi), DATA
 	movups (%rsi), SHASH
 	movaps .Lbswap_mask, BSWAP
-	pshufb BSWAP, DATA
+	# pshufb BSWAP, DATA
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xc5
 	call __clmul_gf128mul_ble
-	pshufb BSWAP, DATA
+	# pshufb BSWAP, DATA
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xc5
 	movups DATA, (%rdi)
 	ret
 
@@ -116,18 +118,21 @@ ENTRY(clmul_ghash_update)
 	movaps .Lbswap_mask, BSWAP
 	movups (%rdi), DATA
 	movups (%rcx), SHASH
-	pshufb BSWAP, DATA
+	# pshufb BSWAP, DATA
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xc5
 .align 4
 .Lupdate_loop:
 	movups (%rsi), IN1
-	pshufb BSWAP, IN1
+	# pshufb BSWAP, IN1
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xf5
 	pxor IN1, DATA
 	call __clmul_gf128mul_ble
 	sub $16, %rdx
 	add $16, %rsi
 	cmp $16, %rdx
 	jge .Lupdate_loop
-	pshufb BSWAP, DATA
+	# pshufb BSWAP, DATA
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xc5
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
 	ret
@@ -140,7 +145,8 @@ ENTRY(clmul_ghash_update)
 ENTRY(clmul_ghash_setkey)
 	movaps .Lbswap_mask, BSWAP
 	movups (%rsi), %xmm0
-	pshufb BSWAP, %xmm0
+	# pshufb BSWAP, %xmm0
+	.byte 0x66, 0x0f, 0x38, 0x00, 0xc5
 	movaps %xmm0, %xmm1
 	psllq $1, %xmm0
 	psrlq $63, %xmm1
