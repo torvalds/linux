@@ -769,7 +769,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
 				/* adjusted blue, green, red gain correct
 				   too much blue from the Sakar Digital */
-				0x05, 0x01, 0x05}, 8}
+				0x05, 0x01, 0x04}, 8}
 		};
 
 		const struct sensor_w_data color_no_adj[] = {
