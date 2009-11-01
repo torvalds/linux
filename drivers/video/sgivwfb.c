@@ -260,13 +260,13 @@ static int sgivwfb_check_var(struct fb_var_screeninfo *var,
 	var->grayscale = 0;	/* No grayscale for now */
 
 	/* determine valid resolution and timing */
-	for (min_mode = 0; min_mode < DBE_VT_SIZE; min_mode++) {
+	for (min_mode = 0; min_mode < ARRAY_SIZE(dbeVTimings); min_mode++) {
 		if (dbeVTimings[min_mode].width >= var->xres &&
 		    dbeVTimings[min_mode].height >= var->yres)
 			break;
 	}
 
-	if (min_mode == DBE_VT_SIZE)
+	if (min_mode == ARRAY_SIZE(dbeVTimings))
 		return -EINVAL;	/* Resolution to high */
 
 	/* XXX FIXME - should try to pick best refresh rate */
