@@ -284,7 +284,7 @@ struct mac80211_hwsim_data {
 	struct ieee80211_channel *channel;
 	unsigned long beacon_int; /* in jiffies unit */
 	unsigned int rx_filter;
-	int started;
+	bool started, idle;
 	struct timer_list beacon_timer;
 	enum ps_mode {
 		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
@@ -402,6 +402,12 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
 
+	if (data->idle) {
+		printk(KERN_DEBUG "%s: Trying to TX when idle - reject\n",
+		       wiphy_name(hw->wiphy));
+		return false;
+	}
+
 	memset(&rx_status, 0, sizeof(rx_status));
 	/* TODO: set mactime */
 	rx_status.freq = data->channel->center_freq;
@@ -428,7 +434,8 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (data == data2)
 			continue;
 
-		if (!data2->started || !hwsim_ps_rx_ok(data2, skb) ||
+		if (data2->idle || !data2->started ||
+		    !hwsim_ps_rx_ok(data2, skb) ||
 		    !data->channel || !data2->channel ||
 		    data->channel->center_freq != data2->channel->center_freq ||
 		    !(data->group & data2->group))
@@ -570,6 +577,8 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	       conf->channel->center_freq,
 	       !!(conf->flags & IEEE80211_CONF_IDLE),
 	       !!(conf->flags & IEEE80211_CONF_PS));
+
+	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
 	data->channel = conf->channel;
 	if (!data->started || !data->beacon_int)
