@@ -1549,6 +1549,8 @@ static void setvflip(struct sd *sd)
 {
 	u8 comn;
 
+	if (sd->gspca_dev.ctrl_dis & (1 << VFLIP_IDX))
+		return;
 	if (sd->sensor == SENSOR_OV7630) {
 		comn = 0x02;
 		if (!sd->vflip)
