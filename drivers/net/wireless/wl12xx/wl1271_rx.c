@@ -159,7 +159,7 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	u8 *buf;
 	u8 beacon = 0;
 
-	skb = dev_alloc_skb(length);
+	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
 		return;
