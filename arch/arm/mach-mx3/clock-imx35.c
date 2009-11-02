@@ -335,7 +335,7 @@ static void clk_cgr_disable(struct clk *clk)
 
 DEFINE_CLOCK(asrc_clk,   0, CCM_CGR0,  0, NULL, NULL);
 DEFINE_CLOCK(ata_clk,    0, CCM_CGR0,  2, get_rate_ipg, NULL);
-DEFINE_CLOCK(audmux_clk, 0, CCM_CGR0,  4, NULL, NULL);
+/* DEFINE_CLOCK(audmux_clk, 0, CCM_CGR0,  4, NULL, NULL); */
 DEFINE_CLOCK(can1_clk,   0, CCM_CGR0,  6, get_rate_ipg, NULL);
 DEFINE_CLOCK(can2_clk,   1, CCM_CGR0,  8, get_rate_ipg, NULL);
 DEFINE_CLOCK(cspi1_clk,  0, CCM_CGR0, 10, get_rate_ipg, NULL);
@@ -381,7 +381,7 @@ DEFINE_CLOCK(uart3_clk,  2, CCM_CGR2, 20, get_rate_uart, NULL);
 DEFINE_CLOCK(usbotg_clk, 0, CCM_CGR2, 22, get_rate_otg, NULL);
 DEFINE_CLOCK(wdog_clk,   0, CCM_CGR2, 24, NULL, NULL);
 DEFINE_CLOCK(max_clk,    0, CCM_CGR2, 26, NULL, NULL);
-DEFINE_CLOCK(admux_clk,  0, CCM_CGR2, 30, NULL, NULL);
+DEFINE_CLOCK(audmux_clk, 0, CCM_CGR2, 30, NULL, NULL);
 
 DEFINE_CLOCK(csi_clk,    0, CCM_CGR3,  0, get_rate_csi, NULL);
 DEFINE_CLOCK(iim_clk,    0, CCM_CGR3,  2, NULL, NULL);
@@ -426,7 +426,6 @@ static struct clk nfc_clk = {
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "asrc", asrc_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
-	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
 	_REGISTER_CLOCK(NULL, "can", can1_clk)
 	_REGISTER_CLOCK(NULL, "can", can2_clk)
 	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
@@ -474,7 +473,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usbotg_clk)
 	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "max", max_clk)
-	_REGISTER_CLOCK(NULL, "admux", admux_clk)
+	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
 	_REGISTER_CLOCK(NULL, "csi", csi_clk)
 	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 	_REGISTER_CLOCK(NULL, "gpu2d", gpu2d_clk)
