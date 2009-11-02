@@ -213,6 +213,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define __maybe_unused		/* unimplemented */
 #endif
 
+#ifndef __always_unused
+# define __always_unused	/* unimplemented */
+#endif
+
 #ifndef noinline
 #define noinline
 #endif
