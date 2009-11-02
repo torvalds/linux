@@ -770,6 +770,32 @@ struct gfar_priv_rx_q {
 	unsigned long rxic;
 };
 
+/**
+ *	struct gfar_priv_grp - per group structure
+ *	@priv: back pointer to the priv structure
+ *	@regs: the ioremapped register space for this group
+ *	@grp_id: group id for this group
+ *	@interruptTransmit: The TX interrupt number for this group
+ *	@interruptReceive: The RX interrupt number for this group
+ *	@interruptError: The ERROR interrupt number for this group
+ *	@int_name_tx: tx interrupt name for this group
+ *	@int_name_rx: rx interrupt name for this group
+ *	@int_name_er: er interrupt name for this group
+ */
+
+struct gfar_priv_grp {
+	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	struct gfar_private *priv;
+	struct gfar __iomem *regs;
+	unsigned int interruptTransmit;
+	unsigned int interruptReceive;
+	unsigned int interruptError;
+
+	char int_name_tx[GFAR_INT_NAME_MAX];
+	char int_name_rx[GFAR_INT_NAME_MAX];
+	char int_name_er[GFAR_INT_NAME_MAX];
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblence)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -785,6 +811,7 @@ struct gfar_private {
 	struct net_device *ndev;
 	struct of_device *ofdev;
 
+	struct gfar_priv_grp gfargrp;
 	struct gfar_priv_tx_q *tx_queue;
 	struct gfar_priv_rx_q *rx_queue;
 
@@ -797,9 +824,6 @@ struct gfar_private {
 
 	struct vlan_group *vlgrp;
 
-	/* Unprotected fields */
-	/* Pointer to the GFAR memory mapped Registers */
-	struct gfar __iomem *regs;
 
 	/* Hash registers and their width */
 	u32 __iomem *hash_regs[16];
@@ -823,10 +847,6 @@ struct gfar_private {
 		wol_en:1; /* Wake-on-LAN enabled */
 	unsigned short padding;
 
-	unsigned int interruptTransmit;
-	unsigned int interruptReceive;
-	unsigned int interruptError;
-
 	/* PHY stuff */
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
@@ -837,10 +857,6 @@ struct gfar_private {
 	uint32_t msg_enable;
 
 	struct work_struct reset_task;
-
-	char int_name_tx[GFAR_INT_NAME_MAX];
-	char int_name_rx[GFAR_INT_NAME_MAX];
-	char int_name_er[GFAR_INT_NAME_MAX];
 
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;

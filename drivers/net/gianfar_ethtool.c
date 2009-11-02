@@ -137,10 +137,11 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar __iomem *regs = priv->gfargrp.regs;
 	u64 *extra = (u64 *) & priv->extra_stats;
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
-		u32 __iomem *rmon = (u32 __iomem *) & priv->regs->rmon;
+		u32 __iomem *rmon = (u32 __iomem *) &regs->rmon;
 		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
 		for (i = 0; i < GFAR_RMON_LEN; i++)
@@ -223,7 +224,7 @@ static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs, voi
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 __iomem *theregs = (u32 __iomem *) priv->regs;
+	u32 __iomem *theregs = (u32 __iomem *) priv->gfargrp.regs;
 	u32 *buf = (u32 *) regbuf;
 
 	for (i = 0; i < sizeof (struct gfar) / sizeof (u32); i++)
@@ -349,6 +350,7 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar __iomem *regs = priv->gfargrp.regs;
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 
@@ -407,13 +409,13 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	tx_queue->txic = mk_ic_value(cvals->tx_max_coalesced_frames,
 		gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 
-	gfar_write(&priv->regs->rxic, 0);
+	gfar_write(&regs->rxic, 0);
 	if (rx_queue->rxcoalescing)
-		gfar_write(&priv->regs->rxic, rx_queue->rxic);
+		gfar_write(&regs->rxic, rx_queue->rxic);
 
-	gfar_write(&priv->regs->txic, 0);
+	gfar_write(&regs->txic, 0);
 	if (tx_queue->txcoalescing)
-		gfar_write(&priv->regs->txic, tx_queue->txic);
+		gfar_write(&regs->txic, tx_queue->txic);
 
 	return 0;
 }
