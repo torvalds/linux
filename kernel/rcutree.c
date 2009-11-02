@@ -178,7 +178,27 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
 	return &rsp->node[0];
 }
 
+/*
+ * Record the specified "completed" value, which is later used to validate
+ * dynticks counter manipulations and CPU-offline checks.  Specify
+ * "rsp->completed - 1" to unconditionally invalidate any future dynticks
+ * manipulations and CPU-offline checks.  Such invalidation is useful at
+ * the beginning of a grace period.
+ */
+static void dyntick_record_completed(struct rcu_state *rsp, long comp)
+{
+	rsp->dynticks_completed = comp;
+}
+
 #ifdef CONFIG_SMP
+
+/*
+ * Recall the previously recorded value of the completion for dynticks.
+ */
+static long dyntick_recall_completed(struct rcu_state *rsp)
+{
+	return rsp->dynticks_completed;
+}
 
 /*
  * If the specified CPU is offline, tell the caller that it is in
@@ -337,26 +357,7 @@ void rcu_irq_exit(void)
 		set_need_resched();
 }
 
-/*
- * Record the specified "completed" value, which is later used to validate
- * dynticks counter manipulations.  Specify "rsp->completed - 1" to
- * unconditionally invalidate any future dynticks manipulations (which is
- * useful at the beginning of a grace period).
- */
-static void dyntick_record_completed(struct rcu_state *rsp, long comp)
-{
-	rsp->dynticks_completed = comp;
-}
-
 #ifdef CONFIG_SMP
-
-/*
- * Recall the previously recorded value of the completion for dynticks.
- */
-static long dyntick_recall_completed(struct rcu_state *rsp)
-{
-	return rsp->dynticks_completed;
-}
 
 /*
  * Snapshot the specified CPU's dynticks counter so that we can later
@@ -421,23 +422,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 
 #else /* #ifdef CONFIG_NO_HZ */
 
-static void dyntick_record_completed(struct rcu_state *rsp, long comp)
-{
-}
-
 #ifdef CONFIG_SMP
-
-/*
- * If there are no dynticks, then the only way that a CPU can passively
- * be in a quiescent state is to be offline.  Unlike dynticks idle, which
- * is a point in time during the prior (already finished) grace period,
- * an offline CPU is always in a quiescent state, and thus can be
- * unconditionally applied.  So just return the current value of completed.
- */
-static long dyntick_recall_completed(struct rcu_state *rsp)
-{
-	return rsp->completed;
-}
 
 static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
@@ -1146,6 +1131,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	long lastcomp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	u8 signaled;
+	u8 forcenow;
 
 	if (!rcu_gp_in_progress(rsp))
 		return;  /* No grace period in progress, nothing to force. */
@@ -1182,16 +1168,23 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		if (rcu_process_dyntick(rsp, lastcomp,
 					dyntick_save_progress_counter))
 			goto unlock_ret;
+		/* fall into next case. */
+
+	case RCU_SAVE_COMPLETED:
 
 		/* Update state, record completion counter. */
+		forcenow = 0;
 		spin_lock(&rnp->lock);
 		if (lastcomp == rsp->completed &&
-		    rsp->signaled == RCU_SAVE_DYNTICK) {
+		    rsp->signaled == signaled) {
 			rsp->signaled = RCU_FORCE_QS;
 			dyntick_record_completed(rsp, lastcomp);
+			forcenow = signaled == RCU_SAVE_COMPLETED;
 		}
 		spin_unlock(&rnp->lock);
-		break;
+		if (!forcenow)
+			break;
+		/* fall into next case. */
 
 	case RCU_FORCE_QS:
 
