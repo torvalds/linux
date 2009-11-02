@@ -4426,6 +4426,10 @@ static int tg3_alloc_rx_skb(struct tg3_napi *tnapi, u32 opaque_key,
 
 	mapping = pci_map_single(tp->pdev, skb->data, skb_size,
 				 PCI_DMA_FROMDEVICE);
+	if (pci_dma_mapping_error(tp->pdev, mapping)) {
+		dev_kfree_skb(skb);
+		return -EIO;
+	}
 
 	map->skb = skb;
 	pci_unmap_addr_set(map, mapping, mapping);
@@ -10369,7 +10373,10 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	for (i = 14; i < tx_len; i++)
 		tx_data[i] = (u8) (i & 0xff);
 
-	map = pci_map_single(tp->pdev, skb->data, tx_len, PCI_DMA_TODEVICE);
+	if (skb_dma_map(&tp->pdev->dev, skb, DMA_TO_DEVICE)) {
+		dev_kfree_skb(skb);
+		return -EIO;
+	}
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
 	       rnapi->coal_now);
@@ -10380,7 +10387,8 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	num_pkts = 0;
 
-	tg3_set_txd(tnapi, tnapi->tx_prod, map, tx_len, 0, 1);
+	tg3_set_txd(tnapi, tnapi->tx_prod,
+		    skb_shinfo(skb)->dma_head, tx_len, 0, 1);
 
 	tnapi->tx_prod++;
 	num_pkts++;
@@ -10404,7 +10412,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 			break;
 	}
 
-	pci_unmap_single(tp->pdev, map, tx_len, PCI_DMA_TODEVICE);
+	skb_dma_unmap(&tp->pdev->dev, skb, DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
 
 	if (tx_idx != tnapi->tx_prod)
