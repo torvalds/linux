@@ -137,7 +137,7 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u64 *extra = (u64 *) & priv->extra_stats;
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
@@ -226,7 +226,7 @@ static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs, voi
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 __iomem *theregs = (u32 __iomem *) priv->gfargrp.regs;
+	u32 __iomem *theregs = (u32 __iomem *) priv->gfargrp[0].regs;
 	u32 *buf = (u32 *) regbuf;
 
 	for (i = 0; i < sizeof (struct gfar) / sizeof (u32); i++)
@@ -352,22 +352,23 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_tx_q *tx_queue = NULL;
-	struct gfar_priv_rx_q *rx_queue = NULL;
+	int i = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	tx_queue = priv->tx_queue[0];
-	rx_queue = priv->rx_queue[0];
-
 	/* Set up rx coalescing */
+	/* As of now, we will enable/disable coalescing for all
+	 * queues together in case of eTSEC2, this will be modified
+	 * along with the ethtool interface */
 	if ((cvals->rx_coalesce_usecs == 0) ||
-	    (cvals->rx_max_coalesced_frames == 0))
-		rx_queue->rxcoalescing = 0;
-	else
-		rx_queue->rxcoalescing = 1;
+	    (cvals->rx_max_coalesced_frames == 0)) {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 0;
+	} else {
+		for (i = 0; i < priv->num_rx_queues; i++)
+			priv->rx_queue[i]->rxcoalescing = 1;
+	}
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
@@ -385,15 +386,21 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	rx_queue->rxic = mk_ic_value(cvals->rx_max_coalesced_frames,
-		gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs));
+	for (i = 0; i < priv->num_rx_queues; i++) {
+		priv->rx_queue[i]->rxic = mk_ic_value(
+			cvals->rx_max_coalesced_frames,
+			gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs));
+	}
 
 	/* Set up tx coalescing */
 	if ((cvals->tx_coalesce_usecs == 0) ||
-	    (cvals->tx_max_coalesced_frames == 0))
-		tx_queue->txcoalescing = 0;
-	else
-		tx_queue->txcoalescing = 1;
+	    (cvals->tx_max_coalesced_frames == 0)) {
+		for (i = 0; i < priv->num_tx_queues; i++)
+			priv->tx_queue[i]->txcoalescing = 0;
+	} else {
+		for (i = 0; i < priv->num_tx_queues; i++)
+			priv->tx_queue[i]->txcoalescing = 1;
+	}
 
 	/* Check the bounds of the values */
 	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
@@ -408,16 +415,13 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	tx_queue->txic = mk_ic_value(cvals->tx_max_coalesced_frames,
-		gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
+	for (i = 0; i < priv->num_tx_queues; i++) {
+		priv->tx_queue[i]->txic = mk_ic_value(
+			cvals->tx_max_coalesced_frames,
+			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
+	}
 
-	gfar_write(&regs->rxic, 0);
-	if (rx_queue->rxcoalescing)
-		gfar_write(&regs->rxic, rx_queue->rxic);
-
-	gfar_write(&regs->txic, 0);
-	if (tx_queue->txcoalescing)
-		gfar_write(&regs->txic, tx_queue->txic);
+	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 
 	return 0;
 }

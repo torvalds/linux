@@ -50,7 +50,7 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	int new_setting = 0;
 	u32 temp;
 	unsigned long flags;
@@ -105,7 +105,7 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	unsigned int length = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -164,7 +164,7 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 				       const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	unsigned short index = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -212,7 +212,7 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 				       const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	unsigned int length = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -252,7 +252,7 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 				    const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	unsigned int num = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -293,7 +293,7 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
-	struct gfar __iomem *regs = priv->gfargrp.regs;
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	unsigned int num = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;

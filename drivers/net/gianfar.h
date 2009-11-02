@@ -79,6 +79,9 @@ extern const char gfar_driver_version[];
 #define MAX_TX_QS	0x8
 #define MAX_RX_QS	0x8
 
+/* MAXIMUM NUMBER OF GROUPS SUPPORTED */
+#define MAXGROUPS 0x2
+
 /* These need to be powers of 2 for this driver */
 #define DEFAULT_TX_RING_SIZE	256
 #define DEFAULT_RX_RING_SIZE	256
@@ -795,7 +798,24 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
 
+#if (MAXGROUPS == 2)
+#define DEFAULT_MAPPING 	0xAA
+#else
 #define DEFAULT_MAPPING 	0xFF
+#endif
+
+#define ISRG_SHIFT_TX	0x10
+#define ISRG_SHIFT_RX	0x18
+
+/* The same driver can operate in two modes */
+/* SQ_SG_MODE: Single Queue Single Group Mode
+ * 		(Backward compatible mode)
+ * MQ_MG_MODE: Multi Queue Multi Group mode
+ */
+enum {
+	SQ_SG_MODE = 0,
+	MQ_MG_MODE
+};
 
 /**
  *	struct gfar_priv_tx_q - per tx queue structure
@@ -825,6 +845,7 @@ struct gfar_priv_tx_q {
 	struct	txbd8 *cur_tx;
 	struct	txbd8 *dirty_tx;
 	struct	net_device *dev;
+	struct gfar_priv_grp *grp;
 	u16	skb_curtx;
 	u16	skb_dirtytx;
 	u16	qindex;
@@ -858,6 +879,7 @@ struct gfar_priv_rx_q {
 	struct	rxbd8 *rx_bd_base;
 	struct	rxbd8 *cur_rx;
 	struct	net_device *dev;
+	struct gfar_priv_grp *grp;
 	u16	skb_currx;
 	u16	qindex;
 	unsigned int	rx_ring_size;
@@ -885,6 +907,7 @@ struct gfar_priv_grp {
 	struct	napi_struct napi;
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
+	unsigned int grp_id;
 	unsigned int rx_bit_map;
 	unsigned int tx_bit_map;
 	unsigned int num_tx_queues;
@@ -916,6 +939,8 @@ struct gfar_private {
 	/* Indicates how many tx, rx queues are enabled */
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
+	unsigned int num_grps;
+	unsigned int mode;
 
 	/* The total tx and rx ring size for the enabled queues */
 	unsigned int total_tx_ring_size;
@@ -925,7 +950,7 @@ struct gfar_private {
 	struct net_device *ndev;
 	struct of_device *ofdev;
 
-	struct gfar_priv_grp gfargrp;
+	struct gfar_priv_grp gfargrp[MAXGROUPS];
 	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
 	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
 
@@ -999,6 +1024,8 @@ extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
+extern void gfar_configure_coalescing(struct gfar_private *priv,
+		unsigned int tx_mask, unsigned int rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
