@@ -1100,6 +1100,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 		break;
 	case TG3_PHY_ID_BCM50610:
 	case TG3_PHY_ID_BCM50610M:
+		phydev->dev_flags |= PHY_BRCM_CLEAR_RGMII_MODE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)
 			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)

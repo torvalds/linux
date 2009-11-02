@@ -105,6 +105,7 @@
 #define BCM5482_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
 					/* LED1 / ~LINKSPD[1] selector */
 #define BCM5482_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_RGMII_MODE	0x0b	/* 01011: RGMII Mode Selector */
 #define BCM5482_SHD_SSD		0x14	/* 10100: Secondary SerDes control */
 #define BCM5482_SHD_SSD_LEDM	0x0008	/* SSD LED Mode enable */
 #define BCM5482_SHD_SSD_EN	0x0001	/* SSD enable */
@@ -329,6 +330,11 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	err = phy_write(phydev, MII_BCM54XX_IMR, reg);
 	if (err < 0)
 		return err;
+
+	if ((BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
+	     BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) &&
+	    (phydev->dev_flags & PHY_BRCM_CLEAR_RGMII_MODE))
+		bcm54xx_shadow_write(phydev, BCM54XX_SHD_RGMII_MODE, 0);
 
 	bcm54xx_phydsp_config(phydev);
 
