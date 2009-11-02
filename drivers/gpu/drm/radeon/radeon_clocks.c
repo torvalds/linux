@@ -32,7 +32,7 @@
 #include "atom.h"
 
 /* 10 khz */
-static uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
+uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
 {
 	struct radeon_pll *spll = &rdev->clock.spll;
 	uint32_t fb_div, ref_div, post_div, sclk;

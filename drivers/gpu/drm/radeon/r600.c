@@ -1621,10 +1621,13 @@ int r600_init(struct radeon_device *rdev)
 	r600_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	r = radeon_clocks_init(rdev);
 	if (r)
 		return r;
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
