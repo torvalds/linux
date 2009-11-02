@@ -103,4 +103,12 @@ config MACH_MX35_3DS
 	help
 	  Include support for MX35PDK platform. This includes specific
 	  configurations for the board and its peripherals.
+
+config MACH_KZM_ARM11_01
+	bool "Support KZM-ARM11-01(Kyoto Microcomputer)"
+	select ARCH_MX31
+	help
+	  Include support for KZM-ARM11-01. This includes specific
+	  configurations for the board and its peripherals.
+
 endif
