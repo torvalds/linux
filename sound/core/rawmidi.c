@@ -415,7 +415,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 		subdevice = -1;
 		read_lock(&card->ctl_files_rwlock);
 		list_for_each_entry(kctl, &card->ctl_files, list) {
-			if (kctl->pid == current->pid) {
+			if (kctl->pid == task_pid(current)) {
 				subdevice = kctl->prefer_rawmidi_subdevice;
 				if (subdevice != -1)
 					break;
