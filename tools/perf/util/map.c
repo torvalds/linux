@@ -93,13 +93,12 @@ map__find_symbol(struct map *self, u64 ip, symbol_filter_t filter)
 			const size_t real_len = len - sizeof(DSO__DELETED);
 
 			if (len > sizeof(DSO__DELETED) &&
-			    strcmp(name + real_len + 1, DSO__DELETED) == 0)
-				pr_warning("%.*s was updated, restart the "
-					   "long running apps that use it!\n",
-					   real_len, name);
-			else
-				pr_warning("no symbols found in %s, maybe "
-					   "install a debug package?\n", name);
+			    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
+				pr_warning("%.*s was updated, restart the long running apps that use it!\n",
+					   (int)real_len, name);
+			} else {
+				pr_warning("no symbols found in %s, maybe install a debug package?\n", name);
+			}
 			return NULL;
 		}
 	}
