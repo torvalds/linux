@@ -48,6 +48,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	unsigned long timeout;
 	u32 intr;
 	int ret = 0;
+	u16 status;
 
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
@@ -78,8 +79,9 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	wl1271_spi_read(wl, wl->cmd_box_addr, cmd,
 			sizeof(struct wl1271_cmd_header), false);
 
-	if (cmd->status != CMD_STATUS_SUCCESS) {
-		wl1271_error("command execute failure %d", cmd->status);
+	status = le16_to_cpu(cmd->status);
+	if (status != CMD_STATUS_SUCCESS) {
+		wl1271_error("command execute failure %d", status);
 		ret = -EIO;
 	}
 
