@@ -42,6 +42,7 @@ config WL1251_SDIO
 config WL1271
 	tristate "TI wl1271 support"
 	depends on WL12XX && SPI_MASTER && GENERIC_HARDIRQS
+	depends on INET
 	select FW_LOADER
 	select CRC7
 	---help---
