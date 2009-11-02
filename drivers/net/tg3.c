@@ -5124,7 +5124,8 @@ static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 		/* Make sure new skb does not cross any 4G boundaries.
 		 * Drop the packet if it does.
 		 */
-		if (ret || tg3_4g_overflow_test(new_addr, new_skb->len)) {
+		if (ret || ((tp->tg3_flags3 & TG3_FLG3_4G_DMA_BNDRY_BUG) &&
+			    tg3_4g_overflow_test(new_addr, new_skb->len))) {
 			if (!ret)
 				skb_dma_unmap(&tp->pdev->dev, new_skb,
 					      DMA_TO_DEVICE);
@@ -5459,9 +5460,15 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 
 	would_hit_hwbug = 0;
 
-	if (tp->tg3_flags3 & TG3_FLG3_5701_DMA_BUG)
+	if ((tp->tg3_flags3 & TG3_FLG3_4G_DMA_BNDRY_BUG) &&
+	    tg3_4g_overflow_test(mapping, len))
 		would_hit_hwbug = 1;
-	else if (tg3_4g_overflow_test(mapping, len))
+
+	if ((tp->tg3_flags3 & TG3_FLG3_40BIT_DMA_LIMIT_BUG) &&
+	    tg3_40bit_overflow_test(tp, mapping, len))
+		would_hit_hwbug = 1;
+
+	if (tp->tg3_flags3 & TG3_FLG3_5701_DMA_BUG)
 		would_hit_hwbug = 1;
 
 	tg3_set_txd(tnapi, entry, mapping, len, base_flags,
@@ -5482,10 +5489,12 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 
 			tnapi->tx_buffers[entry].skb = NULL;
 
-			if (tg3_4g_overflow_test(mapping, len))
+			if ((tp->tg3_flags3 & TG3_FLG3_4G_DMA_BNDRY_BUG) &&
+			    tg3_4g_overflow_test(mapping, len))
 				would_hit_hwbug = 1;
 
-			if (tg3_40bit_overflow_test(tp, mapping, len))
+			if ((tp->tg3_flags3 & TG3_FLG3_40BIT_DMA_LIMIT_BUG) &&
+			    tg3_40bit_overflow_test(tp, mapping, len))
 				would_hit_hwbug = 1;
 
 			if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
@@ -12610,12 +12619,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	tp->irq_max = 1;
 
-#ifdef TG3_NAPI
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
 		tp->tg3_flags |= TG3_FLAG_SUPPORT_MSIX;
 		tp->irq_max = TG3_IRQ_MAX_VECS;
 	}
-#endif
+
+	if (!(tp->tg3_flags3 & TG3_FLG3_5755_PLUS)) {
+		tp->tg3_flags3 |= TG3_FLG3_4G_DMA_BNDRY_BUG;
+		tp->tg3_flags3 |= TG3_FLG3_40BIT_DMA_LIMIT_BUG;
+	}
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
 	     (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
