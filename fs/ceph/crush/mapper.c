@@ -253,7 +253,7 @@ static int crush_bucket_choose(struct crush_bucket *in, int x, int r)
 					   x, r);
 	default:
 		BUG_ON(1);
-/* 		return in->items[0] */;
+ 		return in->items[0];
 	}
 }
 
