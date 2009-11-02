@@ -464,6 +464,8 @@ static const u8 hv7131r_sensor_init[][8] = {
 	{0xa1, 0x11, 0x21, 0xd0, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x11, 0x22, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x11, 0x23, 0x10, 0x00, 0x00, 0x00, 0x10},
+	{0xa1, 0x11, 0x01, 0x18, 0x00, 0x00, 0x00, 0x10},
+							/* set sensor clock */
 	{}
 };
 static const u8 mi0360_sensor_init[][8] = {
@@ -545,7 +547,7 @@ static const u8 mo4000_sensor_init[][8] = {
 };
 static const u8 mt9v111_sensor_init[][8] = {
 	{0xb1, 0x5c, 0x0d, 0x00, 0x01, 0x00, 0x00, 0x10}, /* reset? */
-	/* delay 20 ms */
+	{0xdd, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 20ms */
 	{0xb1, 0x5c, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x5c, 0x01, 0x00, 0x01, 0x00, 0x00, 0x10}, /* IFP select */
 	{0xb1, 0x5c, 0x08, 0x04, 0x80, 0x00, 0x00, 0x10}, /* output fmt ctrl */
@@ -622,10 +624,10 @@ static const u8 om6802_sensor_init[][8] = {
 static const u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x76, 0x01, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x12, 0xc8, 0x00, 0x00, 0x00, 0x10},
-/* win: delay 20ms */
+	{0xdd, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 20ms */
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x12, 0xc8, 0x00, 0x00, 0x00, 0x10},
-/* win: delay 20ms */
+	{0xdd, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 20ms */
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 /* win: i2c_r from 00 to 80 */
 	{0xd1, 0x21, 0x03, 0x80, 0x10, 0x20, 0x80, 0x10},
@@ -677,6 +679,7 @@ static const u8 ov7630_sensor_init[][8] = {
 static const u8 ov7648_sensor_init[][8] = {
 	{0xa1, 0x21, 0x76, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10},	/* reset */
+	{0xdd, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 20ms */
 	{0xa1, 0x21, 0x12, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xd1, 0x21, 0x03, 0xa4, 0x30, 0x88, 0x00, 0x10},
 	{0xb1, 0x21, 0x11, 0x80, 0x08, 0x00, 0x00, 0x10},
@@ -723,7 +726,7 @@ static const u8 ov7648_sensor_init[][8] = {
 
 static const u8 ov7660_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10}, /* reset SCCB */
-/*		(delay 20ms) */
+	{0xdd, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 20ms */
 	{0xa1, 0x21, 0x12, 0x05, 0x00, 0x00, 0x00, 0x10},
 						/* Outformat = rawRGB */
 	{0xa1, 0x21, 0x13, 0xb8, 0x00, 0x00, 0x00, 0x10}, /* init COM8 */
@@ -894,6 +897,18 @@ static const u8 sp80708_sensor_init[][8] = {
 	{}
 };
 
+static const u8 (*sensor_init[9])[8] = {
+	hv7131r_sensor_init,	/* HV7131R 0 */
+	mi0360_sensor_init,	/* MI0360 1 */
+	mo4000_sensor_init,	/* MO4000 2 */
+	mt9v111_sensor_init,	/* MT9V111 3 */
+	om6802_sensor_init,	/* OM6802 4 */
+	ov7630_sensor_init,	/* OV7630 5 */
+	ov7648_sensor_init,	/* OV7648 6 */
+	ov7660_sensor_init,	/* OV7660 7 */
+	sp80708_sensor_init,	/* SP80708 8 */
+};
+
 /* read <len> bytes to gspca_dev->usb_buf */
 static void reg_r(struct gspca_dev *gspca_dev,
 		  u16 value, int len)
@@ -1012,6 +1027,18 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 	i2c_w8(gspca_dev, mode);
 	msleep(2);
 	reg_r(gspca_dev, 0x0a, 5);
+}
+
+static void i2c_w_seq(struct gspca_dev *gspca_dev,
+			const u8 (*data)[8])
+{
+	while ((*data)[0] != 0) {
+		if ((*data)[0] != 0xdd)
+			i2c_w8(gspca_dev, *data);
+		else
+			msleep((*data)[1]);
+		data++;
+	}
 }
 
 static void hv7131r_probe(struct gspca_dev *gspca_dev)
@@ -1161,129 +1188,6 @@ static void configure_gpio(struct gspca_dev *gspca_dev,
 		if (sd->sensor == SENSOR_HV7131R)
 			hv7131r_probe(gspca_dev);
 		break;
-	}
-}
-
-static void hv7131R_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-	static const u8 SetSensorClk[] =	/* 0x08 Mclk */
-		{ 0xa1, 0x11, 0x01, 0x18, 0x00, 0x00, 0x00, 0x10 };
-
-	while (hv7131r_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, hv7131r_sensor_init[i]);
-		i++;
-	}
-	i2c_w8(gspca_dev, SetSensorClk);
-}
-
-static void mi0360_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	while (mi0360_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, mi0360_sensor_init[i]);
-		i++;
-	}
-}
-
-static void mo4000_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	while (mo4000_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, mo4000_sensor_init[i]);
-		i++;
-	}
-}
-
-static void mt9v111_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	i2c_w8(gspca_dev, mt9v111_sensor_init[i]);
-	i++;
-	msleep(20);
-	while (mt9v111_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, mt9v111_sensor_init[i]);
-		i++;
-	}
-}
-
-static void om6802_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	while (om6802_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, om6802_sensor_init[i]);
-		i++;
-	}
-}
-
-static void ov7630_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 76 01 */
-	i++;
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 c8 (RGB+SRST) */
-	i++;
-	msleep(20);
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 48 */
-	i++;
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 c8 */
-	i++;
-	msleep(20);
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 48 */
-	i++;
-/*jfm:win i2c_r from 00 to 80*/
-
-	while (ov7630_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, ov7630_sensor_init[i]);
-		i++;
-	}
-}
-
-static void ov7648_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	i2c_w8(gspca_dev, ov7648_sensor_init[i]);
-	i++;
-/* win: dble reset */
-	i2c_w8(gspca_dev, ov7648_sensor_init[i]);	/* reset */
-	i++;
-	msleep(20);
-/* win: i2c reg read 00..7f */
-	while (ov7648_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, ov7648_sensor_init[i]);
-		i++;
-	}
-}
-
-static void ov7660_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	i2c_w8(gspca_dev, ov7660_sensor_init[i]);	/* reset SCCB */
-	i++;
-	msleep(20);
-	while (ov7660_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, ov7660_sensor_init[i]);
-		i++;
-	}
-}
-
-static void sp80708_InitSensor(struct gspca_dev *gspca_dev)
-{
-	int i = 0;
-
-	i2c_w8(gspca_dev, sp80708_sensor_init[i]);	/* reset SCCB */
-	i++;
-	msleep(20);
-	while (sp80708_sensor_init[i][0]) {
-		i2c_w8(gspca_dev, sp80708_sensor_init[i]);
-		i++;
 	}
 }
 
@@ -1801,6 +1705,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
+	/* initialize the sensor */
+	i2c_w_seq(gspca_dev, sensor_init[sd->sensor]);
+
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode)
 		reg1 = 0x46;	/* 320x240: clk 48Mhz, video trf enable */
@@ -1808,14 +1715,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg1 = 0x06;	/* 640x480: clk 24Mhz, video trf enable */
 	reg17 = 0x61;		/* 0x:20: enable sensor clock */
 	switch (sd->sensor) {
-	case SENSOR_HV7131R:
-		hv7131R_InitSensor(gspca_dev);
-		break;
-	case SENSOR_MI0360:
-		mi0360_InitSensor(gspca_dev);
-		break;
 	case SENSOR_MO4000:
-		mo4000_InitSensor(gspca_dev);
 		if (mode) {
 /*			reg1 = 0x46;	 * 320 clk 48Mhz 60fp/s */
 			reg1 = 0x06;	/* clk 24Mz */
@@ -1825,7 +1725,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		}
 		break;
 	case SENSOR_MT9V111:
-		mt9v111_InitSensor(gspca_dev);
 		if (mode) {
 			reg1 = 0x04;	/* 320 clk 48Mhz */
 		} else {
@@ -1834,22 +1733,18 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		}
 		break;
 	case SENSOR_OM6802:
-		om6802_InitSensor(gspca_dev);
 		reg17 = 0x64;		/* 640 MCKSIZE */
 		break;
 	case SENSOR_OV7630:
-		ov7630_InitSensor(gspca_dev);
 		setvflip(sd);
 		reg17 = 0xe2;
 		reg1 = 0x44;
 		break;
 	case SENSOR_OV7648:
-		ov7648_InitSensor(gspca_dev);
 		reg17 = 0x21;
 /*		reg1 = 0x42;		 * 42 - 46? */
 		break;
 	case SENSOR_OV7660:
-		ov7660_InitSensor(gspca_dev);
 		if (sd->bridge == BRIDGE_SN9C120) {
 			if (mode) {		/* 320x240 - 160x120 */
 				reg17 = 0xa2;
@@ -1863,7 +1758,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	default:
 /*	case SENSOR_SP80708: */
-		sp80708_InitSensor(gspca_dev);
 		if (mode) {
 /*??			reg1 = 0x04;	 * 320 clk 48Mhz */
 		} else {
