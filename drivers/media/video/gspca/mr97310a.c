@@ -1034,9 +1034,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,                   /* isoc packet */
 			int len)                      /* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n;
 

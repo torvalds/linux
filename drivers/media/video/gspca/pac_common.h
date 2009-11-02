@@ -72,42 +72,41 @@ static const unsigned char pac_sof_marker[5] =
 	   +----------+
 */
 
-static unsigned char *pac_find_sof(struct gspca_dev *gspca_dev,
+static unsigned char *pac_find_sof(u8 *sof_read,
 					unsigned char *m, int len)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 
 	/* Search for the SOF marker (fixed part) in the header */
 	for (i = 0; i < len; i++) {
-		switch (sd->sof_read) {
+		switch (*sof_read) {
 		case 0:
 			if (m[i] == 0xff)
-				sd->sof_read = 1;
+				*sof_read = 1;
 			break;
 		case 1:
 			if (m[i] == 0xff)
-				sd->sof_read = 2;
+				*sof_read = 2;
 			else
-				sd->sof_read = 0;
+				*sof_read = 0;
 			break;
 		case 2:
 			switch (m[i]) {
 			case 0x00:
-				sd->sof_read = 3;
+				*sof_read = 3;
 				break;
 			case 0xff:
 				/* stay in this state */
 				break;
 			default:
-				sd->sof_read = 0;
+				*sof_read = 0;
 			}
 			break;
 		case 3:
 			if (m[i] == 0xff)
-				sd->sof_read = 4;
+				*sof_read = 4;
 			else
-				sd->sof_read = 0;
+				*sof_read = 0;
 			break;
 		case 4:
 			switch (m[i]) {
@@ -117,18 +116,18 @@ static unsigned char *pac_find_sof(struct gspca_dev *gspca_dev,
 					"SOF found, bytes to analyze: %u."
 					" Frame starts at byte #%u",
 					len, i + 1);
-				sd->sof_read = 0;
+				*sof_read = 0;
 				return m + i + 1;
 				break;
 			case 0xff:
-				sd->sof_read = 2;
+				*sof_read = 2;
 				break;
 			default:
-				sd->sof_read = 0;
+				*sof_read = 0;
 			}
 			break;
 		default:
-			sd->sof_read = 0;
+			*sof_read = 0;
 		}
 	}
 
