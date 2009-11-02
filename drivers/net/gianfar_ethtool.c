@@ -7,8 +7,9 @@
  *
  *  Author: Andy Fleming
  *  Maintainer: Kumar Gala
+ *  Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- *  Copyright (c) 2003,2004 Freescale Semiconductor, Inc.
+ *  Copyright 2003-2006, 2008-2009 Freescale Semiconductor, Inc.
  *
  *  This software may be used and distributed according to
  *  the terms of the GNU Public License, Version 2, incorporated herein
@@ -41,7 +42,7 @@
 #include "gianfar.h"
 
 extern void gfar_start(struct net_device *dev);
-extern int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit);
+extern int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit);
 
 #define GFAR_MAX_COAL_USECS 0xffff
 #define GFAR_MAX_COAL_FRAMES 0xff
@@ -197,12 +198,16 @@ static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
+	struct gfar_priv_rx_q *rx_queue = NULL;
+	struct gfar_priv_tx_q *tx_queue = NULL;
 
 	if (NULL == phydev)
 		return -ENODEV;
+	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue;
 
-	cmd->maxtxpkt = get_icft_value(priv->txic);
-	cmd->maxrxpkt = get_icft_value(priv->rxic);
+	cmd->maxtxpkt = get_icft_value(tx_queue->txic);
+	cmd->maxrxpkt = get_icft_value(rx_queue->rxic);
 
 	return phy_ethtool_gset(phydev, cmd);
 }
@@ -279,6 +284,8 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_priv_rx_q *rx_queue = NULL;
+	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned long rxtime;
 	unsigned long rxcount;
 	unsigned long txtime;
@@ -290,10 +297,13 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	if (NULL == priv->phydev)
 		return -ENODEV;
 
-	rxtime  = get_ictt_value(priv->rxic);
-	rxcount = get_icft_value(priv->rxic);
-	txtime  = get_ictt_value(priv->txic);
-	txcount = get_icft_value(priv->txic);
+	rx_queue = priv->rx_queue;
+	tx_queue = priv->tx_queue;
+
+	rxtime  = get_ictt_value(rx_queue->rxic);
+	rxcount = get_icft_value(rx_queue->rxic);
+	txtime  = get_ictt_value(tx_queue->txic);
+	txcount = get_icft_value(tx_queue->txic);
 	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, rxtime);
 	cvals->rx_max_coalesced_frames = rxcount;
 
@@ -339,16 +349,21 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_priv_tx_q *tx_queue = NULL;
+	struct gfar_priv_rx_q *rx_queue = NULL;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
+	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue;
+
 	/* Set up rx coalescing */
 	if ((cvals->rx_coalesce_usecs == 0) ||
 	    (cvals->rx_max_coalesced_frames == 0))
-		priv->rxcoalescing = 0;
+		rx_queue->rxcoalescing = 0;
 	else
-		priv->rxcoalescing = 1;
+		rx_queue->rxcoalescing = 1;
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
@@ -366,15 +381,15 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->rxic = mk_ic_value(cvals->rx_max_coalesced_frames,
+	rx_queue->rxic = mk_ic_value(cvals->rx_max_coalesced_frames,
 		gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs));
 
 	/* Set up tx coalescing */
 	if ((cvals->tx_coalesce_usecs == 0) ||
 	    (cvals->tx_max_coalesced_frames == 0))
-		priv->txcoalescing = 0;
+		tx_queue->txcoalescing = 0;
 	else
-		priv->txcoalescing = 1;
+		tx_queue->txcoalescing = 1;
 
 	/* Check the bounds of the values */
 	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
@@ -389,16 +404,16 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->txic = mk_ic_value(cvals->tx_max_coalesced_frames,
+	tx_queue->txic = mk_ic_value(cvals->tx_max_coalesced_frames,
 		gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 
 	gfar_write(&priv->regs->rxic, 0);
-	if (priv->rxcoalescing)
-		gfar_write(&priv->regs->rxic, priv->rxic);
+	if (rx_queue->rxcoalescing)
+		gfar_write(&priv->regs->rxic, rx_queue->rxic);
 
 	gfar_write(&priv->regs->txic, 0);
-	if (priv->txcoalescing)
-		gfar_write(&priv->regs->txic, priv->txic);
+	if (tx_queue->txcoalescing)
+		gfar_write(&priv->regs->txic, tx_queue->txic);
 
 	return 0;
 }
@@ -409,6 +424,11 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_priv_tx_q *tx_queue = NULL;
+	struct gfar_priv_rx_q *rx_queue = NULL;
+
+	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue;
 
 	rvals->rx_max_pending = GFAR_RX_MAX_RING_SIZE;
 	rvals->rx_mini_max_pending = GFAR_RX_MAX_RING_SIZE;
@@ -418,10 +438,10 @@ static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rv
 	/* Values changeable by the user.  The valid values are
 	 * in the range 1 to the "*_max_pending" counterpart above.
 	 */
-	rvals->rx_pending = priv->rx_ring_size;
-	rvals->rx_mini_pending = priv->rx_ring_size;
-	rvals->rx_jumbo_pending = priv->rx_ring_size;
-	rvals->tx_pending = priv->tx_ring_size;
+	rvals->rx_pending = rx_queue->rx_ring_size;
+	rvals->rx_mini_pending = rx_queue->rx_ring_size;
+	rvals->rx_jumbo_pending = rx_queue->rx_ring_size;
+	rvals->tx_pending = tx_queue->tx_ring_size;
 }
 
 /* Change the current ring parameters, stopping the controller if
@@ -431,6 +451,8 @@ static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rv
 static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_priv_tx_q *tx_queue = NULL;
+	struct gfar_priv_rx_q *rx_queue = NULL;
 	int err = 0;
 
 	if (rvals->rx_pending > GFAR_RX_MAX_RING_SIZE)
@@ -451,29 +473,32 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 		return -EINVAL;
 	}
 
+	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue;
+
 	if (dev->flags & IFF_UP) {
 		unsigned long flags;
 
 		/* Halt TX and RX, and process the frames which
 		 * have already been received */
-		spin_lock_irqsave(&priv->txlock, flags);
-		spin_lock(&priv->rxlock);
+		spin_lock_irqsave(&tx_queue->txlock, flags);
+		spin_lock(&rx_queue->rxlock);
 
 		gfar_halt(dev);
 
-		spin_unlock(&priv->rxlock);
-		spin_unlock_irqrestore(&priv->txlock, flags);
+		spin_unlock(&rx_queue->rxlock);
+		spin_unlock_irqrestore(&tx_queue->txlock, flags);
 
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
+		gfar_clean_rx_ring(rx_queue, rx_queue->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
 	}
 
 	/* Change the size */
-	priv->rx_ring_size = rvals->rx_pending;
-	priv->tx_ring_size = rvals->tx_pending;
-	priv->num_txbdfree = priv->tx_ring_size;
+	rx_queue->rx_ring_size = rvals->rx_pending;
+	tx_queue->tx_ring_size = rvals->tx_pending;
+	tx_queue->num_txbdfree = tx_queue->tx_ring_size;
 
 	/* Rebuild the rings with the new size */
 	if (dev->flags & IFF_UP) {
@@ -486,24 +511,29 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct gfar_priv_rx_q *rx_queue = NULL;
+	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned long flags;
 	int err = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
+	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue;
+
 	if (dev->flags & IFF_UP) {
 		/* Halt TX and RX, and process the frames which
 		 * have already been received */
-		spin_lock_irqsave(&priv->txlock, flags);
-		spin_lock(&priv->rxlock);
+		spin_lock_irqsave(&tx_queue->txlock, flags);
+		spin_lock(&rx_queue->rxlock);
 
 		gfar_halt(dev);
 
-		spin_unlock(&priv->rxlock);
-		spin_unlock_irqrestore(&priv->txlock, flags);
+		spin_unlock(&rx_queue->rxlock);
+		spin_unlock_irqrestore(&tx_queue->txlock, flags);
 
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
+		gfar_clean_rx_ring(rx_queue, rx_queue->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
