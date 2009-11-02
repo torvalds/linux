@@ -407,7 +407,7 @@ EXPORT_SYMBOL(zero_fill_bio);
  *
  * Description:
  *   Put a reference to a &struct bio, either one you have gotten with
- *   bio_alloc or bio_get. The last put of a bio will free it.
+ *   bio_alloc, bio_get or bio_clone. The last put of a bio will free it.
  **/
 void bio_put(struct bio *bio)
 {
