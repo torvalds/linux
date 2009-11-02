@@ -658,6 +658,7 @@ static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
 		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
+/* called with rcu_read_lock() */
 static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 {
 	struct ip6_tnl_parm *p = &t->parms;
@@ -668,15 +669,13 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 		struct net_device *ldev = NULL;
 
 		if (p->link)
-			ldev = dev_get_by_index(net, p->link);
+			ldev = dev_get_by_index_rcu(net, p->link);
 
 		if ((ipv6_addr_is_multicast(&p->laddr) ||
 		     likely(ipv6_chk_addr(net, &p->laddr, ldev, 0))) &&
 		    likely(!ipv6_chk_addr(net, &p->raddr, NULL, 0)))
 			ret = 1;
 
-		if (ldev)
-			dev_put(ldev);
 	}
 	return ret;
 }
@@ -804,8 +803,9 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 	if (p->flags & IP6_TNL_F_CAP_XMIT) {
 		struct net_device *ldev = NULL;
 
+		rcu_read_lock();
 		if (p->link)
-			ldev = dev_get_by_index(net, p->link);
+			ldev = dev_get_by_index_rcu(net, p->link);
 
 		if (unlikely(!ipv6_chk_addr(net, &p->laddr, ldev, 0)))
 			printk(KERN_WARNING
@@ -819,8 +819,7 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 			       p->name);
 		else
 			ret = 1;
-		if (ldev)
-			dev_put(ldev);
+		rcu_read_unlock();
 	}
 	return ret;
 }
