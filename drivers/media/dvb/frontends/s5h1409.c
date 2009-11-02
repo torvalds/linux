@@ -586,8 +586,6 @@ static void s5h1409_set_qam_interleave_mode(struct dvb_frontend *fe)
 			s5h1409_writereg(state, 0x96, 0x0020);
 			s5h1409_writereg(state, 0xad,
 				(((reg1 & 0xf000) >> 4) | (reg2 & 0xf0ff)));
-			s5h1409_writereg(state, 0xab,
-				s5h1409_readreg(state, 0xab) & 0xeffe);
 			state->qam_state = QAM_STATE_INTERLEAVE_SET;
 		}
 	} else {
@@ -664,8 +662,8 @@ static int s5h1409_set_frontend(struct dvb_frontend *fe,
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
-			s5h1409_set_qam_amhum_mode(fe);
 			s5h1409_set_qam_interleave_mode(fe);
+			s5h1409_set_qam_amhum_mode(fe);
 		} else {
 			s5h1409_set_qam_amhum_mode_legacy(fe);
 			s5h1409_set_qam_interleave_mode_legacy(fe);
@@ -771,8 +769,8 @@ static int s5h1409_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
-			s5h1409_set_qam_amhum_mode(fe);
 			s5h1409_set_qam_interleave_mode(fe);
+			s5h1409_set_qam_amhum_mode(fe);
 		}
 	}
 
