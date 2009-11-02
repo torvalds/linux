@@ -537,12 +537,17 @@ int datagram_send_ctl(struct net *net,
 
 			addr_type = __ipv6_addr_type(&src_info->ipi6_addr);
 
+			rcu_read_lock();
 			if (fl->oif) {
-				dev = dev_get_by_index(net, fl->oif);
-				if (!dev)
+				dev = dev_get_by_index_rcu(net, fl->oif);
+				if (!dev) {
+					rcu_read_unlock();
 					return -ENODEV;
-			} else if (addr_type & IPV6_ADDR_LINKLOCAL)
+				}
+			} else if (addr_type & IPV6_ADDR_LINKLOCAL) {
+				rcu_read_unlock();
 				return -EINVAL;
+			}
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
@@ -553,8 +558,7 @@ int datagram_send_ctl(struct net *net,
 					ipv6_addr_copy(&fl->fl6_src, &src_info->ipi6_addr);
 			}
 
-			if (dev)
-				dev_put(dev);
+			rcu_read_unlock();
 
 			if (err)
 				goto exit_f;
