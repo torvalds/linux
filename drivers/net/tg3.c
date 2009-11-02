@@ -10424,8 +10424,8 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	udelay(10);
 
-	/* 250 usec to allow enough time on some 10/100 Mbps devices.  */
-	for (i = 0; i < 25; i++) {
+	/* 350 usec to allow enough time on some 10/100 Mbps devices.  */
+	for (i = 0; i < 35; i++) {
 		tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
 		       coal_now);
 
