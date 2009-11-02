@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/brcmphy.h>
 
 #define PHY_ID_BCM50610		0x0143bd60
 #define PHY_ID_BCM50610M	0x0143bd70
@@ -137,16 +138,6 @@
 #define BCM5482_SSD_SGMII_SLAVE		0x15	/* SGMII Slave Register */
 #define BCM5482_SSD_SGMII_SLAVE_EN	0x0002	/* Slave mode enable */
 #define BCM5482_SSD_SGMII_SLAVE_AD	0x0001	/* Slave auto-detection */
-
-/*
- * Device flags for PHYs that can be configured for different operating
- * modes.
- */
-#define PHY_BCM_FLAGS_VALID		0x80000000
-#define PHY_BCM_FLAGS_INTF_XAUI		0x00000020
-#define PHY_BCM_FLAGS_INTF_SGMII	0x00000010
-#define PHY_BCM_FLAGS_MODE_1000BX	0x00000002
-#define PHY_BCM_FLAGS_MODE_COPPER	0x00000001
 
 
 /*****************************************************************************/
