@@ -314,11 +314,13 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc52xx_psc_fifo __iomem *fifo = mps->fifo;
 	u32 mclken_div;
-	int ret = 0;
+	int ret;
 
 	/* default sysclk is 512MHz */
 	mclken_div = (mps->sysclk ? mps->sysclk : 512000000) / MCLK;
-	mpc52xx_set_psc_clkdiv(psc_id, mclken_div);
+	ret = mpc52xx_set_psc_clkdiv(psc_id, mclken_div);
+	if (ret)
+		return ret;
 
 	/* Reset the PSC into a known state */
 	out_8(&psc->command, MPC52xx_PSC_RST_RX);
@@ -342,7 +344,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 
 	mps->bits_per_word = 8;
 
-	return ret;
+	return 0;
 }
 
 static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
@@ -411,8 +413,10 @@ static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		goto free_master;
 
 	ret = mpc52xx_psc_spi_port_config(master->bus_num, mps);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "can't configure PSC! Is it capable of SPI?\n");
 		goto free_irq;
+	}
 
 	spin_lock_init(&mps->lock);
 	init_completion(&mps->done);
