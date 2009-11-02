@@ -561,9 +561,11 @@ static int brcm_fet_config_init(struct phy_device *phydev)
 	if (err < 0)
 		goto done;
 
-	/* Enable auto power down */
-	err = brcm_phy_setbits(phydev, MII_BRCM_FET_SHDW_AUXSTAT2,
-				       MII_BRCM_FET_SHDW_AS2_APDE);
+	if (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE) {
+		/* Enable auto power down */
+		err = brcm_phy_setbits(phydev, MII_BRCM_FET_SHDW_AUXSTAT2,
+					       MII_BRCM_FET_SHDW_AS2_APDE);
+	}
 
 done:
 	/* Disable shadow register access */
