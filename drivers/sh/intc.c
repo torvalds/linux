@@ -928,3 +928,28 @@ void destroy_irq(unsigned int irq)
 	__clear_bit(irq, intc_irq_map);
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
+
+int reserve_irq_vector(unsigned int irq)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	if (test_and_set_bit(irq, intc_irq_map))
+		ret = -EBUSY;
+	spin_unlock_irqrestore(&vector_lock, flags);
+
+	return ret;
+}
+
+void reserve_irq_legacy(void)
+{
+	unsigned long flags;
+	int i, j;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	j = find_first_bit(intc_irq_map, nr_irqs);
+	for (i = 0; i < j; i++)
+		__set_bit(i, intc_irq_map);
+	spin_unlock_irqrestore(&vector_lock, flags);
+}

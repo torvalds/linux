@@ -84,4 +84,7 @@ struct intc_desc symbol __initdata = {					\
 void __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 
+int reserve_irq_vector(unsigned int irq);
+void reserve_irq_legacy(void);
+
 #endif /* __SH_INTC_H */

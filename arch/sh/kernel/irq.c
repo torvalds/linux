@@ -263,6 +263,12 @@ void __init init_IRQ(void)
 {
 	plat_irq_setup();
 
+	/*
+	 * Pin any of the legacy IRQ vectors that haven't already been
+	 * grabbed by the platform
+	 */
+	reserve_irq_legacy();
+
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)
 		sh_mv.mv_init_irq();
