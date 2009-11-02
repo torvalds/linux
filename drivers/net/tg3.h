@@ -1954,7 +1954,7 @@
 #define  NIC_SRAM_MBUF_POOL_SIZE5705	0x0000e000
 
 /* Currently this is fixed. */
-#define PHY_ADDR		0x01
+#define TG3_PHY_MII_ADDR		0x01
 
 /* Tigon3 specific PHY MII registers. */
 #define  TG3_BMCR_SPEED1000		0x0040
