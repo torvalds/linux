@@ -1363,8 +1363,11 @@ static void tg3_adjust_link(struct net_device *dev)
 
 		if (phydev->speed == SPEED_100 || phydev->speed == SPEED_10)
 			mac_mode |= MAC_MODE_PORT_MODE_MII;
-		else
+		else if (phydev->speed == SPEED_1000 ||
+			 GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785)
 			mac_mode |= MAC_MODE_PORT_MODE_GMII;
+		else
+			mac_mode |= MAC_MODE_PORT_MODE_MII;
 
 		if (phydev->duplex == DUPLEX_HALF)
 			mac_mode |= MAC_MODE_HALF_DUPLEX;
