@@ -141,7 +141,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 	 * calibration, to avoid distortions
 	 */
 	/* acx->current_tx_power = power * 10; */
-	acx->current_tx_power = 70;
+	acx->current_tx_power = 120;
 
 	ret = wl1271_cmd_configure(wl, DOT11_CUR_TX_PWR, acx, sizeof(*acx));
 	if (ret < 0) {
