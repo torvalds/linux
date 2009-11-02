@@ -104,6 +104,15 @@ config USB_GSPCA_PAC207
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_pac207.
 
+config USB_GSPCA_PAC7302
+	tristate "Pixart PAC7302 USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the PAC7302 chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_pac7302.
+
 config USB_GSPCA_PAC7311
 	tristate "Pixart PAC7311 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
