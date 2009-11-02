@@ -381,6 +381,84 @@ extern const char gfar_driver_version[];
 #define BD_LFLAG(flags) ((flags) << 16)
 #define BD_LENGTH_MASK		0x0000ffff
 
+#define CLASS_CODE_UNRECOG		0x00
+#define CLASS_CODE_DUMMY1		0x01
+#define CLASS_CODE_ETHERTYPE1		0x02
+#define CLASS_CODE_ETHERTYPE2		0x03
+#define CLASS_CODE_USER_PROG1		0x04
+#define CLASS_CODE_USER_PROG2		0x05
+#define CLASS_CODE_USER_PROG3		0x06
+#define CLASS_CODE_USER_PROG4		0x07
+#define CLASS_CODE_TCP_IPV4		0x08
+#define CLASS_CODE_UDP_IPV4		0x09
+#define CLASS_CODE_AH_ESP_IPV4		0x0a
+#define CLASS_CODE_SCTP_IPV4		0x0b
+#define CLASS_CODE_TCP_IPV6		0x0c
+#define CLASS_CODE_UDP_IPV6		0x0d
+#define CLASS_CODE_AH_ESP_IPV6		0x0e
+#define CLASS_CODE_SCTP_IPV6		0x0f
+
+#define FPR_FILER_MASK	0xFFFFFFFF
+#define MAX_FILER_IDX	0xFF
+
+/* RQFCR register bits */
+#define RQFCR_GPI		0x80000000
+#define RQFCR_HASHTBL_Q		0x00000000
+#define RQFCR_HASHTBL_0		0x00020000
+#define RQFCR_HASHTBL_1		0x00040000
+#define RQFCR_HASHTBL_2		0x00060000
+#define RQFCR_HASHTBL_3		0x00080000
+#define RQFCR_HASH		0x00010000
+#define RQFCR_CLE		0x00000200
+#define RQFCR_RJE		0x00000100
+#define RQFCR_AND		0x00000080
+#define RQFCR_CMP_EXACT		0x00000000
+#define RQFCR_CMP_MATCH		0x00000020
+#define RQFCR_CMP_NOEXACT	0x00000040
+#define RQFCR_CMP_NOMATCH	0x00000060
+
+/* RQFCR PID values */
+#define	RQFCR_PID_MASK		0x00000000
+#define	RQFCR_PID_PARSE		0x00000001
+#define	RQFCR_PID_ARB		0x00000002
+#define	RQFCR_PID_DAH		0x00000003
+#define	RQFCR_PID_DAL		0x00000004
+#define	RQFCR_PID_SAH		0x00000005
+#define	RQFCR_PID_SAL		0x00000006
+#define	RQFCR_PID_ETY		0x00000007
+#define	RQFCR_PID_VID		0x00000008
+#define	RQFCR_PID_PRI		0x00000009
+#define	RQFCR_PID_TOS		0x0000000A
+#define	RQFCR_PID_L4P		0x0000000B
+#define	RQFCR_PID_DIA		0x0000000C
+#define	RQFCR_PID_SIA		0x0000000D
+#define	RQFCR_PID_DPT		0x0000000E
+#define	RQFCR_PID_SPT		0x0000000F
+
+/* RQFPR when PID is 0x0001 */
+#define RQFPR_HDR_GE_512	0x00200000
+#define RQFPR_LERR		0x00100000
+#define RQFPR_RAR		0x00080000
+#define RQFPR_RARQ		0x00040000
+#define RQFPR_AR		0x00020000
+#define RQFPR_ARQ		0x00010000
+#define RQFPR_EBC		0x00008000
+#define RQFPR_VLN		0x00004000
+#define RQFPR_CFI		0x00002000
+#define RQFPR_JUM		0x00001000
+#define RQFPR_IPF		0x00000800
+#define RQFPR_FIF		0x00000400
+#define RQFPR_IPV4		0x00000200
+#define RQFPR_IPV6		0x00000100
+#define RQFPR_ICC		0x00000080
+#define RQFPR_ICV		0x00000040
+#define RQFPR_TCP		0x00000020
+#define RQFPR_UDP		0x00000010
+#define RQFPR_TUC		0x00000008
+#define RQFPR_TUV		0x00000004
+#define RQFPR_PER		0x00000002
+#define RQFPR_EER		0x00000001
+
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
 #define TXBD_PADCRC		0x4000
@@ -959,6 +1037,8 @@ struct gfar_private {
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
 
+	u32 cur_filer_idx;
+
 	struct sk_buff_head rx_recycle;
 
 	struct vlan_group *vlgrp;
@@ -1002,6 +1082,9 @@ struct gfar_private {
 	struct gfar_extra_stats extra_stats;
 };
 
+extern unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
+extern unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
+
 static inline u32 gfar_read(volatile unsigned __iomem *addr)
 {
 	u32 val;
@@ -1012,6 +1095,16 @@ static inline u32 gfar_read(volatile unsigned __iomem *addr)
 static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
 {
 	out_be32(addr, val);
+}
+
+static inline void gfar_write_filer(struct gfar_private *priv,
+		unsigned int far, unsigned int fcr, unsigned int fpr)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	gfar_write(&regs->rqfar, far);
+	gfar_write(&regs->rqfcr, fcr);
+	gfar_write(&regs->rqfpr, fpr);
 }
 
 extern void lock_rx_qs(struct gfar_private *priv);

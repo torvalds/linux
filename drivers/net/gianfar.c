@@ -431,6 +431,9 @@ static const struct net_device_ops gfar_netdev_ops = {
 #endif
 };
 
+unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
+unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
+
 void lock_rx_qs(struct gfar_private *priv)
 {
 	int i = 0x0;
@@ -766,6 +769,73 @@ static unsigned int reverse_bitmap(unsigned int bit_map, unsigned int max_qs)
 	}
 	return new_bit_map;
 }
+
+u32 cluster_entry_per_class(struct gfar_private *priv, u32 rqfar, u32 class)
+{
+	u32 rqfpr = FPR_FILER_MASK;
+	u32 rqfcr = 0x0;
+
+	rqfar--;
+	rqfcr = RQFCR_CLE | RQFCR_PID_MASK | RQFCR_CMP_EXACT;
+	ftp_rqfpr[rqfar] = rqfpr;
+	ftp_rqfcr[rqfar] = rqfcr;
+	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
+
+	rqfar--;
+	rqfcr = RQFCR_CMP_NOMATCH;
+	ftp_rqfpr[rqfar] = rqfpr;
+	ftp_rqfcr[rqfar] = rqfcr;
+	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
+
+	rqfar--;
+	rqfcr = RQFCR_CMP_EXACT | RQFCR_PID_PARSE | RQFCR_CLE | RQFCR_AND;
+	rqfpr = class;
+	ftp_rqfcr[rqfar] = rqfcr;
+	ftp_rqfpr[rqfar] = rqfpr;
+	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
+
+	rqfar--;
+	rqfcr = RQFCR_CMP_EXACT | RQFCR_PID_MASK | RQFCR_AND;
+	rqfpr = class;
+	ftp_rqfcr[rqfar] = rqfcr;
+	ftp_rqfpr[rqfar] = rqfpr;
+	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
+
+	return rqfar;
+}
+
+static void gfar_init_filer_table(struct gfar_private *priv)
+{
+	int i = 0x0;
+	u32 rqfar = MAX_FILER_IDX;
+	u32 rqfcr = 0x0;
+	u32 rqfpr = FPR_FILER_MASK;
+
+	/* Default rule */
+	rqfcr = RQFCR_CMP_MATCH;
+	ftp_rqfcr[rqfar] = rqfcr;
+	ftp_rqfpr[rqfar] = rqfpr;
+	gfar_write_filer(priv, rqfar, rqfcr, rqfpr);
+
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV6);
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV6 | RQFPR_UDP);
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV6 | RQFPR_TCP);
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4);
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_UDP);
+	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_TCP);
+
+	/* cur_filer_idx indicated the fisrt non-masked rule */
+	priv->cur_filer_idx = rqfar;
+
+	/* Rest are masked rules */
+	rqfcr = RQFCR_CMP_NOMATCH;
+	for (i = 0; i < rqfar; i++) {
+		ftp_rqfcr[i] = rqfcr;
+		ftp_rqfpr[i] = rqfpr;
+		gfar_write_filer(priv, i, rqfcr, rqfpr);
+	}
+}
+
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
 static int gfar_probe(struct of_device *ofdev,
@@ -1004,6 +1074,9 @@ static int gfar_probe(struct of_device *ofdev,
 		} else
 			priv->gfargrp[i].int_name_tx[len_devname] = '\0';
 	}
+
+	/* Initialize the filer table */
+	gfar_init_filer_table(priv);
 
 	/* Create all the sysfs files */
 	gfar_init_sysfs(dev);
