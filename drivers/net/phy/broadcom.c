@@ -242,12 +242,6 @@ static int bcm50610_a0_workaround(struct phy_device *phydev)
 {
 	int err;
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP08,
-				MII_BCM54XX_EXP_EXP08_RJCT_2MHZ	|
-				MII_BCM54XX_EXP_EXP08_EARLY_DAC_WAKE);
-	if (err < 0)
-		return err;
-
 	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_AADJ1CH0,
 				MII_BCM54XX_EXP_AADJ1CH0_SWP_ABCD_OEN |
 				MII_BCM54XX_EXP_AADJ1CH0_SWSEL_THPF);
@@ -287,8 +281,20 @@ static int bcm54xx_phydsp_config(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if (phydev->drv->phy_id == PHY_ID_BCM50610)
-		err = bcm50610_a0_workaround(phydev);
+	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
+	    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) {
+		/* Clear bit 9 to fix a phy interop issue. */
+		err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP08,
+					MII_BCM54XX_EXP_EXP08_RJCT_2MHZ);
+		if (err < 0)
+			goto error;
+
+		if (phydev->drv->phy_id == PHY_ID_BCM50610) {
+			err = bcm50610_a0_workaround(phydev);
+			if (err < 0)
+				goto error;
+		}
+	}
 
 	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM57780) {
 		int val;
