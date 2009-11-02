@@ -217,6 +217,16 @@ static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
  * XDR encode functions
  */
 
+/*
+ * There must be an encoding function for void results so svc_process
+ * will work properly.
+ */
+int
+nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+{
+	return xdr_ressize_check(rqstp, p);
+}
+
 /* GETACL */
 static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
@@ -308,7 +318,6 @@ static int nfsaclsvc_release_access(struct svc_rqst *rqstp, __be32 *p,
 }
 
 #define nfsaclsvc_decode_voidargs	NULL
-#define nfsaclsvc_encode_voidres	NULL
 #define nfsaclsvc_release_void		NULL
 #define nfsd3_fhandleargs	nfsd_fhandle
 #define nfsd3_attrstatres	nfsd_attrstat
@@ -346,5 +355,5 @@ struct svc_version	nfsd_acl_version2 = {
 		.vs_proc	= nfsd_acl_procedures2,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
-		.vs_hidden	= 1,
+		.vs_hidden	= 0,
 };
