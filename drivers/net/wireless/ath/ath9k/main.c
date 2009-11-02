@@ -1200,11 +1200,11 @@ fail:
 	ath_deinit_leds(sc);
 }
 
-void ath_radio_enable(struct ath_softc *sc)
+void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = sc->hw->conf.channel;
+	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
 
 	ath9k_ps_wakeup(sc);
@@ -1241,18 +1241,18 @@ void ath_radio_enable(struct ath_softc *sc)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
 
-	ieee80211_wake_queues(sc->hw);
+	ieee80211_wake_queues(hw);
 	ath9k_ps_restore(sc);
 }
 
-void ath_radio_disable(struct ath_softc *sc)
+void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ieee80211_channel *channel = sc->hw->conf.channel;
+	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
 
 	ath9k_ps_wakeup(sc);
-	ieee80211_stop_queues(sc->hw);
+	ieee80211_stop_queues(hw);
 
 	/* Disable LED */
 	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
@@ -1266,7 +1266,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	ath_flushrecv(sc);		/* flush recv queue */
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, sc->hw);
+		ah->curchan = ath_get_curchannel(sc, hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
@@ -2719,7 +2719,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_unlock_bh(&sc->wiphy_lock);
 
 		if (enable_radio) {
-			ath_radio_enable(sc);
+			ath_radio_enable(sc, hw);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
 		}
@@ -2800,7 +2800,7 @@ skip_chan_change:
 
 	if (disable_radio) {
 		ath_print(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
-		ath_radio_disable(sc);
+		ath_radio_disable(sc, hw);
 	}
 
 	mutex_unlock(&sc->mutex);

@@ -526,8 +526,9 @@ int ath9k_wiphy_select(struct ath_wiphy *aphy)
 			 * frame being completed)
 			 */
 			spin_unlock_bh(&sc->wiphy_lock);
-			ath_radio_disable(sc);
-			ath_radio_enable(sc);
+			ath_radio_disable(sc, aphy->hw);
+			ath_radio_enable(sc, aphy->hw);
+			/* Only the primary wiphy hw is used for queuing work */
 			ieee80211_queue_work(aphy->sc->hw,
 				   &aphy->sc->chan_work);
 			return -EBUSY; /* previous select still in progress */
