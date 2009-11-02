@@ -6589,6 +6589,30 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_mdio_start(tp);
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780) {
+		u8 phy_addr;
+
+		phy_addr = tp->phy_addr;
+		tp->phy_addr = TG3_PHY_PCIE_ADDR;
+
+		tg3_writephy(tp, TG3_PCIEPHY_BLOCK_ADDR,
+			     TG3_PCIEPHY_TXB_BLK << TG3_PCIEPHY_BLOCK_SHIFT);
+		val = TG3_PCIEPHY_TX0CTRL1_TXOCM | TG3_PCIEPHY_TX0CTRL1_RDCTL |
+		      TG3_PCIEPHY_TX0CTRL1_TXCMV | TG3_PCIEPHY_TX0CTRL1_TKSEL |
+		      TG3_PCIEPHY_TX0CTRL1_NB_EN;
+		tg3_writephy(tp, TG3_PCIEPHY_TX0CTRL1, val);
+		udelay(10);
+
+		tg3_writephy(tp, TG3_PCIEPHY_BLOCK_ADDR,
+			     TG3_PCIEPHY_XGXS_BLK1 << TG3_PCIEPHY_BLOCK_SHIFT);
+		val = TG3_PCIEPHY_PWRMGMT4_LOWPWR_EN |
+		      TG3_PCIEPHY_PWRMGMT4_L1PLLPD_EN;
+		tg3_writephy(tp, TG3_PCIEPHY_PWRMGMT4, val);
+		udelay(10);
+
+		tp->phy_addr = phy_addr;
+	}
+
 	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
 	    tp->pci_chip_rev_id != CHIPREV_ID_5750_A0 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785 &&
