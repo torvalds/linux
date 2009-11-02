@@ -33,9 +33,11 @@
 #ifndef CONFIG_SMP
 /* PTWs cacheable, inner WB not shareable, outer WB not shareable */
 #define TTB_FLAGS	TTB_IRGN_WB|TTB_RGN_OC_WB
+#define PMD_FLAGS	PMD_SECT_WB
 #else
 /* PTWs cacheable, inner WBWA shareable, outer WBWA not shareable */
 #define TTB_FLAGS	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
+#define PMD_FLAGS	PMD_SECT_WBWA|PMD_SECT_S
 #endif
 
 ENTRY(cpu_v7_proc_init)
@@ -326,10 +328,9 @@ __v7_proc_info:
 	.long	0x000f0000		@ Required ID value
 	.long	0x000f0000		@ Mask for ID
 	.long   PMD_TYPE_SECT | \
-		PMD_SECT_BUFFERABLE | \
-		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
+		PMD_SECT_AP_READ | \
+		PMD_FLAGS
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \
