@@ -204,9 +204,11 @@ static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (NULL == phydev)
 		return -ENODEV;
-	tx_queue = priv->tx_queue;
-	rx_queue = priv->rx_queue;
+	tx_queue = priv->tx_queue[0];
+	rx_queue = priv->rx_queue[0];
 
+	/* etsec-1.7 and older versions have only one txic
+	 * and rxic regs although they support multiple queues */
 	cmd->maxtxpkt = get_icft_value(tx_queue->txic);
 	cmd->maxrxpkt = get_icft_value(rx_queue->rxic);
 
@@ -298,8 +300,8 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	if (NULL == priv->phydev)
 		return -ENODEV;
 
-	rx_queue = priv->rx_queue;
-	tx_queue = priv->tx_queue;
+	rx_queue = priv->rx_queue[0];
+	tx_queue = priv->tx_queue[0];
 
 	rxtime  = get_ictt_value(rx_queue->rxic);
 	rxcount = get_icft_value(rx_queue->rxic);
@@ -357,8 +359,8 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	tx_queue = priv->tx_queue;
-	rx_queue = priv->rx_queue;
+	tx_queue = priv->tx_queue[0];
+	rx_queue = priv->rx_queue[0];
 
 	/* Set up rx coalescing */
 	if ((cvals->rx_coalesce_usecs == 0) ||
@@ -429,8 +431,8 @@ static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rv
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 
-	tx_queue = priv->tx_queue;
-	rx_queue = priv->rx_queue;
+	tx_queue = priv->tx_queue[0];
+	rx_queue = priv->rx_queue[0];
 
 	rvals->rx_max_pending = GFAR_RX_MAX_RING_SIZE;
 	rvals->rx_mini_max_pending = GFAR_RX_MAX_RING_SIZE;
@@ -453,9 +455,7 @@ static void gfar_gringparam(struct net_device *dev, struct ethtool_ringparam *rv
 static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar_priv_tx_q *tx_queue = NULL;
-	struct gfar_priv_rx_q *rx_queue = NULL;
-	int err = 0;
+	int err = 0, i = 0;
 
 	if (rvals->rx_pending > GFAR_RX_MAX_RING_SIZE)
 		return -EINVAL;
@@ -475,37 +475,41 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 		return -EINVAL;
 	}
 
-	tx_queue = priv->tx_queue;
-	rx_queue = priv->rx_queue;
 
 	if (dev->flags & IFF_UP) {
 		unsigned long flags;
 
 		/* Halt TX and RX, and process the frames which
 		 * have already been received */
-		spin_lock_irqsave(&tx_queue->txlock, flags);
-		spin_lock(&rx_queue->rxlock);
+		local_irq_save(flags);
+		lock_tx_qs(priv);
+		lock_rx_qs(priv);
 
 		gfar_halt(dev);
 
-		spin_unlock(&rx_queue->rxlock);
-		spin_unlock_irqrestore(&tx_queue->txlock, flags);
+		unlock_rx_qs(priv);
+		unlock_tx_qs(priv);
+		local_irq_restore(flags);
 
-		gfar_clean_rx_ring(rx_queue, rx_queue->rx_ring_size);
+		for (i = 0; i < priv->num_rx_queues; i++)
+			gfar_clean_rx_ring(priv->rx_queue[i],
+					priv->rx_queue[i]->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
 	}
 
 	/* Change the size */
-	rx_queue->rx_ring_size = rvals->rx_pending;
-	tx_queue->tx_ring_size = rvals->tx_pending;
-	tx_queue->num_txbdfree = tx_queue->tx_ring_size;
+	for (i = 0; i < priv->num_rx_queues; i++) {
+		priv->rx_queue[i]->rx_ring_size = rvals->rx_pending;
+		priv->tx_queue[i]->tx_ring_size = rvals->tx_pending;
+		priv->tx_queue[i]->num_txbdfree = priv->tx_queue[i]->tx_ring_size;
+	}
 
 	/* Rebuild the rings with the new size */
 	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-		netif_wake_queue(dev);
+		netif_tx_wake_all_queues(dev);
 	}
 	return err;
 }
@@ -513,29 +517,29 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar_priv_rx_q *rx_queue = NULL;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned long flags;
-	int err = 0;
+	int err = 0, i = 0;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
-	tx_queue = priv->tx_queue;
-	rx_queue = priv->rx_queue;
 
 	if (dev->flags & IFF_UP) {
 		/* Halt TX and RX, and process the frames which
 		 * have already been received */
-		spin_lock_irqsave(&tx_queue->txlock, flags);
-		spin_lock(&rx_queue->rxlock);
+		local_irq_save(flags);
+		lock_tx_qs(priv);
+		lock_rx_qs(priv);
 
 		gfar_halt(dev);
 
-		spin_unlock(&rx_queue->rxlock);
-		spin_unlock_irqrestore(&tx_queue->txlock, flags);
+		unlock_tx_qs(priv);
+		unlock_rx_qs(priv);
+		local_irq_save(flags);
 
-		gfar_clean_rx_ring(rx_queue, rx_queue->rx_ring_size);
+		for (i = 0; i < priv->num_rx_queues; i++)
+			gfar_clean_rx_ring(priv->rx_queue[i],
+					priv->rx_queue[i]->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
@@ -547,7 +551,7 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 
 	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-		netif_wake_queue(dev);
+		netif_tx_wake_all_queues(dev);
 	}
 	return err;
 }

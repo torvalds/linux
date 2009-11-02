@@ -75,6 +75,10 @@
 extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
 
+/* MAXIMUM NUMBER OF QUEUES SUPPORTED */
+#define MAX_TX_QS	0x8
+#define MAX_RX_QS	0x8
+
 /* These need to be powers of 2 for this driver */
 #define DEFAULT_TX_RING_SIZE	256
 #define DEFAULT_RX_RING_SIZE	256
@@ -172,12 +176,63 @@ extern const char gfar_driver_version[];
 
 #define MINFLR_INIT_SETTINGS	0x00000040
 
+/* Tqueue control */
+#define TQUEUE_EN0		0x00008000
+#define TQUEUE_EN1		0x00004000
+#define TQUEUE_EN2		0x00002000
+#define TQUEUE_EN3		0x00001000
+#define TQUEUE_EN4		0x00000800
+#define TQUEUE_EN5		0x00000400
+#define TQUEUE_EN6		0x00000200
+#define TQUEUE_EN7		0x00000100
+#define TQUEUE_EN_ALL		0x0000FF00
+
+#define TR03WT_WT0_MASK		0xFF000000
+#define TR03WT_WT1_MASK		0x00FF0000
+#define TR03WT_WT2_MASK		0x0000FF00
+#define TR03WT_WT3_MASK		0x000000FF
+
+#define TR47WT_WT4_MASK		0xFF000000
+#define TR47WT_WT5_MASK		0x00FF0000
+#define TR47WT_WT6_MASK		0x0000FF00
+#define TR47WT_WT7_MASK		0x000000FF
+
+/* Rqueue control */
+#define RQUEUE_EX0		0x00800000
+#define RQUEUE_EX1		0x00400000
+#define RQUEUE_EX2		0x00200000
+#define RQUEUE_EX3		0x00100000
+#define RQUEUE_EX4		0x00080000
+#define RQUEUE_EX5		0x00040000
+#define RQUEUE_EX6		0x00020000
+#define RQUEUE_EX7		0x00010000
+#define RQUEUE_EX_ALL		0x00FF0000
+
+#define RQUEUE_EN0		0x00000080
+#define RQUEUE_EN1		0x00000040
+#define RQUEUE_EN2		0x00000020
+#define RQUEUE_EN3		0x00000010
+#define RQUEUE_EN4		0x00000008
+#define RQUEUE_EN5		0x00000004
+#define RQUEUE_EN6		0x00000002
+#define RQUEUE_EN7		0x00000001
+#define RQUEUE_EN_ALL		0x000000FF
+
 /* Init to do tx snooping for buffers and descriptors */
 #define DMACTRL_INIT_SETTINGS   0x000000c3
 #define DMACTRL_GRS             0x00000010
 #define DMACTRL_GTS             0x00000008
 
-#define TSTAT_CLEAR_THALT       0x80000000
+#define TSTAT_CLEAR_THALT_ALL	0xFF000000
+#define TSTAT_CLEAR_THALT	0x80000000
+#define TSTAT_CLEAR_THALT0	0x80000000
+#define TSTAT_CLEAR_THALT1	0x40000000
+#define TSTAT_CLEAR_THALT2	0x20000000
+#define TSTAT_CLEAR_THALT3	0x10000000
+#define TSTAT_CLEAR_THALT4	0x08000000
+#define TSTAT_CLEAR_THALT5	0x04000000
+#define TSTAT_CLEAR_THALT6	0x02000000
+#define TSTAT_CLEAR_THALT7	0x01000000
 
 /* Interrupt coalescing macros */
 #define IC_ICEN			0x80000000
@@ -228,6 +283,13 @@ extern const char gfar_driver_version[];
 #define TCTRL_IPCSEN		0x00004000
 #define TCTRL_TUCSEN		0x00002000
 #define TCTRL_VLINS		0x00001000
+#define TCTRL_THDF		0x00000800
+#define TCTRL_RFCPAUSE		0x00000010
+#define TCTRL_TFCPAUSE		0x00000008
+#define TCTRL_TXSCHED_MASK	0x00000006
+#define TCTRL_TXSCHED_INIT	0x00000000
+#define TCTRL_TXSCHED_PRIO	0x00000002
+#define TCTRL_TXSCHED_WRRS	0x00000004
 #define TCTRL_INIT_CSUM		(TCTRL_TUCSEN | TCTRL_IPCSEN)
 
 #define IEVENT_INIT_CLEAR	0xffffffff
@@ -700,6 +762,8 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
 
+#define DEFAULT_MAPPING 	0xFF
+
 /**
  *	struct gfar_priv_tx_q - per tx queue structure
  *	@txlock: per queue tx spin lock
@@ -743,7 +807,6 @@ struct gfar_priv_tx_q {
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
  *	@rxlock: per queue rx spin lock
- *	@napi: the napi poll function
  *	@rx_skbuff: skb pointers
  *	@skb_currx: currently use skb pointer
  *	@rx_bd_base: First rx buffer descriptor
@@ -757,8 +820,8 @@ struct gfar_priv_tx_q {
 
 struct gfar_priv_rx_q {
 	spinlock_t rxlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
-	struct	napi_struct napi;
 	struct	sk_buff ** rx_skbuff;
+	dma_addr_t rx_bd_dma_base;
 	struct	rxbd8 *rx_bd_base;
 	struct	rxbd8 *cur_rx;
 	struct	net_device *dev;
@@ -772,6 +835,7 @@ struct gfar_priv_rx_q {
 
 /**
  *	struct gfar_priv_grp - per group structure
+ *	@napi: the napi poll function
  *	@priv: back pointer to the priv structure
  *	@regs: the ioremapped register space for this group
  *	@grp_id: group id for this group
@@ -785,8 +849,17 @@ struct gfar_priv_rx_q {
 
 struct gfar_priv_grp {
 	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	struct	napi_struct napi;
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
+	unsigned int rx_bit_map;
+	unsigned int tx_bit_map;
+	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
+	unsigned int rstat;
+	unsigned int tstat;
+	unsigned int imask;
+	unsigned int ievent;
 	unsigned int interruptTransmit;
 	unsigned int interruptReceive;
 	unsigned int interruptError;
@@ -807,13 +880,21 @@ struct gfar_priv_grp {
  */
 struct gfar_private {
 
+	/* Indicates how many tx, rx queues are enabled */
+	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
+
+	/* The total tx and rx ring size for the enabled queues */
+	unsigned int total_tx_ring_size;
+	unsigned int total_rx_ring_size;
+
 	struct device_node *node;
 	struct net_device *ndev;
 	struct of_device *ofdev;
 
 	struct gfar_priv_grp gfargrp;
-	struct gfar_priv_tx_q *tx_queue;
-	struct gfar_priv_rx_q *rx_queue;
+	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
+	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
 
 	/* RX per device parameters */
 	unsigned int rx_buffer_size;
@@ -844,6 +925,7 @@ struct gfar_private {
 	unsigned char rx_csum_enable:1,
 		extended_hash:1,
 		bd_stash_en:1,
+		rx_filer_enable:1,
 		wol_en:1; /* Wake-on-LAN enabled */
 	unsigned short padding;
 
@@ -874,6 +956,10 @@ static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
 	out_be32(addr, val);
 }
 
+extern void lock_rx_qs(struct gfar_private *priv);
+extern void lock_tx_qs(struct gfar_private *priv);
+extern void unlock_rx_qs(struct gfar_private *priv);
+extern void unlock_tx_qs(struct gfar_private *priv);
 extern irqreturn_t gfar_receive(int irq, void *dev_id);
 extern int startup_gfar(struct net_device *dev);
 extern void stop_gfar(struct net_device *dev);

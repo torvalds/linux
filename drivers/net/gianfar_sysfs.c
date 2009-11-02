@@ -51,7 +51,6 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_rx_q *rx_queue = NULL;
 	int new_setting = 0;
 	u32 temp;
 	unsigned long flags;
@@ -59,7 +58,6 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BD_STASHING))
 		return count;
 
-	rx_queue = priv->rx_queue;
 
 	/* Find out the new setting */
 	if (!strncmp("on", buf, count - 1) || !strncmp("1", buf, count - 1))
@@ -70,7 +68,9 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 	else
 		return count;
 
-	spin_lock_irqsave(&rx_queue->rxlock, flags);
+
+	local_irq_save(flags);
+	lock_rx_qs(priv);
 
 	/* Set the new stashing value */
 	priv->bd_stash_en = new_setting;
@@ -84,7 +84,8 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 
 	gfar_write(&regs->attr, temp);
 
-	spin_unlock_irqrestore(&rx_queue->rxlock, flags);
+	unlock_rx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -105,7 +106,6 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_rx_q *rx_queue = NULL;
 	unsigned int length = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -113,9 +113,9 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
 		return count;
 
-	rx_queue = priv->rx_queue;
+	local_irq_save(flags);
+	lock_rx_qs(priv);
 
-	spin_lock_irqsave(&rx_queue->rxlock, flags);
 	if (length > priv->rx_buffer_size)
 		goto out;
 
@@ -140,7 +140,8 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 	gfar_write(&regs->attr, temp);
 
 out:
-	spin_unlock_irqrestore(&rx_queue->rxlock, flags);
+	unlock_rx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -164,7 +165,6 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_rx_q *rx_queue = NULL;
 	unsigned short index = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -172,9 +172,9 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
 		return count;
 
-	rx_queue = priv->rx_queue;
+	local_irq_save(flags);
+	lock_rx_qs(priv);
 
-	spin_lock_irqsave(&rx_queue->rxlock, flags);
 	if (index > priv->rx_stash_size)
 		goto out;
 
@@ -189,7 +189,8 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 	gfar_write(&regs->attreli, flags);
 
 out:
-	spin_unlock_irqrestore(&rx_queue->rxlock, flags);
+	unlock_rx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -212,7 +213,6 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned int length = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -220,9 +220,8 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 	if (length > GFAR_MAX_FIFO_THRESHOLD)
 		return count;
 
-	tx_queue = priv->tx_queue;
-
-	spin_lock_irqsave(&tx_queue->txlock, flags);
+	local_irq_save(flags);
+	lock_tx_qs(priv);
 
 	priv->fifo_threshold = length;
 
@@ -231,7 +230,8 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 	temp |= length;
 	gfar_write(&regs->fifo_tx_thr, temp);
 
-	spin_unlock_irqrestore(&tx_queue->txlock, flags);
+	unlock_tx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -253,7 +253,6 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned int num = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -261,8 +260,8 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 	if (num > GFAR_MAX_FIFO_STARVE)
 		return count;
 
-	tx_queue = priv->tx_queue;
-	spin_lock_irqsave(&tx_queue->txlock, flags);
+	local_irq_save(flags);
+	lock_tx_qs(priv);
 
 	priv->fifo_starve = num;
 
@@ -271,7 +270,8 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 	temp |= num;
 	gfar_write(&regs->fifo_tx_starve, temp);
 
-	spin_unlock_irqrestore(&tx_queue->txlock, flags);
+	unlock_tx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
@@ -294,7 +294,6 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 {
 	struct gfar_private *priv = netdev_priv(to_net_dev(dev));
 	struct gfar __iomem *regs = priv->gfargrp.regs;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 	unsigned int num = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
@@ -302,8 +301,8 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 	if (num > GFAR_MAX_FIFO_STARVE_OFF)
 		return count;
 
-	tx_queue = priv->tx_queue;
-	spin_lock_irqsave(&tx_queue->txlock, flags);
+	local_irq_save(flags);
+	lock_tx_qs(priv);
 
 	priv->fifo_starve_off = num;
 
@@ -312,7 +311,8 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 	temp |= num;
 	gfar_write(&regs->fifo_tx_starve_shutoff, temp);
 
-	spin_unlock_irqrestore(&tx_queue->txlock, flags);
+	unlock_tx_qs(priv);
+	local_irq_restore(flags);
 
 	return count;
 }
