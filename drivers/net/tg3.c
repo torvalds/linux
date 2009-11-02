@@ -3243,15 +3243,6 @@ relink:
 			pci_write_config_word(tp->pdev,
 					      tp->pcie_cap + PCI_EXP_LNKCTL,
 					      newlnkctl);
-	} else if (tp->tg3_flags3 & TG3_FLG3_TOGGLE_10_100_L1PLLPD) {
-		u32 newreg, oldreg = tr32(TG3_PCIE_LNKCTL);
-		if (tp->link_config.active_speed == SPEED_100 ||
-		    tp->link_config.active_speed == SPEED_10)
-			newreg = oldreg & ~TG3_PCIE_LNKCTL_L1_PLL_PD_EN;
-		else
-			newreg = oldreg | TG3_PCIE_LNKCTL_L1_PLL_PD_EN;
-		if (newreg != oldreg)
-			tw32(TG3_PCIE_LNKCTL, newreg);
 	}
 
 	if (current_link_up != netif_carrier_ok(tp->dev)) {
@@ -7180,15 +7171,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(TG3_PCIE_EIDLE_DELAY, val | TG3_PCIE_EIDLE_DELAY_13_CLKS);
 
 		tw32(TG3_CORR_ERR_STAT, TG3_CORR_ERR_STAT_CLEAR);
-	}
 
-	if (tp->tg3_flags3 & TG3_FLG3_TOGGLE_10_100_L1PLLPD) {
-		val = tr32(TG3_PCIE_LNKCTL);
-		if (tp->tg3_flags3 & TG3_FLG3_CLKREQ_BUG)
-			val |= TG3_PCIE_LNKCTL_L1_PLL_PD_DIS;
-		else
-			val &= ~TG3_PCIE_LNKCTL_L1_PLL_PD_DIS;
-		tw32(TG3_PCIE_LNKCTL, val);
+		val = tr32(TG3_PCIE_LNKCTL) & ~TG3_PCIE_LNKCTL_L1_PLL_PD_EN;
+		tw32(TG3_PCIE_LNKCTL, val | TG3_PCIE_LNKCTL_L1_PLL_PD_DIS);
 	}
 
 	/* This works around an issue with Athlon chipsets on
@@ -12950,11 +12935,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 		tp->tg3_flags3 |= TG3_FLG3_USE_PHYLIB;
-
-	if ((tp->pci_chip_rev_id == CHIPREV_ID_57780_A1 &&
-	     tr32(RCVLPC_STATS_ENABLE) & RCVLPC_STATSENAB_ASF_FIX) ||
-	    tp->pci_chip_rev_id == CHIPREV_ID_57780_A0)
-		tp->tg3_flags3 |= TG3_FLG3_TOGGLE_10_100_L1PLLPD;
 
 	err = tg3_mdio_init(tp);
 	if (err)
