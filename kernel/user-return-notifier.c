@@ -42,5 +42,5 @@ void fire_user_return_notifiers(void)
 	head = &get_cpu_var(return_notifier_list);
 	hlist_for_each_entry_safe(urn, tmp1, tmp2, head, link)
 		urn->on_user_return(urn);
-	put_cpu_var();
+	put_cpu_var(return_notifier_list);
 }
