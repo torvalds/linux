@@ -399,12 +399,43 @@ static struct platform_device db1200_spi_dev = {
 	.resource	= au1200_psc0_res,
 };
 
+static struct resource au1200_psc1_res[] = {
+	[0] = {
+		.start	= PSC1_PHYS_ADDR,
+		.end	= PSC1_PHYS_ADDR + 0x000fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_PSC1_INT,
+		.end	= AU1200_PSC1_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= DSCR_CMD0_PSC1_TX,
+		.end	= DSCR_CMD0_PSC1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= DSCR_CMD0_PSC1_RX,
+		.end	= DSCR_CMD0_PSC1_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device db1200_audio_dev = {
+	/* name assigned later based on switch setting */
+	.id		= 1,	/* PSC ID */
+	.num_resources	= ARRAY_SIZE(au1200_psc1_res),
+	.resource	= au1200_psc1_res,
+};
+
 static struct platform_device *db1200_devs[] __initdata = {
 	NULL,		/* PSC0, selected by S6.8 */
 	&db1200_ide_dev,
 	&db1200_eth_dev,
 	&db1200_rtc_dev,
 	&db1200_nand_dev,
+	&db1200_audio_dev,
 };
 
 static int __init db1200_dev_init(void)
@@ -419,6 +450,7 @@ static int __init db1200_dev_init(void)
 				ARRAY_SIZE(db1200_i2c_devs));
 
 	/* SWITCHES:	S6.8 I2C/SPI selector  (OFF=I2C  ON=SPI)
+	 *		S6.7 AC97/I2S selector (OFF=AC97 ON=I2S)
 	 */
 
 	/* NOTE: GPIO215 controls OTG VBUS supply.  In SPI mode however
@@ -454,6 +486,25 @@ static int __init db1200_dev_init(void)
 		printk(KERN_INFO "   OTG port VBUS supply disabled\n");
 	}
 	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
+	wmb();
+
+	/* Audio: DIP7 selects I2S(0)/AC97(1), but need I2C for I2S!
+	 * so: DIP7=1 || DIP8=0 => AC97, DIP7=0 && DIP8=1 => I2S
+	 */
+	sw &= BCSR_SWITCHES_DIP_8 | BCSR_SWITCHES_DIP_7;
+	if (sw == BCSR_SWITCHES_DIP_8) {
+		bcsr_mod(BCSR_RESETS, 0, BCSR_RESETS_PSC1MUX);
+		db1200_audio_dev.name = "au1xpsc_i2s";
+		printk(KERN_INFO " S6.7 ON : PSC1 mode I2S\n");
+	} else {
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_PSC1MUX, 0);
+		db1200_audio_dev.name = "au1xpsc_ac97";
+		printk(KERN_INFO " S6.7 OFF: PSC1 mode AC97\n");
+	}
+
+	/* Audio PSC clock is supplied externally. (FIXME: platdata!!) */
+	__raw_writel(PSC_SEL_CLK_SERCLK,
+		(void __iomem *)KSEG1ADDR(PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
 
 	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
