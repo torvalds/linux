@@ -2234,6 +2234,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 
 	/* Set the defaults, and power up the codec */
 	twl4030_init_chip(codec);
+	codec->bias_level = SND_SOC_BIAS_OFF;
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	ret = snd_soc_register_codec(codec);
