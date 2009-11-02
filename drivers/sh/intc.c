@@ -2,6 +2,7 @@
  * Shared interrupt handling code for IPR and INTC2 types of IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
+ * Copyright (C) 2009 Paul Mundt
  *
  * Based on intc2.c and ipr.c
  *
@@ -24,6 +25,7 @@
 #include <linux/sysdev.h>
 #include <linux/list.h>
 #include <linux/topology.h>
+#include <linux/bitmap.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -58,6 +60,20 @@ struct intc_desc_int {
 };
 
 static LIST_HEAD(intc_list);
+
+/*
+ * The intc_irq_map provides a global map of bound IRQ vectors for a
+ * given platform. Allocation of IRQs are either static through the CPU
+ * vector map, or dynamic in the case of board mux vectors or MSI.
+ *
+ * As this is a central point for all IRQ controllers on the system,
+ * each of the available sources are mapped out here. This combined with
+ * sparseirq makes it quite trivial to keep the vector map tightly packed
+ * when dynamically creating IRQs, as well as tying in to otherwise
+ * unused irq_desc positions in the sparse array.
+ */
+static DECLARE_BITMAP(intc_irq_map, NR_IRQS);
+static DEFINE_SPINLOCK(vector_lock);
 
 #ifdef CONFIG_SMP
 #define IS_SMP(x) x.smp
@@ -566,6 +582,11 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	struct intc_handle_int *hp;
 	unsigned int data[2], primary;
 
+	/*
+	 * Register the IRQ position with the global IRQ map
+	 */
+	set_bit(irq, intc_irq_map);
+
 	/* Prefer single interrupt source bitmap over other combinations:
 	 * 1. bitmap, single interrupt source
 	 * 2. priority, single interrupt source
@@ -844,5 +865,66 @@ static int __init register_intc_sysdevs(void)
 
 	return error;
 }
-
 device_initcall(register_intc_sysdevs);
+
+/*
+ * Dynamic IRQ allocation and deallocation
+ */
+static unsigned int create_irq_on_node(unsigned int irq_want, int node)
+{
+	unsigned int irq = 0, new;
+	unsigned long flags;
+	struct irq_desc *desc;
+
+	spin_lock_irqsave(&vector_lock, flags);
+
+	/*
+	 * First try the wanted IRQ, then scan.
+	 */
+	if (test_and_set_bit(irq_want, intc_irq_map)) {
+		new = find_first_zero_bit(intc_irq_map, nr_irqs);
+		if (unlikely(new == nr_irqs))
+			goto out_unlock;
+
+		desc = irq_to_desc_alloc_node(new, node);
+		if (unlikely(!desc)) {
+			pr_info("can't get irq_desc for %d\n", new);
+			goto out_unlock;
+		}
+
+		desc = move_irq_desc(desc, node);
+		__set_bit(new, intc_irq_map);
+		irq = new;
+	}
+
+out_unlock:
+	spin_unlock_irqrestore(&vector_lock, flags);
+
+	if (irq > 0)
+		dynamic_irq_init(irq);
+
+	return irq;
+}
+
+int create_irq(void)
+{
+	int nid = cpu_to_node(smp_processor_id());
+	int irq;
+
+	irq = create_irq_on_node(NR_IRQS_LEGACY, nid);
+	if (irq == 0)
+		irq = -1;
+
+	return irq;
+}
+
+void destroy_irq(unsigned int irq)
+{
+	unsigned long flags;
+
+	dynamic_irq_cleanup(irq);
+
+	spin_lock_irqsave(&vector_lock, flags);
+	__clear_bit(irq, intc_irq_map);
+	spin_unlock_irqrestore(&vector_lock, flags);
+}
