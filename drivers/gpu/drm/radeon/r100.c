@@ -578,19 +578,19 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	indirect1_start = 16;
 	/* cp setup */
 	WREG32(0x718, pre_write_timer | (pre_write_limit << 28));
-	WREG32(RADEON_CP_RB_CNTL,
-#ifdef __BIG_ENDIAN
-	       RADEON_BUF_SWAP_32BIT |
-#endif
-	       REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
+	tmp = (REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
 	       REG_SET(RADEON_RB_BLKSZ, rb_blksz) |
 	       REG_SET(RADEON_MAX_FETCH, max_fetch) |
 	       RADEON_RB_NO_UPDATE);
+#ifdef __BIG_ENDIAN
+	tmp |= RADEON_BUF_SWAP_32BIT;
+#endif
+	WREG32(RADEON_CP_RB_CNTL, tmp);
+
 	/* Set ring address */
 	DRM_INFO("radeon: ring at 0x%016lX\n", (unsigned long)rdev->cp.gpu_addr);
 	WREG32(RADEON_CP_RB_BASE, rdev->cp.gpu_addr);
 	/* Force read & write ptr to 0 */
-	tmp = RREG32(RADEON_CP_RB_CNTL);
 	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA);
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
 	WREG32(RADEON_CP_RB_WPTR, 0);

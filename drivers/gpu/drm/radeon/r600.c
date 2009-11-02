@@ -1272,19 +1272,17 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	/* Set ring buffer size */
 	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
+	tmp = RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
-	WREG32(CP_RB_CNTL, BUF_SWAP_32BIT | RB_NO_UPDATE |
-		(drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz);
-#else
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz);
+	tmp |= BUF_SWAP_32BIT;
 #endif
+	WREG32(CP_RB_CNTL, tmp);
 	WREG32(CP_SEM_WAIT_TIMER, 0x4);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
 
 	/* Initialize the ring buffer's read and write pointers */
-	tmp = RREG32(CP_RB_CNTL);
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
 	WREG32(CP_RB_WPTR, 0);
