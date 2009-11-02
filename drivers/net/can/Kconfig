@@ -102,6 +102,12 @@ config CAN_TI_HECC
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
 
+config CAN_MCP251X
+	tristate "Microchip MCP251x SPI CAN controllers"
+	depends on CAN_DEV && SPI
+	---help---
+	  Driver for the Microchip MCP251x SPI CAN controllers.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
