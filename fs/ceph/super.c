@@ -508,10 +508,14 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 	client->signed_ticket = NULL;
 	client->signed_ticket_len = 0;
 
+	err = bdi_init(&client->backing_dev_info);
+	if (err < 0)
+		goto fail;
+
 	err = -ENOMEM;
 	client->wb_wq = create_workqueue("ceph-writeback");
 	if (client->wb_wq == NULL)
-		goto fail;
+		goto fail_bdi;
 	client->pg_inv_wq = create_singlethread_workqueue("ceph-pg-invalid");
 	if (client->pg_inv_wq == NULL)
 		goto fail_wb_wq;
@@ -537,6 +541,8 @@ fail_pg_inv_wq:
 	destroy_workqueue(client->pg_inv_wq);
 fail_wb_wq:
 	destroy_workqueue(client->wb_wq);
+fail_bdi:
+	bdi_destroy(&client->backing_dev_info);
 fail:
 	kfree(client);
 	return ERR_PTR(err);
@@ -774,13 +780,10 @@ static int ceph_compare_super(struct super_block *sb, void *data)
 /*
  * construct our own bdi so we can control readahead, etc.
  */
-static int ceph_init_bdi(struct super_block *sb, struct ceph_client *client)
+static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {
 	int err;
 
-	err = bdi_init(&client->backing_dev_info);
-	if (err < 0)
-		return err;
 	sb->s_bdi = &client->backing_dev_info;
 
 	/* set ra_pages based on rsize mount option? */
@@ -840,7 +843,7 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 		if (!client->wb_pagevec_pool)
 			goto out_splat;
 
-		err = ceph_init_bdi(sb, client);
+		err = ceph_register_bdi(sb, client);
 		if (err < 0)
 			goto out_splat;
 	}
