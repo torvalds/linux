@@ -56,7 +56,6 @@ struct snd_kcontrol_new {
 
 struct snd_kcontrol_volatile {
 	struct snd_ctl_file *owner;	/* locked */
-	pid_t owner_pid;
 	unsigned int access;	/* access rights */
 };
 
