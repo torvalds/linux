@@ -222,7 +222,8 @@ static struct conf_drv_settings default_conf = {
 			.snr_pkt_avg_weight  = 10
 		},
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
-		.bet_max_consecutive         = 100
+		.bet_max_consecutive         = 100,
+		.psm_entry_retries           = 3
 	},
 	.init = {
 		.sr_err_tbl = {
@@ -973,6 +974,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->rx_counter = 0;
 	wl->elp = false;
 	wl->psm = 0;
+	wl->psm_entry_retry = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
@@ -1822,6 +1824,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->elp = false;
 	wl->psm = 0;
 	wl->psm_requested = false;
+	wl->psm_entry_retry = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;

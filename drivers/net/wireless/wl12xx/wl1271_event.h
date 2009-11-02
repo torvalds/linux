@@ -63,6 +63,13 @@ enum {
 	EVENT_MBOX_ALL_EVENT_ID			 = 0x7fffffff,
 };
 
+enum {
+	EVENT_ENTER_POWER_SAVE_FAIL = 0,
+	EVENT_ENTER_POWER_SAVE_SUCCESS,
+	EVENT_EXIT_POWER_SAVE_FAIL,
+	EVENT_EXIT_POWER_SAVE_SUCCESS,
+};
+
 struct event_debug_report {
 	u8 debug_event_id;
 	u8 num_params;

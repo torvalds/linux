@@ -417,6 +417,9 @@ struct wl1271 {
 	/* PSM mode requested */
 	bool psm_requested;
 
+	/* retry counter for PSM entries */
+	u8 psm_entry_retry;
+
 	/* in dBm */
 	int power_level;
 
