@@ -408,7 +408,7 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 {
 	struct cnic_dev *dev;
 
-	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
+	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_register_driver: Bad type %d\n",
 		       ulp_type);
 		return -EINVAL;
@@ -454,7 +454,7 @@ int cnic_unregister_driver(int ulp_type)
 	struct cnic_ulp_ops *ulp_ops;
 	int i = 0;
 
-	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
+	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_unregister_driver: Bad type %d\n",
 		       ulp_type);
 		return -EINVAL;
@@ -510,7 +510,7 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_ulp_ops *ulp_ops;
 
-	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
+	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_register_device: Bad type %d\n",
 		       ulp_type);
 		return -EINVAL;
@@ -551,7 +551,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	struct cnic_local *cp = dev->cnic_priv;
 	int i = 0;
 
-	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
+	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_unregister_device: Bad type %d\n",
 		       ulp_type);
 		return -EINVAL;
