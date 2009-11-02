@@ -2149,6 +2149,26 @@ static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
 		udelay(40);
 		return;
+	} else if (tp->tg3_flags3 & TG3_FLG3_PHY_IS_FET) {
+		u32 phytest;
+		if (!tg3_readphy(tp, MII_TG3_FET_TEST, &phytest)) {
+			u32 phy;
+
+			tg3_writephy(tp, MII_ADVERTISE, 0);
+			tg3_writephy(tp, MII_BMCR,
+				     BMCR_ANENABLE | BMCR_ANRESTART);
+
+			tg3_writephy(tp, MII_TG3_FET_TEST,
+				     phytest | MII_TG3_FET_SHADOW_EN);
+			if (!tg3_readphy(tp, MII_TG3_FET_SHDW_AUXMODE4, &phy)) {
+				phy |= MII_TG3_FET_SHDW_AUXMODE4_SBPD;
+				tg3_writephy(tp,
+					     MII_TG3_FET_SHDW_AUXMODE4,
+					     phy);
+			}
+			tg3_writephy(tp, MII_TG3_FET_TEST, phytest);
+		}
+		return;
 	} else if (do_low_power) {
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
