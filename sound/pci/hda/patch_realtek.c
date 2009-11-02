@@ -965,6 +965,8 @@ static void alc_automute_pin(struct hda_codec *codec)
 	unsigned int nid = spec->autocfg.hp_pins[0];
 	int i;
 
+	if (!nid)
+		return;
 	pincap = snd_hda_query_pin_caps(codec, nid);
 	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
 		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
