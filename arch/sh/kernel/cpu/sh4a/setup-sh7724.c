@@ -870,6 +870,9 @@ static struct {
 	unsigned char imr10;
 	unsigned char imr11;
 	unsigned char imr12;
+	/* RWDT */
+	unsigned short rwtcnt;
+	unsigned short rwtcsr;
 } sh7724_rstandby_state;
 
 static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
@@ -920,6 +923,13 @@ static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
 	sh7724_rstandby_state.imr11 = __raw_readb(0xa40800ac); /* IMR11 */
 	sh7724_rstandby_state.imr12 = __raw_readb(0xa40800b0); /* IMR12 */
 
+	/* RWDT */
+	sh7724_rstandby_state.rwtcnt = __raw_readb(0xa4520000); /* RWTCNT */
+	sh7724_rstandby_state.rwtcnt |= 0x5a00;
+	sh7724_rstandby_state.rwtcsr = __raw_readb(0xa4520004); /* RWTCSR */
+	sh7724_rstandby_state.rwtcsr |= 0xa500;
+	__raw_writew(sh7724_rstandby_state.rwtcsr & 0x07, 0xa4520004);
+
 	return NOTIFY_DONE;
 }
 
@@ -969,6 +979,10 @@ static int sh7724_post_sleep_notifier_call(struct notifier_block *nb,
 	__raw_writeb(sh7724_rstandby_state.imr10, 0xa40800a8); /* IMR10 */
 	__raw_writeb(sh7724_rstandby_state.imr11, 0xa40800ac); /* IMR11 */
 	__raw_writeb(sh7724_rstandby_state.imr12, 0xa40800b0); /* IMR12 */
+
+	/* RWDT */
+	__raw_writew(sh7724_rstandby_state.rwtcnt, 0xa4520000); /* RWTCNT */
+	__raw_writew(sh7724_rstandby_state.rwtcsr, 0xa4520004); /* RWTCSR */
 
 	return NOTIFY_DONE;
 }
