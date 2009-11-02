@@ -4581,8 +4581,13 @@ i915_gem_init_hws(struct drm_device *dev)
 	}
 	dev_priv->hws_obj = obj;
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
-	I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
-	I915_READ(HWS_PGA); /* posting read */
+	if (IS_GEN6(dev)) {
+		I915_WRITE(HWS_PGA_GEN6, dev_priv->status_gfx_addr);
+		I915_READ(HWS_PGA_GEN6); /* posting read */
+	} else {
+		I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
+		I915_READ(HWS_PGA); /* posting read */
+	}
 	DRM_DEBUG_DRIVER("hws offset: 0x%08x\n", dev_priv->status_gfx_addr);
 
 	return 0;

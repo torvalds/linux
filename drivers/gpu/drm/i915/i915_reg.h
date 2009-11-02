@@ -269,6 +269,7 @@
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
+#define HWS_PGA_GEN6	0x04080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define PWRCTXA		0x2088 /* 965GM+ only */
