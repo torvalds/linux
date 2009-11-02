@@ -637,7 +637,7 @@ static int tps65010_probe(struct i2c_client *client,
 				tps, DEBUG_FOPS);
 
 	/* optionally register GPIOs */
-	if (board && board->base > 0) {
+	if (board && board->base != 0) {
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
