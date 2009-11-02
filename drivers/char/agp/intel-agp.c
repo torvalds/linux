@@ -296,6 +296,11 @@ static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 					off_t pg_start, int mask_type)
 {
 	int i, j;
+	u32 cache_bits = 0;
+
+	if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB) {
+		cache_bits = I830_PTE_SYSTEM_CACHED;
+	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
