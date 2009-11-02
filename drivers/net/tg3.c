@@ -940,6 +940,7 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 	phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
 	case TG3_PHY_ID_BCM50610:
+	case TG3_PHY_ID_BCM50610M:
 		val = MAC_PHYCFG2_50610_LED_MODES;
 		break;
 	case TG3_PHY_ID_BCMAC131:
@@ -1098,6 +1099,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 		phydev->interface = PHY_INTERFACE_MODE_GMII;
 		break;
 	case TG3_PHY_ID_BCM50610:
+	case TG3_PHY_ID_BCM50610M:
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)
 			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
