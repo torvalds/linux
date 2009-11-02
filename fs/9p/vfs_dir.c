@@ -90,6 +90,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (err <= 0)
 			break;
 
+		i = 0;
 		n = err;
 		while (i < n) {
 			err = p9stat_read(statbuf + i, buflen-i, &st,
