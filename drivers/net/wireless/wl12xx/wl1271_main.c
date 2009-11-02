@@ -1067,11 +1067,11 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 		ret = wl1271_cmd_join(wl);
 		if (ret < 0)
 			goto out_sleep;
-	}
 
-	ret = wl1271_cmd_build_null_data(wl);
-	if (ret < 0)
-		goto out_sleep;
+		ret = wl1271_cmd_build_null_data(wl);
+		if (ret < 0)
+			goto out_sleep;
+	}
 
 	wl->ssid_len = conf->ssid_len;
 	if (wl->ssid_len)
@@ -1137,10 +1137,6 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		wl->channel = channel;
 	}
 
-	ret = wl1271_cmd_build_null_data(wl);
-	if (ret < 0)
-		goto out_sleep;
-
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl1271_info("psm enabled");
 
@@ -1165,7 +1161,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (conf->power_level != wl->power_level) {
 		ret = wl1271_acx_tx_power(wl, conf->power_level);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		wl->power_level = conf->power_level;
 	}
