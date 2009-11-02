@@ -540,13 +540,33 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 /*
  * Update CPU-local rcu_data state to record the newly noticed grace period.
  * This is used both when we started the grace period and when we notice
- * that someone else started the grace period.
+ * that someone else started the grace period.  The caller must hold the
+ * ->lock of the leaf rcu_node structure corresponding to the current CPU,
+ *  and must have irqs disabled.
  */
+static void __note_new_gpnum(struct rcu_state *rsp, struct rcu_node *rnp, struct rcu_data *rdp)
+{
+	if (rdp->gpnum != rnp->gpnum) {
+		rdp->qs_pending = 1;
+		rdp->passed_quiesc = 0;
+		rdp->gpnum = rnp->gpnum;
+	}
+}
+
 static void note_new_gpnum(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	rdp->qs_pending = 1;
-	rdp->passed_quiesc = 0;
-	rdp->gpnum = rsp->gpnum;
+	unsigned long flags;
+	struct rcu_node *rnp;
+
+	local_irq_save(flags);
+	rnp = rdp->mynode;
+	if (rdp->gpnum == ACCESS_ONCE(rnp->gpnum) || /* outside lock. */
+	    !spin_trylock(&rnp->lock)) { /* irqs already off, retry later. */
+		local_irq_restore(flags);
+		return;
+	}
+	__note_new_gpnum(rsp, rnp, rdp);
+	spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 /*
@@ -637,6 +657,9 @@ rcu_start_gp_per_cpu(struct rcu_state *rsp, struct rcu_node *rnp, struct rcu_dat
 	 */
 	rdp->nxttail[RCU_NEXT_READY_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
 	rdp->nxttail[RCU_WAIT_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
+
+	/* Set state so that this CPU will detect the next quiescent state. */
+	__note_new_gpnum(rsp, rnp, rdp);
 }
 
 /*
@@ -664,7 +687,6 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	record_gp_stall_check_time(rsp);
 	dyntick_record_completed(rsp, rsp->completed - 1);
-	note_new_gpnum(rsp, rdp);
 
 	/* Special-case the common single-level case. */
 	if (NUM_RCU_NODES == 1) {
