@@ -1,8 +1,7 @@
 /*
- *		Sonix sn9c102p sn9c105 sn9c120 (jpeg) library
- *		Copyright (C) 2005 Michel Xhaard mxhaard@magic.fr
- *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Sonix sn9c102p sn9c105 sn9c120 (jpeg) subdriver
+ * Copyright (C) 2009 Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
