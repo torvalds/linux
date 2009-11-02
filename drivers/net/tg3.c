@@ -7633,6 +7633,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
 		val |= WDMAC_MODE_STATUS_TAG_FIX;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
+		val |= WDMAC_MODE_BURST_ALL_DATA;
+
 	tw32_f(WDMAC_MODE, val);
 	udelay(40);
 
