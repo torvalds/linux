@@ -2761,6 +2761,7 @@ struct tg3 {
 #define TG3_FLG3_ENABLE_RSS		0x00020000
 #define TG3_FLG3_4G_DMA_BNDRY_BUG	0x00080000
 #define TG3_FLG3_40BIT_DMA_LIMIT_BUG	0x00100000
+#define TG3_FLG3_SHORT_DMA_BUG		0x00200000
 
 	struct timer_list		timer;
 	u16				timer_counter;
