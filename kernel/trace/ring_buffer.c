@@ -483,7 +483,7 @@ struct ring_buffer_iter {
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
-static inline u64 rb_time_stamp(struct ring_buffer *buffer, int cpu)
+static inline u64 rb_time_stamp(struct ring_buffer *buffer)
 {
 	/* shift to debug/test normalization and TIME_EXTENTS */
 	return buffer->clock() << DEBUG_SHIFT;
@@ -494,7 +494,7 @@ u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
 	u64 time;
 
 	preempt_disable_notrace();
-	time = rb_time_stamp(buffer, cpu);
+	time = rb_time_stamp(buffer);
 	preempt_enable_no_resched_notrace();
 
 	return time;
@@ -599,7 +599,7 @@ static struct list_head *rb_list_head(struct list_head *list)
 }
 
 /*
- * rb_is_head_page - test if the give page is the head page
+ * rb_is_head_page - test if the given page is the head page
  *
  * Because the reader may move the head_page pointer, we can
  * not trust what the head page is (it may be pointing to
@@ -1868,7 +1868,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 		 * Nested commits always have zero deltas, so
 		 * just reread the time stamp
 		 */
-		*ts = rb_time_stamp(buffer, cpu_buffer->cpu);
+		*ts = rb_time_stamp(buffer);
 		next_page->page->time_stamp = *ts;
 	}
 
@@ -2111,7 +2111,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		goto out_fail;
 
-	ts = rb_time_stamp(cpu_buffer->buffer, cpu_buffer->cpu);
+	ts = rb_time_stamp(cpu_buffer->buffer);
 
 	/*
 	 * Only the first commit can update the timestamp.
@@ -2681,7 +2681,7 @@ unsigned long ring_buffer_entries(struct ring_buffer *buffer)
 EXPORT_SYMBOL_GPL(ring_buffer_entries);
 
 /**
- * ring_buffer_overrun_cpu - get the number of overruns in buffer
+ * ring_buffer_overruns - get the number of overruns in buffer
  * @buffer: The ring buffer
  *
  * Returns the total number of overruns in the ring buffer
