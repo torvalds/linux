@@ -164,9 +164,6 @@ void au1000_halt(void)
 #ifdef CONFIG_MIPS_MIRAGE
 	gpio_direction_output(210, 1);
 #endif
-#ifdef CONFIG_MIPS_DB1200
-	au_writew(au_readw(0xB980001C) | (1 << 14), 0xB980001C);
-#endif
 #ifdef CONFIG_PM
 	au_sleep();
 

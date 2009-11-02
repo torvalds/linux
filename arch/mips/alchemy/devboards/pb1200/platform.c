@@ -68,7 +68,6 @@ static struct led_classdev pb1200mmc_led = {
 	.brightness_set	= pb1200_mmcled_set,
 };
 
-#ifndef CONFIG_MIPS_DB1200
 static void pb1200mmc1_set_power(void *mmc_host, int state)
 {
 	if (state)
@@ -88,7 +87,6 @@ static int pb1200mmc1_card_inserted(void *mmc_host)
 {
 	return (bcsr_read(BCSR_SIGSTAT) & BCSR_INT_SD1INSERT) ? 1 : 0;
 }
-#endif
 
 const struct au1xmmc_platform_data au1xmmc_platdata[2] = {
 	[0] = {
@@ -98,7 +96,6 @@ const struct au1xmmc_platform_data au1xmmc_platdata[2] = {
 		.cd_setup	= NULL,		/* use poll-timer in driver */
 		.led		= &pb1200mmc_led,
 	},
-#ifndef CONFIG_MIPS_DB1200
 	[1] = {
 		.set_power	= pb1200mmc1_set_power,
 		.card_inserted	= pb1200mmc1_card_inserted,
@@ -106,7 +103,6 @@ const struct au1xmmc_platform_data au1xmmc_platdata[2] = {
 		.cd_setup	= NULL,		/* use poll-timer in driver */
 		.led		= &pb1200mmc_led,
 	},
-#endif
 };
 
 static struct resource ide_resources[] = {
@@ -174,7 +170,6 @@ static int __init board_register_devices(void)
 {
 	int swapped;
 
-#ifdef CONFIG_MIPS_PB1200
 	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
 				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
 				    PCMCIA_MEM_PSEUDO_PHYS,
@@ -198,38 +193,9 @@ static int __init board_register_devices(void)
 				    /*PB1200_PC1_STSCHG_INT*/0,
 				    PB1200_PC1_EJECT_INT,
 				    1);
-#else
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
-				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
-				    PCMCIA_MEM_PSEUDO_PHYS,
-				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00040000 - 1,
-				    PCMCIA_IO_PSEUDO_PHYS,
-				    PCMCIA_IO_PSEUDO_PHYS   + 0x00001000 - 1,
-				    DB1200_PC0_INT,
-				    DB1200_PC0_INSERT_INT,
-				    /*DB1200_PC0_STSCHG_INT*/0,
-				    DB1200_PC0_EJECT_INT,
-				    0);
-
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS + 0x00400000,
-				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00440000 - 1,
-				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00400000,
-				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00440000 - 1,
-				    PCMCIA_IO_PSEUDO_PHYS   + 0x00400000,
-				    PCMCIA_IO_PSEUDO_PHYS   + 0x00401000 - 1,
-				    DB1200_PC1_INT,
-				    DB1200_PC1_INSERT_INT,
-				    /*DB1200_PC1_STSCHG_INT*/0,
-				    DB1200_PC1_EJECT_INT,
-				    1);
-#endif
 
 	swapped = bcsr_read(BCSR_STATUS) &  BCSR_STATUS_DB1200_SWAPBOOT;
-#ifdef CONFIG_MIPS_PB1200
 	db1x_register_norflash(128 * 1024 * 1024, 2, swapped);
-#else
-	db1x_register_norflash(64 * 1024 * 1024, 2, swapped);
-#endif
 
 	return platform_add_devices(board_platform_devices,
 				    ARRAY_SIZE(board_platform_devices));

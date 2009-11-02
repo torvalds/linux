@@ -28,24 +28,6 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
-#define DBDMA_AC97_TX_CHAN	DSCR_CMD0_PSC1_TX
-#define DBDMA_AC97_RX_CHAN	DSCR_CMD0_PSC1_RX
-#define DBDMA_I2S_TX_CHAN	DSCR_CMD0_PSC1_TX
-#define DBDMA_I2S_RX_CHAN	DSCR_CMD0_PSC1_RX
-
-/*
- * SPI and SMB are muxed on the DBAu1200 board.
- * Refer to board documentation.
- */
-#define SPI_PSC_BASE		PSC0_BASE_ADDR
-#define SMBUS_PSC_BASE		PSC0_BASE_ADDR
-/*
- * AC'97 and I2S are muxed on the DBAu1200 board.
- * Refer to board documentation.
- */
-#define AC97_PSC_BASE		PSC1_BASE_ADDR
-#define I2S_PSC_BASE		PSC1_BASE_ADDR
-
 /* Bit positions for the different interrupt sources */
 #define BCSR_INT_IDE		0x0001
 #define BCSR_INT_ETH		0x0002
@@ -62,17 +44,15 @@
 #define BCSR_INT_SD0INSERT	0x1000
 #define BCSR_INT_SD0EJECT	0x2000
 
-#define SMC91C111_PHYS_ADDR	0x19000300
-#define SMC91C111_INT		DB1200_ETH_INT
-
 #define IDE_PHYS_ADDR		0x18800000
 #define IDE_REG_SHIFT		5
-#define IDE_PHYS_LEN		(16 << IDE_REG_SHIFT)
-#define IDE_INT 		DB1200_IDE_INT
 #define IDE_DDMA_REQ		DSCR_CMD0_DMA_REQ1
 #define IDE_RQSIZE		128
 
-#define NAND_PHYS_ADDR		0x20000000
+#define DB1200_IDE_PHYS_ADDR	IDE_PHYS_ADDR
+#define DB1200_IDE_PHYS_LEN	(16 << IDE_REG_SHIFT)
+#define DB1200_ETH_PHYS_ADDR	0x19000300
+#define DB1200_NAND_PHYS_ADDR	0x20000000
 
 /*
  * External Interrupts for DBAu1200 as of 8/6/2004.
@@ -82,7 +62,7 @@
  *   Example: IDE bis pos is  = 64 - 64
  *            ETH bit pos is  = 65 - 64
  */
-enum external_pb1200_ints {
+enum external_db1200_ints {
 	DB1200_INT_BEGIN	= AU1000_MAX_INTR + 1,
 
 	DB1200_IDE_INT		= DB1200_INT_BEGIN,
@@ -102,8 +82,5 @@ enum external_pb1200_ints {
 
 	DB1200_INT_END		= DB1200_INT_BEGIN + 15,
 };
-
-/* NAND chip select */
-#define NAND_CS 1
 
 #endif /* __ASM_DB1200_H */
