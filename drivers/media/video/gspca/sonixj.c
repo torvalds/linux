@@ -973,7 +973,14 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_USBO, "i2c_w2 [%02x] = %02x", reg, val);
-	gspca_dev->usb_buf[0] = 0x81 | (2 << 4);	/* = a1 */
+	switch (sd->sensor) {
+	case SENSOR_OM6802:		/* i2c command = a0 (100 kHz) */
+		gspca_dev->usb_buf[0] = 0x80 | (2 << 4);
+		break;
+	default:			/* i2c command = a1 (400 kHz) */
+		gspca_dev->usb_buf[0] = 0x81 | (2 << 4);
+		break;
+	}
 	gspca_dev->usb_buf[1] = sd->i2c_base;
 	gspca_dev->usb_buf[2] = reg;
 	gspca_dev->usb_buf[3] = val;
@@ -1012,7 +1019,14 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 mode[8];
 
-	mode[0] = 0x81 | 0x10;
+	switch (sd->sensor) {
+	case SENSOR_OM6802:		/* i2c command = 90 (100 kHz) */
+		mode[0] = 0x80 | 0x10;
+		break;
+	default:			/* i2c command = 91 (400 kHz) */
+		mode[0] = 0x81 | 0x10;
+		break;
+	}
 	mode[1] = sd->i2c_base;
 	mode[2] = reg;
 	mode[3] = 0;
@@ -1022,7 +1036,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 	mode[7] = 0x10;
 	i2c_w8(gspca_dev, mode);
 	msleep(2);
-	mode[0] = 0x81 | (5 << 4) | 0x02;
+	mode[0] = (mode[0] & 0x81) | (5 << 4) | 0x02;
 	mode[2] = 0;
 	i2c_w8(gspca_dev, mode);
 	msleep(2);
@@ -2216,7 +2230,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
 /*	{USB_DEVICE(0x0c45, 0x60c2), BSI(SN9C105, P1030xC, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x21)}, */
+/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x34)}, */
 /*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
 /*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
@@ -2228,7 +2242,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 #endif
 	{USB_DEVICE(0x0c45, 0x6100), BSI(SN9C120, MI0360, 0x5d)}, /*sn9c128*/
 /*	{USB_DEVICE(0x0c45, 0x6102), BSI(SN9C120, P1030xC, ??)}, */
-/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6802, 0x21)}, */
+/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6802, 0x34)}, */
 	{USB_DEVICE(0x0c45, 0x610a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610b), BSI(SN9C120, OV7660, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610c), BSI(SN9C120, HV7131R, 0x11)}, /*sn9c128*/
@@ -2236,7 +2250,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x610f), BSI(SN9C120, S5K53BEB, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */
-	{USB_DEVICE(0x0c45, 0x6128), BSI(SN9C110, OM6802, 0x21)}, /*sn9c325?*/
+	{USB_DEVICE(0x0c45, 0x6128), BSI(SN9C120, OM6802, 0x34)}, /*sn9c325?*/
 /*bw600.inf:*/
 	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c110?*/
 	{USB_DEVICE(0x0c45, 0x612c), BSI(SN9C110, MO4000, 0x21)},
@@ -2255,7 +2269,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x613e), BSI(SN9C120, OV7630, 0x21)},
 /*	{USB_DEVICE(0x0c45, 0x6142), BSI(SN9C120, PO2030N, ??)}, *sn9c120b*/
 	{USB_DEVICE(0x0c45, 0x6143), BSI(SN9C120, SP80708, 0x18)}, /*sn9c120b*/
-	{USB_DEVICE(0x0c45, 0x6148), BSI(SN9C120, OM6802, 0x21)}, /*sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x6148), BSI(SN9C120, OM6802, 0x34)}, /*sn9c120b*/
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
