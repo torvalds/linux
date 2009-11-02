@@ -74,6 +74,15 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len)
 		intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
 
+	/* read back the status code of the command */
+	wl1271_spi_read(wl, wl->cmd_box_addr, cmd,
+			sizeof(struct wl1271_cmd_header), false);
+
+	if (cmd->status != CMD_STATUS_SUCCESS) {
+		wl1271_error("command execute failure %d", cmd->status);
+		ret = -EIO;
+	}
+
 	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_ACK,
 			   WL1271_ACX_INTR_CMD_COMPLETE);
 
@@ -306,7 +315,6 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer)
 
 	if (answer) {
 		struct wl1271_command *cmd_answer;
-		u16 status;
 
 		/*
 		 * The test command got in, we can read the answer.
@@ -316,10 +324,6 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer)
 		wl1271_spi_read(wl, wl->cmd_box_addr, buf, buf_len, false);
 
 		cmd_answer = buf;
-		status = le16_to_cpu(cmd_answer->header.status);
-
-		if (status != CMD_STATUS_SUCCESS)
-			wl1271_error("TEST command answer error: %d", status);
 	}
 
 	return 0;
@@ -353,11 +357,6 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
 
 	/* the interrogate command got in, we can read the answer */
 	wl1271_spi_read(wl, wl->cmd_box_addr, buf, len, false);
-
-	acx = buf;
-	if (le16_to_cpu(acx->cmd.status) != CMD_STATUS_SUCCESS)
-		wl1271_error("INTERROGATE command error: %d",
-			     le16_to_cpu(acx->cmd.status));
 
 out:
 	return ret;
@@ -507,11 +506,6 @@ int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 
 	/* the read command got in, we can now read the answer */
 	wl1271_spi_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd), false);
-
-	if (le16_to_cpu(cmd->header.status) != CMD_STATUS_SUCCESS)
-		wl1271_error("error in read command result: %d",
-			     le16_to_cpu(cmd->header.status));
-
 	memcpy(answer, cmd->value, len);
 
 out:
@@ -639,17 +633,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params));
 	if (ret < 0) {
 		wl1271_error("SCAN failed");
-		goto out;
-	}
-
-	wl1271_spi_read(wl, wl->cmd_box_addr, params, sizeof(*params),
-			false);
-
-	if (le16_to_cpu(params->header.status) != CMD_STATUS_SUCCESS) {
-		wl1271_error("Scan command error: %d",
-			     le16_to_cpu(params->header.status));
 		wl->scanning = false;
-		ret = -EIO;
 		goto out;
 	}
 
