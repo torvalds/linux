@@ -21,7 +21,8 @@
 #define __POWERPC_KVM_HOST_H__
 
 #include <linux/mutex.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/kvm_asm.h>
@@ -250,7 +251,8 @@ struct kvm_vcpu_arch {
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
-	struct timer_list dec_timer;
+	struct hrtimer dec_timer;
+	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
 

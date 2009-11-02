@@ -18,7 +18,7 @@
  */
 
 #include <linux/jiffies.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kvm_host.h>
@@ -79,12 +79,13 @@ static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
 
 void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
-	unsigned long nr_jiffies;
+	unsigned long dec_nsec;
 
+	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
 #ifdef CONFIG_PPC64
 	/* POWER4+ triggers a dec interrupt if the value is < 0 */
 	if (vcpu->arch.dec & 0x80000000) {
-		del_timer(&vcpu->arch.dec_timer);
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 		kvmppc_core_queue_dec(vcpu);
 		return;
 	}
@@ -94,12 +95,15 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 		 * that's how we convert the guest DEC value to the number of
 		 * host ticks. */
 
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
+		dec_nsec = vcpu->arch.dec;
+		dec_nsec *= 1000;
+		dec_nsec /= tb_ticks_per_usec;
+		hrtimer_start(&vcpu->arch.dec_timer, ktime_set(0, dec_nsec),
+			      HRTIMER_MODE_REL);
 		vcpu->arch.dec_jiffies = get_tb();
-		nr_jiffies = vcpu->arch.dec / tb_ticks_per_jiffy;
-		mod_timer(&vcpu->arch.dec_timer,
-		          get_jiffies_64() + nr_jiffies);
 	} else {
-		del_timer(&vcpu->arch.dec_timer);
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 	}
 }
 

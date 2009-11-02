@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
@@ -208,10 +209,25 @@ static void kvmppc_decrementer_func(unsigned long data)
 	}
 }
 
+/*
+ * low level hrtimer wake routine. Because this runs in hardirq context
+ * we schedule a tasklet to do the real work.
+ */
+enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu;
+
+	vcpu = container_of(timer, struct kvm_vcpu, arch.dec_timer);
+	tasklet_schedule(&vcpu->arch.tasklet);
+
+	return HRTIMER_NORESTART;
+}
+
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	setup_timer(&vcpu->arch.dec_timer, kvmppc_decrementer_func,
-	            (unsigned long)vcpu);
+	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
+	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
 
 	return 0;
 }
