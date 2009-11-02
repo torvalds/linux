@@ -3,8 +3,9 @@
  * Provides Bus interface for MIIM regs
  *
  * Author: Andy Fleming <afleming@freescale.com>
+ * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright (c) 2002-2004,2008 Freescale Semiconductor, Inc.
+ * Copyright 2002-2004, 2008-2009 Freescale Semiconductor, Inc.
  *
  * Based on gianfar_mii.c and ucc_geth_mii.c (Li Yang, Kim Phillips)
  *
@@ -189,19 +190,29 @@ static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
 
 
 #if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
-static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs)
+static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct device_node *np)
 {
 	struct gfar __iomem *enet_regs;
+	u32 __iomem *ioremap_tbipa;
+	u64 addr, size;
 
 	/*
 	 * This is mildly evil, but so is our hardware for doing this.
 	 * Also, we have to cast back to struct gfar because of
 	 * definition weirdness done in gianfar.h.
 	 */
-	enet_regs = (struct gfar __iomem *)
-		((char __iomem *)regs - offsetof(struct gfar, gfar_mii_regs));
-
-	return &enet_regs->tbipa;
+	if(of_device_is_compatible(np, "fsl,gianfar-mdio") ||
+		of_device_is_compatible(np, "fsl,gianfar-tbi") ||
+		of_device_is_compatible(np, "gianfar")) {
+		enet_regs = (struct gfar __iomem *)regs;
+		return &enet_regs->tbipa;
+	} else if (of_device_is_compatible(np, "fsl,etsec2-mdio") ||
+			of_device_is_compatible(np, "fsl,etsec2-tbi")) {
+		addr = of_translate_address(np, of_get_address(np, 1, &size, NULL));
+		ioremap_tbipa = ioremap(addr, size);
+		return ioremap_tbipa;
+	} else
+		return NULL;
 }
 #endif
 
@@ -250,11 +261,11 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 {
 	struct device_node *np = ofdev->node;
 	struct device_node *tbi;
-	struct fsl_pq_mdio __iomem *regs;
+	struct fsl_pq_mdio __iomem *regs = NULL;
 	u32 __iomem *tbipa;
 	struct mii_bus *new_bus;
 	int tbiaddr = -1;
-	u64 addr, size;
+	u64 addr = 0, size = 0, ioremap_miimcfg = 0;
 	int err = 0;
 
 	new_bus = mdiobus_alloc();
@@ -268,8 +279,22 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	fsl_pq_mdio_bus_name(new_bus->id, np);
 
 	/* Set the PHY base address */
-	addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
-	regs = ioremap(addr, size);
+	if (of_device_is_compatible(np,"fsl,gianfar-mdio") ||
+		of_device_is_compatible(np, "fsl,gianfar-tbi") ||
+		of_device_is_compatible(np, "fsl,ucc-mdio") ||
+		of_device_is_compatible(np,"ucc_geth_phy" )) {
+		addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
+		ioremap_miimcfg =  container_of(addr, struct fsl_pq_mdio, miimcfg);
+		regs = ioremap(ioremap_miimcfg, size +
+				offsetof(struct fsl_pq_mdio, miimcfg));
+	} else if (of_device_is_compatible(np,"fsl,etsec2-mdio") ||
+			of_device_is_compatible(np, "fsl,etsec2-tbi")) {
+		addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
+		regs = ioremap(addr, size);
+	} else {
+		err = -EINVAL;
+		goto err_free_bus;
+	}
 
 	if (NULL == regs) {
 		err = -ENOMEM;
@@ -290,9 +315,15 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 
 	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
 			of_device_is_compatible(np, "fsl,gianfar-tbi") ||
+			of_device_is_compatible(np, "fsl,etsec2-mdio") ||
+			of_device_is_compatible(np, "fsl,etsec2-tbi") ||
 			of_device_is_compatible(np, "gianfar")) {
 #if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
-		tbipa = get_gfar_tbipa(regs);
+		tbipa = get_gfar_tbipa(regs, np);
+		if (!tbipa) {
+			err = -EINVAL;
+			goto err_free_irqs;
+		}
 #else
 		err = -ENODEV;
 		goto err_free_irqs;
@@ -404,6 +435,12 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 	},
 	{
 		.compatible = "fsl,gianfar-mdio",
+	},
+	{
+		.compatible = "fsl,etsec2-tbi",
+	},
+	{
+		.compatible = "fsl,etsec2-mdio",
 	},
 	{},
 };

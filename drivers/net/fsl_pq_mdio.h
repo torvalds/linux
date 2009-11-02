@@ -3,8 +3,9 @@
  * Driver for the MDIO bus controller on Freescale PowerQUICC processors
  *
  * Author: Andy Fleming
+ * Modifier: Sandeep Gopalpet
  *
- * Copyright (c) 2002-2004,2008 Freescale Semiconductor, Inc.
+ * Copyright 2002-2004, 2008-2009 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -23,6 +24,12 @@
 #define MII_READ_COMMAND       0x00000001
 
 struct fsl_pq_mdio {
+	u8 res1[16];
+	u32 ieventm;	/* MDIO Interrupt event register (for etsec2)*/
+	u32 imaskm;	/* MDIO Interrupt mask register (for etsec2)*/
+	u8 res2[4];
+	u32 emapm;	/* MDIO Event mapping register (for etsec2)*/
+	u8 res3[1280];
 	u32 miimcfg;		/* MII management configuration reg */
 	u32 miimcom;		/* MII management command reg */
 	u32 miimadd;		/* MII management address reg */
@@ -31,8 +38,8 @@ struct fsl_pq_mdio {
 	u32 miimind;		/* MII management indication reg */
 	u8 reserved[28];	/* Space holder */
 	u32 utbipar;		/* TBI phy address reg (only on UCC) */
+	u8 res4[2728];
 } __attribute__ ((packed));
-
 
 int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum);
 int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);
