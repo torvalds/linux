@@ -614,22 +614,13 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 {
 	int skip;
 	struct ieee80211_channel *chan;
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 
 	skip = 0;
 	chan = local->scan_req->channels[local->scan_channel_idx];
 
-	if (chan->flags & IEEE80211_CHAN_DISABLED ||
-	    (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	     chan->flags & IEEE80211_CHAN_NO_IBSS))
+	local->scan_channel = chan;
+	if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
 		skip = 1;
-
-	if (!skip) {
-		local->scan_channel = chan;
-		if (ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_CHANNEL))
-			skip = 1;
-	}
 
 	/* advance state machine to next channel/band */
 	local->scan_channel_idx++;
