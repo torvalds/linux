@@ -108,6 +108,7 @@
 #define BCM54XX_SHD_SCR3		0x05
 #define  BCM54XX_SHD_SCR3_DEF_CLK125	0x0001
 #define  BCM54XX_SHD_SCR3_DLLAPD_DIS	0x0002
+#define  BCM54XX_SHD_SCR3_TRDDAPD	0x0004
 
 /* 01010: Auto Power-Down */
 #define BCM54XX_SHD_APD			0x0a
@@ -362,6 +363,9 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 	else
 		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
 
+	if (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY)
+		val |= BCM54XX_SHD_SCR3_TRDDAPD;
+
 	if (orig != val)
 		bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
 
@@ -409,6 +413,7 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 		bcm54xx_shadow_write(phydev, BCM54XX_SHD_RGMII_MODE, 0);
 
 	if ((phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED) ||
+	    (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) ||
 	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
 		bcm54xx_adjust_rxrefclk(phydev);
 
