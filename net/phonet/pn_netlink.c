@@ -53,8 +53,7 @@ void phonet_address_notify(int event, struct net_device *dev, u8 addr)
 		    RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_IFADDR, err);
+	rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_IFADDR, err);
 }
 
 static const struct nla_policy ifa_phonet_policy[IFA_MAX+1] = {
@@ -212,8 +211,7 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
 			  RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_ROUTE, err);
+	rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_ROUTE, err);
 }
 
 static const struct nla_policy rtm_phonet_policy[RTA_MAX+1] = {
