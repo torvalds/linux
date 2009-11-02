@@ -2359,12 +2359,10 @@ static void cfq_prio_boost(struct cfq_queue *cfqq)
 			cfqq->ioprio = IOPRIO_NORM;
 	} else {
 		/*
-		 * check if we need to unboost the queue
+		 * unboost the queue (if needed)
 		 */
-		if (cfqq->ioprio_class != cfqq->org_ioprio_class)
-			cfqq->ioprio_class = cfqq->org_ioprio_class;
-		if (cfqq->ioprio != cfqq->org_ioprio)
-			cfqq->ioprio = cfqq->org_ioprio;
+		cfqq->ioprio_class = cfqq->org_ioprio_class;
+		cfqq->ioprio = cfqq->org_ioprio;
 	}
 }
 
