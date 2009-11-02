@@ -1097,11 +1097,13 @@ static int tg3_mdio_init(struct tg3 *tp)
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
 	case TG3_PHY_ID_BCM57780:
 		phydev->interface = PHY_INTERFACE_MODE_GMII;
+		phydev->dev_flags |= PHY_BRCM_AUTO_PWRDWN_ENABLE;
 		break;
 	case TG3_PHY_ID_BCM50610:
 	case TG3_PHY_ID_BCM50610M:
 		phydev->dev_flags |= PHY_BRCM_CLEAR_RGMII_MODE |
-				     PHY_BRCM_RX_REFCLK_UNUSED;
+				     PHY_BRCM_RX_REFCLK_UNUSED |
+				     PHY_BRCM_AUTO_PWRDWN_ENABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)
 			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
