@@ -901,6 +901,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			i++;
 		}
 	}
+	local->int_scan_req->n_channels = i;
 
 	local->network_latency_notifier.notifier_call =
 		ieee80211_max_network_latency;
