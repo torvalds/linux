@@ -274,7 +274,7 @@ typedef struct drm_i915_private {
 	struct drm_i915_display_funcs display;
 
 	/* Register state */
-	bool suspended;
+	bool modeset_on_lid;
 	u8 saveLBB;
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
