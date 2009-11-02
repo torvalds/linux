@@ -350,7 +350,7 @@ static int __build_xattrs(struct inode *inode)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int xattr_version;
 	struct ceph_inode_xattr **xattrs = NULL;
-	int err;
+	int err = 0;
 	int i;
 
 	dout("__build_xattrs() len=%d\n",
