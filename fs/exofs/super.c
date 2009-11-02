@@ -473,9 +473,11 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto out;
 
 	ret = extract_attr_from_req(or, &attrs[0]);
-	if (likely(!ret))
+	if (likely(!ret)) {
 		capacity = get_unaligned_be64(attrs[0].val_ptr);
-	else
+		if (unlikely(!capacity))
+			capacity = ULLONG_MAX;
+	} else
 		EXOFS_DBGMSG("exofs_statfs: get capacity failed.\n");
 
 	ret = extract_attr_from_req(or, &attrs[1]);
@@ -487,8 +489,8 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/* fill in the stats buffer */
 	buf->f_type = EXOFS_SUPER_MAGIC;
 	buf->f_bsize = EXOFS_BLKSIZE;
-	buf->f_blocks = (capacity >> EXOFS_BLKSHIFT);
-	buf->f_bfree = ((capacity - used) >> EXOFS_BLKSHIFT);
+	buf->f_blocks = capacity >> 9;
+	buf->f_bfree = (capacity - used) >> 9;
 	buf->f_bavail = buf->f_bfree;
 	buf->f_files = sbi->s_numfiles;
 	buf->f_ffree = EXOFS_MAX_ID - sbi->s_numfiles;
