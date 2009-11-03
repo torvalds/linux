@@ -473,7 +473,7 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 
 	regaddr_p = of_get_address(op->node, 0, &size64, NULL);
 	if (!regaddr_p) {
-		printk(KERN_ERR "Invalid PSC address\n");
+		dev_err(&op->dev, "Invalid PSC address\n");
 		return -EINVAL;
 	}
 	regaddr64 = of_translate_address(op->node, regaddr_p);
@@ -484,8 +484,7 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 
 		psc_nump = of_get_property(op->node, "cell-index", NULL);
 		if (!psc_nump || *psc_nump > 5) {
-			printk(KERN_ERR "mpc52xx_psc_spi: Device node %s has invalid "
-					"cell-index property\n", op->node->full_name);
+			dev_err(&op->dev, "Invalid cell-index property\n");
 			return -EINVAL;
 		}
 		id = *psc_nump + 1;
