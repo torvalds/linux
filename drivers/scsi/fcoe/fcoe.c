@@ -90,9 +90,43 @@ static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
 };
 
-static struct scsi_transport_template *scsi_transport_fcoe_sw;
+static struct scsi_transport_template *fcoe_transport_template;
+static struct scsi_transport_template *fcoe_vport_transport_template;
 
 struct fc_function_template fcoe_transport_function = {
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+	.show_host_supported_fc4s = 1,
+	.show_host_active_fc4s = 1,
+	.show_host_maxframe_size = 1,
+
+	.show_host_port_id = 1,
+	.show_host_supported_speeds = 1,
+	.get_host_speed = fc_get_host_speed,
+	.show_host_speed = 1,
+	.show_host_port_type = 1,
+	.get_host_port_state = fc_get_host_port_state,
+	.show_host_port_state = 1,
+	.show_host_symbolic_name = 1,
+
+	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
+	.show_rport_maxframe_size = 1,
+	.show_rport_supported_classes = 1,
+
+	.show_host_fabric_name = 1,
+	.show_starget_node_name = 1,
+	.show_starget_port_name = 1,
+	.show_starget_port_id = 1,
+	.set_rport_dev_loss_tmo = fc_set_rport_loss_tmo,
+	.show_rport_dev_loss_tmo = 1,
+	.get_fc_host_stats = fc_get_host_stats,
+	.issue_fc_host_lip = fcoe_reset,
+
+	.terminate_rport_io = fc_rport_terminate_io,
+};
+
+struct fc_function_template fcoe_vport_transport_function = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
@@ -530,7 +564,10 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	lp->host->max_lun = FCOE_MAX_LUN;
 	lp->host->max_id = FCOE_MAX_FCP_TARGET;
 	lp->host->max_channel = 0;
-	lp->host->transportt = scsi_transport_fcoe_sw;
+	if (lp->vport)
+		lp->host->transportt = fcoe_vport_transport_template;
+	else
+		lp->host->transportt = fcoe_transport_template;
 
 	/* add the new host to the SCSI-ml */
 	rc = scsi_add_host(lp->host, dev);
@@ -836,10 +873,11 @@ out:
 static int __init fcoe_if_init(void)
 {
 	/* attach to scsi transport */
-	scsi_transport_fcoe_sw =
-		fc_attach_transport(&fcoe_transport_function);
+	fcoe_transport_template = fc_attach_transport(&fcoe_transport_function);
+	fcoe_vport_transport_template =
+		fc_attach_transport(&fcoe_vport_transport_function);
 
-	if (!scsi_transport_fcoe_sw) {
+	if (!fcoe_transport_template) {
 		printk(KERN_ERR "fcoe: Failed to attach to the FC transport\n");
 		return -ENODEV;
 	}
@@ -854,8 +892,10 @@ static int __init fcoe_if_init(void)
  */
 int __exit fcoe_if_exit(void)
 {
-	fc_release_transport(scsi_transport_fcoe_sw);
-	scsi_transport_fcoe_sw = NULL;
+	fc_release_transport(fcoe_transport_template);
+	fc_release_transport(fcoe_vport_transport_template);
+	fcoe_transport_template = NULL;
+	fcoe_vport_transport_template = NULL;
 	return 0;
 }
 
