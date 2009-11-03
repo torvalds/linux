@@ -108,10 +108,7 @@ static void fc_lport_error(struct fc_lport *, struct fc_frame *);
 static void fc_lport_enter_reset(struct fc_lport *);
 static void fc_lport_enter_flogi(struct fc_lport *);
 static void fc_lport_enter_dns(struct fc_lport *);
-static void fc_lport_enter_rnn_id(struct fc_lport *);
-static void fc_lport_enter_rsnn_nn(struct fc_lport *);
-static void fc_lport_enter_rspn_id(struct fc_lport *);
-static void fc_lport_enter_rft_id(struct fc_lport *);
+static void fc_lport_enter_ns(struct fc_lport *, enum fc_lport_state);
 static void fc_lport_enter_scr(struct fc_lport *);
 static void fc_lport_enter_ready(struct fc_lport *);
 static void fc_lport_enter_logo(struct fc_lport *);
@@ -157,7 +154,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 	case RPORT_EV_READY:
 		if (lport->state == LPORT_ST_DNS) {
 			lport->dns_rp = rdata;
-			fc_lport_enter_rnn_id(lport);
+			fc_lport_enter_ns(lport, LPORT_ST_RNN_ID);
 		} else {
 			FC_LPORT_DBG(lport, "Received an READY event "
 				     "on port (%6x) for the directory "
@@ -1031,13 +1028,13 @@ static void fc_lport_ns_resp(struct fc_seq *sp, struct fc_frame *fp,
 	    ntohs(ct->ct_cmd) == FC_FS_ACC)
 		switch (lport->state) {
 		case LPORT_ST_RNN_ID:
-			fc_lport_enter_rsnn_nn(lport);
+			fc_lport_enter_ns(lport, LPORT_ST_RSNN_NN);
 			break;
 		case LPORT_ST_RSNN_NN:
-			fc_lport_enter_rspn_id(lport);
+			fc_lport_enter_ns(lport, LPORT_ST_RSPN_ID);
 			break;
 		case LPORT_ST_RSPN_ID:
-			fc_lport_enter_rft_id(lport);
+			fc_lport_enter_ns(lport, LPORT_ST_RFT_ID);
 			break;
 		case LPORT_ST_RFT_ID:
 			fc_lport_enter_scr(lport);
@@ -1130,133 +1127,62 @@ static void fc_lport_enter_scr(struct fc_lport *lport)
 }
 
 /**
- * fc_lport_enter_rft_id() - Register FC4-types with the name server
+ * fc_lport_enter_ns() - register some object with the name server
  * @lport: Fibre Channel local port to register
  *
  * Locking Note: The lport lock is expected to be held before calling
  * this routine.
  */
-static void fc_lport_enter_rft_id(struct fc_lport *lport)
+static void fc_lport_enter_ns(struct fc_lport *lport, enum fc_lport_state state)
 {
 	struct fc_frame *fp;
-	struct fc_ns_fts *lps;
-	int i;
-
-	FC_LPORT_DBG(lport, "Entered RFT_ID state from %s state\n",
-		     fc_lport_state(lport));
-
-	fc_lport_state_enter(lport, LPORT_ST_RFT_ID);
-
-	lps = &lport->fcts;
-	i = sizeof(lps->ff_type_map) / sizeof(lps->ff_type_map[0]);
-	while (--i >= 0)
-		if (ntohl(lps->ff_type_map[i]) != 0)
-			break;
-	if (i < 0) {
-		/* nothing to register, move on to SCR */
-		fc_lport_enter_scr(lport);
-		return;
-	}
-
-	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
-			    sizeof(struct fc_ns_rft));
-	if (!fp) {
-		fc_lport_error(lport, fp);
-		return;
-	}
-
-	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RFT_ID,
-				  fc_lport_ns_resp,
-				  lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
-}
-
-/**
- * fc_rport_enter_rspn_id() - Register symbolic port name with the name server
- * @lport: Fibre Channel local port to register
- *
- * Locking Note: The lport lock is expected to be held before calling
- * this routine.
- */
-static void fc_lport_enter_rspn_id(struct fc_lport *lport)
-{
-	struct fc_frame *fp;
+	enum fc_ns_req cmd;
+	int size = sizeof(struct fc_ct_hdr);
 	size_t len;
 
-	FC_LPORT_DBG(lport, "Entered RSPN_ID state from %s state\n",
+	FC_LPORT_DBG(lport, "Entered %s state from %s state\n",
+		     fc_lport_state_names[state],
 		     fc_lport_state(lport));
 
-	fc_lport_state_enter(lport, LPORT_ST_RSPN_ID);
+	fc_lport_state_enter(lport, state);
 
-	len = strnlen(fc_host_symbolic_name(lport->host), 255);
-	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
-			    sizeof(struct fc_ns_rspn) + len);
+	switch (state) {
+	case LPORT_ST_RNN_ID:
+		cmd = FC_NS_RNN_ID;
+		size += sizeof(struct fc_ns_rn_id);
+		break;
+	case LPORT_ST_RSNN_NN:
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		/* if there is no symbolic name, skip to RFT_ID */
+		if (!len)
+			return fc_lport_enter_ns(lport, LPORT_ST_RFT_ID);
+		cmd = FC_NS_RSNN_NN;
+		size += sizeof(struct fc_ns_rsnn) + len;
+		break;
+	case LPORT_ST_RSPN_ID:
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		/* if there is no symbolic name, skip to RFT_ID */
+		if (!len)
+			return fc_lport_enter_ns(lport, LPORT_ST_RFT_ID);
+		cmd = FC_NS_RSPN_ID;
+		size += sizeof(struct fc_ns_rspn) + len;
+		break;
+	case LPORT_ST_RFT_ID:
+		cmd = FC_NS_RFT_ID;
+		size += sizeof(struct fc_ns_rft);
+		break;
+	default:
+		fc_lport_error(lport, NULL);
+		return;
+	}
+
+	fp = fc_frame_alloc(lport, size);
 	if (!fp) {
 		fc_lport_error(lport, fp);
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
-				  fc_lport_ns_resp,
-				  lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
-}
-
-/**
- * fc_rport_enter_rsnn_nn() - Register symbolic node name with the name server
- * @lport: Fibre Channel local port to register
- *
- * Locking Note: The lport lock is expected to be held before calling
- * this routine.
- */
-static void fc_lport_enter_rsnn_nn(struct fc_lport *lport)
-{
-	struct fc_frame *fp;
-	size_t len;
-
-	FC_LPORT_DBG(lport, "Entered RSNN_NN state from %s state\n",
-		     fc_lport_state(lport));
-
-	fc_lport_state_enter(lport, LPORT_ST_RSNN_NN);
-
-	len = strnlen(fc_host_symbolic_name(lport->host), 255);
-	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
-			    sizeof(struct fc_ns_rsnn) + len);
-	if (!fp) {
-		fc_lport_error(lport, fp);
-		return;
-	}
-
-	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSNN_NN,
-				  fc_lport_ns_resp,
-				  lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
-}
-
-/**
- * fc_rport_enter_rnn_id() - Register node name with the name server
- * @lport: Fibre Channel local port to register
- *
- * Locking Note: The lport lock is expected to be held before calling
- * this routine.
- */
-static void fc_lport_enter_rnn_id(struct fc_lport *lport)
-{
-	struct fc_frame *fp;
-
-	FC_LPORT_DBG(lport, "Entered RNN_ID state from %s state\n",
-		     fc_lport_state(lport));
-
-	fc_lport_state_enter(lport, LPORT_ST_RNN_ID);
-
-	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
-			    sizeof(struct fc_ns_rn_id));
-	if (!fp) {
-		fc_lport_error(lport, fp);
-		return;
-	}
-
-	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RNN_ID,
+	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, cmd,
 				  fc_lport_ns_resp,
 				  lport, lport->e_d_tov))
 		fc_lport_error(lport, fp);
@@ -1324,16 +1250,10 @@ static void fc_lport_timeout(struct work_struct *work)
 		fc_lport_enter_dns(lport);
 		break;
 	case LPORT_ST_RNN_ID:
-		fc_lport_enter_rnn_id(lport);
-		break;
 	case LPORT_ST_RSNN_NN:
-		fc_lport_enter_rsnn_nn(lport);
-		break;
 	case LPORT_ST_RSPN_ID:
-		fc_lport_enter_rspn_id(lport);
-		break;
 	case LPORT_ST_RFT_ID:
-		fc_lport_enter_rft_id(lport);
+		fc_lport_enter_ns(lport, lport->state);
 		break;
 	case LPORT_ST_SCR:
 		fc_lport_enter_scr(lport);
