@@ -572,19 +572,12 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		goto err_out_dev_close;
 	}
 
-	err = fnic_request_intr(fnic);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Unable to request irq.\n");
-		goto err_out_clear_intr;
-	}
-
 	err = fnic_alloc_vnic_resources(fnic);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "Failed to alloc vNIC resources, "
 			     "aborting.\n");
-		goto err_out_free_intr;
+		goto err_out_clear_intr;
 	}
 
 
@@ -729,6 +722,14 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fc_fabric_login(lp);
 
 	vnic_dev_enable(fnic->vdev);
+
+	err = fnic_request_intr(fnic);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+			     "Unable to request irq.\n");
+		goto err_out_free_exch_mgr;
+	}
+
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
 
@@ -753,8 +754,6 @@ err_out_free_ioreq_pool:
 	mempool_destroy(fnic->io_req_pool);
 err_out_free_resources:
 	fnic_free_vnic_resources(fnic);
-err_out_free_intr:
-	fnic_free_intr(fnic);
 err_out_clear_intr:
 	fnic_clear_intr_mode(fnic);
 err_out_dev_close:
@@ -828,8 +827,8 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	scsi_remove_host(fnic->lport->host);
 	fc_exch_mgr_free(fnic->lport);
 	vnic_dev_notify_unset(fnic->vdev);
-	fnic_free_vnic_resources(fnic);
 	fnic_free_intr(fnic);
+	fnic_free_vnic_resources(fnic);
 	fnic_clear_intr_mode(fnic);
 	vnic_dev_close(fnic->vdev);
 	vnic_dev_unregister(fnic->vdev);
