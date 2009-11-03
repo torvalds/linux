@@ -1946,13 +1946,13 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
 	struct request_queue *q = sdkp->disk->queue;
 	unsigned int sector_sz = sdkp->device->sector_size;
-	char *buffer;
+	const int vpd_len = 32;
+	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
 
-	/* Block Limits VPD */
-	buffer = scsi_get_vpd_page(sdkp->device, 0xb0);
-
-	if (buffer == NULL)
-		return;
+	if (!buffer ||
+	    /* Block Limits VPD */
+	    scsi_get_vpd_page(sdkp->device, 0xb0, buffer, vpd_len))
+		goto out;
 
 	blk_queue_io_min(sdkp->disk->queue,
 			 get_unaligned_be16(&buffer[6]) * sector_sz);
@@ -1984,6 +1984,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 				get_unaligned_be32(&buffer[32]) & ~(1 << 31);
 	}
 
+ out:
 	kfree(buffer);
 }
 
@@ -1993,20 +1994,23 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
  */
 static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 {
-	char *buffer;
+	unsigned char *buffer;
 	u16 rot;
+	const int vpd_len = 32;
 
-	/* Block Device Characteristics VPD */
-	buffer = scsi_get_vpd_page(sdkp->device, 0xb1);
+	buffer = kmalloc(vpd_len, GFP_KERNEL);
 
-	if (buffer == NULL)
-		return;
+	if (!buffer ||
+	    /* Block Device Characteristics VPD */
+	    scsi_get_vpd_page(sdkp->device, 0xb1, buffer, vpd_len))
+		goto out;
 
 	rot = get_unaligned_be16(&buffer[4]);
 
 	if (rot == 1)
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, sdkp->disk->queue);
 
+ out:
 	kfree(buffer);
 }
 
