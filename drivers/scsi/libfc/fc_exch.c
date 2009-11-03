@@ -38,6 +38,7 @@ u16	fc_cpu_mask;		/* cpu mask for possible cpus */
 EXPORT_SYMBOL(fc_cpu_mask);
 static u16	fc_cpu_order;	/* 2's power to represent total possible cpus */
 static struct kmem_cache *fc_em_cachep;	       /* cache for exchanges */
+struct workqueue_struct *fc_exch_workqueue;
 
 /*
  * Structure and function definitions for managing Fibre Channel Exchanges
@@ -427,8 +428,8 @@ static inline void fc_exch_timer_set_locked(struct fc_exch *ep,
 
 	FC_EXCH_DBG(ep, "Exchange timer armed\n");
 
-	if (schedule_delayed_work(&ep->timeout_work,
-				  msecs_to_jiffies(timer_msec)))
+	if (queue_delayed_work(fc_exch_workqueue, &ep->timeout_work,
+			       msecs_to_jiffies(timer_msec)))
 		fc_exch_hold(ep);		/* hold for timer */
 }
 
@@ -1619,12 +1620,6 @@ static void fc_exch_reset(struct fc_exch *ep)
 
 	spin_lock_bh(&ep->ex_lock);
 	ep->state |= FC_EX_RST_CLEANUP;
-	/*
-	 * we really want to call del_timer_sync, but cannot due
-	 * to the lport calling with the lport lock held (some resp
-	 * functions can also grab the lport lock which could cause
-	 * a deadlock).
-	 */
 	if (cancel_delayed_work(&ep->timeout_work))
 		atomic_dec(&ep->ex_refcnt);	/* drop hold for timer */
 	resp = ep->resp;
@@ -2203,6 +2198,7 @@ void fc_exch_mgr_free(struct fc_lport *lport)
 {
 	struct fc_exch_mgr_anchor *ema, *next;
 
+	flush_workqueue(fc_exch_workqueue);
 	list_for_each_entry_safe(ema, next, &lport->ema_list, ema_list)
 		fc_exch_mgr_del(ema);
 }
@@ -2338,6 +2334,9 @@ int fc_setup_exch_mgr()
 	}
 	fc_cpu_mask--;
 
+	fc_exch_workqueue = create_singlethread_workqueue("fc_exch_workqueue");
+	if (!fc_exch_workqueue)
+		return -ENOMEM;
 	return 0;
 }
 
@@ -2346,5 +2345,6 @@ int fc_setup_exch_mgr()
  */
 void fc_destroy_exch_mgr()
 {
+	destroy_workqueue(fc_exch_workqueue);
 	kmem_cache_destroy(fc_em_cachep);
 }
