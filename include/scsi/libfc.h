@@ -1012,55 +1012,6 @@ void fc_exch_mgr_free(struct fc_lport *lport);
 void fc_exch_recv(struct fc_lport *lp, struct fc_frame *fp);
 
 /*
- * This function is for exch_seq_send function pointer in
- * struct libfc_function_template, see comment block on
- * exch_seq_send for description of this function.
- */
-struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
-				struct fc_frame *fp,
-				void (*resp)(struct fc_seq *sp,
-					     struct fc_frame *fp,
-					     void *arg),
-				void (*destructor)(struct fc_seq *sp,
-						   void *arg),
-				void *arg, u32 timer_msec);
-
-/*
- * send a frame using existing sequence and exchange.
- */
-int fc_seq_send(struct fc_lport *lp, struct fc_seq *sp, struct fc_frame *fp);
-
-/*
- * Send ELS response using mainly infomation
- * in exchange and sequence in EM layer.
- */
-void fc_seq_els_rsp_send(struct fc_seq *sp, enum fc_els_cmd els_cmd,
-			 struct fc_seq_els_data *els_data);
-
-/*
- * This function is for seq_exch_abort function pointer in
- * struct libfc_function_template, see comment block on
- * seq_exch_abort for description of this function.
- */
-int fc_seq_exch_abort(const struct fc_seq *req_sp, unsigned int timer_msec);
-
-/*
- * Indicate that an exchange/sequence tuple is complete and the memory
- * allocated for the related objects may be freed.
- */
-void fc_exch_done(struct fc_seq *sp);
-
-/*
- * Allocate a new exchange and sequence pair.
- */
-struct fc_exch *fc_exch_alloc(struct fc_lport *lport, struct fc_frame *fp);
-/*
- * Start a new sequence on the same exchange as the supplied sequence.
- */
-struct fc_seq *fc_seq_start_next(struct fc_seq *sp);
-
-
-/*
  * Reset all EMs of a lport, releasing its all sequences and
  * exchanges. If sid is non-zero, then reset only exchanges
  * we sourced from that FID. If did is non-zero, reset only
