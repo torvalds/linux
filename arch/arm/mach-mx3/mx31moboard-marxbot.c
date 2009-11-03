@@ -49,6 +49,8 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_TXD2__GPIO1_28,
 	/* dsPIC resets */
 	MX31_PIN_STXD5__GPIO1_21, MX31_PIN_SRXD5__GPIO1_22,
+	/*battery detection */
+	MX31_PIN_LCS0__GPIO3_23,
 };
 
 #define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
@@ -133,4 +135,9 @@ void __init mx31moboard_marxbot_init(void)
 	dspics_resets_init();
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+
+	/* battery present pin */
+	gpio_request(IOMUX_TO_GPIO(MX31_PIN_LCS0), "bat-present");
+	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_LCS0));
+	gpio_export(IOMUX_TO_GPIO(MX31_PIN_LCS0), false);
 }
