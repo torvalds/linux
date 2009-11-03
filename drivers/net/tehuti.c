@@ -1878,7 +1878,7 @@ static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
 			udelay(50);	/* give hw a chance to clean fifo */
 			continue;
 		}
-		avail = MIN(avail, size);
+		avail = min(avail, size);
 		DBG("about to push  %d bytes starting %p size %d\n", avail,
 		    data, size);
 		bdx_tx_push_desc(priv, data, avail);
