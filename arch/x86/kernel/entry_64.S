@@ -1501,7 +1501,7 @@ error_kernelspace:
 bstep_iret:
 	/* Fix truncated RIP */
 	movq %rcx,RIP+8(%rsp)
-	je error_swapgs
+	jmp error_swapgs
 END(error_entry)
 
 
