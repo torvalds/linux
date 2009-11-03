@@ -43,7 +43,7 @@
  * determined for each queue request anew.
  */
 #define QLOGICPTI_REQ_QUEUE_LEN	255	/* must be power of two - 1 */
-#define QLOGICPTI_MAX_SG(ql)	(4 + ((ql) > 0) ? 7*((ql) - 1) : 0)
+#define QLOGICPTI_MAX_SG(ql)	(4 + (((ql) > 0) ? 7*((ql) - 1) : 0))
 
 /* mailbox command complete status codes */
 #define MBOX_COMMAND_COMPLETE		0x4000
