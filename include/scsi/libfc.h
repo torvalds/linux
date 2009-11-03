@@ -739,12 +739,21 @@ static inline void *lport_priv(const struct fc_lport *lp)
  * @sht: ptr to the scsi host templ
  * @priv_size: size of private data after fc_lport
  *
- * Returns: ptr to Scsi_Host
+ * Returns: libfc lport
  */
-static inline struct Scsi_Host *
+static inline struct fc_lport *
 libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
 {
-	return scsi_host_alloc(sht, sizeof(struct fc_lport) + priv_size);
+	struct fc_lport *lport;
+	struct Scsi_Host *shost;
+
+	shost = scsi_host_alloc(sht, sizeof(*lport) + priv_size);
+	if (!shost)
+		return NULL;
+	lport = shost_priv(shost);
+	lport->host = shost;
+	INIT_LIST_HEAD(&lport->ema_list);
+	return lport;
 }
 
 /*

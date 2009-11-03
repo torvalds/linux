@@ -424,15 +424,13 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	 * Allocate SCSI Host and set up association between host,
 	 * local port, and fnic
 	 */
-	host = scsi_host_alloc(&fnic_host_template,
-			       sizeof(struct fc_lport) + sizeof(struct fnic));
-	if (!host) {
-		printk(KERN_ERR PFX "Unable to alloc SCSI host\n");
+	lp = libfc_host_alloc(&fnic_host_template, sizeof(struct fnic));
+	if (!lp) {
+		printk(KERN_ERR PFX "Unable to alloc libfc local port\n");
 		err = -ENOMEM;
 		goto err_out;
 	}
-	lp = shost_priv(host);
-	lp->host = host;
+	host = lp->host;
 	fnic = lport_priv(lp);
 	fnic->lport = lp;
 

@@ -1505,7 +1505,6 @@ int fc_lport_init(struct fc_lport *lport)
 	if (lport->link_supported_speeds & FC_PORTSPEED_10GBIT)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_10GBIT;
 
-	INIT_LIST_HEAD(&lport->ema_list);
 	return 0;
 }
 EXPORT_SYMBOL(fc_lport_init);

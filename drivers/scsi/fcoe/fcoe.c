@@ -515,8 +515,6 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	int rc = 0;
 
 	/* lport scsi host config */
-	lp->host = shost;
-
 	lp->host->max_lun = FCOE_MAX_LUN;
 	lp->host->max_id = FCOE_MAX_FCP_TARGET;
 	lp->host->max_channel = 0;
@@ -734,14 +732,14 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 
 	FCOE_NETDEV_DBG(netdev, "Create Interface\n");
 
-	shost = libfc_host_alloc(&fcoe_shost_template,
+	lport = libfc_host_alloc(&fcoe_shost_template,
 				 sizeof(struct fcoe_port));
-	if (!shost) {
+	if (!lport) {
 		FCOE_NETDEV_DBG(netdev, "Could not allocate host structure\n");
 		rc = -ENOMEM;
 		goto out;
 	}
-	lport = shost_priv(shost);
+	shost = lport->host;
 	port = lport_priv(lport);
 	port->lport = lport;
 	port->fcoe = fcoe;
