@@ -1661,6 +1661,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	if (unlikely(!skb)) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"No skb available, drop packet.\n");
+		rx_ring->rx_dropped++;
 		return;
 	}
 
@@ -1669,6 +1670,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		QPRINTK(qdev, DRV, ERR, "Receive error, flags2 = 0x%x\n",
 					ib_mac_rsp->flags2);
 		dev_kfree_skb_any(skb);
+		rx_ring->rx_errors++;
 		return;
 	}
 
@@ -1677,6 +1679,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	 */
 	if (skb->len > ndev->mtu + ETH_HLEN) {
 		dev_kfree_skb_any(skb);
+		rx_ring->rx_dropped++;
 		return;
 	}
 
@@ -1697,6 +1700,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 			IB_MAC_IOCB_RSP_M_REG ? "Registered" : "",
 			(ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) ==
 			IB_MAC_IOCB_RSP_M_PROM ? "Promiscuous" : "");
+		rx_ring->rx_multicast++;
 	}
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_P) {
 		QPRINTK(qdev, RX_STATUS, DEBUG, "Promiscuous Packet.\n");
@@ -1728,8 +1732,8 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		}
 	}
 
-	ndev->stats.rx_packets++;
-	ndev->stats.rx_bytes += skb->len;
+	rx_ring->rx_packets++;
+	rx_ring->rx_bytes += skb->len;
 	skb_record_rx_queue(skb, rx_ring->cq_id);
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (qdev->vlgrp &&
@@ -1753,7 +1757,6 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 				   struct ob_mac_iocb_rsp *mac_rsp)
 {
-	struct net_device *ndev = qdev->ndev;
 	struct tx_ring *tx_ring;
 	struct tx_ring_desc *tx_ring_desc;
 
@@ -1761,8 +1764,8 @@ static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 	tx_ring = &qdev->tx_ring[mac_rsp->txq_idx];
 	tx_ring_desc = &tx_ring->q[mac_rsp->tid];
 	ql_unmap_send(qdev, tx_ring_desc, tx_ring_desc->map_cnt);
-	ndev->stats.tx_bytes += (tx_ring_desc->skb)->len;
-	ndev->stats.tx_packets++;
+	tx_ring->tx_bytes += (tx_ring_desc->skb)->len;
+	tx_ring->tx_packets++;
 	dev_kfree_skb(tx_ring_desc->skb);
 	tx_ring_desc->skb = NULL;
 
@@ -2205,6 +2208,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 			__func__, tx_ring_idx);
 		netif_stop_subqueue(ndev, tx_ring->wq_id);
 		atomic_inc(&tx_ring->queue_stopped);
+		tx_ring->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
 	tx_ring_desc = &tx_ring->q[tx_ring->prod_idx];
@@ -2239,6 +2243,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 			NETDEV_TX_OK) {
 		QPRINTK(qdev, TX_QUEUED, ERR,
 				"Could not map the segments.\n");
+		tx_ring->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
 	QL_DUMP_OB_MAC_IOCB(mac_iocb_ptr);
@@ -3817,6 +3822,37 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 static struct net_device_stats *qlge_get_stats(struct net_device
 					       *ndev)
 {
+	struct ql_adapter *qdev = netdev_priv(ndev);
+	struct rx_ring *rx_ring = &qdev->rx_ring[0];
+	struct tx_ring *tx_ring = &qdev->tx_ring[0];
+	unsigned long pkts, mcast, dropped, errors, bytes;
+	int i;
+
+	/* Get RX stats. */
+	pkts = mcast = dropped = errors = bytes = 0;
+	for (i = 0; i < qdev->rss_ring_count; i++, rx_ring++) {
+			pkts += rx_ring->rx_packets;
+			bytes += rx_ring->rx_bytes;
+			dropped += rx_ring->rx_dropped;
+			errors += rx_ring->rx_errors;
+			mcast += rx_ring->rx_multicast;
+	}
+	ndev->stats.rx_packets = pkts;
+	ndev->stats.rx_bytes = bytes;
+	ndev->stats.rx_dropped = dropped;
+	ndev->stats.rx_errors = errors;
+	ndev->stats.multicast = mcast;
+
+	/* Get TX stats. */
+	pkts = errors = bytes = 0;
+	for (i = 0; i < qdev->tx_ring_count; i++, tx_ring++) {
+			pkts += tx_ring->tx_packets;
+			bytes += tx_ring->tx_bytes;
+			errors += tx_ring->tx_errors;
+	}
+	ndev->stats.tx_packets = pkts;
+	ndev->stats.tx_bytes = bytes;
+	ndev->stats.tx_errors = errors;
 	return &ndev->stats;
 }
 

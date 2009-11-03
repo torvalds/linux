@@ -1263,6 +1263,9 @@ struct tx_ring {
 	atomic_t queue_stopped;	/* Turns queue off when full. */
 	struct delayed_work tx_work;
 	struct ql_adapter *qdev;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_errors;
 };
 
 /*
@@ -1329,6 +1332,11 @@ struct rx_ring {
 	struct napi_struct napi;
 	u8 reserved;
 	struct ql_adapter *qdev;
+	u64 rx_packets;
+	u64 rx_multicast;
+	u64 rx_bytes;
+	u64 rx_dropped;
+	u64 rx_errors;
 };
 
 /*
