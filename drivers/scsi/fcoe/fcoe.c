@@ -275,7 +275,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	rcu_read_lock();
 	for_each_dev_addr(netdev, ha) {
 		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
-		    (is_valid_ether_addr(fip->ctl_src_addr))) {
+		    (is_valid_ether_addr(ha->addr))) {
 			memcpy(fip->ctl_src_addr, ha->addr, ETH_ALEN);
 			fip->spma = 1;
 			break;
