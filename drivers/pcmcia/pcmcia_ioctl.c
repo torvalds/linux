@@ -224,7 +224,7 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 static int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *wh_out,
 			window_handle_t wh, win_req_t *req)
 {
-	window_t *win;
+	pccard_mem_map *win;
 	window_handle_t w;
 
 	wh--;
@@ -238,17 +238,17 @@ static int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *wh_out,
 	if (w == MAX_WIN)
 		return -EINVAL;
 	win = &s->win[w];
-	req->Base = win->ctl.res->start;
-	req->Size = win->ctl.res->end - win->ctl.res->start + 1;
-	req->AccessSpeed = win->ctl.speed;
+	req->Base = win->res->start;
+	req->Size = win->res->end - win->res->start + 1;
+	req->AccessSpeed = win->speed;
 	req->Attributes = 0;
-	if (win->ctl.flags & MAP_ATTRIB)
+	if (win->flags & MAP_ATTRIB)
 		req->Attributes |= WIN_MEMORY_TYPE_AM;
-	if (win->ctl.flags & MAP_ACTIVE)
+	if (win->flags & MAP_ACTIVE)
 		req->Attributes |= WIN_ENABLE;
-	if (win->ctl.flags & MAP_16BIT)
+	if (win->flags & MAP_16BIT)
 		req->Attributes |= WIN_DATA_WIDTH_16;
-	if (win->ctl.flags & MAP_USE_WAIT)
+	if (win->flags & MAP_USE_WAIT)
 		req->Attributes |= WIN_USE_WAIT;
 
 	*wh_out = w + 1;
@@ -268,7 +268,7 @@ static int pcmcia_get_mem_page(struct pcmcia_socket *skt, window_handle_t wh,
 		return -EINVAL;
 
 	req->Page = 0;
-	req->CardOffset = skt->win[wh].ctl.card_start;
+	req->CardOffset = skt->win[wh].card_start;
 	return 0;
 } /* pcmcia_get_mem_page */
 

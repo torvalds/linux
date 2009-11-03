@@ -107,10 +107,6 @@ typedef struct io_window_t {
 	struct resource		*res;
 } io_window_t;
 
-typedef struct window_t {
-	pccard_mem_map		ctl;
-} window_t;
-
 /* Maximum number of IO windows per socket */
 #define MAX_IO_WIN 2
 
@@ -150,7 +146,7 @@ struct pcmcia_socket {
 		u_int			Config;
 	} irq;
 	io_window_t			io[MAX_IO_WIN];
-	window_t			win[MAX_WIN];
+	pccard_mem_map			win[MAX_WIN];
 	struct list_head		cis_cache;
 	size_t				fake_cis_len;
 	u8				*fake_cis;
