@@ -1267,10 +1267,11 @@ err2:
  */
 static inline int fcoe_start_io(struct sk_buff *skb)
 {
+	struct sk_buff *nskb;
 	int rc;
 
-	skb_get(skb);
-	rc = dev_queue_xmit(skb);
+	nskb = skb_clone(skb, GFP_ATOMIC);
+	rc = dev_queue_xmit(nskb);
 	if (rc != 0)
 		return rc;
 	kfree_skb(skb);

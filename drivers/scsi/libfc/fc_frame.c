@@ -58,12 +58,13 @@ struct fc_frame *_fc_frame_alloc(size_t len)
 
 	WARN_ON((len % sizeof(u32)) != 0);
 	len += sizeof(struct fc_frame_header);
-	skb = dev_alloc_skb(len + FC_FRAME_HEADROOM + FC_FRAME_TAILROOM);
+	skb = alloc_skb_fclone(len + FC_FRAME_HEADROOM + FC_FRAME_TAILROOM +
+			       NET_SKB_PAD, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+	skb_reserve(skb, NET_SKB_PAD + FC_FRAME_HEADROOM);
 	fp = (struct fc_frame *) skb;
 	fc_frame_init(fp);
-	skb_reserve(skb, FC_FRAME_HEADROOM);
 	skb_put(skb, len);
 	return fp;
 }

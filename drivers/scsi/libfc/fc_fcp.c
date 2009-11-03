@@ -530,11 +530,13 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 	struct scatterlist *sg;
 	struct fc_frame *fp = NULL;
 	struct fc_lport *lport = fsp->lp;
+	struct page *page;
 	size_t remaining;
 	size_t t_blen;
 	size_t tlen;
 	size_t sg_bytes;
 	size_t frame_offset, fh_parm_offset;
+	size_t off;
 	int error;
 	void *data = NULL;
 	void *page_addr;
@@ -605,28 +607,26 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			fh_parm_offset = frame_offset;
 			fr_max_payload(fp) = fsp->max_payload;
 		}
+
+		off = offset + sg->offset;
 		sg_bytes = min(tlen, sg->length - offset);
+		sg_bytes = min(sg_bytes,
+			       (size_t) (PAGE_SIZE - (off & ~PAGE_MASK)));
+		page = sg_page(sg) + (off >> PAGE_SHIFT);
 		if (using_sg) {
-			get_page(sg_page(sg));
+			get_page(page);
 			skb_fill_page_desc(fp_skb(fp),
 					   skb_shinfo(fp_skb(fp))->nr_frags,
-					   sg_page(sg), sg->offset + offset,
-					   sg_bytes);
+					   page, off & ~PAGE_MASK, sg_bytes);
 			fp_skb(fp)->data_len += sg_bytes;
 			fr_len(fp) += sg_bytes;
 			fp_skb(fp)->truesize += PAGE_SIZE;
 		} else {
-			size_t off = offset + sg->offset;
-
 			/*
 			 * The scatterlist item may be bigger than PAGE_SIZE,
 			 * but we must not cross pages inside the kmap.
 			 */
-			sg_bytes = min(sg_bytes, (size_t) (PAGE_SIZE -
-							   (off & ~PAGE_MASK)));
-			page_addr = kmap_atomic(sg_page(sg) +
-						(off >> PAGE_SHIFT),
-						KM_SOFTIRQ0);
+			page_addr = kmap_atomic(page, KM_SOFTIRQ0);
 			memcpy(data, (char *)page_addr + (off & ~PAGE_MASK),
 			       sg_bytes);
 			kunmap_atomic(page_addr, KM_SOFTIRQ0);
