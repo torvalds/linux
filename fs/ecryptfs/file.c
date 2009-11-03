@@ -299,7 +299,6 @@ static int ecryptfs_ioctl(struct inode *inode, struct file *file,
 const struct file_operations ecryptfs_dir_fops = {
 	.readdir = ecryptfs_readdir,
 	.ioctl = ecryptfs_ioctl,
-	.mmap = generic_file_mmap,
 	.open = ecryptfs_open,
 	.flush = ecryptfs_flush,
 	.release = ecryptfs_release,
