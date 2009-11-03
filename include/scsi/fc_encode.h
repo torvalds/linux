@@ -32,6 +32,7 @@ struct fc_ct_req {
 		struct fc_ns_gid_ft gid;
 		struct fc_ns_rn_id  rn;
 		struct fc_ns_rft rft;
+		struct fc_ns_rff_id rff;
 		struct fc_ns_fid fid;
 		struct fc_ns_rsnn snn;
 		struct fc_ns_rspn spn;
@@ -129,6 +130,17 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		hton24(ct->payload.rft.fid.fp_fid,
 		       fc_host_port_id(lport->host));
 		ct->payload.rft.fts = lport->fcts;
+		break;
+
+	case FC_NS_RFF_ID:
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rff_id));
+		hton24(ct->payload.rff.fr_fid.fp_fid,
+		       fc_host_port_id(lport->host));
+		ct->payload.rff.fr_type = FC_TYPE_FCP;
+		if (lport->service_params & FCP_SPPF_INIT_FCN)
+			ct->payload.rff.fr_feat = FCP_FEAT_INIT;
+		if (lport->service_params & FCP_SPPF_TARG_FCN)
+			ct->payload.rff.fr_feat |= FCP_FEAT_TARG;
 		break;
 
 	case FC_NS_RNN_ID:

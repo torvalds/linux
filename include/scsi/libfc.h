@@ -62,6 +62,7 @@
  * @LPORT_ST_DNS:      Waiting for name server remote port to become ready
  * @LPORT_ST_RPN_ID:   Register port name by ID (RPN_ID) sent
  * @LPORT_ST_RFT_ID:   Register Fibre Channel types by ID (RFT_ID) sent
+ * @LPORT_ST_RFF_ID:   Register FC-4 Features by ID (RFF_ID) sent
  * @LPORT_ST_SCR:      State Change Register (SCR) sent
  * @LPORT_ST_READY:    Ready for use
  * @LPORT_ST_LOGO:     Local port logout (LOGO) sent
@@ -75,6 +76,7 @@ enum fc_lport_state {
 	LPORT_ST_RSNN_NN,
 	LPORT_ST_RSPN_ID,
 	LPORT_ST_RFT_ID,
+	LPORT_ST_RFF_ID,
 	LPORT_ST_SCR,
 	LPORT_ST_READY,
 	LPORT_ST_LOGO,

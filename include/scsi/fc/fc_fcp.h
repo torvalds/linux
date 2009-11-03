@@ -196,4 +196,10 @@ struct fcp_srr {
 	__u8		srr_resvd2[3];	/* reserved */
 };
 
+/*
+ * Feature bits in name server FC-4 Features object.
+ */
+#define	FCP_FEAT_TARG	(1 << 0)	/* target function supported */
+#define	FCP_FEAT_INIT	(1 << 1)	/* initiator function supported */
+
 #endif /* _FC_FCP_H_ */

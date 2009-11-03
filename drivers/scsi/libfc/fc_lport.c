@@ -122,6 +122,7 @@ static const char *fc_lport_state_names[] = {
 	[LPORT_ST_RSNN_NN] =  "RSNN_NN",
 	[LPORT_ST_RSPN_ID] =  "RSPN_ID",
 	[LPORT_ST_RFT_ID] =   "RFT_ID",
+	[LPORT_ST_RFF_ID] =   "RFF_ID",
 	[LPORT_ST_SCR] =      "SCR",
 	[LPORT_ST_READY] =    "Ready",
 	[LPORT_ST_LOGO] =     "LOGO",
@@ -1034,6 +1035,7 @@ static void fc_lport_error(struct fc_lport *lport, struct fc_frame *fp)
 			case LPORT_ST_RSNN_NN:
 			case LPORT_ST_RSPN_ID:
 			case LPORT_ST_RFT_ID:
+			case LPORT_ST_RFF_ID:
 			case LPORT_ST_SCR:
 			case LPORT_ST_DNS:
 			case LPORT_ST_FLOGI:
@@ -1070,7 +1072,7 @@ static void fc_lport_ns_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	mutex_lock(&lport->lp_mutex);
 
-	if (lport->state < LPORT_ST_RNN_ID || lport->state > LPORT_ST_RFT_ID) {
+	if (lport->state < LPORT_ST_RNN_ID || lport->state > LPORT_ST_RFF_ID) {
 		FC_LPORT_DBG(lport, "Received a name server response, "
 			     "but in state %s\n", fc_lport_state(lport));
 		if (IS_ERR(fp))
@@ -1101,6 +1103,9 @@ static void fc_lport_ns_resp(struct fc_seq *sp, struct fc_frame *fp,
 			fc_lport_enter_ns(lport, LPORT_ST_RFT_ID);
 			break;
 		case LPORT_ST_RFT_ID:
+			fc_lport_enter_ns(lport, LPORT_ST_RFF_ID);
+			break;
+		case LPORT_ST_RFF_ID:
 			fc_lport_enter_scr(lport);
 			break;
 		default:
@@ -1235,6 +1240,10 @@ static void fc_lport_enter_ns(struct fc_lport *lport, enum fc_lport_state state)
 		cmd = FC_NS_RFT_ID;
 		size += sizeof(struct fc_ns_rft);
 		break;
+	case LPORT_ST_RFF_ID:
+		cmd = FC_NS_RFF_ID;
+		size += sizeof(struct fc_ns_rff_id);
+		break;
 	default:
 		fc_lport_error(lport, NULL);
 		return;
@@ -1317,6 +1326,7 @@ static void fc_lport_timeout(struct work_struct *work)
 	case LPORT_ST_RSNN_NN:
 	case LPORT_ST_RSPN_ID:
 	case LPORT_ST_RFT_ID:
+	case LPORT_ST_RFF_ID:
 		fc_lport_enter_ns(lport, lport->state);
 		break;
 	case LPORT_ST_SCR:

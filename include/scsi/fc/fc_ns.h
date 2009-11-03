@@ -46,10 +46,11 @@ enum fc_ns_req {
 	FC_NS_GID_FT =	0x0171,		/* get IDs by FC4 type */
 	FC_NS_GPN_FT =	0x0172,		/* get port names by FC4 type */
 	FC_NS_GID_PT =	0x01a1,		/* get IDs by port type */
-	FC_NS_RFT_ID =	0x0217,		/* reg FC4 type for ID */
 	FC_NS_RPN_ID =	0x0212,		/* reg port name for ID */
 	FC_NS_RNN_ID =	0x0213,		/* reg node name for ID */
+	FC_NS_RFT_ID =	0x0217,		/* reg FC4 type for ID */
 	FC_NS_RSPN_ID =	0x0218,		/* reg symbolic port name */
+	FC_NS_RFF_ID =	0x021f,		/* reg FC4 Features for ID */
 	FC_NS_RSNN_NN =	0x0239,		/* reg symbolic node name */
 };
 
@@ -176,6 +177,16 @@ struct fc_ns_rspn {
 	struct fc_ns_fid fr_fid;	/* port ID object */
 	__u8		fr_name_len;
 	char		fr_name[];
+} __attribute__((__packed__));
+
+/*
+ * RFF_ID request - register FC-4 Features for ID.
+ */
+struct fc_ns_rff_id {
+	struct fc_ns_fid fr_fid;	/* port ID object */
+	__u8		fr_resvd[2];
+	__u8		fr_feat;	/* FC-4 Feature bits */
+	__u8		fr_type;	/* FC-4 type */
 } __attribute__((__packed__));
 
 #endif /* _FC_NS_H_ */
