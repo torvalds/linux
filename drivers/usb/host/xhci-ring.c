@@ -526,9 +526,6 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	struct xhci_td *last_unlinked_td;
 
 	struct xhci_dequeue_state deq_state;
-#ifdef CONFIG_USB_HCD_STAT
-	ktime_t stop_time = ktime_get();
-#endif
 
 	memset(&deq_state, 0, sizeof(deq_state));
 	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
@@ -593,10 +590,6 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		list_del(&cur_td->cancelled_td_list);
 
 		/* Clean up the cancelled URB */
-#ifdef CONFIG_USB_HCD_STAT
-		hcd_stat_update(xhci->tp_stat, cur_td->urb->actual_length,
-				ktime_sub(stop_time, cur_td->start_time));
-#endif
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
