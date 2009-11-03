@@ -2102,12 +2102,12 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 */
 	var = ql_read32(qdev, ISR1);
 	if (var & intr_context->irq_mask) {
-				QPRINTK(qdev, INTR, INFO,
+		QPRINTK(qdev, INTR, INFO,
 			"Waking handler for rx_ring[0].\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
-					napi_schedule(&rx_ring->napi);
-				work_done++;
-			}
+		napi_schedule(&rx_ring->napi);
+		work_done++;
+	}
 	ql_enable_completion_interrupt(qdev, intr_context->intr);
 	return work_done ? IRQ_HANDLED : IRQ_NONE;
 }
