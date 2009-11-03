@@ -2029,7 +2029,6 @@ int fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	fsp = fc_fcp_pkt_alloc(lport, GFP_NOIO);
 	if (fsp == NULL) {
 		printk(KERN_WARNING "libfc: could not allocate scsi_pkt\n");
-		sc_cmd->result = DID_NO_CONNECT << 16;
 		goto out;
 	}
 
