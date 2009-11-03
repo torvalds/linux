@@ -447,7 +447,7 @@ struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 		for (i=0; i< MAX_MTD_DEVICES; i++)
 			if (mtd_table[i] == mtd)
 				ret = mtd_table[i];
-	} else if (num < MAX_MTD_DEVICES) {
+	} else if (num >= 0 && num < MAX_MTD_DEVICES) {
 		ret = mtd_table[num];
 		if (mtd && mtd != ret)
 			ret = NULL;
