@@ -90,6 +90,9 @@ EXPORT_SYMBOL(fc_elsct_init);
 const char *fc_els_resp_type(struct fc_frame *fp)
 {
 	const char *msg;
+	struct fc_frame_header *fh;
+	struct fc_ct_hdr *ct;
+
 	if (IS_ERR(fp)) {
 		switch (-PTR_ERR(fp)) {
 		case FC_NO_ERR:
@@ -106,15 +109,41 @@ const char *fc_els_resp_type(struct fc_frame *fp)
 			break;
 		}
 	} else {
-		switch (fc_frame_payload_op(fp)) {
-		case ELS_LS_ACC:
-			msg = "accept";
+		fh = fc_frame_header_get(fp);
+		switch (fh->fh_type) {
+		case FC_TYPE_ELS:
+			switch (fc_frame_payload_op(fp)) {
+			case ELS_LS_ACC:
+				msg = "accept";
+				break;
+			case ELS_LS_RJT:
+				msg = "reject";
+				break;
+			default:
+				msg = "response unknown ELS";
+				break;
+			}
 			break;
-		case ELS_LS_RJT:
-			msg = "reject";
+		case FC_TYPE_CT:
+			ct = fc_frame_payload_get(fp, sizeof(*ct));
+			if (ct) {
+				switch (ntohs(ct->ct_cmd)) {
+				case FC_FS_ACC:
+					msg = "CT accept";
+					break;
+				case FC_FS_RJT:
+					msg = "CT reject";
+					break;
+				default:
+					msg = "response unknown CT";
+					break;
+				}
+			} else {
+				msg = "short CT response";
+			}
 			break;
 		default:
-			msg = "response unknown ELS";
+			msg = "response not ELS or CT";
 			break;
 		}
 	}
