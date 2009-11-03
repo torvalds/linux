@@ -825,31 +825,42 @@ static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
 static void f10_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt,
 					 int ganged);
 
+static void amd64_dump_dramcfg_low(u32 dclr, int chan)
+{
+	debugf1("F2x%d90 (DRAM Cfg Low): 0x%08x\n", chan, dclr);
+
+	debugf1("  DIMM type: %sbuffered; all DIMMs support ECC: %s\n",
+		(dclr & BIT(16)) ?  "un" : "",
+		(dclr & BIT(19)) ? "yes" : "no");
+
+	debugf1("  PAR/ERR parity: %s\n",
+		(dclr & BIT(8)) ?  "enabled" : "disabled");
+
+	debugf1("  DCT 128bit mode width: %s\n",
+		(dclr & BIT(11)) ?  "128b" : "64b");
+
+	debugf1("  x4 logical DIMMs present: L0: %s L1: %s L2: %s L3: %s\n",
+		(dclr & BIT(12)) ?  "yes" : "no",
+		(dclr & BIT(13)) ?  "yes" : "no",
+		(dclr & BIT(14)) ?  "yes" : "no",
+		(dclr & BIT(15)) ?  "yes" : "no");
+}
+
 /* Display and decode various NB registers for debug purposes. */
 static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 {
 	int ganged;
 
-	debugf1("  nbcap:0x%8.08x DctDualCap=%s DualNode=%s 8-Node=%s\n",
-		pvt->nbcap,
-		(pvt->nbcap & K8_NBCAP_DCT_DUAL) ? "True" : "False",
-		(pvt->nbcap & K8_NBCAP_DUAL_NODE) ? "True" : "False",
-		(pvt->nbcap & K8_NBCAP_8_NODE) ? "True" : "False");
-	debugf1("    ECC Capable=%s   ChipKill Capable=%s\n",
-		(pvt->nbcap & K8_NBCAP_SECDED) ? "True" : "False",
-		(pvt->nbcap & K8_NBCAP_CHIPKILL) ? "True" : "False");
-	debugf1("  DramCfg0-low=0x%08x DIMM-ECC=%s Parity=%s Width=%s\n",
-		pvt->dclr0,
-		(pvt->dclr0 & BIT(19)) ?  "Enabled" : "Disabled",
-		(pvt->dclr0 & BIT(8)) ?  "Enabled" : "Disabled",
-		(pvt->dclr0 & BIT(11)) ?  "128b" : "64b");
-	debugf1("    DIMM x4 Present: L0=%s L1=%s L2=%s L3=%s  DIMM Type=%s\n",
-		(pvt->dclr0 & BIT(12)) ?  "Y" : "N",
-		(pvt->dclr0 & BIT(13)) ?  "Y" : "N",
-		(pvt->dclr0 & BIT(14)) ?  "Y" : "N",
-		(pvt->dclr0 & BIT(15)) ?  "Y" : "N",
-		(pvt->dclr0 & BIT(16)) ?  "UN-Buffered" : "Buffered");
+	debugf1("F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
+	debugf1("  NB two channel DRAM capable: %s\n",
+		(pvt->nbcap & K8_NBCAP_DCT_DUAL) ? "yes" : "no");
+
+	debugf1("  ECC capable: %s, ChipKill ECC capable: %s\n",
+		(pvt->nbcap & K8_NBCAP_SECDED) ? "yes" : "no",
+		(pvt->nbcap & K8_NBCAP_CHIPKILL) ? "yes" : "no");
+
+	amd64_dump_dramcfg_low(pvt->dclr0, 0);
 
 	debugf1("  online-spare: 0x%8.08x\n", pvt->online_spare);
 
@@ -877,20 +888,8 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 	}
 
 	/* Only if NOT ganged does dcl1 have valid info */
-	if (!dct_ganging_enabled(pvt)) {
-		debugf1("  DramCfg1-low=0x%08x DIMM-ECC=%s Parity=%s "
-			"Width=%s\n", pvt->dclr1,
-			(pvt->dclr1 & BIT(19)) ?  "Enabled" : "Disabled",
-			(pvt->dclr1 & BIT(8)) ?  "Enabled" : "Disabled",
-			(pvt->dclr1 & BIT(11)) ?  "128b" : "64b");
-		debugf1("    DIMM x4 Present: L0=%s L1=%s L2=%s L3=%s  "
-			"DIMM Type=%s\n",
-			(pvt->dclr1 & BIT(12)) ?  "Y" : "N",
-			(pvt->dclr1 & BIT(13)) ?  "Y" : "N",
-			(pvt->dclr1 & BIT(14)) ?  "Y" : "N",
-			(pvt->dclr1 & BIT(15)) ?  "Y" : "N",
-			(pvt->dclr1 & BIT(16)) ?  "UN-Buffered" : "Buffered");
-	}
+	if (!dct_ganging_enabled(pvt))
+		amd64_dump_dramcfg_low(pvt->dclr1, 1);
 
 	/*
 	 * Determine if ganged and then dump memory sizes for first controller,

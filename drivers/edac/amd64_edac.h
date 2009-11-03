@@ -384,8 +384,6 @@ enum {
 #define K8_NBCAP_CORES			(BIT(12)|BIT(13))
 #define K8_NBCAP_CHIPKILL		BIT(4)
 #define K8_NBCAP_SECDED			BIT(3)
-#define K8_NBCAP_8_NODE			BIT(2)
-#define K8_NBCAP_DUAL_NODE		BIT(1)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
 /* MSRs */
