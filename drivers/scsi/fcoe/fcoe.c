@@ -93,6 +93,10 @@ static struct notifier_block fcoe_notifier = {
 static struct scsi_transport_template *fcoe_transport_template;
 static struct scsi_transport_template *fcoe_vport_transport_template;
 
+static int fcoe_vport_destroy(struct fc_vport *vport);
+static int fcoe_vport_create(struct fc_vport *vport, bool disabled);
+static int fcoe_vport_disable(struct fc_vport *vport, bool disable);
+
 struct fc_function_template fcoe_transport_function = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
@@ -124,6 +128,10 @@ struct fc_function_template fcoe_transport_function = {
 	.issue_fc_host_lip = fcoe_reset,
 
 	.terminate_rport_io = fc_rport_terminate_io,
+
+	.vport_create = fcoe_vport_create,
+	.vport_delete = fcoe_vport_destroy,
+	.vport_disable = fcoe_vport_disable,
 };
 
 struct fc_function_template fcoe_vport_transport_function = {
@@ -450,6 +458,7 @@ static int fcoe_lport_config(struct fc_lport *lp)
 	lp->r_a_tov = 2 * 2 * 1000;
 	lp->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |
 			      FCP_SPPF_RETRY | FCP_SPPF_CONF_COMPL);
+	lp->does_npiv = 1;
 
 	fc_lport_init_stats(lp);
 
@@ -536,11 +545,13 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	port->fcoe_pending_queue_active = 0;
 	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lp);
 
-	wwnn = fcoe_wwn_from_mac(netdev->dev_addr, 1, 0);
-	fc_set_wwnn(lp, wwnn);
-	/* XXX - 3rd arg needs to be vlan id */
-	wwpn = fcoe_wwn_from_mac(netdev->dev_addr, 2, 0);
-	fc_set_wwpn(lp, wwpn);
+	if (!lp->vport) {
+		wwnn = fcoe_wwn_from_mac(netdev->dev_addr, 1, 0);
+		fc_set_wwnn(lp, wwnn);
+		/* XXX - 3rd arg needs to be vlan id */
+		wwpn = fcoe_wwn_from_mac(netdev->dev_addr, 2, 0);
+		fc_set_wwpn(lp, wwpn);
+	}
 
 	return 0;
 }
@@ -576,6 +587,10 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 				"error on scsi_add_host\n");
 		return rc;
 	}
+
+	if (!lp->vport)
+		fc_host_max_npiv_vports(lp->host) = USHORT_MAX;
+
 	sprintf(fc_host_symbolic_name(lp->host), "%s v%s over %s",
 		FCOE_NAME, FCOE_VERSION,
 		fcoe_netdev(lp)->name);
@@ -776,24 +791,35 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
  * fcoe_if_create() - this function creates the fcoe port
  * @fcoe: fcoe_interface structure to create an fc_lport instance on
  * @parent: device pointer to be the parent in sysfs for the SCSI host
+ * @npiv: is this a vport?
  *
  * Creates fc_lport struct and scsi_host for lport, configures lport.
  *
  * Returns : The allocated fc_lport or an error pointer
  */
 static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
-				       struct device *parent)
+				       struct device *parent, int npiv)
 {
 	int rc;
 	struct fc_lport *lport = NULL;
 	struct fcoe_port *port;
 	struct Scsi_Host *shost;
 	struct net_device *netdev = fcoe->netdev;
+	/*
+	 * parent is only a vport if npiv is 1,
+	 * but we'll only use vport in that case so go ahead and set it
+	 */
+	struct fc_vport *vport = dev_to_vport(parent);
 
 	FCOE_NETDEV_DBG(netdev, "Create Interface\n");
 
-	lport = libfc_host_alloc(&fcoe_shost_template,
-				 sizeof(struct fcoe_port));
+	if (!npiv) {
+		lport = libfc_host_alloc(&fcoe_shost_template,
+					 sizeof(struct fcoe_port));
+	} else	{
+		lport = libfc_vport_create(vport,
+					   sizeof(struct fcoe_port));
+	}
 	if (!lport) {
 		FCOE_NETDEV_DBG(netdev, "Could not allocate host structure\n");
 		rc = -ENOMEM;
@@ -811,6 +837,13 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		FCOE_NETDEV_DBG(netdev, "Could not configure lport for the "
 				"interface\n");
 		goto out_host_put;
+	}
+
+	if (npiv) {
+		FCOE_NETDEV_DBG(netdev, "Setting vport names, 0x%llX 0x%llX\n",
+			vport->node_name, vport->port_name);
+		fc_set_wwnn(lport, vport->node_name);
+		fc_set_wwpn(lport, vport->port_name);
 	}
 
 	/* configure lport network properties */
@@ -837,21 +870,24 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		goto out_lp_destroy;
 	}
 
-	/*
-	 * fcoe_em_alloc() and fcoe_hostlist_add() both
-	 * need to be atomic with respect to other changes to the hostlist
-	 * since fcoe_em_alloc() looks for an existing EM
-	 * instance on host list updated by fcoe_hostlist_add().
-	 *
-	 * This is currently handled through the fcoe_config_mutex begin held.
-	 */
+	if (!npiv) {
+		/*
+		 * fcoe_em_alloc() and fcoe_hostlist_add() both
+		 * need to be atomic with respect to other changes to the
+		 * hostlist since fcoe_em_alloc() looks for an existing EM
+		 * instance on host list updated by fcoe_hostlist_add().
+		 *
+		 * This is currently handled through the fcoe_config_mutex
+		 * begin held.
+		 */
 
-	/* lport exch manager allocation */
-	rc = fcoe_em_config(lport);
-	if (rc) {
-		FCOE_NETDEV_DBG(netdev, "Could not configure the EM for the "
-				"interface\n");
-		goto out_lp_destroy;
+		/* lport exch manager allocation */
+		rc = fcoe_em_config(lport);
+		if (rc) {
+			FCOE_NETDEV_DBG(netdev, "Could not configure the EM "
+						"for the interface\n");
+			goto out_lp_destroy;
+		}
 	}
 
 	fcoe_interface_get(fcoe);
@@ -1806,7 +1842,7 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 		goto out_putdev;
 	}
 
-	lport = fcoe_if_create(fcoe, &netdev->dev);
+	lport = fcoe_if_create(fcoe, &netdev->dev, 0);
 	if (IS_ERR(lport)) {
 		printk(KERN_ERR "fcoe: Failed to create interface (%s)\n",
 		       netdev->name);
@@ -2113,6 +2149,9 @@ static void __exit fcoe_exit(void)
 	/* flush any asyncronous interface destroys,
 	 * this should happen after the netdev notifier is unregistered */
 	flush_scheduled_work();
+	/* That will flush out all the N_Ports on the hostlist, but now we
+	 * may have NPIV VN_Ports scheduled for destruction */
+	flush_scheduled_work();
 
 	/* detach from scsi transport
 	 * must happen after all destroys are done, therefor after the flush */
@@ -2208,5 +2247,82 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport,
 				     fip, timeout);
 	}
 	return fc_elsct_send(lport, did, fp, op, resp, arg, timeout);
+}
+
+/**
+ * fcoe_vport_create() - create an fc_host/scsi_host for a vport
+ * @vport: fc_vport object to create a new fc_host for
+ * @disabled: start the new fc_host in a disabled state by default?
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_vport_create(struct fc_vport *vport, bool disabled)
+{
+	struct Scsi_Host *shost = vport_to_shost(vport);
+	struct fc_lport *n_port = shost_priv(shost);
+	struct fcoe_port *port = lport_priv(n_port);
+	struct fcoe_interface *fcoe = port->fcoe;
+	struct net_device *netdev = fcoe->netdev;
+	struct fc_lport *vn_port;
+
+	mutex_lock(&fcoe_config_mutex);
+	vn_port = fcoe_if_create(fcoe, &vport->dev, 1);
+	mutex_unlock(&fcoe_config_mutex);
+
+	if (IS_ERR(vn_port)) {
+		printk(KERN_ERR "fcoe: fcoe_vport_create(%s) failed\n",
+		       netdev->name);
+		return -EIO;
+	}
+
+	if (disabled) {
+		fc_vport_set_state(vport, FC_VPORT_DISABLED);
+	} else {
+		vn_port->boot_time = jiffies;
+		fc_fabric_login(vn_port);
+		fc_vport_setlink(vn_port);
+	}
+	return 0;
+}
+
+/**
+ * fcoe_vport_destroy() - destroy the fc_host/scsi_host for a vport
+ * @vport: fc_vport object that is being destroyed
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_vport_destroy(struct fc_vport *vport)
+{
+	struct Scsi_Host *shost = vport_to_shost(vport);
+	struct fc_lport *n_port = shost_priv(shost);
+	struct fc_lport *vn_port = vport->dd_data;
+	struct fcoe_port *port = lport_priv(vn_port);
+
+	mutex_lock(&n_port->lp_mutex);
+	list_del(&vn_port->list);
+	mutex_unlock(&n_port->lp_mutex);
+	schedule_work(&port->destroy_work);
+	return 0;
+}
+
+/**
+ * fcoe_vport_disable() - change vport state
+ * @vport: vport to bring online/offline
+ * @disable: should the vport be disabled?
+ */
+static int fcoe_vport_disable(struct fc_vport *vport, bool disable)
+{
+	struct fc_lport *lport = vport->dd_data;
+
+	if (disable) {
+		fc_vport_set_state(vport, FC_VPORT_DISABLED);
+		fc_fabric_logoff(lport);
+	} else {
+		lport->boot_time = jiffies;
+		fc_fabric_login(lport);
+		fc_vport_setlink(lport);
+	}
+
+	return 0;
 }
 
