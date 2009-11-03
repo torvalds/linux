@@ -121,6 +121,7 @@ struct dso *dso__new(const char *name)
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
+		self->loaded = false;
 	}
 
 	return self;
