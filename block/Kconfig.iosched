@@ -12,24 +12,14 @@ config IOSCHED_NOOP
 	  that do their own scheduling and require only minimal assistance from
 	  the kernel.
 
-config IOSCHED_AS
-	tristate "Anticipatory I/O scheduler"
-	default y
-	---help---
-	  The anticipatory I/O scheduler is generally a good choice for most
-	  environments, but is quite large and complex when compared to the
-	  deadline I/O scheduler, it can also be slower in some cases
-	  especially some database loads.
-
 config IOSCHED_DEADLINE
 	tristate "Deadline I/O scheduler"
 	default y
 	---help---
-	  The deadline I/O scheduler is simple and compact, and is often as
-	  good as the anticipatory I/O scheduler, and in some database
-	  workloads, better. In the case of a single process performing I/O to
-	  a disk at any one time, its behaviour is almost identical to the
-	  anticipatory I/O scheduler and so is a good choice.
+	  The deadline I/O scheduler is simple and compact. It will provide
+	  CSCAN service with FIFO expiration of requests, switching to
+	  a new point in the service tree and doing a batch of IO from there
+	  in case of expiry.
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
@@ -37,7 +27,9 @@ config IOSCHED_CFQ
 	---help---
 	  The CFQ I/O scheduler tries to distribute bandwidth equally
 	  among all processes in the system. It should provide a fair
-	  working environment, suitable for desktop systems.
+	  and low latency working environment, suitable for both desktop
+	  and server systems.
+
 	  This is the default I/O scheduler.
 
 choice
@@ -46,9 +38,6 @@ choice
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
-
-	config DEFAULT_AS
-		bool "Anticipatory" if IOSCHED_AS=y
 
 	config DEFAULT_DEADLINE
 		bool "Deadline" if IOSCHED_DEADLINE=y
@@ -63,7 +52,6 @@ endchoice
 
 config DEFAULT_IOSCHED
 	string
-	default "anticipatory" if DEFAULT_AS
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP

@@ -1,0 +1,71 @@
+#
+# DRBD device driver configuration
+#
+
+comment "DRBD disabled because PROC_FS, INET or CONNECTOR not selected"
+	depends on !PROC_FS || !INET || !CONNECTOR
+
+config BLK_DEV_DRBD
+	tristate "DRBD Distributed Replicated Block Device support"
+	depends on PROC_FS && INET && CONNECTOR
+	select LRU_CACHE
+	default n
+	help
+
+	  NOTE: In order to authenticate connections you have to select
+	  CRYPTO_HMAC and a hash function as well.
+
+	  DRBD is a shared-nothing, synchronously replicated block device. It
+	  is designed to serve as a building block for high availability
+	  clusters and in this context, is a "drop-in" replacement for shared
+	  storage. Simplistically, you could see it as a network RAID 1.
+
+	  Each minor device has a role, which can be 'primary' or 'secondary'.
+	  On the node with the primary device the application is supposed to
+	  run and to access the device (/dev/drbdX). Every write is sent to
+	  the local 'lower level block device' and, across the network, to the
+	  node with the device in 'secondary' state.  The secondary device
+	  simply writes the data to its lower level block device.
+
+	  DRBD can also be used in dual-Primary mode (device writable on both
+	  nodes), which means it can exhibit shared disk semantics in a
+	  shared-nothing cluster.  Needless to say, on top of dual-Primary
+	  DRBD utilizing a cluster file system is necessary to maintain for
+	  cache coherency.
+
+	  For automatic failover you need a cluster manager (e.g. heartbeat).
+	  See also: http://www.drbd.org/, http://www.linux-ha.org
+
+	  If unsure, say N.
+
+config DRBD_FAULT_INJECTION
+	bool "DRBD fault injection"
+	depends on BLK_DEV_DRBD
+	help
+
+	  Say Y here if you want to simulate IO errors, in order to test DRBD's
+	  behavior.
+
+	  The actual simulation of IO errors is done by writing 3 values to
+	  /sys/module/drbd/parameters/
+
+	  enable_faults: bitmask of...
+	  1	meta data write
+	  2               read
+	  4	resync data write
+	  8	            read
+	  16	data write
+	  32	data read
+	  64	read ahead
+	  128	kmalloc of bitmap
+	  256	allocation of EE (epoch_entries)
+
+	  fault_devs: bitmask of minor numbers
+	  fault_rate: frequency in percent
+
+	  Example: Simulate data write errors on /dev/drbd0 with a probability of 5%.
+		echo 16 > /sys/module/drbd/parameters/enable_faults
+		echo 1 > /sys/module/drbd/parameters/fault_devs
+		echo 5 > /sys/module/drbd/parameters/fault_rate
+
+	  If unsure, say N.

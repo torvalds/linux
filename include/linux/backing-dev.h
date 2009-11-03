@@ -331,4 +331,17 @@ static inline int bdi_sched_wait(void *word)
 	return 0;
 }
 
+static inline void blk_run_backing_dev(struct backing_dev_info *bdi,
+				       struct page *page)
+{
+	if (bdi && bdi->unplug_io_fn)
+		bdi->unplug_io_fn(bdi, page);
+}
+
+static inline void blk_run_address_space(struct address_space *mapping)
+{
+	if (mapping)
+		blk_run_backing_dev(mapping->backing_dev_info, NULL);
+}
+
 #endif		/* _LINUX_BACKING_DEV_H */
