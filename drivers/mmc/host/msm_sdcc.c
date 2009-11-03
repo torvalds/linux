@@ -26,6 +26,7 @@
 #include <linux/log2.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/sdio.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/platform_device.h>
@@ -355,6 +356,16 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data)
 	}
 }
 
+static int
+snoop_cccr_abort(struct mmc_command *cmd)
+{
+	if ((cmd->opcode == 52) &&
+	    (cmd->arg & 0x80000000) &&
+	    (((cmd->arg >> 9) & 0x1ffff) == SDIO_CCCR_ABORT))
+		return 1;
+	return 0;
+}
+
 static void
 msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd, u32 c)
 {
@@ -379,6 +390,9 @@ msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd, u32 c)
 		c |= MCI_CSPM_DATCMD;
 
 	if (cmd == cmd->mrq->stop)
+		c |= MCI_CSPM_MCIABORT;
+
+	if (snoop_cccr_abort(cmd))
 		c |= MCI_CSPM_MCIABORT;
 
 	host->curr.cmd = cmd;
