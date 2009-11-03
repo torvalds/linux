@@ -8,16 +8,14 @@
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
 /* 6rd prefix/relay information */
-struct ip_tunnel_6rd_parm
-{
+struct ip_tunnel_6rd_parm {
 	struct in6_addr		prefix;
 	__be32			relay_prefix;
 	u16			prefixlen;
 	u16			relay_prefixlen;
 };
 
-struct ip_tunnel
-{
+struct ip_tunnel {
 	struct ip_tunnel	*next;
 	struct net_device	*dev;
 
@@ -40,8 +38,7 @@ struct ip_tunnel
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
-struct ip_tunnel_prl_entry
-{
+struct ip_tunnel_prl_entry {
 	struct ip_tunnel_prl_entry	*next;
 	__be32				addr;
 	u16				flags;

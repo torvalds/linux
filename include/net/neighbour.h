@@ -37,8 +37,7 @@
 
 struct neighbour;
 
-struct neigh_parms
-{
+struct neigh_parms {
 #ifdef CONFIG_NET_NS
 	struct net *net;
 #endif
@@ -70,8 +69,7 @@ struct neigh_parms
 	int	locktime;
 };
 
-struct neigh_statistics
-{
+struct neigh_statistics {
 	unsigned long allocs;		/* number of allocated neighs */
 	unsigned long destroys;		/* number of destroyed neighs */
 	unsigned long hash_grows;	/* number of hash resizes */
@@ -97,8 +95,7 @@ struct neigh_statistics
 		preempt_enable();					\
 	} while (0)
 
-struct neighbour
-{
+struct neighbour {
 	struct neighbour	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
@@ -122,8 +119,7 @@ struct neighbour
 	u8			primary_key[0];
 };
 
-struct neigh_ops
-{
+struct neigh_ops {
 	int			family;
 	void			(*solicit)(struct neighbour *, struct sk_buff*);
 	void			(*error_report)(struct neighbour *, struct sk_buff*);
@@ -133,8 +129,7 @@ struct neigh_ops
 	int			(*queue_xmit)(struct sk_buff*);
 };
 
-struct pneigh_entry
-{
+struct pneigh_entry {
 	struct pneigh_entry	*next;
 #ifdef CONFIG_NET_NS
 	struct net		*net;
@@ -149,8 +144,7 @@ struct pneigh_entry
  */
 
 
-struct neigh_table
-{
+struct neigh_table {
 	struct neigh_table	*next;
 	int			family;
 	int			entry_size;

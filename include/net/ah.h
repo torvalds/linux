@@ -8,8 +8,7 @@
 
 struct crypto_ahash;
 
-struct ah_data
-{
+struct ah_data {
 	int			icv_full_len;
 	int			icv_trunc_len;
 

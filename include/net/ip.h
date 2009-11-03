@@ -33,8 +33,7 @@
 
 struct sock;
 
-struct inet_skb_parm
-{
+struct inet_skb_parm {
 	struct ip_options	opt;		/* Compiled IP options		*/
 	unsigned char		flags;
 
@@ -50,8 +49,7 @@ static inline unsigned int ip_hdrlen(const struct sk_buff *skb)
 	return ip_hdr(skb)->ihl * 4;
 }
 
-struct ipcm_cookie
-{
+struct ipcm_cookie {
 	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
@@ -60,8 +58,7 @@ struct ipcm_cookie
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
 
-struct ip_ra_chain
-{
+struct ip_ra_chain {
 	struct ip_ra_chain	*next;
 	struct sock		*sk;
 	void			(*destructor)(struct sock *);
@@ -159,8 +156,7 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
 		   unsigned int len); 
 
-struct ipv4_config
-{
+struct ipv4_config {
 	int	log_martians;
 	int	no_pmtu_disc;
 };
@@ -336,8 +332,7 @@ extern int	ip_call_ra_chain(struct sk_buff *skb);
  *	Functions provided by ip_fragment.c
  */
 
-enum ip_defrag_users
-{
+enum ip_defrag_users {
 	IP_DEFRAG_LOCAL_DELIVER,
 	IP_DEFRAG_CALL_RA_CHAIN,
 	IP_DEFRAG_CONNTRACK_IN,

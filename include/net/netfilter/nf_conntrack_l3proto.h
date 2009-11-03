@@ -16,8 +16,7 @@
 #include <linux/seq_file.h>
 #include <net/netfilter/nf_conntrack.h>
 
-struct nf_conntrack_l3proto
-{
+struct nf_conntrack_l3proto {
 	/* L3 Protocol Family number. ex) PF_INET */
 	u_int16_t l3proto;
 

@@ -36,8 +36,7 @@
 
 struct sk_buff;
 
-struct dst_entry
-{
+struct dst_entry {
 	struct rcu_head		rcu_head;
 	struct dst_entry	*child;
 	struct net_device       *dev;

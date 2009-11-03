@@ -47,8 +47,7 @@ struct net_protocol {
 };
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-struct inet6_protocol 
-{
+struct inet6_protocol {
 	int	(*handler)(struct sk_buff *skb);
 
 	void	(*err_handler)(struct sk_buff *skb,

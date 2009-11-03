@@ -6,8 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/pkt_sched.h>
 
-struct gnet_dump
-{
+struct gnet_dump {
 	spinlock_t *      lock;
 	struct sk_buff *  skb;
 	struct nlattr *   tail;

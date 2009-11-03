@@ -13,8 +13,7 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 
-struct inet_peer
-{
+struct inet_peer {
 	/* group together avl_left,avl_right,v4daddr to speedup lookups */
 	struct inet_peer	*avl_left, *avl_right;
 	__be32			v4daddr;	/* peer's address */

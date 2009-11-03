@@ -251,8 +251,7 @@ struct ip_vs_estimator {
 	u32			outbps;
 };
 
-struct ip_vs_stats
-{
+struct ip_vs_stats {
 	struct ip_vs_stats_user	ustats;         /* statistics */
 	struct ip_vs_estimator	est;		/* estimator */
 
@@ -518,8 +517,7 @@ struct ip_vs_scheduler {
 /*
  *	The application module object (a.k.a. app incarnation)
  */
-struct ip_vs_app
-{
+struct ip_vs_app {
 	struct list_head	a_list;		/* member in app list */
 	int			type;		/* IP_VS_APP_TYPE_xxx */
 	char			*name;		/* application module name */

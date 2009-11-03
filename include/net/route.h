@@ -49,10 +49,8 @@
 
 struct fib_nh;
 struct inet_peer;
-struct rtable
-{
-	union
-	{
+struct rtable {
+	union {
 		struct dst_entry	dst;
 	} u;
 
@@ -77,16 +75,14 @@ struct rtable
 	struct inet_peer	*peer; /* long-living peer info */
 };
 
-struct ip_rt_acct
-{
+struct ip_rt_acct {
 	__u32 	o_bytes;
 	__u32 	o_packets;
 	__u32 	i_bytes;
 	__u32 	i_packets;
 };
 
-struct rt_cache_stat 
-{
+struct rt_cache_stat {
         unsigned int in_hit;
         unsigned int in_slow_tot;
         unsigned int in_slow_mc;

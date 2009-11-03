@@ -300,8 +300,7 @@
  * This struct is also my long term insurance. I can add new fields here
  * without breaking the prototype of iw_handler...
  */
-struct iw_request_info
-{
+struct iw_request_info {
 	__u16		cmd;		/* Wireless Extension command */
 	__u16		flags;		/* More to come ;-) */
 };
@@ -321,8 +320,7 @@ typedef int (*iw_handler)(struct net_device *dev, struct iw_request_info *info,
  * shared by all driver instances... Same for the members...
  * This will be linked from net_device in <linux/netdevice.h>
  */
-struct iw_handler_def
-{
+struct iw_handler_def {
 
 	/* Array of handlers for standard ioctls
 	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWCOMMIT]
@@ -372,8 +370,7 @@ struct iw_handler_def
 /*
  * Describe how a standard IOCTL looks like.
  */
-struct iw_ioctl_description
-{
+struct iw_ioctl_description {
 	__u8	header_type;		/* NULL, iw_point or other */
 	__u8	token_type;		/* Future */
 	__u16	token_size;		/* Granularity of payload */
@@ -395,8 +392,7 @@ struct iw_ioctl_description
 /*
  * Instance specific spy data, i.e. addresses spied and quality for them.
  */
-struct iw_spy_data
-{
+struct iw_spy_data {
 	/* --- Standard spy support --- */
 	int			spy_number;
 	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];

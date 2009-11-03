@@ -359,8 +359,7 @@ TCP_ECN_create_request(struct request_sock *req, struct tcphdr *th)
 		inet_rsk(req)->ecn_ok = 1;
 }
 
-enum tcp_tw_status
-{
+enum tcp_tw_status {
 	TCP_TW_SUCCESS = 0,
 	TCP_TW_RST = 1,
 	TCP_TW_ACK = 2,

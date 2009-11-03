@@ -7,8 +7,7 @@
 #include <net/flow.h>
 #include <net/rtnetlink.h>
 
-struct fib_rule
-{
+struct fib_rule {
 	struct list_head	list;
 	atomic_t		refcnt;
 	int			ifindex;
@@ -25,15 +24,13 @@ struct fib_rule
 	struct net *		fr_net;
 };
 
-struct fib_lookup_arg
-{
+struct fib_lookup_arg {
 	void			*lookup_ptr;
 	void			*result;
 	struct fib_rule		*rule;
 };
 
-struct fib_rules_ops
-{
+struct fib_rules_ops {
 	int			family;
 	struct list_head	list;
 	int			rule_size;
