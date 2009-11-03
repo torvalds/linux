@@ -2247,15 +2247,12 @@ static void fcoe_flogi_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	mac = fr_cb(fp)->granted_mac;
 	if (is_zero_ether_addr(mac)) {
 		/* pre-FIP */
-		mac = eth_hdr(&fp->skb)->h_source;
-		if (fcoe_ctlr_recv_flogi(fip, lport, fp, mac)) {
+		if (fcoe_ctlr_recv_flogi(fip, lport, fp)) {
 			fc_frame_free(fp);
 			return;
 		}
-	} else {
-		/* FIP, libfcoe has already seen it */
-		fip->update_mac(lport, fr_cb(fp)->granted_mac);
 	}
+	fcoe_update_src_mac(lport, mac);
 done:
 	fc_lport_flogi_resp(seq, fp, lport);
 }
@@ -2271,13 +2268,11 @@ done:
  */
 static void fcoe_logo_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 {
-	struct fcoe_ctlr *fip = arg;
-	struct fc_exch *exch = fc_seq_exch(seq);
-	struct fc_lport *lport = exch->lp;
+	struct fc_lport *lport = arg;
 	static u8 zero_mac[ETH_ALEN] = { 0 };
 
 	if (!IS_ERR(fp))
-		fip->update_mac(lport, zero_mac);
+		fcoe_update_src_mac(lport, zero_mac);
 	fc_lport_logo_resp(seq, fp, lport);
 }
 
@@ -2312,7 +2307,7 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport, u32 did,
 		if (ntoh24(fh->fh_d_id) != FC_FID_FLOGI)
 			break;
 		return fc_elsct_send(lport, did, fp, op, fcoe_logo_resp,
-				     fip, timeout);
+				     lport, timeout);
 	}
 	return fc_elsct_send(lport, did, fp, op, resp, arg, timeout);
 }

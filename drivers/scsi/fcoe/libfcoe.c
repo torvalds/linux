@@ -1254,10 +1254,9 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
 }
 
 /**
- * fcoe_ctlr_recv_flogi() - Snoop pre-FIP receipt of FLOGI response or request
+ * fcoe_ctlr_recv_flogi() - Snoop pre-FIP receipt of FLOGI response
  * @fip: The FCoE controller
  * @fp:	 The FC frame to snoop
- * @sa:	 Ethernet source MAC address from received FCoE frame
  *
  * Snoop potential response to FLOGI or even incoming FLOGI.
  *
@@ -1265,16 +1264,18 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
  * by fip->flogi_oxid != FC_XID_UNKNOWN.
  *
  * The caller is responsible for freeing the frame.
+ * Fill in the granted_mac address.
  *
  * Return non-zero if the frame should not be delivered to libfc.
  */
 int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
-			 struct fc_frame *fp, u8 *sa)
+			 struct fc_frame *fp)
 {
 	struct fc_frame_header *fh;
 	u8 op;
-	u8 mac[ETH_ALEN];
+	u8 *sa;
 
+	sa = eth_hdr(&fp->skb)->h_source;
 	fh = fc_frame_header_get(fp);
 	if (fh->fh_type != FC_TYPE_ELS)
 		return 0;
@@ -1305,9 +1306,8 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			fip->map_dest = 0;
 		}
 		fip->flogi_oxid = FC_XID_UNKNOWN;
-		fc_fcoe_set_mac(mac, fh->fh_d_id);
-		fip->update_mac(lport, mac);
 		spin_unlock_bh(&fip->lock);
+		fc_fcoe_set_mac(fr_cb(fp)->granted_mac, fh->fh_d_id);
 	} else if (op == ELS_FLOGI && fh->fh_r_ctl == FC_RCTL_ELS_REQ && sa) {
 		/*
 		 * Save source MAC for point-to-point responses.

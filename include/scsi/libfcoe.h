@@ -165,7 +165,7 @@ int fcoe_ctlr_link_down(struct fcoe_ctlr *);
 int fcoe_ctlr_els_send(struct fcoe_ctlr *, struct fc_lport *, struct sk_buff *);
 void fcoe_ctlr_recv(struct fcoe_ctlr *, struct sk_buff *);
 int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
-			 struct fc_frame *, u8 *);
+			 struct fc_frame *);
 
 /* libfcoe funcs */
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
