@@ -69,7 +69,7 @@ static struct {
 static void parse_probe_point(char *arg, struct probe_point *pp)
 {
 	char *ptr, *tmp;
-	char c, nc;
+	char c, nc = 0;
 	/*
 	 * <Syntax>
 	 * perf probe SRC:LN
