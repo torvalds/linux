@@ -33,3 +33,42 @@ MODULE_LICENSE("GPL v2");
 unsigned int fc_debug_logging;
 module_param_named(debug_logging, fc_debug_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+
+/**
+ * libfc_init() - Initialize libfc.ko
+ */
+static int __init libfc_init(void)
+{
+	int rc = 0;
+
+	rc = fc_setup_fcp();
+	if (rc)
+		return rc;
+
+	rc = fc_setup_exch_mgr();
+	if (rc)
+		goto destroy_pkt_cache;
+
+	rc = fc_setup_rport();
+	if (rc)
+		goto destroy_em;
+
+	return rc;
+destroy_em:
+	fc_destroy_exch_mgr();
+destroy_pkt_cache:
+	fc_destroy_fcp();
+	return rc;
+}
+module_init(libfc_init);
+
+/**
+ * libfc_exit() - Tear down libfc.ko
+ */
+static void __exit libfc_exit(void)
+{
+	fc_destroy_fcp();
+	fc_destroy_exch_mgr();
+	fc_destroy_rport();
+}
+module_exit(libfc_exit);

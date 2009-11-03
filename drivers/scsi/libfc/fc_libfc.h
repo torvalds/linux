@@ -93,6 +93,8 @@ int fc_setup_exch_mgr(void);
 void fc_destroy_exch_mgr(void);
 int fc_setup_rport(void);
 void fc_destroy_rport(void);
+int fc_setup_fcp(void);
+void fc_destroy_fcp(void);
 
 /*
  * Internal libfc functions

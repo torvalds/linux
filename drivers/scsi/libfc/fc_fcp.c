@@ -41,7 +41,7 @@
 
 #include "fc_libfc.h"
 
-static struct kmem_cache *scsi_pkt_cachep;
+struct kmem_cache *scsi_pkt_cachep;
 
 /* SRB state definitions */
 #define FC_SRB_FREE		0		/* cmd is free */
@@ -2072,6 +2072,28 @@ void fc_fcp_destroy(struct fc_lport *lp)
 }
 EXPORT_SYMBOL(fc_fcp_destroy);
 
+int fc_setup_fcp()
+{
+	int rc = 0;
+
+	scsi_pkt_cachep = kmem_cache_create("libfc_fcp_pkt",
+					    sizeof(struct fc_fcp_pkt),
+					    0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!scsi_pkt_cachep) {
+		printk(KERN_ERR "libfc: Unable to allocate SRB cache, "
+		       "module load failed!");
+		rc = -ENOMEM;
+	}
+
+	return rc;
+}
+
+void fc_destroy_fcp()
+{
+	if (scsi_pkt_cachep)
+		kmem_cache_destroy(scsi_pkt_cachep);
+}
+
 int fc_fcp_init(struct fc_lport *lp)
 {
 	int rc;
@@ -2104,42 +2126,3 @@ free_internal:
 	return rc;
 }
 EXPORT_SYMBOL(fc_fcp_init);
-
-static int __init libfc_init(void)
-{
-	int rc;
-
-	scsi_pkt_cachep = kmem_cache_create("libfc_fcp_pkt",
-					    sizeof(struct fc_fcp_pkt),
-					    0, SLAB_HWCACHE_ALIGN, NULL);
-	if (scsi_pkt_cachep == NULL) {
-		printk(KERN_ERR "libfc: Unable to allocate SRB cache, "
-		       "module load failed!");
-		return -ENOMEM;
-	}
-
-	rc = fc_setup_exch_mgr();
-	if (rc)
-		goto destroy_pkt_cache;
-
-	rc = fc_setup_rport();
-	if (rc)
-		goto destroy_em;
-
-	return rc;
-destroy_em:
-	fc_destroy_exch_mgr();
-destroy_pkt_cache:
-	kmem_cache_destroy(scsi_pkt_cachep);
-	return rc;
-}
-
-static void __exit libfc_exit(void)
-{
-	kmem_cache_destroy(scsi_pkt_cachep);
-	fc_destroy_exch_mgr();
-	fc_destroy_rport();
-}
-
-module_init(libfc_init);
-module_exit(libfc_exit);
