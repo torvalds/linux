@@ -19,6 +19,16 @@
 	\reg\().h = _corelock;
 .endm
 
+.macro safe_testset addr:req, scratch:req
+#if ANOMALY_05000477
+	cli \scratch;
+	testset (\addr);
+	sti \scratch;
+#else
+	testset (\addr);
+#endif
+.endm
+
 /*
  * r0 = address of atomic data to flush and invalidate (32bit).
  *
@@ -33,7 +43,7 @@ ENTRY(_get_core_lock)
 	cli r0;
 	coreslot_loadaddr p0;
 .Lretry_corelock:
-	testset (p0);
+	safe_testset p0, r2;
 	if cc jump .Ldone_corelock;
 	SSYNC(r2);
 	jump .Lretry_corelock
@@ -56,7 +66,7 @@ ENTRY(_get_core_lock_noflush)
 	cli r0;
 	coreslot_loadaddr p0;
 .Lretry_corelock_noflush:
-	testset (p0);
+	safe_testset p0, r2;
 	if cc jump .Ldone_corelock_noflush;
 	SSYNC(r2);
 	jump .Lretry_corelock_noflush
