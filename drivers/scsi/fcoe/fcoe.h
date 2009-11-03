@@ -32,7 +32,7 @@
 #define FCOE_NAME	"fcoe"
 #define FCOE_VENDOR	"Open-FCoE.org"
 
-#define FCOE_MAX_LUN		255
+#define FCOE_MAX_LUN		0xFFFF
 #define FCOE_MAX_FCP_TARGET	256
 
 #define FCOE_MAX_OUTSTANDING_COMMANDS	1024
