@@ -599,10 +599,10 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lport);
 
 	if (!lport->vport) {
-		wwnn = fcoe_wwn_from_mac(netdev->dev_addr, 1, 0);
+		wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
 		fc_set_wwnn(lport, wwnn);
 		/* XXX - 3rd arg needs to be vlan id */
-		wwpn = fcoe_wwn_from_mac(netdev->dev_addr, 2, 0);
+		wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 2, 0);
 		fc_set_wwpn(lport, wwpn);
 	}
 
