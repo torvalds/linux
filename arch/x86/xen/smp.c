@@ -73,7 +73,7 @@ static __cpuinit void cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	percpu_write(cpu_state, CPU_ONLINE);
 	wmb();
 
