@@ -40,6 +40,7 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/ipu.h>
 #include <mach/i2c.h>
 #include <mach/mmc.h>
 #include <mach/mx3_camera.h>
@@ -393,6 +394,10 @@ static void mx31moboard_init_sel_gpios(void)
 	}
 }
 
+static struct ipu_platform_data mx3_ipu_data = {
+	.irq_base = MXC_IPU_IRQ_START,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 	&mx31moboard_leds_device,
@@ -429,6 +434,8 @@ static void __init mxc_board_init(void)
 		ARRAY_SIZE(moboard_spi_board_info));
 
 	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
+
+	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 
 	usb_xcvr_reset();
 
