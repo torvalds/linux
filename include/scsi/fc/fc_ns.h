@@ -20,6 +20,8 @@
 #ifndef _FC_NS_H_
 #define	_FC_NS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Services - Name Service (dNS)
  * From T11.org FC-GS-2 Rev 5.3 November 1998.

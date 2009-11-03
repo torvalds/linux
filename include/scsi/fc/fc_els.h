@@ -20,6 +20,8 @@
 #ifndef _FC_ELS_H_
 #define	_FC_ELS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Switch - Enhanced Link Services definitions.
  * From T11 FC-LS Rev 1.2 June 7, 2005.
