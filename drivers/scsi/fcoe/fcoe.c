@@ -266,6 +266,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	if ((netdev->priv_flags & IFF_MASTER_ALB) ||
 	    (netdev->priv_flags & IFF_SLAVE_INACTIVE) ||
 	    (netdev->priv_flags & IFF_MASTER_8023AD)) {
+		FCOE_NETDEV_DBG(netdev, "Bonded interfaces not supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -323,6 +324,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 {
 	struct fcoe_interface *fcoe;
+	int err;
 
 	fcoe = kzalloc(sizeof(*fcoe), GFP_KERNEL);
 	if (!fcoe) {
@@ -341,7 +343,13 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 	fcoe->ctlr.update_mac = fcoe_update_src_mac;
 	fcoe->ctlr.get_src_addr = fcoe_get_src_mac;
 
-	fcoe_interface_setup(fcoe, netdev);
+	err = fcoe_interface_setup(fcoe, netdev);
+	if (err) {
+		fcoe_ctlr_destroy(&fcoe->ctlr);
+		kfree(fcoe);
+		dev_put(netdev);
+		return NULL;
+	}
 
 	return fcoe;
 }
