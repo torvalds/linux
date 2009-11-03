@@ -825,27 +825,27 @@ out_close:
 	return err;
 }
 
-#define BUILD_ID_SIZE 128
+#define BUILD_ID_SIZE 20
 
-static char *dso__read_build_id(struct dso *self)
+int filename__read_build_id(const char *filename, void *bf, size_t size)
 {
-	int i;
+	int fd, err = -1;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
 	Elf_Data *build_id_data;
 	Elf_Scn *sec;
-	char *build_id = NULL, *bid;
-	unsigned char *raw;
 	Elf *elf;
-	int fd = open(self->long_name, O_RDONLY);
 
+	if (size < BUILD_ID_SIZE)
+		goto out;
+
+	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 		goto out;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_err("%s: cannot read %s ELF file.\n", __func__,
-		       self->long_name);
+		pr_err("%s: cannot read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -854,29 +854,46 @@ static char *dso__read_build_id(struct dso *self)
 		goto out_elf_end;
 	}
 
-	sec = elf_section_by_name(elf, &ehdr, &shdr, ".note.gnu.build-id", NULL);
+	sec = elf_section_by_name(elf, &ehdr, &shdr,
+				  ".note.gnu.build-id", NULL);
 	if (sec == NULL)
 		goto out_elf_end;
 
 	build_id_data = elf_getdata(sec, NULL);
 	if (build_id_data == NULL)
 		goto out_elf_end;
-	build_id = malloc(BUILD_ID_SIZE);
+	memcpy(bf, build_id_data->d_buf + 16, BUILD_ID_SIZE);
+	err = BUILD_ID_SIZE;
+out_elf_end:
+	elf_end(elf);
+out_close:
+	close(fd);
+out:
+	return err;
+}
+
+static char *dso__read_build_id(struct dso *self)
+{
+	int i, len;
+	char *build_id = NULL, *bid;
+	unsigned char rawbf[BUILD_ID_SIZE], *raw;
+
+	len = filename__read_build_id(self->long_name, rawbf, sizeof(rawbf));
+	if (len < 0)
+		goto out;
+
+	build_id = malloc(len * 2 + 1);
 	if (build_id == NULL)
-		goto out_elf_end;
-	raw = build_id_data->d_buf + 16;
+		goto out;
 	bid = build_id;
 
-	for (i = 0; i < 20; ++i) {
+	raw = rawbf;
+	for (i = 0; i < len; ++i) {
 		sprintf(bid, "%02x", *raw);
 		++raw;
 		bid += 2;
 	}
 	pr_debug2("%s(%s): %s\n", __func__, self->long_name, build_id);
-out_elf_end:
-	elf_end(elf);
-out_close:
-	close(fd);
 out:
 	return build_id;
 }

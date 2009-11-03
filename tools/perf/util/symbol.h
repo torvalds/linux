@@ -82,6 +82,8 @@ void dsos__fprintf(FILE *fp);
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 
+int filename__read_build_id(const char *filename, void *bf, size_t size);
+
 int load_kernel(symbol_filter_t filter);
 
 void symbol__init(unsigned int priv_size);
