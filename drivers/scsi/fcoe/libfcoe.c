@@ -156,9 +156,7 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
 void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 {
 	cancel_work_sync(&fip->recv_work);
-	spin_lock_bh(&fip->fip_recv_list.lock);
-	__skb_queue_purge(&fip->fip_recv_list);
-	spin_unlock_bh(&fip->fip_recv_list.lock);
+	skb_queue_purge(&fip->fip_recv_list);
 
 	spin_lock_bh(&fip->lock);
 	fip->state = FIP_ST_DISABLED;
@@ -1005,13 +1003,11 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
  * @fip: The FCoE controller that received the packet
  * @skb: The received FIP packet
  *
- * This is called from NET_RX_SOFTIRQ.
+ * This may be called from either NET_RX_SOFTIRQ or IRQ.
  */
 void fcoe_ctlr_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
-	spin_lock_bh(&fip->fip_recv_list.lock);
-	__skb_queue_tail(&fip->fip_recv_list, skb);
-	spin_unlock_bh(&fip->fip_recv_list.lock);
+	skb_queue_tail(&fip->fip_recv_list, skb);
 	schedule_work(&fip->recv_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_recv);
@@ -1251,13 +1247,8 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
 	struct sk_buff *skb;
 
 	fip = container_of(recv_work, struct fcoe_ctlr, recv_work);
-	spin_lock_bh(&fip->fip_recv_list.lock);
-	while ((skb = __skb_dequeue(&fip->fip_recv_list))) {
-		spin_unlock_bh(&fip->fip_recv_list.lock);
+	while ((skb = skb_dequeue(&fip->fip_recv_list)))
 		fcoe_ctlr_recv_handler(fip, skb);
-		spin_lock_bh(&fip->fip_recv_list.lock);
-	}
-	spin_unlock_bh(&fip->fip_recv_list.lock);
 }
 
 /**
