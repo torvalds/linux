@@ -76,6 +76,14 @@ struct xs_handle {
 	/*
 	 * Mutex ordering: transaction_mutex -> watch_mutex -> request_mutex.
 	 * response_mutex is never taken simultaneously with the other three.
+	 *
+	 * transaction_mutex must be held before incrementing
+	 * transaction_count. The mutex is held when a suspend is in
+	 * progress to prevent new transactions starting.
+	 *
+	 * When decrementing transaction_count to zero the wait queue
+	 * should be woken up, the suspend code waits for count to
+	 * reach zero.
 	 */
 
 	/* One request at a time. */
@@ -85,7 +93,9 @@ struct xs_handle {
 	struct mutex response_mutex;
 
 	/* Protect transactions against save/restore. */
-	struct rw_semaphore transaction_mutex;
+	struct mutex transaction_mutex;
+	atomic_t transaction_count;
+	wait_queue_head_t transaction_wq;
 
 	/* Protect watch (de)register against save/restore. */
 	struct rw_semaphore watch_mutex;
@@ -157,6 +167,31 @@ static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 	return body;
 }
 
+static void transaction_start(void)
+{
+	mutex_lock(&xs_state.transaction_mutex);
+	atomic_inc(&xs_state.transaction_count);
+	mutex_unlock(&xs_state.transaction_mutex);
+}
+
+static void transaction_end(void)
+{
+	if (atomic_dec_and_test(&xs_state.transaction_count))
+		wake_up(&xs_state.transaction_wq);
+}
+
+static void transaction_suspend(void)
+{
+	mutex_lock(&xs_state.transaction_mutex);
+	wait_event(xs_state.transaction_wq,
+		   atomic_read(&xs_state.transaction_count) == 0);
+}
+
+static void transaction_resume(void)
+{
+	mutex_unlock(&xs_state.transaction_mutex);
+}
+
 void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 {
 	void *ret;
@@ -164,7 +199,7 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 	int err;
 
 	if (req_msg.type == XS_TRANSACTION_START)
-		down_read(&xs_state.transaction_mutex);
+		transaction_start();
 
 	mutex_lock(&xs_state.request_mutex);
 
@@ -180,7 +215,7 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 	if ((msg->type == XS_TRANSACTION_END) ||
 	    ((req_msg.type == XS_TRANSACTION_START) &&
 	     (msg->type == XS_ERROR)))
-		up_read(&xs_state.transaction_mutex);
+		transaction_end();
 
 	return ret;
 }
@@ -432,11 +467,11 @@ int xenbus_transaction_start(struct xenbus_transaction *t)
 {
 	char *id_str;
 
-	down_read(&xs_state.transaction_mutex);
+	transaction_start();
 
 	id_str = xs_single(XBT_NIL, XS_TRANSACTION_START, "", NULL);
 	if (IS_ERR(id_str)) {
-		up_read(&xs_state.transaction_mutex);
+		transaction_end();
 		return PTR_ERR(id_str);
 	}
 
@@ -461,7 +496,7 @@ int xenbus_transaction_end(struct xenbus_transaction t, int abort)
 
 	err = xs_error(xs_single(t, XS_TRANSACTION_END, abortstr, NULL));
 
-	up_read(&xs_state.transaction_mutex);
+	transaction_end();
 
 	return err;
 }
@@ -662,7 +697,7 @@ EXPORT_SYMBOL_GPL(unregister_xenbus_watch);
 
 void xs_suspend(void)
 {
-	down_write(&xs_state.transaction_mutex);
+	transaction_suspend();
 	down_write(&xs_state.watch_mutex);
 	mutex_lock(&xs_state.request_mutex);
 	mutex_lock(&xs_state.response_mutex);
@@ -677,7 +712,7 @@ void xs_resume(void)
 
 	mutex_unlock(&xs_state.response_mutex);
 	mutex_unlock(&xs_state.request_mutex);
-	up_write(&xs_state.transaction_mutex);
+	transaction_resume();
 
 	/* No need for watches_lock: the watch_mutex is sufficient. */
 	list_for_each_entry(watch, &watches, list) {
@@ -693,7 +728,7 @@ void xs_suspend_cancel(void)
 	mutex_unlock(&xs_state.response_mutex);
 	mutex_unlock(&xs_state.request_mutex);
 	up_write(&xs_state.watch_mutex);
-	up_write(&xs_state.transaction_mutex);
+	mutex_unlock(&xs_state.transaction_mutex);
 }
 
 static int xenwatch_thread(void *unused)
@@ -843,8 +878,10 @@ int xs_init(void)
 
 	mutex_init(&xs_state.request_mutex);
 	mutex_init(&xs_state.response_mutex);
-	init_rwsem(&xs_state.transaction_mutex);
+	mutex_init(&xs_state.transaction_mutex);
 	init_rwsem(&xs_state.watch_mutex);
+	atomic_set(&xs_state.transaction_count, 0);
+	init_waitqueue_head(&xs_state.transaction_wq);
 
 	/* Initialize the shared memory rings to talk to xenstored */
 	err = xb_init_comms();
