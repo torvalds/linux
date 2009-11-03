@@ -788,11 +788,13 @@ int fc_fabric_login(struct fc_lport *lp);
 /*
  * The link is up for the given local port.
  */
+void __fc_linkup(struct fc_lport *);
 void fc_linkup(struct fc_lport *);
 
 /*
  * Link is down for the given local port.
  */
+void __fc_linkdown(struct fc_lport *);
 void fc_linkdown(struct fc_lport *);
 
 /*
@@ -819,6 +821,12 @@ struct fc_lport *libfc_vport_create(struct fc_vport *vport, int privsize);
  * Find an NPIV VN_Port by port ID
  */
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id);
+
+/*
+ * NPIV VN_Port link state management
+ */
+void fc_vport_setlink(struct fc_lport *vn_port);
+void fc_vports_linkchange(struct fc_lport *n_port);
 
 /*
  * REMOTE PORT LAYER

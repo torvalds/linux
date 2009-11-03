@@ -224,10 +224,18 @@ void fc_get_host_port_state(struct Scsi_Host *shost)
 {
 	struct fc_lport *lp = shost_priv(shost);
 
-	if (lp->link_up)
-		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+	mutex_lock(&lp->lp_mutex);
+	if (!lp->link_up)
+		fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
 	else
-		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
+		switch (lp->state) {
+		case LPORT_ST_READY:
+			fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+			break;
+		default:
+			fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
+		}
+	mutex_unlock(&lp->lp_mutex);
 }
 EXPORT_SYMBOL(fc_get_host_port_state);
 
@@ -493,6 +501,22 @@ int fc_fabric_login(struct fc_lport *lport)
 EXPORT_SYMBOL(fc_fabric_login);
 
 /**
+ * __fc_linkup() - Handler for transport linkup events
+ * @lport: The lport whose link is up
+ *
+ * Locking: must be called with the lp_mutex held
+ */
+void __fc_linkup(struct fc_lport *lport)
+{
+	if (!lport->link_up) {
+		lport->link_up = 1;
+
+		if (lport->state == LPORT_ST_RESET)
+			fc_lport_enter_flogi(lport);
+	}
+}
+
+/**
  * fc_linkup() - Handler for transport linkup events
  * @lport: The lport whose link is up
  */
@@ -502,15 +526,25 @@ void fc_linkup(struct fc_lport *lport)
 	       fc_host_port_id(lport->host));
 
 	mutex_lock(&lport->lp_mutex);
-	if (!lport->link_up) {
-		lport->link_up = 1;
-
-		if (lport->state == LPORT_ST_RESET)
-			fc_lport_enter_flogi(lport);
-	}
+	__fc_linkup(lport);
 	mutex_unlock(&lport->lp_mutex);
 }
 EXPORT_SYMBOL(fc_linkup);
+
+/**
+ * __fc_linkdown() - Handler for transport linkdown events
+ * @lport: The lport whose link is down
+ *
+ * Locking: must be called with the lp_mutex held
+ */
+void __fc_linkdown(struct fc_lport *lport)
+{
+	if (lport->link_up) {
+		lport->link_up = 0;
+		fc_lport_enter_reset(lport);
+		lport->tt.fcp_cleanup(lport);
+	}
+}
 
 /**
  * fc_linkdown() - Handler for transport linkdown events
@@ -518,15 +552,11 @@ EXPORT_SYMBOL(fc_linkup);
  */
 void fc_linkdown(struct fc_lport *lport)
 {
-	mutex_lock(&lport->lp_mutex);
 	printk(KERN_INFO "libfc: Link down on port (%6x)\n",
 	       fc_host_port_id(lport->host));
 
-	if (lport->link_up) {
-		lport->link_up = 0;
-		fc_lport_enter_reset(lport);
-		lport->tt.fcp_cleanup(lport);
-	}
+	mutex_lock(&lport->lp_mutex);
+	__fc_linkdown(lport);
 	mutex_unlock(&lport->lp_mutex);
 }
 EXPORT_SYMBOL(fc_linkdown);
@@ -654,6 +684,9 @@ static void fc_lport_enter_ready(struct fc_lport *lport)
 		     fc_lport_state(lport));
 
 	fc_lport_state_enter(lport, LPORT_ST_READY);
+	if (lport->vport)
+		fc_vport_set_state(lport->vport, FC_VPORT_ACTIVE);
+	fc_vports_linkchange(lport);
 
 	if (!lport->ptp_rp)
 		lport->tt.disc_start(fc_lport_disc_callback, lport);
@@ -868,7 +901,14 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 	FC_LPORT_DBG(lport, "Entered RESET state from %s state\n",
 		     fc_lport_state(lport));
 
+	if (lport->vport) {
+		if (lport->link_up)
+			fc_vport_set_state(lport->vport, FC_VPORT_INITIALIZING);
+		else
+			fc_vport_set_state(lport->vport, FC_VPORT_LINKDOWN);
+	}
 	fc_lport_state_enter(lport, LPORT_ST_RESET);
+	fc_vports_linkchange(lport);
 	fc_lport_reset_locked(lport);
 	if (lport->link_up)
 		fc_lport_enter_flogi(lport);
@@ -887,6 +927,7 @@ static void fc_lport_enter_disabled(struct fc_lport *lport)
 		     fc_lport_state(lport));
 
 	fc_lport_state_enter(lport, LPORT_ST_DISABLED);
+	fc_vports_linkchange(lport);
 	fc_lport_reset_locked(lport);
 }
 
@@ -1333,6 +1374,7 @@ static void fc_lport_enter_logo(struct fc_lport *lport)
 		     fc_lport_state(lport));
 
 	fc_lport_state_enter(lport, LPORT_ST_LOGO);
+	fc_vports_linkchange(lport);
 
 	fp = fc_frame_alloc(lport, sizeof(*logo));
 	if (!fp) {

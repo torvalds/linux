@@ -84,3 +84,78 @@ struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 	return lport;
 }
 
+/*
+ * When setting the link state of vports during an lport state change, it's
+ * necessary to hold the lp_mutex of both the N_Port and the VN_Port.
+ * This tells the lockdep engine to treat the nested locking of the VN_Port
+ * as a different lock class.
+ */
+enum libfc_lport_mutex_class {
+	LPORT_MUTEX_NORMAL = 0,
+	LPORT_MUTEX_VN_PORT = 1,
+};
+
+/**
+ * __fc_vport_setlink() - update link and status on a VN_Port
+ * @n_port: parent N_Port
+ * @vn_port: VN_Port to update
+ *
+ * Locking: must be called with both the N_Port and VN_Port lp_mutex held
+ */
+static void __fc_vport_setlink(struct fc_lport *n_port,
+			       struct fc_lport *vn_port)
+{
+	struct fc_vport *vport = vn_port->vport;
+
+	if (vn_port->state == LPORT_ST_DISABLED)
+		return;
+
+	if (n_port->state == LPORT_ST_READY) {
+		if (n_port->npiv_enabled) {
+			fc_vport_set_state(vport, FC_VPORT_INITIALIZING);
+			__fc_linkup(vn_port);
+		} else {
+			fc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
+			__fc_linkdown(vn_port);
+		}
+	} else {
+		fc_vport_set_state(vport, FC_VPORT_LINKDOWN);
+		__fc_linkdown(vn_port);
+	}
+}
+
+/**
+ * fc_vport_setlink() - update link and status on a VN_Port
+ * @vn_port: virtual port to update
+ */
+void fc_vport_setlink(struct fc_lport *vn_port)
+{
+	struct fc_vport *vport = vn_port->vport;
+	struct Scsi_Host *shost = vport_to_shost(vport);
+	struct fc_lport *n_port = shost_priv(shost);
+
+	mutex_lock(&n_port->lp_mutex);
+	mutex_lock_nested(&vn_port->lp_mutex, LPORT_MUTEX_VN_PORT);
+	__fc_vport_setlink(n_port, vn_port);
+	mutex_unlock(&vn_port->lp_mutex);
+	mutex_unlock(&n_port->lp_mutex);
+}
+EXPORT_SYMBOL(fc_vport_setlink);
+
+/**
+ * fc_vports_linkchange() - change the link state of all vports
+ * @n_port: Parent N_Port that has changed state
+ *
+ * Locking: called with the n_port lp_mutex held
+ */
+void fc_vports_linkchange(struct fc_lport *n_port)
+{
+	struct fc_lport *vn_port;
+
+	list_for_each_entry(vn_port, &n_port->vports, list) {
+		mutex_lock_nested(&vn_port->lp_mutex, LPORT_MUTEX_VN_PORT);
+		__fc_vport_setlink(n_port, vn_port);
+		mutex_unlock(&vn_port->lp_mutex);
+	}
+}
+
