@@ -1181,12 +1181,11 @@ static void pidff_reset(struct pidff_device *pidff)
 	usbhid_wait_io(hid);
 
 	if (pidff->pool[PID_SIMULTANEOUS_MAX].value) {
-		int sim_effects = pidff->pool[PID_SIMULTANEOUS_MAX].value[0];
-		while (sim_effects < 2) {
+		while (pidff->pool[PID_SIMULTANEOUS_MAX].value[0] < 2) {
 			if (i++ > 20) {
 				printk(KERN_WARNING "hid-pidff: device reports "
 				       "%d simultaneous effects\n",
-				       sim_effects);
+				       pidff->pool[PID_SIMULTANEOUS_MAX].value[0]);
 				break;
 			}
 			debug("pid_pool requested again");
