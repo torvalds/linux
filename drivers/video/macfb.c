@@ -55,9 +55,6 @@
 static int (*macfb_setpalette) (unsigned int regno, unsigned int red,
 				unsigned int green, unsigned int blue,
 				struct fb_info *info) = NULL;
-static int valkyrie_setpalette (unsigned int regno, unsigned int red,
-				unsigned int green, unsigned int blue,
-				struct fb_info *info);
 static int dafb_setpalette (unsigned int regno, unsigned int red,
 			    unsigned int green, unsigned int blue,
 			    struct fb_info *fb_info);
@@ -76,13 +73,6 @@ static int civic_setpalette (unsigned int regno, unsigned int red,
 static int csc_setpalette (unsigned int regno, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *fb_info);
-
-static struct {
-	unsigned char addr;
-	/* Note: word-aligned */
-	char pad[3];
-	unsigned char lut;
-} __iomem *valkyrie_cmap_regs;
 
 static struct {
 	unsigned char addr;
@@ -171,33 +161,6 @@ static struct fb_info fb_info;
 static u32 pseudo_palette[16];
 static int inverse   = 0;
 static int vidtest   = 0;
-
-static int valkyrie_setpalette (unsigned int regno, unsigned int red,
-				unsigned int green, unsigned int blue,
-				struct fb_info *info)
-{
-	unsigned long flags;
-	
-	red >>= 8;
-	green >>= 8;
-	blue >>= 8;
-
-	local_irq_save(flags);
-	
-	/* tell clut which address to fill */
-	nubus_writeb(regno, &valkyrie_cmap_regs->addr);
-	nop();
-
-	/* send one color channel at a time */
-	nubus_writeb(red, &valkyrie_cmap_regs->lut);
-	nop();
-	nubus_writeb(green, &valkyrie_cmap_regs->lut);
-	nop();
-	nubus_writeb(blue, &valkyrie_cmap_regs->lut);
-
-	local_irq_restore(flags);
-	return 0;
-}
 
 /* Unlike the Valkyrie, the DAFB cannot set individual colormap
    registers.  Therefore, we do what the MacOS driver does (no
@@ -614,8 +577,6 @@ static void __init macfb_setup(char *options)
 
 static void __init iounmap_macfb(void)
 {
-	if (valkyrie_cmap_regs)
-		iounmap(valkyrie_cmap_regs);
 	if (dafb_cmap_regs)
 		iounmap(dafb_cmap_regs);
 	if (v8_brazil_cmap_regs)
@@ -641,6 +602,10 @@ static int __init macfb_init(void)
 
 	if (!MACH_IS_MAC) 
 		return -ENODEV;
+
+	if (mac_bi_data.id == MAC_MODEL_Q630 ||
+	    mac_bi_data.id == MAC_MODEL_P588)
+		return -ENODEV; /* See valkyriefb.c */
 
 	/* There can only be one internal video controller anyway so
 	   we're not too worried about this */
@@ -784,16 +749,6 @@ static int __init macfb_init(void)
 	if (!video_is_nubus)
 		switch( mac_bi_data.id )
 		{
-			/* Valkyrie Quadras */
-		case MAC_MODEL_Q630:
-			/* I'm not sure about this one */
-		case MAC_MODEL_P588:
-			strcpy(macfb_fix.id, "Valkyrie");
-			macfb_setpalette = valkyrie_setpalette;
-			macfb_defined.activate = FB_ACTIVATE_NOW;
-			valkyrie_cmap_regs = ioremap(DAC_BASE, 0x1000);
-			break;
-
 			/* DAFB Quadras */
 			/* Note: these first four have the v7 DAFB, which is
 			   known to be rather unlike the ones used in the
