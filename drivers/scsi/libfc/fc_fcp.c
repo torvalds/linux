@@ -1875,23 +1875,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 }
 
 /**
- * fc_fcp_complete() - complete processing of a fcp packet
- * @fsp:	fcp packet
- *
- * This function may sleep if a fsp timer is pending.
- * The host lock must not be held by caller.
- */
-void fc_fcp_complete(struct fc_fcp_pkt *fsp)
-{
-	if (fc_fcp_lock_pkt(fsp))
-		return;
-
-	fc_fcp_complete_locked(fsp);
-	fc_fcp_unlock_pkt(fsp);
-}
-EXPORT_SYMBOL(fc_fcp_complete);
-
-/**
  * fc_eh_abort() - Abort a command
  * @sc_cmd:	scsi command to abort
  *

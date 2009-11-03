@@ -888,14 +888,6 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd,
 		    void (*done)(struct scsi_cmnd *));
 
 /*
- * complete processing of a fcp packet
- *
- * This function may sleep if a fsp timer is pending.
- * The host lock must not be held by caller.
- */
-void fc_fcp_complete(struct fc_fcp_pkt *fsp);
-
-/*
  * Send an ABTS frame to the target device. The sc_cmd argument
  * is a pointer to the SCSI command to be aborted.
  */
