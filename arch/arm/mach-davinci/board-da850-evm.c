@@ -176,7 +176,7 @@ static u32 ui_card_detected;
 #define HAS_MMC 0
 #endif
 
-static void da850_evm_setup_nor_nand(void)
+static __init void da850_evm_setup_nor_nand(void)
 {
 	int ret = 0;
 

@@ -433,8 +433,8 @@ static struct at24_platform_data da830_evm_i2c_eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
-static int da830_evm_ui_expander_setup(struct i2c_client *client, int gpio,
-		unsigned ngpio, void *context)
+static int __init da830_evm_ui_expander_setup(struct i2c_client *client,
+		int gpio, unsigned ngpio, void *context)
 {
 	gpio_request(gpio + 6, "UI MUX_MODE");
 
@@ -455,7 +455,7 @@ static int da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
 	return 0;
 }
 
-static struct pcf857x_platform_data da830_evm_ui_expander_info = {
+static struct pcf857x_platform_data __initdata da830_evm_ui_expander_info = {
 	.gpio_base	= DAVINCI_N_GPIO,
 	.setup		= da830_evm_ui_expander_setup,
 	.teardown	= da830_evm_ui_expander_teardown,
