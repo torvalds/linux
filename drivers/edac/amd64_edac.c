@@ -2624,121 +2624,6 @@ static int amd64_init_csrows(struct mem_ctl_info *mci)
 	return empty;
 }
 
-/*
- * Only if 'ecc_enable_override' is set AND BIOS had ECC disabled, do "we"
- * enable it.
- */
-static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
-{
-	struct amd64_pvt *pvt = mci->pvt_info;
-	const struct cpumask *cpumask = cpumask_of_node(pvt->mc_node_id);
-	int cpu, idx = 0, err = 0;
-	struct msr msrs[cpumask_weight(cpumask)];
-	u32 value;
-	u32 mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
-
-	if (!ecc_enable_override)
-		return;
-
-	memset(msrs, 0, sizeof(msrs));
-
-	amd64_printk(KERN_WARNING,
-		"'ecc_enable_override' parameter is active, "
-		"Enabling AMD ECC hardware now: CAUTION\n");
-
-	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCTL, &value);
-	if (err)
-		debugf0("Reading K8_NBCTL failed\n");
-
-	/* turn on UECCn and CECCEn bits */
-	pvt->old_nbctl = value & mask;
-	pvt->nbctl_mcgctl_saved = 1;
-
-	value |= mask;
-	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
-
-	rdmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
-
-	for_each_cpu(cpu, cpumask) {
-		if (msrs[idx].l & K8_MSR_MCGCTL_NBE)
-			set_bit(idx, &pvt->old_mcgctl);
-
-		msrs[idx].l |= K8_MSR_MCGCTL_NBE;
-		idx++;
-	}
-	wrmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
-
-	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
-	if (err)
-		debugf0("Reading K8_NBCFG failed\n");
-
-	debugf0("NBCFG(1)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
-		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
-		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
-
-	if (!(value & K8_NBCFG_ECC_ENABLE)) {
-		amd64_printk(KERN_WARNING,
-			"This node reports that DRAM ECC is "
-			"currently Disabled; ENABLING now\n");
-
-		/* Attempt to turn on DRAM ECC Enable */
-		value |= K8_NBCFG_ECC_ENABLE;
-		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
-
-		err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
-		if (err)
-			debugf0("Reading K8_NBCFG failed\n");
-
-		if (!(value & K8_NBCFG_ECC_ENABLE)) {
-			amd64_printk(KERN_WARNING,
-				"Hardware rejects Enabling DRAM ECC checking\n"
-				"Check memory DIMM configuration\n");
-		} else {
-			amd64_printk(KERN_DEBUG,
-				"Hardware accepted DRAM ECC Enable\n");
-		}
-	}
-	debugf0("NBCFG(2)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
-		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
-		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
-
-	pvt->ctl_error_info.nbcfg = value;
-}
-
-static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
-{
-	const struct cpumask *cpumask = cpumask_of_node(pvt->mc_node_id);
-	int cpu, idx = 0, err = 0;
-	struct msr msrs[cpumask_weight(cpumask)];
-	u32 value;
-	u32 mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
-
-	if (!pvt->nbctl_mcgctl_saved)
-		return;
-
-	memset(msrs, 0, sizeof(msrs));
-
-	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCTL, &value);
-	if (err)
-		debugf0("Reading K8_NBCTL failed\n");
-	value &= ~mask;
-	value |= pvt->old_nbctl;
-
-	/* restore the NB Enable MCGCTL bit */
-	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
-
-	rdmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
-
-	for_each_cpu(cpu, cpumask) {
-		msrs[idx].l &= ~K8_MSR_MCGCTL_NBE;
-		msrs[idx].l |=
-			test_bit(idx, &pvt->old_mcgctl) << K8_MSR_MCGCTL_NBE;
-		idx++;
-	}
-
-	wrmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
-}
-
 /* get all cores on this DCT */
 static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, int nid)
 {
@@ -2793,6 +2678,144 @@ out:
 	kfree(msrs);
 	free_cpumask_var(mask);
 	return ret;
+}
+
+static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
+{
+	cpumask_var_t cmask;
+	struct msr *msrs = NULL;
+	int cpu, idx = 0;
+
+	if (!zalloc_cpumask_var(&cmask, GFP_KERNEL)) {
+		amd64_printk(KERN_WARNING, "%s: error allocating mask\n",
+			     __func__);
+		return false;
+	}
+
+	get_cpus_on_this_dct_cpumask(cmask, pvt->mc_node_id);
+
+	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(cmask), GFP_KERNEL);
+	if (!msrs) {
+		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
+			     __func__);
+		return -ENOMEM;
+	}
+
+	rdmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
+
+	for_each_cpu(cpu, cmask) {
+
+		if (on) {
+			if (msrs[idx].l & K8_MSR_MCGCTL_NBE)
+				pvt->flags.ecc_report = 1;
+
+			msrs[idx].l |= K8_MSR_MCGCTL_NBE;
+		} else {
+			/*
+			 * Turn off ECC reporting only when it was off before
+			 */
+			if (!pvt->flags.ecc_report)
+				msrs[idx].l &= ~K8_MSR_MCGCTL_NBE;
+		}
+		idx++;
+	}
+	wrmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
+
+	kfree(msrs);
+	free_cpumask_var(cmask);
+
+	return 0;
+}
+
+/*
+ * Only if 'ecc_enable_override' is set AND BIOS had ECC disabled, do "we"
+ * enable it.
+ */
+static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+	int err = 0;
+	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
+
+	if (!ecc_enable_override)
+		return;
+
+	amd64_printk(KERN_WARNING,
+		"'ecc_enable_override' parameter is active, "
+		"Enabling AMD ECC hardware now: CAUTION\n");
+
+	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCTL, &value);
+	if (err)
+		debugf0("Reading K8_NBCTL failed\n");
+
+	/* turn on UECCn and CECCEn bits */
+	pvt->old_nbctl = value & mask;
+	pvt->nbctl_mcgctl_saved = 1;
+
+	value |= mask;
+	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
+
+	if (amd64_toggle_ecc_err_reporting(pvt, ON))
+		amd64_printk(KERN_WARNING, "Error enabling ECC reporting over "
+					   "MCGCTL!\n");
+
+	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
+	if (err)
+		debugf0("Reading K8_NBCFG failed\n");
+
+	debugf0("NBCFG(1)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
+		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
+		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
+
+	if (!(value & K8_NBCFG_ECC_ENABLE)) {
+		amd64_printk(KERN_WARNING,
+			"This node reports that DRAM ECC is "
+			"currently Disabled; ENABLING now\n");
+
+		/* Attempt to turn on DRAM ECC Enable */
+		value |= K8_NBCFG_ECC_ENABLE;
+		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
+
+		err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
+		if (err)
+			debugf0("Reading K8_NBCFG failed\n");
+
+		if (!(value & K8_NBCFG_ECC_ENABLE)) {
+			amd64_printk(KERN_WARNING,
+				"Hardware rejects Enabling DRAM ECC checking\n"
+				"Check memory DIMM configuration\n");
+		} else {
+			amd64_printk(KERN_DEBUG,
+				"Hardware accepted DRAM ECC Enable\n");
+		}
+	}
+	debugf0("NBCFG(2)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
+		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
+		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
+
+	pvt->ctl_error_info.nbcfg = value;
+}
+
+static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
+{
+	int err = 0;
+	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
+
+	if (!pvt->nbctl_mcgctl_saved)
+		return;
+
+	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCTL, &value);
+	if (err)
+		debugf0("Reading K8_NBCTL failed\n");
+	value &= ~mask;
+	value |= pvt->old_nbctl;
+
+	/* restore the NB Enable MCGCTL bit */
+	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
+
+	if (amd64_toggle_ecc_err_reporting(pvt, OFF))
+		amd64_printk(KERN_WARNING, "Error restoring ECC reporting over "
+					   "MCGCTL!\n");
 }
 
 /*
@@ -2921,7 +2944,6 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	pvt->ext_model		= boot_cpu_data.x86_model >> 4;
 	pvt->mc_type_index	= mc_type_index;
 	pvt->ops		= family_ops(mc_type_index);
-	pvt->old_mcgctl		= 0;
 
 	/*
 	 * We have the dram_f2_ctl device as an argument, now go reserve its
