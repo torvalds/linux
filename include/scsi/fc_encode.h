@@ -111,6 +111,7 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		      enum fc_fh_type *fh_type)
 {
 	struct fc_ct_req *ct;
+	size_t len;
 
 	switch (op) {
 	case FC_NS_GPN_FT:
@@ -138,22 +139,22 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		break;
 
 	case FC_NS_RSPN_ID:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn));
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn) + len);
 		hton24(ct->payload.spn.fr_fid.fp_fid,
 		       fc_host_port_id(lport->host));
 		strncpy(ct->payload.spn.fr_name,
-			fc_host_symbolic_name(lport->host), 255);
-		ct->payload.spn.fr_name_len =
-			strnlen(ct->payload.spn.fr_name, 255);
+			fc_host_symbolic_name(lport->host), len);
+		ct->payload.spn.fr_name_len = len;
 		break;
 
 	case FC_NS_RSNN_NN:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn));
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn) + len);
 		put_unaligned_be64(lport->wwnn, &ct->payload.snn.fr_wwn);
 		strncpy(ct->payload.snn.fr_name,
-			fc_host_symbolic_name(lport->host), 255);
-		ct->payload.snn.fr_name_len =
-			strnlen(ct->payload.snn.fr_name, 255);
+			fc_host_symbolic_name(lport->host), len);
+		ct->payload.snn.fr_name_len = len;
 		break;
 
 	default:
