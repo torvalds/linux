@@ -100,17 +100,7 @@ static inline void fc_frame_init(struct fc_frame *fp)
 }
 
 struct fc_frame *fc_frame_alloc_fill(struct fc_lport *, size_t payload_len);
-
-struct fc_frame *__fc_frame_alloc(size_t payload_len);
-
-/*
- * Get frame for sending via port.
- */
-static inline struct fc_frame *_fc_frame_alloc(struct fc_lport *dev,
-					       size_t payload_len)
-{
-	return __fc_frame_alloc(payload_len);
-}
+struct fc_frame *_fc_frame_alloc(size_t payload_len);
 
 /*
  * Allocate fc_frame structure and buffer.  Set the initial length to
@@ -124,10 +114,10 @@ static inline struct fc_frame *fc_frame_alloc(struct fc_lport *dev, size_t len)
 	 * Note: Since len will often be a constant multiple of 4,
 	 * this check will usually be evaluated and eliminated at compile time.
 	 */
-	if ((len % 4) != 0)
+	if (len && len % 4)
 		fp = fc_frame_alloc_fill(dev, len);
 	else
-		fp = _fc_frame_alloc(dev, len);
+		fp = _fc_frame_alloc(len);
 	return fp;
 }
 

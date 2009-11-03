@@ -505,18 +505,11 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			 */
 			if (tlen % 4)
 				using_sg = 0;
-			if (using_sg) {
-				fp = _fc_frame_alloc(lport, 0);
-				if (!fp)
-					return -ENOMEM;
-			} else {
-				fp = fc_frame_alloc(lport, tlen);
-				if (!fp)
-					return -ENOMEM;
+			fp = fc_frame_alloc(lport, using_sg ? 0 : tlen);
+			if (!fp)
+				return -ENOMEM;
 
-				data = (void *)(fr_hdr(fp)) +
-					sizeof(struct fc_frame_header);
-			}
+			data = fc_frame_header_get(fp) + 1;
 			fh_parm_offset = frame_offset;
 			fr_max_payload(fp) = fsp->max_payload;
 		}
