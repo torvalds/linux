@@ -110,6 +110,7 @@ static void fc_lport_enter_flogi(struct fc_lport *);
 static void fc_lport_enter_dns(struct fc_lport *);
 static void fc_lport_enter_rnn_id(struct fc_lport *);
 static void fc_lport_enter_rsnn_nn(struct fc_lport *);
+static void fc_lport_enter_rspn_id(struct fc_lport *);
 static void fc_lport_enter_rft_id(struct fc_lport *);
 static void fc_lport_enter_scr(struct fc_lport *);
 static void fc_lport_enter_ready(struct fc_lport *);
@@ -121,6 +122,7 @@ static const char *fc_lport_state_names[] = {
 	[LPORT_ST_DNS] =      "dNS",
 	[LPORT_ST_RNN_ID] =   "RNN_ID",
 	[LPORT_ST_RSNN_NN] =  "RSNN_NN",
+	[LPORT_ST_RSPN_ID] =  "RSPN_ID",
 	[LPORT_ST_RFT_ID] =   "RFT_ID",
 	[LPORT_ST_SCR] =      "SCR",
 	[LPORT_ST_READY] =    "Ready",
@@ -969,6 +971,7 @@ static void fc_lport_error(struct fc_lport *lport, struct fc_frame *fp)
 			case LPORT_ST_RESET:
 			case LPORT_ST_RNN_ID:
 			case LPORT_ST_RSNN_NN:
+			case LPORT_ST_RSPN_ID:
 			case LPORT_ST_RFT_ID:
 			case LPORT_ST_SCR:
 			case LPORT_ST_DNS:
@@ -1035,6 +1038,59 @@ err:
 	mutex_unlock(&lport->lp_mutex);
 }
 
+/**
+ * fc_lport_rspn_id_resp() - Handle response to Register Symbolic Port Name
+ *			     by ID (RSPN_ID) request
+ * @sp: current sequence in RSPN_ID exchange
+ * @fp: response frame
+ * @lp_arg: Fibre Channel host port instance
+ *
+ * Locking Note: This function will be called without the lport lock
+ * held, but it will lock, call an _enter_* function or fc_lport_error
+ * and then unlock the lport.
+ */
+static void fc_lport_rspn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
+				  void *lp_arg)
+{
+	struct fc_lport *lport = lp_arg;
+	struct fc_frame_header *fh;
+	struct fc_ct_hdr *ct;
+
+	FC_LPORT_DBG(lport, "Received a RSPN_ID %s\n", fc_els_resp_type(fp));
+
+	if (fp == ERR_PTR(-FC_EX_CLOSED))
+		return;
+
+	mutex_lock(&lport->lp_mutex);
+
+	if (lport->state != LPORT_ST_RSPN_ID) {
+		FC_LPORT_DBG(lport, "Received a RSPN_ID response, but in state "
+			     "%s\n", fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
+		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
+	}
+
+	fh = fc_frame_header_get(fp);
+	ct = fc_frame_payload_get(fp, sizeof(*ct));
+	if (fh && ct && fh->fh_type == FC_TYPE_CT &&
+	    ct->ct_fs_type == FC_FST_DIR &&
+	    ct->ct_fs_subtype == FC_NS_SUBTYPE &&
+	    ntohs(ct->ct_cmd) == FC_FS_ACC)
+		fc_lport_enter_rspn_id(lport);
+	else
+		fc_lport_error(lport, fp);
+
+out:
+	fc_frame_free(fp);
+err:
+	mutex_unlock(&lport->lp_mutex);
+}
 /**
  * fc_lport_rsnn_nn_resp() - Handle response to Register Symbolic Node Name
  *			     by Node Name (RSNN_NN) request
@@ -1261,6 +1317,37 @@ static void fc_lport_enter_rft_id(struct fc_lport *lport)
 }
 
 /**
+ * fc_rport_enter_rspn_id() - Register symbolic port name with the name server
+ * @lport: Fibre Channel local port to register
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_lport_enter_rspn_id(struct fc_lport *lport)
+{
+	struct fc_frame *fp;
+	size_t len;
+
+	FC_LPORT_DBG(lport, "Entered RSPN_ID state from %s state\n",
+		     fc_lport_state(lport));
+
+	fc_lport_state_enter(lport, LPORT_ST_RSPN_ID);
+
+	len = strnlen(fc_host_symbolic_name(lport->host), 255);
+	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
+			    sizeof(struct fc_ns_rspn) + len);
+	if (!fp) {
+		fc_lport_error(lport, fp);
+		return;
+	}
+
+	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
+				  fc_lport_rspn_id_resp,
+				  lport, lport->e_d_tov))
+		fc_lport_error(lport, fp);
+}
+
+/**
  * fc_rport_enter_rsnn_nn() - Register symbolic node name with the name server
  * @lport: Fibre Channel local port to register
  *
@@ -1386,6 +1473,9 @@ static void fc_lport_timeout(struct work_struct *work)
 		break;
 	case LPORT_ST_RSNN_NN:
 		fc_lport_enter_rsnn_nn(lport);
+		break;
+	case LPORT_ST_RSPN_ID:
+		fc_lport_enter_rspn_id(lport);
 		break;
 	case LPORT_ST_RFT_ID:
 		fc_lport_enter_rft_id(lport);

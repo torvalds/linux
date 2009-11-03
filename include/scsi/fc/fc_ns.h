@@ -47,6 +47,7 @@ enum fc_ns_req {
 	FC_NS_RFT_ID =	0x0217,		/* reg FC4 type for ID */
 	FC_NS_RPN_ID =	0x0212,		/* reg port name for ID */
 	FC_NS_RNN_ID =	0x0213,		/* reg node name for ID */
+	FC_NS_RSPN_ID =	0x0218,		/* reg symbolic port name */
 	FC_NS_RSNN_NN =	0x0239,		/* reg symbolic node name */
 };
 
@@ -162,6 +163,15 @@ struct fc_ns_rn_id {
  */
 struct fc_ns_rsnn {
 	__be64		fr_wwn;		/* node name */
+	__u8		fr_name_len;
+	char		fr_name[];
+} __attribute__((__packed__));
+
+/*
+ * RSPN_ID request - register symbolic port name
+ */
+struct fc_ns_rspn {
+	struct fc_ns_fid fr_fid;	/* port ID object */
 	__u8		fr_name_len;
 	char		fr_name[];
 } __attribute__((__packed__));
