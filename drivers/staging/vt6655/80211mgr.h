@@ -16,10 +16,11 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: 80211mgr.h
  *
- * Purpose: Defines the macros, types, and functions for dealing
- *          with 802.11 managment frames.
+ * Purpose: 802.11 managment frames pre-defines.
+ *
  *
  * Author: Lyndon Chen
  *
@@ -27,17 +28,11 @@
  *
  */
 
-
 #ifndef __80211MGR_H__
 #define __80211MGR_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -272,7 +267,6 @@ typedef struct _WLAN_IE_FH_PARMS {
     BYTE    byHopPattern;
     BYTE    byHopIndex;
 } WLAN_IE_FH_PARMS,  *PWLAN_IE_FH_PARMS;
-
 
 // DS Parameter Set
 #pragma pack(1)
@@ -719,6 +713,7 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
 
 /*---------------------  Export Functions  --------------------------*/
+
 VOID
 vMgrEncodeBeacon(
     IN  PWLAN_FR_BEACON  pFrame

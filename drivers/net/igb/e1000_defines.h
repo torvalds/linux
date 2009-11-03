@@ -44,7 +44,7 @@
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 
 /* Extended Device Control */
-#define E1000_CTRL_EXT_SDP7_DATA 0x00000080 /* Value of SW Defineable Pin 7 */
+#define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Defineable Pin 3 */
 /* Physical Func Reset Done Indication */
 #define E1000_CTRL_EXT_PFRSTD    0x00004000
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000

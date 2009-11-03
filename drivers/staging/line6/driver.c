@@ -682,7 +682,7 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		return -ENODEV;
 
 	/* check vendor and product id */
-	for (devtype = sizeof(line6_id_table) / sizeof(line6_id_table[0]) - 1; devtype--;)
+	for (devtype = ARRAY_SIZE(line6_id_table) - 1; devtype--;)
 		if ((le16_to_cpu(usbdev->descriptor.idVendor) == line6_id_table[devtype].idVendor) &&
 			 (le16_to_cpu(usbdev->descriptor.idProduct) == line6_id_table[devtype].idProduct))
 			break;

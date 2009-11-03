@@ -223,19 +223,28 @@ int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 /* Power bus message definitions */
 
-#define DEV_GRP_NULL		0x0
-#define DEV_GRP_P1		0x1
-#define DEV_GRP_P2		0x2
-#define DEV_GRP_P3		0x4
+/* The TWL4030/5030 splits its power-management resources (the various
+ * regulators, clock and reset lines) into 3 processor groups - P1, P2 and
+ * P3. These groups can then be configured to transition between sleep, wait-on
+ * and active states by sending messages to the power bus.  See Section 5.4.2
+ * Power Resources of TWL4030 TRM
+ */
 
-#define RES_GRP_RES		0x0
-#define RES_GRP_PP		0x1
-#define RES_GRP_RC		0x2
+/* Processor groups */
+#define DEV_GRP_NULL		0x0
+#define DEV_GRP_P1		0x1	/* P1: all OMAP devices */
+#define DEV_GRP_P2		0x2	/* P2: all Modem devices */
+#define DEV_GRP_P3		0x4	/* P3: all peripheral devices */
+
+/* Resource groups */
+#define RES_GRP_RES		0x0	/* Reserved */
+#define RES_GRP_PP		0x1	/* Power providers */
+#define RES_GRP_RC		0x2	/* Reset and control */
 #define RES_GRP_PP_RC		0x3
-#define RES_GRP_PR		0x4
+#define RES_GRP_PR		0x4	/* Power references */
 #define RES_GRP_PP_PR		0x5
 #define RES_GRP_RC_PR		0x6
-#define RES_GRP_ALL		0x7
+#define RES_GRP_ALL		0x7	/* All resource groups */
 
 #define RES_TYPE2_R0		0x0
 
@@ -246,6 +255,41 @@ int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 #define RES_STATE_SLEEP		0x8
 #define RES_STATE_OFF		0x0
 
+/* Power resources */
+
+/* Power providers */
+#define RES_VAUX1               1
+#define RES_VAUX2               2
+#define RES_VAUX3               3
+#define RES_VAUX4               4
+#define RES_VMMC1               5
+#define RES_VMMC2               6
+#define RES_VPLL1               7
+#define RES_VPLL2               8
+#define RES_VSIM                9
+#define RES_VDAC                10
+#define RES_VINTANA1            11
+#define RES_VINTANA2            12
+#define RES_VINTDIG             13
+#define RES_VIO                 14
+#define RES_VDD1                15
+#define RES_VDD2                16
+#define RES_VUSB_1V5            17
+#define RES_VUSB_1V8            18
+#define RES_VUSB_3V1            19
+#define RES_VUSBCP              20
+#define RES_REGEN               21
+/* Reset and control */
+#define RES_NRES_PWRON          22
+#define RES_CLKEN               23
+#define RES_SYSEN               24
+#define RES_HFCLKOUT            25
+#define RES_32KCLKOUT           26
+#define RES_RESET               27
+/* Power Reference */
+#define RES_Main_Ref            28
+
+#define TOTAL_RESOURCES		28
 /*
  * Power Bus Message Format ... these can be sent individually by Linux,
  * but are usually part of downloaded scripts that are run when various
@@ -327,6 +371,36 @@ struct twl4030_usb_data {
 	enum twl4030_usb_mode	usb_mode;
 };
 
+struct twl4030_ins {
+	u16 pmb_message;
+	u8 delay;
+};
+
+struct twl4030_script {
+	struct twl4030_ins *script;
+	unsigned size;
+	u8 flags;
+#define TWL4030_WRST_SCRIPT	(1<<0)
+#define TWL4030_WAKEUP12_SCRIPT	(1<<1)
+#define TWL4030_WAKEUP3_SCRIPT	(1<<2)
+#define TWL4030_SLEEP_SCRIPT	(1<<3)
+};
+
+struct twl4030_resconfig {
+	u8 resource;
+	u8 devgroup;	/* Processor group that Power resource belongs to */
+	u8 type;	/* Power resource addressed, 6 / broadcast message */
+	u8 type2;	/* Power resource addressed, 3 / broadcast message */
+};
+
+struct twl4030_power_data {
+	struct twl4030_script **scripts;
+	unsigned num;
+	struct twl4030_resconfig *resource_config;
+};
+
+extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
+
 struct twl4030_platform_data {
 	unsigned				irq_base, irq_end;
 	struct twl4030_bci_platform_data	*bci;
@@ -334,6 +408,7 @@ struct twl4030_platform_data {
 	struct twl4030_madc_platform_data	*madc;
 	struct twl4030_keypad_data		*keypad;
 	struct twl4030_usb_data			*usb;
+	struct twl4030_power_data		*power;
 
 	/* LDO regulators */
 	struct regulator_init_data		*vdac;
@@ -363,7 +438,6 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VAUX2_DEDICATED		0x1E
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
-
 
 #if defined(CONFIG_TWL4030_BCI_BATTERY) || \
 	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE)

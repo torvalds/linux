@@ -28,6 +28,7 @@
  *****************************************************************************/
 
 #include <linux/etherdevice.h>
+#include <linux/sched.h>
 #include <net/mac80211.h>
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
@@ -196,6 +197,12 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	if (txq->q.n_bd)
 		pci_free_consistent(dev, priv->hw_params.tfd_size *
 				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
+
+	/* deallocate arrays */
+	kfree(txq->cmd);
+	kfree(txq->meta);
+	txq->cmd = NULL;
+	txq->meta = NULL;
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));

@@ -1,0 +1,141 @@
+    <refentry>
+      <refmeta>
+	<refentrytitle>V4L2_PIX_FMT_YVU410 ('YVU9'), V4L2_PIX_FMT_YUV410 ('YUV9')</refentrytitle>
+	&manvol;
+      </refmeta>
+      <refnamediv>
+	<refname id="V4L2-PIX-FMT-YVU410"><constant>V4L2_PIX_FMT_YVU410</constant></refname>
+	<refname id="V4L2-PIX-FMT-YUV410"><constant>V4L2_PIX_FMT_YUV410</constant></refname>
+	<refpurpose>Planar formats with &frac14; horizontal and
+vertical chroma resolution, also known as YUV 4:1:0</refpurpose>
+      </refnamediv>
+      <refsect1>
+	<title>Description</title>
+
+	<para>These are planar formats, as opposed to a packed format.
+The three components are separated into three sub-images or planes.
+The Y plane is first. The Y plane has one byte per pixel. For
+<constant>V4L2_PIX_FMT_YVU410</constant>, the Cr plane immediately
+follows the Y plane in memory. The Cr plane is &frac14; the width and
+&frac14; the height of the Y plane (and of the image). Each Cr belongs
+to 16 pixels, a four-by-four square of the image. Following the Cr
+plane is the Cb plane, just like the Cr plane.
+<constant>V4L2_PIX_FMT_YUV410</constant> is the same, except the Cb
+plane comes first, then the Cr plane.</para>
+
+	<para>If the Y plane has pad bytes after each row, then the Cr
+and Cb planes have &frac14; as many pad bytes after their rows. In
+other words, four Cx rows (including padding) are exactly as long as
+one Y row (including padding).</para>
+
+	<example>
+	  <title><constant>V4L2_PIX_FMT_YVU410</constant> 4 &times; 4
+pixel image</title>
+
+	  <formalpara>
+	    <title>Byte Order.</title>
+	    <para>Each cell is one byte.
+		<informaltable frame="none">
+		<tgroup cols="5" align="center">
+		  <colspec align="left" colwidth="2*" />
+		  <tbody valign="top">
+		    <row>
+		      <entry>start&nbsp;+&nbsp;0:</entry>
+		      <entry>Y'<subscript>00</subscript></entry>
+		      <entry>Y'<subscript>01</subscript></entry>
+		      <entry>Y'<subscript>02</subscript></entry>
+		      <entry>Y'<subscript>03</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;4:</entry>
+		      <entry>Y'<subscript>10</subscript></entry>
+		      <entry>Y'<subscript>11</subscript></entry>
+		      <entry>Y'<subscript>12</subscript></entry>
+		      <entry>Y'<subscript>13</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;8:</entry>
+		      <entry>Y'<subscript>20</subscript></entry>
+		      <entry>Y'<subscript>21</subscript></entry>
+		      <entry>Y'<subscript>22</subscript></entry>
+		      <entry>Y'<subscript>23</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;12:</entry>
+		      <entry>Y'<subscript>30</subscript></entry>
+		      <entry>Y'<subscript>31</subscript></entry>
+		      <entry>Y'<subscript>32</subscript></entry>
+		      <entry>Y'<subscript>33</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;16:</entry>
+		      <entry>Cr<subscript>00</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;17:</entry>
+		      <entry>Cb<subscript>00</subscript></entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+		</informaltable>
+	      </para>
+	  </formalpara>
+
+	  <formalpara>
+	    <title>Color Sample Location.</title>
+	    <para>
+		<informaltable frame="none">
+		<tgroup cols="7" align="center">
+		  <tbody valign="top">
+		    <row>
+		      <entry></entry>
+		      <entry>0</entry><entry></entry><entry>1</entry><entry></entry>
+		      <entry>2</entry><entry></entry><entry>3</entry>
+		    </row>
+		    <row>
+		      <entry>0</entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry></entry>
+		    </row>
+		    <row>
+		      <entry>1</entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry></entry>
+		      <entry></entry><entry></entry><entry></entry><entry>C</entry>
+		      <entry></entry><entry></entry><entry></entry>
+		    </row>
+		    <row>
+		      <entry>2</entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry></entry>
+		    </row>
+		    <row>
+		      <entry>3</entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry></entry><entry>Y</entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+		</informaltable>
+	      </para>
+	  </formalpara>
+	</example>
+      </refsect1>
+    </refentry>
+
+  <!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "pixfmt.sgml"
+indent-tabs-mode: nil
+End:
+  -->

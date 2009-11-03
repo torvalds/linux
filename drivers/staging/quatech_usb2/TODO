@@ -1,0 +1,8 @@
+Incomplete list of things that this driver does not yet implement completely or
+at all. some of these may not be possible to implement because the hardware
+support does not exist. Others may be possible, but the magic control codes to
+make them happen are unknown, and some may just need the driver support to
+implement them writing.
+
+* Mark/Space parity is not implemented (reported back correctly)
+* IXANY flow control mode is not implemented (flag ignored completely)

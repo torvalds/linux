@@ -96,7 +96,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 }
 
 /*
- * allocate a new client call and attempt to to get a connection slot for it
+ * allocate a new client call and attempt to get a connection slot for it
  */
 static struct rxrpc_call *rxrpc_alloc_client_call(
 	struct rxrpc_sock *rx,

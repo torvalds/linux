@@ -295,7 +295,7 @@ static inline void ATTRIB_NORET disabled_wait(unsigned long code)
 		"	oi	0x384(1),0x10\n"/* fake protection bit */
 		"	lpswe	0(%1)"
 		: "=m" (ctl_buf)
-		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0");
+		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
 #endif /* __s390x__ */
 	while (1);
 }

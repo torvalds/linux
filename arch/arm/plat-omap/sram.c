@@ -56,16 +56,16 @@
 #define SRAM_BOOTLOADER_SZ	0x80
 #endif
 
-#define OMAP24XX_VA_REQINFOPERM0	IO_ADDRESS(0x68005048)
-#define OMAP24XX_VA_READPERM0		IO_ADDRESS(0x68005050)
-#define OMAP24XX_VA_WRITEPERM0		IO_ADDRESS(0x68005058)
+#define OMAP24XX_VA_REQINFOPERM0	OMAP2_IO_ADDRESS(0x68005048)
+#define OMAP24XX_VA_READPERM0		OMAP2_IO_ADDRESS(0x68005050)
+#define OMAP24XX_VA_WRITEPERM0		OMAP2_IO_ADDRESS(0x68005058)
 
-#define OMAP34XX_VA_REQINFOPERM0	IO_ADDRESS(0x68012848)
-#define OMAP34XX_VA_READPERM0		IO_ADDRESS(0x68012850)
-#define OMAP34XX_VA_WRITEPERM0		IO_ADDRESS(0x68012858)
-#define OMAP34XX_VA_ADDR_MATCH2		IO_ADDRESS(0x68012880)
-#define OMAP34XX_VA_SMS_RG_ATT0		IO_ADDRESS(0x6C000048)
-#define OMAP34XX_VA_CONTROL_STAT	IO_ADDRESS(0x480022F0)
+#define OMAP34XX_VA_REQINFOPERM0	OMAP2_IO_ADDRESS(0x68012848)
+#define OMAP34XX_VA_READPERM0		OMAP2_IO_ADDRESS(0x68012850)
+#define OMAP34XX_VA_WRITEPERM0		OMAP2_IO_ADDRESS(0x68012858)
+#define OMAP34XX_VA_ADDR_MATCH2		OMAP2_IO_ADDRESS(0x68012880)
+#define OMAP34XX_VA_SMS_RG_ATT0		OMAP2_IO_ADDRESS(0x6C000048)
+#define OMAP34XX_VA_CONTROL_STAT	OMAP2_IO_ADDRESS(0x480022F0)
 
 #define GP_DEVICE		0x300
 
@@ -270,7 +270,8 @@ void * omap_sram_push(void * start, unsigned long size)
 	omap_sram_ceil -= size;
 	omap_sram_ceil = ROUND_DOWN(omap_sram_ceil, sizeof(void *));
 	memcpy((void *)omap_sram_ceil, start, size);
-	flush_icache_range((unsigned long)start, (unsigned long)(start + size));
+	flush_icache_range((unsigned long)omap_sram_ceil,
+		(unsigned long)(omap_sram_ceil + size));
 
 	return (void *)omap_sram_ceil;
 }

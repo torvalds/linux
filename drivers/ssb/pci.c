@@ -600,6 +600,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 			ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
 				   "  revision %d detected. Will extract"
 				   " v1\n", out->revision);
+			out->revision = 1;
 			sprom_extract_r123(out, in);
 		}
 	}

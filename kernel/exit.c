@@ -47,7 +47,7 @@
 #include <linux/tracehook.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <trace/events/sched.h>
 
 #include <asm/uaccess.h>
@@ -154,8 +154,8 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 {
 	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
 
-#ifdef CONFIG_PERF_COUNTERS
-	WARN_ON_ONCE(tsk->perf_counter_ctxp);
+#ifdef CONFIG_PERF_EVENTS
+	WARN_ON_ONCE(tsk->perf_event_ctxp);
 #endif
 	trace_sched_process_free(tsk);
 	put_task_struct(tsk);
@@ -359,8 +359,10 @@ void __set_special_pids(struct pid *pid)
 {
 	struct task_struct *curr = current->group_leader;
 
-	if (task_session(curr) != pid)
+	if (task_session(curr) != pid) {
 		change_pid(curr, PIDTYPE_SID, pid);
+		proc_sid_connector(curr);
+	}
 
 	if (task_pgrp(curr) != pid)
 		change_pid(curr, PIDTYPE_PGID, pid);
@@ -945,6 +947,8 @@ NORET_TYPE void do_exit(long code)
 	if (group_dead) {
 		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
+		if (tsk->mm)
+			setmax_mm_hiwater_rss(&tsk->signal->maxrss, tsk->mm);
 	}
 	acct_collect(code, group_dead);
 	if (group_dead)
@@ -972,8 +976,6 @@ NORET_TYPE void do_exit(long code)
 		disassociate_ctty(1);
 
 	module_put(task_thread_info(tsk)->exec_domain->module);
-	if (tsk->binfmt)
-		module_put(tsk->binfmt->module);
 
 	proc_exit_connector(tsk);
 
@@ -981,7 +983,7 @@ NORET_TYPE void do_exit(long code)
 	 * Flush inherited counters to the parent - before the parent
 	 * gets woken up by child-exit notifications.
 	 */
-	perf_counter_exit_task(tsk);
+	perf_event_exit_task(tsk);
 
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
@@ -989,8 +991,6 @@ NORET_TYPE void do_exit(long code)
 	tsk->mempolicy = NULL;
 #endif
 #ifdef CONFIG_FUTEX
-	if (unlikely(!list_empty(&tsk->pi_state_list)))
-		exit_pi_state_list(tsk);
 	if (unlikely(current->pi_state_cache))
 		kfree(current->pi_state_cache);
 #endif
@@ -1093,28 +1093,28 @@ struct wait_opts {
 	int __user		*wo_stat;
 	struct rusage __user	*wo_rusage;
 
+	wait_queue_t		child_wait;
 	int			notask_error;
 };
 
-static struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
+static inline
+struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 {
-	struct pid *pid = NULL;
-	if (type == PIDTYPE_PID)
-		pid = task->pids[type].pid;
-	else if (type < PIDTYPE_MAX)
-		pid = task->group_leader->pids[type].pid;
-	return pid;
+	if (type != PIDTYPE_PID)
+		task = task->group_leader;
+	return task->pids[type].pid;
+}
+
+static int eligible_pid(struct wait_opts *wo, struct task_struct *p)
+{
+	return	wo->wo_type == PIDTYPE_MAX ||
+		task_pid_type(p, wo->wo_type) == wo->wo_pid;
 }
 
 static int eligible_child(struct wait_opts *wo, struct task_struct *p)
 {
-	int err;
-
-	if (wo->wo_type < PIDTYPE_MAX) {
-		if (task_pid_type(p, wo->wo_type) != wo->wo_pid)
-			return 0;
-	}
-
+	if (!eligible_pid(wo, p))
+		return 0;
 	/* Wait for all children (clone and not) if __WALL is set;
 	 * otherwise, wait for clone children *only* if __WCLONE is
 	 * set; otherwise, wait for non-clone children *only*.  (Note:
@@ -1123,10 +1123,6 @@ static int eligible_child(struct wait_opts *wo, struct task_struct *p)
 	if (((p->exit_signal != SIGCHLD) ^ !!(wo->wo_flags & __WCLONE))
 	    && !(wo->wo_flags & __WALL))
 		return 0;
-
-	err = security_task_wait(p);
-	if (err)
-		return err;
 
 	return 1;
 }
@@ -1140,18 +1136,20 @@ static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
 
 	put_task_struct(p);
 	infop = wo->wo_info;
-	if (!retval)
-		retval = put_user(SIGCHLD, &infop->si_signo);
-	if (!retval)
-		retval = put_user(0, &infop->si_errno);
-	if (!retval)
-		retval = put_user((short)why, &infop->si_code);
-	if (!retval)
-		retval = put_user(pid, &infop->si_pid);
-	if (!retval)
-		retval = put_user(uid, &infop->si_uid);
-	if (!retval)
-		retval = put_user(status, &infop->si_status);
+	if (infop) {
+		if (!retval)
+			retval = put_user(SIGCHLD, &infop->si_signo);
+		if (!retval)
+			retval = put_user(0, &infop->si_errno);
+		if (!retval)
+			retval = put_user((short)why, &infop->si_code);
+		if (!retval)
+			retval = put_user(pid, &infop->si_pid);
+		if (!retval)
+			retval = put_user(uid, &infop->si_uid);
+		if (!retval)
+			retval = put_user(status, &infop->si_status);
+	}
 	if (!retval)
 		retval = pid;
 	return retval;
@@ -1208,6 +1206,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	if (likely(!traced) && likely(!task_detached(p))) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
+		unsigned long maxrss;
 
 		/*
 		 * The resource counters for the group leader are in its
@@ -1256,6 +1255,9 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		psig->coublock +=
 			task_io_get_oublock(p) +
 			sig->oublock + sig->coublock;
+		maxrss = max(sig->maxrss, sig->cmaxrss);
+		if (psig->cmaxrss < maxrss)
+			psig->cmaxrss = maxrss;
 		task_io_accounting_add(&psig->ioac, &p->ioac);
 		task_io_accounting_add(&psig->ioac, &sig->ioac);
 		spin_unlock_irq(&p->real_parent->sighand->siglock);
@@ -1477,13 +1479,14 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
  * then ->notask_error is 0 if @p is an eligible child,
  * or another error from security_task_wait(), or still -ECHILD.
  */
-static int wait_consider_task(struct wait_opts *wo, struct task_struct *parent,
-				int ptrace, struct task_struct *p)
+static int wait_consider_task(struct wait_opts *wo, int ptrace,
+				struct task_struct *p)
 {
 	int ret = eligible_child(wo, p);
 	if (!ret)
 		return ret;
 
+	ret = security_task_wait(p);
 	if (unlikely(ret < 0)) {
 		/*
 		 * If we have not yet seen any eligible child,
@@ -1545,7 +1548,7 @@ static int do_wait_thread(struct wait_opts *wo, struct task_struct *tsk)
 		 * Do not consider detached threads.
 		 */
 		if (!task_detached(p)) {
-			int ret = wait_consider_task(wo, tsk, 0, p);
+			int ret = wait_consider_task(wo, 0, p);
 			if (ret)
 				return ret;
 		}
@@ -1559,7 +1562,7 @@ static int ptrace_do_wait(struct wait_opts *wo, struct task_struct *tsk)
 	struct task_struct *p;
 
 	list_for_each_entry(p, &tsk->ptraced, ptrace_entry) {
-		int ret = wait_consider_task(wo, tsk, 1, p);
+		int ret = wait_consider_task(wo, 1, p);
 		if (ret)
 			return ret;
 	}
@@ -1567,15 +1570,38 @@ static int ptrace_do_wait(struct wait_opts *wo, struct task_struct *tsk)
 	return 0;
 }
 
+static int child_wait_callback(wait_queue_t *wait, unsigned mode,
+				int sync, void *key)
+{
+	struct wait_opts *wo = container_of(wait, struct wait_opts,
+						child_wait);
+	struct task_struct *p = key;
+
+	if (!eligible_pid(wo, p))
+		return 0;
+
+	if ((wo->wo_flags & __WNOTHREAD) && wait->private != p->parent)
+		return 0;
+
+	return default_wake_function(wait, mode, sync, key);
+}
+
+void __wake_up_parent(struct task_struct *p, struct task_struct *parent)
+{
+	__wake_up_sync_key(&parent->signal->wait_chldexit,
+				TASK_INTERRUPTIBLE, 1, p);
+}
+
 static long do_wait(struct wait_opts *wo)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
 	int retval;
 
 	trace_sched_process_wait(wo->wo_pid);
 
-	add_wait_queue(&current->signal->wait_chldexit,&wait);
+	init_waitqueue_func_entry(&wo->child_wait, child_wait_callback);
+	wo->child_wait.private = current;
+	add_wait_queue(&current->signal->wait_chldexit, &wo->child_wait);
 repeat:
 	/*
 	 * If there is nothing that can match our critiera just get out.
@@ -1616,32 +1642,7 @@ notask:
 	}
 end:
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&current->signal->wait_chldexit,&wait);
-	if (wo->wo_info) {
-		struct siginfo __user *infop = wo->wo_info;
-
-		if (retval > 0)
-			retval = 0;
-		else {
-			/*
-			 * For a WNOHANG return, clear out all the fields
-			 * we would set so the user can easily tell the
-			 * difference.
-			 */
-			if (!retval)
-				retval = put_user(0, &infop->si_signo);
-			if (!retval)
-				retval = put_user(0, &infop->si_errno);
-			if (!retval)
-				retval = put_user(0, &infop->si_code);
-			if (!retval)
-				retval = put_user(0, &infop->si_pid);
-			if (!retval)
-				retval = put_user(0, &infop->si_uid);
-			if (!retval)
-				retval = put_user(0, &infop->si_status);
-		}
-	}
+	remove_wait_queue(&current->signal->wait_chldexit, &wo->child_wait);
 	return retval;
 }
 
@@ -1686,6 +1687,29 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	wo.wo_stat	= NULL;
 	wo.wo_rusage	= ru;
 	ret = do_wait(&wo);
+
+	if (ret > 0) {
+		ret = 0;
+	} else if (infop) {
+		/*
+		 * For a WNOHANG return, clear out all the fields
+		 * we would set so the user can easily tell the
+		 * difference.
+		 */
+		if (!ret)
+			ret = put_user(0, &infop->si_signo);
+		if (!ret)
+			ret = put_user(0, &infop->si_errno);
+		if (!ret)
+			ret = put_user(0, &infop->si_code);
+		if (!ret)
+			ret = put_user(0, &infop->si_pid);
+		if (!ret)
+			ret = put_user(0, &infop->si_uid);
+		if (!ret)
+			ret = put_user(0, &infop->si_status);
+	}
+
 	put_pid(pid);
 
 	/* avoid REGPARM breakage on x86: */

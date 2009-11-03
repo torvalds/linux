@@ -86,7 +86,7 @@ static inline struct sock *icmpv6_sk(struct net *net)
 
 static int icmpv6_rcv(struct sk_buff *skb);
 
-static struct inet6_protocol icmpv6_protocol = {
+static const struct inet6_protocol icmpv6_protocol = {
 	.handler	=	icmpv6_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
@@ -583,7 +583,7 @@ out:
 
 static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
-	struct inet6_protocol *ipprot;
+	const struct inet6_protocol *ipprot;
 	int inner_offset;
 	int hash;
 	u8 nexthdr;

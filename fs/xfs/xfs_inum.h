@@ -72,7 +72,6 @@ struct xfs_mount;
 
 #if XFS_BIG_INUMS
 #define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 56) - 1ULL))
-#define	XFS_INO64_OFFSET	((xfs_ino_t)(1ULL << 32))
 #else
 #define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 32) - 1ULL))
 #endif

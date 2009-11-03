@@ -833,12 +833,15 @@ static void early_alloc(struct early_log *log)
 	 */
 	rcu_read_lock();
 	object = create_object((unsigned long)log->ptr, log->size,
-			       log->min_count, GFP_KERNEL);
+			       log->min_count, GFP_ATOMIC);
+	if (!object)
+		goto out;
 	spin_lock_irqsave(&object->lock, flags);
 	for (i = 0; i < log->trace_len; i++)
 		object->trace[i] = log->trace[i];
 	object->trace_len = log->trace_len;
 	spin_unlock_irqrestore(&object->lock, flags);
+out:
 	rcu_read_unlock();
 }
 

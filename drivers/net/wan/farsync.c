@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/if.h>

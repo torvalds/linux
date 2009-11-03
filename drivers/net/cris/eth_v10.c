@@ -768,10 +768,24 @@ e100_negotiate(struct net_device* dev)
 
 	e100_set_mdio_reg(dev, np->mii_if.phy_id, MII_ADVERTISE, data);
 
-	/* Renegotiate with link partner */
+	data = e100_get_mdio_reg(dev, np->mii_if.phy_id, MII_BMCR);
 	if (autoneg_normal) {
-	  data = e100_get_mdio_reg(dev, np->mii_if.phy_id, MII_BMCR);
-	data |= BMCR_ANENABLE | BMCR_ANRESTART;
+		/* Renegotiate with link partner */
+		data |= BMCR_ANENABLE | BMCR_ANRESTART;
+	} else {
+		/* Don't negotiate speed or duplex */
+		data &= ~(BMCR_ANENABLE | BMCR_ANRESTART);
+
+		/* Set speed and duplex static */
+		if (current_speed_selection == 10)
+			data &= ~BMCR_SPEED100;
+		else
+			data |= BMCR_SPEED100;
+
+		if (current_duplex != full)
+			data &= ~BMCR_FULLDPLX;
+		else
+			data |= BMCR_FULLDPLX;
 	}
 	e100_set_mdio_reg(dev, np->mii_if.phy_id, MII_BMCR, data);
 }

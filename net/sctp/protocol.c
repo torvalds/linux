@@ -924,7 +924,7 @@ static struct inet_protosw sctp_stream_protosw = {
 };
 
 /* Register with IP layer.  */
-static struct net_protocol sctp_protocol = {
+static const struct net_protocol sctp_protocol = {
 	.handler     = sctp_rcv,
 	.err_handler = sctp_v4_err,
 	.no_policy   = 1,
@@ -1184,10 +1184,10 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
 	 */
-	if (num_physpages >= (128 * 1024))
-		goal = num_physpages >> (22 - PAGE_SHIFT);
+	if (totalram_pages >= (128 * 1024))
+		goal = totalram_pages >> (22 - PAGE_SHIFT);
 	else
-		goal = num_physpages >> (24 - PAGE_SHIFT);
+		goal = totalram_pages >> (24 - PAGE_SHIFT);
 
 	for (order = 0; (1UL << order) < goal; order++)
 		;

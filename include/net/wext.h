@@ -14,6 +14,7 @@ extern int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cm
 			     void __user *arg);
 extern int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
 				    unsigned long arg);
+extern struct iw_statistics *get_wireless_stats(struct net_device *dev);
 #else
 static inline int wext_proc_init(struct net *net)
 {

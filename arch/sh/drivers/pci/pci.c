@@ -295,6 +295,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			       vma->vm_page_prot);
 }
 
+#ifndef CONFIG_GENERIC_IOMAP
+
 static void __iomem *ioport_map_pci(struct pci_dev *dev,
 				    unsigned long port, unsigned int nr)
 {
@@ -345,6 +347,8 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 	iounmap(addr);
 }
 EXPORT_SYMBOL(pci_iounmap);
+
+#endif /* CONFIG_GENERIC_IOMAP */
 
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_resource_to_bus);

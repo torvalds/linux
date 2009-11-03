@@ -60,12 +60,6 @@ struct ocfs2_inode_info
 
 	u32				ip_dir_start_lookup;
 
-	/* next two are protected by trans_inc_lock */
-	/* which transaction were we created on? Zero if none. */
-	unsigned long			ip_created_trans;
-	/* last transaction we were a part of. */
-	unsigned long			ip_last_trans;
-
 	struct ocfs2_caching_info	ip_metadata_cache;
 
 	struct ocfs2_extent_map		ip_extent_map;
@@ -106,8 +100,6 @@ struct ocfs2_inode_info
 #define OCFS2_INODE_MAYBE_ORPHANED	0x00000020
 /* Does someone have the file open O_DIRECT */
 #define OCFS2_INODE_OPEN_DIRECT		0x00000040
-/* Indicates that the metadata cache should be used as an array. */
-#define OCFS2_INODE_CACHE_INLINE	0x00000080
 
 static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 {
@@ -120,6 +112,12 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 extern struct kmem_cache *ocfs2_inode_cache;
 
 extern const struct address_space_operations ocfs2_aops;
+extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
+
+static inline struct ocfs2_caching_info *INODE_CACHE(struct inode *inode)
+{
+	return &OCFS2_I(inode)->ip_metadata_cache;
+}
 
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
@@ -172,4 +170,10 @@ int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh);
 /* The same, but can be passed OCFS2_BH_* flags */
 int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 				int flags);
+
+static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
+{
+	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
+}
+
 #endif /* OCFS2_INODE_H */

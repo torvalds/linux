@@ -24,6 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
+#include <linux/amba/mmci.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -37,7 +38,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/time.h>
 
 #include <mach/board-eb.h>
@@ -193,27 +193,27 @@ static struct pl061_platform_data gpio2_plat_data = {
 #define EB_SSP_DMA	{ 9, 8 }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
-AMBA_DEVICE(mmc0,  "fpga:05", MMCI0,    &realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,  "fpga:06", KMI0,     NULL);
-AMBA_DEVICE(kmi1,  "fpga:07", KMI1,     NULL);
-AMBA_DEVICE(uart3, "fpga:09", EB_UART3, NULL);
+AMBA_DEVICE(aaci,  "fpga:aaci",  AACI,     NULL);
+AMBA_DEVICE(mmc0,  "fpga:mmc0",  MMCI0,    &realview_mmc0_plat_data);
+AMBA_DEVICE(kmi0,  "fpga:kmi0",  KMI0,     NULL);
+AMBA_DEVICE(kmi1,  "fpga:kmi1",  KMI1,     NULL);
+AMBA_DEVICE(uart3, "fpga:uart3", EB_UART3, NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,   "dev:00",  EB_SMC,   NULL);
-AMBA_DEVICE(clcd,  "dev:20",  EB_CLCD,  &clcd_plat_data);
-AMBA_DEVICE(dmac,  "dev:30",  DMAC,     NULL);
-AMBA_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
-AMBA_DEVICE(wdog,  "dev:e1",  EB_WATCHDOG, NULL);
-AMBA_DEVICE(gpio0, "dev:e4",  EB_GPIO0, &gpio0_plat_data);
-AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
-AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
-AMBA_DEVICE(rtc,   "dev:e8",  EB_RTC,   NULL);
-AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
-AMBA_DEVICE(uart0, "dev:f1",  EB_UART0, NULL);
-AMBA_DEVICE(uart1, "dev:f2",  EB_UART1, NULL);
-AMBA_DEVICE(uart2, "dev:f3",  EB_UART2, NULL);
-AMBA_DEVICE(ssp0,  "dev:f4",  EB_SSP,   NULL);
+AMBA_DEVICE(smc,   "dev:smc",   EB_SMC,   NULL);
+AMBA_DEVICE(clcd,  "dev:clcd",  EB_CLCD,  &clcd_plat_data);
+AMBA_DEVICE(dmac,  "dev:dmac",  DMAC,     NULL);
+AMBA_DEVICE(sctl,  "dev:sctl",  SCTL,     NULL);
+AMBA_DEVICE(wdog,  "dev:wdog",  EB_WATCHDOG, NULL);
+AMBA_DEVICE(gpio0, "dev:gpio0", EB_GPIO0, &gpio0_plat_data);
+AMBA_DEVICE(gpio1, "dev:gpio1", GPIO1,    &gpio1_plat_data);
+AMBA_DEVICE(gpio2, "dev:gpio2", GPIO2,    &gpio2_plat_data);
+AMBA_DEVICE(rtc,   "dev:rtc",   EB_RTC,   NULL);
+AMBA_DEVICE(sci0,  "dev:sci0",  SCI,      NULL);
+AMBA_DEVICE(uart0, "dev:uart0", EB_UART0, NULL);
+AMBA_DEVICE(uart1, "dev:uart1", EB_UART1, NULL);
+AMBA_DEVICE(uart2, "dev:uart2", EB_UART2, NULL);
+AMBA_DEVICE(ssp0,  "dev:ssp0",  EB_SSP,   NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,

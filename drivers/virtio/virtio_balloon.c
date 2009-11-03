@@ -19,6 +19,7 @@
  */
 //#define DEBUG
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
 #include <linux/kthread.h>
@@ -84,7 +85,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	init_completion(&vb->acked);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (vq->vq_ops->add_buf(vq, &sg, 1, 0, vb) != 0)
+	if (vq->vq_ops->add_buf(vq, &sg, 1, 0, vb) < 0)
 		BUG();
 	vq->vq_ops->kick(vq);
 

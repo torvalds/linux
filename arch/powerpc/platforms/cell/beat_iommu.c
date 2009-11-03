@@ -77,7 +77,7 @@ static void __init celleb_init_direct_mapping(void)
 static void celleb_dma_dev_setup(struct device *dev)
 {
 	dev->archdata.dma_ops = get_pci_dma_ops();
-	dev->archdata.dma_data = (void *)celleb_dma_direct_offset;
+	set_dma_offset(dev, celleb_dma_direct_offset);
 }
 
 static void celleb_pci_dma_dev_setup(struct pci_dev *pdev)

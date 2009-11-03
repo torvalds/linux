@@ -1154,19 +1154,9 @@ static void __inline__ fec_request_mii_intr(struct net_device *dev)
 		printk("FEC: Could not allocate fec(MII) IRQ(66)!\n");
 }
 
-static void __inline__ fec_disable_phy_intr(void)
+static void __inline__ fec_disable_phy_intr(struct net_device *dev)
 {
-	volatile unsigned long *icrp;
-	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = 0x08000000;
-}
-
-static void __inline__ fec_phy_ack_intr(void)
-{
-	volatile unsigned long *icrp;
-	/* Acknowledge the interrupt */
-	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = 0x0d000000;
+	free_irq(66, dev);
 }
 #endif
 
@@ -1398,7 +1388,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 		writel(0, fep->hwp + FEC_MII_SPEED);
 		fep->phy_speed = 0;
 #ifdef HAVE_mii_link_interrupt
-		fec_disable_phy_intr();
+		fec_disable_phy_intr(dev);
 #endif
 	}
 }
@@ -1410,8 +1400,6 @@ mii_link_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	struct fec_enet_private *fep = netdev_priv(dev);
-
-	fec_phy_ack_intr();
 
 	mii_do_cmd(dev, fep->phy->ack_int);
 	mii_do_cmd(dev, phy_cmd_relink);  /* restart and display status */

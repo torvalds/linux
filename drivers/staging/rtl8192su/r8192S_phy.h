@@ -121,11 +121,8 @@ extern	void 	PHY_IQCalibrateBcut(struct net_device* dev);
 extern	void 	PHY_IQCalibrate(struct net_device* dev);
 extern	void 	PHY_GetHWRegOriginalValue(struct net_device* dev);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern void 	InitialGainOperateWorkItemCallBack(struct work_struct *work);
-#else
-extern void 	InitialGainOperateWorkItemCallBack(struct net_device *dev);
-#endif
+
 void PHY_SetTxPowerLevel8192S(struct net_device* dev, u8  channel);
 void PHY_InitialGain8192S(struct net_device* dev,u8 Operation   );
 

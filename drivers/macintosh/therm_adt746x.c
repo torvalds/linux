@@ -124,6 +124,8 @@ read_reg(struct thermostat* th, int reg)
 	return data;
 }
 
+static struct i2c_driver thermostat_driver;
+
 static int
 attach_thermostat(struct i2c_adapter *adapter)
 {
@@ -148,7 +150,7 @@ attach_thermostat(struct i2c_adapter *adapter)
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &thermostat_driver.clients);
 	return 0;
 }
 

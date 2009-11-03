@@ -517,7 +517,7 @@ retry:
 			}
 			alloc_tail->group_head = alloc_start;
 			alloc_tail->async_tx.cookie = -EBUSY;
-			list_splice(&chain, &alloc_tail->async_tx.tx_list);
+			list_splice(&chain, &alloc_tail->tx_list);
 			mv_chan->last_used = last_used;
 			mv_desc_clear_next_desc(alloc_start);
 			mv_desc_clear_next_desc(alloc_tail);
@@ -565,14 +565,14 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 	cookie = mv_desc_assign_cookie(mv_chan, sw_desc);
 
 	if (list_empty(&mv_chan->chain))
-		list_splice_init(&sw_desc->async_tx.tx_list, &mv_chan->chain);
+		list_splice_init(&sw_desc->tx_list, &mv_chan->chain);
 	else {
 		new_hw_chain = 0;
 
 		old_chain_tail = list_entry(mv_chan->chain.prev,
 					    struct mv_xor_desc_slot,
 					    chain_node);
-		list_splice_init(&grp_start->async_tx.tx_list,
+		list_splice_init(&grp_start->tx_list,
 				 &old_chain_tail->chain_node);
 
 		if (!mv_can_chain(grp_start))
@@ -632,6 +632,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
+		INIT_LIST_HEAD(&slot->tx_list);
 		hw_desc = (char *) mv_chan->device->dma_desc_pool;
 		slot->async_tx.phys =
 			(dma_addr_t) &hw_desc[idx * MV_XOR_SLOT_SIZE];

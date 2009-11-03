@@ -203,7 +203,7 @@ void __init mem_init(void)
 
 	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, "
 	       "%ldk data, %ldk init %ldk highmem)\n",
-	       (unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
+	       nr_free_pages() << (PAGE_SHIFT-10),
 	       ram << (PAGE_SHIFT-10),
 	       codesize >> 10,
 	       reservedpages << (PAGE_SHIFT-10),

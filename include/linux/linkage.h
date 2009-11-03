@@ -57,6 +57,7 @@
 
 #ifdef __ASSEMBLY__
 
+#ifndef LINKER_SCRIPT
 #define ALIGN __ALIGN
 #define ALIGN_STR __ALIGN_STR
 
@@ -66,6 +67,7 @@
   ALIGN; \
   name:
 #endif
+#endif /* LINKER_SCRIPT */
 
 #ifndef WEAK
 #define WEAK(name)	   \

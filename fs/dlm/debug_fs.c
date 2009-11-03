@@ -386,9 +386,9 @@ static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 	return rv;
 }
 
-static struct seq_operations format1_seq_ops;
-static struct seq_operations format2_seq_ops;
-static struct seq_operations format3_seq_ops;
+static const struct seq_operations format1_seq_ops;
+static const struct seq_operations format2_seq_ops;
+static const struct seq_operations format3_seq_ops;
 
 static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -534,21 +534,21 @@ static void table_seq_stop(struct seq_file *seq, void *iter_ptr)
 	}
 }
 
-static struct seq_operations format1_seq_ops = {
+static const struct seq_operations format1_seq_ops = {
 	.start = table_seq_start,
 	.next  = table_seq_next,
 	.stop  = table_seq_stop,
 	.show  = table_seq_show,
 };
 
-static struct seq_operations format2_seq_ops = {
+static const struct seq_operations format2_seq_ops = {
 	.start = table_seq_start,
 	.next  = table_seq_next,
 	.stop  = table_seq_stop,
 	.show  = table_seq_show,
 };
 
-static struct seq_operations format3_seq_ops = {
+static const struct seq_operations format3_seq_ops = {
 	.start = table_seq_start,
 	.next  = table_seq_next,
 	.stop  = table_seq_stop,

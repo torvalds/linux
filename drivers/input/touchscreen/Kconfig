@@ -521,4 +521,13 @@ config TOUCHSCREEN_W90X900
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_ts.
 
+config TOUCHSCREEN_PCAP
+	tristate "Motorola PCAP touchscreen"
+	depends on EZX_PCAP
+	help
+	  Say Y here if you have a Motorola EZX telephone and
+	  want to enable support for the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcap_ts.
 endif

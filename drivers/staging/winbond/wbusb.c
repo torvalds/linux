@@ -51,10 +51,26 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 	.n_bitrates	= ARRAY_SIZE(wbsoft_rates),
 };
 
+static void hal_set_beacon_period(struct hw_data *pHwData, u16 beacon_period)
+{
+	u32 tmp;
+
+	if (pHwData->SurpriseRemove)
+		return;
+
+	pHwData->BeaconPeriod = beacon_period;
+	tmp = pHwData->BeaconPeriod << 16;
+	tmp |= pHwData->ProbeDelay;
+	Wb35Reg_Write(pHwData, 0x0848, tmp);
+}
+
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				struct ieee80211_if_init_conf *conf)
 {
-	printk("wbsoft_add interface called\n");
+	struct wbsoft_priv *priv = dev->priv;
+
+	hal_set_beacon_period(&priv->sHwData, conf->vif->bss_conf.beacon_int);
+
 	return 0;
 }
 
@@ -83,10 +99,16 @@ static int wbsoft_get_tx_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static u64 wbsoft_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				    struct dev_addr_list *mc_list)
+{
+	return mc_count;
+}
+
 static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 				    unsigned int changed_flags,
 				    unsigned int *total_flags,
-				    int mc_count, struct dev_mc_list *mclist)
+				    u64 multicast)
 {
 	unsigned int new_flags;
 
@@ -94,7 +116,7 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 
 	if (*total_flags & FIF_PROMISC_IN_BSS)
 		new_flags |= FIF_PROMISC_IN_BSS;
-	else if ((*total_flags & FIF_ALLMULTI) || (mc_count > 32))
+	else if ((*total_flags & FIF_ALLMULTI) || (multicast > 32))
 		new_flags |= FIF_ALLMULTI;
 
 	dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
@@ -136,19 +158,6 @@ static void hal_set_radio_mode(struct hw_data *pHwData, unsigned char radio_off)
 		reg->M24_MacControl |= 0x00000040;
 	}
 	Wb35Reg_Write(pHwData, 0x0824, reg->M24_MacControl);
-}
-
-static void hal_set_beacon_period(struct hw_data *pHwData, u16 beacon_period)
-{
-	u32 tmp;
-
-	if (pHwData->SurpriseRemove)
-		return;
-
-	pHwData->BeaconPeriod = beacon_period;
-	tmp = pHwData->BeaconPeriod << 16;
-	tmp |= pHwData->ProbeDelay;
-	Wb35Reg_Write(pHwData, 0x0848, tmp);
 }
 
 static void
@@ -244,7 +253,6 @@ static void hal_set_accept_beacon(struct hw_data *pHwData, u8 enable)
 static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct wbsoft_priv *priv = dev->priv;
-	struct ieee80211_conf *conf = &dev->conf;
 	ChanInfo ch;
 
 	printk("wbsoft_config called\n");
@@ -254,7 +262,6 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	ch.ChanNo = 1;
 
 	hal_set_current_channel(&priv->sHwData, ch);
-	hal_set_beacon_period(&priv->sHwData, conf->beacon_int);
 	hal_set_accept_broadcast(&priv->sHwData, 1);
 	hal_set_accept_promiscuous(&priv->sHwData, 1);
 	hal_set_accept_multicast(&priv->sHwData, 1);
@@ -277,6 +284,7 @@ static const struct ieee80211_ops wbsoft_ops = {
 	.add_interface		= wbsoft_add_interface,
 	.remove_interface	= wbsoft_remove_interface,
 	.config			= wbsoft_config,
+	.prepare_multicast	= wbsoft_prepare_multicast,
 	.configure_filter	= wbsoft_configure_filter,
 	.get_stats		= wbsoft_get_stats,
 	.get_tx_stats		= wbsoft_get_tx_stats,
@@ -715,11 +723,6 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 		else
 			priv->sLocalPara.region = REGION_USA;	/* default setting */
 	}
-
-	// Get Software setting flag from hal
-	priv->sLocalPara.boAntennaDiversity = false;
-	if (hal_software_set(pHwData) & 0x00000001)
-		priv->sLocalPara.boAntennaDiversity = true;
 
 	Mds_initial(priv);
 

@@ -350,7 +350,7 @@ ENTRY(sys_call_table)
 	.long sys_preadv
 	.long sys_pwritev		/* 330 */
 	.long sys_rt_tgsigqueueinfo
-	.long sys_perf_counter_open
+	.long sys_perf_event_open
 
 	.rept NR_syscalls-(.-sys_call_table)/4
 		.long sys_ni_syscall

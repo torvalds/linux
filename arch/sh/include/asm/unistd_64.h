@@ -137,7 +137,7 @@
 #define __NR_clone		120
 #define __NR_setdomainname	121
 #define __NR_uname		122
-#define __NR_modify_ldt		123
+#define __NR_cacheflush		123
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
@@ -384,7 +384,7 @@
 #define __NR_preadv		361
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
-#define __NR_perf_counter_open	364
+#define __NR_perf_event_open	364
 
 #ifdef __KERNEL__
 

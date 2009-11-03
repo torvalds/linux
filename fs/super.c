@@ -54,7 +54,7 @@ DEFINE_SPINLOCK(sb_lock);
 static struct super_block *alloc_super(struct file_system_type *type)
 {
 	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
-	static struct super_operations default_op;
+	static const struct super_operations default_op;
 
 	if (s) {
 		if (security_sb_alloc(s)) {
@@ -465,6 +465,48 @@ rescan:
 }
 
 EXPORT_SYMBOL(get_super);
+
+/**
+ * get_active_super - get an active reference to the superblock of a device
+ * @bdev: device to get the superblock for
+ *
+ * Scans the superblock list and finds the superblock of the file system
+ * mounted on the device given.  Returns the superblock with an active
+ * reference and s_umount held exclusively or %NULL if none was found.
+ */
+struct super_block *get_active_super(struct block_device *bdev)
+{
+	struct super_block *sb;
+
+	if (!bdev)
+		return NULL;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_bdev != bdev)
+			continue;
+
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_write(&sb->s_umount);
+		if (sb->s_root) {
+			spin_lock(&sb_lock);
+			if (sb->s_count > S_BIAS) {
+				atomic_inc(&sb->s_active);
+				sb->s_count--;
+				spin_unlock(&sb_lock);
+				return sb;
+			}
+			spin_unlock(&sb_lock);
+		}
+		up_write(&sb->s_umount);
+		put_super(sb);
+		yield();
+		spin_lock(&sb_lock);
+	}
+	spin_unlock(&sb_lock);
+	return NULL;
+}
  
 struct super_block * user_get_super(dev_t dev)
 {
@@ -527,11 +569,15 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	int remount_rw;
-	
+
+	if (sb->s_frozen != SB_UNFROZEN)
+		return -EBUSY;
+
 #ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
 #endif
+
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);
@@ -707,6 +753,12 @@ static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
+
+	/*
+	 * We set the bdi here to the queue backing, file systems can
+	 * overwrite this in ->fill_super()
+	 */
+	s->s_bdi = &bdev_get_queue(s->s_bdev)->backing_dev_info;
 	return 0;
 }
 
@@ -737,9 +789,14 @@ int get_sb_bdev(struct file_system_type *fs_type,
 	 * will protect the lockfs code from trying to start a snapshot
 	 * while we are mounting
 	 */
-	down(&bdev->bd_mount_sem);
+	mutex_lock(&bdev->bd_fsfreeze_mutex);
+	if (bdev->bd_fsfreeze_count > 0) {
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		error = -EBUSY;
+		goto error_bdev;
+	}
 	s = sget(fs_type, test_bdev_super, set_bdev_super, bdev);
-	up(&bdev->bd_mount_sem);
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s))
 		goto error_s;
 
@@ -885,6 +942,16 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
  	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
  	if (error)
  		goto out_sb;
+
+	/*
+	 * filesystems should never set s_maxbytes larger than MAX_LFS_FILESIZE
+	 * but s_maxbytes was an unsigned long long for many releases. Throw
+	 * this warning for a little while to try and catch filesystems that
+	 * violate this rule. This warning should be either removed or
+	 * converted to a BUG() in 2.6.34.
+	 */
+	WARN((mnt->mnt_sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
+		"negative value (%lld)\n", type->name, mnt->mnt_sb->s_maxbytes);
 
 	mnt->mnt_mountpoint = mnt->mnt_root;
 	mnt->mnt_parent = mnt;

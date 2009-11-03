@@ -692,7 +692,7 @@ static irqreturn_t hd_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct block_device_operations hd_fops = {
+static const struct block_device_operations hd_fops = {
 	.getgeo =	hd_getgeo,
 };
 

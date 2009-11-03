@@ -229,7 +229,7 @@ struct atkbd {
 };
 
 /*
- * System-specific ketymap fixup routine
+ * System-specific keymap fixup routine
  */
 static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;

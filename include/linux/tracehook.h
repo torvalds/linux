@@ -1,7 +1,7 @@
 /*
  * Tracing hooks
  *
- * Copyright (C) 2008 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -463,22 +463,38 @@ static inline int tracehook_get_signal(struct task_struct *task,
 
 /**
  * tracehook_notify_jctl - report about job control stop/continue
- * @notify:		nonzero if this is the last thread in the group to stop
+ * @notify:		zero, %CLD_STOPPED or %CLD_CONTINUED
  * @why:		%CLD_STOPPED or %CLD_CONTINUED
  *
  * This is called when we might call do_notify_parent_cldstop().
- * It's called when about to stop for job control; we are already in
- * %TASK_STOPPED state, about to call schedule().  It's also called when
- * a delayed %CLD_STOPPED or %CLD_CONTINUED report is ready to be made.
  *
- * Return nonzero to generate a %SIGCHLD with @why, which is
- * normal if @notify is nonzero.
+ * @notify is zero if we would not ordinarily send a %SIGCHLD,
+ * or is the %CLD_STOPPED or %CLD_CONTINUED .si_code for %SIGCHLD.
  *
- * Called with no locks held.
+ * @why is %CLD_STOPPED when about to stop for job control;
+ * we are already in %TASK_STOPPED state, about to call schedule().
+ * It might also be that we have just exited (check %PF_EXITING),
+ * but need to report that a group-wide stop is complete.
+ *
+ * @why is %CLD_CONTINUED when waking up after job control stop and
+ * ready to make a delayed @notify report.
+ *
+ * Return the %CLD_* value for %SIGCHLD, or zero to generate no signal.
+ *
+ * Called with the siglock held.
  */
 static inline int tracehook_notify_jctl(int notify, int why)
 {
-	return notify || (current->ptrace & PT_PTRACED);
+	return notify ?: (current->ptrace & PT_PTRACED) ? why : 0;
+}
+
+/**
+ * tracehook_finish_jctl - report about return from job control stop
+ *
+ * This is called by do_signal_stop() after wakeup.
+ */
+static inline void tracehook_finish_jctl(void)
+{
 }
 
 #define DEATH_REAP			-1

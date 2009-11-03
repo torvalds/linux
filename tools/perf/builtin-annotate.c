@@ -505,7 +505,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
@@ -513,7 +513,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dump_printf(" ...... dso: %s\n", dso->name);
 
-	} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
@@ -565,7 +565,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
 
-	dump_printf("%p [%p]: PERF_EVENT_MMAP %d: [%p(%p) @ %p]: %s\n",
+	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->mmap.pid,
@@ -575,7 +575,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 		event->mmap.filename);
 
 	if (thread == NULL || map == NULL) {
-		dump_printf("problem processing PERF_EVENT_MMAP, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
 		return 0;
 	}
 
@@ -591,14 +591,14 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 	struct thread *thread;
 
 	thread = threads__findnew(event->comm.pid, &threads, &last_match);
-	dump_printf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
 	total_comm++;
@@ -614,7 +614,7 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->fork.pid, &threads, &last_match);
 	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
-	dump_printf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+	dump_printf("%p [%p]: PERF_RECORD_FORK: %d:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->fork.pid, event->fork.ppid);
@@ -627,7 +627,7 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 		return 0;
 
 	if (!thread || !parent || thread__fork(thread, parent)) {
-		dump_printf("problem processing PERF_EVENT_FORK, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
@@ -639,23 +639,23 @@ static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	switch (event->header.type) {
-	case PERF_EVENT_SAMPLE:
+	case PERF_RECORD_SAMPLE:
 		return process_sample_event(event, offset, head);
 
-	case PERF_EVENT_MMAP:
+	case PERF_RECORD_MMAP:
 		return process_mmap_event(event, offset, head);
 
-	case PERF_EVENT_COMM:
+	case PERF_RECORD_COMM:
 		return process_comm_event(event, offset, head);
 
-	case PERF_EVENT_FORK:
+	case PERF_RECORD_FORK:
 		return process_fork_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
 
-	case PERF_EVENT_THROTTLE:
-	case PERF_EVENT_UNTHROTTLE:
+	case PERF_RECORD_THROTTLE:
+	case PERF_RECORD_UNTHROTTLE:
 		return 0;
 
 	default:

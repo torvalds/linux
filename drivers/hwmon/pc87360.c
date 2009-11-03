@@ -44,7 +44,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static u8 devid;
 static struct platform_device *pdev;

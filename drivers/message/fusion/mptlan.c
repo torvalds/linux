@@ -56,6 +56,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 
 #define my_VERSION	MPT_LINUX_VERSION_COMMON
 #define MYNAM		"mptlan"

@@ -56,7 +56,8 @@ get_transaction(journal_t *journal, transaction_t *transaction)
 	spin_lock_init(&transaction->t_handle_lock);
 
 	/* Set up the commit timer for the new transaction. */
-	journal->j_commit_timer.expires = round_jiffies(transaction->t_expires);
+	journal->j_commit_timer.expires =
+				round_jiffies_up(transaction->t_expires);
 	add_timer(&journal->j_commit_timer);
 
 	J_ASSERT(journal->j_running_transaction == NULL);
@@ -228,6 +229,8 @@ repeat_locked:
 		  __log_space_left(journal));
 	spin_unlock(&transaction->t_handle_lock);
 	spin_unlock(&journal->j_state_lock);
+
+	lock_map_acquire(&handle->h_lockdep_map);
 out:
 	if (unlikely(new_transaction))		/* It's usually NULL */
 		kfree(new_transaction);
@@ -292,9 +295,6 @@ handle_t *journal_start(journal_t *journal, int nblocks)
 		handle = ERR_PTR(err);
 		goto out;
 	}
-
-	lock_map_acquire(&handle->h_lockdep_map);
-
 out:
 	return handle;
 }
@@ -416,6 +416,7 @@ int journal_restart(handle_t *handle, int nblocks)
 	__log_start_commit(journal, transaction->t_tid);
 	spin_unlock(&journal->j_state_lock);
 
+	lock_map_release(&handle->h_lockdep_map);
 	handle->h_buffer_credits = nblocks;
 	ret = start_this_handle(journal, handle);
 	return ret;

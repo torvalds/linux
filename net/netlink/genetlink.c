@@ -176,9 +176,10 @@ int genl_register_mc_group(struct genl_family *family,
 	if (family->netnsok) {
 		struct net *net;
 
+		netlink_table_grab();
 		rcu_read_lock();
 		for_each_net_rcu(net) {
-			err = netlink_change_ngroups(net->genl_sock,
+			err = __netlink_change_ngroups(net->genl_sock,
 					mc_groups_longs * BITS_PER_LONG);
 			if (err) {
 				/*
@@ -188,10 +189,12 @@ int genl_register_mc_group(struct genl_family *family,
 				 * increased on some sockets which is ok.
 				 */
 				rcu_read_unlock();
+				netlink_table_ungrab();
 				goto out;
 			}
 		}
 		rcu_read_unlock();
+		netlink_table_ungrab();
 	} else {
 		err = netlink_change_ngroups(init_net.genl_sock,
 					     mc_groups_longs * BITS_PER_LONG);
@@ -217,10 +220,12 @@ static void __genl_unregister_mc_group(struct genl_family *family,
 	struct net *net;
 	BUG_ON(grp->family != family);
 
+	netlink_table_grab();
 	rcu_read_lock();
 	for_each_net_rcu(net)
-		netlink_clear_multicast_users(net->genl_sock, grp->id);
+		__netlink_clear_multicast_users(net->genl_sock, grp->id);
 	rcu_read_unlock();
+	netlink_table_ungrab();
 
 	clear_bit(grp->id, mc_groups);
 	list_del(&grp->list);

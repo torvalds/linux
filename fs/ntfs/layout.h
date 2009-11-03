@@ -829,7 +829,7 @@ enum {
 	/* Note, FILE_ATTR_VALID_SET_FLAGS masks out the old DOS VolId, the
 	   F_A_DEVICE, F_A_DIRECTORY, F_A_SPARSE_FILE, F_A_REPARSE_POINT,
 	   F_A_COMPRESSED, and F_A_ENCRYPTED and preserves the rest.  This mask
-	   is used to to obtain all flags that are valid for setting. */
+	   is used to obtain all flags that are valid for setting. */
 	/*
 	 * The flag FILE_ATTR_DUP_FILENAME_INDEX_PRESENT is present in all
 	 * FILENAME_ATTR attributes but not in the STANDARD_INFORMATION

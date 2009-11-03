@@ -80,10 +80,11 @@ struct mite_struct {
 };
 
 static inline struct mite_dma_descriptor_ring *mite_alloc_ring(struct
-	mite_struct *mite)
+							       mite_struct
+							       *mite)
 {
 	struct mite_dma_descriptor_ring *ring =
-		kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
+	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
 	if (ring == NULL)
 		return ring;
 	ring->hw_dev = get_device(&mite->pcidev->dev);
@@ -102,9 +103,10 @@ static inline void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 	if (ring) {
 		if (ring->descriptors) {
 			dma_free_coherent(ring->hw_dev,
-				ring->n_links *
-				sizeof(struct mite_dma_descriptor),
-				ring->descriptors, ring->descriptors_dma_addr);
+					  ring->n_links *
+					  sizeof(struct mite_dma_descriptor),
+					  ring->descriptors,
+					  ring->descriptors_dma_addr);
 		}
 		put_device(ring->hw_dev);
 		kfree(ring);
@@ -117,6 +119,7 @@ static inline unsigned int mite_irq(struct mite_struct *mite)
 {
 	return mite->pcidev->irq;
 };
+
 static inline unsigned int mite_device_id(struct mite_struct *mite)
 {
 	return mite->pcidev->device;
@@ -129,21 +132,29 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
-	struct mite_dma_descriptor_ring *ring, unsigned min_channel,
-	unsigned max_channel);
+						   struct
+						   mite_dma_descriptor_ring
+						   *ring, unsigned min_channel,
+						   unsigned max_channel);
 static inline struct mite_channel *mite_request_channel(struct mite_struct
-	*mite, struct mite_dma_descriptor_ring *ring)
+							*mite,
+							struct
+							mite_dma_descriptor_ring
+							*ring)
 {
 	return mite_request_channel_in_range(mite, ring, 0,
-		mite->num_channels - 1);
+					     mite->num_channels - 1);
 }
+
 void mite_release_channel(struct mite_channel *mite_chan);
 
 unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
-int mite_sync_input_dma(struct mite_channel *mite_chan, struct comedi_async * async);
-int mite_sync_output_dma(struct mite_channel *mite_chan, struct comedi_async * async);
+int mite_sync_input_dma(struct mite_channel *mite_chan,
+			struct comedi_async *async);
+int mite_sync_output_dma(struct mite_channel *mite_chan,
+			 struct comedi_async *async);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
@@ -153,16 +164,16 @@ unsigned mite_get_status(struct mite_channel *mite_chan);
 int mite_done(struct mite_channel *mite_chan);
 
 #if 0
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite, struct comedi_async * async,
-	int len);
+unsigned long mite_ll_from_kvmem(struct mite_struct *mite,
+				 struct comedi_async *async, int len);
 void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
-	int dir);
+		  int dir);
 #endif
 
 void mite_prep_dma(struct mite_channel *mite_chan,
-	unsigned int num_device_bits, unsigned int num_memory_bits);
+		   unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-	struct comedi_async *async);
+		    struct comedi_async *async);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);
@@ -185,72 +196,88 @@ enum mite_registers {
 	MITE_PCI_CONFIG_OFFSET = 0x300,
 	MITE_CSIGR = 0x460	/* chip signature */
 };
-static inline int MITE_CHOR(int channel)	/*  channel operation */
-{
+static inline int MITE_CHOR(int channel)
+{				/*  channel operation */
 	return CHAN_OFFSET(channel) + 0x0;
 };
-static inline int MITE_CHCR(int channel)	/*  channel control */
-{
+
+static inline int MITE_CHCR(int channel)
+{				/*  channel control */
 	return CHAN_OFFSET(channel) + 0x4;
 };
-static inline int MITE_TCR(int channel)	/*  transfer count */
-{
+
+static inline int MITE_TCR(int channel)
+{				/*  transfer count */
 	return CHAN_OFFSET(channel) + 0x8;
 };
-static inline int MITE_MCR(int channel)	/*  memory configuration */
-{
+
+static inline int MITE_MCR(int channel)
+{				/*  memory configuration */
 	return CHAN_OFFSET(channel) + 0xc;
 };
-static inline int MITE_MAR(int channel)	/*  memory address */
-{
+
+static inline int MITE_MAR(int channel)
+{				/*  memory address */
 	return CHAN_OFFSET(channel) + 0x10;
 };
-static inline int MITE_DCR(int channel)	/*  device configuration */
-{
+
+static inline int MITE_DCR(int channel)
+{				/*  device configuration */
 	return CHAN_OFFSET(channel) + 0x14;
 };
-static inline int MITE_DAR(int channel)	/*  device address */
-{
+
+static inline int MITE_DAR(int channel)
+{				/*  device address */
 	return CHAN_OFFSET(channel) + 0x18;
 };
-static inline int MITE_LKCR(int channel)	/*  link configuration */
-{
+
+static inline int MITE_LKCR(int channel)
+{				/*  link configuration */
 	return CHAN_OFFSET(channel) + 0x1c;
 };
-static inline int MITE_LKAR(int channel)	/*  link address */
-{
+
+static inline int MITE_LKAR(int channel)
+{				/*  link address */
 	return CHAN_OFFSET(channel) + 0x20;
 };
-static inline int MITE_LLKAR(int channel)	/*  see mite section of tnt5002 manual */
-{
+
+static inline int MITE_LLKAR(int channel)
+{				/*  see mite section of tnt5002 manual */
 	return CHAN_OFFSET(channel) + 0x24;
 };
-static inline int MITE_BAR(int channel)	/*  base address */
-{
+
+static inline int MITE_BAR(int channel)
+{				/*  base address */
 	return CHAN_OFFSET(channel) + 0x28;
 };
-static inline int MITE_BCR(int channel)	/*  base count */
-{
+
+static inline int MITE_BCR(int channel)
+{				/*  base count */
 	return CHAN_OFFSET(channel) + 0x2c;
 };
-static inline int MITE_SAR(int channel)	/*  ? address */
-{
+
+static inline int MITE_SAR(int channel)
+{				/*  ? address */
 	return CHAN_OFFSET(channel) + 0x30;
 };
-static inline int MITE_WSCR(int channel)	/*  ? */
-{
+
+static inline int MITE_WSCR(int channel)
+{				/*  ? */
 	return CHAN_OFFSET(channel) + 0x34;
 };
-static inline int MITE_WSER(int channel)	/*  ? */
-{
+
+static inline int MITE_WSER(int channel)
+{				/*  ? */
 	return CHAN_OFFSET(channel) + 0x38;
 };
-static inline int MITE_CHSR(int channel)	/*  channel status */
-{
+
+static inline int MITE_CHSR(int channel)
+{				/*  channel status */
 	return CHAN_OFFSET(channel) + 0x3c;
 };
-static inline int MITE_FCR(int channel)	/*  fifo count */
-{
+
+static inline int MITE_FCR(int channel)
+{				/*  fifo count */
 	return CHAN_OFFSET(channel) + 0x40;
 };
 
@@ -275,22 +302,27 @@ static inline int mite_csigr_version(u32 csigr_bits)
 {
 	return csigr_bits & 0xf;
 };
+
 static inline int mite_csigr_type(u32 csigr_bits)
 {				/*  original mite = 0, minimite = 1 */
 	return (csigr_bits >> 4) & 0xf;
 };
+
 static inline int mite_csigr_mmode(u32 csigr_bits)
 {				/*  mite mode, minimite = 1 */
 	return (csigr_bits >> 8) & 0x3;
 };
+
 static inline int mite_csigr_imode(u32 csigr_bits)
 {				/*  cpu port interface mode, pci = 0x3 */
 	return (csigr_bits >> 12) & 0x3;
 };
+
 static inline int mite_csigr_dmac(u32 csigr_bits)
 {				/*  number of dma channels */
 	return (csigr_bits >> 16) & 0xf;
 };
+
 static inline int mite_csigr_wpdep(u32 csigr_bits)
 {				/*  write post fifo depth */
 	unsigned int wpdep_bits = (csigr_bits >> 20) & 0x7;
@@ -299,10 +331,12 @@ static inline int mite_csigr_wpdep(u32 csigr_bits)
 	else
 		return 1 << (wpdep_bits - 1);
 };
+
 static inline int mite_csigr_wins(u32 csigr_bits)
 {
 	return (csigr_bits >> 24) & 0x1f;
 };
+
 static inline int mite_csigr_iowins(u32 csigr_bits)
 {				/*  number of io windows */
 	return (csigr_bits >> 29) & 0x7;
@@ -366,9 +400,9 @@ enum MITE_CHCR_bits {
 	CHCR_LINKSHORT = (4 << 0),
 	CHCR_LINKLONG = (5 << 0),
 	CHCRPON =
-		(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE |
-		CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
-		CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE),
+	    (CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE |
+	     CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
+	     CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE),
 };
 
 enum ConfigRegister_bits {
@@ -390,12 +424,14 @@ static inline int CR_REQS(int source)
 {
 	return (source & 0x7) << 16;
 };
+
 static inline int CR_REQSDRQ(unsigned drq_line)
 {
 	/* This also works on m-series when
 	   using channels (drq_line) 4 or 5. */
 	return CR_REQS((drq_line & 0x3) | 0x4);
 }
+
 static inline int CR_RL(unsigned int retry_limit)
 {
 	int value = 0;
@@ -447,7 +483,7 @@ enum CHSR_bits {
 static inline void mite_dma_reset(struct mite_channel *mite_chan)
 {
 	writel(CHOR_DMARESET | CHOR_FRESET,
-		mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	       mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 };
 
 #endif

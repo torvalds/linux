@@ -20,7 +20,7 @@
  * - Bit 9 is reserved by everyone and used by _PAGE_PROTNONE.
  *
  * - Bits 10 and 11 are low bits of the PPN that are reserved on >= 4K pages.
- *   Bit 10 is used for _PAGE_ACCESSED, bit 11 remains unused.
+ *   Bit 10 is used for _PAGE_ACCESSED, and bit 11 is used for _PAGE_SPECIAL.
  *
  * - On 29 bit platforms, bits 31 to 29 are used for the space attributes
  *   and timing control which (together with bit 0) are moved into the
@@ -52,6 +52,7 @@
 #define _PAGE_PROTNONE	0x200		/* software: if not present  */
 #define _PAGE_ACCESSED	0x400		/* software: page referenced */
 #define _PAGE_FILE	_PAGE_WT	/* software: pagecache or swap? */
+#define _PAGE_SPECIAL	0x800		/* software: special page */
 
 #define _PAGE_SZ_MASK	(_PAGE_SZ0 | _PAGE_SZ1)
 #define _PAGE_PR_MASK	(_PAGE_RW | _PAGE_USER)
@@ -85,6 +86,14 @@
 #define _PAGE_PCC_COM16	0x40000001	/* Common Memory space, 16 bit bus */
 #define _PAGE_PCC_ATR8	0x60000000	/* Attribute Memory space, 8 bit bus */
 #define _PAGE_PCC_ATR16	0x60000001	/* Attribute Memory space, 6 bit bus */
+
+#ifndef CONFIG_X2TLB
+/* copy the ptea attributes */
+static inline unsigned long copy_ptea_attributes(unsigned long x)
+{
+	return	((x >> 28) & 0xe) | (x & 0x1);
+}
+#endif
 
 /* Mask which drops unused bits from the PTEL value */
 #if defined(CONFIG_CPU_SH3)
@@ -148,8 +157,12 @@
 # define _PAGE_SZHUGE	(_PAGE_FLAGS_HARD)
 #endif
 
+/*
+ * Mask of bits that are to be preserved accross pgprot changes.
+ */
 #define _PAGE_CHG_MASK \
-	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | _PAGE_DIRTY)
+	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | \
+	 _PAGE_DIRTY | _PAGE_SPECIAL)
 
 #ifndef __ASSEMBLY__
 
@@ -328,7 +341,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define pte_dirty(pte)		((pte).pte_low & _PAGE_DIRTY)
 #define pte_young(pte)		((pte).pte_low & _PAGE_ACCESSED)
 #define pte_file(pte)		((pte).pte_low & _PAGE_FILE)
-#define pte_special(pte)	(0)
+#define pte_special(pte)	((pte).pte_low & _PAGE_SPECIAL)
 
 #ifdef CONFIG_X2TLB
 #define pte_write(pte)		((pte).pte_high & _PAGE_EXT_USER_WRITE)
@@ -358,8 +371,9 @@ PTE_BIT_FUNC(low, mkclean, &= ~_PAGE_DIRTY);
 PTE_BIT_FUNC(low, mkdirty, |= _PAGE_DIRTY);
 PTE_BIT_FUNC(low, mkold, &= ~_PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkyoung, |= _PAGE_ACCESSED);
+PTE_BIT_FUNC(low, mkspecial, |= _PAGE_SPECIAL);
 
-static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+#define __HAVE_ARCH_PTE_SPECIAL
 
 /*
  * Macro and implementation to make a page protection as uncachable.
@@ -394,13 +408,19 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pgd_offset(mm, address)	((mm)->pgd+pgd_index(address))
+#define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
+#define __pgd_offset(address)	pgd_index(address)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address)	pgd_offset(&init_mm, address)
 
+#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define __pmd_offset(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
+
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)	((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define __pte_offset(address)	pte_index(address)
+
 #define pte_offset_kernel(dir, address) \
 	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(address))
 #define pte_offset_map(dir, address)		pte_offset_kernel(dir, address)

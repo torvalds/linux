@@ -483,7 +483,7 @@ free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
 	/*
 	 * Convert start_pfn/end_pfn to a struct page pointer.
 	 */
-	start_pg = pfn_to_page(start_pfn);
+	start_pg = pfn_to_page(start_pfn - 1) + 1;
 	end_pg = pfn_to_page(end_pfn);
 
 	/*
@@ -596,8 +596,8 @@ void __init mem_init(void)
 
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
 		"%dK data, %dK init, %luK highmem)\n",
-		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		codesize >> 10, datasize >> 10, initsize >> 10,
+		nr_free_pages() << (PAGE_SHIFT-10), codesize >> 10,
+		datasize >> 10, initsize >> 10,
 		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
@@ -613,6 +613,14 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
+#ifdef CONFIG_HAVE_TCM
+	extern char *__tcm_start, *__tcm_end;
+
+	totalram_pages += free_area(__phys_to_pfn(__pa(__tcm_start)),
+				    __phys_to_pfn(__pa(__tcm_end)),
+				    "TCM link");
+#endif
+
 	if (!machine_is_integrator() && !machine_is_cintegrator())
 		totalram_pages += free_area(__phys_to_pfn(__pa(__init_begin)),
 					    __phys_to_pfn(__pa(__init_end)),

@@ -327,7 +327,8 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 					     aniState->firstepLevel + 1);
 		return;
 	} else {
-		if (conf->channel->band == IEEE80211_BAND_2GHZ) {
+		if ((conf->channel->band == IEEE80211_BAND_2GHZ) &&
+		    !conf_is_ht(conf)) {
 			if (!aniState->ofdmWeakSigDetectOff)
 				ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
@@ -369,7 +370,8 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
 	} else {
-		if (conf->channel->band == IEEE80211_BAND_2GHZ) {
+		if ((conf->channel->band == IEEE80211_BAND_2GHZ) &&
+		    !conf_is_ht(conf)) {
 			if (aniState->firstepLevel > 0)
 				ath9k_hw_ani_control(ah,
 					     ATH9K_ANI_FIRSTEP_LEVEL, 0);

@@ -30,21 +30,10 @@
 #ifndef __BSSDB_H__
 #define __BSSDB_H__
 
-//#if !defined(__DEVICE_H__)
-//#include "device.h"
-//#endif
 #include <linux/skbuff.h>
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -103,13 +92,13 @@ typedef enum _NDIS_802_11_NETWORK_TYPE
 typedef struct tagSERPObject {
     BOOL    bERPExist;
     BYTE    byERP;
-} ERPObject, DEF* PERPObject;
+}ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
     BOOL    bRSNCapExist;
     WORD    wRSNCap;
-} SRSNCapObject, DEF* PSRSNCapObject;
+}SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
 #pragma pack(1)
@@ -126,11 +115,12 @@ typedef struct tagKnownBSS {
     WORD            wCapInfo;
     BYTE            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BYTE            byRxRate;
+
 //    WORD            wATIMWindow;
     BYTE            byRSSIStatCnt;
     LONG            ldBmMAX;
     LONG            ldBmAverage[RSSI_STAT_COUNT];
-     LONG            ldBmAverRange;
+    LONG            ldBmAverRange;
     //For any BSSID selection improvment
     BOOL            bSelected;
 
@@ -174,7 +164,7 @@ typedef struct tagKnownBSS {
     BYTE            abyIEs[1024];   // don't move this field !!
 
 }__attribute__ ((__packed__))
-KnownBSS , DEF* PKnownBSS;
+KnownBSS , *PKnownBSS;
 
 //2006-1116-01,<Add> by NomadZhao
 #pragma pack()
@@ -245,7 +235,7 @@ typedef struct tagKnownNodeDB {
     UINT            uTxFail[MAX_RATE+1];
     UINT            uTimeCount;
 
-} KnownNodeDB, DEF* PKnownNodeDB;
+} KnownNodeDB, *PKnownNodeDB;
 
 
 /*---------------------  Export Functions  --------------------------*/
@@ -344,6 +334,7 @@ VOID
 BSSvSecondCallBack(
     IN HANDLE hDeviceContext
     );
+
 
 VOID
 BSSvUpdateNodeTxCounter(

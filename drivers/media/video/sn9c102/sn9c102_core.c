@@ -1954,8 +1954,10 @@ sn9c102_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 				    (!list_empty(&cam->outqueue)) ||
 				    (cam->state & DEV_DISCONNECTED) ||
 				    (cam->state & DEV_MISCONFIGURED),
-				    cam->module_param.frame_timeout *
-				    1000 * msecs_to_jiffies(1) );
+				    msecs_to_jiffies(
+					cam->module_param.frame_timeout * 1000
+				    )
+				  );
 			if (timeout < 0) {
 				mutex_unlock(&cam->fileop_mutex);
 				return timeout;
@@ -2075,7 +2077,7 @@ static void sn9c102_vm_close(struct vm_area_struct* vma)
 }
 
 
-static struct vm_operations_struct sn9c102_vm_ops = {
+static const struct vm_operations_struct sn9c102_vm_ops = {
 	.open = sn9c102_vm_open,
 	.close = sn9c102_vm_close,
 };

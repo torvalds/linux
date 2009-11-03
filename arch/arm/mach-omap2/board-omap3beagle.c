@@ -108,10 +108,6 @@ static struct platform_device omap3beagle_nand_device = {
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 
-static struct omap_uart_config omap3_beagle_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct twl4030_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -143,8 +139,13 @@ static struct gpio_led gpio_leds[];
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
+	if (system_rev >= 0x20 && system_rev <= 0x34301000) {
+		omap_cfg_reg(AG9_34XX_GPIO23);
+		mmc[0].gpio_wp = 23;
+	} else {
+		omap_cfg_reg(AH8_34XX_GPIO29);
+	}
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_cfg_reg(AH8_34XX_GPIO29);
 	mmc[0].gpio_cd = gpio + 0;
 	twl4030_mmc_init(mmc);
 
@@ -249,11 +250,16 @@ static struct regulator_init_data beagle_vpll2 = {
 	.consumer_supplies	= &beagle_vdvi_supply,
 };
 
+static struct twl4030_usb_data beagle_usb_data = {
+	.usb_mode	= T2_USB_MODE_ULPI,
+};
+
 static struct twl4030_platform_data beagle_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
+	.usb		= &beagle_usb_data,
 	.gpio		= &beagle_gpio_data,
 	.vmmc1		= &beagle_vmmc1,
 	.vsim		= &beagle_vsim,
@@ -278,17 +284,6 @@ static int __init omap3_beagle_i2c_init(void)
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 100, NULL, 0);
 	return 0;
-}
-
-static void __init omap3_beagle_init_irq(void)
-{
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
-	omap_gpio_init();
 }
 
 static struct gpio_led gpio_leds[] = {
@@ -345,9 +340,21 @@ static struct platform_device keys_gpio = {
 };
 
 static struct omap_board_config_kernel omap3_beagle_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3_beagle_uart_config },
 	{ OMAP_TAG_LCD,		&omap3_beagle_lcd_config },
 };
+
+static void __init omap3_beagle_init_irq(void)
+{
+	omap_board_config = omap3_beagle_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+			     mt46h32m32lf6_sdrc_params);
+	omap_init_irq();
+#ifdef CONFIG_OMAP_32K_TIMER
+	omap2_gp_clockevent_set_gptimer(12);
+#endif
+	omap_gpio_init();
+}
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
 	&omap3_beagle_lcd_device,
@@ -398,8 +405,6 @@ static void __init omap3_beagle_init(void)
 	omap3_beagle_i2c_init();
 	platform_add_devices(omap3_beagle_devices,
 			ARRAY_SIZE(omap3_beagle_devices));
-	omap_board_config = omap3_beagle_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
 	omap_serial_init();
 
 	omap_cfg_reg(J25_34XX_GPIO170);

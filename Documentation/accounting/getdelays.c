@@ -116,7 +116,7 @@ error:
 }
 
 
-int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
+static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 	     __u8 genl_cmd, __u16 nla_type,
 	     void *nla_data, int nla_len)
 {
@@ -160,7 +160,7 @@ int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
  * Probe the controller in genetlink to find the family id
  * for the TASKSTATS family
  */
-int get_family_id(int sd)
+static int get_family_id(int sd)
 {
 	struct {
 		struct nlmsghdr n;
@@ -190,7 +190,7 @@ int get_family_id(int sd)
 	return id;
 }
 
-void print_delayacct(struct taskstats *t)
+static void print_delayacct(struct taskstats *t)
 {
 	printf("\n\nCPU   %15s%15s%15s%15s\n"
 	       "      %15llu%15llu%15llu%15llu\n"
@@ -216,7 +216,7 @@ void print_delayacct(struct taskstats *t)
 	       (unsigned long long)t->freepages_delay_total);
 }
 
-void task_context_switch_counts(struct taskstats *t)
+static void task_context_switch_counts(struct taskstats *t)
 {
 	printf("\n\nTask   %15s%15s\n"
 	       "       %15llu%15llu\n",
@@ -224,7 +224,7 @@ void task_context_switch_counts(struct taskstats *t)
 	       (unsigned long long)t->nvcsw, (unsigned long long)t->nivcsw);
 }
 
-void print_cgroupstats(struct cgroupstats *c)
+static void print_cgroupstats(struct cgroupstats *c)
 {
 	printf("sleeping %llu, blocked %llu, running %llu, stopped %llu, "
 		"uninterruptible %llu\n", (unsigned long long)c->nr_sleeping,
@@ -235,7 +235,7 @@ void print_cgroupstats(struct cgroupstats *c)
 }
 
 
-void print_ioacct(struct taskstats *t)
+static void print_ioacct(struct taskstats *t)
 {
 	printf("%s: read=%llu, write=%llu, cancelled_write=%llu\n",
 		t->ac_comm,

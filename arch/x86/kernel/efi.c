@@ -42,6 +42,7 @@
 #include <asm/time.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/x86_init.h>
 
 #define EFI_DEBUG	1
 #define PFX 		"EFI: "
@@ -452,6 +453,9 @@ void __init efi_init(void)
 
 	if (add_efi_memmap)
 		do_add_efi_memmap();
+
+	x86_platform.get_wallclock = efi_get_time;
+	x86_platform.set_wallclock = efi_set_rtc_mmss;
 
 	/* Setup for EFI runtime service */
 	reboot_type = BOOT_EFI;

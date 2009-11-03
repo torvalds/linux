@@ -2669,7 +2669,7 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 			err++;
 			printk("\nThe Delay time base selection is in error\n");
 		}
-		if (ui_DelayTime < 1 && ui_DelayTime > 1023) {
+		if (ui_DelayTime < 1 || ui_DelayTime > 1023) {
 			err++;
 			printk("\nThe Delay time value is in error\n");
 		}

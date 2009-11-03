@@ -881,11 +881,11 @@ static int debug_active=1;
  * if debug_active is already off
  */
 static int
-s390dbf_procactive(ctl_table *table, int write, struct file *filp,
+s390dbf_procactive(ctl_table *table, int write,
                      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
-		return proc_dointvec(table, write, filp, buffer, lenp, ppos);
+		return proc_dointvec(table, write, buffer, lenp, ppos);
 	else
 		return 0;
 }

@@ -40,12 +40,9 @@
 #ifndef __RTMP_H__
 #define __RTMP_H__
 
-#include "link_list.h"
 #include "spectrum_def.h"
 
 #include "aironet.h"
-
-//#define DBG_DIAGNOSE		1
 
 #define VIRTUAL_IF_INC(__pAd) ((__pAd)->VirtualIfCnt++)
 #define VIRTUAL_IF_DEC(__pAd) ((__pAd)->VirtualIfCnt--)
@@ -234,15 +231,9 @@ extern UCHAR  WpaIe;
 extern UCHAR  Wpa2Ie;
 extern UCHAR  IbssIe;
 extern UCHAR  Ccx2Ie;
-#ifdef RT30xx
-extern UCHAR  WapiIe;
-#endif
 
 extern UCHAR  WPA_OUI[];
 extern UCHAR  RSN_OUI[];
-#ifdef RT30xx
-extern UCHAR  WAPI_OUI[];
-#endif
 extern UCHAR  WME_INFO_ELEM[];
 extern UCHAR  WME_PARM_ELEM[];
 extern UCHAR  Ccx2QosInfo[];
@@ -400,15 +391,15 @@ typedef struct  _QUEUE_HEADER   {
     (_idx) = (_idx+1) % (_RingSize);       \
 }
 
-#ifdef RT30xx
+#ifdef RT2870
 // We will have a cost down version which mac version is 0x3090xxxx
 #define IS_RT3090(_pAd)				((((_pAd)->MACVersion & 0xffff0000) == 0x30710000) || (((_pAd)->MACVersion & 0xffff0000) == 0x30900000))
+#else
+#define IS_RT3090(_pAd)				0
 #endif
 #define IS_RT3070(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30700000)
-#ifdef RT30xx
+#ifdef RT2870
 #define IS_RT3071(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30710000)
-#define IS_RT2070(_pAd)				(((_pAd)->RfIcType == RFIC_2020) || ((_pAd)->EFuseTag == 0x27))
-
 #define IS_RT30xx(_pAd)				(((_pAd)->MACVersion & 0xfff00000) == 0x30700000)
 #endif
 
@@ -663,11 +654,6 @@ typedef struct  _QUEUE_HEADER   {
 #define BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)			RTUSBWriteBBPRegister(_A, _I, _V)
 #define BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)   		RTUSBReadBBPRegister(_A, _I, _pV)
 #endif // RT2870 //
-
-#ifdef RT30xx
-#define RTMP_RF_IO_READ8_BY_REG_ID(_A, _I, _pV)    RT30xxReadRFRegister(_A, _I, _pV)
-#define RTMP_RF_IO_WRITE8_BY_REG_ID(_A, _I, _V)    RT30xxWriteRFRegister(_A, _I, _V)
-#endif // RT30xx //
 
 #define     MAP_CHANNEL_ID_TO_KHZ(ch, khz)  {               \
                 switch (ch)                                 \
@@ -935,7 +921,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 }
 #endif // RT2870 //
 
-#ifdef RT30xx
 //Need to collect each ant's rssi concurrently
 //rssi1 is report to pair2 Ant and rss2 is reprot to pair1 Ant when 4 Ant
 #define COLLECT_RX_ANTENNA_AVERAGE_RSSI(_pAd, _rssi1, _rssi2)					\
@@ -967,8 +952,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 		_pAd->RxAnt.RcvPktNumWhenEvaluate++;								\
 	}																		\
 }
-#endif // RT30xx //
-
 
 #define NDIS_QUERY_BUFFER(_NdisBuf, _ppVA, _pBufLen)                    \
     NdisQueryBuffer(_NdisBuf, _ppVA, _pBufLen)
@@ -1312,7 +1295,7 @@ typedef struct _BBP_TUNING_STRUCT {
 
 typedef struct _SOFT_RX_ANT_DIVERSITY_STRUCT {
 	UCHAR     EvaluatePeriod;		 // 0:not evalute status, 1: evaluate status, 2: switching status
-#ifdef RT30xx
+#ifdef RT2870
 	UCHAR     EvaluateStableCnt;
 #endif
 	UCHAR     Pair1PrimaryRxAnt;     // 0:Ant-E1, 1:Ant-E2
@@ -1916,9 +1899,6 @@ typedef struct _COMMON_CONFIG {
 
 	BOOLEAN				NdisRadioStateOff; //For HCT 12.0, set this flag to TRUE instead of called MlmeRadioOff.
 	ABGBAND_STATE		BandState;		// For setting BBP used on B/G or A mode.
-#ifdef RT30xx
-	BOOLEAN				bRxAntDiversity; // 0:disable, 1:enable Software Rx Antenna Diversity.
-#endif
 
 	// IEEE802.11H--DFS.
 	RADAR_DETECT_STRUCT	RadarDetect;
@@ -2080,7 +2060,7 @@ typedef struct _STA_ADMIN_CONFIG {
     BOOLEAN		AdhocBGJoined;		// Indicate Adhoc B/G Join.
     BOOLEAN		Adhoc20NJoined;		// Indicate Adhoc 20MHz N Join.
 #endif
-	// New for WPA, windows want us to to keep association information and
+	// New for WPA, windows want us to keep association information and
 	// Fixed IEs from last association response
 	NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
 	USHORT       ReqVarIELen;                // Length of next VIE include EID & Length
@@ -2532,43 +2512,6 @@ typedef struct _INF_USB_CONFIG
 
 }INF_USB_CONFIG;
 
-#ifdef IKANOS_VX_1X0
-	typedef void (*IkanosWlanTxCbFuncP)(void *, void *);
-
-	struct IKANOS_TX_INFO
-	{
-		struct net_device *netdev;
-		IkanosWlanTxCbFuncP *fp;
-	};
-#endif // IKANOS_VX_1X0 //
-
-#ifdef DBG_DIAGNOSE
-#define DIAGNOSE_TIME	10   // 10 sec
-typedef struct _RtmpDiagStrcut_
-{	// Diagnosis Related element
-	unsigned char		inited;
-	unsigned char 	qIdx;
-	unsigned char 	ArrayStartIdx;
-	unsigned char		ArrayCurIdx;
-	// Tx Related Count
-	USHORT			TxDataCnt[DIAGNOSE_TIME];
-	USHORT			TxFailCnt[DIAGNOSE_TIME];
-	USHORT			TxDescCnt[DIAGNOSE_TIME][24]; // 3*3	// TxDesc queue length in scale of 0~14, >=15
-	USHORT			TxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
-	USHORT			TxSWQueCnt[DIAGNOSE_TIME][9];		// TxSwQueue length in scale of 0, 1, 2, 3, 4, 5, 6, 7, >=8
-
-	USHORT			TxAggCnt[DIAGNOSE_TIME];
-	USHORT			TxNonAggCnt[DIAGNOSE_TIME];
-	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][24]; // 3*3 // 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
-	USHORT			TxRalinkCnt[DIAGNOSE_TIME];			// TxRalink Aggregation Count in 1 sec scale.
-	USHORT			TxAMSDUCnt[DIAGNOSE_TIME];			// TxAMSUD Aggregation Count in 1 sec scale.
-
-	// Rx Related Count
-	USHORT			RxDataCnt[DIAGNOSE_TIME];			// Rx Total Data count.
-	USHORT			RxCrcErrCnt[DIAGNOSE_TIME];
-	USHORT			RxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
-}RtmpDiagStruct;
-#endif // DBG_DIAGNOSE //
 
 
 //
@@ -2721,9 +2664,8 @@ typedef struct _RTMP_ADAPTER
 	ULONG                   EepromVersion;          // byte 0: version, byte 1: revision, byte 2~3: unused
 	UCHAR                   EEPROMAddressNum;       // 93c46=6  93c66=8
 	USHORT                  EEPROMDefaultValue[NUM_EEPROM_BBP_PARMS];
-#ifdef RT30xx
+#ifdef RT2870
 	BOOLEAN                 EepromAccess;
-	UCHAR                   EFuseTag;
 #endif
 	ULONG                   FirmwareVersion;        // byte 0: Minor version, byte 1: Major version, otherwise unused.
 
@@ -2972,9 +2914,7 @@ typedef struct _RTMP_ADAPTER
 
 	ULONG					OneSecondnonBEpackets;		// record non BE packets per second
 
-#if WIRELESS_EXT >= 12
     struct iw_statistics    iw_stats;
-#endif
 
 	struct net_device_stats	stats;
 
@@ -2991,25 +2931,13 @@ typedef struct _RTMP_ADAPTER
 	UCHAR					flg_be_adjust;
 	ULONG					be_adjust_last_time;
 
-#ifdef IKANOS_VX_1X0
-	struct IKANOS_TX_INFO	IkanosTxInfo;
-	struct IKANOS_TX_INFO	IkanosRxInfo[MAX_MBSSID_NUM + MAX_WDS_ENTRY + MAX_APCLI_NUM + MAX_MESH_NUM];
-#endif // IKANOS_VX_1X0 //
-
-
-#ifdef DBG_DIAGNOSE
-	RtmpDiagStruct	DiagStruct;
-#endif // DBG_DIAGNOSE //
 
 
 	UINT8					PM_FlgSuspend;
 
-#ifdef RT30xx
-//======efuse
+#ifdef RT2870
 	BOOLEAN		bUseEfuse;
-	BOOLEAN		bEEPROMFile;
-#endif // RT30xx //
-
+#endif
 } RTMP_ADAPTER, *PRTMP_ADAPTER;
 
 //
@@ -3235,14 +3163,6 @@ static inline VOID ConvertMulticastIP2MAC(
 }
 #endif /* RT2860 */
 
-BOOLEAN RTMPCheckForHang(
-	IN  NDIS_HANDLE MiniportAdapterContext
-	);
-
-VOID  RTMPHalt(
-	IN  NDIS_HANDLE MiniportAdapterContext
-	);
-
 //
 //  Private routines in rtmp_init.c
 //
@@ -3253,11 +3173,6 @@ NDIS_STATUS RTMPAllocAdapterBlock(
 
 NDIS_STATUS RTMPAllocTxRxRingMemory(
 	IN  PRTMP_ADAPTER   pAd
-	);
-
-NDIS_STATUS RTMPFindAdapter(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  NDIS_HANDLE     WrapperConfigurationContext
 	);
 
 NDIS_STATUS	RTMPReadParametersHook(
@@ -3305,13 +3220,6 @@ VOID NICIssueReset(
 VOID RTMPRingCleanUp(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  UCHAR           RingType);
-
-VOID RxTest(
-	IN  PRTMP_ADAPTER   pAd);
-
-NDIS_STATUS DbgSendPacket(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PNDIS_PACKET    pPacket);
 
 VOID UserCfgInit(
 	IN  PRTMP_ADAPTER   pAd);
@@ -3365,26 +3273,6 @@ UCHAR BtoH(
 
 VOID RTMPPatchMacBbpBug(
 	IN  PRTMP_ADAPTER   pAd);
-
-VOID RTMPPatchCardBus(
-	IN	PRTMP_ADAPTER	pAdapter);
-
-VOID RTMPPatchRalinkCardBus(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	ULONG			Bus);
-
-ULONG RTMPReadCBConfig(
-	IN	ULONG	Bus,
-	IN	ULONG	Slot,
-	IN	ULONG	Func,
-	IN	ULONG	Offset);
-
-VOID RTMPWriteCBConfig(
-	IN	ULONG	Bus,
-	IN	ULONG	Slot,
-	IN	ULONG	Func,
-	IN	ULONG	Offset,
-	IN	ULONG	Value);
 
 VOID RTMPInitTimer(
 	IN  PRTMP_ADAPTER           pAd,
@@ -3474,14 +3362,6 @@ VOID PeerPublicAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
 
-VOID StaPublicAction(
-	IN PRTMP_ADAPTER pAd,
-	IN UCHAR Bss2040Coexist);
-
-VOID PeerBSSTranAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-
 VOID PeerHTAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
@@ -3523,37 +3403,16 @@ VOID InsertActField(
 	IN UINT8 Category,
 	IN UINT8 ActCode);
 
-BOOLEAN QosBADataParse(
-	IN PRTMP_ADAPTER	pAd,
-	IN BOOLEAN bAMSDU,
-	IN PUCHAR p8023Header,
-	IN UCHAR	WCID,
-	IN UCHAR	TID,
-	IN USHORT Sequence,
-	IN UCHAR DataOffset,
-	IN USHORT Datasize,
-	IN UINT   CurRxIndex);
-
 BOOLEAN CntlEnqueueForRecv(
     IN	PRTMP_ADAPTER	pAd,
 	IN ULONG Wcid,
     IN ULONG MsgLen,
 	IN PFRAME_BA_REQ pMsg);
 
-VOID BaAutoManSwitch(
-	IN	PRTMP_ADAPTER	pAd);
-
-VOID HTIOTCheck(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    UCHAR     BatRecIdx);
-
 //
 // Private routines in rtmp_data.c
 //
 BOOLEAN RTMPHandleRxDoneInterrupt(
-	IN  PRTMP_ADAPTER   pAd);
-
-VOID RTMPHandleTxDoneInterrupt(
 	IN  PRTMP_ADAPTER   pAd);
 
 BOOLEAN RTMPHandleTxRingDmaDoneInterrupt(
@@ -3697,13 +3556,7 @@ NDIS_STATUS MiniportMMRequest(
 	IN	UCHAR			QueIdx,
 	IN	PUCHAR			pData,
 	IN  UINT            Length);
-#ifdef RT2870
-NDIS_STATUS MiniportDataMMRequest(
-	 IN  PRTMP_ADAPTER   pAd,
-	 IN  UCHAR           QueIdx,
-	 IN  PUCHAR          pData,
-	 IN  UINT            Length);
-#endif
+
 VOID RTMPSendNullFrame(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  UCHAR           TxRate,
@@ -3721,12 +3574,6 @@ VOID RTMPSendRTSFrame(
 	IN  USHORT          AckDuration,
 	IN  UCHAR           QueIdx,
 	IN  UCHAR			FrameGap);
-
-
-NDIS_STATUS RTMPApplyPacketFilter(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PRT28XX_RXD_STRUC      pRxD,
-	IN  PHEADER_802_11  pHeader);
 
 PQUEUE_HEADER   RTMPCheckTxSwQueue(
 	IN  PRTMP_ADAPTER   pAd,
@@ -3778,10 +3625,6 @@ BOOLEAN RTMPCheckEtherType(
 	IN	PNDIS_PACKET	pPacket);
 
 
-VOID RTMPCckBbpTuning(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UINT			TxRate);
-
 //
 // Private routines in rtmp_wep.c
 //
@@ -3797,12 +3640,6 @@ VOID RTMPEncryptData(
 	IN  PUCHAR          pSrc,
 	IN  PUCHAR          pDest,
 	IN  UINT            Len);
-
-BOOLEAN	RTMPDecryptData(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	PUCHAR			pSrc,
-	IN	UINT			Len,
-	IN	UINT			idx);
 
 BOOLEAN	RTMPSoftDecryptWEP(
 	IN PRTMP_ADAPTER 	pAd,
@@ -3869,14 +3706,6 @@ VOID AsicSwitchChannel(
 VOID AsicLockChannel(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR Channel) ;
-
-VOID AsicAntennaSelect(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  UCHAR           Channel);
-
-VOID AsicAntennaSetting(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	ABGBAND_STATE	BandState);
 
 VOID AsicRfTuningExec(
 	IN PVOID SystemSpecific1,
@@ -4050,23 +3879,6 @@ VOID BssTableDeleteEntry(
 VOID BATableDeleteORIEntry(
 	IN OUT	PRTMP_ADAPTER pAd,
 	IN		BA_ORI_ENTRY	*pBAORIEntry);
-
-VOID BATableDeleteRECEntry(
-	IN OUT	PRTMP_ADAPTER pAd,
-	IN		BA_REC_ENTRY	*pBARECEntry);
-
-VOID BATableTearORIEntry(
-	IN OUT	PRTMP_ADAPTER pAd,
-	IN		UCHAR TID,
-	IN		UCHAR Wcid,
-	IN		BOOLEAN bForceDelete,
-	IN		BOOLEAN ALL);
-
-VOID BATableTearRECEntry(
-	IN OUT	PRTMP_ADAPTER pAd,
-	IN		UCHAR TID,
-	IN		UCHAR WCID,
-	IN		BOOLEAN ALL);
 
 VOID  BssEntrySet(
 	IN  PRTMP_ADAPTER   pAd,
@@ -4243,10 +4055,6 @@ VOID DisassocTimeout(
 	IN PVOID SystemSpecific3);
 
 //----------------------------------------------
-VOID MlmeDisassocReqAction(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MLME_QUEUE_ELEM *Elem);
-
 VOID MlmeAssocReqAction(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  MLME_QUEUE_ELEM *Elem);
@@ -4410,10 +4218,6 @@ VOID ScanTimeout(
 	IN PVOID SystemSpecific2,
 	IN PVOID SystemSpecific3);
 
-VOID MlmeScanReqAction(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MLME_QUEUE_ELEM *Elem);
-
 VOID InvalidStateWhenScan(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  MLME_QUEUE_ELEM *Elem);
@@ -4423,10 +4227,6 @@ VOID InvalidStateWhenJoin(
 	IN  MLME_QUEUE_ELEM *Elem);
 
 VOID InvalidStateWhenStart(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MLME_QUEUE_ELEM *Elem);
-
-VOID PeerBeacon(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  MLME_QUEUE_ELEM *Elem);
 
@@ -4727,13 +4527,6 @@ BOOLEAN PeerDisassocSanity(
 	OUT PUCHAR pAddr2,
 	OUT USHORT *Reason);
 
-BOOLEAN PeerWpaMessageSanity(
-    IN 	PRTMP_ADAPTER 		pAd,
-    IN 	PEAPOL_PACKET 		pMsg,
-    IN 	ULONG 				MsgLen,
-    IN 	UCHAR				MsgType,
-    IN 	MAC_TABLE_ENTRY  	*pEntry);
-
 BOOLEAN PeerDeauthSanity(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  VOID *Msg,
@@ -4798,12 +4591,6 @@ VOID  MlmePeriodicExec(
 	IN PVOID SystemSpecific3);
 
 VOID LinkDownExec(
-	IN PVOID SystemSpecific1,
-	IN PVOID FunctionContext,
-	IN PVOID SystemSpecific2,
-	IN PVOID SystemSpecific3);
-
-VOID LinkUpExec(
 	IN PVOID SystemSpecific1,
 	IN PVOID FunctionContext,
 	IN PVOID SystemSpecific2,
@@ -4895,12 +4682,6 @@ VOID StaQuickResponeForRateUpExec(
 	IN PVOID SystemSpecific2,
 	IN PVOID SystemSpecific3);
 
-VOID AsicBbpTuning1(
-	IN PRTMP_ADAPTER pAd);
-
-VOID AsicBbpTuning2(
-	IN PRTMP_ADAPTER pAd);
-
 VOID RTMPUpdateMlmeRate(
 	IN PRTMP_ADAPTER	pAd);
 
@@ -4910,11 +4691,9 @@ CHAR RTMPMaxRssi(
 	IN CHAR				Rssi1,
 	IN CHAR				Rssi2);
 
-#ifdef RT30xx
 VOID AsicSetRxAnt(
 	IN PRTMP_ADAPTER	pAd,
 	IN UCHAR			Ant);
-#endif
 
 VOID AsicEvaluateRxAnt(
 	IN PRTMP_ADAPTER	pAd);
@@ -4971,31 +4750,6 @@ UCHAR NextChannel(
 VOID ChangeToCellPowerLimit(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR         AironetCellPowerLimit);
-
-VOID RaiseClock(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  UINT32 *x);
-
-VOID LowerClock(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  UINT32 *x);
-
-USHORT ShiftInBits(
-	IN  PRTMP_ADAPTER   pAd);
-
-VOID ShiftOutBits(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  USHORT data,
-	IN  USHORT count);
-
-VOID EEpromCleanup(
-	IN  PRTMP_ADAPTER   pAd);
-
-VOID EWDS(
-	IN  PRTMP_ADAPTER   pAd);
-
-VOID EWEN(
-	IN  PRTMP_ADAPTER   pAd);
 
 USHORT RTMP_EEPROM_READ16(
 	IN  PRTMP_ADAPTER   pAd,
@@ -5122,12 +4876,6 @@ VOID RTMPIoctlGetMacTable(
 	IN PRTMP_ADAPTER pAd,
 	IN struct iwreq *wrq);
 
-VOID RTMPIndicateWPA2Status(
-	IN  PRTMP_ADAPTER  pAdapter);
-
-VOID	RTMPOPModeSwitching(
-	IN	PRTMP_ADAPTER	pAd);
-
 VOID    RTMPAddBSSIDCipher(
     IN  PRTMP_ADAPTER   pAd,
 	IN	UCHAR	Aid,
@@ -5149,11 +4897,6 @@ VOID RTMPSendWirelessEvent(
 	IN  UCHAR			BssIdx,
 	IN	CHAR			Rssi);
 
-VOID	NICUpdateCntlCounters(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PHEADER_802_11	pHeader,
-	IN    UCHAR			SubType,
-	IN	PRXWI_STRUC 	pRxWI);
 //
 // prototype in wpa.c
 //
@@ -5305,24 +5048,10 @@ VOID    AironetAddBeaconReport(
 VOID    AironetCreateBeaconReportFromBssTable(
 	IN  PRTMP_ADAPTER       pAd);
 
-VOID    DBGPRINT_TX_RING(
-	IN PRTMP_ADAPTER  pAd,
-	IN UCHAR          QueIdx);
-
-VOID DBGPRINT_RX_RING(
-	IN PRTMP_ADAPTER  pAd);
-
 CHAR    ConvertToRssi(
 	IN PRTMP_ADAPTER  pAd,
 	IN CHAR				Rssi,
 	IN UCHAR    RssiNumber);
-
-VOID APAsicEvaluateRxAnt(
-	IN PRTMP_ADAPTER	pAd);
-
-
-VOID APAsicRxAntEvalTimeout(
-	IN PRTMP_ADAPTER	pAd);
 
 //
 // function prototype in cmm_wpa.c
@@ -5340,64 +5069,6 @@ VOID AES_GTK_KEY_UNWRAP(
 	IN	UCHAR	c_len,
 	IN  UCHAR   *ciphertext);
 
-BOOLEAN RTMPCheckRSNIE(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PUCHAR          pData,
-	IN  UCHAR           DataLen,
-	IN  MAC_TABLE_ENTRY *pEntry,
-	OUT	UCHAR			*Offset);
-
-BOOLEAN RTMPParseEapolKeyData(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PUCHAR          pKeyData,
-	IN  UCHAR           KeyDataLen,
-	IN	UCHAR			GroupKeyIndex,
-	IN	UCHAR			MsgType,
-	IN	BOOLEAN			bWPA2,
-	IN  MAC_TABLE_ENTRY *pEntry);
-
-VOID	ConstructEapolMsg(
-	IN 	PRTMP_ADAPTER    	pAd,
-    IN 	UCHAR				PeerAuthMode,
-    IN 	UCHAR				PeerWepStatus,
-    IN 	UCHAR				MyGroupKeyWepStatus,
-    IN 	UCHAR				MsgType,
-    IN	UCHAR				DefaultKeyIdx,
-    IN 	UCHAR				*ReplayCounter,
-	IN 	UCHAR				*KeyNonce,
-	IN	UCHAR				*TxRSC,
-	IN	UCHAR				*PTK,
-	IN	UCHAR				*GTK,
-	IN	UCHAR				*RSNIE,
-	IN	UCHAR				RSNIE_Len,
-    OUT PEAPOL_PACKET       pMsg);
-
-VOID	CalculateMIC(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			PeerWepStatus,
-	IN	UCHAR			*PTK,
-	OUT PEAPOL_PACKET   pMsg);
-
-NDIS_STATUS	RTMPSoftDecryptBroadCastData(
-	IN	PRTMP_ADAPTER					pAd,
-	IN	RX_BLK							*pRxBlk,
-	IN  NDIS_802_11_ENCRYPTION_STATUS 	GroupCipher,
-	IN  PCIPHER_KEY						pShard_key);
-
-VOID	ConstructEapolKeyData(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			PeerAuthMode,
-	IN	UCHAR			PeerWepStatus,
-	IN	UCHAR			GroupKeyWepStatus,
-	IN 	UCHAR			MsgType,
-	IN	UCHAR			DefaultKeyIdx,
-	IN	BOOLEAN			bWPA2Capable,
-	IN	UCHAR			*PTK,
-	IN	UCHAR			*GTK,
-	IN	UCHAR			*RSNIE,
-	IN	UCHAR			RSNIE_LEN,
-	OUT PEAPOL_PACKET   pMsg);
-
 VOID RTMPMakeRSNIE(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  UINT            AuthMode,
@@ -5408,191 +5079,9 @@ VOID RTMPMakeRSNIE(
 // function prototype in ap_wpa.c
 //
 
-BOOLEAN APWpaMsgTypeSubst(
-	IN UCHAR    EAPType,
-	OUT INT *MsgType) ;
-
-MAC_TABLE_ENTRY *PACInquiry(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  ULONG           Wcid);
-
-BOOLEAN RTMPCheckMcast(
-	IN PRTMP_ADAPTER pAd,
-	IN PEID_STRUCT      eid_ptr,
-	IN MAC_TABLE_ENTRY  *pEntry);
-
-BOOLEAN RTMPCheckUcast(
-	IN PRTMP_ADAPTER pAd,
-	IN PEID_STRUCT      eid_ptr,
-	IN MAC_TABLE_ENTRY  *pEntry);
-
-BOOLEAN RTMPCheckAUTH(
-	IN PRTMP_ADAPTER pAd,
-	IN PEID_STRUCT      eid_ptr,
-	IN MAC_TABLE_ENTRY  *pEntry);
-
-VOID WPAStart4WayHS(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MAC_TABLE_ENTRY *pEntry,
-	IN	ULONG			TimeInterval);
-
-VOID WPAStart2WayGroupHS(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MAC_TABLE_ENTRY *pEntry);
-
-VOID APWpaEAPPacketAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID APWpaEAPOLStartAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID APWpaEAPOLLogoffAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID APWpaEAPOLKeyAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID APWpaEAPOLASFAlertAction(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  MLME_QUEUE_ELEM  *Elem);
-
 VOID HandleCounterMeasure(
 	IN PRTMP_ADAPTER pAd,
 	IN MAC_TABLE_ENTRY  *pEntry);
-
-VOID PeerPairMsg2Action(
-	IN PRTMP_ADAPTER pAd,
-	IN MAC_TABLE_ENTRY  *pEntry,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID PeerPairMsg4Action(
-	IN PRTMP_ADAPTER pAd,
-	IN MAC_TABLE_ENTRY  *pEntry,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID CMTimerExec(
-	IN PVOID SystemSpecific1,
-	IN PVOID FunctionContext,
-	IN PVOID SystemSpecific2,
-	IN PVOID SystemSpecific3);
-
-VOID WPARetryExec(
-	IN PVOID SystemSpecific1,
-	IN PVOID FunctionContext,
-	IN PVOID SystemSpecific2,
-	IN PVOID SystemSpecific3);
-
-VOID EnqueueStartForPSKExec(
-    IN PVOID SystemSpecific1,
-    IN PVOID FunctionContext,
-    IN PVOID SystemSpecific2,
-    IN PVOID SystemSpecific3);
-
-VOID RTMPHandleSTAKey(
-    IN PRTMP_ADAPTER    pAdapter,
-    IN MAC_TABLE_ENTRY  *pEntry,
-    IN MLME_QUEUE_ELEM  *Elem);
-
-VOID PeerGroupMsg2Action(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  PMAC_TABLE_ENTRY pEntry,
-	IN  VOID             *Msg,
-	IN  UINT             MsgLen);
-
-VOID PairDisAssocAction(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  PMAC_TABLE_ENTRY pEntry,
-	IN  USHORT           Reason);
-
-VOID MlmeDeAuthAction(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  PMAC_TABLE_ENTRY pEntry,
-	IN  USHORT           Reason);
-
-VOID GREKEYPeriodicExec(
-	IN  PVOID   SystemSpecific1,
-	IN  PVOID   FunctionContext,
-	IN  PVOID   SystemSpecific2,
-	IN  PVOID   SystemSpecific3);
-
-VOID CountGTK(
-	IN  UCHAR   *PMK,
-	IN  UCHAR   *GNonce,
-	IN  UCHAR   *AA,
-	OUT UCHAR   *output,
-	IN  UINT    len);
-
-VOID    GetSmall(
-	IN  PVOID   pSrc1,
-	IN  PVOID   pSrc2,
-	OUT PUCHAR  out,
-	IN  ULONG   Length);
-
-VOID    GetLarge(
-	IN  PVOID   pSrc1,
-	IN  PVOID   pSrc2,
-	OUT PUCHAR  out,
-	IN  ULONG   Length);
-
-VOID APGenRandom(
-	IN PRTMP_ADAPTER pAd,
-	OUT UCHAR       *random);
-
-VOID AES_GTK_KEY_WRAP(
-	IN UCHAR *key,
-	IN UCHAR *plaintext,
-	IN UCHAR p_len,
-	OUT UCHAR *ciphertext);
-
-VOID    WpaSend(
-    IN  PRTMP_ADAPTER   pAdapter,
-    IN  PUCHAR          pPacket,
-    IN  ULONG           Len);
-
-VOID    APToWirelessSta(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  MAC_TABLE_ENTRY *pEntry,
-	IN  PUCHAR          pHeader802_3,
-	IN  UINT            HdrLen,
-	IN  PUCHAR          pData,
-	IN  UINT            DataLen,
-    IN	BOOLEAN			bClearFrame);
-
-VOID RTMPAddPMKIDCache(
-	IN  PRTMP_ADAPTER   		pAd,
-	IN	INT						apidx,
-	IN	PUCHAR				pAddr,
-	IN	UCHAR					*PMKID,
-	IN	UCHAR					*PMK);
-
-INT RTMPSearchPMKIDCache(
-	IN  PRTMP_ADAPTER   pAd,
-	IN	INT				apidx,
-	IN	PUCHAR		pAddr);
-
-VOID RTMPDeletePMKIDCache(
-	IN  PRTMP_ADAPTER   pAd,
-	IN	INT				apidx,
-	IN  INT				idx);
-
-VOID RTMPMaintainPMKIDCache(
-	IN  PRTMP_ADAPTER   pAd);
-
-VOID	RTMPSendTriggerFrame(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PVOID			pBuffer,
-	IN	ULONG			Length,
-	IN  UCHAR           TxRate,
-	IN	BOOLEAN			bQosNull);
-
-#ifdef RT30xx
-VOID RTMPFilterCalibration(
-	IN PRTMP_ADAPTER pAd);
-#endif // RT30xx //
 
 /* timeout -- ms */
 VOID RTMP_SetPeriodicTimer(
@@ -5728,23 +5217,6 @@ UINT BA_Reorder_AMSDU_Annnounce(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PNDIS_PACKET	pPacket);
 
-
-UINT Handle_AMSDU_Packet(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize,
-	IN  UCHAR			FromWhichBSSID);
-
-
-void convert_802_11_to_802_3_packet(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PNDIS_PACKET	pPacket,
-	IN	PUCHAR			p8023hdr,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize,
-	IN  UCHAR			FromWhichBSSID);
-
-
 PNET_DEV get_netdev_from_bssid(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			FromWhichBSSID);
@@ -5762,27 +5234,6 @@ PNDIS_PACKET duplicate_pkt(
 PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PNDIS_PACKET	pOldPkt);
-
-PNDIS_PACKET duplicate_pkt_with_VLAN(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pHeader802_3,
-    IN  UINT            HdrLen,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize,
-	IN	UCHAR			FromWhichBSSID);
-
-PNDIS_PACKET duplicate_pkt_with_WPI(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PNDIS_PACKET	pPacket,
-	IN	UINT32			ext_head_len,
-	IN	UINT32			ext_tail_len);
-
-UCHAR VLAN_8023_Header_Copy(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pHeader802_3,
-	IN	UINT            HdrLen,
-	OUT PUCHAR			pData,
-	IN	UCHAR			FromWhichBSSID);
 
 void ba_flush_reordering_timeout_mpdus(
 	IN PRTMP_ADAPTER	pAd,
@@ -5827,29 +5278,6 @@ VOID BARecSessionTearDown(
 
 BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num);
 void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
-
-ULONG AutoChBssInsertEntry(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pBssid,
-	IN CHAR Ssid[],
-	IN UCHAR SsidLen,
-	IN UCHAR ChannelNo,
-	IN CHAR Rssi);
-
-void AutoChBssTableInit(
-	IN PRTMP_ADAPTER pAd);
-
-void ChannelInfoInit(
-	IN PRTMP_ADAPTER pAd);
-
-void AutoChBssTableDestroy(
-	IN PRTMP_ADAPTER pAd);
-
-void ChannelInfoDestroy(
-	IN PRTMP_ADAPTER pAd);
-
-UCHAR New_ApAutoSelectChannel(
-	IN PRTMP_ADAPTER pAd);
 
 BOOLEAN rtstrmactohex(
 	IN char *s1,
@@ -6049,16 +5477,6 @@ INT	Set_HtTxBASize_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
 
-//Dls ,	kathy
-VOID RTMPSendDLSTearDownFrame(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pDA);
-
-//Block ACK
-VOID QueryBATABLE(
-	IN  PRTMP_ADAPTER pAd,
-	OUT PQUERYBA_TABLE pBAT);
-
 INT	    WpaCheckEapCode(
 	IN  PRTMP_ADAPTER   	pAd,
 	IN  PUCHAR				pFrame,
@@ -6069,21 +5487,8 @@ VOID    WpaSendMicFailureToWpaSupplicant(
     IN  PRTMP_ADAPTER       pAd,
     IN  BOOLEAN             bUnicast);
 
-VOID    SendAssocIEsToWpaSupplicant(
-    IN  PRTMP_ADAPTER       pAd);
-
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd);
-
-VOID Handle_BSS_Width_Trigger_Events(
-	IN PRTMP_ADAPTER pAd);
-
-void build_ext_channel_switch_ie(
-	IN PRTMP_ADAPTER pAd,
-	IN HT_EXT_CHANNEL_SWITCH_ANNOUNCEMENT_IE *pIE);
-
-BOOLEAN APRxDoneInterruptHandle(
-	IN	PRTMP_ADAPTER	pAd);
 
 BOOLEAN STARxDoneInterruptHandle(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6160,16 +5565,6 @@ UINT deaggregate_AMSDU_announce(
 		_pRxBlk->DataSize, _pRemovedLLCSNAP);                                   \
 }
 
-BOOLEAN APFowardWirelessStaToWirelessSta(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PNDIS_PACKET	pPacket,
-	IN	ULONG			FromWhichBSSID);
-
-VOID Announce_or_Forward_802_3_Packet(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PNDIS_PACKET	pPacket,
-	IN	UCHAR			FromWhichBSSID);
-
 VOID Sta_Announce_or_Forward_802_3_Packet(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PNDIS_PACKET	pPacket,
@@ -6208,12 +5603,6 @@ VOID Update_Rssi_Sample(
 	IN PRTMP_ADAPTER	pAd,
 	IN RSSI_SAMPLE		*pRssi,
 	IN PRXWI_STRUC		pRxWI);
-
-PNDIS_PACKET GetPacketFromRxRing(
-	IN		PRTMP_ADAPTER	pAd,
-	OUT		PRT28XX_RXD_STRUC		pSaveRxD,
-	OUT		BOOLEAN			*pbReschedule,
-	IN OUT	UINT32			*pRxPending);
 
 PNDIS_PACKET RTMPDeFragmentDataFrame(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6323,11 +5712,9 @@ void send_monitor_packets(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	RX_BLK			*pRxBlk);
 
-#if WIRELESS_EXT >= 12
 // This function will be called when query /proc
 struct iw_statistics *rt28xx_get_wireless_stats(
     IN struct net_device *net_dev);
-#endif
 
 VOID    RTMPSetDesiredRates(
     IN  PRTMP_ADAPTER   pAdapter,
@@ -6404,21 +5791,10 @@ VOID RT28xx_UpdateBeaconToAsic(
 	IN ULONG BeaconLen,
 	IN ULONG UpdatePos);
 
-INT rt28xx_ioctl(
-	IN	struct net_device	*net_dev,
-	IN	OUT	struct ifreq	*rq,
-	IN	INT			cmd);
-
 INT rt28xx_sta_ioctl(
 	IN	struct net_device	*net_dev,
 	IN	OUT	struct ifreq	*rq,
 	IN	INT			cmd);
-
-BOOLEAN RT28XXSecurityKeyAdd(
-	IN		PRTMP_ADAPTER		pAd,
-	IN		ULONG				apidx,
-	IN		ULONG				KeyIdx,
-	IN		MAC_TABLE_ENTRY 	*pEntry);
 
 ////////////////////////////////////////
 PNDIS_PACKET GetPacketFromRxRing(
@@ -6555,7 +5931,6 @@ VOID AsicTurnOnRFClk(
 	IN PRTMP_ADAPTER 	pAd,
 	IN	UCHAR			Channel);
 
-#ifdef RT30xx
 NTSTATUS RT30xxWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
@@ -6566,7 +5941,6 @@ NTSTATUS RT30xxReadRFRegister(
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue);
 
-//2008/09/11:KH add to support efuse<--
 UCHAR eFuseReadRegisters(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	USHORT Offset,
@@ -6637,16 +6011,6 @@ VOID eFusePhysicalReadRegisters(
 	IN	USHORT Length,
 	OUT	USHORT* pData);
 
-NDIS_STATUS NICLoadEEPROM(
-	IN PRTMP_ADAPTER pAd);
-
-BOOLEAN bNeedLoadEEPROM(
-	IN	PRTMP_ADAPTER	pAd);
-//2008/09/11:KH add to support efuse-->
-#endif // RT30xx //
-
-#ifdef RT30xx
-// add by johnli, RF power sequence setup
 VOID RT30xxLoadRFNormalModeSetup(
 	IN PRTMP_ADAPTER 	pAd);
 
@@ -6655,8 +6019,6 @@ VOID RT30xxLoadRFSleepModeSetup(
 
 VOID RT30xxReverseRFSleepModeSetup(
 	IN PRTMP_ADAPTER 	pAd);
-// end johnli
-#endif // RT30xx //
 
 #ifdef RT2870
 //
@@ -6674,10 +6036,6 @@ VOID	RTUSBInitHTTxDesc(
 	IN	UCHAR			BulkOutPipeId,
 	IN	ULONG			BulkOutSize,
 	IN	usb_complete_t	Func);
-
-VOID	RTUSBInitRxDesc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PRX_CONTEXT		pRxContext);
 
 VOID RTUSBCleanUpDataBulkOutQueue(
 	IN	PRTMP_ADAPTER	pAd);
@@ -6725,9 +6083,6 @@ VOID RTUSBInitRxDesc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN  PRX_CONTEXT		pRxContext);
 
-VOID RTUSBBulkRxHandle(
-	IN unsigned long data);
-
 //
 // Function Prototype in rtusb_io.c
 //
@@ -6761,18 +6116,6 @@ NTSTATUS RTUSBWriteBBPRegister(
 NTSTATUS RTUSBWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UINT32			Value);
-
-#ifndef RT30xx
-NTSTATUS	RT30xxWriteRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	UCHAR			Value);
-
-NTSTATUS	RT30xxReadRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	PUCHAR			pValue);
-#endif
 
 NTSTATUS RTUSB_VendorRequest(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6887,14 +6230,6 @@ NTSTATUS	RTUSBFirmwareOpmode(
 NTSTATUS	RTUSBVenderReset(
 	IN	PRTMP_ADAPTER	pAd);
 
-NDIS_STATUS RTUSBSetHardWareRegister(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	PVOID			pBuf);
-
-NDIS_STATUS RTUSBQueryHardWareRegister(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	PVOID			pBuf);
-
 VOID CMDHandler(
     IN PRTMP_ADAPTER pAd);
 
@@ -6917,30 +6252,11 @@ NDIS_STATUS RTMPWPAAddKeyProc(
 VOID AsicRxAntEvalAction(
 	IN PRTMP_ADAPTER pAd);
 
-void append_pkt(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pHeader802_3,
-    IN  UINT            HdrLen,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize,
-	OUT  PNDIS_PACKET	*ppPacket);
-
-UINT deaggregate_AMSDU_announce(
-	IN	PRTMP_ADAPTER	pAd,
-	PNDIS_PACKET		pPacket,
-	IN	PUCHAR			pData,
-	IN	ULONG			DataSize);
-
 NDIS_STATUS	RTMPCheckRxError(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PHEADER_802_11	pHeader,
 	IN	PRXWI_STRUC	pRxWI,
 	IN	PRT28XX_RXD_STRUC	pRxINFO);
-
-
-VOID RTUSBMlmeHardTransmit(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PMGMT_STRUC		pMgmt);
 
 INT MlmeThread(
 	IN PVOID Context);
@@ -7043,19 +6359,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 	IN PRTMP_ADAPTER pAd);
 #endif // RT2870 //
 
-////////////////////////////////////////
-
-VOID QBSS_LoadInit(
- 	IN		RTMP_ADAPTER	*pAd);
-
-UINT32 QBSS_LoadElementAppend(
- 	IN		RTMP_ADAPTER	*pAd,
-	OUT		UINT8			*buf_p);
-
-VOID QBSS_LoadUpdate(
- 	IN		RTMP_ADAPTER	*pAd);
-
-///////////////////////////////////////
 INT RTMPShowCfgValue(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			pName,
@@ -7066,7 +6369,6 @@ PCHAR   RTMPGetRalinkAuthModeStr(
 
 PCHAR   RTMPGetRalinkEncryModeStr(
     IN  USHORT encryMode);
-//////////////////////////////////////
 
 VOID AsicStaBbpTuning(
 	IN PRTMP_ADAPTER pAd);
@@ -7109,9 +6411,6 @@ int rt28xx_open(IN PNET_DEV dev);
 
 __inline INT VIRTUAL_IF_UP(PRTMP_ADAPTER pAd)
 {
-extern VOID MeshMakeBeacon(IN PRTMP_ADAPTER pAd, IN UCHAR idx);
-extern VOID MeshUpdateBeaconFrame(IN PRTMP_ADAPTER pAd, IN UCHAR idx);
-
 	if (VIRTUAL_IF_NUM(pAd) == 0)
 	{
 		if (rt28xx_open(pAd->net_dev) != 0)

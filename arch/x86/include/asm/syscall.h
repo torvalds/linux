@@ -1,7 +1,7 @@
 /*
  * Access to user system call parameters and results
  *
- * Copyright (C) 2008 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -16,13 +16,13 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 
-static inline long syscall_get_nr(struct task_struct *task,
-				  struct pt_regs *regs)
+/*
+ * Only the low 32 bits of orig_ax are meaningful, so we return int.
+ * This importantly ignores the high bits on 64-bit, so comparisons
+ * sign-extend the low 32 bits.
+ */
+static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
-	/*
-	 * We always sign-extend a -1 value being set here,
-	 * so this is always either -1L or a syscall number.
-	 */
 	return regs->orig_ax;
 }
 

@@ -13,7 +13,7 @@
 #include <linux/io.h>
 
 #include <asm/stackprotector.h>
-#include <asm/perf_counter.h>
+#include <asm/perf_event.h>
 #include <asm/mmu_context.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -34,7 +34,6 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/pat.h>
-#include <linux/smp.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
@@ -870,7 +869,7 @@ void __init identify_boot_cpu(void)
 #else
 	vgetcpu_set_mode();
 #endif
-	init_hw_perf_counters();
+	init_hw_perf_events();
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)

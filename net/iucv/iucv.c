@@ -79,6 +79,14 @@ static int iucv_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+enum iucv_pm_states {
+	IUCV_PM_INITIAL = 0,
+	IUCV_PM_FREEZING = 1,
+	IUCV_PM_THAWING = 2,
+	IUCV_PM_RESTORING = 3,
+};
+static enum iucv_pm_states iucv_pm_state;
+
 static int iucv_pm_prepare(struct device *);
 static void iucv_pm_complete(struct device *);
 static int iucv_pm_freeze(struct device *);
@@ -354,7 +362,7 @@ static int iucv_query_maxconn(void)
 		"	srl	%0,28\n"
 		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
 	if (ccode == 0)
-		iucv_max_pathid = reg0;
+		iucv_max_pathid = reg1;
 	kfree(param);
 	return ccode ? -EPERM : 0;
 }
@@ -856,7 +864,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -905,7 +913,7 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
 
 	spin_lock_bh(&iucv_table_lock);
 	iucv_cleanup_queue();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -965,7 +973,7 @@ int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -997,7 +1005,7 @@ int iucv_path_resume(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1026,7 +1034,7 @@ int iucv_path_sever(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	preempt_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1060,7 +1068,7 @@ int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1152,7 +1160,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 	if (msg->flags & IUCV_IPRMDATA)
 		return iucv_message_receive_iprmdata(path, msg, flags,
 						     buffer, size, residual);
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1225,7 +1233,7 @@ int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg)
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1264,7 +1272,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1314,7 +1322,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 	union iucv_param *parm;
 	int rc;
 
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1401,7 +1409,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1875,6 +1883,7 @@ static int iucv_pm_freeze(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "iucv_pm_freeze\n");
 #endif
+	iucv_pm_state = IUCV_PM_FREEZING;
 	for_each_cpu_mask_nr(cpu, iucv_irq_cpumask)
 		smp_call_function_single(cpu, iucv_block_cpu_almost, NULL, 1);
 	if (dev->driver && dev->driver->pm && dev->driver->pm->freeze)
@@ -1899,6 +1908,7 @@ static int iucv_pm_thaw(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "iucv_pm_thaw\n");
 #endif
+	iucv_pm_state = IUCV_PM_THAWING;
 	if (!iucv_path_table) {
 		rc = iucv_enable();
 		if (rc)
@@ -1933,6 +1943,10 @@ static int iucv_pm_restore(struct device *dev)
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "iucv_pm_restore %p\n", iucv_path_table);
 #endif
+	if ((iucv_pm_state != IUCV_PM_RESTORING) && iucv_path_table)
+		pr_warning("Suspending Linux did not completely close all IUCV "
+			"connections\n");
+	iucv_pm_state = IUCV_PM_RESTORING;
 	if (cpus_empty(iucv_irq_cpumask)) {
 		rc = iucv_query_maxconn();
 		rc = iucv_enable();

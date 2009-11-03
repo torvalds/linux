@@ -2249,6 +2249,25 @@ static void igmp6_timer_handler(unsigned long data)
 	ma_put(ma);
 }
 
+/* Device changing type */
+
+void ipv6_mc_unmap(struct inet6_dev *idev)
+{
+	struct ifmcaddr6 *i;
+
+	/* Install multicast list, except for all-nodes (already installed) */
+
+	read_lock_bh(&idev->lock);
+	for (i = idev->mc_list; i; i = i->next)
+		igmp6_group_dropped(i);
+	read_unlock_bh(&idev->lock);
+}
+
+void ipv6_mc_remap(struct inet6_dev *idev)
+{
+	ipv6_mc_up(idev);
+}
+
 /* Device going down */
 
 void ipv6_mc_down(struct inet6_dev *idev)

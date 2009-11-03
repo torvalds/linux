@@ -600,3 +600,72 @@ struct pci_bus * __devinit pci_scan_bus_with_sysdata(int busno)
 {
 	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
 }
+
+/*
+ * NUMA info for PCI busses
+ *
+ * Early arch code is responsible for filling in reasonable values here.
+ * A node id of "-1" means "use current node".  In other words, if a bus
+ * has a -1 node id, it's not tightly coupled to any particular chunk
+ * of memory (as is the case on some Nehalem systems).
+ */
+#ifdef CONFIG_NUMA
+
+#define BUS_NR 256
+
+#ifdef CONFIG_X86_64
+
+static int mp_bus_to_node[BUS_NR] = {
+	[0 ... BUS_NR - 1] = -1
+};
+
+void set_mp_bus_to_node(int busnum, int node)
+{
+	if (busnum >= 0 &&  busnum < BUS_NR)
+		mp_bus_to_node[busnum] = node;
+}
+
+int get_mp_bus_to_node(int busnum)
+{
+	int node = -1;
+
+	if (busnum < 0 || busnum > (BUS_NR - 1))
+		return node;
+
+	node = mp_bus_to_node[busnum];
+
+	/*
+	 * let numa_node_id to decide it later in dma_alloc_pages
+	 * if there is no ram on that node
+	 */
+	if (node != -1 && !node_online(node))
+		node = -1;
+
+	return node;
+}
+
+#else /* CONFIG_X86_32 */
+
+static int mp_bus_to_node[BUS_NR] = {
+	[0 ... BUS_NR - 1] = -1
+};
+
+void set_mp_bus_to_node(int busnum, int node)
+{
+	if (busnum >= 0 &&  busnum < BUS_NR)
+	mp_bus_to_node[busnum] = (unsigned char) node;
+}
+
+int get_mp_bus_to_node(int busnum)
+{
+	int node;
+
+	if (busnum < 0 || busnum > (BUS_NR - 1))
+		return 0;
+	node = mp_bus_to_node[busnum];
+	return node;
+}
+
+#endif /* CONFIG_X86_32 */
+
+#endif /* CONFIG_NUMA */

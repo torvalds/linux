@@ -73,12 +73,12 @@ static int min_lap_keepalive_time = 100;	/* 100us */
 /* For other sysctl, I've no idea of the range. Maybe Dag could help
  * us on that - Jean II */
 
-static int do_devname(ctl_table *table, int write, struct file *filp,
+static int do_devname(ctl_table *table, int write,
 		      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dostring(table, write, filp, buffer, lenp, ppos);
+	ret = proc_dostring(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write) {
 		struct ias_value *val;
 
@@ -90,12 +90,12 @@ static int do_devname(ctl_table *table, int write, struct file *filp,
 }
 
 
-static int do_discovery(ctl_table *table, int write, struct file *filp,
+static int do_discovery(ctl_table *table, int write,
                     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
        int ret;
 
-       ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
+       ret = proc_dointvec(table, write, buffer, lenp, ppos);
        if (ret)
 	       return ret;
 

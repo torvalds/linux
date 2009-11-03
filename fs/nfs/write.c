@@ -1490,7 +1490,6 @@ static int nfs_write_mapping(struct address_space *mapping, int how)
 		.nr_to_write = LONG_MAX,
 		.range_start = 0,
 		.range_end = LLONG_MAX,
-		.for_writepages = 1,
 	};
 
 	return __nfs_write_mapping(mapping, &wbc, how);

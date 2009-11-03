@@ -395,6 +395,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.sum_exec_runtime);
 	PN(se.avg_overlap);
 	PN(se.avg_wakeup);
+	PN(se.avg_running);
 
 	nr_switches = p->nvcsw + p->nivcsw;
 

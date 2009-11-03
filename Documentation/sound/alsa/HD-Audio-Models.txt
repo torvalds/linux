@@ -209,6 +209,7 @@ AD1884A / AD1883 / AD1984A / AD1984B
   laptop	laptop with HP jack sensing
   mobile	mobile devices with HP jack sensing
   thinkpad	Lenovo Thinkpad X300
+  touchsmart	HP Touchsmart
 
 AD1884
 ======
@@ -358,6 +359,7 @@ STAC9227/9228/9229/927x
   5stack-no-fp	D965 5stack without front panel
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  volknob	Fixes with volume-knob widget 0x24
   auto		BIOS setup (default)
 
 STAC92HD71B*
@@ -387,7 +389,7 @@ STAC92HD73*
 STAC92HD83*
 ===========
   ref		Reference board
-  mic-ref	Reference board with power managment for ports
+  mic-ref	Reference board with power management for ports
   dell-s14	Dell laptop
   auto		BIOS setup (default)
 

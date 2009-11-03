@@ -65,8 +65,6 @@ extern int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
 extern unsigned int pcibios_assign_all_busses(void);
 
-#define pcibios_scan_all_fns(a, b)	0
-
 extern unsigned long PCIBIOS_MIN_IO;
 extern unsigned long PCIBIOS_MIN_MEM;
 

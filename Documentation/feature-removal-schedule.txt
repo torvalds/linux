@@ -354,14 +354,6 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	fscher and fscpos drivers
-When:	June 2009
-Why:	Deprecated by the new fschmd driver.
-Who:	Hans de Goede <hdegoede@redhat.com>
-	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	sysfs ui for changing p4-clockmod parameters
 When:	September 2009
 Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
@@ -428,16 +420,6 @@ Who:	Johannes Berg <johannes@sipsolutions.net>
 
 ----------------------------
 
-What:	CONFIG_X86_OLD_MCE
-When:	2.6.32
-Why:	Remove the old legacy 32bit machine check code. This has been
-	superseded by the newer machine check code from the 64bit port,
-	but the old version has been kept around for easier testing. Note this
-	doesn't impact the old P5 and WinChip machine check handlers.
-Who:	Andi Kleen <andi@firstfloor.org>
-
-----------------------------
-
 What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
 	exported interface anymore.
 When:	2.6.33
@@ -469,3 +451,33 @@ Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
 	will also allow making ALSA OSS emulation independent of
 	sound_core.  The dependency will be broken then too.
 Who:	Tejun Heo <tj@kernel.org>
+
+----------------------------
+
+What:	Support for VMware's guest paravirtuliazation technique [VMI] will be
+	dropped.
+When:	2.6.37 or earlier.
+Why:	With the recent innovations in CPU hardware acceleration technologies
+	from Intel and AMD, VMware ran a few experiments to compare these
+	techniques to guest paravirtualization technique on VMware's platform.
+	These hardware assisted virtualization techniques have outperformed the
+	performance benefits provided by VMI in most of the workloads. VMware
+	expects that these hardware features will be ubiquitous in a couple of
+	years, as a result, VMware has started a phased retirement of this
+	feature from the hypervisor. We will be removing this feature from the
+	Kernel too. Right now we are targeting 2.6.37 but can retire earlier if
+	technical reasons (read opportunity to remove major chunk of pvops)
+	arise.
+
+	Please note that VMI has always been an optimization and non-VMI kernels
+	still work fine on VMware's platform.
+	Latest versions of VMware's product which support VMI are,
+	Workstation 7.0 and VSphere 4.0 on ESX side, future maintainence
+	releases for these products will continue supporting VMI.
+
+	For more details about VMI retirement take a look at this,
+	http://blogs.vmware.com/guestosguide/2009/09/vmi-retirement.html
+
+Who:	Alok N Kataria <akataria@vmware.com>
+
+----------------------------

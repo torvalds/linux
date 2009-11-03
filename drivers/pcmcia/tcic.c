@@ -366,7 +366,7 @@ static int __init get_tcic_id(void)
 static int tcic_drv_pcmcia_suspend(struct platform_device *dev,
 				     pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int tcic_drv_pcmcia_resume(struct platform_device *dev)

@@ -258,8 +258,6 @@ static inline void *vio_dring_entry(struct vio_dring_state *dr,
 static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 				  unsigned int ring_size)
 {
-	BUILD_BUG_ON(!is_power_of_2(ring_size));
-
 	return (dr->pending -
 		((dr->prod - dr->cons) & (ring_size - 1)));
 }

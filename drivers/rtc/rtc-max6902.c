@@ -175,3 +175,4 @@ module_exit(max6902_exit);
 MODULE_DESCRIPTION ("max6902 spi RTC driver");
 MODULE_AUTHOR ("Raphael Assenat");
 MODULE_LICENSE ("GPL");
+MODULE_ALIAS("spi:rtc-max6902");

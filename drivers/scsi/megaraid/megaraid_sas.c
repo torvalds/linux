@@ -718,7 +718,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
  * megasas_build_ldio -	Prepares IOs to logical devices
  * @instance:		Adapter soft state
  * @scp:		SCSI command
- * @cmd:		Command to to be prepared
+ * @cmd:		Command to be prepared
  *
  * Frames (and accompanying SGLs) for regular SCSI IOs use this function.
  */

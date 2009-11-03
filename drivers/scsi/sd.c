@@ -116,6 +116,9 @@ static DEFINE_IDA(sd_index_ida);
  * object after last put) */
 static DEFINE_MUTEX(sd_ref_mutex);
 
+struct kmem_cache *sd_cdb_cache;
+mempool_t *sd_cdb_pool;
+
 static const char *sd_cache_types[] = {
 	"write through", "none", "write back",
 	"write back, no read (daft)"
@@ -370,6 +373,31 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 	mutex_unlock(&sd_ref_mutex);
 }
 
+static void sd_prot_op(struct scsi_cmnd *scmd, unsigned int dif)
+{
+	unsigned int prot_op = SCSI_PROT_NORMAL;
+	unsigned int dix = scsi_prot_sg_count(scmd);
+
+	if (scmd->sc_data_direction == DMA_FROM_DEVICE) {
+		if (dif && dix)
+			prot_op = SCSI_PROT_READ_PASS;
+		else if (dif && !dix)
+			prot_op = SCSI_PROT_READ_STRIP;
+		else if (!dif && dix)
+			prot_op = SCSI_PROT_READ_INSERT;
+	} else {
+		if (dif && dix)
+			prot_op = SCSI_PROT_WRITE_PASS;
+		else if (dif && !dix)
+			prot_op = SCSI_PROT_WRITE_INSERT;
+		else if (!dif && dix)
+			prot_op = SCSI_PROT_WRITE_STRIP;
+	}
+
+	scsi_set_prot_op(scmd, prot_op);
+	scsi_set_prot_type(scmd, dif);
+}
+
 /**
  *	sd_init_command - build a scsi (read or write) command from
  *	information in the request structure.
@@ -388,6 +416,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	sector_t threshold;
 	unsigned int this_count = blk_rq_sectors(rq);
 	int ret, host_dif;
+	unsigned char protect;
 
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
@@ -520,13 +549,49 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	/* Set RDPROTECT/WRPROTECT if disk is formatted with DIF */
 	host_dif = scsi_host_dif_capable(sdp->host, sdkp->protection_type);
 	if (host_dif)
-		SCpnt->cmnd[1] = 1 << 5;
+		protect = 1 << 5;
 	else
-		SCpnt->cmnd[1] = 0;
+		protect = 0;
 
-	if (block > 0xffffffff) {
+	if (host_dif == SD_DIF_TYPE2_PROTECTION) {
+		SCpnt->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
+
+		if (unlikely(SCpnt->cmnd == NULL)) {
+			ret = BLKPREP_DEFER;
+			goto out;
+		}
+
+		SCpnt->cmd_len = SD_EXT_CDB_SIZE;
+		memset(SCpnt->cmnd, 0, SCpnt->cmd_len);
+		SCpnt->cmnd[0] = VARIABLE_LENGTH_CMD;
+		SCpnt->cmnd[7] = 0x18;
+		SCpnt->cmnd[9] = (rq_data_dir(rq) == READ) ? READ_32 : WRITE_32;
+		SCpnt->cmnd[10] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
+
+		/* LBA */
+		SCpnt->cmnd[12] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
+		SCpnt->cmnd[13] = sizeof(block) > 4 ? (unsigned char) (block >> 48) & 0xff : 0;
+		SCpnt->cmnd[14] = sizeof(block) > 4 ? (unsigned char) (block >> 40) & 0xff : 0;
+		SCpnt->cmnd[15] = sizeof(block) > 4 ? (unsigned char) (block >> 32) & 0xff : 0;
+		SCpnt->cmnd[16] = (unsigned char) (block >> 24) & 0xff;
+		SCpnt->cmnd[17] = (unsigned char) (block >> 16) & 0xff;
+		SCpnt->cmnd[18] = (unsigned char) (block >> 8) & 0xff;
+		SCpnt->cmnd[19] = (unsigned char) block & 0xff;
+
+		/* Expected Indirect LBA */
+		SCpnt->cmnd[20] = (unsigned char) (block >> 24) & 0xff;
+		SCpnt->cmnd[21] = (unsigned char) (block >> 16) & 0xff;
+		SCpnt->cmnd[22] = (unsigned char) (block >> 8) & 0xff;
+		SCpnt->cmnd[23] = (unsigned char) block & 0xff;
+
+		/* Transfer length */
+		SCpnt->cmnd[28] = (unsigned char) (this_count >> 24) & 0xff;
+		SCpnt->cmnd[29] = (unsigned char) (this_count >> 16) & 0xff;
+		SCpnt->cmnd[30] = (unsigned char) (this_count >> 8) & 0xff;
+		SCpnt->cmnd[31] = (unsigned char) this_count & 0xff;
+	} else if (block > 0xffffffff) {
 		SCpnt->cmnd[0] += READ_16 - READ_6;
-		SCpnt->cmnd[1] |= blk_fua_rq(rq) ? 0x8 : 0;
+		SCpnt->cmnd[1] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
 		SCpnt->cmnd[2] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
 		SCpnt->cmnd[3] = sizeof(block) > 4 ? (unsigned char) (block >> 48) & 0xff : 0;
 		SCpnt->cmnd[4] = sizeof(block) > 4 ? (unsigned char) (block >> 40) & 0xff : 0;
@@ -547,7 +612,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 			this_count = 0xffff;
 
 		SCpnt->cmnd[0] += READ_10 - READ_6;
-		SCpnt->cmnd[1] |= blk_fua_rq(rq) ? 0x8 : 0;
+		SCpnt->cmnd[1] = protect | (blk_fua_rq(rq) ? 0x8 : 0);
 		SCpnt->cmnd[2] = (unsigned char) (block >> 24) & 0xff;
 		SCpnt->cmnd[3] = (unsigned char) (block >> 16) & 0xff;
 		SCpnt->cmnd[4] = (unsigned char) (block >> 8) & 0xff;
@@ -578,8 +643,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 
 	/* If DIF or DIX is enabled, tell HBA how to handle request */
 	if (host_dif || scsi_prot_sg_count(SCpnt))
-		sd_dif_op(SCpnt, host_dif, scsi_prot_sg_count(SCpnt),
-			  sdkp->protection_type);
+		sd_prot_op(SCpnt, host_dif);
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
@@ -956,7 +1020,7 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 }
 #endif
 
-static struct block_device_operations sd_fops = {
+static const struct block_device_operations sd_fops = {
 	.owner			= THIS_MODULE,
 	.open			= sd_open,
 	.release		= sd_release,
@@ -1023,6 +1087,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	int result = SCpnt->result;
 	unsigned int good_bytes = result ? 0 : scsi_bufflen(SCpnt);
 	struct scsi_sense_hdr sshdr;
+	struct scsi_disk *sdkp = scsi_disk(SCpnt->request->rq_disk);
 	int sense_valid = 0;
 	int sense_deferred = 0;
 
@@ -1083,6 +1148,10 @@ static int sd_done(struct scsi_cmnd *SCpnt)
  out:
 	if (rq_data_dir(SCpnt->request) == READ && scsi_prot_sg_count(SCpnt))
 		sd_dif_complete(SCpnt, good_bytes);
+
+	if (scsi_host_dif_capable(sdkp->device->host, sdkp->protection_type)
+	    == SD_DIF_TYPE2_PROTECTION && SCpnt->cmnd != SCpnt->request->cmd)
+		mempool_free(SCpnt->cmnd, sd_cdb_pool);
 
 	return good_bytes;
 }
@@ -1238,34 +1307,28 @@ void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	u8 type;
 
 	if (scsi_device_protection(sdp) == 0 || (buffer[12] & 1) == 0)
-		type = 0;
-	else
-		type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
+		return;
+
+	type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
+
+	if (type == sdkp->protection_type || !sdkp->first_scan)
+		return;
 
 	sdkp->protection_type = type;
 
-	switch (type) {
-	case SD_DIF_TYPE0_PROTECTION:
-	case SD_DIF_TYPE1_PROTECTION:
-	case SD_DIF_TYPE3_PROTECTION:
-		break;
-
-	case SD_DIF_TYPE2_PROTECTION:
-		sd_printk(KERN_ERR, sdkp, "formatted with DIF Type 2 "	\
-			  "protection which is currently unsupported. "	\
-			  "Disabling disk!\n");
-		goto disable;
-
-	default:
-		sd_printk(KERN_ERR, sdkp, "formatted with unknown "	\
-			  "protection type %d. Disabling disk!\n", type);
-		goto disable;
+	if (type > SD_DIF_TYPE3_PROTECTION) {
+		sd_printk(KERN_ERR, sdkp, "formatted with unsupported "	\
+			  "protection type %u. Disabling disk!\n", type);
+		sdkp->capacity = 0;
+		return;
 	}
 
-	return;
-
-disable:
-	sdkp->capacity = 0;
+	if (scsi_host_dif_capable(sdp->host, type))
+		sd_printk(KERN_NOTICE, sdkp,
+			  "Enabling DIF Type %u protection\n", type);
+	else
+		sd_printk(KERN_NOTICE, sdkp,
+			  "Disabling DIF Type %u protection\n", type);
 }
 
 static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
@@ -2300,7 +2363,23 @@ static int __init init_sd(void)
 	if (err)
 		goto err_out_class;
 
+	sd_cdb_cache = kmem_cache_create("sd_ext_cdb", SD_EXT_CDB_SIZE,
+					 0, 0, NULL);
+	if (!sd_cdb_cache) {
+		printk(KERN_ERR "sd: can't init extended cdb cache\n");
+		goto err_out_class;
+	}
+
+	sd_cdb_pool = mempool_create_slab_pool(SD_MEMPOOL_SIZE, sd_cdb_cache);
+	if (!sd_cdb_pool) {
+		printk(KERN_ERR "sd: can't init extended cdb pool\n");
+		goto err_out_cache;
+	}
+
 	return 0;
+
+err_out_cache:
+	kmem_cache_destroy(sd_cdb_cache);
 
 err_out_class:
 	class_unregister(&sd_disk_class);
@@ -2320,6 +2399,9 @@ static void __exit exit_sd(void)
 	int i;
 
 	SCSI_LOG_HLQUEUE(3, printk("exit_sd: exiting sd driver\n"));
+
+	mempool_destroy(sd_cdb_pool);
+	kmem_cache_destroy(sd_cdb_cache);
 
 	scsi_unregister_driver(&sd_template.gendrv);
 	class_unregister(&sd_disk_class);

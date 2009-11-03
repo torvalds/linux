@@ -17,6 +17,7 @@
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -1176,7 +1177,7 @@ static struct attribute_group input_dev_caps_attr_group = {
 	.attrs	= input_dev_caps_attrs,
 };
 
-static struct attribute_group *input_dev_attr_groups[] = {
+static const struct attribute_group *input_dev_attr_groups[] = {
 	&input_dev_attr_group,
 	&input_dev_id_attr_group,
 	&input_dev_caps_attr_group,
@@ -1304,6 +1305,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		}						\
 	} while (0)
 
+#ifdef CONFIG_PM
 static void input_dev_reset(struct input_dev *dev, bool activate)
 {
 	if (!dev->event)
@@ -1318,7 +1320,6 @@ static void input_dev_reset(struct input_dev *dev, bool activate)
 	}
 }
 
-#ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
@@ -1358,14 +1359,14 @@ static struct device_type input_dev_type = {
 #endif
 };
 
-static char *input_nodename(struct device *dev)
+static char *input_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }
 
 struct class input_class = {
 	.name		= "input",
-	.nodename	= input_nodename,
+	.devnode	= input_devnode,
 };
 EXPORT_SYMBOL_GPL(input_class);
 

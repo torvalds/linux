@@ -453,7 +453,8 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		for (i = 0; i < max && regions[i].offset <= slave->offset; i++)
 			;
 		/* The loop searched for the region _behind_ the first one */
-		i--;
+		if (i > 0)
+			i--;
 
 		/* Pick biggest erasesize */
 		for (; i < max && regions[i].offset < end; i++) {

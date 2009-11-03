@@ -227,7 +227,14 @@ as the path relative to the root of the cgroup file system.
 Each cgroup is represented by a directory in the cgroup file system
 containing the following files describing that cgroup:
 
- - tasks: list of tasks (by pid) attached to that cgroup
+ - tasks: list of tasks (by pid) attached to that cgroup.  This list
+   is not guaranteed to be sorted.  Writing a thread id into this file
+   moves the thread into this cgroup.
+ - cgroup.procs: list of tgids in the cgroup.  This list is not
+   guaranteed to be sorted or free of duplicate tgids, and userspace
+   should sort/uniquify the list if this property is required.
+   Writing a tgid into this file moves all threads with that tgid into
+   this cgroup.
  - notify_on_release flag: run the release agent on exit?
  - release_agent: the path to use for release notifications (this file
    exists in the top cgroup only)
@@ -374,7 +381,7 @@ Now you want to do something with this cgroup.
 
 In this directory you can find several files:
 # ls
-notify_on_release tasks
+cgroup.procs notify_on_release tasks
 (plus whatever files added by the attached subsystems)
 
 Now attach your shell to this cgroup:
@@ -407,6 +414,26 @@ If you have several tasks to attach, you have to do it one after another:
 You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
+
+2.3 Mounting hierarchies by name
+--------------------------------
+
+Passing the name=<x> option when mounting a cgroups hierarchy
+associates the given name with the hierarchy.  This can be used when
+mounting a pre-existing hierarchy, in order to refer to it by name
+rather than by its set of active subsystems.  Each hierarchy is either
+nameless, or has a unique name.
+
+The name should match [\w.-]+
+
+When passing a name=<x> option for a new hierarchy, you need to
+specify subsystems manually; the legacy behaviour of mounting all
+subsystems when none are explicitly specified is not supported when
+you give a subsystem a name.
+
+The name of the subsystem appears as part of the hierarchy description
+in /proc/mounts and /proc/<pid>/cgroups.
+
 
 3. Kernel API
 =============
@@ -501,7 +528,7 @@ rmdir() will fail with it. From this behavior, pre_destroy() can be
 called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct task_struct *task)
+	       struct task_struct *task, bool threadgroup)
 (cgroup_mutex held by caller)
 
 Called prior to moving a task into a cgroup; if the subsystem
@@ -509,14 +536,20 @@ returns an error, this will abort the attach operation.  If a NULL
 task is passed, then a successful result indicates that *any*
 unspecified task can be moved into the cgroup. Note that this isn't
 called on a fork. If this method returns 0 (success) then this should
-remain valid while the caller holds cgroup_mutex.
+remain valid while the caller holds cgroup_mutex. If threadgroup is
+true, then a successful result indicates that all threads in the given
+thread's threadgroup can be moved together.
 
 void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	    struct cgroup *old_cgrp, struct task_struct *task)
+	    struct cgroup *old_cgrp, struct task_struct *task,
+	    bool threadgroup)
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
+If threadgroup is true, the subsystem should take care of all threads
+in the specified thread's threadgroup. Currently does not support any
+subsystem that might need the old_cgrp for every thread in the group.
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
 

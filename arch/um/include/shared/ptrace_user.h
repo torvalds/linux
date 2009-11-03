@@ -29,7 +29,7 @@ extern int ptrace_setregs(long pid, unsigned long *regs_in);
  * recompilation. So, we use PTRACE_OLDSETOPTIONS in UML.
  * We also want to be able to build the kernel on 2.4, which doesn't
  * have PTRACE_OLDSETOPTIONS. So, if it is missing, we declare
- * PTRACE_OLDSETOPTIONS to to be the same as PTRACE_SETOPTIONS.
+ * PTRACE_OLDSETOPTIONS to be the same as PTRACE_SETOPTIONS.
  *
  * On architectures, that start to support PTRACE_O_TRACESYSGOOD on
  * linux 2.6, PTRACE_OLDSETOPTIONS never is defined, and also isn't

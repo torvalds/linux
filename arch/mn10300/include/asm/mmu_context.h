@@ -38,13 +38,13 @@ extern unsigned long mmu_context_cache[NR_CPUS];
 #define enter_lazy_tlb(mm, tsk)	do {} while (0)
 
 #ifdef CONFIG_SMP
-#define cpu_ran_vm(cpu, task) \
-	cpu_set((cpu), (task)->cpu_vm_mask)
-#define cpu_maybe_ran_vm(cpu, task) \
-	cpu_test_and_set((cpu), (task)->cpu_vm_mask)
+#define cpu_ran_vm(cpu, mm) \
+	cpumask_set_cpu((cpu), mm_cpumask(mm))
+#define cpu_maybe_ran_vm(cpu, mm) \
+	cpumask_test_and_set_cpu((cpu), mm_cpumask(mm))
 #else
-#define cpu_ran_vm(cpu, task)		do {} while (0)
-#define cpu_maybe_ran_vm(cpu, task)	true
+#define cpu_ran_vm(cpu, mm)		do {} while (0)
+#define cpu_maybe_ran_vm(cpu, mm)	true
 #endif /* CONFIG_SMP */
 
 /*

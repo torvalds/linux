@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/mm/sram-alloc.c
- * Based on:
- * Author:
+ * SRAM allocator for Blackfin on-chip memory
  *
- * Created:
- * Description:  SRAM allocator for Blackfin L1 and L2 memory
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -42,11 +21,6 @@
 #include <asm/mem_map.h>
 #include "blackfin_sram.h"
 
-static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1sram_lock);
-static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1_data_sram_lock);
-static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1_inst_sram_lock);
-static spinlock_t l2_sram_lock ____cacheline_aligned_in_smp;
-
 /* the data structure for L1 scratchpad and DATA SRAM */
 struct sram_piece {
 	void *paddr;
@@ -55,6 +29,7 @@ struct sram_piece {
 	struct sram_piece *next;
 };
 
+static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1sram_lock);
 static DEFINE_PER_CPU(struct sram_piece, free_l1_ssram_head);
 static DEFINE_PER_CPU(struct sram_piece, used_l1_ssram_head);
 
@@ -68,12 +43,18 @@ static DEFINE_PER_CPU(struct sram_piece, free_l1_data_B_sram_head);
 static DEFINE_PER_CPU(struct sram_piece, used_l1_data_B_sram_head);
 #endif
 
+#if L1_DATA_A_LENGTH || L1_DATA_B_LENGTH
+static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1_data_sram_lock);
+#endif
+
 #if L1_CODE_LENGTH != 0
+static DEFINE_PER_CPU_SHARED_ALIGNED(spinlock_t, l1_inst_sram_lock);
 static DEFINE_PER_CPU(struct sram_piece, free_l1_inst_sram_head);
 static DEFINE_PER_CPU(struct sram_piece, used_l1_inst_sram_head);
 #endif
 
 #if L2_LENGTH != 0
+static spinlock_t l2_sram_lock ____cacheline_aligned_in_smp;
 static struct sram_piece free_l2_sram_head, used_l2_sram_head;
 #endif
 
@@ -225,10 +206,10 @@ static void __init l2_sram_init(void)
 	printk(KERN_INFO "Blackfin L2 SRAM: %d KB (%d KB free)\n",
 		L2_LENGTH >> 10,
 		free_l2_sram_head.next->size >> 10);
-#endif
 
 	/* mutex initialize */
 	spin_lock_init(&l2_sram_lock);
+#endif
 }
 
 static int __init bfin_sram_init(void)
@@ -416,18 +397,17 @@ EXPORT_SYMBOL(sram_free);
 
 void *l1_data_A_sram_alloc(size_t size)
 {
+#if L1_DATA_A_LENGTH != 0
 	unsigned long flags;
-	void *addr = NULL;
+	void *addr;
 	unsigned int cpu;
 
 	cpu = get_cpu();
 	/* add mutex operation */
 	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
 
-#if L1_DATA_A_LENGTH != 0
 	addr = _sram_alloc(size, &per_cpu(free_l1_data_A_sram_head, cpu),
 			&per_cpu(used_l1_data_A_sram_head, cpu));
-#endif
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
@@ -437,11 +417,15 @@ void *l1_data_A_sram_alloc(size_t size)
 		 (long unsigned int)addr, size);
 
 	return addr;
+#else
+	return NULL;
+#endif
 }
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 
 int l1_data_A_sram_free(const void *addr)
 {
+#if L1_DATA_A_LENGTH != 0
 	unsigned long flags;
 	int ret;
 	unsigned int cpu;
@@ -450,18 +434,17 @@ int l1_data_A_sram_free(const void *addr)
 	/* add mutex operation */
 	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
 
-#if L1_DATA_A_LENGTH != 0
 	ret = _sram_free(addr, &per_cpu(free_l1_data_A_sram_head, cpu),
 			&per_cpu(used_l1_data_A_sram_head, cpu));
-#else
-	ret = -1;
-#endif
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
 	put_cpu();
 
 	return ret;
+#else
+	return -1;
+#endif
 }
 EXPORT_SYMBOL(l1_data_A_sram_free);
 

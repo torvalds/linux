@@ -657,12 +657,12 @@ struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);
 extern void smscore_putbuffer(struct smscore_device_t *coredev,
 			      struct smscore_buffer_t *cb);
 
-/* old GPIO managment */
+/* old GPIO management */
 int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 			   struct smscore_config_gpio *pinconfig);
 int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level);
 
-/* new GPIO managment */
+/* new GPIO management */
 extern int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 		struct smscore_gpio_config *pGpioConfig);
 extern int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,

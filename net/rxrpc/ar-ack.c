@@ -40,7 +40,7 @@ static const s8 rxrpc_ack_priority[] = {
 /*
  * propose an ACK be sent
  */
-void __rxrpc_propose_ACK(struct rxrpc_call *call, uint8_t ack_reason,
+void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 			 __be32 serial, bool immediate)
 {
 	unsigned long expiry;
@@ -120,7 +120,7 @@ cancel_timer:
 /*
  * propose an ACK be sent, locking the call structure
  */
-void rxrpc_propose_ACK(struct rxrpc_call *call, uint8_t ack_reason,
+void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		       __be32 serial, bool immediate)
 {
 	s8 prior = rxrpc_ack_priority[ack_reason];
@@ -520,7 +520,7 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	unsigned long _skb, *acks_window;
-	uint8_t winsz = call->acks_winsz;
+	u8 winsz = call->acks_winsz;
 	int tail;
 
 	acks_window = call->acks_window;

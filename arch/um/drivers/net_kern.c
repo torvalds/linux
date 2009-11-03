@@ -533,7 +533,7 @@ static int eth_parse(char *str, int *index_out, char **str_out,
 		     char **error_out)
 {
 	char *end;
-	int n, err = -EINVAL;;
+	int n, err = -EINVAL;
 
 	n = simple_strtoul(str, &end, 0);
 	if (end == str) {

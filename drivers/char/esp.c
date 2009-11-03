@@ -572,7 +572,7 @@ static void check_modem_status(struct esp_struct *info)
 			info->icount.dcd++;
 		if (status & UART_MSR_DCTS)
 			info->icount.cts++;
-		wake_up_interruptible(&info->delta_msr_wait);
+		wake_up_interruptible(&info->port.delta_msr_wait);
 	}
 
 	if ((info->port.flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
@@ -927,7 +927,7 @@ static void shutdown(struct esp_struct *info)
 	 * clear delta_msr_wait queue to avoid mem leaks: we may free the irq
 	 * here so the queue might never be waken up
 	 */
-	wake_up_interruptible(&info->delta_msr_wait);
+	wake_up_interruptible(&info->port.delta_msr_wait);
 	wake_up_interruptible(&info->break_wait);
 
 	/* stop a DMA transfer on the port being closed */
@@ -1800,7 +1800,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		spin_unlock_irqrestore(&info->lock, flags);
 		while (1) {
 			/* FIXME: convert to new style wakeup */
-			interruptible_sleep_on(&info->delta_msr_wait);
+			interruptible_sleep_on(&info->port.delta_msr_wait);
 			/* see if a signal did it */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
@@ -2452,7 +2452,6 @@ static int __init espserial_init(void)
 		info->config.flow_off = flow_off;
 		info->config.pio_threshold = pio_threshold;
 		info->next_port = ports;
-		init_waitqueue_head(&info->delta_msr_wait);
 		init_waitqueue_head(&info->break_wait);
 		ports = info;
 		printk(KERN_INFO "ttyP%d at 0x%04x (irq = %d) is an ESP ",

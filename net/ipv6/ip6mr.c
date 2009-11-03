@@ -83,10 +83,6 @@ static int ip6mr_cache_report(struct net *net, struct sk_buff *pkt,
 static int ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm);
 static void mroute_clean_tables(struct net *net);
 
-#ifdef CONFIG_IPV6_PIMSM_V2
-static struct inet6_protocol pim6_protocol;
-#endif
-
 static struct timer_list ipmr_expire_timer;
 
 
@@ -328,7 +324,7 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations ipmr_mfc_seq_ops = {
+static const struct seq_operations ipmr_mfc_seq_ops = {
 	.start = ipmr_mfc_seq_start,
 	.next  = ipmr_mfc_seq_next,
 	.stop  = ipmr_mfc_seq_stop,
@@ -410,7 +406,7 @@ static int pim6_rcv(struct sk_buff *skb)
 	return 0;
 }
 
-static struct inet6_protocol pim6_protocol = {
+static const struct inet6_protocol pim6_protocol = {
 	.handler	=	pim6_rcv,
 };
 
@@ -1285,7 +1281,7 @@ int ip6mr_sk_done(struct sock *sk)
  *	MOSPF/PIM router set up we can clean this up.
  */
 
-int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int optlen)
+int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsigned int optlen)
 {
 	int ret;
 	struct mif6ctl vif;

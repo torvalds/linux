@@ -1808,7 +1808,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	/* See draft-stevens-tcpca-spec-01 for discussion of the
 	 * initialization of these values.
 	 */
-	tp->snd_ssthresh = 0x7fffffff;	/* Infinity */
+	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_clamp = ~0;
 	tp->mss_cache = 536;
 
@@ -2284,7 +2284,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 		jiffies_to_clock_t(icsk->icsk_ack.ato),
 		(icsk->icsk_ack.quick << 1) | icsk->icsk_ack.pingpong,
 		tp->snd_cwnd,
-		tp->snd_ssthresh >= 0xFFFF ? -1 : tp->snd_ssthresh,
+		tcp_in_initial_slowstart(tp) ? -1 : tp->snd_ssthresh,
 		len);
 }
 

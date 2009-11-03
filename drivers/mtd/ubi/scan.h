@@ -102,6 +102,7 @@ struct ubi_scan_volume {
  * @mean_ec: mean erase counter value
  * @ec_sum: a temporary variable used when calculating @mean_ec
  * @ec_count: a temporary variable used when calculating @mean_ec
+ * @corr_count: count of corrupted PEBs
  * @image_seq_set: indicates @ubi->image_seq is known
  *
  * This data structure contains the result of scanning and may be used by other
@@ -125,6 +126,7 @@ struct ubi_scan_info {
 	int mean_ec;
 	uint64_t ec_sum;
 	int ec_count;
+	int corr_count;
 	int image_seq_set;
 };
 

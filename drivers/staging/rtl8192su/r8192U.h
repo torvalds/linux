@@ -39,16 +39,10 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
-#include <asm/semaphore.h>
-#endif
-#include "ieee80211.h"
 
-#ifdef RTL8192SU
+#include "ieee80211/ieee80211.h"
+
 #include "r8192S_firmware.h"
-#else
-#include "r819xU_firmware.h"
-#endif
 
 //#define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
@@ -93,11 +87,6 @@
 
 // Rx smooth factor
 #define	Rx_Smooth_Factor		20
-#if 0 //we need to use RT_TRACE instead DMESG as RT_TRACE will clearly show debug level wb.
-#define DMESG(x,a...) printk(KERN_INFO RTL819xU_MODULE_NAME ": " x "\n", ## a)
-#define DMESGW(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": WW:" x "\n", ## a)
-#define DMESGE(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": EE:" x "\n", ## a)
-#else
 #define DMESG(x,a...)
 #define DMESGW(x,a...)
 #define DMESGE(x,a...)
@@ -155,7 +144,6 @@ do { if(rt_global_debug_component & component) \
 #define COMP_DOWN				BIT29  //for rm driver module
 #define COMP_RESET				BIT30  //for silent reset
 #define COMP_ERR				BIT31 //for error out, always on
-#endif
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
@@ -307,7 +295,6 @@ do { if(rt_global_debug_component & component) \
 #define 	OFDM_Table_Length	19
 #define	CCK_Table_length	12
 
-#ifdef RTL8192SU
 //
 //Tx Descriptor for RLT8192SU(Normal mode)
 //
@@ -425,75 +412,9 @@ typedef struct _tx_status_desc_8192s_usb{
 	u8		RxAGC3;
 	u8		RxAGC4;
 }tx_status_desc_8192s_usb, *ptx_status_desc_8192s_usb;
-#else
-/* for rtl819x */
-typedef struct _tx_desc_819x_usb {
-        //DWORD 0
-        u16	PktSize;
-        u8	Offset;
-        u8	Reserved0:3;
-        u8	CmdInit:1;
-        u8	LastSeg:1;
-        u8	FirstSeg:1;
-        u8	LINIP:1;
-        u8	OWN:1;
-
-        //DWORD 1
-        u8	TxFWInfoSize;
-        u8	RATid:3;
-        u8	DISFB:1;
-        u8	USERATE:1;
-        u8	MOREFRAG:1;
-        u8	NoEnc:1;
-        u8	PIFS:1;
-        u8	QueueSelect:5;
-        u8	NoACM:1;
-        u8	Reserved1:2;
-        u8	SecCAMID:5;
-        u8	SecDescAssign:1;
-        u8	SecType:2;
-
-        //DWORD 2
-        u16	TxBufferSize;
-        //u16 Reserved2;
-        u8	ResvForPaddingLen:7;
-        u8	Reserved3:1;
-        u8	Reserved4;
-
-        //DWORD 3, 4, 5
-        u32	Reserved5;
-        u32	Reserved6;
-        u32	Reserved7;
-}tx_desc_819x_usb, *ptx_desc_819x_usb;
-#endif
-
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-typedef struct _tx_desc_819x_usb_aggr_subframe {
-	//DWORD 0
-	u16	PktSize;
-	u8	Offset;
-	u8	TxFWInfoSize;
-
-	//DWORD 1
-	u8	RATid:3;
-	u8	DISFB:1;
-	u8	USERATE:1;
-	u8	MOREFRAG:1;
-	u8	NoEnc:1;
-	u8	PIFS:1;
-	u8	QueueSelect:5;
-	u8	NoACM:1;
-	u8	Reserved1:2;
-	u8	SecCAMID:5;
-	u8	SecDescAssign:1;
-	u8	SecType:2;
-	u8	PacketID:7;
-	u8	OWN:1;
-}tx_desc_819x_usb_aggr_subframe, *ptx_desc_819x_usb_aggr_subframe;
-#endif
 
 
-#ifdef RTL8192SU
+
 //
 //Tx Descriptor for RLT8192SU(Load FW mode)
 //
@@ -558,39 +479,7 @@ typedef struct _tx_h2c_cmd_hdr_8192s_usb{
 	// DWORD 1
 	u32		Rsvd0;
 }tx_h2c_cmd_hdr_8192s_usb, *ptx_h2c_cmd_hdr_8192s_usb;
-#else
-typedef struct _tx_desc_cmd_819x_usb {
-        //DWORD 0
-	u16	Reserved0;
-	u8	Reserved1;
-	u8	Reserved2:3;
-	u8	CmdInit:1;
-	u8	LastSeg:1;
-	u8	FirstSeg:1;
-	u8	LINIP:1;
-	u8	OWN:1;
 
-        //DOWRD 1
-	//u32	Reserved3;
-	u8	TxFWInfoSize;
-	u8	Reserved3;
-	u8	QueueSelect;
-	u8	Reserved4;
-
-        //DOWRD 2
-	u16 	TxBufferSize;
-	u16	Reserved5;
-
-       //DWORD 3,4,5
-	//u32	TxBufferAddr;
-	//u32	NextDescAddress;
-	u32	Reserved6;
-	u32	Reserved7;
-	u32	Reserved8;
-}tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
-#endif
-
-#ifdef RTL8192SU
 typedef struct _tx_fwinfo_819x_usb{
 	//DWORD 0
 	u8			TxRate:7;
@@ -619,38 +508,6 @@ typedef struct _tx_fwinfo_819x_usb{
 	u32			Tx_INFO_RSVD:6;
 	u32			PacketID:13;
 }tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
-#else
-typedef struct _tx_fwinfo_819x_usb {
-        //DOWRD 0
-        u8		TxRate:7;
-        u8		CtsEnable:1;
-        u8		RtsRate:7;
-        u8		RtsEnable:1;
-        u8		TxHT:1;
-        u8		Short:1;                //Short PLCP for CCK, or short GI for 11n MCS
-        u8		TxBandwidth:1;          // This is used for HT MCS rate only.
-        u8		TxSubCarrier:2;         // This is used for legacy OFDM rate only.
-        u8		STBC:2;
-        u8		AllowAggregation:1;
-        u8		RtsHT:1;                //Interpre RtsRate field as high throughput data rate
-        u8		RtsShort:1;             //Short PLCP for CCK, or short GI for 11n MCS
-        u8		RtsBandwidth:1;         // This is used for HT MCS rate only.
-        u8		RtsSubcarrier:2;        // This is used for legacy OFDM rate only.
-        u8		RtsSTBC:2;
-        u8		EnableCPUDur:1;         //Enable firmware to recalculate and assign packet duration
-
-        //DWORD 1
-        u32		RxMF:2;
-        u32		RxAMD:3;
-        u32		TxPerPktInfoFeedback:1;//1 indicate Tx info gathtered by firmware and returned by Rx Cmd
-        u32		Reserved1:2;
-        u32		TxAGCOffSet:4;
-        u32		TxAGCSign:1;
-        u32		Tx_INFO_RSVD:6;
-	u32		PacketID:13;
-        //u32                Reserved;
-}tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
-#endif
 
 typedef struct rtl8192_rx_info {
 	struct urb *urb;
@@ -658,7 +515,6 @@ typedef struct rtl8192_rx_info {
 	u8 out_pipe;
 }rtl8192_rx_info ;
 
-#ifdef RTL8192SU
 //typedef struct _RX_DESC_STATUS_8192SU{
 typedef struct rx_desc_819x_usb{
 	//DWORD 0
@@ -695,11 +551,7 @@ typedef struct rx_desc_819x_usb{
 	//DWORD 2
 	u16		Seq:12;
 	u16		Frag:4;
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	u8		UsbAggPktNum;//:8;
-#else
 	u8		NextPktLen;//:8;
-#endif
 	u8		Rsvd0:6;
 	u8		NextIND:1;
 	u8		Rsvd1:1;
@@ -725,57 +577,8 @@ typedef struct rx_desc_819x_usb{
 	u32		TSFL;
 //}RX_DESC_STATUS_8192SU, *PRX_DESC_STATUS_8192SU;
 }rx_desc_819x_usb, *prx_desc_819x_usb;
-#else
-typedef struct rx_desc_819x_usb{
-	//DOWRD 0
-	u16                 Length:14;
-	u16                 CRC32:1;
-	u16                 ICV:1;
-	u8                  RxDrvInfoSize;
-	u8                  Shift:2;
-	u8                  PHYStatus:1;
-	u8                  SWDec:1;
-	//u8                LastSeg:1;
-	//u8                FirstSeg:1;
-	//u8                EOR:1;
-	//u8                OWN:1;
-	u8                  Reserved1:4;
 
-	//DWORD 1
-	u32                 Reserved2;
 
-	//DWORD 2
-	//u32               Reserved3;
-
-	//DWORD 3
-	//u32                BufferAddress;
-
-}rx_desc_819x_usb, *prx_desc_819x_usb;
-#endif
-
-#ifdef USB_RX_AGGREGATION_SUPPORT
-typedef struct _rx_desc_819x_usb_aggr_subframe{
-	//DOWRD 0
-	u16			Length:14;
-	u16			CRC32:1;
-	u16			ICV:1;
-	u8			Offset;
-	u8			RxDrvInfoSize;
-	//DOWRD 1
-	u8			Shift:2;
-	u8			PHYStatus:1;
-	u8			SWDec:1;
-	u8			Reserved1:4;
-	u8			Reserved2;
-	u16			Reserved3;
-	//DWORD 2
-	//u4Byte		Reserved3;
-	//DWORD 3
-	//u4Byte           	BufferAddress;
-}rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
-#endif
-
-#ifdef RTL8192SU
 //
 // Driver info are written to the begining of the RxBuffer
 //
@@ -851,41 +654,11 @@ typedef struct rx_drvinfo_819x_usb{
 	u8			reserve:4;
 
 }rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
-#else
-typedef struct rx_drvinfo_819x_usb{
-	//DWORD 0
-	u16                 Reserved1:12;
-	u16                 PartAggr:1;
-	u16                 FirstAGGR:1;
-	u16                 Reserved2:2;
-
-	u8                  RxRate:7;
-	u8                  RxHT:1;
-
-	u8                  BW:1;
-	u8                  SPLCP:1;
-	u8                  Reserved3:2;
-	u8                  PAM:1;
-	u8                  Mcast:1;
-	u8                  Bcast:1;
-	u8                  Reserved4:1;
-
-	//DWORD 1
-	u32                  TSFL;
-
-}rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
-#endif
 
 	#define HWSET_MAX_SIZE_92S	128
-#ifdef RTL8192SU
 	#define MAX_802_11_HEADER_LENGTH 40
 	#define MAX_PKT_AGG_NUM		256
 	#define TX_PACKET_SHIFT_BYTES USB_HWDESC_HEADER_LEN
-#else
-	#define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
-	#define	MAX_PKT_AGG_NUM		64
-	#define TX_PACKET_SHIFT_BYTES (USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
-#endif
 
 #define MAX_DEV_ADDR_SIZE		8  /* support till 64 bit bus width OS */
 #define MAX_FIRMWARE_INFORMATION_SIZE   32 /*2006/04/30 by Emily forRTL8190*/
@@ -895,16 +668,9 @@ typedef struct rx_drvinfo_819x_usb{
 //#define TX_PACKET_SHIFT_BYTES 	  	(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #ifdef RTL8192U
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-#define MAX_TRANSMIT_BUFFER_SIZE			32000
-#else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
-#endif
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE  	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
-#endif
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-#define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
 #endif
 #define scrclng					4		// octets for crc32 (FCS, ICV)
 
@@ -939,146 +705,6 @@ typedef enum _RTL8192SUSB_LOOPBACK{
 }RTL8192SUSB_LOOPBACK_E;
 //#endif
 
-
-#if 0
-/* due to rtl8192 firmware */
-typedef enum _desc_packet_type_e{
-	DESC_PACKET_TYPE_INIT = 0,
-	DESC_PACKET_TYPE_NORMAL = 1,
-}desc_packet_type_e;
-
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		//from header file
-}firmware_source_e, *pfirmware_source_e;
-
-typedef enum _firmware_status{
-	FW_STATUS_0_INIT = 0,
-	FW_STATUS_1_MOVE_BOOT_CODE = 1,
-	FW_STATUS_2_MOVE_MAIN_CODE = 2,
-	FW_STATUS_3_TURNON_CPU = 3,
-	FW_STATUS_4_MOVE_DATA_CODE = 4,
-	FW_STATUS_5_READY = 5,
-}firmware_status_e;
-
-typedef struct _rt_firmare_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
-
-#ifdef RTL8192SU
-//--------------------------------------------------------------------------------
-// 8192S Firmware related
-//--------------------------------------------------------------------------------
-typedef  struct _RT_8192S_FIRMWARE_PRIV { //8-bytes alignment required
-
-	//--- LONG WORD 0 ----
-	u32		RegulatoryClass;
-	u32		Rfintfs;
-
-	//--- LONG WORD 1 ----
-	u32		ChipVer;
-	u32		HCISel;
-
-	//--- LONG WORD 2 ----
-	u32		IBKMode;
-	u32		Rsvd00;
-
-	//--- LONG WORD 3 ----
-	u32		Rsvd01;
-	u8		Qos_En;			// QoS enable
-	u8		En40MHz;		// 40MHz BW enable
-	u8		AMSDU2AMPDU_En;	//14181 convert AMSDU to AMPDU, 0: disable
-	u8		AMPDU_En;		//111n AMPDU/AMSDU enable
-
-	//--- LONG WORD 4 ----
-	u8		rate_control_offload;//FW offloads, 0: driver handles
-	u8		aggregation_offload;	// FW offloads, 0: driver handles
-	u8		beacon_offload;	//FW offloads, 0: driver handles
-	u8		MLME_offload;	// FW offloads, 0: driver handles
-	u8		hwpc_offload;	// FW offloads, 0: driver handles
-	u8		tcp_checksum_offload;	//FW offloads, 0: driver handles
-	u8		tcp_offload;			//FW offloads, 0: driver handles
-	u8		ps_control_offload;	//FW offloads, 0: driver handles
-
-	//--- LONG WORD 5 ----
-	u8		WWLAN_Offload;	// FW offloads, 0: driver handles
-	u8		MPMode;	// normal mode, 0: MP mode;
-	u16		Version;		//0x8000 ~ 0x8FFF for FPGA version, 0x0000 ~ 0x7FFF for ASIC version,
-	u16		Signature;	//0x12: 8712, 0x92: 8192S
-	u16		Rsvd11;
-
-//	u32		rsvd1;
-//	u32		wireless_band;	//no A-band exists in 8712
-}RT_8192S_FIRMWARE_PRIV, *PRT_8192S_FIRMWARE_PRIV;
-
-typedef struct _RT_8192S_FIRMWARE_HDR {//8-byte alinment required
-
-	//--- LONG WORD 0 ----
-	u16		Signature;
-	u16		Version;		  //0x8000 ~ 0x8FFF for FPGA version, 0x0000 ~ 0x7FFF for ASIC version,
-	u32		DMEMSize;    //define the size of boot loader
-
-
-	//--- LONG WORD 1 ----
-	u32		IMG_IMEM_SIZE;    //define the size of FW in IMEM
-	u32		IMG_SRAM_SIZE;    //define the size of FW in SRAM
-
-	//--- LONG WORD 2 ----
-	u32		FW_PRIV_SIZE;       //define the size of DMEM variable
-	u32		Rsvd0;
-
-	//--- LONG WORD 3 ----
-	u32		Rsvd1;
-	u32		Rsvd2;
-
-	RT_8192S_FIRMWARE_PRIV	FWPriv;
-
-}RT_8192S_FIRMWARE_HDR, *PRT_8192S_FIRMWARE_HDR;
-
-#define	RT_8192S_FIRMWARE_HDR_SIZE	80
-
-typedef enum _FIRMWARE_8192S_STATUS{
-	FW_STATUS_INIT = 0,
-	FW_STATUS_LOAD_IMEM = 1,
-	FW_STATUS_LOAD_EMEM = 2,
-	FW_STATUS_LOAD_DMEM = 3,
-	FW_STATUS_READY = 4,
-}FIRMWARE_8192S_STATUS;
-
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000   //64k
-
-typedef struct _rt_firmware{
-	firmware_source_e	eFWSource;
-	PRT_8192S_FIRMWARE_HDR		pFwHeader;
-	FIRMWARE_8192S_STATUS	FWStatus;
-	u8		FwIMEM[64000];
-	u8		FwEMEM[64000];
-	u32		FwIMEMLen;
-	u32		FwEMEMLen;
-	u8		szFwTmpBuffer[164000];
-	u16		CmdPacketFragThresold;
-	//firmware_status_e       firmware_status;//in 92u temp FIXLZM
-	//u16               cmdpacket_frag_thresold;//in 92u temp FIXLZM
-	//u8                firmware_buf[RTL8190_MAX_FIRMWARE_CODE_SIZE];//in 92u temp FIXLZM
-	//u16               firmware_buf_size;//in 92u temp FIXLZM
-
-}rt_firmware, *prt_firmware;
-#else
-typedef struct _rt_firmware{
-	firmware_status_e firmware_status;
-	u16               cmdpacket_frag_thresold;
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000   //64k
-#define MAX_FW_INIT_STEP                3
-	u8                firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
-	u16               firmware_buf_size[MAX_FW_INIT_STEP];
-}rt_firmware, *prt_firmware;
-#endif
-typedef struct _rt_firmware_info_819xUsb{
-	u8		sz_info[16];
-}rt_firmware_info_819xUsb, *prt_firmware_info_819xUsb;
-#endif
-
 //+by amy 080507
 #define MAX_RECEIVE_BUFFER_SIZE	9100	// Add this to 9100 bytes to receive A-MSDU from RT-AP
 
@@ -1087,18 +713,6 @@ typedef struct _rt_firmware_info_819xUsb{
 #define NUM_OF_FIRMWARE_QUEUE		10
 #define NUM_OF_PAGES_IN_FW		0x100
 
-#ifdef USE_ONE_PIPE
-#define NUM_OF_PAGE_IN_FW_QUEUE_BE	0x000
-#define NUM_OF_PAGE_IN_FW_QUEUE_BK	0x000
-#define NUM_OF_PAGE_IN_FW_QUEUE_VI	0x0ff
-#define NUM_OF_PAGE_IN_FW_QUEUE_VO	0x000
-#define NUM_OF_PAGE_IN_FW_QUEUE_HCCA	0
-#define NUM_OF_PAGE_IN_FW_QUEUE_CMD	0x0
-#define NUM_OF_PAGE_IN_FW_QUEUE_MGNT	0x00
-#define NUM_OF_PAGE_IN_FW_QUEUE_HIGH	0
-#define NUM_OF_PAGE_IN_FW_QUEUE_BCN	0x0
-#define NUM_OF_PAGE_IN_FW_QUEUE_PUB	0x00
-#else
 
 #define NUM_OF_PAGE_IN_FW_QUEUE_BE	0x020
 #define NUM_OF_PAGE_IN_FW_QUEUE_BK	0x020
@@ -1111,7 +725,6 @@ typedef struct _rt_firmware_info_819xUsb{
 #define NUM_OF_PAGE_IN_FW_QUEUE_BCN	0x4
 #define NUM_OF_PAGE_IN_FW_QUEUE_PUB	0x18
 
-#endif
 
 #define APPLIED_RESERVED_QUEUE_IN_FW	0x80000000
 #define RSVD_FW_QUEUE_PAGE_BK_SHIFT	0x00
@@ -1171,21 +784,6 @@ typedef struct rtl_reg_debug{
         } head;
         unsigned char buf[0xff];
 }rtl_reg_debug;
-
-
-
-
-
-#if 0
-
-typedef struct tx_pendingbuf
-{
-	struct ieee80211_txb *txb;
-	short ispending;
-	short descfrag;
-} tx_pendigbuf;
-
-#endif
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
@@ -1555,11 +1153,7 @@ typedef struct r8192_priv
 //	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t ps_lock;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	struct semaphore mutex;
-#else
         struct mutex mutex;
-#endif
 	spinlock_t rf_lock; //used to lock rf write operation added by wb
 
 	u16 irq_mask;
@@ -1619,11 +1213,9 @@ typedef struct r8192_priv
 /* modified by davad for Rx process */
        struct sk_buff_head rx_queue;
        struct sk_buff_head skb_queue;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct tq_struct qos_activate;
-#else
+
        struct work_struct qos_activate;
-#endif
+
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10];//UART_PRIORITY+1
 
@@ -1653,11 +1245,8 @@ typedef struct r8192_priv
 	u16 rts;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
+
 	struct work_struct reset_wq;
-#else
-	struct tq_struct reset_wq;
-#endif
 
 /**********************************************************/
 	//for rtl819xUsb
@@ -1686,11 +1275,6 @@ typedef struct r8192_priv
 	bool	bDmDisableProtect;
 	bool	bIgnoreDiffRateTxPowerOffset;
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-	u8  EEPROMTxPowerLevelCCK24G[14];		// CCK 2.4G channel 1~14
-	//u8  EEPROMTxPowerLevelOFDM24G[14];	// OFDM 2.4G channel 1~14
-	//u8  EEPROMTxPowerLevelOFDM5G[24];	// OFDM 5G
-#else
 	// For EEPROM TX Power Index like 8190 series
 	u8  EEPROMRfACCKChnl1TxPwLevel[3];	//RF-A CCK Tx Power Level at channel 7
 	u8  EEPROMRfAOfdmChnlTxPwLevel[3];//RF-A CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
@@ -1702,7 +1286,6 @@ typedef struct r8192_priv
 	u8  RfCckChnlAreaTxPwr[2][3];
 	u8  RfOfdmChnlAreaTxPwr1T[2][3];
 	u8  RfOfdmChnlAreaTxPwr2T[2][3];
-#endif
 
 	// Add For EEPROM Efuse switch and  Efuse Shadow map Setting
 	bool		EepromOrEfuse;
@@ -1745,11 +1328,7 @@ typedef struct r8192_priv
 /*PHY related*/
 	BB_REGISTER_DEFINITION_T	PHYRegDef[4];	//Radio A/B/C/D
 	// Read/write are allow for following hardware information variables
-#ifdef RTL8192SU
 	u32	MCSTxPowerLevelOriginalOffset[7];//FIXLZM
-#else
-	u32	MCSTxPowerLevelOriginalOffset[6];
-#endif
 	u32	CCKTxPowerLevelOriginalOffset;
 	u8	TxPowerLevelCCK[14];			// CCK channel 1~14
 	u8	TxPowerLevelOFDM24G[14];		// OFDM 2.4G channel 1~14
@@ -1874,33 +1453,14 @@ typedef struct r8192_priv
 	u16		SifsTime;
 
 	//define work item by amy 080526
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	struct delayed_work update_beacon_wq;
 	struct delayed_work watch_dog_wq;
 	struct delayed_work txpower_tracking_wq;
 	struct delayed_work rfpath_check_wq;
 	struct delayed_work gpio_change_rf_wq;
 	struct delayed_work initialgain_operate_wq;
-#else
-	struct work_struct update_beacon_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct txpower_tracking_wq;
-	struct work_struct rfpath_check_wq;
-	struct work_struct gpio_change_rf_wq;
-	struct work_struct initialgain_operate_wq;
-#endif
+
 	struct workqueue_struct *priv_wq;
-#else
-	/* used for periodly scan */
-	struct tq_struct update_beacon_wq;
-	struct tq_struct txpower_tracking_wq;
-	struct tq_struct rfpath_check_wq;
-	struct tq_struct watch_dog_wq;
-	struct tq_struct gpio_change_rf_wq;
-	struct tq_struct initialgain_operate_wq;
-#endif
 //#ifdef RTL8192SU
 	//lzm add for 8192S
 	 u32 			IntrMask;
@@ -1945,13 +1505,6 @@ typedef struct r8192_priv
 //#endif
 
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	bool		bCurrentRxAggrEnable;
-	bool		bForcedUsbRxAggr;
-	u32		ForcedUsbRxAggrInfo;
-	u32		LastUsbRxAggrInfoSetting;
-	u32		RegUsbRxAggrInfo;
-#endif
 
 
 
@@ -1986,70 +1539,6 @@ typedef enum{
 	UART_PRIORITY //0x0F
 } priority_t;
 
-#if 0
-typedef enum{
-	NIC_8192U = 1,
-	NIC_8190P = 2,
-	NIC_8192E = 3,
-	NIC_8192SE = 4,
-	NIC_8192SU = 5,
-	} nic_t;
-#endif
-
-#if 0 //defined in Qos.h
-//typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW{
-	u8	charData;
-	struct
-	{
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	}f;	// Field
-}ECW, *PECW;
-
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _ACI_AIFSN{
-	u8	charData;
-
-	struct
-	{
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
-	}f;	// Field
-}ACI_AIFSN, *PACI_AIFSN;
-
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM{
-	u32	longData;
-	u8	charData[4];
-
-	struct
-	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	}f;	// Field
-}AC_PARAM, *PAC_PARAM;
-
-#endif
 #ifdef JOHN_HWSEC
 struct ssid_thread {
 	struct net_device *dev;
@@ -2057,14 +1546,9 @@ struct ssid_thread {
 };
 #endif
 
-#ifdef RTL8192SU
 short rtl8192SU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb);
 bool FirmwareDownload92S(struct net_device *dev);
-#else
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
-bool init_firmware(struct net_device *dev);
-#endif
 
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);

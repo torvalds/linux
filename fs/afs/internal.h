@@ -18,10 +18,10 @@
 #include <linux/key.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
+#include <linux/fscache.h>
 
 #include "afs.h"
 #include "afs_vl.h"
-#include "cache.h"
 
 #define AFS_CELL_MAX_ADDRS 15
 

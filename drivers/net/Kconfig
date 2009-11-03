@@ -1738,6 +1738,14 @@ config KS8851
        help
          SPI driver for Micrel KS8851 SPI attached network chip.
 
+config KS8851_MLL
+	tristate "Micrel KS8851 MLL"
+	depends on HAS_IOMEM
+	select MII
+	help
+	  This platform driver is for Micrel KS8851 Address/data bus
+	  multiplexed network chip.
+
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on NET_PCI && PCI
@@ -1875,7 +1883,7 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35 || ARCH_MX25
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
@@ -1933,6 +1941,15 @@ config XILINX_EMACLITE
 	depends on PPC32 || MICROBLAZE
 	help
 	  This driver supports the 10/100 Ethernet Lite from Xilinx.
+
+config BCM63XX_ENET
+	tristate "Broadcom 63xx internal mac support"
+	depends on BCM63XX
+	select MII
+	select PHYLIB
+	help
+	  This driver supports the ethernet MACs in the Broadcom 63xx
+	  MIPS chipset family (BCM63XX).
 
 source "drivers/net/fs_enet/Kconfig"
 
@@ -2465,6 +2482,8 @@ config S6GMAC
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s6gmac.
+
+source "drivers/net/stmmac/Kconfig"
 
 endif # NETDEV_1000
 
@@ -3213,5 +3232,13 @@ config VIRTIO_NET
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config VMXNET3
+       tristate "VMware VMXNET3 ethernet driver"
+       depends on PCI && X86 && INET
+       help
+         This driver supports VMware's vmxnet3 virtual ethernet NIC.
+         To compile this driver as a module, choose M here: the
+         module will be called vmxnet3.
 
 endif # NETDEVICES

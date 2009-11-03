@@ -85,8 +85,21 @@
 #define	MCFSIM_PAR		0xcb		/* Pin Assignment reg (r/w) */
 #endif
 
-#define	MCFSIM_PADDR		0x1c5		/* Parallel Direction (r/w) */
-#define	MCFSIM_PADAT		0x1c9		/* Parallel Port Value (r/w) */
+#define	MCFSIM_PADDR		(MCF_MBAR + 0x1c5)	/* Parallel Direction (r/w) */
+#define	MCFSIM_PADAT		(MCF_MBAR + 0x1c9)	/* Parallel Port Value (r/w) */
+
+/*
+ *	Define system peripheral IRQ usage.
+ */
+#define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
+#define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
+
+/*
+ * Generic GPIO
+ */
+#define MCFGPIO_PIN_MAX		8
+#define MCFGPIO_IRQ_VECBASE	-1
+#define MCFGPIO_IRQ_MAX		-1
 
 /*
  *	Some symbol defines for the Parallel Port Pin Assignment Register
@@ -110,22 +123,6 @@
 #define	MCFSIM_DMA1ICR		MCFSIM_ICR14	/* DMA 1 ICR */
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR15	/* DMA 2 ICR */
 #endif
-
-#if defined(CONFIG_M5206e)
-#define	MCFSIM_IMR_MASKALL	0xfffe		/* All SIM intr sources */
-#endif
-
-/*
- *	Macro to get and set IMR register. It is 16 bits on the 5206.
- */
-#define	mcf_getimr()		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IMR)) = (imr)
-
-#define	mcf_getipr()		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IPR))
 
 /****************************************************************************/
 #endif	/* m5206sim_h */

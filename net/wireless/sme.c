@@ -188,7 +188,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
+static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_bss *bss;
@@ -205,7 +205,7 @@ static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
 			       WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_PRIVACY,
 			       capa);
 	if (!bss)
-		return false;
+		return NULL;
 
 	memcpy(wdev->conn->bssid, bss->bssid, ETH_ALEN);
 	wdev->conn->params.bssid = wdev->conn->bssid;
@@ -213,14 +213,14 @@ static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
 	wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
 	schedule_work(&rdev->conn_work);
 
-	cfg80211_put_bss(bss);
-	return true;
+	return bss;
 }
 
 static void __cfg80211_sme_scan_done(struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_bss *bss;
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -234,7 +234,10 @@ static void __cfg80211_sme_scan_done(struct net_device *dev)
 	    wdev->conn->state != CFG80211_CONN_SCAN_AGAIN)
 		return;
 
-	if (!cfg80211_get_conn_bss(wdev)) {
+	bss = cfg80211_get_conn_bss(wdev);
+	if (bss) {
+		cfg80211_put_bss(bss);
+	} else {
 		/* not found */
 		if (wdev->conn->state == CFG80211_CONN_SCAN_AGAIN)
 			schedule_work(&rdev->conn_work);
@@ -670,6 +673,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_channel *chan;
+	struct cfg80211_bss *bss = NULL;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -758,9 +762,8 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		wdev->conn->params.ssid = wdev->ssid;
 		wdev->conn->params.ssid_len = connect->ssid_len;
 
-		/* don't care about result -- but fill bssid & channel */
-		if (!wdev->conn->params.bssid || !wdev->conn->params.channel)
-			cfg80211_get_conn_bss(wdev);
+		/* see if we have the bss already */
+		bss = cfg80211_get_conn_bss(wdev);
 
 		wdev->sme_state = CFG80211_SME_CONNECTING;
 		wdev->connect_keys = connkeys;
@@ -770,10 +773,11 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			wdev->conn->prev_bssid_valid = true;
 		}
 
-		/* we're good if we have both BSSID and channel */
-		if (wdev->conn->params.bssid && wdev->conn->params.channel) {
+		/* we're good if we have a matching bss struct */
+		if (bss) {
 			wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
 			err = cfg80211_conn_do_work(wdev);
+			cfg80211_put_bss(bss);
 		} else {
 			/* otherwise we'll need to scan for the AP first */
 			err = cfg80211_conn_scan(wdev);

@@ -524,7 +524,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 
 		/* connected jack or spk ? */
 		if (widget->id == snd_soc_dapm_hp || widget->id == snd_soc_dapm_spk ||
-			widget->id == snd_soc_dapm_line)
+		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sources)))
 			return 1;
 	}
 
@@ -573,7 +573,8 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 			return 1;
 
 		/* connected jack ? */
-		if (widget->id == snd_soc_dapm_mic || widget->id == snd_soc_dapm_line)
+		if (widget->id == snd_soc_dapm_mic ||
+		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sinks)))
 			return 1;
 	}
 
@@ -1131,9 +1132,10 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d\n",
 		       w->name, w->power ? "On" : "Off", in, out);
 
-	if (w->active && w->sname)
-		ret += snprintf(buf, PAGE_SIZE - ret, " stream %s active\n",
-				w->sname);
+	if (w->sname)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, " stream %s %s\n",
+				w->sname,
+				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
 		if (p->connect)

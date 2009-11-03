@@ -31,10 +31,6 @@
 #include <mach/gpmc.h>
 #include <mach/usb.h>
 
-static struct omap_uart_config rx51_uart_config = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_lcd_config rx51_lcd_config = {
 	.ctrl_name	= "internal",
 };
@@ -52,7 +48,6 @@ static struct omap_fbmem_config rx51_fbmem2_config = {
 };
 
 static struct omap_board_config_kernel rx51_config[] = {
-	{ OMAP_TAG_UART,	&rx51_uart_config },
 	{ OMAP_TAG_FBMEM,	&rx51_fbmem0_config },
 	{ OMAP_TAG_FBMEM,	&rx51_fbmem1_config },
 	{ OMAP_TAG_FBMEM,	&rx51_fbmem2_config },
@@ -61,6 +56,8 @@ static struct omap_board_config_kernel rx51_config[] = {
 
 static void __init rx51_init_irq(void)
 {
+	omap_board_config = rx51_config;
+	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
@@ -70,8 +67,6 @@ extern void __init rx51_peripherals_init(void);
 
 static void __init rx51_init(void)
 {
-	omap_board_config = rx51_config;
-	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap_serial_init();
 	usb_musb_init();
 	rx51_peripherals_init();

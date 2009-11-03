@@ -40,7 +40,7 @@ static struct platform_device iic_device = {
 };
 
 static struct r8a66597_platdata r8a66597_data = {
-	/* This set zero to all members */
+	.on_chip = 1,
 };
 
 static struct resource usb_host_resources[] = {

@@ -618,7 +618,7 @@ static int test_type(enum event_type type, enum event_type expect)
 }
 
 static int test_type_token(enum event_type type, char *token,
-		    enum event_type expect, char *expect_tok)
+		    enum event_type expect, const char *expect_tok)
 {
 	if (type != expect) {
 		die("Error: expected type %d but read %d",
@@ -650,7 +650,7 @@ static int read_expect_type(enum event_type expect, char **tok)
 	return __read_expect_type(expect, tok, 1);
 }
 
-static int __read_expected(enum event_type expect, char *str, int newline_ok)
+static int __read_expected(enum event_type expect, const char *str, int newline_ok)
 {
 	enum event_type type;
 	char *token;
@@ -668,12 +668,12 @@ static int __read_expected(enum event_type expect, char *str, int newline_ok)
 	return 0;
 }
 
-static int read_expected(enum event_type expect, char *str)
+static int read_expected(enum event_type expect, const char *str)
 {
 	return __read_expected(expect, str, 1);
 }
 
-static int read_expected_item(enum event_type expect, char *str)
+static int read_expected_item(enum event_type expect, const char *str)
 {
 	return __read_expected(expect, str, 0);
 }
@@ -1776,6 +1776,29 @@ static unsigned long long read_size(void *ptr, int size)
 	}
 }
 
+unsigned long long
+raw_field_value(struct event *event, const char *name, void *data)
+{
+	struct format_field *field;
+
+	field = find_any_field(event, name);
+	if (!field)
+		return 0ULL;
+
+	return read_size(data + field->offset, field->size);
+}
+
+void *raw_field_ptr(struct event *event, const char *name, void *data)
+{
+	struct format_field *field;
+
+	field = find_any_field(event, name);
+	if (!field)
+		return NULL;
+
+	return data + field->offset;
+}
+
 static int get_common_info(const char *type, int *offset, int *size)
 {
 	struct event *event;
@@ -1799,7 +1822,7 @@ static int get_common_info(const char *type, int *offset, int *size)
 	return 0;
 }
 
-static int parse_common_type(void *data)
+int trace_parse_common_type(void *data)
 {
 	static int type_offset;
 	static int type_size;
@@ -1832,7 +1855,7 @@ static int parse_common_pid(void *data)
 	return read_size(data + pid_offset, pid_size);
 }
 
-static struct event *find_event(int id)
+struct event *trace_find_event(int id)
 {
 	struct event *event;
 
@@ -1945,10 +1968,11 @@ static const struct flag flags[] = {
 	{ "NET_TX_SOFTIRQ", 2 },
 	{ "NET_RX_SOFTIRQ", 3 },
 	{ "BLOCK_SOFTIRQ", 4 },
-	{ "TASKLET_SOFTIRQ", 5 },
-	{ "SCHED_SOFTIRQ", 6 },
-	{ "HRTIMER_SOFTIRQ", 7 },
-	{ "RCU_SOFTIRQ", 8 },
+	{ "BLOCK_IOPOLL_SOFTIRQ", 5 },
+	{ "TASKLET_SOFTIRQ", 6 },
+	{ "SCHED_SOFTIRQ", 7 },
+	{ "HRTIMER_SOFTIRQ", 8 },
+	{ "RCU_SOFTIRQ", 9 },
 
 	{ "HRTIMER_NORESTART", 0 },
 	{ "HRTIMER_RESTART", 1 },
@@ -2420,8 +2444,8 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 	int type;
 	int pid;
 
-	type = parse_common_type(next->data);
-	event = find_event(type);
+	type = trace_parse_common_type(next->data);
+	event = trace_find_event(type);
 	if (!event)
 		return NULL;
 
@@ -2502,8 +2526,8 @@ print_graph_entry_leaf(struct event *event, void *data, struct record *ret_rec)
 	int type;
 	int i;
 
-	type = parse_common_type(ret_rec->data);
-	ret_event = find_event(type);
+	type = trace_parse_common_type(ret_rec->data);
+	ret_event = trace_find_event(type);
 
 	field = find_field(ret_event, "rettime");
 	if (!field)
@@ -2696,11 +2720,13 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	nsecs -= secs * NSECS_PER_SEC;
 	usecs = nsecs / NSECS_PER_USEC;
 
-	type = parse_common_type(data);
+	type = trace_parse_common_type(data);
 
-	event = find_event(type);
-	if (!event)
-		die("ug! no event found for type %d", type);
+	event = trace_find_event(type);
+	if (!event) {
+		printf("ug! no event found for type %d\n", type);
+		return;
+	}
 
 	pid = parse_common_pid(data);
 

@@ -38,11 +38,13 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xffe00000" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7763 || \
 				CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7366 || \
 				CPU_SUBTYPE_SH7343
-	default "0xffea0000" if CPU_SUBTYPE_SH7785
+	default "0xfe4c0000" if CPU_SUBTYPE_SH7757
+	default "0xffeb0000" if CPU_SUBTYPE_SH7785
 	default "0xffeb0000" if CPU_SUBTYPE_SH7786
 	default "0xfffe8000" if CPU_SUBTYPE_SH7203
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206 || CPU_SUBTYPE_SH7263
 	default "0xffe80000" if CPU_SH4
+	default "0xa4000150" if CPU_SH3
 	default "0x00000000"
 
 config EARLY_PRINTK
@@ -61,12 +63,14 @@ config EARLY_PRINTK
 	  select both the EARLY_SCIF_CONSOLE and SH_STANDARD_BIOS, using
 	  the kernel command line option to toggle back and forth.
 
-config DEBUG_STACKOVERFLOW
+config STACK_DEBUG
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
+	  drops below a certain limit. Saying Y here will add overhead to
+	  every function call and will therefore incur a major
+	  performance hit. Most users should say N.
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -107,6 +111,14 @@ config DUMP_CODE
 
 	  Those looking for more verbose debugging output should say Y.
 
+config DWARF_UNWINDER
+	bool "Enable the DWARF unwinder for stacktraces"
+	select FRAME_POINTER
+	default n
+	help
+	  Enabling this option will make stacktraces more accurate, at
+	  the cost of an increase in overall kernel size.
+
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
 	depends on DEBUG_KERNEL
@@ -122,5 +134,10 @@ config SH_NO_BSS_INIT
 config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
+
+config MCOUNT
+	def_bool y
+	depends on SUPERH32
+	depends on STACK_DEBUG || FUNCTION_TRACER
 
 endmenu

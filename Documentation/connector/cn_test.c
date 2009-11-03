@@ -34,7 +34,7 @@ static char cn_test_name[] = "cn_test";
 static struct sock *nls;
 static struct timer_list cn_test_timer;
 
-static void cn_test_callback(struct cn_msg *msg)
+static void cn_test_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	pr_info("%s: %lu: idx=%x, val=%x, seq=%u, ack=%u, len=%d: %s.\n",
 	        __func__, jiffies, msg->id.idx, msg->id.val,

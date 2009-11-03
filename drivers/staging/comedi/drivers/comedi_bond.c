@@ -132,8 +132,8 @@ struct BondingBoard {
 
 static const struct BondingBoard bondingBoards[] = {
 	{
-		.name =	MODULE_NAME,
-	},
+	 .name = MODULE_NAME,
+	 },
 };
 
 /*
@@ -176,7 +176,8 @@ struct Private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int bonding_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int bonding_detach(struct comedi_device *dev);
 /** Build Private array of all devices.. */
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it);
@@ -186,10 +187,10 @@ static void doDevUnconfig(struct comedi_device *dev);
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
 static struct comedi_driver driver_bonding = {
-      .driver_name =	MODULE_NAME,
-      .module =		THIS_MODULE,
-      .attach =		bonding_attach,
-      .detach =		bonding_detach,
+	.driver_name = MODULE_NAME,
+	.module = THIS_MODULE,
+	.attach = bonding_attach,
+	.detach = bonding_detach,
 	/* It is not necessary to implement the following members if you are
 	 * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -208,15 +209,18 @@ static struct comedi_driver driver_bonding = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      .board_name =	&bondingBoards[0].name,
-      .offset =		sizeof(struct BondingBoard),
-      .num_names =	ARRAY_SIZE(bondingBoards),
+	.board_name = &bondingBoards[0].name,
+	.offset = sizeof(struct BondingBoard),
+	.num_names = ARRAY_SIZE(bondingBoards),
 };
 
-static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data);
-static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data);
+static int bonding_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -224,7 +228,8 @@ static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subd
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int bonding_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
@@ -293,7 +298,8 @@ static int bonding_detach(struct comedi_device *dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
@@ -317,14 +323,14 @@ static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
 		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (unsigned int) (-1);
+			subdevMask = (unsigned int)(-1);
 
 		writeMask = (data[0] >> num_done) & subdevMask;
 		dataBits = (data[1] >> num_done) & subdevMask;
 
 		/* Read/Write the new digital lines */
 		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask,
-				&dataBits) != 2)
+					&dataBits) != 2)
 			return -EINVAL;
 
 		/* Make room for the new bits in data[1], the return value */
@@ -340,7 +346,8 @@ static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+static int bonding_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
@@ -366,7 +373,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subd
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    (io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -435,7 +442,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* Do DIO, as that's all we support now.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
-					sdev + 1)) > -1) {
+							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
 				ERROR("comedi_get_n_channels() returned %d "
@@ -465,8 +472,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			/* ergh.. ugly.. we need to realloc :(  */
 			tmp = devpriv->ndevs * sizeof(bdev);
 			devpriv->devs =
-				Realloc(devpriv->devs,
-				++devpriv->ndevs * sizeof(bdev), tmp);
+			    Realloc(devpriv->devs,
+				    ++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
 				ERROR("Could not allocate memory. "
 				      "Out of memory?");
@@ -478,10 +485,9 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	/** Append dev:subdev to devpriv->name */
 				char buf[20];
 				int left =
-					MAX_BOARD_NAME - strlen(devpriv->name) -
-					1;
+				    MAX_BOARD_NAME - strlen(devpriv->name) - 1;
 				snprintf(buf, sizeof(buf), "%d:%d ", dev->minor,
-					bdev->subdev);
+					 bdev->subdev);
 				buf[sizeof(buf) - 1] = 0;
 				strncat(devpriv->name, buf, left);
 			}

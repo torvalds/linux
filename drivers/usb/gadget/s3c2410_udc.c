@@ -1703,8 +1703,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	dprintk(DEBUG_NORMAL,"usb_gadget_register_driver() '%s'\n",
 		driver->driver.name);
 
-	if (driver->disconnect)
-		driver->disconnect(&udc->gadget);
+	driver->unbind(&udc->gadget);
 
 	device_del(&udc->gadget.dev);
 	udc->driver = NULL;

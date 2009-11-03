@@ -188,7 +188,7 @@ segment, the address is sufficient to uniquely identify the device to be
 deleted.
 
 Example:
-# echo eeprom 0x50 > /sys/class/i2c-adapter/i2c-3/new_device
+# echo eeprom 0x50 > /sys/bus/i2c/devices/i2c-3/new_device
 
 While this interface should only be used when in-kernel device declaration
 can't be done, there is a variety of cases where it can be helpful:

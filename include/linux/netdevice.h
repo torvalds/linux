@@ -557,7 +557,7 @@ struct netdev_queue {
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
- * struct net_device_stats* (*get_stats)(struct net_device *dev);
+ * struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
  *	Called when a user wants to get the network device usage
  *	statistics. If not defined, the counters in dev->stats will
  *	be used.
@@ -895,7 +895,7 @@ struct net_device
 	/* class/net/name entry */
 	struct device		dev;
 	/* space for optional statistics and wireless sysfs groups */
-	struct attribute_group  *sysfs_groups[3];
+	const struct attribute_group *sysfs_groups[3];
 
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
@@ -1873,7 +1873,8 @@ extern void		__dev_addr_unsync(struct dev_addr_list **to, int *to_count, struct 
 extern int		dev_set_promiscuity(struct net_device *dev, int inc);
 extern int		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
-extern void		netdev_bonding_change(struct net_device *dev);
+extern void		netdev_bonding_change(struct net_device *dev,
+					      unsigned long event);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);

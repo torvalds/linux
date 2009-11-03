@@ -110,4 +110,14 @@ struct boot_params {
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
 
+enum {
+	X86_SUBARCH_PC = 0,
+	X86_SUBARCH_LGUEST,
+	X86_SUBARCH_XEN,
+	X86_SUBARCH_MRST,
+	X86_NR_SUBARCHS,
+};
+
+
+
 #endif /* _ASM_X86_BOOTPARAM_H */

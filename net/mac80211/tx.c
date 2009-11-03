@@ -367,7 +367,10 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	u32 staflags;
 
-	if (unlikely(!sta || ieee80211_is_probe_resp(hdr->frame_control)))
+	if (unlikely(!sta || ieee80211_is_probe_resp(hdr->frame_control)
+			|| ieee80211_is_auth(hdr->frame_control)
+			|| ieee80211_is_assoc_resp(hdr->frame_control)
+			|| ieee80211_is_reassoc_resp(hdr->frame_control)))
 		return TX_CONTINUE;
 
 	staflags = get_sta_flags(sta);
@@ -1701,7 +1704,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (!is_multicast_ether_addr(hdr.addr1)) {
 		rcu_read_lock();
 		sta = sta_info_get(local, hdr.addr1);
-		if (sta)
+		/* XXX: in the future, use sdata to look up the sta */
+		if (sta && sta->sdata == sdata)
 			sta_flags = get_sta_flags(sta);
 		rcu_read_unlock();
 	}

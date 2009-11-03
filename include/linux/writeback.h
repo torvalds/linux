@@ -50,7 +50,6 @@ struct writeback_control {
 	unsigned encountered_congestion:1; /* An output: a queue is full */
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
-	unsigned for_writepages:1;	/* This is a writepages() call */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned more_io:1;		/* more io to be dispatched */
 	/*
@@ -69,8 +68,8 @@ struct writeback_control {
  */	
 struct bdi_writeback;
 int inode_wait(void *);
-long writeback_inodes_sb(struct super_block *);
-long sync_inodes_sb(struct super_block *);
+void writeback_inodes_sb(struct super_block *);
+void sync_inodes_sb(struct super_block *);
 void writeback_inodes_wbc(struct writeback_control *wbc);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 void wakeup_flusher_threads(long nr_pages);
@@ -111,21 +110,20 @@ extern int laptop_mode;
 extern unsigned long determine_dirtyable_memory(void);
 
 extern int dirty_background_ratio_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 extern int dirty_background_bytes_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 extern int dirty_ratio_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 extern int dirty_bytes_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 
 struct ctl_table;
-struct file;
-int dirty_writeback_centisecs_handler(struct ctl_table *, int, struct file *,
+int dirty_writeback_centisecs_handler(struct ctl_table *, int,
 				      void __user *, size_t *, loff_t *);
 
 void get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,

@@ -36,6 +36,8 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
+#define PREFIX "ACPI: "
+
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_root");
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
@@ -59,20 +61,6 @@ static struct acpi_driver acpi_pci_root_driver = {
 		.remove = acpi_pci_root_remove,
 		.start = acpi_pci_root_start,
 		},
-};
-
-struct acpi_pci_root {
-	struct list_head node;
-	struct acpi_device *device;
-	struct pci_bus *bus;
-	u16 segment;
-	u8 bus_nr;
-
-	u32 osc_support_set;	/* _OSC state of support bits */
-	u32 osc_control_set;	/* _OSC state of control bits */
-	u32 osc_control_qry;	/* the latest _OSC query result */
-
-	u32 osc_queried:1;	/* has _OSC control been queried? */
 };
 
 static LIST_HEAD(acpi_pci_roots);
@@ -317,7 +305,7 @@ static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 	return status;
 }
 
-static struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
+struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 {
 	struct acpi_pci_root *root;
 
@@ -327,6 +315,7 @@ static struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
 struct acpi_handle_node {
 	struct list_head node;
@@ -400,6 +389,17 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 
 		pbus = pdev->subordinate;
 		pci_dev_put(pdev);
+
+		/*
+		 * This function may be called for a non-PCI device that has a
+		 * PCI parent (eg. a disk under a PCI SATA controller).  In that
+		 * case pdev->subordinate will be NULL for the parent.
+		 */
+		if (!pbus) {
+			dev_dbg(&pdev->dev, "Not a PCI-to-PCI bridge\n");
+			pdev = NULL;
+			break;
+		}
 	}
 out:
 	list_for_each_entry_safe(node, tmp, &device_list, node)

@@ -24,7 +24,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_PERF_COUNTERS if (!M386 && !M486)
+	select HAVE_PERF_EVENTS if (!M386 && !M486)
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -85,10 +85,6 @@ config STACKTRACE_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
-
-config FAST_CMPXCHG_LOCAL
-	bool
-	default y
 
 config MMU
 	def_bool y
@@ -325,6 +321,7 @@ config X86_EXTENDED_PLATFORM
 		SGI 320/540 (Visual Workstation)
 		Summit/EXA (IBM x440)
 		Unisys ES7000 IA32 series
+		Moorestown MID devices
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
@@ -384,6 +381,18 @@ config X86_ELAN
 
 	  If unsure, choose "PC-compatible" instead.
 
+config X86_MRST
+       bool "Moorestown MID platform"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
+	  Internet Device(MID) platform. Moorestown consists of two chips:
+	  Lincroft (CPU core, graphics, and memory controller) and Langwell IOH.
+	  Unlike standard x86 PCs, Moorestown does not have many legacy devices
+	  nor standard legacy replacement devices/features. e.g. Moorestown does
+	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
+
 config X86_RDC321X
 	bool "RDC R-321x SoC"
 	depends on X86_32
@@ -418,6 +427,17 @@ config X86_NUMAQ
 	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
 	  of Flat Logical.  You will need a new lynxer.elf file to flash your
 	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
+
+config X86_SUPPORTS_MEMORY_FAILURE
+	bool
+	# MCE code calls memory_failure():
+	depends on X86_MCE
+	# On 32-bit this adds too big of NODES_SHIFT and we run out of page flags:
+	depends on !X86_NUMAQ
+	# On 32-bit SPARSEMEM adds too big of SECTIONS_WIDTH:
+	depends on X86_64 || !SPARSEMEM
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+	default y
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
@@ -471,7 +491,7 @@ if PARAVIRT_GUEST
 source "arch/x86/xen/Kconfig"
 
 config VMI
-	bool "VMI Guest support"
+	bool "VMI Guest support (DEPRECATED)"
 	select PARAVIRT
 	depends on X86_32
 	---help---
@@ -479,6 +499,15 @@ config VMI
 	  (it could be used by other hypervisors in theory too, but is not
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
+
+	  As of September 2009, VMware has started a phased retirement
+	  of this feature from VMware's products. Please see
+	  feature-removal-schedule.txt for details.  If you are
+	  planning to enable this option, please note that you cannot
+	  live migrate a VMI enabled VM to a future VMware product,
+	  which doesn't support VMI. So if you expect your kernel to
+	  seamlessly migrate to newer VMware products, keep this
+	  disabled.
 
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"
@@ -783,41 +812,17 @@ config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	  increased on these systems.
 
 config X86_MCE
-	bool "Machine Check Exception"
+	bool "Machine Check / overheating reporting"
 	---help---
-	  Machine Check Exception support allows the processor to notify the
-	  kernel if it detects a problem (e.g. overheating, component failure).
+	  Machine Check support allows the processor to notify the
+	  kernel if it detects a problem (e.g. overheating, data corruption).
 	  The action the kernel takes depends on the severity of the problem,
-	  ranging from a warning message on the console, to halting the machine.
-	  Your processor must be a Pentium or newer to support this - check the
-	  flags in /proc/cpuinfo for mce.  Note that some older Pentium systems
-	  have a design flaw which leads to false MCE events - hence MCE is
-	  disabled on all P5 processors, unless explicitly enabled with "mce"
-	  as a boot argument.  Similarly, if MCE is built in and creates a
-	  problem on some new non-standard machine, you can boot with "nomce"
-	  to disable it.  MCE support simply ignores non-MCE processors like
-	  the 386 and 486, so nearly everyone can say Y here.
-
-config X86_OLD_MCE
-	depends on X86_32 && X86_MCE
-	bool "Use legacy machine check code (will go away)"
-	default n
-	select X86_ANCIENT_MCE
-	---help---
-	  Use the old i386 machine check code. This is merely intended for
-	  testing in a transition period. Try this if you run into any machine
-	  check related software problems, but report the problem to
-	  linux-kernel.  When in doubt say no.
-
-config X86_NEW_MCE
-	depends on X86_MCE
-	bool
-	default y if (!X86_OLD_MCE && X86_32) || X86_64
+	  ranging from warning messages to halting the machine.
 
 config X86_MCE_INTEL
 	def_bool y
 	prompt "Intel MCE features"
-	depends on X86_NEW_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC
 	---help---
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
@@ -825,14 +830,14 @@ config X86_MCE_INTEL
 config X86_MCE_AMD
 	def_bool y
 	prompt "AMD MCE features"
-	depends on X86_NEW_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC
 	---help---
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
 
 config X86_ANCIENT_MCE
 	def_bool n
-	depends on X86_32
+	depends on X86_32 && X86_MCE
 	prompt "Support for old Pentium 5 / WinChip machine checks"
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
@@ -845,36 +850,16 @@ config X86_MCE_THRESHOLD
 	default y
 
 config X86_MCE_INJECT
-	depends on X86_NEW_MCE
+	depends on X86_MCE
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
 	  If you don't know what a machine check is and you don't do kernel
 	  QA it is safe to say n.
 
-config X86_MCE_NONFATAL
-	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
-	depends on X86_OLD_MCE
-	---help---
-	  Enabling this feature starts a timer that triggers every 5 seconds which
-	  will look at the machine check registers to see if anything happened.
-	  Non-fatal problems automatically get corrected (but still logged).
-	  Disable this if you don't want to see these messages.
-	  Seeing the messages this option prints out may be indicative of dying
-	  or out-of-spec (ie, overclocked) hardware.
-	  This option only does something on certain CPUs.
-	  (AMD Athlon/Duron and Intel Pentium 4)
-
-config X86_MCE_P4THERMAL
-	bool "check for P4 thermal throttling interrupt."
-	depends on X86_OLD_MCE && X86_MCE && (X86_UP_APIC || SMP)
-	---help---
-	  Enabling this feature will cause a message to be printed when the P4
-	  enters thermal throttling.
-
 config X86_THERMAL_VECTOR
 	def_bool y
-	depends on X86_MCE_P4THERMAL || X86_MCE_INTEL
+	depends on X86_MCE_INTEL
 
 config VM86
 	bool "Enable VM86 support" if EMBEDDED
@@ -1234,6 +1219,10 @@ config ARCH_DISCONTIGMEM_ENABLE
 config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA && X86_32
+
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on X86_64 && PROC_KCORE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
@@ -1693,6 +1682,8 @@ source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
 
+source "drivers/sfi/Kconfig"
+
 config X86_APM_BOOT
 	bool
 	default y
@@ -1888,7 +1879,7 @@ config PCI_DIRECT
 
 config PCI_MMCONFIG
 	def_bool y
-	depends on X86_32 && PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
+	depends on X86_32 && PCI && (ACPI || SFI) && (PCI_GOMMCONFIG || PCI_GOANY)
 
 config PCI_OLPC
 	def_bool y
@@ -1926,7 +1917,7 @@ config DMAR_DEFAULT_ON
 config DMAR_BROKEN_GFX_WA
 	def_bool n
 	prompt "Workaround broken graphics drivers (going away soon)"
-	depends on DMAR
+	depends on DMAR && BROKEN
 	---help---
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config

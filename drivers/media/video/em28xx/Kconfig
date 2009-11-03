@@ -36,6 +36,7 @@ config VIDEO_EM28XX_DVB
 	depends on VIDEO_EM28XX && DVB_CORE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
 	select VIDEOBUF_DVB
 	---help---
 	  This adds support for DVB cards based on the

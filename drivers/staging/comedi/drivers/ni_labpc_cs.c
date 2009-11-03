@@ -60,7 +60,7 @@ NI manuals:
 */
 
 #undef LABPC_DEBUG
-/* #define LABPC_DEBUG */   /*  enable debugging messages */
+			    /* #define LABPC_DEBUG *//*  enable debugging messages */
 
 #include "../comedidev.h"
 
@@ -83,32 +83,32 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
-	.name = "daqcard-1200",
-	.device_id = 0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
-	.ai_speed = 10000,
-	.bustype = pcmcia_bustype,
-	.register_layout = labpc_1200_layout,
-	.has_ao = 1,
-	.ai_range_table = &range_labpc_1200_ai,
-	.ai_range_code = labpc_1200_ai_gain_bits,
-	.ai_range_is_unipolar = labpc_1200_is_unipolar,
-	.ai_scan_up = 0,
-	.memory_mapped_io = 0,
-		},
+	 .name = "daqcard-1200",
+	 .device_id = 0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
+	 .ai_speed = 10000,
+	 .bustype = pcmcia_bustype,
+	 .register_layout = labpc_1200_layout,
+	 .has_ao = 1,
+	 .ai_range_table = &range_labpc_1200_ai,
+	 .ai_range_code = labpc_1200_ai_gain_bits,
+	 .ai_range_is_unipolar = labpc_1200_is_unipolar,
+	 .ai_scan_up = 0,
+	 .memory_mapped_io = 0,
+	 },
 	/* duplicate entry, to support using alternate name */
 	{
-	.name = "ni_labpc_cs",
-	.device_id = 0x103,
-	.ai_speed = 10000,
-	.bustype = pcmcia_bustype,
-	.register_layout = labpc_1200_layout,
-	.has_ao = 1,
-	.ai_range_table = &range_labpc_1200_ai,
-	.ai_range_code = labpc_1200_ai_gain_bits,
-	.ai_range_is_unipolar = labpc_1200_is_unipolar,
-	.ai_scan_up = 0,
-	.memory_mapped_io = 0,
-		},
+	 .name = "ni_labpc_cs",
+	 .device_id = 0x103,
+	 .ai_speed = 10000,
+	 .bustype = pcmcia_bustype,
+	 .register_layout = labpc_1200_layout,
+	 .has_ao = 1,
+	 .ai_range_table = &range_labpc_1200_ai,
+	 .ai_range_code = labpc_1200_ai_gain_bits,
+	 .ai_range_is_unipolar = labpc_1200_is_unipolar,
+	 .ai_scan_up = 0,
+	 .memory_mapped_io = 0,
+	 },
 };
 
 /*
@@ -165,7 +165,7 @@ static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-	"ni_labpc.c, based on dummy_cs.c 1.31 2001/08/24 12:13:13";
+    "ni_labpc.c, based on dummy_cs.c 1.31 2001/08/24 12:13:13";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -246,7 +246,7 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCED_PULSE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FORCED_PULSE;
 	link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_PULSE_ID;
 	link->irq.Handler = NULL;
 
@@ -287,7 +287,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 	   detach().
 	 */
 	if (link->dev_node) {
-		((struct local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *)link->priv)->stop = 1;
 		labpc_release(link);
 	}
 
@@ -409,7 +409,7 @@ static void labpc_config(struct pcmcia_device *link)
 
 		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
 			cistpl_mem_t *mem =
-				(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
+			    (cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
 			req.Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
 			req.Attributes |= WIN_ENABLE;
 			req.Base = mem->win[0].host_addr;
@@ -428,7 +428,7 @@ static void labpc_config(struct pcmcia_device *link)
 		/* If we got this far, we're cool! */
 		break;
 
-	      next_entry:
+next_entry:
 		last_ret = pcmcia_get_next_tuple(link, &tuple);
 		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
@@ -470,23 +470,23 @@ static void labpc_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x",
-		dev->node.dev_name, link->conf.ConfigIndex);
+	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-			link->io.BasePort1 + link->io.NumPorts1 - 1);
+		       link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-			link->io.BasePort2 + link->io.NumPorts2 - 1);
+		       link->io.BasePort2 + link->io.NumPorts2 - 1);
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
-			req.Base + req.Size - 1);
+		       req.Base + req.Size - 1);
 	printk("\n");
 
 	return;
 
-      cs_failed:
+cs_failed:
 	labpc_release(link);
 
 }				/* labpc_config */
@@ -545,7 +545,7 @@ struct pcmcia_driver labpc_cs_driver = {
 	.id_table = labpc_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+		.name = dev_info,
 		},
 };
 

@@ -56,7 +56,8 @@ See the source for configuration details.
 
 /* #define PCL724_IRQ   1  no IRQ support now */
 
-static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl724_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int pcl724_detach(struct comedi_device *dev);
 
 struct pcl724_board {
@@ -69,7 +70,6 @@ struct pcl724_board {
 	char can_have96;
 	char is_pet48;
 };
-
 
 static const struct pcl724_board boardtypes[] = {
 	{"pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
@@ -108,7 +108,7 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 }
 
 static int subdev_8255mapped_cb(int dir, int port, int data,
-	unsigned long iobase)
+				unsigned long iobase)
 {
 	int movport = SIZE_8255 * (iobase >> 12);
 
@@ -136,10 +136,10 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iobase = it->options[0];
 	iorange = this_board->io_range;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
-			|| (it->options[1] == 96)))
+					 || (it->options[1] == 96)))
 		iorange = PCL722_96_SIZE;	/*  PCL-724 in 96 DIO configuration */
 	printk("comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
-		this_board->name, iobase);
+	       this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -156,14 +156,15 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
 				printk
-					(", IRQ %u is out of allowed range, DISABLING IT",
-					irq);
+				    (", IRQ %u is out of allowed range, DISABLING IT",
+				     irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq(irq, interrupt_pcl724, 0, "pcl724", dev)) {
+				if (request_irq
+				    (irq, interrupt_pcl724, 0, "pcl724", dev)) {
 					printk
-						(", unable to allocate IRQ %u, DISABLING IT",
-						irq);
+					    (", unable to allocate IRQ %u, DISABLING IT",
+					     irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
 					printk(", irq=%u", irq);
@@ -179,7 +180,7 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	n_subdevices = this_board->numofports;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
-			|| (it->options[1] == 96)))
+					 || (it->options[1] == 96)))
 		n_subdevices = 4;	/*  PCL-724 in 96 DIO configuration */
 
 	ret = alloc_subdevices(dev, n_subdevices);
@@ -189,12 +190,14 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < dev->n_subdevices; i++) {
 		if (this_board->is_pet48) {
 			subdev_8255_init(dev, dev->subdevices + i,
-				subdev_8255mapped_cb,
-				(unsigned long)(dev->iobase + i * 0x1000));
+					 subdev_8255mapped_cb,
+					 (unsigned long)(dev->iobase +
+							 i * 0x1000));
 		} else
 			subdev_8255_init(dev, dev->subdevices + i,
-				subdev_8255_cb,
-				(unsigned long)(dev->iobase + SIZE_8255 * i));
+					 subdev_8255_cb,
+					 (unsigned long)(dev->iobase +
+							 SIZE_8255 * i));
 	};
 
 	return 0;

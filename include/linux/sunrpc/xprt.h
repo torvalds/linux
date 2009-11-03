@@ -124,6 +124,23 @@ struct rpc_xprt_ops {
 	void		(*print_stats)(struct rpc_xprt *xprt, struct seq_file *seq);
 };
 
+/*
+ * RPC transport identifiers
+ *
+ * To preserve compatibility with the historical use of raw IP protocol
+ * id's for transport selection, UDP and TCP identifiers are specified
+ * with the previous values. No such restriction exists for new transports,
+ * except that they may not collide with these values (17 and 6,
+ * respectively).
+ */
+#define XPRT_TRANSPORT_BC       (1 << 31)
+enum xprt_transports {
+	XPRT_TRANSPORT_UDP	= IPPROTO_UDP,
+	XPRT_TRANSPORT_TCP	= IPPROTO_TCP,
+	XPRT_TRANSPORT_BC_TCP	= IPPROTO_TCP | XPRT_TRANSPORT_BC,
+	XPRT_TRANSPORT_RDMA	= 256
+};
+
 struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
@@ -179,6 +196,7 @@ struct rpc_xprt {
 	spinlock_t		reserve_lock;	/* lock slot table */
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
+	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 #if defined(CONFIG_NFS_V4_1)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
@@ -231,6 +249,7 @@ struct xprt_create {
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
+	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
 struct xprt_class {

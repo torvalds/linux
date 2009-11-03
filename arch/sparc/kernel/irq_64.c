@@ -229,7 +229,7 @@ static unsigned int sun4u_compute_tid(unsigned long imap, unsigned long cpuid)
 				tid = ((a << IMAP_AID_SHIFT) |
 				       (n << IMAP_NID_SHIFT));
 				tid &= (IMAP_AID_SAFARI |
-					IMAP_NID_SAFARI);;
+					IMAP_NID_SAFARI);
 			}
 		} else {
 			tid = cpuid << IMAP_TID_SHIFT;

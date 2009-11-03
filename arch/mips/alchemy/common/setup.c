@@ -27,6 +27,7 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 
@@ -52,6 +53,9 @@ void __init plat_mem_setup(void)
 	est_freq -= est_freq % 10000;
 	printk(KERN_INFO "(PRId %08x) @ %lu.%02lu MHz\n", read_c0_prid(),
 	       est_freq / 1000000, ((est_freq % 1000000) * 100) / 1000000);
+
+	/* this is faster than wasting cycles trying to approximate it */
+	preset_lpj = (est_freq >> 1) / HZ;
 
 	_machine_restart = au1000_restart;
 	_machine_halt = au1000_halt;

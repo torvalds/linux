@@ -96,6 +96,20 @@ int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
 int fw_compute_block_crc(u32 *block);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
+static inline struct fw_card *fw_card_get(struct fw_card *card)
+{
+	kref_get(&card->kref);
+
+	return card;
+}
+
+void fw_card_release(struct kref *kref);
+
+static inline void fw_card_put(struct fw_card *card)
+{
+	kref_put(&card->kref, fw_card_release);
+}
+
 
 /* -cdev */
 

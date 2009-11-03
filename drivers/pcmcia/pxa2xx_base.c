@@ -300,25 +300,29 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 	return soc_common_drv_pcmcia_remove(&dev->dev);
 }
 
-static int pxa2xx_drv_pcmcia_suspend(struct platform_device *dev, pm_message_t state)
+static int pxa2xx_drv_pcmcia_suspend(struct device *dev)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(dev);
 }
 
-static int pxa2xx_drv_pcmcia_resume(struct platform_device *dev)
+static int pxa2xx_drv_pcmcia_resume(struct device *dev)
 {
-	pxa2xx_configure_sockets(&dev->dev);
-	return pcmcia_socket_dev_resume(&dev->dev);
+	pxa2xx_configure_sockets(dev);
+	return pcmcia_socket_dev_resume(dev);
 }
+
+static struct dev_pm_ops  pxa2xx_drv_pcmcia_pm_ops = {
+	.suspend	= pxa2xx_drv_pcmcia_suspend,
+	.resume		= pxa2xx_drv_pcmcia_resume,
+};
 
 static struct platform_driver pxa2xx_pcmcia_driver = {
 	.probe		= pxa2xx_drv_pcmcia_probe,
 	.remove		= pxa2xx_drv_pcmcia_remove,
-	.suspend 	= pxa2xx_drv_pcmcia_suspend,
-	.resume 	= pxa2xx_drv_pcmcia_resume,
 	.driver		= {
 		.name	= "pxa2xx-pcmcia",
 		.owner	= THIS_MODULE,
+		.pm	= &pxa2xx_drv_pcmcia_pm_ops,
 	},
 };
 

@@ -250,7 +250,7 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 
 static void flush_bg_queue(struct fuse_conn *fc)
 {
-	while (fc->active_background < FUSE_MAX_BACKGROUND &&
+	while (fc->active_background < fc->max_background &&
 	       !list_empty(&fc->bg_queue)) {
 		struct fuse_req *req;
 
@@ -280,11 +280,11 @@ __releases(&fc->lock)
 	list_del(&req->intr_entry);
 	req->state = FUSE_REQ_FINISHED;
 	if (req->background) {
-		if (fc->num_background == FUSE_MAX_BACKGROUND) {
+		if (fc->num_background == fc->max_background) {
 			fc->blocked = 0;
 			wake_up_all(&fc->blocked_waitq);
 		}
-		if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
+		if (fc->num_background == fc->congestion_threshold &&
 		    fc->connected && fc->bdi_initialized) {
 			clear_bdi_congested(&fc->bdi, BLK_RW_SYNC);
 			clear_bdi_congested(&fc->bdi, BLK_RW_ASYNC);
@@ -410,9 +410,9 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 {
 	req->background = 1;
 	fc->num_background++;
-	if (fc->num_background == FUSE_MAX_BACKGROUND)
+	if (fc->num_background == fc->max_background)
 		fc->blocked = 1;
-	if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
+	if (fc->num_background == fc->congestion_threshold &&
 	    fc->bdi_initialized) {
 		set_bdi_congested(&fc->bdi, BLK_RW_SYNC);
 		set_bdi_congested(&fc->bdi, BLK_RW_ASYNC);

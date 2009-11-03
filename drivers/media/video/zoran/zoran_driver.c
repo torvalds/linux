@@ -3172,7 +3172,7 @@ zoran_vm_close (struct vm_area_struct *vma)
 	mutex_unlock(&zr->resource_lock);
 }
 
-static struct vm_operations_struct zoran_vm_ops = {
+static const struct vm_operations_struct zoran_vm_ops = {
 	.open = zoran_vm_open,
 	.close = zoran_vm_close,
 };

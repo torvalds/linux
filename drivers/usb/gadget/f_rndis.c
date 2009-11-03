@@ -286,12 +286,17 @@ static struct usb_gadget_strings *rndis_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static struct sk_buff *rndis_add_header(struct sk_buff *skb)
+static struct sk_buff *rndis_add_header(struct gether *port,
+					struct sk_buff *skb)
 {
-	skb = skb_realloc_headroom(skb, sizeof(struct rndis_packet_msg_type));
-	if (skb)
-		rndis_add_hdr(skb);
-	return skb;
+	struct sk_buff *skb2;
+
+	skb2 = skb_realloc_headroom(skb, sizeof(struct rndis_packet_msg_type));
+	if (skb2)
+		rndis_add_hdr(skb2);
+
+	dev_kfree_skb_any(skb);
+	return skb2;
 }
 
 static void rndis_response_available(void *_rndis)

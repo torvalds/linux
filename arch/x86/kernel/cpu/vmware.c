@@ -24,6 +24,7 @@
 #include <linux/dmi.h>
 #include <asm/div64.h>
 #include <asm/vmware.h>
+#include <asm/x86_init.h>
 
 #define CPUID_VMWARE_INFO_LEAF	0x40000000
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
@@ -47,19 +48,33 @@ static inline int __vmware_platform(void)
 	return eax != (uint32_t)-1 && ebx == VMWARE_HYPERVISOR_MAGIC;
 }
 
-static unsigned long __vmware_get_tsc_khz(void)
+static unsigned long vmware_get_tsc_khz(void)
 {
 	uint64_t tsc_hz;
 	uint32_t eax, ebx, ecx, edx;
 
 	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
 
-	if (ebx == UINT_MAX)
-		return 0;
 	tsc_hz = eax | (((uint64_t)ebx) << 32);
 	do_div(tsc_hz, 1000);
 	BUG_ON(tsc_hz >> 32);
+	printk(KERN_INFO "TSC freq read from hypervisor : %lu.%03lu MHz\n",
+			 (unsigned long) tsc_hz / 1000,
+			 (unsigned long) tsc_hz % 1000);
 	return tsc_hz;
+}
+
+void __init vmware_platform_setup(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
+
+	if (ebx != UINT_MAX)
+		x86_platform.calibrate_tsc = vmware_get_tsc_khz;
+	else
+		printk(KERN_WARNING
+		       "Failed to get TSC freq from the hypervisor\n");
 }
 
 /*
@@ -85,12 +100,6 @@ int vmware_platform(void)
 		return 1;
 
 	return 0;
-}
-
-unsigned long vmware_get_tsc_khz(void)
-{
-	BUG_ON(!vmware_platform());
-	return __vmware_get_tsc_khz();
 }
 
 /*

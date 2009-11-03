@@ -1,0 +1,98 @@
+				TODO
+				====
+
+API
+===
+
+DMA Resource Allocation incomplete
+----------------------------------
+
+The current DMA resource Allocation provides no means of selecting the
+suitability of a DMA controller based on it's supported modes of operation, as
+opposed to the resource allocation mechanisms for master and slave windows:
+
+	struct vme_resource *vme_request_dma(struct device *dev);
+
+As opposed to:
+
+	struct vme_resource * vme_master_request(struct device *dev,
+		vme_address_t aspace, vme_cycle_t cycle, vme_width_t width);
+
+The TSI148 can perform, VME-to-PCI, PCI-to-VME, PATTERN-to-VME, PATTERN-to-PCI,
+VME-to-VME and PCI-to-PCI transfers. The CA91C142 can only provide VME-to-PCI
+and PCI-to-VME.
+
+Add a mechanism to select a VME controller based on source/target type,
+required aspace, cycle and width requirements.
+
+
+Master window broadcast select mask
+-----------------------------------
+
+API currently provides no method to set or get Broadcast Select mask. Suggest
+somthing like:
+
+	int vme_master_bmsk_set (struct vme_resource *res, int mask);
+	int vme_master_bmsk_get (struct vme_resource *res, int *mask);
+
+
+Interrupt Generation
+--------------------
+
+Add optional timeout when waiting for an IACK.
+
+
+CR/CSR Buffer
+-------------
+
+The VME API provides no functions to access the buffer mapped into the CR/CSR
+space.
+
+
+Mailboxes
+---------
+
+Whilst not part of the VME specification, they are provided by a number of
+chips. They are currently not supported at all by the API.
+
+
+Core
+====
+
+- Rename vme_master_resource's "pci_resource" to be bus agnostic.
+- Improve generic sanity checks (Such as does an offset and size fit within a
+  window and parameter checking).
+
+Bridge Support
+==============
+
+Tempe (tsi148)
+--------------
+
+- Driver can currently only support a single bridge.
+- 2eSST Broadcast mode.
+- Mailboxes unsupported.
+- Improve error detection.
+- Control of prefetch size, threshold.
+- Arbiter control
+- Requestor control
+
+Universe II (ca91c142)
+----------------------
+
+- Driver can currently only support a single bridge.
+- DMA unsupported.
+- RMW transactions unsupported.
+- Location Monitors unsupported.
+- Mailboxes unsupported.
+- Error Detection.
+- Control of prefetch size, threshold.
+- Arbiter control
+- Requestor control
+- Slot detection
+
+Universe I (ca91x042)
+---------------------
+
+Currently completely unsupported.
+

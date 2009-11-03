@@ -136,12 +136,12 @@ enum ssp_tx_level_trig {
 
 /**
  * enum SPI Clock Phase - clock phase (Motorola SPI interface only)
- * @SSP_CLK_RISING_EDGE: Receive data on rising edge
- * @SSP_CLK_FALLING_EDGE: Receive data on falling edge
+ * @SSP_CLK_FIRST_EDGE: Receive data on first edge transition (actual direction depends on polarity)
+ * @SSP_CLK_SECOND_EDGE: Receive data on second edge transition (actual direction depends on polarity)
  */
 enum ssp_spi_clk_phase {
-	SSP_CLK_RISING_EDGE,
-	SSP_CLK_FALLING_EDGE
+	SSP_CLK_FIRST_EDGE,
+	SSP_CLK_SECOND_EDGE
 };
 
 /**

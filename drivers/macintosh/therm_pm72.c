@@ -286,6 +286,8 @@ struct fcu_fan_table	fcu_fans[] = {
 	},
 };
 
+static struct i2c_driver therm_pm72_driver;
+
 /*
  * Utility function to create an i2c_client structure and
  * attach it to one of u3 adapters
@@ -318,7 +320,7 @@ static struct i2c_client *attach_i2c_chip(int id, const char *name)
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&clt->detected, &clt->driver->clients);
+	list_add_tail(&clt->detected, &therm_pm72_driver.clients);
 	return clt;
 }
 

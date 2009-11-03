@@ -854,6 +854,7 @@ xfs_dir2_leaf_getdents(
 			 */
 			ra_want = howmany(bufsize + mp->m_dirblksize,
 					  mp->m_sb.sb_blocksize) - 1;
+			ASSERT(ra_want >= 0);
 
 			/*
 			 * If we don't have as many as we want, and we haven't
@@ -1088,7 +1089,8 @@ xfs_dir2_leaf_getdents(
 		 */
 		ptr += length;
 		curoff += length;
-		bufsize -= length;
+		/* bufsize may have just been a guess; don't go negative */
+		bufsize = bufsize > length ? bufsize - length : 0;
 	}
 
 	/*

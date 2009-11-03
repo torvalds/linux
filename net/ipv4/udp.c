@@ -696,6 +696,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	if (rt == NULL) {
 		struct flowi fl = { .oif = ipc.oif,
+				    .mark = sk->sk_mark,
 				    .nl_u = { .ip4_u =
 					      { .daddr = faddr,
 						.saddr = saddr,
@@ -840,6 +841,42 @@ out:
 	return ret;
 }
 
+
+/**
+ *	first_packet_length	- return length of first packet in receive queue
+ *	@sk: socket
+ *
+ *	Drops all bad checksum frames, until a valid one is found.
+ *	Returns the length of found skb, or 0 if none is found.
+ */
+static unsigned int first_packet_length(struct sock *sk)
+{
+	struct sk_buff_head list_kill, *rcvq = &sk->sk_receive_queue;
+	struct sk_buff *skb;
+	unsigned int res;
+
+	__skb_queue_head_init(&list_kill);
+
+	spin_lock_bh(&rcvq->lock);
+	while ((skb = skb_peek(rcvq)) != NULL &&
+		udp_lib_checksum_complete(skb)) {
+		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS,
+				 IS_UDPLITE(sk));
+		__skb_unlink(skb, rcvq);
+		__skb_queue_tail(&list_kill, skb);
+	}
+	res = skb ? skb->len : 0;
+	spin_unlock_bh(&rcvq->lock);
+
+	if (!skb_queue_empty(&list_kill)) {
+		lock_sock(sk);
+		__skb_queue_purge(&list_kill);
+		sk_mem_reclaim_partial(sk);
+		release_sock(sk);
+	}
+	return res;
+}
+
 /*
  *	IOCTL requests applicable to the UDP protocol
  */
@@ -856,21 +893,16 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 	case SIOCINQ:
 	{
-		struct sk_buff *skb;
-		unsigned long amount;
+		unsigned int amount = first_packet_length(sk);
 
-		amount = 0;
-		spin_lock_bh(&sk->sk_receive_queue.lock);
-		skb = skb_peek(&sk->sk_receive_queue);
-		if (skb != NULL) {
+		if (amount)
 			/*
 			 * We will only return the amount
 			 * of this packet since that is all
 			 * that will be read.
 			 */
-			amount = skb->len - sizeof(struct udphdr);
-		}
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
+			amount -= sizeof(struct udphdr);
+
 		return put_user(amount, (int __user *)arg);
 	}
 
@@ -1359,7 +1391,7 @@ void udp_destroy_sock(struct sock *sk)
  *	Socket option code for UDP
  */
 int udp_lib_setsockopt(struct sock *sk, int level, int optname,
-		       char __user *optval, int optlen,
+		       char __user *optval, unsigned int optlen,
 		       int (*push_pending_frames)(struct sock *))
 {
 	struct udp_sock *up = udp_sk(sk);
@@ -1441,7 +1473,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(udp_lib_setsockopt);
 
 int udp_setsockopt(struct sock *sk, int level, int optname,
-		   char __user *optval, int optlen)
+		   char __user *optval, unsigned int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
@@ -1451,7 +1483,7 @@ int udp_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 int compat_udp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
@@ -1539,29 +1571,11 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	unsigned int mask = datagram_poll(file, sock, wait);
 	struct sock *sk = sock->sk;
-	int 	is_lite = IS_UDPLITE(sk);
 
 	/* Check for false positives due to checksum errors */
-	if ((mask & POLLRDNORM) &&
-	    !(file->f_flags & O_NONBLOCK) &&
-	    !(sk->sk_shutdown & RCV_SHUTDOWN)) {
-		struct sk_buff_head *rcvq = &sk->sk_receive_queue;
-		struct sk_buff *skb;
-
-		spin_lock_bh(&rcvq->lock);
-		while ((skb = skb_peek(rcvq)) != NULL &&
-		       udp_lib_checksum_complete(skb)) {
-			UDP_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_INERRORS, is_lite);
-			__skb_unlink(skb, rcvq);
-			kfree_skb(skb);
-		}
-		spin_unlock_bh(&rcvq->lock);
-
-		/* nothing to see, move along */
-		if (skb == NULL)
-			mask &= ~(POLLIN | POLLRDNORM);
-	}
+	if ((mask & POLLRDNORM) && !(file->f_flags & O_NONBLOCK) &&
+	    !(sk->sk_shutdown & RCV_SHUTDOWN) && !first_packet_length(sk))
+		mask &= ~(POLLIN | POLLRDNORM);
 
 	return mask;
 

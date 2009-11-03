@@ -48,14 +48,14 @@ extern volatile unsigned short ppdata;
 static __inline__ unsigned int mcf_getppdata(void)
 {
 	volatile unsigned short *pp;
-	pp = (volatile unsigned short *) (MCF_MBAR + MCFSIM_PADAT);
+	pp = (volatile unsigned short *) MCFSIM_PADAT;
 	return((unsigned int) *pp);
 }
 
 static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
 {
 	volatile unsigned short *pp;
-	pp = (volatile unsigned short *) (MCF_MBAR + MCFSIM_PADAT);
+	pp = (volatile unsigned short *) MCFSIM_PADAT;
 	ppdata = (ppdata & ~mask) | bits;
 	*pp = ppdata;
 }

@@ -7,12 +7,6 @@ menuconfig SAMPLES
 
 if SAMPLES
 
-config SAMPLE_MARKERS
-	tristate "Build markers examples -- loadable modules only"
-	depends on MARKERS && m
-	help
-	  This build markers example modules.
-
 config SAMPLE_TRACEPOINTS
 	tristate "Build tracepoints examples -- loadable modules only"
 	depends on TRACEPOINTS && m

@@ -272,7 +272,7 @@ static physid_mask_t summit_apicid_to_cpu_present(int apicid)
 	return physid_mask_of_physid(0);
 }
 
-static int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
+static int summit_check_phys_apicid_present(int physical_apicid)
 {
 	return 1;
 }

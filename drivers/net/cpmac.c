@@ -1109,7 +1109,7 @@ static int external_switch;
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id;
-	char mdio_bus_id[BUS_ID_SIZE];
+	char mdio_bus_id[MII_BUS_ID_SIZE];
 	struct resource *mem;
 	struct cpmac_priv *priv;
 	struct net_device *dev;
@@ -1118,7 +1118,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 
 	if (external_switch || dumb_switch) {
-		strncpy(mdio_bus_id, "0", BUS_ID_SIZE); /* fixed phys bus */
+		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
 	} else {
 		for (phy_id = 0; phy_id < PHY_MAX_ADDR; phy_id++) {
@@ -1126,7 +1126,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 				continue;
 			if (!cpmac_mii->phy_map[phy_id])
 				continue;
-			strncpy(mdio_bus_id, cpmac_mii->id, BUS_ID_SIZE);
+			strncpy(mdio_bus_id, cpmac_mii->id, MII_BUS_ID_SIZE);
 			break;
 		}
 	}
@@ -1167,7 +1167,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
 	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(dev->dev_addr));
 
-	snprintf(priv->phy_name, BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
+	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
 
 	priv->phy = phy_connect(dev, priv->phy_name, &cpmac_adjust_link, 0,
 						PHY_INTERFACE_MODE_MII);

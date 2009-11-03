@@ -7,6 +7,8 @@ menu "Graphics support"
 
 source "drivers/char/agp/Kconfig"
 
+source "drivers/gpu/vga/Kconfig"
+
 source "drivers/gpu/drm/Kconfig"
 
 config VGASTATE
@@ -1273,26 +1275,6 @@ config FB_MATROX_MAVEN
 	  painting procedures (the secondary head does not use acceleration
 	  engine).
 
-config FB_MATROX_MULTIHEAD
-	bool "Multihead support"
-	depends on FB_MATROX
-	---help---
-	  Say Y here if you have more than one (supported) Matrox device in
-	  your computer and you want to use all of them for different monitors
-	  ("multihead"). If you have only one device, you should say N because
-	  the driver compiled with Y is larger and a bit slower, especially on
-	  ia32 (ix86).
-
-	  If you said M to "Matrox unified accelerated driver" and N here, you
-	  will still be able to use several Matrox devices simultaneously:
-	  insert several instances of the module matroxfb into the kernel
-	  with insmod, supplying the parameter "dev=N" where N is 0, 1, etc.
-	  for the different Matrox devices. This method is slightly faster but
-	  uses 40 KB of kernel memory per Matrox card.
-
-	  There is no need for enabling 'Matrox multihead support' if you have
-	  only one Matrox card in the box.
-
 config FB_RADEON
 	tristate "ATI Radeon display support"
 	depends on FB && PCI
@@ -1867,7 +1849,7 @@ config FB_W100
 
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
-	depends on FB && SUPERH
+	depends on FB && SUPERH && HAVE_CLK
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -2039,6 +2021,17 @@ config FB_SH7760
 	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
 	  panels <= 320 pixel horizontal resolution.
 
+config FB_DA8XX
+	tristate "DA8xx/OMAP-L1xx Framebuffer support"
+	depends on FB && ARCH_DAVINCI_DA8XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is the frame buffer device driver for the TI LCD controller
+	  found on DA8xx/OMAP-L1xx SoCs.
+	  If unsure, say N.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
@@ -2115,12 +2108,31 @@ config FB_MB862XX_LIME
 	---help---
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
 
+config FB_EP93XX
+	tristate "EP93XX frame buffer support"
+	depends on FB && ARCH_EP93XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Framebuffer driver for the Cirrus Logic EP93XX series of processors.
+	  This driver is also available as a module. The module will be called
+	  ep93xx-fb.
+
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
 	depends on FB_MB862XX_LIME
 	---help---
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
+
+config FB_MSM
+	tristate
+	depends on FB && ARCH_MSM
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default y
 
 config FB_MX3
 	tristate "MX3 Framebuffer support"

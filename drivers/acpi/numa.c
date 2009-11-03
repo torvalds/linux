@@ -30,6 +30,8 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 
+#define PREFIX "ACPI: "
+
 #define ACPI_NUMA	0x80000000
 #define _COMPONENT	ACPI_NUMA
 ACPI_MODULE_NAME("numa");

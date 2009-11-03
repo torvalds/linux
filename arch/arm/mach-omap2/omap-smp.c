@@ -54,7 +54,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * for us: do so
 	 */
 
-	gic_cpu_init(0, IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
+	gic_cpu_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
 
 	/*
 	 * Synchronise with the boot thread.

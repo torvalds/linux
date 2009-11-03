@@ -36,6 +36,7 @@
 
 void nilfs_btnode_cache_init_once(struct address_space *btnc)
 {
+	memset(btnc, 0, sizeof(*btnc));
 	INIT_RADIX_TREE(&btnc->page_tree, GFP_ATOMIC);
 	spin_lock_init(&btnc->tree_lock);
 	INIT_LIST_HEAD(&btnc->private_list);
@@ -46,7 +47,7 @@ void nilfs_btnode_cache_init_once(struct address_space *btnc)
 	INIT_LIST_HEAD(&btnc->i_mmap_nonlinear);
 }
 
-static struct address_space_operations def_btnode_aops = {
+static const struct address_space_operations def_btnode_aops = {
 	.sync_page		= block_sync_page,
 };
 

@@ -1,8 +1,6 @@
 #ifndef _TFRC_H_
 #define _TFRC_H_
 /*
- *  net/dccp/ccids/lib/tfrc.h
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
@@ -32,7 +30,7 @@ extern int tfrc_debug;
 /* integer-arithmetic divisions of type (a * 1000000)/b */
 static inline u64 scaled_div(u64 a, u64 b)
 {
-	BUG_ON(b==0);
+	BUG_ON(b == 0);
 	return div64_u64(a * 1000000, b);
 }
 

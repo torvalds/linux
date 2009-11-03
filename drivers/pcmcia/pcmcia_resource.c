@@ -489,7 +489,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	pccard_io_map iomap;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return -ENODEV;;
+		return -ENODEV;
 
 	if (req->IntType & INT_CARDBUS) {
 		ds_dbg(p_dev->socket, 0, "IntType may not be INT_CARDBUS\n");
@@ -902,7 +902,7 @@ struct pcmcia_cfg_mem {
  *
  * pcmcia_loop_config() loops over all configuration options, and calls
  * the driver-specific conf_check() for each one, checking whether
- * it is a valid one.
+ * it is a valid one. Returns 0 on success or errorcode otherwise.
  */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
@@ -915,7 +915,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 	struct pcmcia_cfg_mem *cfg_mem;
 
 	tuple_t *tuple;
-	int ret = -ENODEV;
+	int ret;
 	unsigned int vcc;
 
 	cfg_mem = kzalloc(sizeof(struct pcmcia_cfg_mem), GFP_KERNEL);

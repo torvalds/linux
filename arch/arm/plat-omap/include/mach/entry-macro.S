@@ -41,7 +41,7 @@
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =IO_ADDRESS(OMAP_IH1_BASE)
+		ldr	\base, =OMAP1_IO_ADDRESS(OMAP_IH1_BASE)
 		ldr	\irqnr, [\base, #IRQ_ITR_REG_OFFSET]
 		ldr	\tmp, [\base, #IRQ_MIR_REG_OFFSET]
 		mov	\irqstat, #0xffffffff
@@ -53,7 +53,7 @@
 		cmp	\irqnr, #0
 		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
 		cmpeq	\irqnr, #INT_IH2_IRQ
-		ldreq	\base, =IO_ADDRESS(OMAP_IH2_BASE)
+		ldreq	\base, =OMAP1_IO_ADDRESS(OMAP_IH2_BASE)
 		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
 		addeqs	\irqnr, \irqnr, #32
 1510:
@@ -68,9 +68,9 @@
 
 /* REVISIT: This should be set dynamically if CONFIG_MULTI_OMAP2 is selected */
 #if defined(CONFIG_ARCH_OMAP2420) || defined(CONFIG_ARCH_OMAP2430)
-#define OMAP2_VA_IC_BASE		IO_ADDRESS(OMAP24XX_IC_BASE)
+#define OMAP2_VA_IC_BASE		OMAP2_IO_ADDRESS(OMAP24XX_IC_BASE)
 #elif defined(CONFIG_ARCH_OMAP34XX)
-#define OMAP2_VA_IC_BASE		IO_ADDRESS(OMAP34XX_IC_BASE)
+#define OMAP2_VA_IC_BASE		OMAP2_IO_ADDRESS(OMAP34XX_IC_BASE)
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
 #include <mach/omap44xx.h>

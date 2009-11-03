@@ -81,11 +81,6 @@ struct irq_chip h8300irq_chip = {
 	.end		= h8300_end_irq,
 };
 
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-}
-
 #if defined(CONFIG_RAMKERNEL)
 static unsigned long __init *get_vector_address(void)
 {

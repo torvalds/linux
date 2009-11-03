@@ -44,18 +44,23 @@
  *
  * What we do is just kick off a commit and wait on it.  This will snapshot the
  * inode to disk.
+ *
+ * i_mutex lock is held when entering and exiting this function
  */
 
 int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
-	int ret = 0;
+	int err, ret = 0;
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
 
 	trace_ext4_sync_file(file, dentry, datasync);
 
+	ret = flush_aio_dio_completed_IO(inode);
+	if (ret < 0)
+		goto out;
 	/*
 	 * data=writeback:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
@@ -79,6 +84,9 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		goto out;
 	}
 
+	if (!journal)
+		ret = sync_mapping_buffers(inode->i_mapping);
+
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		goto out;
 
@@ -91,10 +99,12 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 			.sync_mode = WB_SYNC_ALL,
 			.nr_to_write = 0, /* sys_fsync did this */
 		};
-		ret = sync_inode(inode, &wbc);
-		if (journal && (journal->j_flags & JBD2_BARRIER))
-			blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		err = sync_inode(inode, &wbc);
+		if (ret == 0)
+			ret = err;
 	}
 out:
+	if (journal && (journal->j_flags & JBD2_BARRIER))
+		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	return ret;
 }

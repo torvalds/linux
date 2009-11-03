@@ -444,7 +444,7 @@ static irqreturn_t pcf50633_irq(int irq, void *data)
 
 	get_device(pcf->dev);
 	disable_irq_nosync(pcf->irq);
-	schedule_work(&pcf->irq_work);
+	queue_work(pcf->work_queue, &pcf->irq_work);
 
 	return IRQ_HANDLED;
 }
@@ -575,6 +575,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf->dev = &client->dev;
 	pcf->i2c_client = client;
 	pcf->irq = client->irq;
+	pcf->work_queue = create_singlethread_workqueue("pcf50633");
 
 	INIT_WORK(&pcf->irq_work, pcf50633_irq_worker);
 
@@ -651,6 +652,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	return 0;
 
 err:
+	destroy_workqueue(pcf->work_queue);
 	kfree(pcf);
 	return ret;
 }
@@ -661,6 +663,7 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 	int i;
 
 	free_irq(pcf->irq, pcf);
+	destroy_workqueue(pcf->work_queue);
 
 	platform_device_unregister(pcf->input_pdev);
 	platform_device_unregister(pcf->rtc_pdev);

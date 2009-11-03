@@ -1296,7 +1296,7 @@ static int m8xx_remove(struct of_device *ofdev)
 #ifdef CONFIG_PM
 static int m8xx_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&pdev->dev, state);
+	return pcmcia_socket_dev_suspend(&pdev->dev);
 }
 
 static int m8xx_resume(struct platform_device *pdev)

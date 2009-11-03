@@ -267,7 +267,8 @@ struct ixgbe_adapter {
 	enum ixgbe_fc_mode last_lfc_mode;
 
 	/* Interrupt Throttle Rate */
-	u32 itr_setting;
+	u32 rx_itr_setting;
+	u32 tx_itr_setting;
 	u16 eitr_low;
 	u16 eitr_high;
 
@@ -351,7 +352,8 @@ struct ixgbe_adapter {
 	struct ixgbe_hw_stats stats;
 
 	/* Interrupt Throttle Rate */
-	u32 eitr_param;
+	u32 rx_eitr_param;
+	u32 tx_eitr_param;
 
 	unsigned long state;
 	u64 tx_busy;

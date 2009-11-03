@@ -13,13 +13,8 @@
 /*This files contains card eeprom (93c46 or 93c56) programming routines*/
 /*memory is addressed by WORDS*/
 
-#ifdef RTL8192SU
 #include "r8192U.h"
 #include "r8192S_hw.h"
-#else
-#include "r8192U.h"
-#include "r8192U_hw.h"
-#endif
 
 #define EPROM_DELAY 10
 

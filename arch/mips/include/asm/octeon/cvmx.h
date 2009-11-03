@@ -271,7 +271,7 @@ static inline void cvmx_write_csr(uint64_t csr_addr, uint64_t val)
 	 * what RSL read we do, so we choose CVMX_MIO_BOOT_BIST_STAT
 	 * because it is fast and harmless.
 	 */
-	if ((csr_addr >> 40) == (0x800118))
+	if (((csr_addr >> 40) & 0x7ffff) == (0x118))
 		cvmx_read64(CVMX_MIO_BOOT_BIST_STAT);
 }
 

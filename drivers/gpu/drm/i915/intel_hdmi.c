@@ -223,7 +223,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	connector = &intel_output->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_DVID);
+			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
 
 	intel_output->type = INTEL_OUTPUT_HDMI;

@@ -605,9 +605,10 @@ static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst,
 	return 0;
 }
 
-static void invalidate_entry(struct powernow_k8_data *data, unsigned int entry)
+static void invalidate_entry(struct cpufreq_frequency_table *powernow_table,
+		unsigned int entry)
 {
-	data->powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
+	powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
 }
 
 static void print_basics(struct powernow_k8_data *data)
@@ -854,6 +855,10 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		goto err_out;
 	}
 
+	/* fill in data */
+	data->numps = data->acpi_data.state_count;
+	powernow_k8_acpi_pst_values(data, 0);
+
 	if (cpu_family == CPU_HW_PSTATE)
 		ret_val = fill_powernow_table_pstate(data, powernow_table);
 	else
@@ -866,11 +871,8 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	powernow_table[data->acpi_data.state_count].index = 0;
 	data->powernow_table = powernow_table;
 
-	/* fill in data */
-	data->numps = data->acpi_data.state_count;
 	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
-	powernow_k8_acpi_pst_values(data, 0);
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
@@ -914,13 +916,13 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 					"bad value %d.\n", i, index);
 			printk(KERN_ERR PFX "Please report to BIOS "
 					"manufacturer\n");
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 		rdmsr(MSR_PSTATE_DEF_BASE + index, lo, hi);
 		if (!(hi & HW_PSTATE_VALID_MASK)) {
 			dprintk("invalid pstate %d, ignoring\n", index);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 
@@ -941,7 +943,6 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		struct cpufreq_frequency_table *powernow_table)
 {
 	int i;
-	int cntlofreq = 0;
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 fid;
@@ -970,7 +971,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		/* verify frequency is OK */
 		if ((freq > (MAX_FREQ * 1000)) || (freq < (MIN_FREQ * 1000))) {
 			dprintk("invalid freq %u kHz, ignoring\n", freq);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 
@@ -978,29 +979,8 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		 * BIOSs are using "off" to indicate invalid */
 		if (vid == VID_OFF) {
 			dprintk("invalid vid %u, ignoring\n", vid);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
-		}
-
-		/* verify only 1 entry from the lo frequency table */
-		if (fid < HI_FID_TABLE_BOTTOM) {
-			if (cntlofreq) {
-				/* if both entries are the same,
-				 * ignore this one ... */
-				if ((freq != powernow_table[cntlofreq].frequency) ||
-				    (index != powernow_table[cntlofreq].index)) {
-					printk(KERN_ERR PFX
-						"Too many lo freq table "
-						"entries\n");
-					return 1;
-				}
-
-				dprintk("double low frequency table entry, "
-						"ignoring it.\n");
-				invalidate_entry(data, i);
-				continue;
-			} else
-				cntlofreq = i;
 		}
 
 		if (freq != (data->acpi_data.states[i].core_frequency * 1000)) {
@@ -1009,7 +989,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 				(unsigned int)
 				(data->acpi_data.states[i].core_frequency
 				 * 1000));
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 	}

@@ -596,6 +596,10 @@ Found in hex form in kernel source.
 Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
 
 File: cis/LA-PCM.cis
+      cis/PCMLM28.cis
+      cis/DP83903.cis
+      cis/NE2K.cis
+      cis/tamarack.cis
 
 Licence: GPL
 
@@ -616,6 +620,19 @@ Originally developed by the pcmcia-cs project
 Driver: PCMCIA_3C574 - 3Com PCMCIA adapter
 
 File: cis/3CCFEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: SERIAL_8250_CS - Serial PCMCIA adapter
+
+File: cis/MT5634ZLX.cis
+      cis/RS-COM-2P.cis
+      cis/COMpad2.cis
+      cis/COMpad4.cis
 
 Licence: GPL
 
@@ -713,5 +730,126 @@ Licence: Allegedly GPLv2+, but no source visible.
 
 Found in hex form in kernel source, with the following comment:
    Copyright (c) 1998-2002 by Paul Davis <pbd@op.net>
+
+--------------------------------------------------------------------------
+
+Driver: mga - Matrox G200/G400/G550
+
+File: matrox/g200_warp.fw
+File: matrox/g400_warp.fw
+
+Licence:
+
+Copyright 1999 Matrox Graphics Inc.
+All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+MATROX GRAPHICS INC., OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: r128 - ATI Rage 128
+
+File: r128/r128_cce.bin
+
+Licence:
+
+Copyright 2000 Advanced Micro Devices, Inc.
+
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+
+Found in decimal form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: radeon - ATI Radeon
+
+File: radeon/R100_cp.bin
+File: radeon/R200_cp.bin
+File: radeon/R300_cp.bin
+File: radeon/R420_cp.bin
+File: radeon/RS600_cp.bin
+File: radeon/RS690_cp.bin
+File: radeon/R520_cp.bin
+File: radeon/R600_pfp.bin
+File: radeon/R600_me.bin
+File: radeon/RV610_pfp.bin
+File: radeon/RV610_me.bin
+File: radeon/RV630_pfp.bin
+File: radeon/RV630_me.bin
+File: radeon/RV620_pfp.bin
+File: radeon/RV620_me.bin
+File: radeon/RV635_pfp.bin
+File: radeon/RV635_me.bin
+File: radeon/RV670_pfp.bin
+File: radeon/RV670_me.bin
+File: radeon/RS780_pfp.bin
+File: radeon/RS780_me.bin
+File: radeon/RV770_pfp.bin
+File: radeon/RV770_me.bin
+File: radeon/RV730_pfp.bin
+File: radeon/RV730_me.bin
+File: radeon/RV710_pfp.bin
+File: radeon/RV710_me.bin
+
+Licence:
+
+ * Copyright 2007-2009 Advanced Micro Devices, Inc.
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Found in hex form in kernel source.
 
 --------------------------------------------------------------------------

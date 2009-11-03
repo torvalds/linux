@@ -141,8 +141,7 @@ endmenu
 endif
 
 config ISDN_HDLC
-	tristate 
-	depends on HISAX_ST5481
+	tristate
 	select CRC_CCITT
 	select BITREVERSE
 

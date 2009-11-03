@@ -238,7 +238,7 @@ static void enclosure_component_release(struct device *dev)
 	put_device(dev->parent);
 }
 
-static struct attribute_group *enclosure_groups[];
+static const struct attribute_group *enclosure_groups[];
 
 /**
  * enclosure_component_register - add a particular component to an enclosure
@@ -536,7 +536,7 @@ static struct attribute_group enclosure_group = {
 	.attrs = enclosure_component_attrs,
 };
 
-static struct attribute_group *enclosure_groups[] = {
+static const struct attribute_group *enclosure_groups[] = {
 	&enclosure_group,
 	NULL
 };

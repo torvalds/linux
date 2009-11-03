@@ -54,29 +54,15 @@
  * @nr_to_write: how many dirty pages to write-back
  *
  * This function shrinks UBIFS liability by means of writing back some amount
- * of dirty inodes and their pages. Returns the amount of pages which were
- * written back. The returned value does not include dirty inodes which were
- * synchronized.
+ * of dirty inodes and their pages.
  *
  * Note, this function synchronizes even VFS inodes which are locked
  * (@i_mutex) by the caller of the budgeting function, because write-back does
  * not touch @i_mutex.
  */
-static int shrink_liability(struct ubifs_info *c, int nr_to_write)
+static void shrink_liability(struct ubifs_info *c, int nr_to_write)
 {
-	int nr_written;
-
-	nr_written = writeback_inodes_sb(c->vfs_sb);
-	if (!nr_written) {
-		/*
-		 * Re-try again but wait on pages/inodes which are being
-		 * written-back concurrently (e.g., by pdflush).
-		 */
-		nr_written = sync_inodes_sb(c->vfs_sb);
-	}
-
-	dbg_budg("%d pages were written back", nr_written);
-	return nr_written;
+	writeback_inodes_sb(c->vfs_sb);
 }
 
 /**
@@ -729,7 +715,7 @@ long long ubifs_get_free_space_nolock(struct ubifs_info *c)
  * ubifs_get_free_space - return amount of free space.
  * @c: UBIFS file-system description object
  *
- * This function calculates and retuns amount of free space to report to
+ * This function calculates and returns amount of free space to report to
  * user-space.
  */
 long long ubifs_get_free_space(struct ubifs_info *c)

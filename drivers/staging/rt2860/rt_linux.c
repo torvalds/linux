@@ -25,6 +25,7 @@
  *************************************************************************
  */
 
+#include <linux/sched.h>
 #include "rt_config.h"
 
 ULONG	RTDebugLevel = RT_DEBUG_ERROR;
@@ -537,9 +538,9 @@ PNDIS_PACKET duplicate_pkt(
 	if ((skb = __dev_alloc_skb(HdrLen + DataSize + 2, MEM_ALLOC_FLAG)) != NULL)
 	{
 		skb_reserve(skb, 2);
-		NdisMoveMemory(skb->tail, pHeader802_3, HdrLen);
+		NdisMoveMemory(skb_tail_pointer(skb), pHeader802_3, HdrLen);
 		skb_put(skb, HdrLen);
-		NdisMoveMemory(skb->tail, pData, DataSize);
+		NdisMoveMemory(skb_tail_pointer(skb), pData, DataSize);
 		skb_put(skb, DataSize);
 		skb->dev = get_netdev_from_bssid(pAd, FromWhichBSSID);
 		pPacket = OSPKT_TO_RTPKT(skb);
@@ -662,13 +663,9 @@ void announce_802_3_packet(
 	pRxPkt = RTPKT_TO_OSPKT(pPacket);
 
     /* Push up the protocol stack */
-#ifdef IKANOS_VX_1X0
-	IKANOS_DataFrameRx(pAd, pRxPkt->dev, pRxPkt, pRxPkt->len);
-#else
 	pRxPkt->protocol = eth_type_trans(pRxPkt, pRxPkt->dev);
 
 	netif_rx(pRxPkt);
-#endif // IKANOS_VX_1X0 //
 }
 
 
@@ -728,7 +725,6 @@ VOID RTMPSendWirelessEvent(
 	IN	UCHAR			BssIdx,
 	IN	CHAR			Rssi)
 {
-#if WIRELESS_EXT >= 15
 
 	union 	iwreq_data      wrqu;
 	PUCHAR 	pBuf = NULL, pBufPtr = NULL;
@@ -776,7 +772,7 @@ VOID RTMPSendWirelessEvent(
 		if (pAddr)
 			pBufPtr += sprintf(pBufPtr, "(RT2860) STA(%02x:%02x:%02x:%02x:%02x:%02x) ", PRINT_MAC(pAddr));
 		else if (BssIdx < MAX_MBSSID_NUM)
-			pBufPtr += sprintf(pBufPtr, "(RT2860) BSS(ra%d) ", BssIdx);
+			pBufPtr += sprintf(pBufPtr, "(RT2860) BSS(wlan%d) ", BssIdx);
 		else
 			pBufPtr += sprintf(pBufPtr, "(RT2860) ");
 
@@ -805,9 +801,6 @@ VOID RTMPSendWirelessEvent(
 	}
 	else
 		DBGPRINT(RT_DEBUG_ERROR, ("%s : Can't allocate memory for wireless event.\n", __func__));
-#else
-	DBGPRINT(RT_DEBUG_ERROR, ("%s : The Wireless Extension MUST be v15 or newer.\n", __func__));
-#endif  /* WIRELESS_EXT >= 15 */
 }
 
 void send_monitor_packets(
@@ -834,12 +827,7 @@ void send_monitor_packets(
 
     if (pRxBlk->DataSize + sizeof(wlan_ng_prism2_header) > RX_BUFFER_AGGRESIZE)
     {
-#ifndef RT30xx
         DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%zu)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
-#endif
-#ifdef RT30xx
-        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%d)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
-#endif
 		goto err_free_sk_buff;
     }
 

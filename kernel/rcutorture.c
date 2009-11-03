@@ -18,7 +18,7 @@
  * Copyright (C) IBM Corporation, 2005, 2006
  *
  * Authors: Paul E. McKenney <paulmck@us.ibm.com>
- *          Josh Triplett <josh@freedesktop.org>
+ *	  Josh Triplett <josh@freedesktop.org>
  *
  * See also:  Documentation/RCU/torture.txt
  */
@@ -50,7 +50,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and "
-              "Josh Triplett <josh@freedesktop.org>");
+	      "Josh Triplett <josh@freedesktop.org>");
 
 static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int nfakewriters = 4;	/* # fake writer threads */
@@ -110,8 +110,8 @@ struct rcu_torture {
 };
 
 static LIST_HEAD(rcu_torture_freelist);
-static struct rcu_torture *rcu_torture_current = NULL;
-static long rcu_torture_current_version = 0;
+static struct rcu_torture *rcu_torture_current;
+static long rcu_torture_current_version;
 static struct rcu_torture rcu_tortures[10 * RCU_TORTURE_PIPE_LEN];
 static DEFINE_SPINLOCK(rcu_torture_lock);
 static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_count) =
@@ -124,11 +124,11 @@ static atomic_t n_rcu_torture_alloc_fail;
 static atomic_t n_rcu_torture_free;
 static atomic_t n_rcu_torture_mberror;
 static atomic_t n_rcu_torture_error;
-static long n_rcu_torture_timers = 0;
+static long n_rcu_torture_timers;
 static struct list_head rcu_torture_removed;
 static cpumask_var_t shuffle_tmp_mask;
 
-static int stutter_pause_test = 0;
+static int stutter_pause_test;
 
 #if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
 #define RCUTORTURE_RUNNABLE_INIT 1
@@ -267,7 +267,8 @@ struct rcu_torture_ops {
 	int irq_capable;
 	char *name;
 };
-static struct rcu_torture_ops *cur_ops = NULL;
+
+static struct rcu_torture_ops *cur_ops;
 
 /*
  * Definitions for rcu torture testing.
@@ -281,14 +282,17 @@ static int rcu_torture_read_lock(void) __acquires(RCU)
 
 static void rcu_read_delay(struct rcu_random_state *rrsp)
 {
-	long delay;
-	const long longdelay = 200;
+	const unsigned long shortdelay_us = 200;
+	const unsigned long longdelay_ms = 50;
 
-	/* We want there to be long-running readers, but not all the time. */
+	/* We want a short delay sometimes to make a reader delay the grace
+	 * period, and we want a long delay occasionally to trigger
+	 * force_quiescent_state. */
 
-	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay);
-	if (!delay)
-		udelay(longdelay);
+	if (!(rcu_random(rrsp) % (nrealreaders * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms);
+	if (!(rcu_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
+		udelay(shortdelay_us);
 }
 
 static void rcu_torture_read_unlock(int idx) __releases(RCU)
@@ -339,8 +343,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync		= synchronize_rcu,
 	.cb_barrier	= rcu_barrier,
 	.stats		= NULL,
-	.irq_capable 	= 1,
-	.name 		= "rcu"
+	.irq_capable	= 1,
+	.name		= "rcu"
 };
 
 static void rcu_sync_torture_deferred_free(struct rcu_torture *p)
@@ -602,8 +606,6 @@ static struct rcu_torture_ops sched_ops_sync = {
 	.name		= "sched_sync"
 };
 
-extern int rcu_expedited_torture_stats(char *page);
-
 static struct rcu_torture_ops sched_expedited_ops = {
 	.init		= rcu_sync_torture_init,
 	.cleanup	= NULL,
@@ -638,14 +640,15 @@ rcu_torture_writer(void *arg)
 
 	do {
 		schedule_timeout_uninterruptible(1);
-		if ((rp = rcu_torture_alloc()) == NULL)
+		rp = rcu_torture_alloc();
+		if (rp == NULL)
 			continue;
 		rp->rtort_pipe_count = 0;
 		udelay(rcu_random(&rand) & 0x3ff);
 		old_rp = rcu_torture_current;
 		rp->rtort_mbtest = 1;
 		rcu_assign_pointer(rcu_torture_current, rp);
-		smp_wmb();
+		smp_wmb(); /* Mods to old_rp must follow rcu_assign_pointer() */
 		if (old_rp) {
 			i = old_rp->rtort_pipe_count;
 			if (i > RCU_TORTURE_PIPE_LEN)
@@ -1110,7 +1113,7 @@ rcu_torture_init(void)
 		printk(KERN_ALERT "rcutorture: invalid torture type: \"%s\"\n",
 		       torture_type);
 		mutex_unlock(&fullstop_mutex);
-		return (-EINVAL);
+		return -EINVAL;
 	}
 	if (cur_ops->init)
 		cur_ops->init(); /* no "goto unwind" prior to this point!!! */
@@ -1161,7 +1164,7 @@ rcu_torture_init(void)
 		goto unwind;
 	}
 	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
-	                           GFP_KERNEL);
+				   GFP_KERNEL);
 	if (fakewriter_tasks == NULL) {
 		VERBOSE_PRINTK_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
@@ -1170,7 +1173,7 @@ rcu_torture_init(void)
 	for (i = 0; i < nfakewriters; i++) {
 		VERBOSE_PRINTK_STRING("Creating rcu_torture_fakewriter task");
 		fakewriter_tasks[i] = kthread_run(rcu_torture_fakewriter, NULL,
-		                                  "rcu_torture_fakewriter");
+						  "rcu_torture_fakewriter");
 		if (IS_ERR(fakewriter_tasks[i])) {
 			firsterr = PTR_ERR(fakewriter_tasks[i]);
 			VERBOSE_PRINTK_ERRSTRING("Failed to create fakewriter");

@@ -386,6 +386,10 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 		hwmode |= HW_DACK_POL_HIGH;
 	if (priv->devflags & ISP1760_FLAG_DREQ_POL_HIGH)
 		hwmode |= HW_DREQ_POL_HIGH;
+	if (priv->devflags & ISP1760_FLAG_INTR_POL_HIGH)
+		hwmode |= HW_INTR_HIGH_ACT;
+	if (priv->devflags & ISP1760_FLAG_INTR_EDGE_TRIG)
+		hwmode |= HW_INTR_EDGE_TRIG;
 
 	/*
 	 * We have to set this first in case we're in 16-bit mode.

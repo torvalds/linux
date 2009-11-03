@@ -30,7 +30,7 @@ static void Wb35Tx_complete(struct urb * pUrb)
 	struct wbsoft_priv *adapter = pUrb->context;
 	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
-	PMDS		pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 
 	printk("wb35: tx complete\n");
 	// Variable setting
@@ -67,7 +67,7 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 	struct hw_data *	pHwData = &adapter->sHwData;
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u8		*pTxBufferAddress;
-	PMDS		pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
 	int         	retv;
 	u32		SendIndex;

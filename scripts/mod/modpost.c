@@ -691,7 +691,7 @@ static int number_prefix(const char *sym)
  *   The $ syntax is for sections where ld append a dot number
  *   to make section name unique.
  */
-int match(const char *sym, const char * const pat[])
+static int match(const char *sym, const char * const pat[])
 {
 	const char *p;
 	while (*pat) {
@@ -1746,7 +1746,7 @@ static void add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "};\n");
 }
 
-void add_staging_flag(struct buffer *b, const char *name)
+static void add_staging_flag(struct buffer *b, const char *name)
 {
 	static const char *staging_dir = "drivers/staging";
 

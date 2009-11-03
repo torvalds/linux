@@ -6,6 +6,7 @@
 #include <net/iw_handler.h>
 #include <net/lib80211.h>
 #include <linux/kfifo.h>
+#include <linux/sched.h>
 #include "host.h"
 #include "hostcmd.h"
 #include "decl.h"

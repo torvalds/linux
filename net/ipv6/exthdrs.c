@@ -500,17 +500,17 @@ unknown_rh:
 	return -1;
 }
 
-static struct inet6_protocol rthdr_protocol = {
+static const struct inet6_protocol rthdr_protocol = {
 	.handler	=	ipv6_rthdr_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
 };
 
-static struct inet6_protocol destopt_protocol = {
+static const struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
 };
 
-static struct inet6_protocol nodata_protocol = {
+static const struct inet6_protocol nodata_protocol = {
 	.handler	=	dst_discard,
 	.flags		=	INET6_PROTO_NOPOLICY,
 };

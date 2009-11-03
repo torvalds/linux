@@ -243,10 +243,9 @@ setversion_out:
 					me.donor_start, me.len, &me.moved_len);
 		fput(donor_filp);
 
-		if (!err)
-			if (copy_to_user((struct move_extent *)arg,
-				&me, sizeof(me)))
-				return -EFAULT;
+		if (copy_to_user((struct move_extent *)arg, &me, sizeof(me)))
+			return -EFAULT;
+
 		return err;
 	}
 

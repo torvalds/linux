@@ -199,6 +199,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
  * @skb: pointer to socket buffer with CAN frame in data section
  * @loop: loopback for listeners on local CAN sockets (recommended default!)
  *
+ * Due to the loopback this routine must not be called from hardirq context.
+ *
  * Return:
  *  0 on success
  *  -ENETDOWN when the selected interface is down
@@ -278,7 +280,7 @@ int can_send(struct sk_buff *skb, int loop)
 	}
 
 	if (newskb)
-		netif_rx(newskb);
+		netif_rx_ni(newskb);
 
 	/* update statistics */
 	can_stats.tx_frames++;

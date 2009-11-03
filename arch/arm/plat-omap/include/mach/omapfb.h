@@ -276,8 +276,8 @@ typedef int (*omapfb_notifier_callback_t)(struct notifier_block *,
 					  void *fbi);
 
 struct omapfb_mem_region {
-	dma_addr_t	paddr;
-	void		*vaddr;
+	u32		paddr;
+	void __iomem	*vaddr;
 	unsigned long	size;
 	u8		type;		/* OMAPFB_PLANE_MEM_* */
 	unsigned	alloc:1;	/* allocated by the driver */

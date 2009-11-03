@@ -26,7 +26,7 @@
 #include <linux/proc_fs.h>
 #include <linux/nmi.h>
 #include <linux/quotaops.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
@@ -252,7 +252,7 @@ static void sysrq_handle_showregs(int key, struct tty_struct *tty)
 	struct pt_regs *regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
-	perf_counter_print_debug();
+	perf_event_print_debug();
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,

@@ -938,9 +938,12 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
-static int select_task_rq_rt(struct task_struct *p, int sync)
+static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 {
 	struct rq *rq = task_rq(p);
+
+	if (sd_flag != SD_BALANCE_WAKE)
+		return smp_processor_id();
 
 	/*
 	 * If the current task is an RT task, then
@@ -999,7 +1002,7 @@ static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p, int sync)
+static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	if (p->prio < rq->curr->prio) {
 		resched_task(rq->curr);
@@ -1731,6 +1734,17 @@ static void set_curr_task_rt(struct rq *rq)
 	dequeue_pushable_task(rq, p);
 }
 
+unsigned int get_rr_interval_rt(struct task_struct *task)
+{
+	/*
+	 * Time slice is 0 for SCHED_FIFO tasks
+	 */
+	if (task->policy == SCHED_RR)
+		return DEF_TIMESLICE;
+	else
+		return 0;
+}
+
 static const struct sched_class rt_sched_class = {
 	.next			= &fair_sched_class,
 	.enqueue_task		= enqueue_task_rt,
@@ -1758,6 +1772,8 @@ static const struct sched_class rt_sched_class = {
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
+
+	.get_rr_interval	= get_rr_interval_rt,
 
 	.prio_changed		= prio_changed_rt,
 	.switched_to		= switched_to_rt,

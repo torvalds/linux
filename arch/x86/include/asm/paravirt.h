@@ -24,22 +24,6 @@ static inline void load_sp0(struct tss_struct *tss,
 	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
 }
 
-#define ARCH_SETUP			pv_init_ops.arch_setup();
-static inline unsigned long get_wallclock(void)
-{
-	return PVOP_CALL0(unsigned long, pv_time_ops.get_wallclock);
-}
-
-static inline int set_wallclock(unsigned long nowtime)
-{
-	return PVOP_CALL1(int, pv_time_ops.set_wallclock, nowtime);
-}
-
-static inline void (*choose_time_init(void))(void)
-{
-	return pv_time_ops.time_init;
-}
-
 /* The paravirtualized CPUID instruction. */
 static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 			   unsigned int *ecx, unsigned int *edx)
@@ -245,7 +229,6 @@ static inline unsigned long long paravirt_sched_clock(void)
 {
 	return PVOP_CALL0(unsigned long long, pv_time_ops.sched_clock);
 }
-#define calibrate_tsc() (pv_time_ops.get_tsc_khz())
 
 static inline unsigned long long paravirt_read_pmc(int counter)
 {
@@ -361,34 +344,6 @@ static inline void slow_down_io(void)
 	pv_cpu_ops.io_delay();
 	pv_cpu_ops.io_delay();
 #endif
-}
-
-#ifdef CONFIG_X86_LOCAL_APIC
-static inline void setup_boot_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_boot_clock);
-}
-
-static inline void setup_secondary_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_secondary_clock);
-}
-#endif
-
-static inline void paravirt_post_allocator_init(void)
-{
-	if (pv_init_ops.post_allocator_init)
-		(*pv_init_ops.post_allocator_init)();
-}
-
-static inline void paravirt_pagetable_setup_start(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_start)(base);
-}
-
-static inline void paravirt_pagetable_setup_done(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_done)(base);
 }
 
 #ifdef CONFIG_SMP
@@ -885,42 +840,22 @@ static __always_inline void __raw_spin_unlock(struct raw_spinlock *lock)
 
 static inline unsigned long __raw_local_save_flags(void)
 {
-	unsigned long f;
-
-	asm volatile(paravirt_alt(PARAVIRT_CALL)
-		     : "=a"(f)
-		     : paravirt_type(pv_irq_ops.save_fl),
-		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc");
-	return f;
+	return PVOP_CALLEE0(unsigned long, pv_irq_ops.save_fl);
 }
 
 static inline void raw_local_irq_restore(unsigned long f)
 {
-	asm volatile(paravirt_alt(PARAVIRT_CALL)
-		     : "=a"(f)
-		     : PV_FLAGS_ARG(f),
-		       paravirt_type(pv_irq_ops.restore_fl),
-		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc");
+	PVOP_VCALLEE1(pv_irq_ops.restore_fl, f);
 }
 
 static inline void raw_local_irq_disable(void)
 {
-	asm volatile(paravirt_alt(PARAVIRT_CALL)
-		     :
-		     : paravirt_type(pv_irq_ops.irq_disable),
-		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc");
+	PVOP_VCALLEE0(pv_irq_ops.irq_disable);
 }
 
 static inline void raw_local_irq_enable(void)
 {
-	asm volatile(paravirt_alt(PARAVIRT_CALL)
-		     :
-		     : paravirt_type(pv_irq_ops.irq_enable),
-		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc");
+	PVOP_VCALLEE0(pv_irq_ops.irq_enable);
 }
 
 static inline unsigned long __raw_local_irq_save(void)
@@ -947,6 +882,8 @@ static inline unsigned long __raw_local_irq_save(void)
 #undef PVOP_CALL3
 #undef PVOP_VCALL4
 #undef PVOP_CALL4
+
+extern void default_banner(void);
 
 #else  /* __ASSEMBLY__ */
 
@@ -1088,5 +1025,7 @@ static inline unsigned long __raw_local_irq_save(void)
 #endif	/* CONFIG_X86_32 */
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_PARAVIRT */
+#else  /* CONFIG_PARAVIRT */
+# define default_banner x86_init_noop
+#endif /* !CONFIG_PARAVIRT */
 #endif /* _ASM_X86_PARAVIRT_H */

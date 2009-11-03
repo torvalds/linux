@@ -887,8 +887,7 @@ static int hwarc_post_reset(struct usb_interface *iface)
 	struct hwarc *hwarc = usb_get_intfdata(iface);
 	struct uwb_rc *uwb_rc = hwarc->uwb_rc;
 
-	uwb_rc_post_reset(uwb_rc);
-	return 0;
+	return uwb_rc_post_reset(uwb_rc);
 }
 
 /** USB device ID's that we handle */

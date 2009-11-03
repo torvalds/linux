@@ -5,7 +5,7 @@
  * page_is_file_cache - should the page be on a file LRU or anon LRU?
  * @page: the page to test
  *
- * Returns LRU_FILE if @page is page cache page backed by a regular filesystem,
+ * Returns 1 if @page is page cache page backed by a regular filesystem,
  * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
  * Used by functions that manipulate the LRU lists, to sort a page
  * onto the right LRU list.
@@ -16,11 +16,7 @@
  */
 static inline int page_is_file_cache(struct page *page)
 {
-	if (PageSwapBacked(page))
-		return 0;
-
-	/* The page is page cache backed by a normal filesystem. */
-	return LRU_FILE;
+	return !PageSwapBacked(page);
 }
 
 static inline void
@@ -39,21 +35,36 @@ del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 	mem_cgroup_del_lru_list(page, l);
 }
 
+/**
+ * page_lru_base_type - which LRU list type should a page be on?
+ * @page: the page to test
+ *
+ * Used for LRU list index arithmetic.
+ *
+ * Returns the base LRU type - file or anon - @page should be on.
+ */
+static inline enum lru_list page_lru_base_type(struct page *page)
+{
+	if (page_is_file_cache(page))
+		return LRU_INACTIVE_FILE;
+	return LRU_INACTIVE_ANON;
+}
+
 static inline void
 del_page_from_lru(struct zone *zone, struct page *page)
 {
-	enum lru_list l = LRU_BASE;
+	enum lru_list l;
 
 	list_del(&page->lru);
 	if (PageUnevictable(page)) {
 		__ClearPageUnevictable(page);
 		l = LRU_UNEVICTABLE;
 	} else {
+		l = page_lru_base_type(page);
 		if (PageActive(page)) {
 			__ClearPageActive(page);
 			l += LRU_ACTIVE;
 		}
-		l += page_is_file_cache(page);
 	}
 	__dec_zone_state(zone, NR_LRU_BASE + l);
 	mem_cgroup_del_lru_list(page, l);
@@ -68,14 +79,14 @@ del_page_from_lru(struct zone *zone, struct page *page)
  */
 static inline enum lru_list page_lru(struct page *page)
 {
-	enum lru_list lru = LRU_BASE;
+	enum lru_list lru;
 
 	if (PageUnevictable(page))
 		lru = LRU_UNEVICTABLE;
 	else {
+		lru = page_lru_base_type(page);
 		if (PageActive(page))
 			lru += LRU_ACTIVE;
-		lru += page_is_file_cache(page);
 	}
 
 	return lru;

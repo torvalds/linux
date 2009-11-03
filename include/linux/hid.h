@@ -494,6 +494,7 @@ struct hid_device {							/* device report descriptor */
 
 	/* hiddev event handler */
 	int (*hiddev_connect)(struct hid_device *, unsigned int);
+	void (*hiddev_disconnect)(struct hid_device *);
 	void (*hiddev_hid_event) (struct hid_device *, struct hid_field *field,
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
@@ -691,6 +692,7 @@ struct hid_device *hid_allocate_device(void);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
+void hid_disconnect(struct hid_device *hid);
 
 /**
  * hid_map_usage - map usage input bits
@@ -800,6 +802,7 @@ static inline int __must_check hid_hw_start(struct hid_device *hdev,
  */
 static inline void hid_hw_stop(struct hid_device *hdev)
 {
+	hid_disconnect(hdev);
 	hdev->ll_driver->stop(hdev);
 }
 

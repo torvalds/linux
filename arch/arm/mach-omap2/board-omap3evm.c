@@ -92,10 +92,6 @@ static inline void __init omap3evm_init_smc911x(void)
 	gpio_direction_input(OMAP3EVM_ETHR_GPIO_IRQ);
 }
 
-static struct omap_uart_config omap3_evm_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct twl4030_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -163,7 +159,7 @@ static struct twl4030_usb_data omap3evm_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int omap3evm_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_A),
@@ -182,11 +178,15 @@ static int omap3evm_keymap[] = {
 	KEY(3, 3, KEY_P)
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data omap3evm_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 4,
 	.cols		= 4,
-	.keymap		= omap3evm_keymap,
-	.keymapsize	= ARRAY_SIZE(omap3evm_keymap),
 	.rep		= 1,
 };
 
@@ -278,18 +278,19 @@ struct spi_board_info omap3evm_spi_board_info[] = {
 	},
 };
 
+static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
+	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
+};
+
 static void __init omap3_evm_init_irq(void)
 {
+	omap_board_config = omap3_evm_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	omap3evm_init_smc911x();
 }
-
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3_evm_uart_config },
-	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
-};
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
 	&omap3_evm_lcd_device,
@@ -301,8 +302,6 @@ static void __init omap3_evm_init(void)
 	omap3_evm_i2c_init();
 
 	platform_add_devices(omap3_evm_devices, ARRAY_SIZE(omap3_evm_devices));
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	spi_register_board_info(omap3evm_spi_board_info,
 				ARRAY_SIZE(omap3evm_spi_board_info));

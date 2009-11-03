@@ -1,9 +1,5 @@
 /*
- * arch/blackfin/kernel/setup.c
- *
- * Copyright 2004-2006 Analog Devices Inc.
- *
- * Enter bugs at http://blackfin.uclinux.org/
+ * Copyright 2004-2009 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -112,7 +108,7 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 	/*
 	 * In cache coherence emulation mode, we need to have the
 	 * D-cache enabled before running any atomic operation which
-	 * might invove cache invalidation (i.e. spinlock, rwlock).
+	 * might involve cache invalidation (i.e. spinlock, rwlock).
 	 * So printk's are deferred until then.
 	 */
 #ifdef CONFIG_BFIN_ICACHE
@@ -186,6 +182,8 @@ void __init bfin_relocate_l1_mem(void)
 	unsigned long l1_data_a_length;
 	unsigned long l1_data_b_length;
 	unsigned long l2_length;
+
+	early_shadow_stamp();
 
 	/*
 	 * due to the ALIGN(4) in the arch/blackfin/kernel/vmlinux.lds.S
@@ -511,6 +509,7 @@ static __init void memory_setup(void)
 #ifdef CONFIG_MTD_UCLINUX
 	unsigned long mtd_phys = 0;
 #endif
+	unsigned long max_mem;
 
 	_rambase = (unsigned long)_stext;
 	_ramstart = (unsigned long)_end;
@@ -520,7 +519,22 @@ static __init void memory_setup(void)
 		panic("DMA region exceeds memory limit: %lu.",
 			_ramend - _ramstart);
 	}
-	memory_end = _ramend - DMA_UNCACHED_REGION;
+	max_mem = memory_end = _ramend - DMA_UNCACHED_REGION;
+
+#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
+	/* Due to a Hardware Anomaly we need to limit the size of usable
+	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
+	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	 */
+# if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
+	if (max_mem >= 56 * 1024 * 1024)
+		max_mem = 56 * 1024 * 1024;
+# else
+	if (max_mem >= 60 * 1024 * 1024)
+		max_mem = 60 * 1024 * 1024;
+# endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
+#endif				/* ANOMALY_05000263 */
+
 
 #ifdef CONFIG_MPU
 	/* Round up to multiple of 4MB */
@@ -549,22 +563,16 @@ static __init void memory_setup(void)
 
 # if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
-	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
+	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1) {
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#  if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-	/* Due to a Hardware Anomaly we need to limit the size of usable
-	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
-	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
-	 */
-#   if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
-	if (memory_end >= 56 * 1024 * 1024)
-		memory_end = 56 * 1024 * 1024;
-#   else
-	if (memory_end >= 60 * 1024 * 1024)
-		memory_end = 60 * 1024 * 1024;
-#   endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
-#  endif				/* ANOMALY_05000263 */
+
+		/* ROM_FS is XIP, so if we found it, we need to limit memory */
+		if (memory_end > max_mem) {
+			pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+			memory_end = max_mem;
+		}
+	}
 # endif				/* CONFIG_ROMFS_FS */
 
 	/* Since the default MTD_UCLINUX has no magic number, we just blindly
@@ -586,20 +594,14 @@ static __init void memory_setup(void)
 	}
 #endif				/* CONFIG_MTD_UCLINUX */
 
-#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-	/* Due to a Hardware Anomaly we need to limit the size of usable
-	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
-	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	/* We need lo limit memory, since everything could have a text section
+	 * of userspace in it, and expose anomaly 05000263. If the anomaly
+	 * doesn't exist, or we don't need to - then dont.
 	 */
-#if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
-	if (memory_end >= 56 * 1024 * 1024)
-		memory_end = 56 * 1024 * 1024;
-#else
-	if (memory_end >= 60 * 1024 * 1024)
-		memory_end = 60 * 1024 * 1024;
-#endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
-	printk(KERN_NOTICE "Warning: limiting memory to %liMB due to hardware anomaly 05000263\n", memory_end >> 20);
-#endif				/* ANOMALY_05000263 */
+	if (memory_end > max_mem) {
+		pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+		memory_end = max_mem;
+	}
 
 #ifdef CONFIG_MPU
 	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
@@ -693,7 +695,7 @@ static __init void setup_bootmem_allocator(void)
 	sanitize_memmap(bfin_memmap.map, &bfin_memmap.nr_map);
 	print_memory_map("boot memmap");
 
-	/* intialize globals in linux/bootmem.h */
+	/* initialize globals in linux/bootmem.h */
 	find_min_max_pfn();
 	/* pfn of the last usable page frame */
 	if (max_pfn > memory_end >> PAGE_SHIFT)
@@ -805,6 +807,8 @@ static inline int __init get_mem_size(void)
 void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
+
+	enable_shadow_console();
 
 	/* Check to make sure we are running on the right processor */
 	if (unlikely(CPUID != bfin_cpuid()))
@@ -1230,57 +1234,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef __ARCH_SYNC_CORE_ICACHE
 	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
 #endif
-#ifdef CONFIG_BFIN_ICACHE_LOCK
-	switch ((cpudata->imemctl >> 3) & WAYALL_L) {
-	case WAY0_L:
-		seq_printf(m, "Way0 Locked-Down\n");
-		break;
-	case WAY1_L:
-		seq_printf(m, "Way1 Locked-Down\n");
-		break;
-	case WAY01_L:
-		seq_printf(m, "Way0,Way1 Locked-Down\n");
-		break;
-	case WAY2_L:
-		seq_printf(m, "Way2 Locked-Down\n");
-		break;
-	case WAY02_L:
-		seq_printf(m, "Way0,Way2 Locked-Down\n");
-		break;
-	case WAY12_L:
-		seq_printf(m, "Way1,Way2 Locked-Down\n");
-		break;
-	case WAY012_L:
-		seq_printf(m, "Way0,Way1 & Way2 Locked-Down\n");
-		break;
-	case WAY3_L:
-		seq_printf(m, "Way3 Locked-Down\n");
-		break;
-	case WAY03_L:
-		seq_printf(m, "Way0,Way3 Locked-Down\n");
-		break;
-	case WAY13_L:
-		seq_printf(m, "Way1,Way3 Locked-Down\n");
-		break;
-	case WAY013_L:
-		seq_printf(m, "Way 0,Way1,Way3 Locked-Down\n");
-		break;
-	case WAY32_L:
-		seq_printf(m, "Way3,Way2 Locked-Down\n");
-		break;
-	case WAY320_L:
-		seq_printf(m, "Way3,Way2,Way0 Locked-Down\n");
-		break;
-	case WAY321_L:
-		seq_printf(m, "Way3,Way2,Way1 Locked-Down\n");
-		break;
-	case WAYALL_L:
-		seq_printf(m, "All Ways are locked\n");
-		break;
-	default:
-		seq_printf(m, "No Ways are locked\n");
-	}
-#endif
 
 	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
@@ -1346,6 +1299,7 @@ const struct seq_operations cpuinfo_op = {
 
 void __init cmdline_init(const char *r0)
 {
+	early_shadow_stamp();
 	if (r0)
 		strncpy(command_line, r0, COMMAND_LINE_SIZE);
 }

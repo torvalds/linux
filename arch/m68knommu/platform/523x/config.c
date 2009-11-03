@@ -82,64 +82,18 @@ static struct platform_device *m523x_devices[] __initdata = {
 
 /***************************************************************************/
 
-#define	INTC0	(MCF_MBAR + MCFICM_INTC0)
-
-static void __init m523x_uart_init_line(int line, int irq)
-{
-	u32 imr;
-
-	if ((line < 0) || (line > 2))
-		return;
-
-	writeb(0x30+line, (INTC0 + MCFINTC_ICR0 + MCFINT_UART0 + line));
-
-	imr = readl(INTC0 + MCFINTC_IMRL);
-	imr &= ~((1 << (irq - MCFINT_VECBASE)) | 1);
-	writel(imr, INTC0 + MCFINTC_IMRL);
-}
-
-static void __init m523x_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m523x_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m523x_uart_init_line(line, m523x_uart_platform[line].irq);
-}
-
-/***************************************************************************/
-
 static void __init m523x_fec_init(void)
 {
-	u32 imr;
+	u16 par;
+	u8 v;
 
-	/* Unmask FEC interrupts at ColdFire interrupt controller */
-	writeb(0x28, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 23);
-	writeb(0x27, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 27);
-	writeb(0x26, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 29);
-
-	imr = readl(MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
-	imr &= ~0xf;
-	writel(imr, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
-	imr = readl(MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL);
-	imr &= ~0xff800001;
-	writel(imr, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL);
+	/* Set multi-function pins to ethernet use */
+	par = readw(MCF_IPSBAR + 0x100082);
+	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
+	v = readb(MCF_IPSBAR + 0x100078);
+	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
 }
 
-/***************************************************************************/
-
-void mcf_disableall(void)
-{
-	*((volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH)) = 0xffffffff;
-	*((volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL)) = 0xffffffff;
-}
-
-/***************************************************************************/
-
-void mcf_autovector(unsigned int vec)
-{
-	/* Everything is auto-vectored on the 523x */
-}
 /***************************************************************************/
 
 static void m523x_cpu_reset(void)
@@ -152,16 +106,14 @@ static void m523x_cpu_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-	mcf_disableall();
 	mach_reset = m523x_cpu_reset;
-	m523x_uarts_init();
-	m523x_fec_init();
 }
 
 /***************************************************************************/
 
 static int __init init_BSP(void)
 {
+	m523x_fec_init();
 	platform_add_devices(m523x_devices, ARRAY_SIZE(m523x_devices));
 	return 0;
 }

@@ -7,7 +7,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>

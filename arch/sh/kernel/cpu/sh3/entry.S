@@ -53,10 +53,6 @@
  *	syscall #
  *
  */
-#if defined(CONFIG_KGDB)
-NMI_VEC = 0x1c0			! Must catch early for debounce
-#endif
-
 /* Offsets to the stack */
 OFF_R0  =  0		/* Return value. New ABI also arg4 */
 OFF_R1  =  4     	/* New ABI: arg5 */
@@ -70,7 +66,6 @@ OFF_SP	=  (15*4)
 OFF_PC  =  (16*4)
 OFF_SR	=  (16*4+8)
 OFF_TRA	=  (16*4+6*4)
-
 
 #define k0	r0
 #define k1	r1
@@ -113,34 +108,34 @@ OFF_TRA	=  (16*4+6*4)
 #if defined(CONFIG_MMU)
 	.align	2
 ENTRY(tlb_miss_load)
-	bra	call_dpf
+	bra	call_handle_tlbmiss
 	 mov	#0, r5
 
 	.align	2
 ENTRY(tlb_miss_store)
-	bra	call_dpf
+	bra	call_handle_tlbmiss
 	 mov	#1, r5
 
 	.align	2
 ENTRY(initial_page_write)
-	bra	call_dpf
-	 mov	#1, r5
+	bra	call_handle_tlbmiss
+	 mov	#2, r5
 
 	.align	2
 ENTRY(tlb_protection_violation_load)
-	bra	call_dpf
+	bra	call_do_page_fault
 	 mov	#0, r5
 
 	.align	2
 ENTRY(tlb_protection_violation_store)
-	bra	call_dpf
+	bra	call_do_page_fault
 	 mov	#1, r5
 
-call_dpf:
+call_handle_tlbmiss:
+	setup_frame_reg
 	mov.l	1f, r0
 	mov	r5, r8
 	mov.l	@r0, r6
-	mov	r6, r9
 	mov.l	2f, r0
 	sts	pr, r10
 	jsr	@r0
@@ -151,16 +146,23 @@ call_dpf:
 	 lds	r10, pr
 	rts
 	 nop
-0:	mov.l	3f, r0
-	mov	r9, r6
+0:
 	mov	r8, r5
+call_do_page_fault:
+	mov.l	1f, r0
+	mov.l	@r0, r6
+
+	mov.l	3f, r0
+	mov.l	4f, r1
+	mov	r15, r4
 	jmp	@r0
-	 mov	r15, r4
+	 lds	r1, pr
 
 	.align 2
 1:	.long	MMU_TEA
-2:	.long	__do_page_fault
+2:	.long	handle_tlbmiss
 3:	.long	do_page_fault
+4:	.long	ret_from_exception
 
 	.align	2
 ENTRY(address_error_load)
@@ -256,7 +258,7 @@ restore_all:
 	!
 	! Calculate new SR value
 	mov	k3, k2			! original SR value
-	mov	#0xf0, k1
+	mov	#0xfffffff0, k1
 	extu.b	k1, k1
 	not	k1, k1
 	and	k1, k2			! Mask original SR value
@@ -272,21 +274,12 @@ restore_all:
 6:	or	k0, k2			! Set the IMASK-bits
 	ldc	k2, ssr
 	!
-#if defined(CONFIG_KGDB)
-	! Clear in_nmi
-	mov.l	6f, k0
-	mov	#0, k1
-	mov.b	k1, @k0
-#endif
 	mov	k4, r15
 	rte
 	 nop
 
 	.align	2
 5:	.long	0x00001000	! DSP
-#ifdef CONFIG_KGDB
-6:	.long	in_nmi
-#endif
 7:	.long	0x30000000
 
 ! common exception handler
@@ -478,23 +471,6 @@ ENTRY(save_low_regs)
 !
 	.balign 	512,0,512
 ENTRY(handle_interrupt)
-#if defined(CONFIG_KGDB)
-	mov.l	2f, k2
-	! Debounce (filter nested NMI)
-	mov.l	@k2, k0
-	mov.l	9f, k1
-	cmp/eq	k1, k0
-	bf	11f
-	mov.l	10f, k1
-	tas.b	@k1
-	bt	11f
-	rte
-	 nop
-	.align	2
-9:	.long	NMI_VEC
-10:	.long	in_nmi
-11:
-#endif /* defined(CONFIG_KGDB) */
 	sts	pr, k3		! save original pr value in k3
 	mova	exception_data, k0
 
@@ -507,13 +483,49 @@ ENTRY(handle_interrupt)
 	bsr	save_regs	! needs original pr value in k3
 	 mov	#-1, k2		! default vector kept in k2
 
+	setup_frame_reg
+
+	stc	sr, r0	! get status register
+	shlr2	r0
+	and	#0x3c, r0
+	cmp/eq	#0x3c, r0
+	bf	9f
+	TRACE_IRQS_OFF
+9:
+
 	! Setup return address and jump to do_IRQ
 	mov.l	4f, r9		! fetch return address
 	lds	r9, pr		! put return address in pr
 	mov.l	2f, r4
 	mov.l	3f, r9
 	mov.l	@r4, r4		! pass INTEVT vector as arg0
+
+	shlr2	r4
+	shlr	r4
+	mov	r4, r0		! save vector->jmp table offset for later
+
+	shlr2	r4		! vector to IRQ# conversion
+	add	#-0x10, r4
+
+	cmp/pz	r4		! is it a valid IRQ?
+	bt	10f
+
+	/*
+	 * We got here as a result of taking the INTEVT path for something
+	 * that isn't a valid hard IRQ, therefore we bypass the do_IRQ()
+	 * path and special case the event dispatch instead.  This is the
+	 * expected path for the NMI (and any other brilliantly implemented
+	 * exception), which effectively wants regular exception dispatch
+	 * but is unfortunately reported through INTEVT rather than
+	 * EXPEVT.  Grr.
+	 */
+	mov.l	6f, r9
+	mov.l	@(r0, r9), r9
 	jmp	@r9
+	 mov	r15, r8		! trap handlers take saved regs in r8
+
+10:
+	jmp	@r9		! Off to do_IRQ() we go.
 	 mov	r15, r5		! pass saved registers as arg1
 
 ENTRY(exception_none)

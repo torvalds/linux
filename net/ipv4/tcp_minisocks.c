@@ -363,7 +363,7 @@ void tcp_twsk_destructor(struct sock *sk)
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 	if (twsk->tw_md5_keylen)
-		tcp_put_md5sig_pool();
+		tcp_free_md5sig_pool();
 #endif
 }
 
@@ -410,7 +410,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;
-		newtp->snd_ssthresh = 0x7fffffff;
+		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 
 		/* So many TCP implementations out there (incorrectly) count the
 		 * initial SYN frame in their delayed-ACK and congestion control
@@ -644,6 +644,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* If TCP_DEFER_ACCEPT is set, drop bare ACK. */
 	if (inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
 	    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
+		inet_csk(sk)->icsk_accept_queue.rskq_defer_accept--;
 		inet_rsk(req)->acked = 1;
 		return NULL;
 	}

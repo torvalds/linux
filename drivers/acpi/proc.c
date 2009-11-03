@@ -398,6 +398,8 @@ acpi_system_write_wakeup_device(struct file *file,
 
 	if (len > 4)
 		len = 4;
+	if (len < 0)
+		return -EFAULT;
 
 	if (copy_from_user(strbuf, buffer, len))
 		return -EFAULT;

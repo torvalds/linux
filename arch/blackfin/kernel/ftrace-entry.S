@@ -17,8 +17,8 @@
  * only one we can blow away.  With pointer registers, we have P0-P2.
  *
  * Upon entry, the RETS will point to the top of the current profiled
- * function.  And since GCC setup the frame for us, the previous function
- * will be waiting there.  mmmm pie.
+ * function.  And since GCC pushed the previous RETS for us, the previous
+ * function will be waiting there.  mmmm pie.
  */
 ENTRY(__mcount)
 	/* save third function arg early so we can do testing below */
@@ -70,14 +70,14 @@ ENTRY(__mcount)
 	/* setup the tracer function */
 	p0 = r3;
 
-	/* tracer(ulong frompc, ulong selfpc):
-	 *  frompc: the pc that did the call to ...
-	 *  selfpc: ... this location
-	 * the selfpc itself will need adjusting for the mcount call
+	/* function_trace_call(unsigned long ip, unsigned long parent_ip):
+	 *  ip: this point was called by ...
+	 *  parent_ip: ... this function
+	 * the ip itself will need adjusting for the mcount call
 	 */
-	r1 = rets;
-	r0 = [fp + 4];
-	r1 += -MCOUNT_INSN_SIZE;
+	r0 = rets;
+	r1 = [sp + 16];	/* skip the 4 local regs on stack */
+	r0 += -MCOUNT_INSN_SIZE;
 
 	/* call the tracer */
 	call (p0);
@@ -106,9 +106,10 @@ ENTRY(_ftrace_graph_caller)
 	[--sp] = r1;
 	[--sp] = rets;
 
-	r0 = fp;
+	/* prepare_ftrace_return(unsigned long *parent, unsigned long self_addr) */
+	r0 = sp;
 	r1 = rets;
-	r0 += 4;
+	r0 += 16;	/* skip the 4 local regs on stack */
 	r1 += -MCOUNT_INSN_SIZE;
 	call _prepare_ftrace_return;
 

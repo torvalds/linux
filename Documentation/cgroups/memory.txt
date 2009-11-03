@@ -179,6 +179,9 @@ The reclaim algorithm has not been modified for cgroups, except that
 pages that are selected for reclaiming come from the per cgroup LRU
 list.
 
+NOTE: Reclaim does not work for the root cgroup, since we cannot set any
+limits on the root cgroup.
+
 2. Locking
 
 The memory controller uses the following hierarchy
@@ -210,6 +213,7 @@ We can alter the memory limit:
 NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
 mega or gigabytes.
 NOTE: We can write "-1" to reset the *.limit_in_bytes(unlimited).
+NOTE: We cannot set limits on the root cgroup any more.
 
 # cat /cgroups/0/memory.limit_in_bytes
 4194304
@@ -375,7 +379,42 @@ cgroups created below it.
 
 NOTE2: This feature can be enabled/disabled per subtree.
 
-7. TODO
+7. Soft limits
+
+Soft limits allow for greater sharing of memory. The idea behind soft limits
+is to allow control groups to use as much of the memory as needed, provided
+
+a. There is no memory contention
+b. They do not exceed their hard limit
+
+When the system detects memory contention or low memory control groups
+are pushed back to their soft limits. If the soft limit of each control
+group is very high, they are pushed back as much as possible to make
+sure that one control group does not starve the others of memory.
+
+Please note that soft limits is a best effort feature, it comes with
+no guarantees, but it does its best to make sure that when memory is
+heavily contended for, memory is allocated based on the soft limit
+hints/setup. Currently soft limit based reclaim is setup such that
+it gets invoked from balance_pgdat (kswapd).
+
+7.1 Interface
+
+Soft limits can be setup by using the following commands (in this example we
+assume a soft limit of 256 megabytes)
+
+# echo 256M > memory.soft_limit_in_bytes
+
+If we want to change this to 1G, we can at any time use
+
+# echo 1G > memory.soft_limit_in_bytes
+
+NOTE1: Soft limits take effect over a long period of time, since they involve
+       reclaiming memory for balancing between memory cgroups
+NOTE2: It is recommended to set the soft limit always below the hard limit,
+       otherwise the hard limit will take precedence.
+
+8. TODO
 
 1. Add support for accounting huge pages (as a separate controller)
 2. Make per-cgroup scanner reclaim not-shared pages first

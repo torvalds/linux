@@ -55,6 +55,7 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
+void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG
 /* General debugging messages */
@@ -167,6 +168,7 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_dump_sv(sv)              ({})
 #define ubi_dbg_dump_seb(seb, type)      ({})
 #define ubi_dbg_dump_mkvol_req(req)      ({})
+#define ubi_dbg_dump_flash(ubi, pnum, offset, len) ({})
 
 #define UBI_IO_DEBUG               0
 #define DBG_DISABLE_BGT            0

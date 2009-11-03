@@ -41,7 +41,6 @@
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format , MY_NAME , ## arg)
 
 #define	METHOD_NAME__SUN	"_SUN"
-#define	METHOD_NAME__HPP	"_HPP"
 #define	METHOD_NAME_OSHP	"OSHP"
 
 static int debug_acpi;
@@ -215,80 +214,41 @@ acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 static acpi_status
 acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 {
-	acpi_status		status;
-	u8			nui[4];
-	struct acpi_buffer	ret_buf = { 0, NULL};
-	struct acpi_buffer	string = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object	*ext_obj, *package;
-	int			i, len = 0;
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *package, *fields;
+	int i;
 
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-
-	/* Clear the return buffer with zeros */
 	memset(hpp, 0, sizeof(struct hotplug_params));
 
-	/* get _hpp */
-	status = acpi_evaluate_object(handle, METHOD_NAME__HPP, NULL, &ret_buf);
-	switch (status) {
-	case AE_BUFFER_OVERFLOW:
-		ret_buf.pointer = kmalloc (ret_buf.length, GFP_KERNEL);
-		if (!ret_buf.pointer) {
-			printk(KERN_ERR "%s:%s alloc for _HPP fail\n",
-				__func__, (char *)string.pointer);
-			kfree(string.pointer);
-			return AE_NO_MEMORY;
-		}
-		status = acpi_evaluate_object(handle, METHOD_NAME__HPP,
-				NULL, &ret_buf);
-		if (ACPI_SUCCESS(status))
-			break;
-	default:
-		if (ACPI_FAILURE(status)) {
-			pr_debug("%s:%s _HPP fail=0x%x\n", __func__,
-				(char *)string.pointer, status);
-			kfree(string.pointer);
-			return status;
-		}
-	}
+	status = acpi_evaluate_object(handle, "_HPP", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
 
-	ext_obj = (union acpi_object *) ret_buf.pointer;
-	if (ext_obj->type != ACPI_TYPE_PACKAGE) {
-		printk(KERN_ERR "%s:%s _HPP obj not a package\n", __func__,
-				(char *)string.pointer);
+	package = (union acpi_object *) buffer.pointer;
+	if (package->type != ACPI_TYPE_PACKAGE ||
+	    package->package.count != 4) {
 		status = AE_ERROR;
-		goto free_and_return;
+		goto exit;
 	}
 
-	len = ext_obj->package.count;
-	package = (union acpi_object *) ret_buf.pointer;
-	for ( i = 0; (i < len) || (i < 4); i++) {
-		ext_obj = (union acpi_object *) &package->package.elements[i];
-		switch (ext_obj->type) {
-		case ACPI_TYPE_INTEGER:
-			nui[i] = (u8)ext_obj->integer.value;
-			break;
-		default:
-			printk(KERN_ERR "%s:%s _HPP obj type incorrect\n",
-				__func__, (char *)string.pointer);
+	fields = package->package.elements;
+	for (i = 0; i < 4; i++) {
+		if (fields[i].type != ACPI_TYPE_INTEGER) {
 			status = AE_ERROR;
-			goto free_and_return;
+			goto exit;
 		}
 	}
 
 	hpp->t0 = &hpp->type0_data;
-	hpp->t0->cache_line_size = nui[0];
-	hpp->t0->latency_timer = nui[1];
-	hpp->t0->enable_serr = nui[2];
-	hpp->t0->enable_perr = nui[3];
+	hpp->t0->revision        = 1;
+	hpp->t0->cache_line_size = fields[0].integer.value;
+	hpp->t0->latency_timer   = fields[1].integer.value;
+	hpp->t0->enable_serr     = fields[2].integer.value;
+	hpp->t0->enable_perr     = fields[3].integer.value;
 
-	pr_debug("  _HPP: cache_line_size=0x%x\n", hpp->t0->cache_line_size);
-	pr_debug("  _HPP: latency timer  =0x%x\n", hpp->t0->latency_timer);
-	pr_debug("  _HPP: enable SERR    =0x%x\n", hpp->t0->enable_serr);
-	pr_debug("  _HPP: enable PERR    =0x%x\n", hpp->t0->enable_perr);
-
-free_and_return:
-	kfree(string.pointer);
-	kfree(ret_buf.pointer);
+exit:
+	kfree(buffer.pointer);
 	return status;
 }
 
@@ -322,20 +282,19 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 	return status;
 }
 
-/* acpi_get_hp_params_from_firmware
+/* pci_get_hp_params
  *
- * @bus - the pci_bus of the bus on which the device is newly added
+ * @dev - the pci_dev for which we want parameters
  * @hpp - allocated by the caller
  */
-acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
-		struct hotplug_params *hpp)
+int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 {
-	acpi_status status = AE_NOT_FOUND;
+	acpi_status status;
 	acpi_handle handle, phandle;
 	struct pci_bus *pbus;
 
 	handle = NULL;
-	for (pbus = bus; pbus; pbus = pbus->parent) {
+	for (pbus = dev->bus; pbus; pbus = pbus->parent) {
 		handle = acpi_pci_get_bridge_handle(pbus);
 		if (handle)
 			break;
@@ -345,15 +304,15 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 	 * _HPP settings apply to all child buses, until another _HPP is
 	 * encountered. If we don't find an _HPP for the input pci dev,
 	 * look for it in the parent device scope since that would apply to
-	 * this pci dev. If we don't find any _HPP, use hardcoded defaults
+	 * this pci dev.
 	 */
 	while (handle) {
 		status = acpi_run_hpx(handle, hpp);
 		if (ACPI_SUCCESS(status))
-			break;
+			return 0;
 		status = acpi_run_hpp(handle, hpp);
 		if (ACPI_SUCCESS(status))
-			break;
+			return 0;
 		if (acpi_is_root_bridge(handle))
 			break;
 		status = acpi_get_parent(handle, &phandle);
@@ -361,9 +320,9 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 			break;
 		handle = phandle;
 	}
-	return status;
+	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
+EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * acpi_get_hp_hw_control_from_firmware
@@ -500,18 +459,18 @@ check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 /**
  * acpi_pci_detect_ejectable - check if the PCI bus has ejectable slots
- * @pbus - PCI bus to scan
+ * @handle - handle of the PCI bus to scan
  *
  * Returns 1 if the PCI bus has ACPI based ejectable slots, 0 otherwise.
  */
-int acpi_pci_detect_ejectable(struct pci_bus *pbus)
+int acpi_pci_detect_ejectable(acpi_handle handle)
 {
-	acpi_handle handle;
 	int found = 0;
 
-	if (!(handle = acpi_pci_get_bridge_handle(pbus)))
-		return 0;
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
+	if (!handle)
+		return found;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
 			    check_hotplug, (void *)&found, NULL);
 	return found;
 }

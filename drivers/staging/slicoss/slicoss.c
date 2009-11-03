@@ -1306,7 +1306,7 @@ static void slic_mcast_init_crc32(void)
 
 	static int p[] = { 0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26 };
 
-	for (i = 0; i < sizeof(p) / sizeof(int); i++)
+	for (i = 0; i < ARRAY_SIZE(p); i++)
 		e |= 1L << (31 - p[i]);
 
 	for (i = 1; i < 256; i++) {

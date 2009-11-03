@@ -390,7 +390,7 @@
 #define __NR_preadv			(__NR_SYSCALL_BASE+361)
 #define __NR_pwritev			(__NR_SYSCALL_BASE+362)
 #define __NR_rt_tgsigqueueinfo		(__NR_SYSCALL_BASE+363)
-#define __NR_perf_counter_open		(__NR_SYSCALL_BASE+364)
+#define __NR_perf_event_open		(__NR_SYSCALL_BASE+364)
 
 /*
  * The following SWIs are ARM private.
@@ -456,6 +456,7 @@
  * Unimplemented (or alternatively implemented) syscalls
  */
 #define __IGNORE_fadvise64_64		1
+#define __IGNORE_migrate_pages		1
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

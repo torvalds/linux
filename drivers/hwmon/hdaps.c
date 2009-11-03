@@ -35,8 +35,7 @@
 #include <linux/timer.h>
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define HDAPS_LOW_PORT		0x1600	/* first port used by hdaps */
 #define HDAPS_NR_PORTS		0x30	/* number of ports: 0x1600 - 0x162f */

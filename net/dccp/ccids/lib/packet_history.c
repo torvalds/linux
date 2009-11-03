@@ -1,6 +1,4 @@
 /*
- *  net/dccp/packet_history.c
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *
@@ -128,7 +126,7 @@ u32 tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head, const u64 seqno,
 
 
 /*
- * 	Receiver History Routines
+ *	Receiver History Routines
  */
 static struct kmem_cache *tfrc_rx_hist_slab;
 

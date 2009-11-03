@@ -53,7 +53,6 @@ MODULE_LICENSE("GPL");
 
 static int acpi_memory_device_add(struct acpi_device *device);
 static int acpi_memory_device_remove(struct acpi_device *device, int type);
-static int acpi_memory_device_start(struct acpi_device *device);
 
 static const struct acpi_device_id memory_device_ids[] = {
 	{ACPI_MEMORY_DEVICE_HID, 0},
@@ -68,7 +67,6 @@ static struct acpi_driver acpi_memory_device_driver = {
 	.ops = {
 		.add = acpi_memory_device_add,
 		.remove = acpi_memory_device_remove,
-		.start = acpi_memory_device_start,
 		},
 };
 
@@ -431,6 +429,22 @@ static int acpi_memory_device_add(struct acpi_device *device)
 
 	printk(KERN_DEBUG "%s \n", acpi_device_name(device));
 
+	/*
+	 * Early boot code has recognized memory area by EFI/E820.
+	 * If DSDT shows these memory devices on boot, hotplug is not necessary
+	 * for them. So, it just returns until completion of this driver's
+	 * start up.
+	 */
+	if (!acpi_hotmem_initialized)
+		return 0;
+
+	if (!acpi_memory_check_device(mem_device)) {
+		/* call add_memory func */
+		result = acpi_memory_enable_device(mem_device);
+		if (result)
+			printk(KERN_ERR PREFIX
+				"Error in acpi_memory_enable_device\n");
+	}
 	return result;
 }
 
@@ -448,32 +462,6 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_memory_device_start (struct acpi_device *device)
-{
-	struct acpi_memory_device *mem_device;
-	int result = 0;
-
-	/*
-	 * Early boot code has recognized memory area by EFI/E820.
-	 * If DSDT shows these memory devices on boot, hotplug is not necessary
-	 * for them. So, it just returns until completion of this driver's
-	 * start up.
-	 */
-	if (!acpi_hotmem_initialized)
-		return 0;
-
-	mem_device = acpi_driver_data(device);
-
-	if (!acpi_memory_check_device(mem_device)) {
-		/* call add_memory func */
-		result = acpi_memory_enable_device(mem_device);
-		if (result)
-			printk(KERN_ERR PREFIX
-				"Error in acpi_memory_enable_device\n");
-	}
-	return result;
-}
-
 /*
  * Helper function to check for memory device
  */
@@ -481,26 +469,23 @@ static acpi_status is_memory_device(acpi_handle handle)
 {
 	char *hardware_id;
 	acpi_status status;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_device_info *info;
 
-
-	status = acpi_get_object_info(handle, &buffer);
+	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status))
 		return status;
 
-	info = buffer.pointer;
 	if (!(info->valid & ACPI_VALID_HID)) {
-		kfree(buffer.pointer);
+		kfree(info);
 		return AE_ERROR;
 	}
 
-	hardware_id = info->hardware_id.value;
+	hardware_id = info->hardware_id.string;
 	if ((hardware_id == NULL) ||
 	    (strcmp(hardware_id, ACPI_MEMORY_DEVICE_HID)))
 		status = AE_ERROR;
 
-	kfree(buffer.pointer);
+	kfree(info);
 	return status;
 }
 

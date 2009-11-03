@@ -16,6 +16,7 @@
 #include <linux/crypto.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#include <keys/rxrpc-type.h>
 #include "ar-internal.h"
 
 static LIST_HEAD(rxrpc_security_methods);
@@ -122,6 +123,7 @@ EXPORT_SYMBOL_GPL(rxrpc_unregister_security);
  */
 int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
+	struct rxrpc_key_token *token;
 	struct rxrpc_security *sec;
 	struct key *key = conn->key;
 	int ret;
@@ -135,7 +137,11 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 	if (ret < 0)
 		return ret;
 
-	sec = rxrpc_security_lookup(key->type_data.x[0]);
+	if (!key->payload.data)
+		return -EKEYREJECTED;
+	token = key->payload.data;
+
+	sec = rxrpc_security_lookup(token->security_index);
 	if (!sec)
 		return -EKEYREJECTED;
 	conn->security = sec;

@@ -1069,7 +1069,7 @@ static void uvc_vm_close(struct vm_area_struct *vma)
 	buffer->vma_use_count--;
 }
 
-static struct vm_operations_struct uvc_vm_ops = {
+static const struct vm_operations_struct uvc_vm_ops = {
 	.open		= uvc_vm_open,
 	.close		= uvc_vm_close,
 };

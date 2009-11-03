@@ -51,97 +51,112 @@ static void (*_omap_sram_idle)(u32 *addr, int save_state);
 
 static struct powerdomain *mpu_pwrdm;
 
-/* PRCM Interrupt Handler for wakeups */
+/*
+ * PRCM Interrupt Handler Helper Function
+ *
+ * The purpose of this function is to clear any wake-up events latched
+ * in the PRCM PM_WKST_x registers. It is possible that a wake-up event
+ * may occur whilst attempting to clear a PM_WKST_x register and thus
+ * set another bit in this register. A while loop is used to ensure
+ * that any peripheral wake-up events occurring while attempting to
+ * clear the PM_WKST_x are detected and cleared.
+ */
+static int prcm_clear_mod_irqs(s16 module, u8 regs)
+{
+	u32 wkst, fclk, iclk, clken;
+	u16 wkst_off = (regs == 3) ? OMAP3430ES2_PM_WKST3 : PM_WKST1;
+	u16 fclk_off = (regs == 3) ? OMAP3430ES2_CM_FCLKEN3 : CM_FCLKEN1;
+	u16 iclk_off = (regs == 3) ? CM_ICLKEN3 : CM_ICLKEN1;
+	u16 grpsel_off = (regs == 3) ?
+		OMAP3430ES2_PM_MPUGRPSEL3 : OMAP3430_PM_MPUGRPSEL;
+	int c = 0;
+
+	wkst = prm_read_mod_reg(module, wkst_off);
+	wkst &= prm_read_mod_reg(module, grpsel_off);
+	if (wkst) {
+		iclk = cm_read_mod_reg(module, iclk_off);
+		fclk = cm_read_mod_reg(module, fclk_off);
+		while (wkst) {
+			clken = wkst;
+			cm_set_mod_reg_bits(clken, module, iclk_off);
+			/*
+			 * For USBHOST, we don't know whether HOST1 or
+			 * HOST2 woke us up, so enable both f-clocks
+			 */
+			if (module == OMAP3430ES2_USBHOST_MOD)
+				clken |= 1 << OMAP3430ES2_EN_USBHOST2_SHIFT;
+			cm_set_mod_reg_bits(clken, module, fclk_off);
+			prm_write_mod_reg(wkst, module, wkst_off);
+			wkst = prm_read_mod_reg(module, wkst_off);
+			c++;
+		}
+		cm_write_mod_reg(iclk, module, iclk_off);
+		cm_write_mod_reg(fclk, module, fclk_off);
+	}
+
+	return c;
+}
+
+static int _prcm_int_handle_wakeup(void)
+{
+	int c;
+
+	c = prcm_clear_mod_irqs(WKUP_MOD, 1);
+	c += prcm_clear_mod_irqs(CORE_MOD, 1);
+	c += prcm_clear_mod_irqs(OMAP3430_PER_MOD, 1);
+	if (omap_rev() > OMAP3430_REV_ES1_0) {
+		c += prcm_clear_mod_irqs(CORE_MOD, 3);
+		c += prcm_clear_mod_irqs(OMAP3430ES2_USBHOST_MOD, 1);
+	}
+
+	return c;
+}
+
+/*
+ * PRCM Interrupt Handler
+ *
+ * The PRM_IRQSTATUS_MPU register indicates if there are any pending
+ * interrupts from the PRCM for the MPU. These bits must be cleared in
+ * order to clear the PRCM interrupt. The PRCM interrupt handler is
+ * implemented to simply clear the PRM_IRQSTATUS_MPU in order to clear
+ * the PRCM interrupt. Please note that bit 0 of the PRM_IRQSTATUS_MPU
+ * register indicates that a wake-up event is pending for the MPU and
+ * this bit can only be cleared if the all the wake-up events latched
+ * in the various PM_WKST_x registers have been cleared. The interrupt
+ * handler is implemented using a do-while loop so that if a wake-up
+ * event occurred during the processing of the prcm interrupt handler
+ * (setting a bit in the corresponding PM_WKST_x register and thus
+ * preventing us from clearing bit 0 of the PRM_IRQSTATUS_MPU register)
+ * this would be handled.
+ */
 static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 {
-	u32 wkst, irqstatus_mpu;
-	u32 fclk, iclk;
+	u32 irqstatus_mpu;
+	int c = 0;
 
-	/* WKUP */
-	wkst = prm_read_mod_reg(WKUP_MOD, PM_WKST);
-	if (wkst) {
-		iclk = cm_read_mod_reg(WKUP_MOD, CM_ICLKEN);
-		fclk = cm_read_mod_reg(WKUP_MOD, CM_FCLKEN);
-		cm_set_mod_reg_bits(wkst, WKUP_MOD, CM_ICLKEN);
-		cm_set_mod_reg_bits(wkst, WKUP_MOD, CM_FCLKEN);
-		prm_write_mod_reg(wkst, WKUP_MOD, PM_WKST);
-		while (prm_read_mod_reg(WKUP_MOD, PM_WKST))
-			cpu_relax();
-		cm_write_mod_reg(iclk, WKUP_MOD, CM_ICLKEN);
-		cm_write_mod_reg(fclk, WKUP_MOD, CM_FCLKEN);
-	}
+	do {
+		irqstatus_mpu = prm_read_mod_reg(OCP_MOD,
+					OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
-	/* CORE */
-	wkst = prm_read_mod_reg(CORE_MOD, PM_WKST1);
-	if (wkst) {
-		iclk = cm_read_mod_reg(CORE_MOD, CM_ICLKEN1);
-		fclk = cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
-		cm_set_mod_reg_bits(wkst, CORE_MOD, CM_ICLKEN1);
-		cm_set_mod_reg_bits(wkst, CORE_MOD, CM_FCLKEN1);
-		prm_write_mod_reg(wkst, CORE_MOD, PM_WKST1);
-		while (prm_read_mod_reg(CORE_MOD, PM_WKST1))
-			cpu_relax();
-		cm_write_mod_reg(iclk, CORE_MOD, CM_ICLKEN1);
-		cm_write_mod_reg(fclk, CORE_MOD, CM_FCLKEN1);
-	}
-	wkst = prm_read_mod_reg(CORE_MOD, OMAP3430ES2_PM_WKST3);
-	if (wkst) {
-		iclk = cm_read_mod_reg(CORE_MOD, CM_ICLKEN3);
-		fclk = cm_read_mod_reg(CORE_MOD, OMAP3430ES2_CM_FCLKEN3);
-		cm_set_mod_reg_bits(wkst, CORE_MOD, CM_ICLKEN3);
-		cm_set_mod_reg_bits(wkst, CORE_MOD, OMAP3430ES2_CM_FCLKEN3);
-		prm_write_mod_reg(wkst, CORE_MOD, OMAP3430ES2_PM_WKST3);
-		while (prm_read_mod_reg(CORE_MOD, OMAP3430ES2_PM_WKST3))
-			cpu_relax();
-		cm_write_mod_reg(iclk, CORE_MOD, CM_ICLKEN3);
-		cm_write_mod_reg(fclk, CORE_MOD, OMAP3430ES2_CM_FCLKEN3);
-	}
+		if (irqstatus_mpu & (OMAP3430_WKUP_ST | OMAP3430_IO_ST)) {
+			c = _prcm_int_handle_wakeup();
 
-	/* PER */
-	wkst = prm_read_mod_reg(OMAP3430_PER_MOD, PM_WKST);
-	if (wkst) {
-		iclk = cm_read_mod_reg(OMAP3430_PER_MOD, CM_ICLKEN);
-		fclk = cm_read_mod_reg(OMAP3430_PER_MOD, CM_FCLKEN);
-		cm_set_mod_reg_bits(wkst, OMAP3430_PER_MOD, CM_ICLKEN);
-		cm_set_mod_reg_bits(wkst, OMAP3430_PER_MOD, CM_FCLKEN);
-		prm_write_mod_reg(wkst, OMAP3430_PER_MOD, PM_WKST);
-		while (prm_read_mod_reg(OMAP3430_PER_MOD, PM_WKST))
-			cpu_relax();
-		cm_write_mod_reg(iclk, OMAP3430_PER_MOD, CM_ICLKEN);
-		cm_write_mod_reg(fclk, OMAP3430_PER_MOD, CM_FCLKEN);
-	}
-
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
-		/* USBHOST */
-		wkst = prm_read_mod_reg(OMAP3430ES2_USBHOST_MOD, PM_WKST);
-		if (wkst) {
-			iclk = cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
-					       CM_ICLKEN);
-			fclk = cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
-					       CM_FCLKEN);
-			cm_set_mod_reg_bits(wkst, OMAP3430ES2_USBHOST_MOD,
-					    CM_ICLKEN);
-			cm_set_mod_reg_bits(wkst, OMAP3430ES2_USBHOST_MOD,
-					    CM_FCLKEN);
-			prm_write_mod_reg(wkst, OMAP3430ES2_USBHOST_MOD,
-					  PM_WKST);
-			while (prm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
-						PM_WKST))
-				cpu_relax();
-			cm_write_mod_reg(iclk, OMAP3430ES2_USBHOST_MOD,
-					 CM_ICLKEN);
-			cm_write_mod_reg(fclk, OMAP3430ES2_USBHOST_MOD,
-					 CM_FCLKEN);
+			/*
+			 * Is the MPU PRCM interrupt handler racing with the
+			 * IVA2 PRCM interrupt handler ?
+			 */
+			WARN(c == 0, "prcm: WARNING: PRCM indicated MPU wakeup "
+			     "but no wakeup sources are marked\n");
+		} else {
+			/* XXX we need to expand our PRCM interrupt handler */
+			WARN(1, "prcm: WARNING: PRCM interrupt received, but "
+			     "no code to handle it (%08x)\n", irqstatus_mpu);
 		}
-	}
 
-	irqstatus_mpu = prm_read_mod_reg(OCP_MOD,
-					 OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
-	prm_write_mod_reg(irqstatus_mpu, OCP_MOD,
-			  OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+		prm_write_mod_reg(irqstatus_mpu, OCP_MOD,
+					OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
-	while (prm_read_mod_reg(OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET))
-		cpu_relax();
+	} while (prm_read_mod_reg(OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET));
 
 	return IRQ_HANDLED;
 }
@@ -170,6 +185,8 @@ static void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
+	pwrdm_pre_transition();
+
 	omap2_gpio_prepare_for_retention();
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
@@ -182,6 +199,9 @@ static void omap_sram_idle(void)
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
 	omap2_gpio_resume_after_retention();
+
+	pwrdm_post_transition();
+
 }
 
 /*
@@ -271,6 +291,7 @@ static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	if (sleep_switch) {
 		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 	}
 
 err:
@@ -618,6 +639,16 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(OMAP3430_IO_EN | OMAP3430_WKUP_EN,
 			  OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 
+	/* Enable GPIO wakeups in PER */
+	prm_write_mod_reg(OMAP3430_EN_GPIO2 | OMAP3430_EN_GPIO3 |
+			  OMAP3430_EN_GPIO4 | OMAP3430_EN_GPIO5 |
+			  OMAP3430_EN_GPIO6, OMAP3430_PER_MOD, PM_WKEN);
+	/* and allow them to wake up MPU */
+	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO2 | OMAP3430_EN_GPIO3 |
+			  OMAP3430_GRPSEL_GPIO4 | OMAP3430_EN_GPIO5 |
+			  OMAP3430_GRPSEL_GPIO6,
+			  OMAP3430_PER_MOD, OMAP3430_PM_MPUGRPSEL);
+
 	/* Don't attach IVA interrupts */
 	prm_write_mod_reg(0, WKUP_MOD, OMAP3430_PM_IVAGRPSEL);
 	prm_write_mod_reg(0, CORE_MOD, OMAP3430_PM_IVAGRPSEL1);
@@ -658,14 +689,38 @@ static void __init prcm_setup_regs(void)
 	omap3_d2d_idle();
 }
 
-static int __init pwrdms_setup(struct powerdomain *pwrdm)
+int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm)
+			return pwrst->next_state;
+	}
+	return -EINVAL;
+}
+
+int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm) {
+			pwrst->next_state = state;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;
 
 	if (!pwrdm->pwrsts)
 		return 0;
 
-	pwrst = kmalloc(sizeof(struct power_state), GFP_KERNEL);
+	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
 	if (!pwrst)
 		return -ENOMEM;
 	pwrst->pwrdm = pwrdm;
@@ -683,7 +738,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm)
  * supported. Initiate sleep transition for other clockdomains, if
  * they are not used
  */
-static int __init clkdms_setup(struct clockdomain *clkdm)
+static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
@@ -716,13 +771,13 @@ static int __init omap3_pm_init(void)
 		goto err1;
 	}
 
-	ret = pwrdm_for_each(pwrdms_setup);
+	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		printk(KERN_ERR "Failed to setup powerdomains\n");
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup);
+	(void) clkdm_for_each(clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {

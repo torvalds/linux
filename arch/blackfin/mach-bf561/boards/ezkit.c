@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/mach-bf561/ezkit.c
- * Based on:
- * Author:
+ * Copyright 2004-2009 Analog Devices Inc.
+ *               2005 National ICT Australia (NICTA)
+ *                    Aidan Williams <aidan@nicta.com.au>
  *
- * Created:
- * Description:
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -147,6 +126,14 @@ static struct platform_device net2272_bfin_device = {
  *  Driver needs to know address, irq and flag pin.
  */
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+#include <linux/smc91x.h>
+
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_32BIT | SMC91X_NOWAIT,
+	.leda = RPC_LED_100_10,
+	.ledb = RPC_LED_TX_RX,
+};
+
 static struct resource smc91x_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -166,6 +153,9 @@ static struct platform_device smc91x_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 };
 #endif
 
@@ -334,7 +324,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
 	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 	{
-		.modalias = "ad1836-spi",
+		.modalias = "ad1836",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
@@ -375,19 +365,6 @@ static struct platform_device bfin_device_gpiokeys = {
 	},
 };
 #endif
-
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
 
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 #include <linux/i2c-gpio.h>
@@ -481,8 +458,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 	&isp1362_hcd_device,
 #endif
-
-	&bfin_gpios_device,
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,

@@ -369,13 +369,8 @@ static struct platform_device *sx1_devices[] __initdata = {
 };
 /*-----------------------------------------*/
 
-static struct omap_uart_config sx1_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel sx1_config[] __initdata = {
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
-	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
 
 /*-----------------------------------------*/

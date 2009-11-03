@@ -1541,7 +1541,7 @@ void vxge_hw_ring_rxd_1b_info_get(
 	rxd_info->l4_cksum_valid =
 		(u32)VXGE_HW_RING_RXD_L4_CKSUM_CORRECT_GET(rxdp->control_0);
 	rxd_info->l4_cksum =
-		(u32)VXGE_HW_RING_RXD_L4_CKSUM_GET(rxdp->control_0);;
+		(u32)VXGE_HW_RING_RXD_L4_CKSUM_GET(rxdp->control_0);
 	rxd_info->frame =
 		(u32)VXGE_HW_RING_RXD_ETHER_ENCAP_GET(rxdp->control_0);
 	rxd_info->proto =

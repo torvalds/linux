@@ -36,7 +36,7 @@ void extent_map_exit(void)
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
 	tree->map.rb_node = NULL;
-	spin_lock_init(&tree->lock);
+	rwlock_init(&tree->lock);
 }
 
 /**
@@ -198,6 +198,56 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	return 0;
 }
 
+int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len)
+{
+	int ret = 0;
+	struct extent_map *merge = NULL;
+	struct rb_node *rb;
+	struct extent_map *em;
+
+	write_lock(&tree->lock);
+	em = lookup_extent_mapping(tree, start, len);
+
+	WARN_ON(em->start != start || !em);
+
+	if (!em)
+		goto out;
+
+	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+
+	if (em->start != 0) {
+		rb = rb_prev(&em->rb_node);
+		if (rb)
+			merge = rb_entry(rb, struct extent_map, rb_node);
+		if (rb && mergable_maps(merge, em)) {
+			em->start = merge->start;
+			em->len += merge->len;
+			em->block_len += merge->block_len;
+			em->block_start = merge->block_start;
+			merge->in_tree = 0;
+			rb_erase(&merge->rb_node, &tree->map);
+			free_extent_map(merge);
+		}
+	}
+
+	rb = rb_next(&em->rb_node);
+	if (rb)
+		merge = rb_entry(rb, struct extent_map, rb_node);
+	if (rb && mergable_maps(em, merge)) {
+		em->len += merge->len;
+		em->block_len += merge->len;
+		rb_erase(&merge->rb_node, &tree->map);
+		merge->in_tree = 0;
+		free_extent_map(merge);
+	}
+
+	free_extent_map(em);
+out:
+	write_unlock(&tree->lock);
+	return ret;
+
+}
+
 /**
  * add_extent_mapping - add new extent map to the extent tree
  * @tree:	tree to insert new map in
@@ -222,7 +272,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		ret = -EEXIST;
 		goto out;
 	}
-	assert_spin_locked(&tree->lock);
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
 		ret = -EEXIST;
@@ -285,7 +334,6 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *next = NULL;
 	u64 end = range_end(start, len);
 
-	assert_spin_locked(&tree->lock);
 	rb_node = __tree_search(&tree->map, start, &prev, &next);
 	if (!rb_node && prev) {
 		em = rb_entry(prev, struct extent_map, rb_node);
@@ -319,6 +367,54 @@ out:
 }
 
 /**
+ * search_extent_mapping - find a nearby extent map
+ * @tree:	tree to lookup in
+ * @start:	byte offset to start the search
+ * @len:	length of the lookup range
+ *
+ * Find and return the first extent_map struct in @tree that intersects the
+ * [start, len] range.
+ *
+ * If one can't be found, any nearby extent may be returned
+ */
+struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
+					 u64 start, u64 len)
+{
+	struct extent_map *em;
+	struct rb_node *rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *next = NULL;
+
+	rb_node = __tree_search(&tree->map, start, &prev, &next);
+	if (!rb_node && prev) {
+		em = rb_entry(prev, struct extent_map, rb_node);
+		goto found;
+	}
+	if (!rb_node && next) {
+		em = rb_entry(next, struct extent_map, rb_node);
+		goto found;
+	}
+	if (!rb_node) {
+		em = NULL;
+		goto out;
+	}
+	if (IS_ERR(rb_node)) {
+		em = ERR_PTR(PTR_ERR(rb_node));
+		goto out;
+	}
+	em = rb_entry(rb_node, struct extent_map, rb_node);
+	goto found;
+
+	em = NULL;
+	goto out;
+
+found:
+	atomic_inc(&em->refs);
+out:
+	return em;
+}
+
+/**
  * remove_extent_mapping - removes an extent_map from the extent tree
  * @tree:	extent tree to remove from
  * @em:		extent map beeing removed
@@ -331,7 +427,6 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	int ret = 0;
 
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
-	assert_spin_locked(&tree->lock);
 	rb_erase(&em->rb_node, &tree->map);
 	em->in_tree = 0;
 	return ret;

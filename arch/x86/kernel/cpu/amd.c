@@ -184,7 +184,7 @@ static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 	 * approved Athlon
 	 */
 	WARN_ONCE(1, "WARNING: This combination of AMD"
-		"processors is not suitable for SMP.\n");
+		" processors is not suitable for SMP.\n");
 	if (!test_taint(TAINT_UNSAFE_SMP))
 		add_taint(TAINT_UNSAFE_SMP);
 
@@ -332,6 +332,16 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 		amd_fixup_dcm(c);
 #endif
 }
+
+int amd_get_nb_id(int cpu)
+{
+	int id = 0;
+#ifdef CONFIG_SMP
+	id = per_cpu(cpu_llc_id, cpu);
+#endif
+	return id;
+}
+EXPORT_SYMBOL_GPL(amd_get_nb_id);
 
 static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 {

@@ -1,0 +1,49 @@
+IIO Device drivers
+
+This is not intended to provide a comprehensive guide to writing an
+IIO device driver.  For further information see the drivers within the
+subsystem.
+
+The crucial structure for device drivers in iio is iio_dev.
+
+First allocate one using:
+
+struct iio_dev *indio_dev = iio_allocate_device();
+
+The fill in the following.
+
+indio_dev->dev.parent
+  the struct device associated with the underlying hardware.
+
+indio_dev->num_interrupt_lines
+   number of event triggering hardware lines the device has.
+
+indio_dev->event_attrs
+   attributes used to enable / disable hardware events - note the
+   attributes are embedded in iio_event_attr structures with an
+   associated iio_event_handler which may or may note be shared.
+   If num_interrupt_lines = 0, then no need to fill this in.
+
+indio_dev->attrs
+   general attributes such as polled access to device channels.
+
+indio_dev->dev_data
+   private device specific data.
+
+indio_dev->driver_module
+   typically set to THIS_MODULE. Used to specify ownership of some
+   iio created resources.
+
+indio_dev->modes
+   whether direct access and / or ring buffer access is supported.
+
+Once these are set up, a call to iio_device_register(indio_dev),
+will register the device with the iio core.
+
+Worth noting here is that, if a ring buffer is to be used, it can be
+allocated prior to registering the device with the iio-core, but must
+be registered afterwards (otherwise the whole parentage of devices
+gets confused)
+
+On remove iio_device_unregister(indio_dev) will remove the device from
+the core, and iio_free_device will clean up.

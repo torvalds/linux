@@ -678,7 +678,7 @@ int hvc_poll(struct hvc_struct *hp)
 EXPORT_SYMBOL_GPL(hvc_poll);
 
 /**
- * hvc_resize() - Update terminal window size information.
+ * __hvc_resize() - Update terminal window size information.
  * @hp:		HVC console pointer
  * @ws:		Terminal window size structure
  *
@@ -687,12 +687,12 @@ EXPORT_SYMBOL_GPL(hvc_poll);
  *
  * Locking:	Locking free; the function MUST be called holding hp->lock
  */
-void hvc_resize(struct hvc_struct *hp, struct winsize ws)
+void __hvc_resize(struct hvc_struct *hp, struct winsize ws)
 {
 	hp->ws = ws;
 	schedule_work(&hp->tty_resize);
 }
-EXPORT_SYMBOL_GPL(hvc_resize);
+EXPORT_SYMBOL_GPL(__hvc_resize);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by

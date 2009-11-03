@@ -424,7 +424,7 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 	/* see what work we have */
 	spin_lock_irq(&sih_agent_lock);
 	edge_change = agent->edge_change;
-	agent->edge_change = 0;;
+	agent->edge_change = 0;
 	sih = edge_change ? agent->sih : NULL;
 	spin_unlock_irq(&sih_agent_lock);
 	if (!sih)

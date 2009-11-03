@@ -159,7 +159,7 @@ static struct dst_state *dst_accept_client(struct dst_state *st)
 		goto err_out_exit;
 
 	new = dst_state_alloc(st->node);
-	if (!new) {
+	if (IS_ERR(new)) {
 		err = -ENOMEM;
 		goto err_out_release;
 	}

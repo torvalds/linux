@@ -95,14 +95,12 @@ int arch_update_cpu_topology(void);
 				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
-				| 0*SD_WAKE_IDLE			\
+				| 0*SD_BALANCE_WAKE			\
 				| 1*SD_WAKE_AFFINE			\
-				| 1*SD_WAKE_BALANCE			\
 				| 1*SD_SHARE_CPUPOWER			\
 				| 0*SD_POWERSAVINGS_BALANCE		\
 				| 0*SD_SHARE_PKG_RESOURCES		\
 				| 0*SD_SERIALIZE			\
-				| 0*SD_WAKE_IDLE_FAR			\
 				| 0*SD_PREFER_SIBLING			\
 				,					\
 	.last_balance		= jiffies,				\
@@ -122,20 +120,19 @@ int arch_update_cpu_topology(void);
 	.imbalance_pct		= 125,					\
 	.cache_nice_tries	= 1,					\
 	.busy_idx		= 2,					\
-	.wake_idx		= 1,					\
-	.forkexec_idx		= 1,					\
+	.wake_idx		= 0,					\
+	.forkexec_idx		= 0,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
 				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
-				| 1*SD_WAKE_IDLE			\
+				| 0*SD_BALANCE_WAKE			\
 				| 1*SD_WAKE_AFFINE			\
-				| 1*SD_WAKE_BALANCE			\
+				| 1*SD_PREFER_LOCAL			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 1*SD_SHARE_PKG_RESOURCES		\
 				| 0*SD_SERIALIZE			\
-				| 0*SD_WAKE_IDLE_FAR			\
 				| sd_balance_for_mc_power()		\
 				| sd_power_saving_flags()		\
 				,					\
@@ -155,21 +152,20 @@ int arch_update_cpu_topology(void);
 	.cache_nice_tries	= 1,					\
 	.busy_idx		= 2,					\
 	.idle_idx		= 1,					\
-	.newidle_idx		= 2,					\
-	.wake_idx		= 1,					\
-	.forkexec_idx		= 1,					\
+	.newidle_idx		= 0,					\
+	.wake_idx		= 0,					\
+	.forkexec_idx		= 0,					\
 									\
 	.flags			= 1*SD_LOAD_BALANCE			\
 				| 1*SD_BALANCE_NEWIDLE			\
 				| 1*SD_BALANCE_EXEC			\
 				| 1*SD_BALANCE_FORK			\
-				| 1*SD_WAKE_IDLE			\
-				| 0*SD_WAKE_AFFINE			\
-				| 1*SD_WAKE_BALANCE			\
+				| 0*SD_BALANCE_WAKE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 1*SD_PREFER_LOCAL			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_SHARE_PKG_RESOURCES		\
 				| 0*SD_SERIALIZE			\
-				| 0*SD_WAKE_IDLE_FAR			\
 				| sd_balance_for_package_power()	\
 				| sd_power_saving_flags()		\
 				,					\
@@ -191,14 +187,12 @@ int arch_update_cpu_topology(void);
 				| 1*SD_BALANCE_NEWIDLE			\
 				| 0*SD_BALANCE_EXEC			\
 				| 0*SD_BALANCE_FORK			\
-				| 0*SD_WAKE_IDLE			\
-				| 1*SD_WAKE_AFFINE			\
-				| 0*SD_WAKE_BALANCE			\
+				| 0*SD_BALANCE_WAKE			\
+				| 0*SD_WAKE_AFFINE			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_POWERSAVINGS_BALANCE		\
 				| 0*SD_SHARE_PKG_RESOURCES		\
 				| 1*SD_SERIALIZE			\
-				| 1*SD_WAKE_IDLE_FAR			\
 				| 0*SD_PREFER_SIBLING			\
 				,					\
 	.last_balance		= jiffies,				\
@@ -216,12 +210,6 @@ int arch_update_cpu_topology(void);
 #endif
 #ifndef topology_core_id
 #define topology_core_id(cpu)			((void)(cpu), 0)
-#endif
-#ifndef topology_thread_siblings
-#define topology_thread_siblings(cpu)		cpumask_of_cpu(cpu)
-#endif
-#ifndef topology_core_siblings
-#define topology_core_siblings(cpu)		cpumask_of_cpu(cpu)
 #endif
 #ifndef topology_thread_cpumask
 #define topology_thread_cpumask(cpu)		cpumask_of(cpu)

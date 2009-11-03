@@ -912,19 +912,9 @@ static const struct pv_info xen_info __initdata = {
 
 static const struct pv_init_ops xen_init_ops __initdata = {
 	.patch = xen_patch,
-
-	.banner = xen_banner,
-	.memory_setup = xen_memory_setup,
-	.arch_setup = xen_arch_setup,
-	.post_allocator_init = xen_post_allocator_init,
 };
 
 static const struct pv_time_ops xen_time_ops __initdata = {
-	.time_init = xen_time_init,
-
-	.set_wallclock = xen_set_wallclock,
-	.get_wallclock = xen_get_wallclock,
-	.get_tsc_khz = xen_tsc_khz,
 	.sched_clock = xen_sched_clock,
 };
 
@@ -990,8 +980,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 
 static const struct pv_apic_ops xen_apic_ops __initdata = {
 #ifdef CONFIG_X86_LOCAL_APIC
-	.setup_boot_clock = paravirt_nop,
-	.setup_secondary_clock = paravirt_nop,
 	.startup_ipi_hook = paravirt_nop,
 #endif
 };
@@ -1070,7 +1058,18 @@ asmlinkage void __init xen_start_kernel(void)
 	pv_time_ops = xen_time_ops;
 	pv_cpu_ops = xen_cpu_ops;
 	pv_apic_ops = xen_apic_ops;
-	pv_mmu_ops = xen_mmu_ops;
+
+	x86_init.resources.memory_setup = xen_memory_setup;
+	x86_init.oem.arch_setup = xen_arch_setup;
+	x86_init.oem.banner = xen_banner;
+
+	x86_init.timers.timer_init = xen_time_init;
+	x86_init.timers.setup_percpu_clockev = x86_init_noop;
+	x86_cpuinit.setup_percpu_clockev = x86_init_noop;
+
+	x86_platform.calibrate_tsc = xen_tsc_khz;
+	x86_platform.get_wallclock = xen_get_wallclock;
+	x86_platform.set_wallclock = xen_set_wallclock;
 
 	/*
 	 * Set up some pagetable state before starting to set any ptes.
@@ -1082,6 +1081,11 @@ asmlinkage void __init xen_start_kernel(void)
 		__supported_pte_mask &= ~(_PAGE_PWT | _PAGE_PCD);
 
 	__supported_pte_mask |= _PAGE_IOMAP;
+
+#ifdef CONFIG_X86_64
+	/* Work out if we support NX */
+	check_efer();
+#endif
 
 	xen_setup_features();
 
@@ -1095,6 +1099,7 @@ asmlinkage void __init xen_start_kernel(void)
 	 */
 	xen_setup_stackprotector();
 
+	xen_init_mmu_ops();
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
 
@@ -1122,11 +1127,6 @@ asmlinkage void __init xen_start_kernel(void)
 	xen_smp_init();
 
 	pgd = (pgd_t *)xen_start_info->pt_base;
-
-#ifdef CONFIG_X86_64
-	/* Work out if we support NX */
-	check_efer();
-#endif
 
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */

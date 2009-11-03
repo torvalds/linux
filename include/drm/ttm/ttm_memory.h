@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
+#include <linux/kobject.h>
 
 /**
  * struct ttm_mem_shrink - callback to shrink TTM memory usage.
@@ -60,34 +61,33 @@ struct ttm_mem_shrink {
  * @queue: Wait queue for processes suspended waiting for memory.
  * @lock: Lock to protect the @shrink - and the memory accounting members,
  * that is, essentially the whole structure with some exceptions.
- * @emer_memory: Lowmem memory limit available for root.
- * @max_memory: Lowmem memory limit available for non-root.
- * @swap_limit: Lowmem memory limit where the shrink workqueue kicks in.
- * @used_memory: Currently used lowmem memory.
- * @used_total_memory: Currently used total (lowmem + highmem) memory.
- * @total_memory_swap_limit: Total memory limit where the shrink workqueue
- * kicks in.
- * @max_total_memory: Total memory available to non-root processes.
- * @emer_total_memory: Total memory available to root processes.
+ * @zones: Array of pointers to accounting zones.
+ * @num_zones: Number of populated entries in the @zones array.
+ * @zone_kernel: Pointer to the kernel zone.
+ * @zone_highmem: Pointer to the highmem zone if there is one.
+ * @zone_dma32: Pointer to the dma32 zone if there is one.
  *
  * Note that this structure is not per device. It should be global for all
  * graphics devices.
  */
 
+#define TTM_MEM_MAX_ZONES 2
+struct ttm_mem_zone;
 struct ttm_mem_global {
+	struct kobject kobj;
 	struct ttm_mem_shrink *shrink;
 	struct workqueue_struct *swap_queue;
 	struct work_struct work;
 	wait_queue_head_t queue;
 	spinlock_t lock;
-	uint64_t emer_memory;
-	uint64_t max_memory;
-	uint64_t swap_limit;
-	uint64_t used_memory;
-	uint64_t used_total_memory;
-	uint64_t total_memory_swap_limit;
-	uint64_t max_total_memory;
-	uint64_t emer_total_memory;
+	struct ttm_mem_zone *zones[TTM_MEM_MAX_ZONES];
+	unsigned int num_zones;
+	struct ttm_mem_zone *zone_kernel;
+#ifdef CONFIG_HIGHMEM
+	struct ttm_mem_zone *zone_highmem;
+#else
+	struct ttm_mem_zone *zone_dma32;
+#endif
 };
 
 /**
@@ -146,8 +146,13 @@ static inline void ttm_mem_unregister_shrink(struct ttm_mem_global *glob,
 extern int ttm_mem_global_init(struct ttm_mem_global *glob);
 extern void ttm_mem_global_release(struct ttm_mem_global *glob);
 extern int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-				bool no_wait, bool interruptible, bool himem);
+				bool no_wait, bool interruptible);
 extern void ttm_mem_global_free(struct ttm_mem_global *glob,
-				uint64_t amount, bool himem);
+				uint64_t amount);
+extern int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
+				     struct page *page,
+				     bool no_wait, bool interruptible);
+extern void ttm_mem_global_free_page(struct ttm_mem_global *glob,
+				     struct page *page);
 extern size_t ttm_round_pot(size_t size);
 #endif

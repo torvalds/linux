@@ -11,6 +11,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/sched.h>
 #include "hisax.h"
 #include "hfc_2bds0.h"
 #include "isdnl1.h"

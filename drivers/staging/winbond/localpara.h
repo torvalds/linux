@@ -190,7 +190,6 @@ typedef struct LOCAL_PARA
 	u8			Reserved0[2];
 
 	u8			boMsRadioOff;			// Ndis demands to be true when set Disassoc. OID and be false when set SSID OID.
-	u8			boAntennaDiversity;		//TRUE/ON or FALSE/OFF
 	u8			bAntennaNo;				//which antenna
 	u8			bConnectFlag;			//the connect status flag for roaming task
 

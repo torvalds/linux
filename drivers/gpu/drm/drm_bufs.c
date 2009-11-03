@@ -310,10 +310,10 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			  (unsigned long long)map->offset, map->size);
 
 		break;
-	case _DRM_GEM:
-		DRM_ERROR("tried to rmmap GEM object\n");
-		break;
 	}
+	case _DRM_GEM:
+		DRM_ERROR("tried to addmap GEM object\n");
+		break;
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
 			kfree(map);

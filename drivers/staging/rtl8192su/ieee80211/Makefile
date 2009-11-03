@@ -5,8 +5,7 @@ EXTRA_CFLAGS += -DRTL8192S_DISABLE_FW_DM=0
 EXTRA_CFLAGS += -DRTL8192SU
 #EXTRA_CFLAGS += -DJOHN_NOCPY
 EXTRA_CFLAGS += -DTHOMAS_TURBO
-#flags to enable or disble 80211D feature
-EXTRA_CFLAGS += -DENABLE_DOT11D
+
 ieee80211-rsl-objs := ieee80211_rx.o \
 		      ieee80211_softmac.o \
 		      ieee80211_tx.o \

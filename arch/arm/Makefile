@@ -14,7 +14,7 @@ LDFLAGS_vmlinux	:=-p --no-undefined -X
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
 endif
-CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
+
 OBJCOPYFLAGS	:=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
@@ -25,7 +25,7 @@ KBUILD_CFLAGS	+=$(call cc-option,-marm,)
 # Select a platform tht is kept up-to-date
 KBUILD_DEFCONFIG := versatile_defconfig
 
-# defines filename extension depending memory manement type.
+# defines filename extension depending memory management type.
 ifeq ($(CONFIG_MMU),)
 MMUEXT		:= -nommu
 endif
@@ -279,7 +279,7 @@ define archhelp
   echo  '                  (supply initrd image via make variable INITRD=<path>)'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
-  echo  '                  Install using (your) ~/bin/installkernel or'
-  echo  '                  (distribution) /sbin/installkernel or'
+  echo  '                  Install using (your) ~/bin/$(INSTALLKERNEL) or'
+  echo  '                  (distribution) /sbin/$(INSTALLKERNEL) or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef

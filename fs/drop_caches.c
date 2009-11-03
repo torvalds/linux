@@ -63,9 +63,9 @@ static void drop_slab(void)
 }
 
 int drop_caches_sysctl_handler(ctl_table *table, int write,
-	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+	proc_dointvec_minmax(table, write, buffer, length, ppos);
 	if (write) {
 		if (sysctl_drop_caches & 1)
 			drop_pagecache();

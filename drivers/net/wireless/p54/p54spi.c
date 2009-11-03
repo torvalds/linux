@@ -731,3 +731,4 @@ module_exit(p54spi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
+MODULE_ALIAS("spi:cx3110x");

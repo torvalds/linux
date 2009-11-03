@@ -35,49 +35,12 @@ SECTIONS
 #endif
   }
   _einittext = .;
-  .init.data : { INIT_DATA }
 
-  . = ALIGN(8);
-  __setup_start = .;
-  .setup.init : { KEEP(*(.init.setup)) }
-  __setup_end = .;
-
-  __initcall_start = .;
-  .initcall.init : {
-	INITCALLS
-  }
-  __initcall_end = .;
-  __con_initcall_start = .;
-  .con_initcall.init : { *(.con_initcall.init) }
-  __con_initcall_end = .;
-  SECURITY_INIT
-  . = ALIGN(4);
-  __alt_instructions = .;
-  .altinstructions : { *(.altinstructions) }
-  __alt_instructions_end = .;
- .altinstr_replacement : { *(.altinstr_replacement) }
-
+  INIT_DATA_SECTION(8)
   PERCPU(4096)
 
-#ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(4096);
-  __initramfs_start = .;
-  .init.ramfs : { *(.init.ramfs) }
-  __initramfs_end = .;
-#endif
-
-  . = ALIGN(THREAD_SIZE);
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
-
-  /* put sections together that have massive alignment issues */
-  . = ALIGN(THREAD_SIZE);
-  .data.init_task : {
-	  /* init task record & stack */
-	  *(.data.init_task)
-  }
-
-  . = ALIGN(L1_CACHE_BYTES);
-  .data.cacheline_aligned : { *(.data.cacheline_aligned) }
 
   .trap : {
 	/* trap table management - read entry-table.S before modifying */
@@ -124,13 +87,12 @@ SECTIONS
 
 	}
 
-  . = ALIGN(8);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : { KEEP(*(__ex_table)) }
-  __stop___ex_table = .;
+  EXCEPTION_TABLE(8)
 
   _sdata = .;
   .data : {			/* Data */
+	INIT_TASK_DATA(THREAD_SIZE)
+	CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 	DATA_DATA
 	*(.data.*)
 	EXIT_DATA
@@ -159,22 +121,8 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   __kernel_image_end = .;
 
-  /* Stabs debugging sections.  */
-  .stab 0 : { *(.stab) }
-  .stabstr 0 : { *(.stabstr) }
-  .stab.excl 0 : { *(.stab.excl) }
-  .stab.exclstr 0 : { *(.stab.exclstr) }
-  .stab.index 0 : { *(.stab.index) }
-  .stab.indexstr 0 : { *(.stab.indexstr) }
-
-  .debug_line		0 : { *(.debug_line) }
-  .debug_info		0 : { *(.debug_info) }
-  .debug_abbrev		0 : { *(.debug_abbrev) }
-  .debug_aranges	0 : { *(.debug_aranges) }
-  .debug_frame		0 : { *(.debug_frame) }
-  .debug_pubnames	0 : { *(.debug_pubnames) }
-  .debug_str		0 : { *(.debug_str) }
-  .debug_ranges		0 : { *(.debug_ranges) }
+  STABS_DEBUG
+  DWARF_DEBUG
 
   .comment 0 : { *(.comment) }
 

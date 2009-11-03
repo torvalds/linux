@@ -47,7 +47,8 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int rti802_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int rti802_detach(struct comedi_device *dev);
 static struct comedi_driver driver_rti802 = {
 	.driver_name = "rti802",
@@ -68,8 +69,9 @@ struct rti802_private {
 
 #define devpriv ((struct rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int rti802_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -79,8 +81,9 @@ static int rti802_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 	return i;
 }
 
-static int rti802_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int rti802_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);
@@ -113,7 +116,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = "rti802";
 
 	if (alloc_subdevices(dev, 1) < 0
-		|| alloc_private(dev, sizeof(struct rti802_private))) {
+	    || alloc_private(dev, sizeof(struct rti802_private))) {
 		return -ENOMEM;
 	}
 
@@ -129,10 +132,10 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (i = 0; i < 8; i++) {
 		devpriv->dac_coding[i] = (it->options[3 + 2 * i])
-			? (dac_straight)
-			: (dac_2comp);
+		    ? (dac_straight)
+		    : (dac_2comp);
 		devpriv->range_type_list[i] = (it->options[2 + 2 * i])
-			? &range_unipolar10 : &range_bipolar10;
+		    ? &range_unipolar10 : &range_bipolar10;
 	}
 
 	printk("\n");

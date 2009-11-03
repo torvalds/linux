@@ -1,6 +1,0 @@
-config RDC_17F3101X
-	tristate "RDC_17F3101X IDE support"
-	depends on PCI && ATA && ATA_SFF
-	---help---
-	  This is an experimental driver for RDC_17F31011 and
-	  RDC_17F31012 IDE driver.

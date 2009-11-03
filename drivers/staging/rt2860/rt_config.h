@@ -68,9 +68,5 @@
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
 
-#ifdef IKANOS_VX_1X0
-#include	"vr_ikans.h"
-#endif // IKANOS_VX_1X0 //
-
 #endif	// __RT_CONFIG_H__
 

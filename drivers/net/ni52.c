@@ -615,10 +615,10 @@ static int init586(struct net_device *dev)
 	/* addr_len |!src_insert |pre-len |loopback */
 	writeb(0x2e, &cfg_cmd->adr_len);
 	writeb(0x00, &cfg_cmd->priority);
-	writeb(0x60, &cfg_cmd->ifs);;
+	writeb(0x60, &cfg_cmd->ifs);
 	writeb(0x00, &cfg_cmd->time_low);
 	writeb(0xf2, &cfg_cmd->time_high);
-	writeb(0x00, &cfg_cmd->promisc);;
+	writeb(0x00, &cfg_cmd->promisc);
 	if (dev->flags & IFF_ALLMULTI) {
 		int len = ((char __iomem *)p->iscp - (char __iomem *)ptr - 8) / 6;
 		if (num_addrs > len) {

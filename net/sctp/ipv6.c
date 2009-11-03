@@ -949,7 +949,7 @@ static int sctp6_rcv(struct sk_buff *skb)
 	return sctp_rcv(skb) ? -1 : 0;
 }
 
-static struct inet6_protocol sctpv6_protocol = {
+static const struct inet6_protocol sctpv6_protocol = {
 	.handler      = sctp6_rcv,
 	.err_handler  = sctp_v6_err,
 	.flags        = INET6_PROTO_NOPOLICY | INET6_PROTO_FINAL,

@@ -48,7 +48,7 @@
 #ifdef CONFIG_ISA
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #endif
 
 #include "lm75.h"

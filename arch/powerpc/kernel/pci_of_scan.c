@@ -139,6 +139,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->dev.bus = &pci_bus_type;
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
+	dev->needs_freset = 0;		/* pcie fundamental reset required */
 
 	dev->vendor = get_int_prop(node, "vendor-id", 0xffff);
 	dev->device = get_int_prop(node, "device-id", 0xffff);

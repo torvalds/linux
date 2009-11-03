@@ -22,6 +22,10 @@
 #define MSTPCR0			0xa4150030
 #define MSTPCR1			0xa4150034
 #define MSTPCR2			0xa4150038
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
+#define	FRQCR			0xffc80000
+#define	OSCCR			0xffc80018
+#define	PLLCR			0xffc80024
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000

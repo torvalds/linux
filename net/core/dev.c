@@ -1017,9 +1017,9 @@ void netdev_state_change(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_state_change);
 
-void netdev_bonding_change(struct net_device *dev)
+void netdev_bonding_change(struct net_device *dev, unsigned long event)
 {
-	call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, dev);
+	call_netdevice_notifiers(event, dev);
 }
 EXPORT_SYMBOL(netdev_bonding_change);
 
@@ -2288,15 +2288,15 @@ int netif_receive_skb(struct sk_buff *skb)
 	int ret = NET_RX_DROP;
 	__be16 type;
 
+	if (!skb->tstamp.tv64)
+		net_timestamp(skb);
+
 	if (skb->vlan_tci && vlan_hwaccel_do_receive(skb))
 		return NET_RX_SUCCESS;
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (netpoll_receive_skb(skb))
 		return NET_RX_DROP;
-
-	if (!skb->tstamp.tv64)
-		net_timestamp(skb);
 
 	if (!skb->iif)
 		skb->iif = skb->dev->ifindex;

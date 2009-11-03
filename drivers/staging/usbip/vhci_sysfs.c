@@ -80,7 +80,7 @@ static int vhci_port_disconnect(__u32 rhport)
 {
 	struct vhci_device *vdev;
 
-	dbg_vhci_sysfs("enter\n");
+	usbip_dbg_vhci_sysfs("enter\n");
 
 	/* lock */
 	spin_lock(&the_controller->lock);
@@ -89,7 +89,7 @@ static int vhci_port_disconnect(__u32 rhport)
 
 	spin_lock(&vdev->ud.lock);
 	if (vdev->ud.status == VDEV_ST_NULL) {
-		uerr("not connected %d\n", vdev->ud.status);
+		usbip_uerr("not connected %d\n", vdev->ud.status);
 
 		/* unlock */
 		spin_unlock(&vdev->ud.lock);
@@ -117,7 +117,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 
 	/* check rhport */
 	if (rhport >= VHCI_NPORTS) {
-		uerr("invalid port %u\n", rhport);
+		usbip_uerr("invalid port %u\n", rhport);
 		return -EINVAL;
 	}
 
@@ -125,7 +125,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return -EINVAL;
 
-	dbg_vhci_sysfs("Leave\n");
+	usbip_dbg_vhci_sysfs("Leave\n");
 	return count;
 }
 static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
@@ -135,7 +135,7 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 {
 	/* check rhport */
 	if ((rhport < 0) || (rhport >= VHCI_NPORTS)) {
-		uerr("port %u\n", rhport);
+		usbip_uerr("port %u\n", rhport);
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_VARIABLE:
 		break;
 	default:
-		uerr("speed %d\n", speed);
+		usbip_uerr("speed %d\n", speed);
 		return -EINVAL;
 	}
 
@@ -181,8 +181,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	 */
 	sscanf(buf, "%u %u %u %u", &rhport, &sockfd, &devid, &speed);
 
-	dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
-			rhport, sockfd, devid, speed);
+	usbip_dbg_vhci_sysfs("rhport(%u) sockfd(%u) devid(%u) speed(%u)\n",
+				rhport, sockfd, devid, speed);
 
 
 	/* check received parameters */
@@ -208,12 +208,12 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
 
-		uerr("port %d already used\n", rhport);
+		usbip_uerr("port %d already used\n", rhport);
 		return -EINVAL;
 	}
 
-	uinfo("rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
-			rhport, sockfd, devid, speed);
+	usbip_uinfo("rhport(%u) sockfd(%d) devid(%u) speed(%u)\n",
+				rhport, sockfd, devid, speed);
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;

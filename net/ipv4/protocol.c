@@ -28,14 +28,14 @@
 #include <linux/spinlock.h>
 #include <net/protocol.h>
 
-struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
+const struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
 static DEFINE_SPINLOCK(inet_proto_lock);
 
 /*
  *	Add a protocol handler to the hash tables
  */
 
-int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
+int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	int hash, ret;
 
@@ -57,7 +57,7 @@ int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
  *	Remove a protocol from the hash tables.
  */
 
-int inet_del_protocol(struct net_protocol *prot, unsigned char protocol)
+int inet_del_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	int hash, ret;
 

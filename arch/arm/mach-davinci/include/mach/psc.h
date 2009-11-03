@@ -81,6 +81,24 @@
 #define DM355_LPSC_RTO			12
 #define DM355_LPSC_VPSS_DAC		41
 
+/* DM365 */
+#define DM365_LPSC_TIMER3	5
+#define DM365_LPSC_SPI1		6
+#define DM365_LPSC_MMC_SD1	7
+#define DM365_LPSC_McBSP1	8
+#define DM365_LPSC_PWM3		10
+#define DM365_LPSC_SPI2		11
+#define DM365_LPSC_RTO		12
+#define DM365_LPSC_TIMER4	17
+#define DM365_LPSC_SPI0		22
+#define DM365_LPSC_SPI3		38
+#define DM365_LPSC_SPI4		39
+#define DM365_LPSC_EMAC		40
+#define DM365_LPSC_VOICE_CODEC	44
+#define DM365_LPSC_DAC_CLK	46
+#define DM365_LPSC_VPSSMSTR	47
+#define DM365_LPSC_MJCP		50
+
 /*
  * LPSC Assignments
  */
@@ -117,6 +135,50 @@
 #define DM646X_LPSC_TIMER0         34
 #define DM646X_LPSC_TIMER1         35
 #define DM646X_LPSC_ARM_INTC       45
+
+/* PSC0 defines */
+#define DA8XX_LPSC0_TPCC		0
+#define DA8XX_LPSC0_TPTC0		1
+#define DA8XX_LPSC0_TPTC1		2
+#define DA8XX_LPSC0_EMIF25		3
+#define DA8XX_LPSC0_SPI0		4
+#define DA8XX_LPSC0_MMC_SD		5
+#define DA8XX_LPSC0_AINTC		6
+#define DA8XX_LPSC0_ARM_RAM_ROM		7
+#define DA8XX_LPSC0_SECU_MGR		8
+#define DA8XX_LPSC0_UART0		9
+#define DA8XX_LPSC0_SCR0_SS		10
+#define DA8XX_LPSC0_SCR1_SS		11
+#define DA8XX_LPSC0_SCR2_SS		12
+#define DA8XX_LPSC0_DMAX		13
+#define DA8XX_LPSC0_ARM			14
+#define DA8XX_LPSC0_GEM			15
+
+/* PSC1 defines */
+#define DA850_LPSC1_TPCC1		0
+#define DA8XX_LPSC1_USB20		1
+#define DA8XX_LPSC1_USB11		2
+#define DA8XX_LPSC1_GPIO		3
+#define DA8XX_LPSC1_UHPI		4
+#define DA8XX_LPSC1_CPGMAC		5
+#define DA8XX_LPSC1_EMIF3C		6
+#define DA8XX_LPSC1_McASP0		7
+#define DA830_LPSC1_McASP1		8
+#define DA850_LPSC1_SATA		8
+#define DA830_LPSC1_McASP2		9
+#define DA8XX_LPSC1_SPI1		10
+#define DA8XX_LPSC1_I2C			11
+#define DA8XX_LPSC1_UART1		12
+#define DA8XX_LPSC1_UART2		13
+#define DA8XX_LPSC1_LCDC		16
+#define DA8XX_LPSC1_PWM			17
+#define DA8XX_LPSC1_ECAP		20
+#define DA830_LPSC1_EQEP		21
+#define DA850_LPSC1_TPTC2		21
+#define DA8XX_LPSC1_SCR_P0_SS		24
+#define DA8XX_LPSC1_SCR_P1_SS		25
+#define DA8XX_LPSC1_CR_P3_SS		26
+#define DA8XX_LPSC1_L3_CBA_RAM		31
 
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,

@@ -35,14 +35,14 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->comm.pid, &threads, &last_match);
 
-	dump_printf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
 	total_comm++;
@@ -82,7 +82,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
+	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
@@ -98,9 +98,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	cpumode = event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK;
+	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_EVENT_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
@@ -108,7 +108,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dump_printf(" ...... dso: %s\n", dso->name);
 
-	} else if (cpumode == PERF_EVENT_MISC_USER) {
+	} else if (cpumode == PERF_RECORD_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
@@ -146,19 +146,19 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	trace_event(event);
 
 	switch (event->header.type) {
-	case PERF_EVENT_MMAP ... PERF_EVENT_LOST:
+	case PERF_RECORD_MMAP ... PERF_RECORD_LOST:
 		return 0;
 
-	case PERF_EVENT_COMM:
+	case PERF_RECORD_COMM:
 		return process_comm_event(event, offset, head);
 
-	case PERF_EVENT_EXIT ... PERF_EVENT_READ:
+	case PERF_RECORD_EXIT ... PERF_RECORD_READ:
 		return 0;
 
-	case PERF_EVENT_SAMPLE:
+	case PERF_RECORD_SAMPLE:
 		return process_sample_event(event, offset, head);
 
-	case PERF_EVENT_MAX:
+	case PERF_RECORD_MAX:
 	default:
 		return -1;
 	}
@@ -219,10 +219,6 @@ remap:
 more:
 	event = (event_t *)(buf + head);
 
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
 		int res;
@@ -236,7 +232,6 @@ more:
 	}
 
 	size = event->header.size;
-
 
 	if (!size || process_event(event, offset, head) < 0) {
 
@@ -289,7 +284,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		if (argc > 1)
 			usage_with_options(annotate_usage, options);
 	}
-
 
 	setup_pager();
 

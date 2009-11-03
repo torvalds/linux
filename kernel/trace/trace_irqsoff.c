@@ -129,15 +129,10 @@ check_critical_timing(struct trace_array *tr,
 		      unsigned long parent_ip,
 		      int cpu)
 {
-	unsigned long latency, t0, t1;
 	cycle_t T0, T1, delta;
 	unsigned long flags;
 	int pc;
 
-	/*
-	 * usecs conversion is slow so we try to delay the conversion
-	 * as long as possible:
-	 */
 	T0 = data->preempt_timestamp;
 	T1 = ftrace_now(cpu);
 	delta = T1-T0;
@@ -157,18 +152,15 @@ check_critical_timing(struct trace_array *tr,
 
 	trace_function(tr, CALLER_ADDR0, parent_ip, flags, pc);
 
-	latency = nsecs_to_usecs(delta);
-
 	if (data->critical_sequence != max_sequence)
 		goto out_unlock;
 
-	tracing_max_latency = delta;
-	t0 = nsecs_to_usecs(T0);
-	t1 = nsecs_to_usecs(T1);
-
 	data->critical_end = parent_ip;
 
-	update_max_tr_single(tr, current, cpu);
+	if (likely(!is_tracing_stopped())) {
+		tracing_max_latency = delta;
+		update_max_tr_single(tr, current, cpu);
+	}
 
 	max_sequence++;
 

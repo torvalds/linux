@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_console.h>
 #include "hvc_console.h"
 
@@ -65,7 +66,7 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 
 	/* add_buf wants a token to identify this buffer: we hand it any
 	 * non-NULL pointer, since there's only ever one buffer. */
-	if (out_vq->vq_ops->add_buf(out_vq, sg, 1, 0, (void *)1) == 0) {
+	if (out_vq->vq_ops->add_buf(out_vq, sg, 1, 0, (void *)1) >= 0) {
 		/* Tell Host to go! */
 		out_vq->vq_ops->kick(out_vq);
 		/* Chill out until it's done with the buffer. */
@@ -85,7 +86,7 @@ static void add_inbuf(void)
 	sg_init_one(sg, inbuf, PAGE_SIZE);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (in_vq->vq_ops->add_buf(in_vq, sg, 0, 1, inbuf) != 0)
+	if (in_vq->vq_ops->add_buf(in_vq, sg, 0, 1, inbuf) < 0)
 		BUG();
 	in_vq->vq_ops->kick(in_vq);
 }

@@ -61,7 +61,8 @@ enum {
 /* The command is completing because the queue was getting flushed */
 	MCC_STATUS_QUEUE_FLUSHING = 0x4,
 /* The command is completing with a DMA error */
-	MCC_STATUS_DMA_FAILED = 0x5
+	MCC_STATUS_DMA_FAILED = 0x5,
+	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
 #define CQE_STATUS_COMPL_MASK		0xFFFF
@@ -759,9 +760,10 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
-extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num);
+extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
+			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
-extern void be_process_mcc(struct be_adapter *adapter);
+extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);

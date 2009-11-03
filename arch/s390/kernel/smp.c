@@ -147,11 +147,11 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
 		udelay(10);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		smp_ext_bitcall(cpu, ec_call_function);
 }
 
@@ -475,10 +475,8 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 {
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	if (!lowcore)
 		return -ENOMEM;
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
@@ -509,16 +507,14 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 out:
 	free_page(panic_stack);
 	free_pages(async_stack, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	return -ENOMEM;
 }
 
 static void smp_free_lowcore(int cpu)
 {
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
 	lowcore = lowcore_ptr[cpu];
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
@@ -528,7 +524,7 @@ static void smp_free_lowcore(int cpu)
 #endif
 	free_page(lowcore->panic_stack - PAGE_SIZE);
 	free_pages(lowcore->async_stack - ASYNC_SIZE, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	lowcore_ptr[cpu] = NULL;
 }
 
@@ -664,7 +660,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
 	unsigned int cpu;
-	int lc_order;
 
 	smp_detect_cpus();
 
@@ -674,8 +669,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	panic_stack = __get_free_page(GFP_KERNEL);
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
 	BUG_ON(!lowcore || !panic_stack || !async_stack);
@@ -1046,42 +1040,6 @@ out:
 }
 static SYSDEV_CLASS_ATTR(dispatching, 0644, dispatching_show,
 			 dispatching_store);
-
-/*
- * If the resume kernel runs on another cpu than the suspended kernel,
- * we have to switch the cpu IDs in the logical map.
- */
-void smp_switch_boot_cpu_in_resume(u32 resume_phys_cpu_id,
-				   struct _lowcore *suspend_lowcore)
-{
-	int cpu, suspend_cpu_id, resume_cpu_id;
-	u32 suspend_phys_cpu_id;
-
-	suspend_phys_cpu_id = __cpu_logical_map[suspend_lowcore->cpu_nr];
-	suspend_cpu_id = suspend_lowcore->cpu_nr;
-
-	for_each_present_cpu(cpu) {
-		if (__cpu_logical_map[cpu] == resume_phys_cpu_id) {
-			resume_cpu_id = cpu;
-			goto found;
-		}
-	}
-	panic("Could not find resume cpu in logical map.\n");
-
-found:
-	printk("Resume  cpu ID: %i/%i\n", resume_phys_cpu_id, resume_cpu_id);
-	printk("Suspend cpu ID: %i/%i\n", suspend_phys_cpu_id, suspend_cpu_id);
-
-	__cpu_logical_map[resume_cpu_id] = suspend_phys_cpu_id;
-	__cpu_logical_map[suspend_cpu_id] = resume_phys_cpu_id;
-
-	lowcore_ptr[suspend_cpu_id]->cpu_addr = resume_phys_cpu_id;
-}
-
-u32 smp_get_phys_cpu_id(void)
-{
-	return __cpu_logical_map[smp_processor_id()];
-}
 
 static int __init topology_init(void)
 {

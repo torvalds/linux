@@ -550,7 +550,7 @@ static int __devinit dma_test(struct ape_dev *ape, struct pci_dev *dev)
 #if 0
 		*(u32 *)(buffer_virt + i) = i / PAGE_SIZE + 1;
 #else
-		*(u32 *)(buffer_virt + i) = (buffer_virt + i);
+		*(u32 *)(buffer_virt + i) = (u32)(unsigned long)(buffer_virt + i);
 #endif
 #if 0
   compare((u32 *)buffer_virt, (u32 *)(buffer_virt + 2 * PAGE_SIZE), 8192);

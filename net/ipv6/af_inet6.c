@@ -710,7 +710,7 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
 static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 {
-	struct inet6_protocol *ops = NULL;
+	const struct inet6_protocol *ops = NULL;
 
 	for (;;) {
 		struct ipv6_opt_hdr *opth;
@@ -745,7 +745,7 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 static int ipv6_gso_send_check(struct sk_buff *skb)
 {
 	struct ipv6hdr *ipv6h;
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	int err = -EINVAL;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
@@ -773,7 +773,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct ipv6hdr *ipv6h;
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	int proto;
 	struct frag_hdr *fptr;
 	unsigned int unfrag_ip6hlen;
@@ -840,7 +840,7 @@ struct ipv6_gro_cb {
 static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
 	struct ipv6hdr *iph;
@@ -926,7 +926,7 @@ out:
 
 static int ipv6_gro_complete(struct sk_buff *skb)
 {
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	int err = -ENOSYS;
 

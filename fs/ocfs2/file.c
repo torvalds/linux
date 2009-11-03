@@ -59,6 +59,7 @@
 #include "xattr.h"
 #include "acl.h"
 #include "quota.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -259,7 +260,7 @@ int ocfs2_update_inode_atime(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -334,6 +335,39 @@ out:
 	return ret;
 }
 
+static int ocfs2_cow_file_pos(struct inode *inode,
+			      struct buffer_head *fe_bh,
+			      u64 offset)
+{
+	int status;
+	u32 phys, cpos = offset >> OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	unsigned int num_clusters = 0;
+	unsigned int ext_flags = 0;
+
+	/*
+	 * If the new offset is aligned to the range of the cluster, there is
+	 * no space for ocfs2_zero_range_for_truncate to fill, so no need to
+	 * CoW either.
+	 */
+	if ((offset & (OCFS2_SB(inode->i_sb)->s_clustersize - 1)) == 0)
+		return 0;
+
+	status = ocfs2_get_clusters(inode, cpos, &phys,
+				    &num_clusters, &ext_flags);
+	if (status) {
+		mlog_errno(status);
+		goto out;
+	}
+
+	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
+		goto out;
+
+	return ocfs2_refcount_cow(inode, fe_bh, cpos, 1, cpos+1);
+
+out:
+	return status;
+}
+
 static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 				     struct inode *inode,
 				     struct buffer_head *fe_bh,
@@ -346,6 +380,17 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 
 	mlog_entry_void();
 
+	/*
+	 * We need to CoW the cluster contains the offset if it is reflinked
+	 * since we will call ocfs2_zero_range_for_truncate later which will
+	 * write "0" from offset to the end of the cluster.
+	 */
+	status = ocfs2_cow_file_pos(inode, fe_bh, new_i_size);
+	if (status) {
+		mlog_errno(status);
+		return status;
+	}
+
 	/* TODO: This needs to actually orphan the inode in this
 	 * transaction. */
 
@@ -356,7 +401,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 		goto out;
 	}
 
-	status = ocfs2_journal_access_di(handle, inode, fe_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), fe_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -486,6 +531,8 @@ bail_unlock_sem:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 bail:
+	if (!status && OCFS2_I(inode)->ip_clusters == 0)
+		status = ocfs2_try_remove_refcount_tree(inode, di_bh);
 
 	mlog_exit(status);
 	return status;
@@ -515,11 +562,10 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 	int ret;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_dinode_extent_tree(&et, inode, fe_bh);
-	ret = ocfs2_add_clusters_in_btree(osb, inode, logical_offset,
-					   clusters_to_add, mark_unwritten,
-					   &et, handle,
-					   data_ac, meta_ac, reason_ret);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), fe_bh);
+	ret = ocfs2_add_clusters_in_btree(handle, &et, logical_offset,
+					  clusters_to_add, mark_unwritten,
+					  data_ac, meta_ac, reason_ret);
 
 	return ret;
 }
@@ -564,7 +610,7 @@ restart_all:
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     (long long)i_size_read(inode), le32_to_cpu(fe->i_clusters),
 	     clusters_to_add);
-	ocfs2_init_dinode_extent_tree(&et, inode, bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), bh);
 	status = ocfs2_lock_allocators(inode, &et, clusters_to_add, 0,
 				       &data_ac, &meta_ac);
 	if (status) {
@@ -593,7 +639,7 @@ restarted_transaction:
 	/* reserve a write to the file entry early on - that we if we
 	 * run out of credits in the allocation path, we can still
 	 * update i_size. */
-	status = ocfs2_journal_access_di(handle, inode, bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1131,7 +1177,7 @@ static int __ocfs2_write_remove_suid(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -1395,7 +1441,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	struct address_space *mapping = inode->i_mapping;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_dinode_extent_tree(&et, inode, di_bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), di_bh);
 	ocfs2_init_dealloc_ctxt(&dealloc);
 
 	if (byte_len == 0)
@@ -1657,6 +1703,70 @@ static long ocfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 					 OCFS2_IOC_RESVSP64, &sr, change_size);
 }
 
+int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
+				   size_t count)
+{
+	int ret = 0;
+	unsigned int extent_flags;
+	u32 cpos, clusters, extent_len, phys_cpos;
+	struct super_block *sb = inode->i_sb;
+
+	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)) ||
+	    !(OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL))
+		return 0;
+
+	cpos = pos >> OCFS2_SB(sb)->s_clustersize_bits;
+	clusters = ocfs2_clusters_for_bytes(sb, pos + count) - cpos;
+
+	while (clusters) {
+		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos, &extent_len,
+					 &extent_flags);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		if (phys_cpos && (extent_flags & OCFS2_EXT_REFCOUNTED)) {
+			ret = 1;
+			break;
+		}
+
+		if (extent_len > clusters)
+			extent_len = clusters;
+
+		clusters -= extent_len;
+		cpos += extent_len;
+	}
+out:
+	return ret;
+}
+
+static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
+					    loff_t pos, size_t count,
+					    int *meta_level)
+{
+	int ret;
+	struct buffer_head *di_bh = NULL;
+	u32 cpos = pos >> OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	u32 clusters =
+		ocfs2_clusters_for_bytes(inode->i_sb, pos + count) - cpos;
+
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	*meta_level = 1;
+
+	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters, UINT_MAX);
+	if (ret)
+		mlog_errno(ret);
+out:
+	brelse(di_bh);
+	return ret;
+}
+
 static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 					 loff_t *ppos,
 					 size_t count,
@@ -1713,6 +1823,22 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 
 		end = saved_pos + count;
 
+		ret = ocfs2_check_range_for_refcount(inode, saved_pos, count);
+		if (ret == 1) {
+			ocfs2_inode_unlock(inode, meta_level);
+			meta_level = -1;
+
+			ret = ocfs2_prepare_inode_for_refcount(inode,
+							       saved_pos,
+							       count,
+							       &meta_level);
+		}
+
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out_unlock;
+		}
+
 		/*
 		 * Skip the O_DIRECT checks if we don't need
 		 * them.
@@ -1759,7 +1885,8 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 		*ppos = saved_pos;
 
 out_unlock:
-	ocfs2_inode_unlock(inode, meta_level);
+	if (meta_level >= 0)
+		ocfs2_inode_unlock(inode, meta_level);
 
 out:
 	return ret;

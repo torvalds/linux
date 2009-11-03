@@ -96,7 +96,7 @@ Example code - drivers hinting an alpha2:
 
 This example comes from the zd1211rw device driver. You can start
 by having a mapping of your device's EEPROM country/regulatory
-domain value to to a specific alpha2 as follows:
+domain value to a specific alpha2 as follows:
 
 static struct zd_reg_alpha2_map reg_alpha2_map[] = {
 	{ ZD_REGDOMAIN_FCC, "US" },

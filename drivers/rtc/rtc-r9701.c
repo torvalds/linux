@@ -174,3 +174,4 @@ module_exit(r9701_exit);
 MODULE_DESCRIPTION("r9701 spi RTC driver");
 MODULE_AUTHOR("Magnus Damm <damm@opensource.se>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:rtc-r9701");

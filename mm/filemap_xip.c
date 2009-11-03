@@ -296,7 +296,7 @@ out:
 	}
 }
 
-static struct vm_operations_struct xip_file_vm_ops = {
+static const struct vm_operations_struct xip_file_vm_ops = {
 	.fault	= xip_file_fault,
 };
 

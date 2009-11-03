@@ -617,7 +617,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 	int cpu;
 
 	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
-	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > num_physpages)
+	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
 		return NULL;
 
 	newinfo = kzalloc(XT_TABLE_INFO_SZ, GFP_KERNEL);

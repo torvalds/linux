@@ -78,14 +78,6 @@ struct pv_init_ops {
 	 */
 	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
 			  unsigned long addr, unsigned len);
-
-	/* Basic arch-specific setup */
-	void (*arch_setup)(void);
-	char *(*memory_setup)(void);
-	void (*post_allocator_init)(void);
-
-	/* Print a banner to identify the environment */
-	void (*banner)(void);
 };
 
 
@@ -96,12 +88,6 @@ struct pv_lazy_ops {
 };
 
 struct pv_time_ops {
-	void (*time_init)(void);
-
-	/* Set and set time of day */
-	unsigned long (*get_wallclock)(void);
-	int (*set_wallclock)(unsigned long);
-
 	unsigned long long (*sched_clock)(void);
 	unsigned long (*get_tsc_khz)(void);
 };
@@ -203,8 +189,6 @@ struct pv_cpu_ops {
 };
 
 struct pv_irq_ops {
-	void (*init_IRQ)(void);
-
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
@@ -229,9 +213,6 @@ struct pv_irq_ops {
 
 struct pv_apic_ops {
 #ifdef CONFIG_X86_LOCAL_APIC
-	void (*setup_boot_clock)(void);
-	void (*setup_secondary_clock)(void);
-
 	void (*startup_ipi_hook)(int phys_apicid,
 				 unsigned long start_eip,
 				 unsigned long start_esp);
@@ -239,15 +220,6 @@ struct pv_apic_ops {
 };
 
 struct pv_mmu_ops {
-	/*
-	 * Called before/after init_mm pagetable setup. setup_start
-	 * may reset %cr3, and may pre-install parts of the pagetable;
-	 * pagetable setup is expected to preserve any existing
-	 * mapping.
-	 */
-	void (*pagetable_setup_start)(pgd_t *pgd_base);
-	void (*pagetable_setup_done)(pgd_t *pgd_base);
-
 	unsigned long (*read_cr2)(void);
 	void (*write_cr2)(unsigned long);
 
@@ -522,10 +494,11 @@ int paravirt_disable_iospace(void);
 #define EXTRA_CLOBBERS
 #define VEXTRA_CLOBBERS
 #else  /* CONFIG_X86_64 */
+/* [re]ax isn't an arg, but the return val */
 #define PVOP_VCALL_ARGS					\
 	unsigned long __edi = __edi, __esi = __esi,	\
-		__edx = __edx, __ecx = __ecx
-#define PVOP_CALL_ARGS		PVOP_VCALL_ARGS, __eax
+		__edx = __edx, __ecx = __ecx, __eax = __eax
+#define PVOP_CALL_ARGS		PVOP_VCALL_ARGS
 
 #define PVOP_CALL_ARG1(x)		"D" ((unsigned long)(x))
 #define PVOP_CALL_ARG2(x)		"S" ((unsigned long)(x))
@@ -537,6 +510,7 @@ int paravirt_disable_iospace(void);
 				"=c" (__ecx)
 #define PVOP_CALL_CLOBBERS	PVOP_VCALL_CLOBBERS, "=a" (__eax)
 
+/* void functions are still allowed [re]ax for scratch */
 #define PVOP_VCALLEE_CLOBBERS	"=a" (__eax)
 #define PVOP_CALLEE_CLOBBERS	PVOP_VCALLEE_CLOBBERS
 
@@ -611,8 +585,8 @@ int paravirt_disable_iospace(void);
 		       VEXTRA_CLOBBERS,					\
 		       pre, post, ##__VA_ARGS__)
 
-#define __PVOP_VCALLEESAVE(rettype, op, pre, post, ...)			\
-	____PVOP_CALL(rettype, op.func, CLBR_RET_REG,			\
+#define __PVOP_VCALLEESAVE(op, pre, post, ...)				\
+	____PVOP_VCALL(op.func, CLBR_RET_REG,				\
 		      PVOP_VCALLEE_CLOBBERS, ,				\
 		      pre, post, ##__VA_ARGS__)
 

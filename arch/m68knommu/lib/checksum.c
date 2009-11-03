@@ -92,6 +92,7 @@ out:
 	return result;
 }
 
+#ifdef CONFIG_COLDFIRE
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
@@ -100,6 +101,7 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	return (__force __sum16)~do_csum(iph,ihl*4);
 }
+#endif
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -125,15 +127,6 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 }
 
 EXPORT_SYMBOL(csum_partial);
-
-/*
- * this routine is used for miscellaneous IP-like checksums, mainly
- * in icmp.c
- */
-__sum16 ip_compute_csum(const void *buff, int len)
-{
-	return (__force __sum16)~do_csum(buff,len);
-}
 
 /*
  * copy from fs while checksumming, otherwise like csum_partial

@@ -80,7 +80,7 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static int ldp_twl4030_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -101,11 +101,15 @@ static int ldp_twl4030_keymap[] = {
 	0
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data ldp_kp_twl4030_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 6,
 	.cols		= 6,
-	.keymap		= ldp_twl4030_keymap,
-	.keymapsize	= ARRAY_SIZE(ldp_twl4030_keymap),
 	.rep		= 1,
 };
 
@@ -268,18 +272,6 @@ static inline void __init ldp_init_smsc911x(void)
 	gpio_direction_input(eth_gpio);
 }
 
-static void __init omap_ldp_init_irq(void)
-{
-	omap2_init_common_hw(NULL, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-	ldp_init_smsc911x();
-}
-
-static struct omap_uart_config ldp_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct platform_device ldp_lcd_device = {
 	.name		= "ldp_lcd",
 	.id		= -1,
@@ -290,9 +282,18 @@ static struct omap_lcd_config ldp_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel ldp_config[] __initdata = {
-	{ OMAP_TAG_UART,	&ldp_uart_config },
 	{ OMAP_TAG_LCD,		&ldp_lcd_config },
 };
+
+static void __init omap_ldp_init_irq(void)
+{
+	omap_board_config = ldp_config;
+	omap_board_config_size = ARRAY_SIZE(ldp_config);
+	omap2_init_common_hw(NULL, NULL);
+	omap_init_irq();
+	omap_gpio_init();
+	ldp_init_smsc911x();
+}
 
 static struct twl4030_usb_data ldp_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
@@ -377,8 +378,6 @@ static void __init omap_ldp_init(void)
 {
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
-	omap_board_config = ldp_config;
-	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	ts_gpio = 54;
 	ldp_spi_board_info[0].irq = gpio_to_irq(ts_gpio);
 	spi_register_board_info(ldp_spi_board_info,

@@ -15,63 +15,6 @@
  * also get peer root bus resource for io,mmio
  */
 
-#ifdef CONFIG_NUMA
-
-#define BUS_NR 256
-
-#ifdef CONFIG_X86_64
-
-static int mp_bus_to_node[BUS_NR];
-
-void set_mp_bus_to_node(int busnum, int node)
-{
-	if (busnum >= 0 &&  busnum < BUS_NR)
-		mp_bus_to_node[busnum] = node;
-}
-
-int get_mp_bus_to_node(int busnum)
-{
-	int node = -1;
-
-	if (busnum < 0 || busnum > (BUS_NR - 1))
-		return node;
-
-	node = mp_bus_to_node[busnum];
-
-	/*
-	 * let numa_node_id to decide it later in dma_alloc_pages
-	 * if there is no ram on that node
-	 */
-	if (node != -1 && !node_online(node))
-		node = -1;
-
-	return node;
-}
-
-#else /* CONFIG_X86_32 */
-
-static unsigned char mp_bus_to_node[BUS_NR];
-
-void set_mp_bus_to_node(int busnum, int node)
-{
-	if (busnum >= 0 &&  busnum < BUS_NR)
-	mp_bus_to_node[busnum] = (unsigned char) node;
-}
-
-int get_mp_bus_to_node(int busnum)
-{
-	int node;
-
-	if (busnum < 0 || busnum > (BUS_NR - 1))
-		return 0;
-	node = mp_bus_to_node[busnum];
-	return node;
-}
-
-#endif /* CONFIG_X86_32 */
-
-#endif /* CONFIG_NUMA */
-
 #ifdef CONFIG_X86_64
 
 /*
@@ -301,11 +244,6 @@ static int __init early_fill_mp_bus_info(void)
 	u64 val;
 	u32 address;
 
-#ifdef CONFIG_NUMA
-	for (i = 0; i < BUS_NR; i++)
-		mp_bus_to_node[i] = -1;
-#endif
-
 	if (!early_pci_allowed())
 		return -1;
 
@@ -346,7 +284,7 @@ static int __init early_fill_mp_bus_info(void)
 		node = (reg >> 4) & 0x07;
 #ifdef CONFIG_NUMA
 		for (j = min_bus; j <= max_bus; j++)
-			mp_bus_to_node[j] = (unsigned char) node;
+			set_mp_bus_to_node(j, node);
 #endif
 		link = (reg >> 8) & 0x03;
 

@@ -229,7 +229,7 @@ struct rxrpc_conn_bundle {
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		num_conns;	/* number of connections in this bundle */
 	__be16			service_id;	/* service ID */
-	uint8_t			security_ix;	/* security type */
+	u8			security_ix;	/* security type */
 };
 
 /*
@@ -370,10 +370,10 @@ struct rxrpc_call {
 	u8			channel;	/* connection channel occupied by this call */
 
 	/* transmission-phase ACK management */
-	uint8_t			acks_head;	/* offset into window of first entry */
-	uint8_t			acks_tail;	/* offset into window of last entry */
-	uint8_t			acks_winsz;	/* size of un-ACK'd window */
-	uint8_t			acks_unacked;	/* lowest unacked packet in last ACK received */
+	u8			acks_head;	/* offset into window of first entry */
+	u8			acks_tail;	/* offset into window of last entry */
+	u8			acks_winsz;	/* size of un-ACK'd window */
+	u8			acks_unacked;	/* lowest unacked packet in last ACK received */
 	int			acks_latest;	/* serial number of latest ACK received */
 	rxrpc_seq_t		acks_hard;	/* highest definitively ACK'd msg seq */
 	unsigned long		*acks_window;	/* sent packet window
@@ -388,7 +388,7 @@ struct rxrpc_call {
 	rxrpc_seq_t		rx_first_oos;	/* first packet in rx_oos_queue (or 0) */
 	rxrpc_seq_t		ackr_win_top;	/* top of ACK window (rx_data_eaten is bottom) */
 	rxrpc_seq_net_t		ackr_prev_seq;	/* previous sequence number received */
-	uint8_t			ackr_reason;	/* reason to ACK */
+	u8			ackr_reason;	/* reason to ACK */
 	__be32			ackr_serial;	/* serial of packet being ACK'd */
 	atomic_t		ackr_not_idle;	/* number of packets in Rx queue */
 
@@ -399,22 +399,6 @@ struct rxrpc_call {
 	/* the following should all be in net order */
 	__be32			cid;		/* connection ID + channel index  */
 	__be32			call_id;	/* call ID on connection  */
-};
-
-/*
- * RxRPC key for Kerberos (type-2 security)
- */
-struct rxkad_key {
-	u16	security_index;		/* RxRPC header security index */
-	u16	ticket_len;		/* length of ticket[] */
-	u32	expiry;			/* time at which expires */
-	u32	kvno;			/* key version number */
-	u8	session_key[8];		/* DES session key */
-	u8	ticket[0];		/* the encrypted ticket */
-};
-
-struct rxrpc_key_payload {
-	struct rxkad_key k;
 };
 
 /*
@@ -450,8 +434,8 @@ extern int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * ar-ack.c
  */
-extern void __rxrpc_propose_ACK(struct rxrpc_call *, uint8_t, __be32, bool);
-extern void rxrpc_propose_ACK(struct rxrpc_call *, uint8_t, __be32, bool);
+extern void __rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
+extern void rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
 extern void rxrpc_process_call(struct work_struct *);
 
 /*

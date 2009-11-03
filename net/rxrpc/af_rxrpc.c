@@ -507,7 +507,7 @@ out:
  * set RxRPC socket options
  */
 static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
-			    char __user *optval, int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	unsigned min_sec_level;

@@ -64,6 +64,8 @@ struct btrfs_workers {
 	/* current number of running workers */
 	int num_workers;
 
+	int num_workers_starting;
+
 	/* max number of workers allowed.  changed by btrfs_start_workers */
 	int max_workers;
 
@@ -72,6 +74,16 @@ struct btrfs_workers {
 
 	/* force completions in the order they were queued */
 	int ordered;
+
+	/* more workers required, but in an interrupt handler */
+	int atomic_start_pending;
+
+	/*
+	 * are we allowed to sleep while starting workers or are we required
+	 * to start them at a later time?  If we can't sleep, this indicates
+	 * which queue we need to use to schedule thread creation.
+	 */
+	struct btrfs_workers *atomic_worker_start;
 
 	/* list with all the work threads.  The workers on the idle thread
 	 * may be actively servicing jobs, but they haven't yet hit the
@@ -90,6 +102,9 @@ struct btrfs_workers {
 	/* lock for finding the next worker thread to queue on */
 	spinlock_t lock;
 
+	/* lock for the ordered lists */
+	spinlock_t order_lock;
+
 	/* extra name for this worker, used for current->name */
 	char *name;
 };
@@ -97,7 +112,8 @@ struct btrfs_workers {
 int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work);
 int btrfs_start_workers(struct btrfs_workers *workers, int num_workers);
 int btrfs_stop_workers(struct btrfs_workers *workers);
-void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max);
+void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max,
+			struct btrfs_workers *async_starter);
 int btrfs_requeue_work(struct btrfs_work *work);
 void btrfs_set_work_high_prio(struct btrfs_work *work);
 #endif

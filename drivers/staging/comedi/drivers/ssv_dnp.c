@@ -61,11 +61,11 @@ struct dnp_board {
 
 static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 	{			/* variant at the moment             */
-	.name = "dnp-1486",
-	.ai_chans = 16,
-	.ai_bits = 12,
-	.have_dio = 1,
-		},
+	 .name = "dnp-1486",
+	 .ai_chans = 16,
+	 .ai_bits = 12,
+	 .have_dio = 1,
+	 },
 };
 
 /* Useful for shorthand access to the particular board structure ----------- */
@@ -75,7 +75,6 @@ static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board
 struct dnp_private_data {
 
 };
-
 
 /* Shorthand macro for faster access to the private data ------------------- */
 #define devpriv ((dnp_private *)dev->private)
@@ -98,17 +97,19 @@ static struct comedi_driver driver_dnp = {
 	.detach = dnp_detach,
 	.board_name = &dnp_boards[0].name,
 	/* only necessary for non-PnP devs   */
-	.offset = sizeof(struct dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
+	.offset = sizeof(struct dnp_board),	/* like ISA-PnP, PCI or PCMCIA.      */
 	.num_names = ARRAY_SIZE(dnp_boards),
 };
 
 COMEDI_INITCLEANUP(driver_dnp);
 
 static int dnp_dio_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data);
 
 static int dnp_dio_insn_config(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 
 /* ------------------------------------------------------------------------- */
 /* Attach is called by comedi core to configure the driver for a particular  */
@@ -202,7 +203,8 @@ static int dnp_detach(struct comedi_device *dev)
 /* ------------------------------------------------------------------------- */
 
 static int dnp_dio_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
 
 	if (insn->n != 2)
@@ -219,18 +221,18 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 
 		outb(PADR, CSCIR);
 		outb((inb(CSCDR)
-				& ~(u8) (data[0] & 0x0000FF))
-			| (u8) (data[1] & 0x0000FF), CSCDR);
+		      & ~(u8) (data[0] & 0x0000FF))
+		     | (u8) (data[1] & 0x0000FF), CSCDR);
 
 		outb(PBDR, CSCIR);
 		outb((inb(CSCDR)
-				& ~(u8) ((data[0] & 0x00FF00) >> 8))
-			| (u8) ((data[1] & 0x00FF00) >> 8), CSCDR);
+		      & ~(u8) ((data[0] & 0x00FF00) >> 8))
+		     | (u8) ((data[1] & 0x00FF00) >> 8), CSCDR);
 
 		outb(PCDR, CSCIR);
 		outb((inb(CSCDR)
-				& ~(u8) ((data[0] & 0x0F0000) >> 12))
-			| (u8) ((data[1] & 0x0F0000) >> 12), CSCDR);
+		      & ~(u8) ((data[0] & 0x0F0000) >> 12))
+		     | (u8) ((data[1] & 0x0F0000) >> 12), CSCDR);
 	}
 
 	/* on return, data[1] contains the value of the digital input lines.       */
@@ -252,7 +254,8 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 /* ------------------------------------------------------------------------- */
 
 static int dnp_dio_insn_config(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 
 	u8 register_buffer;
@@ -265,8 +268,7 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(inb(CSCDR) & (1 << chan)) ? COMEDI_OUTPUT :
-			COMEDI_INPUT;
+		    (inb(CSCDR) & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:

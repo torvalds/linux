@@ -101,6 +101,9 @@ void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
 struct ocfs2_mem_dqinfo;
 void ocfs2_qinfo_lock_res_init(struct ocfs2_lock_res *lockres,
                                struct ocfs2_mem_dqinfo *info);
+void ocfs2_refcount_lock_res_init(struct ocfs2_lock_res *lockres,
+				  struct ocfs2_super *osb, u64 ref_blkno,
+				  unsigned int generation);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
 int ocfs2_drop_inode_locks(struct inode *inode);
@@ -148,6 +151,9 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock);
 void ocfs2_file_unlock(struct file *file);
 int ocfs2_qinfo_lock(struct ocfs2_mem_dqinfo *oinfo, int ex);
 void ocfs2_qinfo_unlock(struct ocfs2_mem_dqinfo *oinfo, int ex);
+struct ocfs2_refcount_tree;
+int ocfs2_refcount_lock(struct ocfs2_refcount_tree *ref_tree, int ex);
+void ocfs2_refcount_unlock(struct ocfs2_refcount_tree *ref_tree, int ex);
 
 
 void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres);

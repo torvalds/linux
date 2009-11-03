@@ -99,10 +99,6 @@ static int ipmr_cache_report(struct net *net,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static int ipmr_fill_mroute(struct sk_buff *skb, struct mfc_cache *c, struct rtmsg *rtm);
 
-#ifdef CONFIG_IP_PIMSM_V2
-static struct net_protocol pim_protocol;
-#endif
-
 static struct timer_list ipmr_expire_timer;
 
 /* Service routines creating virtual interfaces: DVMRP tunnels and PIMREG */
@@ -935,7 +931,7 @@ static void mrtsock_destruct(struct sock *sk)
  *	MOSPF/PIM router set up we can clean this up.
  */
 
-int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int optlen)
+int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsigned int optlen)
 {
 	int ret;
 	struct vifctl vif;
@@ -1945,7 +1941,7 @@ static const struct file_operations ipmr_mfc_fops = {
 #endif
 
 #ifdef CONFIG_IP_PIMSM_V2
-static struct net_protocol pim_protocol = {
+static const struct net_protocol pim_protocol = {
 	.handler	=	pim_rcv,
 	.netns_ok	=	1,
 };

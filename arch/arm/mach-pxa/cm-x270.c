@@ -13,13 +13,18 @@
 #include <linux/sysdev.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 
 #include <linux/rtc-v3020.h>
 #include <video/mbxfb.h>
 
+#include <linux/spi/spi.h>
+#include <linux/spi/libertas_spi.h>
+
 #include <mach/pxa27x.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
+#include <mach/pxa2xx_spi.h>
 
 #include "generic.h"
 
@@ -33,6 +38,10 @@
 
 /* MMC power enable */
 #define GPIO105_MMC_POWER	(105)
+
+/* WLAN GPIOS */
+#define GPIO19_WLAN_STRAP	(19)
+#define GPIO102_WLAN_RST	(102)
 
 static unsigned long cmx270_pin_config[] = {
 	/* AC'97 */
@@ -94,8 +103,8 @@ static unsigned long cmx270_pin_config[] = {
 	GPIO26_SSP1_RXD,
 
 	/* SSP2 */
-	GPIO19_SSP2_SCLK,
-	GPIO14_SSP2_SFRM,
+	GPIO19_GPIO,	/* SSP2 clock is used as GPIO for Libertas pin-strap */
+	GPIO14_GPIO,
 	GPIO87_SSP2_TXD,
 	GPIO88_SSP2_RXD,
 
@@ -123,6 +132,7 @@ static unsigned long cmx270_pin_config[] = {
 	GPIO0_GPIO	| WAKEUP_ON_EDGE_BOTH,
 	GPIO105_GPIO	| MFP_LPM_DRIVE_HIGH,	/* MMC/SD power */
 	GPIO53_GPIO,				/* PC card reset */
+	GPIO102_GPIO,				/* WLAN reset */
 
 	/* NAND controls */
 	GPIO11_GPIO	| MFP_LPM_DRIVE_HIGH,	/* NAND CE# */
@@ -131,6 +141,7 @@ static unsigned long cmx270_pin_config[] = {
 	/* interrupts */
 	GPIO10_GPIO,	/* DM9000 interrupt */
 	GPIO83_GPIO,	/* MMC card detect */
+	GPIO95_GPIO,	/* WLAN interrupt */
 };
 
 /* V3020 RTC */
@@ -271,56 +282,12 @@ static inline void cmx270_init_ohci(void) {}
 #endif
 
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
-static int cmx270_mci_init(struct device *dev,
-			   irq_handler_t cmx270_detect_int,
-			   void *data)
-{
-	int err;
-
-	err = gpio_request(GPIO105_MMC_POWER, "MMC/SD power");
-	if (err) {
-		dev_warn(dev, "power gpio unavailable\n");
-		return err;
-	}
-
-	gpio_direction_output(GPIO105_MMC_POWER, 0);
-
-	err = request_irq(CMX270_MMC_IRQ, cmx270_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		gpio_free(GPIO105_MMC_POWER);
-		dev_err(dev, "cmx270_mci_init: MMC/SD: can't"
-			" request MMC card detect IRQ\n");
-	}
-
-	return err;
-}
-
-static void cmx270_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-
-	if ((1 << vdd) & p_d->ocr_mask) {
-		dev_dbg(dev, "power on\n");
-		gpio_set_value(GPIO105_MMC_POWER, 0);
-	} else {
-		gpio_set_value(GPIO105_MMC_POWER, 1);
-		dev_dbg(dev, "power off\n");
-	}
-}
-
-static void cmx270_mci_exit(struct device *dev, void *data)
-{
-	free_irq(CMX270_MMC_IRQ, data);
-	gpio_free(GPIO105_MMC_POWER);
-}
-
 static struct pxamci_platform_data cmx270_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= cmx270_mci_init,
-	.setpower 	= cmx270_mci_setpower,
-	.exit		= cmx270_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO83_MMC_IRQ,
+	.gpio_card_ro		= -1,
+	.gpio_power		= GPIO105_MMC_POWER,
+	.gpio_power_invert	= 1,
 };
 
 static void __init cmx270_init_mmc(void)
@@ -329,6 +296,100 @@ static void __init cmx270_init_mmc(void)
 }
 #else
 static inline void cmx270_init_mmc(void) {}
+#endif
+
+#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
+static struct pxa2xx_spi_master cm_x270_spi_info = {
+	.num_chipselect	= 1,
+	.enable_dma	= 1,
+};
+
+static struct pxa2xx_spi_chip cm_x270_libertas_chip = {
+	.rx_threshold	= 1,
+	.tx_threshold	= 1,
+	.timeout	= 1000,
+	.gpio_cs	= 14,
+};
+
+static unsigned long cm_x270_libertas_pin_config[] = {
+	/* SSP2 */
+	GPIO19_SSP2_SCLK,
+	GPIO14_GPIO,
+	GPIO87_SSP2_TXD,
+	GPIO88_SSP2_RXD,
+
+};
+
+static int cm_x270_libertas_setup(struct spi_device *spi)
+{
+	int err = gpio_request(GPIO19_WLAN_STRAP, "WLAN STRAP");
+	if (err)
+		return err;
+
+	err = gpio_request(GPIO102_WLAN_RST, "WLAN RST");
+	if (err)
+		goto err_free_strap;
+
+	err = gpio_direction_output(GPIO102_WLAN_RST, 0);
+	if (err)
+		goto err_free_strap;
+	msleep(100);
+
+	err = gpio_direction_output(GPIO19_WLAN_STRAP, 1);
+	if (err)
+		goto err_free_strap;
+	msleep(100);
+
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(cm_x270_libertas_pin_config));
+
+	gpio_set_value(GPIO102_WLAN_RST, 1);
+	msleep(100);
+
+	spi->bits_per_word = 16;
+	spi_setup(spi);
+
+	return 0;
+
+err_free_strap:
+	gpio_free(GPIO19_WLAN_STRAP);
+
+	return err;
+}
+
+static int cm_x270_libertas_teardown(struct spi_device *spi)
+{
+	gpio_set_value(GPIO102_WLAN_RST, 0);
+	gpio_free(GPIO102_WLAN_RST);
+	gpio_free(GPIO19_WLAN_STRAP);
+
+	return 0;
+}
+
+struct libertas_spi_platform_data cm_x270_libertas_pdata = {
+	.use_dummy_writes	= 1,
+	.setup			= cm_x270_libertas_setup,
+	.teardown		= cm_x270_libertas_teardown,
+};
+
+static struct spi_board_info cm_x270_spi_devices[] __initdata = {
+	{
+		.modalias		= "libertas_spi",
+		.max_speed_hz		= 13000000,
+		.bus_num		= 2,
+		.irq			= gpio_to_irq(95),
+		.chip_select		= 0,
+		.controller_data	= &cm_x270_libertas_chip,
+		.platform_data		= &cm_x270_libertas_pdata,
+	},
+};
+
+static void __init cmx270_init_spi(void)
+{
+	pxa2xx_set_spi_info(2, &cm_x270_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(cm_x270_spi_devices));
+}
+#else
+static inline void cmx270_init_spi(void) {}
 #endif
 
 void __init cmx270_init(void)
@@ -343,4 +404,5 @@ void __init cmx270_init(void)
 	cmx270_init_mmc();
 	cmx270_init_ohci();
 	cmx270_init_2700G();
+	cmx270_init_spi();
 }

@@ -639,3 +639,4 @@ module_exit(corgi_lcd_exit);
 MODULE_DESCRIPTION("LCD and backlight driver for SHARP C7x0/Cxx00");
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:corgi-lcd");

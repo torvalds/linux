@@ -1044,7 +1044,7 @@ void udpv6_destroy_sock(struct sock *sk)
  *	Socket option code for UDP
  */
 int udpv6_setsockopt(struct sock *sk, int level, int optname,
-		     char __user *optval, int optlen)
+		     char __user *optval, unsigned int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
@@ -1054,7 +1054,7 @@ int udpv6_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 int compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
@@ -1172,7 +1172,7 @@ out:
 	return segs;
 }
 
-static struct inet6_protocol udpv6_protocol = {
+static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
 	.gso_send_check =	udp6_ufo_send_check,

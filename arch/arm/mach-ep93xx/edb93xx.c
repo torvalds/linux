@@ -27,8 +27,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/mtd/physmap.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
+#include <linux/i2c-gpio.h>
 
 #include <mach/hardware.h>
 
@@ -76,13 +78,26 @@ static struct ep93xx_eth_data edb93xx_eth_data = {
 	.phy_id		= 1,
 };
 
-static struct i2c_board_info __initdata edb93xxa_i2c_data[] = {
+
+/*************************************************************************
+ * EDB93xx i2c peripheral handling
+ *************************************************************************/
+static struct i2c_gpio_platform_data edb93xx_i2c_gpio_data = {
+	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
+	.sda_is_open_drain	= 0,
+	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
+	.scl_is_open_drain	= 0,
+	.udelay			= 0,	/* default to 100 kHz */
+	.timeout		= 0,	/* default to 100 ms */
+};
+
+static struct i2c_board_info __initdata edb93xxa_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("isl1208", 0x6f),
 	},
 };
 
-static struct i2c_board_info __initdata edb93xx_i2c_data[] = {
+static struct i2c_board_info __initdata edb93xx_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ds1337", 0x68),
 	},
@@ -92,12 +107,14 @@ static void __init edb93xx_register_i2c(void)
 {
 	if (machine_is_edb9302a() || machine_is_edb9307a() ||
 	    machine_is_edb9315a()) {
-		ep93xx_register_i2c(edb93xxa_i2c_data,
-				ARRAY_SIZE(edb93xxa_i2c_data));
+		ep93xx_register_i2c(&edb93xx_i2c_gpio_data,
+				    edb93xxa_i2c_board_info,
+				    ARRAY_SIZE(edb93xxa_i2c_board_info));
 	} else if (machine_is_edb9307() || machine_is_edb9312() ||
 		   machine_is_edb9315()) {
-		ep93xx_register_i2c(edb93xx_i2c_data,
-				ARRAY_SIZE(edb93xx_i2c_data));
+		ep93xx_register_i2c(&edb93xx_i2c_gpio_data
+				    edb93xx_i2c_board_info,
+				    ARRAY_SIZE(edb93xx_i2c_board_info));
 	}
 }
 

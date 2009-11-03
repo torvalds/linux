@@ -339,8 +339,11 @@ EXPORT_SYMBOL_GPL(__remove_pages);
 
 void online_page(struct page *page)
 {
+	unsigned long pfn = page_to_pfn(page);
+
 	totalram_pages++;
-	num_physpages++;
+	if (pfn >= num_physpages)
+		num_physpages = pfn + 1;
 
 #ifdef CONFIG_HIGHMEM
 	if (PageHighMem(page))
@@ -410,7 +413,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (!populated_zone(zone))
 		need_zonelists_rebuild = 1;
 
-	ret = walk_memory_resource(pfn, nr_pages, &onlined_pages,
+	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
 		online_pages_range);
 	if (ret) {
 		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
@@ -422,6 +425,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 
+	zone_pcp_update(zone);
 	setup_per_zone_wmarks();
 	calculate_zone_inactive_ratio(zone);
 	if (onlined_pages) {
@@ -701,7 +705,7 @@ offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
 static void
 offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 {
-	walk_memory_resource(start_pfn, end_pfn - start_pfn, NULL,
+	walk_system_ram_range(start_pfn, end_pfn - start_pfn, NULL,
 				offline_isolated_pages_cb);
 }
 
@@ -727,7 +731,7 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	long offlined = 0;
 	int ret;
 
-	ret = walk_memory_resource(start_pfn, end_pfn - start_pfn, &offlined,
+	ret = walk_system_ram_range(start_pfn, end_pfn - start_pfn, &offlined,
 			check_pages_isolated_cb);
 	if (ret < 0)
 		offlined = (long)ret;
@@ -831,7 +835,6 @@ repeat:
 	zone->present_pages -= offlined_pages;
 	zone->zone_pgdat->node_present_pages -= offlined_pages;
 	totalram_pages -= offlined_pages;
-	num_physpages -= offlined_pages;
 
 	setup_per_zone_wmarks();
 	calculate_zone_inactive_ratio(zone);

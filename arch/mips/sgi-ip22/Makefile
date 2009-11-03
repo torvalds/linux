@@ -10,4 +10,4 @@ obj-$(CONFIG_SGI_IP22) += ip22-berr.o
 obj-$(CONFIG_SGI_IP28) += ip28-berr.o
 obj-$(CONFIG_EISA)	+= ip22-eisa.o
 
-# EXTRA_CFLAGS += -Werror
+EXTRA_CFLAGS += -Werror

@@ -268,7 +268,7 @@
 #define	__NR_preadv		328
 #define	__NR_pwritev		329
 #define __NR_rt_tgsigqueueinfo	330
-#define __NR_perf_counter_open	331
+#define __NR_perf_event_open	331
 #define NR_syscalls 332
 
 /* 

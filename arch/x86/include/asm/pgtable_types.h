@@ -277,6 +277,7 @@ static inline pteval_t pte_flags(pte_t pte)
 typedef struct page *pgtable_t;
 
 extern pteval_t __supported_pte_mask;
+extern void set_nx(void);
 extern int nx_enabled;
 
 #define pgprot_writecombine	pgprot_writecombine
@@ -299,8 +300,8 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 extern void native_pagetable_setup_start(pgd_t *base);
 extern void native_pagetable_setup_done(pgd_t *base);
 #else
-static inline void native_pagetable_setup_start(pgd_t *base) {}
-static inline void native_pagetable_setup_done(pgd_t *base) {}
+#define native_pagetable_setup_start x86_init_pgd_noop
+#define native_pagetable_setup_done  x86_init_pgd_noop
 #endif
 
 struct seq_file;

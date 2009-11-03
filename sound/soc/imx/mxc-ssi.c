@@ -397,14 +397,6 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		break;
 	}
 
-	/* sync */
-	if (!(fmt & SND_SOC_DAIFMT_ASYNC))
-		scr |= SSI_SCR_SYN;
-
-	/* tdm - only for stereo atm */
-	if (fmt & SND_SOC_DAIFMT_TDM)
-		scr |= SSI_SCR_NET;
-
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI2) {
 		SSI1_STCR = stcr;
 		SSI1_SRCR = srcr;

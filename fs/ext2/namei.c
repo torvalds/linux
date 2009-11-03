@@ -70,7 +70,7 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 			if (PTR_ERR(inode) == -ESTALE) {
 				ext2_error(dir->i_sb, __func__,
 						"deleted inode referenced: %lu",
-						ino);
+						(unsigned long) ino);
 				return ERR_PTR(-EIO);
 			} else {
 				return ERR_CAST(inode);

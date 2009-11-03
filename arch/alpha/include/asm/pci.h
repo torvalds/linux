@@ -52,7 +52,6 @@ struct pci_controller {
    bus numbers.  */
 
 #define pcibios_assign_all_busses()	1
-#define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		alpha_mv.min_io_address
 #define PCIBIOS_MIN_MEM		alpha_mv.min_mem_address

@@ -414,7 +414,7 @@ static int dgram_getsockopt(struct sock *sk, int level, int optname,
 }
 
 static int dgram_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	struct dgram_sock *ro = dgram_sk(sk);
 	int val;

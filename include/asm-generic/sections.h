@@ -23,4 +23,20 @@ extern char __ctors_start[], __ctors_end[];
 #define dereference_function_descriptor(p) (p)
 #endif
 
+/* random extra sections (if any).  Override
+ * in asm/sections.h */
+#ifndef arch_is_kernel_text
+static inline int arch_is_kernel_text(unsigned long addr)
+{
+	return 0;
+}
+#endif
+
+#ifndef arch_is_kernel_data
+static inline int arch_is_kernel_data(unsigned long addr)
+{
+	return 0;
+}
+#endif
+
 #endif /* _ASM_GENERIC_SECTIONS_H_ */

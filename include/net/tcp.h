@@ -394,13 +394,13 @@ extern int			tcp_getsockopt(struct sock *sk, int level,
 					       int __user *optlen);
 extern int			tcp_setsockopt(struct sock *sk, int level, 
 					       int optname, char __user *optval, 
-					       int optlen);
+					       unsigned int optlen);
 extern int			compat_tcp_getsockopt(struct sock *sk,
 					int level, int optname,
 					char __user *optval, int __user *optlen);
 extern int			compat_tcp_setsockopt(struct sock *sk,
 					int level, int optname,
-					char __user *optval, int optlen);
+					char __user *optval, unsigned int optlen);
 extern void			tcp_set_keepalive(struct sock *sk, int val);
 extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    struct msghdr *msg,
@@ -791,6 +791,13 @@ static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
 static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
 	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
+}
+
+#define TCP_INFINITE_SSTHRESH	0x7fffffff
+
+static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
+{
+	return tp->snd_ssthresh >= TCP_INFINITE_SSTHRESH;
 }
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.

@@ -166,7 +166,7 @@ static int st6422_init(struct sd *sd)
 /* 10 compressed? */
 
 		{ 0x1439, 0x00 },
-/* antiflimmer??  0xa2 ger perfekt bild mot monitor */
+/* anti-noise?  0xa2 gives a perfect image */
 
 		{ 0x143b, 0x05 },
 		{ 0x143c, 0x00 },	/* 0x00-0x01 - ??? */
@@ -197,15 +197,14 @@ static int st6422_init(struct sd *sd)
 		{ 0x1500, 0x50 },	/* 0x00 - 0xFF  0x80 == compr ? */
 
 		{ 0x1501, 0xaf },
-/* high val-> ljus area blir morkare. */
-/* low val -> ljus area blir ljusare. */
+/* high val-> light area gets darker */
+/* low val -> light area gets lighter */
 		{ 0x1502, 0xc2 },
-/* high val-> ljus area blir morkare. */
-/* low val -> ljus area blir ljusare. */
+/* high val-> light area gets darker */
+/* low val -> light area gets lighter */
 		{ 0x1503, 0x45 },
-/* high val-> ljus area blir morkare. */
-/* low val -> ljus area blir ljusare. */
-
+/* high val-> light area gets darker */
+/* low val -> light area gets lighter */
 		{ 0x1505, 0x02 },
 /* 2  : 324x248  80352 bytes */
 /* 7  : 248x162  40176 bytes */

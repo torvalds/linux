@@ -10,7 +10,6 @@
  * or architectures with incomplete PCI setup by the loader.
  */
 #define pcibios_assign_all_busses()	0
-#define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		0UL
 #define PCIBIOS_MIN_MEM		0UL

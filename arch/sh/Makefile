@@ -136,6 +136,8 @@ machdir-$(CONFIG_SH_7751_SYSTEMH)		+= mach-systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= mach-edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
 machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
+machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
+machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
@@ -186,17 +188,27 @@ KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_CPPFLAGS		+= $(cflags-y)
 KBUILD_AFLAGS		+= $(cflags-y)
 
+ifeq ($(CONFIG_MCOUNT),y)
+  KBUILD_CFLAGS += -pg
+endif
+
+ifeq ($(CONFIG_DWARF_UNWINDER),y)
+  KBUILD_CFLAGS += -fasynchronous-unwind-tables
+endif
+
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
-PHONY += maketools FORCE
+BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec \
+	       zImage vmlinux.srec romImage
+PHONY += maketools $(BOOT_TARGETS) FORCE
 
 maketools:  include/linux/version.h FORCE
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
 
 all: $(KBUILD_IMAGE)
 
-zImage uImage uImage.srec vmlinux.srec: vmlinux
+$(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 compressed: zImage
@@ -208,10 +220,14 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
 define archhelp
-	@echo '* zImage 	           - Compressed kernel image'
+	@echo '  zImage 	           - Compressed kernel image'
+	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
-	@echo '  uImage  	           - Create a bootable image for U-Boot'
-	@echo '  uImage.srec  	           - Create an S-record for U-Boot'
+	@echo '* uImage  	           - Alias to bootable U-Boot image'
+	@echo '  uImage.srec	           - Create an S-record for U-Boot'
+	@echo '* uImage.gz	           - Kernel-only image for U-Boot (gzip)'
+	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
+	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
 endef
 
 CLEAN_FILES += include/asm-sh/machtypes.h

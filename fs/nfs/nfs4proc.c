@@ -36,7 +36,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/string.h>

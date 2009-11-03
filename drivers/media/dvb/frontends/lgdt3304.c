@@ -363,6 +363,8 @@ struct dvb_frontend* lgdt3304_attach(const struct lgdt3304_config *config,
 
 	struct lgdt3304_state *state;
 	state = kzalloc(sizeof(struct lgdt3304_state), GFP_KERNEL);
+	if (state == NULL)
+		return NULL;
 	state->addr = config->i2c_address;
 	state->i2c = i2c;
 

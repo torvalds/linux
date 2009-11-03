@@ -77,7 +77,7 @@ struct mqueue_inode_info {
 
 static const struct inode_operations mqueue_dir_inode_operations;
 static const struct file_operations mqueue_file_operations;
-static struct super_operations mqueue_super_ops;
+static const struct super_operations mqueue_super_ops;
 static void remove_notification(struct mqueue_inode_info *info);
 
 static struct kmem_cache *mqueue_inode_cachep;
@@ -1224,7 +1224,7 @@ static const struct file_operations mqueue_file_operations = {
 	.read = mqueue_read_file,
 };
 
-static struct super_operations mqueue_super_ops = {
+static const struct super_operations mqueue_super_ops = {
 	.alloc_inode = mqueue_alloc_inode,
 	.destroy_inode = mqueue_destroy_inode,
 	.statfs = simple_statfs,

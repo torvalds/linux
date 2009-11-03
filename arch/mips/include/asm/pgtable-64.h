@@ -109,13 +109,13 @@
 
 #define VMALLOC_START		MAP_BASE
 #define VMALLOC_END	\
-	(VMALLOC_START + PTRS_PER_PGD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE)
+	(VMALLOC_START + \
+	 PTRS_PER_PGD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE - (1UL << 32))
 #if defined(CONFIG_MODULES) && defined(KBUILD_64BIT_SYM32) && \
 	VMALLOC_START != CKSSEG
 /* Load modules into 32bit-compatible segment. */
 #define MODULE_START	CKSSEG
 #define MODULE_END	(FIXADDR_START-2*PAGE_SIZE)
-extern pgd_t module_pg_dir[PTRS_PER_PGD];
 #endif
 
 #define pte_ERROR(e) \
@@ -188,12 +188,7 @@ static inline void pud_clear(pud_t *pudp)
 #define __pmd_offset(address)	pmd_index(address)
 
 /* to find an entry in a kernel page-table-directory */
-#ifdef MODULE_START
-#define pgd_offset_k(address) \
-	((address) >= MODULE_START ? module_pg_dir : pgd_offset(&init_mm, 0UL))
-#else
-#define pgd_offset_k(address) pgd_offset(&init_mm, 0UL)
-#endif
+#define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 #define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))

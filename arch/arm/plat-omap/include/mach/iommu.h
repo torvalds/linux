@@ -95,7 +95,7 @@ struct iommu_functions {
 
 	void (*save_ctx)(struct iommu *obj);
 	void (*restore_ctx)(struct iommu *obj);
-	ssize_t (*dump_ctx)(struct iommu *obj, char *buf);
+	ssize_t (*dump_ctx)(struct iommu *obj, char *buf, ssize_t len);
 };
 
 struct iommu_platform_data {
@@ -162,7 +162,7 @@ extern void uninstall_iommu_arch(const struct iommu_functions *ops);
 extern int foreach_iommu_device(void *data,
 				int (*fn)(struct device *, void *));
 
-extern ssize_t iommu_dump_ctx(struct iommu *obj, char *buf);
-extern size_t dump_tlb_entries(struct iommu *obj, char *buf);
+extern ssize_t iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t len);
+extern size_t dump_tlb_entries(struct iommu *obj, char *buf, ssize_t len);
 
 #endif /* __MACH_IOMMU_H */

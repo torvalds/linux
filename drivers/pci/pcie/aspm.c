@@ -26,6 +26,13 @@
 #endif
 #define MODULE_PARAM_PREFIX "pcie_aspm."
 
+/* Note: those are not register definitions */
+#define ASPM_STATE_L0S_UP	(1)	/* Upstream direction L0s state */
+#define ASPM_STATE_L0S_DW	(2)	/* Downstream direction L0s state */
+#define ASPM_STATE_L1		(4)	/* L1 state */
+#define ASPM_STATE_L0S		(ASPM_STATE_L0S_UP | ASPM_STATE_L0S_DW)
+#define ASPM_STATE_ALL		(ASPM_STATE_L0S | ASPM_STATE_L1)
+
 struct aspm_latency {
 	u32 l0s;			/* L0s latency (nsec) */
 	u32 l1;				/* L1 latency (nsec) */
@@ -40,17 +47,20 @@ struct pcie_link_state {
 	struct list_head link;		/* node in parent's children list */
 
 	/* ASPM state */
-	u32 aspm_support:2;		/* Supported ASPM state */
-	u32 aspm_enabled:2;		/* Enabled ASPM state */
-	u32 aspm_default:2;		/* Default ASPM state by BIOS */
+	u32 aspm_support:3;		/* Supported ASPM state */
+	u32 aspm_enabled:3;		/* Enabled ASPM state */
+	u32 aspm_capable:3;		/* Capable ASPM state with latency */
+	u32 aspm_default:3;		/* Default ASPM state by BIOS */
+	u32 aspm_disable:3;		/* Disabled ASPM state */
 
 	/* Clock PM state */
 	u32 clkpm_capable:1;		/* Clock PM capable? */
 	u32 clkpm_enabled:1;		/* Current Clock PM state */
 	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
 
-	/* Latencies */
-	struct aspm_latency latency;	/* Exit latency */
+	/* Exit latencies */
+	struct aspm_latency latency_up;	/* Upstream direction exit latency */
+	struct aspm_latency latency_dw;	/* Downstream direction exit latency */
 	/*
 	 * Endpoint acceptable latencies. A pcie downstream port only
 	 * has one slot under it, so at most there are 8 functions.
@@ -82,7 +92,7 @@ static int policy_to_aspm_state(struct pcie_link_state *link)
 		return 0;
 	case POLICY_POWERSAVE:
 		/* Enable ASPM L0s/L1 */
-		return PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1;
+		return ASPM_STATE_ALL;
 	case POLICY_DEFAULT:
 		return link->aspm_default;
 	}
@@ -162,18 +172,6 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 	link->clkpm_enabled = enabled;
 	link->clkpm_default = enabled;
 	link->clkpm_capable = (blacklist) ? 0 : capable;
-}
-
-static bool pcie_aspm_downstream_has_switch(struct pcie_link_state *link)
-{
-	struct pci_dev *child;
-	struct pci_bus *linkbus = link->pdev->subordinate;
-
-	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		if (child->pcie_type == PCI_EXP_TYPE_UPSTREAM)
-			return true;
-	}
-	return false;
 }
 
 /*
@@ -288,71 +286,130 @@ static u32 calc_l1_acceptable(u32 encoding)
 	return (1000 << encoding);
 }
 
-static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
-				     u32 *l0s, u32 *l1, u32 *enabled)
+struct aspm_register_info {
+	u32 support:2;
+	u32 enabled:2;
+	u32 latency_encoding_l0s;
+	u32 latency_encoding_l1;
+};
+
+static void pcie_get_aspm_reg(struct pci_dev *pdev,
+			      struct aspm_register_info *info)
 {
 	int pos;
 	u16 reg16;
-	u32 reg32, encoding;
+	u32 reg32;
 
-	*l0s = *l1 = *enabled = 0;
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &reg32);
-	*state = (reg32 & PCI_EXP_LNKCAP_ASPMS) >> 10;
-	if (*state != PCIE_LINK_STATE_L0S &&
-	    *state != (PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_L0S))
-		*state = 0;
-	if (*state == 0)
+	info->support = (reg32 & PCI_EXP_LNKCAP_ASPMS) >> 10;
+	info->latency_encoding_l0s = (reg32 & PCI_EXP_LNKCAP_L0SEL) >> 12;
+	info->latency_encoding_l1  = (reg32 & PCI_EXP_LNKCAP_L1EL) >> 15;
+	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
+	info->enabled = reg16 & PCI_EXP_LNKCTL_ASPMC;
+}
+
+static void pcie_aspm_check_latency(struct pci_dev *endpoint)
+{
+	u32 latency, l1_switch_latency = 0;
+	struct aspm_latency *acceptable;
+	struct pcie_link_state *link;
+
+	/* Device not in D0 doesn't need latency check */
+	if ((endpoint->current_state != PCI_D0) &&
+	    (endpoint->current_state != PCI_UNKNOWN))
 		return;
 
-	encoding = (reg32 & PCI_EXP_LNKCAP_L0SEL) >> 12;
-	*l0s = calc_l0s_latency(encoding);
-	if (*state & PCIE_LINK_STATE_L1) {
-		encoding = (reg32 & PCI_EXP_LNKCAP_L1EL) >> 15;
-		*l1 = calc_l1_latency(encoding);
+	link = endpoint->bus->self->link_state;
+	acceptable = &link->acceptable[PCI_FUNC(endpoint->devfn)];
+
+	while (link) {
+		/* Check upstream direction L0s latency */
+		if ((link->aspm_capable & ASPM_STATE_L0S_UP) &&
+		    (link->latency_up.l0s > acceptable->l0s))
+			link->aspm_capable &= ~ASPM_STATE_L0S_UP;
+
+		/* Check downstream direction L0s latency */
+		if ((link->aspm_capable & ASPM_STATE_L0S_DW) &&
+		    (link->latency_dw.l0s > acceptable->l0s))
+			link->aspm_capable &= ~ASPM_STATE_L0S_DW;
+		/*
+		 * Check L1 latency.
+		 * Every switch on the path to root complex need 1
+		 * more microsecond for L1. Spec doesn't mention L0s.
+		 */
+		latency = max_t(u32, link->latency_up.l1, link->latency_dw.l1);
+		if ((link->aspm_capable & ASPM_STATE_L1) &&
+		    (latency + l1_switch_latency > acceptable->l1))
+			link->aspm_capable &= ~ASPM_STATE_L1;
+		l1_switch_latency += 1000;
+
+		link = link->parent;
 	}
-	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
-	*enabled = reg16 & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 }
 
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 {
-	u32 support, l0s, l1, enabled;
 	struct pci_dev *child, *parent = link->pdev;
 	struct pci_bus *linkbus = parent->subordinate;
+	struct aspm_register_info upreg, dwreg;
 
 	if (blacklist) {
-		/* Set support state to 0, so we will disable ASPM later */
-		link->aspm_support = 0;
-		link->aspm_default = 0;
-		link->aspm_enabled = PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1;
+		/* Set enabled/disable so that we will disable ASPM later */
+		link->aspm_enabled = ASPM_STATE_ALL;
+		link->aspm_disable = ASPM_STATE_ALL;
 		return;
 	}
 
 	/* Configure common clock before checking latencies */
 	pcie_aspm_configure_common_clock(link);
 
-	/* upstream component states */
-	pcie_aspm_get_cap_device(parent, &support, &l0s, &l1, &enabled);
-	link->aspm_support = support;
-	link->latency.l0s = l0s;
-	link->latency.l1 = l1;
-	link->aspm_enabled = enabled;
-
-	/* downstream component states, all functions have the same setting */
+	/* Get upstream/downstream components' register state */
+	pcie_get_aspm_reg(parent, &upreg);
 	child = list_entry(linkbus->devices.next, struct pci_dev, bus_list);
-	pcie_aspm_get_cap_device(child, &support, &l0s, &l1, &enabled);
-	link->aspm_support &= support;
-	link->latency.l0s = max_t(u32, link->latency.l0s, l0s);
-	link->latency.l1 = max_t(u32, link->latency.l1, l1);
+	pcie_get_aspm_reg(child, &dwreg);
 
-	if (!link->aspm_support)
-		return;
+	/*
+	 * Setup L0s state
+	 *
+	 * Note that we must not enable L0s in either direction on a
+	 * given link unless components on both sides of the link each
+	 * support L0s.
+	 */
+	if (dwreg.support & upreg.support & PCIE_LINK_STATE_L0S)
+		link->aspm_support |= ASPM_STATE_L0S;
+	if (dwreg.enabled & PCIE_LINK_STATE_L0S)
+		link->aspm_enabled |= ASPM_STATE_L0S_UP;
+	if (upreg.enabled & PCIE_LINK_STATE_L0S)
+		link->aspm_enabled |= ASPM_STATE_L0S_DW;
+	link->latency_up.l0s = calc_l0s_latency(upreg.latency_encoding_l0s);
+	link->latency_dw.l0s = calc_l0s_latency(dwreg.latency_encoding_l0s);
 
-	link->aspm_enabled &= link->aspm_support;
+	/* Setup L1 state */
+	if (upreg.support & dwreg.support & PCIE_LINK_STATE_L1)
+		link->aspm_support |= ASPM_STATE_L1;
+	if (upreg.enabled & dwreg.enabled & PCIE_LINK_STATE_L1)
+		link->aspm_enabled |= ASPM_STATE_L1;
+	link->latency_up.l1 = calc_l1_latency(upreg.latency_encoding_l1);
+	link->latency_dw.l1 = calc_l1_latency(dwreg.latency_encoding_l1);
+
+	/* Save default state */
 	link->aspm_default = link->aspm_enabled;
 
-	/* ENDPOINT states*/
+	/* Setup initial capable state. Will be updated later */
+	link->aspm_capable = link->aspm_support;
+	/*
+	 * If the downstream component has pci bridge function, don't
+	 * do ASPM for now.
+	 */
+	list_for_each_entry(child, &linkbus->devices, bus_list) {
+		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE) {
+			link->aspm_disable = ASPM_STATE_ALL;
+			break;
+		}
+	}
+
+	/* Get and check endpoint acceptable latencies */
 	list_for_each_entry(child, &linkbus->devices, bus_list) {
 		int pos;
 		u32 reg32, encoding;
@@ -365,109 +422,46 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 		pos = pci_find_capability(child, PCI_CAP_ID_EXP);
 		pci_read_config_dword(child, pos + PCI_EXP_DEVCAP, &reg32);
+		/* Calculate endpoint L0s acceptable latency */
 		encoding = (reg32 & PCI_EXP_DEVCAP_L0S) >> 6;
 		acceptable->l0s = calc_l0s_acceptable(encoding);
-		if (link->aspm_support & PCIE_LINK_STATE_L1) {
-			encoding = (reg32 & PCI_EXP_DEVCAP_L1) >> 9;
-			acceptable->l1 = calc_l1_acceptable(encoding);
-		}
+		/* Calculate endpoint L1 acceptable latency */
+		encoding = (reg32 & PCI_EXP_DEVCAP_L1) >> 9;
+		acceptable->l1 = calc_l1_acceptable(encoding);
+
+		pcie_aspm_check_latency(child);
 	}
 }
 
-/**
- * __pcie_aspm_check_state_one - check latency for endpoint device.
- * @endpoint: pointer to the struct pci_dev of endpoint device
- *
- * TBD: The latency from the endpoint to root complex vary per switch's
- * upstream link state above the device. Here we just do a simple check
- * which assumes all links above the device can be in L1 state, that
- * is we just consider the worst case. If switch's upstream link can't
- * be put into L0S/L1, then our check is too strictly.
- */
-static u32 __pcie_aspm_check_state_one(struct pci_dev *endpoint, u32 state)
-{
-	u32 l1_switch_latency = 0;
-	struct aspm_latency *acceptable;
-	struct pcie_link_state *link;
-
-	link = endpoint->bus->self->link_state;
-	state &= link->aspm_support;
-	acceptable = &link->acceptable[PCI_FUNC(endpoint->devfn)];
-
-	while (link && state) {
-		if ((state & PCIE_LINK_STATE_L0S) &&
-		    (link->latency.l0s > acceptable->l0s))
-			state &= ~PCIE_LINK_STATE_L0S;
-		if ((state & PCIE_LINK_STATE_L1) &&
-		    (link->latency.l1 + l1_switch_latency > acceptable->l1))
-			state &= ~PCIE_LINK_STATE_L1;
-		link = link->parent;
-		/*
-		 * Every switch on the path to root complex need 1
-		 * more microsecond for L1. Spec doesn't mention L0s.
-		 */
-		l1_switch_latency += 1000;
-	}
-	return state;
-}
-
-static u32 pcie_aspm_check_state(struct pcie_link_state *link, u32 state)
-{
-	pci_power_t power_state;
-	struct pci_dev *child;
-	struct pci_bus *linkbus = link->pdev->subordinate;
-
-	/* If no child, ignore the link */
-	if (list_empty(&linkbus->devices))
-		return state;
-
-	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		/*
-		 * If downstream component of a link is pci bridge, we
-		 * disable ASPM for now for the link
-		 */
-		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
-			return 0;
-
-		if ((child->pcie_type != PCI_EXP_TYPE_ENDPOINT &&
-		     child->pcie_type != PCI_EXP_TYPE_LEG_END))
-			continue;
-		/* Device not in D0 doesn't need check latency */
-		power_state = child->current_state;
-		if (power_state == PCI_D1 || power_state == PCI_D2 ||
-		    power_state == PCI_D3hot || power_state == PCI_D3cold)
-			continue;
-		state = __pcie_aspm_check_state_one(child, state);
-	}
-	return state;
-}
-
-static void __pcie_aspm_config_one_dev(struct pci_dev *pdev, unsigned int state)
+static void pcie_config_aspm_dev(struct pci_dev *pdev, u32 val)
 {
 	u16 reg16;
 	int pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
 	reg16 &= ~0x3;
-	reg16 |= state;
+	reg16 |= val;
 	pci_write_config_word(pdev, pos + PCI_EXP_LNKCTL, reg16);
 }
 
-static void __pcie_aspm_config_link(struct pcie_link_state *link, u32 state)
+static void pcie_config_aspm_link(struct pcie_link_state *link, u32 state)
 {
+	u32 upstream = 0, dwstream = 0;
 	struct pci_dev *child, *parent = link->pdev;
 	struct pci_bus *linkbus = parent->subordinate;
 
-	/* If no child, disable the link */
-	if (list_empty(&linkbus->devices))
-		state = 0;
-	/*
-	 * If the downstream component has pci bridge function, don't
-	 * do ASPM now.
-	 */
-	list_for_each_entry(child, &linkbus->devices, bus_list) {
-		if (child->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
-			return;
+	/* Nothing to do if the link is already in the requested state */
+	state &= (link->aspm_capable & ~link->aspm_disable);
+	if (link->aspm_enabled == state)
+		return;
+	/* Convert ASPM state to upstream/downstream ASPM register state */
+	if (state & ASPM_STATE_L0S_UP)
+		dwstream |= PCIE_LINK_STATE_L0S;
+	if (state & ASPM_STATE_L0S_DW)
+		upstream |= PCIE_LINK_STATE_L0S;
+	if (state & ASPM_STATE_L1) {
+		upstream |= PCIE_LINK_STATE_L1;
+		dwstream |= PCIE_LINK_STATE_L1;
 	}
 	/*
 	 * Spec 2.0 suggests all functions should be configured the
@@ -475,65 +469,22 @@ static void __pcie_aspm_config_link(struct pcie_link_state *link, u32 state)
 	 * upstream component first and then downstream, and vice
 	 * versa for disabling ASPM L1. Spec doesn't mention L0S.
 	 */
-	if (state & PCIE_LINK_STATE_L1)
-		__pcie_aspm_config_one_dev(parent, state);
-
+	if (state & ASPM_STATE_L1)
+		pcie_config_aspm_dev(parent, upstream);
 	list_for_each_entry(child, &linkbus->devices, bus_list)
-		__pcie_aspm_config_one_dev(child, state);
-
-	if (!(state & PCIE_LINK_STATE_L1))
-		__pcie_aspm_config_one_dev(parent, state);
+		pcie_config_aspm_dev(child, dwstream);
+	if (!(state & ASPM_STATE_L1))
+		pcie_config_aspm_dev(parent, upstream);
 
 	link->aspm_enabled = state;
 }
 
-/* Check the whole hierarchy, and configure each link in the hierarchy */
-static void __pcie_aspm_configure_link_state(struct pcie_link_state *link,
-					     u32 state)
+static void pcie_config_aspm_path(struct pcie_link_state *link)
 {
-	struct pcie_link_state *leaf, *root = link->root;
-
-	state &= (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
-
-	/* Check all links who have specific root port link */
-	list_for_each_entry(leaf, &link_list, sibling) {
-		if (!list_empty(&leaf->children) || (leaf->root != root))
-			continue;
-		state = pcie_aspm_check_state(leaf, state);
+	while (link) {
+		pcie_config_aspm_link(link, policy_to_aspm_state(link));
+		link = link->parent;
 	}
-	/* Check root port link too in case it hasn't children */
-	state = pcie_aspm_check_state(root, state);
-	if (link->aspm_enabled == state)
-		return;
-	/*
-	 * We must change the hierarchy. See comments in
-	 * __pcie_aspm_config_link for the order
-	 **/
-	if (state & PCIE_LINK_STATE_L1) {
-		list_for_each_entry(leaf, &link_list, sibling) {
-			if (leaf->root == root)
-				__pcie_aspm_config_link(leaf, state);
-		}
-	} else {
-		list_for_each_entry_reverse(leaf, &link_list, sibling) {
-			if (leaf->root == root)
-				__pcie_aspm_config_link(leaf, state);
-		}
-	}
-}
-
-/*
- * pcie_aspm_configure_link_state: enable/disable PCI express link state
- * @pdev: the root port or switch downstream port
- */
-static void pcie_aspm_configure_link_state(struct pcie_link_state *link,
-					   u32 state)
-{
-	down_read(&pci_bus_sem);
-	mutex_lock(&aspm_lock);
-	__pcie_aspm_configure_link_state(link, state);
-	mutex_unlock(&aspm_lock);
-	up_read(&pci_bus_sem);
 }
 
 static void free_link_state(struct pcie_link_state *link)
@@ -570,10 +521,9 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 	return 0;
 }
 
-static struct pcie_link_state *pcie_aspm_setup_link_state(struct pci_dev *pdev)
+static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link;
-	int blacklist = !!pcie_aspm_sanity_check(pdev);
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
@@ -599,15 +549,7 @@ static struct pcie_link_state *pcie_aspm_setup_link_state(struct pci_dev *pdev)
 		link->root = link->parent->root;
 
 	list_add(&link->sibling, &link_list);
-
 	pdev->link_state = link;
-
-	/* Check ASPM capability */
-	pcie_aspm_cap_init(link, blacklist);
-
-	/* Check Clock PM capability */
-	pcie_clkpm_cap_init(link, blacklist);
-
 	return link;
 }
 
@@ -618,8 +560,8 @@ static struct pcie_link_state *pcie_aspm_setup_link_state(struct pci_dev *pdev)
  */
 void pcie_aspm_init_link_state(struct pci_dev *pdev)
 {
-	u32 state;
 	struct pcie_link_state *link;
+	int blacklist = !!pcie_aspm_sanity_check(pdev);
 
 	if (aspm_disabled || !pdev->is_pcie || pdev->link_state)
 		return;
@@ -637,47 +579,64 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 		goto out;
 
 	mutex_lock(&aspm_lock);
-	link = pcie_aspm_setup_link_state(pdev);
+	link = alloc_pcie_link_state(pdev);
 	if (!link)
 		goto unlock;
 	/*
-	 * Setup initial ASPM state
-	 *
-	 * If link has switch, delay the link config. The leaf link
-	 * initialization will config the whole hierarchy. But we must
-	 * make sure BIOS doesn't set unsupported link state.
+	 * Setup initial ASPM state. Note that we need to configure
+	 * upstream links also because capable state of them can be
+	 * update through pcie_aspm_cap_init().
 	 */
-	if (pcie_aspm_downstream_has_switch(link)) {
-		state = pcie_aspm_check_state(link, link->aspm_default);
-		__pcie_aspm_config_link(link, state);
-	} else {
-		state = policy_to_aspm_state(link);
-		__pcie_aspm_configure_link_state(link, state);
-	}
+	pcie_aspm_cap_init(link, blacklist);
+	pcie_config_aspm_path(link);
 
 	/* Setup initial Clock PM state */
-	state = (link->clkpm_capable) ? policy_to_clkpm_state(link) : 0;
-	pcie_set_clkpm(link, state);
+	pcie_clkpm_cap_init(link, blacklist);
+	pcie_set_clkpm(link, policy_to_clkpm_state(link));
 unlock:
 	mutex_unlock(&aspm_lock);
 out:
 	up_read(&pci_bus_sem);
 }
 
+/* Recheck latencies and update aspm_capable for links under the root */
+static void pcie_update_aspm_capable(struct pcie_link_state *root)
+{
+	struct pcie_link_state *link;
+	BUG_ON(root->parent);
+	list_for_each_entry(link, &link_list, sibling) {
+		if (link->root != root)
+			continue;
+		link->aspm_capable = link->aspm_support;
+	}
+	list_for_each_entry(link, &link_list, sibling) {
+		struct pci_dev *child;
+		struct pci_bus *linkbus = link->pdev->subordinate;
+		if (link->root != root)
+			continue;
+		list_for_each_entry(child, &linkbus->devices, bus_list) {
+			if ((child->pcie_type != PCI_EXP_TYPE_ENDPOINT) &&
+			    (child->pcie_type != PCI_EXP_TYPE_LEG_END))
+				continue;
+			pcie_aspm_check_latency(child);
+		}
+	}
+}
+
 /* @pdev: the endpoint device */
 void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 {
 	struct pci_dev *parent = pdev->bus->self;
-	struct pcie_link_state *link_state = parent->link_state;
+	struct pcie_link_state *link, *root, *parent_link;
 
-	if (aspm_disabled || !pdev->is_pcie || !parent || !link_state)
+	if (aspm_disabled || !pdev->is_pcie || !parent || !parent->link_state)
 		return;
-	if (parent->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-		parent->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+	if ((parent->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (parent->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
+
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-
 	/*
 	 * All PCIe functions are in one slot, remove one function will remove
 	 * the whole slot, so just wait until we are the last function left.
@@ -685,13 +644,20 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	if (!list_is_last(&pdev->bus_list, &parent->subordinate->devices))
 		goto out;
 
-	/* All functions are removed, so just disable ASPM for the link */
-	__pcie_aspm_config_one_dev(parent, 0);
-	list_del(&link_state->sibling);
-	list_del(&link_state->link);
-	/* Clock PM is for endpoint device */
+	link = parent->link_state;
+	root = link->root;
+	parent_link = link->parent;
 
-	free_link_state(link_state);
+	/* All functions are removed, so just disable ASPM for the link */
+	pcie_config_aspm_link(link, 0);
+	list_del(&link->sibling);
+	list_del(&link->link);
+	/* Clock PM is for endpoint device */
+	free_link_state(link);
+
+	/* Recheck latencies and configure upstream links */
+	pcie_update_aspm_capable(root);
+	pcie_config_aspm_path(parent_link);
 out:
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
@@ -700,18 +666,23 @@ out:
 /* @pdev: the root port or switch downstream port */
 void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 {
-	struct pcie_link_state *link_state = pdev->link_state;
+	struct pcie_link_state *link = pdev->link_state;
 
-	if (aspm_disabled || !pdev->is_pcie || !pdev->link_state)
+	if (aspm_disabled || !pdev->is_pcie || !link)
 		return;
-	if (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
-		pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+	if ((pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
 	/*
-	 * devices changed PM state, we should recheck if latency meets all
-	 * functions' requirement
+	 * Devices changed PM state, we should recheck if latency
+	 * meets all functions' requirement
 	 */
-	pcie_aspm_configure_link_state(link_state, link_state->aspm_enabled);
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+	pcie_update_aspm_capable(link->root);
+	pcie_config_aspm_path(link);
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
 }
 
 /*
@@ -721,7 +692,7 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 void pci_disable_link_state(struct pci_dev *pdev, int state)
 {
 	struct pci_dev *parent = pdev->bus->self;
-	struct pcie_link_state *link_state;
+	struct pcie_link_state *link;
 
 	if (aspm_disabled || !pdev->is_pcie)
 		return;
@@ -733,12 +704,16 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	link_state = parent->link_state;
-	link_state->aspm_support &= ~state;
-	__pcie_aspm_configure_link_state(link_state, link_state->aspm_enabled);
+	link = parent->link_state;
+	if (state & PCIE_LINK_STATE_L0S)
+		link->aspm_disable |= ASPM_STATE_L0S;
+	if (state & PCIE_LINK_STATE_L1)
+		link->aspm_disable |= ASPM_STATE_L1;
+	pcie_config_aspm_link(link, policy_to_aspm_state(link));
+
 	if (state & PCIE_LINK_STATE_CLKPM) {
-		link_state->clkpm_capable = 0;
-		pcie_set_clkpm(link_state, 0);
+		link->clkpm_capable = 0;
+		pcie_set_clkpm(link, 0);
 	}
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
@@ -748,7 +723,7 @@ EXPORT_SYMBOL(pci_disable_link_state);
 static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 {
 	int i;
-	struct pcie_link_state *link_state;
+	struct pcie_link_state *link;
 
 	for (i = 0; i < ARRAY_SIZE(policy_str); i++)
 		if (!strncmp(val, policy_str[i], strlen(policy_str[i])))
@@ -761,10 +736,9 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
 	aspm_policy = i;
-	list_for_each_entry(link_state, &link_list, sibling) {
-		__pcie_aspm_configure_link_state(link_state,
-			policy_to_aspm_state(link_state));
-		pcie_set_clkpm(link_state, policy_to_clkpm_state(link_state));
+	list_for_each_entry(link, &link_list, sibling) {
+		pcie_config_aspm_link(link, policy_to_aspm_state(link));
+		pcie_set_clkpm(link, policy_to_clkpm_state(link));
 	}
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
@@ -802,18 +776,28 @@ static ssize_t link_state_store(struct device *dev,
 		size_t n)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int state;
+	struct pcie_link_state *link, *root = pdev->link_state->root;
+	u32 val = buf[0] - '0', state = 0;
 
-	if (n < 1)
+	if (n < 1 || val > 3)
 		return -EINVAL;
-	state = buf[0]-'0';
-	if (state >= 0 && state <= 3) {
-		/* setup link aspm state */
-		pcie_aspm_configure_link_state(pdev->link_state, state);
-		return n;
-	}
 
-	return -EINVAL;
+	/* Convert requested state to ASPM state */
+	if (val & PCIE_LINK_STATE_L0S)
+		state |= ASPM_STATE_L0S;
+	if (val & PCIE_LINK_STATE_L1)
+		state |= ASPM_STATE_L1;
+
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+	list_for_each_entry(link, &link_list, sibling) {
+		if (link->root != root)
+			continue;
+		pcie_config_aspm_link(link, state);
+	}
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
+	return n;
 }
 
 static ssize_t clk_ctl_show(struct device *dev,

@@ -27,17 +27,12 @@
  *
  */
 
-
 #ifndef __SROM_H__
 #define __SROM_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
-
 
 #define EEP_MAX_CONTEXT_SIZE    256
 
@@ -48,7 +43,6 @@
 //
 // Contents in the EEPROM
 //
-
 #define EEP_OFS_PAR         0x00        // physical address
 #define EEP_OFS_ANTENNA     0x16
 #define EEP_OFS_RADIOCTL    0x17
@@ -97,8 +91,6 @@
 #define EEP_RADIOCTL_ENABLE 0x80
 #define EEP_RADIOCTL_INV    0x01
 
-
-
 /*---------------------  Export Types  ------------------------------*/
 
 // AT24C02 eeprom contents
@@ -133,7 +125,7 @@ typedef struct tagSSromReg {
 
     BYTE    abyReserved0[96];           // 0x10 (WORD)
     BYTE    abyCIS[128];                // 0x80 (WORD)
-} SSromReg, DEF* PSSromReg;
+} SSromReg, *PSSromReg;
 
 /*---------------------  Export Macros ------------------------------*/
 
@@ -142,10 +134,6 @@ typedef struct tagSSromReg {
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 BYTE SROMbyReadEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset);
 BOOL SROMbWriteEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byData);
@@ -166,14 +154,4 @@ VOID SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId);
 
 BOOL SROMbAutoLoad (DWORD_PTR dwIoBase);
 
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
-
 #endif // __EEPROM_H__
-
-

@@ -28,7 +28,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>

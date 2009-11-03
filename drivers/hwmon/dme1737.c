@@ -35,7 +35,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* ISA device, if found */
 static struct platform_device *pdev;
@@ -1134,7 +1134,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 		res = PWM_FREQ_FROM_REG(data->pwm_freq[ix]);
 		break;
 	case SYS_PWM_ENABLE:
-		if (ix > 3) {
+		if (ix >= 3) {
 			res = 1; /* pwm[5-6] hard-wired to manual mode */
 		} else {
 			res = PWM_EN_FROM_REG(data->pwm_config[ix]);

@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -62,10 +62,8 @@
 #include "et1310_address_map.h"
 
 
-#define INTERNAL_MEM_SIZE       0x400	//1024 of internal memory
-#define INTERNAL_MEM_RX_OFFSET  0x1FF	//50%   Tx, 50%   Rx
-
-#define REGS_MAX_ARRAY          4096
+#define INTERNAL_MEM_SIZE       0x400	/* 1024 of internal memory */
+#define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
 
 /*
  * For interrupts, normal running is:
@@ -78,28 +76,12 @@
  */
 #define INT_MASK_DISABLE            0xffffffff
 
-// NOTE: Masking out MAC_STAT Interrupt for now...
-//#define INT_MASK_ENABLE             0xfff6bf17
-//#define INT_MASK_ENABLE_NO_FLOW     0xfff6bfd7
+/* NOTE: Masking out MAC_STAT Interrupt for now...
+ * #define INT_MASK_ENABLE             0xfff6bf17
+ * #define INT_MASK_ENABLE_NO_FLOW     0xfff6bfd7
+ */
 #define INT_MASK_ENABLE             0xfffebf17
 #define INT_MASK_ENABLE_NO_FLOW     0xfffebfd7
-
-/* DATA STRUCTURES FOR DIRECT REGISTER ACCESS */
-
-typedef struct {
-	u8 bReadWrite;
-	u32 nRegCount;
-	u32 nData[REGS_MAX_ARRAY];
-	u32 nOffsets[REGS_MAX_ARRAY];
-} JAGCORE_ACCESS_REGS, *PJAGCORE_ACCESS_REGS;
-
-typedef struct {
-	u8 bReadWrite;
-	u32 nDataWidth;
-	u32 nRegCount;
-	u32 nOffsets[REGS_MAX_ARRAY];
-	u32 nData[REGS_MAX_ARRAY];
-} PCI_CFG_SPACE_REGS, *PPCI_CFG_SPACE_REGS;
 
 /* Forward declaration of the private adapter structure */
 struct et131x_adapter;

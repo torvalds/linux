@@ -241,7 +241,7 @@ static int macb_mii_init(struct macb *bp)
 	struct eth_platform_data *pdata;
 	int err = -ENXIO, i;
 
-	/* Enable managment port */
+	/* Enable management port */
 	macb_writel(bp, NCR, MACB_BIT(MPE));
 
 	bp->mii_bus = mdiobus_alloc();

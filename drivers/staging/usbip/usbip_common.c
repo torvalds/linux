@@ -22,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
+#include <linux/kthread.h>
 #include "usbip_common.h"
 
 /* version information */
@@ -70,27 +71,27 @@ static void usbip_dump_buffer(char *buff, int bufflen)
 	if (bufflen > 128) {
 		for (i = 0; i < 128; i++) {
 			if (i%24 == 0)
-				printk("   ");
-			printk("%02x ", (unsigned char) buff[i]);
+				printk(KERN_DEBUG "   ");
+			printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
 			if (i%4 == 3)
-				printk("| ");
+				printk(KERN_DEBUG "| ");
 			if (i%24 == 23)
-				printk("\n");
+				printk(KERN_DEBUG "\n");
 		}
-		printk("... (%d byte)\n", bufflen);
+		printk(KERN_DEBUG "... (%d byte)\n", bufflen);
 		return;
 	}
 
 	for (i = 0; i < bufflen; i++) {
 		if (i%24 == 0)
-			printk("   ");
-		printk("%02x ", (unsigned char) buff[i]);
+			printk(KERN_DEBUG "   ");
+		printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
 		if (i%4 == 3)
-			printk("| ");
+			printk(KERN_DEBUG "| ");
 		if (i%24 == 23)
-			printk("\n");
+			printk(KERN_DEBUG "\n");
 	}
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 
 }
 
@@ -101,28 +102,28 @@ static void usbip_dump_pipe(unsigned int p)
 	unsigned char dev = usb_pipedevice(p);
 	unsigned char dir = usb_pipein(p);
 
-	printk("dev(%d) ", dev);
-	printk("ep(%d) ",  ep);
-	printk("%s ", dir ? "IN" : "OUT");
+	printk(KERN_DEBUG "dev(%d) ", dev);
+	printk(KERN_DEBUG "ep(%d) ",  ep);
+	printk(KERN_DEBUG "%s ", dir ? "IN" : "OUT");
 
 	switch (type) {
 	case PIPE_ISOCHRONOUS:
-		printk("%s ", "ISO");
+		printk(KERN_DEBUG "%s ", "ISO");
 		break;
 	case PIPE_INTERRUPT:
-		printk("%s ", "INT");
+		printk(KERN_DEBUG "%s ", "INT");
 		break;
 	case PIPE_CONTROL:
-		printk("%s ", "CTL");
+		printk(KERN_DEBUG "%s ", "CTL");
 		break;
 	case PIPE_BULK:
-		printk("%s ", "BLK");
+		printk(KERN_DEBUG "%s ", "BLK");
 		break;
 	default:
-		printk("ERR");
+		printk(KERN_DEBUG "ERR");
 	}
 
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 
 }
 
@@ -136,55 +137,55 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 
 	switch (udev->speed) {
 	case USB_SPEED_HIGH:
-		printk(" SPD_HIGH");
+		printk(KERN_DEBUG " SPD_HIGH");
 		break;
 	case USB_SPEED_FULL:
-		printk(" SPD_FULL");
+		printk(KERN_DEBUG " SPD_FULL");
 		break;
 	case USB_SPEED_LOW:
-		printk(" SPD_LOW");
+		printk(KERN_DEBUG " SPD_LOW");
 		break;
 	case USB_SPEED_UNKNOWN:
-		printk(" SPD_UNKNOWN");
+		printk(KERN_DEBUG " SPD_UNKNOWN");
 		break;
 	default:
-		printk(" SPD_ERROR");
+		printk(KERN_DEBUG " SPD_ERROR");
 	}
 
-	printk(" tt %p, ttport %d", udev->tt, udev->ttport);
-	printk("\n");
+	printk(KERN_DEBUG " tt %p, ttport %d", udev->tt, udev->ttport);
+	printk(KERN_DEBUG "\n");
 
 	dev_dbg(dev, "                    ");
 	for (i = 0; i < 16; i++)
-		printk(" %2u", i);
-	printk("\n");
+		printk(KERN_DEBUG " %2u", i);
+	printk(KERN_DEBUG "\n");
 
 	dev_dbg(dev, "       toggle0(IN) :");
 	for (i = 0; i < 16; i++)
-		printk(" %2u", (udev->toggle[0] & (1 << i)) ? 1 : 0);
-	printk("\n");
+		printk(KERN_DEBUG " %2u", (udev->toggle[0] & (1 << i)) ? 1 : 0);
+	printk(KERN_DEBUG "\n");
 
 	dev_dbg(dev, "       toggle1(OUT):");
 	for (i = 0; i < 16; i++)
-		printk(" %2u", (udev->toggle[1] & (1 << i)) ? 1 : 0);
-	printk("\n");
+		printk(KERN_DEBUG " %2u", (udev->toggle[1] & (1 << i)) ? 1 : 0);
+	printk(KERN_DEBUG "\n");
 
 
 	dev_dbg(dev, "       epmaxp_in   :");
 	for (i = 0; i < 16; i++) {
 		if (udev->ep_in[i])
-			printk(" %2u",
+			printk(KERN_DEBUG " %2u",
 			     le16_to_cpu(udev->ep_in[i]->desc.wMaxPacketSize));
 	}
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 
 	dev_dbg(dev, "       epmaxp_out  :");
 	for (i = 0; i < 16; i++) {
 		if (udev->ep_out[i])
-			printk(" %2u",
+			printk(KERN_DEBUG " %2u",
 			     le16_to_cpu(udev->ep_out[i]->desc.wMaxPacketSize));
 	}
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 
 	dev_dbg(dev, "parent %p, bus %p\n", udev->parent, udev->bus);
 
@@ -203,91 +204,91 @@ static void usbip_dump_request_type(__u8 rt)
 {
 	switch (rt & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		printk("DEVICE");
+		printk(KERN_DEBUG "DEVICE");
 		break;
 	case USB_RECIP_INTERFACE:
-		printk("INTERF");
+		printk(KERN_DEBUG "INTERF");
 		break;
 	case USB_RECIP_ENDPOINT:
-		printk("ENDPOI");
+		printk(KERN_DEBUG "ENDPOI");
 		break;
 	case USB_RECIP_OTHER:
-		printk("OTHER ");
+		printk(KERN_DEBUG "OTHER ");
 		break;
 	default:
-		printk("------");
+		printk(KERN_DEBUG "------");
 	}
 }
 
 static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 {
 	if (!cmd) {
-		printk("      %s : null pointer\n", __func__);
+		printk(KERN_DEBUG "      %s : null pointer\n", __func__);
 		return;
 	}
 
-	printk("       ");
-	printk("bRequestType(%02X) ", cmd->bRequestType);
-	printk("bRequest(%02X) " , cmd->bRequest);
-	printk("wValue(%04X) ", cmd->wValue);
-	printk("wIndex(%04X) ", cmd->wIndex);
-	printk("wLength(%04X) ", cmd->wLength);
+	printk(KERN_DEBUG "       ");
+	printk(KERN_DEBUG "bRequestType(%02X) ", cmd->bRequestType);
+	printk(KERN_DEBUG "bRequest(%02X) " , cmd->bRequest);
+	printk(KERN_DEBUG "wValue(%04X) ", cmd->wValue);
+	printk(KERN_DEBUG "wIndex(%04X) ", cmd->wIndex);
+	printk(KERN_DEBUG "wLength(%04X) ", cmd->wLength);
 
-	printk("\n       ");
+	printk(KERN_DEBUG "\n       ");
 
 	if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
-		printk("STANDARD ");
+		printk(KERN_DEBUG "STANDARD ");
 		switch (cmd->bRequest) {
 		case USB_REQ_GET_STATUS:
-			printk("GET_STATUS");
+			printk(KERN_DEBUG "GET_STATUS");
 			break;
 		case USB_REQ_CLEAR_FEATURE:
-			printk("CLEAR_FEAT");
+			printk(KERN_DEBUG "CLEAR_FEAT");
 			break;
 		case USB_REQ_SET_FEATURE:
-			printk("SET_FEAT  ");
+			printk(KERN_DEBUG "SET_FEAT  ");
 			break;
 		case USB_REQ_SET_ADDRESS:
-			printk("SET_ADDRRS");
+			printk(KERN_DEBUG "SET_ADDRRS");
 			break;
 		case USB_REQ_GET_DESCRIPTOR:
-			printk("GET_DESCRI");
+			printk(KERN_DEBUG "GET_DESCRI");
 			break;
 		case USB_REQ_SET_DESCRIPTOR:
-			printk("SET_DESCRI");
+			printk(KERN_DEBUG "SET_DESCRI");
 			break;
 		case USB_REQ_GET_CONFIGURATION:
-			printk("GET_CONFIG");
+			printk(KERN_DEBUG "GET_CONFIG");
 			break;
 		case USB_REQ_SET_CONFIGURATION:
-			printk("SET_CONFIG");
+			printk(KERN_DEBUG "SET_CONFIG");
 			break;
 		case USB_REQ_GET_INTERFACE:
-			printk("GET_INTERF");
+			printk(KERN_DEBUG "GET_INTERF");
 			break;
 		case USB_REQ_SET_INTERFACE:
-			printk("SET_INTERF");
+			printk(KERN_DEBUG "SET_INTERF");
 			break;
 		case USB_REQ_SYNCH_FRAME:
-			printk("SYNC_FRAME");
+			printk(KERN_DEBUG "SYNC_FRAME");
 			break;
 		default:
-			printk("REQ(%02X) ", cmd->bRequest);
+			printk(KERN_DEBUG "REQ(%02X) ", cmd->bRequest);
 		}
 
-		printk(" ");
+		printk(KERN_DEBUG " ");
 		usbip_dump_request_type(cmd->bRequestType);
 
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS)
-		printk("CLASS   ");
+		printk(KERN_DEBUG "CLASS   ");
 
 	else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR)
-		printk("VENDOR  ");
+		printk(KERN_DEBUG "VENDOR  ");
 
 	else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_RESERVED)
-		printk("RESERVED");
+		printk(KERN_DEBUG "RESERVED");
 
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 }
 
 void usbip_dump_urb(struct urb *urb)
@@ -319,7 +320,8 @@ void usbip_dump_urb(struct urb *urb)
 	dev_dbg(dev, "   status                :%d\n", urb->status);
 	dev_dbg(dev, "   transfer_flags        :%08X\n", urb->transfer_flags);
 	dev_dbg(dev, "   transfer_buffer       :%p\n", urb->transfer_buffer);
-	dev_dbg(dev, "   transfer_buffer_length:%d\n", urb->transfer_buffer_length);
+	dev_dbg(dev, "   transfer_buffer_length:%d\n",
+						urb->transfer_buffer_length);
 	dev_dbg(dev, "   actual_length         :%d\n", urb->actual_length);
 	dev_dbg(dev, "   setup_packet          :%p\n", urb->setup_packet);
 
@@ -338,7 +340,7 @@ EXPORT_SYMBOL_GPL(usbip_dump_urb);
 
 void usbip_dump_header(struct usbip_header *pdu)
 {
-	udbg("BASE: cmd %u seq %u devid %u dir %u ep %u\n",
+	usbip_udbg("BASE: cmd %u seq %u devid %u dir %u ep %u\n",
 			pdu->base.command,
 			pdu->base.seqnum,
 			pdu->base.devid,
@@ -347,7 +349,8 @@ void usbip_dump_header(struct usbip_header *pdu)
 
 	switch (pdu->base.command) {
 	case USBIP_CMD_SUBMIT:
-		udbg("CMD_SUBMIT: x_flags %u x_len %u sf %u #p %u iv %u\n",
+		usbip_udbg("CMD_SUBMIT: "
+				"x_flags %u x_len %u sf %u #p %u iv %u\n",
 				pdu->u.cmd_submit.transfer_flags,
 				pdu->u.cmd_submit.transfer_buffer_length,
 				pdu->u.cmd_submit.start_frame,
@@ -355,20 +358,20 @@ void usbip_dump_header(struct usbip_header *pdu)
 				pdu->u.cmd_submit.interval);
 				break;
 	case USBIP_CMD_UNLINK:
-		udbg("CMD_UNLINK: seq %u\n", pdu->u.cmd_unlink.seqnum);
+		usbip_udbg("CMD_UNLINK: seq %u\n", pdu->u.cmd_unlink.seqnum);
 		break;
 	case USBIP_RET_SUBMIT:
-		udbg("RET_SUBMIT: st %d al %u sf %d ec %d\n",
+		usbip_udbg("RET_SUBMIT: st %d al %u sf %d ec %d\n",
 				pdu->u.ret_submit.status,
 				pdu->u.ret_submit.actual_length,
 				pdu->u.ret_submit.start_frame,
 				pdu->u.ret_submit.error_count);
 	case USBIP_RET_UNLINK:
-		udbg("RET_UNLINK: status %d\n", pdu->u.ret_unlink.status);
+		usbip_udbg("RET_UNLINK: status %d\n", pdu->u.ret_unlink.status);
 		break;
 	default:
 		/* NOT REACHED */
-		udbg("UNKNOWN\n");
+		usbip_udbg("UNKNOWN\n");
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_dump_header);
@@ -402,29 +405,30 @@ int usbip_thread(void *param)
 	complete_and_exit(&ut->thread_done, 0);
 }
 
-void usbip_start_threads(struct usbip_device *ud)
+int usbip_start_threads(struct usbip_device *ud)
 {
 	/*
 	 * threads are invoked per one device (per one connection).
 	 */
-	int retval;
+	struct task_struct *th;
 
-	retval = kernel_thread(usbip_thread, (void *)&ud->tcp_rx, 0);
-	if (retval < 0) {
-		printk(KERN_ERR "Creating tcp_rx thread for ud %p failed.\n",
-				ud);
-		return;
+	th = kthread_run(usbip_thread, (void *)&ud->tcp_rx, "usbip");
+	if (IS_ERR(th)) {
+		printk(KERN_WARNING
+			"Unable to start control thread\n");
+		return PTR_ERR(th);
 	}
-	retval = kernel_thread(usbip_thread, (void *)&ud->tcp_tx, 0);
-	if (retval < 0) {
-		printk(KERN_ERR "Creating tcp_tx thread for ud %p failed.\n",
-				ud);
-		return;
+	th = kthread_run(usbip_thread, (void *)&ud->tcp_tx, "usbip");
+	if (IS_ERR(th)) {
+		printk(KERN_WARNING
+			"Unable to start control thread\n");
+		return PTR_ERR(th);
 	}
 
 	/* confirm threads are starting */
 	wait_for_completion(&ud->tcp_rx.thread_done);
 	wait_for_completion(&ud->tcp_tx.thread_done);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usbip_start_threads);
 
@@ -434,13 +438,13 @@ void usbip_stop_threads(struct usbip_device *ud)
 	if (ud->tcp_rx.thread != NULL) {
 		send_sig(SIGKILL, ud->tcp_rx.thread, 1);
 		wait_for_completion(&ud->tcp_rx.thread_done);
-		udbg("rx_thread for ud %p has finished\n", ud);
+		usbip_udbg("rx_thread for ud %p has finished\n", ud);
 	}
 
 	if (ud->tcp_tx.thread != NULL) {
 		send_sig(SIGKILL, ud->tcp_tx.thread, 1);
 		wait_for_completion(&ud->tcp_tx.thread_done);
-		udbg("tx_thread for ud %p has finished\n", ud);
+		usbip_udbg("tx_thread for ud %p has finished\n", ud);
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_stop_threads);
@@ -468,11 +472,11 @@ int usbip_xmit(int send, struct socket *sock, char *buf,
 	struct kvec iov;
 	int total = 0;
 
-	/* for blocks of if (dbg_flag_xmit) */
+	/* for blocks of if (usbip_dbg_flag_xmit) */
 	char *bp = buf;
 	int osize = size;
 
-	dbg_xmit("enter\n");
+	usbip_dbg_xmit("enter\n");
 
 	if (!sock || !buf || !size) {
 		printk(KERN_ERR "%s: invalid arg, sock %p buff %p size %d\n",
@@ -481,14 +485,14 @@ int usbip_xmit(int send, struct socket *sock, char *buf,
 	}
 
 
-	if (dbg_flag_xmit) {
+	if (usbip_dbg_flag_xmit) {
 		if (send) {
 			if (!in_interrupt())
 				printk(KERN_DEBUG "%-10s:", current->comm);
 			else
-				printk(KERN_DEBUG "interupt  :");
+				printk(KERN_DEBUG "interrupt  :");
 
-			printk("%s: sending... , sock %p, buf %p, "
+			printk(KERN_DEBUG "%s: sending... , sock %p, buf %p, "
 			       "size %d, msg_flags %d\n", __func__,
 			       sock, buf, size, msg_flags);
 			usbip_dump_buffer(buf, size);
@@ -514,8 +518,8 @@ int usbip_xmit(int send, struct socket *sock, char *buf,
 								MSG_WAITALL);
 
 		if (result <= 0) {
-			udbg("usbip_xmit: %s sock %p buf %p size %u ret %d"
-					" total %d\n",
+			usbip_udbg("usbip_xmit: %s sock %p buf %p size %u ret "
+					"%d total %d\n",
 					send ? "send" : "receive", sock, buf,
 					size, result, total);
 			goto err;
@@ -528,22 +532,23 @@ int usbip_xmit(int send, struct socket *sock, char *buf,
 	} while (size > 0);
 
 
-	if (dbg_flag_xmit) {
+	if (usbip_dbg_flag_xmit) {
 		if (!send) {
 			if (!in_interrupt())
 				printk(KERN_DEBUG "%-10s:", current->comm);
 			else
-				printk(KERN_DEBUG "interupt  :");
+				printk(KERN_DEBUG "interrupt  :");
 
-			printk("usbip_xmit: receiving....\n");
+			printk(KERN_DEBUG "usbip_xmit: receiving....\n");
 			usbip_dump_buffer(bp, osize);
-			printk("usbip_xmit: received, osize %d ret %d size %d "
-					"total %d\n", osize, result, size,
-					total);
+			printk(KERN_DEBUG "usbip_xmit: received, osize %d ret "
+					"%d size %d total %d\n", osize, result,
+					size, total);
 		}
 
 		if (send)
-			printk("usbip_xmit: send, total %d\n", total);
+			printk(KERN_DEBUG "usbip_xmit: send, total %d\n",
+									total);
 	}
 
 	return total;
@@ -638,19 +643,7 @@ EXPORT_SYMBOL_GPL(sockfd_to_socket);
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
 {
-
-	if (flags & URB_NO_TRANSFER_DMA_MAP)
-		/*
-		 * vhci_hcd does not provide DMA-mapped I/O. The upper
-		 * driver does not need to set this flag. The remote
-		 * usbip.ko does not still perform DMA-mapped I/O for
-		 * DMA-caplable host controllers. So, clear this flag.
-		 */
-		flags &= ~URB_NO_TRANSFER_DMA_MAP;
-
-	if (flags & URB_NO_SETUP_DMA_MAP)
-		flags &= ~URB_NO_SETUP_DMA_MAP;
-
+	flags &= ~(URB_NO_TRANSFER_DMA_MAP|URB_NO_SETUP_DMA_MAP);
 	return flags;
 }
 
@@ -904,7 +897,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	/* my Bluetooth dongle gets ISO URBs which are np = 0 */
 	if (np == 0) {
-		/* uinfo("iso np == 0\n"); */
+		/* usbip_uinfo("iso np == 0\n"); */
 		/* usbip_dump_urb(urb); */
 		return 0;
 	}
@@ -933,7 +926,6 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 		usbip_iso_pakcet_correct_endian(iso, 0);
 		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 0);
 	}
-
 
 	kfree(buff);
 

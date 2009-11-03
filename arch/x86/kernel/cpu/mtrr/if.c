@@ -96,17 +96,24 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	unsigned long long base, size;
 	char *ptr;
 	char line[LINE_SIZE];
+	int length;
 	size_t linelen;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (!len)
-		return -EINVAL;
 
 	memset(line, 0, LINE_SIZE);
-	if (len > LINE_SIZE)
-		len = LINE_SIZE;
-	if (copy_from_user(line, buf, len - 1))
+
+	length = len;
+	length--;
+
+	if (length > LINE_SIZE - 1)
+		length = LINE_SIZE - 1;
+
+	if (length < 0)
+		return -EINVAL;
+
+	if (copy_from_user(line, buf, length))
 		return -EFAULT;
 
 	linelen = strlen(line);
@@ -126,8 +133,8 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 		return -EINVAL;
 
 	base = simple_strtoull(line + 5, &ptr, 0);
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	if (strncmp(ptr, "size=", 5))
 		return -EINVAL;
@@ -135,14 +142,14 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	size = simple_strtoull(ptr + 5, &ptr, 0);
 	if ((base & 0xfff) || (size & 0xfff))
 		return -EINVAL;
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	if (strncmp(ptr, "type=", 5))
 		return -EINVAL;
 	ptr += 5;
-	for (; isspace(*ptr); ++ptr)
-		;
+	while (isspace(*ptr))
+		ptr++;
 
 	for (i = 0; i < MTRR_NUM_TYPES; ++i) {
 		if (strcmp(ptr, mtrr_strings[i]))

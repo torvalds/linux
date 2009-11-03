@@ -482,7 +482,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 				   phb->node);
 		iommu_table_setparms(phb, dn, tbl);
 		PCI_DN(dn)->iommu_table = iommu_init_table(tbl, phb->node);
-		dev->dev.archdata.dma_data = PCI_DN(dn)->iommu_table;
+		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
 		return;
 	}
 
@@ -494,7 +494,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		dn = dn->parent;
 
 	if (dn && PCI_DN(dn))
-		dev->dev.archdata.dma_data = PCI_DN(dn)->iommu_table;
+		set_iommu_table_base(&dev->dev, PCI_DN(dn)->iommu_table);
 	else
 		printk(KERN_WARNING "iommu: Device %s has no iommu table\n",
 		       pci_name(dev));
@@ -538,7 +538,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 */
 	if (dma_window == NULL || pdn->parent == NULL) {
 		pr_debug("  no dma window for device, linking to parent\n");
-		dev->dev.archdata.dma_data = PCI_DN(pdn)->iommu_table;
+		set_iommu_table_base(&dev->dev, PCI_DN(pdn)->iommu_table);
 		return;
 	}
 
@@ -554,7 +554,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 		pr_debug("  found DMA window, table: %p\n", pci->iommu_table);
 	}
 
-	dev->dev.archdata.dma_data = pci->iommu_table;
+	set_iommu_table_base(&dev->dev, pci->iommu_table);
 }
 #else  /* CONFIG_PCI */
 #define pci_dma_bus_setup_pSeries	NULL

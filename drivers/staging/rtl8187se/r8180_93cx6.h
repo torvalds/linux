@@ -28,11 +28,9 @@
 #define	RFCHIPID_MAXIM 4
 #define	RFCHIPID_GCT 5
 #define RFCHIPID_RTL8225 9
-#ifdef CONFIG_RTL8185B
 #define RF_ZEBRA2 11
 #define EPROM_TXPW_BASE 0x05
 #define RF_ZEBRA4 12
-#endif
 #define RFCHIPID_RTL8255 0xa
 #define RF_PARAM 0x19
 #define RF_PARAM_DIGPHY_SHIFT 0

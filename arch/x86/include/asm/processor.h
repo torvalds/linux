@@ -27,6 +27,7 @@ struct mm_struct;
 #include <linux/cpumask.h>
 #include <linux/cache.h>
 #include <linux/threads.h>
+#include <linux/math64.h>
 #include <linux/init.h>
 
 /*
@@ -1019,5 +1020,36 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
+
+extern int amd_get_nb_id(int cpu);
+
+struct aperfmperf {
+	u64 aperf, mperf;
+};
+
+static inline void get_aperfmperf(struct aperfmperf *am)
+{
+	WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_APERFMPERF));
+
+	rdmsrl(MSR_IA32_APERF, am->aperf);
+	rdmsrl(MSR_IA32_MPERF, am->mperf);
+}
+
+#define APERFMPERF_SHIFT 10
+
+static inline
+unsigned long calc_aperfmperf_ratio(struct aperfmperf *old,
+				    struct aperfmperf *new)
+{
+	u64 aperf = new->aperf - old->aperf;
+	u64 mperf = new->mperf - old->mperf;
+	unsigned long ratio = aperf;
+
+	mperf >>= APERFMPERF_SHIFT;
+	if (mperf)
+		ratio = div64_u64(aperf, mperf);
+
+	return ratio;
+}
 
 #endif /* _ASM_X86_PROCESSOR_H */

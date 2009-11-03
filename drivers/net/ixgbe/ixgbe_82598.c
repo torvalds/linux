@@ -322,13 +322,15 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 		break;
 	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
 	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-	case IXGBE_DEV_ID_82598EB_CX4:
-	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
 	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
 	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
 	case IXGBE_DEV_ID_82598EB_XF_LR:
 	case IXGBE_DEV_ID_82598EB_SFP_LOM:
 		media_type = ixgbe_media_type_fiber;
+		break;
+	case IXGBE_DEV_ID_82598EB_CX4:
+	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
+		media_type = ixgbe_media_type_cx4;
 		break;
 	case IXGBE_DEV_ID_82598AT:
 	case IXGBE_DEV_ID_82598AT2:
@@ -423,7 +425,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 #endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
-		ret_val = -IXGBE_ERR_CONFIG;
+		ret_val = IXGBE_ERR_CONFIG;
 		goto out;
 		break;
 	}

@@ -306,7 +306,7 @@ static int w1_netlink_send_error(struct cn_msg *rcmsg, struct w1_netlink_msg *rm
 	return error;
 }
 
-static void w1_cn_callback(struct cn_msg *msg)
+static void w1_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct w1_netlink_msg *m = (struct w1_netlink_msg *)(msg + 1);
 	struct w1_netlink_cmd *cmd;

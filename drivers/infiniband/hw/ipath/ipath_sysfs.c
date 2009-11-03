@@ -1069,7 +1069,7 @@ static ssize_t show_tempsense(struct device *dev,
 	return ret;
 }
 
-struct attribute_group *ipath_driver_attr_groups[] = {
+const struct attribute_group *ipath_driver_attr_groups[] = {
 	&driver_attr_group,
 	NULL,
 };

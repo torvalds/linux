@@ -57,6 +57,7 @@ extern int check_unsafe_exec(struct linux_binprm *);
  * namespace.c
  */
 extern int copy_mount_options(const void __user *, unsigned long *);
+extern int copy_mount_string(const void __user *, char **);
 
 extern void free_vfsmnt(struct vfsmount *);
 extern struct vfsmount *alloc_vfsmnt(const char *);

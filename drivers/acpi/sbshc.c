@@ -15,6 +15,8 @@
 #include <linux/interrupt.h>
 #include "sbshc.h"
 
+#define PREFIX "ACPI: "
+
 #define ACPI_SMB_HC_CLASS	"smbus_host_controller"
 #define ACPI_SMB_HC_DEVICE_NAME	"ACPI SMBus HC"
 

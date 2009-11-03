@@ -234,11 +234,11 @@ static void arch_perfmon_setup_counters(void)
 	if (eax.split.version_id == 0 && current_cpu_data.x86 == 6 &&
 		current_cpu_data.x86_model == 15) {
 		eax.split.version_id = 2;
-		eax.split.num_counters = 2;
+		eax.split.num_events = 2;
 		eax.split.bit_width = 40;
 	}
 
-	num_counters = eax.split.num_counters;
+	num_counters = eax.split.num_events;
 
 	op_arch_perfmon_spec.num_counters = num_counters;
 	op_arch_perfmon_spec.num_controls = num_counters;

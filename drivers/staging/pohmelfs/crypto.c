@@ -176,7 +176,7 @@ static int pohmelfs_crypto_process(struct ablkcipher_request *req,
 					timeout);
 			if (!err)
 				err = -ETIMEDOUT;
-			else
+			else if (err > 0)
 				err = complete.error;
 			break;
 		default:
@@ -738,7 +738,7 @@ static int pohmelfs_crypto_init_handshake(struct pohmelfs_sb *psb)
 			psb->wait_on_page_timeout);
 	if (!err)
 		err = -ETIMEDOUT;
-	else
+	else if (err > 0)
 		err = -psb->flags;
 
 	if (!err)

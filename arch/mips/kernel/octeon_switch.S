@@ -36,9 +36,6 @@
 	.align	7
 	LEAF(resume)
 	.set arch=octeon
-#ifndef CONFIG_CPU_HAS_LLSC
-	sw	zero, ll_bit
-#endif
 	mfc0	t1, CP0_STATUS
 	LONG_S	t1, THREAD_STATUS(a0)
 	cpu_save_nonscratch a0

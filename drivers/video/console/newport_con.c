@@ -216,7 +216,7 @@ static void newport_get_screensize(void)
 	}
 
 	newport_xsize = newport_ysize = 0;
-	for (i = 0; linetable[i + 1] && (i < sizeof(linetable)); i += 2) {
+	for (i = 0; i < ARRAY_SIZE(linetable) - 1 && linetable[i + 1]; i += 2) {
 		cols = 0;
 		newport_vc2_set(npregs, VC2_IREG_RADDR, linetable[i]);
 		npregs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_RAM |

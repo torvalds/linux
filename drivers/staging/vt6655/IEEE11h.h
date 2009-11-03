@@ -31,17 +31,9 @@
 #ifndef __IEEE11h_H__
 #define __IEEE11h_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -52,17 +44,9 @@
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 BOOL IEEE11hbMSRRepTx (
     IN PVOID pMgmtHandle
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __IEEE11h_H__

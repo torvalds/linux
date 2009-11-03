@@ -33,7 +33,7 @@
 #include <linux/sysfs.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -435,7 +435,7 @@ static int __devinit pc87427_probe(struct platform_device *pdev)
 	/* This will need to be revisited when we add support for
 	   temperature and voltage monitoring. */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, res->end - res->start + 1, DRVNAME)) {
+	if (!request_region(res->start, resource_size(res), DRVNAME)) {
 		err = -EBUSY;
 		dev_err(&pdev->dev, "Failed to request region 0x%lx-0x%lx\n",
 			(unsigned long)res->start, (unsigned long)res->end);
@@ -475,7 +475,7 @@ exit_remove_files:
 		sysfs_remove_group(&pdev->dev.kobj, &pc87427_group_fan[i]);
 	}
 exit_release_region:
-	release_region(res->start, res->end - res->start + 1);
+	release_region(res->start, resource_size(res));
 exit_kfree:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -500,7 +500,7 @@ static int __devexit pc87427_remove(struct platform_device *pdev)
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_region(res->start, res->end - res->start + 1);
+	release_region(res->start, resource_size(res));
 
 	return 0;
 }

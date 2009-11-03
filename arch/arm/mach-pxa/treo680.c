@@ -153,87 +153,11 @@ static unsigned long treo680_pin_config[] __initdata = {
 /******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
-static int treo680_mci_init(struct device *dev,
-		irq_handler_t treo680_detect_int, void *data)
-{
-	int err = 0;
-
-	/* Setup an interrupt for detecting card insert/remove events */
-	err = gpio_request(GPIO_NR_TREO680_SD_DETECT_N, "SD IRQ");
-
-	if (err)
-		goto err;
-
-	err = gpio_direction_input(GPIO_NR_TREO680_SD_DETECT_N);
-	if (err)
-		goto err2;
-
-	err = request_irq(gpio_to_irq(GPIO_NR_TREO680_SD_DETECT_N),
-			treo680_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"SD/MMC card detect", data);
-
-	if (err) {
-		dev_err(dev, "%s: cannot request SD/MMC card detect IRQ\n",
-			     __func__);
-		goto err2;
-	}
-
-	err = gpio_request(GPIO_NR_TREO680_SD_POWER, "SD_POWER");
-	if (err)
-		goto err3;
-
-	err = gpio_direction_output(GPIO_NR_TREO680_SD_POWER, 1);
-	if (err)
-		goto err4;
-
-	err = gpio_request(GPIO_NR_TREO680_SD_READONLY, "SD_READONLY");
-	if (err)
-		goto err4;
-
-	err = gpio_direction_input(GPIO_NR_TREO680_SD_READONLY);
-	if (err)
-		goto err5;
-
-	return 0;
-
-err5:
-	gpio_free(GPIO_NR_TREO680_SD_READONLY);
-err4:
-	gpio_free(GPIO_NR_TREO680_SD_POWER);
-err3:
-	free_irq(gpio_to_irq(GPIO_NR_TREO680_SD_DETECT_N), data);
-err2:
-	gpio_free(GPIO_NR_TREO680_SD_DETECT_N);
-err:
-	return err;
-}
-
-static void treo680_mci_exit(struct device *dev, void *data)
-{
-	gpio_free(GPIO_NR_TREO680_SD_READONLY);
-	gpio_free(GPIO_NR_TREO680_SD_POWER);
-	free_irq(gpio_to_irq(GPIO_NR_TREO680_SD_DETECT_N), data);
-	gpio_free(GPIO_NR_TREO680_SD_DETECT_N);
-}
-
-static void treo680_mci_power(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-	gpio_set_value(GPIO_NR_TREO680_SD_POWER, p_d->ocr_mask & (1 << vdd));
-}
-
-static int treo680_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_NR_TREO680_SD_READONLY);
-}
-
 static struct pxamci_platform_data treo680_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.setpower	= treo680_mci_power,
-	.get_ro		= treo680_mci_get_ro,
-	.init 		= treo680_mci_init,
-	.exit		= treo680_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_NR_TREO680_SD_DETECT_N,
+	.gpio_card_ro		= GPIO_NR_TREO680_SD_READONLY,
+	.gpio_power		= GPIO_NR_TREO680_SD_POWER,
 };
 
 /******************************************************************************
@@ -330,16 +254,9 @@ static int treo680_backlight_init(struct device *dev)
 	ret = gpio_direction_output(GPIO_NR_TREO680_BL_POWER, 0);
 	if (ret)
 		goto err2;
-	ret = gpio_request(GPIO_NR_TREO680_LCD_POWER, "LCD POWER");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_TREO680_LCD_POWER, 0);
-	if (ret)
-		goto err3;
 
 	return 0;
-err3:
-	gpio_free(GPIO_NR_TREO680_LCD_POWER);
+
 err2:
 	gpio_free(GPIO_NR_TREO680_BL_POWER);
 err:
@@ -355,7 +272,6 @@ static int treo680_backlight_notify(int brightness)
 static void treo680_backlight_exit(struct device *dev)
 {
 	gpio_free(GPIO_NR_TREO680_BL_POWER);
-	gpio_free(GPIO_NR_TREO680_LCD_POWER);
 }
 
 static struct platform_pwm_backlight_data treo680_backlight_data = {
@@ -379,44 +295,9 @@ static struct platform_device treo680_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static void treo680_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_TREO680_IR_EN, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-static int treo680_irda_startup(struct device *dev)
-{
-	int err;
-
-	err = gpio_request(GPIO_NR_TREO680_IR_EN, "Ir port disable");
-	if (err)
-		goto err1;
-
-	err = gpio_direction_output(GPIO_NR_TREO680_IR_EN, 1);
-	if (err)
-		goto err2;
-
-	return 0;
-
-err2:
-	dev_err(dev, "treo680_irda: cannot change IR gpio direction\n");
-	gpio_free(GPIO_NR_TREO680_IR_EN);
-err1:
-	dev_err(dev, "treo680_irda: cannot allocate IR gpio\n");
-	return err;
-}
-
-static void treo680_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_TREO680_IR_EN);
-}
-
 static struct pxaficp_platform_data treo680_ficp_info = {
-	.transceiver_cap  = IR_FIRMODE | IR_SIRMODE | IR_OFF,
-	.startup          = treo680_irda_startup,
-	.shutdown         = treo680_irda_shutdown,
-	.transceiver_mode = treo680_transceiver_mode,
+	.gpio_pwdown		= GPIO_NR_TREO680_IR_EN,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /******************************************************************************
@@ -546,6 +427,11 @@ static struct pxafb_mode_info treo680_lcd_modes[] = {
 },
 };
 
+static void treo680_lcd_power(int on, struct fb_var_screeninfo *info)
+{
+	gpio_set_value(GPIO_NR_TREO680_BL_POWER, on);
+}
+
 static struct pxafb_mach_info treo680_lcd_screen = {
 	.modes		= treo680_lcd_modes,
 	.num_modes	= ARRAY_SIZE(treo680_lcd_modes),
@@ -585,11 +471,32 @@ static void __init treo680_udc_init(void)
 	}
 }
 
+static void __init treo680_lcd_power_init(void)
+{
+	int ret;
+
+	ret = gpio_request(GPIO_NR_TREO680_LCD_POWER, "LCD POWER");
+	if (ret) {
+		pr_err("Treo680: LCD power GPIO request failed!\n");
+		return;
+	}
+
+	ret = gpio_direction_output(GPIO_NR_TREO680_LCD_POWER, 0);
+	if (ret) {
+		pr_err("Treo680: setting LCD power GPIO direction failed!\n");
+		gpio_free(GPIO_NR_TREO680_LCD_POWER);
+		return;
+	}
+
+	treo680_lcd_screen.pxafb_lcd_power = treo680_lcd_power;
+}
+
 static void __init treo680_init(void)
 {
 	treo680_pm_init();
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
 	pxa_set_keypad_info(&treo680_keypad_platform_data);
+	treo680_lcd_power_init();
 	set_pxa_fb_info(&treo680_lcd_screen);
 	pxa_set_mci_info(&treo680_mci_platform_data);
 	treo680_udc_init();

@@ -60,7 +60,8 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dt2814_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int dt2814_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt2814 = {
 	.driver_name = "dt2814",
@@ -84,8 +85,9 @@ struct dt2814_private {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
-static int dt2814_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2814_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i, hi, lo;
 	int chan;
@@ -135,8 +137,8 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 	return i;
 }
 
-static int dt2814_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int dt2814_ai_cmdtest(struct comedi_device *dev,
+			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -234,8 +236,8 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int trigvar;
 
 	trigvar =
-		dt2814_ns_to_timer(&cmd->scan_begin_arg,
-		cmd->flags & TRIG_ROUND_MASK);
+	    dt2814_ns_to_timer(&cmd->scan_begin_arg,
+			       cmd->flags & TRIG_ROUND_MASK);
 
 	chan = CR_CHAN(cmd->chanlist[0]);
 

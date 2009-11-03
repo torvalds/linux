@@ -68,7 +68,7 @@ unsigned long long vmi_sched_clock(void)
 	return cycles_2_ns(vmi_timer_ops.get_cycle_counter(VMI_CYCLES_AVAILABLE));
 }
 
-/* paravirt_ops.get_tsc_khz = vmi_tsc_khz */
+/* x86_platform.calibrate_tsc = vmi_tsc_khz */
 unsigned long vmi_tsc_khz(void)
 {
 	unsigned long long khz;

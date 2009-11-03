@@ -29,8 +29,7 @@ enum {
 
 struct call_function_data {
 	struct call_single_data	csd;
-	spinlock_t		lock;
-	unsigned int		refs;
+	atomic_t		refs;
 	cpumask_var_t		cpumask;
 };
 
@@ -39,9 +38,7 @@ struct call_single_queue {
 	spinlock_t		lock;
 };
 
-static DEFINE_PER_CPU(struct call_function_data, cfd_data) = {
-	.lock			= __SPIN_LOCK_UNLOCKED(cfd_data.lock),
-};
+static DEFINE_PER_CPU(struct call_function_data, cfd_data);
 
 static int
 hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
@@ -196,25 +193,18 @@ void generic_smp_call_function_interrupt(void)
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
 
-		spin_lock(&data->lock);
-		if (!cpumask_test_cpu(cpu, data->cpumask)) {
-			spin_unlock(&data->lock);
+		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask))
 			continue;
-		}
-		cpumask_clear_cpu(cpu, data->cpumask);
-		spin_unlock(&data->lock);
 
 		data->csd.func(data->csd.info);
 
-		spin_lock(&data->lock);
-		WARN_ON(data->refs == 0);
-		refs = --data->refs;
+		refs = atomic_dec_return(&data->refs);
+		WARN_ON(refs < 0);
 		if (!refs) {
 			spin_lock(&call_function.lock);
 			list_del_rcu(&data->csd.list);
 			spin_unlock(&call_function.lock);
 		}
-		spin_unlock(&data->lock);
 
 		if (refs)
 			continue;
@@ -357,13 +347,6 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 	generic_exec_single(cpu, data, wait);
 }
 
-/* Deprecated: shim for archs using old arch_send_call_function_ipi API. */
-
-#ifndef arch_send_call_function_ipi_mask
-# define arch_send_call_function_ipi_mask(maskp) \
-	 arch_send_call_function_ipi(*(maskp))
-#endif
-
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.
  * @mask: The set of cpus to run on (only runs on online subset).
@@ -419,23 +402,20 @@ void smp_call_function_many(const struct cpumask *mask,
 	data = &__get_cpu_var(cfd_data);
 	csd_lock(&data->csd);
 
-	spin_lock_irqsave(&data->lock, flags);
 	data->csd.func = func;
 	data->csd.info = info;
 	cpumask_and(data->cpumask, mask, cpu_online_mask);
 	cpumask_clear_cpu(this_cpu, data->cpumask);
-	data->refs = cpumask_weight(data->cpumask);
+	atomic_set(&data->refs, cpumask_weight(data->cpumask));
 
-	spin_lock(&call_function.lock);
+	spin_lock_irqsave(&call_function.lock, flags);
 	/*
 	 * Place entry at the _HEAD_ of the list, so that any cpu still
 	 * observing the entry in generic_smp_call_function_interrupt()
 	 * will not miss any other list entries:
 	 */
 	list_add_rcu(&data->csd.list, &call_function.queue);
-	spin_unlock(&call_function.lock);
-
-	spin_unlock_irqrestore(&data->lock, flags);
+	spin_unlock_irqrestore(&call_function.lock, flags);
 
 	/*
 	 * Make the list addition visible before sending the ipi.

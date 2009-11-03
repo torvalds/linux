@@ -31,6 +31,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "intel_drv.h"
 
 #define MAX_NOPID ((u32)~0)
@@ -279,7 +280,9 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 		}
 
 		if (gt_iir & GT_USER_INTERRUPT) {
-			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			u32 seqno = i915_get_gem_seqno(dev);
+			dev_priv->mm.irq_gem_seqno = seqno;
+			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->irq_queue);
 		}
 
@@ -302,12 +305,25 @@ static void i915_error_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    error_work);
 	struct drm_device *dev = dev_priv->dev;
-	char *event_string = "ERROR=1";
-	char *envp[] = { event_string, NULL };
+	char *error_event[] = { "ERROR=1", NULL };
+	char *reset_event[] = { "RESET=1", NULL };
+	char *reset_done_event[] = { "ERROR=0", NULL };
 
 	DRM_DEBUG("generating error event\n");
+	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, envp);
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		if (IS_I965G(dev)) {
+			DRM_DEBUG("resetting chip\n");
+			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
+			if (!i965_reset(dev, GDRST_RENDER)) {
+				atomic_set(&dev_priv->mm.wedged, 0);
+				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
+			}
+		} else {
+			printk("reboot required\n");
+		}
+	}
 }
 
 /**
@@ -372,7 +388,7 @@ out:
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-static void i915_handle_error(struct drm_device *dev)
+static void i915_handle_error(struct drm_device *dev, bool wedged)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 eir = I915_READ(EIR);
@@ -482,6 +498,16 @@ static void i915_handle_error(struct drm_device *dev)
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
 
+	if (wedged) {
+		atomic_set(&dev_priv->mm.wedged, 1);
+
+		/*
+		 * Wakeup waiting processes so they don't hang
+		 */
+		printk("i915: Waking up sleeping processes\n");
+		DRM_WAKEUP(&dev_priv->irq_queue);
+	}
+
 	queue_work(dev_priv->wq, &dev_priv->error_work);
 }
 
@@ -527,7 +553,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		pipeb_stats = I915_READ(PIPEBSTAT);
 
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev);
+			i915_handle_error(dev, false);
 
 		/*
 		 * Clear the PIPE(A|B)STAT regs before the IIR
@@ -565,6 +591,27 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
+
+			/* EOS interrupts occurs */
+			if (IS_IGD(dev) &&
+				(hotplug_status & CRT_EOS_INT_STATUS)) {
+				u32 temp;
+
+				DRM_DEBUG("EOS interrupt occurs\n");
+				/* status is already cleared */
+				temp = I915_READ(ADPA);
+				temp &= ~ADPA_DAC_ENABLE;
+				I915_WRITE(ADPA, temp);
+
+				temp = I915_READ(PORT_HOTPLUG_EN);
+				temp &= ~CRT_EOS_INT_EN;
+				I915_WRITE(PORT_HOTPLUG_EN, temp);
+
+				temp = I915_READ(PORT_HOTPLUG_STAT);
+				if (temp & CRT_EOS_INT_STATUS)
+					I915_WRITE(PORT_HOTPLUG_STAT,
+						CRT_EOS_INT_STATUS);
+			}
 		}
 
 		I915_WRITE(IIR, iir);
@@ -578,8 +625,12 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		if (iir & I915_USER_INTERRUPT) {
-			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			u32 seqno = i915_get_gem_seqno(dev);
+			dev_priv->mm.irq_gem_seqno = seqno;
+			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->irq_queue);
+			dev_priv->hangcheck_count = 0;
+			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
 
 		if (pipea_stats & vblank_status) {
@@ -672,6 +723,16 @@ void i915_user_irq_put(struct drm_device *dev)
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+}
+
+void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	if (dev_priv->trace_irq_seqno == 0)
+		i915_user_irq_get(dev);
+
+	dev_priv->trace_irq_seqno = seqno;
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
@@ -857,6 +918,52 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	 * meeting the requirements of vblank swapping.
 	 */
 	return -EINVAL;
+}
+
+struct drm_i915_gem_request *i915_get_tail_request(struct drm_device *dev) {
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return list_entry(dev_priv->mm.request_list.prev, struct drm_i915_gem_request, list);
+}
+
+/**
+ * This is called when the chip hasn't reported back with completed
+ * batchbuffers in a long time. The first time this is called we simply record
+ * ACTHD. If ACTHD hasn't changed by the time the hangcheck timer elapses
+ * again, we assume the chip is wedged and try to fix it.
+ */
+void i915_hangcheck_elapsed(unsigned long data)
+{
+	struct drm_device *dev = (struct drm_device *)data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t acthd;
+       
+	if (!IS_I965G(dev))
+		acthd = I915_READ(ACTHD);
+	else
+		acthd = I915_READ(ACTHD_I965);
+
+	/* If all work is done then ACTHD clearly hasn't advanced. */
+	if (list_empty(&dev_priv->mm.request_list) ||
+		       i915_seqno_passed(i915_get_gem_seqno(dev), i915_get_tail_request(dev)->seqno)) {
+		dev_priv->hangcheck_count = 0;
+		return;
+	}
+
+	if (dev_priv->last_acthd == acthd && dev_priv->hangcheck_count > 0) {
+		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+		i915_handle_error(dev, true);
+		return;
+	} 
+
+	/* Reset timer case chip hangs without another request being added */
+	mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+
+	if (acthd != dev_priv->last_acthd)
+		dev_priv->hangcheck_count = 0;
+	else
+		dev_priv->hangcheck_count++;
+
+	dev_priv->last_acthd = acthd;
 }
 
 /* drm_dma.h hooks

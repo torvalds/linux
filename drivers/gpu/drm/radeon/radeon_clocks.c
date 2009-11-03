@@ -102,10 +102,12 @@ void radeon_get_clock_info(struct drm_device *dev)
 			p1pll->reference_div = 12;
 		if (p2pll->reference_div < 2)
 			p2pll->reference_div = 12;
-		if (spll->reference_div < 2)
-			spll->reference_div =
-			    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) &
-			    RADEON_M_SPLL_REF_DIV_MASK;
+		if (rdev->family < CHIP_RS600) {
+			if (spll->reference_div < 2)
+				spll->reference_div =
+					RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) &
+					RADEON_M_SPLL_REF_DIV_MASK;
+		}
 		if (mpll->reference_div < 2)
 			mpll->reference_div = spll->reference_div;
 	} else {
@@ -409,7 +411,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					R300_PIXCLK_TRANS_ALWAYS_ONb |
 					R300_PIXCLK_TVO_ALWAYS_ONb |
 					R300_P2G2CLK_ALWAYS_ONb |
-					R300_P2G2CLK_ALWAYS_ONb);
+					R300_P2G2CLK_DAC_ALWAYS_ONb);
 				WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 			} else if (rdev->family >= CHIP_RV350) {
 				tmp = RREG32_PLL(R300_SCLK_CNTL2);
@@ -462,7 +464,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					R300_PIXCLK_TRANS_ALWAYS_ONb |
 					R300_PIXCLK_TVO_ALWAYS_ONb |
 					R300_P2G2CLK_ALWAYS_ONb |
-					R300_P2G2CLK_ALWAYS_ONb);
+					R300_P2G2CLK_DAC_ALWAYS_ONb);
 				WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 
 				tmp = RREG32_PLL(RADEON_MCLK_MISC);
@@ -652,7 +654,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 R300_PIXCLK_TRANS_ALWAYS_ONb |
 				 R300_PIXCLK_TVO_ALWAYS_ONb |
 				 R300_P2G2CLK_ALWAYS_ONb |
-				 R300_P2G2CLK_ALWAYS_ONb |
+				 R300_P2G2CLK_DAC_ALWAYS_ONb |
 				 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 		} else if (rdev->family >= CHIP_RV350) {
@@ -703,7 +705,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 R300_PIXCLK_TRANS_ALWAYS_ONb |
 				 R300_PIXCLK_TVO_ALWAYS_ONb |
 				 R300_P2G2CLK_ALWAYS_ONb |
-				 R300_P2G2CLK_ALWAYS_ONb |
+				 R300_P2G2CLK_DAC_ALWAYS_ONb |
 				 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 		} else {

@@ -478,7 +478,7 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	if (!inti)
 		return -ENOMEM;
 
-	inti->type = KVM_S390_PROGRAM_INT;;
+	inti->type = KVM_S390_PROGRAM_INT;
 	inti->pgm.code = code;
 
 	VCPU_EVENT(vcpu, 3, "inject: program check %d (from kernel)", code);

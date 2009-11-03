@@ -54,7 +54,7 @@
 
 #define TWL4030_MSECURE_GPIO 22
 
-static int sdp3430_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_A),
@@ -88,11 +88,15 @@ static int sdp3430_keymap[] = {
 	0
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data sdp3430_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 5,
 	.cols		= 6,
-	.keymap		= sdp3430_keymap,
-	.keymapsize	= ARRAY_SIZE(sdp3430_keymap),
 	.rep		= 1,
 };
 
@@ -167,25 +171,22 @@ static struct platform_device *sdp3430_devices[] __initdata = {
 	&sdp3430_lcd_device,
 };
 
-static void __init omap_3430sdp_init_irq(void)
-{
-	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
-static struct omap_uart_config sdp3430_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_lcd_config sdp3430_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
-	{ OMAP_TAG_UART,	&sdp3430_uart_config },
 	{ OMAP_TAG_LCD,		&sdp3430_lcd_config },
 };
+
+static void __init omap_3430sdp_init_irq(void)
+{
+	omap_board_config = sdp3430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
+	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
+	omap_init_irq();
+	omap_gpio_init();
+}
 
 static int sdp3430_batt_table[] = {
 /* 0 C*/
@@ -478,12 +479,15 @@ static inline void board_smc91x_init(void)
 
 #endif
 
+static void enable_board_wakeup_source(void)
+{
+	omap_cfg_reg(AF26_34XX_SYS_NIRQ); /* T2 interrupt line (keypad) */
+}
+
 static void __init omap_3430sdp_init(void)
 {
 	omap3430_i2c_init();
 	platform_add_devices(sdp3430_devices, ARRAY_SIZE(sdp3430_devices));
-	omap_board_config = sdp3430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	if (omap_rev() > OMAP3430_REV_ES1_0)
 		ts_gpio = SDP3430_TS_GPIO_IRQ_SDPV2;
 	else
@@ -495,6 +499,7 @@ static void __init omap_3430sdp_init(void)
 	omap_serial_init();
 	usb_musb_init();
 	board_smc91x_init();
+	enable_board_wakeup_source();
 }
 
 static void __init omap_3430sdp_map_io(void)

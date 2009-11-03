@@ -100,8 +100,10 @@ struct video_device
 
    Also note that vdev->minor is set to -1 if the registration failed. */
 int __must_check video_register_device(struct video_device *vdev, int type, int nr);
-int __must_check video_register_device_index(struct video_device *vdev,
-						int type, int nr, int index);
+
+/* Same as video_register_device, but no warning is issued if the desired
+   device node number was already in use. */
+int __must_check video_register_device_no_warn(struct video_device *vdev, int type, int nr);
 
 /* Unregister video devices. Will do nothing if vdev == NULL or
    vdev->minor < 0. */

@@ -335,6 +335,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
+					    .mark = sk->sk_mark,
 					    .nl_u = { .ip4_u =
 						      { .daddr = daddr,
 							.saddr = inet->saddr,

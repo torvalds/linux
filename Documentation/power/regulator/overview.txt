@@ -29,7 +29,7 @@ Some terms used in this document:-
 
 
   o PMIC         - Power Management IC. An IC that contains numerous regulators
-                   and often contains other susbsystems.
+                   and often contains other subsystems.
 
 
   o Consumer     - Electronic device that is supplied power by a regulator.
@@ -168,4 +168,4 @@ relevant to non SoC devices and is split into the following four interfaces:-
       userspace via sysfs. This could be used to help monitor device power
       consumption and status.
 
-        See Documentation/ABI/testing/regulator-sysfs.txt
+        See Documentation/ABI/testing/sysfs-class-regulator

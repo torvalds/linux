@@ -34,16 +34,9 @@
  *
  */
 
-
-#if !defined(__WCTL_H__)
 #include "wctl.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -212,16 +205,12 @@ UINT            uHeaderSize;
             }
         }
         // reserve 4 byte to match MAC RX Buffer
-#ifdef PRIVATE_OBJ
-        pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer = (PBYTE) (pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].ref_skb.data + 4);
-#else
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer = (PBYTE) (pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].skb->data + 4);
-#endif
         memcpy(pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer, pMACHeader, cbFrameLength);
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength = cbFrameLength;
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += cbFrameLength;
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-        //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+        //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
         return(FALSE);
     }
     else {
@@ -235,7 +224,7 @@ UINT            uHeaderSize;
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength += (cbFrameLength - uHeaderSize);
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += (cbFrameLength - uHeaderSize);
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-                //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+                //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
             }
             else {
                 // seq error or frag # error flush DFCB
@@ -251,7 +240,7 @@ UINT            uHeaderSize;
             //enq defragcontrolblock
             pDevice->cbFreeDFCB++;
             pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = FALSE;
-            //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+            //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
             return(TRUE);
         }
         return(FALSE);

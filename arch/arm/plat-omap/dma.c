@@ -829,10 +829,10 @@ EXPORT_SYMBOL(omap_free_dma);
  *
  * @param arb_rate
  * @param max_fifo_depth
- * @param tparams - Number of thereads to reserve : DMA_THREAD_RESERVE_NORM
- * 						    DMA_THREAD_RESERVE_ONET
- * 						    DMA_THREAD_RESERVE_TWOT
- * 						    DMA_THREAD_RESERVE_THREET
+ * @param tparams - Number of threads to reserve : DMA_THREAD_RESERVE_NORM
+ * 						   DMA_THREAD_RESERVE_ONET
+ * 						   DMA_THREAD_RESERVE_TWOT
+ * 						   DMA_THREAD_RESERVE_THREET
  */
 void
 omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
@@ -844,11 +844,14 @@ omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
 		return;
 	}
 
+	if (max_fifo_depth == 0)
+		max_fifo_depth = 1;
 	if (arb_rate == 0)
 		arb_rate = 1;
 
-	reg = (arb_rate & 0xff) << 16;
-	reg |= (0xff & max_fifo_depth);
+	reg = 0xff & max_fifo_depth;
+	reg |= (0x3 & tparams) << 12;
+	reg |= (arb_rate & 0xff) << 16;
 
 	dma_write(reg, GCR);
 }
@@ -2347,16 +2350,16 @@ static int __init omap_init_dma(void)
 	int ch, r;
 
 	if (cpu_class_is_omap1()) {
-		omap_dma_base = IO_ADDRESS(OMAP1_DMA_BASE);
+		omap_dma_base = OMAP1_IO_ADDRESS(OMAP1_DMA_BASE);
 		dma_lch_count = OMAP1_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap24xx()) {
-		omap_dma_base = IO_ADDRESS(OMAP24XX_DMA4_BASE);
+		omap_dma_base = OMAP2_IO_ADDRESS(OMAP24XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap34xx()) {
-		omap_dma_base = IO_ADDRESS(OMAP34XX_DMA4_BASE);
+		omap_dma_base = OMAP2_IO_ADDRESS(OMAP34XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap44xx()) {
-		omap_dma_base = IO_ADDRESS(OMAP44XX_DMA4_BASE);
+		omap_dma_base = OMAP2_IO_ADDRESS(OMAP44XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else {
 		pr_err("DMA init failed for unsupported omap\n");

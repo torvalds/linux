@@ -456,7 +456,7 @@ int cleanup_journal_tail(journal_t *journal)
 {
 	transaction_t * transaction;
 	tid_t		first_tid;
-	unsigned long	blocknr, freed;
+	unsigned int	blocknr, freed;
 
 	if (is_journal_aborted(journal))
 		return 1;
@@ -502,8 +502,8 @@ int cleanup_journal_tail(journal_t *journal)
 		freed = freed + journal->j_last - journal->j_first;
 
 	jbd_debug(1,
-		  "Cleaning journal tail from %d to %d (offset %lu), "
-		  "freeing %lu\n",
+		  "Cleaning journal tail from %d to %d (offset %u), "
+		  "freeing %u\n",
 		  journal->j_tail_sequence, first_tid, blocknr, freed);
 
 	journal->j_free += freed;

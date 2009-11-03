@@ -1518,8 +1518,12 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 			return retval;
 
 		if (blocks == 1 && !dx_fallback &&
-		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX))
-			return make_indexed_dir(handle, dentry, inode, bh);
+		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX)) {
+			retval = make_indexed_dir(handle, dentry, inode, bh);
+			if (retval == -ENOSPC)
+				brelse(bh);
+			return retval;
+		}
 		brelse(bh);
 	}
 	bh = ext4_append(handle, dir, &block, &retval);
@@ -1528,7 +1532,10 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
 	de->inode = 0;
 	de->rec_len = ext4_rec_len_to_disk(blocksize, blocksize);
-	return add_dirent_to_buf(handle, dentry, inode, de, bh);
+	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
+	if (retval == -ENOSPC)
+		brelse(bh);
+	return retval;
 }
 
 /*
@@ -1590,9 +1597,9 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			goto cleanup;
 		node2 = (struct dx_node *)(bh2->b_data);
 		entries2 = node2->entries;
+		memset(&node2->fake, 0, sizeof(struct fake_dirent));
 		node2->fake.rec_len = ext4_rec_len_to_disk(sb->s_blocksize,
 							   sb->s_blocksize);
-		node2->fake.inode = 0;
 		BUFFER_TRACE(frame->bh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, frame->bh);
 		if (err)
@@ -1657,7 +1664,8 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	if (!de)
 		goto cleanup;
 	err = add_dirent_to_buf(handle, dentry, inode, de, bh);
-	bh = NULL;
+	if (err != -ENOSPC)
+		bh = NULL;
 	goto cleanup;
 
 journal_error:
@@ -2068,7 +2076,8 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	if (!ext4_handle_valid(handle))
+	/* ext4_handle_valid() assumes a valid handle_t pointer */
+	if (handle && !ext4_handle_valid(handle))
 		return 0;
 
 	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
@@ -2310,7 +2319,7 @@ static int ext4_link(struct dentry *old_dentry,
 	struct inode *inode = old_dentry->d_inode;
 	int err, retries = 0;
 
-	if (EXT4_DIR_LINK_MAX(inode))
+	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
 
 	/*
@@ -2413,7 +2422,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto end_rename;
 		retval = -EMLINK;
 		if (!new_inode && new_dir != old_dir &&
-				new_dir->i_nlink >= EXT4_LINK_MAX)
+		    EXT4_DIR_LINK_MAX(new_dir))
 			goto end_rename;
 	}
 	if (!new_bh) {

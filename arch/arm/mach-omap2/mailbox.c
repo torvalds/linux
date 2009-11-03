@@ -30,6 +30,14 @@
 #define MAILBOX_IRQ_NEWMSG(u)		(1 << (2 * (u)))
 #define MAILBOX_IRQ_NOTFULL(u)		(1 << (2 * (u) + 1))
 
+/* SYSCONFIG: register bit definition */
+#define AUTOIDLE	(1 << 0)
+#define SOFTRESET	(1 << 1)
+#define SMARTIDLE	(2 << 3)
+
+/* SYSSTATUS: register bit definition */
+#define RESETDONE	(1 << 0)
+
 #define MBOX_REG_SIZE			0x120
 #define MBOX_NR_REGS			(MBOX_REG_SIZE / sizeof(u32))
 
@@ -69,21 +77,33 @@ static inline void mbox_write_reg(u32 val, size_t ofs)
 /* Mailbox H/W preparations */
 static int omap2_mbox_startup(struct omap_mbox *mbox)
 {
-	unsigned int l;
+	u32 l;
+	unsigned long timeout;
 
 	mbox_ick_handle = clk_get(NULL, "mailboxes_ick");
 	if (IS_ERR(mbox_ick_handle)) {
-		printk("Could not get mailboxes_ick\n");
+		pr_err("Can't get mailboxes_ick\n");
 		return -ENODEV;
 	}
 	clk_enable(mbox_ick_handle);
 
+	mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
+	timeout = jiffies + msecs_to_jiffies(20);
+	do {
+		l = mbox_read_reg(MAILBOX_SYSSTATUS);
+		if (l & RESETDONE)
+			break;
+	} while (!time_after(jiffies, timeout));
+
+	if (!(l & RESETDONE)) {
+		pr_err("Can't take mmu out of reset\n");
+		return -ENODEV;
+	}
+
 	l = mbox_read_reg(MAILBOX_REVISION);
 	pr_info("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
 
-	/* set smart-idle & autoidle */
-	l = mbox_read_reg(MAILBOX_SYSCONFIG);
-	l |= 0x00000011;
+	l = SMARTIDLE | AUTOIDLE;
 	mbox_write_reg(l, MAILBOX_SYSCONFIG);
 
 	omap2_mbox_enable_irq(mbox, IRQ_RX);
@@ -156,6 +176,9 @@ static void omap2_mbox_ack_irq(struct omap_mbox *mbox,
 	u32 bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
 
 	mbox_write_reg(bit, p->irqstatus);
+
+	/* Flush posted write for irq status to avoid spurious interrupts */
+	mbox_read_reg(p->irqstatus);
 }
 
 static int omap2_mbox_is_irq(struct omap_mbox *mbox,

@@ -68,10 +68,11 @@
 #define DRM_MODE_DPMS_OFF	3
 
 /* Scaling mode options */
-#define DRM_MODE_SCALE_NON_GPU		0
-#define DRM_MODE_SCALE_FULLSCREEN	1
-#define DRM_MODE_SCALE_NO_SCALE		2
-#define DRM_MODE_SCALE_ASPECT		3
+#define DRM_MODE_SCALE_NONE		0 /* Unmodified timing (display or
+					     software can still scale) */
+#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
+#define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
+#define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
@@ -141,6 +142,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_SUBCONNECTOR_Composite	5
 #define DRM_MODE_SUBCONNECTOR_SVIDEO	6
 #define DRM_MODE_SUBCONNECTOR_Component	8
+#define DRM_MODE_SUBCONNECTOR_SCART	9
 
 #define DRM_MODE_CONNECTOR_Unknown	0
 #define DRM_MODE_CONNECTOR_VGA		1
@@ -155,6 +157,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_DisplayPort	10
 #define DRM_MODE_CONNECTOR_HDMIA	11
 #define DRM_MODE_CONNECTOR_HDMIB	12
+#define DRM_MODE_CONNECTOR_TV		13
 
 struct drm_mode_get_connector {
 

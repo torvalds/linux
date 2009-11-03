@@ -27,6 +27,13 @@
  */
 static int __sync_filesystem(struct super_block *sb, int wait)
 {
+	/*
+	 * This should be safe, as we require bdi backing to actually
+	 * write out data in the first place
+	 */
+	if (!sb->s_bdi)
+		return 0;
+
 	/* Avoid doing twice syncing and cache pruning for quota sync */
 	if (!wait) {
 		writeout_quota_sb(sb, -1);
@@ -101,7 +108,7 @@ restart:
 		spin_unlock(&sb_lock);
 
 		down_read(&sb->s_umount);
-		if (!(sb->s_flags & MS_RDONLY) && sb->s_root)
+		if (!(sb->s_flags & MS_RDONLY) && sb->s_root && sb->s_bdi)
 			__sync_filesystem(sb, wait);
 		up_read(&sb->s_umount);
 
@@ -176,6 +183,7 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 		ret = err;
 	return ret;
 }
+EXPORT_SYMBOL(file_fsync);
 
 /**
  * vfs_fsync_range - helper to sync a range of data & metadata to disk

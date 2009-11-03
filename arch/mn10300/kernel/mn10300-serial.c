@@ -391,7 +391,7 @@ static int mask_test_and_clear(volatile u8 *ptr, u8 mask)
 static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 {
 	struct uart_icount *icount = &port->uart.icount;
-	struct tty_struct *tty = port->uart.info->port.tty;
+	struct tty_struct *tty = port->uart.state->port.tty;
 	unsigned ix;
 	int count;
 	u8 st, ch, push, status, overrun;
@@ -566,16 +566,16 @@ static void mn10300_serial_transmit_interrupt(struct mn10300_serial_port *port)
 {
 	_enter("%s", port->name);
 
-	if (!port->uart.info || !port->uart.info->port.tty) {
+	if (!port->uart.state || !port->uart.state->port.tty) {
 		mn10300_serial_dis_tx_intr(port);
 		return;
 	}
 
 	if (uart_tx_stopped(&port->uart) ||
-	    uart_circ_empty(&port->uart.info->xmit))
+	    uart_circ_empty(&port->uart.state->xmit))
 		mn10300_serial_dis_tx_intr(port);
 
-	if (uart_circ_chars_pending(&port->uart.info->xmit) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(&port->uart.state->xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&port->uart);
 }
 
@@ -596,7 +596,7 @@ static void mn10300_serial_cts_changed(struct mn10300_serial_port *port, u8 st)
 	*port->_control = ctr;
 
 	uart_handle_cts_change(&port->uart, st & SC2STR_CTS);
-	wake_up_interruptible(&port->uart.info->delta_msr_wait);
+	wake_up_interruptible(&port->uart.state->port.delta_msr_wait);
 }
 
 /*
@@ -705,8 +705,8 @@ static void mn10300_serial_start_tx(struct uart_port *_port)
 
 	_enter("%s{%lu}",
 	       port->name,
-	       CIRC_CNT(&port->uart.info->xmit.head,
-			&port->uart.info->xmit.tail,
+	       CIRC_CNT(&port->uart.state->xmit.head,
+			&port->uart.state->xmit.tail,
 			UART_XMIT_SIZE));
 
 	/* kick the virtual DMA controller */

@@ -2,7 +2,7 @@
  * SAS Transport Layer for MPT (Message Passing Technology) based controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_transport.c
- * Copyright (C) 2007-2008  LSI Corporation
+ * Copyright (C) 2007-2009  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -212,25 +212,26 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * mpt2sas_transport_done -  internal transport layer callback handler.
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Callback handler when sending internal generated transport cmds.
  * The callback index passed is `ioc->transport_cb_idx`
  *
- * Return nothing.
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
  */
-void
-mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
+u8
+mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
 	mpi_reply =  mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (ioc->transport_cmds.status == MPT2_CMD_NOT_USED)
-		return;
+		return 1;
 	if (ioc->transport_cmds.smid != smid)
-		return;
+		return 1;
 	ioc->transport_cmds.status |= MPT2_CMD_COMPLETE;
 	if (mpi_reply) {
 		memcpy(ioc->transport_cmds.reply, mpi_reply,
@@ -239,6 +240,7 @@ mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
 	}
 	ioc->transport_cmds.status &= ~MPT2_CMD_PENDING;
 	complete(&ioc->transport_cmds.done);
+	return 1;
 }
 
 /* report manufacture request structure */
@@ -369,6 +371,8 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
 	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	sas_address_le = (u64 *)&mpi_request->SASAddress;
 	*sas_address_le = cpu_to_le64(sas_address);
 	mpi_request->RequestDataLength = sizeof(struct rep_manu_request);
@@ -396,7 +400,8 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "report_manufacture - "
 	    "send to sas_addr(0x%016llx)\n", ioc->name,
 	    (unsigned long long)sas_address));
-	mpt2sas_base_put_smid_default(ioc, smid, 0 /* VF_ID */);
+	mpt2sas_base_put_smid_default(ioc, smid);
+	init_completion(&ioc->transport_cmds.done);
 	timeleft = wait_for_completion_timeout(&ioc->transport_cmds.done,
 	    10*HZ);
 
@@ -1106,6 +1111,8 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
 	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	*((u64 *)&mpi_request->SASAddress) = (rphy) ?
 	    cpu_to_le64(rphy->identify.sas_address) :
 	    cpu_to_le64(ioc->sas_hba.sas_address);
@@ -1147,7 +1154,8 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s - "
 	    "sending smp request\n", ioc->name, __func__));
 
-	mpt2sas_base_put_smid_default(ioc, smid, 0 /* VF_ID */);
+	mpt2sas_base_put_smid_default(ioc, smid);
+	init_completion(&ioc->transport_cmds.done);
 	timeleft = wait_for_completion_timeout(&ioc->transport_cmds.done,
 	    10*HZ);
 

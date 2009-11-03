@@ -274,8 +274,10 @@ static int drr_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	struct tc_drr_stats xstats;
 
 	memset(&xstats, 0, sizeof(xstats));
-	if (cl->qdisc->q.qlen)
+	if (cl->qdisc->q.qlen) {
 		xstats.deficit = cl->deficit;
+		cl->qdisc->qstats.qlen = cl->qdisc->q.qlen;
+	}
 
 	if (gnet_stats_copy_basic(d, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||

@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/kernel/asm-offsets.c
- * Based on:
- * Author:
+ * generate definitions needed by assembly language modules
  *
- * Created:
- * Description:  generate definitions needed by assembly language modules.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/stddef.h>
@@ -145,6 +124,7 @@ int main(void)
 	DEFINE(PDA_EXBUF, offsetof(struct blackfin_pda, ex_buf));
 	DEFINE(PDA_EXIMASK, offsetof(struct blackfin_pda, ex_imask));
 	DEFINE(PDA_EXSTACK, offsetof(struct blackfin_pda, ex_stack));
+	DEFINE(PDA_EXIPEND, offsetof(struct blackfin_pda, ex_ipend));
 #ifdef ANOMALY_05000261
 	DEFINE(PDA_LFRETX, offsetof(struct blackfin_pda, last_cplb_fault_retx));
 #endif
@@ -152,6 +132,12 @@ int main(void)
 	DEFINE(PDA_ICPLB, offsetof(struct blackfin_pda, icplb_fault_addr));
 	DEFINE(PDA_RETX, offsetof(struct blackfin_pda, retx));
 	DEFINE(PDA_SEQSTAT, offsetof(struct blackfin_pda, seqstat));
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	DEFINE(PDA_DF_DCPLB, offsetof(struct blackfin_pda, dcplb_doublefault_addr));
+	DEFINE(PDA_DF_ICPLB, offsetof(struct blackfin_pda, icplb_doublefault_addr));
+	DEFINE(PDA_DF_SEQSTAT, offsetof(struct blackfin_pda, seqstat_doublefault));
+	DEFINE(PDA_DF_RETX, offsetof(struct blackfin_pda, retx_doublefault));
+#endif
 #ifdef CONFIG_SMP
 	/* Inter-core lock (in L2 SRAM) */
 	DEFINE(SIZEOF_CORELOCK, sizeof(struct corelock_slot));

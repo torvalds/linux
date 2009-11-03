@@ -1016,7 +1016,6 @@ static const struct net_device_ops vnet_ops = {
 	.ndo_open		= vnet_open,
 	.ndo_stop		= vnet_close,
 	.ndo_set_multicast_list	= vnet_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= vnet_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= vnet_tx_timeout,

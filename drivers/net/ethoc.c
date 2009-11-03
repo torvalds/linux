@@ -17,7 +17,12 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <net/ethoc.h>
+
+static int buffer_size = 0x8000; /* 32 KBytes */
+module_param(buffer_size, int, 0);
+MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
 
 /* register offsets */
 #define	MODER		0x00
@@ -167,6 +172,7 @@
  * struct ethoc - driver-private device structure
  * @iobase:	pointer to I/O memory region
  * @membase:	pointer to buffer memory region
+ * @dma_alloc:	dma allocated buffer size
  * @num_tx:	number of send buffers
  * @cur_tx:	last send buffer written
  * @dty_tx:	last buffer actually sent
@@ -185,6 +191,7 @@
 struct ethoc {
 	void __iomem *iobase;
 	void __iomem *membase;
+	int dma_alloc;
 
 	unsigned int num_tx;
 	unsigned int cur_tx;
@@ -284,7 +291,7 @@ static int ethoc_init_ring(struct ethoc *dev)
 	dev->cur_rx = 0;
 
 	/* setup transmission buffers */
-	bd.addr = 0;
+	bd.addr = virt_to_phys(dev->membase);
 	bd.stat = TX_BD_IRQ | TX_BD_CRC;
 
 	for (i = 0; i < dev->num_tx; i++) {
@@ -295,7 +302,6 @@ static int ethoc_init_ring(struct ethoc *dev)
 		bd.addr += ETHOC_BUFSIZ;
 	}
 
-	bd.addr = dev->num_tx * ETHOC_BUFSIZ;
 	bd.stat = RX_BD_EMPTY | RX_BD_IRQ;
 
 	for (i = 0; i < dev->num_rx; i++) {
@@ -400,8 +406,12 @@ static int ethoc_rx(struct net_device *dev, int limit)
 		if (ethoc_update_rx_stats(priv, &bd) == 0) {
 			int size = bd.stat >> 16;
 			struct sk_buff *skb = netdev_alloc_skb(dev, size);
+
+			size -= 4; /* strip the CRC */
+			skb_reserve(skb, 2); /* align TCP/IP header */
+
 			if (likely(skb)) {
-				void *src = priv->membase + bd.addr;
+				void *src = phys_to_virt(bd.addr);
 				memcpy_fromio(skb_put(skb, size), src, size);
 				skb->protocol = eth_type_trans(skb, dev);
 				priv->stats.rx_packets++;
@@ -653,9 +663,10 @@ static int ethoc_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	/* calculate the number of TX/RX buffers */
-	num_bd = (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ;
-	priv->num_tx = min(min_tx, num_bd / 4);
+	/* calculate the number of TX/RX buffers, maximum 128 supported */
+	num_bd = min_t(unsigned int,
+		128, (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ);
+	priv->num_tx = max(min_tx, num_bd / 4);
 	priv->num_rx = num_bd - priv->num_tx;
 	ethoc_write(priv, TX_BD_NUM, priv->num_tx);
 
@@ -823,7 +834,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		bd.stat &= ~TX_BD_PAD;
 
-	dest = priv->membase + bd.addr;
+	dest = phys_to_virt(bd.addr);
 	memcpy_toio(dest, skb->data, skb->len);
 
 	bd.stat &= ~(TX_BD_STATS | TX_BD_LEN_MASK);
@@ -903,22 +914,19 @@ static int ethoc_probe(struct platform_device *pdev)
 
 	/* obtain buffer memory space */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain memory space\n");
-		ret = -ENXIO;
-		goto free;
-	}
-
-	mem = devm_request_mem_region(&pdev->dev, res->start,
+	if (res) {
+		mem = devm_request_mem_region(&pdev->dev, res->start,
 			res->end - res->start + 1, res->name);
-	if (!mem) {
-		dev_err(&pdev->dev, "cannot request memory space\n");
-		ret = -ENXIO;
-		goto free;
+		if (!mem) {
+			dev_err(&pdev->dev, "cannot request memory space\n");
+			ret = -ENXIO;
+			goto free;
+		}
+
+		netdev->mem_start = mem->start;
+		netdev->mem_end   = mem->end;
 	}
 
-	netdev->mem_start = mem->start;
-	netdev->mem_end   = mem->end;
 
 	/* obtain device IRQ number */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -933,6 +941,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* setup driver-private data */
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
+	priv->dma_alloc = 0;
 
 	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
 			mmio->end - mmio->start + 1);
@@ -942,12 +951,27 @@ static int ethoc_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	priv->membase = devm_ioremap_nocache(&pdev->dev, netdev->mem_start,
-			mem->end - mem->start + 1);
-	if (!priv->membase) {
-		dev_err(&pdev->dev, "cannot remap memory space\n");
-		ret = -ENXIO;
-		goto error;
+	if (netdev->mem_end) {
+		priv->membase = devm_ioremap_nocache(&pdev->dev,
+			netdev->mem_start, mem->end - mem->start + 1);
+		if (!priv->membase) {
+			dev_err(&pdev->dev, "cannot remap memory space\n");
+			ret = -ENXIO;
+			goto error;
+		}
+	} else {
+		/* Allocate buffer memory */
+		priv->membase = dma_alloc_coherent(NULL,
+			buffer_size, (void *)&netdev->mem_start,
+			GFP_KERNEL);
+		if (!priv->membase) {
+			dev_err(&pdev->dev, "cannot allocate %dB buffer\n",
+				buffer_size);
+			ret = -ENOMEM;
+			goto error;
+		}
+		netdev->mem_end = netdev->mem_start + buffer_size;
+		priv->dma_alloc = buffer_size;
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
@@ -1034,6 +1058,9 @@ free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
+	if (priv->dma_alloc)
+		dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
+			netdev->mem_start);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1059,7 +1086,9 @@ static int ethoc_remove(struct platform_device *pdev)
 			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
-
+		if (priv->dma_alloc)
+			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
+				netdev->mem_start);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}

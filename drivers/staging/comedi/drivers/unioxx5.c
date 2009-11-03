@@ -80,25 +80,29 @@ struct unioxx5_subd_priv {
 	unsigned char usp_prev_cn_val[3];	/* previous channel value */
 };
 
-static int unioxx5_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int unioxx5_subdev_write(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data);
-static int unioxx5_subdev_read(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data);
-static int unioxx5_insn_config(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data);
+static int unioxx5_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
+static int unioxx5_subdev_write(struct comedi_device *dev,
+				struct comedi_subdevice *subdev,
+				struct comedi_insn *insn, unsigned int *data);
+static int unioxx5_subdev_read(struct comedi_device *dev,
+			       struct comedi_subdevice *subdev,
+			       struct comedi_insn *insn, unsigned int *data);
+static int unioxx5_insn_config(struct comedi_device *dev,
+			       struct comedi_subdevice *subdev,
+			       struct comedi_insn *insn, unsigned int *data);
 static int unioxx5_detach(struct comedi_device *dev);
-static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iobase,
-	int minor);
-static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor);
-static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor);
+static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
+				 int subdev_iobase, int minor);
+static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp,
+				   unsigned int *data, int channel, int minor);
+static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp,
+				  unsigned int *data, int channel, int minor);
 /* static void __unioxx5_digital_config(struct unioxx5_subd_priv* usp, int mode); */
-static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor);
-static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor);
+static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
+				  unsigned int *data, int channel, int minor);
+static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
+				 unsigned int *data, int channel, int minor);
 static int __unioxx5_define_chan_offset(int chan_num);
 static void __unioxx5_analog_config(struct unioxx5_subd_priv *usp, int channel);
 
@@ -111,7 +115,8 @@ static struct comedi_driver unioxx5_driver = {
 
 COMEDI_INITCLEANUP(unioxx5_driver);
 
-static int unioxx5_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int unioxx5_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	int iobase, i, n_subd;
 	int id, num, ba;
@@ -136,7 +141,7 @@ static int unioxx5_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	/* unioxx5 can has from two to four subdevices */
 	if (n_subd < 2) {
 		printk(KERN_ERR
-			"your card must has at least 2 'g01' subdevices\n");
+		       "your card must has at least 2 'g01' subdevices\n");
 		return -1;
 	}
 
@@ -148,7 +153,7 @@ static int unioxx5_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	/* initializing each of for same subdevices */
 	for (i = 0; i < n_subd; i++, iobase += UNIOXX5_SUBDEV_ODDS) {
 		if (__unioxx5_subdev_init(&dev->subdevices[i], iobase,
-				dev->minor) < 0)
+					  dev->minor) < 0)
 			return -1;
 	}
 
@@ -156,8 +161,9 @@ static int unioxx5_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	return 0;
 }
 
-static int unioxx5_subdev_read(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data)
+static int unioxx5_subdev_read(struct comedi_device *dev,
+			       struct comedi_subdevice *subdev,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -176,8 +182,9 @@ static int unioxx5_subdev_read(struct comedi_device *dev, struct comedi_subdevic
 	return 1;
 }
 
-static int unioxx5_subdev_write(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data)
+static int unioxx5_subdev_write(struct comedi_device *dev,
+				struct comedi_subdevice *subdev,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	struct unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
@@ -197,8 +204,9 @@ static int unioxx5_subdev_write(struct comedi_device *dev, struct comedi_subdevi
 }
 
 /* for digital modules only */
-static int unioxx5_insn_config(struct comedi_device *dev, struct comedi_subdevice *subdev,
-	struct comedi_insn *insn, unsigned int *data)
+static int unioxx5_insn_config(struct comedi_device *dev,
+			       struct comedi_subdevice *subdev,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int channel_offset, flags, channel = CR_CHAN(insn->chanspec), type;
 	struct unioxx5_subd_priv *usp = subdev->private;
@@ -208,16 +216,16 @@ static int unioxx5_insn_config(struct comedi_device *dev, struct comedi_subdevic
 
 	if (type != MODULE_DIGITAL) {
 		printk(KERN_ERR
-			"comedi%d: channel configuration accessible only for digital modules\n",
-			dev->minor);
+		       "comedi%d: channel configuration accessible only for digital modules\n",
+		       dev->minor);
 		return -1;
 	}
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
 		printk(KERN_ERR
-			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-			dev->minor, channel);
+		       "comedi%d: undefined channel %d. channel range is 0 .. 23\n",
+		       dev->minor, channel);
 		return -1;
 	}
 
@@ -265,8 +273,8 @@ static int unioxx5_detach(struct comedi_device *dev)
 }
 
 /* initializing subdevice with given address */
-static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iobase,
-	int minor)
+static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
+				 int subdev_iobase, int minor)
 {
 	struct unioxx5_subd_priv *usp;
 	int i, to, ndef_flag = 0;
@@ -276,7 +284,7 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iob
 		return -EIO;
 	}
 
-	usp = (struct unioxx5_subd_priv *) kzalloc(sizeof(*usp), GFP_KERNEL);
+	usp = (struct unioxx5_subd_priv *)kzalloc(sizeof(*usp), GFP_KERNEL);
 
 	if (usp == NULL) {
 		printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);
@@ -332,8 +340,8 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iob
 	return 0;
 }
 
-static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor)
+static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp,
+				   unsigned int *data, int channel, int minor)
 {
 	int channel_offset, val;
 	int mask = 1 << (channel & 0x07);
@@ -341,8 +349,8 @@ static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp, unsigned int *
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
 		printk(KERN_ERR
-			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-			minor, channel);
+		       "comedi%d: undefined channel %d. channel range is 0 .. 23\n",
+		       minor, channel);
 		return 0;
 	}
 
@@ -360,16 +368,16 @@ static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp, unsigned int *
 }
 
 /* function for digital reading */
-static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor)
+static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp,
+				  unsigned int *data, int channel, int minor)
 {
 	int channel_offset, mask = 1 << (channel & 0x07);
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
 		printk(KERN_ERR
-			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-			minor, channel);
+		       "comedi%d: undefined channel %d. channel range is 0 .. 23\n",
+		       minor, channel);
 		return 0;
 	}
 
@@ -400,8 +408,8 @@ static void __unioxx5_digital_config(struct unioxx5_subd_priv *usp, int mode)
 }
 #endif
 
-static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor)
+static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
+				  unsigned int *data, int channel, int minor)
 {
 	int module, i;
 
@@ -411,8 +419,8 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp, unsigned int *d
 	/* defining if given module can work on output */
 	if (!(usp->usp_module_type[module] & MODULE_OUTPUT_MASK)) {
 		printk(KERN_ERR
-			"comedi%d: module in position %d with id 0x%0x is for input only!\n",
-			minor, module, usp->usp_module_type[module]);
+		       "comedi%d: module in position %d with id 0x%0x is for input only!\n",
+		       minor, module, usp->usp_module_type[module]);
 		return 0;
 	}
 
@@ -435,8 +443,8 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp, unsigned int *d
 	return 1;
 }
 
-static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp, unsigned int *data,
-	int channel, int minor)
+static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
+				 unsigned int *data, int channel, int minor)
 {
 	int module_no, read_ch;
 	char control;
@@ -447,8 +455,8 @@ static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp, unsigned int *da
 	/* defining if given module can work on input */
 	if (usp->usp_module_type[module_no] & MODULE_OUTPUT_MASK) {
 		printk(KERN_ERR
-			"comedi%d: module in position %d with id 0x%02x is for output only",
-			minor, module_no, usp->usp_module_type[module_no]);
+		       "comedi%d: module in position %d with id 0x%02x is for output only",
+		       minor, module_no, usp->usp_module_type[module_no]);
 		return 0;
 	}
 

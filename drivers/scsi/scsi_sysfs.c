@@ -275,7 +275,7 @@ struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
 };
 
-struct attribute_group *scsi_sysfs_shost_attr_groups[] = {
+const struct attribute_group *scsi_sysfs_shost_attr_groups[] = {
 	&scsi_shost_attr_group,
 	NULL
 };
@@ -745,7 +745,7 @@ static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
 };
 
-static struct attribute_group *scsi_sdev_attr_groups[] = {
+static const struct attribute_group *scsi_sdev_attr_groups[] = {
 	&scsi_sdev_attr_group,
 	NULL
 };

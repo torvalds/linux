@@ -1087,6 +1087,14 @@ config MMTIMER
 	  The mmtimer device allows direct userspace access to the
 	  Altix system timer.
 
+config UV_MMTIMER
+	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"
+	depends on X86_UV
+	default m
+	help
+	  The uv_mmtimer device allows direct userspace access to the
+	  UV system timer.
+
 source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK

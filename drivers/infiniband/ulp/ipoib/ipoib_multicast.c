@@ -362,12 +362,19 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
 						   carrier_on_task);
+	struct ib_port_attr attr;
 
 	/*
 	 * Take rtnl_lock to avoid racing with ipoib_stop() and
 	 * turning the carrier back on while a device is being
 	 * removed.
 	 */
+	if (ib_query_port(priv->ca, priv->port, &attr) ||
+	    attr.state != IB_PORT_ACTIVE) {
+		ipoib_dbg(priv, "Keeping carrier off until IB port is active\n");
+		return;
+	}
+
 	rtnl_lock();
 	netif_carrier_on(priv->dev);
 	rtnl_unlock();

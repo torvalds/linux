@@ -183,9 +183,6 @@ void output_mm_defines(void)
 	OFFSET(MM_PGD, mm_struct, pgd);
 	OFFSET(MM_CONTEXT, mm_struct, context);
 	BLANK();
-	DEFINE(_PAGE_SIZE, PAGE_SIZE);
-	DEFINE(_PAGE_SHIFT, PAGE_SHIFT);
-	BLANK();
 	DEFINE(_PGD_T_SIZE, sizeof(pgd_t));
 	DEFINE(_PMD_T_SIZE, sizeof(pmd_t));
 	DEFINE(_PTE_T_SIZE, sizeof(pte_t));

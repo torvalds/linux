@@ -55,11 +55,7 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee,
 
 		if (entry->ops) {
 			entry->ops->deinit(entry->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 			module_put(entry->ops->owner);
-#else
-			__MOD_DEC_USE_COUNT(entry->ops->owner);
-#endif
 		}
 		kfree(entry);
 	}
@@ -208,8 +204,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.owner			= THIS_MODULE,
 };
 
-
-static int __init ieee80211_crypto_init(void)
+int __init ieee80211_crypto_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -230,8 +225,7 @@ out:
 	return ret;
 }
 
-
-static void __exit ieee80211_crypto_deinit(void)
+void __exit ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 
@@ -250,24 +244,3 @@ static void __exit ieee80211_crypto_deinit(void)
 
 	kfree(hcrypt);
 }
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL(ieee80211_get_crypto_ops);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL_NOVERS(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_get_crypto_ops);
-#endif
-
-module_init(ieee80211_crypto_init);
-module_exit(ieee80211_crypto_deinit);

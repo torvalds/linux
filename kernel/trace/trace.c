@@ -125,13 +125,13 @@ int ftrace_dump_on_oops;
 
 static int tracing_set_tracer(const char *buf);
 
-#define BOOTUP_TRACER_SIZE		100
-static char bootup_tracer_buf[BOOTUP_TRACER_SIZE] __initdata;
+#define MAX_TRACER_SIZE		100
+static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
 static int __init set_ftrace(char *str)
 {
-	strncpy(bootup_tracer_buf, str, BOOTUP_TRACER_SIZE);
+	strncpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
 	/* We are using ftrace early, expand it */
 	ring_buffer_expanded = 1;
@@ -242,13 +242,6 @@ static struct tracer		*trace_types __read_mostly;
 static struct tracer		*current_trace __read_mostly;
 
 /*
- * max_tracer_type_len is used to simplify the allocating of
- * buffers to read userspace tracer names. We keep track of
- * the longest tracer name registered.
- */
-static int			max_tracer_type_len;
-
-/*
  * trace_types_lock is used to protect the trace_types list.
  * This lock is also used to keep user access serialized.
  * Accesses from userspace will grab this lock while userspace
@@ -275,12 +268,18 @@ static DEFINE_SPINLOCK(tracing_start_lock);
  */
 void trace_wake_up(void)
 {
+	int cpu;
+
+	if (trace_flags & TRACE_ITER_BLOCK)
+		return;
 	/*
 	 * The runqueue_is_locked() can fail, but this is the best we
 	 * have for now:
 	 */
-	if (!(trace_flags & TRACE_ITER_BLOCK) && !runqueue_is_locked())
+	cpu = get_cpu();
+	if (!runqueue_is_locked(cpu))
 		wake_up(&trace_wait);
+	put_cpu();
 }
 
 static int __init set_buf_size(char *str)
@@ -338,6 +337,112 @@ static struct {
 };
 
 int trace_clock_id;
+
+/*
+ * trace_parser_get_init - gets the buffer for trace parser
+ */
+int trace_parser_get_init(struct trace_parser *parser, int size)
+{
+	memset(parser, 0, sizeof(*parser));
+
+	parser->buffer = kmalloc(size, GFP_KERNEL);
+	if (!parser->buffer)
+		return 1;
+
+	parser->size = size;
+	return 0;
+}
+
+/*
+ * trace_parser_put - frees the buffer for trace parser
+ */
+void trace_parser_put(struct trace_parser *parser)
+{
+	kfree(parser->buffer);
+}
+
+/*
+ * trace_get_user - reads the user input string separated by  space
+ * (matched by isspace(ch))
+ *
+ * For each string found the 'struct trace_parser' is updated,
+ * and the function returns.
+ *
+ * Returns number of bytes read.
+ *
+ * See kernel/trace/trace.h for 'struct trace_parser' details.
+ */
+int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
+	size_t cnt, loff_t *ppos)
+{
+	char ch;
+	size_t read = 0;
+	ssize_t ret;
+
+	if (!*ppos)
+		trace_parser_clear(parser);
+
+	ret = get_user(ch, ubuf++);
+	if (ret)
+		goto out;
+
+	read++;
+	cnt--;
+
+	/*
+	 * The parser is not finished with the last write,
+	 * continue reading the user input without skipping spaces.
+	 */
+	if (!parser->cont) {
+		/* skip white space */
+		while (cnt && isspace(ch)) {
+			ret = get_user(ch, ubuf++);
+			if (ret)
+				goto out;
+			read++;
+			cnt--;
+		}
+
+		/* only spaces were written */
+		if (isspace(ch)) {
+			*ppos += read;
+			ret = read;
+			goto out;
+		}
+
+		parser->idx = 0;
+	}
+
+	/* read the non-space input */
+	while (cnt && !isspace(ch)) {
+		if (parser->idx < parser->size - 1)
+			parser->buffer[parser->idx++] = ch;
+		else {
+			ret = -EINVAL;
+			goto out;
+		}
+		ret = get_user(ch, ubuf++);
+		if (ret)
+			goto out;
+		read++;
+		cnt--;
+	}
+
+	/* We either got finished input or we have to wait for another call. */
+	if (isspace(ch)) {
+		parser->buffer[parser->idx] = 0;
+		parser->cont = false;
+	} else {
+		parser->cont = true;
+		parser->buffer[parser->idx++] = ch;
+	}
+
+	*ppos += read;
+	ret = read;
+
+out:
+	return ret;
+}
 
 ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 {
@@ -513,11 +618,15 @@ __releases(kernel_lock)
 __acquires(kernel_lock)
 {
 	struct tracer *t;
-	int len;
 	int ret = 0;
 
 	if (!type->name) {
 		pr_info("Tracer must have a name\n");
+		return -1;
+	}
+
+	if (strlen(type->name) > MAX_TRACER_SIZE) {
+		pr_info("Tracer has a name longer than %d\n", MAX_TRACER_SIZE);
 		return -1;
 	}
 
@@ -535,7 +644,7 @@ __acquires(kernel_lock)
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(type->name, t->name) == 0) {
 			/* already found */
-			pr_info("Trace %s already registered\n",
+			pr_info("Tracer %s already registered\n",
 				type->name);
 			ret = -1;
 			goto out;
@@ -586,9 +695,6 @@ __acquires(kernel_lock)
 
 	type->next = trace_types;
 	trace_types = type;
-	len = strlen(type->name);
-	if (len > max_tracer_type_len)
-		max_tracer_type_len = len;
 
  out:
 	tracing_selftest_running = false;
@@ -597,7 +703,7 @@ __acquires(kernel_lock)
 	if (ret || !default_bootup_tracer)
 		goto out_unlock;
 
-	if (strncmp(default_bootup_tracer, type->name, BOOTUP_TRACER_SIZE))
+	if (strncmp(default_bootup_tracer, type->name, MAX_TRACER_SIZE))
 		goto out_unlock;
 
 	printk(KERN_INFO "Starting tracer '%s'\n", type->name);
@@ -619,14 +725,13 @@ __acquires(kernel_lock)
 void unregister_tracer(struct tracer *type)
 {
 	struct tracer **t;
-	int len;
 
 	mutex_lock(&trace_types_lock);
 	for (t = &trace_types; *t; t = &(*t)->next) {
 		if (*t == type)
 			goto found;
 	}
-	pr_info("Trace %s not registered\n", type->name);
+	pr_info("Tracer %s not registered\n", type->name);
 	goto out;
 
  found:
@@ -639,17 +744,7 @@ void unregister_tracer(struct tracer *type)
 			current_trace->stop(&global_trace);
 		current_trace = &nop_trace;
 	}
-
-	if (strlen(type->name) != max_tracer_type_len)
-		goto out;
-
-	max_tracer_type_len = 0;
-	for (t = &trace_types; *t; t = &(*t)->next) {
-		len = strlen((*t)->name);
-		if (len > max_tracer_type_len)
-			max_tracer_type_len = len;
-	}
- out:
+out:
 	mutex_unlock(&trace_types_lock);
 }
 
@@ -717,6 +812,11 @@ static void trace_init_cmdlines(void)
 	memset(&map_pid_to_cmdline, NO_CMDLINE_MAP, sizeof(map_pid_to_cmdline));
 	memset(&map_cmdline_to_pid, NO_CMDLINE_MAP, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
+}
+
+int is_tracing_stopped(void)
+{
+	return trace_stop_count;
 }
 
 /**
@@ -886,7 +986,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
-	entry->tgid			= (tsk) ? tsk->tgid : 0;
+	entry->lock_depth		= (tsk) ? tsk->lock_depth : 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -1068,6 +1168,7 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 		return;
 	entry	= ring_buffer_event_data(event);
 
+	entry->tgid		= current->tgid;
 	memset(&entry->caller, 0, sizeof(entry->caller));
 
 	trace.nr_entries	= 0;
@@ -1094,6 +1195,7 @@ ftrace_trace_special(void *__tr,
 		     unsigned long arg1, unsigned long arg2, unsigned long arg3,
 		     int pc)
 {
+	struct ftrace_event_call *call = &event_special;
 	struct ring_buffer_event *event;
 	struct trace_array *tr = __tr;
 	struct ring_buffer *buffer = tr->buffer;
@@ -1107,7 +1209,9 @@ ftrace_trace_special(void *__tr,
 	entry->arg1			= arg1;
 	entry->arg2			= arg2;
 	entry->arg3			= arg3;
-	trace_buffer_unlock_commit(buffer, event, 0, pc);
+
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, pc);
 }
 
 void
@@ -1289,7 +1393,7 @@ int trace_array_vprintk(struct trace_array *tr,
 
 int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	return trace_array_printk(&global_trace, ip, fmt, args);
+	return trace_array_vprintk(&global_trace, ip, fmt, args);
 }
 EXPORT_SYMBOL_GPL(trace_vprintk);
 
@@ -1530,10 +1634,10 @@ static void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#                | / _----=> need-resched    \n");
 	seq_puts(m, "#                || / _---=> hardirq/softirq \n");
 	seq_puts(m, "#                ||| / _--=> preempt-depth   \n");
-	seq_puts(m, "#                |||| /                      \n");
-	seq_puts(m, "#                |||||     delay             \n");
-	seq_puts(m, "#  cmd     pid   ||||| time  |   caller      \n");
-	seq_puts(m, "#     \\   /      |||||   \\   |   /           \n");
+	seq_puts(m, "#                |||| /_--=> lock-depth       \n");
+	seq_puts(m, "#                |||||/     delay             \n");
+	seq_puts(m, "#  cmd     pid   |||||| time  |   caller      \n");
+	seq_puts(m, "#     \\   /      ||||||   \\   |   /           \n");
 }
 
 static void print_func_help_header(struct seq_file *m)
@@ -1845,7 +1949,7 @@ static int s_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations tracer_seq_ops = {
+static const struct seq_operations tracer_seq_ops = {
 	.start		= s_start,
 	.next		= s_next,
 	.stop		= s_stop,
@@ -1880,10 +1984,8 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (current_trace)
 		*iter->trace = *current_trace;
 
-	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&iter->started, GFP_KERNEL))
 		goto fail;
-
-	cpumask_clear(iter->started);
 
 	if (current_trace && current_trace->print_max)
 		iter->tr = &max_tr;
@@ -2059,7 +2161,7 @@ static int t_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations show_traces_seq_ops = {
+static const struct seq_operations show_traces_seq_ops = {
 	.start		= t_start,
 	.next		= t_next,
 	.stop		= t_stop,
@@ -2489,7 +2591,7 @@ static ssize_t
 tracing_set_trace_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
-	char buf[max_tracer_type_len+2];
+	char buf[MAX_TRACER_SIZE+2];
 	int r;
 
 	mutex_lock(&trace_types_lock);
@@ -2639,15 +2741,15 @@ static ssize_t
 tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 			size_t cnt, loff_t *ppos)
 {
-	char buf[max_tracer_type_len+1];
+	char buf[MAX_TRACER_SIZE+1];
 	int i;
 	size_t ret;
 	int err;
 
 	ret = cnt;
 
-	if (cnt > max_tracer_type_len)
-		cnt = max_tracer_type_len;
+	if (cnt > MAX_TRACER_SIZE)
+		cnt = MAX_TRACER_SIZE;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -4285,7 +4387,7 @@ __init static int tracer_alloc_buffers(void)
 	if (!alloc_cpumask_var(&tracing_cpumask, GFP_KERNEL))
 		goto out_free_buffer_mask;
 
-	if (!alloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
 		goto out_free_tracing_cpumask;
 
 	/* To save memory, keep the ring buffer size to its minimum */
@@ -4296,7 +4398,6 @@ __init static int tracer_alloc_buffers(void)
 
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
-	cpumask_clear(tracing_reader_cpumask);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
 	global_trace.buffer = ring_buffer_alloc(ring_buf_size,

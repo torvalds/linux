@@ -682,11 +682,13 @@ static struct hda_input_mux cxt5045_capture_source = {
 };
 
 static struct hda_input_mux cxt5045_capture_source_benq = {
-	.num_items = 3,
+	.num_items = 5,
 	.items = {
 		{ "IntMic", 0x1 },
 		{ "ExtMic", 0x2 },
 		{ "LineIn", 0x3 },
+		{ "CD",     0x4 },
+		{ "Mixer",  0x0 },
 	}
 };
 
@@ -811,10 +813,18 @@ static struct snd_kcontrol_new cxt5045_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5045_benq_mixers[] = {
+	HDA_CODEC_VOLUME("CD Capture Volume", 0x1a, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Capture Switch", 0x1a, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x17, 0x4, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x17, 0x4, HDA_INPUT),
+
 	HDA_CODEC_VOLUME("Line In Capture Volume", 0x1a, 0x03, HDA_INPUT),
 	HDA_CODEC_MUTE("Line In Capture Switch", 0x1a, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line In Playback Volume", 0x17, 0x3, HDA_INPUT),
 	HDA_CODEC_MUTE("Line In Playback Switch", 0x17, 0x3, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("Mixer Capture Volume", 0x1a, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mixer Capture Switch", 0x1a, 0x0, HDA_INPUT),
 
 	{}
 };

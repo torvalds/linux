@@ -2146,7 +2146,7 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-struct block_device_operations
+const struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
@@ -2508,8 +2508,6 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 	device->stopped &= ~DASD_UNRESUMED_PM;
 
 	dasd_schedule_device_bh(device);
-	if (device->block)
-		dasd_schedule_block_bh(device->block);
 
 	if (device->discipline->restore)
 		rc = device->discipline->restore(device);
@@ -2519,6 +2517,9 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 		 * an UNRESUMED stop state
 		 */
 		device->stopped |= DASD_UNRESUMED_PM;
+
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
 
 	dasd_put_device(device);
 	return 0;
@@ -2532,6 +2533,7 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
+	unsigned long *idaw;
 
 	cqr = dasd_smalloc_request(magic, 1 /* RDC */, rdc_buffer_size, device);
 
@@ -2545,9 +2547,17 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = CCW_CMD_RDC;
-	ccw->cda = (__u32)(addr_t)rdc_buffer;
-	ccw->count = rdc_buffer_size;
+	if (idal_is_needed(rdc_buffer, rdc_buffer_size)) {
+		idaw = (unsigned long *) (cqr->data);
+		ccw->cda = (__u32)(addr_t) idaw;
+		ccw->flags = CCW_FLAG_IDA;
+		idaw = idal_create_words(idaw, rdc_buffer, rdc_buffer_size);
+	} else {
+		ccw->cda = (__u32)(addr_t) rdc_buffer;
+		ccw->flags = 0;
+	}
 
+	ccw->count = rdc_buffer_size;
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->expires = 10*HZ;

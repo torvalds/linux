@@ -11,8 +11,8 @@
  *
  * Copyright (c) 2002-5 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
- * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2007 Novell Inc.
+ * Copyright (c) 2007-2009 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2007-2009 Novell Inc.
  *
  * This file is released under the GPLv2
  */
@@ -391,3 +391,30 @@ void driver_detach(struct device_driver *drv)
 		put_device(dev);
 	}
 }
+
+/*
+ * These exports can't be _GPL due to .h files using this within them, and it
+ * might break something that was previously working...
+ */
+void *dev_get_drvdata(const struct device *dev)
+{
+	if (dev && dev->p)
+		return dev->p->driver_data;
+	return NULL;
+}
+EXPORT_SYMBOL(dev_get_drvdata);
+
+void dev_set_drvdata(struct device *dev, void *data)
+{
+	int error;
+
+	if (!dev)
+		return;
+	if (!dev->p) {
+		error = device_private_init(dev);
+		if (error)
+			return;
+	}
+	dev->p->driver_data = data;
+}
+EXPORT_SYMBOL(dev_set_drvdata);

@@ -1244,13 +1244,17 @@ static void r128_cce_dispatch_stipple(struct drm_device * dev, u32 * stipple)
 static int r128_cce_clear(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_r128_sarea_t *sarea_priv;
 	drm_r128_clear_t *clear = data;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
+
+	sarea_priv = dev_priv->sarea_priv;
 
 	if (sarea_priv->nbox > R128_NR_SAREA_CLIPRECTS)
 		sarea_priv->nbox = R128_NR_SAREA_CLIPRECTS;
@@ -1312,6 +1316,8 @@ static int r128_cce_flip(struct drm_device *dev, void *data, struct drm_file *fi
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
 
 	if (!dev_priv->page_flipping)
@@ -1330,6 +1336,8 @@ static int r128_cce_swap(struct drm_device *dev, void *data, struct drm_file *fi
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
 
@@ -1354,10 +1362,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("pid=%d index=%d count=%d discard=%d\n",
 		  DRM_CURRENTPID, vertex->idx, vertex->count, vertex->discard);
@@ -1410,10 +1415,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", DRM_CURRENTPID,
 		  elts->idx, elts->start, elts->end, elts->discard);
@@ -1476,6 +1478,8 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	DRM_DEBUG("pid=%d index=%d\n", DRM_CURRENTPID, blit->idx);
 
 	if (blit->idx < 0 || blit->idx >= dma->buf_count) {
@@ -1500,6 +1504,8 @@ static int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *f
 	int ret;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
 
@@ -1531,6 +1537,8 @@ static int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file 
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	if (DRM_COPY_FROM_USER(&mask, stipple->mask, 32 * sizeof(u32)))
 		return -EFAULT;
 
@@ -1555,10 +1563,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("idx=%d s=%d e=%d d=%d\n",
 		  indirect->idx, indirect->start, indirect->end,
@@ -1620,10 +1625,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 	drm_r128_getparam_t *param = data;
 	int value;
 
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
 

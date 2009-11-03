@@ -1331,7 +1331,7 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	res = alloc_bootmem(sizeof(struct resource) * e820.nr_map);
 	e820_res = res;
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;
@@ -1378,8 +1378,8 @@ static unsigned long ram_alignment(resource_size_t pos)
 	if (mb < 16)
 		return 1024*1024;
 
-	/* To 32MB for anything above that */
-	return 32*1024*1024;
+	/* To 64MB for anything above that */
+	return 64*1024*1024;
 }
 
 #define MAX_RESOURCE_SIZE ((resource_size_t)-1)
@@ -1455,28 +1455,11 @@ char *__init default_machine_specific_memory_setup(void)
 	return who;
 }
 
-char *__init __attribute__((weak)) machine_specific_memory_setup(void)
-{
-	if (x86_quirks->arch_memory_setup) {
-		char *who = x86_quirks->arch_memory_setup();
-
-		if (who)
-			return who;
-	}
-	return default_machine_specific_memory_setup();
-}
-
-/* Overridden in paravirt.c if CONFIG_PARAVIRT */
-char * __init __attribute__((weak)) memory_setup(void)
-{
-	return machine_specific_memory_setup();
-}
-
 void __init setup_memory_map(void)
 {
 	char *who;
 
-	who = memory_setup();
+	who = x86_init.resources.memory_setup();
 	memcpy(&e820_saved, &e820, sizeof(struct e820map));
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	e820_print_map(who);

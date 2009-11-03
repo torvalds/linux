@@ -578,6 +578,15 @@ static inline int irq_to_gpio(int irq)
 	return alchemy_irq_to_gpio(irq);
 }
 
+static inline int gpio_request(unsigned gpio, const char *label)
+{
+	return 0;
+}
+
+static inline void gpio_free(unsigned gpio)
+{
+}
+
 #endif	/* !CONFIG_ALCHEMY_GPIO_INDIRECT */
 
 

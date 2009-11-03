@@ -21,6 +21,8 @@
 
 #include <linux/sunrpc/clnt.h>
 
+#include "sunrpc.h"
+
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY		RPCDBG_SCHED
 #define RPC_TASK_MAGIC_ID	0xf00baa
@@ -710,11 +712,6 @@ static void rpc_async_schedule(struct work_struct *work)
 {
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
-
-struct rpc_buffer {
-	size_t	len;
-	char	data[];
-};
 
 /**
  * rpc_malloc - allocate an RPC buffer

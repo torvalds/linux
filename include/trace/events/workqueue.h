@@ -26,7 +26,7 @@ TRACE_EVENT(workqueue_insertion,
 		__entry->func		= work->func;
 	),
 
-	TP_printk("thread=%s:%d func=%pF", __entry->thread_comm,
+	TP_printk("thread=%s:%d func=%pf", __entry->thread_comm,
 		__entry->thread_pid, __entry->func)
 );
 
@@ -48,7 +48,7 @@ TRACE_EVENT(workqueue_execution,
 		__entry->func		= work->func;
 	),
 
-	TP_printk("thread=%s:%d func=%pF", __entry->thread_comm,
+	TP_printk("thread=%s:%d func=%pf", __entry->thread_comm,
 		__entry->thread_pid, __entry->func)
 );
 

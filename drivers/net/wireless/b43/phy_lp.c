@@ -2228,6 +2228,16 @@ static enum b43_txpwr_result b43_lpphy_op_recalc_txpower(struct b43_wldev *dev,
 	return B43_TXPWR_RES_DONE;
 }
 
+void b43_lpphy_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+       if (on) {
+               b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVR, 0xfff8);
+       } else {
+               b43_phy_set(dev, B43_LPPHY_AFE_CTL_OVRVAL, 0x0007);
+               b43_phy_set(dev, B43_LPPHY_AFE_CTL_OVR, 0x0007);
+       }
+}
+
 const struct b43_phy_operations b43_phyops_lp = {
 	.allocate		= b43_lpphy_op_allocate,
 	.free			= b43_lpphy_op_free,
@@ -2239,7 +2249,7 @@ const struct b43_phy_operations b43_phyops_lp = {
 	.radio_read		= b43_lpphy_op_radio_read,
 	.radio_write		= b43_lpphy_op_radio_write,
 	.software_rfkill	= b43_lpphy_op_software_rfkill,
-	.switch_analog		= b43_phyop_switch_analog_generic,
+	.switch_analog		= b43_lpphy_op_switch_analog,
 	.switch_channel		= b43_lpphy_op_switch_channel,
 	.get_default_chan	= b43_lpphy_op_get_default_chan,
 	.set_rx_antenna		= b43_lpphy_op_set_rx_antenna,

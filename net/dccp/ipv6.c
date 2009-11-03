@@ -1152,13 +1152,13 @@ static struct proto dccp_v6_prot = {
 #endif
 };
 
-static struct inet6_protocol dccp_v6_protocol = {
+static const struct inet6_protocol dccp_v6_protocol = {
 	.handler	= dccp_v6_rcv,
 	.err_handler	= dccp_v6_err,
 	.flags		= INET6_PROTO_NOPOLICY | INET6_PROTO_FINAL,
 };
 
-static struct proto_ops inet6_dccp_ops = {
+static const struct proto_ops inet6_dccp_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,

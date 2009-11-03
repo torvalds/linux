@@ -693,13 +693,18 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 			if (new && i > 0)
 				atomic_inc(&new->refcnt);
 
-			qdisc_destroy(old);
+			if (!ingress)
+				qdisc_destroy(old);
 		}
 
-		notify_and_destroy(skb, n, classid, dev->qdisc, new);
-		if (new && !new->ops->attach)
-			atomic_inc(&new->refcnt);
-		dev->qdisc = new ? : &noop_qdisc;
+		if (!ingress) {
+			notify_and_destroy(skb, n, classid, dev->qdisc, new);
+			if (new && !new->ops->attach)
+				atomic_inc(&new->refcnt);
+			dev->qdisc = new ? : &noop_qdisc;
+		} else {
+			notify_and_destroy(skb, n, classid, old, new);
+		}
 
 		if (dev->flags & IFF_UP)
 			dev_activate(dev);
@@ -804,7 +809,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			stab = qdisc_get_stab(tca[TCA_STAB]);
 			if (IS_ERR(stab)) {
 				err = PTR_ERR(stab);
-				goto err_out3;
+				goto err_out4;
 			}
 			sch->stab = stab;
 		}
@@ -833,7 +838,6 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		return sch;
 	}
 err_out3:
-	qdisc_put_stab(sch->stab);
 	dev_put(dev);
 	kfree((char *) sch - sch->padded);
 err_out2:
@@ -847,6 +851,7 @@ err_out4:
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
 	 */
+	qdisc_put_stab(sch->stab);
 	if (ops->destroy)
 		ops->destroy(sch);
 	goto err_out3;
@@ -1111,12 +1116,16 @@ create_n_graft:
 				 tcm->tcm_parent, tcm->tcm_parent,
 				 tca, &err);
 	else {
-		unsigned int ntx = 0;
+		struct netdev_queue *dev_queue;
 
 		if (p && p->ops->cl_ops && p->ops->cl_ops->select_queue)
-			ntx = p->ops->cl_ops->select_queue(p, tcm);
+			dev_queue = p->ops->cl_ops->select_queue(p, tcm);
+		else if (p)
+			dev_queue = p->dev_queue;
+		else
+			dev_queue = netdev_get_tx_queue(dev, 0);
 
-		q = qdisc_create(dev, netdev_get_tx_queue(dev, ntx), p,
+		q = qdisc_create(dev, dev_queue, p,
 				 tcm->tcm_parent, tcm->tcm_handle,
 				 tca, &err);
 	}

@@ -225,9 +225,6 @@ void kmemcheck_hide(struct pt_regs *regs)
 
 	BUG_ON(!irqs_disabled());
 
-	if (data->balance == 0)
-		return;
-
 	if (unlikely(data->balance != 1)) {
 		kmemcheck_show_all();
 		kmemcheck_error_save_bug(regs);

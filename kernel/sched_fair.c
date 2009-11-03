@@ -384,10 +384,10 @@ static struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 
 #ifdef CONFIG_SCHED_DEBUG
 int sched_nr_latency_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
 	if (ret || !write)
 		return ret;
@@ -513,6 +513,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (entity_is_task(curr)) {
 		struct task_struct *curtask = task_of(curr);
 
+		trace_sched_stat_runtime(curtask, delta_exec, curr->vruntime);
 		cpuacct_charge(curtask, delta_exec);
 		account_group_exec_runtime(curtask, delta_exec);
 	}
@@ -709,24 +710,28 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	if (initial && sched_feat(START_DEBIT))
 		vruntime += sched_vslice(cfs_rq, se);
 
-	if (!initial) {
-		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS)) {
-			unsigned long thresh = sysctl_sched_latency;
+	/* sleeps up to a single latency don't count. */
+	if (!initial && sched_feat(FAIR_SLEEPERS)) {
+		unsigned long thresh = sysctl_sched_latency;
 
-			/*
-			 * Convert the sleeper threshold into virtual time.
-			 * SCHED_IDLE is a special sub-class.  We care about
-			 * fairness only relative to other SCHED_IDLE tasks,
-			 * all of which have the same weight.
-			 */
-			if (sched_feat(NORMALIZED_SLEEPER) &&
-					(!entity_is_task(se) ||
-					 task_of(se)->policy != SCHED_IDLE))
-				thresh = calc_delta_fair(thresh, se);
+		/*
+		 * Convert the sleeper threshold into virtual time.
+		 * SCHED_IDLE is a special sub-class.  We care about
+		 * fairness only relative to other SCHED_IDLE tasks,
+		 * all of which have the same weight.
+		 */
+		if (sched_feat(NORMALIZED_SLEEPER) && (!entity_is_task(se) ||
+				 task_of(se)->policy != SCHED_IDLE))
+			thresh = calc_delta_fair(thresh, se);
 
-			vruntime -= thresh;
-		}
+		/*
+		 * Halve their sleep time's effect, to allow
+		 * for a gentler effect of sleepers:
+		 */
+		if (sched_feat(GENTLE_FAIR_SLEEPERS))
+			thresh >>= 1;
+
+		vruntime -= thresh;
 	}
 
 	/* ensure we never gain time by being placed backwards. */
@@ -757,10 +762,10 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 
 static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->last == se)
+	if (!se || cfs_rq->last == se)
 		cfs_rq->last = NULL;
 
-	if (cfs_rq->next == se)
+	if (!se || cfs_rq->next == se)
 		cfs_rq->next = NULL;
 }
 
@@ -1062,83 +1067,6 @@ static void yield_task_fair(struct rq *rq)
 	se->vruntime = rightmost->vruntime + 1;
 }
 
-/*
- * wake_idle() will wake a task on an idle cpu if task->cpu is
- * not idle and an idle cpu is available.  The span of cpus to
- * search starts with cpus closest then further out as needed,
- * so we always favor a closer, idle cpu.
- * Domains may include CPUs that are not usable for migration,
- * hence we need to mask them out (rq->rd->online)
- *
- * Returns the CPU we should wake onto.
- */
-#if defined(ARCH_HAS_SCHED_WAKE_IDLE)
-
-#define cpu_rd_active(cpu, rq) cpumask_test_cpu(cpu, rq->rd->online)
-
-static int wake_idle(int cpu, struct task_struct *p)
-{
-	struct sched_domain *sd;
-	int i;
-	unsigned int chosen_wakeup_cpu;
-	int this_cpu;
-	struct rq *task_rq = task_rq(p);
-
-	/*
-	 * At POWERSAVINGS_BALANCE_WAKEUP level, if both this_cpu and prev_cpu
-	 * are idle and this is not a kernel thread and this task's affinity
-	 * allows it to be moved to preferred cpu, then just move!
-	 */
-
-	this_cpu = smp_processor_id();
-	chosen_wakeup_cpu =
-		cpu_rq(this_cpu)->rd->sched_mc_preferred_wakeup_cpu;
-
-	if (sched_mc_power_savings >= POWERSAVINGS_BALANCE_WAKEUP &&
-		idle_cpu(cpu) && idle_cpu(this_cpu) &&
-		p->mm && !(p->flags & PF_KTHREAD) &&
-		cpu_isset(chosen_wakeup_cpu, p->cpus_allowed))
-		return chosen_wakeup_cpu;
-
-	/*
-	 * If it is idle, then it is the best cpu to run this task.
-	 *
-	 * This cpu is also the best, if it has more than one task already.
-	 * Siblings must be also busy(in most cases) as they didn't already
-	 * pickup the extra load from this cpu and hence we need not check
-	 * sibling runqueue info. This will avoid the checks and cache miss
-	 * penalities associated with that.
-	 */
-	if (idle_cpu(cpu) || cpu_rq(cpu)->cfs.nr_running > 1)
-		return cpu;
-
-	for_each_domain(cpu, sd) {
-		if ((sd->flags & SD_WAKE_IDLE)
-		    || ((sd->flags & SD_WAKE_IDLE_FAR)
-			&& !task_hot(p, task_rq->clock, sd))) {
-			for_each_cpu_and(i, sched_domain_span(sd),
-					 &p->cpus_allowed) {
-				if (cpu_rd_active(i, task_rq) && idle_cpu(i)) {
-					if (i != task_cpu(p)) {
-						schedstat_inc(p,
-						       se.nr_wakeups_idle);
-					}
-					return i;
-				}
-			}
-		} else {
-			break;
-		}
-	}
-	return cpu;
-}
-#else /* !ARCH_HAS_SCHED_WAKE_IDLE*/
-static inline int wake_idle(int cpu, struct task_struct *p)
-{
-	return cpu;
-}
-#endif
-
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -1225,25 +1153,34 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 
 #endif
 
-static int
-wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
-	    struct task_struct *p, int prev_cpu, int this_cpu, int sync,
-	    int idx, unsigned long load, unsigned long this_load,
-	    unsigned int imbalance)
+static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 {
-	struct task_struct *curr = this_rq->curr;
-	struct task_group *tg;
-	unsigned long tl = this_load;
+	struct task_struct *curr = current;
+	unsigned long this_load, load;
+	int idx, this_cpu, prev_cpu;
 	unsigned long tl_per_task;
+	unsigned int imbalance;
+	struct task_group *tg;
 	unsigned long weight;
 	int balanced;
 
-	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
-		return 0;
+	idx	  = sd->wake_idx;
+	this_cpu  = smp_processor_id();
+	prev_cpu  = task_cpu(p);
+	load	  = source_load(prev_cpu, idx);
+	this_load = target_load(this_cpu, idx);
 
-	if (sync && (curr->se.avg_overlap > sysctl_sched_migration_cost ||
-			p->se.avg_overlap > sysctl_sched_migration_cost))
-		sync = 0;
+	if (sync) {
+	       if (sched_feat(SYNC_LESS) &&
+		   (curr->se.avg_overlap > sysctl_sched_migration_cost ||
+		    p->se.avg_overlap > sysctl_sched_migration_cost))
+		       sync = 0;
+	} else {
+		if (sched_feat(SYNC_MORE) &&
+		    (curr->se.avg_overlap < sysctl_sched_migration_cost &&
+		     p->se.avg_overlap < sysctl_sched_migration_cost))
+			sync = 1;
+	}
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
@@ -1254,24 +1191,26 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 		tg = task_group(current);
 		weight = current->se.load.weight;
 
-		tl += effective_load(tg, this_cpu, -weight, -weight);
+		this_load += effective_load(tg, this_cpu, -weight, -weight);
 		load += effective_load(tg, prev_cpu, 0, -weight);
 	}
 
 	tg = task_group(p);
 	weight = p->se.load.weight;
 
+	imbalance = 100 + (sd->imbalance_pct - 100) / 2;
+
 	/*
 	 * In low-load situations, where prev_cpu is idle and this_cpu is idle
-	 * due to the sync cause above having dropped tl to 0, we'll always have
-	 * an imbalance, but there's really nothing you can do about that, so
-	 * that's good too.
+	 * due to the sync cause above having dropped this_load to 0, we'll
+	 * always have an imbalance, but there's really nothing you can do
+	 * about that, so that's good too.
 	 *
 	 * Otherwise check if either cpus are near enough in load to allow this
 	 * task to be woken on this_cpu.
 	 */
-	balanced = !tl ||
-		100*(tl + effective_load(tg, this_cpu, weight, weight)) <=
+	balanced = !this_load ||
+		100*(this_load + effective_load(tg, this_cpu, weight, weight)) <=
 		imbalance*(load + effective_load(tg, prev_cpu, 0, weight));
 
 	/*
@@ -1285,14 +1224,15 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	schedstat_inc(p, se.nr_wakeups_affine_attempts);
 	tl_per_task = cpu_avg_load_per_task(this_cpu);
 
-	if (balanced || (tl <= load && tl + target_load(prev_cpu, idx) <=
-			tl_per_task)) {
+	if (balanced ||
+	    (this_load <= load &&
+	     this_load + target_load(prev_cpu, idx) <= tl_per_task)) {
 		/*
 		 * This domain has SD_WAKE_AFFINE and
 		 * p is cache cold in this domain, and
 		 * there is no bad imbalance.
 		 */
-		schedstat_inc(this_sd, ttwu_move_affine);
+		schedstat_inc(sd, ttwu_move_affine);
 		schedstat_inc(p, se.nr_wakeups_affine);
 
 		return 1;
@@ -1300,65 +1240,216 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	return 0;
 }
 
-static int select_task_rq_fair(struct task_struct *p, int sync)
+/*
+ * find_idlest_group finds and returns the least busy CPU group within the
+ * domain.
+ */
+static struct sched_group *
+find_idlest_group(struct sched_domain *sd, struct task_struct *p,
+		  int this_cpu, int load_idx)
 {
-	struct sched_domain *sd, *this_sd = NULL;
-	int prev_cpu, this_cpu, new_cpu;
-	unsigned long load, this_load;
-	struct rq *this_rq;
-	unsigned int imbalance;
-	int idx;
+	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
+	unsigned long min_load = ULONG_MAX, this_load = 0;
+	int imbalance = 100 + (sd->imbalance_pct-100)/2;
 
-	prev_cpu	= task_cpu(p);
-	this_cpu	= smp_processor_id();
-	this_rq		= cpu_rq(this_cpu);
-	new_cpu		= prev_cpu;
+	do {
+		unsigned long load, avg_load;
+		int local_group;
+		int i;
 
-	/*
-	 * 'this_sd' is the first domain that both
-	 * this_cpu and prev_cpu are present in:
-	 */
-	for_each_domain(this_cpu, sd) {
-		if (cpumask_test_cpu(prev_cpu, sched_domain_span(sd))) {
-			this_sd = sd;
-			break;
+		/* Skip over this group if it has no CPUs allowed */
+		if (!cpumask_intersects(sched_group_cpus(group),
+					&p->cpus_allowed))
+			continue;
+
+		local_group = cpumask_test_cpu(this_cpu,
+					       sched_group_cpus(group));
+
+		/* Tally up the load of all CPUs in the group */
+		avg_load = 0;
+
+		for_each_cpu(i, sched_group_cpus(group)) {
+			/* Bias balancing toward cpus of our domain */
+			if (local_group)
+				load = source_load(i, load_idx);
+			else
+				load = target_load(i, load_idx);
+
+			avg_load += load;
+		}
+
+		/* Adjust by relative CPU power of the group */
+		avg_load = (avg_load * SCHED_LOAD_SCALE) / group->cpu_power;
+
+		if (local_group) {
+			this_load = avg_load;
+			this = group;
+		} else if (avg_load < min_load) {
+			min_load = avg_load;
+			idlest = group;
+		}
+	} while (group = group->next, group != sd->groups);
+
+	if (!idlest || 100*this_load < imbalance*min_load)
+		return NULL;
+	return idlest;
+}
+
+/*
+ * find_idlest_cpu - find the idlest cpu among the cpus in group.
+ */
+static int
+find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
+{
+	unsigned long load, min_load = ULONG_MAX;
+	int idlest = -1;
+	int i;
+
+	/* Traverse only the allowed CPUs */
+	for_each_cpu_and(i, sched_group_cpus(group), &p->cpus_allowed) {
+		load = weighted_cpuload(i);
+
+		if (load < min_load || (load == min_load && i == this_cpu)) {
+			min_load = load;
+			idlest = i;
 		}
 	}
 
-	if (unlikely(!cpumask_test_cpu(this_cpu, &p->cpus_allowed)))
-		goto out;
+	return idlest;
+}
 
-	/*
-	 * Check for affine wakeup and passive balancing possibilities.
-	 */
-	if (!this_sd)
-		goto out;
+/*
+ * sched_balance_self: balance the current task (running on cpu) in domains
+ * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
+ * SD_BALANCE_EXEC.
+ *
+ * Balance, ie. select the least loaded group.
+ *
+ * Returns the target CPU number, or the same CPU if no balancing is needed.
+ *
+ * preempt must be disabled.
+ */
+static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
+{
+	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
+	int cpu = smp_processor_id();
+	int prev_cpu = task_cpu(p);
+	int new_cpu = cpu;
+	int want_affine = 0;
+	int want_sd = 1;
+	int sync = wake_flags & WF_SYNC;
 
-	idx = this_sd->wake_idx;
+	if (sd_flag & SD_BALANCE_WAKE) {
+		if (sched_feat(AFFINE_WAKEUPS) &&
+		    cpumask_test_cpu(cpu, &p->cpus_allowed))
+			want_affine = 1;
+		new_cpu = prev_cpu;
+	}
 
-	imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
+	rcu_read_lock();
+	for_each_domain(cpu, tmp) {
+		/*
+		 * If power savings logic is enabled for a domain, see if we
+		 * are not overloaded, if so, don't balance wider.
+		 */
+		if (tmp->flags & (SD_POWERSAVINGS_BALANCE|SD_PREFER_LOCAL)) {
+			unsigned long power = 0;
+			unsigned long nr_running = 0;
+			unsigned long capacity;
+			int i;
 
-	load = source_load(prev_cpu, idx);
-	this_load = target_load(this_cpu, idx);
+			for_each_cpu(i, sched_domain_span(tmp)) {
+				power += power_of(i);
+				nr_running += cpu_rq(i)->cfs.nr_running;
+			}
 
-	if (wake_affine(this_sd, this_rq, p, prev_cpu, this_cpu, sync, idx,
-				     load, this_load, imbalance))
-		return this_cpu;
+			capacity = DIV_ROUND_CLOSEST(power, SCHED_LOAD_SCALE);
 
-	/*
-	 * Start passive balancing when half the imbalance_pct
-	 * limit is reached.
-	 */
-	if (this_sd->flags & SD_WAKE_BALANCE) {
-		if (imbalance*this_load <= 100*load) {
-			schedstat_inc(this_sd, ttwu_move_balance);
-			schedstat_inc(p, se.nr_wakeups_passive);
-			return this_cpu;
+			if (tmp->flags & SD_POWERSAVINGS_BALANCE)
+				nr_running /= 2;
+
+			if (nr_running < capacity)
+				want_sd = 0;
 		}
+
+		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
+		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
+
+			affine_sd = tmp;
+			want_affine = 0;
+		}
+
+		if (!want_sd && !want_affine)
+			break;
+
+		if (!(tmp->flags & sd_flag))
+			continue;
+
+		if (want_sd)
+			sd = tmp;
+	}
+
+	if (sched_feat(LB_SHARES_UPDATE)) {
+		/*
+		 * Pick the largest domain to update shares over
+		 */
+		tmp = sd;
+		if (affine_sd && (!tmp ||
+				  cpumask_weight(sched_domain_span(affine_sd)) >
+				  cpumask_weight(sched_domain_span(sd))))
+			tmp = affine_sd;
+
+		if (tmp)
+			update_shares(tmp);
+	}
+
+	if (affine_sd && wake_affine(affine_sd, p, sync)) {
+		new_cpu = cpu;
+		goto out;
+	}
+
+	while (sd) {
+		int load_idx = sd->forkexec_idx;
+		struct sched_group *group;
+		int weight;
+
+		if (!(sd->flags & sd_flag)) {
+			sd = sd->child;
+			continue;
+		}
+
+		if (sd_flag & SD_BALANCE_WAKE)
+			load_idx = sd->wake_idx;
+
+		group = find_idlest_group(sd, p, cpu, load_idx);
+		if (!group) {
+			sd = sd->child;
+			continue;
+		}
+
+		new_cpu = find_idlest_cpu(group, p, cpu);
+		if (new_cpu == -1 || new_cpu == cpu) {
+			/* Now try balancing at a lower domain level of cpu */
+			sd = sd->child;
+			continue;
+		}
+
+		/* Now try balancing at a lower domain level of new_cpu */
+		cpu = new_cpu;
+		weight = cpumask_weight(sched_domain_span(sd));
+		sd = NULL;
+		for_each_domain(cpu, tmp) {
+			if (weight <= cpumask_weight(sched_domain_span(tmp)))
+				break;
+			if (tmp->flags & sd_flag)
+				sd = tmp;
+		}
+		/* while loop will break here if sd == NULL */
 	}
 
 out:
-	return wake_idle(new_cpu, p);
+	rcu_read_unlock();
+	return new_cpu;
 }
 #endif /* CONFIG_SMP */
 
@@ -1471,11 +1562,12 @@ static void set_next_buddy(struct sched_entity *se)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
+static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_flags)
 {
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+	int sync = wake_flags & WF_SYNC;
 
 	update_curr(cfs_rq);
 
@@ -1501,7 +1593,8 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	 */
 	if (sched_feat(LAST_BUDDY) && likely(se->on_rq && curr != rq->idle))
 		set_last_buddy(se);
-	set_next_buddy(pse);
+	if (sched_feat(NEXT_BUDDY) && !(wake_flags & WF_FORK))
+		set_next_buddy(pse);
 
 	/*
 	 * We can come here with TIF_NEED_RESCHED already set from new task
@@ -1523,15 +1616,24 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 		return;
 	}
 
-	if (!sched_feat(WAKEUP_PREEMPT))
-		return;
-
-	if (sched_feat(WAKEUP_OVERLAP) && (sync ||
-			(se->avg_overlap < sysctl_sched_migration_cost &&
-			 pse->avg_overlap < sysctl_sched_migration_cost))) {
+	if ((sched_feat(WAKEUP_SYNC) && sync) ||
+	    (sched_feat(WAKEUP_OVERLAP) &&
+	     (se->avg_overlap < sysctl_sched_migration_cost &&
+	      pse->avg_overlap < sysctl_sched_migration_cost))) {
 		resched_task(curr);
 		return;
 	}
+
+	if (sched_feat(WAKEUP_RUNNING)) {
+		if (pse->avg_running < se->avg_running) {
+			set_next_buddy(pse);
+			resched_task(curr);
+			return;
+		}
+	}
+
+	if (!sched_feat(WAKEUP_PREEMPT))
+		return;
 
 	find_matching_se(&se, &pse);
 
@@ -1555,8 +1657,13 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 		/*
 		 * If se was a buddy, clear it so that it will have to earn
 		 * the favour again.
+		 *
+		 * If se was not a buddy, clear the buddies because neither
+		 * was elegible to run, let them earn it again.
+		 *
+		 * IOW. unconditionally clear buddies.
 		 */
-		__clear_buddies(cfs_rq, se);
+		__clear_buddies(cfs_rq, NULL);
 		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
@@ -1832,6 +1939,25 @@ static void moved_group_fair(struct task_struct *p)
 }
 #endif
 
+unsigned int get_rr_interval_fair(struct task_struct *task)
+{
+	struct sched_entity *se = &task->se;
+	unsigned long flags;
+	struct rq *rq;
+	unsigned int rr_interval = 0;
+
+	/*
+	 * Time slice is 0 for SCHED_OTHER tasks that are on an otherwise
+	 * idle runqueue:
+	 */
+	rq = task_rq_lock(task, &flags);
+	if (rq->cfs.load.weight)
+		rr_interval = NS_TO_JIFFIES(sched_slice(&rq->cfs, se));
+	task_rq_unlock(rq, &flags);
+
+	return rr_interval;
+}
+
 /*
  * All the scheduling class methods:
  */
@@ -1859,6 +1985,8 @@ static const struct sched_class fair_sched_class = {
 
 	.prio_changed		= prio_changed_fair,
 	.switched_to		= switched_to_fair,
+
+	.get_rr_interval	= get_rr_interval_fair,
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	.moved_group		= moved_group_fair,

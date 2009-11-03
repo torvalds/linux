@@ -623,7 +623,7 @@ static struct attribute_group ehca_drv_attr_grp = {
 	.attrs = ehca_drv_attrs
 };
 
-static struct attribute_group *ehca_drv_attr_groups[] = {
+static const struct attribute_group *ehca_drv_attr_groups[] = {
 	&ehca_drv_attr_grp,
 	NULL,
 };

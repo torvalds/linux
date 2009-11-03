@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, unsigned int data)
+		      unsigned int range, unsigned int aref, unsigned int data)
 {
 	struct comedi_insn insn;
 
@@ -44,7 +44,7 @@ int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 }
 
 int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, unsigned int *data)
+		     unsigned int range, unsigned int aref, unsigned int *data)
 {
 	struct comedi_insn insn;
 
@@ -59,7 +59,8 @@ int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
 }
 
 int comedi_data_read_hint(void *dev, unsigned int subdev,
-	unsigned int chan, unsigned int range, unsigned int aref)
+			  unsigned int chan, unsigned int range,
+			  unsigned int aref)
 {
 	struct comedi_insn insn;
 	unsigned int dummy_data;
@@ -75,8 +76,9 @@ int comedi_data_read_hint(void *dev, unsigned int subdev,
 }
 
 int comedi_data_read_delayed(void *dev, unsigned int subdev,
-	unsigned int chan, unsigned int range, unsigned int aref,
-	unsigned int *data, unsigned int nano_sec)
+			     unsigned int chan, unsigned int range,
+			     unsigned int aref, unsigned int *data,
+			     unsigned int nano_sec)
 {
 	int retval;
 

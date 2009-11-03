@@ -14,7 +14,6 @@
 
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/utsname.h>
 #include <linux/debugfs.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>

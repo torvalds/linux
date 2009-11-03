@@ -134,15 +134,9 @@ ro                   	Mount filesystem read only. Note that ext4 will
                      	mount options "ro,noload" can be used to prevent
 		     	writes to the filesystem.
 
-journal_checksum	Enable checksumming of the journal transactions.
-			This will allow the recovery code in e2fsck and the
-			kernel to detect corruption in the kernel.  It is a
-			compatible change and will be ignored by older kernels.
-
 journal_async_commit	Commit block can be written to disk without waiting
 			for descriptor blocks. If enabled older kernels cannot
-			mount the device. This will enable 'journal_checksum'
-			internally.
+			mount the device.
 
 journal=update		Update the ext4 file system's journal to the current
 			format.
@@ -263,10 +257,18 @@ resuid=n		The user ID which may use the reserved blocks.
 
 sb=n			Use alternate superblock at this location.
 
-quota
-noquota
-grpquota
-usrquota
+quota			These options are ignored by the filesystem. They
+noquota			are used only by quota tools to recognize volumes
+grpquota		where quota should be turned on. See documentation
+usrquota		in the quota-tools package for more details
+			(http://sourceforge.net/projects/linuxquota).
+
+jqfmt=<quota type>	These options tell filesystem details about quota
+usrjquota=<file>	so that quota information can be properly updated
+grpjquota=<file>	during journal replay. They replace the above
+			quota options. See documentation in the quota-tools
+			package for more details
+			(http://sourceforge.net/projects/linuxquota).
 
 bh		(*)	ext4 associates buffer heads to data pages to
 nobh			(a) cache disk block mapping information
@@ -280,9 +282,16 @@ stripe=n		Number of filesystem blocks that mballoc will try
 			to use for allocation size and alignment. For RAID5/6
 			systems this should be the number of data
 			disks *  RAID chunk size in file system blocks.
-delalloc	(*)	Deferring block allocation until write-out time.
-nodelalloc		Disable delayed allocation. Blocks are allocation
-			when data is copied from user to page cache.
+
+delalloc	(*)	Defer block allocation until just before ext4
+			writes out the block(s) in question.  This
+			allows ext4 to better allocation decisions
+			more efficiently.
+nodelalloc		Disable delayed allocation.  Blocks are allocated
+			when the data is copied from userspace to the
+			page cache, either via the write(2) system call
+			or when an mmap'ed page which was previously
+			unallocated is written for the first time.
 
 max_batch_time=usec	Maximum amount of time ext4 should wait for
 			additional filesystem operations to be batch

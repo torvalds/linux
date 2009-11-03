@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-subdev.h>
 #include <media/soc_camera.h>
 #include <media/tw9910.h>
 
@@ -223,9 +223,8 @@ struct tw9910_hsync_ctrl {
 };
 
 struct tw9910_priv {
+	struct v4l2_subdev                subdev;
 	struct tw9910_video_info       *info;
-	struct i2c_client              *client;
-	struct soc_camera_device        icd;
 	const struct tw9910_scale_ctrl *scale;
 };
 
@@ -356,6 +355,12 @@ static const struct tw9910_hsync_ctrl tw9910_hsync_ctrl = {
 /*
  * general function
  */
+static struct tw9910_priv *to_tw9910(const struct i2c_client *client)
+{
+	return container_of(i2c_get_clientdata(client), struct tw9910_priv,
+			    subdev);
+}
+
 static int tw9910_set_scale(struct i2c_client *client,
 			    const struct tw9910_scale_ctrl *scale)
 {
@@ -509,53 +514,24 @@ tw9910_select_norm(struct soc_camera_device *icd, u32 width, u32 height)
 /*
  * soc_camera_ops function
  */
-static int tw9910_init(struct soc_camera_device *icd)
+static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
-	int ret = 0;
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
 
-	if (priv->info->link.power) {
-		ret = priv->info->link.power(&priv->client->dev, 1);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (priv->info->link.reset)
-		ret = priv->info->link.reset(&priv->client->dev);
-
-	return ret;
-}
-
-static int tw9910_release(struct soc_camera_device *icd)
-{
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
-	int ret = 0;
-
-	if (priv->info->link.power)
-		ret = priv->info->link.power(&priv->client->dev, 0);
-
-	return ret;
-}
-
-static int tw9910_start_capture(struct soc_camera_device *icd)
-{
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
+	if (!enable)
+		return 0;
 
 	if (!priv->scale) {
-		dev_err(&icd->dev, "norm select error\n");
+		dev_err(&client->dev, "norm select error\n");
 		return -EPERM;
 	}
 
-	dev_dbg(&icd->dev, "%s %dx%d\n",
+	dev_dbg(&client->dev, "%s %dx%d\n",
 		 priv->scale->name,
 		 priv->scale->width,
 		 priv->scale->height);
 
-	return 0;
-}
-
-static int tw9910_stop_capture(struct soc_camera_device *icd)
-{
 	return 0;
 }
 
@@ -567,8 +543,9 @@ static int tw9910_set_bus_param(struct soc_camera_device *icd,
 
 static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
-	struct soc_camera_link *icl = priv->client->dev.platform_data;
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct tw9910_priv *priv = to_tw9910(client);
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
@@ -576,21 +553,11 @@ static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-static int tw9910_get_chip_id(struct soc_camera_device *icd,
-			      struct v4l2_dbg_chip_ident *id)
-{
-	id->ident = V4L2_IDENT_TW9910;
-	id->revision = 0;
-
-	return 0;
-}
-
-static int tw9910_set_std(struct soc_camera_device *icd,
-			  v4l2_std_id *a)
+static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
 	int ret = -EINVAL;
 
-	if (*a & (V4L2_STD_NTSC | V4L2_STD_PAL))
+	if (norm & (V4L2_STD_NTSC | V4L2_STD_PAL))
 		ret = 0;
 
 	return ret;
@@ -606,17 +573,26 @@ static int tw9910_enum_input(struct soc_camera_device *icd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int tw9910_get_register(struct soc_camera_device *icd,
-			       struct v4l2_dbg_register *reg)
+static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
+			       struct v4l2_dbg_chip_ident *id)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
+	id->ident = V4L2_IDENT_TW9910;
+	id->revision = 0;
+
+	return 0;
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int tw9910_g_register(struct v4l2_subdev *sd,
+			     struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = sd->priv;
 	int ret;
 
 	if (reg->reg > 0xff)
 		return -EINVAL;
 
-	ret = i2c_smbus_read_byte_data(priv->client, reg->reg);
+	ret = i2c_smbus_read_byte_data(client, reg->reg);
 	if (ret < 0)
 		return ret;
 
@@ -628,23 +604,25 @@ static int tw9910_get_register(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int tw9910_set_register(struct soc_camera_device *icd,
-			       struct v4l2_dbg_register *reg)
+static int tw9910_s_register(struct v4l2_subdev *sd,
+			     struct v4l2_dbg_register *reg)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
+	struct i2c_client *client = sd->priv;
 
 	if (reg->reg > 0xff ||
 	    reg->val > 0xff)
 		return -EINVAL;
 
-	return i2c_smbus_write_byte_data(priv->client, reg->reg, reg->val);
+	return i2c_smbus_write_byte_data(client, reg->reg, reg->val);
 }
 #endif
 
-static int tw9910_set_crop(struct soc_camera_device *icd,
-			   struct v4l2_rect *rect)
+static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
+	struct v4l2_rect *rect = &a->c;
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 	int                 ret  = -EINVAL;
 	u8                  val;
 
@@ -658,8 +636,8 @@ static int tw9910_set_crop(struct soc_camera_device *icd,
 	/*
 	 * reset hardware
 	 */
-	tw9910_reset(priv->client);
-	ret = tw9910_write_array(priv->client, tw9910_default_regs);
+	tw9910_reset(client);
+	ret = tw9910_write_array(client, tw9910_default_regs);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
@@ -670,7 +648,7 @@ static int tw9910_set_crop(struct soc_camera_device *icd,
 	if (SOCAM_DATAWIDTH_16 == priv->info->buswidth)
 		val = LEN;
 
-	ret = tw9910_mask_set(priv->client, OPFORM, LEN, val);
+	ret = tw9910_mask_set(client, OPFORM, LEN, val);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
@@ -698,52 +676,139 @@ static int tw9910_set_crop(struct soc_camera_device *icd,
 		val = 0;
 	}
 
-	ret = tw9910_mask_set(priv->client, VBICNTL, RTSEL_MASK, val);
+	ret = tw9910_mask_set(client, VBICNTL, RTSEL_MASK, val);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
 	/*
 	 * set scale
 	 */
-	ret = tw9910_set_scale(priv->client, priv->scale);
+	ret = tw9910_set_scale(client, priv->scale);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
 	/*
 	 * set cropping
 	 */
-	ret = tw9910_set_cropping(priv->client, &tw9910_cropping_ctrl);
+	ret = tw9910_set_cropping(client, &tw9910_cropping_ctrl);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
 	/*
 	 * set hsync
 	 */
-	ret = tw9910_set_hsync(priv->client, &tw9910_hsync_ctrl);
+	ret = tw9910_set_hsync(client, &tw9910_hsync_ctrl);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
+
+	rect->width = priv->scale->width;
+	rect->height = priv->scale->height;
+	rect->left = 0;
+	rect->top = 0;
 
 	return ret;
 
 tw9910_set_fmt_error:
 
-	tw9910_reset(priv->client);
+	tw9910_reset(client);
 	priv->scale = NULL;
 
 	return ret;
 }
 
-static int tw9910_set_fmt(struct soc_camera_device *icd,
-			  struct v4l2_format *f)
+static int tw9910_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+
+	if (!priv->scale) {
+		int ret;
+		struct v4l2_crop crop = {
+			.c = {
+				.left	= 0,
+				.top	= 0,
+				.width	= 640,
+				.height	= 480,
+			},
+		};
+		ret = tw9910_s_crop(sd, &crop);
+		if (ret < 0)
+			return ret;
+	}
+
+	a->c.left	= 0;
+	a->c.top	= 0;
+	a->c.width	= priv->scale->width;
+	a->c.height	= priv->scale->height;
+	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= 0;
+	a->bounds.top			= 0;
+	a->bounds.width			= 768;
+	a->bounds.height		= 576;
+	a->defrect.left			= 0;
+	a->defrect.top			= 0;
+	a->defrect.width		= 640;
+	a->defrect.height		= 480;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int tw9910_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_rect rect = {
-		.left	= icd->x_current,
-		.top	= icd->y_current,
-		.width	= pix->width,
-		.height	= pix->height,
+
+	if (!priv->scale) {
+		int ret;
+		struct v4l2_crop crop = {
+			.c = {
+				.left	= 0,
+				.top	= 0,
+				.width	= 640,
+				.height	= 480,
+			},
+		};
+		ret = tw9910_s_crop(sd, &crop);
+		if (ret < 0)
+			return ret;
+	}
+
+	f->type			= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	pix->width		= priv->scale->width;
+	pix->height		= priv->scale->height;
+	pix->pixelformat	= V4L2_PIX_FMT_VYUY;
+	pix->colorspace		= V4L2_COLORSPACE_SMPTE170M;
+	pix->field		= V4L2_FIELD_INTERLACED;
+
+	return 0;
+}
+
+static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	/* See tw9910_s_crop() - no proper cropping support */
+	struct v4l2_crop a = {
+		.c = {
+			.left	= 0,
+			.top	= 0,
+			.width	= pix->width,
+			.height	= pix->height,
+		},
 	};
-	int i;
+	int i, ret;
 
 	/*
 	 * check color format
@@ -755,19 +820,25 @@ static int tw9910_set_fmt(struct soc_camera_device *icd,
 	if (i == ARRAY_SIZE(tw9910_color_fmt))
 		return -EINVAL;
 
-	return tw9910_set_crop(icd, &rect);
+	ret = tw9910_s_crop(sd, &a);
+	if (!ret) {
+		pix->width = priv->scale->width;
+		pix->height = priv->scale->height;
+	}
+	return ret;
 }
 
-static int tw9910_try_fmt(struct soc_camera_device *icd,
-			  struct v4l2_format *f)
+static int tw9910_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
+	struct i2c_client *client = sd->priv;
+	struct soc_camera_device *icd = client->dev.platform_data;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	const struct tw9910_scale_ctrl *scale;
 
 	if (V4L2_FIELD_ANY == pix->field) {
 		pix->field = V4L2_FIELD_INTERLACED;
 	} else if (V4L2_FIELD_INTERLACED != pix->field) {
-		dev_err(&icd->dev, "Field type invalid.\n");
+		dev_err(&client->dev, "Field type invalid.\n");
 		return -EINVAL;
 	}
 
@@ -784,11 +855,11 @@ static int tw9910_try_fmt(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int tw9910_video_probe(struct soc_camera_device *icd)
+static int tw9910_video_probe(struct soc_camera_device *icd,
+			      struct i2c_client *client)
 {
-	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
+	struct tw9910_priv *priv = to_tw9910(client);
 	s32 val;
-	int ret;
 
 	/*
 	 * We must have a parent by now. And it cannot be a wrong one.
@@ -803,7 +874,7 @@ static int tw9910_video_probe(struct soc_camera_device *icd)
 	 */
 	if (SOCAM_DATAWIDTH_16 != priv->info->buswidth &&
 	    SOCAM_DATAWIDTH_8  != priv->info->buswidth) {
-		dev_err(&icd->dev, "bus width error\n");
+		dev_err(&client->dev, "bus width error\n");
 		return -ENODEV;
 	}
 
@@ -813,52 +884,52 @@ static int tw9910_video_probe(struct soc_camera_device *icd)
 	/*
 	 * check and show Product ID
 	 */
-	val = i2c_smbus_read_byte_data(priv->client, ID);
+	val = i2c_smbus_read_byte_data(client, ID);
+
 	if (0x0B != GET_ID(val) ||
 	    0x00 != GET_ReV(val)) {
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"Product ID error %x:%x\n", GET_ID(val), GET_ReV(val));
 		return -ENODEV;
 	}
 
-	dev_info(&icd->dev,
+	dev_info(&client->dev,
 		 "tw9910 Product ID %0x:%0x\n", GET_ID(val), GET_ReV(val));
-
-	ret = soc_camera_video_start(icd);
-	if (ret < 0)
-		return ret;
 
 	icd->vdev->tvnorms      = V4L2_STD_NTSC | V4L2_STD_PAL;
 	icd->vdev->current_norm = V4L2_STD_NTSC;
 
-	return ret;
-}
-
-static void tw9910_video_remove(struct soc_camera_device *icd)
-{
-	soc_camera_video_stop(icd);
+	return 0;
 }
 
 static struct soc_camera_ops tw9910_ops = {
-	.owner			= THIS_MODULE,
-	.probe			= tw9910_video_probe,
-	.remove			= tw9910_video_remove,
-	.init			= tw9910_init,
-	.release		= tw9910_release,
-	.start_capture		= tw9910_start_capture,
-	.stop_capture		= tw9910_stop_capture,
-	.set_crop		= tw9910_set_crop,
-	.set_fmt		= tw9910_set_fmt,
-	.try_fmt		= tw9910_try_fmt,
 	.set_bus_param		= tw9910_set_bus_param,
 	.query_bus_param	= tw9910_query_bus_param,
-	.get_chip_id		= tw9910_get_chip_id,
-	.set_std		= tw9910_set_std,
 	.enum_input		= tw9910_enum_input,
+};
+
+static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
+	.g_chip_ident	= tw9910_g_chip_ident,
+	.s_std		= tw9910_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.get_register		= tw9910_get_register,
-	.set_register		= tw9910_set_register,
+	.g_register	= tw9910_g_register,
+	.s_register	= tw9910_s_register,
 #endif
+};
+
+static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
+	.s_stream	= tw9910_s_stream,
+	.g_fmt		= tw9910_g_fmt,
+	.s_fmt		= tw9910_s_fmt,
+	.try_fmt	= tw9910_try_fmt,
+	.cropcap	= tw9910_cropcap,
+	.g_crop		= tw9910_g_crop,
+	.s_crop		= tw9910_s_crop,
+};
+
+static struct v4l2_subdev_ops tw9910_subdev_ops = {
+	.core	= &tw9910_subdev_core_ops,
+	.video	= &tw9910_subdev_video_ops,
 };
 
 /*
@@ -871,18 +942,24 @@ static int tw9910_probe(struct i2c_client *client,
 {
 	struct tw9910_priv             *priv;
 	struct tw9910_video_info       *info;
-	struct soc_camera_device       *icd;
-	const struct tw9910_scale_ctrl *scale;
-	int                             i, ret;
+	struct soc_camera_device       *icd = client->dev.platform_data;
+	struct i2c_adapter             *adapter =
+		to_i2c_adapter(client->dev.parent);
+	struct soc_camera_link         *icl;
+	int                             ret;
 
-	if (!client->dev.platform_data)
+	if (!icd) {
+		dev_err(&client->dev, "TW9910: missing soc-camera data!\n");
+		return -EINVAL;
+	}
+
+	icl = to_soc_camera_link(icd);
+	if (!icl)
 		return -EINVAL;
 
-	info = container_of(client->dev.platform_data,
-			    struct tw9910_video_info, link);
+	info = container_of(icl, struct tw9910_video_info, link);
 
-	if (!i2c_check_functionality(to_i2c_adapter(client->dev.parent),
-				     I2C_FUNC_SMBUS_BYTE_DATA)) {
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev,
 			"I2C-Adapter doesn't support "
 			"I2C_FUNC_SMBUS_BYTE_DATA\n");
@@ -894,40 +971,15 @@ static int tw9910_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	priv->info   = info;
-	priv->client = client;
-	i2c_set_clientdata(client, priv);
 
-	icd          = &priv->icd;
+	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
+
 	icd->ops     = &tw9910_ops;
-	icd->control = &client->dev;
 	icd->iface   = info->link.bus_id;
 
-	/*
-	 * set width and height
-	 */
-	icd->width_max  = tw9910_ntsc_scales[0].width; /* set default */
-	icd->width_min  = tw9910_ntsc_scales[0].width;
-	icd->height_max = tw9910_ntsc_scales[0].height;
-	icd->height_min = tw9910_ntsc_scales[0].height;
-
-	scale = tw9910_ntsc_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_ntsc_scales); i++) {
-		icd->width_max  = max(scale[i].width,  icd->width_max);
-		icd->width_min  = min(scale[i].width,  icd->width_min);
-		icd->height_max = max(scale[i].height, icd->height_max);
-		icd->height_min = min(scale[i].height, icd->height_min);
-	}
-	scale = tw9910_pal_scales;
-	for (i = 0; i < ARRAY_SIZE(tw9910_pal_scales); i++) {
-		icd->width_max  = max(scale[i].width,  icd->width_max);
-		icd->width_min  = min(scale[i].width,  icd->width_min);
-		icd->height_max = max(scale[i].height, icd->height_max);
-		icd->height_min = min(scale[i].height, icd->height_min);
-	}
-
-	ret = soc_camera_device_register(icd);
-
+	ret = tw9910_video_probe(icd, client);
 	if (ret) {
+		icd->ops = NULL;
 		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
@@ -937,9 +989,10 @@ static int tw9910_probe(struct i2c_client *client,
 
 static int tw9910_remove(struct i2c_client *client)
 {
-	struct tw9910_priv *priv = i2c_get_clientdata(client);
+	struct tw9910_priv *priv = to_tw9910(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
 
-	soc_camera_device_unregister(&priv->icd);
+	icd->ops = NULL;
 	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;

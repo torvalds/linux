@@ -58,17 +58,34 @@ void nfs_fscache_release_client_cookie(struct nfs_client *clp)
 /*
  * Get the cache cookie for an NFS superblock.  We have to handle
  * uniquification here because the cache doesn't do it for us.
+ *
+ * The default uniquifier is just an empty string, but it may be overridden
+ * either by the 'fsc=xxx' option to mount, or by inheriting it from the parent
+ * superblock across an automount point of some nature.
  */
-void nfs_fscache_get_super_cookie(struct super_block *sb,
-				  struct nfs_parsed_mount_data *data)
+void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq,
+				  struct nfs_clone_mount *mntdata)
 {
 	struct nfs_fscache_key *key, *xkey;
 	struct nfs_server *nfss = NFS_SB(sb);
 	struct rb_node **p, *parent;
-	const char *uniq = data->fscache_uniq ?: "";
 	int diff, ulen;
 
-	ulen = strlen(uniq);
+	if (uniq) {
+		ulen = strlen(uniq);
+	} else if (mntdata) {
+		struct nfs_server *mnt_s = NFS_SB(mntdata->sb);
+		if (mnt_s->fscache_key) {
+			uniq = mnt_s->fscache_key->key.uniquifier;
+			ulen = mnt_s->fscache_key->key.uniq_len;
+		}
+	}
+
+	if (!uniq) {
+		uniq = "";
+		ulen = 1;
+	}
+
 	key = kzalloc(sizeof(*key) + ulen, GFP_KERNEL);
 	if (!key)
 		return;

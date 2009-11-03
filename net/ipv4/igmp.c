@@ -1298,6 +1298,28 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 	}
 }
 
+/* Device changing type */
+
+void ip_mc_unmap(struct in_device *in_dev)
+{
+	struct ip_mc_list *i;
+
+	ASSERT_RTNL();
+
+	for (i = in_dev->mc_list; i; i = i->next)
+		igmp_group_dropped(i);
+}
+
+void ip_mc_remap(struct in_device *in_dev)
+{
+	struct ip_mc_list *i;
+
+	ASSERT_RTNL();
+
+	for (i = in_dev->mc_list; i; i = i->next)
+		igmp_group_added(i);
+}
+
 /* Device going down */
 
 void ip_mc_down(struct in_device *in_dev)

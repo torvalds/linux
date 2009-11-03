@@ -150,7 +150,7 @@ xfs_fs_set_xquota(
 	return -xfs_qm_scall_setqlim(mp, id, xfs_quota_type(type), fdq);
 }
 
-struct quotactl_ops xfs_quotactl_operations = {
+const struct quotactl_ops xfs_quotactl_operations = {
 	.quota_sync		= xfs_fs_quota_sync,
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,

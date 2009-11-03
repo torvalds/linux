@@ -62,7 +62,7 @@ static struct notifier_block call_home_panic_nb = {
 	.priority = INT_MAX,
 };
 
-static int proc_handler_callhome(ctl_table *ctl, int write, struct file *filp,
+static int proc_handler_callhome(struct ctl_table *ctl, int write,
 				 void __user *buffer, size_t *count,
 				 loff_t *ppos)
 {
@@ -100,7 +100,7 @@ static struct ctl_table callhome_table[] = {
 	{
 		.procname	= "callhome",
 		.mode		= 0644,
-		.proc_handler	= &proc_handler_callhome,
+		.proc_handler	= proc_handler_callhome,
 	},
 	{ .ctl_name = 0 }
 };

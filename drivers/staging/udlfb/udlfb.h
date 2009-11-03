@@ -205,7 +205,7 @@ static int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height
 
 			/* send */
 			ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
-			printk("ret bulk 2: %d %d\n", ret,
+			printk("ret bulk 2: %d %td\n", ret,
 			       bufptr - dev_info->buf);
 
 			/* flush */

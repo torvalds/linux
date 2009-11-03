@@ -340,7 +340,7 @@ static const struct resource *wdt_gpi_get_resource(struct platform_device *pdv,
 					const char *name, unsigned int type)
 {
 	char buf[80];
-	if (snprintf(buf, sizeof buf, "%s_0", name) >= sizeof buf)
+	if (snprintf(buf, sizeof(buf), "%s_0", name) >= sizeof(buf))
 		return NULL;
 	return platform_get_resource_byname(pdv, type, buf);
 }

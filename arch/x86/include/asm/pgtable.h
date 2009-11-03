@@ -56,16 +56,6 @@ extern struct list_head pgd_list;
 #define pte_update(mm, addr, ptep)              do { } while (0)
 #define pte_update_defer(mm, addr, ptep)        do { } while (0)
 
-static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
-{
-	native_pagetable_setup_start(base);
-}
-
-static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
-{
-	native_pagetable_setup_done(base);
-}
-
 #define pgd_val(x)	native_pgd_val(x)
 #define __pgd(x)	native_make_pgd(x)
 

@@ -171,7 +171,6 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver orion_nand_driver = {
-	.probe		= orion_nand_probe,
 	.remove		= __devexit_p(orion_nand_remove),
 	.driver		= {
 		.name	= "orion_nand",
@@ -181,7 +180,7 @@ static struct platform_driver orion_nand_driver = {
 
 static int __init orion_nand_init(void)
 {
-	return platform_driver_register(&orion_nand_driver);
+	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
 }
 
 static void __exit orion_nand_exit(void)

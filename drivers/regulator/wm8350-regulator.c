@@ -1419,6 +1419,8 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 {
 	struct platform_device *pdev;
 	int ret;
+	if (reg < 0 || reg >= NUM_WM8350_REGULATORS)
+		return -EINVAL;
 
 	if (wm8350->pmic.pdev[reg])
 		return -EBUSY;

@@ -667,7 +667,7 @@ start:
 		xip->i_new_size = new_size;
 
 	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime(xip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+		file_update_time(file);
 
 	/*
 	 * If the offset is beyond the size of the file, we have a couple
@@ -812,19 +812,21 @@ write_retry:
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+		loff_t end = pos + ret - 1;
 		int error2;
 
 		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-		error2 = filemap_write_and_wait_range(mapping, pos,
-						      pos + ret - 1);
+
+		error2 = filemap_write_and_wait_range(mapping, pos, end);
 		if (!error)
 			error = error2;
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_ilock(xip, iolock);
-		error2 = xfs_write_sync_logforce(mp, xip);
+
+		error2 = xfs_fsync(xip);
 		if (!error)
 			error = error2;
 	}

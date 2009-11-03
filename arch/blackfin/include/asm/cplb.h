@@ -1,30 +1,7 @@
 /*
- * File:         include/asm-blackfin/cplb.h
- * Based on:     include/asm-blackfin/mach-bf537/bf537.h
- * Author:       Robin Getz <rgetz@blackfin.uclinux.org>
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Created:      2000
- * Description:  Common CPLB definitions for CPLB init
- *
- * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CPLB_H
@@ -125,4 +102,48 @@
 #define FAULT_USERSUPV  (1 << 17)
 #define FAULT_CPLBBITS  0x0000ffff
 
-#endif				/* _CPLB_H */
+#ifndef __ASSEMBLY__
+
+static inline void _disable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) & ~mask;
+	/* CSYNC to ensure load store ordering */
+	__builtin_bfin_csync();
+	bfin_write32(mmr, ctrl);
+	__builtin_bfin_ssync();
+}
+static inline void disable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) & ~mask;
+	CSYNC();
+	bfin_write32(mmr, ctrl);
+	SSYNC();
+}
+#define _disable_dcplb() _disable_cplb(DMEM_CONTROL, ENDCPLB)
+#define  disable_dcplb()  disable_cplb(DMEM_CONTROL, ENDCPLB)
+#define _disable_icplb() _disable_cplb(IMEM_CONTROL, ENICPLB)
+#define  disable_icplb()  disable_cplb(IMEM_CONTROL, ENICPLB)
+
+static inline void _enable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) | mask;
+	/* CSYNC to ensure load store ordering */
+	__builtin_bfin_csync();
+	bfin_write32(mmr, ctrl);
+	__builtin_bfin_ssync();
+}
+static inline void enable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) | mask;
+	CSYNC();
+	bfin_write32(mmr, ctrl);
+	SSYNC();
+}
+#define _enable_dcplb()  _enable_cplb(DMEM_CONTROL, ENDCPLB)
+#define  enable_dcplb()   enable_cplb(DMEM_CONTROL, ENDCPLB)
+#define _enable_icplb()  _enable_cplb(IMEM_CONTROL, ENICPLB)
+#define  enable_icplb()   enable_cplb(IMEM_CONTROL, ENICPLB)
+
+#endif		/* __ASSEMBLY__ */
+
+#endif		/* _CPLB_H */

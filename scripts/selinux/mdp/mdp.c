@@ -31,13 +31,13 @@
 
 #include "flask.h"
 
-void usage(char *name)
+static void usage(char *name)
 {
 	printf("usage: %s [-m] policy_file context_file\n", name);
 	exit(1);
 }
 
-void find_common_name(char *cname, char *dest, int len)
+static void find_common_name(char *cname, char *dest, int len)
 {
 	char *start, *end;
 

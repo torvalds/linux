@@ -35,6 +35,7 @@
 #include <net/ieee802154_netdev.h>
 
 static unsigned int ieee802154_seq_num;
+static DEFINE_SPINLOCK(ieee802154_seq_lock);
 
 static struct genl_family ieee802154_coordinator_family = {
 	.id		= GENL_ID_GENERATE,
@@ -57,12 +58,15 @@ static struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 {
 	void *hdr;
 	struct sk_buff *msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	unsigned long f;
 
 	if (!msg)
 		return NULL;
 
+	spin_lock_irqsave(&ieee802154_seq_lock, f);
 	hdr = genlmsg_put(msg, 0, ieee802154_seq_num++,
 			&ieee802154_coordinator_family, flags, req);
+	spin_unlock_irqrestore(&ieee802154_seq_lock, f);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return NULL;

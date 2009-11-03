@@ -622,11 +622,12 @@ static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 
 static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
-	struct resource *root, *res;
+	struct pci_dev *dev = socket->dev;
+	struct resource *res;
 	struct pci_bus_region region;
 	unsigned mask;
 
-	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
+	res = dev->resource + PCI_BRIDGE_RESOURCES + nr;
 	/* Already allocated? */
 	if (res->parent)
 		return 0;
@@ -636,17 +637,16 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 	if (type & IORESOURCE_IO)
 		mask = ~3;
 
-	res->name = socket->dev->subordinate->name;
+	res->name = dev->subordinate->name;
 	res->flags = type;
 
 	region.start = config_readl(socket, addr_start) & mask;
 	region.end = config_readl(socket, addr_end) | ~mask;
 	if (region.start && region.end > region.start && !override_bios) {
-		pcibios_bus_to_resource(socket->dev, res, &region);
-		root = pci_find_parent_resource(socket->dev, res);
-		if (root && (request_resource(root, res) == 0))
+		pcibios_bus_to_resource(dev, res, &region);
+		if (pci_claim_resource(dev, PCI_BRIDGE_RESOURCES + nr) == 0)
 			return 0;
-		dev_printk(KERN_INFO, &socket->dev->dev,
+		dev_printk(KERN_INFO, &dev->dev,
 			   "Preassigned resource %d busy or not available, "
 			   "reconfiguring...\n",
 			   nr);
@@ -672,7 +672,7 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 			return 1;
 	}
 
-	dev_printk(KERN_INFO, &socket->dev->dev,
+	dev_printk(KERN_INFO, &dev->dev,
 		   "no resource of type %x available, trying to continue...\n",
 		   type);
 	res->start = res->end = res->flags = 0;
@@ -717,7 +717,7 @@ static void yenta_free_resources(struct yenta_socket *socket)
 /*
  * Close it down - release our resources and go home..
  */
-static void yenta_close(struct pci_dev *dev)
+static void __devexit yenta_close(struct pci_dev *dev)
 {
 	struct yenta_socket *sock = pci_get_drvdata(dev);
 
@@ -1225,60 +1225,71 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 }
 
 #ifdef CONFIG_PM
-static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
+static int yenta_dev_suspend_noirq(struct device *dev)
 {
-	struct yenta_socket *socket = pci_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct yenta_socket *socket = pci_get_drvdata(pdev);
 	int ret;
 
-	ret = pcmcia_socket_dev_suspend(&dev->dev, state);
+	ret = pcmcia_socket_dev_suspend(dev);
 
-	if (socket) {
-		if (socket->type && socket->type->save_state)
-			socket->type->save_state(socket);
+	if (!socket)
+		return ret;
 
-		/* FIXME: pci_save_state needs to have a better interface */
-		pci_save_state(dev);
-		pci_read_config_dword(dev, 16*4, &socket->saved_state[0]);
-		pci_read_config_dword(dev, 17*4, &socket->saved_state[1]);
-		pci_disable_device(dev);
+	if (socket->type && socket->type->save_state)
+		socket->type->save_state(socket);
 
-		/*
-		 * Some laptops (IBM T22) do not like us putting the Cardbus
-		 * bridge into D3.  At a guess, some other laptop will
-		 * probably require this, so leave it commented out for now.
-		 */
-		/* pci_set_power_state(dev, 3); */
-	}
+	pci_save_state(pdev);
+	pci_read_config_dword(pdev, 16*4, &socket->saved_state[0]);
+	pci_read_config_dword(pdev, 17*4, &socket->saved_state[1]);
+	pci_disable_device(pdev);
+
+	/*
+	 * Some laptops (IBM T22) do not like us putting the Cardbus
+	 * bridge into D3.  At a guess, some other laptop will
+	 * probably require this, so leave it commented out for now.
+	 */
+	/* pci_set_power_state(dev, 3); */
 
 	return ret;
 }
 
-
-static int yenta_dev_resume (struct pci_dev *dev)
+static int yenta_dev_resume_noirq(struct device *dev)
 {
-	struct yenta_socket *socket = pci_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct yenta_socket *socket = pci_get_drvdata(pdev);
+	int ret;
 
-	if (socket) {
-		int rc;
+	if (!socket)
+		return 0;
 
-		pci_set_power_state(dev, 0);
-		/* FIXME: pci_restore_state needs to have a better interface */
-		pci_restore_state(dev);
-		pci_write_config_dword(dev, 16*4, socket->saved_state[0]);
-		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
+	pci_write_config_dword(pdev, 16*4, socket->saved_state[0]);
+	pci_write_config_dword(pdev, 17*4, socket->saved_state[1]);
 
-		rc = pci_enable_device(dev);
-		if (rc)
-			return rc;
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
 
-		pci_set_master(dev);
+	pci_set_master(pdev);
 
-		if (socket->type && socket->type->restore_state)
-			socket->type->restore_state(socket);
-	}
+	if (socket->type && socket->type->restore_state)
+		socket->type->restore_state(socket);
 
-	return pcmcia_socket_dev_resume(&dev->dev);
+	return pcmcia_socket_dev_resume(dev);
 }
+
+static struct dev_pm_ops yenta_pm_ops = {
+	.suspend_noirq = yenta_dev_suspend_noirq,
+	.resume_noirq = yenta_dev_resume_noirq,
+	.freeze_noirq = yenta_dev_suspend_noirq,
+	.thaw_noirq = yenta_dev_resume_noirq,
+	.poweroff_noirq = yenta_dev_suspend_noirq,
+	.restore_noirq = yenta_dev_resume_noirq,
+};
+
+#define YENTA_PM_OPS	(&yenta_pm_ops)
+#else
+#define YENTA_PM_OPS	NULL
 #endif
 
 #define CB_ID(vend,dev,type)				\
@@ -1376,10 +1387,7 @@ static struct pci_driver yenta_cardbus_driver = {
 	.id_table	= yenta_table,
 	.probe		= yenta_probe,
 	.remove		= __devexit_p(yenta_close),
-#ifdef CONFIG_PM
-	.suspend	= yenta_dev_suspend,
-	.resume		= yenta_dev_resume,
-#endif
+	.driver.pm	= YENTA_PM_OPS,
 };
 
 

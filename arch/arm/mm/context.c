@@ -59,6 +59,6 @@ void __new_context(struct mm_struct *mm)
 	}
 	spin_unlock(&cpu_asid_lock);
 
-	mm->cpu_vm_mask = cpumask_of_cpu(smp_processor_id());
+	cpumask_copy(mm_cpumask(mm), cpumask_of(smp_processor_id()));
 	mm->context.id = asid;
 }

@@ -25,6 +25,7 @@
  *************************************************************************
 */
 
+#include <linux/sched.h>
 #include "../rt_config.h"
 
 INT	Show_SSID_Proc(
@@ -1419,17 +1420,6 @@ VOID	RTMPSetHT(
 		pAd->CommonCfg.DesiredHtPhy.RxSTBC = 0;
 	}
 
-#ifndef RT30xx
-#ifdef RT2870
-	/* Frank recommend ,If not, Tx maybe block in high power. Rx has no problem*/
-	if(IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
-	{
-		pAd->CommonCfg.HtCapability.HtCapInfo.TxSTBC = 0;
-		pAd->CommonCfg.DesiredHtPhy.TxSTBC = 0;
-	}
-#endif // RT2870 //
-#endif
-
 	if(pHTPhyMode->SHORTGI == GI_400)
 	{
 		pAd->CommonCfg.HtCapability.HtCapInfo.ShortGIfor20 = 1;
@@ -2491,24 +2481,19 @@ INT	Set_HtAutoBa_Proc(
 	if (Value == 0)
 	{
 		pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
-#ifdef RT30xx
 		pAd->CommonCfg.BACapability.field.Policy = BA_NOTUSE;
-#endif
 	}
     else if (Value == 1)
 	{
 		pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
-#ifdef RT30xx
 		pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
-#endif
 	}
 	else
 		return FALSE; //Invalid argument
 
     pAd->CommonCfg.REGBACapability.field.AutoBA = pAd->CommonCfg.BACapability.field.AutoBA;
-#ifdef RT30xx
     pAd->CommonCfg.REGBACapability.field.Policy = pAd->CommonCfg.BACapability.field.Policy;
-#endif
+
 	SetCommonHT(pAd);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("Set_HtAutoBa_Proc::(HtAutoBa=%d)\n",pAd->CommonCfg.BACapability.field.AutoBA));
@@ -2725,9 +2710,6 @@ PCHAR   RTMPGetRalinkAuthModeStr(
 	{
 		case Ndis802_11AuthModeOpen:
 			return "OPEN";
-#if defined(RT2860) || defined(RT30xx)
-        default:
-#endif
 		case Ndis802_11AuthModeWPAPSK:
 			return "WPAPSK";
 		case Ndis802_11AuthModeShared:
@@ -2742,14 +2724,10 @@ PCHAR   RTMPGetRalinkAuthModeStr(
 			return "WPAPSKWPA2PSK";
         case Ndis802_11AuthModeWPA1WPA2:
 			return "WPA1WPA2";
-#ifndef RT30xx
 		case Ndis802_11AuthModeWPANone:
 			return "WPANONE";
-#ifdef RT2870
 		default:
 			return "UNKNOW";
-#endif
-#endif
 	}
 }
 

@@ -66,9 +66,9 @@ config IP_DCCP_CCID3_RTO
 	    A value of 0 disables this feature by enforcing the value specified
 	    in RFC 3448. The following values have been suggested as bounds for
 	    experimental use:
-	    	* 16-20ms to match the typical multimedia inter-frame interval
-	    	* 100ms as a reasonable compromise [default]
-	    	* 1000ms corresponds to the lower TCP RTO bound (RFC 2988, 2.4)
+		* 16-20ms to match the typical multimedia inter-frame interval
+		* 100ms as a reasonable compromise [default]
+		* 1000ms corresponds to the lower TCP RTO bound (RFC 2988, 2.4)
 
 	    The default of 100ms is a compromise between a large value for
 	    efficient DCCP implementations, and a small value to avoid disrupting

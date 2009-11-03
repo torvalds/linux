@@ -129,6 +129,7 @@ struct tracer boot_tracer __read_mostly =
 
 void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 {
+	struct ftrace_event_call *call = &event_boot_call;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct trace_boot_call *entry;
@@ -150,13 +151,15 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_call = *bt;
-	trace_buffer_unlock_commit(buffer, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }
 
 void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 {
+	struct ftrace_event_call *call = &event_boot_ret;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct trace_boot_ret *entry;
@@ -175,7 +178,8 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_ret = *bt;
-	trace_buffer_unlock_commit(buffer, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }

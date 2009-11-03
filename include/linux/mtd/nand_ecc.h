@@ -21,6 +21,12 @@ struct mtd_info;
 int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code);
 
 /*
+ * Detect and correct a 1 bit error for eccsize byte block
+ */
+int __nand_correct_data(u_char *dat, u_char *read_ecc, u_char *calc_ecc,
+			unsigned int eccsize);
+
+/*
  * Detect and correct a 1 bit error for 256 byte block
  */
 int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc);

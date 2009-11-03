@@ -10,6 +10,7 @@
  * information.
  */
 
+#include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -213,14 +214,13 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
 int platform_device_add_data(struct platform_device *pdev, const void *data,
 			     size_t size)
 {
-	void *d;
+	void *d = kmemdup(data, size, GFP_KERNEL);
 
-	d = kmalloc(size, GFP_KERNEL);
 	if (d) {
-		memcpy(d, data, size);
 		pdev->dev.platform_data = d;
+		return 0;
 	}
-	return d ? 0 : -ENOMEM;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(platform_device_add_data);
 

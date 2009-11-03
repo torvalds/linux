@@ -77,11 +77,13 @@
  * MFPR_PULL_LOW        1         0        1
  * MFPR_PULL_HIGH       1         1        0
  * MFPR_PULL_BOTH       1         1        1
+ * MFPR_PULL_FLOAT	1         0        0
  */
 #define MFPR_PULL_NONE		(0)
 #define MFPR_PULL_LOW		(MFPR_PULL_SEL | MFPR_PULLDOWN_EN)
 #define MFPR_PULL_BOTH		(MFPR_PULL_LOW | MFPR_PULLUP_EN)
 #define MFPR_PULL_HIGH		(MFPR_PULL_SEL | MFPR_PULLUP_EN)
+#define MFPR_PULL_FLOAT		(MFPR_PULL_SEL)
 
 /* mfp_spin_lock is used to ensure that MFP register configuration
  * (most likely a read-modify-write operation) is atomic, and that
@@ -116,6 +118,7 @@ static const unsigned long mfpr_pull[] = {
 	MFPR_PULL_LOW,
 	MFPR_PULL_HIGH,
 	MFPR_PULL_BOTH,
+	MFPR_PULL_FLOAT,
 };
 
 /* mapping of MFP_LPM_EDGE_* definitions to MFPR_EDGE_* register bits */

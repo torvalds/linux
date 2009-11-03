@@ -389,6 +389,16 @@ static __init void map_gru_high(int max_pnode)
 		map_high("GRU", gru.s.base, shift, max_pnode, map_wb);
 }
 
+static __init void map_mmr_high(int max_pnode)
+{
+	union uvh_rh_gam_mmr_overlay_config_mmr_u mmr;
+	int shift = UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR_BASE_SHFT;
+
+	mmr.v = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR);
+	if (mmr.s.enable)
+		map_high("MMR", mmr.s.base, shift, max_pnode, map_uc);
+}
+
 static __init void map_mmioh_high(int max_pnode)
 {
 	union uvh_rh_gam_mmioh_overlay_config_mmr_u mmioh;
@@ -643,6 +653,7 @@ void __init uv_system_init(void)
 	}
 
 	map_gru_high(max_pnode);
+	map_mmr_high(max_pnode);
 	map_mmioh_high(max_pnode);
 
 	uv_cpu_init();

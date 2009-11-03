@@ -608,6 +608,40 @@ void dmaengine_put(void)
 }
 EXPORT_SYMBOL(dmaengine_put);
 
+static bool device_has_all_tx_types(struct dma_device *device)
+{
+	/* A device that satisfies this test has channels that will never cause
+	 * an async_tx channel switch event as all possible operation types can
+	 * be handled.
+	 */
+	#ifdef CONFIG_ASYNC_TX_DMA
+	if (!dma_has_cap(DMA_INTERRUPT, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_MEMCPY) || defined(CONFIG_ASYNC_MEMCPY_MODULE)
+	if (!dma_has_cap(DMA_MEMCPY, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_MEMSET) || defined(CONFIG_ASYNC_MEMSET_MODULE)
+	if (!dma_has_cap(DMA_MEMSET, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
+	if (!dma_has_cap(DMA_XOR, device->cap_mask))
+		return false;
+	#endif
+
+	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
+	if (!dma_has_cap(DMA_PQ, device->cap_mask))
+		return false;
+	#endif
+
+	return true;
+}
+
 static int get_dma_id(struct dma_device *device)
 {
 	int rc;
@@ -644,8 +678,12 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_memcpy);
 	BUG_ON(dma_has_cap(DMA_XOR, device->cap_mask) &&
 		!device->device_prep_dma_xor);
-	BUG_ON(dma_has_cap(DMA_ZERO_SUM, device->cap_mask) &&
-		!device->device_prep_dma_zero_sum);
+	BUG_ON(dma_has_cap(DMA_XOR_VAL, device->cap_mask) &&
+		!device->device_prep_dma_xor_val);
+	BUG_ON(dma_has_cap(DMA_PQ, device->cap_mask) &&
+		!device->device_prep_dma_pq);
+	BUG_ON(dma_has_cap(DMA_PQ_VAL, device->cap_mask) &&
+		!device->device_prep_dma_pq_val);
 	BUG_ON(dma_has_cap(DMA_MEMSET, device->cap_mask) &&
 		!device->device_prep_dma_memset);
 	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&
@@ -660,6 +698,12 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(!device->device_is_tx_complete);
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
+
+	/* note: this only matters in the
+	 * CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH=y case
+	 */
+	if (device_has_all_tx_types(device))
+		dma_cap_set(DMA_ASYNC_TX, device->cap_mask);
 
 	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
 	if (!idr_ref)
@@ -933,55 +977,29 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 {
 	tx->chan = chan;
 	spin_lock_init(&tx->lock);
-	INIT_LIST_HEAD(&tx->tx_list);
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 
 /* dma_wait_for_async_tx - spin wait for a transaction to complete
  * @tx: in-flight transaction to wait on
- *
- * This routine assumes that tx was obtained from a call to async_memcpy,
- * async_xor, async_memset, etc which ensures that tx is "in-flight" (prepped
- * and submitted).  Walking the parent chain is only meant to cover for DMA
- * drivers that do not implement the DMA_INTERRUPT capability and may race with
- * the driver's descriptor cleanup routine.
  */
 enum dma_status
 dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 {
-	enum dma_status status;
-	struct dma_async_tx_descriptor *iter;
-	struct dma_async_tx_descriptor *parent;
+	unsigned long dma_sync_wait_timeout = jiffies + msecs_to_jiffies(5000);
 
 	if (!tx)
 		return DMA_SUCCESS;
 
-	WARN_ONCE(tx->parent, "%s: speculatively walking dependency chain for"
-		  " %s\n", __func__, dma_chan_name(tx->chan));
-
-	/* poll through the dependency chain, return when tx is complete */
-	do {
-		iter = tx;
-
-		/* find the root of the unsubmitted dependency chain */
-		do {
-			parent = iter->parent;
-			if (!parent)
-				break;
-			else
-				iter = parent;
-		} while (parent);
-
-		/* there is a small window for ->parent == NULL and
-		 * ->cookie == -EBUSY
-		 */
-		while (iter->cookie == -EBUSY)
-			cpu_relax();
-
-		status = dma_sync_wait(iter->chan, iter->cookie);
-	} while (status == DMA_IN_PROGRESS || (iter != tx));
-
-	return status;
+	while (tx->cookie == -EBUSY) {
+		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
+			pr_err("%s timeout waiting for descriptor submission\n",
+				__func__);
+			return DMA_ERROR;
+		}
+		cpu_relax();
+	}
+	return dma_sync_wait(tx->chan, tx->cookie);
 }
 EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
 

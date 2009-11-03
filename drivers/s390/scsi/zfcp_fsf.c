@@ -1058,11 +1058,25 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->queue_req,
 					SBAL_FLAGS0_TYPE_WRITE_READ,
 					sg_resp, max_sbals);
+	req->qtcb->bottom.support.resp_buf_length = bytes;
 	if (bytes <= 0)
 		return -EIO;
 
+	return 0;
+}
+
+static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
+				 struct scatterlist *sg_req,
+				 struct scatterlist *sg_resp,
+				 int max_sbals)
+{
+	int ret;
+
+	ret = zfcp_fsf_setup_ct_els_sbals(req, sg_req, sg_resp, max_sbals);
+	if (ret)
+		return ret;
+
 	/* common settings for ct/gs and els requests */
-	req->qtcb->bottom.support.resp_buf_length = bytes;
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
 	req->qtcb->bottom.support.timeout = 2 * R_A_TOV;
 	zfcp_fsf_start_timer(req, 2 * R_A_TOV + 10);
@@ -1094,8 +1108,8 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	ret = zfcp_fsf_setup_ct_els_sbals(req, ct->req, ct->resp,
-					  FSF_MAX_SBALS_PER_REQ);
+	ret = zfcp_fsf_setup_ct_els(req, ct->req, ct->resp,
+				    FSF_MAX_SBALS_PER_REQ);
 	if (ret)
 		goto failed_send;
 
@@ -1192,7 +1206,7 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	ret = zfcp_fsf_setup_ct_els_sbals(req, els->req, els->resp, 2);
+	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, 2);
 
 	if (ret)
 		goto failed_send;

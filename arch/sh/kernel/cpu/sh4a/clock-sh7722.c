@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <asm/clock.h>
+#include <asm/hwblk.h>
+#include <cpu/sh7722.h>
 
 /* SH7722 registers */
 #define FRQCR		0xa4150000
@@ -30,9 +32,6 @@
 #define SCLKBCR		0xa415000c
 #define IRDACLKCR	0xa4150018
 #define PLLCR		0xa4150024
-#define MSTPCR0		0xa4150030
-#define MSTPCR1		0xa4150034
-#define MSTPCR2		0xa4150038
 #define DLLFRQ		0xa4150050
 
 /* Fixed 32 KHz root clock for RTC and Power Management purposes */
@@ -140,35 +139,37 @@ struct clk div6_clks[] = {
 	SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
 };
 
-#define MSTP(_str, _parent, _reg, _bit, _flags) \
-  SH_CLK_MSTP32(_str, -1, _parent, _reg, _bit, _flags)
+#define R_CLK &r_clk
+#define P_CLK &div4_clks[DIV4_P]
+#define B_CLK &div4_clks[DIV4_B]
+#define U_CLK &div4_clks[DIV4_U]
 
 static struct clk mstp_clks[] = {
-	MSTP("uram0", &div4_clks[DIV4_U], MSTPCR0, 28, CLK_ENABLE_ON_INIT),
-	MSTP("xymem0", &div4_clks[DIV4_B], MSTPCR0, 26, CLK_ENABLE_ON_INIT),
-	MSTP("tmu0", &div4_clks[DIV4_P], MSTPCR0, 15, 0),
-	MSTP("cmt0", &r_clk, MSTPCR0, 14, 0),
-	MSTP("rwdt0", &r_clk, MSTPCR0, 13, 0),
-	MSTP("flctl0", &div4_clks[DIV4_P], MSTPCR0, 10, 0),
-	MSTP("scif0", &div4_clks[DIV4_P], MSTPCR0, 7, 0),
-	MSTP("scif1", &div4_clks[DIV4_P], MSTPCR0, 6, 0),
-	MSTP("scif2", &div4_clks[DIV4_P], MSTPCR0, 5, 0),
+	SH_HWBLK_CLK("uram0", -1, U_CLK, HWBLK_URAM, CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK("xymem0", -1, B_CLK, HWBLK_XYMEM, CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK("tmu0", -1, P_CLK, HWBLK_TMU, 0),
+	SH_HWBLK_CLK("cmt0", -1, R_CLK, HWBLK_CMT, 0),
+	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
+	SH_HWBLK_CLK("flctl0", -1, P_CLK, HWBLK_FLCTL, 0),
+	SH_HWBLK_CLK("scif0", -1, P_CLK, HWBLK_SCIF0, 0),
+	SH_HWBLK_CLK("scif1", -1, P_CLK, HWBLK_SCIF1, 0),
+	SH_HWBLK_CLK("scif2", -1, P_CLK, HWBLK_SCIF2, 0),
 
-	MSTP("i2c0", &div4_clks[DIV4_P], MSTPCR1, 9, 0),
-	MSTP("rtc0", &r_clk, MSTPCR1, 8, 0),
+	SH_HWBLK_CLK("i2c0", -1, P_CLK, HWBLK_IIC, 0),
+	SH_HWBLK_CLK("rtc0", -1, R_CLK, HWBLK_RTC, 0),
 
-	MSTP("sdhi0", &div4_clks[DIV4_P], MSTPCR2, 18, 0),
-	MSTP("keysc0", &r_clk, MSTPCR2, 14, 0),
-	MSTP("usbf0", &div4_clks[DIV4_P], MSTPCR2, 11, 0),
-	MSTP("2dg0", &div4_clks[DIV4_B], MSTPCR2, 9, 0),
-	MSTP("siu0", &div4_clks[DIV4_B], MSTPCR2, 8, 0),
-	MSTP("vou0", &div4_clks[DIV4_B], MSTPCR2, 5, 0),
-	MSTP("jpu0", &div4_clks[DIV4_B], MSTPCR2, 6, CLK_ENABLE_ON_INIT),
-	MSTP("beu0", &div4_clks[DIV4_B], MSTPCR2, 4, 0),
-	MSTP("ceu0", &div4_clks[DIV4_B], MSTPCR2, 3, 0),
-	MSTP("veu0", &div4_clks[DIV4_B], MSTPCR2, 2, CLK_ENABLE_ON_INIT),
-	MSTP("vpu0", &div4_clks[DIV4_B], MSTPCR2, 1, CLK_ENABLE_ON_INIT),
-	MSTP("lcdc0", &div4_clks[DIV4_B], MSTPCR2, 0, 0),
+	SH_HWBLK_CLK("sdhi0", -1, P_CLK, HWBLK_SDHI, 0),
+	SH_HWBLK_CLK("keysc0", -1, R_CLK, HWBLK_KEYSC, 0),
+	SH_HWBLK_CLK("usbf0", -1, P_CLK, HWBLK_USBF, 0),
+	SH_HWBLK_CLK("2dg0", -1, B_CLK, HWBLK_2DG, 0),
+	SH_HWBLK_CLK("siu0", -1, B_CLK, HWBLK_SIU, 0),
+	SH_HWBLK_CLK("vou0", -1, B_CLK, HWBLK_VOU, 0),
+	SH_HWBLK_CLK("jpu0", -1, B_CLK, HWBLK_JPU, 0),
+	SH_HWBLK_CLK("beu0", -1, B_CLK, HWBLK_BEU, 0),
+	SH_HWBLK_CLK("ceu0", -1, B_CLK, HWBLK_CEU, 0),
+	SH_HWBLK_CLK("veu0", -1, B_CLK, HWBLK_VEU, 0),
+	SH_HWBLK_CLK("vpu0", -1, B_CLK, HWBLK_VPU, 0),
+	SH_HWBLK_CLK("lcdc0", -1, P_CLK, HWBLK_LCDC, 0),
 };
 
 int __init arch_clk_init(void)
@@ -191,7 +192,7 @@ int __init arch_clk_init(void)
 		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
 
 	if (!ret)
-		ret = sh_clk_mstp32_register(mstp_clks, ARRAY_SIZE(mstp_clks));
+		ret = sh_hwblk_clk_register(mstp_clks, ARRAY_SIZE(mstp_clks));
 
 	return ret;
 }

@@ -106,24 +106,33 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
-/** Sets the color ramps on behalf of RandR */
+/** Sets the color ramps on behalf of fbcon */
 void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			      u16 blue, int regno)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (regno == 0)
-		DRM_DEBUG("gamma set %d\n", radeon_crtc->crtc_id);
 	radeon_crtc->lut_r[regno] = red >> 6;
 	radeon_crtc->lut_g[regno] = green >> 6;
 	radeon_crtc->lut_b[regno] = blue >> 6;
+}
+
+/** Gets the color ramps on behalf of fbcon */
+void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, int regno)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	*red = radeon_crtc->lut_r[regno] << 6;
+	*green = radeon_crtc->lut_g[regno] << 6;
+	*blue = radeon_crtc->lut_b[regno] << 6;
 }
 
 static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				  u16 *blue, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i, j;
+	int i;
 
 	if (size != 256) {
 		return;
@@ -132,23 +141,11 @@ static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 		return;
 	}
 
-	if (crtc->fb->depth == 16) {
-		for (i = 0; i < 64; i++) {
-			if (i <= 31) {
-				for (j = 0; j < 8; j++) {
-					radeon_crtc->lut_r[i * 8 + j] = red[i] >> 6;
-					radeon_crtc->lut_b[i * 8 + j] = blue[i] >> 6;
-				}
-			}
-			for (j = 0; j < 4; j++)
-				radeon_crtc->lut_g[i * 4 + j] = green[i] >> 6;
-		}
-	} else {
-		for (i = 0; i < 256; i++) {
-			radeon_crtc->lut_r[i] = red[i] >> 6;
-			radeon_crtc->lut_g[i] = green[i] >> 6;
-			radeon_crtc->lut_b[i] = blue[i] >> 6;
-		}
+	/* userspace palettes are always correct as is */
+	for (i = 0; i < 256; i++) {
+		radeon_crtc->lut_r[i] = red[i] >> 6;
+		radeon_crtc->lut_g[i] = green[i] >> 6;
+		radeon_crtc->lut_b[i] = blue[i] >> 6;
 	}
 
 	radeon_crtc_load_lut(crtc);
@@ -158,9 +155,6 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (radeon_crtc->mode_set.mode) {
-		drm_mode_destroy(crtc->dev, radeon_crtc->mode_set.mode);
-	}
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);
 }
@@ -189,9 +183,11 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	radeon_crtc->crtc_id = index;
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
+#if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
 	radeon_crtc->mode_set.num_connectors = 0;
+#endif
 
 	for (i = 0; i < 256; i++) {
 		radeon_crtc->lut_r[i] = i << 2;
@@ -313,7 +309,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 	}
 }
 
-bool radeon_setup_enc_conn(struct drm_device *dev)
+static bool radeon_setup_enc_conn(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *drm_connector;
@@ -347,9 +343,13 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
-	radeon_i2c_do_lock(radeon_connector, 1);
-	edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	if (!radeon_connector->edid) {
+		radeon_i2c_do_lock(radeon_connector, 1);
+		edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+		radeon_i2c_do_lock(radeon_connector, 0);
+	} else
+		edid = radeon_connector->edid;
+
 	if (edid) {
 		/* update digital bits here */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL)
@@ -362,7 +362,7 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
-	return -1;
+	return 0;
 }
 
 static int radeon_ddc_dump(struct drm_connector *connector)
@@ -620,6 +620,83 @@ static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_changed = radeonfb_probe,
 };
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
+
+static struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =
+{	{ 0, "driver" },
+	{ 1, "bios" },
+};
+
+static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
+{	{ TV_STD_NTSC, "ntsc" },
+	{ TV_STD_PAL, "pal" },
+	{ TV_STD_PAL_M, "pal-m" },
+	{ TV_STD_PAL_60, "pal-60" },
+	{ TV_STD_NTSC_J, "ntsc-j" },
+	{ TV_STD_SCART_PAL, "scart-pal" },
+	{ TV_STD_PAL_CN, "pal-cn" },
+	{ TV_STD_SECAM, "secam" },
+};
+
+int radeon_modeset_create_props(struct radeon_device *rdev)
+{
+	int i, sz;
+
+	if (rdev->is_atom_bios) {
+		rdev->mode_info.coherent_mode_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_RANGE,
+					    "coherent", 2);
+		if (!rdev->mode_info.coherent_mode_property)
+			return -ENOMEM;
+
+		rdev->mode_info.coherent_mode_property->values[0] = 0;
+		rdev->mode_info.coherent_mode_property->values[0] = 1;
+	}
+
+	if (!ASIC_IS_AVIVO(rdev)) {
+		sz = ARRAY_SIZE(radeon_tmds_pll_enum_list);
+		rdev->mode_info.tmds_pll_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_ENUM,
+					    "tmds_pll", sz);
+		for (i = 0; i < sz; i++) {
+			drm_property_add_enum(rdev->mode_info.tmds_pll_property,
+					      i,
+					      radeon_tmds_pll_enum_list[i].type,
+					      radeon_tmds_pll_enum_list[i].name);
+		}
+	}
+
+	rdev->mode_info.load_detect_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_RANGE,
+				    "load detection", 2);
+	if (!rdev->mode_info.load_detect_property)
+		return -ENOMEM;
+	rdev->mode_info.load_detect_property->values[0] = 0;
+	rdev->mode_info.load_detect_property->values[0] = 1;
+
+	drm_mode_create_scaling_mode_property(rdev->ddev);
+
+	sz = ARRAY_SIZE(radeon_tv_std_enum_list);
+	rdev->mode_info.tv_std_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_ENUM,
+				    "tv standard", sz);
+	for (i = 0; i < sz; i++) {
+		drm_property_add_enum(rdev->mode_info.tv_std_property,
+				      i,
+				      radeon_tv_std_enum_list[i].type,
+				      radeon_tv_std_enum_list[i].name);
+	}
+
+	return 0;
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int num_crtc = 2, i;
@@ -640,7 +717,15 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.fb_base = rdev->mc.aper_base;
 
-	/* allocate crtcs - TODO single crtc */
+	ret = radeon_modeset_create_props(rdev);
+	if (ret) {
+		return ret;
+	}
+
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	/* allocate crtcs */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
@@ -678,7 +763,6 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			continue;
 		if (first) {
 			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
-			radeon_crtc->devices = radeon_encoder->devices;
 			memcpy(&radeon_crtc->native_mode,
 				&radeon_encoder->native_mode,
 				sizeof(struct radeon_native_mode));

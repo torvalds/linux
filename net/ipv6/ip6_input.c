@@ -159,7 +159,7 @@ drop:
 
 static int ip6_input_finish(struct sk_buff *skb)
 {
-	struct inet6_protocol *ipprot;
+	const struct inet6_protocol *ipprot;
 	unsigned int nhoff;
 	int nexthdr, raw;
 	u8 hash;

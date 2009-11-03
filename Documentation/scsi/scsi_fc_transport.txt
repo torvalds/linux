@@ -378,7 +378,7 @@ Vport Disable/Enable:
       int vport_disable(struct fc_vport *vport, bool disable)
 
     where:
-      vport:    Is vport to to be enabled or disabled
+      vport:    Is vport to be enabled or disabled
       disable:  If "true", the vport is to be disabled.
                 If "false", the vport is to be enabled.
 

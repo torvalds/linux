@@ -65,6 +65,9 @@ static inline int cpufreq_unregister_notifier(struct notifier_block *nb,
 
 struct cpufreq_governor;
 
+/* /sys/devices/system/cpu/cpufreq: entry point for global variables */
+extern struct kobject *cpufreq_global_kobject;
+
 #define CPUFREQ_ETERNAL			(-1)
 struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
@@ -274,6 +277,13 @@ struct freq_attr {
 	ssize_t (*store)(struct cpufreq_policy *, const char *, size_t count);
 };
 
+struct global_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct kobject *kobj,
+			struct attribute *attr, char *buf);
+	ssize_t (*store)(struct kobject *a, struct attribute *b,
+			 const char *c, size_t count);
+};
 
 /*********************************************************************
  *                        CPUFREQ 2.6. INTERFACE                     *

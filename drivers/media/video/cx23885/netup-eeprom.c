@@ -97,11 +97,11 @@ void netup_get_card_info(struct i2c_adapter *i2c_adap,
 {
 	int i, j;
 
-	cinfo->rev =  netup_eeprom_read(i2c_adap, 13);
+	cinfo->rev =  netup_eeprom_read(i2c_adap, 63);
 
-	for (i = 0, j = 0; i < 6; i++, j++)
+	for (i = 64, j = 0; i < 70; i++, j++)
 		cinfo->port[0].mac[j] =  netup_eeprom_read(i2c_adap, i);
 
-	for (i = 6, j = 0; i < 12; i++, j++)
+	for (i = 70, j = 0; i < 76; i++, j++)
 		cinfo->port[1].mac[j] =  netup_eeprom_read(i2c_adap, i);
 };

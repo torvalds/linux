@@ -80,6 +80,23 @@ config MTD_NAND_OMAP2
 	help
           Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
 
+config MTD_NAND_OMAP_PREFETCH
+	bool "GPMC prefetch support for NAND Flash device"
+	depends on MTD_NAND && MTD_NAND_OMAP2
+	default y
+	help
+	 The NAND device can be accessed for Read/Write using GPMC PREFETCH engine
+	 to improve the performance.
+
+config MTD_NAND_OMAP_PREFETCH_DMA
+	depends on MTD_NAND_OMAP_PREFETCH
+	bool "DMA mode"
+	default n
+	help
+	 The GPMC PREFETCH engine can be configured eigther in MPU interrupt mode
+	 or in DMA interrupt mode.
+	 Say y for DMA mode or MPU mode will be used
+
 config MTD_NAND_TS7250
 	tristate "NAND Flash device on TS-7250 board"
 	depends on MACH_TS72XX
@@ -426,6 +443,12 @@ config MTD_NAND_MXC
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
 
+config MTD_NAND_NOMADIK
+	tristate "ST Nomadik 8815 NAND support"
+	depends on ARCH_NOMADIK
+	help
+	  Driver for the NAND flash controller on the Nomadik, with ECC.
+
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"
 	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
@@ -451,5 +474,12 @@ config MTD_NAND_SOCRATES
 	depends on MTD_NAND && SOCRATES
 	help
 	  Enables support for NAND Flash chips wired onto Socrates board.
+
+config MTD_NAND_W90P910
+	tristate "Support for NAND on w90p910 evaluation board."
+	depends on ARCH_W90X900 && MTD_PARTITIONS
+	help
+	  This enables the driver for the NAND Flash on evaluation board based
+	  on w90p910.
 
 endif # MTD_NAND

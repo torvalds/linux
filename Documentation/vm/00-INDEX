@@ -6,6 +6,8 @@ balance
 	- various information on memory balancing.
 hugetlbpage.txt
 	- a brief summary of hugetlbpage support in the Linux kernel.
+ksm.txt
+	- how to use the Kernel Samepage Merging feature.
 locking
 	- info on how locking and synchronization is done in the Linux vm code.
 numa
@@ -20,3 +22,5 @@ slabinfo.c
 	- source code for a tool to get reports about slabs.
 slub.txt
 	- a short users guide for SLUB.
+map_hugetlb.c
+	- an example program that uses the MAP_HUGETLB mmap flag.

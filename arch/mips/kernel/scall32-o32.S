@@ -187,78 +187,6 @@ illegal_syscall:
 	j	o32_syscall_exit
 	END(handle_sys)
 
-	LEAF(mips_atomic_set)
-	andi	v0, a1, 3			# must be word aligned
-	bnez	v0, bad_alignment
-
-	lw	v1, TI_ADDR_LIMIT($28)		# in legal address range?
-	addiu	a0, a1, 4
-	or	a0, a0, a1
-	and	a0, a0, v1
-	bltz	a0, bad_address
-
-#ifdef CONFIG_CPU_HAS_LLSC
-	/* Ok, this is the ll/sc case.  World is sane :-)  */
-1:	ll	v0, (a1)
-	move	a0, a2
-2:	sc	a0, (a1)
-#if R10000_LLSC_WAR
-	beqzl	a0, 1b
-#else
-	beqz	a0, 1b
-#endif
-
-	.section __ex_table,"a"
-	PTR	1b, bad_stack
-	PTR	2b, bad_stack
-	.previous
-#else
-	sw	a1, 16(sp)
-	sw	a2, 20(sp)
-
-	move	a0, sp
-	move	a2, a1
-	li	a1, 1
-	jal	do_page_fault
-
-	lw	a1, 16(sp)
-	lw	a2, 20(sp)
-
-	/*
-	 * At this point the page should be readable and writable unless
-	 * there was no more memory available.
-	 */
-1:	lw	v0, (a1)
-2:	sw	a2, (a1)
-
-	.section __ex_table,"a"
-	PTR	1b, no_mem
-	PTR	2b, no_mem
-	.previous
-#endif
-
-	sw	zero, PT_R7(sp)		# success
-	sw	v0, PT_R2(sp)		# result
-
-	j	o32_syscall_exit	# continue like a normal syscall
-
-no_mem:	li	v0, -ENOMEM
-	jr	ra
-
-bad_address:
-	li	v0, -EFAULT
-	jr	ra
-
-bad_alignment:
-	li	v0, -EINVAL
-	jr	ra
-	END(mips_atomic_set)
-
-	LEAF(sys_sysmips)
-	beq	a0, MIPS_ATOMIC_SET, mips_atomic_set
-	j	_sys_sysmips
-	END(sys_sysmips)
-
 	LEAF(sys_syscall)
 	subu	t0, a0, __NR_O32_Linux	# check syscall number
 	sltiu	v0, t0, __NR_O32_Linux_syscalls + 1
@@ -653,7 +581,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_preadv		6	/* 4330 */
 	sys	sys_pwritev		6
 	sys	sys_rt_tgsigqueueinfo	4
-	sys	sys_perf_counter_open	5
+	sys	sys_perf_event_open	5
 	sys	sys_accept4		4
 	.endm
 

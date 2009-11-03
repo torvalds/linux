@@ -198,7 +198,7 @@ extern unsigned long size_for_memory(unsigned long max);
 
 extern int iommu_reserve(struct pci_iommu_arena *, long, long);
 extern int iommu_release(struct pci_iommu_arena *, long, long);
-extern int iommu_bind(struct pci_iommu_arena *, long, long, unsigned long *);
+extern int iommu_bind(struct pci_iommu_arena *, long, long, struct page **);
 extern int iommu_unbind(struct pci_iommu_arena *, long, long);
 
 

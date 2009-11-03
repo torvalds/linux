@@ -17,7 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/fs.h>
 #include <linux/ipc.h>
 

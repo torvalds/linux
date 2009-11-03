@@ -556,14 +556,14 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 2:
 	TRACE_AND_RESTORE_IRQ(r5);
 
-#ifdef CONFIG_PERF_COUNTERS
-	/* check paca->perf_counter_pending if we're enabling ints */
+#ifdef CONFIG_PERF_EVENTS
+	/* check paca->perf_event_pending if we're enabling ints */
 	lbz	r3,PACAPERFPEND(r13)
 	and.	r3,r3,r5
 	beq	27f
-	bl	.perf_counter_do_pending
+	bl	.perf_event_do_pending
 27:
-#endif /* CONFIG_PERF_COUNTERS */
+#endif /* CONFIG_PERF_EVENTS */
 
 	/* extract EE bit and use it to restore paca->hard_enabled */
 	ld	r3,_MSR(r1)
@@ -1038,8 +1038,7 @@ _GLOBAL(mod_return_to_handler)
 	 * We are in a module using the module's TOC.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
-	LOAD_REG_IMMEDIATE(r4,ftrace_return_to_handler)
-	ld	r2, 8(r4)
+	ld	r2, PACATOC(r13)
 
 	bl	.ftrace_return_to_handler
 	nop

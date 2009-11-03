@@ -405,6 +405,14 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		},
 	},
 	{
+	.callback = init_set_sci_en_on_resume,
+	.ident = "Hewlett-Packard HP Pavilion dv3 Notebook PC",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv3 Notebook PC"),
+		},
+	},
+	{
 	.callback = init_old_suspend_ordering,
 	.ident = "Panasonic CF51-2L",
 	.matches = {
@@ -689,19 +697,25 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
 	acpi_handle handle;
 	struct acpi_device *adev;
+	int error;
 
-	if (!device_may_wakeup(dev))
+	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(dev);
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		printk(KERN_DEBUG "ACPI handle has no context!\n");
+		dev_dbg(dev, "ACPI handle has no context in %s!\n", __func__);
 		return -ENODEV;
 	}
 
-	return enable ?
+	error = enable ?
 		acpi_enable_wakeup_device_power(adev, acpi_target_sleep_state) :
 		acpi_disable_wakeup_device_power(adev);
+	if (!error)
+		dev_info(dev, "wake-up capability %s by ACPI\n",
+				enable ? "enabled" : "disabled");
+
+	return error;
 }
 #endif
 

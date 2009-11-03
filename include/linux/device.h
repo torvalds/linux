@@ -2,7 +2,8 @@
  * device.h - generic, centralized driver model
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
- * Copyright (c) 2004-2007 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2008-2009 Novell Inc.
  *
  * This file is released under the GPLv2
  *
@@ -130,7 +131,7 @@ struct device_driver {
 	void (*shutdown) (struct device *dev);
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
-	struct attribute_group **groups;
+	const struct attribute_group **groups;
 
 	const struct dev_pm_ops *pm;
 
@@ -192,7 +193,7 @@ struct class {
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*nodename)(struct device *dev);
+	char *(*devnode)(struct device *dev, mode_t *mode);
 
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);
@@ -223,6 +224,14 @@ extern void class_unregister(struct class *class);
 	static struct lock_class_key __key;	\
 	__class_register(class, &__key);	\
 })
+
+struct class_compat;
+struct class_compat *class_compat_register(const char *name);
+void class_compat_unregister(struct class_compat *cls);
+int class_compat_create_link(struct class_compat *cls, struct device *dev,
+			     struct device *device_link);
+void class_compat_remove_link(struct class_compat *cls, struct device *dev,
+			      struct device *device_link);
 
 extern void class_dev_iter_init(struct class_dev_iter *iter,
 				struct class *class,
@@ -287,9 +296,9 @@ extern void class_destroy(struct class *cls);
  */
 struct device_type {
 	const char *name;
-	struct attribute_group **groups;
+	const struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*nodename)(struct device *dev);
+	char *(*devnode)(struct device *dev, mode_t *mode);
 	void (*release)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
@@ -381,7 +390,6 @@ struct device {
 	struct bus_type	*bus;		/* type of bus device is on */
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
-	void		*driver_data;	/* data private to the driver */
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
 	struct dev_pm_info	power;
@@ -412,7 +420,7 @@ struct device {
 
 	struct klist_node	knode_class;
 	struct class		*class;
-	struct attribute_group	**groups;	/* optional groups */
+	const struct attribute_group **groups;	/* optional groups */
 
 	void	(*release)(struct device *dev);
 };
@@ -447,16 +455,6 @@ static inline void set_dev_node(struct device *dev, int node)
 }
 #endif
 
-static inline void *dev_get_drvdata(const struct device *dev)
-{
-	return dev->driver_data;
-}
-
-static inline void dev_set_drvdata(struct device *dev, void *data)
-{
-	dev->driver_data = data;
-}
-
 static inline unsigned int dev_get_uevent_suppress(const struct device *dev)
 {
 	return dev->kobj.uevent_suppress;
@@ -489,7 +487,10 @@ extern struct device *device_find_child(struct device *dev, void *data,
 extern int device_rename(struct device *dev, char *new_name);
 extern int device_move(struct device *dev, struct device *new_parent,
 		       enum dpm_order dpm_order);
-extern const char *device_get_nodename(struct device *dev, const char **tmp);
+extern const char *device_get_devnode(struct device *dev,
+				      mode_t *mode, const char **tmp);
+extern void *dev_get_drvdata(const struct device *dev);
+extern void dev_set_drvdata(struct device *dev, void *data);
 
 /*
  * Root device objects for grouping under /sys/devices
@@ -501,6 +502,11 @@ static inline struct device *root_device_register(const char *name)
 	return __root_device_register(name, THIS_MODULE);
 }
 extern void root_device_unregister(struct device *root);
+
+static inline void *dev_get_platdata(const struct device *dev)
+{
+	return dev->platform_data;
+}
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c
@@ -546,6 +552,16 @@ extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
 
 extern void wait_for_device_probe(void);
+
+#ifdef CONFIG_DEVTMPFS
+extern int devtmpfs_create_node(struct device *dev);
+extern int devtmpfs_delete_node(struct device *dev);
+extern int devtmpfs_mount(const char *mountpoint);
+#else
+static inline int devtmpfs_create_node(struct device *dev) { return 0; }
+static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
+static inline int devtmpfs_mount(const char *mountpoint) { return 0; }
+#endif
 
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);

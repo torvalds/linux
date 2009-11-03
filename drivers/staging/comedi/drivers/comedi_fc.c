@@ -42,8 +42,8 @@ static void increment_scan_progress(struct comedi_subdevice *subd,
 }
 
 /* Writes an array of data points to comedi's buffer */
-unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data,
-				       unsigned int num_bytes)
+unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
+				       void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = subd->async;
 	unsigned int retval;
@@ -65,10 +65,11 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd, void *data
 
 	return num_bytes;
 }
+
 EXPORT_SYMBOL(cfc_write_array_to_buffer);
 
-unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd, void *data,
-					unsigned int num_bytes)
+unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
+					void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = subd->async;
 
@@ -83,9 +84,11 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd, void *dat
 
 	return num_bytes;
 }
+
 EXPORT_SYMBOL(cfc_read_array_from_buffer);
 
-unsigned int cfc_handle_events(struct comedi_device *dev, struct comedi_subdevice *subd)
+unsigned int cfc_handle_events(struct comedi_device *dev,
+			       struct comedi_subdevice *subd)
 {
 	unsigned int events = subd->async->events;
 
@@ -99,6 +102,7 @@ unsigned int cfc_handle_events(struct comedi_device *dev, struct comedi_subdevic
 
 	return events;
 }
+
 EXPORT_SYMBOL(cfc_handle_events);
 
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");

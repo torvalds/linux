@@ -903,7 +903,7 @@ static struct attribute_group disk_attr_group = {
 	.attrs = disk_attrs,
 };
 
-static struct attribute_group *disk_attr_groups[] = {
+static const struct attribute_group *disk_attr_groups[] = {
 	&disk_attr_group,
 	NULL
 };
@@ -998,12 +998,12 @@ struct class block_class = {
 	.name		= "block",
 };
 
-static char *block_nodename(struct device *dev)
+static char *block_devnode(struct device *dev, mode_t *mode)
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	if (disk->nodename)
-		return disk->nodename(disk);
+	if (disk->devnode)
+		return disk->devnode(disk, mode);
 	return NULL;
 }
 
@@ -1011,7 +1011,7 @@ static struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
-	.nodename	= block_nodename,
+	.devnode	= block_devnode,
 };
 
 #ifdef CONFIG_PROC_FS

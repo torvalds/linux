@@ -18,7 +18,7 @@
 cpumask_t mt_fpu_cpumask;
 
 static int fpaff_threshold = -1;
-unsigned long mt_fpemul_threshold = 0;
+unsigned long mt_fpemul_threshold;
 
 /*
  * Replacement functions for the sys_sched_setaffinity() and

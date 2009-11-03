@@ -44,6 +44,9 @@ static int raid0_congested(void *data, int bits)
 	mdk_rdev_t **devlist = conf->devlist;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
 
@@ -86,7 +89,7 @@ static void dump_zones(mddev_t *mddev)
 
 static int create_strip_zones(mddev_t *mddev)
 {
-	int i, c, j, err;
+	int i, c, err;
 	sector_t curr_zone_end, sectors;
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev, **dev;
 	struct strip_zone *zone;
@@ -198,6 +201,8 @@ static int create_strip_zones(mddev_t *mddev)
 	/* now do the other zones */
 	for (i = 1; i < conf->nr_strip_zones; i++)
 	{
+		int j;
+
 		zone = conf->strip_zone + i;
 		dev = conf->devlist + i * mddev->raid_disks;
 
@@ -207,7 +212,6 @@ static int create_strip_zones(mddev_t *mddev)
 		c = 0;
 
 		for (j=0; j<cnt; j++) {
-			char b[BDEVNAME_SIZE];
 			rdev = conf->devlist[j];
 			printk(KERN_INFO "raid0: checking %s ...",
 				bdevname(rdev->bdev, b));

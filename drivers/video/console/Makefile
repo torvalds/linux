@@ -22,7 +22,6 @@ font-objs += $(font-objs-y)
 
 obj-$(CONFIG_DUMMY_CONSOLE)       += dummycon.o
 obj-$(CONFIG_SGI_NEWPORT_CONSOLE) += newport_con.o font.o
-obj-$(CONFIG_PROM_CONSOLE)        += promcon.o promcon_tbl.o
 obj-$(CONFIG_STI_CONSOLE)         += sticon.o sticore.o font.o
 obj-$(CONFIG_VGA_CONSOLE)         += vgacon.o
 obj-$(CONFIG_MDA_CONSOLE)         += mdacon.o
@@ -40,14 +39,3 @@ obj-$(CONFIG_FB_STI)              += sticore.o font.o
 ifeq ($(CONFIG_USB_SISUSBVGA_CON),y)
 obj-$(CONFIG_USB_SISUSBVGA)           += font.o
 endif
-
-# Targets that kbuild needs to know about
-targets := promcon_tbl.c
-
-quiet_cmd_conmakehash = CNMKHSH $@
-      cmd_conmakehash = scripts/conmakehash $< | \
-		sed -e '/\#include <[^>]*>/p' -e 's/types/init/' \
-		-e 's/dfont\(_uni.*\]\)/promfont\1 /' > $@
-
-$(obj)/promcon_tbl.c: $(src)/prom.uni
-	$(call cmd,conmakehash)

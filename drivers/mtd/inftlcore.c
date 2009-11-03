@@ -550,7 +550,7 @@ hitused:
 			 * waiting to be picked up. We're going to have to fold
 			 * a chain to make room.
 			 */
-			thisEUN = INFTL_makefreeblock(inftl, BLOCK_NIL);
+			thisEUN = INFTL_makefreeblock(inftl, block);
 
 			/*
 			 * Hopefully we free something, lets try again.

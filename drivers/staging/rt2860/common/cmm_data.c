@@ -252,114 +252,6 @@ NDIS_STATUS MiniportMMRequestUnlock(
 	return Status;
 }
 #endif
-#ifdef RT30xx
-NDIS_STATUS MlmeDataHardTransmit(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	QueIdx,
-	IN	PNDIS_PACKET	pPacket);
-
-#define MAX_DATAMM_RETRY	3
-/*
-	========================================================================
-
-	Routine Description:
-		API for MLME to transmit management frame to AP (BSS Mode)
-	or station (IBSS Mode)
-
-	Arguments:
-		pAd Pointer to our adapter
-		pData		Pointer to the outgoing 802.11 frame
-		Length		Size of outgoing management frame
-
-	Return Value:
-		NDIS_STATUS_FAILURE
-		NDIS_STATUS_PENDING
-		NDIS_STATUS_SUCCESS
-
-	IRQL = PASSIVE_LEVEL
-	IRQL = DISPATCH_LEVEL
-
-	Note:
-
-	========================================================================
-*/
-NDIS_STATUS MiniportDataMMRequest(
-							 IN  PRTMP_ADAPTER   pAd,
-							 IN  UCHAR           QueIdx,
-							 IN  PUCHAR          pData,
-							 IN  UINT            Length)
-{
-	PNDIS_PACKET    pPacket;
-	NDIS_STATUS  Status = NDIS_STATUS_SUCCESS;
-	ULONG    FreeNum;
-	int 	retry = 0;
-	UCHAR           IrqState;
-	UCHAR			rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE]; //RTMP_HW_HDR_LEN];
-
-	ASSERT(Length <= MGMT_DMA_BUFFER_SIZE);
-
-	// 2860C use Tx Ring
-	IrqState = pAd->irq_disabled;
-
-	do
-	{
-		// Reset is in progress, stop immediately
-		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
-			 RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST)||
-			!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_START_UP))
-		{
-			Status = NDIS_STATUS_FAILURE;
-			break;
-		}
-
-		// Check Free priority queue
-		// Since we use PBF Queue2 for management frame.  Its corresponding DMA ring should be using TxRing.
-
-		// 2860C use Tx Ring
-
-		// free Tx(QueIdx) resources
-		FreeNum = GET_TXRING_FREENO(pAd, QueIdx);
-
-		if ((FreeNum > 0))
-		{
-			// We need to reserve space for rtmp hardware header. i.e., TxWI for RT2860 and TxInfo+TxWI for RT2870
-			NdisZeroMemory(&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE));
-			Status = RTMPAllocateNdisPacket(pAd, &pPacket, (PUCHAR)&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE), pData, Length);
-			if (Status != NDIS_STATUS_SUCCESS)
-			{
-				DBGPRINT(RT_DEBUG_WARN, ("MiniportMMRequest (error:: can't allocate NDIS PACKET)\n"));
-				break;
-			}
-
-			//pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK;
-			//pAd->CommonCfg.MlmeRate = RATE_2;
-
-
-			Status = MlmeDataHardTransmit(pAd, QueIdx, pPacket);
-			if (Status != NDIS_STATUS_SUCCESS)
-				RTMPFreeNdisPacket(pAd, pPacket);
-			retry = MAX_DATAMM_RETRY;
-		}
-		else
-		{
-			retry ++;
-
-			printk("retry %d\n", retry);
-			pAd->RalinkCounters.MgmtRingFullCount++;
-
-			if (retry >= MAX_DATAMM_RETRY)
-			{
-				DBGPRINT(RT_DEBUG_ERROR, ("Qidx(%d), not enough space in DataRing, MgmtRingFullCount=%ld!\n",
-											QueIdx, pAd->RalinkCounters.MgmtRingFullCount));
-			}
-		}
-
-	} while (retry < MAX_DATAMM_RETRY);
-
-
-	return Status;
-}
-#endif /* RT30xx */
 
 /*
 	========================================================================
@@ -587,24 +479,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	return NDIS_STATUS_SUCCESS;
 }
 #endif /* RT2860 */
-
-#ifdef RT30xx
-NDIS_STATUS MlmeDataHardTransmit(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	QueIdx,
-	IN	PNDIS_PACKET	pPacket)
-{
-	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
-		)
-	{
-		return NDIS_STATUS_FAILURE;
-	}
-
-#ifdef RT2870
-	return MlmeHardTransmitMgmtRing(pAd,QueIdx,pPacket);
-#endif // RT2870 //
-}
-#endif /* RT30xx */
 
 NDIS_STATUS MlmeHardTransmitMgmtRing(
 	IN	PRTMP_ADAPTER	pAd,
@@ -1013,11 +887,6 @@ BOOLEAN RTMP_FillTxBlkInfo(
 	}
 
 	return TRUE;
-
-#ifdef RT30xx
-FillTxBlkErr:
-	return FALSE;
-#endif
 }
 
 
@@ -1096,10 +965,6 @@ VOID RTMPDeQueuePacket(
 	TX_BLK			TxBlk;
 	TX_BLK			*pTxBlk;
 
-#ifdef DBG_DIAGNOSE
-	BOOLEAN			firstRound;
-	RtmpDiagStruct	*pDiagStruct = &pAd->DiagStruct;
-#endif
 
 
 	if (QIdx == NUM_OF_TX_RING)
@@ -1119,9 +984,6 @@ VOID RTMPDeQueuePacket(
 
 		RT28XX_START_DEQUEUE(pAd, QueIdx, IrqFlags);
 
-#ifdef DBG_DIAGNOSE
-		firstRound = ((QueIdx == 0) ? TRUE : FALSE);
-#endif // DBG_DIAGNOSE //
 
 		while (1)
 		{
@@ -1141,31 +1003,12 @@ VOID RTMPDeQueuePacket(
 			DEQUEUE_LOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 			if (&pAd->TxSwQueue[QueIdx] == NULL)
 			{
-#ifdef DBG_DIAGNOSE
-				if (firstRound == TRUE)
-					pDiagStruct->TxSWQueCnt[pDiagStruct->ArrayCurIdx][0]++;
-#endif // DBG_DIAGNOSE //
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 				break;
 			}
 #ifdef RT2860
 			FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 
-#ifdef DBG_DIAGNOSE
-			if (firstRound == TRUE)
-			{
-				UCHAR	txDescNumLevel, txSwQNumLevel;
-
-				txDescNumLevel = (TX_RING_SIZE - FreeNumber[QueIdx]); // Number of occupied hw desc.
-				txDescNumLevel = ((txDescNumLevel <=15) ? txDescNumLevel : 15);
-				pDiagStruct->TxDescCnt[pDiagStruct->ArrayCurIdx][txDescNumLevel]++;
-
-				txSwQNumLevel = ((pAd->TxSwQueue[QueIdx].Number <=7) ? pAd->TxSwQueue[QueIdx].Number : 8);
-				pDiagStruct->TxSWQueCnt[pDiagStruct->ArrayCurIdx][txSwQNumLevel]++;
-
-				firstRound = FALSE;
-			}
-#endif // DBG_DIAGNOSE //
 
 			if (FreeNumber[QueIdx] <= 5)
 			{
@@ -1533,13 +1376,6 @@ VOID RTMPWriteTxWI_Data(
 		}
 	}
 
-#ifdef DBG_DIAGNOSE
-		if (pTxBlk->QueIdx== 0)
-		{
-			pAd->DiagStruct.TxDataCnt[pAd->DiagStruct.ArrayCurIdx]++;
-			pAd->DiagStruct.TxMcsCnt[pAd->DiagStruct.ArrayCurIdx][pTxWI->MCS]++;
-		}
-#endif // DBG_DIAGNOSE //
 
 	// for rate adapation
 	pTxWI->PacketId = pTxWI->MCS;
@@ -1598,13 +1434,6 @@ VOID RTMPWriteTxWI_Cache(
 		}
 	}
 
-#ifdef DBG_DIAGNOSE
-	if (pTxBlk->QueIdx== 0)
-	{
-		pAd->DiagStruct.TxDataCnt[pAd->DiagStruct.ArrayCurIdx]++;
-		pAd->DiagStruct.TxMcsCnt[pAd->DiagStruct.ArrayCurIdx][pTxWI->MCS]++;
-	}
-#endif // DBG_DIAGNOSE //
 
 	pTxWI->MPDUtotalByteCount = pTxBlk->MpduHeaderLen + pTxBlk->SrcBufLen;
 
@@ -2062,119 +1891,6 @@ VOID	RTMPHandleRxCoherentInterrupt(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<== RTMPHandleRxCoherentInterrupt \n"));
 }
-
-
-VOID DBGPRINT_TX_RING(
-	IN PRTMP_ADAPTER  pAd,
-	IN UCHAR          QueIdx)
-{
-	UINT32		Ac0Base;
-	UINT32		Ac0HwIdx = 0, Ac0SwIdx = 0, AC0freeIdx;
-	int			i;
-	PULONG	ptemp;
-
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("=====================================================\n "  ));
-	switch (QueIdx)
-	{
-		case QID_AC_BE:
-			RTMP_IO_READ32(pAd, TX_BASE_PTR0, &Ac0Base);
-			RTMP_IO_READ32(pAd, TX_CTX_IDX0, &Ac0SwIdx);
-			RTMP_IO_READ32(pAd, TX_DTX_IDX0, &Ac0HwIdx);
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("All QID_AC_BE DESCRIPTOR  \n "  ));
-			for (i=0;i<TX_RING_SIZE;i++)
-			{
-				ptemp= (PULONG)pAd->TxRing[QID_AC_BE].Cell[i].AllocVa;
-				DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08lx: %08lx: %08lx: %08lx\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-			}
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("  \n "  ));
-			break;
-		case QID_AC_BK:
-			RTMP_IO_READ32(pAd, TX_BASE_PTR1, &Ac0Base);
-			RTMP_IO_READ32(pAd, TX_CTX_IDX1, &Ac0SwIdx);
-			RTMP_IO_READ32(pAd, TX_DTX_IDX1, &Ac0HwIdx);
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("All QID_AC_BK DESCRIPTOR  \n "  ));
-			for (i=0;i<TX_RING_SIZE;i++)
-			{
-				ptemp= (PULONG)pAd->TxRing[QID_AC_BK].Cell[i].AllocVa;
-				DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08lx: %08lx: %08lx: %08lx\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-			}
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("  \n "  ));
-			break;
-		case QID_AC_VI:
-			RTMP_IO_READ32(pAd, TX_BASE_PTR2, &Ac0Base);
-			RTMP_IO_READ32(pAd, TX_CTX_IDX2, &Ac0SwIdx);
-			RTMP_IO_READ32(pAd, TX_DTX_IDX2, &Ac0HwIdx);
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("All QID_AC_VI DESCRIPTOR \n "  ));
-			for (i=0;i<TX_RING_SIZE;i++)
-			{
-				ptemp= (PULONG)pAd->TxRing[QID_AC_VI].Cell[i].AllocVa;
-				DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08lx: %08lx: %08lx: %08lx\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-			}
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("  \n "  ));
-			break;
-		case QID_AC_VO:
-			RTMP_IO_READ32(pAd, TX_BASE_PTR3, &Ac0Base);
-			RTMP_IO_READ32(pAd, TX_CTX_IDX3, &Ac0SwIdx);
-			RTMP_IO_READ32(pAd, TX_DTX_IDX3, &Ac0HwIdx);
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("All QID_AC_VO DESCRIPTOR \n "  ));
-			for (i=0;i<TX_RING_SIZE;i++)
-			{
-				ptemp= (PULONG)pAd->TxRing[QID_AC_VO].Cell[i].AllocVa;
-				DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08lx: %08lx: %08lx: %08lx\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-			}
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("  \n "  ));
-			break;
-		case QID_MGMT:
-			RTMP_IO_READ32(pAd, TX_BASE_PTR5, &Ac0Base);
-			RTMP_IO_READ32(pAd, TX_CTX_IDX5, &Ac0SwIdx);
-			RTMP_IO_READ32(pAd, TX_DTX_IDX5, &Ac0HwIdx);
-			DBGPRINT_RAW(RT_DEBUG_TRACE, (" All QID_MGMT  DESCRIPTOR \n "  ));
-			for (i=0;i<MGMT_RING_SIZE;i++)
-			{
-				ptemp= (PULONG)pAd->MgmtRing.Cell[i].AllocVa;
-				DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08lx: %08lx: %08lx: %08lx\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-			}
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("  \n "  ));
-			break;
-
-		default:
-			DBGPRINT_ERR(("DBGPRINT_TX_RING(Ring %d) not supported\n", QueIdx));
-			break;
-	}
-	AC0freeIdx = pAd->TxRing[QueIdx].TxSwFreeIdx;
-
-	DBGPRINT(RT_DEBUG_TRACE,("TxRing%d, TX_DTX_IDX=%d, TX_CTX_IDX=%d\n", QueIdx, Ac0HwIdx, Ac0SwIdx));
-	DBGPRINT_RAW(RT_DEBUG_TRACE,(" 	TxSwFreeIdx[%d]", AC0freeIdx));
-	DBGPRINT_RAW(RT_DEBUG_TRACE,("	pending-NDIS=%ld\n", pAd->RalinkCounters.PendingNdisPacketCount));
-
-
-}
-
-
-VOID DBGPRINT_RX_RING(
-	IN PRTMP_ADAPTER  pAd)
-{
-	UINT32		Ac0Base;
-	UINT32		Ac0HwIdx = 0, Ac0SwIdx = 0, AC0freeIdx;
-	int			i;
-	UINT32	*ptemp;
-
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("=====================================================\n "  ));
-	RTMP_IO_READ32(pAd, RX_BASE_PTR, &Ac0Base);
-	RTMP_IO_READ32(pAd, RX_CRX_IDX, &Ac0SwIdx);
-	RTMP_IO_READ32(pAd, RX_DRX_IDX, &Ac0HwIdx);
-	AC0freeIdx = pAd->RxRing.RxSwReadIdx;
-
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("All RX DSP  \n "  ));
-	for (i=0;i<RX_RING_SIZE;i++)
-	{
-		ptemp = (UINT32 *)pAd->RxRing.Cell[i].AllocVa;
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("[%02d]  %08x: %08x: %08x: %08x\n " , i, *ptemp,*(ptemp+1),*(ptemp+2),*(ptemp+3)));
-	}
-	DBGPRINT(RT_DEBUG_TRACE,("RxRing, RX_DRX_IDX=%d, RX_CRX_IDX=%d \n", Ac0HwIdx, Ac0SwIdx));
-	DBGPRINT_RAW(RT_DEBUG_TRACE,(" 	RxSwReadIdx [%d]=", AC0freeIdx));
-	DBGPRINT_RAW(RT_DEBUG_TRACE,("	pending-NDIS=%ld\n", pAd->RalinkCounters.PendingNdisPacketCount));
-}
 #endif /* RT2860 */
 
 /*
@@ -2235,7 +1951,6 @@ VOID RTMPResumeMsduTransmission(
 {
 	DBGPRINT(RT_DEBUG_TRACE,("SCAN done, resume MSDU transmission ...\n"));
 
-#ifdef RT30xx
 	// After finish BSS_SCAN_IN_PROGRESS, we need to restore Current R66 value
 	// R66 should not be 0
 	if (pAd->BbpTuning.R66CurrentValue == 0)
@@ -2243,7 +1958,7 @@ VOID RTMPResumeMsduTransmission(
 		pAd->BbpTuning.R66CurrentValue = 0x38;
 		DBGPRINT_ERR(("RTMPResumeMsduTransmission, R66CurrentValue=0...\n"));
 	}
-#endif
+
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, pAd->BbpTuning.R66CurrentValue);
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
@@ -2296,6 +2011,8 @@ UINT deaggregate_AMSDU_announce(
 		{
 		    // avoid local heap overflow, use dyanamic allocation
 		   MLME_QUEUE_ELEM *Elem = (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM), MEM_ALLOC_FLAG);
+		   if (Elem == NULL)
+			return;
 		   memmove(Elem->Msg+(LENGTH_802_11 + LENGTH_802_1_H), pPayload, PayloadSize);
 		   Elem->MsgLen = LENGTH_802_11 + LENGTH_802_1_H + PayloadSize;
 		   WpaEAPOLKeyAction(pAd, Elem);
@@ -2617,11 +2334,12 @@ BOOLEAN MacTableDeleteEntry(
 	if (pAd->MacTab.Size == 0)
 	{
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
-#ifndef RT30xx
+#ifdef RT2860
 		AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
-#endif
-#ifdef RT30xx
-		RT28XX_UPDATE_PROTECT(pAd);  // edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+#else
+		// edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+		// Set MAC register value according operation mode
+		RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_UPDATE_PROTECT, NULL, 0);
 #endif
 	}
 

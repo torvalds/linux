@@ -341,6 +341,15 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 }
 #endif /* CONFIG_TOSHIBA_FPCIB0 */
 
+static void tc35815_fixup(struct pci_dev *dev)
+{
+	/* This device may have PM registers but not they are not suported. */
+	if (dev->pm_cap) {
+		dev_info(&dev->dev, "PM disabled\n");
+		dev->pm_cap = 0;
+	}
+}
+
 static void final_fixup(struct pci_dev *dev)
 {
 	unsigned char bist;
@@ -374,6 +383,10 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1,
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1,
 	quirk_slc90e66_ide);
 #endif
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TOSHIBA_2,
+			PCI_DEVICE_ID_TOSHIBA_TC35815_NWU, tc35815_fixup);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TOSHIBA_2,
+			PCI_DEVICE_ID_TOSHIBA_TC35815_TX4939, tc35815_fixup);
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, final_fixup);
 DECLARE_PCI_FIXUP_RESUME(PCI_ANY_ID, PCI_ANY_ID, final_fixup);
 

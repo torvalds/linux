@@ -80,7 +80,7 @@ static unsigned long open_lock;
 static DEFINE_SPINLOCK(wdtpci_lock);
 static char expect_close;
 
-static int io;
+static resource_size_t io;
 static int irq;
 
 /* Default timeout */
@@ -647,13 +647,14 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 		goto out_pci;
 	}
 
-	irq = dev->irq;
-	io = pci_resource_start(dev, 2);
-
-	if (request_region(io, 16, "wdt_pci") == NULL) {
-		printk(KERN_ERR PFX "I/O address 0x%04x already in use\n", io);
+	if (pci_request_region(dev, 2, "wdt_pci")) {
+		printk(KERN_ERR PFX "I/O address 0x%llx already in use\n",
+			(unsigned long long)pci_resource_start(dev, 2));
 		goto out_pci;
 	}
+
+	irq = dev->irq;
+	io = pci_resource_start(dev, 2);
 
 	if (request_irq(irq, wdtpci_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			 "wdt_pci", &wdtpci_miscdev)) {
@@ -662,8 +663,8 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 	}
 
 	printk(KERN_INFO
-	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%04x (Interrupt %d)\n",
-								io, irq);
+	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%llx (Interrupt %d)\n",
+					(unsigned long long)io, irq);
 
 	/* Check that the heartbeat value is within its range;
 	   if not reset to the default */
@@ -717,7 +718,7 @@ out_rbt:
 out_irq:
 	free_irq(irq, &wdtpci_miscdev);
 out_reg:
-	release_region(io, 16);
+	pci_release_region(dev, 2);
 out_pci:
 	pci_disable_device(dev);
 	goto out;
@@ -733,7 +734,7 @@ static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
 		misc_deregister(&temp_miscdev);
 	unregister_reboot_notifier(&wdtpci_notifier);
 	free_irq(irq, &wdtpci_miscdev);
-	release_region(io, 16);
+	pci_release_region(pdev, 2);
 	pci_disable_device(pdev);
 	dev_count--;
 }

@@ -52,3 +52,4 @@ void pxa2xx_transceiver_mode(struct device *dev, int mode)
 	} else
 		BUG();
 }
+EXPORT_SYMBOL_GPL(pxa2xx_transceiver_mode);

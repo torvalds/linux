@@ -561,13 +561,11 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		DEREF_REG_PR = (unsigned long) ka->sa.sa_restorer | 0x1;
-
 		/*
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			ka->sa.sa_restorer | 0x1);
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -580,9 +578,8 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		 * . being code, linker turns ShMedia bit on, always
 		 *   dereference index -1.
 		 */
-		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			frame->retcode | 0x01);
 
 		if (__copy_to_user(frame->retcode,
 			(void *)((unsigned long)sa_default_restorer & (~1)), 16) != 0)
@@ -596,9 +593,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	 * Set up registers for signal handler.
 	 * All edited pointers are subject to NEFF.
 	 */
-	regs->regs[REG_SP] = (unsigned long) frame;
-	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+	regs->regs[REG_SP] = neff_sign_extend((unsigned long)frame);
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 
         /* FIXME:
@@ -613,8 +608,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->sc;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->sc;
 
-	regs->pc = (unsigned long) ka->sa.sa_handler;
-	regs->pc = (regs->pc & NEFF_SIGN) ? (regs->pc | NEFF_MASK) : regs->pc;
+	regs->pc = neff_sign_extend((unsigned long)ka->sa.sa_handler);
 
 	set_fs(USER_DS);
 
@@ -676,13 +670,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		DEREF_REG_PR = (unsigned long) ka->sa.sa_restorer | 0x1;
-
 		/*
 		 * On SH5 all edited pointers are subject to NEFF
 		 */
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			ka->sa.sa_restorer | 0x1);
 	} else {
 		/*
 		 * Different approach on SH5.
@@ -695,15 +687,14 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		 * . being code, linker turns ShMedia bit on, always
 		 *   dereference index -1.
 		 */
-
-		DEREF_REG_PR = (unsigned long) frame->retcode | 0x01;
-		DEREF_REG_PR = (DEREF_REG_PR & NEFF_SIGN) ?
-			(DEREF_REG_PR | NEFF_MASK) : DEREF_REG_PR;
+		DEREF_REG_PR = neff_sign_extend((unsigned long)
+			frame->retcode | 0x01);
 
 		if (__copy_to_user(frame->retcode,
 			(void *)((unsigned long)sa_default_rt_restorer & (~1)), 16) != 0)
 			goto give_sigsegv;
 
+		/* Cohere the trampoline with the I-cache. */
 		flush_icache_range(DEREF_REG_PR-1, DEREF_REG_PR-1+15);
 	}
 
@@ -711,14 +702,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Set up registers for signal handler.
 	 * All edited pointers are subject to NEFF.
 	 */
-	regs->regs[REG_SP] = (unsigned long) frame;
-	regs->regs[REG_SP] = (regs->regs[REG_SP] & NEFF_SIGN) ?
-		 (regs->regs[REG_SP] | NEFF_MASK) : regs->regs[REG_SP];
+	regs->regs[REG_SP] = neff_sign_extend((unsigned long)frame);
 	regs->regs[REG_ARG1] = signal; /* Arg for signal handler */
 	regs->regs[REG_ARG2] = (unsigned long long)(unsigned long)(signed long)&frame->info;
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->uc.uc_mcontext;
-	regs->pc = (unsigned long) ka->sa.sa_handler;
-	regs->pc = (regs->pc & NEFF_SIGN) ? (regs->pc | NEFF_MASK) : regs->pc;
+	regs->pc = neff_sign_extend((unsigned long)ka->sa.sa_handler);
 
 	set_fs(USER_DS);
 

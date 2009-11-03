@@ -1,7 +1,6 @@
 menuconfig UIO
 	tristate "Userspace I/O drivers"
 	depends on !S390
-	default n
 	help
 	  Enable this to allow the userspace driver core code to be
 	  built.  This code allows userspace programs easy access to
@@ -16,7 +15,6 @@ if UIO
 config UIO_CIF
 	tristate "generic Hilscher CIF Card driver"
 	depends on PCI
-	default n
 	help
 	  Driver for Hilscher CIF DeviceNet and Profibus cards.  This
 	  driver requires a userspace component that handles all of the
@@ -48,7 +46,6 @@ config UIO_PDRV_GENIRQ
 
 config UIO_SMX
 	tristate "SMX cryptengine UIO interface"
-	default n
 	help
 	  Userspace IO interface to the Cryptography engine found on the
 	  Nias Digital SMX boards.  These will be available from Q4 2008
@@ -61,7 +58,6 @@ config UIO_SMX
 config UIO_AEC
 	tristate "AEC video timestamp device"
 	depends on PCI
-	default n
 	help
 
 	  UIO driver for the Adrienne Electronics Corporation PCI time
@@ -78,7 +74,6 @@ config UIO_AEC
 
 config UIO_SERCOS3
 	tristate "Automata Sercos III PCI card driver"
-	default n
 	help
 	  Userspace I/O interface for the Sercos III PCI card from
 	  Automata GmbH. The userspace part of this driver will be
@@ -88,5 +83,15 @@ config UIO_SERCOS3
 	  Sercos III interface: http://www.sercos.com
 
 	  If you compile this as a module, it will be called uio_sercos3.
+
+config UIO_PCI_GENERIC
+	tristate "Generic driver for PCI 2.3 and PCI Express cards"
+	depends on PCI
+	default n
+	help
+	  Generic driver that you can bind, dynamically, to any
+	  PCI 2.3 compliant and PCI Express card. It is useful,
+	  primarily, for virtualization scenarios.
+	  If you compile this as a module, it will be called uio_pci_generic.
 
 endif

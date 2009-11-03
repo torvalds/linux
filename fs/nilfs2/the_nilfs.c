@@ -591,9 +591,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 
 	nilfs->ns_mount_state = le16_to_cpu(sbp->s_state);
 
-	bdi = nilfs->ns_bdev->bd_inode_backing_dev_info;
-	if (!bdi)
-		bdi = nilfs->ns_bdev->bd_inode->i_mapping->backing_dev_info;
+	bdi = nilfs->ns_bdev->bd_inode->i_mapping->backing_dev_info;
 	nilfs->ns_bdi = bdi ? : &default_backing_dev_info;
 
 	/* Finding last segment */

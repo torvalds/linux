@@ -31,34 +31,13 @@
  *
  */
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__IEEE11h_H__)
 #include "IEEE11h.h"
-#endif
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -120,13 +99,13 @@ typedef struct _WLAN_FRAME_TPCREP {
 /*---------------------  Static Functions  --------------------------*/
 static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq, UINT uLength)
 {
-    UINT    uNumOfEIDs = 0;
+    size_t    uNumOfEIDs = 0;
     BOOL    bResult = TRUE;
 
     if (uLength <= WLAN_A3FR_MAXLEN) {
-        MEMvCopy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
+        memcpy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
     }
-    uNumOfEIDs = ((uLength - OFFSET(WLAN_FRAME_MSRREQ, sMSRReqEIDs))/ (sizeof(WLAN_IE_MEASURE_REQ)));
+    uNumOfEIDs = ((uLength - offsetof(WLAN_FRAME_MSRREQ, sMSRReqEIDs))/ (sizeof(WLAN_IE_MEASURE_REQ)));
     pMgmt->pCurrMeasureEIDRep = &(((PWLAN_FRAME_MSRREP) (pMgmt->abyCurrentMSRRep))->sMSRRepEIDs[0]);
     pMgmt->uLengthOfRepEIDs = 0;
     bResult = CARDbStartMeasure(pMgmt->pAdapter,
@@ -153,9 +132,9 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, BYTE byR
                                     WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_ACTION)
                                 );
 
-    MEMvCopy( pFrame->Header.abyAddr1, pTPCReq->Header.abyAddr2, WLAN_ADDR_LEN);
-    MEMvCopy( pFrame->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
-    MEMvCopy( pFrame->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
+    memcpy( pFrame->Header.abyAddr1, pTPCReq->Header.abyAddr2, WLAN_ADDR_LEN);
+    memcpy( pFrame->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
+    memcpy( pFrame->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
     pFrame->byCategory = 0;
     pFrame->byAction = 3;
@@ -271,11 +250,11 @@ IEEE11hbMgrRxAction (
                 }
                 break;
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Action = %d\n", pAction->byAction);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Action = %d\n", pAction->byAction);
                 break;
         }
     } else {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Category = %d\n", pAction->byCategory);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Category = %d\n", pAction->byCategory);
         pAction->byCategory |= 0x80;
 
        //return (CARDbSendPacket(pMgmt->pAdapter, pAction, PKT_TYPE_802_11_MNG, uLength));
@@ -291,7 +270,7 @@ BOOL IEEE11hbMSRRepTx (
 {
     PSMgmtObject            pMgmt = (PSMgmtObject) pMgmtHandle;
     PWLAN_FRAME_MSRREP      pMSRRep = (PWLAN_FRAME_MSRREP) (pMgmt->abyCurrentMSRRep + sizeof(STxMgmtPacket));
-    UINT                    uLength = 0;
+    size_t                    uLength = 0;
     PSTxMgmtPacket          pTxPacket = NULL;
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->abyCurrentMSRRep;
@@ -303,15 +282,15 @@ BOOL IEEE11hbMSRRepTx (
                                     WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_ACTION)
                                 );
 
-    MEMvCopy( pMSRRep->Header.abyAddr1, ((PWLAN_FRAME_MSRREQ) (pMgmt->abyCurrentMSRReq))->Header.abyAddr2, WLAN_ADDR_LEN);
-    MEMvCopy( pMSRRep->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
-    MEMvCopy( pMSRRep->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
+    memcpy( pMSRRep->Header.abyAddr1, ((PWLAN_FRAME_MSRREQ) (pMgmt->abyCurrentMSRReq))->Header.abyAddr2, WLAN_ADDR_LEN);
+    memcpy( pMSRRep->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
+    memcpy( pMSRRep->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
     pMSRRep->byCategory = 0;
     pMSRRep->byAction = 1;
     pMSRRep->byDialogToken = ((PWLAN_FRAME_MSRREQ) (pMgmt->abyCurrentMSRReq))->byDialogToken;
 
-    uLength = pMgmt->uLengthOfRepEIDs + OFFSET(WLAN_FRAME_MSRREP, sMSRRepEIDs);
+    uLength = pMgmt->uLengthOfRepEIDs + offsetof(WLAN_FRAME_MSRREP, sMSRRepEIDs);
 
     pTxPacket->cbMPDULen = uLength;
     pTxPacket->cbPayloadLen = uLength - WLAN_HDR_ADDR3_LEN;

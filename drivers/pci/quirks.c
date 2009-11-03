@@ -31,8 +31,6 @@ int isa_dma_bridge_buggy;
 EXPORT_SYMBOL(isa_dma_bridge_buggy);
 int pci_pci_problems;
 EXPORT_SYMBOL(pci_pci_problems);
-int pcie_mch_quirk;
-EXPORT_SYMBOL(pcie_mch_quirk);
 
 #ifdef CONFIG_PCI_QUIRKS
 /*
@@ -672,6 +670,25 @@ static void __devinit quirk_vt8235_acpi(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,	quirk_vt8235_acpi);
 
+/*
+ * TI XIO2000a PCIe-PCI Bridge erroneously reports it supports fast back-to-back:
+ *	Disable fast back-to-back on the secondary bus segment
+ */
+static void __devinit quirk_xio2000a(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+	u16 command;
+
+	dev_warn(&dev->dev, "TI XIO2000a quirk detected; "
+		"secondary bus fast back-to-back transfers disabled\n");
+	list_for_each_entry(pdev, &dev->subordinate->devices, bus_list) {
+		pci_read_config_word(pdev, PCI_COMMAND, &command);
+		if (command & PCI_COMMAND_FAST_BACK)
+			pci_write_config_word(pdev, PCI_COMMAND, command & ~PCI_COMMAND_FAST_BACK);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XIO2000A,
+			quirk_xio2000a);
 
 #ifdef CONFIG_X86_IO_APIC 
 
@@ -1203,6 +1220,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			switch(dev->subsystem_device) {
 			case 0x00b8: /* Compaq Evo D510 CMT */
 			case 0x00b9: /* Compaq Evo D510 SFF */
+			case 0x00ba: /* Compaq Evo D510 USDT */
 				/* Motherboard doesn't have Host bridge
 				 * subvendor/subdevice IDs and on-board VGA
 				 * controller is disabled if an AGP card is
@@ -1501,7 +1519,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_a
 
 static void __devinit quirk_pcie_mch(struct pci_dev *pdev)
 {
-	pcie_mch_quirk = 1;
+	pci_msi_off(pdev);
+	pdev->no_msi = 1;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7520_MCH,	quirk_pcie_mch);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7320_MCH,	quirk_pcie_mch);
@@ -1569,10 +1588,8 @@ static void quirk_reroute_to_boot_interrupts_intel(struct pci_dev *dev)
 		return;
 
 	dev->irq_reroute_variant = INTEL_IRQ_REROUTE_VARIANT;
-
-	printk(KERN_INFO "PCI quirk: reroute interrupts for 0x%04x:0x%04x\n",
-			dev->vendor, dev->device);
-	return;
+	dev_info(&dev->dev, "rerouting interrupts for [%04x:%04x]\n",
+		 dev->vendor, dev->device);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80333_0,	quirk_reroute_to_boot_interrupts_intel);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_80333_1,	quirk_reroute_to_boot_interrupts_intel);
@@ -1614,8 +1631,8 @@ static void quirk_disable_intel_boot_interrupt(struct pci_dev *dev)
 	pci_config_word |= INTEL_6300_DISABLE_BOOT_IRQ;
 	pci_write_config_word(dev, INTEL_6300_IOAPIC_ABAR, pci_config_word);
 
-	printk(KERN_INFO "disabled boot interrupt on device 0x%04x:0x%04x\n",
-		dev->vendor, dev->device);
+	dev_info(&dev->dev, "disabled boot interrupts on device [%04x:%04x]\n",
+		 dev->vendor, dev->device);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,   PCI_DEVICE_ID_INTEL_ESB_10, 	quirk_disable_intel_boot_interrupt);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,   PCI_DEVICE_ID_INTEL_ESB_10, 	quirk_disable_intel_boot_interrupt);
@@ -1647,8 +1664,8 @@ static void quirk_disable_broadcom_boot_interrupt(struct pci_dev *dev)
 
 	pci_write_config_dword(dev, BC_HT1000_FEATURE_REG, pci_config_dword);
 
-	printk(KERN_INFO "disabled boot interrupts on PCI device"
-			"0x%04x:0x%04x\n", dev->vendor, dev->device);
+	dev_info(&dev->dev, "disabled boot interrupts on device [%04x:%04x]\n",
+		 dev->vendor, dev->device);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_HT1000SB, 	quirk_disable_broadcom_boot_interrupt);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_HT1000SB, 	quirk_disable_broadcom_boot_interrupt);
@@ -1678,8 +1695,8 @@ static void quirk_disable_amd_813x_boot_interrupt(struct pci_dev *dev)
 	pci_config_dword &= ~AMD_813X_NOIOAMODE;
 	pci_write_config_dword(dev, AMD_813X_MISC, pci_config_dword);
 
-	printk(KERN_INFO "disabled boot interrupts on PCI device "
-			"0x%04x:0x%04x\n", dev->vendor, dev->device);
+	dev_info(&dev->dev, "disabled boot interrupts on device [%04x:%04x]\n",
+		 dev->vendor, dev->device);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8131_BRIDGE, 	quirk_disable_amd_813x_boot_interrupt);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8132_BRIDGE, 	quirk_disable_amd_813x_boot_interrupt);
@@ -1695,14 +1712,13 @@ static void quirk_disable_amd_8111_boot_interrupt(struct pci_dev *dev)
 
 	pci_read_config_word(dev, AMD_8111_PCI_IRQ_ROUTING, &pci_config_word);
 	if (!pci_config_word) {
-		printk(KERN_INFO "boot interrupts on PCI device 0x%04x:0x%04x "
-				"already disabled\n",
-				dev->vendor, dev->device);
+		dev_info(&dev->dev, "boot interrupts on device [%04x:%04x] "
+			 "already disabled\n", dev->vendor, dev->device);
 		return;
 	}
 	pci_write_config_word(dev, AMD_8111_PCI_IRQ_ROUTING, 0);
-	printk(KERN_INFO "disabled boot interrupts on PCI device "
-			"0x%04x:0x%04x\n", dev->vendor, dev->device);
+	dev_info(&dev->dev, "disabled boot interrupts on device [%04x:%04x]\n",
+		 dev->vendor, dev->device);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8111_SMBUS, 	quirk_disable_amd_8111_boot_interrupt);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8111_SMBUS, 	quirk_disable_amd_8111_boot_interrupt);
@@ -2384,8 +2400,10 @@ static void __devinit nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AL, PCI_ANY_ID, nv_msi_ht_cap_quirk_all);
 
 static void __devinit quirk_msi_intx_disable_bug(struct pci_dev *dev)
 {
@@ -2494,6 +2512,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e6, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e7, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e8, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150a, quirk_i82576_sriov);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150d, quirk_i82576_sriov);
 
 #endif	/* CONFIG_PCI_IOV */
 
@@ -2572,6 +2591,19 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	}
 	pci_do_fixups(dev, start, end);
 }
+
+static int __init pci_apply_final_quirks(void)
+{
+	struct pci_dev *dev = NULL;
+
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+		pci_fixup_device(pci_fixup_final, dev);
+	}
+
+	return 0;
+}
+
+fs_initcall_sync(pci_apply_final_quirks);
 #else
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev) {}
 #endif

@@ -153,7 +153,7 @@ static struct led_classdev clevo_mail_led = {
 	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
-static int __init clevo_mail_led_probe(struct platform_device *pdev)
+static int __devinit clevo_mail_led_probe(struct platform_device *pdev)
 {
 	return led_classdev_register(&pdev->dev, &clevo_mail_led);
 }

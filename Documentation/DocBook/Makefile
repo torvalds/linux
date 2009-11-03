@@ -14,7 +14,7 @@ DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    mac80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml
+	    tracepoint.xml media.xml
 
 ###
 # The build process is as follows (targets):
@@ -32,7 +32,7 @@ PS_METHOD	= $(prefer-db2x)
 
 ###
 # The targets that may be used.
-PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
+PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs media
 
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -45,11 +45,15 @@ PDF := $(patsubst %.xml, %.pdf, $(BOOKS))
 pdfdocs: $(PDF)
 
 HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
-htmldocs: $(HTML)
+htmldocs: media $(HTML)
 	$(call build_main_index)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
+
+media:
+	mkdir -p $(srctree)/Documentation/DocBook/media/
+	cp $(srctree)/Documentation/DocBook/dvb/*.png $(srctree)/Documentation/DocBook/v4l/*.gif $(srctree)/Documentation/DocBook/media/
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/

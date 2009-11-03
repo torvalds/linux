@@ -20,22 +20,10 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 
+extern void __weak sh4__flush_region_init(void);
+
 /* Wired TLB entry for the D-cache */
 static unsigned long long dtlb_cache_slot;
-
-void __init p3_cache_init(void)
-{
-	/* Reserve a slot for dcache colouring in the DTLB */
-	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();
-}
-
-#ifdef CONFIG_DCACHE_DISABLED
-#define sh64_dcache_purge_all()					do { } while (0)
-#define sh64_dcache_purge_coloured_phy_page(paddr, eaddr)	do { } while (0)
-#define sh64_dcache_purge_user_range(mm, start, end)		do { } while (0)
-#define sh64_dcache_purge_phy_page(paddr)			do { } while (0)
-#define sh64_dcache_purge_virt_page(mm, eaddr)			do { } while (0)
-#endif
 
 /*
  * The following group of functions deal with mapping and unmapping a
@@ -56,7 +44,6 @@ static inline void sh64_teardown_dtlb_cache_slot(void)
 	local_irq_enable();
 }
 
-#ifndef CONFIG_ICACHE_DISABLED
 static inline void sh64_icache_inv_all(void)
 {
 	unsigned long long addr, flag, data;
@@ -214,52 +201,6 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 	}
 }
 
-/*
- * Invalidate a small range of user context I-cache, not necessarily page
- * (or even cache-line) aligned.
- *
- * Since this is used inside ptrace, the ASID in the mm context typically
- * won't match current_asid.  We'll have to switch ASID to do this.  For
- * safety, and given that the range will be small, do all this under cli.
- *
- * Note, there is a hazard that the ASID in mm->context is no longer
- * actually associated with mm, i.e. if the mm->context has started a new
- * cycle since mm was last active.  However, this is just a performance
- * issue: all that happens is that we invalidate lines belonging to
- * another mm, so the owning process has to refill them when that mm goes
- * live again.  mm itself can't have any cache entries because there will
- * have been a flush_cache_all when the new mm->context cycle started.
- */
-static void sh64_icache_inv_user_small_range(struct mm_struct *mm,
-						unsigned long start, int len)
-{
-	unsigned long long eaddr = start;
-	unsigned long long eaddr_end = start + len;
-	unsigned long current_asid, mm_asid;
-	unsigned long flags;
-	unsigned long long epage_start;
-
-	/*
-	 * Align to start of cache line.  Otherwise, suppose len==8 and
-	 * start was at 32N+28 : the last 4 bytes wouldn't get invalidated.
-	 */
-	eaddr = L1_CACHE_ALIGN(start);
-	eaddr_end = start + len;
-
-	mm_asid = cpu_asid(smp_processor_id(), mm);
-	local_irq_save(flags);
-	current_asid = switch_and_save_asid(mm_asid);
-
-	epage_start = eaddr & PAGE_MASK;
-
-	while (eaddr < eaddr_end) {
-		__asm__ __volatile__("icbi %0, 0" : : "r" (eaddr));
-		eaddr += L1_CACHE_BYTES;
-	}
-	switch_and_save_asid(current_asid);
-	local_irq_restore(flags);
-}
-
 static void sh64_icache_inv_current_user_range(unsigned long start, unsigned long end)
 {
 	/* The icbi instruction never raises ITLBMISS.  i.e. if there's not a
@@ -287,9 +228,7 @@ static void sh64_icache_inv_current_user_range(unsigned long start, unsigned lon
 		addr += L1_CACHE_BYTES;
 	}
 }
-#endif /* !CONFIG_ICACHE_DISABLED */
 
-#ifndef CONFIG_DCACHE_DISABLED
 /* Buffer used as the target of alloco instructions to purge data from cache
    sets by natural eviction. -- RPC */
 #define DUMMY_ALLOCO_AREA_SIZE ((L1_CACHE_BYTES << 10) + (1024 * 4))
@@ -541,59 +480,10 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 }
 
 /*
- * Purge the range of addresses from the D-cache.
- *
- * The addresses lie in the superpage mapping. There's no harm if we
- * overpurge at either end - just a small performance loss.
- */
-void __flush_purge_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr <= ullend) {
-		__asm__ __volatile__ ("ocbp %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-
-void __flush_wback_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr < ullend) {
-		__asm__ __volatile__ ("ocbwb %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-
-void __flush_invalidate_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr < ullend) {
-		__asm__ __volatile__ ("ocbi %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-#endif /* !CONFIG_DCACHE_DISABLED */
-
-/*
  * Invalidate the entire contents of both caches, after writing back to
  * memory any dirty data from the D-cache.
  */
-void flush_cache_all(void)
+static void sh5_flush_cache_all(void *unused)
 {
 	sh64_dcache_purge_all();
 	sh64_icache_inv_all();
@@ -620,7 +510,7 @@ void flush_cache_all(void)
  * I-cache.  This is similar to the lack of action needed in
  * flush_tlb_mm - see fault.c.
  */
-void flush_cache_mm(struct mm_struct *mm)
+static void sh5_flush_cache_mm(void *unused)
 {
 	sh64_dcache_purge_all();
 }
@@ -632,13 +522,18 @@ void flush_cache_mm(struct mm_struct *mm)
  *
  * Note, 'end' is 1 byte beyond the end of the range to flush.
  */
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
+static void sh5_flush_cache_range(void *args)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long start, end;
 
-	sh64_dcache_purge_user_range(mm, start, end);
-	sh64_icache_inv_user_page_range(mm, start, end);
+	vma = data->vma;
+	start = data->addr1;
+	end = data->addr2;
+
+	sh64_dcache_purge_user_range(vma->vm_mm, start, end);
+	sh64_icache_inv_user_page_range(vma->vm_mm, start, end);
 }
 
 /*
@@ -650,16 +545,23 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
  *
  * Note, this is called with pte lock held.
  */
-void flush_cache_page(struct vm_area_struct *vma, unsigned long eaddr,
-		      unsigned long pfn)
+static void sh5_flush_cache_page(void *args)
 {
+	struct flusher_data *data = args;
+	struct vm_area_struct *vma;
+	unsigned long eaddr, pfn;
+
+	vma = data->vma;
+	eaddr = data->addr1;
+	pfn = data->addr2;
+
 	sh64_dcache_purge_phy_page(pfn << PAGE_SHIFT);
 
 	if (vma->vm_flags & VM_EXEC)
 		sh64_icache_inv_user_page(vma, eaddr);
 }
 
-void flush_dcache_page(struct page *page)
+static void sh5_flush_dcache_page(void *page)
 {
 	sh64_dcache_purge_phy_page(page_to_phys(page));
 	wmb();
@@ -673,30 +575,17 @@ void flush_dcache_page(struct page *page)
  * mapping, therefore it's guaranteed that there no cache entries for
  * the range in cache sets of the wrong colour.
  */
-void flush_icache_range(unsigned long start, unsigned long end)
+static void sh5_flush_icache_range(void *args)
 {
+	struct flusher_data *data = args;
+	unsigned long start, end;
+
+	start = data->addr1;
+	end = data->addr2;
+
 	__flush_purge_region((void *)start, end);
 	wmb();
 	sh64_icache_inv_kernel_range(start, end);
-}
-
-/*
- * Flush the range of user (defined by vma->vm_mm) address space starting
- * at 'addr' for 'len' bytes from the cache.  The range does not straddle
- * a page boundary, the unique physical page containing the range is
- * 'page'.  This seems to be used mainly for invalidating an address
- * range following a poke into the program text through the ptrace() call
- * from another process (e.g. for BRK instruction insertion).
- */
-void flush_icache_user_range(struct vm_area_struct *vma,
-			struct page *page, unsigned long addr, int len)
-{
-
-	sh64_dcache_purge_coloured_phy_page(page_to_phys(page), addr);
-	mb();
-
-	if (vma->vm_flags & VM_EXEC)
-		sh64_icache_inv_user_small_range(vma->vm_mm, addr, len);
 }
 
 /*
@@ -705,130 +594,28 @@ void flush_icache_user_range(struct vm_area_struct *vma,
  * current process.  Used to flush signal trampolines on the stack to
  * make them executable.
  */
-void flush_cache_sigtramp(unsigned long vaddr)
+static void sh5_flush_cache_sigtramp(void *vaddr)
 {
-	unsigned long end = vaddr + L1_CACHE_BYTES;
+	unsigned long end = (unsigned long)vaddr + L1_CACHE_BYTES;
 
-	__flush_wback_region((void *)vaddr, L1_CACHE_BYTES);
+	__flush_wback_region(vaddr, L1_CACHE_BYTES);
 	wmb();
-	sh64_icache_inv_current_user_range(vaddr, end);
+	sh64_icache_inv_current_user_range((unsigned long)vaddr, end);
 }
 
-#ifdef CONFIG_MMU
-/*
- * These *MUST* lie in an area of virtual address space that's otherwise
- * unused.
- */
-#define UNIQUE_EADDR_START 0xe0000000UL
-#define UNIQUE_EADDR_END   0xe8000000UL
-
-/*
- * Given a physical address paddr, and a user virtual address user_eaddr
- * which will eventually be mapped to it, create a one-off kernel-private
- * eaddr mapped to the same paddr.  This is used for creating special
- * destination pages for copy_user_page and clear_user_page.
- */
-static unsigned long sh64_make_unique_eaddr(unsigned long user_eaddr,
-					    unsigned long paddr)
+void __init sh5_cache_init(void)
 {
-	static unsigned long current_pointer = UNIQUE_EADDR_START;
-	unsigned long coloured_pointer;
+	local_flush_cache_all		= sh5_flush_cache_all;
+	local_flush_cache_mm		= sh5_flush_cache_mm;
+	local_flush_cache_dup_mm	= sh5_flush_cache_mm;
+	local_flush_cache_page		= sh5_flush_cache_page;
+	local_flush_cache_range		= sh5_flush_cache_range;
+	local_flush_dcache_page		= sh5_flush_dcache_page;
+	local_flush_icache_range	= sh5_flush_icache_range;
+	local_flush_cache_sigtramp	= sh5_flush_cache_sigtramp;
 
-	if (current_pointer == UNIQUE_EADDR_END) {
-		sh64_dcache_purge_all();
-		current_pointer = UNIQUE_EADDR_START;
-	}
+	/* Reserve a slot for dcache colouring in the DTLB */
+	dtlb_cache_slot	= sh64_get_wired_dtlb_entry();
 
-	coloured_pointer = (current_pointer & ~CACHE_OC_SYN_MASK) |
-				(user_eaddr & CACHE_OC_SYN_MASK);
-	sh64_setup_dtlb_cache_slot(coloured_pointer, get_asid(), paddr);
-
-	current_pointer += (PAGE_SIZE << CACHE_OC_N_SYNBITS);
-
-	return coloured_pointer;
+	sh4__flush_region_init();
 }
-
-static void sh64_copy_user_page_coloured(void *to, void *from,
-					 unsigned long address)
-{
-	void *coloured_to;
-
-	/*
-	 * Discard any existing cache entries of the wrong colour.  These are
-	 * present quite often, if the kernel has recently used the page
-	 * internally, then given it up, then it's been allocated to the user.
-	 */
-	sh64_dcache_purge_coloured_phy_page(__pa(to), (unsigned long)to);
-
-	coloured_to = (void *)sh64_make_unique_eaddr(address, __pa(to));
-	copy_page(from, coloured_to);
-
-	sh64_teardown_dtlb_cache_slot();
-}
-
-static void sh64_clear_user_page_coloured(void *to, unsigned long address)
-{
-	void *coloured_to;
-
-	/*
-	 * Discard any existing kernel-originated lines of the wrong
-	 * colour (as above)
-	 */
-	sh64_dcache_purge_coloured_phy_page(__pa(to), (unsigned long)to);
-
-	coloured_to = (void *)sh64_make_unique_eaddr(address, __pa(to));
-	clear_page(coloured_to);
-
-	sh64_teardown_dtlb_cache_slot();
-}
-
-/*
- * 'from' and 'to' are kernel virtual addresses (within the superpage
- * mapping of the physical RAM).  'address' is the user virtual address
- * where the copy 'to' will be mapped after.  This allows a custom
- * mapping to be used to ensure that the new copy is placed in the
- * right cache sets for the user to see it without having to bounce it
- * out via memory.  Note however : the call to flush_page_to_ram in
- * (generic)/mm/memory.c:(break_cow) undoes all this good work in that one
- * very important case!
- *
- * TBD : can we guarantee that on every call, any cache entries for
- * 'from' are in the same colour sets as 'address' also?  i.e. is this
- * always used just to deal with COW?  (I suspect not).
- *
- * There are two possibilities here for when the page 'from' was last accessed:
- * - by the kernel : this is OK, no purge required.
- * - by the/a user (e.g. for break_COW) : need to purge.
- *
- * If the potential user mapping at 'address' is the same colour as
- * 'from' there is no need to purge any cache lines from the 'from'
- * page mapped into cache sets of colour 'address'.  (The copy will be
- * accessing the page through 'from').
- */
-void copy_user_page(void *to, void *from, unsigned long address,
-		    struct page *page)
-{
-	if (((address ^ (unsigned long) from) & CACHE_OC_SYN_MASK) != 0)
-		sh64_dcache_purge_coloured_phy_page(__pa(from), address);
-
-	if (((address ^ (unsigned long) to) & CACHE_OC_SYN_MASK) == 0)
-		copy_page(to, from);
-	else
-		sh64_copy_user_page_coloured(to, from, address);
-}
-
-/*
- * 'to' is a kernel virtual address (within the superpage mapping of the
- * physical RAM).  'address' is the user virtual address where the 'to'
- * page will be mapped after.  This allows a custom mapping to be used to
- * ensure that the new copy is placed in the right cache sets for the
- * user to see it without having to bounce it out via memory.
- */
-void clear_user_page(void *to, unsigned long address, struct page *page)
-{
-	if (((address ^ (unsigned long) to) & CACHE_OC_SYN_MASK) == 0)
-		clear_page(to);
-	else
-		sh64_clear_user_page_coloured(to, address);
-}
-#endif

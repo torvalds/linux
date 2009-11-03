@@ -1306,11 +1306,6 @@ restart:
 			setup = *(struct usb_ctrlrequest*) urb->setup_packet;
 			w_index = le16_to_cpu(setup.wIndex);
 			w_value = le16_to_cpu(setup.wValue);
-			if (le16_to_cpu(setup.wLength) !=
-					urb->transfer_buffer_length) {
-				status = -EOVERFLOW;
-				goto return_urb;
-			}
 
 			/* paranoia, in case of stale queued data */
 			list_for_each_entry (req, &ep->queue, queue) {

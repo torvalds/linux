@@ -49,6 +49,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/timer.h>

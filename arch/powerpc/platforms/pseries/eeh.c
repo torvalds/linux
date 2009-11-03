@@ -744,7 +744,15 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 
 static void __rtas_set_slot_reset(struct pci_dn *pdn)
 {
-	rtas_pci_slot_reset (pdn, 1);
+	struct pci_dev *dev = pdn->pcidev;
+
+	/* Determine type of EEH reset required by device,
+	 * default hot reset or fundamental reset
+	 */
+	if (dev->needs_freset)
+		rtas_pci_slot_reset(pdn, 3);
+	else
+		rtas_pci_slot_reset(pdn, 1);
 
 	/* The PCI bus requires that the reset be held high for at least
 	 * a 100 milliseconds. We wait a bit longer 'just in case'.  */

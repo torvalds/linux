@@ -62,7 +62,8 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcm3724_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int pcm3724_detach(struct comedi_device *dev);
 
 struct pcm3724_board {
@@ -143,8 +144,8 @@ static int compute_buffer(int config, int devno, struct comedi_subdevice *s)
 	return config;
 }
 
-static void do_3724_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	int chanspec)
+static void do_3724_config(struct comedi_device *dev,
+			   struct comedi_subdevice *s, int chanspec)
 {
 	int config;
 	int buffer_config;
@@ -177,14 +178,15 @@ static void do_3724_config(struct comedi_device *dev, struct comedi_subdevice *s
 	outb(config, port_8255_cfg);
 }
 
-static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s, int chanspec)
+static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s,
+			int chanspec)
 {
 	unsigned int mask;
 	int gatecfg;
 	struct priv_pcm3724 *priv;
 
 	gatecfg = 0;
-	priv = (struct priv_pcm3724 *) (dev->private);
+	priv = (struct priv_pcm3724 *)(dev->private);
 
 	mask = 1 << CR_CHAN(chanspec);
 	if (s == dev->subdevices) {	/*  subdev 0 */
@@ -215,8 +217,9 @@ static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s, i
 }
 
 /* overriding the 8255 insn config */
-static int subdev_3724_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int subdev_3724_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -252,7 +255,8 @@ static int subdev_3724_insn_config(struct comedi_device *dev, struct comedi_subd
 	return 1;
 }
 
-static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pcm3724_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	unsigned long iobase;
 	unsigned int iorange;
@@ -265,11 +269,11 @@ static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (ret < 0)
 		return -ENOMEM;
 
-	((struct priv_pcm3724 *) (dev->private))->dio_1 = 0;
-	((struct priv_pcm3724 *) (dev->private))->dio_2 = 0;
+	((struct priv_pcm3724 *)(dev->private))->dio_1 = 0;
+	((struct priv_pcm3724 *)(dev->private))->dio_2 = 0;
 
 	printk("comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
-		this_board->name, iobase);
+	       this_board->name, iobase);
 	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -287,7 +291,7 @@ static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		subdev_8255_init(dev, dev->subdevices + i, subdev_8255_cb,
-			(unsigned long)(dev->iobase + SIZE_8255 * i));
+				 (unsigned long)(dev->iobase + SIZE_8255 * i));
 		((dev->subdevices) + i)->insn_config = subdev_3724_insn_config;
 	};
 	return 0;

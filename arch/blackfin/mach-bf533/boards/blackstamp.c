@@ -1,16 +1,10 @@
 /*
- * File:         arch/blackfin/mach-bf533/blackstamp.c
- * Based on:     arch/blackfin/mach-bf533/stamp.c
- * Author:       Benjamin Matthews <bmat@lle.rochester.edu>
- *               Aidan Williams <aidan@nicta.com.au>
+ * Board Info File for the BlackStamp
  *
- * Created:      2008
- * Description:  Board Info File for the BlackStamp
- *
- * Copyright 2005 National ICT Australia (NICTA)
  * Copyright 2004-2008 Analog Devices Inc.
- *
- * Enter bugs at http://blackfin.uclinux.org/
+ *                2008 Benjamin Matthews <bmat@lle.rochester.edu>
+ *                2005 National ICT Australia (NICTA)
+ *                      Aidan Williams <aidan@nicta.com.au>
  *
  * More info about the BlackStamp at:
  * 	http://blackfin.uclinux.org/gf/project/blackstamp/
@@ -48,6 +42,14 @@ static struct platform_device rtc_device = {
  *  Driver needs to know address, irq and flag pin.
  */
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+#include <linux/smc91x.h>
+
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda = RPC_LED_100_10,
+	.ledb = RPC_LED_TX_RX,
+};
+
 static struct resource smc91x_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -66,6 +68,9 @@ static struct platform_device smc91x_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 };
 #endif
 
@@ -270,19 +275,6 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
-
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 #include <linux/i2c-gpio.h>
 
@@ -373,8 +365,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	&i2c_gpio_device,
 #endif
-
-	&bfin_gpios_device,
 };
 
 static int __init blackstamp_init(void)

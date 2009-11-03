@@ -192,11 +192,11 @@ int ieee80211_encrypt_fragment(
         return -1;
 
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
-	struct ieee80211_hdr *header;
+	struct ieee80211_hdr_4addr *header;
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
+		header = (struct ieee80211_hdr_4addr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
@@ -304,245 +304,23 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
   return(wme_UP);
 }
 
-#ifdef _RTL8187_EXT_PATCH_
-// based on part of ieee80211_xmit. Mainly allocate txb. ieee->lock is held
-struct ieee80211_txb *ieee80211_ext_alloc_txb(struct sk_buff *skb, struct net_device *dev, struct ieee80211_hdr_3addr *header, int hdr_len, u8 isQoS, u16 *pQOS_ctl, int isEncrypt, struct ieee80211_crypt_data* crypt)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
-	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
-	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addr *frag_hdr;
-	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
-	int ether_type;
-	int bytes, QOS_ctl;
-	struct sk_buff *skb_frag;
-
-	ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
-
-	/* Advance the SKB to the start of the payload */
-	skb_pull(skb, sizeof(struct ethhdr));
-
-	/* Determine total amount of storage required for TXB packets */
-	bytes = skb->len + SNAP_SIZE + sizeof(u16);
-
-	/* Determine fragmentation size based on destination (multicast
-	 * and broadcast are not fragmented) */
-	// if (is_multicast_ether_addr(dest) ||
-	// is_broadcast_ether_addr(dest)) {
-	if (is_multicast_ether_addr(header->addr1) ||
-			is_broadcast_ether_addr(header->addr1)) {
-		frag_size = MAX_FRAG_THRESHOLD;
-		QOS_ctl = QOS_CTL_NOTCONTAIN_ACK;
-	}
-	else {
-		//printk(KERN_WARNING "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&frag_size = %d\n", frag_size);
-		frag_size = ieee->fts;//default:392
-		QOS_ctl = 0;
-	}
-
-	if(isQoS) {
-		QOS_ctl |= skb->priority; //set in the ieee80211_classify
-		*pQOS_ctl = cpu_to_le16(QOS_ctl);
-	}
-	//printk(KERN_WARNING "header size = %d, QOS_ctl = %x\n", hdr_len,QOS_ctl);
-	/* Determine amount of payload per fragment.  Regardless of if
-	 * this stack is providing the full 802.11 header, one will
-	 * eventually be affixed to this fragment -- so we must account for
-	 * it when determining the amount of payload space. */
-	//bytes_per_frag = frag_size - (IEEE80211_3ADDR_LEN + (ieee->current_network->QoS_Enable ? 2:0));
-	bytes_per_frag = frag_size - hdr_len;
-	if (ieee->config &
-			(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
-		bytes_per_frag -= IEEE80211_FCS_LEN;
-
-	/* Each fragment may need to have room for encryptiong pre/postfix */
-	if (isEncrypt)
-		bytes_per_frag -= crypt->ops->extra_prefix_len +
-			crypt->ops->extra_postfix_len;
-
-	/* Number of fragments is the total bytes_per_frag /
-	 * payload_per_fragment */
-	nr_frags = bytes / bytes_per_frag;
-	bytes_last_frag = bytes % bytes_per_frag;
-	if (bytes_last_frag)
-		nr_frags++;
-	else
-		bytes_last_frag = bytes_per_frag;
-
-	/* When we allocate the TXB we allocate enough space for the reserve
-	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
-	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(nr_frags, frag_size, GFP_ATOMIC);
-	if (unlikely(!txb)) {
-		printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
-		return NULL;
-	}
-	txb->encrypted = isEncrypt;
-	txb->payload_size = bytes;
-
-	for (i = 0; i < nr_frags; i++) {
-		skb_frag = txb->fragments[i];
-		skb_frag->priority = UP2AC(skb->priority);
-		if (isEncrypt)
-			skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
-
-		frag_hdr = (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
-		memcpy(frag_hdr, (void *)header, hdr_len);
-
-		/* If this is not the last fragment, then add the MOREFRAGS
-		 * bit to the frame control */
-		if (i != nr_frags - 1) {
-			frag_hdr->frame_ctl = cpu_to_le16(
-					header->frame_ctl | IEEE80211_FCTL_MOREFRAGS);
-			bytes = bytes_per_frag;
-
-		} else {
-			/* The last fragment takes the remaining length */
-			bytes = bytes_last_frag;
-		}
-
-		frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
-		//frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl<<4 | i);
-		//
-
-		/* Put a SNAP header on the first fragment */
-		if (i == 0) {
-			ieee80211_put_snap(
-				skb_put(skb_frag, SNAP_SIZE + sizeof(u16)), ether_type);
-			bytes -= SNAP_SIZE + sizeof(u16);
-		}
-
-		memcpy(skb_put(skb_frag, bytes), skb->data, bytes);
-
-		/* Advance the SKB... */
-		skb_pull(skb, bytes);
-
-		/* Encryption routine will move the header forward in order
-		 * to insert the IV between the header and the payload */
-		if (isEncrypt)
-			ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
-		if (ieee->config &
-				(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
-			skb_put(skb_frag, 4);
-	}
-	// Advance sequence number in data frame.
-	//printk(KERN_WARNING "QoS Enalbed? %s\n", ieee->current_network.QoS_Enable?"Y":"N");
-	if (ieee->seq_ctrl[0] == 0xFFF)
-		ieee->seq_ctrl[0] = 0;
-	else
-		ieee->seq_ctrl[0]++;
-	// stanley, just for debug
-/*
-{
-	int j=0;
-	for(j=0;j<nr_frags;j++)
-	{
-			int i;
-		struct sk_buff *skb = txb->fragments[j];
-			printk("send(%d): ", j);
-			for (i=0;i<skb->len;i++)
-				printk("%02X ", skb->data[i]&0xff);
-			printk("\n");
-	}
-}
-*/
-
-	return txb;
-}
-
-
-// based on part of ieee80211_xmit. Mainly allocate txb. ieee->lock is held
-// Assume no encryption, no FCS computing
-struct ieee80211_txb *ieee80211_ext_reuse_txb(struct sk_buff *skb, struct net_device *dev, struct ieee80211_hdr_3addr *header, int hdr_len, u8 isQoS, u16 *pQOS_ctl, int isEncrypt, struct ieee80211_crypt_data* crypt)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
-	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
-	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addr *frag_hdr;
-	int ether_type;
-	int bytes, QOS_ctl;
-
-	ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
-
-	/* Advance the SKB to the start of the payload */
-	skb_pull(skb, sizeof(struct ethhdr));
-
-	/* Determine total amount of storage required for TXB packets */
-	bytes = skb->len + SNAP_SIZE + sizeof(u16);
-
-	if (is_multicast_ether_addr(header->addr1) ||
-			is_broadcast_ether_addr(header->addr1)) {
-		QOS_ctl = QOS_CTL_NOTCONTAIN_ACK;
-	}
-	else {
-		QOS_ctl = 0;
-	}
-
-	if(isQoS) {
-		QOS_ctl |= skb->priority; //set in the ieee80211_classify
-		*pQOS_ctl = cpu_to_le16(QOS_ctl);
-	}
-
-	txb = kmalloc( sizeof(struct ieee80211_txb) + sizeof(u8*), GFP_ATOMIC );
-	if (unlikely(!txb)) {
-		printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
-		return NULL;
-	}
-
-	txb->nr_frags = 1;
-	txb->frag_size = bytes;
-	txb->encrypted = isEncrypt;
-	txb->payload_size = bytes;
-
-	txb->fragments[0] = skb;
-	ieee80211_put_snap(
-			skb_push(skb, SNAP_SIZE + sizeof(u16)), ether_type);
-	frag_hdr = (struct ieee80211_hdr_3addr *)skb_push(skb, hdr_len);
-	memcpy(frag_hdr, (void *)header, hdr_len);
-	frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | 0);
-	skb->priority = UP2AC(skb->priority);
-
-	// Advance sequence number in data frame.
-	//printk(KERN_WARNING "QoS Enalbed? %s\n", ieee->current_network.QoS_Enable?"Y":"N");
-	if (ieee->seq_ctrl[0] == 0xFFF)
-		ieee->seq_ctrl[0] = 0;
-	else
-		ieee->seq_ctrl[0]++;
-
-	return txb;
-}
-
-#endif // _RTL8187_EXT_PATCH_
-
 /* SKBs are added to the ieee->tx_queue. */
 int ieee80211_xmit(struct sk_buff *skb,
 		   struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addr_QOS *frag_hdr;
+	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	int ether_type, encrypt;
-	int bytes, fc, QOS_ctl, hdr_len;
+	int bytes, fc, qos_ctl, hdr_len;
 	struct sk_buff *skb_frag;
-	//struct ieee80211_hdr header = { /* Ensure zero initialized */
-	//	.duration_id = 0,
-	//	.seq_ctl = 0
-	//};
-	struct ieee80211_hdr_3addr_QOS header = { /* Ensure zero initialized */
+	struct ieee80211_hdr_3addrqos header = { /* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0,
-		.QOS_ctl = 0
+		.qos_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 
@@ -568,16 +346,6 @@ int ieee80211_xmit(struct sk_buff *skb,
 			ieee->dev->name, skb->len);
 			goto success;
 		}
-
-
-#ifdef _RTL8187_EXT_PATCH_
-		// note, skb->priority which was set by ieee80211_classify, and used by physical tx
-		if((ieee->iw_mode == ieee->iw_ext_mode) && (ieee->ext_patch_ieee80211_xmit))
-		{
-			txb = ieee->ext_patch_ieee80211_xmit(skb, dev);
-			goto success;
-		}
-#endif
 
 		ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
 
@@ -651,22 +419,23 @@ int ieee80211_xmit(struct sk_buff *skb,
 		if (is_multicast_ether_addr(header.addr1) ||
 		is_broadcast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
-			QOS_ctl = QOS_CTL_NOTCONTAIN_ACK;
+			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
 		}
 		else {
 			//printk(KERN_WARNING "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&frag_size = %d\n", frag_size);
 			frag_size = ieee->fts;//default:392
-			QOS_ctl = 0;
+			qos_ctl = 0;
 		}
 
 		if (ieee->current_network.QoS_Enable)	{
 			hdr_len = IEEE80211_3ADDR_LEN + 2;
-			QOS_ctl |= skb->priority; //set in the ieee80211_classify
-			header.QOS_ctl = cpu_to_le16(QOS_ctl);
+			/* skb->priority is set in the ieee80211_classify() */
+			qos_ctl |= skb->priority;
+			header.qos_ctl = cpu_to_le16(qos_ctl);
 		} else {
 			hdr_len = IEEE80211_3ADDR_LEN;
 		}
-		//printk(KERN_WARNING "header size = %d, QOS_ctl = %x\n", hdr_len,QOS_ctl);
+
 		/* Determine amount of payload per fragment.  Regardless of if
 		* this stack is providing the full 802.11 header, one will
 		* eventually be affixed to this fragment -- so we must account for
@@ -709,7 +478,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 			if (encrypt)
 				skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
-			frag_hdr = (struct ieee80211_hdr_3addr_QOS *)skb_put(skb_frag, hdr_len);
+			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the MOREFRAGS
@@ -790,10 +559,6 @@ int ieee80211_xmit(struct sk_buff *skb,
 
  success:
 	spin_unlock_irqrestore(&ieee->lock, flags);
-#ifdef _RTL8187_EXT_PATCH_
-	// Sometimes, extension mode can reuse skb (by txb->fragments[0])
-	if( ! ((ieee->iw_mode == ieee->iw_ext_mode) && txb && (txb->fragments[0] == skb)) )
-#endif
 		dev_kfree_skb_any(skb);
 	if (txb) {
 		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
@@ -817,12 +582,3 @@ int ieee80211_xmit(struct sk_buff *skb,
 	return NETDEV_TX_BUSY;
 
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_txb_free);
-#ifdef _RTL8187_EXT_PATCH_
-EXPORT_SYMBOL(ieee80211_alloc_txb);
-EXPORT_SYMBOL(ieee80211_ext_alloc_txb);
-EXPORT_SYMBOL(ieee80211_ext_reuse_txb);
-#endif // _RTL8187_EXT_PATCH_
-#endif

@@ -182,7 +182,8 @@ void __init plat_time_init(void)
 	setup_pit_timer();
 }
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
-	return -1;
+	ts->tv_sec = -1;
+	ts->tv_nsec = 0;
 }

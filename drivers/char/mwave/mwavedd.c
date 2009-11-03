@@ -281,12 +281,6 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 		case IOCTL_MW_REGISTER_IPC: {
 			unsigned int ipcnum = (unsigned int) ioarg;
 	
-			PRINTK_3(TRACE_MWAVE,
-				"mwavedd::mwave_ioctl IOCTL_MW_REGISTER_IPC"
-				" ipcnum %x entry usIntCount %x\n",
-				ipcnum,
-				pDrvData->IPCs[ipcnum].usIntCount);
-	
 			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
@@ -295,6 +289,12 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						ipcnum);
 				return -EINVAL;
 			}
+			PRINTK_3(TRACE_MWAVE,
+				"mwavedd::mwave_ioctl IOCTL_MW_REGISTER_IPC"
+				" ipcnum %x entry usIntCount %x\n",
+				ipcnum,
+				pDrvData->IPCs[ipcnum].usIntCount);
+
 			lock_kernel();
 			pDrvData->IPCs[ipcnum].bIsHere = FALSE;
 			pDrvData->IPCs[ipcnum].bIsEnabled = TRUE;
@@ -310,11 +310,6 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 		case IOCTL_MW_GET_IPC: {
 			unsigned int ipcnum = (unsigned int) ioarg;
 	
-			PRINTK_3(TRACE_MWAVE,
-				"mwavedd::mwave_ioctl IOCTL_MW_GET_IPC"
-				" ipcnum %x, usIntCount %x\n",
-				ipcnum,
-				pDrvData->IPCs[ipcnum].usIntCount);
 			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
@@ -322,6 +317,11 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" Invalid ipcnum %x\n", ipcnum);
 				return -EINVAL;
 			}
+			PRINTK_3(TRACE_MWAVE,
+				"mwavedd::mwave_ioctl IOCTL_MW_GET_IPC"
+				" ipcnum %x, usIntCount %x\n",
+				ipcnum,
+				pDrvData->IPCs[ipcnum].usIntCount);
 	
 			lock_kernel();
 			if (pDrvData->IPCs[ipcnum].bIsEnabled == TRUE) {

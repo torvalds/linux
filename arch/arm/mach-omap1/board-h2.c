@@ -360,16 +360,11 @@ static struct omap_usb_config h2_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
-static struct omap_uart_config h2_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_lcd_config h2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
 static struct omap_board_config_kernel h2_config[] __initdata = {
-	{ OMAP_TAG_UART,	&h2_uart_config },
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
 

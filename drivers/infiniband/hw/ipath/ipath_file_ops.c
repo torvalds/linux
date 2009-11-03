@@ -1151,7 +1151,7 @@ static int ipath_file_vma_fault(struct vm_area_struct *vma,
 	return 0;
 }
 
-static struct vm_operations_struct ipath_file_vm_ops = {
+static const struct vm_operations_struct ipath_file_vm_ops = {
 	.fault = ipath_file_vma_fault,
 };
 

@@ -74,7 +74,7 @@ static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
 static struct kspd_notifications kspd_events;
-static int kspd_events_reqd = 0;
+static int kspd_events_reqd;
 #endif
 
 /* grab the likely amount of memory we will need. */
@@ -144,14 +144,15 @@ struct tc {
 };
 
 struct {
-	/* Virtual processing elements */
-	struct list_head vpe_list;
-
-	/* Thread contexts */
-	struct list_head tc_list;
+	spinlock_t vpe_list_lock;
+	struct list_head vpe_list;	/* Virtual processing elements */
+	spinlock_t tc_list_lock;
+	struct list_head tc_list;	/* Thread contexts */
 } vpecontrol = {
-	.vpe_list = LIST_HEAD_INIT(vpecontrol.vpe_list),
-	.tc_list = LIST_HEAD_INIT(vpecontrol.tc_list)
+	.vpe_list_lock	= SPIN_LOCK_UNLOCKED,
+	.vpe_list	= LIST_HEAD_INIT(vpecontrol.vpe_list),
+	.tc_list_lock	= SPIN_LOCK_UNLOCKED,
+	.tc_list	= LIST_HEAD_INIT(vpecontrol.tc_list)
 };
 
 static void release_progmem(void *ptr);
@@ -159,28 +160,38 @@ static void release_progmem(void *ptr);
 /* get the vpe associated with this minor */
 static struct vpe *get_vpe(int minor)
 {
-	struct vpe *v;
+	struct vpe *res, *v;
 
 	if (!cpu_has_mipsmt)
 		return NULL;
 
+	res = NULL;
+	spin_lock(&vpecontrol.vpe_list_lock);
 	list_for_each_entry(v, &vpecontrol.vpe_list, list) {
-		if (v->minor == minor)
-			return v;
+		if (v->minor == minor) {
+			res = v;
+			break;
+		}
 	}
+	spin_unlock(&vpecontrol.vpe_list_lock);
 
-	return NULL;
+	return res;
 }
 
 /* get the vpe associated with this minor */
 static struct tc *get_tc(int index)
 {
-	struct tc *t;
+	struct tc *res, *t;
 
+	res = NULL;
+	spin_lock(&vpecontrol.tc_list_lock);
 	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		if (t->index == index)
-			return t;
+		if (t->index == index) {
+			res = t;
+			break;
+		}
 	}
+	spin_unlock(&vpecontrol.tc_list_lock);
 
 	return NULL;
 }
@@ -190,15 +201,17 @@ static struct vpe *alloc_vpe(int minor)
 {
 	struct vpe *v;
 
-	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL) {
+	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL)
 		return NULL;
-	}
 
 	INIT_LIST_HEAD(&v->tc);
+	spin_lock(&vpecontrol.vpe_list_lock);
 	list_add_tail(&v->list, &vpecontrol.vpe_list);
+	spin_unlock(&vpecontrol.vpe_list_lock);
 
 	INIT_LIST_HEAD(&v->notify);
 	v->minor = minor;
+
 	return v;
 }
 
@@ -212,7 +225,10 @@ static struct tc *alloc_tc(int index)
 
 	INIT_LIST_HEAD(&tc->tc);
 	tc->index = index;
+
+	spin_lock(&vpecontrol.tc_list_lock);
 	list_add_tail(&tc->list, &vpecontrol.tc_list);
+	spin_unlock(&vpecontrol.tc_list_lock);
 
 out:
 	return tc;
@@ -227,7 +243,7 @@ static void release_vpe(struct vpe *v)
 	kfree(v);
 }
 
-static void dump_mtregs(void)
+static void __maybe_unused dump_mtregs(void)
 {
 	unsigned long val;
 
@@ -1048,20 +1064,19 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	enum vpe_state state;
 	struct vpe_notifications *not;
 	struct vpe *v;
-	int ret, err = 0;
+	int ret;
 
-	lock_kernel();
 	if (minor != iminor(inode)) {
 		/* assume only 1 device at the moment. */
-		printk(KERN_WARNING "VPE loader: only vpe1 is supported\n");
-		err = -ENODEV;
-		goto out;
+		pr_warning("VPE loader: only vpe1 is supported\n");
+
+		return -ENODEV;
 	}
 
 	if ((v = get_vpe(tclimit)) == NULL) {
-		printk(KERN_WARNING "VPE loader: unable to get vpe\n");
-		err = -ENODEV;
-		goto out;
+		pr_warning("VPE loader: unable to get vpe\n");
+
+		return -ENODEV;
 	}
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
@@ -1101,8 +1116,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->shared_ptr = NULL;
 	v->__start = 0;
 
-out:
 	unlock_kernel();
+
 	return 0;
 }
 
@@ -1594,14 +1609,14 @@ static void __exit vpe_module_exit(void)
 {
 	struct vpe *v, *n;
 
-	list_for_each_entry_safe(v, n, &vpecontrol.vpe_list, list) {
-		if (v->state != VPE_STATE_UNUSED) {
-			release_vpe(v);
-		}
-	}
-
 	device_del(&vpe_device);
 	unregister_chrdev(major, module_name);
+
+	/* No locking needed here */
+	list_for_each_entry_safe(v, n, &vpecontrol.vpe_list, list) {
+		if (v->state != VPE_STATE_UNUSED)
+			release_vpe(v);
+	}
 }
 
 module_init(vpe_module_init);

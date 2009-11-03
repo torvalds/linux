@@ -93,7 +93,7 @@ extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern const struct export_operations xfs_export_operations;
 extern struct xattr_handler *xfs_xattr_handlers[];
-extern struct quotactl_ops xfs_quotactl_operations;
+extern const struct quotactl_ops xfs_quotactl_operations;
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 

@@ -94,11 +94,13 @@ struct ems_pci_card {
 #define EMS_PCI_CDR             (CDR_CBP | CDR_CLKOUT_MASK)
 
 #define EMS_PCI_V1_BASE_BAR     1
-#define EMS_PCI_V1_MEM_SIZE     4096
+#define EMS_PCI_V1_CONF_SIZE    4096 /* size of PITA control area */
 #define EMS_PCI_V2_BASE_BAR     2
-#define EMS_PCI_V2_MEM_SIZE     128
+#define EMS_PCI_V2_CONF_SIZE    128 /* size of PLX control area */
 #define EMS_PCI_CAN_BASE_OFFSET 0x400 /* offset where the controllers starts */
 #define EMS_PCI_CAN_CTRL_SIZE   0x200 /* memory size for each controller */
+
+#define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
 static struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-PCI v1 */
@@ -224,7 +226,7 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	struct sja1000_priv *priv;
 	struct net_device *dev;
 	struct ems_pci_card *card;
-	int max_chan, mem_size, base_bar;
+	int max_chan, conf_size, base_bar;
 	int err, i;
 
 	/* Enabling PCI device */
@@ -251,22 +253,22 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 		card->version = 2; /* CPC-PCI v2 */
 		max_chan = EMS_PCI_V2_MAX_CHAN;
 		base_bar = EMS_PCI_V2_BASE_BAR;
-		mem_size = EMS_PCI_V2_MEM_SIZE;
+		conf_size = EMS_PCI_V2_CONF_SIZE;
 	} else {
 		card->version = 1; /* CPC-PCI v1 */
 		max_chan = EMS_PCI_V1_MAX_CHAN;
 		base_bar = EMS_PCI_V1_BASE_BAR;
-		mem_size = EMS_PCI_V1_MEM_SIZE;
+		conf_size = EMS_PCI_V1_CONF_SIZE;
 	}
 
 	/* Remap configuration space and controller memory area */
-	card->conf_addr = pci_iomap(pdev, 0, mem_size);
+	card->conf_addr = pci_iomap(pdev, 0, conf_size);
 	if (card->conf_addr == NULL) {
 		err = -ENOMEM;
 		goto failure_cleanup;
 	}
 
-	card->base_addr = pci_iomap(pdev, base_bar, mem_size);
+	card->base_addr = pci_iomap(pdev, base_bar, EMS_PCI_BASE_SIZE);
 	if (card->base_addr == NULL) {
 		err = -ENOMEM;
 		goto failure_cleanup;

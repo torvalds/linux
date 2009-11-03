@@ -211,7 +211,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * step 1?
 	 */
 	if (ud->tcp_socket) {
-		udbg("shutdown tcp_socket %p\n", ud->tcp_socket);
+		usbip_udbg("shutdown tcp_socket %p\n", ud->tcp_socket);
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 
@@ -259,7 +259,7 @@ static void stub_device_reset(struct usbip_device *ud)
 	struct usb_device *udev = interface_to_usbdev(sdev->interface);
 	int ret;
 
-	udbg("device reset");
+	usbip_udbg("device reset");
 	ret = usb_lock_device_for_reset(udev, sdev->interface);
 	if (ret < 0) {
 		dev_err(&udev->dev, "lock for reset\n");
@@ -356,7 +356,7 @@ static struct stub_device *stub_device_alloc(struct usb_interface *interface)
 
 	usbip_start_eh(&sdev->ud);
 
-	udbg("register new interface\n");
+	usbip_udbg("register new interface\n");
 	return sdev;
 }
 
@@ -366,7 +366,7 @@ static int stub_device_free(struct stub_device *sdev)
 		return -EINVAL;
 
 	kfree(sdev);
-	udbg("kfree udev ok\n");
+	usbip_udbg("kfree udev ok\n");
 
 	return 0;
 }
@@ -409,13 +409,13 @@ static int stub_probe(struct usb_interface *interface,
 	}
 
 	if (udev->descriptor.bDeviceClass ==  USB_CLASS_HUB) {
-		udbg("this device %s is a usb hub device. skip!\n",
+		usbip_udbg("this device %s is a usb hub device. skip!\n",
 								udev_busid);
 		return -ENODEV;
 	}
 
 	if (!strcmp(udev->bus->bus_name, "vhci_hcd")) {
-		udbg("this device %s is attached on vhci_hcd. skip!\n",
+		usbip_udbg("this device %s is attached on vhci_hcd. skip!\n",
 								udev_busid);
 		return -ENODEV;
 	}
@@ -451,7 +451,7 @@ static void stub_disconnect(struct usb_interface *interface)
 {
 	struct stub_device *sdev = usb_get_intfdata(interface);
 
-	udbg("Enter\n");
+	usbip_udbg("Enter\n");
 
 	/* get stub_device */
 	if (!sdev) {
@@ -479,5 +479,5 @@ static void stub_disconnect(struct usb_interface *interface)
 	stub_device_free(sdev);
 
 
-	udbg("bye\n");
+	usbip_udbg("bye\n");
 }

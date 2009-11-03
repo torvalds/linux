@@ -59,9 +59,6 @@ void __init pagetable_init(void)
 
 	/* Initialize the entire pgd.  */
 	pgd_init((unsigned long)swapper_pg_dir);
-#ifdef MODULE_START
-	pgd_init((unsigned long)module_pg_dir);
-#endif
 	pmd_init((unsigned long)invalid_pmd_table, (unsigned long)invalid_pte_table);
 
 	pgd_base = swapper_pg_dir;
