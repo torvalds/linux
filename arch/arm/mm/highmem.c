@@ -46,6 +46,8 @@ void *kmap_atomic(struct page *page, enum km_type type)
 	if (!PageHighMem(page))
 		return page_address(page);
 
+	debug_kmap_atomic(type);
+
 	kmap = kmap_high_get(page);
 	if (kmap)
 		return kmap;

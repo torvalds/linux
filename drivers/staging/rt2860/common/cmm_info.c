@@ -25,6 +25,7 @@
  *************************************************************************
 */
 
+#include <linux/sched.h>
 #include "../rt_config.h"
 
 INT	Show_SSID_Proc(

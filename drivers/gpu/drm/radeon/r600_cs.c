@@ -252,7 +252,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
-	reg = header >> 2;
+	reg = CP_PACKET0_GET_REG(header);
 	mutex_lock(&p->rdev->ddev->mode_config.mutex);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {

@@ -78,7 +78,7 @@ static void sh7705_flush_icache_range(void *args)
 /*
  * Writeback&Invalidate the D-cache of the page
  */
-static void __flush_dcache_page(unsigned long phys)
+static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
 {
 	unsigned long ways, waysize, addrstart;
 	unsigned long flags;
@@ -144,7 +144,7 @@ static void sh7705_flush_dcache_page(void *arg)
 		__flush_dcache_page(PHYSADDR(page_address(page)));
 }
 
-static void sh7705_flush_cache_all(void *args)
+static void __uses_jump_to_uncached sh7705_flush_cache_all(void *args)
 {
 	unsigned long flags;
 

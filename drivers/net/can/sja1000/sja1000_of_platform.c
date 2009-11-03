@@ -213,6 +213,7 @@ static struct of_device_id __devinitdata sja1000_ofp_table[] = {
 	{.compatible = "nxp,sja1000"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, sja1000_ofp_table);
 
 static struct of_platform_driver sja1000_ofp_driver = {
 	.owner = THIS_MODULE,

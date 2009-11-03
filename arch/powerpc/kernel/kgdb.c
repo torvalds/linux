@@ -282,12 +282,6 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	unsigned long *ptr = gdb_regs;
 	int reg;
-#ifdef CONFIG_SPE
-	union {
-		u32 v32[2];
-		u64 v64;
-	} acc;
-#endif
 
 	for (reg = 0; reg < 32; reg++)
 		UNPACK64(regs->gpr[reg], ptr);

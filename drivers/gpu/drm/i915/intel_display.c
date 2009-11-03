@@ -3095,7 +3095,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_gem_object *bo;
 	struct drm_i915_gem_object *obj_priv;
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp = I915_READ(control);
@@ -3182,9 +3181,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
 	}
 
-	if ((IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
-
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc->cursor_addr = addr;
@@ -3242,6 +3238,16 @@ void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 	intel_crtc->lut_r[regno] = red >> 8;
 	intel_crtc->lut_g[regno] = green >> 8;
 	intel_crtc->lut_b[regno] = blue >> 8;
+}
+
+void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+			     u16 *blue, int regno)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	*red = intel_crtc->lut_r[regno] << 8;
+	*green = intel_crtc->lut_g[regno] << 8;
+	*blue = intel_crtc->lut_b[regno] << 8;
 }
 
 static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
@@ -3835,6 +3841,7 @@ static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base = intel_pipe_set_base,
 	.prepare = intel_crtc_prepare,
 	.commit = intel_crtc_commit,
+	.load_lut = intel_crtc_load_lut,
 };
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {

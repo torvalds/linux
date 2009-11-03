@@ -691,7 +691,10 @@ static void store_event_type(const char *orgname)
 	FILE *file;
 	int id;
 
-	sprintf(filename, "/sys/kernel/debug/tracing/events/%s/id", orgname);
+	sprintf(filename, "%s/", debugfs_path);
+	strncat(filename, orgname, strlen(orgname));
+	strcat(filename, "/id");
+
 	c = strchr(filename, ':');
 	if (c)
 		*c = '/';

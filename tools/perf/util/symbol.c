@@ -324,8 +324,7 @@ static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_FUNC &&
 	       sym->st_name != 0 &&
-	       sym->st_shndx != SHN_UNDEF &&
-	       sym->st_size != 0;
+	       sym->st_shndx != SHN_UNDEF;
 }
 
 static inline int elf_sym__is_label(const GElf_Sym *sym)

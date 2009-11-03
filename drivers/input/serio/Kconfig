@@ -4,7 +4,7 @@
 config SERIO
 	tristate "Serial I/O support" if EMBEDDED || !X86
 	default y
-	---help---
+	help
 	  Say Yes here if you have any input device that uses serial I/O to
 	  communicate with the system. This includes the
 	  		* standard AT keyboard and PS/2 mouse *
@@ -22,7 +22,7 @@ config SERIO_I8042
 	tristate "i8042 PC Keyboard controller" if EMBEDDED || !X86
 	default y
 	depends on !PARISC && (!ARM || ARCH_SHARK || FOOTBRIDGE_HOST) && !M68K && !BLACKFIN
-	---help---
+	help
 	  i8042 is the chip over which the standard AT keyboard and PS/2
 	  mouse are connected to the computer. If you use these devices,
 	  you'll need to say Y here.
@@ -35,7 +35,7 @@ config SERIO_I8042
 config SERIO_SERPORT
 	tristate "Serial port line discipline"
 	default y
-	---help---
+	help
 	  Say Y here if you plan to use an input device (mouse, joystick,
 	  tablet, 6dof) that communicates over the RS232 serial (COM) port.
 
@@ -49,7 +49,7 @@ config SERIO_SERPORT
 config SERIO_CT82C710
 	tristate "ct82c710 Aux port controller"
 	depends on X86
-	---help---
+	help
 	  Say Y here if you have a Texas Instruments TravelMate notebook
 	  equipped with the ct82c710 chip and want to use a mouse connected
 	  to the "QuickPort".
@@ -66,7 +66,7 @@ config SERIO_Q40KBD
 config SERIO_PARKBD
 	tristate "Parallel port keyboard adapter"
 	depends on PARPORT
-	---help---
+	help
 	  Say Y here if you built a simple parallel port adapter to attach
 	  an additional AT keyboard, XT keyboard or PS/2 mouse.
 
@@ -124,7 +124,7 @@ config HP_SDC
 	tristate "HP System Device Controller i8042 Support"
 	depends on (GSC || HP300) && SERIO
 	default y
-	---help---
+	help
 	  This option enables support for the "System Device
 	  Controller", an i8042 carrying microcode to manage a
 	  few miscellaneous devices on some Hewlett Packard systems.
@@ -168,6 +168,7 @@ config SERIO_MACEPS2
 
 config SERIO_LIBPS2
 	tristate "PS/2 driver library" if EMBEDDED
+	depends on SERIO_I8042 || SERIO_I8042=n
 	help
 	  Say Y here if you are using a driver for device connected
 	  to a PS/2 port, such as PS/2 mouse or standard AT keyboard.

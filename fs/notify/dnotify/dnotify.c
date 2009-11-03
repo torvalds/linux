@@ -91,6 +91,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct fown_struct *fown;
+	__u32 test_mask = event->mask & ~FS_EVENT_ON_CHILD;
 
 	to_tell = event->to_tell;
 
@@ -106,7 +107,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	spin_lock(&entry->lock);
 	prev = &dnentry->dn;
 	while ((dn = *prev) != NULL) {
-		if ((dn->dn_mask & event->mask) == 0) {
+		if ((dn->dn_mask & test_mask) == 0) {
 			prev = &dn->dn_next;
 			continue;
 		}

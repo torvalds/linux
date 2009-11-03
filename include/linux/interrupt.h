@@ -10,7 +10,6 @@
 #include <linux/irqreturn.h>
 #include <linux/irqnr.h>
 #include <linux/hardirq.h>
-#include <linux/sched.h>
 #include <linux/irqflags.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
@@ -610,6 +609,7 @@ extern void debug_poll_all_shared_irqs(void);
 static inline void debug_poll_all_shared_irqs(void) { }
 #endif
 
+struct seq_file;
 int show_interrupts(struct seq_file *p, void *v);
 
 struct irq_desc;

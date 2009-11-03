@@ -3,6 +3,7 @@
   */
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/sched.h>
 
 #include "hostcmd.h"
 #include "radiotap.h"

@@ -311,6 +311,10 @@ typedef struct
 	__u32		orig_gpr2;
 } s390_compat_regs;
 
+typedef struct
+{
+	__u32		gprs_high[NUM_GPRS];
+} s390_compat_regs_high;
 
 #ifdef __KERNEL__
 

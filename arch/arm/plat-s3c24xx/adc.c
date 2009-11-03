@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/clk.h>

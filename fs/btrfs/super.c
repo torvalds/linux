@@ -66,7 +66,8 @@ enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
 	Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl,
-	Opt_compress, Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_err,
+	Opt_compress, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
+	Opt_discard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -88,6 +89,7 @@ static match_table_t tokens = {
 	{Opt_notreelog, "notreelog"},
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
+	{Opt_discard, "discard"},
 	{Opt_err, NULL},
 };
 
@@ -257,6 +259,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				       info->metadata_ratio);
 			}
 			break;
+		case Opt_discard:
+			btrfs_set_opt(info->mount_opt, DISCARD);
+			break;
 		default:
 			break;
 		}
@@ -344,7 +349,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_export_op = &btrfs_export_ops;
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
-#ifdef CONFIG_BTRFS_POSIX_ACL
+#ifdef CONFIG_BTRFS_FS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
 

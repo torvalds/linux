@@ -1345,6 +1345,7 @@ radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t supported_device)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct radeon_encoder *radeon_encoder;
 
@@ -1364,7 +1365,10 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		return;
 
 	encoder = &radeon_encoder->base;
-	encoder->possible_crtcs = 0x3;
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		encoder->possible_crtcs = 0x1;
+	else
+		encoder->possible_crtcs = 0x3;
 	encoder->possible_clones = 0;
 
 	radeon_encoder->enc_priv = NULL;

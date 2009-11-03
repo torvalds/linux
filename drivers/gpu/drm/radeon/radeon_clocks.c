@@ -411,7 +411,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					R300_PIXCLK_TRANS_ALWAYS_ONb |
 					R300_PIXCLK_TVO_ALWAYS_ONb |
 					R300_P2G2CLK_ALWAYS_ONb |
-					R300_P2G2CLK_ALWAYS_ONb);
+					R300_P2G2CLK_DAC_ALWAYS_ONb);
 				WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 			} else if (rdev->family >= CHIP_RV350) {
 				tmp = RREG32_PLL(R300_SCLK_CNTL2);
@@ -464,7 +464,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					R300_PIXCLK_TRANS_ALWAYS_ONb |
 					R300_PIXCLK_TVO_ALWAYS_ONb |
 					R300_P2G2CLK_ALWAYS_ONb |
-					R300_P2G2CLK_ALWAYS_ONb);
+					R300_P2G2CLK_DAC_ALWAYS_ONb);
 				WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 
 				tmp = RREG32_PLL(RADEON_MCLK_MISC);
@@ -654,7 +654,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 R300_PIXCLK_TRANS_ALWAYS_ONb |
 				 R300_PIXCLK_TVO_ALWAYS_ONb |
 				 R300_P2G2CLK_ALWAYS_ONb |
-				 R300_P2G2CLK_ALWAYS_ONb |
+				 R300_P2G2CLK_DAC_ALWAYS_ONb |
 				 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 		} else if (rdev->family >= CHIP_RV350) {
@@ -705,7 +705,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 R300_PIXCLK_TRANS_ALWAYS_ONb |
 				 R300_PIXCLK_TVO_ALWAYS_ONb |
 				 R300_P2G2CLK_ALWAYS_ONb |
-				 R300_P2G2CLK_ALWAYS_ONb |
+				 R300_P2G2CLK_DAC_ALWAYS_ONb |
 				 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 		} else {

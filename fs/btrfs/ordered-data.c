@@ -306,6 +306,12 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 	tree->last = NULL;
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
 
+	spin_lock(&BTRFS_I(inode)->accounting_lock);
+	BTRFS_I(inode)->outstanding_extents--;
+	spin_unlock(&BTRFS_I(inode)->accounting_lock);
+	btrfs_unreserve_metadata_for_delalloc(BTRFS_I(inode)->root,
+					      inode, 1);
+
 	spin_lock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);
 

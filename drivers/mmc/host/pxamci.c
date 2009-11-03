@@ -693,7 +693,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (gpio_is_valid(gpio_ro)) {
 		ret = gpio_request(gpio_ro, "mmc card read only");
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_ro);
 			goto err_gpio_ro;
 		}
 		gpio_direction_input(gpio_ro);
@@ -701,7 +701,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (gpio_is_valid(gpio_cd)) {
 		ret = gpio_request(gpio_cd, "mmc card detect");
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
 			goto err_gpio_cd;
 		}
 		gpio_direction_input(gpio_cd);

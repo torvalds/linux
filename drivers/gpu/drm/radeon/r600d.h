@@ -643,6 +643,7 @@
 #define		G_000E50_MCDW_BUSY(x)			(((x) >> 13) & 1)
 #define		G_000E50_SEM_BUSY(x)			(((x) >> 14) & 1)
 #define		G_000E50_RLC_BUSY(x)			(((x) >> 15) & 1)
+#define		G_000E50_BIF_BUSY(x)			(((x) >> 29) & 1)
 #define	R_000E60_SRBM_SOFT_RESET			0x0E60
 #define		S_000E60_SOFT_RESET_BIF(x)		(((x) & 1) << 1)
 #define		S_000E60_SOFT_RESET_CG(x)		(((x) & 1) << 2)

@@ -26,6 +26,7 @@ struct cfg80211_conn {
 		CFG80211_CONN_AUTHENTICATING,
 		CFG80211_CONN_ASSOCIATE_NEXT,
 		CFG80211_CONN_ASSOCIATING,
+		CFG80211_CONN_DEAUTH_ASSOC_FAIL,
 	} state;
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 	u8 *ie;
@@ -148,6 +149,12 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					       NULL, 0,
 					       WLAN_REASON_DEAUTH_LEAVING);
 		return err;
+	case CFG80211_CONN_DEAUTH_ASSOC_FAIL:
+		__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
+				       NULL, 0,
+				       WLAN_REASON_DEAUTH_LEAVING);
+		/* return an error so that we call __cfg80211_connect_result() */
+		return -EINVAL;
 	default:
 		return 0;
 	}
@@ -158,6 +165,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	struct cfg80211_registered_device *rdev =
 		container_of(work, struct cfg80211_registered_device, conn_work);
 	struct wireless_dev *wdev;
+	u8 bssid[ETH_ALEN];
 
 	rtnl_lock();
 	cfg80211_lock_rdev(rdev);
@@ -173,10 +181,10 @@ void cfg80211_conn_work(struct work_struct *work)
 			wdev_unlock(wdev);
 			continue;
 		}
+		memcpy(bssid, wdev->conn->params.bssid, ETH_ALEN);
 		if (cfg80211_conn_do_work(wdev))
 			__cfg80211_connect_result(
-					wdev->netdev,
-					wdev->conn->params.bssid,
+					wdev->netdev, bssid,
 					NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					false, NULL);
@@ -335,6 +343,15 @@ bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev)
 	schedule_work(&rdev->conn_work);
 
 	return true;
+}
+
+void cfg80211_sme_failed_assoc(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	wdev->conn->state = CFG80211_CONN_DEAUTH_ASSOC_FAIL;
+	schedule_work(&rdev->conn_work);
 }
 
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,

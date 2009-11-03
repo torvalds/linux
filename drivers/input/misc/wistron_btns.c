@@ -936,6 +936,15 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Medion MD 42200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Medion"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "WIM 2030"),
+		},
+		.driver_data = keymap_fs_amilo_pro_v2000
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Medion MD 96500",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONPC"),

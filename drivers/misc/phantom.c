@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/cdev.h>
 #include <linux/phantom.h>
+#include <linux/sched.h>
 #include <linux/smp_lock.h>
 
 #include <asm/atomic.h>

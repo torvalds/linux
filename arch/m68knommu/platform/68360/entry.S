@@ -35,17 +35,17 @@
 .globl inthandler
 
 badsys:
-	movel	#-ENOSYS,%sp@(PT_D0)
+	movel	#-ENOSYS,%sp@(PT_OFF_D0)
 	jra	ret_from_exception
 
 do_trace:
-	movel	#-ENOSYS,%sp@(PT_D0)	/* needed for strace*/
+	movel	#-ENOSYS,%sp@(PT_OFF_D0) /* needed for strace*/
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	movel	%sp@(PT_ORIG_D0),%d1
+	movel	%sp@(PT_OFF_ORIG_D0),%d1
 	movel	#-ENOSYS,%d0
 	cmpl	#NR_syscalls,%d1
 	jcc	1f
@@ -53,7 +53,7 @@ do_trace:
 	lea	sys_call_table, %a0
 	jbsr	%a0@(%d1)
 
-1:	movel	%d0,%sp@(PT_D0)		/* save the return value */
+1:	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value */
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
@@ -79,10 +79,10 @@ ENTRY(system_call)
 	lea	sys_call_table,%a0
 	movel	%a0@(%d0), %a0
 	jbsr	%a0@
-	movel	%d0,%sp@(PT_D0)		/* save the return value*/
+	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value*/
 
 ret_from_exception:
-	btst	#5,%sp@(PT_SR)		/* check if returning to kernel*/
+	btst	#5,%sp@(PT_OFF_SR)	/* check if returning to kernel*/
 	jeq	Luser_return		/* if so, skip resched, signals*/
 
 Lkernel_return:
@@ -124,7 +124,7 @@ Lreturn:
  */
 inthandler:
 	SAVE_ALL
-	movew	%sp@(PT_VECTOR), %d0
+	movew	%sp@(PT_OFF_VECTOR), %d0
 	and.l	#0x3ff, %d0
 	lsr.l   #0x02,  %d0
 
@@ -139,7 +139,7 @@ ret_from_interrupt:
 2:
 	RESTORE_ALL
 1:
-	moveb	%sp@(PT_SR), %d0
+	moveb	%sp@(PT_OFF_SR), %d0
 	and	#7, %d0
 	jhi	2b
 	/* check if we need to do software interrupts */

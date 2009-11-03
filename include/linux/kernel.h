@@ -659,6 +659,12 @@ extern int do_sysinfo(struct sysinfo *info);
 
 #endif /* __KERNEL__ */
 
+#ifndef __EXPORTED_HEADERS__
+#ifndef __KERNEL__
+#warning Attempt to use kernel headers from user space, see http://kernelnewbies.org/KernelHeaders
+#endif /* __KERNEL__ */
+#endif /* __EXPORTED_HEADERS__ */
+
 #define SI_LOAD_SHIFT	16
 struct sysinfo {
 	long uptime;			/* Seconds since boot */

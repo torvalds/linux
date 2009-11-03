@@ -70,6 +70,7 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 /* #define DEBUG_FLAGS */
 
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include "../comedidev.h"
 
 #include "mite.h"

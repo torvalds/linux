@@ -41,28 +41,17 @@ void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 /*
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
-int r100_init(struct radeon_device *rdev);
-int r200_init(struct radeon_device *rdev);
+extern int r100_init(struct radeon_device *rdev);
+extern void r100_fini(struct radeon_device *rdev);
+extern int r100_suspend(struct radeon_device *rdev);
+extern int r100_resume(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
-void r100_errata(struct radeon_device *rdev);
-void r100_vram_info(struct radeon_device *rdev);
 void r100_vga_set_state(struct radeon_device *rdev, bool state);
 int r100_gpu_reset(struct radeon_device *rdev);
-int r100_mc_init(struct radeon_device *rdev);
-void r100_mc_fini(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
-int r100_wb_init(struct radeon_device *rdev);
-void r100_wb_fini(struct radeon_device *rdev);
-int r100_pci_gart_init(struct radeon_device *rdev);
-void r100_pci_gart_fini(struct radeon_device *rdev);
-int r100_pci_gart_enable(struct radeon_device *rdev);
-void r100_pci_gart_disable(struct radeon_device *rdev);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
 int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
-int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-void r100_cp_fini(struct radeon_device *rdev);
-void r100_cp_disable(struct radeon_device *rdev);
 void r100_cp_commit(struct radeon_device *rdev);
 void r100_ring_start(struct radeon_device *rdev);
 int r100_irq_set(struct radeon_device *rdev);
@@ -83,33 +72,21 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 int r100_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r100_bandwidth_update(struct radeon_device *rdev);
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-int r100_ib_test(struct radeon_device *rdev);
 int r100_ring_test(struct radeon_device *rdev);
 
 static struct radeon_asic r100_asic = {
 	.init = &r100_init,
-	.errata = &r100_errata,
-	.vram_info = &r100_vram_info,
+	.fini = &r100_fini,
+	.suspend = &r100_suspend,
+	.resume = &r100_resume,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r100_gpu_reset,
-	.mc_init = &r100_mc_init,
-	.mc_fini = &r100_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &r100_pci_gart_init,
-	.gart_fini = &r100_pci_gart_fini,
-	.gart_enable = &r100_pci_gart_enable,
-	.gart_disable = &r100_pci_gart_disable,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r100_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,
@@ -131,55 +108,38 @@ static struct radeon_asic r100_asic = {
 /*
  * r300,r350,rv350,rv380
  */
-int r300_init(struct radeon_device *rdev);
-void r300_errata(struct radeon_device *rdev);
-void r300_vram_info(struct radeon_device *rdev);
-int r300_gpu_reset(struct radeon_device *rdev);
-int r300_mc_init(struct radeon_device *rdev);
-void r300_mc_fini(struct radeon_device *rdev);
-void r300_ring_start(struct radeon_device *rdev);
-void r300_fence_ring_emit(struct radeon_device *rdev,
-			  struct radeon_fence *fence);
-int r300_cs_parse(struct radeon_cs_parser *p);
-int rv370_pcie_gart_init(struct radeon_device *rdev);
-void rv370_pcie_gart_fini(struct radeon_device *rdev);
-int rv370_pcie_gart_enable(struct radeon_device *rdev);
-void rv370_pcie_gart_disable(struct radeon_device *rdev);
-void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
-int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
-uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
-void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
-void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
-int r300_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_pages,
-		  struct radeon_fence *fence);
-
+extern int r300_init(struct radeon_device *rdev);
+extern void r300_fini(struct radeon_device *rdev);
+extern int r300_suspend(struct radeon_device *rdev);
+extern int r300_resume(struct radeon_device *rdev);
+extern int r300_gpu_reset(struct radeon_device *rdev);
+extern void r300_ring_start(struct radeon_device *rdev);
+extern void r300_fence_ring_emit(struct radeon_device *rdev,
+				struct radeon_fence *fence);
+extern int r300_cs_parse(struct radeon_cs_parser *p);
+extern void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
+extern int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
+extern uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
+extern void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
+extern int r300_copy_dma(struct radeon_device *rdev,
+			uint64_t src_offset,
+			uint64_t dst_offset,
+			unsigned num_pages,
+			struct radeon_fence *fence);
 static struct radeon_asic r300_asic = {
 	.init = &r300_init,
-	.errata = &r300_errata,
-	.vram_info = &r300_vram_info,
+	.fini = &r300_fini,
+	.suspend = &r300_suspend,
+	.resume = &r300_resume,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &r300_mc_init,
-	.mc_fini = &r300_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &r100_pci_gart_init,
-	.gart_fini = &r100_pci_gart_fini,
-	.gart_enable = &r100_pci_gart_enable,
-	.gart_disable = &r100_pci_gart_disable,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,
@@ -209,26 +169,14 @@ static struct radeon_asic r420_asic = {
 	.fini = &r420_fini,
 	.suspend = &r420_suspend,
 	.resume = &r420_resume,
-	.errata = NULL,
-	.vram_info = NULL,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = NULL,
-	.mc_fini = NULL,
-	.wb_init = NULL,
-	.wb_fini = NULL,
-	.gart_enable = NULL,
-	.gart_disable = NULL,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.cp_init = NULL,
-	.cp_fini = NULL,
-	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = NULL,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,
@@ -250,42 +198,27 @@ static struct radeon_asic r420_asic = {
 /*
  * rs400,rs480
  */
-void rs400_errata(struct radeon_device *rdev);
-void rs400_vram_info(struct radeon_device *rdev);
-int rs400_mc_init(struct radeon_device *rdev);
-void rs400_mc_fini(struct radeon_device *rdev);
-int rs400_gart_init(struct radeon_device *rdev);
-void rs400_gart_fini(struct radeon_device *rdev);
-int rs400_gart_enable(struct radeon_device *rdev);
-void rs400_gart_disable(struct radeon_device *rdev);
+extern int rs400_init(struct radeon_device *rdev);
+extern void rs400_fini(struct radeon_device *rdev);
+extern int rs400_suspend(struct radeon_device *rdev);
+extern int rs400_resume(struct radeon_device *rdev);
 void rs400_gart_tlb_flush(struct radeon_device *rdev);
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rs400_asic = {
-	.init = &r300_init,
-	.errata = &rs400_errata,
-	.vram_info = &rs400_vram_info,
+	.init = &rs400_init,
+	.fini = &rs400_fini,
+	.suspend = &rs400_suspend,
+	.resume = &rs400_resume,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &rs400_mc_init,
-	.mc_fini = &rs400_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &rs400_gart_init,
-	.gart_fini = &rs400_gart_fini,
-	.gart_enable = &rs400_gart_enable,
-	.gart_disable = &rs400_gart_disable,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,
@@ -307,18 +240,13 @@ static struct radeon_asic rs400_asic = {
 /*
  * rs600.
  */
-int rs600_init(struct radeon_device *rdev);
-void rs600_errata(struct radeon_device *rdev);
-void rs600_vram_info(struct radeon_device *rdev);
-int rs600_mc_init(struct radeon_device *rdev);
-void rs600_mc_fini(struct radeon_device *rdev);
+extern int rs600_init(struct radeon_device *rdev);
+extern void rs600_fini(struct radeon_device *rdev);
+extern int rs600_suspend(struct radeon_device *rdev);
+extern int rs600_resume(struct radeon_device *rdev);
 int rs600_irq_set(struct radeon_device *rdev);
 int rs600_irq_process(struct radeon_device *rdev);
 u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
-int rs600_gart_init(struct radeon_device *rdev);
-void rs600_gart_fini(struct radeon_device *rdev);
-int rs600_gart_enable(struct radeon_device *rdev);
-void rs600_gart_disable(struct radeon_device *rdev);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
 int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
@@ -326,28 +254,17 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs600_asic = {
 	.init = &rs600_init,
-	.errata = &rs600_errata,
-	.vram_info = &rs600_vram_info,
+	.fini = &rs600_fini,
+	.suspend = &rs600_suspend,
+	.resume = &rs600_resume,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &rs600_mc_init,
-	.mc_fini = &rs600_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &rs600_gart_init,
-	.gart_fini = &rs600_gart_fini,
-	.gart_enable = &rs600_gart_enable,
-	.gart_disable = &rs600_gart_disable,
 	.gart_tlb_flush = &rs600_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
@@ -367,37 +284,26 @@ static struct radeon_asic rs600_asic = {
 /*
  * rs690,rs740
  */
-void rs690_errata(struct radeon_device *rdev);
-void rs690_vram_info(struct radeon_device *rdev);
-int rs690_mc_init(struct radeon_device *rdev);
-void rs690_mc_fini(struct radeon_device *rdev);
+int rs690_init(struct radeon_device *rdev);
+void rs690_fini(struct radeon_device *rdev);
+int rs690_resume(struct radeon_device *rdev);
+int rs690_suspend(struct radeon_device *rdev);
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs690_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs690_asic = {
-	.init = &rs600_init,
-	.errata = &rs690_errata,
-	.vram_info = &rs690_vram_info,
+	.init = &rs690_init,
+	.fini = &rs690_fini,
+	.suspend = &rs690_suspend,
+	.resume = &rs690_resume,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &rs690_mc_init,
-	.mc_fini = &rs690_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &rs400_gart_init,
-	.gart_fini = &rs400_gart_fini,
-	.gart_enable = &rs400_gart_enable,
-	.gart_disable = &rs400_gart_disable,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
@@ -435,28 +341,14 @@ static struct radeon_asic rv515_asic = {
 	.fini = &rv515_fini,
 	.suspend = &rv515_suspend,
 	.resume = &rv515_resume,
-	.errata = NULL,
-	.vram_info = NULL,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
-	.mc_init = NULL,
-	.mc_fini = NULL,
-	.wb_init = NULL,
-	.wb_fini = NULL,
-	.gart_init = &rv370_pcie_gart_init,
-	.gart_fini = &rv370_pcie_gart_fini,
-	.gart_enable = NULL,
-	.gart_disable = NULL,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.cp_init = NULL,
-	.cp_fini = NULL,
-	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &rv515_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = NULL,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
@@ -485,28 +377,14 @@ static struct radeon_asic r520_asic = {
 	.fini = &rv515_fini,
 	.suspend = &rv515_suspend,
 	.resume = &r520_resume,
-	.errata = NULL,
-	.vram_info = NULL,
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
-	.mc_init = NULL,
-	.mc_fini = NULL,
-	.wb_init = NULL,
-	.wb_fini = NULL,
-	.gart_init = NULL,
-	.gart_fini = NULL,
-	.gart_enable = NULL,
-	.gart_disable = NULL,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.cp_init = NULL,
-	.cp_fini = NULL,
-	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &rv515_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = NULL,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
@@ -554,37 +432,23 @@ int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t offset, uint32_t obj_size);
 int r600_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-int r600_ib_test(struct radeon_device *rdev);
 int r600_ring_test(struct radeon_device *rdev);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence);
 
 static struct radeon_asic r600_asic = {
-	.errata = NULL,
 	.init = &r600_init,
 	.fini = &r600_fini,
 	.suspend = &r600_suspend,
 	.resume = &r600_resume,
 	.cp_commit = &r600_cp_commit,
-	.vram_info = NULL,
 	.vga_set_state = &r600_vga_set_state,
 	.gpu_reset = &r600_gpu_reset,
-	.mc_init = NULL,
-	.mc_fini = NULL,
-	.wb_init = &r600_wb_init,
-	.wb_fini = &r600_wb_fini,
-	.gart_enable = NULL,
-	.gart_disable = NULL,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.cp_init = NULL,
-	.cp_fini = NULL,
-	.cp_disable = NULL,
-	.ring_start = NULL,
 	.ring_test = &r600_ring_test,
 	.ring_ib_execute = &r600_ring_ib_execute,
-	.ib_test = &r600_ib_test,
 	.irq_set = &r600_irq_set,
 	.irq_process = &r600_irq_process,
 	.fence_ring_emit = &r600_fence_ring_emit,
@@ -611,30 +475,17 @@ int rv770_resume(struct radeon_device *rdev);
 int rv770_gpu_reset(struct radeon_device *rdev);
 
 static struct radeon_asic rv770_asic = {
-	.errata = NULL,
 	.init = &rv770_init,
 	.fini = &rv770_fini,
 	.suspend = &rv770_suspend,
 	.resume = &rv770_resume,
 	.cp_commit = &r600_cp_commit,
-	.vram_info = NULL,
 	.gpu_reset = &rv770_gpu_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.mc_init = NULL,
-	.mc_fini = NULL,
-	.wb_init = &r600_wb_init,
-	.wb_fini = &r600_wb_fini,
-	.gart_enable = NULL,
-	.gart_disable = NULL,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.cp_init = NULL,
-	.cp_fini = NULL,
-	.cp_disable = NULL,
-	.ring_start = NULL,
 	.ring_test = &r600_ring_test,
 	.ring_ib_execute = &r600_ring_ib_execute,
-	.ib_test = &r600_ib_test,
 	.irq_set = &r600_irq_set,
 	.irq_process = &r600_irq_process,
 	.fence_ring_emit = &r600_fence_ring_emit,

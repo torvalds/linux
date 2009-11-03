@@ -1393,7 +1393,7 @@ int trace_array_vprintk(struct trace_array *tr,
 
 int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	return trace_array_printk(&global_trace, ip, fmt, args);
+	return trace_array_vprintk(&global_trace, ip, fmt, args);
 }
 EXPORT_SYMBOL_GPL(trace_vprintk);
 

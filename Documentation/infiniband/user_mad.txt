@@ -128,8 +128,8 @@ Setting IsSM Capability Bit
   To create the appropriate character device files automatically with
   udev, a rule like
 
-    KERNEL="umad*", NAME="infiniband/%k"
-    KERNEL="issm*", NAME="infiniband/%k"
+    KERNEL=="umad*", NAME="infiniband/%k"
+    KERNEL=="issm*", NAME="infiniband/%k"
 
   can be used.  This will create device nodes named
 

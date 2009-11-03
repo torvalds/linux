@@ -27,8 +27,6 @@
 #include <mach/msm_iomap.h>
 #include <mach/irqs.h>
 #include <mach/board.h>
-#include <linux/delay.h>
-
 #include <mach/msm_fb.h>
 #include "mddi_hw.h"
 

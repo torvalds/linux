@@ -48,6 +48,7 @@
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
 #define IS_ISA_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
+#define IS_AZALIA(pdev) ((pdev)->vendor == 0x8086 && (pdev)->device == 0x3a3e)
 
 #define IOAPIC_RANGE_START	(0xfee00000)
 #define IOAPIC_RANGE_END	(0xfeefffff)
@@ -94,6 +95,7 @@ static inline unsigned long virt_to_dma_pfn(void *p)
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
+static void __init check_tylersburg_isoch(void);
 static int rwbf_quirk;
 
 /*
@@ -1934,6 +1936,9 @@ error:
 }
 
 static int iommu_identity_mapping;
+#define IDENTMAP_ALL		1
+#define IDENTMAP_GFX		2
+#define IDENTMAP_AZALIA		4
 
 static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long long start,
@@ -2151,8 +2156,14 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 
 static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 {
-	if (iommu_identity_mapping == 2)
-		return IS_GFX_DEVICE(pdev);
+	if ((iommu_identity_mapping & IDENTMAP_AZALIA) && IS_AZALIA(pdev))
+		return 1;
+
+	if ((iommu_identity_mapping & IDENTMAP_GFX) && IS_GFX_DEVICE(pdev))
+		return 1;
+
+	if (!(iommu_identity_mapping & IDENTMAP_ALL))
+		return 0;
 
 	/*
 	 * We want to start off with all devices in the 1:1 domain, and
@@ -2332,11 +2343,14 @@ int __init init_dmars(void)
 	}
 
 	if (iommu_pass_through)
-		iommu_identity_mapping = 1;
+		iommu_identity_mapping |= IDENTMAP_ALL;
+
 #ifdef CONFIG_DMAR_BROKEN_GFX_WA
-	else
-		iommu_identity_mapping = 2;
+	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
+
+	check_tylersburg_isoch();
+
 	/*
 	 * If pass through is not set or not enabled, setup context entries for
 	 * identity mappings for rmrr, gfx, and isa and may fall back to static
@@ -3670,3 +3684,61 @@ static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2a40, quirk_iommu_rwbf);
+
+/* On Tylersburg chipsets, some BIOSes have been known to enable the
+   ISOCH DMAR unit for the Azalia sound device, but not give it any
+   TLB entries, which causes it to deadlock. Check for that.  We do
+   this in a function called from init_dmars(), instead of in a PCI
+   quirk, because we don't want to print the obnoxious "BIOS broken"
+   message if VT-d is actually disabled.
+*/
+static void __init check_tylersburg_isoch(void)
+{
+	struct pci_dev *pdev;
+	uint32_t vtisochctrl;
+
+	/* If there's no Azalia in the system anyway, forget it. */
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3a3e, NULL);
+	if (!pdev)
+		return;
+	pci_dev_put(pdev);
+
+	/* System Management Registers. Might be hidden, in which case
+	   we can't do the sanity check. But that's OK, because the
+	   known-broken BIOSes _don't_ actually hide it, so far. */
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x342e, NULL);
+	if (!pdev)
+		return;
+
+	if (pci_read_config_dword(pdev, 0x188, &vtisochctrl)) {
+		pci_dev_put(pdev);
+		return;
+	}
+
+	pci_dev_put(pdev);
+
+	/* If Azalia DMA is routed to the non-isoch DMAR unit, fine. */
+	if (vtisochctrl & 1)
+		return;
+
+	/* Drop all bits other than the number of TLB entries */
+	vtisochctrl &= 0x1c;
+
+	/* If we have the recommended number of TLB entries (16), fine. */
+	if (vtisochctrl == 0x10)
+		return;
+
+	/* Zero TLB entries? You get to ride the short bus to school. */
+	if (!vtisochctrl) {
+		WARN(1, "Your BIOS is broken; DMA routed to ISOCH DMAR unit but no TLB space.\n"
+		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		     dmi_get_system_info(DMI_BIOS_VENDOR),
+		     dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		iommu_identity_mapping |= IDENTMAP_AZALIA;
+		return;
+	}
+	
+	printk(KERN_WARNING "DMAR: Recommended TLB entries for ISOCH unit is 16; your BIOS set %d\n",
+	       vtisochctrl);
+}

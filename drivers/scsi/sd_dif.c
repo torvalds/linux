@@ -320,15 +320,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		dif = 0; dix = 1;
 	}
 
-	if (type) {
-		if (dif)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Enabling DIF Type %d protection\n", type);
-		else
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Disabling DIF Type %d protection\n", type);
-	}
-
 	if (!dix)
 		return;
 
@@ -357,62 +348,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		sd_printk(KERN_NOTICE, sdkp, "DIF application tag size %u\n",
 			  disk->integrity->tag_size);
 	}
-}
-
-/*
- * DIF DMA operation magic decoder ring.
- */
-void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsigned int type)
-{
-	int csum_convert, prot_op;
-
-	prot_op = 0;
-
-	/* Convert checksum? */
-	if (scsi_host_get_guard(scmd->device->host) != SHOST_DIX_GUARD_CRC)
-		csum_convert = 1;
-	else
-		csum_convert = 0;
-
-	BUG_ON(dif && (scmd->cmnd[0] == READ_6 || scmd->cmnd[0] == WRITE_6));
-
-	switch (scmd->cmnd[0]) {
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case READ_16:
-		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_READ_CONVERT;
-			else
-				prot_op = SCSI_PROT_READ_PASS;
-		else if (dif && !dix)
-			prot_op = SCSI_PROT_READ_STRIP;
-		else if (!dif && dix)
-			prot_op = SCSI_PROT_READ_INSERT;
-
-		break;
-
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	case WRITE_16:
-		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_WRITE_CONVERT;
-			else
-				prot_op = SCSI_PROT_WRITE_PASS;
-		else if (dif && !dix)
-			prot_op = SCSI_PROT_WRITE_INSERT;
-		else if (!dif && dix)
-			prot_op = SCSI_PROT_WRITE_STRIP;
-
-		break;
-	}
-
-	scsi_set_prot_op(scmd, prot_op);
-	if (dif)
-		scsi_set_prot_type(scmd, type);
 }
 
 /*

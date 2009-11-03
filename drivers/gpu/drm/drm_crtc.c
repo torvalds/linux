@@ -1556,8 +1556,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int ret = 0;
 
-	DRM_DEBUG_KMS("\n");
-
 	if (!req->flags) {
 		DRM_ERROR("no operation set\n");
 		return -EINVAL;

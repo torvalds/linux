@@ -873,7 +873,7 @@ static long get_instantiation_keyring(key_serial_t ringid,
 	/* otherwise specify the destination keyring recorded in the
 	 * authorisation key (any KEY_SPEC_*_KEYRING) */
 	if (ringid >= KEY_SPEC_REQUESTOR_KEYRING) {
-		*_dest_keyring = rka->dest_keyring;
+		*_dest_keyring = key_get(rka->dest_keyring);
 		return 0;
 	}
 

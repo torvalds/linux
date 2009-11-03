@@ -570,12 +570,18 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 
 	/* Get rid of any futexes when releasing the mm */
 #ifdef CONFIG_FUTEX
-	if (unlikely(tsk->robust_list))
+	if (unlikely(tsk->robust_list)) {
 		exit_robust_list(tsk);
+		tsk->robust_list = NULL;
+	}
 #ifdef CONFIG_COMPAT
-	if (unlikely(tsk->compat_robust_list))
+	if (unlikely(tsk->compat_robust_list)) {
 		compat_exit_robust_list(tsk);
+		tsk->compat_robust_list = NULL;
+	}
 #endif
+	if (unlikely(!list_empty(&tsk->pi_state_list)))
+		exit_pi_state_list(tsk);
 #endif
 
 	/* Get rid of any cached register state */

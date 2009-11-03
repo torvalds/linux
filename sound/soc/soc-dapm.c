@@ -524,7 +524,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 
 		/* connected jack or spk ? */
 		if (widget->id == snd_soc_dapm_hp || widget->id == snd_soc_dapm_spk ||
-			widget->id == snd_soc_dapm_line)
+		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sources)))
 			return 1;
 	}
 
@@ -573,7 +573,8 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 			return 1;
 
 		/* connected jack ? */
-		if (widget->id == snd_soc_dapm_mic || widget->id == snd_soc_dapm_line)
+		if (widget->id == snd_soc_dapm_mic ||
+		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sinks)))
 			return 1;
 	}
 

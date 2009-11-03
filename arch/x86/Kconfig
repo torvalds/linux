@@ -86,10 +86,6 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config FAST_CMPXCHG_LOCAL
-	bool
-	default y
-
 config MMU
 	def_bool y
 
@@ -495,7 +491,7 @@ if PARAVIRT_GUEST
 source "arch/x86/xen/Kconfig"
 
 config VMI
-	bool "VMI Guest support"
+	bool "VMI Guest support (DEPRECATED)"
 	select PARAVIRT
 	depends on X86_32
 	---help---
@@ -503,6 +499,15 @@ config VMI
 	  (it could be used by other hypervisors in theory too, but is not
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
+
+	  As of September 2009, VMware has started a phased retirement
+	  of this feature from VMware's products. Please see
+	  feature-removal-schedule.txt for details.  If you are
+	  planning to enable this option, please note that you cannot
+	  live migrate a VMI enabled VM to a future VMware product,
+	  which doesn't support VMI. So if you expect your kernel to
+	  seamlessly migrate to newer VMware products, keep this
+	  disabled.
 
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"

@@ -538,13 +538,12 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 				       WLAN_CAPABILITY_PRIVACY,
 				       capability);
 
+	if (bss) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-	if (bss)
 		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
 		       "%pM\n", bss->cbss.bssid, ifibss->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
-	if (bss && memcmp(ifibss->bssid, bss->cbss.bssid, ETH_ALEN)) {
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
 		       " based on configured SSID\n",
 		       sdata->dev->name, bss->cbss.bssid);
@@ -552,8 +551,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		ieee80211_sta_join_ibss(sdata, bss);
 		ieee80211_rx_bss_put(local, bss);
 		return;
-	} else if (bss)
-		ieee80211_rx_bss_put(local, bss);
+	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
@@ -829,7 +827,7 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 		if (!sdata->u.ibss.ssid_len)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
-		ieee80211_sta_find_ibss(sdata);
+		mod_timer(&sdata->u.ibss.timer, 0);
 	}
 	mutex_unlock(&local->iflist_mtx);
 }

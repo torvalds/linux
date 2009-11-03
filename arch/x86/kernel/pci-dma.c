@@ -35,7 +35,7 @@ int iommu_detected __read_mostly = 0;
 
 /*
  * This variable becomes 1 if iommu=pt is passed on the kernel command line.
- * If this variable is 1, IOMMU implementations do no DMA ranslation for
+ * If this variable is 1, IOMMU implementations do no DMA translation for
  * devices and allow every device to access to whole physical memory. This is
  * useful if a user want to use an IOMMU only for KVM device assignment to
  * guests and not for driver dma translation.
@@ -311,7 +311,7 @@ void pci_iommu_shutdown(void)
 	amd_iommu_shutdown();
 }
 /* Must execute after PCI subsystem */
-fs_initcall(pci_iommu_init);
+rootfs_initcall(pci_iommu_init);
 
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
