@@ -17,6 +17,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -403,6 +404,39 @@ static struct platform_device *devices[] __initdata = {
 	&mx31moboard_leds_device,
 };
 
+static struct mx3_camera_pdata camera_pdata = {
+	.dma_dev	= &mx3_ipu.dev,
+	.flags		= MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10,
+	.mclk_10khz	= 4800,
+};
+
+#define CAMERA_BUF_SIZE	(4*1024*1024)
+
+static int __init mx31moboard_cam_alloc_dma(const size_t buf_size)
+{
+	dma_addr_t dma_handle;
+	void *buf;
+	int dma;
+
+	if (buf_size < 2 * 1024 * 1024)
+		return -EINVAL;
+
+	buf = dma_alloc_coherent(NULL, buf_size, &dma_handle, GFP_KERNEL);
+	if (!buf) {
+		pr_err("%s: cannot allocate camera buffer-memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	memset(buf, 0, buf_size);
+
+	dma = dma_declare_coherent_memory(&mx3_camera.dev,
+					dma_handle, dma_handle, buf_size,
+					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
+
+	/* The way we call dma_declare_coherent_memory only a malloc can fail */
+	return dma & DMA_MEMORY_MAP ? 0 : -ENOMEM;
+}
+
 static int mx31moboard_baseboard;
 core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 
@@ -436,6 +470,8 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
+	if (!mx31moboard_cam_alloc_dma(CAMERA_BUF_SIZE))
+		mxc_register_device(&mx3_camera, &camera_pdata);
 
 	usb_xcvr_reset();
 

@@ -16,9 +16,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
@@ -27,6 +29,8 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/mmc.h>
+
+#include <media/soc_camera.h>
 
 #include "devices.h"
 
@@ -37,7 +41,6 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_PC_CD2_B__SD2_CLK, MX31_PIN_PC_CD1_B__SD2_CMD,
 	MX31_PIN_ATA_DIOR__GPIO3_28, MX31_PIN_ATA_DIOW__GPIO3_29,
 	/* CSI */
-	MX31_PIN_CSI_D4__CSI_D4, MX31_PIN_CSI_D5__CSI_D5,
 	MX31_PIN_CSI_D6__CSI_D6, MX31_PIN_CSI_D7__CSI_D7,
 	MX31_PIN_CSI_D8__CSI_D8, MX31_PIN_CSI_D9__CSI_D9,
 	MX31_PIN_CSI_D10__CSI_D10, MX31_PIN_CSI_D11__CSI_D11,
@@ -45,6 +48,7 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_CSI_D14__CSI_D14, MX31_PIN_CSI_D15__CSI_D15,
 	MX31_PIN_CSI_HSYNC__CSI_HSYNC, MX31_PIN_CSI_MCLK__CSI_MCLK,
 	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK, MX31_PIN_CSI_VSYNC__CSI_VSYNC,
+	MX31_PIN_CSI_D4__GPIO3_4, MX31_PIN_CSI_D5__GPIO3_5,
 	MX31_PIN_GPIO3_0__GPIO3_0, MX31_PIN_GPIO3_1__GPIO3_1,
 	MX31_PIN_TXD2__GPIO1_28,
 	/* dsPIC resets */
@@ -122,6 +126,83 @@ static void dspics_resets_init(void)
 	}
 }
 
+#define TURRETCAM_POWER	IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)
+#define BASECAM_POWER	IOMUX_TO_GPIO(MX31_PIN_CSI_D5)
+#define TURRETCAM_RST_B	IOMUX_TO_GPIO(MX31_PIN_GPIO3_0)
+#define BASECAM_RST_B	IOMUX_TO_GPIO(MX31_PIN_CSI_D4)
+#define CAM_CHOICE	IOMUX_TO_GPIO(MX31_PIN_TXD2)
+
+static int marxbot_basecam_power(struct device *dev, int on)
+{
+	gpio_set_value(BASECAM_POWER, !on);
+	return 0;
+}
+
+static int marxbot_basecam_reset(struct device *dev)
+{
+	gpio_set_value(BASECAM_RST_B, 0);
+	udelay(100);
+	gpio_set_value(BASECAM_RST_B, 1);
+	return 0;
+}
+
+static struct i2c_board_info marxbot_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("mt9t031", 0x5d),
+	},
+};
+
+static struct soc_camera_link base_iclink = {
+	.bus_id		= 0,		/* Must match with the camera ID */
+	.power		= marxbot_basecam_power,
+	.reset		= marxbot_basecam_reset,
+	.board_info	= &marxbot_i2c_devices[0],
+	.i2c_adapter_id	= 0,
+	.module_name	= "mt9t031",
+};
+
+static struct platform_device marxbot_camera[] = {
+	{
+		.name	= "soc-camera-pdrv",
+		.id	= 0,
+		.dev	= {
+			.platform_data = &base_iclink,
+		},
+	},
+};
+
+static struct platform_device *marxbot_cameras[] __initdata = {
+	&marxbot_camera[0],
+};
+
+static int __init marxbot_cam_init(void)
+{
+	int ret = gpio_request(CAM_CHOICE, "cam-choice");
+	if (ret)
+		return ret;
+	gpio_direction_output(CAM_CHOICE, 1);
+
+	ret = gpio_request(BASECAM_RST_B, "basecam-reset");
+	if (ret)
+		return ret;
+	gpio_direction_output(BASECAM_RST_B, 1);
+	ret = gpio_request(BASECAM_POWER, "basecam-standby");
+	if (ret)
+		return ret;
+	gpio_direction_output(BASECAM_POWER, 0);
+
+	ret = gpio_request(TURRETCAM_RST_B, "turretcam-reset");
+	if (ret)
+		return ret;
+	gpio_direction_output(TURRETCAM_RST_B, 1);
+	ret = gpio_request(TURRETCAM_POWER, "turretcam-standby");
+	if (ret)
+		return ret;
+	gpio_direction_output(TURRETCAM_POWER, 0);
+
+	return 0;
+}
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -135,6 +216,9 @@ void __init mx31moboard_marxbot_init(void)
 	dspics_resets_init();
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+
+	marxbot_cam_init();
+	platform_add_devices(marxbot_cameras, ARRAY_SIZE(marxbot_cameras));
 
 	/* battery present pin */
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_LCS0), "bat-present");
