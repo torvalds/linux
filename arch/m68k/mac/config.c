@@ -44,10 +44,6 @@
 #include <asm/mac_oss.h>
 #include <asm/mac_psc.h>
 
-/* platform device info */
-
-#define SWIM_IO_SIZE 0x2000	/* SWIM IO resource size */
-
 /* Mac bootinfo struct */
 struct mac_booter_data mac_bi_data;
 
@@ -862,22 +858,22 @@ static void mac_get_model(char *str)
 	strcat(str, macintosh_config->name);
 }
 
-static struct resource swim_resources[1];
+static struct resource swim_rsrc = { .flags = IORESOURCE_MEM };
 
-static struct platform_device swim_device = {
+static struct platform_device swim_pdev = {
 	.name		= "swim",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(swim_resources),
-	.resource	= swim_resources,
-};
-
-static struct platform_device *mac_platform_devices[] __initdata = {
-	&swim_device
+	.num_resources	= 1,
+	.resource	= &swim_rsrc,
 };
 
 int __init mac_platform_init(void)
 {
 	u8 *swim_base;
+
+	/*
+	 * Floppy device
+	 */
 
 	switch (macintosh_config->floppy_type) {
 	case MAC_FLOPPY_SWIM_ADDR1:
@@ -887,16 +883,17 @@ int __init mac_platform_init(void)
 		swim_base = (u8 *)(VIA1_BASE + 0x16000);
 		break;
 	default:
-		return 0;
+		swim_base = NULL;
+		break;
 	}
 
-	swim_resources[0].name = "swim-regs";
-	swim_resources[0].start = (resource_size_t)swim_base;
-	swim_resources[0].end = (resource_size_t)(swim_base + SWIM_IO_SIZE);
-	swim_resources[0].flags = IORESOURCE_MEM;
+	if (swim_base) {
+		swim_rsrc.start = (resource_size_t) swim_base,
+		swim_rsrc.end   = (resource_size_t) swim_base + 0x2000,
+		platform_device_register(&swim_pdev);
+	}
 
-	return platform_add_devices(mac_platform_devices,
-				    ARRAY_SIZE(mac_platform_devices));
+	return 0;
 }
 
 arch_initcall(mac_platform_init);
