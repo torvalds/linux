@@ -637,6 +637,7 @@ static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
 	{"", 0},		/* User Specified */
 	{"", 0}			/* Terminator */
 };
+MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
 
 static __devexit void tpm_tis_pnp_remove(struct pnp_dev *dev)
 {
