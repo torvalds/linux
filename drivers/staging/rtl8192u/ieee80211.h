@@ -39,9 +39,9 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
-#include "../../ieee80211/rtl819x_HT.h"
-#include "../../ieee80211/rtl819x_BA.h"
-#include "../../ieee80211/rtl819x_TS.h"
+#include "ieee80211/rtl819x_HT.h"
+#include "ieee80211/rtl819x_BA.h"
+#include "ieee80211/rtl819x_TS.h"
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
 #ifndef bool

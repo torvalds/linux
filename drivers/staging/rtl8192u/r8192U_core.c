@@ -1175,18 +1175,14 @@ static int rtl8192_rx_initiate(struct net_device*dev)
                 }
 //		printk("nomal packet IN request!\n");
                 usb_fill_bulk_urb(entry, priv->udev,
-                                  usb_rcvbulkpipe(priv->udev, 3), skb->tail,
+                                  usb_rcvbulkpipe(priv->udev, 3), skb_tail_pointer(skb),
                                   RX_URB_SIZE, rtl8192_rx_isr, skb);
                 info = (struct rtl8192_rx_info *) skb->cb;
                 info->urb = entry;
                 info->dev = dev;
 		info->out_pipe = 3; //denote rx normal packet queue
                 skb_queue_tail(&priv->rx_queue, skb);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
                 usb_submit_urb(entry, GFP_KERNEL);
-#else
-                usb_submit_urb(entry);
-#endif
         }
 
 	/* command packet rx procedure */
@@ -1205,18 +1201,14 @@ static int rtl8192_rx_initiate(struct net_device*dev)
                         break;
                 }
                 usb_fill_bulk_urb(entry, priv->udev,
-                                  usb_rcvbulkpipe(priv->udev, 9), skb->tail,
+                                  usb_rcvbulkpipe(priv->udev, 9), skb_tail_pointer(skb),
                                   RX_URB_SIZE, rtl8192_rx_isr, skb);
                 info = (struct rtl8192_rx_info *) skb->cb;
                 info->urb = entry;
                 info->dev = dev;
 		   info->out_pipe = 9; //denote rx cmd packet queue
                 skb_queue_tail(&priv->rx_queue, skb);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		usb_submit_urb(entry, GFP_KERNEL);
-#else
-		usb_submit_urb(entry);
-#endif
         }
 
         return 0;
@@ -1586,7 +1578,7 @@ static void rtl8192_rx_isr(struct urb *urb)
         }
 
 	usb_fill_bulk_urb(urb, priv->udev,
-			usb_rcvbulkpipe(priv->udev, out_pipe), skb->tail,
+			usb_rcvbulkpipe(priv->udev, out_pipe), skb_tail_pointer(skb),
 			RX_URB_SIZE, rtl8192_rx_isr, skb);
 
         info = (struct rtl8192_rx_info *) skb->cb;
@@ -1594,14 +1586,10 @@ static void rtl8192_rx_isr(struct urb *urb)
         info->dev = dev;
 	info->out_pipe = out_pipe;
 
-        urb->transfer_buffer = skb->tail;
+        urb->transfer_buffer = skb_tail_pointer(skb);
         urb->context = skb;
         skb_queue_tail(&priv->rx_queue, skb);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
         err = usb_submit_urb(urb, GFP_ATOMIC);
-#else
-        err = usb_submit_urb(urb);
-#endif
 	if(err && err != EPERM)
 		printk("can not submit rxurb, err is %x,URB status is %x\n",err,urb->status);
 }
@@ -2953,25 +2941,21 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 
 #ifdef THOMAS_BEACON
 {
-	int align = 0;
-	u32 oldaddr,newaddr;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
+	long align = 0;
+	void *oldaddr, *newaddr;
+
 	priv->rx_urb[16] = usb_alloc_urb(0, GFP_KERNEL);
-#else
-	priv->rx_urb[16] = usb_alloc_urb(0);
-#endif
 	priv->oldaddr = kmalloc(16, GFP_KERNEL);
-	oldaddr = (u32)priv->oldaddr;
-	align = oldaddr&3;
-	if(align != 0 ){
+	oldaddr = priv->oldaddr;
+	align = ((long)oldaddr) & 3;
+	if (align) {
 		newaddr = oldaddr + 4 - align;
-		priv->rx_urb[16]->transfer_buffer_length = 16-4+align;
-	}
-	else{
+		priv->rx_urb[16]->transfer_buffer_length = 16 - 4 + align;
+	} else {
 		newaddr = oldaddr;
 		priv->rx_urb[16]->transfer_buffer_length = 16;
 	}
-	priv->rx_urb[16]->transfer_buffer = (u32*)newaddr;
+	priv->rx_urb[16]->transfer_buffer = newaddr;
 }
 #endif
 
@@ -6831,6 +6815,18 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
         }
 }
 
+static const struct net_device_ops rtl8192_netdev_ops = {
+	.ndo_open               = rtl8192_open,
+	.ndo_stop               = rtl8192_close,
+	.ndo_get_stats          = rtl8192_stats,
+	.ndo_tx_timeout         = tx_timeout,
+	.ndo_do_ioctl           = rtl8192_ioctl,
+	.ndo_set_multicast_list = r8192_set_multicast,
+	.ndo_set_mac_address    = r8192_set_mac_adr,
+	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_change_mtu         = eth_change_mtu,
+	.ndo_start_xmit         = ieee80211_xmit,
+};
 
 
 /****************************************************************************
@@ -6872,15 +6868,7 @@ static void * __devinit rtl8192_usb_probe(struct usb_device *udev,
 #endif
 	priv->udev=udev;
 
-	dev->open = rtl8192_open;
-	dev->stop = rtl8192_close;
-	//dev->hard_start_xmit = rtl8192_8023_hard_start_xmit;
-	dev->tx_timeout = tx_timeout;
-	//dev->wireless_handlers = &r8192_wx_handlers_def;
-	dev->do_ioctl = rtl8192_ioctl;
-	dev->set_multicast_list = r8192_set_multicast;
-	dev->set_mac_address = r8192_set_mac_adr;
-	dev->get_stats = rtl8192_stats;
+        dev->netdev_ops = &rtl8192_netdev_ops;
 
          //DMESG("Oops: i'm coming\n");
 #if WIRELESS_EXT >= 12
@@ -7000,9 +6988,55 @@ static void __devexit rtl8192_usb_disconnect(struct usb_device *udev, void *ptr)
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 
+/* fun with the built-in ieee80211 stack... */
+extern int ieee80211_debug_init(void);
+extern void ieee80211_debug_exit(void);
+extern int ieee80211_crypto_init(void);
+extern void ieee80211_crypto_deinit(void);
+extern int ieee80211_crypto_tkip_init(void);
+extern void ieee80211_crypto_tkip_exit(void);
+extern int ieee80211_crypto_ccmp_init(void);
+extern void ieee80211_crypto_ccmp_exit(void);
+extern int ieee80211_crypto_wep_init(void);
+extern void ieee80211_crypto_wep_exit(void);
 
 static int __init rtl8192_usb_module_init(void)
 {
+        int ret;
+
+#ifdef CONFIG_IEEE80211_DEBUG
+        ret = ieee80211_debug_init();
+        if (ret) {
+                printk(KERN_ERR "ieee80211_debug_init() failed %d\n", ret);
+                return ret;
+        }
+#endif
+        ret = ieee80211_crypto_init();
+        if (ret) {
+                printk(KERN_ERR "ieee80211_crypto_init() failed %d\n", ret);
+                return ret;
+        }
+
+        ret = ieee80211_crypto_tkip_init();
+        if (ret) {
+                printk(KERN_ERR "ieee80211_crypto_tkip_init() failed %d\n",
+                        ret);
+                return ret;
+        }
+
+        ret = ieee80211_crypto_ccmp_init();
+        if (ret) {
+                printk(KERN_ERR "ieee80211_crypto_ccmp_init() failed %d\n",
+                        ret);
+                return ret;
+        }
+
+        ret = ieee80211_crypto_wep_init();
+        if (ret) {
+                printk(KERN_ERR "ieee80211_crypto_wep_init() failed %d\n", ret);
+                return ret;
+        }
+
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan\n");
 	RT_TRACE(COMP_INIT, "Initializing module");
