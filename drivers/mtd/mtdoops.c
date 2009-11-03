@@ -33,6 +33,9 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 
+/* Maximum MTD partition size */
+#define MTDOOPS_MAX_MTD_SIZE (8 * 1024 * 1024)
+
 #define MTDOOPS_KERNMSG_MAGIC 0x5d005d00
 #define OOPS_PAGE_SIZE 4096
 
@@ -310,6 +313,12 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		return;
 	}
 
+	if (mtd->size > MTDOOPS_MAX_MTD_SIZE) {
+		printk(KERN_ERR "mtdoops: mtd%d is too large (limit is %d MiB)\n",
+		       mtd->index, MTDOOPS_MAX_MTD_SIZE / 1024 / 1024);
+		return;
+	}
+
 	/* oops_page_used is a bit field */
 	cxt->oops_page_used = vmalloc(DIV_ROUND_UP(mtdoops_pages,
 			BITS_PER_LONG));
@@ -317,14 +326,10 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		printk(KERN_ERR "Could not allocate page array\n");
 		return;
 	}
+
 	cxt->mtd = mtd;
-	if (mtd->size > INT_MAX)
-		cxt->oops_pages = INT_MAX / OOPS_PAGE_SIZE;
-	else
-		cxt->oops_pages = (int)mtd->size / OOPS_PAGE_SIZE;
-
+	cxt->oops_pages = (int)mtd->size / OOPS_PAGE_SIZE;
 	find_next_position(cxt);
-
 	printk(KERN_INFO "mtdoops: Attached to MTD device %d\n", mtd->index);
 }
 
