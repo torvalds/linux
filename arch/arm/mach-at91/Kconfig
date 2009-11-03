@@ -163,6 +163,11 @@ config MACH_CPUAT91
 	  Select this if you are using the Eukrea Electromatique's
 	  CPUAT91 board <http://www.eukrea.com/>.
 
+config MACH_ECO920
+	bool "eco920"
+	help
+	  Select this if you are using the eco920 board
+
 endif
 
 # ----------------------------------------------------------
