@@ -2126,6 +2126,7 @@
 #define SDE_PORTC_HOTPLUG       (1 << 9)
 #define SDE_PORTB_HOTPLUG       (1 << 8)
 #define SDE_SDVOB_HOTPLUG       (1 << 6)
+#define SDE_HOTPLUG_MASK	(0xf << 8)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
