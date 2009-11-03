@@ -351,8 +351,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 	if (!fcf || !fc_host_port_id(lp->host))
 		return;
 
-	len = fcoe_ctlr_fcoe_size(fip) + sizeof(struct ethhdr);
-	BUG_ON(len < sizeof(*kal) + sizeof(*vn));
+	len = sizeof(*kal) + ports * sizeof(*vn);
 	skb = dev_alloc_skb(len);
 	if (!skb)
 		return;
