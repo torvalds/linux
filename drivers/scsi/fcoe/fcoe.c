@@ -555,6 +555,7 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	u64 wwnn, wwpn;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
+	int vid = 0;
 
 	/* Setup lport private data to point to fcoe softc */
 	port = lport_priv(lport);
@@ -599,10 +600,16 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lport);
 
 	if (!lport->vport) {
+		/*
+		 * Use NAA 1&2 (FC-FS Rev. 2.0, Sec. 15) to generate WWNN/WWPN:
+		 * For WWNN, we use NAA 1 w/ bit 27-16 of word 0 as 0.
+		 * For WWPN, we use NAA 2 w/ bit 27-16 of word 0 from VLAN ID
+		 */
+		if (netdev->priv_flags & IFF_802_1Q_VLAN)
+			vid = vlan_dev_vlan_id(netdev);
 		wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
 		fc_set_wwnn(lport, wwnn);
-		/* XXX - 3rd arg needs to be vlan id */
-		wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 2, 0);
+		wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 2, vid);
 		fc_set_wwpn(lport, wwpn);
 	}
 
