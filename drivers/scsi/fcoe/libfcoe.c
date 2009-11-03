@@ -500,6 +500,8 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 
 	if (fip->state == FIP_ST_NON_FIP)
 		return 0;
+	if (!fip->sel_fcf)
+		goto drop;
 
 	switch (op) {
 	case ELS_FLOGI:
