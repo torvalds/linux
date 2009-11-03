@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/watchdog.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -75,7 +74,6 @@ static void riowd_writereg(struct riowd *p, u8 val, int index)
 
 static int riowd_open(struct inode *inode, struct file *filp)
 {
-	cycle_kernel_lock();
 	nonseekable_open(inode, filp);
 	return 0;
 }
@@ -194,6 +192,8 @@ static int __devinit riowd_probe(struct of_device *op,
 		printk(KERN_ERR PFX "Cannot map registers.\n");
 		goto out_free;
 	}
+	/* Make miscdev useable right away */
+	riowd_device = p;
 
 	err = misc_register(&riowd_miscdev);
 	if (err) {
@@ -205,10 +205,10 @@ static int __devinit riowd_probe(struct of_device *op,
 	       "regs at %p\n", riowd_timeout, p->regs);
 
 	dev_set_drvdata(&op->dev, p);
-	riowd_device = p;
 	return 0;
 
 out_iounmap:
+	riowd_device = NULL;
 	of_iounmap(&op->resource[0], p->regs, 2);
 
 out_free:
