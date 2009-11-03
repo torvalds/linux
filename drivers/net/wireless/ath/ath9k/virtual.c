@@ -697,3 +697,55 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle)
 		  wiphy_name(aphy->hw->wiphy),
 		  idle ? "idle" : "not-idle");
 }
+/* Only bother starting a queue on an active virtual wiphy */
+void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)
+{
+	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
+	unsigned int i;
+
+	spin_lock_bh(&sc->wiphy_lock);
+
+	/* Start the primary wiphy */
+	if (sc->pri_wiphy->state == ATH_WIPHY_ACTIVE) {
+		ieee80211_wake_queue(hw, skb_queue);
+		goto unlock;
+	}
+
+	/* Now start the secondary wiphy queues */
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (!aphy)
+			continue;
+		if (aphy->state != ATH_WIPHY_ACTIVE)
+			continue;
+
+		hw = aphy->hw;
+		ieee80211_wake_queue(hw, skb_queue);
+		break;
+	}
+
+unlock:
+	spin_unlock_bh(&sc->wiphy_lock);
+}
+
+/* Go ahead and propagate information to all virtual wiphys, it won't hurt */
+void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue)
+{
+	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
+	unsigned int i;
+
+	spin_lock_bh(&sc->wiphy_lock);
+
+	/* Stop the primary wiphy */
+	ieee80211_stop_queue(hw, skb_queue);
+
+	/* Now stop the secondary wiphy queues */
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (!aphy)
+			continue;
+		hw = aphy->hw;
+		ieee80211_stop_queue(hw, skb_queue);
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+}

@@ -915,9 +915,10 @@ int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
 struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ath_txq *txq = NULL;
+	u16 skb_queue = skb_get_queue_mapping(skb);
 	int qnum;
 
-	qnum = ath_get_hal_qnum(skb_get_queue_mapping(skb), sc);
+	qnum = ath_get_hal_qnum(skb_queue, sc);
 	txq = &sc->tx.txq[qnum];
 
 	spin_lock_bh(&txq->axq_lock);
@@ -926,7 +927,7 @@ struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_XMIT,
 			  "TX queue: %d is full, depth: %d\n",
 			  qnum, txq->axq_depth);
-		ieee80211_stop_queue(sc->hw, skb_get_queue_mapping(skb));
+		ath_mac80211_stop_queue(sc, skb_queue);
 		txq->stopped = 1;
 		spin_unlock_bh(&txq->axq_lock);
 		return NULL;
@@ -1705,8 +1706,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 * on the queue */
 		spin_lock_bh(&txq->axq_lock);
 		if (sc->tx.txq[txq->axq_qnum].axq_depth > 1) {
-			ieee80211_stop_queue(sc->hw,
-				skb_get_queue_mapping(skb));
+			ath_mac80211_stop_queue(sc, skb_get_queue_mapping(skb));
 			txq->stopped = 1;
 		}
 		spin_unlock_bh(&txq->axq_lock);
@@ -1946,7 +1946,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 	    sc->tx.txq[txq->axq_qnum].axq_depth <= (ATH_TXBUF - 20)) {
 		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
 		if (qnum != -1) {
-			ieee80211_wake_queue(sc->hw, qnum);
+			ath_mac80211_start_queue(sc, qnum);
 			txq->stopped = 0;
 		}
 	}

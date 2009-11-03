@@ -695,5 +695,8 @@ void ath9k_wiphy_work(struct work_struct *work);
 bool ath9k_all_wiphys_idle(struct ath_softc *sc);
 void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
 
+void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
+void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
+
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 #endif /* ATH9K_H */
