@@ -926,7 +926,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
 	req.Base = req.Size = 0;
 	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(&link, &req, &link->win)))
+	if ((err = pcmcia_request_window(link, &req, &link->win)))
 	    goto config_error;
 
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;

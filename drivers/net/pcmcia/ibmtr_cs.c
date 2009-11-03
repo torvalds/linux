@@ -246,7 +246,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     req.Base = 0; 
     req.Size = 0x2000;
     req.AccessSpeed = 250;
-    ret = pcmcia_request_window(&link, &req, &link->win);
+    ret = pcmcia_request_window(link, &req, &link->win);
     if (ret)
 	    goto failed;
 
@@ -263,7 +263,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     req.Base = 0;
     req.Size = sramsize * 1024;
     req.AccessSpeed = 250;
-    ret = pcmcia_request_window(&link, &req, &info->sram_win_handle);
+    ret = pcmcia_request_window(link, &req, &info->sram_win_handle);
     if (ret)
 	    goto failed;
 

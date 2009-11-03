@@ -759,7 +759,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
     req.Base = 0; req.Size = 0x8000;
     req.AccessSpeed = mem_speed;
-    ret = pcmcia_request_window(&link, &req, &link->win);
+    ret = pcmcia_request_window(link, &req, &link->win);
     if (ret)
 	    goto failed;
     mem.CardOffset = 0x20000; mem.Page = 0; 

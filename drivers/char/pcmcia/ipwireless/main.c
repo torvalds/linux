@@ -116,7 +116,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 		ipw->request_common_memory.Size = 0x1000;
 	ipw->request_common_memory.AccessSpeed = 0;
 
-	ret = pcmcia_request_window(&p_dev, &ipw->request_common_memory,
+	ret = pcmcia_request_window(p_dev, &ipw->request_common_memory,
 				&ipw->handle_common_memory);
 
 	if (ret != 0)
@@ -145,7 +145,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	ipw->request_attr_memory.Size = 0;	/* this used to be 0x1000 */
 	ipw->request_attr_memory.AccessSpeed = 0;
 
-	ret = pcmcia_request_window(&p_dev, &ipw->request_attr_memory,
+	ret = pcmcia_request_window(p_dev, &ipw->request_attr_memory,
 				&ipw->handle_attr_memory);
 
 	if (ret != 0)

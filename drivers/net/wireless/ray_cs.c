@@ -438,7 +438,7 @@ static int ray_config(struct pcmcia_device *link)
 	req.Base = 0;
 	req.Size = 0x8000;
 	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(&link, &req, &link->win);
+	ret = pcmcia_request_window(link, &req, &link->win);
 	if (ret)
 		goto failed;
 	mem.CardOffset = 0x0000;
@@ -454,7 +454,7 @@ static int ray_config(struct pcmcia_device *link)
 	req.Base = 0;
 	req.Size = 0x4000;
 	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(&link, &req, &local->rmem_handle);
+	ret = pcmcia_request_window(link, &req, &local->rmem_handle);
 	if (ret)
 		goto failed;
 	mem.CardOffset = 0x8000;
@@ -470,7 +470,7 @@ static int ray_config(struct pcmcia_device *link)
 	req.Base = 0;
 	req.Size = 0x1000;
 	req.AccessSpeed = ray_mem_speed;
-	ret = pcmcia_request_window(&link, &req, &local->amem_handle);
+	ret = pcmcia_request_window(link, &req, &local->amem_handle);
 	if (ret)
 		goto failed;
 	mem.CardOffset = 0x0000;

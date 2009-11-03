@@ -3876,7 +3876,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
       req.Base = req.Size = 0;
       req.AccessSpeed = mem_speed;
-      i = pcmcia_request_window(&link, &req, &link->win);
+      i = pcmcia_request_window(link, &req, &link->win);
       if (i != 0)
 	  break;
 

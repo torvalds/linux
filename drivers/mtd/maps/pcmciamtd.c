@@ -530,7 +530,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		int ret;
 		DEBUG(2, "requesting window with size = %dKiB memspeed = %d",
 		      req.Size >> 10, req.AccessSpeed);
-		ret = pcmcia_request_window(&link, &req, &link->win);
+		ret = pcmcia_request_window(link, &req, &link->win);
 		DEBUG(2, "ret = %d dev->win_size = %d", ret, dev->win_size);
 		if(ret) {
 			req.Size >>= 1;

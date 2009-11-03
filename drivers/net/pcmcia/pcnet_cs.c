@@ -317,7 +317,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link, &req, &link->win);
+    i = pcmcia_request_window(link, &req, &link->win);
     if (i != 0)
 	return NULL;
 
@@ -1491,7 +1491,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     req.Attributes |= WIN_USE_WAIT;
     req.Base = 0; req.Size = window_size;
     req.AccessSpeed = mem_speed;
-    ret = pcmcia_request_window(&link, &req, &link->win);
+    ret = pcmcia_request_window(link, &req, &link->win);
     if (ret)
 	    goto failed;
 

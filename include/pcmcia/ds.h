@@ -199,7 +199,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
 int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 				 config_req_t *req);
 
-int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req,
+int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req,
 			  window_handle_t *wh);
 int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t win);
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t win,

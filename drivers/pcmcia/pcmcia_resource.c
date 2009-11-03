@@ -752,9 +752,9 @@ EXPORT_SYMBOL(pcmcia_request_irq);
  * Request_window() establishes a mapping between card memory space
  * and system memory space.
  */
-int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_handle_t *wh)
+int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_handle_t *wh)
 {
-	struct pcmcia_socket *s = (*p_dev)->socket;
+	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
 	u_long align;
 	int w;
@@ -804,7 +804,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 			return -EINVAL;
 		}
 	}
-	(*p_dev)->_win |= CLIENT_WIN_REQ(w);
+	p_dev->_win |= CLIENT_WIN_REQ(w);
 
 	/* Configure the socket controller */
 	win->map = w+1;

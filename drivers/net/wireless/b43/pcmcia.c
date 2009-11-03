@@ -87,7 +87,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	win.Base = 0;
 	win.Size = SSB_CORE_SIZE;
 	win.AccessSpeed = 250;
-	res = pcmcia_request_window(&dev, &win, &dev->win);
+	res = pcmcia_request_window(dev, &win, &dev->win);
 	if (res != 0)
 		goto err_kfree_ssb;
 

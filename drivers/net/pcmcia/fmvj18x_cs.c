@@ -567,7 +567,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link, &req, &link->win);
+    i = pcmcia_request_window(link, &req, &link->win);
     if (i != 0)
 	return -1;
 
@@ -618,7 +618,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link, &req, &link->win);
+    i = pcmcia_request_window(link, &req, &link->win);
     if (i != 0)
 	return -1;
 
