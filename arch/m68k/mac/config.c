@@ -911,6 +911,16 @@ static struct platform_device swim_pdev = {
 	.resource	= &swim_rsrc,
 };
 
+static struct platform_device esp_0_pdev = {
+	.name		= "mac_esp",
+	.id		= 0,
+};
+
+static struct platform_device esp_1_pdev = {
+	.name		= "mac_esp",
+	.id		= 1,
+};
+
 int __init mac_platform_init(void)
 {
 	u8 *swim_base;
@@ -942,6 +952,23 @@ int __init mac_platform_init(void)
 		swim_rsrc.start = (resource_size_t) swim_base,
 		swim_rsrc.end   = (resource_size_t) swim_base + 0x2000,
 		platform_device_register(&swim_pdev);
+	}
+
+	/*
+	 * SCSI device(s)
+	 */
+
+	switch (macintosh_config->scsi_type) {
+	case MAC_SCSI_QUADRA:
+	case MAC_SCSI_QUADRA3:
+		platform_device_register(&esp_0_pdev);
+		break;
+	case MAC_SCSI_QUADRA2:
+		platform_device_register(&esp_0_pdev);
+		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
+		    (macintosh_config->ident == MAC_MODEL_Q950))
+			platform_device_register(&esp_1_pdev);
+		break;
 	}
 
 	return 0;
