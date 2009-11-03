@@ -226,7 +226,8 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 }
 
 static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb);
-static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new);
+static void fcoe_update_src_mac(struct fc_lport *lport, u8 *addr);
+static u8 *fcoe_get_src_mac(struct fc_lport *lport);
 static void fcoe_destroy_work(struct work_struct *work);
 
 /**
@@ -254,6 +255,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 	fcoe_ctlr_init(&fcoe->ctlr);
 	fcoe->ctlr.send = fcoe_fip_send;
 	fcoe->ctlr.update_mac = fcoe_update_src_mac;
+	fcoe->ctlr.get_src_addr = fcoe_get_src_mac;
 
 	fcoe_interface_setup(fcoe, netdev);
 
@@ -286,8 +288,6 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	/* Delete secondary MAC addresses */
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
 	dev_unicast_delete(netdev, flogi_maddr);
-	if (!is_zero_ether_addr(fip->data_src_addr))
-		dev_unicast_delete(netdev, fip->data_src_addr);
 	if (fip->spma)
 		dev_unicast_delete(netdev, fip->ctl_src_addr);
 	dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
@@ -369,23 +369,35 @@ static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 /**
  * fcoe_update_src_mac() - Update Ethernet MAC filters.
- * @fip: FCoE controller.
- * @old: Unicast MAC address to delete if the MAC is non-zero.
- * @new: Unicast MAC address to add.
+ * @lport: libfc lport
+ * @addr: Unicast MAC address to add.
  *
  * Remove any previously-set unicast MAC filter.
  * Add secondary FCoE MAC address filter for our OUI.
  */
-static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new)
+static void fcoe_update_src_mac(struct fc_lport *lport, u8 *addr)
 {
-	struct fcoe_interface *fcoe;
+	struct fcoe_port *port = lport_priv(lport);
+	struct fcoe_interface *fcoe = port->fcoe;
 
-	fcoe = fcoe_from_ctlr(fip);
 	rtnl_lock();
-	if (!is_zero_ether_addr(old))
-		dev_unicast_delete(fcoe->netdev, old);
-	dev_unicast_add(fcoe->netdev, new);
+	if (!is_zero_ether_addr(port->data_src_addr))
+		dev_unicast_delete(fcoe->netdev, port->data_src_addr);
+	if (!is_zero_ether_addr(addr))
+		dev_unicast_add(fcoe->netdev, addr);
+	memcpy(port->data_src_addr, addr, ETH_ALEN);
 	rtnl_unlock();
+}
+
+/**
+ * fcoe_get_src_mac() - return the Ethernet source address for an lport
+ * @lport: libfc lport
+ */
+static u8 *fcoe_get_src_mac(struct fc_lport *lport)
+{
+	struct fcoe_port *port = lport_priv(lport);
+
+	return port->data_src_addr;
 }
 
 /**
@@ -650,6 +662,11 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
+	rtnl_lock();
+	if (!is_zero_ether_addr(port->data_src_addr))
+		dev_unicast_delete(netdev, port->data_src_addr);
+	rtnl_unlock();
+
 	/* receives may not be stopped until after this */
 	fcoe_interface_put(fcoe);
 
@@ -706,10 +723,16 @@ static int fcoe_ddp_done(struct fc_lport *lp, u16 xid)
 	return 0;
 }
 
+static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport,
+		u32 did, struct fc_frame *fp, unsigned int op,
+		void (*resp)(struct fc_seq *, struct fc_frame *, void *),
+		void *arg, u32 timeout);
+
 static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
 	.ddp_setup = fcoe_ddp_setup,
 	.ddp_done = fcoe_ddp_done,
+	.elsct_send = fcoe_elsct_send,
 };
 
 /**
@@ -1226,7 +1249,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	}
 
 	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ) &&
-	    fcoe_ctlr_els_send(&fcoe->ctlr, skb))
+	    fcoe_ctlr_els_send(&fcoe->ctlr, lp, skb))
 		return 0;
 
 	sof = fr_sof(fp);
@@ -1291,7 +1314,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	if (unlikely(fcoe->ctlr.flogi_oxid != FC_XID_UNKNOWN))
 		memcpy(eh->h_source, fcoe->ctlr.ctl_src_addr, ETH_ALEN);
 	else
-		memcpy(eh->h_source, fcoe->ctlr.data_src_addr, ETH_ALEN);
+		memcpy(eh->h_source, port->data_src_addr, ETH_ALEN);
 
 	hp = (struct fcoe_hdr *)(eh + 1);
 	memset(hp, 0, sizeof(*hp));
@@ -1463,11 +1486,6 @@ int fcoe_percpu_receive_thread(void *arg)
 				continue;
 			}
 			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
-		}
-		if (unlikely(port->fcoe->ctlr.flogi_oxid != FC_XID_UNKNOWN) &&
-		    fcoe_ctlr_recv_flogi(&port->fcoe->ctlr, fp, mac)) {
-			fc_frame_free(fp);
-			continue;
 		}
 		fc_exch_recv(lp, fp);
 	}
@@ -2061,3 +2079,94 @@ static void __exit fcoe_exit(void)
 	fcoe_if_exit();
 }
 module_exit(fcoe_exit);
+
+/**
+ * fcoe_flogi_resp() - FCoE specific FLOGI and FDISC response handler
+ * @seq: active sequence in the FLOGI or FDISC exchange
+ * @fp: response frame, or error encoded in a pointer (timeout)
+ * @arg: pointer the the fcoe_ctlr structure
+ *
+ * This handles MAC address managment for FCoE, then passes control on to
+ * the libfc FLOGI response handler.
+ */
+static void fcoe_flogi_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
+{
+	struct fcoe_ctlr *fip = arg;
+	struct fc_exch *exch = fc_seq_exch(seq);
+	struct fc_lport *lport = exch->lp;
+	u8 *mac;
+
+	if (IS_ERR(fp))
+		goto done;
+
+	mac = fr_cb(fp)->granted_mac;
+	if (is_zero_ether_addr(mac)) {
+		/* pre-FIP */
+		mac = eth_hdr(&fp->skb)->h_source;
+		if (fcoe_ctlr_recv_flogi(fip, lport, fp, mac)) {
+			fc_frame_free(fp);
+			return;
+		}
+	} else {
+		/* FIP, libfcoe has already seen it */
+		fip->update_mac(lport, fr_cb(fp)->granted_mac);
+	}
+done:
+	fc_lport_flogi_resp(seq, fp, lport);
+}
+
+/**
+ * fcoe_logo_resp() - FCoE specific LOGO response handler
+ * @seq: active sequence in the LOGO exchange
+ * @fp: response frame, or error encoded in a pointer (timeout)
+ * @arg: pointer the the fcoe_ctlr structure
+ *
+ * This handles MAC address managment for FCoE, then passes control on to
+ * the libfc LOGO response handler.
+ */
+static void fcoe_logo_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
+{
+	struct fcoe_ctlr *fip = arg;
+	struct fc_exch *exch = fc_seq_exch(seq);
+	struct fc_lport *lport = exch->lp;
+	static u8 zero_mac[ETH_ALEN] = { 0 };
+
+	if (!IS_ERR(fp))
+		fip->update_mac(lport, zero_mac);
+	fc_lport_logo_resp(seq, fp, lport);
+}
+
+/**
+ * fcoe_elsct_send - FCoE specific ELS handler
+ *
+ * This does special case handling of FIP encapsualted ELS exchanges for FCoE,
+ * using FCoE specific response handlers and passing the FIP controller as
+ * the argument (the lport is still available from the exchange).
+ *
+ * Most of the work here is just handed off to the libfc routine.
+ */
+static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport,
+		u32 did, struct fc_frame *fp, unsigned int op,
+		void (*resp)(struct fc_seq *, struct fc_frame *, void *),
+		void *arg, u32 timeout)
+{
+	struct fcoe_port *port = lport_priv(lport);
+	struct fcoe_interface *fcoe = port->fcoe;
+	struct fcoe_ctlr *fip = &fcoe->ctlr;
+	struct fc_frame_header *fh = fc_frame_header_get(fp);
+
+	switch (op) {
+	case ELS_FLOGI:
+	case ELS_FDISC:
+		return fc_elsct_send(lport, did, fp, op, fcoe_flogi_resp,
+				     fip, timeout);
+	case ELS_LOGO:
+		/* only hook onto fabric logouts, not port logouts */
+		if (ntoh24(fh->fh_d_id) != FC_FID_FLOGI)
+			break;
+		return fc_elsct_send(lport, did, fp, op, fcoe_logo_resp,
+				     fip, timeout);
+	}
+	return fc_elsct_send(lport, did, fp, op, resp, arg, timeout);
+}
+

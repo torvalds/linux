@@ -104,6 +104,7 @@ struct fcoe_port {
 	u8	fcoe_pending_queue_active;
 	struct timer_list timer;		/* queue timer */
 	struct work_struct destroy_work;	/* to prevent rtnl deadlocks */
+	u8 data_src_addr[ETH_ALEN];
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)

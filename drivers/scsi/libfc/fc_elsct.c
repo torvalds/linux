@@ -31,7 +31,7 @@
 /*
  * fc_elsct_send - sends ELS/CT frame
  */
-static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
+struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 				    u32 did,
 				    struct fc_frame *fp,
 				    unsigned int op,
@@ -63,6 +63,7 @@ static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 
 	return lport->tt.exch_seq_send(lport, fp, resp, NULL, arg, timer_msec);
 }
+EXPORT_SYMBOL(fc_elsct_send);
 
 int fc_elsct_init(struct fc_lport *lport)
 {

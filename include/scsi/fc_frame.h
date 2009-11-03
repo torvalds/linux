@@ -28,6 +28,8 @@
 #include <scsi/fc/fc_fcp.h>
 #include <scsi/fc/fc_encaps.h>
 
+#include <linux/if_ether.h>
+
 /*
  * The fc_frame interface is used to pass frame data between functions.
  * The frame includes the data buffer, length, and SOF / EOF delimiter types.
@@ -67,6 +69,7 @@ struct fcoe_rcv_info {
 	enum fc_sof	fr_sof;		/* start of frame delimiter */
 	enum fc_eof	fr_eof;		/* end of frame delimiter */
 	u8		fr_flags;	/* flags - see below */
+	u8		granted_mac[ETH_ALEN]; /* FCoE MAC address */
 };
 
 

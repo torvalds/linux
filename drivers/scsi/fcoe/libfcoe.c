@@ -322,6 +322,7 @@ EXPORT_SYMBOL(fcoe_ctlr_link_down);
 /**
  * fcoe_ctlr_send_keep_alive() - Send a keep-alive to the selected FCF.
  * @fip:	FCoE controller.
+ * @lport:	libfc fc_lport to send from
  * @ports:	0 for controller keep-alive, 1 for port keep-alive.
  * @sa:		source MAC address.
  *
@@ -332,7 +333,9 @@ EXPORT_SYMBOL(fcoe_ctlr_link_down);
  * The source MAC is the assigned mapped source address.
  * The destination is the FCF's F-port.
  */
-static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
+static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
+				      struct fc_lport *lport,
+				      int ports, u8 *sa)
 {
 	struct sk_buff *skb;
 	struct fip_kal {
@@ -374,16 +377,14 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	kal->mac.fd_desc.fip_dtype = FIP_DT_MAC;
 	kal->mac.fd_desc.fip_dlen = sizeof(kal->mac) / FIP_BPW;
 	memcpy(kal->mac.fd_mac, fip->ctl_src_addr, ETH_ALEN);
-
 	if (ports) {
 		vn = (struct fip_vn_desc *)(kal + 1);
 		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
 		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
-		memcpy(vn->fd_mac, fip->data_src_addr, ETH_ALEN);
+		memcpy(vn->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
 		hton24(vn->fd_fc_id, fc_host_port_id(lp->host));
 		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
 	}
-
 	skb_put(skb, len);
 	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
@@ -394,6 +395,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 /**
  * fcoe_ctlr_encaps() - Encapsulate an ELS frame for FIP, without sending it.
  * @fip:	FCoE controller.
+ * @lport:	libfc fc_lport to use for the source address
  * @dtype:	FIP descriptor type for the frame.
  * @skb:	FCoE ELS frame including FC header but no FCoE headers.
  *
@@ -405,7 +407,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
  * Headroom includes the FIP encapsulation description, FIP header, and
  * Ethernet header.  The tailroom is for the FIP MAC descriptor.
  */
-static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
+static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			    u8 dtype, struct sk_buff *skb)
 {
 	struct fip_encaps_head {
@@ -450,7 +452,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
 	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC)
-		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
+		memcpy(mac->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
 	else if (fip->spma)
 		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
 
@@ -463,6 +465,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 /**
  * fcoe_ctlr_els_send() - Send an ELS frame encapsulated by FIP if appropriate.
  * @fip:	FCoE controller.
+ * @lport:	libfc fc_lport to send from
  * @skb:	FCoE ELS frame including FC header but no FCoE headers.
  *
  * Returns a non-zero error code if the frame should not be sent.
@@ -471,11 +474,13 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
  * The caller must check that the length is a multiple of 4.
  * The SKB must have enough headroom (28 bytes) and tailroom (8 bytes).
  */
-int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
+int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
+		       struct sk_buff *skb)
 {
 	struct fc_frame_header *fh;
 	u16 old_xid;
 	u8 op;
+	u8 mac[ETH_ALEN];
 
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
@@ -530,14 +535,15 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		 * FLOGI.
 		 */
 		fip->flogi_oxid = FC_XID_UNKNOWN;
-		fc_fcoe_set_mac(fip->data_src_addr, fh->fh_s_id);
+		fc_fcoe_set_mac(mac, fh->fh_d_id);
+		fip->update_mac(lport, mac);
 		return 0;
 	default:
 		if (fip->state != FIP_ST_ENABLED)
 			goto drop;
 		return 0;
 	}
-	if (fcoe_ctlr_encaps(fip, op, skb))
+	if (fcoe_ctlr_encaps(fip, lport, op, skb))
 		goto drop;
 	fip->send(fip, skb);
 	return -EINPROGRESS;
@@ -796,7 +802,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fc_lport *lp = fip->lp;
 	struct fip_header *fiph;
-	struct fc_frame *fp;
+	struct fc_frame *fp = (struct fc_frame *)skb;
 	struct fc_frame_header *fh = NULL;
 	struct fip_desc *desc;
 	struct fip_encaps *els;
@@ -835,6 +841,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 						"in FIP ELS\n");
 				goto drop;
 			}
+			memcpy(fr_cb(fp)->granted_mac, granted_mac, ETH_ALEN);
 			break;
 		case FIP_DT_FLOGI:
 		case FIP_DT_FDISC:
@@ -865,13 +872,10 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		goto drop;
 	els_op = *(u8 *)(fh + 1);
 
-	if ((els_dtype == FIP_DT_FLOGI || els_dtype == FIP_DT_FDISC) &&
-	    sub == FIP_SC_REP && fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
-	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac)) {
+	if (els_dtype == FIP_DT_FLOGI && sub == FIP_SC_REP &&
+	    fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
+	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac))
 		fip->flogi_oxid = FC_XID_UNKNOWN;
-		fip->update_mac(fip, fip->data_src_addr, granted_mac);
-		memcpy(fip->data_src_addr, granted_mac, ETH_ALEN);
-	}
 
 	/*
 	 * Convert skb into an fc_frame containing only the ELS.
@@ -958,7 +962,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (dlen < sizeof(*vp))
 				return;
 			if (compare_ether_addr(vp->fd_mac,
-			    fip->data_src_addr) == 0 &&
+			    fip->get_src_addr(lp)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lp->wwpn &&
 			    ntoh24(vp->fd_fc_id) == fc_host_port_id(lp->host))
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
@@ -1113,8 +1117,6 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
 	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
-	u8 send_ctlr_ka;
-	u8 send_port_ka;
 
 	spin_lock_bh(&fip->lock);
 	if (fip->state == FIP_ST_DISABLED) {
@@ -1153,12 +1155,10 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		schedule_work(&fip->link_work);
 	}
 
-	send_ctlr_ka = 0;
-	send_port_ka = 0;
 	if (sel) {
 		if (time_after_eq(jiffies, fip->ctlr_ka_time)) {
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
-			send_ctlr_ka = 1;
+			fip->send_ctlr_ka = 1;
 		}
 		if (time_after(next_timer, fip->ctlr_ka_time))
 			next_timer = fip->ctlr_ka_time;
@@ -1166,7 +1166,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		if (time_after_eq(jiffies, fip->port_ka_time)) {
 			fip->port_ka_time += jiffies +
 					msecs_to_jiffies(FIP_VN_KA_PERIOD);
-			send_port_ka = 1;
+			fip->send_port_ka = 1;
 		}
 		if (time_after(next_timer, fip->port_ka_time))
 			next_timer = fip->port_ka_time;
@@ -1176,12 +1176,9 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 				msecs_to_jiffies(FCOE_CTLR_START_DELAY);
 		mod_timer(&fip->timer, next_timer);
 	}
+	if (fip->send_ctlr_ka || fip->send_port_ka)
+		schedule_work(&fip->link_work);
 	spin_unlock_bh(&fip->lock);
-
-	if (send_ctlr_ka)
-		fcoe_ctlr_send_keep_alive(fip, 0, fip->ctl_src_addr);
-	if (send_port_ka)
-		fcoe_ctlr_send_keep_alive(fip, 1, fip->data_src_addr);
 }
 
 /**
@@ -1196,6 +1193,8 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 static void fcoe_ctlr_link_work(struct work_struct *work)
 {
 	struct fcoe_ctlr *fip;
+	struct fc_lport *vport;
+	u8 *mac;
 	int link;
 	int last_link;
 
@@ -1211,6 +1210,22 @@ static void fcoe_ctlr_link_work(struct work_struct *work)
 			fc_linkup(fip->lp);
 		else
 			fcoe_ctlr_reset(fip, FIP_ST_LINK_WAIT);
+	}
+
+	if (fip->send_ctlr_ka) {
+		fip->send_ctlr_ka = 0;
+		fcoe_ctlr_send_keep_alive(fip, NULL, 0, fip->ctl_src_addr);
+	}
+	if (fip->send_port_ka) {
+		fip->send_port_ka = 0;
+		mutex_lock(&fip->lp->lp_mutex);
+		mac = fip->get_src_addr(fip->lp);
+		fcoe_ctlr_send_keep_alive(fip, fip->lp, 1, mac);
+		list_for_each_entry(vport, &fip->lp->vports, list) {
+			mac = fip->get_src_addr(vport);
+			fcoe_ctlr_send_keep_alive(fip, vport, 1, mac);
+		}
+		mutex_unlock(&fip->lp->lp_mutex);
 	}
 }
 
@@ -1236,6 +1251,7 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
 /**
  * fcoe_ctlr_recv_flogi() - snoop Pre-FIP receipt of FLOGI response or request.
  * @fip:	FCoE controller.
+ * @lport:	libfc fc_lport instance received on
  * @fp:		FC frame.
  * @sa:		Ethernet source MAC address from received FCoE frame.
  *
@@ -1248,7 +1264,8 @@ static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
  *
  * Return non-zero if the frame should not be delivered to libfc.
  */
-int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_frame *fp, u8 *sa)
+int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
+			 struct fc_frame *fp, u8 *sa)
 {
 	struct fc_frame_header *fh;
 	u8 op;
@@ -1283,11 +1300,9 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_frame *fp, u8 *sa)
 			fip->map_dest = 0;
 		}
 		fip->flogi_oxid = FC_XID_UNKNOWN;
-		memcpy(mac, fip->data_src_addr, ETH_ALEN);
-		fc_fcoe_set_mac(fip->data_src_addr, fh->fh_d_id);
+		fc_fcoe_set_mac(mac, fh->fh_d_id);
+		fip->update_mac(lport, mac);
 		spin_unlock_bh(&fip->lock);
-
-		fip->update_mac(fip, mac, fip->data_src_addr);
 	} else if (op == ELS_FLOGI && fh->fh_r_ctl == FC_RCTL_ELS_REQ && sa) {
 		/*
 		 * Save source MAC for point-to-point responses.
@@ -1370,3 +1385,4 @@ int fcoe_libfc_config(struct fc_lport *lp, struct libfc_function_template *tt)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fcoe_libfc_config);
+

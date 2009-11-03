@@ -900,6 +900,16 @@ void fc_fcp_destroy(struct fc_lport *);
  * Initializes ELS/CT interface
  */
 int fc_elsct_init(struct fc_lport *lp);
+struct fc_seq *fc_elsct_send(struct fc_lport *lport,
+				    u32 did,
+				    struct fc_frame *fp,
+				    unsigned int op,
+				    void (*resp)(struct fc_seq *,
+						 struct fc_frame *fp,
+						 void *arg),
+				    void *arg, u32 timer_msec);
+void fc_lport_flogi_resp(struct fc_seq *, struct fc_frame *, void *);
+void fc_lport_logo_resp(struct fc_seq *, struct fc_frame *, void *);
 
 
 /*

@@ -74,11 +74,13 @@ enum fip_state {
  * @last_link:	last link state reported to libfc.
  * @map_dest:	use the FC_MAP mode for destination MAC addresses.
  * @spma:	supports SPMA server-provided MACs mode
+ * @send_ctlr_ka: need to send controller keep alive
+ * @send_port_ka: need to send port keep alives
  * @dest_addr:	MAC address of the selected FC forwarder.
  * @ctl_src_addr: the native MAC address of our local port.
- * @data_src_addr: the assigned MAC address for the local port after FLOGI.
  * @send:	LLD-supplied function to handle sending of FIP Ethernet frames.
  * @update_mac: LLD-supplied function to handle changes to MAC addresses.
+ * @get_src_addr: LLD-supplied function to supply a source MAC address.
  * @lock:	lock protecting this structure.
  *
  * This structure is used by all FCoE drivers.  It contains information
@@ -106,12 +108,14 @@ struct fcoe_ctlr {
 	u8 last_link;
 	u8 map_dest;
 	u8 spma;
+	u8 send_ctlr_ka;
+	u8 send_port_ka;
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
-	u8 data_src_addr[ETH_ALEN];
 
 	void (*send)(struct fcoe_ctlr *, struct sk_buff *);
-	void (*update_mac)(struct fcoe_ctlr *, u8 *old, u8 *new);
+	void (*update_mac)(struct fc_lport *, u8 *addr);
+	u8 * (*get_src_addr)(struct fc_lport *);
 	spinlock_t lock;
 };
 
@@ -155,9 +159,10 @@ void fcoe_ctlr_init(struct fcoe_ctlr *);
 void fcoe_ctlr_destroy(struct fcoe_ctlr *);
 void fcoe_ctlr_link_up(struct fcoe_ctlr *);
 int fcoe_ctlr_link_down(struct fcoe_ctlr *);
-int fcoe_ctlr_els_send(struct fcoe_ctlr *, struct sk_buff *);
+int fcoe_ctlr_els_send(struct fcoe_ctlr *, struct fc_lport *, struct sk_buff *);
 void fcoe_ctlr_recv(struct fcoe_ctlr *, struct sk_buff *);
-int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_frame *fp, u8 *sa);
+int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *lport,
+			 struct fc_frame *fp, u8 *sa);
 
 /* libfcoe funcs */
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
