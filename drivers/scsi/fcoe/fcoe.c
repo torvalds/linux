@@ -249,6 +249,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 {
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	struct netdev_hw_addr *ha;
+	struct net_device *real_dev;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
 
@@ -272,8 +273,10 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 
 	/* look for SAN MAC address, if multiple SAN MACs exist, only
 	 * use the first one for SPMA */
+	real_dev = (netdev->priv_flags & IFF_802_1Q_VLAN) ?
+		vlan_dev_real_dev(netdev) : netdev;
 	rcu_read_lock();
-	for_each_dev_addr(netdev, ha) {
+	for_each_dev_addr(real_dev, ha) {
 		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
 		    (is_valid_ether_addr(ha->addr))) {
 			memcpy(fip->ctl_src_addr, ha->addr, ETH_ALEN);
