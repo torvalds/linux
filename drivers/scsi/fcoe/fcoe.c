@@ -591,9 +591,9 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	if (!lp->vport)
 		fc_host_max_npiv_vports(lp->host) = USHORT_MAX;
 
-	sprintf(fc_host_symbolic_name(lp->host), "%s v%s over %s",
-		FCOE_NAME, FCOE_VERSION,
-		fcoe_netdev(lp)->name);
+	snprintf(fc_host_symbolic_name(lp->host), FC_SYMBOLIC_NAME_SIZE,
+		 "%s v%s over %s", FCOE_NAME, FCOE_VERSION,
+		 fcoe_netdev(lp)->name);
 
 	return 0;
 }

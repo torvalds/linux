@@ -33,6 +33,7 @@ struct fc_ct_req {
 		struct fc_ns_rn_id  rn;
 		struct fc_ns_rft rft;
 		struct fc_ns_fid fid;
+		struct fc_ns_rsnn snn;
 	} payload;
 };
 
@@ -134,6 +135,15 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		       fc_host_port_id(lport->host));
 		ct->payload.rft.fts = lport->fcts;
 		put_unaligned_be64(lport->wwnn, &ct->payload.rn.fr_wwn);
+		break;
+
+	case FC_NS_RSNN_NN:
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn));
+		put_unaligned_be64(lport->wwnn, &ct->payload.snn.fr_wwn);
+		strncpy(ct->payload.snn.fr_name,
+			fc_host_symbolic_name(lport->host), 255);
+		ct->payload.snn.fr_name_len =
+			strnlen(ct->payload.snn.fr_name, 255);
 		break;
 
 	default:
