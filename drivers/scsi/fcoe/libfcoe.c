@@ -109,6 +109,7 @@ static inline int fcoe_ctlr_fcf_usable(struct fcoe_fcf *fcf)
 void fcoe_ctlr_init(struct fcoe_ctlr *fip)
 {
 	fip->state = FIP_ST_LINK_WAIT;
+	fip->mode = FIP_ST_AUTO;
 	INIT_LIST_HEAD(&fip->fcfs);
 	spin_lock_init(&fip->lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
@@ -261,11 +262,12 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 		spin_unlock_bh(&fip->lock);
 		fc_linkup(fip->lp);
 	} else if (fip->state == FIP_ST_LINK_WAIT) {
-		fip->state = FIP_ST_AUTO;
+		fip->state = fip->mode;
 		fip->last_link = 1;
 		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
-		LIBFCOE_FIP_DBG("%s", "setting AUTO mode.\n");
+		if (fip->state == FIP_ST_AUTO)
+			LIBFCOE_FIP_DBG("%s", "setting AUTO mode.\n");
 		fc_linkup(fip->lp);
 		fcoe_ctlr_solicit(fip, NULL);
 	} else

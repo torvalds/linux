@@ -55,6 +55,7 @@ enum fip_state {
 /**
  * struct fcoe_ctlr - FCoE Controller and FIP state
  * @state:	   internal FIP state for network link and FIP or non-FIP mode.
+ * @mode:	   LLD-selected mode.
  * @lp:		   &fc_lport: libfc local port.
  * @sel_fcf:	   currently selected FCF, or NULL.
  * @fcfs:	   list of discovered FCFs.
@@ -89,6 +90,7 @@ enum fip_state {
  */
 struct fcoe_ctlr {
 	enum fip_state state;
+	enum fip_state mode;
 	struct fc_lport *lp;
 	struct fcoe_fcf *sel_fcf;
 	struct list_head fcfs;
