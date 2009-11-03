@@ -40,6 +40,8 @@
 
 #include <scsi/libfc.h>
 
+#include "fc_libfc.h"
+
 #define FC_DISC_RETRY_LIMIT	3	/* max retries */
 #define FC_DISC_RETRY_DELAY	500UL	/* (msecs) delay */
 

@@ -32,6 +32,8 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+#include "fc_libfc.h"
+
 u16	fc_cpu_mask;		/* cpu mask for possible cpus */
 EXPORT_SYMBOL(fc_cpu_mask);
 static u16	fc_cpu_order;	/* 2's power to represent total possible cpus */

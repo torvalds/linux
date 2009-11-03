@@ -55,6 +55,8 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+#include "fc_libfc.h"
+
 struct workqueue_struct *rport_event_queue;
 
 static void fc_rport_enter_plogi(struct fc_rport_priv *);

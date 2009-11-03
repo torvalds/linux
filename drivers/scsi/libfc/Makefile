@@ -3,6 +3,7 @@
 obj-$(CONFIG_LIBFC) += libfc.o
 
 libfc-objs := \
+	fc_libfc.o \
 	fc_disc.o \
 	fc_exch.o \
 	fc_elsct.o \

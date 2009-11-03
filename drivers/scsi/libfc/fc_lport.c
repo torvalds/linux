@@ -95,6 +95,8 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+#include "fc_libfc.h"
+
 /* Fabric IDs to use for point-to-point mode, chosen on whims. */
 #define FC_LOCAL_PTP_FID_LO   0x010101
 #define FC_LOCAL_PTP_FID_HI   0x010102

@@ -39,13 +39,7 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
-MODULE_AUTHOR("Open-FCoE.org");
-MODULE_DESCRIPTION("libfc");
-MODULE_LICENSE("GPL v2");
-
-unsigned int fc_debug_logging;
-module_param_named(debug_logging, fc_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+#include "fc_libfc.h"
 
 static struct kmem_cache *scsi_pkt_cachep;
 
