@@ -86,3 +86,4 @@ struct fc_frame *fc_frame_alloc_fill(struct fc_lport *lp, size_t payload_len)
 	}
 	return fp;
 }
+EXPORT_SYMBOL(fc_frame_alloc_fill);

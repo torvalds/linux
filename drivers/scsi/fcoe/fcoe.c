@@ -96,6 +96,7 @@ static struct scsi_transport_template *fcoe_vport_transport_template;
 static int fcoe_vport_destroy(struct fc_vport *vport);
 static int fcoe_vport_create(struct fc_vport *vport, bool disabled);
 static int fcoe_vport_disable(struct fc_vport *vport, bool disable);
+static void fcoe_set_vport_symbolic_name(struct fc_vport *vport);
 
 struct fc_function_template fcoe_transport_function = {
 	.show_host_node_name = 1,
@@ -132,6 +133,7 @@ struct fc_function_template fcoe_transport_function = {
 	.vport_create = fcoe_vport_create,
 	.vport_delete = fcoe_vport_destroy,
 	.vport_disable = fcoe_vport_disable,
+	.set_vport_symbolic_name = fcoe_set_vport_symbolic_name,
 };
 
 struct fc_function_template fcoe_vport_transport_function = {
@@ -2324,5 +2326,36 @@ static int fcoe_vport_disable(struct fc_vport *vport, bool disable)
 	}
 
 	return 0;
+}
+
+/**
+ * fcoe_vport_set_symbolic_name() - append vport string to symbolic name
+ * @vport: fc_vport with a new symbolic name string
+ *
+ * After generating a new symbolic name string, a new RSPN_ID request is
+ * sent to the name server.  There is no response handler, so if it fails
+ * for some reason it will not be retried.
+ */
+static void fcoe_set_vport_symbolic_name(struct fc_vport *vport)
+{
+	struct fc_lport *lport = vport->dd_data;
+	struct fc_frame *fp;
+	size_t len;
+
+	snprintf(fc_host_symbolic_name(lport->host), FC_SYMBOLIC_NAME_SIZE,
+		 "%s v%s over %s : %s", FCOE_NAME, FCOE_VERSION,
+		 fcoe_netdev(lport)->name, vport->symbolic_name);
+
+	if (lport->state != LPORT_ST_READY)
+		return;
+
+	len = strnlen(fc_host_symbolic_name(lport->host), 255);
+	fp = fc_frame_alloc(lport,
+			    sizeof(struct fc_ct_hdr) +
+			    sizeof(struct fc_ns_rspn) + len);
+	if (!fp)
+		return;
+	lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
+			     NULL, NULL, lport->e_d_tov);
 }
 
