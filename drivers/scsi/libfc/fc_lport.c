@@ -1191,7 +1191,8 @@ static void fc_lport_enter_scr(struct fc_lport *lport)
 	}
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FCTRL, fp, ELS_SCR,
-				  fc_lport_scr_resp, lport, lport->e_d_tov))
+				  fc_lport_scr_resp, lport,
+				  2 * lport->r_a_tov))
 		fc_lport_error(lport, NULL);
 }
 
@@ -1257,7 +1258,7 @@ static void fc_lport_enter_ns(struct fc_lport *lport, enum fc_lport_state state)
 
 	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, cmd,
 				  fc_lport_ns_resp,
-				  lport, lport->e_d_tov))
+				  lport, 3 * lport->r_a_tov))
 		fc_lport_error(lport, fp);
 }
 
@@ -1414,7 +1415,8 @@ static void fc_lport_enter_logo(struct fc_lport *lport)
 	}
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp, ELS_LOGO,
-				  fc_lport_logo_resp, lport, lport->e_d_tov))
+				  fc_lport_logo_resp, lport,
+				  2 * lport->r_a_tov))
 		fc_lport_error(lport, NULL);
 }
 
@@ -1534,7 +1536,9 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp,
 				  lport->vport ? ELS_FDISC : ELS_FLOGI,
-				  fc_lport_flogi_resp, lport, lport->e_d_tov))
+				  fc_lport_flogi_resp, lport,
+				  lport->vport ? 2 * lport->r_a_tov :
+				  lport->e_d_tov))
 		fc_lport_error(lport, NULL);
 }
 

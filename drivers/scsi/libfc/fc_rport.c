@@ -668,7 +668,8 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 	rdata->e_d_tov = lport->e_d_tov;
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PLOGI,
-				  fc_rport_plogi_resp, rdata, lport->e_d_tov))
+				  fc_rport_plogi_resp, rdata,
+				  2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
@@ -829,7 +830,8 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PRLI,
-				  fc_rport_prli_resp, rdata, lport->e_d_tov))
+				  fc_rport_prli_resp, rdata,
+				  2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
@@ -925,7 +927,8 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_RTV,
-				  fc_rport_rtv_resp, rdata, lport->e_d_tov))
+				  fc_rport_rtv_resp, rdata,
+				  2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
@@ -955,7 +958,8 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_LOGO,
-				  fc_rport_logo_resp, rdata, lport->e_d_tov))
+				  fc_rport_logo_resp, rdata,
+				  2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
@@ -1042,7 +1046,8 @@ static void fc_rport_enter_adisc(struct fc_rport_priv *rdata)
 		return;
 	}
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_ADISC,
-				  fc_rport_adisc_resp, rdata, lport->e_d_tov))
+				  fc_rport_adisc_resp, rdata,
+				  2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);

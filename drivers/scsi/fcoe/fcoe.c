@@ -2428,5 +2428,5 @@ static void fcoe_set_vport_symbolic_name(struct fc_vport *vport)
 	if (!fp)
 		return;
 	lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
-			     NULL, NULL, lport->e_d_tov);
+			     NULL, NULL, 3 * lport->r_a_tov);
 }

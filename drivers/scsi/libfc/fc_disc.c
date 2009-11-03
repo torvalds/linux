@@ -370,7 +370,7 @@ static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 	if (lport->tt.elsct_send(lport, 0, fp,
 				 FC_NS_GPN_FT,
 				 fc_disc_gpn_ft_resp,
-				 disc, lport->e_d_tov))
+				 disc, 3 * lport->r_a_tov))
 		return;
 err:
 	fc_disc_error(disc, NULL);
@@ -654,7 +654,8 @@ static int fc_disc_gpn_id_req(struct fc_lport *lport,
 	if (!fp)
 		return -ENOMEM;
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, FC_NS_GPN_ID,
-				  fc_disc_gpn_id_resp, rdata, lport->e_d_tov))
+				  fc_disc_gpn_id_resp, rdata,
+				  3 * lport->r_a_tov))
 		return -ENOMEM;
 	kref_get(&rdata->kref);
 	return 0;
