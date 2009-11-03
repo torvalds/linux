@@ -1449,6 +1449,9 @@ static void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 			e_d_tov = ntohl(flp->fl_csp.sp_e_d_tov);
 			if (csp_flags & FC_SP_FT_EDTR)
 				e_d_tov /= 1000000;
+
+			lport->npiv_enabled = !!(csp_flags & FC_SP_FT_NPIV_ACC);
+
 			if ((csp_flags & FC_SP_FT_FPORT) == 0) {
 				if (e_d_tov > lport->e_d_tov)
 					lport->e_d_tov = e_d_tov;
@@ -1498,7 +1501,8 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
 	if (!fp)
 		return fc_lport_error(lport, fp);
 
-	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp, ELS_FLOGI,
+	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp,
+				  lport->vport ? ELS_FDISC : ELS_FLOGI,
 				  fc_lport_flogi_resp, lport, lport->e_d_tov))
 		fc_lport_error(lport, NULL);
 }

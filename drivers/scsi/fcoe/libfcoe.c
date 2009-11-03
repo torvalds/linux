@@ -449,7 +449,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	memset(mac, 0, sizeof(mac));
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
-	if (dtype != FIP_DT_FLOGI)
+	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC)
 		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
 	else if (fip->spma)
 		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
@@ -865,8 +865,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		goto drop;
 	els_op = *(u8 *)(fh + 1);
 
-	if (els_dtype == FIP_DT_FLOGI && sub == FIP_SC_REP &&
-	    fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
+	if ((els_dtype == FIP_DT_FLOGI || els_dtype == FIP_DT_FDISC) &&
+	    sub == FIP_SC_REP && fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
 	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac)) {
 		fip->flogi_oxid = FC_XID_UNKNOWN;
 		fip->update_mac(fip, fip->data_src_addr, granted_mac);

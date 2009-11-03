@@ -198,6 +198,31 @@ static inline void fc_flogi_fill(struct fc_lport *lport, struct fc_frame *fp)
 	sp->sp_bb_data = htons((u16) lport->mfs);
 	cp = &flogi->fl_cssp[3 - 1];	/* class 3 parameters */
 	cp->cp_class = htons(FC_CPC_VALID | FC_CPC_SEQ);
+	if (lport->does_npiv)
+		sp->sp_features = htons(FC_SP_FT_NPIV);
+}
+
+/**
+ * fc_fdisc_fill - Fill in a fdisc request frame.
+ */
+static inline void fc_fdisc_fill(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_els_csp *sp;
+	struct fc_els_cssp *cp;
+	struct fc_els_flogi *fdisc;
+
+	fdisc = fc_frame_payload_get(fp, sizeof(*fdisc));
+	memset(fdisc, 0, sizeof(*fdisc));
+	fdisc->fl_cmd = (u8) ELS_FDISC;
+	put_unaligned_be64(lport->wwpn, &fdisc->fl_wwpn);
+	put_unaligned_be64(lport->wwnn, &fdisc->fl_wwnn);
+	sp = &fdisc->fl_csp;
+	sp->sp_hi_ver = 0x20;
+	sp->sp_lo_ver = 0x20;
+	sp->sp_bb_cred = htons(10);	/* this gets set by gateway */
+	sp->sp_bb_data = htons((u16) lport->mfs);
+	cp = &fdisc->fl_cssp[3 - 1];	/* class 3 parameters */
+	cp->cp_class = htons(FC_CPC_VALID | FC_CPC_SEQ);
 }
 
 /**
@@ -294,6 +319,10 @@ static inline int fc_els_fill(struct fc_lport *lport,
 
 	case ELS_FLOGI:
 		fc_flogi_fill(lport, fp);
+		break;
+
+	case ELS_FDISC:
+		fc_fdisc_fill(lport, fp);
 		break;
 
 	case ELS_LOGO:
