@@ -235,14 +235,17 @@ void free_ieee80211(struct net_device *dev, int monitor)
 	libipw_networks_free(ieee);
 
 	/* free cfg80211 resources */
-	if (!monitor) {
-		wiphy_unregister(ieee->wdev.wiphy);
-		kfree(ieee->a_band.channels);
-		kfree(ieee->bg_band.channels);
+	if (!monitor)
 		wiphy_free(ieee->wdev.wiphy);
-	}
 
 	free_netdev(dev);
+}
+
+void unregister_ieee80211(struct libipw_device *ieee)
+{
+	wiphy_unregister(ieee->wdev.wiphy);
+	kfree(ieee->a_band.channels);
+	kfree(ieee->bg_band.channels);
 }
 
 #ifdef CONFIG_LIBIPW_DEBUG
@@ -330,3 +333,4 @@ module_init(libipw_init);
 
 EXPORT_SYMBOL(alloc_ieee80211);
 EXPORT_SYMBOL(free_ieee80211);
+EXPORT_SYMBOL(unregister_ieee80211);

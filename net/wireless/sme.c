@@ -165,7 +165,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	struct cfg80211_registered_device *rdev =
 		container_of(work, struct cfg80211_registered_device, conn_work);
 	struct wireless_dev *wdev;
-	u8 bssid[ETH_ALEN];
+	u8 bssid_buf[ETH_ALEN], *bssid = NULL;
 
 	rtnl_lock();
 	cfg80211_lock_rdev(rdev);
@@ -181,7 +181,10 @@ void cfg80211_conn_work(struct work_struct *work)
 			wdev_unlock(wdev);
 			continue;
 		}
-		memcpy(bssid, wdev->conn->params.bssid, ETH_ALEN);
+		if (wdev->conn->params.bssid) {
+			memcpy(bssid_buf, wdev->conn->params.bssid, ETH_ALEN);
+			bssid = bssid_buf;
+		}
 		if (cfg80211_conn_do_work(wdev))
 			__cfg80211_connect_result(
 					wdev->netdev, bssid,
