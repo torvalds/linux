@@ -327,6 +327,57 @@ static void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp)
 }
 
 /**
+ * fc_fcp_can_queue_ramp_down() - reduces can_queue
+ * @lport: lport to reduce can_queue
+ *
+ * If we are getting memory allocation failures, then we may
+ * be trying to execute too many commands. We let the running
+ * commands complete or timeout, then try again with a reduced
+ * can_queue. Eventually we will hit the point where we run
+ * on all reserved structs.
+ */
+static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
+{
+	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
+	unsigned long flags;
+	int can_queue;
+
+	spin_lock_irqsave(lport->host->host_lock, flags);
+	if (si->throttled)
+		goto done;
+	si->throttled = 1;
+
+	can_queue = lport->host->can_queue;
+	can_queue >>= 1;
+	if (!can_queue)
+		can_queue = 1;
+	lport->host->can_queue = can_queue;
+	shost_printk(KERN_ERR, lport->host, "libfc: Could not allocate frame.\n"
+		     "Reducing can_queue to %d.\n", can_queue);
+done:
+	spin_unlock_irqrestore(lport->host->host_lock, flags);
+}
+
+/*
+ * fc_fcp_frame_alloc() -  Allocates fc_frame structure and buffer.
+ * @lport:	fc lport struct
+ * @len:	payload length
+ *
+ * Allocates fc_frame structure and buffer but if fails to allocate
+ * then reduce can_queue.
+ */
+static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
+						  size_t len)
+{
+	struct fc_frame *fp;
+
+	fp = fc_frame_alloc(lport, len);
+	if (!fp)
+		fc_fcp_can_queue_ramp_down(lport);
+	return fp;
+}
+
+/**
  * fc_fcp_recv_data() - Handler for receiving SCSI-FCP data from a target
  * @fsp: The FCP packet the data is on
  * @fp:	 The data frame
@@ -616,38 +667,6 @@ static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 }
 
 /**
- * fc_fcp_reduce_can_queue() - Reduce the can_queue value for a local port
- * @lport: The local port to reduce can_queue on
- *
- * If we are getting memory allocation failures, then we may
- * be trying to execute too many commands. We let the running
- * commands complete or timeout, then try again with a reduced
- * can_queue. Eventually we will hit the point where we run
- * on all reserved structs.
- */
-static void fc_fcp_reduce_can_queue(struct fc_lport *lport)
-{
-	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
-	unsigned long flags;
-	int can_queue;
-
-	spin_lock_irqsave(lport->host->host_lock, flags);
-	if (si->throttled)
-		goto done;
-	si->throttled = 1;
-
-	can_queue = lport->host->can_queue;
-	can_queue >>= 1;
-	if (!can_queue)
-		can_queue = 1;
-	lport->host->can_queue = can_queue;
-	shost_printk(KERN_ERR, lport->host, "libfc: Could not allocate frame.\n"
-		     "Reducing can_queue to %d.\n", can_queue);
-done:
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
-}
-
-/**
  * fc_fcp_recv() - Reveive an FCP frame
  * @seq: The sequence the frame is on
  * @fp:	 The received frame
@@ -665,8 +684,10 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	u8 r_ctl;
 	int rc = 0;
 
-	if (IS_ERR(fp))
-		goto errout;
+	if (IS_ERR(fp)) {
+		fc_fcp_error(fsp, fp);
+		return;
+	}
 
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
@@ -720,11 +741,6 @@ unlock:
 	fc_fcp_unlock_pkt(fsp);
 out:
 	fc_frame_free(fp);
-errout:
-	if (IS_ERR(fp))
-		fc_fcp_error(fsp, fp);
-	else if (rc == -ENOMEM)
-		fc_fcp_reduce_can_queue(lport);
 }
 
 /**
@@ -886,7 +902,7 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 			struct fc_seq *csp;
 
 			csp = lport->tt.seq_start_next(seq);
-			conf_frame = fc_frame_alloc(fsp->lp, 0);
+			conf_frame = fc_fcp_frame_alloc(fsp->lp, 0);
 			if (conf_frame) {
 				f_ctl = FC_FC_SEQ_INIT;
 				f_ctl |= FC_FC_LAST_SEQ | FC_FC_END_SEQ;
@@ -1026,7 +1042,7 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	if (fc_fcp_lock_pkt(fsp))
 		return 0;
 
-	fp = fc_frame_alloc(lport, sizeof(fsp->cdb_cmd));
+	fp = fc_fcp_frame_alloc(lport, sizeof(fsp->cdb_cmd));
 	if (!fp) {
 		rc = -1;
 		goto unlock;
@@ -1306,7 +1322,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 		fc_fcp_complete_locked(fsp);
 		return;
 	}
-	fp = fc_frame_alloc(lport, sizeof(struct fc_els_rec));
+	fp = fc_fcp_frame_alloc(lport, sizeof(struct fc_els_rec));
 	if (!fp)
 		goto retry;
 
@@ -1557,7 +1573,7 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 	if (!(rpriv->flags & FC_RP_FLAGS_RETRY) ||
 	    rpriv->rp_state != RPORT_ST_READY)
 		goto retry;			/* shouldn't happen */
-	fp = fc_frame_alloc(lport, sizeof(*srr));
+	fp = fc_fcp_frame_alloc(lport, sizeof(*srr));
 	if (!fp)
 		goto retry;
 
