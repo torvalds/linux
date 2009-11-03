@@ -102,9 +102,6 @@ static int fcoe_cpu_callback(struct notifier_block *, unsigned long, void *);
 static int fcoe_create(const char *, struct kernel_param *);
 static int fcoe_destroy(const char *, struct kernel_param *);
 
-static u8 *fcoe_get_src_mac(struct fc_lport *);
-static void fcoe_destroy_work(struct work_struct *);
-
 static struct fc_seq *fcoe_elsct_send(struct fc_lport *,
 				      u32 did, struct fc_frame *,
 				      unsigned int op,
