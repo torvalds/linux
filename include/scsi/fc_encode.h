@@ -134,7 +134,6 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rn_id));
 		hton24(ct->payload.rn.fr_fid.fp_fid,
 		       fc_host_port_id(lport->host));
-		ct->payload.rft.fts = lport->fcts;
 		put_unaligned_be64(lport->wwnn, &ct->payload.rn.fr_wwn);
 		break;
 
