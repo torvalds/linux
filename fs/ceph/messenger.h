@@ -53,6 +53,7 @@ extern const char *ceph_name_type_str(int t);
 
 struct ceph_messenger {
 	struct ceph_entity_inst inst;    /* my name+address */
+	struct ceph_entity_addr my_enc_addr;
 	struct page *zero_page;          /* used in certain error cases */
 
 	bool nocrc;

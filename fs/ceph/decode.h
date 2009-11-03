@@ -76,16 +76,28 @@ static inline void ceph_decode_copy(void **p, void *pv, size_t n)
  * struct ceph_timespec <-> struct timespec
  */
 static inline void ceph_decode_timespec(struct timespec *ts,
-					struct ceph_timespec *tv)
+					const struct ceph_timespec *tv)
 {
 	ts->tv_sec = le32_to_cpu(tv->tv_sec);
 	ts->tv_nsec = le32_to_cpu(tv->tv_nsec);
 }
 static inline void ceph_encode_timespec(struct ceph_timespec *tv,
-					struct timespec *ts)
+					const struct timespec *ts)
 {
 	tv->tv_sec = cpu_to_le32(ts->tv_sec);
 	tv->tv_nsec = cpu_to_le32(ts->tv_nsec);
+}
+
+/*
+ * sockaddr_storage <-> ceph_sockaddr
+ */
+static inline void ceph_encode_addr(struct ceph_entity_addr *a)
+{
+	a->in_addr.ss_family = htons(a->in_addr.ss_family);
+}
+static inline void ceph_decode_addr(struct ceph_entity_addr *a)
+{
+	a->in_addr.ss_family = ntohs(a->in_addr.ss_family);
 }
 
 /*

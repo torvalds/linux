@@ -12,6 +12,7 @@
 
 #include "super.h"
 #include "messenger.h"
+#include "decode.h"
 
 /*
  * Ceph uses the messenger to exchange ceph_msg messages with other
@@ -95,6 +96,12 @@ const char *pr_addr(const struct sockaddr_storage *ss)
 	}
 
 	return s;
+}
+
+static void encode_my_addr(struct ceph_messenger *msgr)
+{
+	memcpy(&msgr->my_enc_addr, &msgr->inst.addr, sizeof(msgr->my_enc_addr));
+	ceph_encode_addr(&msgr->my_enc_addr);
 }
 
 /*
@@ -590,12 +597,12 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 
 	con->out_kvec[0].iov_base = CEPH_BANNER;
 	con->out_kvec[0].iov_len = len;
-	con->out_kvec[1].iov_base = &msgr->inst.addr;
-	con->out_kvec[1].iov_len = sizeof(msgr->inst.addr);
+	con->out_kvec[1].iov_base = &msgr->my_enc_addr;
+	con->out_kvec[1].iov_len = sizeof(msgr->my_enc_addr);
 	con->out_kvec[2].iov_base = &con->out_connect;
 	con->out_kvec[2].iov_len = sizeof(con->out_connect);
 	con->out_kvec_left = 3;
-	con->out_kvec_bytes = len + sizeof(msgr->inst.addr) +
+	con->out_kvec_bytes = len + sizeof(msgr->my_enc_addr) +
 		sizeof(con->out_connect);
 	con->out_kvec_cur = con->out_kvec;
 	con->out_more = 0;
@@ -976,6 +983,9 @@ static int process_connect(struct ceph_connection *con)
 	if (verify_hello(con) < 0)
 		return -1;
 
+	ceph_decode_addr(&con->actual_peer_addr);
+	ceph_decode_addr(&con->peer_addr_for_me);
+
 	/*
 	 * Make sure the other end is who we wanted.  note that the other
 	 * end may not yet know their ip address, so if it's 0.0.0.0, give
@@ -1005,6 +1015,7 @@ static int process_connect(struct ceph_connection *con)
 		       &con->peer_addr_for_me.in_addr,
 		       sizeof(con->peer_addr_for_me.in_addr));
 		addr_set_port(&con->msgr->inst.addr.in_addr, port);
+		encode_my_addr(con->msgr);
 		dout("process_connect learned my addr is %s\n",
 		     pr_addr(&con->msgr->inst.addr.in_addr));
 	}
@@ -1780,6 +1791,7 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr)
 	/* select a random nonce */
 	get_random_bytes(&msgr->inst.addr.nonce,
 			 sizeof(msgr->inst.addr.nonce));
+	encode_my_addr(msgr);
 
 	dout("messenger_create %p\n", msgr);
 	return msgr;
@@ -1806,8 +1818,9 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	}
 
 	/* set src+dst */
-	msg->hdr.src = con->msgr->inst;
-	msg->hdr.orig_src = con->msgr->inst;
+	msg->hdr.src.name = con->msgr->inst.name;
+	msg->hdr.src.addr = con->msgr->my_enc_addr;
+	msg->hdr.orig_src = msg->hdr.src;
 	msg->hdr.dst_erank = con->peer_addr.erank;
 
 	/* queue */

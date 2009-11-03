@@ -86,6 +86,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 		ceph_decode_need(p, end, sizeof(addr) + 1 + sizeof(u32), bad);
 		ceph_decode_copy(p, &addr, sizeof(addr));
+		ceph_decode_addr(&addr);
 		infoversion = ceph_decode_8(p);
 		namelen = ceph_decode_32(p);  /* skip mds name */
 		*p += namelen;

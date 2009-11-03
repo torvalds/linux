@@ -460,6 +460,8 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 
 	*p += 4; /* skip length field (should match max) */
 	ceph_decode_copy(p, map->osd_addr, map->max_osd*sizeof(*map->osd_addr));
+	for (i = 0; i < map->max_osd; i++)
+		ceph_decode_addr(&map->osd_addr[i]);
 
 	/* pg_temp */
 	ceph_decode_32_safe(p, end, len, bad);
@@ -619,6 +621,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		struct ceph_entity_addr addr;
 		ceph_decode_32_safe(p, end, osd, bad);
 		ceph_decode_copy_safe(p, end, &addr, sizeof(addr), bad);
+		ceph_decode_addr(&addr);
 		pr_info("osd%d up\n", osd);
 		BUG_ON(osd >= map->max_osd);
 		map->osd_state[osd] |= CEPH_OSD_UP;

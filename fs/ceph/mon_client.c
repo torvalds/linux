@@ -59,6 +59,8 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	m->epoch = epoch;
 	m->num_mon = num_mon;
 	ceph_decode_copy(&p, m->mon_inst, num_mon*sizeof(m->mon_inst[0]));
+	for (i = 0; i < num_mon; i++)
+		ceph_decode_addr(&m->mon_inst[i].addr);
 
 	dout("monmap_decode epoch %d, num_mon %d\n", m->epoch,
 	     m->num_mon);
