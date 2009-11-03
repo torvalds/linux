@@ -75,7 +75,7 @@ module_exit(libfc_exit);
 
 /**
  * fc_copy_buffer_to_sglist() - This routine copies the data of a buffer
- *                              into a scatter-gather list (SG list).
+ *				into a scatter-gather list (SG list).
  *
  * @buf: pointer to the data buffer.
  * @len: the byte-length of the data buffer.
@@ -84,7 +84,7 @@ module_exit(libfc_exit);
  * @offset: pointer to the current offset in the SG list.
  * @km_type: dedicated page table slot type for kmap_atomic.
  * @crc: pointer to the 32-bit crc value.
- *       If crc is NULL, CRC is not calculated.
+ *	 If crc is NULL, CRC is not calculated.
  */
 u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
 			     struct scatterlist *sg,

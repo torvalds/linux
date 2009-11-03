@@ -22,22 +22,22 @@
 
 #define FC_LIBFC_LOGGING 0x01 /* General logging, not categorized */
 #define FC_LPORT_LOGGING 0x02 /* lport layer logging */
-#define FC_DISC_LOGGING  0x04 /* discovery layer logging */
+#define FC_DISC_LOGGING	 0x04 /* discovery layer logging */
 #define FC_RPORT_LOGGING 0x08 /* rport layer logging */
-#define FC_FCP_LOGGING   0x10 /* I/O path logging */
-#define FC_EM_LOGGING    0x20 /* Exchange Manager logging */
-#define FC_EXCH_LOGGING  0x40 /* Exchange/Sequence logging */
-#define FC_SCSI_LOGGING  0x80 /* SCSI logging (mostly error handling) */
+#define FC_FCP_LOGGING	 0x10 /* I/O path logging */
+#define FC_EM_LOGGING	 0x20 /* Exchange Manager logging */
+#define FC_EXCH_LOGGING	 0x40 /* Exchange/Sequence logging */
+#define FC_SCSI_LOGGING	 0x80 /* SCSI logging (mostly error handling) */
 
 extern unsigned int fc_debug_logging;
 
-#define FC_CHECK_LOGGING(LEVEL, CMD)				\
-do {								\
-	if (unlikely(fc_debug_logging & LEVEL))			\
-		do {						\
-			CMD;					\
-		} while (0);					\
-} while (0)
+#define FC_CHECK_LOGGING(LEVEL, CMD)			\
+	do {						\
+		if (unlikely(fc_debug_logging & LEVEL))	\
+			do {				\
+				CMD;			\
+			} while (0);			\
+	} while (0)
 
 #define FC_LIBFC_DBG(fmt, args...)					\
 	FC_CHECK_LOGGING(FC_LIBFC_LOGGING,				\
@@ -49,10 +49,10 @@ do {								\
 				(lport)->host->host_no,			\
 				fc_host_port_id((lport)->host), ##args))
 
-#define FC_DISC_DBG(disc, fmt, args...)					\
-	FC_CHECK_LOGGING(FC_DISC_LOGGING,				\
-			 printk(KERN_INFO "host%u: disc: " fmt,		\
-				(disc)->lport->host->host_no,		\
+#define FC_DISC_DBG(disc, fmt, args...)				\
+	FC_CHECK_LOGGING(FC_DISC_LOGGING,			\
+			 printk(KERN_INFO "host%u: disc: " fmt,	\
+				(disc)->lport->host->host_no,	\
 				##args))
 
 #define FC_RPORT_ID_DBG(lport, port_id, fmt, args...)			\
@@ -77,7 +77,7 @@ do {								\
 				exch->xid, ##args))
 
 #define FC_SCSI_DBG(lport, fmt, args...)				\
-	FC_CHECK_LOGGING(FC_SCSI_LOGGING,                               \
+	FC_CHECK_LOGGING(FC_SCSI_LOGGING,				\
 			 printk(KERN_INFO "host%u: scsi: " fmt,		\
 				(lport)->host->host_no,	##args))
 

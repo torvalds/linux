@@ -28,17 +28,22 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
-/*
- * fc_elsct_send - sends ELS/CT frame
+/**
+ * fc_elsct_send() - Send an ELS or CT frame
+ * @lport:	The local port to send the frame on
+ * @did:	The destination ID for the frame
+ * @fp:		The frame to be sent
+ * @op:		The operational code
+ * @resp:	The callback routine when the response is received
+ * @arg:	The argument to pass to the response callback routine
+ * @timer_msec: The timeout period for the frame (in msecs)
  */
-struct fc_seq *fc_elsct_send(struct fc_lport *lport,
-				    u32 did,
-				    struct fc_frame *fp,
-				    unsigned int op,
-				    void (*resp)(struct fc_seq *,
-						 struct fc_frame *fp,
-						 void *arg),
-				    void *arg, u32 timer_msec)
+struct fc_seq *fc_elsct_send(struct fc_lport *lport, u32 did,
+			     struct fc_frame *fp, unsigned int op,
+			     void (*resp)(struct fc_seq *,
+					  struct fc_frame *,
+					  void *),
+			     void *arg, u32 timer_msec)
 {
 	enum fc_rctl r_ctl;
 	enum fc_fh_type fh_type;
@@ -65,6 +70,10 @@ struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 }
 EXPORT_SYMBOL(fc_elsct_send);
 
+/**
+ * fc_elsct_init() - Initialize the ELS/CT layer
+ * @lport: The local port to initialize the ELS/CT layer for
+ */
 int fc_elsct_init(struct fc_lport *lport)
 {
 	if (!lport->tt.elsct_send)
@@ -75,8 +84,8 @@ int fc_elsct_init(struct fc_lport *lport)
 EXPORT_SYMBOL(fc_elsct_init);
 
 /**
- * fc_els_resp_type() - return string describing ELS response for debug.
- * @fp: frame pointer with possible error code.
+ * fc_els_resp_type() - Return a string describing the ELS response
+ * @fp: The frame pointer or possible error code
  */
 const char *fc_els_resp_type(struct fc_frame *fp)
 {
