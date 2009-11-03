@@ -131,7 +131,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	/*
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x08));
-        */
+	*/
 	// fixed by David :2006.9.6
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x80));

@@ -316,7 +316,7 @@ out:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
-        struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
+	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
 #else
 void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
 {
@@ -641,7 +641,7 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 	}
 
        if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))
-	   	wrqu->power.flags |= IW_POWER_ALL_R;
+		wrqu->power.flags |= IW_POWER_ALL_R;
 	else if (ieee->ps & IEEE80211_PS_MBCAST)
 		wrqu->power.flags |= IW_POWER_MULTICAST_R;
 	else

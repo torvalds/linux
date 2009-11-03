@@ -202,10 +202,10 @@ typedef enum tag_command_packet_directories
 }cmpk_element_e;
 
 typedef enum _rt_status{
-        RT_STATUS_SUCCESS,
-        RT_STATUS_FAILURE,
-        RT_STATUS_PENDING,
-        RT_STATUS_RESOURCE
+	RT_STATUS_SUCCESS,
+	RT_STATUS_FAILURE,
+	RT_STATUS_PENDING,
+	RT_STATUS_RESOURCE
 }rt_status,*prt_status;
 
 extern rt_status cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);

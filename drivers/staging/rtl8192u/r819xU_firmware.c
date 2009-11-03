@@ -80,7 +80,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 		seg_ptr = skb->data;
 		/*
 		 * Transform from little endian to big endian
-                 * and pending  zero
+		 * and pending  zero
 		 */
 		for(i=0 ; i < frag_length; i+=4) {
 			*seg_ptr++ = ((i+0)<frag_length)?code_virtual_address[i+3]:0;
@@ -218,7 +218,7 @@ bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	int		check_putcodeOK_time = 200000, check_bootOk_time = 200000;
-	u32	 	CPU_status = 0;
+	u32		CPU_status = 0;
 
 	/* Check whether put code OK */
 	do {
@@ -299,12 +299,12 @@ bool init_firmware(struct net_device *dev)
 	bool			rt_status = TRUE;
 
 	u8			*firmware_img_buf[3] = { &rtl8190_fwboot_array[0],
-						   	 &rtl8190_fwmain_array[0],
-						   	 &rtl8190_fwdata_array[0]};
+							 &rtl8190_fwmain_array[0],
+							 &rtl8190_fwdata_array[0]};
 
 	u32			firmware_img_len[3] = { sizeof(rtl8190_fwboot_array),
-						   	sizeof(rtl8190_fwmain_array),
-						   	sizeof(rtl8190_fwdata_array)};
+							sizeof(rtl8190_fwmain_array),
+							sizeof(rtl8190_fwdata_array)};
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
@@ -314,7 +314,7 @@ bool init_firmware(struct net_device *dev)
 	rt_firmware		*pfirmware = priv->pFirmware;
 	const struct firmware 	*fw_entry;
 	const char *fw_name[3] = { "RTL8192U/boot.img",
-                           "RTL8192U/main.img",
+			   "RTL8192U/main.img",
 			   "RTL8192U/data.img"};
 	int rc;
 
@@ -490,8 +490,8 @@ download_firmware_fail:
 #if 0
 /*
  * Procedure:   (1)  Transform firmware code from little endian to big endian if required.
- *	        (2)  Number of bytes in Firmware downloading should be multiple
- *	   	     of 4 bytes. If length is not multiple of 4 bytes, appending of zeros is required
+ *		(2)  Number of bytes in Firmware downloading should be multiple
+ *		     of 4 bytes. If length is not multiple of 4 bytes, appending of zeros is required
  *
  */
 void CmdAppendZeroAndEndianTransform(

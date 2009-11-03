@@ -24,7 +24,7 @@
 #include "ieee80211.h"
 
 #include <linux/crypto.h>
-        #include <linux/scatterlist.h>
+	#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -382,7 +382,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tcb_desc->bHwSec)
 		return ret;
 	else
-        	return 0;
+		return 0;
 
 
 }
@@ -502,26 +502,26 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 }
 
 static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
-                       u8 * data, size_t data_len, u8 * mic)
+		       u8 * data, size_t data_len, u8 * mic)
 {
-        struct hash_desc desc;
-        struct scatterlist sg[2];
+	struct hash_desc desc;
+	struct scatterlist sg[2];
 
-        if (tfm_michael == NULL) {
-                printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
-                return -1;
-        }
+	if (tfm_michael == NULL) {
+		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
+		return -1;
+	}
 
-        sg_init_table(sg, 2);
-        sg_set_buf(&sg[0], hdr, 16);
-        sg_set_buf(&sg[1], data, data_len);
+	sg_init_table(sg, 2);
+	sg_set_buf(&sg[0], hdr, 16);
+	sg_set_buf(&sg[1], data, data_len);
 
-        if (crypto_hash_setkey(tfm_michael, key, 8))
-                return -1;
+	if (crypto_hash_setkey(tfm_michael, key, 8))
+		return -1;
 
-        desc.tfm = tfm_michael;
-        desc.flags = 0;
-        return crypto_hash_digest(&desc, sg, data_len + 16, mic);
+	desc.tfm = tfm_michael;
+	desc.flags = 0;
+	return crypto_hash_digest(&desc, sg, data_len + 16, mic);
 }
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
@@ -630,7 +630,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
 				skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
-            	return -1;
+		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct ieee80211_hdr_4addr *hdr;
 		hdr = (struct ieee80211_hdr_4addr *) skb->data;
@@ -760,7 +760,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
 	.print_stats		= ieee80211_tkip_print_stats,
 	.extra_prefix_len	= 4 + 4, /* IV + ExtIV */
 	.extra_postfix_len	= 8 + 4, /* MIC + ICV */
-	.owner		        = THIS_MODULE,
+	.owner			= THIS_MODULE,
 };
 
 int __init ieee80211_crypto_tkip_init(void)
@@ -776,5 +776,5 @@ void __exit ieee80211_crypto_tkip_exit(void)
 void ieee80211_tkip_null(void)
 {
 //    printk("============>%s()\n", __FUNCTION__);
-        return;
+	return;
 }

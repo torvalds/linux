@@ -25,7 +25,7 @@ static void init(struct crypto_tfm *tfm)
 }
 
 static void update(struct crypto_tfm *tfm,
-                   struct scatterlist *sg, unsigned int nsg)
+		   struct scatterlist *sg, unsigned int nsg)
 {
 	unsigned int i;
 
@@ -68,7 +68,7 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 }
 
 static void digest(struct crypto_tfm *tfm,
-                   struct scatterlist *sg, unsigned int nsg, u8 *out)
+		   struct scatterlist *sg, unsigned int nsg, u8 *out)
 {
 	unsigned int i;
 
@@ -77,7 +77,7 @@ static void digest(struct crypto_tfm *tfm,
 	for (i = 0; i < nsg; i++) {
 		char *p = crypto_kmap(sg[i].page, 0) + sg[i].offset;
 		tfm->__crt_alg->cra_digest.dia_update(crypto_tfm_ctx(tfm),
-		                                      p, sg[i].length);
+						      p, sg[i].length);
 		crypto_kunmap(p, 0);
 		crypto_yield(tfm);
 	}

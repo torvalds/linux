@@ -34,8 +34,8 @@ struct prism2_wep_data {
 	u8 key[WEP_KEY_LEN + 1];
 	u8 key_len;
 	u8 key_idx;
-        struct crypto_blkcipher *tx_tfm;
-        struct crypto_blkcipher *rx_tfm;
+	struct crypto_blkcipher *tx_tfm;
+	struct crypto_blkcipher *rx_tfm;
 };
 
 
@@ -50,19 +50,19 @@ static void * prism2_wep_init(int keyidx)
 	priv->key_idx = keyidx;
 
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-        if (IS_ERR(priv->tx_tfm)) {
-                printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
-                       "crypto API arc4\n");
-                priv->tx_tfm = NULL;
-                goto fail;
-        }
-        priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-        if (IS_ERR(priv->rx_tfm)) {
-                printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
-                       "crypto API arc4\n");
-                priv->rx_tfm = NULL;
-                goto fail;
-        }
+	if (IS_ERR(priv->tx_tfm)) {
+		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
+		       "crypto API arc4\n");
+		priv->tx_tfm = NULL;
+		goto fail;
+	}
+	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->rx_tfm)) {
+		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
+		       "crypto API arc4\n");
+		priv->rx_tfm = NULL;
+		goto fail;
+	}
 
 	/* start WEP IV from a random value */
 	get_random_bytes(&priv->iv, 4);
@@ -71,12 +71,12 @@ static void * prism2_wep_init(int keyidx)
 
 fail:
 	if (priv) {
-                if (priv->tx_tfm)
-                        crypto_free_blkcipher(priv->tx_tfm);
-                if (priv->rx_tfm)
-                        crypto_free_blkcipher(priv->rx_tfm);
-                kfree(priv);
-        }
+		if (priv->tx_tfm)
+			crypto_free_blkcipher(priv->tx_tfm);
+		if (priv->rx_tfm)
+			crypto_free_blkcipher(priv->rx_tfm);
+		kfree(priv);
+	}
 
 	return NULL;
 }
@@ -87,11 +87,11 @@ static void prism2_wep_deinit(void *priv)
 	struct prism2_wep_data *_priv = priv;
 
 	if (_priv) {
-                if (_priv->tx_tfm)
-                        crypto_free_blkcipher(_priv->tx_tfm);
-                if (_priv->rx_tfm)
-                        crypto_free_blkcipher(_priv->rx_tfm);
-        }
+		if (_priv->tx_tfm)
+			crypto_free_blkcipher(_priv->tx_tfm);
+		if (_priv->rx_tfm)
+			crypto_free_blkcipher(_priv->rx_tfm);
+	}
 	kfree(priv);
 }
 
@@ -293,5 +293,5 @@ void __exit ieee80211_crypto_wep_exit(void)
 void ieee80211_wep_null(void)
 {
 //	printk("============>%s()\n", __FUNCTION__);
-        return;
+	return;
 }

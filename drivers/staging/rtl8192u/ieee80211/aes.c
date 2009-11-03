@@ -126,15 +126,15 @@ f_mult (u8 a, u8 b)
 
 #define f_rn(bo, bi, n, k)					\
     bo[n] =  ft_tab[0][byte(bi[n],0)] ^				\
-             ft_tab[1][byte(bi[(n + 1) & 3],1)] ^		\
-             ft_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
-             ft_tab[3][byte(bi[(n + 3) & 3],3)] ^ *(k + n)
+	     ft_tab[1][byte(bi[(n + 1) & 3],1)] ^		\
+	     ft_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
+	     ft_tab[3][byte(bi[(n + 3) & 3],3)] ^ *(k + n)
 
 #define i_rn(bo, bi, n, k)					\
     bo[n] =  it_tab[0][byte(bi[n],0)] ^				\
-             it_tab[1][byte(bi[(n + 3) & 3],1)] ^		\
-             it_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
-             it_tab[3][byte(bi[(n + 1) & 3],3)] ^ *(k + n)
+	     it_tab[1][byte(bi[(n + 3) & 3],1)] ^		\
+	     it_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
+	     it_tab[3][byte(bi[(n + 1) & 3],3)] ^ *(k + n)
 
 #define ls_box(x)				\
     ( fl_tab[0][byte(x, 0)] ^			\
@@ -144,15 +144,15 @@ f_mult (u8 a, u8 b)
 
 #define f_rl(bo, bi, n, k)					\
     bo[n] =  fl_tab[0][byte(bi[n],0)] ^				\
-             fl_tab[1][byte(bi[(n + 1) & 3],1)] ^		\
-             fl_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
-             fl_tab[3][byte(bi[(n + 3) & 3],3)] ^ *(k + n)
+	     fl_tab[1][byte(bi[(n + 1) & 3],1)] ^		\
+	     fl_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
+	     fl_tab[3][byte(bi[(n + 3) & 3],3)] ^ *(k + n)
 
 #define i_rl(bo, bi, n, k)					\
     bo[n] =  il_tab[0][byte(bi[n],0)] ^				\
-             il_tab[1][byte(bi[(n + 3) & 3],1)] ^		\
-             il_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
-             il_tab[3][byte(bi[(n + 1) & 3],3)] ^ *(k + n)
+	     il_tab[1][byte(bi[(n + 3) & 3],1)] ^		\
+	     il_tab[2][byte(bi[(n + 2) & 3],2)] ^		\
+	     il_tab[3][byte(bi[(n + 1) & 3],3)] ^ *(k + n)
 
 static void __init
 gen_tabs (void)
@@ -234,8 +234,8 @@ gen_tabs (void)
     t   = w ^ (x);          \
    (y)  = u ^ v ^ w;        \
    (y) ^= rotr(u ^ t,  8) ^ \
-          rotr(v ^ t, 16) ^ \
-          rotr(t,24)
+	  rotr(v ^ t, 16) ^ \
+	  rotr(t,24)
 
 /* initialise the key schedule from the user supplied key */
 
@@ -443,9 +443,9 @@ static struct crypto_alg aes_alg = {
 		.cipher = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
 			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
-			.cia_setkey	   	= 	aes_set_key,
-			.cia_encrypt	 	=	aes_encrypt,
-			.cia_decrypt	  	=	aes_decrypt
+			.cia_setkey		= 	aes_set_key,
+			.cia_encrypt		=	aes_encrypt,
+			.cia_decrypt		=	aes_decrypt
 		}
 	}
 };

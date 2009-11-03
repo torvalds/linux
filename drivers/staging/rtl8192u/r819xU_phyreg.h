@@ -204,7 +204,7 @@
 #define rZebra1_AGC                   		0x4
 #define rZebra1_ChargePump            	0x5
 #define rZebra1_Channel               		0x7
-#define rZebra1_TxGain               	 	0x8
+#define rZebra1_TxGain               		0x8
 #define rZebra1_TxLPF                 		0x9
 #define rZebra1_RxLPF                 		0xb
 #define rZebra1_RxHPFCorner           	0xc
@@ -360,7 +360,7 @@
 #define bAFEWatchDogEnable        		0x20000000
 #define bXtalCap                			0x0f000000
 #define bIntDifClkEnable          		0x400
-#define bExtSigClkEnable         	 	0x800
+#define bExtSigClkEnable         		0x800
 #define bBandgapMbiasPowerUp      	0x10000
 #define bAD11SHGain               		0xc0000
 #define bAD11InputRange           		0x700000
@@ -401,8 +401,8 @@
 #define bOFDMTxOn                 		0x2
 #define bDebugPage                		0xfff  //reset debug page and also HWord, LWord
 #define bDebugItem                		0xff   //reset debug page and LWord
-#define bAntL              	       		0x10
-#define bAntNonHT           	      			0x100
+#define bAntL              			0x10
+#define bAntNonHT           				0x100
 #define bAntHT1               			0x1000
 #define bAntHT2                   			0x10000
 #define bAntHT1S1                 			0x100000
@@ -414,26 +414,26 @@
 #define bCCKRxPowerSaving         		0x40
 #define bCCKSideBand              		0x10
 #define bCCKScramble              		0x8
-#define bCCKAntDiversity    		      	0x8000
-#define bCCKCarrierRecovery   	    	0x4000
-#define bCCKTxRate           		     	0x3000
-#define bCCKDCCancel             	 	0x0800
+#define bCCKAntDiversity    			0x8000
+#define bCCKCarrierRecovery   		0x4000
+#define bCCKTxRate           			0x3000
+#define bCCKDCCancel             		0x0800
 #define bCCKISICancel             		0x0400
 #define bCCKMatchFilter           		0x0200
 #define bCCKEqualizer             		0x0100
-#define bCCKPreambleDetect       	 	0x800000
+#define bCCKPreambleDetect       		0x800000
 #define bCCKFastFalseCCA          		0x400000
 #define bCCKChEstStart            		0x300000
 #define bCCKCCACount              		0x080000
 #define bCCKcs_lim                			0x070000
 #define bCCKBistMode              		0x80000000
-#define bCCKCCAMask             	  	0x40000000
-#define bCCKTxDACPhase         	   	0x4
-#define bCCKRxADCPhase         	   	0x20000000   //r_rx_clk
-#define bCCKr_cp_mode0         	   	0x0100
-#define bCCKTxDCOffset           	 	0xf0
-#define bCCKRxDCOffset           	 	0xf
-#define bCCKCCAMode              	 	0xc000
+#define bCCKCCAMask             		0x40000000
+#define bCCKTxDACPhase         		0x4
+#define bCCKRxADCPhase         		0x20000000   //r_rx_clk
+#define bCCKr_cp_mode0         		0x0100
+#define bCCKTxDCOffset           		0xf0
+#define bCCKRxDCOffset           		0xf
+#define bCCKCCAMode              		0xc000
 #define bCCKFalseCS_lim           		0x3f00
 #define bCCKCS_ratio              		0xc00000
 #define bCCKCorgBit_sel           		0x300000
@@ -444,18 +444,18 @@
 #define bCCKLNAPolarity           		0x800000
 #define bCCKRx1stGain             		0x7f0000
 #define bCCKRFExtend              		0x20000000 //CCK Rx Iinital gain polarity
-#define bCCKRxAGCSatLevel        	 	0x1f000000
-#define bCCKRxAGCSatCount       	  	0xe0
+#define bCCKRxAGCSatLevel        		0x1f000000
+#define bCCKRxAGCSatCount       		0xe0
 #define bCCKRxRFSettle            		0x1f       //AGCsamp_dly
-#define bCCKFixedRxAGC           	 	0x8000
-//#define bCCKRxAGCFormat         	 	0x4000   //remove to HSSI register 0x824
-#define bCCKAntennaPolarity      	 	0x2000
+#define bCCKFixedRxAGC           		0x8000
+//#define bCCKRxAGCFormat         		0x4000   //remove to HSSI register 0x824
+#define bCCKAntennaPolarity      		0x2000
 #define bCCKTxFilterType          		0x0c00
-#define bCCKRxAGCReportType   	   	0x0300
+#define bCCKRxAGCReportType   		0x0300
 #define bCCKRxDAGCEn              		0x80000000
-#define bCCKRxDAGCPeriod        	  	0x20000000
-#define bCCKRxDAGCSatLevel     	   	0x1f000000
-#define bCCKTimingRecovery       	 	0x800000
+#define bCCKRxDAGCPeriod        		0x20000000
+#define bCCKRxDAGCSatLevel     		0x1f000000
+#define bCCKTimingRecovery       		0x800000
 #define bCCKTxC0                  			0x3f0000
 #define bCCKTxC1                  			0x3f000000
 #define bCCKTxC2                  			0x3f

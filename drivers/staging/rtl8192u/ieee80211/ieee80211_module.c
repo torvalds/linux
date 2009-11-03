@@ -150,11 +150,11 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	atomic_set(&(ieee->atm_swbw), 0);
 
 	ieee->wpax_type_set = 0;
- 	ieee->wpa_enabled = 0;
- 	ieee->tkip_countermeasures = 0;
- 	ieee->drop_unencrypted = 0;
- 	ieee->privacy_invoked = 0;
- 	ieee->ieee802_1x = 1;
+	ieee->wpa_enabled = 0;
+	ieee->tkip_countermeasures = 0;
+	ieee->drop_unencrypted = 0;
+	ieee->privacy_invoked = 0;
+	ieee->ieee802_1x = 1;
 	ieee->raw_tx = 0;
 	//ieee->hwsec_support = 1; //defalt support hw security. //use module_param instead.
 	ieee->hwsec_active = 0; //disable hwsec, switch it on when necessary.

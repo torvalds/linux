@@ -12,9 +12,9 @@
 #include <linux/crypto.h>
 
 static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
-                                        struct scatterlist *dst,
-                                        struct scatterlist *src,
-                                        unsigned int nbytes)
+					struct scatterlist *dst,
+					struct scatterlist *src,
+					unsigned int nbytes)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->crt_cipher.cit_encrypt(tfm, dst, src, nbytes);
@@ -22,9 +22,9 @@ static inline int crypto_cipher_encrypt(struct crypto_tfm *tfm,
 
 
 static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
-                                        struct scatterlist *dst,
-                                        struct scatterlist *src,
-                                        unsigned int nbytes)
+					struct scatterlist *dst,
+					struct scatterlist *src,
+					unsigned int nbytes)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return tfm->crt_cipher.cit_decrypt(tfm, dst, src, nbytes);

@@ -73,7 +73,7 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "type         : digest\n");
 		seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 		seq_printf(m, "digestsize   : %u\n",
-		           alg->cra_digest.dia_digestsize);
+			   alg->cra_digest.dia_digestsize);
 		break;
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		seq_printf(m, "type         : compression\n");

@@ -647,18 +647,18 @@ typedef struct _QOS_TSTREAM{
 //      802.11 Management frame Status Code field
 //----------------------------------------------------------------------------
 typedef struct _OCTET_STRING{
-        u8        	*Octet;
-        u16             Length;
+	u8        	*Octet;
+	u16             Length;
 }OCTET_STRING, *POCTET_STRING;
 #if 0
 #define FillOctetString(_os,_octet,_len)             \
-        (_os).Octet=(u8 *)(_octet);                  \
-        (_os).Length=(_len);
+	(_os).Octet=(u8 *)(_octet);                  \
+	(_os).Length=(_len);
 
 #define WMM_ELEM_HDR_LEN        		     6
 #define WMMElemSkipHdr(_osWMMElem)                   \
-        (_osWMMElem).Octet += WMM_ELEM_HDR_LEN;      \
-        (_osWMMElem).Length -= WMM_ELEM_HDR_LEN;
+	(_osWMMElem).Octet += WMM_ELEM_HDR_LEN;      \
+	(_osWMMElem).Length -= WMM_ELEM_HDR_LEN;
 #endif
 //
 // STA QoS data.

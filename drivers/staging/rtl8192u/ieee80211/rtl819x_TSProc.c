@@ -509,31 +509,31 @@ void RemoveTsEntry(
 		if(timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
-                while(!list_empty(&pRxTS->RxPendingPktList))
-                {
-                //      PlatformAcquireSpinLock(Adapter, RT_RX_SPINLOCK);
-                        spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-                        //pRxReorderEntry = list_entry(&pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+		while(!list_empty(&pRxTS->RxPendingPktList))
+		{
+		//      PlatformAcquireSpinLock(Adapter, RT_RX_SPINLOCK);
+			spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
+			//pRxReorderEntry = list_entry(&pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
 			pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
-                        list_del_init(&pRxReorderEntry->List);
-                        {
-                                int i = 0;
-                                struct ieee80211_rxb * prxb = pRxReorderEntry->prxb;
+			list_del_init(&pRxReorderEntry->List);
+			{
+				int i = 0;
+				struct ieee80211_rxb * prxb = pRxReorderEntry->prxb;
 				if (unlikely(!prxb))
 				{
 					spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 					return;
 				}
-                                for(i =0; i < prxb->nr_subframes; i++) {
-                                        dev_kfree_skb(prxb->subframes[i]);
-                                }
-                                kfree(prxb);
-                                prxb = NULL;
-                        }
-                        list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
-                        //PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
-                        spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
-                }
+				for(i =0; i < prxb->nr_subframes; i++) {
+					dev_kfree_skb(prxb->subframes[i]);
+				}
+				kfree(prxb);
+				prxb = NULL;
+			}
+			list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
+			//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
+			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
+		}
 
 //#endif
 	}

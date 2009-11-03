@@ -283,7 +283,7 @@ extern  void    dm_txpower_trackingcallback(struct net_device *dev);
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
-                                                                u32 dm_type, u32 dm_value);
+								u32 dm_type, u32 dm_value);
 extern  void    dm_force_tx_fw_info(struct net_device *dev,u32 force_type, u32 force_value);
 extern  void    dm_init_edca_turbo(struct net_device *dev);
 extern  void    dm_rf_operation_test_callback(unsigned long data);

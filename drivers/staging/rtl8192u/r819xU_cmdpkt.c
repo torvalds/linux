@@ -5,9 +5,9 @@
  Module:	r819xusb_cmdpkt.c	(RTL8190 TX/RX command packet handler Source C File)
 
  Note:      The module is responsible for handling TX and RX command packet.
- 			1. TX : Send set and query configuration command packet.
- 			2. RX : Receive tx feedback, beacon state, query configuration
- 			        command packet.
+			1. TX : Send set and query configuration command packet.
+			2. RX : Receive tx feedback, beacon state, query configuration
+				command packet.
 
  Function:
 
@@ -158,7 +158,7 @@ SendTxCommandPacket(
 		seg_ptr = skb_put(skb, buffer_len);
 		/*
 		 * Transform from little endian to big endian
-                 * and pending  zero
+		 * and pending  zero
 		 */
 		memcpy(seg_ptr,codevirtualaddress,buffer_len);
 		tcb_desc->txbuf_size= (u16)buffer_len;
@@ -349,7 +349,7 @@ cmpk_handle_tx_feedback(
 		pMgntInfo->CurrentOperaRate = (rx_tx_fb.F_Rate & 0x7F);
 	}
 	else if (pAdapter->RegWirelessMode == WIRELESS_MODE_N_24G ||
-		 	 pAdapter->RegWirelessMode == WIRELESS_MODE_N_5G)
+			 pAdapter->RegWirelessMode == WIRELESS_MODE_N_5G)
 	{
 		pMgntInfo->HTCurrentOperaRate = (rx_tx_fb.F_Rate & 0x8F);
 	}
@@ -802,7 +802,7 @@ cmpk_message_handle_rx(
 
 			default:
 
-			        RT_TRACE(COMP_ERR, "---->cmpk_message_handle_rx():unknow CMD Element\n");
+				RT_TRACE(COMP_ERR, "---->cmpk_message_handle_rx():unknow CMD Element\n");
 				return 1;	/* This is a command packet. */
 		}
 		// 2007/01/22 MH Display received rx command packet info.

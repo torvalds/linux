@@ -282,7 +282,7 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 extern  void    hal_dm_watchdog(struct net_device *dev)
 {
-        //struct r8192_priv *priv = ieee80211_priv(dev);
+	//struct r8192_priv *priv = ieee80211_priv(dev);
 
 	//static u8 	previous_bssid[6] ={0};
 
@@ -621,7 +621,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	bool						bHighpowerstate, viviflag = FALSE;
 	DCMD_TXCMD_T			tx_cmd;
 	u8						powerlevelOFDM24G;
-	int	    					i =0, j = 0, k = 0;
+	int						i =0, j = 0, k = 0;
 	u8						RF_Type, tmp_report[5]={0, 0, 0, 0, 0};
 	u32						Value;
 	u8						Pwr_Flag;
@@ -1010,13 +1010,13 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	//Initial the Tx BB index and mapping value
-	priv->txbbgain_table[0].txbb_iq_amplifygain = 	 		12;
+	priv->txbbgain_table[0].txbb_iq_amplifygain = 			12;
 	priv->txbbgain_table[0].txbbgain_value=0x7f8001fe;
-	priv->txbbgain_table[1].txbb_iq_amplifygain = 	 		11;
+	priv->txbbgain_table[1].txbb_iq_amplifygain = 			11;
 	priv->txbbgain_table[1].txbbgain_value=0x788001e2;
-	priv->txbbgain_table[2].txbb_iq_amplifygain = 	 		10;
+	priv->txbbgain_table[2].txbb_iq_amplifygain = 			10;
 	priv->txbbgain_table[2].txbbgain_value=0x71c001c7;
-	priv->txbbgain_table[3].txbb_iq_amplifygain = 	 		9;
+	priv->txbbgain_table[3].txbb_iq_amplifygain = 			9;
 	priv->txbbgain_table[3].txbbgain_value=0x6b8001ae;
 	priv->txbbgain_table[4].txbb_iq_amplifygain = 		       8;
 	priv->txbbgain_table[4].txbbgain_value=0x65400195;
@@ -1046,7 +1046,7 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->txbbgain_table[16].txbbgain_value=0x32c000cb;
 	priv->txbbgain_table[17].txbb_iq_amplifygain = 		     -5;
 	priv->txbbgain_table[17].txbbgain_value=0x300000c0;
-	priv->txbbgain_table[18].txbb_iq_amplifygain = 		 	    -6;
+	priv->txbbgain_table[18].txbb_iq_amplifygain = 			    -6;
 	priv->txbbgain_table[18].txbbgain_value=0x2d4000b5;
 	priv->txbbgain_table[19].txbb_iq_amplifygain = 		     -7;
 	priv->txbbgain_table[19].txbbgain_value=0x2ac000ab;
@@ -1548,9 +1548,9 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 		return;
 	else
 	{
-	 	if((tx_power_track_counter % 30 == 0)&&(tx_power_track_counter != 0))
-	 	{
-	 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+		if((tx_power_track_counter % 30 == 0)&&(tx_power_track_counter != 0))
+		{
+			#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 				queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
 			#else
 				#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
@@ -1559,7 +1559,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 				queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
 				#endif
 			#endif
-	 	}
+		}
 		tx_power_track_counter++;
 	}
 
@@ -3065,7 +3065,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 	#else
 		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 		schedule_task(&priv->gpio_change_rf_wq);
-             #else
+	     #else
 		queue_work(priv->priv_wq,&priv->gpio_change_rf_wq);
 		#endif
 	#endif
@@ -3602,7 +3602,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		{
 			rate_bitmap  = 1 << rate_index;
 			if(priv->ieee80211->fsync_rate_bitmap &  rate_bitmap)
-		 		rate_count+= priv->stats.received_rate_histogram[1][rate_index];
+				rate_count+= priv->stats.received_rate_histogram[1][rate_index];
 		}
 
 		if(rate_count < priv->rate_record)
@@ -4036,7 +4036,7 @@ extern void dm_shadow_init(struct net_device *dev)
  * Function:	DM_DynamicTxPower()
  *
  * Overview:	Detect Signal strength to control TX Registry
- 			Tx Power Control For Near/Far Range
+			Tx Power Control For Near/Far Range
  *
  * Input:		NONE
  *

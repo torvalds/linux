@@ -56,18 +56,18 @@ struct modes_unit ieee80211_modes[] = {
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,20)) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
 static inline char *
 iwe_stream_add_event_rsl(char *     stream,         /* Stream of events */
-                     char *     ends,           /* End of stream */
-                     struct iw_event *iwe,      /* Payload */
-                     int        event_len)      /* Real size of payload */
+		     char *     ends,           /* End of stream */
+		     struct iw_event *iwe,      /* Payload */
+		     int        event_len)      /* Real size of payload */
 {
-        /* Check if it's possible */
-        if((stream + event_len) < ends) {
-                iwe->len = event_len;
+	/* Check if it's possible */
+	if((stream + event_len) < ends) {
+		iwe->len = event_len;
 		ndelay(1);   //new
-                memcpy(stream, (char *) iwe, event_len);
-                stream += event_len;
-        }
-        return stream;
+		memcpy(stream, (char *) iwe, event_len);
+		stream += event_len;
+	}
+	return stream;
 }
 #else
 #define iwe_stream_add_event_rsl iwe_stream_add_event
@@ -75,9 +75,9 @@ iwe_stream_add_event_rsl(char *     stream,         /* Stream of events */
 
 #define MAX_CUSTOM_LEN 64
 static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
- 					   char *start, char *stop,
+					   char *start, char *stop,
 					   struct ieee80211_network *network,
-                                           struct iw_request_info *info)
+					   struct iw_request_info *info)
 {
 	char custom[MAX_CUSTOM_LEN];
 	char proto_name[IFNAMSIZ];
@@ -106,18 +106,18 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	if (network->ssid_len == 0) {
 		iwe.u.data.length = sizeof("<hidden>");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
+		start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, "<hidden>");
+		start = iwe_stream_add_point(start, stop, &iwe, "<hidden>");
 #endif
-        } else {
+	} else {
 		iwe.u.data.length = min(network->ssid_len, (u8)32);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
+		start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
+		start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
 #endif
-        }
+	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	for(i=0; i<(sizeof(ieee80211_modes)/sizeof(ieee80211_modes[0])); i++) {
@@ -129,26 +129,26 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	*pname = '\0';
 	snprintf(iwe.u.name, IFNAMSIZ, "IEEE802.11%s", proto_name);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_CHAR_LEN);
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_CHAR_LEN);
 #else
-        start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_CHAR_LEN);
+	start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_CHAR_LEN);
 #endif
-        /* Add mode */
-        iwe.cmd = SIOCGIWMODE;
-        if (network->capability &
+	/* Add mode */
+	iwe.cmd = SIOCGIWMODE;
+	if (network->capability &
 	    (WLAN_CAPABILITY_BSS | WLAN_CAPABILITY_IBSS)) {
 		if (network->capability & WLAN_CAPABILITY_BSS)
 			iwe.u.mode = IW_MODE_MASTER;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_UINT_LEN);
+		start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_UINT_LEN);
 #else
-                start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_UINT_LEN);
+		start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_UINT_LEN);
 #endif
-        }
+	}
 
-        /* Add frequency/channel */
+	/* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
 /*	iwe.u.freq.m = ieee80211_frequency(network->channel, network->mode);
 	iwe.u.freq.e = 3; */
@@ -156,9 +156,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_FREQ_LEN);
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_FREQ_LEN);
 #else
-        start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_FREQ_LEN);
+	start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_FREQ_LEN);
 #endif
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -168,9 +168,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
+	start = iwe_stream_add_point(info, start, stop, &iwe, network->ssid);
 #else
-        start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
+	start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
 #endif
 	/* Add basic and extended rates */
 	max_rate = 0;
@@ -228,19 +228,19 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_event_rsl(info, start, stop, &iwe,
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe,
 				     IW_EV_PARAM_LEN);
 #else
-        start = iwe_stream_add_event_rsl(start, stop, &iwe,
+	start = iwe_stream_add_event_rsl(start, stop, &iwe,
 				     IW_EV_PARAM_LEN);
 #endif
 	iwe.cmd = IWEVCUSTOM;
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_point(info, start, stop, &iwe, custom);
+	start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 #else
-        start = iwe_stream_add_point(start, stop, &iwe, custom);
+	start = iwe_stream_add_point(start, stop, &iwe, custom);
 #endif
 	/* Add quality statistics */
 	/* TODO: Fix these values... */
@@ -257,9 +257,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID;
 	iwe.u.qual.updated = 7;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-        start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 #else
-        start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event_rsl(start, stop, &iwe, IW_EV_QUAL_LEN);
 #endif
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
@@ -267,9 +267,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-            start = iwe_stream_add_point(info, start, stop, &iwe, custom);
+	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 #else
-            start = iwe_stream_add_point(start, stop, &iwe, custom);
+	    start = iwe_stream_add_point(start, stop, &iwe, custom);
 #endif
 #if (WIRELESS_EXT < 18)
 	if (ieee->wpa_enabled && network->wpa_ie_len){
@@ -285,11 +285,11 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.cmd = IWEVCUSTOM;
 		iwe.u.data.length = strlen(buf);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(start, stop, &iwe, buf);
 #endif
-        }
+	}
 
 	if (ieee->wpa_enabled && network->rsn_ie_len){
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
@@ -304,11 +304,11 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.cmd = IWEVCUSTOM;
 		iwe.u.data.length = strlen(buf);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(start, stop, &iwe, buf);
 #endif
-        }
+	}
 #else
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len)
@@ -318,11 +318,11 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = network->wpa_ie_len;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(start, stop, &iwe, buf);
 #endif
-        }
+	}
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->rsn_ie_len)
 	{
@@ -331,11 +331,11 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = network->rsn_ie_len;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-                start = iwe_stream_add_point(info, start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 #else
-                start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(start, stop, &iwe, buf);
 #endif
-        }
+	}
 #endif
 
 
@@ -348,9 +348,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-            start = iwe_stream_add_point(info, start, stop, &iwe, custom);
+	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 #else
-            start = iwe_stream_add_point(start, stop, &iwe, custom);
+	    start = iwe_stream_add_point(start, stop, &iwe, custom);
 #endif
 
 	return start;
@@ -516,7 +516,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				   key, escape_essid(sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
- 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
+		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
@@ -634,192 +634,192 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 }
 #if (WIRELESS_EXT >= 18)
 int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct net_device *dev = ieee->dev;
-        struct iw_point *encoding = &wrqu->encoding;
-        struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-        int i, idx;
-        int group_key = 0;
-        const char *alg, *module;
-        struct ieee80211_crypto_ops *ops;
-        struct ieee80211_crypt_data **crypt;
+	struct iw_point *encoding = &wrqu->encoding;
+	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
+	int i, idx;
+	int group_key = 0;
+	const char *alg, *module;
+	struct ieee80211_crypto_ops *ops;
+	struct ieee80211_crypt_data **crypt;
 
-        struct ieee80211_security sec = {
-                .flags = 0,
-        };
+	struct ieee80211_security sec = {
+		.flags = 0,
+	};
 	//printk("======>encoding flag:%x,ext flag:%x, ext alg:%d\n", encoding->flags,ext->ext_flags, ext->alg);
-        idx = encoding->flags & IW_ENCODE_INDEX;
-        if (idx) {
-                if (idx < 1 || idx > WEP_KEYS)
-                        return -EINVAL;
-                idx--;
-        } else
-                idx = ieee->tx_keyidx;
+	idx = encoding->flags & IW_ENCODE_INDEX;
+	if (idx) {
+		if (idx < 1 || idx > WEP_KEYS)
+			return -EINVAL;
+		idx--;
+	} else
+		idx = ieee->tx_keyidx;
 
-        if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
+	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 
-                crypt = &ieee->crypt[idx];
+		crypt = &ieee->crypt[idx];
 
-                group_key = 1;
-        } else {
-                /* some Cisco APs use idx>0 for unicast in dynamic WEP */
+		group_key = 1;
+	} else {
+		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
 		//printk("not group key, flags:%x, ext->alg:%d\n", ext->ext_flags, ext->alg);
-                if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
-                        return -EINVAL;
-                if (ieee->iw_mode == IW_MODE_INFRA)
+		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
+			return -EINVAL;
+		if (ieee->iw_mode == IW_MODE_INFRA)
 
-                        crypt = &ieee->crypt[idx];
+			crypt = &ieee->crypt[idx];
 
-                else
-                        return -EINVAL;
-        }
+		else
+			return -EINVAL;
+	}
 
-        sec.flags |= SEC_ENABLED;// | SEC_ENCRYPT;
-        if ((encoding->flags & IW_ENCODE_DISABLED) ||
-            ext->alg == IW_ENCODE_ALG_NONE) {
-                if (*crypt)
-                        ieee80211_crypt_delayed_deinit(ieee, crypt);
+	sec.flags |= SEC_ENABLED;// | SEC_ENCRYPT;
+	if ((encoding->flags & IW_ENCODE_DISABLED) ||
+	    ext->alg == IW_ENCODE_ALG_NONE) {
+		if (*crypt)
+			ieee80211_crypt_delayed_deinit(ieee, crypt);
 
-                for (i = 0; i < WEP_KEYS; i++)
+		for (i = 0; i < WEP_KEYS; i++)
 
 			if (ieee->crypt[i] != NULL)
 
-                                break;
+				break;
 
-                if (i == WEP_KEYS) {
-                        sec.enabled = 0;
-                      //  sec.encrypt = 0;
-                        sec.level = SEC_LEVEL_0;
-                        sec.flags |= SEC_LEVEL;
-                }
+		if (i == WEP_KEYS) {
+			sec.enabled = 0;
+		      //  sec.encrypt = 0;
+			sec.level = SEC_LEVEL_0;
+			sec.flags |= SEC_LEVEL;
+		}
 		//printk("disabled: flag:%x\n", encoding->flags);
-                goto done;
-        }
+		goto done;
+	}
 
 	sec.enabled = 1;
     //    sec.encrypt = 1;
 #if 0
-        if (group_key ? !ieee->host_mc_decrypt :
-            !(ieee->host_encrypt || ieee->host_decrypt ||
-              ieee->host_encrypt_msdu))
-                goto skip_host_crypt;
+	if (group_key ? !ieee->host_mc_decrypt :
+	    !(ieee->host_encrypt || ieee->host_decrypt ||
+	      ieee->host_encrypt_msdu))
+		goto skip_host_crypt;
 #endif
-        switch (ext->alg) {
-        case IW_ENCODE_ALG_WEP:
-                alg = "WEP";
-                module = "ieee80211_crypt_wep";
-                break;
-        case IW_ENCODE_ALG_TKIP:
-                alg = "TKIP";
-                module = "ieee80211_crypt_tkip";
-                break;
-        case IW_ENCODE_ALG_CCMP:
-                alg = "CCMP";
-                module = "ieee80211_crypt_ccmp";
-                break;
-        default:
-                IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
-                                   dev->name, ext->alg);
-                ret = -EINVAL;
-                goto done;
-        }
+	switch (ext->alg) {
+	case IW_ENCODE_ALG_WEP:
+		alg = "WEP";
+		module = "ieee80211_crypt_wep";
+		break;
+	case IW_ENCODE_ALG_TKIP:
+		alg = "TKIP";
+		module = "ieee80211_crypt_tkip";
+		break;
+	case IW_ENCODE_ALG_CCMP:
+		alg = "CCMP";
+		module = "ieee80211_crypt_ccmp";
+		break;
+	default:
+		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+				   dev->name, ext->alg);
+		ret = -EINVAL;
+		goto done;
+	}
 	printk("alg name:%s\n",alg);
 
 	 ops = ieee80211_get_crypto_ops(alg);
-        if (ops == NULL) {
-                request_module(module);
-                ops = ieee80211_get_crypto_ops(alg);
-        }
-        if (ops == NULL) {
-                IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
-                                   dev->name, ext->alg);
+	if (ops == NULL) {
+		request_module(module);
+		ops = ieee80211_get_crypto_ops(alg);
+	}
+	if (ops == NULL) {
+		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+				   dev->name, ext->alg);
 		printk("========>unknown crypto alg %d\n", ext->alg);
-                ret = -EINVAL;
-                goto done;
-        }
+		ret = -EINVAL;
+		goto done;
+	}
 
-        if (*crypt == NULL || (*crypt)->ops != ops) {
-                struct ieee80211_crypt_data *new_crypt;
+	if (*crypt == NULL || (*crypt)->ops != ops) {
+		struct ieee80211_crypt_data *new_crypt;
 
-                ieee80211_crypt_delayed_deinit(ieee, crypt);
+		ieee80211_crypt_delayed_deinit(ieee, crypt);
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
-                new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
+		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 #else
-                new_crypt = kmalloc(sizeof(*new_crypt), GFP_KERNEL);
+		new_crypt = kmalloc(sizeof(*new_crypt), GFP_KERNEL);
 		memset(new_crypt,0,sizeof(*new_crypt));
 #endif
-                if (new_crypt == NULL) {
-                        ret = -ENOMEM;
-                        goto done;
-                }
-                new_crypt->ops = ops;
-                if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
-                        new_crypt->priv = new_crypt->ops->init(idx);
-                if (new_crypt->priv == NULL) {
-                        kfree(new_crypt);
-                        ret = -EINVAL;
-                        goto done;
-                }
-                *crypt = new_crypt;
+		if (new_crypt == NULL) {
+			ret = -ENOMEM;
+			goto done;
+		}
+		new_crypt->ops = ops;
+		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+			new_crypt->priv = new_crypt->ops->init(idx);
+		if (new_crypt->priv == NULL) {
+			kfree(new_crypt);
+			ret = -EINVAL;
+			goto done;
+		}
+		*crypt = new_crypt;
 
- 	}
+	}
 
-        if (ext->key_len > 0 && (*crypt)->ops->set_key &&
-            (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
-                                   (*crypt)->priv) < 0) {
-                IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
+	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
+	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
+				   (*crypt)->priv) < 0) {
+		IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
 		printk("key setting failed\n");
-                ret = -EINVAL;
-                goto done;
-        }
+		ret = -EINVAL;
+		goto done;
+	}
 #if 1
  //skip_host_crypt:
 	//printk("skip_host_crypt:ext_flags:%x\n", ext->ext_flags);
-        if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
-                ieee->tx_keyidx = idx;
-                sec.active_key = idx;
-                sec.flags |= SEC_ACTIVE_KEY;
-        }
+	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		ieee->tx_keyidx = idx;
+		sec.active_key = idx;
+		sec.flags |= SEC_ACTIVE_KEY;
+	}
 
-        if (ext->alg != IW_ENCODE_ALG_NONE) {
-                //memcpy(sec.keys[idx], ext->key, ext->key_len);
-                sec.key_sizes[idx] = ext->key_len;
-                sec.flags |= (1 << idx);
-                if (ext->alg == IW_ENCODE_ALG_WEP) {
-                      //  sec.encode_alg[idx] = SEC_ALG_WEP;
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_1;
-                } else if (ext->alg == IW_ENCODE_ALG_TKIP) {
-                      //  sec.encode_alg[idx] = SEC_ALG_TKIP;
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_2;
-                } else if (ext->alg == IW_ENCODE_ALG_CCMP) {
-                       // sec.encode_alg[idx] = SEC_ALG_CCMP;
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_3;
-                }
-                /* Don't set sec level for group keys. */
-                if (group_key)
-                        sec.flags &= ~SEC_LEVEL;
-        }
+	if (ext->alg != IW_ENCODE_ALG_NONE) {
+		//memcpy(sec.keys[idx], ext->key, ext->key_len);
+		sec.key_sizes[idx] = ext->key_len;
+		sec.flags |= (1 << idx);
+		if (ext->alg == IW_ENCODE_ALG_WEP) {
+		      //  sec.encode_alg[idx] = SEC_ALG_WEP;
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_1;
+		} else if (ext->alg == IW_ENCODE_ALG_TKIP) {
+		      //  sec.encode_alg[idx] = SEC_ALG_TKIP;
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_2;
+		} else if (ext->alg == IW_ENCODE_ALG_CCMP) {
+		       // sec.encode_alg[idx] = SEC_ALG_CCMP;
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_3;
+		}
+		/* Don't set sec level for group keys. */
+		if (group_key)
+			sec.flags &= ~SEC_LEVEL;
+	}
 #endif
 done:
-        if (ieee->set_security)
-                ieee->set_security(ieee->dev, &sec);
+	if (ieee->set_security)
+		ieee->set_security(ieee->dev, &sec);
 
 	 if (ieee->reset_on_keychange &&
-            ieee->iw_mode != IW_MODE_INFRA &&
-            ieee->reset_port && ieee->reset_port(dev)) {
-                IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
-                return -EINVAL;
-        }
+	    ieee->iw_mode != IW_MODE_INFRA &&
+	    ieee->reset_port && ieee->reset_port(dev)) {
+		IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
+		return -EINVAL;
+	}
 #endif
-        return ret;
+	return ret;
 }
 
 int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
@@ -878,46 +878,46 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 }
 
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
 	switch (mlme->cmd) {
-        case IW_MLME_DEAUTH:
+	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
 		ieee80211_disassociate(ieee);
 		break;
 	 default:
-                return -EOPNOTSUPP;
-        }
+		return -EOPNOTSUPP;
+	}
 #endif
 	return 0;
 }
 
 int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
-                               struct iw_request_info *info,
-                               struct iw_param *data, char *extra)
+			       struct iw_request_info *info,
+			       struct iw_param *data, char *extra)
 {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	switch (data->flags & IW_AUTH_INDEX) {
-        case IW_AUTH_WPA_VERSION:
+	case IW_AUTH_WPA_VERSION:
 	     /*need to support wpa2 here*/
 		//printk("wpa version:%x\n", data->value);
 		break;
-        case IW_AUTH_CIPHER_PAIRWISE:
-        case IW_AUTH_CIPHER_GROUP:
-        case IW_AUTH_KEY_MGMT:
-                /*
+	case IW_AUTH_CIPHER_PAIRWISE:
+	case IW_AUTH_CIPHER_GROUP:
+	case IW_AUTH_KEY_MGMT:
+		/*
  *                  * Host AP driver does not use these parameters and allows
  *                                   * wpa_supplicant to control them internally.
  *                                                    */
-                break;
-        case IW_AUTH_TKIP_COUNTERMEASURES:
-                ieee->tkip_countermeasures = data->value;
-                break;
-        case IW_AUTH_DROP_UNENCRYPTED:
-                ieee->drop_unencrypted = data->value;
+		break;
+	case IW_AUTH_TKIP_COUNTERMEASURES:
+		ieee->tkip_countermeasures = data->value;
+		break;
+	case IW_AUTH_DROP_UNENCRYPTED:
+		ieee->drop_unencrypted = data->value;
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
@@ -949,13 +949,13 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 
 #endif
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-                ieee->ieee802_1x = data->value;
+		ieee->ieee802_1x = data->value;
 		break;
 	case IW_AUTH_PRIVACY_INVOKED:
 		ieee->privacy_invoked = data->value;
 		break;
 	default:
-                return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 #endif
 	return 0;

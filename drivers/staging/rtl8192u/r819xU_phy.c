@@ -94,7 +94,7 @@ void rtl8192_setBBreg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask, u32 
 	{//if not "double word" write
 		OriginalValue = read_nic_dword(dev, dwRegAddr);
 		BitShift = rtl8192_CalculateBitShift(dwBitMask);
-            	NewValue = (((OriginalValue) & (~dwBitMask)) | (dwData << BitShift));
+		NewValue = (((OriginalValue) & (~dwBitMask)) | (dwData << BitShift));
 		write_nic_dword(dev, dwRegAddr, NewValue);
 	}else
 		write_nic_dword(dev, dwRegAddr, dwData);
@@ -265,7 +265,7 @@ void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath
 		priv->RfReg0Value[eRFPath] = Data;
 
 	// Switch back to Reg_Mode0;
- 	if(priv->rf_chip == RF_8256)
+	if(priv->rf_chip == RF_8256)
 	{
 		if(Offset != 0)
 		{
@@ -320,13 +320,13 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	else
 	{
 		if (BitMask != bMask12Bits) // RF data is 12 bits only
-   	        {
+		{
 			Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-      			BitShift =  rtl8192_CalculateBitShift(BitMask);
-      			New_Value = (((Original_Value) & (~BitMask)) | (Data<< BitShift));
+			BitShift =  rtl8192_CalculateBitShift(BitMask);
+			New_Value = (((Original_Value) & (~BitMask)) | (Data<< BitShift));
 
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, New_Value);
-	        }else
+		}else
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
 	}
 	return;
@@ -360,8 +360,8 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 	else
 	{
 		Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath, RegAddr);
-   		BitShift =  rtl8192_CalculateBitShift(BitMask);
-   		Readback_Value = (Original_Value & BitMask) >> BitShift;
+		BitShift =  rtl8192_CalculateBitShift(BitMask);
+		Readback_Value = (Original_Value & BitMask) >> BitShift;
 		return (Readback_Value);
 	}
 }
@@ -800,7 +800,7 @@ void rtl8192_BB_Config_ParaFile(struct net_device* dev)
 	dwRegValue = read_nic_dword(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
- 	/*----BB AGC table Initialization----*/
+	/*----BB AGC table Initialization----*/
 	//==m==>Set PHY REG From Header<==m==
 	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
 
@@ -1563,7 +1563,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 
 		case HT_CHANNEL_WIDTH_20_40:
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
-        		// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
+			// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
 			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
 			break;
 
@@ -1615,7 +1615,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
-                   	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
+			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 			rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00, priv->nCur40MhzPrimeSC);
 #if 0
 			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207

@@ -23,7 +23,7 @@
 
 typedef void (cryptfn_t)(void *, u8 *, const u8 *);
 typedef void (procfn_t)(struct crypto_tfm *, u8 *,
-                        u8*, cryptfn_t, int enc, void *, int);
+			u8*, cryptfn_t, int enc, void *, int);
 
 static inline void xor_64(u8 *a, const u8 *b)
 {
@@ -48,8 +48,8 @@ static inline void xor_128(u8 *a, const u8 *b)
 static int crypt(struct crypto_tfm *tfm,
 		 struct scatterlist *dst,
 		 struct scatterlist *src,
-                 unsigned int nbytes, cryptfn_t crfn,
-                 procfn_t prfn, int enc, void *info)
+		 unsigned int nbytes, cryptfn_t crfn,
+		 procfn_t prfn, int enc, void *info)
 {
 	struct scatter_walk walk_in, walk_out;
 	const unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
@@ -136,80 +136,80 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 		return -EINVAL;
 	} else
 		return cia->cia_setkey(crypto_tfm_ctx(tfm), key, keylen,
-		                       &tfm->crt_flags);
+				       &tfm->crt_flags);
 }
 
 static int ecb_encrypt(struct crypto_tfm *tfm,
 		       struct scatterlist *dst,
-                       struct scatterlist *src, unsigned int nbytes)
+		       struct scatterlist *src, unsigned int nbytes)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_encrypt,
-	             ecb_process, 1, NULL);
+		     tfm->__crt_alg->cra_cipher.cia_encrypt,
+		     ecb_process, 1, NULL);
 }
 
 static int ecb_decrypt(struct crypto_tfm *tfm,
-                       struct scatterlist *dst,
-                       struct scatterlist *src,
+		       struct scatterlist *dst,
+		       struct scatterlist *src,
 		       unsigned int nbytes)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_decrypt,
-	             ecb_process, 1, NULL);
+		     tfm->__crt_alg->cra_cipher.cia_decrypt,
+		     ecb_process, 1, NULL);
 }
 
 static int cbc_encrypt(struct crypto_tfm *tfm,
-                       struct scatterlist *dst,
-                       struct scatterlist *src,
+		       struct scatterlist *dst,
+		       struct scatterlist *src,
 		       unsigned int nbytes)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_encrypt,
-	             cbc_process, 1, tfm->crt_cipher.cit_iv);
+		     tfm->__crt_alg->cra_cipher.cia_encrypt,
+		     cbc_process, 1, tfm->crt_cipher.cit_iv);
 }
 
 static int cbc_encrypt_iv(struct crypto_tfm *tfm,
-                          struct scatterlist *dst,
-                          struct scatterlist *src,
-                          unsigned int nbytes, u8 *iv)
+			  struct scatterlist *dst,
+			  struct scatterlist *src,
+			  unsigned int nbytes, u8 *iv)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_encrypt,
-	             cbc_process, 1, iv);
+		     tfm->__crt_alg->cra_cipher.cia_encrypt,
+		     cbc_process, 1, iv);
 }
 
 static int cbc_decrypt(struct crypto_tfm *tfm,
-                       struct scatterlist *dst,
-                       struct scatterlist *src,
+		       struct scatterlist *dst,
+		       struct scatterlist *src,
 		       unsigned int nbytes)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_decrypt,
-	             cbc_process, 0, tfm->crt_cipher.cit_iv);
+		     tfm->__crt_alg->cra_cipher.cia_decrypt,
+		     cbc_process, 0, tfm->crt_cipher.cit_iv);
 }
 
 static int cbc_decrypt_iv(struct crypto_tfm *tfm,
-                          struct scatterlist *dst,
-                          struct scatterlist *src,
-                          unsigned int nbytes, u8 *iv)
+			  struct scatterlist *dst,
+			  struct scatterlist *src,
+			  unsigned int nbytes, u8 *iv)
 {
 	return crypt(tfm, dst, src, nbytes,
-	             tfm->__crt_alg->cra_cipher.cia_decrypt,
-	             cbc_process, 0, iv);
+		     tfm->__crt_alg->cra_cipher.cia_decrypt,
+		     cbc_process, 0, iv);
 }
 
 static int nocrypt(struct crypto_tfm *tfm,
-                   struct scatterlist *dst,
-                   struct scatterlist *src,
+		   struct scatterlist *dst,
+		   struct scatterlist *src,
 		   unsigned int nbytes)
 {
 	return -ENOSYS;
 }
 
 static int nocrypt_iv(struct crypto_tfm *tfm,
-                      struct scatterlist *dst,
-                      struct scatterlist *src,
-                      unsigned int nbytes, u8 *iv)
+		      struct scatterlist *dst,
+		      struct scatterlist *src,
+		      unsigned int nbytes, u8 *iv)
 {
 	return -ENOSYS;
 }
@@ -265,25 +265,25 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 
 	if (ops->cit_mode == CRYPTO_TFM_MODE_CBC) {
 
-	    	switch (crypto_tfm_alg_blocksize(tfm)) {
-	    	case 8:
-	    		ops->cit_xor_block = xor_64;
-	    		break;
+		switch (crypto_tfm_alg_blocksize(tfm)) {
+		case 8:
+			ops->cit_xor_block = xor_64;
+			break;
 
-	    	case 16:
-	    		ops->cit_xor_block = xor_128;
-	    		break;
+		case 16:
+			ops->cit_xor_block = xor_128;
+			break;
 
-	    	default:
-	    		printk(KERN_WARNING "%s: block size %u not supported\n",
-	    		       crypto_tfm_alg_name(tfm),
-	    		       crypto_tfm_alg_blocksize(tfm));
-	    		ret = -EINVAL;
-	    		goto out;
-	    	}
+		default:
+			printk(KERN_WARNING "%s: block size %u not supported\n",
+			       crypto_tfm_alg_name(tfm),
+			       crypto_tfm_alg_blocksize(tfm));
+			ret = -EINVAL;
+			goto out;
+		}
 
 		ops->cit_ivsize = crypto_tfm_alg_blocksize(tfm);
-	    	ops->cit_iv = kmalloc(ops->cit_ivsize, GFP_KERNEL);
+		ops->cit_iv = kmalloc(ops->cit_ivsize, GFP_KERNEL);
 		if (ops->cit_iv == NULL)
 			ret = -ENOMEM;
 	}

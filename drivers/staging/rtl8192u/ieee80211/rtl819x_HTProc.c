@@ -361,11 +361,11 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 		     (net->ralink_cap_exist))
 		retValue = true;
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
-    		    (memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
-    		    (memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-    		    (memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
-    		    (net->broadcom_cap_exist))
-    		  retValue = true;
+		    (memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
+		    (memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
+		    (memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
+		    (net->broadcom_cap_exist))
+		  retValue = true;
 	else if(net->bssht.bdRT2RTAggregation)
 		retValue = true;
 	else
@@ -425,7 +425,7 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device* ieee, u8* PeerMacAddr)
 	// Apply for 819u only
 #if (HAL_CODE_BASE==RTL8192 && DEV_BUS_TYPE==USB_INTERFACE)
 	if((memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
-    		(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)
+		(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)
 	    )
 	{
 		ret = 1;
@@ -569,8 +569,8 @@ u8 HTIOTActIsCCDFsync(u8* PeerMacAddr)
 {
 	u8	retValue = 0;
 	if(	(memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
-	    	(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0) ||
-	    	(memcmp(PeerMacAddr, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ==0))
+		(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0) ||
+		(memcmp(PeerMacAddr, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ==0))
 	{
 		retValue = 1;
 	}
@@ -648,7 +648,7 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 
 
 	//MAC HT parameters info
-        // TODO: Nedd to take care of this part
+	// TODO: Nedd to take care of this part
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
 	if( IsEncrypt)
@@ -1662,7 +1662,7 @@ void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidt
 	//if in half N mode, set to 20M bandwidth please 09.08.2008 WB.
 	if(Bandwidth==HT_CHANNEL_WIDTH_20_40 && (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)))
 	 {
-	 		// Handle Illegal extention channel offset!!
+			// Handle Illegal extention channel offset!!
 		if(ieee->current_network.channel<2 && Offset==HT_EXTCHNL_OFFSET_LOWER)
 			Offset = HT_EXTCHNL_OFFSET_NO_EXT;
 		if(Offset==HT_EXTCHNL_OFFSET_UPPER || Offset==HT_EXTCHNL_OFFSET_LOWER) {

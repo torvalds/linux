@@ -437,7 +437,7 @@ extern u8 MCS_FILTER_1SS[16];
 
 // MCS Bw 40 {1~7, 12~15,32}
 #define	RATE_ADPT_1SS_MASK 		0xFF
-#define	RATE_ADPT_2SS_MASK	   	0xF0 //Skip MCS8~11 because mcs7 > mcs6, 9, 10, 11. 2007.01.16 by Emily
+#define	RATE_ADPT_2SS_MASK		0xF0 //Skip MCS8~11 because mcs7 > mcs6, 9, 10, 11. 2007.01.16 by Emily
 #define	RATE_ADPT_MCS32_MASK		0x01
 
 #define 	IS_11N_MCS_RATE(rate)		(rate&0x80)

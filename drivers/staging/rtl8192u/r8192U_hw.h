@@ -226,7 +226,7 @@ enum _RTL8192Usb_HW {
 #define CPU_GEN_NO_LOOPBACK_SET	0x00080000 // Set BIT19 to 1
 	CPU_GEN			= 0x100, // CPU Reset Register
 	LED1Cfg			=		0x154,// LED1 Configuration Register
- 	LED0Cfg			=		0x155,// LED0 Configuration Register
+	LED0Cfg			=		0x155,// LED0 Configuration Register
 
 	AcmAvg			= 0x170, // ACM Average Period Register
 	AcmHwCtrl		= 0x171, // ACM Hardware Control Register
