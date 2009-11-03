@@ -2222,15 +2222,15 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 		ret = ftrace_process_regex(parser->buffer,
 					   parser->idx, enable);
 		if (ret)
-			goto out;
+			goto out_unlock;
 
 		trace_parser_clear(parser);
 	}
 
 	ret = read;
-
+out_unlock:
 	mutex_unlock(&ftrace_regex_lock);
-out:
+
 	return ret;
 }
 
