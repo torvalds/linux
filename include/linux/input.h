@@ -890,7 +890,7 @@ struct ff_periodic_effect {
 	struct ff_envelope envelope;
 
 	__u32 custom_len;
-	__s16 *custom_data;
+	__s16 __user *custom_data;
 };
 
 /**
