@@ -1134,6 +1134,15 @@ static void fc_exch_recv_req(struct fc_lport *lp, struct fc_exch_mgr *mp,
 	u32 f_ctl;
 	enum fc_pf_rjt_reason reject;
 
+	/* We can have the wrong fc_lport at this point with NPIV, which is a
+	 * problem now that we know a new exchange needs to be allocated
+	 */
+	lp = fc_vport_id_lookup(lp, ntoh24(fh->fh_d_id));
+	if (!lp) {
+		fc_frame_free(fp);
+		return;
+	}
+
 	fr_seq(fp) = NULL;
 	reject = fc_seq_lookup_recip(lp, mp, fp);
 	if (reject == FC_RJT_NONE) {
@@ -1899,6 +1908,26 @@ void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema)
 	kfree(ema);
 }
 EXPORT_SYMBOL(fc_exch_mgr_del);
+
+/**
+ * fc_exch_mgr_list_clone() - share all exchange manager objects
+ * @src: source lport to clone exchange managers from
+ * @dst: new lport that takes references to all the exchange managers
+ */
+int fc_exch_mgr_list_clone(struct fc_lport *src, struct fc_lport *dst)
+{
+	struct fc_exch_mgr_anchor *ema, *tmp;
+
+	list_for_each_entry(ema, &src->ema_list, ema_list) {
+		if (!fc_exch_mgr_add(dst, ema->mp, ema->match))
+			goto err;
+	}
+	return 0;
+err:
+	list_for_each_entry_safe(ema, tmp, &dst->ema_list, ema_list)
+		fc_exch_mgr_del(ema);
+	return -ENOMEM;
+}
 
 struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 				      enum fc_class class,

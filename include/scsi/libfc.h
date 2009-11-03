@@ -640,6 +640,8 @@ struct fc_lport {
 	/* Associations */
 	struct Scsi_Host	*host;
 	struct list_head	ema_list;
+	struct list_head	vports;		/* child vports if N_Port */
+	struct fc_vport		*vport;		/* parent vport if VN_Port */
 	struct fc_rport_priv	*dns_rp;
 	struct fc_rport_priv	*ptp_rp;
 	void			*scsi_priv;
@@ -664,6 +666,8 @@ struct fc_lport {
 	u32			seq_offload:1;	/* seq offload supported */
 	u32			crc_offload:1;	/* crc offload supported */
 	u32			lro_enabled:1;	/* large receive offload */
+	u32			does_npiv:1;	/* supports multiple vports */
+	u32			npiv_enabled:1;	/* switch/fabric allows NPIV */
 	u32			mfs;	        /* max FC payload size */
 	unsigned int		service_params;
 	unsigned int		e_d_tov;
@@ -753,6 +757,7 @@ libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
 	lport = shost_priv(shost);
 	lport->host = shost;
 	INIT_LIST_HEAD(&lport->ema_list);
+	INIT_LIST_HEAD(&lport->vports);
 	return lport;
 }
 
@@ -805,6 +810,15 @@ int fc_lport_reset(struct fc_lport *);
  */
 int fc_set_mfs(struct fc_lport *lp, u32 mfs);
 
+/*
+ * Allocate a new lport struct for an NPIV VN_Port
+ */
+struct fc_lport *libfc_vport_create(struct fc_vport *vport, int privsize);
+
+/*
+ * Find an NPIV VN_Port by port ID
+ */
+struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id);
 
 /*
  * REMOTE PORT LAYER
@@ -910,6 +924,12 @@ struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
  * then also destroys associated EM.
  */
 void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema);
+
+/*
+ * Clone an exchange manager list, getting reference holds for each EM.
+ * This is for use with NPIV and sharing the X_ID space between VN_Ports.
+ */
+int fc_exch_mgr_list_clone(struct fc_lport *src, struct fc_lport *dst);
 
 /*
  * Allocates an Exchange Manager (EM).

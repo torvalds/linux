@@ -10,4 +10,5 @@ libfc-objs := \
 	fc_frame.o \
 	fc_lport.o \
 	fc_rport.o \
-	fc_fcp.o
+	fc_fcp.o \
+	fc_npiv.o
