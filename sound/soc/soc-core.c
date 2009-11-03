@@ -970,6 +970,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 						    struct platform_device,
 						    dev);
 	struct snd_soc_codec_device *codec_dev = card->socdev->codec_dev;
+	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *dai;
 	int i, found, ret, ac97;
@@ -1058,6 +1059,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (ret < 0)
 			goto cpu_dai_err;
 	}
+	codec = card->codec;
 
 	if (platform->probe) {
 		ret = platform->probe(pdev);
@@ -1072,9 +1074,71 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
 #endif
 
+	for (i = 0; i < card->num_links; i++) {
+		if (card->dai_link[i].init) {
+			ret = card->dai_link[i].init(codec);
+			if (ret < 0) {
+				printk(KERN_ERR "asoc: failed to init %s\n",
+					card->dai_link[i].stream_name);
+				continue;
+			}
+		}
+		if (card->dai_link[i].codec_dai->ac97_control) {
+			ac97 = 1;
+			snd_ac97_dev_add_pdata(codec->ac97,
+				card->dai_link[i].cpu_dai->ac97_pdata);
+		}
+	}
+
+	snprintf(codec->card->shortname, sizeof(codec->card->shortname),
+		 "%s",  card->name);
+	snprintf(codec->card->longname, sizeof(codec->card->longname),
+		 "%s (%s)", card->name, codec->name);
+
+	/* Make sure all DAPM widgets are instantiated */
+	snd_soc_dapm_new_widgets(codec);
+
+	ret = snd_card_register(codec->card);
+	if (ret < 0) {
+		printk(KERN_ERR "asoc: failed to register soundcard for %s\n",
+				codec->name);
+		goto card_err;
+	}
+
+	mutex_lock(&codec->mutex);
+#ifdef CONFIG_SND_SOC_AC97_BUS
+	/* Only instantiate AC97 if not already done by the adaptor
+	 * for the generic AC97 subsystem.
+	 */
+	if (ac97 && strcmp(codec->name, "AC97") != 0) {
+		ret = soc_ac97_dev_register(codec);
+		if (ret < 0) {
+			printk(KERN_ERR "asoc: AC97 device register failed\n");
+			snd_card_free(codec->card);
+			mutex_unlock(&codec->mutex);
+			goto card_err;
+		}
+	}
+#endif
+
+	ret = snd_soc_dapm_sys_add(card->socdev->dev);
+	if (ret < 0)
+		printk(KERN_WARNING "asoc: failed to add dapm sysfs entries\n");
+
+	ret = device_create_file(card->socdev->dev, &dev_attr_codec_reg);
+	if (ret < 0)
+		printk(KERN_WARNING "asoc: failed to add codec sysfs files\n");
+
+	soc_init_codec_debugfs(codec);
+	mutex_unlock(&codec->mutex);
+
 	card->instantiated = 1;
 
 	return;
+
+card_err:
+	if (platform->remove)
+		platform->remove(pdev);
 
 platform_err:
 	if (codec_dev->remove)
@@ -1452,83 +1516,6 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_new_pcms);
-
-/**
- * snd_soc_init_card - register sound card
- * @socdev: the SoC audio device
- *
- * Register a SoC sound card. Also registers an AC97 device if the
- * codec is AC97 for ad hoc devices.
- *
- * Returns 0 for success, else error.
- */
-int snd_soc_init_card(struct snd_soc_device *socdev)
-{
-	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_codec *codec = card->codec;
-	int ret = 0, i, ac97 = 0, err = 0;
-
-	for (i = 0; i < card->num_links; i++) {
-		if (card->dai_link[i].init) {
-			err = card->dai_link[i].init(codec);
-			if (err < 0) {
-				printk(KERN_ERR "asoc: failed to init %s\n",
-					card->dai_link[i].stream_name);
-				continue;
-			}
-		}
-		if (card->dai_link[i].codec_dai->ac97_control) {
-			ac97 = 1;
-			snd_ac97_dev_add_pdata(codec->ac97,
-				card->dai_link[i].cpu_dai->ac97_pdata);
-		}
-	}
-	snprintf(codec->card->shortname, sizeof(codec->card->shortname),
-		 "%s",  card->name);
-	snprintf(codec->card->longname, sizeof(codec->card->longname),
-		 "%s (%s)", card->name, codec->name);
-
-	/* Make sure all DAPM widgets are instantiated */
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_card_register(codec->card);
-	if (ret < 0) {
-		printk(KERN_ERR "asoc: failed to register soundcard for %s\n",
-				codec->name);
-		goto out;
-	}
-
-	mutex_lock(&codec->mutex);
-#ifdef CONFIG_SND_SOC_AC97_BUS
-	/* Only instantiate AC97 if not already done by the adaptor
-	 * for the generic AC97 subsystem.
-	 */
-	if (ac97 && strcmp(codec->name, "AC97") != 0) {
-		ret = soc_ac97_dev_register(codec);
-		if (ret < 0) {
-			printk(KERN_ERR "asoc: AC97 device register failed\n");
-			snd_card_free(codec->card);
-			mutex_unlock(&codec->mutex);
-			goto out;
-		}
-	}
-#endif
-
-	err = snd_soc_dapm_sys_add(socdev->dev);
-	if (err < 0)
-		printk(KERN_WARNING "asoc: failed to add dapm sysfs entries\n");
-
-	err = device_create_file(socdev->dev, &dev_attr_codec_reg);
-	if (err < 0)
-		printk(KERN_WARNING "asoc: failed to add codec sysfs files\n");
-
-	soc_init_codec_debugfs(codec);
-	mutex_unlock(&codec->mutex);
-
-out:
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_init_card);
 
 /**
  * snd_soc_free_pcms - free sound card and pcms

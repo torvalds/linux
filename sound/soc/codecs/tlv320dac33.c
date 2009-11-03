@@ -960,16 +960,8 @@ static int dac33_soc_probe(struct platform_device *pdev)
 	/* power on device */
 	dac33_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return 0;
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
+
 pcm_err:
 	dac33_hard_power(codec, 0);
 	return ret;

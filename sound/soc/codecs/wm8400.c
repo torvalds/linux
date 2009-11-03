@@ -1400,12 +1400,6 @@ static int wm8400_probe(struct platform_device *pdev)
 	wm8400_add_controls(codec);
 	wm8400_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
 card_err:

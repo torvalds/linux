@@ -2155,19 +2155,7 @@ static int twl4030_soc_probe(struct platform_device *pdev)
 				ARRAY_SIZE(twl4030_snd_controls));
 	twl4030_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return 0;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return ret;
 }
 
 static int twl4030_soc_remove(struct platform_device *pdev)

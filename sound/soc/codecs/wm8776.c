@@ -447,17 +447,8 @@ static int wm8776_probe(struct platform_device *pdev)
 				  ARRAY_SIZE(wm8776_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, routes, ARRAY_SIZE(routes));
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

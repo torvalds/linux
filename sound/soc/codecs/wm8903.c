@@ -1695,17 +1695,8 @@ static int wm8903_probe(struct platform_device *pdev)
 				ARRAY_SIZE(wm8903_snd_controls));
 	wm8903_add_widgets(socdev->card->codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "wm8903: failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 err:
 	return ret;
 }

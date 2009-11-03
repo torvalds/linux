@@ -68,17 +68,9 @@ static int wm8727_soc_probe(struct platform_device *pdev)
 		printk(KERN_ERR "wm8727: failed to create pcms\n");
 		goto pcm_err;
 	}
-	/* register card */
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8727: failed to register card\n");
-		goto register_err;
-	}
 
 	return ret;
 
-register_err:
-	snd_soc_free_pcms(socdev);
 pcm_err:
 	kfree(socdev->card->codec);
 	socdev->card->codec = NULL;

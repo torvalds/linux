@@ -596,12 +596,6 @@ static int ad1938_probe(struct platform_device *pdev)
 
 	ad1938_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
 	return ret;
 
 card_err:

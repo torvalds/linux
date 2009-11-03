@@ -731,12 +731,6 @@ static int wm8940_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_free_pcms;
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto error_free_pcms;
-	}
-
 	return ret;
 
 error_free_pcms:

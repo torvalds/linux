@@ -1353,12 +1353,6 @@ static int wm8900_probe(struct platform_device *pdev)
 				ARRAY_SIZE(wm8900_snd_controls));
 	wm8900_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
 card_err:

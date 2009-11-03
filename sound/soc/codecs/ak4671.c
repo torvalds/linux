@@ -662,19 +662,10 @@ static int ak4671_probe(struct platform_device *pdev)
 			     ARRAY_SIZE(ak4671_snd_controls));
 	ak4671_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
 	ak4671_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

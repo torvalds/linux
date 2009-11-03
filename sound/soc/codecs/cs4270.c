@@ -599,13 +599,6 @@ static int cs4270_probe(struct platform_device *pdev)
 		goto error_free_pcms;
 	}
 
-	/* And finally, register the socdev */
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
-		goto error_free_pcms;
-	}
-
 	return 0;
 
 error_free_pcms:

@@ -562,17 +562,8 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "UDA134X: failed to register card\n");
-		goto card_err;
-	}
-
 	return 0;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	kfree(codec->reg_cache);
 reg_err:

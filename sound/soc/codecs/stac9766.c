@@ -418,9 +418,6 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, stac9766_snd_ac97_controls,
 			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto reset_err;
 	return 0;
 
 reset_err:

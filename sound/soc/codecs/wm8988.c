@@ -792,17 +792,8 @@ static int wm8988_probe(struct platform_device *pdev)
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 	snd_soc_dapm_new_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

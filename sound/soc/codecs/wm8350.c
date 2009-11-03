@@ -1501,18 +1501,7 @@ static int wm8350_probe(struct platform_device *pdev)
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return 0;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-	return ret;
 }
 
 static int wm8350_remove(struct platform_device *pdev)
