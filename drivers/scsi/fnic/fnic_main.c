@@ -143,6 +143,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.get_fc_host_stats = fnic_get_stats,
 	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
 	.terminate_rport_io = fnic_terminate_rport_io,
+	.bsg_request = fc_lport_bsg_request,
 };
 
 static void fnic_get_host_speed(struct Scsi_Host *shost)
