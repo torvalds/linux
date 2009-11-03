@@ -1474,19 +1474,13 @@ xfs_vm_direct_IO(
 
 	bdev = xfs_find_bdev_for_inode(XFS_I(inode));
 
-	if (rw == WRITE) {
-		iocb->private = xfs_alloc_ioend(inode, IOMAP_UNWRITTEN);
-		ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
-			bdev, iov, offset, nr_segs,
-			xfs_get_blocks_direct,
-			xfs_end_io_direct);
-	} else {
-		iocb->private = xfs_alloc_ioend(inode, IOMAP_READ);
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
-			bdev, iov, offset, nr_segs,
-			xfs_get_blocks_direct,
-			xfs_end_io_direct);
-	}
+	iocb->private = xfs_alloc_ioend(inode, rw == WRITE ?
+					IOMAP_UNWRITTEN : IOMAP_READ);
+
+	ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    xfs_end_io_direct);
 
 	if (unlikely(ret != -EIOCBQUEUED && iocb->private))
 		xfs_destroy_ioend(iocb->private);
