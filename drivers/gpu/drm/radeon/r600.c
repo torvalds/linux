@@ -409,35 +409,29 @@ int r600_mc_init(struct radeon_device *rdev)
 			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 		}
 	} else {
-		if (rdev->family == CHIP_RS780 || rdev->family == CHIP_RS880) {
-			rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
-								0xFFFF) << 24;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-			tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
-			if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
-				/* Enough place after vram */
-				rdev->mc.gtt_location = tmp;
-			} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
-				/* Enough place before vram */
-				rdev->mc.gtt_location = 0;
-			} else {
-				/* Not enough place after or before shrink
-				 * gart size
-				 */
-				if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
-					rdev->mc.gtt_location = 0;
-					rdev->mc.gtt_size = rdev->mc.vram_location;
-				} else {
-					rdev->mc.gtt_location = tmp;
-					rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
-				}
-			}
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
+		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+		rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
+							0xFFFF) << 24;
+		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
+		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
+			/* Enough place after vram */
+			rdev->mc.gtt_location = tmp;
+		} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
+			/* Enough place before vram */
+			rdev->mc.gtt_location = 0;
 		} else {
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+			/* Not enough place after or before shrink
+			 * gart size
+			 */
+			if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
+				rdev->mc.gtt_location = 0;
+				rdev->mc.gtt_size = rdev->mc.vram_location;
+			} else {
+				rdev->mc.gtt_location = tmp;
+				rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
+			}
 		}
+		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	}
 	rdev->mc.vram_start = rdev->mc.vram_location;
 	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
