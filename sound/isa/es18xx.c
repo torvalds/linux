@@ -1313,7 +1313,7 @@ ES18XX_DOUBLE("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0)
  * The chipset specific mixer controls
  */
 static struct snd_kcontrol_new snd_es18xx_opt_speaker =
-	ES18XX_SINGLE("PC Speaker Playback Volume", 0, 0x3c, 0, 7, 0);
+	ES18XX_SINGLE("Beep Playback Volume", 0, 0x3c, 0, 7, 0);
 
 static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),

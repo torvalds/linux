@@ -125,7 +125,7 @@ static struct snd_kcontrol_new __devinitdata snd_pcsp_controls_pcm[] = {
 };
 
 static struct snd_kcontrol_new __devinitdata snd_pcsp_controls_spkr[] = {
-	PCSP_MIXER_CONTROL(pcspkr, "PC Speaker Playback Switch"),
+	PCSP_MIXER_CONTROL(pcspkr, "Beep Playback Switch"),
 };
 
 static int __devinit snd_pcsp_ctls_add(struct snd_pcsp *chip,

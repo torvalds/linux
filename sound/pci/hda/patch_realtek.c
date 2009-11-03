@@ -7334,8 +7334,8 @@ static struct snd_kcontrol_new alc882_macpro_mixer[] = {
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x01, HDA_INPUT),
 	/* FIXME: this looks suspicious...
-	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	*/
 	{ } /* end */
 };
