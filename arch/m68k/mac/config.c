@@ -921,6 +921,16 @@ static struct platform_device esp_1_pdev = {
 	.id		= 1,
 };
 
+static struct platform_device sonic_pdev = {
+	.name		= "macsonic",
+	.id		= -1,
+};
+
+static struct platform_device mace_pdev = {
+	.name		= "macmace",
+	.id		= -1,
+};
+
 int __init mac_platform_init(void)
 {
 	u8 *swim_base;
@@ -968,6 +978,19 @@ int __init mac_platform_init(void)
 		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
 		    (macintosh_config->ident == MAC_MODEL_Q950))
 			platform_device_register(&esp_1_pdev);
+		break;
+	}
+
+	/*
+	 * Ethernet device
+	 */
+
+	switch (macintosh_config->ether_type) {
+	case MAC_ETHER_SONIC:
+		platform_device_register(&sonic_pdev);
+		break;
+	case MAC_ETHER_MACE:
+		platform_device_register(&mace_pdev);
 		break;
 	}
 
