@@ -537,8 +537,7 @@ update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
  *	element of the partition (one sched domain) to be passed to
  *	partition_sched_domains().
  */
-/* FIXME: see the FIXME in partition_sched_domains() */
-static int generate_sched_domains(struct cpumask **domains,
+static int generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes)
 {
 	LIST_HEAD(q);		/* queue of cpusets to be scanned */
@@ -546,7 +545,7 @@ static int generate_sched_domains(struct cpumask **domains,
 	struct cpuset **csa;	/* array of all cpuset ptrs */
 	int csn;		/* how many cpuset ptrs in csa so far */
 	int i, j, k;		/* indices for partition finding loops */
-	struct cpumask *doms;	/* resulting partition; i.e. sched domains */
+	cpumask_var_t *doms;	/* resulting partition; i.e. sched domains */
 	struct sched_domain_attr *dattr;  /* attributes for custom domains */
 	int ndoms = 0;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] struct cpumask slot */
@@ -557,7 +556,8 @@ static int generate_sched_domains(struct cpumask **domains,
 
 	/* Special case for the 99% of systems with one, full, sched domain */
 	if (is_sched_load_balance(&top_cpuset)) {
-		doms = kmalloc(cpumask_size(), GFP_KERNEL);
+		ndoms = 1;
+		doms = alloc_sched_domains(ndoms);
 		if (!doms)
 			goto done;
 
@@ -566,9 +566,8 @@ static int generate_sched_domains(struct cpumask **domains,
 			*dattr = SD_ATTR_INIT;
 			update_domain_attr_tree(dattr, &top_cpuset);
 		}
-		cpumask_copy(doms, top_cpuset.cpus_allowed);
+		cpumask_copy(doms[0], top_cpuset.cpus_allowed);
 
-		ndoms = 1;
 		goto done;
 	}
 
@@ -636,7 +635,7 @@ restart:
 	 * Now we know how many domains to create.
 	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
 	 */
-	doms = kmalloc(ndoms * cpumask_size(), GFP_KERNEL);
+	doms = alloc_sched_domains(ndoms);
 	if (!doms)
 		goto done;
 
@@ -656,7 +655,7 @@ restart:
 			continue;
 		}
 
-		dp = doms + nslot;
+		dp = doms[nslot];
 
 		if (nslot == ndoms) {
 			static int warnings = 10;
@@ -718,7 +717,7 @@ done:
 static void do_rebuild_sched_domains(struct work_struct *unused)
 {
 	struct sched_domain_attr *attr;
-	struct cpumask *doms;
+	cpumask_var_t *doms;
 	int ndoms;
 
 	get_online_cpus();
@@ -2052,7 +2051,7 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
 				unsigned long phase, void *unused_cpu)
 {
 	struct sched_domain_attr *attr;
-	struct cpumask *doms;
+	cpumask_var_t *doms;
 	int ndoms;
 
 	switch (phase) {

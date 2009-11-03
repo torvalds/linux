@@ -1009,8 +1009,12 @@ static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
 	return to_cpumask(sd->span);
 }
 
-extern void partition_sched_domains(int ndoms_new, struct cpumask *doms_new,
+extern void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 				    struct sched_domain_attr *dattr_new);
+
+/* Allocate an array of sched domains, for partition_sched_domains(). */
+cpumask_var_t *alloc_sched_domains(unsigned int ndoms);
+void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms);
 
 /* Test a flag in parent sched domain */
 static inline int test_sd_parent(struct sched_domain *sd, int flag)
@@ -1029,7 +1033,7 @@ unsigned long default_scale_smt_power(struct sched_domain *sd, int cpu);
 struct sched_domain_attr;
 
 static inline void
-partition_sched_domains(int ndoms_new, struct cpumask *doms_new,
+partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 			struct sched_domain_attr *dattr_new)
 {
 }
