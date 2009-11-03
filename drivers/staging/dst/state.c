@@ -121,7 +121,7 @@ int dst_data_send_header(struct socket *sock,
 	msg.msg_namelen = 0;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_WAITALL | (more)?MSG_MORE:0;
+	msg.msg_flags = MSG_WAITALL | (more ? MSG_MORE : 0);
 
 	err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
 	if (err != size) {
