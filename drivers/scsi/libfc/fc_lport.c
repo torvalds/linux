@@ -733,6 +733,27 @@ static void fc_lport_enter_ready(struct fc_lport *lport)
 }
 
 /**
+ * fc_lport_set_port_id() - set the local port Port ID
+ * @lport: The local port which will have its Port ID set.
+ * @port_id: The new port ID.
+ * @fp: The frame containing the incoming request, or NULL.
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this function.
+ */
+static void fc_lport_set_port_id(struct fc_lport *lport, u32 port_id,
+				 struct fc_frame *fp)
+{
+	if (port_id)
+		printk(KERN_INFO "host%d: Assigned Port ID %6x\n",
+		       lport->host->host_no, port_id);
+
+	fc_host_port_id(lport->host) = port_id;
+	if (lport->tt.lport_set_port_id)
+		lport->tt.lport_set_port_id(lport, port_id, fp);
+}
+
+/**
  * fc_lport_recv_flogi_req() - Receive a FLOGI request
  * @sp_in: The sequence the FLOGI is on
  * @rx_fp: The FLOGI frame
@@ -790,7 +811,7 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 		remote_fid = FC_LOCAL_PTP_FID_HI;
 	}
 
-	fc_host_port_id(lport->host) = local_fid;
+	fc_lport_set_port_id(lport, local_fid, rx_fp);
 
 	fp = fc_frame_alloc(lport, sizeof(*flp));
 	if (fp) {
@@ -926,7 +947,9 @@ static void fc_lport_reset_locked(struct fc_lport *lport)
 
 	lport->tt.exch_mgr_reset(lport, 0, 0);
 	fc_host_fabric_name(lport->host) = 0;
-	fc_host_port_id(lport->host) = 0;
+
+	if (fc_host_port_id(lport->host))
+		fc_lport_set_port_id(lport, 0, NULL);
 }
 
 /**
@@ -1428,11 +1451,6 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	fh = fc_frame_header_get(fp);
 	did = ntoh24(fh->fh_d_id);
 	if (fc_frame_payload_op(fp) == ELS_LS_ACC && did != 0) {
-
-		printk(KERN_INFO "libfc: Assigned FID (%6x) in FLOGI response\n",
-		       did);
-		fc_host_port_id(lport->host) = did;
-
 		flp = fc_frame_payload_get(fp, sizeof(*flp));
 		if (flp) {
 			mfs = ntohs(flp->fl_csp.sp_bb_data) &
@@ -1452,6 +1470,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				if (e_d_tov > lport->e_d_tov)
 					lport->e_d_tov = e_d_tov;
 				lport->r_a_tov = 2 * e_d_tov;
+				fc_lport_set_port_id(lport, did, fp);
 				printk(KERN_INFO "libfc: Port (%6x) entered "
 				       "point to point mode\n", did);
 				fc_lport_ptp_setup(lport, ntoh24(fh->fh_s_id),
@@ -1464,6 +1483,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				lport->r_a_tov = r_a_tov;
 				fc_host_fabric_name(lport->host) =
 					get_unaligned_be64(&flp->fl_wwnn);
+				fc_lport_set_port_id(lport, did, fp);
 				fc_lport_enter_dns(lport);
 			}
 		}

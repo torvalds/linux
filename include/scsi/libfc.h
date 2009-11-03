@@ -581,6 +581,26 @@ struct libfc_function_template {
 	int (*lport_reset)(struct fc_lport *);
 
 	/*
+	 * Set the local port FC_ID.
+	 *
+	 * This may be provided by the LLD to allow it to be
+	 * notified when the local port is assigned a FC-ID.
+	 *
+	 * The frame, if non-NULL, is the incoming frame with the
+	 * FLOGI LS_ACC or FLOGI, and may contain the granted MAC
+	 * address for the LLD.  The frame pointer may be NULL if
+	 * no MAC is associated with this assignment (LOGO or PLOGI).
+	 *
+	 * If FC_ID is non-zero, r_a_tov and e_d_tov must be valid.
+	 *
+	 * Note: this is called with the local port mutex held.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*lport_set_port_id)(struct fc_lport *, u32 port_id,
+				  struct fc_frame *);
+
+	/*
 	 * Create a remote port with a given port ID
 	 *
 	 * STATUS: OPTIONAL
