@@ -316,7 +316,7 @@ static int tc589_config(struct pcmcia_device *link)
 	printk(KERN_ERR "3c589_cs: invalid if_port requested\n");
     
     link->dev_node = &lp->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "3c589_cs: register_netdev() failed\n");

@@ -488,7 +488,7 @@ static int ray_config(struct pcmcia_device *link)
 		return -ENODEV;
 	}
 
-	SET_NETDEV_DEV(dev, &handle_to_dev(link));
+	SET_NETDEV_DEV(dev, &link->dev);
 	i = register_netdev(dev);
 	if (i != 0) {
 		printk("ray_config register_netdev() failed\n");

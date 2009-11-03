@@ -45,7 +45,7 @@
 
 /* #define ATR_CSUM */
 
-#define reader_to_dev(x)	(&handle_to_dev(x->p_dev))
+#define reader_to_dev(x)	(&x->p_dev->dev)
 
 /* n (debug level) is ignored */
 /* additional debug output may be enabled by re-compiling with

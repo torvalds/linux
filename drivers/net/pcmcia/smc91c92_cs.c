@@ -964,7 +964,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     }
 
     link->dev_node = &smc->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");

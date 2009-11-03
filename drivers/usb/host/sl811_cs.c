@@ -185,7 +185,7 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 
 static int sl811_cs_config(struct pcmcia_device *link)
 {
-	struct device		*parent = &handle_to_dev(link);
+	struct device		*parent = &link->dev;
 	local_info_t		*dev = link->priv;
 	int			ret;
 

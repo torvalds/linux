@@ -3899,7 +3899,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 	     lp->mem, dev->irq, (u_int) dev->base_addr);
 #endif
 
-      SET_NETDEV_DEV(dev, &handle_to_dev(link));
+      SET_NETDEV_DEV(dev, &link->dev);
       i = register_netdev(dev);
       if(i != 0)
 	{

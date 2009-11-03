@@ -322,7 +322,7 @@ static int airo_config(struct pcmcia_device *link)
 		goto failed;
 	((local_info_t *)link->priv)->eth_dev =
 		init_airo_card(link->irq.AssignedIRQ,
-			       link->io.BasePort1, 1, &handle_to_dev(link));
+			       link->io.BasePort1, 1, &link->dev);
 	if (!((local_info_t *)link->priv)->eth_dev)
 		goto failed;
 

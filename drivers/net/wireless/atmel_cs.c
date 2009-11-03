@@ -260,7 +260,7 @@ static int atmel_config(struct pcmcia_device *link)
 	struct pcmcia_device_id *did;
 
 	dev = link->priv;
-	did = dev_get_drvdata(&handle_to_dev(link));
+	did = dev_get_drvdata(&link->dev);
 
 	dev_dbg(&link->dev, "atmel_config\n");
 
@@ -309,7 +309,7 @@ static int atmel_config(struct pcmcia_device *link)
 		init_atmel_card(link->irq.AssignedIRQ,
 				link->io.BasePort1,
 				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
-				&handle_to_dev(link),
+				&link->dev,
 				card_present,
 				link);
 	if (!((local_info_t*)link->priv)->eth_dev)

@@ -701,7 +701,7 @@ static int nmclan_config(struct pcmcia_device *link)
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
   link->dev_node = &lp->node;
-  SET_NETDEV_DEV(dev, &handle_to_dev(link));
+  SET_NETDEV_DEV(dev, &link->dev);
 
   i = register_netdev(dev);
   if (i != 0) {

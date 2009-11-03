@@ -287,7 +287,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     ibmtr_hw_setup(dev, mmiobase);
 
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {

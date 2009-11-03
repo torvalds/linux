@@ -138,9 +138,6 @@ struct pcmcia_device {
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
-/* deprecated -- don't use! */
-#define handle_to_dev(handle) (handle->dev)
-
 
 /*
  * CIS access.

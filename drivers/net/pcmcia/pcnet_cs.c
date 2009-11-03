@@ -646,7 +646,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	mii_phy_probe(dev);
 
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");

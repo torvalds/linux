@@ -182,7 +182,7 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 
-	priv = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
+	priv = alloc_orinocodev(sizeof(*card), &link->dev,
 				spectrum_cs_hard_reset,
 				spectrum_cs_stop_firmware);
 	if (!priv)

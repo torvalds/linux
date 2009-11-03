@@ -39,7 +39,7 @@
 #include "cm4040_cs.h"
 
 
-#define reader_to_dev(x)	(&handle_to_dev(x->p_dev))
+#define reader_to_dev(x)	(&x->p_dev->dev)
 
 /* n (debug level) is ignored */
 /* additional debug output may be enabled by re-compiling with
@@ -539,7 +539,7 @@ static int cm4040_config_check(struct pcmcia_device *p_dev,
 	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
 
 	rc = pcmcia_request_io(p_dev, &p_dev->io);
-	dev_printk(KERN_INFO, &handle_to_dev(p_dev),
+	dev_printk(KERN_INFO, &p_dev->dev,
 		   "pcmcia_request_io returned 0x%x\n", rc);
 	return rc;
 }
@@ -561,7 +561,7 @@ static int reader_config(struct pcmcia_device *link, int devno)
 
 	fail_rc = pcmcia_request_configuration(link, &link->conf);
 	if (fail_rc != 0) {
-		dev_printk(KERN_INFO, &handle_to_dev(link),
+		dev_printk(KERN_INFO, &link->dev,
 			   "pcmcia_request_configuration failed 0x%x\n",
 			   fail_rc);
 		goto cs_release;

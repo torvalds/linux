@@ -387,7 +387,7 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 	port.irq = irq;
 	port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
 	port.uartclk = 1843200;
-	port.dev = &handle_to_dev(handle);
+	port.dev = &handle->dev;
 	if (buggy_uart)
 		port.flags |= UPF_BUGGY_UART;
 

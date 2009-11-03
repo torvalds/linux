@@ -302,7 +302,7 @@ static int com20020_config(struct pcmcia_device *link)
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
     

@@ -590,7 +590,7 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 
 	/* TODO: make firmware file configurable */
 	ret = request_firmware(&fw, "libertas_cs_helper.fw",
-		&handle_to_dev(card->p_dev));
+		&card->p_dev->dev);
 	if (ret) {
 		lbs_pr_err("can't load helper firmware\n");
 		ret = -ENODEV;
@@ -663,7 +663,7 @@ static int if_cs_prog_real(struct if_cs_card *card)
 
 	/* TODO: make firmware file configurable */
 	ret = request_firmware(&fw, "libertas_cs.fw",
-		&handle_to_dev(card->p_dev));
+		&card->p_dev->dev);
 	if (ret) {
 		lbs_pr_err("can't load firmware\n");
 		ret = -ENODEV;

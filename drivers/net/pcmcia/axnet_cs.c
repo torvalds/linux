@@ -400,7 +400,7 @@ static int axnet_config(struct pcmcia_device *link)
 
     info->phy_id = (i < 32) ? i : -1;
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");

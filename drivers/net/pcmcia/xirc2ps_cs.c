@@ -992,7 +992,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
     link->dev_node = &local->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
