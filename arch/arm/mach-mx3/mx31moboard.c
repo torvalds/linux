@@ -45,8 +45,8 @@
 
 static unsigned int moboard_pins[] = {
 	/* UART0 */
-	MX31_PIN_CTS1__CTS1, MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1, MX31_PIN_RXD1__RXD1,
+	MX31_PIN_CTS1__GPIO2_7,
 	/* UART4 */
 	MX31_PIN_PC_RST__CTS5, MX31_PIN_PC_VS2__RTS5,
 	MX31_PIN_PC_BVD2__TXD5, MX31_PIN_PC_BVD1__RXD5,
@@ -101,7 +101,18 @@ static struct platform_device mx31moboard_flash = {
 	.num_resources = 1,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static int moboard_uart0_init(struct platform_device *pdev)
+{
+	gpio_request(IOMUX_TO_GPIO(MX31_PIN_CTS1), "uart0-cts-hack");
+	gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_CTS1), 0);
+	return 0;
+}
+
+static struct imxuart_platform_data uart0_pdata = {
+	.init = moboard_uart0_init,
+};
+
+static struct imxuart_platform_data uart4_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -284,8 +295,9 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device4, &uart_pdata);
+	mxc_register_device(&mxc_uart_device0, &uart0_pdata);
+
+	mxc_register_device(&mxc_uart_device4, &uart4_pdata);
 
 	mx31moboard_init_sel_gpios();
 
