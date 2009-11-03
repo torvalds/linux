@@ -3446,8 +3446,6 @@ out:
 	return ret;
 }
 
-/* Maximum number of blocks we map for direct IO at once. */
-
 static int ext4_get_block_dio_write(struct inode *inode, sector_t iblock,
 		   struct buffer_head *bh_result, int create)
 {
@@ -3655,13 +3653,14 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
         ext4_io_end_t *io_end = iocb->private;
 	struct workqueue_struct *wq;
 
+	/* if not async direct IO or dio with 0 bytes write, just return */
+	if (!io_end || !size)
+		return;
+
 	ext_debug("ext4_end_io_dio(): io_end 0x%p"
 		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
  		  iocb->private, io_end->inode->i_ino, iocb, offset,
 		  size);
-	/* if not async direct IO or dio with 0 bytes write, just return */
-	if (!io_end || !size)
-		return;
 
 	/* if not aio dio with unwritten extents, just free io and return */
 	if (io_end->flag != DIO_AIO_UNWRITTEN){
