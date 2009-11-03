@@ -334,6 +334,8 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.get_ro		= da850_evm_mmc_get_ro,
 	.get_cd		= da850_evm_mmc_get_cd,
 	.wires		= 4,
+	.max_freq	= 50000000,
+	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
 	.version	= MMC_CTLR_VERSION_2,
 };
 
