@@ -145,8 +145,58 @@ static struct platform_device da850_evm_nandflash_device = {
 	.resource	= da850_evm_nandflash_resource,
 };
 
+static struct platform_device *da850_evm_devices[] __initdata = {
+	&da850_evm_nandflash_device,
+	&da850_evm_norflash_device,
+};
+
+#define DA8XX_AEMIF_CE2CFG_OFFSET	0x10
+#define DA8XX_AEMIF_ASIZE_16BIT		0x1
+
+static void __init da850_evm_init_nor(void)
+{
+	void __iomem *aemif_addr;
+
+	aemif_addr = ioremap(DA8XX_AEMIF_CTL_BASE, SZ_32K);
+
+	/* Configure data bus width of CS2 to 16 bit */
+	writel(readl(aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET) |
+		DA8XX_AEMIF_ASIZE_16BIT,
+		aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET);
+
+	iounmap(aemif_addr);
+}
+
 static u32 ui_card_detected;
-static void da850_evm_setup_nor_nand(void);
+
+#if defined(CONFIG_MMC_DAVINCI) || \
+    defined(CONFIG_MMC_DAVINCI_MODULE)
+#define HAS_MMC 1
+#else
+#define HAS_MMC 0
+#endif
+
+static void da850_evm_setup_nor_nand(void)
+{
+	int ret = 0;
+
+	if (ui_card_detected & !HAS_MMC) {
+		ret = da8xx_pinmux_setup(da850_nand_pins);
+		if (ret)
+			pr_warning("da850_evm_init: nand mux setup failed: "
+					"%d\n", ret);
+
+		ret = da8xx_pinmux_setup(da850_nor_pins);
+		if (ret)
+			pr_warning("da850_evm_init: nor mux setup failed: %d\n",
+				ret);
+
+		da850_evm_init_nor();
+
+		platform_add_devices(da850_evm_devices,
+					ARRAY_SIZE(da850_evm_devices));
+	}
+}
 
 #ifdef CONFIG_DA850_UI_RMII
 static inline void da850_evm_setup_emac_rmii(int rmii_sel)
@@ -249,11 +299,6 @@ static struct davinci_uart_config da850_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
 };
 
-static struct platform_device *da850_evm_devices[] __initdata = {
-	&da850_evm_nandflash_device,
-	&da850_evm_norflash_device,
-};
-
 /* davinci da850 evm audio machine driver */
 static u8 da850_iis_serializer_direction[] = {
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
@@ -322,23 +367,6 @@ static int da850_lcd_hw_init(void)
 	gpio_set_value(DA850_LCD_BL_PIN, 1);
 
 	return 0;
-}
-
-#define DA8XX_AEMIF_CE2CFG_OFFSET	0x10
-#define DA8XX_AEMIF_ASIZE_16BIT		0x1
-
-static void __init da850_evm_init_nor(void)
-{
-	void __iomem *aemif_addr;
-
-	aemif_addr = ioremap(DA8XX_AEMIF_CTL_BASE, SZ_32K);
-
-	/* Configure data bus width of CS2 to 16 bit */
-	writel(readl(aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET) |
-		DA8XX_AEMIF_ASIZE_16BIT,
-		aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET);
-
-	iounmap(aemif_addr);
 }
 
 /* TPS65070 voltage regulator support */
@@ -486,35 +514,6 @@ static int __init pmic_tps65070_init(void)
 {
 	return i2c_register_board_info(1, da850evm_tps65070_info,
 					ARRAY_SIZE(da850evm_tps65070_info));
-}
-
-#if defined(CONFIG_MMC_DAVINCI) || \
-    defined(CONFIG_MMC_DAVINCI_MODULE)
-#define HAS_MMC 1
-#else
-#define HAS_MMC 0
-#endif
-
-static void da850_evm_setup_nor_nand(void)
-{
-	int ret = 0;
-
-	if (ui_card_detected & !HAS_MMC) {
-		ret = da8xx_pinmux_setup(da850_nand_pins);
-		if (ret)
-			pr_warning("da850_evm_init: nand mux setup failed: "
-					"%d\n",	ret);
-
-		ret = da8xx_pinmux_setup(da850_nor_pins);
-		if (ret)
-			pr_warning("da850_evm_init: nor mux setup failed: %d\n",
-				ret);
-
-		da850_evm_init_nor();
-
-		platform_add_devices(da850_evm_devices,
-					ARRAY_SIZE(da850_evm_devices));
-	}
 }
 
 static const short da850_evm_lcdc_pins[] = {
