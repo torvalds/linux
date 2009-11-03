@@ -1038,8 +1038,11 @@ void ql_mpi_idc_work(struct work_struct *work)
 	int status;
 	struct mbox_params *mbcp = &qdev->idc_mbc;
 	u32 aen;
+	int timeout;
 
+	rtnl_lock();
 	aen = mbcp->mbox_out[1] >> 16;
+	timeout = (mbcp->mbox_out[1] >> 8) & 0xf;
 
 	switch (aen) {
 	default:
@@ -1047,22 +1050,61 @@ void ql_mpi_idc_work(struct work_struct *work)
 			"Bug: Unhandled IDC action.\n");
 		break;
 	case MB_CMD_PORT_RESET:
-	case MB_CMD_SET_PORT_CFG:
 	case MB_CMD_STOP_FW:
 		ql_link_off(qdev);
+	case MB_CMD_SET_PORT_CFG:
 		/* Signal the resulting link up AEN
 		 * that the frame routing and mac addr
 		 * needs to be set.
 		 * */
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
-		rtnl_lock();
-		status = ql_mb_idc_ack(qdev);
-		rtnl_unlock();
-		if (status) {
-			QPRINTK(qdev, DRV, ERR,
-			"Bug: No pending IDC!\n");
+		/* Do ACK if required */
+		if (timeout) {
+			status = ql_mb_idc_ack(qdev);
+			if (status)
+				QPRINTK(qdev, DRV, ERR,
+					"Bug: No pending IDC!\n");
+		} else {
+			QPRINTK(qdev, DRV, DEBUG,
+				    "IDC ACK not required\n");
+			status = 0; /* success */
 		}
+		break;
+
+	/* These sub-commands issued by another (FCoE)
+	 * function are requesting to do an operation
+	 * on the shared resource (MPI environment).
+	 * We currently don't issue these so we just
+	 * ACK the request.
+	 */
+	case MB_CMD_IOP_RESTART_MPI:
+	case MB_CMD_IOP_PREP_LINK_DOWN:
+		/* Drop the link, reload the routing
+		 * table when link comes up.
+		 */
+		ql_link_off(qdev);
+		set_bit(QL_CAM_RT_SET, &qdev->flags);
+		/* Fall through. */
+	case MB_CMD_IOP_DVR_START:
+	case MB_CMD_IOP_FLASH_ACC:
+	case MB_CMD_IOP_CORE_DUMP_MPI:
+	case MB_CMD_IOP_PREP_UPDATE_MPI:
+	case MB_CMD_IOP_COMP_UPDATE_MPI:
+	case MB_CMD_IOP_NONE:	/*  an IDC without params */
+		/* Do ACK if required */
+		if (timeout) {
+			status = ql_mb_idc_ack(qdev);
+			if (status)
+				QPRINTK(qdev, DRV, ERR,
+				    "Bug: No pending IDC!\n");
+		} else {
+			QPRINTK(qdev, DRV, DEBUG,
+			    "IDC ACK not required\n");
+			status = 0; /* success */
+		}
+		break;
 	}
+	rtnl_unlock();
 }
 
 void ql_mpi_work(struct work_struct *work)

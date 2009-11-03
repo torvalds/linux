@@ -816,6 +816,18 @@ enum {
 	MB_CMD_GET_MGMNT_TFK_CTL = 0x00000161, /* Get Mgmnt Traffic Control */
 	MB_GET_MPI_TFK_STOPPED = (1 << 0),
 	MB_GET_MPI_TFK_FIFO_EMPTY = (1 << 1),
+	/* Sub-commands for IDC request.
+	 * This describes the reason for the
+	 * IDC request.
+	 */
+	MB_CMD_IOP_NONE = 0x0000,
+	MB_CMD_IOP_PREP_UPDATE_MPI	= 0x0001,
+	MB_CMD_IOP_COMP_UPDATE_MPI	= 0x0002,
+	MB_CMD_IOP_PREP_LINK_DOWN	= 0x0010,
+	MB_CMD_IOP_DVR_START	 = 0x0100,
+	MB_CMD_IOP_FLASH_ACC	 = 0x0101,
+	MB_CMD_IOP_RESTART_MPI	= 0x0102,
+	MB_CMD_IOP_CORE_DUMP_MPI	= 0x0103,
 
 	/* Mailbox Command Status. */
 	MB_CMD_STS_GOOD = 0x00004000,	/* Success. */
