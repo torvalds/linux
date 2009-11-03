@@ -134,7 +134,7 @@ static const struct fb_videomode mac_modedb[] = {
      *
      *  These MUST be ordered in
      *    - increasing resolution
-     *    - decreasing refresh rate
+     *    - decreasing pixel clock period
      */
 
 static const struct mode_map {
@@ -142,20 +142,20 @@ static const struct mode_map {
     const struct fb_videomode *mode;
 } mac_modes[] = {
     /* 640x480 */
-    { VMODE_640_480_67, &mac_modedb[1] },
     { VMODE_640_480_60, &mac_modedb[0] },
+    { VMODE_640_480_67, &mac_modedb[1] },
     /* 800x600 */
+    { VMODE_800_600_56, &mac_modedb[2] },
+    { VMODE_800_600_60, &mac_modedb[3] },
     { VMODE_800_600_75, &mac_modedb[5] },
     { VMODE_800_600_72, &mac_modedb[4] },
-    { VMODE_800_600_60, &mac_modedb[3] },
-    { VMODE_800_600_56, &mac_modedb[2] },
     /* 832x624 */
     { VMODE_832_624_75, &mac_modedb[6] },
     /* 1024x768 */
-    { VMODE_1024_768_75, &mac_modedb[10] },
-    { VMODE_1024_768_75V, &mac_modedb[9] },
-    { VMODE_1024_768_70, &mac_modedb[8] },
     { VMODE_1024_768_60, &mac_modedb[7] },
+    { VMODE_1024_768_70, &mac_modedb[8] },
+    { VMODE_1024_768_75V, &mac_modedb[9] },
+    { VMODE_1024_768_75, &mac_modedb[10] },
     /* 1152x768 */
     { VMODE_1152_768_60, &mac_modedb[14] },
     /* 1152x870 */
@@ -299,7 +299,6 @@ EXPORT_SYMBOL(mac_vmode_to_var);
 int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
 		     int *cmode)
 {
-    const struct fb_videomode *mode = NULL;
     const struct mode_map *map;
 
     if (var->bits_per_pixel <= 8)
@@ -311,8 +310,13 @@ int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
     else
 	return -EINVAL;
 
+    /*
+     * Find the mac_mode with a matching resolution or failing that, the
+     * closest larger resolution. Skip modes with a shorter pixel clock period.
+     */
     for (map = mac_modes; map->vmode != -1; map++) {
-	mode = map->mode;
+	const struct fb_videomode *mode = map->mode;
+
 	if (var->xres > mode->xres || var->yres > mode->yres)
 	    continue;
 	if (var->xres_virtual > mode->xres || var->yres_virtual > mode->yres)
@@ -322,6 +326,24 @@ int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
 	if ((var->vmode & FB_VMODE_MASK) != mode->vmode)
 	    continue;
 	*vmode = map->vmode;
+
+	/*
+	 * Having found a good resolution, find the matching pixel clock
+	 * or failing that, the closest longer pixel clock period.
+	 */
+	map++;
+	while (map->vmode != -1) {
+	    const struct fb_videomode *clk_mode = map->mode;
+
+	    if (mode->xres != clk_mode->xres || mode->yres != clk_mode->yres)
+		break;
+	    if (var->pixclock > mode->pixclock)
+	        break;
+	    if (mode->vmode != clk_mode->vmode)
+		continue;
+	    *vmode = map->vmode;
+	    map++;
+	}
 	return 0;
     }
     return -EINVAL;
