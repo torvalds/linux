@@ -101,4 +101,12 @@ void fc_destroy_fcp(void);
  */
 const char *fc_els_resp_type(struct fc_frame *);
 
+/*
+ * Copies a buffer into an sg list
+ */
+u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
+			     struct scatterlist *sg,
+			     u32 *nents, size_t *offset,
+			     enum km_type km_type, u32 *crc);
+
 #endif /* _FC_LIBFC_H_ */

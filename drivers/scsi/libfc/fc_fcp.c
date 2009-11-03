@@ -323,7 +323,7 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	size_t len;
 	void *buf;
 	struct scatterlist *sg;
-	size_t remaining;
+	u32 nents;
 
 	fh = fc_frame_header_get(fp);
 	offset = ntohl(fh->fh_parm_offset);
@@ -347,55 +347,19 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	if (offset != fsp->xfer_len)
 		fsp->state |= FC_SRB_DISCONTIG;
 
-	crc = 0;
-	if (fr_flags(fp) & FCPHF_CRC_UNCHECKED)
-		crc = crc32(~0, (u8 *) fh, sizeof(*fh));
-
 	sg = scsi_sglist(sc);
-	remaining = len;
+	nents = scsi_sg_count(sc);
 
-	while (remaining > 0 && sg) {
-		size_t off;
-		void *page_addr;
-		size_t sg_bytes;
-
-		if (offset >= sg->length) {
-			offset -= sg->length;
-			sg = sg_next(sg);
-			continue;
-		}
-		sg_bytes = min(remaining, sg->length - offset);
-
-		/*
-		 * The scatterlist item may be bigger than PAGE_SIZE,
-		 * but we are limited to mapping PAGE_SIZE at a time.
-		 */
-		off = offset + sg->offset;
-		sg_bytes = min(sg_bytes, (size_t)
-			       (PAGE_SIZE - (off & ~PAGE_MASK)));
-		page_addr = kmap_atomic(sg_page(sg) + (off >> PAGE_SHIFT),
-					KM_SOFTIRQ0);
-		if (!page_addr)
-			break;		/* XXX panic? */
-
-		if (fr_flags(fp) & FCPHF_CRC_UNCHECKED)
-			crc = crc32(crc, buf, sg_bytes);
-		memcpy((char *)page_addr + (off & ~PAGE_MASK), buf,
-		       sg_bytes);
-
-		kunmap_atomic(page_addr, KM_SOFTIRQ0);
-		buf += sg_bytes;
-		offset += sg_bytes;
-		remaining -= sg_bytes;
-		copy_len += sg_bytes;
-	}
-
-	if (fr_flags(fp) & FCPHF_CRC_UNCHECKED) {
+	if (!(fr_flags(fp) & FCPHF_CRC_UNCHECKED)) {
+		copy_len = fc_copy_buffer_to_sglist(buf, len, sg, &nents,
+						    &offset, KM_SOFTIRQ0, NULL);
+	} else {
+		crc = crc32(~0, (u8 *) fh, sizeof(*fh));
+		copy_len = fc_copy_buffer_to_sglist(buf, len, sg, &nents,
+						    &offset, KM_SOFTIRQ0, &crc);
 		buf = fc_frame_payload_get(fp, 0);
-		if (len % 4) {
+		if (len % 4)
 			crc = crc32(crc, buf + len, 4 - (len % 4));
-			len += 4 - (len % 4);
-		}
 
 		if (~crc != le32_to_cpu(fr_crc(fp))) {
 crc_err:

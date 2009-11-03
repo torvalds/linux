@@ -72,3 +72,63 @@ static void __exit libfc_exit(void)
 	fc_destroy_rport();
 }
 module_exit(libfc_exit);
+
+/**
+ * fc_copy_buffer_to_sglist() - This routine copies the data of a buffer
+ *                              into a scatter-gather list (SG list).
+ *
+ * @buf: pointer to the data buffer.
+ * @len: the byte-length of the data buffer.
+ * @sg: pointer to the pointer of the SG list.
+ * @nents: pointer to the remaining number of entries in the SG list.
+ * @offset: pointer to the current offset in the SG list.
+ * @km_type: dedicated page table slot type for kmap_atomic.
+ * @crc: pointer to the 32-bit crc value.
+ *       If crc is NULL, CRC is not calculated.
+ */
+u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
+			     struct scatterlist *sg,
+			     u32 *nents, size_t *offset,
+			     enum km_type km_type, u32 *crc)
+{
+	size_t remaining = len;
+	u32 copy_len = 0;
+
+	while (remaining > 0 && sg) {
+		size_t off, sg_bytes;
+		void *page_addr;
+
+		if (*offset >= sg->length) {
+			/*
+			 * Check for end and drop resources
+			 * from the last iteration.
+			 */
+			if (!(*nents))
+				break;
+			--(*nents);
+			*offset -= sg->length;
+			sg = sg_next(sg);
+			continue;
+		}
+		sg_bytes = min(remaining, sg->length - *offset);
+
+		/*
+		 * The scatterlist item may be bigger than PAGE_SIZE,
+		 * but we are limited to mapping PAGE_SIZE at a time.
+		 */
+		off = *offset + sg->offset;
+		sg_bytes = min(sg_bytes,
+			       (size_t)(PAGE_SIZE - (off & ~PAGE_MASK)));
+		page_addr = kmap_atomic(sg_page(sg) + (off >> PAGE_SHIFT),
+					km_type);
+		if (crc)
+			*crc = crc32(*crc, buf, sg_bytes);
+		memcpy((char *)page_addr + (off & ~PAGE_MASK), buf, sg_bytes);
+		kunmap_atomic(page_addr, km_type);
+		buf += sg_bytes;
+		*offset += sg_bytes;
+		remaining -= sg_bytes;
+		copy_len += sg_bytes;
+	}
+	return copy_len;
+}
