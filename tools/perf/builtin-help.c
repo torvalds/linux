@@ -61,8 +61,7 @@ static const char *get_man_viewer_info(const char *name)
 {
 	struct man_viewer_info_list *viewer;
 
-	for (viewer = man_viewer_info_list; viewer; viewer = viewer->next)
-	{
+	for (viewer = man_viewer_info_list; viewer; viewer = viewer->next) {
 		if (!strcasecmp(name, viewer->name))
 			return viewer->info;
 	}
@@ -115,7 +114,7 @@ static int check_emacsclient_version(void)
 	return 0;
 }
 
-static void exec_woman_emacs(const char* path, const char *page)
+static void exec_woman_emacs(const char *path, const char *page)
 {
 	if (!check_emacsclient_version()) {
 		/* This works only with emacsclient version >= 22. */
@@ -129,7 +128,7 @@ static void exec_woman_emacs(const char* path, const char *page)
 	}
 }
 
-static void exec_man_konqueror(const char* path, const char *page)
+static void exec_man_konqueror(const char *path, const char *page)
 {
 	const char *display = getenv("DISPLAY");
 	if (display && *display) {
@@ -157,7 +156,7 @@ static void exec_man_konqueror(const char* path, const char *page)
 	}
 }
 
-static void exec_man_man(const char* path, const char *page)
+static void exec_man_man(const char *path, const char *page)
 {
 	if (!path)
 		path = "man";
@@ -364,9 +363,8 @@ static void show_man_page(const char *perf_cmd)
 
 	setup_man_path();
 	for (viewer = man_viewer_list; viewer; viewer = viewer->next)
-	{
 		exec_viewer(viewer->name, page); /* will return when unable */
-	}
+
 	if (fallback)
 		exec_viewer(fallback, page);
 	exec_viewer("man", page);
