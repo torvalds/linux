@@ -1,7 +1,7 @@
 #ifndef __PMAC_ZILOG_H__
 #define __PMAC_ZILOG_H__
 
-#define pmz_debug(fmt,arg...)	dev_dbg(&uap->dev->ofdev.dev, fmt, ## arg)
+#define pmz_debug(fmt, arg...)	dev_dbg(&uap->dev->ofdev.dev, fmt, ## arg)
 
 /*
  * At most 2 ESCCs with 2 ports each
@@ -113,7 +113,7 @@ static inline void zssync(struct uart_pmac_port *port)
 #define BRG_TO_BPS(brg, freq) ((freq) / 2 / ((brg) + 2))
 #define BPS_TO_BRG(bps, freq) ((((freq) + (bps)) / (2 * (bps))) - 2)
 
-#define ZS_CLOCK         3686400 	/* Z8530 RTxC input clock rate */
+#define ZS_CLOCK         3686400	/* Z8530 RTxC input clock rate */
 
 /* The Zilog register set */
 
@@ -171,7 +171,7 @@ static inline void zssync(struct uart_pmac_port *port)
 
 /* Write Register 3 */
 
-#define	RxENABLE       	0x1	/* Rx Enable */
+#define	RxENABLE	0x1	/* Rx Enable */
 #define	SYNC_L_INH	0x2	/* Sync Character Load Inhibit */
 #define	ADD_SM		0x4	/* Address Search Mode (SDLC) */
 #define	RxCRC_ENAB	0x8	/* Rx CRC Enable */
@@ -185,7 +185,7 @@ static inline void zssync(struct uart_pmac_port *port)
 
 /* Write Register 4 */
 
-#define	PAR_ENAB       	0x1	/* Parity Enable */
+#define	PAR_ENAB	0x1	/* Parity Enable */
 #define	PAR_EVEN	0x2	/* Parity Even/Odd* */
 
 #define	SYNC_ENAB	0	/* Sync Modes Enable */
@@ -210,7 +210,7 @@ static inline void zssync(struct uart_pmac_port *port)
 #define	TxCRC_ENAB	0x1	/* Tx CRC Enable */
 #define	RTS		0x2	/* RTS */
 #define	SDLC_CRC	0x4	/* SDLC/CRC-16 */
-#define	TxENABLE       	0x8	/* Tx Enable */
+#define	TxENABLE	0x8	/* Tx Enable */
 #define	SND_BRK		0x10	/* Send Break */
 #define	Tx5		0x0	/* Tx 5 bits (or less)/character */
 #define	Tx7		0x20	/* Tx 7 bits/character */
@@ -372,11 +372,11 @@ static inline void zssync(struct uart_pmac_port *port)
 #define ZS_TX_ACTIVE(UP)		((UP)->flags & PMACZILOG_FLAG_TX_ACTIVE)
 #define ZS_WANTS_MODEM_STATUS(UP)	((UP)->flags & PMACZILOG_FLAG_MODEM_STATUS)
 #define ZS_IS_IRDA(UP)			((UP)->flags & PMACZILOG_FLAG_IS_IRDA)
-#define ZS_IS_INTMODEM(UP)	       	((UP)->flags & PMACZILOG_FLAG_IS_INTMODEM)
+#define ZS_IS_INTMODEM(UP)		((UP)->flags & PMACZILOG_FLAG_IS_INTMODEM)
 #define ZS_HAS_DMA(UP)			((UP)->flags & PMACZILOG_FLAG_HAS_DMA)
-#define ZS_IS_ASLEEP(UP)       		((UP)->flags & PMACZILOG_FLAG_IS_ASLEEP)
-#define ZS_IS_OPEN(UP)       		((UP)->flags & PMACZILOG_FLAG_IS_OPEN)
-#define ZS_IS_IRQ_ON(UP)       		((UP)->flags & PMACZILOG_FLAG_IS_IRQ_ON)
-#define ZS_IS_EXTCLK(UP)       		((UP)->flags & PMACZILOG_FLAG_IS_EXTCLK)
+#define ZS_IS_ASLEEP(UP)		((UP)->flags & PMACZILOG_FLAG_IS_ASLEEP)
+#define ZS_IS_OPEN(UP)			((UP)->flags & PMACZILOG_FLAG_IS_OPEN)
+#define ZS_IS_IRQ_ON(UP)		((UP)->flags & PMACZILOG_FLAG_IS_IRQ_ON)
+#define ZS_IS_EXTCLK(UP)		((UP)->flags & PMACZILOG_FLAG_IS_EXTCLK)
 
 #endif /* __PMAC_ZILOG_H__ */

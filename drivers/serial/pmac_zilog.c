@@ -153,8 +153,8 @@ static void pmz_load_zsregs(struct uart_pmac_port *uap, u8 *regs)
 	write_zsreg(uap, R10, regs[R10]);
 
 	/* Set TX/RX controls sans the enable bits.  */
-       	write_zsreg(uap, R3, regs[R3] & ~RxENABLE);
-       	write_zsreg(uap, R5, regs[R5] & ~TxENABLE);
+	write_zsreg(uap, R3, regs[R3] & ~RxENABLE);
+	write_zsreg(uap, R5, regs[R5] & ~TxENABLE);
 
 	/* now set R7 "prime" on ESCC */
 	write_zsreg(uap, R15, regs[R15] | EN85C30);
@@ -205,7 +205,7 @@ static void pmz_load_zsregs(struct uart_pmac_port *uap, u8 *regs)
  */
 static void pmz_maybe_update_regs(struct uart_pmac_port *uap)
 {
-       	if (!ZS_REGS_HELD(uap)) {
+	if (!ZS_REGS_HELD(uap)) {
 		if (ZS_TX_ACTIVE(uap)) {
 			uap->flags |= PMACZILOG_FLAG_REGS_HELD;
 		} else {
@@ -281,7 +281,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 			spin_lock(&uap->port.lock);
 			if (swallow)
 				goto next_char;
- 		}
+		}
 #endif /* CONFIG_MAGIC_SYSRQ && CONFIG_SERIAL_CORE_CONSOLE */
 
 		/* A real serial line, record the character and status.  */
@@ -317,7 +317,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 
 		if (uap->port.ignore_status_mask == 0xff ||
 		    (r1 & uap->port.ignore_status_mask) == 0) {
-		    	tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(tty, ch, flag);
 		}
 		if (r1 & Rx_OVR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
@@ -470,47 +470,47 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 
 	uap_a = pmz_get_port_A(uap);
 	uap_b = uap_a->mate;
-       
-       	spin_lock(&uap_a->port.lock);
+
+	spin_lock(&uap_a->port.lock);
 	r3 = read_zsreg(uap_a, R3);
 
 #ifdef DEBUG_HARD
 	pmz_debug("irq, r3: %x\n", r3);
 #endif
-       	/* Channel A */
+	/* Channel A */
 	tty = NULL;
-       	if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
+	if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
 		write_zsreg(uap_a, R0, RES_H_IUS);
 		zssync(uap_a);		
-       		if (r3 & CHAEXT)
-       			pmz_status_handle(uap_a);
+		if (r3 & CHAEXT)
+			pmz_status_handle(uap_a);
 		if (r3 & CHARxIP)
 			tty = pmz_receive_chars(uap_a);
-       		if (r3 & CHATxIP)
-       			pmz_transmit_chars(uap_a);
-	        rc = IRQ_HANDLED;
-       	}
-       	spin_unlock(&uap_a->port.lock);
+		if (r3 & CHATxIP)
+			pmz_transmit_chars(uap_a);
+		rc = IRQ_HANDLED;
+	}
+	spin_unlock(&uap_a->port.lock);
 	if (tty != NULL)
 		tty_flip_buffer_push(tty);
 
 	if (uap_b->node == NULL)
 		goto out;
 
-       	spin_lock(&uap_b->port.lock);
+	spin_lock(&uap_b->port.lock);
 	tty = NULL;
 	if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
 		write_zsreg(uap_b, R0, RES_H_IUS);
 		zssync(uap_b);
-       		if (r3 & CHBEXT)
-       			pmz_status_handle(uap_b);
-       	       	if (r3 & CHBRxIP)
-       			tty = pmz_receive_chars(uap_b);
-       		if (r3 & CHBTxIP)
-       			pmz_transmit_chars(uap_b);
-	       	rc = IRQ_HANDLED;
-       	}
-       	spin_unlock(&uap_b->port.lock);
+		if (r3 & CHBEXT)
+			pmz_status_handle(uap_b);
+		if (r3 & CHBRxIP)
+			tty = pmz_receive_chars(uap_b);
+		if (r3 & CHBTxIP)
+			pmz_transmit_chars(uap_b);
+		rc = IRQ_HANDLED;
+	}
+	spin_unlock(&uap_b->port.lock);
 	if (tty != NULL)
 		tty_flip_buffer_push(tty);
 
@@ -718,7 +718,7 @@ static void pmz_enable_ms(struct uart_port *port)
 
 		if (ZS_IS_ASLEEP(uap))
 			return;
-		/* NOTE: Not subject to 'transmitter active' rule.  */ 
+		/* NOTE: Not subject to 'transmitter active' rule. */
 		write_zsreg(uap, R15, uap->curregs[R15]);
 	}
 }
@@ -748,7 +748,7 @@ static void pmz_break_ctl(struct uart_port *port, int break_state)
 	if (new_reg != uap->curregs[R5]) {
 		uap->curregs[R5] = new_reg;
 
-		/* NOTE: Not subject to 'transmitter active' rule.  */ 
+		/* NOTE: Not subject to 'transmitter active' rule. */
 		if (ZS_IS_ASLEEP(uap))
 			return;
 		write_zsreg(uap, R5, uap->curregs[R5]);
@@ -908,7 +908,6 @@ static int __pmz_startup(struct uart_pmac_port *uap)
 	/* Remember status for DCD/CTS changes */
 	uap->prev_status = read_zsreg(uap, R0);
 
-
 	return pwr_delay;
 }
 
@@ -983,7 +982,7 @@ static int pmz_startup(struct uart_port *port)
 	if (!ZS_IS_EXTCLK(uap))
 		uap->curregs[R1] |= EXT_INT_ENAB;
 	write_zsreg(uap, R1, uap->curregs[R1]);
-       	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	pmz_debug("pmz: startup() done.\n");
 
@@ -1003,7 +1002,7 @@ static void pmz_shutdown(struct uart_port *port)
 	mutex_lock(&pmz_irq_mutex);
 
 	/* Release interrupt handler */
-       	free_irq(uap->port.irq, uap);
+	free_irq(uap->port.irq, uap);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1050,7 +1049,6 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 			      unsigned int iflag, unsigned long baud)
 {
 	int brg;
-
 
 	/* Switch to external clocking for IrDA high clock rates. That
 	 * code could be re-used for Midi interfaces with different
@@ -1223,12 +1221,12 @@ static void pmz_irda_setup(struct uart_pmac_port *uap, unsigned long *baud)
 	uap->curregs[R5] |= DTR;
 	write_zsreg(uap, R5, uap->curregs[R5]);
 	zssync(uap);
-       	mdelay(1);
+	mdelay(1);
 
 	/* Switch SCC to 19200 */
 	pmz_convert_to_zs(uap, CS8, 0, 19200);		
 	pmz_load_zsregs(uap, uap->curregs);
-       	mdelay(1);
+	mdelay(1);
 
 	/* Write get_version command byte */
 	write_zsdata(uap, 1);
@@ -1463,7 +1461,7 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 		return -ENODEV;
 	uap->port.mapbase = r_ports.start;
 	uap->port.membase = ioremap(uap->port.mapbase, 0x1000);
-      
+
 	uap->control_reg = uap->port.membase;
 	uap->data_reg = uap->control_reg + 0x10;
 	
@@ -1590,7 +1588,7 @@ static void pmz_dispose_port(struct uart_pmac_port *uap)
 }
 
 /*
- * Called upon match with an escc node in the devive-tree.
+ * Called upon match with an escc node in the device-tree.
  */
 static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
@@ -1812,7 +1810,7 @@ static int __init pmz_probe(void)
 		pmz_ports[count].node		= node_a;
 		pmz_ports[count+1].node		= node_b;
 		pmz_ports[count].port.line	= count;
-		pmz_ports[count+1].port.line   	= count+1;
+		pmz_ports[count+1].port.line	= count+1;
 
 		/*
 		 * Setup the ports for real
@@ -1899,23 +1897,22 @@ err_out:
 static struct of_device_id pmz_match[] = 
 {
 	{
-	.name 		= "ch-a",
+	.name		= "ch-a",
 	},
 	{
-	.name 		= "ch-b",
+	.name		= "ch-b",
 	},
 	{},
 };
 MODULE_DEVICE_TABLE (of, pmz_match);
 
-static struct macio_driver pmz_driver = 
-{
+static struct macio_driver pmz_driver = {
 	.name 		= "pmac_zilog",
 	.match_table	= pmz_match,
 	.probe		= pmz_attach,
 	.remove		= pmz_detach,
 	.suspend	= pmz_suspend,
-       	.resume		= pmz_resume,
+	.resume		= pmz_resume,
 };
 
 static int __init init_pmz(void)
@@ -1952,7 +1949,7 @@ static int __init init_pmz(void)
 			pmz_dispose_port(&pmz_ports[i]);
 		return rc;
 	}
-	
+
 	/*
 	 * Then we register the macio driver itself
 	 */
@@ -2034,7 +2031,7 @@ static int __init pmz_console_setup(struct console *co, char *options)
 	if (of_machine_is_compatible("RackMac1,1")
 	    || of_machine_is_compatible("RackMac1,2")
 	    || of_machine_is_compatible("MacRISC4"))
-	 	baud = 57600;
+		baud = 57600;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
