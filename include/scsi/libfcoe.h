@@ -108,6 +108,7 @@ struct fcoe_ctlr {
 	u8 flogi_count;
 	u8 link;
 	u8 last_link;
+	u8 reset_req;
 	u8 map_dest;
 	u8 spma;
 	u8 send_ctlr_ka;
