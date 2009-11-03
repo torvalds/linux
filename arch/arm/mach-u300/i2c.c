@@ -130,6 +130,7 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.min_uV = LDO_D_VOLTAGE,
 				.max_uV = LDO_D_VOLTAGE,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
+				.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 				/*
 				 * Actually this is boot_on but we need
 				 * to reference count it externally to
