@@ -41,6 +41,7 @@ static struct vfsmount *shm_mnt;
 
 #include <linux/xattr.h>
 #include <linux/exportfs.h>
+#include <linux/posix_acl.h>
 #include <linux/generic_acl.h>
 #include <linux/mman.h>
 #include <linux/string.h>
@@ -809,7 +810,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 		error = inode_setattr(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	if (!error && (attr->ia_valid & ATTR_MODE))
-		error = generic_acl_chmod(inode, &shmem_acl_ops);
+		error = generic_acl_chmod(inode);
 #endif
 	if (page)
 		page_cache_release(page);
@@ -1823,11 +1824,13 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 				return error;
 			}
 		}
-		error = shmem_acl_init(inode, dir);
+#ifdef CONFIG_TMPFS_POSIX_ACL
+		error = generic_acl_init(inode, dir);
 		if (error) {
 			iput(inode);
 			return error;
 		}
+#endif
 		if (dir->i_mode & S_ISGID) {
 			inode->i_gid = dir->i_gid;
 			if (S_ISDIR(mode))
@@ -2074,8 +2077,8 @@ static struct xattr_handler shmem_xattr_security_handler = {
 };
 
 static struct xattr_handler *shmem_xattr_handlers[] = {
-	&shmem_xattr_acl_access_handler,
-	&shmem_xattr_acl_default_handler,
+	&generic_acl_access_handler,
+	&generic_acl_default_handler,
 	&shmem_xattr_security_handler,
 	NULL
 };
@@ -2454,7 +2457,7 @@ static const struct inode_operations shmem_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.check_acl	= shmem_check_acl,
+	.check_acl	= generic_check_acl,
 #endif
 
 };
@@ -2477,7 +2480,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.check_acl	= shmem_check_acl,
+	.check_acl	= generic_check_acl,
 #endif
 };
 
@@ -2488,7 +2491,7 @@ static const struct inode_operations shmem_special_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.check_acl	= shmem_check_acl,
+	.check_acl	= generic_check_acl,
 #endif
 };
 
