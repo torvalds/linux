@@ -421,7 +421,7 @@ static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int cap_kernel_module_request(void)
+static int cap_kernel_module_request(char *kmod_name)
 {
 	return 0;
 }

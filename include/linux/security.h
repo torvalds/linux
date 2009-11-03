@@ -706,6 +706,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
+ *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
  * @task_setuid:
  *	Check permission before setting one or more of the user identity
@@ -1577,7 +1578,7 @@ struct security_operations {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
-	int (*kernel_module_request)(void);
+	int (*kernel_module_request)(char *kmod_name);
 	int (*task_setuid) (uid_t id0, uid_t id1, uid_t id2, int flags);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
 				int flags);
@@ -1842,7 +1843,7 @@ void security_commit_creds(struct cred *new, const struct cred *old);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
-int security_kernel_module_request(void);
+int security_kernel_module_request(char *kmod_name);
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
@@ -2407,7 +2408,7 @@ static inline int security_kernel_create_files_as(struct cred *cred,
 	return 0;
 }
 
-static inline int security_kernel_module_request(void)
+static inline int security_kernel_module_request(char *kmod_name)
 {
 	return 0;
 }

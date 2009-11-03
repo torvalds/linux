@@ -3337,9 +3337,18 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int selinux_kernel_module_request(void)
+static int selinux_kernel_module_request(char *kmod_name)
 {
-	return task_has_system(current, SYSTEM__MODULE_REQUEST);
+	u32 sid;
+	struct common_audit_data ad;
+
+	sid = task_sid(current);
+
+	COMMON_AUDIT_DATA_INIT(&ad, KMOD);
+	ad.u.kmod_name = kmod_name;
+
+	return avc_has_perm(sid, SECINITSID_KERNEL, SECCLASS_SYSTEM,
+			    SYSTEM__MODULE_REQUEST, &ad);
 }
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
