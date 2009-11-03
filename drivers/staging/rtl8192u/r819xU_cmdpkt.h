@@ -13,16 +13,6 @@
 #define ISR_TxBcnErr				BIT26			// Transmit Beacon Error
 #define ISR_BcnTimerIntr			BIT13			// Beacon Timer Interrupt
 
-#if 0
-/* Define packet type. */
-typedef enum tag_packet_type
-{
-    PACKET_BROADCAST,
-    PACKET_MULTICAST,
-    PACKET_UNICAST,
-    PACKET_TYPE_MAX
-}cmpk_pkt_type_e;
-#endif
 
 /* Define element ID of command packet. */
 

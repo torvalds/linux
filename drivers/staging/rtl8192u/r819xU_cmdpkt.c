@@ -318,42 +318,11 @@ cmpk_handle_tx_feedback(
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-#if 0		// The TX FEEDBACK packet element address
-	//rx_tx_fb.Element_ID 	= pMsg[0];
-	//rx_tx_fb.Length 		= pMsg[1];
-	rx_tx_fb.TOK 			= pMsg[2]>>7;
-	rx_tx_fb.Fail_Reason 	= (pMsg[2] & 0x70) >> 4;
-	rx_tx_fb.TID 			= (pMsg[2] & 0x0F);
-	rx_tx_fb.Qos_Pkt 		= pMsg[3] >> 7;
-	rx_tx_fb.Bandwidth 		= (pMsg[3] & 0x40) >> 6;
-	rx_tx_fb.Retry_Cnt 		= pMsg[5];
-	rx_tx_fb.Pkt_ID 		= (pMsg[6] << 8) | pMsg[7];
-	rx_tx_fb.Seq_Num 		= (pMsg[8] << 8) | pMsg[9];
-	rx_tx_fb.S_Rate 		= pMsg[10];
-	rx_tx_fb.F_Rate 		= pMsg[11];
-	rx_tx_fb.S_RTS_Rate 	= pMsg[12];
-	rx_tx_fb.F_RTS_Rate 	= pMsg[13];
-	rx_tx_fb.pkt_length	= (pMsg[14] << 8) | pMsg[15];
-#endif
 	/* 2007/07/05 MH Use pointer to transfer structure memory. */
 	//memcpy((UINT8 *)&rx_tx_fb, pMsg, sizeof(CMPK_TXFB_T));
 	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
-#if 0
-	/* 2007/07/11 MH Assign current operate rate.  */
-	if (pAdapter->RegWirelessMode == WIRELESS_MODE_A ||
-		pAdapter->RegWirelessMode == WIRELESS_MODE_B ||
-		pAdapter->RegWirelessMode == WIRELESS_MODE_G)
-	{
-		pMgntInfo->CurrentOperaRate = (rx_tx_fb.F_Rate & 0x7F);
-	}
-	else if (pAdapter->RegWirelessMode == WIRELESS_MODE_N_24G ||
-			 pAdapter->RegWirelessMode == WIRELESS_MODE_N_5G)
-	{
-		pMgntInfo->HTCurrentOperaRate = (rx_tx_fb.F_Rate & 0x8F);
-	}
-#endif
 	/* 2007/01/17 MH Comment previous method for TX statistic function. */
 	/* Collect info TX feedback packet to fill TCB. */
 	/* We can not know the packet length and transmit type: broadcast or uni

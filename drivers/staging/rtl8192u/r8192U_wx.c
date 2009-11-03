@@ -44,40 +44,6 @@ static int r8192_wx_get_freq(struct net_device *dev,
 }
 
 
-#if 0
-
-static int r8192_wx_set_beaconinterval(struct net_device *dev, struct iw_request_info *aa,
-			  union iwreq_data *wrqu, char *b)
-{
-	int *parms = (int *)b;
-	int bi = parms[0];
-
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	down(&priv->wx_sem);
-	DMESG("setting beacon interval to %x",bi);
-
-	priv->ieee80211->beacon_interval=bi;
-	rtl8180_commit(dev);
-	up(&priv->wx_sem);
-
-	return 0;
-}
-
-
-static int r8192_wx_set_forceassociate(struct net_device *dev, struct iw_request_info *aa,
-			  union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv=ieee80211_priv(dev);
-	int *parms = (int *)extra;
-
-	priv->ieee80211->force_associate = (parms[0] > 0);
-
-
-	return 0;
-}
-
-#endif
 static int r8192_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -215,10 +181,6 @@ static int r8192_wx_read_bb(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 databb;
-#if 0
-	int i;
-	for(i=0;i<12;i++) printk("%8x\n", read_cam(dev, i) );
-#endif
 
 	down(&priv->wx_sem);
 
@@ -316,14 +278,6 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
 
 
 
-#endif
-#if 0
-static int r8192_wx_null(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
 #endif
 static int r8192_wx_force_reset(struct net_device *dev,
 		struct iw_request_info *info,
@@ -937,24 +891,12 @@ exit:
 }
 
 #if (WIRELESS_EXT >= 18)
-#if 0
-static int r8192_wx_get_enc_ext(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	int ret = 0;
-	ret = ieee80211_wx_get_encode_ext(priv->ieee80211, info, wrqu, extra);
-	return ret;
-}
-#endif
 //hw security need to reorganized.
 static int r8192_wx_set_enc_ext(struct net_device *dev,
 					struct iw_request_info *info,
 					union iwreq_data *wrqu, char *extra)
 {
 	int ret=0;
-	#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 	//printk("===>%s()\n", __FUNCTION__);
@@ -969,13 +911,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		u32 key[4] = {0};
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
-#if 0
-		static u8 CAM_CONST_ADDR[4][6] = {
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
-#endif
 		u8 idx = 0, alg = 0, group = 0;
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
 		ext->alg == IW_ENCODE_ALG_NONE) //none is not allowed to use hwsec WB 2008.07.01
@@ -1035,7 +970,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 end_hw_sec:
 
 	up(&priv->wx_sem);
-#endif
 	return ret;
 
 }
@@ -1044,13 +978,11 @@ static int r8192_wx_set_auth(struct net_device *dev,
 					union iwreq_data *data, char *extra)
 {
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	//printk("====>%s()\n", __FUNCTION__);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
 	up(&priv->wx_sem);
-#endif
 	return ret;
 }
 
@@ -1061,13 +993,11 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	//printk("====>%s()\n", __FUNCTION__);
 
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_mlme(priv->ieee80211, info, wrqu, extra);
 
 	up(&priv->wx_sem);
-#endif
 	return ret;
 }
 #endif
@@ -1077,15 +1007,11 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 {
 	   //printk("====>%s(), len:%d\n", __FUNCTION__, data->length);
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
-#if 1
 	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
-#endif
 	up(&priv->wx_sem);
 	//printk("<======%s(), ret:%d\n", __FUNCTION__, ret);
-#endif
 	return ret;
 
 
@@ -1271,11 +1197,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
 		wstats->qual.noise = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14))
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
-#else
-		wstats->qual.updated = 0x0f;
-#endif
 		return wstats;
 	}
 
@@ -1287,11 +1209,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	wstats->qual.level = tmp_level;
 	wstats->qual.qual = tmp_qual;
 	wstats->qual.noise = tmp_noise;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14))
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED| IW_QUAL_DBM;
-#else
-	wstats->qual.updated = 0x0f;
-#endif
 	return wstats;
 }
 //#endif

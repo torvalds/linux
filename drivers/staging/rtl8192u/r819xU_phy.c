@@ -1079,18 +1079,6 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 		switch( eRFPowerState )
 		{
 			case eRfOn:
-#if 0
-						rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);		// 0x88c[4]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 		// 0x880[6:5]
-						rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0x3);			// 0xc04[3:0]
-						rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0x3);			// 0xd04[3:0]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x7000, 0x3);	// 0x884[14:12]
-	//					for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
-		//					PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
-
-						//SwChnl(Adapter->ChannelID);
-#endif
 	//RF-A, RF-B
 					//enable RF-Chip A/B
 					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);	// 0x860[4]
@@ -1112,16 +1100,6 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 				break;
 
 			case eRfOff:
-#if 0
-						rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);		// 0x860[4]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);		// 0x88c[4]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0); 		// 0x880[6:5]
-						rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0);			// 0xc04[3:0]
-						rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0);			// 0xd04[3:0]
-						rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x7000, 0x0);	// 0x884[14:12]
-	//					for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
-		//					PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
-#endif
 					//RF-A, RF-B
 					//disable RF-Chip A/B
 					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);	// 0x860[4]
@@ -1582,11 +1560,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 1);
 
 			// Correct the tx power for CCK rate in 20M. Suggest by YN, 20071207
-#if 0
-			write_nic_dword(dev, rCCK0_TxFilter1, 0x1a1b0000);
-			write_nic_dword(dev, rCCK0_TxFilter2, 0x090e1317);
-			write_nic_dword(dev, rCCK0_DebugPort, 0x00000204);
-#endif
 			priv->cck_present_attentuation =
 				priv->cck_present_attentuation_20Mdefault + priv->cck_present_attentuation_difference;
 
@@ -1617,12 +1590,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
 			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 0);
 			rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00, priv->nCur40MhzPrimeSC);
-#if 0
-			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207
-			write_nic_dword(dev, rCCK0_TxFilter1, 0x35360000);
-			write_nic_dword(dev, rCCK0_TxFilter2, 0x121c252e);
-			write_nic_dword(dev, rCCK0_DebugPort, 0x00000409);
-#endif
 			priv->cck_present_attentuation =
 				priv->cck_present_attentuation_40Mdefault + priv->cck_present_attentuation_difference;
 
@@ -1653,7 +1620,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	}
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
 
-#if 1
 	//<3>Set RF related register
 	switch( priv->rf_chip )
 	{
@@ -1679,7 +1645,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
 			break;
 	}
-#endif
 	priv->SetBWModeInProgress= false;
 
 	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb(), %d", atomic_read(&(priv->ieee80211->atm_swbw)) );
@@ -1726,29 +1691,15 @@ void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 
 	if(priv->up)
 	{
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 		queue_delayed_work(priv->priv_wq,&priv->initialgain_operate_wq,0);
-	#else
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-		schedule_task(&priv->initialgain_operate_wq);
-		#else
-		queue_work(priv->priv_wq,&priv->initialgain_operate_wq);
-		#endif
-	#endif
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,initialgain_operate_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern void InitialGainOperateWorkItemCallBack(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08
 	u32	BitMask;

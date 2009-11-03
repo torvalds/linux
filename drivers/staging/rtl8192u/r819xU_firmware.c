@@ -16,9 +16,7 @@
 #include "r8192U_hw.h"
 #include "r819xU_firmware_img.h"
 #include "r819xU_firmware.h"
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #include <linux/firmware.h>
-#endif
 void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
@@ -107,12 +105,6 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 
 	return rt_status;
 
-#if 0
-cmdsend_downloadcode_fail:
-	rt_status = false;
-	RT_TRACE(COMP_ERR, "CmdSendDownloadCode fail !!\n");
-	return rt_status;
-#endif
 }
 
 bool
@@ -154,52 +146,6 @@ fwSendNullPacket(
 	return rtStatus;
 }
 
-#if 0
-/*
- * Procedure  :   Download code into IMEM or DMEM
- * Description:   This routine will intialize firmware. If any error occurs during the initialization
- *				process, the routine shall terminate immediately and return fail.
- *				The routine copy virtual address get from opening of file into shared memory
- *				allocated during initialization. If code size larger than a conitneous shared
- *				memory may contain, the code should be divided into several section.
- *				!!!NOTES This finction should only be called during MPInitialization because
- *				A NIC driver should call NdisOpenFile only from MiniportInitialize.
- * Arguments :    The pointer of the adapter
- *			   Code address (Virtual address, should fill descriptor with physical address)
- *			   Code size
- * Returns  :
- *        RT_STATUS_FAILURE - the following initialization process should be terminated
- *        RT_STATUS_SUCCESS - if firmware initialization process success
- */
-bool fwsend_download_code(struct net_device *dev)
-{
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	rt_firmware		*pfirmware = (rt_firmware*)(&priv->firmware);
-
-	bool			rt_status = true;
-	u16			length = 0;
-	u16			offset = 0;
-	u16			frag_threhold;
-	bool			last_init_packet = false;
-	u32			check_txcmdwait_queueemptytime = 100000;
-	u16			cmd_buf_len;
-	u8			*ptr_cmd_buf;
-
-	/* reset to 0 for first segment of img download */
-	pfirmware->firmware_seg_index = 1;
-
-	if(pfirmware->firmware_seg_index == pfirmware->firmware_seg_maxnum) {
-		last_init_packet = 1;
-	}
-
-	cmd_buf_len = pfirmware->firmware_seg_container[pfirmware->firmware_seg_index-1].seg_size;
-	ptr_cmd_buf = pfirmware->firmware_seg_container[pfirmware->firmware_seg_index-1].seg_ptr;
-	rtl819xU_tx_cmd(dev, ptr_cmd_buf, cmd_buf_len, last_init_packet, DESC_PACKET_TYPE_INIT);
-
-	rt_status = true;
-	return rt_status;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 // Procedure:    Check whether main code is download OK. If OK, turn on CPU
@@ -338,11 +284,7 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reseta
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	priv->firmware_source = FW_SOURCE_HEADER_FILE;
-#else
 	priv->firmware_source = FW_SOURCE_IMG_FILE;
-#endif
 	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
 		 * Open Image file, and map file to contineous memory if open file success.
@@ -351,7 +293,6 @@ bool init_firmware(struct net_device *dev)
 		if(rst_opt == OPT_SYSTEM_RESET) {
 			switch(priv->firmware_source) {
 				case FW_SOURCE_IMG_FILE:
-				#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 					rc = request_firmware(&fw_entry, fw_name[init_step],&priv->udev->dev);
 					if(rc < 0 ) {
 						RT_TRACE(COMP_ERR, "request firmware fail!\n");
@@ -380,7 +321,6 @@ bool init_firmware(struct net_device *dev)
 					#endif
 					}
 					pfirmware->firmware_buf_size = file_length;
-					#endif
 					break;
 
 				case FW_SOURCE_HEADER_FILE:
@@ -411,11 +351,9 @@ bool init_firmware(struct net_device *dev)
 		 *   and Tx descriptor info
 		 * */
 		rt_status = fw_download_code(dev,mapped_file,file_length);
-		#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		if(rst_opt == OPT_SYSTEM_RESET) {
 			release_firmware(fw_entry);
 		}
-		#endif
 
 		if(rt_status != TRUE) {
 			goto download_firmware_fail;
@@ -487,214 +425,10 @@ download_firmware_fail:
 
 }
 
-#if 0
-/*
- * Procedure:   (1)  Transform firmware code from little endian to big endian if required.
- *		(2)  Number of bytes in Firmware downloading should be multiple
- *		     of 4 bytes. If length is not multiple of 4 bytes, appending of zeros is required
- *
- */
-void CmdAppendZeroAndEndianTransform(
-	u1Byte	*pDst,
-	u1Byte	*pSrc,
-	u2Byte   	*pLength)
-{
-
-	u2Byte	ulAppendBytes = 0, i;
-	u2Byte	ulLength = *pLength;
-
-//test only
-	//memset(pDst, 0xcc, 12);
-
-
-	/* Transform from little endian to big endian */
-//#if DEV_BUS_TYPE==PCI_INTERFACE
-#if 0
-	for( i=0 ; i<(*pLength) ; i+=4)
-	{
-		if((i+3) < (*pLength))	pDst[i+0] = pSrc[i+3];
-		if((i+2) < (*pLength))	pDst[i+1] = pSrc[i+2];
-		if((i+1) < (*pLength))	pDst[i+2] = pSrc[i+1];
-		if((i+0) < (*pLength))	pDst[i+3] = pSrc[i+0];
-	}
-#else
-	pDst += USB_HWDESC_HEADER_LEN;
-	ulLength -= USB_HWDESC_HEADER_LEN;
-
-	for( i=0 ; i<ulLength ; i+=4) {
-		if((i+3) < ulLength)	pDst[i+0] = pSrc[i+3];
-		if((i+2) < ulLength)	pDst[i+1] = pSrc[i+2];
-		if((i+1) < ulLength)	pDst[i+2] = pSrc[i+1];
-		if((i+0) < ulLength)	pDst[i+3] = pSrc[i+0];
-
-	}
-#endif
-
-	//1(2) Append Zero
-	if(  ((*pLength) % 4)  >0)
-	{
-		ulAppendBytes = 4-((*pLength) % 4);
-
-		for(i=0 ; i<ulAppendBytes; i++)
-			pDst[  4*((*pLength)/4)  + i ] = 0x0;
-
-		*pLength += ulAppendBytes;
-	}
-}
-#endif
-
-#if 0
-RT_STATUS
-CmdSendPacket(
-	PADAPTER				Adapter,
-	PRT_TCB					pTcb,
-	PRT_TX_LOCAL_BUFFER 			pBuf,
-	u4Byte					BufferLen,
-	u4Byte					PacketType,
-	BOOLEAN					bLastInitPacket
-	)
-{
-	s2Byte		i;
-	u1Byte		QueueID;
-	u2Byte		firstDesc,curDesc = 0;
-	u2Byte		FragIndex=0, FragBufferIndex=0;
-
-	RT_STATUS	rtStatus = RT_STATUS_SUCCESS;
-
-	CmdInitTCB(Adapter, pTcb, pBuf, BufferLen);
-
-
-	if(CmdCheckFragment(Adapter, pTcb, pBuf))
-		CmdFragmentTCB(Adapter, pTcb);
-	else
-		pTcb->FragLength[0] = (u2Byte)pTcb->BufferList[0].Length;
-
-	QueueID=pTcb->SpecifiedQueueID;
-#if DEV_BUS_TYPE!=USB_INTERFACE
-	firstDesc=curDesc=Adapter->NextTxDescToFill[QueueID];
-#endif
-
-#if DEV_BUS_TYPE!=USB_INTERFACE
-	if(VacancyTxDescNum(Adapter, QueueID) > pTcb->BufferCount)
-#else
-	if(PlatformIsTxQueueAvailable(Adapter, QueueID, pTcb->BufferCount) &&
-		RTIsListEmpty(&Adapter->TcbWaitQueue[QueueID]))
-#endif
-	{
-		pTcb->nDescUsed=0;
-
-		for(i=0 ; i<pTcb->BufferCount ; i++)
-		{
-			Adapter->HalFunc.TxFillCmdDescHandler(
-				Adapter,
-				pTcb,
-				QueueID,							//QueueIndex
-				curDesc,							//index
-				FragBufferIndex==0,						//bFirstSeg
-				FragBufferIndex==(pTcb->FragBufCount[FragIndex]-1),		//bLastSeg
-				pTcb->BufferList[i].VirtualAddress,				//VirtualAddress
-				pTcb->BufferList[i].PhysicalAddressLow,				//PhyAddressLow
-				pTcb->BufferList[i].Length,					//BufferLen
-				i!=0,								//bSetOwnBit
-				(i==(pTcb->BufferCount-1)) && bLastInitPacket,			//bLastInitPacket
-				PacketType,							//DescPacketType
-				pTcb->FragLength[FragIndex]					//PktLen
-				);
-
-			if(FragBufferIndex==(pTcb->FragBufCount[FragIndex]-1))
-			{ // Last segment of the fragment.
-				pTcb->nFragSent++;
-			}
-
-			FragBufferIndex++;
-			if(FragBufferIndex==pTcb->FragBufCount[FragIndex])
-			{
-				FragIndex++;
-				FragBufferIndex=0;
-			}
-
-#if DEV_BUS_TYPE!=USB_INTERFACE
-			curDesc=(curDesc+1)%Adapter->NumTxDesc[QueueID];
-#endif
-			pTcb->nDescUsed++;
-		}
-
-#if DEV_BUS_TYPE!=USB_INTERFACE
-		RTInsertTailList(&Adapter->TcbBusyQueue[QueueID], &pTcb->List);
-		IncrementTxDescToFill(Adapter, QueueID, pTcb->nDescUsed);
-		Adapter->HalFunc.SetTxDescOWNHandler(Adapter, QueueID, firstDesc);
-		// TODO: should call poll use QueueID
-		Adapter->HalFunc.TxPollingHandler(Adapter, TXCMD_QUEUE);
-#endif
-	}
-	else
-#if DEV_BUS_TYPE!=USB_INTERFACE
-		goto CmdSendPacket_Fail;
-#else
-	{
-		pTcb->bLastInitPacket = bLastInitPacket;
-		RTInsertTailList(&Adapter->TcbWaitQueue[pTcb->SpecifiedQueueID], &pTcb->List);
-	}
-#endif
-
-	return rtStatus;
-
-#if DEV_BUS_TYPE!=USB_INTERFACE
-CmdSendPacket_Fail:
-	rtStatus = RT_STATUS_FAILURE;
-	return rtStatus;
-#endif
-
-}
-#endif
 
 
 
 
-#if 0
-RT_STATUS
-FWSendNullPacket(
-	IN	PADAPTER		Adapter,
-	IN	u4Byte			Length
-)
-{
-	RT_STATUS	rtStatus = RT_STATUS_SUCCESS;
 
-
-	PRT_TCB					pTcb;
-	PRT_TX_LOCAL_BUFFER 	pBuf;
-	BOOLEAN					bLastInitPacket = FALSE;
-
-	PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK);
-
-#if DEV_BUS_TYPE==USB_INTERFACE
-	Length += USB_HWDESC_HEADER_LEN;
-#endif
-
-	//Get TCB and local buffer from common pool. (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
-	if(MgntGetBuffer(Adapter, &pTcb, &pBuf))
-	{
-		PlatformZeroMemory(pBuf->Buffer.VirtualAddress, Length);
-		rtStatus = CmdSendPacket(Adapter, pTcb, pBuf, Length, DESC_PACKET_TYPE_INIT, bLastInitPacket);	//0 : always set LastInitPacket to zero
-//#if HAL_CODE_BASE != RTL8190HW
-//		// TODO: for test only
-//		ReturnTCB(Adapter, pTcb, RT_STATUS_SUCCESS);
-//#endif
-		if(rtStatus == RT_STATUS_FAILURE)
-			goto CmdSendNullPacket_Fail;
-	}else
-		goto CmdSendNullPacket_Fail;
-
-	PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
-	return rtStatus;
-
-
-CmdSendNullPacket_Fail:
-	PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
-	rtStatus = RT_STATUS_FAILURE;
-	RT_ASSERT(rtStatus == RT_STATUS_SUCCESS, ("CmdSendDownloadCode fail !!\n"));
-	return rtStatus;
-}
-#endif
 
 

@@ -39,9 +39,6 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
-#include <asm/semaphore.h>
-#endif
 #include "ieee80211.h"
 
 #define RTL8192U
@@ -87,11 +84,6 @@
 
 // Rx smooth factor
 #define	Rx_Smooth_Factor		20
-#if 0 //we need to use RT_TRACE instead DMESG as RT_TRACE will clearly show debug level wb.
-#define DMESG(x,a...) printk(KERN_INFO RTL819xU_MODULE_NAME ": " x "\n", ## a)
-#define DMESGW(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": WW:" x "\n", ## a)
-#define DMESGE(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": EE:" x "\n", ## a)
-#else
 #define DMESG(x,a...)
 #define DMESGW(x,a...)
 #define DMESGE(x,a...)
@@ -141,7 +133,6 @@ do { if(rt_global_debug_component & component) \
 #define COMP_DOWN				BIT29  //for rm driver module
 #define COMP_RESET				BIT30  //for silent reset
 #define COMP_ERR				BIT31 //for error out, always on
-#endif
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
@@ -596,16 +587,6 @@ typedef struct rtl_reg_debug{
 
 
 
-#if 0
-
-typedef struct tx_pendingbuf
-{
-	struct ieee80211_txb *txb;
-	short ispending;
-	short descfrag;
-} tx_pendigbuf;
-
-#endif
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
@@ -933,11 +914,7 @@ typedef struct r8192_priv
 	spinlock_t irq_lock;
 //	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	struct semaphore mutex;
-#else
         struct mutex mutex;
-#endif
 	//spinlock_t rf_lock; //used to lock rf write operation added by wb
 
 	u16 irq_mask;
@@ -1007,11 +984,7 @@ typedef struct r8192_priv
 /* modified by davad for Rx process */
        struct sk_buff_head rx_queue;
        struct sk_buff_head skb_queue;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct tq_struct qos_activate;
-#else
        struct work_struct qos_activate;
-#endif
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10];//UART_PRIORITY+1
 
@@ -1041,11 +1014,7 @@ typedef struct r8192_priv
 	u16 rts;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct work_struct reset_wq;
-#else
-	struct tq_struct reset_wq;
-#endif
 
 /**********************************************************/
 	//for rtl819xUsb
@@ -1194,33 +1163,14 @@ typedef struct r8192_priv
 	u16		SifsTime;
 
 	//define work item by amy 080526
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	struct delayed_work update_beacon_wq;
 	struct delayed_work watch_dog_wq;
 	struct delayed_work txpower_tracking_wq;
 	struct delayed_work rfpath_check_wq;
 	struct delayed_work gpio_change_rf_wq;
 	struct delayed_work initialgain_operate_wq;
-#else
-	struct work_struct update_beacon_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct txpower_tracking_wq;
-	struct work_struct rfpath_check_wq;
-	struct work_struct gpio_change_rf_wq;
-	struct work_struct initialgain_operate_wq;
-#endif
 	struct workqueue_struct *priv_wq;
-#else
-	/* used for periodly scan */
-	struct tq_struct update_beacon_wq;
-	struct tq_struct txpower_tracking_wq;
-	struct tq_struct rfpath_check_wq;
-	struct tq_struct watch_dog_wq;
-	struct tq_struct gpio_change_rf_wq;
-	struct tq_struct initialgain_operate_wq;
-#endif
 }r8192_priv;
 
 // for rtl8187
@@ -1259,60 +1209,6 @@ typedef enum{
 	} nic_t;
 
 
-#if 0 //defined in Qos.h
-//typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW{
-	u8	charData;
-	struct
-	{
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	}f;	// Field
-}ECW, *PECW;
-
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _ACI_AIFSN{
-	u8	charData;
-
-	struct
-	{
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
-	}f;	// Field
-}ACI_AIFSN, *PACI_AIFSN;
-
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM{
-	u32	longData;
-	u8	charData[4];
-
-	struct
-	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	}f;	// Field
-}AC_PARAM, *PAC_PARAM;
-
-#endif
 #ifdef JOHN_HWSEC
 struct ssid_thread {
 	struct net_device *dev;

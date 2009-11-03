@@ -23,46 +23,5 @@ typedef enum _opt_rst_type{
 	OPT_FIRMWARE_RESET = 1,
 }opt_rst_type_e;
 
-#if 0
-/* CPU related */
-RT_STATUS
-CPUCheckMainCodeOKAndTurnOnCPU(
-	IN	PADAPTER			Adapter
-	);
-
-RT_STATUS
-CPUCheckFirmwareReady(
-	IN	PADAPTER			Adapter
-	);
-
-/* Firmware related */
-VOID
-FWInitializeParameters(
-	IN	PADAPTER		Adapter
-	);
-
-RT_STATUS
-FWSendDownloadCode(
-	IN	PADAPTER		Adapter,
-	IN	pu1Byte			CodeVirtualAddrress,
-	IN	u4Byte			BufferLen
-	);
-
-RT_STATUS
-FWSendNullPacket(
-	IN	PADAPTER		Adapter,
-	IN	u4Byte			Length
-	);
-
-RT_STATUS
-CmdSendPacket(
-	PADAPTER				Adapter,
-	PRT_TCB					pTcb,
-	PRT_TX_LOCAL_BUFFER 	pBuf,
-	u4Byte					BufferLen,
-	u4Byte					PacketType,
-	BOOLEAN					bLastInitPacket
-	);
-#endif
 #endif
 

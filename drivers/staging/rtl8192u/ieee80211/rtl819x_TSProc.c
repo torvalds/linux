@@ -2,13 +2,6 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define list_for_each_entry_safe(pos, n, head, member) \
-	for (pos = list_entry((head)->next, typeof(*pos), member), \
-		n = list_entry(pos->member.next, typeof(*pos), member); \
-		&pos->member != (head); \
-		pos = n, n = list_entry(n->member.next, typeof(*n), member))
-#endif
 void TsSetupTimeOut(unsigned long data)
 {
 	// Not implement yet
@@ -28,7 +21,6 @@ void TsInactTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
 ********************************************************************************************************************/
-#if 1
 void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -102,7 +94,6 @@ void RxPktPendingTimeout(unsigned long data)
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
 }
-#endif
 
 /********************************************************************************************************************
  *function:  Add BA timer function
@@ -366,17 +357,10 @@ bool GetTs(
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
 		return false;
 	}
-#if 0
-	if(ieee->pStaQos->CurrentQosMode == QOS_DISABLE)
-	{	UP = 0; } //only use one TS
-	else if(ieee->pStaQos->CurrentQosMode & QOS_WMM)
-	{
-#else
 	if (ieee->current_network.qos_data.supported == 0)
 		UP = 0;
 	else
 	{
-#endif
 		// In WMM case: we use 4 TID only
 		if (!IsACValid(TID))
 		{
@@ -548,7 +532,6 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
 	printk("===========>RemovePeerTS,"MAC_FMT"\n", MAC_ARG(Addr));
-#if 1
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		if (memcmp(pTS->Addr, Addr, 6) == 0)
@@ -589,13 +572,11 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 		}
 	}
-#endif
 }
 
 void RemoveAllTS(struct ieee80211_device* ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
-#if 1
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -623,7 +604,6 @@ void RemoveAllTS(struct ieee80211_device* ieee)
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 	}
-#endif
 }
 
 void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
@@ -631,7 +611,6 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	if(pTxTS->bAddBaReqInProgress == false)
 	{
 		pTxTS->bAddBaReqInProgress = true;
-#if 1
 		if(pTxTS->bAddBaReqDelayed)
 		{
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
@@ -642,13 +621,8 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 			IEEE80211_DEBUG(IEEE80211_DL_BA,"TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10); //set 10 ticks
 		}
-#endif
 	}
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);
 }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-EXPORT_SYMBOL_NOVERS(RemovePeerTS);
-#else
 EXPORT_SYMBOL(RemovePeerTS);
-#endif

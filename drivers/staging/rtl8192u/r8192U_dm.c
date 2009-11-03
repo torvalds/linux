@@ -24,25 +24,11 @@ Major Change History:
 //
 // Indicate different AP vendor for IOT issue.
 //
-#if 0
-typedef enum _HT_IOT_PEER
-{
-	HT_IOT_PEER_UNKNOWN = 0,
-	HT_IOT_PEER_REALTEK = 1,
-	HT_IOT_PEER_BROADCOM = 2,
-	HT_IOT_PEER_RALINK = 3,
-	HT_IOT_PEER_ATHEROS = 4,
-	HT_IOT_PEER_CISCO = 5,
-	HT_IOT_PEER_MAX = 6
-}HT_IOT_PEER_E, *PHTIOT_PEER_E;
-#endif
-#if 1
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 		{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f};
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 		{ 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f};
 
-#endif
 
 #define RTK_UL_EDCA 0xa44f
 #define RTK_DL_EDCA 0x5e4322
@@ -71,11 +57,7 @@ extern void hal_dm_watchdog(struct net_device *dev);
 
 
 extern	void	init_rate_adaptive(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_txpower_trackingcallback(struct work_struct *work);
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev);
-#endif
 
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
@@ -91,15 +73,8 @@ extern	void dm_force_tx_fw_info(struct net_device *dev,
 										u32		force_value);
 extern	void	dm_init_edca_turbo(struct net_device *dev);
 extern	void	dm_rf_operation_test_callback(unsigned long data);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev);
-#endif
 extern	void dm_fsync_timer_callback(unsigned long data);
-#if 0
-extern	bool	dm_check_lbus_status(struct net_device *dev);
-#endif
 extern	void dm_check_fsync(struct net_device *dev);
 extern	void	dm_shadow_init(struct net_device *dev);
 
@@ -498,11 +473,9 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 		}
 
 		// 2008.04.01
-#if 1
 		// For RTL819X, if pairwisekey = wep/tkip, we support only MCS0~7.
 		if(priv->ieee80211->GetHalfNmodeSupportByAPsHandler(dev))
 			targetRATR &=  0xf00fffff;
-#endif
 
 		//
 		// Check whether updating of RATR0 is required
@@ -884,29 +857,6 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 	//==========================
 	// this is only for test, should be masked
-#if 0
-{
-	//UINT32	eRFPath;
-	//UINT32	start_rf, end_rf;
-	UINT32	curr_addr;
-	//UINT32	reg_addr;
-	//UINT32	reg_addr_end;
-	UINT32	reg_value;
-	//start_rf 		= RF90_PATH_A;
-	//end_rf 			= RF90_PATH_B;//RF90_PATH_MAX;
-	//reg_addr 		= 0x0;
-	//reg_addr_end 	= 0x2F;
-
-		for (curr_addr = 0; curr_addr < 0x2d; curr_addr++)
-		{
-			reg_value = PHY_QueryRFReg(	Adapter, (RF90_RADIO_PATH_E)RF90_PATH_A,
-										curr_addr, bMaskDWord);
-		}
-
-	pHalData->TXPowercount = 0;
-	return;
-}
-#endif
 	//==========================
 
 	// read and filter out unreasonable value
@@ -981,17 +931,11 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	priv->txpower_count = 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 
 #ifdef RTL8190P
 	dm_TXPowerTrackingCallback_TSSI(dev);
@@ -1550,15 +1494,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 	{
 		if((tx_power_track_counter % 30 == 0)&&(tx_power_track_counter != 0))
 		{
-			#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 				queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-			#else
-				#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-				schedule_task(&priv->txpower_tracking_wq);
-				#else
-				queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-				#endif
-			#endif
 		}
 		tx_power_track_counter++;
 	}
@@ -1570,19 +1506,6 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8 	TM_Trigger=0;
-#if 0
-	u1Byte					i;
-	u4Byte tmpRegA;
-	for(i=0; i<50; i++)
-	{
-		tmpRegA = PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		//delay_us(100);
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		//delay_us(100);
-	}
-	DbgPrint("Trigger and readback ThermalMeter, write RF reg0x2 = 0x4d to 0x4f for 50 times\n");
-#else
 	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
@@ -1610,18 +1533,9 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	else
 	{
 		//DbgPrint("Schedule TxPowerTrackingWorkItem\n");
-		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 			queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-		#else
-			#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-			schedule_task(&priv->txpower_tracking_wq);
-			#else
-			queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-			#endif
-		#endif
 		TM_Trigger = 0;
 	}
-#endif
 }
 
 
@@ -1829,14 +1743,6 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			//cosa PlatformEFIOWrite4Byte(Adapter, RATR0, ((pu4Byte)(val))[0]);
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
-#if 0		// Disable old code.
-			u1Byte index;
-			u4Byte input_value;
-			index = (u1Byte)((((pu4Byte)(val))[0]) >> 28);
-			input_value = (((pu4Byte)(val))[0]) & 0x0fffffff;
-			// TODO: Correct it. Emily 2007.01.11
-			PlatformEFIOWrite4Byte(Adapter, RATR0+index*4, input_value);
-#endif
 	}
 	//Resore TX Power Tracking Index
 	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
@@ -2099,28 +2005,6 @@ dm_change_rxpath_selection_setting(
 	}
 }
 
-#if 0
-extern void dm_force_tx_fw_info(struct net_device *dev,
-										u32		force_type,
-										u32		force_value)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	if (force_type == 0)	// don't force TxSC
-	{
-		//DbgPrint("Set Force SubCarrier Off\n");
-		priv->tx_fwinfo_force_subcarriermode = 0;
-	}
-	else if(force_type == 1) //force
-	{
-		//DbgPrint("Set Force SubCarrier On\n");
-		priv->tx_fwinfo_force_subcarriermode = 1;
-		if(force_value > 3)
-			force_value = 3;
-		priv->tx_fwinfo_force_subcarrierval = (u8)force_value;
-	}
-}
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_dig_init()
@@ -2759,7 +2643,6 @@ extern void dm_init_edca_turbo(struct net_device * dev)
 	priv->bis_cur_rdlstate = false;
 }	// dm_init_edca_turbo
 
-#if 1
 static void dm_check_edca_turbo(
 	struct net_device * dev)
 {
@@ -2777,10 +2660,8 @@ static void dm_check_edca_turbo(
 	// Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
 	// should follow the settings from QAP. By Bruce, 2007-12-07.
 	//
-	#if 1
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
-	#endif
 	// We do not turn on EDCA turbo mode for some AP that has IOT issue
 	if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -2871,7 +2752,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	// dm_CheckEdcaTurbo
-#endif
 
 extern void DM_CTSToSelfSetting(struct net_device * dev,u32 DM_Type, u32 DM_Value)
 {
@@ -2932,20 +2812,7 @@ static void dm_ctstoself(struct net_device *dev)
 		}
 		else	//uplink
 		{
-		#if 1
 			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-		#else
-			if(priv->undecorated_smoothed_pwdb < priv->ieee80211->CTSToSelfTH)	// disable CTS to self
-			{
-				pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
-				//DbgPrint("dm_CTSToSelf() ==> CTS to self disabled\n");
-			}
-			else if(priv->undecorated_smoothed_pwdb >= (priv->ieee80211->CTSToSelfTH+5))	// enable CTS to self
-			{
-				pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-				//DbgPrint("dm_CTSToSelf() ==> CTS to self enabled\n");
-			}
-		#endif
 		}
 
 		lastTxOkCnt = priv->stats.txbytesunicast;
@@ -2953,79 +2820,6 @@ static void dm_ctstoself(struct net_device *dev)
 	}
 }
 
-
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	dm_rf_operation_test_callback()
- *
- * Overview:	Only for RF operation test now.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-extern void dm_rf_operation_test_callback(unsigned long dev)
-{
-//	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-	u8 erfpath;
-
-
-	for(erfpath=0; erfpath<4; erfpath++)
-	{
-		//DbgPrint("Set RF-%d\n\r", eRFPath);
-		//PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3d7);
-		udelay(100);
-	}
-
-	{
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-	}
-
-	// For test
-	{
-		//u8 i;
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-#if 0
-		for(i=0; i<50; i++)
-		{
-			// Write Test
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-
-#if 0
-			// Read test
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-#endif
-		}
-#endif
-	}
-
-}	/* DM_RfOperationTestCallBack */
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_check_rfctrl_gpio()
@@ -3043,7 +2837,6 @@ extern void dm_rf_operation_test_callback(unsigned long dev)
  *	05/28/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-#if 1
 static void dm_check_rfctrl_gpio(struct net_device * dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3060,20 +2853,11 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 	return;
 #endif
 #ifdef RTL8192E
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 		queue_delayed_work(priv->priv_wq,&priv->gpio_change_rf_wq,0);
-	#else
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-		schedule_task(&priv->gpio_change_rf_wq);
-	     #else
-		queue_work(priv->priv_wq,&priv->gpio_change_rf_wq);
-		#endif
-	#endif
 #endif
 
 }	/* dm_CheckRfCtrlGPIO */
 
-#endif
 /*-----------------------------------------------------------------------------
  * Function:	dm_check_pbc_gpio()
  *
@@ -3129,17 +2913,11 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	02/21/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
- #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_gpio_change_rf_callback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -3207,17 +2985,11 @@ extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
        struct net_device *dev =priv->ieee80211->dev;
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	//bool bactually_set = false;
 	u8 rfpath = 0, i;
 
@@ -3542,15 +3314,7 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 static	void	dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq,&priv->rfpath_check_wq,0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->rfpath_check_wq);
-#else
-	queue_work(priv->priv_wq,&priv->rfpath_check_wq);
-#endif
-#endif
 }	/* dm_CheckRxRFPath */
 
 
@@ -3898,12 +3662,6 @@ void dm_check_fsync(struct net_device *dev)
 						#endif
 
 						reg_c38_State = RegC38_NonFsync_Other_AP;
-					#if 0//cosa
-						if (Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x10);
-						else
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x90);
-					#endif
 					}
 				}
 				else if(priv->undecorated_smoothed_pwdb >= (RegC38_TH+5))
@@ -3948,50 +3706,6 @@ void dm_check_fsync(struct net_device *dev)
 	}
 }
 
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	DM_CheckLBusStatus()
- *
- * Overview:	For 9x series, we must make sure LBUS is active for IO.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	02/22/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-extern	s1Byte	DM_CheckLBusStatus(IN	PADAPTER	Adapter)
-{
-	PMGNT_INFO	pMgntInfo=&Adapter->MgntInfo;
-
-#if (HAL_CODE_BASE & RTL819X)
-
-#if (HAL_CODE_BASE == RTL8192)
-
-#if( DEV_BUS_TYPE==PCI_INTERFACE)
-	//return (pMgntInfo->bLbusEnable);	// For debug only
-	return TRUE;
-#endif
-
-#if( DEV_BUS_TYPE==USB_INTERFACE)
-	return TRUE;
-#endif
-
-#endif	// #if (HAL_CODE_BASE == RTL8192)
-
-#if (HAL_CODE_BASE == RTL8190)
-	return TRUE;
-#endif	// #if (HAL_CODE_BASE == RTL8190)
-
-#endif	// #if (HAL_CODE_BASE & RTL819X)
-}	/* DM_CheckLBusStatus */
-
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_shadow_init()
@@ -4164,14 +3878,12 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	// 0x1e0(byte) to botify driver.
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 	return;
-#if 1
 	tx_cmd.Op		= TXCMD_SET_RX_RSSI;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
 
 	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
 								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
-#endif
 }
 
 /*---------------------------Define function prototype------------------------*/

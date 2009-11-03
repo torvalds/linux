@@ -30,35 +30,6 @@ static inline int crypto_cipher_decrypt(struct crypto_tfm *tfm,
 	return tfm->crt_cipher.cit_decrypt(tfm, dst, src, nbytes);
 }
 
-#if 0
-/*
- *	crypto_free_tfm - Free crypto transform
- *	@tfm: Transform to free
- *
- *	crypto_free_tfm() frees up the transform and any associated resources,
- *	then drops the refcount on the associated algorithm.
- */
-void crypto_free_tfm(struct crypto_tfm *tfm)
-{
-	struct crypto_alg *alg;
-	int size;
-
-	if (unlikely(!tfm))
-		return;
-
-	alg = tfm->__crt_alg;
-	size = sizeof(*tfm) + alg->cra_ctxsize;
-
-	if (alg->cra_exit)
-		alg->cra_exit(tfm);
-	crypto_exit_ops(tfm);
-	crypto_mod_put(alg);
-	memset(tfm, 0, size);
-	kfree(tfm);
-}
-
-#endif
-#if 1
  struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 {
 	struct crypto_tfm *tfm = NULL;
@@ -83,7 +54,6 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 
 	return tfm;
 }
-#endif
 //EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
 //EXPORT_SYMBOL_GPL(crypto_free_tfm);
 

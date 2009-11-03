@@ -201,13 +201,11 @@ void free_ieee80211(struct net_device *dev)
 	int i;
 	//struct list_head *p, *q;
 //	del_timer_sync(&ieee->SwBwTimer);
-#if 1
 	if (ieee->pHTInfo != NULL)
 	{
 		kfree(ieee->pHTInfo);
 		ieee->pHTInfo = NULL;
 	}
-#endif
 	RemoveAllTS(ieee);
 	ieee80211_softmac_free(ieee);
 	del_timer_sync(&ieee->crypt_deinit_timer);

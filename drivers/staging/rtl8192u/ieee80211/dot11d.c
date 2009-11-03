@@ -35,10 +35,6 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 {
 	u32 i;
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
-#if 0
-	if(!pDot11dInfo->bEnabled)
-		return;
-#endif
 	// Clear old channel map
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
@@ -108,14 +104,12 @@ Dot11d_UpdateCountryIe(
 
 		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8*)pTriple + 3);
 	}
-#if 1
 	//printk("Dot11d_UpdateCountryIe(): Channel List:\n");
 	printk("Channel List:");
 	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
 		if(pDot11dInfo->channel_map[i] > 0)
 			printk(" %d", i);
 	printk("\n");
-#endif
 
 	UPDATE_CIE_SRC(dev, pTaddr);
 
@@ -218,7 +212,6 @@ int ToLegalChannel(
 
 	return default_chn;
 }
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 EXPORT_SYMBOL(Dot11d_Init);
 EXPORT_SYMBOL(Dot11d_Reset);
 EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
@@ -226,14 +219,5 @@ EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
 EXPORT_SYMBOL(DOT11D_ScanComplete);
 EXPORT_SYMBOL(IsLegalChannel);
 EXPORT_SYMBOL(ToLegalChannel);
-#else
-EXPORT_SYMBOL_NOVERS(Dot11d_Init);
-EXPORT_SYMBOL_NOVERS(Dot11d_Reset);
-EXPORT_SYMBOL_NOVERS(Dot11d_UpdateCountryIe);
-EXPORT_SYMBOL_NOVERS(DOT11D_GetMaxTxPwrInDbm);
-EXPORT_SYMBOL_NOVERS(DOT11D_ScanComplete);
-EXPORT_SYMBOL_NOVERS(IsLegalChannel);
-EXPORT_SYMBOL_NOVERS(ToLegalChannel);
-#endif
 
 #endif

@@ -71,9 +71,6 @@ double __extendsfdf2(float a) {return a;}
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
 // FIXME: check if 2.6.7 is ok
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7))
-#define usb_kill_urb usb_unlink_urb
-#endif
 
 #ifdef CONFIG_RTL8192_PM
 #include "r8192_pm.h"
@@ -127,66 +124,42 @@ static struct usb_device_id rtl8192_usb_id_tbl[] = {
 };
 
 MODULE_LICENSE("GPL");
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 MODULE_VERSION("V 1.1");
-#endif
 MODULE_DEVICE_TABLE(usb, rtl8192_usb_id_tbl);
 MODULE_DESCRIPTION("Linux driver for Realtek RTL8192 USB WiFi cards");
 
 static char* ifname = "wlan%d";
-#if 0
-static int hwseqnum = 0;
-static int hwwep = 0;
-#endif
 static int hwwep = 1;  //default use hw. set 0 to use software security
 static int channels = 0x3fff;
 
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(ifname, charp, S_IRUGO|S_IWUSR );
 //module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
-#else
-MODULE_PARM(ifname, "s");
-//MODULE_PARM(hwseqnum,"i");
-MODULE_PARM(hwwep,"i");
-MODULE_PARM(channels,"i");
-#endif
 
 MODULE_PARM_DESC(ifname," Net interface name, wlan%d=default");
 //MODULE_PARM_DESC(hwseqnum," Try to use hardware 802.11 header sequence numbers. Zero=default");
 MODULE_PARM_DESC(hwwep," Try to use hardware security support. ");
 MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
-#else
-static void *__devinit rtl8192_usb_probe(struct usb_device *udev,unsigned int ifnum,
-			 const struct usb_device_id *id);
-static void __devexit rtl8192_usb_disconnect(struct usb_device *udev, void *ptr);
-#endif
 
 
 static struct usb_driver rtl8192_usb_driver = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 15)
-	.owner		= THIS_MODULE,
-#endif
 	.name		= RTL819xU_MODULE_NAME,		  /* Driver name   */
 	.id_table	= rtl8192_usb_id_tbl,		  /* PCI_ID table  */
 	.probe		= rtl8192_usb_probe,		  /* probe fn      */
 	.disconnect	= rtl8192_usb_disconnect,	  /* remove fn     */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 5, 0)
 #ifdef CONFIG_RTL8192_PM
 	.suspend	= rtl8192_suspend,		  /* PM suspend fn */
 	.resume		= rtl8192_resume,                 /* PM resume fn  */
 #else
 	.suspend	= NULL,				  /* PM suspend fn */
 	.resume      	= NULL,				  /* PM resume fn  */
-#endif
 #endif
 };
 
@@ -280,7 +253,6 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 
 void CamResetAllEntry(struct net_device *dev)
 {
-#if 1
 	u32 ulcommand = 0;
 	//2004/02/11  In static WEP, OID_ADD_KEY or OID_ADD_WEP are set before STA associate to AP.
 	// However, ResetKey is called on OID_802_11_INFRASTRUCTURE_MODE and MlmeAssociateRequest
@@ -293,12 +265,6 @@ void CamResetAllEntry(struct net_device *dev)
 	//DbgPrint("========================================\n\n");
 	ulcommand |= BIT31|BIT30;
 	write_nic_dword(dev, RWCAM, ulcommand);
-#else
-	for(ucIndex=0;ucIndex<TOTAL_CAM_ENTRY;ucIndex++)
-		CAM_mark_invalid(dev, ucIndex);
-	for(ucIndex=0;ucIndex<TOTAL_CAM_ENTRY;ucIndex++)
-		CAM_empty_entry(dev, ucIndex);
-#endif
 
 }
 
@@ -513,13 +479,8 @@ inline void force_pci_posting(struct net_device *dev)
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 //void rtl8192_restart(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
-#else
- void rtl8192_restart(struct net_device *dev);
-// //void rtl8192_rq_tx_ack(struct net_device *dev);
- #endif
 
 void watch_dog_timer_callback(unsigned long data);
 
@@ -590,7 +551,6 @@ len += snprintf(page + len, count - len,
 
 		//	printk("%2x ",read_nic_byte(dev,n));
 	}
-#if 1
 len += snprintf(page + len, count - len,
 			"\n####################page 1##################\n ");
 	for(n=0;n<=max;)
@@ -620,7 +580,6 @@ len += snprintf(page + len, count - len,
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
 
-#endif
 
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
@@ -629,98 +588,8 @@ len += snprintf(page + len, count - len,
 }
 
 
-#if 0
-static int proc_get_cck_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-	int i,n;
-
-	int max = 0x5F;
-
-	/* This dump the current register page */
-	for(n=0;n<=max;)
-	{
-		//printk( "\nD: %2x> ", n);
-		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
-
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_phy_cck(dev,n));
-
-		//	printk("%2x ",read_nic_byte(dev,n));
-	}
-	len += snprintf(page + len, count - len,"\n");
 
 
-	*eof = 1;
-	return len;
-}
-
-#endif
-
-#if 0
-static int proc_get_ofdm_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-	int i,n;
-
-	//int max=0xff;
-	int max = 0x40;
-
-	/* This dump the current register page */
-	for(n=0;n<=max;)
-	{
-		//printk( "\nD: %2x> ", n);
-		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
-
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_phy_ofdm(dev,n));
-
-		//	printk("%2x ",read_nic_byte(dev,n));
-	}
-	len += snprintf(page + len, count - len,"\n");
-
-
-
-	*eof = 1;
-	return len;
-}
-
-#endif
-
-#if 0
-static int proc_get_stats_hw(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-
-	len += snprintf(page + len, count - len,
-		"NIC int: %lu\n"
-		"Total int: %lu\n",
-		priv->stats.ints,
-		priv->stats.shints);
-
-	*eof = 1;
-	return len;
-}
-#endif
 
 static int proc_get_stats_tx(char *page, char **start,
 			  off_t offset, int count,
@@ -818,35 +687,16 @@ static int proc_get_stats_rx(char *page, char **start,
 	*eof = 1;
 	return len;
 }
-#if 0
-#if WIRELESS_EXT >= 12 && WIRELESS_EXT < 17
-
-static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
-{
-       struct r8192_priv *priv = ieee80211_priv(dev);
-
-       return &priv->wstats;
-}
-#endif
-#endif
 void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, proc_net);
-#else
 	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, init_net.proc_net);
-#endif
 }
 
 
 void rtl8192_proc_module_remove(void)
 {
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	remove_proc_entry(RTL819xU_MODULE_NAME, proc_net);
-#else
 	remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
-#endif
 }
 
 
@@ -883,16 +733,6 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      dev->name);
 		return;
 	}
-	#if 0
-	e = create_proc_read_entry("stats-hw", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_hw, dev);
-
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8192/%s/stats-hw\n",
-		      dev->name);
-	}
-	#endif
 	e = create_proc_read_entry("stats-rx", S_IFREG | S_IRUGO,
 				   priv->dir_dev, proc_get_stats_rx, dev);
 
@@ -911,17 +751,6 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      "/proc/net/rtl8192/%s/stats-tx\n",
 		      dev->name);
 	}
-	#if 0
-	e = create_proc_read_entry("stats-ieee", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_ieee, dev);
-
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8192/%s/stats-ieee\n",
-		      dev->name);
-	}
-
-	#endif
 
 	e = create_proc_read_entry("stats-ap", S_IFREG | S_IRUGO,
 				   priv->dir_dev, proc_get_stats_ap, dev);
@@ -939,23 +768,6 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      "/proc/net/rtl8192/%s/registers\n",
 		      dev->name);
 	}
-#if 0
-	e = create_proc_read_entry("cck-registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_cck_reg, dev);
-	if (!e) {
-		RT_TRACE(COMP_ERR, "Unable to initialize "
-		      "/proc/net/rtl8192/%s/cck-registers\n",
-		      dev->name);
-	}
-
-	e = create_proc_read_entry("ofdm-registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_ofdm_reg, dev);
-	if (!e) {
-		RT_TRACE(COMP_ERR, "Unable to initialize "
-		      "/proc/net/rtl8192/%s/ofdm-registers\n",
-		      dev->name);
-	}
-#endif
 }
 /****************************************************************************
    -----------------------------MISC STUFF-------------------------
@@ -994,11 +806,7 @@ void tx_timeout(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//rtl8192_commit(dev);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	schedule_work(&priv->reset_wq);
-#else
-	schedule_task(&priv->reset_wq);
-#endif
 	//DMESG("TXTIMEOUT");
 }
 
@@ -1033,30 +841,6 @@ void rtl8192_dump_reg(struct net_device *dev)
       ------------------------------HW STUFF---------------------------
 *****************************************************************************/
 
-#if 0
-void rtl8192_irq_enable(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	//priv->irq_enabled = 1;
-/*
-	write_nic_word(dev,INTA_MASK,INTA_RXOK | INTA_RXDESCERR | INTA_RXOVERFLOW |\
-	INTA_TXOVERFLOW | INTA_HIPRIORITYDESCERR | INTA_HIPRIORITYDESCOK |\
-	INTA_NORMPRIORITYDESCERR | INTA_NORMPRIORITYDESCOK |\
-	INTA_LOWPRIORITYDESCERR | INTA_LOWPRIORITYDESCOK | INTA_TIMEOUT);
-*/
-	write_nic_word(dev,INTA_MASK, priv->irq_mask);
-}
-
-
-void rtl8192_irq_disable(struct net_device *dev)
-{
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	write_nic_word(dev,INTA_MASK,0);
-	force_pci_posting(dev);
-//	priv->irq_enabled = 0;
-}
-#endif
 
 void rtl8192_set_mode(struct net_device *dev,int mode)
 {
@@ -1104,15 +888,6 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
 //	u32 tx;
 	RT_TRACE(COMP_CH, "=====>%s()====ch:%d\n", __FUNCTION__, ch);
 	priv->chan=ch;
-	#if 0
-	if(priv->ieee80211->iw_mode == IW_MODE_ADHOC ||
-		priv->ieee80211->iw_mode == IW_MODE_MASTER){
-
-			priv->ieee80211->link_state = WLAN_LINK_ASSOCIATED;
-			priv->ieee80211->master_chan = ch;
-			rtl8192_update_beacon_ch(dev);
-		}
-	#endif
 
 	/* this hack should avoid frame TX during channel setting*/
 
@@ -1132,11 +907,7 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
 #endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void rtl8192_rx_isr(struct urb *urb, struct pt_regs *regs);
-#else
 static void rtl8192_rx_isr(struct urb *urb);
-#endif
 //static void rtl8192_rx_isr(struct urb *rx_urb);
 
 u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
@@ -1164,11 +935,7 @@ static int rtl8192_rx_initiate(struct net_device*dev)
 		skb = __dev_alloc_skb(RX_URB_SIZE, GFP_KERNEL);
 		if (!skb)
 			break;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		entry = usb_alloc_urb(0, GFP_KERNEL);
-#else
-		entry = usb_alloc_urb(0);
-#endif
 		if (!entry) {
 			kfree_skb(skb);
 			break;
@@ -1191,11 +958,7 @@ static int rtl8192_rx_initiate(struct net_device*dev)
 		skb = __dev_alloc_skb(RX_URB_SIZE ,GFP_KERNEL);
 		if (!skb)
 			break;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		entry = usb_alloc_urb(0, GFP_KERNEL);
-#else
-		entry = usb_alloc_urb(0);
-#endif
 		if (!entry) {
 			kfree_skb(skb);
 			break;
@@ -1277,105 +1040,13 @@ void rtl8192_rx_enable(struct net_device *dev)
 	rtl8192_rx_initiate(dev);
 
 //	rtl8192_set_rxconf(dev);
-#if 0
-	if(NIC_8187 == priv->card_8187) {
-		cmd=read_nic_byte(dev,CMD);
-		write_nic_byte(dev,CMD,cmd | (1<<CMD_RX_ENABLE_SHIFT));
-	}
-	else {
-		//write_nic_dword(dev, RX_CONF, priv->ReceiveConfig);
-	}
-#endif
 }
 
 
 void rtl8192_tx_enable(struct net_device *dev)
 {
-#if 0
-	u8 cmd;
-	u8 byte;
-	u32 txconf;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	//test loopback
-	//	priv->TransmitConfig |= (TX_LOOPBACK_BASEBAND<<TX_LOOPBACK_SHIFT);
-	if(NIC_8187B == priv->card_8187){
-		write_nic_dword(dev, TX_CONF, priv->TransmitConfig);
-		byte = read_nic_byte(dev, MSR);
-		byte |= MSR_LINK_ENEDCA;
-		write_nic_byte(dev, MSR, byte);
-	} else {
-		byte = read_nic_byte(dev,CW_CONF);
-		byte &= ~(1<<CW_CONF_PERPACKET_CW_SHIFT);
-		byte &= ~(1<<CW_CONF_PERPACKET_RETRY_SHIFT);
-		write_nic_byte(dev, CW_CONF, byte);
-
-		byte = read_nic_byte(dev, TX_AGC_CTL);
-		byte &= ~(1<<TX_AGC_CTL_PERPACKET_GAIN_SHIFT);
-		byte &= ~(1<<TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT);
-		byte &= ~(1<<TX_AGC_CTL_FEEDBACK_ANT);
-		write_nic_byte(dev, TX_AGC_CTL, byte);
-
-		txconf= read_nic_dword(dev,TX_CONF);
-
-
-		txconf = txconf &~ TX_LOOPBACK_MASK;
-
-#ifndef LOOP_TEST
-		txconf = txconf | (TX_LOOPBACK_NONE<<TX_LOOPBACK_SHIFT);
-#else
-		txconf = txconf | (TX_LOOPBACK_BASEBAND<<TX_LOOPBACK_SHIFT);
-#endif
-		txconf = txconf &~ TCR_SRL_MASK;
-		txconf = txconf &~ TCR_LRL_MASK;
-
-		txconf = txconf | (priv->retry_data<<TX_LRLRETRY_SHIFT); // long
-		txconf = txconf | (priv->retry_rts<<TX_SRLRETRY_SHIFT); // short
-
-		txconf = txconf &~ (1<<TX_NOCRC_SHIFT);
-
-		txconf = txconf &~ TCR_MXDMA_MASK;
-		txconf = txconf | (TCR_MXDMA_2048<<TCR_MXDMA_SHIFT);
-
-		txconf = txconf | TCR_DISReqQsize;
-		txconf = txconf | TCR_DISCW;
-		txconf = txconf &~ TCR_SWPLCPLEN;
-
-		txconf=txconf | (1<<TX_NOICV_SHIFT);
-
-		write_nic_dword(dev,TX_CONF,txconf);
-
-#ifdef DEBUG_TX
-		DMESG("txconf: %x %x",txconf,read_nic_dword(dev,TX_CONF));
-#endif
-
-		cmd=read_nic_byte(dev,CMD);
-		write_nic_byte(dev,CMD,cmd | (1<<CMD_TX_ENABLE_SHIFT));
-	}
-#endif
 }
 
-#if 0
-void rtl8192_beacon_tx_enable(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask &=~(1<<TX_DMA_STOP_BEACON_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-}
-
-
-void rtl8192_
-_disable(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask |= (1<<TX_DMA_STOP_BEACON_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-}
-
-#endif
 
 
 void rtl8192_rtx_disable(struct net_device *dev)
@@ -1411,91 +1082,9 @@ void rtl8192_rtx_disable(struct net_device *dev)
 
 int alloc_tx_beacon_desc_ring(struct net_device *dev, int count)
 {
-	#if 0
-	int i;
-	u32 *tmp;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	priv->txbeaconring = (u32*)pci_alloc_consistent(priv->pdev,
-					  sizeof(u32)*8*count,
-					  &priv->txbeaconringdma);
-	if (!priv->txbeaconring) return -1;
-	for (tmp=priv->txbeaconring,i=0;i<count;i++){
-		*tmp = *tmp &~ (1<<31); // descriptor empty, owned by the drv
-		/*
-		*(tmp+2) = (u32)dma_tmp;
-		*(tmp+3) = bufsize;
-		*/
-		if(i+1<count)
-			*(tmp+4) = (u32)priv->txbeaconringdma+((i+1)*8*4);
-		else
-			*(tmp+4) = (u32)priv->txbeaconringdma;
-
-		tmp=tmp+8;
-	}
-	#endif
 	return 0;
 }
 
-#if 0
-void rtl8192_reset(struct net_device *dev)
-{
-
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-	//u8 cr;
-
-
-	/* make sure the analog power is on before
-	 * reset, otherwise reset may fail
-	 */
-#if 0
-	if(NIC_8187 == priv->card_8187) {
-		rtl8192_set_anaparam(dev, RTL8225_ANAPARAM_ON);
-		rtl8185_set_anaparam2(dev, RTL8225_ANAPARAM2_ON);
-		rtl8192_irq_disable(dev);
-		mdelay(200);
-		write_nic_byte_E(dev,0x18,0x10);
-		write_nic_byte_E(dev,0x18,0x11);
-		write_nic_byte_E(dev,0x18,0x00);
-		mdelay(200);
-	}
-#endif
-	printk("=====>reset?\n");
-#if 0
-	cr=read_nic_byte(dev,CMD);
-	cr = cr & 2;
-	cr = cr | (1<<CMD_RST_SHIFT);
-	write_nic_byte(dev,CMD,cr);
-
-	force_pci_posting(dev);
-
-	mdelay(200);
-
-	if(read_nic_byte(dev,CMD) & (1<<CMD_RST_SHIFT))
-		RT_TRACE(COMP_ERR, "Card reset timeout!\n");
-	else
-		RT_TRACE(COMP_DOWN, "Card successfully reset\n");
-#endif
-#if 0
-	if(NIC_8187 == priv->card_8187) {
-
-		printk("This is RTL8187 Reset procedure\n");
-		rtl8192_set_mode(dev,EPROM_CMD_LOAD);
-		force_pci_posting(dev);
-		mdelay(200);
-
-		/* after the eeprom load cycle, make sure we have
-		 * correct anaparams
-		 */
-		rtl8192_set_anaparam(dev, RTL8225_ANAPARAM_ON);
-		rtl8185_set_anaparam2(dev, RTL8225_ANAPARAM2_ON);
-	}
-	else
-#endif
-		printk("This is RTL8187B Reset procedure\n");
-
-}
-#endif
 inline u16 ieeerate2rtlrate(int rate)
 {
 	switch(rate){
@@ -1537,11 +1126,7 @@ inline u16 rtl8192_rate2rate(short rate)
 
 
 /* The protype of rx_isr has changed since one verion of Linux Kernel */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void rtl8192_rx_isr(struct urb *urb, struct pt_regs *regs)
-#else
 static void rtl8192_rx_isr(struct urb *urb)
-#endif
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
 	struct rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
@@ -1559,11 +1144,7 @@ static void rtl8192_rx_isr(struct urb *urb)
 	//	printk("%s():rx status err\n",__FUNCTION__);
 		return;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 	skb_unlink(skb, &priv->rx_queue);
-#else
-	__skb_unlink(skb,&priv->rx_queue);
-#endif
 	skb_put(skb, urb->actual_length);
 
 	skb_queue_tail(&priv->skb_queue, skb);
@@ -1618,44 +1199,16 @@ rtl819xusb_rx_command_packet(
 	return status;
 }
 
-#if 0
-void rtl8192_tx_queues_stop(struct net_device *dev)
-{
-	//struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	u8 dma_poll_mask = (1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_HIPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_NORMPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_BEACON_SHIFT);
-
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-}
-#endif
 
 void rtl8192_data_hard_stop(struct net_device *dev)
 {
 	//FIXME !!
-	#if 0
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask |= (1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-	#endif
 }
 
 
 void rtl8192_data_hard_resume(struct net_device *dev)
 {
 	// FIXME !!
-	#if 0
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	priv->dma_poll_mask &= ~(1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-	#endif
 }
 
 /* this function TX data frames when the ieee80211 stack requires this.
@@ -1739,11 +1292,7 @@ u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc);
 u8 MapHwQueueToFirmwareQueue(u8 QueueID);
 struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv_agg_txb *pSendList)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	cb_desc 	*tcb_desc = NULL;
 	u8 		i;
@@ -1854,53 +1403,11 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 		/*DWORD 1*/
 		tx_agg_desc->SecCAMID= 0;
 		tx_agg_desc->RATid = tcb_desc->RATRIndex;
-#if 0
-		/* Fill security related */
-		if( pTcb->bEncrypt && !Adapter->MgntInfo.SecurityInfo.SWTxEncryptFlag)
-		{
-			EncAlg = SecGetEncryptionOverhead(
-					Adapter,
-					&EncryptionMPDUHeadOverhead,
-					&EncryptionMPDUTailOverhead,
-					NULL,
-					NULL,
-					FALSE,
-					FALSE);
-			//2004/07/22, kcwu, EncryptionMPDUHeadOverhead has been added in previous code
-			//MPDUOverhead = EncryptionMPDUHeadOverhead + EncryptionMPDUTailOverhead;
-			MPDUOverhead = EncryptionMPDUTailOverhead;
-			tx_agg_desc->NoEnc = 0;
-			RT_TRACE(COMP_SEC, DBG_LOUD, ("******We in the loop SecCAMID is %d SecDescAssign is %d The Sec is %d********\n",tx_agg_desc->SecCAMID,tx_agg_desc->SecDescAssign,EncAlg));
-			//CamDumpAll(Adapter);
-		}
-		else
-#endif
 		{
 			//MPDUOverhead = 0;
 			tx_agg_desc->NoEnc = 1;
 		}
-#if 0
-		switch(EncAlg){
-			case NO_Encryption:
-				tx_agg_desc->SecType = 0x0;
-				break;
-			case WEP40_Encryption:
-			case WEP104_Encryption:
-				tx_agg_desc->SecType = 0x1;
-				break;
-			case TKIP_Encryption:
-				tx_agg_desc->SecType = 0x2;
-				break;
-			case AESCCMP_Encryption:
-				tx_agg_desc->SecType = 0x3;
-				break;
-			default:
-				tx_agg_desc->SecType = 0x0;
-				break;
-		}
-#else
 		tx_agg_desc->SecType = 0x0;
-#endif
 
 		if (tcb_desc->bHwSec) {
 			switch (priv->ieee80211->pairwise_key_type)
@@ -1956,11 +1463,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 u8 DrvAggr_GetAggregatibleList(struct net_device *dev, struct sk_buff *skb,
 		struct ieee80211_drv_agg_txb *pSendList)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u16		nMaxAggrNum = pHTInfo->UsbTxAggrNum;
 	cb_desc 	*tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
@@ -1979,11 +1482,7 @@ u8 DrvAggr_GetAggregatibleList(struct net_device *dev, struct sk_buff *skb,
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void rtl8192_tx_isr(struct urb *tx_urb, struct pt_regs *reg)
-#else
 static void rtl8192_tx_isr(struct urb *tx_urb)
-#endif
 {
 	struct sk_buff *skb = (struct sk_buff*)tx_urb->context;
 	struct net_device *dev = NULL;
@@ -2019,29 +1518,11 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 		atomic_dec(&priv->tx_pending[queue_index]);
 	}
 
-#if 0  //we need to send zero byte packet just after 512 byte(64 byte)packet is transmitted, or we will halt. It will greatly reduced available page in FW, and ruin our throughput. WB 2008.08.27
-	if(BufLen > 0 && ((BufLen % 512 == 0)||(BufLen % 64 == 0))) {
-		bToSend0Byte = true;
-	}
-
-	bToSend0Byte = false;
-	//
-	// Note that, we at most handle 1 MPDU to send here, either
-	// fragment or MPDU in wait queue.
-	//
-	if(!bToSend0Byte)
-#endif
 	{
 		//
 		// Handle HW Beacon:
 		// We had transfer our beacon frame to host controler at this moment.
 		//
-#if 0
-		if(tcb_desc->tx_queue == BEACON_QUEUE)
-		{
-			priv->bSendingBeacon = FALSE;
-		}
-#endif
 		//
 		// Caution:
 		// Handling the wait queue of command packets.
@@ -2095,12 +1576,6 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 						if(DrvAggr_GetAggregatibleList(dev, skb, &SendList) > 1) {
 							skb = DrvAggr_Aggregation(dev, &SendList);
 
-#if 0
-						printk("=============>to send aggregated packet!\n");
-						RT_DEBUG_DATA(COMP_SEND, skb->cb, sizeof(skb->cb));
-						printk("\n=================skb->len = %d\n", skb->len);
-						RT_DEBUG_DATA(COMP_SEND, skb->data, skb->len);
-#endif
 						}
 					}
 					priv->ieee80211->softmac_hard_start_xmit(skb, dev);
@@ -2110,23 +1585,6 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 		}
 	}
 
-#if 0
-	else
-	{
-		RT_TRACE( COMP_SEND,"HalUsbOutComplete(%d): bToSend0Byte.\n", PipeIndex);
-
-		//
-		// In this case, we don't return skb now.
-		// It will be returned when the 0-byte request completed.
-		//
-
-		//
-		// Bulk out an 0-byte padding transfer.
-		//
-		HalUsbOut0Byte(pAdapter, PipeIndex, skb);
-	}
-
-#endif
 }
 
 void rtl8192_beacon_stop(struct net_device *dev)
@@ -2264,46 +1722,10 @@ void rtl8192_net_update(struct net_device *dev)
 
 //temporary hw beacon is not used any more.
 //open it when necessary
-#if 1
 void rtl819xusb_beacon_tx(struct net_device *dev,u16  tx_rate)
 {
 
-#if 0
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct sk_buff *skb;
-	int i = 0;
-	//u8 cr;
-
-	rtl8192_net_update(dev);
-
-	skb = ieee80211_get_beacon(priv->ieee80211);
-		if(!skb){
-			DMESG("not enought memory for allocating beacon");
-			return;
-		}
-
-
-		write_nic_byte(dev, BQREQ, read_nic_byte(dev, BQREQ) | (1<<7));
-
-		i=0;
-		//while(!read_nic_byte(dev,BQREQ & (1<<7)))
-		while( (read_nic_byte(dev, BQREQ) & (1<<7)) == 0 )
-		{
-			msleep_interruptible_rtl(HZ/2);
-			if(i++ > 10){
-				DMESGW("get stuck to wait HW beacon to be ready");
-				return ;
-			}
-		}
-	skb->cb[0] = NORM_PRIORITY;
-	skb->cb[1] = 0; //morefragment = 0
-	skb->cb[2] = ieeerate2rtlrate(tx_rate);
-
-	rtl8192_tx(dev,skb);
-
-#endif
 }
-#endif
 inline u8 rtl8192_IsWirelessBMode(u16 rate)
 {
 	if( ((rate <= 110) && (rate != 60) && (rate != 90)) || (rate == 220) )
@@ -2392,38 +1814,6 @@ u16 N_DBPSOfRate(u16 DataRate)
 
 void rtl819xU_cmd_isr(struct urb *tx_cmd_urb, struct pt_regs *regs)
 {
-#if 0
-	struct net_device *dev = (struct net_device*)tx_cmd_urb->context;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	int		   last_init_packet = 0;
-	u8		   *ptr_cmd_buf;
-	u16		    cmd_buf_len;
-
-	if(tx_cmd_urb->status != 0) {
-		priv->pFirmware.firmware_seg_index = 0; //only begin transter, should it can be set to 1
-	}
-
-	/* Free the urb and the corresponding buf for common Tx cmd packet, or
-	 * last segment of each firmware img.
-	 */
-	if((priv->pFirmware.firmware_seg_index == 0) ||(priv->pFirmware.firmware_seg_index == priv->pFirmware.firmware_seg_maxnum)) {
-		priv->pFirmware.firmware_seg_index = 0;//only begin transter, should it can be set to 1
-	} else {
-		/* prepare for last transfer */
-		/* update some infomation for */
-		/* last segment of the firmware img need indicate to device */
-		priv->pFirmware.firmware_seg_index++;
-		if(priv->pFirmware.firmware_seg_index == priv->pFirmware.firmware_seg_maxnum) {
-			last_init_packet = 1;
-		}
-
-		cmd_buf_len = priv->pFirmware.firmware_seg_container[priv->pFirmware.firmware_seg_index-1].seg_size;
-		ptr_cmd_buf = priv->pFfirmware.firmware_seg_container[priv->pFfirmware.firmware_seg_index-1].seg_ptr;
-		rtl819xU_tx_cmd(dev, ptr_cmd_buf, cmd_buf_len, last_init_packet, DESC_PACKET_TYPE_INIT);
-	}
-
-	kfree(tx_cmd_urb->transfer_buffer);
-#endif
 	usb_free_urb(tx_cmd_urb);
 }
 
@@ -2451,11 +1841,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 
 	//printk("\n %s::queue_index = %d\n",__FUNCTION__, queue_index);
 	atomic_inc(&priv->tx_pending[queue_index]);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	tx_urb = usb_alloc_urb(0,GFP_ATOMIC);
-#else
-	tx_urb = usb_alloc_urb(0);
-#endif
 	if(!tx_urb){
 		dev_kfree_skb(skb);
 		return -ENOMEM;
@@ -2489,11 +1875,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	usb_fill_bulk_urb(tx_urb,priv->udev, usb_sndbulkpipe(priv->udev,idx_pipe), \
 			skb->data, skb->len, rtl8192_tx_isr, skb);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
-#else
-	status = usb_submit_urb(tx_urb);
-#endif
 
 	if (!status){
 		return 0;
@@ -2612,11 +1994,7 @@ u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
 	return tmp_Short;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void tx_zero_isr(struct urb *tx_urb, struct pt_regs *reg)
-#else
 static void tx_zero_isr(struct urb *tx_urb)
-#endif
 {
 	return;
 }
@@ -2639,10 +2017,6 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	//int urb_len;
 	unsigned int idx_pipe;
 //	RT_DEBUG_DATA(COMP_SEND, tcb_desc, sizeof(cb_desc));
-#if 0
-	/* Added by Annie for filling Len_Adjust field. 2005-12-14. */
-	RT_ENC_ALG  EncAlg = NO_Encryption;
-#endif
 //	printk("=============> %s\n", __FUNCTION__);
 	pend = atomic_read(&priv->tx_pending[tcb_desc->queue_index]);
 	/* we are locked here so the two atomic_read and inc are executed
@@ -2650,32 +2024,12 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	 * !!! For debug purpose
 	 */
 	if( pend > MAX_TX_URB){
-#if 0
-		switch (tcb_desc->queue_index) {
-			case VO_PRIORITY:
-				priv->stats.txvodrop++;
-				break;
-			case VI_PRIORITY:
-				priv->stats.txvidrop++;
-				break;
-			case BE_PRIORITY:
-				priv->stats.txbedrop++;
-				break;
-			default://BK_PRIORITY
-				priv->stats.txbkdrop++;
-				break;
-		}
-#endif
 		printk("To discard skb packet!\n");
 		dev_kfree_skb_any(skb);
 		return -1;
 	}
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	tx_urb = usb_alloc_urb(0,GFP_ATOMIC);
-#else
-	tx_urb = usb_alloc_urb(0);
-#endif
 	if(!tx_urb){
 		dev_kfree_skb_any(skb);
 		return -ENOMEM;
@@ -2751,53 +2105,11 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	/*DWORD 1*/
 	tx_desc->SecCAMID= 0;
 	tx_desc->RATid = tcb_desc->RATRIndex;
-#if 0
-	/* Fill security related */
-	if( pTcb->bEncrypt && !Adapter->MgntInfo.SecurityInfo.SWTxEncryptFlag)
-	{
-		EncAlg = SecGetEncryptionOverhead(
-				Adapter,
-				&EncryptionMPDUHeadOverhead,
-				&EncryptionMPDUTailOverhead,
-				NULL,
-				NULL,
-				FALSE,
-				FALSE);
-		//2004/07/22, kcwu, EncryptionMPDUHeadOverhead has been added in previous code
-		//MPDUOverhead = EncryptionMPDUHeadOverhead + EncryptionMPDUTailOverhead;
-		MPDUOverhead = EncryptionMPDUTailOverhead;
-		tx_desc->NoEnc = 0;
-		RT_TRACE(COMP_SEC, DBG_LOUD, ("******We in the loop SecCAMID is %d SecDescAssign is %d The Sec is %d********\n",tx_desc->SecCAMID,tx_desc->SecDescAssign,EncAlg));
-		//CamDumpAll(Adapter);
-	}
-	else
-#endif
 	{
 		//MPDUOverhead = 0;
 		tx_desc->NoEnc = 1;
 	}
-#if 0
-	switch(EncAlg){
-		case NO_Encryption:
-			tx_desc->SecType = 0x0;
-			break;
-		case WEP40_Encryption:
-		case WEP104_Encryption:
-			tx_desc->SecType = 0x1;
-			break;
-		case TKIP_Encryption:
-			tx_desc->SecType = 0x2;
-			break;
-		case AESCCMP_Encryption:
-			tx_desc->SecType = 0x3;
-			break;
-		default:
-			tx_desc->SecType = 0x0;
-			break;
-	}
-#else
 	tx_desc->SecType = 0x0;
-#endif
 		if (tcb_desc->bHwSec)
 			{
 				switch (priv->ieee80211->pairwise_key_type)
@@ -2830,13 +2142,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 
 	/* Fill fields that are required to be initialized in all of the descriptors */
 	//DWORD 0
-#if 0
-	tx_desc->FirstSeg = (tcb_desc->bFirstSeg)? 1:0;
-	tx_desc->LastSeg = (tcb_desc->bLastSeg)?1:0;
-#else
 	tx_desc->FirstSeg = 1;
 	tx_desc->LastSeg = 1;
-#endif
 	tx_desc->OWN = 1;
 
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
@@ -2863,11 +2170,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 			usb_sndbulkpipe(udev,idx_pipe), skb->data,
 			skb->len, rtl8192_tx_isr, skb);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
-#else
-	status = usb_submit_urb(tx_urb);
-#endif
 	if (!status){
 //we need to send 0 byte packet whenever 512N bytes/64N(HIGN SPEED/NORMAL SPEED) bytes packet has been transmitted. Otherwise, it will be halt to wait for another packet. WB. 2008.08.27
 		bool bSend0Byte = false;
@@ -2884,12 +2187,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 		}
 		if (bSend0Byte)
 		{
-#if 1
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			tx_urb_zero = usb_alloc_urb(0,GFP_ATOMIC);
-#else
-			tx_urb_zero = usb_alloc_urb(0);
-#endif
 			if(!tx_urb_zero){
 				RT_TRACE(COMP_ERR, "can't alloc urb for zero byte\n");
 				return -ENOMEM;
@@ -2897,16 +2195,11 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 			usb_fill_bulk_urb(tx_urb_zero,udev,
 					usb_sndbulkpipe(udev,idx_pipe), &zero,
 					0, tx_zero_isr, dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			status = usb_submit_urb(tx_urb_zero, GFP_ATOMIC);
-#else
-			status = usb_submit_urb(tx_urb_zero);
-#endif
 			if (status){
 			RT_TRACE(COMP_ERR, "Error TX URB for zero byte %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]), status);
 			return -1;
 			}
-#endif
 		}
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
@@ -2927,11 +2220,7 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 #ifndef JACKSON_NEW_RX
 	for(i=0;i<(MAX_RX_URB+1);i++){
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		priv->rx_urb[i] = usb_alloc_urb(0,GFP_KERNEL);
-#else
-		priv->rx_urb[i] = usb_alloc_urb(0);
-#endif
 
 		priv->rx_urb[i]->transfer_buffer = kmalloc(RX_URB_SIZE, GFP_KERNEL);
 
@@ -3050,44 +2339,6 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 }
 #endif
 
-#if 0
-void rtl8192_set_rate(struct net_device *dev)
-{
-	int i;
-	u16 word;
-	int basic_rate,min_rr_rate,max_rr_rate;
-
-//	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	//if (ieee80211_is_54g(priv->ieee80211->current_network) &&
-//		priv->ieee80211->state == IEEE80211_LINKED){
-	basic_rate = ieeerate2rtlrate(240);
-	min_rr_rate = ieeerate2rtlrate(60);
-	max_rr_rate = ieeerate2rtlrate(240);
-
-//
-//	}else{
-//		basic_rate = ieeerate2rtlrate(20);
-//		min_rr_rate = ieeerate2rtlrate(10);
-//		max_rr_rate = ieeerate2rtlrate(110);
-//	}
-
-	write_nic_byte(dev, RESP_RATE,
-			max_rr_rate<<MAX_RESP_RATE_SHIFT| min_rr_rate<<MIN_RESP_RATE_SHIFT);
-
-	//word  = read_nic_word(dev, BRSR);
-	word  = read_nic_word(dev, BRSR_8187);
-	word &= ~BRSR_MBR_8185;
-
-
-	for(i=0;i<=basic_rate;i++)
-		word |= (1<<i);
-
-	//write_nic_word(dev, BRSR, word);
-	write_nic_word(dev, BRSR_8187, word);
-	//DMESG("RR:%x BRSR: %x", read_nic_byte(dev,RESP_RATE), read_nic_word(dev,BRSR));
-}
-#endif
 extern void rtl8192_update_ratr_table(struct net_device* dev);
 void rtl8192_link_change(struct net_device *dev)
 {
@@ -3100,11 +2351,9 @@ void rtl8192_link_change(struct net_device *dev)
 	{
 		rtl8192_net_update(dev);
 		rtl8192_update_ratr_table(dev);
-#if 1
 		//add this as in pure N mode, wep encryption will use software way, but there is no chance to set this as wep will not set group key in wext. WB.2008.07.08
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
 		EnableHWSecurityConfig8192(dev);
-#endif
 	}
 	/*update timing params*/
 //	RT_TRACE(COMP_CH, "========>%s(), chan:%d\n", __FUNCTION__, priv->chan);
@@ -3132,16 +2381,10 @@ static struct ieee80211_qos_parameters def_qos_parameters = {
 };
 
 
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8192_update_beacon(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, update_beacon_wq.work);
         struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_update_beacon(struct net_device *dev)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
  	struct ieee80211_device* ieee = priv->ieee80211;
 	struct ieee80211_network* net = &ieee->current_network;
 
@@ -3154,16 +2397,10 @@ void rtl8192_update_beacon(struct net_device *dev)
 * background support to run QoS activate functionality
 */
 int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8192_qos_activate(struct work_struct * work)
 {
 	struct r8192_priv *priv = container_of(work, struct r8192_priv, qos_activate);
 	struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_qos_activate(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
 	u8 mode = priv->ieee80211->current_network.mode;
 	//u32 size = sizeof(struct ieee80211_qos_parameters);
@@ -3174,11 +2411,7 @@ void rtl8192_qos_activate(struct net_device *dev)
 	if (priv == NULL)
 		return;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	down(&priv->mutex);
-#else
        mutex_lock(&priv->mutex);
-#endif
 	if(priv->ieee80211->state != IEEE80211_LINKED)
 		goto success;
 	RT_TRACE(COMP_QOS,"qos active process with associate response received\n");
@@ -3198,11 +2431,7 @@ void rtl8192_qos_activate(struct net_device *dev)
 	}
 
 success:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	up(&priv->mutex);
-#else
        mutex_unlock(&priv->mutex);
-#endif
 }
 
 static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
@@ -3229,11 +2458,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 				 network->qos_data.param_count)) {
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-			schedule_task(&priv->qos_activate);
-#endif
 			RT_TRACE (COMP_QOS, "QoS parameters change call "
 					"qos_activate\n");
 		}
@@ -3242,11 +2467,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-			schedule_task(&priv->qos_activate);
-#endif
 			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate \n");
 		}
 		network->qos_data.active = 0;
@@ -3264,16 +2485,7 @@ static int rtl8192_handle_beacon(struct net_device * dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	rtl8192_qos_handle_probe_response(priv,1,network);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq, &priv->update_beacon_wq, 0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->update_beacon_wq);
-#else
-	queue_work(priv->priv_wq, &priv->update_beacon_wq);
-#endif
-
-#endif
 	return 0;
 
 }
@@ -3306,10 +2518,6 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 			 &network->qos_data.parameters,\
 			sizeof(struct ieee80211_qos_parameters));
 		priv->ieee80211->current_network.qos_data.active = 1;
-#if 0
-		if((priv->ieee80211->current_network.qos_data.param_count != \
-					network->qos_data.param_count))
-#endif
 		 {
 			set_qos_param = 1;
 			/* update qos parameter for current network */
@@ -3330,11 +2538,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 
 	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n",__FUNCTION__,network->flags ,priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-		schedule_task(&priv->qos_activate);
-#endif
 
 
 	return ret;
@@ -3404,7 +2608,6 @@ static u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
 static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
 bool GetNmodeSupportBySecCfg8192(struct net_device*dev)
 {
-#if 1
 	struct r8192_priv* priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 	struct ieee80211_network * network = &ieee->current_network;
@@ -3432,20 +2635,7 @@ bool GetNmodeSupportBySecCfg8192(struct net_device*dev)
 		return true;
 	}
 
-#if 0
-	//In here we discuss with SD4 David. He think we still can send TKIP in broadcast group key in MCS rate.
-	//We can't force in G mode if Pairwie key is AES and group key is TKIP
-	if((pSecInfo->GroupEncAlgorithm == WEP104_Encryption) || (pSecInfo->GroupEncAlgorithm == WEP40_Encryption)  ||
-	   (pSecInfo->PairwiseEncAlgorithm == WEP104_Encryption) ||
-	   (pSecInfo->PairwiseEncAlgorithm == WEP40_Encryption) || (pSecInfo->PairwiseEncAlgorithm == TKIP_Encryption))
-	{
-		return  false;
-	}
-	else
-		return true;
-#endif
 	return true;
-#endif
 }
 
 bool GetHalfNmodeSupportByAPs819xUsb(struct net_device* dev)
@@ -3502,7 +2692,6 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 bSupportMode = rtl8192_getSupportedWireleeMode(dev);
 
-#if 1
 	if ((wireless_mode == WIRELESS_MODE_AUTO) || ((wireless_mode&bSupportMode)==0))
 	{
 		if(bSupportMode & WIRELESS_MODE_N_24G)
@@ -3541,7 +2730,6 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 		priv->ieee80211->pHTInfo->bEnableHT = 0;
 	RT_TRACE(COMP_INIT, "Current Wireless Mode is %x\n", wireless_mode);
 	rtl8192_refresh_supportrate(priv);
-#endif
 
 }
 //init priv variables here. only non_zero value should be initialized here.
@@ -3679,18 +2867,10 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	//spin_lock_init(&priv->rf_lock);
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_sem,1);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	sema_init(&priv->mutex, 1);
-#else
 	mutex_init(&priv->mutex);
-#endif
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern  void    rtl819x_watchdog_wqcallback(struct work_struct *work);
-#else
-extern  void    rtl819x_watchdog_wqcallback(struct net_device *dev);
-#endif
 
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
 //init tasklet and wait_queue here. only 2.6 above kernel is considered
@@ -3699,15 +2879,12 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #ifdef PF_SYNCTHREAD
 	priv->priv_wq = create_workqueue(DRV_NAME,0);
 #else
 	priv->priv_wq = create_workqueue(DRV_NAME);
 #endif
-#endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_WORK(&priv->reset_wq, rtl8192_restart);
 
 	//INIT_DELAYED_WORK(&priv->watch_dog_wq, hal_dm_watchdog);
@@ -3720,30 +2897,6 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	//INIT_WORK(&priv->SwChnlWorkItem,  rtl8192_SwChnl_WorkItem);
 	//INIT_WORK(&priv->SetBWModeWorkItem,  rtl8192_SetBWModeWorkItem);
 	INIT_WORK(&priv->qos_activate, rtl8192_qos_activate);
-#else
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	tq_init(&priv->reset_wq, (void*)rtl8192_restart, dev);
-	tq_init(&priv->watch_dog_wq, (void*)rtl819x_watchdog_wqcallback, dev);
-	tq_init(&priv->txpower_tracking_wq, (void*)dm_txpower_trackingcallback, dev);
-	tq_init(&priv->rfpath_check_wq, (void*)dm_rf_pathcheck_workitemcallback, dev);
-	tq_init(&priv->update_beacon_wq, (void*)rtl8192_update_beacon, dev);
-	//tq_init(&priv->SwChnlWorkItem, (void*) rtl8192_SwChnl_WorkItem, dev);
-	//tq_init(&priv->SetBWModeWorkItem, (void*)rtl8192_SetBWModeWorkItem, dev);
-	tq_init(&priv->qos_activate, (void *)rtl8192_qos_activate, dev);
-#else
-	INIT_WORK(&priv->reset_wq,(void(*)(void*)) rtl8192_restart,dev);
-	//INIT_WORK(&priv->watch_dog_wq, (void(*)(void*)) hal_dm_watchdog,dev);
-	INIT_WORK(&priv->watch_dog_wq, (void(*)(void*)) rtl819x_watchdog_wqcallback,dev);
-	INIT_WORK(&priv->txpower_tracking_wq, (void(*)(void*)) dm_txpower_trackingcallback,dev);
-//	INIT_WORK(&priv->gpio_change_rf_wq, (void(*)(void*)) dm_gpio_change_rf_callback,dev);
-	INIT_WORK(&priv->rfpath_check_wq, (void(*)(void*)) dm_rf_pathcheck_workitemcallback,dev);
-	INIT_WORK(&priv->update_beacon_wq, (void(*)(void*))rtl8192_update_beacon,dev);
-	INIT_WORK(&priv->initialgain_operate_wq, (void(*)(void*))InitialGainOperateWorkItemCallBack,dev);
-	//INIT_WORK(&priv->SwChnlWorkItem, (void(*)(void*)) rtl8192_SwChnl_WorkItem, dev);
-	//INIT_WORK(&priv->SetBWModeWorkItem, (void(*)(void*)) rtl8192_SetBWModeWorkItem, dev);
-	INIT_WORK(&priv->qos_activate, (void(*)(void *))rtl8192_qos_activate, dev);
-#endif
-#endif
 
 	tasklet_init(&priv->irq_rx_tasklet,
 	     (void(*)(unsigned long))rtl8192_irq_rx_tasklet,
@@ -4218,7 +3371,6 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	//config BB.
 	rtl8192_BBConfig(dev);
 
-#if 1
 	//Loopback mode or not
 	priv->LoopbackMode = RTL819xU_NO_LOOPBACK;
 //	priv->LoopbackMode = RTL819xU_MAC_LOOPBACK;
@@ -4434,7 +3586,6 @@ if(Adapter->ResetProgress == RESET_TYPE_NORESET)
 	write_nic_byte(dev, 0x87, 0x0);
 
 
-#endif
 	return init_status;
 }
 
@@ -4442,63 +3593,6 @@ if(Adapter->ResetProgress == RESET_TYPE_NORESET)
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
  * be used to stop beacon transmission
  */
-#if 0
-void rtl8192_start_tx_beacon(struct net_device *dev)
-{
-	int i;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	u16 word;
-	DMESG("Enabling beacon TX");
-	//write_nic_byte(dev, TX_CONF,0xe6);// TX_CONF
-	//rtl8192_init_beacon(dev);
-	//set_nic_txring(dev);
-//	rtl8192_prepare_beacon(dev);
-	rtl8192_irq_disable(dev);
-//	rtl8192_beacon_tx_enable(dev);
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	//write_nic_byte(dev,0x9d,0x20); //DMA Poll
-	//write_nic_word(dev,0x7a,0);
-	//write_nic_word(dev,0x7a,0x8000);
-
-
-	word  = read_nic_word(dev, BcnItv);
-	word &= ~BcnItv_BcnItv; // clear Bcn_Itv
-	write_nic_word(dev, BcnItv, word);
-
-	write_nic_word(dev, AtimWnd,
-		       read_nic_word(dev, AtimWnd) &~ AtimWnd_AtimWnd);
-
-	word  = read_nic_word(dev, BCN_INTR_ITV);
-	word &= ~BCN_INTR_ITV_MASK;
-
-	//word |= priv->ieee80211->beacon_interval *
-	//	((priv->txbeaconcount > 1)?(priv->txbeaconcount-1):1);
-	// FIXME:FIXME check if correct ^^ worked with 0x3e8;
-
-	write_nic_word(dev, BCN_INTR_ITV, word);
-
-	//write_nic_word(dev,0x2e,0xe002);
-	//write_nic_dword(dev,0x30,0xb8c7832e);
-	for(i=0; i<ETH_ALEN; i++)
-		write_nic_byte(dev, BSSID+i, priv->ieee80211->beacon_cell_ssid[i]);
-
-//	rtl8192_update_msr(dev);
-
-
-	//write_nic_byte(dev,CONFIG4,3); /* !!!!!!!!!! */
-
-	rtl8192_set_mode(dev, EPROM_CMD_NORMAL);
-
-	rtl8192_irq_enable(dev);
-
-	/* VV !!!!!!!!!! VV*/
-	/*
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,0x9d,0x00);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-*/
-}
-#endif
 /***************************************************************************
     -------------------------------NET STUFF---------------------------
 ***************************************************************************/
@@ -4552,21 +3646,18 @@ TxCheckStuck(struct net_device *dev)
 	     {
 	     		if(QueueID == TXCMD_QUEUE)
 		         continue;
-#if 1
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 			if((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_drv_aggQ[QueueID]) == 0))
 #else
 		     	if((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0)  && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0))
 #endif
 			 	continue;
-#endif
 
 	             bCheckFwTxCnt = true;
 	     }
 //	     PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
 //	spin_unlock_irqrestore(&priv->ieee80211->lock,flags);
 //	RT_TRACE(COMP_RESET,"bCheckFwTxCnt is %d\n",bCheckFwTxCnt);
-#if 1
 	if(bCheckFwTxCnt)
 	{
 		if(HalTxCheckStuck819xUsb(dev))
@@ -4575,7 +3666,6 @@ TxCheckStuck(struct net_device *dev)
 			return RESET_TYPE_SILENT;
 		}
 	}
-#endif
 	return RESET_TYPE_NORESET;
 }
 
@@ -4694,7 +3784,6 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	rfState = priv->ieee80211->eRFPowerState;
 
 	TxResetType = TxCheckStuck(dev);
-#if 1
 	if( rfState != eRfOff ||
 		/*ADAPTER_TEST_STATUS_FLAG(Adapter, ADAPTER_STATUS_FW_DOWNLOAD_FAILURE)) &&*/
 		(priv->ieee80211->iw_mode != IW_MODE_ADHOC))
@@ -4709,7 +3798,6 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 		// set, STA cannot hear any packet a all. Emily, 2008.04.12
 		RxResetType = RxCheckStuck(dev);
 	}
-#endif
 	if(TxResetType==RESET_TYPE_NORMAL || RxResetType==RESET_TYPE_NORMAL)
 		return RESET_TYPE_NORMAL;
 	else if(TxResetType==RESET_TYPE_SILENT || RxResetType==RESET_TYPE_SILENT){
@@ -4889,7 +3977,6 @@ RESET_START:
 		// Set the variable for reset.
 		priv->ResetProgress = RESET_TYPE_SILENT;
 //		rtl8192_close(dev);
-#if 1
 		down(&priv->wx_sem);
 		if(priv->up == 0)
 		{
@@ -4914,9 +4001,7 @@ RESET_START:
 			printk("ieee->state is IEEE80211_LINKED\n");
 			ieee80211_stop_send_beacons(priv->ieee80211);
 			del_timer_sync(&ieee->associate_timer);
-			#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			cancel_delayed_work(&ieee->associate_retry_wq);
-			#endif
 			ieee80211_stop_scan(ieee);
 			netif_carrier_off(dev);
 			up(&ieee->wx_sem);
@@ -4943,22 +4028,13 @@ RESET_START:
 				RT_TRACE(COMP_ERR," ERR!!! %s():  Reset Failed!!\n", __FUNCTION__);
 			}
 		}
-#endif
 		ieee->is_silent_reset = 1;
-#if 1
 		EnableHWSecurityConfig8192(dev);
-#if 1
 		if(ieee->state == IEEE80211_LINKED && ieee->iw_mode == IW_MODE_INFRA)
 		{
 			ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
-#if 1
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(ieee->wq, &ieee->associate_complete_wq);
-#else
-			schedule_task(&ieee->associate_complete_wq);
-#endif
-#endif
 
 		}
 		else if(ieee->state == IEEE80211_LINKED && ieee->iw_mode == IW_MODE_ADHOC)
@@ -4974,7 +4050,6 @@ RESET_START:
 				ieee->data_hard_resume(ieee->dev);
 			netif_carrier_on(ieee->dev);
 		}
-#endif
 
 		CamRestoreAllEntry(dev);
 
@@ -4987,7 +4062,6 @@ RESET_START:
 		// For test --> force write UFWP.
 		write_nic_byte(dev, UFWP, 1);
 		RT_TRACE(COMP_RESET, "Reset finished!! ====>[%d]\n", priv->reset_count);
-#endif
 	}
 }
 
@@ -5010,7 +4084,6 @@ void CAM_read_entry(
 
 	//Check polling bit is clear
 //	mdelay(1);
-#if 1
 		while((i--)>=0)
 		{
 			ulStatus = read_nic_dword(dev, RWCAM);
@@ -5021,7 +4094,6 @@ void CAM_read_entry(
 				break;
 			}
 		}
-#endif
 		write_nic_dword(dev, RWCAM, target_command);
 		RT_TRACE(COMP_SEC,"CAM_read_entry(): WRITE A0: %x \n",target_command);
 	 //	printk("CAM_read_entry(): WRITE A0: %lx \n",target_command);
@@ -5054,17 +4126,11 @@ void rtl819x_update_rxcounts(
 }
 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
 	static u8	check_reset_cnt=0;
@@ -5106,11 +4172,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
 				notify_wx_assoc_event(priv->ieee80211);
 				RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
 				priv->ieee80211->link_change(dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
                                 queue_work(priv->ieee80211->wq, &priv->ieee80211->associate_procedure_wq);
-#else
-                                schedule_task(&priv->ieee80211->associate_procedure_wq);
-#endif
 
 			}
 		}
@@ -5126,7 +4188,6 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
 		//DbgPrint("Start to check silent reset\n");
 	}
 	//	RT_TRACE(COMP_RESET,"%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n",__FUNCTION__,priv->force_reset,priv->ResetProgress,priv->bForcedSilentReset,priv->bDisableNormalResetCheck,ResetType);
-#if 1
 	if( (priv->force_reset) || (priv->ResetProgress==RESET_TYPE_NORESET &&
 		(priv->bForcedSilentReset ||
 		(!priv->bDisableNormalResetCheck && ResetType==RESET_TYPE_SILENT)))) // This is control by OID set in Pomelo
@@ -5134,7 +4195,6 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
 		RT_TRACE(COMP_RESET,"%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n",__FUNCTION__,priv->force_reset,priv->ResetProgress,priv->bForcedSilentReset,priv->bDisableNormalResetCheck,ResetType);
 		rtl819x_ifsilentreset(dev);
 	}
-#endif
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
@@ -5146,20 +4206,8 @@ void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *) data);
 	//printk("===============>watch_dog  timer\n");
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq,&priv->watch_dog_wq, 0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->watch_dog_wq);
-#else
-	queue_work(priv->priv_wq,&priv->watch_dog_wq);
-#endif
-#endif
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
-#if 0
-	priv->watch_dog_timer.expires = jiffies + MSECS(IEEE80211_WATCH_DOG_TIME);
-	add_timer(&priv->watch_dog_timer);
-#endif
 }
 int _rtl8192_up(struct net_device *dev)
 {
@@ -5298,17 +4346,10 @@ void rtl8192_restart(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_restart(struct work_struct *work)
 {
 	struct r8192_priv *priv = container_of(work, struct r8192_priv, reset_wq);
 	struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_restart(struct net_device *dev)
-{
-
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 
 	down(&priv->wx_sem);
 
@@ -5347,11 +4388,7 @@ int r8192_set_mac_adr(struct net_device *dev, void *mac)
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	schedule_work(&priv->reset_wq);
-#else
-	schedule_task(&priv->reset_wq);
-#endif
 	up(&priv->wx_sem);
 
 	return 0;
@@ -5604,14 +4641,6 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 		bcheck = true;
 	}else
 	{
-	#if 0
-		// if previous packet is aggregated packet, and current packet
-		//  (1) is not AMPDU
-		//  (2) is the first packet of one AMPDU
-		// that means the previous packet is the last one aggregated packet
-		if( !pcurrent_stats->bIsAMPDU || pcurrent_stats->bFirstMPDU)
-			bcheck = true;
-	#endif
 	}
 
 
@@ -5728,7 +4757,6 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 			priv->undecorated_smoothed_pwdb = pprevious_stats->RxPWDBAll;
 			//DbgPrint("First pwdb initialize \n");
 		}
-#if 1
 		if(pprevious_stats->RxPWDBAll > (u32)priv->undecorated_smoothed_pwdb)
 		{
 			priv->undecorated_smoothed_pwdb =
@@ -5742,20 +4770,6 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 					( ((priv->undecorated_smoothed_pwdb)*(Rx_Smooth_Factor-1)) +
 					(pprevious_stats->RxPWDBAll)) /(Rx_Smooth_Factor);
 		}
-#else
-		//Fixed by Jacken 2008-03-20
-		if(pPreviousRfd->Status.RxPWDBAll > (u32)pHalData->UndecoratedSmoothedPWDB)
-		{
-			pHalData->UndecoratedSmoothedPWDB =
-					( ((pHalData->UndecoratedSmoothedPWDB)* 5) + (pPreviousRfd->Status.RxPWDBAll)) / 6;
-			pHalData->UndecoratedSmoothedPWDB = pHalData->UndecoratedSmoothedPWDB + 1;
-		}
-		else
-		{
-			pHalData->UndecoratedSmoothedPWDB =
-					( ((pHalData->UndecoratedSmoothedPWDB)* 5) + (pPreviousRfd->Status.RxPWDBAll)) / 6;
-		}
-#endif
 
 	}
 
@@ -6133,9 +5147,6 @@ static void rtl8192_query_rxphystatus(
 			rx_evmX /= 2;	//dbm
 
 			evm = rtl819x_evm_dbtopercentage(rx_evmX);
-#if 0
-			EVM = SignalScaleMapping(EVM);//make it good looking, from 0~100
-#endif
 			//if(bpacket_match_bssid)
 			{
 				if(i==0) // Fill value in RFD, Get the first spatial stream only
@@ -6216,7 +5227,6 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 								 && (!pstats->bHwError) && (!pstats->bCRC)&& (!pstats->bICV));
 	bpacket_toself =  bpacket_match_bssid & (eqMacAddr(praddr, priv->ieee80211->dev->dev_addr));
 
-#if 1//cosa
 		if(WLAN_FC_GET_FRAMETYPE(fc)== IEEE80211_STYPE_BEACON)
 		{
 			bPacketBeacon = true;
@@ -6229,7 +5239,6 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 				//DbgPrint("BlockAck, MatchBSSID = %d, ToSelf = %d \n", bPacketMatchBSSID, bPacketToSelf);
 		}
 
-#endif
 
 
 	if(bpacket_match_bssid)
@@ -6416,10 +5425,6 @@ void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, 
 
 		stats->bIsAMPDU = (driver_info->PartAggr==1);
 		stats->bFirstMPDU = (driver_info->PartAggr==1) && (driver_info->FirstAGGR==1);
-#if 0
-		// TODO: it is debug only. It should be disabled in released driver. 2007.1.12 by Joseph
-		UpdateRxAMPDUHistogramStatistics8190(Adapter, pRfd);
-#endif
 		stats->TimeStampLow = driver_info->TSFL;
 		// xiong mask it, 070514
 		//pRfd->Status.TimeStampHigh = PlatformEFIORead4Byte(Adapter, TSFR+4);
@@ -6452,17 +5457,6 @@ void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, 
 	}
 #endif
 	/* for debug 2008.5.29 */
-#if 0
-	{
-		int i;
-		printk("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-		for(i = 0; i < skb->len; i++) {
-			if(i % 10 == 0) printk("\n");
-			printk("%02x ", skb->data[i]);
-		}
-		printk("\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-	}
-#endif
 
 	//added by vivi, for MP, 20080108
 	stats->RxIs40MHzPacket = driver_info->BW;
@@ -6753,33 +5747,6 @@ void rtl8192_rx_cmd(struct sk_buff *skb)
 		;
 
 
-#if 0
-	desc = (u32*)(skb->data);
-	cmd = (desc[0] >> 30) & 0x03;
-
-	if(cmd == 0x00) {//beacon interrupt
-		//send beacon packet
-		skb = ieee80211_get_beacon(priv->ieee80211);
-
-		if(!skb){
-			DMESG("not enought memory for allocating beacon");
-			return;
-		}
-		skb->cb[0] = BEACON_PRIORITY;
-		skb->cb[1] = 0;
-		skb->cb[2] = ieeerate2rtlrate(priv->ieee80211->basic_rate);
-		ret = rtl8192_tx(dev, skb);
-
-		if( ret != 0 ){
-			printk(KERN_ALERT "tx beacon packet error : %d !\n", ret);
-		}
-		dev_kfree_skb_any(skb);
-	} else {//0x00
-		//{ log the device information
-		// At present, It is not implemented just now.
-		//}
-	}
-#endif
 }
 
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
@@ -6833,39 +5800,22 @@ static const struct net_device_ops rtl8192_netdev_ops = {
      ---------------------------- USB_STUFF---------------------------
 *****************************************************************************/
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
-#else
-static void * __devinit rtl8192_usb_probe(struct usb_device *udev,
-					unsigned int ifnum,
-				  const struct usb_device_id *id)
-#endif
 {
 //	unsigned long ioaddr = 0;
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct usb_device *udev = interface_to_usbdev(intf);
-#endif
 	RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-	SET_MODULE_OWNER(dev);
-#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
-#endif
 	priv = ieee80211_priv(dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	priv->ieee80211 = netdev_priv(dev);
-#else
-	priv->ieee80211 = (struct net_device *)dev->priv;
-#endif
 	priv->udev=udev;
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
@@ -6888,12 +5838,10 @@ static void * __devinit rtl8192_usb_probe(struct usb_device *udev,
 	}
 
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
-#if 1
 	if(rtl8192_init(dev)!=0){
 		RT_TRACE(COMP_ERR, "Initialization failed");
 		goto fail;
 	}
-#endif
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
@@ -6903,22 +5851,14 @@ static void * __devinit rtl8192_usb_probe(struct usb_device *udev,
 
 
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	return dev;
-#else
 	return 0;
-#endif
 
 
 fail:
 	free_ieee80211(dev);
 
 	RT_TRACE(COMP_ERR, "wlan driver load failed\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	return NULL;
-#else
 	return -ENODEV;
-#endif
 
 }
 
@@ -6926,38 +5866,19 @@ fail:
 void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 {
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 	cancel_work_sync(&priv->reset_wq);
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
 	cancel_work_sync(&priv->qos_activate);
 	//cancel_work_sync(&priv->SetBWModeWorkItem);
 	//cancel_work_sync(&priv->SwChnlWorkItem);
-#else
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-//	cancel_delayed_work(&priv->reset_wq);
-	cancel_delayed_work(&priv->watch_dog_wq);
-	cancel_delayed_work(&priv->update_beacon_wq);
-//	cancel_delayed_work(&priv->qos_activate);
-	//cancel_delayed_work(&priv->SetBWModeWorkItem);
-	//cancel_delayed_work(&priv->SwChnlWorkItem);
-#endif
-#endif
 
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf)
-#else
-static void __devexit rtl8192_usb_disconnect(struct usb_device *udev, void *ptr)
-#endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct net_device *dev = usb_get_intfdata(intf);
-#else
-	struct net_device *dev = (struct net_device *)ptr;
-#endif
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	if(dev){
@@ -6976,9 +5897,7 @@ static void __devexit rtl8192_usb_disconnect(struct usb_device *udev, void *ptr)
 	//	priv->rf_close(dev);
 //		rtl8192_SetRFPowerState(dev, eRfOff);
 		rtl8192_usb_deleteendpoints(dev);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 		destroy_workqueue(priv->priv_wq);
-#endif
 		//rtl8192_irq_disable(dev);
 		//rtl8192_reset(dev);
 		mdelay(10);
@@ -7075,7 +5994,6 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	 struct ieee80211_device* ieee = priv->ieee80211;
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-#if 1
 	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) && (priv->ieee80211->auth_mode != 2))
 	{
 		SECR_value |= SCR_RxUseDK;
@@ -7086,7 +6004,6 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
 	}
-#endif
 	//add HWSec active enable here.
 //default using hwsec. when peer AP is in N mode only and pairwise_key_type is none_aes(which HT_IOT_ACT_PURE_N_MODE indicates it), use software security. when peer AP is in b,g,n mode mixed and pairwise_key_type is none_aes, use g mode hw security. WB on 2008.7.4
 

@@ -235,11 +235,6 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	//int i;
 	if (unlikely(!txb))
 		return;
-#if 0
-	for (i = 0; i < txb->nr_frags; i++)
-		if (txb->fragments[i])
-			dev_kfree_skb_any(txb->fragments[i]);
-#endif
 	kfree(txb);
 }
 
@@ -287,11 +282,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 		return 0;
 
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22))
 	ip = ip_hdr(skb);
-#else
-	ip = (struct iphdr*)(skb->data + sizeof(struct ether_header));
-#endif
 	switch (ip->tos & 0xfc) {
 		case 0x20:
 			return 2;
@@ -334,12 +325,10 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 	if(!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
 		return;
 #endif
-#if 1
 	if(!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 	{
 		return;
 	}
-#endif
 	if(pHTInfo->bCurrentAMPDUEnable)
 	{
 		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
@@ -602,11 +591,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 
 int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
@@ -878,7 +863,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
 	if (txb)
 	{
-#if 1
 		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))
@@ -899,7 +883,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		ieee80211_query_seqnum(ieee, txb->fragments[0], header.addr1);
 //		IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, txb->fragments[0]->data, txb->fragments[0]->len);
 		//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, tcb_desc, sizeof(cb_desc));
-#endif
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	dev_kfree_skb_any(skb);

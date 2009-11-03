@@ -22,22 +22,6 @@
 #include <asm/softirq.h>
 #include <asm/kmap_types.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,20))
-#define list_for_each_entry(pos, head, member)				\
-	for (pos = list_entry((head)->next, typeof(*pos), member),	\
-		     prefetch(pos->member.next);			\
-	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
-		     prefetch(pos->member.next))
-
-static inline void cond_resched(void)
-{
-	if (need_resched()) {
-		set_current_state(TASK_RUNNING);
-		schedule();
-	}
-}
-#endif
 
 extern enum km_type crypto_km_types[];
 

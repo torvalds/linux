@@ -7,11 +7,6 @@
  *		2. Before write integer to IO.
  *		3. After read integer from IO.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
 
 #define __MACHINE_LITTLE_ENDIAN 1234    /* LSB first: i386, vax */
 #define __MACHINE_BIG_ENDIAN    4321    /* MSB first: 68000, ibm, net, ppc */
