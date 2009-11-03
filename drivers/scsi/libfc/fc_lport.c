@@ -94,6 +94,7 @@
 
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
+#include <linux/scatterlist.h>
 
 #include "fc_libfc.h"
 
@@ -125,6 +126,24 @@ static const char *fc_lport_state_names[] = {
 	[LPORT_ST_READY] =    "Ready",
 	[LPORT_ST_LOGO] =     "LOGO",
 	[LPORT_ST_RESET] =    "reset",
+};
+
+/**
+ * struct fc_bsg_info - FC Passthrough managemet structure
+ * @job:      The passthrough job
+ * @lport:    The local port to pass through a command
+ * @rsp_code: The expected response code
+ * @sg:       job->reply_payload.sg_list
+ * @nents:    job->reply_payload.sg_cnt
+ * @offset:   The offset into the response data
+ */
+struct fc_bsg_info {
+	struct fc_bsg_job *job;
+	struct fc_lport *lport;
+	u16 rsp_code;
+	struct scatterlist *sg;
+	u32 nents;
+	size_t offset;
 };
 
 static int fc_frame_drop(struct fc_lport *lport, struct fc_frame *fp)
@@ -1512,3 +1531,251 @@ int fc_lport_init(struct fc_lport *lport)
 	return 0;
 }
 EXPORT_SYMBOL(fc_lport_init);
+
+/**
+ * fc_lport_bsg_resp() - The common response handler for fc pass-thru requests
+ * @sp: current sequence in the fc pass-thru request exchange
+ * @fp: received response frame
+ * @info_arg: pointer to struct fc_bsg_info
+ */
+static void fc_lport_bsg_resp(struct fc_seq *sp, struct fc_frame *fp,
+			      void *info_arg)
+{
+	struct fc_bsg_info *info = info_arg;
+	struct fc_bsg_job *job = info->job;
+	struct fc_lport *lport = info->lport;
+	struct fc_frame_header *fh;
+	size_t len;
+	void *buf;
+
+	if (IS_ERR(fp)) {
+		job->reply->result = (PTR_ERR(fp) == -FC_EX_CLOSED) ?
+			-ECONNABORTED : -ETIMEDOUT;
+		job->reply_len = sizeof(uint32_t);
+		job->state_flags |= FC_RQST_STATE_DONE;
+		job->job_done(job);
+		kfree(info);
+		return;
+	}
+
+	mutex_lock(&lport->lp_mutex);
+	fh = fc_frame_header_get(fp);
+	len = fr_len(fp) - sizeof(*fh);
+	buf = fc_frame_payload_get(fp, 0);
+
+	if (fr_sof(fp) == FC_SOF_I3 && !ntohs(fh->fh_seq_cnt)) {
+		/* Get the response code from the first frame payload */
+		unsigned short cmd = (info->rsp_code == FC_FS_ACC) ?
+			ntohs(((struct fc_ct_hdr *)buf)->ct_cmd) :
+			(unsigned short)fc_frame_payload_op(fp);
+
+		/* Save the reply status of the job */
+		job->reply->reply_data.ctels_reply.status =
+			(cmd == info->rsp_code) ?
+			FC_CTELS_STATUS_OK : FC_CTELS_STATUS_REJECT;
+	}
+
+	job->reply->reply_payload_rcv_len +=
+		fc_copy_buffer_to_sglist(buf, len, info->sg, &info->nents,
+					 &info->offset, KM_BIO_SRC_IRQ, NULL);
+
+	if (fr_eof(fp) == FC_EOF_T &&
+	    (ntoh24(fh->fh_f_ctl) & (FC_FC_LAST_SEQ | FC_FC_END_SEQ)) ==
+	    (FC_FC_LAST_SEQ | FC_FC_END_SEQ)) {
+		if (job->reply->reply_payload_rcv_len >
+		    job->reply_payload.payload_len)
+			job->reply->reply_payload_rcv_len =
+				job->reply_payload.payload_len;
+		job->reply->result = 0;
+		job->state_flags |= FC_RQST_STATE_DONE;
+		job->job_done(job);
+		kfree(info);
+	}
+	fc_frame_free(fp);
+	mutex_unlock(&lport->lp_mutex);
+}
+
+/**
+ * fc_lport_els_request() - Send ELS pass-thru request
+ * @job: The bsg fc pass-thru job structure
+ * @lport: The local port sending the request
+ * @did: The destination port id.
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static int fc_lport_els_request(struct fc_bsg_job *job,
+				struct fc_lport *lport,
+				u32 did, u32 tov)
+{
+	struct fc_bsg_info *info;
+	struct fc_frame *fp;
+	struct fc_frame_header *fh;
+	char *pp;
+	int len;
+
+	fp = fc_frame_alloc(lport, sizeof(struct fc_frame_header) +
+			    job->request_payload.payload_len);
+	if (!fp)
+		return -ENOMEM;
+
+	len = job->request_payload.payload_len;
+	pp = fc_frame_payload_get(fp, len);
+
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt,
+			  pp, len);
+
+	fh = fc_frame_header_get(fp);
+	fh->fh_r_ctl = FC_RCTL_ELS_REQ;
+	hton24(fh->fh_d_id, did);
+	hton24(fh->fh_s_id, fc_host_port_id(lport->host));
+	fh->fh_type = FC_TYPE_ELS;
+	hton24(fh->fh_f_ctl, FC_FC_FIRST_SEQ |
+	       FC_FC_END_SEQ | FC_FC_SEQ_INIT);
+	fh->fh_cs_ctl = 0;
+	fh->fh_df_ctl = 0;
+	fh->fh_parm_offset = 0;
+
+	info = kzalloc(sizeof(struct fc_bsg_info), GFP_KERNEL);
+	if (!info) {
+		fc_frame_free(fp);
+		return -ENOMEM;
+	}
+
+	info->job = job;
+	info->lport = lport;
+	info->rsp_code = ELS_LS_ACC;
+	info->nents = job->reply_payload.sg_cnt;
+	info->sg = job->reply_payload.sg_list;
+
+	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
+				     NULL, info, tov))
+		return -ECOMM;
+	return 0;
+}
+
+/**
+ * fc_lport_ct_request() - Send CT pass-thru request
+ * @job:   The bsg fc pass-thru job structure
+ * @lport: The local port sending the request
+ * @did:   The destination FC-ID
+ * @tov:   The time to wait for a response
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static int fc_lport_ct_request(struct fc_bsg_job *job,
+			       struct fc_lport *lport, u32 did, u32 tov)
+{
+	struct fc_bsg_info *info;
+	struct fc_frame *fp;
+	struct fc_frame_header *fh;
+	struct fc_ct_req *ct;
+	size_t len;
+
+	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
+			    job->request_payload.payload_len);
+	if (!fp)
+		return -ENOMEM;
+
+	len = job->request_payload.payload_len;
+	ct = fc_frame_payload_get(fp, len);
+
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt,
+			  ct, len);
+
+	fh = fc_frame_header_get(fp);
+	fh->fh_r_ctl = FC_RCTL_DD_UNSOL_CTL;
+	hton24(fh->fh_d_id, did);
+	hton24(fh->fh_s_id, fc_host_port_id(lport->host));
+	fh->fh_type = FC_TYPE_CT;
+	hton24(fh->fh_f_ctl, FC_FC_FIRST_SEQ |
+	       FC_FC_END_SEQ | FC_FC_SEQ_INIT);
+	fh->fh_cs_ctl = 0;
+	fh->fh_df_ctl = 0;
+	fh->fh_parm_offset = 0;
+
+	info = kzalloc(sizeof(struct fc_bsg_info), GFP_KERNEL);
+	if (!info) {
+		fc_frame_free(fp);
+		return -ENOMEM;
+	}
+
+	info->job = job;
+	info->lport = lport;
+	info->rsp_code = FC_FS_ACC;
+	info->nents = job->reply_payload.sg_cnt;
+	info->sg = job->reply_payload.sg_list;
+
+	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
+				     NULL, info, tov))
+		return -ECOMM;
+	return 0;
+}
+
+/**
+ * fc_lport_bsg_request() - The common entry point for sending
+ *                          fc pass-thru requests
+ * @job: The fc pass-thru job structure
+ */
+int fc_lport_bsg_request(struct fc_bsg_job *job)
+{
+	struct request *rsp = job->req->next_rq;
+	struct Scsi_Host *shost = job->shost;
+	struct fc_lport *lport = shost_priv(shost);
+	struct fc_rport *rport;
+	struct fc_rport_priv *rdata;
+	int rc = -EINVAL;
+	u32 did;
+
+	job->reply->reply_payload_rcv_len = 0;
+	rsp->resid_len = job->reply_payload.payload_len;
+
+	mutex_lock(&lport->lp_mutex);
+
+	switch (job->request->msgcode) {
+	case FC_BSG_RPT_ELS:
+		rport = job->rport;
+		if (!rport)
+			break;
+
+		rdata = rport->dd_data;
+		rc = fc_lport_els_request(job, lport, rport->port_id,
+					  rdata->e_d_tov);
+		break;
+
+	case FC_BSG_RPT_CT:
+		rport = job->rport;
+		if (!rport)
+			break;
+
+		rdata = rport->dd_data;
+		rc = fc_lport_ct_request(job, lport, rport->port_id,
+					 rdata->e_d_tov);
+		break;
+
+	case FC_BSG_HST_CT:
+		did = ntoh24(job->request->rqst_data.h_ct.port_id);
+		if (did == FC_FID_DIR_SERV)
+			rdata = lport->dns_rp;
+		else
+			rdata = lport->tt.rport_lookup(lport, did);
+
+		if (!rdata)
+			break;
+
+		rc = fc_lport_ct_request(job, lport, did, rdata->e_d_tov);
+		break;
+
+	case FC_BSG_HST_ELS_NOLOGIN:
+		did = ntoh24(job->request->rqst_data.h_els.port_id);
+		rc = fc_lport_els_request(job, lport, did, lport->e_d_tov);
+		break;
+	}
+
+	mutex_unlock(&lport->lp_mutex);
+	return rc;
+}
+EXPORT_SYMBOL(fc_lport_bsg_request);

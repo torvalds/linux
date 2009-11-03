@@ -134,6 +134,8 @@ struct fc_function_template fcoe_transport_function = {
 	.vport_delete = fcoe_vport_destroy,
 	.vport_disable = fcoe_vport_disable,
 	.set_vport_symbolic_name = fcoe_set_vport_symbolic_name,
+
+	.bsg_request = fc_lport_bsg_request,
 };
 
 struct fc_function_template fcoe_vport_transport_function = {
@@ -167,6 +169,8 @@ struct fc_function_template fcoe_vport_transport_function = {
 	.issue_fc_host_lip = fcoe_reset,
 
 	.terminate_rport_io = fc_rport_terminate_io,
+
+	.bsg_request = fc_lport_bsg_request,
 };
 
 static struct scsi_host_template fcoe_shost_template = {

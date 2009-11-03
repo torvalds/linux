@@ -26,6 +26,7 @@
 
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/scsi_bsg_fc.h>
 
 #include <scsi/fc/fc_fcp.h>
 #include <scsi/fc/fc_ns.h>
@@ -829,6 +830,12 @@ struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id);
  */
 void fc_vport_setlink(struct fc_lport *vn_port);
 void fc_vports_linkchange(struct fc_lport *n_port);
+
+/*
+ * Issue fc pass-thru request via bsg interface
+ */
+int fc_lport_bsg_request(struct fc_bsg_job *job);
+
 
 /*
  * REMOTE PORT LAYER
