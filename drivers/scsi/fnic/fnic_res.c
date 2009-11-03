@@ -144,10 +144,9 @@ int fnic_get_vnic_config(struct fnic *fnic)
 	c->intr_timer_type = c->intr_timer_type;
 
 	shost_printk(KERN_INFO, fnic->lport->host,
-		     "vNIC MAC addr %02x:%02x:%02x:%02x:%02x:%02x "
+		     "vNIC MAC addr %pM "
 		     "wq/wq_copy/rq %d/%d/%d\n",
-		     fnic->mac_addr[0], fnic->mac_addr[1], fnic->mac_addr[2],
-		     fnic->mac_addr[3], fnic->mac_addr[4], fnic->mac_addr[5],
+		     fnic->ctlr.ctl_src_addr,
 		     c->wq_enet_desc_count, c->wq_copy_desc_count,
 		     c->rq_desc_count);
 	shost_printk(KERN_INFO, fnic->lport->host,
