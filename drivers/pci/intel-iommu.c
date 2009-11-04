@@ -2767,7 +2767,15 @@ static void *intel_alloc_coherent(struct device *hwdev, size_t size,
 
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
-	flags &= ~(GFP_DMA | GFP_DMA32);
+
+	if (!iommu_no_mapping(hwdev))
+		flags &= ~(GFP_DMA | GFP_DMA32);
+	else if (hwdev->coherent_dma_mask < dma_get_required_mask(hwdev)) {
+		if (hwdev->coherent_dma_mask < DMA_BIT_MASK(32))
+			flags |= GFP_DMA;
+		else
+			flags |= GFP_DMA32;
+	}
 
 	vaddr = (void *)__get_free_pages(flags, order);
 	if (!vaddr)
