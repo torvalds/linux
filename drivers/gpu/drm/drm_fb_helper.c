@@ -908,8 +908,13 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0)
+		ret = fb_alloc_cmap(&info->cmap, crtc->gamma_size, 0);
+		if (ret)
+			return ret;
+		if (register_framebuffer(info) < 0) {
+			fb_dealloc_cmap(&info->cmap);
 			return -EINVAL;
+		}
 	} else {
 		drm_fb_helper_set_par(info);
 	}
@@ -939,6 +944,7 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 		unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 	drm_fb_helper_crtc_free(helper);
+	fb_dealloc_cmap(&helper->fb->fbdev->cmap);
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
