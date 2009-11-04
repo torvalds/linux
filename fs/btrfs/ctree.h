@@ -1009,6 +1009,7 @@ struct btrfs_root {
 	atomic_t log_writers;
 	atomic_t log_commit[2];
 	unsigned long log_transid;
+	unsigned long last_log_commit;
 	unsigned long log_batch;
 	pid_t log_start_pid;
 	bool log_multiple_pids;
@@ -1152,6 +1153,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_FLUSHONCOMMIT       (1 << 7)
 #define BTRFS_MOUNT_SSD_SPREAD		(1 << 8)
 #define BTRFS_MOUNT_NOSSD		(1 << 9)
+#define BTRFS_MOUNT_DISCARD		(1 << 10)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -2373,7 +2375,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options);
 int btrfs_sync_fs(struct super_block *sb, int wait);
 
 /* acl.c */
-#ifdef CONFIG_BTRFS_POSIX_ACL
+#ifdef CONFIG_BTRFS_FS_POSIX_ACL
 int btrfs_check_acl(struct inode *inode, int mask);
 #else
 #define btrfs_check_acl NULL

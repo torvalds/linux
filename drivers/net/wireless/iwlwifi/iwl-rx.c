@@ -1044,7 +1044,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	 * as a bitmask.
 	 */
 	rx_status.antenna =
-		le16_to_cpu(phy_res->phy_flags & RX_RES_PHY_FLAGS_ANTENNA_MSK)
+		(le16_to_cpu(phy_res->phy_flags) & RX_RES_PHY_FLAGS_ANTENNA_MSK)
 		>> RX_RES_PHY_FLAGS_ANTENNA_POS;
 
 	/* set the preamble flag if appropriate */

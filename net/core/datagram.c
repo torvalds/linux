@@ -224,6 +224,15 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 	consume_skb(skb);
 	sk_mem_reclaim_partial(sk);
 }
+EXPORT_SYMBOL(skb_free_datagram);
+
+void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
+{
+	lock_sock(sk);
+	skb_free_datagram(sk, skb);
+	release_sock(sk);
+}
+EXPORT_SYMBOL(skb_free_datagram_locked);
 
 /**
  *	skb_kill_datagram - Free a datagram skbuff forcibly
@@ -752,5 +761,4 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 EXPORT_SYMBOL(datagram_poll);
 EXPORT_SYMBOL(skb_copy_and_csum_datagram_iovec);
 EXPORT_SYMBOL(skb_copy_datagram_iovec);
-EXPORT_SYMBOL(skb_free_datagram);
 EXPORT_SYMBOL(skb_recv_datagram);

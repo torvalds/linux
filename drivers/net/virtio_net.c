@@ -22,7 +22,6 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
@@ -454,7 +453,7 @@ static unsigned int free_old_xmit_skbs(struct virtnet_info *vi)
 		vi->dev->stats.tx_bytes += skb->len;
 		vi->dev->stats.tx_packets++;
 		tot_sgs += skb_vnet_hdr(skb)->num_sg;
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	}
 	return tot_sgs;
 }
@@ -517,8 +516,7 @@ again:
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(vi);
 
-	/* Put new one in send queue and do transmit */
-	__skb_queue_head(&vi->send, skb);
+	/* Try to transmit */
 	capacity = xmit_skb(vi, skb);
 
 	/* This can happen with OOM and indirect buffers. */
@@ -532,8 +530,17 @@ again:
 		}
 		return NETDEV_TX_BUSY;
 	}
-
 	vi->svq->vq_ops->kick(vi->svq);
+
+	/*
+	 * Put new one in send queue.  You'd expect we'd need this before
+	 * xmit_skb calls add_buf(), since the callback can be triggered
+	 * immediately after that.  But since the callback just triggers
+	 * another call back here, normal network xmit locking prevents the
+	 * race.
+	 */
+	__skb_queue_head(&vi->send, skb);
+
 	/* Don't wait up for transmitted skbs to be freed. */
 	skb_orphan(skb);
 	nf_reset(skb);

@@ -189,7 +189,7 @@ int s3c_adc_read(struct s3c_adc_client *client, unsigned int ch)
 err:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(s3c_adc_convert);
+EXPORT_SYMBOL_GPL(s3c_adc_read);
 
 static void s3c_adc_default_select(struct s3c_adc_client *client,
 				   unsigned select)

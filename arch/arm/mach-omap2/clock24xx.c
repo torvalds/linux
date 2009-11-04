@@ -769,6 +769,7 @@ int __init omap2_clk_init(void)
 		if (c->cpu & cpu_mask) {
 			clkdev_add(&c->lk);
 			clk_register(c->lk.clk);
+			omap2_init_clk_clkdm(c->lk.clk);
 		}
 
 	/* Check the MPU rate set by bootloader */

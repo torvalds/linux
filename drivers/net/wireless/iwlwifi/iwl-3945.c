@@ -611,7 +611,7 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	if (rx_status.band == IEEE80211_BAND_5GHZ)
 		rx_status.rate_idx -= IWL_FIRST_OFDM_RATE;
 
-	rx_status.antenna = le16_to_cpu(rx_hdr->phy_flags &
+	rx_status.antenna = (le16_to_cpu(rx_hdr->phy_flags) &
 					RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
 
 	/* set the preamble flag if appropriate */

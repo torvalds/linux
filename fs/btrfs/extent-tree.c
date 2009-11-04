@@ -1568,22 +1568,22 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-#ifdef BIO_RW_DISCARD
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
 	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL,
 			     DISCARD_FL_BARRIER);
 }
-#endif
 
 static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 				u64 num_bytes)
 {
-#ifdef BIO_RW_DISCARD
 	int ret;
 	u64 map_length = num_bytes;
 	struct btrfs_multi_bio *multi = NULL;
+
+	if (!btrfs_test_opt(root, DISCARD))
+		return 0;
 
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
@@ -1604,9 +1604,6 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	}
 
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
@@ -3688,6 +3685,14 @@ static int pin_down_bytes(struct btrfs_trans_handle *trans,
 	struct extent_buffer *buf;
 
 	if (is_data)
+		goto pinit;
+
+	/*
+	 * discard is sloooow, and so triggering discards on
+	 * individual btree blocks isn't a good plan.  Just
+	 * pin everything in discard mode.
+	 */
+	if (btrfs_test_opt(root, DISCARD))
 		goto pinit;
 
 	buf = btrfs_find_tree_block(root, bytenr, num_bytes);

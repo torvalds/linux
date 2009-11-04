@@ -55,7 +55,6 @@ void __init arch_init_irq(void)
 	 * int-handler is not on bootstrap
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
-	local_irq_disable();
 
 	/* setting irq trigger mode */
 	set_irq_trigger_mode();

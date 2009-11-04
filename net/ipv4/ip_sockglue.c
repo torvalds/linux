@@ -634,17 +634,16 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				break;
 			}
 			dev = ip_dev_find(sock_net(sk), mreq.imr_address.s_addr);
-			if (dev) {
+			if (dev)
 				mreq.imr_ifindex = dev->ifindex;
-				dev_put(dev);
-			}
 		} else
-			dev = __dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
+			dev = dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;
 		if (!dev)
 			break;
+		dev_put(dev);
 
 		err = -EINVAL;
 		if (sk->sk_bound_dev_if &&

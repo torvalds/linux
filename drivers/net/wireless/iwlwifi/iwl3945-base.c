@@ -4097,8 +4097,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:
-	ieee80211_free_hw(priv->hw);
 	iwl_free_traffic_mem(priv);
+	ieee80211_free_hw(priv->hw);
  out:
 	return err;
 }

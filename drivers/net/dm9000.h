@@ -50,7 +50,7 @@
 #define DM9000_RCSR	       0x32
 
 #define CHIPR_DM9000A	       0x19
-#define CHIPR_DM9000B	       0x1B
+#define CHIPR_DM9000B	       0x1A
 
 #define DM9000_MRCMDX          0xF0
 #define DM9000_MRCMD           0xF2

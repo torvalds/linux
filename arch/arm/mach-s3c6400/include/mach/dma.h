@@ -68,6 +68,11 @@ static __inline__ int s3c_dma_has_circular(void)
 
 #define S3C2410_DMAF_CIRCULAR		(1 << 0)
 
+static inline bool s3c_dma_has_circular(void)
+{
+	return false;
+}
+
 #include <plat/dma.h>
 
 #endif /* __ASM_ARCH_IRQ_H */

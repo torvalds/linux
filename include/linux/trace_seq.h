@@ -7,7 +7,7 @@
 
 /*
  * Trace sequences are used to allow a function to call several other functions
- * to create a string of data to use (up to a max of PAGE_SIZE.
+ * to create a string of data to use (up to a max of PAGE_SIZE).
  */
 
 struct trace_seq {

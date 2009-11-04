@@ -156,13 +156,16 @@ static inline int raid6_next_disk(int disk, int raid_disks)
 static int raid6_idx_to_slot(int idx, struct stripe_head *sh,
 			     int *count, int syndrome_disks)
 {
-	int slot;
+	int slot = *count;
 
+	if (sh->ddf_layout)
+		(*count)++;
 	if (idx == sh->pd_idx)
 		return syndrome_disks;
 	if (idx == sh->qd_idx)
 		return syndrome_disks + 1;
-	slot = (*count)++;
+	if (!sh->ddf_layout)
+		(*count)++;
 	return slot;
 }
 
@@ -717,7 +720,7 @@ static int set_syndrome_sources(struct page **srcs, struct stripe_head *sh)
 	int i;
 
 	for (i = 0; i < disks; i++)
-		srcs[i] = (void *)raid6_empty_zero_page;
+		srcs[i] = NULL;
 
 	count = 0;
 	i = d0_idx;
@@ -727,9 +730,8 @@ static int set_syndrome_sources(struct page **srcs, struct stripe_head *sh)
 		srcs[slot] = sh->dev[i].page;
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count != syndrome_disks);
 
-	return count;
+	return syndrome_disks;
 }
 
 static struct dma_async_tx_descriptor *
@@ -814,7 +816,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 	 * slot number conversion for 'faila' and 'failb'
 	 */
 	for (i = 0; i < disks ; i++)
-		blocks[i] = (void *)raid6_empty_zero_page;
+		blocks[i] = NULL;
 	count = 0;
 	i = d0_idx;
 	do {
@@ -828,7 +830,6 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			failb = slot;
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count != syndrome_disks);
 
 	BUG_ON(faila == failb);
 	if (failb < faila)
@@ -845,7 +846,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 					  ops_complete_compute, sh,
 					  to_addr_conv(sh, percpu));
-			return async_gen_syndrome(blocks, 0, count+2,
+			return async_gen_syndrome(blocks, 0, syndrome_disks+2,
 						  STRIPE_SIZE, &submit);
 		} else {
 			struct page *dest;
@@ -1139,7 +1140,7 @@ static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu
 			   &sh->ops.zero_sum_result, percpu->spare_page, &submit);
 }
 
-static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
+static void __raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 {
 	int overlap_clear = 0, i, disks = sh->disks;
 	struct dma_async_tx_descriptor *tx = NULL;
@@ -1204,22 +1205,55 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	put_cpu();
 }
 
+#ifdef CONFIG_MULTICORE_RAID456
+static void async_run_ops(void *param, async_cookie_t cookie)
+{
+	struct stripe_head *sh = param;
+	unsigned long ops_request = sh->ops.request;
+
+	clear_bit_unlock(STRIPE_OPS_REQ_PENDING, &sh->state);
+	wake_up(&sh->ops.wait_for_ops);
+
+	__raid_run_ops(sh, ops_request);
+	release_stripe(sh);
+}
+
+static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
+{
+	/* since handle_stripe can be called outside of raid5d context
+	 * we need to ensure sh->ops.request is de-staged before another
+	 * request arrives
+	 */
+	wait_event(sh->ops.wait_for_ops,
+		   !test_and_set_bit_lock(STRIPE_OPS_REQ_PENDING, &sh->state));
+	sh->ops.request = ops_request;
+
+	atomic_inc(&sh->count);
+	async_schedule(async_run_ops, sh);
+}
+#else
+#define raid_run_ops __raid_run_ops
+#endif
+
 static int grow_one_stripe(raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
+	int disks = max(conf->raid_disks, conf->previous_raid_disks);
 	sh = kmem_cache_alloc(conf->slab_cache, GFP_KERNEL);
 	if (!sh)
 		return 0;
-	memset(sh, 0, sizeof(*sh) + (conf->raid_disks-1)*sizeof(struct r5dev));
+	memset(sh, 0, sizeof(*sh) + (disks-1)*sizeof(struct r5dev));
 	sh->raid_conf = conf;
 	spin_lock_init(&sh->lock);
+	#ifdef CONFIG_MULTICORE_RAID456
+	init_waitqueue_head(&sh->ops.wait_for_ops);
+	#endif
 
-	if (grow_buffers(sh, conf->raid_disks)) {
-		shrink_buffers(sh, conf->raid_disks);
+	if (grow_buffers(sh, disks)) {
+		shrink_buffers(sh, disks);
 		kmem_cache_free(conf->slab_cache, sh);
 		return 0;
 	}
-	sh->disks = conf->raid_disks;
 	/* we just created an active stripe so... */
 	atomic_set(&sh->count, 1);
 	atomic_inc(&conf->active_stripes);
@@ -1231,7 +1265,7 @@ static int grow_one_stripe(raid5_conf_t *conf)
 static int grow_stripes(raid5_conf_t *conf, int num)
 {
 	struct kmem_cache *sc;
-	int devs = conf->raid_disks;
+	int devs = max(conf->raid_disks, conf->previous_raid_disks);
 
 	sprintf(conf->cache_name[0],
 		"raid%d-%s", conf->level, mdname(conf->mddev));
@@ -1329,6 +1363,9 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 
 		nsh->raid_conf = conf;
 		spin_lock_init(&nsh->lock);
+		#ifdef CONFIG_MULTICORE_RAID456
+		init_waitqueue_head(&nsh->ops.wait_for_ops);
+		#endif
 
 		list_add(&nsh->lru, &newstripes);
 	}
@@ -1899,10 +1936,15 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 		case ALGORITHM_PARITY_N:
 			break;
 		case ALGORITHM_ROTATING_N_CONTINUE:
+			/* Like left_symmetric, but P is before Q */
 			if (sh->pd_idx == 0)
 				i--;	/* P D D D Q */
-			else if (i > sh->pd_idx)
-				i -= 2; /* D D Q P D */
+			else {
+				/* D D Q P D */
+				if (i < sh->pd_idx)
+					i += raid_disks;
+				i -= (sh->pd_idx + 1);
+			}
 			break;
 		case ALGORITHM_LEFT_ASYMMETRIC_6:
 		case ALGORITHM_RIGHT_ASYMMETRIC_6:
@@ -2896,7 +2938,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
  *
  */
 
-static bool handle_stripe5(struct stripe_head *sh)
+static void handle_stripe5(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
@@ -3167,11 +3209,9 @@ static bool handle_stripe5(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
-
-	return blocked_rdev == NULL;
 }
 
-static bool handle_stripe6(struct stripe_head *sh)
+static void handle_stripe6(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
@@ -3455,17 +3495,14 @@ static bool handle_stripe6(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
-
-	return blocked_rdev == NULL;
 }
 
-/* returns true if the stripe was handled */
-static bool handle_stripe(struct stripe_head *sh)
+static void handle_stripe(struct stripe_head *sh)
 {
 	if (sh->raid_conf->level == 6)
-		return handle_stripe6(sh);
+		handle_stripe6(sh);
 	else
-		return handle_stripe5(sh);
+		handle_stripe5(sh);
 }
 
 static void raid5_activate_delayed(raid5_conf_t *conf)
@@ -3503,9 +3540,10 @@ static void unplug_slaves(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 	int i;
+	int devs = max(conf->raid_disks, conf->previous_raid_disks);
 
 	rcu_read_lock();
-	for (i = 0; i < conf->raid_disks; i++) {
+	for (i = 0; i < devs; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
@@ -4277,9 +4315,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	clear_bit(STRIPE_INSYNC, &sh->state);
 	spin_unlock(&sh->lock);
 
-	/* wait for any blocked device to be handled */
-	while (unlikely(!handle_stripe(sh)))
-		;
+	handle_stripe(sh);
 	release_stripe(sh);
 
 	return STRIPE_SECTORS;
@@ -4349,37 +4385,6 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 	return handled;
 }
 
-#ifdef CONFIG_MULTICORE_RAID456
-static void __process_stripe(void *param, async_cookie_t cookie)
-{
-	struct stripe_head *sh = param;
-
-	handle_stripe(sh);
-	release_stripe(sh);
-}
-
-static void process_stripe(struct stripe_head *sh, struct list_head *domain)
-{
-	async_schedule_domain(__process_stripe, sh, domain);
-}
-
-static void synchronize_stripe_processing(struct list_head *domain)
-{
-	async_synchronize_full_domain(domain);
-}
-#else
-static void process_stripe(struct stripe_head *sh, struct list_head *domain)
-{
-	handle_stripe(sh);
-	release_stripe(sh);
-	cond_resched();
-}
-
-static void synchronize_stripe_processing(struct list_head *domain)
-{
-}
-#endif
-
 
 /*
  * This is our raid5 kernel thread.
@@ -4393,7 +4398,6 @@ static void raid5d(mddev_t *mddev)
 	struct stripe_head *sh;
 	raid5_conf_t *conf = mddev->private;
 	int handled;
-	LIST_HEAD(raid_domain);
 
 	pr_debug("+++ raid5d active\n");
 
@@ -4430,7 +4434,9 @@ static void raid5d(mddev_t *mddev)
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
-		process_stripe(sh, &raid_domain);
+		handle_stripe(sh);
+		release_stripe(sh);
+		cond_resched();
 
 		spin_lock_irq(&conf->device_lock);
 	}
@@ -4438,7 +4444,6 @@ static void raid5d(mddev_t *mddev)
 
 	spin_unlock_irq(&conf->device_lock);
 
-	synchronize_stripe_processing(&raid_domain);
 	async_tx_issue_pending_all();
 	unplug_slaves(mddev);
 
@@ -4558,13 +4563,9 @@ raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 
 	if (!sectors)
 		sectors = mddev->dev_sectors;
-	if (!raid_disks) {
+	if (!raid_disks)
 		/* size is defined by the smallest of previous and new size */
-		if (conf->raid_disks < conf->previous_raid_disks)
-			raid_disks = conf->raid_disks;
-		else
-			raid_disks = conf->previous_raid_disks;
-	}
+		raid_disks = min(conf->raid_disks, conf->previous_raid_disks);
 
 	sectors &= ~((sector_t)mddev->chunk_sectors - 1);
 	sectors &= ~((sector_t)mddev->new_chunk_sectors - 1);
@@ -4665,7 +4666,7 @@ static int raid5_alloc_percpu(raid5_conf_t *conf)
 			}
 			per_cpu_ptr(conf->percpu, cpu)->spare_page = spare_page;
 		}
-		scribble = kmalloc(scribble_len(conf->raid_disks), GFP_KERNEL);
+		scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
 		if (!scribble) {
 			err = -ENOMEM;
 			break;
@@ -4686,7 +4687,7 @@ static int raid5_alloc_percpu(raid5_conf_t *conf)
 static raid5_conf_t *setup_conf(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
-	int raid_disk, memory;
+	int raid_disk, memory, max_disks;
 	mdk_rdev_t *rdev;
 	struct disk_info *disk;
 
@@ -4722,28 +4723,6 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 	conf = kzalloc(sizeof(raid5_conf_t), GFP_KERNEL);
 	if (conf == NULL)
 		goto abort;
-
-	conf->raid_disks = mddev->raid_disks;
-	conf->scribble_len = scribble_len(conf->raid_disks);
-	if (mddev->reshape_position == MaxSector)
-		conf->previous_raid_disks = mddev->raid_disks;
-	else
-		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
-
-	conf->disks = kzalloc(conf->raid_disks * sizeof(struct disk_info),
-			      GFP_KERNEL);
-	if (!conf->disks)
-		goto abort;
-
-	conf->mddev = mddev;
-
-	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
-		goto abort;
-
-	conf->level = mddev->new_level;
-	if (raid5_alloc_percpu(conf) != 0)
-		goto abort;
-
 	spin_lock_init(&conf->device_lock);
 	init_waitqueue_head(&conf->wait_for_stripe);
 	init_waitqueue_head(&conf->wait_for_overlap);
@@ -4757,11 +4736,33 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 	atomic_set(&conf->active_aligned_reads, 0);
 	conf->bypass_threshold = BYPASS_THRESHOLD;
 
+	conf->raid_disks = mddev->raid_disks;
+	if (mddev->reshape_position == MaxSector)
+		conf->previous_raid_disks = mddev->raid_disks;
+	else
+		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
+	max_disks = max(conf->raid_disks, conf->previous_raid_disks);
+	conf->scribble_len = scribble_len(max_disks);
+
+	conf->disks = kzalloc(max_disks * sizeof(struct disk_info),
+			      GFP_KERNEL);
+	if (!conf->disks)
+		goto abort;
+
+	conf->mddev = mddev;
+
+	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
+		goto abort;
+
+	conf->level = mddev->new_level;
+	if (raid5_alloc_percpu(conf) != 0)
+		goto abort;
+
 	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		raid_disk = rdev->raid_disk;
-		if (raid_disk >= conf->raid_disks
+		if (raid_disk >= max_disks
 		    || raid_disk < 0)
 			continue;
 		disk = conf->disks + raid_disk;
@@ -4793,7 +4794,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 	}
 
 	memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
-		 conf->raid_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
+		 max_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
 	if (grow_stripes(conf, conf->max_nr_stripes)) {
 		printk(KERN_ERR
 			"raid5: couldn't allocate %dkB for buffers\n", memory);
@@ -4918,7 +4919,8 @@ static int run(mddev_t *mddev)
 		    test_bit(In_sync, &rdev->flags))
 			working_disks++;
 
-	mddev->degraded = conf->raid_disks - working_disks;
+	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
+			   - working_disks);
 
 	if (mddev->degraded > conf->max_degraded) {
 		printk(KERN_ERR "raid5: not enough operational devices for %s"

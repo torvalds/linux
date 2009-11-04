@@ -2440,7 +2440,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 			return ret;
 	}
 
-	filp->f_pos += cnt;
+	*ppos += cnt;
 
 	return cnt;
 }
@@ -2582,7 +2582,7 @@ tracing_ctrl_write(struct file *filp, const char __user *ubuf,
 	}
 	mutex_unlock(&trace_types_lock);
 
-	filp->f_pos += cnt;
+	*ppos += cnt;
 
 	return cnt;
 }
@@ -2764,7 +2764,7 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	if (err)
 		return err;
 
-	filp->f_pos += ret;
+	*ppos += ret;
 
 	return ret;
 }
@@ -3299,7 +3299,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 		}
 	}
 
-	filp->f_pos += cnt;
+	*ppos += cnt;
 
 	/* If check pages failed, return ENOMEM */
 	if (tracing_disabled)

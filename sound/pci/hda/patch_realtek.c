@@ -965,6 +965,8 @@ static void alc_automute_pin(struct hda_codec *codec)
 	unsigned int nid = spec->autocfg.hp_pins[0];
 	int i;
 
+	if (!nid)
+		return;
 	pincap = snd_hda_query_pin_caps(codec, nid);
 	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
 		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
@@ -12602,7 +12604,8 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x015b, "Acer Aspire One",
 						ALC268_ACER_ASPIRE_ONE),
 	SND_PCI_QUIRK(0x1028, 0x0253, "Dell OEM", ALC268_DELL),
-	SND_PCI_QUIRK(0x1028, 0x02b0, "Dell Inspiron Mini9", ALC268_DELL),
+	SND_PCI_QUIRK_MASK(0x1028, 0xfff0, 0x02b0,
+			"Dell Inspiron Mini9/Vostro A90", ALC268_DELL),
 	/* almost compatible with toshiba but with optional digital outs;
 	 * auto-probing seems working fine
 	 */
@@ -17374,7 +17377,7 @@ static int alc662_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 
 /* create playback/capture controls for input pins */
 #define alc662_auto_create_input_ctls \
-	alc880_auto_create_input_ctls
+	alc882_auto_create_input_ctls
 
 static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,

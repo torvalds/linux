@@ -1122,7 +1122,7 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 		debugf0("Reading K8_DRAM_BASE_LOW failed\n");
 
 	/* Extract parts into separate data entries */
-	pvt->dram_base[dram] = ((u64) low & 0xFFFF0000) << 24;
+	pvt->dram_base[dram] = ((u64) low & 0xFFFF0000) << 8;
 	pvt->dram_IntlvEn[dram] = (low >> 8) & 0x7;
 	pvt->dram_rw_en[dram] = (low & 0x3);
 
@@ -1135,7 +1135,7 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 	 * Extract parts into separate data entries. Limit is the HIGHEST memory
 	 * location of the region, so lower 24 bits need to be all ones
 	 */
-	pvt->dram_limit[dram] = (((u64) low & 0xFFFF0000) << 24) | 0x00FFFFFF;
+	pvt->dram_limit[dram] = (((u64) low & 0xFFFF0000) << 8) | 0x00FFFFFF;
 	pvt->dram_IntlvSel[dram] = (low >> 8) & 0x7;
 	pvt->dram_DstNode[dram] = (low & 0x7);
 }
@@ -1369,7 +1369,7 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 	pvt->dram_IntlvEn[dram] = (low_base >> 8) & 0x7;
 
 	pvt->dram_base[dram] = (((u64)high_base & 0x000000FF) << 40) |
-			       (((u64)low_base  & 0xFFFF0000) << 24);
+			       (((u64)low_base  & 0xFFFF0000) << 8);
 
 	low_offset = K8_DRAM_LIMIT_LOW + (dram << 3);
 	high_offset = F10_DRAM_LIMIT_HIGH + (dram << 3);
@@ -1391,7 +1391,7 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 	 * memory location of the region, so low 24 bits need to be all ones.
 	 */
 	pvt->dram_limit[dram] = (((u64)high_limit & 0x000000FF) << 40) |
-				(((u64) low_limit & 0xFFFF0000) << 24) |
+				(((u64) low_limit & 0xFFFF0000) << 8) |
 				0x00FFFFFF;
 }
 
