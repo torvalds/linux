@@ -843,9 +843,9 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 				xhci->dcbaa, xhci->dcbaa->dma);
 	xhci->dcbaa = NULL;
 
+	scratchpad_free(xhci);
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
-	scratchpad_free(xhci);
 }
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
