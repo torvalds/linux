@@ -80,7 +80,7 @@ is:
 
 	broken_parity_status
 
-as is located in /sys/devices/pci<XXX>/0000:XX:YY.Z directorys for
+as is located in /sys/devices/pci<XXX>/0000:XX:YY.Z directories for
 PCI devices.
 
 FUTURE HARDWARE SCANNING
@@ -288,9 +288,8 @@ Total UE count that had no information attribute fileY:
 
 	'ue_noinfo_count'
 
-	This attribute file displays the number of UEs that
-	have occurred have occurred with  no informations as to which DIMM
-	slot is having errors.
+	This attribute file displays the number of UEs that have occurred
+	with no information as to which DIMM slot is having errors.
 
 
 Total Correctable Errors count attribute file:
