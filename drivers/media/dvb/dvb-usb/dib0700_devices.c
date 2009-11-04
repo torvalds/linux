@@ -917,6 +917,18 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 
 	{ 0x8618, KEY_RECORD },
 	{ 0x861a, KEY_STOP },
+
+	/* Key codes for the EvolutePC TVWay+ remote (proto NEC) */
+	{ 0x7a00, KEY_MENU },
+	{ 0x7a01, KEY_RECORD },
+	{ 0x7a02, KEY_PLAY },
+	{ 0x7a03, KEY_STOP },
+	{ 0x7a10, KEY_CHANNELUP },
+	{ 0x7a11, KEY_CHANNELDOWN },
+	{ 0x7a12, KEY_VOLUMEUP },
+	{ 0x7a13, KEY_VOLUMEDOWN },
+	{ 0x7a40, KEY_POWER },
+	{ 0x7a41, KEY_MUTE },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
