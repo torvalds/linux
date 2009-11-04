@@ -276,6 +276,13 @@ extern int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv);
 extern unsigned int mpc52xx_get_xtal_freq(struct device_node *node);
 extern void mpc52xx_restart(char *cmd);
 
+/* mpc52xx_gpt.c */
+struct mpc52xx_gpt_priv;
+extern struct mpc52xx_gpt_priv *mpc52xx_gpt_from_irq(int irq);
+extern int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, int period,
+                            int continuous);
+extern void mpc52xx_gpt_stop_timer(struct mpc52xx_gpt_priv *gpt);
+
 /* mpc52xx_pic.c */
 extern void mpc52xx_init_irq(void);
 extern unsigned int mpc52xx_get_irq(void);
