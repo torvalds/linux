@@ -237,6 +237,7 @@ static DEFINE_PXA3_CKEN(pxa3xx_stuart, STUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_i2c, I2C, 32842000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_udc, UDC, 48000000, 5);
 static DEFINE_PXA3_CKEN(pxa3xx_usbh, USBH, 48000000, 0);
+static DEFINE_PXA3_CKEN(pxa3xx_u2d, USB2, 48000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_keypad, KEYPAD, 32768, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_ssp1, SSP1, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_ssp2, SSP2, 13000000, 0);
@@ -261,6 +262,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_i2c, "pxa2xx-i2c.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_udc, "pxa27x-udc", NULL),
 	INIT_CLKREG(&clk_pxa3xx_usbh, "pxa27x-ohci", NULL),
+	INIT_CLKREG(&clk_pxa3xx_u2d, NULL, "U2DCLK"),
 	INIT_CLKREG(&clk_pxa3xx_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp1, "pxa27x-ssp.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp2, "pxa27x-ssp.1", NULL),
