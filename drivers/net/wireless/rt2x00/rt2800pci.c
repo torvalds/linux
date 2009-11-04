@@ -97,7 +97,8 @@ static void rt2800pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 0);
-		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		if (rt2x00_intf_is_pci(rt2x00dev))
+			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 	}
@@ -125,7 +126,8 @@ static void rt2800pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 1);
-		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		if (rt2x00_intf_is_pci(rt2x00dev))
+			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 
@@ -253,12 +255,14 @@ static void rt2800pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	/*
-	 * RT2880 and RT3052 don't support MCU requests.
-	 */
-	if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
-	    rt2x00_rt(&rt2x00dev->chip, RT3052))
-		return;
+	if (rt2x00_intf_is_pci(rt2x00dev)) {
+		/*
+		* RT2880 and RT3052 don't support MCU requests.
+		*/
+		if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
+		    rt2x00_rt(&rt2x00dev->chip, RT3052))
+			return;
+	}
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -814,7 +818,8 @@ static void rt2800pci_config_ant(struct rt2x00_dev *rt2x00dev,
 	switch ((int)ant->tx) {
 	case 1:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
-		rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 0);
+		if (rt2x00_intf_is_pci(rt2x00dev))
+			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 0);
 		break;
 	case 2:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 2);
@@ -1480,7 +1485,8 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	unsigned int i;
 
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
+	if (rt2x00_intf_is_pci(rt2x00dev))
+		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
@@ -1803,7 +1809,8 @@ static int rt2800pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rev(&rt2x00dev->chip) > RT2860D_VERSION)
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
 
-	if (rt2x00_rt(&rt2x00dev->chip, RT3052)) {
+	if (rt2x00_intf_is_pci(rt2x00dev) &&
+	    rt2x00_rt(&rt2x00dev->chip, RT3052)) {
 		rt2800_bbp_write(rt2x00dev, 31, 0x08);
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
@@ -1887,10 +1894,12 @@ static int rt2800pci_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	u8 rfcsr;
 	u8 bbp;
 
-	if (!rt2x00_rf(&rt2x00dev->chip, RF3020) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3022))
-		return 0;
+	if (rt2x00_intf_is_pci(rt2x00dev)) {
+		if (!rt2x00_rf(&rt2x00dev->chip, RF3020) &&
+		    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
+		    !rt2x00_rf(&rt2x00dev->chip, RF3022))
+			return 0;
+	}
 
 	/*
 	 * Init RF calibration.
@@ -1902,36 +1911,38 @@ static int rt2800pci_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 0);
 	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
-	rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
-	rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
-	rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
-	rt2800_rfcsr_write(rt2x00dev, 3, 0x75);
-	rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
-	rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
-	rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
-	rt2800_rfcsr_write(rt2x00dev, 7, 0x50);
-	rt2800_rfcsr_write(rt2x00dev, 8, 0x39);
-	rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
-	rt2800_rfcsr_write(rt2x00dev, 10, 0x60);
-	rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
-	rt2800_rfcsr_write(rt2x00dev, 12, 0x75);
-	rt2800_rfcsr_write(rt2x00dev, 13, 0x75);
-	rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
-	rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
-	rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
-	rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
-	rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
-	rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
-	rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
-	rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
-	rt2800_rfcsr_write(rt2x00dev, 22, 0x00);
-	rt2800_rfcsr_write(rt2x00dev, 23, 0x31);
-	rt2800_rfcsr_write(rt2x00dev, 24, 0x08);
-	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
-	rt2800_rfcsr_write(rt2x00dev, 26, 0x25);
-	rt2800_rfcsr_write(rt2x00dev, 27, 0x23);
-	rt2800_rfcsr_write(rt2x00dev, 28, 0x13);
-	rt2800_rfcsr_write(rt2x00dev, 29, 0x83);
+	if (rt2x00_intf_is_pci(rt2x00dev)) {
+		rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
+		rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
+		rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
+		rt2800_rfcsr_write(rt2x00dev, 3, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
+		rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
+		rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 7, 0x50);
+		rt2800_rfcsr_write(rt2x00dev, 8, 0x39);
+		rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
+		rt2800_rfcsr_write(rt2x00dev, 10, 0x60);
+		rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
+		rt2800_rfcsr_write(rt2x00dev, 12, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 13, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
+		rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
+		rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
+		rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
+		rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
+		rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
+		rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
+		rt2800_rfcsr_write(rt2x00dev, 22, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 23, 0x31);
+		rt2800_rfcsr_write(rt2x00dev, 24, 0x08);
+		rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+		rt2800_rfcsr_write(rt2x00dev, 26, 0x25);
+		rt2800_rfcsr_write(rt2x00dev, 27, 0x23);
+		rt2800_rfcsr_write(rt2x00dev, 28, 0x13);
+		rt2800_rfcsr_write(rt2x00dev, 29, 0x83);
+	}
 
 	/*
 	 * Set RX Filter calibration for 20MHz and 40MHz
@@ -3004,6 +3015,8 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
+
+	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 
 	rt2x00dev->priv = (void *)&rt2800pci_rt2800_ops;
 

@@ -1050,7 +1050,8 @@ static void rt2800usb_link_stats(struct rt2x00_dev *rt2x00dev,
 static u8 rt2800usb_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
-		if (rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION)
+		if (rt2x00_intf_is_usb(rt2x00dev) &&
+		    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION)
 			return 0x1c + (2 * rt2x00dev->lna_gain);
 		else
 			return 0x2e + rt2x00dev->lna_gain;
@@ -1285,33 +1286,38 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	unsigned int i;
 
-	/*
-	 * Wait untill BBP and RF are ready.
-	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		/*
+		 * Wait untill BBP and RF are ready.
+		 */
+		for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+			rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+			if (reg && reg != ~0)
+				break;
+			msleep(1);
+		}
 
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
-		return -EBUSY;
-	}
+		if (i == REGISTER_BUSY_COUNT) {
+			ERROR(rt2x00dev, "Unstable hardware.\n");
+			return -EBUSY;
+		}
 
-	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
+		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+		rt2800_register_write(rt2x00dev, PBF_SYS_CTRL,
+				      reg & ~0x00002000);
+	}
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 
-	rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
 
-	rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
-				    USB_MODE_RESET, REGISTER_TIMEOUT);
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_RESET, REGISTER_TIMEOUT);
+	}
 
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
 
@@ -1343,7 +1349,8 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_TX_TIME_COMPENSATE, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
-	if (rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
+	if (rt2x00_intf_is_usb(rt2x00dev) &&
+	    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00000000);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -1461,19 +1468,21 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, GF40_PROT_CFG_TX_OP_ALLOW_GF40, 1);
 	rt2800_register_write(rt2x00dev, GF40_PROT_CFG, reg);
 
-	rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_WP_DMA_BURST_SIZE, 3);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_BIG_ENDIAN, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_HDR_SCATTER, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_HDR_SEG_LEN, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+		rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_WP_DMA_BURST_SIZE, 3);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_BIG_ENDIAN, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_HDR_SCATTER, 0);
+		rt2x00_set_field32(&reg, WPDMA_GLO_CFG_HDR_SEG_LEN, 0);
+		rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	}
 
 	rt2800_register_write(rt2x00dev, TXOP_CTRL_CFG, 0x0000583f);
 	rt2800_register_write(rt2x00dev, TXOP_HLDR_ET, 0x00000002);
@@ -1519,9 +1528,11 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, HW_BEACON_BASE6, 0);
 	rt2800_register_write(rt2x00dev, HW_BEACON_BASE7, 0);
 
-	rt2800_register_read(rt2x00dev, USB_CYC_CFG, &reg);
-	rt2x00_set_field32(&reg, USB_CYC_CFG_CLOCK_CYCLE, 30);
-	rt2800_register_write(rt2x00dev, USB_CYC_CFG, reg);
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		rt2800_register_read(rt2x00dev, USB_CYC_CFG, &reg);
+		rt2x00_set_field32(&reg, USB_CYC_CFG_CLOCK_CYCLE, 30);
+		rt2800_register_write(rt2x00dev, USB_CYC_CFG, reg);
+	}
 
 	rt2800_register_read(rt2x00dev, HT_FBK_CFG0, &reg);
 	rt2x00_set_field32(&reg, HT_FBK_CFG0_HTMCS0FBK, 0);
@@ -1650,11 +1661,11 @@ static int rt2800usb_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 73, 0x12);
 	}
 
-	if (rt2x00_rev(&rt2x00dev->chip) > RT2860D_VERSION) {
+	if (rt2x00_rev(&rt2x00dev->chip) > RT2860D_VERSION)
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
-	}
 
-	if (rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
+	if (rt2x00_intf_is_usb(rt2x00dev) &&
+	    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
 		rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 		rt2800_bbp_write(rt2x00dev, 84, 0x99);
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
@@ -1738,7 +1749,8 @@ static int rt2800usb_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	u8 rfcsr;
 	u8 bbp;
 
-	if (rt2x00_rev(&rt2x00dev->chip) != RT3070_VERSION)
+	if (rt2x00_intf_is_usb(rt2x00dev) &&
+	    rt2x00_rev(&rt2x00dev->chip) != RT3070_VERSION)
 		return 0;
 
 	/*
@@ -1751,26 +1763,28 @@ static int rt2800usb_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 0);
 	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
-	rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
-	rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
-	rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
-	rt2800_rfcsr_write(rt2x00dev, 7, 0x70);
-	rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
-	rt2800_rfcsr_write(rt2x00dev, 10, 0x71);
-	rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
-	rt2800_rfcsr_write(rt2x00dev, 12, 0x7b);
-	rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
-	rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
-	rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
-	rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
-	rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
-	rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
-	rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
-	rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
-	rt2800_rfcsr_write(rt2x00dev, 24, 0x16);
-	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
-	rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
-	rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
+		rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
+		rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 7, 0x70);
+		rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
+		rt2800_rfcsr_write(rt2x00dev, 10, 0x71);
+		rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
+		rt2800_rfcsr_write(rt2x00dev, 12, 0x7b);
+		rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
+		rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
+		rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
+		rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
+		rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
+		rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
+		rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
+		rt2800_rfcsr_write(rt2x00dev, 24, 0x16);
+		rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
+		rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
+	}
 
 	/*
 	 * Set RX Filter calibration for 20MHz and 40MHz
@@ -2643,6 +2657,8 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
+
+	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
 
 	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
