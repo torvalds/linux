@@ -1035,7 +1035,7 @@ static ssize_t uvc_v4l2_read(struct file *file, char __user *data,
 		    size_t count, loff_t *ppos)
 {
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_read: not implemented.\n");
-	return -ENODEV;
+	return -EINVAL;
 }
 
 /*
