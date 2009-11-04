@@ -161,7 +161,6 @@ static int ath_rx_prepare(struct ath_common *common,
 {
 	struct ath_hw *ah = common->ah;
 	struct ieee80211_hdr *hdr;
-	u8 ratecode;
 	__le16 fc;
 	struct ieee80211_sta *sta;
 	struct ath_node *an;
@@ -174,16 +173,14 @@ static int ath_rx_prepare(struct ath_common *common,
 	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
 		goto rx_next;
 
-	ratecode = rx_stats->rs_rate;
-
-	if (ratecode & 0x80) {
+	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
 		rx_status->flag |= RX_FLAG_HT;
 		if (rx_stats->rs_flags & ATH9K_RX_2040)
 			rx_status->flag |= RX_FLAG_40MHZ;
 		if (rx_stats->rs_flags & ATH9K_RX_GI)
 			rx_status->flag |= RX_FLAG_SHORT_GI;
-		rx_status->rate_idx = ratecode & 0x7f;
+		rx_status->rate_idx = rx_stats->rs_rate & 0x7f;
 	} else {
 		struct ieee80211_supported_band *sband;
 		unsigned int i = 0;
