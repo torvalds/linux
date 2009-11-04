@@ -327,7 +327,7 @@ cleanup:
 static void gfar_init_tx_rx_base(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 *baddr;
+	u32 __iomem *baddr;
 	int i;
 
 	baddr = &regs->tbase0;
@@ -770,7 +770,8 @@ static unsigned int reverse_bitmap(unsigned int bit_map, unsigned int max_qs)
 	return new_bit_map;
 }
 
-u32 cluster_entry_per_class(struct gfar_private *priv, u32 rqfar, u32 class)
+static u32 cluster_entry_per_class(struct gfar_private *priv, u32 rqfar,
+				   u32 class)
 {
 	u32 rqfpr = FPR_FILER_MASK;
 	u32 rqfcr = 0x0;
@@ -849,7 +850,7 @@ static int gfar_probe(struct of_device *ofdev,
 	int len_devname;
 	u32 rstat = 0, tstat = 0, rqueue = 0, tqueue = 0;
 	u32 isrg = 0;
-	u32 *baddr;
+	u32 __iomem *baddr;
 
 	err = gfar_of_init(ofdev, &dev);
 
@@ -1658,10 +1659,10 @@ void gfar_start(struct net_device *dev)
 }
 
 void gfar_configure_coalescing(struct gfar_private *priv,
-	unsigned int tx_mask, unsigned int rx_mask)
+	unsigned long tx_mask, unsigned long rx_mask)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 *baddr;
+	u32 __iomem *baddr;
 	int i = 0;
 
 	/* Backward compatible case ---- even if we enable
@@ -2546,7 +2547,8 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int rx_cleaned = 0, budget_per_queue = 0, rx_cleaned_per_queue = 0;
-	int tx_cleaned = 0, i, left_over_budget = budget, serviced_queues = 0;
+	int tx_cleaned = 0, i, left_over_budget = budget;
+	unsigned long serviced_queues = 0;
 	int num_queues = 0;
 	unsigned long flags;
 

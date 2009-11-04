@@ -986,10 +986,10 @@ struct gfar_priv_grp {
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
 	unsigned int grp_id;
-	unsigned int rx_bit_map;
-	unsigned int tx_bit_map;
-	unsigned int num_tx_queues;
-	unsigned int num_rx_queues;
+	unsigned long rx_bit_map;
+	unsigned long tx_bit_map;
+	unsigned long num_tx_queues;
+	unsigned long num_rx_queues;
 	unsigned int rstat;
 	unsigned int tstat;
 	unsigned int imask;
@@ -1118,7 +1118,7 @@ extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
 extern void gfar_configure_coalescing(struct gfar_private *priv,
-		unsigned int tx_mask, unsigned int rx_mask);
+		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
