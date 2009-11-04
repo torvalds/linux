@@ -235,6 +235,7 @@ static struct twl4030_codec_audio_data zoom2_audio_data = {
 };
 
 static struct twl4030_codec_data zoom2_codec_data = {
+	.audio_mclk = 26000000,
 	.audio = &zoom2_audio_data,
 };
 
