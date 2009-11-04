@@ -100,6 +100,9 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
 
+	if (!rx_stats->rs_datalen)
+		return false;
+
 	if (rx_stats->rs_more) {
 		/*
 		 * Frame spans multiple descriptors; this cannot happen yet
@@ -791,9 +794,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * chain it back at the queue without processing it.
 		 */
 		if (flush)
-			goto requeue;
-
-		if (!rx_stats->rs_datalen)
 			goto requeue;
 
 		/* The status portion of the descriptor could get corrupted. */
