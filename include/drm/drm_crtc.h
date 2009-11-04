@@ -256,7 +256,7 @@ struct drm_framebuffer {
 	unsigned int depth;
 	int bits_per_pixel;
 	int flags;
-	void *fbdev;
+	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head filp_head;
 	/* if you are using the helper */
