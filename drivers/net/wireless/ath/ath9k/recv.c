@@ -48,6 +48,7 @@ static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
@@ -62,11 +63,13 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	BUG_ON(skb == NULL);
 	ds->ds_vdata = skb->data;
 
-	/* setup rx descriptors. The rx.bufsize here tells the harware
+	/*
+	 * setup rx descriptors. The rx_bufsize here tells the hardware
 	 * how much data it can DMA to us and that we are prepared
-	 * to process */
+	 * to process
+	 */
 	ath9k_hw_setuprxdesc(ah, ds,
-			     sc->rx.bufsize,
+			     common->rx_bufsize,
 			     0);
 
 	if (sc->rx.rxlink == NULL)
@@ -344,11 +347,11 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_lock_init(&sc->rx.rxbuflock);
 
-	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				 min(common->cachelsz, (u16)64));
+	common->rx_bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
+				     min(common->cachelsz, (u16)64));
 
 	ath_print(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-		  common->cachelsz, sc->rx.bufsize);
+		  common->cachelsz, common->rx_bufsize);
 
 	/* Initialize rx descriptors */
 
@@ -361,7 +364,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_KERNEL);
+		skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_KERNEL);
 		if (skb == NULL) {
 			error = -ENOMEM;
 			goto err;
@@ -369,7 +372,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 		bf->bf_mpdu = skb;
 		bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
-						 sc->rx.bufsize,
+						 common->rx_bufsize,
 						 DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(sc->dev,
 					       bf->bf_buf_addr))) {
@@ -393,6 +396,8 @@ err:
 
 void ath_rx_cleanup(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
 	struct ath_buf *bf;
 
@@ -400,7 +405,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 		skb = bf->bf_mpdu;
 		if (skb) {
 			dma_unmap_single(sc->dev, bf->bf_buf_addr,
-					 sc->rx.bufsize, DMA_FROM_DEVICE);
+					 common->rx_bufsize, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 		}
 	}
@@ -780,7 +785,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * 2. requeueing the same buffer to h/w
 		 */
 		dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
-				sc->rx.bufsize,
+				common->rx_bufsize,
 				DMA_FROM_DEVICE);
 
 		hdr = (struct ieee80211_hdr *) skb->data;
@@ -797,7 +802,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			goto requeue;
 
 		/* The status portion of the descriptor could get corrupted. */
-		if (sc->rx.bufsize < rx_stats->rs_datalen)
+		if (common->rx_bufsize < rx_stats->rs_datalen)
 			goto requeue;
 
 		if (!ath_rx_prepare(common, hw, skb, rx_stats,
@@ -806,7 +811,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_ATOMIC);
+		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
@@ -817,7 +822,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Unmap the frame */
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
-				 sc->rx.bufsize,
+				 common->rx_bufsize,
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, rx_stats->rs_datalen);
@@ -860,8 +865,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
 		bf->bf_buf_addr = dma_map_single(sc->dev, requeue_skb->data,
-					 sc->rx.bufsize,
-					 DMA_FROM_DEVICE);
+						 common->rx_bufsize,
+						 DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(sc->dev,
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);

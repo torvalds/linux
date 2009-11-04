@@ -87,6 +87,8 @@ struct ath_common {
 	u8 tx_chainmask;
 	u8 rx_chainmask;
 
+	u32 rx_bufsize;
+
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
