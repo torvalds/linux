@@ -32,7 +32,7 @@ waitforXFW(struct IsdnCardState *cs, int hscx)
 {
 	int to = 50;
 
-	while ((!(READHSCX(cs, hscx, HSCX_STAR) & 0x44) == 0x40) && to) {
+	while (((READHSCX(cs, hscx, HSCX_STAR) & 0x44) != 0x40) && to) {
 		udelay(1);
 		to--;
 	}
