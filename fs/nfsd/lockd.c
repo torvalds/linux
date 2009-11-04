@@ -16,6 +16,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/lockd/bind.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_LOCKD
 

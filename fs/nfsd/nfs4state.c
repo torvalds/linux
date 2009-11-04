@@ -56,6 +56,7 @@
 #include <linux/module.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/clnt.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

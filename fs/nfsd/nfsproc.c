@@ -24,6 +24,7 @@
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr.h>
+#include "vfs.h"
 
 typedef struct svc_rqst	svc_rqst;
 typedef struct svc_buf	svc_buf;

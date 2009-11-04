@@ -25,6 +25,7 @@
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr3.h>
 #include <linux/nfs3.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 

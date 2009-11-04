@@ -35,6 +35,7 @@
 #include <linux/lockd/bind.h>
 #include <linux/nfsacl.h>
 #include <linux/seq_file.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 

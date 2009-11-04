@@ -48,6 +48,7 @@
 #include <linux/nfsd/xdr4.h>
 #include <linux/nfs4_acl.h>
 #include <linux/sunrpc/gss_api.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 

@@ -13,6 +13,7 @@
 #include <linux/nfsd/xdr3.h>
 #include <linux/posix_acl.h>
 #include <linux/nfsacl.h>
+#include "vfs.h"
 
 #define RETURN_STATUS(st)	{ resp->status = (st); return (st); }
 

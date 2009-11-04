@@ -14,6 +14,7 @@
 #include <linux/nfsd/xdr3.h>
 #include <linux/posix_acl.h>
 #include <linux/nfsacl.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 #define RETURN_STATUS(st)	{ resp->status = (st); return (st); }

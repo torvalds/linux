@@ -47,6 +47,7 @@
 #include <linux/crypto.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

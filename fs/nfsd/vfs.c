@@ -56,6 +56,7 @@
 #endif /* CONFIG_NFSD_V4 */
 #include <linux/jhash.h>
 #include <linux/ima.h>
+#include "vfs.h"
 
 #include <asm/uaccess.h>
 
