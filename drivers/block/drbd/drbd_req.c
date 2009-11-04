@@ -505,7 +505,7 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * corresponding hlist_del is in _req_may_be_done() */
 		hlist_add_head(&req->colision, ar_hash_slot(mdev, req->sector));
 
-		set_bit(UNPLUG_REMOTE, &mdev->flags); /* why? */
+		set_bit(UNPLUG_REMOTE, &mdev->flags);
 
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		req->rq_state |= RQ_NET_QUEUED;
@@ -535,6 +535,11 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * again ourselves to close the current epoch.
 		 *
 		 * Add req to the (now) current epoch (barrier). */
+
+		/* otherwise we may lose an unplug, which may cause some remote
+		 * io-scheduler timeout to expire, increasing maximum latency,
+		 * hurting performance. */
+		set_bit(UNPLUG_REMOTE, &mdev->flags);
 
 		/* see drbd_make_request_common,
 		 * just after it grabs the req_lock */

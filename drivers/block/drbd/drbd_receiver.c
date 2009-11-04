@@ -2099,7 +2099,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			break;
 		}
 		/* Else fall through to one of the other strategies... */
-		dev_warn(DEV, "Discard younger/older primary did not found a decision\n"
+		dev_warn(DEV, "Discard younger/older primary did not find a decision\n"
 		     "Using discard-least-changes instead\n");
 	case ASB_DISCARD_ZERO_CHG:
 		if (ch_peer == 0 && ch_self == 0) {
@@ -3618,10 +3618,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	del_timer_sync(&mdev->resync_timer);
 	set_bit(STOP_SYNC_TIMER, &mdev->flags);
 	resync_timer_fn((unsigned long)mdev);
-
-	/* so we can be sure that all remote or resync reads
-	 * made it at least to net_ee */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
 	 * w_make_resync_request etc. which may still be on the worker queue
