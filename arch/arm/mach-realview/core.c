@@ -788,3 +788,24 @@ void __init realview_timer_init(unsigned int timer_irq)
 	realview_clocksource_init();
 	realview_clockevents_init(timer_irq);
 }
+
+/*
+ * Setup the memory banks.
+ */
+void realview_fixup(struct machine_desc *mdesc, struct tag *tags, char **from,
+		    struct meminfo *meminfo)
+{
+	/*
+	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
+	 * Half of this is mirrored at 0.
+	 */
+#ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+	meminfo->bank[0].start = 0x70000000;
+	meminfo->bank[0].size = SZ_512M;
+	meminfo->nr_banks = 1;
+#else
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_256M;
+	meminfo->nr_banks = 1;
+#endif
+}

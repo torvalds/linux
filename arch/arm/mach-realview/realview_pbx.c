@@ -345,6 +345,7 @@ MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	.phys_io	= REALVIEW_PBX_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PBX_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.fixup		= realview_fixup,
 	.map_io		= realview_pbx_map_io,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pbx_timer,
