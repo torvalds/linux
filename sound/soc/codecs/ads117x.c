@@ -37,45 +37,11 @@ struct snd_soc_dai ads117x_dai = {
 };
 EXPORT_SYMBOL_GPL(ads117x_dai);
 
-/*
- * initialise the ads117x driver
- */
-static int ads117x_init(struct snd_soc_device *socdev)
-{
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret = 0;
-
-	codec->name = "ADS117X";
-	codec->owner = THIS_MODULE;
-	codec->dai = &ads117x_dai;
-	codec->num_dai = 1;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "ads117x: failed to create pcms\n");
-		return ret;
-	}
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "ads117x: failed to register card\n");
-		goto card_err;
-	}
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	return ret;
-}
-
 static int ads117x_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
 	int ret;
-
-	pr_info("ads117x ADC\n");
 
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
@@ -85,12 +51,20 @@ static int ads117x_probe(struct platform_device *pdev)
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
+	codec->name = "ADS117X";
+	codec->owner = THIS_MODULE;
+	codec->dai = &ads117x_dai;
+	codec->num_dai = 1;
 
-	ret = ads117x_init(socdev);
-	if (ret != 0)
+	/* register pcms */
+	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
+	if (ret < 0) {
+		printk(KERN_ERR "ads117x: failed to create pcms\n");
 		kfree(codec);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ads117x_remove(struct platform_device *pdev)
@@ -110,15 +84,37 @@ struct snd_soc_codec_device soc_codec_dev_ads117x = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ads117x);
 
-static int __init ads117x_modinit(void)
+static __devinit int ads117x_platform_probe(struct platform_device *pdev)
 {
+	ads117x_dai.dev = &pdev->dev;
 	return snd_soc_register_dai(&ads117x_dai);
 }
-module_init(ads117x_modinit);
+
+static int __devexit ads117x_platform_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&ads117x_dai);
+	return 0;
+}
+
+static struct platform_driver ads117x_codec_driver = {
+	.driver = {
+			.name = "ads117x",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = ads117x_platform_probe,
+	.remove = __devexit_p(ads117x_platform_remove),
+};
+
+static int __init ads117x_init(void)
+{
+	return platform_driver_register(&ads117x_codec_driver);
+}
+module_init(ads117x_init);
 
 static void __exit ads117x_exit(void)
 {
-	snd_soc_unregister_dai(&ads117x_dai);
+	platform_driver_unregister(&ads117x_codec_driver);
 }
 module_exit(ads117x_exit);
 
