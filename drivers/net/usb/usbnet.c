@@ -1352,8 +1352,10 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	// ok, it's ready to go.
 	usb_set_intfdata (udev, dev);
 
-	// start as if the link is up
 	netif_device_attach (net);
+
+	if (dev->driver_info->flags & FLAG_LINK_INTR)
+		netif_carrier_off(net);
 
 	return 0;
 
