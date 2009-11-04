@@ -1747,7 +1747,8 @@ struct mac_iveiv_entry {
 #define TXD_DESC_SIZE			( 4 * sizeof(__le32) )
 #define TXINFO_DESC_SIZE		( 1 * sizeof(__le32) )
 #define TXWI_DESC_SIZE			( 4 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 1 * sizeof(__le32) )
+#define RXD_DESC_SIZE			( 4 * sizeof(__le32) )
+#define RXINFO_DESC_SIZE		( 1 * sizeof(__le32) )
 #define RXWI_DESC_SIZE			( 4 * sizeof(__le32) )
 
 /*

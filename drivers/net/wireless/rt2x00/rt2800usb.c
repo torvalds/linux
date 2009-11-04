@@ -2152,7 +2152,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 */
 	memcpy(skbdesc->desc, rxd, skbdesc->desc_len);
 	rxd = (__le32 *)skbdesc->desc;
-	rxwi = &rxd[RXD_DESC_SIZE / sizeof(__le32)];
+	rxwi = &rxd[RXINFO_DESC_SIZE / sizeof(__le32)];
 
 	/*
 	 * It is now safe to read the descriptor on all architectures.
@@ -2874,7 +2874,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 static const struct data_queue_desc rt2800usb_queue_rx = {
 	.entry_num		= RX_ENTRIES,
 	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXD_DESC_SIZE + RXWI_DESC_SIZE,
+	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
