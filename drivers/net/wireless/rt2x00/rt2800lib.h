@@ -96,16 +96,6 @@ static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
 }
 
-void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
-		      const unsigned int word, const u8 value);
-void rt2800_bbp_read(struct rt2x00_dev *rt2x00dev,
-		     const unsigned int word, u8 *value);
-void rt2800_rfcsr_write(struct rt2x00_dev *rt2x00dev,
-			const unsigned int word, const u8 value);
-void rt2800_rfcsr_read(struct rt2x00_dev *rt2x00dev,
-		       const unsigned int word, u8 *value);
-void rt2800_rf_write(struct rt2x00_dev *rt2x00dev,
-		     const unsigned int word, const u32 value);
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
@@ -134,5 +124,9 @@ void rt2800_link_stats(struct rt2x00_dev *rt2x00dev, struct link_qual *qual);
 void rt2800_reset_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 		       const u32 count);
+
+int rt2800_init_registers(struct rt2x00_dev *rt2x00dev);
+int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev);
+int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
 
 #endif /* RT2800LIB_H */
