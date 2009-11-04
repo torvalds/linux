@@ -39,17 +39,11 @@
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
 /*
- * Register defines.
- * Some registers require multiple attempts before success,
- * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
  * For USB vendor requests we need to pass a timeout
  * time in ms, for this we use the REGISTER_TIMEOUT,
  * however when loading firmware a higher value is
  * required. In that case we use the REGISTER_TIMEOUT_FIRMWARE.
  */
-#define REGISTER_BUSY_COUNT		5
-#define REGISTER_BUSY_DELAY		100
 #define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
 

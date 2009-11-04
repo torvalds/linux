@@ -35,15 +35,6 @@
 #define PCI_DEVICE_DATA(__ops)	.driver_data = (kernel_ulong_t)(__ops)
 
 /*
- * Register defines.
- * Some registers require multiple attempts before success,
- * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
- */
-#define REGISTER_BUSY_COUNT	5
-#define REGISTER_BUSY_DELAY	100
-
-/*
  * Register access.
  */
 static inline void rt2x00pci_register_read(struct rt2x00_dev *rt2x00dev,
