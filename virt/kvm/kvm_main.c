@@ -1653,6 +1653,7 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	case KVM_CAP_SET_BOOT_CPU_ID:
 #endif
+	case KVM_CAP_INTERNAL_ERROR_DATA:
 		return 1;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQ_ROUTING:
