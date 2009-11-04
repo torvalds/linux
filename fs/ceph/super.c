@@ -804,7 +804,7 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 	struct ceph_client *client;
 	int err;
 	int (*compare_super)(struct super_block *, void *) = ceph_compare_super;
-	const char *path = 0;
+	const char *path = NULL;
 	struct ceph_mount_args *args;
 
 	dout("ceph_get_sb\n");
