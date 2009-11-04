@@ -1017,7 +1017,7 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 	 */
 	if (priv->current_ht_config.is_ht) {
 		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->hw, addr);
+		sta = ieee80211_find_sta(priv->vif, addr);
 		if (sta) {
 			memcpy(&ht_config, &sta->ht_cap, sizeof(ht_config));
 			cur_ht_config = &ht_config;

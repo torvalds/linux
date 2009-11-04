@@ -2106,14 +2106,35 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
 /**
  * ieee80211_find_sta - find a station
  *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @vif: virtual interface to look for station on
  * @addr: station's address
  *
  * This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
  */
-struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 					 const u8 *addr);
+
+/**
+ * ieee80211_find_sta_by_hw - find a station on hardware
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @addr: station's address
+ *
+ * This function must be called under RCU lock and the
+ * resulting pointer is only valid under RCU lock as well.
+ *
+ * NOTE: This function should not be used! When mac80211 is converted
+ *	 internally to properly keep track of stations on multiple
+ *	 virtual interfaces, it will not always know which station to
+ *	 return here since a single address might be used by multiple
+ *	 logical stations (e.g. consider a station connecting to another
+ *	 BSSID on the same AP hardware without disconnecting first).
+ *
+ * DO NOT USE THIS FUNCTION.
+ */
+struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
+					       const u8 *addr);
 
 /**
  * ieee80211_beacon_loss - inform hardware does not receive beacons

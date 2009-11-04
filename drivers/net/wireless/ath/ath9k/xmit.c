@@ -282,7 +282,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(sc->hw, hdr->addr1);
+	/* XXX: use ieee80211_find_sta! */
+	sta = ieee80211_find_sta_by_hw(sc->hw, hdr->addr1);
 	if (!sta) {
 		rcu_read_unlock();
 		return;

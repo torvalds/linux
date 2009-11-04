@@ -801,13 +801,27 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		sta_info_destroy(sta);
 }
 
-struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
-					 const u8 *addr)
+struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
+					       const u8 *addr)
 {
 	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
 
 	if (!sta)
 		return NULL;
 	return &sta->sta;
+}
+EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
+
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
+					 const u8 *addr)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!vif)
+		return NULL;
+
+	sdata = vif_to_sdata(vif);
+
+	return ieee80211_find_sta_by_hw(&sdata->local->hw, addr);
 }
 EXPORT_SYMBOL(ieee80211_find_sta);

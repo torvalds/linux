@@ -913,7 +913,8 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(hw, priv->stations[sta_id].sta.sta.addr);
+	sta = ieee80211_find_sta(priv->vif,
+				 priv->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		rcu_read_unlock();
 		return;
