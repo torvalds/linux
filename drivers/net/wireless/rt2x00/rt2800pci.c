@@ -279,6 +279,13 @@ static void rt2800pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
+static inline void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
+				      const u8 command, const u8 token,
+				      const u8 arg0, const u8 arg1)
+{
+	rt2800pci_mcu_request(rt2x00dev, command, token, arg0, arg1);
+}
+
 static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 {
 	unsigned int i;
@@ -470,10 +477,10 @@ static void rt2800pci_brightness_set(struct led_classdev *led_cdev,
 				   EEPROM_FREQ_LED_MODE);
 
 	if (led->type == LED_TYPE_RADIO) {
-		rt2800pci_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
 				      enabled ? 0x20 : 0);
 	} else if (led->type == LED_TYPE_ASSOC) {
-		rt2800pci_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
+		rt2800_mcu_request(led->rt2x00dev, MCU_LED, 0xff, ledmode,
 				      enabled ? (bg_mode ? 0x60 : 0xa0) : 0x20);
 	} else if (led->type == LED_TYPE_QUALITY) {
 		/*
@@ -484,7 +491,7 @@ static void rt2800pci_brightness_set(struct led_classdev *led_cdev,
 		 * work with bitshifting:
 		 *	(1 << level) - 1
 		 */
-		rt2800pci_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
+		rt2800_mcu_request(led->rt2x00dev, MCU_LED_STRENGTH, 0xff,
 				      (1 << brightness / (LED_FULL / 6)) - 1,
 				      polarity);
 	}
@@ -2040,7 +2047,7 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Send signal to firmware during boot time.
 	 */
-	rt2800pci_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
+	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
 
 	/*
 	 * Enable RX.
@@ -2066,15 +2073,15 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Initialize LED control
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
-	rt2800pci_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
+	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
 			      word & 0xff, (word >> 8) & 0xff);
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
-	rt2800pci_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
+	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
 			      word & 0xff, (word >> 8) & 0xff);
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
-	rt2800pci_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
+	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
 			      word & 0xff, (word >> 8) & 0xff);
 
 	return 0;
@@ -2123,10 +2130,10 @@ static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 	 * if the device is booting and wasn't asleep it will return
 	 * failure when attempting to wakeup.
 	 */
-	rt2800pci_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
 
 	if (state == STATE_AWAKE) {
-		rt2800pci_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);
 		rt2800pci_mcu_status(rt2x00dev, TOKEN_WAKUP);
 	}
 
