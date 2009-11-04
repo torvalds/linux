@@ -2254,7 +2254,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
-	int ecc_type = info->nbsh & (0x3 << 13);
+	int ecc_type = (info->nbsh >> 13) & 0x3;
 
 	/* Bail early out if this was an 'observed' error */
 	if (PP(ec) == K8_NBSL_PP_OBS)
