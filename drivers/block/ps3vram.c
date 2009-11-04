@@ -123,7 +123,15 @@ static int ps3vram_notifier_wait(struct ps3_system_bus_device *dev,
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	u32 *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
-	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
+	unsigned long timeout;
+
+	for (timeout = 20; timeout; timeout--) {
+		if (!notify[3])
+			return 0;
+		udelay(10);
+	}
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
 	do {
 		if (!notify[3])
