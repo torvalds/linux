@@ -44,7 +44,7 @@ struct rt2800_ops {
 
 	int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
 			    const unsigned int offset,
-			    struct rt2x00_field32 field, u32 *reg);
+			    const struct rt2x00_field32 field, u32 *reg);
 };
 
 static inline void rt2800_register_read(struct rt2x00_dev *rt2x00dev,
