@@ -628,6 +628,8 @@ static void bdi_prune_sb(struct backing_dev_info *bdi)
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
+		bdi_prune_sb(bdi);
+
 		if (!bdi_cap_flush_forker(bdi))
 			bdi_wb_shutdown(bdi);
 		bdi_debug_unregister(bdi);
@@ -697,7 +699,6 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		spin_unlock(&inode_lock);
 	}
 
-	bdi_prune_sb(bdi);
 	bdi_unregister(bdi);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
