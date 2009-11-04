@@ -104,7 +104,7 @@ config RT73USB
 	  When compiled as a module, this driver will be called rt73usb.
 
 config RT2800USB
-	tristate "Ralink rt2800 (USB) support"
+	tristate "Ralink rt2800 (USB) support (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_HT
@@ -114,6 +114,10 @@ config RT2800USB
 	---help---
 	  This adds experimental support for rt2800 wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070.
+
+	  Known issues:
+	  - support for RT2870 chips doesn't work with 802.11n APs yet
+	  - support for RT3070 chips is non-functional at the moment
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
 
