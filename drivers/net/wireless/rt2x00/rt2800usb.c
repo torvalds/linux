@@ -2627,9 +2627,22 @@ static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static const struct rt2800_ops rt2800usb_rt2800_ops = {
+	.register_read		= rt2x00usb_register_read,
+	.register_write		= rt2x00usb_register_write,
+	.register_write_lock	= rt2x00usb_register_write_lock,
+
+	.register_multiread	= rt2x00usb_register_multiread,
+	.register_multiwrite	= rt2x00usb_register_multiwrite,
+
+	.regbusy_read		= rt2x00usb_regbusy_read,
+};
+
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
+
+	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
 	/*
 	 * Allocate eeprom data.

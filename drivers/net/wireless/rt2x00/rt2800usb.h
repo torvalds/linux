@@ -27,39 +27,69 @@
 #ifndef RT2800USB_H
 #define RT2800USB_H
 
+struct rt2800_ops {
+	void (*register_read)(struct rt2x00_dev *rt2x00dev,
+			      const unsigned int offset, u32 *value);
+	void (*register_write)(struct rt2x00_dev *rt2x00dev,
+			       const unsigned int offset, u32 value);
+	void (*register_write_lock)(struct rt2x00_dev *rt2x00dev,
+				    const unsigned int offset, u32 value);
+
+	void (*register_multiread)(struct rt2x00_dev *rt2x00dev,
+				   const unsigned int offset,
+				   void *value, const u32 length);
+	void (*register_multiwrite)(struct rt2x00_dev *rt2x00dev,
+				    const unsigned int offset,
+				    void *value, const u32 length);
+
+	int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
+			    const unsigned int offset,
+			    struct rt2x00_field32 field, u32 *reg);
+};
+
 static inline void rt2800_register_read(struct rt2x00_dev *rt2x00dev,
 					const unsigned int offset,
 					u32 *value)
 {
-	rt2x00usb_register_read(rt2x00dev, offset, value);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	rt2800ops->register_read(rt2x00dev, offset, value);
 }
 
 static inline void rt2800_register_write(struct rt2x00_dev *rt2x00dev,
 					 const unsigned int offset,
 					 u32 value)
 {
-	rt2x00usb_register_write(rt2x00dev, offset, value);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	rt2800ops->register_write(rt2x00dev, offset, value);
 }
 
 static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
 					      const unsigned int offset,
 					      u32 value)
 {
-	rt2x00usb_register_write_lock(rt2x00dev, offset, value);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	rt2800ops->register_write_lock(rt2x00dev, offset, value);
 }
 
 static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
 					     const unsigned int offset,
 					     void *value, const u32 length)
 {
-	rt2x00usb_register_multiread(rt2x00dev, offset, value, length);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	rt2800ops->register_multiread(rt2x00dev, offset, value, length);
 }
 
 static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 					      const unsigned int offset,
 					      void *value, const u32 length)
 {
-	rt2x00usb_register_multiwrite(rt2x00dev, offset, value, length);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	rt2800ops->register_multiwrite(rt2x00dev, offset, value, length);
 }
 
 static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
@@ -67,7 +97,9 @@ static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
 				      struct rt2x00_field32 field,
 				      u32 *reg)
 {
-	return rt2x00usb_regbusy_read(rt2x00dev, offset, field, reg);
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
 }
 
 /*
