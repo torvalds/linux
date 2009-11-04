@@ -202,6 +202,18 @@ static void rt2800pci_rfcsr_read(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
+static inline void rt2800_rfcsr_write(struct rt2x00_dev *rt2x00dev,
+				      const unsigned int word, const u8 value)
+{
+	rt2800pci_rfcsr_write(rt2x00dev, word, value);
+}
+
+static inline void rt2800_rfcsr_read(struct rt2x00_dev *rt2x00dev,
+				     const unsigned int word, u8 *value)
+{
+	rt2800pci_rfcsr_read(rt2x00dev, word, value);
+}
+
 static void rt2800pci_rf_write(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, const u32 value)
 {
@@ -915,28 +927,28 @@ static void rt2800pci_config_channel_rt3x(struct rt2x00_dev *rt2x00dev,
 {
 	u8 rfcsr;
 
-	rt2800pci_rfcsr_write(rt2x00dev, 2, rf->rf1);
-	rt2800pci_rfcsr_write(rt2x00dev, 2, rf->rf3);
+	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf1);
+	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf3);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 6, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 6, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR6_R, rf->rf2);
-	rt2800pci_rfcsr_write(rt2x00dev, 6, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 6, rfcsr);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 12, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 12, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR12_TX_POWER,
 			  TXPOWER_G_TO_DEV(info->tx_power1));
-	rt2800pci_rfcsr_write(rt2x00dev, 12, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 12, rfcsr);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 23, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 23, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR23_FREQ_OFFSET, rt2x00dev->freq_offset);
-	rt2800pci_rfcsr_write(rt2x00dev, 23, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
 
-	rt2800pci_rfcsr_write(rt2x00dev, 24,
+	rt2800_rfcsr_write(rt2x00dev, 24,
 			      rt2x00dev->calibration[conf_is_ht40(conf)]);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 23, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 23, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR7_RF_TUNING, 1);
-	rt2800pci_rfcsr_write(rt2x00dev, 23, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
 }
 
 static void rt2800pci_config_channel(struct rt2x00_dev *rt2x00dev,
@@ -1805,15 +1817,15 @@ static u8 rt2800pci_init_rx_filter(struct rt2x00_dev *rt2x00dev,
 	u8 stopband;
 	u8 overtuned = 0;
 
-	rt2800pci_rfcsr_write(rt2x00dev, 24, rfcsr24);
+	rt2800_rfcsr_write(rt2x00dev, 24, rfcsr24);
 
 	rt2800_bbp_read(rt2x00dev, 4, &bbp);
 	rt2x00_set_field8(&bbp, BBP4_BANDWIDTH, 2 * bw40);
 	rt2800_bbp_write(rt2x00dev, 4, bbp);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 22, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 22, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR22_BASEBAND_LOOPBACK, 1);
-	rt2800pci_rfcsr_write(rt2x00dev, 22, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 22, rfcsr);
 
 	/*
 	 * Set power & frequency of passband test tone
@@ -1846,12 +1858,12 @@ static u8 rt2800pci_init_rx_filter(struct rt2x00_dev *rt2x00dev,
 		} else
 			break;
 
-		rt2800pci_rfcsr_write(rt2x00dev, 24, rfcsr24);
+		rt2800_rfcsr_write(rt2x00dev, 24, rfcsr24);
 	}
 
 	rfcsr24 -= !!overtuned;
 
-	rt2800pci_rfcsr_write(rt2x00dev, 24, rfcsr24);
+	rt2800_rfcsr_write(rt2x00dev, 24, rfcsr24);
 	return rfcsr24;
 }
 
@@ -1868,43 +1880,43 @@ static int rt2800pci_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Init RF calibration.
 	 */
-	rt2800pci_rfcsr_read(rt2x00dev, 30, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 30, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 1);
-	rt2800pci_rfcsr_write(rt2x00dev, 30, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 	msleep(1);
 	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 0);
-	rt2800pci_rfcsr_write(rt2x00dev, 30, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
-	rt2800pci_rfcsr_write(rt2x00dev, 0, 0x50);
-	rt2800pci_rfcsr_write(rt2x00dev, 1, 0x01);
-	rt2800pci_rfcsr_write(rt2x00dev, 2, 0xf7);
-	rt2800pci_rfcsr_write(rt2x00dev, 3, 0x75);
-	rt2800pci_rfcsr_write(rt2x00dev, 4, 0x40);
-	rt2800pci_rfcsr_write(rt2x00dev, 5, 0x03);
-	rt2800pci_rfcsr_write(rt2x00dev, 6, 0x02);
-	rt2800pci_rfcsr_write(rt2x00dev, 7, 0x50);
-	rt2800pci_rfcsr_write(rt2x00dev, 8, 0x39);
-	rt2800pci_rfcsr_write(rt2x00dev, 9, 0x0f);
-	rt2800pci_rfcsr_write(rt2x00dev, 10, 0x60);
-	rt2800pci_rfcsr_write(rt2x00dev, 11, 0x21);
-	rt2800pci_rfcsr_write(rt2x00dev, 12, 0x75);
-	rt2800pci_rfcsr_write(rt2x00dev, 13, 0x75);
-	rt2800pci_rfcsr_write(rt2x00dev, 14, 0x90);
-	rt2800pci_rfcsr_write(rt2x00dev, 15, 0x58);
-	rt2800pci_rfcsr_write(rt2x00dev, 16, 0xb3);
-	rt2800pci_rfcsr_write(rt2x00dev, 17, 0x92);
-	rt2800pci_rfcsr_write(rt2x00dev, 18, 0x2c);
-	rt2800pci_rfcsr_write(rt2x00dev, 19, 0x02);
-	rt2800pci_rfcsr_write(rt2x00dev, 20, 0xba);
-	rt2800pci_rfcsr_write(rt2x00dev, 21, 0xdb);
-	rt2800pci_rfcsr_write(rt2x00dev, 22, 0x00);
-	rt2800pci_rfcsr_write(rt2x00dev, 23, 0x31);
-	rt2800pci_rfcsr_write(rt2x00dev, 24, 0x08);
-	rt2800pci_rfcsr_write(rt2x00dev, 25, 0x01);
-	rt2800pci_rfcsr_write(rt2x00dev, 26, 0x25);
-	rt2800pci_rfcsr_write(rt2x00dev, 27, 0x23);
-	rt2800pci_rfcsr_write(rt2x00dev, 28, 0x13);
-	rt2800pci_rfcsr_write(rt2x00dev, 29, 0x83);
+	rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
+	rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
+	rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
+	rt2800_rfcsr_write(rt2x00dev, 3, 0x75);
+	rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
+	rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
+	rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
+	rt2800_rfcsr_write(rt2x00dev, 7, 0x50);
+	rt2800_rfcsr_write(rt2x00dev, 8, 0x39);
+	rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
+	rt2800_rfcsr_write(rt2x00dev, 10, 0x60);
+	rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
+	rt2800_rfcsr_write(rt2x00dev, 12, 0x75);
+	rt2800_rfcsr_write(rt2x00dev, 13, 0x75);
+	rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
+	rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
+	rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
+	rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
+	rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
+	rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
+	rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
+	rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
+	rt2800_rfcsr_write(rt2x00dev, 22, 0x00);
+	rt2800_rfcsr_write(rt2x00dev, 23, 0x31);
+	rt2800_rfcsr_write(rt2x00dev, 24, 0x08);
+	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+	rt2800_rfcsr_write(rt2x00dev, 26, 0x25);
+	rt2800_rfcsr_write(rt2x00dev, 27, 0x23);
+	rt2800_rfcsr_write(rt2x00dev, 28, 0x13);
+	rt2800_rfcsr_write(rt2x00dev, 29, 0x83);
 
 	/*
 	 * Set RX Filter calibration for 20MHz and 40MHz
@@ -1919,9 +1931,9 @@ static int rt2800pci_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2800_bbp_write(rt2x00dev, 24, 0);
 
-	rt2800pci_rfcsr_read(rt2x00dev, 22, &rfcsr);
+	rt2800_rfcsr_read(rt2x00dev, 22, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR22_BASEBAND_LOOPBACK, 0);
-	rt2800pci_rfcsr_write(rt2x00dev, 22, rfcsr);
+	rt2800_rfcsr_write(rt2x00dev, 22, rfcsr);
 
 	/*
 	 * set BBP back to BW20
