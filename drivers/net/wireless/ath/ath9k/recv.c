@@ -230,31 +230,20 @@ static int ath9k_compute_qual(struct ieee80211_hw *hw,
 	return qual;
 }
 
-/*
- * For Decrypt or Demic errors, we only mark packet status here and always push
- * up the frame up to let mac80211 handle the actual error case, be it no
- * decryption key or real decryption error. This let us keep statistics there.
- */
-static int ath_rx_prepare(struct ath_common *common,
-			  struct ieee80211_hw *hw,
-			  struct sk_buff *skb, struct ath_rx_status *rx_stats,
-			  struct ieee80211_rx_status *rx_status,
-			  bool *decrypt_error)
+static void ath9k_process_rssi(struct ath_common *common,
+			       struct ieee80211_hw *hw,
+			       struct sk_buff *skb,
+			       struct ath_rx_status *rx_stats)
 {
 	struct ath_hw *ah = common->ah;
-	struct ieee80211_hdr *hdr;
-	__le16 fc;
 	struct ieee80211_sta *sta;
+	struct ieee80211_hdr *hdr;
 	struct ath_node *an;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
+	__le16 fc;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-
-	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
-		goto rx_next;
-
 
 	rcu_read_lock();
 	/* XXX: use ieee80211_find_sta! */
@@ -279,6 +268,27 @@ static int ath_rx_prepare(struct ath_common *common,
 	/* Update Beacon RSSI, this is used by ANI. */
 	if (ieee80211_is_beacon(fc))
 		ah->stats.avgbrssi = rx_stats->rs_rssi;
+}
+
+/*
+ * For Decrypt or Demic errors, we only mark packet status here and always push
+ * up the frame up to let mac80211 handle the actual error case, be it no
+ * decryption key or real decryption error. This let us keep statistics there.
+ */
+static int ath_rx_prepare(struct ath_common *common,
+			  struct ieee80211_hw *hw,
+			  struct sk_buff *skb, struct ath_rx_status *rx_stats,
+			  struct ieee80211_rx_status *rx_status,
+			  bool *decrypt_error)
+{
+	struct ath_hw *ah = common->ah;
+
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
+
+	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
+		goto rx_next;
+
+	ath9k_process_rssi(common, hw, skb, rx_stats);
 
 	rx_status->rate_idx = ath9k_process_rate(common, hw,
 						 rx_stats, rx_status, skb);
