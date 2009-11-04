@@ -374,7 +374,7 @@ static void rt2800usb_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 	    (crypto->cipher == CIPHER_AES))
 		iveiv_entry.iv[3] |= 0x20;
 	iveiv_entry.iv[3] |= key->keyidx << 6;
-	rt2x00usb_register_multiwrite(rt2x00dev, offset,
+	rt2800_register_multiwrite(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
 	offset = MAC_WCID_ENTRY(key->hw_key_idx);
@@ -382,7 +382,7 @@ static void rt2800usb_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 	memset(&wcid_entry, 0, sizeof(wcid_entry));
 	if (crypto->cmd == SET_KEY)
 		memcpy(&wcid_entry, crypto->address, ETH_ALEN);
-	rt2x00usb_register_multiwrite(rt2x00dev, offset,
+	rt2800_register_multiwrite(rt2x00dev, offset,
 				      &wcid_entry, sizeof(wcid_entry));
 }
 
@@ -406,7 +406,7 @@ static int rt2800usb_config_shared_key(struct rt2x00_dev *rt2x00dev,
 		       sizeof(key_entry.rx_mic));
 
 		offset = SHARED_KEY_ENTRY(key->hw_key_idx);
-		rt2x00usb_register_multiwrite(rt2x00dev, offset,
+		rt2800_register_multiwrite(rt2x00dev, offset,
 					      &key_entry, sizeof(key_entry));
 	}
 
@@ -461,7 +461,7 @@ static int rt2800usb_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		       sizeof(key_entry.rx_mic));
 
 		offset = PAIRWISE_KEY_ENTRY(key->hw_key_idx);
-		rt2x00usb_register_multiwrite(rt2x00dev, offset,
+		rt2800_register_multiwrite(rt2x00dev, offset,
 					      &key_entry, sizeof(key_entry));
 	}
 
@@ -549,7 +549,7 @@ static void rt2800usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, MAC_ADDR_DW1_UNICAST_TO_ME_MASK, 0xff);
 		conf->mac[1] = cpu_to_le32(reg);
 
-		rt2x00usb_register_multiwrite(rt2x00dev, MAC_ADDR_DW0,
+		rt2800_register_multiwrite(rt2x00dev, MAC_ADDR_DW0,
 					      conf->mac, sizeof(conf->mac));
 	}
 
@@ -559,7 +559,7 @@ static void rt2800usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 0);
 		conf->bssid[1] = cpu_to_le32(reg);
 
-		rt2x00usb_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
+		rt2800_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
 					      conf->bssid, sizeof(conf->bssid));
 	}
 }
@@ -1458,7 +1458,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	for (i = 0; i < 256; i++) {
 		u32 wcid[2] = { 0xffffffff, 0x00ffffff };
-		rt2x00usb_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
+		rt2800_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
 					      wcid, sizeof(wcid));
 
 		rt2800_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 1);
@@ -2646,7 +2646,7 @@ static void rt2800usb_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx,
 	u32 offset;
 
 	offset = MAC_IVEIV_ENTRY(hw_key_idx);
-	rt2x00usb_register_multiread(rt2x00dev, offset,
+	rt2800_register_multiread(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
 	memcpy(&iveiv_entry.iv[0], iv16, sizeof(iv16));

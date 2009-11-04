@@ -48,6 +48,20 @@ static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
 	rt2x00usb_register_write_lock(rt2x00dev, offset, value);
 }
 
+static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
+					     const unsigned int offset,
+					     void *value, const u32 length)
+{
+	rt2x00usb_register_multiread(rt2x00dev, offset, value, length);
+}
+
+static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
+					      const unsigned int offset,
+					      void *value, const u32 length)
+{
+	rt2x00usb_register_multiwrite(rt2x00dev, offset, value, length);
+}
+
 /*
  * RF chip defines.
  *
