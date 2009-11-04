@@ -96,11 +96,6 @@ static struct platform_device davinci_sffsdr_nandflash_device = {
 	.resource	= davinci_sffsdr_nandflash_resource,
 };
 
-static struct emac_platform_data sffsdr_emac_pdata = {
-	.phy_mask	= SFFSDR_PHY_MASK,
-	.mdio_max_freq	= SFFSDR_MDIO_FREQUENCY,
-};
-
 static struct at24_platform_data eeprom_info = {
 	.byte_len	= (64*1024) / 8,
 	.page_size	= 32,
