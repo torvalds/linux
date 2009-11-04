@@ -38,6 +38,7 @@
 #include "rt2x00pci.h"
 #include "rt2x00soc.h"
 #include "rt2800lib.h"
+#include "rt2800.h"
 #include "rt2800pci.h"
 
 #ifdef CONFIG_RT2800PCI_PCI_MODULE

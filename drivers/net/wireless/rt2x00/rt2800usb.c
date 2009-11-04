@@ -35,6 +35,7 @@
 #include "rt2x00.h"
 #include "rt2x00usb.h"
 #include "rt2800lib.h"
+#include "rt2800.h"
 #include "rt2800usb.h"
 
 /*
