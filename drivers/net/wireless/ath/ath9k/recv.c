@@ -102,6 +102,7 @@ static int ath_rx_prepare(struct ieee80211_hw *hw,
 	struct ieee80211_sta *sta;
 	struct ath_node *an;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
@@ -212,7 +213,7 @@ static int ath_rx_prepare(struct ieee80211_hw *hw,
 	rx_status->mactime = ath9k_hw_extend_tsf(sc->sc_ah, rx_stats->rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->noise = sc->ani.noise_floor;
+	rx_status->noise = common->ani.noise_floor;
 	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + rx_stats->rs_rssi;
 	rx_status->antenna = rx_stats->rs_antenna;
 

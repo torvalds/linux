@@ -405,34 +405,34 @@ static void ath_ani_calibrate(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	/* Long calibration runs independently of short calibration. */
-	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
+	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
 		ath_print(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
-		sc->ani.longcal_timer = timestamp;
+		common->ani.longcal_timer = timestamp;
 	}
 
 	/* Short calibration applies only while caldone is false */
-	if (!sc->ani.caldone) {
-		if ((timestamp - sc->ani.shortcal_timer) >= short_cal_interval) {
+	if (!common->ani.caldone) {
+		if ((timestamp - common->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
 			ath_print(common, ATH_DBG_ANI,
 				  "shortcal @%lu\n", jiffies);
-			sc->ani.shortcal_timer = timestamp;
-			sc->ani.resetcal_timer = timestamp;
+			common->ani.shortcal_timer = timestamp;
+			common->ani.resetcal_timer = timestamp;
 		}
 	} else {
-		if ((timestamp - sc->ani.resetcal_timer) >=
+		if ((timestamp - common->ani.resetcal_timer) >=
 		    ATH_RESTART_CALINTERVAL) {
-			sc->ani.caldone = ath9k_hw_reset_calvalid(ah);
-			if (sc->ani.caldone)
-				sc->ani.resetcal_timer = timestamp;
+			common->ani.caldone = ath9k_hw_reset_calvalid(ah);
+			if (common->ani.caldone)
+				common->ani.resetcal_timer = timestamp;
 		}
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - sc->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
-		sc->ani.checkani_timer = timestamp;
+		common->ani.checkani_timer = timestamp;
 	}
 
 	/* Skip all processing if there's nothing to do. */
@@ -443,21 +443,21 @@ static void ath_ani_calibrate(unsigned long data)
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
-			sc->ani.caldone =
+			common->ani.caldone =
 				ath9k_hw_calibrate(ah,
 						   ah->curchan,
 						   common->rx_chainmask,
 						   longcal);
 
 			if (longcal)
-				sc->ani.noise_floor = ath9k_hw_getchan_noise(ah,
+				common->ani.noise_floor = ath9k_hw_getchan_noise(ah,
 								     ah->curchan);
 
 			ath_print(common, ATH_DBG_ANI,
 				  " calibrate chan %u/%x nf: %d\n",
 				  ah->curchan->channel,
 				  ah->curchan->channelFlags,
-				  sc->ani.noise_floor);
+				  common->ani.noise_floor);
 		}
 	}
 
@@ -473,21 +473,21 @@ set_timer:
 	cal_interval = ATH_LONG_CALINTERVAL;
 	if (sc->sc_ah->config.enable_ani)
 		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
-	if (!sc->ani.caldone)
+	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
-	mod_timer(&sc->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
+	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 }
 
-static void ath_start_ani(struct ath_softc *sc)
+static void ath_start_ani(struct ath_common *common)
 {
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
-	sc->ani.longcal_timer = timestamp;
-	sc->ani.shortcal_timer = timestamp;
-	sc->ani.checkani_timer = timestamp;
+	common->ani.longcal_timer = timestamp;
+	common->ani.shortcal_timer = timestamp;
+	common->ani.checkani_timer = timestamp;
 
-	mod_timer(&sc->ani.timer,
+	mod_timer(&common->ani.timer,
 		  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 }
 
@@ -1023,12 +1023,12 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		/* Reset rssi stats */
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
-		ath_start_ani(sc);
+		ath_start_ani(common);
 	} else {
 		ath_print(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		common->curaid = 0;
 		/* Stop ANI */
-		del_timer_sync(&sc->ani.timer);
+		del_timer_sync(&common->ani.timer);
 	}
 }
 
@@ -1761,8 +1761,8 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* Initializes the noise floor to a reasonable default value.
 	 * Later on this will be updated during ANI processing. */
 
-	sc->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
-	setup_timer(&sc->ani.timer, ath_ani_calibrate, (unsigned long)sc);
+	common->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
+	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {
@@ -2634,7 +2634,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if (conf->type == NL80211_IFTYPE_AP    ||
 	    conf->type == NL80211_IFTYPE_ADHOC ||
 	    conf->type == NL80211_IFTYPE_MONITOR)
-		ath_start_ani(sc);
+		ath_start_ani(common);
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -2655,7 +2655,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	/* Stop ANI */
-	del_timer_sync(&sc->ani.timer);
+	del_timer_sync(&common->ani.timer);
 
 	/* Reclaim beacon resources */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||

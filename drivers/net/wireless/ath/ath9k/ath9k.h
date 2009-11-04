@@ -434,16 +434,6 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
-struct ath_ani {
-	bool caldone;
-	int16_t noise_floor;
-	unsigned int longcal_timer;
-	unsigned int shortcal_timer;
-	unsigned int resetcal_timer;
-	unsigned int checkani_timer;
-	struct timer_list timer;
-};
-
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
 	ATH_BTCOEX_NO_STOMP,
@@ -601,7 +591,6 @@ struct ath_softc {
 
 	int beacon_interval;
 
-	struct ath_ani ani;
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug debug;
 #endif

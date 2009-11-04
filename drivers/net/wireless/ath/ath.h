@@ -23,6 +23,16 @@
 
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+struct ath_ani {
+	bool caldone;
+	int16_t noise_floor;
+	unsigned int longcal_timer;
+	unsigned int shortcal_timer;
+	unsigned int resetcal_timer;
+	unsigned int checkani_timer;
+	struct timer_list timer;
+};
+
 enum ath_device_state {
 	ATH_HW_UNAVAILABLE,
 	ATH_HW_INITIALIZED,
@@ -65,6 +75,8 @@ struct ath_common {
 	struct ieee80211_hw *hw;
 	int debug_mask;
 	enum ath_device_state state;
+
+	struct ath_ani ani;
 
 	u16 cachelsz;
 	u16 curaid;
