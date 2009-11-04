@@ -52,7 +52,7 @@ const char *default_search_path[NR_SEARCH_PATH] = {
 #define MAX_PATH_LEN 256
 #define MAX_PROBES 128
 #define MAX_PROBE_ARGS 128
-#define PERFPROBE_GROUP "perfprobe"
+#define PERFPROBE_GROUP "probe"
 
 /* Session management structure */
 static struct {
