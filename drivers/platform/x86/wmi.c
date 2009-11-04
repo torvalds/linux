@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
@@ -65,6 +66,7 @@ struct wmi_block {
 	acpi_handle handle;
 	wmi_notify_handler handler;
 	void *handler_data;
+	struct device *dev;
 };
 
 static struct wmi_block wmi_blocks;
@@ -193,6 +195,34 @@ static bool wmi_parse_guid(const u8 *src, u8 *dest)
 	}
 
 	return true;
+}
+
+/*
+ * Convert a raw GUID to the ACII string representation
+ */
+static int wmi_gtoa(const char *in, char *out)
+{
+	int i;
+
+	for (i = 3; i >= 0; i--)
+		out += sprintf(out, "%02X", in[i] & 0xFF);
+
+	out += sprintf(out, "-");
+	out += sprintf(out, "%02X", in[5] & 0xFF);
+	out += sprintf(out, "%02X", in[4] & 0xFF);
+	out += sprintf(out, "-");
+	out += sprintf(out, "%02X", in[7] & 0xFF);
+	out += sprintf(out, "%02X", in[6] & 0xFF);
+	out += sprintf(out, "-");
+	out += sprintf(out, "%02X", in[8] & 0xFF);
+	out += sprintf(out, "%02X", in[9] & 0xFF);
+	out += sprintf(out, "-");
+
+	for (i = 10; i <= 15; i++)
+		out += sprintf(out, "%02X", in[i] & 0xFF);
+
+	out = '\0';
+	return 0;
 }
 
 static bool find_guid(const char *guid_string, struct wmi_block **out)
@@ -555,6 +585,138 @@ bool wmi_has_guid(const char *guid_string)
 EXPORT_SYMBOL_GPL(wmi_has_guid);
 
 /*
+ * sysfs interface
+ */
+static ssize_t show_modalias(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	char guid_string[37];
+	struct wmi_block *wblock;
+
+	wblock = dev_get_drvdata(dev);
+	if (!wblock)
+		return -ENOMEM;
+
+	wmi_gtoa(wblock->gblock.guid, guid_string);
+
+	return sprintf(buf, "wmi:%s\n", guid_string);
+}
+static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
+
+static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	char guid_string[37];
+
+	struct wmi_block *wblock;
+
+	if (add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+
+	wblock = dev_get_drvdata(dev);
+	if (!wblock)
+		return -ENOMEM;
+
+	wmi_gtoa(wblock->gblock.guid, guid_string);
+
+	strcpy(&env->buf[env->buflen - 1], "wmi:");
+	memcpy(&env->buf[env->buflen - 1 + 4], guid_string, 36);
+	env->buflen += 40;
+
+	return 0;
+}
+
+static void wmi_dev_free(struct device *dev)
+{
+	kfree(dev);
+}
+
+static struct class wmi_class = {
+	.name = "wmi",
+	.dev_release = wmi_dev_free,
+	.dev_uevent = wmi_dev_uevent,
+};
+
+static int wmi_create_devs(void)
+{
+	int result;
+	char guid_string[37];
+	struct guid_block *gblock;
+	struct wmi_block *wblock;
+	struct list_head *p;
+	struct device *guid_dev;
+
+	/* Create devices for all the GUIDs */
+	list_for_each(p, &wmi_blocks.list) {
+		wblock = list_entry(p, struct wmi_block, list);
+
+		guid_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+		if (!guid_dev)
+			return -ENOMEM;
+
+		wblock->dev = guid_dev;
+
+		guid_dev->class = &wmi_class;
+		dev_set_drvdata(guid_dev, wblock);
+
+		gblock = &wblock->gblock;
+
+		wmi_gtoa(gblock->guid, guid_string);
+		dev_set_name(guid_dev, guid_string);
+
+		result = device_register(guid_dev);
+		if (result)
+			return result;
+
+		result = device_create_file(guid_dev, &dev_attr_modalias);
+		if (result)
+			return result;
+	}
+
+	return 0;
+}
+
+static void wmi_remove_devs(void)
+{
+	struct guid_block *gblock;
+	struct wmi_block *wblock;
+	struct list_head *p;
+	struct device *guid_dev;
+
+	/* Delete devices for all the GUIDs */
+	list_for_each(p, &wmi_blocks.list) {
+		wblock = list_entry(p, struct wmi_block, list);
+
+		guid_dev = wblock->dev;
+		gblock = &wblock->gblock;
+
+		device_remove_file(guid_dev, &dev_attr_modalias);
+
+		device_unregister(guid_dev);
+	}
+}
+
+static void wmi_class_exit(void)
+{
+	wmi_remove_devs();
+	class_unregister(&wmi_class);
+}
+
+static int wmi_class_init(void)
+{
+	int ret;
+
+	ret = class_register(&wmi_class);
+	if (ret)
+		return ret;
+
+	ret = wmi_create_devs();
+	if (ret)
+		wmi_class_exit();
+
+	return ret;
+}
+
+/*
  * Parse the _WDG method for the GUID data blocks
  */
 static __init acpi_status parse_wdg(acpi_handle handle)
@@ -709,9 +871,16 @@ static int __init acpi_wmi_init(void)
 
 	if (result < 0) {
 		printk(KERN_INFO PREFIX "Error loading mapper\n");
-	} else {
-		printk(KERN_INFO PREFIX "Mapper loaded\n");
+		return -ENODEV;
 	}
+
+	result = wmi_class_init();
+	if (result) {
+		acpi_bus_unregister_driver(&acpi_wmi_driver);
+		return result;
+	}
+
+	printk(KERN_INFO PREFIX "Mapper loaded\n");
 
 	return result;
 }
@@ -720,6 +889,8 @@ static void __exit acpi_wmi_exit(void)
 {
 	struct list_head *p, *tmp;
 	struct wmi_block *wblock;
+
+	wmi_class_exit();
 
 	acpi_bus_unregister_driver(&acpi_wmi_driver);
 
