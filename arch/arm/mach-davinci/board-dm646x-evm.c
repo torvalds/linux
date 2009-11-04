@@ -194,7 +194,7 @@ static struct gpio_led evm_leds[] = {
 	{ .name = "DS4", .active_low = 1, },
 };
 
-static __initconst struct gpio_led_platform_data evm_led_data = {
+static const struct gpio_led_platform_data evm_led_data = {
 	.num_leds = ARRAY_SIZE(evm_leds),
 	.leds     = evm_leds,
 };
