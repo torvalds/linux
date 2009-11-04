@@ -17,6 +17,7 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/symbol.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -109,9 +110,21 @@ static void write_output(void *buf, size_t size)
 	}
 }
 
+static void write_event(event_t *buf, size_t size)
+{
+	/*
+	* Add it to the list of DSOs, so that when we finish this
+	 * record session we can pick the available build-ids.
+	 */
+	if (buf->header.type == PERF_RECORD_MMAP)
+		dsos__findnew(buf->mmap.filename);
+
+	write_output(buf, size);
+}
+
 static int process_synthesized_event(event_t *event)
 {
-	write_output(event, event->header.size);
+	write_event(event, event->header.size);
 	return 0;
 }
 
@@ -163,14 +176,14 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		write_output(buf, size);
+		write_event(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	write_output(buf, size);
+	write_event(buf, size);
 
 	md->prev = old;
 	mmap_write_tail(md, old);
@@ -365,9 +378,37 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
+static bool write_buildid_table(void)
+{
+	struct dso *pos;
+	bool have_buildid = false;
+
+	list_for_each_entry(pos, &dsos, node) {
+		struct build_id_event b;
+		size_t len;
+
+		if (filename__read_build_id(pos->long_name,
+					    &b.build_id,
+					    sizeof(b.build_id)) < 0)
+			continue;
+		have_buildid = true;
+		memset(&b.header, 0, sizeof(b.header));
+		len = strlen(pos->long_name) + 1;
+		len = ALIGN(len, 64);
+		b.header.size = sizeof(b) + len;
+		write_output(&b, sizeof(b));
+		write_output(pos->long_name, len);
+	}
+
+	return have_buildid;
+}
+
 static void atexit_header(void)
 {
 	header->data_size += bytes_written;
+
+	if (write_buildid_table())
+		perf_header__set_feat(header, HEADER_BUILD_ID);
 
 	perf_header__write(header, output);
 }
@@ -571,6 +612,8 @@ static const struct option options[] = {
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
+
+	symbol__init(0);
 
 	argc = parse_options(argc, argv, options, record_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);

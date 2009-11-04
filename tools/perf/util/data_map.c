@@ -70,6 +70,39 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 }
 
+static int perf_header__read_build_ids(const struct perf_header *self,
+				       int input, off_t file_size)
+{
+	off_t offset = self->data_offset + self->data_size;
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	int err = -1;
+
+	if (lseek(input, offset, SEEK_SET) < 0)
+		return -1;
+
+	while (offset < file_size) {
+		struct dso *dso;
+		ssize_t len;
+
+		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
+			goto out;
+
+		len = bev.header.size - sizeof(bev);
+		if (read(input, filename, len) != len)
+			goto out;
+
+		dso = dsos__findnew(filename);
+		if (dso != NULL)
+			dso__set_build_id(dso, &bev.build_id);
+
+		offset += bev.header.size;
+	}
+	err = 0;
+out:
+	return err;
+}
+
 int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    const char *input_name,
 			    int force,
@@ -129,6 +162,10 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 	if (curr_handler->sample_type_check)
 		if (curr_handler->sample_type_check(sample_type) < 0)
 			exit(-1);
+
+	if (perf_header__has_feat(header, HEADER_BUILD_ID) &&
+	    perf_header__read_build_ids(header, input, input_stat.st_size))
+		pr_debug("failed to read buildids, continuing...\n");
 
 	if (load_kernel(NULL) < 0) {
 		perror("failed to load kernel symbols");

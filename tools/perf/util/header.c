@@ -149,6 +149,16 @@ void perf_header__feat_trace_info(struct perf_header *header)
 	set_bit(HEADER_TRACE_INFO, header->adds_features);
 }
 
+void perf_header__set_feat(struct perf_header *self, int feat)
+{
+	set_bit(feat, self->adds_features);
+}
+
+bool perf_header__has_feat(const struct perf_header *self, int feat)
+{
+	return test_bit(feat, self->adds_features);
+}
+
 static void do_write(int fd, void *buf, size_t size)
 {
 	while (size) {

@@ -121,7 +121,8 @@ struct dso *dso__new(const char *name)
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
-		self->loaded = false;
+		self->loaded = 0;
+		self->has_build_id = 0;
 	}
 
 	return self;
@@ -146,6 +147,12 @@ void dso__delete(struct dso *self)
 	if (self->long_name != self->name)
 		free(self->long_name);
 	free(self);
+}
+
+void dso__set_build_id(struct dso *self, void *build_id)
+{
+	memcpy(self->build_id, build_id, sizeof(self->build_id));
+	self->has_build_id = 1;
 }
 
 static void dso__insert_symbol(struct dso *self, struct symbol *sym)
@@ -190,11 +197,30 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip)
 	return NULL;
 }
 
+int build_id__sprintf(u8 *self, int len, char *bf)
+{
+	char *bid = bf;
+	u8 *raw = self;
+	int i;
+
+	for (i = 0; i < len; ++i) {
+		sprintf(bid, "%02x", *raw);
+		++raw;
+		bid += 2;
+	}
+
+	return raw - self;
+}
+
 size_t dso__fprintf(struct dso *self, FILE *fp)
 {
-	size_t ret = fprintf(fp, "dso: %s\n", self->short_name);
-
+	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 	struct rb_node *nd;
+	size_t ret;
+
+	build_id__sprintf(self->build_id, sizeof(self->build_id), sbuild_id);
+	ret = fprintf(fp, "dso: %s (%s)\n", self->short_name, sbuild_id);
+
 	for (nd = rb_first(&self->syms); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		ret += symbol__fprintf(pos, fp);
@@ -825,8 +851,6 @@ out_close:
 	return err;
 }
 
-#define BUILD_ID_SIZE 20
-
 int filename__read_build_id(const char *filename, void *bf, size_t size)
 {
 	int fd, err = -1;
@@ -845,7 +869,7 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_err("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -874,9 +898,9 @@ out:
 
 static char *dso__read_build_id(struct dso *self)
 {
-	int i, len;
-	char *build_id = NULL, *bid;
-	unsigned char rawbf[BUILD_ID_SIZE], *raw;
+	int len;
+	char *build_id = NULL;
+	unsigned char rawbf[BUILD_ID_SIZE];
 
 	len = filename__read_build_id(self->long_name, rawbf, sizeof(rawbf));
 	if (len < 0)
@@ -885,15 +909,8 @@ static char *dso__read_build_id(struct dso *self)
 	build_id = malloc(len * 2 + 1);
 	if (build_id == NULL)
 		goto out;
-	bid = build_id;
 
-	raw = rawbf;
-	for (i = 0; i < len; ++i) {
-		sprintf(bid, "%02x", *raw);
-		++raw;
-		bid += 2;
-	}
-	pr_debug2("%s(%s): %s\n", __func__, self->long_name, build_id);
+	build_id__sprintf(rawbf, len, build_id);
 out:
 	return build_id;
 }
@@ -922,7 +939,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	int ret = -1;
 	int fd;
 
-	self->loaded = true;
+	self->loaded = 1;
 
 	if (!name)
 		return -1;
@@ -940,6 +957,8 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 
 more:
 	do {
+		int berr = 0;
+
 		self->origin++;
 		switch (self->origin) {
 		case DSO__ORIG_FEDORA:
@@ -956,8 +975,7 @@ more:
 				snprintf(name, size,
 					 "/usr/lib/debug/.build-id/%.2s/%s.debug",
 					build_id, build_id + 2);
-				free(build_id);
-				break;
+				goto compare_build_id;
 			}
 			self->origin++;
 			/* Fall thru */
@@ -967,6 +985,22 @@ more:
 
 		default:
 			goto out;
+		}
+
+		if (self->has_build_id) {
+			bool match;
+			build_id = malloc(BUILD_ID_SIZE);
+			if (build_id == NULL)
+				goto more;
+			berr = filename__read_build_id(name, build_id,
+						       BUILD_ID_SIZE);
+compare_build_id:
+			match = berr > 0 && memcmp(build_id, self->build_id,
+						   sizeof(self->build_id)) == 0;
+			free(build_id);
+			build_id = NULL;
+			if (!match)
+				goto more;
 		}
 
 		fd = open(name, O_RDONLY);
@@ -1034,7 +1068,7 @@ static int dso__load_module_sym(struct dso *self, struct map *map,
 {
 	int err = 0, fd = open(self->long_name, O_RDONLY);
 
-	self->loaded = true;
+	self->loaded = 1;
 
 	if (fd < 0) {
 		pr_err("%s: cannot open %s\n", __func__, self->long_name);
@@ -1225,7 +1259,7 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 {
 	int err, fd = open(vmlinux, O_RDONLY);
 
-	self->loaded = true;
+	self->loaded = 1;
 
 	if (fd < 0)
 		return -1;

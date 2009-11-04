@@ -3,6 +3,7 @@
 
 #include "../../../include/linux/perf_event.h"
 #include <sys/types.h>
+#include <stdbool.h>
 #include "types.h"
 
 #include <linux/bitmap.h>
@@ -15,6 +16,7 @@ struct perf_header_attr {
 };
 
 #define HEADER_TRACE_INFO			1
+#define HEADER_BUILD_ID				2
 
 #define HEADER_FEAT_BITS			256
 
@@ -48,6 +50,8 @@ u64 perf_header__sample_type(struct perf_header *header);
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header);
 void perf_header__feat_trace_info(struct perf_header *header);
+void perf_header__set_feat(struct perf_header *self, int feat);
+bool perf_header__has_feat(const struct perf_header *self, int feat);
 
 struct perf_header *perf_header__new(void);
 

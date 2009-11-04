@@ -84,8 +84,18 @@ map__find_symbol(struct map *self, u64 ip, symbol_filter_t filter)
 		int nr = dso__load(self->dso, self, filter);
 
 		if (nr < 0) {
-			pr_warning("Failed to open %s, continuing without symbols\n",
-				   self->dso->long_name);
+			if (self->dso->has_build_id) {
+				char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+				build_id__sprintf(self->dso->build_id,
+						  sizeof(self->dso->build_id),
+						  sbuild_id);
+				pr_warning("%s with build id %s not found",
+					   self->dso->long_name, sbuild_id);
+			} else
+				pr_warning("Failed to open %s",
+					   self->dso->long_name);
+			pr_warning(", continuing without symbols\n");
 			return NULL;
 		} else if (nr == 0) {
 			const char *name = self->dso->long_name;

@@ -61,6 +61,13 @@ struct sample_event{
 	u64 array[];
 };
 
+#define BUILD_ID_SIZE 20
+
+struct build_id_event {
+	struct perf_event_header header;
+	u8			 build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
+	char			 filename[];
+};
 
 typedef union event_union {
 	struct perf_event_header	header;

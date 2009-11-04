@@ -60,10 +60,12 @@ struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
-	unsigned char	 adjust_symbols;
-	unsigned char	 slen_calculated;
-	bool		 loaded;
+	u8		 adjust_symbols:1;
+	u8		 slen_calculated:1;
+	u8		 loaded:1;
+	u8		 has_build_id:1;
 	unsigned char	 origin;
+	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
 	char	 	 *long_name;
 	char		 name[0];
@@ -81,8 +83,10 @@ void dsos__fprintf(FILE *fp);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
+void dso__set_build_id(struct dso *self, void *build_id);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
+int build_id__sprintf(u8 *self, int len, char *bf);
 
 int load_kernel(symbol_filter_t filter);
 
