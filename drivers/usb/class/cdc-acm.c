@@ -609,9 +609,9 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	acm->throttle = 0;
 
-	tasklet_schedule(&acm->urb_task);
 	set_bit(ASYNCB_INITIALIZED, &acm->port.flags);
 	rv = tty_port_block_til_ready(&acm->port, tty, filp);
+	tasklet_schedule(&acm->urb_task);
 done:
 	mutex_unlock(&acm->mutex);
 err_out:
