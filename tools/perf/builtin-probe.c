@@ -294,10 +294,11 @@ static int write_new_event(int fd, const char *buf)
 {
 	int ret;
 
-	printf("Adding new event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret <= 0)
-		die("failed to create event.");
+		die("Failed to create event.");
+	else
+		printf("Added new event: %s\n", buf);
 
 	return ret;
 }
@@ -310,7 +311,7 @@ static int synthesize_probe_event(struct probe_point *pp)
 	int i, len, ret;
 	pp->probes[0] = buf = (char *)calloc(MAX_CMDLEN, sizeof(char));
 	if (!buf)
-		die("calloc");
+		die("Failed to allocate memory by calloc.");
 	ret = snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
 	if (ret <= 0 || ret >= MAX_CMDLEN)
 		goto error;
@@ -363,7 +364,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		if (ret == -E2BIG)
 			semantic_error("probe point is too long.");
 		else if (ret < 0)
-			die("snprintf");
+			die("Failed to synthesize a probe point.");
 	}
 
 #ifndef NO_LIBDWARF
@@ -375,7 +376,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	else
 		fd = open_default_vmlinux();
 	if (fd < 0)
-		die("vmlinux/module file open");
+		die("Could not open vmlinux/module file.");
 
 	/* Searching probe points */
 	for (j = 0; j < session.nr_probe; j++) {
@@ -396,8 +397,13 @@ setup_probes:
 	/* Settng up probe points */
 	snprintf(buf, MAX_CMDLEN, "%s/../kprobe_events", debugfs_path);
 	fd = open(buf, O_WRONLY, O_APPEND);
-	if (fd < 0)
-		die("kprobe_events open");
+	if (fd < 0) {
+		if (errno == ENOENT)
+			die("kprobe_events file does not exist - please rebuild with CONFIG_KPROBE_TRACER.");
+		else
+			die("Could not open kprobe_events file: %s",
+			    strerror(errno));
+	}
 	for (j = 0; j < session.nr_probe; j++) {
 		pp = &session.probes[j];
 		if (pp->found == 1) {
