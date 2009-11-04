@@ -30,8 +30,7 @@
 #define GRE_FLAGS	__cpu_to_be16(0x00F8)
 #define GRE_VERSION	__cpu_to_be16(0x0007)
 
-struct ip_tunnel_parm
-{
+struct ip_tunnel_parm {
 	char			name[IFNAMSIZ];
 	int			link;
 	__be16			i_flags;
@@ -63,8 +62,7 @@ struct ip_tunnel_6rd {
 	__u16			relay_prefixlen;
 };
 
-enum
-{
+enum {
 	IFLA_GRE_UNSPEC,
 	IFLA_GRE_LINK,
 	IFLA_GRE_IFLAGS,

@@ -13,8 +13,7 @@
 /* try to find source address in routing lookups */
 #define FIB_RULE_FIND_SADDR	0x00010000
 
-struct fib_rule_hdr
-{
+struct fib_rule_hdr {
 	__u8		family;
 	__u8		dst_len;
 	__u8		src_len;
@@ -28,8 +27,7 @@ struct fib_rule_hdr
 	__u32		flags;
 };
 
-enum
-{
+enum {
 	FRA_UNSPEC,
 	FRA_DST,	/* destination address */
 	FRA_SRC,	/* source address */
@@ -52,8 +50,7 @@ enum
 
 #define FRA_MAX (__FRA_MAX - 1)
 
-enum
-{
+enum {
 	FR_ACT_UNSPEC,
 	FR_ACT_TO_TBL,		/* Pass to fixed table */
 	FR_ACT_GOTO,		/* Jump to another rule */

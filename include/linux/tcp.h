@@ -102,8 +102,7 @@ enum {
 #define TCPI_OPT_WSCALE		4
 #define TCPI_OPT_ECN		8
 
-enum tcp_ca_state
-{
+enum tcp_ca_state {
 	TCP_CA_Open = 0,
 #define TCPF_CA_Open	(1<<TCP_CA_Open)
 	TCP_CA_Disorder = 1,
@@ -116,8 +115,7 @@ enum tcp_ca_state
 #define TCPF_CA_Loss	(1<<TCP_CA_Loss)
 };
 
-struct tcp_info
-{
+struct tcp_info {
 	__u8	tcpi_state;
 	__u8	tcpi_ca_state;
 	__u8	tcpi_retransmits;

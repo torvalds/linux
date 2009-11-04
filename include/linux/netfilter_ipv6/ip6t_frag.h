@@ -1,8 +1,7 @@
 #ifndef _IP6T_FRAG_H
 #define _IP6T_FRAG_H
 
-struct ip6t_frag
-{
+struct ip6t_frag {
 	u_int32_t ids[2];			/* Security Parameter Index */
 	u_int32_t hdrlen;			/* Header Length */
 	u_int8_t  flags;			/*  */

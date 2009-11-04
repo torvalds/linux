@@ -15,8 +15,7 @@ enum xt_connbytes_direction {
 	XT_CONNBYTES_DIR_BOTH,
 };
 
-struct xt_connbytes_info
-{
+struct xt_connbytes_info {
 	struct {
 		aligned_u64 from;	/* count to be matched */
 		aligned_u64 to;		/* count to be matched */

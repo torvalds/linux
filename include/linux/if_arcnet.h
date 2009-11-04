@@ -56,8 +56,7 @@
 /*
  * The RFC1201-specific components of an arcnet packet header.
  */
-struct arc_rfc1201
-{
+struct arc_rfc1201 {
     __u8  proto;		/* protocol ID field - varies		*/
     __u8  split_flag;	/* for use with split packets		*/
     __be16   sequence;		/* sequence number			*/
@@ -69,8 +68,7 @@ struct arc_rfc1201
 /*
  * The RFC1051-specific components.
  */
-struct arc_rfc1051
-{
+struct arc_rfc1051 {
     __u8 proto;		/* ARC_P_RFC1051_ARP/RFC1051_IP	*/
     __u8 payload[0];		/* 507 bytes			*/
 };
@@ -81,8 +79,7 @@ struct arc_rfc1051
  * The ethernet-encap-specific components.  We have a real ethernet header
  * and some data.
  */
-struct arc_eth_encap
-{
+struct arc_eth_encap {
     __u8 proto;		/* Always ARC_P_ETHER			*/
     struct ethhdr eth;		/* standard ethernet header (yuck!)	*/
     __u8 payload[0];		/* 493 bytes				*/
@@ -90,8 +87,7 @@ struct arc_eth_encap
 #define ETH_ENCAP_HDR_SIZE 14
 
 
-struct arc_cap
-{
+struct arc_cap {
 	__u8 proto;
 	__u8 cookie[sizeof(int)];   /* Actually NOT sent over the network */
 	union {
@@ -108,8 +104,7 @@ struct arc_cap
  * the _end_ of the 512-byte buffer.  We hide this complexity inside the
  * driver.
  */
-struct arc_hardware
-{
+struct arc_hardware {
     __u8  source,		/* source ARCnet - filled in automagically */
              dest,		/* destination ARCnet - 0 for broadcast    */
     	     offset[2];		/* offset bytes (some weird semantics)     */
@@ -120,8 +115,7 @@ struct arc_hardware
  * This is an ARCnet frame header, as seen by the kernel (and userspace,
  * when you do a raw packet capture).
  */
-struct archdr
-{
+struct archdr {
     /* hardware requirements */
     struct arc_hardware hard;
      

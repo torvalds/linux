@@ -125,8 +125,7 @@ typedef enum netdev_tx netdev_tx_t;
  *	with byte counters.
  */
 
-struct net_device_stats
-{
+struct net_device_stats {
 	unsigned long	rx_packets;		/* total packets received	*/
 	unsigned long	tx_packets;		/* total packets transmitted	*/
 	unsigned long	rx_bytes;		/* total bytes received 	*/
@@ -179,8 +178,7 @@ struct neighbour;
 struct neigh_parms;
 struct sk_buff;
 
-struct netif_rx_stats
-{
+struct netif_rx_stats {
 	unsigned total;
 	unsigned dropped;
 	unsigned time_squeeze;
@@ -189,8 +187,7 @@ struct netif_rx_stats
 
 DECLARE_PER_CPU(struct netif_rx_stats, netdev_rx_stat);
 
-struct dev_addr_list
-{
+struct dev_addr_list {
 	struct dev_addr_list	*next;
 	u8			da_addr[MAX_ADDR_LEN];
 	u8			da_addrlen;
@@ -227,8 +224,7 @@ struct netdev_hw_addr_list {
 	int			count;
 };
 
-struct hh_cache
-{
+struct hh_cache {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
 /*
@@ -291,8 +287,7 @@ struct header_ops {
  * code.
  */
 
-enum netdev_state_t
-{
+enum netdev_state_t {
 	__LINK_STATE_START,
 	__LINK_STATE_PRESENT,
 	__LINK_STATE_NOCARRIER,
@@ -341,8 +336,7 @@ struct napi_struct {
 	struct sk_buff		*skb;
 };
 
-enum
-{
+enum {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
 	NAPI_STATE_DISABLE,	/* Disable pending */
 	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
@@ -458,8 +452,7 @@ static inline void napi_synchronize(const struct napi_struct *n)
 # define napi_synchronize(n)	barrier()
 #endif
 
-enum netdev_queue_state_t
-{
+enum netdev_queue_state_t {
 	__QUEUE_STATE_XOFF,
 	__QUEUE_STATE_FROZEN,
 };
@@ -653,8 +646,7 @@ struct net_device_ops {
  *	moves out.
  */
 
-struct net_device
-{
+struct net_device {
 
 	/*
 	 * This is the first field of the "visible" part of this structure
@@ -1229,8 +1221,7 @@ static inline int unregister_gifconf(unsigned int family)
  * Incoming packets are placed on per-cpu queues so that
  * no locking is needed.
  */
-struct softnet_data
-{
+struct softnet_data {
 	struct Qdisc		*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
@@ -1627,7 +1618,8 @@ static inline int netif_dormant(const struct net_device *dev)
  *
  * Check if carrier is operational
  */
-static inline int netif_oper_up(const struct net_device *dev) {
+static inline int netif_oper_up(const struct net_device *dev)
+{
 	return (dev->operstate == IF_OPER_UP ||
 		dev->operstate == IF_OPER_UNKNOWN /* backward compat */);
 }

@@ -491,8 +491,7 @@ extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 			int len,int odd, struct sk_buff *skb),
 			void *from, int length);
 
-struct skb_seq_state
-{
+struct skb_seq_state {
 	__u32		lower_offset;
 	__u32		upper_offset;
 	__u32		frag_idx;

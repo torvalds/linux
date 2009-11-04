@@ -21,8 +21,7 @@
  * ! nfnetlink use the same attributes methods. - J. Schulist.
  */
 
-struct nfattr
-{
+struct nfattr {
 	__u16 nfa_len;
 	__u16 nfa_type;	/* we use 15 bits for the type, and the highest
 				 * bit to indicate whether the payload is nested */

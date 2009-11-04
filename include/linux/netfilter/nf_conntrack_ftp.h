@@ -3,8 +3,7 @@
 /* FTP tracking. */
 
 /* This enum is exposed to userspace */
-enum nf_ct_ftp_type
-{
+enum nf_ct_ftp_type {
 	/* PORT command from client */
 	NF_CT_FTP_PORT,
 	/* PASV response from server */

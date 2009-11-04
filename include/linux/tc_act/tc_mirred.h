@@ -10,15 +10,13 @@
 #define TCA_INGRESS_REDIR 3  /* packet redirect to INGRESS*/
 #define TCA_INGRESS_MIRROR 4 /* mirror packet to INGRESS */
                                                                                 
-struct tc_mirred
-{
+struct tc_mirred {
 	tc_gen;
 	int                     eaction;   /* one of IN/EGRESS_MIRROR/REDIR */
 	__u32                   ifindex;  /* ifindex of egress port */
 };
                                                                                 
-enum
-{
+enum {
 	TCA_MIRRED_UNSPEC,
 	TCA_MIRRED_TM,
 	TCA_MIRRED_PARMS,

@@ -76,8 +76,7 @@ struct vifctl {
  *	Cache manipulation structures for mrouted and PIMd
  */
  
-struct mfcctl
-{
+struct mfcctl {
 	struct in_addr mfcc_origin;		/* Origin of mcast	*/
 	struct in_addr mfcc_mcastgrp;		/* Group in question	*/
 	vifi_t	mfcc_parent;			/* Where it arrived	*/
@@ -92,8 +91,7 @@ struct mfcctl
  *	Group count retrieval for mrouted
  */
  
-struct sioc_sg_req
-{
+struct sioc_sg_req {
 	struct in_addr src;
 	struct in_addr grp;
 	unsigned long pktcnt;
@@ -105,8 +103,7 @@ struct sioc_sg_req
  *	To get vif packet counts
  */
 
-struct sioc_vif_req
-{
+struct sioc_vif_req {
 	vifi_t	vifi;		/* Which iface */
 	unsigned long icount;	/* In packets */
 	unsigned long ocount;	/* Out packets */
@@ -119,8 +116,7 @@ struct sioc_vif_req
  *	data. Magically happens to be like an IP packet as per the original
  */
  
-struct igmpmsg
-{
+struct igmpmsg {
 	__u32 unused1,unused2;
 	unsigned char im_msgtype;		/* What is this */
 	unsigned char im_mbz;			/* Must be zero */
@@ -181,8 +177,7 @@ static inline int ip_mr_init(void)
 }
 #endif
 
-struct vif_device
-{
+struct vif_device {
 	struct net_device 	*dev;			/* Device we are using */
 	unsigned long	bytes_in,bytes_out;
 	unsigned long	pkt_in,pkt_out;		/* Statistics 			*/
@@ -195,8 +190,7 @@ struct vif_device
 
 #define VIFF_STATIC 0x8000
 
-struct mfc_cache 
-{
+struct mfc_cache {
 	struct mfc_cache *next;			/* Next entry on cache line 	*/
 #ifdef CONFIG_NET_NS
 	struct net *mfc_net;

@@ -132,8 +132,7 @@ struct arpt_entry
 #define ARPT_RETURN XT_RETURN
 
 /* The argument to ARPT_SO_GET_INFO */
-struct arpt_getinfo
-{
+struct arpt_getinfo {
 	/* Which table: caller fills this in. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -155,8 +154,7 @@ struct arpt_getinfo
 };
 
 /* The argument to ARPT_SO_SET_REPLACE. */
-struct arpt_replace
-{
+struct arpt_replace {
 	/* Which table. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -191,8 +189,7 @@ struct arpt_replace
 #define arpt_counters xt_counters
 
 /* The argument to ARPT_SO_GET_ENTRIES. */
-struct arpt_get_entries
-{
+struct arpt_get_entries {
 	/* Which table: user fills this in. */
 	char name[ARPT_TABLE_MAXNAMELEN];
 
@@ -224,20 +221,17 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
 #ifdef __KERNEL__
 
 /* Standard entry. */
-struct arpt_standard
-{
+struct arpt_standard {
 	struct arpt_entry entry;
 	struct arpt_standard_target target;
 };
 
-struct arpt_error_target
-{
+struct arpt_error_target {
 	struct arpt_entry_target target;
 	char errorname[ARPT_FUNCTION_MAXNAMELEN];
 };
 
-struct arpt_error
-{
+struct arpt_error {
 	struct arpt_entry entry;
 	struct arpt_error_target target;
 };
@@ -279,8 +273,7 @@ extern unsigned int arpt_do_table(struct sk_buff *skb,
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
-struct compat_arpt_entry
-{
+struct compat_arpt_entry {
 	struct arpt_arp arp;
 	u_int16_t target_offset;
 	u_int16_t next_offset;

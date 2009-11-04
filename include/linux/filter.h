@@ -23,16 +23,14 @@
  *	the BPF code definitions which need to match so you can share filters
  */
  
-struct sock_filter	/* Filter block */
-{
+struct sock_filter {	/* Filter block */
 	__u16	code;   /* Actual filter code */
 	__u8	jt;	/* Jump true */
 	__u8	jf;	/* Jump false */
 	__u32	k;      /* Generic multiuse field */
 };
 
-struct sock_fprog	/* Required for SO_ATTACH_FILTER. */
-{
+struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 	unsigned short		len;	/* Number of filter blocks */
 	struct sock_filter __user *filter;
 };
