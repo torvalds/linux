@@ -842,6 +842,11 @@ struct rt2x00_dev {
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
+
+	/*
+	 * Driver specific data.
+	 */
+	void *priv;
 };
 
 /*
