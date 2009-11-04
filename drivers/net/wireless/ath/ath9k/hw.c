@@ -3710,6 +3710,21 @@ void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)
 }
 EXPORT_SYMBOL(ath9k_hw_set_tsfadjust);
 
+/*
+ *  Extend 15-bit time stamp from rx descriptor to
+ *  a full 64-bit TSF using the current h/w TSF.
+*/
+u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp)
+{
+	u64 tsf;
+
+	tsf = ath9k_hw_gettsf64(ah);
+	if ((tsf & 0x7fff) < rstamp)
+		tsf -= 0x8000;
+	return (tsf & ~0x7fff) | rstamp;
+}
+EXPORT_SYMBOL(ath9k_hw_extend_tsf);
+
 bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
 	if (us < ATH9K_SLOT_TIME_9 || us > ath9k_hw_mac_to_usec(ah, 0xffff)) {
