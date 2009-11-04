@@ -163,6 +163,7 @@ struct kvm_pit_config {
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
+#define KVM_INTERNAL_ERROR_SIMUL_EX 2
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
