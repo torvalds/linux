@@ -2206,8 +2206,8 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Always write 0 to IV/EIV fields, hardware will insert the IV
-	 * from the IVEIV register when ENTRY_TXD_ENCRYPT_IV is set to 0.
-	 * When ENTRY_TXD_ENCRYPT_IV is set to 1 it will use the IV data
+	 * from the IVEIV register when TXD_W3_WIV is set to 0.
+	 * When TXD_W3_WIV is set to 1 it will use the IV data
 	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
 	 * crypto entry in the registers should be used to encrypt the frame.
 	 */
