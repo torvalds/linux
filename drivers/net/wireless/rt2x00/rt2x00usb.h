@@ -340,12 +340,13 @@ static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
  * through rt2x00usb_vendor_request_buff().
  */
 static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
-					       const unsigned int offset,
-					       void *value, const u32 length)
+						 const unsigned int offset,
+						 const void *value,
+						 const u32 length)
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length,
+				      (void *)value, length,
 				      REGISTER_TIMEOUT32(length));
 }
 
