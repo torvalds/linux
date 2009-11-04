@@ -15,6 +15,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD1938 if SPI_MASTER
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
+	select SND_SOC_ADS117X
 	select SND_SOC_AD73311 if I2C
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
@@ -90,6 +91,9 @@ config SND_SOC_AD1980
 	tristate
 
 config SND_SOC_AD73311
+	tristate
+	
+config SND_SOC_ADS117X
 	tristate
 
 config SND_SOC_AK4104
