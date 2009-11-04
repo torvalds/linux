@@ -334,6 +334,7 @@ static struct twl4030_codec_audio_data overo_audio_data = {
 };
 
 static struct twl4030_codec_data overo_codec_data = {
+	.audio_mclk = 26000000,
 	.audio = &overo_audio_data,
 };
 

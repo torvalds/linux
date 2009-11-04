@@ -259,6 +259,7 @@ static struct twl4030_codec_audio_data beagle_audio_data = {
 };
 
 static struct twl4030_codec_data beagle_codec_data = {
+	.audio_mclk = 26000000,
 	.audio = &beagle_audio_data,
 };
 

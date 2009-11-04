@@ -199,6 +199,7 @@ static struct twl4030_codec_audio_data omap3evm_audio_data = {
 };
 
 static struct twl4030_codec_data omap3evm_codec_data = {
+	.audio_mclk = 26000000,
 	.audio = &omap3evm_audio_data,
 };
 

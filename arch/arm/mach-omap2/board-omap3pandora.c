@@ -286,6 +286,7 @@ static struct twl4030_codec_audio_data omap3pandora_audio_data = {
 };
 
 static struct twl4030_codec_data omap3pandora_codec_data = {
+	.audio_mclk = 26000000,
 	.audio = &omap3pandora_audio_data,
 };
 
