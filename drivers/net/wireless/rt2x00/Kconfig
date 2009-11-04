@@ -66,6 +66,7 @@ config RT2800PCI_SOC
 config RT2800PCI
 	tristate "Ralink rt2800 (PCI/PCMCIA) support (VERY EXPERIMENTAL)"
 	depends on (RT2800PCI_PCI || RT2800PCI_SOC) && EXPERIMENTAL
+	select RT2800_LIB
 	select RT2X00_LIB_PCI if RT2800PCI_PCI
 	select RT2X00_LIB_SOC if RT2800PCI_SOC
 	select RT2X00_LIB_HT
@@ -109,6 +110,7 @@ config RT73USB
 config RT2800USB
 	tristate "Ralink rt2800 (USB) support (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
+	select RT2800_LIB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
@@ -123,6 +125,9 @@ config RT2800USB
 	  - support for RT3070 chips is non-functional at the moment
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
+
+config RT2800_LIB
+	tristate
 
 config RT2X00_LIB_PCI
 	tristate
