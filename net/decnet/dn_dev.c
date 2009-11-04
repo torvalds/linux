@@ -600,15 +600,17 @@ static void dn_dev_check_default(struct net_device *dev)
 		dev_put(dev);
 }
 
+/*
+ * Called with RTNL
+ */
 static struct dn_dev *dn_dev_by_index(int ifindex)
 {
 	struct net_device *dev;
 	struct dn_dev *dn_dev = NULL;
-	dev = dev_get_by_index(&init_net, ifindex);
-	if (dev) {
+
+	dev = __dev_get_by_index(&init_net, ifindex);
+	if (dev)
 		dn_dev = dev->dn_ptr;
-		dev_put(dev);
-	}
 
 	return dn_dev;
 }
