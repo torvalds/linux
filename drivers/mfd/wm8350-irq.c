@@ -371,7 +371,7 @@ static void wm8350_irq_call_handler(struct wm8350 *wm8350, int irq)
 	mutex_lock(&wm8350->irq_mutex);
 
 	if (wm8350->irq[irq].handler)
-		wm8350->irq[irq].handler(wm8350, irq, wm8350->irq[irq].data);
+		wm8350->irq[irq].handler(irq, wm8350->irq[irq].data);
 	else {
 		dev_err(wm8350->dev, "irq %d nobody cared. now masked.\n",
 			irq);
@@ -431,8 +431,8 @@ static irqreturn_t wm8350_irq(int irq, void *irq_data)
 }
 
 int wm8350_register_irq(struct wm8350 *wm8350, int irq,
-			void (*handler) (struct wm8350 *, int, void *),
-			void *data)
+			irq_handler_t handler, unsigned long flags,
+			const char *name, void *data)
 {
 	if (irq < 0 || irq > WM8350_NUM_IRQ || !handler)
 		return -EINVAL;
