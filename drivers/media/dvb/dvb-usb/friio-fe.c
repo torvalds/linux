@@ -286,6 +286,27 @@ static int jdvbt90502_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
+/* filter out un-supported properties to notify users */
+static int jdvbt90502_set_property(struct dvb_frontend *fe,
+				   struct dtv_property *tvp)
+{
+	int r = 0;
+
+	switch (tvp->cmd) {
+	case DTV_DELIVERY_SYSTEM:
+		if (tvp->u.data != SYS_ISDBT)
+			r = -EINVAL;
+		break;
+	case DTV_CLEAR:
+	case DTV_TUNE:
+	case DTV_FREQUENCY:
+		break;
+	default:
+		r = -EINVAL;
+	}
+	return r;
+}
+
 static int jdvbt90502_get_frontend(struct dvb_frontend *fe,
 				   struct dvb_frontend_parameters *p)
 {
@@ -313,6 +334,9 @@ static int jdvbt90502_set_frontend(struct dvb_frontend *fe,
 	int ret;
 
 	deb_fe("%s: Freq:%d\n", __func__, p->frequency);
+
+	/* for recovery from DTV_CLEAN */
+	fe->dtv_property_cache.delivery_system = SYS_ISDBT;
 
 	ret = jdvbt90502_pll_set_freq(state, p->frequency);
 	if (ret) {
@@ -394,6 +418,7 @@ static int jdvbt90502_init(struct dvb_frontend *fe)
 		if (ret != 1)
 			goto error;
 	}
+	fe->dtv_property_cache.delivery_system = SYS_ISDBT;
 	msleep(100);
 
 	return 0;
@@ -470,6 +495,8 @@ static struct dvb_frontend_ops jdvbt90502_ops = {
 	.init = jdvbt90502_init,
 	.sleep = jdvbt90502_sleep,
 	.write = _jdvbt90502_write,
+
+	.set_property = jdvbt90502_set_property,
 
 	.set_frontend = jdvbt90502_set_frontend,
 	.get_frontend = jdvbt90502_get_frontend,
