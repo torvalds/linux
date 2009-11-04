@@ -520,7 +520,7 @@ static int __map_osds(struct ceph_osd_client *osdc,
 		      struct ceph_osd_request *req)
 {
 	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
-	union ceph_pg pgid;
+	struct ceph_pg pgid;
 	int o = -1;
 	int err;
 	struct ceph_osd *newosd = NULL;
@@ -530,7 +530,7 @@ static int __map_osds(struct ceph_osd_client *osdc,
 				      &req->r_file_layout, osdc->osdmap);
 	if (err)
 		return err;
-	pgid.pg64 = le64_to_cpu(reqhead->layout.ol_pgid);
+	pgid = reqhead->layout.ol_pgid;
 	o = ceph_calc_pg_primary(osdc->osdmap, pgid);
 
 	if ((req->r_osd && req->r_osd->o_osd == o &&
@@ -538,8 +538,8 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	    (req->r_osd == NULL && o == -1))
 		return 0;  /* no change */
 
-	dout("map_osds tid %llu pgid %llx pool %d osd%d (was osd%d)\n",
-	     req->r_tid, pgid.pg64, pgid.pg.pool, o,
+	dout("map_osds tid %llu pgid %d.%x osd%d (was osd%d)\n",
+	     req->r_tid, le32_to_cpu(pgid.pool), le16_to_cpu(pgid.ps), o,
 	     req->r_osd ? req->r_osd->o_osd : -1);
 
 	if (req->r_osd) {

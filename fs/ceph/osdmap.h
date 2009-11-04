@@ -25,7 +25,7 @@ struct ceph_pg_pool_info {
 
 struct ceph_pg_mapping {
 	struct rb_node node;
-	u64 pgid;
+	struct ceph_pg pgid;
 	int len;
 	int osds[];
 };
@@ -118,6 +118,7 @@ extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
 				   const char *oid,
 				   struct ceph_file_layout *fl,
 				   struct ceph_osdmap *osdmap);
-extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, union ceph_pg pgid);
+extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
+				struct ceph_pg pgid);
 
 #endif

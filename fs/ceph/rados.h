@@ -55,13 +55,10 @@ struct ceph_timespec {
  * placement group.
  * we encode this into one __le64.
  */
-union ceph_pg {
-	__u64 pg64;
-	struct {
-		__s16 preferred; /* preferred primary osd */
-		__u16 ps;        /* placement seed */
-		__u32 pool;      /* object pool */
-	} __attribute__ ((packed)) pg;
+struct ceph_pg {
+	__le16 preferred; /* preferred primary osd */
+	__le16 ps;        /* placement seed */
+	__le32 pool;      /* object pool */
 } __attribute__ ((packed));
 
 /*
@@ -117,7 +114,7 @@ static inline int ceph_stable_mod(int x, int b, int bmask)
  * object layout - how a given object should be stored.
  */
 struct ceph_object_layout {
-	__le64 ol_pgid;           /* raw pg, with _full_ ps precision. */
+	struct ceph_pg ol_pgid;   /* raw pg, with _full_ ps precision. */
 	__le32 ol_stripe_unit;    /* for per-object parity, if any */
 } __attribute__ ((packed));
 
