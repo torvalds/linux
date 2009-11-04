@@ -129,7 +129,9 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 					continue;
 				if (!r->start ||
 				    pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev, "BAR %d: can't allocate %pR\n", idx, r);
+					dev_info(&dev->dev,
+						 "can't reserve window %pR\n",
+						 r);
 					/*
 					 * Something is wrong with the region.
 					 * Invalidate the resource to prevent
@@ -165,10 +167,11 @@ static void __init pcibios_allocate_resources(int pass)
 				disabled = !(command & PCI_COMMAND_MEMORY);
 			if (pass == disabled) {
 				dev_dbg(&dev->dev,
-					"BAR %d: claiming %pr (d=%d, p=%d)\n",
+					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev, "BAR %d: can't claim %pR\n", idx, r);
+					dev_info(&dev->dev,
+						 "can't reserve %pR\n", r);
 					/* We'll assign a new address later */
 					r->end -= r->start;
 					r->start = 0;
