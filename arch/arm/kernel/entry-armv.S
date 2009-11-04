@@ -608,33 +608,33 @@ call_fpe:
  THUMB(	add	pc, r8			)
 	nop
 
-	W(mov)	pc, lr				@ CP#0
+	movw_pc	lr				@ CP#0
 	W(b)	do_fpe				@ CP#1 (FPE)
 	W(b)	do_fpe				@ CP#2 (FPE)
-	W(mov)	pc, lr				@ CP#3
+	movw_pc	lr				@ CP#3
 #ifdef CONFIG_CRUNCH
 	b	crunch_task_enable		@ CP#4 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#5 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#6 (MaverickCrunch)
 #else
-	W(mov)	pc, lr				@ CP#4
-	W(mov)	pc, lr				@ CP#5
-	W(mov)	pc, lr				@ CP#6
+	movw_pc	lr				@ CP#4
+	movw_pc	lr				@ CP#5
+	movw_pc	lr				@ CP#6
 #endif
-	W(mov)	pc, lr				@ CP#7
-	W(mov)	pc, lr				@ CP#8
-	W(mov)	pc, lr				@ CP#9
+	movw_pc	lr				@ CP#7
+	movw_pc	lr				@ CP#8
+	movw_pc	lr				@ CP#9
 #ifdef CONFIG_VFP
 	W(b)	do_vfp				@ CP#10 (VFP)
 	W(b)	do_vfp				@ CP#11 (VFP)
 #else
-	W(mov)	pc, lr				@ CP#10 (VFP)
-	W(mov)	pc, lr				@ CP#11 (VFP)
+	movw_pc	lr				@ CP#10 (VFP)
+	movw_pc	lr				@ CP#11 (VFP)
 #endif
-	W(mov)	pc, lr				@ CP#12
-	W(mov)	pc, lr				@ CP#13
-	W(mov)	pc, lr				@ CP#14 (Debug)
-	W(mov)	pc, lr				@ CP#15 (Control)
+	movw_pc	lr				@ CP#12
+	movw_pc	lr				@ CP#13
+	movw_pc	lr				@ CP#14 (Debug)
+	movw_pc	lr				@ CP#15 (Control)
 
 #ifdef CONFIG_NEON
 	.align	6

@@ -1564,11 +1564,7 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-struct update_shares_data {
-	unsigned long rq_weight[NR_CPUS];
-};
-
-static DEFINE_PER_CPU(struct update_shares_data, update_shares_data);
+static __read_mostly unsigned long *update_shares_data;
 
 static void __set_se_shares(struct sched_entity *se, unsigned long shares);
 
@@ -1578,12 +1574,12 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares);
 static void update_group_shares_cpu(struct task_group *tg, int cpu,
 				    unsigned long sd_shares,
 				    unsigned long sd_rq_weight,
-				    struct update_shares_data *usd)
+				    unsigned long *usd_rq_weight)
 {
 	unsigned long shares, rq_weight;
 	int boost = 0;
 
-	rq_weight = usd->rq_weight[cpu];
+	rq_weight = usd_rq_weight[cpu];
 	if (!rq_weight) {
 		boost = 1;
 		rq_weight = NICE_0_LOAD;
@@ -1618,7 +1614,7 @@ static void update_group_shares_cpu(struct task_group *tg, int cpu,
 static int tg_shares_up(struct task_group *tg, void *data)
 {
 	unsigned long weight, rq_weight = 0, shares = 0;
-	struct update_shares_data *usd;
+	unsigned long *usd_rq_weight;
 	struct sched_domain *sd = data;
 	unsigned long flags;
 	int i;
@@ -1627,11 +1623,11 @@ static int tg_shares_up(struct task_group *tg, void *data)
 		return 0;
 
 	local_irq_save(flags);
-	usd = &__get_cpu_var(update_shares_data);
+	usd_rq_weight = per_cpu_ptr(update_shares_data, smp_processor_id());
 
 	for_each_cpu(i, sched_domain_span(sd)) {
 		weight = tg->cfs_rq[i]->load.weight;
-		usd->rq_weight[i] = weight;
+		usd_rq_weight[i] = weight;
 
 		/*
 		 * If there are currently no tasks on the cpu pretend there
@@ -1652,7 +1648,7 @@ static int tg_shares_up(struct task_group *tg, void *data)
 		shares = tg->shares;
 
 	for_each_cpu(i, sched_domain_span(sd))
-		update_group_shares_cpu(tg, i, shares, rq_weight, usd);
+		update_group_shares_cpu(tg, i, shares, rq_weight, usd_rq_weight);
 
 	local_irq_restore(flags);
 
@@ -9407,6 +9403,10 @@ void __init sched_init(void)
 #endif /* CONFIG_USER_SCHED */
 #endif /* CONFIG_GROUP_SCHED */
 
+#if defined CONFIG_FAIR_GROUP_SCHED && defined CONFIG_SMP
+	update_shares_data = __alloc_percpu(nr_cpu_ids * sizeof(unsigned long),
+					    __alignof__(unsigned long));
+#endif
 	for_each_possible_cpu(i) {
 		struct rq *rq;
 

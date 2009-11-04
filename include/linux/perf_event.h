@@ -471,8 +471,8 @@ struct hw_perf_event {
 			unsigned long	event_base;
 			int		idx;
 		};
-		union { /* software */
-			atomic64_t	count;
+		struct { /* software */
+			s64		remaining;
 			struct hrtimer	hrtimer;
 		};
 	};

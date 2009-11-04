@@ -233,6 +233,7 @@ struct atkbd {
  */
 static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
+static unsigned int (*atkbd_platform_scancode_fixup)(struct atkbd *, unsigned int);
 
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
@@ -392,6 +393,9 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		goto out;
 
 	input_event(dev, EV_MSC, MSC_RAW, code);
+
+	if (atkbd_platform_scancode_fixup)
+		code = atkbd_platform_scancode_fixup(atkbd, code);
 
 	if (atkbd->translated) {
 
@@ -921,6 +925,22 @@ static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
 static unsigned int atkbd_volume_forced_release_keys[] = {
 	0xae, 0xb0, -1U
 };
+
+/*
+ * OQO 01+ multimedia keys (64--66) generate e0 6x upon release whereas
+ * they should be generating e4-e6 (0x80 | code).
+ */
+static unsigned int atkbd_oqo_01plus_scancode_fixup(struct atkbd *atkbd,
+						    unsigned int code)
+{
+	if (atkbd->translated && atkbd->emul == 1 &&
+	    (code == 0x64 || code == 0x65 || code == 0x66)) {
+		atkbd->emul = 0;
+		code |= 0x80;
+	}
+
+	return code;
+}
 
 /*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
@@ -1527,6 +1547,13 @@ static int __init atkbd_setup_forced_release(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
+{
+	atkbd_platform_scancode_fixup = id->driver_data;
+
+	return 0;
+}
+
 static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 	{
 		.ident = "Dell Laptop",
@@ -1662,6 +1689,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkdb_soltech_ta12_forced_release_keys,
+	},
+	{
+		.ident = "OQO Model 01+",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OQO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPTO"),
+		},
+		.callback = atkbd_setup_scancode_fixup,
+		.driver_data = atkbd_oqo_01plus_scancode_fixup,
 	},
 	{ }
 };

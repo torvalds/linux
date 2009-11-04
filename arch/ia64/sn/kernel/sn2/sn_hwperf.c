@@ -786,17 +786,18 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 		break;
 
 	case SN_HWPERF_GET_OBJ_NODE:
-		if (a.sz != sizeof(u64) || a.arg < 0) {
+		i = a.arg;
+		if (a.sz != sizeof(u64) || i < 0) {
 			r = -EINVAL;
 			goto error;
 		}
 		if ((r = sn_hwperf_enum_objects(&nobj, &objs)) == 0) {
-			if (a.arg >= nobj) {
+			if (i >= nobj) {
 				r = -EINVAL;
 				vfree(objs);
 				goto error;
 			}
-			if (objs[(i = a.arg)].id != a.arg) {
+			if (objs[i].id != a.arg) {
 				for (i = 0; i < nobj; i++) {
 					if (objs[i].id == a.arg)
 						break;

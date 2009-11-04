@@ -1901,22 +1901,16 @@ netxen_setup_hwops(struct netxen_adapter *adapter)
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
-	int offset, board_type, magic, header_version;
+	int offset, board_type, magic;
 	struct pci_dev *pdev = adapter->pdev;
 
 	offset = NX_FW_MAGIC_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &magic))
 		return -EIO;
 
-	offset = NX_HDR_VERSION_OFFSET;
-	if (netxen_rom_fast_read(adapter, offset, &header_version))
-		return -EIO;
-
-	if (magic != NETXEN_BDINFO_MAGIC ||
-			header_version != NETXEN_BDINFO_VERSION) {
-		dev_err(&pdev->dev,
-			"invalid board config, magic=%08x, version=%08x\n",
-			magic, header_version);
+	if (magic != NETXEN_BDINFO_MAGIC) {
+		dev_err(&pdev->dev, "invalid board config, magic=%08x\n",
+			magic);
 		return -EIO;
 	}
 

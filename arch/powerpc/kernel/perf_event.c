@@ -116,20 +116,23 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	unsigned long mmcra = regs->dsisr;
+	unsigned long sihv = MMCRA_SIHV;
+	unsigned long sipr = MMCRA_SIPR;
 
 	if (TRAP(regs) != 0xf00)
 		return 0;	/* not a PMU interrupt */
 
 	if (ppmu->flags & PPMU_ALT_SIPR) {
-		if (mmcra & POWER6_MMCRA_SIHV)
-			return PERF_RECORD_MISC_HYPERVISOR;
-		return (mmcra & POWER6_MMCRA_SIPR) ?
-			PERF_RECORD_MISC_USER : PERF_RECORD_MISC_KERNEL;
+		sihv = POWER6_MMCRA_SIHV;
+		sipr = POWER6_MMCRA_SIPR;
 	}
-	if (mmcra & MMCRA_SIHV)
+
+	/* PR has priority over HV, so order below is important */
+	if (mmcra & sipr)
+		return PERF_RECORD_MISC_USER;
+	if ((mmcra & sihv) && (freeze_events_kernel != MMCR0_FCHV))
 		return PERF_RECORD_MISC_HYPERVISOR;
-	return (mmcra & MMCRA_SIPR) ? PERF_RECORD_MISC_USER :
-		PERF_RECORD_MISC_KERNEL;
+	return PERF_RECORD_MISC_KERNEL;
 }
 
 /*
