@@ -525,7 +525,7 @@ static void rt2800pci_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 	    (crypto->cipher == CIPHER_AES))
 		iveiv_entry.iv[3] |= 0x20;
 	iveiv_entry.iv[3] |= key->keyidx << 6;
-	rt2x00pci_register_multiwrite(rt2x00dev, offset,
+	rt2800_register_multiwrite(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
 	offset = MAC_WCID_ENTRY(key->hw_key_idx);
@@ -533,7 +533,7 @@ static void rt2800pci_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 	memset(&wcid_entry, 0, sizeof(wcid_entry));
 	if (crypto->cmd == SET_KEY)
 		memcpy(&wcid_entry, crypto->address, ETH_ALEN);
-	rt2x00pci_register_multiwrite(rt2x00dev, offset,
+	rt2800_register_multiwrite(rt2x00dev, offset,
 				      &wcid_entry, sizeof(wcid_entry));
 }
 
@@ -557,7 +557,7 @@ static int rt2800pci_config_shared_key(struct rt2x00_dev *rt2x00dev,
 		       sizeof(key_entry.rx_mic));
 
 		offset = SHARED_KEY_ENTRY(key->hw_key_idx);
-		rt2x00pci_register_multiwrite(rt2x00dev, offset,
+		rt2800_register_multiwrite(rt2x00dev, offset,
 					      &key_entry, sizeof(key_entry));
 	}
 
@@ -613,7 +613,7 @@ static int rt2800pci_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		       sizeof(key_entry.rx_mic));
 
 		offset = PAIRWISE_KEY_ENTRY(key->hw_key_idx);
-		rt2x00pci_register_multiwrite(rt2x00dev, offset,
+		rt2800_register_multiwrite(rt2x00dev, offset,
 					      &key_entry, sizeof(key_entry));
 	}
 
@@ -701,7 +701,7 @@ static void rt2800pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, MAC_ADDR_DW1_UNICAST_TO_ME_MASK, 0xff);
 		conf->mac[1] = cpu_to_le32(reg);
 
-		rt2x00pci_register_multiwrite(rt2x00dev, MAC_ADDR_DW0,
+		rt2800_register_multiwrite(rt2x00dev, MAC_ADDR_DW0,
 					      conf->mac, sizeof(conf->mac));
 	}
 
@@ -711,7 +711,7 @@ static void rt2800pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 0);
 		conf->bssid[1] = cpu_to_le32(reg);
 
-		rt2x00pci_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
+		rt2800_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
 					      conf->bssid, sizeof(conf->bssid));
 	}
 }
@@ -1296,7 +1296,7 @@ static int rt2800pci_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
 				      data, len);
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000);
@@ -1612,7 +1612,7 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	for (i = 0; i < 256; i++) {
 		u32 wcid[2] = { 0xffffffff, 0x00ffffff };
-		rt2x00pci_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
+		rt2800_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
 					      wcid, sizeof(wcid));
 
 		rt2800_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 1);
@@ -2276,10 +2276,10 @@ static void rt2800pci_write_beacon(struct queue_entry *entry)
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2x00pci_register_multiwrite(rt2x00dev,
+	rt2800_register_multiwrite(rt2x00dev,
 				      beacon_base,
 				      skbdesc->desc, skbdesc->desc_len);
-	rt2x00pci_register_multiwrite(rt2x00dev,
+	rt2800_register_multiwrite(rt2x00dev,
 				      beacon_base + skbdesc->desc_len,
 				      entry->skb->data, entry->skb->len);
 
@@ -3010,7 +3010,7 @@ static void rt2800pci_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx,
 	u32 offset;
 
 	offset = MAC_IVEIV_ENTRY(hw_key_idx);
-	rt2x00pci_register_multiread(rt2x00dev, offset,
+	rt2800_register_multiread(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
 	memcpy(&iveiv_entry.iv[0], iv16, sizeof(iv16));
