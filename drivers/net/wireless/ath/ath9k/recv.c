@@ -105,6 +105,13 @@ static bool ath9k_rx_accept(struct ath_common *common,
 
 	if (!rx_stats->rs_datalen)
 		return false;
+        /*
+         * rs_status follows rs_datalen so if rs_datalen is too large
+         * we can take a hint that hardware corrupted it, so ignore
+         * those frames.
+         */
+	if (rx_stats->rs_datalen > common->rx_bufsize)
+		return false;
 
 	if (rx_stats->rs_more) {
 		/*
@@ -799,10 +806,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * chain it back at the queue without processing it.
 		 */
 		if (flush)
-			goto requeue;
-
-		/* The status portion of the descriptor could get corrupted. */
-		if (common->rx_bufsize < rx_stats->rs_datalen)
 			goto requeue;
 
 		if (!ath_rx_prepare(common, hw, skb, rx_stats,
