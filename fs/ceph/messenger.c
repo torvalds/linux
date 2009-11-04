@@ -891,9 +891,9 @@ static int addr_port(struct sockaddr_storage *ss)
 {
 	switch (ss->ss_family) {
 	case AF_INET:
-		return ((struct sockaddr_in *)ss)->sin_port;
+		return ntohs(((struct sockaddr_in *)ss)->sin_port);
 	case AF_INET6:
-		return ((struct sockaddr_in6 *)ss)->sin6_port;
+		return ntohs(((struct sockaddr_in6 *)ss)->sin6_port);
 	}
 	return 0;
 }
