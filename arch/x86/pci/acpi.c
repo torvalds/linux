@@ -59,6 +59,30 @@ bus_has_transparent_bridge(struct pci_bus *bus)
 	return false;
 }
 
+static void
+align_resource(struct acpi_device *bridge, struct resource *res)
+{
+	int align = (res->flags & IORESOURCE_MEM) ? 16 : 4;
+
+	/*
+	 * Host bridge windows are not BARs, but the decoders on the PCI side
+	 * that claim this address space have starting alignment and length
+	 * constraints, so fix any obvious BIOS goofs.
+	 */
+	if (res->start & (align - 1)) {
+		dev_printk(KERN_DEBUG, &bridge->dev,
+			   "host bridge window %pR invalid; "
+			   "aligning start to %d-byte boundary\n", res, align);
+		res->start &= ~(align - 1);
+	}
+	if ((res->end + 1) & (align - 1)) {
+		dev_printk(KERN_DEBUG, &bridge->dev,
+			   "host bridge window %pR invalid; "
+			   "aligning end to %d-byte boundary\n", res, align);
+		res->end = roundup(res->end, align) - 1;
+	}
+}
+
 static acpi_status
 setup_resource(struct acpi_resource *acpi_res, void *data)
 {
@@ -107,6 +131,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	res->child = NULL;
+	align_resource(info->bridge, res);
 
 	if (!(pci_probe & PCI_USE__CRS)) {
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
