@@ -27,6 +27,27 @@
 #ifndef RT2800PCI_H
 #define RT2800PCI_H
 
+static inline void rt2800_register_read(struct rt2x00_dev *rt2x00dev,
+					const unsigned int offset,
+					u32 *value)
+{
+	rt2x00pci_register_read(rt2x00dev, offset, value);
+}
+
+static inline void rt2800_register_write(struct rt2x00_dev *rt2x00dev,
+					 const unsigned int offset,
+					 u32 value)
+{
+	rt2x00pci_register_write(rt2x00dev, offset, value);
+}
+
+static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
+					      const unsigned int offset,
+					      u32 value)
+{
+	rt2x00pci_register_write(rt2x00dev, offset, value);
+}
+
 /*
  * RF chip defines.
  *
