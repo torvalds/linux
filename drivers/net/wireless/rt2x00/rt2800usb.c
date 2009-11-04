@@ -58,14 +58,14 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
  * The _lock versions must be used if you already hold the csr_mutex
  */
 #define WAIT_FOR_BBP(__dev, __reg) \
-	rt2x00usb_regbusy_read((__dev), BBP_CSR_CFG, BBP_CSR_CFG_BUSY, (__reg))
+	rt2800_regbusy_read((__dev), BBP_CSR_CFG, BBP_CSR_CFG_BUSY, (__reg))
 #define WAIT_FOR_RFCSR(__dev, __reg) \
-	rt2x00usb_regbusy_read((__dev), RF_CSR_CFG, RF_CSR_CFG_BUSY, (__reg))
+	rt2800_regbusy_read((__dev), RF_CSR_CFG, RF_CSR_CFG_BUSY, (__reg))
 #define WAIT_FOR_RF(__dev, __reg) \
-	rt2x00usb_regbusy_read((__dev), RF_CSR_CFG0, RF_CSR_CFG0_BUSY, (__reg))
+	rt2800_regbusy_read((__dev), RF_CSR_CFG0, RF_CSR_CFG0_BUSY, (__reg))
 #define WAIT_FOR_MCU(__dev, __reg) \
-	rt2x00usb_regbusy_read((__dev), H2M_MAILBOX_CSR, \
-			       H2M_MAILBOX_CSR_OWNER, (__reg))
+	rt2800_regbusy_read((__dev), H2M_MAILBOX_CSR, \
+			    H2M_MAILBOX_CSR_OWNER, (__reg))
 
 static void rt2800usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, const u8 value)
