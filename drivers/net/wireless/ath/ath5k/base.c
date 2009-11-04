@@ -1184,12 +1184,12 @@ struct sk_buff *ath5k_rx_skb_alloc(struct ath5k_softc *sc, dma_addr_t *skb_addr)
 	 * fake physical layer header at the start.
 	 */
 	skb = ath_rxbuf_alloc(common,
-			      common->rx_bufsize + common->cachelsz - 1,
+			      common->rx_bufsize,
 			      GFP_ATOMIC);
 
 	if (!skb) {
 		ATH5K_ERR(sc, "can't alloc skbuff of size %u\n",
-				common->rx_bufsize + common->cachelsz - 1);
+				common->rx_bufsize);
 		return NULL;
 	}
 
