@@ -29,9 +29,7 @@
 struct pcf50633_mbc {
 	struct pcf50633 *pcf;
 
-	int adapter_active;
 	int adapter_online;
-	int usb_active;
 	int usb_online;
 
 	struct power_supply usb;
@@ -88,7 +86,7 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 		pcf50633_reg_write(mbc->pcf, PCF50633_REG_MBCC5, mbcc5);
 	}
 
-	mbcs2 = pcf50633_reg_read(pcf, PCF50633_REG_MBCS2);
+	mbcs2 = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCS2);
 	chgmod = (mbcs2 & PCF50633_MBCS2_MBC_MASK);
 
 	/* If chgmod == BATFULL, setting chgena has no effect.
@@ -105,8 +103,6 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 				PCF50633_MBCC1_CHGENA, PCF50633_MBCC1_CHGENA);
 	}
 
-	mbc->usb_active = charging_start;
-
 	power_supply_changed(&mbc->usb);
 
 	return ret;
@@ -117,19 +113,43 @@ int pcf50633_mbc_get_status(struct pcf50633 *pcf)
 {
 	struct pcf50633_mbc *mbc  = platform_get_drvdata(pcf->mbc_pdev);
 	int status = 0;
+	u8 chgmod;
+
+	if (!mbc)
+		return 0;
+
+	chgmod = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCS2)
+		& PCF50633_MBCS2_MBC_MASK;
 
 	if (mbc->usb_online)
 		status |= PCF50633_MBC_USB_ONLINE;
-	if (mbc->usb_active)
+	if (chgmod == PCF50633_MBCS2_MBC_USB_PRE ||
+	    chgmod == PCF50633_MBCS2_MBC_USB_PRE_WAIT ||
+	    chgmod == PCF50633_MBCS2_MBC_USB_FAST ||
+	    chgmod == PCF50633_MBCS2_MBC_USB_FAST_WAIT)
 		status |= PCF50633_MBC_USB_ACTIVE;
 	if (mbc->adapter_online)
 		status |= PCF50633_MBC_ADAPTER_ONLINE;
-	if (mbc->adapter_active)
+	if (chgmod == PCF50633_MBCS2_MBC_ADP_PRE ||
+	    chgmod == PCF50633_MBCS2_MBC_ADP_PRE_WAIT ||
+	    chgmod == PCF50633_MBCS2_MBC_ADP_FAST ||
+	    chgmod == PCF50633_MBCS2_MBC_ADP_FAST_WAIT)
 		status |= PCF50633_MBC_ADAPTER_ACTIVE;
 
 	return status;
 }
 EXPORT_SYMBOL_GPL(pcf50633_mbc_get_status);
+
+int pcf50633_mbc_get_usb_online_status(struct pcf50633 *pcf)
+{
+	struct pcf50633_mbc *mbc  = platform_get_drvdata(pcf->mbc_pdev);
+
+	if (!mbc)
+		return 0;
+
+	return mbc->usb_online;
+}
+EXPORT_SYMBOL_GPL(pcf50633_mbc_get_usb_online_status);
 
 static ssize_t
 show_chgmode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -248,26 +268,14 @@ pcf50633_mbc_irq_handler(int irq, void *data)
 		mbc->usb_online = 1;
 	} else if (irq == PCF50633_IRQ_USBREM) {
 		mbc->usb_online = 0;
-		mbc->usb_active = 0;
 		pcf50633_mbc_usb_curlim_set(mbc->pcf, 0);
 	}
 
 	/* Adapter */
-	if (irq == PCF50633_IRQ_ADPINS) {
+	if (irq == PCF50633_IRQ_ADPINS)
 		mbc->adapter_online = 1;
-		mbc->adapter_active = 1;
-	} else if (irq == PCF50633_IRQ_ADPREM) {
+	else if (irq == PCF50633_IRQ_ADPREM)
 		mbc->adapter_online = 0;
-		mbc->adapter_active = 0;
-	}
-
-	if (irq == PCF50633_IRQ_BATFULL) {
-		mbc->usb_active = 0;
-		mbc->adapter_active = 0;
-	} else if (irq == PCF50633_IRQ_USBLIMON)
-		mbc->usb_active = 0;
-	else if (irq == PCF50633_IRQ_USBLIMOFF)
-		mbc->usb_active = 1;
 
 	power_supply_changed(&mbc->ac);
 	power_supply_changed(&mbc->usb);
