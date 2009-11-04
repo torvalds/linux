@@ -63,6 +63,14 @@ static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_multiwrite(rt2x00dev, offset, value, length);
 }
 
+static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
+				      const unsigned int offset,
+				      const struct rt2x00_field32 field,
+				      u32 *reg)
+{
+	return rt2x00pci_regbusy_read(rt2x00dev, offset, field, reg);
+}
+
 /*
  * RF chip defines.
  *
