@@ -32,9 +32,29 @@
 #include <net/nl802154.h>
 #include <net/wpan-phy.h>
 
-static struct wpan_phy *net_to_phy(struct net_device *dev)
+struct fakehard_priv {
+	struct wpan_phy *phy;
+};
+
+static struct wpan_phy *fake_to_phy(const struct net_device *dev)
 {
-	return container_of(dev->dev.parent, struct wpan_phy, dev);
+	struct fakehard_priv *priv = netdev_priv(dev);
+	return priv->phy;
+}
+
+/**
+ * fake_get_phy - Return a phy corresponding to this device.
+ * @dev: The network device for which to return the wan-phy object
+ *
+ * This function returns a wpan-phy object corresponding to the passed
+ * network device. Reference counter for wpan-phy object is incremented,
+ * so when the wpan-phy isn't necessary, you should drop the reference
+ * via @wpan_phy_put() call.
+ */
+static struct wpan_phy *fake_get_phy(const struct net_device *dev)
+{
+	struct wpan_phy *phy = fake_to_phy(dev);
+	return to_phy(get_device(&phy->dev));
 }
 
 /**
@@ -121,7 +141,7 @@ static u8 fake_get_bsn(const struct net_device *dev)
 static int fake_assoc_req(struct net_device *dev,
 		struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
-	struct wpan_phy *phy = net_to_phy(dev);
+	struct wpan_phy *phy = fake_to_phy(dev);
 
 	mutex_lock(&phy->pib_lock);
 	phy->current_channel = channel;
@@ -196,7 +216,7 @@ static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
 				u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
 				u8 coord_realign)
 {
-	struct wpan_phy *phy = net_to_phy(dev);
+	struct wpan_phy *phy = fake_to_phy(dev);
 
 	mutex_lock(&phy->pib_lock);
 	phy->current_channel = channel;
@@ -238,6 +258,8 @@ static struct ieee802154_mlme_ops fake_mlme = {
 	.disassoc_req = fake_disassoc_req,
 	.start_req = fake_start_req,
 	.scan_req = fake_scan_req,
+
+	.get_phy = fake_get_phy,
 
 	.get_pan_id = fake_get_pan_id,
 	.get_short_addr = fake_get_short_addr,
@@ -313,7 +335,7 @@ static const struct net_device_ops fake_ops = {
 
 static void ieee802154_fake_destruct(struct net_device *dev)
 {
-	struct wpan_phy *phy = net_to_phy(dev);
+	struct wpan_phy *phy = fake_to_phy(dev);
 
 	wpan_phy_unregister(phy);
 	free_netdev(dev);
@@ -338,13 +360,14 @@ static void ieee802154_fake_setup(struct net_device *dev)
 static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
+	struct fakehard_priv *priv;
 	struct wpan_phy *phy = wpan_phy_alloc(0);
 	int err;
 
 	if (!phy)
 		return -ENOMEM;
 
-	dev = alloc_netdev(0, "hardwpan%d", ieee802154_fake_setup);
+	dev = alloc_netdev(sizeof(struct fakehard_priv), "hardwpan%d", ieee802154_fake_setup);
 	if (!dev) {
 		wpan_phy_free(phy);
 		return -ENOMEM;
@@ -369,6 +392,9 @@ static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 
 	dev->netdev_ops = &fake_ops;
 	dev->ml_priv = &fake_mlme;
+
+	priv = netdev_priv(dev);
+	priv->phy = phy;
 
 	/*
 	 * If the name is a format string the caller wants us to do a
