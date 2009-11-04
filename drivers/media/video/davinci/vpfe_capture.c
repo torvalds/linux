@@ -1577,7 +1577,7 @@ static int vpfe_cropcap(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_cropcap\n");
 
-	if (vpfe_dev->std_index > ARRAY_SIZE(vpfe_standards))
+	if (vpfe_dev->std_index >= ARRAY_SIZE(vpfe_standards))
 		return -EINVAL;
 
 	memset(crop, 0, sizeof(struct v4l2_cropcap));
