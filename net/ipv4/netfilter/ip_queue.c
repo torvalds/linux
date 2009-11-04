@@ -622,7 +622,7 @@ cleanup_netlink_notifier:
 static void __exit ip_queue_fini(void)
 {
 	nf_unregister_queue_handlers(&nfqh);
-	synchronize_net();
+
 	ipq_flush(NULL, 0);
 
 #ifdef CONFIG_SYSCTL
