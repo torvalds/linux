@@ -239,6 +239,12 @@ static void rt2800pci_rf_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
+static inline void rt2800_rf_write(struct rt2x00_dev *rt2x00dev,
+				   const unsigned int word, const u32 value)
+{
+	rt2800pci_rf_write(rt2x00dev, word, value);
+}
+
 static void rt2800pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 				  const u8 command, const u8 token,
 				  const u8 arg0, const u8 arg1)
@@ -431,7 +437,7 @@ static const struct rt2x00debug rt2800pci_rt2x00debug = {
 	},
 	.rf	= {
 		.read		= rt2x00_rf_read,
-		.write		= rt2800pci_rf_write,
+		.write		= rt2800_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
 		.word_count	= RF_SIZE / sizeof(u32),
@@ -900,24 +906,24 @@ static void rt2800pci_config_channel_rt2x(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_set_field32(&rf->rf4, RF4_HT40, conf_is_ht40(conf));
 
-	rt2800pci_rf_write(rt2x00dev, 1, rf->rf1);
-	rt2800pci_rf_write(rt2x00dev, 2, rf->rf2);
-	rt2800pci_rf_write(rt2x00dev, 3, rf->rf3 & ~0x00000004);
-	rt2800pci_rf_write(rt2x00dev, 4, rf->rf4);
+	rt2800_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2800_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2800_rf_write(rt2x00dev, 3, rf->rf3 & ~0x00000004);
+	rt2800_rf_write(rt2x00dev, 4, rf->rf4);
 
 	udelay(200);
 
-	rt2800pci_rf_write(rt2x00dev, 1, rf->rf1);
-	rt2800pci_rf_write(rt2x00dev, 2, rf->rf2);
-	rt2800pci_rf_write(rt2x00dev, 3, rf->rf3 | 0x00000004);
-	rt2800pci_rf_write(rt2x00dev, 4, rf->rf4);
+	rt2800_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2800_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2800_rf_write(rt2x00dev, 3, rf->rf3 | 0x00000004);
+	rt2800_rf_write(rt2x00dev, 4, rf->rf4);
 
 	udelay(200);
 
-	rt2800pci_rf_write(rt2x00dev, 1, rf->rf1);
-	rt2800pci_rf_write(rt2x00dev, 2, rf->rf2);
-	rt2800pci_rf_write(rt2x00dev, 3, rf->rf3 & ~0x00000004);
-	rt2800pci_rf_write(rt2x00dev, 4, rf->rf4);
+	rt2800_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2800_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2800_rf_write(rt2x00dev, 3, rf->rf3 & ~0x00000004);
+	rt2800_rf_write(rt2x00dev, 4, rf->rf4);
 }
 
 static void rt2800pci_config_channel_rt3x(struct rt2x00_dev *rt2x00dev,
