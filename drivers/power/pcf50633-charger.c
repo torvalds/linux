@@ -36,6 +36,7 @@ struct pcf50633_mbc {
 
 	struct power_supply usb;
 	struct power_supply adapter;
+	struct power_supply ac;
 
 	struct delayed_work charging_restart_work;
 };
@@ -237,6 +238,7 @@ pcf50633_mbc_irq_handler(int irq, void *data)
 	else if (irq == PCF50633_IRQ_USBLIMOFF)
 		mbc->usb_active = 1;
 
+	power_supply_changed(&mbc->ac);
 	power_supply_changed(&mbc->usb);
 	power_supply_changed(&mbc->adapter);
 
@@ -269,10 +271,34 @@ static int usb_get_property(struct power_supply *psy,
 {
 	struct pcf50633_mbc *mbc = container_of(psy, struct pcf50633_mbc, usb);
 	int ret = 0;
+	u8 usblim = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCC7) &
+						PCF50633_MBCC7_USB_MASK;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = mbc->usb_online;
+		val->intval = mbc->usb_online &&
+				(usblim <= PCF50633_MBCC7_USB_500mA);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static int ac_get_property(struct power_supply *psy,
+			enum power_supply_property psp,
+			union power_supply_propval *val)
+{
+	struct pcf50633_mbc *mbc = container_of(psy, struct pcf50633_mbc, ac);
+	int ret = 0;
+	u8 usblim = pcf50633_reg_read(mbc->pcf, PCF50633_REG_MBCC7) &
+						PCF50633_MBCC7_USB_MASK;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = mbc->usb_online &&
+				(usblim == PCF50633_MBCC7_USB_1000mA);
 		break;
 	default:
 		ret = -EINVAL;
@@ -337,6 +363,14 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	mbc->usb.supplied_to		= mbc->pcf->pdata->batteries;
 	mbc->usb.num_supplicants	= mbc->pcf->pdata->num_batteries;
 
+	mbc->ac.name			= "ac";
+	mbc->ac.type			= POWER_SUPPLY_TYPE_MAINS;
+	mbc->ac.properties		= power_props;
+	mbc->ac.num_properties		= ARRAY_SIZE(power_props);
+	mbc->ac.get_property		= ac_get_property;
+	mbc->ac.supplied_to		= mbc->pcf->pdata->batteries;
+	mbc->ac.num_supplicants		= mbc->pcf->pdata->num_batteries;
+
 	ret = power_supply_register(&pdev->dev, &mbc->adapter);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
@@ -348,6 +382,15 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
 		power_supply_unregister(&mbc->adapter);
+		kfree(mbc);
+		return ret;
+	}
+
+	ret = power_supply_register(&pdev->dev, &mbc->ac);
+	if (ret) {
+		dev_err(mbc->pcf->dev, "failed to register ac\n");
+		power_supply_unregister(&mbc->adapter);
+		power_supply_unregister(&mbc->usb);
 		kfree(mbc);
 		return ret;
 	}
@@ -379,6 +422,7 @@ static int __devexit pcf50633_mbc_remove(struct platform_device *pdev)
 
 	power_supply_unregister(&mbc->usb);
 	power_supply_unregister(&mbc->adapter);
+	power_supply_unregister(&mbc->ac);
 
 	cancel_delayed_work_sync(&mbc->charging_restart_work);
 
