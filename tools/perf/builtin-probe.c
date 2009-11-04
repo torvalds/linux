@@ -189,7 +189,7 @@ static void parse_probe_event(const char *str)
 	/* Parse probe point */
 	parse_probe_point(argv[0], pp);
 	free(argv[0]);
-	if (pp->file)
+	if (pp->file || pp->line)
 		session.need_dwarf = 1;
 
 	/* Copy arguments */
@@ -347,36 +347,24 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if (session.nr_probe == 0)
 		usage_with_options(probe_usage, options);
 
-#ifdef NO_LIBDWARF
 	if (session.need_dwarf)
-		semantic_error("Dwarf-analysis is not supported");
-#endif
-
-	/* Synthesize probes without dwarf */
-	for (j = 0; j < session.nr_probe; j++) {
-#ifndef NO_LIBDWARF
-		if (!session.probes[j].retprobe) {
-			session.need_dwarf = 1;
-			continue;
-		}
-#endif
-		ret = synthesize_probe_event(&session.probes[j]);
-		if (ret == -E2BIG)
-			semantic_error("probe point is too long.");
-		else if (ret < 0)
-			die("Failed to synthesize a probe point.");
-	}
-
-#ifndef NO_LIBDWARF
-	if (!session.need_dwarf)
-		goto setup_probes;
+#ifdef NO_LIBDWARF
+		semantic_error("Debuginfo-analysis is not supported");
+#else	/* !NO_LIBDWARF */
+		pr_info("Some probes require debuginfo.\n");
 
 	if (session.vmlinux)
 		fd = open(session.vmlinux, O_RDONLY);
 	else
 		fd = open_default_vmlinux();
-	if (fd < 0)
-		die("Could not open vmlinux/module file.");
+	if (fd < 0) {
+		if (session.need_dwarf)
+			die("Could not open vmlinux/module file.");
+
+		pr_warning("Could not open vmlinux/module file."
+			   " Try to use symbols.\n");
+		goto end_dwarf;
+	}
 
 	/* Searching probe points */
 	for (j = 0; j < session.nr_probe; j++) {
@@ -386,13 +374,33 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 		lseek(fd, SEEK_SET, 0);
 		ret = find_probepoint(fd, pp);
-		if (ret <= 0)
-			die("No probe point found.\n");
+		if (ret < 0) {
+			if (session.need_dwarf)
+				die("Could not analyze debuginfo.");
+
+			pr_warning("An error occurred in debuginfo analysis. Try to use symbols.\n");
+			break;
+		}
+		if (ret == 0)	/* No error but failed to find probe point. */
+			die("No probe point found.");
 	}
 	close(fd);
 
-setup_probes:
+end_dwarf:
 #endif /* !NO_LIBDWARF */
+
+	/* Synthesize probes without dwarf */
+	for (j = 0; j < session.nr_probe; j++) {
+		pp = &session.probes[j];
+		if (pp->found)	/* This probe is already found. */
+			continue;
+
+		ret = synthesize_probe_event(pp);
+		if (ret == -E2BIG)
+			semantic_error("probe point is too long.");
+		else if (ret < 0)
+			die("Failed to synthesize a probe point.");
+	}
 
 	/* Settng up probe points */
 	snprintf(buf, MAX_CMDLEN, "%s/../kprobe_events", debugfs_path);
