@@ -175,8 +175,8 @@
  * WMM_AIFSN_CFG: Aifsn for each EDCA AC
  * AIFSN0: AC_BE
  * AIFSN1: AC_BK
- * AIFSN1: AC_VI
- * AIFSN1: AC_VO
+ * AIFSN2: AC_VI
+ * AIFSN3: AC_VO
  */
 #define WMM_AIFSN_CFG			0x0214
 #define WMM_AIFSN_CFG_AIFSN0		FIELD32(0x0000000f)
@@ -188,8 +188,8 @@
  * WMM_CWMIN_CSR: CWmin for each EDCA AC
  * CWMIN0: AC_BE
  * CWMIN1: AC_BK
- * CWMIN1: AC_VI
- * CWMIN1: AC_VO
+ * CWMIN2: AC_VI
+ * CWMIN3: AC_VO
  */
 #define WMM_CWMIN_CFG			0x0218
 #define WMM_CWMIN_CFG_CWMIN0		FIELD32(0x0000000f)
@@ -201,8 +201,8 @@
  * WMM_CWMAX_CSR: CWmax for each EDCA AC
  * CWMAX0: AC_BE
  * CWMAX1: AC_BK
- * CWMAX1: AC_VI
- * CWMAX1: AC_VO
+ * CWMAX2: AC_VI
+ * CWMAX3: AC_VO
  */
 #define WMM_CWMAX_CFG			0x021c
 #define WMM_CWMAX_CFG_CWMAX0		FIELD32(0x0000000f)
@@ -495,9 +495,6 @@
 /*
  * RF_CSR_CFG2: RF control register
  * VALUE: Register value to program into RF
- * RFGAP: Gap between BB_CONTROL_RF and RF_LE
- *        0: 3 system clock cycle (37.5usec)
- *        1: 5 system clock cycle (62.5usec)
  */
 #define RF_CSR_CFG2			0x1028
 #define RF_CSR_CFG2_VALUE		FIELD32(0x00ffffff)
@@ -1275,8 +1272,8 @@
  * PAIRWISE_KEY_TABLE_BASE: 32-byte * 256 entry
  * MAC_IVEIV_TABLE_BASE: 8-byte * 256-entry
  * MAC_WCID_ATTRIBUTE_BASE: 4-byte * 256-entry
- * SHARED_KEY_TABLE_BASE: 32 bytes * 32-entry
- * SHARED_KEY_MODE_BASE: 4 bits * 32-entry
+ * SHARED_KEY_TABLE_BASE: 32-byte * 16-entry
+ * SHARED_KEY_MODE_BASE: 4-byte * 16-entry
  */
 #define MAC_WCID_BASE			0x1800
 #define PAIRWISE_KEY_TABLE_BASE		0x4000
@@ -1385,7 +1382,7 @@ struct mac_iveiv_entry {
 
 /*
  * HW_DFS_CTS_BASE:
- * FS CTS frame base address. It's where mac stores CTS frame for DFS.
+ * DFS CTS frame base address. It's where mac stores CTS frame for DFS.
  */
 #define HW_DFS_CTS_BASE			0x7780
 
