@@ -53,10 +53,9 @@ static inline void rt2x00pci_register_read(struct rt2x00_dev *rt2x00dev,
 	*value = readl(rt2x00dev->csr.base + offset);
 }
 
-static inline void
-rt2x00pci_register_multiread(struct rt2x00_dev *rt2x00dev,
-			     const unsigned int offset,
-			     void *value, const u16 length)
+static inline void rt2x00pci_register_multiread(struct rt2x00_dev *rt2x00dev,
+						const unsigned int offset,
+						void *value, const u32 length)
 {
 	memcpy_fromio(value, rt2x00dev->csr.base + offset, length);
 }
@@ -68,10 +67,10 @@ static inline void rt2x00pci_register_write(struct rt2x00_dev *rt2x00dev,
 	writel(value, rt2x00dev->csr.base + offset);
 }
 
-static inline void
-rt2x00pci_register_multiwrite(struct rt2x00_dev *rt2x00dev,
-			      const unsigned int offset,
-			      const void *value, const u16 length)
+static inline void rt2x00pci_register_multiwrite(struct rt2x00_dev *rt2x00dev,
+						 const unsigned int offset,
+						 const void *value,
+						 const u32 length)
 {
 	memcpy_toio(rt2x00dev->csr.base + offset, value, length);
 }

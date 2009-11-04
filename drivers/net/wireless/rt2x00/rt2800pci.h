@@ -37,10 +37,10 @@ struct rt2800_ops {
 
 	void (*register_multiread)(struct rt2x00_dev *rt2x00dev,
 				   const unsigned int offset,
-				   void *value, const u16 length);
+				   void *value, const u32 length);
 	void (*register_multiwrite)(struct rt2x00_dev *rt2x00dev,
 				    const unsigned int offset,
-				    const void *value, const u16 length);
+				    const void *value, const u32 length);
 
 	int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
 			    const unsigned int offset,
@@ -76,7 +76,7 @@ static inline void rt2800_register_write_lock(struct rt2x00_dev *rt2x00dev,
 
 static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
 					     const unsigned int offset,
-					     void *value, const u16 length)
+					     void *value, const u32 length)
 {
 	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
 
@@ -86,7 +86,7 @@ static inline void rt2800_register_multiread(struct rt2x00_dev *rt2x00dev,
 static inline void rt2800_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 					      const unsigned int offset,
 					      const void *value,
-					      const u16 length)
+					      const u32 length)
 {
 	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
 
