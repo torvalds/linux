@@ -92,11 +92,12 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	start = addr.minimum + addr.translation_offset;
 	end = start + addr.address_length - 1;
 	if (info->res_num >= max_root_bus_resources) {
-		printk(KERN_WARNING "PCI: Failed to allocate 0x%lx-0x%lx "
-			"from %s for %s due to _CRS returning more than "
-			"%d resource descriptors\n", (unsigned long) start,
-			(unsigned long) end, root->name, info->name,
-			max_root_bus_resources);
+		if (pci_probe & PCI_USE__CRS)
+			printk(KERN_WARNING "PCI: Failed to allocate "
+			       "0x%lx-0x%lx from %s for %s due to _CRS "
+			       "returning more than %d resource descriptors\n",
+			       (unsigned long) start, (unsigned long) end,
+			       root->name, info->name, max_root_bus_resources);
 		return AE_OK;
 	}
 
@@ -106,6 +107,12 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	res->child = NULL;
+
+	if (!(pci_probe & PCI_USE__CRS)) {
+		dev_printk(KERN_DEBUG, &info->bridge->dev,
+			   "host bridge window %pR (ignored)\n", res);
+		return AE_OK;
+	}
 
 	if (insert_resource(root, res)) {
 		dev_err(&info->bridge->dev,
@@ -131,6 +138,11 @@ get_current_resources(struct acpi_device *device, int busnum,
 {
 	struct pci_root_info info;
 	size_t size;
+
+	if (!(pci_probe & PCI_USE__CRS))
+		dev_info(&device->dev,
+			 "ignoring host bridge windows from ACPI; "
+			 "boot with \"pci=use_crs\" to use them\n");
 
 	info.bridge = device;
 	info.bus = bus;
@@ -220,9 +232,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	} else {
 		bus = pci_create_bus(NULL, busnum, &pci_root_ops, sd);
 		if (bus) {
-			if (pci_probe & PCI_USE__CRS)
-				get_current_resources(device, busnum, domain,
-							bus);
+			get_current_resources(device, busnum, domain, bus);
 			bus->subordinate = pci_scan_child_bus(bus);
 		}
 	}
