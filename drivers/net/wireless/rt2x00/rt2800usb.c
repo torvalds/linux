@@ -167,7 +167,7 @@ static void rt2800usb_rfcsr_read(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, RF_CSR_CFG_WRITE, 0);
 		rt2x00_set_field32(&reg, RF_CSR_CFG_BUSY, 1);
 
-		rt2x00usb_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
+		rt2x00usb_register_write_lock(rt2x00dev, RF_CSR_CFG, reg);
 
 		WAIT_FOR_RFCSR(rt2x00dev, &reg);
 	}
