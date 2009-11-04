@@ -86,6 +86,68 @@ static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
 	sc->rx.rxotherant = 0;
 }
 
+/* Assumes you've already done the endian to CPU conversion */
+static bool ath9k_rx_accept(struct ath_common *common,
+			    struct sk_buff *skb,
+			    struct ieee80211_rx_status *rxs,
+			    struct ath_rx_status *rx_stats,
+			    bool *decrypt_error)
+{
+	struct ath_hw *ah = common->ah;
+	struct ieee80211_hdr *hdr;
+	__le16 fc;
+
+	hdr = (struct ieee80211_hdr *) skb->data;
+	fc = hdr->frame_control;
+
+	if (rx_stats->rs_more) {
+		/*
+		 * Frame spans multiple descriptors; this cannot happen yet
+		 * as we don't support jumbograms. If not in monitor mode,
+		 * discard the frame. Enable this if you want to see
+		 * error frames in Monitor mode.
+		 */
+		if (ah->opmode != NL80211_IFTYPE_MONITOR)
+			return false;
+	} else if (rx_stats->rs_status != 0) {
+		if (rx_stats->rs_status & ATH9K_RXERR_CRC)
+			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
+		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
+			return false;
+
+		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
+			*decrypt_error = true;
+		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
+			if (ieee80211_is_ctl(fc))
+				/*
+				 * Sometimes, we get invalid
+				 * MIC failures on valid control frames.
+				 * Remove these mic errors.
+				 */
+				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
+			else
+				rxs->flag |= RX_FLAG_MMIC_ERROR;
+		}
+		/*
+		 * Reject error frames with the exception of
+		 * decryption and MIC failures. For monitor mode,
+		 * we also ignore the CRC error.
+		 */
+		if (ah->opmode == NL80211_IFTYPE_MONITOR) {
+			if (rx_stats->rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
+			      ATH9K_RXERR_CRC))
+				return false;
+		} else {
+			if (rx_stats->rs_status &
+			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 /*
  * For Decrypt or Demic errors, we only mark packet status here and always push
  * up the frame up to let mac80211 handle the actual error case, be it no
@@ -109,51 +171,8 @@ static int ath_rx_prepare(struct ath_common *common,
 	fc = hdr->frame_control;
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
-	if (rx_stats->rs_more) {
-		/*
-		 * Frame spans multiple descriptors; this cannot happen yet
-		 * as we don't support jumbograms. If not in monitor mode,
-		 * discard the frame. Enable this if you want to see
-		 * error frames in Monitor mode.
-		 */
-		if (ah->opmode != NL80211_IFTYPE_MONITOR)
-			goto rx_next;
-	} else if (rx_stats->rs_status != 0) {
-		if (rx_stats->rs_status & ATH9K_RXERR_CRC)
-			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
-			goto rx_next;
-
-		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
-			*decrypt_error = true;
-		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
-			else
-				rx_status->flag |= RX_FLAG_MMIC_ERROR;
-		}
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		if (ah->opmode == NL80211_IFTYPE_MONITOR) {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				goto rx_next;
-		} else {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				goto rx_next;
-			}
-		}
-	}
+	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
+		goto rx_next;
 
 	ratecode = rx_stats->rs_rate;
 
