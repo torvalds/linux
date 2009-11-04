@@ -56,8 +56,10 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 /*
  * Register access.
+ * All access to the CSR registers will go through the methods
+ * rt2x00pci_register_read and rt2x00pci_register_write.
  * BBP and RF register require indirect register access,
- * and use the CSR registers PHY_CSR3 and PHY_CSR4 to achieve this.
+ * and use the CSR registers BBPCSR and RFCSR to achieve this.
  * These indirect registers work with busy bits,
  * and we will try maximal REGISTER_BUSY_COUNT times to access
  * the register while taking a REGISTER_BUSY_DELAY us delay
