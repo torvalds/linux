@@ -232,7 +232,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 }
 
 /**
- * rt2x00usb_regbusy_read - Read 32bit register word
+ * rt2x00usb_register_read - Read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
  * @value: Pointer to where register contents should be stored
