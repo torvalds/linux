@@ -1,26 +1,23 @@
-                        Kprobe-based Event Tracer
-                         =========================
+                        Kprobe-based Event Tracing
+                        ==========================
 
                  Documentation is written by Masami Hiramatsu
 
 
 Overview
 --------
-This tracer is similar to the events tracer which is based on Tracepoint
-infrastructure. Instead of Tracepoint, this tracer is based on kprobes(kprobe
-and kretprobe). It probes anywhere where kprobes can probe(this means, all
-functions body except for __kprobes functions).
+These events are similar to tracepoint based events. Instead of Tracepoint,
+this is based on kprobes (kprobe and kretprobe). So it can probe wherever
+kprobes can probe (this means, all functions body except for __kprobes
+functions). Unlike the Tracepoint based event, this can be added and removed
+dynamically, on the fly.
 
-Unlike the function tracer, this tracer can probe instructions inside of
-kernel functions. It allows you to check which instruction has been executed.
+To enable this feature, build your kernel with CONFIG_KPROBE_TRACING=y.
 
-Unlike the Tracepoint based events tracer, this tracer can add and remove
-probe points on the fly.
-
-Similar to the events tracer, this tracer doesn't need to be activated via
-current_tracer, instead of that, just set probe points via
-/sys/kernel/debug/tracing/kprobe_events. And you can set filters on each
-probe events via /sys/kernel/debug/tracing/events/kprobes/<EVENT>/filter.
+Similar to the events tracer, this doesn't need to be activated via
+current_tracer. Instead of that, add probe points via
+/sys/kernel/debug/tracing/kprobe_events, and enable it via
+/sys/kernel/debug/tracing/events/kprobes/<EVENT>/enabled.
 
 
 Synopsis of kprobe_events
@@ -55,9 +52,9 @@ Per-Probe Event Filtering
 -------------------------
  Per-probe event filtering feature allows you to set different filter on each
 probe and gives you what arguments will be shown in trace buffer. If an event
-name is specified right after 'p:' or 'r:' in kprobe_events, the tracer adds
-an event under tracing/events/kprobes/<EVENT>, at the directory you can see
-'id', 'enabled', 'format' and 'filter'.
+name is specified right after 'p:' or 'r:' in kprobe_events, it adds an event
+under tracing/events/kprobes/<EVENT>, at the directory you can see 'id',
+'enabled', 'format' and 'filter'.
 
 enabled:
   You can enable/disable the probe by writing 1 or 0 on it.
@@ -70,6 +67,7 @@ filter:
 
 id:
   This shows the id of this probe event.
+
 
 Event Profiling
 ---------------

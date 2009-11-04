@@ -1,5 +1,5 @@
 /*
- * kprobe based kernel tracer
+ * Kprobes-based tracing events
  *
  * Created by Masami Hiramatsu <mhiramat@redhat.com>
  *
@@ -56,8 +56,6 @@ const char *reserved_field_names[] = {
 	FIELD_STRING_RETIP,
 	FIELD_STRING_FUNC,
 };
-
-/* currently, trace_kprobe only supports X86. */
 
 struct fetch_func {
 	unsigned long (*func)(struct pt_regs *, void *);
@@ -191,7 +189,7 @@ static __kprobes void free_indirect_fetch_data(struct indirect_fetch_data *data)
 }
 
 /**
- * Kprobe tracer core functions
+ * Kprobe event core functions
  */
 
 struct probe_arg {
