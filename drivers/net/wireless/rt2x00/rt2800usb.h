@@ -61,7 +61,7 @@
 
 /*
  * Signal information.
- * Defaul offset is required for RSSI <-> dBm conversion.
+ * Default offset is required for RSSI <-> dBm conversion.
  */
 #define DEFAULT_RSSI_OFFSET		120 /* FIXME */
 
@@ -85,12 +85,6 @@
 /*
  * USB registers.
  */
-
-/*
- * HOST-MCU shared memory
- */
-#define HOST_CMD_CSR			0x0404
-#define HOST_CMD_CSR_HOST_COMMAND	FIELD32(0x000000ff)
 
 /*
  * INT_SOURCE_CSR: Interrupt source register.
@@ -349,6 +343,12 @@
 #define PBF_SYS_CTRL			0x0400
 #define PBF_SYS_CTRL_READY		FIELD32(0x00000080)
 #define PBF_SYS_CTRL_HOST_RAM_WRITE	FIELD32(0x00010000)
+
+/*
+ * HOST-MCU shared memory
+ */
+#define HOST_CMD_CSR			0x0404
+#define HOST_CMD_CSR_HOST_COMMAND	FIELD32(0x000000ff)
 
 /*
  * PBF registers
@@ -1776,7 +1776,7 @@ struct mac_iveiv_entry {
 
 /*
  * Word3
- * WIV: Wireless Info Valid. 1: Driver filled WI,  0: DMA needs to copy WI
+ * WIV: Wireless Info Valid. 1: Driver filled WI, 0: DMA needs to copy WI
  * QSEL: Select on-chip FIFO ID for 2nd-stage output scheduler.
  *       0:MGMT, 1:HCCA 2:EDCA
  */
