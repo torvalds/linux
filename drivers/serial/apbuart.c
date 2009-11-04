@@ -570,8 +570,8 @@ static int __devinit apbuart_probe(struct of_device *op,
 
 	apbuart_flush_fifo((struct uart_port *) port);
 
-	printk(KERN_INFO "grlib-apbuart at 0x%x, irq %d\n",
-	       port->mapbase, port->irq);
+	printk(KERN_INFO "grlib-apbuart at 0x%llx, irq %d\n",
+	       (unsigned long long) port->mapbase, port->irq);
 	return 0;
 
 }
