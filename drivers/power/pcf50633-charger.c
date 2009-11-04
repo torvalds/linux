@@ -92,14 +92,18 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 	chgmod = (mbcs2 & PCF50633_MBCS2_MBC_MASK);
 
 	/* If chgmod == BATFULL, setting chgena has no effect.
-	 * We need to set resume instead.
+	 * Datasheet says we need to set resume instead but when autoresume is
+	 * used resume doesn't work. Clear and set chgena instead.
 	 */
 	if (chgmod != PCF50633_MBCS2_MBC_BAT_FULL)
 		pcf50633_reg_set_bit_mask(pcf, PCF50633_REG_MBCC1,
 				PCF50633_MBCC1_CHGENA, PCF50633_MBCC1_CHGENA);
-	else
+	else {
+		pcf50633_reg_clear_bits(pcf, PCF50633_REG_MBCC1,
+				PCF50633_MBCC1_CHGENA);
 		pcf50633_reg_set_bit_mask(pcf, PCF50633_REG_MBCC1,
-				PCF50633_MBCC1_RESUME, PCF50633_MBCC1_RESUME);
+				PCF50633_MBCC1_CHGENA, PCF50633_MBCC1_CHGENA);
+	}
 
 	mbc->usb_active = charging_start;
 
