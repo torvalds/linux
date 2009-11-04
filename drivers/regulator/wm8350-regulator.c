@@ -1399,8 +1399,6 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm8350_unmask_irq(wm8350, wm8350_reg[pdev->id].irq);
-
 	return 0;
 }
 
@@ -1409,7 +1407,6 @@ static int wm8350_regulator_remove(struct platform_device *pdev)
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
-	wm8350_mask_irq(wm8350, wm8350_reg[pdev->id].irq);
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq);
 
 	regulator_unregister(rdev);

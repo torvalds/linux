@@ -445,6 +445,8 @@ int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 	wm8350->irq[irq].data = data;
 	mutex_unlock(&wm8350->irq_mutex);
 
+	wm8350_unmask_irq(wm8350, irq);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8350_register_irq);
@@ -453,6 +455,8 @@ int wm8350_free_irq(struct wm8350 *wm8350, int irq)
 {
 	if (irq < 0 || irq > WM8350_NUM_IRQ)
 		return -EINVAL;
+
+	wm8350_mask_irq(wm8350, irq);
 
 	mutex_lock(&wm8350->irq_mutex);
 	wm8350->irq[irq].handler = NULL;

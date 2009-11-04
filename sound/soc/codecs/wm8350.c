@@ -1426,8 +1426,6 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 	/* Sync status */
 	wm8350_hp_jack_handler(irq, priv);
 
-	wm8350_unmask_irq(wm8350, irq);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8350_hp_jack_detect);
@@ -1485,8 +1483,10 @@ static int wm8350_probe(struct platform_device *pdev)
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	/* Make sure jack detect is disabled to start off with */
+	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
+			  WM8350_JDL_ENA | WM8350_JDR_ENA);
+
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L,
 			    wm8350_hp_jack_handler, 0, "Left jack detect",
 			    priv);
@@ -1521,8 +1521,6 @@ static int wm8350_remove(struct platform_device *pdev)
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
 

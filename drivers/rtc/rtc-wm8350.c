@@ -459,17 +459,14 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_PER);
-
 	wm8350_register_irq(wm8350, WM8350_IRQ_RTC_SEC,
 			    wm8350_rtc_update_handler, 0,
 			    "RTC Seconds", wm8350);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 
 	wm8350_register_irq(wm8350, WM8350_IRQ_RTC_ALM,
 			    wm8350_rtc_alarm_handler, 0,
 			    "RTC Alarm", wm8350);
-	wm8350_unmask_irq(wm8350, WM8350_IRQ_RTC_ALM);
 
 	return 0;
 }
@@ -478,8 +475,6 @@ static int __devexit wm8350_rtc_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_rtc *wm_rtc = &wm8350->rtc;
-
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC);
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM);
