@@ -172,8 +172,9 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 #endif
 
 	if (domain && !pci_domains_supported) {
-		printk(KERN_WARNING "PCI: Multiple domains not supported "
-		       "(dom %d, bus %d)\n", domain, busnum);
+		printk(KERN_WARNING "pci_bus %04x:%02x: "
+		       "ignored (multiple domains not supported)\n",
+		       domain, busnum);
 		return NULL;
 	}
 
@@ -197,7 +198,8 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	 */
 	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
 	if (!sd) {
-		printk(KERN_ERR "PCI: OOM, not probing PCI bus %02x\n", busnum);
+		printk(KERN_WARNING "pci_bus %04x:%02x: "
+		       "ignored (out of memory)\n", domain, busnum);
 		return NULL;
 	}
 
