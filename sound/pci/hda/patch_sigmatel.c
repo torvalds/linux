@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/jack.h>
@@ -1693,6 +1694,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "DFI LanParty", STAC_92HD71BXX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30fb,
 		      "HP dv4-1222nr", STAC_HP_DV4_1222NR),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x1720,
+			  "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3080,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x30f0,
@@ -4730,6 +4733,26 @@ static int stac92xx_resume(struct hda_codec *codec)
 	return 0;
 }
 
+static int hp_bseries_system(u32 subsystem_id)
+{
+	switch (subsystem_id) {
+	case 0x103c307e:
+	case 0x103c307f:
+	case 0x103c3080:
+	case 0x103c3081:
+	case 0x103c1722:
+	case 0x103c1723:
+	case 0x103c1724:
+	case 0x103c1725:
+	case 0x103c1726:
+	case 0x103c1727:
+	case 0x103c1728:
+	case 0x103c1729:
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * using power check for controlling mute led of HP notebooks
  * check for mute state only on Speakers (nid = 0x10)
@@ -4753,6 +4776,11 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 			spec->gpio_data &= ~spec->gpio_led; /* orange */
 		else
 			spec->gpio_data |= spec->gpio_led; /* white */
+
+		if (hp_bseries_system(codec->subsystem_id)) {
+			/* LED state is inverted on these systems */
+			spec->gpio_data ^= spec->gpio_led;
+		}
 
 		stac_gpio_set(codec, spec->gpio_mask,
 			      spec->gpio_dir,
@@ -5243,6 +5271,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
 	struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
+	unsigned int pin_cfg;
 	int err = 0;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5424,6 +5453,45 @@ again:
 		/* orange/white mute led on GPIO3, orange=0, white=1 */
 		spec->gpio_led = 0x08;
 		break;
+	}
+
+	if (hp_bseries_system(codec->subsystem_id)) {
+		pin_cfg = snd_hda_codec_get_pincfg(codec, 0x0f);
+		if (get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
+			get_defcfg_device(pin_cfg) == AC_JACK_SPEAKER  ||
+			get_defcfg_device(pin_cfg) == AC_JACK_HP_OUT) {
+			/* It was changed in the BIOS to just satisfy MS DTM.
+			 * Lets turn it back into slaved HP
+			 */
+			pin_cfg = (pin_cfg & (~AC_DEFCFG_DEVICE))
+					| (AC_JACK_HP_OUT <<
+						AC_DEFCFG_DEVICE_SHIFT);
+			pin_cfg = (pin_cfg & (~(AC_DEFCFG_DEF_ASSOC
+							| AC_DEFCFG_SEQUENCE)))
+								| 0x1f;
+			snd_hda_codec_set_pincfg(codec, 0x0f, pin_cfg);
+		}
+	}
+
+	if ((codec->subsystem_id >> 16) == PCI_VENDOR_ID_HP) {
+		const struct dmi_device *dev = NULL;
+		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
+					      NULL, dev))) {
+			if (strcmp(dev->name, "HP_Mute_LED_1")) {
+				switch (codec->vendor_id) {
+				case 0x111d7608:
+					spec->gpio_led = 0x01;
+					break;
+				case 0x111d7600:
+				case 0x111d7601:
+				case 0x111d7602:
+				case 0x111d7603:
+					spec->gpio_led = 0x08;
+					break;
+				}
+				break;
+			}
+		}
 	}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
