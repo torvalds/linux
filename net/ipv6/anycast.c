@@ -404,13 +404,13 @@ int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 
 	if (dev)
 		return ipv6_chk_acast_dev(dev, addr);
-	read_lock(&dev_base_lock);
-	for_each_netdev(net, dev)
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev)
 		if (ipv6_chk_acast_dev(dev, addr)) {
 			found = 1;
 			break;
 		}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 	return found;
 }
 

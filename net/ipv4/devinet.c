@@ -876,19 +876,16 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 		if (!addr)
 			addr = ifa->ifa_local;
 	} endfor_ifa(in_dev);
-no_in_dev:
-	rcu_read_unlock();
 
+no_in_dev:
 	if (addr)
-		goto out;
+		goto out_unlock;
 
 	/* Not loopback addresses on loopback should be preferred
 	   in this case. It is importnat that lo is the first interface
 	   in dev_base list.
 	 */
-	read_lock(&dev_base_lock);
-	rcu_read_lock();
-	for_each_netdev(net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if ((in_dev = __in_dev_get_rcu(dev)) == NULL)
 			continue;
 
@@ -896,12 +893,11 @@ no_in_dev:
 			if (ifa->ifa_scope != RT_SCOPE_LINK &&
 			    ifa->ifa_scope <= scope) {
 				addr = ifa->ifa_local;
-				goto out_unlock_both;
+				goto out_unlock;
 			}
 		} endfor_ifa(in_dev);
 	}
-out_unlock_both:
-	read_unlock(&dev_base_lock);
+out_unlock:
 	rcu_read_unlock();
 out:
 	return addr;
@@ -962,9 +958,8 @@ __be32 inet_confirm_addr(struct in_device *in_dev,
 		return confirm_addr_indev(in_dev, dst, local, scope);
 
 	net = dev_net(in_dev->dev);
-	read_lock(&dev_base_lock);
 	rcu_read_lock();
-	for_each_netdev(net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if ((in_dev = __in_dev_get_rcu(dev))) {
 			addr = confirm_addr_indev(in_dev, dst, local, scope);
 			if (addr)
@@ -972,7 +967,6 @@ __be32 inet_confirm_addr(struct in_device *in_dev,
 		}
 	}
 	rcu_read_unlock();
-	read_unlock(&dev_base_lock);
 
 	return addr;
 }
@@ -1240,18 +1234,18 @@ static void devinet_copy_dflt_conf(struct net *net, int i)
 {
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
-	for_each_netdev(net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
 		struct in_device *in_dev;
-		rcu_read_lock();
+
 		in_dev = __in_dev_get_rcu(dev);
 		if (in_dev && !test_bit(i, in_dev->cnf.state))
 			in_dev->cnf.data[i] = net->ipv4.devconf_dflt->data[i];
-		rcu_read_unlock();
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
+/* called with RTNL locked */
 static void inet_forward_change(struct net *net)
 {
 	struct net_device *dev;
@@ -1260,7 +1254,6 @@ static void inet_forward_change(struct net *net)
 	IPV4_DEVCONF_ALL(net, ACCEPT_REDIRECTS) = !on;
 	IPV4_DEVCONF_DFLT(net, FORWARDING) = on;
 
-	read_lock(&dev_base_lock);
 	for_each_netdev(net, dev) {
 		struct in_device *in_dev;
 		if (on)
@@ -1271,7 +1264,6 @@ static void inet_forward_change(struct net *net)
 			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
 		rcu_read_unlock();
 	}
-	read_unlock(&dev_base_lock);
 }
 
 static int devinet_conf_proc(ctl_table *ctl, int write,

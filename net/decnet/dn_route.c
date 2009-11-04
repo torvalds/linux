@@ -908,8 +908,8 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 			dev_put(dev_out);
 			goto out;
 		}
-		read_lock(&dev_base_lock);
-		for_each_netdev(&init_net, dev) {
+		rcu_read_lock();
+		for_each_netdev_rcu(&init_net, dev) {
 			if (!dev->dn_ptr)
 				continue;
 			if (!dn_dev_islocal(dev, oldflp->fld_src))
@@ -922,7 +922,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 			dev_out = dev;
 			break;
 		}
-		read_unlock(&dev_base_lock);
+		rcu_read_unlock();
 		if (dev_out == NULL)
 			goto out;
 		dev_hold(dev_out);

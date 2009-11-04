@@ -175,7 +175,7 @@ static struct list_head ptype_all __read_mostly;	/* Taps */
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
  * semaphore.
  *
- * Pure readers hold dev_base_lock for reading.
+ * Pure readers hold dev_base_lock for reading, or rcu_read_lock()
  *
  * Writers must hold the rtnl semaphore while they loop through the
  * dev_base_head list, and hold dev_base_lock for writing when they do the
@@ -212,7 +212,7 @@ static int list_netdevice(struct net_device *dev)
 	ASSERT_RTNL();
 
 	write_lock_bh(&dev_base_lock);
-	list_add_tail(&dev->dev_list, &net->dev_base_head);
+	list_add_tail_rcu(&dev->dev_list, &net->dev_base_head);
 	hlist_add_head_rcu(&dev->name_hlist, dev_name_hash(net, dev->name));
 	hlist_add_head_rcu(&dev->index_hlist,
 			   dev_index_hash(net, dev->ifindex));
@@ -229,7 +229,7 @@ static void unlist_netdevice(struct net_device *dev)
 
 	/* Unlink dev from the device chain */
 	write_lock_bh(&dev_base_lock);
-	list_del(&dev->dev_list);
+	list_del_rcu(&dev->dev_list);
 	hlist_del_rcu(&dev->name_hlist);
 	hlist_del_rcu(&dev->index_hlist);
 	write_unlock_bh(&dev_base_lock);
@@ -799,15 +799,15 @@ struct net_device *dev_get_by_flags(struct net *net, unsigned short if_flags,
 	struct net_device *dev, *ret;
 
 	ret = NULL;
-	read_lock(&dev_base_lock);
-	for_each_netdev(net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
 		if (((dev->flags ^ if_flags) & mask) == 0) {
 			dev_hold(dev);
 			ret = dev;
 			break;
 		}
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL(dev_get_by_flags);
@@ -3077,18 +3077,18 @@ static int dev_ifconf(struct net *net, char __user *arg)
  *	in detail.
  */
 void *dev_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(dev_base_lock)
+	__acquires(RCU)
 {
 	struct net *net = seq_file_net(seq);
 	loff_t off;
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
+	rcu_read_lock();
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
 	off = 1;
-	for_each_netdev(net, dev)
+	for_each_netdev_rcu(net, dev)
 		if (off++ == *pos)
 			return dev;
 
@@ -3097,16 +3097,18 @@ void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 
 void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct net *net = seq_file_net(seq);
+	struct net_device *dev = (v == SEQ_START_TOKEN) ?
+				  first_net_device(seq_file_net(seq)) :
+				  next_net_device((struct net_device *)v);
+
 	++*pos;
-	return v == SEQ_START_TOKEN ?
-		first_net_device(net) : next_net_device((struct net_device *)v);
+	return rcu_dereference(dev);
 }
 
 void dev_seq_stop(struct seq_file *seq, void *v)
-	__releases(dev_base_lock)
+	__releases(RCU)
 {
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
