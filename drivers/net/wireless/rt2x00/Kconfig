@@ -64,7 +64,7 @@ config RT2800PCI_SOC
 	default y
 
 config RT2800PCI
-	tristate "Ralink rt2800 (PCI/PCMCIA) support"
+	tristate "Ralink rt2800 (PCI/PCMCIA) support (VERY EXPERIMENTAL)"
 	depends on (RT2800PCI_PCI || RT2800PCI_SOC) && EXPERIMENTAL
 	select RT2X00_LIB_PCI if RT2800PCI_PCI
 	select RT2X00_LIB_SOC if RT2800PCI_SOC
@@ -76,6 +76,9 @@ config RT2800PCI
 	---help---
 	  This adds support for rt2800 wireless chipset family.
 	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890 & RT3052
+
+	  This driver is non-functional at the moment and is intended for
+	  developers.
 
 	  When compiled as a module, this driver will be called "rt2800pci.ko".
 
