@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
+#include <linux/of_spi.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -464,6 +465,7 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 	const u32 *regaddr_p;
 	u64 regaddr64, size64;
 	s16 id = -1;
+	int rc;
 
 	regaddr_p = of_get_address(op->node, 0, &size64, NULL);
 	if (!regaddr_p) {
@@ -485,8 +487,12 @@ static int __init mpc52xx_psc_spi_of_probe(struct of_device *op,
 		id = *psc_nump + 1;
 	}
 
-	return mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
+	rc = mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
 					irq_of_parse_and_map(op->node, 0), id);
+	if (rc == 0)
+		of_register_spi_devices(dev_get_drvdata(&op->dev), op->node);
+
+	return rc;
 }
 
 static int __exit mpc52xx_psc_spi_of_remove(struct of_device *op)
