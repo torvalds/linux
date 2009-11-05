@@ -571,7 +571,7 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time for pac7302 */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	reg_w_seq(gspca_dev, init_7302, sizeof init_7302);
+	reg_w_seq(gspca_dev, init_7302, sizeof(init_7302)/2);
 
 	return 0;
 }
