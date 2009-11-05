@@ -426,7 +426,7 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 			       struct radeon_crtc *radeon_crtc);
 void radeon_legacy_init_crtc(struct drm_device *dev,
 			     struct radeon_crtc *radeon_crtc);
-void radeon_i2c_do_lock(struct radeon_connector *radeon_connector, int lock_state);
+extern void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state);
 
 void radeon_get_clock_info(struct drm_device *dev);
 

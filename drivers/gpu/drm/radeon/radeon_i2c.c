@@ -59,11 +59,11 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 }
 
 
-void radeon_i2c_do_lock(struct radeon_connector *radeon_connector, int lock_state)
+void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 {
-	struct radeon_device *rdev = radeon_connector->base.dev->dev_private;
+	struct radeon_device *rdev = i2c->dev->dev_private;
+	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
-	struct radeon_i2c_bus_rec *rec = &radeon_connector->ddc_bus->rec;
 
 	/* RV410 appears to have a bug where the hw i2c in reset
 	 * holds the i2c port in a bad state - switch hw i2c away before
@@ -156,8 +156,8 @@ static void set_data(void *i2c_priv, int data)
 }
 
 struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
-		struct radeon_i2c_bus_rec *rec,
-		const char *name)
+					  struct radeon_i2c_bus_rec *rec,
+					  const char *name)
 {
 	struct radeon_i2c_chan *i2c;
 	int ret;

@@ -445,10 +445,10 @@ static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connec
 		ret = connector_status_connected;
 	else {
 		if (radeon_connector->ddc_bus) {
-			radeon_i2c_do_lock(radeon_connector, 1);
+			radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
-			radeon_i2c_do_lock(radeon_connector, 0);
+			radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 			if (radeon_connector->edid)
 				ret = connector_status_connected;
 		}
@@ -553,17 +553,17 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 	if (!encoder)
 		ret = connector_status_disconnected;
 
-	radeon_i2c_do_lock(radeon_connector, 1);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
 			radeon_connector->edid = NULL;
 		}
-		radeon_i2c_do_lock(radeon_connector, 1);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector, 0);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
@@ -708,17 +708,17 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret;
 
-	radeon_i2c_do_lock(radeon_connector, 1);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
 			radeon_connector->edid = NULL;
 		}
-		radeon_i2c_do_lock(radeon_connector, 1);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector, 0);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
