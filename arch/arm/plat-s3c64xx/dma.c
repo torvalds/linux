@@ -339,6 +339,7 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	struct s3c64xx_dma_buff *next;
 	struct s3c64xx_dma_buff *buff;
 	struct pl080s_lli *lli;
+	unsigned long flags;
 	int ret;
 
 	WARN_ON(!chan);
@@ -365,6 +366,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	buff->pw = id;
 
 	s3c64xx_dma_fill_lli(chan, lli, data, size);
+
+	local_irq_save(flags);
 
 	if ((next = chan->next) != NULL) {
 		struct s3c64xx_dma_buff *end = chan->end;
@@ -396,6 +399,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 
 		s3c64xx_lli_to_regs(chan, lli);
 	}
+
+	local_irq_restore(flags);
 
 	show_lli(lli);
 
