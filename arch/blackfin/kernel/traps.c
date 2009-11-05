@@ -119,6 +119,15 @@ static void decode_address(char *buf, unsigned long address)
 		return;
 	}
 
+	/*
+	 * Don't walk any of the vmas if we are oopsing, it has been known
+	 * to cause problems - corrupt vmas (kernel crashes) cause double faults
+	 */
+	if (oops_in_progress) {
+		strcat(buf, "/* kernel dynamic memory (maybe user-space) */");
+		return;
+	}
+
 	/* looks like we're off in user-land, so let's walk all the
 	 * mappings of all our processes and see if we can't be a whee
 	 * bit more specific
