@@ -288,16 +288,17 @@ static void ath9k_process_rssi(struct ath_common *common,
  * up the frame up to let mac80211 handle the actual error case, be it no
  * decryption key or real decryption error. This let us keep statistics there.
  */
-static int ath_rx_prepare(struct ath_common *common,
-			  struct ieee80211_hw *hw,
-			  struct sk_buff *skb, struct ath_rx_status *rx_stats,
-			  struct ieee80211_rx_status *rx_status,
-			  bool *decrypt_error)
+static int ath9k_rx_skb_preprocess(struct ath_common *common,
+				   struct ieee80211_hw *hw,
+				   struct sk_buff *skb,
+				   struct ath_rx_status *rx_stats,
+				   struct ieee80211_rx_status *rx_status,
+				   bool *decrypt_error)
 {
 	struct ath_hw *ah = common->ah;
 
 	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
-		goto rx_next;
+		return -EINVAL;
 
 	ath9k_process_rssi(common, hw, skb, rx_stats);
 
@@ -312,8 +313,6 @@ static int ath_rx_prepare(struct ath_common *common,
 	rx_status->qual = ath9k_compute_qual(hw, rx_stats);
 	rx_status->flag |= RX_FLAG_TSFT;
 
-	return 1;
-rx_next:
 	return 0;
 }
 
@@ -808,8 +807,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		if (flush)
 			goto requeue;
 
-		if (!ath_rx_prepare(common, hw, skb, rx_stats,
-				    rxs, &decrypt_error))
+		retval = ath9k_rx_skb_preprocess(common, hw, skb, rx_stats,
+						 rxs, &decrypt_error);
+		if (retval)
 			goto requeue;
 
 		/* Ensure we always have an skb to requeue once we are done
