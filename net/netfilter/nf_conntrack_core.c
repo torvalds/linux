@@ -511,11 +511,17 @@ static noinline int early_drop(struct net *net, unsigned int hash)
 			cnt++;
 		}
 
-		if (ct && unlikely(nf_ct_is_dying(ct) ||
-				   !atomic_inc_not_zero(&ct->ct_general.use)))
-			ct = NULL;
-		if (ct || cnt >= NF_CT_EVICTION_RANGE)
+		if (ct != NULL) {
+			if (likely(!nf_ct_is_dying(ct) &&
+				   atomic_inc_not_zero(&ct->ct_general.use)))
+				break;
+			else
+				ct = NULL;
+		}
+
+		if (cnt >= NF_CT_EVICTION_RANGE)
 			break;
+
 		hash = (hash + 1) % nf_conntrack_htable_size;
 	}
 	rcu_read_unlock();
