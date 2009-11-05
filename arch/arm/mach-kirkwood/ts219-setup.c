@@ -1,6 +1,6 @@
 /*
  *
- * QNAP TS-119/TS-219 Turbo NAS Board Setup
+ * QNAP TS-11x/TS-21x Turbo NAS Board Setup
  *
  * Copyright (C) 2009  Martin Michlmayr <tbm@cyrius.com>
  * Copyright (C) 2008  Byron Bradley <byron.bbradley@gmail.com>
