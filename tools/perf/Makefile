@@ -416,6 +416,13 @@ LIB_OBJS += util/hist.o
 LIB_OBJS += util/data_map.o
 
 BUILTIN_OBJS += builtin-annotate.o
+
+BUILTIN_OBJS += builtin-bench.o
+
+# Benchmark modules
+BUILTIN_OBJS += bench/sched-messaging.o
+BUILTIN_OBJS += bench/sched-pipe.o
+
 BUILTIN_OBJS += builtin-help.o
 BUILTIN_OBJS += builtin-sched.o
 BUILTIN_OBJS += builtin-list.o
