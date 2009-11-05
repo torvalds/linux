@@ -397,6 +397,30 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 static int radeon_lvds_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+
+	if ((mode->hdisplay < 320) || (mode->vdisplay < 240))
+		return MODE_PANEL;
+
+	if (encoder) {
+		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+
+		/* AVIVO hardware supports downscaling modes larger than the panel
+		 * to the panel size, but I'm not sure this is desirable.
+		 */
+		if ((mode->hdisplay > native_mode->hdisplay) ||
+		    (mode->vdisplay > native_mode->vdisplay))
+			return MODE_PANEL;
+
+		/* if scaling is disabled, block non-native modes */
+		if (radeon_encoder->rmx_type == RMX_OFF) {
+			if ((mode->hdisplay != native_mode->hdisplay) ||
+			    (mode->vdisplay != native_mode->vdisplay))
+				return MODE_PANEL;
+		}
+	}
+
 	return MODE_OK;
 }
 
@@ -512,6 +536,8 @@ static int radeon_vga_get_modes(struct drm_connector *connector)
 static int radeon_vga_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	/* XXX check mode bandwidth */
+	/* XXX verify against max DAC output frequency */
 	return MODE_OK;
 }
 
@@ -609,6 +635,8 @@ static int radeon_tv_get_modes(struct drm_connector *connector)
 static int radeon_tv_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
+	if ((mode->hdisplay > 1024) || (mode->vdisplay > 768))
+		return MODE_CLOCK_RANGE;
 	return MODE_OK;
 }
 
@@ -801,9 +829,27 @@ static void radeon_dvi_force(struct drm_connector *connector)
 		radeon_connector->use_digital = true;
 }
 
+static int radeon_dvi_mode_valid(struct drm_connector *connector,
+				  struct drm_display_mode *mode)
+{
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
+	/* XXX check mode bandwidth */
+
+	if (radeon_connector->use_digital && (mode->clock > 165000)) {
+		if ((radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I) ||
+		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D) ||
+		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_B))
+			return MODE_OK;
+		else
+			return MODE_CLOCK_HIGH;
+	}
+	return MODE_OK;
+}
+
 struct drm_connector_helper_funcs radeon_dvi_connector_helper_funcs = {
 	.get_modes = radeon_dvi_get_modes,
-	.mode_valid = radeon_vga_mode_valid,
+	.mode_valid = radeon_dvi_mode_valid,
 	.best_encoder = radeon_dvi_encoder,
 };
 
