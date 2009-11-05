@@ -576,6 +576,7 @@ static irqreturn_t s3c64xx_dma_irq(int irq, void *pw)
 	errstat = readl(dmac->regs + PL080_ERR_STATUS);
 
 	for (offs = 0, bit = 1; offs < 8; offs++, bit <<= 1) {
+		struct s3c64xx_dma_buff *buff;
 
 		if (!(errstat & bit) && !(tcstat & bit))
 			continue;
@@ -591,7 +592,33 @@ static irqreturn_t s3c64xx_dma_irq(int irq, void *pw)
 		if (errstat & bit)
 			writel(bit, dmac->regs + PL080_ERR_CLEAR);
 
-		s3c64xx_dma_bufffdone(chan, chan->curr, res);
+		/* 'next' points to the buffer that is next to the
+		 * currently active buffer.
+		 * For CIRCULAR queues, 'next' will be same as 'curr'
+		 * when 'end' is the active buffer.
+		 */
+		buff = chan->curr;
+		while (buff && buff != chan->next
+				&& buff->next != chan->next)
+			buff = buff->next;
+
+		if (!buff)
+			BUG();
+
+		if (buff == chan->next)
+			buff = chan->end;
+
+		s3c64xx_dma_bufffdone(chan, buff, res);
+
+		/* Update 'next' */
+		buff = chan->next;
+		if (chan->next == chan->end) {
+			chan->next = chan->curr;
+			if (!(chan->flags & S3C2410_DMAF_CIRCULAR))
+				chan->end = NULL;
+		} else {
+			chan->next = buff->next;
+		}
 	}
 
 	return IRQ_HANDLED;
