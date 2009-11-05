@@ -203,9 +203,9 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++)
 		pm8001_phy_init(pm8001_ha, i);
 
-	pm8001_ha->tags = kmalloc(sizeof(*pm8001_ha->tags)*PM8001_MAX_DEVICES,
-		GFP_KERNEL);
-
+	pm8001_ha->tags = kzalloc(PM8001_MAX_CCB, GFP_KERNEL);
+	if (!pm8001_ha->tags)
+		goto err_out;
 	/* MPI Memory region 1 for AAP Event Log for fw */
 	pm8001_ha->memoryMap.region[AAP1].num_elements = 1;
 	pm8001_ha->memoryMap.region[AAP1].element_size = PM8001_EVENT_LOG_SIZE;
@@ -287,6 +287,9 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->ccb_info[i].ccb_dma_handle =
 			pm8001_ha->memoryMap.region[CCB_MEM].phys_addr +
 			i * sizeof(struct pm8001_ccb_info);
+		pm8001_ha->ccb_info[i].task = NULL;
+		pm8001_ha->ccb_info[i].ccb_tag = 0xffffffff;
+		pm8001_ha->ccb_info[i].device = NULL;
 		++pm8001_ha->tags_num;
 	}
 	pm8001_ha->flags = PM8001F_INIT_TIME;
@@ -578,7 +581,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 {
 	struct pci_dev *pdev;
 	irq_handler_t irq_handler = pm8001_interrupt;
-	u32 rc;
+	int rc;
 
 	pdev = pm8001_ha->pdev;
 
