@@ -823,7 +823,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  int connector_type,
 			  struct radeon_i2c_bus_rec *i2c_bus,
 			  bool linkb,
-			  uint32_t igp_lane_info)
+			  uint32_t igp_lane_info,
+			  uint16_t connector_object_id)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
@@ -862,6 +863,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	radeon_connector->connector_id = connector_id;
 	radeon_connector->devices = supported_device;
 	radeon_connector->shared_ddc = shared_ddc;
+	radeon_connector->connector_object_id = connector_object_id;
 	switch (connector_type) {
 	case DRM_MODE_CONNECTOR_VGA:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
@@ -1013,7 +1015,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			    uint32_t connector_id,
 			    uint32_t supported_device,
 			    int connector_type,
-			    struct radeon_i2c_bus_rec *i2c_bus)
+			    struct radeon_i2c_bus_rec *i2c_bus,
+			    uint16_t connector_object_id)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
@@ -1042,6 +1045,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 
 	radeon_connector->connector_id = connector_id;
 	radeon_connector->devices = supported_device;
+	radeon_connector->connector_object_id = connector_object_id;
 	switch (connector_type) {
 	case DRM_MODE_CONNECTOR_VGA:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
