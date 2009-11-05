@@ -3419,7 +3419,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_wait_for_vblank(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		/* enable address swizzle for tiling buffer */
 		temp = I915_READ(DISP_ARB_CTL);
 		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
