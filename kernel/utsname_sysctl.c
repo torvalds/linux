@@ -57,78 +57,47 @@ static int proc_do_uts_string(ctl_table *table, int write,
 #define proc_do_uts_string NULL
 #endif
 
-
-#ifdef CONFIG_SYSCTL_SYSCALL
-/* The generic string strategy routine: */
-static int sysctl_uts_string(ctl_table *table,
-		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen)
-{
-	struct ctl_table uts_table;
-	int r, write;
-	write = newval && newlen;
-	memcpy(&uts_table, table, sizeof(uts_table));
-	uts_table.data = get_uts(table, write);
-	r = sysctl_string(&uts_table, oldval, oldlenp, newval, newlen);
-	put_uts(table, write, uts_table.data);
-	return r;
-}
-#else
-#define sysctl_uts_string NULL
-#endif
-
 static struct ctl_table uts_kern_table[] = {
 	{
-		.ctl_name	= KERN_OSTYPE,
 		.procname	= "ostype",
 		.data		= init_uts_ns.name.sysname,
 		.maxlen		= sizeof(init_uts_ns.name.sysname),
 		.mode		= 0444,
 		.proc_handler	= proc_do_uts_string,
-		.strategy	= sysctl_uts_string,
 	},
 	{
-		.ctl_name	= KERN_OSRELEASE,
 		.procname	= "osrelease",
 		.data		= init_uts_ns.name.release,
 		.maxlen		= sizeof(init_uts_ns.name.release),
 		.mode		= 0444,
 		.proc_handler	= proc_do_uts_string,
-		.strategy	= sysctl_uts_string,
 	},
 	{
-		.ctl_name	= KERN_VERSION,
 		.procname	= "version",
 		.data		= init_uts_ns.name.version,
 		.maxlen		= sizeof(init_uts_ns.name.version),
 		.mode		= 0444,
 		.proc_handler	= proc_do_uts_string,
-		.strategy	= sysctl_uts_string,
 	},
 	{
-		.ctl_name	= KERN_NODENAME,
 		.procname	= "hostname",
 		.data		= init_uts_ns.name.nodename,
 		.maxlen		= sizeof(init_uts_ns.name.nodename),
 		.mode		= 0644,
 		.proc_handler	= proc_do_uts_string,
-		.strategy	= sysctl_uts_string,
 	},
 	{
-		.ctl_name	= KERN_DOMAINNAME,
 		.procname	= "domainname",
 		.data		= init_uts_ns.name.domainname,
 		.maxlen		= sizeof(init_uts_ns.name.domainname),
 		.mode		= 0644,
 		.proc_handler	= proc_do_uts_string,
-		.strategy	= sysctl_uts_string,
 	},
 	{}
 };
 
 static struct ctl_table uts_root_table[] = {
 	{
-		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
 		.mode		= 0555,
 		.child		= uts_kern_table,
