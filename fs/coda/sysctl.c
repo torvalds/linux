@@ -17,7 +17,6 @@ static struct ctl_table_header *fs_table_header;
 
 static ctl_table coda_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "timeout",
 		.data		= &coda_timeout,
 		.maxlen		= sizeof(int),
@@ -25,7 +24,6 @@ static ctl_table coda_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "hard",
 		.data		= &coda_hard,
 		.maxlen		= sizeof(int),
@@ -33,7 +31,6 @@ static ctl_table coda_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "fake_statfs",
 		.data		= &coda_fake_statfs,
 		.maxlen		= sizeof(int),
@@ -46,7 +43,6 @@ static ctl_table coda_table[] = {
 #ifdef CONFIG_SYSCTL
 static ctl_table fs_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "coda",
 		.mode		= 0555,
 		.child		= coda_table
