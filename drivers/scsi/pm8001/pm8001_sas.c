@@ -240,6 +240,7 @@ void pm8001_scan_start(struct Scsi_Host *shost)
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	pm8001_ha = sha->lldd_ha;
+	PM8001_CHIP_DISP->sas_re_init_req(pm8001_ha);
 	for (i = 0; i < pm8001_ha->chip->n_phy; ++i)
 		PM8001_CHIP_DISP->phy_start_req(pm8001_ha, i);
 }

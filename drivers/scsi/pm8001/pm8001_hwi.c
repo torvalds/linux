@@ -57,9 +57,9 @@ static void __devinit read_main_config_table(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->main_cfg_tbl.ctrl_cap_flag	= pm8001_mr32(address, 0x14);
 	pm8001_ha->main_cfg_tbl.gst_offset	= pm8001_mr32(address, 0x18);
 	pm8001_ha->main_cfg_tbl.inbound_queue_offset =
-		pm8001_mr32(address, 0x1C);
+		pm8001_mr32(address, MAIN_IBQ_OFFSET);
 	pm8001_ha->main_cfg_tbl.outbound_queue_offset =
-		pm8001_mr32(address, 0x20);
+		pm8001_mr32(address, MAIN_OBQ_OFFSET);
 	pm8001_ha->main_cfg_tbl.hda_mode_flag	=
 		pm8001_mr32(address, MAIN_HDA_FLAGS_OFFSET);
 
@@ -124,7 +124,7 @@ read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 	int i;
 	void __iomem *address = pm8001_ha->inbnd_q_tbl_addr;
 	for (i = 0; i < inbQ_num; i++) {
-		u32 offset = i * 0x24;
+		u32 offset = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar =
 		      get_pci_bar_index(pm8001_mr32(address, (offset + 0x14)));
 		pm8001_ha->inbnd_q_tbl[i].pi_offset =
@@ -231,7 +231,7 @@ init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->outbnd_q_tbl[i].pi_lower_base_addr	=
 			pm8001_ha->memoryMap.region[PI].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].interrup_vec_cnt_delay	=
-			0 | (0 << 16) | (0 << 24);
+			0 | (10 << 16) | (0 << 24);
 		pm8001_ha->outbnd_q_tbl[i].pi_virt		=
 			pm8001_ha->memoryMap.region[PI].virt_ptr;
 		offsetob = i * 0x24;
@@ -375,13 +375,16 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 {
 	u32 offset;
 	u32 value;
-	u32 i;
+	u32 i, j;
+	u32 bit_cnt;
 
 #define SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR 0x00030000
 #define SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR 0x00040000
 #define SAS2_SETTINGS_LOCAL_PHY_0_3_OFFSET 0x1074
 #define SAS2_SETTINGS_LOCAL_PHY_4_7_OFFSET 0x1074
-#define PHY_SSC_BIT_SHIFT 13
+#define PHY_G3_WITHOUT_SSC_BIT_SHIFT 12
+#define PHY_G3_WITH_SSC_BIT_SHIFT 13
+#define SNW3_PHY_CAPABILITIES_PARITY 31
 
    /*
     * Using shifted destination address 0x3_0000:0x1074 + 0x4000*N (N=0:3)
@@ -393,10 +396,22 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 	for (i = 0; i < 4; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_0_3_OFFSET + 0x4000 * i;
 		value = pm8001_cr32(pm8001_ha, 2, offset);
-		if (SSCbit)
-			value = value | (0x00000001 << PHY_SSC_BIT_SHIFT);
+		if (SSCbit) {
+			value |= 0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT;
+			value &= ~(0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT);
+		} else {
+			value |= 0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT;
+			value &= ~(0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT);
+		}
+		bit_cnt = 0;
+		for (j = 0; j < 31; j++)
+			if ((value >> j) & 0x00000001)
+				bit_cnt++;
+		if (bit_cnt % 2)
+			value &= ~(0x00000001 << SNW3_PHY_CAPABILITIES_PARITY);
 		else
-			value = value & (~(0x00000001<<PHY_SSC_BIT_SHIFT));
+			value |= 0x00000001 << SNW3_PHY_CAPABILITIES_PARITY;
+
 		pm8001_cw32(pm8001_ha, 2, offset, value);
 	}
 
@@ -408,10 +423,22 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 	for (i = 4; i < 8; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_4_7_OFFSET + 0x4000 * (i-4);
 		value = pm8001_cr32(pm8001_ha, 2, offset);
-		if (SSCbit)
-			value = value | (0x00000001 << PHY_SSC_BIT_SHIFT);
+		if (SSCbit) {
+			value |= 0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT;
+			value &= ~(0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT);
+		} else {
+			value |= 0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT;
+			value &= ~(0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT);
+		}
+		bit_cnt = 0;
+		for (j = 0; j < 31; j++)
+			if ((value >> j) & 0x00000001)
+				bit_cnt++;
+		if (bit_cnt % 2)
+			value &= ~(0x00000001 << SNW3_PHY_CAPABILITIES_PARITY);
 		else
-			value = value & (~(0x00000001<<PHY_SSC_BIT_SHIFT));
+			value |= 0x00000001 << SNW3_PHY_CAPABILITIES_PARITY;
+
 		pm8001_cw32(pm8001_ha, 2, offset, value);
 	}
 
@@ -4338,6 +4365,30 @@ pm8001_chip_set_dev_state_req(struct pm8001_hba_info *pm8001_ha,
 	payload.nds = cpu_to_le32(state);
 	mpi_build_cmd(pm8001_ha, circularQ, opc, &payload);
 	return 0;
+}
+
+static int
+pm8001_chip_sas_re_initialization(struct pm8001_hba_info *pm8001_ha)
+{
+	struct sas_re_initialization_req payload;
+	struct inbound_queue_table *circularQ;
+	struct pm8001_ccb_info *ccb;
+	int rc;
+	u32 tag;
+	u32 opc = OPC_INB_SAS_RE_INITIALIZE;
+	memset(&payload, 0, sizeof(payload));
+	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (rc)
+		return -1;
+	ccb = &pm8001_ha->ccb_info[tag];
+	ccb->ccb_tag = tag;
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	payload.tag = cpu_to_le32(tag);
+	payload.SSAHOLT = cpu_to_le32(0xd << 25);
+	payload.sata_hol_tmo = cpu_to_le32(80);
+	payload.open_reject_cmdretries_data_retries = cpu_to_le32(0xff00ff);
+	rc = mpi_build_cmd(pm8001_ha, circularQ, opc, &payload);
+	return rc;
 
 }
 
@@ -4367,5 +4418,6 @@ const struct pm8001_dispatch pm8001_8001_dispatch = {
 	.set_nvmd_req		= pm8001_chip_set_nvmd_req,
 	.fw_flash_update_req	= pm8001_chip_fw_flash_update_req,
 	.set_dev_state_req	= pm8001_chip_set_dev_state_req,
+	.sas_re_init_req	= pm8001_chip_sas_re_initialization,
 };
 

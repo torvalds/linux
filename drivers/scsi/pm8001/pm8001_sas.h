@@ -153,6 +153,7 @@ struct pm8001_dispatch {
 		u32 state);
 	int (*sas_diag_execute_req)(struct pm8001_hba_info *pm8001_ha,
 		u32 state);
+	int (*sas_re_init_req)(struct pm8001_hba_info *pm8001_ha);
 };
 
 struct pm8001_chip_info {

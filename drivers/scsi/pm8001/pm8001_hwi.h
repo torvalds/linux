@@ -490,6 +490,25 @@ struct set_dev_state_req {
 	u32	reserved[12];
 } __attribute__((packed, aligned(4)));
 
+/*
+ * brief the data structure of sas_re_initialization
+ */
+struct sas_re_initialization_req {
+
+	__le32	tag;
+	__le32	SSAHOLT;/* bit29-set max port;
+			** bit28-set open reject cmd retries.
+			** bit27-set open reject data retries.
+			** bit26-set open reject option, remap:1 or not:0.
+			** bit25-set sata head of line time out.
+			*/
+	__le32 reserved_maxPorts;
+	__le32 open_reject_cmdretries_data_retries;/* cmd retries: 31-bit16;
+						    * data retries: bit15-bit0.
+						    */
+	__le32	sata_hol_tmo;
+	u32	reserved1[10];
+} __attribute__((packed, aligned(4)));
 
 /*
  * brief the data structure of SATA Start Command
