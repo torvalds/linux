@@ -267,7 +267,6 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 #ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm4_policy_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "xfrm4_gc_thresh",
 		.data           = &xfrm4_dst_ops.gc_thresh,
 		.maxlen         = sizeof(int),

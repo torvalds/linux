@@ -89,7 +89,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ethernet",
-	.ctl_name =	NET_DECNET_CONF_ETHER,
 	.up =		dn_eth_up,
 	.down = 	dn_eth_down,
 	.timer3 =	dn_send_brd_hello,
@@ -101,7 +100,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ipgre",
-	.ctl_name =	NET_DECNET_CONF_GRE,
 	.timer3 =	dn_send_brd_hello,
 },
 #if 0
@@ -112,7 +110,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		120,
 	.name =		"x25",
-	.ctl_name =	NET_DECNET_CONF_X25,
 	.timer3 =	dn_send_ptp_hello,
 },
 #endif
@@ -124,7 +121,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ppp",
-	.ctl_name =	NET_DECNET_CONF_PPP,
 	.timer3 =	dn_send_brd_hello,
 },
 #endif
@@ -135,7 +131,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		120,
 	.name =		"ddcmp",
-	.ctl_name =	NET_DECNET_CONF_DDCMP,
 	.timer3 =	dn_send_ptp_hello,
 },
 {
@@ -145,7 +140,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"loopback",
-	.ctl_name =	NET_DECNET_CONF_LOOPBACK,
 	.timer3 =	dn_send_brd_hello,
 }
 };
@@ -166,10 +160,6 @@ static int max_priority[] = { 127 }; /* From DECnet spec */
 
 static int dn_forwarding_proc(ctl_table *, int,
 			void __user *, size_t *, loff_t *);
-static int dn_forwarding_sysctl(ctl_table *table,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen);
-
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	ctl_table dn_dev_vars[5];
@@ -177,44 +167,36 @@ static struct dn_dev_sysctl_table {
 	NULL,
 	{
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_FORWARDING,
 		.procname = "forwarding",
 		.data = (void *)DN_DEV_PARMS_OFFSET(forwarding),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = dn_forwarding_proc,
-		.strategy = dn_forwarding_sysctl,
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_PRIORITY,
 		.procname = "priority",
 		.data = (void *)DN_DEV_PARMS_OFFSET(priority),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_priority,
 		.extra2 = &max_priority
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_T2,
 		.procname = "t2",
 		.data = (void *)DN_DEV_PARMS_OFFSET(t2),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_t2,
 		.extra2 = &max_t2
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_T3,
 		.procname = "t3",
 		.data = (void *)DN_DEV_PARMS_OFFSET(t3),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},
@@ -230,9 +212,9 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 #define DN_CTL_PATH_DEV	3
 
 	struct ctl_path dn_ctl_path[] = {
-		{ .procname = "net", .ctl_name = CTL_NET, },
-		{ .procname = "decnet", .ctl_name = NET_DECNET, },
-		{ .procname = "conf", .ctl_name = NET_DECNET_CONF, },
+		{ .procname = "net",  },
+		{ .procname = "decnet",  },
+		{ .procname = "conf",  },
 		{ /* to be set */ },
 		{ },
 	};
@@ -248,10 +230,8 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 
 	if (dev) {
 		dn_ctl_path[DN_CTL_PATH_DEV].procname = dev->name;
-		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = dev->ifindex;
 	} else {
 		dn_ctl_path[DN_CTL_PATH_DEV].procname = parms->name;
-		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = parms->ctl_name;
 	}
 
 	t->dn_dev_vars[0].extra1 = (void *)dev;
@@ -312,44 +292,6 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 	}
 
 	return err;
-#else
-	return -EINVAL;
-#endif
-}
-
-static int dn_forwarding_sysctl(ctl_table *table,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen)
-{
-#ifdef CONFIG_DECNET_ROUTER
-	struct net_device *dev = table->extra1;
-	struct dn_dev *dn_db;
-	int value;
-
-	if (table->extra1 == NULL)
-		return -EINVAL;
-
-	dn_db = dev->dn_ptr;
-
-	if (newval && newlen) {
-		if (newlen != sizeof(int))
-			return -EINVAL;
-
-		if (get_user(value, (int __user *)newval))
-			return -EFAULT;
-		if (value < 0)
-			return -EINVAL;
-		if (value > 2)
-			return -EINVAL;
-
-		if (dn_db->parms.down)
-			dn_db->parms.down(dev);
-		dn_db->parms.forwarding = value;
-		if (dn_db->parms.up)
-			dn_db->parms.up(dev);
-	}
-
-	return 0;
 #else
 	return -EINVAL;
 #endif

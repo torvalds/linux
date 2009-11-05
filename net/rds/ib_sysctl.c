@@ -67,7 +67,6 @@ unsigned int rds_ib_sysctl_flow_control = 0;
 
 ctl_table rds_ib_sysctl_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_send_wr",
 		.data		= &rds_ib_sysctl_max_send_wr,
 		.maxlen         = sizeof(unsigned long),
@@ -77,7 +76,6 @@ ctl_table rds_ib_sysctl_table[] = {
 		.extra2		= &rds_ib_sysctl_max_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_recv_wr",
 		.data		= &rds_ib_sysctl_max_recv_wr,
 		.maxlen         = sizeof(unsigned long),
@@ -87,7 +85,6 @@ ctl_table rds_ib_sysctl_table[] = {
 		.extra2		= &rds_ib_sysctl_max_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_unsignaled_wr",
 		.data		= &rds_ib_sysctl_max_unsig_wrs,
 		.maxlen         = sizeof(unsigned long),
@@ -97,7 +94,6 @@ ctl_table rds_ib_sysctl_table[] = {
 		.extra2		= &rds_ib_sysctl_max_unsig_wr_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_unsignaled_bytes",
 		.data		= &rds_ib_sysctl_max_unsig_bytes,
 		.maxlen         = sizeof(unsigned long),
@@ -107,7 +103,6 @@ ctl_table rds_ib_sysctl_table[] = {
 		.extra2		= &rds_ib_sysctl_max_unsig_bytes_max,
 	},
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_recv_allocation",
 		.data		= &rds_ib_sysctl_max_recv_allocation,
 		.maxlen         = sizeof(unsigned long),
@@ -115,20 +110,19 @@ ctl_table rds_ib_sysctl_table[] = {
 		.proc_handler   = &proc_doulongvec_minmax,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "flow_control",
 		.data		= &rds_ib_sysctl_flow_control,
 		.maxlen		= sizeof(rds_ib_sysctl_flow_control),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 static struct ctl_path rds_ib_sysctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "rds", .ctl_name = CTL_UNNUMBERED, },
-	{ .procname = "ib", .ctl_name = CTL_UNNUMBERED, },
+	{ .procname = "net", },
+	{ .procname = "rds", },
+	{ .procname = "ib", },
 	{ }
 };
 

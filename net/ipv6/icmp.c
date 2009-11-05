@@ -942,15 +942,13 @@ EXPORT_SYMBOL(icmpv6_err_convert);
 #ifdef CONFIG_SYSCTL
 ctl_table ipv6_icmp_table_template[] = {
 	{
-		.ctl_name	= NET_IPV6_ICMP_RATELIMIT,
 		.procname	= "ratelimit",
 		.data		= &init_net.ipv6.sysctl.icmpv6_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
-		.strategy	= sysctl_ms_jiffies
 	},
-	{ .ctl_name = 0 },
+	{ },
 };
 
 struct ctl_table *ipv6_icmp_sysctl_init(struct net *net)

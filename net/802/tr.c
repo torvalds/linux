@@ -635,19 +635,18 @@ struct net_device *alloc_trdev(int sizeof_priv)
 #ifdef CONFIG_SYSCTL
 static struct ctl_table tr_table[] = {
 	{
-		.ctl_name	= NET_TR_RIF_TIMEOUT,
 		.procname	= "rif_timeout",
 		.data		= &sysctl_tr_rif_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ 0 },
+	{ },
 };
 
 static __initdata struct ctl_path tr_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "token-ring", .ctl_name = NET_TR, },
+	{ .procname = "net", },
+	{ .procname = "token-ring", },
 	{ }
 };
 #endif

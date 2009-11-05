@@ -15,86 +15,73 @@
 
 static struct ctl_table llc2_timeout_table[] = {
 	{
-		.ctl_name	= NET_LLC2_ACK_TIMEOUT,
 		.procname	= "ack",
 		.data		= &sysctl_llc2_ack_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec_jiffies,
-		.strategy       = sysctl_jiffies,
 	},
 	{
-		.ctl_name	= NET_LLC2_BUSY_TIMEOUT,
 		.procname	= "busy",
 		.data		= &sysctl_llc2_busy_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec_jiffies,
-		.strategy       = sysctl_jiffies,
 	},
 	{
-		.ctl_name	= NET_LLC2_P_TIMEOUT,
 		.procname	= "p",
 		.data		= &sysctl_llc2_p_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec_jiffies,
-		.strategy       = sysctl_jiffies,
 	},
 	{
-		.ctl_name	= NET_LLC2_REJ_TIMEOUT,
 		.procname	= "rej",
 		.data		= &sysctl_llc2_rej_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec_jiffies,
-		.strategy       = sysctl_jiffies,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_table llc_station_table[] = {
 	{
-		.ctl_name	= NET_LLC_STATION_ACK_TIMEOUT,
 		.procname	= "ack_timeout",
 		.data		= &sysctl_llc_station_ack_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
 		.proc_handler   = proc_dointvec_jiffies,
-		.strategy       = sysctl_jiffies,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_table llc2_dir_timeout_table[] = {
 	{
-		.ctl_name	= NET_LLC2,
 		.procname	= "timeout",
 		.mode		= 0555,
 		.child		= llc2_timeout_table,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_table llc_table[] = {
 	{
-		.ctl_name	= NET_LLC2,
 		.procname	= "llc2",
 		.mode		= 0555,
 		.child		= llc2_dir_timeout_table,
 	},
 	{
-		.ctl_name       = NET_LLC_STATION,
 		.procname       = "station",
 		.mode           = 0555,
 		.child          = llc_station_table,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_path llc_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "llc", .ctl_name = NET_LLC, },
+	{ .procname = "net", },
+	{ .procname = "llc", },
 	{ }
 };
 

@@ -168,17 +168,16 @@ static ctl_table debug_table[] = {
 		.mode		= 0444,
 		.proc_handler	= &proc_do_xprt,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table sunrpc_table[] = {
 	{
-		.ctl_name	= CTL_SUNRPC,
 		.procname	= "sunrpc",
 		.mode		= 0555,
 		.child		= debug_table
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 #endif
