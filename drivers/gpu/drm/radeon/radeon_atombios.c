@@ -277,7 +277,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				ATOM_DEVICE_CV_SUPPORT)
 				continue;
 
-			if ((rdev->family == CHIP_RS780) &&
+			/* IGP chips */
+			if ((rdev->flags & RADEON_IS_IGP) &&
 			    (con_obj_id ==
 			     CONNECTOR_OBJECT_ID_PCIE_CONNECTOR)) {
 				uint16_t igp_offset = 0;

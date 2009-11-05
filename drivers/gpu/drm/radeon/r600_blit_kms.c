@@ -368,7 +368,7 @@ set_default_state(struct radeon_device *rdev)
 	if ((rdev->family == CHIP_RV610) ||
 	    (rdev->family == CHIP_RV620) ||
 	    (rdev->family == CHIP_RS780) ||
-	    (rdev->family == CHIP_RS780) ||
+	    (rdev->family == CHIP_RS880) ||
 	    (rdev->family == CHIP_RV710))
 		sq_config = 0;
 	else
