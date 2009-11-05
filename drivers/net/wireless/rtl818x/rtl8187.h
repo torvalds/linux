@@ -119,7 +119,6 @@ struct rtl8187_priv {
 	} hw_rev;
 	struct sk_buff_head rx_queue;
 	u8 signal;
-	u8 quality;
 	u8 noise;
 	u8 slot_time;
 	u8 aifsn[4];
