@@ -2200,6 +2200,8 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 				       MDIO_PMA_REG_CTRL,
 				       1<<15);
 			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
+			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 			DP(NETIF_MSG_LINK, "XGXS PHY Failure detected\n");
 			break;
@@ -4373,12 +4375,19 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			break;
 		}
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
 			/* This phy uses the NIG latch mechanism since link
 				indication arrives through its LED4 and not via
 				its LASI signal, so we get steady signal
 				instead of clear on read */
 			bnx2x_bits_en(bp, NIG_REG_LATCH_BC_0 + params->port*4,
 				    1 << NIG_LATCH_BC_ENABLE_MI_INT);
+
+			bnx2x_cl45_write(bp, params->port,
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_CTRL, 0x0000);
 
 			bnx2x_8481_set_led4(params, ext_phy_type, ext_phy_addr);
 			if (params->req_line_speed == SPEED_AUTO_NEG) {
@@ -5230,6 +5239,7 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 			}
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
 			/* Check 10G-BaseT link status */
 			/* Check PMD signal ok */
 			bnx2x_cl45_read(bp, params->port, ext_phy_type,
@@ -5445,8 +5455,10 @@ static void bnx2x_link_int_ack(struct link_params *params,
 		     (NIG_STATUS_XGXS0_LINK10G |
 		      NIG_STATUS_XGXS0_LINK_STATUS |
 		      NIG_STATUS_SERDES0_LINK_STATUS));
-	if (XGXS_EXT_PHY_TYPE(params->ext_phy_config)
-	    == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481) {
+	if ((XGXS_EXT_PHY_TYPE(params->ext_phy_config)
+		== PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481) ||
+	(XGXS_EXT_PHY_TYPE(params->ext_phy_config)
+		== PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823)) {
 		bnx2x_8481_rearm_latch_signal(bp, port, is_mi_int);
 	}
 	if (vars->phy_link_up) {
@@ -5559,6 +5571,7 @@ u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
 		status = bnx2x_format_ver(spirom_ver, version, len);
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
 		spirom_ver = ((spirom_ver & 0xF80) >> 7) << 16 |
 			(spirom_ver & 0x7F);
 		status = bnx2x_format_ver(spirom_ver, version, len);
@@ -6250,6 +6263,22 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 			bnx2x_8726_reset_phy(bp, params->port, ext_phy_addr);
 			break;
 		}
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
+		{
+			u8 ext_phy_addr =
+				XGXS_EXT_PHY_ADDR(params->ext_phy_config);
+			bnx2x_cl45_write(bp, port,
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481,
+				       ext_phy_addr,
+				       MDIO_AN_DEVAD,
+				       MDIO_AN_REG_CTRL, 0x0000);
+			bnx2x_cl45_write(bp, port,
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_CTRL, 1);
+			break;
+		}
 		default:
 			/* HW reset */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
@@ -6661,6 +6690,13 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 	return 0;
 }
 
+
+static u8 bnx2x_84823_common_init_phy(struct bnx2x *bp, u32 shmem_base)
+{
+	/* HW reset */
+	bnx2x_ext_phy_hw_reset(bp, 1);
+	return 0;
+}
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 {
 	u8 rc = 0;
@@ -6690,7 +6726,9 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 		/* GPIO1 affects both ports, so there's need to pull
 		it for single port alone */
 		rc = bnx2x_8726_common_init_phy(bp, shmem_base);
-
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
+		rc = bnx2x_84823_common_init_phy(bp, shmem_base);
 		break;
 	default:
 		DP(NETIF_MSG_LINK,
