@@ -12,53 +12,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
- * Copyright IBM Corp. 2007
+ * Copyright SUSE Linux Products GmbH 2009
  *
- * Authors: Hollis Blanchard <hollisb@us.ibm.com>
+ * Authors: Alexander Graf <agraf@suse.de>
  */
 
-#ifndef __LINUX_KVM_POWERPC_H
-#define __LINUX_KVM_POWERPC_H
+#include <linux/module.h>
+#include <asm/kvm_book3s.h>
 
-#include <linux/types.h>
-
-struct kvm_regs {
-	__u64 pc;
-	__u64 cr;
-	__u64 ctr;
-	__u64 lr;
-	__u64 xer;
-	__u64 msr;
-	__u64 srr0;
-	__u64 srr1;
-	__u64 pid;
-
-	__u64 sprg0;
-	__u64 sprg1;
-	__u64 sprg2;
-	__u64 sprg3;
-	__u64 sprg4;
-	__u64 sprg5;
-	__u64 sprg6;
-	__u64 sprg7;
-
-	__u64 gpr[32];
-};
-
-struct kvm_sregs {
-	__u32 pvr;
-	char pad[1020];
-};
-
-struct kvm_fpu {
-	__u64 fpr[32];
-};
-
-struct kvm_debug_exit_arch {
-};
-
-/* for KVM_SET_GUEST_DEBUG */
-struct kvm_guest_debug_arch {
-};
-
-#endif /* __LINUX_KVM_POWERPC_H */
+EXPORT_SYMBOL_GPL(kvmppc_trampoline_enter);
+EXPORT_SYMBOL_GPL(kvmppc_trampoline_lowmem);

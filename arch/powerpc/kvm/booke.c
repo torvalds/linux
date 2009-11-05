@@ -520,6 +520,11 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return kvmppc_core_vcpu_translate(vcpu, tr);
 }
 
+int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
+{
+	return -ENOTSUPP;
+}
+
 int __init kvmppc_booke_init(void)
 {
 	unsigned long ivor[16];

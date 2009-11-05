@@ -41,6 +41,7 @@ __start_interrupts:
 	. = 0x200
 _machine_check_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0x200
 	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
@@ -48,6 +49,7 @@ _machine_check_pSeries:
 	.globl data_access_pSeries
 data_access_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0x300
 	mtspr	SPRN_SPRG_SCRATCH0,r13
 BEGIN_FTR_SECTION
 	mfspr	r13,SPRN_SPRG_PACA
@@ -77,6 +79,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0x380
 	mtspr	SPRN_SPRG_SCRATCH0,r13
 	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
@@ -115,6 +118,7 @@ data_access_slb_pSeries:
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0x480
 	mtspr	SPRN_SPRG_SCRATCH0,r13
 	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
@@ -154,6 +158,7 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
+	DO_KVM	0xc00
 BEGIN_FTR_SECTION
 	cmpdi	r0,0x1ebe
 	beq-	1f
@@ -186,12 +191,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 * trickery is thus necessary
 	 */
 	. = 0xf00
+	DO_KVM	0xf00
 	b	performance_monitor_pSeries
 
 	. = 0xf20
+	DO_KVM	0xf20
 	b	altivec_unavailable_pSeries
 
 	. = 0xf40
+	DO_KVM	0xf40
 	b	vsx_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
