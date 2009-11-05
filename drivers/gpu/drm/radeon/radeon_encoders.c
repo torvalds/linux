@@ -725,10 +725,10 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 
 	if (ASIC_IS_DCE32(rdev)) {
 		if (radeon_encoder->pixel_clock > 165000) {
-			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock * 10 * 2) / 100);
+			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 			args.v2.acConfig.fDualLinkConnector = 1;
 		} else {
-			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock * 10 * 4) / 100);
+			args.v2.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 		}
 		if (dig->dig_block)
 			args.v2.acConfig.ucEncoderSel = 1;
@@ -754,7 +754,10 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 		}
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-		args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock) / 10);
+		if (radeon_encoder->pixel_clock > 165000)
+			args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+		else
+			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
