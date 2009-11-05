@@ -335,14 +335,20 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  __u8 index,
 		  const char *buffer, int len)
 {
+	int ret;
+
 	memcpy(gspca_dev->usb_buf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			1,		/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0,		/* value */
 			index, gspca_dev->usb_buf, len,
 			500);
+	if (ret < 0)
+		PDEBUG(D_ERR, "reg_w_buf(): "
+		"Failed to write registers to index 0x%x, error %i",
+		index, ret);
 }
 
 
@@ -350,13 +356,19 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		  __u8 index,
 		  __u8 value)
 {
+	int ret;
+
 	gspca_dev->usb_buf[0] = value;
-	usb_control_msg(gspca_dev->dev,
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, gspca_dev->usb_buf, 1,
 			500);
+	if (ret < 0)
+		PDEBUG(D_ERR, "reg_w(): "
+		"Failed to write register to index 0x%x, value 0x%x, error %i",
+		index, value, ret);
 }
 
 static void reg_w_seq(struct gspca_dev *gspca_dev,
@@ -373,17 +385,23 @@ static void reg_w_page(struct gspca_dev *gspca_dev,
 			const __u8 *page, int len)
 {
 	int index;
+	int ret;
 
 	for (index = 0; index < len; index++) {
 		if (page[index] == SKIP)		/* skip this index */
 			continue;
 		gspca_dev->usb_buf[0] = page[index];
-		usb_control_msg(gspca_dev->dev,
+		ret = usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,			/* request */
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				0, index, gspca_dev->usb_buf, 1,
 				500);
+		if (ret < 0)
+			PDEBUG(D_ERR, "reg_w_page(): "
+			"Failed to write register to index 0x%x, "
+			"value 0x%x, error %i",
+			index, page[index], ret);
 	}
 }
 
