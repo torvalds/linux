@@ -1350,6 +1350,7 @@ static void bnx2x_set_brcm_cl37_advertisment(struct link_params *params)
 
 static void bnx2x_calc_ieee_aneg_adv(struct link_params *params, u16 *ieee_fc)
 {
+	struct bnx2x *bp = params->bp;
 	*ieee_fc = MDIO_COMBO_IEEE0_AUTO_NEG_ADV_FULL_DUPLEX;
 	/* resolve pause mode and advertisement
 	 * Please refer to Table 28B-3 of the 802.3ab-1999 spec */
@@ -1379,6 +1380,7 @@ static void bnx2x_calc_ieee_aneg_adv(struct link_params *params, u16 *ieee_fc)
 		*ieee_fc |= MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE;
 		break;
 	}
+	DP(NETIF_MSG_LINK, "ieee_fc = 0x%x\n", *ieee_fc);
 }
 
 static void bnx2x_set_ieee_aneg_advertisment(struct link_params *params,
@@ -6143,7 +6145,7 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 			     offsetof(struct shmem_region, dev_info.
 				      port_feature_config[params->port].
 				      config));
-
+	DP(NETIF_MSG_LINK, "Resetting the link of port %d\n", port);
 	/* disable attentions */
 	vars->link_status = 0;
 	bnx2x_update_mng(params, vars->link_status);
