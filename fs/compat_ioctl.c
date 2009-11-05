@@ -111,6 +111,8 @@
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
 
+#include <linux/sort.h>
+
 #ifdef CONFIG_SPARC
 #include <asm/fbio.h>
 #endif
@@ -1048,15 +1050,13 @@ static int compat_ioctl_preallocate(struct file *file, unsigned long arg)
 }
 #endif
 
+/*
+ * simple reversible transform to make our table more evenly
+ * distributed after sorting.
+ */
+#define XFORM(i) (((i) ^ ((i) << 27) ^ ((i) << 17)) & 0xffffffff)
 
-struct ioctl_trans {
-	unsigned long cmd;
-	struct ioctl_trans *next;
-};
-
-/* pointer to compatible structure or no argument */
-#define COMPATIBLE_IOCTL(cmd) { (cmd), },
-
+#define COMPATIBLE_IOCTL(cmd) XFORM(cmd),
 /* ioctl should not be warned about even if it's not implemented.
    Valid reasons to use this:
    - It is implemented with ->compat_ioctl on some device, but programs
@@ -1066,7 +1066,7 @@ struct ioctl_trans {
    Most other reasons are not valid. */
 #define IGNORE_IOCTL(cmd) COMPATIBLE_IOCTL(cmd)
 
-static struct ioctl_trans ioctl_start[] = {
+static unsigned int ioctl_pointer[] = {
 /* compatible ioctls first */
 COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
 COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */
@@ -1710,14 +1710,6 @@ IGNORE_IOCTL(FBIOGCURSOR32)
 #endif
 };
 
-#define IOCTL_HASHSIZE 256
-static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-
-static inline unsigned long ioctl32_hash(unsigned long cmd)
-{
-	return (((cmd >> 6) ^ (cmd >> 4) ^ cmd)) % IOCTL_HASHSIZE;
-}
-
 /*
  * Convert common ioctl arguments based on their command number
  *
@@ -1861,12 +1853,33 @@ static void compat_ioctl_error(struct file *filp, unsigned int fd,
 		free_page((unsigned long)path);
 }
 
+static int compat_ioctl_check_table(unsigned int xcmd)
+{
+	int i;
+	const int max = ARRAY_SIZE(ioctl_pointer) - 1;
+
+	BUILD_BUG_ON(max >= (1 << 16));
+
+	/* guess initial offset into table, assuming a
+	   normalized distribution */
+	i = ((xcmd >> 16) * max) >> 16;
+
+	/* do linear search up first, until greater or equal */
+	while (ioctl_pointer[i] < xcmd && i < max)
+		i++;
+
+	/* then do linear search down */
+	while (ioctl_pointer[i] > xcmd && i > 0)
+		i--;
+
+	return ioctl_pointer[i] == xcmd;
+}
+
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				unsigned long arg)
 {
 	struct file *filp;
 	int error = -EBADF;
-	struct ioctl_trans *t;
 	int fput_needed;
 
 	filp = fget_light(fd, &fput_needed);
@@ -1923,10 +1936,8 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		break;
 	}
 
-	for (t = ioctl32_hash_table[ioctl32_hash(cmd)]; t; t = t->next) {
-		if (t->cmd == cmd)
-			goto found_handler;
-	}
+	if (compat_ioctl_check_table(XFORM(cmd)))
+		goto found_handler;
 
 	error = do_ioctl_trans(fd, cmd, arg, filp);
 	if (error == -ENOIOCTLCMD) {
@@ -1949,35 +1960,22 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 	return error;
 }
 
-static void ioctl32_insert_translation(struct ioctl_trans *trans)
+static int __init init_sys32_ioctl_cmp(const void *p, const void *q)
 {
-	unsigned long hash;
-	struct ioctl_trans *t;
-
-	hash = ioctl32_hash (trans->cmd);
-	if (!ioctl32_hash_table[hash])
-		ioctl32_hash_table[hash] = trans;
-	else {
-		t = ioctl32_hash_table[hash];
-		while (t->next)
-			t = t->next;
-		trans->next = NULL;
-		t->next = trans;
-	}
+	unsigned int a, b;
+	a = *(unsigned int *)p;
+	b = *(unsigned int *)q;
+	if (a > b)
+		return 1;
+	if (a < b)
+		return -1;
+	return 0;
 }
 
 static int __init init_sys32_ioctl(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ioctl_start); i++) {
-		if (ioctl_start[i].next) {
-			printk("ioctl translation %d bad\n",i);
-			return -1;
-		}
-
-		ioctl32_insert_translation(&ioctl_start[i]);
-	}
+	sort(ioctl_pointer, ARRAY_SIZE(ioctl_pointer), sizeof(*ioctl_pointer),
+		init_sys32_ioctl_cmp, NULL);
 	return 0;
 }
 __initcall(init_sys32_ioctl);
