@@ -21,6 +21,16 @@
 #include <linux/if_ether.h>
 #include <net/mac80211.h>
 
+/*
+ * The key cache is used for h/w cipher state and also for
+ * tracking station state such as the current tx antenna.
+ * We also setup a mapping table between key cache slot indices
+ * and station state to short-circuit node lookups on rx.
+ * Different parts have different size key caches.  We handle
+ * up to ATH_KEYMAX entries (could dynamically allocate state).
+ */
+#define	ATH_KEYMAX	        128     /* max key cache size we handle */
+
 static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 struct ath_ani {
@@ -88,6 +98,10 @@ struct ath_common {
 	u8 rx_chainmask;
 
 	u32 rx_bufsize;
+
+	u32 keymax;
+	DECLARE_BITMAP(keymap, ATH_KEYMAX);
+	u8 splitmic;
 
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;

@@ -856,7 +856,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			   && !decrypt_error && skb->len >= hdrlen + 4) {
 			keyix = skb->data[hdrlen + 3] >> 6;
 
-			if (test_bit(keyix, sc->keymap))
+			if (test_bit(keyix, common->keymap))
 				rxs->flag |= RX_FLAG_DECRYPTED;
 		}
 		if (ah->sw_mgmt_crypto &&

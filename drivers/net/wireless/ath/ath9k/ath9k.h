@@ -492,16 +492,6 @@ struct ath_led {
 #define ATH_CHAN_MAX            255
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
 
-/*
- * The key cache is used for h/w cipher state and also for
- * tracking station state such as the current tx antenna.
- * We also setup a mapping table between key cache slot indices
- * and station state to short-circuit node lookups on rx.
- * Different parts have different size key caches.  We handle
- * up to ATH_KEYMAX entries (could dynamically allocate state).
- */
-#define	ATH_KEYMAX	        128     /* max key cache size we handle */
-
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
@@ -562,9 +552,6 @@ struct ath_softc {
 	u16 curtxpow;
 	u8 nbcnvifs;
 	u16 nvifs;
-	u32 keymax;
-	DECLARE_BITMAP(keymap, ATH_KEYMAX);
-	u8 splitmic;
 	bool ps_enabled;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
