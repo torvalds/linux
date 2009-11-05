@@ -1107,18 +1107,21 @@ static void bnx2x_set_parallel_detection(struct link_params *params,
 			      MDIO_REG_BANK_SERDES_DIGITAL,
 			      MDIO_SERDES_DIGITAL_A_1000X_CONTROL2,
 			      &control2);
-
-
-	control2 |= MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
-
-
+	if (params->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)
+		control2 |= MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
+	else
+		control2 &= ~MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN;
+	DP(NETIF_MSG_LINK, "params->speed_cap_mask = 0x%x, control2 = 0x%x\n",
+		params->speed_cap_mask, control2);
 	CL45_WR_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_SERDES_DIGITAL,
 			      MDIO_SERDES_DIGITAL_A_1000X_CONTROL2,
 			      control2);
 
-	if (phy_flags & PHY_XGXS_FLAG) {
+	if ((phy_flags & PHY_XGXS_FLAG) &&
+	     (params->speed_cap_mask &
+		    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) {
 		DP(NETIF_MSG_LINK, "XGXS\n");
 
 		CL45_WR_OVER_CL22(bp, params->port,
