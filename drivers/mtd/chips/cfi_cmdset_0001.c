@@ -43,11 +43,11 @@
 // debugging, turns off buffer write mode if set to 1
 #define FORCE_WORD_WRITE 0
 
-#define MANUFACTURER_INTEL	0x0089
+/* Intel chips */
 #define I82802AB	0x00ad
 #define I82802AC	0x00ac
 #define PF38F4476	0x881c
-#define MANUFACTURER_ST         0x0020
+/* STMicroelectronics chips */
 #define M50LPW080       0x002F
 #define M50FLW080A	0x0080
 #define M50FLW080B	0x0081
@@ -308,16 +308,16 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #endif
 	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct, NULL },
 	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb, NULL },
-	{ MANUFACTURER_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock, NULL, },
+	{ CFI_MFR_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 
 static struct cfi_fixup jedec_fixup_table[] = {
-	{ MANUFACTURER_INTEL, I82802AB,   fixup_use_fwh_lock, NULL, },
-	{ MANUFACTURER_INTEL, I82802AC,   fixup_use_fwh_lock, NULL, },
-	{ MANUFACTURER_ST,    M50LPW080,  fixup_use_fwh_lock, NULL, },
-	{ MANUFACTURER_ST,    M50FLW080A, fixup_use_fwh_lock, NULL, },
-	{ MANUFACTURER_ST,    M50FLW080B, fixup_use_fwh_lock, NULL, },
+	{ CFI_MFR_INTEL, I82802AB,   fixup_use_fwh_lock, NULL, },
+	{ CFI_MFR_INTEL, I82802AC,   fixup_use_fwh_lock, NULL, },
+	{ CFI_MFR_ST,    M50LPW080,  fixup_use_fwh_lock, NULL, },
+	{ CFI_MFR_ST,    M50FLW080A, fixup_use_fwh_lock, NULL, },
+	{ CFI_MFR_ST,    M50FLW080B, fixup_use_fwh_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 static struct cfi_fixup fixup_table[] = {
@@ -333,7 +333,7 @@ static struct cfi_fixup fixup_table[] = {
 static void cfi_fixup_major_minor(struct cfi_private *cfi,
 						struct cfi_pri_intelext *extp)
 {
-	if (cfi->mfr == MANUFACTURER_INTEL &&
+	if (cfi->mfr == CFI_MFR_INTEL &&
 			cfi->id == PF38F4476 && extp->MinorVersion == '3')
 		extp->MinorVersion = '1';
 }
@@ -2249,7 +2249,7 @@ static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* Some chips have OTP located in the _top_ partition only.
 	   For example: Intel 28F256L18T (T means top-parameter device) */
-	if (cfi->mfr == MANUFACTURER_INTEL) {
+	if (cfi->mfr == CFI_MFR_INTEL) {
 		switch (cfi->id) {
 		case 0x880b:
 		case 0x880c:
