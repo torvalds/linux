@@ -29,7 +29,6 @@
 #include <linux/io.h>
 #include <linux/serial_core.h>
 #include <asm/irq.h>
-#include <asm/oplib.h>
 
 #include "apbuart.h"
 
@@ -596,10 +595,9 @@ static struct of_platform_driver grlib_apbuart_of_driver = {
 static void grlib_apbuart_configure(void)
 {
 	static int enum_done;
-	struct device_node *np;
+	struct device_node *np, *rp;
 	struct uart_port *port = NULL;
-
-	int node;
+	const u32 *prop;
 	int freq_khz;
 	int v = 0, d = 0;
 	unsigned int addr;
@@ -610,8 +608,10 @@ static void grlib_apbuart_configure(void)
 		return;
 
 	/* Get bus frequency */
-	node = prom_getchild(prom_root_node);
-	freq_khz = prom_getint(node, "clock-frequency");
+	rp = of_find_node_by_name(NULL, "/");
+	rp = of_get_next_child(rp, NULL);
+	prop = of_get_property(rp, "clock-frequency", NULL);
+	freq_khz = *prop;
 
 	line = 0;
 	for_each_matching_node(np, apbuart_match) {
