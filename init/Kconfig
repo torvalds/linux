@@ -754,6 +754,7 @@ config UID16
 
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EMBEDDED
+	depends on PROC_SYSCTL
 	default y
 	select SYSCTL
 	---help---
