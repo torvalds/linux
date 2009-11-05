@@ -692,6 +692,7 @@ static void set_pcie_port_type(struct pci_dev *pdev)
 	if (!pos)
 		return;
 	pdev->is_pcie = 1;
+	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
 	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
 }
