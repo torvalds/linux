@@ -30,7 +30,7 @@
 #include "hda_local.h"
 
 /* define below to restrict the supported rates and formats */
-#define LIMITED_RATE_FMT_SUPPORT
+/* #define LIMITED_RATE_FMT_SUPPORT */
 
 struct nvhdmi_spec {
 	struct hda_multi_out multiout;
