@@ -3533,8 +3533,8 @@ static void bnx2x_8481_set_10G_led_mode(struct link_params *params,
 		       MDIO_PMA_REG_8481_LINK_SIGNAL,
 		       &val1);
 	/* Set bit 2 to 0, and bits [1:0] to 10 */
-	val1 &= ~((1<<0) | (1<<2)); /* Clear bits 0,2*/
-	val1 |= (1<<1); /* Set bit 1 */
+	val1 &= ~((1<<0) | (1<<2) | (1<<7)); /* Clear bits 0,2,7*/
+	val1 |= ((1<<1) | (1<<6)); /* Set bit 1, 6 */
 
 	bnx2x_cl45_write(bp, params->port,
 		       ext_phy_type,
@@ -3568,36 +3568,19 @@ static void bnx2x_8481_set_10G_led_mode(struct link_params *params,
 		       MDIO_PMA_REG_8481_LED2_MASK,
 		       0);
 
-	/* LED3 (10G/1G/100/10G Activity) */
-	bnx2x_cl45_read(bp, params->port,
-		      ext_phy_type,
-		      ext_phy_addr,
-		      MDIO_PMA_DEVAD,
-		      MDIO_PMA_REG_8481_LINK_SIGNAL,
-		      &val1);
-	/* Enable blink based on source 4(Activity) */
-	val1 &= ~((1<<7) | (1<<8)); /* Clear bits 7,8 */
-	val1 |= (1<<6); /* Set only bit 6 */
+	/* Unmask LED3 for 10G link */
 	bnx2x_cl45_write(bp, params->port,
 		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_8481_LINK_SIGNAL,
-		       val1);
-
-	bnx2x_cl45_read(bp, params->port,
-		      ext_phy_type,
-		      ext_phy_addr,
-		      MDIO_PMA_DEVAD,
 		      MDIO_PMA_REG_8481_LED3_MASK,
-		      &val1);
-	val1 |= (1<<4); /* Unmask LED3 for 10G link */
+		       0x6);
 	bnx2x_cl45_write(bp, params->port,
 		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_8481_LED3_MASK,
-		       val1);
+		       MDIO_PMA_REG_8481_LED3_BLINK,
+		       0);
 }
 
 
@@ -4476,17 +4459,12 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) {
 					DP(NETIF_MSG_LINK, "Advertising 10G\n");
 					/* Restart autoneg for 10G*/
-			bnx2x_cl45_read(bp, params->port,
-				      ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_AN_DEVAD,
-				      MDIO_AN_REG_CTRL, &val);
-			val |= 0x200;
+
 			bnx2x_cl45_write(bp, params->port,
 				       ext_phy_type,
 				       ext_phy_addr,
 				       MDIO_AN_DEVAD,
-				       MDIO_AN_REG_CTRL, val);
+				       MDIO_AN_REG_CTRL, 0x3200);
 				}
 			} else {
 				/* Force speed */
