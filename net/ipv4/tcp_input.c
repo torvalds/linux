@@ -3704,8 +3704,6 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	struct tcphdr *th = tcp_hdr(skb);
 	int length = (th->doff * 4) - sizeof(struct tcphdr);
 
-	BUG_ON(!estab && !dst);
-
 	ptr = (unsigned char *)(th + 1);
 	opt_rx->saw_tstamp = 0;
 
