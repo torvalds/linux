@@ -6322,9 +6322,10 @@ static u8 bnx2x_update_link_up(struct link_params *params,
 		bnx2x_bmac_enable(params, vars, 0);
 		bnx2x_set_led(params, LED_MODE_OPER, SPEED_10000);
 	} else {
-		bnx2x_emac_enable(params, vars, 0);
 		rc = bnx2x_emac_program(params, vars->line_speed,
 				      vars->duplex);
+
+		bnx2x_emac_enable(params, vars, 0);
 
 		/* AN complete? */
 		if (gp_status & MDIO_AN_CL73_OR_37_COMPLETE) {
