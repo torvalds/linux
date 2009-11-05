@@ -500,11 +500,10 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
-	struct dst_entry *dst = inet_csk_route_req(sk, req);
 
-	tmp_opt.saw_tstamp = 0;
-	if (th->doff > (sizeof(struct tcphdr)>>2)) {
-		tcp_parse_options(skb, &tmp_opt, 0, dst);
+	if ((th->doff > (sizeof(struct tcphdr)>>2)) && (req->ts_recent)) {
+		tmp_opt.tstamp_ok = 1;
+		tcp_parse_options(skb, &tmp_opt, 1, NULL);
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent = req->ts_recent;
@@ -516,8 +515,6 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
-
-	dst_release(dst);
 
 	/* Check for pure retransmitted SYN. */
 	if (TCP_SKB_CB(skb)->seq == tcp_rsk(req)->rcv_isn &&
