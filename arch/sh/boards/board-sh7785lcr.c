@@ -332,8 +332,15 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;
-	writel(0x000307c2, sm501_reg);
+	sm501_reg = ioremap_fixed(SM107_REG_ADDR, SM501_DRAM_CONTROL,
+				  PAGE_KERNEL);
+	if (!sm501_reg) {
+		printk(KERN_ERR "%s: ioremap error.\n", __func__);
+		return;
+	}
+
+	writel(0x000307c2, sm501_reg + SM501_DRAM_CONTROL);
+	iounmap_fixed(sm501_reg);
 }
 
 /* Return the board specific boot mode pin configuration */
