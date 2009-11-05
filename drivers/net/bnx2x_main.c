@@ -10855,7 +10855,6 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 static int bnx2x_phys_id(struct net_device *dev, u32 data)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int port = BP_PORT(bp);
 	int i;
 
 	if (!netif_running(dev))
@@ -10869,13 +10868,10 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 
 	for (i = 0; i < (data * 2); i++) {
 		if ((i % 2) == 0)
-			bnx2x_set_led(bp, port, LED_MODE_OPER, SPEED_1000,
-				      bp->link_params.hw_led_mode,
-				      bp->link_params.chip_id);
+			bnx2x_set_led(&bp->link_params, LED_MODE_OPER,
+				      SPEED_1000);
 		else
-			bnx2x_set_led(bp, port, LED_MODE_OFF, 0,
-				      bp->link_params.hw_led_mode,
-				      bp->link_params.chip_id);
+			bnx2x_set_led(&bp->link_params, LED_MODE_OFF, 0);
 
 		msleep_interruptible(500);
 		if (signal_pending(current))
@@ -10883,10 +10879,8 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 	}
 
 	if (bp->link_vars.link_up)
-		bnx2x_set_led(bp, port, LED_MODE_OPER,
-			      bp->link_vars.line_speed,
-			      bp->link_params.hw_led_mode,
-			      bp->link_params.chip_id);
+		bnx2x_set_led(&bp->link_params, LED_MODE_OPER,
+			      bp->link_vars.line_speed);
 
 	return 0;
 }
