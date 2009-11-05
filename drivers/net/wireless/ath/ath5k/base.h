@@ -153,8 +153,6 @@ struct ath5k_softc {
 
 	enum ath5k_int		imask;		/* interrupt mask copy */
 
-	DECLARE_BITMAP(keymap, AR5K_KEYCACHE_SIZE); /* key use bit map */
-
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */

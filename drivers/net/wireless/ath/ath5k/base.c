@@ -1683,6 +1683,8 @@ static unsigned int
 ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 		struct sk_buff *skb, struct ath5k_rx_status *rs)
 {
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int keyix, hlen;
 
@@ -1699,7 +1701,7 @@ ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 	    skb->len >= hlen + 4) {
 		keyix = skb->data[hlen + 3] >> 6;
 
-		if (test_bit(keyix, sc->keymap))
+		if (test_bit(keyix, common->keymap))
 			return RX_FLAG_DECRYPTED;
 	}
 
@@ -3038,6 +3040,8 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	      struct ieee80211_key_conf *key)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	int ret = 0;
 
 	if (modparam_nohwcrypt)
@@ -3070,14 +3074,14 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ATH5K_ERR(sc, "can't set the key\n");
 			goto unlock;
 		}
-		__set_bit(key->keyidx, sc->keymap);
+		__set_bit(key->keyidx, common->keymap);
 		key->hw_key_idx = key->keyidx;
 		key->flags |= (IEEE80211_KEY_FLAG_GENERATE_IV |
 			       IEEE80211_KEY_FLAG_GENERATE_MMIC);
 		break;
 	case DISABLE_KEY:
 		ath5k_hw_reset_key(sc->ah, key->keyidx);
-		__clear_bit(key->keyidx, sc->keymap);
+		__clear_bit(key->keyidx, common->keymap);
 		break;
 	default:
 		ret = -EINVAL;
