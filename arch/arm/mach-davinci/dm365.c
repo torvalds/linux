@@ -699,6 +699,7 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_I2C]			= 3,
 	[IRQ_UARTINT0]			= 3,
 	[IRQ_UARTINT1]			= 3,
+	[IRQ_DM365_RTCINT]		= 3,
 	[IRQ_DM365_SPIINT0_0]		= 3,
 	[IRQ_DM365_SPIINT3_0]		= 3,
 	[IRQ_DM365_GPIO0]		= 3,
@@ -832,6 +833,25 @@ static struct platform_device dm365_asp_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(dm365_asp_resources),
 	.resource	= dm365_asp_resources,
+};
+
+static struct resource dm365_rtc_resources[] = {
+	{
+		.start = DM365_RTC_BASE,
+		.end = DM365_RTC_BASE + SZ_1K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_DM365_RTCINT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm365_rtc_device = {
+	.name = "rtc_davinci",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(dm365_rtc_resources),
+	.resource = dm365_rtc_resources,
 };
 
 static struct map_desc dm365_io_desc[] = {
@@ -976,6 +996,12 @@ void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
 	davinci_cfg_reg(DM365_KEYSCAN);
 	dm365_ks_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_ks_device);
+}
+
+void __init dm365_init_rtc(void)
+{
+	davinci_cfg_reg(DM365_INT_PRTCSS);
+	platform_device_register(&dm365_rtc_device);
 }
 
 void __init dm365_init(void)
