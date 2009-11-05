@@ -610,6 +610,12 @@ static irqreturn_t s3c64xx_dma_irq(int irq, void *pw)
 
 		s3c64xx_dma_bufffdone(chan, buff, res);
 
+		/* Free the node and update curr, if non-circular queue */
+		if (!(chan->flags & S3C2410_DMAF_CIRCULAR)) {
+			chan->curr = buff->next;
+			s3c64xx_dma_freebuff(buff);
+		}
+
 		/* Update 'next' */
 		buff = chan->next;
 		if (chan->next == chan->end) {
