@@ -1621,6 +1621,39 @@ static u8 bnx2x_ext_phy_resolve_fc(struct link_params *params,
 	return ret;
 }
 
+static u8 bnx2x_direct_parallel_detect_used(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u16 pd_10g, status2_1000x;
+	CL45_RD_OVER_CL22(bp, params->port,
+			      params->phy_addr,
+			      MDIO_REG_BANK_SERDES_DIGITAL,
+			      MDIO_SERDES_DIGITAL_A_1000X_STATUS2,
+			      &status2_1000x);
+	CL45_RD_OVER_CL22(bp, params->port,
+			      params->phy_addr,
+			      MDIO_REG_BANK_SERDES_DIGITAL,
+			      MDIO_SERDES_DIGITAL_A_1000X_STATUS2,
+			      &status2_1000x);
+	if (status2_1000x & MDIO_SERDES_DIGITAL_A_1000X_STATUS2_AN_DISABLED) {
+		DP(NETIF_MSG_LINK, "1G parallel detect link on port %d\n",
+			 params->port);
+		return 1;
+	}
+
+	CL45_RD_OVER_CL22(bp, params->port,
+			      params->phy_addr,
+			      MDIO_REG_BANK_10G_PARALLEL_DETECT,
+			      MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_STATUS,
+			      &pd_10g);
+
+	if (pd_10g & MDIO_10G_PARALLEL_DETECT_PAR_DET_10G_STATUS_PD_LINK) {
+		DP(NETIF_MSG_LINK, "10G parallel detect link on port %d\n",
+			 params->port);
+		return 1;
+	}
+	return 0;
+}
 
 static void bnx2x_flow_ctrl_resolve(struct link_params *params,
 				  struct link_vars *vars,
@@ -1639,6 +1672,10 @@ static void bnx2x_flow_ctrl_resolve(struct link_params *params,
 	    (!(vars->phy_flags & PHY_SGMII_FLAG)) &&
 	    (XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
 	     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)) {
+		if (bnx2x_direct_parallel_detect_used(params)) {
+			vars->flow_ctrl = params->req_fc_auto_adv;
+			return;
+		}
 		if ((gp_status &
 		    (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
 		     MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) ==
