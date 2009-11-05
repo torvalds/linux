@@ -152,6 +152,7 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP14_UART1_RXD,	/* PIC controller */
 	MPP15_GPIO,		/* USB Copy button */
 	MPP16_GPIO,		/* Reset button */
+	MPP36_GPIO,		/* RAM: 0: 256 MB, 1: 512 MB */
 	0
 };
 
