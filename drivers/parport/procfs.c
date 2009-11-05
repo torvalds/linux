@@ -233,10 +233,10 @@ static int do_hardware_modes (ctl_table *table, int write,
 	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
 }
 
-#define PARPORT_PORT_DIR(CHILD) { .ctl_name = 0, .procname = NULL, .mode = 0555, .child = CHILD }
-#define PARPORT_PARPORT_DIR(CHILD) { .ctl_name = DEV_PARPORT, .procname = "parport", \
+#define PARPORT_PORT_DIR(CHILD) { .procname = NULL, .mode = 0555, .child = CHILD }
+#define PARPORT_PARPORT_DIR(CHILD) { .procname = "parport", \
                                      .mode = 0555, .child = CHILD }
-#define PARPORT_DEV_DIR(CHILD) { .ctl_name = CTL_DEV, .procname = "dev", .mode = 0555, .child = CHILD }
+#define PARPORT_DEV_DIR(CHILD) { .procname = "dev", .mode = 0555, .child = CHILD }
 #define PARPORT_DEVICES_ROOT_DIR  {  .procname = "devices", \
                                     .mode = 0555, .child = NULL }
 
@@ -393,7 +393,6 @@ parport_device_sysctl_template = {
 	},
 	{
 		{
-			.ctl_name	= 0,
 			.procname	= NULL,
 			.data		= NULL,
 			.maxlen		= 0,
@@ -455,7 +454,6 @@ parport_default_sysctl_table = {
 	},
 	{
 		{
-			.ctl_name	= DEV_PARPORT_DEFAULT,
 			.procname	= "default",
 			.mode		= 0555,
 			.child		= parport_default_sysctl_table.vars
@@ -495,7 +493,6 @@ int parport_proc_register(struct parport *port)
 		t->vars[6 + i].extra2 = &port->probe_info[i];
 
 	t->port_dir[0].procname = port->name;
-	t->port_dir[0].ctl_name = 0;
 
 	t->port_dir[0].child = t->vars;
 	t->parport_dir[0].child = t->port_dir;
@@ -534,11 +531,9 @@ int parport_device_proc_register(struct pardevice *device)
 	t->dev_dir[0].child = t->parport_dir;
 	t->parport_dir[0].child = t->port_dir;
 	t->port_dir[0].procname = port->name;
-	t->port_dir[0].ctl_name = 0;
 	t->port_dir[0].child = t->devices_root_dir;
 	t->devices_root_dir[0].child = t->device_dir;
 
-	t->device_dir[0].ctl_name = 0;
 	t->device_dir[0].procname = device->name;
 	t->device_dir[0].child = t->vars;
 	t->vars[0].data = &device->timeslice;

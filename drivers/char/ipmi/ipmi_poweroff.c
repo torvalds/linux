@@ -660,8 +660,7 @@ static struct ipmi_smi_watcher smi_watcher = {
 #include <linux/sysctl.h>
 
 static ctl_table ipmi_table[] = {
-	{ .ctl_name	= DEV_IPMI_POWEROFF_POWERCYCLE,
-	  .procname	= "poweroff_powercycle",
+	{ .procname	= "poweroff_powercycle",
 	  .data		= &poweroff_powercycle,
 	  .maxlen	= sizeof(poweroff_powercycle),
 	  .mode		= 0644,
@@ -670,16 +669,14 @@ static ctl_table ipmi_table[] = {
 };
 
 static ctl_table ipmi_dir_table[] = {
-	{ .ctl_name	= DEV_IPMI,
-	  .procname	= "ipmi",
+	{ .procname	= "ipmi",
 	  .mode		= 0555,
 	  .child	= ipmi_table },
 	{ }
 };
 
 static ctl_table ipmi_root_table[] = {
-	{ .ctl_name	= CTL_DEV,
-	  .procname	= "dev",
+	{ .procname	= "dev",
 	  .mode		= 0555,
 	  .child	= ipmi_dir_table },
 	{ }
