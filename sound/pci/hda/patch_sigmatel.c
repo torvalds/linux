@@ -4668,6 +4668,26 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
+static int hp_bseries_system(u32 subsystem_id)
+{
+	switch (subsystem_id) {
+	case 0x103c307e:
+	case 0x103c307f:
+	case 0x103c3080:
+	case 0x103c3081:
+	case 0x103c1722:
+	case 0x103c1723:
+	case 0x103c1724:
+	case 0x103c1725:
+	case 0x103c1726:
+	case 0x103c1727:
+	case 0x103c1728:
+	case 0x103c1729:
+		return 1;
+	}
+	return 0;
+}
+
 #ifdef CONFIG_PROC_FS
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
@@ -4729,26 +4749,6 @@ static int stac92xx_resume(struct hda_codec *codec)
 		else if (spec->autocfg.line_out_pins[0])
 			stac_issue_unsol_event(codec,
 					       spec->autocfg.line_out_pins[0]);
-	}
-	return 0;
-}
-
-static int hp_bseries_system(u32 subsystem_id)
-{
-	switch (subsystem_id) {
-	case 0x103c307e:
-	case 0x103c307f:
-	case 0x103c3080:
-	case 0x103c3081:
-	case 0x103c1722:
-	case 0x103c1723:
-	case 0x103c1724:
-	case 0x103c1725:
-	case 0x103c1726:
-	case 0x103c1727:
-	case 0x103c1728:
-	case 0x103c1729:
-		return 1;
 	}
 	return 0;
 }
