@@ -201,7 +201,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 
 		CX18_ERR("Too many buffers, cannot fit in SCB area\n");
 		CX18_ERR("Max buffers = %zd\n",
-			bufsz / sizeof(struct cx18_mdl));
+			bufsz / sizeof(struct cx18_mdl_ent));
 		return -ENOMEM;
 	}
 
