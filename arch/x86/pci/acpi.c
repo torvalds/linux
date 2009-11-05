@@ -69,17 +69,17 @@ align_resource(struct acpi_device *bridge, struct resource *res)
 	 * that claim this address space have starting alignment and length
 	 * constraints, so fix any obvious BIOS goofs.
 	 */
-	if (res->start & (align - 1)) {
+	if (!IS_ALIGNED(res->start, align)) {
 		dev_printk(KERN_DEBUG, &bridge->dev,
 			   "host bridge window %pR invalid; "
 			   "aligning start to %d-byte boundary\n", res, align);
 		res->start &= ~(align - 1);
 	}
-	if ((res->end + 1) & (align - 1)) {
+	if (!IS_ALIGNED(res->end + 1, align)) {
 		dev_printk(KERN_DEBUG, &bridge->dev,
 			   "host bridge window %pR invalid; "
 			   "aligning end to %d-byte boundary\n", res, align);
-		res->end = roundup(res->end, align) - 1;
+		res->end = ALIGN(res->end, align) - 1;
 	}
 }
 
