@@ -154,3 +154,11 @@ config YAFFS_SHORT_NAMES_IN_RAM
 	  but makes look-ups faster.
 
 	  If unsure, say Y.
+
+config YAFFS_EMPTY_LOST_AND_FOUND
+	bool "Empty lost and found on mount"
+	depends on YAFFS_FS
+	default n
+	help
+	  If this is enabled then the contents of lost and found is
+	  automatically dumped at mount.
