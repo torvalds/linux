@@ -237,6 +237,12 @@ void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
 			       unsigned long flags, void *caller);
 void __iounmap(void __iomem *addr);
 
+#ifdef CONFIG_IOREMAP_FIXED
+extern void __iomem *ioremap_fixed(resource_size_t, unsigned long, pgprot_t);
+extern void iounmap_fixed(void __iomem *);
+extern void ioremap_fixed_init(void);
+#endif
+
 static inline void __iomem *
 __ioremap(unsigned long offset, unsigned long size, unsigned long flags)
 {

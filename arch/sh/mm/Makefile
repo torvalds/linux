@@ -35,6 +35,7 @@ endif
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_PMB)		+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
+obj-$(CONFIG_IOREMAP_FIXED)	+= ioremap_fixed.o
 
 # Special flags for fault_64.o.  This puts restrictions on the number of
 # caller-save registers that the compiler can target when building this file.

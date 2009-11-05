@@ -169,6 +169,10 @@ config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
+config IOREMAP_FIXED
+       def_bool y
+       depends on X2TLB || SUPERH64
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB

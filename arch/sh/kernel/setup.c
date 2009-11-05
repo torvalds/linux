@@ -449,13 +449,14 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+	paging_init();
+	pmb_init();
+
+	ioremap_fixed_init();
 
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
-
-	paging_init();
-	pmb_init();
 
 #ifdef CONFIG_SMP
 	plat_smp_setup();
