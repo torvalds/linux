@@ -394,21 +394,15 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 			return -EBUSY;
 		}
 
-	err = snd_wss_create(card, port[dev], cport[dev],
+	err = snd_cs4236_create(card, port[dev], cport[dev],
 			     irq[dev],
 			     dma1[dev], dma2[dev],
 			     WSS_HW_DETECT3, 0, &chip);
 	if (err < 0)
 		return err;
+
+	acard->chip = chip;
 	if (chip->hardware & WSS_HW_CS4236B_MASK) {
-		snd_wss_free(chip);
-		err = snd_cs4236_create(card,
-					port[dev], cport[dev],
-					irq[dev], dma1[dev], dma2[dev],
-					WSS_HW_DETECT, 0, &chip);
-		if (err < 0)
-			return err;
-		acard->chip = chip;
 
 		err = snd_cs4236_pcm(chip, 0, &pcm);
 		if (err < 0)
@@ -418,7 +412,6 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	} else {
-		acard->chip = chip;
 		err = snd_wss_pcm(chip, 0, &pcm);
 		if (err < 0)
 			return err;
