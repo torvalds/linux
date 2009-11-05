@@ -38,7 +38,7 @@ void cx18_buf_swap(struct cx18_buffer *buf)
 void cx18_queue_init(struct cx18_queue *q)
 {
 	INIT_LIST_HEAD(&q->list);
-	atomic_set(&q->buffers, 0);
+	atomic_set(&q->depth, 0);
 	q->bytesused = 0;
 }
 
@@ -55,7 +55,7 @@ struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 
 	/* q_busy is restricted to a max buffer count imposed by firmware */
 	if (q == &s->q_busy &&
-	    atomic_read(&q->buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
+	    atomic_read(&q->depth) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		q = &s->q_free;
 
 	spin_lock(&q->lock);
@@ -65,7 +65,7 @@ struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 	else
 		list_add_tail(&buf->list, &q->list); /* FIFO */
 	q->bytesused += buf->bytesused - buf->readpos;
-	atomic_inc(&q->buffers);
+	atomic_inc(&q->depth);
 
 	spin_unlock(&q->lock);
 	return q;
@@ -81,7 +81,7 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 		list_del_init(&buf->list);
 		q->bytesused -= buf->bytesused - buf->readpos;
 		buf->skipped = 0;
-		atomic_dec(&q->buffers);
+		atomic_dec(&q->depth);
 	}
 	spin_unlock(&q->lock);
 	return buf;
@@ -113,7 +113,7 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 		 */
 		if (buf->id != id) {
 			buf->skipped++;
-			if (buf->skipped >= atomic_read(&s->q_busy.buffers)-1) {
+			if (buf->skipped >= atomic_read(&s->q_busy.depth)-1) {
 				/* buffer must have fallen out of rotation */
 				CX18_WARN("Skipped %s, buffer %d, %d "
 					  "times - it must have dropped out of "
@@ -121,7 +121,7 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 					  buf->skipped);
 				/* Sweep it up to put it back into rotation */
 				list_move_tail(&buf->list, &sweep_up);
-				atomic_dec(&s->q_busy.buffers);
+				atomic_dec(&s->q_busy.depth);
 			}
 			continue;
 		}
@@ -130,7 +130,7 @@ struct cx18_buffer *cx18_queue_get_buf(struct cx18_stream *s, u32 id,
 		 * will have to put it back on a queue later.
 		 */
 		list_del_init(&buf->list);
-		atomic_dec(&s->q_busy.buffers);
+		atomic_dec(&s->q_busy.depth);
 		ret = buf;
 		break;
 	}
@@ -170,7 +170,7 @@ static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 		buf = list_first_entry(&q->list, struct cx18_buffer, list);
 		list_move_tail(&buf->list, &s->q_free.list);
 		buf->bytesused = buf->readpos = buf->b_flags = buf->skipped = 0;
-		atomic_inc(&s->q_free.buffers);
+		atomic_inc(&s->q_free.depth);
 	}
 	cx18_queue_init(q);
 	spin_unlock(&q->lock);

@@ -285,7 +285,7 @@ struct cx18_buffer {
 
 struct cx18_queue {
 	struct list_head list;
-	atomic_t buffers;
+	atomic_t depth;
 	u32 bytesused;
 	spinlock_t lock;
 };

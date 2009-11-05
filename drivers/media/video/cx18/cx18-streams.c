@@ -470,8 +470,8 @@ void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 	struct cx18_queue *q;
 	struct cx18_buffer *buf;
 
-	if (atomic_read(&s->q_free.buffers) == 0 ||
-	    atomic_read(&s->q_busy.buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
+	if (atomic_read(&s->q_free.depth) == 0 ||
+	    atomic_read(&s->q_busy.depth) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		return;
 
 	/* Move from q_free to q_busy notifying the firmware, until the limit */
@@ -480,7 +480,7 @@ void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 		if (buf == NULL)
 			break;
 		q = _cx18_stream_put_buf_fw(s, buf);
-	} while (atomic_read(&s->q_busy.buffers) < CX18_MAX_FW_MDLS_PER_STREAM
+	} while (atomic_read(&s->q_busy.depth) < CX18_MAX_FW_MDLS_PER_STREAM
 		 && q == &s->q_busy);
 }
 
