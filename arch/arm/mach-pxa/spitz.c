@@ -779,10 +779,33 @@ static void __init common_init(void)
 	pxa_set_i2c_info(NULL);
 }
 
+#if defined(CONFIG_MACH_AKITA) || defined(CONFIG_MACH_BORZOI)
+static struct nand_bbt_descr sharpsl_akita_bbt = {
+	.options = 0,
+	.offs = 4,
+	.len = 1,
+	.pattern = scan_ff_pattern
+};
+
+static struct nand_ecclayout akita_oobinfo = {
+	.eccbytes = 24,
+	.eccpos = {
+		   0x5, 0x1, 0x2, 0x3, 0x6, 0x7, 0x15, 0x11,
+		   0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
+		   0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
+	.oobfree = {{0x08, 0x09}}
+};
+#endif
+
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
 static void __init spitz_init(void)
 {
 	spitz_ficp_platform_data.gpio_pwdown = SPITZ_GPIO_IR_ON;
+
+	if (machine_is_borzoi()) {
+		sharpsl_nand_platform_data.badblock_pattern = &sharpsl_akita_bbt;
+		sharpsl_nand_platform_data.ecc_layout = &akita_oobinfo;
+	}
 
 	platform_scoop_config = &spitz_pcmcia_config;
 
@@ -806,22 +829,6 @@ static struct i2c_board_info akita_i2c_board_info[] = {
 		.addr		= 0x18,
 		.platform_data	= &akita_ioexp,
 	},
-};
-
-static struct nand_bbt_descr sharpsl_akita_bbt = {
-	.options = 0,
-	.offs = 4,
-	.len = 1,
-	.pattern = scan_ff_pattern
-};
-
-static struct nand_ecclayout akita_oobinfo = {
-	.eccbytes = 24,
-	.eccpos = {
-		   0x5, 0x1, 0x2, 0x3, 0x6, 0x7, 0x15, 0x11,
-		   0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
-		   0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
-	.oobfree = {{0x08, 0x09}}
 };
 
 static void __init akita_init(void)
