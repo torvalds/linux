@@ -451,10 +451,15 @@ static inline void saar_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
+static struct da9034_backlight_pdata saar_da9034_backlight = {
+	.output_current	= 4,	/* 4mA */
+};
+
 static struct da903x_subdev_info saar_da9034_subdevs[] = {
 	[0] = {
 		.name		= "da903x-backlight",
 		.id		= DA9034_ID_WLED,
+		.platform_data	= &saar_da9034_backlight,
 	},
 };
 
