@@ -2592,16 +2592,11 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 	/* Need to wait 100ms after reset */
 	msleep(100);
 
-	/* Set serial boot control for external load */
-	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
-		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_MISC_CTRL1, 0x0001);
-
 	/* Micro controller re-boot */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
-		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
+		       0x018B);
 
 	/* Set soft reset */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
@@ -2609,14 +2604,10 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_MICRO_RESET);
 
-	/* Set PLL register value to be same like in P13 ver */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_PLL_CTRL,
-		       0x73A0);
+		       MDIO_PMA_REG_MISC_CTRL1, 0x0001);
 
-	/* Clear soft reset.
-	Will automatically reset micro-controller re-boot */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
