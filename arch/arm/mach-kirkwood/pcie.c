@@ -93,7 +93,7 @@ static struct pci_ops pcie_ops = {
 };
 
 
-static int kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
+static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res;
 	extern unsigned int kirkwood_clk_ctrl;
