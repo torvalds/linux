@@ -1193,6 +1193,12 @@ static int r300_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+
+	if (rdev->family == CHIP_R300 ||
+	    rdev->family == CHIP_R350 ||
+	    rdev->family == CHIP_RV350)
+		r100_enable_bm(rdev);
+
 	if (rdev->flags & RADEON_IS_PCI) {
 		r = r100_pci_gart_enable(rdev);
 		if (r)

@@ -94,6 +94,15 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 	return radeon_gart_table_ram_alloc(rdev);
 }
 
+/* required on r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
+void r100_enable_bm(struct radeon_device *rdev)
+{
+	uint32_t tmp;
+	/* Enable bus mastering */
+	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+	WREG32(RADEON_BUS_CNTL, tmp);
+}
+
 int r100_pci_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t tmp;
@@ -105,9 +114,6 @@ int r100_pci_gart_enable(struct radeon_device *rdev)
 	WREG32(RADEON_AIC_LO_ADDR, rdev->mc.gtt_location);
 	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
 	WREG32(RADEON_AIC_HI_ADDR, tmp);
-	/* Enable bus mastering */
-	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-	WREG32(RADEON_BUS_CNTL, tmp);
 	/* set PCI GART page-table base address */
 	WREG32(RADEON_AIC_PT_BASE, rdev->gart.table_addr);
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_PCIGART_TRANSLATE_EN;
@@ -3108,6 +3114,7 @@ static int r100_startup(struct radeon_device *rdev)
 	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
+	r100_enable_bm(rdev);
 	if (rdev->flags & RADEON_IS_PCI) {
 		r = r100_pci_gart_enable(rdev);
 		if (r)

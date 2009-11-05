@@ -335,6 +335,9 @@ int r420_init(struct radeon_device *rdev)
 	if (r) {
 		return r;
 	}
+	if (rdev->family == CHIP_R420)
+		r100_enable_bm(rdev);
+
 	if (rdev->flags & RADEON_IS_PCIE) {
 		r = rv370_pcie_gart_init(rdev);
 		if (r)

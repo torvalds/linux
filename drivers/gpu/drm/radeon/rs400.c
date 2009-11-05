@@ -387,6 +387,7 @@ static int rs400_startup(struct radeon_device *rdev)
 	r300_clock_startup(rdev);
 	/* Initialize GPU configuration (# pipes, ...) */
 	rs400_gpu_init(rdev);
+	r100_enable_bm(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r = rs400_gart_enable(rdev);
