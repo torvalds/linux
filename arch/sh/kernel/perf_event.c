@@ -103,7 +103,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
-	int config;
+	int config = -1;
 	int err;
 
 	if (!sh_pmu_initialized())
@@ -155,8 +155,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 		config = sh_pmu->event_map(attr->config);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	if (config == -1)
