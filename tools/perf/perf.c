@@ -288,6 +288,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "list", cmd_list, 0 },
 		{ "record", cmd_record, 0 },
 		{ "report", cmd_report, 0 },
+		{ "bench", cmd_bench, 0 },
 		{ "stat", cmd_stat, 0 },
 		{ "timechart", cmd_timechart, 0 },
 		{ "top", cmd_top, 0 },
