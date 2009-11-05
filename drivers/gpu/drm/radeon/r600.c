@@ -339,11 +339,10 @@ int r600_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
 	u32 tmp;
-	int chansize;
+	int chansize, numchan;
 	int r;
 
 	/* Get VRAM informations */
-	rdev->mc.vram_width = 128;
 	rdev->mc.vram_is_ddr = true;
 	tmp = RREG32(RAMCFG);
 	if (tmp & CHANSIZE_OVERRIDE) {
@@ -353,17 +352,23 @@ int r600_mc_init(struct radeon_device *rdev)
 	} else {
 		chansize = 32;
 	}
-	if (rdev->family == CHIP_R600) {
-		rdev->mc.vram_width = 8 * chansize;
-	} else if (rdev->family == CHIP_RV670) {
-		rdev->mc.vram_width = 4 * chansize;
-	} else if ((rdev->family == CHIP_RV610) ||
-			(rdev->family == CHIP_RV620)) {
-		rdev->mc.vram_width = chansize;
-	} else if ((rdev->family == CHIP_RV630) ||
-			(rdev->family == CHIP_RV635)) {
-		rdev->mc.vram_width = 2 * chansize;
+	tmp = RREG32(CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		numchan = 1;
+		break;
+	case 1:
+		numchan = 2;
+		break;
+	case 2:
+		numchan = 4;
+		break;
+	case 3:
+		numchan = 8;
+		break;
 	}
+	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
@@ -404,35 +409,29 @@ int r600_mc_init(struct radeon_device *rdev)
 			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 		}
 	} else {
-		if (rdev->family == CHIP_RS780 || rdev->family == CHIP_RS880) {
-			rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
-								0xFFFF) << 24;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-			tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
-			if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
-				/* Enough place after vram */
-				rdev->mc.gtt_location = tmp;
-			} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
-				/* Enough place before vram */
-				rdev->mc.gtt_location = 0;
-			} else {
-				/* Not enough place after or before shrink
-				 * gart size
-				 */
-				if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
-					rdev->mc.gtt_location = 0;
-					rdev->mc.gtt_size = rdev->mc.vram_location;
-				} else {
-					rdev->mc.gtt_location = tmp;
-					rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
-				}
-			}
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
+		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+		rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
+							0xFFFF) << 24;
+		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
+		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
+			/* Enough place after vram */
+			rdev->mc.gtt_location = tmp;
+		} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
+			/* Enough place before vram */
+			rdev->mc.gtt_location = 0;
 		} else {
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+			/* Not enough place after or before shrink
+			 * gart size
+			 */
+			if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
+				rdev->mc.gtt_location = 0;
+				rdev->mc.gtt_size = rdev->mc.vram_location;
+			} else {
+				rdev->mc.gtt_location = tmp;
+				rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
+			}
 		}
+		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	}
 	rdev->mc.vram_start = rdev->mc.vram_location;
 	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
@@ -1267,19 +1266,17 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	/* Set ring buffer size */
 	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
+	tmp = RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
-	WREG32(CP_RB_CNTL, BUF_SWAP_32BIT | RB_NO_UPDATE |
-		(drm_order(4096/8) << 8) | rb_bufsz);
-#else
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (drm_order(4096/8) << 8) | rb_bufsz);
+	tmp |= BUF_SWAP_32BIT;
 #endif
+	WREG32(CP_RB_CNTL, tmp);
 	WREG32(CP_SEM_WAIT_TIMER, 0x4);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
 
 	/* Initialize the ring buffer's read and write pointers */
-	tmp = RREG32(CP_RB_CNTL);
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
 	WREG32(CP_RB_WPTR, 0);
@@ -1400,7 +1397,7 @@ int r600_wb_enable(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, 4096, true,
+		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_GTT, false, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "failed to create WB buffer (%d).\n", r);
@@ -1450,8 +1447,8 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence)
 {
-	r600_blit_prepare_copy(rdev, num_pages * 4096);
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * 4096);
+	r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
 	return 0;
 }

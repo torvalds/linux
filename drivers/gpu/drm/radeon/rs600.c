@@ -242,7 +242,7 @@ void rs600_irq_disable(struct radeon_device *rdev)
 
 int rs600_irq_process(struct radeon_device *rdev)
 {
-	uint32_t status;
+	uint32_t status, msi_rearm;
 	uint32_t r500_disp_int;
 
 	status = rs600_irq_ack(rdev, &r500_disp_int);
@@ -259,6 +259,22 @@ int rs600_irq_process(struct radeon_device *rdev)
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(r500_disp_int))
 			drm_handle_vblank(rdev->ddev, 1);
 		status = rs600_irq_ack(rdev, &r500_disp_int);
+	}
+	if (rdev->msi_enabled) {
+		switch (rdev->family) {
+		case CHIP_RS600:
+		case CHIP_RS690:
+		case CHIP_RS740:
+			msi_rearm = RREG32(RADEON_BUS_CNTL) & ~RS600_MSI_REARM;
+			WREG32(RADEON_BUS_CNTL, msi_rearm);
+			WREG32(RADEON_BUS_CNTL, msi_rearm | RS600_MSI_REARM);
+			break;
+		default:
+			msi_rearm = RREG32(RADEON_MSI_REARM_EN) & ~RV370_MSI_REARM_EN;
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm);
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm | RV370_MSI_REARM_EN);
+			break;
+		}
 	}
 	return IRQ_HANDLED;
 }

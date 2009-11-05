@@ -276,6 +276,8 @@ union radeon_gart_table {
 	struct radeon_gart_table_vram	vram;
 };
 
+#define RADEON_GPU_PAGE_SIZE 4096
+
 struct radeon_gart {
 	dma_addr_t			table_addr;
 	unsigned			num_gpu_pages;
@@ -783,6 +785,7 @@ struct radeon_device {
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	struct r600_blit r600_blit;
+	int msi_enabled; /* msi enabled */
 };
 
 int radeon_device_init(struct radeon_device *rdev,

@@ -641,8 +641,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		p1pll->reference_div = 0;
 
-		p1pll->pll_out_min =
-		    le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
+		if (crev < 2)
+			p1pll->pll_out_min =
+				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
+		else
+			p1pll->pll_out_min =
+				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		p1pll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
@@ -651,6 +655,16 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 				p1pll->pll_out_min = 64800;
 			else
 				p1pll->pll_out_min = 20000;
+		} else if (p1pll->pll_out_min > 64800) {
+			/* Limiting the pll output range is a good thing generally as
+			 * it limits the number of possible pll combinations for a given
+			 * frequency presumably to the ones that work best on each card.
+			 * However, certain duallink DVI monitors seem to like
+			 * pll combinations that would be limited by this at least on
+			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
+			 * family.
+			 */
+			p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
@@ -767,6 +781,46 @@ bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 	return false;
 }
 
+static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
+							  radeon_encoder
+							  *encoder,
+							  int id)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, PPLL_SS_Info);
+	uint16_t data_offset;
+	struct _ATOM_SPREAD_SPECTRUM_INFO *ss_info;
+	uint8_t frev, crev;
+	struct radeon_atom_ss *ss = NULL;
+
+	if (id > ATOM_MAX_SS_ENTRY)
+		return NULL;
+
+	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
+			       &crev, &data_offset);
+
+	ss_info =
+	    (struct _ATOM_SPREAD_SPECTRUM_INFO *)(mode_info->atom_context->bios + data_offset);
+
+	if (ss_info) {
+		ss =
+		    kzalloc(sizeof(struct radeon_atom_ss), GFP_KERNEL);
+
+		if (!ss)
+			return NULL;
+
+		ss->percentage = le16_to_cpu(ss_info->asSS_Info[id].usSpreadSpectrumPercentage);
+		ss->type = ss_info->asSS_Info[id].ucSpreadSpectrumType;
+		ss->step = ss_info->asSS_Info[id].ucSS_Step;
+		ss->delay = ss_info->asSS_Info[id].ucSS_Delay;
+		ss->range = ss_info->asSS_Info[id].ucSS_Range;
+		ss->refdiv = ss_info->asSS_Info[id].ucRecommendedRef_Div;
+	}
+	return ss;
+}
+
 union lvds_info {
 	struct _ATOM_LVDS_INFO info;
 	struct _ATOM_LVDS_INFO_V12 info_12;
@@ -798,27 +852,31 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		if (!lvds)
 			return NULL;
 
-		lvds->native_mode.dotclock =
+		lvds->native_mode.clock =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usPixClk) * 10;
-		lvds->native_mode.panel_xres =
+		lvds->native_mode.hdisplay =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usHActive);
-		lvds->native_mode.panel_yres =
+		lvds->native_mode.vdisplay =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usVActive);
-		lvds->native_mode.hblank =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHBlanking_Time);
-		lvds->native_mode.hoverplus =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncOffset);
-		lvds->native_mode.hsync_width =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncWidth);
-		lvds->native_mode.vblank =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVBlanking_Time);
-		lvds->native_mode.voverplus =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncOffset);
-		lvds->native_mode.vsync_width =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
+		lvds->native_mode.htotal = lvds->native_mode.hdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHBlanking_Time);
+		lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncOffset);
+		lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncWidth);
+		lvds->native_mode.vtotal = lvds->native_mode.vdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVBlanking_Time);
+		lvds->native_mode.vsync_start = lvds->native_mode.vdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
+		lvds->native_mode.vsync_end = lvds->native_mode.vsync_start +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
 		lvds->panel_pwr_delay =
 		    le16_to_cpu(lvds_info->info.usOffDelayInMs);
 		lvds->lvds_misc = lvds_info->info.ucLVDS_Misc;
+		/* set crtc values */
+		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
+
+		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
 
 		encoder->native_mode = lvds->native_mode;
 	}
@@ -857,8 +915,7 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 }
 
 bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
-				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
-				int32_t *pixel_clock)
+				struct drm_display_mode *mode)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	ATOM_ANALOG_TV_INFO *tv_info;
@@ -866,7 +923,7 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 	ATOM_DTD_FORMAT *dtd_timings;
 	int data_index = GetIndexIntoMasterTable(DATA, AnalogTV_Info);
 	u8 frev, crev;
-	uint16_t data_offset;
+	u16 data_offset, misc;
 
 	atom_parse_data_header(mode_info->atom_context, data_index, NULL, &frev, &crev, &data_offset);
 
@@ -876,28 +933,37 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		if (index > MAX_SUPPORTED_TV_TIMING)
 			return false;
 
-		crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
-		crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
-		crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
-		crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
+		mode->crtc_htotal = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
+		mode->crtc_hdisplay = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
+		mode->crtc_hsync_start = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
+		mode->crtc_hsync_end = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart) +
+			le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
 
-		crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
-		crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
-		crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
-		crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
+		mode->crtc_vtotal = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
+		mode->crtc_vdisplay = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
+		mode->crtc_vsync_start = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
+		mode->crtc_vsync_end = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart) +
+			le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
 
-		crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
+		mode->flags = 0;
+		misc = le16_to_cpu(tv_info->aModeTimings[index].susModeMiscInfo.usAccess);
+		if (misc & ATOM_VSYNC_POLARITY)
+			mode->flags |= DRM_MODE_FLAG_NVSYNC;
+		if (misc & ATOM_HSYNC_POLARITY)
+			mode->flags |= DRM_MODE_FLAG_NHSYNC;
+		if (misc & ATOM_COMPOSITESYNC)
+			mode->flags |= DRM_MODE_FLAG_CSYNC;
+		if (misc & ATOM_INTERLACE)
+			mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		if (misc & ATOM_DOUBLE_CLOCK_MODE)
+			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
-		crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
-		crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
-		crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
-		*pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+		mode->clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
 
 		if (index == 1) {
 			/* PAL timings appear to have wrong values for totals */
-			crtc_timing->usH_Total -= 1;
-			crtc_timing->usV_Total -= 1;
+			mode->crtc_htotal -= 1;
+			mode->crtc_vtotal -= 1;
 		}
 		break;
 	case 2:
@@ -906,17 +972,36 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 			return false;
 
 		dtd_timings = &tv_info_v1_2->aModeTimings[index];
-		crtc_timing->usH_Total = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHBlanking_Time);
-		crtc_timing->usH_Disp = le16_to_cpu(dtd_timings->usHActive);
-		crtc_timing->usH_SyncStart = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHSyncOffset);
-		crtc_timing->usH_SyncWidth = le16_to_cpu(dtd_timings->usHSyncWidth);
-		crtc_timing->usV_Total = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVBlanking_Time);
-		crtc_timing->usV_Disp = le16_to_cpu(dtd_timings->usVActive);
-		crtc_timing->usV_SyncStart = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVSyncOffset);
-		crtc_timing->usV_SyncWidth = le16_to_cpu(dtd_timings->usVSyncWidth);
+		mode->crtc_htotal = le16_to_cpu(dtd_timings->usHActive) +
+			le16_to_cpu(dtd_timings->usHBlanking_Time);
+		mode->crtc_hdisplay = le16_to_cpu(dtd_timings->usHActive);
+		mode->crtc_hsync_start = le16_to_cpu(dtd_timings->usHActive) +
+			le16_to_cpu(dtd_timings->usHSyncOffset);
+		mode->crtc_hsync_end = mode->crtc_hsync_start +
+			le16_to_cpu(dtd_timings->usHSyncWidth);
 
-		crtc_timing->susModeMiscInfo.usAccess = le16_to_cpu(dtd_timings->susModeMiscInfo.usAccess);
-		*pixel_clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+		mode->crtc_vtotal = le16_to_cpu(dtd_timings->usVActive) +
+			le16_to_cpu(dtd_timings->usVBlanking_Time);
+		mode->crtc_vdisplay = le16_to_cpu(dtd_timings->usVActive);
+		mode->crtc_vsync_start = le16_to_cpu(dtd_timings->usVActive) +
+			le16_to_cpu(dtd_timings->usVSyncOffset);
+		mode->crtc_vsync_end = mode->crtc_vsync_start +
+			le16_to_cpu(dtd_timings->usVSyncWidth);
+
+		mode->flags = 0;
+		misc = le16_to_cpu(dtd_timings->susModeMiscInfo.usAccess);
+		if (misc & ATOM_VSYNC_POLARITY)
+			mode->flags |= DRM_MODE_FLAG_NVSYNC;
+		if (misc & ATOM_HSYNC_POLARITY)
+			mode->flags |= DRM_MODE_FLAG_NHSYNC;
+		if (misc & ATOM_COMPOSITESYNC)
+			mode->flags |= DRM_MODE_FLAG_CSYNC;
+		if (misc & ATOM_INTERLACE)
+			mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		if (misc & ATOM_DOUBLE_CLOCK_MODE)
+			mode->flags |= DRM_MODE_FLAG_DBLSCAN;
+
+		mode->clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
 		break;
 	}
 	return true;

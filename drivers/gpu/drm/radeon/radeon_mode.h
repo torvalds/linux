@@ -172,6 +172,7 @@ enum radeon_connector_table {
 
 struct radeon_mode_info {
 	struct atom_context *atom_context;
+	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[2];
@@ -184,17 +185,6 @@ struct radeon_mode_info {
 	/* legacy TMDS PLL detect */
 	struct drm_property *tmds_pll_property;
 
-};
-
-struct radeon_native_mode {
-	/* preferred mode */
-	uint32_t panel_xres, panel_yres;
-	uint32_t hoverplus, hsync_width;
-	uint32_t hblank;
-	uint32_t voverplus, vsync_width;
-	uint32_t vblank;
-	uint32_t dotclock;
-	uint32_t flags;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32
@@ -228,7 +218,7 @@ struct radeon_crtc {
 	enum radeon_rmx_type rmx_type;
 	fixed20_12 vsc;
 	fixed20_12 hsc;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_primary_dac {
@@ -248,7 +238,7 @@ struct radeon_encoder_lvds {
 	bool     use_bios_dividers;
 	uint32_t lvds_gen_cntl;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_tv_dac {
@@ -271,6 +261,16 @@ struct radeon_encoder_int_tmds {
 	struct radeon_tmds_pll tmds_pll[4];
 };
 
+/* spread spectrum */
+struct radeon_atom_ss {
+	uint16_t percentage;
+	uint8_t type;
+	uint8_t step;
+	uint8_t delay;
+	uint8_t range;
+	uint8_t refdiv;
+};
+
 struct radeon_encoder_atom_dig {
 	/* atom dig */
 	bool coherent_mode;
@@ -278,8 +278,9 @@ struct radeon_encoder_atom_dig {
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
+	struct radeon_atom_ss *ss;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_atom_dac {
@@ -294,7 +295,7 @@ struct radeon_encoder {
 	uint32_t flags;
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 	void *enc_priv;
 };
 
@@ -308,6 +309,8 @@ struct radeon_connector {
 	uint32_t connector_id;
 	uint32_t devices;
 	struct radeon_i2c_chan *ddc_bus;
+	/* some systems have a an hdmi and vga port with a shared ddc line */
+	bool shared_ddc;
 	bool use_digital;
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */

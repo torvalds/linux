@@ -808,25 +808,25 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 	lvds->panel_blon_delay = (lvds_ss_gen_cntl >> RADEON_LVDS_PWRSEQ_DELAY2_SHIFT) & 0xf;
 
 	if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE)
-		lvds->native_mode.panel_yres =
+		lvds->native_mode.vdisplay =
 		    ((fp_vert_stretch & RADEON_VERT_PANEL_SIZE) >>
 		     RADEON_VERT_PANEL_SHIFT) + 1;
 	else
-		lvds->native_mode.panel_yres =
+		lvds->native_mode.vdisplay =
 		    (RREG32(RADEON_CRTC_V_TOTAL_DISP) >> 16) + 1;
 
 	if (fp_horz_stretch & RADEON_HORZ_STRETCH_ENABLE)
-		lvds->native_mode.panel_xres =
+		lvds->native_mode.hdisplay =
 		    (((fp_horz_stretch & RADEON_HORZ_PANEL_SIZE) >>
 		      RADEON_HORZ_PANEL_SHIFT) + 1) * 8;
 	else
-		lvds->native_mode.panel_xres =
+		lvds->native_mode.hdisplay =
 		    ((RREG32(RADEON_CRTC_H_TOTAL_DISP) >> 16) + 1) * 8;
 
-	if ((lvds->native_mode.panel_xres < 640) ||
-	    (lvds->native_mode.panel_yres < 480)) {
-		lvds->native_mode.panel_xres = 640;
-		lvds->native_mode.panel_yres = 480;
+	if ((lvds->native_mode.hdisplay < 640) ||
+	    (lvds->native_mode.vdisplay < 480)) {
+		lvds->native_mode.hdisplay = 640;
+		lvds->native_mode.vdisplay = 480;
 	}
 
 	ppll_div_sel = RREG8(RADEON_CLOCK_CNTL_INDEX + 1) & 0x3;
@@ -846,8 +846,8 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 	lvds->panel_vcc_delay = 200;
 
 	DRM_INFO("Panel info derived from registers\n");
-	DRM_INFO("Panel Size %dx%d\n", lvds->native_mode.panel_xres,
-		 lvds->native_mode.panel_yres);
+	DRM_INFO("Panel Size %dx%d\n", lvds->native_mode.hdisplay,
+		 lvds->native_mode.vdisplay);
 
 	return lvds;
 }
@@ -882,11 +882,11 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 
 		DRM_INFO("Panel ID String: %s\n", stmp);
 
-		lvds->native_mode.panel_xres = RBIOS16(lcd_info + 0x19);
-		lvds->native_mode.panel_yres = RBIOS16(lcd_info + 0x1b);
+		lvds->native_mode.hdisplay = RBIOS16(lcd_info + 0x19);
+		lvds->native_mode.vdisplay = RBIOS16(lcd_info + 0x1b);
 
-		DRM_INFO("Panel Size %dx%d\n", lvds->native_mode.panel_xres,
-			 lvds->native_mode.panel_yres);
+		DRM_INFO("Panel Size %dx%d\n", lvds->native_mode.hdisplay,
+			 lvds->native_mode.vdisplay);
 
 		lvds->panel_vcc_delay = RBIOS16(lcd_info + 0x2c);
 		if (lvds->panel_vcc_delay > 2000 || lvds->panel_vcc_delay < 0)
@@ -944,27 +944,25 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 			if (tmp == 0)
 				break;
 
-			if ((RBIOS16(tmp) == lvds->native_mode.panel_xres) &&
+			if ((RBIOS16(tmp) == lvds->native_mode.hdisplay) &&
 			    (RBIOS16(tmp + 2) ==
-			     lvds->native_mode.panel_yres)) {
-				lvds->native_mode.hblank =
-				    (RBIOS16(tmp + 17) - RBIOS16(tmp + 19)) * 8;
-				lvds->native_mode.hoverplus =
-				    (RBIOS16(tmp + 21) - RBIOS16(tmp + 19) -
-				     1) * 8;
-				lvds->native_mode.hsync_width =
-				    RBIOS8(tmp + 23) * 8;
+			     lvds->native_mode.vdisplay)) {
+				lvds->native_mode.htotal = RBIOS16(tmp + 17) * 8;
+				lvds->native_mode.hsync_start = RBIOS16(tmp + 21) * 8;
+				lvds->native_mode.hsync_end = (RBIOS8(tmp + 23) +
+							       RBIOS16(tmp + 21)) * 8;
 
-				lvds->native_mode.vblank = (RBIOS16(tmp + 24) -
-							    RBIOS16(tmp + 26));
-				lvds->native_mode.voverplus =
-				    ((RBIOS16(tmp + 28) & 0x7ff) -
-				     RBIOS16(tmp + 26));
-				lvds->native_mode.vsync_width =
-				    ((RBIOS16(tmp + 28) & 0xf800) >> 11);
-				lvds->native_mode.dotclock =
-				    RBIOS16(tmp + 9) * 10;
+				lvds->native_mode.vtotal = RBIOS16(tmp + 24);
+				lvds->native_mode.vsync_start = RBIOS16(tmp + 28) & 0x7ff;
+				lvds->native_mode.vsync_end =
+					((RBIOS16(tmp + 28) & 0xf800) >> 11) +
+					(RBIOS16(tmp + 28) & 0x7ff);
+
+				lvds->native_mode.clock = RBIOS16(tmp + 9) * 10;
 				lvds->native_mode.flags = 0;
+				/* set crtc values */
+				drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
+
 			}
 		}
 	} else {
@@ -1581,6 +1579,23 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 	return true;
 }
 
+static bool radeon_apply_legacy_tv_quirks(struct drm_device *dev)
+{
+	/* Acer 5102 has non-existent TV port */
+	if (dev->pdev->device == 0x5975 &&
+	    dev->pdev->subsystem_vendor == 0x1025 &&
+	    dev->pdev->subsystem_device == 0x009f)
+		return false;
+
+	/* HP dc5750 has non-existent TV port */
+	if (dev->pdev->device == 0x5974 &&
+	    dev->pdev->subsystem_vendor == 0x103c &&
+	    dev->pdev->subsystem_device == 0x280a)
+		return false;
+
+	return true;
+}
+
 bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -1628,8 +1643,9 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				break;
 			}
 
-			radeon_apply_legacy_quirks(dev, i, &connector,
-						   &ddc_i2c);
+			if (!radeon_apply_legacy_quirks(dev, i, &connector,
+						       &ddc_i2c))
+				continue;
 
 			switch (connector) {
 			case CONNECTOR_PROPRIETARY_LEGACY:
@@ -1774,8 +1790,25 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 						    DRM_MODE_CONNECTOR_DVII,
 						    &ddc_i2c);
 		} else {
-			DRM_DEBUG("No connector info found\n");
-			return false;
+			uint16_t crt_info =
+				combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
+			DRM_DEBUG("Found CRT table, assuming VGA connector\n");
+			if (crt_info) {
+				radeon_add_legacy_encoder(dev,
+							  radeon_get_encoder_id(dev,
+										ATOM_DEVICE_CRT1_SUPPORT,
+										1),
+							  ATOM_DEVICE_CRT1_SUPPORT);
+				ddc_i2c = combios_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
+				radeon_add_legacy_connector(dev,
+							    0,
+							    ATOM_DEVICE_CRT1_SUPPORT,
+							    DRM_MODE_CONNECTOR_VGA,
+							    &ddc_i2c);
+			} else {
+				DRM_DEBUG("No connector info found\n");
+				return false;
+			}
 		}
 	}
 
@@ -1880,16 +1913,18 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 		    combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 		if (tv_info) {
 			if (RBIOS8(tv_info + 6) == 'T') {
-				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id
-							  (dev,
-							   ATOM_DEVICE_TV1_SUPPORT,
-							   2),
-							  ATOM_DEVICE_TV1_SUPPORT);
-				radeon_add_legacy_connector(dev, 6,
-							    ATOM_DEVICE_TV1_SUPPORT,
-							    DRM_MODE_CONNECTOR_SVIDEO,
-							    &ddc_i2c);
+				if (radeon_apply_legacy_tv_quirks(dev)) {
+					radeon_add_legacy_encoder(dev,
+								  radeon_get_encoder_id
+								  (dev,
+								   ATOM_DEVICE_TV1_SUPPORT,
+								   2),
+								  ATOM_DEVICE_TV1_SUPPORT);
+					radeon_add_legacy_connector(dev, 6,
+								    ATOM_DEVICE_TV1_SUPPORT,
+								    DRM_MODE_CONNECTOR_SVIDEO,
+								    &ddc_i2c);
+				}
 			}
 		}
 	}

@@ -271,6 +271,10 @@
 #define	PCIE_PORT_INDEX					0x0038
 #define	PCIE_PORT_DATA					0x003C
 
+#define CHMAP						0x2004
+#define		NOOFCHAN_SHIFT					12
+#define		NOOFCHAN_MASK					0x00003000
+
 #define RAMCFG						0x2408
 #define		NOOFBANK_SHIFT					0
 #define		NOOFBANK_MASK					0x00000001

@@ -50,19 +50,16 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	vram_base = drm_get_resource_start(rdev->ddev, 0);
 	bios = ioremap(vram_base, size);
 	if (!bios) {
-		DRM_ERROR("Unable to mmap vram\n");
 		return false;
 	}
 
 	if (size == 0 || bios[0] != 0x55 || bios[1] != 0xaa) {
 		iounmap(bios);
-		DRM_ERROR("bad rom signature\n");
 		return false;
 	}
 	rdev->bios = kmalloc(size, GFP_KERNEL);
 	if (rdev->bios == NULL) {
 		iounmap(bios);
-		DRM_ERROR("kmalloc failed\n");
 		return false;
 	}
 	memcpy(rdev->bios, bios, size);

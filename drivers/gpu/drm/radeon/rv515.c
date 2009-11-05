@@ -137,6 +137,8 @@ int rv515_mc_wait_for_idle(struct radeon_device *rdev)
 
 void rv515_vga_render_disable(struct radeon_device *rdev)
 {
+	WREG32(R_000330_D1VGA_CONTROL, 0);
+	WREG32(R_000338_D2VGA_CONTROL, 0);
 	WREG32(R_000300_VGA_RENDER_CONTROL,
 		RREG32(R_000300_VGA_RENDER_CONTROL) & C_000300_VGA_VSTATUS_CNTL);
 }
