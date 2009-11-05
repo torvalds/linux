@@ -1,9 +1,6 @@
-#ifndef	_ASM_GENERIC_HW_BREAKPOINT_H
-#define	_ASM_GENERIC_HW_BREAKPOINT_H
+#ifndef _LINUX_HW_BREAKPOINT_H
+#define _LINUX_HW_BREAKPOINT_H
 
-#ifndef __ARCH_HW_BREAKPOINT_H
-#error "Please don't include this file directly"
-#endif
 
 #ifdef	__KERNEL__
 #include <linux/list.h>
@@ -136,4 +133,4 @@ extern void unregister_kernel_hw_breakpoint(struct hw_breakpoint *bp);
 extern unsigned int hbp_kernel_pos;
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_GENERIC_HW_BREAKPOINT_H */
+#endif	/* _LINUX_HW_BREAKPOINT_H */

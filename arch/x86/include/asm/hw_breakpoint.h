@@ -12,7 +12,7 @@ struct arch_hw_breakpoint {
 };
 
 #include <linux/kdebug.h>
-#include <asm-generic/hw_breakpoint.h>
+#include <linux/hw_breakpoint.h>
 
 /* Available HW breakpoint length encodings */
 #define HW_BREAKPOINT_LEN_1		0x40
