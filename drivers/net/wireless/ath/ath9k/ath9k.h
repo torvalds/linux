@@ -19,14 +19,16 @@
 
 #include <linux/etherdevice.h>
 #include <linux/device.h>
-#include <net/mac80211.h>
 #include <linux/leds.h>
 
-#include "hw.h"
 #include "rc.h"
 #include "debug.h"
-#include "../ath.h"
-#include "../debug.h"
+#include "common.h"
+
+/*
+ * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
+ * should rely on this file or its contents.
+ */
 
 struct ath_node;
 
@@ -99,18 +101,6 @@ enum buffer_type {
 	BUF_XRETRY		= BIT(5),
 };
 
-struct ath_buf_state {
-	int bfs_nframes;
-	u16 bfs_al;
-	u16 bfs_frmlen;
-	int bfs_seqno;
-	int bfs_tidno;
-	int bfs_retries;
-	u8 bf_type;
-	u32 bfs_keyix;
-	enum ath9k_key_type bfs_keytype;
-};
-
 #define bf_nframes      	bf_state.bfs_nframes
 #define bf_al           	bf_state.bfs_al
 #define bf_frmlen       	bf_state.bfs_frmlen
@@ -124,21 +114,6 @@ struct ath_buf_state {
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
-
-struct ath_buf {
-	struct list_head list;
-	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
-					   an aggregate) */
-	struct ath_buf *bf_next;	/* next subframe in the aggregate */
-	struct sk_buff *bf_mpdu;	/* enclosing frame structure */
-	struct ath_desc *bf_desc;	/* virtual addr of desc */
-	dma_addr_t bf_daddr;		/* physical addr of desc */
-	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
-	bool bf_stale;
-	u16 bf_flags;
-	struct ath_buf_state bf_state;
-	dma_addr_t bf_dmacontext;
-};
 
 struct ath_descdma {
 	struct ath_desc *dd_desc;
@@ -159,25 +134,15 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define ATH_MAX_ANTENNA         3
 #define ATH_RXBUF               512
-#define WME_NUM_TID             16
 #define ATH_TXBUF               512
 #define ATH_TXMAXTRY            13
 #define ATH_MGT_TXMAXTRY        4
-#define WME_BA_BMP_SIZE         64
-#define WME_MAX_BA              WME_BA_BMP_SIZE
-#define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
 
 #define TID_TO_WME_AC(_tid)				\
 	((((_tid) == 0) || ((_tid) == 3)) ? WME_AC_BE :	\
 	 (((_tid) == 1) || ((_tid) == 2)) ? WME_AC_BK :	\
 	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
 	 WME_AC_VO)
-
-#define WME_AC_BE   0
-#define WME_AC_BK   1
-#define WME_AC_VI   2
-#define WME_AC_VO   3
-#define WME_NUM_AC  4
 
 #define ADDBA_EXCHANGE_ATTEMPTS    10
 #define ATH_AGGR_DELIM_SZ          4
@@ -252,30 +217,6 @@ struct ath_txq {
 #define AGGR_ADDBA_COMPLETE  BIT(2)
 #define AGGR_ADDBA_PROGRESS  BIT(3)
 
-struct ath_atx_tid {
-	struct list_head list;
-	struct list_head buf_q;
-	struct ath_node *an;
-	struct ath_atx_ac *ac;
-	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
-	u16 seq_start;
-	u16 seq_next;
-	u16 baw_size;
-	int tidno;
-	int baw_head;	/* first un-acked tx buffer */
-	int baw_tail;	/* next unused tx buffer slot */
-	int sched;
-	int paused;
-	u8 state;
-};
-
-struct ath_atx_ac {
-	int sched;
-	int qnum;
-	struct list_head list;
-	struct list_head tid_q;
-};
-
 struct ath_tx_control {
 	struct ath_txq *txq;
 	int if_id;
@@ -285,29 +226,6 @@ struct ath_tx_control {
 #define ATH_TX_ERROR        0x01
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
-
-#define ATH_RSSI_LPF_LEN 		10
-#define RSSI_LPF_THRESHOLD		-20
-#define ATH_RSSI_EP_MULTIPLIER     (1<<7)
-#define ATH_EP_MUL(x, mul)         ((x) * (mul))
-#define ATH_RSSI_IN(x)             (ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
-#define ATH_LPF_RSSI(x, y, len) \
-    ((x != ATH_RSSI_DUMMY_MARKER) ? (((x) * ((len) - 1) + (y)) / (len)) : (y))
-#define ATH_RSSI_LPF(x, y) do {                     			\
-    if ((y) >= RSSI_LPF_THRESHOLD)                         		\
-	x = ATH_LPF_RSSI((x), ATH_RSSI_IN((y)), ATH_RSSI_LPF_LEN);  	\
-} while (0)
-#define ATH_EP_RND(x, mul) 						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-
-struct ath_node {
-	struct ath_softc *an_sc;
-	struct ath_atx_tid tid[WME_NUM_TID];
-	struct ath_atx_ac ac[WME_NUM_AC];
-	u16 maxampdu;
-	u8 mpdudensity;
-	int last_rssi;
-};
 
 struct ath_tx {
 	u16 seq_no;
@@ -493,7 +411,6 @@ struct ath_led {
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
 
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
-#define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
 
 #define SC_OP_INVALID           BIT(0)
