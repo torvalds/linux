@@ -2807,6 +2807,8 @@ fix_extent_len:
  * into three uninitialized extent(at most). After IO complete, the part
  * being filled will be convert to initialized by the end_io callback function
  * via ext4_convert_unwritten_extents().
+ *
+ * Returns the size of uninitialized extent to be written on success.
  */
 static int ext4_split_unwritten_extents(handle_t *handle,
 					struct inode *inode,
@@ -2824,7 +2826,6 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 	unsigned int allocated, ee_len, depth;
 	ext4_fsblk_t newblock;
 	int err = 0;
-	int ret = 0;
 
 	ext_debug("ext4_split_unwritten_extents: inode %lu,"
 		  "iblock %llu, max_blocks %u\n", inode->i_ino,
@@ -2842,12 +2843,12 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 	ext4_ext_store_pblock(&orig_ex, ext_pblock(ex));
 
 	/*
- 	 * if the entire unintialized extent length less than
- 	 * the size of extent to write, there is no need to split
- 	 * uninitialized extent
+ 	 * If the uninitialized extent begins at the same logical
+ 	 * block where the write begins, and the write completely
+ 	 * covers the extent, then we don't need to split it.
  	 */
- 	if (allocated <= max_blocks)
-		return ret;
+	if ((iblock == ee_block) && (allocated <= max_blocks))
+		return allocated;
 
 	err = ext4_ext_get_access(handle, inode, path + depth);
 	if (err)
