@@ -340,6 +340,7 @@ struct pktgen_dev {
 	__u16 cur_udp_src;
 	__u16 cur_queue_map;
 	__u32 cur_pkt_size;
+	__u32 last_pkt_size;
 
 	__u8 hh[14];
 	/* = {
@@ -3434,7 +3435,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			pkt_dev->clone_count--;	/* back out increment, OOM */
 			return;
 		}
-
+		pkt_dev->last_pkt_size = pkt_dev->skb->len;
 		pkt_dev->allocated_skbs++;
 		pkt_dev->clone_count = 0;	/* reset counter */
 	}
@@ -3461,7 +3462,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 1;
 		pkt_dev->sofar++;
 		pkt_dev->seq_num++;
-		pkt_dev->tx_bytes += pkt_dev->cur_pkt_size;
+		pkt_dev->tx_bytes += pkt_dev->last_pkt_size;
 		break;
 	default: /* Drivers are not supposed to return other values! */
 		if (net_ratelimit())
