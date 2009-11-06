@@ -365,7 +365,7 @@ static int axon_msi_probe(struct of_device *device,
 		printk(KERN_ERR
 		       "axon_msi: couldn't parse dcr properties on %s\n",
 			dn->full_name);
-		goto out;
+		goto out_free_msic;
 	}
 
 	msic->dcr_host = dcr_map(dn, dcr_base, dcr_len);

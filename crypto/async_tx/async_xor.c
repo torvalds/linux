@@ -44,20 +44,23 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 	void *cb_param_orig = submit->cb_param;
 	enum async_tx_flags flags_orig = submit->flags;
 	enum dma_ctrl_flags dma_flags;
-	int xor_src_cnt;
+	int xor_src_cnt = 0;
 	dma_addr_t dma_dest;
 
 	/* map the dest bidrectional in case it is re-used as a source */
 	dma_dest = dma_map_page(dma->dev, dest, offset, len, DMA_BIDIRECTIONAL);
 	for (i = 0; i < src_cnt; i++) {
 		/* only map the dest once */
+		if (!src_list[i])
+			continue;
 		if (unlikely(src_list[i] == dest)) {
-			dma_src[i] = dma_dest;
+			dma_src[xor_src_cnt++] = dma_dest;
 			continue;
 		}
-		dma_src[i] = dma_map_page(dma->dev, src_list[i], offset,
-					  len, DMA_TO_DEVICE);
+		dma_src[xor_src_cnt++] = dma_map_page(dma->dev, src_list[i], offset,
+						      len, DMA_TO_DEVICE);
 	}
+	src_cnt = xor_src_cnt;
 
 	while (src_cnt) {
 		submit->flags = flags_orig;
@@ -123,7 +126,7 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	    int src_cnt, size_t len, struct async_submit_ctl *submit)
 {
 	int i;
-	int xor_src_cnt;
+	int xor_src_cnt = 0;
 	int src_off = 0;
 	void *dest_buf;
 	void **srcs;
@@ -135,8 +138,9 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 
 	/* convert to buffer pointers */
 	for (i = 0; i < src_cnt; i++)
-		srcs[i] = page_address(src_list[i]) + offset;
-
+		if (src_list[i])
+			srcs[xor_src_cnt++] = page_address(src_list[i]) + offset;
+	src_cnt = xor_src_cnt;
 	/* set destination address */
 	dest_buf = page_address(dest) + offset;
 

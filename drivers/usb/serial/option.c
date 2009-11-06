@@ -315,6 +315,9 @@ static int  option_resume(struct usb_serial *serial);
 #define QISDA_PRODUCT_H20_4515			0x4515
 #define QISDA_PRODUCT_H20_4519			0x4519
 
+/* TLAYTECH PRODUCTS */
+#define TLAYTECH_VENDOR_ID			0x20B9
+#define TLAYTECH_PRODUCT_TEU800			0x1682
 
 /* TOSHIBA PRODUCTS */
 #define TOSHIBA_VENDOR_ID			0x0930
@@ -328,6 +331,9 @@ static int  option_resume(struct usb_serial *serial);
 #define ALCATEL_VENDOR_ID			0x1bbb
 #define ALCATEL_PRODUCT_X060S			0x0000
 
+/* Airplus products */
+#define AIRPLUS_VENDOR_ID			0x1011
+#define AIRPLUS_PRODUCT_MCD650			0x3198
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -589,6 +595,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
+	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
+	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);

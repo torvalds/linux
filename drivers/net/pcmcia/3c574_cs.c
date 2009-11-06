@@ -251,6 +251,7 @@ static void el3_tx_timeout(struct net_device *dev);
 static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static void set_rx_mode(struct net_device *dev);
+static void set_multicast_list(struct net_device *dev);
 
 static void tc574_detach(struct pcmcia_device *p_dev);
 
@@ -266,7 +267,7 @@ static const struct net_device_ops el3_netdev_ops = {
 	.ndo_tx_timeout 	= el3_tx_timeout,
 	.ndo_get_stats		= el3_get_stats,
 	.ndo_do_ioctl		= el3_ioctl,
-	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_set_multicast_list = set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1159,6 +1160,16 @@ static void set_rx_mode(struct net_device *dev)
 		outw(SetRxFilter|RxStation|RxMulticast|RxBroadcast, ioaddr + EL3_CMD);
 	else
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
+}
+
+static void set_multicast_list(struct net_device *dev)
+{
+	struct el3_private *lp = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&lp->window_lock, flags);
+	set_rx_mode(dev);
+	spin_unlock_irqrestore(&lp->window_lock, flags);
 }
 
 static int el3_close(struct net_device *dev)

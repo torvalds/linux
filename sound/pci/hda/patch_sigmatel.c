@@ -158,6 +158,7 @@ enum {
 	STAC_D965_5ST_NO_FP,
 	STAC_DELL_3ST,
 	STAC_DELL_BIOS,
+	STAC_927X_VOLKNOB,
 	STAC_927X_MODELS
 };
 
@@ -907,11 +908,29 @@ static struct hda_verb d965_core_init[] = {
 	{}
 };
 
+static struct hda_verb dell_3st_core_init[] = {
+	/* don't set delta bit */
+	{0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0x7f},
+	/* unmute node 0x1b */
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* select node 0x03 as DAC */
+	{0x0b, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{}
+};
+
 static struct hda_verb stac927x_core_init[] = {
 	/* set master volume and direct control */	
 	{ 0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
 	/* enable analog pc beep path */
 	{ 0x01, AC_VERB_SET_DIGI_CONVERT_2, 1 << 5},
+	{}
+};
+
+static struct hda_verb stac927x_volknob_core_init[] = {
+	/* don't set delta bit */
+	{0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0x7f},
+	/* enable analog pc beep path */
+	{0x01, AC_VERB_SET_DIGI_CONVERT_2, 1 << 5},
 	{}
 };
 
@@ -1999,6 +2018,7 @@ static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_D965_5ST_NO_FP]  = d965_5st_no_fp_pin_configs,
 	[STAC_DELL_3ST]  = dell_3st_pin_configs,
 	[STAC_DELL_BIOS] = NULL,
+	[STAC_927X_VOLKNOB] = NULL,
 };
 
 static const char *stac927x_models[STAC_927X_MODELS] = {
@@ -2010,6 +2030,7 @@ static const char *stac927x_models[STAC_927X_MODELS] = {
 	[STAC_D965_5ST_NO_FP]	= "5stack-no-fp",
 	[STAC_DELL_3ST]		= "dell-3stack",
 	[STAC_DELL_BIOS]	= "dell-bios",
+	[STAC_927X_VOLKNOB]	= "volknob",
 };
 
 static struct snd_pci_quirk stac927x_cfg_tbl[] = {
@@ -2045,6 +2066,8 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 			   "Intel D965", STAC_D965_5ST),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_INTEL, 0xff00, 0x2500,
 			   "Intel D965", STAC_D965_5ST),
+	/* volume-knob fixes */
+	SND_PCI_QUIRK_VENDOR(0x10cf, "FSC", STAC_927X_VOLKNOB),
 	{} /* terminator */
 };
 
@@ -5612,9 +5635,13 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
-		spec->init = d965_core_init;
+		spec->init = dell_3st_core_init;
 		spec->dmux_nids = stac927x_dmux_nids;
 		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
+		break;
+	case STAC_927X_VOLKNOB:
+		spec->num_dmics = 0;
+		spec->init = stac927x_volknob_core_init;
 		break;
 	default:
 		spec->num_dmics = 0;

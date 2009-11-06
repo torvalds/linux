@@ -42,7 +42,6 @@
 #include <signal.h>
 #include "linux/lguest_launcher.h"
 #include "linux/virtio_config.h"
-#include <linux/virtio_ids.h>
 #include "linux/virtio_net.h"
 #include "linux/virtio_blk.h"
 #include "linux/virtio_console.h"

@@ -1355,7 +1355,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 	u64 interrupts, freq;
 
 	spin_lock(&ctx->lock);
-	list_for_each_entry(event, &ctx->group_list, group_entry) {
+	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
 		if (event->state != PERF_EVENT_STATE_ACTIVE)
 			continue;
 
@@ -3959,14 +3959,51 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 		regs = task_pt_regs(current);
 
 	if (regs) {
-		if (perf_event_overflow(event, 0, &data, regs))
-			ret = HRTIMER_NORESTART;
+		if (!(event->attr.exclude_idle && current->pid == 0))
+			if (perf_event_overflow(event, 0, &data, regs))
+				ret = HRTIMER_NORESTART;
 	}
 
 	period = max_t(u64, 10000, event->hw.sample_period);
 	hrtimer_forward_now(hrtimer, ns_to_ktime(period));
 
 	return ret;
+}
+
+static void perf_swevent_start_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swevent_hrtimer;
+	if (hwc->sample_period) {
+		u64 period;
+
+		if (hwc->remaining) {
+			if (hwc->remaining < 0)
+				period = 10000;
+			else
+				period = hwc->remaining;
+			hwc->remaining = 0;
+		} else {
+			period = max_t(u64, 10000, hwc->sample_period);
+		}
+		__hrtimer_start_range_ns(&hwc->hrtimer,
+				ns_to_ktime(period), 0,
+				HRTIMER_MODE_REL, 0);
+	}
+}
+
+static void perf_swevent_cancel_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (hwc->sample_period) {
+		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
+		hwc->remaining = ktime_to_ns(remaining);
+
+		hrtimer_cancel(&hwc->hrtimer);
+	}
 }
 
 /*
@@ -3991,22 +4028,14 @@ static int cpu_clock_perf_event_enable(struct perf_event *event)
 	int cpu = raw_smp_processor_id();
 
 	atomic64_set(&hwc->prev_count, cpu_clock(cpu));
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
-		u64 period = max_t(u64, 10000, hwc->sample_period);
-		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
-	}
+	perf_swevent_start_hrtimer(event);
 
 	return 0;
 }
 
 static void cpu_clock_perf_event_disable(struct perf_event *event)
 {
-	if (event->hw.sample_period)
-		hrtimer_cancel(&event->hw.hrtimer);
+	perf_swevent_cancel_hrtimer(event);
 	cpu_clock_perf_event_update(event);
 }
 
@@ -4043,22 +4072,15 @@ static int task_clock_perf_event_enable(struct perf_event *event)
 	now = event->ctx->time;
 
 	atomic64_set(&hwc->prev_count, now);
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
-		u64 period = max_t(u64, 10000, hwc->sample_period);
-		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
-	}
+
+	perf_swevent_start_hrtimer(event);
 
 	return 0;
 }
 
 static void task_clock_perf_event_disable(struct perf_event *event)
 {
-	if (event->hw.sample_period)
-		hrtimer_cancel(&event->hw.hrtimer);
+	perf_swevent_cancel_hrtimer(event);
 	task_clock_perf_event_update(event, event->ctx->time);
 
 }

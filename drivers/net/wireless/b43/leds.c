@@ -348,9 +348,9 @@ void b43_leds_register(struct b43_wldev *dev)
 	}
 }
 
-void b43_leds_unregister(struct b43_wldev *dev)
+void b43_leds_unregister(struct b43_wl *wl)
 {
-	struct b43_leds *leds = &dev->wl->leds;
+	struct b43_leds *leds = &wl->leds;
 
 	b43_unregister_led(&leds->led_tx);
 	b43_unregister_led(&leds->led_rx);

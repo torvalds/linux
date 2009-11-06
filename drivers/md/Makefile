@@ -46,7 +46,7 @@ obj-$(CONFIG_DM_LOG_USERSPACE)	+= dm-log-userspace.o
 obj-$(CONFIG_DM_ZERO)		+= dm-zero.o
 
 quiet_cmd_unroll = UNROLL  $@
-      cmd_unroll = $(PERL) $(srctree)/$(src)/unroll.pl $(UNROLL) \
+      cmd_unroll = $(AWK) -f$(srctree)/$(src)/unroll.awk -vN=$(UNROLL) \
                    < $< > $@ || ( rm -f $@ && exit 1 )
 
 ifeq ($(CONFIG_ALTIVEC),y)
@@ -59,56 +59,56 @@ endif
 
 targets += raid6int1.c
 $(obj)/raid6int1.c:   UNROLL := 1
-$(obj)/raid6int1.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int1.c:   $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 targets += raid6int2.c
 $(obj)/raid6int2.c:   UNROLL := 2
-$(obj)/raid6int2.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int2.c:   $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 targets += raid6int4.c
 $(obj)/raid6int4.c:   UNROLL := 4
-$(obj)/raid6int4.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int4.c:   $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 targets += raid6int8.c
 $(obj)/raid6int8.c:   UNROLL := 8
-$(obj)/raid6int8.c:   $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int8.c:   $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 targets += raid6int16.c
 $(obj)/raid6int16.c:  UNROLL := 16
-$(obj)/raid6int16.c:  $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int16.c:  $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 targets += raid6int32.c
 $(obj)/raid6int32.c:  UNROLL := 32
-$(obj)/raid6int32.c:  $(src)/raid6int.uc $(src)/unroll.pl FORCE
+$(obj)/raid6int32.c:  $(src)/raid6int.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 CFLAGS_raid6altivec1.o += $(altivec_flags)
 targets += raid6altivec1.c
 $(obj)/raid6altivec1.c:   UNROLL := 1
-$(obj)/raid6altivec1.c:   $(src)/raid6altivec.uc $(src)/unroll.pl FORCE
+$(obj)/raid6altivec1.c:   $(src)/raid6altivec.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 CFLAGS_raid6altivec2.o += $(altivec_flags)
 targets += raid6altivec2.c
 $(obj)/raid6altivec2.c:   UNROLL := 2
-$(obj)/raid6altivec2.c:   $(src)/raid6altivec.uc $(src)/unroll.pl FORCE
+$(obj)/raid6altivec2.c:   $(src)/raid6altivec.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 CFLAGS_raid6altivec4.o += $(altivec_flags)
 targets += raid6altivec4.c
 $(obj)/raid6altivec4.c:   UNROLL := 4
-$(obj)/raid6altivec4.c:   $(src)/raid6altivec.uc $(src)/unroll.pl FORCE
+$(obj)/raid6altivec4.c:   $(src)/raid6altivec.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 CFLAGS_raid6altivec8.o += $(altivec_flags)
 targets += raid6altivec8.c
 $(obj)/raid6altivec8.c:   UNROLL := 8
-$(obj)/raid6altivec8.c:   $(src)/raid6altivec.uc $(src)/unroll.pl FORCE
+$(obj)/raid6altivec8.c:   $(src)/raid6altivec.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 quiet_cmd_mktable = TABLE   $@

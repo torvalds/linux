@@ -86,6 +86,12 @@ struct btrfs_inode {
 	 * transid of the trans_handle that last modified this inode
 	 */
 	u64 last_trans;
+
+	/*
+	 * log transid when this inode was last modified
+	 */
+	u64 last_sub_trans;
+
 	/*
 	 * transid that last logged this inode
 	 */

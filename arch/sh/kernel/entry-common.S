@@ -121,7 +121,7 @@ noresched:
 ENTRY(resume_userspace)
 	! r8: current_thread_info
 	cli
-	TRACE_IRQS_OfF
+	TRACE_IRQS_OFF
 	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
 	tst	#(_TIF_WORK_MASK & 0xff), r0
 	bt/s	__restore_all

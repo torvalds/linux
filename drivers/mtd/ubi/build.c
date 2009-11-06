@@ -42,6 +42,7 @@
 #include <linux/log2.h>
 #include <linux/kthread.h>
 #include <linux/reboot.h>
+#include <linux/kernel.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */
@@ -1257,7 +1258,7 @@ static int __init bytes_str_to_int(const char *str)
 	unsigned long result;
 
 	result = simple_strtoul(str, &endp, 0);
-	if (str == endp || result < 0) {
+	if (str == endp || result >= INT_MAX) {
 		printk(KERN_ERR "UBI error: incorrect bytes count: \"%s\"\n",
 		       str);
 		return -EINVAL;

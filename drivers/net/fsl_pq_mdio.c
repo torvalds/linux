@@ -407,6 +407,7 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
 static struct of_platform_driver fsl_pq_mdio_driver = {
 	.name = "fsl-pq_mdio",

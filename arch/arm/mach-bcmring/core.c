@@ -271,12 +271,12 @@ static struct irqaction bcmring_timer_irq = {
 	.handler = bcmring_timer_interrupt,
 };
 
-static cycle_t bcmring_get_cycles_timer1(void)
+static cycle_t bcmring_get_cycles_timer1(struct clocksource *cs)
 {
 	return ~readl(TIMER1_VA_BASE + TIMER_VALUE);
 }
 
-static cycle_t bcmring_get_cycles_timer3(void)
+static cycle_t bcmring_get_cycles_timer3(struct clocksource *cs)
 {
 	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
 }

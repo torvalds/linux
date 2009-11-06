@@ -1214,7 +1214,8 @@ static int __cpuinit mce_cap_init(void)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 
 	b = cap & MCG_BANKCNT_MASK;
-	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
+	if (!banks)
+		printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
 
 	if (b > MAX_NR_BANKS) {
 		printk(KERN_WARNING

@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/mm.h>
+#include <linux/ftrace.h>
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>
@@ -556,6 +557,27 @@ struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
 	 */
 	if (!pc && !prev)
 		pc = (unsigned long)current_text_addr();
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	/*
+	 * If our stack has been patched by the function graph tracer
+	 * then we might see the address of return_to_handler() where we
+	 * expected to find the real return address.
+	 */
+	if (pc == (unsigned long)&return_to_handler) {
+		int index = current->curr_ret_stack;
+
+		/*
+		 * We currently have no way of tracking how many
+		 * return_to_handler()'s we've seen. If there is more
+		 * than one patched return address on our stack,
+		 * complain loudly.
+		 */
+		WARN_ON(index > 0);
+
+		pc = current->ret_stack[index].ret;
+	}
+#endif
 
 	frame = mempool_alloc(dwarf_frame_pool, GFP_ATOMIC);
 	if (!frame) {

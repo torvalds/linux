@@ -45,6 +45,7 @@ struct smtc_ipi_q {
 	spinlock_t lock;
 	struct smtc_ipi *tail;
 	int depth;
+	int resched_flag;	/* reschedule already queued */
 };
 
 static inline void smtc_ipi_nq(struct smtc_ipi_q *q, struct smtc_ipi *p)

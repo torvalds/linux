@@ -521,7 +521,7 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 	if (apic_get_reg(apic, APIC_TMICT) == 0)
 		return 0;
 
-	remaining = hrtimer_expires_remaining(&apic->lapic_timer.timer);
+	remaining = hrtimer_get_remaining(&apic->lapic_timer.timer);
 	if (ktime_to_ns(remaining) < 0)
 		remaining = ktime_set(0, 0);
 

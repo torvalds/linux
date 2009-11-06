@@ -35,6 +35,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/sched.h>
+#include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
@@ -370,9 +371,6 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	int ret = FAILED;
 	struct address_space *mapping;
 
-	if (!isolate_lru_page(p))
-		page_cache_release(p);
-
 	/*
 	 * For anonymous pages we're done the only reference left
 	 * should be the one m_f() holds.
@@ -498,30 +496,18 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
  */
 static int me_swapcache_dirty(struct page *p, unsigned long pfn)
 {
-	int ret = FAILED;
-
 	ClearPageDirty(p);
 	/* Trigger EIO in shmem: */
 	ClearPageUptodate(p);
 
-	if (!isolate_lru_page(p)) {
-		page_cache_release(p);
-		ret = DELAYED;
-	}
-
-	return ret;
+	return DELAYED;
 }
 
 static int me_swapcache_clean(struct page *p, unsigned long pfn)
 {
-	int ret = FAILED;
-
-	if (!isolate_lru_page(p)) {
-		page_cache_release(p);
-		ret = RECOVERED;
-	}
 	delete_from_swap_cache(p);
-	return ret;
+
+	return RECOVERED;
 }
 
 /*
@@ -611,8 +597,6 @@ static struct page_state {
 	{ 0,		0,		"unknown page state",	me_unknown },
 };
 
-#undef lru
-
 static void action_result(unsigned long pfn, char *msg, int result)
 {
 	struct page *page = NULL;
@@ -629,13 +613,16 @@ static int page_action(struct page_state *ps, struct page *p,
 			unsigned long pfn, int ref)
 {
 	int result;
+	int count;
 
 	result = ps->action(p, pfn);
 	action_result(pfn, ps->msg, result);
-	if (page_count(p) != 1 + ref)
+
+	count = page_count(p) - 1 - ref;
+	if (count != 0)
 		printk(KERN_ERR
 		       "MCE %#lx: %s page still referenced by %d users\n",
-		       pfn, ps->msg, page_count(p) - 1);
+		       pfn, ps->msg, count);
 
 	/* Could do more checks here if page looks ok */
 	/*
@@ -661,11 +648,8 @@ static void hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	int i;
 	int kill = 1;
 
-	if (PageReserved(p) || PageCompound(p) || PageSlab(p))
+	if (PageReserved(p) || PageCompound(p) || PageSlab(p) || PageKsm(p))
 		return;
-
-	if (!PageLRU(p))
-		lru_add_drain_all();
 
 	/*
 	 * This check implies we don't kill processes if their pages
@@ -738,6 +722,7 @@ static void hwpoison_user_mappings(struct page *p, unsigned long pfn,
 
 int __memory_failure(unsigned long pfn, int trapno, int ref)
 {
+	unsigned long lru_flag;
 	struct page_state *ps;
 	struct page *p;
 	int res;
@@ -775,6 +760,24 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 	}
 
 	/*
+	 * We ignore non-LRU pages for good reasons.
+	 * - PG_locked is only well defined for LRU pages and a few others
+	 * - to avoid races with __set_page_locked()
+	 * - to avoid races with __SetPageSlab*() (and more non-atomic ops)
+	 * The check (unnecessarily) ignores LRU pages being isolated and
+	 * walked by the page reclaim code, however that's not a big loss.
+	 */
+	if (!PageLRU(p))
+		lru_add_drain_all();
+	lru_flag = p->flags & lru;
+	if (isolate_lru_page(p)) {
+		action_result(pfn, "non LRU", IGNORED);
+		put_page(p);
+		return -EBUSY;
+	}
+	page_cache_release(p);
+
+	/*
 	 * Lock the page and wait for writeback to finish.
 	 * It's very difficult to mess with pages currently under IO
 	 * and in many cases impossible, so we just avoid it here.
@@ -790,7 +793,7 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 	/*
 	 * Torn down by someone else?
 	 */
-	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
+	if ((lru_flag & lru) && !PageSwapCache(p) && p->mapping == NULL) {
 		action_result(pfn, "already truncated LRU", IGNORED);
 		res = 0;
 		goto out;
@@ -798,7 +801,7 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 
 	res = -EBUSY;
 	for (ps = error_states;; ps++) {
-		if ((p->flags & ps->mask) == ps->res) {
+		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
 			res = page_action(ps, p, pfn, ref);
 			break;
 		}

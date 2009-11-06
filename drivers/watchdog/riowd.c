@@ -206,7 +206,7 @@ static int __devinit riowd_probe(struct of_device *op,
 
 	dev_set_drvdata(&op->dev, p);
 	riowd_device = p;
-	err = 0;
+	return 0;
 
 out_iounmap:
 	of_iounmap(&op->resource[0], p->regs, 2);

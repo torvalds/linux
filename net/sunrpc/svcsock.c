@@ -111,7 +111,7 @@ static void svc_release_skb(struct svc_rqst *rqstp)
 		rqstp->rq_xprt_ctxt = NULL;
 
 		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 	}
 }
 
@@ -578,7 +578,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 				"svc: received unknown control message %d/%d; "
 				"dropping RPC reply datagram\n",
 					cmh->cmsg_level, cmh->cmsg_type);
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 		return 0;
 	}
 
@@ -588,18 +588,18 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		if (csum_partial_copy_to_xdr(&rqstp->rq_arg, skb)) {
 			local_bh_enable();
 			/* checksum error */
-			skb_free_datagram(svsk->sk_sk, skb);
+			skb_free_datagram_locked(svsk->sk_sk, skb);
 			return 0;
 		}
 		local_bh_enable();
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 	} else {
 		/* we can use it in-place */
 		rqstp->rq_arg.head[0].iov_base = skb->data +
 			sizeof(struct udphdr);
 		rqstp->rq_arg.head[0].iov_len = len;
 		if (skb_checksum_complete(skb)) {
-			skb_free_datagram(svsk->sk_sk, skb);
+			skb_free_datagram_locked(svsk->sk_sk, skb);
 			return 0;
 		}
 		rqstp->rq_xprt_ctxt = skb;

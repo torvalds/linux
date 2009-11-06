@@ -658,42 +658,43 @@ do_work:
 	cmpdi	r0,0
 	crandc	eq,cr1*4+eq,eq
 	bne	restore
-	/* here we are preempting the current task */
-1:
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	.trace_hardirqs_on
-	/* Note: we just clobbered r10 which used to contain the previous
-	 * MSR before the hard-disabling done by the caller of do_work.
-	 * We don't have that value anymore, but it doesn't matter as
-	 * we will hard-enable unconditionally, we can just reload the
-	 * current MSR into r10
+
+	/* Here we are preempting the current task.
+	 *
+	 * Ensure interrupts are soft-disabled. We also properly mark
+	 * the PACA to reflect the fact that they are hard-disabled
+	 * and trace the change
 	 */
-	mfmsr	r10
-#endif /* CONFIG_TRACE_IRQFLAGS */
-	li	r0,1
+	li	r0,0
 	stb	r0,PACASOFTIRQEN(r13)
 	stb	r0,PACAHARDIRQEN(r13)
+	TRACE_DISABLE_INTS
+
+	/* Call the scheduler with soft IRQs off */
+1:	bl	.preempt_schedule_irq
+
+	/* Hard-disable interrupts again (and update PACA) */
 #ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-	bl	.preempt_schedule
 	wrteei	0
 #else
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10,1		/* reenable interrupts */
-	bl	.preempt_schedule
 	mfmsr	r10
-	clrrdi	r9,r1,THREAD_SHIFT
-	rldicl	r10,r10,48,1	/* disable interrupts again */
+	rldicl	r10,r10,48,1
 	rotldi	r10,r10,16
 	mtmsrd	r10,1
 #endif /* CONFIG_PPC_BOOK3E */
+	li	r0,0
+	stb	r0,PACAHARDIRQEN(r13)
+
+	/* Re-test flags and eventually loop */
+	clrrdi	r9,r1,THREAD_SHIFT
 	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	bne	1b
 	b	restore
 
 user_work:
-#endif
+#endif /* CONFIG_PREEMPT */
+
 	/* Enable interrupts */
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	1
@@ -1038,8 +1039,7 @@ _GLOBAL(mod_return_to_handler)
 	 * We are in a module using the module's TOC.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
-	LOAD_REG_IMMEDIATE(r4,ftrace_return_to_handler)
-	ld	r2, 8(r4)
+	ld	r2, PACATOC(r13)
 
 	bl	.ftrace_return_to_handler
 	nop

@@ -26,7 +26,7 @@
 #define MAX_DCACHE_PAGES	64	/* XXX: Tune for ways */
 #define MAX_ICACHE_PAGES	32
 
-static void __flush_cache_4096(unsigned long addr, unsigned long phys,
+static void __flush_cache_one(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset);
 
 /*
@@ -89,8 +89,7 @@ static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
 	local_irq_restore(flags);
 }
 
-static inline void flush_cache_4096(unsigned long start,
-				    unsigned long phys)
+static inline void flush_cache_one(unsigned long start, unsigned long phys)
 {
 	unsigned long flags, exec_offset = 0;
 
@@ -103,8 +102,7 @@ static inline void flush_cache_4096(unsigned long start,
 		exec_offset = 0x20000000;
 
 	local_irq_save(flags);
-	__flush_cache_4096(start | SH_CACHE_ASSOC,
-			   P1SEGADDR(phys), exec_offset);
+	__flush_cache_one(start | SH_CACHE_ASSOC, P1SEGADDR(phys), exec_offset);
 	local_irq_restore(flags);
 }
 
@@ -129,8 +127,8 @@ static void sh4_flush_dcache_page(void *arg)
 
 		/* Loop all the D-cache */
 		n = boot_cpu_data.dcache.n_aliases;
-		for (i = 0; i < n; i++, addr += 4096)
-			flush_cache_4096(addr, phys);
+		for (i = 0; i < n; i++, addr += PAGE_SIZE)
+			flush_cache_one(addr, phys);
 	}
 
 	wmb();
@@ -318,11 +316,11 @@ static void sh4_flush_cache_page(void *args)
 	/* We only need to flush D-cache when we have alias */
 	if ((address^phys) & alias_mask) {
 		/* Loop 4K of the D-cache */
-		flush_cache_4096(
+		flush_cache_one(
 			CACHE_OC_ADDRESS_ARRAY | (address & alias_mask),
 			phys);
 		/* Loop another 4K of the D-cache */
-		flush_cache_4096(
+		flush_cache_one(
 			CACHE_OC_ADDRESS_ARRAY | (phys & alias_mask),
 			phys);
 	}
@@ -337,7 +335,7 @@ static void sh4_flush_cache_page(void *args)
 		 * kernel has never executed the code through its identity
 		 * translation.
 		 */
-		flush_cache_4096(
+		flush_cache_one(
 			CACHE_IC_ADDRESS_ARRAY | (address & alias_mask),
 			phys);
 	}
@@ -393,7 +391,7 @@ static void sh4_flush_cache_range(void *args)
 }
 
 /**
- * __flush_cache_4096
+ * __flush_cache_one
  *
  * @addr:  address in memory mapped cache array
  * @phys:  P1 address to flush (has to match tags if addr has 'A' bit
@@ -406,7 +404,7 @@ static void sh4_flush_cache_range(void *args)
  * operation (purge/write-back) is selected by the lower 2 bits of
  * 'phys'.
  */
-static void __flush_cache_4096(unsigned long addr, unsigned long phys,
+static void __flush_cache_one(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset)
 {
 	int way_count;

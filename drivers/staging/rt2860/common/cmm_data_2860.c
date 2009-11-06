@@ -363,6 +363,8 @@ int RtmpPCIMgmtKickOut(
 	ULONG			SwIdx = pAd->MgmtRing.TxCpuIdx;
 
 	pTxD  = (PTXD_STRUC) pAd->MgmtRing.Cell[SwIdx].AllocVa;
+	if (!pTxD)
+		return 0;
 
 	pAd->MgmtRing.Cell[SwIdx].pNdisPacket = pPacket;
 	pAd->MgmtRing.Cell[SwIdx].pNextNdisPacket = NULL;

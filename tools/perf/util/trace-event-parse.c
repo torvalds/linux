@@ -618,7 +618,7 @@ static int test_type(enum event_type type, enum event_type expect)
 }
 
 static int test_type_token(enum event_type type, char *token,
-		    enum event_type expect, char *expect_tok)
+		    enum event_type expect, const char *expect_tok)
 {
 	if (type != expect) {
 		die("Error: expected type %d but read %d",
@@ -650,7 +650,7 @@ static int read_expect_type(enum event_type expect, char **tok)
 	return __read_expect_type(expect, tok, 1);
 }
 
-static int __read_expected(enum event_type expect, char *str, int newline_ok)
+static int __read_expected(enum event_type expect, const char *str, int newline_ok)
 {
 	enum event_type type;
 	char *token;
@@ -668,12 +668,12 @@ static int __read_expected(enum event_type expect, char *str, int newline_ok)
 	return 0;
 }
 
-static int read_expected(enum event_type expect, char *str)
+static int read_expected(enum event_type expect, const char *str)
 {
 	return __read_expected(expect, str, 1);
 }
 
-static int read_expected_item(enum event_type expect, char *str)
+static int read_expected_item(enum event_type expect, const char *str)
 {
 	return __read_expected(expect, str, 0);
 }

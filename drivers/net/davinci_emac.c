@@ -333,6 +333,9 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_DM646X_MAC_EOI_C0_RXEN	(0x01)
 #define EMAC_DM646X_MAC_EOI_C0_TXEN	(0x02)
 
+/* EMAC Stats Clear Mask */
+#define EMAC_STATS_CLR_MASK    (0xFFFFFFFF)
+
 /** net_buf_obj: EMAC network bufferdata structure
  *
  * EMAC network buffer data structure
@@ -2548,40 +2551,49 @@ static int emac_dev_stop(struct net_device *ndev)
 static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
+	u32 mac_control;
+	u32 stats_clear_mask;
 
 	/* update emac hardware stats and reset the registers*/
 
+	mac_control = emac_read(EMAC_MACCONTROL);
+
+	if (mac_control & EMAC_MACCONTROL_GMIIEN)
+		stats_clear_mask = EMAC_STATS_CLR_MASK;
+	else
+		stats_clear_mask = 0;
+
 	priv->net_dev_stats.multicast += emac_read(EMAC_RXMCASTFRAMES);
-	emac_write(EMAC_RXMCASTFRAMES, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXMCASTFRAMES, stats_clear_mask);
 
 	priv->net_dev_stats.collisions += (emac_read(EMAC_TXCOLLISION) +
 					   emac_read(EMAC_TXSINGLECOLL) +
 					   emac_read(EMAC_TXMULTICOLL));
-	emac_write(EMAC_TXCOLLISION, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_TXSINGLECOLL, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_TXMULTICOLL, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXCOLLISION, stats_clear_mask);
+	emac_write(EMAC_TXSINGLECOLL, stats_clear_mask);
+	emac_write(EMAC_TXMULTICOLL, stats_clear_mask);
 
 	priv->net_dev_stats.rx_length_errors += (emac_read(EMAC_RXOVERSIZED) +
 						emac_read(EMAC_RXJABBER) +
 						emac_read(EMAC_RXUNDERSIZED));
-	emac_write(EMAC_RXOVERSIZED, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXJABBER, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXUNDERSIZED, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXOVERSIZED, stats_clear_mask);
+	emac_write(EMAC_RXJABBER, stats_clear_mask);
+	emac_write(EMAC_RXUNDERSIZED, stats_clear_mask);
 
 	priv->net_dev_stats.rx_over_errors += (emac_read(EMAC_RXSOFOVERRUNS) +
 					       emac_read(EMAC_RXMOFOVERRUNS));
-	emac_write(EMAC_RXSOFOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXMOFOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXSOFOVERRUNS, stats_clear_mask);
+	emac_write(EMAC_RXMOFOVERRUNS, stats_clear_mask);
 
 	priv->net_dev_stats.rx_fifo_errors += emac_read(EMAC_RXDMAOVERRUNS);
-	emac_write(EMAC_RXDMAOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXDMAOVERRUNS, stats_clear_mask);
 
 	priv->net_dev_stats.tx_carrier_errors +=
 		emac_read(EMAC_TXCARRIERSENSE);
-	emac_write(EMAC_TXCARRIERSENSE, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXCARRIERSENSE, stats_clear_mask);
 
 	priv->net_dev_stats.tx_fifo_errors = emac_read(EMAC_TXUNDERRUN);
-	emac_write(EMAC_TXUNDERRUN, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXUNDERRUN, stats_clear_mask);
 
 	return &priv->net_dev_stats;
 }
