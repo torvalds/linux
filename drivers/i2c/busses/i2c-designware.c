@@ -328,9 +328,8 @@ i2c_dw_xfer_msg(struct i2c_adapter *adap)
 }
 
 static void
-i2c_dw_read(struct i2c_adapter *adap)
+i2c_dw_read(struct dw_i2c_dev *dev)
 {
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
 	struct i2c_msg *msgs = dev->msgs;
 	int num = dev->msgs_num;
 	u32 addr = msgs[dev->msg_read_idx].addr;
@@ -416,7 +415,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (likely(!dev->cmd_err)) {
 		/* read rx fifo, and disable the adapter */
 		do {
-			i2c_dw_read(adap);
+			i2c_dw_read(dev);
 		} while (dev->status & STATUS_READ_IN_PROGRESS);
 		writel(0, dev->base + DW_IC_ENABLE);
 		ret = num;
@@ -450,7 +449,7 @@ static void dw_i2c_pump_msg(unsigned long data)
 	struct dw_i2c_dev *dev = (struct dw_i2c_dev *) data;
 	u32 intr_mask;
 
-	i2c_dw_read(&dev->adapter);
+	i2c_dw_read(dev);
 	i2c_dw_xfer_msg(&dev->adapter);
 
 	intr_mask = DW_IC_INTR_STOP_DET | DW_IC_INTR_TX_ABRT;
