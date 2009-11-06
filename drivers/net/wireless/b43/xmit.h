@@ -2,6 +2,8 @@
 #define B43_XMIT_H_
 
 #include "main.h"
+#include <net/mac80211.h>
+
 
 #define _b43_declare_plcp_hdr(size) \
 	struct b43_plcp_hdr##size {		\
@@ -330,6 +332,23 @@ static inline u8 b43_kidx_to_raw(struct b43_wldev *dev, u8 firmware_kidx)
 	else
 		raw_kidx = firmware_kidx + 4;	/* RX default keys or per STA keys */
 	return raw_kidx;
+}
+
+/* struct b43_private_tx_info - TX info private to b43.
+ * The structure is placed in (struct ieee80211_tx_info *)->rate_driver_data
+ *
+ * @bouncebuffer: DMA Bouncebuffer (if used)
+ */
+struct b43_private_tx_info {
+	void *bouncebuffer;
+};
+
+static inline struct b43_private_tx_info *
+b43_get_priv_tx_info(struct ieee80211_tx_info *info)
+{
+	BUILD_BUG_ON(sizeof(struct b43_private_tx_info) >
+		     sizeof(info->rate_driver_data));
+	return (struct b43_private_tx_info *)info->rate_driver_data;
 }
 
 #endif /* B43_XMIT_H_ */
