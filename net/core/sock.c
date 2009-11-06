@@ -417,9 +417,8 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 	if (copy_from_user(devname, optval, optlen))
 		goto out;
 
-	if (devname[0] == '\0') {
-		index = 0;
-	} else {
+	index = 0;
+	if (devname[0] != '\0') {
 		struct net_device *dev;
 
 		rcu_read_lock();
