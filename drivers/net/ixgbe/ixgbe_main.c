@@ -2471,7 +2471,10 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	ixgbe_restore_vlan(adapter);
 #ifdef CONFIG_IXGBE_DCB
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		netif_set_gso_max_size(netdev, 32768);
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			netif_set_gso_max_size(netdev, 32768);
+		else
+			netif_set_gso_max_size(netdev, 65536);
 		ixgbe_configure_dcb(adapter);
 	} else {
 		netif_set_gso_max_size(netdev, 65536);
