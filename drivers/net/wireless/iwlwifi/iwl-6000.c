@@ -166,9 +166,7 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
 			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_TX_IQ_PERD)	|
 			BIT(IWL_CALIB_BASE_BAND);
-
 	return 0;
 }
 
