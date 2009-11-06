@@ -649,6 +649,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	struct ftrace_event_call *event_call = &event_<call>;
  *	extern void perf_tp_event(int, u64, u64, void *, int);
  *	struct ftrace_raw_##call *entry;
+ *	struct perf_trace_buf *trace_buf;
  *	u64 __addr = 0, __count = 1;
  *	unsigned long irq_flags;
  *	struct trace_entry *ent;
@@ -673,14 +674,25 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	__cpu = smp_processor_id();
  *
  *	if (in_nmi())
- *		raw_data = rcu_dereference(trace_profile_buf_nmi);
+ *		trace_buf = rcu_dereference(perf_trace_buf_nmi);
  *	else
- *		raw_data = rcu_dereference(trace_profile_buf);
+ *		trace_buf = rcu_dereference(perf_trace_buf);
  *
- *	if (!raw_data)
+ *	if (!trace_buf)
  *		goto end;
  *
- *	raw_data = per_cpu_ptr(raw_data, __cpu);
+ *	trace_buf = per_cpu_ptr(trace_buf, __cpu);
+ *
+ * 	// Avoid recursion from perf that could mess up the buffer
+ * 	if (trace_buf->recursion++)
+ *		goto end_recursion;
+ *
+ * 	raw_data = trace_buf->buf;
+ *
+ *	// Make recursion update visible before entering perf_tp_event
+ *	// so that we protect from perf recursions.
+ *
+ *	barrier();
  *
  *	//zero dead bytes from alignment to avoid stack leak to userspace:
  *	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
@@ -713,8 +725,9 @@ static void ftrace_profile_##call(proto)				\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_event_call *event_call = &event_##call;		\
-	extern void perf_tp_event(int, u64, u64, void *, int);	\
+	extern void perf_tp_event(int, u64, u64, void *, int);		\
 	struct ftrace_raw_##call *entry;				\
+	struct perf_trace_buf *trace_buf;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
 	struct trace_entry *ent;					\
@@ -739,14 +752,20 @@ static void ftrace_profile_##call(proto)				\
 	__cpu = smp_processor_id();					\
 									\
 	if (in_nmi())							\
-		raw_data = rcu_dereference(trace_profile_buf_nmi);		\
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);	\
 	else								\
-		raw_data = rcu_dereference(trace_profile_buf);		\
+		trace_buf = rcu_dereference(perf_trace_buf);		\
 									\
-	if (!raw_data)							\
+	if (!trace_buf)							\
 		goto end;						\
 									\
-	raw_data = per_cpu_ptr(raw_data, __cpu);			\
+	trace_buf = per_cpu_ptr(trace_buf, __cpu);			\
+	if (trace_buf->recursion++)					\
+		goto end_recursion;					\
+									\
+	barrier();							\
+									\
+	raw_data = trace_buf->buf;					\
 									\
 	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;		\
 	entry = (struct ftrace_raw_##call *)raw_data;			\
@@ -761,6 +780,8 @@ static void ftrace_profile_##call(proto)				\
 	perf_tp_event(event_call->id, __addr, __count, entry,		\
 			     __entry_size);				\
 									\
+end_recursion:								\
+	trace_buf->recursion--;						\
 end:									\
 	local_irq_restore(irq_flags);					\
 									\

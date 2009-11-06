@@ -8,41 +8,36 @@
 #include <linux/module.h>
 #include "trace.h"
 
-/*
- * We can't use a size but a type in alloc_percpu()
- * So let's create a dummy type that matches the desired size
- */
-typedef struct {char buf[FTRACE_MAX_PROFILE_SIZE];} profile_buf_t;
 
-char		*trace_profile_buf;
-EXPORT_SYMBOL_GPL(trace_profile_buf);
+struct perf_trace_buf *perf_trace_buf;
+EXPORT_SYMBOL_GPL(perf_trace_buf);
 
-char		*trace_profile_buf_nmi;
-EXPORT_SYMBOL_GPL(trace_profile_buf_nmi);
+struct perf_trace_buf *perf_trace_buf_nmi;
+EXPORT_SYMBOL_GPL(perf_trace_buf_nmi);
 
 /* Count the events in use (per event id, not per instance) */
 static int	total_profile_count;
 
 static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 {
-	char *buf;
+	struct perf_trace_buf *buf;
 	int ret = -ENOMEM;
 
 	if (atomic_inc_return(&event->profile_count))
 		return 0;
 
 	if (!total_profile_count) {
-		buf = (char *)alloc_percpu(profile_buf_t);
+		buf = alloc_percpu(struct perf_trace_buf);
 		if (!buf)
 			goto fail_buf;
 
-		rcu_assign_pointer(trace_profile_buf, buf);
+		rcu_assign_pointer(perf_trace_buf, buf);
 
-		buf = (char *)alloc_percpu(profile_buf_t);
+		buf = alloc_percpu(struct perf_trace_buf);
 		if (!buf)
 			goto fail_buf_nmi;
 
-		rcu_assign_pointer(trace_profile_buf_nmi, buf);
+		rcu_assign_pointer(perf_trace_buf_nmi, buf);
 	}
 
 	ret = event->profile_enable(event);
@@ -53,10 +48,10 @@ static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 
 fail_buf_nmi:
 	if (!total_profile_count) {
-		free_percpu(trace_profile_buf_nmi);
-		free_percpu(trace_profile_buf);
-		trace_profile_buf_nmi = NULL;
-		trace_profile_buf = NULL;
+		free_percpu(perf_trace_buf_nmi);
+		free_percpu(perf_trace_buf);
+		perf_trace_buf_nmi = NULL;
+		perf_trace_buf = NULL;
 	}
 fail_buf:
 	atomic_dec(&event->profile_count);
@@ -84,7 +79,7 @@ int ftrace_profile_enable(int event_id)
 
 static void ftrace_profile_disable_event(struct ftrace_event_call *event)
 {
-	char *buf, *nmi_buf;
+	struct perf_trace_buf *buf, *nmi_buf;
 
 	if (!atomic_add_negative(-1, &event->profile_count))
 		return;
@@ -92,11 +87,11 @@ static void ftrace_profile_disable_event(struct ftrace_event_call *event)
 	event->profile_disable(event);
 
 	if (!--total_profile_count) {
-		buf = trace_profile_buf;
-		rcu_assign_pointer(trace_profile_buf, NULL);
+		buf = perf_trace_buf;
+		rcu_assign_pointer(perf_trace_buf, NULL);
 
-		nmi_buf = trace_profile_buf_nmi;
-		rcu_assign_pointer(trace_profile_buf_nmi, NULL);
+		nmi_buf = perf_trace_buf_nmi;
+		rcu_assign_pointer(perf_trace_buf_nmi, NULL);
 
 		/*
 		 * Ensure every events in profiling have finished before

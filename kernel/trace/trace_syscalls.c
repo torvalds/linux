@@ -477,6 +477,7 @@ static int sys_prof_refcount_exit;
 static void prof_syscall_enter(struct pt_regs *regs, long id)
 {
 	struct syscall_metadata *sys_data;
+	struct perf_trace_buf *trace_buf;
 	struct syscall_trace_enter *rec;
 	unsigned long flags;
 	char *raw_data;
@@ -507,14 +508,25 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	cpu = smp_processor_id();
 
 	if (in_nmi())
-		raw_data = rcu_dereference(trace_profile_buf_nmi);
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);
 	else
-		raw_data = rcu_dereference(trace_profile_buf);
+		trace_buf = rcu_dereference(perf_trace_buf);
 
-	if (!raw_data)
+	if (!trace_buf)
 		goto end;
 
-	raw_data = per_cpu_ptr(raw_data, cpu);
+	trace_buf = per_cpu_ptr(trace_buf, cpu);
+
+	if (trace_buf->recursion++)
+		goto end_recursion;
+
+	/*
+	 * Make recursion update visible before entering perf_tp_event
+	 * so that we protect from perf recursions.
+	 */
+	barrier();
+
+	raw_data = trace_buf->buf;
 
 	/* zero the dead bytes from align to not leak stack to user */
 	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
@@ -527,6 +539,8 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 			       (unsigned long *)&rec->args);
 	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
 
+end_recursion:
+	trace_buf->recursion--;
 end:
 	local_irq_restore(flags);
 }
@@ -574,6 +588,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 {
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_exit *rec;
+	struct perf_trace_buf *trace_buf;
 	unsigned long flags;
 	int syscall_nr;
 	char *raw_data;
@@ -605,14 +620,25 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	cpu = smp_processor_id();
 
 	if (in_nmi())
-		raw_data = rcu_dereference(trace_profile_buf_nmi);
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);
 	else
-		raw_data = rcu_dereference(trace_profile_buf);
+		trace_buf = rcu_dereference(perf_trace_buf);
 
-	if (!raw_data)
+	if (!trace_buf)
 		goto end;
 
-	raw_data = per_cpu_ptr(raw_data, cpu);
+	trace_buf = per_cpu_ptr(trace_buf, cpu);
+
+	if (trace_buf->recursion++)
+		goto end_recursion;
+
+	/*
+	 * Make recursion update visible before entering perf_tp_event
+	 * so that we protect from perf recursions.
+	 */
+	barrier();
+
+	raw_data = trace_buf->buf;
 
 	/* zero the dead bytes from align to not leak stack to user */
 	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
@@ -626,6 +652,8 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 
 	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
 
+end_recursion:
+	trace_buf->recursion--;
 end:
 	local_irq_restore(flags);
 }

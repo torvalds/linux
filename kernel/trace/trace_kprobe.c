@@ -1208,6 +1208,7 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kprobe_trace_entry *entry;
+	struct perf_trace_buf *trace_buf;
 	struct trace_entry *ent;
 	int size, __size, i, pc, __cpu;
 	unsigned long irq_flags;
@@ -1229,14 +1230,26 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	__cpu = smp_processor_id();
 
 	if (in_nmi())
-		raw_data = rcu_dereference(trace_profile_buf_nmi);
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);
 	else
-		raw_data = rcu_dereference(trace_profile_buf);
+		trace_buf = rcu_dereference(perf_trace_buf);
 
-	if (!raw_data)
+	if (!trace_buf)
 		goto end;
 
-	raw_data = per_cpu_ptr(raw_data, __cpu);
+	trace_buf = per_cpu_ptr(trace_buf, __cpu);
+
+	if (trace_buf->recursion++)
+		goto end_recursion;
+
+	/*
+	 * Make recursion update visible before entering perf_tp_event
+	 * so that we protect from perf recursions.
+	 */
+	barrier();
+
+	raw_data = trace_buf->buf;
+
 	/* Zero dead bytes from alignment to avoid buffer leak to userspace */
 	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
 	entry = (struct kprobe_trace_entry *)raw_data;
@@ -1249,8 +1262,12 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 	perf_tp_event(call->id, entry->ip, 1, entry, size);
+
+end_recursion:
+	trace_buf->recursion--;
 end:
 	local_irq_restore(irq_flags);
+
 	return 0;
 }
 
@@ -1261,6 +1278,7 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kretprobe_trace_entry *entry;
+	struct perf_trace_buf *trace_buf;
 	struct trace_entry *ent;
 	int size, __size, i, pc, __cpu;
 	unsigned long irq_flags;
@@ -1282,14 +1300,26 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	__cpu = smp_processor_id();
 
 	if (in_nmi())
-		raw_data = rcu_dereference(trace_profile_buf_nmi);
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);
 	else
-		raw_data = rcu_dereference(trace_profile_buf);
+		trace_buf = rcu_dereference(perf_trace_buf);
 
-	if (!raw_data)
+	if (!trace_buf)
 		goto end;
 
-	raw_data = per_cpu_ptr(raw_data, __cpu);
+	trace_buf = per_cpu_ptr(trace_buf, __cpu);
+
+	if (trace_buf->recursion++)
+		goto end_recursion;
+
+	/*
+	 * Make recursion update visible before entering perf_tp_event
+	 * so that we protect from perf recursions.
+	 */
+	barrier();
+
+	raw_data = trace_buf->buf;
+
 	/* Zero dead bytes from alignment to avoid buffer leak to userspace */
 	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
 	entry = (struct kretprobe_trace_entry *)raw_data;
@@ -1303,8 +1333,12 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 	perf_tp_event(call->id, entry->ret_ip, 1, entry, size);
+
+end_recursion:
+	trace_buf->recursion--;
 end:
 	local_irq_restore(irq_flags);
+
 	return 0;
 }
 
