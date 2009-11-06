@@ -340,7 +340,7 @@ int RTMPAllocateNdisPacket(struct rt_rtmp_adapter *pAd,
 	if (pPacket == NULL) {
 		*ppPacket = NULL;
 #ifdef DEBUG
-		printk("RTMPAllocateNdisPacket Fail\n\n");
+		printk("RTMPAllocateNdisPacket Fail\n");
 #endif
 		return NDIS_STATUS_FAILURE;
 	}

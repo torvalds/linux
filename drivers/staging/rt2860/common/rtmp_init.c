@@ -181,7 +181,7 @@ int RTMPAllocAdapterBlock(void *handle,
 		}
 		pAd->BeaconBuf = pBeaconBuf;
 		DBGPRINT(RT_DEBUG_OFF,
-			 ("\n\n=== pAd = %p, size = %d ===\n\n", pAd,
+			 ("=== pAd = %p, size = %d ===\n", pAd,
 			  (u32)sizeof(struct rt_rtmp_adapter)));
 
 		/* Init spin locks */

@@ -163,7 +163,7 @@ int RtmpAsicLoadFirmware(struct rt_rtmp_adapter *pAd)
 
 	if (Index > 1000) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("NICLoadFirmware: MCU is not ready\n\n\n"));
+			 ("NICLoadFirmware: MCU is not ready\n"));
 		Status = NDIS_STATUS_FAILURE;
 	}
 
