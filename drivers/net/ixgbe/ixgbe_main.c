@@ -44,6 +44,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
+#include "ixgbe_dcb_82599.h"
 
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
@@ -462,19 +463,23 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 	u32 txctrl;
 	int cpu = get_cpu();
 	int q = tx_ring - adapter->tx_ring;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	if (tx_ring->cpu != cpu) {
-		txctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_DCA_TXCTRL(q));
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(q));
 			txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
 			txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
+			txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
+			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(q), txctrl);
 		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(q));
 			txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
 			txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
-			           IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
+			          IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
+			txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
+			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(q), txctrl);
 		}
-		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_TXCTRL(q), txctrl);
 		tx_ring->cpu = cpu;
 	}
 	put_cpu();
@@ -1963,11 +1968,25 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 			break;
 		}
 	}
+
 	if (hw->mac.type == ixgbe_mac_82599EB) {
+		u32 rttdcs;
+
+		/* disable the arbiter while setting MTQC */
+		rttdcs = IXGBE_READ_REG(hw, IXGBE_RTTDCS);
+		rttdcs |= IXGBE_RTTDCS_ARBDIS;
+		IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
+
 		/* We enable 8 traffic classes, DCB only */
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
 			IXGBE_WRITE_REG(hw, IXGBE_MTQC, (IXGBE_MTQC_RT_ENA |
 			                IXGBE_MTQC_8TC_8TQ));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_MTQC, IXGBE_MTQC_64Q_1PB);
+
+		/* re-eable the arbiter */
+		rttdcs &= ~IXGBE_RTTDCS_ARBDIS;
+		IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, rttdcs);
 	}
 }
 
