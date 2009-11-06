@@ -254,9 +254,8 @@ static int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
  * that is longer than the size of the TX FIFO.
  */
 static void
-i2c_dw_xfer_msg(struct i2c_adapter *adap)
+i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 {
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
 	struct i2c_msg *msgs = dev->msgs;
 	int num = dev->msgs_num;
 	u32 ic_con, intr_mask;
@@ -394,7 +393,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		goto done;
 
 	/* start the transfers */
-	i2c_dw_xfer_msg(adap);
+	i2c_dw_xfer_msg(dev);
 
 	/* wait for tx to complete */
 	ret = wait_for_completion_interruptible_timeout(&dev->cmd_complete, HZ);
@@ -450,7 +449,7 @@ static void dw_i2c_pump_msg(unsigned long data)
 	u32 intr_mask;
 
 	i2c_dw_read(dev);
-	i2c_dw_xfer_msg(&dev->adapter);
+	i2c_dw_xfer_msg(dev);
 
 	intr_mask = DW_IC_INTR_STOP_DET | DW_IC_INTR_TX_ABRT;
 	if (dev->status & STATUS_WRITE_IN_PROGRESS)
