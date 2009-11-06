@@ -4327,6 +4327,28 @@ static void stac92xx_free_kctls(struct hda_codec *codec)
 	snd_array_free(&spec->kctls);
 }
 
+static void stac92xx_shutup(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int i;
+	hda_nid_t nid;
+
+	/* reset each pin before powering down DAC/ADC to avoid click noise */
+	nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		unsigned int wcaps = get_wcaps(codec, nid);
+		unsigned int wid_type = get_wcaps_type(wcaps);
+		if (wid_type == AC_WID_PIN)
+			snd_hda_codec_read(codec, nid, 0,
+				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	}
+
+	if (spec->eapd_mask)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
+}
+
 static void stac92xx_free(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4334,6 +4356,7 @@ static void stac92xx_free(struct hda_codec *codec)
 	if (! spec)
 		return;
 
+	stac92xx_shutup(codec);
 	stac92xx_free_jacks(codec);
 	snd_array_free(&spec->events);
 
@@ -4793,24 +4816,7 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 
 static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 {
-	struct sigmatel_spec *spec = codec->spec;
-	int i;
-	hda_nid_t nid;
-
-	/* reset each pin before powering down DAC/ADC to avoid click noise */
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int wid_type = get_wcaps_type(wcaps);
-		if (wid_type == AC_WID_PIN)
-			snd_hda_codec_read(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
-	}
-
-	if (spec->eapd_mask)
-		stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data &
-				~spec->eapd_mask);
+	stac92xx_shutup(codec);
 	return 0;
 }
 #endif
