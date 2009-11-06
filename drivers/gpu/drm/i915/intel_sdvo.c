@@ -1617,6 +1617,10 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 
 	intel_sdvo_write_cmd(intel_output,
 			     SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0);
+	if (sdvo_priv->is_tv) {
+		/* add 30ms delay when the output type is SDVO-TV */
+		mdelay(30);
+	}
 	status = intel_sdvo_read_response(intel_output, &response, 2);
 
 	DRM_DEBUG_KMS("SDVO response %d %d\n", response & 0xff, response >> 8);
