@@ -749,7 +749,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		rx_ant = first_antenna(active_chains);
 	}
 	/* MIMO is not used here, but value is required */
-	rx_chain |= ANT_ABC << RXON_RX_CHAIN_VALID_POS;
+	rx_chain |= priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
