@@ -3308,34 +3308,33 @@ static void mwl8k_finalize_join_worker(struct work_struct *work)
 	priv->beacon_skb = NULL;
 }
 
-static struct mwl8k_device_info di_8366 = {
-	.part_name	= "88w8366",
-	.helper_image	= "mwl8k/helper_8366.fw",
-	.fw_image	= "mwl8k/fmimage_8366.fw",
-	.rxd_ops	= &rxd_8366_ops,
-	.modes		= 0,
+enum {
+	MWL8687 = 0,
+	MWL8366,
 };
 
-static struct mwl8k_device_info di_8687 = {
-	.part_name	= "88w8687",
-	.helper_image	= "mwl8k/helper_8687.fw",
-	.fw_image	= "mwl8k/fmimage_8687.fw",
-	.rxd_ops	= &rxd_8687_ops,
-	.modes		= BIT(NL80211_IFTYPE_STATION),
+static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
+	{
+		.part_name	= "88w8687",
+		.helper_image	= "mwl8k/helper_8687.fw",
+		.fw_image	= "mwl8k/fmimage_8687.fw",
+		.rxd_ops	= &rxd_8687_ops,
+		.modes		= BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.part_name	= "88w8366",
+		.helper_image	= "mwl8k/helper_8366.fw",
+		.fw_image	= "mwl8k/fmimage_8366.fw",
+		.rxd_ops	= &rxd_8366_ops,
+		.modes		= 0,
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
-	{
-		PCI_VDEVICE(MARVELL, 0x2a2b),
-		.driver_data = (unsigned long)&di_8687,
-	}, {
-		PCI_VDEVICE(MARVELL, 0x2a30),
-		.driver_data = (unsigned long)&di_8687,
-	}, {
-		PCI_VDEVICE(MARVELL, 0x2a40),
-		.driver_data = (unsigned long)&di_8366,
-	}, {
-	},
+	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = MWL8687, },
+	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = MWL8687, },
+	{ PCI_VDEVICE(MARVELL, 0x2a40), .driver_data = MWL8366, },
+	{ },
 };
 MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
 
@@ -3379,7 +3378,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	priv = hw->priv;
 	priv->hw = hw;
 	priv->pdev = pdev;
-	priv->device_info = (void *)id->driver_data;
+	priv->device_info = &mwl8k_info_tbl[id->driver_data];
 	priv->rxd_ops = priv->device_info->rxd_ops;
 	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
