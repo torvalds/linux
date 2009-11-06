@@ -2316,12 +2316,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 			maxstreams += 1;
 
-			ht_conf->sm_ps =
-				(u8)((ht_cap->cap & IEEE80211_HT_CAP_SM_PS)
-				>> 2);
-			IWL_DEBUG_MAC80211(priv, "sm_ps: 0x%x\n",
-				ht_conf->sm_ps);
-
 			if ((ht_cap->mcs.rx_mask[1] == 0) &&
 			    (ht_cap->mcs.rx_mask[2] == 0))
 				ht_conf->single_chain_sufficient = true;
