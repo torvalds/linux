@@ -1,5 +1,5 @@
 /*
- * Synopsys Designware I2C adapter driver (master only).
+ * Synopsys DesignWare I2C adapter driver (master only).
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -145,27 +145,27 @@
 					 DW_IC_TX_ABRT_GCALL_NOACK)
 
 static char *abort_sources[] = {
-	[ABRT_7B_ADDR_NOACK]	=
+	[ABRT_7B_ADDR_NOACK] =
 		"slave address not acknowledged (7bit mode)",
-	[ABRT_10ADDR1_NOACK]	=
+	[ABRT_10ADDR1_NOACK] =
 		"first address byte not acknowledged (10bit mode)",
-	[ABRT_10ADDR2_NOACK]	=
+	[ABRT_10ADDR2_NOACK] =
 		"second address byte not acknowledged (10bit mode)",
-	[ABRT_TXDATA_NOACK]		=
+	[ABRT_TXDATA_NOACK] =
 		"data not acknowledged",
-	[ABRT_GCALL_NOACK]		=
+	[ABRT_GCALL_NOACK] =
 		"no acknowledgement for a general call",
-	[ABRT_GCALL_READ]		=
+	[ABRT_GCALL_READ] =
 		"read after general call",
-	[ABRT_SBYTE_ACKDET]		=
+	[ABRT_SBYTE_ACKDET] =
 		"start byte acknowledged",
-	[ABRT_SBYTE_NORSTRT]	=
+	[ABRT_SBYTE_NORSTRT] =
 		"trying to send start byte when restart is disabled",
-	[ABRT_10B_RD_NORSTRT]	=
+	[ABRT_10B_RD_NORSTRT] =
 		"trying to read when restart is disabled (10bit mode)",
-	[ARB_MASTER_DIS]		=
+	[ABRT_MASTER_DIS] =
 		"trying to use disabled adapter",
-	[ARB_LOST]			=
+	[ARB_LOST] =
 		"lost arbitration",
 };
 
@@ -394,7 +394,8 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	intr_mask = DW_IC_INTR_DEFAULT_MASK;
 
 	for (; dev->msg_write_idx < dev->msgs_num; dev->msg_write_idx++) {
-		/* if target address has changed, we need to
+		/*
+		 * if target address has changed, we need to
 		 * reprogram the target address in the i2c
 		 * adapter when we are done with this transfer
 		 */
