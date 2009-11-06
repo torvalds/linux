@@ -648,7 +648,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		u32 osd;
 		ceph_decode_32_safe(p, end, osd, bad);
 		(*p)++;  /* clean flag */
-		pr_info("ceph osd%d down\n", osd);
+		pr_info("osd%d down\n", osd);
 		if (osd < map->max_osd)
 			map->osd_state[osd] &= ~CEPH_OSD_UP;
 	}
