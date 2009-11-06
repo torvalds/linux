@@ -64,7 +64,6 @@ static struct inet_protosw udplite4_protosw = {
 	.protocol	=  IPPROTO_UDPLITE,
 	.prot		=  &udplite_prot,
 	.ops		=  &inet_dgram_ops,
-	.capability	= -1,
 	.no_check	=  0,		/* must checksum (RFC 3828) */
 	.flags		=  INET_PROTOSW_PERMANENT,
 };

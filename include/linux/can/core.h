@@ -32,14 +32,12 @@
  * struct can_proto - CAN protocol structure
  * @type:       type argument in socket() syscall, e.g. SOCK_DGRAM.
  * @protocol:   protocol number in socket() syscall.
- * @capability: capability needed to open the socket, or -1 for no restriction.
  * @ops:        pointer to struct proto_ops for sock->ops.
  * @prot:       pointer to struct proto structure.
  */
 struct can_proto {
 	int              type;
 	int              protocol;
-	int              capability;
 	struct proto_ops *ops;
 	struct proto     *prot;
 };

@@ -930,7 +930,6 @@ static struct inet_protosw sctpv6_seqpacket_protosw = {
 	.protocol      = IPPROTO_SCTP,
 	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
-	.capability    = -1,
 	.no_check      = 0,
 	.flags         = SCTP_PROTOSW_FLAG
 };
@@ -939,7 +938,6 @@ static struct inet_protosw sctpv6_stream_protosw = {
 	.protocol      = IPPROTO_SCTP,
 	.prot 	       = &sctpv6_prot,
 	.ops           = &inet6_seqpacket_ops,
-	.capability    = -1,
 	.no_check      = 0,
 	.flags         = SCTP_PROTOSW_FLAG,
 };

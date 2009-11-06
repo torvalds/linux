@@ -82,10 +82,6 @@ struct inet_protosw {
 	struct proto	 *prot;
 	const struct proto_ops *ops;
   
-	int              capability; /* Which (if any) capability do
-				      * we need to use this socket
-				      * interface?
-                                      */
 	char             no_check;   /* checksum on rcv/xmit/none? */
 	unsigned char	 flags;      /* See INET_PROTOSW_* below.  */
 };
