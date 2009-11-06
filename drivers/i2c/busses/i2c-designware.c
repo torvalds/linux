@@ -342,7 +342,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	u32 addr = msgs[dev->msg_write_idx].addr;
 	u32 buf_len = dev->tx_buf_len;
 
-	intr_mask = DW_IC_INTR_STOP_DET | DW_IC_INTR_TX_ABRT;
+	intr_mask = DW_IC_INTR_STOP_DET | DW_IC_INTR_TX_ABRT | DW_IC_INTR_RX_FULL;
 
 	if (!(dev->status & STATUS_WRITE_IN_PROGRESS)) {
 		/* Disable the adapter */
@@ -593,10 +593,11 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 		dev->status = STATUS_IDLE;
 	}
 
-	if (stat & DW_IC_INTR_TX_EMPTY) {
+	if (stat & DW_IC_INTR_RX_FULL)
 		i2c_dw_read(dev);
+
+	if (stat & DW_IC_INTR_TX_EMPTY)
 		i2c_dw_xfer_msg(dev);
-	}
 
 	/*
 	 * No need to modify or disable the interrupt mask here.
