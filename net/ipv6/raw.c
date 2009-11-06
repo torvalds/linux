@@ -249,7 +249,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	/* Raw sockets are IPv6 only */
 	if (addr_type == IPV6_ADDR_MAPPED)
-		return(-EADDRNOTAVAIL);
+		return -EADDRNOTAVAIL;
 
 	lock_sock(sk);
 
@@ -257,6 +257,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (sk->sk_state != TCP_CLOSE)
 		goto out;
 
+	rcu_read_lock();
 	/* Check if the address belongs to the host. */
 	if (addr_type != IPV6_ADDR_ANY) {
 		struct net_device *dev = NULL;
@@ -272,13 +273,13 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 			/* Binding to link-local address requires an interface */
 			if (!sk->sk_bound_dev_if)
-				goto out;
+				goto out_unlock;
 
-			dev = dev_get_by_index(sock_net(sk), sk->sk_bound_dev_if);
-			if (!dev) {
-				err = -ENODEV;
-				goto out;
-			}
+			err = -ENODEV;
+			dev = dev_get_by_index_rcu(sock_net(sk),
+						   sk->sk_bound_dev_if);
+			if (!dev)
+				goto out_unlock;
 		}
 
 		/* ipv4 addr of the socket is invalid.  Only the
@@ -289,13 +290,9 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			err = -EADDRNOTAVAIL;
 			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
-				if (dev)
-					dev_put(dev);
-				goto out;
+				goto out_unlock;
 			}
 		}
-		if (dev)
-			dev_put(dev);
 	}
 
 	inet->inet_rcv_saddr = inet->inet_saddr = v4addr;
@@ -303,6 +300,8 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (!(addr_type & IPV6_ADDR_MULTICAST))
 		ipv6_addr_copy(&np->saddr, &addr->sin6_addr);
 	err = 0;
+out_unlock:
+	rcu_read_unlock();
 out:
 	release_sock(sk);
 	return err;
