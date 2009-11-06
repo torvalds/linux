@@ -149,7 +149,6 @@ static char *abort_sources[] = {
  * @dev: driver model device node
  * @base: IO registers pointer
  * @cmd_complete: tx completion indicator
- * @pump_msg: continue in progress transfers
  * @lock: protect this struct and IO registers
  * @clk: input reference clock
  * @cmd_err: run time hadware error code
@@ -175,7 +174,6 @@ struct dw_i2c_dev {
 	struct device		*dev;
 	void __iomem		*base;
 	struct completion	cmd_complete;
-	struct tasklet_struct	pump_msg;
 	struct mutex		lock;
 	struct clk		*clk;
 	int			cmd_err;
@@ -325,7 +323,7 @@ static int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 /*
  * Initiate low level master read/write transaction.
  * This function is called from i2c_dw_xfer when starting a transfer.
- * This function is also called from dw_i2c_pump_msg to continue a transfer
+ * This function is also called from i2c_dw_isr to continue a transfer
  * that is longer than the size of the TX FIFO.
  */
 static void
@@ -489,10 +487,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	/* no error */
 	if (likely(!dev->cmd_err)) {
-		/* read rx fifo, and disable the adapter */
-		do {
-			i2c_dw_read(dev);
-		} while (dev->status & STATUS_READ_IN_PROGRESS);
+		/* Disable the adapter */
 		writel(0, dev->base + DW_IC_ENABLE);
 		ret = num;
 		goto done;
@@ -518,20 +513,6 @@ done:
 static u32 i2c_dw_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR;
-}
-
-static void dw_i2c_pump_msg(unsigned long data)
-{
-	struct dw_i2c_dev *dev = (struct dw_i2c_dev *) data;
-	u32 intr_mask;
-
-	i2c_dw_read(dev);
-	i2c_dw_xfer_msg(dev);
-
-	intr_mask = DW_IC_INTR_STOP_DET | DW_IC_INTR_TX_ABRT;
-	if (dev->status & STATUS_WRITE_IN_PROGRESS)
-		intr_mask |= DW_IC_INTR_TX_EMPTY;
-	writel(intr_mask, dev->base + DW_IC_INTR_MASK);
 }
 
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
@@ -604,10 +585,19 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	if (stat & DW_IC_INTR_TX_ABRT) {
 		dev->cmd_err |= DW_IC_ERR_TX_ABRT;
 		dev->status = STATUS_IDLE;
-	} else if (stat & DW_IC_INTR_TX_EMPTY)
-		tasklet_schedule(&dev->pump_msg);
+	}
 
-	writel(0, dev->base + DW_IC_INTR_MASK);	/* disable interrupts */
+	if (stat & DW_IC_INTR_TX_EMPTY) {
+		i2c_dw_read(dev);
+		i2c_dw_xfer_msg(dev);
+	}
+
+	/*
+	 * No need to modify or disable the interrupt mask here.
+	 * i2c_dw_xfer_msg() will take care of it according to
+	 * the current transmit status.
+	 */
+
 	if (stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET))
 		complete(&dev->cmd_complete);
 
@@ -653,7 +643,6 @@ static int __devinit dw_i2c_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&dev->cmd_complete);
-	tasklet_init(&dev->pump_msg, dw_i2c_pump_msg, (unsigned long) dev);
 	mutex_init(&dev->lock);
 	dev->dev = get_device(&pdev->dev);
 	dev->irq = irq;
