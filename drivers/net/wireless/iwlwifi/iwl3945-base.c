@@ -1570,6 +1570,7 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	u32 event_size;	/* 2 u32s, or 3 u32s if timestamp recorded */
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
+	unsigned long reg_flags;
 
 	if (num_events == 0)
 		return;
@@ -1583,24 +1584,33 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
+	/* Make sure device is powered up for SRAM reads */
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+
+	/* Set starting address; reads will auto-increment */
+	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	rmb();
+
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	 * place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read_targ_mem(priv, ptr);
-		ptr += sizeof(u32);
-		time = iwl_read_targ_mem(priv, ptr);
-		ptr += sizeof(u32);
+		ev = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
 			IWL_ERR(priv, "0x%08x\t%04u\n", time, ev);
 			trace_iwlwifi_dev_ucode_event(priv, 0, time, ev);
 		} else {
-			data = iwl_read_targ_mem(priv, ptr);
-			ptr += sizeof(u32);
+			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 			IWL_ERR(priv, "%010u\t0x%08x\t%04u\n", time, data, ev);
 			trace_iwlwifi_dev_ucode_event(priv, time, data, ev);
 		}
 	}
+
+	/* Allow device to power down */
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
 /* For sanity check only.  Actual size is determined by uCode, typ. 512 */
