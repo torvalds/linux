@@ -1,6 +1,6 @@
 config ARLAN
 	tristate "Aironet Arlan 655 & IC2200 DS support"
-	depends on ISA && !64BIT
+	depends on ISA && !64BIT && WLAN
 	select WIRELESS_EXT
 	---help---
 	  Aironet makes Arlan, a class of wireless LAN adapters. These use the
