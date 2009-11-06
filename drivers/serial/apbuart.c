@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
@@ -676,8 +677,7 @@ static int __init grlib_apbuart_init(void)
 		return ret;
 	}
 
-	ret = of_register_driver(&grlib_apbuart_of_driver, &of_platform_bus_type);
-
+	ret = of_register_platform_driver(&grlib_apbuart_of_driver);
 	if (ret) {
 		printk(KERN_ERR
 		       "%s: of_register_platform_driver failed (%i)\n",
@@ -698,7 +698,7 @@ static void __exit grlib_apbuart_exit(void)
 				     &grlib_apbuart_ports[i]);
 
 	uart_unregister_driver(&grlib_apbuart_driver);
-
+	of_unregister_platform_driver(&grlib_apbuart_of_driver);
 }
 
 module_init(grlib_apbuart_init);
