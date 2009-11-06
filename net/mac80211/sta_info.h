@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/workqueue.h>
 #include "key.h"
 
 /**
@@ -21,7 +22,7 @@
  *
  * @WLAN_STA_AUTH: Station is authenticated.
  * @WLAN_STA_ASSOC: Station is associated.
- * @WLAN_STA_PS: Station is in power-save mode
+ * @WLAN_STA_PS_STA: Station is in power-save mode
  * @WLAN_STA_AUTHORIZED: Station is authorized to send/receive traffic.
  *	This bit is always checked so needs to be enabled for all stations
  *	when virtual port control is not in use.
@@ -36,11 +37,16 @@
  * @WLAN_STA_MFP: Management frame protection is used with this STA.
  * @WLAN_STA_SUSPEND: Set/cleared during a suspend/resume cycle.
  *	Used to deny ADDBA requests (both TX and RX).
+ * @WLAN_STA_PS_DRIVER: driver requires keeping this station in
+ *	power-save mode logically to flush frames that might still
+ *	be in the queues
+ * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
+ *	station in power-save mode, reply when the driver unblocks.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
 	WLAN_STA_ASSOC		= 1<<1,
-	WLAN_STA_PS		= 1<<2,
+	WLAN_STA_PS_STA		= 1<<2,
 	WLAN_STA_AUTHORIZED	= 1<<3,
 	WLAN_STA_SHORT_PREAMBLE	= 1<<4,
 	WLAN_STA_ASSOC_AP	= 1<<5,
@@ -48,7 +54,9 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_WDS		= 1<<7,
 	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
 	WLAN_STA_MFP		= 1<<10,
-	WLAN_STA_SUSPEND	= 1<<11
+	WLAN_STA_SUSPEND	= 1<<11,
+	WLAN_STA_PS_DRIVER	= 1<<12,
+	WLAN_STA_PSPOLL		= 1<<13,
 };
 
 #define STA_TID_NUM 16
@@ -216,6 +224,8 @@ struct sta_ampdu_mlme {
  * @plink_timer_was_running: used by suspend/resume to restore timers
  * @debugfs: debug filesystem info
  * @sta: station information we share with the driver
+ * @dead: set to true when sta is unlinked
+ * @drv_unblock_wk used for driver PS unblocking
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -229,7 +239,11 @@ struct sta_info {
 	spinlock_t lock;
 	spinlock_t flaglock;
 
+	struct work_struct drv_unblock_wk;
+
 	u16 listen_interval;
+
+	bool dead;
 
 	/*
 	 * for use by the internal lifetime management,
@@ -429,5 +443,8 @@ int sta_info_flush(struct ieee80211_local *local,
 		   struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
+
+void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
+void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 
 #endif /* STA_INFO_H */
