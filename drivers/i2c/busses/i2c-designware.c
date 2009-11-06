@@ -621,6 +621,13 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	if (stat & DW_IC_INTR_TX_ABRT) {
 		dev->cmd_err |= DW_IC_ERR_TX_ABRT;
 		dev->status = STATUS_IDLE;
+
+		/*
+		 * Anytime TX_ABRT is set, the contents of the tx/rx
+		 * buffers are flushed.  Make sure to skip them.
+		 */
+		writel(0, dev->base + DW_IC_INTR_MASK);
+		goto tx_aborted;
 	}
 
 	if (stat & DW_IC_INTR_RX_FULL)
@@ -635,6 +642,7 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	 * the current transmit status.
 	 */
 
+tx_aborted:
 	if ((stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET)) || dev->msg_err)
 		complete(&dev->cmd_complete);
 
