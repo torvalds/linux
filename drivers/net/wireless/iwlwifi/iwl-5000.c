@@ -661,9 +661,13 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 		iwl_txq_ctx_activate(priv, i);
 		iwl5000_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
-	/* TODO - need to initialize those FIFOs inside the loop above,
-	 * not only mark them as active */
-	iwl_txq_ctx_activate(priv, 4);
+
+	/*
+	 * TODO - need to initialize these queues and map them to FIFOs
+	 * in the loop above, not only mark them as active. We do this
+	 * because we want the first aggregation queue to be queue #10,
+	 * but do not use 8 or 9 otherwise yet.
+	 */
 	iwl_txq_ctx_activate(priv, 7);
 	iwl_txq_ctx_activate(priv, 8);
 	iwl_txq_ctx_activate(priv, 9);
