@@ -1391,8 +1391,8 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 		priv->active_rxon.channel, channel);
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
 	cmd.channel = cpu_to_le16(channel);
-	cmd.rxon_flags = priv->active_rxon.flags;
-	cmd.rxon_filter_flags = priv->active_rxon.filter_flags;
+	cmd.rxon_flags = priv->staging_rxon.flags;
+	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
 	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
 	ch_info = iwl_get_channel_info(priv, priv->band, channel);
 	if (ch_info)
@@ -1402,6 +1402,8 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 			priv->active_rxon.channel, channel);
 		return -EFAULT;
 	}
+	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_sync(priv, &hcmd);
 }

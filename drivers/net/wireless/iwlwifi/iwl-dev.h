@@ -994,6 +994,17 @@ struct traffic_stats {
 };
 #endif
 
+/*
+ * iwl_switch_rxon: "channel switch" structure
+ *
+ * @ switch_in_progress: channel switch in progress
+ * @ channel: new channel
+ */
+struct iwl_switch_rxon {
+	bool switch_in_progress;
+	__le16 channel;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1086,6 +1097,8 @@ struct iwl_priv {
 	 * hardware */
 	const struct iwl_rxon_cmd active_rxon;
 	struct iwl_rxon_cmd staging_rxon;
+
+	struct iwl_switch_rxon switch_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */

@@ -122,6 +122,17 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
+	/*
+	 * receive commit_rxon request
+	 * abort any previous channel switch if still in process
+	 */
+	if (priv->switch_rxon.switch_in_progress &&
+	    (priv->switch_rxon.channel != priv->staging_rxon.channel)) {
+		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
+		      le16_to_cpu(priv->switch_rxon.channel));
+		priv->switch_rxon.switch_in_progress = false;
+	}
+
 	/* If we don't need to send a full RXON, we can use
 	 * iwl_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
