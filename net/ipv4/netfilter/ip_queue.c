@@ -497,8 +497,7 @@ ipq_rcv_nl_event(struct notifier_block *this,
 {
 	struct netlink_notify *n = ptr;
 
-	if (event == NETLINK_URELEASE &&
-	    n->protocol == NETLINK_FIREWALL && n->pid) {
+	if (event == NETLINK_URELEASE && n->protocol == NETLINK_FIREWALL) {
 		write_lock_bh(&queue_lock);
 		if ((n->net == &init_net) && (n->pid == peer_pid))
 			__ipq_reset();
