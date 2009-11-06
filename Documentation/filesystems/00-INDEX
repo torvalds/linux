@@ -84,8 +84,6 @@ relay.txt
 	- info on relay, for efficient streaming from kernel to user space.
 romfs.txt
 	- description of the ROMFS filesystem.
-rpc-cache.txt
-	- introduction to the caching mechanisms in the sunrpc layer.
 seq_file.txt
 	- how to use the seq_file API
 sharedsubtree.txt
