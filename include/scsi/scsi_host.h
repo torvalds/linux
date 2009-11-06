@@ -798,9 +798,15 @@ static inline unsigned int scsi_host_get_prot(struct Scsi_Host *shost)
 static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsigned int target_type)
 {
 	switch (target_type) {
-	case 1: return shost->prot_capabilities & SHOST_DIF_TYPE1_PROTECTION;
-	case 2: return shost->prot_capabilities & SHOST_DIF_TYPE2_PROTECTION;
-	case 3: return shost->prot_capabilities & SHOST_DIF_TYPE3_PROTECTION;
+	case 1:
+		if (shost->prot_capabilities & SHOST_DIF_TYPE1_PROTECTION)
+			return target_type;
+	case 2:
+		if (shost->prot_capabilities & SHOST_DIF_TYPE2_PROTECTION)
+			return target_type;
+	case 3:
+		if (shost->prot_capabilities & SHOST_DIF_TYPE3_PROTECTION)
+			return target_type;
 	}
 
 	return 0;
@@ -808,13 +814,14 @@ static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsign
 
 static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsigned int target_type)
 {
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
 	switch (target_type) {
 	case 0: return shost->prot_capabilities & SHOST_DIX_TYPE0_PROTECTION;
 	case 1: return shost->prot_capabilities & SHOST_DIX_TYPE1_PROTECTION;
 	case 2: return shost->prot_capabilities & SHOST_DIX_TYPE2_PROTECTION;
 	case 3: return shost->prot_capabilities & SHOST_DIX_TYPE3_PROTECTION;
 	}
-
+#endif
 	return 0;
 }
 

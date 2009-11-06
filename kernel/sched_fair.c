@@ -861,12 +861,21 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
+	struct sched_entity *buddy;
 
-	if (cfs_rq->next && wakeup_preempt_entity(cfs_rq->next, se) < 1)
-		return cfs_rq->next;
+	if (cfs_rq->next) {
+		buddy = cfs_rq->next;
+		cfs_rq->next = NULL;
+		if (wakeup_preempt_entity(buddy, se) < 1)
+			return buddy;
+	}
 
-	if (cfs_rq->last && wakeup_preempt_entity(cfs_rq->last, se) < 1)
-		return cfs_rq->last;
+	if (cfs_rq->last) {
+		buddy = cfs_rq->last;
+		cfs_rq->last = NULL;
+		if (wakeup_preempt_entity(buddy, se) < 1)
+			return buddy;
+	}
 
 	return se;
 }
@@ -1654,16 +1663,6 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 
 	do {
 		se = pick_next_entity(cfs_rq);
-		/*
-		 * If se was a buddy, clear it so that it will have to earn
-		 * the favour again.
-		 *
-		 * If se was not a buddy, clear the buddies because neither
-		 * was elegible to run, let them earn it again.
-		 *
-		 * IOW. unconditionally clear buddies.
-		 */
-		__clear_buddies(cfs_rq, NULL);
 		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);

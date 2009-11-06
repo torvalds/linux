@@ -671,6 +671,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	earlyprintk=	[X86,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
+			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
 
 			Append ",keep" to not disable it when the real console

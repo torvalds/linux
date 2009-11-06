@@ -31,7 +31,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_console.h>
 #include "hvc_console.h"
 

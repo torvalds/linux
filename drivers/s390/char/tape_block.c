@@ -162,9 +162,10 @@ tapeblock_requeue(struct work_struct *work) {
 	spin_lock_irq(&device->blk_data.request_queue_lock);
 	while (
 		!blk_queue_plugged(queue) &&
-		(req = blk_fetch_request(queue)) &&
+		blk_peek_request(queue) &&
 		nr_queued < TAPEBLOCK_MIN_REQUEUE
 	) {
+		req = blk_fetch_request(queue);
 		if (rq_data_dir(req) == WRITE) {
 			DBF_EVENT(1, "TBLOCK: Rejecting write request\n");
 			spin_unlock_irq(&device->blk_data.request_queue_lock);

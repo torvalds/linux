@@ -119,23 +119,8 @@ static struct ixp2400_msf_parameters enp2611_msf_parameters =
 	}
 };
 
-struct enp2611_ixpdev_priv
-{
-	struct ixpdev_priv		ixpdev_priv;
-	struct net_device_stats		stats;
-};
-
 static struct net_device *nds[3];
 static struct timer_list link_check_timer;
-
-static struct net_device_stats *enp2611_get_stats(struct net_device *dev)
-{
-	struct enp2611_ixpdev_priv *ip = netdev_priv(dev);
-
-	pm3386_get_stats(ip->ixpdev_priv.channel, &(ip->stats));
-
-	return &(ip->stats);
-}
 
 /* @@@ Poll the SFP moddef0 line too.  */
 /* @@@ Try to use the pm3386 DOOL interrupt as well.  */
@@ -203,14 +188,13 @@ static int __init enp2611_init_module(void)
 
 	ports = pm3386_port_count();
 	for (i = 0; i < ports; i++) {
-		nds[i] = ixpdev_alloc(i, sizeof(struct enp2611_ixpdev_priv));
+		nds[i] = ixpdev_alloc(i, sizeof(struct ixpdev_priv));
 		if (nds[i] == NULL) {
 			while (--i >= 0)
 				free_netdev(nds[i]);
 			return -ENOMEM;
 		}
 
-		nds[i]->get_stats = enp2611_get_stats;
 		pm3386_init_port(i);
 		pm3386_get_mac(i, nds[i]->dev_addr);
 	}

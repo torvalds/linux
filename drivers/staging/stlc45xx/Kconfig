@@ -1,8 +1,0 @@
-config STLC45XX
-	tristate "stlc4550/4560 support"
-	depends on MAC80211 && WLAN_80211 && SPI_MASTER && GENERIC_HARDIRQS
-	---help---
-	  This is a driver for stlc4550 and stlc4560 chipsets.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called stlc45xx.  If unsure, say N.

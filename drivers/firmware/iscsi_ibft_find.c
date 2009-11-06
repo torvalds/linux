@@ -65,10 +65,10 @@ void __init reserve_ibft_region(void)
 		 * so skip that area */
 		if (pos == VGA_MEM)
 			pos += VGA_SIZE;
-		virt = phys_to_virt(pos);
+		virt = isa_bus_to_virt(pos);
 		if (memcmp(virt, IBFT_SIGN, IBFT_SIGN_LEN) == 0) {
 			unsigned long *addr =
-			    (unsigned long *)phys_to_virt(pos + 4);
+			    (unsigned long *)isa_bus_to_virt(pos + 4);
 			len = *addr;
 			/* if the length of the table extends past 1M,
 			 * the table cannot be valid. */

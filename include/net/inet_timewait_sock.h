@@ -130,11 +130,11 @@ struct inet_timewait_sock {
 	__u16			tw_num;
 	kmemcheck_bitfield_begin(flags);
 	/* And these are ours. */
-	__u8			tw_ipv6only:1,
-				tw_transparent:1;
-	/* 14 bits hole, try to pack */
+	unsigned int		tw_ipv6only     : 1,
+				tw_transparent  : 1,
+				tw_pad		: 14,	/* 14 bits hole */
+				tw_ipv6_offset  : 16;
 	kmemcheck_bitfield_end(flags);
-	__u16			tw_ipv6_offset;
 	unsigned long		tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
 	struct hlist_node	tw_death_node;

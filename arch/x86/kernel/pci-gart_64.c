@@ -16,6 +16,7 @@
 #include <linux/agp_backend.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>

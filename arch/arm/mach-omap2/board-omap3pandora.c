@@ -27,6 +27,7 @@
 #include <linux/i2c/twl4030.h>
 #include <linux/leds.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
 
 #include <asm/mach-types.h>
@@ -39,7 +40,6 @@
 #include <mach/hardware.h>
 #include <mach/mcspi.h>
 #include <mach/usb.h>
-#include <mach/keypad.h>
 #include <mach/mux.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"

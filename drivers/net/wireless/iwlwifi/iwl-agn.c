@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -3105,8 +3106,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
  out_pci_disable_device:
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:
-	ieee80211_free_hw(priv->hw);
 	iwl_free_traffic_mem(priv);
+	ieee80211_free_hw(priv->hw);
  out:
 	return err;
 }

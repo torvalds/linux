@@ -1287,7 +1287,7 @@ static struct sort_dimension *available_sorts[] = {
 
 static LIST_HEAD(sort_list);
 
-static int sort_dimension__add(char *tok, struct list_head *list)
+static int sort_dimension__add(const char *tok, struct list_head *list)
 {
 	int i;
 
@@ -1917,7 +1917,7 @@ static void setup_sorting(void)
 
 	free(str);
 
-	sort_dimension__add((char *)"pid", &cmp_pid);
+	sort_dimension__add("pid", &cmp_pid);
 }
 
 static const char *record_args[] = {

@@ -292,6 +292,11 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		 * down_read()
 		 */
 		might_sleep();
+#ifdef CONFIG_DEBUG_VM
+		if (!user_mode(regs) &&
+		    !search_exception_tables(regs->ARM_pc))
+			goto no_context;
+#endif
 	}
 
 	fault = __do_page_fault(mm, addr, fsr, tsk);

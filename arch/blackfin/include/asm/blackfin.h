@@ -1,6 +1,9 @@
 /*
- * Common header file for blackfin family of processors.
+ * Common header file for Blackfin family of processors.
  *
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BLACKFIN_H_

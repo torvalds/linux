@@ -409,7 +409,7 @@ sys32_munmap_wrapper:
 	.globl	sys32_truncate_wrapper
 sys32_truncate_wrapper:
 	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned long
+	lgfr	%r3,%r3			# long
 	jg	sys_truncate		# branch to system call
 
 	.globl	sys32_ftruncate_wrapper

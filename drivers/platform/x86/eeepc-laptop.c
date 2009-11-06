@@ -150,6 +150,8 @@ struct eeepc_hotk {
 /* The actual device the driver binds to */
 static struct eeepc_hotk *ehotk;
 
+static void eeepc_rfkill_hotplug(bool real);
+
 /* Platform device/driver */
 static int eeepc_hotk_thaw(struct device *device);
 static int eeepc_hotk_restore(struct device *device);
@@ -343,14 +345,23 @@ static bool eeepc_wlan_rfkill_blocked(void)
 static int eeepc_rfkill_set(void *data, bool blocked)
 {
 	unsigned long asl = (unsigned long)data;
-	return set_acpi(asl, !blocked);
+	int ret;
+
+	if (asl != CM_ASL_WLAN)
+		return set_acpi(asl, !blocked);
+
+	/* hack to avoid panic with rt2860sta */
+	if (blocked)
+		eeepc_rfkill_hotplug(false);
+	ret = set_acpi(asl, !blocked);
+	return ret;
 }
 
 static const struct rfkill_ops eeepc_rfkill_ops = {
 	.set_block = eeepc_rfkill_set,
 };
 
-static void __init eeepc_enable_camera(void)
+static void __devinit eeepc_enable_camera(void)
 {
 	/*
 	 * If the following call to set_acpi() fails, it's because there's no
@@ -643,13 +654,13 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static void eeepc_rfkill_hotplug(void)
+static void eeepc_rfkill_hotplug(bool real)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus;
-	bool blocked = eeepc_wlan_rfkill_blocked();
+	bool blocked = real ? eeepc_wlan_rfkill_blocked() : true;
 
-	if (ehotk->wlan_rfkill)
+	if (real && ehotk->wlan_rfkill)
 		rfkill_set_sw_state(ehotk->wlan_rfkill, blocked);
 
 	mutex_lock(&ehotk->hotplug_lock);
@@ -692,7 +703,7 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	if (event != ACPI_NOTIFY_BUS_CHECK)
 		return;
 
-	eeepc_rfkill_hotplug();
+	eeepc_rfkill_hotplug(true);
 }
 
 static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
@@ -850,7 +861,7 @@ static int eeepc_hotk_restore(struct device *device)
 {
 	/* Refresh both wlan rfkill state and pci hotplug */
 	if (ehotk->wlan_rfkill)
-		eeepc_rfkill_hotplug();
+		eeepc_rfkill_hotplug(true);
 
 	if (ehotk->bluetooth_rfkill)
 		rfkill_set_sw_state(ehotk->bluetooth_rfkill,
@@ -993,7 +1004,7 @@ static void eeepc_rfkill_exit(void)
 	 * Refresh pci hotplug in case the rfkill state was changed after
 	 * eeepc_unregister_rfkill_notifier()
 	 */
-	eeepc_rfkill_hotplug();
+	eeepc_rfkill_hotplug(true);
 	if (ehotk->hotplug_slot)
 		pci_hp_deregister(ehotk->hotplug_slot);
 
@@ -1109,7 +1120,7 @@ static int eeepc_rfkill_init(struct device *dev)
 	 * Refresh pci hotplug in case the rfkill state was changed during
 	 * setup.
 	 */
-	eeepc_rfkill_hotplug();
+	eeepc_rfkill_hotplug(true);
 
 exit:
 	if (result && result != -ENODEV)
@@ -1189,7 +1200,7 @@ static int eeepc_input_init(struct device *dev)
 	return 0;
 }
 
-static int eeepc_hotk_add(struct acpi_device *device)
+static int __devinit eeepc_hotk_add(struct acpi_device *device)
 {
 	struct device *dev;
 	int result;

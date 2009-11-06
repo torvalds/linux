@@ -92,7 +92,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   "BdiDirtyThresh:   %8lu kB\n"
 		   "DirtyThresh:      %8lu kB\n"
 		   "BackgroundThresh: %8lu kB\n"
-		   "WriteBack threads:%8lu\n"
+		   "WritebackThreads: %8lu\n"
 		   "b_dirty:          %8lu\n"
 		   "b_io:             %8lu\n"
 		   "b_more_io:        %8lu\n"
@@ -610,6 +610,21 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 		kthread_stop(wb->task);
 }
 
+/*
+ * This bdi is going away now, make sure that no super_blocks point to it
+ */
+static void bdi_prune_sb(struct backing_dev_info *bdi)
+{
+	struct super_block *sb;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_bdi == bdi)
+			sb->s_bdi = NULL;
+	}
+	spin_unlock(&sb_lock);
+}
+
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
@@ -682,6 +697,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		spin_unlock(&inode_lock);
 	}
 
+	bdi_prune_sb(bdi);
 	bdi_unregister(bdi);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)

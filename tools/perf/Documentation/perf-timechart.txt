@@ -31,6 +31,9 @@ OPTIONS
 -w::
 --width=::
         Select the width of the SVG file (default: 1000)
+-p::
+--power-only::
+        Only output the CPU power section of the diagram
 
 
 SEE ALSO

@@ -407,6 +407,8 @@ extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
 extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				     u16 blue, int regno);
+extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+				     u16 *blue, int regno);
 struct drm_framebuffer *radeon_framebuffer_create(struct drm_device *dev,
 						  struct drm_mode_fb_cmd *mode_cmd,
 						  struct drm_gem_object *obj);

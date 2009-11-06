@@ -75,7 +75,7 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
-	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, (rdev->mc.gtt_end - 1) >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, rdev->gart.table_addr >> 12);
 	WREG32(VM_CONTEXT0_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(0) |
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT);
@@ -126,17 +126,36 @@ void rv770_pcie_gart_fini(struct radeon_device *rdev)
 }
 
 
-/*
- * MC
- */
-static void rv770_mc_resume(struct radeon_device *rdev)
+void rv770_agp_enable(struct radeon_device *rdev)
 {
-	u32 d1vga_control, d2vga_control;
-	u32 vga_render_control, vga_hdp_control;
-	u32 d1crtc_control, d2crtc_control;
-	u32 new_d1grph_primary, new_d1grph_secondary;
-	u32 new_d2grph_primary, new_d2grph_secondary;
-	u64 old_vram_start;
+	u32 tmp;
+	int i;
+
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
+				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+				EFFECTIVE_L2_QUEUE_SIZE(7));
+	WREG32(VM_L2_CNTL2, 0);
+	WREG32(VM_L2_CNTL3, BANK_SELECT(0) | CACHE_UPDATE_MODE(2));
+	/* Setup TLB control */
+	tmp = ENABLE_L1_TLB | ENABLE_L1_FRAGMENT_PROCESSING |
+		SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU |
+		EFFECTIVE_L1_TLB_SIZE(5) | EFFECTIVE_L1_QUEUE_SIZE(5);
+	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
+	WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
+	WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
+	for (i = 0; i < 7; i++)
+		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
+}
+
+static void rv770_mc_program(struct radeon_device *rdev)
+{
+	struct rv515_mc_save save;
 	u32 tmp;
 	int i, j;
 
@@ -150,53 +169,42 @@ static void rv770_mc_resume(struct radeon_device *rdev)
 	}
 	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
-	d1vga_control = RREG32(D1VGA_CONTROL);
-	d2vga_control = RREG32(D2VGA_CONTROL);
-	vga_render_control = RREG32(VGA_RENDER_CONTROL);
-	vga_hdp_control = RREG32(VGA_HDP_CONTROL);
-	d1crtc_control = RREG32(D1CRTC_CONTROL);
-	d2crtc_control = RREG32(D2CRTC_CONTROL);
-	old_vram_start = (u64)(RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
-	new_d1grph_primary = RREG32(D1GRPH_PRIMARY_SURFACE_ADDRESS);
-	new_d1grph_secondary = RREG32(D1GRPH_SECONDARY_SURFACE_ADDRESS);
-	new_d1grph_primary += rdev->mc.vram_start - old_vram_start;
-	new_d1grph_secondary += rdev->mc.vram_start - old_vram_start;
-	new_d2grph_primary = RREG32(D2GRPH_PRIMARY_SURFACE_ADDRESS);
-	new_d2grph_secondary = RREG32(D2GRPH_SECONDARY_SURFACE_ADDRESS);
-	new_d2grph_primary += rdev->mc.vram_start - old_vram_start;
-	new_d2grph_secondary += rdev->mc.vram_start - old_vram_start;
-
-	/* Stop all video */
-	WREG32(D1VGA_CONTROL, 0);
-	WREG32(D2VGA_CONTROL, 0);
-	WREG32(VGA_RENDER_CONTROL, 0);
-	WREG32(D1CRTC_UPDATE_LOCK, 1);
-	WREG32(D2CRTC_UPDATE_LOCK, 1);
-	WREG32(D1CRTC_CONTROL, 0);
-	WREG32(D2CRTC_CONTROL, 0);
-	WREG32(D1CRTC_UPDATE_LOCK, 0);
-	WREG32(D2CRTC_UPDATE_LOCK, 0);
-
-	mdelay(1);
+	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "[drm] MC not idle !\n");
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
-
 	/* Lockout access through VGA aperture*/
 	WREG32(VGA_HDP_CONTROL, VGA_MEMORY_DISABLE);
-
 	/* Update configuration */
-	WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR, rdev->mc.vram_start >> 12);
-	WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR, (rdev->mc.vram_end - 1) >> 12);
+	if (rdev->flags & RADEON_IS_AGP) {
+		if (rdev->mc.vram_start < rdev->mc.gtt_start) {
+			/* VRAM before AGP */
+			WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+				rdev->mc.vram_start >> 12);
+			WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+				rdev->mc.gtt_end >> 12);
+		} else {
+			/* VRAM after AGP */
+			WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+				rdev->mc.gtt_start >> 12);
+			WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+				rdev->mc.vram_end >> 12);
+		}
+	} else {
+		WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+			rdev->mc.vram_start >> 12);
+		WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			rdev->mc.vram_end >> 12);
+	}
 	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, 0);
-	tmp = (((rdev->mc.vram_end - 1) >> 24) & 0xFFFF) << 16;
+	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
 	WREG32(HDP_NONSURFACE_SIZE, (rdev->mc.mc_vram_size - 1) | 0x3FF);
 	if (rdev->flags & RADEON_IS_AGP) {
-		WREG32(MC_VM_AGP_TOP, (rdev->mc.gtt_end - 1) >> 16);
+		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
 		WREG32(MC_VM_AGP_BASE, rdev->mc.agp_base >> 22);
 	} else {
@@ -204,31 +212,10 @@ static void rv770_mc_resume(struct radeon_device *rdev)
 		WREG32(MC_VM_AGP_TOP, 0x0FFFFFFF);
 		WREG32(MC_VM_AGP_BOT, 0x0FFFFFFF);
 	}
-	WREG32(D1GRPH_PRIMARY_SURFACE_ADDRESS, new_d1grph_primary);
-	WREG32(D1GRPH_SECONDARY_SURFACE_ADDRESS, new_d1grph_secondary);
-	WREG32(D2GRPH_PRIMARY_SURFACE_ADDRESS, new_d2grph_primary);
-	WREG32(D2GRPH_SECONDARY_SURFACE_ADDRESS, new_d2grph_secondary);
-	WREG32(VGA_MEMORY_BASE_ADDRESS, rdev->mc.vram_start);
-
-	/* Unlock host access */
-	WREG32(VGA_HDP_CONTROL, vga_hdp_control);
-
-	mdelay(1);
 	if (r600_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "[drm] MC not idle !\n");
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
-
-	/* Restore video state */
-	WREG32(D1CRTC_UPDATE_LOCK, 1);
-	WREG32(D2CRTC_UPDATE_LOCK, 1);
-	WREG32(D1CRTC_CONTROL, d1crtc_control);
-	WREG32(D2CRTC_CONTROL, d2crtc_control);
-	WREG32(D1CRTC_UPDATE_LOCK, 0);
-	WREG32(D2CRTC_UPDATE_LOCK, 0);
-	WREG32(D1VGA_CONTROL, d1vga_control);
-	WREG32(D2VGA_CONTROL, d2vga_control);
-	WREG32(VGA_RENDER_CONTROL, vga_render_control);
-
+	rv515_mc_resume(rdev, &save);
 	/* we need to own VRAM, so turn off the VGA renderer here
 	 * to stop it overwriting our objects */
 	rv515_vga_render_disable(rdev);
@@ -840,9 +827,9 @@ int rv770_mc_init(struct radeon_device *rdev)
 		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	}
 	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size;
+	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size;
+	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
@@ -861,11 +848,14 @@ static int rv770_startup(struct radeon_device *rdev)
 {
 	int r;
 
-	radeon_gpu_reset(rdev);
-	rv770_mc_resume(rdev);
-	r = rv770_pcie_gart_enable(rdev);
-	if (r)
-		return r;
+	rv770_mc_program(rdev);
+	if (rdev->flags & RADEON_IS_AGP) {
+		rv770_agp_enable(rdev);
+	} else {
+		r = rv770_pcie_gart_enable(rdev);
+		if (r)
+			return r;
+	}
 	rv770_gpu_init(rdev);
 
 	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
@@ -884,9 +874,8 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_cp_resume(rdev);
 	if (r)
 		return r;
-	r = r600_wb_init(rdev);
-	if (r)
-		return r;
+	/* write back buffer are not vital so don't worry about failure */
+	r600_wb_enable(rdev);
 	return 0;
 }
 
@@ -894,15 +883,12 @@ int rv770_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	if (radeon_gpu_reset(rdev)) {
-		/* FIXME: what do we want to do here ? */
-	}
+	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	 * posting will perform necessary task to bring back GPU into good
+	 * shape.
+	 */
 	/* post card */
-	if (rdev->is_atom_bios) {
-		atom_asic_init(rdev->mode_info.atom_context);
-	} else {
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	atom_asic_init(rdev->mode_info.atom_context);
 	/* Initialize clocks */
 	r = radeon_clocks_init(rdev);
 	if (r) {
@@ -915,7 +901,7 @@ int rv770_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_test(rdev);
+	r = r600_ib_test(rdev);
 	if (r) {
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
@@ -929,8 +915,8 @@ int rv770_suspend(struct radeon_device *rdev)
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
-
 	/* unpin shaders bo */
         radeon_object_unpin(rdev->r600_blit.shader_obj);
 	return 0;
@@ -946,7 +932,6 @@ int rv770_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	r = radeon_dummy_page_init(rdev);
 	if (r)
 		return r;
@@ -960,8 +945,10 @@ int rv770_init(struct radeon_device *rdev)
 			return -EINVAL;
 	}
 	/* Must be an ATOMBIOS */
-	if (!rdev->is_atom_bios)
+	if (!rdev->is_atom_bios) {
+		dev_err(rdev->dev, "Expecting atombios for R600 GPU\n");
 		return -EINVAL;
+	}
 	r = radeon_atombios_init(rdev);
 	if (r)
 		return r;
@@ -983,15 +970,8 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r = rv770_mc_init(rdev);
-	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			rv770_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return rv770_init(rdev);
-		}
+	if (r)
 		return r;
-	}
 	/* Memory manager */
 	r = radeon_object_init(rdev);
 	if (r)
@@ -1020,12 +1000,10 @@ int rv770_init(struct radeon_device *rdev)
 
 	r = rv770_startup(rdev);
 	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			rv770_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return rv770_init(rdev);
-		}
+		rv770_suspend(rdev);
+		r600_wb_fini(rdev);
+		radeon_ring_fini(rdev);
+		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {
@@ -1034,7 +1012,7 @@ int rv770_init(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
 			rdev->accel_working = false;
 		}
-		r = radeon_ib_test(rdev);
+		r = r600_ib_test(rdev);
 		if (r) {
 			DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 			rdev->accel_working = false;
@@ -1049,20 +1027,15 @@ void rv770_fini(struct radeon_device *rdev)
 
 	r600_blit_fini(rdev);
 	radeon_ring_fini(rdev);
+	r600_wb_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-#if __OS_HAS_AGP
 	if (rdev->flags & RADEON_IS_AGP)
 		radeon_agp_fini(rdev);
-#endif
 	radeon_object_fini(rdev);
-	if (rdev->is_atom_bios) {
-		radeon_atombios_fini(rdev);
-	} else {
-		radeon_combios_fini(rdev);
-	}
+	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
 	radeon_dummy_page_fini(rdev);

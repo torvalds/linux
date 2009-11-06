@@ -11,6 +11,7 @@
 #define LINUX_MMC_HOST_H
 
 #include <linux/leds.h>
+#include <linux/sched.h>
 
 #include <linux/mmc/core.h>
 

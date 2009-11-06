@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/sched.h>
 #include <rdma/ib_smi.h>
 
 #include "ipath_verbs.h"

@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/kernel/signal.c
  *
- *  Copyright (C) 1995-2002 Russell King
+ *  Copyright (C) 1995-2009 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,6 +29,7 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
+#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -46,6 +47,18 @@
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
+};
+
+/*
+ * Either we support OABI only, or we have EABI with the OABI
+ * compat layer enabled.  In the later case we don't know if
+ * user space is EABI or not, and if not we must not clobber r7.
+ * Always using the OABI syscall solves that issue and works for
+ * all those cases.
+ */
+const unsigned long syscall_restart_code[2] = {
+	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
+	0xe49df004,		/* ldr	pc, [sp], #4 */
 };
 
 /*
@@ -645,32 +658,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 				regs->ARM_pc -= 4;
 #else
 				u32 __user *usp;
-				u32 swival = __NR_restart_syscall;
 
-				regs->ARM_sp -= 12;
+				regs->ARM_sp -= 4;
 				usp = (u32 __user *)regs->ARM_sp;
 
-				/*
-				 * Either we supports OABI only, or we have
-				 * EABI with the OABI compat layer enabled.
-				 * In the later case we don't know if user
-				 * space is EABI or not, and if not we must
-				 * not clobber r7.  Always using the OABI
-				 * syscall solves that issue and works for
-				 * all those cases.
-				 */
-				swival = swival - __NR_SYSCALL_BASE + __NR_OABI_SYSCALL_BASE;
-
-				put_user(regs->ARM_pc, &usp[0]);
-				/* swi __NR_restart_syscall */
-				put_user(0xef000000 | swival, &usp[1]);
-				/* ldr	pc, [sp], #12 */
-				put_user(0xe49df00c, &usp[2]);
-
-				flush_icache_range((unsigned long)usp,
-						   (unsigned long)(usp + 3));
-
-				regs->ARM_pc = regs->ARM_sp + 4;
+				put_user(regs->ARM_pc, usp);
+				regs->ARM_pc = KERN_RESTART_CODE;
 #endif
 			}
 		}

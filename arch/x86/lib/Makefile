@@ -15,8 +15,10 @@ ifeq ($(CONFIG_X86_32),y)
         obj-y += atomic64_32.o
         lib-y += checksum_32.o
         lib-y += strstr_32.o
-        lib-y += semaphore_32.o string_32.o cmpxchg8b_emu.o
-
+        lib-y += semaphore_32.o string_32.o
+ifneq ($(CONFIG_X86_CMPXCHG64),y)
+        lib-y += cmpxchg8b_emu.o
+endif
         lib-$(CONFIG_X86_USE_3DNOW) += mmx_32.o
 else
         obj-y += io_64.o iomap_copy_64.o

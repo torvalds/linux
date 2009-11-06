@@ -118,20 +118,13 @@ struct atp867x_priv {
 	int		pci66mhz;
 };
 
-static inline u8 atp867x_speed_to_mode(u8 speed)
-{
-	return speed - XFER_UDMA_0 + 1;
-}
-
 static void atp867x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
 	struct atp867x_priv *dp = ap->private_data;
 	u8 speed = adev->dma_mode;
 	u8 b;
-	u8 mode;
-
-	mode = atp867x_speed_to_mode(speed);
+	u8 mode = speed - XFER_UDMA_0 + 1;
 
 	/*
 	 * Doc 6.6.9: decrease the udma mode value by 1 for safer UDMA speed
@@ -156,25 +149,38 @@ static void atp867x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	iowrite8(b, dp->dma_mode);
 }
 
-static int atp867x_get_active_clocks_shifted(unsigned int clk)
+static int atp867x_get_active_clocks_shifted(struct ata_port *ap,
+	unsigned int clk)
 {
+	struct atp867x_priv *dp = ap->private_data;
 	unsigned char clocks = clk;
+
+	/*
+	 * Doc 6.6.9: increase the clock value by 1 for safer PIO speed
+	 * on 66MHz bus
+	 */
+	if (dp->pci66mhz)
+		clocks++;
 
 	switch (clocks) {
 	case 0:
 		clocks = 1;
 		break;
-	case 1 ... 7:
-		break;
-	case 8 ... 12:
-		clocks = 7;
+	case 1 ... 6:
 		break;
 	default:
 		printk(KERN_WARNING "ATP867X: active %dclk is invalid. "
-			"Using default 8clk.\n", clk);
-		clocks = 0;	/* 8 clk */
+			"Using 12clk.\n", clk);
+	case 9 ... 12:
+		clocks = 7;	/* 12 clk */
 		break;
+	case 7:
+	case 8:	/* default 8 clk */
+		clocks = 0;
+		goto active_clock_shift_done;
 	}
+
+active_clock_shift_done:
 	return clocks << ATP867X_IO_PIOSPD_ACTIVE_SHIFT;
 }
 
@@ -188,20 +194,20 @@ static int atp867x_get_recover_clocks_shifted(unsigned int clk)
 		break;
 	case 1 ... 11:
 		break;
-	case 12:
-		clocks = 0;
-		break;
-	case 13: case 14:
-		--clocks;
+	case 13:
+	case 14:
+		--clocks;	/* by the spec */
 		break;
 	case 15:
 		break;
 	default:
 		printk(KERN_WARNING "ATP867X: recover %dclk is invalid. "
-			"Using default 15clk.\n", clk);
-		clocks = 0;	/* 12 clk */
+			"Using default 12clk.\n", clk);
+	case 12:	/* default 12 clk */
+		clocks = 0;
 		break;
 	}
+
 	return clocks << ATP867X_IO_PIOSPD_RECOVER_SHIFT;
 }
 
@@ -230,25 +236,38 @@ static void atp867x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		b = (b & ~ATP867X_IO_DMAMODE_MSTR_MASK);
 	iowrite8(b, dp->dma_mode);
 
-	b = atp867x_get_active_clocks_shifted(t.active) |
-		atp867x_get_recover_clocks_shifted(t.recover);
-	if (dp->pci66mhz)
-		b += 0x10;
+	b = atp867x_get_active_clocks_shifted(ap, t.active) |
+	    atp867x_get_recover_clocks_shifted(t.recover);
 
 	if (adev->devno & 1)
 		iowrite8(b, dp->slave_piospd);
 	else
 		iowrite8(b, dp->mstr_piospd);
 
-	/*
-	 * use the same value for comand timing as for PIO timimg
-	 */
+	b = atp867x_get_active_clocks_shifted(ap, t.act8b) |
+	    atp867x_get_recover_clocks_shifted(t.rec8b);
+
 	iowrite8(b, dp->eightb_piospd);
+}
+
+static int atp867x_cable_override(struct pci_dev *pdev)
+{
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_ARTOP &&
+		(pdev->subsystem_device == PCI_DEVICE_ID_ARTOP_ATP867A ||
+		 pdev->subsystem_device == PCI_DEVICE_ID_ARTOP_ATP867B)) {
+		return 1;
+	}
+	return 0;
 }
 
 static int atp867x_cable_detect(struct ata_port *ap)
 {
-	return ATA_CBL_PATA40_SHORT;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+
+	if (atp867x_cable_override(pdev))
+		return ATA_CBL_PATA40_SHORT;
+
+	return ATA_CBL_PATA_UNK;
 }
 
 static struct scsi_host_template atp867x_sht = {
@@ -471,7 +490,6 @@ static int atp867x_init_one(struct pci_dev *pdev,
 	static const struct ata_port_info info_867x = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA6,
 		.port_ops	= &atp867x_ops,
 	};
@@ -515,6 +533,23 @@ err_out:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int atp867x_reinit_one(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	atp867x_fixup(host);
+
+	ata_host_resume(host);
+	return 0;
+}
+#endif
+
 static struct pci_device_id atp867x_pci_tbl[] = {
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP867A),	0 },
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP867B),	0 },
@@ -526,6 +561,10 @@ static struct pci_driver atp867x_driver = {
 	.id_table 	= atp867x_pci_tbl,
 	.probe 		= atp867x_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend	= ata_pci_device_suspend,
+	.resume		= atp867x_reinit_one,
+#endif
 };
 
 static int __init atp867x_init(void)

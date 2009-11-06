@@ -1,9 +1,5 @@
 /*
- * arch/blackfin/kernel/setup.c
- *
- * Copyright 2004-2006 Analog Devices Inc.
- *
- * Enter bugs at http://blackfin.uclinux.org/
+ * Copyright 2004-2009 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */

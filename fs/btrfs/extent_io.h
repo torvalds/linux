@@ -15,6 +15,7 @@
 #define EXTENT_BUFFER_FILLED (1 << 8)
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
+#define EXTENT_DO_ACCOUNTING (1 << 11)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /* flags for bio submission */
@@ -24,6 +25,16 @@
 #define EXTENT_BUFFER_UPTODATE 0
 #define EXTENT_BUFFER_BLOCKING 1
 #define EXTENT_BUFFER_DIRTY 2
+
+/* these are flags for extent_clear_unlock_delalloc */
+#define EXTENT_CLEAR_UNLOCK_PAGE 0x1
+#define EXTENT_CLEAR_UNLOCK	 0x2
+#define EXTENT_CLEAR_DELALLOC	 0x4
+#define EXTENT_CLEAR_DIRTY	 0x8
+#define EXTENT_SET_WRITEBACK	 0x10
+#define EXTENT_END_WRITEBACK	 0x20
+#define EXTENT_SET_PRIVATE2	 0x40
+#define EXTENT_CLEAR_ACCOUNTING  0x80
 
 /*
  * page->private values.  Every page that is controlled by the extent
@@ -288,10 +299,5 @@ int extent_range_uptodate(struct extent_io_tree *tree,
 int extent_clear_unlock_delalloc(struct inode *inode,
 				struct extent_io_tree *tree,
 				u64 start, u64 end, struct page *locked_page,
-				int unlock_page,
-				int clear_unlock,
-				int clear_delalloc, int clear_dirty,
-				int set_writeback,
-				int end_writeback,
-				int set_private2);
+				unsigned long op);
 #endif

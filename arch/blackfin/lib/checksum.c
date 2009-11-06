@@ -1,32 +1,12 @@
 /*
- * File:         arch/blackfin/lib/checksum.c
- * Based on:     none - original work
- * Author:
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Created:
- * Description:  An implementation of the TCP/IP protocol suite for the LINUX
- *               operating system.  INET is implemented using the  BSD Socket
- *               interface as the means of communication with the user level.
+ * Licensed under the GPL-2 or later.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ * An implementation of the TCP/IP protocol suite for the LINUX operating
+ * system. INET is implemented using the BSD Socket interface as the
+ * means of communication with the user level.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/module.h>

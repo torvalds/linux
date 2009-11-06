@@ -1,32 +1,10 @@
 /*
- * File:         arch/blackfin/kernel/sys_bfin.c
- * Based on:
- * Author:
+ * contains various random system calls that have a non-standard
+ * calling sequence on the Linux/Blackfin platform.
  *
- * Created:
- * Description:  This file contains various random system calls that
- *               have a non-standard calling sequence on the Linux/bfin
- *               platform.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/spinlock.h>
@@ -91,3 +69,14 @@ asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len)
 {
 	return safe_dma_memcpy(dest, src, len);
 }
+
+#if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
+#include <linux/fb.h>
+unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
+	unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct fb_info *info = filp->private_data;
+	return (unsigned long)info->screen_base;
+}
+EXPORT_SYMBOL(get_fb_unmapped_area);
+#endif
