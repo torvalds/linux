@@ -1994,7 +1994,7 @@ static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 
 /**
  * kthread_bind - bind a just-created kthread to a cpu.
- * @k: thread created by kthread_create().
+ * @p: thread created by kthread_create().
  * @cpu: cpu (might not be online, must be possible) for @k to run on.
  *
  * Description: This function is equivalent to set_cpus_allowed(),
