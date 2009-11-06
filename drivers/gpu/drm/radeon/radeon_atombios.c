@@ -46,7 +46,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  uint32_t supported_device,
 			  int connector_type,
 			  struct radeon_i2c_bus_rec *i2c_bus,
-			  bool linkb, uint32_t igp_lane_info);
+			  bool linkb, uint32_t igp_lane_info,
+			  uint16_t connector_object_id);
 
 /* from radeon_legacy_encoder.c */
 extern void
@@ -193,6 +194,23 @@ const int supported_devices_connector_convert[] = {
 	DRM_MODE_CONNECTOR_DisplayPort
 };
 
+const uint16_t supported_devices_connector_object_id_convert[] = {
+	CONNECTOR_OBJECT_ID_NONE,
+	CONNECTOR_OBJECT_ID_VGA,
+	CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I, /* not all boards support DL */
+	CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D, /* not all boards support DL */
+	CONNECTOR_OBJECT_ID_VGA, /* technically DVI-A */
+	CONNECTOR_OBJECT_ID_COMPOSITE,
+	CONNECTOR_OBJECT_ID_SVIDEO,
+	CONNECTOR_OBJECT_ID_LVDS,
+	CONNECTOR_OBJECT_ID_9PIN_DIN,
+	CONNECTOR_OBJECT_ID_9PIN_DIN,
+	CONNECTOR_OBJECT_ID_DISPLAYPORT,
+	CONNECTOR_OBJECT_ID_HDMI_TYPE_A,
+	CONNECTOR_OBJECT_ID_HDMI_TYPE_B,
+	CONNECTOR_OBJECT_ID_SVIDEO
+};
+
 const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_DVII,
@@ -229,7 +247,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	ATOM_OBJECT_HEADER *obj_header;
 	int i, j, path_size, device_support;
 	int connector_type;
-	uint16_t igp_lane_info, conn_id;
+	uint16_t igp_lane_info, conn_id, connector_object_id;
 	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
 
@@ -277,7 +295,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				ATOM_DEVICE_CV_SUPPORT)
 				continue;
 
-			if ((rdev->family == CHIP_RS780) &&
+			/* IGP chips */
+			if ((rdev->flags & RADEON_IS_IGP) &&
 			    (con_obj_id ==
 			     CONNECTOR_OBJECT_ID_PCIE_CONNECTOR)) {
 				uint16_t igp_offset = 0;
@@ -311,6 +330,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						connector_type =
 						    object_connector_convert
 						    [ct];
+						connector_object_id = ct;
 						igp_lane_info =
 						    slot_config & 0xffff;
 					} else
@@ -321,6 +341,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				igp_lane_info = 0;
 				connector_type =
 				    object_connector_convert[con_obj_id];
+				connector_object_id = con_obj_id;
 			}
 
 			if (connector_type == DRM_MODE_CONNECTOR_Unknown)
@@ -425,7 +446,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						  le16_to_cpu(path->
 							      usDeviceTag),
 						  connector_type, &ddc_bus,
-						  linkb, igp_lane_info);
+						  linkb, igp_lane_info,
+						  connector_object_id);
 
 		}
 	}
@@ -433,6 +455,45 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	radeon_link_encoder_connector(dev);
 
 	return true;
+}
+
+static uint16_t atombios_get_connector_object_id(struct drm_device *dev,
+						 int connector_type,
+						 uint16_t devices)
+{
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		return supported_devices_connector_object_id_convert
+			[connector_type];
+	} else if (((connector_type == DRM_MODE_CONNECTOR_DVII) ||
+		    (connector_type == DRM_MODE_CONNECTOR_DVID)) &&
+		   (devices & ATOM_DEVICE_DFP2_SUPPORT))  {
+		struct radeon_mode_info *mode_info = &rdev->mode_info;
+		struct atom_context *ctx = mode_info->atom_context;
+		int index = GetIndexIntoMasterTable(DATA, XTMDS_Info);
+		uint16_t size, data_offset;
+		uint8_t frev, crev;
+		ATOM_XTMDS_INFO *xtmds;
+
+		atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
+		xtmds = (ATOM_XTMDS_INFO *)(ctx->bios + data_offset);
+
+		if (xtmds->ucSupportedLink & ATOM_XTMDS_SUPPORTED_DUALLINK) {
+			if (connector_type == DRM_MODE_CONNECTOR_DVII)
+				return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I;
+			else
+				return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D;
+		} else {
+			if (connector_type == DRM_MODE_CONNECTOR_DVII)
+				return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I;
+			else
+				return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D;
+		}
+	} else {
+		return supported_devices_connector_object_id_convert
+			[connector_type];
+	}
 }
 
 struct bios_connector {
@@ -593,14 +654,20 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 	/* add the connectors */
 	for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
-		if (bios_connectors[i].valid)
+		if (bios_connectors[i].valid) {
+			uint16_t connector_object_id =
+				atombios_get_connector_object_id(dev,
+						      bios_connectors[i].connector_type,
+						      bios_connectors[i].devices);
 			radeon_add_atom_connector(dev,
 						  bios_connectors[i].line_mux,
 						  bios_connectors[i].devices,
 						  bios_connectors[i].
 						  connector_type,
 						  &bios_connectors[i].ddc_bus,
-						  false, 0);
+						  false, 0,
+						  connector_object_id);
+		}
 	}
 
 	radeon_link_encoder_connector(dev);

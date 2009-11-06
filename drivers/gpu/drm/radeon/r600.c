@@ -858,7 +858,8 @@ void r600_gpu_init(struct radeon_device *rdev)
 	    ((rdev->family) == CHIP_RV630) ||
 	    ((rdev->family) == CHIP_RV610) ||
 	    ((rdev->family) == CHIP_RV620) ||
-	    ((rdev->family) == CHIP_RS780)) {
+	    ((rdev->family) == CHIP_RS780) ||
+	    ((rdev->family) == CHIP_RS880)) {
 		WREG32(DB_DEBUG, PREZ_MUST_WAIT_FOR_POSTZ_DONE);
 	} else {
 		WREG32(DB_DEBUG, 0);
@@ -875,7 +876,8 @@ void r600_gpu_init(struct radeon_device *rdev)
 	tmp = RREG32(SQ_MS_FIFO_SIZES);
 	if (((rdev->family) == CHIP_RV610) ||
 	    ((rdev->family) == CHIP_RV620) ||
-	    ((rdev->family) == CHIP_RS780)) {
+	    ((rdev->family) == CHIP_RS780) ||
+	    ((rdev->family) == CHIP_RS880)) {
 		tmp = (CACHE_FIFO_SIZE(0xa) |
 		       FETCH_FIFO_HIWATER(0xa) |
 		       DONE_FIFO_HIWATER(0xe0) |
@@ -918,7 +920,8 @@ void r600_gpu_init(struct radeon_device *rdev)
 					    NUM_ES_STACK_ENTRIES(0));
 	} else if (((rdev->family) == CHIP_RV610) ||
 		   ((rdev->family) == CHIP_RV620) ||
-		   ((rdev->family) == CHIP_RS780)) {
+		   ((rdev->family) == CHIP_RS780) ||
+		   ((rdev->family) == CHIP_RS880)) {
 		/* no vertex cache */
 		sq_config &= ~VC_ENABLE;
 
@@ -975,7 +978,8 @@ void r600_gpu_init(struct radeon_device *rdev)
 
 	if (((rdev->family) == CHIP_RV610) ||
 	    ((rdev->family) == CHIP_RV620) ||
-	    ((rdev->family) == CHIP_RS780)) {
+	    ((rdev->family) == CHIP_RS780) ||
+	    ((rdev->family) == CHIP_RS880)) {
 		WREG32(VGT_CACHE_INVALIDATION, CACHE_INVALIDATION(TC_ONLY));
 	} else {
 		WREG32(VGT_CACHE_INVALIDATION, CACHE_INVALIDATION(VC_AND_TC));
@@ -1001,8 +1005,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 	tmp = rdev->config.r600.max_pipes * 16;
 	switch (rdev->family) {
 	case CHIP_RV610:
-	case CHIP_RS780:
 	case CHIP_RV620:
+	case CHIP_RS780:
+	case CHIP_RS880:
 		tmp += 32;
 		break;
 	case CHIP_RV670:
@@ -1043,8 +1048,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_RV610:
-	case CHIP_RS780:
 	case CHIP_RV620:
+	case CHIP_RS780:
+	case CHIP_RS880:
 		tmp = TC_L2_SIZE(8);
 		break;
 	case CHIP_RV630:
