@@ -415,11 +415,16 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			/* more bytes to be written */
 			dev->status |= STATUS_WRITE_IN_PROGRESS;
 			break;
-		} else {
+		} else
 			dev->status &= ~STATUS_WRITE_IN_PROGRESS;
-			intr_mask &= ~DW_IC_INTR_TX_EMPTY;
-		}
 	}
+
+	/*
+	 * If i2c_msg index search is completed, we don't need TX_EMPTY
+	 * interrupt any more.
+	 */
+	if (dev->msg_write_idx == dev->msgs_num)
+		intr_mask &= ~DW_IC_INTR_TX_EMPTY;
 
 	writel(intr_mask, dev->base + DW_IC_INTR_MASK);
 }
