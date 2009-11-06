@@ -19,7 +19,8 @@
 #include <linux/ima.h>
 
 /* Boot-time LSM user choice */
-static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
+static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
+	CONFIG_DEFAULT_SECURITY;
 
 /* things that live in capability.c */
 extern struct security_operations default_security_ops;
@@ -80,8 +81,10 @@ __setup("security=", choose_lsm);
  *
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
- *	-or user didn't specify a specific LSM and we're the first to ask
- *	 for registration permission,
+ *	-or the passed LSM is configured as the default and the user did not
+ *	 choose an alternate LSM at boot time,
+ *	-or there is no default LSM set and the user didn't specify a
+ *	 specific LSM and we're the first to ask for registration permission,
  *	-or the passed LSM is currently loaded.
  * Otherwise, return false.
  */
