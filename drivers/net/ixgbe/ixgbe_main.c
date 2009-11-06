@@ -226,6 +226,56 @@ static void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
 	/* tx_buffer_info must be completely set up in the transmit path */
 }
 
+/**
+ * ixgbe_tx_is_paused - check if the tx ring is paused
+ * @adapter: the ixgbe adapter
+ * @tx_ring: the corresponding tx_ring
+ *
+ * If not in DCB mode, checks TFCS.TXOFF, otherwise, find out the
+ * corresponding TC of this tx_ring when checking TFCS.
+ *
+ * Returns : true if paused
+ */
+static inline bool ixgbe_tx_is_paused(struct ixgbe_adapter *adapter,
+                                      struct ixgbe_ring *tx_ring)
+{
+	int tc;
+	u32 txoff = IXGBE_TFCS_TXOFF;
+
+#ifdef CONFIG_IXGBE_DCB
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		int reg_idx = tx_ring->reg_idx;
+		int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
+
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+			tc = reg_idx >> 2;
+			txoff = IXGBE_TFCS_TXOFF0;
+		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+			tc = 0;
+			txoff = IXGBE_TFCS_TXOFF;
+			if (dcb_i == 8) {
+				/* TC0, TC1 */
+				tc = reg_idx >> 5;
+				if (tc == 2) /* TC2, TC3 */
+					tc += (reg_idx - 64) >> 4;
+				else if (tc == 3) /* TC4, TC5, TC6, TC7 */
+					tc += 1 + ((reg_idx - 96) >> 3);
+			} else if (dcb_i == 4) {
+				/* TC0, TC1 */
+				tc = reg_idx >> 6;
+				if (tc == 1) {
+					tc += (reg_idx - 64) >> 5;
+					if (tc == 2) /* TC2, TC3 */
+						tc += (reg_idx - 96) >> 4;
+				}
+			}
+		}
+		txoff <<= tc;
+	}
+#endif
+	return IXGBE_READ_REG(&adapter->hw, IXGBE_TFCS) & txoff;
+}
+
 static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
                                        struct ixgbe_ring *tx_ring,
                                        unsigned int eop)
@@ -237,7 +287,7 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 	adapter->detect_tx_hung = false;
 	if (tx_ring->tx_buffer_info[eop].time_stamp &&
 	    time_after(jiffies, tx_ring->tx_buffer_info[eop].time_stamp + HZ) &&
-	    !(IXGBE_READ_REG(&adapter->hw, IXGBE_TFCS) & IXGBE_TFCS_TXOFF)) {
+	    !ixgbe_tx_is_paused(adapter, tx_ring)) {
 		/* detected Tx unit hang */
 		union ixgbe_adv_tx_desc *tx_desc;
 		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
