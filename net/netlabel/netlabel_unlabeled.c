@@ -472,13 +472,12 @@ int netlbl_unlhsh_add(struct net *net,
 
 	rcu_read_lock();
 	if (dev_name != NULL) {
-		dev = dev_get_by_name(net, dev_name);
+		dev = dev_get_by_name_rcu(net, dev_name);
 		if (dev == NULL) {
 			ret_val = -ENODEV;
 			goto unlhsh_add_return;
 		}
 		ifindex = dev->ifindex;
-		dev_put(dev);
 		iface = netlbl_unlhsh_search_iface(ifindex);
 	} else {
 		ifindex = 0;
@@ -737,13 +736,12 @@ int netlbl_unlhsh_remove(struct net *net,
 
 	rcu_read_lock();
 	if (dev_name != NULL) {
-		dev = dev_get_by_name(net, dev_name);
+		dev = dev_get_by_name_rcu(net, dev_name);
 		if (dev == NULL) {
 			ret_val = -ENODEV;
 			goto unlhsh_remove_return;
 		}
 		iface = netlbl_unlhsh_search_iface(dev->ifindex);
-		dev_put(dev);
 	} else
 		iface = rcu_dereference(netlbl_unlhsh_def);
 	if (iface == NULL) {
