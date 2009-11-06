@@ -234,7 +234,7 @@ static const struct proto_ops ieee802154_dgram_ops = {
  * set the state.
  */
 static int ieee802154_create(struct net *net, struct socket *sock,
-		int protocol)
+			     int protocol, int kern)
 {
 	struct sock *sk;
 	int rc;

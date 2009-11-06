@@ -819,7 +819,8 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 	return sk;
 }
 
-static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol)
+static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
+			     int kern)
 {
 	struct sock *sk;
 

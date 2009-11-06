@@ -61,7 +61,7 @@
 
 #include <net/irda/af_irda.h>
 
-static int irda_create(struct net *net, struct socket *sock, int protocol);
+static int irda_create(struct net *net, struct socket *sock, int protocol, int kern);
 
 static const struct proto_ops irda_stream_ops;
 static const struct proto_ops irda_seqpacket_ops;
@@ -839,7 +839,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
-	err = irda_create(sock_net(sk), newsock, sk->sk_protocol);
+	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, 0);
 	if (err)
 		return err;
 
@@ -1062,7 +1062,8 @@ static struct proto irda_proto = {
  *    Create IrDA socket
  *
  */
-static int irda_create(struct net *net, struct socket *sock, int protocol)
+static int irda_create(struct net *net, struct socket *sock, int protocol,
+		       int kern)
 {
 	struct sock *sk;
 	struct irda_sock *self;

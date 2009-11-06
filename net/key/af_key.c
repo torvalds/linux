@@ -177,7 +177,8 @@ static struct proto key_proto = {
 	.obj_size = sizeof(struct pfkey_sock),
 };
 
-static int pfkey_create(struct net *net, struct socket *sock, int protocol)
+static int pfkey_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *sk;

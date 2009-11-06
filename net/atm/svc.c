@@ -25,7 +25,7 @@
 #include "signaling.h"
 #include "addr.h"
 
-static int svc_create(struct net *net, struct socket *sock,int protocol);
+static int svc_create(struct net *net, struct socket *sock, int protocol, int kern);
 
 /*
  * Note: since all this is still nicely synchronized with the signaling demon,
@@ -330,7 +330,7 @@ static int svc_accept(struct socket *sock,struct socket *newsock,int flags)
 
 	lock_sock(sk);
 
-	error = svc_create(sock_net(sk), newsock,0);
+	error = svc_create(sock_net(sk), newsock, 0, 0);
 	if (error)
 		goto out;
 
@@ -650,7 +650,8 @@ static const struct proto_ops svc_proto_ops = {
 };
 
 
-static int svc_create(struct net *net, struct socket *sock,int protocol)
+static int svc_create(struct net *net, struct socket *sock, int protocol,
+		      int kern)
 {
 	int error;
 

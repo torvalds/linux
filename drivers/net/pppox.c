@@ -104,7 +104,8 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 EXPORT_SYMBOL(pppox_ioctl);
 
-static int pppox_create(struct net *net, struct socket *sock, int protocol)
+static int pppox_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	int rc = -EPROTOTYPE;
 

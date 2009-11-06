@@ -501,7 +501,8 @@ out:
 	return sk;
 }
 
-static int x25_create(struct net *net, struct socket *sock, int protocol)
+static int x25_create(struct net *net, struct socket *sock, int protocol,
+		      int kern)
 {
 	struct sock *sk;
 	struct x25_sock *x25;

@@ -1352,7 +1352,8 @@ static struct proto ipx_proto = {
 	.obj_size = sizeof(struct ipx_sock),
 };
 
-static int ipx_create(struct net *net, struct socket *sock, int protocol)
+static int ipx_create(struct net *net, struct socket *sock, int protocol,
+		      int kern)
 {
 	int rc = -ESOCKTNOSUPPORT;
 	struct sock *sk;
