@@ -54,7 +54,7 @@
  *   i2400m_set_init_config()
  *   i2400m_cmd_get_state()
  * i2400m_dev_shutdown()        Called by i2400m_dev_stop()
- *   i2400m->bus_reset()
+ *   i2400m_reset()
  *
  * i2400m_{cmd,get,set}_*()
  *   i2400m_msg_to_dev()
@@ -81,6 +81,13 @@
 
 #define D_SUBMODULE control
 #include "debug-levels.h"
+
+int i2400m_passive_mode;	/* 0 (passive mode disabled) by default */
+module_param_named(passive_mode, i2400m_passive_mode, int, 0644);
+MODULE_PARM_DESC(passive_mode,
+		 "If true, the driver will not do any device setup "
+		 "and leave it up to user space, who must be properly "
+		 "setup.");
 
 
 /*
@@ -263,7 +270,7 @@ int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *l3l4_hdr,
 
 	if (status == 0)
 		return 0;
-	if (status > ARRAY_SIZE(ms_to_errno)) {
+	if (status >= ARRAY_SIZE(ms_to_errno)) {
 		str = "unknown status code";
 		result = -EBADR;
 	} else {
@@ -336,7 +343,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 		/* Huh? just in case, shut it down */
 		dev_err(dev, "HW BUG? unknown state %u: shutting down\n",
 			i2400m_state);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
 	};
 	d_fnend(3, dev, "(i2400m %p ss %p [%u]) = void\n",
@@ -1335,6 +1342,8 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	unsigned argc = 0;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	if (i2400m_passive_mode)
+		goto out_passive;
 	/* Disable idle mode? (enabled by default) */
 	if (i2400m_idle_mode_disabled) {
 		if (i2400m_le_v1_3(i2400m)) {
@@ -1377,6 +1386,7 @@ int i2400m_dev_initialize(struct i2400m *i2400m)
 	result = i2400m_set_init_config(i2400m, args, argc);
 	if (result < 0)
 		goto error;
+out_passive:
 	/*
 	 * Update state: Here it just calls a get state; parsing the
 	 * result (System State TLV and RF Status TLV [done in the rx

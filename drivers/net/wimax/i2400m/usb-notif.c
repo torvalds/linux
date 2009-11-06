@@ -51,6 +51,7 @@
  *
  * i2400mu_usb_notification_cb()	Called when a URB is ready
  *   i2400mu_notif_grok()
+ *     i2400m_is_boot_barker()
  *     i2400m_dev_reset_handle()
  *     i2400mu_rx_kick()
  */
@@ -87,32 +88,21 @@ int i2400mu_notification_grok(struct i2400mu *i2400mu, const void *buf,
 	d_fnstart(4, dev, "(i2400m %p buf %p buf_len %zu)\n",
 		  i2400mu, buf, buf_len);
 	ret = -EIO;
-	if (buf_len < sizeof(i2400m_NBOOT_BARKER))
+	if (buf_len < sizeof(i2400m_ZERO_BARKER))
 		/* Not a bug, just ignore */
 		goto error_bad_size;
-	if (!memcmp(i2400m_NBOOT_BARKER, buf, sizeof(i2400m_NBOOT_BARKER))
-	    || !memcmp(i2400m_SBOOT_BARKER, buf, sizeof(i2400m_SBOOT_BARKER)))
-		ret = i2400m_dev_reset_handle(i2400m);
-	else if (!memcmp(i2400m_ZERO_BARKER, buf, sizeof(i2400m_ZERO_BARKER))) {
+	ret = 0;
+	if (!memcmp(i2400m_ZERO_BARKER, buf, sizeof(i2400m_ZERO_BARKER))) {
 		i2400mu_rx_kick(i2400mu);
-		ret = 0;
-	} else {	/* Unknown or unexpected data in the notif message */
-		char prefix[64];
-		ret = -EIO;
-		dev_err(dev, "HW BUG? Unknown/unexpected data in notification "
-			"message (%zu bytes)\n", buf_len);
-		snprintf(prefix, sizeof(prefix), "%s %s: ",
-			 dev_driver_string(dev), dev_name(dev));
-		if (buf_len > 64) {
-			print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
-				       8, 4, buf, 64, 0);
-			printk(KERN_ERR "%s... (only first 64 bytes "
-			       "dumped)\n", prefix);
-		} else
-			print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
-				       8, 4, buf, buf_len, 0);
+		goto out;
 	}
+	ret = i2400m_is_boot_barker(i2400m, buf, buf_len);
+	if (unlikely(ret >= 0))
+		ret = i2400m_dev_reset_handle(i2400m, "device rebooted");
+	else	/* Unknown or unexpected data in the notif message */
+		i2400m_unknown_barker(i2400m, buf, buf_len);
 error_bad_size:
+out:
 	d_fnend(4, dev, "(i2400m %p buf %p buf_len %zu) = %d\n",
 		i2400mu, buf, buf_len, ret);
 	return ret;
@@ -220,7 +210,8 @@ int i2400mu_notification_setup(struct i2400mu *i2400mu)
 		dev_err(dev, "notification: cannot allocate URB\n");
 		goto error_alloc_urb;
 	}
-	epd = usb_get_epd(i2400mu->usb_iface, I2400MU_EP_NOTIFICATION);
+	epd = usb_get_epd(i2400mu->usb_iface,
+			  i2400mu->endpoint_cfg.notification);
 	usb_pipe = usb_rcvintpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	usb_fill_int_urb(i2400mu->notif_urb, i2400mu->usb_dev, usb_pipe,
 			 buf, I2400MU_MAX_NOTIFICATION_LEN,

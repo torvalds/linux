@@ -67,6 +67,7 @@
 
 /* Host-Device interface for SDIO */
 enum {
+	I2400M_SDIO_BOOT_RETRIES = 3,
 	I2400MS_BLK_SIZE = 256,
 	I2400MS_PL_SIZE_MAX = 0x3E00,
 
@@ -77,9 +78,11 @@ enum {
 	I2400MS_INTR_GET_SIZE_ADDR = 0x2C,
 	/* The number of ticks to wait for the device to signal that
 	 * it is ready */
-	I2400MS_INIT_SLEEP_INTERVAL = 10,
+	I2400MS_INIT_SLEEP_INTERVAL = 100,
 	/* How long to wait for the device to settle after reset */
 	I2400MS_SETTLE_TIME = 40,
+	/* The number of msec to wait for IOR after sending IOE */
+	IWMC3200_IOR_TIMEOUT = 10,
 };
 
 
@@ -97,6 +100,14 @@ enum {
  * @tx_workqueue: workqeueue used for data TX; we don't use the
  *     system's workqueue as that might cause deadlocks with code in
  *     the bus-generic driver.
+ *
+ * @debugfs_dentry: dentry for the SDIO specific debugfs files
+ *
+ *     Note this value is set to NULL upon destruction; this is
+ *     because some routinges use it to determine if we are inside the
+ *     probe() path or some other path. When debugfs is disabled,
+ *     creation sets the dentry to '(void*) -ENODEV', which is valid
+ *     for the test.
  */
 struct i2400ms {
 	struct i2400m i2400m;		/* FIRST! See doc */
@@ -111,6 +122,9 @@ struct i2400ms {
 	wait_queue_head_t bm_wfa_wq;
 	int bm_wait_result;
 	size_t bm_ack_size;
+
+	/* Device is any of the iwmc3200 SKUs */
+	unsigned iwmc3200:1;
 };
 
 

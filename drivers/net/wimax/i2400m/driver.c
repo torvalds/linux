@@ -41,8 +41,10 @@
  *     __i2400m_dev_start()
  *
  * i2400m_setup()
+ *   i2400m->bus_setup()
  *   i2400m_bootrom_init()
  *   register_netdev()
+ *   wimax_dev_add()
  *   i2400m_dev_start()
  *     __i2400m_dev_start()
  *       i2400m_dev_bootstrap()
@@ -50,15 +52,15 @@
  *       i2400m->bus_dev_start()
  *       i2400m_firmware_check()
  *       i2400m_check_mac_addr()
- *   wimax_dev_add()
  *
  * i2400m_release()
- *   wimax_dev_rm()
  *   i2400m_dev_stop()
  *     __i2400m_dev_stop()
  *       i2400m_dev_shutdown()
  *       i2400m->bus_dev_stop()
  *       i2400m_tx_release()
+ *   i2400m->bus_release()
+ *   wimax_dev_rm()
  *   unregister_netdev()
  */
 #include "i2400m.h"
@@ -66,6 +68,7 @@
 #include <linux/wimax/i2400m.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/suspend.h>
 
 #define D_SUBMODULE driver
 #include "debug-levels.h"
@@ -90,76 +93,39 @@ MODULE_PARM_DESC(power_save_disabled,
 		 "False by default (so the device is told to do power "
 		 "saving).");
 
-/**
- * i2400m_queue_work - schedule work on a i2400m's queue
- *
- * @i2400m: device descriptor
- *
- * @fn: function to run to execute work. It gets passed a 'struct
- *     work_struct' that is wrapped in a 'struct i2400m_work'. Once
- *     done, you have to (1) i2400m_put(i2400m_work->i2400m) and then
- *     (2) kfree(i2400m_work).
- *
- * @gfp_flags: GFP flags for memory allocation.
- *
- * @pl: pointer to a payload buffer that you want to pass to the _work
- *     function. Use this to pack (for example) a struct with extra
- *     arguments.
- *
- * @pl_size: size of the payload buffer.
- *
- * We do this quite often, so this just saves typing; allocate a
- * wrapper for a i2400m, get a ref to it, pack arguments and launch
- * the work.
- *
- * A usual workflow is:
- *
- * struct my_work_args {
- *         void *something;
- *         int whatever;
- * };
- * ...
- *
- * struct my_work_args my_args = {
- *         .something = FOO,
- *         .whaetever = BLAH
- * };
- * i2400m_queue_work(i2400m, 1, my_work_function, GFP_KERNEL,
- *                   &args, sizeof(args))
- *
- * And now the work function can unpack the arguments and call the
- * real function (or do the job itself):
- *
- * static
- * void my_work_fn((struct work_struct *ws)
- * {
- *         struct i2400m_work *iw =
- *	           container_of(ws, struct i2400m_work, ws);
- *	   struct my_work_args *my_args = (void *) iw->pl;
- *
- *	   my_work(iw->i2400m, my_args->something, my_args->whatevert);
- * }
- */
-int i2400m_queue_work(struct i2400m *i2400m,
-		      void (*fn)(struct work_struct *), gfp_t gfp_flags,
-		      const void *pl, size_t pl_size)
+static char i2400m_debug_params[128];
+module_param_string(debug, i2400m_debug_params, sizeof(i2400m_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
+
+static char i2400m_barkers_params[128];
+module_param_string(barkers, i2400m_barkers_params,
+		    sizeof(i2400m_barkers_params), 0644);
+MODULE_PARM_DESC(barkers,
+		 "String of comma-separated 32-bit values; each is "
+		 "recognized as the value the device sends as a reboot "
+		 "signal; values are appended to a list--setting one value "
+		 "as zero cleans the existing list and starts a new one.");
+
+static
+struct i2400m_work *__i2400m_work_setup(
+	struct i2400m *i2400m, void (*fn)(struct work_struct *),
+	gfp_t gfp_flags, const void *pl, size_t pl_size)
 {
-	int result;
 	struct i2400m_work *iw;
 
-	BUG_ON(i2400m->work_queue == NULL);
-	result = -ENOMEM;
 	iw = kzalloc(sizeof(*iw) + pl_size, gfp_flags);
 	if (iw == NULL)
-		goto error_kzalloc;
+		return NULL;
 	iw->i2400m = i2400m_get(i2400m);
+	iw->pl_size = pl_size;
 	memcpy(iw->pl, pl, pl_size);
 	INIT_WORK(&iw->ws, fn);
-	result = queue_work(i2400m->work_queue, &iw->ws);
-error_kzalloc:
-	return result;
+	return iw;
 }
-EXPORT_SYMBOL_GPL(i2400m_queue_work);
 
 
 /*
@@ -175,21 +141,19 @@ EXPORT_SYMBOL_GPL(i2400m_queue_work);
  * it should not happen.
  */
 int i2400m_schedule_work(struct i2400m *i2400m,
-			 void (*fn)(struct work_struct *), gfp_t gfp_flags)
+			 void (*fn)(struct work_struct *), gfp_t gfp_flags,
+			 const void *pl, size_t pl_size)
 {
 	int result;
 	struct i2400m_work *iw;
 
 	result = -ENOMEM;
-	iw = kzalloc(sizeof(*iw), gfp_flags);
-	if (iw == NULL)
-		goto error_kzalloc;
-	iw->i2400m = i2400m_get(i2400m);
-	INIT_WORK(&iw->ws, fn);
-	result = schedule_work(&iw->ws);
-	if (result == 0)
-		result = -ENXIO;
-error_kzalloc:
+	iw = __i2400m_work_setup(i2400m, fn, gfp_flags, pl, pl_size);
+	if (iw != NULL) {
+		result = schedule_work(&iw->ws);
+		if (WARN_ON(result == 0))
+			result = -ENXIO;
+	}
 	return result;
 }
 
@@ -291,7 +255,7 @@ int i2400m_op_reset(struct wimax_dev *wimax_dev)
 	mutex_lock(&i2400m->init_mutex);
 	i2400m->reset_ctx = &ctx;
 	mutex_unlock(&i2400m->init_mutex);
-	result = i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+	result = i2400m_reset(i2400m, I2400M_RT_WARM);
 	if (result < 0)
 		goto out;
 	result = wait_for_completion_timeout(&ctx.completion, 4*HZ);
@@ -420,9 +384,15 @@ retry:
 		dev_err(dev, "cannot create workqueue\n");
 		goto error_create_workqueue;
 	}
-	result = i2400m->bus_dev_start(i2400m);
-	if (result < 0)
-		goto error_bus_dev_start;
+	if (i2400m->bus_dev_start) {
+		result = i2400m->bus_dev_start(i2400m);
+		if (result < 0)
+			goto error_bus_dev_start;
+	}
+	i2400m->ready = 1;
+	wmb();		/* see i2400m->ready's documentation  */
+	/* process pending reports from the device */
+	queue_work(i2400m->work_queue, &i2400m->rx_report_ws);
 	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
 	if (result < 0)
 		goto error_fw_check;
@@ -430,8 +400,6 @@ retry:
 	result = i2400m_check_mac_addr(i2400m);
 	if (result < 0)
 		goto error_check_mac_addr;
-	i2400m->ready = 1;
-	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 	result = i2400m_dev_initialize(i2400m);
 	if (result < 0)
 		goto error_dev_initialize;
@@ -443,8 +411,12 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+	i2400m->ready = 0;
+	wmb();		/* see i2400m->ready's documentation  */
+	flush_workqueue(i2400m->work_queue);
 error_fw_check:
-	i2400m->bus_dev_stop(i2400m);
+	if (i2400m->bus_dev_stop)
+		i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
 	destroy_workqueue(i2400m->work_queue);
 error_create_workqueue:
@@ -466,11 +438,15 @@ error_bootstrap:
 static
 int i2400m_dev_start(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 {
-	int result;
+	int result = 0;
 	mutex_lock(&i2400m->init_mutex);	/* Well, start the device */
-	result = __i2400m_dev_start(i2400m, bm_flags);
-	if (result >= 0)
-		i2400m->updown = 1;
+	if (i2400m->updown == 0) {
+		result = __i2400m_dev_start(i2400m, bm_flags);
+		if (result >= 0) {
+			i2400m->updown = 1;
+			wmb();	/* see i2400m->updown's documentation */
+		}
+	}
 	mutex_unlock(&i2400m->init_mutex);
 	return result;
 }
@@ -495,9 +471,20 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	wimax_state_change(wimax_dev, __WIMAX_ST_QUIESCING);
+	i2400m_msg_to_dev_cancel_wait(i2400m, -EL3RST);
+	complete(&i2400m->msg_completion);
+	i2400m_net_wake_stop(i2400m);
 	i2400m_dev_shutdown(i2400m);
-	i2400m->ready = 0;
-	i2400m->bus_dev_stop(i2400m);
+	/*
+	 * Make sure no report hooks are running *before* we stop the
+	 * communication infrastructure with the device.
+	 */
+	i2400m->ready = 0;	/* nobody can queue work anymore */
+	wmb();		/* see i2400m->ready's documentation  */
+	flush_workqueue(i2400m->work_queue);
+
+	if (i2400m->bus_dev_stop)
+		i2400m->bus_dev_stop(i2400m);
 	destroy_workqueue(i2400m->work_queue);
 	i2400m_rx_release(i2400m);
 	i2400m_tx_release(i2400m);
@@ -518,9 +505,136 @@ void i2400m_dev_stop(struct i2400m *i2400m)
 	if (i2400m->updown) {
 		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
+		wmb();	/* see i2400m->updown's documentation  */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 }
+
+
+/*
+ * Listen to PM events to cache the firmware before suspend/hibernation
+ *
+ * When the device comes out of suspend, it might go into reset and
+ * firmware has to be uploaded again. At resume, most of the times, we
+ * can't load firmware images from disk, so we need to cache it.
+ *
+ * i2400m_fw_cache() will allocate a kobject and attach the firmware
+ * to it; that way we don't have to worry too much about the fw loader
+ * hitting a race condition.
+ *
+ * Note: modus operandi stolen from the Orinoco driver; thx.
+ */
+static
+int i2400m_pm_notifier(struct notifier_block *notifier,
+		       unsigned long pm_event,
+		       void *unused)
+{
+	struct i2400m *i2400m =
+		container_of(notifier, struct i2400m, pm_notifier);
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p pm_event %lx)\n", i2400m, pm_event);
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		i2400m_fw_cache(i2400m);
+		break;
+	case PM_POST_RESTORE:
+		/* Restore from hibernation failed. We need to clean
+		 * up in exactly the same way, so fall through. */
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		i2400m_fw_uncache(i2400m);
+		break;
+
+	case PM_RESTORE_PREPARE:
+	default:
+		break;
+	}
+	d_fnend(3, dev, "(i2400m %p pm_event %lx) = void\n", i2400m, pm_event);
+	return NOTIFY_DONE;
+}
+
+
+/*
+ * pre-reset is called before a device is going on reset
+ *
+ * This has to be followed by a call to i2400m_post_reset(), otherwise
+ * bad things might happen.
+ */
+int i2400m_pre_reset(struct i2400m *i2400m)
+{
+	int result;
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	d_printf(1, dev, "pre-reset shut down\n");
+
+	result = 0;
+	mutex_lock(&i2400m->init_mutex);
+	if (i2400m->updown) {
+		netif_tx_disable(i2400m->wimax_dev.net_dev);
+		__i2400m_dev_stop(i2400m);
+		result = 0;
+		/* down't set updown to zero -- this way
+		 * post_reset can restore properly */
+	}
+	mutex_unlock(&i2400m->init_mutex);
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_pre_reset);
+
+
+/*
+ * Restore device state after a reset
+ *
+ * Do the work needed after a device reset to bring it up to the same
+ * state as it was before the reset.
+ *
+ * NOTE: this requires i2400m->init_mutex taken
+ */
+int i2400m_post_reset(struct i2400m *i2400m)
+{
+	int result = 0;
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	d_printf(1, dev, "post-reset start\n");
+	if (i2400m->bus_setup) {
+		result = i2400m->bus_setup(i2400m);
+		if (result < 0) {
+			dev_err(dev, "bus-specific setup failed: %d\n",
+				result);
+			goto error_bus_setup;
+		}
+	}
+	mutex_lock(&i2400m->init_mutex);
+	if (i2400m->updown) {
+		result = __i2400m_dev_start(
+			i2400m, I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
+		if (result < 0)
+			goto error_dev_start;
+	}
+	mutex_unlock(&i2400m->init_mutex);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+
+error_dev_start:
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+error_bus_setup:
+	/* even if the device was up, it could not be recovered, so we
+	 * mark it as down. */
+	i2400m->updown = 0;
+	wmb();		/* see i2400m->updown's documentation  */
+	mutex_unlock(&i2400m->init_mutex);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_post_reset);
 
 
 /*
@@ -542,56 +656,69 @@ void i2400m_dev_stop(struct i2400m *i2400m)
  *       _stop()], don't do anything, let it fail and handle it.
  *
  * This function is ran always in a thread context
+ *
+ * This function gets passed, as payload to i2400m_work() a 'const
+ * char *' ptr with a "reason" why the reset happened (for messages).
  */
 static
 void __i2400m_dev_reset_handle(struct work_struct *ws)
 {
 	int result;
 	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
+	const char *reason;
 	struct i2400m *i2400m = iw->i2400m;
 	struct device *dev = i2400m_dev(i2400m);
-	enum wimax_st wimax_state;
 	struct i2400m_reset_ctx *ctx = i2400m->reset_ctx;
 
-	d_fnstart(3, dev, "(ws %p i2400m %p)\n", ws, i2400m);
+	if (WARN_ON(iw->pl_size != sizeof(reason)))
+		reason = "SW BUG: reason n/a";
+	else
+		memcpy(&reason, iw->pl, sizeof(reason));
+
+	d_fnstart(3, dev, "(ws %p i2400m %p reason %s)\n", ws, i2400m, reason);
+
 	result = 0;
 	if (mutex_trylock(&i2400m->init_mutex) == 0) {
 		/* We are still in i2400m_dev_start() [let it fail] or
 		 * i2400m_dev_stop() [we are shutting down anyway, so
 		 * ignore it] or we are resetting somewhere else. */
-		dev_err(dev, "device rebooted\n");
+		dev_err(dev, "device rebooted somewhere else?\n");
 		i2400m_msg_to_dev_cancel_wait(i2400m, -EL3RST);
 		complete(&i2400m->msg_completion);
 		goto out;
 	}
-	wimax_state = wimax_state_get(&i2400m->wimax_dev);
-	if (wimax_state < WIMAX_ST_UNINITIALIZED) {
-		dev_info(dev, "device rebooted: it is down, ignoring\n");
-		goto out_unlock;	/* ifconfig up/down wasn't called */
+	if (i2400m->updown == 0)  {
+		dev_info(dev, "%s: device is down, doing nothing\n", reason);
+		goto out_unlock;
 	}
-	dev_err(dev, "device rebooted: reinitializing driver\n");
+	dev_err(dev, "%s: reinitializing driver\n", reason);
 	__i2400m_dev_stop(i2400m);
-	i2400m->updown = 0;
 	result = __i2400m_dev_start(i2400m,
 				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
 	if (result < 0) {
-		dev_err(dev, "device reboot: cannot start the device: %d\n",
-			result);
-		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
-		if (result >= 0)
-			result = -ENODEV;
-	} else
-		i2400m->updown = 1;
+		i2400m->updown = 0;
+		wmb();		/* see i2400m->updown's documentation  */
+		dev_err(dev, "%s: cannot start the device: %d\n",
+			reason, result);
+		result = -EUCLEAN;
+	}
 out_unlock:
 	if (i2400m->reset_ctx) {
 		ctx->result = result;
 		complete(&ctx->completion);
 	}
 	mutex_unlock(&i2400m->init_mutex);
+	if (result == -EUCLEAN) {
+		/* ops, need to clean up [w/ init_mutex not held] */
+		result = i2400m_reset(i2400m, I2400M_RT_BUS);
+		if (result >= 0)
+			result = -ENODEV;
+	}
 out:
 	i2400m_put(i2400m);
 	kfree(iw);
-	d_fnend(3, dev, "(ws %p i2400m %p) = void\n", ws, i2400m);
+	d_fnend(3, dev, "(ws %p i2400m %p reason %s) = void\n",
+		ws, i2400m, reason);
 	return;
 }
 
@@ -608,14 +735,102 @@ out:
  * reinitializing the driver to handle the reset, calling into the
  * bus-specific functions ops as needed.
  */
-int i2400m_dev_reset_handle(struct i2400m *i2400m)
+int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 {
 	i2400m->boot_mode = 1;
 	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
-				    GFP_ATOMIC);
+				    GFP_ATOMIC, &reason, sizeof(reason));
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
+
+
+/*
+ * Alloc the command and ack buffers for boot mode
+ *
+ * Get the buffers needed to deal with boot mode messages.  These
+ * buffers need to be allocated before the sdio recieve irq is setup.
+ */
+static
+int i2400m_bm_buf_alloc(struct i2400m *i2400m)
+{
+	int result;
+
+	result = -ENOMEM;
+	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
+	if (i2400m->bm_cmd_buf == NULL)
+		goto error_bm_cmd_kzalloc;
+	i2400m->bm_ack_buf = kzalloc(I2400M_BM_ACK_BUF_SIZE, GFP_KERNEL);
+	if (i2400m->bm_ack_buf == NULL)
+		goto error_bm_ack_buf_kzalloc;
+	return 0;
+
+error_bm_ack_buf_kzalloc:
+	kfree(i2400m->bm_cmd_buf);
+error_bm_cmd_kzalloc:
+	return result;
+}
+
+
+/*
+ * Free boot mode command and ack buffers.
+ */
+static
+void i2400m_bm_buf_free(struct i2400m *i2400m)
+{
+	kfree(i2400m->bm_ack_buf);
+	kfree(i2400m->bm_cmd_buf);
+}
+
+
+/**
+ * i2400m_init - Initialize a 'struct i2400m' from all zeroes
+ *
+ * This is a bus-generic API call.
+ */
+void i2400m_init(struct i2400m *i2400m)
+{
+	wimax_dev_init(&i2400m->wimax_dev);
+
+	i2400m->boot_mode = 1;
+	i2400m->rx_reorder = 1;
+	init_waitqueue_head(&i2400m->state_wq);
+
+	spin_lock_init(&i2400m->tx_lock);
+	i2400m->tx_pl_min = UINT_MAX;
+	i2400m->tx_size_min = UINT_MAX;
+
+	spin_lock_init(&i2400m->rx_lock);
+	i2400m->rx_pl_min = UINT_MAX;
+	i2400m->rx_size_min = UINT_MAX;
+	INIT_LIST_HEAD(&i2400m->rx_reports);
+	INIT_WORK(&i2400m->rx_report_ws, i2400m_report_hook_work);
+
+	mutex_init(&i2400m->msg_mutex);
+	init_completion(&i2400m->msg_completion);
+
+	mutex_init(&i2400m->init_mutex);
+	/* wake_tx_ws is initialized in i2400m_tx_setup() */
+}
+EXPORT_SYMBOL_GPL(i2400m_init);
+
+
+int i2400m_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
+{
+	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
+
+	/*
+	 * Make sure we stop TXs and down the carrier before
+	 * resetting; this is needed to avoid things like
+	 * i2400m_wake_tx() scheduling stuff in parallel.
+	 */
+	if (net_dev->reg_state == NETREG_REGISTERED) {
+		netif_tx_disable(net_dev);
+		netif_carrier_off(net_dev);
+	}
+	return i2400m->bus_reset(i2400m, rt);
+}
+EXPORT_SYMBOL_GPL(i2400m_reset);
 
 
 /**
@@ -625,13 +840,9 @@ EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
  *
  * Returns: 0 if ok, < 0 errno code on error.
  *
- * Initializes the bus-generic parts of the i2400m driver; the
- * bus-specific parts have been initialized, function pointers filled
- * out by the bus-specific probe function.
- *
- * As well, this registers the WiMAX and net device nodes. Once this
- * function returns, the device is operative and has to be ready to
- * receive and send network traffic and WiMAX control operations.
+ * Sets up basic device comunication infrastructure, boots the ROM to
+ * read the MAC address, registers with the WiMAX and network stacks
+ * and then brings up the device.
  */
 int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 {
@@ -645,16 +856,21 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	snprintf(wimax_dev->name, sizeof(wimax_dev->name),
 		 "i2400m-%s:%s", dev->bus->name, dev_name(dev));
 
-	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->bm_cmd_buf == NULL) {
-		dev_err(dev, "cannot allocate USB command buffer\n");
-		goto error_bm_cmd_kzalloc;
+	result = i2400m_bm_buf_alloc(i2400m);
+	if (result < 0) {
+		dev_err(dev, "cannot allocate bootmode scratch buffers\n");
+		goto error_bm_buf_alloc;
 	}
-	i2400m->bm_ack_buf = kzalloc(I2400M_BM_ACK_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->bm_ack_buf == NULL) {
-		dev_err(dev, "cannot allocate USB ack buffer\n");
-		goto error_bm_ack_buf_kzalloc;
+
+	if (i2400m->bus_setup) {
+		result = i2400m->bus_setup(i2400m);
+		if (result < 0) {
+			dev_err(dev, "bus-specific setup failed: %d\n",
+				result);
+			goto error_bus_setup;
+		}
 	}
+
 	result = i2400m_bootrom_init(i2400m, bm_flags);
 	if (result < 0) {
 		dev_err(dev, "read mac addr: bootrom init "
@@ -666,6 +882,9 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		goto error_read_mac_addr;
 	random_ether_addr(i2400m->src_mac_addr);
 
+	i2400m->pm_notifier.notifier_call = i2400m_pm_notifier;
+	register_pm_notifier(&i2400m->pm_notifier);
+
 	result = register_netdev(net_dev);	/* Okey dokey, bring it up */
 	if (result < 0) {
 		dev_err(dev, "cannot register i2400m network device: %d\n",
@@ -674,18 +893,13 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	}
 	netif_carrier_off(net_dev);
 
-	result = i2400m_dev_start(i2400m, bm_flags);
-	if (result < 0)
-		goto error_dev_start;
-
 	i2400m->wimax_dev.op_msg_from_user = i2400m_op_msg_from_user;
 	i2400m->wimax_dev.op_rfkill_sw_toggle = i2400m_op_rfkill_sw_toggle;
 	i2400m->wimax_dev.op_reset = i2400m_op_reset;
+
 	result = wimax_dev_add(&i2400m->wimax_dev, net_dev);
 	if (result < 0)
 		goto error_wimax_dev_add;
-	/* User space needs to do some init stuff */
-	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 
 	/* Now setup all that requires a registered net and wimax device. */
 	result = sysfs_create_group(&net_dev->dev.kobj, &i2400m_dev_attr_group);
@@ -693,30 +907,37 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		dev_err(dev, "cannot setup i2400m's sysfs: %d\n", result);
 		goto error_sysfs_setup;
 	}
+
 	result = i2400m_debugfs_add(i2400m);
 	if (result < 0) {
 		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
 		goto error_debugfs_setup;
 	}
+
+	result = i2400m_dev_start(i2400m, bm_flags);
+	if (result < 0)
+		goto error_dev_start;
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 
+error_dev_start:
+	i2400m_debugfs_rm(i2400m);
 error_debugfs_setup:
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 error_sysfs_setup:
 	wimax_dev_rm(&i2400m->wimax_dev);
 error_wimax_dev_add:
-	i2400m_dev_stop(i2400m);
-error_dev_start:
 	unregister_netdev(net_dev);
 error_register_netdev:
+	unregister_pm_notifier(&i2400m->pm_notifier);
 error_read_mac_addr:
 error_bootrom_init:
-	kfree(i2400m->bm_ack_buf);
-error_bm_ack_buf_kzalloc:
-	kfree(i2400m->bm_cmd_buf);
-error_bm_cmd_kzalloc:
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+error_bus_setup:
+	i2400m_bm_buf_free(i2400m);
+error_bm_buf_alloc:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }
@@ -735,14 +956,17 @@ void i2400m_release(struct i2400m *i2400m)
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	netif_stop_queue(i2400m->wimax_dev.net_dev);
 
+	i2400m_dev_stop(i2400m);
+
 	i2400m_debugfs_rm(i2400m);
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 	wimax_dev_rm(&i2400m->wimax_dev);
-	i2400m_dev_stop(i2400m);
 	unregister_netdev(i2400m->wimax_dev.net_dev);
-	kfree(i2400m->bm_ack_buf);
-	kfree(i2400m->bm_cmd_buf);
+	unregister_pm_notifier(&i2400m->pm_notifier);
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+	i2400m_bm_buf_free(i2400m);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
 EXPORT_SYMBOL_GPL(i2400m_release);
@@ -759,6 +983,7 @@ struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(netdev),
 	D_SUBMODULE_DEFINE(rfkill),
 	D_SUBMODULE_DEFINE(rx),
+	D_SUBMODULE_DEFINE(sysfs),
 	D_SUBMODULE_DEFINE(tx),
 };
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
@@ -767,7 +992,9 @@ size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 static
 int __init i2400m_driver_init(void)
 {
-	return 0;
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400m_debug_params,
+		       "i2400m.debug");
+	return i2400m_barker_db_init(i2400m_barkers_params);
 }
 module_init(i2400m_driver_init);
 
@@ -776,6 +1003,7 @@ void __exit i2400m_driver_exit(void)
 {
 	/* for scheds i2400m_dev_reset_handle() */
 	flush_scheduled_work();
+	i2400m_barker_db_exit();
 	return;
 }
 module_exit(i2400m_driver_exit);

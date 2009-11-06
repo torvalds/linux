@@ -195,6 +195,12 @@
  *    defining the `struct nla_policy` for each message, it has to have
  *    an array size of WIMAX_GNL_ATTR_MAX+1.
  *
+ * The op_*() function pointers will not be called if the wimax_dev is
+ * in a state <= %WIMAX_ST_UNINITIALIZED. The exception is:
+ *
+ * - op_reset: can be called at any time after wimax_dev_add() has
+ *   been called.
+ *
  * THE PIPE INTERFACE:
  *
  * This interface is kept intentionally simple. The driver can send
