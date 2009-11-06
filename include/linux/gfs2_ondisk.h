@@ -81,7 +81,11 @@ struct gfs2_meta_header {
 	__be32 mh_type;
 	__be64 __pad0;		/* Was generation number in gfs1 */
 	__be32 mh_format;
-	__be32 __pad1;		/* Was incarnation number in gfs1 */
+	/* This union is to keep userspace happy */
+	union {
+		__be32 mh_jid;		/* Was incarnation number in gfs1 */
+		__be32 __pad1;
+	};
 };
 
 /*
