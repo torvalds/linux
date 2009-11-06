@@ -3,7 +3,7 @@
 #
 
 obj-y += setup.o init.o cmdline.o env.o time.o reset.o irq.o \
-    pci.o bonito-irq.o mem.o machtype.o
+    pci.o bonito-irq.o mem.o machtype.o uart_base.o
 
 #
 # Early printk support

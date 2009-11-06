@@ -23,7 +23,6 @@
 {								\
 	.irq		= int,					\
 	.uartclk	= 1843200,				\
-	.iobase		= (LOONGSON_UART_BASE - LOONGSON_PCIIO_BASE),\
 	.iotype		= UPIO_PORT,				\
 	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,	\
 	.regshift	= 0,					\
@@ -52,20 +51,20 @@ static struct plat_serial8250_port uart8250_data[][2] = {
 static struct platform_device uart8250_device = {
 	.name = "serial8250",
 	.id = PLAT8250_DEV_PLATFORM,
-	.dev = {
-		.platform_data = uart8250_data[LOONGSON_MACHTYPE],
-		},
 };
 
 static int __init serial_init(void)
 {
-	if (uart8250_data[LOONGSON_MACHTYPE][0].iotype == UPIO_MEM)
-		uart8250_data[LOONGSON_MACHTYPE][0].membase =
-			ioremap_nocache(LOONGSON_UART_BASE, 8);
+	if (uart8250_data[mips_machtype][0].iotype == UPIO_MEM)
+		uart8250_data[mips_machtype][0].membase =
+			(void __iomem *)_loongson_uart_base;
+	else if (uart8250_data[mips_machtype][0].iotype == UPIO_PORT)
+		uart8250_data[mips_machtype][0].iobase =
+		    uart8250_base[mips_machtype] - LOONGSON_PCIIO_BASE;
 
-	platform_device_register(&uart8250_device);
+	uart8250_device.dev.platform_data = uart8250_data[mips_machtype];
 
-	return 0;
+	return platform_device_register(&uart8250_device);
 }
 
 device_initcall(serial_init);
