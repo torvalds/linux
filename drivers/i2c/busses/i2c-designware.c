@@ -380,14 +380,18 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		 * reprogram the target address in the i2c
 		 * adapter when we are done with this transfer
 		 */
-		if (msgs[dev->msg_write_idx].addr != addr)
-			return;
+		if (msgs[dev->msg_write_idx].addr != addr) {
+			dev_err(dev->dev,
+				"%s: invalid target address\n", __func__);
+			dev->msg_err = -EINVAL;
+			break;
+		}
 
 		if (msgs[dev->msg_write_idx].len == 0) {
 			dev_err(dev->dev,
 				"%s: invalid message length\n", __func__);
 			dev->msg_err = -EINVAL;
-			return;
+			break;
 		}
 
 		if (!(dev->status & STATUS_WRITE_IN_PROGRESS)) {
@@ -425,6 +429,9 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	 */
 	if (dev->msg_write_idx == dev->msgs_num)
 		intr_mask &= ~DW_IC_INTR_TX_EMPTY;
+
+	if (dev->msg_err)
+		intr_mask = 0;
 
 	writel(intr_mask, dev->base + DW_IC_INTR_MASK);
 }
@@ -628,7 +635,7 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	 * the current transmit status.
 	 */
 
-	if (stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET))
+	if ((stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET)) || dev->msg_err)
 		complete(&dev->cmd_complete);
 
 	return IRQ_HANDLED;
