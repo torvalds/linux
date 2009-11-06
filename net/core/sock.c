@@ -420,14 +420,16 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 	if (devname[0] == '\0') {
 		index = 0;
 	} else {
-		struct net_device *dev = dev_get_by_name(net, devname);
+		struct net_device *dev;
 
+		rcu_read_lock();
+		dev = dev_get_by_name_rcu(net, devname);
+		if (dev)
+			index = dev->ifindex;
+		rcu_read_unlock();
 		ret = -ENODEV;
 		if (!dev)
 			goto out;
-
-		index = dev->ifindex;
-		dev_put(dev);
 	}
 
 	lock_sock(sk);
