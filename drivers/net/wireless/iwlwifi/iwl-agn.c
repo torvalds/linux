@@ -3452,14 +3452,6 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x423D, PCI_ANY_ID, iwl5150_agn_cfg)},
 
 /* 6x00 Series */
-	{IWL_PCI_DEVICE(0x008D, 0x1301, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1321, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1326, iwl6000h_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1306, iwl6000h_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1307, iwl6000h_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x008E, 0x1311, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008E, 0x1316, iwl6000h_2abg_cfg)},
-
 	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x422B, 0x1121, iwl6000_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x422C, 0x1301, iwl6000i_2agn_cfg)},
