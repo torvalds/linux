@@ -1073,6 +1073,21 @@ config CPU_LOONGSON2E
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
 
+	  It has an internal FPGA northbridge, which is compatiable to
+	  bonito64.
+
+config CPU_LOONGSON2F
+	bool "Loongson 2F"
+	depends on SYS_HAS_CPU_LOONGSON2F
+	select CPU_LOONGSON2
+	help
+	  The Loongson 2F processor implements the MIPS III instruction set
+	  with many extensions.
+
+	  Loongson2F have built-in DDR2 and PCIX controller. The PCIX controller
+	  have a similar programming interface with FPGA northbridge used in
+	  Loongson2E.
+
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
@@ -1315,6 +1330,9 @@ config CPU_LOONGSON2
 	select CPU_SUPPORTS_HIGHMEM
 
 config SYS_HAS_CPU_LOONGSON2E
+	bool
+
+config SYS_HAS_CPU_LOONGSON2F
 	bool
 
 config SYS_HAS_CPU_MIPS32_R1
