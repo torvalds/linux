@@ -26,11 +26,12 @@ SECTIONS {
 		_stext = . ;
 		*(.text .text.*)
 		*(.fixup)
-               EXIT_TEXT
-               EXIT_CALL
+		EXIT_TEXT
+		EXIT_CALL
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
 		. = ALIGN (4) ;
 		_etext = . ;
 	}
