@@ -194,7 +194,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		s->name, s->buffers, s->buf_size,
 		s->buffers * s->buf_size / 1024);
 
-	if (((char __iomem *)&cx->scb->cpu_mdl[cx->mdl_offset + s->buffers] -
+	if (((char __iomem *)&cx->scb->cpu_mdl[cx->free_mdl_idx + s->buffers] -
 				(char __iomem *)cx->scb) > SCB_RESERVED_SIZE) {
 		unsigned bufsz = (((char __iomem *)cx->scb) + SCB_RESERVED_SIZE -
 					((char __iomem *)cx->scb->cpu_mdl));
@@ -205,7 +205,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		return -ENOMEM;
 	}
 
-	s->mdl_offset = cx->mdl_offset;
+	s->mdl_base_idx = cx->free_mdl_idx;
 
 	/* allocate stream buffers. Initially all buffers are in q_free. */
 	for (i = 0; i < s->buffers; i++) {
@@ -227,7 +227,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		cx18_enqueue(s, buf, &s->q_free);
 	}
 	if (i == s->buffers) {
-		cx->mdl_offset += s->buffers;
+		cx->free_mdl_idx += s->buffers;
 		return 0;
 	}
 	CX18_ERR("Couldn't allocate buffers for %s stream\n", s->name);

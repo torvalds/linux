@@ -337,7 +337,7 @@ struct cx18_stream {
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
-	unsigned mdl_offset;
+	unsigned int mdl_base_idx;
 
 	u32 id;
 	unsigned long s_flags;	/* status flags, see above */
@@ -514,7 +514,7 @@ struct cx18 {
 	u16 buffer_id;		/* buffer ID counter */
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
-	unsigned mdl_offset;
+	unsigned int free_mdl_idx;
 	struct cx18_scb __iomem *scb; /* pointer to SCB */
 	struct mutex epu2apu_mb_lock; /* protect driver to chip mailbox in SCB*/
 	struct mutex epu2cpu_mb_lock; /* protect driver to chip mailbox in SCB*/

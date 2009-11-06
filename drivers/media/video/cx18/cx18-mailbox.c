@@ -178,8 +178,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		 * and send them back to q_free for fw rotation eventually.
 		 */
 		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
-		    !(id >= s->mdl_offset &&
-		      id < (s->mdl_offset + s->buffers))) {
+		    !(id >= s->mdl_base_idx &&
+		      id < (s->mdl_base_idx + s->buffers))) {
 			CX18_WARN("Fell behind! Ignoring stale mailbox with "
 				  " inconsistent data. Lost buffer for mailbox "
 				  "seq no %d\n", mb->request);
