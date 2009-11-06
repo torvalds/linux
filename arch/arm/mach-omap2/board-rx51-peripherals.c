@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 
 #include <plat/mcspi.h>
@@ -35,6 +36,86 @@
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+
+#define RX51_GPIO_CAMERA_LENS_COVER	110
+#define RX51_GPIO_CAMERA_FOCUS		68
+#define RX51_GPIO_CAMERA_CAPTURE	69
+#define RX51_GPIO_KEYPAD_SLIDE		71
+#define RX51_GPIO_LOCK_BUTTON		113
+#define RX51_GPIO_PROXIMITY		89
+
+#define RX51_GPIO_DEBOUNCE_TIMEOUT	10
+
+static struct gpio_keys_button rx51_gpio_keys[] = {
+	{
+		.desc			= "Camera Lens Cover",
+		.type			= EV_SW,
+		.code			= SW_CAMERA_LENS_COVER,
+		.gpio			= RX51_GPIO_CAMERA_LENS_COVER,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Camera Focus",
+		.type			= EV_KEY,
+		.code			= KEY_CAMERA_FOCUS,
+		.gpio			= RX51_GPIO_CAMERA_FOCUS,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Camera Capture",
+		.type			= EV_KEY,
+		.code			= KEY_CAMERA,
+		.gpio			= RX51_GPIO_CAMERA_CAPTURE,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Lock Button",
+		.type			= EV_KEY,
+		.code			= KEY_SCREENLOCK,
+		.gpio			= RX51_GPIO_LOCK_BUTTON,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Keypad Slide",
+		.type			= EV_SW,
+		.code			= SW_KEYPAD_SLIDE,
+		.gpio			= RX51_GPIO_KEYPAD_SLIDE,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Proximity Sensor",
+		.type			= EV_SW,
+		.code			= SW_FRONT_PROXIMITY,
+		.gpio			= RX51_GPIO_PROXIMITY,
+		.active_low		= 0,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}
+};
+
+static struct gpio_keys_platform_data rx51_gpio_keys_data = {
+	.buttons	= rx51_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(rx51_gpio_keys),
+};
+
+static struct platform_device rx51_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &rx51_gpio_keys_data,
+	},
+};
+
+static void __init rx51_add_gpio_keys(void)
+{
+	platform_device_register(&rx51_gpio_keys_device);
+}
+#else
+static void __init rx51_add_gpio_keys(void)
+{
+}
+#endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
 static int board_keymap[] = {
 	KEY(0, 0, KEY_Q),
@@ -541,5 +622,6 @@ void __init rx51_peripherals_init(void)
 	rx51_i2c_init();
 	board_onenand_init();
 	board_smc91x_init();
+	rx51_add_gpio_keys();
 }
 
