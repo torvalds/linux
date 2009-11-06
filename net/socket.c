@@ -3069,11 +3069,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 		return do_siocgstamp(net, sock, cmd, argp);
 	case SIOCGSTAMPNS:
 		return do_siocgstampns(net, sock, cmd, argp);
-/* Note SIOCRTMSG is no longer, so this is safe and
- * the user would have seen just an -EINVAL anyways. */
-	case SIOCRTMSG:
-	case SIOCGIFCOUNT:
-		return -EINVAL;
 
 	case FIOSETOWN:
 	case SIOCSPGRP:
@@ -3107,8 +3102,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSIFHWBROADCAST:
 	case SIOCSHWTSTAMP:
 	case SIOCDIFADDR:
-/*	case SIOCSARP: duplicate */
-/*	case SIOCDARP: duplicate */
 	case SIOCGIFBRDADDR:
 	case SIOCSIFBRDADDR:
 	case SIOCGIFDSTADDR:
@@ -3121,7 +3114,12 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSIFTXQLEN:
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
+	case SIOCSIFNAME:
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
 		return dev_ifsioc(net, sock, cmd, argp);
+
 	case ATM_GETLINKRATE32:
 	case ATM_GETNAMES32:
 	case ATM_GETTYPE32:
@@ -3168,17 +3166,22 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSARP:
 	case SIOCGARP:
 	case SIOCDARP:
-
 	case SIOCATMARK:
-	case SIOCSIFLINK:
-	case SIOCSIFNAME:
+		return sock_do_ioctl(net, sock, cmd, arg);
+	}
+
+	/* Prevent warning from compat_sys_ioctl, these always
+	 * result in -EINVAL in the native case anyway. */
+	switch (cmd) {
+	case SIOCRTMSG:
+	case SIOCGIFCOUNT:
 	case SIOCSRARP:
 	case SIOCGRARP:
 	case SIOCDRARP:
-	case SIOCGMIIPHY:
-	case SIOCGMIIREG:
-	case SIOCSMIIREG:
-		return sock_do_ioctl(net, sock, cmd, arg);
+	case SIOCSIFLINK:
+	case SIOCGIFSLAVE:
+	case SIOCSIFSLAVE:
+		return -EINVAL;
 	}
 
 	return -ENOIOCTLCMD;
