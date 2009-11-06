@@ -419,7 +419,6 @@ static void
 i2c_dw_read(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	u32 addr = msgs[dev->msg_read_idx].addr;
 	int rx_valid;
 
 	for (; dev->msg_read_idx < dev->msgs_num; dev->msg_read_idx++) {
@@ -428,10 +427,6 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 
 		if (!(msgs[dev->msg_read_idx].flags & I2C_M_RD))
 			continue;
-
-		/* different i2c client, reprogram the i2c adapter */
-		if (msgs[dev->msg_read_idx].addr != addr)
-			return;
 
 		if (!(dev->status & STATUS_READ_IN_PROGRESS)) {
 			len = msgs[dev->msg_read_idx].len;
