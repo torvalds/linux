@@ -123,8 +123,26 @@
 #define ABRT_SBYTE_ACKDET	7
 #define ABRT_SBYTE_NORSTRT	9
 #define ABRT_10B_RD_NORSTRT	10
-#define ARB_MASTER_DIS		11
+#define ABRT_MASTER_DIS		11
 #define ARB_LOST		12
+
+#define DW_IC_TX_ABRT_7B_ADDR_NOACK	(1UL << ABRT_7B_ADDR_NOACK)
+#define DW_IC_TX_ABRT_10ADDR1_NOACK	(1UL << ABRT_10ADDR1_NOACK)
+#define DW_IC_TX_ABRT_10ADDR2_NOACK	(1UL << ABRT_10ADDR2_NOACK)
+#define DW_IC_TX_ABRT_TXDATA_NOACK	(1UL << ABRT_TXDATA_NOACK)
+#define DW_IC_TX_ABRT_GCALL_NOACK	(1UL << ABRT_GCALL_NOACK)
+#define DW_IC_TX_ABRT_GCALL_READ	(1UL << ABRT_GCALL_READ)
+#define DW_IC_TX_ABRT_SBYTE_ACKDET	(1UL << ABRT_SBYTE_ACKDET)
+#define DW_IC_TX_ABRT_SBYTE_NORSTRT	(1UL << ABRT_SBYTE_NORSTRT)
+#define DW_IC_TX_ABRT_10B_RD_NORSTRT	(1UL << ABRT_10B_RD_NORSTRT)
+#define DW_IC_TX_ABRT_MASTER_DIS	(1UL << ABRT_MASTER_DIS)
+#define DW_IC_TX_ARB_LOST		(1UL << ARB_LOST)
+
+#define DW_IC_TX_ABRT_NOACK		(DW_IC_TX_ABRT_7B_ADDR_NOACK | \
+					 DW_IC_TX_ABRT_10ADDR1_NOACK | \
+					 DW_IC_TX_ABRT_10ADDR2_NOACK | \
+					 DW_IC_TX_ABRT_TXDATA_NOACK | \
+					 DW_IC_TX_ABRT_GCALL_NOACK)
 
 static char *abort_sources[] = {
 	[ABRT_7B_ADDR_NOACK]	=
@@ -472,6 +490,24 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 	}
 }
 
+static int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
+{
+	unsigned long abort_source = dev->abort_source;
+	int i;
+
+	for_each_bit(i, &abort_source, ARRAY_SIZE(abort_sources))
+		dev_err(dev->dev, "%s: %s\n", __func__, abort_sources[i]);
+
+	if (abort_source & DW_IC_TX_ARB_LOST)
+		return -EAGAIN;
+	else if (abort_source & DW_IC_TX_ABRT_NOACK)
+		return -EREMOTEIO;
+	else if (abort_source & DW_IC_TX_ABRT_GCALL_READ)
+		return -EINVAL; /* wrong msgs[] data */
+	else
+		return -EIO;
+}
+
 /*
  * Prepare controller for a transaction and call i2c_dw_xfer_msg
  */
@@ -493,6 +529,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev->msg_read_idx = 0;
 	dev->msg_err = 0;
 	dev->status = STATUS_IDLE;
+	dev->abort_source = 0;
 
 	ret = i2c_dw_wait_bus_not_busy(dev);
 	if (ret < 0)
@@ -526,12 +563,8 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	/* We have an error */
 	if (dev->cmd_err == DW_IC_ERR_TX_ABRT) {
-		unsigned long abort_source = dev->abort_source;
-		int i;
-
-		for_each_bit(i, &abort_source, ARRAY_SIZE(abort_sources)) {
-		    dev_err(dev->dev, "%s: %s\n", __func__, abort_sources[i]);
-		}
+		ret = i2c_dw_handle_tx_abort(dev);
+		goto done;
 	}
 	ret = -EIO;
 
