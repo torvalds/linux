@@ -578,18 +578,18 @@ static int rose_clear_routes(void)
 
 /*
  *	Check that the device given is a valid AX.25 interface that is "up".
+ * 	called whith RTNL
  */
-static struct net_device *rose_ax25_dev_get(char *devname)
+static struct net_device *rose_ax25_dev_find(char *devname)
 {
 	struct net_device *dev;
 
-	if ((dev = dev_get_by_name(&init_net, devname)) == NULL)
+	if ((dev = __dev_get_by_name(&init_net, devname)) == NULL)
 		return NULL;
 
 	if ((dev->flags & IFF_UP) && dev->type == ARPHRD_AX25)
 		return dev;
 
-	dev_put(dev);
 	return NULL;
 }
 
@@ -720,27 +720,23 @@ int rose_rt_ioctl(unsigned int cmd, void __user *arg)
 	case SIOCADDRT:
 		if (copy_from_user(&rose_route, arg, sizeof(struct rose_route_struct)))
 			return -EFAULT;
-		if ((dev = rose_ax25_dev_get(rose_route.device)) == NULL)
+		if ((dev = rose_ax25_dev_find(rose_route.device)) == NULL)
 			return -EINVAL;
-		if (rose_dev_exists(&rose_route.address)) { /* Can't add routes to ourself */
-			dev_put(dev);
+		if (rose_dev_exists(&rose_route.address)) /* Can't add routes to ourself */
 			return -EINVAL;
-		}
 		if (rose_route.mask > 10) /* Mask can't be more than 10 digits */
 			return -EINVAL;
 		if (rose_route.ndigis > AX25_MAX_DIGIS)
 			return -EINVAL;
 		err = rose_add_node(&rose_route, dev);
-		dev_put(dev);
 		return err;
 
 	case SIOCDELRT:
 		if (copy_from_user(&rose_route, arg, sizeof(struct rose_route_struct)))
 			return -EFAULT;
-		if ((dev = rose_ax25_dev_get(rose_route.device)) == NULL)
+		if ((dev = rose_ax25_dev_find(rose_route.device)) == NULL)
 			return -EINVAL;
 		err = rose_del_node(&rose_route, dev);
-		dev_put(dev);
 		return err;
 
 	case SIOCRSCLRRT:

@@ -1350,6 +1350,11 @@ err_stat:
 	return ret;
 }
 
+s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
+			enum ip_conntrack_dir dir,
+			u32 seq);
+EXPORT_SYMBOL_GPL(nf_ct_nat_offset);
+
 int nf_conntrack_init(struct net *net)
 {
 	int ret;
@@ -1367,6 +1372,9 @@ int nf_conntrack_init(struct net *net)
 		/* For use by REJECT target */
 		rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
 		rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
+
+		/* Howto get NAT offsets */
+		rcu_assign_pointer(nf_ct_nat_offset, NULL);
 	}
 	return 0;
 

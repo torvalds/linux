@@ -229,14 +229,17 @@ unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
  */
 
 int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
-			struct net_device *dev, __be32 *spec_dst, u32 *itag)
+			struct net_device *dev, __be32 *spec_dst,
+			u32 *itag, u32 mark)
 {
 	struct in_device *in_dev;
 	struct flowi fl = { .nl_u = { .ip4_u =
 				      { .daddr = src,
 					.saddr = dst,
 					.tos = tos } },
+			    .mark = mark,
 			    .iif = oif };
+
 	struct fib_result res;
 	int no_addr, rpf;
 	int ret;

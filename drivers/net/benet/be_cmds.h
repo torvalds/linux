@@ -68,7 +68,7 @@ enum {
 #define CQE_STATUS_COMPL_MASK		0xFFFF
 #define CQE_STATUS_COMPL_SHIFT		0	/* bits 0 - 15 */
 #define CQE_STATUS_EXTD_MASK		0xFFFF
-#define CQE_STATUS_EXTD_SHIFT		0	/* bits 0 - 15 */
+#define CQE_STATUS_EXTD_SHIFT		16	/* bits 16 - 31 */
 
 struct be_mcc_compl {
 	u32 status;		/* dword 0 */
