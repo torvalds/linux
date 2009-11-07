@@ -1,5 +1,6 @@
 /*
  * Sonix sn9c102p sn9c105 sn9c120 (jpeg) subdriver
+ *
  * Copyright (C) 2009 Jean-Francois Moine <http://moinejf.free.fr>
  * Copyright (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
@@ -72,7 +73,7 @@ struct sd {
 #define SENSOR_OV7648 6
 #define SENSOR_OV7660 7
 #define SENSOR_SP80708 8
-	u8 i2c_base;
+	u8 i2c_addr;
 
 	u8 *jpeg_hdr;
 };
@@ -597,10 +598,11 @@ static const u8 om6802_sensor_init[][8] = {
 	{0xa0, 0x34, 0xdf, 0x6d, 0x00, 0x00, 0x00, 0x10},
 						/* factory mode */
 	{0xa0, 0x34, 0xdd, 0x18, 0x00, 0x00, 0x00, 0x10},
+						/* output raw RGB */
 	{0xa0, 0x34, 0x5a, 0xc0, 0x00, 0x00, 0x00, 0x10},
 /*	{0xa0, 0x34, 0xfb, 0x11, 0x00, 0x00, 0x00, 0x10}, */
 	{0xa0, 0x34, 0xf0, 0x04, 0x00, 0x00, 0x00, 0x10},
-					/* white balance & auto-exposure */
+		/* auto-exposure speed (0) / white balance mode (auto RGB) */
 /*	{0xa0, 0x34, 0xf1, 0x02, 0x00, 0x00, 0x00, 0x10},
 							 * set color mode */
 /*	{0xa0, 0x34, 0xfe, 0x5b, 0x00, 0x00, 0x00, 0x10},
@@ -614,7 +616,7 @@ static const u8 om6802_sensor_init[][8] = {
 /*	{0xa0, 0x34, 0xe8, 0x31, 0x00, 0x00, 0x00, 0x10},
 							 * preset gamma */
 	{0xa0, 0x34, 0xe9, 0x0f, 0x00, 0x00, 0x00, 0x10},
-					/* luminance mode (0x4f = AE) */
+				/* luminance mode (0x4f -> AutoExpo on) */
 	{0xa0, 0x34, 0xe4, 0xff, 0x00, 0x00, 0x00, 0x10},
 							/* preset shutter */
 /*	{0xa0, 0x34, 0xef, 0x00, 0x00, 0x00, 0x00, 0x10},
@@ -999,7 +1001,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 		gspca_dev->usb_buf[0] = 0x81 | (2 << 4);
 		break;
 	}
-	gspca_dev->usb_buf[1] = sd->i2c_base;
+	gspca_dev->usb_buf[1] = sd->i2c_addr;
 	gspca_dev->usb_buf[2] = reg;
 	gspca_dev->usb_buf[3] = val;
 	gspca_dev->usb_buf[4] = 0;
@@ -1045,7 +1047,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 		mode[0] = 0x81 | 0x10;
 		break;
 	}
-	mode[1] = sd->i2c_base;
+	mode[1] = sd->i2c_addr;
 	mode[2] = reg;
 	mode[3] = 0;
 	mode[4] = 0;
@@ -1132,7 +1134,6 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 	case 0x823a:
 		PDEBUG(D_PROBE, "Sensor mt9v111");
 		sd->sensor = SENSOR_MT9V111;
-		sd->i2c_base = 0x5c;
 		break;
 	case 0x8243:
 		PDEBUG(D_PROBE, "Sensor mi0360");
@@ -1160,7 +1161,7 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 	/* configure gpio */
 	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
 	reg_w(gspca_dev, 0x08, &sn9c1xx[8], 2);
-	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);	/* jfm len was 3 */
+	reg_w(gspca_dev, 0x17, &sn9c1xx[0x17], 5);
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_SP80708:
@@ -1172,7 +1173,7 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 	}
 	reg_w(gspca_dev, 0x9a, reg9a, 6);
 
-	reg_w(gspca_dev, 0xd4, regd4, sizeof regd4); /*fixme:jfm was 60 only*/
+	reg_w(gspca_dev, 0xd4, regd4, sizeof regd4);
 
 	reg_w(gspca_dev, 0x03, &sn9c1xx[3], 0x0f);
 
@@ -1222,14 +1223,15 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 		msleep(100);
 		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
+	default:
 /*	case SENSOR_HV7131R: */
 /*	case SENSOR_MI0360: */
 /*	case SENSOR_MO4000: */
-	default:
 		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x61);
 		reg_w1(gspca_dev, 0x01, 0x42);
-		if (sd->sensor == SENSOR_HV7131R)
+		if (sd->sensor == SENSOR_HV7131R
+		    && sd->bridge == BRIDGE_SN9C102P)
 			hv7131r_probe(gspca_dev);
 		break;
 	}
@@ -1248,8 +1250,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->npkt = 24;			/* 24 packets per ISOC message */
 
 	sd->bridge = id->driver_info >> 16;
-	sd->sensor = id->driver_info >> 8;
-	sd->i2c_base = id->driver_info;
+	sd->sensor = id->driver_info;
 
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
@@ -1273,6 +1274,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	const u8 *sn9c1xx;
 	u8 regGpio[] = { 0x29, 0x74 };
 	u8 regF1;
 
@@ -1315,6 +1317,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	reg_w1(gspca_dev, 0xf1, 0x01);
 
+	/* set the i2c address */
+	sn9c1xx = sn_tb[sd->sensor];
+	sd->i2c_addr = sn9c1xx[9];
+
 	return 0;
 }
 
@@ -1326,7 +1332,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 	switch (sd->sensor) {
 	case SENSOR_HV7131R: {
 		u8 Expodoit[] =
-			{ 0xc1, 0x11, 0x25, 0x07, 0x27, 0xc0, 0x00, 0x16 };
+			{ 0xc1, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x16 };
 
 		Expodoit[3] = expo >> 16;
 		Expodoit[4] = expo >> 8;
@@ -1336,7 +1342,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 	    }
 	case SENSOR_MI0360: {
 		u8 expoMi[] =		/* exposure 0x0635 -> 4 fp/s 0x10 */
-			{ 0xb1, 0x5d, 0x09, 0x06, 0x35, 0x00, 0x00, 0x16 };
+			{ 0xb1, 0x5d, 0x09, 0x00, 0x00, 0x00, 0x00, 0x16 };
 		static const u8 doit[] =		/* update sensor */
 			{ 0xb1, 0x5d, 0x07, 0x00, 0x03, 0x00, 0x00, 0x10 };
 		static const u8 sensorgo[] =		/* sensor on */
@@ -1355,9 +1361,9 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 	    }
 	case SENSOR_MO4000: {
 		u8 expoMof[] =
-			{ 0xa1, 0x21, 0x0f, 0x20, 0x00, 0x00, 0x00, 0x10 };
+			{ 0xa1, 0x21, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x10 };
 		u8 expoMo10[] =
-			{ 0xa1, 0x21, 0x10, 0x20, 0x00, 0x00, 0x00, 0x10 };
+			{ 0xa1, 0x21, 0x10, 0x00, 0x00, 0x00, 0x00, 0x10 };
 		static const u8 gainMo[] =
 			{ 0xa1, 0x21, 0x00, 0x10, 0x00, 0x00, 0x00, 0x1d };
 
@@ -1393,6 +1399,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 	case SENSOR_OM6802: {
 		u8 gainOm[] =
 			{ 0xa0, 0x34, 0xe5, 0x00, 0x00, 0x00, 0x00, 0x10 };
+				/* preset AGC - works when AutoExpo = off */
 
 		if (expo > 0x03ff)
 			expo = 0x03ff;
@@ -1400,7 +1407,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 			expo = 0x0001;
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);
-		reg_w1(gspca_dev, 0x96, (expo >> 5) & 0x1f);
+		reg_w1(gspca_dev, 0x96, expo >> 5);
 		PDEBUG(D_FRAM, "set exposure %d", gainOm[3]);
 		break;
 	    }
@@ -1432,7 +1439,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9V111:
 		expo = sd->brightness >> 8;
 		sd->exposure = setexposure(gspca_dev, expo);
-		break;
+		return;			/* don't set the Y offset */
 	case SENSOR_OM6802:
 		expo = sd->brightness >> 6;
 		sd->exposure = setexposure(gspca_dev, expo);
@@ -1440,8 +1447,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	if (sd->sensor != SENSOR_MT9V111)
-		reg_w1(gspca_dev, 0x96, k2);	/* color matrix Y offset */
+	reg_w1(gspca_dev, 0x96, k2);	/* color matrix Y offset */
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -1469,6 +1475,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		-24, -38, 64,		/* UR UG UB */
 		 62, -51, -9		/* VR VG VB */
 	};
+
 	for (i = 0; i < 6; i++) {
 		v = uv[i] * sd->colors / COLOR_DEF;
 		reg8a[i * 2] = v;
@@ -1692,6 +1699,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* initialize the bridge */
 	sn9c1xx = sn_tb[sd->sensor];
 	bridge_init(gspca_dev, sn9c1xx);
+
 	/* initialize the sensor */
 	i2c_w_seq(gspca_dev, sensor_init[sd->sensor]);
 
@@ -1779,7 +1787,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
 
 	init = NULL;
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
+	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	if (mode)
 		reg1 = 0x46;	/* 320x240: clk 48Mhz, video trf enable */
 	else
@@ -1913,12 +1921,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7630:
 		data = 0x29;
 		break;
-	default:
-/*	case SENSOR_MO4000: */
-/*	case SENSOR_OV7660: */
-		break;
 	}
-	sn9c1xx = sn_tb[(int) sd->sensor];
+	sn9c1xx = sn_tb[sd->sensor];
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
@@ -2277,70 +2281,69 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define BSI(bridge, sensor, i2c_addr) \
+#define BS(bridge, sensor) \
 	.driver_info = (BRIDGE_ ## bridge << 16) \
-			| (SENSOR_ ## sensor << 8) \
-			| (i2c_addr)
+			| SENSOR_ ## sensor
 static const __devinitdata struct usb_device_id device_table[] = {
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
-	{USB_DEVICE(0x0458, 0x7025), BSI(SN9C120, MI0360, 0x5d)},
-	{USB_DEVICE(0x0458, 0x702e), BSI(SN9C120, OV7660, 0x21)},
+	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
+	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
 #endif
-	{USB_DEVICE(0x045e, 0x00f5), BSI(SN9C105, OV7660, 0x21)},
-	{USB_DEVICE(0x045e, 0x00f7), BSI(SN9C105, OV7660, 0x21)},
-	{USB_DEVICE(0x0471, 0x0327), BSI(SN9C105, MI0360, 0x5d)},
-	{USB_DEVICE(0x0471, 0x0328), BSI(SN9C105, MI0360, 0x5d)},
-	{USB_DEVICE(0x0471, 0x0330), BSI(SN9C105, MI0360, 0x5d)},
-	{USB_DEVICE(0x06f8, 0x3004), BSI(SN9C105, OV7660, 0x21)},
-	{USB_DEVICE(0x06f8, 0x3008), BSI(SN9C105, OV7660, 0x21)},
-/*	{USB_DEVICE(0x0c45, 0x603a), BSI(SN9C102P, OV7648, 0x21)}, */
-	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, HV7131R, 0x11)},
-/*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x21)}, */
-/*	{USB_DEVICE(0x0c45, 0x607b), BSI(SN9C102P, OV7660, 0x21)}, */
-	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
-/*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x21)}, */
-	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
-/*	{USB_DEVICE(0x0c45, 0x60c2), BSI(SN9C105, P1030xC, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x34)}, */
-/*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
-	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
-/*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x21)}, */
-	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
+	{USB_DEVICE(0x045e, 0x00f5), BS(SN9C105, OV7660)},
+	{USB_DEVICE(0x045e, 0x00f7), BS(SN9C105, OV7660)},
+	{USB_DEVICE(0x0471, 0x0327), BS(SN9C105, MI0360)},
+	{USB_DEVICE(0x0471, 0x0328), BS(SN9C105, MI0360)},
+	{USB_DEVICE(0x0471, 0x0330), BS(SN9C105, MI0360)},
+	{USB_DEVICE(0x06f8, 0x3004), BS(SN9C105, OV7660)},
+	{USB_DEVICE(0x06f8, 0x3008), BS(SN9C105, OV7660)},
+/*	{USB_DEVICE(0x0c45, 0x603a), BS(SN9C102P, OV7648)}, */
+	{USB_DEVICE(0x0c45, 0x6040), BS(SN9C102P, HV7131R)},
+/*	{USB_DEVICE(0x0c45, 0x607a), BS(SN9C102P, OV7648)}, */
+/*	{USB_DEVICE(0x0c45, 0x607b), BS(SN9C102P, OV7660)}, */
+	{USB_DEVICE(0x0c45, 0x607c), BS(SN9C102P, HV7131R)},
+/*	{USB_DEVICE(0x0c45, 0x607e), BS(SN9C102P, OV7630)}, */
+	{USB_DEVICE(0x0c45, 0x60c0), BS(SN9C105, MI0360)},
+/*	{USB_DEVICE(0x0c45, 0x60c2), BS(SN9C105, P1030xC)}, */
+/*	{USB_DEVICE(0x0c45, 0x60c8), BS(SN9C105, OM6802)}, */
+/*	{USB_DEVICE(0x0c45, 0x60cc), BS(SN9C105, HV7131GP)}, */
+	{USB_DEVICE(0x0c45, 0x60ec), BS(SN9C105, MO4000)},
+/*	{USB_DEVICE(0x0c45, 0x60ef), BS(SN9C105, ICM105C)}, */
+/*	{USB_DEVICE(0x0c45, 0x60fa), BS(SN9C105, OV7648)}, */
+	{USB_DEVICE(0x0c45, 0x60fb), BS(SN9C105, OV7660)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
-	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
-	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x21)},
+	{USB_DEVICE(0x0c45, 0x60fc), BS(SN9C105, HV7131R)},
+	{USB_DEVICE(0x0c45, 0x60fe), BS(SN9C105, OV7630)},
 #endif
-	{USB_DEVICE(0x0c45, 0x6100), BSI(SN9C120, MI0360, 0x5d)}, /*sn9c128*/
-/*	{USB_DEVICE(0x0c45, 0x6102), BSI(SN9C120, P1030xC, ??)}, */
-/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6802, 0x34)}, */
-	{USB_DEVICE(0x0c45, 0x610a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c128*/
-	{USB_DEVICE(0x0c45, 0x610b), BSI(SN9C120, OV7660, 0x21)}, /*sn9c128*/
-	{USB_DEVICE(0x0c45, 0x610c), BSI(SN9C120, HV7131R, 0x11)}, /*sn9c128*/
-	{USB_DEVICE(0x0c45, 0x610e), BSI(SN9C120, OV7630, 0x21)}, /*sn9c128*/
-/*	{USB_DEVICE(0x0c45, 0x610f), BSI(SN9C120, S5K53BEB, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */
-	{USB_DEVICE(0x0c45, 0x6128), BSI(SN9C120, OM6802, 0x34)}, /*sn9c325?*/
+	{USB_DEVICE(0x0c45, 0x6100), BS(SN9C120, MI0360)},	/*sn9c128*/
+/*	{USB_DEVICE(0x0c45, 0x6102), BS(SN9C120, P1030xC)}, */
+/*	{USB_DEVICE(0x0c45, 0x6108), BS(SN9C120, OM6802)}, */
+	{USB_DEVICE(0x0c45, 0x610a), BS(SN9C120, OV7648)},	/*sn9c128*/
+	{USB_DEVICE(0x0c45, 0x610b), BS(SN9C120, OV7660)},	/*sn9c128*/
+	{USB_DEVICE(0x0c45, 0x610c), BS(SN9C120, HV7131R)},	/*sn9c128*/
+	{USB_DEVICE(0x0c45, 0x610e), BS(SN9C120, OV7630)},	/*sn9c128*/
+/*	{USB_DEVICE(0x0c45, 0x610f), BS(SN9C120, S5K53BEB)}, */
+/*	{USB_DEVICE(0x0c45, 0x6122), BS(SN9C110, ICM105C)}, */
+/*	{USB_DEVICE(0x0c45, 0x6123), BS(SN9C110, SanyoCCD)}, */
+	{USB_DEVICE(0x0c45, 0x6128), BS(SN9C120, OM6802)},	/*sn9c325?*/
 /*bw600.inf:*/
-	{USB_DEVICE(0x0c45, 0x612a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c110?*/
-	{USB_DEVICE(0x0c45, 0x612c), BSI(SN9C110, MO4000, 0x21)},
-	{USB_DEVICE(0x0c45, 0x612e), BSI(SN9C110, OV7630, 0x21)},
-/*	{USB_DEVICE(0x0c45, 0x612f), BSI(SN9C110, ICM105C, 0x??)}, */
+	{USB_DEVICE(0x0c45, 0x612a), BS(SN9C120, OV7648)},	/*sn9c110?*/
+	{USB_DEVICE(0x0c45, 0x612c), BS(SN9C110, MO4000)},
+	{USB_DEVICE(0x0c45, 0x612e), BS(SN9C110, OV7630)},
+/*	{USB_DEVICE(0x0c45, 0x612f), BS(SN9C110, ICM105C)}, */
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
-	{USB_DEVICE(0x0c45, 0x6130), BSI(SN9C120, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x6130), BS(SN9C120, MI0360)},
 #endif
-/*	{USB_DEVICE(0x0c45, 0x6132), BSI(SN9C120, OV7670, 0x21)}, */
-	{USB_DEVICE(0x0c45, 0x6138), BSI(SN9C120, MO4000, 0x21)},
-	{USB_DEVICE(0x0c45, 0x613a), BSI(SN9C120, OV7648, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x6132), BS(SN9C120, OV7670)}, */
+	{USB_DEVICE(0x0c45, 0x6138), BS(SN9C120, MO4000)},
+	{USB_DEVICE(0x0c45, 0x613a), BS(SN9C120, OV7648)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
-	{USB_DEVICE(0x0c45, 0x613b), BSI(SN9C120, OV7660, 0x21)},
+	{USB_DEVICE(0x0c45, 0x613b), BS(SN9C120, OV7660)},
 #endif
-	{USB_DEVICE(0x0c45, 0x613c), BSI(SN9C120, HV7131R, 0x11)},
-	{USB_DEVICE(0x0c45, 0x613e), BSI(SN9C120, OV7630, 0x21)},
-/*	{USB_DEVICE(0x0c45, 0x6142), BSI(SN9C120, PO2030N, ??)}, *sn9c120b*/
-	{USB_DEVICE(0x0c45, 0x6143), BSI(SN9C120, SP80708, 0x18)}, /*sn9c120b*/
-	{USB_DEVICE(0x0c45, 0x6148), BSI(SN9C120, OM6802, 0x34)}, /*sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x613c), BS(SN9C120, HV7131R)},
+	{USB_DEVICE(0x0c45, 0x613e), BS(SN9C120, OV7630)},
+/*	{USB_DEVICE(0x0c45, 0x6142), BS(SN9C120, PO2030N)},	 *sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x6143), BS(SN9C120, SP80708)},	/*sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x6148), BS(SN9C120, OM6802)},	/*sn9c120b*/
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
