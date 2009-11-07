@@ -761,7 +761,11 @@ data_ready:
 rx_error:
 	if (err_msg)
 		b43dbg(q->dev->wl, "PIO RX error: %s\n", err_msg);
-	b43_piorx_write16(q, B43_PIO_RXCTL, B43_PIO_RXCTL_DATARDY);
+	if (q->rev >= 8)
+		b43_piorx_write32(q, B43_PIO8_RXCTL, B43_PIO8_RXCTL_DATARDY);
+	else
+		b43_piorx_write16(q, B43_PIO_RXCTL, B43_PIO_RXCTL_DATARDY);
+
 	return 1;
 }
 
