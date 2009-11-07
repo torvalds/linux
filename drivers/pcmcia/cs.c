@@ -243,6 +243,13 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	pcmcia_parse_events(socket, SS_DETECT);
 
+	/*
+	 * Let's try to get the PCMCIA module for 16-bit PCMCIA support.
+	 * If it fails, it doesn't matter -- we still have 32-bit CardBus
+	 * support to offer, so this is not a failure mode.
+	 */
+	request_module_nowait("pcmcia");
+
 	return 0;
 
  err:
