@@ -27,6 +27,7 @@ struct psc_dma_stream {
 	int period_next;
 	int period_current;
 	int period_bytes;
+	int period_count;
 };
 
 /**

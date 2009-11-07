@@ -77,6 +77,7 @@ static irqreturn_t psc_dma_bcom_irq_tx(int irq, void *_psc_dma_stream)
 		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
 
 		s->period_current = (s->period_current+1) % s->runtime->periods;
+		s->period_count++;
 
 		psc_dma_bcom_enqueue_next_buffer(s);
 	}
@@ -101,6 +102,7 @@ static irqreturn_t psc_dma_bcom_irq_rx(int irq, void *_psc_dma_stream)
 		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
 
 		s->period_current = (s->period_current+1) % s->runtime->periods;
+		s->period_count++;
 
 		psc_dma_bcom_enqueue_next_buffer(s);
 	}
@@ -142,17 +144,17 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	else
 		s = &psc_dma->playback;
 
-	dev_dbg(psc_dma->dev, "psc_dma_trigger(substream=%p, cmd=%i)"
-		" stream_id=%i\n",
-		substream, cmd, substream->pstr->stream);
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		dev_dbg(psc_dma->dev, "START: stream=%i fbits=%u ps=%u #p=%u\n",
+			substream->pstr->stream, runtime->frame_bits,
+			(int)runtime->period_size, runtime->periods);
 		s->period_bytes = frames_to_bytes(runtime,
 						  runtime->period_size);
 		s->period_next = 0;
 		s->period_current = 0;
 		s->active = 1;
+		s->period_count = 0;
 		s->runtime = runtime;
 
 		/* Fill up the bestcomm bd queue and enable DMA.
@@ -177,6 +179,8 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
+		dev_dbg(psc_dma->dev, "STOP: stream=%i periods_count=%i\n",
+			substream->pstr->stream, s->period_count);
 		s->active = 0;
 
 		spin_lock_irqsave(&psc_dma->lock, flags);
@@ -190,7 +194,8 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	default:
-		dev_dbg(psc_dma->dev, "invalid command\n");
+		dev_dbg(psc_dma->dev, "unhandled trigger: stream=%i cmd=%i\n",
+			substream->pstr->stream, cmd);
 		return -EINVAL;
 	}
 
