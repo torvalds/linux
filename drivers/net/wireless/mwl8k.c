@@ -400,6 +400,9 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 	return 0;
 }
 
+MODULE_FIRMWARE("mwl8k/helper_8687.fw");
+MODULE_FIRMWARE("mwl8k/fmimage_8687.fw");
+
 struct mwl8k_cmd_pkt {
 	__le16	code;
 	__le16	length;
