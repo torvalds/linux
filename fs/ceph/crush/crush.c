@@ -10,6 +10,17 @@
 
 #include "crush.h"
 
+const char *crush_bucket_alg_name(int alg)
+{
+	switch (alg) {
+	case CRUSH_BUCKET_UNIFORM: return "uniform";
+	case CRUSH_BUCKET_LIST: return "list";
+	case CRUSH_BUCKET_TREE: return "tree";
+	case CRUSH_BUCKET_STRAW: return "straw";
+	default: return "unknown";
+	}
+}
+
 /**
  * crush_get_bucket_item_weight - Get weight of an item in given bucket
  * @b: bucket pointer
