@@ -16,6 +16,7 @@
  * @period_end:		physical address of end of DMA region
  * @period_next_pt:	physical address of next DMA buffer to enqueue
  * @period_bytes:	size of DMA period in bytes
+ * @ac97_slot_bits:	Enable bits for turning on the correct AC97 slot
  */
 struct psc_dma_stream {
 	struct snd_pcm_runtime *runtime;
@@ -28,6 +29,9 @@ struct psc_dma_stream {
 	int period_current;
 	int period_bytes;
 	int period_count;
+
+	/* AC97 state */
+	u32 ac97_slot_bits;
 };
 
 /**
