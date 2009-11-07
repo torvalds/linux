@@ -22,7 +22,7 @@
 	Intel PIIX4, 440MX
 	Serverworks OSB4, CSB5, CSB6, HT-1000, HT-1100
 	ATI IXP200, IXP300, IXP400, SB600, SB700, SB800
-	AMD SB900
+	AMD Hudson-2
 	SMSC Victory66
 
    Note: we assume there can only be one device, with one SMBus interface.
@@ -233,9 +233,9 @@ static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 	unsigned short smba_idx = 0xcd6;
 	u8 smba_en_lo, smba_en_hi, i2ccfg, i2ccfg_offset = 0x10, smb_en = 0x2c;
 
-	/* SB800 SMBus does not support forcing address */
+	/* SB800 and later SMBus does not support forcing address */
 	if (force || force_addr) {
-		dev_err(&PIIX4_dev->dev, "SB800 SMBus does not support "
+		dev_err(&PIIX4_dev->dev, "SMBus does not support "
 			"forcing address!\n");
 		return -EINVAL;
 	}
@@ -480,7 +480,7 @@ static struct pci_device_id piix4_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_SB900_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS,
 		     PCI_DEVICE_ID_SERVERWORKS_OSB4) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS,
