@@ -49,6 +49,20 @@
    -/0x27	Seems to toggle various gains on / off, Setting bit 7 seems to
 		completely disable the analog amplification block. Set to 0x68
 		for max gain, 0x14 for minimal gain.
+
+   The registers are accessed in the following functions:
+
+   Page | Register   | Function
+   -----+------------+---------------------------------------------------
+    0   | 0x0f..0x20 | setcolors()
+    0   | 0xa2..0xab | setbrightcont()
+    0   | 0xc5       | setredbalance()
+    0   | 0xc7       | setbluebalance()
+    0   | 0xdc       | setbrightcont(), setcolors()
+    3   | 0x02       | setexposure()
+    3   | 0x10       | setgain()
+    3   | 0x11       | setcolors(), setgain(), setexposure(), sethvflip()
+    3   | 0x21       | sethvflip()
 */
 
 #define MODULE_NAME "pac7302"
@@ -66,6 +80,8 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	unsigned char red_balance;
+	unsigned char blue_balance;
 	unsigned char gain;
 	unsigned char exposure;
 	unsigned char autogain;
@@ -85,6 +101,10 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setredbalance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getredbalance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setbluebalance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getbluebalance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
@@ -144,6 +164,34 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
+	},
+	{
+	    {
+		.id      = V4L2_CID_RED_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Red",
+		.minimum = 0,
+		.maximum = 3,
+		.step    = 1,
+#define REDBALANCE_DEF 1
+		.default_value = REDBALANCE_DEF,
+	    },
+	    .set = sd_setredbalance,
+	    .get = sd_getredbalance,
+	},
+	{
+	    {
+		.id      = V4L2_CID_BLUE_BALANCE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Blue",
+		.minimum = 0,
+		.maximum = 3,
+		.step    = 1,
+#define BLUEBALANCE_DEF 1
+		.default_value = BLUEBALANCE_DEF,
+	    },
+	    .set = sd_setbluebalance,
+	    .get = sd_getbluebalance,
 	},
 /* All controls below are for both the 7302 and the 7311 */
 	{
@@ -477,6 +525,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
+	sd->red_balance = REDBALANCE_DEF;
+	sd->blue_balance = BLUEBALANCE_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
@@ -542,6 +592,36 @@ static int setcolors(struct gspca_dev *gspca_dev)
 	if (0 <= ret)
 		ret = reg_w(gspca_dev, 0xdc, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
+	return ret;
+}
+
+static int setredbalance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
+
+	ret = reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xc5, sd->red_balance);
+
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xdc, 0x01);
+	PDEBUG(D_CONF|D_STREAM, "red_balance: %i", sd->red_balance);
+	return ret;
+}
+
+static int setbluebalance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
+
+	ret = reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xc7, sd->blue_balance);
+
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xdc, 0x01);
+	PDEBUG(D_CONF|D_STREAM, "blue_balance: %i", sd->blue_balance);
 	return ret;
 }
 
@@ -625,6 +705,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		ret = setbrightcont(gspca_dev);
 	if (0 <= ret)
 		ret = setcolors(gspca_dev);
+	if (0 <= ret)
+		ret = setredbalance(gspca_dev);
+	if (0 <= ret)
+		ret = setbluebalance(gspca_dev);
 	if (0 <= ret)
 		setgain(gspca_dev);
 	if (0 <= ret)
@@ -854,6 +938,48 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->colors;
+	return 0;
+}
+
+static int sd_setredbalance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret = 0;
+
+	sd->red_balance = val;
+	if (gspca_dev->streaming)
+		ret = setredbalance(gspca_dev);
+	if (0 <= ret)
+		ret = 0;
+	return ret;
+}
+
+static int sd_getredbalance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->red_balance;
+	return 0;
+}
+
+static int sd_setbluebalance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret = 0;
+
+	sd->blue_balance = val;
+	if (gspca_dev->streaming)
+		ret = setbluebalance(gspca_dev);
+	if (0 <= ret)
+		ret = 0;
+	return ret;
+}
+
+static int sd_getbluebalance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->blue_balance;
 	return 0;
 }
 
