@@ -128,6 +128,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *num;
 	int intarg;
+	int ret = 0;
 
 	if (!options)
 		return 0;
@@ -262,12 +263,18 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_discard:
 			btrfs_set_opt(info->mount_opt, DISCARD);
 			break;
+		case Opt_err:
+			printk(KERN_INFO "btrfs: unrecognized mount option "
+			       "'%s'\n", p);
+			ret = -EINVAL;
+			goto out;
 		default:
 			break;
 		}
 	}
+out:
 	kfree(options);
-	return 0;
+	return ret;
 }
 
 /*
