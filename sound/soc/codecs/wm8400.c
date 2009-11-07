@@ -1400,11 +1400,6 @@ static int wm8400_probe(struct platform_device *pdev)
 	wm8400_add_controls(codec);
 	wm8400_add_widgets(codec);
 
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

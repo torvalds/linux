@@ -596,11 +596,6 @@ static int ad1938_probe(struct platform_device *pdev)
 
 	ad1938_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

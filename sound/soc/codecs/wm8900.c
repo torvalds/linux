@@ -1353,11 +1353,6 @@ static int wm8900_probe(struct platform_device *pdev)
 				ARRAY_SIZE(wm8900_snd_controls));
 	wm8900_add_widgets(codec);
 
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

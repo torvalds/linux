@@ -387,11 +387,6 @@ static int ad1836_probe(struct platform_device *pdev)
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
 	snd_soc_dapm_new_widgets(codec);
 
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
