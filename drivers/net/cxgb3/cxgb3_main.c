@@ -44,6 +44,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/firmware.h>
 #include <linux/log2.h>
+#include <linux/stringify.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
@@ -989,11 +990,21 @@ static int bind_qsets(struct adapter *adap)
 	return err;
 }
 
-#define FW_FNAME "cxgb3/t3fw-%d.%d.%d.bin"
-#define TPSRAM_NAME "cxgb3/t3%c_psram-%d.%d.%d.bin"
+#define FW_VERSION __stringify(FW_VERSION_MAJOR) "."			\
+	__stringify(FW_VERSION_MINOR) "." __stringify(FW_VERSION_MICRO)
+#define FW_FNAME "cxgb3/t3fw-" FW_VERSION ".bin"
+#define TPSRAM_VERSION __stringify(TP_VERSION_MAJOR) "."		\
+	__stringify(TP_VERSION_MINOR) "." __stringify(TP_VERSION_MICRO)
+#define TPSRAM_NAME "cxgb3/t3%c_psram-" TPSRAM_VERSION ".bin"
 #define AEL2005_OPT_EDC_NAME "cxgb3/ael2005_opt_edc.bin"
 #define AEL2005_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
 #define AEL2020_TWX_EDC_NAME "cxgb3/ael2020_twx_edc.bin"
+MODULE_FIRMWARE(FW_FNAME);
+MODULE_FIRMWARE("cxgb3/t3b_psram-" TPSRAM_VERSION ".bin");
+MODULE_FIRMWARE("cxgb3/t3c_psram-" TPSRAM_VERSION ".bin");
+MODULE_FIRMWARE(AEL2005_OPT_EDC_NAME);
+MODULE_FIRMWARE(AEL2005_TWX_EDC_NAME);
+MODULE_FIRMWARE(AEL2020_TWX_EDC_NAME);
 
 static inline const char *get_edc_fw_name(int edc_idx)
 {
@@ -1064,16 +1075,13 @@ int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size)
 static int upgrade_fw(struct adapter *adap)
 {
 	int ret;
-	char buf[64];
 	const struct firmware *fw;
 	struct device *dev = &adap->pdev->dev;
 
-	snprintf(buf, sizeof(buf), FW_FNAME, FW_VERSION_MAJOR,
-		 FW_VERSION_MINOR, FW_VERSION_MICRO);
-	ret = request_firmware(&fw, buf, dev);
+	ret = request_firmware(&fw, FW_FNAME, dev);
 	if (ret < 0) {
 		dev_err(dev, "could not upgrade firmware: unable to load %s\n",
-			buf);
+			FW_FNAME);
 		return ret;
 	}
 	ret = t3_load_fw(adap, fw->data, fw->size);
@@ -1117,8 +1125,7 @@ static int update_tpsram(struct adapter *adap)
 	if (!rev)
 		return 0;
 
-	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev,
-		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev);
 
 	ret = request_firmware(&tpsram, buf, dev);
 	if (ret < 0) {
