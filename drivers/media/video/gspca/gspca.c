@@ -1619,7 +1619,7 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 		size -= PAGE_SIZE;
 	}
 
-	vma->vm_ops = &gspca_vm_ops;
+	vma->vm_ops = (struct vm_operations_struct *) &gspca_vm_ops;
 	vma->vm_private_data = frame;
 	gspca_vm_open(vma);
 	ret = 0;
