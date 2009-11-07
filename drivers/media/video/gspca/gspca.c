@@ -47,7 +47,7 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 7, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 8, 0)
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -74,7 +74,7 @@ static void PDEBUG_MODE(char *txt, __u32 pixfmt, int w, int h)
 #define PDEBUG_MODE(txt, pixfmt, w, h)
 #endif
 
-/* specific memory types - !! should different from V4L2_MEMORY_xxx */
+/* specific memory types - !! should be different from V4L2_MEMORY_xxx */
 #define GSPCA_MEMORY_NO 0	/* V4L2_MEMORY_xxx starts from 1 */
 #define GSPCA_MEMORY_READ 7
 
