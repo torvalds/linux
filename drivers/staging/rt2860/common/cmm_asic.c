@@ -1005,7 +1005,7 @@ void AsicSwitchChannel(struct rt_rtmp_adapter *pAd, u8 Channel, IN BOOLEAN bScan
 void AsicResetBBPAgent(struct rt_rtmp_adapter *pAd)
 {
 	BBP_CSR_CFG_STRUC BbpCsr;
-	DBGPRINT(RT_DEBUG_ERROR, ("Reset BBP Agent busy bit.!! \n"));
+	DBGPRINT(RT_DEBUG_ERROR, ("Reset BBP Agent busy bit!\n"));
 	/* Still need to find why BBP agent keeps busy, but in fact, hardware still function ok. Now clear busy first. */
 	RTMP_IO_READ32(pAd, H2M_BBP_AGENT, &BbpCsr.word);
 	BbpCsr.field.Busy = 0;

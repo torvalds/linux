@@ -1650,7 +1650,7 @@ void RT28xxPciMlmeRadioOFF(struct rt_rtmp_adapter *pAd)
 
 		if (brc == FALSE) {
 			DBGPRINT(RT_DEBUG_ERROR,
-				 ("%s call RT28xxPciAsicRadioOff fail !!\n",
+				 ("%s call RT28xxPciAsicRadioOff fail!\n",
 				  __func__));
 		}
 	}

@@ -600,7 +600,7 @@ int rt_ioctl_siwap(struct net_device *dev,
 	if (pAdapter->Mlme.CntlMachine.CurrState != CNTL_IDLE) {
 		RTMP_MLME_RESET_STATE_MACHINE(pAdapter);
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! MLME busy, reset MLME state machine !!!\n"));
+			 ("MLME busy, reset MLME state machine!\n"));
 	}
 	/* tell CNTL state machine to call NdisMSetInformationComplete() after completing */
 	/* this request, because this request is initiated by NDIS. */
@@ -741,7 +741,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 
 	if (MONITOR_ON(pAdapter)) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! Driver is in Monitor Mode now !!!\n"));
+			 ("Driver is in Monitor Mode now!\n"));
 		return -EINVAL;
 	}
 
@@ -758,7 +758,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 		if ((pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 		    && (pAdapter->StaCfg.WpaSupplicantScanCount > 3)) {
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("!!! WpaSupplicantScanCount > 3\n"));
+				 ("WpaSupplicantScanCount > 3\n"));
 			Status = NDIS_STATUS_SUCCESS;
 			break;
 		}
@@ -771,7 +771,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 		    && (pAdapter->StaCfg.PortSecured ==
 			WPA_802_1X_PORT_NOT_SECURED)) {
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("!!! Link UP, Port Not Secured! ignore this set::OID_802_11_BSSID_LIST_SCAN\n"));
+				 ("Link UP, Port Not Secured! ignore this set::OID_802_11_BSSID_LIST_SCAN\n"));
 			Status = NDIS_STATUS_SUCCESS;
 			break;
 		}
@@ -779,7 +779,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 		if (pAdapter->Mlme.CntlMachine.CurrState != CNTL_IDLE) {
 			RTMP_MLME_RESET_STATE_MACHINE(pAdapter);
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("!!! MLME busy, reset MLME state machine !!!\n"));
+				 ("MLME busy, reset MLME state machine!\n"));
 		}
 		/* tell CNTL state machine to call NdisMSetInformationComplete() after completing */
 		/* this request, because this request is initiated by NDIS. */
@@ -2256,7 +2256,7 @@ int rt_ioctl_siwpmksa(struct net_device *dev,
 		break;
 	default:
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("rt_ioctl_siwpmksa - Unknow Command!!\n"));
+			 ("rt_ioctl_siwpmksa - Unknown Command!\n"));
 		break;
 	}
 
@@ -2664,7 +2664,7 @@ int Set_SSID_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 		if (pAdapter->Mlme.CntlMachine.CurrState != CNTL_IDLE) {
 			RTMP_MLME_RESET_STATE_MACHINE(pAdapter);
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("!!! MLME busy, reset MLME state machine !!!\n"));
+				 ("MLME busy, reset MLME state machine!\n"));
 		}
 
 		if ((pAdapter->StaCfg.WpaPassPhraseLen >= 8) &&

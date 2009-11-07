@@ -75,7 +75,7 @@ struct rt_rtmp_reg_pair MACRegTable[] = {
 	{BCN_OFFSET0, 0xece8e4e0},	/* 0x3800, 0x3A00, 0x3C00, 0x3E00, 512B for each beacon */
 	{BCN_OFFSET1, 0xfcf8f4f0},	/* 0x3800, 0x3A00, 0x3C00, 0x3E00, 512B for each beacon */
 #else
-#error You must re-calculate new value for BCN_OFFSET0 & BCN_OFFSET1 in MACRegTable[]!!!
+#error You must re-calculate new value for BCN_OFFSET0 & BCN_OFFSET1 in MACRegTable[]!
 #endif /* HW_BEACON_OFFSET // */
 
 	{LEGACY_BASIC_RATE, 0x0000013f},	/*  Basic rate set bitmap */
@@ -1272,7 +1272,7 @@ void NICInitAsicFromEEPROM(struct rt_rtmp_adapter *pAd)
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = FALSE;
 	/* */
 	/* Since BBP has been progamed, to make sure BBP setting will be */
-	/* upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND!! */
+	/* upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND! */
 	/* */
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 
@@ -3470,7 +3470,7 @@ err1:
 err0:
 #endif /* ST // */
 
-	DBGPRINT(RT_DEBUG_ERROR, ("!!! rt28xx Initialized fail !!!\n"));
+	DBGPRINT(RT_DEBUG_ERROR, ("rt28xx Initialized fail!\n"));
 	return FALSE;
 }
 

@@ -256,7 +256,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(struct rt_rtmp_adapter *pAd, void * Msg, uns
 
 	/* For some 11a AP which didn't have DS_IE, we use two conditions to decide the channel */
 	/*      1. If the AP is 11n enabled, then check the control channel. */
-	/*      2. If the AP didn't have any info about channel, use the channel we received this frame as the channel. (May inaccuracy!!) */
+	/*      2. If the AP didn't have any info about channel, use the channel we received this frame as the channel. (May inaccuracy!) */
 	u8 CtrlChannel = 0;
 
 	/* Add for 3 necessary EID field check */
@@ -371,7 +371,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(struct rt_rtmp_adapter *pAd, void * Msg, uns
 			break;
 
 		case IE_HT_CAP:
-			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension.!! */
+			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension! */
 			{
 				NdisMoveMemory(pHtCapability, pEid->Octet,
 					       sizeof(struct rt_ht_capability_ie));

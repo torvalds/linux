@@ -847,7 +847,7 @@ VOID RT28xxPciStaAsicForceWakeup(
 		AutoWakeupCfg.word = 0;
 		RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
 
-		// If this is called from Halt. ALWAYS force wakeup!!!
+		// If this is called from Halt. ALWAYS force wakeup!
 		if (Level == RTMP_HALT)
 		{
 			RT28xxPciAsicRadioOn(pAd, RTMP_HALT);

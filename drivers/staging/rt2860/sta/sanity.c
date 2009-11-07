@@ -150,7 +150,7 @@ BOOLEAN PeerAssocRspSanity(struct rt_rtmp_adapter *pAd, void * pMsg, unsigned lo
 
 		case IE_HT_CAP:
 		case IE_HT_CAP2:
-			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension.!! */
+			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension! */
 			{
 				NdisMoveMemory(pHtCapability, pEid->Octet,
 					       SIZE_HT_CAP_IE);

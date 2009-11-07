@@ -1292,7 +1292,7 @@ void PRF(u8 * key,
 	os_alloc_mem(NULL, (u8 **) & input, 1024);
 
 	if (input == NULL) {
-		DBGPRINT(RT_DEBUG_ERROR, ("!!!PRF: no memory!!!\n"));
+		DBGPRINT(RT_DEBUG_ERROR, ("PRF: no memory!\n"));
 		return;
 	}
 	/* Generate concatenation input */
@@ -2672,7 +2672,7 @@ static void CalculateMIC(u8 KeyDescVer,
 	os_alloc_mem(NULL, (u8 **) & OutBuffer, 512);
 
 	if (OutBuffer == NULL) {
-		DBGPRINT(RT_DEBUG_ERROR, ("!!!CalculateMIC: no memory!!!\n"));
+		DBGPRINT(RT_DEBUG_ERROR, ("CalculateMIC: no memory!\n"));
 		return;
 	}
 	/* make a frame for calculating MIC. */

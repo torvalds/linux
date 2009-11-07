@@ -321,7 +321,7 @@ int rt28xx_close(struct net_device *dev)
 
 		if (brc == FALSE) {
 			DBGPRINT(RT_DEBUG_ERROR,
-				 ("%s call RT28xxPciAsicRadioOff fail !!\n",
+				 ("%s call RT28xxPciAsicRadioOff fail!\n",
 				  __func__));
 		}
 	}

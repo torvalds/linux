@@ -192,7 +192,7 @@ void STARxEAPOLFrameIndicate(struct rt_rtmp_adapter *pAd,
 						  pRxWI->RSSI1, pRxWI->RSSI2,
 						  pRxD->PlcpSignal);
 			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				     ("!!! report EAPOL/AIRONET DATA to MLME (len=%d) !!!\n",
+				     ("report EAPOL/AIRONET DATA to MLME (len=%d) !\n",
 				      pRxBlk->DataSize));
 		}
 	}
@@ -940,7 +940,7 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 
 	if (pSrcBufVA == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("STASendPacket --> pSrcBufVA == NULL !!!SrcBufLen=%x\n",
+			 ("STASendPacket --> pSrcBufVA == NULL !SrcBufLen=%x\n",
 			  SrcBufLen));
 		/* Resourece is low, system did not allocate virtual address */
 		/* return NDIS_STATUS_FAILURE directly to upper layer */
@@ -950,7 +950,7 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 
 	if (SrcBufLen < 14) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("STASendPacket --> Ndis Packet buffer error !!!\n"));
+			 ("STASendPacket --> Ndis Packet buffer error!\n"));
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
 		return (NDIS_STATUS_FAILURE);
 	}
@@ -1007,7 +1007,7 @@ int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 	    && (RTMP_GET_PACKET_EAPOL(pPacket) == FALSE)
 	    ) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("STASendPacket --> Drop packet before port secured !!!\n"));
+			 ("STASendPacket --> Drop packet before port secured!\n"));
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
 
 		return (NDIS_STATUS_FAILURE);
@@ -1680,7 +1680,7 @@ void STA_AMPDU_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 
 		pMacEntry = pTxBlk->pMacEntry;
 		if (pMacEntry->isCached) {
-			/* NOTE: Please make sure the size of pMacEntry->CachedBuf[] is smaller than pTxBlk->HeaderBuf[]!!!! */
+			/* NOTE: Please make sure the size of pMacEntry->CachedBuf[] is smaller than pTxBlk->HeaderBuf[]! */
 			NdisMoveMemory((u8 *)& pTxBlk->
 				       HeaderBuf[TXINFO_SIZE],
 				       (u8 *)& pMacEntry->CachedBuf[0],
@@ -2506,7 +2506,7 @@ int STAHardTransmit(struct rt_rtmp_adapter *pAd,
 		{
 			/* It should not happened! */
 			DBGPRINT(RT_DEBUG_ERROR,
-				 ("Send a pacekt was not classified!! It should not happen!\n"));
+				 ("Send a packet was not classified! It should not happen!\n"));
 			while (pTxBlk->TxPacketList.Number) {
 				pQEntry =
 				    RemoveHeadQueue(&pTxBlk->TxPacketList);

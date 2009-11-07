@@ -584,7 +584,7 @@ void RTUSBWatchDog(struct rt_rtmp_adapter *pAd)
 	RTMP_IO_READ32(pAd, TXRXQ_PCNT, &MACValue);
 	if ((MACValue & 0xff) != 0) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("TX QUEUE 0 Not EMPTY(Value=0x%0x). !!!!!!!!!!!!!!!\n",
+			 ("TX QUEUE 0 Not EMPTY(Value=0x%0x)!\n",
 			  MACValue));
 		RTMP_IO_WRITE32(pAd, PBF_CFG, 0xf40012);
 		while ((MACValue & 0xff) != 0 && (idx++ < 10)) {
@@ -707,7 +707,7 @@ void RTUSBWatchDog(struct rt_rtmp_adapter *pAd)
 					}
 				} else {
 					DBGPRINT(RT_DEBUG_ERROR,
-						 ("Unkonw bulkOut URB maybe hanged!!!!!!!!!!!!\n"));
+						 ("Unknown bulkOut URB maybe hanged!\n"));
 				}
 			} else {
 				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx],

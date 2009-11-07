@@ -483,7 +483,7 @@ void MlmeHandler(struct rt_rtmp_adapter *pAd)
 #ifdef RTMP_MAC_USB
 			if (Elem->MsgType == MT2_RESET_CONF) {
 				DBGPRINT_RAW(RT_DEBUG_TRACE,
-					     ("!!! reset MLME state machine !!!\n"));
+					     ("reset MLME state machine!\n"));
 				MlmeRestartStateMachine(pAd);
 				Elem->Occupied = FALSE;
 				Elem->MsgLen = 0;
@@ -4042,7 +4042,7 @@ void BssTableSsidSort(struct rt_rtmp_adapter *pAd,
 			}
 			/* Since the AP is using hidden SSID, and we are trying to connect to ANY */
 			/* It definitely will fail. So, skip it. */
-			/* CCX also require not even try to connect it!! */
+			/* CCX also require not even try to connect it! */
 			if (SsidLen == 0)
 				continue;
 
@@ -4600,8 +4600,8 @@ void MgtMacHeaderInit(struct rt_rtmp_adapter *pAd,
  * input params:
  *		Buffer - pointer to a pre-allocated memory segment
  *		args - a list of <int arg_size, arg> pairs.
- *		NOTE NOTE NOTE!!!! the last argument must be NULL, otherwise this
- *						   function will FAIL!!!
+ *		NOTE NOTE NOTE! the last argument must be NULL, otherwise this
+ *						   function will FAIL!
  * return:
  *		Size of the buffer
  * usage:

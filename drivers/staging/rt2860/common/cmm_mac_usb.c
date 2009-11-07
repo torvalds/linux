@@ -205,9 +205,9 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 			/*Allocate URB */
 			LM_USB_ALLOC(pObj, pHTTXContext, struct rt_httx_buffer *,
 				     sizeof(struct rt_httx_buffer), Status,
-				     ("<-- ERROR in Alloc TX TxContext[%d] urb!! \n",
+				     ("<-- ERROR in Alloc TX TxContext[%d] urb!\n",
 				      acidx), done,
-				     ("<-- ERROR in Alloc TX TxContext[%d] struct rt_httx_buffer !! \n",
+				     ("<-- ERROR in Alloc TX TxContext[%d] struct rt_httx_buffer!\n",
 				      acidx), out1);
 
 			NdisZeroMemory(pHTTXContext->TransferBuffer->
@@ -259,7 +259,7 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 			pMLMEContext->pUrb = RTUSB_ALLOC_URB(0);
 			if (pMLMEContext->pUrb == NULL) {
 				DBGPRINT(RT_DEBUG_ERROR,
-					 ("<-- ERROR in Alloc TX MLMEContext[%d] urb!! \n",
+					 ("<-- ERROR in Alloc TX MLMEContext[%d] urb!\n",
 					  i));
 				Status = NDIS_STATUS_RESOURCES;
 				goto out2;
@@ -296,9 +296,9 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 			/*Allocate URB */
 			LM_USB_ALLOC(pObj, pBeaconContext, struct rt_tx_buffer *,
 				     sizeof(struct rt_tx_buffer), Status,
-				     ("<-- ERROR in Alloc TX BeaconContext[%d] urb!! \n",
+				     ("<-- ERROR in Alloc TX BeaconContext[%d] urb!\n",
 				      i), out2,
-				     ("<-- ERROR in Alloc TX BeaconContext[%d] struct rt_tx_buffer !! \n",
+				     ("<-- ERROR in Alloc TX BeaconContext[%d] struct rt_tx_buffer!\n",
 				      i), out3);
 
 			pBeaconContext->pAd = pAd;
@@ -315,9 +315,9 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 		/*Allocate URB */
 		LM_USB_ALLOC(pObj, pNullContext, struct rt_tx_buffer *, sizeof(struct rt_tx_buffer),
 			     Status,
-			     ("<-- ERROR in Alloc TX NullContext urb!! \n"),
+			     ("<-- ERROR in Alloc TX NullContext urb!\n"),
 			     out3,
-			     ("<-- ERROR in Alloc TX NullContext struct rt_tx_buffer !! \n"),
+			     ("<-- ERROR in Alloc TX NullContext struct rt_tx_buffer!\n"),
 			     out4);
 
 		pNullContext->pAd = pAd;
@@ -333,9 +333,9 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 		/*Allocate URB */
 		LM_USB_ALLOC(pObj, pRTSContext, struct rt_tx_buffer *, sizeof(struct rt_tx_buffer),
 			     Status,
-			     ("<-- ERROR in Alloc TX RTSContext urb!! \n"),
+			     ("<-- ERROR in Alloc TX RTSContext urb!\n"),
 			     out4,
-			     ("<-- ERROR in Alloc TX RTSContext struct rt_tx_buffer !! \n"),
+			     ("<-- ERROR in Alloc TX RTSContext struct rt_tx_buffer!\n"),
 			     out5);
 
 		pRTSContext->pAd = pAd;
@@ -350,9 +350,9 @@ int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 		/*Allocate URB */
 		LM_USB_ALLOC(pObj, pPsPollContext, struct rt_tx_buffer *,
 			     sizeof(struct rt_tx_buffer), Status,
-			     ("<-- ERROR in Alloc TX PsPollContext urb!! \n"),
+			     ("<-- ERROR in Alloc TX PsPollContext urb!\n"),
 			     out5,
-			     ("<-- ERROR in Alloc TX PsPollContext struct rt_tx_buffer !! \n"),
+			     ("<-- ERROR in Alloc TX PsPollContext struct rt_tx_buffer!\n"),
 			     out6);
 
 		pPsPollContext->pAd = pAd;

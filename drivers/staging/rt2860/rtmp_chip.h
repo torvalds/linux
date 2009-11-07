@@ -197,7 +197,7 @@ typedef union _EEPROM_NIC_CINFIG2_STRUC {
 		u16 DynamicTxAgcControl:1;	/* */
 		u16 ExternalLNAForG:1;	/* */
 		u16 ExternalLNAForA:1;	/* external LNA enable for 2.4G */
-		u16 CardbusAcceleration:1;	/* !!! NOTE: 0 - enable, 1 - disable */
+		u16 CardbusAcceleration:1;	/* ! NOTE: 0 - enable, 1 - disable */
 		u16 BW40MSidebandForG:1;
 		u16 BW40MSidebandForA:1;
 		u16 EnableWPSPBC:1;	/* WPS PBC Control bit */

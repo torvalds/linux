@@ -563,7 +563,7 @@ void MlmeAssocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 		pAd->Mlme.AssocMachine.CurrState = ASSOC_WAIT_RSP;
 	} else {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("ASSOC - MlmeAssocReqAction() sanity check failed. BUG!!!!!! \n"));
+			 ("ASSOC - MlmeAssocReqAction() sanity check failed. BUG!\n"));
 		pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_ASSOC_CONF, 2,
@@ -746,7 +746,7 @@ void MlmeReassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem
 		pAd->Mlme.AssocMachine.CurrState = REASSOC_WAIT_RSP;
 	} else {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("ASSOC - MlmeReassocReqAction() sanity check failed. BUG!!!! \n"));
+			 ("ASSOC - MlmeReassocReqAction() sanity check failed. BUG!\n"));
 		pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_REASSOC_CONF, 2,

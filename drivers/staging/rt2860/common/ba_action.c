@@ -1481,7 +1481,7 @@ static void ba_enqueue_reordering_packet(struct rt_rtmp_adapter *pAd,
 		NdisReleaseSpinLock(&pBAEntry->RxReRingLock);
 	} else {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("!!! (%d) Can't allocate reordering mpdu blk\n",
+			 (" (%d) Can't allocate reordering mpdu blk\n",
 			  pBAEntry->list.qlen));
 
 		/*
@@ -1542,7 +1542,7 @@ void Indicate_AMPDU_Packet(struct rt_rtmp_adapter *pAd,
 		}
 		pBAEntry = &pAd->BATable.BARecEntry[Idx];
 	} else {
-		/* impossible !!! */
+		/* impossible ! */
 		ASSERT(0);
 		/* release packet */
 		RELEASE_NDIS_PACKET(pAd, pRxBlk->pRxPacket,

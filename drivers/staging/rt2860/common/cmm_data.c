@@ -397,7 +397,7 @@ int MlmeHardTransmitMgmtRing(struct rt_rtmp_adapter *pAd,
 	    && (pAd->CommonCfg.bIEEE80211H == 1)
 	    && (pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("MlmeHardTransmit --> radar detect not in normal mode !!!\n"));
+			 ("MlmeHardTransmit --> radar detect not in normal mode!\n"));
 /*              if (!IrqState) */
 		RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 		return (NDIS_STATUS_FAILURE);
@@ -964,7 +964,7 @@ u16 RTMPCalcDuration(struct rt_rtmp_adapter *pAd, u8 Rate, unsigned long Size)
 	IRQL = PASSIVE_LEVEL
 	IRQL = DISPATCH_LEVEL
 
-    See also : BASmartHardTransmit()    !!!
+    See also : BASmartHardTransmit()    !
 
 	========================================================================
 */
@@ -1708,7 +1708,7 @@ BOOLEAN MacTableDeleteEntry(struct rt_rtmp_adapter *pAd,
 				pProbeEntry = pProbeEntry->pNext;
 			} while (pProbeEntry);
 
-			/* not found !!! */
+			/* not found ! */
 			ASSERT(pProbeEntry != NULL);
 
 			RTMP_STA_ENTRY_KEY_DEL(pAd, BSS0, wcid);
@@ -1729,7 +1729,7 @@ BOOLEAN MacTableDeleteEntry(struct rt_rtmp_adapter *pAd,
 				  pAd->MacTab.Size));
 		} else {
 			DBGPRINT(RT_DEBUG_OFF,
-				 ("\n%s: Impossible Wcid = %d !!!!!\n",
+				 ("\n%s: Impossible Wcid = %d !\n",
 				  __func__, wcid));
 		}
 	}

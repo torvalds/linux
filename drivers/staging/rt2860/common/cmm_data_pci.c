@@ -979,7 +979,7 @@ int MlmeHardTransmitTxRing(struct rt_rtmp_adapter *pAd,
 	    && (pAd->CommonCfg.bIEEE80211H == 1)
 	    && (pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("MlmeHardTransmit --> radar detect not in normal mode !!!\n"));
+			 ("MlmeHardTransmit --> radar detect not in normal mode!\n"));
 		/*NdisReleaseSpinLock(&pAd->TxRingLock); */
 		return (NDIS_STATUS_FAILURE);
 	}

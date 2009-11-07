@@ -214,7 +214,7 @@ void MlmeCntlMachinePerformAction(struct rt_rtmp_adapter *pAd,
 		break;
 #endif /* RTMP_MAC_USB // */
 	default:
-		DBGPRINT_ERR(("!ERROR! CNTL - Illegal message type(=%ld)",
+		DBGPRINT_ERR(("ERROR! CNTL - Illegal message type(=%ld)",
 			      Elem->MsgType));
 		break;
 	}
@@ -911,7 +911,7 @@ void CntlWaitStartProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 				  pAd->CommonCfg.Bssid[5]));
 		} else {
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("CNTL - Start IBSS fail. BUG!!!!!\n"));
+				 ("CNTL - Start IBSS fail. BUG!\n"));
 			pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 		}
 	}
@@ -1184,7 +1184,7 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	/* */
 	/* ASSOC - DisassocTimeoutAction */
 	/* CNTL - Dis-associate successful */
-	/* !!! LINK DOWN !!! */
+	/* ! LINK DOWN ! */
 	/* [88888] OID_802_11_SSID should have returned NDTEST_WEP_AP2(Returned: ) */
 	/* */
 	/* To prevent DisassocTimeoutAction to call Link down after we link up, */
@@ -1218,12 +1218,12 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 		if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			AdhocTurnOnQos(pAd);
 
-		DBGPRINT(RT_DEBUG_TRACE, ("!!!Adhoc LINK UP !!! \n"));
+		DBGPRINT(RT_DEBUG_TRACE, ("Adhoc LINK UP!\n"));
 	} else {
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_INFRA_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 
-		DBGPRINT(RT_DEBUG_TRACE, ("!!!Infra LINK UP !!! \n"));
+		DBGPRINT(RT_DEBUG_TRACE, ("Infra LINK UP!\n"));
 	}
 
 	/* 3*3 */
@@ -1262,11 +1262,11 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
-			DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n"));
+			DBGPRINT(RT_DEBUG_TRACE, ("rt2860C !\n"));
 		}
 
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!!40MHz Lower LINK UP !!! Control Channel at Below. Central = %d \n",
+			 ("40MHz Lower LINK UP! Control Channel at Below. Central = %d \n",
 			  pAd->CommonCfg.CentralChannel));
 	} else if ((pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel)
 		   && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth ==
@@ -1296,11 +1296,11 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
-			DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n"));
+			DBGPRINT(RT_DEBUG_TRACE, ("rt2860C !\n"));
 		}
 
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! 40MHz Upper LINK UP !!! Control Channel at UpperCentral = %d \n",
+			 ("40MHz Upper LINK UP! Control Channel at UpperCentral = %d \n",
 			  pAd->CommonCfg.CentralChannel));
 	} else {
 		pAd->CommonCfg.BBPCurrentBW = BW_20;
@@ -1327,10 +1327,10 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x16);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x08);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x11);
-			DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n"));
+			DBGPRINT(RT_DEBUG_TRACE, ("rt2860C !\n"));
 		}
 
-		DBGPRINT(RT_DEBUG_TRACE, ("!!! 20MHz LINK UP !!! \n"));
+		DBGPRINT(RT_DEBUG_TRACE, ("20MHz LINK UP!\n"));
 	}
 
 	RTMPSetAGCInitValue(pAd, pAd->CommonCfg.BBPCurrentBW);
@@ -1342,12 +1342,12 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 				    &pAd->BbpTuning.R66CurrentValue);
 
 	DBGPRINT(RT_DEBUG_TRACE,
-		 ("!!! LINK UP !!! (BssType=%d, AID=%d, ssid=%s, Channel=%d, CentralChannel = %d)\n",
+		 ("LINK UP! (BssType=%d, AID=%d, ssid=%s, Channel=%d, CentralChannel = %d)\n",
 		  BssType, pAd->StaActive.Aid, pAd->CommonCfg.Ssid,
 		  pAd->CommonCfg.Channel, pAd->CommonCfg.CentralChannel));
 
 	DBGPRINT(RT_DEBUG_TRACE,
-		 ("!!! LINK UP !!! (Density =%d, )\n",
+		 ("LINK UP! (Density =%d, )\n",
 		  pAd->MacTab.Content[BSSID_WCID].MpduDensity));
 
 	AsicSetBssid(pAd, pAd->CommonCfg.Bssid);
@@ -1634,13 +1634,13 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 		NdisReleaseSpinLock(&pAd->MacTabLock);
 
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! LINK UP !!!  ClientStatusFlags=%lx)\n",
+			 ("LINK UP!  ClientStatusFlags=%lx)\n",
 			  pAd->MacTab.Content[BSSID_WCID].ClientStatusFlags));
 
 		MlmeUpdateTxRates(pAd, TRUE, BSS0);
 		MlmeUpdateHtTxRates(pAd, BSS0);
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! LINK UP !! (StaActive.bHtEnable =%d, )\n",
+			 ("LINK UP! (StaActive.bHtEnable =%d, )\n",
 			  pAd->StaActive.SupportedPhyInfo.bHtEnable));
 
 		if (pAd->CommonCfg.bAggregationCapable) {
@@ -1811,7 +1811,7 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	pAd->CommonCfg.IOTestParm.bLastAtheros = FALSE;
 	COPY_MAC_ADDR(pAd->CommonCfg.LastBssid, pAd->CommonCfg.Bssid);
 	DBGPRINT(RT_DEBUG_TRACE,
-		 ("!!!pAd->bNextDisableRxBA= %d \n",
+		 ("pAd->bNextDisableRxBA= %d \n",
 		  pAd->CommonCfg.IOTestParm.bNextDisableRxBA));
 	/* BSSID add in one MAC entry too.  Because in Tx, ASIC need to check Cipher and IV/EIV, BAbitmap */
 	/* Pther information in MACTab.Content[BSSID_WCID] is not necessary for driver. */
@@ -1893,7 +1893,7 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP)
 				      BSS0, 0);
 	}
 
-	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN !!!\n"));
+	DBGPRINT(RT_DEBUG_TRACE, ("LINK DOWN!\n"));
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED);
 
 #ifdef RTMP_MAC_PCI
@@ -1921,7 +1921,7 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP)
 
 	if (ADHOC_ON(pAd))	/* Adhoc mode link down */
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 1!!!\n"));
+		DBGPRINT(RT_DEBUG_TRACE, ("LINK DOWN 1!\n"));
 
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
@@ -1931,10 +1931,10 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP)
 		BssTableDeleteEntry(&pAd->ScanTab, pAd->CommonCfg.Bssid,
 				    pAd->CommonCfg.Channel);
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("!!! MacTab.Size=%d !!!\n", pAd->MacTab.Size));
+			 (" MacTab.Size=%d !\n", pAd->MacTab.Size));
 	} else			/* Infra structure mode */
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 2!!!\n"));
+		DBGPRINT(RT_DEBUG_TRACE, ("LINK DOWN 2!\n"));
 
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);

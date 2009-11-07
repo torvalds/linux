@@ -427,7 +427,7 @@ do{                                   \
 
 #define DBGPRINT_ERR(Fmt)           \
 {                                   \
-    printk("ERROR!!! ");          \
+    printk("ERROR! ");          \
     printk Fmt;                  \
 }
 

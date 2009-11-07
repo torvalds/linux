@@ -828,6 +828,6 @@ BOOLEAN RTMPSoftDecryptTKIP(struct rt_rtmp_adapter *pAd,
 		/*RTMPReportMicError(pAd, &pWpaKey[KeyID]);     // marked by AlbertY @ 20060630 */
 		return (FALSE);
 	}
-	/*DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!!\n"); */
+	/*DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!\n"); */
 	return TRUE;
 }

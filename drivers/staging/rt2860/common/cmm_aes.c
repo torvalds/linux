@@ -1279,7 +1279,7 @@ void AES_GTK_KEY_UNWRAP(u8 * key,
 
 	if (R == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("!!!AES_GTK_KEY_UNWRAP: no memory!!!\n"));
+			 ("AES_GTK_KEY_UNWRAP: no memory!\n"));
 		return;
 	}
 	/* End of if */

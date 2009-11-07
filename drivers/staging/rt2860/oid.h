@@ -557,7 +557,7 @@ enum {
 /* New for MeetingHouse Api support */
 #define OID_MH_802_1X_SUPPORTED               0xFFEDC100
 
-/* MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!! */
+/* MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition! */
 typedef union _HTTRANSMIT_SETTING {
 	struct {
 		u16 MCS:7;	/* MCS */
@@ -614,7 +614,7 @@ struct rt_802_11_event_table {
 	struct rt_802_11_event_log Log[MAX_NUMBER_OF_EVENT];
 };
 
-/* MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!! */
+/* MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition! */
 typedef union _MACHTTRANSMIT_SETTING {
 	struct {
 		u16 MCS:7;	/* MCS */

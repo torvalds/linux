@@ -245,7 +245,7 @@ BOOLEAN RTMPSoftDecryptWEP(struct rt_rtmp_adapter *pAd,
 	crc32 ^= 0xffffffff;	/* complement */
 
 	if (crc32 != cpu2le32(trailfcs)) {
-		DBGPRINT(RT_DEBUG_TRACE, ("! WEP Data CRC Error !\n"));	/*CRC error. */
+		DBGPRINT(RT_DEBUG_TRACE, ("WEP Data CRC Error!\n"));	/*CRC error. */
 		return (FALSE);
 	}
 	return (TRUE);

@@ -51,7 +51,7 @@ char const *pWirelessSysEventText[IW_SYS_EVENT_TYPE_NUM] = {
 	"connects with our wireless client",	/* IW_STA_LINKUP_EVENT_FLAG */
 	"disconnects with our wireless client",	/* IW_STA_LINKDOWN_EVENT_FLAG */
 	"scan completed"	/* IW_SCAN_COMPLETED_EVENT_FLAG */
-	    "scan terminate!! Busy!! Enqueue fail!!"	/* IW_SCAN_ENQUEUE_FAIL_EVENT_FLAG */
+	    "scan terminate! Busy! Enqueue fail!"	/* IW_SCAN_ENQUEUE_FAIL_EVENT_FLAG */
 };
 
 /* for wireless IDS_spoof_attack event message */
@@ -1282,7 +1282,7 @@ int RtmpOSNetDevDestory(struct rt_rtmp_adapter *pAd, struct net_device *pNetDev)
 {
 
 	/* TODO: Need to fix this */
-	printk("WARNING: This function(%s) not implement yet!!!\n", __func__);
+	printk("WARNING: This function(%s) not implement yet!\n", __func__);
 	return 0;
 }
 

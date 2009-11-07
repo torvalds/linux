@@ -72,7 +72,7 @@ int RT30xxWriteRFRegister(struct rt_rtmp_adapter *pAd,
 	if ((i == RETRY_LIMIT)
 	    || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
 		DBGPRINT_RAW(RT_DEBUG_ERROR,
-			     ("Retry count exhausted or device removed!!!\n"));
+			     ("Retry count exhausted or device removed!\n"));
 		return STATUS_UNSUCCESSFUL;
 	}
 
