@@ -121,6 +121,14 @@ static struct fwentry firmwares[] = {
 	[BOARD_505A] = { "atmel_at76c505a-rfmd2958.bin" },
 	[BOARD_505AMX] = { "atmel_at76c505amx-rfmd.bin" },
 };
+MODULE_FIRMWARE("atmel_at76c503-i3861.bin");
+MODULE_FIRMWARE("atmel_at76c503-i3863.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd-acc.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505a-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505amx-rfmd.bin");
 
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
