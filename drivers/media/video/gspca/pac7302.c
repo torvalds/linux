@@ -606,8 +606,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	/* stop stream */
 	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x78, 0x00);
 	reg_w(gspca_dev, 0x78, 0x00);
 }
 
