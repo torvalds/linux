@@ -902,6 +902,10 @@ static int if_spi_calculate_fw_names(u16 card_id,
 		 chip_id_to_device_name[i].name);
 	return 0;
 }
+MODULE_FIRMWARE("libertas/gspi8385_hlp.bin");
+MODULE_FIRMWARE("libertas/gspi8385.bin");
+MODULE_FIRMWARE("libertas/gspi8686_hlp.bin");
+MODULE_FIRMWARE("libertas/gspi8686.bin");
 
 static int __devinit if_spi_probe(struct spi_device *spi)
 {

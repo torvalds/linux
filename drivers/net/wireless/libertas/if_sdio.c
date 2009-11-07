@@ -99,6 +99,12 @@ static struct if_sdio_model if_sdio_models[] = {
 		.firmware = "sd8688.bin",
 	},
 };
+MODULE_FIRMWARE("sd8385_helper.bin");
+MODULE_FIRMWARE("sd8385.bin");
+MODULE_FIRMWARE("sd8686_helper.bin");
+MODULE_FIRMWARE("sd8686.bin");
+MODULE_FIRMWARE("sd8688_helper.bin");
+MODULE_FIRMWARE("sd8688.bin");
 
 struct if_sdio_packet {
 	struct if_sdio_packet	*next;
