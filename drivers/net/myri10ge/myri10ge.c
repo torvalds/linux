@@ -264,6 +264,10 @@ static char *myri10ge_fw_unaligned = "myri10ge_ethp_z8e.dat";
 static char *myri10ge_fw_aligned = "myri10ge_eth_z8e.dat";
 static char *myri10ge_fw_rss_unaligned = "myri10ge_rss_ethp_z8e.dat";
 static char *myri10ge_fw_rss_aligned = "myri10ge_rss_eth_z8e.dat";
+MODULE_FIRMWARE("myri10ge_ethp_z8e.dat");
+MODULE_FIRMWARE("myri10ge_eth_z8e.dat");
+MODULE_FIRMWARE("myri10ge_rss_ethp_z8e.dat");
+MODULE_FIRMWARE("myri10ge_rss_eth_z8e.dat");
 
 static char *myri10ge_fw_name = NULL;
 module_param(myri10ge_fw_name, charp, S_IRUGO | S_IWUSR);
