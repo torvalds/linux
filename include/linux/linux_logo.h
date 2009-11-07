@@ -37,6 +37,7 @@ extern const struct linux_logo logo_linux_vga16;
 extern const struct linux_logo logo_linux_clut224;
 extern const struct linux_logo logo_blackfin_vga16;
 extern const struct linux_logo logo_blackfin_clut224;
+extern const struct linux_logo logo_zen_clut224;
 extern const struct linux_logo logo_oldzen_clut224;
 extern const struct linux_logo logo_arch_clut224;
 extern const struct linux_logo logo_gentoo_clut224;
