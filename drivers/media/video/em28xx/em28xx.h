@@ -143,9 +143,6 @@
  */
 #define EM28XX_NUM_PACKETS 40
 
-/* default alternate; 0 means choose the best */
-#define EM28XX_PINOUT 0
-
 #define EM28XX_INTERLACED_DEFAULT 1
 
 /*

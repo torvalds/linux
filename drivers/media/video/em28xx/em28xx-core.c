@@ -50,7 +50,7 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static int alt = EM28XX_PINOUT;
+static int alt;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
@@ -778,6 +778,16 @@ int em28xx_set_alternate(struct em28xx *dev)
 	int i;
 	unsigned int min_pkt_size = dev->width * 2 + 4;
 
+	/*
+	 * alt = 0 is used only for control messages, so, only values
+	 * greater than 0 can be used for streaming.
+	 */
+	if (alt && alt < dev->num_alt) {
+		em28xx_coredbg("alternate forced to %d\n", dev->alt);
+		dev->alt = alt;
+		goto set_alt;
+	}
+
 	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
 	   green screen will be received.
@@ -798,6 +808,7 @@ int em28xx_set_alternate(struct em28xx *dev)
 			dev->alt = i;
 	}
 
+set_alt:
 	if (dev->alt != prev_alt) {
 		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
 				min_pkt_size, dev->alt);
