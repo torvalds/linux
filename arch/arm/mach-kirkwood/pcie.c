@@ -126,7 +126,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	res[1].name = "PCIe Memory Space";
 	res[1].flags = IORESOURCE_MEM;
-	res[1].start = KIRKWOOD_PCIE_MEM_PHYS_BASE;
+	res[1].start = KIRKWOOD_PCIE_MEM_BUS_BASE;
 	res[1].end = res[1].start + KIRKWOOD_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCIe Memory resource failed\n");
