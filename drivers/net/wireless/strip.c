@@ -106,6 +106,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/serial.h>
 #include <linux/serialP.h>
 #include <linux/rcupdate.h>
+#include <linux/compat.h>
 #include <net/arp.h>
 #include <net/net_namespace.h>
 
@@ -2725,6 +2726,19 @@ static int strip_ioctl(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long strip_compat_ioctl(struct tty_struct *tty, struct file *file,
+		       unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case SIOCGIFNAME:
+	case SIOCSIFHWADDR:
+		return strip_ioctl(tty, file, cmd,
+			(unsigned long)compat_ptr(arg));
+	}
+	return -ENOIOCTLCMD;
+}
+#endif
 
 /************************************************************************/
 /* Initialization							*/
@@ -2736,6 +2750,9 @@ static struct tty_ldisc_ops strip_ldisc = {
 	.open = strip_open,
 	.close = strip_close,
 	.ioctl = strip_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = strip_compat_ioctl,
+#endif
 	.receive_buf = strip_receive_buf,
 	.write_wakeup = strip_write_some_more,
 };

@@ -33,6 +33,7 @@
 #include <linux/lapb.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
+#include <linux/compat.h>
 #include "x25_asy.h"
 
 #include <net/x25device.h>
@@ -705,6 +706,21 @@ static int x25_asy_ioctl(struct tty_struct *tty, struct file *file,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static long x25_asy_compat_ioctl(struct tty_struct *tty, struct file *file,
+			 unsigned int cmd,  unsigned long arg)
+{
+	switch (cmd) {
+	case SIOCGIFNAME:
+	case SIOCSIFHWADDR:
+		return x25_asy_ioctl(tty, file, cmd,
+				     (unsigned long)compat_ptr(arg));
+	}
+
+	return -ENOIOCTLCMD;
+}
+#endif
+
 static int x25_asy_open_dev(struct net_device *dev)
 {
 	struct x25_asy *sl = netdev_priv(dev);
@@ -754,6 +770,9 @@ static struct tty_ldisc_ops x25_ldisc = {
 	.open		= x25_asy_open_tty,
 	.close		= x25_asy_close_tty,
 	.ioctl		= x25_asy_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= x25_asy_compat_ioctl,
+#endif
 	.receive_buf	= x25_asy_receive_buf,
 	.write_wakeup	= x25_asy_write_wakeup,
 };
