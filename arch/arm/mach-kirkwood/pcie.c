@@ -115,7 +115,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	res[0].name = "PCIe I/O Space";
 	res[0].flags = IORESOURCE_IO;
-	res[0].start = KIRKWOOD_PCIE_IO_PHYS_BASE;
+	res[0].start = KIRKWOOD_PCIE_IO_BUS_BASE;
 	res[0].end = res[0].start + KIRKWOOD_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCIe IO resource failed\n");
