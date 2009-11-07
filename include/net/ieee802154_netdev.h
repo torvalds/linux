@@ -74,8 +74,12 @@ static inline int mac_cb_type(struct sk_buff *skb)
 #define IEEE802154_MAC_SCAN_PASSIVE	2
 #define IEEE802154_MAC_SCAN_ORPHAN	3
 
+struct wpan_phy;
 /*
  * This should be located at net_device->ml_priv
+ *
+ * get_phy should increment the reference counting on returned phy.
+ * Use wpan_wpy_put to put that reference.
  */
 struct ieee802154_mlme_ops {
 	int (*assoc_req)(struct net_device *dev,
@@ -94,18 +98,20 @@ struct ieee802154_mlme_ops {
 	int (*scan_req)(struct net_device *dev,
 			u8 type, u32 channels, u8 page, u8 duration);
 
+	struct wpan_phy *(*get_phy)(const struct net_device *dev);
+
 	/*
 	 * FIXME: these should become the part of PIB/MIB interface.
 	 * However we still don't have IB interface of any kind
 	 */
-	u16 (*get_pan_id)(struct net_device *dev);
-	u16 (*get_short_addr)(struct net_device *dev);
-	u8 (*get_dsn)(struct net_device *dev);
-	u8 (*get_bsn)(struct net_device *dev);
+	u16 (*get_pan_id)(const struct net_device *dev);
+	u16 (*get_short_addr)(const struct net_device *dev);
+	u8 (*get_dsn)(const struct net_device *dev);
+	u8 (*get_bsn)(const struct net_device *dev);
 };
 
 static inline struct ieee802154_mlme_ops *ieee802154_mlme_ops(
-		struct net_device *dev)
+		const struct net_device *dev)
 {
 	return dev->ml_priv;
 }

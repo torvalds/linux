@@ -34,20 +34,32 @@ struct wpan_phy {
 	 */
 	u8 current_channel;
 	u8 current_page;
-	u32 channels_supported;
+	u32 channels_supported[32];
 	u8 transmit_power;
 	u8 cca_mode;
 
 	struct device dev;
 	int idx;
 
+	struct net_device *(*add_iface)(struct wpan_phy *phy,
+			const char *name);
+	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
+
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 
+#define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
+
 struct wpan_phy *wpan_phy_alloc(size_t priv_size);
-int wpan_phy_register(struct device *parent, struct wpan_phy *phy);
+static inline void wpan_phy_set_dev(struct wpan_phy *phy, struct device *dev)
+{
+	phy->dev.parent = dev;
+}
+int wpan_phy_register(struct wpan_phy *phy);
 void wpan_phy_unregister(struct wpan_phy *phy);
 void wpan_phy_free(struct wpan_phy *phy);
+/* Same semantics as for class_for_each_device */
+int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
 
 static inline void *wpan_phy_priv(struct wpan_phy *phy)
 {
@@ -56,6 +68,12 @@ static inline void *wpan_phy_priv(struct wpan_phy *phy)
 }
 
 struct wpan_phy *wpan_phy_find(const char *str);
+
+static inline void wpan_phy_put(struct wpan_phy *phy)
+{
+	put_device(&phy->dev);
+}
+
 static inline const char *wpan_phy_name(struct wpan_phy *phy)
 {
 	return dev_name(&phy->dev);
