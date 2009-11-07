@@ -49,8 +49,6 @@
 #define CEPH_MAX_MON   31
 
 
-unsigned int ceph_full_name_hash(const char *name, unsigned int len);
-
 
 /*
  * ceph_file_layout - describe data layout for a file/inode

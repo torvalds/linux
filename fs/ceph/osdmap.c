@@ -809,7 +809,7 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 		return -EIO;
 
 	pool = &osdmap->pg_pool[poolid];
-	ps = ceph_full_name_hash(oid, strlen(oid));
+	ps = ceph_str_hash(pool->v.object_hash, oid, strlen(oid));
 	if (preferred >= 0) {
 		ps += preferred;
 		num = le32_to_cpu(pool->v.lpg_num);

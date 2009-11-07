@@ -10,6 +10,8 @@ src/include/rados.h	    fs/ceph/rados.h
 src/include/ceph_strings.cc fs/ceph/ceph_strings.c
 src/include/ceph_frag.h	    fs/ceph/ceph_frag.h
 src/include/ceph_frag.cc    fs/ceph/ceph_frag.c
+src/include/ceph_hash.h	    fs/ceph/ceph_hash.h
+src/include/ceph_hash.cc    fs/ceph/ceph_hash.c
 src/crush/crush.c	    fs/ceph/crush/crush.c
 src/crush/crush.h	    fs/ceph/crush/crush.h
 src/crush/mapper.c	    fs/ceph/crush/mapper.c

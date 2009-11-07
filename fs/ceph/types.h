@@ -9,6 +9,7 @@
 
 #include "ceph_fs.h"
 #include "ceph_frag.h"
+#include "ceph_hash.h"
 
 /*
  * Identify inodes by both their ino AND snapshot id (a u64).

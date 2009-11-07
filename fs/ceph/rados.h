@@ -84,6 +84,7 @@ struct ceph_pg_pool {
 	__u8 type;                /* CEPH_PG_TYPE_* */
 	__u8 size;                /* number of osds in each pg */
 	__u8 crush_ruleset;       /* crush placement rule */
+	__u8 object_hash;         /* hash mapping object name to ps */
 	__le32 pg_num, pgp_num;   /* number of pg's */
 	__le32 lpg_num, lpgp_num; /* number of localized pg's */
 	__le32 last_change;       /* most recent epoch changed */
