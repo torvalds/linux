@@ -13,7 +13,6 @@
  * @psc_dma:		pointer back to parent psc_dma data structure
  * @bcom_task:		bestcomm task structure
  * @irq:		irq number for bestcomm task
- * @period_start:	physical address of start of DMA region
  * @period_end:		physical address of end of DMA region
  * @period_next_pt:	physical address of next DMA buffer to enqueue
  * @period_bytes:	size of DMA period in bytes
@@ -27,12 +26,9 @@ struct psc_dma_stream {
 	struct bcom_task *bcom_task;
 	int irq;
 	struct snd_pcm_substream *stream;
-	dma_addr_t period_start;
-	dma_addr_t period_end;
-	dma_addr_t period_next_pt;
-	dma_addr_t period_current_pt;
+	int period_next;
+	int period_current;
 	int period_bytes;
-	int period_size;
 };
 
 /**

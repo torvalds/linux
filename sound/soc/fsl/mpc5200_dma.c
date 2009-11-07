@@ -58,13 +58,11 @@ static void psc_dma_bcom_enqueue_next_buffer(struct psc_dma_stream *s)
 	/* Prepare and enqueue the next buffer descriptor */
 	bd = bcom_prepare_next_buffer(s->bcom_task);
 	bd->status = s->period_bytes;
-	bd->data[0] = s->period_next_pt;
+	bd->data[0] = s->runtime->dma_addr + (s->period_next * s->period_bytes);
 	bcom_submit_next_buffer(s->bcom_task, NULL);
 
 	/* Update for next period */
-	s->period_next_pt += s->period_bytes;
-	if (s->period_next_pt >= s->period_end)
-		s->period_next_pt = s->period_start;
+	s->period_next = (s->period_next + 1) % s->runtime->periods;
 }
 
 static void psc_dma_bcom_enqueue_tx(struct psc_dma_stream *s)
@@ -79,7 +77,7 @@ static void psc_dma_bcom_enqueue_tx(struct psc_dma_stream *s)
 			if (bcom_queue_full(s->bcom_task))
 				return;
 
-			s->appl_ptr += s->period_size;
+			s->appl_ptr += s->runtime->period_size;
 
 			psc_dma_bcom_enqueue_next_buffer(s);
 		}
@@ -91,7 +89,7 @@ static void psc_dma_bcom_enqueue_tx(struct psc_dma_stream *s)
 		if (bcom_queue_full(s->bcom_task))
 			return;
 
-		s->appl_ptr += s->period_size;
+		s->appl_ptr += s->runtime->period_size;
 
 		psc_dma_bcom_enqueue_next_buffer(s);
 	}
@@ -108,9 +106,7 @@ static irqreturn_t psc_dma_bcom_irq_tx(int irq, void *_psc_dma_stream)
 	while (bcom_buffer_done(s->bcom_task)) {
 		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
 
-		s->period_current_pt += s->period_bytes;
-		if (s->period_current_pt >= s->period_end)
-			s->period_current_pt = s->period_start;
+		s->period_current = (s->period_current+1) % s->runtime->periods;
 	}
 	psc_dma_bcom_enqueue_tx(s);
 	spin_unlock(&s->psc_dma->lock);
@@ -133,9 +129,7 @@ static irqreturn_t psc_dma_bcom_irq_rx(int irq, void *_psc_dma_stream)
 	while (bcom_buffer_done(s->bcom_task)) {
 		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
 
-		s->period_current_pt += s->period_bytes;
-		if (s->period_current_pt >= s->period_end)
-			s->period_current_pt = s->period_start;
+		s->period_current = (s->period_current+1) % s->runtime->periods;
 
 		psc_dma_bcom_enqueue_next_buffer(s);
 	}
@@ -185,12 +179,8 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		s->period_bytes = frames_to_bytes(runtime,
 						  runtime->period_size);
-		s->period_start = virt_to_phys(runtime->dma_area);
-		s->period_end = s->period_start +
-				(s->period_bytes * runtime->periods);
-		s->period_next_pt = s->period_start;
-		s->period_current_pt = s->period_start;
-		s->period_size = runtime->period_size;
+		s->period_next = 0;
+		s->period_current = 0;
 		s->active = 1;
 
 		/* track appl_ptr so that we have a better chance of detecting
@@ -343,7 +333,7 @@ psc_dma_pointer(struct snd_pcm_substream *substream)
 	else
 		s = &psc_dma->playback;
 
-	count = s->period_current_pt - s->period_start;
+	count = s->period_current * s->period_bytes;
 
 	return bytes_to_frames(substream->runtime, count);
 }
