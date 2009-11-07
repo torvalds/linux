@@ -133,16 +133,11 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct psc_dma_stream *s;
+	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 	u16 imr;
 	unsigned long flags;
 	int i;
-
-	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-		s = &psc_dma->capture;
-	else
-		s = &psc_dma->playback;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
