@@ -53,6 +53,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
+#include <linux/compat.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -1109,8 +1110,8 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 	return 0;
 }
 
-static long tun_chr_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg, int ifreq_len)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
@@ -1120,7 +1121,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 	int ret;
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
-		if (copy_from_user(&ifr, argp, sizeof ifr))
+		if (copy_from_user(&ifr, argp, ifreq_len))
 			return -EFAULT;
 
 	if (cmd == TUNGETFEATURES) {
@@ -1143,7 +1144,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		goto unlock;
 	}
@@ -1161,7 +1162,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			break;
 
-		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
 
@@ -1235,7 +1236,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Get hw addres */
 		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev->dev_addr, ETH_ALEN);
 		ifr.ifr_hwaddr.sa_family = tun->dev->type;
-		if (copy_to_user(argp, &ifr, sizeof ifr))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
 
@@ -1273,6 +1274,41 @@ unlock:
 		tun_put(tun);
 	return ret;
 }
+
+static long tun_chr_ioctl(struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	return __tun_chr_ioctl(file, cmd, arg, sizeof (struct ifreq));
+}
+
+#ifdef CONFIG_COMPAT
+static long tun_chr_compat_ioctl(struct file *file,
+			 unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case TUNSETIFF:
+	case TUNGETIFF:
+	case TUNSETTXFILTER:
+	case TUNGETSNDBUF:
+	case TUNSETSNDBUF:
+	case SIOCGIFHWADDR:
+	case SIOCSIFHWADDR:
+		arg = (unsigned long)compat_ptr(arg);
+		break;
+	default:
+		arg = (compat_ulong_t)arg;
+		break;
+	}
+
+	/*
+	 * compat_ifreq is shorter than ifreq, so we must not access beyond
+	 * the end of that structure. All fields that are used in this
+	 * driver are compatible though, we don't need to convert the
+	 * contents.
+	 */
+	return __tun_chr_ioctl(file, cmd, arg, sizeof(struct compat_ifreq));
+}
+#endif /* CONFIG_COMPAT */
 
 static int tun_chr_fasync(int fd, struct file *file, int on)
 {
@@ -1356,7 +1392,10 @@ static const struct file_operations tun_fops = {
 	.write = do_sync_write,
 	.aio_write = tun_chr_aio_write,
 	.poll	= tun_chr_poll,
-	.unlocked_ioctl = tun_chr_ioctl,
+	.unlocked_ioctl	= tun_chr_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = tun_chr_compat_ioctl,
+#endif
 	.open	= tun_chr_open,
 	.release = tun_chr_close,
 	.fasync = tun_chr_fasync
