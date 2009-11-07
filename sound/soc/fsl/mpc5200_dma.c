@@ -65,36 +65,6 @@ static void psc_dma_bcom_enqueue_next_buffer(struct psc_dma_stream *s)
 	s->period_next = (s->period_next + 1) % s->runtime->periods;
 }
 
-static void psc_dma_bcom_enqueue_tx(struct psc_dma_stream *s)
-{
-	if (s->appl_ptr > s->runtime->control->appl_ptr) {
-		/*
-		 * In this case s->runtime->control->appl_ptr has wrapped around.
-		 * Play the data to the end of the boundary, then wrap our own
-		 * appl_ptr back around.
-		 */
-		while (s->appl_ptr < s->runtime->boundary) {
-			if (bcom_queue_full(s->bcom_task))
-				return;
-
-			s->appl_ptr += s->runtime->period_size;
-
-			psc_dma_bcom_enqueue_next_buffer(s);
-		}
-		s->appl_ptr -= s->runtime->boundary;
-	}
-
-	while (s->appl_ptr < s->runtime->control->appl_ptr) {
-
-		if (bcom_queue_full(s->bcom_task))
-			return;
-
-		s->appl_ptr += s->runtime->period_size;
-
-		psc_dma_bcom_enqueue_next_buffer(s);
-	}
-}
-
 /* Bestcomm DMA irq handler */
 static irqreturn_t psc_dma_bcom_irq_tx(int irq, void *_psc_dma_stream)
 {
@@ -107,8 +77,9 @@ static irqreturn_t psc_dma_bcom_irq_tx(int irq, void *_psc_dma_stream)
 		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
 
 		s->period_current = (s->period_current+1) % s->runtime->periods;
+
+		psc_dma_bcom_enqueue_next_buffer(s);
 	}
-	psc_dma_bcom_enqueue_tx(s);
 	spin_unlock(&s->psc_dma->lock);
 
 	/* If the stream is active, then also inform the PCM middle layer
@@ -182,28 +153,21 @@ static int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		s->period_next = 0;
 		s->period_current = 0;
 		s->active = 1;
-
-		/* track appl_ptr so that we have a better chance of detecting
-		 * end of stream and not over running it.
-		 */
 		s->runtime = runtime;
-		s->appl_ptr = s->runtime->control->appl_ptr -
-				(runtime->period_size * runtime->periods);
 
 		/* Fill up the bestcomm bd queue and enable DMA.
 		 * This will begin filling the PSC's fifo.
 		 */
 		spin_lock_irqsave(&psc_dma->lock, flags);
 
-		if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
 			bcom_gen_bd_rx_reset(s->bcom_task);
-			for (i = 0; i < runtime->periods; i++)
-				if (!bcom_queue_full(s->bcom_task))
-					psc_dma_bcom_enqueue_next_buffer(s);
-		} else {
+		else
 			bcom_gen_bd_tx_reset(s->bcom_task);
-			psc_dma_bcom_enqueue_tx(s);
-		}
+
+		for (i = 0; i < runtime->periods; i++)
+			if (!bcom_queue_full(s->bcom_task))
+				psc_dma_bcom_enqueue_next_buffer(s);
 
 		bcom_enable(s->bcom_task);
 		spin_unlock_irqrestore(&psc_dma->lock, flags);

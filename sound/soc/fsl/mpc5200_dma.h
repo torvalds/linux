@@ -19,8 +19,6 @@
  */
 struct psc_dma_stream {
 	struct snd_pcm_runtime *runtime;
-	snd_pcm_uframes_t appl_ptr;
-
 	int active;
 	struct psc_dma *psc_dma;
 	struct bcom_task *bcom_task;
