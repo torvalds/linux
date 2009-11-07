@@ -166,8 +166,6 @@ struct compat_ifmap {
 };
 
 struct compat_ifreq {
-#define IFHWADDRLEN     6
-#define IFNAMSIZ        16
         union {
                 char    ifrn_name[IFNAMSIZ];            /* if name, e.g. "en0" */
         } ifr_ifrn;
