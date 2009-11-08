@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/edac.h>
 #include <linux/mmzone.h>
 #include <linux/edac_mce.h>
@@ -1696,9 +1697,11 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	if (mce->bank != 8)
 		return 0;
 
+#ifdef CONFIG_SMP
 	/* Only handle if it is the right mc controller */
 	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket)
 		return 0;
+#endif
 
 	smp_rmb();
 	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
