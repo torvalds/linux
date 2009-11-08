@@ -362,6 +362,35 @@
 #define RF_CSR_CFG_BUSY			FIELD32(0x00020000)
 
 /*
+ * EFUSE_CSR: RT30x0 EEPROM
+ */
+#define EFUSE_CTRL			0x0580
+#define EFUSE_CTRL_ADDRESS_IN		FIELD32(0x03fe0000)
+#define EFUSE_CTRL_MODE			FIELD32(0x000000c0)
+#define EFUSE_CTRL_KICK			FIELD32(0x40000000)
+#define EFUSE_CTRL_PRESENT		FIELD32(0x80000000)
+
+/*
+ * EFUSE_DATA0
+ */
+#define EFUSE_DATA0			0x0590
+
+/*
+ * EFUSE_DATA1
+ */
+#define EFUSE_DATA1			0x0594
+
+/*
+ * EFUSE_DATA2
+ */
+#define EFUSE_DATA2			0x0598
+
+/*
+ * EFUSE_DATA3
+ */
+#define EFUSE_DATA3			0x059c
+
+/*
  * MAC Control/Status Registers(CSR).
  * Some values are set in TU, whereas 1 TU == 1024 us.
  */

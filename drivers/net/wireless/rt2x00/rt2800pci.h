@@ -56,35 +56,6 @@
 #define TX_DTX_IDX(__x)			TX_DTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET)
 
 /*
- * EFUSE_CSR: RT3090 EEPROM
- */
-#define EFUSE_CTRL			0x0580
-#define EFUSE_CTRL_ADDRESS_IN		FIELD32(0x03fe0000)
-#define EFUSE_CTRL_MODE			FIELD32(0x000000c0)
-#define EFUSE_CTRL_KICK			FIELD32(0x40000000)
-#define EFUSE_CTRL_PRESENT		FIELD32(0x80000000)
-
-/*
- * EFUSE_DATA0
- */
-#define EFUSE_DATA0			0x0590
-
-/*
- * EFUSE_DATA1
- */
-#define EFUSE_DATA1			0x0594
-
-/*
- * EFUSE_DATA2
- */
-#define EFUSE_DATA2			0x0598
-
-/*
- * EFUSE_DATA3
- */
-#define EFUSE_DATA3			0x059c
-
-/*
  * 8051 firmware image.
  */
 #define FIRMWARE_RT2860			"rt2860.bin"

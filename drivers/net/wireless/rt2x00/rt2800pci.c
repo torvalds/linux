@@ -147,44 +147,12 @@ static void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 
 static int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, EFUSE_CTRL, &reg);
-
-	return rt2x00_get_field32(reg, EFUSE_CTRL_PRESENT);
+	return rt2800_efuse_detect(rt2x00dev);
 }
 
-static void rt2800pci_efuse_read(struct rt2x00_dev *rt2x00dev,
-				 unsigned int i)
+static inline void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, EFUSE_CTRL, &reg);
-	rt2x00_set_field32(&reg, EFUSE_CTRL_ADDRESS_IN, i);
-	rt2x00_set_field32(&reg, EFUSE_CTRL_MODE, 0);
-	rt2x00_set_field32(&reg, EFUSE_CTRL_KICK, 1);
-	rt2800_register_write(rt2x00dev, EFUSE_CTRL, reg);
-
-	/* Wait until the EEPROM has been loaded */
-	rt2800_regbusy_read(rt2x00dev, EFUSE_CTRL, EFUSE_CTRL_KICK, &reg);
-
-	/* Apparently the data is read from end to start */
-	rt2800_register_read(rt2x00dev, EFUSE_DATA3,
-				(u32 *)&rt2x00dev->eeprom[i]);
-	rt2800_register_read(rt2x00dev, EFUSE_DATA2,
-				(u32 *)&rt2x00dev->eeprom[i + 2]);
-	rt2800_register_read(rt2x00dev, EFUSE_DATA1,
-				(u32 *)&rt2x00dev->eeprom[i + 4]);
-	rt2800_register_read(rt2x00dev, EFUSE_DATA0,
-				(u32 *)&rt2x00dev->eeprom[i + 6]);
-}
-
-static void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < EEPROM_SIZE / sizeof(u16); i += 8)
-		rt2800pci_efuse_read(rt2x00dev, i);
+	rt2800_read_eeprom_efuse(rt2x00dev);
 }
 #else
 static inline void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
