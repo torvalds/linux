@@ -795,6 +795,27 @@ static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
 
 	/*
+	 * Initialize hw_mode information.
+	 */
+	spec->supported_bands = SUPPORT_BAND_2GHZ;
+	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
+
+	if (rt2x00_rf(&rt2x00dev->chip, RF2820) ||
+	    rt2x00_rf(&rt2x00dev->chip, RF2720)) {
+		spec->num_channels = 14;
+		spec->channels = rf_vals;
+	} else if (rt2x00_rf(&rt2x00dev->chip, RF2850) ||
+		   rt2x00_rf(&rt2x00dev->chip, RF2750)) {
+		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		spec->num_channels = ARRAY_SIZE(rf_vals);
+		spec->channels = rf_vals;
+	} else if (rt2x00_rf(&rt2x00dev->chip, RF3020) ||
+		   rt2x00_rf(&rt2x00dev->chip, RF2020)) {
+		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
+		spec->channels = rf_vals_3070;
+	}
+
+	/*
 	 * Initialize HT information.
 	 */
 	spec->ht.ht_supported = true;
@@ -823,27 +844,6 @@ static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->ht.mcs.rx_mask[0] = 0xff;
 		spec->ht.mcs.rx_mask[4] = 0x1; /* MCS32 */
 		break;
-	}
-
-	/*
-	 * Initialize hw_mode information.
-	 */
-	spec->supported_bands = SUPPORT_BAND_2GHZ;
-	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
-
-	if (rt2x00_rf(&rt2x00dev->chip, RF2820) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF2720)) {
-		spec->num_channels = 14;
-		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2850) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2750)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
-		spec->num_channels = ARRAY_SIZE(rf_vals);
-		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF3020) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2020)) {
-		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
-		spec->channels = rf_vals_3070;
 	}
 
 	/*
