@@ -162,7 +162,12 @@ struct apic apic_noop = {
 
 	.cpu_to_logical_apicid		= noop_cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
+
+#ifdef CONFIG_X86_32
 	.apicid_to_cpu_present		= default_apicid_to_cpu_present,
+#else
+	.apicid_to_cpu_present		= NULL,
+#endif
 
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
