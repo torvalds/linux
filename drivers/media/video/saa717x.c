@@ -1312,7 +1312,7 @@ static int saa717x_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		"MONO", "STEREO", "LANG1", "LANG2/SAP"
 	};
 
-	audio_mode = V4L2_TUNER_MODE_STEREO;
+	audio_mode = TUNER_AUDIO_STEREO;
 
 	switch (vt->audmode) {
 		case V4L2_TUNER_MODE_MONO:
