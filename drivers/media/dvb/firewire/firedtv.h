@@ -72,7 +72,7 @@ struct input_dev;
 struct firedtv;
 
 struct firedtv_backend {
-	int (*lock)(struct firedtv *fdtv, u64 addr, void *data, __be32 arg);
+	int (*lock)(struct firedtv *fdtv, u64 addr, __be32 data[]);
 	int (*read)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
 	int (*write)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
 	int (*start_iso)(struct firedtv *fdtv);
