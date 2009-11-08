@@ -454,9 +454,9 @@ static inline bool cfq_slice_used(struct cfq_queue *cfqq)
  * behind the head is penalized and only allowed to a certain extent.
  */
 static struct request *
-cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
+cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2, sector_t last)
 {
-	sector_t last, s1, s2, d1 = 0, d2 = 0;
+	sector_t s1, s2, d1 = 0, d2 = 0;
 	unsigned long back_max;
 #define CFQ_RQ1_WRAP	0x01 /* request 1 wraps */
 #define CFQ_RQ2_WRAP	0x02 /* request 2 wraps */
@@ -478,8 +478,6 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
 
 	s1 = blk_rq_pos(rq1);
 	s2 = blk_rq_pos(rq2);
-
-	last = cfqd->last_position;
 
 	/*
 	 * by definition, 1KiB is 2 sectors
@@ -595,7 +593,7 @@ cfq_find_next_rq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			next = rb_entry_rq(rbnext);
 	}
 
-	return cfq_choose_req(cfqd, next, prev);
+	return cfq_choose_req(cfqd, next, prev, blk_rq_pos(last));
 }
 
 static unsigned long cfq_slice_offset(struct cfq_data *cfqd,
@@ -843,7 +841,7 @@ static void cfq_add_rq_rb(struct request *rq)
 	 * check if this request is a better next-serve candidate
 	 */
 	prev = cfqq->next_rq;
-	cfqq->next_rq = cfq_choose_req(cfqd, cfqq->next_rq, rq);
+	cfqq->next_rq = cfq_choose_req(cfqd, cfqq->next_rq, rq, cfqd->last_position);
 
 	/*
 	 * adjust priority tree position, if ->next_rq changes
@@ -950,6 +948,7 @@ static void
 cfq_merged_requests(struct request_queue *q, struct request *rq,
 		    struct request *next)
 {
+	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 	/*
 	 * reposition in fifo if next is older than rq
 	 */
@@ -959,6 +958,8 @@ cfq_merged_requests(struct request_queue *q, struct request *rq,
 		rq_set_fifo_time(rq, rq_fifo_time(next));
 	}
 
+	if (cfqq->next_rq == next)
+		cfqq->next_rq = rq;
 	cfq_remove_request(next);
 }
 
