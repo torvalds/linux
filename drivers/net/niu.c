@@ -45,10 +45,6 @@ MODULE_DESCRIPTION("NIU ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-#ifndef DMA_44BIT_MASK
-#define DMA_44BIT_MASK	0x00000fffffffffffULL
-#endif
-
 #ifndef readq
 static u64 readq(void __iomem *reg)
 {
@@ -9918,7 +9914,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		  PCI_EXP_DEVCTL_RELAX_EN);
 	pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, val16);
 
-	dma_mask = DMA_44BIT_MASK;
+	dma_mask = DMA_BIT_MASK(44);
 	err = pci_set_dma_mask(pdev, dma_mask);
 	if (!err) {
 		dev->features |= NETIF_F_HIGHDMA;
