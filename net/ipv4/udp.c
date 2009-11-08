@@ -163,7 +163,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		       int (*saddr_comp)(const struct sock *sk1,
 					 const struct sock *sk2))
 {
-	struct udp_hslot *hslot;
+	struct udp_hslot *hslot, *hslot2;
 	struct udp_table *udptable = sk->sk_prot->h.udp_table;
 	int    error = 1;
 	struct net *net = sock_net(sk);
@@ -222,6 +222,13 @@ found:
 		sk_nulls_add_node_rcu(sk, &hslot->head);
 		hslot->count++;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+
+		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
+		spin_lock(&hslot2->lock);
+		hlist_nulls_add_head_rcu(&udp_sk(sk)->udp_portaddr_node,
+					 &hslot2->head);
+		hslot2->count++;
+		spin_unlock(&hslot2->lock);
 	}
 	error = 0;
 fail_unlock:
@@ -1062,14 +1069,22 @@ void udp_lib_unhash(struct sock *sk)
 {
 	if (sk_hashed(sk)) {
 		struct udp_table *udptable = sk->sk_prot->h.udp_table;
-		struct udp_hslot *hslot = udp_hashslot(udptable, sock_net(sk),
-						       udp_sk(sk)->udp_port_hash);
+		struct udp_hslot *hslot, *hslot2;
+
+		hslot  = udp_hashslot(udptable, sock_net(sk),
+				      udp_sk(sk)->udp_port_hash);
+		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {
 			hslot->count--;
 			inet_sk(sk)->inet_num = 0;
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+
+			spin_lock(&hslot2->lock);
+			hlist_nulls_del_init_rcu(&udp_sk(sk)->udp_portaddr_node);
+			hslot2->count--;
+			spin_unlock(&hslot2->lock);
 		}
 		spin_unlock_bh(&hslot->lock);
 	}
@@ -1857,7 +1872,7 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 
 	if (!CONFIG_BASE_SMALL)
 		table->hash = alloc_large_system_hash(name,
-			sizeof(struct udp_hslot),
+			2 * sizeof(struct udp_hslot),
 			uhash_entries,
 			21, /* one slot per 2 MB */
 			0,
@@ -1869,16 +1884,22 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 	 */
 	if (CONFIG_BASE_SMALL || table->mask < UDP_HTABLE_SIZE_MIN - 1) {
 		table->hash = kmalloc(UDP_HTABLE_SIZE_MIN *
-				      sizeof(struct udp_hslot), GFP_KERNEL);
+				      2 * sizeof(struct udp_hslot), GFP_KERNEL);
 		if (!table->hash)
 			panic(name);
 		table->log = ilog2(UDP_HTABLE_SIZE_MIN);
 		table->mask = UDP_HTABLE_SIZE_MIN - 1;
 	}
+	table->hash2 = table->hash + (table->mask + 1);
 	for (i = 0; i <= table->mask; i++) {
 		INIT_HLIST_NULLS_HEAD(&table->hash[i].head, i);
 		table->hash[i].count = 0;
 		spin_lock_init(&table->hash[i].lock);
+	}
+	for (i = 0; i <= table->mask; i++) {
+		INIT_HLIST_NULLS_HEAD(&table->hash2[i].head, i);
+		table->hash2[i].count = 0;
+		spin_lock_init(&table->hash2[i].lock);
 	}
 }
 
