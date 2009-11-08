@@ -138,13 +138,14 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 	sk_nulls_for_each(sk2, node, &hslot->head)
 		if (net_eq(sock_net(sk2), net)			&&
 		    sk2 != sk					&&
-		    (bitmap || sk2->sk_hash == num)		&&
+		    (bitmap || udp_sk(sk2)->udp_port_hash == num) &&
 		    (!sk2->sk_reuse || !sk->sk_reuse)		&&
 		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
 			|| sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    (*saddr_comp)(sk, sk2)) {
 			if (bitmap)
-				__set_bit(sk2->sk_hash >> log, bitmap);
+				__set_bit(udp_sk(sk2)->udp_port_hash >> log,
+					  bitmap);
 			else
 				return 1;
 		}
@@ -215,7 +216,8 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	}
 found:
 	inet_sk(sk)->inet_num = snum;
-	sk->sk_hash = snum;
+	udp_sk(sk)->udp_port_hash = snum;
+	udp_sk(sk)->udp_portaddr_hash ^= snum;
 	if (sk_unhashed(sk)) {
 		sk_nulls_add_node_rcu(sk, &hslot->head);
 		hslot->count++;
@@ -238,8 +240,19 @@ static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 		   inet1->inet_rcv_saddr == inet2->inet_rcv_saddr));
 }
 
+static unsigned int udp4_portaddr_hash(struct net *net, __be32 saddr,
+				       unsigned int port)
+{
+	return jhash_1word(saddr, net_hash_mix(net)) ^ port;
+}
+
 int udp_v4_get_port(struct sock *sk, unsigned short snum)
 {
+	/* precompute partial secondary hash */
+	udp_sk(sk)->udp_portaddr_hash =
+		udp4_portaddr_hash(sock_net(sk),
+				   inet_sk(sk)->inet_rcv_saddr,
+				   0);
 	return udp_lib_get_port(sk, snum, ipv4_rcv_saddr_equal);
 }
 
@@ -249,7 +262,7 @@ static inline int compute_score(struct sock *sk, struct net *net, __be32 saddr,
 {
 	int score = -1;
 
-	if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
+	if (net_eq(sock_net(sk), net) && udp_sk(sk)->udp_port_hash == hnum &&
 			!ipv6_only_sock(sk)) {
 		struct inet_sock *inet = inet_sk(sk);
 
@@ -360,7 +373,7 @@ static inline struct sock *udp_v4_mcast_next(struct net *net, struct sock *sk,
 		struct inet_sock *inet = inet_sk(s);
 
 		if (!net_eq(sock_net(s), net)				||
-		    s->sk_hash != hnum					||
+		    udp_sk(s)->udp_port_hash != hnum			||
 		    (inet->inet_daddr && inet->inet_daddr != rmt_addr)	||
 		    (inet->inet_dport != rmt_port && inet->inet_dport)	||
 		    (inet->inet_rcv_saddr	&&
@@ -1050,7 +1063,7 @@ void udp_lib_unhash(struct sock *sk)
 	if (sk_hashed(sk)) {
 		struct udp_table *udptable = sk->sk_prot->h.udp_table;
 		struct udp_hslot *hslot = udp_hashslot(udptable, sock_net(sk),
-						     sk->sk_hash);
+						       udp_sk(sk)->udp_port_hash);
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {

@@ -55,6 +55,8 @@ static inline int udp_hashfn(struct net *net, unsigned num, unsigned mask)
 struct udp_sock {
 	/* inet_sock has to be the first member */
 	struct inet_sock inet;
+#define udp_port_hash		inet.sk.__sk_common.skc_u16hashes[0]
+#define udp_portaddr_hash	inet.sk.__sk_common.skc_u16hashes[1]
 	int		 pending;	/* Any pending frames ? */
 	unsigned int	 corkflag;	/* Cork is required */
   	__u16		 encap_type;	/* Is this an Encapsulation socket? */

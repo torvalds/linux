@@ -109,6 +109,7 @@ struct net;
  *	@skc_refcnt: reference count
  *	@skc_tx_queue_mapping: tx queue number for this connection
  *	@skc_hash: hash value used with various protocol lookup tables
+ *	@skc_u16hashes: two u16 hash values used by UDP lookup tables
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
@@ -131,7 +132,10 @@ struct sock_common {
 	atomic_t		skc_refcnt;
 	int			skc_tx_queue_mapping;
 
-	unsigned int		skc_hash;
+	union  {
+		unsigned int	skc_hash;
+		__u16		skc_u16hashes[2];
+	};
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
 	unsigned char		skc_reuse;

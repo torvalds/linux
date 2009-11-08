@@ -81,8 +81,30 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 	return 0;
 }
 
+static unsigned int udp6_portaddr_hash(struct net *net,
+				       const struct in6_addr *addr6,
+				       unsigned int port)
+{
+	unsigned int hash, mix = net_hash_mix(net);
+
+	if (ipv6_addr_any(addr6))
+		hash = jhash_1word(0, mix);
+	else if (ipv6_addr_type(addr6) == IPV6_ADDR_MAPPED)
+		hash = jhash_1word(addr6->s6_addr32[3], mix);
+	else
+		hash = jhash2(addr6->s6_addr32, 4, mix);
+
+	return hash ^ port;
+}
+
+
 int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
+	/* precompute partial secondary hash */
+	udp_sk(sk)->udp_portaddr_hash =
+		udp6_portaddr_hash(sock_net(sk),
+				   &inet6_sk(sk)->rcv_saddr,
+				   0);
 	return udp_lib_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }
 
@@ -94,7 +116,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 {
 	int score = -1;
 
-	if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
+	if (net_eq(sock_net(sk), net) && udp_sk(sk)->udp_port_hash == hnum &&
 			sk->sk_family == PF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
 		struct inet_sock *inet = inet_sk(sk);
@@ -415,7 +437,8 @@ static struct sock *udp_v6_mcast_next(struct net *net, struct sock *sk,
 		if (!net_eq(sock_net(s), net))
 			continue;
 
-		if (s->sk_hash == num && s->sk_family == PF_INET6) {
+		if (udp_sk(s)->udp_port_hash == num &&
+		    s->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(s);
 			if (inet->inet_dport) {
 				if (inet->inet_dport != rmt_port)
