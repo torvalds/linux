@@ -1091,27 +1091,11 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 /*
  * Device probe functions.
  */
-static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u16 word;
 	u8 *mac;
 	u8 default_lna_gain;
-
-	/*
-	 * Read EEPROM into buffer
-	 */
-	switch(rt2x00dev->chip.rt) {
-	case RT2880:
-	case RT3052:
-		rt2800pci_read_eeprom_soc(rt2x00dev);
-		break;
-	default:
-		if (rt2800pci_efuse_detect(rt2x00dev))
-			rt2800pci_read_eeprom_efuse(rt2x00dev);
-		else
-			rt2800pci_read_eeprom_pci(rt2x00dev);
-		break;
-	}
 
 	/*
 	 * Start validation of the data that has been read.
@@ -1131,7 +1115,7 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
 	} else if (rt2x00_rev(&rt2x00dev->chip) < RT2883_VERSION) {
 		/*
-		 * There is a max of 2 RX streams for RT2860 series
+		 * There is a max of 2 RX streams for RT28x0 series
 		 */
 		if (rt2x00_get_field16(word, EEPROM_ANTENNA_RXPATH) > 2)
 			rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
@@ -1210,6 +1194,27 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+{
+	/*
+	 * Read EEPROM into buffer
+	 */
+	switch (rt2x00dev->chip.rt) {
+	case RT2880:
+	case RT3052:
+		rt2800pci_read_eeprom_soc(rt2x00dev);
+		break;
+	default:
+		if (rt2800pci_efuse_detect(rt2x00dev))
+			rt2800pci_read_eeprom_efuse(rt2x00dev);
+		else
+			rt2800pci_read_eeprom_pci(rt2x00dev);
+		break;
+	}
+
+	return rt2800_validate_eeprom(rt2x00dev);
+}
+
 static int rt2800pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -1226,7 +1231,9 @@ static int rt2800pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
+
+	if (rt2x00_intf_is_pci(rt2x00dev))
+		rt2x00_set_chip_rf(rt2x00dev, value, reg);
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2850) &&
@@ -1234,8 +1241,10 @@ static int rt2800pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(&rt2x00dev->chip, RF2750) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF3020) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2020) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3022)) {
+	    (rt2x00_intf_is_usb(rt2x00dev) ||
+	     (rt2x00_intf_is_pci(rt2x00dev) &&
+	      !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
+	      !rt2x00_rf(&rt2x00dev->chip, RF3022)))) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}

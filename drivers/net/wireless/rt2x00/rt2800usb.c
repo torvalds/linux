@@ -665,13 +665,11 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 /*
  * Device probe functions.
  */
-static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u16 word;
 	u8 *mac;
 	u8 default_lna_gain;
-
-	rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom, EEPROM_SIZE);
 
 	/*
 	 * Start validation of the data that has been read.
@@ -691,7 +689,7 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
 	} else if (rt2x00_rev(&rt2x00dev->chip) < RT2883_VERSION) {
 		/*
-		 * There is a max of 2 RX streams for RT2870 series
+		 * There is a max of 2 RX streams for RT28x0 series
 		 */
 		if (rt2x00_get_field16(word, EEPROM_ANTENNA_RXPATH) > 2)
 			rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
@@ -770,6 +768,13 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+{
+	rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom, EEPROM_SIZE);
+
+	return rt2800_validate_eeprom(rt2x00dev);
+}
+
 static int rt2800usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -786,18 +791,23 @@ static int rt2800usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-	rt2x00_set_chip(rt2x00dev, RT2870, value, reg);
 
-	/*
-	 * The check for rt2860 is not a typo, some rt2870 hardware
-	 * identifies itself as rt2860 in the CSR register.
-	 */
-	if (!rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28600000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28700000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28800000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xffff0000, 0x30700000)) {
-		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
-		return -ENODEV;
+	if (rt2x00_intf_is_usb(rt2x00dev)) {
+		struct rt2x00_chip *chip = &rt2x00dev->chip;
+
+		rt2x00_set_chip(rt2x00dev, RT2870, value, reg);
+
+		/*
+		 * The check for rt2860 is not a typo, some rt2870 hardware
+		 * identifies itself as rt2860 in the CSR register.
+		 */
+		if (!rt2x00_check_rev(chip, 0xfff00000, 0x28600000) &&
+		    !rt2x00_check_rev(chip, 0xfff00000, 0x28700000) &&
+		    !rt2x00_check_rev(chip, 0xfff00000, 0x28800000) &&
+		    !rt2x00_check_rev(chip, 0xffff0000, 0x30700000)) {
+			ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
+			return -ENODEV;
+		}
 	}
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
