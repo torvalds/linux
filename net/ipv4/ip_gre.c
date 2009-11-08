@@ -1483,7 +1483,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
-static int ipgre_newlink(struct net_device *dev, struct nlattr *tb[],
+static int ipgre_newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[],
 			 struct nlattr *data[])
 {
 	struct ip_tunnel *nt;

@@ -504,7 +504,7 @@ static int macvlan_get_tx_queues(struct net *net,
 	return 0;
 }
 
-static int macvlan_newlink(struct net_device *dev,
+static int macvlan_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -515,7 +515,7 @@ static int macvlan_newlink(struct net_device *dev,
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 
-	lowerdev = __dev_get_by_index(dev_net(dev), nla_get_u32(tb[IFLA_LINK]));
+	lowerdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
 		return -ENODEV;
 
