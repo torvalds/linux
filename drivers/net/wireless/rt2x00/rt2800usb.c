@@ -1074,8 +1074,6 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
-
 	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
 	/*

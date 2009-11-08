@@ -653,6 +653,8 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
 
+	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
+
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)
 		goto exit_free_device;

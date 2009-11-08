@@ -1465,8 +1465,6 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
-
 	rt2x00dev->priv = (void *)&rt2800pci_rt2800_ops;
 
 	/*
