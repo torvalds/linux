@@ -381,8 +381,6 @@ typedef struct drm_i915_private {
 	u32 saveFDI_RXA_IMR;
 	u32 saveFDI_RXB_IMR;
 	u32 saveCACHE_MODE_0;
-	u32 saveD_STATE;
-	u32 saveDSPCLK_GATE_D;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];

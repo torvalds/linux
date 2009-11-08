@@ -4584,28 +4584,33 @@ void intel_init_clock_gating(struct drm_device *dev)
 		struct drm_i915_gem_object *obj_priv;
 		int ret;
 
-		pwrctx = drm_gem_object_alloc(dev, 4096);
-		if (!pwrctx) {
-			DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
-			goto out;
+		if (dev_priv->pwrctx) {
+			obj_priv = dev_priv->pwrctx->driver_private;
+		} else {
+			pwrctx = drm_gem_object_alloc(dev, 4096);
+			if (!pwrctx) {
+				DRM_DEBUG("failed to alloc power context, "
+					  "RC6 disabled\n");
+				goto out;
+			}
+
+			ret = i915_gem_object_pin(pwrctx, 4096);
+			if (ret) {
+				DRM_ERROR("failed to pin power context: %d\n",
+					  ret);
+				drm_gem_object_unreference(pwrctx);
+				goto out;
+			}
+
+			i915_gem_object_set_to_gtt_domain(pwrctx, 1);
+
+			dev_priv->pwrctx = pwrctx;
+			obj_priv = pwrctx->driver_private;
 		}
-
-		ret = i915_gem_object_pin(pwrctx, 4096);
-		if (ret) {
-			DRM_ERROR("failed to pin power context: %d\n", ret);
-			drm_gem_object_unreference(pwrctx);
-			goto out;
-		}
-
-		i915_gem_object_set_to_gtt_domain(pwrctx, 1);
-
-		obj_priv = pwrctx->driver_private;
 
 		I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
 		I915_WRITE(MCHBAR_RENDER_STANDBY,
 			   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
-
-		dev_priv->pwrctx = pwrctx;
 	}
 
 out:
