@@ -145,6 +145,15 @@ static void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 			       EEPROM_SIZE / sizeof(u16));
 }
 
+static int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, EFUSE_CTRL, &reg);
+
+	return rt2x00_get_field32(reg, EFUSE_CTRL_PRESENT);
+}
+
 static void rt2800pci_efuse_read(struct rt2x00_dev *rt2x00dev,
 				 unsigned int i)
 {
@@ -180,6 +189,11 @@ static void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 #else
 static inline void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 {
+}
+
+static inline int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
+{
+	return 0;
 }
 
 static inline void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
@@ -1091,11 +1105,11 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RT3052:
 		rt2800pci_read_eeprom_soc(rt2x00dev);
 		break;
-	case RT3090:
-		rt2800pci_read_eeprom_efuse(rt2x00dev);
-		break;
 	default:
-		rt2800pci_read_eeprom_pci(rt2x00dev);
+		if (rt2800pci_efuse_detect(rt2x00dev))
+			rt2800pci_read_eeprom_efuse(rt2x00dev);
+		else
+			rt2800pci_read_eeprom_pci(rt2x00dev);
 		break;
 	}
 
