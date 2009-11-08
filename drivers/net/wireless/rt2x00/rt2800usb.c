@@ -770,6 +770,7 @@ static const struct rf_channel rf_vals_3070[] = {
 
 static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
+	struct rt2x00_chip *chip = &rt2x00dev->chip;
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
 	char *tx_power1;
@@ -785,7 +786,10 @@ static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
-	rt2x00dev->hw->extra_tx_headroom = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
+
+	if (rt2x00_intf_is_usb(rt2x00dev))
+		rt2x00dev->hw->extra_tx_headroom =
+			TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -800,17 +804,18 @@ static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
-	if (rt2x00_rf(&rt2x00dev->chip, RF2820) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF2720)) {
+	if (rt2x00_rf(chip, RF2820) ||
+	    rt2x00_rf(chip, RF2720)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2850) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2750)) {
+	} else if (rt2x00_rf(chip, RF2850) ||
+		   rt2x00_rf(chip, RF2750)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF3020) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2020)) {
+	} else if (rt2x00_intf_is_usb(rt2x00dev) &&
+		    (rt2x00_rf(chip, RF3020) ||
+		     rt2x00_rf(chip, RF2020))) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
 		spec->channels = rf_vals_3070;
 	}
