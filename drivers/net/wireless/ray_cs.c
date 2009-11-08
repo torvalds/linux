@@ -2074,7 +2074,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 				del_timer(&local->timer);
 				local->timer.expires = jiffies + HZ * 5;
 				local->timer.data = (long)local;
-				if (status == CCS_START_NETWORK) {
+				if (cmd == CCS_START_NETWORK) {
 					DEBUG(0,
 					      "ray_cs interrupt network \"%s\" start failed\n",
 					      local->sparm.b4.a_current_ess_id);
