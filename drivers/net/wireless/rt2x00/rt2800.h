@@ -1,5 +1,12 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
+	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
+	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
+	Copyright (C) 2009 Mattias Nissler <mattias.nissler@gmx.de>
+	Copyright (C) 2009 Mark Asselstine <asselsm@gmail.com>
+	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
+	Copyright (C) 2009 Bart Zolnierkiewicz <bzolnier@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
