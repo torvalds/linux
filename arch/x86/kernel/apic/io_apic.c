@@ -4066,7 +4066,7 @@ static struct resource * __init ioapic_setup_resources(int nr_ioapics)
 	for (i = 0; i < nr_ioapics; i++) {
 		res[i].name = mem;
 		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		sprintf(mem,  "IOAPIC %u", i);
+		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
 		mem += IOAPIC_RESOURCE_NAME_SIZE;
 	}
 
