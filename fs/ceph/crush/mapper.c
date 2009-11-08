@@ -78,7 +78,7 @@ static int bucket_perm_choose(struct crush_bucket *bucket,
 
 		/* optimize common r=0 case */
 		if (pr == 0) {
-			s = crush_hash32_3(x, bucket->id, 0) %
+			s = crush_hash32_3(bucket->hash, x, bucket->id, 0) %
 				bucket->size;
 			bucket->perm[0] = s;
 			bucket->perm_n = 0xffff;   /* magic value, see below */
@@ -103,7 +103,7 @@ static int bucket_perm_choose(struct crush_bucket *bucket,
 		unsigned p = bucket->perm_n;
 		/* no point in swapping the final entry */
 		if (p < bucket->size - 1) {
-			i = crush_hash32_3(x, bucket->id, p) %
+			i = crush_hash32_3(bucket->hash, x, bucket->id, p) %
 				(bucket->size - p);
 			if (i) {
 				unsigned t = bucket->perm[p + i];
@@ -138,8 +138,8 @@ static int bucket_list_choose(struct crush_bucket_list *bucket,
 	int i;
 
 	for (i = bucket->h.size-1; i >= 0; i--) {
-		__u64 w = crush_hash32_4(x, bucket->h.items[i], r,
-					 bucket->h.id);
+		__u64 w = crush_hash32_4(bucket->h.hash,x, bucket->h.items[i],
+					 r, bucket->h.id);
 		w &= 0xffff;
 		dprintk("list_choose i=%d x=%d r=%d item %d weight %x "
 			"sw %x rand %llx",
@@ -198,7 +198,8 @@ static int bucket_tree_choose(struct crush_bucket_tree *bucket,
 	while (!terminal(n)) {
 		/* pick point in [0, w) */
 		w = bucket->node_weights[n];
-		t = (__u64)crush_hash32_4(x, n, r, bucket->h.id) * (__u64)w;
+		t = (__u64)crush_hash32_4(bucket->h.hash, x, n, r,
+					  bucket->h.id) * (__u64)w;
 		t = t >> 32;
 
 		/* descend to the left or right? */
@@ -224,7 +225,7 @@ static int bucket_straw_choose(struct crush_bucket_straw *bucket,
 	__u64 draw;
 
 	for (i = 0; i < bucket->h.size; i++) {
-		draw = crush_hash32_3(x, bucket->h.items[i], r);
+		draw = crush_hash32_3(bucket->h.hash, x, bucket->h.items[i], r);
 		draw &= 0xffff;
 		draw *= bucket->straws[i];
 		if (i == 0 || draw > high_draw) {
@@ -267,7 +268,8 @@ static int is_out(struct crush_map *map, __u32 *weight, int item, int x)
 		return 0;
 	if (weight[item] == 0)
 		return 1;
-	if ((crush_hash32_2(x, item) & 0xffff) < weight[item])
+	if ((crush_hash32_2(CRUSH_HASH_RJENKINS1, x, item) & 0xffff)
+	    < weight[item])
 		return 0;
 	return 1;
 }

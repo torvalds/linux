@@ -1,5 +1,6 @@
 
 #include <linux/types.h>
+#include "hash.h"
 
 /*
  * Robert Jenkins' function for mixing 32-bit values
@@ -20,7 +21,7 @@
 
 #define crush_hash_seed 1315423911
 
-__u32 crush_hash32(__u32 a)
+static __u32 crush_hash32_rjenkins1(__u32 a)
 {
 	__u32 hash = crush_hash_seed ^ a;
 	__u32 b = a;
@@ -31,7 +32,7 @@ __u32 crush_hash32(__u32 a)
 	return hash;
 }
 
-__u32 crush_hash32_2(__u32 a, __u32 b)
+static __u32 crush_hash32_rjenkins1_2(__u32 a, __u32 b)
 {
 	__u32 hash = crush_hash_seed ^ a ^ b;
 	__u32 x = 231232;
@@ -42,7 +43,7 @@ __u32 crush_hash32_2(__u32 a, __u32 b)
 	return hash;
 }
 
-__u32 crush_hash32_3(__u32 a, __u32 b, __u32 c)
+static __u32 crush_hash32_rjenkins1_3(__u32 a, __u32 b, __u32 c)
 {
 	__u32 hash = crush_hash_seed ^ a ^ b ^ c;
 	__u32 x = 231232;
@@ -55,7 +56,7 @@ __u32 crush_hash32_3(__u32 a, __u32 b, __u32 c)
 	return hash;
 }
 
-__u32 crush_hash32_4(__u32 a, __u32 b, __u32 c, __u32 d)
+static __u32 crush_hash32_rjenkins1_4(__u32 a, __u32 b, __u32 c, __u32 d)
 {
 	__u32 hash = crush_hash_seed ^ a ^ b ^ c ^ d;
 	__u32 x = 231232;
@@ -69,7 +70,8 @@ __u32 crush_hash32_4(__u32 a, __u32 b, __u32 c, __u32 d)
 	return hash;
 }
 
-__u32 crush_hash32_5(__u32 a, __u32 b, __u32 c, __u32 d, __u32 e)
+static __u32 crush_hash32_rjenkins1_5(__u32 a, __u32 b, __u32 c, __u32 d,
+				      __u32 e)
 {
 	__u32 hash = crush_hash_seed ^ a ^ b ^ c ^ d ^ e;
 	__u32 x = 231232;
@@ -83,4 +85,65 @@ __u32 crush_hash32_5(__u32 a, __u32 b, __u32 c, __u32 d, __u32 e)
 	crush_hashmix(d, x, hash);
 	crush_hashmix(y, e, hash);
 	return hash;
+}
+
+
+__u32 crush_hash32(int type, __u32 a)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return crush_hash32_rjenkins1(a);
+	default:
+		return 0;
+	}
+}
+
+__u32 crush_hash32_2(int type, __u32 a, __u32 b)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return crush_hash32_rjenkins1_2(a, b);
+	default:
+		return 0;
+	}
+}
+
+__u32 crush_hash32_3(int type, __u32 a, __u32 b, __u32 c)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return crush_hash32_rjenkins1_3(a, b, c);
+	default:
+		return 0;
+	}
+}
+
+__u32 crush_hash32_4(int type, __u32 a, __u32 b, __u32 c, __u32 d)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return crush_hash32_rjenkins1_4(a, b, c, d);
+	default:
+		return 0;
+	}
+}
+
+__u32 crush_hash32_5(int type, __u32 a, __u32 b, __u32 c, __u32 d, __u32 e)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return crush_hash32_rjenkins1_5(a, b, c, d, e);
+	default:
+		return 0;
+	}
+}
+
+const char *crush_hash_name(int type)
+{
+	switch (type) {
+	case CRUSH_HASH_RJENKINS1:
+		return "rjenkins1";
+	default:
+		return "unknown";
+	}
 }
