@@ -735,20 +735,42 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static int inline
+msmsdcc_enable_clocks(struct msmsdcc_host *host, int enable)
+{
+	int rc;
+	if (enable) {
+		rc = clk_enable(host->pclk);
+		if (rc)
+			return rc;
+		rc = clk_enable(host->clk);
+		if (rc) {
+			clk_disable(host->pclk);
+			return rc;
+		}
+		host->clks_on = 1;
+		udelay(10);
+	} else {
+		clk_disable(host->clk);
+		clk_disable(host->pclk);
+		host->clks_on = 0;
+	}
+	return 0;
+}
+
 static void
 msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msmsdcc_host *host = mmc_priv(mmc);
 	u32 clk = 0, pwr = 0;
 	int rc;
+	unsigned long flags;
 
+	spin_lock_irqsave(&host->lock, flags);
 	if (ios->clock) {
 
-		if (!host->clks_on) {
-			clk_enable(host->pclk);
-			clk_enable(host->clk);
-			host->clks_on = 1;
-		}
+		if (!host->clks_on)
+			msmsdcc_enable_clocks(host, 1);
 		if (ios->clock != host->clk_rate) {
 			rc = clk_set_rate(host->clk, ios->clock);
 			if (rc < 0)
@@ -793,11 +815,9 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		writel(pwr, host->base + MMCIPOWER);
 	}
 
-	if (!(clk & MCI_CLK_ENABLE) && host->clks_on) {
-		clk_disable(host->clk);
-		clk_disable(host->pclk);
-		host->clks_on = 0;
-	}
+	if (!(clk & MCI_CLK_ENABLE) && host->clks_on)
+		msmsdcc_enable_clocks(host, 0);
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void msmsdcc_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -899,7 +919,6 @@ msmsdcc_command_expired(unsigned long _data)
 	pr_err("%s: Command timeout (%p %p %p %p)\n",
 	       mmc_hostname(host->mmc), mrq, mrq->cmd,
 	       mrq->data, host->dma.sg);
-
 	mrq->cmd->error = -ETIMEDOUT;
 	msmsdcc_stop_data(host);
 
@@ -1031,31 +1050,21 @@ msmsdcc_probe(struct platform_device *pdev)
 	 */
 	msmsdcc_init_dma(host);
 
-	/*
-	 * Setup main peripheral bus clock
-	 */
+	/* Get our clocks */
 	host->pclk = clk_get(&pdev->dev, "sdc_pclk");
 	if (IS_ERR(host->pclk)) {
 		ret = PTR_ERR(host->pclk);
 		goto host_free;
 	}
 
-	ret = clk_enable(host->pclk);
-	if (ret)
-		goto pclk_put;
-
-	host->pclk_rate = clk_get_rate(host->pclk);
-
-	/*
-	 * Setup SDC MMC clock
-	 */
 	host->clk = clk_get(&pdev->dev, "sdc_clk");
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		goto pclk_disable;
+		goto pclk_put;
 	}
 
-	ret = clk_enable(host->clk);
+	/* Enable clocks */
+	ret = msmsdcc_enable_clocks(host, 1);
 	if (ret)
 		goto clk_put;
 
@@ -1065,9 +1074,8 @@ msmsdcc_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
+	host->pclk_rate = clk_get_rate(host->pclk);
 	host->clk_rate = clk_get_rate(host->clk);
-
-	host->clks_on = 1;
 
 	/*
 	 * Setup MMC host structure
@@ -1187,11 +1195,9 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (host->stat_irq)
 		free_irq(host->stat_irq, host);
  clk_disable:
-	clk_disable(host->clk);
+	msmsdcc_enable_clocks(host, 0);
  clk_put:
 	clk_put(host->clk);
- pclk_disable:
-	clk_disable(host->pclk);
  pclk_put:
 	clk_put(host->pclk);
  host_free:
@@ -1217,11 +1223,8 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 		if (!rc) {
 			writel(0, host->base + MMCIMASK0);
 
-			if (host->clks_on) {
-				clk_disable(host->clk);
-				clk_disable(host->pclk);
-				host->clks_on = 0;
-			}
+			if (host->clks_on)
+				msmsdcc_enable_clocks(host, 0);
 		}
 	}
 	return rc;
@@ -1238,11 +1241,8 @@ msmsdcc_resume(struct platform_device *dev)
 
 		spin_lock_irqsave(&host->lock, flags);
 
-		if (!host->clks_on) {
-			clk_enable(host->pclk);
-			clk_enable(host->clk);
-			host->clks_on = 1;
-		}
+		if (!host->clks_on)
+			msmsdcc_enable_clocks(host, 1);
 
 		writel(host->saved_irq0mask, host->base + MMCIMASK0);
 
