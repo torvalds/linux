@@ -297,7 +297,7 @@ struct firedtv *fdtv_alloc(struct device *dev,
 #define AVC_UNIT_SPEC_ID_ENTRY	0x00a02d
 #define AVC_SW_VERSION_ENTRY	0x010001
 
-static struct ieee1394_device_id fdtv_id_table[] = {
+const struct ieee1394_device_id fdtv_id_table[] = {
 	{
 		/* FloppyDTV S/CI and FloppyDTV S2 */
 		.match_flags	= MATCH_FLAGS,
@@ -346,12 +346,23 @@ MODULE_DEVICE_TABLE(ieee1394, fdtv_id_table);
 
 static int __init fdtv_init(void)
 {
-	return fdtv_1394_init(fdtv_id_table);
+	int ret;
+
+	ret = fdtv_fw_init();
+	if (ret < 0)
+		return ret;
+
+	ret = fdtv_1394_init();
+	if (ret < 0)
+		fdtv_fw_exit();
+
+	return ret;
 }
 
 static void __exit fdtv_exit(void)
 {
 	fdtv_1394_exit();
+	fdtv_fw_exit();
 }
 
 module_init(fdtv_init);

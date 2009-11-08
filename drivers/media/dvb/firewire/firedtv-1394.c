@@ -1,5 +1,5 @@
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver -- ieee1394 I/O backend
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2007-2008 Ben Backx <ben@bbackx.com>
@@ -261,6 +261,7 @@ static int node_update(struct unit_directory *ud)
 
 static struct hpsb_protocol_driver fdtv_driver = {
 	.name		= "firedtv",
+	.id_table	= fdtv_id_table,
 	.update		= node_update,
 	.driver         = {
 		.probe  = node_probe,
@@ -273,12 +274,11 @@ static struct hpsb_highlevel fdtv_highlevel = {
 	.fcp_request	= fcp_request,
 };
 
-int __init fdtv_1394_init(struct ieee1394_device_id id_table[])
+int __init fdtv_1394_init(void)
 {
 	int ret;
 
 	hpsb_register_highlevel(&fdtv_highlevel);
-	fdtv_driver.id_table = id_table;
 	ret = hpsb_register_protocol(&fdtv_driver);
 	if (ret) {
 		printk(KERN_ERR "firedtv: failed to register protocol\n");
