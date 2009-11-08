@@ -298,7 +298,7 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 		goto repeat;
 }
 
-static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
+static void sysfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
 	struct sysfs_dirent * sd = dentry->d_fsdata;
 
@@ -307,7 +307,7 @@ static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
 }
 
 static const struct dentry_operations sysfs_dentry_ops = {
-	.d_iput		= sysfs_d_iput,
+	.d_iput		= sysfs_dentry_iput,
 };
 
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
