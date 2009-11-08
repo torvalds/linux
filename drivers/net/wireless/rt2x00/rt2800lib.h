@@ -129,6 +129,9 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
 
+int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev);
+int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev);
+
 extern const struct ieee80211_ops rt2800_mac80211_ops;
 
 #endif /* RT2800LIB_H */
