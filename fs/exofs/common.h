@@ -155,22 +155,4 @@ enum {
 	(((name_len) + offsetof(struct exofs_dir_entry, name)  + \
 	  EXOFS_DIR_ROUND) & ~EXOFS_DIR_ROUND)
 
-/*************************
- * function declarations *
- *************************/
-/* osd.c                 */
-void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
-			   const struct osd_obj_id *obj);
-
-int exofs_check_ok_resid(struct osd_request *or, u64 *in_resid, u64 *out_resid);
-static inline int exofs_check_ok(struct osd_request *or)
-{
-	return exofs_check_ok_resid(or, NULL, NULL);
-}
-int exofs_sync_op(struct osd_request *or, int timeout, u8 *cred);
-int exofs_async_op(struct osd_request *or,
-	osd_req_done_fn *async_done, void *caller_context, u8 *cred);
-
-int extract_attr_from_req(struct osd_request *or, struct osd_attr *attr);
-
 #endif /*ifndef __EXOFS_COM_H__*/
