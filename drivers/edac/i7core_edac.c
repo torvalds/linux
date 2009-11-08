@@ -916,41 +916,41 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 
 	/* Sets pvt->inject.dimm mask */
 	if (pvt->inject.dimm < 0)
-		mask |= 1L << 41;
+		mask |= 1LL << 41;
 	else {
 		if (pvt->channel[pvt->inject.channel].dimms > 2)
-			mask |= (pvt->inject.dimm & 0x3L) << 35;
+			mask |= (pvt->inject.dimm & 0x3LL) << 35;
 		else
-			mask |= (pvt->inject.dimm & 0x1L) << 36;
+			mask |= (pvt->inject.dimm & 0x1LL) << 36;
 	}
 
 	/* Sets pvt->inject.rank mask */
 	if (pvt->inject.rank < 0)
-		mask |= 1L << 40;
+		mask |= 1LL << 40;
 	else {
 		if (pvt->channel[pvt->inject.channel].dimms > 2)
-			mask |= (pvt->inject.rank & 0x1L) << 34;
+			mask |= (pvt->inject.rank & 0x1LL) << 34;
 		else
-			mask |= (pvt->inject.rank & 0x3L) << 34;
+			mask |= (pvt->inject.rank & 0x3LL) << 34;
 	}
 
 	/* Sets pvt->inject.bank mask */
 	if (pvt->inject.bank < 0)
-		mask |= 1L << 39;
+		mask |= 1LL << 39;
 	else
-		mask |= (pvt->inject.bank & 0x15L) << 30;
+		mask |= (pvt->inject.bank & 0x15LL) << 30;
 
 	/* Sets pvt->inject.page mask */
 	if (pvt->inject.page < 0)
-		mask |= 1L << 38;
+		mask |= 1LL << 38;
 	else
-		mask |= (pvt->inject.page & 0xffffL) << 14;
+		mask |= (pvt->inject.page & 0xffff) << 14;
 
 	/* Sets pvt->inject.column mask */
 	if (pvt->inject.col < 0)
-		mask |= 1L << 37;
+		mask |= 1LL << 37;
 	else
-		mask |= (pvt->inject.col & 0x3fffL);
+		mask |= (pvt->inject.col & 0x3fff);
 
 	/*
 	 * bit    0: REPEAT_EN
