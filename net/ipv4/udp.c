@@ -218,6 +218,7 @@ found:
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
 		sk_nulls_add_node_rcu(sk, &hslot->head);
+		hslot->count++;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
 	error = 0;
@@ -1053,6 +1054,7 @@ void udp_lib_unhash(struct sock *sk)
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {
+			hslot->count--;
 			inet_sk(sk)->inet_num = 0;
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		}
@@ -1862,6 +1864,7 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 	}
 	for (i = 0; i <= table->mask; i++) {
 		INIT_HLIST_NULLS_HEAD(&table->hash[i].head, i);
+		table->hash[i].count = 0;
 		spin_lock_init(&table->hash[i].lock);
 	}
 }

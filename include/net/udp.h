@@ -50,8 +50,16 @@ struct udp_skb_cb {
 };
 #define UDP_SKB_CB(__skb)	((struct udp_skb_cb *)((__skb)->cb))
 
+/**
+ *	struct udp_hslot - UDP hash slot
+ *
+ *	@head:	head of list of sockets
+ *	@count:	number of sockets in 'head' list
+ *	@lock:	spinlock protecting changes to head/count
+ */
 struct udp_hslot {
 	struct hlist_nulls_head	head;
+	int			count;
 	spinlock_t		lock;
 } __attribute__((aligned(2 * sizeof(long))));
 
