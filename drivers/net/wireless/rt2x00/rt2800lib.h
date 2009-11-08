@@ -131,6 +131,7 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev);
+int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev);
 
 extern const struct ieee80211_ops rt2800_mac80211_ops;
 
