@@ -212,6 +212,7 @@ static int node_probe(struct device *dev)
 		goto fail;
 
 	avc_register_remote_control(fdtv);
+
 	return 0;
 fail:
 	spin_lock_irq(&node_list_lock);
@@ -220,6 +221,7 @@ fail:
 	fdtv_unregister_rc(fdtv);
 fail_free:
 	kfree(fdtv);
+
 	return err;
 }
 
@@ -233,10 +235,9 @@ static int node_remove(struct device *dev)
 	list_del(&fdtv->list);
 	spin_unlock_irq(&node_list_lock);
 
-	cancel_work_sync(&fdtv->remote_ctrl_work);
 	fdtv_unregister_rc(fdtv);
-
 	kfree(fdtv);
+
 	return 0;
 }
 
