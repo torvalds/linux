@@ -746,11 +746,11 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	if (0 <= ret)
 		ret = setbluebalance(gspca_dev);
 	if (0 <= ret)
-		setgain(gspca_dev);
+		ret = setgain(gspca_dev);
 	if (0 <= ret)
-		setexposure(gspca_dev);
+		ret = setexposure(gspca_dev);
 	if (0 <= ret)
-		sethvflip(gspca_dev);
+		ret = sethvflip(gspca_dev);
 
 	/* only resolution 640x480 is supported for pac7302 */
 
