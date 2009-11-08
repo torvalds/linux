@@ -26,13 +26,16 @@
 #include <iso.h>
 #include <nodemgr.h>
 
+#include <dvb_demux.h>
+
 #include "firedtv.h"
 
 static LIST_HEAD(node_list);
 static DEFINE_SPINLOCK(node_list_lock);
 
-#define FIREWIRE_HEADER_SIZE	4
-#define CIP_HEADER_SIZE		8
+#define CIP_HEADER_SIZE			8
+#define MPEG2_TS_HEADER_SIZE		4
+#define MPEG2_TS_SOURCE_PACKET_SIZE	(4 + 188)
 
 static void rawiso_activity_cb(struct hpsb_iso *iso)
 {
@@ -62,20 +65,20 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 		buf = dma_region_i(&iso->data_buf, unsigned char,
 			iso->infos[packet].offset + CIP_HEADER_SIZE);
 		count = (iso->infos[packet].len - CIP_HEADER_SIZE) /
-			(188 + FIREWIRE_HEADER_SIZE);
+			MPEG2_TS_SOURCE_PACKET_SIZE;
 
 		/* ignore empty packet */
 		if (iso->infos[packet].len <= CIP_HEADER_SIZE)
 			continue;
 
 		while (count--) {
-			if (buf[FIREWIRE_HEADER_SIZE] == 0x47)
+			if (buf[MPEG2_TS_HEADER_SIZE] == 0x47)
 				dvb_dmx_swfilter_packets(&fdtv->demux,
-						&buf[FIREWIRE_HEADER_SIZE], 1);
+						&buf[MPEG2_TS_HEADER_SIZE], 1);
 			else
 				dev_err(fdtv->device,
 					"skipping invalid packet\n");
-			buf += 188 + FIREWIRE_HEADER_SIZE;
+			buf += MPEG2_TS_SOURCE_PACKET_SIZE;
 		}
 	}
 out:
