@@ -123,23 +123,39 @@ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	return error;
 }
 
+static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata, u32 *secdata_len)
+{
+	struct sysfs_inode_attrs *iattrs;
+	void *old_secdata;
+	size_t old_secdata_len;
+
+	iattrs = sd->s_iattr;
+	if (!iattrs)
+		iattrs = sysfs_init_inode_attrs(sd);
+	if (!iattrs)
+		return -ENOMEM;
+
+	old_secdata = iattrs->ia_secdata;
+	old_secdata_len = iattrs->ia_secdata_len;
+
+	iattrs->ia_secdata = *secdata;
+	iattrs->ia_secdata_len = *secdata_len;
+
+	*secdata = old_secdata;
+	*secdata_len = old_secdata_len;
+	return 0;
+}
+
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
-	struct sysfs_inode_attrs *iattrs;
 	void *secdata;
 	int error;
 	u32 secdata_len = 0;
 
 	if (!sd)
 		return -EINVAL;
-	if (!sd->s_iattr)
-		sd->s_iattr = sysfs_init_inode_attrs(sd);
-	if (!sd->s_iattr)
-		return -ENOMEM;
-
-	iattrs = sd->s_iattr;
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
@@ -151,12 +167,13 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 						&secdata, &secdata_len);
 		if (error)
 			goto out;
-		if (iattrs->ia_secdata)
-			security_release_secctx(iattrs->ia_secdata,
-						iattrs->ia_secdata_len);
-		iattrs->ia_secdata = secdata;
-		iattrs->ia_secdata_len = secdata_len;
 
+		mutex_lock(&sysfs_mutex);
+		error = sysfs_sd_setsecdata(sd, &secdata, &secdata_len);
+		mutex_unlock(&sysfs_mutex);
+
+		if (secdata)
+			security_release_secctx(secdata, secdata_len);
 	} else
 		return -EINVAL;
 out:
