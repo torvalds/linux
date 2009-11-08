@@ -57,6 +57,7 @@
     0   | 0x0f..0x20 | setcolors()
     0   | 0xa2..0xab | setbrightcont()
     0   | 0xc5       | setredbalance()
+    0   | 0xc6       | setwhitebalance()
     0   | 0xc7       | setbluebalance()
     0   | 0xdc       | setbrightcont(), setcolors()
     3   | 0x02       | setexposure()
@@ -80,6 +81,7 @@ struct sd {
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
+	unsigned char white_balance;
 	unsigned char red_balance;
 	unsigned char blue_balance;
 	unsigned char gain;
@@ -101,6 +103,8 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setredbalance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getredbalance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setbluebalance(struct gspca_dev *gspca_dev, __s32 val);
@@ -164,6 +168,20 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
+	},
+	{
+	    {
+		.id      = V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "White Balance",
+		.minimum = 0,
+		.maximum = 255,
+		.step    = 1,
+#define WHITEBALANCE_DEF 4
+		.default_value = WHITEBALANCE_DEF,
+	    },
+	    .set = sd_setwhitebalance,
+	    .get = sd_getwhitebalance,
 	},
 	{
 	    {
@@ -525,6 +543,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
+	sd->white_balance = WHITEBALANCE_DEF;
 	sd->red_balance = REDBALANCE_DEF;
 	sd->blue_balance = BLUEBALANCE_DEF;
 	sd->gain = GAIN_DEF;
@@ -592,6 +611,21 @@ static int setcolors(struct gspca_dev *gspca_dev)
 	if (0 <= ret)
 		ret = reg_w(gspca_dev, 0xdc, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
+	return ret;
+}
+
+static int setwhitebalance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
+
+	ret = reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xc6, sd->white_balance);
+
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xdc, 0x01);
+	PDEBUG(D_CONF|D_STREAM, "white_balance: %i", sd->white_balance);
 	return ret;
 }
 
@@ -705,6 +739,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		ret = setbrightcont(gspca_dev);
 	if (0 <= ret)
 		ret = setcolors(gspca_dev);
+	if (0 <= ret)
+		ret = setwhitebalance(gspca_dev);
 	if (0 <= ret)
 		ret = setredbalance(gspca_dev);
 	if (0 <= ret)
@@ -938,6 +974,27 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->colors;
+	return 0;
+}
+
+static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret = 0;
+
+	sd->white_balance = val;
+	if (gspca_dev->streaming)
+		ret = setwhitebalance(gspca_dev);
+	if (0 <= ret)
+		ret = 0;
+	return ret;
+}
+
+static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->white_balance;
 	return 0;
 }
 
