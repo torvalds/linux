@@ -255,10 +255,8 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.Handler = &fjn_interrupt;
-    link->irq.Instance = dev;
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
@@ -428,7 +426,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     if (link->io.NumPorts2 != 0) {
     	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED|IRQ_HANDLE_PRESENT;
+		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {

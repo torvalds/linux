@@ -4438,8 +4438,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   p_dev->io.IOAddrLines = 3;
 
   /* Interrupt setup */
-  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-  p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
   p_dev->irq.Handler = wavelan_interrupt;
 
   /* General socket configuration */
@@ -4451,7 +4450,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   if (!dev)
       return -ENOMEM;
 
-  p_dev->priv = p_dev->irq.Instance = dev;
+  p_dev->priv = dev;
 
   lp = netdev_priv(dev);
 

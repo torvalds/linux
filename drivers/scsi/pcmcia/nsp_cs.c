@@ -1564,12 +1564,10 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	link->io.IOAddrLines	 = 10;	/* not used */
 
 	/* Interrupt setup */
-	link->irq.Attributes	 = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1	 = IRQ_LEVEL_ID;
+	link->irq.Attributes	 = IRQ_TYPE_EXCLUSIVE;
 
 	/* Interrupt handler */
 	link->irq.Handler	 = &nspintr;
-	link->irq.Instance       = info;
 	link->irq.Attributes     |= IRQF_SHARED;
 
 	/* General socket configuration */

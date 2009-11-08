@@ -274,7 +274,6 @@ static int cs_attach(struct pcmcia_device *link)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -324,9 +323,6 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;
 	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
 	p_dev->io.NumPorts2 = 0;
-
-	p_dev->irq.IRQInfo1 = cfg->irq.IRQInfo1;
-	p_dev->irq.IRQInfo2 = cfg->irq.IRQInfo2;
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
 		p_dev->io.BasePort1 = base;

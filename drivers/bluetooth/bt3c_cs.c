@@ -659,11 +659,9 @@ static int bt3c_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 
 	link->irq.Handler = bt3c_interrupt;
-	link->irq.Instance = info;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;

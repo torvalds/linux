@@ -383,8 +383,8 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		s->irq.AssignedIRQ = 0;
 	}
 
-	if (req->Attributes & IRQ_HANDLE_PRESENT) {
-		free_irq(req->AssignedIRQ, req->Instance);
+	if (req->Handler) {
+		free_irq(req->AssignedIRQ, p_dev->priv);
 	}
 
 #ifdef CONFIG_PCMCIA_PROBE
@@ -664,7 +664,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	/* if the underlying IRQ infrastructure allows for it, only allocate
 	 * the IRQ, but do not enable it
 	 */
-	if (!(req->Attributes & IRQ_HANDLE_PRESENT))
+	if (!(req->Handler))
 		type |= IRQ_NOAUTOEN;
 #endif /* IRQ_NOAUTOEN */
 
@@ -674,7 +674,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	} else {
 		int try;
 		u32 mask = s->irq_mask;
-		void *data = &p_dev->dev.driver; /* something unique to this device */
+		void *data = p_dev; /* something unique to this device */
 
 		for (try = 0; try < 64; try++) {
 			irq = try % 32;
@@ -691,12 +691,12 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 			 * registering a dummy handle works, i.e. if the IRQ isn't
 			 * marked as used by the kernel resource management core */
 			ret = request_irq(irq,
-					  (req->Attributes & IRQ_HANDLE_PRESENT) ? req->Handler : test_action,
+					  (req->Handler) ? req->Handler : test_action,
 					  type,
 					  p_dev->devname,
-					  (req->Attributes & IRQ_HANDLE_PRESENT) ? req->Instance : data);
+					  (req->Handler) ? p_dev->priv : data);
 			if (!ret) {
-				if (!(req->Attributes & IRQ_HANDLE_PRESENT))
+				if (!req->Handler)
 					free_irq(irq, data);
 				break;
 			}
@@ -713,9 +713,9 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		irq = s->pci_irq;
 	}
 
-	if (ret && (req->Attributes & IRQ_HANDLE_PRESENT)) {
+	if (ret && req->Handler) {
 		ret = request_irq(irq, req->Handler, type,
-				  p_dev->devname, req->Instance);
+				  p_dev->devname, p_dev->priv);
 		if (ret) {
 			dev_printk(KERN_INFO, &s->dev,
 				"request_irq() failed\n");

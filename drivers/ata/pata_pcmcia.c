@@ -268,7 +268,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	pdev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	pdev->io.IOAddrLines = 3;
 	pdev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	pdev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	pdev->conf.Attributes = CONF_ENABLE_IRQ;
 	pdev->conf.IntType = INT_MEMORY_AND_IO;
 

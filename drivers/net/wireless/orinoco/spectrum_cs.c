@@ -194,10 +194,8 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	link->priv = priv;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = orinoco_interrupt;
-	link->irq.Instance = priv;
 
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for

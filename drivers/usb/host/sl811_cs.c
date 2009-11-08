@@ -243,7 +243,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 
 	/* Initialize */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;

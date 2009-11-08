@@ -93,8 +93,6 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;
 	p_dev->io.IOAddrLines = 16;
 
-	p_dev->irq.IRQInfo1 = cfg->irq.IRQInfo1;
-
 	/* 0x40 causes it to generate level mode interrupts. */
 	/* 0x04 enables IREQ pin. */
 	p_dev->conf.ConfigIndex = cfg->index | 0x44;
@@ -197,9 +195,8 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = ipwireless_interrupt;
-	link->irq.Instance = ipw->hardware;
 
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 
@@ -315,7 +312,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 
 	ipw->link = link;
 	link->priv = ipw;
-	link->irq.Instance = ipw;
 
 	/* Link this device into our device list. */
 	link->dev_node = &ipw->nodes[0];

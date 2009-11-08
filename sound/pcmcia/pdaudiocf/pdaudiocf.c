@@ -142,12 +142,10 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.NumPorts1 = 16;
 
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT | IRQ_FORCED_PULSE;
+	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCED_PULSE;
 	// link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 
-	link->irq.IRQInfo1 = 0 /* | IRQ_LEVEL_ID */;
 	link->irq.Handler = pdacf_interrupt;
-	link->irq.Instance = pdacf;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;

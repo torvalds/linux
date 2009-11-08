@@ -837,7 +837,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 
 	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	p_dev->irq.Handler = NULL;
-	p_dev->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
 
 	p_dev->conf.Attributes = 0;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;

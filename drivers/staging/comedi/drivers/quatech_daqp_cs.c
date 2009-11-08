@@ -1041,10 +1041,8 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = daqp_interrupt;
-	link->irq.Instance = local;
 
 	/*
 	   General socket configuration defaults can go here.  In this

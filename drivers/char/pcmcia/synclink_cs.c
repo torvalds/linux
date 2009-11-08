@@ -554,7 +554,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1   = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
 
     link->conf.Attributes = 0;
@@ -609,9 +608,7 @@ static int mgslpc_config(struct pcmcia_device *link)
     link->conf.ConfigIndex = 8;
     link->conf.Present = PRESENT_OPTION;
 
-    link->irq.Attributes |= IRQ_HANDLE_PRESENT;
     link->irq.Handler     = mgslpc_isr;
-    link->irq.Instance    = info;
 
     ret = pcmcia_request_irq(link, &link->irq);
     if (ret)

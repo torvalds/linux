@@ -134,7 +134,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 
 	/* Interrupt setup */
 	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	p_dev->irq.Handler = NULL;
 
 	/*

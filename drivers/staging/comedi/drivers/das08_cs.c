@@ -173,7 +173,6 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
 
 	/*

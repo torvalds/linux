@@ -119,6 +119,12 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 
+static irqreturn_t ibmtr_interrupt(int irq, void *dev_id) {
+	ibmtr_dev_t *info = dev_id;
+	struct net_device *dev = info->dev;
+	return tok_interrupt(irq, dev);
+};
+
 /*======================================================================
 
     ibmtr_attach() creates an "instance" of the driver, allocating
@@ -150,14 +156,13 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts1 = 4;
     link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &tok_interrupt;
+    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    link->irq.Handler = ibmtr_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    link->irq.Instance = info->dev = dev;
+    info->dev = dev;
 
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 

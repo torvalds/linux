@@ -164,11 +164,10 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     p_dev->io.NumPorts1 = 16;
     p_dev->io.IOAddrLines = 16;
     p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
-    p_dev->irq.Instance = info->dev = dev;
+    info->dev = dev;
     p_dev->priv = info;
 
     return com20020_config(p_dev);
@@ -275,9 +274,8 @@ static int com20020_config(struct pcmcia_device *link)
     ioaddr = dev->base_addr = link->io.BasePort1;
     dev_dbg(&link->dev, "got ioaddr %Xh\n", ioaddr);
 
-    dev_dbg(&link->dev, "request IRQ %d (%Xh/%Xh)\n",
-	   link->irq.AssignedIRQ,
-	   link->irq.IRQInfo1, link->irq.IRQInfo2);
+    dev_dbg(&link->dev, "request IRQ %d\n",
+	    link->irq.AssignedIRQ);
     i = pcmcia_request_irq(link, &link->irq);
     if (i != 0)
     {

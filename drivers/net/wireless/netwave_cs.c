@@ -384,8 +384,7 @@ static int netwave_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
     
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.Handler = &netwave_interrupt;
     
     /* General socket configuration */
@@ -403,8 +402,6 @@ static int netwave_probe(struct pcmcia_device *link)
     dev->wireless_handlers = &netwave_handler_def;
 
     dev->watchdog_timeo = TX_TIMEOUT;
-
-    link->irq.Instance = dev;
 
     return netwave_pcmcia_config( link);
 } /* netwave_attach */

@@ -556,7 +556,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
     link->irq.Handler = xirc2ps_interrupt;
-    link->irq.Instance = dev;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -835,8 +834,6 @@ xirc2ps_config(struct pcmcia_device * link)
 
     link->io.IOAddrLines =10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-    link->irq.Attributes = IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     if (local->modem) {
 	int pass;
 

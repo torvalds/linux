@@ -98,9 +98,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 		goto err_disable;
 
 	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	dev->irq.Handler = NULL; /* The handler is registered later. */
-	dev->irq.Instance = NULL;
 	res = pcmcia_request_irq(dev, &dev->irq);
 	if (res != 0)
 		goto err_disable;
