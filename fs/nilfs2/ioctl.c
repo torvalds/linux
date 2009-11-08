@@ -467,7 +467,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	return 0;
 
  failed:
-	nilfs_remove_all_gcinode(nilfs);
 	printk(KERN_ERR "NILFS: GC failed during preparation: %s: err=%d\n",
 	       msg, ret);
 	return ret;
@@ -556,6 +555,8 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	else
 		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
 
+	if (ret < 0)
+		nilfs_remove_all_gcinode(nilfs);
 	clear_nilfs_gc_running(nilfs);
 
  out_free:
