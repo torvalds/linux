@@ -594,16 +594,16 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	rt2x00_desc_read(rxwi, 2, &rxwi2);
 	rt2x00_desc_read(rxwi, 3, &rxwi3);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_CRC_ERROR))
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
 		rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
 		rxdesc->cipher_status =
-		    rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
+		    rt2x00_get_field32(rxd0, RXINFO_W0_CIPHER_ERROR);
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_DECRYPTED)) {
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_DECRYPTED)) {
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during
 		 * decryption. Unfortunately the descriptor doesn't contain
@@ -618,10 +618,10 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD)) {
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_L2PAD)) {
 		rxdesc->dev_flags |= RXDONE_L2PAD;
 		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
