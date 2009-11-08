@@ -4111,7 +4111,7 @@ fake_ioapic_page:
 		idx++;
 
 		ioapic_res->start = ioapic_phys;
-		ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
+		ioapic_res->end = ioapic_phys + PAGE_SIZE-1;
 		ioapic_res++;
 	}
 }
