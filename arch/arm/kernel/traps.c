@@ -573,7 +573,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		   if not implemented, rather than raising SIGILL.  This
 		   way the calling program can gracefully determine whether
 		   a feature is supported.  */
-		if (no <= 0x7ff)
+		if ((no & 0xffff) <= 0x7ff)
 			return -ENOSYS;
 		break;
 	}
