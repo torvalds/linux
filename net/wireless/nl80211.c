@@ -2616,6 +2616,8 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 			cur_params.dot11MeshHWMPpreqMinInterval);
 	NLA_PUT_U16(msg, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
 			cur_params.dot11MeshHWMPnetDiameterTraversalTime);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_HWMP_ROOTMODE,
+			cur_params.dot11MeshHWMPRootMode);
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
 	err = genlmsg_reply(msg, info);
@@ -2726,6 +2728,10 @@ static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
 			dot11MeshHWMPnetDiameterTraversalTime,
 			mask, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
 			nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg,
+			dot11MeshHWMPRootMode, mask,
+			NL80211_MESHCONF_HWMP_ROOTMODE,
+			nla_get_u8);
 
 	/* Apply changes */
 	err = rdev->ops->set_mesh_params(&rdev->wiphy, dev, &cfg, mask);

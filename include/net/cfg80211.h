@@ -508,6 +508,7 @@ struct mesh_config {
 	u32 dot11MeshHWMPactivePathTimeout;
 	u16 dot11MeshHWMPpreqMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
+	u8  dot11MeshHWMPRootMode;
 };
 
 /**

@@ -1029,7 +1029,10 @@ static int ieee80211_set_mesh_params(struct wiphy *wiphy,
 {
 	struct mesh_config *conf;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_if_mesh *ifmsh;
+
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	ifmsh = &sdata->u.mesh;
 
 	/* Set the config options which we are interested in setting */
 	conf = &(sdata->u.mesh.mshcfg);
@@ -1064,6 +1067,10 @@ static int ieee80211_set_mesh_params(struct wiphy *wiphy,
 			   mask))
 		conf->dot11MeshHWMPnetDiameterTraversalTime =
 			nconf->dot11MeshHWMPnetDiameterTraversalTime;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_ROOTMODE, mask)) {
+		conf->dot11MeshHWMPRootMode = nconf->dot11MeshHWMPRootMode;
+		ieee80211_mesh_root_setup(ifmsh);
+	}
 	return 0;
 }
 
