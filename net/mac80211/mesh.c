@@ -672,7 +672,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		MESH_MIN_DISCOVERY_TIMEOUT;
 	ifmsh->accepting_plinks = true;
 	ifmsh->preq_id = 0;
-	ifmsh->dsn = 0;
+	ifmsh->sn = 0;
 	atomic_set(&ifmsh->mpaths, 0);
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;

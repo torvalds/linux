@@ -420,7 +420,7 @@ enum monitor_flags {
  * in during get_station() or dump_station().
  *
  * MPATH_INFO_FRAME_QLEN: @frame_qlen filled
- * MPATH_INFO_DSN: @dsn filled
+ * MPATH_INFO_SN: @sn filled
  * MPATH_INFO_METRIC: @metric filled
  * MPATH_INFO_EXPTIME: @exptime filled
  * MPATH_INFO_DISCOVERY_TIMEOUT: @discovery_timeout filled
@@ -429,7 +429,7 @@ enum monitor_flags {
  */
 enum mpath_info_flags {
 	MPATH_INFO_FRAME_QLEN		= BIT(0),
-	MPATH_INFO_DSN			= BIT(1),
+	MPATH_INFO_SN			= BIT(1),
 	MPATH_INFO_METRIC		= BIT(2),
 	MPATH_INFO_EXPTIME		= BIT(3),
 	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
@@ -444,7 +444,7 @@ enum mpath_info_flags {
  *
  * @filled: bitfield of flags from &enum mpath_info_flags
  * @frame_qlen: number of queued frames for this destination
- * @dsn: destination sequence number
+ * @sn: target sequence number
  * @metric: metric (cost) of this mesh path
  * @exptime: expiration time for the mesh path from now, in msecs
  * @flags: mesh path flags
@@ -458,7 +458,7 @@ enum mpath_info_flags {
 struct mpath_info {
 	u32 filled;
 	u32 frame_qlen;
-	u32 dsn;
+	u32 sn;
 	u32 metric;
 	u32 exptime;
 	u32 discovery_timeout;

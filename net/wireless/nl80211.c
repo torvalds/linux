@@ -2116,9 +2116,9 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 pid, u32 seq,
 	if (pinfo->filled & MPATH_INFO_FRAME_QLEN)
 		NLA_PUT_U32(msg, NL80211_MPATH_INFO_FRAME_QLEN,
 			    pinfo->frame_qlen);
-	if (pinfo->filled & MPATH_INFO_DSN)
-		NLA_PUT_U32(msg, NL80211_MPATH_INFO_DSN,
-			    pinfo->dsn);
+	if (pinfo->filled & MPATH_INFO_SN)
+		NLA_PUT_U32(msg, NL80211_MPATH_INFO_SN,
+			    pinfo->sn);
 	if (pinfo->filled & MPATH_INFO_METRIC)
 		NLA_PUT_U32(msg, NL80211_MPATH_INFO_METRIC,
 			    pinfo->metric);

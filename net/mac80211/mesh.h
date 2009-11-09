@@ -26,7 +26,7 @@
  *
  * @MESH_PATH_ACTIVE: the mesh path can be used for forwarding
  * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
- * @MESH_PATH_DSN_VALID: the mesh path contains a valid destination sequence
+ * @MESH_PATH_SN_VALID: the mesh path contains a valid destination sequence
  * 	number
  * @MESH_PATH_FIXED: the mesh path has been manually set and should not be
  * 	modified
@@ -38,7 +38,7 @@
 enum mesh_path_flags {
 	MESH_PATH_ACTIVE =	BIT(0),
 	MESH_PATH_RESOLVING =	BIT(1),
-	MESH_PATH_DSN_VALID =	BIT(2),
+	MESH_PATH_SN_VALID =	BIT(2),
 	MESH_PATH_FIXED	=	BIT(3),
 	MESH_PATH_RESOLVED =	BIT(4),
 };
@@ -70,7 +70,7 @@ enum mesh_deferred_task_flags {
  * @timer: mesh path discovery timer
  * @frame_queue: pending queue for frames sent to this destination while the
  * 	path is unresolved
- * @dsn: destination sequence number of the destination
+ * @sn: target sequence number
  * @metric: current metric to this destination
  * @hop_count: hops to destination
  * @exp_time: in jiffies, when the path will expire or when it expired
@@ -94,7 +94,7 @@ struct mesh_path {
 	struct timer_list timer;
 	struct sk_buff_head frame_queue;
 	struct rcu_head rcu;
-	u32 dsn;
+	u32 sn;
 	u32 metric;
 	u8 hop_count;
 	unsigned long exp_time;
@@ -280,7 +280,7 @@ void mesh_mpp_table_grow(void);
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
 		struct mesh_table *tbl);
 /* Mesh paths */
-int mesh_path_error_tx(u8 ttl, u8 *dest, __le32 dest_dsn, __le16 dest_rcode,
+int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn, __le16 target_rcode,
 		u8 *ra, struct ieee80211_sub_if_data *sdata);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
