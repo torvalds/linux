@@ -100,12 +100,14 @@ static unsigned int udp6_portaddr_hash(struct net *net,
 
 int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
+	unsigned int hash2_nulladdr =
+		udp6_portaddr_hash(sock_net(sk), &in6addr_any, snum);
+	unsigned int hash2_partial = 
+		udp6_portaddr_hash(sock_net(sk), &inet6_sk(sk)->rcv_saddr, 0);
+
 	/* precompute partial secondary hash */
-	udp_sk(sk)->udp_portaddr_hash =
-		udp6_portaddr_hash(sock_net(sk),
-				   &inet6_sk(sk)->rcv_saddr,
-				   0);
-	return udp_lib_get_port(sk, snum, ipv6_rcv_saddr_equal);
+	udp_sk(sk)->udp_portaddr_hash = hash2_partial;
+	return udp_lib_get_port(sk, snum, ipv6_rcv_saddr_equal, hash2_nulladdr);
 }
 
 static inline int compute_score(struct sock *sk, struct net *net,
@@ -181,8 +183,6 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 	return score;
 }
 
-#define udp_portaddr_for_each_entry_rcu(__sk, node, list) \
-	hlist_nulls_for_each_entry_rcu(__sk, node, list, __sk_common.skc_portaddr_node)
 
 /* called with read_rcu_lock() */
 static struct sock *udp6_lib_lookup2(struct net *net,
