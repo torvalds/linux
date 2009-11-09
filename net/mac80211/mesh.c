@@ -223,6 +223,7 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 	int len, i, rate;
+	u8 neighbors;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	len = sband->n_bitrates;
@@ -271,9 +272,11 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	/* Authentication Protocol identifier */
 	*pos++ = sdata->u.mesh.mesh_auth_id;
 
-	/* Mesh Formation Info */
-	memset(pos, 0x00, 1);
-	pos += 1;
+	/* Mesh Formation Info - number of neighbors */
+	neighbors = atomic_read(&sdata->u.mesh.mshstats.estab_plinks);
+	/* Number of neighbor mesh STAs or 15 whichever is smaller */
+	neighbors = (neighbors > 15) ? 15 : neighbors;
+	*pos++ = neighbors << 1;
 
 	/* Mesh capability */
 	sdata->u.mesh.accepting_plinks = mesh_plink_availables(sdata);
