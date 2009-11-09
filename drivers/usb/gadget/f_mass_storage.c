@@ -367,6 +367,11 @@ struct fsg_common {
 	struct completion	thread_notifier;
 	struct task_struct	*thread_task;
 
+	/* Callback function to call when thread exits. */
+	void			(*thread_exits)(struct fsg_common *common);
+	/* Gadget's private data. */
+	void			*private_data;
+
 	/* Vendor (8 chars), product (16 chars), release (4
 	 * hexadecimal digits) and NUL byte */
 	char inquiry_string[8 + 16 + 4 + 1];
@@ -386,6 +391,11 @@ struct fsg_config {
 
 	const char		*lun_name_format;
 	const char		*thread_name;
+
+	/* Callback function to call when thread exits. */
+	void			(*thread_exits)(struct fsg_common *common);
+	/* Gadget's private data. */
+	void			*private_data;
 
 	const char *vendor_name;		/*  8 characters or less */
 	const char *product_name;		/* 16 characters or less */
@@ -2605,11 +2615,8 @@ static int fsg_main_thread(void *common_)
 	common->thread_task = NULL;
 	spin_unlock_irq(&common->lock);
 
-	/* XXX */
-	/* If we are exiting because of a signal, unregister the
-	 * gadget driver. */
-	/* if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags)) */
-	/* 	usb_gadget_unregister_driver(&fsg_driver); */
+	if (common->thread_exits)
+		common->thread_exits(common);
 
 	/* Let the unbind and cleanup routines know the thread has exited */
 	complete_and_exit(&common->thread_notifier, 0);
@@ -2671,6 +2678,8 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		memset(common, 0, sizeof common);
 		common->free_storage_on_release = 0;
 	}
+
+	common->private_data = cfg->private_data;
 
 	common->gadget = gadget;
 	common->ep0 = gadget->ep0;
@@ -2791,6 +2800,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 
 
 	/* Tell the thread to start working */
+	common->thread_exits = cfg->thread_exits;
 	common->thread_task =
 		kthread_create(fsg_main_thread, common,
 			       OR(cfg->thread_name, "file-storage"));
@@ -3056,6 +3066,9 @@ fsg_config_from_params(struct fsg_config *cfg,
 	cfg->vendor_name = 0;
 	cfg->product_name = 0;
 	cfg->release = 0xffff;
+
+	cfg->thread_exits = 0;
+	cfg->private_data = 0;
 
 	/* Finalise */
 	cfg->can_stall = params->stall;

@@ -132,9 +132,13 @@ static struct fsg_module_parameters mod_data = {
 };
 FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 
+static unsigned long msg_registered = 0;
+static void msg_cleanup(void);
+
 static int __init msg_do_config(struct usb_configuration *c)
 {
 	struct fsg_common *common;
+	struct fsg_config config;
 	int ret;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -142,7 +146,9 @@ static int __init msg_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	common = fsg_common_from_params(0, c->cdev, &mod_data);
+	fsg_config_from_params(&config, &mod_data);
+	config.thread_exits = (void(*)(struct fsg_common*))&msg_cleanup;
+	common = fsg_common_init(0, c->cdev, &config);
 	if (IS_ERR(common))
 		return PTR_ERR(common);
 
@@ -201,11 +207,7 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 		return status;
 
 	dev_info(&gadget->dev, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
-	return 0;
-}
-
-static int __exit msg_unbind(struct usb_composite_dev *cdev)
-{
+	set_bit(0, &msg_registered);
 	return 0;
 }
 
@@ -218,7 +220,6 @@ static struct usb_composite_driver msg_driver = {
 	.dev		= &msg_device_desc,
 	.strings	= dev_strings,
 	.bind		= msg_bind,
-	.unbind		= __exit_p(msg_unbind),
 };
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -231,8 +232,9 @@ static int __init msg_init(void)
 }
 module_init(msg_init);
 
-static void __exit msg_cleanup(void)
+static void msg_cleanup(void)
 {
-	usb_composite_unregister(&msg_driver);
+	if (test_and_clear_bit(0, &msg_registered))
+		usb_composite_unregister(&msg_driver);
 }
 module_exit(msg_cleanup);
