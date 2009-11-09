@@ -843,13 +843,23 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 			struct msghdr *msg, size_t len)
 {
 	struct pep_sock *pn = pep_sk(sk);
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	long timeo;
 	int flags = msg->msg_flags;
 	int err, done;
 
 	if (msg->msg_flags & MSG_OOB || !(msg->msg_flags & MSG_EOR))
 		return -EOPNOTSUPP;
+
+	skb = sock_alloc_send_skb(sk, MAX_PNPIPE_HEADER + len,
+					flags & MSG_DONTWAIT, &err);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb_reserve(skb, MAX_PHONET_HEADER + 3);
+	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	if (err < 0)
+		goto outfree;
 
 	lock_sock(sk);
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
@@ -894,28 +904,13 @@ disabled:
 			goto disabled;
 	}
 
-	if (!skb) {
-		skb = sock_alloc_send_skb(sk, MAX_PNPIPE_HEADER + len,
-						flags & MSG_DONTWAIT, &err);
-		if (skb == NULL)
-			goto out;
-		skb_reserve(skb, MAX_PHONET_HEADER + 3);
-
-		if (sk->sk_state != TCP_ESTABLISHED ||
-		    !atomic_read(&pn->tx_credits))
-			goto disabled; /* sock_alloc_send_skb might sleep */
-	}
-
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
-	if (err < 0)
-		goto out;
-
 	err = pipe_skb_send(sk, skb);
 	if (err >= 0)
 		err = len; /* success! */
 	skb = NULL;
 out:
 	release_sock(sk);
+outfree:
 	kfree_skb(skb);
 	return err;
 }
