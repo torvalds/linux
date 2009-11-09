@@ -398,6 +398,17 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	u8 ie_len;
 	u8 *baseaddr;
 	__le16 plid, llid, reason;
+#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
+	static const char *mplstates[] = {
+		[PLINK_LISTEN] = "LISTEN",
+		[PLINK_OPN_SNT] = "OPN-SNT",
+		[PLINK_OPN_RCVD] = "OPN-RCVD",
+		[PLINK_CNF_RCVD] = "CNF_RCVD",
+		[PLINK_ESTAB] = "ESTAB",
+		[PLINK_HOLDING] = "HOLDING",
+		[PLINK_BLOCKED] = "BLOCKED"
+	};
+#endif
 
 	/* need action_code, aux */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
@@ -536,8 +547,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 	}
 
-	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %pM %d %d %d %d\n",
-		mgmt->sa, sta->plink_state,
+	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %pM %s %d %d %d\n",
+		mgmt->sa, mplstates[sta->plink_state],
 		le16_to_cpu(sta->llid), le16_to_cpu(sta->plid),
 		event);
 	reason = 0;
