@@ -66,32 +66,7 @@ static void psc_dma_bcom_enqueue_next_buffer(struct psc_dma_stream *s)
 }
 
 /* Bestcomm DMA irq handler */
-static irqreturn_t psc_dma_bcom_irq_tx(int irq, void *_psc_dma_stream)
-{
-	struct psc_dma_stream *s = _psc_dma_stream;
-
-	spin_lock(&s->psc_dma->lock);
-	/* For each finished period, dequeue the completed period buffer
-	 * and enqueue a new one in it's place. */
-	while (bcom_buffer_done(s->bcom_task)) {
-		bcom_retrieve_buffer(s->bcom_task, NULL, NULL);
-
-		s->period_current = (s->period_current+1) % s->runtime->periods;
-		s->period_count++;
-
-		psc_dma_bcom_enqueue_next_buffer(s);
-	}
-	spin_unlock(&s->psc_dma->lock);
-
-	/* If the stream is active, then also inform the PCM middle layer
-	 * of the period finished event. */
-	if (s->active)
-		snd_pcm_period_elapsed(s->stream);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t psc_dma_bcom_irq_rx(int irq, void *_psc_dma_stream)
+static irqreturn_t psc_dma_bcom_irq(int irq, void *_psc_dma_stream)
 {
 	struct psc_dma_stream *s = _psc_dma_stream;
 
@@ -486,11 +461,9 @@ int mpc5200_audio_dma_create(struct of_device *op)
 
 	rc = request_irq(psc_dma->irq, &psc_dma_status_irq, IRQF_SHARED,
 			 "psc-dma-status", psc_dma);
-	rc |= request_irq(psc_dma->capture.irq,
-			  &psc_dma_bcom_irq_rx, IRQF_SHARED,
+	rc |= request_irq(psc_dma->capture.irq, &psc_dma_bcom_irq, IRQF_SHARED,
 			  "psc-dma-capture", &psc_dma->capture);
-	rc |= request_irq(psc_dma->playback.irq,
-			  &psc_dma_bcom_irq_tx, IRQF_SHARED,
+	rc |= request_irq(psc_dma->playback.irq, &psc_dma_bcom_irq, IRQF_SHARED,
 			  "psc-dma-playback", &psc_dma->playback);
 	if (rc) {
 		ret = -ENODEV;
