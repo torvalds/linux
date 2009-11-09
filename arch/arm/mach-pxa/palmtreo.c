@@ -653,6 +653,10 @@ static void __init treo_lcd_power_init(void)
 
 static void __init treo_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	treo_pm_init();
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo_pin_config));
 	treo_lcd_power_init();

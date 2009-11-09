@@ -477,6 +477,10 @@ static void __init tavorevb_init(void)
 	/* initialize MFP configurations */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(tavorevb_mfp_cfg));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	platform_device_register(&smc91x_device);
 
 	tavorevb_init_lcd();

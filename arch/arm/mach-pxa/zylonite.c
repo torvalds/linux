@@ -444,6 +444,10 @@ static inline void zylonite_init_ohci(void) {}
 
 static void __init zylonite_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/* board-processor specific initialization */
 	zylonite_pxa300_init();
 	zylonite_pxa320_init();

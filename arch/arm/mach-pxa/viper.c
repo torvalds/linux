@@ -908,6 +908,10 @@ static void __init viper_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(viper_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/* Wake-up serial console */
 	viper_init_serial_gpio();
 

@@ -413,6 +413,10 @@ static void __init littleton_init(void)
 	/* initialize MFP configurations */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(littleton_mfp_cfg));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/*
 	 * Note: we depend bootloader set the correct
 	 * value to MSC register for SMC91x.

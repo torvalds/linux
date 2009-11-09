@@ -1286,6 +1286,10 @@ static void __init em_x270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 #ifdef CONFIG_PM
 	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);
 #endif

@@ -438,6 +438,10 @@ static void __init cm_x300_init(void)
 	/* board-processor specific GPIO initialization */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_mfp_cfg));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	cm_x300_init_dm9000();
 	cm_x300_init_lcd();
 	cm_x300_init_ohci();

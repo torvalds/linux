@@ -268,6 +268,9 @@ static void __init csb726_init(void)
 /*	MSC2 = 0x06697ff4; *//* none/SM501 */
 	MSC2 = (MSC2 & ~0xffff) | 0x7ff4; /* SM501 */
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	pxa_set_i2c_info(NULL);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_mci_info(&csb726_mci);
