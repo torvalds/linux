@@ -313,6 +313,9 @@ static struct platform_device fsi_device = {
 	.dev	= {
 		.platform_data	= &fsi_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_SPU, /* FSI needs SPU hwblk */
+	},
 };
 
 /* KEYSC in SoC (Needs SW33-2 set to ON) */
