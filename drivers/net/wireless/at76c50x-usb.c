@@ -1188,6 +1188,9 @@ static int at76_start_monitor(struct at76_priv *priv)
 	scan.channel = priv->channel;
 	scan.scan_type = SCAN_TYPE_PASSIVE;
 	scan.international_scan = 0;
+	scan.min_channel_time = cpu_to_le16(priv->scan_min_time);
+	scan.max_channel_time = cpu_to_le16(priv->scan_max_time);
+	scan.probe_delay = cpu_to_le16(0);
 
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 	if (ret >= 0)
