@@ -660,7 +660,7 @@ static void vpfe_detach_irq(struct vpfe_device *vpfe_dev)
 
 	frame_format = ccdc_dev->hw_ops.get_frame_format();
 	if (frame_format == CCDC_FRMFMT_PROGRESSIVE)
-		free_irq(IRQ_VDINT1, vpfe_dev);
+		free_irq(vpfe_dev->ccdc_irq1, vpfe_dev);
 }
 
 static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
