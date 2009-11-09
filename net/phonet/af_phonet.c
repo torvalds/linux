@@ -481,6 +481,7 @@ static int __init phonet_init(void)
 	if (err)
 		return err;
 
+	pn_sock_init();
 	err = sock_register(&phonet_proto_family);
 	if (err) {
 		printk(KERN_ALERT
