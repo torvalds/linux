@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 open80211s Ltd.
+ * Copyright (c) 2008, 2009 open80211s Ltd.
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  *

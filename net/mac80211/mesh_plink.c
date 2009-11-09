@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 open80211s Ltd.
+ * Copyright (c) 2008, 2009 open80211s Ltd.
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  *
  * This program is free software; you can redistribute it and/or modify
