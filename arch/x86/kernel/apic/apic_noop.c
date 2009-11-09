@@ -54,11 +54,6 @@ static u64 noop_apic_icr_read(void)
 	return 0;
 }
 
-static physid_mask_t noop_ioapic_phys_id_map(physid_mask_t phys_map)
-{
-	return phys_map;
-}
-
 static int noop_cpu_to_logical_apicid(int cpu)
 {
 	return 0;
@@ -100,9 +95,9 @@ static const struct cpumask *noop_target_cpus(void)
 	return cpumask_of(0);
 }
 
-static unsigned long noop_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long noop_check_apicid_used(physid_mask_t *map, int apicid)
 {
-	return physid_isset(apicid, bitmap);
+	return physid_isset(apicid, *map);
 }
 
 static unsigned long noop_check_apicid_present(int bit)
@@ -155,19 +150,14 @@ struct apic apic_noop = {
 	.vector_allocation_domain	= noop_vector_allocation_domain,
 	.init_apic_ldr			= noop_init_apic_ldr,
 
-	.ioapic_phys_id_map		= noop_ioapic_phys_id_map,
+	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
 	.setup_apic_routing		= NULL,
 	.multi_timer_check		= NULL,
 	.apicid_to_node			= noop_apicid_to_node,
 
 	.cpu_to_logical_apicid		= noop_cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-
-#ifdef CONFIG_X86_32
-	.apicid_to_cpu_present		= default_apicid_to_cpu_present,
-#else
-	.apicid_to_cpu_present		= NULL,
-#endif
+	.apicid_to_cpu_present		= physid_set_mask_of_physid,
 
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,

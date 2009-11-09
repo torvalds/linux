@@ -163,14 +163,16 @@ typedef struct physid_mask physid_mask_t;
 #define physids_shift_left(d, s, n)				\
 	bitmap_shift_left((d).mask, (s).mask, n, MAX_APICS)
 
-#define physids_coerce(map)			((map).mask[0])
+static inline unsigned long physids_coerce(physid_mask_t *map)
+{
+	return map->mask[0];
+}
 
-#define physids_promote(physids)					\
-	({								\
-		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
-		__physid_mask.mask[0] = physids;			\
-		__physid_mask;						\
-	})
+static inline void physids_promote(unsigned long physids, physid_mask_t *map)
+{
+	physids_clear(*map);
+	map->mask[0] = physids;
+}
 
 /* Note: will create very large stack frames if physid_mask_t is big */
 #define physid_mask_of_physid(physid)					\
