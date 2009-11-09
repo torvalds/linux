@@ -84,11 +84,19 @@
 #define LWARN(lun, fmt, args...)  dev_warn(&(lun)->dev, fmt, ## args)
 #define LINFO(lun, fmt, args...)  dev_info(&(lun)->dev, fmt, ## args)
 
-#define DBG(d, fmt, args...)      dev_dbg (&(d)->gadget->dev, fmt, ## args)
-#define VDBG(d, fmt, args...)     dev_vdbg(&(d)->gadget->dev, fmt, ## args)
-#define ERROR(d, fmt, args...)    dev_err (&(d)->gadget->dev, fmt, ## args)
-#define WARNING(d, fmt, args...)  dev_warn(&(d)->gadget->dev, fmt, ## args)
-#define INFO(d, fmt, args...)     dev_info(&(d)->gadget->dev, fmt, ## args)
+/* Keep those macros in sync with thos in
+ * include/linux/ubs/composite.h or else GCC will complain.  If they
+ * are identical (the same names of arguments, white spaces in the
+ * same places) GCC will allow redefinition otherwise (even if some
+ * white space is removed or added) warning will be issued.  No
+ * checking if those symbols is defined is performed because warning
+ * is desired when those macros were defined by someone else to mean
+ * something else. */
+#define DBG(d, fmt, args...)     dev_dbg(&(d)->gadget->dev , fmt , ## args)
+#define VDBG(d, fmt, args...)    dev_vdbg(&(d)->gadget->dev , fmt , ## args)
+#define ERROR(d, fmt, args...)   dev_err(&(d)->gadget->dev , fmt , ## args)
+#define WARNING(d, fmt, args...) dev_warn(&(d)->gadget->dev , fmt , ## args)
+#define INFO(d, fmt, args...)    dev_info(&(d)->gadget->dev , fmt , ## args)
 
 
 
@@ -429,7 +437,7 @@ fsg_fs_intr_in_desc = {
 
 #endif
 
-static const struct usb_descriptor_header *fsg_fs_function[] = {
+static struct usb_descriptor_header *fsg_fs_function[] = {
 #ifndef FSG_NO_OTG
 	(struct usb_descriptor_header *) &fsg_otg_desc,
 #endif
@@ -493,7 +501,7 @@ fsg_hs_intr_in_desc = {
 
 #endif
 
-static const struct usb_descriptor_header *fsg_hs_function[] = {
+static struct usb_descriptor_header *fsg_hs_function[] = {
 #ifndef FSG_NO_OTG
 	(struct usb_descriptor_header *) &fsg_otg_desc,
 #endif

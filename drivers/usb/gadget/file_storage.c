@@ -594,10 +594,9 @@ static int populate_config_buf(struct usb_gadget *gadget,
 
 	if (gadget_is_dualspeed(gadget) && type == USB_DT_OTHER_SPEED_CONFIG)
 		speed = (USB_SPEED_FULL + USB_SPEED_HIGH) - speed;
-	if (gadget_is_dualspeed(gadget) && speed == USB_SPEED_HIGH)
-		function = fsg_hs_function;
-	else
-		function = fsg_fs_function;
+	function = gadget_is_dualspeed(gadget) && speed == USB_SPEED_HIGH
+		? (const struct usb_descriptor_header **)fsg_hs_function
+		: (const struct usb_descriptor_header **)fsg_fs_function;
 
 	/* for now, don't advertise srp-only devices */
 	if (!gadget_is_otg(gadget))

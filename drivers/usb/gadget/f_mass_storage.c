@@ -233,45 +233,21 @@
 
 
 
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 /*-------------------------------------------------------------------------*/
 
-#define DRIVER_DESC		"File-backed Storage Gadget"
-#define DRIVER_NAME		"g_file_storage"
-#define DRIVER_VERSION		"20 November 2008"
+#define FSG_DRIVER_DESC		"Mass Storage Function"
+#define FSG_DRIVER_VERSION	"20 November 2008"
 
-static       char fsg_string_manufacturer[64];
-static const char fsg_string_product[] = DRIVER_DESC;
-static       char fsg_string_serial[13];
-static const char fsg_string_config[] = "Self-powered";
 static const char fsg_string_interface[] = "Mass Storage";
 
 
 #define FSG_NO_INTR_EP 1
 #define FSG_BUFFHD_STATIC_BUFFER 1
+#define FSG_NO_DEVICE_STRINGS    1
+#define FSG_NO_OTG               1
+#define FSG_NO_INTR_EP           1
 
 #include "storage_common.c"
-
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR("Alan Stern");
-MODULE_LICENSE("Dual BSD/GPL");
-
-/*
- * This driver assumes self-powered hardware and has no way for users to
- * trigger remote wakeup.  It uses autoconfiguration to select endpoints
- * and endpoint addresses.
- */
 
 
 /*-------------------------------------------------------------------------*/
@@ -295,6 +271,7 @@ static struct {
 	.removable		= 0,
 	.can_stall		= 1,
 	.cdrom			= 0,
+	.release		= 0xffff,
 	};
 
 
@@ -347,14 +324,18 @@ struct fsg_common {
 
 
 struct fsg_dev {
+	struct usb_function	function;
+	struct usb_composite_dev*cdev;
+	struct usb_gadget	*gadget;	/* Copy of cdev->gadget */
 	struct fsg_common	*common;
+
+	u16			interface_number;
 
 	/* lock protects: state, all the req_busy's */
 	spinlock_t		lock;
-	struct usb_gadget	*gadget;
 
-	struct usb_ep		*ep0;		// Handy copy of gadget->ep0
-	struct usb_request	*ep0req;	// For control responses
+	struct usb_ep		*ep0;		/* Copy of gadget->ep0 */
+	struct usb_request	*ep0req;	/* Copy of cdev->req */
 	unsigned int		ep0_req_tag;
 	const char		*ep0req_name;
 
@@ -390,6 +371,13 @@ struct fsg_dev {
 	u32			usb_amount_left;
 };
 
+
+static inline struct fsg_dev *fsg_from_func(struct usb_function *f)
+{
+	return container_of(f, struct fsg_dev, function);
+}
+
+
 typedef void (*fsg_routine_t)(struct fsg_dev *);
 
 static int exception_in_progress(struct fsg_dev *fsg)
@@ -410,10 +398,6 @@ static void set_bulk_out_req_length(struct fsg_dev *fsg,
 	bh->outreq->length = length;
 }
 
-static struct fsg_dev			*the_fsg;
-static struct usb_gadget_driver		fsg_driver;
-
-
 /*-------------------------------------------------------------------------*/
 
 static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
@@ -428,95 +412,6 @@ static int fsg_set_halt(struct fsg_dev *fsg, struct usb_ep *ep)
 		name = ep->name;
 	DBG(fsg, "%s set halt\n", name);
 	return usb_ep_set_halt(ep);
-}
-
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * DESCRIPTORS ... most are static, but strings and (full) configuration
- * descriptors are built on demand.  Also the (static) config and interface
- * descriptors are adjusted during fsg_bind().
- */
-
-/* There is only one configuration. */
-#define	CONFIG_VALUE		1
-
-static struct usb_device_descriptor
-device_desc = {
-	.bLength =		sizeof device_desc,
-	.bDescriptorType =	USB_DT_DEVICE,
-
-	.bcdUSB =		cpu_to_le16(0x0200),
-	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
-
-	/* The next three values can be overridden by module parameters */
-	.idVendor =		cpu_to_le16(FSG_VENDOR_ID),
-	.idProduct =		cpu_to_le16(FSG_PRODUCT_ID),
-	.bcdDevice =		cpu_to_le16(0xffff),
-
-	.iManufacturer =	FSG_STRING_MANUFACTURER,
-	.iProduct =		FSG_STRING_PRODUCT,
-	.iSerialNumber =	FSG_STRING_SERIAL,
-	.bNumConfigurations =	1,
-};
-
-static struct usb_config_descriptor
-config_desc = {
-	.bLength =		sizeof config_desc,
-	.bDescriptorType =	USB_DT_CONFIG,
-
-	/* wTotalLength computed by usb_gadget_config_buf() */
-	.bNumInterfaces =	1,
-	.bConfigurationValue =	CONFIG_VALUE,
-	.iConfiguration =	FSG_STRING_CONFIG,
-	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
-};
-
-
-static struct usb_qualifier_descriptor
-dev_qualifier = {
-	.bLength =		sizeof dev_qualifier,
-	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
-
-	.bcdUSB =		cpu_to_le16(0x0200),
-	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
-
-	.bNumConfigurations =	1,
-};
-
-
-
-/*
- * Config descriptors must agree with the code that sets configurations
- * and with code managing interfaces and their altsettings.  They must
- * also handle different speeds and other-speed requests.
- */
-static int populate_config_buf(struct usb_gadget *gadget,
-		u8 *buf, u8 type, unsigned index)
-{
-	enum usb_device_speed			speed = gadget->speed;
-	int					len;
-	const struct usb_descriptor_header	**function;
-
-	if (index > 0)
-		return -EINVAL;
-
-	if (gadget_is_dualspeed(gadget) && type == USB_DT_OTHER_SPEED_CONFIG)
-		speed = (USB_SPEED_FULL + USB_SPEED_HIGH) - speed;
-	if (gadget_is_dualspeed(gadget) && speed == USB_SPEED_HIGH)
-		function = fsg_hs_function;
-	else
-		function = fsg_fs_function;
-
-	/* for now, don't advertise srp-only devices */
-	if (!gadget_is_otg(gadget))
-		function++;
-
-	len = usb_gadget_config_buf(&config_desc, buf, EP0_BUFSIZE, function);
-	((struct usb_config_descriptor *) buf)->bDescriptorType = type;
-	return len;
 }
 
 
@@ -555,25 +450,12 @@ static void raise_exception(struct fsg_dev *fsg, enum fsg_state new_state)
 
 /*-------------------------------------------------------------------------*/
 
-/* The disconnect callback and ep0 routines.  These always run in_irq,
- * except that ep0_queue() is called in the main thread to acknowledge
- * completion of various requests: set config, set interface, and
- * Bulk-only device reset. */
-
-static void fsg_disconnect(struct usb_gadget *gadget)
-{
-	struct fsg_dev		*fsg = get_gadget_data(gadget);
-
-	DBG(fsg, "disconnect or port reset\n");
-	raise_exception(fsg, FSG_STATE_DISCONNECT);
-}
-
-
 static int ep0_queue(struct fsg_dev *fsg)
 {
 	int	rc;
 
 	rc = usb_ep_queue(fsg->ep0, fsg->ep0req, GFP_ATOMIC);
+	fsg->ep0->driver_data = fsg;
 	if (rc != 0 && rc != -ESHUTDOWN) {
 
 		/* We can't do much more than wait for a reset */
@@ -582,23 +464,6 @@ static int ep0_queue(struct fsg_dev *fsg)
 	}
 	return rc;
 }
-
-static void ep0_complete(struct usb_ep *ep, struct usb_request *req)
-{
-	struct fsg_dev		*fsg = ep->driver_data;
-
-	if (req->actual > 0)
-		dump_msg(fsg, fsg->ep0req_name, req->buf, req->actual);
-	if (req->status || req->actual != req->length)
-		DBG(fsg, "%s --> %d, %u/%u\n", __func__,
-				req->status, req->actual, req->length);
-	if (req->status == -ECONNRESET)		// Request was cancelled
-		usb_ep_fifo_flush(ep);
-
-	if (req->status == 0 && req->context)
-		((fsg_routine_t) (req->context))(fsg);
-}
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -652,9 +517,10 @@ static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 
 /* Ep0 class-specific handlers.  These always run in_irq. */
 
-static int class_setup_req(struct fsg_dev *fsg,
+static int fsg_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
+	struct fsg_dev		*fsg = fsg_from_func(f);
 	struct usb_request	*req = fsg->ep0req;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
@@ -669,7 +535,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 		if (ctrl->bRequestType !=
 		    (USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 			break;
-		if (w_index != 0 || w_value != 0)
+		if (w_index != fsg->interface_number || w_value != 0)
 			return -EDOM;
 
 		/* Raise an exception to stop the current operation
@@ -682,7 +548,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 		if (ctrl->bRequestType !=
 		    (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 			break;
-		if (w_index != 0 || w_value != 0)
+		if (w_index != fsg->interface_number || w_value != 0)
 			return -EDOM;
 		VDBG(fsg, "get max LUN\n");
 		*(u8 *) req->buf = fsg->common->nluns - 1;
@@ -695,160 +561,6 @@ static int class_setup_req(struct fsg_dev *fsg,
 	     ctrl->bRequestType, ctrl->bRequest,
 	     le16_to_cpu(ctrl->wValue), w_index, w_length);
 	return -EOPNOTSUPP;
-}
-
-
-/*-------------------------------------------------------------------------*/
-
-/* Ep0 standard request handlers.  These always run in_irq. */
-
-static int standard_setup_req(struct fsg_dev *fsg,
-		const struct usb_ctrlrequest *ctrl)
-{
-	struct usb_request	*req = fsg->ep0req;
-	int			value = -EOPNOTSUPP;
-	u16			w_index = le16_to_cpu(ctrl->wIndex);
-	u16			w_value = le16_to_cpu(ctrl->wValue);
-
-	/* Usually this just stores reply data in the pre-allocated ep0 buffer,
-	 * but config change events will also reconfigure hardware. */
-	switch (ctrl->bRequest) {
-
-	case USB_REQ_GET_DESCRIPTOR:
-		if (ctrl->bRequestType != (USB_DIR_IN | USB_TYPE_STANDARD |
-				USB_RECIP_DEVICE))
-			break;
-		switch (w_value >> 8) {
-
-		case USB_DT_DEVICE:
-			VDBG(fsg, "get device descriptor\n");
-			value = sizeof device_desc;
-			memcpy(req->buf, &device_desc, value);
-			break;
-		case USB_DT_DEVICE_QUALIFIER:
-			VDBG(fsg, "get device qualifier\n");
-			if (!gadget_is_dualspeed(fsg->gadget))
-				break;
-			value = sizeof dev_qualifier;
-			memcpy(req->buf, &dev_qualifier, value);
-			break;
-
-		case USB_DT_OTHER_SPEED_CONFIG:
-			VDBG(fsg, "get other-speed config descriptor\n");
-			if (!gadget_is_dualspeed(fsg->gadget))
-				break;
-			goto get_config;
-		case USB_DT_CONFIG:
-			VDBG(fsg, "get configuration descriptor\n");
-get_config:
-			value = populate_config_buf(fsg->gadget,
-					req->buf,
-					w_value >> 8,
-					w_value & 0xff);
-			break;
-
-		case USB_DT_STRING:
-			VDBG(fsg, "get string descriptor\n");
-
-			/* wIndex == language code */
-			value = usb_gadget_get_string(&fsg_stringtab,
-					w_value & 0xff, req->buf);
-			break;
-		}
-		break;
-
-	/* One config, two speeds */
-	case USB_REQ_SET_CONFIGURATION:
-		if (ctrl->bRequestType != (USB_DIR_OUT | USB_TYPE_STANDARD |
-				USB_RECIP_DEVICE))
-			break;
-		VDBG(fsg, "set configuration\n");
-		if (w_value == CONFIG_VALUE || w_value == 0) {
-			fsg->new_config = w_value;
-
-			/* Raise an exception to wipe out previous transaction
-			 * state (queued bufs, etc) and set the new config. */
-			raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
-			value = DELAYED_STATUS;
-		}
-		break;
-	case USB_REQ_GET_CONFIGURATION:
-		if (ctrl->bRequestType != (USB_DIR_IN | USB_TYPE_STANDARD |
-				USB_RECIP_DEVICE))
-			break;
-		VDBG(fsg, "get configuration\n");
-		*(u8 *) req->buf = fsg->config;
-		value = 1;
-		break;
-
-	case USB_REQ_SET_INTERFACE:
-		if (ctrl->bRequestType != (USB_DIR_OUT| USB_TYPE_STANDARD |
-				USB_RECIP_INTERFACE))
-			break;
-		if (fsg->config && w_index == 0) {
-
-			/* Raise an exception to wipe out previous transaction
-			 * state (queued bufs, etc) and install the new
-			 * interface altsetting. */
-			raise_exception(fsg, FSG_STATE_INTERFACE_CHANGE);
-			value = DELAYED_STATUS;
-		}
-		break;
-	case USB_REQ_GET_INTERFACE:
-		if (ctrl->bRequestType != (USB_DIR_IN | USB_TYPE_STANDARD |
-				USB_RECIP_INTERFACE))
-			break;
-		if (!fsg->config)
-			break;
-		if (w_index != 0) {
-			value = -EDOM;
-			break;
-		}
-		VDBG(fsg, "get interface\n");
-		*(u8 *) req->buf = 0;
-		value = 1;
-		break;
-
-	default:
-		VDBG(fsg,
-			"unknown control req %02x.%02x v%04x i%04x l%u\n",
-			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, le16_to_cpu(ctrl->wLength));
-	}
-
-	return value;
-}
-
-
-static int fsg_setup(struct usb_gadget *gadget,
-		const struct usb_ctrlrequest *ctrl)
-{
-	struct fsg_dev		*fsg = get_gadget_data(gadget);
-	int			rc;
-	int			w_length = le16_to_cpu(ctrl->wLength);
-
-	++fsg->ep0_req_tag;		// Record arrival of a new request
-	fsg->ep0req->context = NULL;
-	fsg->ep0req->length = 0;
-	dump_msg(fsg, "ep0-setup", (u8 *) ctrl, sizeof(*ctrl));
-
-	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS)
-		rc = class_setup_req(fsg, ctrl);
-	else
-		rc = standard_setup_req(fsg, ctrl);
-
-	/* Respond with data/status or defer until later? */
-	if (rc >= 0 && rc != DELAYED_STATUS) {
-		rc = min(rc, w_length);
-		fsg->ep0req->length = rc;
-		fsg->ep0req->zero = rc < w_length;
-		fsg->ep0req_name = (ctrl->bRequestType & USB_DIR_IN ?
-				"ep0-in" : "ep0-out");
-		rc = ep0_queue(fsg);
-	}
-
-	/* Device either stalls (rc < 0) or reports success */
-	return rc;
 }
 
 
@@ -2518,21 +2230,30 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 	/* Enable the interface */
 	if (new_config != 0) {
 		fsg->config = new_config;
-		if ((rc = do_set_interface(fsg, 0)) != 0)
-			fsg->config = 0;	// Reset on errors
-		else {
-			char *speed;
-
-			switch (fsg->gadget->speed) {
-			case USB_SPEED_LOW:	speed = "low";	break;
-			case USB_SPEED_FULL:	speed = "full";	break;
-			case USB_SPEED_HIGH:	speed = "high";	break;
-			default: 		speed = "?";	break;
-			}
-			INFO(fsg, "%s speed config #%d\n", speed, fsg->config);
-		}
+		rc = do_set_interface(fsg, 0);
+		if (rc != 0)
+			fsg->config = 0;	/* Reset on errors */
 	}
 	return rc;
+}
+
+
+/****************************** ALT CONFIGS ******************************/
+
+
+static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
+{
+	struct fsg_dev *fsg = fsg_from_func(f);
+	fsg->new_config = 1;
+	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
+	return 0;
+}
+
+static void fsg_disable(struct usb_function *f)
+{
+	struct fsg_dev *fsg = fsg_from_func(f);
+	fsg->new_config = 0;
+	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
 }
 
 
@@ -2623,9 +2344,6 @@ static void handle_exception(struct fsg_dev *fsg)
 
 	/* Carry out any extra actions required for the exception */
 	switch (old_state) {
-	default:
-		break;
-
 	case FSG_STATE_ABORT_BULK_OUT:
 		send_status(fsg);
 		spin_lock_irq(&fsg->lock);
@@ -2651,16 +2369,6 @@ static void handle_exception(struct fsg_dev *fsg)
 		//	fsg->common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
 		break;
 
-	case FSG_STATE_INTERFACE_CHANGE:
-		rc = do_set_interface(fsg, 0);
-		if (fsg->ep0_req_tag != exception_req_tag)
-			break;
-		if (rc != 0)			// STALL on errors
-			fsg_set_halt(fsg, fsg->ep0);
-		else				// Complete the status stage
-			ep0_queue(fsg);
-		break;
-
 	case FSG_STATE_CONFIG_CHANGE:
 		rc = do_set_config(fsg, new_config);
 		if (fsg->ep0_req_tag != exception_req_tag)
@@ -2671,18 +2379,20 @@ static void handle_exception(struct fsg_dev *fsg)
 			ep0_queue(fsg);
 		break;
 
-	case FSG_STATE_DISCONNECT:
-		for (i = 0; i < fsg->common->nluns; ++i)
-			fsg_lun_fsync_sub(&fsg->common->luns[i]);
-		do_set_config(fsg, 0);		// Unconfigured state
-		break;
-
 	case FSG_STATE_EXIT:
 	case FSG_STATE_TERMINATED:
 		do_set_config(fsg, 0);			// Free resources
 		spin_lock_irq(&fsg->lock);
 		fsg->state = FSG_STATE_TERMINATED;	// Stop the thread
 		spin_unlock_irq(&fsg->lock);
+		break;
+
+	case FSG_STATE_INTERFACE_CHANGE:
+	case FSG_STATE_DISCONNECT:
+	case FSG_STATE_COMMAND_PHASE:
+	case FSG_STATE_DATA_PHASE:
+	case FSG_STATE_STATUS_PHASE:
+	case FSG_STATE_IDLE:
 		break;
 	}
 }
@@ -2744,16 +2454,17 @@ static int fsg_main_thread(void *fsg_)
 		if (!exception_in_progress(fsg))
 			fsg->state = FSG_STATE_IDLE;
 		spin_unlock_irq(&fsg->lock);
-		}
+	}
 
 	spin_lock_irq(&fsg->lock);
 	fsg->thread_task = NULL;
 	spin_unlock_irq(&fsg->lock);
 
+	/* XXX */
 	/* If we are exiting because of a signal, unregister the
 	 * gadget driver. */
-	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags))
-		usb_gadget_unregister_driver(&fsg_driver);
+	/* if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags)) */
+	/* 	usb_gadget_unregister_driver(&fsg_driver); */
 
 	/* Let the unbind and cleanup routines know the thread has exited */
 	complete_and_exit(&fsg->thread_notifier, 0);
@@ -2762,10 +2473,9 @@ static int fsg_main_thread(void *fsg_)
 
 /*************************** DEVICE ATTRIBUTES ***************************/
 
-
-/* The write permissions and store_xxx pointers are set in fsg_bind() */
-static DEVICE_ATTR(ro, 0444, fsg_show_ro, NULL);
-static DEVICE_ATTR(file, 0444, fsg_show_file, NULL);
+/* Write permission is checked per LUN in store_*() functions. */
+static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
+static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
 
 
 /****************************** FSG COMMON ******************************/
@@ -2789,11 +2499,13 @@ static inline void fsg_common_put(struct fsg_common *common)
 
 
 static struct fsg_common *fsg_common_init(struct fsg_common *common,
-					  struct usb_gadget *gadget)
+					  struct usb_composite_dev *cdev)
 {
+	struct usb_gadget *gadget = cdev->gadget;
 	struct fsg_buffhd *bh;
 	struct fsg_lun *curlun;
 	int nluns, i, rc;
+	char *pathbuf;
 
 	/* Find out how many LUNs there should be */
 	nluns = mod_data.nluns;
@@ -2833,7 +2545,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->removable = mod_data.removable;
 		curlun->dev.release = fsg_lun_release;
 		curlun->dev.parent = &gadget->dev;
-		curlun->dev.driver = &fsg_driver.driver;
+		/* curlun->dev.driver = &fsg_driver.driver; XXX */
 		dev_set_drvdata(&curlun->dev, &common->filesem);
 		dev_set_name(&curlun->dev,"%s-lun%d",
 			     dev_name(&gadget->dev), i);
@@ -2906,6 +2618,33 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 
 
 	kref_init(&common->ref);
+
+	/* Information */
+	INFO(common, FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
+	INFO(common, "Number of LUNs=%d\n", common->nluns);
+
+	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	for (i = 0, nluns = common->nluns, curlun = common->luns;
+	     i < nluns;
+	     ++curlun, ++i) {
+		char *p = "(no medium)";
+		if (fsg_lun_is_open(curlun)) {
+			p = "(error)";
+			if (pathbuf) {
+				p = d_path(&curlun->filp->f_path,
+					   pathbuf, PATH_MAX);
+				if (IS_ERR(p))
+					p = "(error)";
+			}
+		}
+		LINFO(curlun, "LUN: %s%s%sfile: %s\n",
+		      curlun->removable ? "removable " : "",
+		      curlun->ro ? "read only " : "",
+		      curlun->cdrom ? "CD-ROM " : "",
+		      p);
+	}
+	kfree(pathbuf);
+
 	return common;
 
 
@@ -2944,10 +2683,9 @@ static void fsg_common_release(struct kref *ref)
 /*-------------------------------------------------------------------------*/
 
 
-static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
+static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-	struct fsg_dev		*fsg = get_gadget_data(gadget);
-	struct usb_request	*req = fsg->ep0req;
+	struct fsg_dev		*fsg = fsg_from_func(f);
 
 	DBG(fsg, "unbind\n");
 	clear_bit(REGISTERED, &fsg->atomic_bitflags);
@@ -2961,59 +2699,31 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 		complete(&fsg->thread_notifier);
 	}
 
-	/* Free the request and buffer for endpoint 0 */
-	if (req) {
-		kfree(req->buf);
-		usb_ep_free_request(fsg->ep0, req);
-	}
-
 	fsg_common_put(fsg->common);
 	kfree(fsg);
-	set_gadget_data(gadget, NULL);
 }
 
 
-static int __init fsg_bind(struct usb_gadget *gadget)
+static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 {
-	struct fsg_dev		*fsg;
+	struct fsg_dev		*fsg = fsg_from_func(f);
+	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			rc;
 	int			i;
-	struct fsg_lun		*curlun;
 	struct usb_ep		*ep;
-	struct usb_request	*req;
-	char			*pathbuf, *p;
 
-	/* Allocate */
-	fsg = kzalloc(sizeof *fsg, GFP_KERNEL);
-	if (!fsg)
-		return -ENOMEM;
-
-	/* Initialise common */
-	fsg->common = fsg_common_init(0, gadget);
-	if (IS_ERR(fsg->common))
-		return PTR_ERR(fsg->common);
-
-	/* Basic parameters */
 	fsg->gadget = gadget;
-	set_gadget_data(gadget, fsg);
 	fsg->ep0 = gadget->ep0;
-	fsg->ep0->driver_data = fsg;
+	fsg->ep0req = c->cdev->req;
 
-	spin_lock_init(&fsg->lock);
-	init_completion(&fsg->thread_notifier);
-
-	/* Enable the store_xxx attributes */
-	if (mod_data.removable) {
-		dev_attr_file.attr.mode = 0644;
-		dev_attr_file.store = fsg_store_file;
-		if (!mod_data.cdrom) {
-			dev_attr_ro.attr.mode = 0644;
-			dev_attr_ro.store = fsg_store_ro;
-		}
-	}
+	/* New interface */
+	i = usb_interface_id(c, f);
+	if (i < 0)
+		return i;
+	fsg_intf_desc.bInterfaceNumber = i;
+	fsg->interface_number = i;
 
 	/* Find all the endpoints we will use */
-	usb_ep_autoconfig_reset(gadget);
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_in_desc);
 	if (!ep)
 		goto autoconf_fail;
@@ -3026,52 +2736,25 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	ep->driver_data = fsg;		// claim the endpoint
 	fsg->bulk_out = ep;
 
-	/* Fix up the descriptors */
-	device_desc.bMaxPacketSize0 = fsg->ep0->maxpacket;
-	device_desc.bcdDevice = cpu_to_le16(mod_data.release);
-
 	if (gadget_is_dualspeed(gadget)) {
-		/* Assume ep0 uses the same maxpacket value for both speeds */
-		dev_qualifier.bMaxPacketSize0 = fsg->ep0->maxpacket;
-
 		/* Assume endpoint addresses are the same for both speeds */
 		fsg_hs_bulk_in_desc.bEndpointAddress =
 			fsg_fs_bulk_in_desc.bEndpointAddress;
 		fsg_hs_bulk_out_desc.bEndpointAddress =
 			fsg_fs_bulk_out_desc.bEndpointAddress;
+		f->hs_descriptors = fsg_hs_function;
 	}
 
-	if (gadget_is_otg(gadget))
-		fsg_otg_desc.bmAttributes |= USB_OTG_HNP;
 
-	rc = -ENOMEM;
-
-	/* Allocate the request and buffer for endpoint 0 */
-	fsg->ep0req = req = usb_ep_alloc_request(fsg->ep0, GFP_KERNEL);
-	if (!req)
-		goto out;
-	req->buf = kmalloc(EP0_BUFSIZE, GFP_KERNEL);
-	if (!req->buf)
-		goto out;
-	req->complete = ep0_complete;
-
-	/* This should reflect the actual gadget power source */
-	usb_gadget_set_selfpowered(gadget);
-
-	snprintf(fsg_string_manufacturer, sizeof fsg_string_manufacturer,
-			"%s %s with %s",
-			init_utsname()->sysname, init_utsname()->release,
-			gadget->name);
-
-	/* On a real device, serial[] would be loaded from permanent
-	 * storage.  We just encode it from the driver version string. */
-	for (i = 0; i < sizeof fsg_string_serial - 2; i += 2) {
-		unsigned char		c = DRIVER_VERSION[i / 2];
-
-		if (!c)
-			break;
-		sprintf(&fsg_string_serial[i], "%02X", c);
+	/* maybe allocate device-global string IDs, and patch descriptors */
+	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
+		i = usb_string_id(c->cdev);
+		if (i < 0)
+			return i;
+		fsg_strings[FSG_STRING_INTERFACE].id = i;
+		fsg_intf_desc.iInterface = i;
 	}
+
 
 	fsg->thread_task = kthread_create(fsg_main_thread, fsg,
 			"file-storage-gadget");
@@ -3080,37 +2763,12 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		goto out;
 	}
 
-	INFO(fsg, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
-	INFO(fsg, "Number of LUNs=%d\n", fsg->common->nluns);
-
-	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-	for (i = 0; i < fsg->common->nluns; ++i) {
-		curlun = &fsg->common->luns[i];
-		if (fsg_lun_is_open(curlun)) {
-			p = NULL;
-			if (pathbuf) {
-				p = d_path(&curlun->filp->f_path,
-					   pathbuf, PATH_MAX);
-				if (IS_ERR(p))
-					p = NULL;
-			}
-			LINFO(curlun, "ro=%d, file: %s\n",
-					curlun->ro, (p ? p : "(error)"));
-		}
-	}
-	kfree(pathbuf);
-
-	DBG(fsg, "removable=%d, stall=%d, cdrom=%d, buflen=%u\n",
-			mod_data.removable, mod_data.can_stall,
-			mod_data.cdrom, FSG_BUFLEN);
 	DBG(fsg, "I/O thread pid: %d\n", task_pid_nr(fsg->thread_task));
 
 	set_bit(REGISTERED, &fsg->atomic_bitflags);
 
 	/* Tell the thread to start working */
 	wake_up_process(fsg->thread_task);
-
-	the_fsg = fsg;
 	return 0;
 
 autoconf_fail:
@@ -3119,48 +2777,56 @@ autoconf_fail:
 
 out:
 	fsg->state = FSG_STATE_TERMINATED;	// The thread is dead
-	fsg_unbind(gadget);
+	fsg_unbind(c, f);
 	complete(&fsg->thread_notifier);
 	return rc;
 }
 
 
-/*-------------------------------------------------------------------------*/
+/****************************** ADD FUNCTION ******************************/
 
-static struct usb_gadget_driver		fsg_driver = {
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	.speed		= USB_SPEED_HIGH,
-#else
-	.speed		= USB_SPEED_FULL,
-#endif
-	.function	= (char *) fsg_string_product,
-	.bind		= fsg_bind,
-	.unbind		= fsg_unbind,
-	.disconnect	= fsg_disconnect,
-	.setup		= fsg_setup,
-
-	.driver		= {
-		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
-		// .release = ...
-		// .suspend = ...
-		// .resume = ...
-	},
+static struct usb_gadget_strings *fsg_strings_array[] = {
+	&fsg_stringtab,
+	NULL,
 };
 
-
-static int __init fsg_init(void)
+static int fsg_add(struct usb_composite_dev *cdev,
+		   struct usb_configuration *c,
+		   struct fsg_common *common)
 {
-	return usb_gadget_register_driver(&fsg_driver);
-}
-module_init(fsg_init);
+	struct fsg_dev *fsg;
+	int rc;
 
+	fsg = kzalloc(sizeof *fsg, GFP_KERNEL);
+	if (unlikely(!fsg))
+		return -ENOMEM;
 
-static void __exit fsg_cleanup(void)
-{
-	/* Unregister the driver iff the thread hasn't already done so */
-	if (the_fsg &&
-	    test_and_clear_bit(REGISTERED, &the_fsg->atomic_bitflags))
-		usb_gadget_unregister_driver(&fsg_driver);
+	spin_lock_init(&fsg->lock);
+	init_completion(&fsg->thread_notifier);
+
+	fsg->cdev                 = cdev;
+	fsg->function.name        = FSG_DRIVER_DESC;
+	fsg->function.strings     = fsg_strings_array;
+	fsg->function.descriptors = fsg_fs_function;
+	fsg->function.bind        = fsg_bind;
+	fsg->function.unbind      = fsg_unbind;
+	fsg->function.setup       = fsg_setup;
+	fsg->function.set_alt     = fsg_set_alt;
+	fsg->function.disable     = fsg_disable;
+
+	fsg->common               = common;
+	/* Our caller holds a reference to common structure so we
+	 * don't have to be worry about it being freed until we return
+	 * from this function.  So instead of incrementing counter now
+	 * and decrement in error recovery we increment it only when
+	 * call to usb_add_function() was successful. */
+
+	rc = usb_add_function(c, &fsg->function);
+
+	if (likely(rc == 0))
+		fsg_common_get(fsg->common);
+	else
+		kfree(fsg);
+
+	return rc;
 }
-module_exit(fsg_cleanup);

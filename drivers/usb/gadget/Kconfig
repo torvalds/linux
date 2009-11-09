@@ -732,6 +732,24 @@ config USB_FILE_STORAGE_TEST
 	  behavior of USB Mass Storage hosts.  Not needed for
 	  normal operation.
 
+config USB_MASS_STORAGE
+	tristate "Mass Storage Gadget"
+	depends on BLOCK
+	help
+	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
+	  As its storage repository it can use a regular file or a block
+	  device (in much the same way as the "loop" device driver),
+	  specified as a module parameter or sysfs option.
+
+	  This is heavily based on File-backed Storage Gadget and in most
+	  cases you will want to use FSG instead.  This gadget is mostly
+	  here to test the functionality of the Mass Storage Function
+	  which may be used with composite framework.
+
+	  Say "y" to link the driver statically, or "m" to build
+	  a dynamically linked module called "g_file_storage".  If unsure,
+	  consider File-backed Storage Gadget.
+
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
 	help

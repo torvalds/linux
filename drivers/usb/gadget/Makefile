@@ -39,6 +39,7 @@ g_serial-objs			:= serial.o
 g_midi-objs			:= gmidi.o
 gadgetfs-objs			:= inode.o
 g_file_storage-objs		:= file_storage.o
+g_mass_storage-objs		:= mass_storage.o
 g_printer-objs			:= printer.o
 g_cdc-objs			:= cdc2.o
 
@@ -47,6 +48,7 @@ obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
 obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
 obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
+obj-$(CONFIG_USB_MASS_STORAGE)	+= g_mass_storage.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
 obj-$(CONFIG_USB_G_PRINTER)	+= g_printer.o
 obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
