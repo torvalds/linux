@@ -79,7 +79,7 @@ void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 /**
  * mesh_plink_fsm_restart - restart a mesh peer link finite state machine
  *
- * @sta: mes peer link to restart
+ * @sta: mesh peer link to restart
  *
  * Locking: this function must be called holding sta->lock
  */
