@@ -21,6 +21,133 @@
 #include <linux/debug_locks.h>
 #include <linux/module.h>
 
+/*
+ * If lockdep is enabled then we use the non-preemption spin-ops
+ * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
+ * not re-enabled during lock-acquire (which the preempt-spin-ops do):
+ */
+#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
+/*
+ * The __lock_function inlines are taken from
+ * include/linux/spinlock_api_smp.h
+ */
+#else
+/*
+ * We build the __lock_function inlines here. They are too large for
+ * inlining all over the place, but here is only one user per function
+ * which embedds them into the calling _lock_function below.
+ *
+ * This could be a long-held lock. We both prepare to spin for a long
+ * time (making _this_ CPU preemptable if possible), and we also signal
+ * towards that other CPU that it should break the lock ASAP.
+ */
+#define BUILD_LOCK_OPS(op, locktype)					\
+void __lockfunc __##op##_lock(locktype##_t *lock)			\
+{									\
+	for (;;) {							\
+		preempt_disable();					\
+		if (likely(_raw_##op##_trylock(lock)))			\
+			break;						\
+		preempt_enable();					\
+									\
+		if (!(lock)->break_lock)				\
+			(lock)->break_lock = 1;				\
+		while (!op##_can_lock(lock) && (lock)->break_lock)	\
+			_raw_##op##_relax(&lock->raw_lock);		\
+	}								\
+	(lock)->break_lock = 0;						\
+}									\
+									\
+unsigned long __lockfunc __##op##_lock_irqsave(locktype##_t *lock)	\
+{									\
+	unsigned long flags;						\
+									\
+	for (;;) {							\
+		preempt_disable();					\
+		local_irq_save(flags);					\
+		if (likely(_raw_##op##_trylock(lock)))			\
+			break;						\
+		local_irq_restore(flags);				\
+		preempt_enable();					\
+									\
+		if (!(lock)->break_lock)				\
+			(lock)->break_lock = 1;				\
+		while (!op##_can_lock(lock) && (lock)->break_lock)	\
+			_raw_##op##_relax(&lock->raw_lock);		\
+	}								\
+	(lock)->break_lock = 0;						\
+	return flags;							\
+}									\
+									\
+void __lockfunc __##op##_lock_irq(locktype##_t *lock)			\
+{									\
+	_##op##_lock_irqsave(lock);					\
+}									\
+									\
+void __lockfunc __##op##_lock_bh(locktype##_t *lock)			\
+{									\
+	unsigned long flags;						\
+									\
+	/*							*/	\
+	/* Careful: we must exclude softirqs too, hence the	*/	\
+	/* irq-disabling. We use the generic preemption-aware	*/	\
+	/* function:						*/	\
+	/**/								\
+	flags = _##op##_lock_irqsave(lock);				\
+	local_bh_disable();						\
+	local_irq_restore(flags);					\
+}									\
+
+/*
+ * Build preemption-friendly versions of the following
+ * lock-spinning functions:
+ *
+ *         __[spin|read|write]_lock()
+ *         __[spin|read|write]_lock_irq()
+ *         __[spin|read|write]_lock_irqsave()
+ *         __[spin|read|write]_lock_bh()
+ */
+BUILD_LOCK_OPS(spin, spinlock);
+BUILD_LOCK_OPS(read, rwlock);
+BUILD_LOCK_OPS(write, rwlock);
+
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+
+void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
+{
+	preempt_disable();
+	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
+	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
+}
+EXPORT_SYMBOL(_spin_lock_nested);
+
+unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock,
+						   int subclass)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	preempt_disable();
+	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
+	LOCK_CONTENDED_FLAGS(lock, _raw_spin_trylock, _raw_spin_lock,
+				_raw_spin_lock_flags, &flags);
+	return flags;
+}
+EXPORT_SYMBOL(_spin_lock_irqsave_nested);
+
+void __lockfunc _spin_lock_nest_lock(spinlock_t *lock,
+				     struct lockdep_map *nest_lock)
+{
+	preempt_disable();
+	spin_acquire_nest(&lock->dep_map, 0, 0, nest_lock, _RET_IP_);
+	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
+}
+EXPORT_SYMBOL(_spin_lock_nest_lock);
+
+#endif
+
 #ifndef CONFIG_INLINE_SPIN_TRYLOCK
 int __lockfunc _spin_trylock(spinlock_t *lock)
 {
@@ -44,13 +171,6 @@ int __lockfunc _write_trylock(rwlock_t *lock)
 }
 EXPORT_SYMBOL(_write_trylock);
 #endif
-
-/*
- * If lockdep is enabled then we use the non-preemption spin-ops
- * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
- * not re-enabled during lock-acquire (which the preempt-spin-ops do):
- */
-#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 
 #ifndef CONFIG_INLINE_READ_LOCK
 void __lockfunc _read_lock(rwlock_t *lock)
@@ -146,130 +266,6 @@ void __lockfunc _write_lock(rwlock_t *lock)
 	__write_lock(lock);
 }
 EXPORT_SYMBOL(_write_lock);
-#endif
-
-#else /* CONFIG_PREEMPT: */
-
-/*
- * This could be a long-held lock. We both prepare to spin for a long
- * time (making _this_ CPU preemptable if possible), and we also signal
- * towards that other CPU that it should break the lock ASAP.
- *
- * (We do this in a function because inlining it would be excessive.)
- */
-
-#define BUILD_LOCK_OPS(op, locktype)					\
-void __lockfunc _##op##_lock(locktype##_t *lock)			\
-{									\
-	for (;;) {							\
-		preempt_disable();					\
-		if (likely(_raw_##op##_trylock(lock)))			\
-			break;						\
-		preempt_enable();					\
-									\
-		if (!(lock)->break_lock)				\
-			(lock)->break_lock = 1;				\
-		while (!op##_can_lock(lock) && (lock)->break_lock)	\
-			_raw_##op##_relax(&lock->raw_lock);		\
-	}								\
-	(lock)->break_lock = 0;						\
-}									\
-									\
-EXPORT_SYMBOL(_##op##_lock);						\
-									\
-unsigned long __lockfunc _##op##_lock_irqsave(locktype##_t *lock)	\
-{									\
-	unsigned long flags;						\
-									\
-	for (;;) {							\
-		preempt_disable();					\
-		local_irq_save(flags);					\
-		if (likely(_raw_##op##_trylock(lock)))			\
-			break;						\
-		local_irq_restore(flags);				\
-		preempt_enable();					\
-									\
-		if (!(lock)->break_lock)				\
-			(lock)->break_lock = 1;				\
-		while (!op##_can_lock(lock) && (lock)->break_lock)	\
-			_raw_##op##_relax(&lock->raw_lock);		\
-	}								\
-	(lock)->break_lock = 0;						\
-	return flags;							\
-}									\
-									\
-EXPORT_SYMBOL(_##op##_lock_irqsave);					\
-									\
-void __lockfunc _##op##_lock_irq(locktype##_t *lock)			\
-{									\
-	_##op##_lock_irqsave(lock);					\
-}									\
-									\
-EXPORT_SYMBOL(_##op##_lock_irq);					\
-									\
-void __lockfunc _##op##_lock_bh(locktype##_t *lock)			\
-{									\
-	unsigned long flags;						\
-									\
-	/*							*/	\
-	/* Careful: we must exclude softirqs too, hence the	*/	\
-	/* irq-disabling. We use the generic preemption-aware	*/	\
-	/* function:						*/	\
-	/**/								\
-	flags = _##op##_lock_irqsave(lock);				\
-	local_bh_disable();						\
-	local_irq_restore(flags);					\
-}									\
-									\
-EXPORT_SYMBOL(_##op##_lock_bh)
-
-/*
- * Build preemption-friendly versions of the following
- * lock-spinning functions:
- *
- *         _[spin|read|write]_lock()
- *         _[spin|read|write]_lock_irq()
- *         _[spin|read|write]_lock_irqsave()
- *         _[spin|read|write]_lock_bh()
- */
-BUILD_LOCK_OPS(spin, spinlock);
-BUILD_LOCK_OPS(read, rwlock);
-BUILD_LOCK_OPS(write, rwlock);
-
-#endif /* CONFIG_PREEMPT */
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-
-void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
-{
-	preempt_disable();
-	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
-}
-EXPORT_SYMBOL(_spin_lock_nested);
-
-unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock, int subclass)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	preempt_disable();
-	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED_FLAGS(lock, _raw_spin_trylock, _raw_spin_lock,
-				_raw_spin_lock_flags, &flags);
-	return flags;
-}
-EXPORT_SYMBOL(_spin_lock_irqsave_nested);
-
-void __lockfunc _spin_lock_nest_lock(spinlock_t *lock,
-				     struct lockdep_map *nest_lock)
-{
-	preempt_disable();
-	spin_acquire_nest(&lock->dep_map, 0, 0, nest_lock, _RET_IP_);
-	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
-}
-EXPORT_SYMBOL(_spin_lock_nest_lock);
-
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK
