@@ -174,7 +174,7 @@ struct mesh_rmc {
 #define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
 
 /* Default values, timeouts in ms */
-#define MESH_TTL 		5
+#define MESH_TTL 		31
 #define MESH_MAX_RETR	 	3
 #define MESH_RET_T 		100
 #define MESH_CONF_T 		100
