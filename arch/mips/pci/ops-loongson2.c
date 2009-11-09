@@ -20,6 +20,11 @@
 
 #include <loongson.h>
 
+#ifdef CONFIG_CS5536
+#include <cs5536/cs5536_pci.h>
+#include <cs5536/cs5536.h>
+#endif
+
 #define PCI_ACCESS_READ  0
 #define PCI_ACCESS_WRITE 1
 
@@ -43,6 +48,29 @@ static int loongson_pcibios_config_access(unsigned char access_type,
 	int reg = where & ~3;
 
 	if (busnum == 0) {
+		/* board-specific part,currently,only fuloong2f,yeeloong2f
+		 * use CS5536, fuloong2e use via686b, gdium has no
+		 * south bridge
+		 */
+#ifdef CONFIG_CS5536
+		/* cs5536_pci_conf_read4/write4() will call _rdmsr/_wrmsr() to
+		 * access the regsters PCI_MSR_ADDR, PCI_MSR_DATA_LO,
+		 * PCI_MSR_DATA_HI, which is bigger than PCI_MSR_CTRL, so, it
+		 * will not go this branch, but the others. so, no calling dead
+		 * loop here.
+		 */
+		if ((PCI_IDSEL_CS5536 == device) && (reg < PCI_MSR_CTRL)) {
+			switch (access_type) {
+			case PCI_ACCESS_READ:
+				*data = cs5536_pci_conf_read4(function, reg);
+				break;
+			case PCI_ACCESS_WRITE:
+				cs5536_pci_conf_write4(function, reg, *data);
+				break;
+			}
+			return 0;
+		}
+#endif
 		/* Type 0 configuration for onboard PCI bus */
 		if (device > MAX_DEV_NUM)
 			return -1;
@@ -152,3 +180,29 @@ struct pci_ops loongson_pci_ops = {
 	.read = loongson_pcibios_read,
 	.write = loongson_pcibios_write
 };
+
+#ifdef CONFIG_CS5536
+void _rdmsr(u32 msr, u32 *hi, u32 *lo)
+{
+	struct pci_bus bus = {
+		.number = PCI_BUS_CS5536
+	};
+	u32 devfn = PCI_DEVFN(PCI_IDSEL_CS5536, 0);
+	loongson_pcibios_write(&bus, devfn, PCI_MSR_ADDR, 4, msr);
+	loongson_pcibios_read(&bus, devfn, PCI_MSR_DATA_LO, 4, lo);
+	loongson_pcibios_read(&bus, devfn, PCI_MSR_DATA_HI, 4, hi);
+}
+EXPORT_SYMBOL(_rdmsr);
+
+void _wrmsr(u32 msr, u32 hi, u32 lo)
+{
+	struct pci_bus bus = {
+		.number = PCI_BUS_CS5536
+	};
+	u32 devfn = PCI_DEVFN(PCI_IDSEL_CS5536, 0);
+	loongson_pcibios_write(&bus, devfn, PCI_MSR_ADDR, 4, msr);
+	loongson_pcibios_write(&bus, devfn, PCI_MSR_DATA_LO, 4, lo);
+	loongson_pcibios_write(&bus, devfn, PCI_MSR_DATA_HI, 4, hi);
+}
+EXPORT_SYMBOL(_wrmsr);
+#endif
