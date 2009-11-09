@@ -208,6 +208,7 @@ struct mesh_rmc {
 /* Pending ANA approval */
 #define MESH_PLINK_CATEGORY	30
 #define MESH_PATH_SEL_CATEGORY	32
+#define MESH_PATH_SEL_ACTION	0
 
 /* Public interfaces */
 /* Various */
