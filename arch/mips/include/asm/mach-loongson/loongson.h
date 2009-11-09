@@ -42,6 +42,13 @@ extern void __init set_irq_trigger_mode(void);
 extern void __init mach_init_irq(void);
 extern void mach_irq_dispatch(unsigned int pending);
 
+/* We need this in some places... */
+#define delay()	({		\
+	int x;				\
+	for (x = 0; x < 100000; x++)	\
+		__asm__ __volatile__(""); \
+})
+
 #define LOONGSON_REG(x) \
 	(*(volatile u32 *)((char *)CKSEG1ADDR(LOONGSON_REG_BASE) + (x)))
 
