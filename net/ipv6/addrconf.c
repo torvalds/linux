@@ -3823,28 +3823,39 @@ nla_put_failure:
 static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	int idx, err;
-	int s_idx = cb->args[0];
+	int h, s_h;
+	int idx = 0, err, s_idx;
 	struct net_device *dev;
 	struct inet6_dev *idev;
+	struct hlist_head *head;
+	struct hlist_node *node;
 
-	read_lock(&dev_base_lock);
-	idx = 0;
-	for_each_netdev(net, dev) {
-		if (idx < s_idx)
-			goto cont;
-		if ((idev = in6_dev_get(dev)) == NULL)
-			goto cont;
-		err = inet6_fill_ifinfo(skb, idev, NETLINK_CB(cb->skb).pid,
-				cb->nlh->nlmsg_seq, RTM_NEWLINK, NLM_F_MULTI);
-		in6_dev_put(idev);
-		if (err <= 0)
-			break;
+	s_h = cb->args[0];
+	s_idx = cb->args[1];
+
+	rcu_read_lock();
+	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
+		idx = 0;
+		head = &net->dev_index_head[h];
+		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
+			if (idx < s_idx)
+				goto cont;
+			idev = __in6_dev_get(dev);
+			if (!idev)
+				goto cont;
+			if (inet6_fill_ifinfo(skb, idev,
+					      NETLINK_CB(cb->skb).pid,
+					      cb->nlh->nlmsg_seq,
+					      RTM_NEWLINK, NLM_F_MULTI) <= 0)
+				goto out;
 cont:
-		idx++;
+			idx++;
+		}
 	}
-	read_unlock(&dev_base_lock);
-	cb->args[0] = idx;
+out:
+	rcu_read_unlock();
+	cb->args[1] = idx;
+	cb->args[0] = h;
 
 	return skb->len;
 }
