@@ -1268,6 +1268,9 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 
 /* xHCI ring, segment, TRB, and TD functions */
 dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
+struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
+		union xhci_trb *start_trb, union xhci_trb *end_trb,
+		dma_addr_t suspect_dma);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
 void *xhci_setup_one_noop(struct xhci_hcd *xhci);
 void xhci_handle_event(struct xhci_hcd *xhci);

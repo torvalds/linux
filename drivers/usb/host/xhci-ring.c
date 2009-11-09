@@ -987,8 +987,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
  * TRB in this TD, this function returns that TRB's segment.  Otherwise it
  * returns 0.
  */
-static struct xhci_segment *trb_in_td(
-		struct xhci_segment *start_seg,
+struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		union xhci_trb	*start_trb,
 		union xhci_trb	*end_trb,
 		dma_addr_t	suspect_dma)

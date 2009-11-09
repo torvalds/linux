@@ -859,6 +859,163 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->page_shift = 0;
 }
 
+static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
+		struct xhci_segment *input_seg,
+		union xhci_trb *start_trb,
+		union xhci_trb *end_trb,
+		dma_addr_t input_dma,
+		struct xhci_segment *result_seg,
+		char *test_name, int test_number)
+{
+	unsigned long long start_dma;
+	unsigned long long end_dma;
+	struct xhci_segment *seg;
+
+	start_dma = xhci_trb_virt_to_dma(input_seg, start_trb);
+	end_dma = xhci_trb_virt_to_dma(input_seg, end_trb);
+
+	seg = trb_in_td(input_seg, start_trb, end_trb, input_dma);
+	if (seg != result_seg) {
+		xhci_warn(xhci, "WARN: %s TRB math test %d failed!\n",
+				test_name, test_number);
+		xhci_warn(xhci, "Tested TRB math w/ seg %p and "
+				"input DMA 0x%llx\n",
+				input_seg,
+				(unsigned long long) input_dma);
+		xhci_warn(xhci, "starting TRB %p (0x%llx DMA), "
+				"ending TRB %p (0x%llx DMA)\n",
+				start_trb, start_dma,
+				end_trb, end_dma);
+		xhci_warn(xhci, "Expected seg %p, got seg %p\n",
+				result_seg, seg);
+		return -1;
+	}
+	return 0;
+}
+
+/* TRB math checks for xhci_trb_in_td(), using the command and event rings. */
+static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
+{
+	struct {
+		dma_addr_t		input_dma;
+		struct xhci_segment	*result_seg;
+	} simple_test_vector [] = {
+		/* A zeroed DMA field should fail */
+		{ 0, NULL },
+		/* One TRB before the ring start should fail */
+		{ xhci->event_ring->first_seg->dma - 16, NULL },
+		/* One byte before the ring start should fail */
+		{ xhci->event_ring->first_seg->dma - 1, NULL },
+		/* Starting TRB should succeed */
+		{ xhci->event_ring->first_seg->dma, xhci->event_ring->first_seg },
+		/* Ending TRB should succeed */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 1)*16,
+			xhci->event_ring->first_seg },
+		/* One byte after the ring end should fail */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 1)*16 + 1, NULL },
+		/* One TRB after the ring end should fail */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT)*16, NULL },
+		/* An address of all ones should fail */
+		{ (dma_addr_t) (~0), NULL },
+	};
+	struct {
+		struct xhci_segment	*input_seg;
+		union xhci_trb		*start_trb;
+		union xhci_trb		*end_trb;
+		dma_addr_t		input_dma;
+		struct xhci_segment	*result_seg;
+	} complex_test_vector [] = {
+		/* Test feeding a valid DMA address from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->event_ring->first_seg->trbs,
+			.end_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* Test feeding a valid end TRB from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->event_ring->first_seg->trbs,
+			.end_trb = &xhci->cmd_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* Test feeding a valid start and end TRB from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->cmd_ring->first_seg->trbs,
+			.end_trb = &xhci->cmd_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but after this TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[0],
+			.end_trb = &xhci->event_ring->first_seg->trbs[3],
+			.input_dma = xhci->event_ring->first_seg->dma + 4*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but before this TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[6],
+			.input_dma = xhci->event_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but after this wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->event_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but before this wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 4)*16,
+			.result_seg = NULL,
+		},
+		/* TRB not in this ring, and we have a wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->cmd_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+	};
+
+	unsigned int num_tests;
+	int i, ret;
+
+	num_tests = sizeof(simple_test_vector) / sizeof(simple_test_vector[0]);
+	for (i = 0; i < num_tests; i++) {
+		ret = xhci_test_trb_in_td(xhci,
+				xhci->event_ring->first_seg,
+				xhci->event_ring->first_seg->trbs,
+				&xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+				simple_test_vector[i].input_dma,
+				simple_test_vector[i].result_seg,
+				"Simple", i);
+		if (ret < 0)
+			return ret;
+	}
+
+	num_tests = sizeof(complex_test_vector) / sizeof(complex_test_vector[0]);
+	for (i = 0; i < num_tests; i++) {
+		ret = xhci_test_trb_in_td(xhci,
+				complex_test_vector[i].input_seg,
+				complex_test_vector[i].start_trb,
+				complex_test_vector[i].end_trb,
+				complex_test_vector[i].input_dma,
+				complex_test_vector[i].result_seg,
+				"Complex", i);
+		if (ret < 0)
+			return ret;
+	}
+	xhci_dbg(xhci, "TRB math tests passed.\n");
+	return 0;
+}
+
+
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	dma_addr_t	dma;
@@ -961,6 +1118,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg(xhci, "// Allocating event ring\n");
 	xhci->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, false, flags);
 	if (!xhci->event_ring)
+		goto fail;
+	if (xhci_check_trb_in_td_math(xhci, flags) < 0)
 		goto fail;
 
 	xhci->erst.entries = pci_alloc_consistent(to_pci_dev(dev),
