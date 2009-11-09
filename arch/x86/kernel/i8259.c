@@ -358,3 +358,46 @@ void init_8259A(int auto_eoi)
 
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
+/*
+ * make i8259 a driver so that we can select pic functions at run time. the goal
+ * is to make x86 binary compatible among pc compatible and non-pc compatible
+ * platforms, such as x86 MID.
+ */
+
+static void __init legacy_pic_noop(void) { };
+static void __init legacy_pic_uint_noop(unsigned int unused) { };
+static void __init legacy_pic_int_noop(int unused) { };
+
+static struct irq_chip dummy_pic_chip  = {
+	.name = "dummy pic",
+	.mask = legacy_pic_uint_noop,
+	.unmask = legacy_pic_uint_noop,
+	.disable = legacy_pic_uint_noop,
+	.mask_ack = legacy_pic_uint_noop,
+};
+static int legacy_pic_irq_pending_noop(unsigned int irq)
+{
+	return 0;
+}
+
+struct legacy_pic null_legacy_pic = {
+	.nr_legacy_irqs = 0,
+	.chip = &dummy_pic_chip,
+	.mask_all = legacy_pic_noop,
+	.restore_mask = legacy_pic_noop,
+	.init = legacy_pic_int_noop,
+	.irq_pending = legacy_pic_irq_pending_noop,
+	.make_irq = legacy_pic_uint_noop,
+};
+
+struct legacy_pic default_legacy_pic = {
+	.nr_legacy_irqs = NR_IRQS_LEGACY,
+	.chip  = &i8259A_chip,
+	.mask_all  = mask_8259A,
+	.restore_mask = unmask_8259A,
+	.init = init_8259A,
+	.irq_pending = i8259A_irq_pending,
+	.make_irq = make_8259A_irq,
+};
+
+struct legacy_pic *legacy_pic = &default_legacy_pic;
