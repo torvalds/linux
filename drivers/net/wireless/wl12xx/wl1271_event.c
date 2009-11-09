@@ -68,6 +68,40 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 	return 0;
 }
 
+static int wl1271_event_ps_report(struct wl1271 *wl,
+				  struct event_mailbox *mbox,
+				  bool *beacon_loss)
+{
+	int ret = 0;
+
+	wl1271_debug(DEBUG_EVENT, "ps_status: 0x%x", mbox->ps_status);
+
+	switch (mbox->ps_status) {
+	case EVENT_ENTER_POWER_SAVE_FAIL:
+		if (wl->psm_entry_retry < wl->conf.conn.psm_entry_retries) {
+			wl->psm_entry_retry++;
+			wl1271_error("PSM entry failed, retrying %d\n",
+				     wl->psm_entry_retry);
+			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		} else {
+			wl->psm_entry_retry = 0;
+			*beacon_loss = true;
+		}
+		break;
+	case EVENT_ENTER_POWER_SAVE_SUCCESS:
+		wl->psm_entry_retry = 0;
+		break;
+	case EVENT_EXIT_POWER_SAVE_FAIL:
+		wl1271_info("PSM exit failed");
+		break;
+	case EVENT_EXIT_POWER_SAVE_SUCCESS:
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
 {
 	wl1271_debug(DEBUG_EVENT, "MBOX DUMP:");
@@ -79,6 +113,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 {
 	int ret;
 	u32 vector;
+	bool beacon_loss = false;
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -101,7 +136,25 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
+		beacon_loss = true;
+	}
+
+	if (vector & PS_REPORT_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
+		ret = wl1271_event_ps_report(wl, mbox, &beacon_loss);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (beacon_loss) {
+		/* Obviously, it's dangerous to release the mutex while
+		   we are holding many of the variables in the wl struct.
+		   That's why it's done last in the function, and care must
+		   be taken that nothing more is done after this function
+		   returns. */
+		mutex_unlock(&wl->mutex);
 		ieee80211_beacon_loss(wl->vif);
+		mutex_lock(&wl->mutex);
 	}
 
 	return 0;

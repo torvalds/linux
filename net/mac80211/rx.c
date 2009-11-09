@@ -39,11 +39,8 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
  * only useful for monitoring.
  */
 static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
-					   struct sk_buff *skb,
-					   int rtap_len)
+					   struct sk_buff *skb)
 {
-	skb_pull(skb, rtap_len);
-
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS) {
 		if (likely(skb->len > FCS_LEN))
 			skb_trim(skb, skb->len - FCS_LEN);
@@ -59,15 +56,14 @@ static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 }
 
 static inline int should_drop_frame(struct sk_buff *skb,
-				    int present_fcs_len,
-				    int radiotap_len)
+				    int present_fcs_len)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
 		return 1;
-	if (unlikely(skb->len < 16 + present_fcs_len + radiotap_len))
+	if (unlikely(skb->len < 16 + present_fcs_len))
 		return 1;
 	if (ieee80211_is_ctl(hdr->frame_control) &&
 	    !ieee80211_is_pspoll(hdr->frame_control) &&
@@ -95,10 +91,6 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 	if (len & 1) /* padding for RX_FLAGS if necessary */
 		len++;
 
-	/* make sure radiotap starts at a naturally aligned address */
-	if (len % 8)
-		len = roundup(len, 8);
-
 	return len;
 }
 
@@ -116,6 +108,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_header *rthdr;
 	unsigned char *pos;
+	u16 rx_flags = 0;
 
 	rthdr = (struct ieee80211_radiotap_header *)skb_push(skb, rtap_len);
 	memset(rthdr, 0, rtap_len);
@@ -134,7 +127,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	/* IEEE80211_RADIOTAP_TSFT */
 	if (status->flag & RX_FLAG_TSFT) {
-		*(__le64 *)pos = cpu_to_le64(status->mactime);
+		put_unaligned_le64(status->mactime, pos);
 		rthdr->it_present |=
 			cpu_to_le32(1 << IEEE80211_RADIOTAP_TSFT);
 		pos += 8;
@@ -166,17 +159,17 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos++;
 
 	/* IEEE80211_RADIOTAP_CHANNEL */
-	*(__le16 *)pos = cpu_to_le16(status->freq);
+	put_unaligned_le16(status->freq, pos);
 	pos += 2;
 	if (status->band == IEEE80211_BAND_5GHZ)
-		*(__le16 *)pos = cpu_to_le16(IEEE80211_CHAN_OFDM |
-					     IEEE80211_CHAN_5GHZ);
+		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ,
+				   pos);
 	else if (rate->flags & IEEE80211_RATE_ERP_G)
-		*(__le16 *)pos = cpu_to_le16(IEEE80211_CHAN_OFDM |
-					     IEEE80211_CHAN_2GHZ);
+		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ,
+				   pos);
 	else
-		*(__le16 *)pos = cpu_to_le16(IEEE80211_CHAN_CCK |
-					     IEEE80211_CHAN_2GHZ);
+		put_unaligned_le16(IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ,
+				   pos);
 	pos += 2;
 
 	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
@@ -205,10 +198,11 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	/* IEEE80211_RADIOTAP_RX_FLAGS */
 	/* ensure 2 byte alignment for the 2 byte field as required */
-	if ((pos - (unsigned char *)rthdr) & 1)
+	if ((pos - (u8 *)rthdr) & 1)
 		pos++;
 	if (status->flag & RX_FLAG_FAILED_PLCP_CRC)
-		*(__le16 *)pos |= cpu_to_le16(IEEE80211_RADIOTAP_F_RX_BADPLCP);
+		rx_flags |= IEEE80211_RADIOTAP_F_RX_BADPLCP;
+	put_unaligned_le16(rx_flags, pos);
 	pos += 2;
 }
 
@@ -227,7 +221,6 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct sk_buff *skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	int present_fcs_len = 0;
-	int rtap_len = 0;
 
 	/*
 	 * First, we may need to make a copy of the skb because
@@ -237,25 +230,23 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	 * We don't need to, of course, if we aren't going to return
 	 * the SKB because it has a bad FCS/PLCP checksum.
 	 */
-	if (status->flag & RX_FLAG_RADIOTAP)
-		rtap_len = ieee80211_get_radiotap_len(origskb->data);
-	else
-		/* room for the radiotap header based on driver features */
-		needed_headroom = ieee80211_rx_radiotap_len(local, status);
+
+	/* room for the radiotap header based on driver features */
+	needed_headroom = ieee80211_rx_radiotap_len(local, status);
 
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
 		present_fcs_len = FCS_LEN;
 
 	if (!local->monitors) {
-		if (should_drop_frame(origskb, present_fcs_len, rtap_len)) {
+		if (should_drop_frame(origskb, present_fcs_len)) {
 			dev_kfree_skb(origskb);
 			return NULL;
 		}
 
-		return remove_monitor_info(local, origskb, rtap_len);
+		return remove_monitor_info(local, origskb);
 	}
 
-	if (should_drop_frame(origskb, present_fcs_len, rtap_len)) {
+	if (should_drop_frame(origskb, present_fcs_len)) {
 		/* only need to expand headroom if necessary */
 		skb = origskb;
 		origskb = NULL;
@@ -279,16 +270,14 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		 */
 		skb = skb_copy_expand(origskb, needed_headroom, 0, GFP_ATOMIC);
 
-		origskb = remove_monitor_info(local, origskb, rtap_len);
+		origskb = remove_monitor_info(local, origskb);
 
 		if (!skb)
 			return origskb;
 	}
 
-	/* if necessary, prepend radiotap information */
-	if (!(status->flag & RX_FLAG_RADIOTAP))
-		ieee80211_add_rx_radiotap_header(local, skb, rate,
-						 needed_headroom);
+	/* prepend radiotap information */
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
 
 	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -792,7 +781,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 
 	atomic_inc(&sdata->bss->num_sta_ps);
-	set_sta_flags(sta, WLAN_STA_PS);
+	set_sta_flags(sta, WLAN_STA_PS_STA);
 	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d enters power save mode\n",
@@ -800,38 +789,28 @@ static void ap_sta_ps_start(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
-static int ap_sta_ps_end(struct sta_info *sta)
+static void ap_sta_ps_end(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_local *local = sdata->local;
-	int sent, buffered;
 
 	atomic_dec(&sdata->bss->num_sta_ps);
 
-	clear_sta_flags(sta, WLAN_STA_PS);
-	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_AWAKE, &sta->sta);
-
-	if (!skb_queue_empty(&sta->ps_tx_buf))
-		sta_info_clear_tim_bit(sta);
+	clear_sta_flags(sta, WLAN_STA_PS_STA);
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d exits power save mode\n",
 	       sdata->dev->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
-	/* Send all buffered frames to the station */
-	sent = ieee80211_add_pending_skbs(local, &sta->tx_filtered);
-	buffered = ieee80211_add_pending_skbs(local, &sta->ps_tx_buf);
-	sent += buffered;
-	local->total_ps_buffered -= buffered;
-
+	if (test_sta_flags(sta, WLAN_STA_PS_DRIVER)) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
-	       "since STA not sleeping anymore\n", sdata->dev->name,
-	       sta->sta.addr, sta->sta.aid, sent - buffered, buffered);
+		printk(KERN_DEBUG "%s: STA %pM aid %d driver-ps-blocked\n",
+		       sdata->dev->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		return;
+	}
 
-	return sent;
+	ieee80211_sta_ps_deliver_wakeup(sta);
 }
 
 static ieee80211_rx_result debug_noinline
@@ -870,7 +849,6 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
 	sta->last_signal = rx->status->signal;
-	sta->last_qual = rx->status->qual;
 	sta->last_noise = rx->status->noise;
 
 	/*
@@ -880,7 +858,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (!ieee80211_has_morefrags(hdr->frame_control) &&
 	    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
 	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)) {
-		if (test_sta_flags(sta, WLAN_STA_PS)) {
+		if (test_sta_flags(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * Ignore doze->wake transitions that are
 			 * indicated by non-data frames, the standard
@@ -891,19 +869,24 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 			 */
 			if (ieee80211_is_data(hdr->frame_control) &&
 			    !ieee80211_has_pm(hdr->frame_control))
-				rx->sent_ps_buffered += ap_sta_ps_end(sta);
+				ap_sta_ps_end(sta);
 		} else {
 			if (ieee80211_has_pm(hdr->frame_control))
 				ap_sta_ps_start(sta);
 		}
 	}
 
-	/* Drop data::nullfunc frames silently, since they are used only to
-	 * control station power saving mode. */
-	if (ieee80211_is_nullfunc(hdr->frame_control)) {
+	/*
+	 * Drop (qos-)data::nullfunc frames silently, since they
+	 * are used only to control station power saving mode.
+	 */
+	if (ieee80211_is_nullfunc(hdr->frame_control) ||
+	    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_nullfunc);
-		/* Update counter and free packet here to avoid counting this
-		 * as a dropped packed. */
+		/*
+		 * Update counter and free packet here to avoid
+		 * counting this as a dropped packed.
+		 */
 		sta->rx_packets++;
 		dev_kfree_skb(rx->skb);
 		return RX_QUEUED;
@@ -1103,9 +1086,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
-	struct sk_buff *skb;
-	int no_pending_pkts;
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	__le16 fc = ((struct ieee80211_hdr *)rx->skb->data)->frame_control;
 
 	if (likely(!rx->sta || !ieee80211_is_pspoll(fc) ||
@@ -1116,56 +1097,10 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
 		return RX_DROP_UNUSABLE;
 
-	skb = skb_dequeue(&rx->sta->tx_filtered);
-	if (!skb) {
-		skb = skb_dequeue(&rx->sta->ps_tx_buf);
-		if (skb)
-			rx->local->total_ps_buffered--;
-	}
-	no_pending_pkts = skb_queue_empty(&rx->sta->tx_filtered) &&
-		skb_queue_empty(&rx->sta->ps_tx_buf);
-
-	if (skb) {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		struct ieee80211_hdr *hdr =
-			(struct ieee80211_hdr *) skb->data;
-
-		/*
-		 * Tell TX path to send this frame even though the STA may
-		 * still remain is PS mode after this frame exchange.
-		 */
-		info->flags |= IEEE80211_TX_CTL_PSPOLL_RESPONSE;
-
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS Poll (entries after %d)\n",
-		       rx->sta->sta.addr, rx->sta->sta.aid,
-		       skb_queue_len(&rx->sta->ps_tx_buf));
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-
-		/* Use MoreData flag to indicate whether there are more
-		 * buffered frames for this STA */
-		if (no_pending_pkts)
-			hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
-		else
-			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-
-		ieee80211_add_pending_skb(rx->local, skb);
-
-		if (no_pending_pkts)
-			sta_info_clear_tim_bit(rx->sta);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	} else if (!rx->sent_ps_buffered) {
-		/*
-		 * FIXME: This can be the result of a race condition between
-		 *	  us expiring a frame and the station polling for it.
-		 *	  Should we send it a null-func frame indicating we
-		 *	  have nothing buffered for it?
-		 */
-		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
-		       "though there are no buffered frames for it\n",
-		       rx->dev->name, rx->sta->sta.addr);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	}
+	if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
+		ieee80211_sta_ps_deliver_poll_response(rx->sta);
+	else
+		set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
 
 	/* Free PS Poll skb here instead of returning RX_DROP that would
 	 * count as an dropped frame. */
@@ -1337,10 +1272,10 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 				skb = NULL;
 			} else {
 				u8 *data = skb->data;
-				size_t len = skb->len;
-				u8 *new = __skb_push(skb, align);
-				memmove(new, data, len);
-				__skb_trim(skb, len);
+				size_t len = skb_headlen(skb);
+				skb->data -= align;
+				memmove(skb->data, data, len);
+				skb_set_tail_pointer(skb, len);
 			}
 		}
 #endif

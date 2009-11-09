@@ -877,7 +877,7 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0);
 
 	/* find off_6_1; */
-	for (i = 6; i >= 0; i--) {
+	for (i = 6; i > 0; i--) {
 		regVal = REG_READ(ah, 0x7834);
 		regVal |= (1 << (20 + i));
 		REG_WRITE(ah, 0x7834, regVal);

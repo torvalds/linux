@@ -26,8 +26,6 @@
 # define B43_DEBUG	0
 #endif
 
-#define B43_RX_MAX_SSI			60
-
 /* MMIO offsets */
 #define B43_MMIO_DMA0_REASON		0x20
 #define B43_MMIO_DMA0_IRQ_MASK		0x24

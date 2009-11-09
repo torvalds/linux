@@ -650,9 +650,15 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	i = 0;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		int j;
+
 		if (!wiphy->bands[band])
 			continue;
+
 		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
+			/* ignore disabled channels */
+			if (wiphy->bands[band]->channels[j].flags &
+						IEEE80211_CHAN_DISABLED)
+				continue;
 
 			/* If we have a wireless request structure and the
 			 * wireless request specifies frequencies, then search

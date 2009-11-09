@@ -1,6 +1,6 @@
 config IWLWIFI
 	tristate "Intel Wireless Wifi"
-	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on PCI && MAC80211 && EXPERIMENTAL
 	select FW_LOADER
 
 config IWLWIFI_SPECTRUM_MEASUREMENT

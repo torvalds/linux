@@ -214,8 +214,8 @@ static int ieee80211_open(struct net_device *dev)
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
 		if (local->monitors == 1) {
-			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-			hw_reconf_flags |= IEEE80211_CONF_CHANGE_RADIOTAP;
+			local->hw.conf.flags |= IEEE80211_CONF_MONITOR;
+			hw_reconf_flags |= IEEE80211_CONF_CHANGE_MONITOR;
 		}
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)
@@ -435,8 +435,8 @@ static int ieee80211_stop(struct net_device *dev)
 
 		local->monitors--;
 		if (local->monitors == 0) {
-			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
-			hw_reconf_flags |= IEEE80211_CONF_CHANGE_RADIOTAP;
+			local->hw.conf.flags &= ~IEEE80211_CONF_MONITOR;
+			hw_reconf_flags |= IEEE80211_CONF_CHANGE_MONITOR;
 		}
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)

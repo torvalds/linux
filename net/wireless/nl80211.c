@@ -2988,7 +2988,6 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	request->n_channels = n_channels;
 	if (n_ssids)
 		request->ssids = (void *)&request->channels[n_channels];
 	request->n_ssids = n_ssids;
@@ -2999,31 +2998,52 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			request->ie = (void *)(request->channels + n_channels);
 	}
 
+	i = 0;
 	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
 		/* user specified, bail out if channel not found */
-		request->n_channels = n_channels;
-		i = 0;
 		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_FREQUENCIES], tmp) {
-			request->channels[i] = ieee80211_get_channel(wiphy, nla_get_u32(attr));
-			if (!request->channels[i]) {
+			struct ieee80211_channel *chan;
+
+			chan = ieee80211_get_channel(wiphy, nla_get_u32(attr));
+
+			if (!chan) {
 				err = -EINVAL;
 				goto out_free;
 			}
+
+			/* ignore disabled channels */
+			if (chan->flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			request->channels[i] = chan;
 			i++;
 		}
 	} else {
 		/* all channels */
-		i = 0;
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 			int j;
 			if (!wiphy->bands[band])
 				continue;
 			for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
-				request->channels[i] = &wiphy->bands[band]->channels[j];
+				struct ieee80211_channel *chan;
+
+				chan = &wiphy->bands[band]->channels[j];
+
+				if (chan->flags & IEEE80211_CHAN_DISABLED)
+					continue;
+
+				request->channels[i] = chan;
 				i++;
 			}
 		}
 	}
+
+	if (!i) {
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	request->n_channels = i;
 
 	i = 0;
 	if (info->attrs[NL80211_ATTR_SCAN_SSIDS]) {

@@ -904,8 +904,6 @@ static int cfg80211_set_auth_alg(struct wireless_dev *wdev,
 
 static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 {
-	wdev->wext.connect.crypto.wpa_versions = 0;
-
 	if (wpa_versions & ~(IW_AUTH_WPA_VERSION_WPA |
 			     IW_AUTH_WPA_VERSION_WPA2|
 		             IW_AUTH_WPA_VERSION_DISABLED))
@@ -933,8 +931,6 @@ static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 
 static int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 {
-	wdev->wext.connect.crypto.cipher_group = 0;
-
 	if (cipher & IW_AUTH_CIPHER_WEP40)
 		wdev->wext.connect.crypto.cipher_group =
 			WLAN_CIPHER_SUITE_WEP40;
@@ -950,6 +946,8 @@ static int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 	else if (cipher & IW_AUTH_CIPHER_AES_CMAC)
 		wdev->wext.connect.crypto.cipher_group =
 			WLAN_CIPHER_SUITE_AES_CMAC;
+	else if (cipher & IW_AUTH_CIPHER_NONE)
+		wdev->wext.connect.crypto.cipher_group = 0;
 	else
 		return -EINVAL;
 

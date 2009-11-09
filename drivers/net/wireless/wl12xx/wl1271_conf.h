@@ -712,6 +712,14 @@ struct conf_conn_settings {
 	 * Range 0 - 255
 	 */
 	u8 bet_max_consecutive;
+
+	/*
+	 * Specifies the maximum number of times to try PSM entry if it fails
+	 * (if sending the appropriate null-func message fails.)
+	 *
+	 * Range 0 - 255
+	 */
+	u8 psm_entry_retries;
 };
 
 #define CONF_SR_ERR_TBL_MAX_VALUES   14

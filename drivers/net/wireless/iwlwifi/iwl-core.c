@@ -46,6 +46,37 @@ MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
+static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
+	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
+	 0, COEX_UNASSOC_IDLE_FLAGS},
+	{COEX_CU_UNASSOC_MANUAL_SCAN_RP, COEX_CU_UNASSOC_MANUAL_SCAN_WP,
+	 0, COEX_UNASSOC_MANUAL_SCAN_FLAGS},
+	{COEX_CU_UNASSOC_AUTO_SCAN_RP, COEX_CU_UNASSOC_AUTO_SCAN_WP,
+	 0, COEX_UNASSOC_AUTO_SCAN_FLAGS},
+	{COEX_CU_CALIBRATION_RP, COEX_CU_CALIBRATION_WP,
+	 0, COEX_CALIBRATION_FLAGS},
+	{COEX_CU_PERIODIC_CALIBRATION_RP, COEX_CU_PERIODIC_CALIBRATION_WP,
+	 0, COEX_PERIODIC_CALIBRATION_FLAGS},
+	{COEX_CU_CONNECTION_ESTAB_RP, COEX_CU_CONNECTION_ESTAB_WP,
+	 0, COEX_CONNECTION_ESTAB_FLAGS},
+	{COEX_CU_ASSOCIATED_IDLE_RP, COEX_CU_ASSOCIATED_IDLE_WP,
+	 0, COEX_ASSOCIATED_IDLE_FLAGS},
+	{COEX_CU_ASSOC_MANUAL_SCAN_RP, COEX_CU_ASSOC_MANUAL_SCAN_WP,
+	 0, COEX_ASSOC_MANUAL_SCAN_FLAGS},
+	{COEX_CU_ASSOC_AUTO_SCAN_RP, COEX_CU_ASSOC_AUTO_SCAN_WP,
+	 0, COEX_ASSOC_AUTO_SCAN_FLAGS},
+	{COEX_CU_ASSOC_ACTIVE_LEVEL_RP, COEX_CU_ASSOC_ACTIVE_LEVEL_WP,
+	 0, COEX_ASSOC_ACTIVE_LEVEL_FLAGS},
+	{COEX_CU_RF_ON_RP, COEX_CU_RF_ON_WP, 0, COEX_CU_RF_ON_FLAGS},
+	{COEX_CU_RF_OFF_RP, COEX_CU_RF_OFF_WP, 0, COEX_RF_OFF_FLAGS},
+	{COEX_CU_STAND_ALONE_DEBUG_RP, COEX_CU_STAND_ALONE_DEBUG_WP,
+	 0, COEX_STAND_ALONE_DEBUG_FLAGS},
+	{COEX_CU_IPAN_ASSOC_LEVEL_RP, COEX_CU_IPAN_ASSOC_LEVEL_WP,
+	 0, COEX_IPAN_ASSOC_LEVEL_FLAGS},
+	{COEX_CU_RSRVD1_RP, COEX_CU_RSRVD1_WP, 0, COEX_RSRVD1_FLAGS},
+	{COEX_CU_RSRVD2_RP, COEX_CU_RSRVD2_WP, 0, COEX_RSRVD2_FLAGS}
+};
+
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
 				    IWL_RATE_SISO_##s##M_PLCP, \
@@ -414,8 +445,12 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	if (priv->cfg->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
-			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
+	if (priv->cfg->support_sm_ps)
+		ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
+				     (WLAN_HT_CAP_SM_PS_DYNAMIC << 2));
+	else
+		ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
+				     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.ht40_channel & BIT(band)) {
@@ -450,28 +485,6 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 	}
 }
-
-static void iwlcore_init_hw_rates(struct iwl_priv *priv,
-			      struct ieee80211_rate *rates)
-{
-	int i;
-
-	for (i = 0; i < IWL_RATE_COUNT_LEGACY; i++) {
-		rates[i].bitrate = iwl_rates[i].ieee * 5;
-		rates[i].hw_value = i; /* Rate scaling will work on indexes */
-		rates[i].hw_value_short = i;
-		rates[i].flags = 0;
-		if ((i >= IWL_FIRST_CCK_RATE) && (i <= IWL_LAST_CCK_RATE)) {
-			/*
-			 * If CCK != 1M then set short preamble rate flag.
-			 */
-			rates[i].flags |=
-				(iwl_rates[i].plcp == IWL_RATE_1M_PLCP) ?
-					0 : IEEE80211_RATE_SHORT_PREAMBLE;
-		}
-	}
-}
-
 
 /**
  * iwlcore_init_geos - Initialize mac80211's geo/channel info based from eeprom
@@ -985,17 +998,35 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 }
 
 /*
- * When we are in power saving, there's no difference between
- * using multiple chains or just a single chain, but due to the
- * lack of SM PS we lose a lot of throughput if we use just a
- * single chain.
- *
- * Therefore, use the active count here (which will use multiple
- * chains unless connected to a legacy AP).
+ * When we are in power saving mode, unless device support spatial
+ * multiplexing power save, use the active count for rx chain count.
  */
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 {
-	return active_cnt;
+	int idle_cnt = active_cnt;
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
+
+	if (priv->cfg->support_sm_ps) {
+		/* # Rx chains when idling and maybe trying to save power */
+		switch (priv->current_ht_config.sm_ps) {
+		case WLAN_HT_CAP_SM_PS_STATIC:
+		case WLAN_HT_CAP_SM_PS_DYNAMIC:
+			idle_cnt = (is_cam) ? IWL_NUM_IDLE_CHAINS_DUAL :
+				IWL_NUM_IDLE_CHAINS_SINGLE;
+			break;
+		case WLAN_HT_CAP_SM_PS_DISABLED:
+			idle_cnt = (is_cam) ? active_cnt :
+				IWL_NUM_IDLE_CHAINS_SINGLE;
+			break;
+		case WLAN_HT_CAP_SM_PS_INVALID:
+		default:
+			IWL_ERR(priv, "invalid sm_ps mode %d\n",
+				priv->current_ht_config.sm_ps);
+			WARN_ON(1);
+			break;
+		}
+	}
+	return idle_cnt;
 }
 
 /* up to 4 chains */
@@ -1353,39 +1384,39 @@ EXPORT_SYMBOL(iwl_irq_handle_error);
 
 int iwl_apm_stop_master(struct iwl_priv *priv)
 {
-	unsigned long flags;
+	int ret = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
+	/* stop device's busmaster DMA activity */
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-	iwl_poll_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
+	ret = iwl_poll_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (ret)
+		IWL_WARN(priv, "Master Disable Timed Out, 100 usec\n");
 
-	spin_unlock_irqrestore(&priv->lock, flags);
 	IWL_DEBUG_INFO(priv, "stop master\n");
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwl_apm_stop_master);
 
 void iwl_apm_stop(struct iwl_priv *priv)
 {
-	unsigned long flags;
-
 	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
 
+	/* Stop device's DMA activity */
 	iwl_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
-
+	/* Reset the entire device */
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
 	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
+
+	/*
+	 * Clear "initialization complete" bit to move adapter from
+	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
+	 */
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL(iwl_apm_stop);
 
@@ -1430,8 +1461,12 @@ int iwl_apm_init(struct iwl_priv *priv)
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
 	/*
-	 * HW bug W/A - costs negligible power consumption ...
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device
+	 * HW bug W/A for instability in PCIe bus L0->L0S->L1 transition.
+	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
+	 * If so (likely), disable L0S, so device moves directly L0->L1;
+	 *    costs negligible amount of power savings.
+	 * If not (unlikely), enable L0S, so there is at least some
+	 *    power savings, even without L1.
 	 */
 	if (priv->cfg->set_l0s) {
 		lctl = iwl_pcie_link_ctl(priv);
@@ -1567,68 +1602,6 @@ int iwl_set_hw_params(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_set_hw_params);
 
-int iwl_init_drv(struct iwl_priv *priv)
-{
-	int ret;
-
-	priv->ibss_beacon = NULL;
-
-	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->sta_lock);
-	spin_lock_init(&priv->hcmd_lock);
-
-	INIT_LIST_HEAD(&priv->free_frames);
-
-	mutex_init(&priv->mutex);
-
-	/* Clear the driver's (not device's) station table */
-	iwl_clear_stations_table(priv);
-
-	priv->ieee_channels = NULL;
-	priv->ieee_rates = NULL;
-	priv->band = IEEE80211_BAND_2GHZ;
-
-	priv->iw_mode = NL80211_IFTYPE_STATION;
-
-	/* Choose which receivers/antennas to use */
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv);
-
-	iwl_init_scan_params(priv);
-
-	iwl_reset_qos(priv);
-
-	priv->qos_data.qos_active = 0;
-	priv->qos_data.qos_cap.val = 0;
-
-	priv->rates_mask = IWL_RATES_MASK;
-	/* Set the tx_power_user_lmt to the lowest power level
-	 * this value will get overwritten by channel max power avg
-	 * from eeprom */
-	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MIN;
-
-	ret = iwl_init_channel_map(priv);
-	if (ret) {
-		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
-		goto err;
-	}
-
-	ret = iwlcore_init_geos(priv);
-	if (ret) {
-		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
-		goto err_free_channel_map;
-	}
-	iwlcore_init_hw_rates(priv, priv->ieee_rates);
-
-	return 0;
-
-err_free_channel_map:
-	iwl_free_channel_map(priv);
-err:
-	return ret;
-}
-EXPORT_SYMBOL(iwl_init_drv);
-
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret = 0;
@@ -1675,15 +1648,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	return ret;
 }
 EXPORT_SYMBOL(iwl_set_tx_power);
-
-void iwl_uninit_drv(struct iwl_priv *priv)
-{
-	iwl_calib_free_results(priv);
-	iwlcore_free_geos(priv);
-	iwl_free_channel_map(priv);
-	kfree(priv->scan);
-}
-EXPORT_SYMBOL(iwl_uninit_drv);
 
 #define ICT_COUNT (PAGE_SIZE/sizeof(u32))
 
@@ -2336,7 +2300,7 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_STATION:
 		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->hw, priv->bssid);
+		sta = ieee80211_find_sta(priv->vif, priv->bssid);
 		if (sta) {
 			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 			int maxstreams;
@@ -2345,6 +2309,12 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 				      IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
 					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 			maxstreams += 1;
+
+			ht_conf->sm_ps =
+				(u8)((ht_cap->cap & IEEE80211_HT_CAP_SM_PS)
+				>> 2);
+			IWL_DEBUG_MAC80211(priv, "sm_ps: 0x%x\n",
+				ht_conf->sm_ps);
 
 			if ((ht_cap->mcs.rx_mask[1] == 0) &&
 			    (ht_cap->mcs.rx_mask[2] == 0))
@@ -2925,6 +2895,34 @@ void iwl_free_txq_mem(struct iwl_priv *priv)
 	priv->txq = NULL;
 }
 EXPORT_SYMBOL(iwl_free_txq_mem);
+
+int iwl_send_wimax_coex(struct iwl_priv *priv)
+{
+	struct iwl_wimax_coex_cmd uninitialized_var(coex_cmd);
+
+	if (priv->cfg->support_wimax_coexist) {
+		/* UnMask wake up src at associated sleep */
+		coex_cmd.flags |= COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
+
+		/* UnMask wake up src at unassociated sleep */
+		coex_cmd.flags |= COEX_FLAGS_UNASSOC_WA_UNMASK_MSK;
+		memcpy(coex_cmd.sta_prio, cu_priorities,
+			sizeof(struct iwl_wimax_coex_event_entry) *
+			 COEX_NUM_OF_EVENTS);
+
+		/* enabling the coexistence feature */
+		coex_cmd.flags |= COEX_FLAGS_COEX_ENABLE_MSK;
+
+		/* enabling the priorities tables */
+		coex_cmd.flags |= COEX_FLAGS_STA_TABLE_VALID_MSK;
+	} else {
+		/* coexistence is disabled */
+		memset(&coex_cmd, 0, sizeof(coex_cmd));
+	}
+	return iwl_send_cmd_pdu(priv, COEX_PRIORITY_TABLE_CMD,
+				sizeof(coex_cmd), &coex_cmd);
+}
+EXPORT_SYMBOL(iwl_send_wimax_coex);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 

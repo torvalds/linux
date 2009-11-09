@@ -132,6 +132,7 @@ void iwl_calib_free_results(struct iwl_priv *priv)
 		priv->calib_results[i].buf_len = 0;
 	}
 }
+EXPORT_SYMBOL(iwl_calib_free_results);
 
 /*****************************************************************************
  * RUNTIME calibrations framework

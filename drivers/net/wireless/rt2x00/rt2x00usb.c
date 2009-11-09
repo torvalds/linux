@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_large_buff);
 
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int offset,
-			   struct rt2x00_field32 field,
+			   const struct rt2x00_field32 field,
 			   u32 *reg)
 {
 	unsigned int i;

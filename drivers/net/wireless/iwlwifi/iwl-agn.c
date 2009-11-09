@@ -190,11 +190,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 	priv->start_calib = 0;
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl_rxon_add_station(priv, iwl_bcast_addr, 0) ==
-						IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
-		return -EIO;
-	}
+	iwl_add_bcast_station(priv);
 
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
@@ -890,6 +886,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
+	u32 i;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
@@ -1007,19 +1004,17 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		handled |= CSR_INT_BIT_SW_ERR;
 	}
 
-	/* uCode wakes up after power-down sleep */
+	/*
+	 * uCode wakes up after power-down sleep.
+	 * Tell device about any new tx or host commands enqueued,
+	 * and about any Rx buffers made available while asleep.
+	 */
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
-		iwl_txq_update_write_ptr(priv, &priv->txq[0]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[1]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[2]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[3]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[4]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[5]);
-
+		for (i = 0; i < priv->hw_params.max_txq_num; i++)
+			iwl_txq_update_write_ptr(priv, &priv->txq[i]);
 		priv->isr_stats.wakeup++;
-
 		handled |= CSR_INT_BIT_WAKEUP;
 	}
 
@@ -1033,11 +1028,12 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 	}
 
+	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
-		IWL_DEBUG_ISR(priv, "Tx interrupt\n");
+		IWL_DEBUG_ISR(priv, "uCode load interrupt\n");
 		priv->isr_stats.tx++;
 		handled |= CSR_INT_BIT_FH_TX;
-		/* FH finished to write, send event */
+		/* Wake up uCode load routine, now that load is complete */
 		priv->ucode_write_complete = 1;
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
@@ -1234,12 +1230,13 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		iwl_leds_background(priv);
 	}
 
+	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
 		iwl_write32(priv, CSR_FH_INT_STATUS, CSR49_FH_INT_TX_MASK);
-		IWL_DEBUG_ISR(priv, "Tx interrupt\n");
+		IWL_DEBUG_ISR(priv, "uCode load interrupt\n");
 		priv->isr_stats.tx++;
 		handled |= CSR_INT_BIT_FH_TX;
-		/* FH finished to write, send event */
+		/* Wake up uCode load routine, now that load is complete */
 		priv->ucode_write_complete = 1;
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
@@ -1376,6 +1373,14 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	       IWL_UCODE_MINOR(priv->ucode_ver),
 	       IWL_UCODE_API(priv->ucode_ver),
 	       IWL_UCODE_SERIAL(priv->ucode_ver));
+
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%u.%u.%u.%u",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver));
 
 	if (build)
 		IWL_DEBUG_INFO(priv, "Build %u\n", build);
@@ -2515,7 +2520,7 @@ void iwl_config_ap(struct iwl_priv *priv)
 		spin_lock_irqsave(&priv->lock, flags);
 		iwl_activate_qos(priv, 1);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		iwl_rxon_add_station(priv, iwl_bcast_addr, 0);
+		iwl_add_bcast_station(priv);
 	}
 	iwl_send_beacon_cmd(priv);
 
@@ -2963,6 +2968,100 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	del_timer_sync(&priv->statistics_periodic);
 }
 
+static void iwl_init_hw_rates(struct iwl_priv *priv,
+			      struct ieee80211_rate *rates)
+{
+	int i;
+
+	for (i = 0; i < IWL_RATE_COUNT_LEGACY; i++) {
+		rates[i].bitrate = iwl_rates[i].ieee * 5;
+		rates[i].hw_value = i; /* Rate scaling will work on indexes */
+		rates[i].hw_value_short = i;
+		rates[i].flags = 0;
+		if ((i >= IWL_FIRST_CCK_RATE) && (i <= IWL_LAST_CCK_RATE)) {
+			/*
+			 * If CCK != 1M then set short preamble rate flag.
+			 */
+			rates[i].flags |=
+				(iwl_rates[i].plcp == IWL_RATE_1M_PLCP) ?
+					0 : IEEE80211_RATE_SHORT_PREAMBLE;
+		}
+	}
+}
+
+static int iwl_init_drv(struct iwl_priv *priv)
+{
+	int ret;
+
+	priv->ibss_beacon = NULL;
+
+	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->sta_lock);
+	spin_lock_init(&priv->hcmd_lock);
+
+	INIT_LIST_HEAD(&priv->free_frames);
+
+	mutex_init(&priv->mutex);
+
+	/* Clear the driver's (not device's) station table */
+	iwl_clear_stations_table(priv);
+
+	priv->ieee_channels = NULL;
+	priv->ieee_rates = NULL;
+	priv->band = IEEE80211_BAND_2GHZ;
+
+	priv->iw_mode = NL80211_IFTYPE_STATION;
+	if (priv->cfg->support_sm_ps)
+		priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DYNAMIC;
+	else
+		priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
+
+	/* Choose which receivers/antennas to use */
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
+	iwl_init_scan_params(priv);
+
+	iwl_reset_qos(priv);
+
+	priv->qos_data.qos_active = 0;
+	priv->qos_data.qos_cap.val = 0;
+
+	priv->rates_mask = IWL_RATES_MASK;
+	/* Set the tx_power_user_lmt to the lowest power level
+	 * this value will get overwritten by channel max power avg
+	 * from eeprom */
+	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MIN;
+
+	ret = iwl_init_channel_map(priv);
+	if (ret) {
+		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
+		goto err;
+	}
+
+	ret = iwlcore_init_geos(priv);
+	if (ret) {
+		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
+		goto err_free_channel_map;
+	}
+	iwl_init_hw_rates(priv, priv->ieee_rates);
+
+	return 0;
+
+err_free_channel_map:
+	iwl_free_channel_map(priv);
+err:
+	return ret;
+}
+
+static void iwl_uninit_drv(struct iwl_priv *priv)
+{
+	iwl_calib_free_results(priv);
+	iwlcore_free_geos(priv);
+	iwl_free_channel_map(priv);
+	kfree(priv->scan);
+}
+
 static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
@@ -3105,12 +3204,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 
-	/* amp init */
-	err = priv->cfg->ops->lib->apm_ops.init(priv);
-	if (err < 0) {
-		IWL_ERR(priv, "Failed to init APMG\n");
-		goto out_iounmap;
-	}
 	/*****************
 	 * 4. Read EEPROM
 	 *****************/

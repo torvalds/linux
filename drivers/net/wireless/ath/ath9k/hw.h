@@ -148,6 +148,15 @@ enum wireless_mode {
 	ATH9K_MODE_MAX,
 };
 
+/**
+ * ath9k_ant_setting - transmit antenna settings
+ *
+ * Configures the antenna setting to use for transmit.
+ *
+ * @ATH9K_ANT_VARIABLE: this means transmit on all active antennas
+ * @ATH9K_ANT_FIXED_A: this means transmit on the first antenna only
+ * @ATH9K_ANT_FIXED_B: this means transmit on the second antenna only
+ */
 enum ath9k_ant_setting {
 	ATH9K_ANT_VARIABLE = 0,
 	ATH9K_ANT_FIXED_A,
@@ -539,7 +548,14 @@ struct ath_hw {
 		DONT_USE_32KHZ,
 	} enable_32kHz_clock;
 
-	/* RF */
+	/* Callback for radio frequency change */
+	int (*ath9k_hw_rf_set_freq)(struct ath_hw *ah, struct ath9k_channel *chan);
+
+	/* Callback for baseband spur frequency */
+	void (*ath9k_hw_spur_mitigate_freq)(struct ath_hw *ah,
+					    struct ath9k_channel *chan);
+
+	/* Used to program the radio on non single-chip devices */
 	u32 *analogBank0Data;
 	u32 *analogBank1Data;
 	u32 *analogBank2Data;
@@ -596,6 +612,7 @@ struct ath_hw {
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
+	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
 
@@ -618,7 +635,6 @@ static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_detach(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
-void ath9k_hw_rf_free(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
 void ath9k_hw_fill_cap_info(struct ath_hw *ah);
@@ -703,6 +719,8 @@ void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
+
+void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

@@ -74,8 +74,41 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 /* Module parameters accessible from iwl-*.c */
 extern struct iwl_mod_params iwl3945_mod_params;
 
+struct iwl3945_rate_scale_data {
+	u64 data;
+	s32 success_counter;
+	s32 success_ratio;
+	s32 counter;
+	s32 average_tpt;
+	unsigned long stamp;
+};
+
+struct iwl3945_rs_sta {
+	spinlock_t lock;
+	struct iwl_priv *priv;
+	s32 *expected_tpt;
+	unsigned long last_partial_flush;
+	unsigned long last_flush;
+	u32 flush_time;
+	u32 last_tx_packets;
+	u32 tx_packets;
+	u8 tgg;
+	u8 flush_pending;
+	u8 start_rate;
+	u8 ibss_sta_added;
+	struct timer_list rate_scale_flush;
+	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT_3945];
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *rs_sta_dbgfs_stats_table_file;
+#endif
+
+	/* used to be in sta_info */
+	int last_txrate_idx;
+};
+
+
 struct iwl3945_sta_priv {
-	struct iwl3945_rs_sta *rs_sta;
+	struct iwl3945_rs_sta rs_sta;
 };
 
 enum iwl3945_antenna {

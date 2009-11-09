@@ -385,13 +385,13 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
 	 */
-	if (test_sta_flags(sta, WLAN_STA_PS) &&
+	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
 		skb_queue_tail(&sta->tx_filtered, skb);
 		return;
 	}
 
-	if (!test_sta_flags(sta, WLAN_STA_PS) &&
+	if (!test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    !(info->flags & IEEE80211_TX_INTFL_RETRIED)) {
 		/* Software retry the packet once */
 		info->flags |= IEEE80211_TX_INTFL_RETRIED;
@@ -406,7 +406,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		       "queue_len=%d PS=%d @%lu\n",
 		       wiphy_name(local->hw.wiphy),
 		       skb_queue_len(&sta->tx_filtered),
-		       !!test_sta_flags(sta, WLAN_STA_PS), jiffies);
+		       !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);
 }
@@ -446,7 +446,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (sta) {
 		if (!(info->flags & IEEE80211_TX_STAT_ACK) &&
-		    test_sta_flags(sta, WLAN_STA_PS)) {
+		    test_sta_flags(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * The STA is in power save mode, so assume
 			 * that this TX packet failed because of that.
@@ -901,6 +901,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			i++;
 		}
 	}
+	local->int_scan_req->n_channels = i;
 
 	local->network_latency_notifier.notifier_call =
 		ieee80211_max_network_latency;
@@ -923,7 +924,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_wep:
 	sta_info_stop(local);
  fail_sta_info:
-	debugfs_hw_del(local);
 	destroy_workqueue(local->workqueue);
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
@@ -959,7 +959,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_clear_tx_pending(local);
 	sta_info_stop(local);
 	rate_control_deinitialize(local);
-	debugfs_hw_del(local);
 
 	if (skb_queue_len(&local->skb_queue)
 			|| skb_queue_len(&local->skb_queue_unreliable))

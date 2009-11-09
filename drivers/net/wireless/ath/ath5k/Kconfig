@@ -1,6 +1,6 @@
 config ATH5K
 	tristate "Atheros 5xxx wireless cards support"
-	depends on PCI && MAC80211 && WLAN_80211
+	depends on PCI && MAC80211
 	select MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS

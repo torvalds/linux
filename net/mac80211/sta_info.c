@@ -171,6 +171,8 @@ void sta_info_destroy(struct sta_info *sta)
 
 	local = sta->local;
 
+	cancel_work_sync(&sta->drv_unblock_wk);
+
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
 
@@ -259,6 +261,21 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
+static void sta_unblock(struct work_struct *wk)
+{
+	struct sta_info *sta;
+
+	sta = container_of(wk, struct sta_info, drv_unblock_wk);
+
+	if (sta->dead)
+		return;
+
+	if (!test_sta_flags(sta, WLAN_STA_PS_STA))
+		ieee80211_sta_ps_deliver_wakeup(sta);
+	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL))
+		ieee80211_sta_ps_deliver_poll_response(sta);
+}
+
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				u8 *addr, gfp_t gfp)
 {
@@ -272,6 +289,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->flaglock);
+	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
@@ -478,8 +496,10 @@ static void __sta_info_unlink(struct sta_info **sta)
 	}
 
 	list_del(&(*sta)->list);
+	(*sta)->dead = true;
 
-	if (test_and_clear_sta_flags(*sta, WLAN_STA_PS)) {
+	if (test_and_clear_sta_flags(*sta,
+				WLAN_STA_PS_STA | WLAN_STA_PS_DRIVER)) {
 		BUG_ON(!sdata->bss);
 
 		atomic_dec(&sdata->bss->num_sta_ps);
@@ -801,8 +821,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		sta_info_destroy(sta);
 }
 
-struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
-					 const u8 *addr)
+struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
+					       const u8 *addr)
 {
 	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
 
@@ -810,4 +830,114 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 		return NULL;
 	return &sta->sta;
 }
+EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
+
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
+					 const u8 *addr)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!vif)
+		return NULL;
+
+	sdata = vif_to_sdata(vif);
+
+	return ieee80211_find_sta_by_hw(&sdata->local->hw, addr);
+}
 EXPORT_SYMBOL(ieee80211_find_sta);
+
+/* powersave support code */
+void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	int sent, buffered;
+
+	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_AWAKE, &sta->sta);
+
+	if (!skb_queue_empty(&sta->ps_tx_buf))
+		sta_info_clear_tim_bit(sta);
+
+	/* Send all buffered frames to the station */
+	sent = ieee80211_add_pending_skbs(local, &sta->tx_filtered);
+	buffered = ieee80211_add_pending_skbs(local, &sta->ps_tx_buf);
+	sent += buffered;
+	local->total_ps_buffered -= buffered;
+
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
+	       "since STA not sleeping anymore\n", sdata->dev->name,
+	       sta->sta.addr, sta->sta.aid, sent - buffered, buffered);
+#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+}
+
+void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	int no_pending_pkts;
+
+	skb = skb_dequeue(&sta->tx_filtered);
+	if (!skb) {
+		skb = skb_dequeue(&sta->ps_tx_buf);
+		if (skb)
+			local->total_ps_buffered--;
+	}
+	no_pending_pkts = skb_queue_empty(&sta->tx_filtered) &&
+		skb_queue_empty(&sta->ps_tx_buf);
+
+	if (skb) {
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		struct ieee80211_hdr *hdr =
+			(struct ieee80211_hdr *) skb->data;
+
+		/*
+		 * Tell TX path to send this frame even though the STA may
+		 * still remain is PS mode after this frame exchange.
+		 */
+		info->flags |= IEEE80211_TX_CTL_PSPOLL_RESPONSE;
+
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+		printk(KERN_DEBUG "STA %pM aid %d: PS Poll (entries after %d)\n",
+		       sta->sta.addr, sta->sta.aid,
+		       skb_queue_len(&sta->ps_tx_buf));
+#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+
+		/* Use MoreData flag to indicate whether there are more
+		 * buffered frames for this STA */
+		if (no_pending_pkts)
+			hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
+		else
+			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
+		ieee80211_add_pending_skb(local, skb);
+
+		if (no_pending_pkts)
+			sta_info_clear_tim_bit(sta);
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+	} else {
+		/*
+		 * FIXME: This can be the result of a race condition between
+		 *	  us expiring a frame and the station polling for it.
+		 *	  Should we send it a null-func frame indicating we
+		 *	  have nothing buffered for it?
+		 */
+		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
+		       "though there are no buffered frames for it\n",
+		       sdata->dev->name, sta->sta.addr);
+#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+	}
+}
+
+void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
+			       struct ieee80211_sta *pubsta, bool block)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	if (block)
+		set_sta_flags(sta, WLAN_STA_PS_DRIVER);
+	else
+		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
+}
+EXPORT_SYMBOL(ieee80211_sta_block_awake);

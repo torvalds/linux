@@ -591,16 +591,6 @@ static void iwl5000_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
-static int iwl5000_send_wimax_coex(struct iwl_priv *priv)
-{
-	struct iwl_wimax_coex_cmd coex_cmd;
-
-	memset(&coex_cmd, 0, sizeof(coex_cmd));
-
-	return iwl_send_cmd_pdu(priv, COEX_PRIORITY_TABLE_CMD,
-				sizeof(coex_cmd), &coex_cmd);
-}
-
 int iwl5000_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
@@ -681,7 +671,7 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 
-	iwl5000_send_wimax_coex(priv);
+	iwl_send_wimax_coex(priv);
 
 	iwl5000_set_Xtal_calib(priv);
 	iwl_send_calib_results(priv);

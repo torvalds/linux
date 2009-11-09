@@ -1112,6 +1112,10 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 
 	REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON,
 		      pModal->txEndToRxOn);
+
+	if (AR_SREV_9271_10(ah))
+		REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON,
+			      pModal->txEndToRxOn);
 	REG_RMW_FIELD(ah, AR_PHY_CCA, AR9280_PHY_CCA_THRESH62,
 		      pModal->thresh62);
 	REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0, AR_PHY_EXT_CCA0_THRESH62,

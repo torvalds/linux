@@ -30,8 +30,6 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan);
 static u32 ath9k_hw_ini_fixup(struct ath_hw *ah,
 			      struct ar5416_eeprom_def *pEepData,
 			      u32 reg, u32 value);
-static void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
-static void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
 
 MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
@@ -454,21 +452,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
 
-static int ath9k_hw_rfattach(struct ath_hw *ah)
-{
-	bool rfStatus = false;
-	int ecode = 0;
-
-	rfStatus = ath9k_hw_init_rf(ah, &ecode);
-	if (!rfStatus) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "RF setup failed, status: %u\n", ecode);
-		return ecode;
-	}
-
-	return 0;
-}
-
 static int ath9k_hw_rf_claim(struct ath_hw *ah)
 {
 	u32 val;
@@ -585,9 +568,15 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		  ah->eep_ops->get_eeprom_ver(ah),
 		  ah->eep_ops->get_eeprom_rev(ah));
 
-	ecode = ath9k_hw_rfattach(ah);
-	if (ecode != 0)
-		return ecode;
+        if (!AR_SREV_9280_10_OR_LATER(ah)) {
+		ecode = ath9k_hw_rf_alloc_ext_banks(ah);
+		if (ecode) {
+			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+				  "Failed allocating banks for "
+				  "external radio\n");
+			return ecode;
+		}
+	}
 
 	if (!AR_SREV_9100(ah)) {
 		ath9k_hw_ani_setup(ah);
@@ -662,10 +651,13 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271_1_0,
-			       ARRAY_SIZE(ar9271Modes_9271_1_0), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271_1_0,
-			       ARRAY_SIZE(ar9271Common_9271_1_0), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271,
+			       ARRAY_SIZE(ar9271Modes_9271), 6);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
+			       ARRAY_SIZE(ar9271Common_9271), 2);
+		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
+			       ar9271Modes_9271_1_0_only,
+			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 6);
 		return;
 	}
 
@@ -957,8 +949,14 @@ int ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_cal_settings(ah);
 
 	ah->ani_function = ATH9K_ANI_ALL;
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+		ah->ath9k_hw_rf_set_freq = &ath9k_hw_ar9280_set_channel;
+		ah->ath9k_hw_spur_mitigate_freq = &ath9k_hw_9280_spur_mitigate;
+	} else {
+		ah->ath9k_hw_rf_set_freq = &ath9k_hw_set_channel;
+		ah->ath9k_hw_spur_mitigate_freq = &ath9k_hw_spur_mitigate;
+	}
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1037,6 +1035,22 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REG_WRITE(ah, AR_TXOP_12_15, 0xFFFFFFFF);
 }
 
+static void ath9k_hw_change_target_baud(struct ath_hw *ah, u32 freq, u32 baud)
+{
+	u32 lcr;
+	u32 baud_divider = freq * 1000 * 1000 / 16 / baud;
+
+	lcr = REG_READ(ah , 0x5100c);
+	lcr |= 0x80;
+
+	REG_WRITE(ah, 0x5100c, lcr);
+	REG_WRITE(ah, 0x51004, (baud_divider >> 8));
+	REG_WRITE(ah, 0x51000, (baud_divider & 0xff));
+
+	lcr &= ~0x80;
+	REG_WRITE(ah, 0x5100c, lcr);
+}
+
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
@@ -1099,6 +1113,26 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		}
 	}
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
+
+	/* Switch the core clock for ar9271 to 117Mhz */
+	if (AR_SREV_9271(ah)) {
+		if ((pll == 0x142c) || (pll == 0x2850) ) {
+			udelay(500);
+			/* set CLKOBS to output AHB clock */
+			REG_WRITE(ah, 0x7020, 0xe);
+			/*
+			 * 0x304: 117Mhz, ahb_ratio: 1x1
+			 * 0x306: 40Mhz, ahb_ratio: 1x1
+			 */
+			REG_WRITE(ah, 0x50040, 0x304);
+			/*
+			 * makes adjustments for the baud dividor to keep the
+			 * targetted baud rate based on the used core clock.
+			 */
+			ath9k_hw_change_target_baud(ah, AR9271_CORE_CLOCK,
+						    AR9271_TARGET_BAUD_RATE);
+		}
+	}
 
 	udelay(RTC_PLL_SETTLE_DELAY);
 
@@ -1252,7 +1286,8 @@ void ath9k_hw_detach(struct ath_hw *ah)
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 
 free_hw:
-	ath9k_hw_rf_free(ah);
+	if (!AR_SREV_9280_10_OR_LATER(ah))
+		ath9k_hw_rf_free_ext_banks(ah);
 	kfree(ah);
 	ah = NULL;
 }
@@ -1274,7 +1309,8 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 		 * AR9271 1.1
 		 */
 		if (AR_SREV_9271_10(ah)) {
-			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) | AR_PHY_SPECTRAL_SCAN_ENABLE;
+			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) |
+			      AR_PHY_SPECTRAL_SCAN_ENABLE;
 			REG_WRITE(ah, AR_PHY_SPECTRAL_SCAN, val);
 		}
 		else if (AR_SREV_9271_11(ah))
@@ -1489,7 +1525,11 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 		DO_DELAY(regWrites);
 	}
 
-	ath9k_hw_write_regs(ah, modesIndex, freqIndex, regWrites);
+	ath9k_hw_write_regs(ah, freqIndex, regWrites);
+
+	if (AR_SREV_9271_10(ah))
+		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
+				modesIndex, regWrites);
 
 	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
@@ -1832,6 +1872,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *channel = chan->chan;
 	u32 synthDelay, qnum;
+	int r;
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
 		if (ath9k_hw_numtxpending(ah, qnum)) {
@@ -1852,14 +1893,11 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	ath9k_hw_set_regs(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		ath9k_hw_ar9280_set_channel(ah, chan);
-	} else {
-		if (!(ath9k_hw_set_channel(ah, chan))) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Failed to set channel\n");
-			return false;
-		}
+	r = ah->ath9k_hw_rf_set_freq(ah, chan);
+	if (r) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Failed to set channel\n");
+		return false;
 	}
 
 	ah->eep_ops->set_txpower(ah, chan,
@@ -1882,466 +1920,12 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_9280_spur_mitigate(ah, chan);
-	else
-		ath9k_hw_spur_mitigate(ah, chan);
+	ah->ath9k_hw_spur_mitigate_freq(ah, chan);
 
 	if (!chan->oneTimeCalsDone)
 		chan->oneTimeCalsDone = true;
 
 	return true;
-}
-
-static void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	int bb_spur = AR_NO_SPUR;
-	int freq;
-	int bin, cur_bin;
-	int bb_spur_off, spur_subchannel_sd;
-	int spur_freq_sd;
-	int spur_delta_phase;
-	int denominator;
-	int upper, lower, cur_vit_mask;
-	int tmp, newVal;
-	int i;
-	int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,
-			  AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
-	};
-	int chan_mask_reg[4] = { AR_PHY_TIMING9, AR_PHY_TIMING10,
-			 AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
-	};
-	int inc[4] = { 0, 100, 0, 0 };
-	struct chan_centers centers;
-
-	int8_t mask_m[123];
-	int8_t mask_p[123];
-	int8_t mask_amt;
-	int tmp_mask;
-	int cur_bb_spur;
-	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
-
-	ath9k_hw_get_channel_centers(ah, chan, &centers);
-	freq = centers.synth_center;
-
-	ah->config.spurmode = SPUR_ENABLE_EEPROM;
-	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
-
-		if (is2GHz)
-			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_2GHZ;
-		else
-			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_5GHZ;
-
-		if (AR_NO_SPUR == cur_bb_spur)
-			break;
-		cur_bb_spur = cur_bb_spur - freq;
-
-		if (IS_CHAN_HT40(chan)) {
-			if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT40) &&
-			    (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT40)) {
-				bb_spur = cur_bb_spur;
-				break;
-			}
-		} else if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT20) &&
-			   (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT20)) {
-			bb_spur = cur_bb_spur;
-			break;
-		}
-	}
-
-	if (AR_NO_SPUR == bb_spur) {
-		REG_CLR_BIT(ah, AR_PHY_FORCE_CLKEN_CCK,
-			    AR_PHY_FORCE_CLKEN_CCK_MRC_MUX);
-		return;
-	} else {
-		REG_CLR_BIT(ah, AR_PHY_FORCE_CLKEN_CCK,
-			    AR_PHY_FORCE_CLKEN_CCK_MRC_MUX);
-	}
-
-	bin = bb_spur * 320;
-
-	tmp = REG_READ(ah, AR_PHY_TIMING_CTRL4(0));
-
-	newVal = tmp | (AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI |
-			AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER |
-			AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
-			AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
-	REG_WRITE(ah, AR_PHY_TIMING_CTRL4(0), newVal);
-
-	newVal = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
-		  AR_PHY_SPUR_REG_ENABLE_MASK_PPM |
-		  AR_PHY_SPUR_REG_MASK_RATE_SELECT |
-		  AR_PHY_SPUR_REG_ENABLE_VIT_SPUR_RSSI |
-		  SM(SPUR_RSSI_THRESH, AR_PHY_SPUR_REG_SPUR_RSSI_THRESH));
-	REG_WRITE(ah, AR_PHY_SPUR_REG, newVal);
-
-	if (IS_CHAN_HT40(chan)) {
-		if (bb_spur < 0) {
-			spur_subchannel_sd = 1;
-			bb_spur_off = bb_spur + 10;
-		} else {
-			spur_subchannel_sd = 0;
-			bb_spur_off = bb_spur - 10;
-		}
-	} else {
-		spur_subchannel_sd = 0;
-		bb_spur_off = bb_spur;
-	}
-
-	if (IS_CHAN_HT40(chan))
-		spur_delta_phase =
-			((bb_spur * 262144) /
-			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
-	else
-		spur_delta_phase =
-			((bb_spur * 524288) /
-			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
-
-	denominator = IS_CHAN_2GHZ(chan) ? 44 : 40;
-	spur_freq_sd = ((bb_spur_off * 2048) / denominator) & 0x3ff;
-
-	newVal = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
-		  SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
-		  SM(spur_delta_phase, AR_PHY_TIMING11_SPUR_DELTA_PHASE));
-	REG_WRITE(ah, AR_PHY_TIMING11, newVal);
-
-	newVal = spur_subchannel_sd << AR_PHY_SFCORR_SPUR_SUBCHNL_SD_S;
-	REG_WRITE(ah, AR_PHY_SFCORR_EXT, newVal);
-
-	cur_bin = -6000;
-	upper = bin + 100;
-	lower = bin - 100;
-
-	for (i = 0; i < 4; i++) {
-		int pilot_mask = 0;
-		int chan_mask = 0;
-		int bp = 0;
-		for (bp = 0; bp < 30; bp++) {
-			if ((cur_bin > lower) && (cur_bin < upper)) {
-				pilot_mask = pilot_mask | 0x1 << bp;
-				chan_mask = chan_mask | 0x1 << bp;
-			}
-			cur_bin += 100;
-		}
-		cur_bin += inc[i];
-		REG_WRITE(ah, pilot_mask_reg[i], pilot_mask);
-		REG_WRITE(ah, chan_mask_reg[i], chan_mask);
-	}
-
-	cur_vit_mask = 6100;
-	upper = bin + 120;
-	lower = bin - 120;
-
-	for (i = 0; i < 123; i++) {
-		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-
-			/* workaround for gcc bug #37014 */
-			volatile int tmp_v = abs(cur_vit_mask - bin);
-
-			if (tmp_v < 75)
-				mask_amt = 1;
-			else
-				mask_amt = 0;
-			if (cur_vit_mask < 0)
-				mask_m[abs(cur_vit_mask / 100)] = mask_amt;
-			else
-				mask_p[cur_vit_mask / 100] = mask_amt;
-		}
-		cur_vit_mask -= 100;
-	}
-
-	tmp_mask = (mask_m[46] << 30) | (mask_m[47] << 28)
-		| (mask_m[48] << 26) | (mask_m[49] << 24)
-		| (mask_m[50] << 22) | (mask_m[51] << 20)
-		| (mask_m[52] << 18) | (mask_m[53] << 16)
-		| (mask_m[54] << 14) | (mask_m[55] << 12)
-		| (mask_m[56] << 10) | (mask_m[57] << 8)
-		| (mask_m[58] << 6) | (mask_m[59] << 4)
-		| (mask_m[60] << 2) | (mask_m[61] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_VIT_MASK2_M_46_61, tmp_mask);
-
-	tmp_mask = (mask_m[31] << 28)
-		| (mask_m[32] << 26) | (mask_m[33] << 24)
-		| (mask_m[34] << 22) | (mask_m[35] << 20)
-		| (mask_m[36] << 18) | (mask_m[37] << 16)
-		| (mask_m[48] << 14) | (mask_m[39] << 12)
-		| (mask_m[40] << 10) | (mask_m[41] << 8)
-		| (mask_m[42] << 6) | (mask_m[43] << 4)
-		| (mask_m[44] << 2) | (mask_m[45] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_31_45, tmp_mask);
-
-	tmp_mask = (mask_m[16] << 30) | (mask_m[16] << 28)
-		| (mask_m[18] << 26) | (mask_m[18] << 24)
-		| (mask_m[20] << 22) | (mask_m[20] << 20)
-		| (mask_m[22] << 18) | (mask_m[22] << 16)
-		| (mask_m[24] << 14) | (mask_m[24] << 12)
-		| (mask_m[25] << 10) | (mask_m[26] << 8)
-		| (mask_m[27] << 6) | (mask_m[28] << 4)
-		| (mask_m[29] << 2) | (mask_m[30] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_16_30, tmp_mask);
-
-	tmp_mask = (mask_m[0] << 30) | (mask_m[1] << 28)
-		| (mask_m[2] << 26) | (mask_m[3] << 24)
-		| (mask_m[4] << 22) | (mask_m[5] << 20)
-		| (mask_m[6] << 18) | (mask_m[7] << 16)
-		| (mask_m[8] << 14) | (mask_m[9] << 12)
-		| (mask_m[10] << 10) | (mask_m[11] << 8)
-		| (mask_m[12] << 6) | (mask_m[13] << 4)
-		| (mask_m[14] << 2) | (mask_m[15] << 0);
-	REG_WRITE(ah, AR_PHY_MASK_CTL, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_00_15, tmp_mask);
-
-	tmp_mask = (mask_p[15] << 28)
-		| (mask_p[14] << 26) | (mask_p[13] << 24)
-		| (mask_p[12] << 22) | (mask_p[11] << 20)
-		| (mask_p[10] << 18) | (mask_p[9] << 16)
-		| (mask_p[8] << 14) | (mask_p[7] << 12)
-		| (mask_p[6] << 10) | (mask_p[5] << 8)
-		| (mask_p[4] << 6) | (mask_p[3] << 4)
-		| (mask_p[2] << 2) | (mask_p[1] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_15_01, tmp_mask);
-
-	tmp_mask = (mask_p[30] << 28)
-		| (mask_p[29] << 26) | (mask_p[28] << 24)
-		| (mask_p[27] << 22) | (mask_p[26] << 20)
-		| (mask_p[25] << 18) | (mask_p[24] << 16)
-		| (mask_p[23] << 14) | (mask_p[22] << 12)
-		| (mask_p[21] << 10) | (mask_p[20] << 8)
-		| (mask_p[19] << 6) | (mask_p[18] << 4)
-		| (mask_p[17] << 2) | (mask_p[16] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_30_16, tmp_mask);
-
-	tmp_mask = (mask_p[45] << 28)
-		| (mask_p[44] << 26) | (mask_p[43] << 24)
-		| (mask_p[42] << 22) | (mask_p[41] << 20)
-		| (mask_p[40] << 18) | (mask_p[39] << 16)
-		| (mask_p[38] << 14) | (mask_p[37] << 12)
-		| (mask_p[36] << 10) | (mask_p[35] << 8)
-		| (mask_p[34] << 6) | (mask_p[33] << 4)
-		| (mask_p[32] << 2) | (mask_p[31] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_45_31, tmp_mask);
-
-	tmp_mask = (mask_p[61] << 30) | (mask_p[60] << 28)
-		| (mask_p[59] << 26) | (mask_p[58] << 24)
-		| (mask_p[57] << 22) | (mask_p[56] << 20)
-		| (mask_p[55] << 18) | (mask_p[54] << 16)
-		| (mask_p[53] << 14) | (mask_p[52] << 12)
-		| (mask_p[51] << 10) | (mask_p[50] << 8)
-		| (mask_p[49] << 6) | (mask_p[48] << 4)
-		| (mask_p[47] << 2) | (mask_p[46] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
-}
-
-static void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	int bb_spur = AR_NO_SPUR;
-	int bin, cur_bin;
-	int spur_freq_sd;
-	int spur_delta_phase;
-	int denominator;
-	int upper, lower, cur_vit_mask;
-	int tmp, new;
-	int i;
-	int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,
-			  AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
-	};
-	int chan_mask_reg[4] = { AR_PHY_TIMING9, AR_PHY_TIMING10,
-			 AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
-	};
-	int inc[4] = { 0, 100, 0, 0 };
-
-	int8_t mask_m[123];
-	int8_t mask_p[123];
-	int8_t mask_amt;
-	int tmp_mask;
-	int cur_bb_spur;
-	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
-
-	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
-		if (AR_NO_SPUR == cur_bb_spur)
-			break;
-		cur_bb_spur = cur_bb_spur - (chan->channel * 10);
-		if ((cur_bb_spur > -95) && (cur_bb_spur < 95)) {
-			bb_spur = cur_bb_spur;
-			break;
-		}
-	}
-
-	if (AR_NO_SPUR == bb_spur)
-		return;
-
-	bin = bb_spur * 32;
-
-	tmp = REG_READ(ah, AR_PHY_TIMING_CTRL4(0));
-	new = tmp | (AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI |
-		     AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER |
-		     AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
-		     AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
-
-	REG_WRITE(ah, AR_PHY_TIMING_CTRL4(0), new);
-
-	new = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
-	       AR_PHY_SPUR_REG_ENABLE_MASK_PPM |
-	       AR_PHY_SPUR_REG_MASK_RATE_SELECT |
-	       AR_PHY_SPUR_REG_ENABLE_VIT_SPUR_RSSI |
-	       SM(SPUR_RSSI_THRESH, AR_PHY_SPUR_REG_SPUR_RSSI_THRESH));
-	REG_WRITE(ah, AR_PHY_SPUR_REG, new);
-
-	spur_delta_phase = ((bb_spur * 524288) / 100) &
-		AR_PHY_TIMING11_SPUR_DELTA_PHASE;
-
-	denominator = IS_CHAN_2GHZ(chan) ? 440 : 400;
-	spur_freq_sd = ((bb_spur * 2048) / denominator) & 0x3ff;
-
-	new = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
-	       SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
-	       SM(spur_delta_phase, AR_PHY_TIMING11_SPUR_DELTA_PHASE));
-	REG_WRITE(ah, AR_PHY_TIMING11, new);
-
-	cur_bin = -6000;
-	upper = bin + 100;
-	lower = bin - 100;
-
-	for (i = 0; i < 4; i++) {
-		int pilot_mask = 0;
-		int chan_mask = 0;
-		int bp = 0;
-		for (bp = 0; bp < 30; bp++) {
-			if ((cur_bin > lower) && (cur_bin < upper)) {
-				pilot_mask = pilot_mask | 0x1 << bp;
-				chan_mask = chan_mask | 0x1 << bp;
-			}
-			cur_bin += 100;
-		}
-		cur_bin += inc[i];
-		REG_WRITE(ah, pilot_mask_reg[i], pilot_mask);
-		REG_WRITE(ah, chan_mask_reg[i], chan_mask);
-	}
-
-	cur_vit_mask = 6100;
-	upper = bin + 120;
-	lower = bin - 120;
-
-	for (i = 0; i < 123; i++) {
-		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-
-			/* workaround for gcc bug #37014 */
-			volatile int tmp_v = abs(cur_vit_mask - bin);
-
-			if (tmp_v < 75)
-				mask_amt = 1;
-			else
-				mask_amt = 0;
-			if (cur_vit_mask < 0)
-				mask_m[abs(cur_vit_mask / 100)] = mask_amt;
-			else
-				mask_p[cur_vit_mask / 100] = mask_amt;
-		}
-		cur_vit_mask -= 100;
-	}
-
-	tmp_mask = (mask_m[46] << 30) | (mask_m[47] << 28)
-		| (mask_m[48] << 26) | (mask_m[49] << 24)
-		| (mask_m[50] << 22) | (mask_m[51] << 20)
-		| (mask_m[52] << 18) | (mask_m[53] << 16)
-		| (mask_m[54] << 14) | (mask_m[55] << 12)
-		| (mask_m[56] << 10) | (mask_m[57] << 8)
-		| (mask_m[58] << 6) | (mask_m[59] << 4)
-		| (mask_m[60] << 2) | (mask_m[61] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_VIT_MASK2_M_46_61, tmp_mask);
-
-	tmp_mask = (mask_m[31] << 28)
-		| (mask_m[32] << 26) | (mask_m[33] << 24)
-		| (mask_m[34] << 22) | (mask_m[35] << 20)
-		| (mask_m[36] << 18) | (mask_m[37] << 16)
-		| (mask_m[48] << 14) | (mask_m[39] << 12)
-		| (mask_m[40] << 10) | (mask_m[41] << 8)
-		| (mask_m[42] << 6) | (mask_m[43] << 4)
-		| (mask_m[44] << 2) | (mask_m[45] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_31_45, tmp_mask);
-
-	tmp_mask = (mask_m[16] << 30) | (mask_m[16] << 28)
-		| (mask_m[18] << 26) | (mask_m[18] << 24)
-		| (mask_m[20] << 22) | (mask_m[20] << 20)
-		| (mask_m[22] << 18) | (mask_m[22] << 16)
-		| (mask_m[24] << 14) | (mask_m[24] << 12)
-		| (mask_m[25] << 10) | (mask_m[26] << 8)
-		| (mask_m[27] << 6) | (mask_m[28] << 4)
-		| (mask_m[29] << 2) | (mask_m[30] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_16_30, tmp_mask);
-
-	tmp_mask = (mask_m[0] << 30) | (mask_m[1] << 28)
-		| (mask_m[2] << 26) | (mask_m[3] << 24)
-		| (mask_m[4] << 22) | (mask_m[5] << 20)
-		| (mask_m[6] << 18) | (mask_m[7] << 16)
-		| (mask_m[8] << 14) | (mask_m[9] << 12)
-		| (mask_m[10] << 10) | (mask_m[11] << 8)
-		| (mask_m[12] << 6) | (mask_m[13] << 4)
-		| (mask_m[14] << 2) | (mask_m[15] << 0);
-	REG_WRITE(ah, AR_PHY_MASK_CTL, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_00_15, tmp_mask);
-
-	tmp_mask = (mask_p[15] << 28)
-		| (mask_p[14] << 26) | (mask_p[13] << 24)
-		| (mask_p[12] << 22) | (mask_p[11] << 20)
-		| (mask_p[10] << 18) | (mask_p[9] << 16)
-		| (mask_p[8] << 14) | (mask_p[7] << 12)
-		| (mask_p[6] << 10) | (mask_p[5] << 8)
-		| (mask_p[4] << 6) | (mask_p[3] << 4)
-		| (mask_p[2] << 2) | (mask_p[1] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_15_01, tmp_mask);
-
-	tmp_mask = (mask_p[30] << 28)
-		| (mask_p[29] << 26) | (mask_p[28] << 24)
-		| (mask_p[27] << 22) | (mask_p[26] << 20)
-		| (mask_p[25] << 18) | (mask_p[24] << 16)
-		| (mask_p[23] << 14) | (mask_p[22] << 12)
-		| (mask_p[21] << 10) | (mask_p[20] << 8)
-		| (mask_p[19] << 6) | (mask_p[18] << 4)
-		| (mask_p[17] << 2) | (mask_p[16] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_30_16, tmp_mask);
-
-	tmp_mask = (mask_p[45] << 28)
-		| (mask_p[44] << 26) | (mask_p[43] << 24)
-		| (mask_p[42] << 22) | (mask_p[41] << 20)
-		| (mask_p[40] << 18) | (mask_p[39] << 16)
-		| (mask_p[38] << 14) | (mask_p[37] << 12)
-		| (mask_p[36] << 10) | (mask_p[35] << 8)
-		| (mask_p[34] << 6) | (mask_p[33] << 4)
-		| (mask_p[32] << 2) | (mask_p[31] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_45_31, tmp_mask);
-
-	tmp_mask = (mask_p[61] << 30) | (mask_p[60] << 28)
-		| (mask_p[59] << 26) | (mask_p[58] << 24)
-		| (mask_p[57] << 22) | (mask_p[56] << 20)
-		| (mask_p[55] << 18) | (mask_p[54] << 16)
-		| (mask_p[53] << 14) | (mask_p[52] << 12)
-		| (mask_p[51] << 10) | (mask_p[50] << 8)
-		| (mask_p[49] << 6) | (mask_p[48] << 4)
-		| (mask_p[47] << 2) | (mask_p[46] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
 }
 
 static void ath9k_enable_rfkill(struct ath_hw *ah)
@@ -2469,14 +2053,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_9280_spur_mitigate(ah, chan);
-	else
-		ath9k_hw_spur_mitigate(ah, chan);
-
+	ah->ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
-	ath9k_hw_decrease_chain_power(ah, chan);
+	if (AR_SREV_5416(ah))
+		ath9k_hw_decrease_chain_power(ah, chan);
 
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
 	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(common->macaddr + 4)
@@ -2497,11 +2078,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_ar9280_set_channel(ah, chan);
-	else
-		if (!(ath9k_hw_set_channel(ah, chan)))
-			return -EIO;
+	r = ah->ath9k_hw_rf_set_freq(ah, chan);
+	if (r)
+		return r;
 
 	for (i = 0; i < AR_NUM_DCU; i++)
 		REG_WRITE(ah, AR_DQCUMASK(i), 1 << i);
@@ -4350,3 +3929,89 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 	}
 }
 EXPORT_SYMBOL(ath_gen_timer_isr);
+
+static struct {
+	u32 version;
+	const char * name;
+} ath_mac_bb_names[] = {
+	/* Devices with external radios */
+	{ AR_SREV_VERSION_5416_PCI,	"5416" },
+	{ AR_SREV_VERSION_5416_PCIE,	"5418" },
+	{ AR_SREV_VERSION_9100,		"9100" },
+	{ AR_SREV_VERSION_9160,		"9160" },
+	/* Single-chip solutions */
+	{ AR_SREV_VERSION_9280,		"9280" },
+	{ AR_SREV_VERSION_9285,		"9285" },
+	{ AR_SREV_VERSION_9287,         "9287" },
+	{ AR_SREV_VERSION_9271,         "9271" },
+};
+
+/* For devices with external radios */
+static struct {
+	u16 version;
+	const char * name;
+} ath_rf_names[] = {
+	{ 0,				"5133" },
+	{ AR_RAD5133_SREV_MAJOR,	"5133" },
+	{ AR_RAD5122_SREV_MAJOR,	"5122" },
+	{ AR_RAD2133_SREV_MAJOR,	"2133" },
+	{ AR_RAD2122_SREV_MAJOR,	"2122" }
+};
+
+/*
+ * Return the MAC/BB name. "????" is returned if the MAC/BB is unknown.
+ */
+static const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
+{
+	int i;
+
+	for (i=0; i<ARRAY_SIZE(ath_mac_bb_names); i++) {
+		if (ath_mac_bb_names[i].version == mac_bb_version) {
+			return ath_mac_bb_names[i].name;
+		}
+	}
+
+	return "????";
+}
+
+/*
+ * Return the RF name. "????" is returned if the RF is unknown.
+ * Used for devices with external radios.
+ */
+static const char *ath9k_hw_rf_name(u16 rf_version)
+{
+	int i;
+
+	for (i=0; i<ARRAY_SIZE(ath_rf_names); i++) {
+		if (ath_rf_names[i].version == rf_version) {
+			return ath_rf_names[i].name;
+		}
+	}
+
+	return "????";
+}
+
+void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len)
+{
+	int used;
+
+	/* chipsets >= AR9280 are single-chip */
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		used = snprintf(hw_name, len,
+			       "Atheros AR%s Rev:%x",
+			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+			       ah->hw_version.macRev);
+	}
+	else {
+		used = snprintf(hw_name, len,
+			       "Atheros AR%s MAC/BB Rev:%x AR%s RF Rev:%x",
+			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+			       ah->hw_version.macRev,
+			       ath9k_hw_rf_name((ah->hw_version.analog5GhzRev &
+						AR_RADIO_SREV_MAJOR)),
+			       ah->hw_version.phyRev);
+	}
+
+	hw_name[used] = '\0';
+}
+EXPORT_SYMBOL(ath9k_hw_name);

@@ -401,6 +401,7 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
 }
+EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int iwl_scan_initiate(struct iwl_priv *priv)
 {

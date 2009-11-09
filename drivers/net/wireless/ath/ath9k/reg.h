@@ -1704,4 +1704,7 @@ enum {
 #define AR_KEYTABLE_MAC0(_n)    (AR_KEYTABLE(_n) + 24)
 #define AR_KEYTABLE_MAC1(_n)    (AR_KEYTABLE(_n) + 28)
 
+#define AR9271_CORE_CLOCK	117   /* clock to 117Mhz */
+#define AR9271_TARGET_BAUD_RATE	19200 /* 115200 */
+
 #endif

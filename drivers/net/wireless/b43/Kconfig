@@ -1,6 +1,6 @@
 config B43
 	tristate "Broadcom 43xx wireless support (mac80211 stack)"
-	depends on SSB_POSSIBLE && MAC80211 && WLAN_80211 && HAS_DMA
+	depends on SSB_POSSIBLE && MAC80211 && HAS_DMA
 	select SSB
 	select FW_LOADER
 	---help---

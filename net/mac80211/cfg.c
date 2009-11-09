@@ -738,13 +738,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	err = sta_info_insert(sta);
 	if (err) {
-		/* STA has been freed */
-		if (err == -EEXIST && layer2_update) {
-			/* Need to update layer 2 devices on reassociation */
-			sta = sta_info_get(local, mac);
-			if (sta)
-				ieee80211_send_layer2_update(sta);
-		}
 		rcu_read_unlock();
 		return err;
 	}

@@ -546,7 +546,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * First remove the hardware from everywhere, this makes
 	 * it impossible to find from userspace.
 	 */
-	cfg80211_debugfs_rdev_del(rdev);
+	debugfs_remove_recursive(rdev->wiphy.debugfsdir);
 	list_del(&rdev->list);
 
 	/*
@@ -569,7 +569,6 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	cfg80211_rdev_list_generation++;
 	device_del(&rdev->wiphy.dev);
-	debugfs_remove(rdev->wiphy.debugfsdir);
 
 	mutex_unlock(&cfg80211_mutex);
 

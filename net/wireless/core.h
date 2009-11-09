@@ -72,17 +72,6 @@ struct cfg80211_registered_device {
 	/* current channel */
 	struct ieee80211_channel *channel;
 
-#ifdef CONFIG_CFG80211_DEBUGFS
-	/* Debugfs entries */
-	struct wiphy_debugfsdentries {
-		struct dentry *rts_threshold;
-		struct dentry *fragmentation_threshold;
-		struct dentry *short_retry_limit;
-		struct dentry *long_retry_limit;
-		struct dentry *ht40allow_map;
-	} debugfs;
-#endif
-
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));

@@ -533,6 +533,10 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		goto err;
 	}
 	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+
+		/* OTP reads require powered-up chip */
+		priv->cfg->ops->lib->apm_ops.init(priv);
+
 		ret = iwl_init_otp_access(priv);
 		if (ret) {
 			IWL_ERR(priv, "Failed to initialize OTP access.\n");
@@ -563,6 +567,13 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			e[cache_addr / 2] = eeprom_data;
 			cache_addr += sizeof(u16);
 		}
+
+		/*
+		 * Now that OTP reads are complete, reset chip to save
+		 *   power until we load uCode during "up".
+		 */
+		priv->cfg->ops->lib->apm_ops.stop(priv);
+
 	} else {
 		/* eeprom is an array of 16bit values */
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {

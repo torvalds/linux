@@ -303,12 +303,15 @@ int wl1271_hw_init(struct wl1271 *wl)
 {
 	int ret;
 
+	/* FIXME: the following parameter setting functions return error
+	 * codes - the reason is so far unknown. The -EIO is therefore
+	 * ignored for the time being. */
 	ret = wl1271_init_general_parms(wl);
-	if (ret < 0)
+	if (ret < 0 && ret != -EIO)
 		return ret;
 
 	ret = wl1271_init_radio_parms(wl);
-	if (ret < 0)
+	if (ret < 0 && ret != -EIO)
 		return ret;
 
 	/* Template settings */

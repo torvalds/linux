@@ -286,6 +286,7 @@
 #define B43_LPPHY_TR_LOOKUP_6			B43_PHY_OFDM(0xC8) /* TR Lookup 6 */
 #define B43_LPPHY_TR_LOOKUP_7			B43_PHY_OFDM(0xC9) /* TR Lookup 7 */
 #define B43_LPPHY_TR_LOOKUP_8			B43_PHY_OFDM(0xCA) /* TR Lookup 8 */
+#define B43_LPPHY_RF_PWR_OVERRIDE		B43_PHY_OFDM(0xD3) /* RF power override */
 
 
 
@@ -871,12 +872,12 @@ struct b43_phy_lp {
 	u8 rssi_gs;
 
 	/* RC cap */
-	u8 rc_cap; /* FIXME initial value? */
+	u8 rc_cap;
 	/* BX arch */
 	u8 bx_arch;
 
 	/* Full calibration channel */
-	u8 full_calib_chan; /* FIXME initial value? */
+	u8 full_calib_chan;
 
 	/* Transmit iqlocal best coeffs */
 	bool tx_iqloc_best_coeffs_valid;
@@ -891,6 +892,12 @@ struct b43_phy_lp {
 
 	/* The channel we are tuned to */
 	u8 channel;
+
+	/* The active antenna diversity mode */
+	int antenna;
+
+	/* Frequency of the active TX tone */
+	int tx_tone_freq;
 };
 
 enum tssi_mux_mode {

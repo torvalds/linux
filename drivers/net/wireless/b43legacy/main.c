@@ -2676,7 +2676,7 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	if (conf->channel->hw_value != phy->channel)
 		b43legacy_radio_selectchannel(dev, conf->channel->hw_value, 0);
 
-	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
+	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_MONITOR);
 
 	/* Adjust the desired TX power level. */
 	if (conf->power_level != 0) {
