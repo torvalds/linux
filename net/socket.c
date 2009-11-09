@@ -2627,6 +2627,27 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 	return dev_ioctl(net, SIOCETHTOOL, ifr);
 }
 
+static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32)
+{
+	void __user *uptr;
+	compat_uptr_t uptr32;
+	struct ifreq __user *uifr;
+
+	uifr = compat_alloc_user_space(sizeof (*uifr));
+	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
+		return -EFAULT;
+
+	if (get_user(uptr32, &uifr32->ifr_settings.ifs_ifsu))
+		return -EFAULT;
+
+	uptr = compat_ptr(uptr32);
+
+	if (put_user(uptr, &uifr->ifr_settings.ifs_ifsu.raw_hdlc))
+		return -EFAULT;
+
+	return dev_ioctl(net, SIOCWANDEV, uifr);
+}
+
 static int bond_ioctl(struct net *net, unsigned int cmd,
 			 struct compat_ifreq __user *ifr32)
 {
@@ -3058,6 +3079,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 		return dev_ifconf(net, argp);
 	case SIOCETHTOOL:
 		return ethtool_ioctl(net, argp);
+	case SIOCWANDEV:
+		return compat_siocwandev(net, argp);
 	case SIOCBONDENSLAVE:
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:

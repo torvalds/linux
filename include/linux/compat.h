@@ -165,25 +165,32 @@ struct compat_ifmap {
 	unsigned char port;
 };
 
+struct compat_if_settings
+{
+	unsigned int type;	/* Type of physical device or protocol */
+	unsigned int size;	/* Size of the data allocated by the caller */
+	compat_uptr_t ifs_ifsu;	/* union of pointers */
+};
+
 struct compat_ifreq {
-        union {
-                char    ifrn_name[IFNAMSIZ];            /* if name, e.g. "en0" */
-        } ifr_ifrn;
-        union {
-                struct  sockaddr ifru_addr;
-                struct  sockaddr ifru_dstaddr;
-                struct  sockaddr ifru_broadaddr;
-                struct  sockaddr ifru_netmask;
-                struct  sockaddr ifru_hwaddr;
-                short   ifru_flags;
-                compat_int_t     ifru_ivalue;
-                compat_int_t     ifru_mtu;
-                struct  compat_ifmap ifru_map;
-                char    ifru_slave[IFNAMSIZ];   /* Just fits the size */
+	union {
+		char	ifrn_name[IFNAMSIZ];    /* if name, e.g. "en0" */
+	} ifr_ifrn;
+	union {
+		struct	sockaddr ifru_addr;
+		struct	sockaddr ifru_dstaddr;
+		struct	sockaddr ifru_broadaddr;
+		struct	sockaddr ifru_netmask;
+		struct	sockaddr ifru_hwaddr;
+		short	ifru_flags;
+		compat_int_t	ifru_ivalue;
+		compat_int_t	ifru_mtu;
+		struct	compat_ifmap ifru_map;
+		char	ifru_slave[IFNAMSIZ];   /* Just fits the size */
 		char	ifru_newname[IFNAMSIZ];
-                compat_caddr_t ifru_data;
-	    /* XXXX? ifru_settings should be here */
-        } ifr_ifru;
+		compat_caddr_t	ifru_data;
+		struct	compat_if_settings ifru_settings;
+	} ifr_ifru;
 };
 
 struct compat_ifconf {
