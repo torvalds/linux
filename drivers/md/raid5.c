@@ -4049,6 +4049,8 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
 		if (sector_nr) {
+			mddev->curr_resync_completed = sector_nr;
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 			*skipped = 1;
 			return sector_nr;
 		}
