@@ -774,7 +774,7 @@ static void rt2800_config_channel_rt3x(struct rt2x00_dev *rt2x00dev,
 	u8 rfcsr;
 
 	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf1);
-	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf3);
+	rt2800_rfcsr_write(rt2x00dev, 3, rf->rf3);
 
 	rt2800_rfcsr_read(rt2x00dev, 6, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR6_R, rf->rf2);
