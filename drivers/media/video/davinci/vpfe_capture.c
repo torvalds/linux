@@ -1338,7 +1338,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	vpfe_dev->memory = req_buf->memory;
 	videobuf_queue_dma_contig_init(&vpfe_dev->buffer_queue,
 				&vpfe_videobuf_qops,
-				NULL,
+				vpfe_dev->pdev,
 				&vpfe_dev->irqlock,
 				req_buf->type,
 				vpfe_dev->fmt.fmt.pix.field,
