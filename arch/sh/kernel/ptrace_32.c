@@ -65,31 +65,12 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 
 void user_enable_single_step(struct task_struct *child)
 {
-	/* Next scheduling will set up UBC */
-	if (child->thread.ubc_pc == 0)
-		ubc_usercnt += 1;
-
-	child->thread.ubc_pc = get_stack_long(child,
-				offsetof(struct pt_regs, pc));
-
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
-
-	/*
-	 * Ensure the UBC is not programmed at the next context switch.
-	 *
-	 * Normally this is not needed but there are sequences such as
-	 * singlestep, signal delivery, and continue that leave the
-	 * ubc_pc non-zero leading to spurious SIGTRAPs.
-	 */
-	if (child->thread.ubc_pc != 0) {
-		ubc_usercnt -= 1;
-		child->thread.ubc_pc = 0;
-	}
 }
 
 /*

@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
+#include <asm/ubc.h>
 
 /*
  * Default implementation of macro that returns current
@@ -99,8 +100,8 @@ struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
 
-	/* Hardware debugging registers */
-	unsigned long ubc_pc;
+	/* Save middle states of ptrace breakpoints */
+	struct perf_event	*ptrace_bps[NR_UBC_CHANNELS];
 
 	/* floating point info */
 	union sh_fpu_union fpu;
@@ -110,9 +111,6 @@ struct thread_struct {
 	struct sh_dsp_struct dsp_status;
 #endif
 };
-
-/* Count of active tasks with UBC settings */
-extern int ubc_usercnt;
 
 #define INIT_THREAD  {						\
 	.sp = sizeof(init_stack) + (long) &init_stack,		\
