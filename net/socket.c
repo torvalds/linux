@@ -2746,7 +2746,10 @@ static int dev_ifsioc(struct net *net, struct socket *sock,
 		case SIOCGIFBRDADDR:
 		case SIOCGIFDSTADDR:
 		case SIOCGIFNETMASK:
+		case SIOCGIFPFLAGS:
 		case SIOCGIFTXQLEN:
+		case SIOCGMIIPHY:
+		case SIOCGMIIREG:
 			if (copy_to_user(uifr32, &ifr, sizeof(*uifr32)))
 				return -EFAULT;
 			break;
