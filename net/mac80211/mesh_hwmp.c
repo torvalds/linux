@@ -686,6 +686,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	orig_addr = rann->rann_addr;
 	orig_dsn = rann->rann_seq;
 	hopcount = rann->rann_hopcount;
+	hopcount++;
 	metric = rann->rann_metric;
 	mhwmp_dbg("received RANN from %pM\n", orig_addr);
 
@@ -706,7 +707,8 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_dsn),
 				       0, NULL, 0, sdata->dev->broadcast,
-				       hopcount, ttl, 0, cpu_to_le32(metric),
+				       hopcount, ttl, 0,
+				       cpu_to_le32(metric + mpath->metric),
 				       0, sdata);
 		mpath->dsn = orig_dsn;
 	}
