@@ -253,51 +253,6 @@ static const char fsg_string_interface[] = "Mass Storage";
 /*-------------------------------------------------------------------------*/
 
 
-/* Encapsulate the module parameter settings */
-
-static struct {
-	char		*file[FSG_MAX_LUNS];
-	int		ro[FSG_MAX_LUNS];
-	unsigned int	num_filenames;
-	unsigned int	num_ros;
-	unsigned int	nluns;
-
-	int		removable;
-	int		can_stall;
-	int		cdrom;
-
-	unsigned short	release;
-} mod_data = {					// Default values
-	.removable		= 0,
-	.can_stall		= 1,
-	.cdrom			= 0,
-	.release		= 0xffff,
-	};
-
-
-module_param_array_named(file, mod_data.file, charp, &mod_data.num_filenames,
-		S_IRUGO);
-MODULE_PARM_DESC(file, "names of backing files or devices");
-
-module_param_array_named(ro, mod_data.ro, bool, &mod_data.num_ros, S_IRUGO);
-MODULE_PARM_DESC(ro, "true to force read-only");
-
-module_param_named(luns, mod_data.nluns, uint, S_IRUGO);
-MODULE_PARM_DESC(luns, "number of LUNs");
-
-module_param_named(removable, mod_data.removable, bool, S_IRUGO);
-MODULE_PARM_DESC(removable, "true to simulate removable media");
-
-module_param_named(stall, mod_data.can_stall, bool, S_IRUGO);
-MODULE_PARM_DESC(stall, "false to prevent bulk stalls");
-
-module_param_named(cdrom, mod_data.cdrom, bool, S_IRUGO);
-MODULE_PARM_DESC(cdrom, "true to emulate cdrom instead of disk");
-
-
-/*-------------------------------------------------------------------------*/
-
-
 /* Data shared by all the FSG instances. */
 struct fsg_common {
 	struct usb_gadget	*gadget;
@@ -317,9 +272,31 @@ struct fsg_common {
 	struct fsg_lun		*luns;
 	struct fsg_lun		*curlun;
 
+	unsigned int		can_stall:1;
 	unsigned int		free_storage_on_release:1;
 
+	/* Vendor (8 chars), product (16 chars), release (4
+	 * hexadecimal digits) and NUL byte */
+	char inquiry_string[8 + 16 + 4 + 1];
+
 	struct kref		ref;
+};
+
+
+struct fsg_config {
+	unsigned nluns;
+	struct fsg_lun_config {
+		const char *filename;
+		char ro;
+		char removable;
+		char cdrom;
+	} luns[FSG_MAX_LUNS];
+
+	const char *vendor_name;		/*  8 characters or less */
+	const char *product_name;		/* 16 characters or less */
+	u16 release;
+
+	char			can_stall;
 };
 
 
@@ -351,6 +328,7 @@ struct fsg_dev {
 	unsigned int		phase_error : 1;
 	unsigned int		short_packet_received : 1;
 	unsigned int		bad_lun_okay : 1;
+	unsigned int		can_stall : 1;
 
 	unsigned long		atomic_bitflags;
 #define REGISTERED		0
@@ -1065,13 +1043,10 @@ static int do_verify(struct fsg_dev *fsg)
 
 static int do_inquiry(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 {
+	struct fsg_lun *curlun = fsg->common->curlun;
 	u8	*buf = (u8 *) bh->buf;
 
-	static char vendor_id[] = "Linux   ";
-	static char product_disk_id[] = "File-Stor Gadget";
-	static char product_cdrom_id[] = "File-CD Gadget  ";
-
-	if (!fsg->common->curlun) {		// Unsupported LUNs are okay
+	if (!curlun) {		/* Unsupported LUNs are okay */
 		fsg->bad_lun_okay = 1;
 		memset(buf, 0, 36);
 		buf[0] = 0x7f;		// Unsupported, no device-type
@@ -1079,18 +1054,16 @@ static int do_inquiry(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		return 36;
 	}
 
-	memset(buf, 0, 8);
-	buf[0] = (mod_data.cdrom ? TYPE_CDROM : TYPE_DISK);
-	if (mod_data.removable)
-		buf[1] = 0x80;
+	buf[0] = curlun->cdrom ? TYPE_CDROM : TYPE_DISK;
+	buf[1] = curlun->removable ? 0x80 : 0;
 	buf[2] = 2;		// ANSI SCSI level 2
 	buf[3] = 2;		// SCSI-2 INQUIRY data format
 	buf[4] = 31;		// Additional length
-				// No special options
-	sprintf(buf + 8, "%-8s%-16s%04x", vendor_id,
-			(mod_data.cdrom ? product_cdrom_id :
-				product_disk_id),
-			mod_data.release);
+	buf[5] = 0;		// No special options
+	buf[6] = 0;
+	buf[7] = 0;
+	memcpy(buf + 8, fsg->common->inquiry_string,
+	       sizeof fsg->common->inquiry_string);
 	return 36;
 }
 
@@ -1303,7 +1276,9 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 
 static int do_start_stop(struct fsg_dev *fsg)
 {
-	if (!mod_data.removable) {
+	if (!fsg->common->curlun) {
+		return -EINVAL;
+	} else if (!fsg->common->curlun->removable) {
 		fsg->common->curlun->sense_data = SS_INVALID_COMMAND;
 		return -EINVAL;
 	}
@@ -1316,8 +1291,10 @@ static int do_prevent_allow(struct fsg_dev *fsg)
 	struct fsg_lun	*curlun = fsg->common->curlun;
 	int		prevent;
 
-	if (!mod_data.removable) {
-		curlun->sense_data = SS_INVALID_COMMAND;
+	if (!fsg->common->curlun) {
+		return -EINVAL;
+	} else if (!fsg->common->curlun->removable) {
+		fsg->common->curlun->sense_data = SS_INVALID_COMMAND;
 		return -EINVAL;
 	}
 
@@ -1505,7 +1482,7 @@ static int finish_reply(struct fsg_dev *fsg)
 	 * try to send or receive any data.  So stall both bulk pipes
 	 * if we can and wait for a reset. */
 	case DATA_DIR_UNKNOWN:
-		if (mod_data.can_stall) {
+		if (fsg->can_stall) {
 			fsg_set_halt(fsg, fsg->bulk_out);
 			rc = halt_bulk_in_endpoint(fsg);
 		}
@@ -1526,7 +1503,7 @@ static int finish_reply(struct fsg_dev *fsg)
 		/* For Bulk-only, if we're allowed to stall then send the
 		 * short packet and halt the bulk-in endpoint.  If we can't
 		 * stall, pad out the remaining data with 0's. */
-		} else if (mod_data.can_stall) {
+		} else if (fsg->can_stall) {
 			bh->inreq->zero = 1;
 			start_transfer(fsg, fsg->bulk_in, bh->inreq,
 				       &bh->inreq_busy, &bh->state);
@@ -1556,7 +1533,7 @@ static int finish_reply(struct fsg_dev *fsg)
 		 * STALL.  Not realizing the endpoint was halted, it wouldn't
 		 * clear the halt -- leading to problems later on. */
 #if 0
-		else if (mod_data.can_stall) {
+		else if (fsg->can_stall) {
 			fsg_set_halt(fsg, fsg->bulk_out);
 			raise_exception(fsg, FSG_STATE_ABORT_BULK_OUT);
 			rc = -EINTR;
@@ -1866,7 +1843,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_HEADER:
-		if (!mod_data.cdrom)
+		if (!fsg->common->curlun || !fsg->common->curlun->cdrom)
 			goto unknown_cmnd;
 		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
@@ -1876,7 +1853,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_READ_TOC:
-		if (!mod_data.cdrom)
+		if (!fsg->common->curlun || !fsg->common->curlun->cdrom)
 			goto unknown_cmnd;
 		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
@@ -2043,7 +2020,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 
 		/* We can do anything we want here, so let's stall the
 		 * bulk pipes if we are allowed to. */
-		if (mod_data.can_stall) {
+		if (fsg->can_stall) {
 			fsg_set_halt(fsg, fsg->bulk_out);
 			halt_bulk_in_endpoint(fsg);
 		}
@@ -2499,18 +2476,18 @@ static inline void fsg_common_put(struct fsg_common *common)
 
 
 static struct fsg_common *fsg_common_init(struct fsg_common *common,
-					  struct usb_composite_dev *cdev)
+					  struct usb_composite_dev *cdev,
+					  struct fsg_config *cfg)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct fsg_buffhd *bh;
 	struct fsg_lun *curlun;
+	struct fsg_lun_config *lcfg;
 	int nluns, i, rc;
 	char *pathbuf;
 
 	/* Find out how many LUNs there should be */
-	nluns = mod_data.nluns;
-	if (nluns == 0)
-		nluns = max(mod_data.num_filenames, 1u);
+	nluns = cfg->nluns;
 	if (nluns < 1 || nluns > FSG_MAX_LUNS) {
 		dev_err(&gadget->dev, "invalid number of LUNs: %u\n", nluns);
 		return ERR_PTR(-EINVAL);
@@ -2539,10 +2516,10 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 
 	init_rwsem(&common->filesem);
 
-	for (i = 0; i < nluns; ++i, ++curlun) {
-		curlun->cdrom = !!mod_data.cdrom;
-		curlun->ro = mod_data.cdrom || mod_data.ro[i];
-		curlun->removable = mod_data.removable;
+	for (i = 0, lcfg = cfg->luns; i < nluns; ++i, ++curlun, ++lcfg) {
+		curlun->cdrom = !!lcfg->cdrom;
+		curlun->ro = lcfg->cdrom || lcfg->ro;
+		curlun->removable = lcfg->removable;
 		curlun->dev.release = fsg_lun_release;
 		curlun->dev.parent = &gadget->dev;
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
@@ -2564,11 +2541,11 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		if (rc)
 			goto error_luns;
 
-		if (mod_data.file[i] && *mod_data.file[i]) {
-			rc = fsg_lun_open(curlun, mod_data.file[i]);
+		if (lcfg->filename) {
+			rc = fsg_lun_open(curlun, lcfg->filename);
 			if (rc)
 				goto error_luns;
-		} else if (!mod_data.removable) {
+		} else if (!curlun->removable) {
 			ERROR(common, "no file given for LUN%d\n", i);
 			rc = -EINVAL;
 			goto error_luns;
@@ -2588,33 +2565,40 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	bh->next = common->buffhds;
 
 
-	/* Release */
-	if (mod_data.release == 0xffff) {	// Parameter wasn't set
-		int	gcnum;
-
+	/* Prepare inquiryString */
+	if (cfg->release != 0xffff) {
+		i = cfg->release;
+	} else {
 		/* The sa1100 controller is not supported */
-		if (gadget_is_sa1100(gadget))
-			gcnum = -1;
-		else
-			gcnum = usb_gadget_controller_number(gadget);
-		if (gcnum >= 0)
-			mod_data.release = 0x0300 + gcnum;
-		else {
+		i = gadget_is_sa1100(gadget)
+			? -1
+			: usb_gadget_controller_number(gadget);
+		if (i >= 0) {
+			i = 0x0300 + i;
+		} else {
 			WARNING(common, "controller '%s' not recognized\n",
 				gadget->name);
-			WARNING(common, "controller '%s' not recognized\n",
-				gadget->name);
-			mod_data.release = 0x0399;
+			i = 0x0399;
 		}
 	}
+#define OR(x, y) ((x) ? (x) : (y))
+	snprintf(common->inquiry_string, sizeof common->inquiry_string,
+		 "%-8s%-16s%04x",
+		 OR(cfg->vendor_name, "Linux   "),
+		 /* Assume product name dependent on the first LUN */
+		 OR(cfg->product_name, common->luns->cdrom
+				     ? "File-Stor Gadget"
+				     : "File-CD Gadget  "),
+		 i);
+#undef OR
 
 
 	/* Some peripheral controllers are known not to be able to
 	 * halt bulk endpoints correctly.  If one of them is present,
 	 * disable stalls.
 	 */
-	if (gadget_is_sh(fsg->gadget) || gadget_is_at91(fsg->gadget))
-		mod_data.can_stall = 0;
+	common->can_stall = cfg->can_stall &&
+		!(gadget_is_sh(fsg->gadget) || gadget_is_at91(fsg->gadget));
 
 
 	kref_init(&common->ref);
@@ -2820,6 +2804,7 @@ static int fsg_add(struct usb_composite_dev *cdev,
 	 * from this function.  So instead of incrementing counter now
 	 * and decrement in error recovery we increment it only when
 	 * call to usb_add_function() was successful. */
+	fsg->can_stall = common->can_stall;
 
 	rc = usb_add_function(c, &fsg->function);
 
@@ -2830,3 +2815,95 @@ static int fsg_add(struct usb_composite_dev *cdev,
 
 	return rc;
 }
+
+
+
+/************************* Module parameters *************************/
+
+
+struct fsg_module_parameters {
+	char		*file[FSG_MAX_LUNS];
+	int		ro[FSG_MAX_LUNS];
+	int		removable[FSG_MAX_LUNS];
+	int		cdrom[FSG_MAX_LUNS];
+
+	unsigned int	file_count, ro_count, removable_count, cdrom_count;
+	unsigned int	luns;	/* nluns */
+	int		stall;	/* can_stall */
+};
+
+
+#define _FSG_MODULE_PARAM_ARRAY(prefix, params, name, type, desc)	\
+	module_param_array_named(prefix ## name, params.name, type,	\
+				 &prefix ## params.name ## _count,	\
+				 S_IRUGO);				\
+	MODULE_PARM_DESC(prefix ## name, desc)
+
+#define _FSG_MODULE_PARAM(prefix, params, name, type, desc)		\
+	module_param_named(prefix ## name, params.name, type,		\
+			   S_IRUGO);					\
+	MODULE_PARM_DESC(prefix ## name, desc)
+
+#define FSG_MODULE_PARAMETERS(prefix, params)				\
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, file, charp,		\
+				"names of backing files or devices");	\
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, ro, bool,		\
+				"true to force read-only");		\
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, removable, bool,	\
+				"true to simulate removable media");	\
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, cdrom, bool,		\
+				"true to simulate CD-ROM instead of disk"); \
+	_FSG_MODULE_PARAM(prefix, params, luns, uint,			\
+			  "number of LUNs");				\
+	_FSG_MODULE_PARAM(prefix, params, stall, bool,			\
+			  "false to prevent bulk stalls")
+
+
+static void
+fsg_config_from_params(struct fsg_config *cfg,
+		       const struct fsg_module_parameters *params)
+{
+	struct fsg_lun_config *lun;
+	unsigned i, nluns;
+
+	/* Configure LUNs */
+	nluns = cfg->nluns = !params->luns
+		? params->file_count ? params->file_count : 1
+		: params->luns;
+	for (i = 0, lun = cfg->luns;
+	     i < FSG_MAX_LUNS && i < nluns;
+	     ++i, ++lun) {
+		lun->ro = !!params->ro[i];
+		lun->cdrom = !!params->cdrom[i];
+		lun->removable =
+			params->removable_count <= i || params->removable[i];
+		lun->filename =
+			params->file_count > i && params->file[i][0]
+			? params->file[i]
+			: 0;
+	}
+
+	/* Let FSG use defaults */
+	cfg->vendor_name = 0;
+	cfg->product_name = 0;
+	cfg->release = 0xffff;
+
+	/* Finalise */
+	cfg->can_stall = params->stall;
+}
+
+static inline struct fsg_common *
+fsg_common_from_params(struct fsg_common *common,
+		       struct usb_composite_dev *cdev,
+		       const struct fsg_module_parameters *params)
+	__attribute__((unused));
+static inline struct fsg_common *
+fsg_common_from_params(struct fsg_common *common,
+		       struct usb_composite_dev *cdev,
+		       const struct fsg_module_parameters *params)
+{
+	struct fsg_config cfg;
+	fsg_config_from_params(&cfg, params);
+	return fsg_common_init(common, cdev, &cfg);
+}
+

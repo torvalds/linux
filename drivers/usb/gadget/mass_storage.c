@@ -127,6 +127,11 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 /****************************** Configurations ******************************/
 
+static struct fsg_module_parameters mod_data = {
+	.stall = 1
+};
+FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
+
 static int __init msg_do_config(struct usb_configuration *c)
 {
 	struct fsg_common *common;
@@ -137,7 +142,7 @@ static int __init msg_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	common = fsg_common_init(0, c->cdev);
+	common = fsg_common_from_params(0, c->cdev, &mod_data);
 	if (IS_ERR(common))
 		return PTR_ERR(common);
 
