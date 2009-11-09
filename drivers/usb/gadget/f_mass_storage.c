@@ -233,7 +233,7 @@
 
 
 
-/*-------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
 #define FSG_DRIVER_VERSION	"20 November 2008"
@@ -275,6 +275,8 @@ struct fsg_common {
 	unsigned int		can_stall:1;
 	unsigned int		free_storage_on_release:1;
 
+	const char		*thread_name;
+
 	/* Vendor (8 chars), product (16 chars), release (4
 	 * hexadecimal digits) and NUL byte */
 	char inquiry_string[8 + 16 + 4 + 1];
@@ -291,6 +293,9 @@ struct fsg_config {
 		char removable;
 		char cdrom;
 	} luns[FSG_MAX_LUNS];
+
+	const char		*lun_name_format;
+	const char		*thread_name;
 
 	const char *vendor_name;		/*  8 characters or less */
 	const char *product_name;		/* 16 characters or less */
@@ -2524,8 +2529,11 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		curlun->dev.parent = &gadget->dev;
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
 		dev_set_drvdata(&curlun->dev, &common->filesem);
-		dev_set_name(&curlun->dev,"%s-lun%d",
-			     dev_name(&gadget->dev), i);
+		dev_set_name(&curlun->dev,
+			     cfg->lun_name_format
+			   ? cfg->lun_name_format
+			   : "lun%d",
+			     i);
 
 		rc = device_register(&curlun->dev);
 		if (rc) {
@@ -2590,7 +2598,6 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 				     ? "File-Stor Gadget"
 				     : "File-CD Gadget  "),
 		 i);
-#undef OR
 
 
 	/* Some peripheral controllers are known not to be able to
@@ -2601,7 +2608,10 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		!(gadget_is_sh(fsg->gadget) || gadget_is_at91(fsg->gadget));
 
 
+	common->thread_name = OR(cfg->thread_name, "file-storage");
 	kref_init(&common->ref);
+#undef OR
+
 
 	/* Information */
 	INFO(common, FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
@@ -2741,7 +2751,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 
 
 	fsg->thread_task = kthread_create(fsg_main_thread, fsg,
-			"file-storage-gadget");
+					  fsg->common->thread_name);
 	if (IS_ERR(fsg->thread_task)) {
 		rc = PTR_ERR(fsg->thread_task);
 		goto out;
@@ -2884,6 +2894,8 @@ fsg_config_from_params(struct fsg_config *cfg,
 	}
 
 	/* Let FSG use defaults */
+	cfg->lun_name_format = 0;
+	cfg->thread_name = 0;
 	cfg->vendor_name = 0;
 	cfg->product_name = 0;
 	cfg->release = 0xffff;
