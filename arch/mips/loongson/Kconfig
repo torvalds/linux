@@ -28,4 +28,33 @@ config LEMOTE_FULOONG2E
 	  an FPGA northbridge
 
 	  Lemote Fuloong(2e) mini PC have a VIA686B south bridge.
+
+config LEMOTE_MACH2F
+	bool "Lemote Loongson 2F family machines"
+	select ARCH_SPARSEMEM_ENABLE
+	select BOARD_SCACHE
+	select BOOT_ELF32
+	select CEVT_R4K
+	select CPU_HAS_WB
+	select CS5536
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select HW_HAS_PCI
+	select I8259
+	select IRQ_CPU
+	select ISA
+	select SYS_HAS_CPU_LOONGSON2F
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	help
+	  Lemote Loongson 2F family machines utilize the 2F revision of
+	  Loongson processor and the AMD CS5536 south bridge.
+
+	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
+	  LingLoong allinone PC and so forth.
 endchoice

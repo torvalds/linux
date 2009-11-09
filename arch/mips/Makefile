@@ -327,6 +327,7 @@ core-$(CONFIG_MACH_LOONGSON) +=arch/mips/loongson/
 cflags-$(CONFIG_MACH_LOONGSON) += -I$(srctree)/arch/mips/include/asm/mach-loongson \
                     -mno-branch-likely
 load-$(CONFIG_LEMOTE_FULOONG2E) +=0xffffffff80100000
+load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
 
 #
 # MIPS Malta board
