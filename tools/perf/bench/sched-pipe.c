@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <sys/types.h>
 
 #define LOOPS_DEFAULT 1000000
 static int loops = LOOPS_DEFAULT;
@@ -58,8 +59,8 @@ int bench_sched_pipe(int argc, const char **argv,
 	 * discarding returned value of read(), write()
 	 * causes error in building environment for perf
 	 */
-	int ret;
-	pid_t pid;
+	int ret, wait_stat;
+	pid_t pid, retpid;
 
 	argc = parse_options(argc, argv, options,
 			     bench_sched_pipe_usage, 0);
@@ -87,8 +88,11 @@ int bench_sched_pipe(int argc, const char **argv,
 	gettimeofday(&stop, NULL);
 	timersub(&stop, &start, &diff);
 
-	if (pid)
+	if (pid) {
+		retpid = waitpid(pid, &wait_stat, 0);
+		assert((retpid == pid) && WIFEXITED(wait_stat));
 		return 0;
+	}
 
 	if (simple)
 		printf("%lu.%03lu\n",
