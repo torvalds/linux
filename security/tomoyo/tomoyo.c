@@ -122,15 +122,7 @@ static char *tomoyo_sysctl_path(struct ctl_table *table)
 	*--end = '\0';
 	buflen--;
 	while (table) {
-		char num[32];
-		const char *sp = table->procname;
-
-		if (!sp) {
-			memset(num, 0, sizeof(num));
-			snprintf(num, sizeof(num) - 1, "=%d=", table->ctl_name);
-			sp = num;
-		}
-		if (tomoyo_prepend(&end, &buflen, sp) ||
+		if (tomoyo_prepend(&end, &buflen, table->procname) ||
 		    tomoyo_prepend(&end, &buflen, "/"))
 			goto out;
 		table = table->parent;
