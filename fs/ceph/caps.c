@@ -609,7 +609,8 @@ retry:
 	cap->seq = seq;
 	cap->issue_seq = seq;
 	cap->mseq = mseq;
-	cap->gen = session->s_cap_gen;
+	cap->cap_gen = session->s_cap_gen;
+	cap->recon_gen = session->s_recon_gen;
 
 	if (fmode >= 0)
 		__ceph_get_fmode(ci, fmode);
@@ -626,17 +627,25 @@ retry:
 static int __cap_is_valid(struct ceph_cap *cap)
 {
 	unsigned long ttl;
-	u32 gen;
+	u32 gen, recon_gen;
 
 	spin_lock(&cap->session->s_cap_lock);
 	gen = cap->session->s_cap_gen;
+	recon_gen = cap->session->s_recon_gen;
 	ttl = cap->session->s_cap_ttl;
 	spin_unlock(&cap->session->s_cap_lock);
 
-	if (cap->gen < gen || time_after_eq(jiffies, ttl)) {
+	if (cap->recon_gen != recon_gen) {
+		dout("__cap_is_valid %p cap %p issued %s "
+		     "but DEAD (recon_gen %u vs %u)\n", &cap->ci->vfs_inode,
+		     cap, ceph_cap_string(cap->issued), cap->recon_gen,
+		     recon_gen);
+		return 0;
+	}
+	if (cap->cap_gen < gen || time_after_eq(jiffies, ttl)) {
 		dout("__cap_is_valid %p cap %p issued %s "
 		     "but STALE (gen %u vs %u)\n", &cap->ci->vfs_inode,
-		     cap, ceph_cap_string(cap->issued), cap->gen, gen);
+		     cap, ceph_cap_string(cap->issued), cap->cap_gen, gen);
 		return 0;
 	}
 
@@ -2203,7 +2212,8 @@ restart:
 	issued = __ceph_caps_issued(ci, &implemented);
 	issued |= implemented | __ceph_caps_dirty(ci);
 
-	cap->gen = session->s_cap_gen;
+	cap->cap_gen = session->s_cap_gen;
+	cap->recon_gen = session->s_recon_gen;
 
 	__check_cap_issue(ci, cap, newcaps);
 

@@ -329,6 +329,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	ceph_con_open(&s->s_con, ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
 
 	spin_lock_init(&s->s_cap_lock);
+	s->s_recon_gen = 0;
 	s->s_cap_gen = 0;
 	s->s_cap_ttl = 0;
 	s->s_renew_requested = 0;
@@ -738,10 +739,11 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 	struct ceph_mds_session *session = arg;
 
 	spin_lock(&inode->i_lock);
-	if (cap->gen != session->s_cap_gen) {
+	if (cap->recon_gen != session->s_recon_gen) {
 		pr_err("failed reconnect %p %llx.%llx cap %p "
-		       "(gen %d < session %d)\n", inode, ceph_vinop(inode),
-		       cap, cap->gen, session->s_cap_gen);
+		       "(recon_gen %d < session %d)\n", inode,
+		       ceph_vinop(inode), cap,
+		       cap->recon_gen, session->s_recon_gen);
 		__ceph_remove_cap(cap, NULL);
 	}
 	wake_up(&ceph_inode(inode)->i_cap_wq);
@@ -2050,6 +2052,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 
 		session->s_state = CEPH_MDS_SESSION_RECONNECTING;
 		session->s_seq = 0;
+		session->s_recon_gen++;
 
 		ceph_con_open(&session->s_con,
 			      ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
