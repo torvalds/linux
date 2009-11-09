@@ -569,16 +569,27 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	reg_w(gspca_dev, 0xff, 0x04);
-	reg_w(gspca_dev, 0x27, 0x80);
-	reg_w(gspca_dev, 0x28, 0xca);
-	reg_w(gspca_dev, 0x29, 0x53);
-	reg_w(gspca_dev, 0x2a, 0x0e);
-	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x3e, 0x20);
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	int ret;
+
+	ret = reg_w(gspca_dev, 0xff, 0x04);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x27, 0x80);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x28, 0xca);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x29, 0x53);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x2a, 0x0e);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0xff, 0x01);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x3e, 0x20);
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	if (0 <= ret)
+		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
 /* called on streamoff with alt 0 and on disconnect for 7311 */
