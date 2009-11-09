@@ -35,7 +35,6 @@ static int use_pipes = 0;
 static unsigned int loops = 100;
 static unsigned int thread_mode = 0;
 static unsigned int num_groups = 10;
-static int simple = 0;
 
 struct sender_context {
 	unsigned int num_fds;
@@ -261,9 +260,6 @@ static const struct option options[] = {
 		    "Specify number of groups"),
 	OPT_INTEGER('l', "loop", &loops,
 		    "Specify number of loops"),
-	OPT_BOOLEAN('s', "simple-output", &simple,
-		    "Do simple output (this maybe useful for"
-		    "processing by scripts or graph tools like gnuplot)"),
 	OPT_END()
 };
 
@@ -316,9 +312,8 @@ int bench_sched_messaging(int argc, const char **argv,
 
 	timersub(&stop, &start, &diff);
 
-	if (simple)
-		printf("%lu.%03lu\n", diff.tv_sec, diff.tv_usec/1000);
-	else {
+	switch (bench_format) {
+	case BENCH_FORMAT_DEFAULT:
 		printf("(%d sender and receiver %s per group)\n",
 		       num_fds, thread_mode ? "threads" : "processes");
 		printf("(%d groups == %d %s run)\n\n",
@@ -326,6 +321,15 @@ int bench_sched_messaging(int argc, const char **argv,
 		       thread_mode ? "threads" : "processes");
 		printf("\tTotal time:%lu.%03lu sec\n",
 		       diff.tv_sec, diff.tv_usec/1000);
+		break;
+	case BENCH_FORMAT_SIMPLE:
+		printf("%lu.%03lu\n", diff.tv_sec, diff.tv_usec/1000);
+		break;
+	default:
+		/* reaching here is something disaster */
+		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		exit(1);
+		break;
 	}
 
 	return 0;
