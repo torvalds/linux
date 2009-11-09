@@ -19,6 +19,9 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
+
+#include <linux/interrupt.h>
+
 #ifdef CONFIG_XFRM_STATISTICS
 #include <net/snmp.h>
 #endif
@@ -198,7 +201,7 @@ struct xfrm_state {
 	struct xfrm_stats	stats;
 
 	struct xfrm_lifetime_cur curlft;
-	struct timer_list	timer;
+	struct tasklet_hrtimer	mtimer;
 
 	/* Last used time */
 	unsigned long		lastused;
