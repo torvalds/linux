@@ -1405,7 +1405,9 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	return 0;
 
 destroy_ringbuffer:
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
 }
