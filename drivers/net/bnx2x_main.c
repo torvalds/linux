@@ -4928,21 +4928,21 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SB_HC_TIMEOUT_U_OFFSET(port, sb_id,
 						      U_SB_ETH_RX_CQ_INDEX),
-			bp->rx_ticks/12);
+			bp->rx_ticks/(4 * BNX2X_BTR));
 		REG_WR16(bp, BAR_CSTRORM_INTMEM +
 			 CSTORM_SB_HC_DISABLE_U_OFFSET(port, sb_id,
 						       U_SB_ETH_RX_CQ_INDEX),
-			 (bp->rx_ticks/12) ? 0 : 1);
+			 (bp->rx_ticks/(4 * BNX2X_BTR)) ? 0 : 1);
 
 		/* HC_INDEX_C_ETH_TX_CQ_CONS */
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SB_HC_TIMEOUT_C_OFFSET(port, sb_id,
 						      C_SB_ETH_TX_CQ_INDEX),
-			bp->tx_ticks/12);
+			bp->tx_ticks/(4 * BNX2X_BTR));
 		REG_WR16(bp, BAR_CSTRORM_INTMEM +
 			 CSTORM_SB_HC_DISABLE_C_OFFSET(port, sb_id,
 						       C_SB_ETH_TX_CQ_INDEX),
-			 (bp->tx_ticks/12) ? 0 : 1);
+			 (bp->tx_ticks/(4 * BNX2X_BTR)) ? 0 : 1);
 	}
 }
 
@@ -9016,8 +9016,9 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->rx_csum = 1;
 
-	bp->tx_ticks = 50;
-	bp->rx_ticks = 25;
+	/* make sure that the numbers are in the right granularity */
+	bp->tx_ticks = (50 / (4 * BNX2X_BTR)) * (4 * BNX2X_BTR);
+	bp->rx_ticks = (25 / (4 * BNX2X_BTR)) * (4 * BNX2X_BTR);
 
 	timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
 	bp->current_interval = (poll ? poll : timer_interval);

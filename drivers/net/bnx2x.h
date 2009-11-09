@@ -1191,7 +1191,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
 
 
-#define BNX2X_BTR			3
+#define BNX2X_BTR			1
 #define MAX_SPQ_PENDING			8
 
 
