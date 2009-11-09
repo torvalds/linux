@@ -445,30 +445,28 @@ s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 	 * OFDM Power in dBm = Index * 0.5 + 0
 	 * CCK Power in dBm = Index * 0.25 + 13
 	 */
-	if (priv->card_8185 >= VERSION_8187S_B) {
-		s32 tmp = 0;
+	s32 tmp = 0;
 
-		if (WirelessMode == WIRELESS_MODE_G) {
-			bUseDefault = false;
-			tmp = (2 * PowerInDbm);
+	if (WirelessMode == WIRELESS_MODE_G) {
+		bUseDefault = false;
+		tmp = (2 * PowerInDbm);
 
-			if (tmp < 0)
-				TxPwrIdx = 0;
-			else if (tmp > 40) /* 40 means 20 dBm. */
-				TxPwrIdx = 40;
-			else
-				TxPwrIdx = (s8)tmp;
-		} else if (WirelessMode == WIRELESS_MODE_B) {
-			bUseDefault = false;
-			tmp = (4 * PowerInDbm) - 52;
+		if (tmp < 0)
+			TxPwrIdx = 0;
+		else if (tmp > 40) /* 40 means 20 dBm. */
+			TxPwrIdx = 40;
+		else
+			TxPwrIdx = (s8)tmp;
+	} else if (WirelessMode == WIRELESS_MODE_B) {
+		bUseDefault = false;
+		tmp = (4 * PowerInDbm) - 52;
 
-			if(tmp < 0)
-				TxPwrIdx = 0;
-			else if (tmp > 28) /* 28 means 20 dBm. */
-				TxPwrIdx = 28;
-			else
-				TxPwrIdx = (s8)tmp;
-		}
+		if (tmp < 0)
+			TxPwrIdx = 0;
+		else if (tmp > 28) /* 28 means 20 dBm. */
+			TxPwrIdx = 28;
+		else
+			TxPwrIdx = (s8)tmp;
 	}
 
 	/*

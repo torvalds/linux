@@ -77,21 +77,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 } WIRELESS_MODE;
 
-typedef enum _VERSION_8185{
-	// RTL8185
-	VERSION_8185_UNKNOWN,
-	VERSION_8185_C, // C-cut
-	VERSION_8185_D, // D-cut
-	// RTL8185B
-	VERSION_8185B_B, // B-cut
-	VERSION_8185B_D, // D-cut
-	VERSION_8185B_E, // E-cut
-	//RTL8187S-PCIE
-	VERSION_8187S_B, // B-cut
-	VERSION_8187S_C, // C-cut
-	VERSION_8187S_D, // D-cut
-
-}VERSION_8185,*PVERSION_8185;
 typedef struct 	ChnlAccessSetting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
@@ -341,8 +326,6 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-        short card_8185; /* O: rtl8180, 1:rtl8185 V B/C, 2:rtl8185 V D, 3:rtl8185B */
-	short card_8185_Bversion; /* if TCR reports card V B/C this discriminates */
 	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
 	short enable_gpio0;
 	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;

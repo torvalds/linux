@@ -197,7 +197,6 @@ DIG_Zebra(
 	{ // Advised from SD3 DZ
 		priv->InitialGain = 4; // In 87B, m74dBm means State 4 (m82dBm)
 	}
-	//if(pHalData->VersionID != VERSION_8187B_B)
 	{ // Advised from SD3 DZ
 		OfdmFA1 =  0x20;
 	}
