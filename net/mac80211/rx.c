@@ -507,7 +507,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_is_action(hdr->frame_control)) {
 			mgmt = (struct ieee80211_mgmt *)hdr;
-			if (mgmt->u.action.category != PLINK_CATEGORY)
+			if (mgmt->u.action.category != MESH_PLINK_CATEGORY)
 				return RX_DROP_MONITOR;
 			return RX_CONTINUE;
 		}
