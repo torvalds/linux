@@ -1924,6 +1924,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Give the overlay scaler a chance to disable if it's on this pipe */
 		intel_crtc_dpms_overlay(intel_crtc, false);
+		drm_vblank_off(dev, pipe);
 
 		if (dev_priv->cfb_plane == plane &&
 		    dev_priv->display.disable_fbc)
