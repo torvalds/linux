@@ -806,10 +806,14 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	unsigned int tx_pin;
 	u8 bbp;
 
-	if (rt2x00_rev(&rt2x00dev->chip) != RT3070_VERSION)
-		rt2800_config_channel_rt2x(rt2x00dev, conf, rf, info);
-	else
+	if (rt2x00_rt(&rt2x00dev->chip, RT3070) &&
+	    (rt2x00_rf(&rt2x00dev->chip, RF2020) ||
+	     rt2x00_rf(&rt2x00dev->chip, RF3020) ||
+	     rt2x00_rf(&rt2x00dev->chip, RF3021) ||
+	     rt2x00_rf(&rt2x00dev->chip, RF3022)))
 		rt2800_config_channel_rt3x(rt2x00dev, conf, rf, info);
+	else
+		rt2800_config_channel_rt2x(rt2x00dev, conf, rf, info);
 
 	/*
 	 * Change BBP settings
