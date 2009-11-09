@@ -1092,7 +1092,8 @@ static struct usb_gadget_driver composite_driver = {
 	.speed		= USB_SPEED_HIGH,
 
 	.bind		= composite_bind,
-	.unbind		= __exit_p(composite_unbind),
+	/* .unbind		= __exit_p(composite_unbind), */
+	.unbind		= composite_unbind,
 
 	.setup		= composite_setup,
 	.disconnect	= composite_disconnect,
@@ -1141,7 +1142,7 @@ int __init usb_composite_register(struct usb_composite_driver *driver)
  * This function is used to unregister drivers using the composite
  * driver framework.
  */
-void __exit usb_composite_unregister(struct usb_composite_driver *driver)
+void /* __exit */ usb_composite_unregister(struct usb_composite_driver *driver)
 {
 	if (composite != driver)
 		return;
