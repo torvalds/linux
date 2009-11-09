@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
