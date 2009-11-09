@@ -361,15 +361,15 @@ struct ieee80211_if_mesh {
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;
 	/* Active Path Selection Protocol Identifier */
-	u8 mesh_pp_id[4];
+	u8 mesh_pp_id;
 	/* Active Path Selection Metric Identifier */
-	u8 mesh_pm_id[4];
+	u8 mesh_pm_id;
 	/* Congestion Control Mode Identifier */
-	u8 mesh_cc_id[4];
+	u8 mesh_cc_id;
 	/* Synchronization Protocol Identifier */
-	u8 mesh_sp_id[4];
+	u8 mesh_sp_id;
 	/* Authentication Protocol Identifier */
-	u8 mesh_auth_id[4];
+	u8 mesh_auth_id;
 	/* Local mesh Destination Sequence Number */
 	u32 dsn;
 	/* Last used PREQ ID */
