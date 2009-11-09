@@ -136,6 +136,7 @@ static int ksym_trace_get_access_type(char *str)
 		access |= HW_BREAKPOINT_X;
 
 	switch (access) {
+	case HW_BREAKPOINT_R:
 	case HW_BREAKPOINT_W:
 	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
 		return access;
@@ -239,7 +240,9 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
 		ret = trace_seq_printf(s, "%pS:", (void *)entry->ksym_addr);
-		if (entry->type == HW_BREAKPOINT_W)
+		if (entry->type == HW_BREAKPOINT_R)
+			ret = trace_seq_puts(s, "r--\n");
+		else if (entry->type == HW_BREAKPOINT_W)
 			ret = trace_seq_puts(s, "-w-\n");
 		else if (entry->type == (HW_BREAKPOINT_W | HW_BREAKPOINT_R))
 			ret = trace_seq_puts(s, "rw-\n");
@@ -414,6 +417,9 @@ static enum print_line_t ksym_trace_output(struct trace_iterator *iter)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	switch (field->type) {
+	case HW_BREAKPOINT_R:
+		ret = trace_seq_printf(s, " R  ");
+		break;
 	case HW_BREAKPOINT_W:
 		ret = trace_seq_printf(s, " W  ");
 		break;
@@ -488,6 +494,9 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 	access_type = entry->type;
 
 	switch (access_type) {
+	case HW_BREAKPOINT_R:
+		seq_puts(m, "  R           ");
+		break;
 	case HW_BREAKPOINT_W:
 		seq_puts(m, "  W           ");
 		break;
