@@ -181,7 +181,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		if (action == PLINK_CONFIRM) {
 			pos = skb_put(skb, 4);
 			/* two-byte status code followed by two-byte AID */
-			memset(pos, 0, 4);
+			memset(pos, 0, 2);
+			memcpy(pos + 2, &plid, 2);
 		}
 		mesh_mgmt_ies_add(skb, sdata);
 	}
