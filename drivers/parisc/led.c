@@ -352,11 +352,9 @@ static __inline__ int led_get_net_activity(void)
 
 	rx_total = tx_total = 0;
 	
-	/* we are running as a workqueue task, so locking dev_base 
-	 * for reading should be OK */
-	read_lock(&dev_base_lock);
+	/* we are running as a workqueue task, so we can use an RCU lookup */
 	rcu_read_lock();
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev_rcu(&init_net, dev) {
 	    const struct net_device_stats *stats;
 	    struct in_device *in_dev = __in_dev_get_rcu(dev);
 	    if (!in_dev || !in_dev->ifa_list)
@@ -368,7 +366,6 @@ static __inline__ int led_get_net_activity(void)
 	    tx_total += stats->tx_packets;
 	}
 	rcu_read_unlock();
-	read_unlock(&dev_base_lock);
 
 	retval = 0;
 
