@@ -38,6 +38,44 @@
 static struct sh_pmu sh4a_pmu;
 
 /*
+ * Supported raw event codes:
+ *
+ *	Event Code	Description
+ *	----------	-----------
+ *
+ *	0x0000		number of elapsed cycles
+ *	0x0200		number of elapsed cycles in privileged mode
+ *	0x0280		number of elapsed cycles while SR.BL is asserted
+ *	0x0202		instruction execution
+ *	0x0203		instruction execution in parallel
+ *	0x0204		number of unconditional branches
+ *	0x0208		number of exceptions
+ *	0x0209		number of interrupts
+ *	0x0220		UTLB miss caused by instruction fetch
+ *	0x0222		UTLB miss caused by operand access
+ *	0x02a0		number of ITLB misses
+ *	0x0028		number of accesses to instruction memories
+ *	0x0029		number of accesses to instruction cache
+ *	0x002a		instruction cache miss
+ *	0x022e		number of access to instruction X/Y memory
+ *	0x0030		number of reads to operand memories
+ *	0x0038		number of writes to operand memories
+ *	0x0031		number of operand cache read accesses
+ *	0x0039		number of operand cache write accesses
+ *	0x0032		operand cache read miss
+ *	0x003a		operand cache write miss
+ *	0x0236		number of reads to operand X/Y memory
+ *	0x023e		number of writes to operand X/Y memory
+ *	0x0237		number of reads to operand U memory
+ *	0x023f		number of writes to operand U memory
+ *	0x0337		number of U memory read buffer misses
+ *	0x02b4		number of wait cycles due to operand read access
+ *	0x02bc		number of wait cycles due to operand write access
+ *	0x0033		number of wait cycles due to operand cache read miss
+ *	0x003b		number of wait cycles due to operand cache write miss
+ */
+
+/*
  * Special reserved bits used by hardware emulators, read values will
  * vary, but writes must always be 0.
  */
