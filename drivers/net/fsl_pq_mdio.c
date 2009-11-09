@@ -462,3 +462,4 @@ void fsl_pq_mdio_exit(void)
 	of_unregister_platform_driver(&fsl_pq_mdio_driver);
 }
 module_exit(fsl_pq_mdio_exit);
+MODULE_LICENSE("GPL");
