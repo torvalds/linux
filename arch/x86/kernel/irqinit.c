@@ -123,7 +123,7 @@ void __init init_ISA_irqs(void)
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	init_bsp_APIC();
 #endif
-	init_8259A(0);
+	legacy_pic->init(0);
 
 	/*
 	 * 16 old-style INTA-cycle interrupts:

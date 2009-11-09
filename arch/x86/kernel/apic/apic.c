@@ -1390,7 +1390,7 @@ void __init enable_IR_x2apic(void)
 	}
 
 	local_irq_save(flags);
-	mask_8259A();
+	legacy_pic->mask_all();
 	mask_IO_APIC_setup(ioapic_entries);
 
 	if (dmar_table_init_ret)
@@ -1422,7 +1422,7 @@ void __init enable_IR_x2apic(void)
 nox2apic:
 	if (!ret) /* IR enabling failed */
 		restore_IO_APIC_setup(ioapic_entries);
-	unmask_8259A();
+	legacy_pic->restore_mask();
 	local_irq_restore(flags);
 
 out:
@@ -2018,7 +2018,7 @@ static int lapic_resume(struct sys_device *dev)
 		}
 
 		mask_IO_APIC_setup(ioapic_entries);
-		mask_8259A();
+		legacy_pic->mask_all();
 	}
 
 	if (x2apic_mode)
@@ -2062,7 +2062,7 @@ static int lapic_resume(struct sys_device *dev)
 
 	if (intr_remapping_enabled) {
 		reenable_intr_remapping(x2apic_mode);
-		unmask_8259A();
+		legacy_pic->restore_mask();
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}

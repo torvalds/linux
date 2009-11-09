@@ -26,11 +26,6 @@ extern unsigned int cached_irq_mask;
 
 extern spinlock_t i8259A_lock;
 
-extern void init_8259A(int auto_eoi);
-extern void enable_8259A_irq(unsigned int irq);
-extern void disable_8259A_irq(unsigned int irq);
-extern unsigned int startup_8259A_irq(unsigned int irq);
-
 /* the PIC may need a careful delay on some platforms, hence specific calls */
 static inline unsigned char inb_pic(unsigned int port)
 {
@@ -69,8 +64,5 @@ struct legacy_pic {
 
 extern struct legacy_pic *legacy_pic;
 extern struct legacy_pic null_legacy_pic;
-
-extern void mask_8259A(void);
-extern void unmask_8259A(void);
 
 #endif /* _ASM_X86_I8259_H */

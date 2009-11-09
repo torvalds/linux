@@ -34,6 +34,12 @@
 static int i8259A_auto_eoi;
 DEFINE_SPINLOCK(i8259A_lock);
 static void mask_and_ack_8259A(unsigned int);
+static void mask_8259A(void);
+static void unmask_8259A(void);
+static void disable_8259A_irq(unsigned int irq);
+static void enable_8259A_irq(unsigned int irq);
+static void init_8259A(int auto_eoi);
+static int i8259A_irq_pending(unsigned int irq);
 
 struct irq_chip i8259A_chip = {
 	.name		= "XT-PIC",
@@ -63,7 +69,7 @@ unsigned int cached_irq_mask = 0xffff;
  */
 unsigned long io_apic_irqs;
 
-void disable_8259A_irq(unsigned int irq)
+static void disable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask = 1 << irq;
 	unsigned long flags;
@@ -77,7 +83,7 @@ void disable_8259A_irq(unsigned int irq)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void enable_8259A_irq(unsigned int irq)
+static void enable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask = ~(1 << irq);
 	unsigned long flags;
@@ -91,7 +97,7 @@ void enable_8259A_irq(unsigned int irq)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-int i8259A_irq_pending(unsigned int irq)
+static int i8259A_irq_pending(unsigned int irq)
 {
 	unsigned int mask = 1<<irq;
 	unsigned long flags;
@@ -107,7 +113,7 @@ int i8259A_irq_pending(unsigned int irq)
 	return ret;
 }
 
-void make_8259A_irq(unsigned int irq)
+static void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
@@ -281,7 +287,7 @@ static int __init i8259A_init_sysfs(void)
 
 device_initcall(i8259A_init_sysfs);
 
-void mask_8259A(void)
+static void mask_8259A(void)
 {
 	unsigned long flags;
 
@@ -293,7 +299,7 @@ void mask_8259A(void)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void unmask_8259A(void)
+static void unmask_8259A(void)
 {
 	unsigned long flags;
 
@@ -305,7 +311,7 @@ void unmask_8259A(void)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void init_8259A(int auto_eoi)
+static void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
@@ -358,6 +364,7 @@ void init_8259A(int auto_eoi)
 
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
+
 /*
  * make i8259 a driver so that we can select pic functions at run time. the goal
  * is to make x86 binary compatible among pc compatible and non-pc compatible
