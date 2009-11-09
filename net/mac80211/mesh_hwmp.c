@@ -9,6 +9,12 @@
 
 #include "mesh.h"
 
+#ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG
+#define mhwmp_dbg(fmt, args...)   printk(KERN_DEBUG "Mesh HWMP: " fmt, ##args)
+#else
+#define mhwmp_dbg(fmt, args...)   do { (void)(0); } while (0)
+#endif
+
 #define TEST_FRAME_LEN	8192
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
@@ -109,11 +115,13 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 
 	switch (action) {
 	case MPATH_PREQ:
+		mhwmp_dbg("sending PREQ\n");
 		ie_len = 37;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREQ;
 		break;
 	case MPATH_PREP:
+		mhwmp_dbg("sending PREP\n");
 		ie_len = 31;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREP;
@@ -432,6 +440,8 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	orig_dsn = PREQ_IE_ORIG_DSN(preq_elem);
 	dst_flags = PREQ_IE_DST_F(preq_elem);
 
+	mhwmp_dbg("received PREQ\n");
+
 	if (memcmp(dst_addr, sdata->dev->dev_addr, ETH_ALEN) == 0) {
 		forward = false;
 		reply = true;
@@ -467,13 +477,14 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (reply) {
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
 		ttl = ifmsh->mshcfg.dot11MeshTTL;
-		if (ttl != 0)
+		if (ttl != 0) {
+			mhwmp_dbg("replying to the PREQ\n");
 			mesh_path_sel_frame_tx(MPATH_PREP, 0, dst_addr,
 				cpu_to_le32(dst_dsn), 0, orig_addr,
 				cpu_to_le32(orig_dsn), mgmt->sa, 0, ttl,
 				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, sdata);
-		else
+		} else
 			ifmsh->mshstats.dropped_frames_ttl++;
 	}
 
@@ -661,7 +672,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 
 	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_ATOMIC);
 	if (!preq_node) {
-		printk(KERN_DEBUG "Mesh HWMP: could not allocate PREQ node\n");
+		mhwmp_dbg("could not allocate PREQ node\n");
 		return;
 	}
 
@@ -670,7 +681,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 		spin_unlock(&ifmsh->mesh_preq_queue_lock);
 		kfree(preq_node);
 		if (printk_ratelimit())
-			printk(KERN_DEBUG "Mesh HWMP: PREQ node queue full\n");
+			mhwmp_dbg("PREQ node queue full\n");
 		return;
 	}
 
