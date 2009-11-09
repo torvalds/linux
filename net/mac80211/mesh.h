@@ -210,6 +210,11 @@ struct mesh_rmc {
 #define MESH_PATH_SEL_CATEGORY	32
 #define MESH_PATH_SEL_ACTION	0
 
+/* PERR reason codes */
+#define PEER_RCODE_UNSPECIFIED  11
+#define PERR_RCODE_NO_ROUTE     12
+#define PERR_RCODE_DEST_UNREACH 13
+
 /* Public interfaces */
 /* Various */
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
@@ -275,8 +280,8 @@ void mesh_mpp_table_grow(void);
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
 		struct mesh_table *tbl);
 /* Mesh paths */
-int mesh_path_error_tx(u8 *dest, __le32 dest_dsn, u8 *ra,
-		struct ieee80211_sub_if_data *sdata);
+int mesh_path_error_tx(u8 ttl, u8 *dest, __le32 dest_dsn, __le16 dest_rcode,
+		u8 *ra, struct ieee80211_sub_if_data *sdata);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);

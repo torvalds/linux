@@ -27,6 +27,10 @@
 #define MP_F_DO	0x1
 /* Reply and forward */
 #define MP_F_RF	0x2
+/* Unknown Sequence Number */
+#define MP_F_USN    0x01
+/* Reason code Present */
+#define MP_F_RCODE  0x02
 
 static void mesh_queue_preq(struct mesh_path *, u8);
 
@@ -35,6 +39,13 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 	if (ae)
 		offset += 6;
 	return get_unaligned_le32(preq_elem + offset);
+}
+
+static inline u32 u16_field_get(u8 *preq_elem, int offset, bool ae)
+{
+	if (ae)
+		offset += 6;
+	return get_unaligned_le16(preq_elem + offset);
 }
 
 /* HWMP IE processing macros */
@@ -63,8 +74,11 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 #define PREP_IE_DST_ADDR(x)	(AE_F_SET(x) ? x + 27 : x + 21)
 #define PREP_IE_DST_DSN(x)	u32_field_get(x, 27, AE_F_SET(x));
 
-#define PERR_IE_DST_ADDR(x)	(x + 2)
-#define PERR_IE_DST_DSN(x)	u32_field_get(x, 8, 0);
+#define PERR_IE_TTL(x)		(*(x))
+#define PERR_IE_DST_FLAGS(x)	(*(x + 2))
+#define PERR_IE_DST_ADDR(x)	(x + 3)
+#define PERR_IE_DST_DSN(x)	u32_field_get(x, 9, 0);
+#define PERR_IE_DST_RCODE(x)	u16_field_get(x, 13, 0);
 
 #define MSEC_TO_TU(x) (x*1000/1024)
 #define DSN_GT(x, y) ((long) (y) - (long) (x) < 0)
@@ -181,8 +195,8 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
  * @dst_dsn: dsn of the broken destination
  * @ra: node this frame is addressed to
  */
-int mesh_path_error_tx(u8 *dst, __le32 dst_dsn, u8 *ra,
-		struct ieee80211_sub_if_data *sdata)
+int mesh_path_error_tx(u8 ttl, u8 *dst, __le32 dst_dsn, __le16 dst_rcode,
+		u8 *ra, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
@@ -207,17 +221,29 @@ int mesh_path_error_tx(u8 *dst, __le32 dst_dsn, u8 *ra,
 	/* BSSID is left zeroed, wildcard value */
 	mgmt->u.action.category = MESH_PATH_SEL_CATEGORY;
 	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
-	ie_len = 12;
+	ie_len = 15;
 	pos = skb_put(skb, 2 + ie_len);
 	*pos++ = WLAN_EID_PERR;
 	*pos++ = ie_len;
-	/* mode flags, reserved */
-	*pos++ = 0;
+	/* ttl */
+	*pos++ = MESH_TTL;
 	/* number of destinations */
 	*pos++ = 1;
+	/*
+	 * flags bit, bit 1 is unset if we know the sequence number and
+	 * bit 2 is set if we have a reason code
+	 */
+	*pos = 0;
+	if (!dst_dsn)
+		*pos |= MP_F_USN;
+	if (dst_rcode)
+		*pos |= MP_F_RCODE;
+	pos++;
 	memcpy(pos, dst, ETH_ALEN);
 	pos += ETH_ALEN;
 	memcpy(pos, &dst_dsn, 4);
+	pos += 4;
+	memcpy(pos, &dst_rcode, 2);
 
 	ieee80211_tx_skb(sdata, skb, 1);
 	return 0;
@@ -598,13 +624,26 @@ fail:
 static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_mgmt *mgmt, u8 *perr_elem)
 {
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
+	u8 ttl;
 	u8 *ta, *dst_addr;
+	u8 dst_flags;
 	u32 dst_dsn;
+	u16 dst_rcode;
 
 	ta = mgmt->sa;
+	ttl = PERR_IE_TTL(perr_elem);
+	if (ttl <= 1) {
+		ifmsh->mshstats.dropped_frames_ttl++;
+		return;
+	}
+	ttl--;
+	dst_flags = PERR_IE_DST_FLAGS(perr_elem);
 	dst_addr = PERR_IE_DST_ADDR(perr_elem);
 	dst_dsn = PERR_IE_DST_DSN(perr_elem);
+	dst_rcode = PERR_IE_DST_RCODE(perr_elem);
+
 	rcu_read_lock();
 	mpath = mesh_path_lookup(dst_addr, sdata);
 	if (mpath) {
@@ -616,7 +655,8 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			mpath->dsn = dst_dsn;
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_error_tx(dst_addr, cpu_to_le32(dst_dsn),
+			mesh_path_error_tx(ttl, dst_addr, cpu_to_le32(dst_dsn),
+					   cpu_to_le16(dst_rcode),
 					   sdata->dev->broadcast, sdata);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
@@ -711,7 +751,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 						last_hop_metric);
 	}
 	if (elems.perr) {
-		if (elems.perr_len != 12)
+		if (elems.perr_len != 15)
 			/* Right now we support only one destination per PERR */
 			return;
 		hwmp_perr_frame_process(sdata, mgmt, elems.perr);
