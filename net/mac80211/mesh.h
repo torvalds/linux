@@ -53,11 +53,13 @@ enum mesh_path_flags {
  * to grow.
  * @MESH_WORK_GROW_MPP_TABLE: the mesh portals table is full and needs to
  * grow
+ * @MESH_WORK_ROOT: the mesh root station needs to send a frame
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
 	MESH_WORK_GROW_MPATH_TABLE,
 	MESH_WORK_GROW_MPP_TABLE,
+	MESH_WORK_ROOT,
 };
 
 /**
@@ -294,6 +296,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
 void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
 void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
+void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 extern int mesh_paths_generation;
 

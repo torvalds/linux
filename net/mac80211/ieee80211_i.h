@@ -355,6 +355,7 @@ struct ieee80211_if_mesh {
 	struct work_struct work;
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
+	struct timer_list mesh_path_root_timer;
 	struct sk_buff_head skb_queue;
 
 	unsigned long timers_running;

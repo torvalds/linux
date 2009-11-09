@@ -14,6 +14,7 @@
 
 #define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
+#define IEEE80211_MESH_RANN_INTERVAL	     (1 * HZ)
 
 #define MESHCONF_PP_OFFSET 	0		/* Path Selection Protocol */
 #define MESHCONF_PM_OFFSET	1		/* Path Selection Metric   */
@@ -26,6 +27,7 @@
 
 #define TMR_RUNNING_HK	0
 #define TMR_RUNNING_MP	1
+#define TMR_RUNNING_MPR	2
 
 int mesh_allocated;
 static struct kmem_cache *rm_cache;
@@ -354,6 +356,23 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 	ieee80211_queue_work(&local->hw, &ifmsh->work);
 }
 
+static void ieee80211_mesh_path_root_timer(unsigned long data)
+{
+	struct ieee80211_sub_if_data *sdata =
+		(struct ieee80211_sub_if_data *) data;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee80211_local *local = sdata->local;
+
+	set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
+
+	if (local->quiescing) {
+		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
+		return;
+	}
+
+	ieee80211_queue_work(&local->hw, &ifmsh->work);
+}
+
 /**
  * ieee80211_fill_mesh_addresses - fill addresses of a locally originated mesh frame
  * @hdr:    	802.11 frame header
@@ -447,6 +466,15 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 		  round_jiffies(jiffies + IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
 }
 
+static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	mesh_path_tx_root_frame(sdata);
+	mod_timer(&ifmsh->mesh_path_root_timer,
+		  round_jiffies(jiffies + IEEE80211_MESH_RANN_INTERVAL));
+}
+
 #ifdef CONFIG_PM
 void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
 {
@@ -461,6 +489,8 @@ void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
 		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
 	if (del_timer_sync(&ifmsh->mesh_path_timer))
 		set_bit(TMR_RUNNING_MP, &ifmsh->timers_running);
+	if (del_timer_sync(&ifmsh->mesh_path_root_timer))
+		set_bit(TMR_RUNNING_MPR, &ifmsh->timers_running);
 }
 
 void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
@@ -471,6 +501,8 @@ void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
 		add_timer(&ifmsh->housekeeping_timer);
 	if (test_and_clear_bit(TMR_RUNNING_MP, &ifmsh->timers_running))
 		add_timer(&ifmsh->mesh_path_timer);
+	if (test_and_clear_bit(TMR_RUNNING_MPR, &ifmsh->timers_running))
+		add_timer(&ifmsh->mesh_path_root_timer);
 }
 #endif
 
@@ -490,6 +522,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
+	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	/*
 	 * If the timer fired while we waited for it, it will have
 	 * requeued the work. Now the work will be running again
@@ -627,6 +660,9 @@ static void ieee80211_mesh_work(struct work_struct *work)
 
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata, ifmsh);
+
+	if (test_and_clear_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags))
+		ieee80211_mesh_rootpath(sdata);
 }
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
@@ -682,6 +718,9 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	mesh_ids_set_default(ifmsh);
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
+		    (unsigned long) sdata);
+	setup_timer(&ifmsh->mesh_path_root_timer,
+		    ieee80211_mesh_path_root_timer,
 		    (unsigned long) sdata);
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);

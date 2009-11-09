@@ -1003,3 +1003,14 @@ void mesh_path_timer(unsigned long data)
 endmpathtimer:
 	rcu_read_unlock();
 }
+
+void
+mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	mesh_path_sel_frame_tx(MPATH_RANN, 0, sdata->dev->dev_addr,
+			       cpu_to_le32(++ifmsh->sn),
+			       0, NULL, 0, sdata->dev->broadcast,
+			       0, MESH_TTL, 0, 0, 0, sdata);
+}
