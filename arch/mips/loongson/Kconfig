@@ -58,3 +58,6 @@ config LEMOTE_MACH2F
 	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
 	  LingLoong allinone PC and so forth.
 endchoice
+
+config CS5536
+	bool
