@@ -528,7 +528,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	 * __kuser_cmpxchg code in entry-armv.S should be aware of its
 	 * existence.  Don't ever use this from user code.
 	 */
-	case 0xfff0:
+	case NR(cmpxchg):
 	for (;;) {
 		extern void do_DataAbort(unsigned long addr, unsigned int fsr,
 					 struct pt_regs *regs);
