@@ -7486,11 +7486,6 @@ static int bnx2x_set_int_mode(struct bnx2x *bp)
 		rc = bnx2x_enable_msix(bp);
 		if (rc) {
 			/* failed to enable MSI-X */
-			if (bp->multi_mode)
-				BNX2X_ERR("Multi requested but failed to "
-					  "enable MSI-X (rx %d tx %d), "
-					  "set number of queues to 1\n",
-					  bp->num_rx_queues, bp->num_tx_queues);
 			bp->num_rx_queues = 1;
 			bp->num_tx_queues = 1;
 		}
