@@ -132,6 +132,7 @@ static int usb_amradio_resume(struct usb_interface *intf);
 struct amradio_device {
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
+	struct usb_interface *intf;
 	struct video_device videodev;
 	struct v4l2_device v4l2_dev;
 
@@ -163,7 +164,7 @@ static struct usb_driver usb_amradio_driver = {
 	.resume			= usb_amradio_resume,
 	.reset_resume		= usb_amradio_resume,
 	.id_table		= usb_amradio_device_table,
-	.supports_autosuspend	= 0,
+	.supports_autosuspend	= 1,
 };
 
 /* switch on/off the radio. Send 8 bytes to device */
@@ -506,9 +507,15 @@ static int usb_amradio_open(struct file *file)
 	}
 
 	file->private_data = radio;
+	retval = usb_autopm_get_interface(radio->intf);
+	if (retval)
+		goto unlock;
 
-	if (unlikely(!radio->initialized))
+	if (unlikely(!radio->initialized)) {
 		retval = usb_amradio_init(radio);
+		if (retval)
+			usb_autopm_put_interface(radio->intf);
+	}
 
 unlock:
 	mutex_unlock(&radio->lock);
@@ -525,6 +532,8 @@ static int usb_amradio_close(struct file *file)
 
 	if (!radio->usbdev)
 		retval = -EIO;
+	else
+		usb_autopm_put_interface(radio->intf);
 
 	mutex_unlock(&radio->lock);
 	return retval;
@@ -666,6 +675,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->videodev.release = usb_amradio_video_device_release;
 
 	radio->usbdev = interface_to_usbdev(intf);
+	radio->intf = intf;
 	radio->curfreq = 95.16 * FREQ_MUL;
 
 	mutex_init(&radio->lock);
