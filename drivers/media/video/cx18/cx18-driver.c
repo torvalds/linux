@@ -669,6 +669,12 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
 
+	/* IVTV style VBI insertion into MPEG streams */
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_buf.list);
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_mdl.list);
+	INIT_LIST_HEAD(&cx->vbi.sliced_mpeg_mdl.buf_list);
+	list_add(&cx->vbi.sliced_mpeg_buf.list,
+		 &cx->vbi.sliced_mpeg_mdl.buf_list);
 	return 0;
 }
 

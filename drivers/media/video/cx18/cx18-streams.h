@@ -28,18 +28,18 @@ int cx18_streams_setup(struct cx18 *cx);
 int cx18_streams_register(struct cx18 *cx);
 void cx18_streams_cleanup(struct cx18 *cx, int unregister);
 
-/* Related to submission of buffers to firmware */
+/* Related to submission of mdls to firmware */
 static inline void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
 	queue_work(cx->out_work_queue, &s->out_work_order);
 }
 
-static inline void cx18_stream_put_buf_fw(struct cx18_stream *s,
-					  struct cx18_buffer *buf)
+static inline void cx18_stream_put_mdl_fw(struct cx18_stream *s,
+					  struct cx18_mdl *mdl)
 {
-	/* Put buf on q_free; the out work handler will move buf(s) to q_busy */
-	cx18_enqueue(s, buf, &s->q_free);
+	/* Put mdl on q_free; the out work handler will move mdl(s) to q_busy */
+	cx18_enqueue(s, mdl, &s->q_free);
 	cx18_stream_load_fw_queue(s);
 }
 
