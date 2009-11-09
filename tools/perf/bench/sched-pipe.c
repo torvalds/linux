@@ -30,14 +30,10 @@
 
 #define LOOPS_DEFAULT 1000000
 static int loops = LOOPS_DEFAULT;
-static int simple = 0;
 
 static const struct option options[] = {
 	OPT_INTEGER('l', "loop", &loops,
 		    "Specify number of loops"),
-	OPT_BOOLEAN('s', "simple-output", &simple,
-		    "Do simple output (this maybe useful for"
-		    "processing by scripts or graph tools like gnuplot)"),
 	OPT_END()
 };
 
@@ -94,10 +90,8 @@ int bench_sched_pipe(int argc, const char **argv,
 		return 0;
 	}
 
-	if (simple)
-		printf("%lu.%03lu\n",
-		       diff.tv_sec, diff.tv_usec / 1000);
-	else {
+	switch (bench_format) {
+	case BENCH_FORMAT_DEFAULT:
 		printf("(executing %d pipe operations between two tasks)\n\n",
 			loops);
 
@@ -111,6 +105,18 @@ int bench_sched_pipe(int argc, const char **argv,
 		printf("\t\t%d ops/sec\n",
 		       (int)((double)loops /
 			     ((double)result_usec / (double)1000000)));
+		break;
+
+	case BENCH_FORMAT_SIMPLE:
+		printf("%lu.%03lu\n",
+		       diff.tv_sec, diff.tv_usec / 1000);
+		break;
+
+	default:
+		/* reaching here is something disaster */
+		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		exit(1);
+		break;
 	}
 
 	return 0;
