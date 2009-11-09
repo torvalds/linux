@@ -13,7 +13,9 @@
  * Licensed under the GPL-2 or later.
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
@@ -22,9 +24,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
-
-#include <asm/gpio.h>
-#include <asm/io.h>
 
 #define pr_devinit(fmt, args...) ({ static const __devinitconst char __fmt[] = fmt; printk(__fmt, ## args); })
 

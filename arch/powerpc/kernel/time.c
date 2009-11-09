@@ -777,7 +777,7 @@ int update_persistent_clock(struct timespec now)
 	return ppc_md.set_rtc_time(&tm);
 }
 
-void read_persistent_clock(struct timespec *ts)
+static void __read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 	static int first = 1;
@@ -800,8 +800,21 @@ void read_persistent_clock(struct timespec *ts)
 		return;
 	}
 	ppc_md.get_rtc_time(&tm);
+
 	ts->tv_sec = mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
 			    tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+void read_persistent_clock(struct timespec *ts)
+{
+	__read_persistent_clock(ts);
+
+	/* Sanitize it in case real time clock is set below EPOCH */
+	if (ts->tv_sec < 0) {
+		ts->tv_sec = 0;
+		ts->tv_nsec = 0;
+	}
+		
 }
 
 /* clocksource code */

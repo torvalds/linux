@@ -48,7 +48,11 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type) {}
 static inline void kvmppc_account_exit_stat(struct kvm_vcpu *vcpu, int type)
 {
 	/* type has to be known at build time for optimization */
+
+	/* The BUILD_BUG_ON below breaks in funny ways, commented out
+	 * for now ... -BenH
 	BUILD_BUG_ON(__builtin_constant_p(type));
+	*/
 	switch (type) {
 	case EXT_INTR_EXITS:
 		vcpu->stat.ext_intr_exits++;
