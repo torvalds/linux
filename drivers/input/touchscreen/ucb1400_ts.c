@@ -355,10 +355,13 @@ static int ucb1400_ts_probe(struct platform_device *dev)
 		goto err;
 	}
 
-	error = ucb1400_ts_detect_irq(ucb);
-	if (error) {
-		printk(KERN_ERR "UCB1400: IRQ probe failed\n");
-		goto err_free_devs;
+	/* Only in case the IRQ line wasn't supplied, try detecting it */
+	if (ucb->irq < 0) {
+		error = ucb1400_ts_detect_irq(ucb);
+		if (error) {
+			printk(KERN_ERR "UCB1400: IRQ probe failed\n");
+			goto err_free_devs;
+		}
 	}
 
 	init_waitqueue_head(&ucb->ts_wait);
