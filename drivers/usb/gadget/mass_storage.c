@@ -1,10 +1,10 @@
 /*
- * mass_storage.c -- File-backed USB Storage Gadget, for USB development
+ * mass_storage.c -- Mass Storage USB Gadget
  *
  * Copyright (C) 2003-2008 Alan Stern
- *
  * Copyright (C) 2009 Samsung Electronics
  *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 /*-------------------------------------------------------------------------*/
 
 #define DRIVER_DESC		"Mass Storage Gadget"
-#define DRIVER_VERSION		"2009/07/21"
+#define DRIVER_VERSION		"2009/09/11"
 
 /*-------------------------------------------------------------------------*/
 

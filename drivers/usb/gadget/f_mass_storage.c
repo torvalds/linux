@@ -1,7 +1,9 @@
 /*
- * file_storage.c -- File-backed USB Storage Gadget, for USB development
+ * f_mass_storage.c -- Mass Storage USB Composite Function
  *
  * Copyright (C) 2003-2008 Alan Stern
+ * Copyright (C) 2009 Samsung Electronics
+ *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,37 +39,112 @@
 
 
 /*
- * The File-backed Storage Gadget acts as a USB Mass Storage device,
- * appearing to the host as a disk drive or as a CD-ROM drive.  In addition
- * to providing an example of a genuinely useful gadget driver for a USB
- * device, it also illustrates a technique of double-buffering for increased
- * throughput.  Last but not least, it gives an easy way to probe the
- * behavior of the Mass Storage drivers in a USB host.
+ * The Mass Storage Function acts as a USB Mass Storage device,
+ * appearing to the host as a disk drive or as a CD-ROM drive.  In
+ * addition to providing an example of a genuinely useful composite
+ * function for a USB device, it also illustrates a technique of
+ * double-buffering for increased throughput.
  *
- * Backing storage is provided by a regular file or a block device, specified
- * by the "file" module parameter.  Access can be limited to read-only by
- * setting the optional "ro" module parameter.  (For CD-ROM emulation,
- * access is always read-only.)  The gadget will indicate that it has
- * removable media if the optional "removable" module parameter is set.
+ * Function supports multiple logical units (LUNs).  Backing storage
+ * for each LUN is provided by a regular file or a block device.
+ * Access for each LUN can be limited to read-only.  Moreover, the
+ * function can indicate that LUN is removable and/or CD-ROM.  (The
+ * later implies read-only access.)
  *
- * There is support for multiple logical units (LUNs), each of which has
- * its own backing file.  The number of LUNs can be set using the optional
- * "luns" module parameter (anywhere from 1 to 8), and the corresponding
- * files are specified using comma-separated lists for "file" and "ro".
- * The default number of LUNs is taken from the number of "file" elements;
- * it is 1 if "file" is not given.  If "removable" is not set then a backing
- * file must be specified for each LUN.  If it is set, then an unspecified
- * or empty backing filename means the LUN's medium is not loaded.  Ideally
- * each LUN would be settable independently as a disk drive or a CD-ROM
- * drive, but currently all LUNs have to be the same type.  The CD-ROM
- * emulation includes a single data track and no audio tracks; hence there
- * need be only one backing file per LUN.  Note also that the CD-ROM block
- * length is set to 512 rather than the more common value 2048.
+ * MSF is configured by specifying a fsg_config structure.  It has the
+ * following fields:
+ *
+ *	nluns		Number of LUNs function have (anywhere from 1
+ *				to FSG_MAX_LUNS which is 8).
+ *	luns		An array of LUN configuration values.  This
+ *				should be filled for each LUN that
+ *				function will include (ie. for "nluns"
+ *				LUNs).  Each element of the array has
+ *				the following fields:
+ *	->filename	The path to the backing file for the LUN.
+ *				Required if LUN is not marked as
+ *				removable.
+ *	->ro		Flag specifying access to the LUN shall be
+ *				read-only.  This is implied if CD-ROM
+ *				emulation is enabled as well as when
+ *				it was impossible to open "filename"
+ *				in R/W mode.
+ *	->removable	Flag specifying that LUN shall be indicated as
+ *				being removable.
+ *	->cdrom		Flag specifying that LUN shall be reported as
+ *				being a CD-ROM.
+ *
+ *	lun_name_format	A printf-like format for names of the LUN
+ *				devices.  This determines how the
+ *				directory in sysfs will be named.
+ *				Unless you are using several MSFs in
+ *				a single gadget (as opposed to single
+ *				MSF in many configurations) you may
+ *				leave it as NULL (in which case
+ *				"lun%d" will be used).  In the format
+ *				you can use "%d" to index LUNs for
+ *				MSF's with more than one LUN.  (Beware
+ *				that there is only one integer given
+ *				as an argument for the format and
+ *				specifying invalid format may cause
+ *				unspecified behaviour.)
+ *	thread_name	Name of the kernel thread process used by the
+ *				MSF.  You can safely set it to NULL
+ *				(in which case default "file-storage"
+ *				will be used).
+ *
+ *	vendor_name
+ *	product_name
+ *	release		Information used as a reply to INQUIRY
+ *				request.  To use default set to NULL,
+ *				NULL, 0xffff respectively.  The first
+ *				field should be 8 and the second 16
+ *				characters or less.
+ *
+ *	can_stall	Set to permit function to halt bulk endpoints.
+ *				Disabled on some USB devices known not
+ *				to work correctly.  You should set it
+ *				to true.
+ *
+ * If "removable" is not set for a LUN then a backing file must be
+ * specified.  If it is set, then NULL filename means the LUN's medium
+ * is not loaded (an empty string as "filename" in the fsg_config
+ * structure causes error).  The CD-ROM emulation includes a single
+ * data track and no audio tracks; hence there need be only one
+ * backing file per LUN.  Note also that the CD-ROM block length is
+ * set to 512 rather than the more common value 2048.
+ *
+ *
+ * MSF includes support for module parameters.  If gadget using it
+ * decides to use it, the following module parameters will be
+ * available:
+ *
+ *	file=filename[,filename...]
+ *			Names of the files or block devices used for
+ *				backing storage.
+ *	ro=b[,b...]	Default false, boolean for read-only access.
+ *	removable=b[,b...]
+ *			Default true, boolean for removable media.
+ *	cdrom=b[,b...]	Default false, boolean for whether to emulate
+ *				a CD-ROM drive.
+ *	luns=N		Default N = number of filenames, number of
+ *				LUNs to support.
+ *	stall		Default determined according to the type of
+ *				USB device controller (usually true),
+ *				boolean to permit the driver to halt
+ *				bulk endpoints.
+ *
+ * The module parameters may be prefixed with some string.  You need
+ * to consult gadget's documentation or source to verify whether it is
+ * using those module parameters and if it does what are the prefixes
+ * (look for FSG_MODULE_PARAMETERS() macro usage, what's inside it is
+ * the prefix).
+ *
  *
  * Requirements are modest; only a bulk-in and a bulk-out endpoint are
- * needed (an interrupt-out endpoint is also needed for CBI).  The memory
- * requirement amounts to two 16K buffers, size configurable by a parameter.
- * Support is included for both full-speed and high-speed operation.
+ * needed.  The memory requirement amounts to two 16K buffers, size
+ * configurable by a parameter.  Support is included for both
+ * full-speed and high-speed operation.
  *
  * Note that the driver is slightly non-portable in that it assumes a
  * single memory/DMA buffer will be useable for bulk-in, bulk-out, and
@@ -75,39 +152,28 @@
  * issue, but there may be some with hardware restrictions that prevent
  * a buffer from being used by more than one endpoint.
  *
- * Module options:
  *
- *	file=filename[,filename...]
- *				Required if "removable" is not set, names of
- *					the files or block devices used for
- *					backing storage
- *	ro=b[,b...]		Default false, booleans for read-only access
- *	removable		Default false, boolean for removable media
- *	luns=N			Default N = number of filenames, number of
- *					LUNs to support
- *	stall			Default determined according to the type of
- *					USB device controller (usually true),
- *					boolean to permit the driver to halt
- *					bulk endpoints
- *	cdrom			Default false, boolean for whether to emulate
- *					a CD-ROM drive
+ * The pathnames of the backing files and the ro settings are
+ * available in the attribute files "file" and "ro" in the lun<n> (or
+ * to be more precise in a directory which name comes from
+ * "lun_name_format" option!) subdirectory of the gadget's sysfs
+ * directory.  If the "removable" option is set, writing to these
+ * files will simulate ejecting/loading the medium (writing an empty
+ * line means eject) and adjusting a write-enable tab.  Changes to the
+ * ro setting are not allowed when the medium is loaded or if CD-ROM
+ * emulation is being used.
  *
- * The pathnames of the backing files and the ro settings are available in
- * the attribute files "file" and "ro" in the lun<n> subdirectory of the
- * gadget's sysfs directory.  If the "removable" option is set, writing to
- * these files will simulate ejecting/loading the medium (writing an empty
- * line means eject) and adjusting a write-enable tab.  Changes to the ro
- * setting are not allowed when the medium is loaded or if CD-ROM emulation
- * is being used.
  *
- * This gadget driver is heavily based on "Gadget Zero" by David Brownell.
- * The driver's SCSI command interface was based on the "Information
- * technology - Small Computer System Interface - 2" document from
- * X3T9.2 Project 375D, Revision 10L, 7-SEP-93, available at
- * <http://www.t10.org/ftp/t10/drafts/s2/s2-r10l.pdf>.  The single exception
- * is opcode 0x23 (READ FORMAT CAPACITIES), which was based on the
- * "Universal Serial Bus Mass Storage Class UFI Command Specification"
- * document, Revision 1.0, December 14, 1998, available at
+ * This function is heavily based on "File-backed Storage Gadget" by
+ * Alan Stern which in turn is heavily based on "Gadget Zero" by David
+ * Brownell.  The driver's SCSI command interface was based on the
+ * "Information technology - Small Computer System Interface - 2"
+ * document from X3T9.2 Project 375D, Revision 10L, 7-SEP-93,
+ * available at <http://www.t10.org/ftp/t10/drafts/s2/s2-r10l.pdf>.
+ * The single exception is opcode 0x23 (READ FORMAT CAPACITIES), which
+ * was based on the "Universal Serial Bus Mass Storage Class UFI
+ * Command Specification" document, Revision 1.0, December 14, 1998,
+ * available at
  * <http://www.usb.org/developers/devclass_docs/usbmass-ufi10.pdf>.
  */
 
@@ -115,7 +181,7 @@
 /*
  *				Driver Design
  *
- * The FSG driver is fairly straightforward.  There is a main kernel
+ * The MSF is fairly straightforward.  There is a main kernel
  * thread that handles most of the work.  Interrupt routines field
  * callbacks from the controller driver: bulk- and interrupt-request
  * completion notifications, endpoint-0 events, and disconnect events.
@@ -138,17 +204,11 @@
  * an EXIT exception.
  *
  * In normal operation the main thread is started during the gadget's
- * fsg_bind() callback and stopped during fsg_unbind().  But it can also
- * exit when it receives a signal, and there's no point leaving the
- * gadget running when the thread is dead.  So just before the thread
- * exits, it deregisters the gadget driver.  This makes things a little
- * tricky: The driver is deregistered at two places, and the exiting
- * thread can indirectly call fsg_unbind() which in turn can tell the
- * thread to exit.  The first problem is resolved through the use of the
- * REGISTERED atomic bitflag; the driver will only be deregistered once.
- * The second problem is resolved by having fsg_unbind() check
- * fsg->state; it won't try to stop the thread if the state is already
- * FSG_STATE_TERMINATED.
+ * fsg_bind() callback and stopped during fsg_unbind().  But it can
+ * also exit when it receives a signal, and there's no point leaving
+ * the gadget running when the thread is dead.  At of this moment, MSF
+ * provides no way to deregister the gadget when thread dies -- maybe
+ * a callback functions is needed.
  *
  * To provide maximum throughput, the driver uses a circular pipeline of
  * buffer heads (struct fsg_buffhd).  In principle the pipeline can be
@@ -236,7 +296,7 @@
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
-#define FSG_DRIVER_VERSION	"20 November 2008"
+#define FSG_DRIVER_VERSION	"2009/09/11"
 
 static const char fsg_string_interface[] = "Mass Storage";
 
@@ -307,7 +367,7 @@ struct fsg_config {
 
 struct fsg_dev {
 	struct usb_function	function;
-	struct usb_composite_dev*cdev;
+	struct usb_composite_dev *cdev;
 	struct usb_gadget	*gadget;	/* Copy of cdev->gadget */
 	struct fsg_common	*common;
 
@@ -322,18 +382,18 @@ struct fsg_dev {
 	const char		*ep0req_name;
 
 	unsigned int		bulk_out_maxpacket;
-	enum fsg_state		state;		// For exception handling
+	enum fsg_state		state;		/* For exception handling */
 	unsigned int		exception_req_tag;
 
 	u8			config, new_config;
 
-	unsigned int		running : 1;
-	unsigned int		bulk_in_enabled : 1;
-	unsigned int		bulk_out_enabled : 1;
-	unsigned int		phase_error : 1;
-	unsigned int		short_packet_received : 1;
-	unsigned int		bad_lun_okay : 1;
-	unsigned int		can_stall : 1;
+	unsigned int		running:1;
+	unsigned int		bulk_in_enabled:1;
+	unsigned int		bulk_out_enabled:1;
+	unsigned int		phase_error:1;
+	unsigned int		short_packet_received:1;
+	unsigned int		bad_lun_okay:1;
+	unsigned int		can_stall:1;
 
 	unsigned long		atomic_bitflags;
 #define REGISTERED		0
@@ -461,7 +521,7 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 	if (req->status || req->actual != req->length)
 		DBG(fsg, "%s --> %d, %u/%u\n", __func__,
 				req->status, req->actual, req->length);
-	if (req->status == -ECONNRESET)		// Request was cancelled
+	if (req->status == -ECONNRESET)		/* Request was cancelled */
 		usb_ep_fifo_flush(ep);
 
 	/* Hold the lock while we update the request and buffer states */
@@ -483,7 +543,7 @@ static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 		DBG(fsg, "%s --> %d, %u/%u\n", __func__,
 				req->status, req->actual,
 				bh->bulk_out_intended_length);
-	if (req->status == -ECONNRESET)		// Request was cancelled
+	if (req->status == -ECONNRESET)		/* Request was cancelled */
 		usb_ep_fifo_flush(ep);
 
 	/* Hold the lock while we update the request and buffer states */
@@ -643,7 +703,7 @@ static int do_read(struct fsg_dev *fsg)
 	/* Carry out the file reads */
 	amount_left = fsg->data_size_from_cmnd;
 	if (unlikely(amount_left == 0))
-		return -EIO;		// No default reply
+		return -EIO;		/* No default reply */
 
 	for (;;) {
 
@@ -701,7 +761,7 @@ static int do_read(struct fsg_dev *fsg)
 		} else if (nread < amount) {
 			LDBG(curlun, "partial file read: %d/%u\n",
 					(int) nread, amount);
-			nread -= (nread & 511);	// Round down to a block
+			nread -= (nread & 511);	/* Round down to a block */
 		}
 		file_offset  += nread;
 		amount_left  -= nread;
@@ -718,7 +778,7 @@ static int do_read(struct fsg_dev *fsg)
 		}
 
 		if (amount_left == 0)
-			break;		// No more left to read
+			break;		/* No more left to read */
 
 		/* Send this buffer and go read some more */
 		bh->inreq->zero = 0;
@@ -727,7 +787,7 @@ static int do_read(struct fsg_dev *fsg)
 		fsg->common->next_buffhd_to_fill = bh->next;
 	}
 
-	return -EIO;		// No default reply
+	return -EIO;		/* No default reply */
 }
 
 
@@ -751,7 +811,7 @@ static int do_write(struct fsg_dev *fsg)
 		return -EINVAL;
 	}
 	spin_lock(&curlun->filp->f_lock);
-	curlun->filp->f_flags &= ~O_SYNC;	// Default is not to wait
+	curlun->filp->f_flags &= ~O_SYNC;	/* Default is not to wait */
 	spin_unlock(&curlun->filp->f_lock);
 
 	/* Get the starting Logical Block Address and check that it's
@@ -769,7 +829,7 @@ static int do_write(struct fsg_dev *fsg)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (fsg->common->cmnd[1] & 0x08) {	// FUA
+		if (fsg->common->cmnd[1] & 0x08) {	/* FUA */
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
 			spin_unlock(&curlun->filp->f_lock);
@@ -834,8 +894,8 @@ static int do_write(struct fsg_dev *fsg)
 
 			/* amount is always divisible by 512, hence by
 			 * the bulk-out maxpacket size */
-			bh->outreq->length = bh->bulk_out_intended_length =
-					amount;
+			bh->outreq->length = amount;
+			bh->bulk_out_intended_length = amount;
 			bh->outreq->short_not_ok = 1;
 			start_transfer(fsg, fsg->bulk_out, bh->outreq,
 					&bh->outreq_busy, &bh->state);
@@ -846,7 +906,7 @@ static int do_write(struct fsg_dev *fsg)
 		/* Write the received data to the backing file */
 		bh = fsg->common->next_buffhd_to_drain;
 		if (bh->state == BUF_STATE_EMPTY && !get_some_more)
-			break;			// We stopped early
+			break;			/* We stopped early */
 		if (bh->state == BUF_STATE_FULL) {
 			smp_rmb();
 			fsg->common->next_buffhd_to_drain = bh->next;
@@ -878,7 +938,7 @@ static int do_write(struct fsg_dev *fsg)
 					(unsigned long long) file_offset,
 					(int) nwritten);
 			if (signal_pending(current))
-				return -EINTR;		// Interrupted!
+				return -EINTR;		/* Interrupted! */
 
 			if (nwritten < 0) {
 				LDBG(curlun, "error in file write: %d\n",
@@ -888,7 +948,7 @@ static int do_write(struct fsg_dev *fsg)
 				LDBG(curlun, "partial file write: %d/%u\n",
 						(int) nwritten, amount);
 				nwritten -= (nwritten & 511);
-						// Round down to a block
+				/* Round down to a block */
 			}
 			file_offset += nwritten;
 			amount_left_to_write -= nwritten;
@@ -916,7 +976,7 @@ static int do_write(struct fsg_dev *fsg)
 			return rc;
 	}
 
-	return -EIO;		// No default reply
+	return -EIO;		/* No default reply */
 }
 
 
@@ -976,7 +1036,7 @@ static int do_verify(struct fsg_dev *fsg)
 
 	verification_length = get_unaligned_be16(&fsg->common->cmnd[7]);
 	if (unlikely(verification_length == 0))
-		return -EIO;		// No default reply
+		return -EIO;		/* No default reply */
 
 	/* Prepare to carry out the file verify */
 	amount_left = verification_length << 9;
@@ -1029,7 +1089,7 @@ static int do_verify(struct fsg_dev *fsg)
 		} else if (nread < amount) {
 			LDBG(curlun, "partial file verify: %d/%u\n",
 					(int) nread, amount);
-			nread -= (nread & 511);	// Round down to a sector
+			nread -= (nread & 511);	/* Round down to a sector */
 		}
 		if (nread == 0) {
 			curlun->sense_data = SS_UNRECOVERED_READ_ERROR;
@@ -1054,17 +1114,17 @@ static int do_inquiry(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	if (!curlun) {		/* Unsupported LUNs are okay */
 		fsg->bad_lun_okay = 1;
 		memset(buf, 0, 36);
-		buf[0] = 0x7f;		// Unsupported, no device-type
-		buf[4] = 31;		// Additional length
+		buf[0] = 0x7f;		/* Unsupported, no device-type */
+		buf[4] = 31;		/* Additional length */
 		return 36;
 	}
 
 	buf[0] = curlun->cdrom ? TYPE_CDROM : TYPE_DISK;
 	buf[1] = curlun->removable ? 0x80 : 0;
-	buf[2] = 2;		// ANSI SCSI level 2
-	buf[3] = 2;		// SCSI-2 INQUIRY data format
-	buf[4] = 31;		// Additional length
-	buf[5] = 0;		// No special options
+	buf[2] = 2;		/* ANSI SCSI level 2 */
+	buf[3] = 2;		/* SCSI-2 INQUIRY data format */
+	buf[4] = 31;		/* Additional length */
+	buf[5] = 0;		/* No special options */
 	buf[6] = 0;
 	buf[7] = 0;
 	memcpy(buf + 8, fsg->common->inquiry_string,
@@ -1102,7 +1162,7 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	}
 #endif
 
-	if (!curlun) {		// Unsupported LUNs are okay
+	if (!curlun) {		/* Unsupported LUNs are okay */
 		fsg->bad_lun_okay = 1;
 		sd = SS_LOGICAL_UNIT_NOT_SUPPORTED;
 		sdinfo = 0;
@@ -1117,10 +1177,10 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	}
 
 	memset(buf, 0, 18);
-	buf[0] = valid | 0x70;			// Valid, current error
+	buf[0] = valid | 0x70;			/* Valid, current error */
 	buf[2] = SK(sd);
 	put_unaligned_be32(sdinfo, &buf[3]);	/* Sense information */
-	buf[7] = 18 - 8;			// Additional sense length
+	buf[7] = 18 - 8;			/* Additional sense length */
 	buf[12] = ASC(sd);
 	buf[13] = ASCQ(sd);
 	return 18;
@@ -1209,7 +1269,7 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	int		valid_page = 0;
 	int		len, limit;
 
-	if ((fsg->common->cmnd[1] & ~0x08) != 0) {	// Mask away DBD
+	if ((fsg->common->cmnd[1] & ~0x08) != 0) {	/* Mask away DBD */
 		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return -EINVAL;
 	}
@@ -1228,13 +1288,13 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	 * the mode data length later. */
 	memset(buf, 0, 8);
 	if (mscmnd == SC_MODE_SENSE_6) {
-		buf[2] = (curlun->ro ? 0x80 : 0x00);		// WP, DPOFUA
+		buf[2] = (curlun->ro ? 0x80 : 0x00);		/* WP, DPOFUA */
 		buf += 4;
 		limit = 255;
-	} else {			// SC_MODE_SENSE_10
-		buf[3] = (curlun->ro ? 0x80 : 0x00);		// WP, DPOFUA
+	} else {			/* SC_MODE_SENSE_10 */
+		buf[3] = (curlun->ro ? 0x80 : 0x00);		/* WP, DPOFUA */
 		buf += 8;
-		limit = 65535;		// Should really be FSG_BUFLEN
+		limit = 65535;		/* Should really be FSG_BUFLEN */
 	}
 
 	/* No block descriptors */
@@ -1243,14 +1303,14 @@ static int do_mode_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	 * is the Caching page. */
 	if (page_code == 0x08 || all_pages) {
 		valid_page = 1;
-		buf[0] = 0x08;		// Page code
-		buf[1] = 10;		// Page length
-		memset(buf+2, 0, 10);	// None of the fields are changeable
+		buf[0] = 0x08;		/* Page code */
+		buf[1] = 10;		/* Page length */
+		memset(buf+2, 0, 10);	/* None of the fields are changeable */
 
 		if (!changeable_values) {
-			buf[2] = 0x04;	// Write cache enable,
-					// Read cache not disabled
-					// No cache retention priorities
+			buf[2] = 0x04;	/* Write cache enable, */
+					/* Read cache not disabled */
+					/* No cache retention priorities */
 			put_unaligned_be16(0xffff, &buf[4]);
 					/* Don't disable prefetch */
 					/* Minimum prefetch = 0 */
@@ -1304,7 +1364,7 @@ static int do_prevent_allow(struct fsg_dev *fsg)
 	}
 
 	prevent = fsg->common->cmnd[4] & 0x01;
-	if ((fsg->common->cmnd[4] & ~0x01) != 0) {	// Mask away Prevent
+	if ((fsg->common->cmnd[4] & ~0x01) != 0) {	/* Mask away Prevent */
 		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return -EINVAL;
 	}
@@ -1323,7 +1383,7 @@ static int do_read_format_capacities(struct fsg_dev *fsg,
 	u8		*buf = (u8 *) bh->buf;
 
 	buf[0] = buf[1] = buf[2] = 0;
-	buf[3] = 8;		// Only the Current/Maximum Capacity Descriptor
+	buf[3] = 8;	/* Only the Current/Maximum Capacity Descriptor */
 	buf += 4;
 
 	put_unaligned_be32(curlun->num_sectors, &buf[0]);
@@ -1398,7 +1458,7 @@ static int pad_with_zeros(struct fsg_dev *fsg)
 	u32			nsend;
 	int			rc;
 
-	bh->state = BUF_STATE_EMPTY;		// For the first iteration
+	bh->state = BUF_STATE_EMPTY;		/* For the first iteration */
 	fsg->usb_amount_left = nkeep + fsg->residue;
 	while (fsg->usb_amount_left > 0) {
 
@@ -1454,8 +1514,8 @@ static int throw_away_data(struct fsg_dev *fsg)
 
 			/* amount is always divisible by 512, hence by
 			 * the bulk-out maxpacket size */
-			bh->outreq->length = bh->bulk_out_intended_length =
-					amount;
+			bh->outreq->length = amount;
+			bh->bulk_out_intended_length = amount;
 			bh->outreq->short_not_ok = 1;
 			start_transfer(fsg, fsg->bulk_out, bh->outreq,
 					&bh->outreq_busy, &bh->state);
@@ -1480,7 +1540,7 @@ static int finish_reply(struct fsg_dev *fsg)
 
 	switch (fsg->data_dir) {
 	case DATA_DIR_NONE:
-		break;			// Nothing to send
+		break;			/* Nothing to send */
 
 	/* If we don't know whether the host wants to read or write,
 	 * this must be CB or CBI with an unknown command.  We mustn't
@@ -1522,14 +1582,13 @@ static int finish_reply(struct fsg_dev *fsg)
 	/* We have processed all we want from the data the host has sent.
 	 * There may still be outstanding bulk-out requests. */
 	case DATA_DIR_FROM_HOST:
-		if (fsg->residue == 0)
-			;		// Nothing to receive
+		if (fsg->residue == 0) {
+			/* Nothing to receive */
 
 		/* Did the host stop sending unexpectedly early? */
-		else if (fsg->short_packet_received) {
+		} else if (fsg->short_packet_received) {
 			raise_exception(fsg, FSG_STATE_ABORT_BULK_OUT);
 			rc = -EINTR;
-		}
 
 		/* We haven't processed all the incoming data.  Even though
 		 * we may be allowed to stall, doing so would cause a race.
@@ -1538,17 +1597,17 @@ static int finish_reply(struct fsg_dev *fsg)
 		 * STALL.  Not realizing the endpoint was halted, it wouldn't
 		 * clear the halt -- leading to problems later on. */
 #if 0
-		else if (fsg->can_stall) {
+		} else if (fsg->can_stall) {
 			fsg_set_halt(fsg, fsg->bulk_out);
 			raise_exception(fsg, FSG_STATE_ABORT_BULK_OUT);
 			rc = -EINTR;
-		}
 #endif
 
 		/* We can't stall.  Read in the excess data and throw it
 		 * all away. */
-		else
+		} else {
 			rc = throw_away_data(fsg);
+		}
 		break;
 	}
 	return rc;
@@ -1593,7 +1652,7 @@ static int send_status(struct fsg_dev *fsg)
 	}
 
 	/* Store and send the Bulk-only CSW */
-	csw = (void*)bh->buf;
+	csw = (void *)bh->buf;
 
 	csw->Signature = cpu_to_le32(USB_BULK_CS_SIG);
 	csw->Tag = fsg->tag;
@@ -1629,18 +1688,18 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		sprintf(hdlen, ", H%c=%u", dirletter[(int) fsg->data_dir],
 				fsg->data_size);
 	VDBG(fsg, "SCSI command: %s;  Dc=%d, D%c=%u;  Hc=%d%s\n",
-			name, cmnd_size, dirletter[(int) data_dir],
-			fsg->data_size_from_cmnd, fsg->common->cmnd_size, hdlen);
+	     name, cmnd_size, dirletter[(int) data_dir],
+	     fsg->data_size_from_cmnd, fsg->common->cmnd_size, hdlen);
 
 	/* We can't reply at all until we know the correct data direction
 	 * and size. */
 	if (fsg->data_size_from_cmnd == 0)
 		data_dir = DATA_DIR_NONE;
-	if (fsg->data_dir == DATA_DIR_UNKNOWN) {	// CB or CBI
+	if (fsg->data_dir == DATA_DIR_UNKNOWN) {	/* CB or CBI */
 		fsg->data_dir = data_dir;
 		fsg->data_size = fsg->data_size_from_cmnd;
 
-	} else {					// Bulk-only
+	} else {					/* Bulk-only */
 		if (fsg->data_size < fsg->data_size_from_cmnd) {
 
 			/* Host data size < Device data size is a phase error.
@@ -1691,7 +1750,8 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 
 	/* Check the LUN */
 	if (fsg->common->lun >= 0 && fsg->common->lun < fsg->common->nluns) {
-		fsg->common->curlun = curlun = &fsg->common->luns[fsg->common->lun];
+		curlun = &fsg->common->luns[fsg->common->lun];
+		fsg->common->curlun = curlun;
 		if (fsg->common->cmnd[0] != SC_REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
@@ -1721,7 +1781,7 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 	}
 
 	/* Check that only command bytes listed in the mask are non-zero */
-	fsg->common->cmnd[1] &= 0x1f;			// Mask away the LUN
+	fsg->common->cmnd[1] &= 0x1f;			/* Mask away the LUN */
 	for (i = 1; i < cmnd_size; ++i) {
 		if (fsg->common->cmnd[i] && !(mask & (1 << i))) {
 			if (curlun)
@@ -1752,7 +1812,8 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	dump_cdb(fsg->common);
 
 	/* Wait for the next buffer to become available for data or status */
-	bh = fsg->common->next_buffhd_to_drain = fsg->common->next_buffhd_to_fill;
+	bh = fsg->common->next_buffhd_to_fill;
+	fsg->common->next_buffhd_to_drain = bh;
 	while (bh->state != BUF_STATE_EMPTY) {
 		rc = sleep_thread(fsg);
 		if (rc)
@@ -1761,141 +1822,163 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	fsg->phase_error = 0;
 	fsg->short_packet_received = 0;
 
-	down_read(&fsg->common->filesem);	// We're using the backing file
+	/* We're using the backing file */
+	down_read(&fsg->common->filesem);
 	switch (fsg->common->cmnd[0]) {
 
 	case SC_INQUIRY:
 		fsg->data_size_from_cmnd = fsg->common->cmnd[4];
-		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
-				(1<<4), 0,
-				"INQUIRY")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
+				      (1<<4), 0,
+				      "INQUIRY");
+		if (reply == 0)
 			reply = do_inquiry(fsg, bh);
 		break;
 
 	case SC_MODE_SELECT_6:
 		fsg->data_size_from_cmnd = fsg->common->cmnd[4];
-		if ((reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
-				(1<<1) | (1<<4), 0,
-				"MODE SELECT(6)")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
+				      (1<<1) | (1<<4), 0,
+				      "MODE SELECT(6)");
+		if (reply == 0)
 			reply = do_mode_select(fsg, bh);
 		break;
 
 	case SC_MODE_SELECT_10:
-		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
-		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
-				(1<<1) | (3<<7), 0,
-				"MODE SELECT(10)")) == 0)
+		fsg->data_size_from_cmnd =
+			get_unaligned_be16(&fsg->common->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
+				      (1<<1) | (3<<7), 0,
+				      "MODE SELECT(10)");
+		if (reply == 0)
 			reply = do_mode_select(fsg, bh);
 		break;
 
 	case SC_MODE_SENSE_6:
 		fsg->data_size_from_cmnd = fsg->common->cmnd[4];
-		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
-				(1<<1) | (1<<2) | (1<<4), 0,
-				"MODE SENSE(6)")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
+				      (1<<1) | (1<<2) | (1<<4), 0,
+				      "MODE SENSE(6)");
+		if (reply == 0)
 			reply = do_mode_sense(fsg, bh);
 		break;
 
 	case SC_MODE_SENSE_10:
-		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(1<<1) | (1<<2) | (3<<7), 0,
-				"MODE SENSE(10)")) == 0)
+		fsg->data_size_from_cmnd =
+			get_unaligned_be16(&fsg->common->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (1<<1) | (1<<2) | (3<<7), 0,
+				      "MODE SENSE(10)");
+		if (reply == 0)
 			reply = do_mode_sense(fsg, bh);
 		break;
 
 	case SC_PREVENT_ALLOW_MEDIUM_REMOVAL:
 		fsg->data_size_from_cmnd = 0;
-		if ((reply = check_command(fsg, 6, DATA_DIR_NONE,
-				(1<<4), 0,
-				"PREVENT-ALLOW MEDIUM REMOVAL")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_NONE,
+				      (1<<4), 0,
+				      "PREVENT-ALLOW MEDIUM REMOVAL");
+		if (reply == 0)
 			reply = do_prevent_allow(fsg);
 		break;
 
 	case SC_READ_6:
 		i = fsg->common->cmnd[4];
 		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
-		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
-				(7<<1) | (1<<4), 1,
-				"READ(6)")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
+				      (7<<1) | (1<<4), 1,
+				      "READ(6)");
+		if (reply == 0)
 			reply = do_read(fsg);
 		break;
 
 	case SC_READ_10:
 		fsg->data_size_from_cmnd =
 				get_unaligned_be16(&fsg->common->cmnd[7]) << 9;
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(1<<1) | (0xf<<2) | (3<<7), 1,
-				"READ(10)")) == 0)
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (1<<1) | (0xf<<2) | (3<<7), 1,
+				      "READ(10)");
+		if (reply == 0)
 			reply = do_read(fsg);
 		break;
 
 	case SC_READ_12:
 		fsg->data_size_from_cmnd =
 				get_unaligned_be32(&fsg->common->cmnd[6]) << 9;
-		if ((reply = check_command(fsg, 12, DATA_DIR_TO_HOST,
-				(1<<1) | (0xf<<2) | (0xf<<6), 1,
-				"READ(12)")) == 0)
+		reply = check_command(fsg, 12, DATA_DIR_TO_HOST,
+				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
+				      "READ(12)");
+		if (reply == 0)
 			reply = do_read(fsg);
 		break;
 
 	case SC_READ_CAPACITY:
 		fsg->data_size_from_cmnd = 8;
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(0xf<<2) | (1<<8), 1,
-				"READ CAPACITY")) == 0)
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (0xf<<2) | (1<<8), 1,
+				      "READ CAPACITY");
+		if (reply == 0)
 			reply = do_read_capacity(fsg, bh);
 		break;
 
 	case SC_READ_HEADER:
 		if (!fsg->common->curlun || !fsg->common->curlun->cdrom)
 			goto unknown_cmnd;
-		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(3<<7) | (0x1f<<1), 1,
-				"READ HEADER")) == 0)
+		fsg->data_size_from_cmnd =
+			get_unaligned_be16(&fsg->common->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (3<<7) | (0x1f<<1), 1,
+				      "READ HEADER");
+		if (reply == 0)
 			reply = do_read_header(fsg, bh);
 		break;
 
 	case SC_READ_TOC:
 		if (!fsg->common->curlun || !fsg->common->curlun->cdrom)
 			goto unknown_cmnd;
-		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(7<<6) | (1<<1), 1,
-				"READ TOC")) == 0)
+		fsg->data_size_from_cmnd =
+			get_unaligned_be16(&fsg->common->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (7<<6) | (1<<1), 1,
+				      "READ TOC");
+		if (reply == 0)
 			reply = do_read_toc(fsg, bh);
 		break;
 
 	case SC_READ_FORMAT_CAPACITIES:
-		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->common->cmnd[7]);
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
-				(3<<7), 1,
-				"READ FORMAT CAPACITIES")) == 0)
+		fsg->data_size_from_cmnd =
+			get_unaligned_be16(&fsg->common->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+				      (3<<7), 1,
+				      "READ FORMAT CAPACITIES");
+		if (reply == 0)
 			reply = do_read_format_capacities(fsg, bh);
 		break;
 
 	case SC_REQUEST_SENSE:
 		fsg->data_size_from_cmnd = fsg->common->cmnd[4];
-		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
-				(1<<4), 0,
-				"REQUEST SENSE")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
+				      (1<<4), 0,
+				      "REQUEST SENSE");
+		if (reply == 0)
 			reply = do_request_sense(fsg, bh);
 		break;
 
 	case SC_START_STOP_UNIT:
 		fsg->data_size_from_cmnd = 0;
-		if ((reply = check_command(fsg, 6, DATA_DIR_NONE,
-				(1<<1) | (1<<4), 0,
-				"START-STOP UNIT")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_NONE,
+				      (1<<1) | (1<<4), 0,
+				      "START-STOP UNIT");
+		if (reply == 0)
 			reply = do_start_stop(fsg);
 		break;
 
 	case SC_SYNCHRONIZE_CACHE:
 		fsg->data_size_from_cmnd = 0;
-		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
-				(0xf<<2) | (3<<7), 1,
-				"SYNCHRONIZE CACHE")) == 0)
+		reply = check_command(fsg, 10, DATA_DIR_NONE,
+				      (0xf<<2) | (3<<7), 1,
+				      "SYNCHRONIZE CACHE");
+		if (reply == 0)
 			reply = do_synchronize_cache(fsg);
 		break;
 
@@ -1910,36 +1993,40 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	 * support a minimal version: BytChk must be 0. */
 	case SC_VERIFY:
 		fsg->data_size_from_cmnd = 0;
-		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
-				(1<<1) | (0xf<<2) | (3<<7), 1,
-				"VERIFY")) == 0)
+		reply = check_command(fsg, 10, DATA_DIR_NONE,
+				      (1<<1) | (0xf<<2) | (3<<7), 1,
+				      "VERIFY");
+		if (reply == 0)
 			reply = do_verify(fsg);
 		break;
 
 	case SC_WRITE_6:
 		i = fsg->common->cmnd[4];
 		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
-		if ((reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
-				(7<<1) | (1<<4), 1,
-				"WRITE(6)")) == 0)
+		reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
+				      (7<<1) | (1<<4), 1,
+				      "WRITE(6)");
+		if (reply == 0)
 			reply = do_write(fsg);
 		break;
 
 	case SC_WRITE_10:
 		fsg->data_size_from_cmnd =
 				get_unaligned_be16(&fsg->common->cmnd[7]) << 9;
-		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
-				(1<<1) | (0xf<<2) | (3<<7), 1,
-				"WRITE(10)")) == 0)
+		reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
+				      (1<<1) | (0xf<<2) | (3<<7), 1,
+				      "WRITE(10)");
+		if (reply == 0)
 			reply = do_write(fsg);
 		break;
 
 	case SC_WRITE_12:
 		fsg->data_size_from_cmnd =
 				get_unaligned_be32(&fsg->common->cmnd[6]) << 9;
-		if ((reply = check_command(fsg, 12, DATA_DIR_FROM_HOST,
-				(1<<1) | (0xf<<2) | (0xf<<6), 1,
-				"WRITE(12)")) == 0)
+		reply = check_command(fsg, 12, DATA_DIR_FROM_HOST,
+				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
+				      "WRITE(12)");
+		if (reply == 0)
 			reply = do_write(fsg);
 		break;
 
@@ -1951,14 +2038,15 @@ static int do_scsi_command(struct fsg_dev *fsg)
 	case SC_RELEASE:
 	case SC_RESERVE:
 	case SC_SEND_DIAGNOSTIC:
-		// Fall through
+		/* Fall through */
 
 	default:
- unknown_cmnd:
+unknown_cmnd:
 		fsg->data_size_from_cmnd = 0;
 		sprintf(unknown, "Unknown x%02x", fsg->common->cmnd[0]);
-		if ((reply = check_command(fsg, fsg->common->cmnd_size,
-				DATA_DIR_UNKNOWN, 0xff, 0, unknown)) == 0) {
+		reply = check_command(fsg, fsg->common->cmnd_size,
+				      DATA_DIR_UNKNOWN, 0xff, 0, unknown);
+		if (reply == 0) {
 			fsg->common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
 		}
@@ -1971,13 +2059,13 @@ static int do_scsi_command(struct fsg_dev *fsg)
 
 	/* Set up the single reply buffer for finish_reply() */
 	if (reply == -EINVAL)
-		reply = 0;		// Error reply length
+		reply = 0;		/* Error reply length */
 	if (reply >= 0 && fsg->data_dir == DATA_DIR_TO_HOST) {
 		reply = min((u32) reply, fsg->data_size_from_cmnd);
 		bh->inreq->length = reply;
 		bh->state = BUF_STATE_FULL;
 		fsg->residue -= reply;
-	}				// Otherwise it's already set
+	}				/* Otherwise it's already set */
 
 	return 0;
 }
@@ -2157,13 +2245,15 @@ reset:
 	/* Enable the endpoints */
 	d = fsg_ep_desc(fsg->gadget,
 			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
-	if ((rc = enable_endpoint(fsg, fsg->bulk_in, d)) != 0)
+	rc = enable_endpoint(fsg, fsg->bulk_in, d);
+	if (rc != 0)
 		goto reset;
 	fsg->bulk_in_enabled = 1;
 
 	d = fsg_ep_desc(fsg->gadget,
 			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
-	if ((rc = enable_endpoint(fsg, fsg->bulk_out, d)) != 0)
+	rc = enable_endpoint(fsg, fsg->bulk_out, d);
+	if (rc != 0)
 		goto reset;
 	fsg->bulk_out_enabled = 1;
 	fsg->bulk_out_maxpacket = le16_to_cpu(d->wMaxPacketSize);
@@ -2173,9 +2263,11 @@ reset:
 	for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
 		struct fsg_buffhd	*bh = &fsg->common->buffhds[i];
 
-		if ((rc = alloc_request(fsg, fsg->bulk_in, &bh->inreq)) != 0)
+		rc = alloc_request(fsg, fsg->bulk_in, &bh->inreq);
+		if (rc != 0)
 			goto reset;
-		if ((rc = alloc_request(fsg, fsg->bulk_out, &bh->outreq)) != 0)
+		rc = alloc_request(fsg, fsg->bulk_out, &bh->outreq);
+		if (rc != 0)
 			goto reset;
 		bh->inreq->buf = bh->outreq->buf = bh->buf;
 		bh->inreq->context = bh->outreq->context = bh;
@@ -2302,9 +2394,8 @@ static void handle_exception(struct fsg_dev *fsg)
 		bh = &fsg->common->buffhds[i];
 		bh->state = BUF_STATE_EMPTY;
 	}
-	fsg->common->next_buffhd_to_fill = fsg->common->next_buffhd_to_drain =
-			&fsg->common->buffhds[0];
-
+	fsg->common->next_buffhd_to_fill = &fsg->common->buffhds[0];
+	fsg->common->next_buffhd_to_drain = &fsg->common->buffhds[0];
 	exception_req_tag = fsg->exception_req_tag;
 	new_config = fsg->new_config;
 	old_state = fsg->state;
@@ -2315,8 +2406,8 @@ static void handle_exception(struct fsg_dev *fsg)
 		for (i = 0; i < fsg->common->nluns; ++i) {
 			curlun = &fsg->common->luns[i];
 			curlun->prevent_medium_removal = 0;
-			curlun->sense_data = curlun->unit_attention_data =
-					SS_NO_SENSE;
+			curlun->sense_data = SS_NO_SENSE;
+			curlun->unit_attention_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}
@@ -2342,30 +2433,31 @@ static void handle_exception(struct fsg_dev *fsg)
 			usb_ep_clear_halt(fsg->bulk_in);
 
 		if (fsg->ep0_req_tag == exception_req_tag)
-			ep0_queue(fsg);	// Complete the status stage
+			ep0_queue(fsg);	/* Complete the status stage */
 
 		/* Technically this should go here, but it would only be
 		 * a waste of time.  Ditto for the INTERFACE_CHANGE and
 		 * CONFIG_CHANGE cases. */
-		// for (i = 0; i < fsg->common->nluns; ++i)
-		//	fsg->common->luns[i].unit_attention_data = SS_RESET_OCCURRED;
+		/* for (i = 0; i < fsg->common->nluns; ++i) */
+		/*	fsg->common->luns[i].unit_attention_data = */
+		/*		SS_RESET_OCCURRED;  */
 		break;
 
 	case FSG_STATE_CONFIG_CHANGE:
 		rc = do_set_config(fsg, new_config);
 		if (fsg->ep0_req_tag != exception_req_tag)
 			break;
-		if (rc != 0)			// STALL on errors
+		if (rc != 0)			/* STALL on errors */
 			fsg_set_halt(fsg, fsg->ep0);
-		else				// Complete the status stage
+		else				/* Complete the status stage */
 			ep0_queue(fsg);
 		break;
 
 	case FSG_STATE_EXIT:
 	case FSG_STATE_TERMINATED:
-		do_set_config(fsg, 0);			// Free resources
+		do_set_config(fsg, 0);			/* Free resources */
 		spin_lock_irq(&fsg->lock);
-		fsg->state = FSG_STATE_TERMINATED;	// Stop the thread
+		fsg->state = FSG_STATE_TERMINATED;	/* Stop the thread */
 		spin_unlock_irq(&fsg->lock);
 		break;
 
@@ -2645,7 +2737,8 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 error_luns:
 	common->nluns = i + 1;
 error_release:
-	/* Call fsg_common_release() directly, ref is not initialised */
+	/* Call fsg_common_release() directly, ref might be not
+	 * initialised */
 	fsg_common_release(&common->ref);
 	return ERR_PTR(rc);
 }
@@ -2721,13 +2814,13 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_in_desc);
 	if (!ep)
 		goto autoconf_fail;
-	ep->driver_data = fsg;		// claim the endpoint
+	ep->driver_data = fsg;		/* claim the endpoint */
 	fsg->bulk_in = ep;
 
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_out_desc);
 	if (!ep)
 		goto autoconf_fail;
-	ep->driver_data = fsg;		// claim the endpoint
+	ep->driver_data = fsg;		/* claim the endpoint */
 	fsg->bulk_out = ep;
 
 	if (gadget_is_dualspeed(gadget)) {
@@ -2770,7 +2863,7 @@ autoconf_fail:
 	rc = -ENOTSUPP;
 
 out:
-	fsg->state = FSG_STATE_TERMINATED;	// The thread is dead
+	fsg->state = FSG_STATE_TERMINATED;	/* The thread is dead */
 	fsg_unbind(c, f);
 	complete(&fsg->thread_notifier);
 	return rc;
@@ -2874,18 +2967,16 @@ fsg_config_from_params(struct fsg_config *cfg,
 		       const struct fsg_module_parameters *params)
 {
 	struct fsg_lun_config *lun;
-	unsigned i, nluns;
+	unsigned i;
 
 	/* Configure LUNs */
-	nluns = cfg->nluns = !params->luns
-		? params->file_count ? params->file_count : 1
-		: params->luns;
-	for (i = 0, lun = cfg->luns;
-	     i < FSG_MAX_LUNS && i < nluns;
-	     ++i, ++lun) {
+	cfg->nluns =
+		min(params->luns ?: (params->file_count ?: 1u),
+		    (unsigned)FSG_MAX_LUNS);
+	for (i = 0, lun = cfg->luns; i < cfg->nluns; ++i, ++lun) {
 		lun->ro = !!params->ro[i];
 		lun->cdrom = !!params->cdrom[i];
-		lun->removable =
+		lun->removable = /* Removable by default */
 			params->removable_count <= i || params->removable[i];
 		lun->filename =
 			params->file_count > i && params->file[i][0]
@@ -2893,7 +2984,7 @@ fsg_config_from_params(struct fsg_config *cfg,
 			: 0;
 	}
 
-	/* Let FSG use defaults */
+	/* Let MSF use defaults */
 	cfg->lun_name_format = 0;
 	cfg->thread_name = 0;
 	cfg->vendor_name = 0;

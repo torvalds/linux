@@ -61,8 +61,8 @@
  *
  * DO NOT REUSE THESE IDs with any other driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures. */
-#define FSG_VENDOR_ID	0x0525	// NetChip
-#define FSG_PRODUCT_ID	0xa4a5	// Linux-USB File-backed Storage Gadget
+#define FSG_VENDOR_ID	0x0525	/* NetChip */
+#define FSG_PRODUCT_ID	0xa4a5	/* Linux-USB File-backed Storage Gadget */
 
 
 /*-------------------------------------------------------------------------*/
@@ -103,7 +103,7 @@
 #ifdef DUMP_MSGS
 
 #  define dump_msg(fsg, /* const char * */ label,			\
-		 /* const u8 * */ buf, /* unsigned */ length) do {	\
+		   /* const u8 * */ buf, /* unsigned */ length) do {	\
 	if (length < 512) {						\
 		DBG(fsg, "%s, length %u:\n", label, length);		\
 		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,	\
@@ -116,11 +116,11 @@
 #else
 
 #  define dump_msg(fsg, /* const char * */ label, \
-		 /* const u8 * */ buf, /* unsigned */ length) do { } while (0)
+		   /* const u8 * */ buf, /* unsigned */ length) do { } while (0)
 
 #  ifdef VERBOSE_DEBUG
 
-#define dump_cdb(fsg)							\
+#    define dump_cdb(fsg)						\
 	print_hex_dump(KERN_DEBUG, "SCSI CDB: ", DUMP_PREFIX_NONE,	\
 		       16, 1, (fsg)->cmnd, (fsg)->cmnd_size, 0)		\
 
@@ -143,45 +143,45 @@
 #define TYPE_CDROM	0x05
 
 /* USB protocol value = the transport method */
-#define USB_PR_CBI	0x00		// Control/Bulk/Interrupt
-#define USB_PR_CB	0x01		// Control/Bulk w/o interrupt
-#define USB_PR_BULK	0x50		// Bulk-only
+#define USB_PR_CBI	0x00		/* Control/Bulk/Interrupt */
+#define USB_PR_CB	0x01		/* Control/Bulk w/o interrupt */
+#define USB_PR_BULK	0x50		/* Bulk-only */
 
 /* USB subclass value = the protocol encapsulation */
-#define USB_SC_RBC	0x01		// Reduced Block Commands (flash)
-#define USB_SC_8020	0x02		// SFF-8020i, MMC-2, ATAPI (CD-ROM)
-#define USB_SC_QIC	0x03		// QIC-157 (tape)
-#define USB_SC_UFI	0x04		// UFI (floppy)
-#define USB_SC_8070	0x05		// SFF-8070i (removable)
-#define USB_SC_SCSI	0x06		// Transparent SCSI
+#define USB_SC_RBC	0x01		/* Reduced Block Commands (flash) */
+#define USB_SC_8020	0x02		/* SFF-8020i, MMC-2, ATAPI (CD-ROM) */
+#define USB_SC_QIC	0x03		/* QIC-157 (tape) */
+#define USB_SC_UFI	0x04		/* UFI (floppy) */
+#define USB_SC_8070	0x05		/* SFF-8070i (removable) */
+#define USB_SC_SCSI	0x06		/* Transparent SCSI */
 
 /* Bulk-only data structures */
 
 /* Command Block Wrapper */
 struct fsg_bulk_cb_wrap {
-	__le32	Signature;		// Contains 'USBC'
-	u32	Tag;			// Unique per command id
-	__le32	DataTransferLength;	// Size of the data
-	u8	Flags;			// Direction in bit 7
-	u8	Lun;			// LUN (normally 0)
-	u8	Length;			// Of the CDB, <= MAX_COMMAND_SIZE
-	u8	CDB[16];		// Command Data Block
+	__le32	Signature;		/* Contains 'USBC' */
+	u32	Tag;			/* Unique per command id */
+	__le32	DataTransferLength;	/* Size of the data */
+	u8	Flags;			/* Direction in bit 7 */
+	u8	Lun;			/* LUN (normally 0) */
+	u8	Length;			/* Of the CDB, <= MAX_COMMAND_SIZE */
+	u8	CDB[16];		/* Command Data Block */
 };
 
 #define USB_BULK_CB_WRAP_LEN	31
-#define USB_BULK_CB_SIG		0x43425355	// Spells out USBC
+#define USB_BULK_CB_SIG		0x43425355	/* Spells out USBC */
 #define USB_BULK_IN_FLAG	0x80
 
 /* Command Status Wrapper */
 struct bulk_cs_wrap {
-	__le32	Signature;		// Should = 'USBS'
-	u32	Tag;			// Same as original command
-	__le32	Residue;		// Amount not transferred
-	u8	Status;			// See below
+	__le32	Signature;		/* Should = 'USBS' */
+	u32	Tag;			/* Same as original command */
+	__le32	Residue;		/* Amount not transferred */
+	u8	Status;			/* See below */
 };
 
 #define USB_BULK_CS_WRAP_LEN	13
-#define USB_BULK_CS_SIG		0x53425355	// Spells out 'USBS'
+#define USB_BULK_CS_SIG		0x53425355	/* Spells out 'USBS' */
 #define USB_STATUS_PASS		0
 #define USB_STATUS_FAIL		1
 #define USB_STATUS_PHASE_ERROR	2
@@ -203,7 +203,8 @@ struct interrupt_data {
 #define USB_CBI_ADSC_REQUEST		0x00
 
 
-#define MAX_COMMAND_SIZE	16	// Length of a SCSI Command Data Block
+/* Length of a SCSI Command Data Block */
+#define MAX_COMMAND_SIZE	16
 
 /* SCSI commands that we recognize */
 #define SC_FORMAT_UNIT			0x04
@@ -248,7 +249,7 @@ struct interrupt_data {
 #define SS_WRITE_ERROR				0x030c02
 #define SS_WRITE_PROTECTED			0x072700
 
-#define SK(x)		((u8) ((x) >> 16))	// Sense Key byte, etc.
+#define SK(x)		((u8) ((x) >> 16))	/* Sense Key byte, etc. */
 #define ASC(x)		((u8) ((x) >> 8))
 #define ASCQ(x)		((u8) (x))
 
@@ -261,13 +262,13 @@ struct fsg_lun {
 	loff_t		file_length;
 	loff_t		num_sectors;
 
-	unsigned int	initially_ro : 1;
-	unsigned int	ro : 1;
-	unsigned int	removable : 1;
-	unsigned int	cdrom : 1;
-	unsigned int	prevent_medium_removal : 1;
-	unsigned int	registered : 1;
-	unsigned int	info_valid : 1;
+	unsigned int	initially_ro:1;
+	unsigned int	ro:1;
+	unsigned int	removable:1;
+	unsigned int	cdrom:1;
+	unsigned int	prevent_medium_removal:1;
+	unsigned int	registered:1;
+	unsigned int	info_valid:1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -286,7 +287,7 @@ static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 
 /* Big enough to hold our biggest descriptor */
 #define EP0_BUFSIZE	256
-#define DELAYED_STATUS	(EP0_BUFSIZE + 999)	// An impossibly large value
+#define DELAYED_STATUS	(EP0_BUFSIZE + 999)	/* An impossibly large value */
 
 /* Number of buffers we will use.  2 is enough for double-buffering */
 #define FSG_NUM_BUFFERS	2
@@ -324,7 +325,8 @@ struct fsg_buffhd {
 };
 
 enum fsg_state {
-	FSG_STATE_COMMAND_PHASE = -10,		// This one isn't used anywhere
+	/* This one isn't used anywhere */
+	FSG_STATE_COMMAND_PHASE = -10,
 	FSG_STATE_DATA_PHASE,
 	FSG_STATE_STATUS_PHASE,
 
@@ -386,10 +388,10 @@ fsg_intf_desc = {
 	.bLength =		sizeof fsg_intf_desc,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
-	.bNumEndpoints =	2,		// Adjusted during fsg_bind()
+	.bNumEndpoints =	2,		/* Adjusted during fsg_bind() */
 	.bInterfaceClass =	USB_CLASS_MASS_STORAGE,
-	.bInterfaceSubClass =	USB_SC_SCSI,	// Adjusted during fsg_bind()
-	.bInterfaceProtocol =	USB_PR_BULK,	// Adjusted during fsg_bind()
+	.bInterfaceSubClass =	USB_SC_SCSI,	/* Adjusted during fsg_bind() */
+	.bInterfaceProtocol =	USB_PR_BULK,	/* Adjusted during fsg_bind() */
 	.iInterface =		FSG_STRING_INTERFACE,
 };
 
@@ -426,7 +428,7 @@ fsg_fs_intr_in_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(2),
-	.bInterval =		32,	// frames -> 32 ms
+	.bInterval =		32,	/* frames -> 32 ms */
 };
 
 #ifndef FSG_NO_OTG
@@ -477,7 +479,7 @@ fsg_hs_bulk_out_desc = {
 	/* bEndpointAddress copied from fs_bulk_out_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	.wMaxPacketSize =	cpu_to_le16(512),
-	.bInterval =		1,	// NAK every 1 uframe
+	.bInterval =		1,	/* NAK every 1 uframe */
 };
 
 #ifndef FSG_NO_INTR_EP
@@ -490,7 +492,7 @@ fsg_hs_intr_in_desc = {
 	/* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(2),
-	.bInterval =		9,	// 2**(9-1) = 256 uframes -> 32 ms
+	.bInterval =		9,	/* 2**(9-1) = 256 uframes -> 32 ms */
 };
 
 #ifndef FSG_NO_OTG
@@ -538,7 +540,7 @@ static struct usb_string		fsg_strings[] = {
 };
 
 static struct usb_gadget_strings	fsg_stringtab = {
-	.language	= 0x0409,		// en-us
+	.language	= 0x0409,		/* en-us */
 	.strings	= fsg_strings,
 };
 
@@ -600,11 +602,11 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		rc = (int) size;
 		goto out;
 	}
-	num_sectors = size >> 9;	// File size in 512-byte blocks
+	num_sectors = size >> 9;	/* File size in 512-byte blocks */
 	min_sectors = 1;
 	if (curlun->cdrom) {
-		num_sectors &= ~3;	// Reduce to a multiple of 2048
-		min_sectors = 300*4;	// Smallest track is 300 frames
+		num_sectors &= ~3;	/* Reduce to a multiple of 2048 */
+		min_sectors = 300*4;	/* Smallest track is 300 frames */
 		if (num_sectors >= 256*60*75*4) {
 			num_sectors = (256*60*75 - 1) * 4;
 			LINFO(curlun, "file too big: %s\n", filename);
@@ -696,17 +698,17 @@ static ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
 	ssize_t		rc;
 
 	down_read(filesem);
-	if (fsg_lun_is_open(curlun)) {	// Get the complete pathname
+	if (fsg_lun_is_open(curlun)) {	/* Get the complete pathname */
 		p = d_path(&curlun->filp->f_path, buf, PAGE_SIZE - 1);
 		if (IS_ERR(p))
 			rc = PTR_ERR(p);
 		else {
 			rc = strlen(p);
 			memmove(buf, p, rc);
-			buf[rc] = '\n';		// Add a newline
+			buf[rc] = '\n';		/* Add a newline */
 			buf[++rc] = 0;
 		}
-	} else {				// No file, return 0 bytes
+	} else {				/* No file, return 0 bytes */
 		*buf = 0;
 		rc = 0;
 	}
@@ -750,12 +752,12 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 
 	if (curlun->prevent_medium_removal && fsg_lun_is_open(curlun)) {
 		LDBG(curlun, "eject attempt prevented\n");
-		return -EBUSY;				// "Door is locked"
+		return -EBUSY;				/* "Door is locked" */
 	}
 
 	/* Remove a trailing newline */
 	if (count > 0 && buf[count-1] == '\n')
-		((char *) buf)[count-1] = 0;		// Ugh!
+		((char *) buf)[count-1] = 0;		/* Ugh! */
 
 	/* Eject current medium */
 	down_write(filesem);
