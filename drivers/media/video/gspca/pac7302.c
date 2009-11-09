@@ -68,6 +68,7 @@
 
 #define MODULE_NAME "pac7302"
 
+#include <media/v4l2-chip-ident.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
@@ -1143,6 +1144,55 @@ static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
+			struct v4l2_dbg_register *reg)
+{
+	int ret = -EINVAL;
+	__u8 index;
+	__u8 value;
+
+	/* reg->reg: bit0..15: reserved for register index (wIndex is 16bit
+			       long on the USB bus)
+	*/
+	if (reg->match.type == V4L2_CHIP_MATCH_HOST &&
+	    reg->match.addr == 0 &&
+	    (reg->reg < 0x000000ff) &&
+	    (reg->val <= 0x000000ff)
+	) {
+		/* Currently writing to page 0 is only supported. */
+		/* reg_w() only supports 8bit index */
+		index = reg->reg & 0x000000ff;
+		value = reg->val & 0x000000ff;
+
+		/* Note that there shall be no access to other page
+		   by any other function between the page swith and
+		   the actual register write */
+		ret = reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+		if (0 <= ret)
+			ret = reg_w(gspca_dev, index, value);
+
+		if (0 <= ret)
+			ret = reg_w(gspca_dev, 0xdc, 0x01);
+	}
+	return ret;
+}
+
+static int sd_chip_ident(struct gspca_dev *gspca_dev,
+			struct v4l2_dbg_chip_ident *chip)
+{
+	int ret = -EINVAL;
+
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST &&
+	    chip->match.addr == 0) {
+		chip->revision = 0;
+		chip->ident = V4L2_IDENT_UNKNOWN;
+		ret = 0;
+	}
+	return ret;
+}
+#endif
+
 /* sub-driver description for pac7302 */
 static struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1155,6 +1205,10 @@ static struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.set_register = sd_dbg_s_register,
+	.get_chip_ident = sd_chip_ident,
+#endif
 };
 
 /* -- module initialisation -- */
