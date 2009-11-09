@@ -8143,7 +8143,7 @@ static void __devinit niu_vpd_parse_version(struct niu *np)
 	int i;
 
 	for (i = 0; i < len - 5; i++) {
-		if (!strncmp(s + i, "FCode ", 5))
+		if (!strncmp(s + i, "FCode ", 6))
 			break;
 	}
 	if (i >= len - 5)
