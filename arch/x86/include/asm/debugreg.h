@@ -89,6 +89,8 @@ static inline void hw_breakpoint_disable(void)
 	set_debugreg(0UL, 3);
 }
 
+extern void aout_dump_debugregs(struct user *dump);
+
 #ifdef CONFIG_KVM
 extern void hw_breakpoint_restore(void);
 #endif
