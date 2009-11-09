@@ -46,11 +46,22 @@ config MACH_MAINSTONE
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_ZYLONITE
-	bool "PXA3xx Development Platform (aka Zylonite)"
+	bool
 	select PXA3xx
 	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_ZYLONITE300
+	bool "PXA3xx Development Platform (aka Zylonite) PXA300/310"
+	select CPU_PXA300
+	select CPU_PXA310
+	select MACH_ZYLONITE
+
+config MACH_ZYLONITE320
+	bool "PXA3xx Development Platform (aka Zylonite) PXA320"
+	select CPU_PXA320
+	select MACH_ZYLONITE
 
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"

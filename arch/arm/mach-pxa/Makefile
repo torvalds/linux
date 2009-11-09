@@ -29,11 +29,8 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 # Intel/Marvell Dev Platforms
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
-ifeq ($(CONFIG_MACH_ZYLONITE),y)
-  obj-y				+= zylonite.o
-  obj-$(CONFIG_CPU_PXA300)	+= zylonite_pxa300.o
-  obj-$(CONFIG_CPU_PXA320)	+= zylonite_pxa320.o
-endif
+obj-$(CONFIG_MACH_ZYLONITE300)	+= zylonite.o zylonite_pxa300.o
+obj-$(CONFIG_MACH_ZYLONITE320)	+= zylonite.o zylonite_pxa320.o
 obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 obj-$(CONFIG_MACH_TAVOREVB)	+= tavorevb.o
 obj-$(CONFIG_MACH_SAAR)		+= saar.o
