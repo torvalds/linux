@@ -120,11 +120,16 @@
 /* Maximum firmware DMA buffers per stream */
 #define CX18_MAX_FW_MDLS_PER_STREAM 63
 
+/* YUV buffer sizes in bytes to ensure integer # of frames per buffer */
+#define CX18_UNIT_ENC_YUV_BUFSIZE	(720 *  32 * 3 / 2) /* bytes */
+#define CX18_625_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 576/32)
+#define CX18_525_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 480/32)
+
 /* DMA buffer, default size in kB allocated */
 #define CX18_DEFAULT_ENC_TS_BUFSIZE   32
 #define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
 #define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
-#define CX18_DEFAULT_ENC_YUV_BUFSIZE 128
+#define CX18_DEFAULT_ENC_YUV_BUFSIZE  (CX18_UNIT_ENC_YUV_BUFSIZE * 3 / 1024 + 1)
 /* Default VBI bufsize based on standards supported by card tuner for now */
 #define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 

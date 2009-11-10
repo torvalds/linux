@@ -211,7 +211,9 @@ MODULE_PARM_DESC(enc_yuv_buffers,
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
 MODULE_PARM_DESC(enc_yuv_bufsize,
 		 "Size of an encoder YUV buffer (kB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFSIZE));
+		 "\t\t\tAllowed values are multiples of 33.75 kB rounded up\n"
+		 "\t\t\t(multiples of size required for 32 screen lines)\n"
+		 "\t\t\tDefault: 102");
 MODULE_PARM_DESC(enc_yuv_bufs,
 		 "Number of encoder YUV buffers\n"
 		 "\t\t\tDefault is computed from other enc_yuv_* parameters");
@@ -499,10 +501,27 @@ static void cx18_process_options(struct cx18 *cx)
 			continue;
 		}
 		/*
+		 * YUV is a special case where the stream_buf_size needs to be
+		 * an integral multiple of 33.75 kB (storage for 32 screens
+		 * lines to maintain alignment in case of lost buffers
+		 */
+		if (i == CX18_ENC_STREAM_TYPE_YUV) {
+			cx->stream_buf_size[i] *= 1024;
+			cx->stream_buf_size[i] -=
+			   (cx->stream_buf_size[i] % CX18_UNIT_ENC_YUV_BUFSIZE);
+
+			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_YUV_BUFSIZE)
+				cx->stream_buf_size[i] =
+						CX18_UNIT_ENC_YUV_BUFSIZE;
+		}
+		/*
+		 * YUV is a special case where the stream_buf_size is
+		 * now in bytes.
 		 * VBI is a special case where the stream_buf_size is fixed
 		 * and already in bytes
 		 */
-		if (i == CX18_ENC_STREAM_TYPE_VBI) {
+		if (i == CX18_ENC_STREAM_TYPE_VBI ||
+		    i == CX18_ENC_STREAM_TYPE_YUV) {
 			if (cx->stream_buffers[i] < 0) {
 				cx->stream_buffers[i] =
 					cx->options.megabytes[i] * 1024 * 1024
@@ -513,18 +532,24 @@ static void cx18_process_options(struct cx18 *cx)
 					cx->stream_buffers[i]
 					* cx->stream_buf_size[i]/(1024 * 1024);
 			}
-			continue;
-		}
-		/* All other streams have stream_buf_size in kB at this point */
-		if (cx->stream_buffers[i] < 0) {
-			cx->stream_buffers[i] = cx->options.megabytes[i] * 1024
-						/ cx->stream_buf_size[i];
 		} else {
-			/* N.B. This might round down to 0 */
-			cx->options.megabytes[i] =
-			  cx->stream_buffers[i] * cx->stream_buf_size[i] / 1024;
+			/* All other streams have stream_buf_size in kB here */
+			if (cx->stream_buffers[i] < 0) {
+				cx->stream_buffers[i] =
+						cx->options.megabytes[i] * 1024
+						/ cx->stream_buf_size[i];
+			} else {
+				/* N.B. This might round down to 0 */
+				cx->options.megabytes[i] =
+						cx->stream_buffers[i]
+						* cx->stream_buf_size[i] / 1024;
+			}
+			/* convert from kB to bytes */
+			cx->stream_buf_size[i] *= 1024;
 		}
-		cx->stream_buf_size[i] *= 1024; /* convert from kB to bytes */
+		CX18_DEBUG_INFO("Stream type %d options: %d MB, %d buffers, "
+				"%d bytes\n", i, cx->options.megabytes[i],
+				cx->stream_buffers[i], cx->stream_buf_size[i]);
 	}
 
 	cx->options.cardtype = cardtype[cx->instance];
