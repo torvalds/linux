@@ -217,7 +217,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (inet->opt)
 		inet_csk(sk)->icsk_ext_hdr_len = inet->opt->optlen;
 
-	tp->rx_opt.mss_clamp = 536;
+	tp->rx_opt.mss_clamp = TCP_MSS_DEFAULT;
 
 	/* Socket identity is still unknown (sport may be zero).
 	 * However we set state to SYN-SENT and not releasing socket
@@ -1268,7 +1268,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	tcp_clear_options(&tmp_opt);
-	tmp_opt.mss_clamp = 536;
+	tmp_opt.mss_clamp = TCP_MSS_DEFAULT;
 	tmp_opt.user_mss  = tcp_sk(sk)->rx_opt.user_mss;
 
 	tcp_parse_options(skb, &tmp_opt, 0, dst);
@@ -1815,7 +1815,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	 */
 	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_clamp = ~0;
-	tp->mss_cache = 536;
+	tp->mss_cache = TCP_MSS_DEFAULT;
 
 	tp->reordering = sysctl_tcp_reordering;
 	icsk->icsk_ca_ops = &tcp_init_congestion_ops;

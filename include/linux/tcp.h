@@ -81,6 +81,12 @@ enum {
 	TCP_DATA_OFFSET = __cpu_to_be32(0xF0000000)
 }; 
 
+/*
+ * TCP general constants
+ */
+#define TCP_MSS_DEFAULT		 536U	/* IPv4 (RFC1122, RFC2581) */
+#define TCP_MSS_DESIRED		1220U	/* IPv6 (tunneled), EDNS0 (RFC3226) */
+
 /* TCP socket options */
 #define TCP_NODELAY		1	/* Turn off Nagle's algorithm. */
 #define TCP_MAXSEG		2	/* Limit MSS */

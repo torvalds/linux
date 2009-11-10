@@ -140,7 +140,7 @@ static void tcp_measure_rcv_mss(struct sock *sk, const struct sk_buff *skb)
 		 * "len" is invariant segment length, including TCP header.
 		 */
 		len += skb->data - skb_transport_header(skb);
-		if (len >= TCP_MIN_RCVMSS + sizeof(struct tcphdr) ||
+		if (len >= TCP_MSS_DEFAULT + sizeof(struct tcphdr) ||
 		    /* If PSH is not set, packet should be
 		     * full sized, provided peer TCP is not badly broken.
 		     * This observation (if it is correct 8)) allows
@@ -411,7 +411,7 @@ void tcp_initialize_rcv_mss(struct sock *sk)
 	unsigned int hint = min_t(unsigned int, tp->advmss, tp->mss_cache);
 
 	hint = min(hint, tp->rcv_wnd / 2);
-	hint = min(hint, TCP_MIN_RCVMSS);
+	hint = min(hint, TCP_MSS_DEFAULT);
 	hint = max(hint, TCP_MIN_MSS);
 
 	inet_csk(sk)->icsk_ack.rcv_mss = hint;

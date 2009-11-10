@@ -62,9 +62,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* Minimal accepted MSS. It is (60+60+8) - (20+20). */
 #define TCP_MIN_MSS		88U
 
-/* Minimal RCV_MSS. */
-#define TCP_MIN_RCVMSS		536U
-
 /* The least MTU to use for probing */
 #define TCP_BASE_MSS		512
 
