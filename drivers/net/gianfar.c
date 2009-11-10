@@ -1246,7 +1246,7 @@ static int gfar_restore(struct device *dev)
 		phy_start(priv->phydev);
 
 	netif_device_attach(ndev);
-	napi_enable(&priv->gfargrp.napi);
+	enable_napi(priv);
 
 	return 0;
 }
