@@ -736,7 +736,7 @@ unsigned int ata_sff_data_xfer(struct ata_device *dev, unsigned char *buf,
 
 		/*
 		 * Use io*16_rep() accessors here as well to avoid pointlessly
-		 * swapping bytes to and fro on the big endian machines...
+		 * swapping bytes to and from on the big endian machines...
 		 */
 		if (rw == READ) {
 			ioread16_rep(data_addr, pad, 1);
@@ -776,7 +776,7 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 2;
 	int slop = buflen & 3;
-	
+
 	if (!(ap->pflags & ATA_PFLAG_PIO32))
 		return ata_sff_data_xfer(dev, buf, buflen, rw);
 
@@ -795,7 +795,7 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 
 		/*
 		 * Use io*_rep() accessors here as well to avoid pointlessly
-		 * swapping bytes to and fro on the big endian machines...
+		 * swapping bytes to and from on the big endian machines...
 		 */
 		if (rw == READ) {
 			if (slop < 3)
