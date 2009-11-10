@@ -56,7 +56,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
-		if (host->hw_designer == 0x80)
+		if (host->hw_designer == AMBA_VENDOR_ST)
 			clk |= MCI_FCEN; /* Bug fix in ST IP block */
 		clk |= MCI_CLK_ENABLE;
 		/* This hasn't proven to be worthwhile */
