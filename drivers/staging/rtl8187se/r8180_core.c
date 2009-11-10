@@ -2911,8 +2911,6 @@ short rtl8180_init(struct net_device *dev)
 	priv->ieee80211->short_slot = 1;
 
 	// just for sync 85
-	priv->card_type = PCI;
-        DMESG("This is a PCI NIC");
 	priv->enable_gpio0 = 0;
 
 	usValue = eprom_read(dev, EEPROM_SW_REVD_OFFSET);
@@ -3233,7 +3231,6 @@ void rtl8185_set_rate(struct net_device *dev)
 void rtl8180_adapter_start(struct net_device *dev)
 {
         struct r8180_priv *priv = ieee80211_priv(dev);
-	u8 config3;
 
 	rtl8180_rtx_disable(dev);
 	rtl8180_reset(dev);
@@ -3247,12 +3244,6 @@ void rtl8180_adapter_start(struct net_device *dev)
 
 	rtl8180_beacon_tx_disable(dev);
 
-	if(priv->card_type == CARDBUS ){
-		config3=read_nic_byte(dev, CONFIG3);
-		write_nic_byte(dev,CONFIG3,config3 | CONFIG3_FuncRegEn);
-		write_nic_word(dev,FEMR, FEMR_INTR | FEMR_WKUP | FEMR_GWAKE |
-			read_nic_word(dev, FEMR));
-	}
 	rtl8180_set_mode(dev, EPROM_CMD_CONFIG);
 	write_nic_dword(dev, MAC0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, MAC4, ((u32*)dev->dev_addr)[1] & 0xffff );

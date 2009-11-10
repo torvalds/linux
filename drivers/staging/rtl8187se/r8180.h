@@ -328,7 +328,6 @@ typedef struct r8180_priv
 
 	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
 	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;
 	short hw_plcp_len;
 	short plcp_preamble_mode; // 0:auto 1:short 2:long
 
