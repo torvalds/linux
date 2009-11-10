@@ -1099,60 +1099,118 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	else
 		overhead = (*aperture_size / 1024) + 4096;
 
-	switch (tmp & INTEL_GMCH_GMS_MASK) {
-	case INTEL_855_GMCH_GMS_DISABLED:
-		/* XXX: This is what my A1 silicon has. */
-		if (IS_GEN6(dev)) {
-			stolen = 64 * 1024 * 1024;
-		} else {
+	if (IS_GEN6(dev)) {
+		/* SNB has memory control reg at 0x50.w */
+		pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &tmp);
+
+		switch (tmp & SNB_GMCH_GMS_STOLEN_MASK) {
+		case INTEL_855_GMCH_GMS_DISABLED:
 			DRM_ERROR("video memory is disabled\n");
 			return -1;
+		case SNB_GMCH_GMS_STOLEN_32M:
+			stolen = 32 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_64M:
+			stolen = 64 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_96M:
+			stolen = 96 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_128M:
+			stolen = 128 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_160M:
+			stolen = 160 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_192M:
+			stolen = 192 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_224M:
+			stolen = 224 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_256M:
+			stolen = 256 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_288M:
+			stolen = 288 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_320M:
+			stolen = 320 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_352M:
+			stolen = 352 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_384M:
+			stolen = 384 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_416M:
+			stolen = 416 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_448M:
+			stolen = 448 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_480M:
+			stolen = 480 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_512M:
+			stolen = 512 * 1024 * 1024;
+			break;
+		default:
+			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
+				  tmp & SNB_GMCH_GMS_STOLEN_MASK);
+			return -1;
 		}
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_1M:
-		stolen = 1 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_4M:
-		stolen = 4 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_8M:
-		stolen = 8 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_16M:
-		stolen = 16 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_32M:
-		stolen = 32 * 1024 * 1024;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_48M:
-		stolen = 48 * 1024 * 1024;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_64M:
-		stolen = 64 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_128M:
-		stolen = 128 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_256M:
-		stolen = 256 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_96M:
-		stolen = 96 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_160M:
-		stolen = 160 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_224M:
-		stolen = 224 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_352M:
-		stolen = 352 * 1024 * 1024;
-		break;
-	default:
-		DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
-			tmp & INTEL_GMCH_GMS_MASK);
-		return -1;
+	} else {
+		switch (tmp & INTEL_GMCH_GMS_MASK) {
+		case INTEL_855_GMCH_GMS_DISABLED:
+			DRM_ERROR("video memory is disabled\n");
+			return -1;
+		case INTEL_855_GMCH_GMS_STOLEN_1M:
+			stolen = 1 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_4M:
+			stolen = 4 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_8M:
+			stolen = 8 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_16M:
+			stolen = 16 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_32M:
+			stolen = 32 * 1024 * 1024;
+			break;
+		case INTEL_915G_GMCH_GMS_STOLEN_48M:
+			stolen = 48 * 1024 * 1024;
+			break;
+		case INTEL_915G_GMCH_GMS_STOLEN_64M:
+			stolen = 64 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_128M:
+			stolen = 128 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_256M:
+			stolen = 256 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_96M:
+			stolen = 96 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_160M:
+			stolen = 160 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_224M:
+			stolen = 224 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_352M:
+			stolen = 352 * 1024 * 1024;
+			break;
+		default:
+			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
+				  tmp & INTEL_GMCH_GMS_MASK);
+			return -1;
+		}
 	}
+
 	*preallocated_size = stolen - overhead;
 	*start = overhead;
 

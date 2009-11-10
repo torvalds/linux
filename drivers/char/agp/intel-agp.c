@@ -150,6 +150,25 @@ extern int agp_memory_reserved;
 #define INTEL_I7505_AGPCTRL	0x70
 #define INTEL_I7505_MCHCFG	0x50
 
+#define SNB_GMCH_CTRL	0x50
+#define SNB_GMCH_GMS_STOLEN_MASK	0xF8
+#define SNB_GMCH_GMS_STOLEN_32M		(1 << 3)
+#define SNB_GMCH_GMS_STOLEN_64M		(2 << 3)
+#define SNB_GMCH_GMS_STOLEN_96M		(3 << 3)
+#define SNB_GMCH_GMS_STOLEN_128M	(4 << 3)
+#define SNB_GMCH_GMS_STOLEN_160M	(5 << 3)
+#define SNB_GMCH_GMS_STOLEN_192M	(6 << 3)
+#define SNB_GMCH_GMS_STOLEN_224M	(7 << 3)
+#define SNB_GMCH_GMS_STOLEN_256M	(8 << 3)
+#define SNB_GMCH_GMS_STOLEN_288M	(9 << 3)
+#define SNB_GMCH_GMS_STOLEN_320M	(0xa << 3)
+#define SNB_GMCH_GMS_STOLEN_352M	(0xb << 3)
+#define SNB_GMCH_GMS_STOLEN_384M	(0xc << 3)
+#define SNB_GMCH_GMS_STOLEN_416M	(0xd << 3)
+#define SNB_GMCH_GMS_STOLEN_448M	(0xe << 3)
+#define SNB_GMCH_GMS_STOLEN_480M	(0xf << 3)
+#define SNB_GMCH_GMS_STOLEN_512M	(0x10 << 3)
+
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
 	{64, 16384, 4},
@@ -621,7 +640,7 @@ static struct aper_size_info_fixed intel_i830_sizes[] =
 static void intel_i830_init_gtt_entries(void)
 {
 	u16 gmch_ctrl;
-	int gtt_entries;
+	int gtt_entries = 0;
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
@@ -715,10 +734,61 @@ static void intel_i830_init_gtt_entries(void)
 		}
 	} else if (agp_bridge->dev->device ==
 		   PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB) {
-		/* XXX: This is what my A1 silicon has.  What's the right
-		 * answer?
+		/*
+		 * SandyBridge has new memory control reg at 0x50.w
 		 */
-		gtt_entries = MB(64) - KB(size);
+		u16 snb_gmch_ctl;
+		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+		switch (snb_gmch_ctl & SNB_GMCH_GMS_STOLEN_MASK) {
+		case SNB_GMCH_GMS_STOLEN_32M:
+			gtt_entries = MB(32) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_64M:
+			gtt_entries = MB(64) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_96M:
+			gtt_entries = MB(96) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_128M:
+			gtt_entries = MB(128) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_160M:
+			gtt_entries = MB(160) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_192M:
+			gtt_entries = MB(192) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_224M:
+			gtt_entries = MB(224) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_256M:
+			gtt_entries = MB(256) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_288M:
+			gtt_entries = MB(288) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_320M:
+			gtt_entries = MB(320) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_352M:
+			gtt_entries = MB(352) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_384M:
+			gtt_entries = MB(384) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_416M:
+			gtt_entries = MB(416) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_448M:
+			gtt_entries = MB(448) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_480M:
+			gtt_entries = MB(480) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_512M:
+			gtt_entries = MB(512) - KB(size);
+			break;
+		}
 	} else {
 		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
