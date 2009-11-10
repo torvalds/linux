@@ -1079,6 +1079,8 @@ extern rwlock_t				dev_base_lock;		/* Device list lock */
 		list_for_each_entry_safe(d, n, &(net)->dev_base_head, dev_list)
 #define for_each_netdev_continue(net, d)		\
 		list_for_each_entry_continue(d, &(net)->dev_base_head, dev_list)
+#define for_each_netdev_continue_rcu(net, d)		\
+	list_for_each_entry_continue_rcu(d, &(net)->dev_base_head, dev_list)
 #define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
 
 static inline struct net_device *next_net_device(struct net_device *dev)
