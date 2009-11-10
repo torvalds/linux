@@ -74,6 +74,8 @@ struct sih {
 	u8	edr_offset;
 	u8	bytes_edr;		/* bytelen of EDR */
 
+	u8	irq_lines;		/* number of supported irq lines */
+
 	/* SIR ignored -- set interrupt, for testing only */
 	struct irq_data {
 		u8	isr_offset;
@@ -82,6 +84,9 @@ struct sih {
 	/* + 2 bytes padding */
 };
 
+static const struct sih *sih_modules;
+static int nr_sih_modules;
+
 #define SIH_INITIALIZER(modname, nbits) \
 	.module		= TWL4030_MODULE_ ## modname, \
 	.control_offset = TWL4030_ ## modname ## _SIH_CTRL, \
@@ -89,6 +94,7 @@ struct sih {
 	.bytes_ixr	= DIV_ROUND_UP(nbits, 8), \
 	.edr_offset	= TWL4030_ ## modname ## _EDR, \
 	.bytes_edr	= DIV_ROUND_UP((2*(nbits)), 8), \
+	.irq_lines	= 2, \
 	.mask = { { \
 		.isr_offset	= TWL4030_ ## modname ## _ISR1, \
 		.imr_offset	= TWL4030_ ## modname ## _IMR1, \
@@ -107,7 +113,8 @@ struct sih {
 /* Order in this table matches order in PIH_ISR.  That is,
  * BIT(n) in PIH_ISR is sih_modules[n].
  */
-static const struct sih sih_modules[6] = {
+/* sih_modules_twl4030 is used both in twl4030 and twl5030 */
+static const struct sih sih_modules_twl4030[6] = {
 	[0] = {
 		.name		= "gpio",
 		.module		= TWL4030_MODULE_GPIO,
@@ -118,6 +125,7 @@ static const struct sih sih_modules[6] = {
 		/* Note: *all* of these IRQs default to no-trigger */
 		.edr_offset	= REG_GPIO_EDR1,
 		.bytes_edr	= 5,
+		.irq_lines	= 2,
 		.mask = { {
 			.isr_offset	= REG_GPIO_ISR1A,
 			.imr_offset	= REG_GPIO_IMR1A,
@@ -140,6 +148,7 @@ static const struct sih sih_modules[6] = {
 		.edr_offset	= TWL4030_INTERRUPTS_BCIEDR1,
 		/* Note: most of these IRQs default to no-trigger */
 		.bytes_edr	= 3,
+		.irq_lines	= 2,
 		.mask = { {
 			.isr_offset	= TWL4030_INTERRUPTS_BCIISR1A,
 			.imr_offset	= TWL4030_INTERRUPTS_BCIIMR1A,
@@ -162,6 +171,99 @@ static const struct sih sih_modules[6] = {
 		SIH_INITIALIZER(INT_PWR, 8)
 	},
 		/* there are no SIH modules #6 or #7 ... */
+};
+
+static const struct sih sih_modules_twl5031[8] = {
+	[0] = {
+		.name		= "gpio",
+		.module		= TWL4030_MODULE_GPIO,
+		.control_offset	= REG_GPIO_SIH_CTRL,
+		.set_cor	= true,
+		.bits		= TWL4030_GPIO_MAX,
+		.bytes_ixr	= 3,
+		/* Note: *all* of these IRQs default to no-trigger */
+		.edr_offset	= REG_GPIO_EDR1,
+		.bytes_edr	= 5,
+		.irq_lines	= 2,
+		.mask = { {
+			.isr_offset	= REG_GPIO_ISR1A,
+			.imr_offset	= REG_GPIO_IMR1A,
+		}, {
+			.isr_offset	= REG_GPIO_ISR1B,
+			.imr_offset	= REG_GPIO_IMR1B,
+		}, },
+	},
+	[1] = {
+		.name		= "keypad",
+		.set_cor	= true,
+		SIH_INITIALIZER(KEYPAD_KEYP, 4)
+	},
+	[2] = {
+		.name		= "bci",
+		.module		= TWL5031_MODULE_INTERRUPTS,
+		.control_offset	= TWL5031_INTERRUPTS_BCISIHCTRL,
+		.bits		= 7,
+		.bytes_ixr	= 1,
+		.edr_offset	= TWL5031_INTERRUPTS_BCIEDR1,
+		/* Note: most of these IRQs default to no-trigger */
+		.bytes_edr	= 2,
+		.irq_lines	= 2,
+		.mask = { {
+			.isr_offset	= TWL5031_INTERRUPTS_BCIISR1,
+			.imr_offset	= TWL5031_INTERRUPTS_BCIIMR1,
+		}, {
+			.isr_offset	= TWL5031_INTERRUPTS_BCIISR2,
+			.imr_offset	= TWL5031_INTERRUPTS_BCIIMR2,
+		}, },
+	},
+	[3] = {
+		.name		= "madc",
+		SIH_INITIALIZER(MADC, 4)
+	},
+	[4] = {
+		/* USB doesn't use the same SIH organization */
+		.name		= "usb",
+	},
+	[5] = {
+		.name		= "power",
+		.set_cor	= true,
+		SIH_INITIALIZER(INT_PWR, 8)
+	},
+	[6] = {
+		/*
+		 * ACI doesn't use the same SIH organization.
+		 * For example, it supports only one interrupt line
+		 */
+		.name		= "aci",
+		.module		= TWL5031_MODULE_ACCESSORY,
+		.bits		= 9,
+		.bytes_ixr	= 2,
+		.irq_lines	= 1,
+		.mask = { {
+			.isr_offset	= TWL5031_ACIIDR_LSB,
+			.imr_offset	= TWL5031_ACIIMR_LSB,
+		}, },
+
+	},
+	[7] = {
+		/* Accessory */
+		.name		= "acc",
+		.module		= TWL5031_MODULE_ACCESSORY,
+		.control_offset	= TWL5031_ACCSIHCTRL,
+		.bits		= 2,
+		.bytes_ixr	= 1,
+		.edr_offset	= TWL5031_ACCEDR1,
+		/* Note: most of these IRQs default to no-trigger */
+		.bytes_edr	= 1,
+		.irq_lines	= 2,
+		.mask = { {
+			.isr_offset	= TWL5031_ACCISR1,
+			.imr_offset	= TWL5031_ACCIMR1,
+		}, {
+			.isr_offset	= TWL5031_ACCISR2,
+			.imr_offset	= TWL5031_ACCIMR2,
+		}, },
+	},
 };
 
 #undef TWL4030_MODULE_KEYPAD_KEYP
@@ -284,10 +386,14 @@ static int twl4030_init_sih_modules(unsigned line)
 	/* disable all interrupts on our line */
 	memset(buf, 0xff, sizeof buf);
 	sih = sih_modules;
-	for (i = 0; i < ARRAY_SIZE(sih_modules); i++, sih++) {
+	for (i = 0; i < nr_sih_modules; i++, sih++) {
 
 		/* skip USB -- it's funky */
 		if (!sih->bytes_ixr)
+			continue;
+
+		/* Not all the SIH modules support multiple interrupt lines */
+		if (sih->irq_lines <= line)
 			continue;
 
 		status = twl4030_i2c_write(sih->module, buf,
@@ -314,12 +420,16 @@ static int twl4030_init_sih_modules(unsigned line)
 	}
 
 	sih = sih_modules;
-	for (i = 0; i < ARRAY_SIZE(sih_modules); i++, sih++) {
+	for (i = 0; i < nr_sih_modules; i++, sih++) {
 		u8 rxbuf[4];
 		int j;
 
 		/* skip USB */
 		if (!sih->bytes_ixr)
+			continue;
+
+		/* Not all the SIH modules support multiple interrupt lines */
+		if (sih->irq_lines <= line)
 			continue;
 
 		/* Clear pending interrupt status.  Either the read was
@@ -611,7 +721,7 @@ int twl4030_sih_setup(int module)
 
 	/* only support modules with standard clear-on-read for now */
 	for (sih_mod = 0, sih = sih_modules;
-			sih_mod < ARRAY_SIZE(sih_modules);
+			sih_mod < nr_sih_modules;
 			sih_mod++, sih++) {
 		if (sih->module == module && sih->set_cor) {
 			if (!WARN((irq_base + sih->bits) > NR_IRQS,
@@ -754,5 +864,18 @@ int twl_exit_irq(void)
 		pr_err("twl4030: can't yet clean up IRQs?\n");
 		return -ENOSYS;
 	}
+	return 0;
+}
+
+int twl_init_chip_irq(const char *chip)
+{
+	if (!strcmp(chip, "twl5031")) {
+		sih_modules = sih_modules_twl5031;
+		nr_sih_modules = ARRAY_SIZE(sih_modules_twl5031);
+	} else {
+		sih_modules = sih_modules_twl4030;
+		nr_sih_modules = ARRAY_SIZE(sih_modules_twl4030);
+	}
+
 	return 0;
 }

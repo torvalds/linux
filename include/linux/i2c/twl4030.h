@@ -61,13 +61,16 @@
 #define TWL4030_MODULE_PWMA		0x0E
 #define TWL4030_MODULE_PWMB		0x0F
 
+#define TWL5031_MODULE_ACCESSORY	0x10
+#define TWL5031_MODULE_INTERRUPTS	0x11
+
 /* Slave 3 (i2c address 0x4b) */
-#define TWL4030_MODULE_BACKUP		0x10
-#define TWL4030_MODULE_INT		0x11
-#define TWL4030_MODULE_PM_MASTER	0x12
-#define TWL4030_MODULE_PM_RECEIVER	0x13
-#define TWL4030_MODULE_RTC		0x14
-#define TWL4030_MODULE_SECURED_REG	0x15
+#define TWL4030_MODULE_BACKUP		0x12
+#define TWL4030_MODULE_INT		0x13
+#define TWL4030_MODULE_PM_MASTER	0x14
+#define TWL4030_MODULE_PM_RECEIVER	0x15
+#define TWL4030_MODULE_RTC		0x16
+#define TWL4030_MODULE_SECURED_REG	0x17
 
 /*
  * Read and write single 8-bit registers
@@ -218,6 +221,38 @@ int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 #define TWL4030_INT_PWR_EDR1		0x5
 #define TWL4030_INT_PWR_EDR2		0x6
 #define TWL4030_INT_PWR_SIH_CTRL	0x7
+
+/*----------------------------------------------------------------------*/
+
+/*
+ * Accessory Interrupts
+ */
+#define TWL5031_ACIIMR_LSB		0x05
+#define TWL5031_ACIIMR_MSB		0x06
+#define TWL5031_ACIIDR_LSB		0x07
+#define TWL5031_ACIIDR_MSB		0x08
+#define TWL5031_ACCISR1			0x0F
+#define TWL5031_ACCIMR1			0x10
+#define TWL5031_ACCISR2			0x11
+#define TWL5031_ACCIMR2			0x12
+#define TWL5031_ACCSIR			0x13
+#define TWL5031_ACCEDR1			0x14
+#define TWL5031_ACCSIHCTRL		0x15
+
+/*----------------------------------------------------------------------*/
+
+/*
+ * Battery Charger Controller
+ */
+
+#define TWL5031_INTERRUPTS_BCIISR1	0x0
+#define TWL5031_INTERRUPTS_BCIIMR1	0x1
+#define TWL5031_INTERRUPTS_BCIISR2	0x2
+#define TWL5031_INTERRUPTS_BCIIMR2	0x3
+#define TWL5031_INTERRUPTS_BCISIR	0x4
+#define TWL5031_INTERRUPTS_BCIEDR1	0x5
+#define TWL5031_INTERRUPTS_BCIEDR2	0x6
+#define TWL5031_INTERRUPTS_BCISIHCTRL	0x7
 
 /*----------------------------------------------------------------------*/
 
