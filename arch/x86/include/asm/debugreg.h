@@ -89,6 +89,11 @@ static inline void hw_breakpoint_disable(void)
 	set_debugreg(0UL, 3);
 }
 
+static inline int hw_breakpoint_active(void)
+{
+	return __get_cpu_var(dr7) & DR_GLOBAL_ENABLE_MASK;
+}
+
 extern void aout_dump_debugregs(struct user *dump);
 
 #ifdef CONFIG_KVM

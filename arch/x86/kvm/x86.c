@@ -3651,7 +3651,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 * care about the messed up debug address registers. But if
 	 * we have some of them active, restore the old state.
 	 */
-	if (__get_cpu_var(dr7) & DR_GLOBAL_ENABLE_MASK)
+	if (hw_breakpoint_active())
 		hw_breakpoint_restore();
 
 	set_bit(KVM_REQ_KICK, &vcpu->requests);
