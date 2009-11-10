@@ -819,8 +819,10 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 		mark_inode_dirty(inode);
 	}
 
-	if (inode == sdp->sd_rindex)
+	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
+		ip->i_gh.gh_flags |= GL_NOCACHE;
+	}
 
 	brelse(dibh);
 	gfs2_trans_end(sdp);
@@ -889,8 +891,10 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 		mark_inode_dirty(inode);
 	}
 
-	if (inode == sdp->sd_rindex)
+	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
+		ip->i_gh.gh_flags |= GL_NOCACHE;
+	}
 
 	brelse(dibh);
 	gfs2_trans_end(sdp);
