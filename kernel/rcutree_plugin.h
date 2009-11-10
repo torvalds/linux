@@ -67,7 +67,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed);
 static void rcu_preempt_qs(int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
-	rdp->passed_quiesc_completed = rdp->completed;
+	rdp->passed_quiesc_completed = rdp->gpnum - 1;
 	barrier();
 	rdp->passed_quiesc = 1;
 }

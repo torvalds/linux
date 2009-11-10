@@ -100,7 +100,7 @@ void rcu_sched_qs(int cpu)
 	struct rcu_data *rdp;
 
 	rdp = &per_cpu(rcu_sched_data, cpu);
-	rdp->passed_quiesc_completed = rdp->completed;
+	rdp->passed_quiesc_completed = rdp->gpnum - 1;
 	barrier();
 	rdp->passed_quiesc = 1;
 	rcu_preempt_note_context_switch(cpu);
@@ -111,7 +111,7 @@ void rcu_bh_qs(int cpu)
 	struct rcu_data *rdp;
 
 	rdp = &per_cpu(rcu_bh_data, cpu);
-	rdp->passed_quiesc_completed = rdp->completed;
+	rdp->passed_quiesc_completed = rdp->gpnum - 1;
 	barrier();
 	rdp->passed_quiesc = 1;
 }
