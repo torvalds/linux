@@ -206,10 +206,12 @@ struct ieee80211_supported_band {
  * struct vif_params - describes virtual interface parameters
  * @mesh_id: mesh ID to use
  * @mesh_id_len: length of the mesh ID
+ * @use_4addr: use 4-address frames
  */
 struct vif_params {
        u8 *mesh_id;
        int mesh_id_len;
+       int use_4addr;
 };
 
 /**

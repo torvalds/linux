@@ -138,6 +138,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_CIPHER_SUITE_GROUP] = { .type = NLA_U32 },
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
 	[NL80211_ATTR_PID] = { .type = NLA_U32 },
+	[NL80211_ATTR_4ADDR] = { .type = NLA_U8 },
 };
 
 /* policy for the attributes */
@@ -987,6 +988,13 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		change = true;
 	}
 
+	if (info->attrs[NL80211_ATTR_4ADDR]) {
+		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
+		change = true;
+	} else {
+		params.use_4addr = -1;
+	}
+
 	if (info->attrs[NL80211_ATTR_MNTR_FLAGS]) {
 		if (ntype != NL80211_IFTYPE_MONITOR) {
 			err = -EINVAL;
@@ -1052,6 +1060,9 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
 		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
 	}
+
+	if (info->attrs[NL80211_ATTR_4ADDR])
+		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 
 	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,

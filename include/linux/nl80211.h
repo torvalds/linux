@@ -584,6 +584,8 @@ enum nl80211_commands {
  *	changed then the list changed and the dump should be repeated
  *	completely from scratch.
  *
+ * @NL80211_ATTR_4ADDR: Use 4-address frames on a virtual interface
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -713,6 +715,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_KEYS,
 
 	NL80211_ATTR_PID,
+
+	NL80211_ATTR_4ADDR,
 
 	/* add attributes here, update the policy in nl80211.c */
 
