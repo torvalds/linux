@@ -894,6 +894,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec);
 /*
  * PCM
  */
+extern const char *snd_hda_pcm_type_name[];
 int snd_hda_build_pcms(struct hda_bus *bus);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,

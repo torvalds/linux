@@ -2877,14 +2877,15 @@ static int set_pcm_default_values(struct hda_codec *codec,
 	return 0;
 }
 
+const char *snd_hda_pcm_type_name[HDA_PCM_NTYPES] = {
+	"Audio", "SPDIF", "HDMI", "Modem"
+};
+
 /*
  * get the empty PCM device number to assign
  */
 static int get_empty_pcm_device(struct hda_bus *bus, int type)
 {
-	static const char *dev_name[HDA_PCM_NTYPES] = {
-		"Audio", "SPDIF", "HDMI", "Modem"
-	};
 	/* audio device indices; not linear to keep compatibility */
 	static int audio_idx[HDA_PCM_NTYPES][5] = {
 		[HDA_PCM_TYPE_AUDIO] = { 0, 2, 4, 5, -1 },
@@ -2903,7 +2904,7 @@ static int get_empty_pcm_device(struct hda_bus *bus, int type)
 		if (!test_and_set_bit(audio_idx[type][i], bus->pcm_dev_bits))
 			return audio_idx[type][i];
 
-	snd_printk(KERN_WARNING "Too many %s devices\n", dev_name[type]);
+	snd_printk(KERN_WARNING "Too many %s devices\n", snd_hda_pcm_type_name[type]);
 	return -EAGAIN;
 }
 
