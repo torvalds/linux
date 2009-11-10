@@ -520,6 +520,9 @@ static int __init microcode_init(void)
 		return PTR_ERR(microcode_pdev);
 	}
 
+	if (microcode_ops->init)
+		microcode_ops->init(&microcode_pdev->dev);
+
 	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
@@ -562,6 +565,9 @@ static void __exit microcode_exit(void)
 	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
+
+	if (microcode_ops->fini)
+		microcode_ops->fini();
 
 	microcode_ops = NULL;
 
