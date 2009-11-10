@@ -19,6 +19,7 @@
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
 void __init x86_init_pgd_noop(pgd_t *unused) { }
+int __init iommu_init_noop(void) { return 0; }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -62,6 +63,10 @@ struct x86_init_ops x86_init __initdata = {
 		.setup_percpu_clockev	= setup_boot_APIC_clock,
 		.tsc_pre_init		= x86_init_noop,
 		.timer_init		= hpet_time_init,
+	},
+
+	.iommu = {
+		.iommu_init		= iommu_init_noop,
 	},
 };
 
