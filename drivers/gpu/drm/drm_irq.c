@@ -585,6 +585,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	if ((vblwait->request.type & _DRM_VBLANK_NEXTONMISS) &&
 	    (seq - vblwait->request.sequence) <= (1 << 23)) {
 		vblwait->request.sequence = seq + 1;
+		vblwait->reply.sequence = vblwait->request.sequence;
 	}
 
 	DRM_DEBUG("event on vblank count %d, current %d, crtc %d\n",
