@@ -20,8 +20,7 @@ struct scatterlist;
  */
 #define IO_TLB_SHIFT 11
 
-extern void
-swiotlb_init(void);
+extern void swiotlb_init(int verbose);
 
 extern void
 *swiotlb_alloc_coherent(struct device *hwdev, size_t size,
@@ -94,4 +93,5 @@ extern void __init swiotlb_free(void);
 static inline void swiotlb_free(void) { }
 #endif
 
+extern void swiotlb_print_info(void);
 #endif /* __LINUX_SWIOTLB_H */
