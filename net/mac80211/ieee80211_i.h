@@ -208,6 +208,9 @@ struct ieee80211_if_wds {
 
 struct ieee80211_if_vlan {
 	struct list_head list;
+
+	/* used for all tx if the VLAN is configured to 4-addr mode */
+	struct sta_info *sta;
 };
 
 struct mesh_stats {
@@ -456,6 +459,8 @@ struct ieee80211_sub_if_data {
 
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
+
+	bool use_4addr; /* use 4-address frames */
 
 	union {
 		struct ieee80211_if_ap ap;

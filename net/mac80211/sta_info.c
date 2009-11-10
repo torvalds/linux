@@ -509,6 +509,9 @@ static void __sta_info_unlink(struct sta_info **sta)
 	local->num_sta--;
 	local->sta_generation++;
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
+
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = container_of(sdata->bss,

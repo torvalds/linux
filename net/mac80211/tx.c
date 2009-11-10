@@ -1051,7 +1051,10 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
-	tx->sta = sta_info_get(local, hdr->addr1);
+	if ((sdata->vif.type == NL80211_IFTYPE_AP_VLAN) && sdata->use_4addr)
+		tx->sta = rcu_dereference(sdata->u.vlan.sta);
+	if (!tx->sta)
+		tx->sta = sta_info_get(local, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
 	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)) {
@@ -1613,7 +1616,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
-	struct sta_info *sta;
+	struct sta_info *sta = NULL;
 	u32 sta_flags = 0;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
@@ -1630,8 +1633,25 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
+		rcu_read_lock();
+		if (sdata->use_4addr)
+			sta = rcu_dereference(sdata->u.vlan.sta);
+		if (sta) {
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
+			/* RA TA DA SA */
+			memcpy(hdr.addr1, sta->sta.addr, ETH_ALEN);
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			hdrlen = 30;
+			sta_flags = get_sta_flags(sta);
+		}
+		rcu_read_unlock();
+		if (sta)
+			break;
+		/* fall through */
+	case NL80211_IFTYPE_AP:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
@@ -1705,12 +1725,21 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
-		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
-		/* BSSID SA DA */
 		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
-		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
-		memcpy(hdr.addr3, skb->data, ETH_ALEN);
-		hdrlen = 24;
+		if (sdata->use_4addr && ethertype != ETH_P_PAE) {
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
+			/* RA TA DA SA */
+			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+			hdrlen = 30;
+		} else {
+			fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
+			/* BSSID SA DA */
+			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+			memcpy(hdr.addr3, skb->data, ETH_ALEN);
+			hdrlen = 24;
+		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		/* DA SA BSSID */

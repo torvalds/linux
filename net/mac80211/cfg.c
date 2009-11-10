@@ -36,6 +36,24 @@ static bool nl80211_type_check(enum nl80211_iftype type)
 	}
 }
 
+static bool nl80211_params_check(enum nl80211_iftype type,
+				 struct vif_params *params)
+{
+	if (!nl80211_type_check(type))
+		return false;
+
+	if (params->use_4addr > 0) {
+		switch(type) {
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_STATION:
+			break;
+		default:
+			return false;
+		}
+	}
+	return true;
+}
+
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 			       enum nl80211_iftype type, u32 *flags,
 			       struct vif_params *params)
@@ -45,7 +63,7 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	struct ieee80211_sub_if_data *sdata;
 	int err;
 
-	if (!nl80211_type_check(type))
+	if (!nl80211_params_check(type, params))
 		return -EINVAL;
 
 	err = ieee80211_if_add(local, name, &dev, type, params);
@@ -75,7 +93,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	if (netif_running(dev))
 		return -EBUSY;
 
-	if (!nl80211_type_check(type))
+	if (!nl80211_params_check(type, params))
 		return -EINVAL;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -88,6 +106,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		ieee80211_sdata_set_mesh_id(sdata,
 					    params->mesh_id_len,
 					    params->mesh_id);
+
+	if (params->use_4addr >= 0)
+		sdata->use_4addr = !!params->use_4addr;
 
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR || !flags)
 		return 0;
@@ -804,6 +825,13 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		    vlansdata->vif.type != NL80211_IFTYPE_AP) {
 			rcu_read_unlock();
 			return -EINVAL;
+		}
+
+		if (vlansdata->use_4addr) {
+			if (vlansdata->u.vlan.sta)
+				return -EBUSY;
+
+			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
 		}
 
 		sta->sdata = vlansdata;
