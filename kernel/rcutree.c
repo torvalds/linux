@@ -187,7 +187,7 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
  */
 static void dyntick_record_completed(struct rcu_state *rsp, long comp)
 {
-	rsp->dynticks_completed = comp;
+	rsp->completed_fqs = comp;
 }
 
 #ifdef CONFIG_SMP
@@ -197,7 +197,7 @@ static void dyntick_record_completed(struct rcu_state *rsp, long comp)
  */
 static long dyntick_recall_completed(struct rcu_state *rsp)
 {
-	return rsp->dynticks_completed;
+	return rsp->completed_fqs;
 }
 
 /*
