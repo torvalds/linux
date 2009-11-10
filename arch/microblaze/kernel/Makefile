@@ -16,5 +16,6 @@ obj-$(CONFIG_SELFMOD)		+= selfmod.o
 obj-$(CONFIG_HEART_BEAT)	+= heartbeat.o
 obj-$(CONFIG_MODULES)		+= microblaze_ksyms.o module.o
 obj-$(CONFIG_MMU)		+= misc.o
+obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 
 obj-y	+= entry$(MMU).o
