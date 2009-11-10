@@ -837,10 +837,8 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 	}
 
-#ifdef CONFIG_X86_MCE
 	/* Init Machine Check Exception if available. */
 	mcheck_cpu_init(c);
-#endif
 
 	select_idle_routine(c);
 

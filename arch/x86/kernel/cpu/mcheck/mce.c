@@ -1655,13 +1655,14 @@ static int __init mcheck_enable(char *str)
 }
 __setup("mce", mcheck_enable);
 
-static int __init mcheck_init(void)
+int __init mcheck_init(void)
 {
 	atomic_notifier_chain_register(&x86_mce_decoder_chain, &mce_dec_nb);
 
+	mcheck_intel_therm_init();
+
 	return 0;
 }
-early_initcall(mcheck_init);
 
 /*
  * Sysfs support
