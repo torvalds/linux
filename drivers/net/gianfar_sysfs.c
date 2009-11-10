@@ -186,7 +186,7 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 	temp = gfar_read(&regs->attreli);
 	temp &= ~ATTRELI_EI_MASK;
 	temp |= ATTRELI_EI(index);
-	gfar_write(&regs->attreli, flags);
+	gfar_write(&regs->attreli, temp);
 
 out:
 	unlock_rx_qs(priv);
