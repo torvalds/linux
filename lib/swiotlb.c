@@ -109,8 +109,10 @@ setup_io_tlb_npages(char *str)
 	}
 	if (*str == ',')
 		++str;
-	if (!strcmp(str, "force"))
+	if (!strcmp(str, "force")) {
 		swiotlb_force = 1;
+		swiotlb = 1;
+	}
 	return 1;
 }
 __setup("swiotlb=", setup_io_tlb_npages);

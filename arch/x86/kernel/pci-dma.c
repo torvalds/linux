@@ -124,24 +124,24 @@ static void __init dma32_free_bootmem(void)
 
 void __init pci_iommu_alloc(void)
 {
+	/* swiotlb is forced by the boot option */
+	int use_swiotlb = swiotlb;
 #ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
 #endif
+	pci_swiotlb_init();
+	if (use_swiotlb)
+		return;
 
-	/*
-	 * The order of these functions is important for
-	 * fall-back/fail-over reasons
-	 */
 	gart_iommu_hole_init();
 
 	detect_calgary();
 
 	detect_intel_iommu();
 
+	/* needs to be called after gart_iommu_hole_init */
 	amd_iommu_detect();
-
-	pci_swiotlb_init();
 }
 
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,
@@ -291,10 +291,15 @@ static int __init pci_iommu_init(void)
 #ifdef CONFIG_PCI
 	dma_debug_add_bus(&pci_bus_type);
 #endif
-
 	x86_init.iommu.iommu_init();
 
-	no_iommu_init();
+	if (swiotlb) {
+		printk(KERN_INFO "PCI-DMA: "
+		       "Using software bounce buffering for IO (SWIOTLB)\n");
+		swiotlb_print_info();
+	} else
+		swiotlb_free();
+
 	return 0;
 }
 /* Must execute after PCI subsystem */

@@ -2110,8 +2110,8 @@ int __init amd_iommu_init_dma_ops(void)
 		prealloc_protection_domains();
 
 	iommu_detected = 1;
-	force_iommu = 1;
 	bad_dma_address = 0;
+	swiotlb = 0;
 #ifdef CONFIG_GART_IOMMU
 	gart_iommu_aperture_disabled = 1;
 	gart_iommu_aperture = 0;
