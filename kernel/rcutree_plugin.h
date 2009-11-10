@@ -304,21 +304,25 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
  * parent is to remove the need for rcu_read_unlock_special() to
  * make more than two attempts to acquire the target rcu_node's lock.
  *
+ * Returns 1 if there was previously a task blocking the current grace
+ * period on the specified rcu_node structure.
+ *
  * The caller must hold rnp->lock with irqs disabled.
  */
-static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				      struct rcu_node *rnp,
-				      struct rcu_data *rdp)
+static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
+				     struct rcu_node *rnp,
+				     struct rcu_data *rdp)
 {
 	int i;
 	struct list_head *lp;
 	struct list_head *lp_root;
+	int retval = rcu_preempted_readers(rnp);
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	struct task_struct *tp;
 
 	if (rnp == rnp_root) {
 		WARN_ONCE(1, "Last CPU thought to be offlined?");
-		return;  /* Shouldn't happen: at least one CPU online. */
+		return 0;  /* Shouldn't happen: at least one CPU online. */
 	}
 	WARN_ON_ONCE(rnp != rdp->mynode &&
 		     (!list_empty(&rnp->blocked_tasks[0]) ||
@@ -342,6 +346,8 @@ static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
 			spin_unlock(&rnp_root->lock); /* irqs remain disabled */
 		}
 	}
+
+	return retval;
 }
 
 /*
@@ -532,12 +538,15 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 
 /*
  * Because preemptable RCU does not exist, it never needs to migrate
- * tasks that were blocked within RCU read-side critical sections.
+ * tasks that were blocked within RCU read-side critical sections, and
+ * such non-existent tasks cannot possibly have been blocking the current
+ * grace period.
  */
-static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				      struct rcu_node *rnp,
-				      struct rcu_data *rdp)
+static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
+				     struct rcu_node *rnp,
+				     struct rcu_data *rdp)
 {
+	return 0;
 }
 
 /*
