@@ -3421,6 +3421,7 @@ void snd_hda_bus_reboot_notify(struct hda_bus *bus)
 			codec->patch_ops.reboot_notify(codec);
 	}
 }
+EXPORT_SYMBOL_HDA(snd_hda_bus_reboot_notify);
 
 /*
  * open the digital out in the exclusive mode
