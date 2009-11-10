@@ -657,15 +657,19 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 		if (ret >= 0)
 			break;
-		PDEBUG(D_ERR|D_STREAM,
-			"usb_submit_urb alt %d err %d", gspca_dev->alt, ret);
 		gspca_dev->streaming = 0;
 		destroy_urbs(gspca_dev);
-		if (ret != -ENOSPC)
+		if (ret != -ENOSPC) {
+			PDEBUG(D_ERR|D_STREAM,
+				"usb_submit_urb alt %d err %d",
+				gspca_dev->alt, ret);
 			goto out;
+		}
 
 		/* the bandwidth is not wide enough
 		 * negociate or try a lower alternate setting */
+		PDEBUG(D_ERR|D_STREAM,
+			"bandwidth not wide enough - trying again");
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
 			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
