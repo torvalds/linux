@@ -105,11 +105,8 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 		i++;
 	}
 
-	if (!equiv_cpu_id) {
-		printk(KERN_WARNING "microcode: CPU%d: cpu revision "
-		       "not listed in equivalent cpu table\n", cpu);
+	if (!equiv_cpu_id)
 		return 0;
-	}
 
 	if (mc_header->processor_rev_id != equiv_cpu_id)
 		return 0;
