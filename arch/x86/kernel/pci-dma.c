@@ -11,6 +11,7 @@
 #include <asm/gart.h>
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
+#include <asm/x86_init.h>
 
 static int forbid_dac __read_mostly;
 
