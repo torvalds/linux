@@ -27,18 +27,19 @@
 #include <linux/module.h>	/* Needed by all modules */
 #include <linux/kernel.h>	/* Needed for KERN_INFO */
 #include <linux/init.h>		/* Needed for the macros */
+#include <linux/kallsyms.h>
 
-#include <asm/hw_breakpoint.h>
+#include <linux/perf_event.h>
+#include <linux/hw_breakpoint.h>
 
-struct hw_breakpoint sample_hbp;
+struct perf_event **sample_hbp;
 
 static char ksym_name[KSYM_NAME_LEN] = "pid_max";
 module_param_string(ksym, ksym_name, KSYM_NAME_LEN, S_IRUGO);
 MODULE_PARM_DESC(ksym, "Kernel symbol to monitor; this module will report any"
 			" write operations on the kernel symbol");
 
-void sample_hbp_handler(struct hw_breakpoint *temp, struct pt_regs
-								*temp_regs)
+static void sample_hbp_handler(struct perf_event *temp, void *data)
 {
 	printk(KERN_INFO "%s value is changed\n", ksym_name);
 	dump_stack();
@@ -48,30 +49,34 @@ void sample_hbp_handler(struct hw_breakpoint *temp, struct pt_regs
 static int __init hw_break_module_init(void)
 {
 	int ret;
+	unsigned long addr;
 
-#ifdef CONFIG_X86
-	sample_hbp.info.name = ksym_name;
-	sample_hbp.info.type = HW_BREAKPOINT_WRITE;
-	sample_hbp.info.len = HW_BREAKPOINT_LEN_4;
-#endif /* CONFIG_X86 */
+	addr = kallsyms_lookup_name(ksym_name);
 
-	sample_hbp.triggered = (void *)sample_hbp_handler;
+	sample_hbp = register_wide_hw_breakpoint(addr, HW_BREAKPOINT_LEN_4,
+						 HW_BREAKPOINT_W | HW_BREAKPOINT_R,
+						 sample_hbp_handler, true);
+	if (IS_ERR(sample_hbp)) {
+		ret = PTR_ERR(sample_hbp);
+		goto fail;
+	} else if (!sample_hbp) {
+		ret = -EINVAL;
+		goto fail;
+	}
 
-	ret = register_kernel_hw_breakpoint(&sample_hbp);
-
-	if (ret < 0) {
-		printk(KERN_INFO "Breakpoint registration failed\n");
-		return ret;
-	} else
-		printk(KERN_INFO "HW Breakpoint for %s write installed\n",
-								ksym_name);
+	printk(KERN_INFO "HW Breakpoint for %s write installed\n", ksym_name);
 
 	return 0;
+
+fail:
+	printk(KERN_INFO "Breakpoint registration failed\n");
+
+	return ret;
 }
 
 static void __exit hw_break_module_exit(void)
 {
-	unregister_kernel_hw_breakpoint(&sample_hbp);
+	unregister_wide_hw_breakpoint(sample_hbp);
 	printk(KERN_INFO "HW Breakpoint for %s write uninstalled\n", ksym_name);
 }
 

@@ -454,6 +454,7 @@ fail:
 	/* return the error if any */
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);
 
 /**
  * unregister_wide_hw_breakpoint - unregister a wide breakpoint in the kernel
@@ -470,7 +471,7 @@ void unregister_wide_hw_breakpoint(struct perf_event **cpu_events)
 	}
 	free_percpu(cpu_events);
 }
-
+EXPORT_SYMBOL_GPL(unregister_wide_hw_breakpoint);
 
 static struct notifier_block hw_breakpoint_exceptions_nb = {
 	.notifier_call = hw_breakpoint_exceptions_notify,
