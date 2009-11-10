@@ -82,18 +82,18 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
 
 	i2c.mask_clk_reg = le16_to_cpu(gpio.usClkMaskRegisterIndex) * 4;
 	i2c.mask_data_reg = le16_to_cpu(gpio.usDataMaskRegisterIndex) * 4;
-	i2c.put_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
-	i2c.put_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
-	i2c.get_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
-	i2c.get_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
+	i2c.en_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
+	i2c.en_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
+	i2c.y_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
+	i2c.y_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
 	i2c.a_clk_reg = le16_to_cpu(gpio.usClkA_RegisterIndex) * 4;
 	i2c.a_data_reg = le16_to_cpu(gpio.usDataA_RegisterIndex) * 4;
 	i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
 	i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
-	i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
-	i2c.put_data_mask = (1 << gpio.ucDataEnShift);
-	i2c.get_clk_mask = (1 << gpio.ucClkY_Shift);
-	i2c.get_data_mask = (1 << gpio.ucDataY_Shift);
+	i2c.en_clk_mask = (1 << gpio.ucClkEnShift);
+	i2c.en_data_mask = (1 << gpio.ucDataEnShift);
+	i2c.y_clk_mask = (1 << gpio.ucClkY_Shift);
+	i2c.y_data_mask = (1 << gpio.ucDataY_Shift);
 	i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
 	i2c.a_data_mask = (1 << gpio.ucDataA_Shift);
 	i2c.valid = true;

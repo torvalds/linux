@@ -78,16 +78,16 @@ void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 						R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
 		}
 	}
-	if (lock_state) {
-		temp = RREG32(rec->a_clk_reg);
-		temp &= ~(rec->a_clk_mask);
-		WREG32(rec->a_clk_reg, temp);
 
-		temp = RREG32(rec->a_data_reg);
-		temp &= ~(rec->a_data_mask);
-		WREG32(rec->a_data_reg, temp);
-	}
+	/* clear the output pin values */
+	temp = RREG32(rec->a_clk_reg) & ~rec->a_clk_mask;
+	WREG32(rec->a_clk_reg, temp);
 
+	temp = RREG32(rec->a_data_reg) & ~rec->a_data_mask;
+	WREG32(rec->a_data_reg, temp);
+
+
+	/* mask the gpio pins for software use */
 	temp = RREG32(rec->mask_clk_reg);
 	if (lock_state)
 		temp |= rec->mask_clk_mask;
@@ -112,8 +112,9 @@ static int get_clock(void *i2c_priv)
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
-	val = RREG32(rec->get_clk_reg);
-	val &= rec->get_clk_mask;
+	/* read the value off the pin */
+	val = RREG32(rec->y_clk_reg);
+	val &= rec->y_clk_mask;
 
 	return (val != 0);
 }
@@ -126,8 +127,10 @@ static int get_data(void *i2c_priv)
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
-	val = RREG32(rec->get_data_reg);
-	val &= rec->get_data_mask;
+	/* read the value off the pin */
+	val = RREG32(rec->y_data_reg);
+	val &= rec->y_data_mask;
+
 	return (val != 0);
 }
 
@@ -138,9 +141,10 @@ static void set_clock(void *i2c_priv, int clock)
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
-	val = RREG32(rec->put_clk_reg) & (uint32_t)~(rec->put_clk_mask);
-	val |= clock ? 0 : rec->put_clk_mask;
-	WREG32(rec->put_clk_reg, val);
+	/* set pin direction */
+	val = RREG32(rec->en_clk_reg) & ~rec->en_clk_mask;
+	val |= clock ? 0 : rec->en_clk_mask;
+	WREG32(rec->en_clk_reg, val);
 }
 
 static void set_data(void *i2c_priv, int data)
@@ -150,9 +154,10 @@ static void set_data(void *i2c_priv, int data)
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t val;
 
-	val = RREG32(rec->put_data_reg) & (uint32_t)~(rec->put_data_mask);
-	val |= data ? 0 : rec->put_data_mask;
-	WREG32(rec->put_data_reg, val);
+	/* set pin direction */
+	val = RREG32(rec->en_data_reg) & ~rec->en_data_mask;
+	val |= data ? 0 : rec->en_data_mask;
+	WREG32(rec->en_data_reg, val);
 }
 
 struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,

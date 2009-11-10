@@ -450,29 +450,29 @@ struct radeon_i2c_bus_rec combios_setup_i2c_bus(int ddc_line)
 	i2c.mask_data_mask = RADEON_GPIO_EN_0;
 	i2c.a_clk_mask = RADEON_GPIO_A_1;
 	i2c.a_data_mask = RADEON_GPIO_A_0;
-	i2c.put_clk_mask = RADEON_GPIO_EN_1;
-	i2c.put_data_mask = RADEON_GPIO_EN_0;
-	i2c.get_clk_mask = RADEON_GPIO_Y_1;
-	i2c.get_data_mask = RADEON_GPIO_Y_0;
+	i2c.en_clk_mask = RADEON_GPIO_EN_1;
+	i2c.en_data_mask = RADEON_GPIO_EN_0;
+	i2c.y_clk_mask = RADEON_GPIO_Y_1;
+	i2c.y_data_mask = RADEON_GPIO_Y_0;
 	if ((ddc_line == RADEON_LCD_GPIO_MASK) ||
 	    (ddc_line == RADEON_MDGPIO_EN_REG)) {
 		i2c.mask_clk_reg = ddc_line;
 		i2c.mask_data_reg = ddc_line;
 		i2c.a_clk_reg = ddc_line;
 		i2c.a_data_reg = ddc_line;
-		i2c.put_clk_reg = ddc_line;
-		i2c.put_data_reg = ddc_line;
-		i2c.get_clk_reg = ddc_line + 4;
-		i2c.get_data_reg = ddc_line + 4;
+		i2c.en_clk_reg = ddc_line;
+		i2c.en_data_reg = ddc_line;
+		i2c.y_clk_reg = ddc_line + 4;
+		i2c.y_data_reg = ddc_line + 4;
 	} else {
 		i2c.mask_clk_reg = ddc_line;
 		i2c.mask_data_reg = ddc_line;
 		i2c.a_clk_reg = ddc_line;
 		i2c.a_data_reg = ddc_line;
-		i2c.put_clk_reg = ddc_line;
-		i2c.put_data_reg = ddc_line;
-		i2c.get_clk_reg = ddc_line;
-		i2c.get_data_reg = ddc_line;
+		i2c.en_clk_reg = ddc_line;
+		i2c.en_data_reg = ddc_line;
+		i2c.y_clk_reg = ddc_line;
+		i2c.y_data_reg = ddc_line;
 	}
 
 	if (ddc_line)
@@ -1567,18 +1567,18 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 		ddc_i2c->mask_data_mask = 0x80;
 		ddc_i2c->a_clk_mask = (0x20 << 8);
 		ddc_i2c->a_data_mask = 0x80;
-		ddc_i2c->put_clk_mask = (0x20 << 8);
-		ddc_i2c->put_data_mask = 0x80;
-		ddc_i2c->get_clk_mask = (0x20 << 8);
-		ddc_i2c->get_data_mask = 0x80;
+		ddc_i2c->en_clk_mask = (0x20 << 8);
+		ddc_i2c->en_data_mask = 0x80;
+		ddc_i2c->y_clk_mask = (0x20 << 8);
+		ddc_i2c->y_data_mask = 0x80;
 		ddc_i2c->mask_clk_reg = RADEON_GPIOPAD_MASK;
 		ddc_i2c->mask_data_reg = RADEON_GPIOPAD_MASK;
 		ddc_i2c->a_clk_reg = RADEON_GPIOPAD_A;
 		ddc_i2c->a_data_reg = RADEON_GPIOPAD_A;
-		ddc_i2c->put_clk_reg = RADEON_GPIOPAD_EN;
-		ddc_i2c->put_data_reg = RADEON_GPIOPAD_EN;
-		ddc_i2c->get_clk_reg = RADEON_LCD_GPIO_Y_REG;
-		ddc_i2c->get_data_reg = RADEON_LCD_GPIO_Y_REG;
+		ddc_i2c->en_clk_reg = RADEON_GPIOPAD_EN;
+		ddc_i2c->en_data_reg = RADEON_GPIOPAD_EN;
+		ddc_i2c->y_clk_reg = RADEON_LCD_GPIO_Y_REG;
+		ddc_i2c->y_data_reg = RADEON_LCD_GPIO_Y_REG;
 	}
 
 	/* Certain IBM chipset RN50s have a BIOS reporting two VGAs,
@@ -1939,13 +1939,13 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					    RBIOS32(lcd_ddc_info + 3);
 					ddc_i2c.a_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
-					ddc_i2c.put_clk_mask =
+					ddc_i2c.en_clk_mask =
 					    RBIOS32(lcd_ddc_info + 3);
-					ddc_i2c.put_data_mask =
+					ddc_i2c.en_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
-					ddc_i2c.get_clk_mask =
+					ddc_i2c.y_clk_mask =
 					    RBIOS32(lcd_ddc_info + 3);
-					ddc_i2c.get_data_mask =
+					ddc_i2c.y_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
 					break;
 				case DDC_GPIO:
@@ -1960,13 +1960,13 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					    RBIOS32(lcd_ddc_info + 3);
 					ddc_i2c.a_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
-					ddc_i2c.put_clk_mask =
+					ddc_i2c.en_clk_mask =
 					    RBIOS32(lcd_ddc_info + 3);
-					ddc_i2c.put_data_mask =
+					ddc_i2c.en_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
-					ddc_i2c.get_clk_mask =
+					ddc_i2c.y_clk_mask =
 					    RBIOS32(lcd_ddc_info + 3);
-					ddc_i2c.get_data_mask =
+					ddc_i2c.y_data_mask =
 					    RBIOS32(lcd_ddc_info + 7);
 					break;
 				default:

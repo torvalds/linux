@@ -270,10 +270,10 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
 				 radeon_connector->ddc_bus->rec.a_clk_reg,
 				 radeon_connector->ddc_bus->rec.a_data_reg,
-				 radeon_connector->ddc_bus->rec.put_clk_reg,
-				 radeon_connector->ddc_bus->rec.put_data_reg,
-				 radeon_connector->ddc_bus->rec.get_clk_reg,
-				 radeon_connector->ddc_bus->rec.get_data_reg);
+				 radeon_connector->ddc_bus->rec.en_clk_reg,
+				 radeon_connector->ddc_bus->rec.en_data_reg,
+				 radeon_connector->ddc_bus->rec.y_clk_reg,
+				 radeon_connector->ddc_bus->rec.y_data_reg);
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);

@@ -89,24 +89,38 @@ enum radeon_tv_std {
 	TV_STD_PAL_CN,
 };
 
+/* radeon gpio-based i2c
+ * 1. "mask" reg and bits
+ *    grabs the gpio pins for software use
+ *    0=not held  1=held
+ * 2. "a" reg and bits
+ *    output pin value
+ *    0=low 1=high
+ * 3. "en" reg and bits
+ *    sets the pin direction
+ *    0=input 1=output
+ * 4. "y" reg and bits
+ *    input pin value
+ *    0=low 1=high
+ */
 struct radeon_i2c_bus_rec {
 	bool valid;
 	uint32_t mask_clk_reg;
 	uint32_t mask_data_reg;
 	uint32_t a_clk_reg;
 	uint32_t a_data_reg;
-	uint32_t put_clk_reg;
-	uint32_t put_data_reg;
-	uint32_t get_clk_reg;
-	uint32_t get_data_reg;
+	uint32_t en_clk_reg;
+	uint32_t en_data_reg;
+	uint32_t y_clk_reg;
+	uint32_t y_data_reg;
 	uint32_t mask_clk_mask;
 	uint32_t mask_data_mask;
-	uint32_t put_clk_mask;
-	uint32_t put_data_mask;
-	uint32_t get_clk_mask;
-	uint32_t get_data_mask;
 	uint32_t a_clk_mask;
 	uint32_t a_data_mask;
+	uint32_t en_clk_mask;
+	uint32_t en_data_mask;
+	uint32_t y_clk_mask;
+	uint32_t y_data_mask;
 };
 
 struct radeon_tmds_pll {
