@@ -415,6 +415,7 @@ static struct twl4030_codec_audio_data sdp3430_audio = {
 };
 
 static struct twl4030_codec_data sdp3430_codec = {
+	.audio_mclk = 26000000,
 	.audio = &sdp3430_audio,
 };
 

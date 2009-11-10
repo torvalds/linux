@@ -41,6 +41,7 @@ struct twl4030_codec_resource {
 };
 
 struct twl4030_codec {
+	unsigned int audio_mclk;
 	struct mutex mutex;
 	struct twl4030_codec_resource resource[TWL4030_CODEC_RES_MAX];
 	struct mfd_cell cells[TWL4030_CODEC_CELLS];
@@ -145,12 +146,45 @@ int twl4030_codec_disable_resource(unsigned id)
 }
 EXPORT_SYMBOL_GPL(twl4030_codec_disable_resource);
 
+unsigned int twl4030_codec_get_mclk(void)
+{
+	struct twl4030_codec *codec = platform_get_drvdata(twl4030_codec_dev);
+
+	return codec->audio_mclk;
+}
+EXPORT_SYMBOL_GPL(twl4030_codec_get_mclk);
+
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 {
 	struct twl4030_codec *codec;
 	struct twl4030_codec_data *pdata = pdev->dev.platform_data;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
+	u8 val;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "Platform data is missing\n");
+		return -EINVAL;
+	}
+
+	/* Configure APLL_INFREQ and disable APLL if enabled */
+	val = 0;
+	switch (pdata->audio_mclk) {
+	case 19200000:
+		val |= TWL4030_APLL_INFREQ_19200KHZ;
+		break;
+	case 26000000:
+		val |= TWL4030_APLL_INFREQ_26000KHZ;
+		break;
+	case 38400000:
+		val |= TWL4030_APLL_INFREQ_38400KHZ;
+		break;
+	default:
+		dev_err(&pdev->dev, "Invalid audio_mclk\n");
+		return -EINVAL;
+	}
+	twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
+					val, TWL4030_REG_APLL_CTL);
 
 	codec = kzalloc(sizeof(struct twl4030_codec), GFP_KERNEL);
 	if (!codec)
@@ -160,6 +194,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 
 	twl4030_codec_dev = pdev;
 	mutex_init(&codec->mutex);
+	codec->audio_mclk = pdata->audio_mclk;
 
 	/* Codec power */
 	codec->resource[TWL4030_CODEC_RES_POWER].reg = TWL4030_REG_CODEC_MODE;
