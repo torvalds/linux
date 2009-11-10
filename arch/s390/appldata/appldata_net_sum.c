@@ -83,8 +83,9 @@ static void appldata_get_net_sum_data(void *data)
 	rx_dropped = 0;
 	tx_dropped = 0;
 	collisions = 0;
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, dev) {
+
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
 		const struct net_device_stats *stats = dev_get_stats(dev);
 
 		rx_packets += stats->rx_packets;
@@ -98,7 +99,8 @@ static void appldata_get_net_sum_data(void *data)
 		collisions += stats->collisions;
 		i++;
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
+
 	net_data->nr_interfaces = i;
 	net_data->rx_packets = rx_packets;
 	net_data->tx_packets = tx_packets;
