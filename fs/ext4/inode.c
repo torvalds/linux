@@ -3772,7 +3772,8 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		if (ret != -EIOCBQUEUED && ret <= 0 && iocb->private) {
 			ext4_free_io_end(iocb->private);
 			iocb->private = NULL;
-		} else if (ret > 0) {
+		} else if (ret > 0 && (EXT4_I(inode)->i_state &
+				       EXT4_STATE_DIO_UNWRITTEN)) {
 			int err;
 			/*
 			 * for non AIO case, since the IO is already
@@ -3782,6 +3783,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 							     offset, ret);
 			if (err < 0)
 				ret = err;
+			EXT4_I(inode)->i_state &= ~EXT4_STATE_DIO_UNWRITTEN;
 		}
 		return ret;
 	}
