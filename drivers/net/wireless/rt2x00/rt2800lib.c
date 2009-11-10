@@ -1828,24 +1828,26 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
 
+	rt2x00_set_chip_rf(rt2x00dev, value, reg);
+
 	if (rt2x00_intf_is_usb(rt2x00dev)) {
 		struct rt2x00_chip *chip = &rt2x00dev->chip;
-
-		rt2x00_set_chip(rt2x00dev, RT2870, value, reg);
 
 		/*
 		 * The check for rt2860 is not a typo, some rt2870 hardware
 		 * identifies itself as rt2860 in the CSR register.
 		 */
-		if (!rt2x00_check_rev(chip, 0xfff00000, 0x28600000) &&
-		    !rt2x00_check_rev(chip, 0xfff00000, 0x28700000) &&
-		    !rt2x00_check_rev(chip, 0xfff00000, 0x28800000) &&
-		    !rt2x00_check_rev(chip, 0xffff0000, 0x30700000)) {
+		if (rt2x00_check_rev(chip, 0xfff00000, 0x28600000) ||
+		    rt2x00_check_rev(chip, 0xfff00000, 0x28700000) ||
+		    rt2x00_check_rev(chip, 0xfff00000, 0x28800000)) {
+			rt2x00_set_chip_rt(rt2x00dev, RT2870);
+		} else if (rt2x00_check_rev(chip, 0xffff0000, 0x30700000)) {
+			rt2x00_set_chip_rt(rt2x00dev, RT3070);
+		} else {
 			ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 			return -ENODEV;
 		}
-	} else if (rt2x00_intf_is_pci(rt2x00dev))
-		rt2x00_set_chip_rf(rt2x00dev, value, reg);
+	}
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2850) &&
@@ -1853,10 +1855,8 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(&rt2x00dev->chip, RF2750) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF3020) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2020) &&
-	    (rt2x00_intf_is_usb(rt2x00dev) ||
-	     (rt2x00_intf_is_pci(rt2x00dev) &&
-	      !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
-	      !rt2x00_rf(&rt2x00dev->chip, RF3022)))) {
+	    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
+	    !rt2x00_rf(&rt2x00dev->chip, RF3022)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -2057,7 +2057,9 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->channels = rf_vals;
 	} else if (rt2x00_intf_is_usb(rt2x00dev) &&
 		    (rt2x00_rf(chip, RF3020) ||
-		     rt2x00_rf(chip, RF2020))) {
+		     rt2x00_rf(chip, RF2020) ||
+		     rt2x00_rf(chip, RF3021) ||
+		     rt2x00_rf(chip, RF3022))) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
 		spec->channels = rf_vals_3070;
 	}
