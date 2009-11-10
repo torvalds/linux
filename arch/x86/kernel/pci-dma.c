@@ -294,8 +294,6 @@ static int __init pci_iommu_init(void)
 
 	x86_init.iommu.iommu_init();
 
-	calgary_iommu_init();
-
 	intel_iommu_init();
 
 	amd_iommu_init();
