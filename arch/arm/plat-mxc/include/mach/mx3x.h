@@ -34,21 +34,6 @@
  *         	C0000000	64M	PCMCIA/CF
  */
 
-#define CS0_BASE_ADDR		0xA0000000
-#define CS1_BASE_ADDR		0xA8000000
-#define CS2_BASE_ADDR		0xB0000000
-#define CS3_BASE_ADDR		0xB2000000
-
-#define CS4_BASE_ADDR		0xB4000000
-#define CS4_BASE_ADDR_VIRT	0xF4000000
-#define CS4_SIZE		SZ_32M
-
-#define CS5_BASE_ADDR		0xB6000000
-#define CS5_BASE_ADDR_VIRT	0xF6000000
-#define CS5_SIZE		SZ_32M
-
-#define PCMCIA_MEM_BASE_ADDR	0xBC000000
-
 /*
  * L2CC
  */
@@ -101,6 +86,7 @@
 #define AIPS2_BASE_ADDR		0x53F00000
 #define AIPS2_BASE_ADDR_VIRT	0xFC200000
 #define AIPS2_SIZE		SZ_1M
+
 #define CCM_BASE_ADDR		(AIPS2_BASE_ADDR + 0x00080000)
 #define GPT1_BASE_ADDR		(AIPS2_BASE_ADDR + 0x00090000)
 #define EPIT1_BASE_ADDR		(AIPS2_BASE_ADDR + 0x00094000)
@@ -130,6 +116,27 @@
 #define AVIC_SIZE		SZ_1M
 
 /*
+ * Memory regions and CS
+ */
+#define IPU_MEM_BASE_ADDR	0x70000000
+#define CSD0_BASE_ADDR		0x80000000
+#define CSD1_BASE_ADDR		0x90000000
+
+#define CS0_BASE_ADDR		0xA0000000
+#define CS1_BASE_ADDR		0xA8000000
+#define CS2_BASE_ADDR		0xB0000000
+#define CS3_BASE_ADDR		0xB2000000
+
+#define CS4_BASE_ADDR		0xB4000000
+#define CS4_BASE_ADDR_VIRT	0xF4000000
+#define CS4_SIZE		SZ_32M
+
+#define CS5_BASE_ADDR		0xB6000000
+#define CS5_BASE_ADDR_VIRT	0xF6000000
+#define CS5_SIZE		SZ_32M
+
+
+/*
  * NAND, SDRAM, WEIM, M3IF, EMI controllers
  */
 #define X_MEMC_BASE_ADDR	0xB8000000
@@ -142,12 +149,7 @@
 #define EMI_CTL_BASE_ADDR	(X_MEMC_BASE_ADDR + 0x4000)
 #define PCMCIA_CTL_BASE_ADDR	EMI_CTL_BASE_ADDR
 
-/*
- * Memory regions and CS
- */
-#define IPU_MEM_BASE_ADDR	0x70000000
-#define CSD0_BASE_ADDR		0x80000000
-#define CSD1_BASE_ADDR		0x90000000
+#define PCMCIA_MEM_BASE_ADDR	0xBC000000
 
 /*!
  * This macro defines the physical to virtual address mapping for all the
@@ -272,4 +274,3 @@ static inline int mx31_revision(void)
 #endif
 
 #endif /*  __ASM_ARCH_MXC_MX31_H__ */
-
