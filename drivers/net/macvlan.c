@@ -202,7 +202,7 @@ static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 	} else
 		txq->tx_dropped++;
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,

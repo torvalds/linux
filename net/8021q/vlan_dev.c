@@ -332,7 +332,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	} else
 		txq->tx_dropped++;
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
@@ -358,7 +358,7 @@ static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	} else
 		txq->tx_dropped++;
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
