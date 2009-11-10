@@ -1,5 +1,6 @@
 /*
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+	Copyright (C) 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 
 	Based on the original rt2800pci.c and rt2800usb.c.
 	  Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
@@ -806,7 +807,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	unsigned int tx_pin;
 	u8 bbp;
 
-	if (rt2x00_rt(&rt2x00dev->chip, RT3070) &&
+	if ((rt2x00_rt(&rt2x00dev->chip, RT3070) ||
+	     rt2x00_rt(&rt2x00dev->chip, RT3090)) &&
 	    (rt2x00_rf(&rt2x00dev->chip, RF2020) ||
 	     rt2x00_rf(&rt2x00dev->chip, RF3020) ||
 	     rt2x00_rf(&rt2x00dev->chip, RF3021) ||
@@ -1989,7 +1991,7 @@ static const struct rf_channel rf_vals[] = {
  * RF value list for rt3070
  * Supports: 2.4 GHz
  */
-static const struct rf_channel rf_vals_3070[] = {
+static const struct rf_channel rf_vals_302x[] = {
 	{1,  241, 2, 2 },
 	{2,  241, 2, 7 },
 	{3,  242, 2, 2 },
@@ -2046,26 +2048,19 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_rf(chip, RF2820) ||
 	    rt2x00_rf(chip, RF2720) ||
-	    (rt2x00_intf_is_pci(rt2x00dev) &&
-	     (rt2x00_rf(chip, RF3020) ||
-	      rt2x00_rf(chip, RF3021) ||
-	      rt2x00_rf(chip, RF3022) ||
-	      rt2x00_rf(chip, RF2020) ||
-	      rt2x00_rf(chip, RF3052)))) {
+	    (rt2x00_intf_is_pci(rt2x00dev) && rt2x00_rf(chip, RF3052))) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(chip, RF2850) ||
-		   rt2x00_rf(chip, RF2750)) {
+	} else if (rt2x00_rf(chip, RF2850) || rt2x00_rf(chip, RF2750)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
-	} else if (rt2x00_intf_is_usb(rt2x00dev) &&
-		    (rt2x00_rf(chip, RF3020) ||
-		     rt2x00_rf(chip, RF2020) ||
-		     rt2x00_rf(chip, RF3021) ||
-		     rt2x00_rf(chip, RF3022))) {
-		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
-		spec->channels = rf_vals_3070;
+	} else if (rt2x00_rf(chip, RF3020) ||
+		   rt2x00_rf(chip, RF2020) ||
+		   rt2x00_rf(chip, RF3021) ||
+		   rt2x00_rf(chip, RF3022)) {
+		spec->num_channels = ARRAY_SIZE(rf_vals_302x);
+		spec->channels = rf_vals_302x;
 	}
 
 	/*
