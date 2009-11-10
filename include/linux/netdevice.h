@@ -63,27 +63,48 @@ struct wireless_dev;
 #define HAVE_FREE_NETDEV		/* free_netdev() */
 #define HAVE_NETDEV_PRIV		/* netdev_priv() */
 
-#define NET_XMIT_SUCCESS	0
-#define NET_XMIT_DROP		1	/* skb dropped			*/
-#define NET_XMIT_CN		2	/* congestion notification	*/
-#define NET_XMIT_POLICED	3	/* skb is shot by police	*/
-#define NET_XMIT_MASK		0xFFFF	/* qdisc flags in net/sch_generic.h */
+/*
+ * Transmit return codes: transmit return codes originate from three different
+ * namespaces:
+ *
+ * - qdisc return codes
+ * - driver transmit return codes
+ * - errno values
+ *
+ * Drivers are allowed to return any one of those in their hard_start_xmit()
+ * function. Real network devices commonly used with qdiscs should only return
+ * the driver transmit return codes though - when qdiscs are used, the actual
+ * transmission happens asynchronously, so the value is not propagated to
+ * higher layers. Virtual network devices transmit synchronously, in this case
+ * the driver transmit return codes are consumed by dev_queue_xmit(), all
+ * others are propagated to higher layers.
+ */
+
+/* qdisc ->enqueue() return codes. */
+#define NET_XMIT_SUCCESS	0x00
+#define NET_XMIT_DROP		0x10	/* skb dropped			*/
+#define NET_XMIT_CN		0x20	/* congestion notification	*/
+#define NET_XMIT_POLICED	0x30	/* skb is shot by police	*/
+#define NET_XMIT_MASK		0xf0	/* qdisc flags in net/sch_generic.h */
 
 /* Backlog congestion levels */
-#define NET_RX_SUCCESS		0   /* keep 'em coming, baby */
-#define NET_RX_DROP		1  /* packet dropped */
+#define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
+#define NET_RX_DROP		1	/* packet dropped */
 
 /* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
  * indicates that the device will soon be dropping packets, or already drops
  * some packets of the same priority; prompting us to send less aggressively. */
-#define net_xmit_eval(e)	((e) == NET_XMIT_CN? 0 : (e))
+#define net_xmit_eval(e)	((e) == NET_XMIT_CN ? 0 : (e))
 #define net_xmit_errno(e)	((e) != NET_XMIT_CN ? -ENOBUFS : 0)
 
 /* Driver transmit return codes */
+#define NETDEV_TX_MASK		0xf
+
 enum netdev_tx {
-	NETDEV_TX_OK = 0,	/* driver took care of packet */
-	NETDEV_TX_BUSY,		/* driver tx path was busy*/
-	NETDEV_TX_LOCKED = -1,	/* driver tx lock was already taken */
+	__NETDEV_TX_MIN	 = INT_MIN,	/* make sure enum is signed */
+	NETDEV_TX_OK	 = 0,		/* driver took care of packet */
+	NETDEV_TX_BUSY	 = 1,		/* driver tx path was busy*/
+	NETDEV_TX_LOCKED = 2,		/* driver tx lock was already taken */
 };
 typedef enum netdev_tx netdev_tx_t;
 

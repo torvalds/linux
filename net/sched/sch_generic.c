@@ -120,8 +120,15 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_tx_queue_stopped(txq) &&
-	    !netif_tx_queue_frozen(txq))
+	    !netif_tx_queue_frozen(txq)) {
 		ret = dev_hard_start_xmit(skb, dev, txq);
+
+		/* an error implies that the skb was consumed */
+		if (ret < 0)
+			ret = NETDEV_TX_OK;
+		/* all NET_XMIT codes map to NETDEV_TX_OK */
+		ret &= ~NET_XMIT_MASK;
+	}
 	HARD_TX_UNLOCK(dev, txq);
 
 	spin_lock(root_lock);

@@ -1757,7 +1757,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	int rc;
+	int rc = NETDEV_TX_OK;
 
 	if (likely(!skb->next)) {
 		if (!list_empty(&ptype_all))
@@ -1805,6 +1805,8 @@ gso:
 		nskb->next = NULL;
 		rc = ops->ndo_start_xmit(nskb, dev);
 		if (unlikely(rc != NETDEV_TX_OK)) {
+			if (rc & ~NETDEV_TX_MASK)
+				goto out_kfree_gso_skb;
 			nskb->next = skb->next;
 			skb->next = nskb;
 			return rc;
@@ -1814,11 +1816,12 @@ gso:
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
 
-	skb->destructor = DEV_GSO_CB(skb)->destructor;
-
+out_kfree_gso_skb:
+	if (likely(skb->next == NULL))
+		skb->destructor = DEV_GSO_CB(skb)->destructor;
 out_kfree_skb:
 	kfree_skb(skb);
-	return NETDEV_TX_OK;
+	return rc;
 }
 
 static u32 skb_tx_hashrnd;
@@ -1904,6 +1907,23 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	spin_unlock(root_lock);
 
 	return rc;
+}
+
+static inline bool dev_xmit_complete(int rc)
+{
+	/* successful transmission */
+	if (rc == NETDEV_TX_OK)
+		return true;
+
+	/* error while transmitting, driver consumed skb */
+	if (rc < 0)
+		return true;
+
+	/* error while queueing to a different device, driver consumed skb */
+	if (rc & NET_XMIT_MASK)
+		return true;
+
+	return false;
 }
 
 /**
@@ -2003,8 +2023,8 @@ gso:
 			HARD_TX_LOCK(dev, txq, cpu);
 
 			if (!netif_tx_queue_stopped(txq)) {
-				rc = NET_XMIT_SUCCESS;
-				if (!dev_hard_start_xmit(skb, dev, txq)) {
+				rc = dev_hard_start_xmit(skb, dev, txq);
+				if (dev_xmit_complete(rc)) {
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
 				}
