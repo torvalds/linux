@@ -298,8 +298,6 @@ static int __init pci_iommu_init(void)
 
 	amd_iommu_init();
 
-	gart_iommu_init();
-
 	no_iommu_init();
 	return 0;
 }
