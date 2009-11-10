@@ -2150,6 +2150,7 @@ static int azx_resume(struct pci_dev *pci)
 static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
 {
 	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
+	snd_hda_bus_reboot_notify(chip->bus);
 	azx_stop_chip(chip);
 	return NOTIFY_OK;
 }

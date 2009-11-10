@@ -4831,6 +4831,7 @@ static struct hda_codec_ops stac92xx_patch_ops = {
 	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
 #endif
+	.reboot_notify = stac92xx_shutup,
 };
 
 static int patch_stac9200(struct hda_codec *codec)

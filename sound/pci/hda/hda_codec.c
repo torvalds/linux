@@ -3404,6 +3404,23 @@ static void cleanup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid)
 	}
 }
 
+/* call each reboot notifier */
+void snd_hda_bus_reboot_notify(struct hda_bus *bus)
+{
+	struct hda_codec *codec;
+
+	if (!bus)
+		return;
+	list_for_each_entry(codec, &bus->codec_list, list) {
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		if (!codec->power_on)
+			continue;
+#endif
+		if (codec->patch_ops.reboot_notify)
+			codec->patch_ops.reboot_notify(codec);
+	}
+}
+
 /*
  * open the digital out in the exclusive mode
  */
