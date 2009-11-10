@@ -3772,13 +3772,17 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		if (ret != -EIOCBQUEUED && ret <= 0 && iocb->private) {
 			ext4_free_io_end(iocb->private);
 			iocb->private = NULL;
-		} else if (ret > 0)
+		} else if (ret > 0) {
+			int err;
 			/*
 			 * for non AIO case, since the IO is already
 			 * completed, we could do the convertion right here
 			 */
-			ret = ext4_convert_unwritten_extents(inode,
-								offset, ret);
+			err = ext4_convert_unwritten_extents(inode,
+							     offset, ret);
+			if (err < 0)
+				ret = err;
+		}
 		return ret;
 	}
 

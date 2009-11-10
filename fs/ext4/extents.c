@@ -3519,6 +3519,7 @@ retry:
  *
  * This function is called from the direct IO end io call back
  * function, to convert the fallocated extents after IO is completed.
+ * Returns 0 on success.
  */
 int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 				    loff_t len)
