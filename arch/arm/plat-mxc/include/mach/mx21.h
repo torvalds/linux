@@ -34,8 +34,8 @@
 #define CS2_BASE_ADDR           0xD0000000
 #define CS3_BASE_ADDR           0xD1000000
 #define CS4_BASE_ADDR           0xD2000000
-#define CS5_BASE_ADDR           0xDD000000
 #define PCMCIA_MEM_BASE_ADDR    0xD4000000
+#define CS5_BASE_ADDR           0xDD000000
 
 /* NAND, SDRAM, WEIM etc controllers */
 #define X_MEMC_BASE_ADDR        0xDF000000
@@ -50,21 +50,21 @@
 #define IRAM_BASE_ADDR          0xFFFFE800	/* internal ram */
 
 /* fixed interrupt numbers */
-#define MXC_INT_USBCTRL         58
-#define MXC_INT_USBCTRL         58
-#define MXC_INT_USBMNP          57
-#define MXC_INT_USBFUNC         56
-#define MXC_INT_USBHOST         55
-#define MXC_INT_USBDMA          54
-#define MXC_INT_USBWKUP         53
-#define MXC_INT_EMMADEC         50
-#define MXC_INT_EMMAENC         49
-#define MXC_INT_BMI             30
 #define MXC_INT_FIRI            9
+#define MXC_INT_BMI             30
+#define MXC_INT_EMMAENC         49
+#define MXC_INT_EMMADEC         50
+#define MXC_INT_USBWKUP         53
+#define MXC_INT_USBDMA          54
+#define MXC_INT_USBHOST         55
+#define MXC_INT_USBFUNC         56
+#define MXC_INT_USBMNP          57
+#define MXC_INT_USBCTRL         58
+#define MXC_INT_USBCTRL         58
 
 /* fixed DMA request numbers */
-#define DMA_REQ_BMI_RX          29
-#define DMA_REQ_BMI_TX          28
 #define DMA_REQ_FIRI_RX         4
+#define DMA_REQ_BMI_TX          28
+#define DMA_REQ_BMI_RX          29
 
 #endif /* __ASM_ARCH_MXC_MX21_H__ */
