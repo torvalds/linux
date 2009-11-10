@@ -525,7 +525,6 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh)
 
 	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, ibh);
 
-	/* The buffer is guarded with lock_buffer() by the caller */
 	if (test_and_clear_bit(NILFS_I_NEW, &ii->i_state))
 		memset(raw_inode, 0, NILFS_MDT(sbi->s_ifile)->mi_entry_size);
 	set_bit(NILFS_I_INODE_DIRTY, &ii->i_state);
@@ -745,9 +744,7 @@ int nilfs_mark_inode_dirty(struct inode *inode)
 			      "failed to reget inode block.\n");
 		return err;
 	}
-	lock_buffer(ibh);
 	nilfs_update_inode(inode, ibh);
-	unlock_buffer(ibh);
 	nilfs_mdt_mark_buffer_dirty(ibh);
 	nilfs_mdt_mark_dirty(sbi->s_ifile);
 	brelse(ibh);
