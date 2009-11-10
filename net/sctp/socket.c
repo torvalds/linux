@@ -1080,6 +1080,13 @@ static int __sctp_connect(struct sock* sk,
 				err = -ENOMEM;
 				goto out_free;
 			}
+
+			err = sctp_assoc_set_bind_addr_from_ep(asoc, scope,
+							      GFP_KERNEL);
+			if (err < 0) {
+				goto out_free;
+			}
+
 		}
 
 		/* Prime the peer's transport structures.  */
@@ -1093,11 +1100,6 @@ static int __sctp_connect(struct sock* sk,
 		addrcnt++;
 		addr_buf += af->sockaddr_len;
 		walk_size += af->sockaddr_len;
-	}
-
-	err = sctp_assoc_set_bind_addr_from_ep(asoc, GFP_KERNEL);
-	if (err < 0) {
-		goto out_free;
 	}
 
 	/* In case the user of sctp_connectx() wants an association
@@ -1689,6 +1691,11 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			goto out_unlock;
 		}
 		asoc = new_asoc;
+		err = sctp_assoc_set_bind_addr_from_ep(asoc, scope, GFP_KERNEL);
+		if (err < 0) {
+			err = -ENOMEM;
+			goto out_free;
+		}
 
 		/* If the SCTP_INIT ancillary data is specified, set all
 		 * the association init values accordingly.
@@ -1715,11 +1722,6 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		/* Prime the peer's transport structures.  */
 		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL, SCTP_UNKNOWN);
 		if (!transport) {
-			err = -ENOMEM;
-			goto out_free;
-		}
-		err = sctp_assoc_set_bind_addr_from_ep(asoc, GFP_KERNEL);
-		if (err < 0) {
 			err = -ENOMEM;
 			goto out_free;
 		}
