@@ -97,6 +97,8 @@ static phys_addr_t *io_tlb_orig_addr;
  */
 static DEFINE_SPINLOCK(io_tlb_lock);
 
+static int late_alloc;
+
 static int __init
 setup_io_tlb_npages(char *str)
 {
@@ -262,6 +264,8 @@ swiotlb_late_init_with_default_size(size_t default_size)
 
 	swiotlb_print_info(bytes);
 
+	late_alloc = 1;
+
 	return 0;
 
 cleanup4:
@@ -279,6 +283,32 @@ cleanup2:
 cleanup1:
 	io_tlb_nslabs = req_nslabs;
 	return -ENOMEM;
+}
+
+void __init swiotlb_free(void)
+{
+	if (!io_tlb_overflow_buffer)
+		return;
+
+	if (late_alloc) {
+		free_pages((unsigned long)io_tlb_overflow_buffer,
+			   get_order(io_tlb_overflow));
+		free_pages((unsigned long)io_tlb_orig_addr,
+			   get_order(io_tlb_nslabs * sizeof(phys_addr_t)));
+		free_pages((unsigned long)io_tlb_list, get_order(io_tlb_nslabs *
+								 sizeof(int)));
+		free_pages((unsigned long)io_tlb_start,
+			   get_order(io_tlb_nslabs << IO_TLB_SHIFT));
+	} else {
+		free_bootmem_late(__pa(io_tlb_overflow_buffer),
+				  io_tlb_overflow);
+		free_bootmem_late(__pa(io_tlb_orig_addr),
+				  io_tlb_nslabs * sizeof(phys_addr_t));
+		free_bootmem_late(__pa(io_tlb_list),
+				  io_tlb_nslabs * sizeof(int));
+		free_bootmem_late(__pa(io_tlb_start),
+				  io_tlb_nslabs << IO_TLB_SHIFT);
+	}
 }
 
 static int is_swiotlb_buffer(phys_addr_t paddr)
