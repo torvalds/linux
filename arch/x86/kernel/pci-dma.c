@@ -294,8 +294,6 @@ static int __init pci_iommu_init(void)
 
 	x86_init.iommu.iommu_init();
 
-	intel_iommu_init();
-
 	no_iommu_init();
 	return 0;
 }
