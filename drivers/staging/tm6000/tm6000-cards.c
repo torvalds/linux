@@ -32,6 +32,7 @@
 #include "tm6000.h"
 #include "tm6000-regs.h"
 #include "tuner-xc2028.h"
+#include "tuner-xc5000.h"
 
 #define TM6000_BOARD_UNKNOWN			0
 #define TM5600_BOARD_GENERIC			1
@@ -178,6 +179,36 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio_addr_tun_reset = TM6000_GPIO_2,
 	},
+	[TM6010_BOARD_BEHOLD_WANDER] = {
+		.name         = "Beholder Wander DVB-T/TV/FM USB2.0",
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0xc2 >> 1,
+		.demod_addr   = 0x1e >> 1,
+		.type         = TM6010,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 1,
+			.has_zl10353  = 1,
+			.has_eeprom   = 1,
+			.has_remote   = 1,
+		},
+		.gpio_addr_tun_reset = TM6000_GPIO_2,
+	},
+	[TM6010_BOARD_BEHOLD_VOYAGER] = {
+		.name         = "Beholder Voyager TV/FM USB2.0",
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0xc2 >> 1,
+		.type         = TM6010,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 0,
+			.has_zl10353  = 0,
+			.has_eeprom   = 1,
+			.has_remote   = 1,
+		},
+		.gpio_addr_tun_reset = TM6000_GPIO_2,
+	},
+
 };
 
 /* table of devices that work with this driver */
@@ -188,6 +219,8 @@ struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x14aa, 0x0620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
 	{ USB_DEVICE(0x06e1, 0xb339), .driver_info = TM6000_BOARD_ADSTECH_MINI_DUAL_TV },
 	{ USB_DEVICE(0x2040, 0x6600), .driver_info = TM6010_BOARD_HAUPPAUGE_900H },
+	{ USB_DEVICE(0x6000, 0xdec0), .driver_info = TM6010_BOARD_BEHOLD_WANDER },
+	{ USB_DEVICE(0x6000, 0xdec1), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER },
 	{ },
 };
 
