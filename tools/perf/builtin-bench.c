@@ -156,6 +156,10 @@ int cmd_bench(int argc, const char **argv, const char *prefix __used)
 			if (strcmp(subsystems[i].suites[j].name, argv[1]))
 				continue;
 
+			if (bench_format == BENCH_FORMAT_DEFAULT)
+				printf("# Running %s/%s benchmark...\n",
+				       subsystems[i].name,
+				       subsystems[i].suites[j].name);
 			status = subsystems[i].suites[j].fn(argc - 1,
 							    argv + 1, prefix);
 			goto end;
