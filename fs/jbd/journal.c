@@ -756,6 +756,7 @@ journal_t * journal_init_dev(struct block_device *bdev,
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	kfree(journal);
 	return NULL;
 }
@@ -820,6 +821,7 @@ journal_t * journal_init_inode (struct inode *inode)
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	kfree(journal);
 	return NULL;
 }
