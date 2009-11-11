@@ -70,18 +70,15 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 }
 
-int perf_header__read_build_ids(const struct perf_header *self,
-				int input, off_t file_size)
+int perf_header__read_build_ids(int input, off_t size)
 {
-	off_t offset = self->data_offset + self->data_size;
 	struct build_id_event bev;
 	char filename[PATH_MAX];
+	off_t offset = lseek(input, 0, SEEK_CUR);
+	off_t limit = offset + size;
 	int err = -1;
 
-	if (lseek(input, offset, SEEK_SET) < 0)
-		return -1;
-
-	while (offset < file_size) {
+	while (offset < limit) {
 		struct dso *dso;
 		ssize_t len;
 
