@@ -1739,42 +1739,6 @@ static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 }
 
 /*
- * Very early hardware probe on pci_probe thread to determine if this module
- * supports the hardware.
- *
- * Return:
- *      0 for OK
- *      1 for error
- */
-static int f10_probe_valid_hardware(struct amd64_pvt *pvt)
-{
-	int ret = 0;
-
-	/*
-	 * If we are on a DDR3 machine, we don't know yet if
-	 * we support that properly at this time
-	 */
-	if ((pvt->dchr0 & DDR3_MODE) ||
-	    (pvt->dchr1 & DDR3_MODE)) {
-
-		amd64_printk(KERN_WARNING,
-			"%s() This machine is running with DDR3 memory. "
-			"This is not currently supported. "
-			"DCHR0=0x%x DCHR1=0x%x\n",
-			__func__, pvt->dchr0, pvt->dchr1);
-
-		amd64_printk(KERN_WARNING,
-			"   Contact '%s' module MAINTAINER to help add"
-			" support.\n",
-			EDAC_MOD_STR);
-
-		ret = 1;
-
-	}
-	return ret;
-}
-
-/*
  * There currently are 3 types type of MC devices for AMD Athlon/Opterons
  * (as per PCI DEVICE_IDs):
  *
@@ -1803,7 +1767,6 @@ static struct amd64_family_type amd64_family_types[] = {
 		.addr_f1_ctl = PCI_DEVICE_ID_AMD_10H_NB_MAP,
 		.misc_f3_ctl = PCI_DEVICE_ID_AMD_10H_NB_MISC,
 		.ops = {
-			.probe_valid_hardware	= f10_probe_valid_hardware,
 			.early_channel_count	= f10_early_channel_count,
 			.get_error_address	= f10_get_error_address,
 			.read_dram_base_limit	= f10_read_dram_base_limit,
@@ -1817,7 +1780,6 @@ static struct amd64_family_type amd64_family_types[] = {
 		.addr_f1_ctl = PCI_DEVICE_ID_AMD_11H_NB_MAP,
 		.misc_f3_ctl = PCI_DEVICE_ID_AMD_11H_NB_MISC,
 		.ops = {
-			.probe_valid_hardware	= f10_probe_valid_hardware,
 			.early_channel_count	= f10_early_channel_count,
 			.get_error_address	= f10_get_error_address,
 			.read_dram_base_limit	= f10_read_dram_base_limit,
@@ -2851,16 +2813,9 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 {
 	int node_id = pvt->mc_node_id;
 	struct mem_ctl_info *mci;
-	int ret, err = 0;
+	int ret;
 
 	amd64_read_mc_registers(pvt);
-
-	ret = -ENODEV;
-	if (pvt->ops->probe_valid_hardware) {
-		err = pvt->ops->probe_valid_hardware(pvt);
-		if (err)
-			goto err_exit;
-	}
 
 	/*
 	 * We need to determine how many memory channels there are. Then use
