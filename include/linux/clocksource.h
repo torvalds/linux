@@ -281,6 +281,16 @@ extern void clocksource_resume(void);
 extern struct clocksource * __init __weak clocksource_default_clock(void);
 extern void clocksource_mark_unstable(struct clocksource *cs);
 
+extern void
+clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
+
+static inline void
+clocksource_calc_mult_shift(struct clocksource *cs, u32 freq, u32 minsec)
+{
+	return clocks_calc_mult_shift(&cs->mult, &cs->shift, freq,
+				      NSEC_PER_SEC, minsec);
+}
+
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
 extern void
 update_vsyscall(struct timespec *ts, struct clocksource *c, u32 mult);
