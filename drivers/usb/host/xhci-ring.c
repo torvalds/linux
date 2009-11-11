@@ -1153,6 +1153,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		status = -ENOSR;
 		break;
 	default:
+		if (trb_comp_code >= 224 && trb_comp_code <= 255) {
+			/* Vendor defined "informational" completion code,
+			 * treat as not-an-error.
+			 */
+			xhci_dbg(xhci, "Vendor defined info completion code %u\n",
+					trb_comp_code);
+			xhci_dbg(xhci, "Treating code as success.\n");
+			status = 0;
+			break;
+		}
 		xhci_warn(xhci, "ERROR Unknown event condition, HC probably busted\n");
 		urb = NULL;
 		goto cleanup;
