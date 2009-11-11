@@ -568,8 +568,12 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		 * DVB-T and MPEG2 HW Encoder */
 		break;
 	case 85021:
-		/* WinTV-HVR1850 (PCIe, OEM, RCA in, IR, FM,
+		/* WinTV-HVR1850 (PCIe, Retail, 3.5mm in, IR, FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
+		break;
+	case 85721:
+		/* WinTV-HVR1290 (PCIe, OEM, RCA in, IR,
+			Dual channel ATSC and Basic analog */
 		break;
 	default:
 		printk(KERN_WARNING "%s: warning: "
