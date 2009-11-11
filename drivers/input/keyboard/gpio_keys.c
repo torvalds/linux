@@ -78,6 +78,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 {
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_keys_drvdata *ddata;
+	struct device *dev = &pdev->dev;
 	struct input_dev *input;
 	int i, error;
 	int wakeup = 0;
@@ -87,6 +88,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	input = input_allocate_device();
 	if (!ddata || !input) {
+		dev_err(dev, "failed to allocate state\n");
 		error = -ENOMEM;
 		goto fail1;
 	}
@@ -122,14 +124,14 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
 		if (error < 0) {
-			pr_err("gpio-keys: failed to request GPIO %d,"
-				" error %d\n", button->gpio, error);
+			dev_err(dev, "failed to request GPIO %d, error %d\n",
+				button->gpio, error);
 			goto fail2;
 		}
 
 		error = gpio_direction_input(button->gpio);
 		if (error < 0) {
-			pr_err("gpio-keys: failed to configure input"
+			dev_err(dev, "failed to configure"
 				" direction for GPIO %d, error %d\n",
 				button->gpio, error);
 			gpio_free(button->gpio);
@@ -139,8 +141,8 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		irq = gpio_to_irq(button->gpio);
 		if (irq < 0) {
 			error = irq;
-			pr_err("gpio-keys: Unable to get irq number"
-				" for GPIO %d, error %d\n",
+			dev_err(dev, "Unable to get irq number "
+				"for GPIO %d, error %d\n",
 				button->gpio, error);
 			gpio_free(button->gpio);
 			goto fail2;
@@ -152,7 +154,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 				    button->desc ? button->desc : "gpio_keys",
 				    bdata);
 		if (error) {
-			pr_err("gpio-keys: Unable to claim irq %d; error %d\n",
+			dev_err(dev, "Unable to claim irq %d; error %d\n",
 				irq, error);
 			gpio_free(button->gpio);
 			goto fail2;
@@ -166,7 +168,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		pr_err("gpio-keys: Unable to register input device, "
+		dev_err(dev, "Unable to register input device, "
 			"error: %d\n", error);
 		goto fail2;
 	}
