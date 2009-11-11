@@ -828,9 +828,6 @@ struct xhci_event_cmd {
 /* Normal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
 #define	TRB_LEN(p)		((p) & 0x1ffff)
-/* TD size - number of bytes remaining in the TD (including this TRB):
- * bits 17 - 21.  Shift the number of bytes by 10. */
-#define TD_REMAINDER(p)		((((p) >> 10) & 0x1f) << 17)
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)

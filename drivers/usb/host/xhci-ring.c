@@ -1699,6 +1699,21 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	return xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb, slot_id, ep_index);
 }
 
+/*
+ * The TD size is the number of bytes remaining in the TD (including this TRB),
+ * right shifted by 10.
+ * It must fit in bits 21:17, so it can't be bigger than 31.
+ */
+static u32 xhci_td_remainder(unsigned int remainder)
+{
+	u32 max = (1 << (21 - 17 + 1)) - 1;
+
+	if ((remainder >> 10) >= max)
+		return max << 17;
+	else
+		return (remainder >> 10) << 17;
+}
+
 static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
@@ -1756,6 +1771,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	do {
 		u32 field = 0;
 		u32 length_field = 0;
+		u32 remainder = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
 		if (first_trb)
@@ -1785,8 +1801,10 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 					(unsigned int) (addr + TRB_MAX_BUFF_SIZE) & ~(TRB_MAX_BUFF_SIZE - 1),
 					(unsigned int) addr + trb_buff_len);
 		}
+		remainder = xhci_td_remainder(urb->transfer_buffer_length -
+				running_total) ;
 		length_field = TRB_LEN(trb_buff_len) |
-			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
+			remainder |
 			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
 				lower_32_bits(addr),
@@ -1899,6 +1917,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	/* Queue the first TRB, even if it's zero-length */
 	do {
+		u32 remainder = 0;
 		field = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
@@ -1917,8 +1936,10 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;
 		}
+		remainder = xhci_td_remainder(urb->transfer_buffer_length -
+				running_total);
 		length_field = TRB_LEN(trb_buff_len) |
-			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
+			remainder |
 			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
 				lower_32_bits(addr),
@@ -2006,7 +2027,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* If there's data, queue data TRBs */
 	field = 0;
 	length_field = TRB_LEN(urb->transfer_buffer_length) |
-		TD_REMAINDER(urb->transfer_buffer_length) |
+		xhci_td_remainder(urb->transfer_buffer_length) |
 		TRB_INTR_TARGET(0);
 	if (urb->transfer_buffer_length > 0) {
 		if (setup->bRequestType & USB_DIR_IN)
