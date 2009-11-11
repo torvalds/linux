@@ -35,6 +35,10 @@ static int disable_reader;
 module_param(disable_reader, uint, 0644);
 MODULE_PARM_DESC(disable_reader, "only run producer");
 
+static int write_iteration = 50;
+module_param(write_iteration, uint, 0644);
+MODULE_PARM_DESC(write_iteration, "# of writes between timestamp readings");
+
 static int read_events;
 
 static int kill_test;
@@ -208,15 +212,18 @@ static void ring_buffer_producer(void)
 	do {
 		struct ring_buffer_event *event;
 		int *entry;
+		int i;
 
-		event = ring_buffer_lock_reserve(buffer, 10);
-		if (!event) {
-			missed++;
-		} else {
-			hit++;
-			entry = ring_buffer_event_data(event);
-			*entry = smp_processor_id();
-			ring_buffer_unlock_commit(buffer, event);
+		for (i = 0; i < write_iteration; i++) {
+			event = ring_buffer_lock_reserve(buffer, 10);
+			if (!event) {
+				missed++;
+			} else {
+				hit++;
+				entry = ring_buffer_event_data(event);
+				*entry = smp_processor_id();
+				ring_buffer_unlock_commit(buffer, event);
+			}
 		}
 		do_gettimeofday(&end_tv);
 
