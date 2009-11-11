@@ -515,6 +515,7 @@ static int snd_hda_bus_dev_register(struct snd_device *device)
 	struct hda_codec *codec;
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		snd_hda_hwdep_add_sysfs(codec);
+		snd_hda_hwdep_add_power_sysfs(codec);
 	}
 	return 0;
 }
@@ -2452,9 +2453,11 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D3);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	snd_hda_update_power_acct(codec);
 	cancel_delayed_work(&codec->power_work);
 	codec->power_on = 0;
 	codec->power_transition = 0;
+	codec->power_jiffies = jiffies;
 #endif
 }
 
@@ -3191,6 +3194,17 @@ static void hda_keep_power_on(struct hda_codec *codec)
 {
 	codec->power_count++;
 	codec->power_on = 1;
+	codec->power_jiffies = jiffies;
+}
+
+void snd_hda_update_power_acct(struct hda_codec *codec)
+{
+	unsigned long delta = jiffies - codec->power_jiffies;
+	if (codec->power_on)
+		codec->power_on_acct += delta;
+	else
+		codec->power_off_acct += delta;
+	codec->power_jiffies += delta;
 }
 
 void snd_hda_power_up(struct hda_codec *codec)
@@ -3201,7 +3215,9 @@ void snd_hda_power_up(struct hda_codec *codec)
 	if (codec->power_on || codec->power_transition)
 		return;
 
+	snd_hda_update_power_acct(codec);
 	codec->power_on = 1;
+	codec->power_jiffies = jiffies;
 	if (bus->ops.pm_notify)
 		bus->ops.pm_notify(bus);
 	hda_call_codec_resume(codec);
