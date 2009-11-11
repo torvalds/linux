@@ -2488,7 +2488,19 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	root = BTRFS_I(dir)->root;
 
+	/*
+	 * 5 items for unlink inode
+	 * 1 for orphan
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
+	if (ret)
+		return ret;
+
 	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		btrfs_unreserve_metadata_space(root, 6);
+		return PTR_ERR(trans);
+	}
 
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -2503,6 +2515,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	nr = trans->blocks_used;
 
 	btrfs_end_transaction_throttle(trans, root);
+	btrfs_unreserve_metadata_space(root, 6);
 	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
@@ -2583,7 +2596,16 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	    inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		return -ENOTEMPTY;
 
+	ret = btrfs_reserve_metadata_space(root, 5);
+	if (ret)
+		return ret;
+
 	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		btrfs_unreserve_metadata_space(root, 5);
+		return PTR_ERR(trans);
+	}
+
 	btrfs_set_trans_block_group(trans, dir);
 
 	if (unlikely(inode->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
@@ -2606,6 +2628,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 out:
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction_throttle(trans, root);
+	btrfs_unreserve_metadata_space(root, 5);
 	btrfs_btree_balance_dirty(root, nr);
 
 	if (ret && !err)
@@ -5297,11 +5320,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return -ENOTEMPTY;
 
 	/*
-	 * 2 items for dir items
-	 * 1 item for orphan entry
-	 * 1 item for ref
+	 * We want to reserve the absolute worst case amount of items.  So if
+	 * both inodes are subvols and we need to unlink them then that would
+	 * require 4 item modifications, but if they are both normal inodes it
+	 * would require 5 item modifications, so we'll assume their normal
+	 * inodes.  So 5 * 2 is 10, plus 1 for the new link, so 11 total items
+	 * should cover the worst case number of items we'll modify.
 	 */
-	ret = btrfs_reserve_metadata_space(root, 4);
+	ret = btrfs_reserve_metadata_space(root, 11);
 	if (ret)
 		return ret;
 
@@ -5417,7 +5443,7 @@ out_fail:
 	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&root->fs_info->subvol_sem);
 
-	btrfs_unreserve_metadata_space(root, 4);
+	btrfs_unreserve_metadata_space(root, 11);
 	return ret;
 }
 
