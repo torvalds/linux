@@ -58,3 +58,61 @@ int __uncached_access(struct file *file, unsigned long addr)
 		((addr >= LOONGSON_MMIO_MEM_START) &&
 		 (addr < LOONGSON_MMIO_MEM_END));
 }
+
+#ifdef CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED
+
+#include <linux/pci.h>
+#include <linux/sched.h>
+#include <asm/current.h>
+
+static unsigned long uca_start, uca_end;
+
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+			      unsigned long size, pgprot_t vma_prot)
+{
+	unsigned long offset = pfn << PAGE_SHIFT;
+	unsigned long end = offset + size;
+
+	if (__uncached_access(file, offset)) {
+		if (((uca_start && offset) >= uca_start) &&
+		    (end <= uca_end))
+			return __pgprot((pgprot_val(vma_prot) &
+					 ~_CACHE_MASK) |
+					_CACHE_UNCACHED_ACCELERATED);
+		else
+			return pgprot_noncached(vma_prot);
+	}
+	return vma_prot;
+}
+
+static int __init find_vga_mem_init(void)
+{
+	struct pci_dev *dev = 0;
+	struct resource *r;
+	int idx;
+
+	if (uca_start)
+		return 0;
+
+	for_each_pci_dev(dev) {
+		if ((dev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {
+			for (idx = 0; idx < PCI_NUM_RESOURCES; idx++) {
+				r = &dev->resource[idx];
+				if (!r->start && r->end)
+					continue;
+				if (r->flags & IORESOURCE_IO)
+					continue;
+				if (r->flags & IORESOURCE_MEM) {
+					uca_start = r->start;
+					uca_end = r->end;
+					return 0;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+late_initcall(find_vga_mem_init);
+#endif /* !CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED */
