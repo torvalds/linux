@@ -148,11 +148,6 @@ struct perf_file_header {
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
-void perf_header__feat_trace_info(struct perf_header *header)
-{
-	set_bit(HEADER_TRACE_INFO, header->adds_features);
-}
-
 void perf_header__set_feat(struct perf_header *self, int feat)
 {
 	set_bit(feat, self->adds_features);
@@ -195,9 +190,8 @@ perf_header__adds_write(struct perf_header *self, int fd, bool at_exit)
 {
 	struct perf_file_section trace_sec;
 	u64 cur_offset = lseek(fd, 0, SEEK_CUR);
-	unsigned long *feat_mask = self->adds_features;
 
-	if (test_bit(HEADER_TRACE_INFO, feat_mask)) {
+	if (perf_header__has_feat(self, HEADER_TRACE_INFO)) {
 		/* Write trace info */
 		trace_sec.offset = lseek(fd, sizeof(trace_sec), SEEK_CUR);
 		read_tracing_data(fd, attrs, nr_counters);
@@ -314,9 +308,7 @@ static void do_read(int fd, void *buf, size_t size)
 
 static void perf_header__adds_read(struct perf_header *self, int fd)
 {
-	const unsigned long *feat_mask = self->adds_features;
-
-	if (test_bit(HEADER_TRACE_INFO, feat_mask)) {
+	if (perf_header__has_feat(self, HEADER_TRACE_INFO)) {
 		struct perf_file_section trace_sec;
 
 		do_read(fd, &trace_sec, sizeof(trace_sec));
