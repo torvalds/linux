@@ -804,6 +804,7 @@ struct ieee802_11_elems {
 	u8 *preq;
 	u8 *prep;
 	u8 *perr;
+	struct ieee80211_rann_ie *rann;
 	u8 *ch_switch_elem;
 	u8 *country_elem;
 	u8 *pwr_constr_elem;

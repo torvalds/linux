@@ -685,6 +685,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->perr = pos;
 			elems->perr_len = elen;
 			break;
+		case WLAN_EID_RANN:
+			if (elen >= sizeof(struct ieee80211_rann_ie))
+				elems->rann = (void *)pos;
+			break;
 		case WLAN_EID_CHANNEL_SWITCH:
 			elems->ch_switch_elem = pos;
 			elems->ch_switch_elem_len = elen;

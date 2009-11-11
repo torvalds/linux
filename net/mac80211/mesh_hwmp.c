@@ -28,6 +28,8 @@
 /* Reply and forward */
 #define MP_F_RF	0x2
 
+static void mesh_queue_preq(struct mesh_path *, u8);
+
 static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
@@ -81,7 +83,8 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 enum mpath_frame_type {
 	MPATH_PREQ = 0,
 	MPATH_PREP,
-	MPATH_PERR
+	MPATH_PERR,
+	MPATH_RANN
 };
 
 static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
@@ -109,7 +112,8 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
-	/* BSSID is left zeroed, wildcard value */
+	/* BSSID == SA */
+	memcpy(mgmt->bssid, sdata->dev->dev_addr, ETH_ALEN);
 	mgmt->u.action.category = MESH_PATH_SEL_CATEGORY;
 	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
 
@@ -125,6 +129,12 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		ie_len = 31;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREP;
+		break;
+	case MPATH_RANN:
+		mhwmp_dbg("sending RANN from %pM\n", orig_addr);
+		ie_len = sizeof(struct ieee80211_rann_ie);
+		pos = skb_put(skb, 2 + ie_len);
+		*pos++ = WLAN_EID_RANN;
 		break;
 	default:
 		kfree_skb(skb);
@@ -143,8 +153,10 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	pos += ETH_ALEN;
 	memcpy(pos, &orig_dsn, 4);
 	pos += 4;
-	memcpy(pos, &lifetime, 4);
-	pos += 4;
+	if (action != MPATH_RANN) {
+		memcpy(pos, &lifetime, 4);
+		pos += 4;
+	}
 	memcpy(pos, &metric, 4);
 	pos += 4;
 	if (action == MPATH_PREQ) {
@@ -152,9 +164,11 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		*pos++ = 1;
 		*pos++ = dst_flags;
 	}
-	memcpy(pos, dst, ETH_ALEN);
-	pos += ETH_ALEN;
-	memcpy(pos, &dst_dsn, 4);
+	if (action != MPATH_RANN) {
+		memcpy(pos, dst, ETH_ALEN);
+		pos += ETH_ALEN;
+		memcpy(pos, &dst_dsn, 4);
+	}
 
 	ieee80211_tx_skb(sdata, skb, 1);
 	return 0;
@@ -610,6 +624,54 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
+static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_mgmt *mgmt,
+				struct ieee80211_rann_ie *rann)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct mesh_path *mpath;
+	u8 *ta;
+	u8 ttl, flags, hopcount;
+	u8 *orig_addr;
+	u32 orig_dsn, metric;
+
+	ta = mgmt->sa;
+	ttl = rann->rann_ttl;
+	if (ttl <= 1) {
+		ifmsh->mshstats.dropped_frames_ttl++;
+		return;
+	}
+	ttl--;
+	flags = rann->rann_flags;
+	orig_addr = rann->rann_addr;
+	orig_dsn = rann->rann_seq;
+	hopcount = rann->rann_hopcount;
+	metric = rann->rann_metric;
+	mhwmp_dbg("received RANN from %pM\n", orig_addr);
+
+	rcu_read_lock();
+	mpath = mesh_path_lookup(orig_addr, sdata);
+	if (!mpath) {
+		mesh_path_add(orig_addr, sdata);
+		mpath = mesh_path_lookup(orig_addr, sdata);
+		if (!mpath) {
+			rcu_read_unlock();
+			sdata->u.mesh.mshstats.dropped_frames_no_route++;
+			return;
+		}
+		mesh_queue_preq(mpath,
+				PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+	}
+	if (mpath->dsn < orig_dsn) {
+		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
+				       cpu_to_le32(orig_dsn),
+				       0, NULL, 0, sdata->dev->broadcast,
+				       hopcount, ttl, 0, cpu_to_le32(metric),
+				       0, sdata);
+		mpath->dsn = orig_dsn;
+	}
+	rcu_read_unlock();
+}
 
 
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
@@ -654,7 +716,8 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 			return;
 		hwmp_perr_frame_process(sdata, mgmt, elems.perr);
 	}
-
+	if (elems.rann)
+		hwmp_rann_frame_process(sdata, mgmt, elems.rann);
 }
 
 /**
