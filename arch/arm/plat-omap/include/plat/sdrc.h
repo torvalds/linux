@@ -44,6 +44,12 @@
 #define SDRC_RFR_CTRL_1		0x0D4
 #define SDRC_MANUAL_1		0x0D8
 
+#define SDRC_POWER_AUTOCOUNT_SHIFT	8
+#define SDRC_POWER_AUTOCOUNT_MASK	(0xffff << SDRC_POWER_AUTOCOUNT_SHIFT)
+#define SDRC_POWER_CLKCTRL_SHIFT	4
+#define SDRC_POWER_CLKCTRL_MASK		(0x3 << SDRC_POWER_CLKCTRL_SHIFT)
+#define SDRC_SELF_REFRESH_ON_AUTOCOUNT	(0x2 << SDRC_POWER_CLKCTRL_SHIFT)
+
 /*
  * These values represent the number of memory clock cycles between
  * autorefresh initiation.  They assume 1 refresh per 64 ms (JEDEC), 8192
@@ -120,6 +126,8 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 int omap2_sdrc_get_params(unsigned long r,
 			  struct omap_sdrc_params **sdrc_cs0,
 			  struct omap_sdrc_params **sdrc_cs1);
+void omap2_sms_save_context(void);
+void omap2_sms_restore_context(void);
 
 #ifdef CONFIG_ARCH_OMAP2
 

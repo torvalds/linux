@@ -155,8 +155,6 @@ static inline void __init omap_uart_reset(struct omap_uart_state *uart)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 
-static int enable_off_mode; /* to be removed by full off-mode patches */
-
 static void omap_uart_save_context(struct omap_uart_state *uart)
 {
 	u16 lcr = 0;

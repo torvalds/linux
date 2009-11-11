@@ -477,9 +477,14 @@
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
+#define INTCPS_NR_MIR_REGS	3
+#define INTCPS_NR_IRQS		96
+
 #ifndef __ASSEMBLY__
 extern void omap_init_irq(void);
 extern int omap_irq_pending(void);
+void omap_intc_save_context(void);
+void omap_intc_restore_context(void);
 #endif
 
 #include <mach/hardware.h>
