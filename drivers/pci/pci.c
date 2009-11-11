@@ -741,8 +741,8 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	u16 *cap;
 	u16 flags;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (pos <= 0)
+	pos = pci_pcie_cap(dev);
+	if (!pos)
 		return 0;
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
@@ -1535,7 +1535,7 @@ void pci_enable_ari(struct pci_dev *dev)
 	if (!bridge || !bridge->is_pcie)
 		return;
 
-	pos = pci_find_capability(bridge, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(bridge);
 	if (!pos)
 		return;
 
@@ -2140,7 +2140,7 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 	u32 cap;
 	u16 status;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return -ENOTTY;
 
@@ -2489,7 +2489,7 @@ int pcie_get_readrq(struct pci_dev *dev)
 	int ret, cap;
 	u16 ctl;
 
-	cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	cap = pci_pcie_cap(dev);
 	if (!cap)
 		return -EINVAL;
 
@@ -2519,7 +2519,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 
 	v = (ffs(rq) - 8) << 12;
 
-	cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	cap = pci_pcie_cap(dev);
 	if (!cap)
 		goto out;
 

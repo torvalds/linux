@@ -703,7 +703,7 @@ static void set_pcie_hotplug_bridge(struct pci_dev *pdev)
 	u16 reg16;
 	u32 reg32;
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	if (!pos)
 		return;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
@@ -920,7 +920,7 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	if (class == PCI_CLASS_BRIDGE_HOST)
 		return pci_cfg_space_size_ext(dev);
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 		if (!pos)
