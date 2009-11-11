@@ -61,3 +61,8 @@ endchoice
 
 config CS5536
 	bool
+
+config LOONGSON_SUSPEND
+	bool
+	default y
+	depends on CPU_SUPPORTS_CPUFREQ && SUSPEND

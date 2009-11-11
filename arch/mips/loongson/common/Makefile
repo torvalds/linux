@@ -16,3 +16,9 @@ obj-$(CONFIG_SERIAL_8250) += serial.o
 # space
 #
 obj-$(CONFIG_CS5536) += cs5536/
+
+#
+# Suspend Support
+#
+
+obj-$(CONFIG_LOONGSON_SUSPEND) += pm.o
