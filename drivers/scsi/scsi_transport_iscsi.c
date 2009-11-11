@@ -627,8 +627,10 @@ static void __iscsi_block_session(struct work_struct *work)
 	spin_unlock_irqrestore(&session->lock, flags);
 	scsi_target_block(&session->dev);
 	ISCSI_DBG_TRANS_SESSION(session, "Completed SCSI target blocking\n");
-	queue_delayed_work(iscsi_eh_timer_workq, &session->recovery_work,
-			   session->recovery_tmo * HZ);
+	if (session->recovery_tmo >= 0)
+		queue_delayed_work(iscsi_eh_timer_workq,
+				   &session->recovery_work,
+				   session->recovery_tmo * HZ);
 }
 
 void iscsi_block_session(struct iscsi_cls_session *session)
@@ -1348,8 +1350,7 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 	switch (ev->u.set_param.param) {
 	case ISCSI_PARAM_SESS_RECOVERY_TMO:
 		sscanf(data, "%d", &value);
-		if (value != 0)
-			session->recovery_tmo = value;
+		session->recovery_tmo = value;
 		break;
 	default:
 		err = transport->set_param(conn, ev->u.set_param.param,
