@@ -1114,6 +1114,16 @@ static inline struct net_device *next_net_device(struct net_device *dev)
 	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
 }
 
+static inline struct net_device *next_net_device_rcu(struct net_device *dev)
+{
+	struct list_head *lh;
+	struct net *net;
+
+	net = dev_net(dev);
+	lh = rcu_dereference(dev->dev_list.next);
+	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
+}
+
 static inline struct net_device *first_net_device(struct net *net)
 {
 	return list_empty(&net->dev_base_head) ? NULL :
