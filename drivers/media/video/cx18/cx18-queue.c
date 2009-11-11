@@ -100,8 +100,8 @@ struct cx18_mdl *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 	return mdl;
 }
 
-static void _cx18_mdl_set_buf_bytesused(struct cx18_stream *s,
-					struct cx18_mdl *mdl)
+static void _cx18_mdl_update_bufs_for_cpu(struct cx18_stream *s,
+					  struct cx18_mdl *mdl)
 {
 	struct cx18_buffer *buf;
 	u32 buf_size = s->buf_size;
@@ -116,11 +116,12 @@ static void _cx18_mdl_set_buf_bytesused(struct cx18_stream *s,
 			buf->bytesused = bytesused;
 			bytesused = 0;
 		}
+		cx18_buf_sync_for_cpu(s, buf);
 	}
 }
 
-static inline void cx18_mdl_set_buf_bytesused(struct cx18_stream *s,
-					      struct cx18_mdl *mdl)
+static inline void cx18_mdl_update_bufs_for_cpu(struct cx18_stream *s,
+						struct cx18_mdl *mdl)
 {
 	struct cx18_buffer *buf;
 
@@ -129,8 +130,9 @@ static inline void cx18_mdl_set_buf_bytesused(struct cx18_stream *s,
 				       list);
 		buf->bytesused = mdl->bytesused;
 		buf->readpos = 0;
+		cx18_buf_sync_for_cpu(s, buf);
 	} else {
-		_cx18_mdl_set_buf_bytesused(s, mdl);
+		_cx18_mdl_update_bufs_for_cpu(s, mdl);
 	}
 }
 
@@ -191,8 +193,7 @@ struct cx18_mdl *cx18_queue_get_mdl(struct cx18_stream *s, u32 id,
 		ret->bytesused = bytesused;
 		ret->skipped = 0;
 		/* 0'ed readpos, m_flags & curr_buf when mdl went on q_busy */
-		cx18_mdl_set_buf_bytesused(s, ret);
-		cx18_mdl_sync_for_cpu(s, ret);
+		cx18_mdl_update_bufs_for_cpu(s, ret);
 		if (s->type != CX18_ENC_STREAM_TYPE_TS)
 			set_bit(CX18_F_M_NEED_SWAP, &ret->m_flags);
 	}
@@ -329,18 +330,6 @@ void cx18_load_queues(struct cx18_stream *s)
 		}
 		mdl_id += i;
 	}
-}
-
-void _cx18_mdl_sync_for_cpu(struct cx18_stream *s, struct cx18_mdl *mdl)
-{
-	int dma = s->dma;
-	u32 buf_size = s->buf_size;
-	struct pci_dev *pci_dev = s->cx->pci_dev;
-	struct cx18_buffer *buf;
-
-	list_for_each_entry(buf, &mdl->buf_list, list)
-		pci_dma_sync_single_for_cpu(pci_dev, buf->dma_handle,
-					    buf_size, dma);
 }
 
 void _cx18_mdl_sync_for_device(struct cx18_stream *s, struct cx18_mdl *mdl)

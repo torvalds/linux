@@ -33,19 +33,6 @@ static inline void cx18_buf_sync_for_cpu(struct cx18_stream *s,
 				s->buf_size, s->dma);
 }
 
-void _cx18_mdl_sync_for_cpu(struct cx18_stream *s, struct cx18_mdl *mdl);
-
-static inline void cx18_mdl_sync_for_cpu(struct cx18_stream *s,
-					 struct cx18_mdl *mdl)
-{
-	if (list_is_singular(&mdl->buf_list))
-		cx18_buf_sync_for_cpu(s, list_first_entry(&mdl->buf_list,
-							  struct cx18_buffer,
-							  list));
-	else
-		_cx18_mdl_sync_for_cpu(s, mdl);
-}
-
 static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
