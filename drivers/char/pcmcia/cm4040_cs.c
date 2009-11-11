@@ -264,12 +264,12 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 
 	bytes_to_read = 5 + le32_to_cpu(*(__le32 *)&dev->r_buf[1]);
 
-	DEBUGP(6, dev, "BytesToRead=%lu\n", bytes_to_read);
+	DEBUGP(6, dev, "BytesToRead=%zu\n", bytes_to_read);
 
 	min_bytes_to_read = min(count, bytes_to_read + 5);
 	min_bytes_to_read = min_t(size_t, min_bytes_to_read, READ_WRITE_BUFFER_SIZE);
 
-	DEBUGP(6, dev, "Min=%lu\n", min_bytes_to_read);
+	DEBUGP(6, dev, "Min=%zu\n", min_bytes_to_read);
 
 	for (i = 0; i < (min_bytes_to_read-5); i++) {
 		rc = wait_for_bulk_in_ready(dev);
