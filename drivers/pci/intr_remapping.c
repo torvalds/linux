@@ -478,7 +478,7 @@ int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 		return -1;
 
 	/* PCIe device or Root Complex integrated PCI device */
-	if (dev->is_pcie || !dev->bus->parent) {
+	if (pci_is_pcie(dev) || !dev->bus->parent) {
 		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16,
 			     (dev->bus->number << 8) | dev->devfn);
 		return 0;
@@ -486,7 +486,7 @@ int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 
 	bridge = pci_find_upstream_pcie_bridge(dev);
 	if (bridge) {
-		if (bridge->is_pcie) /* this is a PCIE-to-PCI/PCIX bridge */
+		if (pci_is_pcie(bridge))/* this is a PCIE-to-PCI/PCIX bridge */
 			set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
 				(bridge->bus->number << 8) | dev->bus->number);
 		else /* this is a legacy PCI bridge */

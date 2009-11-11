@@ -1524,7 +1524,7 @@ void pci_enable_ari(struct pci_dev *dev)
 	u16 ctrl;
 	struct pci_dev *bridge;
 
-	if (!dev->is_pcie || dev->devfn)
+	if (!pci_is_pcie(dev) || dev->devfn)
 		return;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
@@ -1532,7 +1532,7 @@ void pci_enable_ari(struct pci_dev *dev)
 		return;
 
 	bridge = dev->bus->self;
-	if (!bridge || !bridge->is_pcie)
+	if (!bridge || !pci_is_pcie(bridge))
 		return;
 
 	pos = pci_pcie_cap(bridge);
@@ -1560,7 +1560,7 @@ void pci_enable_acs(struct pci_dev *dev)
 	u16 cap;
 	u16 ctrl;
 
-	if (!dev->is_pcie)
+	if (!pci_is_pcie(dev))
 		return;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);

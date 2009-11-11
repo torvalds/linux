@@ -555,7 +555,7 @@ int pci_iov_init(struct pci_dev *dev)
 {
 	int pos;
 
-	if (!dev->is_pcie)
+	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
