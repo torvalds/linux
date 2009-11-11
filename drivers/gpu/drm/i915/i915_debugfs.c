@@ -549,13 +549,10 @@ int i915_debugfs_init(struct drm_minor *minor)
 
 void i915_debugfs_cleanup(struct drm_minor *minor)
 {
-	const void *key;
-
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
-
-	key = &i915_wedged_fops;
-	drm_debugfs_remove_files((struct drm_info_list *) &key, 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_wedged_fops,
+				 1, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */
