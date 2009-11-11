@@ -1236,7 +1236,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
-	    (rx->flags & IEEE80211_RX_RA_MATCH)) {
+	    (rx->flags & IEEE80211_RX_RA_MATCH) && !rx->sdata->use_4addr) {
 		if (is_multicast_ether_addr(ehdr->h_dest)) {
 			/*
 			 * send multicast frames both to higher layers in
