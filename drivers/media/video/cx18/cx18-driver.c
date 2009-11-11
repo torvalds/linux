@@ -87,7 +87,6 @@ static int enc_ts_bufsize = CX18_DEFAULT_ENC_TS_BUFSIZE;
 static int enc_mpg_bufsize = CX18_DEFAULT_ENC_MPG_BUFSIZE;
 static int enc_idx_bufsize = CX18_DEFAULT_ENC_IDX_BUFSIZE;
 static int enc_yuv_bufsize = CX18_DEFAULT_ENC_YUV_BUFSIZE;
-/* VBI bufsize based on standards supported by card tuner for now */
 static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
 
 static int enc_ts_bufs = -1;
@@ -128,7 +127,6 @@ module_param(enc_ts_bufsize, int, 0644);
 module_param(enc_mpg_bufsize, int, 0644);
 module_param(enc_idx_bufsize, int, 0644);
 module_param(enc_yuv_bufsize, int, 0644);
-/* VBI bufsize based on standards supported by card tuner for now */
 module_param(enc_pcm_bufsize, int, 0644);
 
 module_param(enc_ts_bufs, int, 0644);
@@ -222,7 +220,7 @@ MODULE_PARM_DESC(enc_vbi_buffers,
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_VBI_BUFFERS));
 MODULE_PARM_DESC(enc_vbi_bufs,
 		 "Number of encoder VBI buffers\n"
-		 "\t\t\tDefault is computed from enc_vbi_buffers & tuner std");
+		 "\t\t\tDefault is computed from enc_vbi_buffers");
 MODULE_PARM_DESC(enc_pcm_buffers,
 		 "Encoder PCM buffer memory (MB). (enc_pcm_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFFERS));

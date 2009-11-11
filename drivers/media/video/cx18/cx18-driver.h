@@ -130,7 +130,6 @@
 #define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
 #define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
 #define CX18_DEFAULT_ENC_YUV_BUFSIZE  (CX18_UNIT_ENC_YUV_BUFSIZE * 3 / 1024 + 1)
-/* Default VBI bufsize based on standards supported by card tuner for now */
 #define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 
 /* i2c stuff */
