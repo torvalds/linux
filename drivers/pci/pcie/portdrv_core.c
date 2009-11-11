@@ -108,7 +108,7 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
 		 * the value in this field indicates which MSI-X Table entry is
 		 * used to generate the interrupt message."
 		 */
-		pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+		pos = pci_pcie_cap(dev);
 		pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 		entry = (reg16 >> 9) & PCIE_PORT_MSI_VECTOR_MASK;
 		if (entry >= nr_entries)
@@ -226,7 +226,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 	u16 reg16;
 	u32 reg32;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 	/* Hot-Plug Capable */
 	if (reg16 & PORT_TO_SLOT_MASK) {
@@ -305,7 +305,8 @@ int pcie_port_device_probe(struct pci_dev *dev)
 	int pos, type;
 	u16 reg;
 
-	if (!(pos = pci_find_capability(dev, PCI_CAP_ID_EXP)))
+	pos = pci_pcie_cap(dev);
+	if (!pos)
 		return -ENODEV;
 
 	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg);
@@ -327,7 +328,7 @@ int pcie_port_device_probe(struct pci_dev *dev)
 int pcie_port_device_register(struct pci_dev *dev)
 {
 	struct pcie_port_data *port_data;
-	int status, capabilities, irq_mode, i, nr_serv;
+	int status, capabilities, irq_mode, i, nr_serv, pos;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
 	u16 reg16;
 
@@ -337,9 +338,8 @@ int pcie_port_device_register(struct pci_dev *dev)
 	pci_set_drvdata(dev, port_data);
 
 	/* Get port type */
-	pci_read_config_word(dev,
-		pci_find_capability(dev, PCI_CAP_ID_EXP) +
-		PCIE_CAPABILITIES_REG, &reg16);
+	pos = pci_pcie_cap(dev);
+	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 	port_data->port_type = (reg16 >> 4) & PORT_TYPE_MASK;
 
 	capabilities = get_port_device_capability(dev);
