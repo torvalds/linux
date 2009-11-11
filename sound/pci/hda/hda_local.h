@@ -92,6 +92,8 @@
 #define HDA_CODEC_MUTE_BEEP(xname, nid, xindex, direction) \
 	HDA_CODEC_MUTE_BEEP_MONO(xname, nid, 3, xindex, direction)
 
+extern const char *snd_hda_pcm_type_name[];
+
 int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol,
