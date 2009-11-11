@@ -2234,6 +2234,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 		 */
 		if (oldstate < CEPH_MDS_STATE_ACTIVE &&
 		    newstate >= CEPH_MDS_STATE_ACTIVE) {
+			pr_info("mds%d reconnect completed\n", s->s_mds);
 			kick_requests(mdsc, i, 1);
 			ceph_kick_flushing_caps(mdsc, s);
 		}
