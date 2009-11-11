@@ -69,6 +69,13 @@ struct build_id_event {
 	char			 filename[];
 };
 
+struct build_id_list {
+	struct build_id_event	event;
+	struct list_head	list;
+	const char		*dso_name;
+	int			len;
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;

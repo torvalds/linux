@@ -174,29 +174,18 @@ static void do_write(int fd, void *buf, size_t size)
 	}
 }
 
-static bool write_buildid_table(int fd)
+static void write_buildid_table(int fd, struct list_head *id_head)
 {
-	struct dso *pos;
-	bool have_buildid = false;
+	struct build_id_list *iter, *next;
 
-	list_for_each_entry(pos, &dsos, node) {
-		struct build_id_event b;
-		size_t len;
+	list_for_each_entry_safe(iter, next, id_head, list) {
+		struct build_id_event *b = &iter->event;
 
-		if (filename__read_build_id(pos->long_name,
-					    &b.build_id,
-					    sizeof(b.build_id)) < 0)
-			continue;
-		have_buildid = true;
-		memset(&b.header, 0, sizeof(b.header));
-		len = strlen(pos->long_name) + 1;
-		len = ALIGN(len, 64);
-		b.header.size = sizeof(b) + len;
-		do_write(fd, &b, sizeof(b));
-		do_write(fd, pos->long_name, len);
+		do_write(fd, b, sizeof(*b));
+		do_write(fd, (void *)iter->dso_name, iter->len);
+		list_del(&iter->list);
+		free(iter);
 	}
-
-	return have_buildid;
 }
 
 static void
@@ -226,10 +215,14 @@ perf_header__adds_write(struct perf_header *self, int fd, bool at_exit)
 	}
 
 	if (at_exit) {
-		lseek(fd, self->data_offset + self->data_size, SEEK_SET);
-		if (write_buildid_table(fd))
+		LIST_HEAD(id_list);
+
+		if (fetch_build_id_table(&id_list)) {
+			lseek(fd, self->data_offset + self->data_size, SEEK_SET);
 			perf_header__set_feat(self, HEADER_BUILD_ID);
-		lseek(fd, cur_offset, SEEK_SET);
+			write_buildid_table(fd, &id_list);
+			lseek(fd, cur_offset, SEEK_SET);
+		}
 	}
 };
 

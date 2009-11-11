@@ -851,6 +851,40 @@ out_close:
 	return err;
 }
 
+bool fetch_build_id_table(struct list_head *head)
+{
+	bool have_buildid = false;
+	struct dso *pos;
+
+	list_for_each_entry(pos, &dsos, node) {
+		struct build_id_list *new;
+		struct build_id_event b;
+		size_t len;
+
+		if (filename__read_build_id(pos->long_name,
+					    &b.build_id,
+					    sizeof(b.build_id)) < 0)
+			continue;
+		have_buildid = true;
+		memset(&b.header, 0, sizeof(b.header));
+		len = strlen(pos->long_name) + 1;
+		len = ALIGN(len, 64);
+		b.header.size = sizeof(b) + len;
+
+		new = malloc(sizeof(*new));
+		if (!new)
+			die("No memory\n");
+
+		memcpy(&new->event, &b, sizeof(b));
+		new->dso_name = pos->long_name;
+		new->len = len;
+
+		list_add_tail(&new->list, head);
+	}
+
+	return have_buildid;
+}
+
 int filename__read_build_id(const char *filename, void *bf, size_t size)
 {
 	int fd, err = -1;

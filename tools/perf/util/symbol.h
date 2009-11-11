@@ -86,6 +86,7 @@ char dso__symtab_origin(const struct dso *self);
 void dso__set_build_id(struct dso *self, void *build_id);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
+bool fetch_build_id_table(struct list_head *head);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
 int load_kernel(symbol_filter_t filter);
