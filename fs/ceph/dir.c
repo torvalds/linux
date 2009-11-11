@@ -131,6 +131,7 @@ more:
 			goto out_unlock;
 		}
 		if (!d_unhashed(dentry) && dentry->d_inode &&
+		    ceph_snap(dentry->d_inode) != CEPH_SNAPDIR &&
 		    filp->f_pos <= di->offset)
 			break;
 		dout(" skipping %p %.*s at %llu (%llu)%s%s\n", dentry,
