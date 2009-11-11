@@ -102,7 +102,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 		return;
 
 	/* Find PCI Express capability */
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return;
 
