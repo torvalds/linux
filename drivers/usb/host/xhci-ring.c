@@ -1037,6 +1037,45 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 	return 0;
 }
 
+static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_td *td, union xhci_trb *event_trb)
+{
+	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
+	ep->ep_state |= EP_HALTED;
+	ep->stopped_td = td;
+	ep->stopped_trb = event_trb;
+	xhci_queue_reset_ep(xhci, slot_id, ep_index);
+	xhci_cleanup_stalled_ring(xhci, td->urb->dev, ep_index);
+	xhci_ring_cmd_db(xhci);
+}
+
+/* Check if an error has halted the endpoint ring.  The class driver will
+ * cleanup the halt for a non-default control endpoint if we indicate a stall.
+ * However, a babble and other errors also halt the endpoint ring, and the class
+ * driver won't clear the halt in that case, so we need to issue a Set Transfer
+ * Ring Dequeue Pointer command manually.
+ */
+static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
+		struct xhci_ep_ctx *ep_ctx,
+		unsigned int trb_comp_code)
+{
+	/* TRB completion codes that may require a manual halt cleanup */
+	if (trb_comp_code == COMP_TX_ERR ||
+			trb_comp_code == COMP_BABBLE ||
+			trb_comp_code == COMP_SPLIT_ERR)
+		/* The 0.96 spec says a babbling control endpoint
+		 * is not halted. The 0.96 spec says it is.  Some HW
+		 * claims to be 0.95 compliant, but it halts the control
+		 * endpoint anyway.  Check if a babble halted the
+		 * endpoint.
+		 */
+		if ((ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_HALTED)
+			return 1;
+
+	return 0;
+}
+
 /*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
@@ -1191,15 +1230,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			else
 				status = 0;
 			break;
-		case COMP_BABBLE:
-			/* The 0.96 spec says a babbling control endpoint
-			 * is not halted. The 0.96 spec says it is.  Some HW
-			 * claims to be 0.95 compliant, but it halts the control
-			 * endpoint anyway.  Check if a babble halted the
-			 * endpoint.
-			 */
-			if (ep_ctx->ep_info != EP_STATE_HALTED)
+
+		default:
+			if (!xhci_requires_manual_halt_cleanup(xhci,
+						ep_ctx, trb_comp_code))
 				break;
+			xhci_dbg(xhci, "TRB error code %u, "
+					"halted endpoint index = %u\n",
+					trb_comp_code, ep_index);
 			/* else fall through */
 		case COMP_STALL:
 			/* Did we transfer part of the data (middle) phase? */
@@ -1211,15 +1249,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			else
 				td->urb->actual_length = 0;
 
-			ep->stopped_td = td;
-			ep->stopped_trb = event_trb;
-			xhci_queue_reset_ep(xhci, slot_id, ep_index);
-			xhci_cleanup_stalled_ring(xhci, td->urb->dev, ep_index);
-			xhci_ring_cmd_db(xhci);
+			xhci_cleanup_halted_endpoint(xhci,
+					slot_id, ep_index, td, event_trb);
 			goto td_cleanup;
-		default:
-			/* Others already handled above */
-			break;
 		}
 		/*
 		 * Did we transfer any data, despite the errors that might have
@@ -1357,16 +1389,25 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		ep->stopped_td = td;
 		ep->stopped_trb = event_trb;
 	} else {
-		if (trb_comp_code == COMP_STALL ||
-				trb_comp_code == COMP_BABBLE) {
+		if (trb_comp_code == COMP_STALL) {
 			/* The transfer is completed from the driver's
 			 * perspective, but we need to issue a set dequeue
 			 * command for this stalled endpoint to move the dequeue
 			 * pointer past the TD.  We can't do that here because
-			 * the halt condition must be cleared first.
+			 * the halt condition must be cleared first.  Let the
+			 * USB class driver clear the stall later.
 			 */
 			ep->stopped_td = td;
 			ep->stopped_trb = event_trb;
+		} else if (xhci_requires_manual_halt_cleanup(xhci,
+					ep_ctx, trb_comp_code)) {
+			/* Other types of errors halt the endpoint, but the
+			 * class driver doesn't call usb_reset_endpoint() unless
+			 * the error is -EPIPE.  Clear the halted status in the
+			 * xHCI hardware manually.
+			 */
+			xhci_cleanup_halted_endpoint(xhci,
+					slot_id, ep_index, td, event_trb);
 		} else {
 			/* Update ring dequeue pointer */
 			while (ep_ring->dequeue != td->last_trb)
