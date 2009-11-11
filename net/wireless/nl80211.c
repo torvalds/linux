@@ -1821,7 +1821,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 }
 
 /*
- * Get vlan interface making sure it is on the right wiphy.
+ * Get vlan interface making sure it is running and on the right wiphy.
  */
 static int get_vlan(struct genl_info *info,
 		    struct cfg80211_registered_device *rdev,
@@ -1839,6 +1839,8 @@ static int get_vlan(struct genl_info *info,
 			return -EINVAL;
 		if ((*vlan)->ieee80211_ptr->wiphy != &rdev->wiphy)
 			return -EINVAL;
+		if (!netif_running(*vlan))
+			return -ENETDOWN;
 	}
 	return 0;
 }
