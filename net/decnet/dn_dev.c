@@ -828,13 +828,17 @@ static int dn_dev_get_first(struct net_device *dev, __le16 *addr)
 	struct dn_dev *dn_db = (struct dn_dev *)dev->dn_ptr;
 	struct dn_ifaddr *ifa;
 	int rv = -ENODEV;
+
 	if (dn_db == NULL)
 		goto out;
+
+	rtnl_lock();
 	ifa = dn_db->ifa_list;
 	if (ifa != NULL) {
 		*addr = ifa->ifa_local;
 		rv = 0;
 	}
+	rtnl_unlock();
 out:
 	return rv;
 }
