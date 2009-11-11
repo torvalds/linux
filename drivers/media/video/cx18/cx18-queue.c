@@ -280,6 +280,7 @@ void cx18_load_queues(struct cx18_stream *s)
 	struct cx18_buffer *buf;
 	int mdl_id;
 	int i;
+	u32 partial_buf_size;
 
 	/*
 	 * Attach buffers to MDLs, give the MDLs ids, and add MDLs to q_free
@@ -308,10 +309,24 @@ void cx18_load_queues(struct cx18_stream *s)
 				    &cx->scb->cpu_mdl[mdl_id + i].length);
 		}
 
-		if (i == s->bufs_per_mdl)
+		if (i == s->bufs_per_mdl) {
+			/*
+			 * The encoder doesn't honor s->mdl_size.  So in the
+			 * case of a non-integral number of buffers to meet
+			 * mdl_size, we lie about the size of the last buffer
+			 * in the MDL to get the encoder to really only send
+			 * us mdl_size bytes per MDL transfer.
+			 */
+			partial_buf_size = s->mdl_size % s->buf_size;
+			if (partial_buf_size) {
+				cx18_writel(cx, partial_buf_size,
+				      &cx->scb->cpu_mdl[mdl_id + i - 1].length);
+			}
 			cx18_enqueue(s, mdl, &s->q_free);
-		else
-			cx18_push(s, mdl, &s->q_idle); /* not enough buffers */
+		} else {
+			/* Not enough buffers for this MDL; we won't use it */
+			cx18_push(s, mdl, &s->q_idle);
+		}
 		mdl_id += i;
 	}
 }
