@@ -1504,19 +1504,19 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8310_devs, ARRAY_SIZE(wm8310_devs),
-				      NULL, 0);
+				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8311:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
-				      NULL, 0);
+				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8312:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
-				      NULL, 0);
+				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8320:
@@ -1538,7 +1538,8 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (pdata && pdata->backlight) {
 		/* Treat errors as non-critical */
 		ret = mfd_add_devices(wm831x->dev, -1, backlight_devs,
-				      ARRAY_SIZE(backlight_devs), NULL, 0);
+				      ARRAY_SIZE(backlight_devs), NULL,
+				      wm831x->irq_base);
 		if (ret < 0)
 			dev_err(wm831x->dev, "Failed to add backlight: %d\n",
 				ret);
