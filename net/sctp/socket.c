@@ -1276,22 +1276,30 @@ SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
 }
 
 /*
- * New (hopefully final) interface for the API.  The option buffer is used
- * both for the returned association id and the addresses.
+ * New (hopefully final) interface for the API.
+ * We use the sctp_getaddrs_old structure so that use-space library
+ * can avoid any unnecessary allocations.   The only defferent part
+ * is that we store the actual length of the address buffer into the
+ * addrs_num structure member.  That way we can re-use the existing
+ * code.
  */
 SCTP_STATIC int sctp_getsockopt_connectx3(struct sock* sk, int len,
 					char __user *optval,
 					int __user *optlen)
 {
+	struct sctp_getaddrs_old param;
 	sctp_assoc_t assoc_id = 0;
 	int err = 0;
 
-	if (len < sizeof(assoc_id))
+	if (len < sizeof(param))
 		return -EINVAL;
 
+	if (copy_from_user(&param, optval, sizeof(param)))
+		return -EFAULT;
+
 	err = __sctp_setsockopt_connectx(sk,
-			(struct sockaddr __user *)(optval + sizeof(assoc_id)),
-			len - sizeof(assoc_id), &assoc_id);
+			(struct sockaddr __user *)param.addrs,
+			param.addr_num, &assoc_id);
 
 	if (err == 0 || err == -EINPROGRESS) {
 		if (copy_to_user(optval, &assoc_id, sizeof(assoc_id)))
