@@ -265,6 +265,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Compro VideoMate E800",
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_HAUPPAUGE_HVR1290] = {
+		.name		= "Hauppauge WinTV-HVR1290",
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -400,6 +404,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x1858,
 		.subdevice = 0xe800,
 		.card      = CX23885_BOARD_COMPRO_VIDEOMATE_E800,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x8551,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1290,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -819,6 +827,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(100);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		/* GPIO-0 656_CLK */
 		/* GPIO-1 656_D0 */
 		/* GPIO-2 Wake# */
@@ -934,6 +943,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
@@ -1003,6 +1013,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	default:
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
@@ -1023,6 +1034,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_MYGICA_X8506:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", "cx25840", 0x88 >> 1, NULL);
