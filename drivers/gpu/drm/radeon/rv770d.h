@@ -129,6 +129,10 @@
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
 
+#define MC_SHARED_CHMAP						0x2004
+#define		NOOFCHAN_SHIFT					12
+#define		NOOFCHAN_MASK					0x00003000
+
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
 #define		NOOFBANK_MASK					0x00000003
@@ -142,6 +146,7 @@
 #define		CHANSIZE_MASK					0x00000100
 #define		BURSTLENGTH_SHIFT				9
 #define		BURSTLENGTH_MASK				0x00000200
+#define		CHANSIZE_OVERRIDE				(1 << 11)
 #define	MC_VM_AGP_TOP					0x2028
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
