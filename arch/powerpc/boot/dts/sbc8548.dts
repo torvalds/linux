@@ -26,8 +26,7 @@
 		serial0 = &serial0;
 		serial1 = &serial1;
 		pci0 = &pci0;
-		/* pci1 doesn't have a corresponding physical connector */
-		pci2 = &pci2;
+		pci1 = &pci1;
 	};
 
 	cpus {
@@ -381,7 +380,7 @@
 		bus-range = <0 0>;
 		ranges = <0x02000000 0x0 0x80000000 0x80000000 0x0 0x10000000
 			  0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00800000>;
-		clock-frequency = <66666666>;
+		clock-frequency = <66000000>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
@@ -390,7 +389,7 @@
 		device_type = "pci";
 	};
 
-	pci2: pcie@e000a000 {
+	pci1: pcie@e000a000 {
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 
@@ -403,9 +402,9 @@
 		interrupt-parent = <&mpic>;
 		interrupts = <0x1a 0x2>;
 		bus-range = <0x0 0xff>;
-		ranges = <0x02000000 0x0 0xa0000000 0xa0000000 0x0 0x20000000
-			  0x01000000 0x0 0x00000000 0xe3000000 0x0 0x08000000>;
-		clock-frequency = <33333333>;
+		ranges = <0x02000000 0x0 0xa0000000 0xa0000000 0x0 0x10000000
+			  0x01000000 0x0 0x00000000 0xe2800000 0x0 0x08000000>;
+		clock-frequency = <33000000>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
@@ -419,11 +418,11 @@
 			device_type = "pci";
 			ranges = <0x02000000 0x0 0xa0000000
 				  0x02000000 0x0 0xa0000000
-				  0x0 0x20000000
+				  0x0 0x10000000
 
 				  0x01000000 0x0 0x00000000
 				  0x01000000 0x0 0x00000000
-				  0x0 0x08000000>;
+				  0x0 0x00800000>;
 		};
 	};
 };
