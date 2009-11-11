@@ -235,6 +235,35 @@ struct key_params {
 };
 
 /**
+ * enum survey_info_flags - survey information flags
+ *
+ * Used by the driver to indicate which info in &struct survey_info
+ * it has filled in during the get_survey().
+ */
+enum survey_info_flags {
+	SURVEY_INFO_NOISE_DBM = 1<<0,
+};
+
+/**
+ * struct survey_info - channel survey response
+ *
+ * Used by dump_survey() to report back per-channel survey information.
+ *
+ * @channel: the channel this survey record reports, mandatory
+ * @filled: bitflag of flags from &enum survey_info_flags
+ * @noise: channel noise in dBm. This and all following fields are
+ *     optional
+ *
+ * This structure can later be expanded with things like
+ * channel duty cycle etc.
+ */
+struct survey_info {
+	struct ieee80211_channel *channel;
+	u32 filled;
+	s8 noise;
+};
+
+/**
  * struct beacon_parameters - beacon parameters
  *
  * Used to configure the beacon for an interface.
@@ -944,6 +973,8 @@ struct cfg80211_bitrate_mask {
  * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
  *	functions to adjust rfkill hw state
  *
+ * @dump_survey: get site survey information.
+ *
  * @testmode_cmd: run a test mode command
  */
 struct cfg80211_ops {
@@ -1062,6 +1093,9 @@ struct cfg80211_ops {
 				    struct net_device *dev,
 				    const u8 *peer,
 				    const struct cfg80211_bitrate_mask *mask);
+
+	int	(*dump_survey)(struct wiphy *wiphy, struct net_device *netdev,
+			int idx, struct survey_info *info);
 
 	/* some temporary stuff to finish wext */
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,

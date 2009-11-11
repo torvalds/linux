@@ -3245,6 +3245,106 @@ static int nl80211_dump_scan(struct sk_buff *skb,
 	return err;
 }
 
+static int nl80211_send_survey(struct sk_buff *msg, u32 pid, u32 seq,
+				int flags, struct net_device *dev,
+				struct survey_info *survey)
+{
+	void *hdr;
+	struct nlattr *infoattr;
+
+	/* Survey without a channel doesn't make sense */
+	if (!survey->channel)
+		return -EINVAL;
+
+	hdr = nl80211hdr_put(msg, pid, seq, flags,
+			     NL80211_CMD_NEW_SURVEY_RESULTS);
+	if (!hdr)
+		return -ENOMEM;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+
+	infoattr = nla_nest_start(msg, NL80211_ATTR_SURVEY_INFO);
+	if (!infoattr)
+		goto nla_put_failure;
+
+	NLA_PUT_U32(msg, NL80211_SURVEY_INFO_FREQUENCY,
+		    survey->channel->center_freq);
+	if (survey->filled & SURVEY_INFO_NOISE_DBM)
+		NLA_PUT_U8(msg, NL80211_SURVEY_INFO_NOISE,
+			    survey->noise);
+
+	nla_nest_end(msg, infoattr);
+
+	return genlmsg_end(msg, hdr);
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nl80211_dump_survey(struct sk_buff *skb,
+			struct netlink_callback *cb)
+{
+	struct survey_info survey;
+	struct cfg80211_registered_device *dev;
+	struct net_device *netdev;
+	int ifidx = cb->args[0];
+	int survey_idx = cb->args[1];
+	int res;
+
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
+	cb->args[0] = ifidx;
+
+	rtnl_lock();
+
+	netdev = __dev_get_by_index(sock_net(skb->sk), ifidx);
+	if (!netdev) {
+		res = -ENODEV;
+		goto out_rtnl;
+	}
+
+	dev = cfg80211_get_dev_from_ifindex(sock_net(skb->sk), ifidx);
+	if (IS_ERR(dev)) {
+		res = PTR_ERR(dev);
+		goto out_rtnl;
+	}
+
+	if (!dev->ops->dump_survey) {
+		res = -EOPNOTSUPP;
+		goto out_err;
+	}
+
+	while (1) {
+		res = dev->ops->dump_survey(&dev->wiphy, netdev, survey_idx,
+					    &survey);
+		if (res == -ENOENT)
+			break;
+		if (res)
+			goto out_err;
+
+		if (nl80211_send_survey(skb,
+				NETLINK_CB(cb->skb).pid,
+				cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				netdev,
+				&survey) < 0)
+			goto out;
+		survey_idx++;
+	}
+
+ out:
+	cb->args[1] = survey_idx;
+	res = skb->len;
+ out_err:
+	cfg80211_unlock_rdev(dev);
+ out_rtnl:
+	rtnl_unlock();
+
+	return res;
+}
+
 static bool nl80211_valid_auth_type(enum nl80211_auth_type auth_type)
 {
 	return auth_type <= NL80211_AUTHTYPE_MAX;
@@ -4321,6 +4421,11 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_wiphy_netns,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_SURVEY,
+		.policy = nl80211_policy,
+		.dumpit = nl80211_dump_survey,
 	},
 };
 static struct genl_multicast_group nl80211_mlme_mcgrp = {

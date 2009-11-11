@@ -160,6 +160,11 @@
  * @NL80211_CMD_SCAN_ABORTED: scan was aborted, for unspecified reasons,
  *	partial scan results may be available
  *
+ * @NL80211_CMD_GET_SURVEY: get survey resuls, e.g. channel occupation
+ *      or noise level
+ * @NL80211_CMD_NEW_SURVEY_RESULTS: survey data notification (as a reply to
+ *	NL80211_CMD_GET_SURVEY and on the "scan" multicast group)
+ *
  * @NL80211_CMD_REG_CHANGE: indicates to userspace the regulatory domain
  * 	has been changed and provides details of the request information
  * 	that caused the change such as who initiated the regulatory request
@@ -340,6 +345,9 @@ enum nl80211_commands {
 	NL80211_CMD_DISCONNECT,
 
 	NL80211_CMD_SET_WIPHY_NETNS,
+
+	NL80211_CMD_GET_SURVEY,
+	NL80211_CMD_NEW_SURVEY_RESULTS,
 
 	/* add new commands above here */
 
@@ -586,6 +594,10 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_4ADDR: Use 4-address frames on a virtual interface
  *
+ * @NL80211_ATTR_SURVEY_INFO: survey information about a channel, part of
+ *      the survey response for %NL80211_CMD_GET_SURVEY, nested attribute
+ *      containing info as possible, see &enum survey_info.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -717,6 +729,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_PID,
 
 	NL80211_ATTR_4ADDR,
+
+	NL80211_ATTR_SURVEY_INFO,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1118,6 +1132,26 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_PTMP_ONLY		= 1<<6,
 	NL80211_RRF_PASSIVE_SCAN	= 1<<7,
 	NL80211_RRF_NO_IBSS		= 1<<8,
+};
+
+/**
+ * enum nl80211_survey_info - survey information
+ *
+ * These attribute types are used with %NL80211_ATTR_SURVEY_INFO
+ * when getting information about a survey.
+ *
+ * @__NL80211_SURVEY_INFO_INVALID: attribute number 0 is reserved
+ * @NL80211_SURVEY_INFO_FREQUENCY: center frequency of channel
+ * @NL80211_SURVEY_INFO_NOISE: noise level of channel (u8, dBm)
+ */
+enum nl80211_survey_info {
+	__NL80211_SURVEY_INFO_INVALID,
+	NL80211_SURVEY_INFO_FREQUENCY,
+	NL80211_SURVEY_INFO_NOISE,
+
+	/* keep last */
+	__NL80211_SURVEY_INFO_AFTER_LAST,
+	NL80211_SURVEY_INFO_MAX = __NL80211_SURVEY_INFO_AFTER_LAST - 1
 };
 
 /**
