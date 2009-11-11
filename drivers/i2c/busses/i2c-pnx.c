@@ -54,6 +54,9 @@ static inline void i2c_pnx_arm_timer(struct i2c_adapter *adap)
 	struct timer_list *timer = &data->mif.timer;
 	int expires = I2C_PNX_TIMEOUT / (1000 / HZ);
 
+	if (expires <= 1)
+		expires = 2;
+
 	del_timer_sync(timer);
 
 	dev_dbg(&adap->dev, "Timer armed at %lu plus %u jiffies.\n",
