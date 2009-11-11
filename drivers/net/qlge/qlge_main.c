@@ -3714,6 +3714,10 @@ static int qlge_open(struct net_device *ndev)
 	int err = 0;
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
+	err = ql_adapter_reset(qdev);
+	if (err)
+		return err;
+
 	err = ql_configure_rings(qdev);
 	if (err)
 		return err;
