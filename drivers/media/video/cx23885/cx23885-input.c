@@ -202,6 +202,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		/*
 		 * The only board we handle right now.  However other boards
 		 * using the CX2388x integrated IR controller should be similar
@@ -252,6 +253,7 @@ static void cx23885_input_ir_start(struct cx23885_dev *dev)
 	/* keyup timer set up, if needed */
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		setup_timer(&ir_input->timer_keyup,
 			    ir_rc5_timer_keyup,	/* Not actually RC-5 specific */
 			    (unsigned long) ir_input);
@@ -268,6 +270,7 @@ static void cx23885_input_ir_start(struct cx23885_dev *dev)
 	v4l2_subdev_call(dev->sd_ir, ir, rx_g_parameters, &params);
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		/*
 		 * The IR controller on this board only returns pulse widths.
 		 * Any other mode setting will fail to set up the device.
@@ -325,6 +328,7 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		del_timer_sync(&ir_input->timer_keyup);
 		break;
 	}
@@ -347,6 +351,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		/* Parameters for the grey Hauppauge remote for the HVR-1850 */
 		ir_codes = &ir_codes_hauppauge_new_table;
 		ir_type = IR_TYPE_RC5;

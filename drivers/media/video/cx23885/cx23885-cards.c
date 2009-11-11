@@ -881,6 +881,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		/* FIXME: Implement me */
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		ret = cx23888_ir_probe(dev);
 		if (ret)
 			break;
@@ -899,6 +900,7 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 {
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		dev->pci_irqmask &= ~PCI_MSK_IR;
 		cx_clear(PCI_INT_MSK, PCI_MSK_IR);
 		cx23888_ir_remove(dev);
@@ -911,6 +913,7 @@ void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 {
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 		if (dev->sd_ir && (dev->pci_irqmask & PCI_MSK_IR))
 			cx_set(PCI_INT_MSK, PCI_MSK_IR);
 		break;
