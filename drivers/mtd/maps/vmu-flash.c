@@ -620,7 +620,7 @@ static int __devinit vmu_connect(struct maple_device *mdev)
 
 	card = kmalloc(sizeof(struct memcard), GFP_KERNEL);
 	if (!card) {
-		error = ENOMEM;
+		error = -ENOMEM;
 		goto fail_nomem;
 	}
 
