@@ -497,13 +497,22 @@ static int __cmd_record(int argc, const char **argv)
 	if (target_pid == -1 && argc) {
 		pid = fork();
 		if (pid < 0)
-			perror("failed to fork");
+			die("failed to fork");
 
 		if (!pid) {
 			if (execvp(argv[0], (char **)argv)) {
 				perror(argv[0]);
 				exit(-1);
 			}
+		} else {
+			/*
+			 * Wait a bit for the execv'ed child to appear
+			 * and be updated in /proc
+			 * FIXME: Do you know a less heuristical solution?
+			 */
+			usleep(1000);
+			event__synthesize_thread(pid,
+						 process_synthesized_event);
 		}
 
 		child_pid = pid;
