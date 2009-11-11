@@ -1161,9 +1161,6 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_cmd *cmd = task->dd_data;
 	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
 
-	if (!bnx2i_conn->is_bound)
-		return -ENOTCONN;
-
 	/*
 	 * If there is no scsi_cmnd this must be a mgmt task
 	 */
@@ -1371,7 +1368,6 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 	bnx2i_conn->ep = bnx2i_ep;
 	bnx2i_conn->iscsi_conn_cid = bnx2i_ep->ep_iscsi_cid;
 	bnx2i_conn->fw_cid = bnx2i_ep->ep_cid;
-	bnx2i_conn->is_bound = 1;
 
 	ret_code = bnx2i_bind_conn_to_iscsi_cid(hba, bnx2i_conn,
 						bnx2i_ep->ep_iscsi_cid);
@@ -1896,9 +1892,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 		conn = bnx2i_conn->cls_conn->dd_data;
 		session = conn->session;
 
-		spin_lock_bh(&session->lock);
-		bnx2i_conn->is_bound = 0;
-		spin_unlock_bh(&session->lock);
+		iscsi_suspend_queue(conn);
 	}
 
 	hba = bnx2i_ep->hba;
