@@ -18,11 +18,11 @@
 #include <linux/platform_device.h>
 
 #include <mach/irqs.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
-#include <mach/cpu.h>
-#include <mach/mcbsp.h>
-#include <mach/dsp_common.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
+#include <plat/cpu.h>
+#include <plat/mcbsp.h>
+#include <plat/dsp_common.h>
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)
@@ -79,29 +79,29 @@ static struct omap_mcbsp_ops omap1_mcbsp_ops = {
 	.free		= omap1_mcbsp_free,
 };
 
-#ifdef CONFIG_ARCH_OMAP730
-static struct omap_mcbsp_platform_data omap730_mcbsp_pdata[] = {
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+static struct omap_mcbsp_platform_data omap7xx_mcbsp_pdata[] = {
 	{
-		.phys_base	= OMAP730_MCBSP1_BASE,
+		.phys_base	= OMAP7XX_MCBSP1_BASE,
 		.dma_rx_sync	= OMAP_DMA_MCBSP1_RX,
 		.dma_tx_sync	= OMAP_DMA_MCBSP1_TX,
-		.rx_irq		= INT_730_McBSP1RX,
-		.tx_irq		= INT_730_McBSP1TX,
+		.rx_irq		= INT_7XX_McBSP1RX,
+		.tx_irq		= INT_7XX_McBSP1TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP730_MCBSP2_BASE,
+		.phys_base	= OMAP7XX_MCBSP2_BASE,
 		.dma_rx_sync	= OMAP_DMA_MCBSP3_RX,
 		.dma_tx_sync	= OMAP_DMA_MCBSP3_TX,
-		.rx_irq		= INT_730_McBSP2RX,
-		.tx_irq		= INT_730_McBSP2TX,
+		.rx_irq		= INT_7XX_McBSP2RX,
+		.tx_irq		= INT_7XX_McBSP2TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 };
-#define OMAP730_MCBSP_PDATA_SZ		ARRAY_SIZE(omap730_mcbsp_pdata)
+#define OMAP7XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap7xx_mcbsp_pdata)
 #else
-#define omap730_mcbsp_pdata		NULL
-#define OMAP730_MCBSP_PDATA_SZ		0
+#define omap7xx_mcbsp_pdata		NULL
+#define OMAP7XX_MCBSP_PDATA_SZ		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -172,8 +172,8 @@ static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 
 int __init omap1_mcbsp_init(void)
 {
-	if (cpu_is_omap730())
-		omap_mcbsp_count = OMAP730_MCBSP_PDATA_SZ;
+	if (cpu_is_omap7xx())
+		omap_mcbsp_count = OMAP7XX_MCBSP_PDATA_SZ;
 	if (cpu_is_omap15xx())
 		omap_mcbsp_count = OMAP15XX_MCBSP_PDATA_SZ;
 	if (cpu_is_omap16xx())
@@ -184,9 +184,9 @@ int __init omap1_mcbsp_init(void)
 	if (!mcbsp_ptr)
 		return -ENOMEM;
 
-	if (cpu_is_omap730())
-		omap_mcbsp_register_board_cfg(omap730_mcbsp_pdata,
-						OMAP730_MCBSP_PDATA_SZ);
+	if (cpu_is_omap7xx())
+		omap_mcbsp_register_board_cfg(omap7xx_mcbsp_pdata,
+						OMAP7XX_MCBSP_PDATA_SZ);
 
 	if (cpu_is_omap15xx())
 		omap_mcbsp_register_board_cfg(omap15xx_mcbsp_pdata,

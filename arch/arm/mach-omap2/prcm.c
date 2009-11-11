@@ -19,8 +19,8 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 
-#include <mach/common.h>
-#include <mach/prcm.h>
+#include <plat/common.h>
+#include <plat/prcm.h>
 
 #include "clock.h"
 #include "prm.h"

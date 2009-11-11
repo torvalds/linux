@@ -16,7 +16,7 @@
 
 #include <mach/hardware.h>
 
-#include <mach/board.h>
+#include <plat/board.h>
 #include <mach/gpio.h>
 
 

@@ -26,7 +26,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 
-#include <mach/mailbox.h>
+#include <plat/mailbox.h>
 
 static int enable_seq_bit;
 module_param(enable_seq_bit, bool, 0);

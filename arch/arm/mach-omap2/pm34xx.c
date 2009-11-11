@@ -23,11 +23,11 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 
-#include <mach/sram.h>
-#include <mach/clockdomain.h>
-#include <mach/powerdomain.h>
-#include <mach/control.h>
-#include <mach/serial.h>
+#include <plat/sram.h>
+#include <plat/clockdomain.h>
+#include <plat/powerdomain.h>
+#include <plat/control.h>
+#include <plat/serial.h>
 
 #include "cm.h"
 #include "cm-regbits-34xx.h"

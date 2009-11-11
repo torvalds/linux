@@ -15,8 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <mach/common.h>
-#include <mach/control.h>
+#include <plat/common.h>
+#include <plat/control.h>
 
 static void __iomem *omap2_ctrl_base;
 

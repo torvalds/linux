@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <mach/io.h>
-#include <mach/control.h>
+#include <plat/control.h>
 
 #include "prm.h"
 #include "sdrc.h"

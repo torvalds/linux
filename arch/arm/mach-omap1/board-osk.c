@@ -47,10 +47,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/usb.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/common.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/common.h>
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
 #define OMAP_OSK_ETHR_START		0x04800300
@@ -312,7 +312,7 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <mach/keypad.h>
+#include <plat/keypad.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,

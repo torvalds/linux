@@ -26,9 +26,9 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
-#include <mach/blizzard.h>
+#include <plat/dma.h>
+#include <plat/omapfb.h>
+#include <plat/blizzard.h>
 
 #include "dispc.h"
 

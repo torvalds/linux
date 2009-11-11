@@ -26,10 +26,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#include <mach/clock.h>
-#include <mach/board.h>
-#include <mach/powerdomain.h>
-#include <mach/clockdomain.h>
+#include <plat/clock.h>
+#include <plat/board.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
 
 #include "prm.h"
 #include "cm.h"
@@ -51,7 +51,8 @@ int omap2_pm_debug;
 	regs[reg_count++].val = __raw_readl(reg)
 #define DUMP_INTC_REG(reg, off) \
 	regs[reg_count].name = #reg; \
-	regs[reg_count++].val = __raw_readl(OMAP2_IO_ADDRESS(0x480fe000 + (off)))
+	regs[reg_count++].val = \
+			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
 static int __init pm_dbg_init(void);
 

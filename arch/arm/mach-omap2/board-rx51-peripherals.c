@@ -22,14 +22,14 @@
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 
-#include <mach/mcspi.h>
-#include <mach/mux.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/dma.h>
-#include <mach/gpmc.h>
-#include <mach/onenand.h>
-#include <mach/gpmc-smc91x.h>
+#include <plat/mcspi.h>
+#include <plat/mux.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
+#include <plat/onenand.h>
+#include <plat/gpmc-smc91x.h>
 
 #include "mmc-twl4030.h"
 

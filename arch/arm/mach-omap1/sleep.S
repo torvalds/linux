@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-omap1/sleep.S
  *
- * Low-level OMAP730/1510/1610 sleep/wakeUp support
+ * Low-level OMAP7XX/1510/1610 sleep/wakeUp support
  *
  * Initial SA1110 code:
  * Copyright (c) 2001 Cliff Brake <cbrake@accelent.com>
@@ -57,8 +57,8 @@
  *
  */
 
-#if defined(CONFIG_ARCH_OMAP730)
-ENTRY(omap730_cpu_suspend)
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+ENTRY(omap7xx_cpu_suspend)
 
 	@ save registers on stack
 	stmfd	sp!, {r0 - r12, lr}
@@ -91,13 +91,13 @@ ENTRY(omap730_cpu_suspend)
 
 	@ turn off clock domains
 	@ do not disable PERCK (0x04)
-	mov	r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff
-	orr	r5, r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff00
+	mov	r5, #OMAP7XX_IDLECT2_SLEEP_VAL & 0xff
+	orr	r5, r5, #OMAP7XX_IDLECT2_SLEEP_VAL & 0xff00
 	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
 
 	@ request ARM idle
-	mov	r3, #OMAP730_IDLECT1_SLEEP_VAL & 0xff
-	orr	r3, r3, #OMAP730_IDLECT1_SLEEP_VAL & 0xff00
+	mov	r3, #OMAP7XX_IDLECT1_SLEEP_VAL & 0xff
+	orr	r3, r3, #OMAP7XX_IDLECT1_SLEEP_VAL & 0xff00
 	strh	r3, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
 
 	@ disable instruction cache
@@ -113,7 +113,7 @@ ENTRY(omap730_cpu_suspend)
 	mov	r2, #0
 	mcr	p15, 0, r2, c7, c0, 4		@ wait for interrupt
 /*
- * omap730_cpu_suspend()'s resume point.
+ * omap7xx_cpu_suspend()'s resume point.
  *
  * It will just start executing here, so we'll restore stuff from the
  * stack.
@@ -132,9 +132,9 @@ ENTRY(omap730_cpu_suspend)
 	@ restore regs and return
 	ldmfd	sp!, {r0 - r12, pc}
 
-ENTRY(omap730_cpu_suspend_sz)
-	.word	. - omap730_cpu_suspend
-#endif /* CONFIG_ARCH_OMAP730 */
+ENTRY(omap7xx_cpu_suspend_sz)
+	.word	. - omap7xx_cpu_suspend
+#endif /* CONFIG_ARCH_OMAP730 || CONFIG_ARCH_OMAP850 */
 
 #ifdef CONFIG_ARCH_OMAP15XX
 ENTRY(omap1510_cpu_suspend)

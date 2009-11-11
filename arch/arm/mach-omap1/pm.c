@@ -48,21 +48,21 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #include <mach/irqs.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
-#include <mach/tc.h>
-#include <mach/mux.h>
-#include <mach/dma.h>
-#include <mach/dmtimer.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
+#include <plat/tc.h>
+#include <plat/mux.h>
+#include <plat/dma.h>
+#include <plat/dmtimer.h>
 
 #include "pm.h"
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];
 static unsigned short dsp_sleep_save[DSP_SLEEP_SAVE_SIZE];
 static unsigned short ulpd_sleep_save[ULPD_SLEEP_SAVE_SIZE];
-static unsigned int mpui730_sleep_save[MPUI730_SLEEP_SAVE_SIZE];
+static unsigned int mpui7xx_sleep_save[MPUI7XX_SLEEP_SAVE_SIZE];
 static unsigned int mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_SIZE];
 static unsigned int mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_SIZE];
 
@@ -183,9 +183,9 @@ static void omap_pm_wakeup_setup(void)
 	 * drivers must still separately call omap_set_gpio_wakeup() to
 	 * wake up to a GPIO interrupt.
 	 */
-	if (cpu_is_omap730())
-		level1_wake = OMAP_IRQ_BIT(INT_730_GPIO_BANK1) |
-			OMAP_IRQ_BIT(INT_730_IH2_IRQ);
+	if (cpu_is_omap7xx())
+		level1_wake = OMAP_IRQ_BIT(INT_7XX_GPIO_BANK1) |
+			OMAP_IRQ_BIT(INT_7XX_IH2_IRQ);
 	else if (cpu_is_omap15xx())
 		level1_wake = OMAP_IRQ_BIT(INT_GPIO_BANK1) |
 			OMAP_IRQ_BIT(INT_1510_IH2_IRQ);
@@ -195,10 +195,10 @@ static void omap_pm_wakeup_setup(void)
 
 	omap_writel(~level1_wake, OMAP_IH1_MIR);
 
-	if (cpu_is_omap730()) {
+	if (cpu_is_omap7xx()) {
 		omap_writel(~level2_wake, OMAP_IH2_0_MIR);
-		omap_writel(~(OMAP_IRQ_BIT(INT_730_WAKE_UP_REQ) |
-				OMAP_IRQ_BIT(INT_730_MPUIO_KEYPAD)),
+		omap_writel(~(OMAP_IRQ_BIT(INT_7XX_WAKE_UP_REQ) |
+				OMAP_IRQ_BIT(INT_7XX_MPUIO_KEYPAD)),
 				OMAP_IH2_1_MIR);
 	} else if (cpu_is_omap15xx()) {
 		level2_wake |= OMAP_IRQ_BIT(INT_KEYBOARD);
@@ -253,15 +253,15 @@ void omap1_pm_suspend(void)
 	 * Save interrupt, MPUI, ARM and UPLD control registers.
 	 */
 
-	if (cpu_is_omap730()) {
-		MPUI730_SAVE(OMAP_IH1_MIR);
-		MPUI730_SAVE(OMAP_IH2_0_MIR);
-		MPUI730_SAVE(OMAP_IH2_1_MIR);
-		MPUI730_SAVE(MPUI_CTRL);
-		MPUI730_SAVE(MPUI_DSP_BOOT_CONFIG);
-		MPUI730_SAVE(MPUI_DSP_API_CONFIG);
-		MPUI730_SAVE(EMIFS_CONFIG);
-		MPUI730_SAVE(EMIFF_SDRAM_CONFIG);
+	if (cpu_is_omap7xx()) {
+		MPUI7XX_SAVE(OMAP_IH1_MIR);
+		MPUI7XX_SAVE(OMAP_IH2_0_MIR);
+		MPUI7XX_SAVE(OMAP_IH2_1_MIR);
+		MPUI7XX_SAVE(MPUI_CTRL);
+		MPUI7XX_SAVE(MPUI_DSP_BOOT_CONFIG);
+		MPUI7XX_SAVE(MPUI_DSP_API_CONFIG);
+		MPUI7XX_SAVE(EMIFS_CONFIG);
+		MPUI7XX_SAVE(EMIFF_SDRAM_CONFIG);
 
 	} else if (cpu_is_omap15xx()) {
 		MPUI1510_SAVE(OMAP_IH1_MIR);
@@ -306,7 +306,7 @@ void omap1_pm_suspend(void)
 	omap_writew(omap_readw(ARM_RSTCT1) & ~(1 << DSP_EN), ARM_RSTCT1);
 
 		/* shut down dsp_ck */
-	if (!cpu_is_omap730())
+	if (!cpu_is_omap7xx())
 		omap_writew(omap_readw(ARM_CKCTL) & ~(1 << EN_DSPCK), ARM_CKCTL);
 
 	/* temporarily enabling api_ck to access DSP registers */
@@ -383,12 +383,12 @@ void omap1_pm_suspend(void)
 	ULPD_RESTORE(ULPD_CLOCK_CTRL);
 	ULPD_RESTORE(ULPD_STATUS_REQ);
 
-	if (cpu_is_omap730()) {
-		MPUI730_RESTORE(EMIFS_CONFIG);
-		MPUI730_RESTORE(EMIFF_SDRAM_CONFIG);
-		MPUI730_RESTORE(OMAP_IH1_MIR);
-		MPUI730_RESTORE(OMAP_IH2_0_MIR);
-		MPUI730_RESTORE(OMAP_IH2_1_MIR);
+	if (cpu_is_omap7xx()) {
+		MPUI7XX_RESTORE(EMIFS_CONFIG);
+		MPUI7XX_RESTORE(EMIFF_SDRAM_CONFIG);
+		MPUI7XX_RESTORE(OMAP_IH1_MIR);
+		MPUI7XX_RESTORE(OMAP_IH2_0_MIR);
+		MPUI7XX_RESTORE(OMAP_IH2_1_MIR);
 	} else if (cpu_is_omap15xx()) {
 		MPUI1510_RESTORE(MPUI_CTRL);
 		MPUI1510_RESTORE(MPUI_DSP_BOOT_CONFIG);
@@ -461,13 +461,13 @@ static int omap_pm_read_proc(
 	ULPD_SAVE(ULPD_DPLL_CTRL);
 	ULPD_SAVE(ULPD_POWER_CTRL);
 
-	if (cpu_is_omap730()) {
-		MPUI730_SAVE(MPUI_CTRL);
-		MPUI730_SAVE(MPUI_DSP_STATUS);
-		MPUI730_SAVE(MPUI_DSP_BOOT_CONFIG);
-		MPUI730_SAVE(MPUI_DSP_API_CONFIG);
-		MPUI730_SAVE(EMIFF_SDRAM_CONFIG);
-		MPUI730_SAVE(EMIFS_CONFIG);
+	if (cpu_is_omap7xx()) {
+		MPUI7XX_SAVE(MPUI_CTRL);
+		MPUI7XX_SAVE(MPUI_DSP_STATUS);
+		MPUI7XX_SAVE(MPUI_DSP_BOOT_CONFIG);
+		MPUI7XX_SAVE(MPUI_DSP_API_CONFIG);
+		MPUI7XX_SAVE(EMIFF_SDRAM_CONFIG);
+		MPUI7XX_SAVE(EMIFS_CONFIG);
 	} else if (cpu_is_omap15xx()) {
 		MPUI1510_SAVE(MPUI_CTRL);
 		MPUI1510_SAVE(MPUI_DSP_STATUS);
@@ -517,20 +517,20 @@ static int omap_pm_read_proc(
 		   ULPD_SHOW(ULPD_STATUS_REQ),
 		   ULPD_SHOW(ULPD_POWER_CTRL));
 
-		if (cpu_is_omap730()) {
+		if (cpu_is_omap7xx()) {
 			my_buffer_offset += sprintf(my_base + my_buffer_offset,
-			   "MPUI730_CTRL_REG	     0x%-8x \n"
-			   "MPUI730_DSP_STATUS_REG:      0x%-8x \n"
-			   "MPUI730_DSP_BOOT_CONFIG_REG: 0x%-8x \n"
-			   "MPUI730_DSP_API_CONFIG_REG:  0x%-8x \n"
-			   "MPUI730_SDRAM_CONFIG_REG:    0x%-8x \n"
-			   "MPUI730_EMIFS_CONFIG_REG:    0x%-8x \n",
-			   MPUI730_SHOW(MPUI_CTRL),
-			   MPUI730_SHOW(MPUI_DSP_STATUS),
-			   MPUI730_SHOW(MPUI_DSP_BOOT_CONFIG),
-			   MPUI730_SHOW(MPUI_DSP_API_CONFIG),
-			   MPUI730_SHOW(EMIFF_SDRAM_CONFIG),
-			   MPUI730_SHOW(EMIFS_CONFIG));
+			   "MPUI7XX_CTRL_REG	     0x%-8x \n"
+			   "MPUI7XX_DSP_STATUS_REG:      0x%-8x \n"
+			   "MPUI7XX_DSP_BOOT_CONFIG_REG: 0x%-8x \n"
+			   "MPUI7XX_DSP_API_CONFIG_REG:  0x%-8x \n"
+			   "MPUI7XX_SDRAM_CONFIG_REG:    0x%-8x \n"
+			   "MPUI7XX_EMIFS_CONFIG_REG:    0x%-8x \n",
+			   MPUI7XX_SHOW(MPUI_CTRL),
+			   MPUI7XX_SHOW(MPUI_DSP_STATUS),
+			   MPUI7XX_SHOW(MPUI_DSP_BOOT_CONFIG),
+			   MPUI7XX_SHOW(MPUI_DSP_API_CONFIG),
+			   MPUI7XX_SHOW(EMIFF_SDRAM_CONFIG),
+			   MPUI7XX_SHOW(EMIFS_CONFIG));
 		} else if (cpu_is_omap15xx()) {
 			my_buffer_offset += sprintf(my_base + my_buffer_offset,
 			   "MPUI1510_CTRL_REG             0x%-8x \n"
@@ -668,9 +668,9 @@ static int __init omap_pm_init(void)
 	 * These routines need to be in SRAM as that's the only
 	 * memory the MPU can see when it wakes up.
 	 */
-	if (cpu_is_omap730()) {
-		omap_sram_suspend = omap_sram_push(omap730_cpu_suspend,
-						   omap730_cpu_suspend_sz);
+	if (cpu_is_omap7xx()) {
+		omap_sram_suspend = omap_sram_push(omap7xx_cpu_suspend,
+						   omap7xx_cpu_suspend_sz);
 	} else if (cpu_is_omap15xx()) {
 		omap_sram_suspend = omap_sram_push(omap1510_cpu_suspend,
 						   omap1510_cpu_suspend_sz);
@@ -686,8 +686,8 @@ static int __init omap_pm_init(void)
 
 	pm_idle = omap1_pm_idle;
 
-	if (cpu_is_omap730())
-		setup_irq(INT_730_WAKE_UP_REQ, &omap_wakeup_irq);
+	if (cpu_is_omap7xx())
+		setup_irq(INT_7XX_WAKE_UP_REQ, &omap_wakeup_irq);
 	else if (cpu_is_omap16xx())
 		setup_irq(INT_1610_WAKE_UP_REQ, &omap_wakeup_irq);
 
@@ -700,8 +700,8 @@ static int __init omap_pm_init(void)
 	omap_writew(ULPD_POWER_CTRL_REG_VAL, ULPD_POWER_CTRL);
 
 	/* Configure IDLECT3 */
-	if (cpu_is_omap730())
-		omap_writel(OMAP730_IDLECT3_VAL, OMAP730_IDLECT3);
+	if (cpu_is_omap7xx())
+		omap_writel(OMAP7XX_IDLECT3_VAL, OMAP7XX_IDLECT3);
 	else if (cpu_is_omap16xx())
 		omap_writel(OMAP1610_IDLECT3_VAL, OMAP1610_IDLECT3);
 

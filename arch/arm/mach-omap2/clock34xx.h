@@ -19,7 +19,7 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK34XX_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCK34XX_H
 
-#include <mach/control.h>
+#include <plat/control.h>
 
 #include "clock.h"
 #include "cm.h"

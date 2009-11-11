@@ -178,12 +178,20 @@ void __init omap_init_irq(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(irq_banks); i++) {
+		unsigned long base;
 		struct omap_irq_bank *bank = irq_banks + i;
 
 		if (cpu_is_omap24xx())
-			bank->base_reg = OMAP2_IO_ADDRESS(OMAP24XX_IC_BASE);
+			base = OMAP24XX_IC_BASE;
 		else if (cpu_is_omap34xx())
-			bank->base_reg = OMAP2_IO_ADDRESS(OMAP34XX_IC_BASE);
+			base = OMAP34XX_IC_BASE;
+
+		/* Static mapping, never released */
+		bank->base_reg = ioremap(base, SZ_4K);
+		if (!bank->base_reg) {
+			printk(KERN_ERR "Could not ioremap irq bank%i\n", i);
+			continue;
+		}
 
 		omap_irq_bank_init_one(bank);
 

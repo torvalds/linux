@@ -24,13 +24,14 @@
 #include <asm/localtimer.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
+#include <plat/common.h>
 
 /* Registers used for communicating startup information */
-#define OMAP4_AUXCOREBOOT_REG0		(OMAP44XX_VA_WKUPGEN_BASE + 0x800)
-#define OMAP4_AUXCOREBOOT_REG1		(OMAP44XX_VA_WKUPGEN_BASE + 0x804)
+static void __iomem *omap4_auxcoreboot_reg0;
+static void __iomem *omap4_auxcoreboot_reg1;
 
 /* SCU base address */
-static void __iomem *scu_base = OMAP44XX_VA_SCU_BASE;
+static void __iomem *scu_base;
 
 /*
  * Use SCU config register to count number of cores
@@ -53,8 +54,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-
-	gic_cpu_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
+	gic_cpu_init(0, gic_cpu_base_addr);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -79,7 +79,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the AuxCoreBoot1 register is updated with cpu state
 	 * A barrier is added to ensure that write buffer is drained
 	 */
-	__raw_writel(cpu, OMAP4_AUXCOREBOOT_REG1);
+	__raw_writel(cpu, omap4_auxcoreboot_reg1);
 	smp_wmb();
 
 	timeout = jiffies + (1 * HZ);
@@ -104,7 +104,7 @@ static void __init wakeup_secondary(void)
 	 * A barrier is added to ensure that write buffer is drained
 	 */
 	__raw_writel(virt_to_phys(omap_secondary_startup),	   \
-					OMAP4_AUXCOREBOOT_REG0);
+					omap4_auxcoreboot_reg0);
 	smp_wmb();
 
 	/*
@@ -120,7 +120,13 @@ static void __init wakeup_secondary(void)
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i, ncores = get_core_count();
+	unsigned int i, ncores;
+
+	/* Never released */
+	scu_base = ioremap(OMAP44XX_SCU_BASE, SZ_256);
+	BUG_ON(!scu_base);
+
+	ncores = get_core_count();
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
@@ -130,6 +136,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int ncores = get_core_count();
 	unsigned int cpu = smp_processor_id();
+	void __iomem *omap4_wkupgen_base;
 	int i;
 
 	/* sanity check */
@@ -160,6 +167,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
+
+	/* Never released */
+	omap4_wkupgen_base = ioremap(OMAP44XX_WKUPGEN_BASE, SZ_4K);
+	BUG_ON(!omap4_wkupgen_base);
+	omap4_auxcoreboot_reg0 = omap4_wkupgen_base + 0x800;
+	omap4_auxcoreboot_reg1 = omap4_wkupgen_base + 0x804;
 
 	if (max_cpus > 1) {
 		/*
