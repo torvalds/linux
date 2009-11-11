@@ -5180,6 +5180,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->logged_trans = 0;
 	ei->outstanding_extents = 0;
 	ei->reserved_extents = 0;
+	ei->root = NULL;
 	spin_lock_init(&ei->accounting_lock);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->i_orphan);
@@ -5194,6 +5195,14 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
+
+	/*
+	 * This can happen where we create an inode, but somebody else also
+	 * created the same inode and we need to destroy the one we already
+	 * created.
+	 */
+	if (!root)
+		goto free;
 
 	/*
 	 * Make sure we're properly removed from the ordered operation
@@ -5230,6 +5239,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	}
 	inode_tree_del(inode);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+free:
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
