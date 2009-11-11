@@ -2,11 +2,13 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/list.h>
 
 #include "util.h"
 #include "header.h"
 #include "../perf.h"
 #include "trace-event.h"
+#include "symbol.h"
 
 /*
  * Create new perf.data header attribute:
@@ -172,7 +174,33 @@ static void do_write(int fd, void *buf, size_t size)
 	}
 }
 
-static void perf_header__adds_write(struct perf_header *self, int fd)
+static bool write_buildid_table(int fd)
+{
+	struct dso *pos;
+	bool have_buildid = false;
+
+	list_for_each_entry(pos, &dsos, node) {
+		struct build_id_event b;
+		size_t len;
+
+		if (filename__read_build_id(pos->long_name,
+					    &b.build_id,
+					    sizeof(b.build_id)) < 0)
+			continue;
+		have_buildid = true;
+		memset(&b.header, 0, sizeof(b.header));
+		len = strlen(pos->long_name) + 1;
+		len = ALIGN(len, 64);
+		b.header.size = sizeof(b) + len;
+		do_write(fd, &b, sizeof(b));
+		do_write(fd, pos->long_name, len);
+	}
+
+	return have_buildid;
+}
+
+static void
+perf_header__adds_write(struct perf_header *self, int fd, bool at_exit)
 {
 	struct perf_file_section trace_sec;
 	u64 cur_offset = lseek(fd, 0, SEEK_CUR);
@@ -196,9 +224,16 @@ static void perf_header__adds_write(struct perf_header *self, int fd)
 		 */
 		cur_offset = lseek(fd, trace_sec.offset + trace_sec.size, SEEK_SET);
 	}
+
+	if (at_exit) {
+		lseek(fd, self->data_offset + self->data_size, SEEK_SET);
+		if (write_buildid_table(fd))
+			perf_header__set_feat(self, HEADER_BUILD_ID);
+		lseek(fd, cur_offset, SEEK_SET);
+	}
 };
 
-void perf_header__write(struct perf_header *self, int fd)
+void perf_header__write(struct perf_header *self, int fd, bool at_exit)
 {
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
@@ -236,7 +271,7 @@ void perf_header__write(struct perf_header *self, int fd)
 	if (events)
 		do_write(fd, events, self->event_size);
 
-	perf_header__adds_write(self, fd);
+	perf_header__adds_write(self, fd, at_exit);
 
 	self->data_offset = lseek(fd, 0, SEEK_CUR);
 

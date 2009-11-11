@@ -33,7 +33,7 @@ struct perf_header {
 };
 
 struct perf_header *perf_header__read(int fd);
-void perf_header__write(struct perf_header *self, int fd);
+void perf_header__write(struct perf_header *self, int fd, bool at_exit);
 
 void perf_header__add_attr(struct perf_header *self,
 			   struct perf_header_attr *attr);
