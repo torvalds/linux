@@ -2823,7 +2823,7 @@ F:	drivers/infiniband/hw/ipath/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
-L:	openipmi-developer@lists.sourceforge.net
+L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://openipmi.sourceforge.net/
 S:	Supported
 F:	Documentation/IPMI.txt
