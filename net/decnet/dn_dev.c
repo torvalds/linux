@@ -68,7 +68,7 @@ extern struct neigh_table dn_neigh_table;
  */
 __le16 decnet_address = 0;
 
-static DEFINE_RWLOCK(dndev_lock);
+static DEFINE_SPINLOCK(dndev_lock);
 static struct net_device *decnet_default_device;
 static BLOCKING_NOTIFIER_HEAD(dnaddr_chain);
 
@@ -557,7 +557,8 @@ rarok:
 struct net_device *dn_dev_get_default(void)
 {
 	struct net_device *dev;
-	read_lock(&dndev_lock);
+
+	spin_lock(&dndev_lock);
 	dev = decnet_default_device;
 	if (dev) {
 		if (dev->dn_ptr)
@@ -565,7 +566,8 @@ struct net_device *dn_dev_get_default(void)
 		else
 			dev = NULL;
 	}
-	read_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	return dev;
 }
 
@@ -575,13 +577,15 @@ int dn_dev_set_default(struct net_device *dev, int force)
 	int rv = -EBUSY;
 	if (!dev->dn_ptr)
 		return -ENODEV;
-	write_lock(&dndev_lock);
+
+	spin_lock(&dndev_lock);
 	if (force || decnet_default_device == NULL) {
 		old = decnet_default_device;
 		decnet_default_device = dev;
 		rv = 0;
 	}
-	write_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	if (old)
 		dev_put(old);
 	return rv;
@@ -589,13 +593,14 @@ int dn_dev_set_default(struct net_device *dev, int force)
 
 static void dn_dev_check_default(struct net_device *dev)
 {
-	write_lock(&dndev_lock);
+	spin_lock(&dndev_lock);
 	if (dev == decnet_default_device) {
 		decnet_default_device = NULL;
 	} else {
 		dev = NULL;
 	}
-	write_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	if (dev)
 		dev_put(dev);
 }
