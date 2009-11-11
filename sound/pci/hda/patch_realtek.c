@@ -8911,10 +8911,11 @@ static struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x3800, "MacbookPro 4,1", ALC885_MBP3),
 	SND_PCI_QUIRK(0x106b, 0x3e00, "iMac 24 Aluminum", ALC885_IMAC24),
 	SND_PCI_QUIRK(0x106b, 0x3f00, "Macbook 5,1", ALC885_MB5),
-	/* FIXME: HP jack sense seems not working for MBP 5,1, so apparently
-	 * no perfect solution yet
+	/* FIXME: HP jack sense seems not working for MBP 5,1 or 5,2,
+	 * so apparently no perfect solution yet
 	 */
 	SND_PCI_QUIRK(0x106b, 0x4000, "MacbookPro 5,1", ALC885_MB5),
+	SND_PCI_QUIRK(0x106b, 0x4600, "MacbookPro 5,2", ALC885_MB5),
 	{} /* terminator */
 };
 
