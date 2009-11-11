@@ -62,6 +62,7 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 		.snap = CEPH_SNAPDIR,
 	};
 	struct inode *inode = ceph_get_inode(parent->i_sb, vino);
+	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	BUG_ON(!S_ISDIR(parent->i_mode));
 	if (IS_ERR(inode))
@@ -71,7 +72,8 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	inode->i_gid = parent->i_gid;
 	inode->i_op = &ceph_dir_iops;
 	inode->i_fop = &ceph_dir_fops;
-	ceph_inode(inode)->i_snap_caps = CEPH_CAP_PIN; /* so we can open */
+	ci->i_snap_caps = CEPH_CAP_PIN; /* so we can open */
+	ci->i_rbytes = 0;
 	return inode;
 }
 
