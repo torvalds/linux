@@ -4410,6 +4410,15 @@ static int is_vm86_segment(struct kvm_vcpu *vcpu, int seg)
 		(kvm_get_rflags(vcpu) & X86_EFLAGS_VM);
 }
 
+static void kvm_check_segment_descriptor(struct kvm_vcpu *vcpu, int seg,
+					 u16 selector)
+{
+	/* NULL selector is not valid for CS and SS */
+	if (seg == VCPU_SREG_CS || seg == VCPU_SREG_SS)
+		if (!selector)
+			kvm_queue_exception_e(vcpu, TS_VECTOR, selector >> 3);
+}
+
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 				int type_bits, int seg)
 {
@@ -4419,6 +4428,8 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 		return kvm_load_realmode_segment(vcpu, selector, seg);
 	if (load_segment_descriptor_to_kvm_desct(vcpu, selector, &kvm_seg))
 		return 1;
+
+	kvm_check_segment_descriptor(vcpu, seg, selector);
 	kvm_seg.type |= type_bits;
 
 	if (seg != VCPU_SREG_SS && seg != VCPU_SREG_CS &&
