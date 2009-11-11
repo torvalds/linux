@@ -171,7 +171,6 @@ struct ceph_cap {
 	int mds_wanted;
 	u32 seq, issue_seq, mseq;
 	u32 cap_gen;      /* active/stale cycle */
-	u32 recon_gen;    /* mds restart reconnect cycle */
 	unsigned long last_used;
 	struct list_head caps_item;
 };

@@ -98,8 +98,6 @@ struct ceph_mds_session {
 	u64               s_seq;      /* incoming msg seq # */
 	struct mutex      s_mutex;    /* serialize session messages */
 
-	int               s_recon_gen; /* inc on reconnect to recovered mds */
-
 	struct ceph_connection s_con;
 
 	/* protected by s_cap_lock */
