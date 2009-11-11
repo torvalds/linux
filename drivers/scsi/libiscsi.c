@@ -577,12 +577,12 @@ static int iscsi_prep_mgmt_task(struct iscsi_conn *conn,
 	struct iscsi_session *session = conn->session;
 	struct iscsi_hdr *hdr = task->hdr;
 	struct iscsi_nopout *nop = (struct iscsi_nopout *)hdr;
+	uint8_t opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	if (conn->session->state == ISCSI_STATE_LOGGING_OUT)
 		return -ENOTCONN;
 
-	if (hdr->opcode != (ISCSI_OP_LOGIN | ISCSI_OP_IMMEDIATE) &&
-	    hdr->opcode != (ISCSI_OP_TEXT | ISCSI_OP_IMMEDIATE))
+	if (opcode != ISCSI_OP_LOGIN && opcode != ISCSI_OP_TEXT)
 		nop->exp_statsn = cpu_to_be32(conn->exp_statsn);
 	/*
 	 * pre-format CmdSN for outgoing PDU.
@@ -590,9 +590,12 @@ static int iscsi_prep_mgmt_task(struct iscsi_conn *conn,
 	nop->cmdsn = cpu_to_be32(session->cmdsn);
 	if (hdr->itt != RESERVED_ITT) {
 		/*
-		 * TODO: We always use immediate, so we never hit this.
+		 * TODO: We always use immediate for normal session pdus.
 		 * If we start to send tmfs or nops as non-immediate then
 		 * we should start checking the cmdsn numbers for mgmt tasks.
+		 *
+		 * During discovery sessions iscsid sends TEXT as non immediate,
+		 * but we always only send one PDU at a time.
 		 */
 		if (conn->c_stage == ISCSI_CONN_STARTED &&
 		    !(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
@@ -620,22 +623,28 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 {
 	struct iscsi_session *session = conn->session;
 	struct iscsi_host *ihost = shost_priv(session->host);
+	uint8_t opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 	struct iscsi_task *task;
 	itt_t itt;
 
 	if (session->state == ISCSI_STATE_TERMINATE)
 		return NULL;
 
-	if (hdr->opcode == (ISCSI_OP_LOGIN | ISCSI_OP_IMMEDIATE) ||
-	    hdr->opcode == (ISCSI_OP_TEXT | ISCSI_OP_IMMEDIATE))
+	if (opcode == ISCSI_OP_LOGIN || opcode == ISCSI_OP_TEXT) {
 		/*
 		 * Login and Text are sent serially, in
 		 * request-followed-by-response sequence.
 		 * Same task can be used. Same ITT must be used.
 		 * Note that login_task is preallocated at conn_create().
 		 */
+		if (conn->login_task->state != ISCSI_TASK_FREE) {
+			iscsi_conn_printk(KERN_ERR, conn, "Login/Text in "
+					  "progress. Cannot start new task.\n");
+			return NULL;
+		}
+
 		task = conn->login_task;
-	else {
+	} else {
 		if (session->state != ISCSI_STATE_LOGGED_IN)
 			return NULL;
 
