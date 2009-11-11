@@ -9,6 +9,8 @@
 #include "../perf.h"
 #include "trace-event.h"
 #include "symbol.h"
+#include "data_map.h"
+#include "debug.h"
 
 /*
  * Create new perf.data header attribute:
@@ -322,6 +324,14 @@ static void perf_header__adds_read(struct perf_header *self, int fd)
 		trace_report(fd);
 		lseek(fd, trace_sec.offset + trace_sec.size, SEEK_SET);
 	}
+
+	if (perf_header__has_feat(self, HEADER_BUILD_ID)) {
+		struct stat input_stat;
+
+		fstat(fd, &input_stat);
+		if (perf_header__read_build_ids(self, fd, input_stat.st_size))
+			pr_debug("failed to read buildids, continuing...\n");
+	}
 };
 
 struct perf_header *perf_header__read(int fd)
@@ -382,13 +392,13 @@ struct perf_header *perf_header__read(int fd)
 
 	memcpy(&self->adds_features, &f_header.adds_features, sizeof(f_header.adds_features));
 
-	perf_header__adds_read(self, fd);
-
 	self->event_offset = f_header.event_types.offset;
 	self->event_size   = f_header.event_types.size;
 
 	self->data_offset = f_header.data.offset;
 	self->data_size   = f_header.data.size;
+
+	perf_header__adds_read(self, fd);
 
 	lseek(fd, self->data_offset, SEEK_SET);
 

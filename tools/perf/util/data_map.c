@@ -70,8 +70,8 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 }
 
-static int perf_header__read_build_ids(const struct perf_header *self,
-				       int input, off_t file_size)
+int perf_header__read_build_ids(const struct perf_header *self,
+				int input, off_t file_size)
 {
 	off_t offset = self->data_offset + self->data_size;
 	struct build_id_event bev;
@@ -162,10 +162,6 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 	if (curr_handler->sample_type_check)
 		if (curr_handler->sample_type_check(sample_type) < 0)
 			exit(-1);
-
-	if (perf_header__has_feat(header, HEADER_BUILD_ID) &&
-	    perf_header__read_build_ids(header, input, input_stat.st_size))
-		pr_debug("failed to read buildids, continuing...\n");
 
 	if (load_kernel(NULL) < 0) {
 		perror("failed to load kernel symbols");
