@@ -2976,10 +2976,10 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 
 	free_space = btrfs_super_total_bytes(disk_super);
 	/*
-	 * we allow the metadata to grow to a max of either 5gb or 5% of the
+	 * we allow the metadata to grow to a max of either 10gb or 5% of the
 	 * space in the volume.
 	 */
-	min_metadata = min((u64)5 * 1024 * 1024 * 1024,
+	min_metadata = min((u64)10 * 1024 * 1024 * 1024,
 			     div64_u64(free_space * 5, 100));
 	if (info->total_bytes >= min_metadata) {
 		spin_unlock(&info->lock);
