@@ -1050,28 +1050,28 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 	c->operand[4] = 0; /* slot */
 	c->operand[5] = SFE_VENDOR_TAG_CA_PMT; /* ca tag */
 	c->operand[6] = 0; /* more/last */
-	/* c->operand[7] = XXXprogram_info_length + 17; */ /* length */
-	c->operand[8] = list_management;
-	c->operand[9] = 0x01; /* pmt_cmd=OK_descramble */
+	/* Use three bytes for length field in case length > 127 */
+	c->operand[10] = list_management;
+	c->operand[11] = 0x01; /* pmt_cmd=OK_descramble */
 
 	/* TS program map table */
 
-	c->operand[10] = 0x02; /* Table id=2 */
-	c->operand[11] = 0x80; /* Section syntax + length */
-	/* c->operand[12] = XXXprogram_info_length + 12; */
-	c->operand[13] = msg[1]; /* Program number */
-	c->operand[14] = msg[2];
-	c->operand[15] = 0x01; /* Version number=0 + current/next=1 */
-	c->operand[16] = 0x00; /* Section number=0 */
-	c->operand[17] = 0x00; /* Last section number=0 */
-	c->operand[18] = 0x1f; /* PCR_PID=1FFF */
-	c->operand[19] = 0xff;
-	c->operand[20] = (program_info_length >> 8); /* Program info length */
-	c->operand[21] = (program_info_length & 0xff);
+	c->operand[12] = 0x02; /* Table id=2 */
+	c->operand[13] = 0x80; /* Section syntax + length */
+	/* c->operand[14] = XXXprogram_info_length + 12; */
+	c->operand[15] = msg[1]; /* Program number */
+	c->operand[16] = msg[2];
+	c->operand[17] = 0x01; /* Version number=0 + current/next=1 */
+	c->operand[18] = 0x00; /* Section number=0 */
+	c->operand[19] = 0x00; /* Last section number=0 */
+	c->operand[20] = 0x1f; /* PCR_PID=1FFF */
+	c->operand[21] = 0xff;
+	c->operand[22] = (program_info_length >> 8); /* Program info length */
+	c->operand[23] = (program_info_length & 0xff);
 
 	/* CA descriptors at programme level */
 	read_pos = 6;
-	write_pos = 22;
+	write_pos = 24;
 	if (program_info_length > 0) {
 		pmt_cmd_id = msg[read_pos++];
 		if (pmt_cmd_id != 1 && pmt_cmd_id != 4)
@@ -1113,8 +1113,10 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 	c->operand[write_pos++] = 0x00;
 	c->operand[write_pos++] = 0x00;
 
-	c->operand[7] = write_pos - 8;
-	c->operand[12] = write_pos - 13;
+	c->operand[7] = 0x82;
+	c->operand[8] = (write_pos - 10) >> 8;
+	c->operand[9] = (write_pos - 10) & 0xff;
+	c->operand[14] = write_pos - 15;
 
 	crc32_csum = crc32_be(0, &c->operand[10], c->operand[12] - 1);
 	c->operand[write_pos - 4] = (crc32_csum >> 24) & 0xff;
