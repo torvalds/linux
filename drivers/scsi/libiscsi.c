@@ -298,17 +298,18 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 		hdr_lun = scsilun_to_int((struct scsi_lun *)tmf->lun);
 		if (hdr_lun != task->sc->device->lun)
 			return 0;
-
+		/* fall through */
+	case ISCSI_TM_FUNC_TARGET_WARM_RESET:
 		/*
 		 * Fail all SCSI cmd PDUs
 		 */
 		if (opcode != ISCSI_OP_SCSI_DATA_OUT) {
 			iscsi_conn_printk(KERN_INFO, conn,
 					  "task [op %x/%x itt "
-					  "0x%x/0x%x lun %u] "
+					  "0x%x/0x%x] "
 					  "rejected.\n",
 					  task->hdr->opcode, opcode,
-					  task->itt, task->hdr_itt, hdr_lun);
+					  task->itt, task->hdr_itt);
 			return -EACCES;
 		}
 		/*
@@ -318,10 +319,9 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 		if (conn->session->fast_abort) {
 			iscsi_conn_printk(KERN_INFO, conn,
 					  "task [op %x/%x itt "
-					  "0x%x/0x%x lun %u] "
-					  "fast abort.\n",
+					  "0x%x/0x%x] fast abort.\n",
 					  task->hdr->opcode, opcode,
-					  task->itt, task->hdr_itt, hdr_lun);
+					  task->itt, task->hdr_itt);
 			return -EACCES;
 		}
 		break;
@@ -1757,72 +1757,6 @@ int iscsi_target_alloc(struct scsi_target *starget)
 }
 EXPORT_SYMBOL_GPL(iscsi_target_alloc);
 
-void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
-{
-	struct iscsi_session *session = cls_session->dd_data;
-
-	spin_lock_bh(&session->lock);
-	if (session->state != ISCSI_STATE_LOGGED_IN) {
-		session->state = ISCSI_STATE_RECOVERY_FAILED;
-		if (session->leadconn)
-			wake_up(&session->leadconn->ehwait);
-	}
-	spin_unlock_bh(&session->lock);
-}
-EXPORT_SYMBOL_GPL(iscsi_session_recovery_timedout);
-
-int iscsi_eh_target_reset(struct scsi_cmnd *sc)
-{
-	struct iscsi_cls_session *cls_session;
-	struct iscsi_session *session;
-	struct iscsi_conn *conn;
-
-	cls_session = starget_to_session(scsi_target(sc->device));
-	session = cls_session->dd_data;
-	conn = session->leadconn;
-
-	mutex_lock(&session->eh_mutex);
-	spin_lock_bh(&session->lock);
-	if (session->state == ISCSI_STATE_TERMINATE) {
-failed:
-		ISCSI_DBG_EH(session,
-			     "failing target reset: Could not log back into "
-			     "target [age %d]\n",
-			     session->age);
-		spin_unlock_bh(&session->lock);
-		mutex_unlock(&session->eh_mutex);
-		return FAILED;
-	}
-
-	spin_unlock_bh(&session->lock);
-	mutex_unlock(&session->eh_mutex);
-	/*
-	 * we drop the lock here but the leadconn cannot be destoyed while
-	 * we are in the scsi eh
-	 */
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-
-	ISCSI_DBG_EH(session, "wait for relogin\n");
-	wait_event_interruptible(conn->ehwait,
-				 session->state == ISCSI_STATE_TERMINATE ||
-				 session->state == ISCSI_STATE_LOGGED_IN ||
-				 session->state == ISCSI_STATE_RECOVERY_FAILED);
-	if (signal_pending(current))
-		flush_signals(current);
-
-	mutex_lock(&session->eh_mutex);
-	spin_lock_bh(&session->lock);
-	if (session->state == ISCSI_STATE_LOGGED_IN) {
-		ISCSI_DBG_EH(session,
-			     "target reset succeeded\n");
-	} else
-		goto failed;
-	spin_unlock_bh(&session->lock);
-	mutex_unlock(&session->eh_mutex);
-	return SUCCESS;
-}
-EXPORT_SYMBOL_GPL(iscsi_eh_target_reset);
-
 static void iscsi_tmf_timedout(unsigned long data)
 {
 	struct iscsi_conn *conn = (struct iscsi_conn *)data;
@@ -2329,6 +2263,172 @@ done:
 }
 EXPORT_SYMBOL_GPL(iscsi_eh_device_reset);
 
+void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
+{
+	struct iscsi_session *session = cls_session->dd_data;
+
+	spin_lock_bh(&session->lock);
+	if (session->state != ISCSI_STATE_LOGGED_IN) {
+		session->state = ISCSI_STATE_RECOVERY_FAILED;
+		if (session->leadconn)
+			wake_up(&session->leadconn->ehwait);
+	}
+	spin_unlock_bh(&session->lock);
+}
+EXPORT_SYMBOL_GPL(iscsi_session_recovery_timedout);
+
+/**
+ * iscsi_eh_session_reset - drop session and attempt relogin
+ * @sc: scsi command
+ *
+ * This function will wait for a relogin, session termination from
+ * userspace, or a recovery/replacement timeout.
+ */
+static int iscsi_eh_session_reset(struct scsi_cmnd *sc)
+{
+	struct iscsi_cls_session *cls_session;
+	struct iscsi_session *session;
+	struct iscsi_conn *conn;
+
+	cls_session = starget_to_session(scsi_target(sc->device));
+	session = cls_session->dd_data;
+	conn = session->leadconn;
+
+	mutex_lock(&session->eh_mutex);
+	spin_lock_bh(&session->lock);
+	if (session->state == ISCSI_STATE_TERMINATE) {
+failed:
+		ISCSI_DBG_EH(session,
+			     "failing session reset: Could not log back into "
+			     "%s, %s [age %d]\n", session->targetname,
+			     conn->persistent_address, session->age);
+		spin_unlock_bh(&session->lock);
+		mutex_unlock(&session->eh_mutex);
+		return FAILED;
+	}
+
+	spin_unlock_bh(&session->lock);
+	mutex_unlock(&session->eh_mutex);
+	/*
+	 * we drop the lock here but the leadconn cannot be destoyed while
+	 * we are in the scsi eh
+	 */
+	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+
+	ISCSI_DBG_EH(session, "wait for relogin\n");
+	wait_event_interruptible(conn->ehwait,
+				 session->state == ISCSI_STATE_TERMINATE ||
+				 session->state == ISCSI_STATE_LOGGED_IN ||
+				 session->state == ISCSI_STATE_RECOVERY_FAILED);
+	if (signal_pending(current))
+		flush_signals(current);
+
+	mutex_lock(&session->eh_mutex);
+	spin_lock_bh(&session->lock);
+	if (session->state == ISCSI_STATE_LOGGED_IN) {
+		ISCSI_DBG_EH(session,
+			     "session reset succeeded for %s,%s\n",
+			     session->targetname, conn->persistent_address);
+	} else
+		goto failed;
+	spin_unlock_bh(&session->lock);
+	mutex_unlock(&session->eh_mutex);
+	return SUCCESS;
+}
+
+static void iscsi_prep_tgt_reset_pdu(struct scsi_cmnd *sc, struct iscsi_tm *hdr)
+{
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->opcode = ISCSI_OP_SCSI_TMFUNC | ISCSI_OP_IMMEDIATE;
+	hdr->flags = ISCSI_TM_FUNC_TARGET_WARM_RESET & ISCSI_FLAG_TM_FUNC_MASK;
+	hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+	hdr->rtt = RESERVED_ITT;
+}
+
+/**
+ * iscsi_eh_target_reset - reset target
+ * @sc: scsi command
+ *
+ * This will attempt to send a warm target reset. If that fails
+ * then we will drop the session and attempt ERL0 recovery.
+ */
+int iscsi_eh_target_reset(struct scsi_cmnd *sc)
+{
+	struct iscsi_cls_session *cls_session;
+	struct iscsi_session *session;
+	struct iscsi_conn *conn;
+	struct iscsi_tm *hdr;
+	int rc = FAILED;
+
+	cls_session = starget_to_session(scsi_target(sc->device));
+	session = cls_session->dd_data;
+
+	ISCSI_DBG_EH(session, "tgt Reset [sc %p tgt %s]\n", sc,
+		     session->targetname);
+
+	mutex_lock(&session->eh_mutex);
+	spin_lock_bh(&session->lock);
+	/*
+	 * Just check if we are not logged in. We cannot check for
+	 * the phase because the reset could come from a ioctl.
+	 */
+	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN)
+		goto unlock;
+	conn = session->leadconn;
+
+	/* only have one tmf outstanding at a time */
+	if (conn->tmf_state != TMF_INITIAL)
+		goto unlock;
+	conn->tmf_state = TMF_QUEUED;
+
+	hdr = &conn->tmhdr;
+	iscsi_prep_tgt_reset_pdu(sc, hdr);
+
+	if (iscsi_exec_task_mgmt_fn(conn, hdr, session->age,
+				    session->tgt_reset_timeout)) {
+		rc = FAILED;
+		goto unlock;
+	}
+
+	switch (conn->tmf_state) {
+	case TMF_SUCCESS:
+		break;
+	case TMF_TIMEDOUT:
+		spin_unlock_bh(&session->lock);
+		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		goto done;
+	default:
+		conn->tmf_state = TMF_INITIAL;
+		goto unlock;
+	}
+
+	rc = SUCCESS;
+	spin_unlock_bh(&session->lock);
+
+	iscsi_suspend_tx(conn);
+
+	spin_lock_bh(&session->lock);
+	memset(hdr, 0, sizeof(*hdr));
+	fail_scsi_tasks(conn, -1, DID_ERROR);
+	conn->tmf_state = TMF_INITIAL;
+	spin_unlock_bh(&session->lock);
+
+	iscsi_start_tx(conn);
+	goto done;
+
+unlock:
+	spin_unlock_bh(&session->lock);
+done:
+	ISCSI_DBG_EH(session, "tgt %s reset result = %s\n", session->targetname,
+		     rc == SUCCESS ? "SUCCESS" : "FAILED");
+	mutex_unlock(&session->eh_mutex);
+
+	if (rc == FAILED)
+		rc = iscsi_eh_session_reset(sc);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(iscsi_eh_target_reset);
+
 /*
  * Pre-allocate a pool of @max items of @item_size. By default, the pool
  * should be accessed via kfifo_{get,put} on q->queue.
@@ -2595,6 +2695,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	session->host = shost;
 	session->state = ISCSI_STATE_FREE;
 	session->fast_abort = 1;
+	session->tgt_reset_timeout = 30;
 	session->lu_reset_timeout = 15;
 	session->abort_timeout = 10;
 	session->scsi_cmds_max = scsi_cmds;
@@ -3033,6 +3134,9 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_LU_RESET_TMO:
 		sscanf(buf, "%d", &session->lu_reset_timeout);
 		break;
+	case ISCSI_PARAM_TGT_RESET_TMO:
+		sscanf(buf, "%d", &session->tgt_reset_timeout);
+		break;
 	case ISCSI_PARAM_PING_TMO:
 		sscanf(buf, "%d", &conn->ping_timeout);
 		break;
@@ -3131,6 +3235,9 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 		break;
 	case ISCSI_PARAM_LU_RESET_TMO:
 		len = sprintf(buf, "%d\n", session->lu_reset_timeout);
+		break;
+	case ISCSI_PARAM_TGT_RESET_TMO:
+		len = sprintf(buf, "%d\n", session->tgt_reset_timeout);
 		break;
 	case ISCSI_PARAM_INITIAL_R2T_EN:
 		len = sprintf(buf, "%d\n", session->initial_r2t_en);
