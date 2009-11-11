@@ -2314,7 +2314,7 @@ typedef struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT {
 	UCHAR ucSS_Step;
 	UCHAR ucSS_Delay;
 	UCHAR ucSS_Id;
-	UCHAR ucRecommandedRef_Div;
+	UCHAR ucRecommendedRef_Div;
 	UCHAR ucSS_Range;	/* it was reserved for V11 */
 } ATOM_SPREAD_SPECTRUM_ASSIGNMENT;
 

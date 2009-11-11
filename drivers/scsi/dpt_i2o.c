@@ -1919,7 +1919,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 		size = size>>16;
 		size *= 4;
 		if (size > MAX_MESSAGE_SIZE) {
-			rcode = EINVAL;
+			rcode = -EINVAL;
 			goto cleanup;
 		}
 		/* Copy in the user's I2O command */

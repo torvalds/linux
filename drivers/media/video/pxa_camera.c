@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/sched.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -1432,7 +1433,9 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 		icd->sense = &sense;
 
 	cam_f.fmt.pix.pixelformat = cam_fmt->fourcc;
-	ret = v4l2_subdev_call(sd, video, s_fmt, f);
+	ret = v4l2_subdev_call(sd, video, s_fmt, &cam_f);
+	cam_f.fmt.pix.pixelformat = pix->pixelformat;
+	*pix = cam_f.fmt.pix;
 
 	icd->sense = NULL;
 

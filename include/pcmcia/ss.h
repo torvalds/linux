@@ -262,6 +262,8 @@ struct pcmcia_socket {
 	struct device			dev;
 	/* data internal to the socket driver */
 	void				*driver_data;
+	/* status of the card during resume from a system sleep state */
+	int				resume_status;
 };
 
 
@@ -280,6 +282,8 @@ extern struct pccard_resource_ops pccard_nonstatic_ops;
 
 /* socket drivers are expected to use these callbacks in their .drv struct */
 extern int pcmcia_socket_dev_suspend(struct device *dev);
+extern void pcmcia_socket_dev_early_resume(struct device *dev);
+extern void pcmcia_socket_dev_late_resume(struct device *dev);
 extern int pcmcia_socket_dev_resume(struct device *dev);
 
 /* socket drivers use this callback in their IRQ handler */

@@ -208,7 +208,7 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len)
 	write_lock(&tree->lock);
 	em = lookup_extent_mapping(tree, start, len);
 
-	WARN_ON(em->start != start || !em);
+	WARN_ON(!em || em->start != start);
 
 	if (!em)
 		goto out;

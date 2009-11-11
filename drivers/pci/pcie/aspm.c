@@ -656,8 +656,10 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	free_link_state(link);
 
 	/* Recheck latencies and configure upstream links */
-	pcie_update_aspm_capable(root);
-	pcie_config_aspm_path(parent_link);
+	if (parent_link) {
+		pcie_update_aspm_capable(root);
+		pcie_config_aspm_path(parent_link);
+	}
 out:
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);

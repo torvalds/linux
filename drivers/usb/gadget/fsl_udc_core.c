@@ -2139,7 +2139,7 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 static void fsl_udc_release(struct device *dev)
 {
 	complete(udc_controller->done);
-	dma_free_coherent(dev, udc_controller->ep_qh_size,
+	dma_free_coherent(dev->parent, udc_controller->ep_qh_size,
 			udc_controller->ep_qh, udc_controller->ep_qh_dma);
 	kfree(udc_controller);
 }

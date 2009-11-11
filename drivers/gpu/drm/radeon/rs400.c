@@ -418,6 +418,8 @@ int rs400_resume(struct radeon_device *rdev)
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	r300_clock_startup(rdev);
+	/* setup MC before calling post tables */
+	rs400_mc_program(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
 	if (radeon_gpu_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",

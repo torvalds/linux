@@ -582,11 +582,9 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
 	fid->mode = -1;
-	fid->rdir_fpos = 0;
 	fid->uid = current_fsuid();
 	fid->clnt = clnt;
-	fid->aux = NULL;
-
+	fid->rdir = NULL;
 	spin_lock_irqsave(&clnt->lock, flags);
 	list_add(&fid->flist, &clnt->fidlist);
 	spin_unlock_irqrestore(&clnt->lock, flags);
@@ -609,6 +607,7 @@ static void p9_fid_destroy(struct p9_fid *fid)
 	spin_lock_irqsave(&clnt->lock, flags);
 	list_del(&fid->flist);
 	spin_unlock_irqrestore(&clnt->lock, flags);
+	kfree(fid->rdir);
 	kfree(fid);
 }
 

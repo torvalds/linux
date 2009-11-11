@@ -279,6 +279,7 @@ int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
 
 	return ttm_tt_set_caching(ttm, state);
 }
+EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 {

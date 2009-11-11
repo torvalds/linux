@@ -3379,7 +3379,7 @@ static u16 rtl_rw_cpluscmd(void __iomem *ioaddr)
 static void rtl_set_rx_max_size(void __iomem *ioaddr, unsigned int rx_buf_sz)
 {
 	/* Low hurts. Let's disable the filtering. */
-	RTL_W16(RxMaxSize, rx_buf_sz);
+	RTL_W16(RxMaxSize, rx_buf_sz + 1);
 }
 
 static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)

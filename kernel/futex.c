@@ -2127,7 +2127,7 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 		plist_del(&q->list, &q->list.plist);
 
 		/* Handle spurious wakeups gracefully */
-		ret = -EAGAIN;
+		ret = -EWOULDBLOCK;
 		if (timeout && !timeout->task)
 			ret = -ETIMEDOUT;
 		else if (signal_pending(current))
@@ -2208,7 +2208,6 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	debug_rt_mutex_init_waiter(&rt_waiter);
 	rt_waiter.task = NULL;
 
-retry:
 	key2 = FUTEX_KEY_INIT;
 	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_WRITE);
 	if (unlikely(ret != 0))
@@ -2303,9 +2302,6 @@ out_put_keys:
 out_key2:
 	put_futex_key(fshared, &key2);
 
-	/* Spurious wakeup ? */
-	if (ret == -EAGAIN)
-		goto retry;
 out:
 	if (to) {
 		hrtimer_cancel(&to->timer);
