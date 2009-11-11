@@ -946,7 +946,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	mutex_init(&codec->control_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
-	snd_array_init(&codec->mixers, sizeof(struct snd_kcontrol *), 32);
+	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 60);
 	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
 	snd_array_init(&codec->driver_pins, sizeof(struct hda_pincfg), 16);
 	if (codec->bus->modelname) {
@@ -1517,18 +1517,20 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 EXPORT_SYMBOL_HDA(snd_hda_find_mixer_ctl);
 
 /* Add a control element and assign to the codec */
-int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl)
+int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
+		    struct snd_kcontrol *kctl)
 {
 	int err;
-	struct snd_kcontrol **knewp;
+	struct hda_nid_item *item;
 
 	err = snd_ctl_add(codec->bus->card, kctl);
 	if (err < 0)
 		return err;
-	knewp = snd_array_new(&codec->mixers);
-	if (!knewp)
+	item = snd_array_new(&codec->mixers);
+	if (!item)
 		return -ENOMEM;
-	*knewp = kctl;
+	item->kctl = kctl;
+	item->nid = nid;
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_ctl_add);
@@ -1537,9 +1539,9 @@ EXPORT_SYMBOL_HDA(snd_hda_ctl_add);
 void snd_hda_ctls_clear(struct hda_codec *codec)
 {
 	int i;
-	struct snd_kcontrol **kctls = codec->mixers.list;
+	struct hda_nid_item *items = codec->mixers.list;
 	for (i = 0; i < codec->mixers.used; i++)
-		snd_ctl_remove(codec->bus->card, kctls[i]);
+		snd_ctl_remove(codec->bus->card, items[i].kctl);
 	snd_array_free(&codec->mixers);
 }
 
@@ -1645,7 +1647,7 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	kctl = snd_ctl_make_virtual_master(name, tlv);
 	if (!kctl)
 		return -ENOMEM;
-	err = snd_hda_ctl_add(codec, kctl);
+	err = snd_hda_ctl_add(codec, 0, kctl);
 	if (err < 0)
 		return err;
 	
@@ -2139,7 +2141,7 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 			return -ENOMEM;
 		kctl->id.index = idx;
 		kctl->private_value = nid;
-		err = snd_hda_ctl_add(codec, kctl);
+		err = snd_hda_ctl_add(codec, nid, kctl);
 		if (err < 0)
 			return err;
 	}
@@ -2184,8 +2186,8 @@ int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
 	if (!mout->dig_out_nid)
 		return 0;
 	/* ATTENTION: here mout is passed as private_data, instead of codec */
-	return snd_hda_ctl_add(codec,
-			   snd_ctl_new1(&spdif_share_sw, mout));
+	return snd_hda_ctl_add(codec, mout->dig_out_nid,
+			      snd_ctl_new1(&spdif_share_sw, mout));
 }
 EXPORT_SYMBOL_HDA(snd_hda_create_spdif_share_sw);
 
@@ -2289,7 +2291,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 		if (!kctl)
 			return -ENOMEM;
 		kctl->private_value = nid;
-		err = snd_hda_ctl_add(codec, kctl);
+		err = snd_hda_ctl_add(codec, nid, kctl);
 		if (err < 0)
 			return err;
 	}
@@ -3165,7 +3167,7 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 		kctl = snd_ctl_new1(knew, codec);
 		if (!kctl)
 			return -ENOMEM;
-		err = snd_hda_ctl_add(codec, kctl);
+		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0) {
 			if (!codec->addr)
 				return err;
@@ -3173,7 +3175,7 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 			if (!kctl)
 				return -ENOMEM;
 			kctl->id.device = codec->addr;
-			err = snd_hda_ctl_add(codec, kctl);
+			err = snd_hda_ctl_add(codec, 0, kctl);
 			if (err < 0)
 				return err;
 		}

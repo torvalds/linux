@@ -440,7 +440,13 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 
-int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
+struct hda_nid_item {
+	struct snd_kcontrol *kctl;
+	hda_nid_t nid;
+};
+
+int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
+		    struct snd_kcontrol *kctl);
 void snd_hda_ctls_clear(struct hda_codec *codec);
 
 /*
@@ -514,7 +520,8 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
  * AMP control callbacks
  */
 /* retrieve parameters from private_value */
-#define get_amp_nid(kc)		((kc)->private_value & 0xffff)
+#define get_amp_nid_(pv)	((pv) & 0xffff)
+#define get_amp_nid(kc)		get_amp_nid_((kc)->private_value)
 #define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)

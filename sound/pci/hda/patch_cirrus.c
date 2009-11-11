@@ -500,7 +500,7 @@ static int add_mute(struct hda_codec *codec, const char *name, int index,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Switch", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, *kctlp);
+	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
 }
 
 static int add_volume(struct hda_codec *codec, const char *name,
@@ -513,7 +513,7 @@ static int add_volume(struct hda_codec *codec, const char *name,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Volume", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, *kctlp);
+	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
 }
 
 static void fix_volume_caps(struct hda_codec *codec, hda_nid_t dac)
@@ -536,14 +536,14 @@ static int add_vmaster(struct hda_codec *codec, hda_nid_t dac)
 
 	spec->vmaster_sw =
 		snd_ctl_make_virtual_master("Master Playback Switch", NULL);
-	err = snd_hda_ctl_add(codec, spec->vmaster_sw);
+	err = snd_hda_ctl_add(codec, dac, spec->vmaster_sw);
 	if (err < 0)
 		return err;
 
 	snd_hda_set_vmaster_tlv(codec, dac, HDA_OUTPUT, tlv);
 	spec->vmaster_vol =
 		snd_ctl_make_virtual_master("Master Playback Volume", tlv);
-	err = snd_hda_ctl_add(codec, spec->vmaster_vol);
+	err = snd_hda_ctl_add(codec, dac, spec->vmaster_vol);
 	if (err < 0)
 		return err;
 	return 0;
@@ -756,13 +756,13 @@ static int build_input(struct hda_codec *codec)
 		if (!kctl)
 			return -ENOMEM;
 		kctl->private_value = (long)spec->capture_bind[i];
-		err = snd_hda_ctl_add(codec, kctl);
+		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0)
 			return err;
 	}
 	
 	if (spec->num_inputs > 1 && !spec->mic_detect) {
-		err = snd_hda_ctl_add(codec,
+		err = snd_hda_ctl_add(codec, 0,
 				      snd_ctl_new1(&cs_capture_source, codec));
 		if (err < 0)
 			return err;

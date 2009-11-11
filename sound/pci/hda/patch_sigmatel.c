@@ -1085,7 +1085,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	if (!spec->auto_mic && spec->num_dmuxes > 0 &&
 	    snd_hda_get_bool_hint(codec, "separate_dmux") == 1) {
 		stac_dmux_mixer.count = spec->num_dmuxes;
-		err = snd_hda_ctl_add(codec,
+		err = snd_hda_ctl_add(codec, 0,
 				  snd_ctl_new1(&stac_dmux_mixer, codec));
 		if (err < 0)
 			return err;
@@ -1101,7 +1101,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 			spec->spdif_mute = 1;
 		}
 		stac_smux_mixer.count = spec->num_smuxes;
-		err = snd_hda_ctl_add(codec,
+		err = snd_hda_ctl_add(codec, 0,
 				  snd_ctl_new1(&stac_smux_mixer, codec));
 		if (err < 0)
 			return err;

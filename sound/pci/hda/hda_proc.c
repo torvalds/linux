@@ -46,6 +46,41 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		return "UNKNOWN Widget";
 }
 
+static void print_nid_mixers(struct snd_info_buffer *buffer,
+			     struct hda_codec *codec, hda_nid_t nid)
+{
+	int i;
+	struct hda_nid_item *items = codec->mixers.list;
+	struct snd_kcontrol *kctl;
+	for (i = 0; i < codec->mixers.used; i++) {
+		if (items[i].nid == nid) {
+			kctl = items[i].kctl;
+			snd_iprintf(buffer,
+			  "  Control: name=\"%s\", index=%i, device=%i\n",
+			  kctl->id.name, kctl->id.index, kctl->id.device);
+		}
+	}
+}
+
+static void print_nid_pcms(struct snd_info_buffer *buffer,
+			   struct hda_codec *codec, hda_nid_t nid)
+{
+	int pcm, type;
+	struct hda_pcm *cpcm;
+	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
+		cpcm = &codec->pcm_info[pcm];
+		for (type = 0; type < 2; type++) {
+			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
+				continue;
+			snd_iprintf(buffer, "  Device: name=\"%s\", "
+				    "type=\"%s\", device=%i\n",
+				    cpcm->name,
+				    snd_hda_pcm_type_name[cpcm->pcm_type],
+				    cpcm->pcm->device);
+		}
+	}
+}
+
 static void print_amp_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid, int dir)
 {
@@ -309,21 +344,7 @@ static void print_audio_io(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid,
 			   unsigned int wid_type)
 {
-	int pcm, conv;
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		int type;
-		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
-		for (type = 0; type < 2; type++) {
-			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
-				continue;
-			snd_iprintf(buffer, "  Device: name=\"%s\", "
-				    "type=\"%s\", device=%i\n",
-				    cpcm->name,
-				    snd_hda_pcm_type_name[cpcm->pcm_type],
-				    cpcm->pcm->device);
-		}
-	}
-	conv = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+	int conv = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
 	snd_iprintf(buffer,
 		    "  Converter: stream=%d, channel=%d\n",
 		    (conv & AC_CONV_STREAM) >> AC_CONV_STREAM_SHIFT,
@@ -471,6 +492,7 @@ static void print_gpio(struct snd_info_buffer *buffer,
 			    (data & (1<<i)) ? 1 : 0,
 			    (unsol & (1<<i)) ? 1 : 0);
 	/* FIXME: add GPO and GPI pin information */
+	print_nid_mixers(buffer, codec, nid);
 }
 
 static void print_codec_info(struct snd_info_entry *entry,
@@ -549,6 +571,9 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CP_CAPS)
 			snd_iprintf(buffer, " CP");
 		snd_iprintf(buffer, "\n");
+
+		print_nid_mixers(buffer, codec, nid);
+		print_nid_pcms(buffer, codec, nid);
 
 		/* volume knob is a special widget that always have connection
 		 * list

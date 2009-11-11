@@ -2461,7 +2461,8 @@ static int alc_build_controls(struct hda_codec *codec)
 			if (!kctl)
 				return -ENOMEM;
 			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec, kctl);
+			err = snd_hda_ctl_add(codec,
+					get_amp_nid_(spec->beep_amp), kctl);
 			if (err < 0)
 				return err;
 		}
