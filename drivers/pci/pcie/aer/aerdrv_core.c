@@ -42,7 +42,7 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	if (!pos)
 		return -EIO;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return -EIO;
 
@@ -66,7 +66,7 @@ int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	if (dev->aer_firmware_first)
 		return -EIO;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return -EIO;
 
@@ -224,7 +224,7 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
 		return 0;
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return 0;
 	/* Check if AER is enabled */
@@ -618,7 +618,7 @@ void aer_enable_rootport(struct aer_rpc *rpc)
 	u16 reg16;
 	u32 reg32;
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	/* Clear PCIE Capability's Device Status */
 	pci_read_config_word(pdev, pos+PCI_EXP_DEVSTA, &reg16);
 	pci_write_config_word(pdev, pos+PCI_EXP_DEVSTA, reg16);

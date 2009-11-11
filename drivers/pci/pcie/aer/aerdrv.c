@@ -295,7 +295,7 @@ static void aer_error_resume(struct pci_dev *dev)
 	u16 reg16;
 
 	/* Clean up Root device status */
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &reg16);
 	pci_write_config_word(dev, pos + PCI_EXP_DEVSTA, reg16);
 
