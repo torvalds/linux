@@ -1051,20 +1051,25 @@
 
        /* Multimedia I2C bus */
 #define RADEON_I2C_CNTL_0		    0x0090
-#define RADEON_I2C_DONE (1<<0)
-#define RADEON_I2C_NACK (1<<1)
-#define RADEON_I2C_HALT (1<<2)
-#define RADEON_I2C_SOFT_RST (1<<5)
-#define RADEON_I2C_DRIVE_EN (1<<6)
-#define RADEON_I2C_DRIVE_SEL (1<<7)
-#define RADEON_I2C_START (1<<8)
-#define RADEON_I2C_STOP (1<<9)
-#define RADEON_I2C_RECEIVE (1<<10)
-#define RADEON_I2C_ABORT (1<<11)
-#define RADEON_I2C_GO (1<<12)
+#define RADEON_I2C_DONE                     (1 << 0)
+#define RADEON_I2C_NACK                     (1 << 1)
+#define RADEON_I2C_HALT                     (1 << 2)
+#define RADEON_I2C_SOFT_RST                 (1 << 5)
+#define RADEON_I2C_DRIVE_EN                 (1 << 6)
+#define RADEON_I2C_DRIVE_SEL                (1 << 7)
+#define RADEON_I2C_START                    (1 << 8)
+#define RADEON_I2C_STOP                     (1 << 9)
+#define RADEON_I2C_RECEIVE                  (1 << 10)
+#define RADEON_I2C_ABORT                    (1 << 11)
+#define RADEON_I2C_GO                       (1 << 12)
+#define RADEON_I2C_PRESCALE_SHIFT           16
 #define RADEON_I2C_CNTL_1                   0x0094
-#define RADEON_I2C_SEL         (1<<16)
-#define RADEON_I2C_EN          (1<<17)
+#define RADEON_I2C_DATA_COUNT_SHIFT         0
+#define RADEON_I2C_ADDR_COUNT_SHIFT         4
+#define RADEON_I2C_INTRA_BYTE_DELAY_SHIFT   8
+#define RADEON_I2C_SEL                      (1 << 16)
+#define RADEON_I2C_EN                       (1 << 17)
+#define RADEON_I2C_TIME_LIMIT_SHIFT         24
 #define RADEON_I2C_DATA			    0x0098
 
 #define RADEON_DVI_I2C_CNTL_0		    0x02e0
@@ -1072,7 +1077,7 @@
 #       define R200_SEL_DDC1                0 /* 0x60 - VGA_DDC */
 #       define R200_SEL_DDC2                1 /* 0x64 - DVI_DDC */
 #       define R200_SEL_DDC3                2 /* 0x68 - MONID_DDC */
-#define RADEON_DVI_I2C_CNTL_1               0x02e4 /* ? */
+#define RADEON_DVI_I2C_CNTL_1               0x02e4
 #define RADEON_DVI_I2C_DATA		    0x02e8
 
 #define RADEON_INTERRUPT_LINE               0x0f3c /* PCI */
@@ -1143,14 +1148,15 @@
 #       define RADEON_IO_MCLK_MAX_DYN_STOP_LAT (1 << 13)
 #       define RADEON_MC_MCLK_DYN_ENABLE    (1 << 14)
 #       define RADEON_IO_MCLK_DYN_ENABLE    (1 << 15)
-#define RADEON_LCD_GPIO_MASK                0x01a0
+#define RADEON_GPIOPAD_MASK                 0x0198
+#define RADEON_GPIOPAD_A		    0x019c
 #define RADEON_GPIOPAD_EN                   0x01a0
+#define RADEON_GPIOPAD_Y                    0x01a4
+#define RADEON_LCD_GPIO_MASK                0x01a0
 #define RADEON_LCD_GPIO_Y_REG               0x01a4
 #define RADEON_MDGPIO_A_REG                 0x01ac
 #define RADEON_MDGPIO_EN_REG                0x01b0
 #define RADEON_MDGPIO_MASK                  0x0198
-#define RADEON_GPIOPAD_MASK                 0x0198
-#define RADEON_GPIOPAD_A		    0x019c
 #define RADEON_MDGPIO_Y_REG                 0x01b4
 #define RADEON_MEM_ADDR_CONFIG              0x0148
 #define RADEON_MEM_BASE                     0x0f10 /* PCI */

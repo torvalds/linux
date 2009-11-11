@@ -697,6 +697,8 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 			/*if (mode->clock > 165000)
 			  fp2_gen_cntl |= R300_FP2_DVO_DUAL_CHANNEL_EN;*/
 		}
+		if (!radeon_combios_external_tmds_setup(encoder))
+			radeon_external_tmds_setup(encoder);
 	}
 
 	if (radeon_crtc->crtc_id == 0) {
@@ -724,6 +726,19 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 		radeon_combios_encoder_crtc_scratch_regs(encoder, radeon_crtc->crtc_id);
 }
 
+static void radeon_ext_tmds_enc_destroy(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_ext_tmds *tmds = radeon_encoder->enc_priv;
+	if (tmds) {
+		if (tmds->i2c_bus)
+			radeon_i2c_destroy(tmds->i2c_bus);
+	}
+	kfree(radeon_encoder->enc_priv);
+	drm_encoder_cleanup(encoder);
+	kfree(radeon_encoder);
+}
+
 static const struct drm_encoder_helper_funcs radeon_legacy_tmds_ext_helper_funcs = {
 	.dpms = radeon_legacy_tmds_ext_dpms,
 	.mode_fixup = radeon_legacy_tmds_ext_mode_fixup,
@@ -735,7 +750,7 @@ static const struct drm_encoder_helper_funcs radeon_legacy_tmds_ext_helper_funcs
 
 
 static const struct drm_encoder_funcs radeon_legacy_tmds_ext_enc_funcs = {
-	.destroy = radeon_enc_destroy,
+	.destroy = radeon_ext_tmds_enc_destroy,
 };
 
 static bool radeon_legacy_tv_dac_mode_fixup(struct drm_encoder *encoder,
@@ -1302,6 +1317,29 @@ static struct radeon_encoder_int_tmds *radeon_legacy_get_tmds_info(struct radeon
 	return tmds;
 }
 
+static struct radeon_encoder_ext_tmds *radeon_legacy_get_ext_tmds_info(struct radeon_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder_ext_tmds *tmds = NULL;
+	bool ret;
+
+	if (rdev->is_atom_bios)
+		return NULL;
+
+	tmds = kzalloc(sizeof(struct radeon_encoder_ext_tmds), GFP_KERNEL);
+
+	if (!tmds)
+		return NULL;
+
+	ret = radeon_legacy_get_ext_tmds_info_from_combios(encoder, tmds);
+
+	if (ret == false)
+		radeon_legacy_get_ext_tmds_info_from_table(encoder, tmds);
+
+	return tmds;
+}
+
 void
 radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t supported_device)
 {
@@ -1373,7 +1411,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 		drm_encoder_init(dev, encoder, &radeon_legacy_tmds_ext_enc_funcs, DRM_MODE_ENCODER_TMDS);
 		drm_encoder_helper_add(encoder, &radeon_legacy_tmds_ext_helper_funcs);
 		if (!rdev->is_atom_bios)
-			radeon_combios_get_ext_tmds_info(radeon_encoder);
+			radeon_encoder->enc_priv = radeon_legacy_get_ext_tmds_info(radeon_encoder);
 		break;
 	}
 }

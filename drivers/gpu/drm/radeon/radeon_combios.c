@@ -993,8 +993,8 @@ static const struct radeon_tmds_pll default_tmds_pll[CHIP_LAST][4] = {
 	{{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},	/* CHIP_R420  */
 	{{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},	/* CHIP_R423  */
 	{{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},	/* CHIP_RV410 */
-	{{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/* CHIP_RS400 */
-	{{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/* CHIP_RS480 */
+	{ {0, 0}, {0, 0}, {0, 0}, {0, 0} },	/* CHIP_RS400 */
+	{ {0, 0}, {0, 0}, {0, 0}, {0, 0} },	/* CHIP_RS480 */
 };
 
 bool radeon_legacy_get_tmds_info_from_table(struct radeon_encoder *encoder,
@@ -1028,7 +1028,6 @@ bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
 	tmds_info = combios_get_table_offset(dev, COMBIOS_DFP_INFO_TABLE);
 
 	if (tmds_info) {
-
 		ver = RBIOS8(tmds_info);
 		DRM_INFO("DFP table revision: %d\n", ver);
 		if (ver == 3) {
@@ -1063,45 +1062,132 @@ bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
 					  tmds->tmds_pll[i].value);
 			}
 		}
-	} else
+	} else {
 		DRM_INFO("No TMDS info found in BIOS\n");
+		return false;
+	}
 	return true;
 }
 
-struct radeon_encoder_int_tmds *radeon_combios_get_tmds_info(struct radeon_encoder *encoder)
-{
-	struct radeon_encoder_int_tmds *tmds = NULL;
-	bool ret;
-
-	tmds = kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
-
-	if (!tmds)
-		return NULL;
-
-	ret = radeon_legacy_get_tmds_info_from_combios(encoder, tmds);
-	if (ret == false)
-		radeon_legacy_get_tmds_info_from_table(encoder, tmds);
-
-	return tmds;
-}
-
-void radeon_combios_get_ext_tmds_info(struct radeon_encoder *encoder)
+bool radeon_legacy_get_ext_tmds_info_from_table(struct radeon_encoder *encoder,
+						struct radeon_encoder_ext_tmds *tmds)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
-	uint16_t ext_tmds_info;
-	uint8_t ver;
+	struct radeon_i2c_bus_rec i2c_bus;
+
+	/* default for macs */
+	i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_MONID);
+	tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+
+	/* XXX some macs have duallink chips */
+	switch (rdev->mode_info.connector_table) {
+	case CT_POWERBOOK_EXTERNAL:
+	case CT_MINI_EXTERNAL:
+	default:
+		tmds->dvo_chip = DVO_SIL164;
+		tmds->slave_addr = 0x70 >> 1; /* 7 bit addressing */
+		break;
+	}
+
+	return true;
+}
+
+bool radeon_legacy_get_ext_tmds_info_from_combios(struct radeon_encoder *encoder,
+						  struct radeon_encoder_ext_tmds *tmds)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	uint16_t offset;
+	uint8_t ver, id, blocks, clk, data;
+	int i;
+	enum radeon_combios_ddc gpio;
+	struct radeon_i2c_bus_rec i2c_bus;
 
 	if (rdev->bios == NULL)
-		return;
+		return false;
 
-	ext_tmds_info =
-	    combios_get_table_offset(dev, COMBIOS_EXT_TMDS_INFO_TABLE);
-	if (ext_tmds_info) {
-		ver = RBIOS8(ext_tmds_info);
-		DRM_INFO("External TMDS Table revision: %d\n", ver);
-		// TODO
+	tmds->i2c_bus = NULL;
+	if (rdev->flags & RADEON_IS_IGP) {
+		offset = combios_get_table_offset(dev, COMBIOS_I2C_INFO_TABLE);
+		if (offset) {
+			ver = RBIOS8(offset);
+			DRM_INFO("GPIO Table revision: %d\n", ver);
+			blocks = RBIOS8(offset + 2);
+			for (i = 0; i < blocks; i++) {
+				id = RBIOS8(offset + 3 + (i * 5) + 0);
+				if (id == 136) {
+					clk = RBIOS8(offset + 3 + (i * 5) + 3);
+					data = RBIOS8(offset + 3 + (i * 5) + 4);
+					i2c_bus.valid = true;
+					i2c_bus.mask_clk_mask = (1 << clk);
+					i2c_bus.mask_data_mask = (1 << data);
+					i2c_bus.a_clk_mask = (1 << clk);
+					i2c_bus.a_data_mask = (1 << data);
+					i2c_bus.en_clk_mask = (1 << clk);
+					i2c_bus.en_data_mask = (1 << data);
+					i2c_bus.y_clk_mask = (1 << clk);
+					i2c_bus.y_data_mask = (1 << data);
+					i2c_bus.mask_clk_reg = RADEON_GPIOPAD_MASK;
+					i2c_bus.mask_data_reg = RADEON_GPIOPAD_MASK;
+					i2c_bus.a_clk_reg = RADEON_GPIOPAD_A;
+					i2c_bus.a_data_reg = RADEON_GPIOPAD_A;
+					i2c_bus.en_clk_reg = RADEON_GPIOPAD_EN;
+					i2c_bus.en_data_reg = RADEON_GPIOPAD_EN;
+					i2c_bus.y_clk_reg = RADEON_GPIOPAD_Y;
+					i2c_bus.y_data_reg = RADEON_GPIOPAD_Y;
+					tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+					tmds->dvo_chip = DVO_SIL164;
+					tmds->slave_addr = 0x70 >> 1; /* 7 bit addressing */
+					break;
+				}
+			}
+		}
+	} else {
+		offset = combios_get_table_offset(dev, COMBIOS_EXT_TMDS_INFO_TABLE);
+		if (offset) {
+			ver = RBIOS8(offset);
+			DRM_INFO("External TMDS Table revision: %d\n", ver);
+			tmds->slave_addr = RBIOS8(offset + 4 + 2);
+			tmds->slave_addr >>= 1; /* 7 bit addressing */
+			gpio = RBIOS8(offset + 4 + 3);
+			switch (gpio) {
+			case DDC_MONID:
+				i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_MONID);
+				tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+				break;
+			case DDC_DVI:
+				i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
+				tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+				break;
+			case DDC_VGA:
+				i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
+				tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+				break;
+			case DDC_CRT2:
+				/* R3xx+ chips don't have GPIO_CRT2_DDC gpio pad */
+				if (rdev->family >= CHIP_R300)
+					i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_MONID);
+				else
+					i2c_bus = combios_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
+				tmds->i2c_bus = radeon_i2c_create(dev, &i2c_bus, "DVO");
+				break;
+			case DDC_LCD: /* MM i2c */
+				DRM_ERROR("MM i2c requires hw i2c engine\n");
+				break;
+			default:
+				DRM_ERROR("Unsupported gpio %d\n", gpio);
+				break;
+			}
+		}
 	}
+
+	if (!tmds->i2c_bus) {
+		DRM_INFO("No valid Ext TMDS info found in BIOS\n");
+		return false;
+	}
+
+	return true;
 }
 
 bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
@@ -1577,9 +1663,14 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 		ddc_i2c->a_data_reg = RADEON_GPIOPAD_A;
 		ddc_i2c->en_clk_reg = RADEON_GPIOPAD_EN;
 		ddc_i2c->en_data_reg = RADEON_GPIOPAD_EN;
-		ddc_i2c->y_clk_reg = RADEON_LCD_GPIO_Y_REG;
-		ddc_i2c->y_data_reg = RADEON_LCD_GPIO_Y_REG;
+		ddc_i2c->y_clk_reg = RADEON_GPIOPAD_Y;
+		ddc_i2c->y_data_reg = RADEON_GPIOPAD_Y;
 	}
+
+	/* R3xx+ chips don't have GPIO_CRT2_DDC gpio pad */
+	if ((rdev->family >= CHIP_R300) &&
+	    ddc_i2c->mask_clk_reg == RADEON_GPIO_CRT2_DDC)
+		*ddc_i2c = combios_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 
 	/* Certain IBM chipset RN50s have a BIOS reporting two VGAs,
 	   one with VGA DDC and one with CRT2 DDC. - kill the CRT2 DDC one */
@@ -2012,6 +2103,193 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 	radeon_link_encoder_connector(dev);
 
 	return true;
+}
+
+void radeon_external_tmds_setup(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_ext_tmds *tmds = radeon_encoder->enc_priv;
+
+	if (!tmds)
+		return;
+
+	switch (tmds->dvo_chip) {
+	case DVO_SIL164:
+		/* sil 164 */
+		radeon_i2c_do_lock(tmds->i2c_bus, 1);
+		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+				       tmds->slave_addr,
+				       0x08, 0x30);
+		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+				       tmds->slave_addr,
+				       0x09, 0x00);
+		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+				       tmds->slave_addr,
+				       0x0a, 0x90);
+		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+				       tmds->slave_addr,
+				       0x0c, 0x89);
+		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+				       tmds->slave_addr,
+				       0x08, 0x3b);
+		radeon_i2c_do_lock(tmds->i2c_bus, 0);
+		break;
+	case DVO_SIL1178:
+		/* sil 1178 - untested */
+		/*
+		 * 0x0f, 0x44
+		 * 0x0f, 0x4c
+		 * 0x0e, 0x01
+		 * 0x0a, 0x80
+		 * 0x09, 0x30
+		 * 0x0c, 0xc9
+		 * 0x0d, 0x70
+		 * 0x08, 0x32
+		 * 0x08, 0x33
+		 */
+		break;
+	default:
+		break;
+	}
+
+}
+
+bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	uint16_t offset;
+	uint8_t blocks, slave_addr, rev;
+	uint32_t index, id;
+	uint32_t reg, val, and_mask, or_mask;
+	struct radeon_encoder_ext_tmds *tmds = radeon_encoder->enc_priv;
+
+	if (rdev->bios == NULL)
+		return false;
+
+	if (!tmds)
+		return false;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		offset = combios_get_table_offset(dev, COMBIOS_TMDS_POWER_ON_TABLE);
+		rev = RBIOS8(offset);
+		if (offset) {
+			rev = RBIOS8(offset);
+			if (rev > 1) {
+				blocks = RBIOS8(offset + 3);
+				index = offset + 4;
+				while (blocks > 0) {
+					id = RBIOS16(index);
+					index += 2;
+					switch (id >> 13) {
+					case 0:
+						reg = (id & 0x1fff) * 4;
+						val = RBIOS32(index);
+						index += 4;
+						WREG32(reg, val);
+						break;
+					case 2:
+						reg = (id & 0x1fff) * 4;
+						and_mask = RBIOS32(index);
+						index += 4;
+						or_mask = RBIOS32(index);
+						index += 4;
+						val = RREG32(reg);
+						val = (val & and_mask) | or_mask;
+						WREG32(reg, val);
+						break;
+					case 3:
+						val = RBIOS16(index);
+						index += 2;
+						udelay(val);
+						break;
+					case 4:
+						val = RBIOS16(index);
+						index += 2;
+						udelay(val * 1000);
+						break;
+					case 6:
+						slave_addr = id & 0xff;
+						slave_addr >>= 1; /* 7 bit addressing */
+						index++;
+						reg = RBIOS8(index);
+						index++;
+						val = RBIOS8(index);
+						index++;
+						radeon_i2c_do_lock(tmds->i2c_bus, 1);
+						radeon_i2c_sw_put_byte(tmds->i2c_bus,
+								       slave_addr,
+								       reg, val);
+						radeon_i2c_do_lock(tmds->i2c_bus, 0);
+						break;
+					default:
+						DRM_ERROR("Unknown id %d\n", id >> 13);
+						break;
+					}
+					blocks--;
+				}
+				return true;
+			}
+		}
+	} else {
+		offset = combios_get_table_offset(dev, COMBIOS_EXT_TMDS_INFO_TABLE);
+		if (offset) {
+			index = offset + 10;
+			id = RBIOS16(index);
+			while (id != 0xffff) {
+				index += 2;
+				switch (id >> 13) {
+				case 0:
+					reg = (id & 0x1fff) * 4;
+					val = RBIOS32(index);
+					WREG32(reg, val);
+					break;
+				case 2:
+					reg = (id & 0x1fff) * 4;
+					and_mask = RBIOS32(index);
+					index += 4;
+					or_mask = RBIOS32(index);
+					index += 4;
+					val = RREG32(reg);
+					val = (val & and_mask) | or_mask;
+					WREG32(reg, val);
+					break;
+				case 4:
+					val = RBIOS16(index);
+					index += 2;
+					udelay(val);
+					break;
+				case 5:
+					reg = id & 0x1fff;
+					and_mask = RBIOS32(index);
+					index += 4;
+					or_mask = RBIOS32(index);
+					index += 4;
+					val = RREG32_PLL(reg);
+					val = (val & and_mask) | or_mask;
+					WREG32_PLL(reg, val);
+					break;
+				case 6:
+					reg = id & 0x1fff;
+					val = RBIOS8(index);
+					index += 1;
+					radeon_i2c_do_lock(tmds->i2c_bus, 1);
+					radeon_i2c_sw_put_byte(tmds->i2c_bus,
+							       tmds->slave_addr,
+							       reg, val);
+					radeon_i2c_do_lock(tmds->i2c_bus, 0);
+					break;
+				default:
+					DRM_ERROR("Unknown id %d\n", id >> 13);
+					break;
+				}
+				id = RBIOS16(index);
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 static void combios_parse_mmio_table(struct drm_device *dev, uint16_t offset)

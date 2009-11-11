@@ -212,3 +212,59 @@ struct drm_encoder *radeon_best_encoder(struct drm_connector *connector)
 {
 	return NULL;
 }
+
+void radeon_i2c_sw_get_byte(struct radeon_i2c_chan *i2c_bus,
+			    u8 slave_addr,
+			    u8 addr,
+			    u8 *val)
+{
+	u8 out_buf[2];
+	u8 in_buf[2];
+	struct i2c_msg msgs[] = {
+		{
+			.addr = slave_addr,
+			.flags = 0,
+			.len = 1,
+			.buf = out_buf,
+		},
+		{
+			.addr = slave_addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = in_buf,
+		}
+	};
+
+	out_buf[0] = addr;
+	out_buf[1] = 0;
+
+	if (i2c_transfer(&i2c_bus->adapter, msgs, 2) == 2) {
+		*val = in_buf[0];
+		DRM_DEBUG("val = 0x%02x\n", *val);
+	} else {
+		DRM_ERROR("i2c 0x%02x 0x%02x read failed\n",
+			  addr, *val);
+	}
+}
+
+void radeon_i2c_sw_put_byte(struct radeon_i2c_chan *i2c_bus,
+			    u8 slave_addr,
+			    u8 addr,
+			    u8 val)
+{
+	uint8_t out_buf[2];
+	struct i2c_msg msg = {
+		.addr = slave_addr,
+		.flags = 0,
+		.len = 2,
+		.buf = out_buf,
+	};
+
+	out_buf[0] = addr;
+	out_buf[1] = val;
+
+	if (i2c_transfer(&i2c_bus->adapter, &msg, 1) != 1)
+		DRM_ERROR("i2c 0x%02x 0x%02x write failed\n",
+			  addr, val);
+}
+
