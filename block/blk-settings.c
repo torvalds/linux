@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
 #include <linux/gcd.h>
+#include <linux/jiffies.h>
 
 #include "blk.h"
 
@@ -144,7 +145,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->nr_batching = BLK_BATCH_REQ;
 
 	q->unplug_thresh = 4;		/* hmm */
-	q->unplug_delay = (3 * HZ) / 1000;	/* 3 milliseconds */
+	q->unplug_delay = msecs_to_jiffies(3);	/* 3 milliseconds */
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
