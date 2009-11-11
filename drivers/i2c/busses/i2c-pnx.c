@@ -19,7 +19,9 @@
 #include <linux/completion.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-pnx.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
+#include <mach/i2c.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
