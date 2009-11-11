@@ -152,6 +152,26 @@ nl80211_key_policy[NL80211_KEY_MAX + 1] __read_mostly = {
 	[NL80211_KEY_DEFAULT_MGMT] = { .type = NLA_FLAG },
 };
 
+/* ifidx get helper */
+static int nl80211_get_ifidx(struct netlink_callback *cb)
+{
+	int res;
+
+	res = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
+			  nl80211_fam.attrbuf, nl80211_fam.maxattr,
+			  nl80211_policy);
+	if (res)
+		return res;
+
+	if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
+		return -EINVAL;
+
+	res = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
+	if (!res)
+		return -EINVAL;
+	return res;
+}
+
 /* IE validation */
 static bool is_valid_ie_attr(const struct nlattr *attr)
 {
@@ -1693,20 +1713,10 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	int sta_idx = cb->args[1];
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
 
 	rtnl_lock();
 
@@ -2156,20 +2166,10 @@ static int nl80211_dump_mpath(struct sk_buff *skb,
 	int path_idx = cb->args[1];
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
 
 	rtnl_lock();
 
@@ -3198,21 +3198,11 @@ static int nl80211_dump_scan(struct sk_buff *skb,
 	int start = cb->args[1], idx = 0;
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-		cb->args[0] = ifidx;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
+	cb->args[0] = ifidx;
 
 	dev = dev_get_by_index(sock_net(skb->sk), ifidx);
 	if (!dev)
