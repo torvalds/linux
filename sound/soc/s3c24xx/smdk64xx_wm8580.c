@@ -115,7 +115,7 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, WM8580_PLLA,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8580_PLLA, 0,
 					SMDK64XX_WM8580_FREQ, pll_out);
 	if (ret < 0)
 		return ret;
