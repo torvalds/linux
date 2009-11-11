@@ -5681,11 +5681,11 @@ F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
-M:     Shreyas Bhatewara <sbhatewara@vmware.com>
-M:     VMware, Inc. <pv-drivers@vmware.com>
-L:     netdev@vger.kernel.org
-S:     Maintained
-F:     drivers/net/vmxnet3/
+M:	Shreyas Bhatewara <sbhatewara@vmware.com>
+M:	"VMware, Inc." <pv-drivers@vmware.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/vmxnet3/
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>
