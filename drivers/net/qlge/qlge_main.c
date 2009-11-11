@@ -3514,9 +3514,6 @@ int ql_wol(struct ql_adapter *qdev)
 	}
 
 	if (qdev->wol) {
-		/* Reroute all packets to Management Interface */
-		ql_write32(qdev, MGMT_RCV_CFG, (MGMT_RCV_CFG_RM |
-			(MGMT_RCV_CFG_RM << 16)));
 		wol |= MB_WOL_MODE_ON;
 		status = ql_mb_wol_mode(qdev, wol);
 		QPRINTK(qdev, DRV, ERR, "WOL %s (wol code 0x%x) on %s\n",
