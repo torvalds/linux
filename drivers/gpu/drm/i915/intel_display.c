@@ -4584,8 +4584,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_increase_renderclock(dev, false);
 	del_timer_sync(&dev_priv->idle_timer);
 
-	mutex_unlock(&dev->struct_mutex);
-
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
 
@@ -4593,6 +4591,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 		i915_gem_object_unpin(dev_priv->pwrctx);
 		drm_gem_object_unreference(dev_priv->pwrctx);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	drm_mode_config_cleanup(dev);
 }
