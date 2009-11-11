@@ -76,8 +76,6 @@ static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
 static struct powerdomain *cam_pwrdm;
 
-static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
-
 static inline void omap3_per_save_context(void)
 {
 	omap_gpio_save_context();
@@ -318,7 +316,7 @@ static void restore_table_entry(void)
 	restore_control_register(control_reg_value);
 }
 
-static void omap_sram_idle(void)
+void omap_sram_idle(void)
 {
 	/* Variable to tell what needs to be saved and restored
 	 * in omap_sram_idle*/
@@ -361,7 +359,7 @@ static void omap_sram_idle(void)
 
 	/* NEON control */
 	if (pwrdm_read_pwrst(neon_pwrdm) == PWRDM_POWER_ON)
-		set_pwrdm_state(neon_pwrdm, mpu_next_state);
+		pwrdm_set_next_pwrst(neon_pwrdm, mpu_next_state);
 
 	/* PER */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
@@ -463,53 +461,11 @@ static void omap_sram_idle(void)
 	omap2_clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 }
 
-/*
- * Check if functional clocks are enabled before entering
- * sleep. This function could be behind CONFIG_PM_DEBUG
- * when all drivers are configuring their sysconfig registers
- * properly and using their clocks properly.
- */
-static int omap3_fclks_active(void)
-{
-	u32 fck_core1 = 0, fck_core3 = 0, fck_sgx = 0, fck_dss = 0,
-		fck_cam = 0, fck_per = 0, fck_usbhost = 0;
-
-	fck_core1 = cm_read_mod_reg(CORE_MOD,
-				    CM_FCLKEN1);
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
-		fck_core3 = cm_read_mod_reg(CORE_MOD,
-					    OMAP3430ES2_CM_FCLKEN3);
-		fck_sgx = cm_read_mod_reg(OMAP3430ES2_SGX_MOD,
-					  CM_FCLKEN);
-		fck_usbhost = cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
-					      CM_FCLKEN);
-	} else
-		fck_sgx = cm_read_mod_reg(GFX_MOD,
-					  OMAP3430ES2_CM_FCLKEN3);
-	fck_dss = cm_read_mod_reg(OMAP3430_DSS_MOD,
-				  CM_FCLKEN);
-	fck_cam = cm_read_mod_reg(OMAP3430_CAM_MOD,
-				  CM_FCLKEN);
-	fck_per = cm_read_mod_reg(OMAP3430_PER_MOD,
-				  CM_FCLKEN);
-
-	/* Ignore UART clocks.  These are handled by UART core (serial.c) */
-	fck_core1 &= ~(OMAP3430_EN_UART1 | OMAP3430_EN_UART2);
-	fck_per &= ~OMAP3430_EN_UART3;
-
-	if (fck_core1 | fck_core3 | fck_sgx | fck_dss |
-	    fck_cam | fck_per | fck_usbhost)
-		return 1;
-	return 0;
-}
-
-static int omap3_can_sleep(void)
+int omap3_can_sleep(void)
 {
 	if (!sleep_while_idle)
 		return 0;
 	if (!omap_uart_can_sleep())
-		return 0;
-	if (omap3_fclks_active())
 		return 0;
 	return 1;
 }
@@ -517,7 +473,7 @@ static int omap3_can_sleep(void)
 /* This sets pwrdm state (other than mpu & core. Currently only ON &
  * RET are supported. Function is assuming that clkdm doesn't have
  * hw_sup mode enabled. */
-static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
+int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 {
 	u32 cur_state;
 	int sleep_switch = 0;
@@ -567,7 +523,7 @@ static void omap3_pm_idle(void)
 	if (!omap3_can_sleep())
 		goto out;
 
-	if (omap_irq_pending())
+	if (omap_irq_pending() || need_resched())
 		goto out;
 
 	omap_sram_idle();
@@ -1102,6 +1058,7 @@ static int __init omap3_pm_init(void)
 #endif /* CONFIG_SUSPEND */
 
 	pm_idle = omap3_pm_idle;
+	omap3_idle_init();
 
 	pwrdm_add_wkdep(neon_pwrdm, mpu_pwrdm);
 	/*
