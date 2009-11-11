@@ -4588,6 +4588,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 		dev_priv->display.disable_fbc(dev);
 
 	if (dev_priv->pwrctx) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = dev_priv->pwrctx->driver_private;
+		I915_WRITE(PWRCTXA, obj_priv->gtt_offset &~ PWRCTX_EN);
+		I915_READ(PWRCTXA);
 		i915_gem_object_unpin(dev_priv->pwrctx);
 		drm_gem_object_unreference(dev_priv->pwrctx);
 	}
