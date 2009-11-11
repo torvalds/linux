@@ -69,9 +69,9 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 #define MSIX_IRQ 0
 #define MSI_IRQ 1
 #define LEG_IRQ 2
-static int irq_type = MSIX_IRQ;
-module_param(irq_type, int, MSIX_IRQ);
-MODULE_PARM_DESC(irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
+static int qlge_irq_type = MSIX_IRQ;
+module_param(qlge_irq_type, int, MSIX_IRQ);
+MODULE_PARM_DESC(qlge_irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
 static struct pci_device_id qlge_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
@@ -2870,7 +2870,7 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 	int i, err;
 
 	/* Get the MSIX vectors. */
-	if (irq_type == MSIX_IRQ) {
+	if (qlge_irq_type == MSIX_IRQ) {
 		/* Try to alloc space for the msix struct,
 		 * if it fails then go to MSI/legacy.
 		 */
@@ -2878,7 +2878,7 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 					    sizeof(struct msix_entry),
 					    GFP_KERNEL);
 		if (!qdev->msi_x_entry) {
-			irq_type = MSI_IRQ;
+			qlge_irq_type = MSI_IRQ;
 			goto msi;
 		}
 
@@ -2901,7 +2901,7 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 			QPRINTK(qdev, IFUP, WARNING,
 				"MSI-X Enable failed, trying MSI.\n");
 			qdev->intr_count = 1;
-			irq_type = MSI_IRQ;
+			qlge_irq_type = MSI_IRQ;
 		} else if (err == 0) {
 			set_bit(QL_MSIX_ENABLED, &qdev->flags);
 			QPRINTK(qdev, IFUP, INFO,
@@ -2912,7 +2912,7 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 	}
 msi:
 	qdev->intr_count = 1;
-	if (irq_type == MSI_IRQ) {
+	if (qlge_irq_type == MSI_IRQ) {
 		if (!pci_enable_msi(qdev->pdev)) {
 			set_bit(QL_MSI_ENABLED, &qdev->flags);
 			QPRINTK(qdev, IFUP, INFO,
@@ -2920,7 +2920,7 @@ msi:
 			return;
 		}
 	}
-	irq_type = LEG_IRQ;
+	qlge_irq_type = LEG_IRQ;
 	QPRINTK(qdev, IFUP, DEBUG, "Running with legacy interrupts.\n");
 }
 
