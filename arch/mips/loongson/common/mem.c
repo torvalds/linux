@@ -20,8 +20,7 @@ void __init prom_init_memory(void)
 
     add_memory_region(memsize << 20, LOONGSON_PCI_MEM_START - (memsize <<
 			    20), BOOT_MEM_RESERVED);
-#ifdef CONFIG_64BIT
-#ifdef CONFIG_CPU_LOONGSON2F
+#ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 	{
 		int bit;
 
@@ -36,8 +35,9 @@ void __init prom_init_memory(void)
 					  0x80000000ul, (1 << bit));
 		mmiowb();
 	}
-#endif				/* CONFIG_CPU_LOONGSON2F */
+#endif /* !CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
+#ifdef CONFIG_64BIT
 	if (highmemsize > 0)
 		add_memory_region(LOONGSON_HIGHMEM_START,
 				  highmemsize << 20, BOOT_MEM_RAM);
@@ -45,7 +45,7 @@ void __init prom_init_memory(void)
 	add_memory_region(LOONGSON_PCI_MEM_END + 1, LOONGSON_HIGHMEM_START -
 			  LOONGSON_PCI_MEM_END - 1, BOOT_MEM_RESERVED);
 
-#endif				/* CONFIG_64BIT */
+#endif /* !CONFIG_64BIT */
 }
 
 /* override of arch/mips/mm/cache.c: __uncached_access */

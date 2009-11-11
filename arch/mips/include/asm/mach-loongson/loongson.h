@@ -227,7 +227,7 @@ extern void mach_irq_dispatch(unsigned int pending);
 	((((ADDR)>>26) & LOONGSON_PCIMAP_PCIMAP_LO0) << ((WIN)*6))
 
 /* Chip Config */
-#ifdef CONFIG_CPU_LOONGSON2F
+#ifdef CONFIG_CPU_SUPPORTS_CPUFREQ
 #define LOONGSON_CHIPCFG0		LOONGSON_REG(LOONGSON_REGBASE + 0x80)
 #endif
 
@@ -236,7 +236,7 @@ extern void mach_irq_dispatch(unsigned int pending);
  *
  * loongson2e do not have this module
  */
-#if defined(CONFIG_CPU_LOONGSON2F) && defined(CONFIG_64BIT)
+#ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 
 /* address window config module base address */
 #define LOONGSON_ADDRWINCFG_BASE		0x3ff00000ul
@@ -306,6 +306,6 @@ extern unsigned long _loongson_addrwincfg_base;
 #define LOONGSON_ADDRWIN_PCITODDR(win, src, dst, size) \
 	LOONGSON_ADDRWIN_CFG(PCIDMA, DDR, win, src, dst, size)
 
-#endif	/* ! CONFIG_CPU_LOONGSON2F && CONFIG_64BIT */
+#endif	/* ! CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
 #endif /* __ASM_MACH_LOONGSON_LOONGSON_H */

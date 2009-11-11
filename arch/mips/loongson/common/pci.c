@@ -68,7 +68,7 @@ static void __init setup_pcimap(void)
 	deassert for some broken device */
 	LOONGSON_PXARB_CFG = 0x00fe0105ul;
 
-#if defined(CONFIG_CPU_LOONGSON2F) && defined(CONFIG_64BIT)
+#ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 	/*
 	 * set cpu addr window2 to map CPU address space to PCI address space
 	 */

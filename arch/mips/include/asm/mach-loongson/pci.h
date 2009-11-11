@@ -28,7 +28,7 @@ extern struct pci_ops loongson_pci_ops;
 /* this is an offset from mips_io_port_base */
 #define LOONGSON_PCI_IO_START	0x00004000UL
 
-#if defined(CONFIG_CPU_LOONGSON2F) && defined(CONFIG_64BIT)
+#ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 
 /*
  * we use address window2 to map cpu address space to pci space
@@ -56,6 +56,6 @@ extern struct pci_ops loongson_pci_ops;
 /* this is an offset from mips_io_port_base */
 #define LOONGSON_PCI_IO_START	0x00004000UL
 
-#endif	/* !(defined(CONFIG_CPU_LOONGSON2F) && defined(CONFIG_64BIT))*/
+#endif	/* !CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
 #endif /* !__ASM_MACH_LOONGSON_PCI_H_ */
