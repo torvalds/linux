@@ -1023,8 +1023,8 @@ static void sccb_w_array(struct gspca_dev *gspca_dev,
 	}
 }
 
-/* set framerate */
-static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
+/* ov772x specific controls */
+static void set_frame_rate(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
@@ -1072,7 +1072,6 @@ static void ov534_set_frame_rate(struct gspca_dev *gspca_dev)
 	PDEBUG(D_PROBE, "frame_rate: %d", r->fps);
 }
 
-/* ov772x controls */
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1292,7 +1291,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(sensor_init_ov772x));
 		ov534_reg_write(gspca_dev, 0xe0, 0x09);
 		ov534_set_led(gspca_dev, 0);
-		ov534_set_frame_rate(gspca_dev);
+		set_frame_rate(gspca_dev);
 		break;
 	default:
 /*	case SENSOR_OV965X: */
@@ -1329,7 +1328,7 @@ static int sd_start_ov772x(struct gspca_dev *gspca_dev)
 		sccb_w_array(gspca_dev, sensor_start_ov772x_vga,
 				ARRAY_SIZE(sensor_start_ov772x_vga));
 	}
-	ov534_set_frame_rate(gspca_dev);
+	set_frame_rate(gspca_dev);
 
 	setautogain(gspca_dev);
 	setawb(gspca_dev);
@@ -1518,7 +1517,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->brightness = val;
 	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
+		setbrightness(gspca_dev);
 	return 0;
 }
 
@@ -1723,8 +1722,8 @@ static int sd_set_streamparm(struct gspca_dev *gspca_dev,
 
 	/* Set requested framerate */
 	sd->frame_rate = tpf->denominator / tpf->numerator;
-	if (gspca_dev->streaming)
-		ov534_set_frame_rate(gspca_dev);
+	if (gspca_dev->streaming && sd->sensor == SENSOR_OV772X)
+		set_frame_rate(gspca_dev);
 
 	/* Return the actual framerate */
 	tpf->numerator = 1;
