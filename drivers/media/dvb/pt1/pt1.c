@@ -27,7 +27,6 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-#include <linux/vmalloc.h>
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
