@@ -501,13 +501,16 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	u64 old_root_bytenr;
+	u64 old_root_used;
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
 
+	old_root_used = btrfs_root_used(&root->root_item);
 	btrfs_write_dirty_block_groups(trans, root);
 
 	while (1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
-		if (old_root_bytenr == root->node->start)
+		if (old_root_bytenr == root->node->start &&
+		    old_root_used == btrfs_root_used(&root->root_item))
 			break;
 
 		btrfs_set_root_node(&root->root_item, root->node);
@@ -516,6 +519,7 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 					&root->root_item);
 		BUG_ON(ret);
 
+		old_root_used = btrfs_root_used(&root->root_item);
 		ret = btrfs_write_dirty_block_groups(trans, root);
 		BUG_ON(ret);
 	}

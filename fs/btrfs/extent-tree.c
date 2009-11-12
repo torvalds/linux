@@ -3454,14 +3454,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	else
 		old_val -= num_bytes;
 	btrfs_set_super_bytes_used(&info->super_copy, old_val);
-
-	/* block accounting for root item */
-	old_val = btrfs_root_used(&root->root_item);
-	if (alloc)
-		old_val += num_bytes;
-	else
-		old_val -= num_bytes;
-	btrfs_set_root_used(&root->root_item, old_val);
 	spin_unlock(&info->delalloc_lock);
 
 	while (total) {
@@ -4047,6 +4039,21 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 		BUG_ON(ret);
 	}
 	return ret;
+}
+
+int btrfs_free_tree_block(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root,
+			  u64 bytenr, u32 blocksize,
+			  u64 parent, u64 root_objectid, int level)
+{
+	u64 used;
+	spin_lock(&root->node_lock);
+	used = btrfs_root_used(&root->root_item) - blocksize;
+	btrfs_set_root_used(&root->root_item, used);
+	spin_unlock(&root->node_lock);
+
+	return btrfs_free_extent(trans, root, bytenr, blocksize,
+				 parent, root_objectid, level, 0);
 }
 
 static u64 stripe_align(struct btrfs_root *root, u64 val)
@@ -4896,6 +4903,14 @@ static int alloc_tree_block(struct btrfs_trans_handle *trans,
 					level, BTRFS_ADD_DELAYED_EXTENT,
 					extent_op);
 		BUG_ON(ret);
+	}
+
+	if (root_objectid == root->root_key.objectid) {
+		u64 used;
+		spin_lock(&root->node_lock);
+		used = btrfs_root_used(&root->root_item) + num_bytes;
+		btrfs_set_root_used(&root->root_item, used);
+		spin_unlock(&root->node_lock);
 	}
 	return ret;
 }
