@@ -796,7 +796,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(&pending->root_key, &key, sizeof(key));
 fail:
 	kfree(new_root_item);
-	btrfs_unreserve_metadata_space(root, 6);
 	return ret;
 }
 
@@ -808,7 +807,6 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 	u64 index = 0;
 	struct btrfs_trans_handle *trans;
 	struct inode *parent_inode;
-	struct inode *inode;
 	struct btrfs_root *parent_root;
 
 	parent_inode = pending->dentry->d_parent->d_inode;
@@ -840,8 +838,6 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 
 	BUG_ON(ret);
 
-	inode = btrfs_lookup_dentry(parent_inode, pending->dentry);
-	d_instantiate(pending->dentry, inode);
 fail:
 	btrfs_end_transaction(trans, fs_info->fs_root);
 	return ret;
