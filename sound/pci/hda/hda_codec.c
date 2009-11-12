@@ -1523,6 +1523,11 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 	int err;
 	struct hda_nid_item *item;
 
+	if (kctl->id.subdevice & (1<<31)) {
+		if (nid == 0)
+			nid = kctl->id.subdevice & 0xffff;
+		kctl->id.subdevice = 0;
+	}
 	err = snd_ctl_add(codec->bus->card, kctl);
 	if (err < 0)
 		return err;
@@ -3160,7 +3165,7 @@ EXPORT_SYMBOL_HDA(snd_hda_check_board_codec_sid_config);
  */
 int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 {
- 	int err;
+	int err;
 
 	for (; knew->name; knew++) {
 		struct snd_kcontrol *kctl;

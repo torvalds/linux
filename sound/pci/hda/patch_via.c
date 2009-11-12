@@ -442,6 +442,8 @@ static int via_add_control(struct via_spec *spec, int type, const char *name,
 	knew->name = kstrdup(name, GFP_KERNEL);
 	if (!knew->name)
 		return -ENOMEM;
+	if (get_amp_nid_(val))
+		knew->subdevice = (1<<31)|get_amp_nid_(val);
 	knew->private_value = val;
 	return 0;
 }
