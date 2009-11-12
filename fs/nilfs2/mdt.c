@@ -445,9 +445,17 @@ static const struct file_operations def_mdt_fops;
  * longer than those of the super block structs; they may continue for
  * several consecutive mounts/umounts.  This would need discussions.
  */
+/**
+ * nilfs_mdt_new_common - allocate a pseudo inode for metadata file
+ * @nilfs: nilfs object
+ * @sb: super block instance the metadata file belongs to
+ * @ino: inode number
+ * @gfp_mask: gfp mask for data pages
+ * @objsz: size of the private object attached to inode->i_private
+ */
 struct inode *
 nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
-		     ino_t ino, gfp_t gfp_mask)
+		     ino_t ino, gfp_t gfp_mask, size_t objsz)
 {
 	struct inode *inode = nilfs_alloc_inode_common(nilfs);
 
@@ -455,8 +463,9 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 		return NULL;
 	else {
 		struct address_space * const mapping = &inode->i_data;
-		struct nilfs_mdt_info *mi = kzalloc(sizeof(*mi), GFP_NOFS);
+		struct nilfs_mdt_info *mi;
 
+		mi = kzalloc(max(sizeof(*mi), objsz), GFP_NOFS);
 		if (!mi) {
 			nilfs_destroy_inode(inode);
 			return NULL;
@@ -513,11 +522,11 @@ nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 }
 
 struct inode *nilfs_mdt_new(struct the_nilfs *nilfs, struct super_block *sb,
-			    ino_t ino)
+			    ino_t ino, size_t objsz)
 {
-	struct inode *inode = nilfs_mdt_new_common(nilfs, sb, ino,
-						   NILFS_MDT_GFP);
+	struct inode *inode;
 
+	inode = nilfs_mdt_new_common(nilfs, sb, ino, NILFS_MDT_GFP, objsz);
 	if (!inode)
 		return NULL;
 

@@ -212,9 +212,10 @@ void nilfs_destroy_gccache(struct the_nilfs *nilfs)
 static struct inode *alloc_gcinode(struct the_nilfs *nilfs, ino_t ino,
 				   __u64 cno)
 {
-	struct inode *inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS);
+	struct inode *inode;
 	struct nilfs_inode_info *ii;
 
+	inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS, 0);
 	if (!inode)
 		return NULL;
 
