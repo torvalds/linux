@@ -1720,6 +1720,11 @@ static int ctcm_pm_suspend(struct ccwgroup_device *gdev)
 		return 0;
 	netif_device_detach(priv->channel[READ]->netdev);
 	ctcm_close(priv->channel[READ]->netdev);
+	if (!wait_event_timeout(priv->fsm->wait_q,
+	    fsm_getstate(priv->fsm) == DEV_STATE_STOPPED, CTCM_TIME_5_SEC)) {
+		netif_device_attach(priv->channel[READ]->netdev);
+		return -EBUSY;
+	}
 	ccw_device_set_offline(gdev->cdev[1]);
 	ccw_device_set_offline(gdev->cdev[0]);
 	return 0;
