@@ -735,17 +735,17 @@ static int igb_set_ringparam(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct igb_ring *temp_ring;
 	int i, err = 0;
-	u32 new_rx_count, new_tx_count;
+	u16 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
-	new_rx_count = min(ring->rx_pending, (u32)IGB_MAX_RXD);
-	new_rx_count = max(new_rx_count, (u32)IGB_MIN_RXD);
+	new_rx_count = min_t(u32, ring->rx_pending, IGB_MAX_RXD);
+	new_rx_count = max_t(u16, new_rx_count, IGB_MIN_RXD);
 	new_rx_count = ALIGN(new_rx_count, REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	new_tx_count = min(ring->tx_pending, (u32)IGB_MAX_TXD);
-	new_tx_count = max(new_tx_count, (u32)IGB_MIN_TXD);
+	new_tx_count = min_t(u32, ring->tx_pending, IGB_MAX_TXD);
+	new_tx_count = max_t(u16, new_tx_count, IGB_MIN_TXD);
 	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
 	if ((new_tx_count == adapter->tx_ring_count) &&
