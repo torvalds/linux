@@ -1977,10 +1977,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 {
 	int index1;
 	int index2;
+	int mark;
 	int ret;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
-	u64 log_transid = 0;
+	unsigned long log_transid = 0;
 
 	mutex_lock(&root->log_mutex);
 	index1 = root->log_transid % 2;
@@ -2014,24 +2015,29 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	log_transid = root->log_transid;
+	if (log_transid % 2 == 0)
+		mark = EXTENT_DIRTY;
+	else
+		mark = EXTENT_NEW;
+
 	/* we start IO on  all the marked extents here, but we don't actually
 	 * wait for them until later.
 	 */
-	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages);
+	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages, mark);
 	BUG_ON(ret);
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
 	root->log_batch = 0;
-	log_transid = root->log_transid;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
 	root->log_start_pid = 0;
 	smp_mb();
 	/*
-	 * log tree has been flushed to disk, new modifications of
-	 * the log will be written to new positions. so it's safe to
-	 * allow log writers to go in.
+	 * IO has been started, blocks of the log tree have WRITTEN flag set
+	 * in their headers. new modifications of the log will be written to
+	 * new positions. so it's safe to allow log writers to go in.
 	 */
 	mutex_unlock(&root->log_mutex);
 
@@ -2052,7 +2058,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	index2 = log_root_tree->log_transid % 2;
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
-		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2072,16 +2078,17 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * check the full commit flag again
 	 */
 	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
-		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
 	}
 
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
-				&log_root_tree->dirty_log_pages);
+				&log_root_tree->dirty_log_pages,
+				EXTENT_DIRTY | EXTENT_NEW);
 	BUG_ON(ret);
-	btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+	btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
 				log_root_tree->node->start);
@@ -2147,12 +2154,12 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
-				    0, &start, &end, EXTENT_DIRTY);
+				0, &start, &end, EXTENT_DIRTY | EXTENT_NEW);
 		if (ret)
 			break;
 
-		clear_extent_dirty(&log->dirty_log_pages,
-				   start, end, GFP_NOFS);
+		clear_extent_bits(&log->dirty_log_pages, start, end,
+				  EXTENT_DIRTY | EXTENT_NEW, GFP_NOFS);
 	}
 
 	if (log->log_transid > 0) {
