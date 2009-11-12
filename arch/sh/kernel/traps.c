@@ -9,8 +9,8 @@
 #include <asm/unwinder.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_BUG
-void handle_BUG(struct pt_regs *regs)
+#ifdef CONFIG_GENERIC_BUG
+static void handle_BUG(struct pt_regs *regs)
 {
 	const struct bug_entry *bug;
 	unsigned long bugaddr = regs->pc;
@@ -81,7 +81,7 @@ BUILD_TRAP_HANDLER(bug)
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
-#ifdef CONFIG_BUG
+#ifdef CONFIG_GENERIC_BUG
 	if (__kernel_text_address(instruction_pointer(regs))) {
 		insn_size_t insn = *(insn_size_t *)instruction_pointer(regs);
 		if (insn == TRAPA_BUG_OPCODE)
