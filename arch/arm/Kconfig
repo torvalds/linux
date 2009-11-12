@@ -787,6 +787,7 @@ source "arch/arm/mach-at91/Kconfig"
 source "arch/arm/plat-mxc/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
+source "arch/arm/plat-nomadik/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
 
