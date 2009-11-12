@@ -12,6 +12,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/file.h>
 #include <linux/ctype.h>
+#include <linux/netdevice.h>
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 
@@ -1250,9 +1251,12 @@ out:
 static const struct bin_table *get_sysctl(const int *name, int nlen, char *path)
 {
 	const struct bin_table *table = &bin_root_table[0];
-	struct net *net = current->nsproxy->net_ns;
 	int ctl_name;
 
+	/* The binary sysctl tables have a small maximum depth so
+	 * there is no danger of overflowing our path as it PATH_MAX
+	 * bytes long.
+	 */
 	memcpy(path, "sys/", 4);
 	path += 4;
 
@@ -1263,30 +1267,31 @@ repeat:
 	name++;
 	nlen--;
 	for ( ; table->convert; table++) {
-		struct net_device *dev = NULL;
-		const char *procname = NULL;
+		int len = 0;
 
 		/* Use the well known sysctl number to proc name mapping */
-		if (ctl_name == table->ctl_name)
-			procname = table->procname;
-
+		if (ctl_name == table->ctl_name) {
+			len = strlen(table->procname);
+			memcpy(path, table->procname, len);
+		}
+#ifdef CONFIG_NET
 		/*
 		 * For a wild card entry map from ifindex to network
 		 * device name.
 		 */
 		else if (!table->ctl_name) {
+			struct net *net = current->nsproxy->net_ns;
+			struct net_device *dev;
 			dev = dev_get_by_index(net, ctl_name);
-			if (dev)
-				procname = dev->name;
-		}
-		if (procname) {
-			int len;
-
-			len = strlen(procname);
-			memcpy(path, procname, len);
-			path += len;
-			if (dev)
+			if (dev) {
+				len = strlen(dev->name);
+				memcpy(path, dev->name, len);
 				dev_put(dev);
+			}
+		}
+#endif
+		if (len) {
+			path += len;
 			if (table->child) {
 				*path++ = '/';
 				table = table->child;
