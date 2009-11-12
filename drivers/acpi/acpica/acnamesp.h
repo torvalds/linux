@@ -273,7 +273,8 @@ acpi_ns_get_attached_data(struct acpi_namespace_node *node,
 			  acpi_object_handler handler, void **data);
 
 /*
- * nsrepair - return object repair for predefined methods/objects
+ * nsrepair - General return object repair for all
+ * predefined methods/objects
  */
 acpi_status
 acpi_ns_repair_object(struct acpi_predefined_data *data,
@@ -284,6 +285,16 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 acpi_status
 acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 			    union acpi_operand_object **obj_desc_ptr);
+
+/*
+ * nsrepair2 - Return object repair for specific
+ * predefined methods/objects
+ */
+acpi_status
+acpi_ns_complex_repairs(struct acpi_predefined_data *data,
+			struct acpi_namespace_node *node,
+			acpi_status validate_status,
+			union acpi_operand_object **return_object_ptr);
 
 /*
  * nssearch - Namespace searching and entry

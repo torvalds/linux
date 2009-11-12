@@ -232,6 +232,12 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 		status = acpi_ns_check_package(data, return_object_ptr);
 	}
 
+	/*
+	 * Perform additional, more complicated repairs on a per-name
+	 * basis.
+	 */
+	status = acpi_ns_complex_repairs(data, node, status, return_object_ptr);
+
 check_validation_status:
 	/*
 	 * If the object validation failed or if we successfully repaired one
