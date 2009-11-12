@@ -90,6 +90,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[ 9] = "Q_Key violation counter",
 		[10] = "VMM",
 		[12] = "DPDP",
+		[15] = "Big LSO headers",
 		[16] = "MW support",
 		[17] = "APM support",
 		[18] = "Atomic ops support",
