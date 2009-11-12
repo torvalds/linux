@@ -4952,6 +4952,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 	struct sk_buff *skb;
 	bool cleaned = false;
 	int cleaned_count = 0;
+	int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int i;
 	u32 staterr;
@@ -5006,7 +5007,8 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 						buffer_info->page_offset,
 						length);
 
-			if (page_count(buffer_info->page) != 1)
+			if ((page_count(buffer_info->page) != 1) ||
+			    (page_to_nid(buffer_info->page) != current_node))
 				buffer_info->page = NULL;
 			else
 				get_page(buffer_info->page);
