@@ -1464,8 +1464,6 @@ static int wm8993_probe(struct platform_device *pdev)
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 
-	snd_soc_dapm_new_widgets(codec);
-
 	return ret;
 
 err:

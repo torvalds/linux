@@ -93,7 +93,6 @@ static int cx20442_add_widgets(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(codec, cx20442_audio_map,
 				ARRAY_SIZE(cx20442_audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 

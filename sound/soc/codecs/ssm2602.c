@@ -210,7 +210,6 @@ static int ssm2602_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_conn, ARRAY_SIZE(audio_conn));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 

@@ -800,7 +800,7 @@ static int wm8350_add_widgets(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	return snd_soc_dapm_new_widgets(codec);
+	return 0;
 }
 
 static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,

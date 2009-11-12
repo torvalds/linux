@@ -920,7 +920,6 @@ static int wm8990_add_widgets(struct snd_soc_codec *codec)
 	/* set up the WM8990 audio map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 

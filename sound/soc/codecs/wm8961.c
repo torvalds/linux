@@ -986,7 +986,6 @@ static int wm8961_probe(struct platform_device *pdev)
 	snd_soc_dapm_new_controls(codec, wm8961_dapm_widgets,
 				  ARRAY_SIZE(wm8961_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
-	snd_soc_dapm_new_widgets(codec);
 
 	return ret;
 

@@ -298,7 +298,6 @@ static int wm8940_add_widgets(struct snd_soc_codec *codec)
 	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 	if (ret)
 		goto error_ret;
-	ret = snd_soc_dapm_new_widgets(codec);
 
 error_ret:
 	return ret;
