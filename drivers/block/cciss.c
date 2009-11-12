@@ -2531,6 +2531,8 @@ static int check_target_status(ctlr_info_t *h, CommandList_struct *c)
 		case 0: return IO_OK; /* no sense */
 		case 1: return IO_OK; /* recovered error */
 		default:
+			if (check_for_unit_attention(h, c))
+				return IO_NEEDS_RETRY;
 			printk(KERN_WARNING "cciss%d: cmd 0x%02x "
 				"check condition, sense key = 0x%02x\n",
 				h->ctlr, c->Request.CDB[0],
