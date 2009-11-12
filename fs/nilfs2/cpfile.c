@@ -928,6 +928,16 @@ int nilfs_cpfile_get_stat(struct inode *cpfile, struct nilfs_cpstat *cpstat)
 }
 
 /**
+ * nilfs_cpfile_read - read cpfile inode
+ * @cpfile: cpfile inode
+ * @raw_inode: on-disk cpfile inode
+ */
+int nilfs_cpfile_read(struct inode *cpfile, struct nilfs_inode *raw_inode)
+{
+	return nilfs_read_inode_common(cpfile, raw_inode);
+}
+
+/**
  * nilfs_cpfile_new - create cpfile
  * @nilfs: nilfs object
  * @cpsize: size of a checkpoint entry

@@ -659,6 +659,16 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 }
 
 /**
+ * nilfs_sufile_read - read sufile inode
+ * @sufile: sufile inode
+ * @raw_inode: on-disk sufile inode
+ */
+int nilfs_sufile_read(struct inode *sufile, struct nilfs_inode *raw_inode)
+{
+	return nilfs_read_inode_common(sufile, raw_inode);
+}
+
+/**
  * nilfs_sufile_new - create sufile
  * @nilfs: nilfs object
  * @susize: size of a segment usage entry

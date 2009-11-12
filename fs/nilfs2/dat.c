@@ -427,6 +427,16 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 }
 
 /**
+ * nilfs_dat_read - read dat inode
+ * @dat: dat inode
+ * @raw_inode: on-disk dat inode
+ */
+int nilfs_dat_read(struct inode *dat, struct nilfs_inode *raw_inode)
+{
+	return nilfs_read_inode_common(dat, raw_inode);
+}
+
+/**
  * nilfs_dat_new - create dat file
  * @nilfs: nilfs object
  * @entry_size: size of a dat entry

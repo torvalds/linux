@@ -204,18 +204,18 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 
 	nilfs_mdt_set_shadow(nilfs->ns_dat, nilfs->ns_gc_dat);
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_dat, bh_sr, NILFS_SR_DAT_OFFSET(inode_size));
+	err = nilfs_dat_read(nilfs->ns_dat, (void *)bh_sr->b_data +
+			     NILFS_SR_DAT_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_cpfile, bh_sr, NILFS_SR_CPFILE_OFFSET(inode_size));
+	err = nilfs_cpfile_read(nilfs->ns_cpfile, (void *)bh_sr->b_data +
+				NILFS_SR_CPFILE_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_sufile, bh_sr, NILFS_SR_SUFILE_OFFSET(inode_size));
+	err = nilfs_sufile_read(nilfs->ns_sufile, (void *)bh_sr->b_data +
+				NILFS_SR_SUFILE_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 

@@ -62,6 +62,7 @@ void nilfs_sufile_do_cancel_free(struct inode *, __u64, struct buffer_head *,
 void nilfs_sufile_do_set_error(struct inode *, __u64, struct buffer_head *,
 			       struct buffer_head *);
 
+int nilfs_sufile_read(struct inode *sufile, struct nilfs_inode *raw_inode);
 struct inode *nilfs_sufile_new(struct the_nilfs *nilfs, size_t susize);
 
 /**
