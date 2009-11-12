@@ -653,6 +653,55 @@ struct kvm_clock_data {
 	__u32 pad[9];
 };
 
+4.29 KVM_GET_VCPU_EVENTS
+
+Capability: KVM_CAP_VCPU_EVENTS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_vcpu_event (out)
+Returns: 0 on success, -1 on error
+
+Gets currently pending exceptions, interrupts, and NMIs as well as related
+states of the vcpu.
+
+struct kvm_vcpu_events {
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 has_error_code;
+		__u8 pad;
+		__u32 error_code;
+	} exception;
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 soft;
+		__u8 pad;
+	} interrupt;
+	struct {
+		__u8 injected;
+		__u8 pending;
+		__u8 masked;
+		__u8 pad;
+	} nmi;
+	__u32 sipi_vector;
+	__u32 flags;   /* must be zero */
+};
+
+4.30 KVM_SET_VCPU_EVENTS
+
+Capability: KVM_CAP_VCPU_EVENTS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_vcpu_event (in)
+Returns: 0 on success, -1 on error
+
+Set pending exceptions, interrupts, and NMIs as well as related states of the
+vcpu.
+
+See KVM_GET_VCPU_EVENTS for the data structure.
+
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

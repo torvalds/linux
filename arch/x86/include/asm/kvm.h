@@ -20,6 +20,7 @@
 #define __KVM_HAVE_MCE
 #define __KVM_HAVE_PIT_STATE2
 #define __KVM_HAVE_XEN_HVM
+#define __KVM_HAVE_VCPU_EVENTS
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -252,4 +253,31 @@ struct kvm_reinject_control {
 	__u8 pit_reinject;
 	__u8 reserved[31];
 };
+
+/* for KVM_GET/SET_VCPU_EVENTS */
+struct kvm_vcpu_events {
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 has_error_code;
+		__u8 pad;
+		__u32 error_code;
+	} exception;
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 soft;
+		__u8 pad;
+	} interrupt;
+	struct {
+		__u8 injected;
+		__u8 pending;
+		__u8 masked;
+		__u8 pad;
+	} nmi;
+	__u32 sipi_vector;
+	__u32 flags;
+	__u32 reserved[10];
+};
+
 #endif /* _ASM_X86_KVM_H */

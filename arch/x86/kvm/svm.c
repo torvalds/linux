@@ -2499,6 +2499,26 @@ static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 		!(svm->vcpu.arch.hflags & HF_NMI_MASK);
 }
 
+static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	return !!(svm->vcpu.arch.hflags & HF_NMI_MASK);
+}
+
+static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (masked) {
+		svm->vcpu.arch.hflags |= HF_NMI_MASK;
+		svm->vmcb->control.intercept |= (1UL << INTERCEPT_IRET);
+	} else {
+		svm->vcpu.arch.hflags &= ~HF_NMI_MASK;
+		svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
+	}
+}
+
 static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2946,6 +2966,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.queue_exception = svm_queue_exception,
 	.interrupt_allowed = svm_interrupt_allowed,
 	.nmi_allowed = svm_nmi_allowed,
+	.get_nmi_mask = svm_get_nmi_mask,
+	.set_nmi_mask = svm_set_nmi_mask,
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,

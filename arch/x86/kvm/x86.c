@@ -1342,6 +1342,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 	case KVM_CAP_XEN_HVM:
 	case KVM_CAP_ADJUST_CLOCK:
+	case KVM_CAP_VCPU_EVENTS:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1883,6 +1884,61 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
+					       struct kvm_vcpu_events *events)
+{
+	vcpu_load(vcpu);
+
+	events->exception.injected = vcpu->arch.exception.pending;
+	events->exception.nr = vcpu->arch.exception.nr;
+	events->exception.has_error_code = vcpu->arch.exception.has_error_code;
+	events->exception.error_code = vcpu->arch.exception.error_code;
+
+	events->interrupt.injected = vcpu->arch.interrupt.pending;
+	events->interrupt.nr = vcpu->arch.interrupt.nr;
+	events->interrupt.soft = vcpu->arch.interrupt.soft;
+
+	events->nmi.injected = vcpu->arch.nmi_injected;
+	events->nmi.pending = vcpu->arch.nmi_pending;
+	events->nmi.masked = kvm_x86_ops->get_nmi_mask(vcpu);
+
+	events->sipi_vector = vcpu->arch.sipi_vector;
+
+	events->flags = 0;
+
+	vcpu_put(vcpu);
+}
+
+static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
+					      struct kvm_vcpu_events *events)
+{
+	if (events->flags)
+		return -EINVAL;
+
+	vcpu_load(vcpu);
+
+	vcpu->arch.exception.pending = events->exception.injected;
+	vcpu->arch.exception.nr = events->exception.nr;
+	vcpu->arch.exception.has_error_code = events->exception.has_error_code;
+	vcpu->arch.exception.error_code = events->exception.error_code;
+
+	vcpu->arch.interrupt.pending = events->interrupt.injected;
+	vcpu->arch.interrupt.nr = events->interrupt.nr;
+	vcpu->arch.interrupt.soft = events->interrupt.soft;
+	if (vcpu->arch.interrupt.pending && irqchip_in_kernel(vcpu->kvm))
+		kvm_pic_clear_isr_ack(vcpu->kvm);
+
+	vcpu->arch.nmi_injected = events->nmi.injected;
+	vcpu->arch.nmi_pending = events->nmi.pending;
+	kvm_x86_ops->set_nmi_mask(vcpu, events->nmi.masked);
+
+	vcpu->arch.sipi_vector = events->sipi_vector;
+
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -2038,6 +2094,27 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&mce, argp, sizeof mce))
 			goto out;
 		r = kvm_vcpu_ioctl_x86_set_mce(vcpu, &mce);
+		break;
+	}
+	case KVM_GET_VCPU_EVENTS: {
+		struct kvm_vcpu_events events;
+
+		kvm_vcpu_ioctl_x86_get_vcpu_events(vcpu, &events);
+
+		r = -EFAULT;
+		if (copy_to_user(argp, &events, sizeof(struct kvm_vcpu_events)))
+			break;
+		r = 0;
+		break;
+	}
+	case KVM_SET_VCPU_EVENTS: {
+		struct kvm_vcpu_events events;
+
+		r = -EFAULT;
+		if (copy_from_user(&events, argp, sizeof(struct kvm_vcpu_events)))
+			break;
+
+		r = kvm_vcpu_ioctl_x86_set_vcpu_events(vcpu, &events);
 		break;
 	}
 	default:

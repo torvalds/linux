@@ -2639,6 +2639,34 @@ static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
 				GUEST_INTR_STATE_NMI));
 }
 
+static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
+{
+	if (!cpu_has_virtual_nmis())
+		return to_vmx(vcpu)->soft_vnmi_blocked;
+	else
+		return !!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
+			  GUEST_INTR_STATE_NMI);
+}
+
+static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (!cpu_has_virtual_nmis()) {
+		if (vmx->soft_vnmi_blocked != masked) {
+			vmx->soft_vnmi_blocked = masked;
+			vmx->vnmi_blocked_time = 0;
+		}
+	} else {
+		if (masked)
+			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+				      GUEST_INTR_STATE_NMI);
+		else
+			vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+					GUEST_INTR_STATE_NMI);
+	}
+}
+
 static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	return (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) &&
@@ -3985,6 +4013,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.queue_exception = vmx_queue_exception,
 	.interrupt_allowed = vmx_interrupt_allowed,
 	.nmi_allowed = vmx_nmi_allowed,
+	.get_nmi_mask = vmx_get_nmi_mask,
+	.set_nmi_mask = vmx_set_nmi_mask,
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,

@@ -489,6 +489,9 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_ADJUST_CLOCK 39
 #define KVM_CAP_INTERNAL_ERROR_DATA 40
+#ifdef __KVM_HAVE_VCPU_EVENTS
+#define KVM_CAP_VCPU_EVENTS 41
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -672,6 +675,9 @@ struct kvm_clock_data {
 /* IA64 stack access */
 #define KVM_IA64_VCPU_GET_STACK   _IOR(KVMIO,  0x9a, void *)
 #define KVM_IA64_VCPU_SET_STACK   _IOW(KVMIO,  0x9b, void *)
+/* Available with KVM_CAP_VCPU_EVENTS */
+#define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
+#define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
