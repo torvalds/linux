@@ -1269,17 +1269,12 @@ repeat:
 	for ( ; table->convert; table++) {
 		int len = 0;
 
-		/* Use the well known sysctl number to proc name mapping */
-		if (ctl_name == table->ctl_name) {
-			len = strlen(table->procname);
-			memcpy(path, table->procname, len);
-		}
-#ifdef CONFIG_NET
 		/*
 		 * For a wild card entry map from ifindex to network
 		 * device name.
 		 */
-		else if (!table->ctl_name) {
+		if (!table->ctl_name) {
+#ifdef CONFIG_NET
 			struct net *net = current->nsproxy->net_ns;
 			struct net_device *dev;
 			dev = dev_get_by_index(net, ctl_name);
@@ -1288,8 +1283,12 @@ repeat:
 				memcpy(path, dev->name, len);
 				dev_put(dev);
 			}
-		}
 #endif
+		/* Use the well known sysctl number to proc name mapping */
+		} else if (ctl_name == table->ctl_name) {
+			len = strlen(table->procname);
+			memcpy(path, table->procname, len);
+		}
 		if (len) {
 			path += len;
 			if (table->child) {
