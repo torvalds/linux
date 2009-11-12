@@ -796,6 +796,47 @@ static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
+static struct bfin5xx_spi_chip adf7021_spi_chip_info = {
+	.bits_per_word = 16,
+	.cs_gpio = GPIO_PF10,
+};
+
+#include <linux/spi/adf702x.h>
+#define TXREG 0x0160A470
+static const u32 adf7021_regs[] = {
+	0x09608FA0,
+	0x00575011,
+	0x00A7F092,
+	0x2B141563,
+	0x81F29E94,
+	0x00003155,
+	0x050A4F66,
+	0x00000007,
+	0x00000008,
+	0x000231E9,
+	0x3296354A,
+	0x891A2B3B,
+	0x00000D9C,
+	0x0000000D,
+	0x0000000E,
+	0x0000000F,
+};
+
+static struct adf702x_platform_data adf7021_platform_data = {
+	.regs_base = (void *)SPORT1_TCR1,
+	.dma_ch_rx = CH_SPORT1_RX,
+	.dma_ch_tx = CH_SPORT1_TX,
+	.irq_sport_err = IRQ_SPORT1_ERROR,
+	.gpio_int_rfs = GPIO_PF8,
+	.pin_req = {P_SPORT1_DTPRI, P_SPORT1_RFS, P_SPORT1_DRPRI,
+			P_SPORT1_RSCLK, P_SPORT1_TSCLK, 0},
+	.adf702x_model = MODEL_ADF7021,
+	.adf702x_regs = adf7021_regs,
+	.tx_reg = TXREG,
+};
+#endif
+
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 
@@ -986,6 +1027,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
+#if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
+	{
+		.modalias = "adf702x",
+		.max_speed_hz = 16000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 0,	/* GPIO controlled SSEL */
+		.controller_data = &adf7021_spi_chip_info,
+		.platform_data = &adf7021_platform_data,
+		.mode = SPI_MODE_0,
+	},
+#endif
+
 };
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
