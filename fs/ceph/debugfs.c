@@ -8,6 +8,8 @@
 #include "super.h"
 #include "mds_client.h"
 
+#ifdef CONFIG_DEBUG_FS
+
 /*
  * Implement /sys/kernel/debug/ceph fun
  *
@@ -423,3 +425,24 @@ void ceph_debugfs_client_cleanup(struct ceph_client *client)
 	debugfs_remove(client->debugfs_dir);
 }
 
+#else  // CONFIG_DEBUG_FS
+
+int __init ceph_debugfs_init(void)
+{
+	return 0;
+}
+
+void ceph_debugfs_cleanup(void)
+{
+}
+
+int ceph_debugfs_client_init(struct ceph_client *client)
+{
+	return 0;
+}
+
+void ceph_debugfs_client_cleanup(struct ceph_client *client)
+{
+}
+
+#endif  // CONFIG_DEBUG_FS

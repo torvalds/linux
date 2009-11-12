@@ -83,7 +83,9 @@ struct ceph_osd_client {
 	struct rb_root         requests;      /* pending requests */
 	int                    num_requests;
 	struct delayed_work    timeout_work;
+#ifdef CONFIG_DEBUG_FS
 	struct dentry 	       *debugfs_file;
+#endif
 
 	mempool_t              *req_mempool;
 

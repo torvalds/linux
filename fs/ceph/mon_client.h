@@ -78,7 +78,9 @@ struct ceph_mon_client {
 	int want_next_osdmap; /* 1 = want, 2 = want+asked */
 	u32 have_osdmap, have_mdsmap;
 
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_file;
+#endif
 };
 
 extern struct ceph_monmap *ceph_monmap_decode(void *p, void *end);

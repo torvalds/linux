@@ -256,7 +256,9 @@ struct ceph_mds_client {
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
 
+#ifdef CONFIG_DEBUG_FS
 	struct dentry 	  *debugfs_file;
+#endif
 
 	spinlock_t	  dentry_lru_lock;
 	struct list_head  dentry_lru;

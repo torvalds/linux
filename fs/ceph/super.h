@@ -112,9 +112,11 @@ static inline unsigned long time_sub(unsigned long a, unsigned long b)
  */
 struct ceph_client {
 	__s64 whoami;                   /* my client number */
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_monmap;
 	struct dentry *debugfs_mdsmap, *debugfs_osdmap;
 	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
+#endif
 
 	struct mutex mount_mutex;       /* serialize mount attempts */
 	struct ceph_mount_args *mount_args;
