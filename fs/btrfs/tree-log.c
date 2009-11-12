@@ -930,6 +930,17 @@ out_nowrite:
 	return 0;
 }
 
+static int insert_orphan_item(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root, u64 offset)
+{
+	int ret;
+	ret = btrfs_find_orphan_item(root, offset);
+	if (ret > 0)
+		ret = btrfs_insert_orphan_item(trans, root, offset);
+	return ret;
+}
+
+
 /*
  * There are a few corners where the link count of the file can't
  * be properly maintained during replay.  So, instead of adding
@@ -997,9 +1008,13 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 	}
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 
-	if (inode->i_nlink == 0 && S_ISDIR(inode->i_mode)) {
-		ret = replay_dir_deletes(trans, root, NULL, path,
-					 inode->i_ino, 1);
+	if (inode->i_nlink == 0) {
+		if (S_ISDIR(inode->i_mode)) {
+			ret = replay_dir_deletes(trans, root, NULL, path,
+						 inode->i_ino, 1);
+			BUG_ON(ret);
+		}
+		ret = insert_orphan_item(trans, root, inode->i_ino);
 		BUG_ON(ret);
 	}
 	btrfs_free_path(path);
@@ -1587,7 +1602,6 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		/* inode keys are done during the first stage */
 		if (key.type == BTRFS_INODE_ITEM_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_INODES) {
-			struct inode *inode;
 			struct btrfs_inode_item *inode_item;
 			u32 mode;
 
@@ -1603,31 +1617,16 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					     eb, i, &key);
 			BUG_ON(ret);
 
-			/* for regular files, truncate away
-			 * extents past the new EOF
+			/* for regular files, make sure corresponding
+			 * orhpan item exist. extents past the new EOF
+			 * will be truncated later by orphan cleanup.
 			 */
 			if (S_ISREG(mode)) {
-				inode = read_one_inode(root,
-						       key.objectid);
-				BUG_ON(!inode);
-
-				ret = btrfs_truncate_inode_items(wc->trans,
-					root, inode, inode->i_size,
-					BTRFS_EXTENT_DATA_KEY);
+				ret = insert_orphan_item(wc->trans, root,
+							 key.objectid);
 				BUG_ON(ret);
-
-				/* if the nlink count is zero here, the iput
-				 * will free the inode.  We bump it to make
-				 * sure it doesn't get freed until the link
-				 * count fixup is done
-				 */
-				if (inode->i_nlink == 0) {
-					btrfs_inc_nlink(inode);
-					btrfs_update_inode(wc->trans,
-							   root, inode);
-				}
-				iput(inode);
 			}
+
 			ret = link_to_fixup_dir(wc->trans, root,
 						path, key.objectid);
 			BUG_ON(ret);

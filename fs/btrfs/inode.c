@@ -2093,15 +2093,16 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 	struct inode *inode;
 	int ret = 0, nr_unlink = 0, nr_truncate = 0;
 
-	path = btrfs_alloc_path();
-	if (!path)
+	if (!xchg(&root->clean_orphans, 0))
 		return;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
 	path->reada = -1;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
 	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
 	key.offset = (u64)-1;
-
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -3298,6 +3299,11 @@ void btrfs_delete_inode(struct inode *inode)
 	}
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
+	if (root->fs_info->log_root_recovering) {
+		BUG_ON(!list_empty(&BTRFS_I(inode)->i_orphan));
+		goto no_delete;
+	}
+
 	if (inode->i_nlink > 0) {
 		BUG_ON(btrfs_root_refs(&root->root_item) != 0);
 		goto no_delete;
@@ -3704,6 +3710,13 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		inode = btrfs_iget(dir->i_sb, &location, sub_root);
 	}
 	srcu_read_unlock(&root->fs_info->subvol_srcu, index);
+
+	if (root != sub_root) {
+		down_read(&root->fs_info->cleanup_work_sem);
+		if (!(inode->i_sb->s_flags & MS_RDONLY))
+			btrfs_orphan_cleanup(sub_root);
+		up_read(&root->fs_info->cleanup_work_sem);
+	}
 
 	return inode;
 }
