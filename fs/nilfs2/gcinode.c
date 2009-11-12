@@ -266,7 +266,6 @@ struct inode *nilfs_gc_iget(struct the_nilfs *nilfs, ino_t ino, __u64 cno)
  */
 void nilfs_clear_gcinode(struct inode *inode)
 {
-	nilfs_mdt_clear(inode);
 	nilfs_mdt_destroy(inode);
 }
 

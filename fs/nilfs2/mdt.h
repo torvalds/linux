@@ -79,7 +79,6 @@ struct inode *nilfs_mdt_new(struct the_nilfs *, struct super_block *, ino_t,
 struct inode *nilfs_mdt_new_common(struct the_nilfs *, struct super_block *,
 				   ino_t, gfp_t, size_t);
 void nilfs_mdt_destroy(struct inode *);
-void nilfs_mdt_clear(struct inode *);
 void nilfs_mdt_set_entry_size(struct inode *, unsigned, unsigned);
 void nilfs_mdt_set_shadow(struct inode *, struct inode *);
 

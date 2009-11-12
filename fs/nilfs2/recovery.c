@@ -770,14 +770,8 @@ int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
 		nilfs_finish_roll_forward(nilfs, sbi, ri);
 	}
 
-	nilfs_detach_checkpoint(sbi);
-	return 0;
-
  failed:
 	nilfs_detach_checkpoint(sbi);
-	nilfs_mdt_clear(nilfs->ns_cpfile);
-	nilfs_mdt_clear(nilfs->ns_sufile);
-	nilfs_mdt_clear(nilfs->ns_dat);
 	return err;
 }
 

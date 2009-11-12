@@ -407,7 +407,6 @@ void nilfs_detach_checkpoint(struct nilfs_sb_info *sbi)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 
-	nilfs_mdt_clear(sbi->s_ifile);
 	nilfs_mdt_destroy(sbi->s_ifile);
 	sbi->s_ifile = NULL;
 	down_write(&nilfs->ns_super_sem);

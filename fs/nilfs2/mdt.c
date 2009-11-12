@@ -553,20 +553,23 @@ void nilfs_mdt_set_shadow(struct inode *orig, struct inode *shadow)
 		&NILFS_I(orig)->i_btnode_cache;
 }
 
-void nilfs_mdt_clear(struct inode *inode)
+static void nilfs_mdt_clear(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
 	invalidate_mapping_pages(inode->i_mapping, 0, -1);
 	truncate_inode_pages(inode->i_mapping, 0);
 
-	nilfs_bmap_clear(ii->i_bmap);
+	if (test_bit(NILFS_I_BMAP, &ii->i_state))
+		nilfs_bmap_clear(ii->i_bmap);
 	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
 }
 
 void nilfs_mdt_destroy(struct inode *inode)
 {
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	nilfs_mdt_clear(inode);
 
 	kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
 	kfree(mdi);

@@ -146,13 +146,9 @@ void put_nilfs(struct the_nilfs *nilfs)
 
 	might_sleep();
 	if (nilfs_loaded(nilfs)) {
-		nilfs_mdt_clear(nilfs->ns_sufile);
 		nilfs_mdt_destroy(nilfs->ns_sufile);
-		nilfs_mdt_clear(nilfs->ns_cpfile);
 		nilfs_mdt_destroy(nilfs->ns_cpfile);
-		nilfs_mdt_clear(nilfs->ns_dat);
 		nilfs_mdt_destroy(nilfs->ns_dat);
-		/* XXX: how and when to clear nilfs->ns_gc_dat? */
 		nilfs_mdt_destroy(nilfs->ns_gc_dat);
 	}
 	if (nilfs_init(nilfs)) {
