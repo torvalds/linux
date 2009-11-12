@@ -143,6 +143,7 @@ struct gspca_dev {
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
 	unsigned ctrl_dis;		/* disabled controls (bit map) */
+	unsigned ctrl_inac;		/* inactive controls (bit map) */
 
 #define USB_BUF_SZ 64
 	__u8 *usb_buf;				/* buffer for USB exchanges */
