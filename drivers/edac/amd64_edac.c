@@ -1017,10 +1017,11 @@ static enum mem_type amd64_determine_memory_type(struct amd64_pvt *pvt)
 	enum mem_type type;
 
 	if (boot_cpu_data.x86 >= 0x10 || pvt->ext_model >= K8_REV_F) {
-		/* Rev F and later */
-		type = (pvt->dclr0 & BIT(16)) ? MEM_DDR2 : MEM_RDDR2;
+		if (pvt->dchr0 & DDR3_MODE)
+			type = (pvt->dclr0 & BIT(16)) ?	MEM_DDR3 : MEM_RDDR3;
+		else
+			type = (pvt->dclr0 & BIT(16)) ? MEM_DDR2 : MEM_RDDR2;
 	} else {
-		/* Rev E and earlier */
 		type = (pvt->dclr0 & BIT(18)) ? MEM_DDR : MEM_RDDR;
 	}
 
