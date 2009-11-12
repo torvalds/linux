@@ -184,9 +184,9 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 		radeon_combios_encoder_crtc_scratch_regs(encoder, radeon_crtc->crtc_id);
 }
 
-static bool radeon_legacy_lvds_mode_fixup(struct drm_encoder *encoder,
-					  struct drm_display_mode *mode,
-					  struct drm_display_mode *adjusted_mode)
+static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
+				     struct drm_display_mode *mode,
+				     struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
@@ -194,15 +194,22 @@ static bool radeon_legacy_lvds_mode_fixup(struct drm_encoder *encoder,
 	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	if (radeon_encoder->rmx_type != RMX_OFF)
-		radeon_rmx_mode_fixup(encoder, mode, adjusted_mode);
+	/* get the native mode for LVDS */
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
+		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+		int mode_id = adjusted_mode->base.id;
+		*adjusted_mode = *native_mode;
+		adjusted_mode->hdisplay = mode->hdisplay;
+		adjusted_mode->vdisplay = mode->vdisplay;
+		adjusted_mode->base.id = mode_id;
+	}
 
 	return true;
 }
 
 static const struct drm_encoder_helper_funcs radeon_legacy_lvds_helper_funcs = {
 	.dpms = radeon_legacy_lvds_dpms,
-	.mode_fixup = radeon_legacy_lvds_mode_fixup,
+	.mode_fixup = radeon_legacy_mode_fixup,
 	.prepare = radeon_legacy_lvds_prepare,
 	.mode_set = radeon_legacy_lvds_mode_set,
 	.commit = radeon_legacy_lvds_commit,
@@ -213,17 +220,6 @@ static const struct drm_encoder_helper_funcs radeon_legacy_lvds_helper_funcs = {
 static const struct drm_encoder_funcs radeon_legacy_lvds_enc_funcs = {
 	.destroy = radeon_enc_destroy,
 };
-
-static bool radeon_legacy_primary_dac_mode_fixup(struct drm_encoder *encoder,
-						 struct drm_display_mode *mode,
-						 struct drm_display_mode *adjusted_mode)
-{
-	/* set the active encoder to connector routing */
-	radeon_encoder_set_active_device(encoder);
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	return true;
-}
 
 static void radeon_legacy_primary_dac_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -410,7 +406,7 @@ static enum drm_connector_status radeon_legacy_primary_dac_detect(struct drm_enc
 
 static const struct drm_encoder_helper_funcs radeon_legacy_primary_dac_helper_funcs = {
 	.dpms = radeon_legacy_primary_dac_dpms,
-	.mode_fixup = radeon_legacy_primary_dac_mode_fixup,
+	.mode_fixup = radeon_legacy_mode_fixup,
 	.prepare = radeon_legacy_primary_dac_prepare,
 	.mode_set = radeon_legacy_primary_dac_mode_set,
 	.commit = radeon_legacy_primary_dac_commit,
@@ -422,17 +418,6 @@ static const struct drm_encoder_helper_funcs radeon_legacy_primary_dac_helper_fu
 static const struct drm_encoder_funcs radeon_legacy_primary_dac_enc_funcs = {
 	.destroy = radeon_enc_destroy,
 };
-
-static bool radeon_legacy_tmds_int_mode_fixup(struct drm_encoder *encoder,
-					      struct drm_display_mode *mode,
-					      struct drm_display_mode *adjusted_mode)
-{
-	/* set the active encoder to connector routing */
-	radeon_encoder_set_active_device(encoder);
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	return true;
-}
 
 static void radeon_legacy_tmds_int_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -585,7 +570,7 @@ static void radeon_legacy_tmds_int_mode_set(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs radeon_legacy_tmds_int_helper_funcs = {
 	.dpms = radeon_legacy_tmds_int_dpms,
-	.mode_fixup = radeon_legacy_tmds_int_mode_fixup,
+	.mode_fixup = radeon_legacy_mode_fixup,
 	.prepare = radeon_legacy_tmds_int_prepare,
 	.mode_set = radeon_legacy_tmds_int_mode_set,
 	.commit = radeon_legacy_tmds_int_commit,
@@ -596,17 +581,6 @@ static const struct drm_encoder_helper_funcs radeon_legacy_tmds_int_helper_funcs
 static const struct drm_encoder_funcs radeon_legacy_tmds_int_enc_funcs = {
 	.destroy = radeon_enc_destroy,
 };
-
-static bool radeon_legacy_tmds_ext_mode_fixup(struct drm_encoder *encoder,
-					      struct drm_display_mode *mode,
-					      struct drm_display_mode *adjusted_mode)
-{
-	/* set the active encoder to connector routing */
-	radeon_encoder_set_active_device(encoder);
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	return true;
-}
 
 static void radeon_legacy_tmds_ext_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -742,7 +716,7 @@ static void radeon_ext_tmds_enc_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs radeon_legacy_tmds_ext_helper_funcs = {
 	.dpms = radeon_legacy_tmds_ext_dpms,
-	.mode_fixup = radeon_legacy_tmds_ext_mode_fixup,
+	.mode_fixup = radeon_legacy_mode_fixup,
 	.prepare = radeon_legacy_tmds_ext_prepare,
 	.mode_set = radeon_legacy_tmds_ext_mode_set,
 	.commit = radeon_legacy_tmds_ext_commit,
@@ -753,17 +727,6 @@ static const struct drm_encoder_helper_funcs radeon_legacy_tmds_ext_helper_funcs
 static const struct drm_encoder_funcs radeon_legacy_tmds_ext_enc_funcs = {
 	.destroy = radeon_ext_tmds_enc_destroy,
 };
-
-static bool radeon_legacy_tv_dac_mode_fixup(struct drm_encoder *encoder,
-					    struct drm_display_mode *mode,
-					    struct drm_display_mode *adjusted_mode)
-{
-	/* set the active encoder to connector routing */
-	radeon_encoder_set_active_device(encoder);
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	return true;
-}
 
 static void radeon_legacy_tv_dac_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -1281,7 +1244,7 @@ static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder 
 
 static const struct drm_encoder_helper_funcs radeon_legacy_tv_dac_helper_funcs = {
 	.dpms = radeon_legacy_tv_dac_dpms,
-	.mode_fixup = radeon_legacy_tv_dac_mode_fixup,
+	.mode_fixup = radeon_legacy_mode_fixup,
 	.prepare = radeon_legacy_tv_dac_prepare,
 	.mode_set = radeon_legacy_tv_dac_mode_set,
 	.commit = radeon_legacy_tv_dac_commit,

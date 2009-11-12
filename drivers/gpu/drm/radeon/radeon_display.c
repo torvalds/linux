@@ -750,9 +750,17 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 		if (first) {
-			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			/* set scaling */
+			if (radeon_encoder->rmx_type == RMX_OFF)
+				radeon_crtc->rmx_type = RMX_OFF;
+			else if (mode->hdisplay < radeon_encoder->native_mode.hdisplay ||
+				 mode->vdisplay < radeon_encoder->native_mode.vdisplay)
+				radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			else
+				radeon_crtc->rmx_type = RMX_OFF;
+			/* copy native mode */
 			memcpy(&radeon_crtc->native_mode,
-				&radeon_encoder->native_mode,
+			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
 			first = false;
 		} else {

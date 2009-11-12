@@ -473,9 +473,6 @@ void radeon_get_clock_info(struct drm_device *dev);
 extern bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev);
 extern bool radeon_get_atom_connector_info_from_supported_devices_table(struct drm_device *dev);
 
-void radeon_rmx_mode_fixup(struct drm_encoder *encoder,
-			   struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
 void radeon_enc_destroy(struct drm_encoder *encoder);
 void radeon_copy_fb(struct drm_device *dev, struct drm_gem_object *dst_obj);
 void radeon_combios_asic_init(struct drm_device *dev);
