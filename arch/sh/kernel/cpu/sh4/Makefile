@@ -10,9 +10,9 @@ obj-$(CONFIG_SH_FPU)			+= fpu.o softfloat.o
 obj-$(CONFIG_SH_STORE_QUEUES)		+= sq.o
 
 # Perf events
-obj-$(CONFIG_CPU_SUBTYPE_SH7750)	+= perf_event.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7750S)	+= perf_event.o
-obj-$(CONFIG_CPU_SUBTYPE_SH7091)	+= perf_event.o
+perf-$(CONFIG_CPU_SUBTYPE_SH7750)	:= perf_event.o
+perf-$(CONFIG_CPU_SUBTYPE_SH7750S)	:= perf_event.o
+perf-$(CONFIG_CPU_SUBTYPE_SH7091)	:= perf_event.o
 
 # CPU subtype setup
 obj-$(CONFIG_CPU_SUBTYPE_SH7750)	+= setup-sh7750.o
@@ -32,4 +32,5 @@ endif
 # Additional clocks by subtype
 clock-$(CONFIG_CPU_SUBTYPE_SH4_202)	+= clock-sh4-202.o
 
-obj-y	+= $(clock-y)
+obj-y					+= $(clock-y)
+obj-$(CONFIG_PERF_EVENTS)		+= $(perf-y)
