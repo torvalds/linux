@@ -755,7 +755,7 @@ complete_scsi_command( CommandList_struct *cp, int timeout, __u32 tag)
                         			cp,  
 						ei->ScsiStatus); 
 #endif
-					cmd->result |= (ei->ScsiStatus < 1);
+					cmd->result |= (ei->ScsiStatus << 1);
                 		}
 				else {  /* scsi status is zero??? How??? */
 					
