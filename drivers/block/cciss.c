@@ -422,12 +422,9 @@ cciss_proc_write(struct file *file, const char __user *buf,
 	if (strncmp(ENGAGE_SCSI, buffer, sizeof ENGAGE_SCSI - 1) == 0) {
 		struct seq_file *seq = file->private_data;
 		ctlr_info_t *h = seq->private;
-		int rc;
 
-		rc = cciss_engage_scsi(h->ctlr);
-		if (rc != 0)
-			err = -rc;
-		else
+		err = cciss_engage_scsi(h->ctlr);
+		if (err == 0)
 			err = length;
 	} else
 #endif /* CONFIG_CISS_SCSI_TAPE */
