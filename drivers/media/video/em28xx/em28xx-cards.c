@@ -2532,6 +2532,9 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		dev->chip_id = retval;
 
 		switch (dev->chip_id) {
+		case CHIP_ID_EM2800:
+			em28xx_info("chip ID is em2800\n");
+			break;
 		case CHIP_ID_EM2710:
 			em28xx_info("chip ID is em2710\n");
 			break;

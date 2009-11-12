@@ -192,6 +192,7 @@
 
 /* FIXME: Need to be populated with the other chip ID's */
 enum em28xx_chip_id {
+	CHIP_ID_EM2800 = 7,
 	CHIP_ID_EM2710 = 17,
 	CHIP_ID_EM2820 = 18,	/* Also used by some em2710 */
 	CHIP_ID_EM2840 = 20,
