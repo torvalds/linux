@@ -289,23 +289,20 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	 *  connection status 1 for connecting the handler, 0 for disconnecting
 	 *  the handler (Passed as a parameter)
 	 */
-	args[0] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	args[0] =
+	    acpi_ut_create_integer_object((u64) region_obj->region.space_id);
 	if (!args[0]) {
 		status = AE_NO_MEMORY;
 		goto cleanup1;
 	}
 
-	args[1] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	args[1] = acpi_ut_create_integer_object((u64) function);
 	if (!args[1]) {
 		status = AE_NO_MEMORY;
 		goto cleanup2;
 	}
 
-	/* Setup the parameter objects */
-
-	args[0]->integer.value = region_obj->region.space_id;
-	args[1]->integer.value = function;
-	args[2] = NULL;
+	args[2] = NULL;		/* Terminate list */
 
 	/* Execute the method, no return value */
 

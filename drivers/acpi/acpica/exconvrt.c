@@ -167,7 +167,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	/* Create a new integer */
 
-	return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	return_desc = acpi_ut_create_integer_object(result);
 	if (!return_desc) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -177,7 +177,6 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	/* Save the Result */
 
-	return_desc->integer.value = result;
 	acpi_ex_truncate_for32bit_table(return_desc);
 	*result_desc = return_desc;
 	return_ACPI_STATUS(AE_OK);
