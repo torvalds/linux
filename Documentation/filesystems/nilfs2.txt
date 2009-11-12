@@ -49,8 +49,7 @@ Mount options
 NILFS2 supports the following mount options:
 (*) == default
 
-barrier=on(*)		This enables/disables barriers. barrier=off disables
-			it, barrier=on enables it.
+nobarrier		Disables barriers.
 errors=continue(*)	Keep going on a filesystem error.
 errors=remount-ro	Remount the filesystem read-only on an error.
 errors=panic		Panic and halt the machine if an error occurs.
