@@ -316,11 +316,11 @@ static void print_audio_io(struct snd_info_buffer *buffer,
 		for (type = 0; type < 2; type++) {
 			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
 				continue;
-			snd_iprintf(buffer, "  Device: name=\"%s\", type=\"%s\", device=%i, substream=%i\n",
-				cpcm->name,
-				snd_hda_pcm_type_name[cpcm->pcm_type],
-				cpcm->pcm->device,
-				cpcm->pcm->streams[type].substream->number);
+			snd_iprintf(buffer, "  Device: name=\"%s\", "
+				    "type=\"%s\", device=%i\n",
+				    cpcm->name,
+				    snd_hda_pcm_type_name[cpcm->pcm_type],
+				    cpcm->pcm->device);
 		}
 	}
 	conv = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
