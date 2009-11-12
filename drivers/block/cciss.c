@@ -3386,13 +3386,11 @@ static int scan_thread(void *data)
 			h->busy_scanning = 1;
 			mutex_unlock(&scan_mutex);
 
-			if (h) {
-				rebuild_lun_table(h, 0, 0);
-				complete_all(&h->scan_wait);
-				mutex_lock(&scan_mutex);
-				h->busy_scanning = 0;
-				mutex_unlock(&scan_mutex);
-			}
+			rebuild_lun_table(h, 0, 0);
+			complete_all(&h->scan_wait);
+			mutex_lock(&scan_mutex);
+			h->busy_scanning = 0;
+			mutex_unlock(&scan_mutex);
 		}
 	}
 
