@@ -188,8 +188,18 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_free_path(path);
 
+	/*
+	 * we're an inline extent, so nobody can
+	 * extend the file past i_size without locking
+	 * a page we already have locked.
+	 *
+	 * We must do any isize and inode updates
+	 * before we unlock the pages.  Otherwise we
+	 * could end up racing with unlink.
+	 */
 	BTRFS_I(inode)->disk_i_size = inode->i_size;
 	btrfs_update_inode(trans, root, inode);
+
 	return 0;
 fail:
 	btrfs_free_path(path);
@@ -415,7 +425,6 @@ again:
 						    start, end,
 						    total_compressed, pages);
 		}
-		btrfs_end_transaction(trans, root);
 		if (ret == 0) {
 			/*
 			 * inline extent creation worked, we don't need
@@ -429,9 +438,11 @@ again:
 			     EXTENT_CLEAR_DELALLOC |
 			     EXTENT_CLEAR_ACCOUNTING |
 			     EXTENT_SET_WRITEBACK | EXTENT_END_WRITEBACK);
-			ret = 0;
+
+			btrfs_end_transaction(trans, root);
 			goto free_pages_out;
 		}
+		btrfs_end_transaction(trans, root);
 	}
 
 	if (will_compress) {
@@ -542,7 +553,6 @@ static noinline int submit_compressed_extents(struct inode *inode,
 	if (list_empty(&async_cow->extents))
 		return 0;
 
-	trans = btrfs_join_transaction(root, 1);
 
 	while (!list_empty(&async_cow->extents)) {
 		async_extent = list_entry(async_cow->extents.next,
@@ -589,19 +599,15 @@ retry:
 		lock_extent(io_tree, async_extent->start,
 			    async_extent->start + async_extent->ram_size - 1,
 			    GFP_NOFS);
-		/*
-		 * here we're doing allocation and writeback of the
-		 * compressed pages
-		 */
-		btrfs_drop_extent_cache(inode, async_extent->start,
-					async_extent->start +
-					async_extent->ram_size - 1, 0);
 
+		trans = btrfs_join_transaction(root, 1);
 		ret = btrfs_reserve_extent(trans, root,
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
 					   0, alloc_hint,
 					   (u64)-1, &ins, 1);
+		btrfs_end_transaction(trans, root);
+
 		if (ret) {
 			int i;
 			for (i = 0; i < async_extent->nr_pages; i++) {
@@ -616,6 +622,14 @@ retry:
 				      async_extent->ram_size - 1, GFP_NOFS);
 			goto retry;
 		}
+
+		/*
+		 * here we're doing allocation and writeback of the
+		 * compressed pages
+		 */
+		btrfs_drop_extent_cache(inode, async_extent->start,
+					async_extent->start +
+					async_extent->ram_size - 1, 0);
 
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = async_extent->start;
@@ -648,8 +662,6 @@ retry:
 					       BTRFS_ORDERED_COMPRESSED);
 		BUG_ON(ret);
 
-		btrfs_end_transaction(trans, root);
-
 		/*
 		 * clear dirty, set writeback and unlock the pages.
 		 */
@@ -671,13 +683,11 @@ retry:
 				    async_extent->nr_pages);
 
 		BUG_ON(ret);
-		trans = btrfs_join_transaction(root, 1);
 		alloc_hint = ins.objectid + ins.offset;
 		kfree(async_extent);
 		cond_resched();
 	}
 
-	btrfs_end_transaction(trans, root);
 	return 0;
 }
 
@@ -741,6 +751,7 @@ static noinline int cow_file_range(struct inode *inode,
 				     EXTENT_CLEAR_DIRTY |
 				     EXTENT_SET_WRITEBACK |
 				     EXTENT_END_WRITEBACK);
+
 			*nr_written = *nr_written +
 			     (end - start + PAGE_CACHE_SIZE) / PAGE_CACHE_SIZE;
 			*page_started = 1;
@@ -1727,17 +1738,26 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 		}
 	}
 
-	trans = btrfs_join_transaction(root, 1);
-
 	if (!ordered_extent)
 		ordered_extent = btrfs_lookup_ordered_extent(inode, start);
 	BUG_ON(!ordered_extent);
-	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags))
-		goto nocow;
+	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
+		BUG_ON(!list_empty(&ordered_extent->list));
+		ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
+		if (!ret) {
+			trans = btrfs_join_transaction(root, 1);
+			ret = btrfs_update_inode(trans, root, inode);
+			BUG_ON(ret);
+			btrfs_end_transaction(trans, root);
+		}
+		goto out;
+	}
 
 	lock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
 		    GFP_NOFS);
+
+	trans = btrfs_join_transaction(root, 1);
 
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
 		compressed = 1;
@@ -1765,22 +1785,20 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	unlock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
 		    GFP_NOFS);
-nocow:
 	add_pending_csums(trans, inode, ordered_extent->file_offset,
 			  &ordered_extent->list);
 
-	mutex_lock(&BTRFS_I(inode)->extent_mutex);
-	btrfs_ordered_update_i_size(inode, ordered_extent);
-	btrfs_update_inode(trans, root, inode);
-	btrfs_remove_ordered_extent(inode, ordered_extent);
-	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
-
+	/* this also removes the ordered extent from the tree */
+	btrfs_ordered_update_i_size(inode, 0, ordered_extent);
+	ret = btrfs_update_inode(trans, root, inode);
+	BUG_ON(ret);
+	btrfs_end_transaction(trans, root);
+out:
 	/* once for us */
 	btrfs_put_ordered_extent(ordered_extent);
 	/* once for the tree */
 	btrfs_put_ordered_extent(ordered_extent);
 
-	btrfs_end_transaction(trans, root);
 	return 0;
 }
 
@@ -3562,7 +3580,6 @@ static noinline void init_btrfs_i(struct inode *inode)
 	INIT_LIST_HEAD(&BTRFS_I(inode)->ordered_operations);
 	RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
 	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
-	mutex_init(&BTRFS_I(inode)->extent_mutex);
 	mutex_init(&BTRFS_I(inode)->log_mutex);
 }
 
