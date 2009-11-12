@@ -425,3 +425,26 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 
 	return nvi;
 }
+
+/**
+ * nilfs_dat_new - create dat file
+ * @nilfs: nilfs object
+ * @entry_size: size of a dat entry
+ */
+struct inode *nilfs_dat_new(struct the_nilfs *nilfs, size_t entry_size)
+{
+	static struct lock_class_key dat_lock_key;
+	struct inode *dat;
+	int err;
+
+	dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO, 0);
+	if (dat) {
+		err = nilfs_palloc_init_blockgroup(dat, entry_size);
+		if (unlikely(err)) {
+			nilfs_mdt_destroy(dat);
+			return NULL;
+		}
+		lockdep_set_class(&NILFS_MDT(dat)->mi_sem, &dat_lock_key);
+	}
+	return dat;
+}

@@ -166,7 +166,6 @@ void put_nilfs(struct the_nilfs *nilfs)
 static int nilfs_load_super_root(struct the_nilfs *nilfs,
 				 struct nilfs_sb_info *sbi, sector_t sr_block)
 {
-	static struct lock_class_key dat_lock_key;
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
@@ -187,38 +186,23 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	inode_size = nilfs->ns_inode_size;
 
 	err = -ENOMEM;
-	nilfs->ns_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO, 0);
+	nilfs->ns_dat = nilfs_dat_new(nilfs, dat_entry_size);
 	if (unlikely(!nilfs->ns_dat))
 		goto failed;
 
-	nilfs->ns_gc_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO, 0);
+	nilfs->ns_gc_dat = nilfs_dat_new(nilfs, dat_entry_size);
 	if (unlikely(!nilfs->ns_gc_dat))
 		goto failed_dat;
 
-	nilfs->ns_cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO, 0);
+	nilfs->ns_cpfile = nilfs_cpfile_new(nilfs, checkpoint_size);
 	if (unlikely(!nilfs->ns_cpfile))
 		goto failed_gc_dat;
 
-	nilfs->ns_sufile = nilfs_mdt_new(nilfs, NULL, NILFS_SUFILE_INO, 0);
+	nilfs->ns_sufile = nilfs_sufile_new(nilfs, segment_usage_size);
 	if (unlikely(!nilfs->ns_sufile))
 		goto failed_cpfile;
 
-	err = nilfs_palloc_init_blockgroup(nilfs->ns_dat, dat_entry_size);
-	if (unlikely(err))
-		goto failed_sufile;
-
-	err = nilfs_palloc_init_blockgroup(nilfs->ns_gc_dat, dat_entry_size);
-	if (unlikely(err))
-		goto failed_sufile;
-
-	lockdep_set_class(&NILFS_MDT(nilfs->ns_dat)->mi_sem, &dat_lock_key);
-	lockdep_set_class(&NILFS_MDT(nilfs->ns_gc_dat)->mi_sem, &dat_lock_key);
-
 	nilfs_mdt_set_shadow(nilfs->ns_dat, nilfs->ns_gc_dat);
-	nilfs_mdt_set_entry_size(nilfs->ns_cpfile, checkpoint_size,
-				 sizeof(struct nilfs_cpfile_header));
-	nilfs_mdt_set_entry_size(nilfs->ns_sufile, segment_usage_size,
-				 sizeof(struct nilfs_sufile_header));
 
 	err = nilfs_mdt_read_inode_direct(
 		nilfs->ns_dat, bh_sr, NILFS_SR_DAT_OFFSET(inode_size));

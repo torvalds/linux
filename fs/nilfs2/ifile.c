@@ -148,3 +148,24 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
 	}
 	return err;
 }
+
+/**
+ * nilfs_ifile_new - create inode file
+ * @sbi: nilfs_sb_info struct
+ * @inode_size: size of an inode
+ */
+struct inode *nilfs_ifile_new(struct nilfs_sb_info *sbi, size_t inode_size)
+{
+	struct inode *ifile;
+	int err;
+
+	ifile = nilfs_mdt_new(sbi->s_nilfs, sbi->s_super, NILFS_IFILE_INO, 0);
+	if (ifile) {
+		err = nilfs_palloc_init_blockgroup(ifile, inode_size);
+		if (unlikely(err)) {
+			nilfs_mdt_destroy(ifile);
+			return NULL;
+		}
+	}
+	return ifile;
+}

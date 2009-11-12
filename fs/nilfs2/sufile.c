@@ -657,3 +657,19 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 	up_read(&NILFS_MDT(sufile)->mi_sem);
 	return ret;
 }
+
+/**
+ * nilfs_sufile_new - create sufile
+ * @nilfs: nilfs object
+ * @susize: size of a segment usage entry
+ */
+struct inode *nilfs_sufile_new(struct the_nilfs *nilfs, size_t susize)
+{
+	struct inode *sufile;
+
+	sufile = nilfs_mdt_new(nilfs, NULL, NILFS_SUFILE_INO, 0);
+	if (sufile)
+		nilfs_mdt_set_entry_size(sufile, susize,
+					 sizeof(struct nilfs_sufile_header));
+	return sufile;
+}

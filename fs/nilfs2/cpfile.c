@@ -926,3 +926,19 @@ int nilfs_cpfile_get_stat(struct inode *cpfile, struct nilfs_cpstat *cpstat)
 	up_read(&NILFS_MDT(cpfile)->mi_sem);
 	return ret;
 }
+
+/**
+ * nilfs_cpfile_new - create cpfile
+ * @nilfs: nilfs object
+ * @cpsize: size of a checkpoint entry
+ */
+struct inode *nilfs_cpfile_new(struct the_nilfs *nilfs, size_t cpsize)
+{
+	struct inode *cpfile;
+
+	cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO, 0);
+	if (cpfile)
+		nilfs_mdt_set_entry_size(cpfile, cpsize,
+					 sizeof(struct nilfs_cpfile_header));
+	return cpfile;
+}
