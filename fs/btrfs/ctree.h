@@ -859,8 +859,9 @@ struct btrfs_fs_info {
 	struct mutex ordered_operations_mutex;
 	struct rw_semaphore extent_commit_sem;
 
-	struct rw_semaphore subvol_sem;
+	struct rw_semaphore cleanup_work_sem;
 
+	struct rw_semaphore subvol_sem;
 	struct srcu_struct subvol_srcu;
 
 	struct list_head trans_list;
@@ -1034,12 +1035,12 @@ struct btrfs_root {
 	int ref_cows;
 	int track_dirty;
 	int in_radix;
+	int clean_orphans;
 
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
 	struct btrfs_key defrag_max;
 	int defrag_running;
-	int defrag_level;
 	char *name;
 	int in_sysfs;
 
