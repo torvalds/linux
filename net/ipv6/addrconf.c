@@ -3481,91 +3481,114 @@ enum addr_type_t
 	ANYCAST_ADDR,
 };
 
-static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
-			   enum addr_type_t type)
+/* called with rcu_read_lock() */
+static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
+			  struct netlink_callback *cb, enum addr_type_t type,
+			  int s_ip_idx, int *p_ip_idx)
 {
-	int idx, ip_idx;
-	int s_idx, s_ip_idx;
-	int err = 1;
-	struct net_device *dev;
-	struct inet6_dev *idev = NULL;
 	struct inet6_ifaddr *ifa;
 	struct ifmcaddr6 *ifmca;
 	struct ifacaddr6 *ifaca;
-	struct net *net = sock_net(skb->sk);
+	int err = 1;
+	int ip_idx = *p_ip_idx;
 
-	s_idx = cb->args[0];
-	s_ip_idx = ip_idx = cb->args[1];
-
-	idx = 0;
-	for_each_netdev(net, dev) {
-		if (idx < s_idx)
-			goto cont;
-		if (idx > s_idx)
-			s_ip_idx = 0;
-		ip_idx = 0;
-		if ((idev = in6_dev_get(dev)) == NULL)
-			goto cont;
-		read_lock_bh(&idev->lock);
-		switch (type) {
-		case UNICAST_ADDR:
-			/* unicast address incl. temp addr */
-			for (ifa = idev->addr_list; ifa;
-			     ifa = ifa->if_next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				err = inet6_fill_ifaddr(skb, ifa,
-							NETLINK_CB(cb->skb).pid,
-							cb->nlh->nlmsg_seq,
-							RTM_NEWADDR,
-							NLM_F_MULTI);
-				if (err <= 0)
-					break;
-			}
-			break;
-		case MULTICAST_ADDR:
-			/* multicast address */
-			for (ifmca = idev->mc_list; ifmca;
-			     ifmca = ifmca->next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				err = inet6_fill_ifmcaddr(skb, ifmca,
-							  NETLINK_CB(cb->skb).pid,
-							  cb->nlh->nlmsg_seq,
-							  RTM_GETMULTICAST,
-							  NLM_F_MULTI);
-				if (err <= 0)
-					break;
-			}
-			break;
-		case ANYCAST_ADDR:
-			/* anycast address */
-			for (ifaca = idev->ac_list; ifaca;
-			     ifaca = ifaca->aca_next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				err = inet6_fill_ifacaddr(skb, ifaca,
-							  NETLINK_CB(cb->skb).pid,
-							  cb->nlh->nlmsg_seq,
-							  RTM_GETANYCAST,
-							  NLM_F_MULTI);
-				if (err <= 0)
-					break;
-			}
-			break;
-		default:
-			break;
+	read_lock_bh(&idev->lock);
+	switch (type) {
+	case UNICAST_ADDR:
+		/* unicast address incl. temp addr */
+		for (ifa = idev->addr_list; ifa;
+		     ifa = ifa->if_next, ip_idx++) {
+			if (ip_idx < s_ip_idx)
+				continue;
+			err = inet6_fill_ifaddr(skb, ifa,
+						NETLINK_CB(cb->skb).pid,
+						cb->nlh->nlmsg_seq,
+						RTM_NEWADDR,
+						NLM_F_MULTI);
+			if (err <= 0)
+				break;
 		}
-		read_unlock_bh(&idev->lock);
-		in6_dev_put(idev);
-
-		if (err <= 0)
-			break;
-cont:
-		idx++;
+		break;
+	case MULTICAST_ADDR:
+		/* multicast address */
+		for (ifmca = idev->mc_list; ifmca;
+		     ifmca = ifmca->next, ip_idx++) {
+			if (ip_idx < s_ip_idx)
+				continue;
+			err = inet6_fill_ifmcaddr(skb, ifmca,
+						  NETLINK_CB(cb->skb).pid,
+						  cb->nlh->nlmsg_seq,
+						  RTM_GETMULTICAST,
+						  NLM_F_MULTI);
+			if (err <= 0)
+				break;
+		}
+		break;
+	case ANYCAST_ADDR:
+		/* anycast address */
+		for (ifaca = idev->ac_list; ifaca;
+		     ifaca = ifaca->aca_next, ip_idx++) {
+			if (ip_idx < s_ip_idx)
+				continue;
+			err = inet6_fill_ifacaddr(skb, ifaca,
+						  NETLINK_CB(cb->skb).pid,
+						  cb->nlh->nlmsg_seq,
+						  RTM_GETANYCAST,
+						  NLM_F_MULTI);
+			if (err <= 0)
+				break;
+		}
+		break;
+	default:
+		break;
 	}
-	cb->args[0] = idx;
-	cb->args[1] = ip_idx;
+	read_unlock_bh(&idev->lock);
+	*p_ip_idx = ip_idx;
+	return err;
+}
+
+static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
+			   enum addr_type_t type)
+{
+	struct net *net = sock_net(skb->sk);
+	int h, s_h;
+	int idx, ip_idx;
+	int s_idx, s_ip_idx;
+	struct net_device *dev;
+	struct inet6_dev *idev;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	s_h = cb->args[0];
+	s_idx = idx = cb->args[1];
+	s_ip_idx = ip_idx = cb->args[2];
+
+	rcu_read_lock();
+	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
+		idx = 0;
+		head = &net->dev_index_head[h];
+		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
+			if (idx < s_idx)
+				goto cont;
+			if (idx > s_idx)
+				s_ip_idx = 0;
+			ip_idx = 0;
+			if ((idev = __in6_dev_get(dev)) == NULL)
+				goto cont;
+
+			if (in6_dump_addrs(idev, skb, cb, type,
+					   s_ip_idx, &ip_idx) <= 0)
+				goto done;
+cont:
+			idx++;
+		}
+	}
+done:
+	rcu_read_unlock();
+	cb->args[0] = h;
+	cb->args[1] = idx;
+	cb->args[2] = ip_idx;
+
 	return skb->len;
 }
 
