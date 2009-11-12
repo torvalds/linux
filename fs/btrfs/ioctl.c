@@ -289,7 +289,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	btrfs_set_root_generation(&root_item, trans->transid);
 	btrfs_set_root_level(&root_item, 0);
 	btrfs_set_root_refs(&root_item, 1);
-	btrfs_set_root_used(&root_item, 0);
+	btrfs_set_root_used(&root_item, leaf->len);
 	btrfs_set_root_last_snapshot(&root_item, 0);
 
 	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));

@@ -456,9 +456,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		extent_buffer_get(cow);
 		spin_unlock(&root->node_lock);
 
-		btrfs_free_extent(trans, root, buf->start, buf->len,
-				  parent_start, root->root_key.objectid,
-				  level, 0);
+		btrfs_free_tree_block(trans, root, buf->start, buf->len,
+				parent_start, root->root_key.objectid, level);
 		free_extent_buffer(buf);
 		add_root_to_dirty_list(root);
 	} else {
@@ -473,9 +472,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		btrfs_set_node_ptr_generation(parent, parent_slot,
 					      trans->transid);
 		btrfs_mark_buffer_dirty(parent);
-		btrfs_free_extent(trans, root, buf->start, buf->len,
-				  parent_start, root->root_key.objectid,
-				  level, 0);
+		btrfs_free_tree_block(trans, root, buf->start, buf->len,
+				parent_start, root->root_key.objectid, level);
 	}
 	if (unlock_orig)
 		btrfs_tree_unlock(buf);
@@ -1035,8 +1033,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		btrfs_tree_unlock(mid);
 		/* once for the path */
 		free_extent_buffer(mid);
-		ret = btrfs_free_extent(trans, root, mid->start, mid->len,
-					0, root->root_key.objectid, level, 1);
+		ret = btrfs_free_tree_block(trans, root, mid->start, mid->len,
+					    0, root->root_key.objectid, level);
 		/* once for the root ptr */
 		free_extent_buffer(mid);
 		return ret;
@@ -1100,10 +1098,10 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 				       1);
 			if (wret)
 				ret = wret;
-			wret = btrfs_free_extent(trans, root, bytenr,
-						 blocksize, 0,
-						 root->root_key.objectid,
-						 level, 0);
+			wret = btrfs_free_tree_block(trans, root,
+						     bytenr, blocksize, 0,
+						     root->root_key.objectid,
+						     level);
 			if (wret)
 				ret = wret;
 		} else {
@@ -1148,9 +1146,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		wret = del_ptr(trans, root, path, level + 1, pslot);
 		if (wret)
 			ret = wret;
-		wret = btrfs_free_extent(trans, root, bytenr, blocksize,
-					 0, root->root_key.objectid,
-					 level, 0);
+		wret = btrfs_free_tree_block(trans, root, bytenr, blocksize,
+					 0, root->root_key.objectid, level);
 		if (wret)
 			ret = wret;
 	} else {
@@ -3794,8 +3791,8 @@ static noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_unlock_up_safe(path, 0);
 
-	ret = btrfs_free_extent(trans, root, leaf->start, leaf->len,
-				0, root->root_key.objectid, 0, 0);
+	ret = btrfs_free_tree_block(trans, root, leaf->start, leaf->len,
+				    0, root->root_key.objectid, 0);
 	return ret;
 }
 /*
