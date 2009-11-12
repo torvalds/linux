@@ -2880,9 +2880,9 @@ static noinline void flush_delalloc_async(struct btrfs_work *work)
 	root = async->root;
 	info = async->info;
 
-	btrfs_start_delalloc_inodes(root);
+	btrfs_start_delalloc_inodes(root, 0);
 	wake_up(&info->flush_wait);
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_wait_ordered_extents(root, 0, 0);
 
 	spin_lock(&info->lock);
 	info->flushing = 0;
@@ -2956,8 +2956,8 @@ static void flush_delalloc(struct btrfs_root *root,
 	return;
 
 flush:
-	btrfs_start_delalloc_inodes(root);
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_start_delalloc_inodes(root, 0);
+	btrfs_wait_ordered_extents(root, 0, 0);
 
 	spin_lock(&info->lock);
 	info->flushing = 0;
