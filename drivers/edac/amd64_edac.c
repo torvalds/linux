@@ -1024,10 +1024,7 @@ static enum mem_type amd64_determine_memory_type(struct amd64_pvt *pvt)
 		type = (pvt->dclr0 & BIT(18)) ? MEM_DDR : MEM_RDDR;
 	}
 
-	debugf1("  Memory type is: %s\n",
-		(type == MEM_DDR2) ? "MEM_DDR2" :
-		(type == MEM_RDDR2) ? "MEM_RDDR2" :
-		(type == MEM_DDR) ? "MEM_DDR" : "MEM_RDDR");
+	debugf1("  Memory type is: %s\n", edac_mem_types[type]);
 
 	return type;
 }
