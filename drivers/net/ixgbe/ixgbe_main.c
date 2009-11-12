@@ -1204,6 +1204,7 @@ static void ixgbe_check_lsc(struct ixgbe_adapter *adapter)
 	adapter->link_check_timeout = jiffies;
 	if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
 		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_LSC);
+		IXGBE_WRITE_FLUSH(hw);
 		schedule_work(&adapter->watchdog_task);
 	}
 }
