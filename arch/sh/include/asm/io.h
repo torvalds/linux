@@ -90,15 +90,11 @@
 #define ctrl_outl		__raw_writel
 #define ctrl_outq		__raw_writeq
 
+extern unsigned long generic_io_base;
+
 static inline void ctrl_delay(void)
 {
-#ifdef CONFIG_CPU_SH4
-	__raw_readw(CCN_PVR);
-#elif defined(P2SEG)
-	__raw_readw(P2SEG);
-#else
-#error "Need a dummy address for delay"
-#endif
+	__raw_readw(generic_io_base);
 }
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
@@ -185,8 +181,6 @@ __BUILD_MEMORY_STRING(q, u64)
 #define mmiowb()		wmb()
 
 #define IO_SPACE_LIMIT 0xffffffff
-
-extern unsigned long generic_io_base;
 
 /*
  * This function provides a method for the generic case where a
