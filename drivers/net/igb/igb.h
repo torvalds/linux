@@ -249,10 +249,6 @@ struct igb_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 
-	unsigned int total_tx_bytes;
-	unsigned int total_tx_packets;
-	unsigned int total_rx_bytes;
-	unsigned int total_rx_packets;
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
 	u32 tx_itr_setting;
