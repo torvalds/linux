@@ -1333,20 +1333,16 @@ select_idle_sibling(struct task_struct *p, struct sched_domain *sd, int target)
 	 * test in select_task_rq_fair) and the prev_cpu is idle then that's
 	 * always a better target than the current cpu.
 	 */
-	if (target == cpu) {
-		if (!cpu_rq(prev_cpu)->cfs.nr_running)
-			target = prev_cpu;
-	}
+	if (target == cpu && !cpu_rq(prev_cpu)->cfs.nr_running)
+		return prev_cpu;
 
 	/*
 	 * Otherwise, iterate the domain and find an elegible idle cpu.
 	 */
-	if (target == -1 || target == cpu) {
-		for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
-			if (!cpu_rq(i)->cfs.nr_running) {
-				target = i;
-				break;
-			}
+	for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
+		if (!cpu_rq(i)->cfs.nr_running) {
+			target = i;
+			break;
 		}
 	}
 
@@ -1407,7 +1403,12 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 				want_sd = 0;
 		}
 
-		if (want_affine && (tmp->flags & SD_WAKE_AFFINE)) {
+		/*
+		 * While iterating the domains looking for a spanning
+		 * WAKE_AFFINE domain, adjust the affine target to any idle cpu
+		 * in cache sharing domains along the way.
+		 */
+		if (want_affine) {
 			int target = -1;
 
 			/*
@@ -1420,17 +1421,15 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 			/*
 			 * If there's an idle sibling in this domain, make that
 			 * the wake_affine target instead of the current cpu.
-			 *
-			 * XXX: should we possibly do this outside of
-			 * WAKE_AFFINE, in case the shared cache domain is
-			 * smaller than the WAKE_AFFINE domain?
 			 */
 			if (tmp->flags & SD_PREFER_SIBLING)
 				target = select_idle_sibling(p, tmp, target);
 
 			if (target >= 0) {
-				affine_sd = tmp;
-				want_affine = 0;
+				if (tmp->flags & SD_WAKE_AFFINE) {
+					affine_sd = tmp;
+					want_affine = 0;
+				}
 				cpu = target;
 			}
 		}
