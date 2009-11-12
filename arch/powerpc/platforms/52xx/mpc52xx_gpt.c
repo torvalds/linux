@@ -378,12 +378,12 @@ EXPORT_SYMBOL(mpc52xx_gpt_from_irq);
 /**
  * mpc52xx_gpt_start_timer - Set and enable the GPT timer
  * @gpt: Pointer to gpt private data structure
- * @period: period of timer
+ * @period: period of timer in ns; max. ~130s @ 33MHz IPB clock
  * @continuous: set to 1 to make timer continuous free running
  *
  * An interrupt will be generated every time the timer fires
  */
-int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, int period,
+int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, u64 period,
                             int continuous)
 {
 	u32 clear, set;
@@ -400,7 +400,7 @@ int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, int period,
 	 * arithmatic is done here to preserve the precision until the value
 	 * is scaled back down into the u32 range.  Period is in 'ns', bus
 	 * frequency is in Hz. */
-	clocks = (u64)period * (u64)gpt->ipb_freq;
+	clocks = period * (u64)gpt->ipb_freq;
 	do_div(clocks, 1000000000); /* Scale it down to ns range */
 
 	/* This device cannot handle a clock count greater than 32 bits */

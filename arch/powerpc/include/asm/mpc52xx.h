@@ -279,7 +279,7 @@ extern void mpc52xx_restart(char *cmd);
 /* mpc52xx_gpt.c */
 struct mpc52xx_gpt_priv;
 extern struct mpc52xx_gpt_priv *mpc52xx_gpt_from_irq(int irq);
-extern int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, int period,
+extern int mpc52xx_gpt_start_timer(struct mpc52xx_gpt_priv *gpt, u64 period,
                             int continuous);
 extern void mpc52xx_gpt_stop_timer(struct mpc52xx_gpt_priv *gpt);
 
