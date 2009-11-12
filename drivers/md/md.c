@@ -1382,8 +1382,6 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (rdev->raid_disk >= 0 &&
 	    !test_bit(In_sync, &rdev->flags)) {
-		if (mddev->curr_resync_completed > rdev->recovery_offset)
-			rdev->recovery_offset = mddev->curr_resync_completed;
 		if (rdev->recovery_offset > 0) {
 			sb->feature_map |=
 				cpu_to_le32(MD_FEATURE_RECOVERY_OFFSET);
@@ -1917,6 +1915,14 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 	 */
 	mdk_rdev_t *rdev;
 
+	/* First make sure individual recovery_offsets are correct */
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk >= 0 &&
+		    !test_bit(In_sync, &rdev->flags) &&
+		    mddev->curr_resync_completed > rdev->recovery_offset)
+				rdev->recovery_offset = mddev->curr_resync_completed;
+
+	}	
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->sb_events == mddev->events ||
 		    (nospares &&
