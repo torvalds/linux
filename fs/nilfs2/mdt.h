@@ -105,21 +105,4 @@ static inline __u64 nilfs_mdt_cno(struct inode *inode)
 #define nilfs_mdt_bgl_lock(inode, bg) \
 	(&NILFS_MDT(inode)->mi_bgl->locks[(bg) & (NR_BG_LOCKS-1)].lock)
 
-
-static inline int
-nilfs_mdt_read_inode_direct(struct inode *inode, struct buffer_head *bh,
-			    unsigned n)
-{
-	return nilfs_read_inode_common(
-		inode, (struct nilfs_inode *)(bh->b_data + n));
-}
-
-static inline void
-nilfs_mdt_write_inode_direct(struct inode *inode, struct buffer_head *bh,
-			     unsigned n)
-{
-	nilfs_write_inode_common(
-		inode, (struct nilfs_inode *)(bh->b_data + n), 1);
-}
-
 #endif /* _NILFS_MDT_H */

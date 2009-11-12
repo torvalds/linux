@@ -974,12 +974,12 @@ static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 			      nilfs->ns_nongc_ctime : sci->sc_seg_ctime);
 	raw_sr->sr_flags = 0;
 
-	nilfs_mdt_write_inode_direct(
-		nilfs_dat_inode(nilfs), bh_sr, NILFS_SR_DAT_OFFSET(isz));
-	nilfs_mdt_write_inode_direct(
-		nilfs->ns_cpfile, bh_sr, NILFS_SR_CPFILE_OFFSET(isz));
-	nilfs_mdt_write_inode_direct(
-		nilfs->ns_sufile, bh_sr, NILFS_SR_SUFILE_OFFSET(isz));
+	nilfs_write_inode_common(nilfs_dat_inode(nilfs), (void *)raw_sr +
+				 NILFS_SR_DAT_OFFSET(isz), 1);
+	nilfs_write_inode_common(nilfs->ns_cpfile, (void *)raw_sr +
+				 NILFS_SR_CPFILE_OFFSET(isz), 1);
+	nilfs_write_inode_common(nilfs->ns_sufile, (void *)raw_sr +
+				 NILFS_SR_SUFILE_OFFSET(isz), 1);
 }
 
 static void nilfs_redirty_inodes(struct list_head *head)
