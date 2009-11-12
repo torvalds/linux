@@ -205,7 +205,7 @@ err_nl:
 err:
 	return rc;
 }
-module_init(wpan_phy_class_init);
+subsys_initcall(wpan_phy_class_init);
 
 static void __exit wpan_phy_class_exit(void)
 {
