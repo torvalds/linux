@@ -427,7 +427,8 @@ static bool radeon_legacy_tmds_int_mode_fixup(struct drm_encoder *encoder,
 					      struct drm_display_mode *mode,
 					      struct drm_display_mode *adjusted_mode)
 {
-
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
