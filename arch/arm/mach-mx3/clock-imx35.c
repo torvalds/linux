@@ -485,7 +485,7 @@ int __init mx35_clocks_init()
 	int i;
 	unsigned int ll = 0;
 
-#ifdef CONFIG_DEBUG_LL_CONSOLE
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	ll = (3 << 16);
 #endif
 

@@ -751,7 +751,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&emi_clk);
 	clk_enable(&iim_clk);
 
-#ifdef CONFIG_DEBUG_LL_CONSOLE
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	clk_enable(&uart1_clk);
 #endif
 
