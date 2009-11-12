@@ -20,6 +20,7 @@ struct pci_root_info {
 #define PCI_ROOT_NR 4
 extern int pci_root_num;
 extern struct pci_root_info pci_root_info[PCI_ROOT_NR];
+extern int found_all_numa_early;
 
 extern void update_res(struct pci_root_info *info, size_t start,
 			      size_t end, unsigned long flags, int merge);
