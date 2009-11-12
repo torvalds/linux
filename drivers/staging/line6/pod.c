@@ -579,7 +579,7 @@ static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-			"data block must be exactly %d bytes\n",
+			"data block must be exactly %zu bytes\n",
 			sizeof(pod->prog_data));
 		return -EINVAL;
 	}
@@ -691,7 +691,7 @@ static ssize_t pod_set_dump_buf(struct device *dev,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-						"data block must be exactly %d bytes\n",
+						"data block must be exactly %zu bytes\n",
 						sizeof(pod->prog_data));
 		return -EINVAL;
 	}
