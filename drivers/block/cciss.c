@@ -4376,30 +4376,28 @@ clean_no_release_regions:
 
 static void cciss_shutdown(struct pci_dev *pdev)
 {
-	ctlr_info_t *tmp_ptr;
-	int i;
-	char flush_buf[4];
+	ctlr_info_t *h;
+	char *flush_buf;
 	int return_code;
 
-	tmp_ptr = pci_get_drvdata(pdev);
-	if (tmp_ptr == NULL)
+	h = pci_get_drvdata(pdev);
+	flush_buf = kzalloc(4, GFP_KERNEL);
+	if (!flush_buf) {
+		printk(KERN_WARNING
+			"cciss:%d cache not flushed, out of memory.\n",
+			h->ctlr);
 		return;
-	i = tmp_ptr->ctlr;
-	if (hba[i] == NULL)
-		return;
-
-	/* Turn board interrupts off  and send the flush cache command */
-	/* sendcmd will turn off interrupt, and send the flush...
-	 * To write all data in the battery backed cache to disks */
-	memset(flush_buf, 0, 4);
-	return_code = sendcmd(CCISS_CACHE_FLUSH, i, flush_buf, 4, 0,
-		CTLR_LUNID, TYPE_CMD);
-	if (return_code == IO_OK) {
-		printk(KERN_INFO "Completed flushing cache on controller %d\n", i);
-	} else {
-		printk(KERN_WARNING "Error flushing cache on controller %d\n", i);
 	}
-	free_irq(hba[i]->intr[2], hba[i]);
+	/* write all data in the battery backed cache to disk */
+	memset(flush_buf, 0, 4);
+	return_code = sendcmd_withirq(CCISS_CACHE_FLUSH, h->ctlr, flush_buf,
+		4, 0, CTLR_LUNID, TYPE_CMD);
+	kfree(flush_buf);
+	if (return_code != IO_OK)
+		printk(KERN_WARNING "cciss%d: Error flushing cache\n",
+			h->ctlr);
+	h->access.set_intr_mask(h, CCISS_INTR_OFF);
+	free_irq(h->intr[2], h);
 }
 
 static void __devexit cciss_remove_one(struct pci_dev *pdev)
