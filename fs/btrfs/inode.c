@@ -88,13 +88,14 @@ static noinline int cow_file_range(struct inode *inode,
 				   u64 start, u64 end, int *page_started,
 				   unsigned long *nr_written, int unlock);
 
-static int btrfs_init_inode_security(struct inode *inode,  struct inode *dir)
+static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
+				     struct inode *inode,  struct inode *dir)
 {
 	int err;
 
-	err = btrfs_init_acl(inode, dir);
+	err = btrfs_init_acl(trans, inode, dir);
 	if (!err)
-		err = btrfs_xattr_security_init(inode, dir);
+		err = btrfs_xattr_security_init(trans, inode, dir);
 	return err;
 }
 
@@ -4296,7 +4297,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4367,7 +4368,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4500,7 +4501,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	drop_on_err = 1;
 
-	err = btrfs_init_inode_security(inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err)
 		goto out_fail;
 
@@ -5660,7 +5661,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
