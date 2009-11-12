@@ -437,7 +437,7 @@ int snd_hda_create_hwdep(struct hda_codec *codec);
 static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
 #endif
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#if defined(CONFIG_SND_HDA_POWER_SAVE) && defined(CONFIG_SND_HDA_HWDEP)
 int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec);
 #else
 static inline int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
