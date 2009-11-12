@@ -277,7 +277,11 @@ static void __init emit_cache_params(void)
 
 void __init cpu_cache_init(void)
 {
-	unsigned int cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+	unsigned int cache_disabled = 0;
+
+#ifdef CCR
+	cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+#endif
 
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
