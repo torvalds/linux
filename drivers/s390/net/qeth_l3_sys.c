@@ -318,6 +318,53 @@ static ssize_t qeth_l3_dev_checksum_store(struct device *dev,
 static DEVICE_ATTR(checksumming, 0644, qeth_l3_dev_checksum_show,
 		qeth_l3_dev_checksum_store);
 
+static ssize_t qeth_l3_dev_large_send_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+
+	if (!card)
+		return -EINVAL;
+
+	switch (card->options.large_send) {
+	case QETH_LARGE_SEND_NO:
+		return sprintf(buf, "%s\n", "no");
+	case QETH_LARGE_SEND_TSO:
+		return sprintf(buf, "%s\n", "TSO");
+	default:
+		return sprintf(buf, "%s\n", "N/A");
+	}
+}
+
+static ssize_t qeth_l3_dev_large_send_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	enum qeth_large_send_types type;
+	int rc = 0;
+	char *tmp;
+
+	if (!card)
+		return -EINVAL;
+	tmp = strsep((char **) &buf, "\n");
+	if (!strcmp(tmp, "no"))
+		type = QETH_LARGE_SEND_NO;
+	else if (!strcmp(tmp, "TSO"))
+		type = QETH_LARGE_SEND_TSO;
+	else
+		return -EINVAL;
+
+	if (card->options.large_send == type)
+		return count;
+	rc = qeth_l3_set_large_send(card, type);
+	if (rc)
+		return rc;
+	return count;
+}
+
+static DEVICE_ATTR(large_send, 0644, qeth_l3_dev_large_send_show,
+		   qeth_l3_dev_large_send_store);
+
 static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_route4.attr,
 	&dev_attr_route6.attr,
@@ -325,6 +372,7 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_broadcast_mode.attr,
 	&dev_attr_canonical_macaddr.attr,
 	&dev_attr_checksumming.attr,
+	&dev_attr_large_send.attr,
 	NULL,
 };
 

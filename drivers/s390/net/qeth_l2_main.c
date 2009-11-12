@@ -978,7 +978,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	if (card->info.type != QETH_CARD_TYPE_OSN) {
 		/* configure isolation level */
 		qeth_set_access_ctrl_online(card);
-		qeth_set_large_send(card, card->options.large_send);
 		qeth_l2_process_vlans(card, 0);
 	}
 

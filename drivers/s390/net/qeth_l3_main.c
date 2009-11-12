@@ -41,6 +41,32 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *,
 static int __qeth_l3_set_online(struct ccwgroup_device *, int);
 static int __qeth_l3_set_offline(struct ccwgroup_device *, int);
 
+int qeth_l3_set_large_send(struct qeth_card *card,
+		enum qeth_large_send_types type)
+{
+	int rc = 0;
+
+	card->options.large_send = type;
+	if (card->dev == NULL)
+		return 0;
+
+	if (card->options.large_send == QETH_LARGE_SEND_TSO) {
+		if (qeth_is_supported(card, IPA_OUTBOUND_TSO)) {
+			card->dev->features |= NETIF_F_TSO | NETIF_F_SG |
+					NETIF_F_HW_CSUM;
+		} else {
+			card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
+					NETIF_F_HW_CSUM);
+			card->options.large_send = QETH_LARGE_SEND_NO;
+			rc = -EOPNOTSUPP;
+		}
+	} else {
+		card->dev->features &= ~(NETIF_F_TSO | NETIF_F_SG |
+					NETIF_F_HW_CSUM);
+		card->options.large_send = QETH_LARGE_SEND_NO;
+	}
+	return rc;
+}
 
 static int qeth_l3_isxdigit(char *buf)
 {
@@ -2686,6 +2712,24 @@ static void qeth_tx_csum(struct sk_buff *skb)
 	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
 }
 
+static inline int qeth_l3_tso_elements(struct sk_buff *skb)
+{
+	unsigned long tcpd = (unsigned long)tcp_hdr(skb) +
+		tcp_hdr(skb)->doff * 4;
+	int tcpd_len = skb->len - (tcpd - (unsigned long)skb->data);
+	int elements = PFN_UP(tcpd + tcpd_len) - PFN_DOWN(tcpd);
+	elements += skb_shinfo(skb)->nr_frags;
+	return elements;
+}
+
+static inline int qeth_l3_tso_check(struct sk_buff *skb)
+{
+	int len = ((unsigned long)tcp_hdr(skb) + tcp_hdr(skb)->doff * 4) -
+		(unsigned long)skb->data;
+	return (((unsigned long)skb->data & PAGE_MASK) !=
+		(((unsigned long)skb->data + len) & PAGE_MASK));
+}
+
 static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int rc;
@@ -2779,16 +2823,21 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* fix hardware limitation: as long as we do not have sbal
 	 * chaining we can not send long frag lists
 	 */
-	if ((large_send == QETH_LARGE_SEND_TSO) &&
-	    ((skb_shinfo(new_skb)->nr_frags + 2) > 16)) {
-		if (skb_linearize(new_skb))
-			goto tx_drop;
+	if (large_send == QETH_LARGE_SEND_TSO) {
+		if (qeth_l3_tso_elements(new_skb) + 1 > 16) {
+			if (skb_linearize(new_skb))
+				goto tx_drop;
+			if (card->options.performance_stats)
+				card->perf_stats.tx_lin++;
+		}
 	}
 
 	if ((large_send == QETH_LARGE_SEND_TSO) &&
 	    (cast_type == RTN_UNSPEC)) {
 		hdr = (struct qeth_hdr *)skb_push(new_skb,
 						sizeof(struct qeth_hdr_tso));
+		if (qeth_l3_tso_check(new_skb))
+			QETH_DBF_MESSAGE(2, "tso skb misaligned\n");
 		memset(hdr, 0, sizeof(struct qeth_hdr_tso));
 		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type);
 		qeth_tso_fill_header(card, hdr, new_skb);
@@ -2931,20 +2980,15 @@ static int qeth_l3_ethtool_set_rx_csum(struct net_device *dev, u32 data)
 static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
 {
 	struct qeth_card *card = dev->ml_priv;
+	int rc = 0;
 
 	if (data) {
-		if (card->options.large_send == QETH_LARGE_SEND_NO) {
-			if (card->info.type == QETH_CARD_TYPE_IQD)
-				return -EPERM;
-			else
-				card->options.large_send = QETH_LARGE_SEND_TSO;
-			dev->features |= NETIF_F_TSO;
-		}
+		rc = qeth_l3_set_large_send(card, QETH_LARGE_SEND_TSO);
 	} else {
 		dev->features &= ~NETIF_F_TSO;
 		card->options.large_send = QETH_LARGE_SEND_NO;
 	}
-	return 0;
+	return rc;
 }
 
 static const struct ethtool_ops qeth_l3_ethtool_ops = {
@@ -3060,6 +3104,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_HW_VLAN_FILTER;
 	card->dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	card->dev->gso_max_size = 15 * PAGE_SIZE;
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	return register_netdev(card->dev);
@@ -3189,7 +3234,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		goto out_remove;
 	} else
 		card->lan_online = 1;
-	qeth_set_large_send(card, card->options.large_send);
+	qeth_l3_set_large_send(card, card->options.large_send);
 
 	rc = qeth_l3_setadapter_parms(card);
 	if (rc)
