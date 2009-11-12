@@ -1440,7 +1440,7 @@ retry_locked:
 
 		dout("check_caps trying to invalidate on %p\n", inode);
 		spin_unlock(&inode->i_lock);
-		ret = invalidate_inode_pages2(&inode->i_data);
+		ret = invalidate_mapping_pages(&inode->i_data, 0, -1);
 		spin_lock(&inode->i_lock);
 		if (ret == 0 && invalidating_gen == ci->i_rdcache_gen) {
 			/* success. */
@@ -2180,7 +2180,7 @@ restart:
 		spin_unlock(&inode->i_lock);
 		tried_invalidate = 1;
 
-		ret = invalidate_inode_pages2(&inode->i_data);
+		ret = invalidate_mapping_pages(&inode->i_data, 0, -1);
 		spin_lock(&inode->i_lock);
 		if (ret < 0) {
 			/* there were locked pages.. invalidate later
