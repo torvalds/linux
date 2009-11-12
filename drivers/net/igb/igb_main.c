@@ -3789,7 +3789,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 
 void igb_update_stats(struct igb_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
+	struct net_device_stats *net_stats = igb_get_stats(adapter->netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 rnbc;
@@ -3813,13 +3813,13 @@ void igb_update_stats(struct igb_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		u32 rqdpc_tmp = rd32(E1000_RQDPC(i)) & 0x0FFF;
 		adapter->rx_ring[i].rx_stats.drops += rqdpc_tmp;
-		netdev->stats.rx_fifo_errors += rqdpc_tmp;
+		net_stats->rx_fifo_errors += rqdpc_tmp;
 		bytes += adapter->rx_ring[i].rx_stats.bytes;
 		packets += adapter->rx_ring[i].rx_stats.packets;
 	}
 
-	netdev->stats.rx_bytes = bytes;
-	netdev->stats.rx_packets = packets;
+	net_stats->rx_bytes = bytes;
+	net_stats->rx_packets = packets;
 
 	bytes = 0;
 	packets = 0;
@@ -3827,8 +3827,8 @@ void igb_update_stats(struct igb_adapter *adapter)
 		bytes += adapter->tx_ring[i].tx_stats.bytes;
 		packets += adapter->tx_ring[i].tx_stats.packets;
 	}
-	netdev->stats.tx_bytes = bytes;
-	netdev->stats.tx_packets = packets;
+	net_stats->tx_bytes = bytes;
+	net_stats->tx_packets = packets;
 
 	/* read stats registers */
 	adapter->stats.crcerrs += rd32(E1000_CRCERRS);
@@ -3865,7 +3865,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	rd32(E1000_GOTCH); /* clear GOTCL */
 	rnbc = rd32(E1000_RNBC);
 	adapter->stats.rnbc += rnbc;
-	netdev->stats.rx_fifo_errors += rnbc;
+	net_stats->rx_fifo_errors += rnbc;
 	adapter->stats.ruc += rd32(E1000_RUC);
 	adapter->stats.rfc += rd32(E1000_RFC);
 	adapter->stats.rjc += rd32(E1000_RJC);
@@ -3906,29 +3906,29 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.icrxdmtc += rd32(E1000_ICRXDMTC);
 
 	/* Fill out the OS statistics structure */
-	netdev->stats.multicast = adapter->stats.mprc;
-	netdev->stats.collisions = adapter->stats.colc;
+	net_stats->multicast = adapter->stats.mprc;
+	net_stats->collisions = adapter->stats.colc;
 
 	/* Rx Errors */
 
 	/* RLEC on some newer hardware can be incorrect so build
 	 * our own version based on RUC and ROC */
-	netdev->stats.rx_errors = adapter->stats.rxerrc +
+	net_stats->rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
 		adapter->stats.ruc + adapter->stats.roc +
 		adapter->stats.cexterr;
-	netdev->stats.rx_length_errors = adapter->stats.ruc +
-					      adapter->stats.roc;
-	netdev->stats.rx_crc_errors = adapter->stats.crcerrs;
-	netdev->stats.rx_frame_errors = adapter->stats.algnerrc;
-	netdev->stats.rx_missed_errors = adapter->stats.mpc;
+	net_stats->rx_length_errors = adapter->stats.ruc +
+				      adapter->stats.roc;
+	net_stats->rx_crc_errors = adapter->stats.crcerrs;
+	net_stats->rx_frame_errors = adapter->stats.algnerrc;
+	net_stats->rx_missed_errors = adapter->stats.mpc;
 
 	/* Tx Errors */
-	netdev->stats.tx_errors = adapter->stats.ecol +
-				       adapter->stats.latecol;
-	netdev->stats.tx_aborted_errors = adapter->stats.ecol;
-	netdev->stats.tx_window_errors = adapter->stats.latecol;
-	netdev->stats.tx_carrier_errors = adapter->stats.tncrs;
+	net_stats->tx_errors = adapter->stats.ecol +
+			       adapter->stats.latecol;
+	net_stats->tx_aborted_errors = adapter->stats.ecol;
+	net_stats->tx_window_errors = adapter->stats.latecol;
+	net_stats->tx_carrier_errors = adapter->stats.tncrs;
 
 	/* Tx Dropped needs to be maintained elsewhere */
 

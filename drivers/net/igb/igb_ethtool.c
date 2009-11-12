@@ -37,77 +37,88 @@
 
 #include "igb.h"
 
-enum {NETDEV_STATS, IGB_STATS};
-
 struct igb_stats {
 	char stat_string[ETH_GSTRING_LEN];
-	int type;
 	int sizeof_stat;
 	int stat_offset;
 };
 
-#define IGB_STAT(m)		IGB_STATS, \
-				FIELD_SIZEOF(struct igb_adapter, m), \
-				offsetof(struct igb_adapter, m)
-#define IGB_NETDEV_STAT(m)	NETDEV_STATS, \
-				FIELD_SIZEOF(struct net_device, m), \
-				offsetof(struct net_device, m)
-
+#define IGB_STAT(_name, _stat) { \
+	.stat_string = _name, \
+	.sizeof_stat = FIELD_SIZEOF(struct igb_adapter, _stat), \
+	.stat_offset = offsetof(struct igb_adapter, _stat) \
+}
 static const struct igb_stats igb_gstrings_stats[] = {
-	{ "rx_packets", IGB_STAT(stats.gprc) },
-	{ "tx_packets", IGB_STAT(stats.gptc) },
-	{ "rx_bytes", IGB_STAT(stats.gorc) },
-	{ "tx_bytes", IGB_STAT(stats.gotc) },
-	{ "rx_broadcast", IGB_STAT(stats.bprc) },
-	{ "tx_broadcast", IGB_STAT(stats.bptc) },
-	{ "rx_multicast", IGB_STAT(stats.mprc) },
-	{ "tx_multicast", IGB_STAT(stats.mptc) },
-	{ "rx_errors", IGB_NETDEV_STAT(stats.rx_errors) },
-	{ "tx_errors", IGB_NETDEV_STAT(stats.tx_errors) },
-	{ "tx_dropped", IGB_NETDEV_STAT(stats.tx_dropped) },
-	{ "multicast", IGB_STAT(stats.mprc) },
-	{ "collisions", IGB_STAT(stats.colc) },
-	{ "rx_length_errors", IGB_NETDEV_STAT(stats.rx_length_errors) },
-	{ "rx_over_errors", IGB_NETDEV_STAT(stats.rx_over_errors) },
-	{ "rx_crc_errors", IGB_STAT(stats.crcerrs) },
-	{ "rx_frame_errors", IGB_NETDEV_STAT(stats.rx_frame_errors) },
-	{ "rx_no_buffer_count", IGB_STAT(stats.rnbc) },
-	{ "rx_queue_drop_packet_count", IGB_NETDEV_STAT(stats.rx_fifo_errors) },
-	{ "rx_missed_errors", IGB_STAT(stats.mpc) },
-	{ "tx_aborted_errors", IGB_STAT(stats.ecol) },
-	{ "tx_carrier_errors", IGB_STAT(stats.tncrs) },
-	{ "tx_fifo_errors", IGB_NETDEV_STAT(stats.tx_fifo_errors) },
-	{ "tx_heartbeat_errors", IGB_NETDEV_STAT(stats.tx_heartbeat_errors) },
-	{ "tx_window_errors", IGB_STAT(stats.latecol) },
-	{ "tx_abort_late_coll", IGB_STAT(stats.latecol) },
-	{ "tx_deferred_ok", IGB_STAT(stats.dc) },
-	{ "tx_single_coll_ok", IGB_STAT(stats.scc) },
-	{ "tx_multi_coll_ok", IGB_STAT(stats.mcc) },
-	{ "tx_timeout_count", IGB_STAT(tx_timeout_count) },
-	{ "rx_long_length_errors", IGB_STAT(stats.roc) },
-	{ "rx_short_length_errors", IGB_STAT(stats.ruc) },
-	{ "rx_align_errors", IGB_STAT(stats.algnerrc) },
-	{ "tx_tcp_seg_good", IGB_STAT(stats.tsctc) },
-	{ "tx_tcp_seg_failed", IGB_STAT(stats.tsctfc) },
-	{ "rx_flow_control_xon", IGB_STAT(stats.xonrxc) },
-	{ "rx_flow_control_xoff", IGB_STAT(stats.xoffrxc) },
-	{ "tx_flow_control_xon", IGB_STAT(stats.xontxc) },
-	{ "tx_flow_control_xoff", IGB_STAT(stats.xofftxc) },
-	{ "rx_long_byte_count", IGB_STAT(stats.gorc) },
-	{ "tx_dma_out_of_sync", IGB_STAT(stats.doosync) },
-	{ "tx_smbus", IGB_STAT(stats.mgptc) },
-	{ "rx_smbus", IGB_STAT(stats.mgprc) },
-	{ "dropped_smbus", IGB_STAT(stats.mgpdc) },
+	IGB_STAT("rx_packets", stats.gprc),
+	IGB_STAT("tx_packets", stats.gptc),
+	IGB_STAT("rx_bytes", stats.gorc),
+	IGB_STAT("tx_bytes", stats.gotc),
+	IGB_STAT("rx_broadcast", stats.bprc),
+	IGB_STAT("tx_broadcast", stats.bptc),
+	IGB_STAT("rx_multicast", stats.mprc),
+	IGB_STAT("tx_multicast", stats.mptc),
+	IGB_STAT("multicast", stats.mprc),
+	IGB_STAT("collisions", stats.colc),
+	IGB_STAT("rx_crc_errors", stats.crcerrs),
+	IGB_STAT("rx_no_buffer_count", stats.rnbc),
+	IGB_STAT("rx_missed_errors", stats.mpc),
+	IGB_STAT("tx_aborted_errors", stats.ecol),
+	IGB_STAT("tx_carrier_errors", stats.tncrs),
+	IGB_STAT("tx_window_errors", stats.latecol),
+	IGB_STAT("tx_abort_late_coll", stats.latecol),
+	IGB_STAT("tx_deferred_ok", stats.dc),
+	IGB_STAT("tx_single_coll_ok", stats.scc),
+	IGB_STAT("tx_multi_coll_ok", stats.mcc),
+	IGB_STAT("tx_timeout_count", tx_timeout_count),
+	IGB_STAT("rx_long_length_errors", stats.roc),
+	IGB_STAT("rx_short_length_errors", stats.ruc),
+	IGB_STAT("rx_align_errors", stats.algnerrc),
+	IGB_STAT("tx_tcp_seg_good", stats.tsctc),
+	IGB_STAT("tx_tcp_seg_failed", stats.tsctfc),
+	IGB_STAT("rx_flow_control_xon", stats.xonrxc),
+	IGB_STAT("rx_flow_control_xoff", stats.xoffrxc),
+	IGB_STAT("tx_flow_control_xon", stats.xontxc),
+	IGB_STAT("tx_flow_control_xoff", stats.xofftxc),
+	IGB_STAT("rx_long_byte_count", stats.gorc),
+	IGB_STAT("tx_dma_out_of_sync", stats.doosync),
+	IGB_STAT("tx_smbus", stats.mgptc),
+	IGB_STAT("rx_smbus", stats.mgprc),
+	IGB_STAT("dropped_smbus", stats.mgpdc),
 };
 
-#define IGB_QUEUE_STATS_LEN \
-	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues * \
-	  (sizeof(struct igb_rx_queue_stats) / sizeof(u64))) + \
-	 (((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues * \
-	  (sizeof(struct igb_tx_queue_stats) / sizeof(u64))))
+#define IGB_NETDEV_STAT(_net_stat) { \
+	.stat_string = __stringify(_net_stat), \
+	.sizeof_stat = FIELD_SIZEOF(struct net_device_stats, _net_stat), \
+	.stat_offset = offsetof(struct net_device_stats, _net_stat) \
+}
+static const struct igb_stats igb_gstrings_net_stats[] = {
+	IGB_NETDEV_STAT(rx_errors),
+	IGB_NETDEV_STAT(tx_errors),
+	IGB_NETDEV_STAT(tx_dropped),
+	IGB_NETDEV_STAT(rx_length_errors),
+	IGB_NETDEV_STAT(rx_over_errors),
+	IGB_NETDEV_STAT(rx_frame_errors),
+	IGB_NETDEV_STAT(rx_fifo_errors),
+	IGB_NETDEV_STAT(tx_fifo_errors),
+	IGB_NETDEV_STAT(tx_heartbeat_errors)
+};
+
 #define IGB_GLOBAL_STATS_LEN	\
 	(sizeof(igb_gstrings_stats) / sizeof(struct igb_stats))
-#define IGB_STATS_LEN (IGB_GLOBAL_STATS_LEN + IGB_QUEUE_STATS_LEN)
+#define IGB_NETDEV_STATS_LEN	\
+	(sizeof(igb_gstrings_net_stats) / sizeof(struct igb_stats))
+#define IGB_RX_QUEUE_STATS_LEN \
+	(sizeof(struct igb_rx_queue_stats) / sizeof(u64))
+#define IGB_TX_QUEUE_STATS_LEN \
+	(sizeof(struct igb_tx_queue_stats) / sizeof(u64))
+#define IGB_QUEUE_STATS_LEN \
+	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues * \
+	  IGB_RX_QUEUE_STATS_LEN) + \
+	 (((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues * \
+	  IGB_TX_QUEUE_STATS_LEN))
+#define IGB_STATS_LEN \
+	(IGB_GLOBAL_STATS_LEN + IGB_NETDEV_STATS_LEN + IGB_QUEUE_STATS_LEN)
+
 static const char igb_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)", "Eeprom test    (offline)",
 	"Interrupt test (offline)", "Loopback test  (offline)",
@@ -1922,43 +1933,32 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 				  struct ethtool_stats *stats, u64 *data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct net_device_stats *net_stats = &netdev->stats;
 	u64 *queue_stat;
-	int stat_count_tx = sizeof(struct igb_tx_queue_stats) / sizeof(u64);
-	int stat_count_rx = sizeof(struct igb_rx_queue_stats) / sizeof(u64);
-	int j;
-	int i;
-	char *p = NULL;
+	int i, j, k;
+	char *p;
 
 	igb_update_stats(adapter);
 
 	for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
-		switch (igb_gstrings_stats[i].type) {
-		case NETDEV_STATS:
-			p = (char *) netdev +
-					igb_gstrings_stats[i].stat_offset;
-			break;
-		case IGB_STATS:
-			p = (char *) adapter +
-					igb_gstrings_stats[i].stat_offset;
-			break;
-		}
-
+		p = (char *)adapter + igb_gstrings_stats[i].stat_offset;
 		data[i] = (igb_gstrings_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
+	for (j = 0; j < IGB_NETDEV_STATS_LEN; j++, i++) {
+		p = (char *)net_stats + igb_gstrings_net_stats[j].stat_offset;
+		data[i] = (igb_gstrings_net_stats[j].sizeof_stat ==
+			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		int k;
 		queue_stat = (u64 *)&adapter->tx_ring[j].tx_stats;
-		for (k = 0; k < stat_count_tx; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
+		for (k = 0; k < IGB_TX_QUEUE_STATS_LEN; k++, i++)
+			data[i] = queue_stat[k];
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
-		int k;
 		queue_stat = (u64 *)&adapter->rx_ring[j].rx_stats;
-		for (k = 0; k < stat_count_rx; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
+		for (k = 0; k < IGB_RX_QUEUE_STATS_LEN; k++, i++)
+			data[i] = queue_stat[k];
 	}
 }
 
@@ -1976,6 +1976,11 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	case ETH_SS_STATS:
 		for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
 			memcpy(p, igb_gstrings_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < IGB_NETDEV_STATS_LEN; i++) {
+			memcpy(p, igb_gstrings_net_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
