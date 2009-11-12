@@ -3513,28 +3513,33 @@ static int add_to_scan_list(struct ctlr_info *h)
  * @h:			   Pointer to the controller.
  *
  * Removes the controller from the rescan queue if present. Blocks if
- * the controller is currently conducting a rescan.
+ * the controller is currently conducting a rescan.  The controller
+ * can be in one of three states:
+ * 1. Doesn't need a scan
+ * 2. On the scan list, but not scanning yet (we remove it)
+ * 3. Busy scanning (and not on the list). In this case we want to wait for
+ *    the scan to complete to make sure the scanning thread for this
+ *    controller is completely idle.
  **/
 static void remove_from_scan_list(struct ctlr_info *h)
 {
 	struct ctlr_info *test_h, *tmp_h;
-	int scanning = 0;
 
 	mutex_lock(&scan_mutex);
 	list_for_each_entry_safe(test_h, tmp_h, &scan_q, scan_list) {
-		if (test_h == h) {
+		if (test_h == h) { /* state 2. */
 			list_del(&h->scan_list);
 			complete_all(&h->scan_wait);
 			mutex_unlock(&scan_mutex);
 			return;
 		}
 	}
-	if (&h->busy_scanning)
-		scanning = 0;
-	mutex_unlock(&scan_mutex);
-
-	if (scanning)
+	if (h->busy_scanning) { /* state 3. */
+		mutex_unlock(&scan_mutex);
 		wait_for_completion(&h->scan_wait);
+	} else { /* state 1, nothing to do. */
+		mutex_unlock(&scan_mutex);
+	}
 }
 
 /**
