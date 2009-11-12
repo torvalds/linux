@@ -122,7 +122,6 @@ struct qeth_perf_stats {
 	__u64 outbound_do_qdio_start_time;
 	unsigned int outbound_do_qdio_cnt;
 	unsigned int outbound_do_qdio_time;
-	/* eddp data */
 	unsigned int large_send_bytes;
 	unsigned int large_send_cnt;
 	unsigned int sg_skbs_sent;
@@ -777,7 +776,6 @@ static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 	list_add_tail(&entry->list, &card->qdio.in_buf_pool.entry_list);
 }
 
-struct qeth_eddp_context;
 extern struct ccwgroup_driver qeth_l2_ccwgroup_driver;
 extern struct ccwgroup_driver qeth_l3_ccwgroup_driver;
 const char *qeth_get_cardname_short(struct qeth_card *);
