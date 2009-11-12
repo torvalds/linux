@@ -2943,7 +2943,6 @@ static void igb_watchdog_task(struct work_struct *work)
                                                    watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	struct igb_ring *tx_ring = adapter->tx_ring;
 	u32 link;
 	int i;
 
@@ -3013,22 +3012,24 @@ static void igb_watchdog_task(struct work_struct *work)
 	igb_update_stats(adapter);
 	igb_update_adaptive(hw);
 
-	if (!netif_carrier_ok(netdev)) {
-		if (igb_desc_unused(tx_ring) + 1 < tx_ring->count) {
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igb_ring *tx_ring = &adapter->tx_ring[i];
+		if (!netif_carrier_ok(netdev)) {
 			/* We've lost link, so the controller stops DMA,
 			 * but we've got queued Tx work that's never going
 			 * to get done, so reset controller to flush Tx.
 			 * (Do the reset outside of interrupt context). */
-			adapter->tx_timeout_count++;
-			schedule_work(&adapter->reset_task);
-			/* return immediately since reset is imminent */
-			return;
+			if (igb_desc_unused(tx_ring) + 1 < tx_ring->count) {
+				adapter->tx_timeout_count++;
+				schedule_work(&adapter->reset_task);
+				/* return immediately since reset is imminent */
+				return;
+			}
 		}
-	}
 
-	/* Force detection of hung controller every watchdog period */
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		adapter->tx_ring[i].detect_tx_hung = true;
+		/* Force detection of hung controller every watchdog period */
+		tx_ring->detect_tx_hung = true;
+	}
 
 	/* Cause software interrupt to ensure rx ring is cleaned */
 	if (adapter->msix_entries) {
