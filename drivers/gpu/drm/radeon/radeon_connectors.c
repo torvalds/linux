@@ -566,8 +566,9 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 		radeon_i2c_do_lock(radeon_connector, 0);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("DDC responded but not EDID found for %s\n",
-				  drm_get_connector_name(connector));
+			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+					drm_get_connector_name(connector));
+			ret = connector_status_connected;
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
@@ -720,8 +721,8 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 		radeon_i2c_do_lock(radeon_connector, 0);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("DDC responded but not EDID found for %s\n",
-				  drm_get_connector_name(connector));
+			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+					drm_get_connector_name(connector));
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
