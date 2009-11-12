@@ -1079,6 +1079,7 @@ static void qeth_set_intial_options(struct qeth_card *card)
 	card->options.add_hhlen = DEFAULT_ADD_HHLEN;
 	card->options.performance_stats = 0;
 	card->options.rx_sg_cb = QETH_RX_SG_CB;
+	card->options.isolation = ISOLATION_MODE_NONE;
 }
 
 static int qeth_do_start_thread(struct qeth_card *card, unsigned long thread)
@@ -3388,6 +3389,156 @@ int qeth_setadpparms_change_macaddr(struct qeth_card *card)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_setadpparms_change_macaddr);
+
+static int qeth_setadpparms_set_access_ctrl_cb(struct qeth_card *card,
+		struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_set_access_ctrl *access_ctrl_req;
+	int rc;
+
+	QETH_DBF_TEXT(TRACE, 4, "setaccb");
+
+	cmd = (struct qeth_ipa_cmd *) data;
+	access_ctrl_req = &cmd->data.setadapterparms.data.set_access_ctrl;
+	QETH_DBF_TEXT_(SETUP, 2, "setaccb");
+	QETH_DBF_TEXT_(SETUP, 2, "%s", card->gdev->dev.kobj.name);
+	QETH_DBF_TEXT_(SETUP, 2, "rc=%d",
+		cmd->data.setadapterparms.hdr.return_code);
+	switch (cmd->data.setadapterparms.hdr.return_code) {
+	case SET_ACCESS_CTRL_RC_SUCCESS:
+	case SET_ACCESS_CTRL_RC_ALREADY_NOT_ISOLATED:
+	case SET_ACCESS_CTRL_RC_ALREADY_ISOLATED:
+	{
+		card->options.isolation = access_ctrl_req->subcmd_code;
+		if (card->options.isolation == ISOLATION_MODE_NONE) {
+			dev_info(&card->gdev->dev,
+			    "QDIO data connection isolation is deactivated\n");
+		} else {
+			dev_info(&card->gdev->dev,
+			    "QDIO data connection isolation is activated\n");
+		}
+		QETH_DBF_MESSAGE(3, "OK:SET_ACCESS_CTRL(%s, %d)==%d\n",
+			card->gdev->dev.kobj.name,
+			access_ctrl_req->subcmd_code,
+			cmd->data.setadapterparms.hdr.return_code);
+		rc = 0;
+		break;
+	}
+	case SET_ACCESS_CTRL_RC_NOT_SUPPORTED:
+	{
+		QETH_DBF_MESSAGE(3, "ERR:SET_ACCESS_CTRL(%s,%d)==%d\n",
+			card->gdev->dev.kobj.name,
+			access_ctrl_req->subcmd_code,
+			cmd->data.setadapterparms.hdr.return_code);
+		dev_err(&card->gdev->dev, "Adapter does not "
+			"support QDIO data connection isolation\n");
+
+		/* ensure isolation mode is "none" */
+		card->options.isolation = ISOLATION_MODE_NONE;
+		rc = -EOPNOTSUPP;
+		break;
+	}
+	case SET_ACCESS_CTRL_RC_NONE_SHARED_ADAPTER:
+	{
+		QETH_DBF_MESSAGE(3, "ERR:SET_ACCESS_MODE(%s,%d)==%d\n",
+			card->gdev->dev.kobj.name,
+			access_ctrl_req->subcmd_code,
+			cmd->data.setadapterparms.hdr.return_code);
+		dev_err(&card->gdev->dev,
+			"Adapter is dedicated. "
+			"QDIO data connection isolation not supported\n");
+
+		/* ensure isolation mode is "none" */
+		card->options.isolation = ISOLATION_MODE_NONE;
+		rc = -EOPNOTSUPP;
+		break;
+	}
+	case SET_ACCESS_CTRL_RC_ACTIVE_CHECKSUM_OFF:
+	{
+		QETH_DBF_MESSAGE(3, "ERR:SET_ACCESS_MODE(%s,%d)==%d\n",
+			card->gdev->dev.kobj.name,
+			access_ctrl_req->subcmd_code,
+			cmd->data.setadapterparms.hdr.return_code);
+		dev_err(&card->gdev->dev,
+			"TSO does not permit QDIO data connection isolation\n");
+
+		/* ensure isolation mode is "none" */
+		card->options.isolation = ISOLATION_MODE_NONE;
+		rc = -EPERM;
+		break;
+	}
+	default:
+	{
+		/* this should never happen */
+		QETH_DBF_MESSAGE(3, "ERR:SET_ACCESS_MODE(%s,%d)==%d"
+			"==UNKNOWN\n",
+			card->gdev->dev.kobj.name,
+			access_ctrl_req->subcmd_code,
+			cmd->data.setadapterparms.hdr.return_code);
+
+		/* ensure isolation mode is "none" */
+		card->options.isolation = ISOLATION_MODE_NONE;
+		rc = 0;
+		break;
+	}
+	}
+	qeth_default_setadapterparms_cb(card, reply, (unsigned long) cmd);
+	return rc;
+}
+
+static int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
+		enum qeth_ipa_isolation_modes isolation)
+{
+	int rc;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_set_access_ctrl *access_ctrl_req;
+
+	QETH_DBF_TEXT(TRACE, 4, "setacctl");
+
+	QETH_DBF_TEXT_(SETUP, 2, "setacctl");
+	QETH_DBF_TEXT_(SETUP, 2, "%s", card->gdev->dev.kobj.name);
+
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_ACCESS_CONTROL,
+				   sizeof(struct qeth_ipacmd_setadpparms_hdr) +
+				   sizeof(struct qeth_set_access_ctrl));
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	access_ctrl_req = &cmd->data.setadapterparms.data.set_access_ctrl;
+	access_ctrl_req->subcmd_code = isolation;
+
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_set_access_ctrl_cb,
+			       NULL);
+	QETH_DBF_TEXT_(SETUP, 2, "rc=%d", rc);
+	return rc;
+}
+
+int qeth_set_access_ctrl_online(struct qeth_card *card)
+{
+	int rc = 0;
+
+	QETH_DBF_TEXT(TRACE, 4, "setactlo");
+
+	if (card->info.type == QETH_CARD_TYPE_OSAE &&
+	    qeth_adp_supported(card, IPA_SETADP_SET_ACCESS_CONTROL)) {
+		rc = qeth_setadpparms_set_access_ctrl(card,
+			card->options.isolation);
+		if (rc) {
+			QETH_DBF_MESSAGE(3,
+				"IPA(SET_ACCESS_CTRL,%s,%d) sent failed",
+				card->gdev->dev.kobj.name,
+				rc);
+		}
+	} else if (card->options.isolation != ISOLATION_MODE_NONE) {
+		card->options.isolation = ISOLATION_MODE_NONE;
+
+		dev_err(&card->gdev->dev, "Adapter does not "
+			"support QDIO data connection isolation\n");
+		rc = -EOPNOTSUPP;
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qeth_set_access_ctrl_online);
 
 void qeth_tx_timeout(struct net_device *dev)
 {

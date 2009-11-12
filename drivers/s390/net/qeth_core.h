@@ -648,6 +648,7 @@ struct qeth_card_options {
 	enum qeth_large_send_types large_send;
 	int performance_stats;
 	int rx_sg_cb;
+	enum qeth_ipa_isolation_modes isolation;
 };
 
 /*
@@ -856,6 +857,7 @@ void qeth_core_get_strings(struct net_device *, u32, u8 *);
 void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
+int qeth_set_access_ctrl_online(struct qeth_card *card);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

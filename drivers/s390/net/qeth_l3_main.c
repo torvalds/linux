@@ -1506,6 +1506,8 @@ static int qeth_l3_start_ipa_tso(struct qeth_card *card)
 static int qeth_l3_start_ipassists(struct qeth_card *card)
 {
 	QETH_DBF_TEXT(TRACE, 3, "strtipas");
+
+	qeth_set_access_ctrl_online(card);	/* go on*/
 	qeth_l3_start_ipa_arp_processing(card);	/* go on*/
 	qeth_l3_start_ipa_ip_fragmentation(card);	/* go on*/
 	qeth_l3_start_ipa_source_mac(card);	/* go on*/

@@ -463,6 +463,82 @@ static ssize_t qeth_dev_large_send_store(struct device *dev,
 static DEVICE_ATTR(large_send, 0644, qeth_dev_large_send_show,
 		   qeth_dev_large_send_store);
 
+#define ATTR_QETH_ISOLATION_NONE	("none")
+#define ATTR_QETH_ISOLATION_FWD		("forward")
+#define ATTR_QETH_ISOLATION_DROP	("drop")
+
+static ssize_t qeth_dev_isolation_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+
+	if (!card)
+		return -EINVAL;
+
+	switch (card->options.isolation) {
+	case ISOLATION_MODE_NONE:
+		return snprintf(buf, 6, "%s\n", ATTR_QETH_ISOLATION_NONE);
+	case ISOLATION_MODE_FWD:
+		return snprintf(buf, 9, "%s\n", ATTR_QETH_ISOLATION_FWD);
+	case ISOLATION_MODE_DROP:
+		return snprintf(buf, 6, "%s\n", ATTR_QETH_ISOLATION_DROP);
+	default:
+		return snprintf(buf, 5, "%s\n", "N/A");
+	}
+}
+
+static ssize_t qeth_dev_isolation_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	enum qeth_ipa_isolation_modes isolation;
+	int rc = 0;
+	char *tmp, *curtoken;
+	curtoken = (char *) buf;
+
+	if (!card) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	/* check for unknown, too, in case we do not yet know who we are */
+	if (card->info.type != QETH_CARD_TYPE_OSAE &&
+	    card->info.type != QETH_CARD_TYPE_UNKNOWN) {
+		rc = -EOPNOTSUPP;
+		dev_err(&card->gdev->dev, "Adapter does not "
+			"support QDIO data connection isolation\n");
+		goto out;
+	}
+
+	/* parse input into isolation mode */
+	tmp = strsep(&curtoken, "\n");
+	if (!strcmp(tmp, ATTR_QETH_ISOLATION_NONE)) {
+		isolation = ISOLATION_MODE_NONE;
+	} else if (!strcmp(tmp, ATTR_QETH_ISOLATION_FWD)) {
+		isolation = ISOLATION_MODE_FWD;
+	} else if (!strcmp(tmp, ATTR_QETH_ISOLATION_DROP)) {
+		isolation = ISOLATION_MODE_DROP;
+	} else {
+		rc = -EINVAL;
+		goto out;
+	}
+	rc = count;
+
+	/* defer IP assist if device is offline (until discipline->set_online)*/
+	card->options.isolation = isolation;
+	if (card->state == CARD_STATE_SOFTSETUP ||
+	    card->state == CARD_STATE_UP) {
+		int ipa_rc = qeth_set_access_ctrl_online(card);
+		if (ipa_rc != 0)
+			rc = ipa_rc;
+	}
+out:
+	return rc;
+}
+
+static DEVICE_ATTR(isolation, 0644, qeth_dev_isolation_show,
+		   qeth_dev_isolation_store);
+
 static ssize_t qeth_dev_blkt_show(char *buf, struct qeth_card *card, int value)
 {
 
@@ -583,6 +659,7 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_performance_stats.attr,
 	&dev_attr_layer2.attr,
 	&dev_attr_large_send.attr,
+	&dev_attr_isolation.attr,
 	NULL,
 };
 
