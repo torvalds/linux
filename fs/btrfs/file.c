@@ -179,18 +179,14 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		}
 		flags = em->flags;
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
-			if (em->start <= start &&
-			    (!testend || em->start + em->len >= start + len)) {
+			if (testend && em->start + em->len >= start + len) {
 				free_extent_map(em);
 				write_unlock(&em_tree->lock);
 				break;
 			}
-			if (start < em->start) {
-				len = em->start - start;
-			} else {
+			start = em->start + em->len;
+			if (testend)
 				len = start + len - (em->start + em->len);
-				start = em->start + em->len;
-			}
 			free_extent_map(em);
 			write_unlock(&em_tree->lock);
 			continue;
