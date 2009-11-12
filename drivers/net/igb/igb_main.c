@@ -296,10 +296,10 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		 * and continue consuming queues in the same sequence
 		 */
 		if (adapter->vfs_allocated_count) {
-			for (; i < adapter->num_rx_queues; i++)
+			for (; i < adapter->rss_queues; i++)
 				adapter->rx_ring[i].reg_idx = rbase_offset +
 				                              Q_IDX_82576(i);
-			for (; j < adapter->num_tx_queues; j++)
+			for (; j < adapter->rss_queues; j++)
 				adapter->tx_ring[j].reg_idx = rbase_offset +
 				                              Q_IDX_82576(j);
 		}
@@ -618,14 +618,15 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 	int numvecs, i;
 
 	/* Number of supported queues. */
-	adapter->num_rx_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
-	adapter->num_tx_queues = min_t(u32, IGB_MAX_TX_QUEUES, num_online_cpus());
+	adapter->num_rx_queues = adapter->rss_queues;
+	adapter->num_tx_queues = adapter->rss_queues;
 
 	/* start with one vector for every rx queue */
 	numvecs = adapter->num_rx_queues;
 
 	/* if tx handler is seperate add 1 for every tx queue */
-	numvecs += adapter->num_tx_queues;
+	if (!(adapter->flags & IGB_FLAG_QUEUE_PAIRS))
+		numvecs += adapter->num_tx_queues;
 
 	/* store the number of vectors reserved for queues */
 	adapter->num_q_vectors = numvecs;
@@ -666,6 +667,7 @@ msi_only:
 	}
 #endif
 	adapter->vfs_allocated_count = 0;
+	adapter->rss_queues = 1;
 	adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
@@ -1824,6 +1826,17 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 		adapter->vfs_allocated_count = max_vfs;
 
 #endif /* CONFIG_PCI_IOV */
+	adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
+
+	/*
+	 * if rss_queues > 4 or vfs are going to be allocated with rss_queues
+	 * then we should combine the queues into a queue pair in order to
+	 * conserve interrupts due to limited supply
+	 */
+	if ((adapter->rss_queues > 4) ||
+	    ((adapter->rss_queues > 1) && (adapter->vfs_allocated_count > 6)))
+		adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
+
 	/* This call may decrease the number of queues */
 	if (igb_init_interrupt_scheme(adapter)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
@@ -2015,7 +2028,7 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 		}
 	}
 
-	for (i = 0; i < IGB_MAX_TX_QUEUES; i++) {
+	for (i = 0; i < IGB_ABS_MAX_TX_QUEUES; i++) {
 		int r_idx = i % adapter->num_tx_queues;
 		adapter->multi_tx_table[i] = &adapter->tx_ring[r_idx];
 	}
@@ -2199,7 +2212,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 		array_wr32(E1000_RSSRK(0), j, rsskey);
 	}
 
-	num_rx_queues = adapter->num_rx_queues;
+	num_rx_queues = adapter->rss_queues;
 
 	if (adapter->vfs_allocated_count) {
 		/* 82575 and 82576 supports 2 RSS queues for VMDq */
@@ -2255,7 +2268,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 				E1000_VT_CTL_DEFAULT_POOL_SHIFT;
 			wr32(E1000_VT_CTL, vtctl);
 		}
-		if (adapter->num_rx_queues > 1)
+		if (adapter->rss_queues > 1)
 			mrqc = E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
 		else
 			mrqc = E1000_MRQC_ENABLE_VMDQ;
@@ -2385,7 +2398,7 @@ static inline void igb_set_vmolr(struct igb_adapter *adapter, int vfn)
 	/* clear all bits that might not be set */
 	vmolr &= ~(E1000_VMOLR_BAM | E1000_VMOLR_RSSE);
 
-	if (adapter->num_rx_queues > 1 && vfn == adapter->vfs_allocated_count)
+	if (adapter->rss_queues > 1 && vfn == adapter->vfs_allocated_count)
 		vmolr |= E1000_VMOLR_RSSE; /* enable RSS */
 	/*
 	 * for VMDq only allow the VFs and pool 0 to accept broadcast and
