@@ -1384,6 +1384,41 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 }
 
 /*
+ * Try and locate an idle CPU in the sched_domain.
+ */
+static int
+select_idle_sibling(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	int cpu = smp_processor_id();
+	int prev_cpu = task_cpu(p);
+	int i;
+
+	/*
+	 * If this domain spans both cpu and prev_cpu (see the SD_WAKE_AFFINE
+	 * test in select_task_rq_fair) and the prev_cpu is idle then that's
+	 * always a better target than the current cpu.
+	 */
+	if (target == cpu) {
+		if (!cpu_rq(prev_cpu)->cfs.nr_running)
+			target = prev_cpu;
+	}
+
+	/*
+	 * Otherwise, iterate the domain and find an elegible idle cpu.
+	 */
+	if (target == -1 || target == cpu) {
+		for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
+			if (!cpu_rq(i)->cfs.nr_running) {
+				target = i;
+				break;
+			}
+		}
+	}
+
+	return target;
+}
+
+/*
  * sched_balance_self: balance the current task (running on cpu) in domains
  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
  * SD_BALANCE_EXEC.
@@ -1441,36 +1476,30 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		}
 
 		if (want_affine && (tmp->flags & SD_WAKE_AFFINE)) {
-			int candidate = -1, i;
-
-			if (cpumask_test_cpu(prev_cpu, sched_domain_span(tmp)))
-				candidate = cpu;
+			int target = -1;
 
 			/*
-			 * Check for an idle shared cache.
+			 * If both cpu and prev_cpu are part of this domain,
+			 * cpu is a valid SD_WAKE_AFFINE target.
 			 */
-			if (tmp->flags & SD_PREFER_SIBLING) {
-				if (candidate == cpu) {
-					if (!cpu_rq(prev_cpu)->cfs.nr_running)
-						candidate = prev_cpu;
-				}
+			if (cpumask_test_cpu(prev_cpu, sched_domain_span(tmp)))
+				target = cpu;
 
-				if (candidate == -1 || candidate == cpu) {
-					for_each_cpu(i, sched_domain_span(tmp)) {
-						if (!cpumask_test_cpu(i, &p->cpus_allowed))
-							continue;
-						if (!cpu_rq(i)->cfs.nr_running) {
-							candidate = i;
-							break;
-						}
-					}
-				}
-			}
+			/*
+			 * If there's an idle sibling in this domain, make that
+			 * the wake_affine target instead of the current cpu.
+			 *
+			 * XXX: should we possibly do this outside of
+			 * WAKE_AFFINE, in case the shared cache domain is
+			 * smaller than the WAKE_AFFINE domain?
+			 */
+			if (tmp->flags & SD_PREFER_SIBLING)
+				target = select_idle_sibling(p, tmp, target);
 
-			if (candidate >= 0) {
+			if (target >= 0) {
 				affine_sd = tmp;
 				want_affine = 0;
-				cpu = candidate;
+				cpu = target;
 			}
 		}
 
