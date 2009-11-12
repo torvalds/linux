@@ -1083,11 +1083,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 				continue;
 			}
 		}
-		if (card->dai_link[i].codec_dai->ac97_control) {
+		if (card->dai_link[i].codec_dai->ac97_control)
 			ac97 = 1;
-			snd_ac97_dev_add_pdata(codec->ac97,
-				card->dai_link[i].cpu_dai->ac97_pdata);
-		}
 	}
 
 	snprintf(codec->card->shortname, sizeof(codec->card->shortname),
@@ -1509,6 +1506,10 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 				card->dai_link[i].stream_name);
 			mutex_unlock(&codec->mutex);
 			return ret;
+		}
+		if (card->dai_link[i].codec_dai->ac97_control) {
+			snd_ac97_dev_add_pdata(codec->ac97,
+				card->dai_link[i].cpu_dai->ac97_pdata);
 		}
 	}
 
