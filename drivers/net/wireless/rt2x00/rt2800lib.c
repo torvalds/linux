@@ -1089,7 +1089,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_intf_is_usb(rt2x00dev)) {
 		/*
-		 * Wait untill BBP and RF are ready.
+		 * Wait until BBP and RF are ready.
 		 */
 		for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 			rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
