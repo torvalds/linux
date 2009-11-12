@@ -112,6 +112,15 @@ static void nilfs_sufile_mod_counter(struct buffer_head *header_bh,
 }
 
 /**
+ * nilfs_sufile_get_ncleansegs - return the number of clean segments
+ * @sufile: inode of segment usage file
+ */
+unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile)
+{
+	return NILFS_SUI(sufile)->ncleansegs;
+}
+
+/**
  * nilfs_sufile_updatev - modify multiple segment usages at a time
  * @sufile: inode of segment usage file
  * @segnumv: array of segment numbers
@@ -538,28 +547,6 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
  out_sem:
 	up_read(&NILFS_MDT(sufile)->mi_sem);
 	return ret;
-}
-
-/**
- * nilfs_sufile_get_ncleansegs - get the number of clean segments
- * @sufile: inode of segment usage file
- * @nsegsp: pointer to the number of clean segments
- *
- * Description: nilfs_sufile_get_ncleansegs() acquires the number of clean
- * segments.
- *
- * Return Value: On success, 0 is returned and the number of clean segments is
- * stored in the place pointed by @nsegsp. On error, one of the following
- * negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- */
-int nilfs_sufile_get_ncleansegs(struct inode *sufile, unsigned long *nsegsp)
-{
-	*nsegsp = NILFS_SUI(sufile)->ncleansegs;
-	return 0;
 }
 
 void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,

@@ -34,6 +34,8 @@ static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 	return NILFS_MDT(sufile)->mi_nilfs->ns_nsegments;
 }
 
+unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile);
+
 int nilfs_sufile_alloc(struct inode *, __u64 *);
 int nilfs_sufile_get_segment_usage(struct inode *, __u64,
 				   struct nilfs_segment_usage **,
@@ -41,7 +43,6 @@ int nilfs_sufile_get_segment_usage(struct inode *, __u64,
 void nilfs_sufile_put_segment_usage(struct inode *, __u64,
 				    struct buffer_head *);
 int nilfs_sufile_get_stat(struct inode *, struct nilfs_sustat *);
-int nilfs_sufile_get_ncleansegs(struct inode *, unsigned long *);
 ssize_t nilfs_sufile_get_suinfo(struct inode *, __u64, void *, unsigned,
 				size_t);
 
