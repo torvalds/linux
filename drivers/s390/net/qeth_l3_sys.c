@@ -293,25 +293,26 @@ static ssize_t qeth_l3_dev_checksum_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	enum qeth_checksum_types csum_type;
 	char *tmp;
+	int rc;
 
 	if (!card)
 		return -EINVAL;
 
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER))
-		return -EPERM;
-
 	tmp = strsep((char **) &buf, "\n");
 	if (!strcmp(tmp, "sw_checksumming"))
-		card->options.checksum_type = SW_CHECKSUMMING;
+		csum_type = SW_CHECKSUMMING;
 	else if (!strcmp(tmp, "hw_checksumming"))
-		card->options.checksum_type = HW_CHECKSUMMING;
+		csum_type = HW_CHECKSUMMING;
 	else if (!strcmp(tmp, "no_checksumming"))
-		card->options.checksum_type = NO_CHECKSUMMING;
-	else {
+		csum_type = NO_CHECKSUMMING;
+	else
 		return -EINVAL;
-	}
+
+	rc = qeth_l3_set_rx_csum(card, csum_type);
+	if (rc)
+		return rc;
 	return count;
 }
 

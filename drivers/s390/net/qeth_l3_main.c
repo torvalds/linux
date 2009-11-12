@@ -1465,6 +1465,35 @@ static int qeth_l3_send_checksum_command(struct qeth_card *card)
 	return 0;
 }
 
+int qeth_l3_set_rx_csum(struct qeth_card *card,
+	enum qeth_checksum_types csum_type)
+{
+	int rc = 0;
+
+	if (card->options.checksum_type == HW_CHECKSUMMING) {
+		if ((csum_type != HW_CHECKSUMMING) &&
+			(card->state != CARD_STATE_DOWN)) {
+			rc = qeth_l3_send_simple_setassparms(card,
+				IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
+			if (rc)
+				return -EIO;
+		}
+	} else {
+		if (csum_type == HW_CHECKSUMMING) {
+			if (card->state != CARD_STATE_DOWN) {
+				if (!qeth_is_supported(card,
+				    IPA_INBOUND_CHECKSUM))
+					return -EPERM;
+				rc = qeth_l3_send_checksum_command(card);
+				if (rc)
+					return -EIO;
+			}
+		}
+	}
+	card->options.checksum_type = csum_type;
+	return rc;
+}
+
 static int qeth_l3_start_ipa_checksum(struct qeth_card *card)
 {
 	int rc = 0;
@@ -2954,27 +2983,14 @@ static u32 qeth_l3_ethtool_get_rx_csum(struct net_device *dev)
 static int qeth_l3_ethtool_set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct qeth_card *card = dev->ml_priv;
-	enum qeth_card_states old_state;
 	enum qeth_checksum_types csum_type;
-
-	if ((card->state != CARD_STATE_UP) &&
-	    (card->state != CARD_STATE_DOWN))
-		return -EPERM;
 
 	if (data)
 		csum_type = HW_CHECKSUMMING;
 	else
 		csum_type = SW_CHECKSUMMING;
 
-	if (card->options.checksum_type != csum_type) {
-		old_state = card->state;
-		if (card->state == CARD_STATE_UP)
-			__qeth_l3_set_offline(card->gdev, 1);
-		card->options.checksum_type = csum_type;
-		if (old_state == CARD_STATE_UP)
-			__qeth_l3_set_online(card->gdev, 1);
-	}
-	return 0;
+	return qeth_l3_set_rx_csum(card, csum_type);
 }
 
 static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
