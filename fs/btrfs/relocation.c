@@ -1561,6 +1561,20 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 	return 0;
 }
 
+static void put_inodes(struct list_head *list)
+{
+	struct inodevec *ivec;
+	while (!list_empty(list)) {
+		ivec = list_entry(list->next, struct inodevec, list);
+		list_del(&ivec->list);
+		while (ivec->nr > 0) {
+			ivec->nr--;
+			iput(ivec->inode[ivec->nr]);
+		}
+		kfree(ivec);
+	}
+}
+
 static int find_next_key(struct btrfs_path *path, int level,
 			 struct btrfs_key *key)
 
@@ -1723,6 +1737,11 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 
 		btrfs_btree_balance_dirty(root, nr);
 
+		/*
+		 * put inodes outside transaction, otherwise we may deadlock.
+		 */
+		put_inodes(&inode_list);
+
 		if (replaced && rc->stage == UPDATE_DATA_PTRS)
 			invalidate_extent_cache(root, &key, &next_key);
 	}
@@ -1752,19 +1771,7 @@ out:
 
 	btrfs_btree_balance_dirty(root, nr);
 
-	/*
-	 * put inodes while we aren't holding the tree locks
-	 */
-	while (!list_empty(&inode_list)) {
-		struct inodevec *ivec;
-		ivec = list_entry(inode_list.next, struct inodevec, list);
-		list_del(&ivec->list);
-		while (ivec->nr > 0) {
-			ivec->nr--;
-			iput(ivec->inode[ivec->nr]);
-		}
-		kfree(ivec);
-	}
+	put_inodes(&inode_list);
 
 	if (replaced && rc->stage == UPDATE_DATA_PTRS)
 		invalidate_extent_cache(root, &key, &next_key);
