@@ -1393,15 +1393,9 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 
 static void deprecated_sysctl_warning(const int *name, int nlen)
 {
-	static int msg_count;
 	int i;
 
-	/* Ignore accesses to kernel.version */
-	if ((nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
-		return;
-
-	if (msg_count < 5) {
-		msg_count++;
+	if (printk_ratelimit()) {
 		printk(KERN_INFO
 			"warning: process `%s' used the deprecated sysctl "
 			"system call with ", current->comm);
