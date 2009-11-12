@@ -828,7 +828,7 @@ static const u8 bridge_start_ov965x_vga[][2] = {
 	{}
 };
 
-static const u8 bridge_start_ov965x_cif[][2] = {
+static const u8 bridge_start_ov965x_qvga[][2] = {
 	{0xc2, 0x4c},
 	{0xc3, 0xf9},
 	{0xda, 0x00},
@@ -865,7 +865,7 @@ static const u8 sensor_start_ov965x_vga[][2] = {
 	{}
 };
 
-static const u8 sensor_start_ov965x_cif[][2] = {
+static const u8 sensor_start_ov965x_qvga[][2] = {
 	{0x3b, 0xe4},	/* com11 - night mode 1/4 frame rate */
 	{0x1e, 0x04},	/* mvfp */
 	{0x13, 0xe0},	/* com8 */
@@ -1359,10 +1359,10 @@ static int sd_start_ov965x(struct gspca_dev *gspca_dev)
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	if (mode != 0) {	/* 320x240 */
-		reg_w_array(gspca_dev, bridge_start_ov965x_cif,
-				ARRAY_SIZE(bridge_start_ov965x_cif));
-		sccb_w_array(gspca_dev, sensor_start_ov965x_cif,
-				ARRAY_SIZE(sensor_start_ov965x_cif));
+		reg_w_array(gspca_dev, bridge_start_ov965x_qvga,
+				ARRAY_SIZE(bridge_start_ov965x_qvga));
+		sccb_w_array(gspca_dev, sensor_start_ov965x_qvga,
+				ARRAY_SIZE(sensor_start_ov965x_qvga));
 	} else {		/* 640x480 */
 		reg_w_array(gspca_dev, bridge_start_ov965x_vga,
 				ARRAY_SIZE(bridge_start_ov965x_vga));
