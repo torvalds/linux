@@ -185,14 +185,14 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 			return_object->common.reference_count--;
 		}
 
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
 				      "Converted %s to expected %s at index %u",
 				      acpi_ut_get_object_type_name
 				      (return_object),
 				      acpi_ut_get_object_type_name(new_object),
 				      package_index));
 	} else {
-		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
 				      "Converted %s to expected %s",
 				      acpi_ut_get_object_type_name
 				      (return_object),
@@ -254,8 +254,8 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 	*obj_desc_ptr = pkg_obj_desc;
 	data->flags |= ACPI_OBJECT_REPAIRED;
 
-	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-			      "Incorrectly formed Package, attempting repair"));
+	ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Repaired Incorrectly formed Package"));
 
 	return (AE_OK);
 }

@@ -481,6 +481,11 @@ acpi_ut_predefined_warning(const char *module_name,
 			   char *pathname,
 			   u8 node_flags, const char *format, ...);
 
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_info(const char *module_name,
+			u32 line_number,
+			char *pathname, u8 node_flags, const char *format, ...);
+
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
