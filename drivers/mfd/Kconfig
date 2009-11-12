@@ -342,7 +342,6 @@ config MFD_88PM8607
 config AB4500_CORE
 	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
 	depends on SPI
-	default y
 	help
 	  Select this option to enable access to AB4500 power management
 	  chip. This connects to U8500 on the SSP/SPI bus and exports
