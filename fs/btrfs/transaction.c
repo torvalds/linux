@@ -333,6 +333,9 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
+	if (throttle)
+		btrfs_run_delayed_iputs(root);
+
 	return 0;
 }
 
@@ -991,11 +994,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->trans_mutex);
 
 		if (flush_on_commit) {
-			btrfs_start_delalloc_inodes(root);
-			ret = btrfs_wait_ordered_extents(root, 0);
+			btrfs_start_delalloc_inodes(root, 1);
+			ret = btrfs_wait_ordered_extents(root, 0, 1);
 			BUG_ON(ret);
 		} else if (snap_pending) {
-			ret = btrfs_wait_ordered_extents(root, 1);
+			ret = btrfs_wait_ordered_extents(root, 0, 1);
 			BUG_ON(ret);
 		}
 
@@ -1113,6 +1116,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	if (current != root->fs_info->transaction_kthread)
+		btrfs_run_delayed_iputs(root);
+
 	return ret;
 }
 
