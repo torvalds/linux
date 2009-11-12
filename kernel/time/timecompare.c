@@ -40,7 +40,7 @@ ktime_t timecompare_transform(struct timecompare *sync,
 
 	return ns_to_ktime(nsec);
 }
-EXPORT_SYMBOL(timecompare_transform);
+EXPORT_SYMBOL_GPL(timecompare_transform);
 
 int timecompare_offset(struct timecompare *sync,
 		       s64 *offset,
@@ -131,7 +131,7 @@ int timecompare_offset(struct timecompare *sync,
 
 	return used;
 }
-EXPORT_SYMBOL(timecompare_offset);
+EXPORT_SYMBOL_GPL(timecompare_offset);
 
 void __timecompare_update(struct timecompare *sync,
 			  u64 source_tstamp)
@@ -188,4 +188,4 @@ void __timecompare_update(struct timecompare *sync,
 		}
 	}
 }
-EXPORT_SYMBOL(__timecompare_update);
+EXPORT_SYMBOL_GPL(__timecompare_update);

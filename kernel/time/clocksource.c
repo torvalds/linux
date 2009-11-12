@@ -39,7 +39,7 @@ void timecounter_init(struct timecounter *tc,
 	tc->cycle_last = cc->read(cc);
 	tc->nsec = start_tstamp;
 }
-EXPORT_SYMBOL(timecounter_init);
+EXPORT_SYMBOL_GPL(timecounter_init);
 
 /**
  * timecounter_read_delta - get nanoseconds since last call of this function
@@ -83,7 +83,7 @@ u64 timecounter_read(struct timecounter *tc)
 
 	return nsec;
 }
-EXPORT_SYMBOL(timecounter_read);
+EXPORT_SYMBOL_GPL(timecounter_read);
 
 u64 timecounter_cyc2time(struct timecounter *tc,
 			 cycle_t cycle_tstamp)
@@ -105,7 +105,7 @@ u64 timecounter_cyc2time(struct timecounter *tc,
 
 	return nsec;
 }
-EXPORT_SYMBOL(timecounter_cyc2time);
+EXPORT_SYMBOL_GPL(timecounter_cyc2time);
 
 /*[Clocksource internal variables]---------
  * curr_clocksource:
