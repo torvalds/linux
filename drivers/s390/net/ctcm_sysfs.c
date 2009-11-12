@@ -158,6 +158,15 @@ static ssize_t ctcm_proto_store(struct device *dev,
 	return count;
 }
 
+const char *ctcm_type[] = {
+	"not a channel",
+	"CTC/A",
+	"FICON channel",
+	"ESCON channel",
+	"unknown channel type",
+	"unsupported channel type",
+};
+
 static ssize_t ctcm_type_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -168,7 +177,7 @@ static ssize_t ctcm_type_show(struct device *dev,
 		return -ENODEV;
 
 	return sprintf(buf, "%s\n",
-			cu3088_type[cgdev->cdev[0]->id.driver_info]);
+			ctcm_type[cgdev->cdev[0]->id.driver_info]);
 }
 
 static DEVICE_ATTR(buffer, 0644, ctcm_buffer_show, ctcm_buffer_write);

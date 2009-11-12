@@ -53,7 +53,6 @@
 #include <linux/moduleparam.h>
 #include <asm/idals.h>
 
-#include "cu3088.h"
 #include "ctcm_mpc.h"
 #include "ctcm_main.h"
 #include "ctcm_fsms.h"

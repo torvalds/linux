@@ -44,7 +44,6 @@
 #include <asm/idals.h>
 
 #include "fsm.h"
-#include "cu3088.h"
 
 #include "ctcm_dbug.h"
 #include "ctcm_main.h"

@@ -51,11 +51,15 @@
 
 #include <asm/idals.h>
 
-#include "cu3088.h"
 #include "ctcm_fsms.h"
 #include "ctcm_main.h"
 
 /* Some common global variables */
+
+/**
+ * The root device for ctcm group devices
+ */
+static struct device *ctcm_root_dev;
 
 /*
  * Linked list of all detected channels.
@@ -246,7 +250,7 @@ static void channel_remove(struct channel *ch)
  *
  * returns Pointer to a channel or NULL if no matching channel available.
  */
-static struct channel *channel_get(enum channel_types type,
+static struct channel *channel_get(enum ctcm_channel_types type,
 					char *id, int direction)
 {
 	struct channel *ch = channels;
@@ -1342,7 +1346,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
  *
  * returns 0 on success, !0 on error.
  */
-static int add_channel(struct ccw_device *cdev, enum channel_types type,
+static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 				struct ctcm_priv *priv)
 {
 	struct channel **c = &channels;
@@ -1501,13 +1505,13 @@ free_return:	/* note that all channel pointers are 0 or valid */
 /*
  * Return type of a detected device.
  */
-static enum channel_types get_channel_type(struct ccw_device_id *id)
+static enum ctcm_channel_types get_channel_type(struct ccw_device_id *id)
 {
-	enum channel_types type;
-	type = (enum channel_types)id->driver_info;
+	enum ctcm_channel_types type;
+	type = (enum ctcm_channel_types)id->driver_info;
 
-	if (type == channel_type_ficon)
-		type = channel_type_escon;
+	if (type == ctcm_channel_type_ficon)
+		type = ctcm_channel_type_escon;
 
 	return type;
 }
@@ -1525,7 +1529,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 	char read_id[CTCM_ID_SIZE];
 	char write_id[CTCM_ID_SIZE];
 	int direction;
-	enum channel_types type;
+	enum ctcm_channel_types type;
 	struct ctcm_priv *priv;
 	struct net_device *dev;
 	struct ccw_device *cdev0;
@@ -1749,6 +1753,22 @@ err_out:
 	return rc;
 }
 
+static struct ccw_device_id ctcm_ids[] = {
+	{CCW_DEVICE(0x3088, 0x08), .driver_info = ctcm_channel_type_parallel},
+	{CCW_DEVICE(0x3088, 0x1e), .driver_info = ctcm_channel_type_ficon},
+	{CCW_DEVICE(0x3088, 0x1f), .driver_info = ctcm_channel_type_escon},
+	{},
+};
+MODULE_DEVICE_TABLE(ccw, ctcm_ids);
+
+static struct ccw_driver ctcm_ccw_driver = {
+	.owner	= THIS_MODULE,
+	.name	= "ctcm",
+	.ids	= ctcm_ids,
+	.probe	= ccwgroup_probe_ccwdev,
+	.remove	= ccwgroup_remove_ccwdev,
+};
+
 static struct ccwgroup_driver ctcm_group_driver = {
 	.owner       = THIS_MODULE,
 	.name        = CTC_DRIVER_NAME,
@@ -1763,6 +1783,33 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	.restore     = ctcm_pm_resume,
 };
 
+static ssize_t
+ctcm_driver_group_store(struct device_driver *ddrv, const char *buf,
+			size_t count)
+{
+	int err;
+
+	err = ccwgroup_create_from_string(ctcm_root_dev,
+					  ctcm_group_driver.driver_id,
+					  &ctcm_ccw_driver, 2, buf);
+	return err ? err : count;
+}
+
+static DRIVER_ATTR(group, 0200, NULL, ctcm_driver_group_store);
+
+static struct attribute *ctcm_group_attrs[] = {
+	&driver_attr_group.attr,
+	NULL,
+};
+
+static struct attribute_group ctcm_group_attr_group = {
+	.attrs = ctcm_group_attrs,
+};
+
+static struct attribute_group *ctcm_group_attr_groups[] = {
+	&ctcm_group_attr_group,
+	NULL,
+};
 
 /*
  * Module related routines
@@ -1776,7 +1823,10 @@ static struct ccwgroup_driver ctcm_group_driver = {
  */
 static void __exit ctcm_exit(void)
 {
-	unregister_cu3088_discipline(&ctcm_group_driver);
+	driver_remove_file(&ctcm_group_driver.driver, &driver_attr_group);
+	ccwgroup_driver_unregister(&ctcm_group_driver);
+	ccw_driver_unregister(&ctcm_ccw_driver);
+	root_device_unregister(ctcm_root_dev);
 	ctcm_unregister_dbf_views();
 	pr_info("CTCM driver unloaded\n");
 }
@@ -1802,17 +1852,31 @@ static int __init ctcm_init(void)
 	channels = NULL;
 
 	ret = ctcm_register_dbf_views();
-	if (ret) {
-		return ret;
-	}
-	ret = register_cu3088_discipline(&ctcm_group_driver);
-	if (ret) {
-		ctcm_unregister_dbf_views();
-		pr_err("%s / register_cu3088_discipline failed, ret = %d\n",
-			__func__, ret);
-		return ret;
-	}
+	if (ret)
+		goto out_err;
+	ctcm_root_dev = root_device_register("ctcm");
+	ret = IS_ERR(ctcm_root_dev) ? PTR_ERR(ctcm_root_dev) : 0;
+	if (ret)
+		goto register_err;
+	ret = ccw_driver_register(&ctcm_ccw_driver);
+	if (ret)
+		goto ccw_err;
+	ctcm_group_driver.driver.groups = ctcm_group_attr_groups;
+	ret = ccwgroup_driver_register(&ctcm_group_driver);
+	if (ret)
+		goto ccwgroup_err;
 	print_banner();
+	return 0;
+
+ccwgroup_err:
+	ccw_driver_unregister(&ctcm_ccw_driver);
+ccw_err:
+	root_device_unregister(ctcm_root_dev);
+register_err:
+	ctcm_unregister_dbf_views();
+out_err:
+	pr_err("%s / Initializing the ctcm device driver failed, ret = %d\n",
+		__func__, ret);
 	return ret;
 }
 
