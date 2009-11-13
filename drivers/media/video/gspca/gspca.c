@@ -144,13 +144,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
 
-		/* check the availability of the frame buffer */
-		if ((gspca_dev->cur_frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-					!= V4L2_BUF_FLAG_QUEUED) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			break;
-		}
-
 		/* check the packet status and length */
 		len = urb->iso_frame_desc[i].actual_length;
 		if (len == 0) {
@@ -223,17 +216,11 @@ static void bulk_irq(struct urb *urb)
 		goto resubmit;
 	}
 
-	/* check the availability of the frame buffer */
-	if ((gspca_dev->cur_frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-				!= V4L2_BUF_FLAG_QUEUED) {
-		gspca_dev->last_packet_type = DISCARD_PACKET;
-	} else {
-		PDEBUG(D_PACK, "packet l:%d", urb->actual_length);
-		gspca_dev->sd_desc->pkt_scan(gspca_dev,
-					gspca_dev->frame,
-					urb->transfer_buffer,
-					urb->actual_length);
-	}
+	PDEBUG(D_PACK, "packet l:%d", urb->actual_length);
+	gspca_dev->sd_desc->pkt_scan(gspca_dev,
+				gspca_dev->frame,
+				urb->transfer_buffer,
+				urb->actual_length);
 
 resubmit:
 	/* resubmit the URB */
@@ -266,16 +253,18 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 	int i, j;
 
 	PDEBUG(D_PACK, "add t:%d l:%d",	packet_type, len);
+
+	/* check the availability of the frame buffer */
 	frame = gspca_dev->cur_frame;
+	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+					!= V4L2_BUF_FLAG_QUEUED) {
+		gspca_dev->last_packet_type = DISCARD_PACKET;
+		return frame;
+	}
 
 	/* when start of a new frame, if the current frame buffer
 	 * is not queued, discard the whole frame */
 	if (packet_type == FIRST_PACKET) {
-		if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-						!= V4L2_BUF_FLAG_QUEUED) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return frame;
-		}
 		frame->data_end = frame->data;
 		jiffies_to_timeval(get_jiffies_64(),
 				   &frame->v4l2_buf.timestamp);
