@@ -110,6 +110,7 @@ extern char con_buf[CON_BUF_SIZE];
 extern struct mutex con_buf_mtx;
 extern char vt_dont_switch;
 extern int default_utf8;
+extern int global_cursor_default;
 
 struct vt_spawn_console {
 	spinlock_t lock;
@@ -129,5 +130,7 @@ struct vt_notifier_param {
 
 extern int register_vt_notifier(struct notifier_block *nb);
 extern int unregister_vt_notifier(struct notifier_block *nb);
+
+extern void hide_boot_cursor(bool hide);
 
 #endif /* _VT_KERN_H */
