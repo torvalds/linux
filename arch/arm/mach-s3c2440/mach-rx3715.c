@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-rx3715.c
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.handhelds.org/projects/rx3715.html
