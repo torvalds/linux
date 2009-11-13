@@ -146,8 +146,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	use_gbpages = direct_gbpages;
 #endif
 
-	set_nx();
-	if (nx_enabled)
+	/* XXX: replace this with Kees' improved messages */
+	if (__supported_pte_mask & _PAGE_NX)
 		printk(KERN_INFO "NX (Execute Disable) protection: active\n");
 
 	/* Enable PSE if available */
