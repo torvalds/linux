@@ -40,6 +40,11 @@ enum davinci_dm644x_index {
 
 	/* AEAW functions */
 	DM644X_AEAW,
+	DM644X_AEAW0,
+	DM644X_AEAW1,
+	DM644X_AEAW2,
+	DM644X_AEAW3,
+	DM644X_AEAW4,
 
 	/* Memory Stick */
 	DM644X_MSTK,

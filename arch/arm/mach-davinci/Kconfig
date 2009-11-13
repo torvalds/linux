@@ -65,6 +65,13 @@ config MACH_SFFSDR
 	  Say Y here to select the Lyrtech Small Form Factor
 	  Software Defined Radio (SFFSDR) board.
 
+config MACH_NEUROS_OSD2
+	bool "Neuros OSD2 Open Television Set Top Box"
+	depends on ARCH_DAVINCI_DM644x
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a Neuros OSD2 Open Set Top Box.
+
 config MACH_DAVINCI_DM355_EVM
 	bool "TI DM355 EVM"
 	default ARCH_DAVINCI_DM355
