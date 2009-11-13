@@ -5119,11 +5119,11 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 static void tg3_set_txd(struct tg3_napi *, int, dma_addr_t, int, u32, u32);
 
 /* Workaround 4GB and 40-bit hardware DMA bugs. */
-static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
-				       u32 last_plus_one, u32 *start,
-				       u32 base_flags, u32 mss)
+static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
+				       struct sk_buff *skb, u32 last_plus_one,
+				       u32 *start, u32 base_flags, u32 mss)
 {
-	struct tg3_napi *tnapi = &tp->napi[0];
+	struct tg3 *tp = tnapi->tp;
 	struct sk_buff *new_skb;
 	dma_addr_t new_addr = 0;
 	u32 entry = *start;
@@ -5392,9 +5392,13 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	struct skb_shared_info *sp;
 	int would_hit_hwbug;
 	dma_addr_t mapping;
-	struct tg3_napi *tnapi = &tp->napi[0];
+	struct tg3_napi *tnapi;
+	struct netdev_queue *txq;
 
-	len = skb_headlen(skb);
+	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+	tnapi = &tp->napi[skb_get_queue_mapping(skb)];
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSIX)
+		tnapi++;
 
 	/* We are running in BH disabled context with netif_tx_lock
 	 * and TX reclaim runs via tp->napi.poll inside of a software
@@ -5402,8 +5406,8 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
 	if (unlikely(tg3_tx_avail(tnapi) <= (skb_shinfo(skb)->nr_frags + 1))) {
-		if (!netif_queue_stopped(dev)) {
-			netif_stop_queue(dev);
+		if (!netif_tx_queue_stopped(txq)) {
+			netif_tx_stop_queue(txq);
 
 			/* This is a hard error, log it. */
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
@@ -5416,7 +5420,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	base_flags = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		base_flags |= TXD_FLAG_TCPUDP_CSUM;
-	mss = 0;
+
 	if ((mss = skb_shinfo(skb)->gso_size) != 0) {
 		struct iphdr *iph;
 		u32 tcp_opt_len, ip_tcp_len, hdr_len;
@@ -5488,6 +5492,8 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 
 	would_hit_hwbug = 0;
 
+	len = skb_headlen(skb);
+
 	if ((tp->tg3_flags3 & TG3_FLG3_SHORT_DMA_BUG) && len <= 8)
 		would_hit_hwbug = 1;
 
@@ -5553,7 +5559,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_dma_hwbug_workaround(tp, skb, last_plus_one,
+		if (tigon3_dma_hwbug_workaround(tnapi, skb, last_plus_one,
 						&start, base_flags, mss))
 			goto out_unlock;
 
@@ -5561,13 +5567,13 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	}
 
 	/* Packets are ready, update Tx producer idx local and on card. */
-	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW, entry);
+	tw32_tx_mbox(tnapi->prodmbox, entry);
 
 	tnapi->tx_prod = entry;
 	if (unlikely(tg3_tx_avail(tnapi) <= (MAX_SKB_FRAGS + 1))) {
-		netif_stop_queue(dev);
+		netif_tx_stop_queue(txq);
 		if (tg3_tx_avail(tnapi) > TG3_TX_WAKEUP_THRESH(tnapi))
-			netif_wake_queue(tp->dev);
+			netif_tx_wake_queue(txq);
 	}
 
 out_unlock:
