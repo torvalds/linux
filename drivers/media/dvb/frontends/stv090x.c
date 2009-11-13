@@ -1436,9 +1436,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 			}
 			if (STV090x_WRITE_DEMOD(state, CARHDR, 0x40) < 0)
 				goto err;
-		}
-
-		if (state->srate < 10000000) {
+		} else if (state->srate < 10000000) {
 			if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x4c) < 0)
 				goto err;
 		} else {
@@ -1689,7 +1687,7 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 				goto err;
 
 			if (state->config->tuner_set_frequency) {
-				if (state->config->tuner_set_frequency(fe, state->frequency) < 0)
+				if (state->config->tuner_set_frequency(fe, freq) < 0)
 					goto err;
 			}
 
@@ -1867,7 +1865,7 @@ static int stv090x_get_dmdlock(struct stv090x_state *state, s32 timeout)
 static int stv090x_blind_search(struct stv090x_state *state)
 {
 	u32 agc2, reg, srate_coarse;
-	s32 timeout_dmd = 500, cpt_fail, agc2_ovflw, i;
+	s32 cpt_fail, agc2_ovflw, i;
 	u8 k_ref, k_max, k_min;
 	int coarse_fail, lock;
 
@@ -1911,7 +1909,8 @@ static int stv090x_blind_search(struct stv090x_state *state)
 				srate_coarse = stv090x_srate_srch_fine(state);
 				if (srate_coarse != 0) {
 					stv090x_get_lock_tmg(state);
-					lock = stv090x_get_dmdlock(state, timeout_dmd);
+					lock = stv090x_get_dmdlock(state,
+							state->DemodTimeout);
 				} else {
 					lock = 0;
 				}
@@ -2073,7 +2072,7 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 						goto err;
 
 					if (state->config->tuner_set_frequency) {
-						if (state->config->tuner_set_frequency(fe, state->frequency) < 0)
+						if (state->config->tuner_set_frequency(fe, freq) < 0)
 							goto err;
 					}
 
@@ -3053,7 +3052,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	struct dvb_frontend *fe = &state->frontend;
 	enum stv090x_signal_state signal_state = STV090x_NOCARRIER;
 	u32 reg;
-	s32 timeout_dmd = 500, timeout_fec = 50, agc1_power, power_iq = 0, i;
+	s32 agc1_power, power_iq = 0, i;
 	int lock = 0, low_sr = 0, no_signal = 0;
 
 	reg = STV090x_READ_DEMOD(state, TSCFGH);
@@ -3218,10 +3217,10 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		lock = stv090x_blind_search(state);
 
 	else if (state->algo == STV090x_COLD_SEARCH)
-		lock = stv090x_get_coldlock(state, timeout_dmd);
+		lock = stv090x_get_coldlock(state, state->DemodTimeout);
 
 	else if (state->algo == STV090x_WARM_SEARCH)
-		lock = stv090x_get_dmdlock(state, timeout_dmd);
+		lock = stv090x_get_dmdlock(state, state->DemodTimeout);
 
 	if ((!lock) && (state->algo == STV090x_COLD_SEARCH)) {
 		if (!low_sr) {
@@ -3256,8 +3255,9 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 				goto err;
 		}
 
-		if (stv090x_get_lock(state, timeout_fec, timeout_fec)) {
-			lock = 1;
+		lock = stv090x_get_lock(state, state->FecTimeout,
+				state->FecTimeout);
+		if (lock) {
 			if (state->delsys == STV090x_DVBS2) {
 				stv090x_set_s2rolloff(state);
 
@@ -3284,7 +3284,6 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, ERRCTRL2, 0xc1) < 0)
 				goto err;
 		} else {
-			lock = 0;
 			signal_state = STV090x_NODATA;
 			no_signal = stv090x_chk_signal(state);
 		}
@@ -3768,6 +3767,8 @@ static void stv090x_release(struct dvb_frontend *fe)
 static int stv090x_ldpc_mode(struct stv090x_state *state, enum stv090x_mode ldpc_mode)
 {
 	u32 reg = 0;
+
+	reg = stv090x_read_reg(state, STV090x_GENCFG);
 
 	switch (ldpc_mode) {
 	case STV090x_DUAL:
