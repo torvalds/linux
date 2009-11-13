@@ -4408,11 +4408,9 @@ static void tg3_tx(struct tg3_napi *tnapi)
  * buffers the cpu only reads the last cacheline of the RX descriptor
  * (to fetch the error flags, vlan tag, checksum, and opaque cookie).
  */
-static int tg3_alloc_rx_skb(struct tg3_napi *tnapi,
-			    struct tg3_rx_prodring_set *tpr,
+static int tg3_alloc_rx_skb(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 			    u32 opaque_key, u32 dest_idx_unmasked)
 {
-	struct tg3 *tp = tnapi->tp;
 	struct tg3_rx_buffer_desc *desc;
 	struct ring_info *map, *src_map;
 	struct sk_buff *skb;
@@ -4601,7 +4599,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		) {
 			int skb_size;
 
-			skb_size = tg3_alloc_rx_skb(tnapi, tpr, opaque_key,
+			skb_size = tg3_alloc_rx_skb(tp, tpr, opaque_key,
 						    *post_ptr);
 			if (skb_size < 0)
 				goto drop_it;
@@ -5744,7 +5742,6 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 				 struct tg3_rx_prodring_set *tpr)
 {
 	u32 i, rx_pkt_dma_sz;
-	struct tg3_napi *tnapi = &tp->napi[0];
 
 	/* Zero out all descriptors. */
 	memset(tpr->rx_std, 0, TG3_RX_RING_BYTES);
@@ -5771,7 +5768,7 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 
 	/* Now allocate fresh SKBs for each rx ring. */
 	for (i = 0; i < tp->rx_pending; i++) {
-		if (tg3_alloc_rx_skb(tnapi, tpr, RXD_OPAQUE_RING_STD, i) < 0) {
+		if (tg3_alloc_rx_skb(tp, tpr, RXD_OPAQUE_RING_STD, i) < 0) {
 			printk(KERN_WARNING PFX
 			       "%s: Using a smaller RX standard ring, "
 			       "only %d out of %d buffers were allocated "
@@ -5802,7 +5799,7 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 		}
 
 		for (i = 0; i < tp->rx_jumbo_pending; i++) {
-			if (tg3_alloc_rx_skb(tnapi, tpr, RXD_OPAQUE_RING_JUMBO,
+			if (tg3_alloc_rx_skb(tp, tpr, RXD_OPAQUE_RING_JUMBO,
 					     i) < 0) {
 				printk(KERN_WARNING PFX
 				       "%s: Using a smaller RX jumbo ring, "
