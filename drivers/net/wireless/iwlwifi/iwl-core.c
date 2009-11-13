@@ -2497,6 +2497,14 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if ((changes & BSS_CHANGED_BEACON_ENABLED) &&
+	    vif->bss_conf.enable_beacon) {
+		memcpy(priv->staging_rxon.bssid_addr,
+		       bss_conf->bssid, ETH_ALEN);
+		memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
+		iwlcore_config_ap(priv);
+	}
+
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
