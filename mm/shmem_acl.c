@@ -63,86 +63,48 @@ struct generic_acl_operations shmem_acl_ops = {
 	.setacl = shmem_set_acl,
 };
 
-/**
- * shmem_list_acl_access, shmem_get_acl_access, shmem_set_acl_access,
- * shmem_xattr_acl_access_handler  -  plumbing code to implement the
- * system.posix_acl_access xattr using the generic acl functions.
- */
-
 static size_t
-shmem_list_acl_access(struct inode *inode, char *list, size_t list_size,
-		      const char *name, size_t name_len)
+shmem_xattr_list_acl(struct dentry *dentry, char *list, size_t list_size,
+		const char *name, size_t name_len, int type)
 {
-	return generic_acl_list(inode, &shmem_acl_ops, ACL_TYPE_ACCESS,
-				list, list_size);
+	return generic_acl_list(dentry->d_inode, &shmem_acl_ops,
+				type, list, list_size);
 }
 
 static int
-shmem_get_acl_access(struct inode *inode, const char *name, void *buffer,
-		     size_t size)
+shmem_xattr_get_acl(struct dentry *dentry, const char *name, void *buffer,
+		     size_t size, int type)
 {
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
-	return generic_acl_get(inode, &shmem_acl_ops, ACL_TYPE_ACCESS, buffer,
-			       size);
+	return generic_acl_get(dentry->d_inode, &shmem_acl_ops, type,
+			       buffer, size);
 }
 
 static int
-shmem_set_acl_access(struct inode *inode, const char *name, const void *value,
-		     size_t size, int flags)
+shmem_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
+		     size_t size, int flags, int type)
 {
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
-	return generic_acl_set(inode, &shmem_acl_ops, ACL_TYPE_ACCESS, value,
-			       size);
+	return generic_acl_set(dentry->d_inode, &shmem_acl_ops, type,
+			       value, size);
 }
 
 struct xattr_handler shmem_xattr_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
-	.list	= shmem_list_acl_access,
-	.get	= shmem_get_acl_access,
-	.set	= shmem_set_acl_access,
+	.flags	= ACL_TYPE_ACCESS,
+	.list	= shmem_xattr_list_acl,
+	.get	= shmem_xattr_get_acl,
+	.set	= shmem_xattr_set_acl,
 };
-
-/**
- * shmem_list_acl_default, shmem_get_acl_default, shmem_set_acl_default,
- * shmem_xattr_acl_default_handler  -  plumbing code to implement the
- * system.posix_acl_default xattr using the generic acl functions.
- */
-
-static size_t
-shmem_list_acl_default(struct inode *inode, char *list, size_t list_size,
-		       const char *name, size_t name_len)
-{
-	return generic_acl_list(inode, &shmem_acl_ops, ACL_TYPE_DEFAULT,
-				list, list_size);
-}
-
-static int
-shmem_get_acl_default(struct inode *inode, const char *name, void *buffer,
-		      size_t size)
-{
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
-	return generic_acl_get(inode, &shmem_acl_ops, ACL_TYPE_DEFAULT, buffer,
-			       size);
-}
-
-static int
-shmem_set_acl_default(struct inode *inode, const char *name, const void *value,
-		      size_t size, int flags)
-{
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
-	return generic_acl_set(inode, &shmem_acl_ops, ACL_TYPE_DEFAULT, value,
-			       size);
-}
 
 struct xattr_handler shmem_xattr_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
-	.list	= shmem_list_acl_default,
-	.get	= shmem_get_acl_default,
-	.set	= shmem_set_acl_default,
+	.flags	= ACL_TYPE_DEFAULT,
+	.list	= shmem_xattr_list_acl,
+	.get	= shmem_xattr_get_acl,
+	.set	= shmem_xattr_set_acl,
 };
 
 /**

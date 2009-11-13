@@ -73,13 +73,13 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int btrfs_xattr_get_acl(struct inode *inode, int type,
-			       void *value, size_t size)
+static int btrfs_xattr_acl_get(struct dentry *dentry, const char *name,
+		void *value, size_t size, int type)
 {
 	struct posix_acl *acl;
 	int ret = 0;
 
-	acl = btrfs_get_acl(inode, type);
+	acl = btrfs_get_acl(dentry->d_inode, type);
 
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
@@ -151,8 +151,8 @@ out:
 	return ret;
 }
 
-static int btrfs_xattr_set_acl(struct inode *inode, int type,
-			       const void *value, size_t size)
+static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int type)
 {
 	int ret = 0;
 	struct posix_acl *acl = NULL;
@@ -167,36 +167,11 @@ static int btrfs_xattr_set_acl(struct inode *inode, int type,
 		}
 	}
 
-	ret = btrfs_set_acl(inode, acl, type);
+	ret = btrfs_set_acl(dentry->d_inode, acl, type);
 
 	posix_acl_release(acl);
 
 	return ret;
-}
-
-
-static int btrfs_xattr_acl_access_get(struct inode *inode, const char *name,
-				      void *value, size_t size)
-{
-	return btrfs_xattr_get_acl(inode, ACL_TYPE_ACCESS, value, size);
-}
-
-static int btrfs_xattr_acl_access_set(struct inode *inode, const char *name,
-				      const void *value, size_t size, int flags)
-{
-	return btrfs_xattr_set_acl(inode, ACL_TYPE_ACCESS, value, size);
-}
-
-static int btrfs_xattr_acl_default_get(struct inode *inode, const char *name,
-				       void *value, size_t size)
-{
-	return btrfs_xattr_get_acl(inode, ACL_TYPE_DEFAULT, value, size);
-}
-
-static int btrfs_xattr_acl_default_set(struct inode *inode, const char *name,
-			       const void *value, size_t size, int flags)
-{
-	return btrfs_xattr_set_acl(inode, ACL_TYPE_DEFAULT, value, size);
 }
 
 int btrfs_check_acl(struct inode *inode, int mask)
@@ -303,14 +278,16 @@ int btrfs_acl_chmod(struct inode *inode)
 
 struct xattr_handler btrfs_xattr_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
-	.get	= btrfs_xattr_acl_default_get,
-	.set	= btrfs_xattr_acl_default_set,
+	.flags	= ACL_TYPE_DEFAULT,
+	.get	= btrfs_xattr_acl_get,
+	.set	= btrfs_xattr_acl_set,
 };
 
 struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
-	.get	= btrfs_xattr_acl_access_get,
-	.set	= btrfs_xattr_acl_access_set,
+	.flags	= ACL_TYPE_ACCESS,
+	.get	= btrfs_xattr_acl_get,
+	.set	= btrfs_xattr_acl_set,
 };
 
 #else /* CONFIG_BTRFS_FS_POSIX_ACL */

@@ -2042,27 +2042,28 @@ static const struct inode_operations shmem_symlink_inode_operations = {
  * filesystem level, though.
  */
 
-static size_t shmem_xattr_security_list(struct inode *inode, char *list,
+static size_t shmem_xattr_security_list(struct dentry *dentry, char *list,
 					size_t list_len, const char *name,
-					size_t name_len)
+					size_t name_len, int handler_flags)
 {
-	return security_inode_listsecurity(inode, list, list_len);
+	return security_inode_listsecurity(dentry->d_inode, list, list_len);
 }
 
-static int shmem_xattr_security_get(struct inode *inode, const char *name,
-				    void *buffer, size_t size)
+static int shmem_xattr_security_get(struct dentry *dentry, const char *name,
+		void *buffer, size_t size, int handler_flags)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return xattr_getsecurity(inode, name, buffer, size);
+	return xattr_getsecurity(dentry->d_inode, name, buffer, size);
 }
 
-static int shmem_xattr_security_set(struct inode *inode, const char *name,
-				    const void *value, size_t size, int flags)
+static int shmem_xattr_security_set(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int handler_flags)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return security_inode_setsecurity(inode, name, value, size, flags);
+	return security_inode_setsecurity(dentry->d_inode, name, value,
+					  size, flags);
 }
 
 static struct xattr_handler shmem_xattr_security_handler = {
