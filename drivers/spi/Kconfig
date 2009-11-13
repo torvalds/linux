@@ -243,7 +243,7 @@ config SPI_TXX9
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 
 config SPI_XILINX
-	tristate "Xilinx SPI controller"
+	tristate "Xilinx SPI controller common module"
 	depends on HAS_IOMEM && EXPERIMENTAL
 	select SPI_BITBANG
 	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
@@ -252,6 +252,8 @@ config SPI_XILINX
 
 	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
 	  Product Specification document (DS464) for hardware details.
+
+	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
 
 config SPI_XILINX_OF
 	tristate "Xilinx SPI controller OF device"

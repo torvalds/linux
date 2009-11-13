@@ -72,6 +72,7 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 		return -EINVAL;
 	}
 	pdata->num_chipselect = *prop;
+	pdata->bits_per_word = 8;
 	master = xilinx_spi_init(&ofdev->dev, &r_mem, r_irq.start, -1);
 	if (!master)
 		return -ENODEV;
