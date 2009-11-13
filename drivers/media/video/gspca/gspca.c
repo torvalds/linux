@@ -126,7 +126,6 @@ EXPORT_SYMBOL(gspca_get_i_frame);
 static void fill_frame(struct gspca_dev *gspca_dev,
 			struct urb *urb)
 {
-	struct gspca_frame *frame;
 	u8 *data;		/* address of data in the iso message */
 	int i, len, st;
 	cam_pkt_op pkt_scan;
@@ -146,8 +145,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	for (i = 0; i < urb->number_of_packets; i++) {
 
 		/* check the availability of the frame buffer */
-		frame = gspca_get_i_frame(gspca_dev);
-		if (!frame) {
+		if ((gspca_dev->cur_frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+					!= V4L2_BUF_FLAG_QUEUED) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			break;
 		}
@@ -173,7 +172,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 			i, urb->iso_frame_desc[i].offset, len);
 		data = (u8 *) urb->transfer_buffer
 					+ urb->iso_frame_desc[i].offset;
-		pkt_scan(gspca_dev, frame, data, len);
+		pkt_scan(gspca_dev, gspca_dev->cur_frame, data, len);
 	}
 
 resubmit:
@@ -204,7 +203,6 @@ static void isoc_irq(struct urb *urb)
 static void bulk_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
-	struct gspca_frame *frame;
 	int st;
 
 	PDEBUG(D_PACK, "bulk irq");
@@ -226,13 +224,13 @@ static void bulk_irq(struct urb *urb)
 	}
 
 	/* check the availability of the frame buffer */
-	frame = gspca_get_i_frame(gspca_dev);
-	if (!frame) {
+	if ((gspca_dev->cur_frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+				!= V4L2_BUF_FLAG_QUEUED) {
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 	} else {
 		PDEBUG(D_PACK, "packet l:%d", urb->actual_length);
 		gspca_dev->sd_desc->pkt_scan(gspca_dev,
-					frame,
+					gspca_dev->frame,
 					urb->transfer_buffer,
 					urb->actual_length);
 	}
@@ -260,13 +258,15 @@ resubmit:
  */
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    enum gspca_packet_type packet_type,
-				    struct gspca_frame *frame,
+				    struct gspca_frame *dummy,
 				    const __u8 *data,
 				    int len)
 {
+	struct gspca_frame *frame;
 	int i, j;
 
 	PDEBUG(D_PACK, "add t:%d l:%d",	packet_type, len);
+	frame = gspca_dev->cur_frame;
 
 	/* when start of a new frame, if the current frame buffer
 	 * is not queued, discard the whole frame */
@@ -315,7 +315,7 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 			i,
 			gspca_dev->fr_o);
 		j = gspca_dev->fr_queue[i];
-		frame = &gspca_dev->frame[j];
+		gspca_dev->cur_frame = frame = &gspca_dev->frame[j];
 	}
 	return frame;
 }
@@ -398,6 +398,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.m.offset = i * frsz;
 	}
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
+	gspca_dev->cur_frame = &gspca_dev->frame[0];
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 	gspca_dev->sequence = 0;
 	return 0;

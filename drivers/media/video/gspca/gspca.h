@@ -151,6 +151,7 @@ struct gspca_dev {
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
+	struct gspca_frame *cur_frame;		/* frame beeing filled */
 	__u32 frsz;				/* frame size */
 	char nframes;				/* number of frames */
 	char fr_i;				/* frame being filled */
