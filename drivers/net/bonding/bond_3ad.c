@@ -446,6 +446,48 @@ static u16 __ad_timer_to_ticks(u16 timer_type, u16 par)
 /////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * __choose_matched - update a port's matched variable from a received lacpdu
+ * @lacpdu: the lacpdu we've received
+ * @port: the port we're looking at
+ *
+ * Update the value of the matched variable, using parameter values from a
+ * newly received lacpdu. Parameter values for the partner carried in the
+ * received PDU are compared with the corresponding operational parameter
+ * values for the actor. Matched is set to TRUE if all of these parameters
+ * match and the PDU parameter partner_state.aggregation has the same value as
+ * actor_oper_port_state.aggregation and lacp will actively maintain the link
+ * in the aggregation. Matched is also set to TRUE if the value of
+ * actor_state.aggregation in the received PDU is set to FALSE, i.e., indicates
+ * an individual link and lacp will actively maintain the link. Otherwise,
+ * matched is set to FALSE. LACP is considered to be actively maintaining the
+ * link if either the PDU's actor_state.lacp_activity variable is TRUE or both
+ * the actor's actor_oper_port_state.lacp_activity and the PDU's
+ * partner_state.lacp_activity variables are TRUE.
+ *
+ * Note: the AD_PORT_MATCHED "variable" is not specified by 802.3ad; it is
+ * used here to implement the language from 802.3ad 43.4.9 that requires
+ * recordPDU to "match" the LACPDU parameters to the stored values.
+ */
+static void __choose_matched(struct lacpdu *lacpdu, struct port *port)
+{
+	// check if all parameters are alike
+	if (((ntohs(lacpdu->partner_port) == port->actor_port_number) &&
+	     (ntohs(lacpdu->partner_port_priority) == port->actor_port_priority) &&
+	     !MAC_ADDRESS_COMPARE(&(lacpdu->partner_system), &(port->actor_system)) &&
+	     (ntohs(lacpdu->partner_system_priority) == port->actor_system_priority) &&
+	     (ntohs(lacpdu->partner_key) == port->actor_oper_port_key) &&
+	     ((lacpdu->partner_state & AD_STATE_AGGREGATION) == (port->actor_oper_port_state & AD_STATE_AGGREGATION))) ||
+	    // or this is individual link(aggregation == FALSE)
+	    ((lacpdu->actor_state & AD_STATE_AGGREGATION) == 0)
+		) {
+		// update the state machine Matched variable
+		port->sm_vars |= AD_PORT_MATCHED;
+	} else {
+		port->sm_vars &= ~AD_PORT_MATCHED;
+	}
+}
+
+/**
  * __record_pdu - record parameters from a received lacpdu
  * @lacpdu: the lacpdu we've received
  * @port: the port we're looking at
@@ -459,6 +501,7 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 	if (lacpdu && port) {
 		struct port_params *partner = &port->partner_oper;
 
+		__choose_matched(lacpdu, port);
 		// record the new parameter values for the partner operational
 		partner->port_number = ntohs(lacpdu->actor_port);
 		partner->port_priority = ntohs(lacpdu->actor_port_priority);
@@ -558,47 +601,6 @@ static void __update_default_selected(struct port *port)
 			!= (oper->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
-		}
-	}
-}
-
-/**
- * __choose_matched - update a port's matched variable from a received lacpdu
- * @lacpdu: the lacpdu we've received
- * @port: the port we're looking at
- *
- * Update the value of the matched variable, using parameter values from a
- * newly received lacpdu. Parameter values for the partner carried in the
- * received PDU are compared with the corresponding operational parameter
- * values for the actor. Matched is set to TRUE if all of these parameters
- * match and the PDU parameter partner_state.aggregation has the same value as
- * actor_oper_port_state.aggregation and lacp will actively maintain the link
- * in the aggregation. Matched is also set to TRUE if the value of
- * actor_state.aggregation in the received PDU is set to FALSE, i.e., indicates
- * an individual link and lacp will actively maintain the link. Otherwise,
- * matched is set to FALSE. LACP is considered to be actively maintaining the
- * link if either the PDU's actor_state.lacp_activity variable is TRUE or both
- * the actor's actor_oper_port_state.lacp_activity and the PDU's
- * partner_state.lacp_activity variables are TRUE.
- */
-static void __choose_matched(struct lacpdu *lacpdu, struct port *port)
-{
-	// validate lacpdu and port
-	if (lacpdu && port) {
-		// check if all parameters are alike
-		if (((ntohs(lacpdu->partner_port) == port->actor_port_number) &&
-		     (ntohs(lacpdu->partner_port_priority) == port->actor_port_priority) &&
-		     !MAC_ADDRESS_COMPARE(&(lacpdu->partner_system), &(port->actor_system)) &&
-		     (ntohs(lacpdu->partner_system_priority) == port->actor_system_priority) &&
-		     (ntohs(lacpdu->partner_key) == port->actor_oper_port_key) &&
-		     ((lacpdu->partner_state & AD_STATE_AGGREGATION) == (port->actor_oper_port_state & AD_STATE_AGGREGATION))) ||
-		    // or this is individual link(aggregation == FALSE)
-		    ((lacpdu->actor_state & AD_STATE_AGGREGATION) == 0)
-		   ) {
-			// update the state machine Matched variable
-			port->sm_vars |= AD_PORT_MATCHED;
-		} else {
-			port->sm_vars &= ~AD_PORT_MATCHED;
 		}
 	}
 }
@@ -1134,7 +1136,6 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			__update_selected(lacpdu, port);
 			__update_ntt(lacpdu, port);
 			__record_pdu(lacpdu, port);
-			__choose_matched(lacpdu, port);
 			port->sm_rx_timer_counter = __ad_timer_to_ticks(AD_CURRENT_WHILE_TIMER, (u16)(port->actor_oper_port_state & AD_STATE_LACP_TIMEOUT));
 			port->actor_oper_port_state &= ~AD_STATE_EXPIRED;
 			// verify that if the aggregator is enabled, the port is enabled too.
