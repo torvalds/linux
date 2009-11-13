@@ -402,7 +402,7 @@ static void tg3_write_indirect_mbox(struct tg3 *tp, u32 off, u32 val)
 				       TG3_64BIT_REG_LOW, val);
 		return;
 	}
-	if (off == (MAILBOX_RCV_STD_PROD_IDX + TG3_64BIT_REG_LOW)) {
+	if (off == TG3_RX_STD_PROD_IDX_REG) {
 		pci_write_config_dword(tp->pdev, TG3PCI_STD_RING_PROD_IDX +
 				       TG3_64BIT_REG_LOW, val);
 		return;
@@ -4684,9 +4684,7 @@ next_pkt:
 
 		if (unlikely(rx_std_posted >= tp->rx_std_max_post)) {
 			u32 idx = *post_ptr % TG3_RX_RING_SIZE;
-
-			tw32_rx_mbox(MAILBOX_RCV_STD_PROD_IDX +
-				     TG3_64BIT_REG_LOW, idx);
+			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG, idx);
 			work_mask &= ~RXD_OPAQUE_RING_STD;
 			rx_std_posted = 0;
 		}
@@ -4708,13 +4706,11 @@ next_pkt_nopost:
 	/* Refill RX ring(s). */
 	if (work_mask & RXD_OPAQUE_RING_STD) {
 		tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
-		tw32_rx_mbox(MAILBOX_RCV_STD_PROD_IDX + TG3_64BIT_REG_LOW,
-			     tpr->rx_std_prod_idx);
+		tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG, tpr->rx_std_prod_idx);
 	}
 	if (work_mask & RXD_OPAQUE_RING_JUMBO) {
 		tpr->rx_jmb_prod_idx = jmb_prod_idx % TG3_RX_JUMBO_RING_SIZE;
-		tw32_rx_mbox(MAILBOX_RCV_JUMBO_PROD_IDX + TG3_64BIT_REG_LOW,
-			     tpr->rx_jmb_prod_idx);
+		tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG, tpr->rx_jmb_prod_idx);
 	}
 	mmiowb();
 
@@ -7526,13 +7522,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32(RCVDBDI_STD_BD + TG3_BDINFO_MAXLEN_FLAGS, val);
 
 	tpr->rx_std_prod_idx = tp->rx_pending;
-	tw32_rx_mbox(MAILBOX_RCV_STD_PROD_IDX + TG3_64BIT_REG_LOW,
-		     tpr->rx_std_prod_idx);
+	tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG, tpr->rx_std_prod_idx);
 
 	tpr->rx_jmb_prod_idx = (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) ?
 			  tp->rx_jumbo_pending : 0;
-	tw32_rx_mbox(MAILBOX_RCV_JUMBO_PROD_IDX + TG3_64BIT_REG_LOW,
-		     tpr->rx_jmb_prod_idx);
+	tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG, tpr->rx_jmb_prod_idx);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
 		tw32(STD_REPLENISH_LWM, 32);
