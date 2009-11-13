@@ -511,15 +511,10 @@ int pciehp_power_on_slot(struct slot * slot)
 			return retval;
 		}
 	}
+	ctrl->power_fault_detected = 0;
 
 	slot_cmd = POWER_ON;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	if (!pciehp_poll_mode) {
-		/* Enable power fault detection turned off at power off time */
-		slot_cmd |= PCI_EXP_SLTCTL_PFDE;
-		cmd_mask |= PCI_EXP_SLTCTL_PFDE;
-	}
-
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	if (retval) {
 		ctrl_err(ctrl, "Write %x command failed!\n", slot_cmd);
@@ -528,7 +523,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
 
-	ctrl->power_fault_detected = 0;
 	return retval;
 }
 
@@ -541,12 +535,6 @@ int pciehp_power_off_slot(struct slot * slot)
 
 	slot_cmd = POWER_OFF;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	if (!pciehp_poll_mode) {
-		/* Disable power fault detection */
-		slot_cmd &= ~PCI_EXP_SLTCTL_PFDE;
-		cmd_mask |= PCI_EXP_SLTCTL_PFDE;
-	}
-
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	if (retval) {
 		ctrl_err(ctrl, "Write command failed!\n");
@@ -790,11 +778,19 @@ int pcie_enable_notification(struct controller *ctrl)
 {
 	u16 cmd, mask;
 
+	/*
+	 * TBD: Power fault detected software notification support.
+	 *
+	 * Power fault detected software notification is not enabled
+	 * now, because it caused power fault detected interrupt storm
+	 * on some machines. On those machines, power fault detected
+	 * bit in the slot status register was set again immediately
+	 * when it is cleared in the interrupt service routine, and
+	 * next power fault detected interrupt was notified again.
+	 */
 	cmd = PCI_EXP_SLTCTL_PDCE;
 	if (ATTN_BUTTN(ctrl))
 		cmd |= PCI_EXP_SLTCTL_ABPE;
-	if (POWER_CTRL(ctrl))
-		cmd |= PCI_EXP_SLTCTL_PFDE;
 	if (MRL_SENS(ctrl))
 		cmd |= PCI_EXP_SLTCTL_MRLSCE;
 	if (!pciehp_poll_mode)
