@@ -3185,7 +3185,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if ((agc1_power == 0) && (power_iq < STV090x_IQPOWER_THRESHOLD)) {
 		dprintk(FE_ERROR, 1, "No Signal: POWER_IQ=0x%02x", power_iq);
 		lock = 0;
-
+		signal_state = STV090x_NOAGC1;
 	} else {
 		reg = STV090x_READ_DEMOD(state, DEMOD);
 		STV090x_SETFIELD_Px(reg, SPECINV_CONTROL_FIELD, state->inversion);
@@ -3209,9 +3209,8 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		}
 	}
 
-	/* need to check for AGC1 state */
-
-
+	if (signal_state == STV090x_NOAGC1)
+		return signal_state;
 
 	if (state->algo == STV090x_BLIND_SEARCH)
 		lock = stv090x_blind_search(state);
