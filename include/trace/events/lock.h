@@ -1,8 +1,8 @@
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM lockdep
+#define TRACE_SYSTEM lock
 
-#if !defined(_TRACE_LOCKDEP_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_LOCKDEP_H
+#if !defined(_TRACE_LOCK_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_LOCK_H
 
 #include <linux/lockdep.h>
 #include <linux/tracepoint.h>
@@ -90,7 +90,7 @@ TRACE_EVENT(lock_acquired,
 #endif
 #endif
 
-#endif /* _TRACE_LOCKDEP_H */
+#endif /* _TRACE_LOCK_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
