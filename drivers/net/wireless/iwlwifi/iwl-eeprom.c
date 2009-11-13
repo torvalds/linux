@@ -913,6 +913,16 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 		enhanced_txpower = (struct iwl_eeprom_enhanced_txpwr *)
 				iwl_eeprom_query_addr(priv, offset);
 
+		/*
+		 * check for valid entry -
+		 * different version of EEPROM might contain different set
+		 * of enhanced tx power table
+		 * always check for valid entry before process
+		 * the information
+		 */
+		if (!enhanced_txpower->common || enhanced_txpower->reserved)
+			continue;
+
 		for (element = 0; element < eeprom_section_count; element++) {
 			if (enhinfo[section].is_common)
 				max_txpower_avg =
