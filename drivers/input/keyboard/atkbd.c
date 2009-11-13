@@ -1174,6 +1174,18 @@ static int atkbd_reconnect(struct serio *serio)
 			return -1;
 
 		atkbd_activate(atkbd);
+
+		/*
+		 * Restore LED state and repeat rate. While input core
+		 * will do this for us at resume time reconnect may happen
+		 * because user requested it via sysfs or simply because
+		 * keyboard was unplugged and plugged in again so we need
+		 * to do it ourselves here.
+		 */
+		atkbd_set_leds(atkbd);
+		if (!atkbd->softrepeat)
+			atkbd_set_repeat_rate(atkbd);
+
 	}
 
 	atkbd_enable(atkbd);
@@ -1422,6 +1434,7 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, value, atkbd->extra);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
