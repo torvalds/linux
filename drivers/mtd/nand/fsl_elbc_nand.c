@@ -237,12 +237,15 @@ static int fsl_elbc_run_command(struct mtd_info *mtd)
 
 	ctrl->use_mdr = 0;
 
-	dev_vdbg(ctrl->dev,
-	         "fsl_elbc_run_command: stat=%08x mdr=%08x fmr=%08x\n",
-	         ctrl->status, ctrl->mdr, in_be32(&lbc->fmr));
+	if (ctrl->status != LTESR_CC) {
+		dev_info(ctrl->dev,
+		         "command failed: fir %x fcr %x status %x mdr %x\n",
+		         in_be32(&lbc->fir), in_be32(&lbc->fcr),
+		         ctrl->status, ctrl->mdr);
+		return -EIO;
+	}
 
-	/* returns 0 on success otherwise non-zero) */
-	return ctrl->status == LTESR_CC ? 0 : -EIO;
+	return 0;
 }
 
 static void fsl_elbc_do_read(struct nand_chip *chip, int oob)
