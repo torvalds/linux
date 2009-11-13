@@ -945,8 +945,8 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_METHOD, gpe_device,
 					ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-					acpi_ev_save_method_info, gpe_block,
-					NULL);
+					acpi_ev_save_method_info, NULL,
+					gpe_block, NULL);
 
 	/* Return the new block */
 
@@ -1022,8 +1022,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 		status =
 		    acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 					   ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
-					   acpi_ev_match_prw_and_gpe, &gpe_info,
-					   NULL);
+					   acpi_ev_match_prw_and_gpe, NULL,
+					   &gpe_info, NULL);
 	}
 
 	/*

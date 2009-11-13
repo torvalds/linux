@@ -1030,8 +1030,8 @@ static int dock_add(acpi_handle handle)
 
 	/* Find dependent devices */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			    ACPI_UINT32_MAX, find_dock_devices, dock_station,
-			    NULL);
+			    ACPI_UINT32_MAX, find_dock_devices, NULL,
+			    dock_station, NULL);
 
 	/* add the dock station as a device dependent on itself */
 	dd = alloc_dock_dependent_device(handle);
@@ -1127,11 +1127,11 @@ static int __init dock_init(void)
 
 	/* look for a dock station */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			    ACPI_UINT32_MAX, find_dock, NULL, NULL);
+			    ACPI_UINT32_MAX, find_dock, NULL, NULL, NULL);
 
 	/* look for bay */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, find_bay, NULL, NULL);
+			ACPI_UINT32_MAX, find_bay, NULL, NULL, NULL);
 	if (!dock_station_count) {
 		printk(KERN_INFO PREFIX "No dock devices found.\n");
 		return 0;

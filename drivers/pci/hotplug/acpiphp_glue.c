@@ -266,7 +266,7 @@ static int detect_ejectable_slots(acpi_handle handle)
 	int found = acpi_pci_detect_ejectable(handle);
 	if (!found) {
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				    is_pci_dock_device, (void *)&found, NULL);
+				    is_pci_dock_device, NULL, (void *)&found, NULL);
 	}
 	return found;
 }
@@ -281,7 +281,7 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 
 	/* register all slot objects under this bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge->handle, (u32)1,
-				     register_slot, bridge, NULL);
+				     register_slot, NULL, bridge, NULL);
 	if (ACPI_FAILURE(status)) {
 		list_del(&bridge->list);
 		return;
@@ -447,7 +447,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	/* search P2P bridges under this p2p bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     find_p2p_bridge, NULL, NULL);
+				     find_p2p_bridge, NULL, NULL, NULL);
 	if (ACPI_FAILURE(status))
 		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
 
@@ -485,7 +485,7 @@ static int add_bridge(acpi_handle handle)
 
 	/* search P2P bridges under this host bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     find_p2p_bridge, NULL, NULL);
+				     find_p2p_bridge, NULL, NULL, NULL);
 
 	if (ACPI_FAILURE(status))
 		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
@@ -573,7 +573,7 @@ cleanup_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	/* cleanup p2p bridges under this P2P bridge
 	   in a depth-first manner */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				cleanup_p2p_bridge, NULL, NULL);
+				cleanup_p2p_bridge, NULL, NULL, NULL);
 
 	bridge = acpiphp_handle_to_bridge(handle);
 	if (bridge)
@@ -589,7 +589,7 @@ static void remove_bridge(acpi_handle handle)
 	/* cleanup p2p bridges under this host bridge
 	   in a depth-first manner */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-				(u32)1, cleanup_p2p_bridge, NULL, NULL);
+				(u32)1, cleanup_p2p_bridge, NULL, NULL, NULL);
 
 	/*
 	 * On root bridges with hotplug slots directly underneath (ie,
@@ -778,7 +778,7 @@ static int acpiphp_configure_ioapics(acpi_handle handle)
 {
 	ioapic_add(handle, 0, NULL, NULL);
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-			    ACPI_UINT32_MAX, ioapic_add, NULL, NULL);
+			    ACPI_UINT32_MAX, ioapic_add, NULL, NULL, NULL);
 	return 0;
 }
 
@@ -786,7 +786,7 @@ static int acpiphp_unconfigure_ioapics(acpi_handle handle)
 {
 	ioapic_remove(handle, 0, NULL, NULL);
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-			    ACPI_UINT32_MAX, ioapic_remove, NULL, NULL);
+			    ACPI_UINT32_MAX, ioapic_remove, NULL, NULL, NULL);
 	return 0;
 }
 
@@ -1367,7 +1367,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	bridge = acpiphp_handle_to_bridge(handle);
 	if (type == ACPI_NOTIFY_BUS_CHECK) {
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, ACPI_UINT32_MAX,
-			count_sub_bridges, &num_sub_bridges, NULL);
+			count_sub_bridges, NULL, &num_sub_bridges, NULL);
 	}
 
 	if (!bridge && !num_sub_bridges) {
@@ -1388,7 +1388,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 		}
 		if (num_sub_bridges)
 			acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-				ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL);
+				ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL, NULL);
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
@@ -1512,7 +1512,7 @@ int __init acpiphp_glue_init(void)
 	int num = 0;
 
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, find_root_bridges, &num, NULL);
+			ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
 
 	if (num <= 0)
 		return -1;

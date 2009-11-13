@@ -192,7 +192,7 @@ acpi_ds_initialize_objects(u32 table_index,
 	status =
 	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
 				   ACPI_NS_WALK_UNLOCK, acpi_ds_init_one_object,
-				   &info, NULL);
+				   NULL, &info, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}

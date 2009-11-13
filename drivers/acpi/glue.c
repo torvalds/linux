@@ -113,7 +113,7 @@ acpi_handle acpi_get_child(acpi_handle parent, acpi_integer address)
 	if (!parent)
 		return NULL;
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, parent,
-			    1, do_acpi_find_child, &find, NULL);
+			    1, do_acpi_find_child, NULL, &find, NULL);
 	return find.handle;
 }
 

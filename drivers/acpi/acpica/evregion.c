@@ -1025,8 +1025,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	 */
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
 					ACPI_NS_WALK_UNLOCK,
-					acpi_ev_install_handler, handler_obj,
-					NULL);
+					acpi_ev_install_handler, NULL,
+					handler_obj, NULL);
 
       unlock_and_exit:
 	return_ACPI_STATUS(status);
@@ -1062,7 +1062,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	 */
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
 					ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run,
-					&space_id, NULL);
+					NULL, &space_id, NULL);
 
 	return_ACPI_STATUS(status);
 }

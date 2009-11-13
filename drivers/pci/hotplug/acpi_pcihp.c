@@ -471,7 +471,7 @@ int acpi_pci_detect_ejectable(acpi_handle handle)
 		return found;
 
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
-			    check_hotplug, (void *)&found, NULL);
+			    check_hotplug, NULL, (void *)&found, NULL);
 	return found;
 }
 EXPORT_SYMBOL_GPL(acpi_pci_detect_ejectable);

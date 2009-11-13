@@ -899,7 +899,7 @@ static int intel_lid_present(void)
 
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				ACPI_UINT32_MAX,
-				check_lid_device, &lid_present, NULL);
+				check_lid_device, NULL, &lid_present, NULL);
 
 	return lid_present;
 }

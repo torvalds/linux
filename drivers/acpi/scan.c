@@ -1332,7 +1332,7 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
 	status = acpi_bus_check_add(handle, 0, ops, &device);
 	if (ACPI_SUCCESS(status))
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add, ops, &device);
+				    acpi_bus_check_add, NULL, ops, &device);
 
 	if (child)
 		*child = device;

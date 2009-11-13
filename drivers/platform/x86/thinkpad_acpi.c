@@ -1087,7 +1087,7 @@ static int __init tpacpi_check_std_acpi_brightness_support(void)
 	 */
 
 	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     tpacpi_acpi_walk_find_bcl, NULL,
+				     tpacpi_acpi_walk_find_bcl, NULL, NULL,
 				     &bcl_ptr);
 
 	if (ACPI_SUCCESS(status) && bcl_levels > 2) {

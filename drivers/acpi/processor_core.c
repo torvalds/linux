@@ -1102,7 +1102,7 @@ void acpi_processor_install_hotplug_notify(void)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    processor_walk_namespace_cb, &action, NULL);
+			    processor_walk_namespace_cb, NULL, &action, NULL);
 #endif
 	register_hotcpu_notifier(&acpi_cpu_notifier);
 }
@@ -1115,7 +1115,7 @@ void acpi_processor_uninstall_hotplug_notify(void)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    processor_walk_namespace_cb, &action, NULL);
+			    processor_walk_namespace_cb, NULL, &action, NULL);
 #endif
 	unregister_hotcpu_notifier(&acpi_cpu_notifier);
 }
