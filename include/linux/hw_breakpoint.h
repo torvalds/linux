@@ -16,11 +16,6 @@ enum {
 	HW_BREAKPOINT_X = 4,
 };
 
-static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
-{
-	return &bp->hw.info;
-}
-
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
 {
 	return bp->attr.bp_addr;
@@ -83,6 +78,11 @@ extern void release_bp_slot(struct perf_event *bp);
 
 extern void flush_ptrace_hw_breakpoint(struct task_struct *tsk);
 
+static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
+{
+	return &bp->hw.info;
+}
+
 #else /* !CONFIG_HAVE_HW_BREAKPOINT */
 
 static inline struct perf_event *
@@ -125,6 +125,11 @@ reserve_bp_slot(struct perf_event *bp)			{return -ENOSYS; }
 static inline void release_bp_slot(struct perf_event *bp) 		{ }
 
 static inline void flush_ptrace_hw_breakpoint(struct task_struct *tsk)	{ }
+
+static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
+{
+	return NULL;
+}
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
