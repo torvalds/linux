@@ -751,9 +751,6 @@ static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
 
 	ch_info->ht40_eeprom = *eeprom_ch;
 	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
-	ch_info->ht40_curr_txpow = eeprom_ch->max_power_avg;
-	ch_info->ht40_min_power = 0;
-	ch_info->ht40_scan_power = eeprom_ch->max_power_avg;
 	ch_info->ht40_flags = eeprom_ch->flags;
 	ch_info->ht40_extension_channel &= ~clear_ht40_extension_channel;
 
@@ -840,8 +837,6 @@ static s8 iwl_update_common_txpower(struct iwl_priv *priv,
 		    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
 			/* Update regulatory-based run-time data */
 			ch_info->ht40_max_power_avg = max_txpower_avg;
-			ch_info->ht40_curr_txpow = max_txpower_avg;
-			ch_info->ht40_scan_power = max_txpower_avg;
 		}
 		ch_info++;
 	}
@@ -881,8 +876,6 @@ static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
 			    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
 				/* Update regulatory-based run-time data */
 				ch_info->ht40_max_power_avg = max_txpower_avg;
-				ch_info->ht40_curr_txpow = max_txpower_avg;
-				ch_info->ht40_scan_power = max_txpower_avg;
 			}
 			break;
 		}
