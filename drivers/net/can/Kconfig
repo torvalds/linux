@@ -108,6 +108,25 @@ config CAN_MCP251X
 	---help---
 	  Driver for the Microchip MCP251x SPI CAN controllers.
 
+config CAN_MSCAN
+	depends on CAN_DEV && (PPC || M68K || M68KNOMMU)
+	tristate "Support for Freescale MSCAN based chips"
+	---help---
+	  The Motorola Scalable Controller Area Network (MSCAN) definition
+	  is based on the MSCAN12 definition which is the specific
+	  implementation of the Motorola Scalable CAN concept targeted for
+	  the Motorola MC68HC12 Microcontroller Family.
+
+config CAN_MPC52XX
+	tristate "Freescale MPC5xxx onboard CAN controller"
+	depends on CAN_MSCAN && PPC_MPC52xx
+	---help---
+	  If you say yes here you get support for Freescale's MPC52xx
+	  onboard dualCAN controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called mpc5xxx_can.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
