@@ -711,15 +711,11 @@ C_ENTRY(ret_from_exc):
 	 * (in a possibly modified form) after do_signal returns.
 	 * store return registers separately because this macros is use
 	 * for others exceptions */
-	swi	r3, r1, PTO + PT_R3;
-	swi	r4, r1, PTO + PT_R4;
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 
 /* Finally, return to user state.  */
 1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
