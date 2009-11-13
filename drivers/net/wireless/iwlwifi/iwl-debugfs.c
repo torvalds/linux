@@ -131,21 +131,22 @@ static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
 
 	int cnt;
 	ssize_t ret;
-	const size_t bufsz = 100 + sizeof(char) * 24 * (MANAGEMENT_MAX + CONTROL_MAX);
+	const size_t bufsz = 100 +
+		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%s\t\t: %u\n",
+				 "\t%25s\t\t: %u\n",
 				 get_mgmt_string(cnt),
 				 priv->tx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%s\t\t: %u\n",
+				 "\t%25s\t\t: %u\n",
 				 get_ctrl_string(cnt),
 				 priv->tx_stats.ctrl[cnt]);
 	}
@@ -190,7 +191,7 @@ static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
 	int cnt;
 	ssize_t ret;
 	const size_t bufsz = 100 +
-		sizeof(char) * 24 * (MANAGEMENT_MAX + CONTROL_MAX);
+		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -198,14 +199,14 @@ static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%s\t\t: %u\n",
+				 "\t%25s\t\t: %u\n",
 				 get_mgmt_string(cnt),
 				 priv->rx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%s\t\t: %u\n",
+				 "\t%25s\t\t: %u\n",
 				 get_ctrl_string(cnt),
 				 priv->rx_stats.ctrl[cnt]);
 	}
