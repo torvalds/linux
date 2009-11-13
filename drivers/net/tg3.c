@@ -5454,7 +5454,12 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 								 IPPROTO_TCP,
 								 0);
 
-		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)
+		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) {
+			mss |= (hdr_len & 0xc) << 12;
+			if (hdr_len & 0x10)
+				base_flags |= 0x00000010;
+			base_flags |= (hdr_len & 0x3e0) << 5;
+		} else if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)
 			mss |= hdr_len << 9;
 		else if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1) ||
 			 GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) {
@@ -5478,6 +5483,10 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 		base_flags |= (TXD_FLAG_VLAN |
 			       (vlan_tx_tag_get(skb) << 16));
 #endif
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
+	    !mss && skb->len > ETH_DATA_LEN)
+		base_flags |= TXD_FLAG_JMB_PKT;
 
 	if (skb_dma_map(&tp->pdev->dev, skb, DMA_TO_DEVICE)) {
 		dev_kfree_skb(skb);
@@ -12714,13 +12723,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
-	if (!(tp->tg3_flags3 & TG3_FLG3_5755_PLUS)) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
-			tp->tg3_flags3 |= TG3_FLG3_SHORT_DMA_BUG;
-		else {
-			tp->tg3_flags3 |= TG3_FLG3_4G_DMA_BNDRY_BUG;
-			tp->tg3_flags3 |= TG3_FLG3_40BIT_DMA_LIMIT_BUG;
-		}
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+		tp->tg3_flags3 |= TG3_FLG3_SHORT_DMA_BUG;
+	else if (!(tp->tg3_flags3 & TG3_FLG3_5755_PLUS)) {
+		tp->tg3_flags3 |= TG3_FLG3_4G_DMA_BNDRY_BUG;
+		tp->tg3_flags3 |= TG3_FLG3_40BIT_DMA_LIMIT_BUG;
 	}
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
@@ -14077,7 +14085,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
+	if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) &&
+	    tp->pci_chip_rev_id != CHIPREV_ID_5717_A0)
 		dev->netdev_ops = &tg3_netdev_ops;
 	else
 		dev->netdev_ops = &tg3_netdev_ops_dma_bug;
