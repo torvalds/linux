@@ -34,7 +34,7 @@
 #include <net/phonet/pn_dev.h>
 
 struct phonet_routes {
-	spinlock_t		lock;
+	struct mutex		lock;
 	struct net_device	*table[64];
 };
 
@@ -248,17 +248,22 @@ static void phonet_route_autodel(struct net_device *dev)
 
 	/* Remove left-over Phonet routes */
 	bitmap_zero(deleted, 64);
-	spin_lock_bh(&pnn->routes.lock);
+	mutex_lock(&pnn->routes.lock);
 	for (i = 0; i < 64; i++)
 		if (dev == pnn->routes.table[i]) {
+			rcu_assign_pointer(pnn->routes.table[i], NULL);
 			set_bit(i, deleted);
-			pnn->routes.table[i] = NULL;
-			dev_put(dev);
 		}
-	spin_unlock_bh(&pnn->routes.lock);
+	mutex_unlock(&pnn->routes.lock);
+
+	if (bitmap_empty(deleted, 64))
+		return; /* short-circuit RCU */
+	synchronize_rcu();
 	for (i = find_first_bit(deleted, 64); i < 64;
-			i = find_next_bit(deleted, 64, i + 1))
+			i = find_next_bit(deleted, 64, i + 1)) {
 		rtm_phonet_notify(RTM_DELROUTE, dev, i);
+		dev_put(dev);
+	}
 }
 
 /* notify Phonet of device events */
@@ -300,7 +305,7 @@ static int phonet_init_net(struct net *net)
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
 	spin_lock_init(&pnn->pndevs.lock);
-	spin_lock_init(&pnn->routes.lock);
+	mutex_init(&pnn->routes.lock);
 	net_assign_generic(net, phonet_net_id, pnn);
 	return 0;
 }
@@ -361,13 +366,13 @@ int phonet_route_add(struct net_device *dev, u8 daddr)
 	int err = -EEXIST;
 
 	daddr = daddr >> 2;
-	spin_lock_bh(&routes->lock);
+	mutex_lock(&routes->lock);
 	if (routes->table[daddr] == NULL) {
-		routes->table[daddr] = dev;
+		rcu_assign_pointer(routes->table[daddr], dev);
 		dev_hold(dev);
 		err = 0;
 	}
-	spin_unlock_bh(&routes->lock);
+	mutex_unlock(&routes->lock);
 	return err;
 }
 
@@ -375,17 +380,20 @@ int phonet_route_del(struct net_device *dev, u8 daddr)
 {
 	struct phonet_net *pnn = net_generic(dev_net(dev), phonet_net_id);
 	struct phonet_routes *routes = &pnn->routes;
-	int err = -ENOENT;
 
 	daddr = daddr >> 2;
-	spin_lock_bh(&routes->lock);
-	if (dev == routes->table[daddr]) {
-		routes->table[daddr] = NULL;
-		dev_put(dev);
-		err = 0;
-	}
-	spin_unlock_bh(&routes->lock);
-	return err;
+	mutex_lock(&routes->lock);
+	if (dev == routes->table[daddr])
+		rcu_assign_pointer(routes->table[daddr], NULL);
+	else
+		dev = NULL;
+	mutex_unlock(&routes->lock);
+
+	if (!dev)
+		return -ENOENT;
+	synchronize_rcu();
+	dev_put(dev);
+	return 0;
 }
 
 struct net_device *phonet_route_get(struct net *net, u8 daddr)
@@ -397,9 +405,9 @@ struct net_device *phonet_route_get(struct net *net, u8 daddr)
 	ASSERT_RTNL(); /* no need to hold the device */
 
 	daddr >>= 2;
-	spin_lock_bh(&routes->lock);
-	dev = routes->table[daddr];
-	spin_unlock_bh(&routes->lock);
+	rcu_read_lock();
+	dev = rcu_dereference(routes->table[daddr]);
+	rcu_read_unlock();
 	return dev;
 }
 
@@ -409,11 +417,12 @@ struct net_device *phonet_route_output(struct net *net, u8 daddr)
 	struct phonet_routes *routes = &pnn->routes;
 	struct net_device *dev;
 
-	spin_lock_bh(&routes->lock);
-	dev = routes->table[daddr >> 2];
+	daddr >>= 2;
+	rcu_read_lock();
+	dev = rcu_dereference(routes->table[daddr]);
 	if (dev)
 		dev_hold(dev);
-	spin_unlock_bh(&routes->lock);
+	rcu_read_unlock();
 
 	if (!dev)
 		dev = phonet_device_get(net); /* Default route */
