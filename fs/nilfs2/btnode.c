@@ -68,6 +68,32 @@ void nilfs_btnode_cache_clear(struct address_space *btnc)
 	truncate_inode_pages(btnc, 0);
 }
 
+struct buffer_head *
+nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
+{
+	struct inode *inode = NILFS_BTNC_I(btnc);
+	struct buffer_head *bh;
+
+	bh = nilfs_grab_buffer(inode, btnc, blocknr, 1 << BH_NILFS_Node);
+	if (unlikely(!bh))
+		return NULL;
+
+	if (unlikely(buffer_mapped(bh) || buffer_uptodate(bh) ||
+		     buffer_dirty(bh))) {
+		brelse(bh);
+		BUG();
+	}
+	memset(bh->b_data, 0, 1 << inode->i_blkbits);
+	bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
+	bh->b_blocknr = blocknr;
+	set_buffer_mapped(bh);
+	set_buffer_uptodate(bh);
+
+	unlock_page(bh->b_page);
+	page_cache_release(bh->b_page);
+	return bh;
+}
+
 int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 			      sector_t pblocknr, struct buffer_head **pbh,
 			      int newblk)
