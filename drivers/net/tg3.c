@@ -2249,7 +2249,7 @@ static void tg3_nvram_unlock(struct tg3 *tp)
 static void tg3_enable_nvram_access(struct tg3 *tp)
 {
 	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
-	    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM)) {
+	    !(tp->tg3_flags3 & TG3_FLG3_PROTECTED_NVRAM)) {
 		u32 nvaccess = tr32(NVRAM_ACCESS);
 
 		tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
@@ -2260,7 +2260,7 @@ static void tg3_enable_nvram_access(struct tg3 *tp)
 static void tg3_disable_nvram_access(struct tg3 *tp)
 {
 	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
-	    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM)) {
+	    !(tp->tg3_flags3 & TG3_FLG3_PROTECTED_NVRAM)) {
 		u32 nvaccess = tr32(NVRAM_ACCESS);
 
 		tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
@@ -10970,7 +10970,7 @@ static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
 
 	/* NVRAM protection for TPM */
 	if (nvcfg1 & (1 << 27))
-		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+		tp->tg3_flags3 |= TG3_FLG3_PROTECTED_NVRAM;
 
 	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
 	case FLASH_5752VENDOR_ATMEL_EEPROM_64KHZ:
@@ -11011,7 +11011,7 @@ static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
 
 	/* NVRAM protection for TPM */
 	if (nvcfg1 & (1 << 27)) {
-		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+		tp->tg3_flags3 |= TG3_FLG3_PROTECTED_NVRAM;
 		protect = 1;
 	}
 
@@ -11105,7 +11105,7 @@ static void __devinit tg3_get_5761_nvram_info(struct tg3 *tp)
 
 	/* NVRAM protection for TPM */
 	if (nvcfg1 & (1 << 27)) {
-		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+		tp->tg3_flags3 |= TG3_FLG3_PROTECTED_NVRAM;
 		protect = 1;
 	}
 
@@ -11607,7 +11607,7 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 
 		tg3_enable_nvram_access(tp);
 		if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
-		    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM))
+		    !(tp->tg3_flags3 & TG3_FLG3_PROTECTED_NVRAM))
 			tw32(NVRAM_WRITE1, 0x406);
 
 		grc_mode = tr32(GRC_MODE);
