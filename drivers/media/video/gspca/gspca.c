@@ -139,6 +139,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 			return;
 #endif
 		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		urb->status = 0;
 		goto resubmit;
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
@@ -214,15 +215,13 @@ static void bulk_irq(struct urb *urb)
 		break;
 	case -ESHUTDOWN:
 		return;		/* disconnection */
-	case -ECONNRESET:
-		urb->status = 0;
-		break;
 	default:
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
 			return;
 #endif
 		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		urb->status = 0;
 		goto resubmit;
 	}
 
