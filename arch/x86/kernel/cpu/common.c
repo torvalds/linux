@@ -656,6 +656,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 void __init early_cpu_init(void)
 {
+#ifdef PROCESSOR_SELECT
 	const struct cpu_dev *const *cdev;
 	int count = 0;
 
@@ -676,7 +677,7 @@ void __init early_cpu_init(void)
 				cpudev->c_ident[j]);
 		}
 	}
-
+#endif
 	early_identify_cpu(&boot_cpu_data);
 }
 
