@@ -391,6 +391,7 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 	struct mpc52xx_spi *ms;
 	void __iomem *regs;
 	int rc;
+	u8 ctrl1;
 
 	/* MMIO registers */
 	dev_dbg(&op->dev, "probing mpc5200 SPI device\n");
@@ -399,7 +400,8 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 		return -ENODEV;
 
 	/* initialize the device */
-	out_8(regs+SPI_CTRL1, SPI_CTRL1_SPIE | SPI_CTRL1_SPE | SPI_CTRL1_MSTR);
+	ctrl1 = SPI_CTRL1_SPIE | SPI_CTRL1_SPE | SPI_CTRL1_MSTR;
+	out_8(regs + SPI_CTRL1, ctrl1);
 	out_8(regs + SPI_CTRL2, 0x0);
 	out_8(regs + SPI_DATADIR, 0xe);	/* Set output pins */
 	out_8(regs + SPI_PORTDATA, 0x8);	/* Deassert /SS signal */
@@ -409,6 +411,8 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 	 * on the SPI bus.  This fault will also occur if the SPI signals
 	 * are not connected to any pins (port_config setting) */
 	in_8(regs + SPI_STATUS);
+	out_8(regs + SPI_CTRL1, ctrl1);
+
 	in_8(regs + SPI_DATA);
 	if (in_8(regs + SPI_STATUS) & SPI_STATUS_MODF) {
 		dev_err(&op->dev, "mode fault; is port_config correct?\n");
