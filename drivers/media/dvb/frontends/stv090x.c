@@ -1238,6 +1238,8 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 				goto err;
 		}
 
+		if (stv090x_set_vit_thtracq(state) < 0)
+			goto err;
 		break;
 
 	case STV090x_SEARCH_AUTO:
@@ -1278,17 +1280,8 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 				goto err;
 		}
 
-		if (state->srate >= 2000000) {
-			/* Srate >= 2MSPS, Viterbi threshold to acquire */
-			if (stv090x_set_vit_thacq(state) < 0)
-				goto err;
-		} else {
-			/* Srate < 2MSPS, Reset Viterbi thresholdto track
-			 * and then re-acquire
-			 */
-			if (stv090x_set_vit_thtracq(state) < 0)
-				goto err;
-		}
+		if (stv090x_set_vit_thacq(state) < 0)
+			goto err;
 
 		if (stv090x_set_viterbi(state) < 0)
 			goto err;
@@ -1422,6 +1415,9 @@ static int stv090x_start_search(struct stv090x_state *state)
 	if (STV090x_WRITE_DEMOD(state, DMDCFG2, reg) < 0)
 		goto err;
 
+	if (STV090x_WRITE_DEMOD(state, RTC, 0x88) < 0)
+		goto err;
+
 	if (state->dev_ver >= 0x20) {
 		/*Frequency offset detector setting*/
 		if (state->srate < 2000000) {
@@ -1430,7 +1426,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 				if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x39) < 0)
 					goto err;
 			} else {
-				/* Cut 2 */
+				/* Cut 3 */
 				if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x89) < 0)
 					goto err;
 			}
@@ -1439,8 +1435,12 @@ static int stv090x_start_search(struct stv090x_state *state)
 		} else if (state->srate < 10000000) {
 			if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x4c) < 0)
 				goto err;
+			if (STV090x_WRITE_DEMOD(state, CARHDR, 0x20) < 0)
+				goto err;
 		} else {
 			if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x4b) < 0)
+				goto err;
+			if (STV090x_WRITE_DEMOD(state, CARHDR, 0x20) < 0)
 				goto err;
 		}
 	} else {
@@ -1489,8 +1489,8 @@ static int stv090x_get_agc2_min_level(struct stv090x_state *state)
 	if (STV090x_WRITE_DEMOD(state, AGC2REF, 0x38) < 0)
 		goto err;
 	reg = STV090x_READ_DEMOD(state, DMDCFGMD);
-	STV090x_SETFIELD_Px(reg, SCAN_ENABLE_FIELD, 1);
-	STV090x_SETFIELD_Px(reg, CFR_AUTOSCAN_FIELD, 1);
+	STV090x_SETFIELD_Px(reg, SCAN_ENABLE_FIELD, 0);
+	STV090x_SETFIELD_Px(reg, CFR_AUTOSCAN_FIELD, 0);
 	if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
 		goto err;
 
@@ -1507,10 +1507,8 @@ static int stv090x_get_agc2_min_level(struct stv090x_state *state)
 	if (stv090x_set_srate(state, 1000000) < 0)
 		goto err;
 
-	steps  = -1 + state->search_range / 1000000;
-	steps /= 2;
-	steps  = (2 * steps) + 1;
-	if (steps < 0)
+	steps  = state->search_range / 1000000;
+	if (steps <= 0)
 		steps = 1;
 
 	dir = 1;
@@ -1596,13 +1594,15 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, TMGCFG, 0x12) < 0)
 		goto err;
+	if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc0) < 0)
+		goto err;
 	if (STV090x_WRITE_DEMOD(state, TMGTHRISE, 0xf0) < 0)
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, TMGTHFALL, 0xe0) < 0)
 		goto err;
 	reg = STV090x_READ_DEMOD(state, DMDCFGMD);
 	STV090x_SETFIELD_Px(reg, SCAN_ENABLE_FIELD, 1);
-	STV090x_SETFIELD_Px(reg, CFR_AUTOSCAN_FIELD, 1);
+	STV090x_SETFIELD_Px(reg, CFR_AUTOSCAN_FIELD, 0);
 	if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
 		goto err;
 
@@ -1622,7 +1622,7 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 	if (state->dev_ver >= 0x30) {
 		if (STV090x_WRITE_DEMOD(state, CARFREQ, 0x99) < 0)
 			goto err;
-		if (STV090x_WRITE_DEMOD(state, SFRSTEP, 0x95) < 0)
+		if (STV090x_WRITE_DEMOD(state, SFRSTEP, 0x98) < 0)
 			goto err;
 
 	} else if (state->dev_ver >= 0x20) {
@@ -1657,9 +1657,16 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 	while ((!tmg_lock) && (cur_step < steps)) {
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x5f) < 0) /* Demod RESET */
 			goto err;
-		reg = STV090x_READ_DEMOD(state, DMDISTATE);
-		STV090x_SETFIELD_Px(reg, I2C_DEMOD_MODE_FIELD, 0x00); /* trigger acquisition */
-		if (STV090x_WRITE_DEMOD(state, DMDISTATE, reg) < 0)
+		if (STV090x_WRITE_DEMOD(state, CFRINIT1, 0x00) < 0)
+			goto err;
+		if (STV090x_WRITE_DEMOD(state, CFRINIT0, 0x00) < 0)
+			goto err;
+		if (STV090x_WRITE_DEMOD(state, SFRINIT1, 0x00) < 0)
+			goto err;
+		if (STV090x_WRITE_DEMOD(state, SFRINIT0, 0x00) < 0)
+			goto err;
+		/* trigger acquisition */
+		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x40) < 0)
 			goto err;
 		msleep(50);
 		for (i = 0; i < 10; i++) {
@@ -1744,7 +1751,7 @@ static u32 stv090x_srate_srch_fine(struct stv090x_state *state)
 	else {
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1f) < 0) /* Demod RESET */
 			goto err;
-		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0x01) < 0)
+		if (STV090x_WRITE_DEMOD(state, TMGCFG2, 0xc1) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, TMGTHRISE, 0x20) < 0)
 			goto err;
@@ -1869,8 +1876,8 @@ static int stv090x_blind_search(struct stv090x_state *state)
 	u8 k_ref, k_max, k_min;
 	int coarse_fail, lock;
 
-	k_max = 120;
-	k_min = 30;
+	k_max = 110;
+	k_min = 10;
 
 	agc2 = stv090x_get_agc2_min_level(state);
 
@@ -1933,7 +1940,7 @@ static int stv090x_blind_search(struct stv090x_state *state)
 
 				lock = 0;
 			}
-			k_ref -= 30;
+			k_ref -= 20;
 		} while ((k_ref >= k_min) && (!lock) && (!coarse_fail));
 	}
 
@@ -2103,17 +2110,6 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 						goto err;
 
 					STV090x_WRITE_DEMOD(state, DMDISTATE, 0x1c);
-					if (state->delsys == STV090x_DVBS2) {
-						reg = STV090x_READ_DEMOD(state, DMDCFGMD);
-						STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 0);
-						STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 0);
-						if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
-							goto err;
-						STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);
-						STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 1);
-						if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
-							goto err;
-					}
 					if (STV090x_WRITE_DEMOD(state, CFRINIT1, 0x00) < 0)
 						goto err;
 					if (STV090x_WRITE_DEMOD(state, CFRINIT0, 0x00) < 0)
@@ -2867,6 +2863,9 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 		if (stv090x_set_srate(state, srate) < 0)
 			goto err;
 		blind_tune = 1;
+
+		if (stv090x_dvbs_track_crl(state) < 0)
+			goto err;
 	}
 
 	if (state->dev_ver >= 0x20) {
@@ -3064,8 +3063,13 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		goto err;
 
 	if (state->dev_ver >= 0x20) {
-		if (STV090x_WRITE_DEMOD(state, CORRELABS, 0x9e) < 0) /* cut 2.0 */
-			goto err;
+		if (state->srate > 5000000) {
+			if (STV090x_WRITE_DEMOD(state, CORRELABS, 0x9e) < 0)
+				goto err;
+		} else {
+			if (STV090x_WRITE_DEMOD(state, CORRELABS, 0x82) < 0)
+				goto err;
+		}
 	}
 
 	stv090x_get_lock_tmg(state);
