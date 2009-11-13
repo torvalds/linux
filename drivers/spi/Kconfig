@@ -244,7 +244,7 @@ config SPI_TXX9
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller"
-	depends on EXPERIMENTAL
+	depends on HAS_IOMEM && EXPERIMENTAL
 	select SPI_BITBANG
 	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
 	help
