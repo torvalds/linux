@@ -312,8 +312,7 @@ out:
  * The 0005 and 0100 chunks seem to appear only in compressed stream.
  */
 static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -366,7 +365,7 @@ frame_data:
 				sd->to_skip -= skip;
 			}
 
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data, chunk_len);
 			break;
 
@@ -378,7 +377,7 @@ frame_data:
 
 			/* Create a new frame, chunk length should be zero */
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
-					frame, data, 0);
+					NULL, 0);
 
 			if (sd->bridge == BRIDGE_ST6422)
 				sd->to_skip = gspca_dev->width * 4;
@@ -394,8 +393,8 @@ frame_data:
 			PDEBUG(D_PACK, "End of frame detected");
 
 			/* Complete the last frame (if any) */
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET,
-						frame, data, 0);
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					NULL, 0);
 
 			if (chunk_len)
 				PDEBUG(D_ERR, "Chunk length is "

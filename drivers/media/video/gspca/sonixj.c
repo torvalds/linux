@@ -1993,7 +1993,6 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 /* scan the URB packets */
 /* This function is run at interrupt level. */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
@@ -2005,7 +2004,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* end of frame */
 		gspca_frame_add(gspca_dev, LAST_PACKET,
-				frame, data, sof + 2);
+				data, sof + 2);
 		if (sd->ag_cnt < 0)
 			return;
 /* w1 w2 w3 */
@@ -2028,10 +2027,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 
 		/* put the JPEG 422 header */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			sd->jpeg_hdr, JPEG_HDR_SZ);
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

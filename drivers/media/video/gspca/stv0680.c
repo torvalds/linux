@@ -281,8 +281,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,
-			__u8 *data,
+			u8 *data,
 			int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -299,10 +298,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	/* Finish the previous frame, we do this upon reception of the next
 	   packet, even though it is already complete so that the strange 16
 	   byte packets send after a corrupt frame can discard it. */
-	frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, NULL, 0);
+	gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 
 	/* Store the just received frame */
-	gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 }
 
 /* sub-driver description */

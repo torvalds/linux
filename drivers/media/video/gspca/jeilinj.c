@@ -181,7 +181,6 @@ static void jlj_dostream(struct work_struct *work)
 {
 	struct sd *dev = container_of(work, struct sd, work_struct);
 	struct gspca_dev *gspca_dev = &dev->gspca_dev;
-	struct gspca_frame *frame;
 	int blocks_left; /* 0x200-sized blocks remaining in current frame. */
 	int size_in_blocks;
 	int act_len;
@@ -214,15 +213,13 @@ static void jlj_dostream(struct work_struct *work)
 		PDEBUG(D_STREAM, "blocks_left = 0x%x", blocks_left);
 
 		/* Start a new frame, and add the JPEG header, first thing */
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame) {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					dev->jpeg_hdr, JPEG_HDR_SZ);
-			/* Toss line 0 of data block 0, keep the rest. */
-			gspca_frame_add(gspca_dev, INTER_PACKET,
-				frame, buffer + FRAME_HEADER_LEN,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
+				dev->jpeg_hdr, JPEG_HDR_SZ);
+		/* Toss line 0 of data block 0, keep the rest. */
+		gspca_frame_add(gspca_dev, INTER_PACKET,
+				buffer + FRAME_HEADER_LEN,
 				JEILINJ_MAX_TRANSFER - FRAME_HEADER_LEN);
-		}
+
 		while (blocks_left > 0) {
 			if (!gspca_dev->present)
 				goto quit_stream;
@@ -239,10 +236,8 @@ static void jlj_dostream(struct work_struct *work)
 				packet_type = LAST_PACKET;
 			else
 				packet_type = INTER_PACKET;
-			if (frame)
-				gspca_frame_add(gspca_dev, packet_type,
-						frame, buffer,
-						JEILINJ_MAX_TRANSFER);
+			gspca_frame_add(gspca_dev, packet_type,
+					buffer, JEILINJ_MAX_TRANSFER);
 		}
 	}
 quit_stream:

@@ -752,8 +752,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 #undef LIMIT
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	int seqframe;
@@ -767,14 +766,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		       data[2], data[3], data[4], data[5]);
 		data += 30;
 		/* don't change datalength as the chips provided it */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	}
 	if (len) {
 		data += 8;
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	} else {			/* Drop Packet */
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 	}

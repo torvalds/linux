@@ -779,8 +779,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame, /* target */
-			__u8 *data,		/* isoc packet */
+			u8 *data,		/* isoc packet */
 			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -788,12 +787,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	len--;
 	switch (*data++) {			/* sequence number */
 	case 0:					/* start of frame */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		if (data[1] & 0x10) {
 			/* compressed bayer */
-			gspca_frame_add(gspca_dev, FIRST_PACKET,
-					frame, data, len);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		} else {
 			/* raw bayer (with a header, which we skip) */
 			if (sd->chip_revision == Rev012A) {
@@ -803,14 +800,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data += 16;
 				len -= 16;
 			}
-			gspca_frame_add(gspca_dev, FIRST_PACKET,
-						frame, data, len);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		}
 		return;
 	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 /* rev 72a only */

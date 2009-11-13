@@ -995,8 +995,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			unsigned char *data,		/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	int i;
@@ -1054,12 +1053,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					pkt_type = DISCARD_PACKET;
 				}
 
-				frame = gspca_frame_add(gspca_dev, pkt_type,
-							frame, data, 0);
+				gspca_frame_add(gspca_dev, pkt_type,
+						NULL, 0);
 				data += i + fr_h_sz;
 				len -= i + fr_h_sz;
 				gspca_frame_add(gspca_dev, FIRST_PACKET,
-						frame, data, len);
+						data, len);
 				return;
 			}
 		}
@@ -1068,15 +1067,21 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
 		/* In raw mode we sometimes get some garbage after the frame
 		   ignore this */
-		int used = frame->data_end - frame->data;
+		struct gspca_frame *frame;
+		int used;
 		int size = cam->cam_mode[gspca_dev->curr_mode].sizeimage;
 
+		frame = gspca_get_i_frame(gspca_dev);
+		if (frame == NULL) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
+		used = frame->data_end - frame->data;
 		if (used + len > size)
 			len = size - used;
 	}
 
-	gspca_frame_add(gspca_dev, INTER_PACKET,
-			frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

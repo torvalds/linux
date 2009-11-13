@@ -79,8 +79,7 @@ typedef int (*cam_streamparm_op) (struct gspca_dev *,
 typedef int (*cam_qmnu_op) (struct gspca_dev *,
 			struct v4l2_querymenu *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
-				struct gspca_frame *frame,
-				__u8 *data,
+				u8 *data,
 				int len);
 
 struct ctrl {
@@ -192,11 +191,10 @@ int gspca_dev_probe(struct usb_interface *intf,
 		int dev_size,
 		struct module *module);
 void gspca_disconnect(struct usb_interface *intf);
-struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
-				    enum gspca_packet_type packet_type,
-				    struct gspca_frame *frame,
-				    const __u8 *data,
-				    int len);
+void gspca_frame_add(struct gspca_dev *gspca_dev,
+			enum gspca_packet_type packet_type,
+			const u8 *data,
+			int len);
 struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev);
 #ifdef CONFIG_PM
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);

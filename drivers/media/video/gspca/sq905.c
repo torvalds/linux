@@ -214,7 +214,6 @@ static void sq905_dostream(struct work_struct *work)
 {
 	struct sd *dev = container_of(work, struct sd, work_struct);
 	struct gspca_dev *gspca_dev = &dev->gspca_dev;
-	struct gspca_frame *frame;
 	int bytes_left; /* bytes remaining in current frame. */
 	int data_len;   /* size to use for the next read. */
 	int header_read; /* true if we have already read the frame header. */
@@ -266,18 +265,14 @@ static void sq905_dostream(struct work_struct *work)
 			} else {
 				packet_type = INTER_PACKET;
 			}
-			frame = gspca_get_i_frame(gspca_dev);
-			if (frame) {
-				frame = gspca_frame_add(gspca_dev, packet_type,
-						frame, data, data_len);
-				/* If entire frame fits in one packet we still
-				   need to add a LAST_PACKET */
-				if (packet_type == FIRST_PACKET &&
-				    bytes_left == 0)
-					frame = gspca_frame_add(gspca_dev,
-							LAST_PACKET,
-							frame, data, 0);
-			}
+			gspca_frame_add(gspca_dev, packet_type,
+					data, data_len);
+			/* If entire frame fits in one packet we still
+			   need to add a LAST_PACKET */
+			if (packet_type == FIRST_PACKET &&
+			    bytes_left == 0)
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						NULL, 0);
 		}
 		if (gspca_dev->present) {
 			/* acknowledge the frame */

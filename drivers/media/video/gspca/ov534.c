@@ -1403,8 +1403,8 @@ static void sd_stopN_ov965x(struct gspca_dev *gspca_dev)
 #define UVC_STREAM_EOF	(1 << 1)
 #define UVC_STREAM_FID	(1 << 0)
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
-			__u8 *data, int len)
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u32 this_pts;
@@ -1445,23 +1445,22 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 		/* If PTS or FID has changed, start a new frame. */
 		if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
 			if (gspca_dev->last_packet_type == INTER_PACKET)
-				frame = gspca_frame_add(gspca_dev,
-							LAST_PACKET, frame,
-							NULL, 0);
+				gspca_frame_add(gspca_dev, LAST_PACKET,
+						NULL, 0);
 			sd->last_pts = this_pts;
 			sd->last_fid = this_fid;
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					data + 12, len - 12);
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						data + 12, len - 12);
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					data + 12, len - 12);
 		} else {
 
 			/* Add the data from this payload */
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-						data + 12, len - 12);
+			gspca_frame_add(gspca_dev, INTER_PACKET,
+					data + 12, len - 12);
 		}
 
 		/* Done this payload */
@@ -1469,7 +1468,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 
 discard:
 		/* Discard data until a new frame starts. */
-		gspca_frame_add(gspca_dev, DISCARD_PACKET, frame, NULL, 0);
+		gspca_dev->last_packet_type = DISCARD_PACKET;
 
 scan_next:
 		remaining_len -= len;

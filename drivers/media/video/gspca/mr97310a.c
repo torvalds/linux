@@ -1030,9 +1030,8 @@ static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val)
 #include "pac_common.h"
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,    /* target */
-			__u8 *data,                   /* isoc packet */
-			int len)                      /* iso packet length */
+			u8 *data,		/* isoc packet */
+			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
@@ -1047,15 +1046,15 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+		gspca_frame_add(gspca_dev, LAST_PACKET,
 					data, n);
 		/* Start next frame. */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			pac_sof_marker, sizeof pac_sof_marker);
 		len -= sof - data;
 		data = sof;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 /* sub-driver description */

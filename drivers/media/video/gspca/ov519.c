@@ -3920,9 +3920,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *in,			/* isoc packet */
-			int len)			/* iso packet length */
+			u8 *in,			/* isoc packet */
+			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -3953,11 +3952,11 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 				return;
 			}
 			/* Add 11 byte footer to frame, might be usefull */
-			gspca_frame_add(gspca_dev, LAST_PACKET, frame, in, 11);
+			gspca_frame_add(gspca_dev, LAST_PACKET, in, 11);
 			return;
 		} else {
 			/* Frame start */
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame, in, 0);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, in, 0);
 			sd->packet_nr = 0;
 		}
 	}
@@ -3966,12 +3965,11 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 	len--;
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, in, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, in, len);
 }
 
 static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -3979,8 +3977,8 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	/* A false positive here is likely, until OVT gives me
 	 * the definitive SOF/EOF format */
 	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		sd->packet_nr = 0;
 	}
 
@@ -4004,12 +4002,11 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	/* Header of ov519 is 16 bytes:
@@ -4032,7 +4029,7 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 			len -= HDRSZ;
 #undef HDRSZ
 			if (data[0] == 0xff || data[1] == 0xd8)
-				gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				gspca_frame_add(gspca_dev, FIRST_PACKET,
 						data, len);
 			else
 				gspca_dev->last_packet_type = DISCARD_PACKET;
@@ -4040,34 +4037,31 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 		case 0x51:		/* end of frame */
 			if (data[9] != 0)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
-			gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					NULL, 0);
 			return;
 		}
 	}
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	/* A short read signals EOF */
 	if (len < OVFX2_BULK_SIZE) {
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, len);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		return;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -4075,20 +4069,20 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		ov511_pkt_scan(gspca_dev, frame, data, len);
+		ov511_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
-		ov518_pkt_scan(gspca_dev, frame, data, len);
+		ov518_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_OV519:
-		ov519_pkt_scan(gspca_dev, frame, data, len);
+		ov519_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_OVFX2:
-		ovfx2_pkt_scan(gspca_dev, frame, data, len);
+		ovfx2_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_W9968CF:
-		w9968cf_pkt_scan(gspca_dev, frame, data, len);
+		w9968cf_pkt_scan(gspca_dev, data, len);
 		break;
 	}
 }

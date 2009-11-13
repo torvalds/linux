@@ -6974,17 +6974,16 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,
-			__u8 *data,
+			u8 *data,
 			int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (data[0] == 0xff && data[1] == 0xd8) {	/* start of frame */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET,
+					NULL, 0);
 		/* put the JPEG header in the new frame */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			sd->jpeg_hdr, JPEG_HDR_SZ);
 
 		/* remove the webcam's header:
@@ -6996,7 +6995,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		data += 18;
 		len -= 18;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

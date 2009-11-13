@@ -36,7 +36,7 @@ static int  sd_isoc_init(struct gspca_dev *gspca_dev);
 static int  sd_start(struct gspca_dev *gspca_dev);
 static void sd_stop0(struct gspca_dev *gspca_dev);
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame, u8 *data, s32 len);
+			u8 *data, int len);
 static void sd_callback(struct gspca_dev *gspca_dev);
 
 static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
@@ -433,7 +433,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 
 /* This function is called when an image is being received */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame, u8 *data, s32 len)
+			u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	static s32 nSkipped;
@@ -445,11 +445,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	/* Test only against 0202h, so endianess does not matter */
 	switch (*(s16 *) data) {
 	case 0x0202:		/* End of frame, start a new one */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		nSkipped = 0;
 		if (sd->nbIm >= 0 && sd->nbIm < 10)
 			sd->nbIm++;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		break;
 
 	default:
@@ -464,7 +464,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				nSkipped = nToSkip + 1;
 			}
 			gspca_frame_add(gspca_dev,
-				INTER_PACKET, frame, data, len);
+				INTER_PACKET, data, len);
 		}
 		break;
 	}

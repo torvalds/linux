@@ -576,8 +576,7 @@ static void w9968cf_stop0(struct sd *sd)
    to be precise it sends: SOI, SOF, DRI, SOS, Y-data, SOS, U-data, SOS,
    V-data, EOI. */
 static void w9968cf_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -587,9 +586,9 @@ static void w9968cf_pkt_scan(struct gspca_dev *gspca_dev,
 		if (len >= 2 &&
 		    data[0] == 0xff &&
 		    data[1] == 0xd8) {
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+			gspca_frame_add(gspca_dev, LAST_PACKET,
 					NULL, 0);
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					sd->jpeg_hdr, JPEG_HDR_SZ);
 			/* Strip the ff d8, our own header (which adds
 			   huffman and quantization tables) already has this */
@@ -599,12 +598,12 @@ static void w9968cf_pkt_scan(struct gspca_dev *gspca_dev,
 	} else {
 		/* In UYVY mode an empty packet signals EOF */
 		if (gspca_dev->empty_packet) {
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+			gspca_frame_add(gspca_dev, LAST_PACKET,
 						NULL, 0);
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					NULL, 0);
 			gspca_dev->empty_packet = 0;
 		}
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }

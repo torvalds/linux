@@ -653,7 +653,7 @@ static void pac_start_frame(struct gspca_dev *gspca_dev,
 {
 	unsigned char tmpbuf[4];
 
-	gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+	gspca_frame_add(gspca_dev, FIRST_PACKET,
 		pac_jpeg_header1, sizeof(pac_jpeg_header1));
 
 	tmpbuf[0] = lines >> 8;
@@ -661,24 +661,30 @@ static void pac_start_frame(struct gspca_dev *gspca_dev,
 	tmpbuf[2] = samples_per_line >> 8;
 	tmpbuf[3] = samples_per_line & 0xff;
 
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+	gspca_frame_add(gspca_dev, INTER_PACKET,
 		tmpbuf, sizeof(tmpbuf));
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+	gspca_frame_add(gspca_dev, INTER_PACKET,
 		pac_jpeg_header2, sizeof(pac_jpeg_header2));
 }
 
 /* this function is run at interrupt level */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
+	struct gspca_frame *frame;
 
 	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n, lum_offset, footer_length;
+
+		frame = gspca_get_i_frame(gspca_dev);
+		if (frame == NULL) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 
 		/* 6 bytes after the FF D9 EOF marker a number of lumination
 		   bytes are send corresponding to different parts of the
@@ -693,12 +699,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			frame->data_end += n;
 			n = 0;
 		}
-		frame = gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+		gspca_frame_add(gspca_dev, INTER_PACKET,
 					data, n);
 		if (gspca_dev->last_packet_type != DISCARD_PACKET &&
 				frame->data_end[-2] == 0xff &&
 				frame->data_end[-1] == 0xd9)
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+			gspca_frame_add(gspca_dev, LAST_PACKET,
 						NULL, 0);
 
 		n = sof - data;
@@ -717,7 +723,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		pac_start_frame(gspca_dev, frame,
 			gspca_dev->height, gspca_dev->width);
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
