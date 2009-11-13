@@ -181,8 +181,6 @@ static void ath9k_process_rssi(struct ath_common *common,
 					      ATH_RSSI_EP_MULTIPLIER);
 	if (rx_stats->rs_rssi < 0)
 		rx_stats->rs_rssi = 0;
-	else if (rx_stats->rs_rssi > 127)
-		rx_stats->rs_rssi = 127;
 
 	/* Update Beacon RSSI, this is used by ANI. */
 	if (ieee80211_is_beacon(fc))

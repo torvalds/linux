@@ -60,7 +60,7 @@
 
 #define	ATH_DEFAULT_NOISE_FLOOR -95
 
-#define ATH9K_RSSI_BAD			0x80
+#define ATH9K_RSSI_BAD			-128
 
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
