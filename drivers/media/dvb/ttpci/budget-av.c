@@ -1055,7 +1055,7 @@ static const struct stb0899_s1_reg knc1_stb0899_s1_init_3[] = {
 	{ STB0899_TSCFGH		, 0x0c },
 	{ STB0899_TSCFGM		, 0x00 },
 	{ STB0899_TSCFGL		, 0x0c },
-	{ STB0899_TSOUT			, 0x0d }, /* 0x0d for CAM */
+	{ STB0899_TSOUT			, 0x4d }, /* 0x0d for CAM */
 	{ STB0899_RSSYNCDEL		, 0x00 },
 	{ STB0899_TSINHDELH		, 0x02 },
 	{ STB0899_TSINHDELM		, 0x00 },
