@@ -1341,7 +1341,6 @@ static int usb_autopm_do_device(struct usb_device *udev, int inc_usage_cnt)
 	int	status = 0;
 
 	usb_pm_lock(udev);
-	udev->auto_pm = 1;
 	udev->pm_usage_cnt += inc_usage_cnt;
 	WARN_ON(udev->pm_usage_cnt < 0);
 	if (inc_usage_cnt)
@@ -1473,7 +1472,6 @@ static int usb_autopm_do_interface(struct usb_interface *intf,
 	if (intf->condition == USB_INTERFACE_UNBOUND)
 		status = -ENODEV;
 	else {
-		udev->auto_pm = 1;
 		atomic_add(inc_usage_cnt, &intf->pm_usage_cnt);
 		udev->last_busy = jiffies;
 		if (inc_usage_cnt >= 0 &&
@@ -1707,7 +1705,6 @@ int usb_external_suspend_device(struct usb_device *udev, pm_message_t msg)
 
 	do_unbind_rebind(udev, DO_UNBIND);
 	usb_pm_lock(udev);
-	udev->auto_pm = 0;
 	status = usb_suspend_both(udev, msg);
 	usb_pm_unlock(udev);
 	return status;
@@ -1730,7 +1727,6 @@ int usb_external_resume_device(struct usb_device *udev, pm_message_t msg)
 	int	status;
 
 	usb_pm_lock(udev);
-	udev->auto_pm = 0;
 	status = usb_resume_both(udev, msg);
 	udev->last_busy = jiffies;
 	usb_pm_unlock(udev);

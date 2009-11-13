@@ -423,15 +423,16 @@ an URB had completed too recently.
 
 External suspend calls should never be allowed to fail in this way,
 only autosuspend calls.  The driver can tell them apart by checking
-udev->auto_pm; this flag will be set to 1 for internal PM events
-(autosuspend or autoresume) and 0 for external PM events.
+the PM_EVENT_AUTO bit in the message.event argument to the suspend
+method; this bit will be set for internal PM events (autosuspend) and
+clear for external PM events.
 
 Many of the ingredients in the autosuspend framework are oriented
 towards interfaces: The usb_interface structure contains the
 pm_usage_cnt field, and the usb_autopm_* routines take an interface
 pointer as their argument.  But somewhat confusingly, a few of the
-pieces (usb_mark_last_busy() and udev->auto_pm) use the usb_device
-structure instead.  Drivers need to keep this straight; they can call
+pieces (i.e., usb_mark_last_busy()) use the usb_device structure
+instead.  Drivers need to keep this straight; they can call
 interface_to_usbdev() to find the device structure for a given
 interface.
 
