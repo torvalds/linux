@@ -545,15 +545,11 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
-#define STA_PS_STATUS_WAKE             0
-#define STA_PS_STATUS_SLEEP            1
-
 
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
-	u8 ps_status;
 	struct iwl_hw_key keyinfo;
 };
 
@@ -561,7 +557,6 @@ struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
-	u8 ps_status;
 	struct iwl_hw_key keyinfo;
 };
 
@@ -571,11 +566,12 @@ struct iwl_station_entry {
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
  * space.
- *
- * At the moment use it for the station's rate scaling information.
  */
 struct iwl_station_priv {
 	struct iwl_lq_sta lq_sta;
+	atomic_t pending_frames;
+	bool client;
+	bool asleep;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */

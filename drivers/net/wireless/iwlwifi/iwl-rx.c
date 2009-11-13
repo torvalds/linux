@@ -1028,7 +1028,6 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl4965_rx_mpdu_res_start *amsdu;
 	u32 len;
 	u32 ampdu_status;
-	u16 fc;
 	u32 rate_n_flags;
 
 	/**
@@ -1161,20 +1160,8 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		priv->last_tsf = le64_to_cpu(phy_res->timestamp);
 	}
 
-	fc = le16_to_cpu(header->frame_control);
-	switch (fc & IEEE80211_FCTL_FTYPE) {
-	case IEEE80211_FTYPE_MGMT:
-	case IEEE80211_FTYPE_DATA:
-		if (priv->iw_mode == NL80211_IFTYPE_AP)
-			iwl_update_ps_mode(priv, fc  & IEEE80211_FCTL_PM,
-						header->addr2);
-		/* fall through */
-	default:
-		iwl_pass_packet_to_mac80211(priv, header, len, ampdu_status,
-				rxb, &rx_status);
-		break;
-
-	}
+	iwl_pass_packet_to_mac80211(priv, header, len, ampdu_status,
+				    rxb, &rx_status);
 }
 EXPORT_SYMBOL(iwl_rx_reply_rx);
 

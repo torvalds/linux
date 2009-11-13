@@ -2744,6 +2744,45 @@ static int iwl_mac_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum sta_notify_cmd cmd,
+			       struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	int sta_id;
+
+	/*
+	 * TODO: We really should use this callback to
+	 *	 actually maintain the station table in
+	 *	 the device.
+	 */
+
+	switch (cmd) {
+	case STA_NOTIFY_ADD:
+		atomic_set(&sta_priv->pending_frames, 0);
+		if (vif->type == NL80211_IFTYPE_AP)
+			sta_priv->client = true;
+		break;
+	case STA_NOTIFY_SLEEP:
+		WARN_ON(!sta_priv->client);
+		sta_priv->asleep = true;
+		if (atomic_read(&sta_priv->pending_frames) > 0)
+			ieee80211_sta_block_awake(hw, sta, true);
+		break;
+	case STA_NOTIFY_AWAKE:
+		WARN_ON(!sta_priv->client);
+		sta_priv->asleep = false;
+		sta_id = iwl_find_station(priv, sta->addr);
+		if (sta_id != IWL_INVALID_STATION)
+			iwl_sta_modify_ps_wake(priv, sta_id);
+		break;
+	default:
+		break;
+	}
+}
+
 /*****************************************************************************
  *
  * sysfs attributes
@@ -3175,7 +3214,8 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
 	.ampdu_action = iwl_mac_ampdu_action,
-	.hw_scan = iwl_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan,
+	.sta_notify = iwl_mac_sta_notify,
 };
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

@@ -977,6 +977,7 @@ struct iwl_qosparam_cmd {
 #define	STA_MODIFY_TX_RATE_MSK		0x04
 #define STA_MODIFY_ADDBA_TID_MSK	0x08
 #define STA_MODIFY_DELBA_TID_MSK	0x10
+#define STA_MODIFY_SLEEP_TX_COUNT_MSK	0x20
 
 /* Receiver address (actually, Rx station's index into station table),
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */

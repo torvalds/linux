@@ -336,8 +336,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"flags: 0x%x\n",
 					station->sta.station_flags_msk);
-			pos += scnprintf(buf + pos, bufsz - pos,
-					"ps_status: %u\n", station->ps_status);
 			pos += scnprintf(buf + pos, bufsz - pos, "tid data:\n");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"seq_num\t\ttxq_id");
