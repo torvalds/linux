@@ -825,7 +825,7 @@ static int stv090x_set_min_srate(struct stv090x_state *state, u32 clk, u32 srate
 		sym /= (state->mclk >> 7);
 	}
 
-	if (STV090x_WRITE_DEMOD(state, SFRLOW1, ((sym >> 8) & 0xff)) < 0) /* MSB */
+	if (STV090x_WRITE_DEMOD(state, SFRLOW1, ((sym >> 8) & 0x7f)) < 0) /* MSB */
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, SFRLOW0, (sym & 0xff)) < 0) /* LSB */
 		goto err;
@@ -1317,7 +1317,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 				goto err;
 			if (STV090x_WRITE_DEMOD(state, CFRUP1, 0x0f) < 0)
 				goto err;
-			if (STV090x_WRITE_DEMOD(state, CFRUP1, 0xff) < 0)
+			if (STV090x_WRITE_DEMOD(state, CFRUP0, 0xff) < 0)
 				goto err;
 			if (STV090x_WRITE_DEMOD(state, CFRLOW1, 0xf0) < 0)
 				goto err;
@@ -1371,7 +1371,7 @@ static int stv090x_start_search(struct stv090x_state *state)
 
 		if (STV090x_WRITE_DEMOD(state, CFRUP1, MSB(freq)) < 0)
 			goto err;
-		if (STV090x_WRITE_DEMOD(state, CFRUP1, LSB(freq)) < 0)
+		if (STV090x_WRITE_DEMOD(state, CFRUP0, LSB(freq)) < 0)
 			goto err;
 
 		freq *= -1;
@@ -1525,7 +1525,7 @@ static int stv090x_get_agc2_min_level(struct stv090x_state *state)
 		else
 			freq_init = freq_init - (freq_step * i);
 
-		dir = -1;
+		dir *= -1;
 
 		if (STV090x_WRITE_DEMOD(state, DMDISTATE, 0x5c) < 0) /* Demod RESET */
 			goto err;
@@ -2425,7 +2425,7 @@ static s32 stv090x_get_car_freq(struct stv090x_state *state, u32 mclk)
 
 	derot = (int_1 * int_2) +
 		((int_1 * tmp_2) >> 12) +
-		((int_1 * tmp_1) >> 12);
+		((int_2 * tmp_1) >> 12);
 
 	return derot;
 }
@@ -2732,7 +2732,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 	switch (state->delsys) {
 	case STV090x_DVBS1:
 	case STV090x_DSS:
-		if (state->algo == STV090x_SEARCH_AUTO) {
+		if (state->search_mode == STV090x_SEARCH_AUTO) {
 			reg = STV090x_READ_DEMOD(state, DMDCFGMD);
 			STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);
 			STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 0);
