@@ -1149,6 +1149,13 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			if (ret)
 				goto failed;
 			radeon_connector->dac_load_detect = true;
+			/* RS400,RC410,RS480 chipset seems to report a lot
+			 * of false positive on load detect, we haven't yet
+			 * found a way to make load detect reliable on those
+			 * chipset, thus just disable it for TV.
+			 */
+			if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
+				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);
