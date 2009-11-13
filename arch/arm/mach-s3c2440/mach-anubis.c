@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-anubis.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright 2003-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -55,7 +55,7 @@
 #include <plat/cpu.h>
 #include <plat/audio-simtec.h>
 
-#define COPYRIGHT ", (c) 2005-2009 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2005-2009 Simtec Electronics"
 
 static struct map_desc anubis_iodesc[] __initdata = {
   /* ISA IO areas */

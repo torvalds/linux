@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-bast.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright 2003-2005,2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -66,7 +66,7 @@
 #include "usb-simtec.h"
 #include "nor-simtec.h"
 
-#define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2004-2005 Simtec Electronics"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
