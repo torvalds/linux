@@ -466,8 +466,6 @@ void clocksource_touch_watchdog(void)
 	clocksource_resume_watchdog();
 }
 
-#ifdef CONFIG_GENERIC_TIME
-
 /**
  * clocksource_max_deferment - Returns max time the clocksource can be deferred
  * @cs:         Pointer to clocksource
@@ -508,6 +506,8 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 	 */
 	return max_nsecs - (max_nsecs >> 5);
 }
+
+#ifdef CONFIG_GENERIC_TIME
 
 /**
  * clocksource_select - Select the best clocksource available
