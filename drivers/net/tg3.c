@@ -4558,7 +4558,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 	u32 sw_idx = tnapi->rx_rcb_ptr;
 	u16 hw_idx;
 	int received;
-	struct tg3_rx_prodring_set *tpr = &tp->prodring[0];
+	struct tg3_rx_prodring_set *tpr = tnapi->prodring;
 
 	hw_idx = *(tnapi->rx_rcb_prod_idx);
 	/*
@@ -4581,13 +4581,13 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		desc_idx = desc->opaque & RXD_OPAQUE_INDEX_MASK;
 		opaque_key = desc->opaque & RXD_OPAQUE_RING_MASK;
 		if (opaque_key == RXD_OPAQUE_RING_STD) {
-			ri = &tpr->rx_std_buffers[desc_idx];
+			ri = &tp->prodring[0].rx_std_buffers[desc_idx];
 			dma_addr = pci_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &std_prod_idx;
 			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
-			ri = &tpr->rx_jmb_buffers[desc_idx];
+			ri = &tp->prodring[0].rx_jmb_buffers[desc_idx];
 			dma_addr = pci_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &jmb_prod_idx;
@@ -4704,15 +4704,30 @@ next_pkt_nopost:
 	tw32_rx_mbox(tnapi->consmbox, sw_idx);
 
 	/* Refill RX ring(s). */
-	if (work_mask & RXD_OPAQUE_RING_STD) {
+	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) || tnapi == &tp->napi[1]) {
+		if (work_mask & RXD_OPAQUE_RING_STD) {
+			tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
+			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG,
+				     tpr->rx_std_prod_idx);
+		}
+		if (work_mask & RXD_OPAQUE_RING_JUMBO) {
+			tpr->rx_jmb_prod_idx = jmb_prod_idx %
+					       TG3_RX_JUMBO_RING_SIZE;
+			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
+				     tpr->rx_jmb_prod_idx);
+		}
+		mmiowb();
+	} else if (work_mask) {
+		/* rx_std_buffers[] and rx_jmb_buffers[] entries must be
+		 * updated before the producer indices can be updated.
+		 */
+		smp_wmb();
+
 		tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
-		tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG, tpr->rx_std_prod_idx);
-	}
-	if (work_mask & RXD_OPAQUE_RING_JUMBO) {
 		tpr->rx_jmb_prod_idx = jmb_prod_idx % TG3_RX_JUMBO_RING_SIZE;
-		tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG, tpr->rx_jmb_prod_idx);
+
+		napi_schedule(&tp->napi[1].napi);
 	}
-	mmiowb();
 
 	return received;
 }
@@ -4743,6 +4758,93 @@ static void tg3_poll_link(struct tg3 *tp)
 	}
 }
 
+static void tg3_rx_prodring_xfer(struct tg3 *tp,
+				 struct tg3_rx_prodring_set *dpr,
+				 struct tg3_rx_prodring_set *spr)
+{
+	u32 si, di, cpycnt, src_prod_idx;
+	int i;
+
+	while (1) {
+		src_prod_idx = spr->rx_std_prod_idx;
+
+		/* Make sure updates to the rx_std_buffers[] entries and the
+		 * standard producer index are seen in the correct order.
+		 */
+		smp_rmb();
+
+		if (spr->rx_std_cons_idx == src_prod_idx)
+			break;
+
+		if (spr->rx_std_cons_idx < src_prod_idx)
+			cpycnt = src_prod_idx - spr->rx_std_cons_idx;
+		else
+			cpycnt = TG3_RX_RING_SIZE - spr->rx_std_cons_idx;
+
+		cpycnt = min(cpycnt, TG3_RX_RING_SIZE - dpr->rx_std_prod_idx);
+
+		si = spr->rx_std_cons_idx;
+		di = dpr->rx_std_prod_idx;
+
+		memcpy(&dpr->rx_std_buffers[di],
+		       &spr->rx_std_buffers[si],
+		       cpycnt * sizeof(struct ring_info));
+
+		for (i = 0; i < cpycnt; i++, di++, si++) {
+			struct tg3_rx_buffer_desc *sbd, *dbd;
+			sbd = &spr->rx_std[si];
+			dbd = &dpr->rx_std[di];
+			dbd->addr_hi = sbd->addr_hi;
+			dbd->addr_lo = sbd->addr_lo;
+		}
+
+		spr->rx_std_cons_idx = (spr->rx_std_cons_idx + cpycnt) %
+				       TG3_RX_RING_SIZE;
+		dpr->rx_std_prod_idx = (dpr->rx_std_prod_idx + cpycnt) %
+				       TG3_RX_RING_SIZE;
+	}
+
+	while (1) {
+		src_prod_idx = spr->rx_jmb_prod_idx;
+
+		/* Make sure updates to the rx_jmb_buffers[] entries and
+		 * the jumbo producer index are seen in the correct order.
+		 */
+		smp_rmb();
+
+		if (spr->rx_jmb_cons_idx == src_prod_idx)
+			break;
+
+		if (spr->rx_jmb_cons_idx < src_prod_idx)
+			cpycnt = src_prod_idx - spr->rx_jmb_cons_idx;
+		else
+			cpycnt = TG3_RX_JUMBO_RING_SIZE - spr->rx_jmb_cons_idx;
+
+		cpycnt = min(cpycnt,
+			     TG3_RX_JUMBO_RING_SIZE - dpr->rx_jmb_prod_idx);
+
+		si = spr->rx_jmb_cons_idx;
+		di = dpr->rx_jmb_prod_idx;
+
+		memcpy(&dpr->rx_jmb_buffers[di],
+		       &spr->rx_jmb_buffers[si],
+		       cpycnt * sizeof(struct ring_info));
+
+		for (i = 0; i < cpycnt; i++, di++, si++) {
+			struct tg3_rx_buffer_desc *sbd, *dbd;
+			sbd = &spr->rx_jmb[si].std;
+			dbd = &dpr->rx_jmb[di].std;
+			dbd->addr_hi = sbd->addr_hi;
+			dbd->addr_lo = sbd->addr_lo;
+		}
+
+		spr->rx_jmb_cons_idx = (spr->rx_jmb_cons_idx + cpycnt) %
+				       TG3_RX_JUMBO_RING_SIZE;
+		dpr->rx_jmb_prod_idx = (dpr->rx_jmb_prod_idx + cpycnt) %
+				       TG3_RX_JUMBO_RING_SIZE;
+	}
+}
+
 static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 {
 	struct tg3 *tp = tnapi->tp;
@@ -4760,6 +4862,30 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 	 */
 	if (*(tnapi->rx_rcb_prod_idx) != tnapi->rx_rcb_ptr)
 		work_done += tg3_rx(tnapi, budget - work_done);
+
+	if ((tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) && tnapi == &tp->napi[1]) {
+		int i;
+		u32 std_prod_idx = tp->prodring[0].rx_std_prod_idx;
+		u32 jmb_prod_idx = tp->prodring[0].rx_jmb_prod_idx;
+
+		for (i = 2; i < tp->irq_cnt; i++)
+			tg3_rx_prodring_xfer(tp, tnapi->prodring,
+					     tp->napi[i].prodring);
+
+		wmb();
+
+		if (std_prod_idx != tp->prodring[0].rx_std_prod_idx) {
+			u32 mbox = TG3_RX_STD_PROD_IDX_REG;
+			tw32_rx_mbox(mbox, tp->prodring[0].rx_std_prod_idx);
+		}
+
+		if (jmb_prod_idx != tp->prodring[0].rx_jmb_prod_idx) {
+			u32 mbox = TG3_RX_JMB_PROD_IDX_REG;
+			tw32_rx_mbox(mbox, tp->prodring[0].rx_jmb_prod_idx);
+		}
+
+		mmiowb();
+	}
 
 	return work_done;
 }
@@ -5715,8 +5841,23 @@ static void tg3_rx_prodring_free(struct tg3 *tp,
 {
 	int i;
 
-	if (tpr != &tp->prodring[0])
+	if (tpr != &tp->prodring[0]) {
+		for (i = tpr->rx_std_cons_idx; i != tpr->rx_std_prod_idx;
+		     i = (i + 1) % TG3_RX_RING_SIZE)
+			tg3_rx_skb_free(tp, &tpr->rx_std_buffers[i],
+					tp->rx_pkt_map_sz);
+
+		if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
+			for (i = tpr->rx_jmb_cons_idx;
+			     i != tpr->rx_jmb_prod_idx;
+			     i = (i + 1) % TG3_RX_JUMBO_RING_SIZE) {
+				tg3_rx_skb_free(tp, &tpr->rx_jmb_buffers[i],
+						TG3_RX_JMB_MAP_SZ);
+			}
+		}
+
 		return;
+	}
 
 	for (i = 0; i < TG3_RX_RING_SIZE; i++)
 		tg3_rx_skb_free(tp, &tpr->rx_std_buffers[i],
@@ -5740,6 +5881,11 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 				 struct tg3_rx_prodring_set *tpr)
 {
 	u32 i, rx_pkt_dma_sz;
+
+	tpr->rx_std_cons_idx = 0;
+	tpr->rx_std_prod_idx = 0;
+	tpr->rx_jmb_cons_idx = 0;
+	tpr->rx_jmb_prod_idx = 0;
 
 	if (tpr != &tp->prodring[0]) {
 		memset(&tpr->rx_std_buffers[0], 0, TG3_RX_STD_BUFF_RING_SIZE);
@@ -6061,6 +6207,11 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 			tnapi->rx_rcb_prod_idx = &sblk->rx_mini_consumer;
 			break;
 		}
+
+		if (tp->irq_cnt == 1)
+			tnapi->prodring = &tp->prodring[0];
+		else if (i)
+			tnapi->prodring = &tp->prodring[i - 1];
 
 		/*
 		 * If multivector RSS is enabled, vector 0 does not handle

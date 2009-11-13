@@ -2575,7 +2575,9 @@ struct tg3_ethtool_stats {
 
 struct tg3_rx_prodring_set {
 	u32				rx_std_prod_idx;
+	u32				rx_std_cons_idx;
 	u32				rx_jmb_prod_idx;
+	u32				rx_jmb_cons_idx;
 	struct tg3_rx_buffer_desc	*rx_std;
 	struct tg3_ext_rx_buffer_desc	*rx_jmb;
 	struct ring_info		*rx_std_buffers;
@@ -2603,6 +2605,7 @@ struct tg3_napi {
 	u32				consmbox;
 	u32				rx_rcb_ptr;
 	u16				*rx_rcb_prod_idx;
+	struct tg3_rx_prodring_set	*prodring;
 
 	struct tg3_rx_buffer_desc	*rx_rcb;
 	struct tg3_tx_buffer_desc	*tx_ring;
