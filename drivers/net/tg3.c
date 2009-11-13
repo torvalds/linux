@@ -137,6 +137,12 @@
 #define TG3_RX_STD_MAP_SZ		TG3_RX_DMA_TO_MAP_SZ(TG3_RX_STD_DMA_SZ)
 #define TG3_RX_JMB_MAP_SZ		TG3_RX_DMA_TO_MAP_SZ(TG3_RX_JMB_DMA_SZ)
 
+#define TG3_RX_STD_BUFF_RING_SIZE \
+	(sizeof(struct ring_info) * TG3_RX_RING_SIZE)
+
+#define TG3_RX_JMB_BUFF_RING_SIZE \
+	(sizeof(struct ring_info) * TG3_RX_JUMBO_RING_SIZE)
+
 /* minimum number of free TX descriptors required to wake up TX process */
 #define TG3_TX_WAKEUP_THRESH(tnapi)		((tnapi)->tx_pending / 4)
 
@@ -4397,6 +4403,17 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	}
 }
 
+static void tg3_rx_skb_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
+{
+	if (!ri->skb)
+		return;
+
+	pci_unmap_single(tp->pdev, pci_unmap_addr(ri, mapping),
+			 map_sz, PCI_DMA_FROMDEVICE);
+	dev_kfree_skb_any(ri->skb);
+	ri->skb = NULL;
+}
+
 /* Returns size of skb allocated or < 0 on error.
  *
  * We only need to fill in the address because the other members
@@ -5701,36 +5718,18 @@ static void tg3_rx_prodring_free(struct tg3 *tp,
 				 struct tg3_rx_prodring_set *tpr)
 {
 	int i;
-	struct ring_info *rxp;
 
-	for (i = 0; i < TG3_RX_RING_SIZE; i++) {
-		rxp = &tpr->rx_std_buffers[i];
+	if (tpr != &tp->prodring[0])
+		return;
 
-		if (rxp->skb == NULL)
-			continue;
-
-		pci_unmap_single(tp->pdev,
-				 pci_unmap_addr(rxp, mapping),
-				 tp->rx_pkt_map_sz,
-				 PCI_DMA_FROMDEVICE);
-		dev_kfree_skb_any(rxp->skb);
-		rxp->skb = NULL;
-	}
+	for (i = 0; i < TG3_RX_RING_SIZE; i++)
+		tg3_rx_skb_free(tp, &tpr->rx_std_buffers[i],
+				tp->rx_pkt_map_sz);
 
 	if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
-		for (i = 0; i < TG3_RX_JUMBO_RING_SIZE; i++) {
-			rxp = &tpr->rx_jmb_buffers[i];
-
-			if (rxp->skb == NULL)
-				continue;
-
-			pci_unmap_single(tp->pdev,
-					 pci_unmap_addr(rxp, mapping),
-					 TG3_RX_JMB_MAP_SZ,
-					 PCI_DMA_FROMDEVICE);
-			dev_kfree_skb_any(rxp->skb);
-			rxp->skb = NULL;
-		}
+		for (i = 0; i < TG3_RX_JUMBO_RING_SIZE; i++)
+			tg3_rx_skb_free(tp, &tpr->rx_jmb_buffers[i],
+					TG3_RX_JMB_MAP_SZ);
 	}
 }
 
@@ -5745,6 +5744,14 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 				 struct tg3_rx_prodring_set *tpr)
 {
 	u32 i, rx_pkt_dma_sz;
+
+	if (tpr != &tp->prodring[0]) {
+		memset(&tpr->rx_std_buffers[0], 0, TG3_RX_STD_BUFF_RING_SIZE);
+		if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE)
+			memset(&tpr->rx_jmb_buffers[0], 0,
+			       TG3_RX_JMB_BUFF_RING_SIZE);
+		goto done;
+	}
 
 	/* Zero out all descriptors. */
 	memset(tpr->rx_std, 0, TG3_RX_RING_BYTES);
@@ -5847,8 +5854,7 @@ static void tg3_rx_prodring_fini(struct tg3 *tp,
 static int tg3_rx_prodring_init(struct tg3 *tp,
 				struct tg3_rx_prodring_set *tpr)
 {
-	tpr->rx_std_buffers = kzalloc(sizeof(struct ring_info) *
-				      TG3_RX_RING_SIZE, GFP_KERNEL);
+	tpr->rx_std_buffers = kzalloc(TG3_RX_STD_BUFF_RING_SIZE, GFP_KERNEL);
 	if (!tpr->rx_std_buffers)
 		return -ENOMEM;
 
@@ -5858,8 +5864,7 @@ static int tg3_rx_prodring_init(struct tg3 *tp,
 		goto err_out;
 
 	if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
-		tpr->rx_jmb_buffers = kzalloc(sizeof(struct ring_info) *
-					      TG3_RX_JUMBO_RING_SIZE,
+		tpr->rx_jmb_buffers = kzalloc(TG3_RX_JMB_BUFF_RING_SIZE,
 					      GFP_KERNEL);
 		if (!tpr->rx_jmb_buffers)
 			goto err_out;
@@ -5915,9 +5920,10 @@ static void tg3_free_rings(struct tg3 *tp)
 
 			dev_kfree_skb_any(skb);
 		}
-	}
 
-	tg3_rx_prodring_free(tp, &tp->prodring[0]);
+		if (tp->irq_cnt == 1 || j != tp->irq_cnt - 1)
+			tg3_rx_prodring_free(tp, &tp->prodring[j]);
+	}
 }
 
 /* Initialize tx/rx rings for packet processing.
@@ -5951,9 +5957,13 @@ static int tg3_init_rings(struct tg3 *tp)
 		tnapi->rx_rcb_ptr = 0;
 		if (tnapi->rx_rcb)
 			memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
+
+		if ((tp->irq_cnt == 1 || i != tp->irq_cnt - 1) &&
+			tg3_rx_prodring_alloc(tp, &tp->prodring[i]))
+			return -ENOMEM;
 	}
 
-	return tg3_rx_prodring_alloc(tp, &tp->prodring[0]);
+	return 0;
 }
 
 /*
@@ -5997,7 +6007,8 @@ static void tg3_free_consistent(struct tg3 *tp)
 		tp->hw_stats = NULL;
 	}
 
-	tg3_rx_prodring_fini(tp, &tp->prodring[0]);
+	for (i = 0; i < (tp->irq_cnt == 1 ? 1 : tp->irq_cnt - 1); i++)
+		tg3_rx_prodring_fini(tp, &tp->prodring[i]);
 }
 
 /*
@@ -6008,8 +6019,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 {
 	int i;
 
-	if (tg3_rx_prodring_init(tp, &tp->prodring[0]))
-		return -ENOMEM;
+	for (i = 0; i < (tp->irq_cnt == 1 ? 1 : tp->irq_cnt - 1); i++) {
+		if (tg3_rx_prodring_init(tp, &tp->prodring[i]))
+			goto err_out;
+	}
 
 	tp->hw_stats = pci_alloc_consistent(tp->pdev,
 					    sizeof(struct tg3_hw_stats),
