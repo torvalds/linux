@@ -398,6 +398,7 @@ static void pxafb_setmode(struct fb_var_screeninfo *var,
 	var->lower_margin	= mode->lower_margin;
 	var->sync		= mode->sync;
 	var->grayscale		= mode->cmap_greyscale;
+	var->transp.length	= mode->transparency;
 
 	/* set the initial RGBA bitfields */
 	pxafb_set_pixfmt(var, mode->depth);
