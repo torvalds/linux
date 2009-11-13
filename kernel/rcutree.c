@@ -676,7 +676,23 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	if (!cpu_needs_another_gp(rsp, rdp)) {
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		if (rnp->completed == rsp->completed) {
+			spin_unlock_irqrestore(&rnp->lock, flags);
+			return;
+		}
+		spin_unlock(&rnp->lock);	 /* irqs remain disabled. */
+
+		/*
+		 * Propagate new ->completed value to rcu_node structures
+		 * so that other CPUs don't have to wait until the start
+		 * of the next grace period to process their callbacks.
+		 */
+		rcu_for_each_node_breadth_first(rsp, rnp) {
+			spin_lock(&rnp->lock);	 /* irqs already disabled. */
+			rnp->completed = rsp->completed;
+			spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		}
+		local_irq_restore(flags);
 		return;
 	}
 
