@@ -114,7 +114,18 @@ static int nilfs_btree_get_block(const struct nilfs_btree *btree, __u64 ptr,
 {
 	struct address_space *btnc =
 		&NILFS_BMAP_I((struct nilfs_bmap *)btree)->i_btnode_cache;
-	return nilfs_btnode_get(btnc, ptr, 0, bhp, 0);
+	int err;
+
+	err = nilfs_btnode_submit_block(btnc, ptr, 0, bhp);
+	if (err)
+		return err == -EEXIST ? 0 : err;
+
+	wait_on_buffer(*bhp);
+	if (!buffer_uptodate(*bhp)) {
+		brelse(*bhp);
+		return -EIO;
+	}
+	return 0;
 }
 
 static int nilfs_btree_get_new_block(const struct nilfs_btree *btree,

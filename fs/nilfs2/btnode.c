@@ -147,27 +147,6 @@ out_locked:
 	return err;
 }
 
-int nilfs_btnode_get(struct address_space *btnc, __u64 blocknr,
-		     sector_t pblocknr, struct buffer_head **pbh)
-{
-	struct buffer_head *bh;
-	int err;
-
-	err = nilfs_btnode_submit_block(btnc, blocknr, pblocknr, pbh);
-	if (err == -EEXIST) /* internal code (cache hit) */
-		return 0;
-	if (unlikely(err))
-		return err;
-
-	bh = *pbh;
-	wait_on_buffer(bh);
-	if (!buffer_uptodate(bh)) {
-		brelse(bh);
-		return -EIO;
-	}
-	return 0;
-}
-
 /**
  * nilfs_btnode_delete - delete B-tree node buffer
  * @bh: buffer to be deleted
