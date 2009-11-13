@@ -3704,9 +3704,9 @@ F:	include/linux/if_*
 F:	include/linux/*device.h
 
 NETXEN (1/10) GbE SUPPORT
-M:	Dhananjay Phadke <dhananjay@netxen.com>
+M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 L:	netdev@vger.kernel.org
-W:	http://www.netxen.com
+W:	http://www.qlogic.com
 S:	Supported
 F:	drivers/net/netxen/
 
