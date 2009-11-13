@@ -135,13 +135,13 @@ SECTIONS
 
 		PAGE_ALIGNED_DATA(PAGE_SIZE)
 
-		CACHELINE_ALIGNED_DATA(CONFIG_X86_L1_CACHE_BYTES)
+		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 
 		DATA_DATA
 		CONSTRUCTORS
 
 		/* rarely changed data like cpu maps */
-		READ_MOSTLY_DATA(CONFIG_X86_INTERNODE_CACHE_BYTES)
+		READ_MOSTLY_DATA(INTERNODE_CACHE_BYTES)
 
 		/* End of data section */
 		_edata = .;
@@ -165,12 +165,12 @@ SECTIONS
 		*(.vsyscall_0)
 	} :user
 
-	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+	. = ALIGN(L1_CACHE_BYTES);
 	.vsyscall_fn : AT(VLOAD(.vsyscall_fn)) {
 		*(.vsyscall_fn)
 	}
 
-	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+	. = ALIGN(L1_CACHE_BYTES);
 	.vsyscall_gtod_data : AT(VLOAD(.vsyscall_gtod_data)) {
 		*(.vsyscall_gtod_data)
 	}
@@ -194,7 +194,7 @@ SECTIONS
 	}
 	vgetcpu_mode = VVIRT(.vgetcpu_mode);
 
-	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+	. = ALIGN(L1_CACHE_BYTES);
 	.jiffies : AT(VLOAD(.jiffies)) {
 		*(.jiffies)
 	}
