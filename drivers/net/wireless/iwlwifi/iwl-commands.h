@@ -1107,7 +1107,14 @@ struct iwl4965_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
 	__le16 add_immediate_ba_ssn;
 
-	__le32 reserved2;
+	/*
+	 * Number of packets OK to transmit to station even though
+	 * it is asleep -- used to synchronise PS-poll and u-APSD
+	 * responses while ucode keeps track of STA sleep state.
+	 */
+	__le16 sleep_tx_count;
+
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 /* 5000 */
@@ -1138,7 +1145,14 @@ struct iwl_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
 	__le16 add_immediate_ba_ssn;
 
-	__le32 reserved2;
+	/*
+	 * Number of packets OK to transmit to station even though
+	 * it is asleep -- used to synchronise PS-poll and u-APSD
+	 * responses while ucode keeps track of STA sleep state.
+	 */
+	__le16 sleep_tx_count;
+
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 
