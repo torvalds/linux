@@ -425,6 +425,8 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
+void iwl_reply_statistics(struct iwl_priv *priv,
+			  struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
@@ -669,7 +671,8 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern int iwl_send_bt_config(struct iwl_priv *priv);
-extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
+extern int iwl_send_statistics_request(struct iwl_priv *priv,
+				       u8 flags, bool clear);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		struct iwl_link_quality_cmd *lq, u8 flags);

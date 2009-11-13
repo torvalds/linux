@@ -635,6 +635,24 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_rx_statistics);
 
+void iwl_reply_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+
+	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
+		memset(&priv->statistics, 0,
+			sizeof(struct iwl_notif_statistics));
+#ifdef CONFIG_IWLWIFI_DEBUG
+		memset(&priv->accum_statistics, 0,
+			sizeof(struct iwl_notif_statistics));
+#endif
+		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
+	}
+	iwl_rx_statistics(priv, rxb);
+}
+EXPORT_SYMBOL(iwl_reply_statistics);
+
 #define PERFECT_RSSI (-20) /* dBm */
 #define WORST_RSSI (-95)   /* dBm */
 #define RSSI_RANGE (PERFECT_RSSI - WORST_RSSI)

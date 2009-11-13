@@ -612,7 +612,7 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 	if (!iwl_is_ready_rf(priv))
 		return;
 
-	iwl_send_statistics_request(priv, CMD_ASYNC);
+	iwl_send_statistics_request(priv, CMD_ASYNC, false);
 }
 
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
@@ -729,7 +729,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	 * statistics request from the host as well as for the periodic
 	 * statistics notifications (after received beacons) from the uCode.
 	 */
-	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_rx_statistics;
+	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_reply_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl_rx_statistics;
 
 	iwl_setup_spectrum_handlers(priv);
@@ -2892,7 +2892,7 @@ static ssize_t show_statistics(struct device *d,
 		return -EAGAIN;
 
 	mutex_lock(&priv->mutex);
-	rc = iwl_send_statistics_request(priv, 0);
+	rc = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
 	if (rc) {

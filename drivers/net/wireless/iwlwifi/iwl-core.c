@@ -1990,16 +1990,21 @@ int iwl_send_bt_config(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_send_bt_config);
 
-int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
+int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 {
-	u32 stat_flags = 0;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_STATISTICS_CMD,
-		.flags = flags,
-		.len = sizeof(stat_flags),
-		.data = (u8 *) &stat_flags,
+	struct iwl_statistics_cmd statistics_cmd = {
+		.configuration_flags =
+			clear ? IWL_STATS_CONF_CLEAR_STATS : 0,
 	};
-	return iwl_send_cmd(priv, &cmd);
+
+	if (flags & CMD_ASYNC)
+		return iwl_send_cmd_pdu_async(priv, REPLY_STATISTICS_CMD,
+					       sizeof(struct iwl_statistics_cmd),
+					       &statistics_cmd, NULL);
+	else
+		return iwl_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
 }
 EXPORT_SYMBOL(iwl_send_statistics_request);
 

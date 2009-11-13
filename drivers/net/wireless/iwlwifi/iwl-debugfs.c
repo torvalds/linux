@@ -1042,10 +1042,6 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-#define UCODE_STATISTICS_CLEAR_MSK		(0x1 << 0)
-#define UCODE_STATISTICS_FREQUENCY_MSK		(0x1 << 1)
-#define UCODE_STATISTICS_NARROW_BAND_MSK	(0x1 << 2)
-
 static int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf,
 				     int bufsz)
 {
@@ -1092,7 +1088,7 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, 0);
+	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
 	if (ret) {
@@ -1398,7 +1394,7 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, 0);
+	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
 	if (ret) {
@@ -1542,7 +1538,7 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, 0);
+	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
 	if (ret) {
@@ -1770,7 +1766,7 @@ static ssize_t iwl_dbgfs_tx_power_read(struct file *file,
 	else {
 		/* make request to uCode to retrieve statistics information */
 		mutex_lock(&priv->mutex);
-		ret = iwl_send_statistics_request(priv, 0);
+		ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 		mutex_unlock(&priv->mutex);
 
 		if (ret) {
@@ -1828,6 +1824,30 @@ static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_clear_statistics_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int clear;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &clear) != 1)
+		return -EFAULT;
+
+	/* make request to uCode to retrieve statistics information */
+	mutex_lock(&priv->mutex);
+	iwl_send_statistics_request(priv, CMD_SYNC, true);
+	mutex_unlock(&priv->mutex);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(rx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1840,6 +1860,7 @@ DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(tx_power);
 DEBUGFS_READ_FILE_OPS(power_save_status);
+DEBUGFS_WRITE_FILE_OPS(clear_statistics);
 
 /*
  * Create the debugfs files and directories
@@ -1888,6 +1909,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(tx_queue, debug);
 	DEBUGFS_ADD_FILE(tx_power, debug);
 	DEBUGFS_ADD_FILE(power_save_status, debug);
+	DEBUGFS_ADD_FILE(clear_statistics, debug);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, debug);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, debug);
@@ -1941,6 +1963,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_queue);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_power);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_power_save_status);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_clear_statistics);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_ucode_rx_stats);

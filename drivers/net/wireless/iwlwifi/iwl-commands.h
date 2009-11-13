@@ -3071,6 +3071,10 @@ struct statistics_general {
 	__le32 reserved3;
 } __attribute__ ((packed));
 
+#define UCODE_STATISTICS_CLEAR_MSK		(0x1 << 0)
+#define UCODE_STATISTICS_FREQUENCY_MSK		(0x1 << 1)
+#define UCODE_STATISTICS_NARROW_BAND_MSK	(0x1 << 2)
+
 /*
  * REPLY_STATISTICS_CMD = 0x9c,
  * 3945 and 4965 identical.
