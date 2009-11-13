@@ -1645,10 +1645,11 @@ static int f10_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
 }
 
 /*
- * This the F10h reference code from AMD to map a @sys_addr to NodeID,
- * CSROW, Channel.
+ * For reference see "2.8.5 Routing DRAM Requests" in F10 BKDG. This code maps
+ * a @sys_addr to NodeID, DCT (channel) and chip select (CSROW).
  *
- * The @sys_addr is usually an error address received from the hardware.
+ * The @sys_addr is usually an error address received from the hardware
+ * (MCX_ADDR).
  */
 static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 				     struct err_regs *info,
@@ -1661,39 +1662,34 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 
 	csrow = f10_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
 
-	if (csrow >= 0) {
-		error_address_to_page_and_offset(sys_addr, &page, &offset);
-
-		syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
-		syndrome |= LOW_SYNDROME(info->nbsh);
-
-		/*
-		 * Is CHIPKILL on? If so, then we can attempt to use the
-		 * syndrome to isolate which channel the error was on.
-		 */
-		if (pvt->nbcfg & K8_NBCFG_CHIPKILL)
-			chan = get_channel_from_ecc_syndrome(mci, syndrome);
-
-		if (chan >= 0) {
-			edac_mc_handle_ce(mci, page, offset, syndrome,
-					csrow, chan, EDAC_MOD_STR);
-		} else {
-			/*
-			 * Channel unknown, report all channels on this
-			 * CSROW as failed.
-			 */
-			for (chan = 0; chan < mci->csrows[csrow].nr_channels;
-								chan++) {
-					edac_mc_handle_ce(mci, page, offset,
-							syndrome,
-							csrow, chan,
-							EDAC_MOD_STR);
-			}
-		}
-
-	} else {
+	if (csrow < 0) {
 		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR);
+		return;
 	}
+
+	error_address_to_page_and_offset(sys_addr, &page, &offset);
+
+	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
+	syndrome |= LOW_SYNDROME(info->nbsh);
+
+	/*
+	 * We need the syndromes for channel detection only when we're
+	 * ganged. Otherwise @chan should already contain the channel at
+	 * this point.
+	 */
+	if (dct_ganging_enabled(pvt) && pvt->nbcfg & K8_NBCFG_CHIPKILL)
+		chan = get_channel_from_ecc_syndrome(mci, syndrome);
+
+	if (chan >= 0)
+		edac_mc_handle_ce(mci, page, offset, syndrome, csrow, chan,
+				  EDAC_MOD_STR);
+	else
+		/*
+		 * Channel unknown, report all channels on this CSROW as failed.
+		 */
+		for (chan = 0; chan < mci->csrows[csrow].nr_channels; chan++)
+			edac_mc_handle_ce(mci, page, offset, syndrome,
+					  csrow, chan, EDAC_MOD_STR);
 }
 
 /*
