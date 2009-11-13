@@ -7404,8 +7404,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	     ((u64) tpr->rx_std_mapping >> 32));
 	tw32(RCVDBDI_STD_BD + TG3_BDINFO_HOST_ADDR + TG3_64BIT_REG_LOW,
 	     ((u64) tpr->rx_std_mapping & 0xffffffff));
-	tw32(RCVDBDI_STD_BD + TG3_BDINFO_NIC_ADDR,
-	     NIC_SRAM_RX_BUFFER_DESC);
+	if (!(tp->tg3_flags3 & TG3_FLG3_5755_PLUS))
+		tw32(RCVDBDI_STD_BD + TG3_BDINFO_NIC_ADDR,
+		     NIC_SRAM_RX_BUFFER_DESC);
 
 	/* Disable the mini ring */
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
@@ -7428,8 +7429,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_MAXLEN_FLAGS,
 			     (RX_JUMBO_MAX_SIZE << BDINFO_FLAGS_MAXLEN_SHIFT) |
 			     BDINFO_FLAGS_USE_EXT_RECV);
-			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_NIC_ADDR,
-			     NIC_SRAM_RX_JUMBO_BUFFER_DESC);
+			if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+				tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_NIC_ADDR,
+				     NIC_SRAM_RX_JUMBO_BUFFER_DESC);
 		} else {
 			tw32(RCVDBDI_JUMBO_BD + TG3_BDINFO_MAXLEN_FLAGS,
 			     BDINFO_FLAGS_DISABLED);
