@@ -17,6 +17,7 @@ extern void ia32_sysenter_target(void);
 extern void syscall32_cpu_init(void);
 
 extern void x86_configure_nx(void);
+extern void x86_report_nx(void);
 
 extern int reboot_force;
 
