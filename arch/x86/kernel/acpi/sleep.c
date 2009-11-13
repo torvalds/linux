@@ -78,12 +78,9 @@ int acpi_save_state_mem(void)
 #ifndef CONFIG_64BIT
 	store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
-	header->pmode_efer_low = nx_enabled;
-	if (header->pmode_efer_low & 1) {
-		/* This is strange, why not save efer, always? */
-		rdmsr(MSR_EFER, header->pmode_efer_low,
-			header->pmode_efer_high);
-	}
+	if (rdmsr_safe(MSR_EFER, &header->pmode_efer_low,
+		       &header->pmode_efer_high))
+		header->pmode_efer_low = header->pmode_efer_high = 0;
 #endif /* !CONFIG_64BIT */
 
 	header->pmode_cr0 = read_cr0();
