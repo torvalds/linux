@@ -5361,9 +5361,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
 				char nm[20];
-				set_bit(In_sync, &rdev->flags);
+				if (rdev->raid_disk >= conf->previous_raid_disks)
+					set_bit(In_sync, &rdev->flags);
+				else
+					rdev->recovery_offset = 0;
 				added_devices++;
-				rdev->recovery_offset = 0;
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				if (sysfs_create_link(&mddev->kobj,
 						      &rdev->kobj, nm))
