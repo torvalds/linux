@@ -178,27 +178,7 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
 	return &rsp->node[0];
 }
 
-/*
- * Record the specified "completed" value, which is later used to validate
- * dynticks counter manipulations and CPU-offline checks.  Specify
- * "rsp->completed - 1" to unconditionally invalidate any future dynticks
- * manipulations and CPU-offline checks.  Such invalidation is useful at
- * the beginning of a grace period.
- */
-static void dyntick_record_completed(struct rcu_state *rsp, long comp)
-{
-	rsp->completed_fqs = comp;
-}
-
 #ifdef CONFIG_SMP
-
-/*
- * Recall the previously recorded value of the completion for dynticks.
- */
-static long dyntick_recall_completed(struct rcu_state *rsp)
-{
-	return rsp->completed_fqs;
-}
 
 /*
  * If the specified CPU is offline, tell the caller that it is in
@@ -702,7 +682,6 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	rsp->signaled = RCU_GP_INIT; /* Hold off force_quiescent_state. */
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	record_gp_stall_check_time(rsp);
-	dyntick_record_completed(rsp, rsp->completed - 1);
 
 	/* Special-case the common single-level case. */
 	if (NUM_RCU_NODES == 1) {
@@ -1214,7 +1193,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		goto unlock_ret; /* no emergency and done recently. */
 	rsp->n_force_qs++;
 	spin_lock(&rnp->lock);
-	lastcomp = rsp->completed;
+	lastcomp = rsp->gpnum - 1;
 	signaled = rsp->signaled;
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	if (lastcomp == rsp->gpnum) {
@@ -1248,7 +1227,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		if (lastcomp == rsp->completed &&
 		    rsp->signaled == signaled) {
 			rsp->signaled = RCU_FORCE_QS;
-			dyntick_record_completed(rsp, lastcomp);
+			rsp->completed_fqs = lastcomp;
 			forcenow = signaled == RCU_SAVE_COMPLETED;
 		}
 		spin_unlock(&rnp->lock);
@@ -1259,7 +1238,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	case RCU_FORCE_QS:
 
 		/* Check dyntick-idle state, send IPI to laggarts. */
-		if (rcu_process_dyntick(rsp, dyntick_recall_completed(rsp),
+		if (rcu_process_dyntick(rsp, rsp->completed_fqs,
 					rcu_implicit_dynticks_qs))
 			goto unlock_ret;
 
