@@ -244,13 +244,20 @@ config SPI_TXX9
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller"
-	depends on (XILINX_VIRTEX || MICROBLAZE) && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	select SPI_BITBANG
+	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
 
 	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
 	  Product Specification document (DS464) for hardware details.
+
+config SPI_XILINX_OF
+	tristate "Xilinx SPI controller OF device"
+	depends on SPI_XILINX && (XILINX_VIRTEX || MICROBLAZE)
+	help
+	  This is the OF driver for the SPI controller IP from the Xilinx EDK.
 
 #
 # Add new SPI master controllers in alphabetical order above this line
