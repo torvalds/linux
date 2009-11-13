@@ -5206,7 +5206,7 @@ static void tg3_set_txd(struct tg3_napi *tnapi, int entry,
 }
 
 /* hard_start_xmit for devices that don't have any bugs and
- * support TG3_FLG2_HW_TSO_2 only.
+ * support TG3_FLG2_HW_TSO_2 and TG3_FLG2_HW_TSO_3 only.
  */
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev)
@@ -5265,7 +5265,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
 			hdrlen = ip_tcp_len + tcp_opt_len;
 		}
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
+		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) {
 			mss |= (hdrlen & 0xc) << 12;
 			if (hdrlen & 0x10)
 				base_flags |= 0x00000010;
@@ -7523,7 +7523,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		rdmac_mode |= RDMAC_MODE_IPV4_LSO_EN;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
+	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 		rdmac_mode |= RDMAC_MODE_IPV6_LSO_EN;
 
@@ -9513,15 +9514,16 @@ static int tg3_set_tso(struct net_device *dev, u32 value)
 		return 0;
 	}
 	if ((dev->features & NETIF_F_IPV6_CSUM) &&
-	    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)) {
+	    ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) ||
+	     (tp->tg3_flags2 & TG3_FLG2_HW_TSO_3))) {
 		if (value) {
 			dev->features |= NETIF_F_TSO6;
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
+			if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) ||
+			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 			    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 &&
 			     GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5784_AX) ||
 			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
-			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
-			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717)
+			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 				dev->features |= NETIF_F_TSO_ECN;
 		} else
 			dev->features &= ~(NETIF_F_TSO6 | NETIF_F_TSO_ECN);
@@ -12670,8 +12672,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	/* Determine TSO capabilities */
-	if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717)
+		tp->tg3_flags2 |= TG3_FLG2_HW_TSO_3;
+	else if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
+		 GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 	else if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 | TG3_FLG2_TSO_BUG;
@@ -14136,21 +14140,22 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * Firmware TSO on older chips gives lower performance, so it
 	 * is off by default, but can be enabled using ethtool.
 	 */
-	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
-		if (dev->features & NETIF_F_IP_CSUM)
-			dev->features |= NETIF_F_TSO;
-		if ((dev->features & NETIF_F_IPV6_CSUM) &&
-		    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2))
+	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) &&
+	    (dev->features & NETIF_F_IP_CSUM))
+		dev->features |= NETIF_F_TSO;
+
+	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) ||
+	    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_3)) {
+		if (dev->features & NETIF_F_IPV6_CSUM)
 			dev->features |= NETIF_F_TSO6;
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
+		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 &&
 		     GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5784_AX) ||
 			GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717)
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 			dev->features |= NETIF_F_TSO_ECN;
 	}
-
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
 	    !(tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) &&
