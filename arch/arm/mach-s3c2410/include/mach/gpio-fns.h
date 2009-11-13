@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/gpio-fns.h
  *
- * Copyright (c) 2003,2009 Simtec Electronics
+ * Copyright (c) 2003-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 - hardware
