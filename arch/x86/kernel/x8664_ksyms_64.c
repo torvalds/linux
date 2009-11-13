@@ -32,7 +32,6 @@ EXPORT_SYMBOL(copy_user_generic);
 EXPORT_SYMBOL(__copy_user_nocache);
 EXPORT_SYMBOL(_copy_from_user);
 EXPORT_SYMBOL(copy_to_user);
-EXPORT_SYMBOL(__copy_from_user_inatomic);
 
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);

@@ -193,8 +193,11 @@ __must_check long strlen_user(const char __user *str);
 __must_check unsigned long clear_user(void __user *mem, unsigned long len);
 __must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
-__must_check long __copy_from_user_inatomic(void *dst, const void __user *src,
-					    unsigned size);
+static __must_check __always_inline int
+__copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
+{
+	return copy_user_generic(dst, (__force const void *)src, size);
+}
 
 static __must_check __always_inline int
 __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
