@@ -609,7 +609,7 @@ static void grlib_apbuart_configure(void)
 		return;
 
 	/* Get bus frequency */
-	rp = of_find_node_by_name(NULL, "/");
+	rp = of_find_node_by_path("/");
 	rp = of_get_next_child(rp, NULL);
 	prop = of_get_property(rp, "clock-frequency", NULL);
 	freq_khz = *prop;
