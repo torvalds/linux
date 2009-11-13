@@ -95,8 +95,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 }
 
 int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
-			      sector_t pblocknr, struct buffer_head **pbh,
-			      int newblk)
+			      sector_t pblocknr, struct buffer_head **pbh)
 {
 	struct buffer_head *bh;
 	struct inode *inode = NILFS_BTNC_I(btnc);
@@ -107,19 +106,6 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		return -ENOMEM;
 
 	err = -EEXIST; /* internal code */
-	if (newblk) {
-		if (unlikely(buffer_mapped(bh) || buffer_uptodate(bh) ||
-			     buffer_dirty(bh))) {
-			brelse(bh);
-			BUG();
-		}
-		memset(bh->b_data, 0, 1 << inode->i_blkbits);
-		bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
-		bh->b_blocknr = blocknr;
-		set_buffer_mapped(bh);
-		set_buffer_uptodate(bh);
-		goto found;
-	}
 
 	if (buffer_uptodate(bh) || buffer_dirty(bh))
 		goto found;
@@ -162,12 +148,12 @@ out_locked:
 }
 
 int nilfs_btnode_get(struct address_space *btnc, __u64 blocknr,
-		     sector_t pblocknr, struct buffer_head **pbh, int newblk)
+		     sector_t pblocknr, struct buffer_head **pbh)
 {
 	struct buffer_head *bh;
 	int err;
 
-	err = nilfs_btnode_submit_block(btnc, blocknr, pblocknr, pbh, newblk);
+	err = nilfs_btnode_submit_block(btnc, blocknr, pblocknr, pbh);
 	if (err == -EEXIST) /* internal code (cache hit) */
 		return 0;
 	if (unlikely(err))
