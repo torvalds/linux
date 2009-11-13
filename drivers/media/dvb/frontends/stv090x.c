@@ -3324,7 +3324,6 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
 
-/* FIXME! */
 static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
@@ -3346,9 +3345,15 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		dprintk(FE_DEBUG, 1, "Delivery system: DVB-S2");
 		reg = STV090x_READ_DEMOD(state, DSTATUS);
 		if (STV090x_GETFIELD_Px(reg, LOCK_DEFINITIF_FIELD)) {
-			reg = STV090x_READ_DEMOD(state, TSSTATUS);
-			if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-				*status = FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+			reg = STV090x_READ_DEMOD(state, PDELSTATUS1);
+			if (STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD)) {
+				reg = STV090x_READ_DEMOD(state, TSSTATUS);
+				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
+					*status = FE_HAS_CARRIER |
+						  FE_HAS_VITERBI |
+						  FE_HAS_SYNC |
+						  FE_HAS_LOCK;
+				}
 			}
 		}
 		break;
