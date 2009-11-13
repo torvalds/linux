@@ -850,6 +850,7 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 		}
 		break;
 
+	case AR9170_RX_STATUS_MODULATION_DUPOFDM:
 	case AR9170_RX_STATUS_MODULATION_OFDM:
 		switch (head->plcp[0] & 0xf) {
 		case 0xb:
@@ -897,8 +898,7 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 		status->flag |= RX_FLAG_HT;
 		break;
 
-	case AR9170_RX_STATUS_MODULATION_DUPOFDM:
-		/* XXX */
+	default:
 		if (ar9170_nag_limiter(ar))
 			printk(KERN_ERR "%s: invalid modulation\n",
 			       wiphy_name(ar->hw->wiphy));
