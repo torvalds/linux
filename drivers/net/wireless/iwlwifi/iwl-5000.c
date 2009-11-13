@@ -1250,6 +1250,22 @@ int  iwl5000_send_tx_power(struct iwl_priv *priv)
 
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
+
+	if (priv->tx_power_lmt_in_half_dbm &&
+	    priv->tx_power_lmt_in_half_dbm < tx_power_cmd.global_lmt) {
+		/*
+		 * For the newer devices which using enhanced/extend tx power
+		 * table in EEPROM, the format is in half dBm. driver need to
+		 * convert to dBm format before report to mac80211.
+		 * By doing so, there is a possibility of 1/2 dBm resolution
+		 * lost. driver will perform "round-up" operation before
+		 * reporting, but it will cause 1/2 dBm tx power over the
+		 * regulatory limit. Perform the checking here, if the
+		 * "tx_power_user_lmt" is higher than EEPROM value (in
+		 * half-dBm format), lower the tx power based on EEPROM
+		 */
+		tx_power_cmd.global_lmt = priv->tx_power_lmt_in_half_dbm;
+	}
 	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
 
