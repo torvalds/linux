@@ -763,21 +763,6 @@ static void find_csrow_limits(struct mem_ctl_info *mci, int csrow,
 	*input_addr_max = base | mask | pvt->dcs_mask_notused;
 }
 
-/*
- * Extract error address from MCA NB Address Low (section 3.6.4.5) and MCA NB
- * Address High (section 3.6.4.6) register values and return the result. Address
- * is located in the info structure (nbeah and nbeal), the encoding is device
- * specific.
- */
-static u64 extract_error_address(struct mem_ctl_info *mci,
-				 struct err_regs *info)
-{
-	struct amd64_pvt *pvt = mci->pvt_info;
-
-	return pvt->ops->get_error_address(mci, info);
-}
-
-
 /* Map the Error address to a PAGE and PAGE OFFSET. */
 static inline void error_address_to_page_and_offset(u64 error_address,
 						    u32 *page, u32 *offset)
@@ -2118,7 +2103,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci,
 		return;
 	}
 
-	sys_addr = extract_error_address(mci, info);
+	sys_addr = pvt->ops->get_error_address(mci, info);
 
 	amd64_mc_printk(mci, KERN_ERR,
 		"CE ERROR_ADDRESS= 0x%llx\n", sys_addr);
@@ -2130,10 +2115,11 @@ static void amd64_handle_ce(struct mem_ctl_info *mci,
 static void amd64_handle_ue(struct mem_ctl_info *mci,
 			    struct err_regs *info)
 {
+	struct amd64_pvt *pvt = mci->pvt_info;
+	struct mem_ctl_info *log_mci, *src_mci = NULL;
 	int csrow;
 	u64 sys_addr;
 	u32 page, offset;
-	struct mem_ctl_info *log_mci, *src_mci = NULL;
 
 	log_mci = mci;
 
@@ -2144,7 +2130,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 		return;
 	}
 
-	sys_addr = extract_error_address(mci, info);
+	sys_addr = pvt->ops->get_error_address(mci, info);
 
 	/*
 	 * Find out which node the error address belongs to. This may be
