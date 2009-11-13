@@ -3296,7 +3296,13 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 	state->search_mode = STV090x_SEARCH_AUTO;
 	state->algo = STV090x_COLD_SEARCH;
 	state->fec = STV090x_PRERR;
-	state->search_range = 2000000;
+	if (state->srate > 10000000) {
+		dprintk(FE_DEBUG, 1, "Search range: 10 MHz");
+		state->search_range = 10000000;
+	} else {
+		dprintk(FE_DEBUG, 1, "Search range: 5 MHz");
+		state->search_range = 5000000;
+	}
 
 	if (stv090x_algo(state) == STV090x_RANGEOK) {
 		dprintk(FE_DEBUG, 1, "Search success!");
