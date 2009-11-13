@@ -270,12 +270,13 @@ retry:
 		unlock_page(obh->b_page);
 	}
 
-	err = nilfs_btnode_get(btnc, newkey, 0, &nbh, 1);
-	if (likely(!err)) {
-		BUG_ON(nbh == obh);
-		ctxt->newbh = nbh;
-	}
-	return err;
+	nbh = nilfs_btnode_create_block(btnc, newkey);
+	if (!nbh)
+		return -ENOMEM;
+
+	BUG_ON(nbh == obh);
+	ctxt->newbh = nbh;
+	return 0;
 
  failed_unlock:
 	unlock_page(obh->b_page);

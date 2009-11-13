@@ -122,12 +122,15 @@ static int nilfs_btree_get_new_block(const struct nilfs_btree *btree,
 {
 	struct address_space *btnc =
 		&NILFS_BMAP_I((struct nilfs_bmap *)btree)->i_btnode_cache;
-	int ret;
+	struct buffer_head *bh;
 
-	ret = nilfs_btnode_get(btnc, ptr, 0, bhp, 1);
-	if (!ret)
-		set_buffer_nilfs_volatile(*bhp);
-	return ret;
+	bh = nilfs_btnode_create_block(btnc, ptr);
+	if (!bh)
+		return -ENOMEM;
+
+	set_buffer_nilfs_volatile(bh);
+	*bhp = bh;
+	return 0;
 }
 
 static inline int
