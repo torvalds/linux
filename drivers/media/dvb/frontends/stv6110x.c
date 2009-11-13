@@ -95,7 +95,7 @@ static int stv6110x_set_frequency(struct dvb_frontend *fe, u32 frequency)
 {
 	struct stv6110x_state *stv6110x = fe->tuner_priv;
 	u32 rDiv, divider;
-	s32 pVal, pCalc, rDivOpt = 0;
+	s32 pVal, pCalc, rDivOpt = 0, pCalcOpt = 1000;
 	u8 i;
 
 	STV6110x_SETFIELD(stv6110x_regs[STV6110x_CTRL1], CTRL1_K, (REFCLOCK_MHz - 16));
@@ -121,8 +121,10 @@ static int stv6110x_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	for (rDiv = 0; rDiv <= 3; rDiv++) {
 		pCalc = (REFCLOCK_kHz / 100) / R_DIV(rDiv);
 
-		if ((abs((s32)(pCalc - pVal))) < (abs((s32)(1000 - pVal))))
+		if ((abs((s32)(pCalc - pVal))) < (abs((s32)(pCalcOpt - pVal))))
 			rDivOpt = rDiv;
+
+		pCalcOpt = (REFCLOCK_kHz / 100) / R_DIV(rDivOpt);
 	}
 
 	divider = (frequency * R_DIV(rDivOpt) * pVal) / REFCLOCK_kHz;
