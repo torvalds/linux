@@ -772,6 +772,7 @@ struct hda_codec {
 
 	/* beep device */
 	struct hda_beep *beep;
+	unsigned int beep_mode;
 
 	/* widget capabilities cache */
 	unsigned int num_nodes;

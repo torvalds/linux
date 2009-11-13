@@ -24,10 +24,15 @@
 
 #include "hda_codec.h"
 
+#define HDA_BEEP_MODE_ON	0
+#define HDA_BEEP_MODE_OFF	1
+#define HDA_BEEP_MODE_SWREG	2
+
 /* beep information */
 struct hda_beep {
 	struct input_dev *dev;
 	struct hda_codec *codec;
+	unsigned int mode;
 	char phys[32];
 	int tone;
 	hda_nid_t nid;

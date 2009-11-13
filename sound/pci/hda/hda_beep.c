@@ -190,14 +190,19 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 		return 0;
 	if (beep->enabled != enable) {
 		beep->enabled = enable;
-		if (enable) {
-			cancel_delayed_work(&beep->unregister_work);
-			schedule_work(&beep->register_work);
-		} else {
+		if (!enable) {
 			/* turn off beep */
 			snd_hda_codec_write_cache(beep->codec, beep->nid, 0,
 						  AC_VERB_SET_BEEP_CONTROL, 0);
-			schedule_delayed_work(&beep->unregister_work, HZ);
+		}
+		if (beep->mode == HDA_BEEP_MODE_SWREG) {
+			if (enable) {
+				cancel_delayed_work(&beep->unregister_work);
+				schedule_work(&beep->register_work);
+			} else {
+				schedule_delayed_work(&beep->unregister_work,
+									   HZ);
+			}
 		}
 		return 1;
 	}
@@ -223,12 +228,18 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 
 	beep->nid = nid;
 	beep->codec = codec;
+	beep->mode = codec->beep_mode;
 	codec->beep = beep;
 
 	INIT_WORK(&beep->register_work, &snd_hda_do_register);
 	INIT_DELAYED_WORK(&beep->unregister_work, &snd_hda_do_unregister);
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);
 	mutex_init(&beep->mutex);
+
+	if (beep->mode == HDA_BEEP_MODE_ON) {
+		beep->enabled = 1;
+		snd_hda_do_register(&beep->register_work);
+	}
 
 	return 0;
 }
