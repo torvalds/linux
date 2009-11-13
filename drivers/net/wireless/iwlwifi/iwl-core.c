@@ -208,6 +208,7 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant)
 	}
 	return ant;
 }
+EXPORT_SYMBOL(iwl_toggle_tx_ant);
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(iwl_bcast_addr);
