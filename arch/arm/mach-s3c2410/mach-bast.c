@@ -61,6 +61,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
@@ -608,6 +609,11 @@ static struct s3c_cpufreq_board __initdata bast_cpufreq = {
 	.need_io	= 1,
 };
 
+static struct s3c24xx_audio_simtec_pdata __initdata bast_audio = {
+	.have_mic	= 1,
+	.have_lout	= 1,
+};
+
 static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
@@ -647,6 +653,7 @@ static void __init bast_init(void)
 
 	usb_simtec_init();
 	nor_simtec_init();
+	simtec_audio_add(NULL, true, &bast_audio);
 
 	s3c_cpufreq_setboard(&bast_cpufreq);
 }

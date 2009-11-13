@@ -49,6 +49,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/iic.h>
+#include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
@@ -393,6 +394,7 @@ static void __init vr1000_init(void)
 				ARRAY_SIZE(vr1000_i2c_devs));
 
 	nor_simtec_init();
+	simtec_audio_add(NULL, true, NULL);
 }
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
