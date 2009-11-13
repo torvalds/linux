@@ -461,21 +461,30 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Leadtek Winfast USB II Deluxe",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_PHILIPS_FM1216ME_MK3,
-		.tda9887_conf = TDA9887_PRESENT,
+		.has_ir_i2c   = 1,
+		.tvaudio_addr = 0x58,
+		.tda9887_conf = TDA9887_PRESENT |
+				TDA9887_PORT2_ACTIVE |
+				TDA9887_QSS,
 		.decoder      = EM28XX_SAA711X,
+		.adecoder     = EM28XX_TVAUDIO,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = EM28XX_AMUX_VIDEO,
+			.vmux     = SAA7115_COMPOSITE4,
+			.amux     = EM28XX_AMUX_AUX,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = SAA7115_COMPOSITE0,
+			.vmux     = SAA7115_COMPOSITE5,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = SAA7115_COMPOSITE0,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
+			.radio	  = {
+			.type     = EM28XX_RADIO,
+			.amux     = EM28XX_AMUX_AUX,
+			}
 	},
 	[EM2820_BOARD_VIDEOLOGY_20K14XUSB] = {
 		.name         = "Videology 20K14XUSB USB2.0",
@@ -2259,9 +2268,12 @@ static int em28xx_hint_board(struct em28xx *dev)
 /* ----------------------------------------------------------------------- */
 void em28xx_register_i2c_ir(struct em28xx *dev)
 {
+	/* Leadtek winfast tv USBII deluxe can find a non working IR-device */
+	/* at address 0x18, so if that address is needed for another board in */
+	/* the future, please put it after 0x1f. */
 	struct i2c_board_info info;
 	const unsigned short addr_list[] = {
-		 0x30, 0x47, I2C_CLIENT_END
+		 0x1f, 0x30, 0x47, I2C_CLIENT_END
 	};
 
 	if (disable_ir)
@@ -2343,6 +2355,11 @@ void em28xx_card_setup(struct em28xx *dev)
 			dev->i2s_speed = 2048000;
 			dev->board.has_msp34xx = 1;
 		}
+		break;
+	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
+		dev->init_data.ir_codes = &ir_codes_winfast_usbii_deluxe_table;;
+		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
+		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
 		break;
 	}
 	case EM2882_BOARD_KWORLD_ATSC_315U:

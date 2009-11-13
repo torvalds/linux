@@ -331,6 +331,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_codes    = &ir_codes_pv951_table;
 		break;
 	case 0x18:
+	case 0x1f:
 	case 0x1a:
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;

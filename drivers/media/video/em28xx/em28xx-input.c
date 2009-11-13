@@ -184,6 +184,36 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 	return 1;
 }
 
+int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char subaddr, keydetect, key;
+
+	struct i2c_msg msg[] = { { .addr = ir->c->addr, .flags = 0, .buf = &subaddr, .len = 1},
+
+				{ .addr = ir->c->addr, .flags = I2C_M_RD, .buf = &keydetect, .len = 1} };
+
+	subaddr = 0x10;
+	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+	if (keydetect == 0x00)
+		return 0;
+
+	subaddr = 0x00;
+	msg[1].buf = &key;
+	if (2 != i2c_transfer(ir->c->adapter, msg, 2)) {
+		i2cdprintk("read error\n");
+	return -EIO;
+	}
+	if (key == 0x00)
+		return 0;
+
+	*ir_key = key;
+	*ir_raw = key;
+	return 1;
+}
+
 /**********************************************************
  Poll based get keycode functions
  **********************************************************/

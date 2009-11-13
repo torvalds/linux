@@ -694,6 +694,8 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
+int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
+				     u32 *ir_raw);
 void em28xx_register_snapshot_button(struct em28xx *dev);
 void em28xx_deregister_snapshot_button(struct em28xx *dev);
 
