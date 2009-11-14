@@ -2043,7 +2043,10 @@ static void via_speaker_automute(struct hda_codec *codec)
 /* mute line-out and internal speaker if HP is plugged */
 static void via_hp_bind_automute(struct hda_codec *codec)
 {
-	unsigned int hp_present, present = 0;
+	/* use long instead of int below just to avoid an internal compiler
+	 * error with gcc 4.0.x
+	 */
+	unsigned long hp_present, present = 0;
 	struct via_spec *spec = codec->spec;
 	int i;
 
