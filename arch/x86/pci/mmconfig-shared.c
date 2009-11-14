@@ -54,12 +54,14 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 		kfree(pci_mmcfg_config);
 	}
 	pci_mmcfg_config = new;
-
 	pci_mmcfg_config_num++;
-	pci_mmcfg_config[i].address = addr;
-	pci_mmcfg_config[i].segment = segment;
-	pci_mmcfg_config[i].start_bus = start;
-	pci_mmcfg_config[i].end_bus = end;
+
+	new = &pci_mmcfg_config[i];
+
+	new->address = addr;
+	new->segment = segment;
+	new->start_bus = start;
+	new->end_bus = end;
 
 	return &pci_mmcfg_config[i];
 }
