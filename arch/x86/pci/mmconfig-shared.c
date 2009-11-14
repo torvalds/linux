@@ -438,9 +438,10 @@ static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
 
 static int __init is_mmconf_reserved(check_reserved_t is_reserved,
-		u64 addr, u64 size, int i,
-		typeof(pci_mmcfg_config[0]) *cfg, int with_e820)
+		int i, typeof(pci_mmcfg_config[0]) *cfg, int with_e820)
 {
+	u64 addr = cfg->res.start;
+	u64 size = resource_size(&cfg->res);
 	u64 old_size = size;
 	int valid = 0, num_buses;
 
@@ -486,11 +487,8 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
 		int valid = 0;
-		u64 addr, size;
 
 		cfg = &pci_mmcfg_config[i];
-		addr = cfg->res.start;
-		size = resource_size(&cfg->res);
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->segment,
@@ -498,7 +496,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 		       (unsigned int)cfg->end_bus);
 
 		if (!early && !acpi_disabled)
-			valid = is_mmconf_reserved(is_acpi_reserved, addr, size, i, cfg, 0);
+			valid = is_mmconf_reserved(is_acpi_reserved, i, cfg, 0);
 
 		if (valid)
 			continue;
@@ -511,7 +509,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 		/* Don't try to do this check unless configuration
 		   type 1 is available. how about type 2 ?*/
 		if (raw_pci_ops)
-			valid = is_mmconf_reserved(e820_all_mapped, addr, size, i, cfg, 1);
+			valid = is_mmconf_reserved(e820_all_mapped, i, cfg, 1);
 
 		if (!valid)
 			goto reject;
