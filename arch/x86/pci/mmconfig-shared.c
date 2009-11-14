@@ -26,14 +26,24 @@
 /* Indicate if the mmcfg resources have been placed into the resource table. */
 static int __initdata pci_mmcfg_resources_inserted;
 
-static __init int extend_mmcfg(int num)
+static __init void free_all_mmcfg(void)
+{
+	pci_mmcfg_arch_free();
+	pci_mmcfg_config_num = 0;
+	kfree(pci_mmcfg_config);
+	pci_mmcfg_config = NULL;
+}
+
+static __init struct acpi_mcfg_allocation *pci_mmconfig_add(int segment,
+	int start, int end, u64 addr)
 {
 	struct acpi_mcfg_allocation *new;
-	int new_num = pci_mmcfg_config_num + num;
+	int new_num = pci_mmcfg_config_num + 1;
+	int i = pci_mmcfg_config_num;
 
 	new = kzalloc(sizeof(pci_mmcfg_config[0]) * new_num, GFP_KERNEL);
 	if (!new)
-		return -1;
+		return NULL;
 
 	if (pci_mmcfg_config) {
 		memcpy(new, pci_mmcfg_config,
@@ -42,18 +52,13 @@ static __init int extend_mmcfg(int num)
 	}
 	pci_mmcfg_config = new;
 
-	return 0;
-}
-
-static __init void fill_one_mmcfg(u64 addr, int segment, int start, int end)
-{
-	int i = pci_mmcfg_config_num;
-
 	pci_mmcfg_config_num++;
 	pci_mmcfg_config[i].address = addr;
 	pci_mmcfg_config[i].pci_segment = segment;
 	pci_mmcfg_config[i].start_bus_number = start;
 	pci_mmcfg_config[i].end_bus_number = end;
+
+	return &pci_mmcfg_config[i];
 }
 
 static const char __init *pci_mmcfg_e7520(void)
@@ -65,10 +70,8 @@ static const char __init *pci_mmcfg_e7520(void)
 	if (win == 0x0000 || win == 0xf000)
 		return NULL;
 
-	if (extend_mmcfg(1) == -1)
+	if (pci_mmconfig_add(0, 0, 255, win << 16) == NULL)
 		return NULL;
-
-	fill_one_mmcfg(win << 16, 0, 0, 255);
 
 	return "Intel Corporation E7520 Memory Controller Hub";
 }
@@ -111,10 +114,8 @@ static const char __init *pci_mmcfg_intel_945(void)
 	if ((pciexbar & mask) >= 0xf0000000U)
 		return NULL;
 
-	if (extend_mmcfg(1) == -1)
+	if (pci_mmconfig_add(0, 0, (len >> 20) - 1, pciexbar & mask) == NULL)
 		return NULL;
-
-	fill_one_mmcfg(pciexbar & mask, 0, 0, (len >> 20) - 1);
 
 	return "Intel Corporation 945G/GZ/P/PL Express Memory Controller Hub";
 }
@@ -124,7 +125,7 @@ static const char __init *pci_mmcfg_amd_fam10h(void)
 	u32 low, high, address;
 	u64 base, msr;
 	int i;
-	unsigned segnbits = 0, busnbits;
+	unsigned segnbits = 0, busnbits, end_bus;
 
 	if (!(pci_probe & PCI_CHECK_ENABLE_AMD_MMCONF))
 		return NULL;
@@ -158,11 +159,13 @@ static const char __init *pci_mmcfg_amd_fam10h(void)
 		busnbits = 8;
 	}
 
-	if (extend_mmcfg(1 << segnbits) == -1)
-		return NULL;
-
+	end_bus = (1 << busnbits) - 1;
 	for (i = 0; i < (1 << segnbits); i++)
-		fill_one_mmcfg(base + (1<<28) * i, i, 0, (1 << busnbits) - 1);
+		if (pci_mmconfig_add(i, 0, end_bus,
+				     base + (1<<28) * i) == NULL) {
+			free_all_mmcfg();
+			return NULL;
+		}
 
 	return "AMD Family 10h NB";
 }
@@ -210,16 +213,14 @@ static const char __init *pci_mmcfg_nvidia_mcp55(void)
 		if (!(extcfg & extcfg_enable_mask))
 			continue;
 
-		if (extend_mmcfg(1) == -1)
-			continue;
-
 		size_index = (extcfg & extcfg_size_mask) >> extcfg_size_shift;
 		base = extcfg & extcfg_base_mask[size_index];
 		/* base could > 4G */
 		base <<= extcfg_base_lshift;
 		start = (extcfg & extcfg_start_mask) >> extcfg_start_shift;
 		end = start + extcfg_sizebus[size_index] - 1;
-		fill_one_mmcfg(base, 0, start, end);
+		if (pci_mmconfig_add(0, start, end, base) == NULL)
+			continue;
 		mcp55_mmconf_found++;
 	}
 
@@ -303,8 +304,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	if (!raw_pci_ops)
 		return 0;
 
-	pci_mmcfg_config_num = 0;
-	pci_mmcfg_config = NULL;
+	free_all_mmcfg();
 
 	for (i = 0; i < ARRAY_SIZE(pci_mmcfg_probes); i++) {
 		bus =  pci_mmcfg_probes[i].bus;
@@ -516,10 +516,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 reject:
 	printk(KERN_INFO "PCI: Not using MMCONFIG.\n");
-	pci_mmcfg_arch_free();
-	kfree(pci_mmcfg_config);
-	pci_mmcfg_config = NULL;
-	pci_mmcfg_config_num = 0;
+	free_all_mmcfg();
 }
 
 static int __initdata known_bridge;
@@ -556,7 +553,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 	struct acpi_table_mcfg *mcfg;
 	struct acpi_mcfg_allocation *cfg_table, *cfg;
 	unsigned long i;
-	int entries, config_size;
+	int entries;
 
 	if (!header)
 		return -EINVAL;
@@ -564,7 +561,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 	mcfg = (struct acpi_table_mcfg *)header;
 
 	/* how many config structures do we have */
-	pci_mmcfg_config_num = 0;
+	free_all_mmcfg();
 	entries = 0;
 	i = header->length - sizeof(struct acpi_table_mcfg);
 	while (i >= sizeof(struct acpi_mcfg_allocation)) {
@@ -576,24 +573,20 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		return -ENODEV;
 	}
 
-	config_size = entries * sizeof(*pci_mmcfg_config);
-	pci_mmcfg_config = kmalloc(config_size, GFP_KERNEL);
-	if (!pci_mmcfg_config) {
-		printk(KERN_WARNING PREFIX
-		       "No memory for MCFG config tables\n");
-		return -ENOMEM;
-	}
-
-	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
-	pci_mmcfg_config_num = entries;
-
 	cfg_table = (struct acpi_mcfg_allocation *) &mcfg[1];
 	for (i = 0; i < entries; i++) {
 		cfg = &cfg_table[i];
 		if (acpi_mcfg_check_entry(mcfg, cfg)) {
-			kfree(pci_mmcfg_config);
-			pci_mmcfg_config_num = 0;
+			free_all_mmcfg();
 			return -ENODEV;
+		}
+
+		if (pci_mmconfig_add(cfg->pci_segment, cfg->start_bus_number,
+				   cfg->end_bus_number, cfg->address) == NULL) {
+			printk(KERN_WARNING PREFIX
+			       "no memory for MCFG entries\n");
+			free_all_mmcfg();
+			return -ENOMEM;
 		}
 	}
 
