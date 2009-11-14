@@ -15,7 +15,7 @@
 
 static int forbid_dac __read_mostly;
 
-struct dma_map_ops *dma_ops;
+struct dma_map_ops *dma_ops = &nommu_dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static int iommu_sac_force __read_mostly;
@@ -128,8 +128,6 @@ void __init pci_iommu_alloc(void)
 #ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
-#else
-	dma_ops = &nommu_dma_ops;
 #endif
 	if (pci_swiotlb_init())
 		return;

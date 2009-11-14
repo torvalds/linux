@@ -61,8 +61,7 @@ int __init pci_swiotlb_init(void)
 	if (swiotlb) {
 		swiotlb_init(0);
 		dma_ops = &swiotlb_dma_ops;
-	} else
-		dma_ops = &nommu_dma_ops;
+	}
 
 	return swiotlb_force;
 }
