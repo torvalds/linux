@@ -28,15 +28,12 @@ static int mmcfg_last_accessed_cpu;
 static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 {
 	struct pci_mmcfg_region *cfg;
-	int cfg_num;
 
-	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
-		cfg = &pci_mmcfg_config[cfg_num];
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
 		if (cfg->segment == seg &&
 		    (cfg->start_bus <= bus) &&
 		    (cfg->end_bus >= bus))
 			return cfg->address;
-	}
 
 	/* Fall back to type 0 */
 	return 0;

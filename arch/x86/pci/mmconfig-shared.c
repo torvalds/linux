@@ -16,7 +16,6 @@
 #include <linux/sfi_acpi.h>
 #include <linux/bitmap.h>
 #include <linux/dmi.h>
-#include <linux/sort.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 #include <asm/acpi.h>
@@ -26,52 +25,57 @@
 /* Indicate if the mmcfg resources have been placed into the resource table. */
 static int __initdata pci_mmcfg_resources_inserted;
 
+LIST_HEAD(pci_mmcfg_list);
+
 static __init void free_all_mmcfg(void)
 {
-	int i;
-	struct pci_mmcfg_region *cfg;
+	struct pci_mmcfg_region *cfg, *tmp;
 
 	pci_mmcfg_arch_free();
-	for (i = 0; i < pci_mmcfg_config_num; i++) {
-		cfg = &pci_mmcfg_config[i];
+	list_for_each_entry_safe(cfg, tmp, &pci_mmcfg_list, list) {
 		if (cfg->res.parent)
 			release_resource(&cfg->res);
+		list_del(&cfg->list);
+		kfree(cfg);
 	}
-	pci_mmcfg_config_num = 0;
-	kfree(pci_mmcfg_config);
-	pci_mmcfg_config = NULL;
+}
+
+static __init void list_add_sorted(struct pci_mmcfg_region *new)
+{
+	struct pci_mmcfg_region *cfg;
+
+	/* keep list sorted by segment and starting bus number */
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+		if (cfg->segment > new->segment ||
+		    (cfg->segment == new->segment &&
+		     cfg->start_bus >= new->start_bus)) {
+			list_add_tail(&new->list, &cfg->list);
+			return;
+		}
+	}
+	list_add_tail(&new->list, &pci_mmcfg_list);
 }
 
 static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 							int end, u64 addr)
 {
 	struct pci_mmcfg_region *new;
-	int new_num = pci_mmcfg_config_num + 1;
-	int i = pci_mmcfg_config_num;
 	int num_buses;
 	struct resource *res;
 
 	if (addr == 0)
 		return NULL;
 
-	new = kzalloc(sizeof(pci_mmcfg_config[0]) * new_num, GFP_KERNEL);
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return NULL;
-
-	if (pci_mmcfg_config) {
-		memcpy(new, pci_mmcfg_config,
-			 sizeof(pci_mmcfg_config[0]) * new_num);
-		kfree(pci_mmcfg_config);
-	}
-	pci_mmcfg_config = new;
-	pci_mmcfg_config_num++;
-
-	new = &pci_mmcfg_config[i];
 
 	new->address = addr;
 	new->segment = segment;
 	new->start_bus = start;
 	new->end_bus = end;
+
+	list_add_sorted(new);
 
 	num_buses = end - start + 1;
 	res = &new->res;
@@ -82,7 +86,7 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 		 "PCI MMCONFIG %04x [bus %02x-%02x]", segment, start, end);
 	res->name = new->name;
 
-	return &pci_mmcfg_config[i];
+	return new;
 }
 
 static const char __init *pci_mmcfg_e7520(void)
@@ -214,7 +218,7 @@ static const char __init *pci_mmcfg_nvidia_mcp55(void)
 	/*
 	 * do check if amd fam10h already took over
 	 */
-	if (!acpi_disabled || pci_mmcfg_config_num || mcp55_checked)
+	if (!acpi_disabled || !list_empty(&pci_mmcfg_list) || mcp55_checked)
 		return NULL;
 
 	mcp55_checked = true;
@@ -275,44 +279,26 @@ static struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initdata = {
 	  0x0369, pci_mmcfg_nvidia_mcp55 },
 };
 
-static int __init cmp_mmcfg(const void *x1, const void *x2)
-{
-	const struct pci_mmcfg_region *m1 = x1;
-	const struct pci_mmcfg_region *m2 = x2;
-	int start1, start2;
-
-	start1 = m1->start_bus;
-	start2 = m2->start_bus;
-
-	return start1 - start2;
-}
-
 static void __init pci_mmcfg_check_end_bus_number(void)
 {
-	int i;
 	struct pci_mmcfg_region *cfg, *cfgx;
 
-	/* sort them at first */
-	sort(pci_mmcfg_config, pci_mmcfg_config_num,
-		 sizeof(pci_mmcfg_config[0]), cmp_mmcfg, NULL);
-
 	/* last one*/
-	if (pci_mmcfg_config_num > 0) {
-		i = pci_mmcfg_config_num - 1;
-		cfg = &pci_mmcfg_config[i];
+	cfg = list_entry(pci_mmcfg_list.prev, typeof(*cfg), list);
+	if (cfg)
 		if (cfg->end_bus < cfg->start_bus)
 			cfg->end_bus = 255;
-	}
+
+	if (list_is_singular(&pci_mmcfg_list))
+		return;
 
 	/* don't overlap please */
-	for (i = 0; i < pci_mmcfg_config_num - 1; i++) {
-		cfg = &pci_mmcfg_config[i];
-		cfgx = &pci_mmcfg_config[i+1];
-
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (cfg->end_bus < cfg->start_bus)
 			cfg->end_bus = 255;
 
-		if (cfg->end_bus >= cfgx->start_bus)
+		cfgx = list_entry(cfg->list.next, typeof(*cfg), list);
+		if (cfg != cfgx && cfg->end_bus >= cfgx->start_bus)
 			cfg->end_bus = cfgx->start_bus - 1;
 	}
 }
@@ -350,18 +336,15 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	/* some end_bus_number is crazy, fix it */
 	pci_mmcfg_check_end_bus_number();
 
-	return pci_mmcfg_config_num != 0;
+	return !list_empty(&pci_mmcfg_list);
 }
 
 static void __init pci_mmcfg_insert_resources(void)
 {
-	int i;
 	struct pci_mmcfg_region *cfg;
 
-	for (i = 0; i < pci_mmcfg_config_num; i++) {
-		cfg = &pci_mmcfg_config[i];
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
 		insert_resource(&iomem_resource, &cfg->res);
-	}
 
 	/* Mark that the resources have been inserted. */
 	pci_mmcfg_resources_inserted = 1;
@@ -482,18 +465,15 @@ static void __init pci_mmcfg_reject_broken(int early)
 	struct pci_mmcfg_region *cfg;
 	int i;
 
-	if (pci_mmcfg_config_num == 0)
-		return;
-
-	for (i = 0; i < pci_mmcfg_config_num; i++) {
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		int valid = 0;
 
-		cfg = &pci_mmcfg_config[i];
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->segment,
 		       (unsigned int)cfg->start_bus,
 		       (unsigned int)cfg->end_bus);
+		i++;
 
 		if (!early && !acpi_disabled)
 			valid = is_mmconf_reserved(is_acpi_reserved, i, cfg, 0);
@@ -523,10 +503,6 @@ reject:
 }
 
 static int __initdata known_bridge;
-
-/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-struct pci_mmcfg_region *pci_mmcfg_config;
-int pci_mmcfg_config_num;
 
 static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 					struct acpi_mcfg_allocation *cfg)
@@ -620,7 +596,7 @@ static void __init __pci_mmcfg_init(int early)
 
 	pci_mmcfg_reject_broken(early);
 
-	if (pci_mmcfg_config_num == 0)
+	if (list_empty(&pci_mmcfg_list))
 		return;
 
 	if (pci_mmcfg_arch_init())
@@ -652,7 +628,7 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	 */
 	if ((pci_mmcfg_resources_inserted == 1) ||
 	    (pci_probe & PCI_PROBE_MMCONF) == 0 ||
-	    (pci_mmcfg_config_num == 0))
+	    list_empty(&pci_mmcfg_list))
 		return 1;
 
 	/*

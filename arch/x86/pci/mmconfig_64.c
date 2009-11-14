@@ -14,16 +14,13 @@
 
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
-	int i;
 	struct pci_mmcfg_region *cfg;
 
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		cfg = &pci_mmcfg_config[i];
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
 		if (cfg->segment == seg &&
 		    (cfg->start_bus <= bus) &&
 		    (cfg->end_bus >= bus))
 			return cfg->virt;
-	}
 
 	/* Fall back to type 0 */
 	return NULL;
@@ -122,11 +119,9 @@ static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 
 int __init pci_mmcfg_arch_init(void)
 {
-	int i;
 	struct pci_mmcfg_region *cfg;
 
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		cfg = &pci_mmcfg_config[i];
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		cfg->virt = mcfg_ioremap(cfg);
 		if (!cfg->virt) {
 			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
@@ -142,11 +137,9 @@ int __init pci_mmcfg_arch_init(void)
 
 void __init pci_mmcfg_arch_free(void)
 {
-	int i;
 	struct pci_mmcfg_region *cfg;
 
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		cfg = &pci_mmcfg_config[i];
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (cfg->virt) {
 			iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
 			cfg->virt = NULL;

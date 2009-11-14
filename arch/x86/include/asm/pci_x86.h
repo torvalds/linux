@@ -122,6 +122,7 @@ extern int __init pcibios_init(void);
 #define PCI_MMCFG_RESOURCE_NAME_LEN (22 + 4 + 2 + 2)
 
 struct pci_mmcfg_region {
+	struct list_head list;
 	struct resource res;
 	u64 address;
 	char __iomem *virt;
@@ -134,8 +135,7 @@ struct pci_mmcfg_region {
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
 
-extern struct pci_mmcfg_region *pci_mmcfg_config;
-extern int pci_mmcfg_config_num;
+extern struct list_head pci_mmcfg_list;
 
 #define PCI_MMCFG_BUS_OFFSET(bus)      ((bus) << 20)
 
