@@ -37,27 +37,6 @@ xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 }
 
 /*
- * helper function to extract extent size hint from inode
- */
-STATIC_INLINE xfs_extlen_t
-xfs_get_extsz_hint(
-	xfs_inode_t	*ip)
-{
-	xfs_extlen_t	extsz;
-
-	if (unlikely(XFS_IS_REALTIME_INODE(ip))) {
-		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
-				? ip->i_d.di_extsize
-				: ip->i_mount->m_sb.sb_rextsize;
-		ASSERT(extsz);
-	} else {
-		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
-				? ip->i_d.di_extsize : 0;
-	}
-	return extsz;
-}
-
-/*
  * Prototypes for functions in xfs_rw.c.
  */
 extern int xfs_write_clear_setuid(struct xfs_inode *ip);
@@ -69,5 +48,6 @@ extern int xfs_read_buf(struct xfs_mount *mp, xfs_buftarg_t *btp,
 			struct xfs_buf **bpp);
 extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 				xfs_buf_t *bp, xfs_daddr_t blkno);
+extern xfs_extlen_t xfs_get_extsz_hint(struct xfs_inode *ip);
 
 #endif /* __XFS_RW_H__ */
