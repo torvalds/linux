@@ -176,13 +176,6 @@ nilfs_palloc_block_get_group_desc(const struct inode *inode,
 		group % nilfs_palloc_groups_per_desc_block(inode);
 }
 
-static unsigned char *
-nilfs_palloc_block_get_bitmap(const struct inode *inode,
-			      const struct buffer_head *bh, void *kaddr)
-{
-	return (unsigned char *)(kaddr + bh_offset(bh));
-}
-
 void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
 				   const struct buffer_head *bh, void *kaddr)
 {
@@ -289,8 +282,7 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 				if (ret < 0)
 					goto out_desc;
 				bitmap_kaddr = kmap(bitmap_bh->b_page);
-				bitmap = nilfs_palloc_block_get_bitmap(
-					inode, bitmap_bh, bitmap_kaddr);
+				bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
 				pos = nilfs_palloc_find_available_slot(
 					inode, group, group_offset, bitmap,
 					entries_per_group);
@@ -351,8 +343,7 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	desc = nilfs_palloc_block_get_group_desc(inode, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
-	bitmap = nilfs_palloc_block_get_bitmap(inode, req->pr_bitmap_bh,
-					       bitmap_kaddr);
+	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
 
 	if (!nilfs_clear_bit_atomic(nilfs_mdt_bgl_lock(inode, group),
 				    group_offset, bitmap))
@@ -385,8 +376,7 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 	desc = nilfs_palloc_block_get_group_desc(inode, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
-	bitmap = nilfs_palloc_block_get_bitmap(inode, req->pr_bitmap_bh,
-					       bitmap_kaddr);
+	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
 	if (!nilfs_clear_bit_atomic(nilfs_mdt_bgl_lock(inode, group),
 				    group_offset, bitmap))
 		printk(KERN_WARNING "%s: entry numer %llu already freed\n",
@@ -472,8 +462,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		desc = nilfs_palloc_block_get_group_desc(
 			inode, group, desc_bh, desc_kaddr);
 		bitmap_kaddr = kmap(bitmap_bh->b_page);
-		bitmap = nilfs_palloc_block_get_bitmap(
-			inode, bitmap_bh, bitmap_kaddr);
+		bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
 		for (j = i, n = 0;
 		     (j < nitems) && nilfs_palloc_group_is_in(inode, group,
 							      entry_nrs[j]);
