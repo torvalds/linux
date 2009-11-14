@@ -7,6 +7,8 @@ struct device;
 struct dma_attrs;
 struct scatterlist;
 
+extern int swiotlb_force;
+
 /*
  * Maximum allowable number of contiguous slabs to map,
  * must be a power of 2.  What is the appropriate value ?

@@ -3,10 +3,6 @@
 
 #include <linux/swiotlb.h>
 
-/* SWIOTLB interface */
-
-extern int swiotlb_force;
-
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
 extern int pci_swiotlb_init(void);
