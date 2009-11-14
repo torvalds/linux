@@ -41,6 +41,9 @@ static __init struct acpi_mcfg_allocation *pci_mmconfig_add(int segment,
 	int new_num = pci_mmcfg_config_num + 1;
 	int i = pci_mmcfg_config_num;
 
+	if (addr == 0)
+		return NULL;
+
 	new = kzalloc(sizeof(pci_mmcfg_config[0]) * new_num, GFP_KERNEL);
 	if (!new)
 		return NULL;
@@ -471,8 +474,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 	typeof(pci_mmcfg_config[0]) *cfg;
 	int i;
 
-	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config[0].address == 0))
+	if (pci_mmcfg_config_num == 0)
 		return;
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
@@ -616,8 +618,7 @@ static void __init __pci_mmcfg_init(int early)
 
 	pci_mmcfg_reject_broken(early);
 
-	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config[0].address == 0))
+	if (pci_mmcfg_config_num == 0)
 		return;
 
 	if (pci_mmcfg_arch_init())
@@ -649,8 +650,7 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	 */
 	if ((pci_mmcfg_resources_inserted == 1) ||
 	    (pci_probe & PCI_PROBE_MMCONF) == 0 ||
-	    (pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config[0].address == 0))
+	    (pci_mmcfg_config_num == 0))
 		return 1;
 
 	/*
