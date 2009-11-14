@@ -62,15 +62,6 @@ MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_COPYRIGHT);
 
-
-/* FIXME: These can be found in sdio_ids.h in newer kernels */
-#ifndef SDIO_INTEL_VENDOR_ID
-#define SDIO_INTEL_VENDOR_ID			0x0089
-#endif
-#ifndef SDIO_DEVICE_ID_INTEL_IWMC3200TOP
-#define SDIO_DEVICE_ID_INTEL_IWMC3200TOP	0x1404
-#endif
-
 /*
  * This workers main task is to wait for OP_OPR_ALIVE
  * from TOP FW until ALIVE_MSG_TIMOUT timeout is elapsed.
@@ -662,8 +653,9 @@ static void iwmct_remove(struct sdio_func *func)
 
 
 static const struct sdio_device_id iwmct_ids[] = {
-	{ SDIO_DEVICE(SDIO_INTEL_VENDOR_ID, SDIO_DEVICE_ID_INTEL_IWMC3200TOP)},
-	{ /* end: all zeroes */	},
+	/* Intel Wireless MultiCom 3200 Top Driver */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, 0x1404)},
+	{ },	/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(sdio, iwmct_ids);
