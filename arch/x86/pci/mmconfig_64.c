@@ -26,9 +26,9 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 
 	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = pci_mmcfg_virt[cfg_num].cfg;
-		if (cfg->pci_segment == seg &&
-		    (cfg->start_bus_number <= bus) &&
-		    (cfg->end_bus_number >= bus))
+		if (cfg->segment == seg &&
+		    (cfg->start_bus <= bus) &&
+		    (cfg->end_bus >= bus))
 			return pci_mmcfg_virt[cfg_num].virt;
 	}
 
@@ -115,14 +115,14 @@ static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 	u64 start, size;
 	int num_buses;
 
-	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
-	num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
+	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
+	num_buses = cfg->end_bus - cfg->start_bus + 1;
 	size = PCI_MMCFG_BUS_OFFSET(num_buses);
 	addr = ioremap_nocache(start, size);
 	if (addr) {
 		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx - %Lx\n",
 		       start, start + size - 1);
-		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
+		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	}
 	return addr;
 }
@@ -143,7 +143,7 @@ int __init pci_mmcfg_arch_init(void)
 		if (!pci_mmcfg_virt[i].virt) {
 			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
 					"segment %d\n",
-				pci_mmcfg_config[i].pci_segment);
+				pci_mmcfg_config[i].segment);
 			pci_mmcfg_arch_free();
 			return 0;
 		}
@@ -161,7 +161,7 @@ void __init pci_mmcfg_arch_free(void)
 
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
 		if (pci_mmcfg_virt[i].virt) {
-			iounmap(pci_mmcfg_virt[i].virt + PCI_MMCFG_BUS_OFFSET(pci_mmcfg_virt[i].cfg->start_bus_number));
+			iounmap(pci_mmcfg_virt[i].virt + PCI_MMCFG_BUS_OFFSET(pci_mmcfg_virt[i].cfg->start_bus));
 			pci_mmcfg_virt[i].virt = NULL;
 			pci_mmcfg_virt[i].cfg = NULL;
 		}

@@ -57,9 +57,9 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 
 	pci_mmcfg_config_num++;
 	pci_mmcfg_config[i].address = addr;
-	pci_mmcfg_config[i].pci_segment = segment;
-	pci_mmcfg_config[i].start_bus_number = start;
-	pci_mmcfg_config[i].end_bus_number = end;
+	pci_mmcfg_config[i].segment = segment;
+	pci_mmcfg_config[i].start_bus = start;
+	pci_mmcfg_config[i].end_bus = end;
 
 	return &pci_mmcfg_config[i];
 }
@@ -260,8 +260,8 @@ static int __init cmp_mmcfg(const void *x1, const void *x2)
 	const typeof(pci_mmcfg_config[0]) *m2 = x2;
 	int start1, start2;
 
-	start1 = m1->start_bus_number;
-	start2 = m2->start_bus_number;
+	start1 = m1->start_bus;
+	start2 = m2->start_bus;
 
 	return start1 - start2;
 }
@@ -279,8 +279,8 @@ static void __init pci_mmcfg_check_end_bus_number(void)
 	if (pci_mmcfg_config_num > 0) {
 		i = pci_mmcfg_config_num - 1;
 		cfg = &pci_mmcfg_config[i];
-		if (cfg->end_bus_number < cfg->start_bus_number)
-			cfg->end_bus_number = 255;
+		if (cfg->end_bus < cfg->start_bus)
+			cfg->end_bus = 255;
 	}
 
 	/* don't overlap please */
@@ -288,11 +288,11 @@ static void __init pci_mmcfg_check_end_bus_number(void)
 		cfg = &pci_mmcfg_config[i];
 		cfgx = &pci_mmcfg_config[i+1];
 
-		if (cfg->end_bus_number < cfg->start_bus_number)
-			cfg->end_bus_number = 255;
+		if (cfg->end_bus < cfg->start_bus)
+			cfg->end_bus = 255;
 
-		if (cfg->end_bus_number >= cfgx->start_bus_number)
-			cfg->end_bus_number = cfgx->start_bus_number - 1;
+		if (cfg->end_bus >= cfgx->start_bus)
+			cfg->end_bus = cfgx->start_bus - 1;
 	}
 }
 
@@ -350,13 +350,13 @@ static void __init pci_mmcfg_insert_resources(void)
 	names = (void *)&res[pci_mmcfg_config_num];
 	for (i = 0; i < pci_mmcfg_config_num; i++, res++) {
 		struct pci_mmcfg_region *cfg = &pci_mmcfg_config[i];
-		num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
+		num_buses = cfg->end_bus - cfg->start_bus + 1;
 		res->name = names;
 		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN,
-			 "PCI MMCONFIG %u [%02x-%02x]", cfg->pci_segment,
-			 cfg->start_bus_number, cfg->end_bus_number);
+			 "PCI MMCONFIG %u [%02x-%02x]", cfg->segment,
+			 cfg->start_bus, cfg->end_bus);
 		res->start = cfg->address +
-			PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
+			PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 		res->end = res->start + PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
@@ -457,13 +457,13 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 		valid = 1;
 
 		if (old_size != size) {
-			/* update end_bus_number */
-			cfg->end_bus_number = cfg->start_bus_number + ((size>>20) - 1);
+			/* update end_bus */
+			cfg->end_bus = cfg->start_bus + ((size>>20) - 1);
 			printk(KERN_NOTICE "PCI: updated MCFG configuration %d: base %lx "
 			       "segment %hu buses %u - %u\n",
-			       i, (unsigned long)cfg->address, cfg->pci_segment,
-			       (unsigned int)cfg->start_bus_number,
-			       (unsigned int)cfg->end_bus_number);
+			       i, (unsigned long)cfg->address, cfg->segment,
+			       (unsigned int)cfg->start_bus,
+			       (unsigned int)cfg->end_bus);
 		}
 	}
 
@@ -484,14 +484,14 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 		cfg = &pci_mmcfg_config[i];
 		addr = cfg->address +
-			PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
-		num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
+			PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
+		num_buses = cfg->end_bus - cfg->start_bus + 1;
 		size = PCI_MMCFG_BUS_OFFSET(num_buses);
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
-		       i, (unsigned long)cfg->address, cfg->pci_segment,
-		       (unsigned int)cfg->start_bus_number,
-		       (unsigned int)cfg->end_bus_number);
+		       i, (unsigned long)cfg->address, cfg->segment,
+		       (unsigned int)cfg->start_bus,
+		       (unsigned int)cfg->end_bus);
 
 		if (!early && !acpi_disabled)
 			valid = is_mmconf_reserved(is_acpi_reserved, addr, size, i, cfg, 0);

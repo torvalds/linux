@@ -120,9 +120,9 @@ extern int __init pcibios_init(void);
 
 struct pci_mmcfg_region {
 	u64 address;
-	u16 pci_segment;
-	u8 start_bus_number;
-	u8 end_bus_number;
+	u16 segment;
+	u8 start_bus;
+	u8 end_bus;
 };
 
 extern int __init pci_mmcfg_arch_init(void);

@@ -32,9 +32,9 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 
 	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = &pci_mmcfg_config[cfg_num];
-		if (cfg->pci_segment == seg &&
-		    (cfg->start_bus_number <= bus) &&
-		    (cfg->end_bus_number >= bus))
+		if (cfg->segment == seg &&
+		    (cfg->start_bus <= bus) &&
+		    (cfg->end_bus >= bus))
 			return cfg->address;
 	}
 
