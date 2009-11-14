@@ -472,7 +472,6 @@ static void __init pci_mmcfg_reject_broken(int early)
 	int i;
 
 	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].address == 0))
 		return;
 
@@ -618,7 +617,6 @@ static void __init __pci_mmcfg_init(int early)
 	pci_mmcfg_reject_broken(early);
 
 	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].address == 0))
 		return;
 
@@ -652,7 +650,6 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	if ((pci_mmcfg_resources_inserted == 1) ||
 	    (pci_probe & PCI_PROBE_MMCONF) == 0 ||
 	    (pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].address == 0))
 		return 1;
 
