@@ -149,7 +149,7 @@ page_region_mask(
 	return mask;
 }
 
-STATIC_INLINE void
+STATIC void
 set_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -161,7 +161,7 @@ set_page_region(
 		SetPageUptodate(page);
 }
 
-STATIC_INLINE int
+STATIC int
 test_page_region(
 	struct page	*page,
 	size_t		offset,
@@ -1113,7 +1113,7 @@ xfs_bdwrite(
 	xfs_buf_delwri_queue(bp, 1);
 }
 
-STATIC_INLINE void
+STATIC void
 _xfs_buf_ioend(
 	xfs_buf_t		*bp,
 	int			schedule)

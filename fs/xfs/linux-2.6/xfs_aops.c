@@ -337,7 +337,7 @@ xfs_map_blocks(
 	return -xfs_iomap(XFS_I(inode), offset, count, flags, mapp, &nmaps);
 }
 
-STATIC_INLINE int
+STATIC int
 xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
 	loff_t			offset)
