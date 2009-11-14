@@ -555,7 +555,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 {
 	struct acpi_table_mcfg *mcfg;
 	unsigned long i;
-	int config_size;
+	int entries, config_size;
 
 	if (!header)
 		return -EINVAL;
@@ -564,17 +564,18 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 	/* how many config structures do we have */
 	pci_mmcfg_config_num = 0;
+	entries = 0;
 	i = header->length - sizeof(struct acpi_table_mcfg);
 	while (i >= sizeof(struct acpi_mcfg_allocation)) {
-		++pci_mmcfg_config_num;
+		entries++;
 		i -= sizeof(struct acpi_mcfg_allocation);
 	};
-	if (pci_mmcfg_config_num == 0) {
+	if (entries == 0) {
 		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
 		return -ENODEV;
 	}
 
-	config_size = pci_mmcfg_config_num * sizeof(*pci_mmcfg_config);
+	config_size = entries * sizeof(*pci_mmcfg_config);
 	pci_mmcfg_config = kmalloc(config_size, GFP_KERNEL);
 	if (!pci_mmcfg_config) {
 		printk(KERN_WARNING PREFIX
@@ -583,8 +584,9 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 	}
 
 	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
+	pci_mmcfg_config_num = entries;
 
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
+	for (i = 0; i < entries; i++) {
 		if (acpi_mcfg_check_entry(mcfg, &pci_mmcfg_config[i])) {
 			kfree(pci_mmcfg_config);
 			pci_mmcfg_config_num = 0;
