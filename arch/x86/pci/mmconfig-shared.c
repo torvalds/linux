@@ -277,8 +277,8 @@ static struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initdata = {
 
 static int __init cmp_mmcfg(const void *x1, const void *x2)
 {
-	const typeof(pci_mmcfg_config[0]) *m1 = x1;
-	const typeof(pci_mmcfg_config[0]) *m2 = x2;
+	const struct pci_mmcfg_region *m1 = x1;
+	const struct pci_mmcfg_region *m2 = x2;
 	int start1, start2;
 
 	start1 = m1->start_bus;
@@ -290,7 +290,7 @@ static int __init cmp_mmcfg(const void *x1, const void *x2)
 static void __init pci_mmcfg_check_end_bus_number(void)
 {
 	int i;
-	typeof(pci_mmcfg_config[0]) *cfg, *cfgx;
+	struct pci_mmcfg_region *cfg, *cfgx;
 
 	/* sort them at first */
 	sort(pci_mmcfg_config, pci_mmcfg_config_num,
@@ -438,7 +438,7 @@ static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
 
 static int __init is_mmconf_reserved(check_reserved_t is_reserved,
-		int i, typeof(pci_mmcfg_config[0]) *cfg, int with_e820)
+		int i, struct pci_mmcfg_region *cfg, int with_e820)
 {
 	u64 addr = cfg->res.start;
 	u64 size = resource_size(&cfg->res);
@@ -479,7 +479,7 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 
 static void __init pci_mmcfg_reject_broken(int early)
 {
-	typeof(pci_mmcfg_config[0]) *cfg;
+	struct pci_mmcfg_region *cfg;
 	int i;
 
 	if (pci_mmcfg_config_num == 0)
