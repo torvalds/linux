@@ -1277,7 +1277,7 @@ int do_setrlimit(struct task_struct *tsk, unsigned int resource,
 		struct rlimit *new_rlim)
 {
 	struct rlimit *old_rlim;
-	int retval;
+	int retval = 0;
 
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
@@ -1293,9 +1293,14 @@ int do_setrlimit(struct task_struct *tsk, unsigned int resource,
 		goto out;
 	}
 
-	retval = security_task_setrlimit(tsk->group_leader, resource, new_rlim);
-	if (retval)
-		goto out;
+	old_rlim = tsk->signal->rlim + resource;
+	task_lock(tsk->group_leader);
+	if (new_rlim->rlim_max > old_rlim->rlim_max &&
+			!capable(CAP_SYS_RESOURCE))
+		retval = -EPERM;
+	if (!retval)
+		retval = security_task_setrlimit(tsk->group_leader, resource,
+				new_rlim);
 
 	if (resource == RLIMIT_CPU && new_rlim->rlim_cur == 0) {
 		/*
@@ -1307,12 +1312,7 @@ int do_setrlimit(struct task_struct *tsk, unsigned int resource,
 		new_rlim->rlim_cur = 1;
 	}
 
-	old_rlim = tsk->signal->rlim + resource;
-	task_lock(tsk->group_leader);
-	if (new_rlim->rlim_max > old_rlim->rlim_max &&
-			!capable(CAP_SYS_RESOURCE))
-		retval = -EPERM;
-	else
+	if (!retval)
 		*old_rlim = *new_rlim;
 	task_unlock(tsk->group_leader);
 
