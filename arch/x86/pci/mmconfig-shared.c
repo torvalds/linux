@@ -27,17 +27,21 @@ static int __initdata pci_mmcfg_resources_inserted;
 
 LIST_HEAD(pci_mmcfg_list);
 
+static __init void pci_mmconfig_remove(struct pci_mmcfg_region *cfg)
+{
+	if (cfg->res.parent)
+		release_resource(&cfg->res);
+	list_del(&cfg->list);
+	kfree(cfg);
+}
+
 static __init void free_all_mmcfg(void)
 {
 	struct pci_mmcfg_region *cfg, *tmp;
 
 	pci_mmcfg_arch_free();
-	list_for_each_entry_safe(cfg, tmp, &pci_mmcfg_list, list) {
-		if (cfg->res.parent)
-			release_resource(&cfg->res);
-		list_del(&cfg->list);
-		kfree(cfg);
-	}
+	list_for_each_entry_safe(cfg, tmp, &pci_mmcfg_list, list)
+		pci_mmconfig_remove(cfg);
 }
 
 static __init void list_add_sorted(struct pci_mmcfg_region *new)
