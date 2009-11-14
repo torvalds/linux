@@ -90,6 +90,10 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 		 "PCI MMCONFIG %04x [bus %02x-%02x]", segment, start, end);
 	res->name = new->name;
 
+	printk(KERN_INFO PREFIX "MMCONFIG for domain %04x [bus %02x-%02x] at "
+	       "%pR (base %#lx)\n", segment, start, end, &new->res,
+	       (unsigned long) addr);
+
 	return new;
 }
 
@@ -333,7 +337,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 			name = pci_mmcfg_probes[i].probe();
 
 		if (name)
-			printk(KERN_INFO "PCI: Found %s with MMCONFIG support.\n",
+			printk(KERN_INFO PREFIX "%s with MMCONFIG support\n",
 			       name);
 	}
 
@@ -425,7 +429,7 @@ static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
 
 static int __init is_mmconf_reserved(check_reserved_t is_reserved,
-		int i, struct pci_mmcfg_region *cfg, int with_e820)
+				    struct pci_mmcfg_region *cfg, int with_e820)
 {
 	u64 addr = cfg->res.start;
 	u64 size = resource_size(&cfg->res);
@@ -439,9 +443,9 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 	}
 
 	if (size >= (16UL<<20) || size == old_size) {
-		printk(KERN_NOTICE
-		       "PCI: MCFG area at %Lx reserved in %s\n",
-			addr, with_e820?"E820":"ACPI motherboard resources");
+		printk(KERN_INFO PREFIX "MMCONFIG at %pR reserved in %s\n",
+		       &cfg->res,
+		       with_e820 ? "E820" : "ACPI motherboard resources");
 		valid = 1;
 
 		if (old_size != size) {
@@ -453,11 +457,11 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 			snprintf(cfg->name, PCI_MMCFG_RESOURCE_NAME_LEN,
 				 "PCI MMCONFIG %04x [bus %02x-%02x]",
 				 cfg->segment, cfg->start_bus, cfg->end_bus);
-			printk(KERN_NOTICE "PCI: updated MCFG configuration %d: base %lx "
-			       "segment %hu buses %u - %u\n",
-			       i, (unsigned long)cfg->address, cfg->segment,
-			       (unsigned int)cfg->start_bus,
-			       (unsigned int)cfg->end_bus);
+			printk(KERN_INFO PREFIX
+			       "MMCONFIG for %04x [bus%02x-%02x] "
+			       "at %pR (base %#lx) (size reduced!)\n",
+			       cfg->segment, cfg->start_bus, cfg->end_bus,
+			       &cfg->res, (unsigned long) cfg->address);
 		}
 	}
 
@@ -467,33 +471,25 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 static void __init pci_mmcfg_reject_broken(int early)
 {
 	struct pci_mmcfg_region *cfg;
-	int i;
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		int valid = 0;
 
-		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
-		       "segment %hu buses %u - %u\n",
-		       i, (unsigned long)cfg->address, cfg->segment,
-		       (unsigned int)cfg->start_bus,
-		       (unsigned int)cfg->end_bus);
-		i++;
-
 		if (!early && !acpi_disabled)
-			valid = is_mmconf_reserved(is_acpi_reserved, i, cfg, 0);
+			valid = is_mmconf_reserved(is_acpi_reserved, cfg, 0);
 
 		if (valid)
 			continue;
 
 		if (!early)
-			printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %Lx is not"
-			       " reserved in ACPI motherboard resources\n",
-			       cfg->address);
+			printk(KERN_ERR FW_BUG PREFIX
+			       "MMCONFIG at %pR not reserved in "
+			       "ACPI motherboard resources\n", &cfg->res);
 
 		/* Don't try to do this check unless configuration
 		   type 1 is available. how about type 2 ?*/
 		if (raw_pci_ops)
-			valid = is_mmconf_reserved(e820_all_mapped, i, cfg, 1);
+			valid = is_mmconf_reserved(e820_all_mapped, cfg, 1);
 
 		if (!valid)
 			goto reject;
@@ -502,7 +498,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 	return;
 
 reject:
-	printk(KERN_INFO "PCI: Not using MMCONFIG.\n");
+	printk(KERN_INFO PREFIX "not using MMCONFIG\n");
 	free_all_mmcfg();
 }
 
@@ -525,7 +521,7 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 			return 0;
 	}
 
-	printk(KERN_ERR PREFIX "MCFG region for %04x:%02x-%02x at %#llx "
+	printk(KERN_ERR PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
 	       "is above 4GB, ignored\n", cfg->pci_segment,
 	       cfg->start_bus_number, cfg->end_bus_number, cfg->address);
 	return -EINVAL;

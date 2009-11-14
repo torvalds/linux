@@ -12,6 +12,8 @@
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
+#define PREFIX "PCI: "
+
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
 	struct pci_mmcfg_region *cfg;
@@ -109,11 +111,8 @@ static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 	num_buses = cfg->end_bus - cfg->start_bus + 1;
 	size = PCI_MMCFG_BUS_OFFSET(num_buses);
 	addr = ioremap_nocache(start, size);
-	if (addr) {
-		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx - %Lx\n",
-		       start, start + size - 1);
+	if (addr)
 		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
-	}
 	return addr;
 }
 
@@ -124,9 +123,8 @@ int __init pci_mmcfg_arch_init(void)
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		cfg->virt = mcfg_ioremap(cfg);
 		if (!cfg->virt) {
-			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
-					"segment %d\n",
-				cfg->segment);
+			printk(KERN_ERR PREFIX "can't map MMCONFIG at %pR\n",
+			       &cfg->res);
 			pci_mmcfg_arch_free();
 			return 0;
 		}
