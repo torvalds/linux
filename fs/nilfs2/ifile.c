@@ -29,6 +29,17 @@
 #include "alloc.h"
 #include "ifile.h"
 
+
+struct nilfs_ifile_info {
+	struct nilfs_mdt_info mi;
+	struct nilfs_palloc_cache palloc_cache;
+};
+
+static inline struct nilfs_ifile_info *NILFS_IFILE_I(struct inode *ifile)
+{
+	return (struct nilfs_ifile_info *)NILFS_MDT(ifile);
+}
+
 /**
  * nilfs_ifile_create_inode - create a new disk inode
  * @ifile: ifile inode
@@ -159,13 +170,16 @@ struct inode *nilfs_ifile_new(struct nilfs_sb_info *sbi, size_t inode_size)
 	struct inode *ifile;
 	int err;
 
-	ifile = nilfs_mdt_new(sbi->s_nilfs, sbi->s_super, NILFS_IFILE_INO, 0);
+	ifile = nilfs_mdt_new(sbi->s_nilfs, sbi->s_super, NILFS_IFILE_INO,
+			      sizeof(struct nilfs_ifile_info));
 	if (ifile) {
 		err = nilfs_palloc_init_blockgroup(ifile, inode_size);
 		if (unlikely(err)) {
 			nilfs_mdt_destroy(ifile);
 			return NULL;
 		}
+		nilfs_palloc_setup_cache(ifile,
+					 &NILFS_IFILE_I(ifile)->palloc_cache);
 	}
 	return ifile;
 }
