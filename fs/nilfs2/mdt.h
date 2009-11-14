@@ -36,6 +36,7 @@
  * @mi_entry_size: size of an entry
  * @mi_first_entry_offset: offset to the first entry
  * @mi_entries_per_block: number of entries in a block
+ * @mi_palloc_cache: persistent object allocator cache
  * @mi_blocks_per_group: number of blocks in a group
  * @mi_blocks_per_desc_block: number of blocks per descriptor block
  */
@@ -46,6 +47,7 @@ struct nilfs_mdt_info {
 	unsigned		mi_entry_size;
 	unsigned		mi_first_entry_offset;
 	unsigned long		mi_entries_per_block;
+	struct nilfs_palloc_cache *mi_palloc_cache;
 	unsigned long		mi_blocks_per_group;
 	unsigned long		mi_blocks_per_desc_block;
 };

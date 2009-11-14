@@ -491,3 +491,30 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 	}
 	return 0;
 }
+
+void nilfs_palloc_setup_cache(struct inode *inode,
+			      struct nilfs_palloc_cache *cache)
+{
+	NILFS_MDT(inode)->mi_palloc_cache = cache;
+	spin_lock_init(&cache->lock);
+}
+
+void nilfs_palloc_clear_cache(struct inode *inode)
+{
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	spin_lock(&cache->lock);
+	brelse(cache->prev_desc.bh);
+	brelse(cache->prev_bitmap.bh);
+	brelse(cache->prev_entry.bh);
+	cache->prev_desc.bh = NULL;
+	cache->prev_bitmap.bh = NULL;
+	cache->prev_entry.bh = NULL;
+	spin_unlock(&cache->lock);
+}
+
+void nilfs_palloc_destroy_cache(struct inode *inode)
+{
+	nilfs_palloc_clear_cache(inode);
+	NILFS_MDT(inode)->mi_palloc_cache = NULL;
+}

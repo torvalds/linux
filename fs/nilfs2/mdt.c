@@ -571,6 +571,8 @@ void nilfs_mdt_destroy(struct inode *inode)
 {
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
 
+	if (mdi->mi_palloc_cache)
+		nilfs_palloc_destroy_cache(inode);
 	nilfs_mdt_clear(inode);
 
 	kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
