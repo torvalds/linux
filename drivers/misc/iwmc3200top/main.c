@@ -41,21 +41,7 @@
 #define DRIVER_DESCRIPTION "Intel(R) IWMC 3200 Top Driver"
 #define DRIVER_COPYRIGHT "Copyright (c) 2008 Intel Corporation."
 
-#define IWMCT_VERSION "0.1.62"
-
-#ifdef REPOSITORY_LABEL
-#define RL REPOSITORY_LABEL
-#else
-#define RL local
-#endif
-
-#ifdef CONFIG_IWMC3200TOP_DEBUG
-#define VD "-d"
-#else
-#define VD
-#endif
-
-#define DRIVER_VERSION IWMCT_VERSION "-"  __stringify(RL) VD
+#define DRIVER_VERSION  "0.1.62"
 
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 MODULE_VERSION(DRIVER_VERSION);
