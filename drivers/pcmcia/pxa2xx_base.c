@@ -214,7 +214,8 @@ static void pxa2xx_configure_sockets(struct device *dev)
 	MECR |= MECR_CIT;
 
 	/* Set MECR:NOS (Number Of Sockets) */
-	if ((ops->first + ops->nr) > 1 || machine_is_viper())
+	if ((ops->first + ops->nr) > 1 ||
+	    machine_is_viper() || machine_is_arcom_zeus())
 		MECR |= MECR_NOS;
 	else
 		MECR &= ~MECR_NOS;

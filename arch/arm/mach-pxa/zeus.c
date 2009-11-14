@@ -43,6 +43,7 @@
 #include <mach/mfp-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/audio.h>
+#include <mach/arcom-pcmcia.h>
 #include <mach/zeus.h>
 
 #include "generic.h"
@@ -428,6 +429,33 @@ static struct platform_device zeus_leds_device = {
 	},
 };
 
+static void zeus_cf_reset(int state)
+{
+	u16 cpld_state = __raw_readw(ZEUS_CPLD_CONTROL);
+
+	if (state)
+		cpld_state |= ZEUS_CPLD_CONTROL_CF_RST;
+	else
+		cpld_state &= ~ZEUS_CPLD_CONTROL_CF_RST;
+
+	__raw_writew(cpld_state, ZEUS_CPLD_CONTROL);
+}
+
+static struct arcom_pcmcia_pdata zeus_pcmcia_info = {
+	.cd_gpio	= ZEUS_CF_CD_GPIO,
+	.rdy_gpio	= ZEUS_CF_RDY_GPIO,
+	.pwr_gpio	= ZEUS_CF_PWEN_GPIO,
+	.reset		= zeus_cf_reset,
+};
+
+static struct platform_device zeus_pcmcia_device = {
+	.name		= "zeus-pcmcia",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &zeus_pcmcia_info,
+	},
+};
+
 static struct platform_device *zeus_devices[] __initdata = {
 	&zeus_serial_device,
 	&zeus_mtd_devices[0],
@@ -436,6 +464,7 @@ static struct platform_device *zeus_devices[] __initdata = {
 	&zeus_sram_device,
 	&pxa2xx_spi_ssp3_device,
 	&zeus_leds_device,
+	&zeus_pcmcia_device,
 };
 
 /* AC'97 */
