@@ -64,6 +64,13 @@ config ARCH_VIPER
 	select PXA_HAVE_BOARD_IRQS
 	select PXA_HAVE_ISA_IRQS
 
+config MACH_ARCOM_ZEUS
+	bool "Arcom/Eurotech ZEUS SBC"
+	select PXA27x
+	select ISA
+	select PXA_HAVE_BOARD_IRQS
+	select PXA_HAVE_ISA_IRQS
+
 config MACH_BALLOON3
 	bool "Balloon 3 board"
 	select PXA27x
