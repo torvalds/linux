@@ -682,6 +682,7 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.register_read		= rt2x00usb_register_read,
+	.register_read_lock	= rt2x00usb_register_read_lock,
 	.register_write		= rt2x00usb_register_write,
 	.register_write_lock	= rt2x00usb_register_write_lock,
 

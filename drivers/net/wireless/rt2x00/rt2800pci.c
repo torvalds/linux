@@ -1089,6 +1089,7 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 
 static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.register_read		= rt2x00pci_register_read,
+	.register_read_lock	= rt2x00pci_register_read, /* same for PCI */
 	.register_write		= rt2x00pci_register_write,
 	.register_write_lock	= rt2x00pci_register_write, /* same for PCI */
 
