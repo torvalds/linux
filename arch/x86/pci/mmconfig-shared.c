@@ -554,6 +554,7 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 static int __init pci_parse_mcfg(struct acpi_table_header *header)
 {
 	struct acpi_table_mcfg *mcfg;
+	struct acpi_mcfg_allocation *cfg_table, *cfg;
 	unsigned long i;
 	int entries, config_size;
 
@@ -586,8 +587,10 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
 	pci_mmcfg_config_num = entries;
 
+	cfg_table = (struct acpi_mcfg_allocation *) &mcfg[1];
 	for (i = 0; i < entries; i++) {
-		if (acpi_mcfg_check_entry(mcfg, &pci_mmcfg_config[i])) {
+		cfg = &cfg_table[i];
+		if (acpi_mcfg_check_entry(mcfg, cfg)) {
 			kfree(pci_mmcfg_config);
 			pci_mmcfg_config_num = 0;
 			return -ENODEV;
