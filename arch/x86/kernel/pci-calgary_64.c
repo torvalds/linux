@@ -1345,7 +1345,24 @@ static void __init get_tce_space_from_tar(void)
 	return;
 }
 
-int __init calgary_iommu_init(void);
+static int __init calgary_iommu_init(void)
+{
+	int ret;
+
+	/* ok, we're trying to use Calgary - let's roll */
+	printk(KERN_INFO "PCI-DMA: Using Calgary IOMMU\n");
+
+	ret = calgary_init();
+	if (ret) {
+		printk(KERN_ERR "PCI-DMA: Calgary init failed %d, "
+		       "falling back to no_iommu\n", ret);
+		return ret;
+	}
+
+	bad_dma_address = 0x0;
+
+	return 0;
+}
 
 void __init detect_calgary(void)
 {
@@ -1456,25 +1473,6 @@ cleanup:
 		if (info->tce_space)
 			free_tce_table(info->tce_space);
 	}
-}
-
-int __init calgary_iommu_init(void)
-{
-	int ret;
-
-	/* ok, we're trying to use Calgary - let's roll */
-	printk(KERN_INFO "PCI-DMA: Using Calgary IOMMU\n");
-
-	ret = calgary_init();
-	if (ret) {
-		printk(KERN_ERR "PCI-DMA: Calgary init failed %d, "
-		       "falling back to no_iommu\n", ret);
-		return ret;
-	}
-
-	bad_dma_address = 0x0;
-
-	return 0;
 }
 
 static int __init calgary_parse_options(char *p)
