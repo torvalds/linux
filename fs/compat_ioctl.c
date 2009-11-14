@@ -953,20 +953,6 @@ static int rtc_ioctl(unsigned fd, unsigned cmd, void __user *argp)
 	return -ENOIOCTLCMD;
 }
 
-static int
-lp_timeout_trans(unsigned int fd, unsigned int cmd,
-			struct compat_timeval __user *tc)
-{
-	struct timeval __user *tn = compat_alloc_user_space(sizeof(struct timeval));
-	struct timeval ts;
-	if (get_user(ts.tv_sec, &tc->tv_sec) ||
-	    get_user(ts.tv_usec, &tc->tv_usec) ||
-	    put_user(ts.tv_sec, &tn->tv_sec) ||
-	    put_user(ts.tv_usec, &tn->tv_usec))
-		return -EFAULT;
-	return sys_ioctl(fd, cmd, (unsigned long)tn);
-}
-
 /* on ia32 l_start is on a 32-bit boundary */
 #if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
 struct space_resv_32 {
@@ -1212,8 +1198,6 @@ COMPATIBLE_IOCTL(PPPIOCGCHAN)
 /* PPPOX */
 COMPATIBLE_IOCTL(PPPOEIOCSFWD)
 COMPATIBLE_IOCTL(PPPOEIOCDFWD)
-/* LP */
-COMPATIBLE_IOCTL(LPGETSTATUS)
 /* ppdev */
 COMPATIBLE_IOCTL(PPSETMODE)
 COMPATIBLE_IOCTL(PPRSTATUS)
@@ -1623,19 +1607,6 @@ COMPATIBLE_IOCTL(TIOCSTOP)
 /* Usbdevfs */
 COMPATIBLE_IOCTL(USBDEVFS_IOCTL32)
 
-/* parport */
-COMPATIBLE_IOCTL(LPTIME)
-COMPATIBLE_IOCTL(LPCHAR)
-COMPATIBLE_IOCTL(LPABORTOPEN)
-COMPATIBLE_IOCTL(LPCAREFUL)
-COMPATIBLE_IOCTL(LPWAIT)
-COMPATIBLE_IOCTL(LPSETIRQ)
-COMPATIBLE_IOCTL(LPGETSTATUS)
-COMPATIBLE_IOCTL(LPGETSTATUS)
-COMPATIBLE_IOCTL(LPRESET)
-/*LPGETSTATS not implemented, but no kernels seem to compile it in anyways*/
-COMPATIBLE_IOCTL(LPGETFLAGS)
-
 /* fat 'r' ioctls. These are handled by fat with ->compat_ioctl,
    but we don't want warnings on other file systems. So declare
    them as compatible here. */
@@ -1734,10 +1705,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 		return do_video_stillpicture(fd, cmd, argp);
 	case VIDEO_SET_SPU_PALETTE:
 		return do_video_set_spu_palette(fd, cmd, argp);
-
-	/* lp */
-	case LPSETTIMEOUT:
-		return lp_timeout_trans(fd, cmd, argp);
 	}
 
 	/*
