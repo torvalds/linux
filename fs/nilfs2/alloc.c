@@ -142,29 +142,75 @@ static void nilfs_palloc_desc_block_init(struct inode *inode,
 	}
 }
 
+static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
+				  int create,
+				  void (*init_block)(struct inode *,
+						     struct buffer_head *,
+						     void *),
+				  struct buffer_head **bhp,
+				  struct nilfs_bh_assoc *prev,
+				  spinlock_t *lock)
+{
+	int ret;
+
+	spin_lock(lock);
+	if (prev->bh && blkoff == prev->blkoff) {
+		get_bh(prev->bh);
+		*bhp = prev->bh;
+		spin_unlock(lock);
+		return 0;
+	}
+	spin_unlock(lock);
+
+	ret = nilfs_mdt_get_block(inode, blkoff, create, init_block, bhp);
+	if (!ret) {
+		spin_lock(lock);
+		/*
+		 * The following code must be safe for change of the
+		 * cache contents during the get block call.
+		 */
+		brelse(prev->bh);
+		get_bh(*bhp);
+		prev->bh = *bhp;
+		prev->blkoff = blkoff;
+		spin_unlock(lock);
+	}
+	return ret;
+}
+
 static int nilfs_palloc_get_desc_block(struct inode *inode,
 				       unsigned long group,
 				       int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode,
-				   nilfs_palloc_desc_blkoff(inode, group),
-				   create, nilfs_palloc_desc_block_init, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_desc_blkoff(inode, group),
+				      create, nilfs_palloc_desc_block_init,
+				      bhp, &cache->prev_desc, &cache->lock);
 }
 
 static int nilfs_palloc_get_bitmap_block(struct inode *inode,
 					 unsigned long group,
 					 int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode,
-				   nilfs_palloc_bitmap_blkoff(inode, group),
-				   create, NULL, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_bitmap_blkoff(inode, group),
+				      create, NULL, bhp,
+				      &cache->prev_bitmap, &cache->lock);
 }
 
 int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
 				 int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode, nilfs_palloc_entry_blkoff(inode, nr),
-				   create, NULL, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_entry_blkoff(inode, nr),
+				      create, NULL, bhp,
+				      &cache->prev_entry, &cache->lock);
 }
 
 static struct nilfs_palloc_group_desc *
