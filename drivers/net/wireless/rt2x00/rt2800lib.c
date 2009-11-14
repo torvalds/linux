@@ -1854,6 +1854,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 			return -ENODEV;
 		}
 	}
+	rt2x00_print_chip(rt2x00dev);
 
 	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
 	    !rt2x00_rf(&rt2x00dev->chip, RF2850) &&

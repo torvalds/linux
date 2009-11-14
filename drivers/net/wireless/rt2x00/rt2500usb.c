@@ -1409,6 +1409,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2500usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2570, value, reg);
+	rt2x00_print_chip(rt2x00dev);
 
 	if (!rt2x00_check_rev(&rt2x00dev->chip, 0x000ffff0, 0) ||
 	    rt2x00_check_rev(&rt2x00dev->chip, 0x0000000f, 0)) {
