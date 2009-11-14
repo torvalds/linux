@@ -322,3 +322,11 @@ config DVB_USB_FRIIO
 	depends on DVB_USB
 	help
 	  Say Y here to support the Japanese DTV receiver Friio.
+
+config DVB_USB_EC168
+	tristate "E3C EC168 DVB-T USB2.0 support"
+	depends on DVB_USB && EXPERIMENTAL
+	select DVB_EC100
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	help
+	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.

@@ -27,6 +27,7 @@
 #define USB_VID_DIBCOM				0x10b8
 #define USB_VID_DPOSH				0x1498
 #define USB_VID_DVICO				0x0fe9
+#define USB_VID_E3C				0x18b4
 #define USB_VID_ELGATO				0x0fd9
 #define USB_VID_EMPIA				0xeb1a
 #define USB_VID_GENPIX				0x09c0
@@ -104,6 +105,11 @@
 #define USB_PID_DIBCOM_STK7770P				0x1e80
 #define USB_PID_DPOSH_M9206_COLD			0x9206
 #define USB_PID_DPOSH_M9206_WARM			0xa090
+#define USB_PID_E3C_EC168				0x1689
+#define USB_PID_E3C_EC168_2				0xfffa
+#define USB_PID_E3C_EC168_3				0xfffb
+#define USB_PID_E3C_EC168_4				0x1001
+#define USB_PID_E3C_EC168_5				0x1002
 #define USB_PID_UNIWILL_STK7700P			0x6003
 #define USB_PID_GENIUS_TVGO_DVB_T03			0x4012
 #define USB_PID_GRANDTEC_DVBT_USB_COLD			0x0fa0
