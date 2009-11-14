@@ -12,24 +12,17 @@
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
-/* Static virtual mapping of the MMCONFIG aperture */
-struct mmcfg_virt {
-	struct pci_mmcfg_region *cfg;
-	char __iomem *virt;
-};
-static struct mmcfg_virt *pci_mmcfg_virt;
-
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
+	int i;
 	struct pci_mmcfg_region *cfg;
-	int cfg_num;
 
-	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
-		cfg = pci_mmcfg_virt[cfg_num].cfg;
+	for (i = 0; i < pci_mmcfg_config_num; ++i) {
+		cfg = &pci_mmcfg_config[i];
 		if (cfg->segment == seg &&
 		    (cfg->start_bus <= bus) &&
 		    (cfg->end_bus >= bus))
-			return pci_mmcfg_virt[cfg_num].virt;
+			return cfg->virt;
 	}
 
 	/* Fall back to type 0 */
@@ -130,20 +123,15 @@ static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 int __init pci_mmcfg_arch_init(void)
 {
 	int i;
-	pci_mmcfg_virt = kzalloc(sizeof(*pci_mmcfg_virt) *
-				 pci_mmcfg_config_num, GFP_KERNEL);
-	if (pci_mmcfg_virt == NULL) {
-		printk(KERN_ERR "PCI: Can not allocate memory for mmconfig structures\n");
-		return 0;
-	}
+	struct pci_mmcfg_region *cfg;
 
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		pci_mmcfg_virt[i].cfg = &pci_mmcfg_config[i];
-		pci_mmcfg_virt[i].virt = mcfg_ioremap(&pci_mmcfg_config[i]);
-		if (!pci_mmcfg_virt[i].virt) {
+		cfg = &pci_mmcfg_config[i];
+		cfg->virt = mcfg_ioremap(cfg);
+		if (!cfg->virt) {
 			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
 					"segment %d\n",
-				pci_mmcfg_config[i].segment);
+				cfg->segment);
 			pci_mmcfg_arch_free();
 			return 0;
 		}
@@ -155,18 +143,13 @@ int __init pci_mmcfg_arch_init(void)
 void __init pci_mmcfg_arch_free(void)
 {
 	int i;
-
-	if (pci_mmcfg_virt == NULL)
-		return;
+	struct pci_mmcfg_region *cfg;
 
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		if (pci_mmcfg_virt[i].virt) {
-			iounmap(pci_mmcfg_virt[i].virt + PCI_MMCFG_BUS_OFFSET(pci_mmcfg_virt[i].cfg->start_bus));
-			pci_mmcfg_virt[i].virt = NULL;
-			pci_mmcfg_virt[i].cfg = NULL;
+		cfg = &pci_mmcfg_config[i];
+		if (cfg->virt) {
+			iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
+			cfg->virt = NULL;
 		}
 	}
-
-	kfree(pci_mmcfg_virt);
-	pci_mmcfg_virt = NULL;
 }

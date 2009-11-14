@@ -124,6 +124,7 @@ extern int __init pcibios_init(void);
 struct pci_mmcfg_region {
 	struct resource res;
 	u64 address;
+	char __iomem *virt;
 	u16 segment;
 	u8 start_bus;
 	u8 end_bus;
