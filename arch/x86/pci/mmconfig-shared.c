@@ -28,7 +28,15 @@ static int __initdata pci_mmcfg_resources_inserted;
 
 static __init void free_all_mmcfg(void)
 {
+	int i;
+	struct pci_mmcfg_region *cfg;
+
 	pci_mmcfg_arch_free();
+	for (i = 0; i < pci_mmcfg_config_num; i++) {
+		cfg = &pci_mmcfg_config[i];
+		if (cfg->res.parent)
+			release_resource(&cfg->res);
+	}
 	pci_mmcfg_config_num = 0;
 	kfree(pci_mmcfg_config);
 	pci_mmcfg_config = NULL;
@@ -40,6 +48,8 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	struct pci_mmcfg_region *new;
 	int new_num = pci_mmcfg_config_num + 1;
 	int i = pci_mmcfg_config_num;
+	int num_buses;
+	struct resource *res;
 
 	if (addr == 0)
 		return NULL;
@@ -62,6 +72,15 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	new->segment = segment;
 	new->start_bus = start;
 	new->end_bus = end;
+
+	num_buses = end - start + 1;
+	res = &new->res;
+	res->start = addr + PCI_MMCFG_BUS_OFFSET(start);
+	res->end = addr + PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
+	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+	snprintf(new->name, PCI_MMCFG_RESOURCE_NAME_LEN,
+		 "PCI MMCONFIG %04x [bus %02x-%02x]", segment, start, end);
+	res->name = new->name;
 
 	return &pci_mmcfg_config[i];
 }
@@ -336,33 +355,12 @@ static int __init pci_mmcfg_check_hostbridge(void)
 
 static void __init pci_mmcfg_insert_resources(void)
 {
-#define PCI_MMCFG_RESOURCE_NAME_LEN 24
 	int i;
-	struct resource *res;
-	char *names;
-	unsigned num_buses;
+	struct pci_mmcfg_region *cfg;
 
-	res = kcalloc(PCI_MMCFG_RESOURCE_NAME_LEN + sizeof(*res),
-			pci_mmcfg_config_num, GFP_KERNEL);
-	if (!res) {
-		printk(KERN_ERR "PCI: Unable to allocate MMCONFIG resources\n");
-		return;
-	}
-
-	names = (void *)&res[pci_mmcfg_config_num];
-	for (i = 0; i < pci_mmcfg_config_num; i++, res++) {
-		struct pci_mmcfg_region *cfg = &pci_mmcfg_config[i];
-		num_buses = cfg->end_bus - cfg->start_bus + 1;
-		res->name = names;
-		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN,
-			 "PCI MMCONFIG %u [%02x-%02x]", cfg->segment,
-			 cfg->start_bus, cfg->end_bus);
-		res->start = cfg->address +
-			PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
-		res->end = res->start + PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
-		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		insert_resource(&iomem_resource, res);
-		names += PCI_MMCFG_RESOURCE_NAME_LEN;
+	for (i = 0; i < pci_mmcfg_config_num; i++) {
+		cfg = &pci_mmcfg_config[i];
+		insert_resource(&iomem_resource, &cfg->res);
 	}
 
 	/* Mark that the resources have been inserted. */
@@ -444,7 +442,7 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 		typeof(pci_mmcfg_config[0]) *cfg, int with_e820)
 {
 	u64 old_size = size;
-	int valid = 0;
+	int valid = 0, num_buses;
 
 	while (!is_reserved(addr, addr + size, E820_RESERVED)) {
 		size >>= 1;
@@ -461,6 +459,12 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 		if (old_size != size) {
 			/* update end_bus */
 			cfg->end_bus = cfg->start_bus + ((size>>20) - 1);
+			num_buses = cfg->end_bus - cfg->start_bus + 1;
+			cfg->res.end = cfg->res.start +
+			    PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
+			snprintf(cfg->name, PCI_MMCFG_RESOURCE_NAME_LEN,
+				 "PCI MMCONFIG %04x [bus %02x-%02x]",
+				 cfg->segment, cfg->start_bus, cfg->end_bus);
 			printk(KERN_NOTICE "PCI: updated MCFG configuration %d: base %lx "
 			       "segment %hu buses %u - %u\n",
 			       i, (unsigned long)cfg->address, cfg->segment,
@@ -481,14 +485,12 @@ static void __init pci_mmcfg_reject_broken(int early)
 		return;
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
-		int num_buses, valid = 0;
+		int valid = 0;
 		u64 addr, size;
 
 		cfg = &pci_mmcfg_config[i];
-		addr = cfg->address +
-			PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
-		num_buses = cfg->end_bus - cfg->start_bus + 1;
-		size = PCI_MMCFG_BUS_OFFSET(num_buses);
+		addr = cfg->res.start;
+		size = resource_size(&cfg->res);
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->segment,

@@ -118,11 +118,16 @@ extern int __init pcibios_init(void);
 
 /* pci-mmconfig.c */
 
+/* "PCI MMCONFIG %04x [bus %02x-%02x]" */
+#define PCI_MMCFG_RESOURCE_NAME_LEN (22 + 4 + 2 + 2)
+
 struct pci_mmcfg_region {
+	struct resource res;
 	u64 address;
 	u16 segment;
 	u8 start_bus;
 	u8 end_bus;
+	char name[PCI_MMCFG_RESOURCE_NAME_LEN];
 };
 
 extern int __init pci_mmcfg_arch_init(void);
