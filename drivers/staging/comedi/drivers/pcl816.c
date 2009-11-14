@@ -112,7 +112,7 @@ struct pcl816_board {
 	int n_dichan;		/*  num of DI chans */
 	int n_dochan;		/*  num of DO chans */
 	const struct comedi_lrange *ai_range_type;	/*  default A/D rangelist */
-	const struct comedi_lrange *ao_range_type;	/*  dafault D/A rangelist */
+	const struct comedi_lrange *ao_range_type;	/*  default D/A rangelist */
 	unsigned int io_range;	/*  len of IO space */
 	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int DMAbits;	/*  allowed DMA chans */
@@ -445,7 +445,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
-	comedi_error(dev, "IRQ from unknow source!");
+	comedi_error(dev, "IRQ from unknown source!");
 	return IRQ_NONE;
 }
 

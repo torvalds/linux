@@ -203,7 +203,7 @@ err_out_exit:
  * so to play good with all cases we just queue BIO into the queue
  * and wake up processing thread, which gets completed request and
  * send (encrypting if needed) it back to the client (if it was a read
- * request), or sends back reply that writing succesfully completed.
+ * request), or sends back reply that writing successfully completed.
  */
 static int dst_export_process_request_queue(struct dst_state *st)
 {

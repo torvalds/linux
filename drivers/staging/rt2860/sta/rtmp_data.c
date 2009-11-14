@@ -913,7 +913,7 @@ Arguments:
 	pPacket 	Pointer to send packet
 
 Return Value:
-	NDIS_STATUS_SUCCESS			If succes to queue the packet into TxSwQueue.
+	NDIS_STATUS_SUCCESS			If success to queue the packet into TxSwQueue.
 	NDIS_STATUS_FAILURE			If failed to do en-queue.
 
 Note:

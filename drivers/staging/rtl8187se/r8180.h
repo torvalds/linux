@@ -599,7 +599,7 @@ typedef struct r8180_priv
 	u8						RSSI;
 	char					RxPower;
 	 u8 InitialGain;
-	 //For adjust Dig Threshhold during Legacy/Leisure Power Save Mode
+	 //For adjust Dig Threshold during Legacy/Leisure Power Save Mode
 	u32				DozePeriodInPast2Sec;
 	 // Don't access BB/RF under disable PLL situation.
 	u8					InitialGainBackUp;

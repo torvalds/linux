@@ -162,7 +162,7 @@ typedef struct _ce_stats_t {
 	u32 tx_deferred;
 
 	/* Rx Statistics. */
-	u32 rx_ov_flow;	/* Rx Over Flow */
+	u32 rx_ov_flow;	/* Rx Overflow */
 
 	u32 length_err;
 	u32 alignment_err;

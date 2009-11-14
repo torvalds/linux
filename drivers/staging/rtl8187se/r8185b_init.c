@@ -2493,8 +2493,8 @@ void rtl8185b_adapter_start(struct net_device *dev)
 	PhyConfig8185(dev);
 
 	// We assume RegWirelessMode has already been initialized before,
-	// however, we has to validate the wireless mode here and provide a reasonble
-	// initialized value if necessary. 2005.01.13, by rcnjko.
+	// however, we has to validate the wireless mode here and provide a
+	// reasonable initialized value if necessary. 2005.01.13, by rcnjko.
 	SupportedWirelessMode = GetSupportedWirelessMode8185(dev);
 	if(	(ieee->mode != WIRELESS_MODE_B) &&
 		(ieee->mode != WIRELESS_MODE_G) &&

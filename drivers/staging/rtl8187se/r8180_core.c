@@ -1848,7 +1848,7 @@ void rtl8180_rx(struct net_device *dev)
 				    sizeof(u8),
 				    PCI_DMA_FROMDEVICE);
 
-drop: // this is used when we have not enought mem
+drop: // this is used when we have not enough mem
 		/* restore the descriptor */
 		*(priv->rxringtail+2)=priv->rxbuffer->dma;
 		*(priv->rxringtail)=*(priv->rxringtail) &~ 0xfff;
@@ -1919,8 +1919,8 @@ rate)
 	/*
 	* This function doesn't require lock because we make
 	* sure it's called with the tx_lock already acquired.
-	* this come from the kernel's hard_xmit callback (trought
-	* the ieee stack, or from the try_wake_queue (again trought
+	* this come from the kernel's hard_xmit callback (through
+	* the ieee stack, or from the try_wake_queue (again through
 	* the ieee stack.
 	*/
 	priority = AC2Q(skb->priority);
@@ -3399,7 +3399,7 @@ void rtl8180_adapter_start(struct net_device *dev)
 	/*
 	   The following is very strange. seems to be that 1 means test mode,
 	   but we need to acknolwledges the nic when a packet is ready
-	   altought we set it to 0
+	   although we set it to 0
 	*/
 
 	write_nic_byte(dev,
@@ -4144,7 +4144,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri,short error)
 		}
 
 	/* we check all the descriptors between the head and the nic,
-	 * but not the currenly pointed by the nic (the next to be txed)
+	 * but not the currently pointed by the nic (the next to be txed)
 	 * and the previous of the pointed (might be in process ??)
 	*/
 	offs = (nic - nicbegin);

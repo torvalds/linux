@@ -1537,7 +1537,7 @@ if(result!=0) {
   return buffer;
 }
 
-//return --->-1:fail;  >=0:sucessful
+//return --->-1:fail;  >=0:successful
 static int Read_config_file(PSDevice pDevice) {
   int result=0;
   UCHAR      tmpbuffer[100];

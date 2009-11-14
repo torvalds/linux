@@ -1058,7 +1058,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 			break;
 		default:
 			bResult = false;
-			printk("SetZebraRFPowerState8185(): unknow state to set: 0x%X!!!\n", eRFPowerState);
+			printk("SetZebraRFPowerState8185(): unknown state to set: 0x%X!!!\n", eRFPowerState);
 			break;
 		}
 		break;

@@ -1331,7 +1331,7 @@ BSSvSecondTxData(
     }
 
   spin_lock_irq(&pDevice->lock);
-  //is wap_supplicant running sucessful OR only open && sharekey mode!
+  //is wap_supplicant running successful OR only open && sharekey mode!
   #if 1
   if(((pDevice->bLinkPass ==TRUE)&&(pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||  //open && sharekey linking
       (pDevice->fWPA_Authened == TRUE)) {   //wpa linking

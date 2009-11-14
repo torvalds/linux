@@ -2449,7 +2449,7 @@ static void sep_configure_dma_burst(struct sep_device *sep)
 #endif
 
 /*
-  Function that is activaed on the succesful probe of the SEP device
+  Function that is activated on the successful probe of the SEP device
 */
 static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
