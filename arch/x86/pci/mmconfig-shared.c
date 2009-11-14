@@ -97,6 +97,18 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	return new;
 }
 
+struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus)
+{
+	struct pci_mmcfg_region *cfg;
+
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
+		if (cfg->segment == segment &&
+		    cfg->start_bus <= bus && bus <= cfg->end_bus)
+			return cfg;
+
+	return NULL;
+}
+
 static const char __init *pci_mmcfg_e7520(void)
 {
 	u32 win;

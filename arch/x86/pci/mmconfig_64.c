@@ -14,28 +14,13 @@
 
 #define PREFIX "PCI: "
 
-static char __iomem *get_virt(unsigned int seg, unsigned bus)
-{
-	struct pci_mmcfg_region *cfg;
-
-	list_for_each_entry(cfg, &pci_mmcfg_list, list)
-		if (cfg->segment == seg &&
-		    (cfg->start_bus <= bus) &&
-		    (cfg->end_bus >= bus))
-			return cfg->virt;
-
-	/* Fall back to type 0 */
-	return NULL;
-}
-
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
-	char __iomem *addr;
+	struct pci_mmcfg_region *cfg = pci_mmconfig_lookup(seg, bus);
 
-	addr = get_virt(seg, bus);
-	if (!addr)
-		return NULL;
-	return addr + (PCI_MMCFG_BUS_OFFSET(bus) | (devfn << 12));
+	if (cfg && cfg->virt)
+		return cfg->virt + (PCI_MMCFG_BUS_OFFSET(bus) | (devfn << 12));
+	return NULL;
 }
 
 static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
