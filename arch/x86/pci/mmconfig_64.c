@@ -14,14 +14,14 @@
 
 /* Static virtual mapping of the MMCONFIG aperture */
 struct mmcfg_virt {
-	struct acpi_mcfg_allocation *cfg;
+	struct pci_mmcfg_region *cfg;
 	char __iomem *virt;
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
 
 static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
-	struct acpi_mcfg_allocation *cfg;
+	struct pci_mmcfg_region *cfg;
 	int cfg_num;
 
 	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
@@ -109,7 +109,7 @@ static struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
-static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
+static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 {
 	void __iomem *addr;
 	u64 start, size;

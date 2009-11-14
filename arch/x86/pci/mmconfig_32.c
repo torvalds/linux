@@ -27,7 +27,7 @@ static int mmcfg_last_accessed_cpu;
  */
 static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 {
-	struct acpi_mcfg_allocation *cfg;
+	struct pci_mmcfg_region *cfg;
 	int cfg_num;
 
 	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {

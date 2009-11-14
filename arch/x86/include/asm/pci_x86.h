@@ -118,10 +118,17 @@ extern int __init pcibios_init(void);
 
 /* pci-mmconfig.c */
 
+struct pci_mmcfg_region {
+	u64 address;
+	u16 pci_segment;
+	u8 start_bus_number;
+	u8 end_bus_number;
+};
+
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
 
-extern struct acpi_mcfg_allocation *pci_mmcfg_config;
+extern struct pci_mmcfg_region *pci_mmcfg_config;
 extern int pci_mmcfg_config_num;
 
 #define PCI_MMCFG_BUS_OFFSET(bus)      ((bus) << 20)

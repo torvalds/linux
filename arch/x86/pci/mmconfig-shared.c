@@ -34,10 +34,10 @@ static __init void free_all_mmcfg(void)
 	pci_mmcfg_config = NULL;
 }
 
-static __init struct acpi_mcfg_allocation *pci_mmconfig_add(int segment,
-	int start, int end, u64 addr)
+static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
+							int end, u64 addr)
 {
-	struct acpi_mcfg_allocation *new;
+	struct pci_mmcfg_region *new;
 	int new_num = pci_mmcfg_config_num + 1;
 	int i = pci_mmcfg_config_num;
 
@@ -349,7 +349,7 @@ static void __init pci_mmcfg_insert_resources(void)
 
 	names = (void *)&res[pci_mmcfg_config_num];
 	for (i = 0; i < pci_mmcfg_config_num; i++, res++) {
-		struct acpi_mcfg_allocation *cfg = &pci_mmcfg_config[i];
+		struct pci_mmcfg_region *cfg = &pci_mmcfg_config[i];
 		num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
 		res->name = names;
 		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN,
@@ -523,7 +523,7 @@ reject:
 static int __initdata known_bridge;
 
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-struct acpi_mcfg_allocation *pci_mmcfg_config;
+struct pci_mmcfg_region *pci_mmcfg_config;
 int pci_mmcfg_config_num;
 
 static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
