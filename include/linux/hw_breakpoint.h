@@ -16,6 +16,8 @@ enum {
 	HW_BREAKPOINT_X = 4,
 };
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
 {
 	return bp->attr.bp_addr;
@@ -31,7 +33,6 @@ static inline int hw_breakpoint_len(struct perf_event *bp)
 	return bp->attr.bp_len;
 }
 
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
 extern struct perf_event *
 register_user_hw_breakpoint(unsigned long addr,
 			    int len,
