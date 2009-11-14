@@ -21,7 +21,12 @@
  *	longer being polled. Used to put device into low power mode.
  * @poll: driver-supplied method that polls the device and posts
  *	input events (mandatory).
- * @poll_interval: specifies how often the poll() method shoudl be called.
+ * @poll_interval: specifies how often the poll() method should be called.
+ *	Defaults to 500 msec unless overriden when registering the device.
+ * @poll_interval_max: specifies upper bound for the poll interval.
+ *	Defaults to the initial value of @poll_interval.
+ * @poll_interval_min: specifies lower bound for the poll interval.
+ *	Defaults to 0.
  * @input: input device structire associated with the polled device.
  *	Must be properly initialized by the driver (id, name, phys, bits).
  *
@@ -36,8 +41,12 @@ struct input_polled_dev {
 	void (*close)(struct input_polled_dev *dev);
 	void (*poll)(struct input_polled_dev *dev);
 	unsigned int poll_interval; /* msec */
+	unsigned int poll_interval_max; /* msec */
+	unsigned int poll_interval_min; /* msec */
 
 	struct input_dev *input;
+
+/* private: */
 	struct delayed_work work;
 };
 
