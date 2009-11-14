@@ -342,6 +342,13 @@ config DVB_AF9013
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_EC100
+	tristate "E3C EC100"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
