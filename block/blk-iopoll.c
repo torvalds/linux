@@ -28,7 +28,7 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);
  * Description:
  *     Add this blk_iopoll structure to the pending poll list and trigger the
  *     raise of the blk iopoll softirq. The driver must already have gotten a
- *     succesful return from blk_iopoll_sched_prep() before calling this.
+ *     successful return from blk_iopoll_sched_prep() before calling this.
  **/
 void blk_iopoll_sched(struct blk_iopoll *iop)
 {

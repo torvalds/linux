@@ -816,7 +816,7 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	SMSC_TRACE(HW, "Passed Loop Back Test");
 #endif				/* USE_PHY_WORK_AROUND */
 
-	SMSC_TRACE(HW, "phy initialised succesfully");
+	SMSC_TRACE(HW, "phy initialised successfully");
 	return 0;
 }
 

@@ -2932,7 +2932,7 @@ retry:
 		ret = write_cache_pages(mapping, wbc, __mpage_da_writepage,
 					&mpd);
 		/*
-		 * If we have a contigous extent of pages and we
+		 * If we have a contiguous extent of pages and we
 		 * haven't done the I/O yet, map the blocks and submit
 		 * them for I/O.
 		 */
@@ -5370,7 +5370,7 @@ static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  * worse case, the indexs blocks spread over different block groups
  *
  * If datablocks are discontiguous, they are possible to spread over
- * different block groups too. If they are contiugous, with flexbg,
+ * different block groups too. If they are contiuguous, with flexbg,
  * they could still across block group boundary.
  *
  * Also account for superblock, inode, quota and xattr blocks
@@ -5446,7 +5446,7 @@ int ext4_writepage_trans_blocks(struct inode *inode)
  * Calculate the journal credits for a chunk of data modification.
  *
  * This is called from DIO, fallocate or whoever calling
- * ext4_get_blocks() to map/allocate a chunk of contigous disk blocks.
+ * ext4_get_blocks() to map/allocate a chunk of contiguous disk blocks.
  *
  * journal buffers for data blocks are not included here, as DIO
  * and fallocate do no need to journal data buffers.

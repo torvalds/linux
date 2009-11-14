@@ -645,7 +645,7 @@ lpfc_hba_down_prep(struct lpfc_hba *phba)
  * down the SLI Layer.
  *
  * Return codes
- *   0 - sucess.
+ *   0 - success.
  *   Any other value - error.
  **/
 static int
@@ -700,7 +700,7 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
  * down the SLI Layer.
  *
  * Return codes
- *   0 - sucess.
+ *   0 - success.
  *   Any other value - error.
  **/
 static int
@@ -755,7 +755,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
  * uninitialization after the HBA is reset when bring down the SLI Layer.
  *
  * Return codes
- *   0 - sucess.
+ *   0 - success.
  *   Any other value - error.
  **/
 int
@@ -1254,7 +1254,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
  * routine from the API jump table function pointer from the lpfc_hba struct.
  *
  * Return codes
- *   0 - sucess.
+ *   0 - success.
  *   Any other value - error.
  **/
 void
@@ -3124,7 +3124,7 @@ static void lpfc_log_intr_mode(struct lpfc_hba *phba, uint32_t intr_mode)
  * PCI devices.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -3220,7 +3220,7 @@ lpfc_reset_hba(struct lpfc_hba *phba)
  * support the SLI-3 HBA device it attached to.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -3321,7 +3321,7 @@ lpfc_sli_driver_resource_unset(struct lpfc_hba *phba)
  * support the SLI-4 HBA device it attached to.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -3642,7 +3642,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
  * device specific resource setup to support the HBA device it attached to.
  *
  * Return codes
- *	0 - sucessful
+ *	0 - successful
  *	other values - error
  **/
 static int
@@ -3688,7 +3688,7 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
  * device specific resource setup to support the HBA device it attached to.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -3753,7 +3753,7 @@ lpfc_free_iocb_list(struct lpfc_hba *phba)
  * list and set up the IOCB tag array accordingly.
  *
  * Return codes
- *	0 - sucessful
+ *	0 - successful
  *	other values - error
  **/
 static int
@@ -3872,7 +3872,7 @@ lpfc_free_active_sgl(struct lpfc_hba *phba)
  * list and set up the sgl xritag tag array accordingly.
  *
  * Return codes
- *	0 - sucessful
+ *	0 - successful
  *	other values - error
  **/
 static int
@@ -3986,7 +3986,7 @@ out_free_mem:
  * enabled and the driver is reinitializing the device.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -4146,7 +4146,7 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
  * PCI device data structure is set.
  *
  * Return codes
- *      pointer to @phba - sucessful
+ *      pointer to @phba - successful
  *      NULL - error
  **/
 static struct lpfc_hba *
@@ -4202,7 +4202,7 @@ lpfc_hba_free(struct lpfc_hba *phba)
  * host with it.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      other values - error
  **/
 static int
@@ -4365,7 +4365,7 @@ lpfc_post_init_setup(struct lpfc_hba *phba)
  * with SLI-3 interface spec.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -4662,7 +4662,7 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
  * this routine.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	ENOMEM - could not allocated memory.
  **/
 static int
@@ -4761,7 +4761,7 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  * allocation for the port.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -4861,7 +4861,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  * HBA consistent with the SLI-4 interface spec.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -4910,7 +4910,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  * we just use some constant number as place holder.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -5218,7 +5218,7 @@ out_error:
  * operation.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -5286,7 +5286,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  * operation.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -5552,7 +5552,7 @@ out_error:
  * operation.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -5599,7 +5599,7 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
  * Later, this can be used for all the slow-path events.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      -ENOMEM - No availble memory
  **/
 static int
@@ -5760,7 +5760,7 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  * all resources assigned to the PCI function which originates this request.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      ENOMEM - No availble memory
  *      EIO - The mailbox failed to complete successfully.
  **/
@@ -5923,7 +5923,7 @@ lpfc_sli4_fcfi_unreg(struct lpfc_hba *phba, uint16_t fcfi)
  * with SLI-4 interface spec.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -6052,7 +6052,7 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
  * will be left with MSI-X enabled and leaks its vectors.
  *
  * Return codes
- *   0 - sucessful
+ *   0 - successful
  *   other values - error
  **/
 static int
@@ -6184,7 +6184,7 @@ lpfc_sli_disable_msix(struct lpfc_hba *phba)
  * is done in this function.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  */
 static int
@@ -6243,7 +6243,7 @@ lpfc_sli_disable_msi(struct lpfc_hba *phba)
  * MSI-X -> MSI -> IRQ.
  *
  * Return codes
- *   0 - sucessful
+ *   0 - successful
  *   other values - error
  **/
 static uint32_t
@@ -6333,7 +6333,7 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
  * enabled and leaks its vectors.
  *
  * Return codes
- * 0 - sucessful
+ * 0 - successful
  * other values - error
  **/
 static int
@@ -6443,7 +6443,7 @@ lpfc_sli4_disable_msix(struct lpfc_hba *phba)
  * which is done in this function.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static int
@@ -6508,7 +6508,7 @@ lpfc_sli4_disable_msi(struct lpfc_hba *phba)
  * MSI-X -> MSI -> IRQ.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	other values - error
  **/
 static uint32_t

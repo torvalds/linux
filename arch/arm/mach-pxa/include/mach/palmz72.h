@@ -49,7 +49,7 @@
 /* Battery */
 #define PALMZ72_BAT_MAX_VOLTAGE		4000	/* 4.00v current voltage */
 #define PALMZ72_BAT_MIN_VOLTAGE		3550	/* 3.55v critical voltage */
-#define PALMZ72_BAT_MAX_CURRENT		0	/* unknokn */
+#define PALMZ72_BAT_MAX_CURRENT		0	/* unknown */
 #define PALMZ72_BAT_MIN_CURRENT		0	/* unknown */
 #define PALMZ72_BAT_MAX_CHARGE		1	/* unknown */
 #define PALMZ72_BAT_MIN_CHARGE		1	/* unknown */

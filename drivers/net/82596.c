@@ -19,7 +19,7 @@
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
    * handle tx ring full as per tulip
-   * performace test to tune rx_copybreak
+   * performance test to tune rx_copybreak
 
    Most of my modifications relate to the braindead big-endian
    implementation by Intel.  When the i596 is operating in

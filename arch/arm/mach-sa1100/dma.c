@@ -65,7 +65,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 
 
 /**
- *	sa1100_request_dma - allocate one of the SA11x0's DMA chanels
+ *	sa1100_request_dma - allocate one of the SA11x0's DMA channels
  *	@device: The SA11x0 peripheral targeted by this request
  *	@device_id: An ascii name for the claiming device
  *	@callback: Function to be called when the DMA completes

@@ -666,7 +666,7 @@ EXPORT_SYMBOL(sas_phy_add);
  *
  * Note:
  *   This function must only be called on a PHY that has not
- *   sucessfully been added using sas_phy_add().
+ *   successfully been added using sas_phy_add().
  */
 void sas_phy_free(struct sas_phy *phy)
 {
@@ -896,7 +896,7 @@ EXPORT_SYMBOL(sas_port_add);
  *
  * Note:
  *   This function must only be called on a PORT that has not
- *   sucessfully been added using sas_port_add().
+ *   successfully been added using sas_port_add().
  */
 void sas_port_free(struct sas_port *port)
 {
@@ -1476,7 +1476,7 @@ EXPORT_SYMBOL(sas_rphy_add);
  *
  * Note:
  *   This function must only be called on a remote
- *   PHY that has not sucessfully been added using
+ *   PHY that has not successfully been added using
  *   sas_rphy_add() (or has been sas_rphy_remove()'d)
  */
 void sas_rphy_free(struct sas_rphy *rphy)

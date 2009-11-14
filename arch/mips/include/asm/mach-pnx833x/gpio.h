@@ -24,7 +24,7 @@
 
 /* BIG FAT WARNING: races danger!
    No protections exist here. Current users are only early init code,
-   when locking is not needed because no cuncurency yet exists there,
+   when locking is not needed because no concurrency yet exists there,
    and GPIO IRQ dispatcher, which does locking.
    However, if many uses will ever happen, proper locking will be needed
    - including locking between different uses

@@ -928,7 +928,7 @@ static void lm93_update_client_common(struct lm93_data *data,
 	data->prochot_interval = lm93_read_byte(client,
 			LM93_REG_PROCHOT_INTERVAL);
 
-	/* Fan Boost Termperature registers */
+	/* Fan Boost Temperature registers */
 	for (i = 0; i < 4; i++)
 		data->boost[i] = lm93_read_byte(client, LM93_REG_BOOST(i));
 

@@ -150,7 +150,7 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 	for (i = 0; list[i].name != NULL; i++)
 		if (list[i].num == num)
 			return list[i].name;
-	return "<unkown USB Error>";
+	return "<unknown USB Error>";
 }
 
 /* USB descriptor need to contain one of the following EndPoint combination: */

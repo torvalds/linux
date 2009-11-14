@@ -456,7 +456,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 	// use 0x03 to track RPS1 interrupts - increase by 1 every gpio3 is toggled
 	// use 0x15 to track VPE  interrupts - increase by 1 every vpeirq() is called
 	saa7146_write(dev, EC1SSR, (0x03<<2) | 3 );
-	// set event counter 1 treshold to maximum allowed value        (rEC p55)
+	// set event counter 1 threshold to maximum allowed value        (rEC p55)
 	saa7146_write(dev, ECT1R,  0x3fff );
 #endif
 	// Fix VSYNC level

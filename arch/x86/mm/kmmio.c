@@ -203,7 +203,7 @@ static void disarm_kmmio_fault_page(struct kmmio_fault_page *f)
  */
 /*
  * Interrupts are disabled on entry as trap3 is an interrupt gate
- * and they remain disabled thorough out this function.
+ * and they remain disabled throughout this function.
  */
 int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 {
@@ -302,7 +302,7 @@ no_kmmio:
 
 /*
  * Interrupts are disabled on entry as trap1 is an interrupt gate
- * and they remain disabled thorough out this function.
+ * and they remain disabled throughout this function.
  * This must always get called as the pair to kmmio_handler().
  */
 static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)

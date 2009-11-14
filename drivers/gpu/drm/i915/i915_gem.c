@@ -1309,7 +1309,7 @@ out_free_list:
  * i915_gem_release_mmap - remove physical page mappings
  * @obj: obj in question
  *
- * Preserve the reservation of the mmaping with the DRM core code, but
+ * Preserve the reservation of the mmapping with the DRM core code, but
  * relinquish ownership of the pages back to the system.
  *
  * It is vital that we remove the page mapping if we have mapped a tiled

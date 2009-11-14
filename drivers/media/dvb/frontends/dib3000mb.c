@@ -154,7 +154,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 			case BANDWIDTH_AUTO:
 				return -EOPNOTSUPP;
 			default:
-				err("unkown bandwidth value.");
+				err("unknown bandwidth value.");
 				return -EINVAL;
 		}
 	}

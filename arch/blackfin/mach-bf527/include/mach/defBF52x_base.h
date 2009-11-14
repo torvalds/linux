@@ -544,7 +544,7 @@
 #define HMDMA0_CONTROL		0xFFC03300	/* Handshake MDMA0 Control Register					*/
 #define HMDMA0_ECINIT		0xFFC03304	/* HMDMA0 Initial Edge Count Register				*/
 #define HMDMA0_BCINIT		0xFFC03308	/* HMDMA0 Initial Block Count Register				*/
-#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshhold Register		*/
+#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshold Register		*/
 #define HMDMA0_ECOVERFLOW	0xFFC03310	/* HMDMA0 Edge Count Overflow Interrupt Register	*/
 #define HMDMA0_ECOUNT		0xFFC03314	/* HMDMA0 Current Edge Count Register				*/
 #define HMDMA0_BCOUNT		0xFFC03318	/* HMDMA0 Current Block Count Register				*/
@@ -552,7 +552,7 @@
 #define HMDMA1_CONTROL		0xFFC03340	/* Handshake MDMA1 Control Register					*/
 #define HMDMA1_ECINIT		0xFFC03344	/* HMDMA1 Initial Edge Count Register				*/
 #define HMDMA1_BCINIT		0xFFC03348	/* HMDMA1 Initial Block Count Register				*/
-#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshhold Register		*/
+#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshold Register		*/
 #define HMDMA1_ECOVERFLOW	0xFFC03350	/* HMDMA1 Edge Count Overflow Interrupt Register	*/
 #define HMDMA1_ECOUNT		0xFFC03354	/* HMDMA1 Current Edge Count Register				*/
 #define HMDMA1_BCOUNT		0xFFC03358	/* HMDMA1 Current Block Count Register				*/

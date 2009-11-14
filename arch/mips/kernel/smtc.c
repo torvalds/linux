@@ -1331,7 +1331,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 		if (!((asid += ASID_INC) & ASID_MASK) ) {
 			if (cpu_has_vtag_icache)
 				flush_icache_all();
-			/* Traverse all online CPUs (hack requires contigous range) */
+			/* Traverse all online CPUs (hack requires contiguous range) */
 			for_each_online_cpu(i) {
 				/*
 				 * We don't need to worry about our own CPU, nor those of

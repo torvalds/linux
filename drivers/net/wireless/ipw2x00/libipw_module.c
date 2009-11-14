@@ -199,7 +199,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv, int monitor)
 	ieee->host_decrypt = 1;
 	ieee->host_mc_decrypt = 1;
 
-	/* Host fragementation in Open mode. Default is enabled.
+	/* Host fragmentation in Open mode. Default is enabled.
 	 * Note: host fragmentation is always enabled if host encryption
 	 * is enabled. For cards can do hardware encryption, they must do
 	 * hardware fragmentation as well. So we don't need a variable

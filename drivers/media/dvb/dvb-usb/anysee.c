@@ -344,7 +344,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (ret)
 		return ret;
 
-	err("Unkown Anysee version: %02x %02x %02x. "\
+	err("Unknown Anysee version: %02x %02x %02x. "\
 	    "Please report the <linux-dvb@linuxtv.org>.",
 	    hw_info[0], hw_info[1], hw_info[2]);
 

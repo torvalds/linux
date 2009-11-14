@@ -24,7 +24,7 @@ config BOARD_HAMMERHEAD_SND
 	bool "Atmel AC97 Sound support"
 	help
 	  This enables Sound support for the Hammerhead board. You may
-	  also go trough the ALSA settings to get it working.
+	  also go through the ALSA settings to get it working.
 
 	  Choose 'Y' here if you have ordered a Corona daugther board and
 	  want to make your board funky.

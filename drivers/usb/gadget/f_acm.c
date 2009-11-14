@@ -432,7 +432,7 @@ static void acm_disable(struct usb_function *f)
  * @length: size of data
  * Context: irqs blocked, acm->lock held, acm_notify_req non-null
  *
- * Returns zero on sucess or a negative errno.
+ * Returns zero on success or a negative errno.
  *
  * See section 6.3.5 of the CDC 1.1 specification for information
  * about the only notification we issue:  SerialState change.

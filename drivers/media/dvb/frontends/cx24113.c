@@ -589,7 +589,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 		info("detected CX24113 variant\n");
 		break;
 	case REV_CX24113:
-		info("sucessfully detected\n");
+		info("successfully detected\n");
 		break;
 	default:
 		err("unsupported device id: %x\n", state->rev);

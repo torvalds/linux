@@ -1002,7 +1002,7 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 		break;
 	default:
-		printk("ioctl for %s: unknow cmd: %04x\n", dev->name, ioc.cmd);
+		printk("ioctl for %s: unknown cmd: %04x\n", dev->name, ioc.cmd);
 		status = -EOPNOTSUPP;
 
 	}			// switch

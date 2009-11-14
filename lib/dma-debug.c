@@ -259,7 +259,7 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 		 * times. Without a hardware IOMMU this results in the
 		 * same device addresses being put into the dma-debug
 		 * hash multiple times too. This can result in false
-		 * positives being reported. Therfore we implement a
+		 * positives being reported. Therefore we implement a
 		 * best-fit algorithm here which returns the entry from
 		 * the hash which fits best to the reference value
 		 * instead of the first-fit.

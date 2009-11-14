@@ -1056,7 +1056,7 @@ static struct nand_ecclayout doc200x_oobinfo = {
 };
 
 /* Find the (I)NFTL Media Header, and optionally also the mirror media header.
-   On sucessful return, buf will contain a copy of the media header for
+   On successful return, buf will contain a copy of the media header for
    further processing.  id is the string to scan for, and will presumably be
    either "ANAND" or "BNAND".  If findmirror=1, also look for the mirror media
    header.  The page #s of the found media headers are placed in mh0_page and

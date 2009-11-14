@@ -602,7 +602,7 @@ static void receive_char(struct r3964_info *pInfo, const unsigned char c)
 		}
 		break;
 	case R3964_WAIT_FOR_RX_REPEAT:
-		/* FALLTROUGH */
+		/* FALLTHROUGH */
 	case R3964_IDLE:
 		if (c == STX) {
 			/* Prevent rx_queue from overflow: */

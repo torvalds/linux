@@ -85,7 +85,7 @@ out:
 }
 
 /*
- * Tries to allocate exactly one block.  Returns true if sucessful.
+ * Tries to allocate exactly one block.  Returns true if successful.
  */
 int omfs_allocate_block(struct super_block *sb, u64 block)
 {

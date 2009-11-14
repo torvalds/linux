@@ -6,7 +6,7 @@ The modules are:
 
 xxxx		vend:prod
 ----
-spca501		0000:0000	MystFromOri Unknow Camera
+spca501		0000:0000	MystFromOri Unknown Camera
 m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200

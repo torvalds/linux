@@ -18,7 +18,7 @@
                 to specify the offset instead of the absolute address
 
   NOTE:
-  With slram it's only possible to map a contigous memory region. Therfore
+  With slram it's only possible to map a contiguous memory region. Therefore
   if there's a device mapped somewhere in the region specified slram will
   fail to load (see kernel log if modprobe fails).
 

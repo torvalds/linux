@@ -313,7 +313,7 @@ static void qe_uart_stop_tx(struct uart_port *port)
  * This function will attempt to stuff of all the characters from the
  * kernel's transmit buffer into TX BDs.
  *
- * A return value of non-zero indicates that it sucessfully stuffed all
+ * A return value of non-zero indicates that it successfully stuffed all
  * characters from the kernel buffer.
  *
  * A return value of zero indicates that there are still characters in the

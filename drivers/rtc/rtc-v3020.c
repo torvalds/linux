@@ -335,7 +335,7 @@ static int rtc_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	/* Make sure frequency measurment mode, test modes, and lock
+	/* Make sure frequency measurement mode, test modes, and lock
 	 * are all disabled */
 	v3020_set_reg(chip, V3020_STATUS_0, 0x0);
 

@@ -52,7 +52,7 @@
  *
  * 0.1.3 (released 1999-11-02)	added Attila's panning support, code
  *				reorg, hwcursor address page size alignment
- *				(for mmaping both frame buffer and regs),
+ *				(for mmapping both frame buffer and regs),
  *				and my changes to get rid of hardcoded
  *				VGA i/o register locations (uses PCI
  *				configuration info now)

@@ -1004,7 +1004,7 @@ static struct iscsi_r2t_info *iscsi_tcp_get_curr_r2t(struct iscsi_task *task)
  * iscsi_tcp_task_xmit - xmit normal PDU task
  * @task: iscsi command task
  *
- * We're expected to return 0 when everything was transmitted succesfully,
+ * We're expected to return 0 when everything was transmitted successfully,
  * -EAGAIN if there's still data in the queue, or != 0 for any other kind
  * of error.
  */

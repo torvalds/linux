@@ -315,7 +315,7 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 	if (input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH13 ||
 	    input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH24) {
 		/* Despite what the table says, for the HVR-950q we still need
-		   to be in CVBS mode for the S-Video input (reason uknown). */
+		   to be in CVBS mode for the S-Video input (reason unknown). */
 		/* filter_coef_type = 3; */
 		filter_coef_type = 5;
 	} else {

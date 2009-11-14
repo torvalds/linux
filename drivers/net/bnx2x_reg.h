@@ -2536,7 +2536,7 @@
 /* [RC 1] A flag to indicate that overflow error occurred in one of the
    queues. */
 #define QM_REG_OVFERROR 					 0x16805c
-/* [RC 7] the Q were the qverflow occurs */
+/* [RC 7] the Q where the overflow occurs */
 #define QM_REG_OVFQNUM						 0x168058
 /* [R 16] Pause state for physical queues 15-0 */
 #define QM_REG_PAUSESTATE0					 0x168410

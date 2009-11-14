@@ -7065,7 +7065,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				break;
 			default:
 				PDEBUG(D_PROBE,
-					"Sensor UNKNOW_0 force Tas5130");
+					"Sensor UNKNOWN_0 force Tas5130");
 				sd->sensor = SENSOR_TAS5130CXX;
 			}
 			break;

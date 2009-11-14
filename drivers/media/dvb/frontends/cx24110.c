@@ -1,4 +1,4 @@
-	/*
+/*
     cx24110 - Single Chip Satellite Channel Receiver driver module
 
     Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de> based on
@@ -96,7 +96,7 @@ static struct {u8 reg; u8 data;} cx24110_regdata[]=
 	 {0x42,0x00}, /* @ middle bytes " */
 	 {0x43,0x00}, /* @ LSB          " */
 		      /* leave the carrier tracking loop parameters on default */
-		      /* leave the bit timing loop parameters at gefault */
+		      /* leave the bit timing loop parameters at default */
 	 {0x56,0x4d}, /* set the filtune voltage to 2.7V, as recommended by */
 		      /* the cx24108 data sheet for symbol rates above 15MS/s */
 	 {0x57,0x00}, /* @ Filter sigma delta enabled, positive */

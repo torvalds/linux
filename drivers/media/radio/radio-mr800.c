@@ -28,7 +28,7 @@
  * http://av-usbradio.sourceforge.net/index.php
  * http://sourceforge.net/projects/av-usbradio/
  * Latest release of theirs project was in 2005.
- * Probably, this driver could be improved trough using their
+ * Probably, this driver could be improved through using their
  * achievements (specifications given).
  * Also, Faidon Liambotis <paravoid@debian.org> wrote nice driver for this radio
  * in 2007. He allowed to use his driver to improve current mr800 radio driver.

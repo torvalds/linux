@@ -453,7 +453,7 @@ do_unmap_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
-	 * entries to indicate the number of contigous entries available.
+	 * entries to indicate the number of contiguous entries available.
 	 * While returning the entries to the free list, we merge the entries
 	 * with slots below and above the pool being returned.
 	 */

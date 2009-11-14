@@ -56,7 +56,7 @@
  * at the same time.
  *
  * When discovery succeeds or fails a callback is made to the lport as
- * notification. Currently, succesful discovery causes the lport to take no
+ * notification. Currently, successful discovery causes the lport to take no
  * action. A failure will cause the lport to reset. There is likely a circular
  * locking problem with this implementation.
  */

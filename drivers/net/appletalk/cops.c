@@ -120,7 +120,7 @@ static int irq = 5;		/* Default IRQ */
  *      DAYNA driver mode:
  *              Dayna DL2000/DaynaTalk PC (Half Length), COPS LT-95, 
  *		Farallon PhoneNET PC III, Farallon PhoneNET PC II
- *	Other cards possibly supported mode unkown though:
+ *	Other cards possibly supported mode unknown though:
  *		Dayna DL2000 (Full length), COPS LT/M (Micro-Channel)
  *
  *	Cards NOT supported by this driver but supported by the ltpc.c

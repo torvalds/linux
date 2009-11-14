@@ -1636,7 +1636,7 @@ static const __u16 spca501c_arowana_init_data[][3] = {
 	{}
 };
 
-/* Unknow camera from Ori Usbid 0x0000:0x0000 */
+/* Unknown camera from Ori Usbid 0x0000:0x0000 */
 /* Based on snoops from Ori Cohen */
 static const __u16 spca501c_mysterious_open_data[][3] = {
 	{0x02, 0x000f, 0x0005},
@@ -1945,7 +1945,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			goto error;
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow Ori CMOS Camera data */
+		/* Unknown Ori CMOS Camera data */
 		if (write_vector(gspca_dev, spca501c_mysterious_open_data))
 			goto error;
 		break;
@@ -1978,7 +1978,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, spca501c_arowana_open_data);
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow  CMOS Camera data */
+		/* Unknown CMOS Camera data */
 		write_vector(gspca_dev, spca501c_mysterious_init_data);
 		break;
 	default:

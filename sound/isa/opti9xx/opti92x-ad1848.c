@@ -185,7 +185,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_opti9xx_pnpids);
 #endif
 
 static char * snd_opti9xx_names[] = {
-	"unkown",
+	"unknown",
 	"82C928",	"82C929",
 	"82C924",	"82C925",
 	"82C930",	"82C931",	"82C933"

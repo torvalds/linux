@@ -48,7 +48,7 @@
  * setups a single pin:
  * 	- reserves the pin so that it is not claimed by another driver
  * 	- setups the iomux according to the configuration
- * 	- if the pin is configured as a GPIO, we claim it throug kernel gpiolib
+ * 	- if the pin is configured as a GPIO, we claim it through kernel gpiolib
  */
 int mxc_iomux_alloc_pin(const unsigned int pin_mode, const char *label);
 /*

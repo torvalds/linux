@@ -39,7 +39,7 @@
 #define PMRN_PMLCB2	0x112	/* PM Local Control B2 */
 #define PMRN_PMLCB3	0x113	/* PM Local Control B3 */
 
-#define PMLCB_THRESHMUL_MASK	0x0700	/* Threshhold Multiple Field */
+#define PMLCB_THRESHMUL_MASK	0x0700	/* Threshold Multiple Field */
 #define PMLCB_THRESHMUL_SHIFT	8
 
 #define PMLCB_THRESHOLD_MASK	0x003f	/* Threshold Field */

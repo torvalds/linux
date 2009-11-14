@@ -3798,7 +3798,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		prop = of_get_property(np, "tx-clock", NULL);
 		if (!prop) {
 			printk(KERN_ERR
-				"ucc_geth: mising tx-clock-name property\n");
+				"ucc_geth: missing tx-clock-name property\n");
 			return -EINVAL;
 		}
 		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {

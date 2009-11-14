@@ -2726,7 +2726,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	/* Wrap with our custom algo which switches to DDC mode */
 	intel_output->ddc_bus->algo = &intel_sdvo_i2c_bit_algo;
 
-	/* In defaut case sdvo lvds is false */
+	/* In default case sdvo lvds is false */
 	intel_sdvo_get_capabilities(intel_output, &sdvo_priv->caps);
 
 	if (intel_sdvo_output_setup(intel_output,

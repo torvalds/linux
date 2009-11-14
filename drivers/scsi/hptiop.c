@@ -834,7 +834,7 @@ static int hptiop_reset_hba(struct hptiop_hba *hba)
 			atomic_read(&hba->resetting) == 0, 60 * HZ);
 
 	if (atomic_read(&hba->resetting)) {
-		/* IOP is in unkown state, abort reset */
+		/* IOP is in unknown state, abort reset */
 		printk(KERN_ERR "scsi%d: reset failed\n", hba->host->host_no);
 		return -1;
 	}

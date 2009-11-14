@@ -490,7 +490,7 @@ struct v4l2_jpegcompression {
 				 * you do, leave them untouched.
 				 * Inluding less markers will make the
 				 * resulting code smaller, but there will
-				 * be fewer aplications which can read it.
+				 * be fewer applications which can read it.
 				 * The presence of the APP and COM marker
 				 * is influenced by APP_len and COM_len
 				 * ONLY, not by this property! */

@@ -748,7 +748,7 @@ static int smsc95xx_phy_initialize(struct usbnet *dev)
 	mii_nway_restart(&dev->mii);
 
 	if (netif_msg_ifup(dev))
-		devdbg(dev, "phy initialised succesfully");
+		devdbg(dev, "phy initialised successfully");
 	return 0;
 }
 

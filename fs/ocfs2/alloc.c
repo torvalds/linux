@@ -2398,7 +2398,7 @@ static int ocfs2_leftmost_rec_contains(struct ocfs2_extent_list *el, u32 cpos)
  *
  * The array is assumed to be large enough to hold an entire path (tree depth).
  *
- * Upon succesful return from this function:
+ * Upon successful return from this function:
  *
  * - The 'right_path' array will contain a path to the leaf block
  *   whose range contains e_cpos.

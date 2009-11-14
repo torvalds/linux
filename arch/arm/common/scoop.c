@@ -82,7 +82,7 @@ static int scoop_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
 
-	/* XXX: I'm usure,  but it seems so */
+	/* XXX: I'm unsure, but it seems so */
 	return ioread16(sdev->base + SCOOP_GPRR) & (1 << (offset + 1));
 }
 

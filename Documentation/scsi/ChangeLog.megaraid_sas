@@ -185,7 +185,7 @@ ii.	FW enables WCE bit in Mode Sense cmd for drives that are configured
 	Disks are exposed with WCE=1. User is advised to enable Write Back
 	mode only when the controller has battery backup. At this time
 	Synhronize cache is not supported by the FW. Driver will short-cycle
-	the cmd and return sucess without sending down to FW.
+	the cmd and return success without sending down to FW.
 
 1 Release Date    : Sun Jan. 14 11:21:32 PDT 2007 -
 		 Sumant Patro <Sumant.Patro@lsil.com>/Bo Yang

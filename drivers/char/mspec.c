@@ -248,7 +248,7 @@ static const struct vm_operations_struct mspec_vm_ops = {
 /*
  * mspec_mmap
  *
- * Called when mmaping the device.  Initializes the vma with a fault handler
+ * Called when mmapping the device.  Initializes the vma with a fault handler
  * and private data structure necessary to allocate, track, and free the
  * underlying pages.
  */

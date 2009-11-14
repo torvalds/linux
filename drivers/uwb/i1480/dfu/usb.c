@@ -229,7 +229,7 @@ void i1480_usb_neep_cb(struct urb *urb)
  * will verify it.
  *
  * Set i1480->evt_result with the result of getting the event or its
- * size (if succesful).
+ * size (if successful).
  *
  * Delivers the data directly to i1480->evt_buf
  */

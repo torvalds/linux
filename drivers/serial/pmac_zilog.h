@@ -73,7 +73,7 @@ static inline struct uart_pmac_port *pmz_get_port_A(struct uart_pmac_port *uap)
 }
 
 /*
- * Register acessors. Note that we don't need to enforce a recovery
+ * Register accessors. Note that we don't need to enforce a recovery
  * delay on PCI PowerMac hardware, it's dealt in HW by the MacIO chip,
  * though if we try to use this driver on older machines, we might have
  * to add it back

@@ -1594,7 +1594,7 @@ static void cell_handle_interrupt_spu(struct pt_regs *regs,
 		 * to a latch.  The new values (interrupt setting bits, reset
 		 * counter value etc.) are not copied to the actual registers
 		 * until the performance monitor is enabled.  In order to get
-		 * this to work as desired, the permormance monitor needs to
+		 * this to work as desired, the performance monitor needs to
 		 * be disabled while writing to the latches.  This is a
 		 * HW design issue.
 		 */
@@ -1668,7 +1668,7 @@ static void cell_handle_interrupt_ppu(struct pt_regs *regs,
 		 * to a latch.	The new values (interrupt setting bits, reset
 		 * counter value etc.) are not copied to the actual registers
 		 * until the performance monitor is enabled.  In order to get
-		 * this to work as desired, the permormance monitor needs to
+		 * this to work as desired, the performance monitor needs to
 		 * be disabled while writing to the latches.  This is a
 		 * HW design issue.
 		 */

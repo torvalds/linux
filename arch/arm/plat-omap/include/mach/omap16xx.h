@@ -124,7 +124,7 @@
 #define TIPB_SWITCH_BASE		 (0xfffbc800)
 #define OMAP16XX_MMCSD2_SSW_MPU_CONF	(TIPB_SWITCH_BASE + 0x160)
 
-/* UART3 Registers Maping through MPU bus */
+/* UART3 Registers Mapping through MPU bus */
 #define UART3_RHR               (OMAP_UART3_BASE + 0)
 #define UART3_THR               (OMAP_UART3_BASE + 0)
 #define UART3_DLL               (OMAP_UART3_BASE + 0)

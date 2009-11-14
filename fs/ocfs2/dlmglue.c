@@ -1855,7 +1855,7 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 		 * outstanding lock request, so a cancel convert is
 		 * required. We intentionally overwrite 'ret' - if the
 		 * cancel fails and the lock was granted, it's easier
-		 * to just bubble sucess back up to the user.
+		 * to just bubble success back up to the user.
 		 */
 		ret = ocfs2_flock_handle_signal(lockres, level);
 	} else if (!ret && (level > lockres->l_level)) {

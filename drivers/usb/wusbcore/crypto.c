@@ -111,7 +111,7 @@ struct aes_ccm_b1 {
  *
  * CCM uses Ax blocks to generate a keystream with which the MIC and
  * the message's payload are encoded. A0 always encrypts/decrypts the
- * MIC. Ax (x>0) are used for the sucesive payload blocks.
+ * MIC. Ax (x>0) are used for the successive payload blocks.
  *
  * The x is the counter, and is increased for each block.
  */

@@ -3523,7 +3523,7 @@ pfm_use_debug_registers(struct task_struct *task)
  * IA64_THREAD_DBG_VALID set. This indicates a task which was
  * able to use the debug registers for debugging purposes via
  * ptrace(). Therefore we know it was not using them for
- * perfmormance monitoring, so we only decrement the number
+ * performance monitoring, so we only decrement the number
  * of "ptraced" debug register users to keep the count up to date
  */
 int

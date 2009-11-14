@@ -1448,7 +1448,7 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 		kfree_skb(packet->skb);
 		break;
 	default:
-		IWM_ERR(iwm, "Unknow ticket action: %d\n",
+		IWM_ERR(iwm, "Unknown ticket action: %d\n",
 			le16_to_cpu(ticket_node->ticket->action));
 		kfree_skb(packet->skb);
 	}

@@ -212,7 +212,7 @@
 #define G_MAC_TXD_WEIGHT1(x)        _SB_GETVALUE(x, S_MAC_TXD_WEIGHT1, M_MAC_TXD_WEIGHT1)
 
 /*
- * MAC Fifo Threshhold registers (Table 9-14)
+ * MAC Fifo Threshold registers (Table 9-14)
  * Register: MAC_THRSH_CFG_0
  * Register: MAC_THRSH_CFG_1
  * Register: MAC_THRSH_CFG_2

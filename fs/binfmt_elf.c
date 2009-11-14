@@ -767,7 +767,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	
 	current->mm->start_stack = bprm->p;
 
-	/* Now we do a little grungy work by mmaping the ELF image into
+	/* Now we do a little grungy work by mmapping the ELF image into
 	   the correct location in memory. */
 	for(i = 0, elf_ppnt = elf_phdata;
 	    i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {

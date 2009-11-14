@@ -98,7 +98,7 @@ typedef struct xfs_dquot {
 #define dq_flags	q_lists.dqm_flags
 
 /*
- * Lock hierachy for q_qlock:
+ * Lock hierarchy for q_qlock:
  *	XFS_QLOCK_NORMAL is the implicit default,
  * 	XFS_QLOCK_NESTED is the dquot with the higher id in xfs_dqlock2
  */

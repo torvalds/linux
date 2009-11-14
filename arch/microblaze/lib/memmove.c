@@ -9,7 +9,7 @@
  * It is based on demo code originally Copyright 2001 by Intel Corp, taken from
  * http://www.embedded.com/showArticle.jhtml?articleID=19205567
  *
- * Attempts were made, unsuccesfully, to contact the original
+ * Attempts were made, unsuccessfully, to contact the original
  * author of this code (Michael Morrow, Intel).  Below is the original
  * copyright notice.
  *

@@ -209,7 +209,7 @@ struct mem_cgroup {
 	int	prev_priority;	/* for recording reclaim priority */
 
 	/*
-	 * While reclaiming in a hiearchy, we cache the last child we
+	 * While reclaiming in a hierarchy, we cache the last child we
 	 * reclaimed from.
 	 */
 	int last_scanned_child;
@@ -2466,7 +2466,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
 
 	cgroup_lock();
 	/*
-	 * If parent's use_hiearchy is set, we can't make any modifications
+	 * If parent's use_hierarchy is set, we can't make any modifications
 	 * in the child subtrees. If it is unset, then the change can
 	 * occur, provided the current cgroup has no children.
 	 *

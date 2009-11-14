@@ -1132,7 +1132,7 @@ static int rx_pkt(struct atm_dev *dev)
                     IF_ERR(printk(" cause: packet time out\n");)
                 }
                 else {
-                    IF_ERR(printk(" cause: buffer over flow\n");)
+                    IF_ERR(printk(" cause: buffer overflow\n");)
                 }
 		goto out_free_desc;
 	}  

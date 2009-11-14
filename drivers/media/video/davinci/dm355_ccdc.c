@@ -285,7 +285,7 @@ static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
 
 	if ((ccdcparam->med_filt_thres < 0) ||
 	   (ccdcparam->med_filt_thres > CCDC_MED_FILT_THRESH)) {
-		dev_dbg(dev, "Invalid value of median filter thresold\n");
+		dev_dbg(dev, "Invalid value of median filter threshold\n");
 		return -EINVAL;
 	}
 

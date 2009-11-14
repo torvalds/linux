@@ -39,7 +39,7 @@
 
 /*
  * MAX_REQ is the maximum number of requests that WE will send
- * on one socket concurently. It also matches the most common
+ * on one socket concurrently. It also matches the most common
  * value of max multiplex returned by servers.  We may
  * eventually want to use the negotiated value (in case
  * future servers can handle more) when we are more confident that

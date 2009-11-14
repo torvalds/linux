@@ -4190,7 +4190,7 @@ static void ixj_aec_start(IXJ *j, int level)
 				ixj_WriteDSPCommand(0x1224, j);
 
 			ixj_WriteDSPCommand(0xE014, j);
-			ixj_WriteDSPCommand(0x0003, j);	/* Lock threashold at 3dB */
+			ixj_WriteDSPCommand(0x0003, j);	/* Lock threshold at 3dB */
 
 			ixj_WriteDSPCommand(0xE338, j);	/* Set Echo Suppresser Attenuation to 0dB */
 
@@ -4235,7 +4235,7 @@ static void ixj_aec_start(IXJ *j, int level)
 				ixj_WriteDSPCommand(0x1224, j);
 
 			ixj_WriteDSPCommand(0xE014, j);
-			ixj_WriteDSPCommand(0x0003, j);	/* Lock threashold at 3dB */
+			ixj_WriteDSPCommand(0x0003, j);	/* Lock threshold at 3dB */
 
 			ixj_WriteDSPCommand(0xE338, j);	/* Set Echo Suppresser Attenuation to 0dB */
 

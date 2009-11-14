@@ -432,7 +432,7 @@ static int adm1029_remove(struct i2c_client *client)
 }
 
 /*
-function that update the status of the chips (temperature for exemple)
+function that update the status of the chips (temperature for example)
 */
 static struct adm1029_data *adm1029_update_device(struct device *dev)
 {

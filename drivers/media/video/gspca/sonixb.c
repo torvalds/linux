@@ -304,7 +304,7 @@ static const __u8 initOv6650[] = {
 };
 static const __u8 ov6650_sensor_init[][8] =
 {
-	/* Bright, contrast, etc are set througth SCBB interface.
+	/* Bright, contrast, etc are set through SCBB interface.
 	 * AVCAP on win2 do not send any data on this 	controls. */
 	/* Anyway, some registers appears to alter bright and constrat */
 

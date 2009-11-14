@@ -385,7 +385,7 @@ static int SuperTraceMessageInput (void* hLib) {
                   }
                   break;
                 default:
-                  diva_mnt_internal_dprintf (0, DLI_ERR, "Unknon IDI Ind (DMA mode): %02x", Ind);
+                  diva_mnt_internal_dprintf (0, DLI_ERR, "Unknown IDI Ind (DMA mode): %02x", Ind);
               }
               p += (this_ind_length+1);
               total_length -= (4 + this_ind_length);
@@ -420,7 +420,7 @@ static int SuperTraceMessageInput (void* hLib) {
             }
             break;
           default:
-            diva_mnt_internal_dprintf (0, DLI_ERR, "Unknon IDI Ind: %02x", Ind);
+            diva_mnt_internal_dprintf (0, DLI_ERR, "Unknown IDI Ind: %02x", Ind);
         }
       }
     }

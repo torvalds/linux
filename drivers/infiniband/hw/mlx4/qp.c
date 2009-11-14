@@ -352,7 +352,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	 * anymore, so we do this only if selective signaling is off.
 	 *
 	 * Further, on 32-bit platforms, we can't use vmap() to make
-	 * the QP buffer virtually contigious.  Thus we have to use
+	 * the QP buffer virtually contiguous.  Thus we have to use
 	 * constant-sized WRs to make sure a WR is always fully within
 	 * a single page-sized chunk.
 	 *

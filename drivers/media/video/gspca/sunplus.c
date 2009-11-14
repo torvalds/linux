@@ -631,7 +631,7 @@ static void spca504A_acknowledged_command(struct gspca_dev *gspca_dev,
 	count = 200;
 	while (--count > 0) {
 		msleep(10);
-		/* gsmart mini2 write a each wait setting 1 ms is enought */
+		/* gsmart mini2 write a each wait setting 1 ms is enough */
 /*		reg_w_riv(dev, req, idx, val); */
 		status = reg_r_12(gspca_dev, 0x01, 0x0001, 1);
 		if (status == endcode) {

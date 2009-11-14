@@ -174,7 +174,7 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
 	list_for_each_entry_safe (tk, next, to_kill, nd) {
 		if (doit) {
 			/*
-			 * In case something went wrong with munmaping
+			 * In case something went wrong with munmapping
 			 * make sure the process doesn't catch the
 			 * signal and then access the memory. Just kill it.
 			 * the signal handlers

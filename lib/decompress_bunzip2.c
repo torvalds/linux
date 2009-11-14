@@ -299,7 +299,7 @@ static int INIT get_next_block(struct bunzip_data *bd)
 		   again when using them (during symbol decoding).*/
 		base = hufGroup->base-1;
 		limit = hufGroup->limit-1;
-		/* Calculate permute[].  Concurently, initialize
+		/* Calculate permute[].  Concurrently, initialize
 		 * temp[] and limit[]. */
 		pp = 0;
 		for (i = minLen; i <= maxLen; i++) {

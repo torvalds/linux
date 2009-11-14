@@ -619,7 +619,7 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 
 /*
  * Similar to get_user, do some address checking, then dereference
- * Return true on sucess, false on bad address
+ * Return true on success, false on bad address
  */
 static bool get_instruction(unsigned short *val, unsigned short *address)
 {

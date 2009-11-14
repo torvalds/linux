@@ -55,7 +55,7 @@
 #define DESC_STATUS_SOURCE_TIMEOUT	3
 
 /*
- * source side threshholds at which message retries print a warning
+ * source side thresholds at which message retries print a warning
  */
 #define SOURCE_TIMEOUT_LIMIT		20
 #define DESTINATION_TIMEOUT_LIMIT	20

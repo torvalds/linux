@@ -50,7 +50,7 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 	struct tcphdr _tcph, *tcph;
 	__be16 oldval;
 
-	/* Not enought header? */
+	/* Not enough header? */
 	tcph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (!tcph)
 		return false;

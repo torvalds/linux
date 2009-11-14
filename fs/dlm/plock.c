@@ -143,7 +143,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(dlm_posix_lock);
 
-/* Returns failure iff a succesful lock operation should be canceled */
+/* Returns failure iff a successful lock operation should be canceled */
 static int dlm_plock_callback(struct plock_op *op)
 {
 	struct file *file;

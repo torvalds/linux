@@ -371,7 +371,7 @@ E_P24(unsigned char *p21, const unsigned char *c8, unsigned char *p24)
 	smbhash(p24 + 16, c8, p21 + 14, 1);
 }
 
-#if 0 /* currently unsued */
+#if 0 /* currently unused */
 static void
 D_P16(unsigned char *p14, unsigned char *in, unsigned char *out)
 {

@@ -54,7 +54,7 @@
  * Assumptions:
  * - head[0] is physically contiguous.
  * - tail[0] is physically contiguous.
- * - pages[] is not physically or virtually contigous and consists of
+ * - pages[] is not physically or virtually contiguous and consists of
  *   PAGE_SIZE elements.
  *
  * Output:

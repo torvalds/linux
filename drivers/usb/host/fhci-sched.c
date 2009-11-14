@@ -627,7 +627,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 
 
 /*
- * Process normal completions(error or sucess) and clean the schedule.
+ * Process normal completions(error or success) and clean the schedule.
  *
  * This is the main path for handing urbs back to drivers. The only other patth
  * is process_del_list(),which unlinks URBs by scanning EDs,instead of scanning

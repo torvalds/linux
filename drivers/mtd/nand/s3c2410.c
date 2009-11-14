@@ -875,7 +875,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
  * @info: The controller instance.
  * @nmtd: The driver version of the MTD instance.
  *
- * This routine is called after the chip probe has succesfully completed
+ * This routine is called after the chip probe has successfully completed
  * and the relevant per-chip information updated. This call ensure that
  * we update the internal state accordingly.
  *
