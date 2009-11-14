@@ -52,15 +52,15 @@ The KSM daemon is controlled by sysfs files in /sys/kernel/mm/ksm/,
 readable by all but writable only by root:
 
 max_kernel_pages - set to maximum number of kernel pages that KSM may use
-                   e.g. "echo 2000 > /sys/kernel/mm/ksm/max_kernel_pages"
+                   e.g. "echo 100000 > /sys/kernel/mm/ksm/max_kernel_pages"
                    Value 0 imposes no limit on the kernel pages KSM may use;
                    but note that any process using MADV_MERGEABLE can cause
                    KSM to allocate these pages, unswappable until it exits.
-                   Default: 2000 (chosen for demonstration purposes)
+                   Default: quarter of memory (chosen to not pin too much)
 
 pages_to_scan    - how many present pages to scan before ksmd goes to sleep
-                   e.g. "echo 200 > /sys/kernel/mm/ksm/pages_to_scan"
-                   Default: 200 (chosen for demonstration purposes)
+                   e.g. "echo 100 > /sys/kernel/mm/ksm/pages_to_scan"
+                   Default: 100 (chosen for demonstration purposes)
 
 sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
                    e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
@@ -70,7 +70,8 @@ run              - set 0 to stop ksmd from running but keep merged pages,
                    set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
                    set 2 to stop ksmd and unmerge all pages currently merged,
                          but leave mergeable areas registered for next run
-                   Default: 1 (for immediate use by apps which register)
+                   Default: 0 (must be changed to 1 to activate KSM,
+                               except if CONFIG_SYSFS is disabled)
 
 The effectiveness of KSM and MADV_MERGEABLE is shown in /sys/kernel/mm/ksm/:
 
@@ -86,4 +87,4 @@ pages_volatile embraces several different kinds of activity, but a high
 proportion there would also indicate poor use of madvise MADV_MERGEABLE.
 
 Izik Eidus,
-Hugh Dickins, 30 July 2009
+Hugh Dickins, 24 Sept 2009

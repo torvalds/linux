@@ -1082,7 +1082,8 @@ intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mo
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
 
 	/* Ensure TV refresh is close to desired refresh */
-	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode)) < 10)
+	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
+				< 1000)
 		return MODE_OK;
 	return MODE_CLOCK_RANGE;
 }

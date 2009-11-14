@@ -898,15 +898,15 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
-	/* turn throttle off */
-	priv->dp_throttled = 0;
-	priv->dp_throttle_restart = 0;
-
 	/* restart read chain */
 	if (priv->dp_throttle_restart) {
 		port->read_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	}
+
+	/* turn throttle off */
+	priv->dp_throttled = 0;
+	priv->dp_throttle_restart = 0;
 
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 

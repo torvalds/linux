@@ -1,32 +1,10 @@
- /*
-  * File:        include/asm-blackfin/mach-common/def_LPBlackfin.h
-  * Based on:
-  * Author:      unknown
-  *              COPYRIGHT 2005 Analog Devices
-  * Created:     ?
-  * Description:
-  *
-  * Modified:
-  *
-  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2, or (at your option)
-  * any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; see the file COPYING.
-  * If not, write to the Free Software Foundation,
-  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-  */
-
-/* LP Blackfin CORE REGISTER BIT & ADDRESS DEFINITIONS FOR ADSP-BF532/33 */
+/*
+ * Blackfin core register bit & address definitions
+ *
+ * Copyright 2005-2008 Analog Devices Inc.
+ *
+ * Licensed under the ADI BSD license or GPL-2 (or later).
+ */
 
 #ifndef _DEF_LPBLACKFIN_H
 #define _DEF_LPBLACKFIN_H

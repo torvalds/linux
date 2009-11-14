@@ -667,7 +667,7 @@ start:
 		xip->i_new_size = new_size;
 
 	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime(xip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+		file_update_time(file);
 
 	/*
 	 * If the offset is beyond the size of the file, we have a couple

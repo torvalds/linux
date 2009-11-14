@@ -1172,11 +1172,7 @@ static inline void put_dev_sector(Sector p)
 }
 
 struct work_struct;
-struct delayed_work;
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work);
-int kblockd_schedule_delayed_work(struct request_queue *q,
-					struct delayed_work *work,
-				 	unsigned long delay);
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))

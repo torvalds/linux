@@ -67,7 +67,7 @@ config DISCONTIGMEM
 
 config SPARSEMEM
 	def_bool y
-	depends on SPARSEMEM_MANUAL
+	depends on (!SELECT_MEMORY_MODEL && ARCH_SPARSEMEM_ENABLE) || SPARSEMEM_MANUAL
 
 config FLATMEM
 	def_bool y
@@ -129,7 +129,7 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on HOTPLUG && !(HIBERNATION && !S390) && ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on (IA64 || X86 || PPC64 || SUPERH || S390)
+	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
 comment "Memory hotplug is currently incompatible with Software Suspend"
 	depends on SPARSEMEM && HOTPLUG && HIBERNATION && !S390
@@ -224,7 +224,9 @@ config KSM
 	  the many instances by a single resident page with that content, so
 	  saving memory until one or another app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
-	  See Documentation/vm/ksm.txt for more information.
+	  See Documentation/vm/ksm.txt for more information: KSM is inactive
+	  until a program has madvised that an area is MADV_MERGEABLE, and
+	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
 
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"

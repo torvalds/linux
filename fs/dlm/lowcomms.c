@@ -316,6 +316,10 @@ int dlm_lowcomms_connect_node(int nodeid)
 {
 	struct connection *con;
 
+	/* with sctp there's no connecting without sending */
+	if (dlm_config.ci_protocol != 0)
+		return 0;
+
 	if (nodeid == dlm_our_nodeid())
 		return 0;
 
@@ -455,9 +459,9 @@ static void process_sctp_notification(struct connection *con,
 			int prim_len, ret;
 			int addr_len;
 			struct connection *new_con;
-			struct file *file;
 			sctp_peeloff_arg_t parg;
 			int parglen = sizeof(parg);
+			int err;
 
 			/*
 			 * We get this before any data for an association.
@@ -512,19 +516,22 @@ static void process_sctp_notification(struct connection *con,
 			ret = kernel_getsockopt(con->sock, IPPROTO_SCTP,
 						SCTP_SOCKOPT_PEELOFF,
 						(void *)&parg, &parglen);
-			if (ret) {
+			if (ret < 0) {
 				log_print("Can't peel off a socket for "
-					  "connection %d to node %d: err=%d\n",
+					  "connection %d to node %d: err=%d",
 					  parg.associd, nodeid, ret);
+				return;
 			}
-			file = fget(parg.sd);
-			new_con->sock = SOCKET_I(file->f_dentry->d_inode);
+			new_con->sock = sockfd_lookup(parg.sd, &err);
+			if (!new_con->sock) {
+				log_print("sockfd_lookup error %d", err);
+				return;
+			}
 			add_sock(new_con->sock, new_con);
-			fput(file);
-			put_unused_fd(parg.sd);
+			sockfd_put(new_con->sock);
 
-			log_print("got new/restarted association %d nodeid %d",
-				 (int)sn->sn_assoc_change.sac_assoc_id, nodeid);
+			log_print("connecting to %d sctp association %d",
+				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);
 
 			/* Send any pending writes */
 			clear_bit(CF_CONNECT_PENDING, &new_con->flags);
@@ -837,8 +844,6 @@ static void sctp_init_assoc(struct connection *con)
 	if (con->retries++ > MAX_CONNECT_RETRIES)
 		return;
 
-	log_print("Initiating association with node %d", con->nodeid);
-
 	if (nodeid_to_addr(con->nodeid, (struct sockaddr *)&rem_addr)) {
 		log_print("no address for nodeid %d", con->nodeid);
 		return;
@@ -855,11 +860,14 @@ static void sctp_init_assoc(struct connection *con)
 	outmessage.msg_flags = MSG_EOR;
 
 	spin_lock(&con->writequeue_lock);
-	e = list_entry(con->writequeue.next, struct writequeue_entry,
-		       list);
 
-	BUG_ON((struct list_head *) e == &con->writequeue);
+	if (list_empty(&con->writequeue)) {
+		spin_unlock(&con->writequeue_lock);
+		log_print("writequeue empty for nodeid %d", con->nodeid);
+		return;
+	}
 
+	e = list_first_entry(&con->writequeue, struct writequeue_entry, list);
 	len = e->len;
 	offset = e->offset;
 	spin_unlock(&con->writequeue_lock);

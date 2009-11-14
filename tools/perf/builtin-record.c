@@ -41,6 +41,7 @@ static int			raw_samples			= 0;
 static int			system_wide			= 0;
 static int			profile_cpu			= -1;
 static pid_t			target_pid			= -1;
+static pid_t			child_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
@@ -184,6 +185,9 @@ static void sig_handler(int sig)
 
 static void sig_atexit(void)
 {
+	if (child_pid != -1)
+		kill(child_pid, SIGTERM);
+
 	if (signr == -1)
 		return;
 
@@ -610,6 +614,8 @@ static int __cmd_record(int argc, const char **argv)
 				exit(-1);
 			}
 		}
+
+		child_pid = pid;
 	}
 
 	if (realtime_prio) {

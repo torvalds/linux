@@ -4,6 +4,10 @@
  * TODO: implement optimized primitives instead, or leave the generic
  * implementation in place, or pick the atomic_xchg() based generic
  * implementation. (see asm-generic/mutex-xchg.h for details)
+ *
+ * Copyright 2006-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _ASM_MUTEX_H

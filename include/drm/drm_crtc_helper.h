@@ -61,6 +61,9 @@ struct drm_crtc_helper_funcs {
 	/* Move the crtc on the current fb to the given position *optional* */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+
+	/* reload the current crtc LUT */
+	void (*load_lut)(struct drm_crtc *crtc);
 };
 
 struct drm_encoder_helper_funcs {

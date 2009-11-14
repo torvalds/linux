@@ -68,7 +68,7 @@ static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 
 	/* allocate a r10bio with room for raid_disks entries in the bios array */
 	r10_bio = kzalloc(size, gfp_flags);
-	if (!r10_bio)
+	if (!r10_bio && conf->mddev)
 		unplug_slaves(conf->mddev);
 
 	return r10_bio;
@@ -1632,6 +1632,7 @@ static void raid10d(mddev_t *mddev)
 				generic_make_request(bio);
 			}
 		}
+		cond_resched();
 	}
 	if (unplug)
 		unplug_slaves(mddev);
@@ -2095,7 +2096,6 @@ static int run(mddev_t *mddev)
 	if (!conf->tmppage)
 		goto out_free_conf;
 
-	conf->mddev = mddev;
 	conf->raid_disks = mddev->raid_disks;
 	conf->near_copies = nc;
 	conf->far_copies = fc;
@@ -2132,6 +2132,7 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	mddev->queue->queue_lock = &conf->device_lock;
 

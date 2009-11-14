@@ -72,12 +72,17 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 /* Prevent leaks of NFSv4 errors into userland */
 static int nfs4_map_errors(int err)
 {
-	if (err < -1000) {
+	if (err >= -1000)
+		return err;
+	switch (err) {
+	case -NFS4ERR_RESOURCE:
+		return -EREMOTEIO;
+	default:
 		dprintk("%s could not handle NFSv4 error %d\n",
 				__func__, -err);
-		return -EIO;
+		break;
 	}
-	return err;
+	return -EIO;
 }
 
 /*
@@ -3060,9 +3065,6 @@ static void nfs4_renew_done(struct rpc_task *task, void *data)
 	if (time_before(clp->cl_last_renewal,timestamp))
 		clp->cl_last_renewal = timestamp;
 	spin_unlock(&clp->cl_lock);
-	dprintk("%s calling put_rpccred on rpc_cred %p\n", __func__,
-				task->tk_msg.rpc_cred);
-	put_rpccred(task->tk_msg.rpc_cred);
 }
 
 static const struct rpc_call_ops nfs4_renew_ops = {
@@ -4877,7 +4879,6 @@ void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 	nfs41_sequence_free_slot(clp, task->tk_msg.rpc_resp);
 	dprintk("%s rpc_cred %p\n", __func__, task->tk_msg.rpc_cred);
 
-	put_rpccred(task->tk_msg.rpc_cred);
 	kfree(task->tk_msg.rpc_argp);
 	kfree(task->tk_msg.rpc_resp);
 

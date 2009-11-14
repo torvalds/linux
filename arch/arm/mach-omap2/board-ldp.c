@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
@@ -41,7 +42,6 @@
 #include <asm/delay.h>
 #include <mach/control.h>
 #include <mach/usb.h>
-#include <mach/keypad.h>
 
 #include "mmc-twl4030.h"
 

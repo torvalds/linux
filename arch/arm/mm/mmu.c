@@ -117,6 +117,13 @@ static void __init early_cachepolicy(char **p)
 	}
 	if (i == ARRAY_SIZE(cache_policies))
 		printk(KERN_ERR "ERROR: unknown or unsupported cache policy\n");
+	/*
+	 * This restriction is partly to do with the way we boot; it is
+	 * unpredictable to have memory mapped using two different sets of
+	 * memory attributes (shared, type, and cache attribs).  We can not
+	 * change these attributes once the initial assembly has setup the
+	 * page tables.
+	 */
 	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
 		printk(KERN_WARNING "Only cachepolicy=writeback supported on ARMv6 and later\n");
 		cachepolicy = CPOLICY_WRITEBACK;

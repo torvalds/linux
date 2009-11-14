@@ -1,32 +1,7 @@
 /*
- * file:	include/asm-blackfin/mach-bf548/irq.h
- * based on:	include/asm-blackfin/mach-bf537/irq.h
- * author:	Roy Huang (roy.huang@analog.com)
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * created:
- * description:
- *	system mmr register map
- * rev:
- *
- * modified:
- *
- *
- * bugs:         enter bugs at http://blackfin.uclinux.org/
- *
- * this program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license as published by
- * the free software foundation; either version 2, or (at your option)
- * any later version.
- *
- * this program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * merchantability or fitness for a particular purpose.  see the
- * gnu general public license for more details.
- *
- * you should have received a copy of the gnu general public license
- * along with this program; see the file copying.
- * if not, write to the free software foundation,
- * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BF548_IRQ_H_

@@ -16,7 +16,7 @@ struct __kernel_sockaddr_storage {
 				/* _SS_MAXSIZE value minus size of ss_family */
 } __attribute__ ((aligned(_K_SS_ALIGNSIZE)));	/* force desired alignment */
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#ifdef __KERNEL__
 
 #include <asm/socket.h>			/* arch-dependent defines	*/
 #include <linux/sockios.h>		/* the SIOCxxx I/O controls	*/
@@ -101,21 +101,6 @@ struct cmsghdr {
 			      ((char *)(cmsg) - (char *)(mhdr)->msg_control)))
 
 /*
- *	This mess will go away with glibc
- */
- 
-#ifdef __KERNEL__
-#define __KINLINE static inline
-#elif  defined(__GNUC__) 
-#define __KINLINE static __inline__
-#elif defined(__cplusplus)
-#define __KINLINE static inline
-#else
-#define __KINLINE static
-#endif
-
-
-/*
  *	Get the next cmsg header
  *
  *	PLEASE, do not touch this function. If you think, that it is
@@ -128,7 +113,7 @@ struct cmsghdr {
  *	ancillary object DATA.				--ANK (980731)
  */
  
-__KINLINE struct cmsghdr * __cmsg_nxthdr(void *__ctl, __kernel_size_t __size,
+static inline struct cmsghdr * __cmsg_nxthdr(void *__ctl, __kernel_size_t __size,
 					       struct cmsghdr *__cmsg)
 {
 	struct cmsghdr * __ptr;
@@ -140,7 +125,7 @@ __KINLINE struct cmsghdr * __cmsg_nxthdr(void *__ctl, __kernel_size_t __size,
 	return __ptr;
 }
 
-__KINLINE struct cmsghdr * cmsg_nxthdr (struct msghdr *__msg, struct cmsghdr *__cmsg)
+static inline struct cmsghdr * cmsg_nxthdr (struct msghdr *__msg, struct cmsghdr *__cmsg)
 {
 	return __cmsg_nxthdr(__msg->msg_control, __msg->msg_controllen, __cmsg);
 }

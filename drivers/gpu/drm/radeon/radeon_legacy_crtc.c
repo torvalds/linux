@@ -1053,6 +1053,7 @@ static const struct drm_crtc_helper_funcs legacy_helper_funcs = {
 	.mode_set_base = radeon_crtc_set_base,
 	.prepare = radeon_crtc_prepare,
 	.commit = radeon_crtc_commit,
+	.load_lut = radeon_crtc_load_lut,
 };
 
 

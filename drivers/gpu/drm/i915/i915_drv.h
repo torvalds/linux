@@ -202,6 +202,7 @@ typedef struct drm_i915_private {
 	spinlock_t user_irq_lock;
 	/** Refcount for i915_user_irq_get() versus i915_user_irq_put(). */
 	int user_irq_refcount;
+	u32 trace_irq_seqno;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
 	u32 pipestat[2];
@@ -273,7 +274,7 @@ typedef struct drm_i915_private {
 	struct drm_i915_display_funcs display;
 
 	/* Register state */
-	bool suspended;
+	bool modeset_on_lid;
 	u8 saveLBB;
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
@@ -665,6 +666,7 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 void i915_user_irq_get(struct drm_device *dev);
+void i915_trace_irq_get(struct drm_device *dev, u32 seqno);
 void i915_user_irq_put(struct drm_device *dev);
 extern void i915_enable_interrupt (struct drm_device *dev);
 

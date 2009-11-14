@@ -4538,6 +4538,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
+	netif_carrier_off(dev);
+
 	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_WEIGHT);
 
 	err = request_irq(pdev->irq, sky2_intr,

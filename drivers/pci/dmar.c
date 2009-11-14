@@ -354,6 +354,7 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	struct acpi_dmar_hardware_unit *drhd;
 	struct acpi_dmar_reserved_memory *rmrr;
 	struct acpi_dmar_atsr *atsr;
+	struct acpi_dmar_rhsa *rhsa;
 
 	switch (header->type) {
 	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
@@ -374,6 +375,12 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	case ACPI_DMAR_TYPE_ATSR:
 		atsr = container_of(header, struct acpi_dmar_atsr, header);
 		printk(KERN_INFO PREFIX "ATSR flags: %#x\n", atsr->flags);
+		break;
+	case ACPI_DMAR_HARDWARE_AFFINITY:
+		rhsa = container_of(header, struct acpi_dmar_rhsa, header);
+		printk(KERN_INFO PREFIX "RHSA base: %#016Lx proximity domain: %#x\n",
+		       (unsigned long long)rhsa->base_address,
+		       rhsa->proximity_domain);
 		break;
 	}
 }
@@ -459,9 +466,13 @@ parse_dmar_table(void)
 			ret = dmar_parse_one_atsr(entry_header);
 #endif
 			break;
+		case ACPI_DMAR_HARDWARE_AFFINITY:
+			/* We don't do anything with RHSA (yet?) */
+			break;
 		default:
 			printk(KERN_WARNING PREFIX
-				"Unknown DMAR structure type\n");
+				"Unknown DMAR structure type %d\n",
+				entry_header->type);
 			ret = 0; /* for forward compatibility */
 			break;
 		}

@@ -20,11 +20,12 @@ CONFIG_BOOT_LINK_OFFSET	?= 0x00800000
 CONFIG_ZERO_PAGE_OFFSET	?= 0x00001000
 CONFIG_ENTRY_OFFSET	?= 0x00001000
 
+suffix-y := bin
 suffix-$(CONFIG_KERNEL_GZIP)  := gz
 suffix-$(CONFIG_KERNEL_BZIP2) := bz2
 suffix-$(CONFIG_KERNEL_LZMA)  := lzma
 
-targets := zImage vmlinux.srec romImage uImage uImage.srec uImage.gz uImage.bz2 uImage.lzma
+targets := zImage vmlinux.srec romImage uImage uImage.srec uImage.gz uImage.bz2 uImage.lzma uImage.bin
 extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma
 subdir- := compressed romimage
 
@@ -87,6 +88,9 @@ $(obj)/uImage.gz: $(obj)/vmlinux.bin.gz
 
 $(obj)/uImage.lzma: $(obj)/vmlinux.bin.lzma
 	$(call if_changed,uimage,lzma)
+
+$(obj)/uImage.bin: $(obj)/vmlinux.bin
+	$(call if_changed,uimage,none)
 
 OBJCOPYFLAGS_vmlinux.srec := -I binary -O srec
 $(obj)/vmlinux.srec: $(obj)/compressed/vmlinux

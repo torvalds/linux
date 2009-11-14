@@ -1400,6 +1400,10 @@ iso_stream_schedule (
 		goto fail;
 	}
 
+	period = urb->interval;
+	if (!stream->highspeed)
+		period <<= 3;
+
 	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 
 	/* when's the last uframe this urb could start? */
@@ -1417,14 +1421,15 @@ iso_stream_schedule (
 
 		/* Fell behind (by up to twice the slop amount)? */
 		if (start >= max - 2 * 8 * SCHEDULE_SLOP)
-			start += stream->interval * DIV_ROUND_UP(
-					max - start, stream->interval) - mod;
+			start += period * DIV_ROUND_UP(
+					max - start, period) - mod;
 
 		/* Tried to schedule too far into the future? */
 		if (unlikely((start + sched->span) >= max)) {
 			status = -EFBIG;
 			goto fail;
 		}
+		stream->next_uframe = start;
 		goto ready;
 	}
 
@@ -1439,10 +1444,6 @@ iso_stream_schedule (
 	stream->next_uframe = start;
 
 	/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
-
-	period = urb->interval;
-	if (!stream->highspeed)
-		period <<= 3;
 
 	/* find a uframe slot with enough bandwidth */
 	for (; start < (stream->next_uframe + period); start++) {

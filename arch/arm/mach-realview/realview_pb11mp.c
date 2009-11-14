@@ -299,6 +299,21 @@ static struct sys_timer realview_pb11mp_timer = {
 	.init		= realview_pb11mp_timer_init,
 };
 
+static void realview_pb11mp_reset(char mode)
+{
+	void __iomem *hdr_ctrl = __io_address(REALVIEW_SYS_BASE) +
+		REALVIEW_SYS_RESETCTL_OFFSET;
+	unsigned int val;
+
+	/*
+	 * To reset, we hit the on-board reset register
+	 * in the system FPGA
+	 */
+	val = __raw_readl(hdr_ctrl);
+	val |= REALVIEW_PB11MP_SYS_CTRL_RESET_CONFIGCLR;
+	__raw_writel(val, hdr_ctrl);
+}
+
 static void __init realview_pb11mp_init(void)
 {
 	int i;
@@ -324,6 +339,7 @@ static void __init realview_pb11mp_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
+	realview_reset = realview_pb11mp_reset;
 }
 
 MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")

@@ -454,6 +454,109 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
 
+static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
+		     u16 blue, u16 regno, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	int pindex;
+
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		u32 *palette;
+		u32 value;
+		/* place color in psuedopalette */
+		if (regno > 16)
+			return -EINVAL;
+		palette = (u32 *)info->pseudo_palette;
+		red >>= (16 - info->var.red.length);
+		green >>= (16 - info->var.green.length);
+		blue >>= (16 - info->var.blue.length);
+		value = (red << info->var.red.offset) |
+			(green << info->var.green.offset) |
+			(blue << info->var.blue.offset);
+		palette[regno] = value;
+		return 0;
+	}
+
+	pindex = regno;
+
+	if (fb->bits_per_pixel == 16) {
+		pindex = regno << 3;
+
+		if (fb->depth == 16 && regno > 63)
+			return -EINVAL;
+		if (fb->depth == 15 && regno > 31)
+			return -EINVAL;
+
+		if (fb->depth == 16) {
+			u16 r, g, b;
+			int i;
+			if (regno < 32) {
+				for (i = 0; i < 8; i++)
+					fb_helper->funcs->gamma_set(crtc, red,
+						green, blue, pindex + i);
+			}
+
+			fb_helper->funcs->gamma_get(crtc, &r,
+						    &g, &b,
+						    pindex >> 1);
+
+			for (i = 0; i < 4; i++)
+				fb_helper->funcs->gamma_set(crtc, r,
+							    green, b,
+							    (pindex >> 1) + i);
+		}
+	}
+
+	if (fb->depth != 16)
+		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
+	return 0;
+}
+
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	u16 *red, *green, *blue, *transp;
+	struct drm_crtc *crtc;
+	int i, rc = 0;
+	int start;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		for (i = 0; i < fb_helper->crtc_count; i++) {
+			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
+				break;
+		}
+		if (i == fb_helper->crtc_count)
+			continue;
+
+		red = cmap->red;
+		green = cmap->green;
+		blue = cmap->blue;
+		transp = cmap->transp;
+		start = cmap->start;
+
+		for (i = 0; i < cmap->len; i++) {
+			u16 hred, hgreen, hblue, htransp = 0xffff;
+
+			hred = *red++;
+			hgreen = *green++;
+			hblue = *blue++;
+
+			if (transp)
+				htransp = *transp++;
+
+			rc = setcolreg(crtc, hred, hgreen, hblue, start++, info);
+			if (rc)
+				return rc;
+		}
+		crtc_funcs->load_lut(crtc);
+	}
+	return rc;
+}
+EXPORT_SYMBOL(drm_fb_helper_setcmap);
+
 int drm_fb_helper_setcolreg(unsigned regno,
 			    unsigned red,
 			    unsigned green,
@@ -465,10 +568,13 @@ int drm_fb_helper_setcolreg(unsigned regno,
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	int i;
+	int ret;
+
+	if (regno > 255)
+		return 1;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_framebuffer *fb = fb_helper->fb;
-
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		for (i = 0; i < fb_helper->crtc_count; i++) {
 			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
 				break;
@@ -476,35 +582,11 @@ int drm_fb_helper_setcolreg(unsigned regno,
 		if (i == fb_helper->crtc_count)
 			continue;
 
-		if (regno > 255)
-			return 1;
+		ret = setcolreg(crtc, red, green, blue, regno, info);
+		if (ret)
+			return ret;
 
-		if (fb->depth == 8) {
-			fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
-			return 0;
-		}
-
-		if (regno < 16) {
-			switch (fb->depth) {
-			case 15:
-				fb->pseudo_palette[regno] = ((red & 0xf800) >> 1) |
-					((green & 0xf800) >>  6) |
-					((blue & 0xf800) >> 11);
-				break;
-			case 16:
-				fb->pseudo_palette[regno] = (red & 0xf800) |
-					((green & 0xfc00) >>  5) |
-					((blue  & 0xf800) >> 11);
-				break;
-			case 24:
-			case 32:
-				fb->pseudo_palette[regno] =
-					(((red >> 8) & 0xff) << info->var.red.offset) |
-					(((green >> 8) & 0xff) << info->var.green.offset) |
-					(((blue >> 8) & 0xff) << info->var.blue.offset);
-				break;
-			}
-		}
+		crtc_funcs->load_lut(crtc);
 	}
 	return 0;
 }
@@ -674,6 +756,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
+				  int preferred_bpp,
 				  int (*fb_create)(struct drm_device *dev,
 						   uint32_t fb_width,
 						   uint32_t fb_height,
@@ -696,6 +779,11 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	struct drm_fb_helper *fb_helper;
 	uint32_t surface_depth = 24, surface_bpp = 32;
 
+	/* if driver picks 8 or 16 by default use that
+	   for both depth/bpp */
+	if (preferred_bpp != surface_bpp) {
+		surface_depth = surface_bpp = preferred_bpp;
+	}
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
@@ -851,10 +939,12 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch)
+void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+			    uint32_t depth)
 {
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_TRUECOLOR;
+	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
+		FB_VISUAL_TRUECOLOR;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */

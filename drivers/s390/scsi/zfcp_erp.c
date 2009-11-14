@@ -858,10 +858,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 		if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 			return zfcp_erp_open_ptp_port(act);
 		if (!port->d_id) {
-			zfcp_port_get(port);
-			if (!queue_work(adapter->work_queue,
-					&port->gid_pn_work))
-				zfcp_port_put(port);
+			zfcp_fc_trigger_did_lookup(port);
 			return ZFCP_ERP_EXIT;
 		}
 		return zfcp_erp_port_strategy_open_port(act);
@@ -869,12 +866,11 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 	case ZFCP_ERP_STEP_PORT_OPENING:
 		/* D_ID might have changed during open */
 		if (p_status & ZFCP_STATUS_COMMON_OPEN) {
-			if (port->d_id)
-				return ZFCP_ERP_SUCCEEDED;
-			else {
-				act->step = ZFCP_ERP_STEP_PORT_CLOSING;
-				return ZFCP_ERP_CONTINUES;
+			if (!port->d_id) {
+				zfcp_fc_trigger_did_lookup(port);
+				return ZFCP_ERP_EXIT;
 			}
+			return ZFCP_ERP_SUCCEEDED;
 		}
 		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_NOESC)) {
 			port->d_id = 0;
@@ -889,19 +885,21 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 static int zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_port *port = erp_action->port;
+	int p_status = atomic_read(&port->status);
 
-	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC)
+	if ((p_status & ZFCP_STATUS_COMMON_NOESC) &&
+	    !(p_status & ZFCP_STATUS_COMMON_OPEN))
 		goto close_init_done;
 
 	switch (erp_action->step) {
 	case ZFCP_ERP_STEP_UNINITIALIZED:
 		zfcp_erp_port_strategy_clearstati(port);
-		if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)
+		if (p_status & ZFCP_STATUS_COMMON_OPEN)
 			return zfcp_erp_port_strategy_close(erp_action);
 		break;
 
 	case ZFCP_ERP_STEP_PORT_CLOSING:
-		if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)
+		if (p_status & ZFCP_STATUS_COMMON_OPEN)
 			return ZFCP_ERP_FAILED;
 		break;
 	}

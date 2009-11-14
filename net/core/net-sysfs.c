@@ -366,13 +366,13 @@ static ssize_t wireless_show(struct device *d, char *buf,
 	const struct iw_statistics *iw;
 	ssize_t ret = -EINVAL;
 
-	read_lock(&dev_base_lock);
+	rtnl_lock();
 	if (dev_isalive(dev)) {
 		iw = get_wireless_stats(dev);
 		if (iw)
 			ret = (*format)(iw, buf);
 	}
-	read_unlock(&dev_base_lock);
+	rtnl_unlock();
 
 	return ret;
 }

@@ -1,35 +1,11 @@
 /*
- * File:         arch/blackfin/mach-common/pm.c
- * Based on:     arm/mach-omap/pm.c
- * Author:       Cliff Brake <cbrake@accelent.com> Copyright (c) 2001
+ * Blackfin power management
  *
- * Created:      2001
- * Description:  Blackfin power management
+ * Copyright 2006-2009 Analog Devices Inc.
  *
- * Modified:     Nicolas Pitre - PXA250 support
- *                Copyright (c) 2002 Monta Vista Software, Inc.
- *               David Singleton - OMAP1510
- *                Copyright (c) 2002 Monta Vista Software, Inc.
- *               Dirk Behme <dirk.behme@de.bosch.com> - OMAP1510/1610
- *                Copyright 2004
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2
+ * based on arm/mach-omap/pm.c
+ *    Copyright 2001, Cliff Brake <cbrake@accelent.com> and others
  */
 
 #include <linux/suspend.h>

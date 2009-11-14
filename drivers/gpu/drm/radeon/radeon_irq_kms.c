@@ -83,8 +83,12 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
+	int num_crtc = 2;
 
-	r = drm_vblank_init(rdev->ddev, 2);
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	r = drm_vblank_init(rdev->ddev, num_crtc);
 	if (r) {
 		return r;
 	}

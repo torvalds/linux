@@ -238,7 +238,7 @@ static struct resource csb726_lan_resources[] = {
 };
 
 struct smsc911x_platform_config csb726_lan_config = {
-	.irq_type	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
 	.flags		= SMSC911X_USE_32BIT,
 	.phy_interface	= PHY_INTERFACE_MODE_MII,

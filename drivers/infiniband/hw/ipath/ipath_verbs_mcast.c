@@ -32,6 +32,7 @@
  */
 
 #include <linux/rculist.h>
+#include <linux/sched.h>
 
 #include "ipath_verbs.h"
 

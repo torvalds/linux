@@ -227,7 +227,7 @@ endchoice
 
 choice
 	prompt "HugeTLB page size"
-	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
+	depends on HUGETLB_PAGE
 	default HUGETLB_PAGE_SIZE_1MB if PAGE_SIZE_64KB
 	default HUGETLB_PAGE_SIZE_64K
 

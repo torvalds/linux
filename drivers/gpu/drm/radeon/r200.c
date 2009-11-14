@@ -447,9 +447,8 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	return 0;
 }
 
-int r200_init(struct radeon_device *rdev)
+void r200_set_safe_registers(struct radeon_device *rdev)
 {
 	rdev->config.r100.reg_safe_bm = r200_reg_safe_bm;
 	rdev->config.r100.reg_safe_bm_size = ARRAY_SIZE(r200_reg_safe_bm);
-	return 0;
 }

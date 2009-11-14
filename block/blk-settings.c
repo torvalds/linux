@@ -242,7 +242,7 @@ EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 /**
  * blk_queue_max_discard_sectors - set max sectors for a single discard
  * @q:  the request queue for the device
- * @max_discard: maximum number of sectors to discard
+ * @max_discard_sectors: maximum number of sectors to discard
  **/
 void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors)

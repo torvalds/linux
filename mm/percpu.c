@@ -153,7 +153,10 @@ static int pcpu_reserved_chunk_limit;
  *
  * During allocation, pcpu_alloc_mutex is kept locked all the time and
  * pcpu_lock is grabbed and released as necessary.  All actual memory
- * allocations are done using GFP_KERNEL with pcpu_lock released.
+ * allocations are done using GFP_KERNEL with pcpu_lock released.  In
+ * general, percpu memory can't be allocated with irq off but
+ * irqsave/restore are still used in alloc path so that it can be used
+ * from early init path - sched_init() specifically.
  *
  * Free path accesses and alters only the index data structures, so it
  * can be safely called from atomic context.  When memory needs to be
@@ -366,7 +369,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
  * RETURNS:
  * 0 if noop, 1 if successfully extended, -errno on failure.
  */
-static int pcpu_extend_area_map(struct pcpu_chunk *chunk)
+static int pcpu_extend_area_map(struct pcpu_chunk *chunk, unsigned long *flags)
 {
 	int new_alloc;
 	int *new;
@@ -376,7 +379,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk)
 	if (chunk->map_alloc >= chunk->map_used + 2)
 		return 0;
 
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, *flags);
 
 	new_alloc = PCPU_DFL_MAP_ALLOC;
 	while (new_alloc < chunk->map_used + 2)
@@ -384,7 +387,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk)
 
 	new = pcpu_mem_alloc(new_alloc * sizeof(new[0]));
 	if (!new) {
-		spin_lock_irq(&pcpu_lock);
+		spin_lock_irqsave(&pcpu_lock, *flags);
 		return -ENOMEM;
 	}
 
@@ -393,7 +396,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk)
 	 * could have happened inbetween, so map_used couldn't have
 	 * grown.
 	 */
-	spin_lock_irq(&pcpu_lock);
+	spin_lock_irqsave(&pcpu_lock, *flags);
 	BUG_ON(new_alloc < chunk->map_used + 2);
 
 	size = chunk->map_alloc * sizeof(chunk->map[0]);
@@ -1047,6 +1050,7 @@ static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 	struct pcpu_chunk *chunk;
 	const char *err;
 	int slot, off;
+	unsigned long flags;
 
 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
 		WARN(true, "illegal size (%zu) or align (%zu) for "
@@ -1055,13 +1059,13 @@ static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 	}
 
 	mutex_lock(&pcpu_alloc_mutex);
-	spin_lock_irq(&pcpu_lock);
+	spin_lock_irqsave(&pcpu_lock, flags);
 
 	/* serve reserved allocations from the reserved chunk if available */
 	if (reserved && pcpu_reserved_chunk) {
 		chunk = pcpu_reserved_chunk;
 		if (size > chunk->contig_hint ||
-		    pcpu_extend_area_map(chunk) < 0) {
+		    pcpu_extend_area_map(chunk, &flags) < 0) {
 			err = "failed to extend area map of reserved chunk";
 			goto fail_unlock;
 		}
@@ -1079,7 +1083,7 @@ restart:
 			if (size > chunk->contig_hint)
 				continue;
 
-			switch (pcpu_extend_area_map(chunk)) {
+			switch (pcpu_extend_area_map(chunk, &flags)) {
 			case 0:
 				break;
 			case 1:
@@ -1096,7 +1100,7 @@ restart:
 	}
 
 	/* hmmm... no space left, create a new chunk */
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	chunk = alloc_pcpu_chunk();
 	if (!chunk) {
@@ -1104,16 +1108,16 @@ restart:
 		goto fail_unlock_mutex;
 	}
 
-	spin_lock_irq(&pcpu_lock);
+	spin_lock_irqsave(&pcpu_lock, flags);
 	pcpu_chunk_relocate(chunk, -1);
 	goto restart;
 
 area_found:
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate, map and clear the area */
 	if (pcpu_populate_chunk(chunk, off, size)) {
-		spin_lock_irq(&pcpu_lock);
+		spin_lock_irqsave(&pcpu_lock, flags);
 		pcpu_free_area(chunk, off);
 		err = "failed to populate";
 		goto fail_unlock;
@@ -1125,7 +1129,7 @@ area_found:
 	return __addr_to_pcpu_ptr(chunk->base_addr + off);
 
 fail_unlock:
-	spin_unlock_irq(&pcpu_lock);
+	spin_unlock_irqrestore(&pcpu_lock, flags);
 fail_unlock_mutex:
 	mutex_unlock(&pcpu_alloc_mutex);
 	if (warn_limit) {
@@ -1870,13 +1874,14 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
 	max_distance = 0;
 	for (group = 0; group < ai->nr_groups; group++) {
 		ai->groups[group].base_offset = areas[group] - base;
-		max_distance = max(max_distance, ai->groups[group].base_offset);
+		max_distance = max_t(size_t, max_distance,
+				     ai->groups[group].base_offset);
 	}
 	max_distance += ai->unit_size;
 
 	/* warn if maximum distance is further than 75% of vmalloc space */
 	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
-		pr_warning("PERCPU: max_distance=0x%lx too large for vmalloc "
+		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
 			   "space 0x%lx\n",
 			   max_distance, VMALLOC_END - VMALLOC_START);
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK

@@ -478,7 +478,7 @@ static int rv515_startup(struct radeon_device *rdev)
 	}
 	/* Enable IRQ */
 	rdev->irq.sw_int = true;
-	r100_irq_set(rdev);
+	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -520,7 +520,7 @@ int rv515_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
-	r100_irq_disable(rdev);
+	rs600_irq_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
 	return 0;
@@ -553,7 +553,6 @@ int rv515_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */

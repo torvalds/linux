@@ -34,6 +34,7 @@
  *
  *
  */
+#include <linux/capability.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -721,7 +722,7 @@ static inline void update_rx_stats(struct net_device *dev, u32 status)
 		ps->rx_errors++;
 		if (status & RX_MISSED_FRAME)
 			ps->rx_missed_errors++;
-		if (status & (RX_OVERLEN | RX_OVERLEN | RX_LEN_ERROR))
+		if (status & (RX_OVERLEN | RX_RUNT | RX_LEN_ERROR))
 			ps->rx_length_errors++;
 		if (status & RX_CRC_ERROR)
 			ps->rx_crc_errors++;
@@ -794,8 +795,6 @@ static int au1000_rx(struct net_device *dev)
 					printk("rx len error\n");
 				if (status & RX_U_CNTRL_FRAME)
 					printk("rx u control frame\n");
-				if (status & RX_MISSED_FRAME)
-					printk("rx miss\n");
 			}
 		}
 		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);

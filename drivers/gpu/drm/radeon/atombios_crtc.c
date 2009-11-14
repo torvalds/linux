@@ -733,6 +733,7 @@ static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
 	.mode_set_base = atombios_crtc_set_base,
 	.prepare = atombios_crtc_prepare,
 	.commit = atombios_crtc_commit,
+	.load_lut = radeon_crtc_load_lut,
 };
 
 void radeon_atombios_init_crtc(struct drm_device *dev,

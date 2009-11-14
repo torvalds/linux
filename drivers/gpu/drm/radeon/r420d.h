@@ -212,9 +212,9 @@
 #define   S_00000D_FORCE_E2(x)                         (((x) & 0x1) << 20)
 #define   G_00000D_FORCE_E2(x)                         (((x) >> 20) & 0x1)
 #define   C_00000D_FORCE_E2                            0xFFEFFFFF
-#define   S_00000D_FORCE_SE(x)                         (((x) & 0x1) << 21)
-#define   G_00000D_FORCE_SE(x)                         (((x) >> 21) & 0x1)
-#define   C_00000D_FORCE_SE                            0xFFDFFFFF
+#define   S_00000D_FORCE_VAP(x)                        (((x) & 0x1) << 21)
+#define   G_00000D_FORCE_VAP(x)                        (((x) >> 21) & 0x1)
+#define   C_00000D_FORCE_VAP                           0xFFDFFFFF
 #define   S_00000D_FORCE_IDCT(x)                       (((x) & 0x1) << 22)
 #define   G_00000D_FORCE_IDCT(x)                       (((x) >> 22) & 0x1)
 #define   C_00000D_FORCE_IDCT                          0xFFBFFFFF
@@ -224,24 +224,24 @@
 #define   S_00000D_FORCE_RE(x)                         (((x) & 0x1) << 24)
 #define   G_00000D_FORCE_RE(x)                         (((x) >> 24) & 0x1)
 #define   C_00000D_FORCE_RE                            0xFEFFFFFF
-#define   S_00000D_FORCE_PB(x)                         (((x) & 0x1) << 25)
-#define   G_00000D_FORCE_PB(x)                         (((x) >> 25) & 0x1)
-#define   C_00000D_FORCE_PB                            0xFDFFFFFF
+#define   S_00000D_FORCE_SR(x)                         (((x) & 0x1) << 25)
+#define   G_00000D_FORCE_SR(x)                         (((x) >> 25) & 0x1)
+#define   C_00000D_FORCE_SR                            0xFDFFFFFF
 #define   S_00000D_FORCE_PX(x)                         (((x) & 0x1) << 26)
 #define   G_00000D_FORCE_PX(x)                         (((x) >> 26) & 0x1)
 #define   C_00000D_FORCE_PX                            0xFBFFFFFF
 #define   S_00000D_FORCE_TX(x)                         (((x) & 0x1) << 27)
 #define   G_00000D_FORCE_TX(x)                         (((x) >> 27) & 0x1)
 #define   C_00000D_FORCE_TX                            0xF7FFFFFF
-#define   S_00000D_FORCE_RB(x)                         (((x) & 0x1) << 28)
-#define   G_00000D_FORCE_RB(x)                         (((x) >> 28) & 0x1)
-#define   C_00000D_FORCE_RB                            0xEFFFFFFF
+#define   S_00000D_FORCE_US(x)                         (((x) & 0x1) << 28)
+#define   G_00000D_FORCE_US(x)                         (((x) >> 28) & 0x1)
+#define   C_00000D_FORCE_US                            0xEFFFFFFF
 #define   S_00000D_FORCE_TV_SCLK(x)                    (((x) & 0x1) << 29)
 #define   G_00000D_FORCE_TV_SCLK(x)                    (((x) >> 29) & 0x1)
 #define   C_00000D_FORCE_TV_SCLK                       0xDFFFFFFF
-#define   S_00000D_FORCE_SUBPIC(x)                     (((x) & 0x1) << 30)
-#define   G_00000D_FORCE_SUBPIC(x)                     (((x) >> 30) & 0x1)
-#define   C_00000D_FORCE_SUBPIC                        0xBFFFFFFF
+#define   S_00000D_FORCE_SU(x)                         (((x) & 0x1) << 30)
+#define   G_00000D_FORCE_SU(x)                         (((x) >> 30) & 0x1)
+#define   C_00000D_FORCE_SU                            0xBFFFFFFF
 #define   S_00000D_FORCE_OV0(x)                        (((x) & 0x1) << 31)
 #define   G_00000D_FORCE_OV0(x)                        (((x) >> 31) & 0x1)
 #define   C_00000D_FORCE_OV0                           0x7FFFFFFF

@@ -455,3 +455,6 @@ will need at least this:
 
 If your architecture does have hardware capabilities, you can override the
 weak stub hw_perf_event_init() to register hardware counters.
+
+Architectures that have d-cache aliassing issues, such as Sparc and ARM,
+should select PERF_USE_VMALLOC in order to avoid these for perf mmap().

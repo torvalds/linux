@@ -1020,6 +1020,7 @@ static inline int libipw_is_cck_rate(u8 rate)
 /* ieee80211.c */
 extern void free_ieee80211(struct net_device *dev, int monitor);
 extern struct net_device *alloc_ieee80211(int sizeof_priv, int monitor);
+extern void unregister_ieee80211(struct libipw_device *ieee);
 extern int libipw_change_mtu(struct net_device *dev, int new_mtu);
 
 extern void libipw_networks_age(struct libipw_device *ieee,
