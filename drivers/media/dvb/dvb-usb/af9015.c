@@ -1294,6 +1294,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
 /* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_PC160_T)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV20)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1565,7 +1566,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 5, /* max 9 */
+		.num_device_descs = 6, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
@@ -1592,6 +1593,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "KWorld PlusTV DVB-T PCI Pro Card " \
 					"(DVB-T PC160-T)",
 				.cold_ids = {&af9015_usb_table[26], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Sveon STV20 Tuner USB DVB-T HDTV",
+				.cold_ids = {&af9015_usb_table[27], NULL},
 				.warm_ids = {NULL},
 			},
 		}
