@@ -1131,8 +1131,6 @@ xfs_fs_put_super(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	struct xfs_inode	*rip = mp->m_rootip;
-	int			unmount_event_flags = 0;
 
 	xfs_syncd_stop(mp);
 
@@ -1148,20 +1146,7 @@ xfs_fs_put_super(
 		xfs_sync_attr(mp, 0);
 	}
 
-#ifdef HAVE_DMAPI
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		unmount_event_flags =
-			(mp->m_dmevmask & (1 << DM_EVENT_UNMOUNT)) ?
-				0 : DM_FLAGS_UNWANTED;
-		/*
-		 * Ignore error from dmapi here, first unmount is not allowed
-		 * to fail anyway, and second we wouldn't want to fail a
-		 * unmount because of dmapi.
-		 */
-		XFS_SEND_PREUNMOUNT(mp, rip, DM_RIGHT_NULL, rip, DM_RIGHT_NULL,
-				NULL, NULL, 0, 0, unmount_event_flags);
-	}
-#endif
+	XFS_SEND_PREUNMOUNT(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -1172,10 +1157,7 @@ xfs_fs_put_super(
 
 	XFS_bflush(mp->m_ddev_targp);
 
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		XFS_SEND_UNMOUNT(mp, rip, DM_RIGHT_NULL, 0, 0,
-				unmount_event_flags);
-	}
+	XFS_SEND_UNMOUNT(mp);
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
