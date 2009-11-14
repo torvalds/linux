@@ -587,6 +587,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			if (!netif_running(sdata->dev))
 				continue;
 
+			if ((sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) &&
+			    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
+			    (type == IEEE80211_FTYPE_DATA))
+				continue;
+
 			if (prev_dev) {
 				skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2) {
