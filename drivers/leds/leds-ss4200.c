@@ -350,7 +350,7 @@ static int __devinit ich7_lpc_probe(struct pci_dev *dev,
 	status = pci_enable_device(dev);
 	if (status) {
 		dev_err(&dev->dev, "pci_enable_device failed\n");
-		return;
+		return -EIO;
 	}
 
 	nas_gpio_pci_dev = dev;
