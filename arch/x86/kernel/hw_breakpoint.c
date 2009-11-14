@@ -43,6 +43,7 @@
 
 /* Per cpu debug control register value */
 DEFINE_PER_CPU(unsigned long, dr7);
+EXPORT_PER_CPU_SYMBOL(dr7);
 
 /* Per cpu debug address registers values */
 static DEFINE_PER_CPU(unsigned long, cpu_debugreg[HBP_NUM]);
@@ -409,6 +410,7 @@ void aout_dump_debugregs(struct user *dump)
 
 	dump->u_debugreg[7] = dr7;
 }
+EXPORT_SYMBOL_GPL(aout_dump_debugregs);
 
 /*
  * Release the user breakpoints used by ptrace
@@ -424,7 +426,6 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 	}
 }
 
-#ifdef CONFIG_KVM
 void hw_breakpoint_restore(void)
 {
 	set_debugreg(__get_cpu_var(cpu_debugreg[0]), 0);
@@ -435,7 +436,6 @@ void hw_breakpoint_restore(void)
 	set_debugreg(__get_cpu_var(dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
-#endif
 
 /*
  * Handle debug exception notifications.

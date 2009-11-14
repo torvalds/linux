@@ -96,9 +96,7 @@ static inline int hw_breakpoint_active(void)
 
 extern void aout_dump_debugregs(struct user *dump);
 
-#ifdef CONFIG_KVM
 extern void hw_breakpoint_restore(void);
-#endif
 
 #endif	/* __KERNEL__ */
 
