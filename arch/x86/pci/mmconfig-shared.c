@@ -355,8 +355,9 @@ static void __init pci_mmcfg_insert_resources(void)
 		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN,
 			 "PCI MMCONFIG %u [%02x-%02x]", cfg->pci_segment,
 			 cfg->start_bus_number, cfg->end_bus_number);
-		res->start = cfg->address + (cfg->start_bus_number << 20);
-		res->end = res->start + (num_buses << 20) - 1;
+		res->start = cfg->address +
+			PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
+		res->end = res->start + PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
 		names += PCI_MMCFG_RESOURCE_NAME_LEN;
@@ -478,15 +479,14 @@ static void __init pci_mmcfg_reject_broken(int early)
 		return;
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
-		int valid = 0;
+		int num_buses, valid = 0;
 		u64 addr, size;
 
 		cfg = &pci_mmcfg_config[i];
-		addr = cfg->start_bus_number;
-		addr <<= 20;
-		addr += cfg->address;
-		size = cfg->end_bus_number + 1 - cfg->start_bus_number;
-		size <<= 20;
+		addr = cfg->address +
+			PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
+		num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
+		size = PCI_MMCFG_BUS_OFFSET(num_buses);
 		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->pci_segment,

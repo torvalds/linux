@@ -43,7 +43,7 @@ static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned i
 	addr = get_virt(seg, bus);
 	if (!addr)
 		return NULL;
- 	return addr + ((bus << 20) | (devfn << 12));
+	return addr + (PCI_MMCFG_BUS_OFFSET(bus) | (devfn << 12));
 }
 
 static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
@@ -113,17 +113,16 @@ static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
 {
 	void __iomem *addr;
 	u64 start, size;
+	int num_buses;
 
-	start = cfg->start_bus_number;
-	start <<= 20;
-	start += cfg->address;
-	size = cfg->end_bus_number + 1 - cfg->start_bus_number;
-	size <<= 20;
+	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
+	num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
+	size = PCI_MMCFG_BUS_OFFSET(num_buses);
 	addr = ioremap_nocache(start, size);
 	if (addr) {
 		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx - %Lx\n",
 		       start, start + size - 1);
-		addr -= cfg->start_bus_number << 20;
+		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus_number);
 	}
 	return addr;
 }
@@ -162,7 +161,7 @@ void __init pci_mmcfg_arch_free(void)
 
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
 		if (pci_mmcfg_virt[i].virt) {
-			iounmap(pci_mmcfg_virt[i].virt + (pci_mmcfg_virt[i].cfg->start_bus_number << 20));
+			iounmap(pci_mmcfg_virt[i].virt + PCI_MMCFG_BUS_OFFSET(pci_mmcfg_virt[i].cfg->start_bus_number));
 			pci_mmcfg_virt[i].virt = NULL;
 			pci_mmcfg_virt[i].cfg = NULL;
 		}

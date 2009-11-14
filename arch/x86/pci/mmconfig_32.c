@@ -47,7 +47,7 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
  */
 static void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 {
-	u32 dev_base = base | (bus << 20) | (devfn << 12);
+	u32 dev_base = base | PCI_MMCFG_BUS_OFFSET(bus) | (devfn << 12);
 	int cpu = smp_processor_id();
 	if (dev_base != mmcfg_last_accessed_device ||
 	    cpu != mmcfg_last_accessed_cpu) {
