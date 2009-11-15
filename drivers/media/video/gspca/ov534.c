@@ -809,7 +809,6 @@ static const u8 sensor_start_ov965x_1_vga[][2] = {	/* same for qvga */
 	{0x1a, 0x3d},	/* vstop */
 	{0x32, 0xff},	/* href */
 	{0xc0, 0xaa},
-	{}
 };
 
 static const u8 sensor_start_ov965x_1_svga[][2] = {
@@ -832,7 +831,6 @@ static const u8 sensor_start_ov965x_1_svga[][2] = {
 	{0x1a, 0x81},	/* vstop */
 	{0x32, 0xff},	/* href */
 	{0xc0, 0xe2},
-	{}
 };
 
 static const u8 sensor_start_ov965x_1_xga[][2] = {
@@ -856,7 +854,6 @@ static const u8 sensor_start_ov965x_1_xga[][2] = {
 	{0x1a, 0x81},	/* vstop */
 	{0x32, 0xff},	/* href */
 	{0xc0, 0xe2},
-	{}
 };
 
 static const u8 sensor_start_ov965x_1_sxga[][2] = {
@@ -880,7 +877,6 @@ static const u8 sensor_start_ov965x_1_sxga[][2] = {
 	{0x1a, 0x81},	/* vstop */
 	{0x32, 0xff},	/* href */
 	{0xc0, 0xe2},
-	{}
 };
 
 static const u8 bridge_start_ov965x_qvga[][2] = {
@@ -909,7 +905,6 @@ static const u8 bridge_start_ov965x_qvga[][2] = {
 	{0x35, 0x02},
 	{0xd9, 0x10},
 	{0x94, 0x11},
-	{}
 };
 
 static const u8 bridge_start_ov965x_vga[][2] = {
@@ -937,7 +932,6 @@ static const u8 bridge_start_ov965x_vga[][2] = {
 	{0x35, 0x02},
 	{0xd9, 0x10},
 	{0x94, 0x11},
-	{}
 };
 
 static const u8 bridge_start_ov965x_svga[][2] = {
@@ -966,7 +960,6 @@ static const u8 bridge_start_ov965x_svga[][2] = {
 	{0xd9, 0x10},
 	{0xda, 0x00},
 	{0x94, 0x11},
-	{}
 };
 
 static const u8 bridge_start_ov965x_xga[][2] = {
@@ -994,7 +987,6 @@ static const u8 bridge_start_ov965x_xga[][2] = {
 	{0xd9, 0x10},
 	{0xda, 0x01},
 	{0x94, 0x11},
-	{}
 };
 
 static const u8 bridge_start_ov965x_sxga[][2] = {
@@ -1012,7 +1004,6 @@ static const u8 bridge_start_ov965x_sxga[][2] = {
 	{0x35, 0x02},
 	{0xd9, 0x10},
 	{0x94, 0x11},
-	{}
 };
 
 static const u8 sensor_start_ov965x_2_qvga[][2] = {
@@ -1031,7 +1022,6 @@ static const u8 sensor_start_ov965x_2_qvga[][2] = {
 	{0xff, 0x13},	/* read 13, write ff 00 */
 	{0x13, 0xe7},
 	{0x3a, 0x80},	/* tslb - yuyv */
-	{}
 };
 
 static const u8 sensor_start_ov965x_2_vga[][2] = {
@@ -1048,7 +1038,6 @@ static const u8 sensor_start_ov965x_2_vga[][2] = {
 	{0xa3, 0x3e},	/* bd60 */
 
 	{0x2d, 0x00},	/* advfl */
-	{}
 };
 
 static const u8 sensor_start_ov965x_2_svga[][2] = {	/* same for xga */
@@ -1064,7 +1053,6 @@ static const u8 sensor_start_ov965x_2_svga[][2] = {	/* same for xga */
 	{0xa2, 0x4e},	/* bd50 */
 	{0xa3, 0x41},	/* bd60 */
 	{0x2d, 0x00},	/* advfl */
-	{}
 };
 
 static const u8 sensor_start_ov965x_2_sxga[][2] = {
@@ -1080,13 +1068,11 @@ static const u8 sensor_start_ov965x_2_sxga[][2] = {
 	{0xa2, 0x4e},	/* bd50 */
 	{0xa3, 0x41},	/* bd60 */
 	{0x2d, 0x00},	/* advfl */
-	{}
 };
 
 static const u8 sensor_start_ov965x_2[][2] = {
 	{0xff, 0x42},	/* read 42, write ff 00 */
 	{0x42, 0xc1},	/* com17 - 50 Hz filter */
-	{}
 };
 
 
