@@ -203,6 +203,7 @@ int ath9k_cmn_rx_skb_preprocess(struct ath_common *common,
 {
 	struct ath_hw *ah = common->ah;
 
+	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
 		return -EINVAL;
 
