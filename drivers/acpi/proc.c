@@ -393,7 +393,7 @@ acpi_system_write_wakeup_device(struct file *file,
 	struct list_head *node, *next;
 	char strbuf[5];
 	char str[5] = "";
-	int len = count;
+	unsigned int len = count;
 	struct acpi_device *found_dev = NULL;
 
 	if (len > 4)

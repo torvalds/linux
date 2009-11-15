@@ -2919,7 +2919,7 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	/* A false positive here is likely, until OVT gives me
 	 * the definitive SOF/EOF format */
 	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
-		gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
 		sd->packet_nr = 0;
 	}

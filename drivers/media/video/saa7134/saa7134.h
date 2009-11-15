@@ -360,6 +360,7 @@ struct saa7134_board {
 	enum saa7134_mpeg_type  mpeg;
 	enum saa7134_mpeg_ts_type ts_type;
 	unsigned int            vid_port_opts;
+	unsigned int            ts_force_val:1;
 };
 
 #define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)

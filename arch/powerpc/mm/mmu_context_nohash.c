@@ -25,8 +25,8 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-#define DEBUG_MAP_CONSISTENCY
-#define DEBUG_CLAMP_LAST_CONTEXT   31
+//#define DEBUG_MAP_CONSISTENCY
+//#define DEBUG_CLAMP_LAST_CONTEXT   31
 //#define DEBUG_HARDER
 
 /* We don't use DEBUG because it tends to be compiled in always nowadays

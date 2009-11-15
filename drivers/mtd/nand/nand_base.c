@@ -761,6 +761,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  *
  * Not for syndrome calculating ecc controllers, which use a special oob layout
  */
@@ -777,6 +778,7 @@ static int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  *
  * We need a special oob layout and handling even when OOB isn't used.
  */
@@ -818,6 +820,7 @@ static int nand_read_page_raw_syndrome(struct mtd_info *mtd, struct nand_chip *c
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  */
 static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int page)
@@ -939,6 +942,7 @@ static int nand_read_subpage(struct mtd_info *mtd, struct nand_chip *chip, uint3
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  *
  * Not for syndrome calculating ecc controllers which need a special oob layout
  */
@@ -983,6 +987,7 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  *
  * Hardware ECC for large page chips, require OOB to be read first.
  * For this ECC mode, the write_page method is re-used from ECC_HW.
@@ -1031,6 +1036,7 @@ static int nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @page:	page number to read
  *
  * The hw generator calculates the error syndrome automatically. Therefor
  * we need a special oob layout and handling.

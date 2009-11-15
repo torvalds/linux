@@ -63,6 +63,10 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 			     : : : "memory"); \
 } while (0)
 
+/* The kernel always executes in TSO memory model these days,
+ * and furthermore most sparc64 chips implement more stringent
+ * memory ordering than required by the specifications.
+ */
 #define mb()	membar_safe("#StoreLoad")
 #define rmb()	__asm__ __volatile__("":::"memory")
 #define wmb()	__asm__ __volatile__("":::"memory")

@@ -77,7 +77,8 @@ acpi_ex_system_memory_space_handler(u32 function,
 	void *logical_addr_ptr = NULL;
 	struct acpi_mem_space_context *mem_info = region_context;
 	u32 length;
-	acpi_size window_size;
+	acpi_size map_length;
+	acpi_size page_boundary_map_length;
 #ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	u32 remainder;
 #endif
@@ -144,25 +145,39 @@ acpi_ex_system_memory_space_handler(u32 function,
 		}
 
 		/*
-		 * Don't attempt to map memory beyond the end of the region, and
-		 * constrain the maximum mapping size to something reasonable.
+		 * Attempt to map from the requested address to the end of the region.
+		 * However, we will never map more than one page, nor will we cross
+		 * a page boundary.
 		 */
-		window_size = (acpi_size)
+		map_length = (acpi_size)
 		    ((mem_info->address + mem_info->length) - address);
 
-		if (window_size > ACPI_SYSMEM_REGION_WINDOW_SIZE) {
-			window_size = ACPI_SYSMEM_REGION_WINDOW_SIZE;
+		/*
+		 * If mapping the entire remaining portion of the region will cross
+		 * a page boundary, just map up to the page boundary, do not cross.
+		 * On some systems, crossing a page boundary while mapping regions
+		 * can cause warnings if the pages have different attributes
+		 * due to resource management
+		 */
+		page_boundary_map_length =
+		    ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address;
+
+		if (!page_boundary_map_length) {
+			page_boundary_map_length = ACPI_DEFAULT_PAGE_SIZE;
+		}
+
+		if (map_length > page_boundary_map_length) {
+			map_length = page_boundary_map_length;
 		}
 
 		/* Create a new mapping starting at the address given */
 
-		mem_info->mapped_logical_address =
-			acpi_os_map_memory((acpi_physical_address) address, window_size);
+		mem_info->mapped_logical_address = acpi_os_map_memory((acpi_physical_address) address, map_length);
 		if (!mem_info->mapped_logical_address) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not map memory at %8.8X%8.8X, size %X",
 				    ACPI_FORMAT_NATIVE_UINT(address),
-				    (u32) window_size));
+				    (u32) map_length));
 			mem_info->mapped_length = 0;
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -170,7 +185,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		/* Save the physical address and mapping size */
 
 		mem_info->mapped_physical_address = address;
-		mem_info->mapped_length = window_size;
+		mem_info->mapped_length = map_length;
 	}
 
 	/*

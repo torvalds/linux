@@ -1143,7 +1143,7 @@ static void serial_console_write(struct console *co, const char *s,
 	while ((sci_in(port, SCxSR) & bits) != bits)
 		cpu_relax();
 
-	if (sci_port->disable);
+	if (sci_port->disable)
 		sci_port->disable(port);
 }
 

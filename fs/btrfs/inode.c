@@ -538,7 +538,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree;
-	int ret;
+	int ret = 0;
 
 	if (list_empty(&async_cow->extents))
 		return 0;
@@ -552,6 +552,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 
 		io_tree = &BTRFS_I(inode)->io_tree;
 
+retry:
 		/* did the compression code fall back to uncompressed IO? */
 		if (!async_extent->pages) {
 			int page_started = 0;
@@ -562,11 +563,11 @@ static noinline int submit_compressed_extents(struct inode *inode,
 				    async_extent->ram_size - 1, GFP_NOFS);
 
 			/* allocate blocks */
-			cow_file_range(inode, async_cow->locked_page,
-				       async_extent->start,
-				       async_extent->start +
-				       async_extent->ram_size - 1,
-				       &page_started, &nr_written, 0);
+			ret = cow_file_range(inode, async_cow->locked_page,
+					     async_extent->start,
+					     async_extent->start +
+					     async_extent->ram_size - 1,
+					     &page_started, &nr_written, 0);
 
 			/*
 			 * if page_started, cow_file_range inserted an
@@ -574,7 +575,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 			 * and IO for us.  Otherwise, we need to submit
 			 * all those pages down to the drive.
 			 */
-			if (!page_started)
+			if (!page_started && !ret)
 				extent_write_locked_range(io_tree,
 						  inode, async_extent->start,
 						  async_extent->start +
@@ -602,7 +603,21 @@ static noinline int submit_compressed_extents(struct inode *inode,
 					   async_extent->compressed_size,
 					   0, alloc_hint,
 					   (u64)-1, &ins, 1);
-		BUG_ON(ret);
+		if (ret) {
+			int i;
+			for (i = 0; i < async_extent->nr_pages; i++) {
+				WARN_ON(async_extent->pages[i]->mapping);
+				page_cache_release(async_extent->pages[i]);
+			}
+			kfree(async_extent->pages);
+			async_extent->nr_pages = 0;
+			async_extent->pages = NULL;
+			unlock_extent(io_tree, async_extent->start,
+				      async_extent->start +
+				      async_extent->ram_size - 1, GFP_NOFS);
+			goto retry;
+		}
+
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
@@ -743,8 +758,22 @@ static noinline int cow_file_range(struct inode *inode,
 	em = search_extent_mapping(&BTRFS_I(inode)->extent_tree,
 				   start, num_bytes);
 	if (em) {
-		alloc_hint = em->block_start;
-		free_extent_map(em);
+		/*
+		 * if block start isn't an actual block number then find the
+		 * first block in this inode and use that as a hint.  If that
+		 * block is also bogus then just don't worry about it.
+		 */
+		if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
+			free_extent_map(em);
+			em = search_extent_mapping(em_tree, 0, 0);
+			if (em && em->block_start < EXTENT_MAP_LAST_BYTE)
+				alloc_hint = em->block_start;
+			if (em)
+				free_extent_map(em);
+		} else {
+			alloc_hint = em->block_start;
+			free_extent_map(em);
+		}
 	}
 	read_unlock(&BTRFS_I(inode)->extent_tree.lock);
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
@@ -2474,7 +2503,19 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	root = BTRFS_I(dir)->root;
 
+	/*
+	 * 5 items for unlink inode
+	 * 1 for orphan
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
+	if (ret)
+		return ret;
+
 	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		btrfs_unreserve_metadata_space(root, 6);
+		return PTR_ERR(trans);
+	}
 
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -2489,6 +2530,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	nr = trans->blocks_used;
 
 	btrfs_end_transaction_throttle(trans, root);
+	btrfs_unreserve_metadata_space(root, 6);
 	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
@@ -2569,7 +2611,16 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	    inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		return -ENOTEMPTY;
 
+	ret = btrfs_reserve_metadata_space(root, 5);
+	if (ret)
+		return ret;
+
 	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		btrfs_unreserve_metadata_space(root, 5);
+		return PTR_ERR(trans);
+	}
+
 	btrfs_set_trans_block_group(trans, dir);
 
 	if (unlikely(inode->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
@@ -2592,6 +2643,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 out:
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction_throttle(trans, root);
+	btrfs_unreserve_metadata_space(root, 5);
 	btrfs_btree_balance_dirty(root, nr);
 
 	if (ret && !err)
@@ -5128,6 +5180,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->logged_trans = 0;
 	ei->outstanding_extents = 0;
 	ei->reserved_extents = 0;
+	ei->root = NULL;
 	spin_lock_init(&ei->accounting_lock);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->i_orphan);
@@ -5142,6 +5195,14 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
+
+	/*
+	 * This can happen where we create an inode, but somebody else also
+	 * created the same inode and we need to destroy the one we already
+	 * created.
+	 */
+	if (!root)
+		goto free;
 
 	/*
 	 * Make sure we're properly removed from the ordered operation
@@ -5178,6 +5239,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	}
 	inode_tree_del(inode);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+free:
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
@@ -5283,11 +5345,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return -ENOTEMPTY;
 
 	/*
-	 * 2 items for dir items
-	 * 1 item for orphan entry
-	 * 1 item for ref
+	 * We want to reserve the absolute worst case amount of items.  So if
+	 * both inodes are subvols and we need to unlink them then that would
+	 * require 4 item modifications, but if they are both normal inodes it
+	 * would require 5 item modifications, so we'll assume their normal
+	 * inodes.  So 5 * 2 is 10, plus 1 for the new link, so 11 total items
+	 * should cover the worst case number of items we'll modify.
 	 */
-	ret = btrfs_reserve_metadata_space(root, 4);
+	ret = btrfs_reserve_metadata_space(root, 11);
 	if (ret)
 		return ret;
 
@@ -5403,7 +5468,7 @@ out_fail:
 	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&root->fs_info->subvol_sem);
 
-	btrfs_unreserve_metadata_space(root, 4);
+	btrfs_unreserve_metadata_space(root, 11);
 	return ret;
 }
 

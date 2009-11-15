@@ -347,7 +347,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, tmComResCmd_t command,
 
 	/* Prepare some basic command/response structures */
 	memset(&command_t, 0, sizeof(command_t));
-	memset(&response_t, 0, sizeof(&response_t));
+	memset(&response_t, 0, sizeof(response_t));
 	pcommand_t = &command_t;
 	presponse_t = &response_t;
 	command_t.id = id;
