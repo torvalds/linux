@@ -1924,23 +1924,6 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	return rc;
 }
 
-static inline bool dev_xmit_complete(int rc)
-{
-	/* successful transmission */
-	if (rc == NETDEV_TX_OK)
-		return true;
-
-	/* error while transmitting, driver consumed skb */
-	if (rc < 0)
-		return true;
-
-	/* error while queueing to a different device, driver consumed skb */
-	if (rc & NET_XMIT_MASK)
-		return true;
-
-	return false;
-}
-
 /**
  *	dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit

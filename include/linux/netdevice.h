@@ -63,6 +63,10 @@ struct wireless_dev;
 #define HAVE_FREE_NETDEV		/* free_netdev() */
 #define HAVE_NETDEV_PRIV		/* netdev_priv() */
 
+/* Backlog congestion levels */
+#define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
+#define NET_RX_DROP		1	/* packet dropped */
+
 /*
  * Transmit return codes: transmit return codes originate from three different
  * namespaces:
@@ -82,14 +86,10 @@ struct wireless_dev;
 
 /* qdisc ->enqueue() return codes. */
 #define NET_XMIT_SUCCESS	0x00
-#define NET_XMIT_DROP		0x10	/* skb dropped			*/
-#define NET_XMIT_CN		0x20	/* congestion notification	*/
-#define NET_XMIT_POLICED	0x30	/* skb is shot by police	*/
-#define NET_XMIT_MASK		0xf0	/* qdisc flags in net/sch_generic.h */
-
-/* Backlog congestion levels */
-#define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
-#define NET_RX_DROP		1	/* packet dropped */
+#define NET_XMIT_DROP		0x01	/* skb dropped			*/
+#define NET_XMIT_CN		0x02	/* congestion notification	*/
+#define NET_XMIT_POLICED	0x03	/* skb is shot by police	*/
+#define NET_XMIT_MASK		0x0f	/* qdisc flags in net/sch_generic.h */
 
 /* NET_XMIT_CN is special. It does not guarantee that this packet is lost. It
  * indicates that the device will soon be dropping packets, or already drops
@@ -98,15 +98,33 @@ struct wireless_dev;
 #define net_xmit_errno(e)	((e) != NET_XMIT_CN ? -ENOBUFS : 0)
 
 /* Driver transmit return codes */
-#define NETDEV_TX_MASK		0xf
+#define NETDEV_TX_MASK		0xf0
 
 enum netdev_tx {
 	__NETDEV_TX_MIN	 = INT_MIN,	/* make sure enum is signed */
-	NETDEV_TX_OK	 = 0,		/* driver took care of packet */
-	NETDEV_TX_BUSY	 = 1,		/* driver tx path was busy*/
-	NETDEV_TX_LOCKED = 2,		/* driver tx lock was already taken */
+	NETDEV_TX_OK	 = 0x00,	/* driver took care of packet */
+	NETDEV_TX_BUSY	 = 0x10,	/* driver tx path was busy*/
+	NETDEV_TX_LOCKED = 0x20,	/* driver tx lock was already taken */
 };
 typedef enum netdev_tx netdev_tx_t;
+
+/*
+ * Current order: NETDEV_TX_MASK > NET_XMIT_MASK >= 0 is significant;
+ * hard_start_xmit() return < NET_XMIT_MASK means skb was consumed.
+ */
+static inline bool dev_xmit_complete(int rc)
+{
+	/*
+	 * Positive cases with an skb consumed by a driver:
+	 * - successful transmission (rc == NETDEV_TX_OK)
+	 * - error while transmitting (rc < 0)
+	 * - error while queueing to a different device (rc & NET_XMIT_MASK)
+	 */
+	if (likely(rc < NET_XMIT_MASK))
+		return true;
+
+	return false;
+}
 
 #endif
 
