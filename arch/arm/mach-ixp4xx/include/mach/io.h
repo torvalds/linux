@@ -55,10 +55,16 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
  * access registers. If something outside of PCI is ioremap'd, we
  * fallback to the default.
  */
+
+static inline int is_pci_memory(u32 addr)
+{
+	return (addr >= PCIBIOS_MIN_MEM) && (addr <= 0x4FFFFFFF);
+}
+
 static inline void __iomem * __indirect_ioremap(unsigned long addr, size_t size,
 						unsigned int mtype)
 {
-	if((addr < PCIBIOS_MIN_MEM) || (addr > 0x4fffffff))
+	if (!is_pci_memory(addr))
 		return __arm_ioremap(addr, size, mtype);
 
 	return (void __iomem *)addr;
@@ -66,7 +72,7 @@ static inline void __iomem * __indirect_ioremap(unsigned long addr, size_t size,
 
 static inline void __indirect_iounmap(void __iomem *addr)
 {
-	if ((__force u32)addr >= VMALLOC_START)
+	if (!is_pci_memory((__force u32)addr))
 		__iounmap(addr);
 }
 
@@ -94,7 +100,7 @@ static inline void __indirect_writeb(u8 value, volatile void __iomem *p)
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
-	if (addr >= VMALLOC_START) {
+	if (!is_pci_memory(addr)) {
 		__raw_writeb(value, addr);
 		return;
 	}
@@ -117,7 +123,7 @@ static inline void __indirect_writew(u16 value, volatile void __iomem *p)
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
-	if (addr >= VMALLOC_START) {
+	if (!is_pci_memory(addr)) {
 		__raw_writew(value, addr);
 		return;
 	}
@@ -138,7 +144,8 @@ static inline void __indirect_writesw(volatile void __iomem *bus_addr,
 static inline void __indirect_writel(u32 value, volatile void __iomem *p)
 {
 	u32 addr = (__force u32)p;
-	if (addr >= VMALLOC_START) {
+
+	if (!is_pci_memory(addr)) {
 		__raw_writel(value, p);
 		return;
 	}
@@ -158,7 +165,7 @@ static inline unsigned char __indirect_readb(const volatile void __iomem *p)
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
-	if (addr >= VMALLOC_START)
+	if (!is_pci_memory(addr))
 		return __raw_readb(addr);
 
 	n = addr % 4;
@@ -181,7 +188,7 @@ static inline unsigned short __indirect_readw(const volatile void __iomem *p)
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
-	if (addr >= VMALLOC_START)
+	if (!is_pci_memory(addr))
 		return __raw_readw(addr);
 
 	n = addr % 4;
@@ -204,7 +211,7 @@ static inline unsigned long __indirect_readl(const volatile void __iomem *p)
 	u32 addr = (__force u32)p;
 	u32 data;
 
-	if (addr >= VMALLOC_START)
+	if (!is_pci_memory(addr))
 		return __raw_readl(p);
 
 	if (ixp4xx_pci_read(addr, NP_CMD_MEMREAD, &data))
