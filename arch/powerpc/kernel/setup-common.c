@@ -660,6 +660,7 @@ late_initcall(check_cache_coherency);
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *powerpc_debugfs_root;
+EXPORT_SYMBOL(powerpc_debugfs_root);
 
 static int powerpc_debugfs_init(void)
 {

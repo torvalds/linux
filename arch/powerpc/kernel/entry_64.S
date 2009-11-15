@@ -551,7 +551,7 @@ restore:
 BEGIN_FW_FTR_SECTION
 	ld	r5,SOFTE(r1)
 FW_FTR_SECTION_ELSE
-	b	iseries_check_pending_irqs
+	b	.Liseries_check_pending_irqs
 ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 2:
 	TRACE_AND_RESTORE_IRQ(r5);
@@ -623,7 +623,7 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 
 #endif /* CONFIG_PPC_BOOK3E */
 
-iseries_check_pending_irqs:
+.Liseries_check_pending_irqs:
 #ifdef CONFIG_PPC_ISERIES
 	ld	r5,SOFTE(r1)
 	cmpdi	0,r5,0
