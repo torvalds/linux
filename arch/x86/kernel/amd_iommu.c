@@ -928,7 +928,7 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 	}
 
 	if (unlikely(address == -1))
-		address = bad_dma_address;
+		address = DMA_ERROR_CODE;
 
 	WARN_ON((address + (PAGE_SIZE*pages)) > dom->aperture_size);
 
@@ -1544,7 +1544,7 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 
 	pte  = dma_ops_get_pte(dom, address);
 	if (!pte)
-		return bad_dma_address;
+		return DMA_ERROR_CODE;
 
 	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
 
@@ -1625,7 +1625,7 @@ static dma_addr_t __map_single(struct device *dev,
 retry:
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
 					  dma_mask);
-	if (unlikely(address == bad_dma_address)) {
+	if (unlikely(address == DMA_ERROR_CODE)) {
 		/*
 		 * setting next_address here will let the address
 		 * allocator only scan the new allocated range in the
@@ -1646,7 +1646,7 @@ retry:
 	start = address;
 	for (i = 0; i < pages; ++i) {
 		ret = dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
-		if (ret == bad_dma_address)
+		if (ret == DMA_ERROR_CODE)
 			goto out_unmap;
 
 		paddr += PAGE_SIZE;
@@ -1674,7 +1674,7 @@ out_unmap:
 
 	dma_ops_free_addresses(dma_dom, address, pages);
 
-	return bad_dma_address;
+	return DMA_ERROR_CODE;
 }
 
 /*
@@ -1690,7 +1690,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	dma_addr_t i, start;
 	unsigned int pages;
 
-	if ((dma_addr == bad_dma_address) ||
+	if ((dma_addr == DMA_ERROR_CODE) ||
 	    (dma_addr + size > dma_dom->aperture_size))
 		return;
 
@@ -1732,7 +1732,7 @@ static dma_addr_t map_page(struct device *dev, struct page *page,
 	INC_STATS_COUNTER(cnt_map_single);
 
 	if (!check_device(dev))
-		return bad_dma_address;
+		return DMA_ERROR_CODE;
 
 	dma_mask = *dev->dma_mask;
 
@@ -1743,12 +1743,12 @@ static dma_addr_t map_page(struct device *dev, struct page *page,
 		return (dma_addr_t)paddr;
 
 	if (!dma_ops_domain(domain))
-		return bad_dma_address;
+		return DMA_ERROR_CODE;
 
 	spin_lock_irqsave(&domain->lock, flags);
 	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir, false,
 			    dma_mask);
-	if (addr == bad_dma_address)
+	if (addr == DMA_ERROR_CODE)
 		goto out;
 
 	iommu_completion_wait(iommu);
@@ -1957,7 +1957,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
-	if (*dma_addr == bad_dma_address) {
+	if (*dma_addr == DMA_ERROR_CODE) {
 		spin_unlock_irqrestore(&domain->lock, flags);
 		goto out_free;
 	}
@@ -2110,7 +2110,6 @@ int __init amd_iommu_init_dma_ops(void)
 		prealloc_protection_domains();
 
 	iommu_detected = 1;
-	bad_dma_address = 0;
 	swiotlb = 0;
 #ifdef CONFIG_GART_IOMMU
 	gart_iommu_aperture_disabled = 1;

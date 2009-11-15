@@ -43,9 +43,6 @@ int iommu_detected __read_mostly = 0;
  */
 int iommu_pass_through __read_mostly;
 
-dma_addr_t bad_dma_address __read_mostly = 0;
-EXPORT_SYMBOL(bad_dma_address);
-
 /* Dummy device used for NULL arguments (normally ISA). */
 struct device x86_dma_fallback_dev = {
 	.init_name = "fallback device",
