@@ -261,12 +261,15 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      void *vaddr, unsigned int npages, int direction)
 {
 	unsigned long entry;
-	dma_addr_t ret = DMA_ERROR_CODE;
+	dma_addr_t ret;
 
 	entry = iommu_range_alloc(dev, tbl, npages);
 
-	if (unlikely(entry == DMA_ERROR_CODE))
-		goto error;
+	if (unlikely(entry == DMA_ERROR_CODE)) {
+		printk(KERN_WARNING "Calgary: failed to allocate %u pages in "
+		       "iommu %p\n", npages, tbl);
+		return DMA_ERROR_CODE;
+	}
 
 	/* set the return dma address */
 	ret = (entry << PAGE_SHIFT) | ((unsigned long)vaddr & ~PAGE_MASK);
@@ -274,13 +277,7 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	/* put the TCEs in the HW table */
 	tce_build(tbl, entry, npages, (unsigned long)vaddr & PAGE_MASK,
 		  direction);
-
 	return ret;
-
-error:
-	printk(KERN_WARNING "Calgary: failed to allocate %u pages in "
-	       "iommu %p\n", npages, tbl);
-	return DMA_ERROR_CODE;
 }
 
 static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
