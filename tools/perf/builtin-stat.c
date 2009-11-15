@@ -357,7 +357,8 @@ static void abs_printout(int counter, double avg)
 			ratio = avg / total;
 
 		fprintf(stderr, " # %10.3f IPC  ", ratio);
-	} else if (MATCH_EVENT(HARDWARE, HW_BRANCH_MISSES, counter)) {
+	} else if (MATCH_EVENT(HARDWARE, HW_BRANCH_MISSES, counter) &&
+			runtime_branches_stats.n != 0) {
 		total = avg_stats(&runtime_branches_stats);
 
 		if (total)
@@ -365,7 +366,7 @@ static void abs_printout(int counter, double avg)
 
 		fprintf(stderr, " # %10.3f %%    ", ratio);
 
-	} else {
+	} else if (runtime_nsecs_stats.n != 0) {
 		total = avg_stats(&runtime_nsecs_stats);
 
 		if (total)
