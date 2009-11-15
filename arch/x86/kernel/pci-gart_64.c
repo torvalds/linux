@@ -47,6 +47,8 @@ static unsigned long iommu_pages;	/* .. and in pages */
 
 static u32 *iommu_gatt_base;		/* Remapping table */
 
+static dma_addr_t bad_dma_addr;
+
 /*
  * If this is disabled the IOMMU will use an optimized flushing strategy
  * of only flushing when an mapping is reused. With it true the GART is
@@ -217,7 +219,7 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 		if (panic_on_overflow)
 			panic("dma_map_area overflow %lu bytes\n", size);
 		iommu_full(dev, size, dir);
-		return bad_dma_address;
+		return bad_dma_addr;
 	}
 
 	for (i = 0; i < npages; i++) {
@@ -303,7 +305,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 
 		if (nonforced_iommu(dev, addr, s->length)) {
 			addr = dma_map_area(dev, addr, s->length, dir, 0);
-			if (addr == bad_dma_address) {
+			if (addr == bad_dma_addr) {
 				if (i > 0)
 					gart_unmap_sg(dev, sg, i, dir, NULL);
 				nents = 0;
@@ -456,7 +458,7 @@ error:
 
 	iommu_full(dev, pages << PAGE_SHIFT, dir);
 	for_each_sg(sg, s, nents, i)
-		s->dma_address = bad_dma_address;
+		s->dma_address = bad_dma_addr;
 	return 0;
 }
 
@@ -480,7 +482,7 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 				     DMA_BIDIRECTIONAL, align_mask);
 
 		flush_gart();
-		if (paddr != bad_dma_address) {
+		if (paddr != bad_dma_addr) {
 			*dma_addr = paddr;
 			return page_address(page);
 		}
@@ -498,6 +500,11 @@ gart_free_coherent(struct device *dev, size_t size, void *vaddr,
 {
 	gart_unmap_page(dev, dma_addr, size, DMA_BIDIRECTIONAL, NULL);
 	free_pages((unsigned long)vaddr, get_order(size));
+}
+
+static int gart_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return (dma_addr == bad_dma_addr);
 }
 
 static int no_agp;
@@ -687,6 +694,7 @@ static struct dma_map_ops gart_dma_ops = {
 	.unmap_page			= gart_unmap_page,
 	.alloc_coherent			= gart_alloc_coherent,
 	.free_coherent			= gart_free_coherent,
+	.mapping_error			= gart_mapping_error,
 };
 
 static void gart_iommu_shutdown(void)
@@ -785,7 +793,7 @@ int __init gart_iommu_init(void)
 
 	iommu_start = aper_size - iommu_size;
 	iommu_bus_base = info.aper_base + iommu_start;
-	bad_dma_address = iommu_bus_base;
+	bad_dma_addr = iommu_bus_base;
 	iommu_gatt_base = agp_gatt_table + (iommu_start>>PAGE_SHIFT);
 
 	/*
