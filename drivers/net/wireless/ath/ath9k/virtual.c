@@ -338,13 +338,11 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
 void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath_wiphy *aphy = hw->priv;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 
-	if (tx_info_priv && tx_info_priv->frame_type == ATH9K_INT_PAUSE &&
+	if ((tx_info->pad[0] & ATH_TX_INFO_FRAME_TYPE_PAUSE) &&
 	    aphy->state == ATH_WIPHY_PAUSING) {
-		if (!(info->flags & IEEE80211_TX_STAT_ACK)) {
+		if (!(tx_info->flags & IEEE80211_TX_STAT_ACK)) {
 			printk(KERN_DEBUG "ath9k: %s: no ACK for pause "
 			       "frame\n", wiphy_name(hw->wiphy));
 			/*
@@ -362,9 +360,6 @@ void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				   &aphy->sc->chan_work);
 		}
 	}
-
-	kfree(tx_info_priv);
-	tx_info->rate_driver_data[0] = NULL;
 
 	dev_kfree_skb(skb);
 }

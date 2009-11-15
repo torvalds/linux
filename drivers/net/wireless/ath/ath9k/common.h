@@ -81,6 +81,7 @@ struct ath_buf {
 	u16 bf_flags;
 	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
+	struct ath_wiphy *aphy;
 };
 
 struct ath_atx_tid {
