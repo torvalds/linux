@@ -61,6 +61,8 @@ void nilfs_commit_gcdat_inode(struct the_nilfs *nilfs)
 
 	nilfs_bmap_commit_gcdat(gii->i_bmap, dii->i_bmap);
 
+	nilfs_palloc_clear_cache(dat);
+	nilfs_palloc_clear_cache(gcdat);
 	nilfs_clear_dirty_pages(mapping);
 	nilfs_copy_back_pages(mapping, gmapping);
 	/* note: mdt dirty flags should be cleared by segctor. */
@@ -79,6 +81,7 @@ void nilfs_clear_gcdat_inode(struct the_nilfs *nilfs)
 	gcdat->i_state = I_CLEAR;
 	gii->i_flags = 0;
 
+	nilfs_palloc_clear_cache(gcdat);
 	truncate_inode_pages(gcdat->i_mapping, 0);
 	truncate_inode_pages(&gii->i_btnode_cache, 0);
 }
