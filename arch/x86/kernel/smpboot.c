@@ -687,7 +687,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 
-	INIT_WORK(&c_idle.work, do_fork_idle);
+	INIT_WORK_ON_STACK(&c_idle.work, do_fork_idle);
 
 	alternatives_smp_switch(1);
 
@@ -713,6 +713,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	if (IS_ERR(c_idle.idle)) {
 		printk("failed fork for CPU %d\n", cpu);
+		destroy_work_on_stack(&c_idle.work);
 		return PTR_ERR(c_idle.idle);
 	}
 
@@ -831,6 +832,7 @@ do_rest:
 		smpboot_restore_warm_reset_vector();
 	}
 
+	destroy_work_on_stack(&c_idle.work);
 	return boot_error;
 }
 
