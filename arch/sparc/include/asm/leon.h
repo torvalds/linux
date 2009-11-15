@@ -148,7 +148,7 @@ static inline unsigned long leon_load_reg(unsigned long paddr)
 	return retval;
 }
 
-extern inline void leon_srmmu_disabletlb(void)
+static inline void leon_srmmu_disabletlb(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%%g0] %2, %0\n\t" : "=r"(retval) : "r"(0),
@@ -158,7 +158,7 @@ extern inline void leon_srmmu_disabletlb(void)
 			     "i"(ASI_LEON_MMUREGS) : "memory");
 }
 
-extern inline void leon_srmmu_enabletlb(void)
+static inline void leon_srmmu_enabletlb(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%%g0] %2, %0\n\t" : "=r"(retval) : "r"(0),
@@ -190,7 +190,7 @@ extern void leon_init_IRQ(void);
 
 extern unsigned long last_valid_pfn;
 
-extern inline unsigned long sparc_leon3_get_dcachecfg(void)
+static inline unsigned long sparc_leon3_get_dcachecfg(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
@@ -201,7 +201,7 @@ extern inline unsigned long sparc_leon3_get_dcachecfg(void)
 }
 
 /* enable snooping */
-extern inline void sparc_leon3_enable_snooping(void)
+static inline void sparc_leon3_enable_snooping(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x800000, %%l2\n\t"
@@ -209,7 +209,14 @@ extern inline void sparc_leon3_enable_snooping(void)
 			  "sta %%l2, [%%g0] 2\n\t" : : : "l1", "l2");
 };
 
-extern inline void sparc_leon3_disable_cache(void)
+static inline int sparc_leon3_snooping_enabled(void)
+{
+	u32 cctrl;
+	__asm__ __volatile__("lda [%%g0] 2, %0\n\t" : "=r"(cctrl));
+        return (cctrl >> 23) & 1;
+};
+
+static inline void sparc_leon3_disable_cache(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x00000f, %%l2\n\t"
