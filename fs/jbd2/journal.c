@@ -1253,6 +1253,13 @@ int jbd2_journal_load(journal_t *journal)
 	if (jbd2_journal_recover(journal))
 		goto recovery_error;
 
+	if (journal->j_failed_commit) {
+		printk(KERN_ERR "JBD2: journal transaction %u on %s "
+		       "is corrupt.\n", journal->j_failed_commit,
+		       journal->j_devname);
+		return -EIO;
+	}
+
 	/* OK, we've finished with the dynamic journal bits:
 	 * reinitialise the dynamic contents of the superblock in memory
 	 * and reset them on disk. */
