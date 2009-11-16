@@ -19,9 +19,26 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#define DSMG600_PCI_MAX_DEV	4
+#define DSMG600_PCI_IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define DSMG600_PCI_INTA_PIN	11
+#define DSMG600_PCI_INTB_PIN	10
+#define DSMG600_PCI_INTC_PIN	9
+#define DSMG600_PCI_INTD_PIN	8
+#define DSMG600_PCI_INTE_PIN	7
+#define DSMG600_PCI_INTF_PIN	6
+
+#define IRQ_DSMG600_PCI_INTA	IRQ_IXP4XX_GPIO11
+#define IRQ_DSMG600_PCI_INTB	IRQ_IXP4XX_GPIO10
+#define IRQ_DSMG600_PCI_INTC	IRQ_IXP4XX_GPIO9
+#define IRQ_DSMG600_PCI_INTD	IRQ_IXP4XX_GPIO8
+#define IRQ_DSMG600_PCI_INTE	IRQ_IXP4XX_GPIO7
+#define IRQ_DSMG600_PCI_INTF	IRQ_IXP4XX_GPIO6
 
 void __init dsmg600_pci_preinit(void)
 {

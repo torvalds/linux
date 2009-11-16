@@ -79,16 +79,6 @@
 #define	IRQ_PRPMC1100_PCI_INTD	IRQ_IXP4XX_GPIO8
 
 /*
- * D-Link DSM-G600 RevA board IRQs
- */
-#define        IRQ_DSMG600_PCI_INTA    IRQ_IXP4XX_GPIO11
-#define        IRQ_DSMG600_PCI_INTB    IRQ_IXP4XX_GPIO10
-#define        IRQ_DSMG600_PCI_INTC    IRQ_IXP4XX_GPIO9
-#define        IRQ_DSMG600_PCI_INTD    IRQ_IXP4XX_GPIO8
-#define        IRQ_DSMG600_PCI_INTE    IRQ_IXP4XX_GPIO7
-#define        IRQ_DSMG600_PCI_INTF    IRQ_IXP4XX_GPIO6
-
-/*
  * Freecom FSG-3 Board IRQs
  */
 #define        IRQ_FSG_PCI_INTA        IRQ_IXP4XX_GPIO6
