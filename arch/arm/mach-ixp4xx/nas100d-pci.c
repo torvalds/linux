@@ -18,9 +18,24 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#define NAS100D_PCI_MAX_DEV	3
+#define NAS100D_PCI_IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define NAS100D_PCI_INTA_PIN	11
+#define NAS100D_PCI_INTB_PIN	10
+#define NAS100D_PCI_INTC_PIN	9
+#define NAS100D_PCI_INTD_PIN	8
+#define NAS100D_PCI_INTE_PIN	7
+
+#define IRQ_NAS100D_PCI_INTA    IRQ_IXP4XX_GPIO11
+#define IRQ_NAS100D_PCI_INTB    IRQ_IXP4XX_GPIO10
+#define IRQ_NAS100D_PCI_INTC    IRQ_IXP4XX_GPIO9
+#define IRQ_NAS100D_PCI_INTD    IRQ_IXP4XX_GPIO8
+#define IRQ_NAS100D_PCI_INTE    IRQ_IXP4XX_GPIO7
 
 void __init nas100d_pci_preinit(void)
 {

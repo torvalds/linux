@@ -29,11 +29,25 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/gpio.h>
+
+#define NAS100D_SDA_PIN		5
+#define NAS100D_SCL_PIN		6
+
+/* Buttons */
+#define NAS100D_PB_GPIO         14   /* power button */
+#define NAS100D_RB_GPIO         4    /* reset button */
+
+/* Power control */
+#define NAS100D_PO_GPIO         12   /* power off */
+
+/* LEDs */
+#define NAS100D_LED_WLAN_GPIO	0
+#define NAS100D_LED_DISK_GPIO	3
+#define NAS100D_LED_PWR_GPIO	15
 
 static struct flash_platform_data nas100d_flash_data = {
 	.map_name		= "cfi_probe",
