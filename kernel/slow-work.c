@@ -74,7 +74,7 @@ ctl_table slow_work_sysctls[] = {
 		.data		= &vslow_work_proportion,
 		.maxlen		= sizeof(unsigned),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *) &slow_work_min_vslow,
 		.extra2		= (void *) &slow_work_max_vslow,
 	},

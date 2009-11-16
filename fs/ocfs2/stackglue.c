@@ -624,7 +624,7 @@ static ctl_table ocfs2_nm_table[] = {
 		.data		= ocfs2_hb_ctl_path,
 		.maxlen		= OCFS2_MAX_HB_CTL_PATH,
 		.mode		= 0644,
-		.proc_handler	= &proc_dostring,
+		.proc_handler	= proc_dostring,
 	},
 	{ }
 };

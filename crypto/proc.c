@@ -29,7 +29,7 @@ static struct ctl_table crypto_sysctl_table[] = {
 		.data           = &fips_enabled,
 		.maxlen         = sizeof(int),
 		.mode           = 0444,
-		.proc_handler   = &proc_dointvec
+		.proc_handler   = proc_dointvec
 	},
 	{}
 };

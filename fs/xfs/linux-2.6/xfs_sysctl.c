@@ -59,7 +59,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.sgid_inherit.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.sgid_inherit.min,
 		.extra2		= &xfs_params.sgid_inherit.max
 	},
@@ -68,7 +68,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.symlink_mode.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.symlink_mode.min,
 		.extra2		= &xfs_params.symlink_mode.max
 	},
@@ -77,7 +77,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.panic_mask.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.panic_mask.min,
 		.extra2		= &xfs_params.panic_mask.max
 	},
@@ -87,7 +87,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.error_level.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.error_level.min,
 		.extra2		= &xfs_params.error_level.max
 	},
@@ -96,7 +96,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.syncd_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.syncd_timer.min,
 		.extra2		= &xfs_params.syncd_timer.max
 	},
@@ -105,7 +105,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_sync.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.inherit_sync.min,
 		.extra2		= &xfs_params.inherit_sync.max
 	},
@@ -114,7 +114,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nodump.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.inherit_nodump.min,
 		.extra2		= &xfs_params.inherit_nodump.max
 	},
@@ -123,7 +123,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_noatim.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.inherit_noatim.min,
 		.extra2		= &xfs_params.inherit_noatim.max
 	},
@@ -132,7 +132,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.xfs_buf_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.xfs_buf_timer.min,
 		.extra2		= &xfs_params.xfs_buf_timer.max
 	},
@@ -141,7 +141,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.xfs_buf_age.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.xfs_buf_age.min,
 		.extra2		= &xfs_params.xfs_buf_age.max
 	},
@@ -150,7 +150,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nosym.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.inherit_nosym.min,
 		.extra2		= &xfs_params.inherit_nosym.max
 	},
@@ -159,7 +159,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.rotorstep.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.rotorstep.min,
 		.extra2		= &xfs_params.rotorstep.max
 	},
@@ -168,7 +168,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nodfrg.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.inherit_nodfrg.min,
 		.extra2		= &xfs_params.inherit_nodfrg.max
 	},
@@ -177,7 +177,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.fstrm_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xfs_params.fstrm_timer.min,
 		.extra2		= &xfs_params.fstrm_timer.max,
 	},
@@ -188,7 +188,7 @@ static ctl_table xfs_table[] = {
 		.data		= &xfs_params.stats_clear.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &xfs_stats_clear_proc_handler,
+		.proc_handler	= xfs_stats_clear_proc_handler,
 		.extra1		= &xfs_params.stats_clear.min,
 		.extra2		= &xfs_params.stats_clear.max
 	},

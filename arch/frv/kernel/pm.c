@@ -303,28 +303,28 @@ static struct ctl_table pm_table[] =
 		.data		= NULL,
 		.maxlen		= 0,
 		.mode		= 0200,
-		.proc_handler	= &sysctl_pm_do_suspend,
+		.proc_handler	= sysctl_pm_do_suspend,
 	},
 	{
 		.procname	= "cmode",
 		.data		= &clock_cmode_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &cmode_procctl,
+		.proc_handler	= cmode_procctl,
 	},
 	{
 		.procname	= "p0",
 		.data		= &clock_p0_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &p0_procctl,
+		.proc_handler	= p0_procctl,
 	},
 	{
 		.procname	= "cm",
 		.data		= &clock_cm_current,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &cm_procctl,
+		.proc_handler	= cm_procctl,
 	},
 	{ }
 };

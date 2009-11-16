@@ -17,7 +17,7 @@ static ctl_table scsi_table[] = {
 	  .data		= &scsi_logging_level,
 	  .maxlen	= sizeof(scsi_logging_level),
 	  .mode		= 0644,
-	  .proc_handler	= &proc_dointvec },
+	  .proc_handler	= proc_dointvec },
 	{ }
 };
 

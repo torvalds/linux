@@ -182,28 +182,28 @@ static ctl_table lasat_table[] = {
 		.data		= &lasat_board_info.li_cpu_hz,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "bus-hz",
 		.data		= &lasat_board_info.li_bus_hz,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "bmid",
 		.data		= &lasat_board_info.li_bmid,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "prid",
 		.data		= &lasat_board_info.li_prid,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_prid,
+		.proc_handler	= proc_lasat_prid,
 .	},
 #ifdef CONFIG_INET
 	{
@@ -211,14 +211,14 @@ static ctl_table lasat_table[] = {
 		.data		= &lasat_board_info.li_eeprom_info.ipaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_ip,
+		.proc_handler	= proc_lasat_ip,
 	},
 	{
 		.procname	= "netmask",
 		.data		= &lasat_board_info.li_eeprom_info.netmask,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_ip,
+		.proc_handler	= proc_lasat_ip,
 	},
 #endif
 	{
@@ -227,14 +227,14 @@ static ctl_table lasat_table[] = {
 		.maxlen		=
 			sizeof(lasat_board_info.li_eeprom_info.passwd_hash),
 		.mode		= 0600,
-		.proc_handler	= &proc_dolasatstring,
+		.proc_handler	= proc_dolasatstring,
 	},
 	{
 		.procname	= "boot-service",
 		.data		= &lasat_boot_to_service,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 #ifdef CONFIG_DS1603
 	{
@@ -242,7 +242,7 @@ static ctl_table lasat_table[] = {
 		.data		= &rtctmp,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dolasatrtc,
+		.proc_handler	= proc_dolasatrtc,
 	},
 #endif
 	{
@@ -250,14 +250,14 @@ static ctl_table lasat_table[] = {
 		.data		= &lasat_board_info.li_namestr,
 		.maxlen		= sizeof(lasat_board_info.li_namestr),
 		.mode		= 0444,
-		.proc_handler	= &proc_dostring,
+		.proc_handler	= proc_dostring,
 	},
 	{
 		.procname	= "typestr",
 		.data		= &lasat_board_info.li_typestr,
 		.maxlen		= sizeof(lasat_board_info.li_typestr),
 		.mode		= 0444,
-		.proc_handler	= &proc_dostring,
+		.proc_handler	= proc_dostring,
 	},
 	{}
 };

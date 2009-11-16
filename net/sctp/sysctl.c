@@ -237,7 +237,7 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_scope_policy,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &addr_scope_max,
 	},

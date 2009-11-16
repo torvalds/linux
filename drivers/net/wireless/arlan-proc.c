@@ -819,15 +819,15 @@ static int arlan_sysctl_reset(ctl_table * ctl, int write,
 #define CTBLN(card,nam) \
         { .procname = #nam,\
           .data = &(arlan_conf[card].nam),\
-          .maxlen = sizeof(int), .mode = 0600, .proc_handler = &proc_dointvec}
+          .maxlen = sizeof(int), .mode = 0600, .proc_handler = proc_dointvec}
 #ifdef ARLAN_DEBUGGING
 
 #define ARLAN_PROC_DEBUG_ENTRIES \
         { .procname = "entry_exit_debug",\
           .data = &arlan_entry_and_exit_debug,\
-          .maxlen = sizeof(int), .mode = 0600, .proc_handler = &proc_dointvec},\
+          .maxlen = sizeof(int), .mode = 0600, .proc_handler = proc_dointvec},\
 	{ .procname = "debug", .data = &arlan_debug,\
-          .maxlen = sizeof(int), .mode = 0600, .proc_handler = &proc_dointvec},
+          .maxlen = sizeof(int), .mode = 0600, .proc_handler = proc_dointvec},
 #else 
 #define ARLAN_PROC_DEBUG_ENTRIES
 #endif
@@ -864,7 +864,7 @@ static int arlan_sysctl_reset(ctl_table * ctl, int write,
 	CTBLN(cardNo, channelSet), \
 	{ .procname = "name",\
 	 .data = arlan_conf[cardNo].siteName,\
-	 .maxlen = 16, .mode = 0600, .proc_handler = &proc_dostring},\
+	 .maxlen = 16, .mode = 0600, .proc_handler = proc_dostring},\
 	CTBLN(cardNo,waitTime),\
 	CTBLN(cardNo,lParameter),\
 	CTBLN(cardNo,_15),\
@@ -906,35 +906,35 @@ static ctl_table arlan_conf_table0[] =
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_infotxRing,
+		.proc_handler	= arlan_sysctl_infotxRing,
 	},
 	{
 		.procname	= "arlan0-rxRing",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_inforxRing,
+		.proc_handler	= arlan_sysctl_inforxRing,
 	},
 	{
 		.procname	= "arlan0-18",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info18,
+		.proc_handler	= arlan_sysctl_info18,
 	},
 	{
 		.procname	= "arlan0-ring",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info161719,
+		.proc_handler	= arlan_sysctl_info161719,
 	},
 	{
 		.procname	= "arlan0-shm-cpy",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info,
+		.proc_handler	= arlan_sysctl_info,
 	},
 #endif
 	{
@@ -942,14 +942,14 @@ static ctl_table arlan_conf_table0[] =
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_configure
+		.proc_handler	= arlan_configure
 	},
 	{
 		.procname	= "reset0",
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_reset,
+		.proc_handler	= arlan_sysctl_reset,
 	},
 	{  }
 };
@@ -965,35 +965,35 @@ static ctl_table arlan_conf_table1[] =
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_infotxRing,
+		.proc_handler	= arlan_sysctl_infotxRing,
 	},
 	{
 		.procname	= "arlan1-rxRing",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_inforxRing,
+		.proc_handler	= arlan_sysctl_inforxRing,
 	},
 	{
 		.procname	= "arlan1-18",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info18,
+		.proc_handler	= arlan_sysctl_info18,
 	},
 	{
 		.procname	= "arlan1-ring",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info161719,
+		.proc_handler	= arlan_sysctl_info161719,
 	},
 	{
 		.procname	= "arlan1-shm-cpy",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info,
+		.proc_handler	= arlan_sysctl_info,
 	},
 #endif
 	{
@@ -1001,14 +1001,14 @@ static ctl_table arlan_conf_table1[] =
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_configure,
+		.proc_handler	= arlan_configure,
 	},
 	{
 		.procname	= "reset1",
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_reset,
+		.proc_handler	= arlan_sysctl_reset,
 	},
 	{ }
 };
@@ -1024,35 +1024,35 @@ static ctl_table arlan_conf_table2[] =
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_infotxRing,
+		.proc_handler	= arlan_sysctl_infotxRing,
 	},
 	{
 		.procname	= "arlan2-rxRing",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_inforxRing,
+		.proc_handler	= arlan_sysctl_inforxRing,
 	},
 	{
 		.procname	= "arlan2-18",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info18,
+		.proc_handler	= arlan_sysctl_info18,
 	},
 	{
 		.procname	= "arlan2-ring",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info161719,
+		.proc_handler	= arlan_sysctl_info161719,
 	},
 	{
 		.procname	= "arlan2-shm-cpy",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info,
+		.proc_handler	= arlan_sysctl_info,
 	},
 #endif
 	{
@@ -1060,14 +1060,14 @@ static ctl_table arlan_conf_table2[] =
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_configure,
+		.proc_handler	= arlan_configure,
 	},
 	{
 		.procname	= "reset2",
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_reset,
+		.proc_handler	= arlan_sysctl_reset,
 	},
 	{ }
 };
@@ -1083,35 +1083,35 @@ static ctl_table arlan_conf_table3[] =
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_infotxRing,
+		.proc_handler	= arlan_sysctl_infotxRing,
 	},
 	{
 		.procname	= "arlan3-rxRing",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_inforxRing,
+		.proc_handler	= arlan_sysctl_inforxRing,
 	},
 	{
 		.procname	= "arlan3-18",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info18,
+		.proc_handler	= arlan_sysctl_info18,
 	},
 	{
 		.procname	= "arlan3-ring",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info161719,
+		.proc_handler	= arlan_sysctl_info161719,
 	},
 	{
 		.procname	= "arlan3-shm-cpy",
 		.data		= &arlan_drive_info,
 		.maxlen		= ARLAN_STR_SIZE,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_info,
+		.proc_handler	= arlan_sysctl_info,
 	},
 #endif
 	{
@@ -1119,14 +1119,14 @@ static ctl_table arlan_conf_table3[] =
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_configure,
+		.proc_handler	= arlan_configure,
 	},
 	{
 		.procname	= "reset3",
 		.data		= &conf_reset_result,
 		.maxlen		= 100,
 		.mode		= 0400,
-		.proc_handler	= &arlan_sysctl_reset,
+		.proc_handler	= arlan_sysctl_reset,
 	},
 	{ }
 };

@@ -58,7 +58,7 @@ static struct ctl_table bcmring_sysctl_warm_reboot[] = {
 	 .data = &bcmring_arch_warm_reboot,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec},
+	 .proc_handler = proc_dointvec},
 	{}
 };
 
