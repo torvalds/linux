@@ -433,24 +433,16 @@ ks8695_rx_irq(int irq, void *dev_id)
 {
 	struct net_device *ndev = (struct net_device *)dev_id;
 	struct ks8695_priv *ksp = netdev_priv(ndev);
-	unsigned long status;
-
-	unsigned long mask_bit = 1 << ks8695_get_rx_enable_bit(ksp);
 
 	spin_lock(&ksp->rx_lock);
 
-	status = readl(KS8695_IRQ_VA + KS8695_INTST);
-
-	/*clean rx status bit*/
-	writel(status | mask_bit , KS8695_IRQ_VA + KS8695_INTST);
-
-	if (status & mask_bit) {
-		if (napi_schedule_prep(&ksp->napi)) {
-			/*disable rx interrupt*/
-			status &= ~mask_bit;
-			writel(status , KS8695_IRQ_VA + KS8695_INTEN);
-			__napi_schedule(&ksp->napi);
-		}
+	if (napi_schedule_prep(&ksp->napi)) {
+		unsigned long status = readl(KS8695_IRQ_VA + KS8695_INTEN);
+		unsigned long mask_bit = 1 << ks8695_get_rx_enable_bit(ksp);
+		/*disable rx interrupt*/
+		status &= ~mask_bit;
+		writel(status , KS8695_IRQ_VA + KS8695_INTEN);
+		__napi_schedule(&ksp->napi);
 	}
 
 	spin_unlock(&ksp->rx_lock);
