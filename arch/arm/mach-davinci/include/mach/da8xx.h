@@ -21,7 +21,8 @@
 #include <mach/mmc.h>
 #include <mach/usb.h>
 
-extern void __iomem *da8xx_syscfg_base;
+extern void __iomem *da8xx_syscfg0_base;
+extern void __iomem *da8xx_syscfg1_base;
 
 /*
  * The cp_intc interrupt controller for the da8xx isn't in the same
@@ -34,12 +35,15 @@ extern void __iomem *da8xx_syscfg_base;
 #define DA8XX_CP_INTC_SIZE	SZ_8K
 #define DA8XX_CP_INTC_VIRT	(IO_VIRT - DA8XX_CP_INTC_SIZE - SZ_4K)
 
-#define DA8XX_SYSCFG_BASE	(IO_PHYS + 0x14000)
-#define DA8XX_SYSCFG_VIRT(x)	(da8xx_syscfg_base + (x))
+#define DA8XX_SYSCFG0_BASE	(IO_PHYS + 0x14000)
+#define DA8XX_SYSCFG0_VIRT(x)	(da8xx_syscfg0_base + (x))
 #define DA8XX_JTAG_ID_REG	0x18
 #define DA8XX_CFGCHIP0_REG	0x17c
 #define DA8XX_CFGCHIP2_REG	0x184
 #define DA8XX_CFGCHIP3_REG	0x188
+
+#define DA8XX_SYSCFG1_BASE	(IO_PHYS + 0x22C000)
+#define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000

@@ -838,12 +838,12 @@ static void da850_set_async3_src(int pllnum)
 		}
        }
 
-	v = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG));
+	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
 	if (pllnum)
 		v |= CFGCHIP3_ASYNC3_CLKSRC;
 	else
 		v &= ~CFGCHIP3_ASYNC3_CLKSRC;
-	__raw_writel(v, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG));
+	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -996,9 +996,9 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	postdiv = opp->postdiv;
 
 	/* Unlock writing to PLL registers */
-	v = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP0_REG));
+	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG));
 	v &= ~CFGCHIP0_PLL_MASTER_LOCK;
-	__raw_writel(v, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP0_REG));
+	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG));
 
 	ret = davinci_set_pllrate(pll, prediv, mult, postdiv);
 	if (WARN_ON(ret))
@@ -1053,13 +1053,17 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 
 void __init da850_init(void)
 {
-	da8xx_syscfg_base = ioremap(DA8XX_SYSCFG_BASE, SZ_4K);
-	if (WARN(!da8xx_syscfg_base, "Unable to map syscfg module"))
+	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
+	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
+		return;
+
+	da8xx_syscfg1_base = ioremap(DA8XX_SYSCFG1_BASE, SZ_4K);
+	if (WARN(!da8xx_syscfg1_base, "Unable to map syscfg1 module"))
 		return;
 
 	davinci_soc_info_da850.jtag_id_base =
-					DA8XX_SYSCFG_VIRT(DA8XX_JTAG_ID_REG);
-	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG_VIRT(0x120);
+					DA8XX_SYSCFG0_VIRT(DA8XX_JTAG_ID_REG);
+	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG0_VIRT(0x120);
 
 	davinci_common_init(&davinci_soc_info_da850);
 
