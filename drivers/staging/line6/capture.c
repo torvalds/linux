@@ -219,8 +219,8 @@ static void audio_in_callback(struct urb *urb)
 				       fbuf, fsize * bytes_per_frame);
 			}
 
-			if ((line6pcm->pos_in_done +=
-			     frames) >= runtime->buffer_size)
+			line6pcm->pos_in_done += frames;
+			if (line6pcm->pos_in_done >= runtime->buffer_size)
 				line6pcm->pos_in_done -= runtime->buffer_size;
 		}
 	}
@@ -235,7 +235,8 @@ static void audio_in_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_in_urb(substream);
 
-		if ((line6pcm->bytes_in += length) >= line6pcm->period_in) {
+		line6pcm->bytes_in += length;
+		if (line6pcm->bytes_in >= line6pcm->period_in) {
 			line6pcm->bytes_in -= line6pcm->period_in;
 			snd_pcm_period_elapsed(substream);
 		}
