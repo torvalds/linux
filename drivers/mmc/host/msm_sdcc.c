@@ -1242,6 +1242,8 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (host->timer.function)
 		pr_info("%s: Polling status mode enabled\n", mmc_hostname(mmc));
 
+	if (host->use_bustimer)
+		mod_timer(&host->busclk_timer, jiffies + HZ);
 	return 0;
  cmd_irq_free:
 	free_irq(cmd_irqres->start, host);
