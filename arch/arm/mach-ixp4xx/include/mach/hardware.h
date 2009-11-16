@@ -43,7 +43,4 @@
 /* Platform helper functions and definitions */
 #include "platform.h"
 
-/* Platform specific details */
-#include "prpmc1100.h"
-
 #endif  /* _ASM_ARCH_HARDWARE_H */
