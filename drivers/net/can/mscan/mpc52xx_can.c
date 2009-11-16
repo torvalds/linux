@@ -34,7 +34,6 @@
 
 #include "mscan.h"
 
-
 #define DRV_NAME "mpc5xxx_can"
 
 static struct of_device_id mpc52xx_cdm_ids[] __devinitdata = {
@@ -71,15 +70,10 @@ static unsigned int  __devinit mpc52xx_can_xtal_freq(struct of_device *of)
 
 	if (in_8(&cdm->ipb_clk_sel) & 0x1)
 		freq *= 2;
-	val  = in_be32(&cdm->rstcfg);
-	if (val & (1 << 5))
-		freq *= 8;
-	else
-		freq *= 4;
-	if (val & (1 << 6))
-		freq /= 12;
-	else
-		freq /= 16;
+	val = in_be32(&cdm->rstcfg);
+
+	freq *= (val & (1 << 5)) ? 8 : 4;
+	freq /= (val & (1 << 6)) ? 12 : 16;
 
 	iounmap(cdm);
 
@@ -222,7 +216,7 @@ static int mpc5xxx_can_resume(struct of_device *ofdev)
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 
 	regs->canctl0 |= MSCAN_INITRQ;
-	while ((regs->canctl1 & MSCAN_INITAK) == 0)
+	while (!(regs->canctl1 & MSCAN_INITAK))
 		udelay(10);
 
 	regs->canctl1 = saved_regs.canctl1;

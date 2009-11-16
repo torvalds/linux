@@ -69,7 +69,6 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 	u8 canctl1;
 
 	if (mode != MSCAN_NORMAL_MODE) {
-
 		if (priv->tx_active) {
 			/* Abort transfers before going to sleep */#
 			out_8(&regs->cantarq, priv->tx_active);
@@ -78,7 +77,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 		}
 
 		canctl1 = in_8(&regs->canctl1);
-		if ((mode & MSCAN_SLPRQ) && (canctl1 & MSCAN_SLPAK) == 0) {
+		if ((mode & MSCAN_SLPRQ) && !(canctl1 & MSCAN_SLPAK)) {
 			out_8(&regs->canctl0,
 			      in_8(&regs->canctl0) | MSCAN_SLPRQ);
 			for (i = 0; i < MSCAN_SET_MODE_RETRIES; i++) {
@@ -105,7 +104,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 				priv->can.state = CAN_STATE_SLEEPING;
 		}
 
-		if ((mode & MSCAN_INITRQ) && (canctl1 & MSCAN_INITAK) == 0) {
+		if ((mode & MSCAN_INITRQ) && !(canctl1 & MSCAN_INITAK)) {
 			out_8(&regs->canctl0,
 			      in_8(&regs->canctl0) | MSCAN_INITRQ);
 			for (i = 0; i < MSCAN_SET_MODE_RETRIES; i++) {
@@ -233,7 +232,8 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!rtr) {
 		void __iomem *data = &regs->tx.dsr1_0;
-		u16 *payload = (u16 *) frame->data;
+		u16 *payload = (u16 *)frame->data;
+
 		/* It is safe to write into dsr[dlc+1] */
 		for (i = 0; i < (frame->can_dlc + 1) / 2; i++) {
 			out_be16(data, *payload++);
@@ -300,7 +300,8 @@ static void mscan_get_rx_frame(struct net_device *dev, struct can_frame *frame)
 
 	if (!(frame->can_id & CAN_RTR_FLAG)) {
 		void __iomem *data = &regs->rx.dsr1_0;
-		u16 *payload = (u16 *) frame->data;
+		u16 *payload = (u16 *)frame->data;
+
 		for (i = 0; i < (frame->can_dlc + 1) / 2; i++) {
 			*payload++ = in_be16(data);
 			data += 2 + _MSCAN_RESERVED_DSR_SIZE;
@@ -326,8 +327,9 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 		frame->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
 		stats->rx_errors++;
-	} else
+	} else {
 		frame->data[1] = 0;
+	}
 
 	old_state = check_set_state(dev, canrflg);
 	/* State changed */
@@ -339,7 +341,6 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 			if ((priv->shadow_statflg & MSCAN_RSTAT_MSK) <
 			    (canrflg & MSCAN_RSTAT_MSK))
 				frame->data[1] |= CAN_ERR_CRTL_RX_WARNING;
-
 			if ((priv->shadow_statflg & MSCAN_TSTAT_MSK) <
 			    (canrflg & MSCAN_TSTAT_MSK))
 				frame->data[1] |= CAN_ERR_CRTL_TX_WARNING;
@@ -397,7 +398,7 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 
 		if (canrflg & MSCAN_RXF)
 			mscan_get_rx_frame(dev, frame);
-		 else if (canrflg & MSCAN_ERR_IF)
+		else if (canrflg & MSCAN_ERR_IF)
 			mscan_get_err_frame(dev, frame, canrflg);
 
 		stats->rx_packets++;
@@ -429,7 +430,6 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 	cantflg = in_8(&regs->cantflg) & cantier;
 
 	if (cantier && cantflg) {
-
 		struct list_head *tmp, *pos;
 
 		list_for_each_safe(pos, tmp, &priv->tx_head) {
@@ -452,8 +452,9 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 			clear_bit(F_TX_WAIT_ALL, &priv->flags);
 			clear_bit(F_TX_PROGRESS, &priv->flags);
 			priv->cur_pri = 0;
-		} else
+		} else {
 			dev->trans_start = jiffies;
+		}
 
 		if (!test_bit(F_TX_WAIT_ALL, &priv->flags))
 			netif_wake_queue(dev);
@@ -470,15 +471,15 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 			out_8(&regs->canrier, 0);
 			napi_schedule(&priv->napi);
 			ret = IRQ_HANDLED;
-		} else
+		} else {
 			clear_bit(F_RX_PROGRESS, &priv->flags);
+		}
 	}
 	return ret;
 }
 
 static int mscan_do_set_mode(struct net_device *dev, enum can_mode mode)
 {
-
 	struct mscan_priv *priv = netdev_priv(dev);
 	int ret = 0;
 
