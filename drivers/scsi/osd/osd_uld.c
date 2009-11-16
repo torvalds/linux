@@ -224,7 +224,15 @@ void osduld_put_device(struct osd_dev *od)
 
 		BUG_ON(od->scsi_device != oud->od.scsi_device);
 
+		/* If scsi has released the device (logout), and exofs has last
+		 * reference on oud it will be freed by above osd_uld_release
+		 * within fput below. But this will oops in cdev_release which
+		 * is called after the fops->release. __uld_get/put pair makes
+		 * sure we have a cdev for the duration of fput
+		 */
+		__uld_get(oud);
 		fput(od->file);
+		__uld_put(oud);
 		kfree(od);
 	}
 }
