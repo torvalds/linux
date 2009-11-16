@@ -78,8 +78,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 
 		canctl1 = in_8(&regs->canctl1);
 		if ((mode & MSCAN_SLPRQ) && !(canctl1 & MSCAN_SLPAK)) {
-			out_8(&regs->canctl0,
-			      in_8(&regs->canctl0) | MSCAN_SLPRQ);
+			setbits8(&regs->canctl0, MSCAN_SLPRQ);
 			for (i = 0; i < MSCAN_SET_MODE_RETRIES; i++) {
 				if (in_8(&regs->canctl1) & MSCAN_SLPAK)
 					break;
@@ -105,8 +104,7 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 		}
 
 		if ((mode & MSCAN_INITRQ) && !(canctl1 & MSCAN_INITAK)) {
-			out_8(&regs->canctl0,
-			      in_8(&regs->canctl0) | MSCAN_INITRQ);
+			setbits8(&regs->canctl0, MSCAN_INITRQ);
 			for (i = 0; i < MSCAN_SET_MODE_RETRIES; i++) {
 				if (in_8(&regs->canctl1) & MSCAN_INITAK)
 					break;
@@ -118,14 +116,12 @@ static int mscan_set_mode(struct net_device *dev, u8 mode)
 			priv->can.state = CAN_STATE_STOPPED;
 
 		if (mode & MSCAN_CSWAI)
-			out_8(&regs->canctl0,
-			      in_8(&regs->canctl0) | MSCAN_CSWAI);
+			setbits8(&regs->canctl0, MSCAN_CSWAI);
 
 	} else {
 		canctl1 = in_8(&regs->canctl1);
 		if (canctl1 & (MSCAN_SLPAK | MSCAN_INITAK)) {
-			out_8(&regs->canctl0, in_8(&regs->canctl0) &
-			      ~(MSCAN_SLPRQ | MSCAN_INITRQ));
+			clrbits8(&regs->canctl0, MSCAN_SLPRQ | MSCAN_INITRQ);
 			for (i = 0; i < MSCAN_SET_MODE_RETRIES; i++) {
 				canctl1 = in_8(&regs->canctl1);
 				if (!(canctl1 & (MSCAN_INITAK | MSCAN_SLPAK)))
@@ -359,8 +355,7 @@ static void mscan_get_err_frame(struct net_device *dev, struct can_frame *frame,
 			 */
 			out_8(&regs->cantier, 0);
 			out_8(&regs->canrier, 0);
-			out_8(&regs->canctl0, in_8(&regs->canctl0) |
-				MSCAN_SLPRQ | MSCAN_INITRQ);
+			setbits8(&regs->canctl0, MSCAN_SLPRQ | MSCAN_INITRQ);
 			can_bus_off(dev);
 			break;
 		default:
@@ -548,7 +543,7 @@ static int mscan_open(struct net_device *dev)
 
 	priv->open_time = jiffies;
 
-	out_8(&regs->canctl1, in_8(&regs->canctl1) & ~MSCAN_LISTEN);
+	clrbits8(&regs->canctl1, MSCAN_LISTEN);
 
 	ret = mscan_start(dev);
 	if (ret)
@@ -623,7 +618,7 @@ void unregister_mscandev(struct net_device *dev)
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 	mscan_set_mode(dev, MSCAN_INIT_MODE);
-	out_8(&regs->canctl1, in_8(&regs->canctl1) & ~MSCAN_CANE);
+	clrbits8(&regs->canctl1, MSCAN_CANE);
 	unregister_candev(dev);
 }
 EXPORT_SYMBOL_GPL(unregister_mscandev);
