@@ -263,10 +263,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
+		val = gctx->scratch[((gctx->fb_base + idx) / 4)];
 		if (print)
 			DEBUG("FB[0x%02X]", idx);
-		printk(KERN_INFO "FB access is not implemented.\n");
-		return 0;
+		break;
 	case ATOM_ARG_IMM:
 		switch (align) {
 		case ATOM_SRC_DWORD:
@@ -488,9 +488,9 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
+		gctx->scratch[((gctx->fb_base + idx) / 4)] = val;
 		DEBUG("FB[0x%02X]", idx);
-		printk(KERN_INFO "FB access is not implemented.\n");
-		return;
+		break;
 	case ATOM_ARG_PLL:
 		idx = U8(*ptr);
 		(*ptr)++;
