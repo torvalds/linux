@@ -53,6 +53,21 @@
 #define PLLDIV_EN       BIT(15)
 #define PLLDIV_RATIO_MASK 0x1f
 
+/*
+ * OMAP-L138 system reference guide recommends a wait for 4 OSCIN/CLKIN
+ * cycles to ensure that the PLLC has switched to bypass mode. Delay of 1us
+ * ensures we are good for all > 4MHz OSCIN/CLKIN inputs. Typically the input
+ * is ~25MHz. Units are micro seconds.
+ */
+#define PLL_BYPASS_TIME		1
+/* From OMAP-L138 datasheet table 6-4. Units are micro seconds */
+#define PLL_RESET_TIME		1
+/*
+ * From OMAP-L138 datasheet table 6-4; assuming prediv = 1, sqrt(pllm) = 4
+ * Units are micro seconds.
+ */
+#define PLL_LOCK_TIME		20
+
 struct pll_data {
 	u32 phys_base;
 	void __iomem *base;

@@ -376,7 +376,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 		locktime = ((2000 * prediv) / 100);
 		prediv = (prediv - 1) | PLLDIV_EN;
 	} else {
-		locktime = 20;
+		locktime = PLL_LOCK_TIME;
 	}
 	if (postdiv)
 		postdiv = (postdiv - 1) | PLLDIV_EN;
@@ -389,12 +389,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	ctrl &= ~(PLLCTL_PLLENSRC | PLLCTL_PLLEN);
 	__raw_writel(ctrl, pll->base + PLLCTL);
 
-	/*
-	 * Wait for 4 OSCIN/CLKIN cycles to ensure that the PLLC has switched
-	 * to bypass mode. Delay of 1us ensures we are good for all > 4MHz
-	 * OSCIN/CLKIN inputs. Typically the input is ~25MHz.
-	 */
-	udelay(1);
+	udelay(PLL_BYPASS_TIME);
 
 	/* Reset and enable PLL */
 	ctrl &= ~(PLLCTL_PLLRST | PLLCTL_PLLDIS);
@@ -408,11 +403,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	if (pll->flags & PLL_HAS_POSTDIV)
 		__raw_writel(postdiv, pll->base + POSTDIV);
 
-	/*
-	 * Wait for PLL to reset properly, OMAP-L138 datasheet says
-	 * 'min' time = 125ns
-	 */
-	udelay(1);
+	udelay(PLL_RESET_TIME);
 
 	/* Bring PLL out of reset */
 	ctrl |= PLLCTL_PLLRST;
