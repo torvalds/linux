@@ -426,7 +426,7 @@ midi_synth_open(int dev, int mode)
 	int             err;
 	struct midi_input_info *inc;
 
-	if (orig_dev < 0 || orig_dev > num_midis || midi_devs[orig_dev] == NULL)
+	if (orig_dev < 0 || orig_dev >= num_midis || midi_devs[orig_dev] == NULL)
 		return -ENXIO;
 
 	midi2synth[orig_dev] = dev;
