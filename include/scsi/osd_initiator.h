@@ -84,6 +84,15 @@ static inline void osd_dev_set_ver(struct osd_dev *od, enum osd_std_version v)
 #endif
 }
 
+static inline bool osd_dev_is_ver1(struct osd_dev *od)
+{
+#ifdef OSD_VER1_SUPPORT
+	return od->version == OSD_VER1;
+#else
+	return false;
+#endif
+}
+
 struct osd_request;
 typedef void (osd_req_done_fn)(struct osd_request *or, void *private);
 
@@ -120,14 +129,9 @@ struct osd_request {
 	int async_error;
 };
 
-/* OSD Version control */
 static inline bool osd_req_is_ver1(struct osd_request *or)
 {
-#ifdef OSD_VER1_SUPPORT
-	return or->osd_dev->version == OSD_VER1;
-#else
-	return false;
-#endif
+	return osd_dev_is_ver1(or->osd_dev);
 }
 
 /*
