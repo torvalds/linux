@@ -19,16 +19,16 @@ struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr)
 {
 	struct perf_header_attr *self = malloc(sizeof(*self));
 
-	if (!self)
-		die("nomem");
-
-	self->attr = *attr;
-	self->ids = 0;
-	self->size = 1;
-	self->id = malloc(sizeof(u64));
-
-	if (!self->id)
-		die("nomem");
+	if (self != NULL) {
+		self->attr = *attr;
+		self->ids  = 0;
+		self->size = 1;
+		self->id   = malloc(sizeof(u64));
+		if (self->id == NULL) {
+			free(self);
+			self = NULL;
+		}
+	}
 
 	return self;
 }
@@ -423,6 +423,8 @@ struct perf_header *perf_header__read(int fd)
 		tmp = lseek(fd, 0, SEEK_CUR);
 
 		attr = perf_header_attr__new(&f_attr.attr);
+		if (attr == NULL)
+			 die("nomem");
 
 		nr_ids = f_attr.ids.size / sizeof(u64);
 		lseek(fd, f_attr.ids.offset, SEEK_SET);

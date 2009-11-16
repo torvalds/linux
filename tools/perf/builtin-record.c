@@ -220,7 +220,8 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 		h_attr = header->attr[nr];
 	} else {
 		h_attr = perf_header_attr__new(a);
-		perf_header__add_attr(header, h_attr);
+		if (h_attr != NULL)
+			perf_header__add_attr(header, h_attr);
 	}
 
 	return h_attr;
@@ -308,6 +309,8 @@ try_again:
 	}
 
 	h_attr = get_header_attr(attr, counter);
+	if (h_attr == NULL)
+		die("nomem\n");
 
 	if (!file_new) {
 		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
