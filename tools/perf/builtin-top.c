@@ -60,7 +60,7 @@ static int			system_wide			=      0;
 static int			default_interval		=      0;
 
 static int			count_filter			=      5;
-static int			print_entries			=     15;
+static int			print_entries;
 
 static int			target_pid			=     -1;
 static int			inherit				=      0;
@@ -114,6 +114,36 @@ struct sym_entry {
 /*
  * Source functions
  */
+
+/* most GUI terminals set LINES (although some don't export it) */
+static int term_rows(void)
+{
+	char *lines_string = getenv("LINES");
+	int n_lines;
+
+	if (lines_string && (n_lines = atoi(lines_string)) > 0)
+		return n_lines;
+#ifdef TIOCGWINSZ
+	else {
+		struct winsize ws;
+		if (!ioctl(1, TIOCGWINSZ, &ws) && ws.ws_row)
+			return ws.ws_row;
+	}
+#endif
+	return 25;
+}
+
+static void update_print_entries(void)
+{
+	print_entries = term_rows();
+	if (print_entries > 9)
+		print_entries -= 9;
+}
+
+static void sig_winch_handler(int sig __used)
+{
+	update_print_entries();
+}
 
 static void parse_source(struct sym_entry *syme)
 {
@@ -668,6 +698,11 @@ static void handle_keypress(int c)
 			break;
 		case 'e':
 			prompt_integer(&print_entries, "Enter display entries (lines)");
+			if (print_entries == 0) {
+				update_print_entries();
+				signal(SIGWINCH, sig_winch_handler);
+			} else
+				signal(SIGWINCH, SIG_DFL);
 			break;
 		case 'E':
 			if (nr_counters > 1) {
@@ -1227,6 +1262,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
+
+	if (print_entries == 0) {
+		update_print_entries();
+		signal(SIGWINCH, sig_winch_handler);
+	}
 
 	return __cmd_top();
 }
