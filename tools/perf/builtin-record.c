@@ -307,6 +307,12 @@ try_again:
 		printf("\n");
 		error("perfcounter syscall returned with %d (%s)\n",
 			fd[nr_cpu][counter], strerror(err));
+
+#if defined(__i386__) || defined(__x86_64__)
+		if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
+			die("No hardware sampling interrupt available. No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.\n");
+#endif
+
 		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		exit(-1);
 	}
