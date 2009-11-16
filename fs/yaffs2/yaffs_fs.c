@@ -378,6 +378,122 @@ static void yaffs_GrossUnlock(yaffs_Device *dev)
 	up(&dev->grossLock);
 }
 
+
+/*-----------------------------------------------------------------*/
+/* Directory search context allows us to unlock access to yaffs during
+ * filldir without causing problems with the directory being modified.
+ * This is similar to the tried and tested mechanism used in yaffs direct.
+ *
+ * A search context iterates along a doubly linked list of siblings in the
+ * directory. If the iterating object is deleted then this would corrupt
+ * the list iteration, likely causing a crash. The search context avoids
+ * this by using the removeObjectCallback to move the search context to the
+ * next object before the object is deleted.
+ *
+ * Many readdirs (and thus seach conexts) may be alive simulateously so
+ * each yaffs_Device has a list of these.
+ *
+ * A seach context lives for the duration of a readdir.
+ *
+ * All these functions must be called while yaffs is locked.
+ */
+
+struct yaffs_SearchContext {
+	yaffs_Device *dev;
+	yaffs_Object *dirObj;
+	yaffs_Object *nextReturn;
+	struct ylist_head others;
+};
+
+/*
+ * yaffs_NewSearch() creates a new search context, initialises it and
+ * adds it to the device's search context list.
+ *
+ * Called at start of readdir.
+ */
+static struct yaffs_SearchContext * yaffs_NewSearch(yaffs_Object *dir)
+{
+	yaffs_Device *dev = dir->myDev;
+	struct yaffs_SearchContext *sc = YMALLOC(sizeof(struct yaffs_SearchContext));
+	if(sc){
+		sc->dirObj = dir;
+		sc->dev = dev;
+		if( ylist_empty(&sc->dirObj->variant.directoryVariant.children))
+			sc->nextReturn = NULL;
+		else
+			sc->nextReturn = ylist_entry(
+                                dir->variant.directoryVariant.children.next,
+				yaffs_Object,siblings);
+		YINIT_LIST_HEAD(&sc->others);
+		ylist_add(&sc->others,&dev->searchContexts);
+	}
+	return sc;
+}
+
+/*
+ * yaffs_EndSearch() disposes of a search context and cleans up.
+ */
+static void yaffs_EndSearch(struct yaffs_SearchContext * sc)
+{
+	if(sc){
+		ylist_del(&sc->others);
+		YFREE(sc);
+	}
+}
+
+/*
+ * yaffs_SearchAdvance() moves a search context to the next object.
+ * Called when the search iterates or when an object removal causes
+ * the search context to be moved to the next object.
+ */
+static void yaffs_SearchAdvance(struct yaffs_SearchContext *sc)
+{
+        if(!sc)
+                return;
+
+        if( sc->nextReturn == NULL ||
+                ylist_empty(&sc->dirObj->variant.directoryVariant.children))
+                sc->nextReturn = NULL;
+        else {
+                struct ylist_head *next = sc->nextReturn->siblings.next;
+
+                if( next == &sc->dirObj->variant.directoryVariant.children)
+                        sc->nextReturn = NULL; /* end of list */
+                else
+                        sc->nextReturn = ylist_entry(next,yaffs_Object,siblings);
+        }
+}
+
+/*
+ * yaffs_RemoveObjectCallback() is called when an object is unlinked.
+ * We check open search contexts and advance any which are currently
+ * on the object being iterated.
+ */
+static void yaffs_RemoveObjectCallback(yaffs_Object *obj)
+{
+
+        struct ylist_head *i;
+        struct yaffs_SearchContext *sc;
+        struct ylist_head *search_contexts = &obj->myDev->searchContexts;
+
+
+        /* Iterate through the directory search contexts.
+         * If any are currently on the object being removed, then advance
+         * the search context to the next object to prevent a hanging pointer.
+         */
+         ylist_for_each(i, search_contexts) {
+                if (i) {
+                        sc = ylist_entry(i, struct yaffs_SearchContext,others);
+                        if(sc->nextReturn == obj)
+                                yaffs_SearchAdvance(sc);
+                }
+	}
+
+}
+
+
+/*-----------------------------------------------------------------*/
+
 static int yaffs_readlink(struct dentry *dentry, char __user *buffer,
 			int buflen)
 {
@@ -1128,10 +1244,11 @@ static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir)
 {
 	yaffs_Object *obj;
 	yaffs_Device *dev;
+        struct yaffs_SearchContext *sc;
 	struct inode *inode = f->f_dentry->d_inode;
 	unsigned long offset, curoffs;
-	struct ylist_head *i;
 	yaffs_Object *l;
+        int retVal = 0;
 
 	char name[YAFFS_MAX_NAME_LENGTH + 1];
 
@@ -1142,14 +1259,22 @@ static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir)
 
 	offset = f->f_pos;
 
+        sc = yaffs_NewSearch(obj);
+        if(!sc){
+                retVal = -ENOMEM;
+                goto unlock_out;
+        }
+
 	T(YAFFS_TRACE_OS, ("yaffs_readdir: starting at %d\n", (int)offset));
 
 	if (offset == 0) {
 		T(YAFFS_TRACE_OS,
 			("yaffs_readdir: entry . ino %d \n",
 			(int)inode->i_ino));
+		yaffs_GrossUnlock(dev);
 		if (filldir(dirent, ".", 1, offset, inode->i_ino, DT_DIR) < 0)
 			goto out;
+		yaffs_GrossLock(dev);
 		offset++;
 		f->f_pos++;
 	}
@@ -1157,9 +1282,11 @@ static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir)
 		T(YAFFS_TRACE_OS,
 			("yaffs_readdir: entry .. ino %d \n",
 			(int)f->f_dentry->d_parent->d_inode->i_ino));
+		yaffs_GrossUnlock(dev);
 		if (filldir(dirent, "..", 2, offset,
 			f->f_dentry->d_parent->d_inode->i_ino, DT_DIR) < 0)
 			goto out;
+		yaffs_GrossLock(dev);
 		offset++;
 		f->f_pos++;
 	}
@@ -1175,10 +1302,12 @@ static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir)
 		f->f_version = inode->i_version;
 	}
 
-	ylist_for_each(i, &obj->variant.directoryVariant.children) {
+	while(sc->nextReturn){
 		curoffs++;
+                l = sc->nextReturn;
 		if (curoffs >= offset) {
-			l = ylist_entry(i, yaffs_Object, siblings);
+                        int this_inode = yaffs_GetObjectInode(l);
+                        int this_type = yaffs_GetObjectType(l);
 
 			yaffs_GetObjectName(l, name,
 					    YAFFS_MAX_NAME_LENGTH + 1);
@@ -1186,24 +1315,30 @@ static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir)
 			  ("yaffs_readdir: %s inode %d\n", name,
 			   yaffs_GetObjectInode(l)));
 
+                        yaffs_GrossUnlock(dev);
+
 			if (filldir(dirent,
 					name,
 					strlen(name),
 					offset,
-					yaffs_GetObjectInode(l),
-					yaffs_GetObjectType(l)) < 0)
-				goto up_and_out;
+					this_inode,
+					this_type) < 0)
+				goto out;
+
+                        yaffs_GrossLock(dev);
 
 			offset++;
 			f->f_pos++;
 		}
+                yaffs_SearchAdvance(sc);
 	}
 
-up_and_out:
-out:
+unlock_out:
 	yaffs_GrossUnlock(dev);
+out:
+        yaffs_EndSearch(sc);
 
-	return 0;
+	return retVal;
 }
 
 /*
@@ -2114,6 +2249,10 @@ static struct super_block *yaffs_internal_read_super(int yaffsVersion,
 
 	/* we assume this is protected by lock_kernel() in mount/umount */
 	ylist_add_tail(&dev->devList, &yaffs_dev_list);
+
+        /* Directory search handling...*/
+        YINIT_LIST_HEAD(&dev->searchContexts);
+        dev->removeObjectCallback = yaffs_RemoveObjectCallback;
 
 	init_MUTEX(&dev->grossLock);
 
