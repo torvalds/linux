@@ -15,6 +15,11 @@ BEGIN {
 	fwait_str="9b\tfwait"
 }
 
+/^ *[0-9a-f]+ <[^>]*>:/ {
+	# Symbol entry
+	printf("%s%s\n", $2, $1)
+}
+
 /^ *[0-9a-f]+:/ {
 	if (split($0, field, "\t") < 3) {
 		# This is a continuation of the same insn.

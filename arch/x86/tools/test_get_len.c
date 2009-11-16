@@ -110,7 +110,7 @@ static void parse_args(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	char line[BUFSIZE];
+	char line[BUFSIZE], sym[BUFSIZE] = "<unknown>";
 	unsigned char insn_buf[16];
 	struct insn insn;
 	int insns = 0, c;
@@ -121,6 +121,12 @@ int main(int argc, char **argv)
 		char copy[BUFSIZE], *s, *tab1, *tab2;
 		int nb = 0;
 		unsigned int b;
+
+		if (line[0] == '<') {
+			/* Symbol line */
+			strcpy(sym, line);
+			continue;
+		}
 
 		insns++;
 		memset(insn_buf, 0, 16);
@@ -145,6 +151,8 @@ int main(int argc, char **argv)
 		insn_init(&insn, insn_buf, x86_64);
 		insn_get_length(&insn);
 		if (insn.length != nb) {
+			fprintf(stderr, "Error: %s found a difference at %s\n",
+				prog, sym);
 			fprintf(stderr, "Error: %s", line);
 			fprintf(stderr, "Error: objdump says %d bytes, but "
 				"insn_get_length() says %d\n", nb,
