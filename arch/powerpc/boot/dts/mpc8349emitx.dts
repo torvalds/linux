@@ -318,6 +318,24 @@
 			reg = <0x700 0x100>;
 			device_type = "ipic";
 		};
+
+		gpio-leds {
+			compatible = "gpio-leds";
+
+			green {
+				label = "Green";
+				gpios = <&pcf1 0 1>;
+				linux,default-trigger = "heartbeat";
+			};
+
+			yellow {
+				label = "Yellow";
+				gpios = <&pcf1 1 1>;
+				/* linux,default-trigger = "heartbeat"; */
+				default-state = "on";
+			};
+		};
+
 	};
 
 	pci0: pci@e0008500 {
