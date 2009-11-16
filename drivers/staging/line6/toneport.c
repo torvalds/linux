@@ -96,8 +96,14 @@ static ssize_t toneport_set_led_red(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	char *c;
-	led_red = simple_strtol(buf, &c, 10);
+	int retval;
+	long value;
+
+	retval = strict_strtol(buf, 10, &value);
+	if (retval)
+		return retval;
+
+	led_red = value;
 	toneport_update_led(dev);
 	return count;
 }
@@ -106,8 +112,14 @@ static ssize_t toneport_set_led_green(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	char *c;
-	led_green = simple_strtol(buf, &c, 10);
+	int retval;
+	long value;
+
+	retval = strict_strtol(buf, 10, &value);
+	if (retval)
+		return retval;
+
+	led_green = value;
 	toneport_update_led(dev);
 	return count;
 }
