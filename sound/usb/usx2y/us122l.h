@@ -3,7 +3,8 @@
 
 
 struct us122l {
-	struct snd_usb_audio 	chip;
+	struct usb_device	*dev;
+	int			card_index;
 	int			stride;
 	struct usb_stream_kernel sk;
 
