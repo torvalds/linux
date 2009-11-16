@@ -374,7 +374,26 @@
 		compatible = "fsl,mpc8349e-localbus",
 			     "fsl,pq2pro-localbus";
 		reg = <0xe0005000 0xd8>;
-		ranges = <0x3 0x0 0xf0000000 0x210>;
+		ranges = <0x0 0x0 0xfe000000 0x1000000	/* flash */
+			  0x1 0x0 0xf8000000 0x20000	/* VSC 7385 */
+			  0x2 0x0 0xf9000000 0x200000	/* exp slot */
+			  0x3 0x0 0xf0000000 0x210>;	/* CF slot */
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0x0      0x0 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		flash@0,800000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x800000 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
 
 		pata@3,0 {
 			compatible = "fsl,mpc8349emitx-pata", "ata-generic";
