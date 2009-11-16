@@ -28,7 +28,7 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
-		    "be more verbose (show counter open errors, etc)"),
+		    "be more verbose"),
 	OPT_END()
 };
 

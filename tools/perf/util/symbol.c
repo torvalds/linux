@@ -1442,10 +1442,7 @@ size_t dsos__fprintf_buildid(FILE *fp)
 
 	list_for_each_entry(pos, &dsos, node) {
 		ret += dso__fprintf_buildid(pos, fp);
-		if (verbose)
-			ret += fprintf(fp, " %s\n", pos->long_name);
-		else
-			ret += fprintf(fp, "\n");
+		ret += fprintf(fp, " %s\n", pos->long_name);
 	}
 	return ret;
 }
