@@ -267,7 +267,7 @@ int osd_execute_request_async(struct osd_request *or,
  * @bad_attr_list - List of failing attributes (optional)
  * @max_attr      - Size of @bad_attr_list.
  *
- * After execution, sense + return code can be analyzed using this function. The
+ * After execution, osd_request results are analyzed using this function. The
  * return code is the final disposition on the error. So it is possible that a
  * CHECK_CONDITION was returned from target but this will return NO_ERROR, for
  * example on recovered errors. All parameters are optional if caller does
@@ -276,7 +276,31 @@ int osd_execute_request_async(struct osd_request *or,
  * of the SCSI_OSD_DPRINT_SENSE Kconfig value. Set @silent if you know the
  * command would routinely fail, to not spam the dmsg file.
  */
+
+/**
+ * osd_err_priority - osd categorized return codes in ascending severity.
+ *
+ * The categories are borrowed from the pnfs_osd_errno enum.
+ * See comments for translated Linux codes returned by osd_req_decode_sense.
+ */
+enum osd_err_priority {
+	OSD_ERR_PRI_NO_ERROR	= 0,
+	/* Recoverable, caller should clear_highpage() all pages */
+	OSD_ERR_PRI_CLEAR_PAGES = 1, /* -EFAULT */
+	OSD_ERR_PRI_RESOURCE	= 2, /* -ENOMEM */
+	OSD_ERR_PRI_BAD_CRED	= 3, /* -EINVAL */
+	OSD_ERR_PRI_NO_ACCESS	= 4, /* -EACCES */
+	OSD_ERR_PRI_UNREACHABLE	= 5, /* any other */
+	OSD_ERR_PRI_NOT_FOUND	= 6, /* -ENOENT */
+	OSD_ERR_PRI_NO_SPACE	= 7, /* -ENOSPC */
+	OSD_ERR_PRI_EIO		= 8, /* -EIO    */
+};
+
 struct osd_sense_info {
+	u64 out_resid;		/* Zero on success otherwise out residual */
+	u64 in_resid;		/* Zero on success otherwise in residual */
+	enum osd_err_priority osd_err_pri;
+
 	int key;		/* one of enum scsi_sense_keys */
 	int additional_code ;	/* enum osd_additional_sense_codes */
 	union { /* Sense specific information */
