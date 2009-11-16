@@ -1959,6 +1959,7 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put);
 
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
 /**
  * snd_hda_mixer_amp_switch_put_beep - Put callback for a beep AMP switch
  *
@@ -1975,6 +1976,7 @@ int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
+#endif /* CONFIG_SND_HDA_INPUT_BEEP */
 
 /*
  * bound volume controls
