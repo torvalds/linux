@@ -67,7 +67,8 @@
 #define MACH_LEMOTE_ML2F7      3
 #define MACH_LEMOTE_YL2F89     4
 #define MACH_DEXXON_GDIUM2F10  5
-#define MACH_LOONGSON_END      6
+#define MACH_LEMOTE_NAS        6
+#define MACH_LOONGSON_END      7
 
 extern char *system_type;
 const char *get_system_type(void);
