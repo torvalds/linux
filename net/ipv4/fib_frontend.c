@@ -895,11 +895,11 @@ static void nl_fib_lookup_exit(struct net *net)
 	net->ipv4.fibnl = NULL;
 }
 
-static void fib_disable_ip(struct net_device *dev, int force)
+static void fib_disable_ip(struct net_device *dev, int force, int delay)
 {
 	if (fib_sync_down_dev(dev, force))
 		fib_flush(dev_net(dev));
-	rt_cache_flush(dev_net(dev), 0);
+	rt_cache_flush(dev_net(dev), delay);
 	arp_ifdown(dev);
 }
 
@@ -922,7 +922,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 			/* Last address was deleted from this interface.
 			   Disable IP.
 			 */
-			fib_disable_ip(dev, 1);
+			fib_disable_ip(dev, 1, 0);
 		} else {
 			rt_cache_flush(dev_net(dev), -1);
 		}
@@ -937,7 +937,7 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	if (event == NETDEV_UNREGISTER) {
-		fib_disable_ip(dev, 2);
+		fib_disable_ip(dev, 2, -1);
 		return NOTIFY_DONE;
 	}
 
@@ -955,10 +955,11 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		rt_cache_flush(dev_net(dev), -1);
 		break;
 	case NETDEV_DOWN:
-		fib_disable_ip(dev, 0);
+		fib_disable_ip(dev, 0, 0);
 		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
+	case NETDEV_UNREGISTER_PERNET:
 		rt_cache_flush(dev_net(dev), 0);
 		break;
 	}
