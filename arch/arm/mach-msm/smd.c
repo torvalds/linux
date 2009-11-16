@@ -1038,6 +1038,8 @@ int smd_core_init(void)
 	return 0;
 }
 
+extern void msm_init_last_radio_log(struct module *);
+
 static int __init msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
@@ -1052,6 +1054,8 @@ static int __init msm_smd_probe(struct platform_device *pdev)
 	do_smd_probe();
 
 	msm_check_for_modem_crash = check_for_modem_crash;
+
+	msm_init_last_radio_log(THIS_MODULE);
 
 	smd_initialized = 1;
 
