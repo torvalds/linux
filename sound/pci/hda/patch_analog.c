@@ -2572,7 +2572,7 @@ static int add_control(struct ad198x_spec *spec, int type, const char *name,
 	if (! knew->name)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
-		knew->subdevice = (1<<31)|get_amp_nid_(val);
+		knew->subdevice = HDA_SUBDEV_NID_FLAG | get_amp_nid_(val);
 	knew->private_value = val;
 	return 0;
 }

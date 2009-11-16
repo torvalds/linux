@@ -2689,7 +2689,7 @@ stac_control_new(struct sigmatel_spec *spec,
 		return NULL;
 	}
 	if (nid)
-		knew->subdevice = (1<<31)|nid;
+		knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
 	return knew;
 }
 

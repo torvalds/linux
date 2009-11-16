@@ -1523,7 +1523,7 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 	int err;
 	struct hda_nid_item *item;
 
-	if (kctl->id.subdevice & (1<<31)) {
+	if (kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) {
 		if (nid == 0)
 			nid = kctl->id.subdevice & 0xffff;
 		kctl->id.subdevice = 0;
