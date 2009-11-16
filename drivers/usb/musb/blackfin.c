@@ -53,13 +53,11 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	void __iomem *fifo = hw_ep->fifo;
+
+#ifdef CONFIG_BF52x
 	u8 epnum = hw_ep->epnum;
 	u16 dma_reg = 0;
 
-	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
-			'R', hw_ep->epnum, fifo, len, dst);
-
-#ifdef CONFIG_BF52x
 	invalidate_dcache_range((unsigned int)dst,
 		(unsigned int)(dst + len));
 
@@ -101,6 +99,9 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 		insw((unsigned long)fifo, dst,
 			len & 0x01 ? (len >> 1) + 1 : len >> 1);
 #endif
+
+	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
+			'R', hw_ep->epnum, fifo, len, dst);
 
 	dump_fifo_data(dst, len);
 }
