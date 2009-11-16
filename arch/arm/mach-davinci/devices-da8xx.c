@@ -496,6 +496,19 @@ int da8xx_register_rtc(void)
 	return ret;
 }
 
+static void __iomem *da8xx_ddr2_ctlr_base;
+void __iomem * __init da8xx_get_mem_ctlr(void)
+{
+	if (da8xx_ddr2_ctlr_base)
+		return da8xx_ddr2_ctlr_base;
+
+	da8xx_ddr2_ctlr_base = ioremap(DA8XX_DDR2_CTL_BASE, SZ_32K);
+	if (!da8xx_ddr2_ctlr_base)
+		pr_warning("%s: Unable to map DDR2 controller",	__func__);
+
+	return da8xx_ddr2_ctlr_base;
+}
+
 static struct resource da8xx_cpuidle_resources[] = {
 	{
 		.start		= DA8XX_DDR2_CTL_BASE,
@@ -521,6 +534,7 @@ static struct platform_device da8xx_cpuidle_device = {
 
 int __init da8xx_register_cpuidle(void)
 {
+	da8xx_cpuidle_pdata.ddr2_ctlr_base = da8xx_get_mem_ctlr();
+
 	return platform_device_register(&da8xx_cpuidle_device);
 }
-

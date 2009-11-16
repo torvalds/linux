@@ -106,8 +106,6 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 	int ret;
 	struct cpuidle_device *device;
 	struct davinci_cpuidle_config *pdata = pdev->dev.platform_data;
-	struct resource *ddr2_regs;
-	resource_size_t len;
 
 	device = &per_cpu(davinci_cpuidle_device, smp_processor_id());
 
@@ -116,28 +114,12 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ddr2_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!ddr2_regs) {
-		dev_err(&pdev->dev, "cannot get DDR2 controller register base");
-		return -ENODEV;
-	}
-
-	len = resource_size(ddr2_regs);
-
-	ddr2_regs = request_mem_region(ddr2_regs->start, len, ddr2_regs->name);
-	if (!ddr2_regs)
-		return -EBUSY;
-
-	ddr2_reg_base = ioremap(ddr2_regs->start, len);
-	if (!ddr2_reg_base) {
-		ret = -ENOMEM;
-		goto ioremap_fail;
-	}
+	ddr2_reg_base = pdata->ddr2_ctlr_base;
 
 	ret = cpuidle_register_driver(&davinci_idle_driver);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register driver\n");
-		goto driver_register_fail;
+		return ret;
 	}
 
 	/* Wait for interrupt state */
@@ -164,18 +146,11 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 	ret = cpuidle_register_device(device);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register device\n");
-		goto device_register_fail;
+		cpuidle_unregister_driver(&davinci_idle_driver);
+		return ret;
 	}
 
 	return 0;
-
-device_register_fail:
-	cpuidle_unregister_driver(&davinci_idle_driver);
-driver_register_fail:
-	iounmap(ddr2_reg_base);
-ioremap_fail:
-	release_mem_region(ddr2_regs->start, len);
-	return ret;
 }
 
 static struct platform_driver davinci_cpuidle_driver = {

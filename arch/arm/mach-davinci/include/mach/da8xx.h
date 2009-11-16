@@ -94,6 +94,7 @@ void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
 int da850_register_cpufreq(void);
 int da8xx_register_cpuidle(void);
+void __iomem * __init da8xx_get_mem_ctlr(void);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
