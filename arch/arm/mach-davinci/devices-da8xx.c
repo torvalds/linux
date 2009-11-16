@@ -481,11 +481,18 @@ static struct platform_device da8xx_rtc_device = {
 
 int da8xx_register_rtc(void)
 {
+	int ret;
+
 	/* Unlock the rtc's registers */
 	__raw_writel(0x83e70b13, IO_ADDRESS(DA8XX_RTC_BASE + 0x6c));
 	__raw_writel(0x95a4f1e0, IO_ADDRESS(DA8XX_RTC_BASE + 0x70));
 
-	return platform_device_register(&da8xx_rtc_device);
+	ret = platform_device_register(&da8xx_rtc_device);
+	if (!ret)
+		/* Atleast on DA850, RTC is a wakeup source */
+		device_init_wakeup(&da8xx_rtc_device.dev, true);
+
+	return ret;
 }
 
 static struct resource da8xx_cpuidle_resources[] = {
