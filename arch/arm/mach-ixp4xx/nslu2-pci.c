@@ -18,9 +18,20 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#define NSLU2_PCI_MAX_DEV	3
+#define NSLU2_PCI_IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define NSLU2_PCI_INTA_PIN	11
+#define NSLU2_PCI_INTB_PIN	10
+#define NSLU2_PCI_INTC_PIN	9
+#define NSLU2_PCI_INTD_PIN	8
+#define IRQ_NSLU2_PCI_INTA      IRQ_IXP4XX_GPIO11
+#define IRQ_NSLU2_PCI_INTB      IRQ_IXP4XX_GPIO10
+#define IRQ_NSLU2_PCI_INTC      IRQ_IXP4XX_GPIO9
 
 void __init nslu2_pci_preinit(void)
 {

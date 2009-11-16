@@ -45,7 +45,6 @@
 
 /* Platform specific details */
 #include "prpmc1100.h"
-#include "nslu2.h"
 #include "nas100d.h"
 #include "dsmg600.h"
 #include "fsg.h"

@@ -79,13 +79,6 @@
 #define	IRQ_PRPMC1100_PCI_INTD	IRQ_IXP4XX_GPIO8
 
 /*
- * NSLU2 board IRQs
- */
-#define        IRQ_NSLU2_PCI_INTA      IRQ_IXP4XX_GPIO11
-#define        IRQ_NSLU2_PCI_INTB      IRQ_IXP4XX_GPIO10
-#define        IRQ_NSLU2_PCI_INTC      IRQ_IXP4XX_GPIO9
-
-/*
  * NAS100D board IRQs
  */
 #define        IRQ_NAS100D_PCI_INTA    IRQ_IXP4XX_GPIO11
