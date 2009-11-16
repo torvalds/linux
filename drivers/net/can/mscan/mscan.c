@@ -487,14 +487,6 @@ static int mscan_do_set_mode(struct net_device *dev, enum can_mode mode)
 		return -EINVAL;
 
 	switch (mode) {
-	case CAN_MODE_SLEEP:
-	case CAN_MODE_STOP:
-		netif_stop_queue(dev);
-		mscan_set_mode(dev,
-			       (mode ==
-				CAN_MODE_STOP) ? MSCAN_INIT_MODE :
-			       MSCAN_SLEEP_MODE);
-		break;
 	case CAN_MODE_START:
 		if (priv->can.state <= CAN_STATE_BUS_OFF)
 			mscan_set_mode(dev, MSCAN_INIT_MODE);
