@@ -3499,8 +3499,10 @@ static void drbdd(struct drbd_conf *mdev)
 
 	while (get_t_state(&mdev->receiver) == Running) {
 		drbd_thread_current_set_cpu(mdev);
-		if (!drbd_recv_header(mdev, header))
+		if (!drbd_recv_header(mdev, header)) {
+			drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 			break;
+		}
 
 		if (header->command < P_MAX_CMD)
 			handler = drbd_cmd_handler[header->command];
