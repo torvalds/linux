@@ -12,9 +12,6 @@
 #ifndef __ARCH_ARM_DAVINCI_CLOCK_H
 #define __ARCH_ARM_DAVINCI_CLOCK_H
 
-#include <linux/list.h>
-#include <asm/clkdev.h>
-
 #define DAVINCI_PLL1_BASE 0x01c40800
 #define DAVINCI_PLL2_BASE 0x01c40c00
 #define MAX_PLL 2
@@ -67,6 +64,11 @@
  * Units are micro seconds.
  */
 #define PLL_LOCK_TIME		20
+
+#ifndef __ASSEMBLER__
+
+#include <linux/list.h>
+#include <asm/clkdev.h>
 
 struct pll_data {
 	u32 phys_base;
@@ -122,5 +124,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 
 extern struct platform_device davinci_wdt_device;
+
+#endif
 
 #endif

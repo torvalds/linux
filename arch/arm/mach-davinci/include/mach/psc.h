@@ -191,8 +191,12 @@
 
 #define MDSTAT_STATE_MASK 0x1f
 
+#ifndef __ASSEMBLER__
+
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		unsigned int id, char enable);
+
+#endif
 
 #endif /* __ASM_ARCH_PSC_H */
