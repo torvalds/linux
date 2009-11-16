@@ -279,7 +279,7 @@ struct mscan_priv {
 	struct napi_struct napi;
 };
 
-struct net_device *alloc_mscandev(void);
+extern struct net_device *alloc_mscandev(void);
 /*
  * clock_src:
  *	1 = The MSCAN clock source is the onchip Bus Clock.
