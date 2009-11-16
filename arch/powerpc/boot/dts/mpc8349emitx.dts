@@ -90,6 +90,12 @@
 			interrupts = <14 0x8>;
 			interrupt-parent = <&ipic>;
 			dfsrr;
+
+			eeprom: at24@50 {
+				compatible = "st-micro,24c256";
+				reg = <0x50>;
+			};
+
 		};
 
 		i2c@3100 {
@@ -107,6 +113,25 @@
 				reg = <0x68>;
 				interrupts = <18 0x8>;
 				interrupt-parent = <&ipic>;
+			};
+
+			pcf1: iexp@38 {
+				#gpio-cells = <2>;
+				compatible = "ti,pcf8574a";
+				reg = <0x38>;
+				gpio-controller;
+			};
+
+			pcf2: iexp@39 {
+				#gpio-cells = <2>;
+				compatible = "ti,pcf8574a";
+				reg = <0x39>;
+				gpio-controller;
+			};
+
+			spd: at24@51 {
+				compatible = "at24,spd";
+				reg = <0x51>;
 			};
 
 			mcu_pio: mcu@a {
