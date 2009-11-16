@@ -129,7 +129,7 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		" Ver: 3.2.0 " __DATE__
+#define EDAC_AMD64_VERSION		" Ver: 3.3.0 " __DATE__
 #define EDAC_MOD_STR			"amd64_edac"
 
 #define EDAC_MAX_NUMNODES		8
