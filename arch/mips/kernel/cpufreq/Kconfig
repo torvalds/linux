@@ -20,6 +20,20 @@ if CPU_FREQ
 
 comment "CPUFreq processor drivers"
 
+config LOONGSON2_CPUFREQ
+	tristate "Loongson2 CPUFreq Driver"
+	select CPU_FREQ_TABLE
+	depends on MIPS_CPUFREQ
+	help
+	  This option adds a CPUFreq driver for loongson processors which
+	  support software configurable cpu frequency.
+
+	  Loongson2F and it's successors support this feature.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say N.
+
 endif	# CPU_FREQ
 
 endmenu

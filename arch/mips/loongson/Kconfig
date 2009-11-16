@@ -34,10 +34,10 @@ config LEMOTE_MACH2F
 	select ARCH_SPARSEMEM_ENABLE
 	select BOARD_SCACHE
 	select BOOT_ELF32
-	select CEVT_R4K
+	select CEVT_R4K if ! MIPS_EXTERNAL_TIMER
 	select CPU_HAS_WB
 	select CS5536
-	select CSRC_R4K
+	select CSRC_R4K if ! MIPS_EXTERNAL_TIMER
 	select DMA_NONCOHERENT
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
@@ -65,6 +65,7 @@ config CS5536
 config CS5536_MFGPT
 	bool "CS5536 MFGPT Timer"
 	depends on CS5536
+	select MIPS_EXTERNAL_TIMER
 	help
 	  This option enables the mfgpt0 timer of AMD CS5536.
 

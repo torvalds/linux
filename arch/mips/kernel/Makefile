@@ -93,4 +93,6 @@ CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(KBUILD_CFLAGS) -Wa,-mdaddi -c -o /dev/n
 
 obj-$(CONFIG_HAVE_STD_PC_SERIAL_PORT)	+= 8250-platform.o
 
+obj-$(CONFIG_MIPS_CPUFREQ)	+= cpufreq/
+
 EXTRA_CFLAGS += -Werror

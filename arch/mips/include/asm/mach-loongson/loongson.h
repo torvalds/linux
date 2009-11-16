@@ -226,8 +226,12 @@ extern void mach_irq_dispatch(unsigned int pending);
 #define LOONGSON_PCIMAP_WIN(WIN, ADDR)	\
 	((((ADDR)>>26) & LOONGSON_PCIMAP_PCIMAP_LO0) << ((WIN)*6))
 
-/* Chip Config */
 #ifdef CONFIG_CPU_SUPPORTS_CPUFREQ
+#include <linux/cpufreq.h>
+extern void loongson2_cpu_wait(void);
+extern struct cpufreq_frequency_table loongson2_clockmod_table[];
+
+/* Chip Config */
 #define LOONGSON_CHIPCFG0		LOONGSON_REG(LOONGSON_REGBASE + 0x80)
 #endif
 
