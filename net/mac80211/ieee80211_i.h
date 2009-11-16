@@ -167,12 +167,10 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;
-	struct net_device *dev;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
-	struct ieee80211_rx_status *status;
 	struct ieee80211_rate *rate;
 
 	unsigned int flags;
