@@ -212,14 +212,21 @@ int build_id__sprintf(u8 *self, int len, char *bf)
 	return raw - self;
 }
 
-size_t dso__fprintf(struct dso *self, FILE *fp)
+size_t dso__fprintf_buildid(struct dso *self, FILE *fp)
 {
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
-	struct rb_node *nd;
-	size_t ret;
 
 	build_id__sprintf(self->build_id, sizeof(self->build_id), sbuild_id);
-	ret = fprintf(fp, "dso: %s (%s)\n", self->short_name, sbuild_id);
+	return fprintf(fp, "%s", sbuild_id);
+}
+
+size_t dso__fprintf(struct dso *self, FILE *fp)
+{
+	struct rb_node *nd;
+	size_t ret = fprintf(fp, "dso: %s (", self->short_name);
+
+	ret += dso__fprintf_buildid(self, fp);
+	ret += fprintf(fp, ")\n");
 
 	for (nd = rb_first(&self->syms); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
@@ -1426,6 +1433,21 @@ void dsos__fprintf(FILE *fp)
 
 	list_for_each_entry(pos, &dsos, node)
 		dso__fprintf(pos, fp);
+}
+
+size_t dsos__fprintf_buildid(FILE *fp)
+{
+	struct dso *pos;
+	size_t ret = 0;
+
+	list_for_each_entry(pos, &dsos, node) {
+		ret += dso__fprintf_buildid(pos, fp);
+		if (verbose)
+			ret += fprintf(fp, " %s\n", pos->long_name);
+		else
+			ret += fprintf(fp, "\n");
+	}
+	return ret;
 }
 
 int load_kernel(symbol_filter_t filter)
