@@ -22,11 +22,25 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
-
 #include <asm/mach/pci.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
+
+#define AVILA_PCI_MAX_DEV	4
+#define LOFT_PCI_MAX_DEV	6
+#define AVILA_PCI_IRQ_LINES	4
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define AVILA_PCI_INTA_PIN	11
+#define AVILA_PCI_INTB_PIN	10
+#define AVILA_PCI_INTC_PIN	9
+#define AVILA_PCI_INTD_PIN	8
+
+#define IRQ_AVILA_PCI_INTA	IRQ_IXP4XX_GPIO11
+#define IRQ_AVILA_PCI_INTB	IRQ_IXP4XX_GPIO10
+#define IRQ_AVILA_PCI_INTC	IRQ_IXP4XX_GPIO9
+#define IRQ_AVILA_PCI_INTD	IRQ_IXP4XX_GPIO8
 
 void __init avila_pci_preinit(void)
 {
