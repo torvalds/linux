@@ -1715,6 +1715,12 @@ static bool radeon_apply_legacy_tv_quirks(struct drm_device *dev)
 	    dev->pdev->subsystem_device == 0x280a)
 		return false;
 
+	/* MSI S270 has non-existent TV port */
+	if (dev->pdev->device == 0x5955 &&
+	    dev->pdev->subsystem_vendor == 0x1462 &&
+	    dev->pdev->subsystem_device == 0x0131)
+		return false;
+
 	return true;
 }
 
