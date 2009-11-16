@@ -1,0 +1,27 @@
+#
+# CPU Frequency scaling
+#
+
+config MIPS_EXTERNAL_TIMER
+	bool
+
+config MIPS_CPUFREQ
+	bool
+	default y
+	depends on CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
+
+if MIPS_CPUFREQ
+
+menu "CPU Frequency scaling"
+
+source "drivers/cpufreq/Kconfig"
+
+if CPU_FREQ
+
+comment "CPUFreq processor drivers"
+
+endif	# CPU_FREQ
+
+endmenu
+
+endif	# MIPS_CPUFREQ
