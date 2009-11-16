@@ -79,8 +79,6 @@
  */
 #include <linux/spinlock_types.h>
 
-extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
-
 /*
  * Pull the __raw*() functions/declarations (UP-nondebug doesnt need them):
  */
