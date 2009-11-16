@@ -1818,11 +1818,11 @@ static void ieee80211_rx_michael_mic_report(struct ieee80211_hdr *hdr,
 		 * Some hardware seem to generate incorrect Michael MIC
 		 * reports; ignore them to avoid triggering countermeasures.
 		 */
-		goto ignore;
+		return;
 	}
 
 	if (!ieee80211_has_protected(hdr->frame_control))
-		goto ignore;
+		return;
 
 	if (rx->sdata->vif.type == NL80211_IFTYPE_AP && keyidx) {
 		/*
@@ -1831,18 +1831,15 @@ static void ieee80211_rx_michael_mic_report(struct ieee80211_hdr *hdr,
 		 * group keys and only the AP is sending real multicast
 		 * frames in the BSS.
 		 */
-		goto ignore;
+		return;
 	}
 
 	if (!ieee80211_is_data(hdr->frame_control) &&
 	    !ieee80211_is_auth(hdr->frame_control))
-		goto ignore;
+		return;
 
 	mac80211_ev_michael_mic_failure(rx->sdata, keyidx, hdr, NULL,
 					GFP_ATOMIC);
- ignore:
-	dev_kfree_skb(rx->skb);
-	rx->skb = NULL;
 }
 
 /* TODO: use IEEE80211_RX_FRAGMENTED */
@@ -2064,8 +2061,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			return 0;
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		/* take everything */
-		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case __NL80211_IFTYPE_AFTER_LAST:
 		/* should never get here */
@@ -2097,23 +2092,11 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	memset(&rx, 0, sizeof(rx));
 	rx.skb = skb;
 	rx.local = local;
-
 	rx.status = status;
 	rx.rate = rate;
 
 	if (ieee80211_is_data(hdr->frame_control) || ieee80211_is_mgmt(hdr->frame_control))
 		local->dot11ReceivedFragmentCount++;
-
-	rx.sta = sta_info_get(local, hdr->addr2);
-	if (rx.sta) {
-		rx.sdata = rx.sta->sdata;
-		rx.dev = rx.sta->sdata->dev;
-	}
-
-	if ((status->flag & RX_FLAG_MMIC_ERROR)) {
-		ieee80211_rx_michael_mic_report(hdr, &rx);
-		return;
-	}
 
 	if (unlikely(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
 		     test_bit(SCAN_OFF_CHANNEL, &local->scanning)))
@@ -2122,13 +2105,22 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
 
-	skb = rx.skb;
+	rx.sta = sta_info_get(local, hdr->addr2);
+	if (rx.sta) {
+		rx.sdata = rx.sta->sdata;
+		rx.dev = rx.sta->sdata->dev;
+	}
 
 	if (rx.sdata && ieee80211_is_data(hdr->frame_control)) {
 		rx.flags |= IEEE80211_RX_RA_MATCH;
 		prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
-		if (prepares)
-			prev = rx.sdata;
+		if (prepares) {
+			if (status->flag & RX_FLAG_MMIC_ERROR) {
+				if (rx.flags & IEEE80211_RX_RA_MATCH)
+					ieee80211_rx_michael_mic_report(hdr, &rx);
+			} else
+				prev = rx.sdata;
+		}
 	} else list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (!netif_running(sdata->dev))
 			continue;
@@ -2142,6 +2134,13 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 		if (!prepares)
 			continue;
+
+		if (status->flag & RX_FLAG_MMIC_ERROR) {
+			rx.sdata = sdata;
+			if (rx.flags & IEEE80211_RX_RA_MATCH)
+				ieee80211_rx_michael_mic_report(hdr, &rx);
+			continue;
+		}
 
 		/*
 		 * frame is destined for this interface, but if it's not
