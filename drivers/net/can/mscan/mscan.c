@@ -35,31 +35,6 @@
 
 #include "mscan.h"
 
-#define MSCAN_NORMAL_MODE	0
-#define MSCAN_SLEEP_MODE	MSCAN_SLPRQ
-#define MSCAN_INIT_MODE		(MSCAN_INITRQ | MSCAN_SLPRQ)
-#define MSCAN_POWEROFF_MODE	(MSCAN_CSWAI | MSCAN_SLPRQ)
-#define MSCAN_SET_MODE_RETRIES	255
-#define MSCAN_ECHO_SKB_MAX	3
-
-#define BTR0_BRP_MASK		0x3f
-#define BTR0_SJW_SHIFT		6
-#define BTR0_SJW_MASK		(0x3 << BTR0_SJW_SHIFT)
-
-#define BTR1_TSEG1_MASK 	0xf
-#define BTR1_TSEG2_SHIFT	4
-#define BTR1_TSEG2_MASK 	(0x7 << BTR1_TSEG2_SHIFT)
-#define BTR1_SAM_SHIFT  	7
-
-#define BTR0_SET_BRP(brp)	(((brp) - 1) & BTR0_BRP_MASK)
-#define BTR0_SET_SJW(sjw)	((((sjw) - 1) << BTR0_SJW_SHIFT) & \
-				 BTR0_SJW_MASK)
-
-#define BTR1_SET_TSEG1(tseg1)	(((tseg1) - 1) &  BTR1_TSEG1_MASK)
-#define BTR1_SET_TSEG2(tseg2)	((((tseg2) - 1) << BTR1_TSEG2_SHIFT) & \
-				 BTR1_TSEG2_MASK)
-#define BTR1_SET_SAM(sam)	((sam) ? 1 << BTR1_SAM_SHIFT : 0)
-
 static struct can_bittiming_const mscan_bittiming_const = {
 	.name = "mscan",
 	.tseg1_min = 4,
@@ -77,10 +52,6 @@ struct mscan_state {
 	u8 canrier;
 	u8 cantier;
 };
-
-#define F_RX_PROGRESS	0
-#define F_TX_PROGRESS	1
-#define F_TX_WAIT_ALL	2
 
 static enum can_state state_map[] = {
 	CAN_STATE_ERROR_ACTIVE,
