@@ -1941,6 +1941,7 @@ extern void		netdev_features_change(struct net_device *dev);
 extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
 extern const struct net_device_stats *dev_get_stats(struct net_device *dev);
+extern void		dev_txq_stats_fold(const struct net_device *dev, struct net_device_stats *stats);
 
 extern int		netdev_max_backlog;
 extern int		weight_p;
