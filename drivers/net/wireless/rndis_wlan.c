@@ -1072,6 +1072,8 @@ static int set_auth_mode(struct usbnet *usbdev, u32 wpa_version,
 		auth_mode = NDIS_80211_AUTH_SHARED;
 	else if (auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM)
 		auth_mode = NDIS_80211_AUTH_OPEN;
+	else if (auth_type == NL80211_AUTHTYPE_AUTOMATIC)
+		auth_mode = NDIS_80211_AUTH_AUTO_SWITCH;
 	else
 		return -ENOTSUPP;
 
