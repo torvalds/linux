@@ -206,4 +206,32 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+unsigned int old_jump; /* saving place for jump instruction */
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned int ret;
+	unsigned long ip = (unsigned long)(&ftrace_call_graph);
+
+	old_jump = *(unsigned int *)ip; /* save jump over instruction */
+	ret = ftrace_modify_code(ip, MICROBLAZE_NOP);
+	flush_icache();
+
+	pr_debug("%s: Replace instruction: 0x%x\n", __func__, old_jump);
+	return ret;
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned int ret;
+	unsigned long ip = (unsigned long)(&ftrace_call_graph);
+
+	ret = ftrace_modify_code(ip, old_jump);
+	flush_icache();
+
+	pr_debug("%s\n", __func__);
+	return ret;
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #endif /* CONFIG_DYNAMIC_FTRACE */

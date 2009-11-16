@@ -97,6 +97,7 @@ ENTRY(ftrace_caller)
 	nop;
 	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST end of checking */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#ifndef CONFIG_DYNAMIC_FTRACE
 	lwi	r5, r0, ftrace_graph_return;
 	addik	r6, r0, ftrace_stub; /* asm implementation */
 	cmpu	r5, r5, r6; /* ftrace_graph_return != ftrace_stub */
@@ -108,6 +109,11 @@ ENTRY(ftrace_caller)
 	cmpu	r5, r5, r6; /* ftrace_graph_entry != ftrace_graph_entry_stub */
 	beqid	r5, end_graph_tracer;
 	nop;
+#else /* CONFIG_DYNAMIC_FTRACE */
+NOALIGN_ENTRY(ftrace_call_graph)
+	/* MS: jump over graph function - replaced from C code */
+	bri	end_graph_tracer
+#endif /* CONFIG_DYNAMIC_FTRACE */
 	addik	r5, r1, 120; /* MS: load parent addr */
 	addik	r6, r15, 0; /* MS: load current function addr */
 	bralid	r15, prepare_ftrace_return;
