@@ -1,0 +1,105 @@
+/*
+ * Low-level ftrace handling
+ *
+ * Copyright (C) 2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2009 PetaLogix
+ *
+ * This file is subject to the terms and conditions of the GNU General
+ * Public License. See the file COPYING in the main directory of this
+ * archive for more details.
+ */
+
+#include <linux/linkage.h>
+
+#define NOALIGN_ENTRY(name)	.globl name; name:
+
+/* FIXME MS: I think that I don't need to save all regs */
+#define SAVE_REGS		\
+	addik	r1, r1, -120;	\
+	swi	r2, r1, 4;	\
+	swi	r3, r1, 8;	\
+	swi	r4, r1, 12;	\
+	swi	r5, r1, 116;	\
+	swi	r6, r1, 16;	\
+	swi	r7, r1, 20;	\
+	swi	r8, r1, 24;	\
+	swi	r9, r1, 28;	\
+	swi	r10, r1, 32;	\
+	swi	r11, r1, 36;	\
+	swi	r12, r1, 40;	\
+	swi	r13, r1, 44;	\
+	swi	r14, r1, 48;	\
+	swi	r16, r1, 52;	\
+	swi	r17, r1, 56;	\
+	swi	r18, r1, 60;	\
+	swi	r19, r1, 64;	\
+	swi	r20, r1, 68;	\
+	swi	r21, r1, 72;	\
+	swi	r22, r1, 76;	\
+	swi	r23, r1, 80;	\
+	swi	r24, r1, 84;	\
+	swi	r25, r1, 88;	\
+	swi	r26, r1, 92;	\
+	swi	r27, r1, 96;	\
+	swi	r28, r1, 100;	\
+	swi	r29, r1, 104;	\
+	swi	r30, r1, 108;	\
+	swi	r31, r1, 112;
+
+#define RESTORE_REGS		\
+	lwi	r2, r1, 4;	\
+	lwi	r3, r1, 8;	\
+	lwi	r4, r1, 12;	\
+	lwi	r5, r1, 116;	\
+	lwi	r6, r1, 16;	\
+	lwi	r7, r1, 20;	\
+	lwi	r8, r1, 24;	\
+	lwi	r9, r1, 28;	\
+	lwi	r10, r1, 32;	\
+	lwi	r11, r1, 36;	\
+	lwi	r12, r1, 40;	\
+	lwi	r13, r1, 44;	\
+	lwi	r14, r1, 48;	\
+	lwi	r16, r1, 52;	\
+	lwi	r17, r1, 56;	\
+	lwi	r18, r1, 60;	\
+	lwi	r19, r1, 64;	\
+	lwi	r20, r1, 68;	\
+	lwi	r21, r1, 72;	\
+	lwi	r22, r1, 76;	\
+	lwi	r23, r1, 80;	\
+	lwi	r24, r1, 84;	\
+	lwi	r25, r1, 88;	\
+	lwi	r26, r1, 92;	\
+	lwi	r27, r1, 96;	\
+	lwi	r28, r1, 100;	\
+	lwi	r29, r1, 104;	\
+	lwi	r30, r1, 108;	\
+	lwi	r31, r1, 112;	\
+	addik	r1, r1, 120;
+
+ENTRY(ftrace_stub)
+	rtsd	r15, 8;
+	nop;
+
+ENTRY(_mcount)
+	SAVE_REGS
+	swi	r15, r1, 0;
+	/* MS: test function trace if is taken or not */
+	lwi	r20, r0, ftrace_trace_function;
+	addik	r6, r0, ftrace_stub;
+	cmpu	r5, r20, r6; /* ftrace_trace_function != ftrace_stub */
+	beqid	r5, end; /* MS: not taken -> jump over */
+	nop;
+/* static normal trace */
+	lwi	r6, r1, 120; /* MS: load parent addr */
+	addik	r5, r15, 0; /* MS: load current function addr */
+	/* MS: here is dependency on previous code */
+	brald	r15, r20; /* MS: jump to ftrace handler */
+	nop;
+end:
+	lwi	r15, r1, 0;
+	RESTORE_REGS
+
+	rtsd	r15, 8; /* MS: jump back */
+	nop;

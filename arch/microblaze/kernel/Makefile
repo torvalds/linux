@@ -2,6 +2,16 @@
 # Makefile
 #
 
+ifdef CONFIG_FUNCTION_TRACER
+# Do not trace early boot code and low level code
+CFLAGS_REMOVE_timer.o = -pg
+CFLAGS_REMOVE_intc.o = -pg
+CFLAGS_REMOVE_early_printk.o = -pg
+CFLAGS_REMOVE_selfmod.o = -pg
+CFLAGS_REMOVE_heartbeat.o = -pg
+CFLAGS_REMOVE_ftrace.o = -pg
+endif
+
 extra-y := head.o vmlinux.lds
 
 obj-y += exceptions.o \
@@ -17,5 +27,6 @@ obj-$(CONFIG_HEART_BEAT)	+= heartbeat.o
 obj-$(CONFIG_MODULES)		+= microblaze_ksyms.o module.o
 obj-$(CONFIG_MMU)		+= misc.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
+obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
 
 obj-y	+= entry$(MMU).o
