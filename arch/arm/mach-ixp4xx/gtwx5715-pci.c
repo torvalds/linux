@@ -26,14 +26,26 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <mach/gtwx5715.h>
 #include <asm/mach/pci.h>
 
+#define GTWX5715_PCI_SLOT0_DEVID	0
+#define GTWX5715_PCI_SLOT0_INTA_GPIO	10
+#define GTWX5715_PCI_SLOT0_INTB_GPIO	11
+#define GTWX5715_PCI_SLOT0_INTA_IRQ	IRQ_IXP4XX_GPIO10
+#define GTWX5715_PCI_SLOT0_INTB_IRQ	IRQ_IXP4XX_GPIO11
+
+#define GTWX5715_PCI_SLOT1_DEVID	1
+#define GTWX5715_PCI_SLOT1_INTA_GPIO	11
+#define GTWX5715_PCI_SLOT1_INTB_GPIO	10
+#define GTWX5715_PCI_SLOT1_INTA_IRQ	IRQ_IXP4XX_GPIO11
+#define GTWX5715_PCI_SLOT1_INTB_IRQ	IRQ_IXP4XX_GPIO10
+
+#define GTWX5715_PCI_SLOT_COUNT		2
+#define GTWX5715_PCI_INT_PIN_COUNT	2
+
 /*
- * The exact GPIO pins and IRQs are defined in arch-ixp4xx/gtwx5715.h
  * Slot 0 isn't actually populated with a card connector but
  * we initialize it anyway in case a future version has the
  * slot populated or someone with good soldering skills has
