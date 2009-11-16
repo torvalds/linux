@@ -214,12 +214,17 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	if (ret)
 		goto out;
 
-	ios->length = sizeof(*fscb);
+	/* Note: We only write the changing part of the fscb. .i.e upto the
+	 *       the fscb->s_dev_table_oid member. There is no read-modify-write
+	 *       here.
+	 */
+	ios->length = offsetof(struct exofs_fscb, s_dev_table_oid);
 	memset(fscb, 0, ios->length);
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
 	fscb->s_numfiles = cpu_to_le32(sbi->s_numfiles);
 	fscb->s_magic = cpu_to_le16(sb->s_magic);
 	fscb->s_newfs = 0;
+	fscb->s_version = EXOFS_FSCB_VER;
 
 	ios->obj.id = EXOFS_SUPER_ID;
 	ios->offset = 0;
@@ -257,6 +262,20 @@ static void _exofs_print_device(const char *msg, const char *dev_path,
 		msg, dev_path ?: "", odi->osdname, _LLU(pid));
 }
 
+void exofs_free_sbi(struct exofs_sb_info *sbi)
+{
+	while (sbi->s_numdevs) {
+		int i = --sbi->s_numdevs;
+		struct osd_dev *od = sbi->s_ods[i];
+
+		if (od) {
+			sbi->s_ods[i] = NULL;
+			osduld_put_device(od);
+		}
+	}
+	kfree(sbi);
+}
+
 /*
  * This function is called when the vfs is freeing the superblock.  We just
  * need to free our own part.
@@ -279,10 +298,180 @@ static void exofs_put_super(struct super_block *sb)
 				  msecs_to_jiffies(100));
 	}
 
-	_exofs_print_device("Unmounting", NULL, sbi->s_dev, sbi->s_pid);
-	osduld_put_device(sbi->s_dev);
-	kfree(sb->s_fs_info);
+	_exofs_print_device("Unmounting", NULL, sbi->s_ods[0], sbi->s_pid);
+
+	exofs_free_sbi(sbi);
 	sb->s_fs_info = NULL;
+}
+
+static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
+				    struct exofs_device_table *dt)
+{
+	sbi->data_map.odm_num_comps   =
+				le32_to_cpu(dt->dt_data_map.cb_num_comps);
+	sbi->data_map.odm_stripe_unit =
+				le64_to_cpu(dt->dt_data_map.cb_stripe_unit);
+	sbi->data_map.odm_group_width =
+				le32_to_cpu(dt->dt_data_map.cb_group_width);
+	sbi->data_map.odm_group_depth =
+				le32_to_cpu(dt->dt_data_map.cb_group_depth);
+	sbi->data_map.odm_mirror_cnt  =
+				le32_to_cpu(dt->dt_data_map.cb_mirror_cnt);
+	sbi->data_map.odm_raid_algorithm  =
+				le32_to_cpu(dt->dt_data_map.cb_raid_algorithm);
+
+/* FIXME: Hard coded mirror only for now. if not so do not mount */
+	if ((sbi->data_map.odm_num_comps != numdevs) ||
+	    (sbi->data_map.odm_stripe_unit != EXOFS_BLKSIZE) ||
+	    (sbi->data_map.odm_raid_algorithm != PNFS_OSD_RAID_0) ||
+	    (sbi->data_map.odm_mirror_cnt != (numdevs - 1)))
+		return -EINVAL;
+	else
+		return 0;
+}
+
+/* @odi is valid only as long as @fscb_dev is valid */
+static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
+			     struct osd_dev_info *odi)
+{
+	odi->systemid_len = le32_to_cpu(dt_dev->systemid_len);
+	memcpy(odi->systemid, dt_dev->systemid, odi->systemid_len);
+
+	odi->osdname_len = le32_to_cpu(dt_dev->osdname_len);
+	odi->osdname = dt_dev->osdname;
+
+	/* FIXME support long names. Will need a _put function */
+	if (dt_dev->long_name_offset)
+		return -EINVAL;
+
+	/* Make sure osdname is printable!
+	 * mkexofs should give us space for a null-terminator else the
+	 * device-table is invalid.
+	 */
+	if (unlikely(odi->osdname_len >= sizeof(dt_dev->osdname)))
+		odi->osdname_len = sizeof(dt_dev->osdname) - 1;
+	dt_dev->osdname[odi->osdname_len] = 0;
+
+	/* If it's all zeros something is bad we read past end-of-obj */
+	return !(odi->systemid_len || odi->osdname_len);
+}
+
+static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
+				       unsigned table_count)
+{
+	struct exofs_sb_info *sbi = *psbi;
+	struct osd_dev *fscb_od;
+	struct osd_obj_id obj = {.partition = sbi->s_pid,
+				 .id = EXOFS_DEVTABLE_ID};
+	struct exofs_device_table *dt;
+	unsigned table_bytes = table_count * sizeof(dt->dt_dev_table[0]) +
+					     sizeof(*dt);
+	unsigned numdevs, i;
+	int ret;
+
+	dt = kmalloc(table_bytes, GFP_KERNEL);
+	if (unlikely(!dt)) {
+		EXOFS_ERR("ERROR: allocating %x bytes for device table\n",
+			  table_bytes);
+		return -ENOMEM;
+	}
+
+	fscb_od = sbi->s_ods[0];
+	sbi->s_ods[0] = NULL;
+	sbi->s_numdevs = 0;
+	ret = exofs_read_kern(fscb_od, sbi->s_cred, &obj, 0, dt, table_bytes);
+	if (unlikely(ret)) {
+		EXOFS_ERR("ERROR: reading device table\n");
+		goto out;
+	}
+
+	numdevs = le64_to_cpu(dt->dt_num_devices);
+	if (unlikely(!numdevs)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	WARN_ON(table_count != numdevs);
+
+	ret = _read_and_match_data_map(sbi, numdevs, dt);
+	if (unlikely(ret))
+		goto out;
+
+	if (likely(numdevs > 1)) {
+		unsigned size = numdevs * sizeof(sbi->s_ods[0]);
+
+		sbi = krealloc(sbi, sizeof(*sbi) + size, GFP_KERNEL);
+		if (unlikely(!sbi)) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		memset(&sbi->s_ods[1], 0, size - sizeof(sbi->s_ods[0]));
+		*psbi = sbi;
+	}
+
+	for (i = 0; i < numdevs; i++) {
+		struct exofs_fscb fscb;
+		struct osd_dev_info odi;
+		struct osd_dev *od;
+
+		if (exofs_devs_2_odi(&dt->dt_dev_table[i], &odi)) {
+			EXOFS_ERR("ERROR: Read all-zeros device entry\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		printk(KERN_NOTICE "Add device[%d]: osd_name-%s\n",
+		       i, odi.osdname);
+
+		/* On all devices the device table is identical. The user can
+		 * specify any one of the participating devices on the command
+		 * line. We always keep them in device-table order.
+		 */
+		if (fscb_od && osduld_device_same(fscb_od, &odi)) {
+			sbi->s_ods[i] = fscb_od;
+			++sbi->s_numdevs;
+			fscb_od = NULL;
+			continue;
+		}
+
+		od = osduld_info_lookup(&odi);
+		if (unlikely(IS_ERR(od))) {
+			ret = PTR_ERR(od);
+			EXOFS_ERR("ERROR: device requested is not found "
+				  "osd_name-%s =>%d\n", odi.osdname, ret);
+			goto out;
+		}
+
+		sbi->s_ods[i] = od;
+		++sbi->s_numdevs;
+
+		/* Read the fscb of the other devices to make sure the FS
+		 * partition is there.
+		 */
+		ret = exofs_read_kern(od, sbi->s_cred, &obj, 0, &fscb,
+				      sizeof(fscb));
+		if (unlikely(ret)) {
+			EXOFS_ERR("ERROR: Malformed participating device "
+				  "error reading fscb osd_name-%s\n",
+				  odi.osdname);
+			goto out;
+		}
+
+		/* TODO: verify other information is correct and FS-uuid
+		 *	 matches. Benny what did you say about device table
+		 *	 generation and old devices?
+		 */
+	}
+
+out:
+	kfree(dt);
+	if (unlikely(!ret && fscb_od)) {
+		EXOFS_ERR(
+		      "ERROR: Bad device-table container device not present\n");
+		osduld_put_device(fscb_od);
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 /*
@@ -296,6 +485,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	struct osd_dev *od;		/* Master device                 */
 	struct exofs_fscb fscb;		/*on-disk superblock info        */
 	struct osd_obj_id obj;
+	unsigned table_count;
 	int ret;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
@@ -309,7 +499,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	sbi->s_dev = od;
+	sbi->s_ods[0] = od;
+	sbi->s_numdevs = 1;
 	sbi->s_pid = opts->pid;
 	sbi->s_timeout = opts->timeout;
 
@@ -342,10 +533,23 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = -EINVAL;
 		goto free_sbi;
 	}
+	if (le32_to_cpu(fscb.s_version) != EXOFS_FSCB_VER) {
+		EXOFS_ERR("ERROR: Bad FSCB version expected-%d got-%d\n",
+			  EXOFS_FSCB_VER, le32_to_cpu(fscb.s_version));
+		ret = -EINVAL;
+		goto free_sbi;
+	}
 
 	/* start generation numbers from a random point */
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
+
+	table_count = le64_to_cpu(fscb.s_dev_table_count);
+	if (table_count) {
+		ret = exofs_read_lookup_dev_table(&sbi, table_count);
+		if (unlikely(ret))
+			goto free_sbi;
+	}
 
 	/* set up operation vectors */
 	sb->s_fs_info = sbi;
@@ -374,14 +578,14 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	_exofs_print_device("Mounting", opts->dev_name, sbi->s_dev, sbi->s_pid);
+	_exofs_print_device("Mounting", opts->dev_name, sbi->s_ods[0],
+			    sbi->s_pid);
 	return 0;
 
 free_sbi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->s_pid, ret);
-	osduld_put_device(sbi->s_dev); /* NULL safe */
-	kfree(sbi);
+	exofs_free_sbi(sbi);
 	return ret;
 }
 

@@ -37,6 +37,11 @@
 #include <linux/time.h>
 #include "common.h"
 
+/* FIXME: Remove once pnfs hits mainline
+ * #include <linux/exportfs/pnfs_osd_xdr.h>
+ */
+#include "pnfs.h"
+
 #define EXOFS_ERR(fmt, a...) printk(KERN_ERR "exofs: " fmt, ##a)
 
 #ifdef CONFIG_EXOFS_DEBUG
@@ -54,7 +59,6 @@
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
-	struct osd_dev	*s_dev;			/* returned by get_osd_dev    */
 	struct exofs_fscb s_fscb;		/* Written often, pre-allocate*/
 	osd_id		s_pid;			/* partition ID of file system*/
 	int		s_timeout;		/* timeout for OSD operations */
@@ -63,7 +67,11 @@ struct exofs_sb_info {
 	spinlock_t	s_next_gen_lock;	/* spinlock for gen # update  */
 	u32		s_next_generation;	/* next gen # to use          */
 	atomic_t	s_curr_pending;		/* number of pending commands */
-	uint8_t		s_cred[OSD_CAP_LEN];	/* all-powerful credential    */
+	uint8_t		s_cred[OSD_CAP_LEN];	/* credential for the fscb    */
+
+	struct pnfs_osd_data_map data_map;	/* Default raid to use        */
+	unsigned	s_numdevs;		/* Num of devices in array    */
+	struct osd_dev	*s_ods[1];		/* Variable length, minimum 1 */
 };
 
 /*

@@ -62,7 +62,10 @@ static void _pcol_init(struct page_collect *pcol, unsigned expected_pages,
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
 
 	pcol->sbi = sbi;
-	pcol->req_q = osd_request_queue(sbi->s_dev);
+	/* Create master bios on first Q, later on cloning, each clone will be
+	 * allocated on it's destination Q
+	 */
+	pcol->req_q = osd_request_queue(sbi->s_ods[0]);
 	pcol->inode = inode;
 	pcol->expected_pages = expected_pages;
 
