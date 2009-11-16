@@ -24,11 +24,17 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/gpio.h>
+
+#define FSG_SDA_PIN		12
+#define FSG_SCL_PIN		13
+
+#define FSG_SB_GPIO		4	/* sync button */
+#define FSG_RB_GPIO		9	/* reset button */
+#define FSG_UB_GPIO		10	/* usb button */
 
 static struct flash_platform_data fsg_flash_data = {
 	.map_name		= "cfi_probe",

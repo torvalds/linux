@@ -45,6 +45,5 @@
 
 /* Platform specific details */
 #include "prpmc1100.h"
-#include "fsg.h"
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

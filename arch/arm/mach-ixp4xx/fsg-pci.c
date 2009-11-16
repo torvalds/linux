@@ -19,9 +19,19 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#define FSG_PCI_MAX_DEV		3
+#define FSG_PCI_IRQ_LINES	3
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define FSG_PCI_INTA_PIN	6
+#define FSG_PCI_INTB_PIN	7
+#define FSG_PCI_INTC_PIN	5
+#define IRQ_FSG_PCI_INTA	IRQ_IXP4XX_GPIO6
+#define IRQ_FSG_PCI_INTB	IRQ_IXP4XX_GPIO7
+#define IRQ_FSG_PCI_INTC	IRQ_IXP4XX_GPIO5
 
 void __init fsg_pci_preinit(void)
 {
