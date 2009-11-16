@@ -193,7 +193,8 @@ int go7007_reset_encoder(struct go7007 *go)
 static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 			   int id, int addr)
 {
-	struct i2c_board_info info;
+	struct go7007 *go = i2c_get_adapdata(adapter);
+	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
 	char *modname;
 
 	switch (id) {
@@ -225,14 +226,10 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 		modname = NULL;
 		break;
 	}
-	if (modname != NULL)
-		request_module(modname);
 
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = addr;
-	strlcpy(info.type, type, I2C_NAME_SIZE);
-	if (!i2c_new_device(adapter, &info))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, modname, type, addr, NULL))
 		return 0;
+
 	if (modname != NULL)
 		printk(KERN_INFO
 			"go7007: probing for module %s failed\n", modname);
@@ -262,6 +259,11 @@ int go7007_register_encoder(struct go7007 *go)
 	if (ret < 0)
 		return -1;
 
+	/* v4l2 init must happen before i2c subdevs */
+	ret = go7007_v4l2_init(go);
+	if (ret < 0)
+		return ret;
+
 	if (!go->i2c_adapter_online &&
 			go->board_info->flags & GO7007_BOARD_USE_ONBOARD_I2C) {
 		if (go7007_i2c_init(go) < 0)
@@ -282,7 +284,7 @@ int go7007_register_encoder(struct go7007 *go)
 		go->audio_enabled = 1;
 		go7007_snd_init(go);
 	}
-	return go7007_v4l2_init(go);
+	return 0;
 }
 EXPORT_SYMBOL(go7007_register_encoder);
 
