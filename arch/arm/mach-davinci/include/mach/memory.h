@@ -31,6 +31,10 @@
 #define PHYS_OFFSET DAVINCI_DDR_BASE
 #endif
 
+#define DDR2_SDRCR_OFFSET	0xc
+#define DDR2_SRPD_BIT		BIT(23)
+#define DDR2_LPMODEN_BIT	BIT(31)
+
 /*
  * Increase size of DMA-consistent memory region
  */

@@ -19,6 +19,7 @@
 #include <asm/proc-fns.h>
 
 #include <mach/cpuidle.h>
+#include <mach/memory.h>
 
 #define DAVINCI_CPUIDLE_MAX_STATES	2
 
@@ -38,10 +39,6 @@ static struct cpuidle_driver davinci_idle_driver = {
 
 static DEFINE_PER_CPU(struct cpuidle_device, davinci_cpuidle_device);
 static void __iomem *ddr2_reg_base;
-
-#define DDR2_SDRCR_OFFSET	0xc
-#define DDR2_SRPD_BIT		BIT(23)
-#define DDR2_LPMODEN_BIT	BIT(31)
 
 static void davinci_save_ddr_power(int enter, bool pdown)
 {
