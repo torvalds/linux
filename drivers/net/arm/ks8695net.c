@@ -544,14 +544,13 @@ rx_finished:
 				ksp->next_rx_desc_read =
 					(last_rx_processed + 1) &
 					MAX_RX_DESC_MASK;
-
-			/* And refill the buffers */
-			ks8695_refill_rxbuffers(ksp);
-
-			/* Kick the RX DMA engine, in case it became
-			 *  suspended */
-			ks8695_writereg(ksp, KS8695_DRSC, 0);
 	}
+	/* And refill the buffers */
+	ks8695_refill_rxbuffers(ksp);
+
+	/* Kick the RX DMA engine, in case it became
+	 *  suspended */
+	ks8695_writereg(ksp, KS8695_DRSC, 0);
 	return received;
 }
 
