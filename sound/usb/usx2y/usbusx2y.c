@@ -354,7 +354,7 @@ static int usX2Y_create_card(struct usb_device *device, struct snd_card **cardp)
 	usX2Y(card)->chip.card = card;
 	init_waitqueue_head(&usX2Y(card)->prepare_wait_queue);
 	mutex_init(&usX2Y(card)->prepare_mutex);
-	INIT_LIST_HEAD(&usX2Y(card)->chip.midi_list);
+	INIT_LIST_HEAD(&usX2Y(card)->midi_list);
 	strcpy(card->driver, "USB "NAME_ALLCAPS"");
 	sprintf(card->shortname, "TASCAM "NAME_ALLCAPS"");
 	sprintf(card->longname, "%s (%x:%x if %d at %03d/%03d)",
@@ -451,7 +451,7 @@ static void usX2Y_usb_disconnect(struct usb_device *device, void* ptr)
 		usb_kill_urb(usX2Y->In04urb);
 		snd_card_disconnect(card);
 		/* release the midi resources */
-		list_for_each(p, &usX2Y->chip.midi_list) {
+		list_for_each(p, &usX2Y->midi_list) {
 			snd_usbmidi_disconnect(p);
 		}
 		if (usX2Y->us428ctls_sharedmem) 

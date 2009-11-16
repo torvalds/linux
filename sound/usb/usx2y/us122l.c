@@ -62,8 +62,8 @@ static int us122l_create_usbmidi(struct snd_card *card)
 	struct usb_device *dev = US122L(card)->chip.dev;
 	struct usb_interface *iface = usb_ifnum_to_if(dev, 1);
 
-	return snd_usb_create_midi_interface(&US122L(card)->chip,
-					     iface, &quirk);
+	return snd_usbmidi_create(card, iface,
+				  &US122L(card)->midi_list, &quirk);
 }
 
 static int us144_create_usbmidi(struct snd_card *card)
@@ -84,8 +84,8 @@ static int us144_create_usbmidi(struct snd_card *card)
 	struct usb_device *dev = US122L(card)->chip.dev;
 	struct usb_interface *iface = usb_ifnum_to_if(dev, 0);
 
-	return snd_usb_create_midi_interface(&US122L(card)->chip,
-					     iface, &quirk);
+	return snd_usbmidi_create(card, iface,
+				  &US122L(card)->midi_list, &quirk);
 }
 
 /*
@@ -297,7 +297,7 @@ static unsigned int usb_stream_hwdep_poll(struct snd_hwdep *hw,
 static void us122l_stop(struct us122l *us122l)
 {
 	struct list_head *p;
-	list_for_each(p, &us122l->chip.midi_list)
+	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_stop(p);
 
 	usb_stream_stop(&us122l->sk);
@@ -363,7 +363,7 @@ static bool us122l_start(struct us122l *us122l,
 		snd_printk(KERN_ERR "us122l_start error %i \n", err);
 		goto out;
 	}
-	list_for_each(p, &us122l->chip.midi_list)
+	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_start(p);
 	success = true;
 out:
@@ -508,7 +508,7 @@ static bool us122l_create_card(struct snd_card *card)
 	if (err < 0) {
 /* release the midi resources */
 		struct list_head *p;
-		list_for_each(p, &us122l->chip.midi_list)
+		list_for_each(p, &us122l->midi_list)
 			snd_usbmidi_disconnect(p);
 
 		us122l_stop(us122l);
@@ -546,7 +546,7 @@ static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 	US122L(card)->chip.card = card;
 	mutex_init(&US122L(card)->mutex);
 	init_waitqueue_head(&US122L(card)->sk.sleep);
-	INIT_LIST_HEAD(&US122L(card)->chip.midi_list);
+	INIT_LIST_HEAD(&US122L(card)->midi_list);
 	strcpy(card->driver, "USB "NAME_ALLCAPS"");
 	sprintf(card->shortname, "TASCAM "NAME_ALLCAPS"");
 	sprintf(card->longname, "%s (%x:%x if %d at %03d/%03d)",
@@ -638,7 +638,7 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	us122l->chip.shutdown = 1;
 
 /* release the midi resources */
-	list_for_each(p, &us122l->chip.midi_list) {
+	list_for_each(p, &us122l->midi_list) {
 		snd_usbmidi_disconnect(p);
 	}
 
@@ -667,7 +667,7 @@ static int snd_us122l_suspend(struct usb_interface *intf, pm_message_t message)
 	if (!us122l)
 		return 0;
 
-	list_for_each(p, &us122l->chip.midi_list)
+	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_stop(p);
 
 	mutex_lock(&us122l->mutex);
@@ -720,7 +720,7 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	if (err)
 		goto unlock;
 
-	list_for_each(p, &us122l->chip.midi_list)
+	list_for_each(p, &us122l->midi_list)
 		snd_usbmidi_input_start(p);
 unlock:
 	mutex_unlock(&us122l->mutex);

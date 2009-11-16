@@ -171,7 +171,7 @@ static int usX2Y_create_usbmidi(struct snd_card *card)
 		&quirk_2 : &quirk_1;
 
 	snd_printdd("usX2Y_create_usbmidi \n");
-	return snd_usb_create_midi_interface(&usX2Y(card)->chip, iface, quirk);
+	return snd_usbmidi_create(card, iface, &usX2Y(card)->midi_list, quirk);
 }
 
 static int usX2Y_create_alsa_devices(struct snd_card *card)

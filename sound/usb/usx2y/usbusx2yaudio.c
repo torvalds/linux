@@ -740,7 +740,7 @@ static int usX2Y_format_set(struct usX2Ydev *usX2Y, snd_pcm_format_t format)
 		alternate = 1;
 		usX2Y->stride = 4;
 	}
-	list_for_each(p, &usX2Y->chip.midi_list) {
+	list_for_each(p, &usX2Y->midi_list) {
 		snd_usbmidi_input_stop(p);
 	}
 	usb_kill_urb(usX2Y->In04urb);
@@ -750,7 +750,7 @@ static int usX2Y_format_set(struct usX2Ydev *usX2Y, snd_pcm_format_t format)
 	}
 	usX2Y->In04urb->dev = usX2Y->chip.dev;
 	err = usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
-	list_for_each(p, &usX2Y->chip.midi_list) {
+	list_for_each(p, &usX2Y->midi_list) {
 		snd_usbmidi_input_start(p);
 	}
 	usX2Y->format = format;

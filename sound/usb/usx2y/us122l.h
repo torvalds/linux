@@ -12,6 +12,7 @@ struct us122l {
 	unsigned		second_periods_polled;
 	struct file		*master;
 	struct file		*slave;
+	struct list_head	midi_list;
 
 	atomic_t		mmap_count;
 };
