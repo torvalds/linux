@@ -19,7 +19,7 @@ __must_check unsigned long
 copy_user_generic(void *to, const void *from, unsigned len);
 
 __must_check unsigned long
-copy_to_user(void __user *to, const void *from, unsigned len);
+_copy_to_user(void __user *to, const void *from, unsigned len);
 __must_check unsigned long
 _copy_from_user(void *to, const void __user *from, unsigned len);
 __must_check unsigned long
@@ -32,6 +32,7 @@ static inline unsigned long __must_check copy_from_user(void *to,
 	int sz = __compiletime_object_size(to);
 	int ret = -EFAULT;
 
+	might_fault();
 	if (likely(sz == -1 || sz >= n))
 		ret = _copy_from_user(to, from, n);
 #ifdef CONFIG_DEBUG_VM
@@ -41,6 +42,13 @@ static inline unsigned long __must_check copy_from_user(void *to,
 	return ret;
 }
 
+static __always_inline __must_check
+int copy_to_user(void __user *dst, const void *src, unsigned size)
+{
+	might_fault();
+
+	return _copy_to_user(dst, src, size);
+}
 
 static __always_inline __must_check
 int __copy_from_user(void *dst, const void __user *src, unsigned size)
