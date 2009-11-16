@@ -1167,6 +1167,7 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 				"c=%d r=%d n=%d\n",
 				cur_bytes, returned_bytes, n);
 			oa->val_ptr = NULL;
+			cur_bytes = returned_bytes; /* break the caller loop */
 			break;
 		}
 
