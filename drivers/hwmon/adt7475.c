@@ -1151,7 +1151,7 @@ static struct adt7475_data *adt7475_update_device(struct device *dev)
 	}
 
 	/* Limits and settings, should never change update every 60 seconds */
-	if (time_after(jiffies, data->limits_updated + HZ * 2) ||
+	if (time_after(jiffies, data->limits_updated + HZ * 60) ||
 	    !data->valid) {
 		data->config5 = adt7475_read(REG_CONFIG5);
 
