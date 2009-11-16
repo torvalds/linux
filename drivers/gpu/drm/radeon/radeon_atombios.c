@@ -272,12 +272,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
-			if ((le16_to_cpu(path->usDeviceTag) ==
-			     ATOM_DEVICE_TV1_SUPPORT)
-			    || (le16_to_cpu(path->usDeviceTag) ==
-				ATOM_DEVICE_TV2_SUPPORT)
-			    || (le16_to_cpu(path->usDeviceTag) ==
-				ATOM_DEVICE_CV_SUPPORT))
+			/* TODO CV support */
+			if (le16_to_cpu(path->usDeviceTag) ==
+				ATOM_DEVICE_CV_SUPPORT)
 				continue;
 
 			if ((rdev->family == CHIP_RS780) &&

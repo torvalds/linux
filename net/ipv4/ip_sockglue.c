@@ -440,7 +440,7 @@ out:
  */
 
 static int do_ip_setsockopt(struct sock *sk, int level,
-			    int optname, char __user *optval, int optlen)
+			    int optname, char __user *optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val = 0, err;
@@ -950,7 +950,7 @@ e_inval:
 }
 
 int ip_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+		int optname, char __user *optval, unsigned int optlen)
 {
 	int err;
 
@@ -975,7 +975,7 @@ EXPORT_SYMBOL(ip_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ip_setsockopt(struct sock *sk, int level, int optname,
-			 char __user *optval, int optlen)
+			 char __user *optval, unsigned int optlen)
 {
 	int err;
 

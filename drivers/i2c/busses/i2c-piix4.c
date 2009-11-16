@@ -169,7 +169,7 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 	}
 
 	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
-		return -EBUSY;
+		return -ENODEV;
 
 	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
 		dev_err(&PIIX4_dev->dev, "SMBus region 0x%x already in use!\n",
@@ -260,7 +260,7 @@ static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
 
 	piix4_smba = ((smba_en_hi << 8) | smba_en_lo) & 0xffe0;
 	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
-		return -EBUSY;
+		return -ENODEV;
 
 	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
 		dev_err(&PIIX4_dev->dev, "SMBus region 0x%x already in use!\n",

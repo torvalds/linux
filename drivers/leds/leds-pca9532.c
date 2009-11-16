@@ -19,9 +19,6 @@
 #include <linux/workqueue.h>
 #include <linux/leds-pca9532.h>
 
-static const unsigned short normal_i2c[] = { /*0x60,*/ I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(pca9532);
-
 #define PCA9532_REG_PSC(i) (0x2+(i)*2)
 #define PCA9532_REG_PWM(i) (0x3+(i)*2)
 #define PCA9532_REG_LS0  0x6

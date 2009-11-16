@@ -31,8 +31,8 @@
 #include "radeon.h"
 #include "radeon_drm.h"
 #include "rv770d.h"
-#include "avivod.h"
 #include "atom.h"
+#include "avivod.h"
 
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360
@@ -231,7 +231,7 @@ static void rv770_mc_resume(struct radeon_device *rdev)
 
 	/* we need to own VRAM, so turn off the VGA renderer here
 	 * to stop it overwriting our objects */
-	radeon_avivo_vga_render_disable(rdev);
+	rv515_vga_render_disable(rdev);
 }
 
 
@@ -801,6 +801,13 @@ int rv770_mc_init(struct radeon_device *rdev)
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
+
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+		rdev->mc.mc_vram_size = rdev->mc.aper_size;
+
+	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
+		rdev->mc.real_vram_size = rdev->mc.aper_size;
+
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r)

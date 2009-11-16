@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_fb_helper.h"
 
 static void drm_mode_validate_flag(struct drm_connector *connector,
 				   int flags)
@@ -90,7 +91,15 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
 		mode->status = MODE_UNVERIFIED;
 
-	connector->status = connector->funcs->detect(connector);
+	if (connector->force) {
+		if (connector->force == DRM_FORCE_ON)
+			connector->status = connector_status_connected;
+		else
+			connector->status = connector_status_disconnected;
+		if (connector->funcs->force)
+			connector->funcs->force(connector);
+	} else
+		connector->status = connector->funcs->detect(connector);
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("%s is disconnected\n",
@@ -267,6 +276,65 @@ static struct drm_display_mode *drm_has_preferred_mode(struct drm_connector *con
 	return NULL;
 }
 
+static bool drm_has_cmdline_mode(struct drm_connector *connector)
+{
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+	if (!fb_help_conn)
+		return false;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
+	return cmdline_mode->specified;
+}
+
+static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_connector *connector, int width, int height)
+{
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+	struct drm_display_mode *mode = NULL;
+
+	if (!fb_help_conn)
+		return mode;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
+	if (cmdline_mode->specified == false)
+		return mode;
+
+	/* attempt to find a matching mode in the list of modes
+	 *  we have gotten so far, if not add a CVT mode that conforms
+	 */
+	if (cmdline_mode->rb || cmdline_mode->margins)
+		goto create_mode;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		/* check width/height */
+		if (mode->hdisplay != cmdline_mode->xres ||
+		    mode->vdisplay != cmdline_mode->yres)
+			continue;
+
+		if (cmdline_mode->refresh_specified) {
+			if (mode->vrefresh != cmdline_mode->refresh)
+				continue;
+		}
+
+		if (cmdline_mode->interlace) {
+			if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
+				continue;
+		}
+		return mode;
+	}
+
+create_mode:
+	mode = drm_cvt_mode(connector->dev, cmdline_mode->xres,
+			    cmdline_mode->yres,
+			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+			    cmdline_mode->rb, cmdline_mode->interlace,
+			    cmdline_mode->margins);
+	list_add(&mode->head, &connector->modes);
+	return mode;
+}
+
 static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
@@ -317,10 +385,16 @@ static bool drm_target_preferred(struct drm_device *dev,
 			continue;
 		}
 
-		DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
-			  connector->base.id);
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
+			      connector->base.id);
 
-		modes[i] = drm_has_preferred_mode(connector, width, height);
+		/* got for command line mode first */
+		modes[i] = drm_pick_cmdline_mode(connector, width, height);
+		if (!modes[i]) {
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
+				      connector->base.id);
+			modes[i] = drm_has_preferred_mode(connector, width, height);
+		}
 		/* No preferred modes, pick one off the list */
 		if (!modes[i] && !list_empty(&connector->modes)) {
 			list_for_each_entry(modes[i], &connector->modes, head)
@@ -368,6 +442,8 @@ static int drm_pick_crtcs(struct drm_device *dev,
 
 	my_score = 1;
 	if (connector->status == connector_status_connected)
+		my_score++;
+	if (drm_has_cmdline_mode(connector))
 		my_score++;
 	if (drm_has_preferred_mode(connector, width, height))
 		my_score++;
@@ -943,6 +1019,8 @@ bool drm_helper_initial_config(struct drm_device *dev)
 {
 	int count = 0;
 
+	drm_fb_helper_parse_command_line(dev);
+
 	count = drm_helper_probe_connector_modes(dev,
 						 dev->mode_config.max_width,
 						 dev->mode_config.max_height);
@@ -950,7 +1028,7 @@ bool drm_helper_initial_config(struct drm_device *dev)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	WARN(!count, "Connected connector with 0 modes\n");
+	WARN(!count, "No connectors reported connected with modes\n");
 
 	drm_setup_crtcs(dev);
 

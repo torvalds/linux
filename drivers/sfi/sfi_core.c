@@ -90,7 +90,11 @@ static struct sfi_table_simple *syst_va __read_mostly;
  */
 static u32 sfi_use_ioremap __read_mostly;
 
-static void __iomem *sfi_map_memory(u64 phys, u32 size)
+/*
+ * sfi_un/map_memory calls early_ioremap/iounmap which is a __init function
+ * and introduces section mismatch. So use __ref to make it calm.
+ */
+static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
 {
 	if (!phys || !size)
 		return NULL;
@@ -101,7 +105,7 @@ static void __iomem *sfi_map_memory(u64 phys, u32 size)
 		return early_ioremap(phys, size);
 }
 
-static void sfi_unmap_memory(void __iomem *virt, u32 size)
+static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
 {
 	if (!virt || !size)
 		return;
@@ -125,7 +129,7 @@ static void sfi_print_table_header(unsigned long long pa,
  * sfi_verify_table()
  * Sanity check table lengh, calculate checksum
  */
-static __init int sfi_verify_table(struct sfi_table_header *table)
+static int sfi_verify_table(struct sfi_table_header *table)
 {
 
 	u8 checksum = 0;
@@ -213,12 +217,17 @@ static int sfi_table_check_key(struct sfi_table_header *th,
  *    the mapped virt address will be returned, and the virt space
  *    will be released by call sfi_put_table() later
  *
+ * This two cases are from two different functions with two different
+ * sections and causes section mismatch warning. So use __ref to tell
+ * modpost not to make any noise.
+ *
  * Return value:
  *	NULL:			when can't find a table matching the key
  *	ERR_PTR(error):		error value
  *	virt table address:	when a matched table is found
  */
-struct sfi_table_header *sfi_check_table(u64 pa, struct sfi_table_key *key)
+struct sfi_table_header *
+ __ref sfi_check_table(u64 pa, struct sfi_table_key *key)
 {
 	struct sfi_table_header *th;
 	void *ret = NULL;

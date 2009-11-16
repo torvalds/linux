@@ -2105,15 +2105,17 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 {
 	ktime_t start_time, end_time;
-	s32 remaining;
+	s64 remaining;
 	struct hrtimer_sleeper t;
 
 	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_us(hrtimer_expires_remaining(&t.timer));
-	if (remaining <= 0)
+	if (remaining <= 0) {
+		pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
 		return;
+	}
 
 	start_time = ktime_now();
 	if (remaining < 100)

@@ -658,7 +658,6 @@ void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
 		     &icmp6h, NULL,
 		     send_sllao ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
-EXPORT_SYMBOL(ndisc_send_rs);
 
 
 static void ndisc_error_report(struct neighbour *neigh, struct sk_buff *skb)

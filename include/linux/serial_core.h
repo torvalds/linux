@@ -176,6 +176,9 @@
 /* Qualcomm MSM SoCs */
 #define PORT_MSM	88
 
+/* BCM63xx family SoCs */
+#define PORT_BCM63XX	89
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

@@ -462,7 +462,7 @@ arm925_crval:
 	.type	arm925_processor_functions, #object
 arm925_processor_functions:
 	.word	v4t_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_arm925_proc_init
 	.word	cpu_arm925_proc_fin
 	.word	cpu_arm925_reset

@@ -822,14 +822,14 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 
 int btrfs_write_tree_block(struct extent_buffer *buf)
 {
-	return btrfs_fdatawrite_range(buf->first_page->mapping, buf->start,
-				      buf->start + buf->len - 1, WB_SYNC_ALL);
+	return filemap_fdatawrite_range(buf->first_page->mapping, buf->start,
+					buf->start + buf->len - 1);
 }
 
 int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 {
-	return btrfs_wait_on_page_writeback_range(buf->first_page->mapping,
-				  buf->start, buf->start + buf->len - 1);
+	return filemap_fdatawait_range(buf->first_page->mapping,
+				       buf->start, buf->start + buf->len - 1);
 }
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
@@ -1630,7 +1630,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
-	fs_info->metadata_ratio = 8;
+	fs_info->metadata_ratio = 0;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);

@@ -418,12 +418,14 @@ static int bad_syscall(int n, struct pt_regs *regs)
 static inline void
 do_cache_op(unsigned long start, unsigned long end, int flags)
 {
+	struct mm_struct *mm = current->active_mm;
 	struct vm_area_struct *vma;
 
 	if (end < start || flags)
 		return;
 
-	vma = find_vma(current->active_mm, start);
+	down_read(&mm->mmap_sem);
+	vma = find_vma(mm, start);
 	if (vma && vma->vm_start < end) {
 		if (start < vma->vm_start)
 			start = vma->vm_start;
@@ -432,6 +434,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 
 		flush_cache_user_range(vma, start, end);
 	}
+	up_read(&mm->mmap_sem);
 }
 
 /*

@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rfkill.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/wait.h>

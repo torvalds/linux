@@ -387,6 +387,7 @@ struct drm_crtc {
  * @get_modes: get mode list for this connector
  * @set_property: property for this connector may need update
  * @destroy: make object go away
+ * @force: notify the driver the connector is forced on
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -401,6 +402,7 @@ struct drm_connector_funcs {
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
 	void (*destroy)(struct drm_connector *connector);
+	void (*force)(struct drm_connector *connector);
 };
 
 struct drm_encoder_funcs {
@@ -427,6 +429,13 @@ struct drm_encoder {
 	struct drm_crtc *crtc;
 	const struct drm_encoder_funcs *funcs;
 	void *helper_private;
+};
+
+enum drm_connector_force {
+	DRM_FORCE_UNSPECIFIED,
+	DRM_FORCE_OFF,
+	DRM_FORCE_ON,         /* force on analog part normally */
+	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
 /**
@@ -478,9 +487,12 @@ struct drm_connector {
 
 	void *helper_private;
 
+	/* forced on connector */
+	enum drm_connector_force force;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	uint32_t force_encoder_id;
 	struct drm_encoder *encoder; /* currently active encoder */
+	void *fb_helper_private;
 };
 
 /**
@@ -746,7 +758,7 @@ extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
-				bool reduced, bool interlaced);
+				bool reduced, bool interlaced, bool margins);
 extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool interlaced, int margins);

@@ -2733,7 +2733,8 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 			cnic_ulp_init(dev);
 		else if (event == NETDEV_UNREGISTER)
 			cnic_ulp_exit(dev);
-		else if (event == NETDEV_UP) {
+
+		if (event == NETDEV_UP) {
 			if (cnic_register_netdev(dev) != 0) {
 				cnic_put(dev);
 				goto done;

@@ -948,7 +948,7 @@ free:
 	return err;
 }
 
-static void virtnet_remove(struct virtio_device *vdev)
+static void __devexit virtnet_remove(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 	struct sk_buff *skb;

@@ -1701,7 +1701,7 @@ static void packet_flush_mclist(struct sock *sk)
 }
 
 static int
-packet_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+packet_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);

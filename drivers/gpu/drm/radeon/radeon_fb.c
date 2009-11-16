@@ -128,6 +128,7 @@ static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 int radeonfb_create(struct drm_device *dev,
 		    uint32_t fb_width, uint32_t fb_height,
 		    uint32_t surface_width, uint32_t surface_height,
+		    uint32_t surface_depth, uint32_t surface_bpp,
 		    struct drm_framebuffer **fb_p)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -148,10 +149,10 @@ int radeonfb_create(struct drm_device *dev,
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
-	mode_cmd.bpp = 32;
+	mode_cmd.bpp = surface_bpp;
 	/* need to align pitch with crtc limits */
 	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
-	mode_cmd.depth = 24;
+	mode_cmd.depth = surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
@@ -290,13 +291,26 @@ out:
 	return ret;
 }
 
+static char *mode_option;
+int radeon_parse_options(char *options)
+{
+	char *this_opt;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!*this_opt)
+			continue;
+		mode_option = this_opt;
+	}
+	return 0;
+}
+
 int radeonfb_probe(struct drm_device *dev)
 {
-	int ret;
-	ret = drm_fb_helper_single_fb_probe(dev, &radeonfb_create);
-	return ret;
+	return drm_fb_helper_single_fb_probe(dev, &radeonfb_create);
 }
-EXPORT_SYMBOL(radeonfb_probe);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 {

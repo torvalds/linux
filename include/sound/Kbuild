@@ -2,7 +2,6 @@ header-y += asound_fm.h
 header-y += hdsp.h
 header-y += hdspm.h
 header-y += sfnt_info.h
-header-y += sscape_ioctl.h
 
 unifdef-y += asequencer.h
 unifdef-y += asound.h

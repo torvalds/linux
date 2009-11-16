@@ -33,6 +33,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/preempt.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>

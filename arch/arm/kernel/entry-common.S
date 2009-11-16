@@ -126,7 +126,7 @@ ENTRY(__gnu_mcount_nc)
 	cmp r0, r2
 	bne gnu_trace
 	ldmia sp!, {r0-r3, ip, lr}
-	bx ip
+	mov pc, ip
 
 gnu_trace:
 	ldr r1, [sp, #20]			@ lr of instrumented routine
@@ -135,7 +135,7 @@ gnu_trace:
 	mov lr, pc
 	mov pc, r2
 	ldmia sp!, {r0-r3, ip, lr}
-	bx ip
+	mov pc, ip
 
 ENTRY(mcount)
 	stmdb sp!, {r0-r3, lr}
@@ -424,13 +424,6 @@ sys_mmap2:
 		b	do_mmap2
 #endif
 ENDPROC(sys_mmap2)
-
-ENTRY(pabort_ifar)
-		mrc	p15, 0, r0, cr6, cr0, 2
-ENTRY(pabort_noifar)
-		mov	pc, lr
-ENDPROC(pabort_ifar)
-ENDPROC(pabort_noifar)
 
 #ifdef CONFIG_OABI_COMPAT
 

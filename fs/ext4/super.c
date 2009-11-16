@@ -50,13 +50,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
 
-static int default_mb_history_length = 1000;
-
-module_param_named(default_mb_history_length, default_mb_history_length,
-		   int, 0644);
-MODULE_PARM_DESC(default_mb_history_length,
-		 "Default number of entries saved for mb_history");
-
 struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
 
@@ -189,6 +182,36 @@ void ext4_itable_unused_set(struct super_block *sb,
 		bg->bg_itable_unused_hi = cpu_to_le16(count >> 16);
 }
 
+
+/* Just increment the non-pointer handle value */
+static handle_t *ext4_get_nojournal(void)
+{
+	handle_t *handle = current->journal_info;
+	unsigned long ref_cnt = (unsigned long)handle;
+
+	BUG_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
+
+	ref_cnt++;
+	handle = (handle_t *)ref_cnt;
+
+	current->journal_info = handle;
+	return handle;
+}
+
+
+/* Decrement the non-pointer handle value */
+static void ext4_put_nojournal(handle_t *handle)
+{
+	unsigned long ref_cnt = (unsigned long)handle;
+
+	BUG_ON(ref_cnt == 0);
+
+	ref_cnt--;
+	handle = (handle_t *)ref_cnt;
+
+	current->journal_info = handle;
+}
+
 /*
  * Wrappers for jbd2_journal_start/end.
  *
@@ -215,11 +238,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 		}
 		return jbd2_journal_start(journal, nblocks);
 	}
-	/*
-	 * We're not journaling, return the appropriate indication.
-	 */
-	current->journal_info = EXT4_NOJOURNAL_HANDLE;
-	return current->journal_info;
+	return ext4_get_nojournal();
 }
 
 /*
@@ -235,11 +254,7 @@ int __ext4_journal_stop(const char *where, handle_t *handle)
 	int rc;
 
 	if (!ext4_handle_valid(handle)) {
-		/*
-		 * Do this here since we don't call jbd2_journal_stop() in
-		 * no-journal mode.
-		 */
-		current->journal_info = NULL;
+		ext4_put_nojournal(handle);
 		return 0;
 	}
 	sb = handle->h_transaction->t_journal->j_private;
@@ -580,6 +595,9 @@ static void ext4_put_super(struct super_block *sb)
 	struct ext4_super_block *es = sbi->s_es;
 	int i, err;
 
+	flush_workqueue(sbi->dio_unwritten_wq);
+	destroy_workqueue(sbi->dio_unwritten_wq);
+
 	lock_super(sb);
 	lock_kernel();
 	if (sb->s_dirt)
@@ -684,6 +702,8 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_allocated_meta_blocks = 0;
 	ei->i_delalloc_reserved_flag = 0;
 	spin_lock_init(&(ei->i_block_reservation_lock));
+	INIT_LIST_HEAD(&ei->i_aio_dio_complete_list);
+	ei->cur_aio_dio = NULL;
 
 	return &ei->vfs_inode;
 }
@@ -1052,7 +1072,7 @@ enum {
 	Opt_journal_update, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
-	Opt_data_err_abort, Opt_data_err_ignore, Opt_mb_history_length,
+	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_nobarrier, Opt_err, Opt_resize,
@@ -1099,7 +1119,6 @@ static const match_table_t tokens = {
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_data_err_abort, "data_err=abort"},
 	{Opt_data_err_ignore, "data_err=ignore"},
-	{Opt_mb_history_length, "mb_history_length=%u"},
 	{Opt_offusrjquota, "usrjquota="},
 	{Opt_usrjquota, "usrjquota=%s"},
 	{Opt_offgrpjquota, "grpjquota="},
@@ -1339,13 +1358,6 @@ static int parse_options(char *options, struct super_block *sb,
 			break;
 		case Opt_data_err_ignore:
 			clear_opt(sbi->s_mount_opt, DATA_ERR_ABORT);
-			break;
-		case Opt_mb_history_length:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			sbi->s_mb_history_max = option;
 			break;
 #ifdef CONFIG_QUOTA
 		case Opt_usrjquota:
@@ -1646,13 +1658,6 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
 
-	if (EXT4_SB(sb)->s_journal) {
-		ext4_msg(sb, KERN_INFO, "%s journal on %s",
-		       EXT4_SB(sb)->s_journal->j_inode ? "internal" :
-		       "external", EXT4_SB(sb)->s_journal->j_devname);
-	} else {
-		ext4_msg(sb, KERN_INFO, "no journal");
-	}
 	return res;
 }
 
@@ -2197,6 +2202,7 @@ EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_order2_req, s_mb_order2_reqs);
 EXT4_RW_ATTR_SBI_UI(mb_stream_req, s_mb_stream_request);
 EXT4_RW_ATTR_SBI_UI(mb_group_prealloc, s_mb_group_prealloc);
+EXT4_RW_ATTR_SBI_UI(max_writeback_mb_bump, s_max_writeback_mb_bump);
 
 static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(delayed_allocation_blocks),
@@ -2210,6 +2216,7 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(mb_order2_req),
 	ATTR_LIST(mb_stream_req),
 	ATTR_LIST(mb_group_prealloc),
+	ATTR_LIST(max_writeback_mb_bump),
 	NULL,
 };
 
@@ -2413,7 +2420,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_commit_interval = JBD2_DEFAULT_MAX_COMMIT_AGE * HZ;
 	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
 	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
-	sbi->s_mb_history_max = default_mb_history_length;
 
 	set_opt(sbi->s_mount_opt, BARRIER);
 
@@ -2679,6 +2685,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
+	sbi->s_max_writeback_mb_bump = 128;
 
 	/*
 	 * set up enough so that it can read an inode
@@ -2798,6 +2805,12 @@ no_journal:
 			clear_opt(sbi->s_mount_opt, NOBH);
 		}
 	}
+	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
+	if (!EXT4_SB(sb)->dio_unwritten_wq) {
+		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");
+		goto failed_mount_wq;
+	}
+
 	/*
 	 * The jbd2_journal_load will have done any necessary log recovery,
 	 * so we can safely mount the rest of the filesystem now.
@@ -2849,12 +2862,12 @@ no_journal:
 			 "available");
 	}
 
-	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+	if (test_opt(sb, DELALLOC) &&
+	    (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)) {
 		ext4_msg(sb, KERN_WARNING, "Ignoring delalloc option - "
 			 "requested data journaling mode");
 		clear_opt(sbi->s_mount_opt, DELALLOC);
-	} else if (test_opt(sb, DELALLOC))
-		ext4_msg(sb, KERN_INFO, "delayed allocation enabled");
+	}
 
 	err = ext4_setup_system_zone(sb);
 	if (err) {
@@ -2910,6 +2923,8 @@ cantfind_ext4:
 
 failed_mount4:
 	ext4_msg(sb, KERN_ERR, "mount failed");
+	destroy_workqueue(EXT4_SB(sb)->dio_unwritten_wq);
+failed_mount_wq:
 	ext4_release_system_zone(sb);
 	if (sbi->s_journal) {
 		jbd2_journal_destroy(sbi->s_journal);
@@ -3164,9 +3179,7 @@ static int ext4_load_journal(struct super_block *sb,
 			return -EINVAL;
 	}
 
-	if (journal->j_flags & JBD2_BARRIER)
-		ext4_msg(sb, KERN_INFO, "barriers enabled");
-	else
+	if (!(journal->j_flags & JBD2_BARRIER))
 		ext4_msg(sb, KERN_INFO, "barriers disabled");
 
 	if (!really_read_only && test_opt(sb, UPDATE_JOURNAL)) {
@@ -3361,11 +3374,13 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
 	tid_t target;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	trace_ext4_sync_fs(sb, wait);
-	if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, &target)) {
+	flush_workqueue(sbi->dio_unwritten_wq);
+	if (jbd2_journal_start_commit(sbi->s_journal, &target)) {
 		if (wait)
-			jbd2_log_wait_commit(EXT4_SB(sb)->s_journal, target);
+			jbd2_log_wait_commit(sbi->s_journal, target);
 	}
 	return ret;
 }
@@ -3951,27 +3966,6 @@ static struct file_system_type ext4_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-#ifdef CONFIG_EXT4DEV_COMPAT
-static int ext4dev_get_sb(struct file_system_type *fs_type, int flags,
-			  const char *dev_name, void *data,struct vfsmount *mnt)
-{
-	printk(KERN_WARNING "EXT4-fs (%s): Update your userspace programs "
-	       "to mount using ext4\n", dev_name);
-	printk(KERN_WARNING "EXT4-fs (%s): ext4dev backwards compatibility "
-	       "will go away by 2.6.31\n", dev_name);
-	return get_sb_bdev(fs_type, flags, dev_name, data, ext4_fill_super,mnt);
-}
-
-static struct file_system_type ext4dev_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "ext4dev",
-	.get_sb		= ext4dev_get_sb,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
-};
-MODULE_ALIAS("ext4dev");
-#endif
-
 static int __init init_ext4_fs(void)
 {
 	int err;
@@ -3996,13 +3990,6 @@ static int __init init_ext4_fs(void)
 	err = register_filesystem(&ext4_fs_type);
 	if (err)
 		goto out;
-#ifdef CONFIG_EXT4DEV_COMPAT
-	err = register_filesystem(&ext4dev_fs_type);
-	if (err) {
-		unregister_filesystem(&ext4_fs_type);
-		goto out;
-	}
-#endif
 	return 0;
 out:
 	destroy_inodecache();
@@ -4021,9 +4008,6 @@ out4:
 static void __exit exit_ext4_fs(void)
 {
 	unregister_filesystem(&ext4_fs_type);
-#ifdef CONFIG_EXT4DEV_COMPAT
-	unregister_filesystem(&ext4dev_fs_type);
-#endif
 	destroy_inodecache();
 	exit_ext4_xattr();
 	exit_ext4_mballoc();

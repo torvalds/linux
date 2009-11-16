@@ -34,6 +34,7 @@
 #include "blk.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_remap);
+EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
 static int __make_request(struct request_queue *q, struct bio *bio);
@@ -69,7 +70,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		part_stat_inc(cpu, part, merges[rw]);
 	else {
 		part_round_stats(cpu, part);
-		part_inc_in_flight(part, rw);
+		part_inc_in_flight(part);
 	}
 
 	part_stat_unlock();
@@ -1031,7 +1032,7 @@ static void part_round_stats_single(int cpu, struct hd_struct *part,
 
 	if (part->in_flight) {
 		__part_stat_add(cpu, part, time_in_queue,
-				part_in_flight(part) * (now - part->stamp));
+				part->in_flight * (now - part->stamp));
 		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
 	}
 	part->stamp = now;
@@ -1124,7 +1125,6 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 		req->cmd_flags |= REQ_DISCARD;
 		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 			req->cmd_flags |= REQ_SOFTBARRIER;
-		req->q->prepare_discard_fn(req->q, req);
 	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
 		req->cmd_flags |= REQ_HARDBARRIER;
 
@@ -1437,7 +1437,8 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		if (unlikely(nr_sectors > queue_max_hw_sectors(q))) {
+		if (unlikely(!bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+			     nr_sectors > queue_max_hw_sectors(q))) {
 			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 			       bdevname(bio->bi_bdev, b),
 			       bio_sectors(bio),
@@ -1470,7 +1471,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 
 		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
-		    !q->prepare_discard_fn) {
+		    !blk_queue_discard(q)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
@@ -1738,7 +1739,7 @@ static void blk_account_io_done(struct request *req)
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
 		part_round_stats(cpu, part);
-		part_dec_in_flight(part, rw);
+		part_dec_in_flight(part);
 
 		part_stat_unlock();
 	}
@@ -2490,6 +2491,14 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 	return queue_work(kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
+
+int kblockd_schedule_delayed_work(struct request_queue *q,
+				  struct delayed_work *work,
+				  unsigned long delay)
+{
+	return queue_delayed_work(kblockd_workqueue, work, delay);
+}
+EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
 int __init blk_dev_init(void)
 {

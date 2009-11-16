@@ -1241,7 +1241,7 @@ static int pcic_init(struct pcmcia_socket *s)
 static int i82365_drv_pcmcia_suspend(struct platform_device *dev,
 				     pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int i82365_drv_pcmcia_resume(struct platform_device *dev)

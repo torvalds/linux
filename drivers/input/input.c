@@ -17,6 +17,7 @@
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -1273,6 +1274,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		}						\
 	} while (0)
 
+#ifdef CONFIG_PM
 static void input_dev_reset(struct input_dev *dev, bool activate)
 {
 	if (!dev->event)
@@ -1287,7 +1289,6 @@ static void input_dev_reset(struct input_dev *dev, bool activate)
 	}
 }
 
-#ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);

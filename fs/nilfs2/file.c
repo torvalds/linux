@@ -134,7 +134,7 @@ static int nilfs_file_mmap(struct file *file, struct vm_area_struct *vma)
  * We have mostly NULL's here: the current defaults are ok for
  * the nilfs filesystem.
  */
-struct file_operations nilfs_file_operations = {
+const struct file_operations nilfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,

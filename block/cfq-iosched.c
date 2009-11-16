@@ -150,7 +150,7 @@ struct cfq_data {
 	 * idle window management
 	 */
 	struct timer_list idle_slice_timer;
-	struct work_struct unplug_work;
+	struct delayed_work unplug_work;
 
 	struct cfq_queue *active_queue;
 	struct cfq_io_context *active_cic;
@@ -173,6 +173,7 @@ struct cfq_data {
 	unsigned int cfq_slice[2];
 	unsigned int cfq_slice_async_rq;
 	unsigned int cfq_slice_idle;
+	unsigned int cfq_latency;
 
 	struct list_head cic_list;
 
@@ -180,6 +181,8 @@ struct cfq_data {
 	 * Fallback dummy cfqq for extreme OOM conditions
 	 */
 	struct cfq_queue oom_cfqq;
+
+	unsigned long last_end_sync_rq;
 };
 
 enum cfqq_state_flags {
@@ -265,11 +268,13 @@ static inline int cfq_bio_sync(struct bio *bio)
  * scheduler run of queue, if there are requests pending and no one in the
  * driver that will restart queueing
  */
-static inline void cfq_schedule_dispatch(struct cfq_data *cfqd)
+static inline void cfq_schedule_dispatch(struct cfq_data *cfqd,
+					 unsigned long delay)
 {
 	if (cfqd->busy_queues) {
 		cfq_log(cfqd, "schedule dispatch");
-		kblockd_schedule_work(cfqd->queue, &cfqd->unplug_work);
+		kblockd_schedule_delayed_work(cfqd->queue, &cfqd->unplug_work,
+						delay);
 	}
 }
 
@@ -1326,11 +1331,29 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 			return 0;
 
 		/*
-		 * we are the only queue, allow up to 4 times of 'quantum'
+		 * Sole queue user, allow bigger slice
 		 */
-		if (cfqq->dispatched >= 4 * max_dispatch)
-			return 0;
+		max_dispatch *= 4;
 	}
+
+	/*
+	 * Async queues must wait a bit before being allowed dispatch.
+	 * We also ramp up the dispatch depth gradually for async IO,
+	 * based on the last sync IO we serviced
+	 */
+	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency) {
+		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
+		unsigned int depth;
+
+		depth = last_sync / cfqd->cfq_slice[1];
+		if (!depth && !cfqq->dispatched)
+			depth = 1;
+		if (depth < max_dispatch)
+			max_dispatch = depth;
+	}
+
+	if (cfqq->dispatched >= max_dispatch)
+		return 0;
 
 	/*
 	 * Dispatch a request from this cfqq
@@ -1376,7 +1399,7 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 
 	if (unlikely(cfqd->active_queue == cfqq)) {
 		__cfq_slice_expired(cfqd, cfqq, 0);
-		cfq_schedule_dispatch(cfqd);
+		cfq_schedule_dispatch(cfqd, 0);
 	}
 
 	kmem_cache_free(cfq_pool, cfqq);
@@ -1471,7 +1494,7 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	if (unlikely(cfqq == cfqd->active_queue)) {
 		__cfq_slice_expired(cfqd, cfqq, 0);
-		cfq_schedule_dispatch(cfqd);
+		cfq_schedule_dispatch(cfqd, 0);
 	}
 
 	cfq_put_queue(cfqq);
@@ -1951,7 +1974,7 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	enable_idle = old_idle = cfq_cfqq_idle_window(cfqq);
 
 	if (!atomic_read(&cic->ioc->nr_tasks) || !cfqd->cfq_slice_idle ||
-	    (cfqd->hw_tag && CIC_SEEKY(cic)))
+	    (!cfqd->cfq_latency && cfqd->hw_tag && CIC_SEEKY(cic)))
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
 		if (cic->ttime_mean > cfqd->cfq_slice_idle)
@@ -2157,8 +2180,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	if (cfq_cfqq_sync(cfqq))
 		cfqd->sync_flight--;
 
-	if (sync)
+	if (sync) {
 		RQ_CIC(rq)->last_end_request = now;
+		cfqd->last_end_sync_rq = now;
+	}
 
 	/*
 	 * If this is the active queue, check if it needs to be expired,
@@ -2186,7 +2211,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	}
 
 	if (!rq_in_driver(cfqd))
-		cfq_schedule_dispatch(cfqd);
+		cfq_schedule_dispatch(cfqd, 0);
 }
 
 /*
@@ -2316,7 +2341,7 @@ queue_fail:
 	if (cic)
 		put_io_context(cic->ioc);
 
-	cfq_schedule_dispatch(cfqd);
+	cfq_schedule_dispatch(cfqd, 0);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 	cfq_log(cfqd, "set_request fail");
 	return 1;
@@ -2325,7 +2350,7 @@ queue_fail:
 static void cfq_kick_queue(struct work_struct *work)
 {
 	struct cfq_data *cfqd =
-		container_of(work, struct cfq_data, unplug_work);
+		container_of(work, struct cfq_data, unplug_work.work);
 	struct request_queue *q = cfqd->queue;
 
 	spin_lock_irq(q->queue_lock);
@@ -2379,7 +2404,7 @@ static void cfq_idle_slice_timer(unsigned long data)
 expire:
 	cfq_slice_expired(cfqd, timed_out);
 out_kick:
-	cfq_schedule_dispatch(cfqd);
+	cfq_schedule_dispatch(cfqd, 0);
 out_cont:
 	spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
 }
@@ -2387,7 +2412,7 @@ out_cont:
 static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 {
 	del_timer_sync(&cfqd->idle_slice_timer);
-	cancel_work_sync(&cfqd->unplug_work);
+	cancel_delayed_work_sync(&cfqd->unplug_work);
 }
 
 static void cfq_put_async_queues(struct cfq_data *cfqd)
@@ -2469,7 +2494,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->idle_slice_timer.function = cfq_idle_slice_timer;
 	cfqd->idle_slice_timer.data = (unsigned long) cfqd;
 
-	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue);
+	INIT_DELAYED_WORK(&cfqd->unplug_work, cfq_kick_queue);
 
 	cfqd->cfq_quantum = cfq_quantum;
 	cfqd->cfq_fifo_expire[0] = cfq_fifo_expire[0];
@@ -2480,8 +2505,9 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_slice[1] = cfq_slice_sync;
 	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
 	cfqd->cfq_slice_idle = cfq_slice_idle;
+	cfqd->cfq_latency = 1;
 	cfqd->hw_tag = 1;
-
+	cfqd->last_end_sync_rq = jiffies;
 	return cfqd;
 }
 
@@ -2549,6 +2575,7 @@ SHOW_FUNCTION(cfq_slice_idle_show, cfqd->cfq_slice_idle, 1);
 SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
 SHOW_FUNCTION(cfq_slice_async_rq_show, cfqd->cfq_slice_async_rq, 0);
+SHOW_FUNCTION(cfq_low_latency_show, cfqd->cfq_latency, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -2580,6 +2607,7 @@ STORE_FUNCTION(cfq_slice_sync_store, &cfqd->cfq_slice[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1,
 		UINT_MAX, 0);
+STORE_FUNCTION(cfq_low_latency_store, &cfqd->cfq_latency, 0, 1, 0);
 #undef STORE_FUNCTION
 
 #define CFQ_ATTR(name) \
@@ -2595,6 +2623,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 	CFQ_ATTR(slice_async),
 	CFQ_ATTR(slice_async_rq),
 	CFQ_ATTR(slice_idle),
+	CFQ_ATTR(low_latency),
 	__ATTR_NULL
 };
 

@@ -1246,12 +1246,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_pci_reg;
 
-	err = pci_enable_pcie_error_reporting(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
-		        "0x%x\n", err);
-		/* non-fatal, continue */
-	}
+	pci_enable_pcie_error_reporting(pdev);
 
 	pci_set_master(pdev);
 	pci_save_state(pdev);
@@ -1628,7 +1623,6 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	int err;
 
 	/* flush_scheduled work may reschedule our watchdog task, so
 	 * explicitly disable watchdog tasks from being rescheduled  */
@@ -1682,10 +1676,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	free_netdev(netdev);
 
-	err = pci_disable_pcie_error_reporting(pdev);
-	if (err)
-		dev_err(&pdev->dev,
-		        "pci_disable_pcie_error_reporting failed 0x%x\n", err);
+	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);
 }

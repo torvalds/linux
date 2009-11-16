@@ -364,7 +364,7 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	error = acpi_check_region(amd756_ioport, SMB_IOSIZE,
 				  amd756_driver.name);
 	if (error)
-		return error;
+		return -ENODEV;
 
 	if (!request_region(amd756_ioport, SMB_IOSIZE, amd756_driver.name)) {
 		dev_err(&pdev->dev, "SMB region 0x%x already in use!\n",

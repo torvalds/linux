@@ -482,6 +482,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->user_modes, head)
 		drm_mode_remove(connector, mode);
 
+	kfree(connector->fb_helper_private);
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);

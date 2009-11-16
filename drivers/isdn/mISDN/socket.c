@@ -415,7 +415,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 
 static int data_sock_setsockopt(struct socket *sock, int level, int optname,
-	char __user *optval, int len)
+	char __user *optval, unsigned int len)
 {
 	struct sock *sk = sock->sk;
 	int err = 0, opt = 0;

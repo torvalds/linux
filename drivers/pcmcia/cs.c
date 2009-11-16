@@ -101,7 +101,7 @@ EXPORT_SYMBOL(pcmcia_socket_list_rwsem);
 static int socket_resume(struct pcmcia_socket *skt);
 static int socket_suspend(struct pcmcia_socket *skt);
 
-int pcmcia_socket_dev_suspend(struct device *dev, pm_message_t state)
+int pcmcia_socket_dev_suspend(struct device *dev)
 {
 	struct pcmcia_socket *socket;
 

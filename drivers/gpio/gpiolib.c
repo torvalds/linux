@@ -1487,7 +1487,7 @@ static int gpiolib_open(struct inode *inode, struct file *file)
 	return single_open(file, gpiolib_show, NULL);
 }
 
-static struct file_operations gpiolib_operations = {
+static const struct file_operations gpiolib_operations = {
 	.open		= gpiolib_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

@@ -29,11 +29,13 @@ TCM location and size. Notice that this is not a MMU table: you
 actually move the physical location of the TCM around. At the
 place you put it, it will mask any underlying RAM from the
 CPU so it is usually wise not to overlap any physical RAM with
-the TCM. The TCM memory exists totally outside the MMU and will
-override any MMU mappings.
+the TCM.
 
-Code executing inside the ITCM does not "see" any MMU mappings
-and e.g. register accesses must be made to physical addresses.
+The TCM memory can then be remapped to another address again using
+the MMU, but notice that the TCM if often used in situations where
+the MMU is turned off. To avoid confusion the current Linux
+implementation will map the TCM 1 to 1 from physical to virtual
+memory in the location specified by the machine.
 
 TCM is used for a few things:
 

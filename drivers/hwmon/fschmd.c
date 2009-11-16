@@ -915,7 +915,7 @@ static int watchdog_ioctl(struct inode *inode, struct file *filp,
 	return ret;
 }
 
-static struct file_operations watchdog_fops = {
+static const struct file_operations watchdog_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = watchdog_open,

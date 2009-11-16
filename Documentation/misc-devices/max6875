@@ -42,10 +42,12 @@ General Remarks
 
 Valid addresses for the MAX6875 are 0x50 and 0x52.
 Valid addresses for the MAX6874 are 0x50, 0x52, 0x54 and 0x56.
-The driver does not probe any address, so you must force the address.
+The driver does not probe any address, so you explicitly instantiate the
+devices.
 
 Example:
-$ modprobe max6875 force=0,0x50
+$ modprobe max6875
+$ echo max6875 0x50 > /sys/bus/i2c/devices/i2c-0/new_device
 
 The MAX6874/MAX6875 ignores address bit 0, so this driver attaches to multiple
 addresses.  For example, for address 0x50, it also reserves 0x51.

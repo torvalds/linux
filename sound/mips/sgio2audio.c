@@ -973,7 +973,7 @@ static int __devinit snd_sgio2audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit snd_sgio2audio_remove(struct platform_device *pdev)
+static int __devexit snd_sgio2audio_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 

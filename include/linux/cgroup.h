@@ -37,7 +37,7 @@ extern void cgroup_exit(struct task_struct *p, int run_callbacks);
 extern int cgroupstats_build(struct cgroupstats *stats,
 				struct dentry *dentry);
 
-extern struct file_operations proc_cgroup_operations;
+extern const struct file_operations proc_cgroup_operations;
 
 /* Define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _subsys_id,

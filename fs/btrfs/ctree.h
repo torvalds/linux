@@ -675,18 +675,19 @@ struct btrfs_space_info {
 				   current allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
 	u64 bytes_super;	/* total bytes reserved for the super blocks */
-
-	/* delalloc accounting */
-	u64 bytes_delalloc;	/* number of bytes reserved for allocation,
-				   this space is not necessarily reserved yet
-				   by the allocator */
+	u64 bytes_root;		/* the number of bytes needed to commit a
+				   transaction */
 	u64 bytes_may_use;	/* number of bytes that may be used for
-				   delalloc */
+				   delalloc/allocations */
+	u64 bytes_delalloc;	/* number of bytes currently reserved for
+				   delayed allocation */
 
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
 	int force_alloc;	/* set if we need to force a chunk alloc for
 				   this space */
+	int force_delalloc;	/* make people start doing filemap_flush until
+				   we're under a threshold */
 
 	struct list_head list;
 
@@ -695,6 +696,9 @@ struct btrfs_space_info {
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
 	atomic_t caching_threads;
+
+	int allocating_chunk;
+	wait_queue_head_t wait;
 };
 
 /*
@@ -2022,7 +2026,12 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *ionde);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 
-int btrfs_check_metadata_free_space(struct btrfs_root *root);
+int btrfs_reserve_metadata_space(struct btrfs_root *root, int num_items);
+int btrfs_unreserve_metadata_space(struct btrfs_root *root, int num_items);
+int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
+					  struct inode *inode, int num_items);
+int btrfs_reserve_metadata_for_delalloc(struct btrfs_root *root,
+					struct inode *inode, int num_items);
 int btrfs_check_data_free_space(struct btrfs_root *root, struct inode *inode,
 				u64 bytes);
 void btrfs_free_reserved_data_space(struct btrfs_root *root,
@@ -2326,7 +2335,7 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync);
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			    int skip_pinned);
 int btrfs_check_file(struct btrfs_root *root, struct inode *inode);
-extern struct file_operations btrfs_file_operations;
+extern const struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 locked_end,
@@ -2357,7 +2366,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options);
 int btrfs_sync_fs(struct super_block *sb, int wait);
 
 /* acl.c */
-#ifdef CONFIG_FS_POSIX_ACL
+#ifdef CONFIG_BTRFS_POSIX_ACL
 int btrfs_check_acl(struct inode *inode, int mask);
 #else
 #define btrfs_check_acl NULL

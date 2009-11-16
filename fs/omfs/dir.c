@@ -498,7 +498,7 @@ const struct inode_operations omfs_dir_inops = {
 	.rmdir = omfs_rmdir,
 };
 
-struct file_operations omfs_dir_operations = {
+const struct file_operations omfs_dir_operations = {
 	.read = generic_read_dir,
 	.readdir = omfs_readdir,
 	.llseek = generic_file_llseek,

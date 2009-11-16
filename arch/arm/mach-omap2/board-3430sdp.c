@@ -54,7 +54,7 @@
 
 #define TWL4030_MSECURE_GPIO 22
 
-static int sdp3430_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_A),
@@ -88,11 +88,15 @@ static int sdp3430_keymap[] = {
 	0
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data sdp3430_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 5,
 	.cols		= 6,
-	.keymap		= sdp3430_keymap,
-	.keymapsize	= ARRAY_SIZE(sdp3430_keymap),
 	.rep		= 1,
 };
 

@@ -82,7 +82,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_long_byte_count", E1000_STAT(stats.gorcl) },
 	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
 	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
-	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
 	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
 	{ "tx_smbus", E1000_STAT(stats.mgptc) },
 	{ "rx_smbus", E1000_STAT(stats.mgprc) },
@@ -114,8 +113,6 @@ static int e1000_get_settings(struct net_device *netdev,
 		                   SUPPORTED_1000baseT_Full|
 		                   SUPPORTED_Autoneg |
 		                   SUPPORTED_TP);
-		if (hw->phy_type == e1000_phy_ife)
-			ecmd->supported &= ~SUPPORTED_1000baseT_Full;
 		ecmd->advertising = ADVERTISED_TP;
 
 		if (hw->autoneg == 1) {
@@ -177,14 +174,6 @@ static int e1000_set_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-
-	/* When SoL/IDER sessions are active, autoneg/speed/duplex
-	 * cannot be changed */
-	if (e1000_check_phy_reset_block(hw)) {
-		DPRINTK(DRV, ERR, "Cannot change link characteristics "
-		        "when SoL/IDER is active.\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
 		msleep(1);
@@ -330,10 +319,7 @@ static int e1000_set_tso(struct net_device *netdev, u32 data)
 	else
 		netdev->features &= ~NETIF_F_TSO;
 
-	if (data && (adapter->hw.mac_type > e1000_82547_rev_2))
-		netdev->features |= NETIF_F_TSO6;
-	else
-		netdev->features &= ~NETIF_F_TSO6;
+	netdev->features &= ~NETIF_F_TSO6;
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = true;
@@ -441,7 +427,6 @@ static void e1000_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	regs_buff[24] = (u32)phy_data;  /* phy local receiver status */
 	regs_buff[25] = regs_buff[24];  /* phy remote receiver status */
 	if (hw->mac_type >= e1000_82540 &&
-	    hw->mac_type < e1000_82571 &&
 	    hw->media_type == e1000_media_type_copper) {
 		regs_buff[26] = er32(MANC);
 	}
@@ -554,10 +539,8 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	ret_val = e1000_write_eeprom(hw, first_word,
 				     last_word - first_word + 1, eeprom_buff);
 
-	/* Update the checksum over the first part of the EEPROM if needed
-	 * and flush shadow RAM for 82573 conrollers */
-	if ((ret_val == 0) && ((first_word <= EEPROM_CHECKSUM_REG) ||
-				(hw->mac_type == e1000_82573)))
+	/* Update the checksum over the first part of the EEPROM if needed */
+	if ((ret_val == 0) && (first_word <= EEPROM_CHECKSUM_REG))
 		e1000_update_eeprom_checksum(hw);
 
 	kfree(eeprom_buff);
@@ -568,31 +551,12 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
 	char firmware_version[32];
-	u16 eeprom_data;
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
 
-	/* EEPROM image version # is reported as firmware version # for
-	 * 8257{1|2|3} controllers */
-	e1000_read_eeprom(hw, 5, 1, &eeprom_data);
-	switch (hw->mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_82573:
-	case e1000_80003es2lan:
-	case e1000_ich8lan:
-		sprintf(firmware_version, "%d.%d-%d",
-			(eeprom_data & 0xF000) >> 12,
-			(eeprom_data & 0x0FF0) >> 4,
-			eeprom_data & 0x000F);
-		break;
-	default:
-		sprintf(firmware_version, "N/A");
-	}
-
+	sprintf(firmware_version, "N/A");
 	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);
@@ -781,21 +745,9 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
-	switch (hw->mac_type) {
+
 	/* there are several bits on newer hardware that are r/w */
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_80003es2lan:
-		toggle = 0x7FFFF3FF;
-		break;
-	case e1000_82573:
-	case e1000_ich8lan:
-		toggle = 0x7FFFF033;
-		break;
-	default:
-		toggle = 0xFFFFF833;
-		break;
-	}
+	toggle = 0xFFFFF833;
 
 	before = er32(STATUS);
 	value = (er32(STATUS) & toggle);
@@ -810,12 +762,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	/* restore previous status */
 	ew32(STATUS, before);
 
-	if (hw->mac_type != e1000_ich8lan) {
-		REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
-		REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
-		REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
-		REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
-	}
+	REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
 
 	REG_PATTERN_TEST(RDTR, 0x0000FFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -830,8 +780,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 
 	REG_SET_AND_CHECK(RCTL, 0xFFFFFFFF, 0x00000000);
 
-	before = (hw->mac_type == e1000_ich8lan ?
-	          0x06C3B33E : 0x06DFB3FE);
+	before = 0x06DFB3FE;
 	REG_SET_AND_CHECK(RCTL, before, 0x003FFFFB);
 	REG_SET_AND_CHECK(TCTL, 0xFFFFFFFF, 0x00000000);
 
@@ -839,12 +788,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 
 		REG_SET_AND_CHECK(RCTL, before, 0xFFFFFFFF);
 		REG_PATTERN_TEST(RDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
-		if (hw->mac_type != e1000_ich8lan)
-			REG_PATTERN_TEST(TXCW, 0xC000FFFF, 0x0000FFFF);
+		REG_PATTERN_TEST(TXCW, 0xC000FFFF, 0x0000FFFF);
 		REG_PATTERN_TEST(TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
 		REG_PATTERN_TEST(TIDV, 0x0000FFFF, 0x0000FFFF);
-		value = (hw->mac_type == e1000_ich8lan ?
-		         E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
+		value = E1000_RAR_ENTRIES;
 		for (i = 0; i < value; i++) {
 			REG_PATTERN_TEST(RA + (((i << 1) + 1) << 2), 0x8003FFFF,
 			                 0xFFFFFFFF);
@@ -859,8 +806,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 
 	}
 
-	value = (hw->mac_type == e1000_ich8lan ?
-			E1000_MC_TBL_SIZE_ICH8LAN : E1000_MC_TBL_SIZE);
+	value = E1000_MC_TBL_SIZE;
 	for (i = 0; i < value; i++)
 		REG_PATTERN_TEST(MTA + (i << 2), 0xFFFFFFFF, 0xFFFFFFFF);
 
@@ -932,9 +878,6 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Test each interrupt */
 	for (; i < 10; i++) {
-
-		if (hw->mac_type == e1000_ich8lan && i == 8)
-			continue;
 
 		/* Interrupt to test */
 		mask = 1 << i;
@@ -1289,35 +1232,20 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1000_write_phy_reg(hw, PHY_CTRL, 0x9140);
 		/* autoneg off */
 		e1000_write_phy_reg(hw, PHY_CTRL, 0x8140);
-	} else if (hw->phy_type == e1000_phy_gg82563)
-		e1000_write_phy_reg(hw,
-		                    GG82563_PHY_KMRN_MODE_CTRL,
-		                    0x1CC);
+	}
 
 	ctrl_reg = er32(CTRL);
 
-	if (hw->phy_type == e1000_phy_ife) {
-		/* force 100, set loopback */
-		e1000_write_phy_reg(hw, PHY_CTRL, 0x6100);
+	/* force 1000, set loopback */
+	e1000_write_phy_reg(hw, PHY_CTRL, 0x4140);
 
-		/* Now set up the MAC to the same speed/duplex as the PHY. */
-		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
-		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
-			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
-			     E1000_CTRL_SPD_100 |/* Force Speed to 100 */
-			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
-	} else {
-		/* force 1000, set loopback */
-		e1000_write_phy_reg(hw, PHY_CTRL, 0x4140);
-
-		/* Now set up the MAC to the same speed/duplex as the PHY. */
-		ctrl_reg = er32(CTRL);
-		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
-		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
-			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
-			     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
-			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
-	}
+	/* Now set up the MAC to the same speed/duplex as the PHY. */
+	ctrl_reg = er32(CTRL);
+	ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
+	ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
+			E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
+			E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
+			E1000_CTRL_FD);	 /* Force Duplex to FULL */
 
 	if (hw->media_type == e1000_media_type_copper &&
 	   hw->phy_type == e1000_phy_m88)
@@ -1373,14 +1301,8 @@ static int e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82541_rev_2:
 	case e1000_82547:
 	case e1000_82547_rev_2:
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_82573:
-	case e1000_80003es2lan:
-	case e1000_ich8lan:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
-
 	default:
 		/* Default PHY loopback work is to read the MII
 		 * control register and assert bit 14 (loopback mode).
@@ -1409,14 +1331,6 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 		case e1000_82546_rev_3:
 			return e1000_set_phy_loopback(adapter);
 			break;
-		case e1000_82571:
-		case e1000_82572:
-#define E1000_SERDES_LB_ON 0x410
-			e1000_set_phy_loopback(adapter);
-			ew32(SCTL, E1000_SERDES_LB_ON);
-			msleep(10);
-			return 0;
-			break;
 		default:
 			rctl = er32(RCTL);
 			rctl |= E1000_RCTL_LBM_TCVR;
@@ -1440,26 +1354,12 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl);
 
 	switch (hw->mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-		if (hw->media_type == e1000_media_type_fiber ||
-		    hw->media_type == e1000_media_type_internal_serdes) {
-#define E1000_SERDES_LB_OFF 0x400
-			ew32(SCTL, E1000_SERDES_LB_OFF);
-			msleep(10);
-			break;
-		}
-		/* Fall Through */
 	case e1000_82545:
 	case e1000_82546:
 	case e1000_82545_rev_3:
 	case e1000_82546_rev_3:
 	default:
 		hw->autoneg = true;
-		if (hw->phy_type == e1000_phy_gg82563)
-			e1000_write_phy_reg(hw,
-					    GG82563_PHY_KMRN_MODE_CTRL,
-					    0x180);
 		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
 		if (phy_reg & MII_CR_LOOPBACK) {
 			phy_reg &= ~MII_CR_LOOPBACK;
@@ -1560,17 +1460,6 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
-	struct e1000_hw *hw = &adapter->hw;
-
-	/* PHY loopback cannot be performed if SoL/IDER
-	 * sessions are active */
-	if (e1000_check_phy_reset_block(hw)) {
-		DPRINTK(DRV, ERR, "Cannot do PHY loopback test "
-		        "when SoL/IDER is active.\n");
-		*data = 0;
-		goto out;
-	}
-
 	*data = e1000_setup_desc_rings(adapter);
 	if (*data)
 		goto out;
@@ -1592,13 +1481,13 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	*data = 0;
 	if (hw->media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
-		hw->serdes_link_down = true;
+		hw->serdes_has_link = false;
 
 		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes */
 		do {
 			e1000_check_for_link(hw);
-			if (!hw->serdes_link_down)
+			if (hw->serdes_has_link)
 				return *data;
 			msleep(20);
 		} while (i++ < 3750);
@@ -1716,15 +1605,11 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter,
 	case E1000_DEV_ID_82545EM_COPPER:
 	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 	case E1000_DEV_ID_82546GB_PCIE:
-	case E1000_DEV_ID_82571EB_SERDES_QUAD:
 		/* these don't support WoL at all */
 		wol->supported = 0;
 		break;
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
-	case E1000_DEV_ID_82571EB_FIBER:
-	case E1000_DEV_ID_82571EB_SERDES:
-	case E1000_DEV_ID_82571EB_COPPER:
 		/* Wake events not supported on port B */
 		if (er32(STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;
@@ -1733,10 +1618,6 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter,
 		/* return success for non excluded adapter ports */
 		retval = 0;
 		break;
-	case E1000_DEV_ID_82571EB_QUAD_COPPER:
-	case E1000_DEV_ID_82571EB_QUAD_FIBER:
-	case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
-	case E1000_DEV_ID_82571PT_QUAD_COPPER:
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 		/* quad port adapters only support WoL on port A */
 		if (!adapter->quad_port_a) {
@@ -1872,30 +1753,15 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 	if (!data)
 		data = INT_MAX;
 
-	if (hw->mac_type < e1000_82571) {
-		if (!adapter->blink_timer.function) {
-			init_timer(&adapter->blink_timer);
-			adapter->blink_timer.function = e1000_led_blink_callback;
-			adapter->blink_timer.data = (unsigned long)adapter;
-		}
-		e1000_setup_led(hw);
-		mod_timer(&adapter->blink_timer, jiffies);
-		msleep_interruptible(data * 1000);
-		del_timer_sync(&adapter->blink_timer);
-	} else if (hw->phy_type == e1000_phy_ife) {
-		if (!adapter->blink_timer.function) {
-			init_timer(&adapter->blink_timer);
-			adapter->blink_timer.function = e1000_led_blink_callback;
-			adapter->blink_timer.data = (unsigned long)adapter;
-		}
-		mod_timer(&adapter->blink_timer, jiffies);
-		msleep_interruptible(data * 1000);
-		del_timer_sync(&adapter->blink_timer);
-		e1000_write_phy_reg(&(adapter->hw), IFE_PHY_SPECIAL_CONTROL_LED, 0);
-	} else {
-		e1000_blink_led_start(hw);
-		msleep_interruptible(data * 1000);
+	if (!adapter->blink_timer.function) {
+		init_timer(&adapter->blink_timer);
+		adapter->blink_timer.function = e1000_led_blink_callback;
+		adapter->blink_timer.data = (unsigned long)adapter;
 	}
+	e1000_setup_led(hw);
+	mod_timer(&adapter->blink_timer, jiffies);
+	msleep_interruptible(data * 1000);
+	del_timer_sync(&adapter->blink_timer);
 
 	e1000_led_off(hw);
 	clear_bit(E1000_LED_ON, &adapter->led_status);

@@ -285,7 +285,7 @@ static int acpi_video_device_brightness_open_fs(struct inode *inode,
 						struct file *file);
 static ssize_t acpi_video_device_write_brightness(struct file *file,
 	const char __user *buffer, size_t count, loff_t *data);
-static struct file_operations acpi_video_device_brightness_fops = {
+static const struct file_operations acpi_video_device_brightness_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_brightness_open_fs,
 	.read = seq_read,

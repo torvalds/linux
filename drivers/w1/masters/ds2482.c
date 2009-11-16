@@ -24,19 +24,6 @@
 #include "../w1_int.h"
 
 /**
- * Address is selected using 2 pins, resulting in 4 possible addresses.
- *  0x18, 0x19, 0x1a, 0x1b
- * However, the chip cannot be detected without doing an i2c write,
- * so use the force module parameter.
- */
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/**
- * Insmod parameters
- */
-I2C_CLIENT_INSMOD_1(ds2482);
-
-/**
  * The DS2482 registers - there are 3 registers that are addressed by a read
  * pointer. The read pointer is set by the last command executed.
  *
@@ -96,8 +83,6 @@ static const u8 ds2482_chan_rd[8] =
 
 static int ds2482_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int ds2482_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info);
 static int ds2482_remove(struct i2c_client *client);
 
 
@@ -117,8 +102,6 @@ static struct i2c_driver ds2482_driver = {
 	.probe		= ds2482_probe,
 	.remove		= ds2482_remove,
 	.id_table	= ds2482_id,
-	.detect		= ds2482_detect,
-	.address_data	= &addr_data,
 };
 
 /*
@@ -425,19 +408,6 @@ static u8 ds2482_w1_reset_bus(void *data)
 }
 
 
-static int ds2482_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info)
-{
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
-				     I2C_FUNC_SMBUS_BYTE))
-		return -ENODEV;
-
-	strlcpy(info->type, "ds2482", I2C_NAME_SIZE);
-
-	return 0;
-}
-
 static int ds2482_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -445,6 +415,11 @@ static int ds2482_probe(struct i2c_client *client,
 	int err = -ENODEV;
 	int temp1;
 	int idx;
+
+	if (!i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
+				     I2C_FUNC_SMBUS_BYTE))
+		return -ENODEV;
 
 	if (!(data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL))) {
 		err = -ENOMEM;

@@ -192,6 +192,10 @@ config PCMCIA_AU1X00
 	tristate "Au1x00 pcmcia support"
 	depends on SOC_AU1X00 && PCMCIA
 
+config PCMCIA_BCM63XX
+	tristate "bcm63xx pcmcia support"
+	depends on BCM63XX && PCMCIA
+
 config PCMCIA_SA1100
 	tristate "SA1100 support"
 	depends on ARM && ARCH_SA1100 && PCMCIA

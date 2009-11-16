@@ -1954,6 +1954,18 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.name = "Sony S1XP",
 		.type = AC97_TUNE_INV_EAPD
 	},
+	{
+		.subvendor = 0x104d,
+		.subdevice = 0x81c0,
+		.name = "Sony VAIO VGN-T350P", /*AD1981B*/
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x104d,
+		.subdevice = 0x81c5,
+		.name = "Sony VAIO VGN-B1VP", /*AD1981B*/
+		.type = AC97_TUNE_INV_EAPD
+	},
  	{
 		.subvendor = 0x1043,
 		.subdevice = 0x80f3,

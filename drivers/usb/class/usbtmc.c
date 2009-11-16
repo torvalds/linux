@@ -993,7 +993,7 @@ skip_io_on_zombie:
 	return retval;
 }
 
-static struct file_operations fops = {
+static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.read		= usbtmc_read,
 	.write		= usbtmc_write,

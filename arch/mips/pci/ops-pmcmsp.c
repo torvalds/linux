@@ -385,6 +385,7 @@ int msp_pcibios_config_access(unsigned char access_type,
 	unsigned long intr;
 	unsigned long value;
 	static char pciirqflag;
+	int ret;
 #if defined(CONFIG_PMC_MSP7120_GW) || defined(CONFIG_PMC_MSP7120_EVAL)
 	unsigned int	vpe_status;
 #endif
@@ -402,11 +403,13 @@ int msp_pcibios_config_access(unsigned char access_type,
 	 * allocation assigns an interrupt handler to the interrupt.
 	 */
 	if (pciirqflag == 0) {
-		request_irq(MSP_INT_PCI,/* Hardcoded internal MSP7120 wiring */
+		ret = request_irq(MSP_INT_PCI,/* Hardcoded internal MSP7120 wiring */
 				bpci_interrupt,
 				IRQF_SHARED | IRQF_DISABLED,
 				"PMC MSP PCI Host",
 				preg);
+		if (ret != 0)
+			return ret;
 		pciirqflag = ~0;
 	}
 

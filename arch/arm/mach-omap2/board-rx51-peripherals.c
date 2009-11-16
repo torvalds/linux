@@ -36,7 +36,7 @@
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
 
-static int rx51_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_Q),
 	KEY(0, 1, KEY_W),
 	KEY(0, 2, KEY_E),
@@ -83,11 +83,15 @@ static int rx51_keymap[] = {
 	KEY(0xff, 5, KEY_F10),
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data rx51_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= rx51_keymap,
-	.keymapsize	= ARRAY_SIZE(rx51_keymap),
 	.rep		= 1,
 };
 

@@ -2179,7 +2179,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
  * session or the special tunnel type.
  */
 static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
-			       char __user *optval, int optlen)
+			       char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct pppol2tp_session *session = sk->sk_user_data;

@@ -2625,7 +2625,7 @@ static int vcpu_stat_get(void *_offset, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, NULL, "%llu\n");
 
-static struct file_operations *stat_fops[] = {
+static const struct file_operations *stat_fops[] = {
 	[KVM_STAT_VCPU] = &vcpu_stat_fops,
 	[KVM_STAT_VM]   = &vm_stat_fops,
 };

@@ -415,7 +415,7 @@ arm926_crval:
 	.type	arm926_processor_functions, #object
 arm926_processor_functions:
 	.word	v5tj_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_arm926_proc_init
 	.word	cpu_arm926_proc_fin
 	.word	cpu_arm926_reset

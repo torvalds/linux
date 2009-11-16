@@ -689,9 +689,6 @@ struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev)
 
 #define RADEON_DEBUGFS_MEM_TYPES 2
 
-static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES];
-static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES][32];
-
 #if defined(CONFIG_DEBUG_FS)
 static int radeon_mm_dump_table(struct seq_file *m, void *data)
 {
@@ -711,9 +708,11 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
+#if defined(CONFIG_DEBUG_FS)
+	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES];
+	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES][32];
 	unsigned i;
 
-#if defined(CONFIG_DEBUG_FS)
 	for (i = 0; i < RADEON_DEBUGFS_MEM_TYPES; i++) {
 		if (i == 0)
 			sprintf(radeon_mem_types_names[i], "radeon_vram_mm");

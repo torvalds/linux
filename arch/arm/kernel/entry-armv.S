@@ -311,22 +311,16 @@ __pabt_svc:
 	tst	r3, #PSR_I_BIT
 	biceq	r9, r9, #PSR_I_BIT
 
-	@
-	@ set args, then call main handler
-	@
-	@  r0 - address of faulting instruction
-	@  r1 - pointer to registers on stack
-	@
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	msr	cpsr_c, r9			@ Maybe enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
 	@
@@ -701,16 +695,16 @@ ENDPROC(__und_usr_unknown)
 __pabt_usr:
 	usr_entry
 
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	enable_irq				@ Enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
  UNWIND(.fnend		)
 	/* fall through */

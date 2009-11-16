@@ -281,6 +281,16 @@ int gpio_unregister_callback(unsigned gpio)
 }
 EXPORT_SYMBOL(gpio_unregister_callback);
 
+/* Non-zero means valid */
+int gpio_is_valid(int number)
+{
+	if (number >= 0 &&
+	    number < (U300_GPIO_NUM_PORTS * U300_GPIO_PINS_PER_PORT))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(gpio_is_valid);
+
 int gpio_request(unsigned gpio, const char *label)
 {
 	if (gpio_pin[gpio].users)

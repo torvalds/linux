@@ -808,6 +808,8 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1002, 0x0001, GENERIC),
 	/* Leadtek Winfast tv 2000xp delux */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, GENERIC),
+	/* Pinnacle PCTV */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x11bd, 0x0012, GENERIC),
 	/* Voodoo TV 200 */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, GENERIC),
 	/* Askey Computer Corp. MagicTView'99 */

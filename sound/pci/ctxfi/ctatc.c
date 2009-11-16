@@ -240,7 +240,7 @@ static int select_rom(unsigned int pitch)
 	} else if (pitch == 0x02000000) {
 		/* pitch == 2 */
 		return 3;
-	} else if (pitch >= 0x0 && pitch <= 0x08000000) {
+	} else if (pitch <= 0x08000000) {
 		/* 0 <= pitch <= 8 */
 		return 0;
 	} else {
@@ -1037,7 +1037,7 @@ static int atc_line_front_unmute(struct ct_atc *atc, unsigned char state)
 
 static int atc_line_surround_unmute(struct ct_atc *atc, unsigned char state)
 {
-	return atc_daio_unmute(atc, state, LINEO4);
+	return atc_daio_unmute(atc, state, LINEO2);
 }
 
 static int atc_line_clfe_unmute(struct ct_atc *atc, unsigned char state)
@@ -1047,7 +1047,7 @@ static int atc_line_clfe_unmute(struct ct_atc *atc, unsigned char state)
 
 static int atc_line_rear_unmute(struct ct_atc *atc, unsigned char state)
 {
-	return atc_daio_unmute(atc, state, LINEO2);
+	return atc_daio_unmute(atc, state, LINEO4);
 }
 
 static int atc_line_in_unmute(struct ct_atc *atc, unsigned char state)

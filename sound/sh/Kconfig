@@ -19,5 +19,13 @@ config SND_AICA
 	help
 	  ALSA Sound driver for the SEGA Dreamcast console.
 
+config SND_SH_DAC_AUDIO
+	tristate "SuperH DAC audio support"
+	depends on SND
+	depends on CPU_SH3 && HIGH_RES_TIMERS
+	select SND_PCM
+	help
+	  Say Y here to include support for the on-chip DAC.
+
 endif	# SND_SUPERH
 
