@@ -131,6 +131,11 @@
 /* MSCAN Miscellaneous Register (CANMISC) bits */
 #define MSCAN_BOHOLD		0x01
 
+/* MSCAN Identifier Register (IDR) bits */
+#define MSCAN_SFF_RTR_SHIFT	4
+#define MSCAN_EFF_RTR_SHIFT	0
+#define MSCAN_EFF_FLAGS		0x18	/* IDE + SRR */
+
 #ifdef MSCAN_FOR_MPC5200
 #define _MSCAN_RESERVED_(n, num) u8 _res##n[num]
 #define _MSCAN_RESERVED_DSR_SIZE	2

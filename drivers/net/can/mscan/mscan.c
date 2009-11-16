@@ -211,18 +211,23 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rtr = frame->can_id & CAN_RTR_FLAG;
 
+	/* RTR is always the lowest bit of interest, then IDs follow */
 	if (frame->can_id & CAN_EFF_FLAG) {
-		can_id = (frame->can_id & CAN_EFF_MASK) << 1;
+		can_id = (frame->can_id & CAN_EFF_MASK)
+			 << (MSCAN_EFF_RTR_SHIFT + 1);
 		if (rtr)
-			can_id |= 1;
+			can_id |= 1 << MSCAN_EFF_RTR_SHIFT;
 		out_be16(&regs->tx.idr3_2, can_id);
 
 		can_id >>= 16;
-		can_id = (can_id & 0x7) | ((can_id << 2) & 0xffe0) | (3 << 3);
+		/* EFF_FLAGS are inbetween the IDs :( */
+		can_id = (can_id & 0x7) | ((can_id << 2) & 0xffe0)
+			 | MSCAN_EFF_FLAGS;
 	} else {
-		can_id = (frame->can_id & CAN_SFF_MASK) << 5;
+		can_id = (frame->can_id & CAN_SFF_MASK)
+			 << (MSCAN_SFF_RTR_SHIFT + 1);
 		if (rtr)
-			can_id |= 1 << 4;
+			can_id |= 1 << MSCAN_SFF_RTR_SHIFT;
 	}
 	out_be16(&regs->tx.idr1_0, can_id);
 
