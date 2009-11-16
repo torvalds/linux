@@ -24,8 +24,8 @@
 
 #include "hda_codec.h"
 
-#define HDA_BEEP_MODE_ON	0
-#define HDA_BEEP_MODE_OFF	1
+#define HDA_BEEP_MODE_OFF	0
+#define HDA_BEEP_MODE_ON	1
 #define HDA_BEEP_MODE_SWREG	2
 
 /* beep information */

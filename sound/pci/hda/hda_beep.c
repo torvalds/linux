@@ -215,7 +215,9 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	struct hda_beep *beep;
 
 	if (!snd_hda_get_bool_hint(codec, "beep"))
-		return 0; /* disabled explicitly */
+		return 0; /* disabled explicitly by hints */
+	if (codec->beep_mode == HDA_BEEP_MODE_OFF)
+		return 0; /* disabled by module option */
 
 	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
 	if (beep == NULL)
