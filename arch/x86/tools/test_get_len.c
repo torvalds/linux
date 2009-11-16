@@ -114,6 +114,7 @@ int main(int argc, char **argv)
 	unsigned char insn_buf[16];
 	struct insn insn;
 	int insns = 0, c;
+	int warnings = 0;
 
 	parse_args(argc, argv);
 
@@ -151,18 +152,22 @@ int main(int argc, char **argv)
 		insn_init(&insn, insn_buf, x86_64);
 		insn_get_length(&insn);
 		if (insn.length != nb) {
-			fprintf(stderr, "Error: %s found a difference at %s\n",
+			warnings++;
+			fprintf(stderr, "Warning: %s found difference at %s\n",
 				prog, sym);
-			fprintf(stderr, "Error: %s", line);
-			fprintf(stderr, "Error: objdump says %d bytes, but "
+			fprintf(stderr, "Warning: %s", line);
+			fprintf(stderr, "Warning: objdump says %d bytes, but "
 				"insn_get_length() says %d\n", nb,
 				insn.length);
 			if (verbose)
 				dump_insn(stderr, &insn);
-			exit(2);
 		}
 	}
-	fprintf(stderr, "Succeed: decoded and checked %d instructions\n",
-		insns);
+	if (warnings)
+		fprintf(stderr, "Warning: decoded and checked %d"
+			" instructions with %d warnings\n", insns, warnings);
+	else
+		fprintf(stderr, "Succeed: decoded and checked %d"
+			" instructions\n", insns);
 	return 0;
 }
