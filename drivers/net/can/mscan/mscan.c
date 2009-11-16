@@ -379,8 +379,10 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 	struct can_frame *frame;
 	u8 canrflg;
 
-	while (npackets < quota && ((canrflg = in_8(&regs->canrflg)) &
-				    (MSCAN_RXF | MSCAN_ERR_IF))) {
+	while (npackets < quota) {
+		canrflg = in_8(&regs->canrflg);
+		if (!(canrflg & (MSCAN_RXF | MSCAN_ERR_IF)))
+			break;
 
 		skb = alloc_can_skb(dev, &frame);
 		if (!skb) {
