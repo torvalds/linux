@@ -44,7 +44,6 @@
 #include "platform.h"
 
 /* Platform specific details */
-#include "coyote.h"
 #include "prpmc1100.h"
 #include "nslu2.h"
 #include "nas100d.h"

@@ -18,12 +18,20 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-
 #include <asm/mach/pci.h>
+
+#define COYOTE_PCI_SLOT0_DEVID	14
+#define COYOTE_PCI_SLOT1_DEVID	15
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define COYOTE_PCI_SLOT0_PIN	6
+#define COYOTE_PCI_SLOT1_PIN	11
+
+#define IRQ_COYOTE_PCI_SLOT0	IRQ_IXP4XX_GPIO6
+#define IRQ_COYOTE_PCI_SLOT1	IRQ_IXP4XX_GPIO11
 
 void __init coyote_pci_preinit(void)
 {
