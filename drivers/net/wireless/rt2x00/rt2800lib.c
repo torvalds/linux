@@ -561,7 +561,8 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_SYNC, conf->sync);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE,
+				   (conf->sync == TSF_SYNC_BEACON));
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 	}
 
