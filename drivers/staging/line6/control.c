@@ -56,7 +56,13 @@ static ssize_t pod_set_param_int(struct device *dev, const char *buf,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	int value = simple_strtoul(buf, NULL, 10);
+	unsigned long value;
+	int retval;
+
+	retval = strict_strtoul(buf, 10, &value);
+	if (retval)
+		return retval;
+
 	pod_transmit_parameter(pod, param, value);
 	return count;
 }
