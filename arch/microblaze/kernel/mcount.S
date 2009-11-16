@@ -85,6 +85,11 @@ ENTRY(ftrace_stub)
 ENTRY(_mcount)
 	SAVE_REGS
 	swi	r15, r1, 0;
+	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST begin of checking */
+	lwi	r5, r0, function_trace_stop;
+	bneid	r5, end;
+	nop;
+	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST end of checking */
 	/* MS: test function trace if is taken or not */
 	lwi	r20, r0, ftrace_trace_function;
 	addik	r6, r0, ftrace_stub;
