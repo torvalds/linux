@@ -2,6 +2,8 @@
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
+#include "event.h"
+
 extern int verbose;
 extern int dump_trace;
 
