@@ -130,7 +130,7 @@ static int __devinit mpc5xxx_can_probe(struct of_device *ofdev,
 	 * choice as it has less jitter. For this reason, it is selected
 	 * by default.
 	 */
-	clk_src = of_get_property(np, "fsl,mscan-clk-src", NULL);
+	clk_src = of_get_property(np, "fsl,mscan-clock-source", NULL);
 	if (clk_src && strcmp(clk_src, "ip") == 0)
 		clock_src = MSCAN_CLKSRC_BUS;
 	else
@@ -227,7 +227,6 @@ static int mpc5xxx_can_resume(struct of_device *ofdev)
 
 static struct of_device_id __devinitdata mpc5xxx_can_table[] = {
 	{.compatible = "fsl,mpc5200-mscan"},
-	{.compatible = "fsl,mpc5200b-mscan"},
 	{},
 };
 

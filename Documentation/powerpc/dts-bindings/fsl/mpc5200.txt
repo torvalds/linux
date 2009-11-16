@@ -181,9 +181,10 @@ External interrupts:
 fsl,mpc5200-mscan nodes
 -----------------------
 In addition to the required compatible-, reg- and interrupt-properites, you can
-also specify which clock shall be used for the bus:
+also specify which clock source shall be used for the controller:
 
-- fsl,mscan-clk-src	- a string describing the clock source. Valid values
-			  are "ip" for IP_CLK and "sys" for SYS_XTAL.
-			  "sys" is the default in case the property is not
+- fsl,mscan-clock-source- a string describing the clock source. Valid values
+			  are:	"ip" for ip bus clock
+				"ref" for reference clock (XTAL)
+			  "ref" is default in case this property is not
 			  present.
