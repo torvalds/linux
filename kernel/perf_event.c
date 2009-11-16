@@ -2674,20 +2674,21 @@ static void perf_output_wakeup(struct perf_output_handle *handle)
 static void perf_output_lock(struct perf_output_handle *handle)
 {
 	struct perf_mmap_data *data = handle->data;
-	int cpu;
+	int cur, cpu = get_cpu();
 
 	handle->locked = 0;
 
-	local_irq_save(handle->flags);
-	cpu = smp_processor_id();
+	for (;;) {
+		cur = atomic_cmpxchg(&data->lock, -1, cpu);
+		if (cur == -1) {
+			handle->locked = 1;
+			break;
+		}
+		if (cur == cpu)
+			break;
 
-	if (in_nmi() && atomic_read(&data->lock) == cpu)
-		return;
-
-	while (atomic_cmpxchg(&data->lock, -1, cpu) != -1)
 		cpu_relax();
-
-	handle->locked = 1;
+	}
 }
 
 static void perf_output_unlock(struct perf_output_handle *handle)
@@ -2733,7 +2734,7 @@ again:
 	if (atomic_xchg(&data->wakeup, 0))
 		perf_output_wakeup(handle);
 out:
-	local_irq_restore(handle->flags);
+	put_cpu();
 }
 
 void perf_output_copy(struct perf_output_handle *handle,
