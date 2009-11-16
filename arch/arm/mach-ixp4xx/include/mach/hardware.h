@@ -44,7 +44,6 @@
 #include "platform.h"
 
 /* Platform specific details */
-#include "ixdp425.h"
 #include "avila.h"
 #include "coyote.h"
 #include "prpmc1100.h"

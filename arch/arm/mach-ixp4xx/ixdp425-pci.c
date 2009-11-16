@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-ixp4xx/ixdp425-pci.c 
+ * arch/arm/mach-ixp4xx/ixdp425-pci.c
  *
  * IXDP425 board-level PCI initialization
  *
@@ -19,11 +19,24 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
-
 #include <asm/mach/pci.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
+
+#define IXDP425_PCI_MAX_DEV	4
+#define IXDP425_PCI_IRQ_LINES	4
+
+/* PCI controller GPIO to IRQ pin mappings */
+#define IXDP425_PCI_INTA_PIN	11
+#define IXDP425_PCI_INTB_PIN	10
+#define IXDP425_PCI_INTC_PIN	9
+#define IXDP425_PCI_INTD_PIN	8
+
+#define IRQ_IXDP425_PCI_INTA	IRQ_IXP4XX_GPIO11
+#define IRQ_IXDP425_PCI_INTB	IRQ_IXP4XX_GPIO10
+#define IRQ_IXDP425_PCI_INTC	IRQ_IXP4XX_GPIO9
+#define IRQ_IXDP425_PCI_INTD	IRQ_IXP4XX_GPIO8
 
 void __init ixdp425_pci_preinit(void)
 {
