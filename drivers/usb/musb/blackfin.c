@@ -226,8 +226,9 @@ int musb_platform_get_vbus_status(struct musb *musb)
 	return 0;
 }
 
-void musb_platform_set_mode(struct musb *musb, u8 musb_mode)
+int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 {
+	return -EIO;
 }
 
 int __init musb_platform_init(struct musb *musb)
