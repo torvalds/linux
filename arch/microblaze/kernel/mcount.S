@@ -96,6 +96,27 @@ ENTRY(ftrace_caller)
 	bneid	r5, end;
 	nop;
 	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST end of checking */
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	lwi	r5, r0, ftrace_graph_return;
+	addik	r6, r0, ftrace_stub; /* asm implementation */
+	cmpu	r5, r5, r6; /* ftrace_graph_return != ftrace_stub */
+	beqid	r5, end_graph_tracer;
+	nop;
+
+	lwi	r6, r0, ftrace_graph_entry;
+	addik	r5, r0, ftrace_graph_entry_stub; /* implemented in C */
+	cmpu	r5, r5, r6; /* ftrace_graph_entry != ftrace_graph_entry_stub */
+	beqid	r5, end_graph_tracer;
+	nop;
+	addik	r5, r1, 120; /* MS: load parent addr */
+	addik	r6, r15, 0; /* MS: load current function addr */
+	bralid	r15, prepare_ftrace_return;
+	nop;
+	/* MS: graph was taken that's why - can jump over function trace */
+	brid	end;
+	nop;
+end_graph_tracer:
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #ifndef CONFIG_DYNAMIC_FTRACE
 	/* MS: test function trace if is taken or not */
 	lwi	r20, r0, ftrace_trace_function;
@@ -121,3 +142,23 @@ end:
 
 	rtsd	r15, 8; /* MS: jump back */
 	nop;
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(return_to_handler)
+	nop; /* MS: just barrier for rtsd r15, 8 */
+	nop;
+	SAVE_REGS
+	swi	r15, r1, 0;
+
+	/* MS: find out returning address */
+	bralid	r15, ftrace_return_to_handler;
+	nop;
+
+	/* MS: return value from ftrace_return_to_handler is my returning addr
+	 * must be before restore regs because I have to restore r3 content */
+	addik	r15, r3, 0;
+	RESTORE_REGS
+
+	rtsd	r15, 8; /* MS: jump back */
+	nop;
+#endif	/* CONFIG_FUNCTION_TRACER */

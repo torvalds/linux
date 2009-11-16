@@ -14,6 +14,64 @@
 #include <asm/cacheflush.h>
 #include <linux/ftrace.h>
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/*
+ * Hook the return address and push it in the stack of return addrs
+ * in current thread info.
+ */
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+{
+	unsigned long old;
+	int faulted, err;
+	struct ftrace_graph_ent trace;
+	unsigned long return_hooker = (unsigned long)
+				&return_to_handler;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		return;
+
+	/*
+	 * Protect against fault, even if it shouldn't
+	 * happen. This tool is too much intrusive to
+	 * ignore such a protection.
+	 */
+	asm volatile("	1:	lwi	%0, %2, 0;		\
+			2:	swi	%3, %2, 0;		\
+				addik	%1, r0, 0;		\
+			3:					\
+				.section .fixup, \"ax\";	\
+			4:	brid	3b;			\
+				addik	%1, r0, 1;		\
+				.previous;			\
+				.section __ex_table,\"a\";	\
+				.word	1b,4b;			\
+				.word	2b,4b;			\
+				.previous;"			\
+			: "=&r" (old), "=r" (faulted)
+			: "r" (parent), "r" (return_hooker)
+	);
+
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		return;
+	}
+
+	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0);
+	if (err == -EBUSY) {
+		*parent = old;
+		return;
+	}
+
+	trace.func = self_addr;
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* save value to addr - it is save to do it in asm */
 static int ftrace_modify_code(unsigned long addr, unsigned int value)
