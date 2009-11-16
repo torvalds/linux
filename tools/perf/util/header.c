@@ -359,7 +359,7 @@ static void perf_header__adds_read(struct perf_header *self, int fd)
 
 		buildid_sec = &feat_sec[idx++];
 		lseek(fd, buildid_sec->offset, SEEK_SET);
-		if (perf_header__read_build_ids(fd, buildid_sec->size))
+		if (perf_header__read_build_ids(fd, buildid_sec->offset, buildid_sec->size))
 			pr_debug("failed to read buildids, continuing...\n");
 	}
 
