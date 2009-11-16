@@ -287,6 +287,7 @@ static void handle_internal_command(int argc, const char **argv)
 	static struct cmd_struct commands[] = {
 		{ "help", cmd_help, 0 },
 		{ "list", cmd_list, 0 },
+		{ "buildid-list", cmd_buildid_list, 0 },
 		{ "record", cmd_record, 0 },
 		{ "report", cmd_report, 0 },
 		{ "bench", cmd_bench, 0 },
