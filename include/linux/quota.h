@@ -74,6 +74,7 @@
 #define	QFMT_VFS_OLD 1
 #define	QFMT_VFS_V0 2
 #define QFMT_OCFS2 3
+#define	QFMT_VFS_V1 4
 
 /* Size of block in which space limits are passed through the quota
  * interface */
