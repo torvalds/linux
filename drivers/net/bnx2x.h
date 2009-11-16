@@ -259,9 +259,6 @@ struct bnx2x_eth_q_stats {
 struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
-
-	u8			is_rx_queue;
-
 	struct host_status_block *status_blk;
 	dma_addr_t		status_blk_mapping;
 
@@ -970,8 +967,7 @@ struct bnx2x {
 #define BNX2X_STATE_ERROR		0xf000
 
 	int			multi_mode;
-	int			num_rx_queues;
-	int			num_tx_queues;
+	int			num_queues;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -1074,20 +1070,15 @@ struct bnx2x {
 };
 
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/(2 * E1HVN_MAX)) \
-					      : (MAX_CONTEXT/2))
-#define BNX2X_NUM_QUEUES(bp)	(bp->num_rx_queues + bp->num_tx_queues)
-#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 2)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/E1HVN_MAX) \
+					      : MAX_CONTEXT)
+#define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
-#define for_each_rx_queue(bp, var) \
-			for (var = 0; var < bp->num_rx_queues; var++)
-#define for_each_tx_queue(bp, var) \
-			for (var = bp->num_rx_queues; \
-			     var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_queue(bp, var) \
 			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-			for (var = 1; var < bp->num_rx_queues; var++)
+			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
