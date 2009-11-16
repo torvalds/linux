@@ -57,6 +57,7 @@ extern void __iomem *da8xx_syscfg1_base;
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
 #define DA8XX_DDR2_CTL_BASE	0xb0000000
+#define DA8XX_ARM_RAM_BASE	0xffff0000
 
 #define PINMUX0			0x00
 #define PINMUX1			0x04

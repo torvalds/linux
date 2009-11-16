@@ -771,6 +771,12 @@ static struct map_desc da850_io_desc[] = {
 		.length		= DA8XX_CP_INTC_SIZE,
 		.type		= MT_DEVICE
 	},
+	{
+		.virtual	= SRAM_VIRT,
+		.pfn		= __phys_to_pfn(DA8XX_ARM_RAM_BASE),
+		.length		= SZ_8K,
+		.type		= MT_DEVICE
+	},
 };
 
 static void __iomem *da850_psc_bases[] = {
@@ -1044,6 +1050,8 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
+	.sram_dma		= DA8XX_ARM_RAM_BASE,
+	.sram_len		= SZ_8K,
 };
 
 void __init da850_init(void)
