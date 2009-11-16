@@ -542,10 +542,8 @@ static int mscan_open(struct net_device *dev)
 
 	ret = request_irq(dev->irq, mscan_isr, 0, dev->name, dev);
 	if (ret < 0) {
-		napi_disable(&priv->napi);
-		printk(KERN_ERR "%s - failed to attach interrupt\n",
-		       dev->name);
-		return ret;
+		dev_err(dev->dev.parent, "failed to attach interrupt\n");
+		goto exit_napi_disable;
 	}
 
 	priv->open_time = jiffies;
@@ -554,11 +552,19 @@ static int mscan_open(struct net_device *dev)
 
 	ret = mscan_start(dev);
 	if (ret)
-		return ret;
+		goto exit_free_irq;
 
 	netif_start_queue(dev);
 
 	return 0;
+
+exit_free_irq:
+	priv->open_time = 0;
+	free_irq(dev->irq, dev);
+exit_napi_disable:
+	napi_disable(&priv->napi);
+	close_candev(dev);
+	return ret;
 }
 
 static int mscan_close(struct net_device *dev)
