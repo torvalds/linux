@@ -350,8 +350,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 
 	case FAULT:
 		/* Note - only for remote1 and remote2 */
-		out = data->alarms & (sattr->index ? 0x8000 : 0x4000);
-		out = out ? 0 : 1;
+		out = !!(data->alarms & (sattr->index ? 0x8000 : 0x4000));
 		break;
 
 	default:
