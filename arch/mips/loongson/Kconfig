@@ -62,6 +62,17 @@ endchoice
 config CS5536
 	bool
 
+config CS5536_MFGPT
+	bool "CS5536 MFGPT Timer"
+	depends on CS5536
+	help
+	  This option enables the mfgpt0 timer of AMD CS5536.
+
+	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
+	  this option at first, otherwise, You will get wrong system time.
+
+	  If unsure, say Yes.
+
 config LOONGSON_SUSPEND
 	bool
 	default y
