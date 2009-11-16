@@ -425,7 +425,7 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "s2250_board",
+				.type	= "s2250",
 				.id	= I2C_DRIVERID_S2250,
 				.addr	= 0x43,
 			},

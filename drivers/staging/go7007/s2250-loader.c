@@ -162,7 +162,7 @@ static struct usb_driver s2250loader_driver = {
 	.id_table	= s2250loader_ids,
 };
 
-int s2250loader_init(void)
+static int __init s2250loader_init(void)
 {
 	int r;
 	unsigned i = 0;
@@ -179,11 +179,15 @@ int s2250loader_init(void)
 	printk(KERN_INFO "s2250loader_init: driver registered\n");
 	return 0;
 }
-EXPORT_SYMBOL(s2250loader_init);
+module_init(s2250loader_init);
 
-void s2250loader_cleanup(void)
+static void __exit s2250loader_cleanup(void)
 {
 	printk(KERN_INFO "s2250loader_cleanup\n");
 	usb_deregister(&s2250loader_driver);
 }
-EXPORT_SYMBOL(s2250loader_cleanup);
+module_exit(s2250loader_cleanup);
+
+MODULE_AUTHOR("");
+MODULE_DESCRIPTION("firmware loader for Sensoray 2250/2251");
+MODULE_LICENSE("GPL v2");

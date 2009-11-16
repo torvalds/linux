@@ -20,10 +20,13 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
-#include "s2250-loader.h"
+#include <media/v4l2-i2c-drv.h>
 #include "go7007-priv.h"
-#include "wis-i2c.h"
+
+MODULE_DESCRIPTION("Sensoray 2250/2251 i2c v4l2 subdev driver");
+MODULE_LICENSE("GPL v2");
 
 #define TLV320_ADDRESS      0x34
 #define VPX322_ADDR_ANALOGCONTROL1	0x02
@@ -575,7 +578,7 @@ static int s2250_probe(struct i2c_client *client,
 	dec->audio = audio;
 	i2c_set_clientdata(client, dec);
 
-	printk(KERN_DEBUG
+	printk(KERN_INFO
 	       "s2250: initializing video decoder on %s\n",
 	       adapter->name);
 
@@ -649,45 +652,15 @@ static int s2250_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id s2250_id[] = {
-	{ "s2250_board", 0 },
+	{ "s2250", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, s2250_id);
 
-static struct i2c_driver s2250_driver = {
-	.driver = {
-		.name	= "Sensoray 2250 board driver",
-	},
-	.probe		= s2250_probe,
-	.remove		= s2250_remove,
-	.command	= s2250_command,
-	.id_table	= s2250_id,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "s2250",
+	.probe = s2250_probe,
+	.remove = s2250_remove,
+	.command = s2250_command,
+	.id_table = s2250_id,
 };
-
-static int __init s2250_init(void)
-{
-	int r;
-
-	r = s2250loader_init();
-	if (r < 0)
-		return r;
-
-	r = i2c_add_driver(&s2250_driver);
-	if (r < 0)
-		s2250loader_cleanup();
-
-	return r;
-}
-
-static void __exit s2250_cleanup(void)
-{
-	i2c_del_driver(&s2250_driver);
-
-	s2250loader_cleanup();
-}
-
-module_init(s2250_init);
-module_exit(s2250_cleanup);
-
-MODULE_AUTHOR("");
-MODULE_DESCRIPTION("Board driver for Sensoryray 2250");
-MODULE_LICENSE("GPL v2");
