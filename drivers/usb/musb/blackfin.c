@@ -262,10 +262,6 @@ int __init musb_platform_init(struct musb *musb)
 		SSYNC();
 	}
 
-	/* TODO
-	 * Set SIC-IVG register
-	 */
-
 	/* Configure PLL oscillator register */
 	bfin_write_USB_PLLOSC_CTRL(0x30a8);
 	SSYNC();
