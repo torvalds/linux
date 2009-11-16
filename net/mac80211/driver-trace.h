@@ -634,11 +634,12 @@ TRACE_EVENT(drv_tx_last_beacon,
 
 TRACE_EVENT(drv_ampdu_action,
 	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_vif *vif,
 		 enum ieee80211_ampdu_mlme_action action,
 		 struct ieee80211_sta *sta, u16 tid,
 		 u16 *ssn, int ret),
 
-	TP_ARGS(local, action, sta, tid, ssn, ret),
+	TP_ARGS(local, vif, action, sta, tid, ssn, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -647,10 +648,12 @@ TRACE_EVENT(drv_ampdu_action,
 		__field(u16, tid)
 		__field(u16, ssn)
 		__field(int, ret)
+		VIF_ENTRY
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		STA_ASSIGN;
 		__entry->ret = ret;
 		__entry->action = action;
@@ -659,8 +662,8 @@ TRACE_EVENT(drv_ampdu_action,
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  STA_PR_FMT " action:%d tid:%d ret:%d",
-		LOCAL_PR_ARG, STA_PR_ARG, __entry->action, __entry->tid, __entry->ret
+		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d ret:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action, __entry->tid, __entry->ret
 	)
 );
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */

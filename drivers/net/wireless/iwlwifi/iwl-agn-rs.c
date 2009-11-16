@@ -301,7 +301,7 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	if (rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
-		ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+		ieee80211_start_tx_ba_session(sta, tid);
 	}
 }
 

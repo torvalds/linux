@@ -2441,6 +2441,7 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 }
 
 static int ar9170_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
 			       struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
@@ -2470,7 +2471,7 @@ static int ar9170_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->state = AR9170_TID_STATE_PROGRESS;
 		tid_info->active = false;
 		spin_unlock_irqrestore(&ar->tx_ampdu_list_lock, flags);
-		ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
 	case IEEE80211_AMPDU_TX_STOP:
@@ -2480,7 +2481,7 @@ static int ar9170_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->active = false;
 		skb_queue_purge(&tid_info->queue);
 		spin_unlock_irqrestore(&ar->tx_ampdu_list_lock, flags);
-		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

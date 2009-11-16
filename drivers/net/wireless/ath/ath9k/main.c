@@ -3078,6 +3078,7 @@ static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 }
 
 static int ath9k_ampdu_action(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
 			      enum ieee80211_ampdu_mlme_action action,
 			      struct ieee80211_sta *sta,
 			      u16 tid, u16 *ssn)
@@ -3095,11 +3096,11 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		ath_tx_aggr_start(sc, sta, tid, ssn);
-		ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		ath_tx_aggr_stop(sc, sta, tid);
-		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ath_tx_aggr_resume(sc, sta, tid);
