@@ -138,7 +138,8 @@ static int submit_audio_out_urb(struct snd_pcm_substream *substream)
 		}
 	}
 
-	if ((line6pcm->pos_out += urb_frames) >= runtime->buffer_size)
+	line6pcm->pos_out += urb_frames;
+	if (line6pcm->pos_out >= runtime->buffer_size)
 		line6pcm->pos_out -= runtime->buffer_size;
 
 	urb_out->transfer_buffer_length = urb_size;
@@ -281,7 +282,8 @@ static void audio_out_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_out_urb(substream);
 
-		if ((line6pcm->bytes_out += length) >= line6pcm->period_out) {
+		line6pcm->bytes_out += length;
+		if (line6pcm->bytes_out >= line6pcm->period_out) {
 			line6pcm->bytes_out -= line6pcm->period_out;
 			snd_pcm_period_elapsed(substream);
 		}
