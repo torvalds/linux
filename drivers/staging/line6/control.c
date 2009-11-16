@@ -22,18 +22,18 @@
 struct device_attribute dev_attr_##_name1 = __ATTR(_name2, _mode, _show, _store)
 
 #define LINE6_PARAM_R(PREFIX, prefix, type, param) \
-static ssize_t prefix ## _get_ ## param(struct device *dev, \
+static ssize_t prefix##_get_##param(struct device *dev, \
 			struct device_attribute *attr, char *buf) \
 { \
-	return prefix ## _get_param_ ## type(dev, buf, PREFIX ## _ ## param); \
+	return prefix##_get_param_##type(dev, buf, PREFIX##_##param); \
 }
 
 #define LINE6_PARAM_RW(PREFIX, prefix, type, param) \
 LINE6_PARAM_R(PREFIX, prefix, type, param); \
-static ssize_t prefix ## _set_ ## param(struct device *dev, \
+static ssize_t prefix##_set_##param(struct device *dev, \
 		struct device_attribute *attr, const char *buf, size_t count) \
 { \
-	return prefix ## _set_param_ ## type(dev, buf, count, PREFIX ## _ ## param); \
+	return prefix##_set_param_##type(dev, buf, count, PREFIX##_##param); \
 }
 
 #define POD_PARAM_R(type, param) LINE6_PARAM_R(POD, pod, type, param)
@@ -727,6 +727,7 @@ int pod_create_files(int firmware, int type, struct device *dev)
 				     (dev, &dev_attr_band_6_gain__bass));
 	return 0;
 }
+EXPORT_SYMBOL(pod_create_files);
 
 void pod_remove_files(int firmware, int type, struct device *dev)
 {
@@ -901,8 +902,6 @@ void pod_remove_files(int firmware, int type, struct device *dev)
 		if (firmware >= 200)
 			device_remove_file(dev, &dev_attr_band_6_gain__bass);
 }
-
-EXPORT_SYMBOL(pod_create_files);
 EXPORT_SYMBOL(pod_remove_files);
 
 int variax_create_files(int firmware, int type, struct device *dev)
@@ -949,6 +948,7 @@ int variax_create_files(int firmware, int type, struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_pickup_wiring));
 	return 0;
 }
+EXPORT_SYMBOL(variax_create_files);
 
 void variax_remove_files(int firmware, int type, struct device *dev)
 {
@@ -992,6 +992,4 @@ void variax_remove_files(int firmware, int type, struct device *dev)
 	device_remove_file(dev, &dev_attr_mix1);
 	device_remove_file(dev, &dev_attr_pickup_wiring);
 }
-
-EXPORT_SYMBOL(variax_create_files);
 EXPORT_SYMBOL(variax_remove_files);
