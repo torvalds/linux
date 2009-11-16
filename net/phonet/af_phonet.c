@@ -44,7 +44,7 @@ static struct phonet_protocol *phonet_proto_get(int protocol)
 		return NULL;
 
 	rcu_read_lock();
-	pp = proto_tab[protocol];
+	pp = rcu_dereference(proto_tab[protocol]);
 	if (pp && !try_module_get(pp->prot->owner))
 		pp = NULL;
 	rcu_read_unlock();
