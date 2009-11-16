@@ -49,7 +49,7 @@ int go7007_read_interrupt(struct go7007 *go, u16 *value, u16 *data)
 	go->hpi_ops->read_interrupt(go);
 	if (wait_event_timeout(go->interrupt_waitq,
 				go->interrupt_available, 5*HZ) < 0) {
-		v4l2_err(go->video_dev, "timeout waiting for read interrupt\n");
+		v4l2_err(&go->v4l2_dev, "timeout waiting for read interrupt\n");
 		return -1;
 	}
 	if (!go->interrupt_available)
@@ -315,7 +315,7 @@ int go7007_start_encoder(struct go7007 *go)
 
 	if (go7007_send_firmware(go, fw, fw_len) < 0 ||
 			go7007_read_interrupt(go, &intr_val, &intr_data) < 0) {
-		v4l2_err(go->video_dev, "error transferring firmware\n");
+		v4l2_err(&go->v4l2_dev, "error transferring firmware\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -324,7 +324,7 @@ int go7007_start_encoder(struct go7007 *go)
 	go->parse_length = 0;
 	go->seen_frame = 0;
 	if (go7007_stream_start(go) < 0) {
-		v4l2_err(go->video_dev, "error starting stream transfer\n");
+		v4l2_err(&go->v4l2_dev, "error starting stream transfer\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -420,7 +420,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	for (i = 0; i < length; ++i) {
 		if (go->active_buf != NULL &&
 			    go->active_buf->bytesused >= GO7007_BUF_SIZE - 3) {
-			v4l2_info(go->video_dev, "dropping oversized frame\n");
+			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
 			go->active_buf->offset -= go->active_buf->bytesused;
 			go->active_buf->bytesused = 0;
 			go->active_buf->modet_active = 0;
@@ -668,7 +668,7 @@ void go7007_remove(struct go7007 *go)
 		if (i2c_del_adapter(&go->i2c_adapter) == 0)
 			go->i2c_adapter_online = 0;
 		else
-			v4l2_err(go->video_dev,
+			v4l2_err(&go->v4l2_dev,
 				"error removing I2C adapter!\n");
 	}
 

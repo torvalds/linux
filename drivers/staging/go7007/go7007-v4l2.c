@@ -1827,9 +1827,15 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->video_dev = video_device_alloc();
 	if (go->video_dev == NULL)
 		return -ENOMEM;
-	memcpy(go->video_dev, &go7007_template, sizeof(go7007_template));
+	*go->video_dev = go7007_template;
 	go->video_dev->parent = go->dev;
 	rv = video_register_device(go->video_dev, VFL_TYPE_GRABBER, -1);
+	if (rv < 0) {
+		video_device_release(go->video_dev);
+		go->video_dev = NULL;
+		return rv;
+	}
+	rv = v4l2_device_register(go->dev, &go->v4l2_dev);
 	if (rv < 0) {
 		video_device_release(go->video_dev);
 		go->video_dev = NULL;
@@ -1858,4 +1864,5 @@ void go7007_v4l2_remove(struct go7007 *go)
 	mutex_unlock(&go->hw_lock);
 	if (go->video_dev)
 		video_unregister_device(go->video_dev);
+	v4l2_device_unregister(&go->v4l2_dev);
 }
