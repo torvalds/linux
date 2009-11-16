@@ -409,8 +409,8 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr);
 /*
  * Get STA info by index, BROKEN!
  */
-struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
-				      struct net_device *dev);
+struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
+				     int idx);
 /*
  * Create a new STA info, caller owns returned structure
  * until sta_info_insert().
