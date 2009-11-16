@@ -38,28 +38,37 @@
 
 static struct of_device_id mpc52xx_cdm_ids[] __devinitdata = {
 	{ .compatible = "fsl,mpc5200-cdm", },
-	{ .compatible = "fsl,mpc5200b-cdm", },
 	{}
 };
 
 /*
- * Get the frequency of the external oscillator clock connected
- * to the SYS_XTAL_IN pin, or return 0 if it cannot be determined.
+ * Get frequency of the MSCAN clock source
+ *
+ * Either the oscillator clock (SYS_XTAL_IN) or the IP bus clock (IP_CLK)
+ * can be selected. According to the MPC5200 user's manual, the oscillator
+ * clock is the better choice as it has less jitter but due to a hardware
+ * bug, it can not be selected for the old MPC5200 Rev. A chips.
  */
-static unsigned int  __devinit mpc52xx_can_xtal_freq(struct of_device *of)
+
+static unsigned int  __devinit mpc52xx_can_clock_freq(struct of_device *of,
+						      int clock_src)
 {
+	unsigned int pvr;
 	struct mpc52xx_cdm  __iomem *cdm;
 	struct device_node *np_cdm;
 	unsigned int freq;
 	u32 val;
 
+	pvr = mfspr(SPRN_PVR);
+
 	freq = mpc5xxx_get_bus_frequency(of->node);
 	if (!freq)
 		return 0;
 
-	/*
-	 * Determine SYS_XTAL_IN frequency from the clock domain settings
-	 */
+	if (clock_src == MSCAN_CLKSRC_BUS || pvr == 0x80822011)
+		return freq;
+
+	/* Determine SYS_XTAL_IN frequency from the clock domain settings */
 	np_cdm = of_find_matching_node(NULL, mpc52xx_cdm_ids);
 	if (!np_cdm) {
 		dev_err(&of->dev, "can't get clock node!\n");
@@ -78,28 +87,6 @@ static unsigned int  __devinit mpc52xx_can_xtal_freq(struct of_device *of)
 	iounmap(cdm);
 
 	return freq;
-}
-
-/*
- * Get frequency of the MSCAN clock source
- *
- * Either the oscillator clock (SYS_XTAL_IN) or the IP bus clock (IP_CLK)
- * can be selected. According to the MPC5200 user's manual, the oscillator
- * clock is the better choice as it has less jitter but due to a hardware
- * bug, it can not be selected for the old MPC5200 Rev. A chips.
- */
-
-static unsigned int  __devinit mpc52xx_can_clock_freq(struct of_device *of,
-						      int clock_src)
-{
-	unsigned int pvr;
-
-	pvr = mfspr(SPRN_PVR);
-
-	if (clock_src == MSCAN_CLKSRC_BUS || pvr == 0x80822011)
-		return mpc5xxx_get_bus_frequency(of->node);
-
-	return mpc52xx_can_xtal_freq(of);
 }
 
 static int __devinit mpc5xxx_can_probe(struct of_device *ofdev,
