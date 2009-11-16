@@ -1583,15 +1583,14 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		{
 			struct osd_sense_attributes_data_descriptor
 				*osadd = cur_descriptor;
-			int len = min(cur_len, sense_len);
-			int i = 0;
+			unsigned len = min(cur_len, sense_len);
 			struct osd_sense_attr *pattr = osadd->sense_attrs;
 
-			while (len < 0) {
+			while (len >= sizeof(*pattr)) {
 				u32 attr_page = be32_to_cpu(pattr->attr_page);
 				u32 attr_id = be32_to_cpu(pattr->attr_id);
 
-				if (i++ == 0) {
+				if (!osi->attr.attr_page) {
 					osi->attr.attr_page = attr_page;
 					osi->attr.attr_id = attr_id;
 				}
@@ -1602,6 +1601,8 @@ int osd_req_decode_sense_full(struct osd_request *or,
 					bad_attr_list++;
 					max_attr--;
 				}
+
+				len -= sizeof(*pattr);
 				OSD_SENSE_PRINT2(
 					"osd_sense_attribute_identification"
 					"attr_page=0x%x attr_id=0x%x\n",
