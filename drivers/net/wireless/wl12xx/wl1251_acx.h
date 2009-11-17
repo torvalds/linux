@@ -1149,6 +1149,23 @@ struct wl1251_acx_mem_map {
 	u32 num_rx_mem_blocks;
 } __attribute__ ((packed));
 
+
+struct wl1251_acx_wr_tbtt_and_dtim {
+
+	struct acx_header header;
+
+	/* Time in TUs between two consecutive beacons */
+	u16 tbtt;
+
+	/*
+	 * DTIM period
+	 * For BSS: Number of TBTTs in a DTIM period (range: 1-10)
+	 * For IBSS: value shall be set to 1
+	*/
+	u8  dtim;
+	u8  padding;
+} __attribute__ ((packed));
+
 /*************************************************************************
 
     Host Interrupt Register (WiLink -> Host)
@@ -1304,5 +1321,6 @@ int wl1251_acx_statistics(struct wl1251 *wl, struct acx_statistics *stats);
 int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
+int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
 
 #endif /* __WL1251_ACX_H__ */
