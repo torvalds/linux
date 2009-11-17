@@ -449,6 +449,7 @@ err_path_alloc:
  */
 void mesh_plink_broken(struct sta_info *sta)
 {
+	static const u8 bcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_node *p;
@@ -468,7 +469,7 @@ void mesh_plink_broken(struct sta_info *sta)
 			mesh_path_error_tx(MESH_TTL, mpath->dst,
 					cpu_to_le32(mpath->sn),
 					PERR_RCODE_DEST_UNREACH,
-					sdata->dev->broadcast, sdata);
+					bcast, sdata);
 		} else
 		spin_unlock_bh(&mpath->state_lock);
 	}

@@ -101,10 +101,12 @@ enum mpath_frame_type {
 	MPATH_RANN
 };
 
+static const u8 broadcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		u8 *orig_addr, __le32 orig_sn, u8 target_flags, u8 *target,
-		__le32 target_sn, u8 *da, u8 hop_count, u8 ttl,__le32 lifetime,
-		__le32 metric, __le32 preq_id,
+		__le32 target_sn, const u8 *da, u8 hop_count, u8 ttl,
+		__le32 lifetime, __le32 metric, __le32 preq_id,
 		struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -198,8 +200,8 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
  * @ra: node this frame is addressed to
  */
 int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
-		__le16 target_rcode, u8 *ra,
-		struct ieee80211_sub_if_data *sdata)
+		       __le16 target_rcode, const u8 *ra,
+		       struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
@@ -548,7 +550,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
 		mesh_path_sel_frame_tx(MPATH_PREQ, flags, orig_addr,
 				cpu_to_le32(orig_sn), target_flags, target_addr,
-				cpu_to_le32(target_sn), sdata->dev->broadcast,
+				cpu_to_le32(target_sn), broadcast_addr,
 				hopcount, ttl, cpu_to_le32(lifetime),
 				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				sdata);
@@ -660,7 +662,7 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(ttl, target_addr, cpu_to_le32(target_sn),
 					   cpu_to_le16(target_rcode),
-					   sdata->dev->broadcast, sdata);
+					   broadcast_addr, sdata);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}
@@ -709,7 +711,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (mpath->sn < orig_sn) {
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
-				       0, NULL, 0, sdata->dev->broadcast,
+				       0, NULL, 0, broadcast_addr,
 				       hopcount, ttl, 0,
 				       cpu_to_le32(metric + mpath->metric),
 				       0, sdata);
@@ -890,7 +892,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	spin_unlock_bh(&mpath->state_lock);
 	mesh_path_sel_frame_tx(MPATH_PREQ, 0, sdata->dev->dev_addr,
 			cpu_to_le32(ifmsh->sn), target_flags, mpath->dst,
-			cpu_to_le32(mpath->sn), sdata->dev->broadcast, 0,
+			cpu_to_le32(mpath->sn), broadcast_addr, 0,
 			ttl, cpu_to_le32(lifetime), 0,
 			cpu_to_le32(ifmsh->preq_id++), sdata);
 	mod_timer(&mpath->timer, jiffies + mpath->discovery_timeout);
@@ -1011,6 +1013,6 @@ mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
 
 	mesh_path_sel_frame_tx(MPATH_RANN, 0, sdata->dev->dev_addr,
 			       cpu_to_le32(++ifmsh->sn),
-			       0, NULL, 0, sdata->dev->broadcast,
+			       0, NULL, 0, broadcast_addr,
 			       0, MESH_TTL, 0, 0, 0, sdata);
 }

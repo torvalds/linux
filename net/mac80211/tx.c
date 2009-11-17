@@ -1683,21 +1683,25 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			/* packet from other interface */
 			struct mesh_path *mppath;
 			int is_mesh_mcast = 1;
-			char *mesh_da;
+			const u8 *mesh_da;
 
 			rcu_read_lock();
 			if (is_multicast_ether_addr(skb->data))
 				/* DA TA mSA AE:SA */
 				mesh_da = skb->data;
 			else {
+				static const u8 bcast[ETH_ALEN] =
+					{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 				mppath = mpp_path_lookup(skb->data, sdata);
 				if (mppath) {
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;
 					is_mesh_mcast = 0;
-				} else
+				} else {
 					/* DA TA mSA AE:SA */
-					mesh_da = dev->broadcast;
+					mesh_da = bcast;
+				}
 			}
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					mesh_da, dev->dev_addr);

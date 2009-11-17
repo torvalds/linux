@@ -394,8 +394,9 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
  *
  * Return the length of the 802.11 (does not include a mesh control header)
  */
-int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc, char
-		*meshda, char *meshsa) {
+int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
+				  const u8 *meshda, const u8 *meshsa)
+{
 	if (is_multicast_ether_addr(meshda)) {
 		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA TA SA */
