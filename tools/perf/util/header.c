@@ -33,6 +33,12 @@ struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr)
 	return self;
 }
 
+void perf_header_attr__delete(struct perf_header_attr *self)
+{
+	free(self->id);
+	free(self);
+}
+
 void perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
 {
 	int pos = self->ids;
@@ -66,22 +72,28 @@ struct perf_header *perf_header__new(void)
 	return self;
 }
 
-void perf_header__add_attr(struct perf_header *self,
-			   struct perf_header_attr *attr)
+int perf_header__add_attr(struct perf_header *self,
+			  struct perf_header_attr *attr)
 {
 	int pos = self->attrs;
 
 	if (self->frozen)
-		die("frozen");
+		return -1;
 
 	self->attrs++;
 	if (self->attrs > self->size) {
-		self->size *= 2;
-		self->attr = realloc(self->attr, self->size * sizeof(void *));
-		if (!self->attr)
-			die("nomem");
+		int nsize = self->size * 2;
+		struct perf_header_attr **nattr;
+
+		nattr = realloc(self->attr, nsize * sizeof(void *));
+		if (nattr == NULL)
+			return -1;
+
+		self->size = nsize;
+		self->attr = nattr;
 	}
 	self->attr[pos] = attr;
+	return 0;
 }
 
 #define MAX_EVENT_NAME 64
@@ -434,7 +446,9 @@ struct perf_header *perf_header__read(int fd)
 
 			perf_header_attr__add_id(attr, f_id);
 		}
-		perf_header__add_attr(self, attr);
+		if (perf_header__add_attr(self, attr) < 0)
+			 die("nomem");
+
 		lseek(fd, tmp, SEEK_SET);
 	}
 

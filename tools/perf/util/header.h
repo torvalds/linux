@@ -58,13 +58,15 @@ struct perf_header {
 struct perf_header *perf_header__read(int fd);
 void perf_header__write(struct perf_header *self, int fd, bool at_exit);
 
-void perf_header__add_attr(struct perf_header *self,
-			   struct perf_header_attr *attr);
+int perf_header__add_attr(struct perf_header *self,
+			  struct perf_header_attr *attr);
 
 void perf_header__push_event(u64 id, const char *name);
 char *perf_header__find_event(u64 id);
 
 struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr);
+void perf_header_attr__delete(struct perf_header_attr *self);
+
 void perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 
 u64 perf_header__sample_type(struct perf_header *header);

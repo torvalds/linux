@@ -221,7 +221,10 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	} else {
 		h_attr = perf_header_attr__new(a);
 		if (h_attr != NULL)
-			perf_header__add_attr(header, h_attr);
+			if (perf_header__add_attr(header, h_attr) < 0) {
+				perf_header_attr__delete(h_attr);
+				h_attr = NULL;
+			}
 	}
 
 	return h_attr;
