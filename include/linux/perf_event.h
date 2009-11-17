@@ -681,7 +681,7 @@ struct perf_event_context {
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
 	 */
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	/*
 	 * Protect the list of events.  Locking either mutex or lock
 	 * is sufficient to ensure the list doesn't change; to change
