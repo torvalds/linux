@@ -89,7 +89,7 @@
 
 #define F_OWNER_TID	0
 #define F_OWNER_PID	1
-#define F_OWNER_GID	2
+#define F_OWNER_PGRP	2
 
 struct f_owner_ex {
 	int	type;
