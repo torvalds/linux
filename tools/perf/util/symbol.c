@@ -227,6 +227,10 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int v)
 			      *curr = rb_entry(nd, struct symbol, rb_node);
 
 		prev->end = curr->start - 1;
+		if (prev->hist) {
+			free(prev->hist);
+			prev->hist = calloc(sizeof(u64), prev->end - prev->start);
+		}
 		prevnd = nd;
 	}
 
@@ -883,6 +887,10 @@ static inline void dso__fill_symbol_holes(struct dso *self)
 					pos->end = prev->end;
 				else if (hole)
 					pos->end = prev->start - 1;
+				if (pos->hist) {
+					free(pos->hist);
+					pos->hist = calloc(sizeof(u64), pos->end - pos->start);
+				}
 			}
 		}
 		prev = pos;
