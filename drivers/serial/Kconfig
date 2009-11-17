@@ -1086,12 +1086,12 @@ config SERIAL_68360
 	default y
 
 config SERIAL_PMACZILOG
-	tristate "PowerMac z85c30 ESCC support"
-	depends on PPC_OF && PPC_PMAC
+	tristate "Mac or PowerMac z85c30 ESCC support"
+	depends on (M68K && MAC) || (PPC_OF && PPC_PMAC)
 	select SERIAL_CORE
 	help
 	  This driver supports the Zilog z85C30 serial ports found on
-	  PowerMac machines.
+	  (Power)Mac machines.
 	  Say Y or M if you want to be able to these serial ports.
 
 config SERIAL_PMACZILOG_TTYS
@@ -1116,16 +1116,16 @@ config SERIAL_PMACZILOG_TTYS
 	  unable to use the 8250 module for PCMCIA or other 16C550-style
 	  UARTs.
 
-	  Say N unless you need the z85c30 ports on your powermac
+	  Say N unless you need the z85c30 ports on your (Power)Mac
 	  to appear as /dev/ttySn.
 
 config SERIAL_PMACZILOG_CONSOLE
-	bool "Console on PowerMac z85c30 serial port"
+	bool "Console on Mac or PowerMac z85c30 serial port"
 	depends on SERIAL_PMACZILOG=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you would like to be able to use the z85c30 serial port
-	  on your PowerMac as the console, you can do so by answering
+	  on your (Power)Mac as the console, you can do so by answering
 	  Y to this option.
 
 config SERIAL_LH7A40X

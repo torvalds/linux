@@ -1,7 +1,15 @@
 #ifndef __PMAC_ZILOG_H__
 #define __PMAC_ZILOG_H__
 
+#ifdef CONFIG_PPC_PMAC
 #define pmz_debug(fmt, arg...)	dev_dbg(&uap->dev->ofdev.dev, fmt, ## arg)
+#define pmz_error(fmt, arg...)	dev_err(&uap->dev->ofdev.dev, fmt, ## arg)
+#define pmz_info(fmt, arg...)	dev_info(&uap->dev->ofdev.dev, fmt, ## arg)
+#else
+#define pmz_debug(fmt, arg...)	dev_dbg(&uap->node->dev, fmt, ## arg)
+#define pmz_error(fmt, arg...)	dev_err(&uap->node->dev, fmt, ## arg)
+#define pmz_info(fmt, arg...)	dev_info(&uap->node->dev, fmt, ## arg)
+#endif
 
 /*
  * At most 2 ESCCs with 2 ports each
@@ -17,6 +25,7 @@ struct uart_pmac_port {
 	struct uart_port		port;
 	struct uart_pmac_port		*mate;
 
+#ifdef CONFIG_PPC_PMAC
 	/* macio_dev for the escc holding this port (maybe be null on
 	 * early inited port)
 	 */
@@ -25,6 +34,9 @@ struct uart_pmac_port {
 	 * of "escc" node (ie. ch-a or ch-b)
 	 */
 	struct device_node		*node;
+#else
+	struct platform_device		*node;
+#endif
 
 	/* Port type as obtained from device tree (IRDA, modem, ...) */
 	int				port_type;
@@ -55,10 +67,12 @@ struct uart_pmac_port {
 	volatile u8			__iomem *control_reg;
 	volatile u8			__iomem *data_reg;
 
+#ifdef CONFIG_PPC_PMAC
 	unsigned int			tx_dma_irq;
 	unsigned int			rx_dma_irq;
 	volatile struct dbdma_regs	__iomem *tx_dma_regs;
 	volatile struct dbdma_regs	__iomem *rx_dma_regs;
+#endif
 
 	struct ktermios			termios_cache;
 };
