@@ -2557,7 +2557,6 @@ static void bnx2x_e1h_disable(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 
 	netif_tx_disable(bp->dev);
-	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
 
@@ -7098,7 +7097,6 @@ static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 	bnx2x_int_disable_sync(bp, disable_hw);
 	bnx2x_napi_disable(bp);
 	netif_tx_disable(bp->dev);
-	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 }
 
 /*
@@ -10282,7 +10280,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	num_pkts++;
 	fp_tx->tx_bd_prod += 2; /* start + pbd */
-	bp->dev->trans_start = jiffies;
 
 	udelay(100);
 
