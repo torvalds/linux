@@ -578,8 +578,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 
-	if (!crtc->fb)
-		return -EINVAL;
+	/* no fb bound */
+	if (!crtc->fb) {
+		DRM_DEBUG("No FB bound\n");
+		return 0;
+	}
 
 	radeon_fb = to_radeon_framebuffer(crtc->fb);
 
