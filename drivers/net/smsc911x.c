@@ -986,7 +986,7 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = pdata->dev;
 	int npackets = 0;
 
-	while (likely(netif_running(dev)) && (npackets < budget)) {
+	while (npackets < budget) {
 		unsigned int pktlength;
 		unsigned int pktwords;
 		struct sk_buff *skb;
