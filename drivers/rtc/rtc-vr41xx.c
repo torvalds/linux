@@ -209,19 +209,18 @@ static int vr41xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 static int vr41xx_rtc_irq_set_freq(struct device *dev, int freq)
 {
-	unsigned long count;
+	u64 count;
 
 	if (!is_power_of_2(freq))
 		return -EINVAL;
 	count = RTC_FREQUENCY;
 	do_div(count, freq);
 
-	periodic_count = count;
-
 	spin_lock_irq(&rtc_lock);
 
-	rtc1_write(RTCL1LREG, count);
-	rtc1_write(RTCL1HREG, count >> 16);
+	periodic_count = count;
+	rtc1_write(RTCL1LREG, periodic_count);
+	rtc1_write(RTCL1HREG, periodic_count >> 16);
 
 	spin_unlock_irq(&rtc_lock);
 

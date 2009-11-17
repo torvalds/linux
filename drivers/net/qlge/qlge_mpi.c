@@ -499,7 +499,7 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		/* Wait for the interrupt to come in. */
 		status = ql_wait_mbx_cmd_cmplt(qdev);
 		if (status)
-			goto end;
+			continue;
 
 		/* Process the event.  If it's an AEN, it
 		 * will be handled in-line or a worker

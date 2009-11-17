@@ -1220,6 +1220,8 @@ static void __detach_device(struct protection_domain *domain, u16 devid)
 	amd_iommu_dev_table[devid].data[1] = 0;
 	amd_iommu_dev_table[devid].data[2] = 0;
 
+	amd_iommu_apply_erratum_63(devid);
+
 	/* decrease reference counter */
 	domain->dev_cnt -= 1;
 

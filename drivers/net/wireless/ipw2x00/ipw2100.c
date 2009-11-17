@@ -6325,10 +6325,8 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 
       fail:
 	if (dev) {
-		if (registered) {
-			unregister_ieee80211(priv->ieee);
+		if (registered)
 			unregister_netdev(dev);
-		}
 
 		ipw2100_hw_stop_adapter(priv);
 
@@ -6385,7 +6383,6 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 		/* Unregister the device first - this results in close()
 		 * being called if the device is open.  If we free storage
 		 * first, then close() will crash. */
-		unregister_ieee80211(priv->ieee);
 		unregister_netdev(dev);
 
 		/* ipw2100_down will ensure that there is no more pending work
