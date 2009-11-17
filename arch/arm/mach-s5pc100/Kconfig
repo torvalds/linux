@@ -14,6 +14,12 @@ config CPU_S5PC100
 	help
 	  Enable S5PC100 CPU support
 
+config S5PC100_SETUP_SDHCI
+        bool
+        select S5PC1XX_SETUP_SDHCI_GPIO
+        help
+          Internal helper functions for S5PC100 based SDHCI systems
+
 config MACH_SMDKC100
 	bool "SMDKC100"
 	select CPU_S5PC100
