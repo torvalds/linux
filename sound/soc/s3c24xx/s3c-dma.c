@@ -1,5 +1,5 @@
 /*
- * s3c24xx-pcm.c  --  ALSA Soc Audio Layer
+ * s3c-dma.c  --  ALSA Soc Audio Layer
  *
  * (c) 2006 Wolfson Microelectronics PLC.
  * Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
@@ -30,7 +30,7 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 
 static const struct snd_pcm_hardware s3c_dma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -79,12 +79,13 @@ static void s3c_dma_enqueue(struct snd_pcm_substream *substream)
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (s3c_dma_has_circular()) {
+	if (s3c_dma_has_circular())
 		limit = (prtd->dma_end - prtd->dma_start) / prtd->dma_period;
-	} else
+	else
 		limit = prtd->dma_limit;
 
-	pr_debug("%s: loaded %d, limit %d\n", __func__, prtd->dma_loaded, limit);
+	pr_debug("%s: loaded %d, limit %d\n",
+				__func__, prtd->dma_loaded, limit);
 
 	while (prtd->dma_loaded < limit) {
 		unsigned long len = prtd->dma_period;

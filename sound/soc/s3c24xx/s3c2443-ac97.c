@@ -35,7 +35,7 @@
 #include <asm/dma.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-ac97.h"
 
 struct s3c24xx_ac97_info {

@@ -19,7 +19,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/wm8580.h"
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
 #define S3C64XX_I2S_V4 2

@@ -24,7 +24,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/ac97.h"
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-ac97.h"
 
 static struct snd_soc_card ln2440sbc;

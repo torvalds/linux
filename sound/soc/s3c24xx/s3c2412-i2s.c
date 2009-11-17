@@ -37,7 +37,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c2412-i2s.h"
 
 #define S3C2412_I2S_DEBUG 0

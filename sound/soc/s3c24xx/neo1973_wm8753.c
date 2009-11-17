@@ -36,7 +36,7 @@
 
 #include "../codecs/wm8753.h"
 #include "lm4857.h"
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 
 /* define the scenarios */

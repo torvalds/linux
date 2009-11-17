@@ -35,7 +35,7 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
 static struct s3c2410_dma_client s3c64xx_dma_client_out = {
