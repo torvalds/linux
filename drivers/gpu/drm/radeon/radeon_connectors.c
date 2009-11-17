@@ -735,6 +735,39 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 				ret = connector_status_disconnected;
 			} else
 				ret = connector_status_connected;
+
+			/* multiple connectors on the same encoder with the same ddc line
+			 * This tends to be HDMI and DVI on the same encoder with the
+			 * same ddc line.  If the edid says HDMI, consider the HDMI port
+			 * connected and the DVI port disconnected.  If the edid doesn't
+			 * say HDMI, vice versa.
+			 */
+			if (radeon_connector->shared_ddc && connector_status_connected) {
+				struct drm_device *dev = connector->dev;
+				struct drm_connector *list_connector;
+				struct radeon_connector *list_radeon_connector;
+				list_for_each_entry(list_connector, &dev->mode_config.connector_list, head) {
+					if (connector == list_connector)
+						continue;
+					list_radeon_connector = to_radeon_connector(list_connector);
+					if (radeon_connector->devices == list_radeon_connector->devices) {
+						if (drm_detect_hdmi_monitor(radeon_connector->edid)) {
+							if (connector->connector_type == DRM_MODE_CONNECTOR_DVID) {
+								kfree(radeon_connector->edid);
+								radeon_connector->edid = NULL;
+								ret = connector_status_disconnected;
+							}
+						} else {
+							if ((connector->connector_type == DRM_MODE_CONNECTOR_HDMIA) ||
+							    (connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)) {
+								kfree(radeon_connector->edid);
+								radeon_connector->edid = NULL;
+								ret = connector_status_disconnected;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
