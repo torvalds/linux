@@ -308,9 +308,11 @@ static void wl1251_irq_work(struct work_struct *work)
 			wl1251_debug(DEBUG_IRQ,
 				     "WL1251_ACX_INTR_INIT_COMPLETE");
 
-		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+		if (--ctr == 0)
+			break;
 
-	} while (intr && --ctr);
+		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+	} while (intr);
 
 out_sleep:
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
