@@ -16,15 +16,6 @@
 #include <linux/seq_file.h>
 #include <linux/sysdev.h>
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ %u\n", irq);
-}
-
 /* May be overridden by platform code */
 int __weak nmi_enable(void)
 {
