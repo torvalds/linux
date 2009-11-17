@@ -86,6 +86,14 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		ieee80211_beacon_loss(wl->vif);
 	}
 
+	if (vector & REGAINED_BSS_EVENT_ID) {
+		if (wl->psm_requested) {
+			ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	return 0;
 }
 

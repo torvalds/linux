@@ -463,8 +463,8 @@ struct acx_beacon_filter_ie_table {
 	u8 pad[3];
 } __attribute__ ((packed));
 
-#define SYNCH_FAIL_DEFAULT_THRESHOLD    5     /* number of beacons */
-#define NO_BEACON_DEFAULT_TIMEOUT       (100) /* TU */
+#define SYNCH_FAIL_DEFAULT_THRESHOLD    10     /* number of beacons */
+#define NO_BEACON_DEFAULT_TIMEOUT       (500) /* in microseconds */
 
 struct acx_conn_monit_params {
 	struct acx_header header;
