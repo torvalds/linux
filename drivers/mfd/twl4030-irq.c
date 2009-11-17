@@ -838,7 +838,8 @@ int twl_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		goto fail_rqirq;
 	}
 
-	task = kthread_run(twl4030_irq_thread, (void *)irq_num, "twl4030-irq");
+	task = kthread_run(twl4030_irq_thread, (void *)(long)irq_num,
+								"twl4030-irq");
 	if (IS_ERR(task)) {
 		pr_err("twl4030: could not create irq %d thread!\n", irq_num);
 		status = PTR_ERR(task);
