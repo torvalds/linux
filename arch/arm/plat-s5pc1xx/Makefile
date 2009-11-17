@@ -13,8 +13,9 @@ obj-				:=
 
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
-obj-y				+= irq.o
+obj-y				+= irq.o irq-gpio.o irq-eint.o
 obj-y				+= clock.o
+obj-y				+= gpiolib.o
 
 # CPU support
 
@@ -23,5 +24,6 @@ obj-$(CONFIG_CPU_S5PC100_CLOCK)	+= s5pc100-clock.o
 
 # Device setup
 
+obj-$(CONFIG_S5P_GPIO_CFG_S5PC1XX) += gpio-config.o
 obj-$(CONFIG_S5PC100_SETUP_I2C0) += setup-i2c0.o
 obj-$(CONFIG_S5PC100_SETUP_I2C1) += setup-i2c1.o

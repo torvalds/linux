@@ -159,6 +159,12 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
+config S5P_GPIO_CFG_S5PC1XX
+	bool
+	help
+	  Internal configuration to enable S5PC1XX style GPIO configuration
+	  functions.
+
 # DMA
 
 config S3C_DMA
