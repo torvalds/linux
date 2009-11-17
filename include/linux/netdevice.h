@@ -896,7 +896,7 @@ struct net_device {
 	/* device index hash chain */
 	struct hlist_node	index_hlist;
 
-	struct net_device	*link_watch_next;
+	struct list_head	link_watch_list;
 
 	/* register/unregister state machine */
 	enum { NETREG_UNINITIALIZED=0,
@@ -1600,6 +1600,7 @@ static inline void dev_hold(struct net_device *dev)
  */
 
 extern void linkwatch_fire_event(struct net_device *dev);
+extern void linkwatch_forget_dev(struct net_device *dev);
 
 /**
  *	netif_carrier_ok - test if carrier present
