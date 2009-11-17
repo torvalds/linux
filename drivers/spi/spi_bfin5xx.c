@@ -183,7 +183,7 @@ static int bfin_spi_flush(struct master_data *drv_data)
 /* Chip select operation functions for cs_change flag */
 static void bfin_spi_cs_active(struct master_data *drv_data, struct slave_data *chip)
 {
-	if (likely(chip->chip_select_num)) {
+	if (likely(chip->chip_select_num < MAX_CTRL_CS)) {
 		u16 flag = read_FLAG(drv_data);
 
 		flag &= ~chip->flag;
@@ -196,7 +196,7 @@ static void bfin_spi_cs_active(struct master_data *drv_data, struct slave_data *
 
 static void bfin_spi_cs_deactive(struct master_data *drv_data, struct slave_data *chip)
 {
-	if (likely(chip->chip_select_num)) {
+	if (likely(chip->chip_select_num < MAX_CTRL_CS)) {
 		u16 flag = read_FLAG(drv_data);
 
 		flag |= chip->flag;
@@ -214,20 +214,24 @@ static void bfin_spi_cs_deactive(struct master_data *drv_data, struct slave_data
 /* enable or disable the pin muxed by GPIO and SPI CS to work as SPI CS */
 static inline void bfin_spi_cs_enable(struct master_data *drv_data, struct slave_data *chip)
 {
-	u16 flag = read_FLAG(drv_data);
+	if (chip->chip_select_num < MAX_CTRL_CS) {
+		u16 flag = read_FLAG(drv_data);
 
-	flag |= (chip->flag >> 8);
+		flag |= (chip->flag >> 8);
 
-	write_FLAG(drv_data, flag);
+		write_FLAG(drv_data, flag);
+	}
 }
 
 static inline void bfin_spi_cs_disable(struct master_data *drv_data, struct slave_data *chip)
 {
-	u16 flag = read_FLAG(drv_data);
+	if (chip->chip_select_num < MAX_CTRL_CS) {
+		u16 flag = read_FLAG(drv_data);
 
-	flag &= ~(chip->flag >> 8);
+		flag &= ~(chip->flag >> 8);
 
-	write_FLAG(drv_data, flag);
+		write_FLAG(drv_data, flag);
+	}
 }
 
 /* stop controller and re-config current chip*/
@@ -1016,7 +1020,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 		chip->ctl_reg = chip_info->ctl_reg;
 		chip->bits_per_word = chip_info->bits_per_word;
 		chip->cs_chg_udelay = chip_info->cs_chg_udelay;
-		chip->cs_gpio = chip_info->cs_gpio;
 		chip->idle_tx_val = chip_info->idle_tx_val;
 		chip->pio_interrupt = chip_info->pio_interrupt;
 	}
@@ -1036,8 +1039,11 @@ static int bfin_spi_setup(struct spi_device *spi)
 	 * SPI_BAUD, not the real baudrate
 	 */
 	chip->baud = hz_to_spi_baud(spi->max_speed_hz);
-	chip->flag = (1 << (spi->chip_select)) << 8;
 	chip->chip_select_num = spi->chip_select;
+	if (chip->chip_select_num < MAX_CTRL_CS)
+		chip->flag = (1 << spi->chip_select) << 8;
+	else
+		chip->cs_gpio = chip->chip_select_num - MAX_CTRL_CS;
 
 	switch (chip->bits_per_word) {
 	case 8:
@@ -1098,7 +1104,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 		disable_irq(drv_data->spi_irq);
 	}
 
-	if (chip->chip_select_num == 0) {
+	if (chip->chip_select_num >= MAX_CTRL_CS) {
 		ret = gpio_request(chip->cs_gpio, spi->modalias);
 		if (ret) {
 			dev_err(&spi->dev, "gpio_request() error\n");
@@ -1115,8 +1121,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 	spi_set_ctldata(spi, chip);
 
 	dev_dbg(&spi->dev, "chip select number is %d\n", chip->chip_select_num);
-	if (chip->chip_select_num > 0 &&
-	    chip->chip_select_num <= spi->master->num_chipselect) {
+	if (chip->chip_select_num < MAX_CTRL_CS) {
 		ret = peripheral_request(ssel[spi->master->bus_num]
 		                         [chip->chip_select_num-1], spi->modalias);
 		if (ret) {
@@ -1131,7 +1136,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 	return 0;
 
  pin_error:
-	if (chip->chip_select_num == 0)
+	if (chip->chip_select_num >= MAX_CTRL_CS)
 		gpio_free(chip->cs_gpio);
 	else
 		peripheral_free(ssel[spi->master->bus_num]
@@ -1162,14 +1167,11 @@ static void bfin_spi_cleanup(struct spi_device *spi)
 	if (!chip)
 		return;
 
-	if ((chip->chip_select_num > 0)
-		&& (chip->chip_select_num <= spi->master->num_chipselect)) {
+	if (chip->chip_select_num < MAX_CTRL_CS) {
 		peripheral_free(ssel[spi->master->bus_num]
 					[chip->chip_select_num-1]);
 		bfin_spi_cs_disable(drv_data, chip);
-	}
-
-	if (chip->chip_select_num == 0)
+	} else
 		gpio_free(chip->cs_gpio);
 
 	kfree(chip);
