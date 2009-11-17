@@ -81,7 +81,7 @@ struct sms_board {
 	int led_power, led_hi, led_lo, lna_ctrl, rf_switch;
 };
 
-struct sms_board *sms_get_board(int id);
+struct sms_board *sms_get_board(unsigned id);
 
 extern struct smscore_device_t *coredev;
 
