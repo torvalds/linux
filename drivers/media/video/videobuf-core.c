@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(videobuf_queue_to_vmalloc);
 
 
 void videobuf_queue_core_init(struct videobuf_queue *q,
-			 struct videobuf_queue_ops *ops,
+			 const struct videobuf_queue_ops *ops,
 			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
