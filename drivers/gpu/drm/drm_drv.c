@@ -366,6 +366,18 @@ module_init(drm_core_init);
 module_exit(drm_core_exit);
 
 /**
+ * Copy and IOCTL return string to user space
+ */
+#define DRM_COPY(name, value)                                         \
+	len = strlen(value);                                          \
+	if (len > name##_len) len = name##_len;                       \
+	name##_len = strlen(value);                                   \
+	if (len && name) {                                            \
+		if (copy_to_user(name, value, len))                   \
+			return -EFAULT;                               \
+	}
+
+/**
  * Get version information
  *
  * \param inode device inode.
