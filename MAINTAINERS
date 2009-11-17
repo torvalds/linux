@@ -3084,9 +3084,13 @@ F:	kernel/kgdb.c
 
 KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
-P	Pekka Enberg
-M:	penberg@cs.helsinki.fi
+M:	Pekka Enberg <penberg@cs.helsinki.fi>
 S:	Maintained
+F:	Documentation/kmemcheck.txt
+F:	arch/x86/include/asm/kmemcheck.h
+F:	arch/x86/mm/kmemcheck/
+F:	include/linux/kmemcheck.h
+F:	mm/kmemcheck.c
 
 KMEMLEAK
 M:	Catalin Marinas <catalin.marinas@arm.com>
