@@ -38,12 +38,27 @@ struct macvlan_port {
 	struct list_head	vlans;
 };
 
+/**
+ *	struct macvlan_rx_stats - MACVLAN percpu rx stats
+ *	@rx_packets: number of received packets
+ *	@rx_bytes: number of received bytes
+ *	@multicast: number of received multicast packets
+ *	@rx_errors: number of errors
+ */
+struct macvlan_rx_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long multicast;
+	unsigned long rx_errors;
+};
+
 struct macvlan_dev {
 	struct net_device	*dev;
 	struct list_head	list;
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
+	struct macvlan_rx_stats *rx_stats;
 };
 
 
@@ -110,6 +125,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	struct net_device *dev;
 	struct sk_buff *nskb;
 	unsigned int i;
+	struct macvlan_rx_stats *rx_stats;
 
 	if (skb->protocol == htons(ETH_P_PAUSE))
 		return;
@@ -117,17 +133,17 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
 			dev = vlan->dev;
+			rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
 
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb == NULL) {
-				dev->stats.rx_errors++;
-				dev->stats.rx_dropped++;
+				rx_stats->rx_errors++;
 				continue;
 			}
 
-			dev->stats.rx_bytes += skb->len + ETH_HLEN;
-			dev->stats.rx_packets++;
-			dev->stats.multicast++;
+			rx_stats->rx_bytes += skb->len + ETH_HLEN;
+			rx_stats->rx_packets++;
+			rx_stats->multicast++;
 
 			nskb->dev = dev;
 			if (!compare_ether_addr_64bits(eth->h_dest, dev->broadcast))
@@ -147,6 +163,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	const struct macvlan_port *port;
 	const struct macvlan_dev *vlan;
 	struct net_device *dev;
+	struct macvlan_rx_stats *rx_stats;
 
 	port = rcu_dereference(skb->dev->macvlan_port);
 	if (port == NULL)
@@ -166,16 +183,15 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 		kfree_skb(skb);
 		return NULL;
 	}
-
+	rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL) {
-		dev->stats.rx_errors++;
-		dev->stats.rx_dropped++;
+		rx_stats->rx_errors++;
 		return NULL;
 	}
 
-	dev->stats.rx_bytes += skb->len + ETH_HLEN;
-	dev->stats.rx_packets++;
+	rx_stats->rx_bytes += skb->len + ETH_HLEN;
+	rx_stats->rx_packets++;
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
@@ -365,7 +381,45 @@ static int macvlan_init(struct net_device *dev)
 
 	macvlan_set_lockdep_class(dev);
 
+	vlan->rx_stats = alloc_percpu(struct macvlan_rx_stats);
+	if (!vlan->rx_stats)
+		return -ENOMEM;
+
 	return 0;
+}
+
+static void macvlan_uninit(struct net_device *dev)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+
+	free_percpu(vlan->rx_stats);
+}
+
+static struct net_device_stats *macvlan_dev_get_stats(struct net_device *dev)
+{
+	struct net_device_stats *stats = &dev->stats;
+	struct macvlan_dev *vlan = netdev_priv(dev);
+
+	dev_txq_stats_fold(dev, stats);
+
+	if (vlan->rx_stats) {
+		struct macvlan_rx_stats *p, rx = {0};
+		int i;
+
+		for_each_possible_cpu(i) {
+			p = per_cpu_ptr(vlan->rx_stats, i);
+			rx.rx_packets += p->rx_packets;
+			rx.rx_bytes   += p->rx_bytes;
+			rx.rx_errors  += p->rx_errors;
+			rx.multicast  += p->multicast;
+		}
+		stats->rx_packets = rx.rx_packets;
+		stats->rx_bytes   = rx.rx_bytes;
+		stats->rx_errors  = rx.rx_errors;
+		stats->rx_dropped = rx.rx_errors;
+		stats->multicast  = rx.multicast;
+	}
+	return stats;
 }
 
 static void macvlan_ethtool_get_drvinfo(struct net_device *dev,
@@ -404,6 +458,7 @@ static const struct ethtool_ops macvlan_ethtool_ops = {
 
 static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_init		= macvlan_init,
+	.ndo_uninit		= macvlan_uninit,
 	.ndo_open		= macvlan_open,
 	.ndo_stop		= macvlan_stop,
 	.ndo_start_xmit		= macvlan_start_xmit,
@@ -411,6 +466,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_change_rx_flags	= macvlan_change_rx_flags,
 	.ndo_set_mac_address	= macvlan_set_mac_address,
 	.ndo_set_multicast_list	= macvlan_set_multicast_list,
+	.ndo_get_stats		= macvlan_dev_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
