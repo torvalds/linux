@@ -34,6 +34,7 @@ MODULE_LICENSE("GPL v2");
 #define UCODE_UCODE_TYPE           0x00000001
 
 const struct firmware *firmware;
+static int supported_cpu;
 
 struct equiv_cpu_entry {
 	u32	installed_cpu;
@@ -73,15 +74,12 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 dummy;
 
-	memset(csig, 0, sizeof(*csig));
-	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
-		pr_warning("microcode: CPU%d: AMD CPU family 0x%x not "
-			   "supported\n", cpu, c->x86);
+	if (!supported_cpu)
 		return -1;
-	}
+
+	memset(csig, 0, sizeof(*csig));
 	rdmsr(MSR_AMD64_PATCH_LEVEL, csig->rev, dummy);
 	pr_info("microcode: CPU%d: patch_level=0x%x\n", cpu, csig->rev);
 	return 0;
@@ -331,6 +329,17 @@ static void microcode_fini_cpu_amd(int cpu)
 void init_microcode_amd(struct device *device)
 {
 	const char *fw_name = "amd-ucode/microcode_amd.bin";
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	WARN_ON(c->x86_vendor != X86_VENDOR_AMD);
+
+	if (c->x86 < 0x10) {
+		pr_warning("microcode: AMD CPU family 0x%x not supported\n",
+			   c->x86);
+		return;
+	}
+	supported_cpu = 1;
+
 	if (request_firmware(&firmware, fw_name, device))
 		pr_err("microcode: failed to load file %s\n", fw_name);
 }
