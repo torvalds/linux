@@ -66,6 +66,7 @@ struct dso {
 	u8		 has_build_id:1;
 	unsigned char	 origin;
 	u8		 build_id[BUILD_ID_SIZE];
+	u16		 long_name_len;
 	const char	 *short_name;
 	char	 	 *long_name;
 	char		 name[0];

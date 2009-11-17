@@ -109,13 +109,24 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 		       self->start, self->end, self->name);
 }
 
+static void dso__set_long_name(struct dso *self, char *name)
+{
+	self->long_name = name;
+	self->long_name_len = strlen(name);
+}
+
+static void dso__set_basename(struct dso *self)
+{
+	self->short_name = basename(self->long_name);
+}
+
 struct dso *dso__new(const char *name)
 {
 	struct dso *self = malloc(sizeof(*self) + strlen(name) + 1);
 
 	if (self != NULL) {
 		strcpy(self->name, name);
-		self->long_name = self->name;
+		dso__set_long_name(self, self->name);
 		self->short_name = self->name;
 		self->syms = RB_ROOT;
 		self->find_symbol = dso__find_symbol;
@@ -888,7 +899,7 @@ bool fetch_build_id_table(struct list_head *head)
 			continue;
 		have_buildid = true;
 		memset(&b.header, 0, sizeof(b.header));
-		len = strlen(pos->long_name) + 1;
+		len = pos->long_name_len + 1;
 		len = ALIGN(len, 64);
 		b.header.size = sizeof(b) + len;
 
@@ -1165,6 +1176,7 @@ static int dsos__load_modules_sym_dir(char *dirname, symbol_filter_t filter)
 			     dso_name[PATH_MAX];
 			struct map *map;
 			struct rb_node *last;
+			char *long_name;
 
 			if (dot == NULL || strcmp(dot, ".ko"))
 				continue;
@@ -1179,9 +1191,11 @@ static int dsos__load_modules_sym_dir(char *dirname, symbol_filter_t filter)
 			snprintf(path, sizeof(path), "%s/%s",
 				 dirname, dent->d_name);
 
-			map->dso->long_name = strdup(path);
-			if (map->dso->long_name == NULL)
+			long_name = strdup(path);
+			if (long_name == NULL)
 				goto failure;
+			dso__set_long_name(map->dso, long_name);
+			dso__set_basename(map->dso);
 
 			err = dso__load_module_sym(map->dso, map, filter);
 			if (err < 0)
@@ -1420,8 +1434,10 @@ struct dso *dsos__findnew(const char *name)
 
 	if (!dso) {
 		dso = dso__new(name);
-		if (dso != NULL)
+		if (dso != NULL) {
 			dsos__add(dso);
+			dso__set_basename(dso);
+		}
 	}
 
 	return dso;
