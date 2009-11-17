@@ -1121,7 +1121,8 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *compressed_fb, *compressed_llb;
-	unsigned long cfb_base, ll_base;
+	unsigned long cfb_base;
+	unsigned long ll_base = 0;
 
 	/* Leave 1M for line length buffer & misc. */
 	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
