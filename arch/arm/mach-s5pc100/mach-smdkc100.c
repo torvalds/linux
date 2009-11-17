@@ -27,16 +27,21 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
+#include <mach/regs-fb.h>
+#include <video/platform_lcd.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
+#include <plat/gpio-cfg.h>
+#include <plat/regs-gpio.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/s5pc100.h>
+#include <plat/fb.h>
 
 #define UCON (S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK)
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)
@@ -73,9 +78,65 @@ static struct s3c2410_uartcfg smdkc100_uartcfgs[] __initdata = {
 	},
 };
 
+/* LCD power controller */
+static void smdkc100_lcd_power_set(struct plat_lcd_data *pd,
+				   unsigned int power)
+{
+	/* backlight */
+	gpio_direction_output(S5PC100_GPD(0), power);
+
+	if (power) {
+		/* module reset */
+		gpio_direction_output(S5PC100_GPH0(6), 1);
+		mdelay(100);
+		gpio_direction_output(S5PC100_GPH0(6), 0);
+		mdelay(10);
+		gpio_direction_output(S5PC100_GPH0(6), 1);
+		mdelay(10);
+	}
+}
+
+static struct plat_lcd_data smdkc100_lcd_power_data = {
+	.set_power	= smdkc100_lcd_power_set,
+};
+
+static struct platform_device smdkc100_lcd_powerdev = {
+	.name			= "platform-lcd",
+	.dev.parent		= &s3c_device_fb.dev,
+	.dev.platform_data	= &smdkc100_lcd_power_data,
+};
+
+/* Frame Buffer */
+static struct s3c_fb_pd_win smdkc100_fb_win0 = {
+	/* this is to ensure we use win0 */
+	.win_mode	= {
+		.refresh	= 70,
+		.pixclock	= (8+13+3+800)*(7+5+1+480),
+		.left_margin	= 8,
+		.right_margin	= 13,
+		.upper_margin	= 7,
+		.lower_margin	= 5,
+		.hsync_len	= 3,
+		.vsync_len	= 1,
+		.xres		= 800,
+		.yres		= 480,
+	},
+	.max_bpp	= 32,
+	.default_bpp	= 16,
+};
+
+static struct s3c_fb_platdata smdkc100_lcd_pdata __initdata = {
+	.win[0]		= &smdkc100_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= s5pc100_fb_gpio_setup_24bpp,
+};
+
 static struct map_desc smdkc100_iodesc[] = {};
 
 static struct platform_device *smdkc100_devices[] __initdata = {
+	&s3c_device_fb,
+	&smdkc100_lcd_powerdev,
 };
 
 static void __init smdkc100_map_io(void)
@@ -87,6 +148,12 @@ static void __init smdkc100_map_io(void)
 
 static void __init smdkc100_machine_init(void)
 {
+	s3c_fb_set_platdata(&smdkc100_lcd_pdata);
+
+	/* LCD init */
+	gpio_request(S5PC100_GPD(0), "GPD");
+	gpio_request(S5PC100_GPH0(6), "GPH0");
+	smdkc100_lcd_power_set(&smdkc100_lcd_power_data, 0);
 	platform_add_devices(smdkc100_devices, ARRAY_SIZE(smdkc100_devices));
 }
 
