@@ -446,12 +446,23 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	struct cfg80211_assoc_request req;
 	struct cfg80211_internal_bss *bss;
 	int i, err, slot = -1;
+	bool was_connected = false;
 
 	ASSERT_WDEV_LOCK(wdev);
 
 	memset(&req, 0, sizeof(req));
 
-	if (wdev->current_bss)
+	if (wdev->current_bss && prev_bssid &&
+	    memcmp(wdev->current_bss->pub.bssid, prev_bssid, ETH_ALEN) == 0) {
+		/*
+		 * Trying to reassociate: Allow this to proceed and let the old
+		 * association to be dropped when the new one is completed.
+		 */
+		if (wdev->sme_state == CFG80211_SME_CONNECTED) {
+			was_connected = true;
+			wdev->sme_state = CFG80211_SME_CONNECTING;
+		}
+	} else if (wdev->current_bss)
 		return -EALREADY;
 
 	req.ie = ie;
@@ -461,8 +472,11 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	req.prev_bssid = prev_bssid;
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-	if (!req.bss)
+	if (!req.bss) {
+		if (was_connected)
+			wdev->sme_state = CFG80211_SME_CONNECTED;
 		return -ENOENT;
+	}
 
 	bss = bss_from_pub(req.bss);
 
@@ -480,6 +494,8 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 
 	err = rdev->ops->assoc(&rdev->wiphy, dev, &req);
  out:
+	if (err && was_connected)
+		wdev->sme_state = CFG80211_SME_CONNECTED;
 	/* still a reference in wdev->auth_bsses[slot] */
 	cfg80211_put_bss(req.bss);
 	return err;
