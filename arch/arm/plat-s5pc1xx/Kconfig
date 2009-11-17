@@ -42,7 +42,7 @@ config S5PC1XX_SETUP_FB_24BPP
 	help
           Common setup code for S5PC1XX with an 24bpp RGB display helper.
 
-config S5PC100_SETUP_I2C0
+config S5PC1XX_SETUP_I2C0
 	bool
 	default y
 	help
@@ -51,7 +51,7 @@ config S5PC100_SETUP_I2C0
 	  Note, currently since i2c0 is always compiled, this setup helper
 	  is always compiled with it.
 
-config S5PC100_SETUP_I2C1
+config S5PC1XX_SETUP_I2C1
 	bool
 	help
 	  Common setup code for i2c bus 1.
