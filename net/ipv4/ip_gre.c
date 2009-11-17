@@ -125,7 +125,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev);
 
 #define HASH_SIZE  16
 
-static int ipgre_net_id;
+static int ipgre_net_id __read_mostly;
 struct ipgre_net {
 	struct ip_tunnel *tunnels[4][HASH_SIZE];
 

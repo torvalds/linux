@@ -43,7 +43,7 @@
 #define GRE_TIMEOUT		(30 * HZ)
 #define GRE_STREAM_TIMEOUT	(180 * HZ)
 
-static int proto_gre_net_id;
+static int proto_gre_net_id __read_mostly;
 struct netns_proto_gre {
 	rwlock_t		keymap_lock;
 	struct list_head	keymap_list;

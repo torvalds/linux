@@ -119,7 +119,7 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
-static int ipip_net_id;
+static int ipip_net_id __read_mostly;
 struct ipip_net {
 	struct ip_tunnel *tunnels_r_l[HASH_SIZE];
 	struct ip_tunnel *tunnels_r[HASH_SIZE];

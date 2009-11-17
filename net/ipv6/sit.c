@@ -66,7 +66,7 @@ static void ipip6_fb_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 
-static int sit_net_id;
+static int sit_net_id __read_mostly;
 struct sit_net {
 	struct ip_tunnel *tunnels_r_l[HASH_SIZE];
 	struct ip_tunnel *tunnels_r[HASH_SIZE];

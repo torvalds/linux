@@ -43,7 +43,7 @@ struct phonet_net {
 	struct phonet_routes routes;
 };
 
-int phonet_net_id;
+int phonet_net_id __read_mostly;
 
 struct phonet_device_list *phonet_device_list(struct net *net)
 {

@@ -41,7 +41,7 @@
 
 /* Global VLAN variables */
 
-int vlan_net_id;
+int vlan_net_id __read_mostly;
 
 /* Our listing of VLAN group(s) */
 static struct hlist_head vlan_group_hash[VLAN_GRP_HASH_SIZE];

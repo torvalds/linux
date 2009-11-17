@@ -78,7 +78,7 @@ static void ip6_fb_tnl_dev_init(struct net_device *dev);
 static void ip6_tnl_dev_init(struct net_device *dev);
 static void ip6_tnl_dev_setup(struct net_device *dev);
 
-static int ip6_tnl_net_id;
+static int ip6_tnl_net_id __read_mostly;
 struct ip6_tnl_net {
 	/* the IPv6 tunnel fallback device */
 	struct net_device *fb_tnl_dev;

@@ -158,7 +158,7 @@ MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the
 static const char * const version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
-int bond_net_id;
+int bond_net_id __read_mostly;
 
 static __be32 arp_target[BOND_MAX_ARP_TARGETS];
 static int arp_ip_count;
