@@ -987,6 +987,29 @@ int hci_resume_dev(struct hci_dev *hdev)
 }
 EXPORT_SYMBOL(hci_resume_dev);
 
+/* Receive frame from HCI drivers */
+int hci_recv_frame(struct sk_buff *skb)
+{
+	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
+	if (!hdev || (!test_bit(HCI_UP, &hdev->flags)
+				&& !test_bit(HCI_INIT, &hdev->flags))) {
+		kfree_skb(skb);
+		return -ENXIO;
+	}
+
+	/* Incomming skb */
+	bt_cb(skb)->incoming = 1;
+
+	/* Time stamp */
+	__net_timestamp(skb);
+
+	/* Queue frame for rx task */
+	skb_queue_tail(&hdev->rx_q, skb);
+	hci_sched_rx(hdev);
+	return 0;
+}
+EXPORT_SYMBOL(hci_recv_frame);
+
 /* Receive packet type fragment */
 #define __reassembly(hdev, type)  ((hdev)->reassembly[(type) - 2])
 
