@@ -1149,5 +1149,6 @@ failed:
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);
+	drm_encoder_cleanup(encoder);
 	kfree(intel_output);
 }
