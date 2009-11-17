@@ -28,13 +28,16 @@
 #define dbg(format, arg...) do {} while (0)
 #endif
 
-#define ALPS_DUALPOINT	0x01
-#define ALPS_WHEEL	0x02
-#define ALPS_FW_BK_1	0x04
-#define ALPS_4BTN	0x08
-#define ALPS_OLDPROTO	0x10
-#define ALPS_PASS	0x20
-#define ALPS_FW_BK_2	0x40
+
+#define ALPS_OLDPROTO		0x01	/* old style input */
+#define ALPS_DUALPOINT		0x02	/* touchpad has trackstick */
+#define ALPS_PASS		0x04	/* device has a pass-through port */
+
+#define ALPS_WHEEL		0x08	/* hardware wheel present */
+#define ALPS_FW_BK_1		0x10	/* front & back buttons present */
+#define ALPS_FW_BK_2		0x20	/* front & back buttons present */
+#define ALPS_FOUR_BUTTONS	0x40	/* 4 direction button present */
+
 
 static const struct alps_model_info alps_model_data[] = {
 	{ { 0x32, 0x02, 0x14 },	0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT }, /* Toshiba Salellite Pro M10 */
@@ -56,7 +59,7 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x22, 0x02, 0x0a },	0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT },
 	{ { 0x22, 0x02, 0x14 }, 0xff, 0xff, ALPS_PASS | ALPS_DUALPOINT }, /* Dell Latitude D600 */
 	{ { 0x62, 0x02, 0x14 }, 0xcf, 0xcf, ALPS_PASS | ALPS_DUALPOINT }, /* Dell Latitude E6500 */
-	{ { 0x73, 0x02, 0x50 }, 0xcf, 0xcf, ALPS_FW_BK_1 },		  /* Dell Vostro 1400 */
+	{ { 0x73, 0x02, 0x50 }, 0xcf, 0xcf, ALPS_FOUR_BUTTONS },	  /* Dell Vostro 1400 */
 };
 
 /*
@@ -83,6 +86,7 @@ static const struct alps_model_info alps_model_data[] = {
 static void alps_process_packet(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
+	const struct alps_model_info *model = priv->i;
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = psmouse->dev;
 	struct input_dev *dev2 = priv->dev2;
@@ -101,7 +105,7 @@ static void alps_process_packet(struct psmouse *psmouse)
 		return;
 	}
 
-	if (priv->i->flags & ALPS_OLDPROTO) {
+	if (model->flags & ALPS_OLDPROTO) {
 		left = packet[2] & 0x10;
 		right = packet[2] & 0x08;
 		middle = 0;
@@ -117,12 +121,12 @@ static void alps_process_packet(struct psmouse *psmouse)
 		z = packet[5];
 	}
 
-	if (priv->i->flags & ALPS_FW_BK_1) {
+	if (model->flags & ALPS_FW_BK_1) {
 		back = packet[0] & 0x10;
 		forward = packet[2] & 4;
 	}
 
-	if (priv->i->flags & ALPS_FW_BK_2) {
+	if (model->flags & ALPS_FW_BK_2) {
 		back = packet[3] & 4;
 		forward = packet[2] & 4;
 		if ((middle = forward && back))
@@ -132,7 +136,7 @@ static void alps_process_packet(struct psmouse *psmouse)
 	ges = packet[2] & 1;
 	fin = packet[2] & 2;
 
-	if ((priv->i->flags & ALPS_DUALPOINT) && z == 127) {
+	if ((model->flags & ALPS_DUALPOINT) && z == 127) {
 		input_report_rel(dev2, REL_X,  (x > 383 ? (x - 768) : x));
 		input_report_rel(dev2, REL_Y, -(y > 255 ? (y - 512) : y));
 
@@ -150,7 +154,8 @@ static void alps_process_packet(struct psmouse *psmouse)
 	input_report_key(dev, BTN_MIDDLE, middle);
 
 	/* Convert hardware tap to a reasonable Z value */
-	if (ges && !fin) z = 40;
+	if (ges && !fin)
+		z = 40;
 
 	/*
 	 * A "tap and drag" operation is reported by the hardware as a transition
@@ -166,8 +171,10 @@ static void alps_process_packet(struct psmouse *psmouse)
 	}
 	priv->prev_fin = fin;
 
-	if (z > 30) input_report_key(dev, BTN_TOUCH, 1);
-	if (z < 25) input_report_key(dev, BTN_TOUCH, 0);
+	if (z > 30)
+		input_report_key(dev, BTN_TOUCH, 1);
+	if (z < 25)
+		input_report_key(dev, BTN_TOUCH, 0);
 
 	if (z > 0) {
 		input_report_abs(dev, ABS_X, x);
@@ -177,12 +184,19 @@ static void alps_process_packet(struct psmouse *psmouse)
 	input_report_abs(dev, ABS_PRESSURE, z);
 	input_report_key(dev, BTN_TOOL_FINGER, z > 0);
 
-	if (priv->i->flags & ALPS_WHEEL)
+	if (model->flags & ALPS_WHEEL)
 		input_report_rel(dev, REL_WHEEL, ((packet[2] << 1) & 0x08) - ((packet[0] >> 4) & 0x07));
 
-	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
+	if (model->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
 		input_report_key(dev, BTN_FORWARD, forward);
 		input_report_key(dev, BTN_BACK, back);
+	}
+
+	if (model->flags & ALPS_FOUR_BUTTONS) {
+		input_report_key(dev, BTN_0, packet[2] & 4);
+		input_report_key(dev, BTN_1, packet[0] & 0x10);
+		input_report_key(dev, BTN_2, packet[3] & 4);
+		input_report_key(dev, BTN_3, packet[0] & 0x20);
 	}
 
 	input_sync(dev);
@@ -393,15 +407,12 @@ static int alps_poll(struct psmouse *psmouse)
 	return 0;
 }
 
-static int alps_hw_init(struct psmouse *psmouse, int *version)
+static int alps_hw_init(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
+	const struct alps_model_info *model = priv->i;
 
-	priv->i = alps_get_model(psmouse, version);
-	if (!priv->i)
-		return -1;
-
-	if ((priv->i->flags & ALPS_PASS) &&
+	if ((model->flags & ALPS_PASS) &&
 	    alps_passthrough_mode(psmouse, true)) {
 		return -1;
 	}
@@ -416,7 +427,7 @@ static int alps_hw_init(struct psmouse *psmouse, int *version)
 		return -1;
 	}
 
-	if ((priv->i->flags & ALPS_PASS) &&
+	if ((model->flags & ALPS_PASS) &&
 	    alps_passthrough_mode(psmouse, false)) {
 		return -1;
 	}
@@ -432,12 +443,15 @@ static int alps_hw_init(struct psmouse *psmouse, int *version)
 
 static int alps_reconnect(struct psmouse *psmouse)
 {
+	const struct alps_model_info *model;
+
 	psmouse_reset(psmouse);
 
-	if (alps_hw_init(psmouse, NULL))
+	model = alps_get_model(psmouse, NULL);
+	if (!model)
 		return -1;
 
-	return 0;
+	return alps_hw_init(psmouse);
 }
 
 static void alps_disconnect(struct psmouse *psmouse)
@@ -452,6 +466,7 @@ static void alps_disconnect(struct psmouse *psmouse)
 int alps_init(struct psmouse *psmouse)
 {
 	struct alps_data *priv;
+	const struct alps_model_info *model;
 	struct input_dev *dev1 = psmouse->dev, *dev2;
 	int version;
 
@@ -463,33 +478,48 @@ int alps_init(struct psmouse *psmouse)
 	priv->dev2 = dev2;
 	psmouse->private = priv;
 
-	if (alps_hw_init(psmouse, &version))
+	model = alps_get_model(psmouse, &version);
+	if (!model)
+		goto init_fail;
+
+	priv->i = model;
+
+	if (alps_hw_init(psmouse))
 		goto init_fail;
 
 	dev1->evbit[BIT_WORD(EV_KEY)] |= BIT_MASK(EV_KEY);
 	dev1->keybit[BIT_WORD(BTN_TOUCH)] |= BIT_MASK(BTN_TOUCH);
 	dev1->keybit[BIT_WORD(BTN_TOOL_FINGER)] |= BIT_MASK(BTN_TOOL_FINGER);
-	dev1->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
+	dev1->keybit[BIT_WORD(BTN_LEFT)] |=
+		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
 
 	dev1->evbit[BIT_WORD(EV_ABS)] |= BIT_MASK(EV_ABS);
 	input_set_abs_params(dev1, ABS_X, 0, 1023, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, 767, 0, 0);
 	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 
-	if (priv->i->flags & ALPS_WHEEL) {
+	if (model->flags & ALPS_WHEEL) {
 		dev1->evbit[BIT_WORD(EV_REL)] |= BIT_MASK(EV_REL);
 		dev1->relbit[BIT_WORD(REL_WHEEL)] |= BIT_MASK(REL_WHEEL);
 	}
 
-	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
+	if (model->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
 		dev1->keybit[BIT_WORD(BTN_FORWARD)] |= BIT_MASK(BTN_FORWARD);
 		dev1->keybit[BIT_WORD(BTN_BACK)] |= BIT_MASK(BTN_BACK);
 	}
 
+	if (model->flags & ALPS_FOUR_BUTTONS) {
+		dev1->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_0);
+		dev1->keybit[BIT_WORD(BTN_1)] |= BIT_MASK(BTN_1);
+		dev1->keybit[BIT_WORD(BTN_2)] |= BIT_MASK(BTN_2);
+		dev1->keybit[BIT_WORD(BTN_3)] |= BIT_MASK(BTN_3);
+	} else {
+		dev1->keybit[BIT_WORD(BTN_MIDDLE)] |= BIT_MASK(BTN_MIDDLE);
+	}
+
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
 	dev2->phys = priv->phys;
-	dev2->name = (priv->i->flags & ALPS_DUALPOINT) ? "DualPoint Stick" : "PS/2 Mouse";
+	dev2->name = (model->flags & ALPS_DUALPOINT) ? "DualPoint Stick" : "PS/2 Mouse";
 	dev2->id.bustype = BUS_I8042;
 	dev2->id.vendor  = 0x0002;
 	dev2->id.product = PSMOUSE_ALPS;
@@ -497,9 +527,9 @@ int alps_init(struct psmouse *psmouse)
 	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
-	dev2->relbit[BIT_WORD(REL_X)] |= BIT_MASK(REL_X) | BIT_MASK(REL_Y);
-	dev2->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
+	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+	dev2->keybit[BIT_WORD(BTN_LEFT)] =
+		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 
 	if (input_register_device(priv->dev2))
 		goto init_fail;
