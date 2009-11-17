@@ -426,7 +426,7 @@ try_again:
 	if (fd[nr_cpu][counter] < 0) {
 		int err = errno;
 
-		if (err == EPERM)
+		if (err == EPERM || err == EACCES)
 			die("Permission error - are you root?\n");
 		else if (err ==  ENODEV && profile_cpu != -1)
 			die("No such device - did you specify an out-of-range profile CPU?\n");

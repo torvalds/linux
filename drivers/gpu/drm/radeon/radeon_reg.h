@@ -290,6 +290,8 @@
 #define RADEON_BUS_CNTL                     0x0030
 #       define RADEON_BUS_MASTER_DIS         (1 << 6)
 #       define RADEON_BUS_BIOS_DIS_ROM       (1 << 12)
+#	define RS600_BUS_MASTER_DIS	     (1 << 14)
+#	define RS600_MSI_REARM		     (1 << 20) /* rs600/rs690/rs740 */
 #       define RADEON_BUS_RD_DISCARD_EN      (1 << 24)
 #       define RADEON_BUS_RD_ABORT_EN        (1 << 25)
 #       define RADEON_BUS_MSTR_DISCONNECT_EN (1 << 28)
@@ -297,6 +299,9 @@
 #       define RADEON_BUS_READ_BURST         (1 << 30)
 #define RADEON_BUS_CNTL1                    0x0034
 #       define RADEON_BUS_WAIT_ON_LOCK_EN    (1 << 4)
+/* rv370/rv380, rv410, r423/r430/r480, r5xx */
+#define RADEON_MSI_REARM_EN		    0x0160
+#	define RV370_MSI_REARM_EN	     (1 << 0)
 
 /* #define RADEON_PCIE_INDEX                   0x0030 */
 /* #define RADEON_PCIE_DATA                    0x0034 */
@@ -3311,6 +3316,7 @@
 #define RADEON_AIC_CNTL                     0x01d0
 #       define RADEON_PCIGART_TRANSLATE_EN     (1 << 0)
 #       define RADEON_DIS_OUT_OF_PCI_GART_ACCESS     (1 << 1)
+#	define RS400_MSI_REARM	                (1 << 3) /* rs400/rs480 */
 #define RADEON_AIC_LO_ADDR                  0x01dc
 #define RADEON_AIC_PT_BASE		0x01d8
 #define RADEON_AIC_HI_ADDR		0x01e0
