@@ -68,8 +68,10 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x1002) },
 	/* Cace Airpcap NX */
 	{ USB_DEVICE(0xcace, 0x0300) },
-	/* D-Link DWA 160A */
+	/* D-Link DWA 160 A1 */
 	{ USB_DEVICE(0x07d1, 0x3c10) },
+	/* D-Link DWA 160 A2 */
+	{ USB_DEVICE(0x07d1, 0x3a09) },
 	/* Netgear WNDA3100 */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
