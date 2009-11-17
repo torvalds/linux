@@ -21,49 +21,39 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
-#define NAS100D_PCI_MAX_DEV	3
-#define NAS100D_PCI_IRQ_LINES	3
+#define MAX_DEV		3
+#define IRQ_LINES	3
 
 /* PCI controller GPIO to IRQ pin mappings */
-#define NAS100D_PCI_INTA_PIN	11
-#define NAS100D_PCI_INTB_PIN	10
-#define NAS100D_PCI_INTC_PIN	9
-#define NAS100D_PCI_INTD_PIN	8
-#define NAS100D_PCI_INTE_PIN	7
-
-#define IRQ_NAS100D_PCI_INTA    IRQ_IXP4XX_GPIO11
-#define IRQ_NAS100D_PCI_INTB    IRQ_IXP4XX_GPIO10
-#define IRQ_NAS100D_PCI_INTC    IRQ_IXP4XX_GPIO9
-#define IRQ_NAS100D_PCI_INTD    IRQ_IXP4XX_GPIO8
-#define IRQ_NAS100D_PCI_INTE    IRQ_IXP4XX_GPIO7
+#define INTA		11
+#define INTB		10
+#define INTC		9
+#define INTD		8
+#define INTE		7
 
 void __init nas100d_pci_preinit(void)
 {
-	set_irq_type(IRQ_NAS100D_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTD, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTE, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTD), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTE), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 static int __init nas100d_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static int pci_irq_table[NAS100D_PCI_MAX_DEV][NAS100D_PCI_IRQ_LINES] =
-	{
-		{ IRQ_NAS100D_PCI_INTA, -1, -1 },
-		{ IRQ_NAS100D_PCI_INTB, -1, -1 },
-		{ IRQ_NAS100D_PCI_INTC, IRQ_NAS100D_PCI_INTD, IRQ_NAS100D_PCI_INTE },
+	static int pci_irq_table[MAX_DEV][IRQ_LINES] = {
+		{ IXP4XX_GPIO_IRQ(INTA), -1, -1 },
+		{ IXP4XX_GPIO_IRQ(INTB), -1, -1 },
+		{ IXP4XX_GPIO_IRQ(INTC), IXP4XX_GPIO_IRQ(INTD),
+		  IXP4XX_GPIO_IRQ(INTE) },
 	};
 
-	int irq = -1;
+	if (slot >= 1 && slot <= MAX_DEV && pin >= 1 && pin <= IRQ_LINES)
+		return pci_irq_table[slot - 1][pin - 1];
 
-	if (slot >= 1 && slot <= NAS100D_PCI_MAX_DEV &&
-		pin >= 1 && pin <= NAS100D_PCI_IRQ_LINES)
-		irq = pci_irq_table[slot-1][pin-1];
-
-	return irq;
+	return -1;
 }
 
 struct hw_pci __initdata nas100d_pci = {

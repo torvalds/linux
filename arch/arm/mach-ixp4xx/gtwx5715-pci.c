@@ -30,20 +30,16 @@
 #include <mach/hardware.h>
 #include <asm/mach/pci.h>
 
-#define GTWX5715_PCI_SLOT0_DEVID	0
-#define GTWX5715_PCI_SLOT0_INTA_GPIO	10
-#define GTWX5715_PCI_SLOT0_INTB_GPIO	11
-#define GTWX5715_PCI_SLOT0_INTA_IRQ	IRQ_IXP4XX_GPIO10
-#define GTWX5715_PCI_SLOT0_INTB_IRQ	IRQ_IXP4XX_GPIO11
+#define SLOT0_DEVID	0
+#define SLOT0_INTA	10
+#define SLOT0_INTB	11
 
-#define GTWX5715_PCI_SLOT1_DEVID	1
-#define GTWX5715_PCI_SLOT1_INTA_GPIO	11
-#define GTWX5715_PCI_SLOT1_INTB_GPIO	10
-#define GTWX5715_PCI_SLOT1_INTA_IRQ	IRQ_IXP4XX_GPIO11
-#define GTWX5715_PCI_SLOT1_INTB_IRQ	IRQ_IXP4XX_GPIO10
+#define SLOT1_DEVID	1
+#define SLOT1_INTA	11
+#define SLOT1_INTB	10
 
-#define GTWX5715_PCI_SLOT_COUNT		2
-#define GTWX5715_PCI_INT_PIN_COUNT	2
+#define SLOT_COUNT	2
+#define INT_PIN_COUNT	2
 
 /*
  * Slot 0 isn't actually populated with a card connector but
@@ -53,11 +49,10 @@
  */
 void __init gtwx5715_pci_preinit(void)
 {
-	set_irq_type(GTWX5715_PCI_SLOT0_INTA_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(GTWX5715_PCI_SLOT0_INTB_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(GTWX5715_PCI_SLOT1_INTA_IRQ, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(GTWX5715_PCI_SLOT1_INTB_IRQ, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTB), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
@@ -65,20 +60,19 @@ void __init gtwx5715_pci_preinit(void)
 static int __init gtwx5715_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int rc;
-	static int gtwx5715_irqmap
-			[GTWX5715_PCI_SLOT_COUNT]
-			[GTWX5715_PCI_INT_PIN_COUNT] = {
-	{GTWX5715_PCI_SLOT0_INTA_IRQ, GTWX5715_PCI_SLOT0_INTB_IRQ},
-	{GTWX5715_PCI_SLOT1_INTA_IRQ, GTWX5715_PCI_SLOT1_INTB_IRQ},
-};
+	static int gtwx5715_irqmap[SLOT_COUNT][INT_PIN_COUNT] = {
+		{IXP4XX_GPIO_IRQ(SLOT0_INTA), IXP4XX_GPIO_IRQ(SLOT0_INTB)},
+		{IXP4XX_GPIO_IRQ(SLOT1_INTA), IXP4XX_GPIO_IRQ(SLOT1_INTB)},
+	};
 
-	if (slot >= GTWX5715_PCI_SLOT_COUNT ||
-			pin >= GTWX5715_PCI_INT_PIN_COUNT) rc = -1;
+	if (slot >= SLOT_COUNT || pin >= INT_PIN_COUNT)
+		rc = -1;
 	else
-		rc = gtwx5715_irqmap[slot][pin-1];
+		rc = gtwx5715_irqmap[slot][pin - 1];
 
-	printk("%s: Mapped slot %d pin %d to IRQ %d\n", __func__, slot, pin, rc);
-	return(rc);
+	printk(KERN_INFO "%s: Mapped slot %d pin %d to IRQ %d\n",
+	       __func__, slot, pin, rc);
+	return rc;
 }
 
 struct hw_pci gtwx5715_pci __initdata = {
@@ -93,9 +87,7 @@ struct hw_pci gtwx5715_pci __initdata = {
 int __init gtwx5715_pci_init(void)
 {
 	if (machine_is_gtwx5715())
-	{
 		pci_common_init(&gtwx5715_pci);
-	}
 
 	return 0;
 }

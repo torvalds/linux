@@ -15,7 +15,6 @@
 #ifndef _ARCH_IXP4XX_IRQS_H_
 #define _ARCH_IXP4XX_IRQS_H_
 
-
 #define IRQ_IXP4XX_NPEA		0
 #define IRQ_IXP4XX_NPEB		1
 #define IRQ_IXP4XX_NPEC		2
@@ -58,6 +57,9 @@
 #define IRQ_IXP4XX_QM_PE	60
 #define IRQ_IXP4XX_MCU_ECC	61
 #define IRQ_IXP4XX_EXP_PE	62
+
+#define _IXP4XX_GPIO_IRQ(n)	(IRQ_IXP4XX_GPIO ## n)
+#define IXP4XX_GPIO_IRQ(n)	_IXP4XX_GPIO_IRQ(n)
 
 /*
  * Only first 32 sources are valid if running on IXP42x systems

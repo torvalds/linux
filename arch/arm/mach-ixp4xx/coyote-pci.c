@@ -23,30 +23,26 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 
-#define COYOTE_PCI_SLOT0_DEVID	14
-#define COYOTE_PCI_SLOT1_DEVID	15
+#define SLOT0_DEVID	14
+#define SLOT1_DEVID	15
 
 /* PCI controller GPIO to IRQ pin mappings */
-#define COYOTE_PCI_SLOT0_PIN	6
-#define COYOTE_PCI_SLOT1_PIN	11
-
-#define IRQ_COYOTE_PCI_SLOT0	IRQ_IXP4XX_GPIO6
-#define IRQ_COYOTE_PCI_SLOT1	IRQ_IXP4XX_GPIO11
+#define SLOT0_INTA	6
+#define SLOT1_INTA	11
 
 void __init coyote_pci_preinit(void)
 {
-	set_irq_type(IRQ_COYOTE_PCI_SLOT0, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_COYOTE_PCI_SLOT1, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTA), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 static int __init coyote_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	if (slot == COYOTE_PCI_SLOT0_DEVID)
-		return IRQ_COYOTE_PCI_SLOT0;
-	else if (slot == COYOTE_PCI_SLOT1_DEVID)
-		return IRQ_COYOTE_PCI_SLOT1;
+	if (slot == SLOT0_DEVID)
+		return IXP4XX_GPIO_IRQ(SLOT0_INTA);
+	else if (slot == SLOT1_DEVID)
+		return IXP4XX_GPIO_IRQ(SLOT1_INTA);
 	else return -1;
 }
 

@@ -27,49 +27,40 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 
-#define AVILA_PCI_MAX_DEV	4
-#define LOFT_PCI_MAX_DEV	6
-#define AVILA_PCI_IRQ_LINES	4
+#define AVILA_MAX_DEV	4
+#define LOFT_MAX_DEV	6
+#define IRQ_LINES	4
 
 /* PCI controller GPIO to IRQ pin mappings */
-#define AVILA_PCI_INTA_PIN	11
-#define AVILA_PCI_INTB_PIN	10
-#define AVILA_PCI_INTC_PIN	9
-#define AVILA_PCI_INTD_PIN	8
-
-#define IRQ_AVILA_PCI_INTA	IRQ_IXP4XX_GPIO11
-#define IRQ_AVILA_PCI_INTB	IRQ_IXP4XX_GPIO10
-#define IRQ_AVILA_PCI_INTC	IRQ_IXP4XX_GPIO9
-#define IRQ_AVILA_PCI_INTD	IRQ_IXP4XX_GPIO8
+#define INTA		11
+#define INTB		10
+#define INTC		9
+#define INTD		8
 
 void __init avila_pci_preinit(void)
 {
-	set_irq_type(IRQ_AVILA_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_AVILA_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_AVILA_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IRQ_AVILA_PCI_INTD, IRQ_TYPE_LEVEL_LOW);
-
+	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTC), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTD), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 static int __init avila_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static int pci_irq_table[AVILA_PCI_IRQ_LINES] = {
-		IRQ_AVILA_PCI_INTA,
-		IRQ_AVILA_PCI_INTB,
-		IRQ_AVILA_PCI_INTC,
-		IRQ_AVILA_PCI_INTD
+	static int pci_irq_table[IRQ_LINES] = {
+		IXP4XX_GPIO_IRQ(INTA),
+		IXP4XX_GPIO_IRQ(INTB),
+		IXP4XX_GPIO_IRQ(INTC),
+		IXP4XX_GPIO_IRQ(INTD)
 	};
 
-	int irq = -1;
-
 	if (slot >= 1 &&
-	slot <= (machine_is_loft() ? LOFT_PCI_MAX_DEV : AVILA_PCI_MAX_DEV) &&
-		pin >= 1 && pin <= AVILA_PCI_IRQ_LINES) {
-		irq = pci_irq_table[(slot + pin - 2) % 4];
-	}
+	    slot <= (machine_is_loft() ? LOFT_MAX_DEV : AVILA_MAX_DEV) &&
+	    pin >= 1 && pin <= IRQ_LINES)
+		return pci_irq_table[(slot + pin - 2) % 4];
 
-	return irq;
+	return -1;
 }
 
 struct hw_pci avila_pci __initdata = {
@@ -89,4 +80,3 @@ int __init avila_pci_init(void)
 }
 
 subsys_initcall(avila_pci_init);
-
