@@ -92,7 +92,7 @@ static void __init smdkc100_machine_init(void)
 
 MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
-	.phys_io	= S5PC1XX_PA_UART & 0xfff00000,
+	.phys_io	= S5PC100_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S5PC1XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5PC100_PA_SDRAM + 0x100,
 
