@@ -1494,6 +1494,9 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 	if (!(INRANGE(100000, c->symbol_rate, 70000000)))
 		return DVBFE_ALGO_SEARCH_FAILED;
 
+	if (state->config->set_ts_params)
+		state->config->set_ts_params(fe, 0);
+
 	p_result.locked = FALSE;
 	p_search.path = demod;
 	p_search.frequency = c->frequency;

@@ -308,6 +308,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_TBS_8920:
 	case CX88_BOARD_TBS_8910:
 	case CX88_BOARD_PROF_7300:
+	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
 		ir_codes = &ir_codes_tbs_nec_table;
 		ir_type = IR_TYPE_PD;
@@ -457,6 +458,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_TBS_8920:
 	case CX88_BOARD_TBS_8910:
 	case CX88_BOARD_PROF_7300:
+	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
 		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
 
