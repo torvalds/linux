@@ -87,13 +87,13 @@ static int clk_48m_ctrl(struct clk *clk, int enable)
 	/* can't rely on clock lock, this register has other usages */
 	local_irq_save(flags);
 
-	val = __raw_readl(S5PC1XX_CLK_SRC1);
+	val = __raw_readl(S5PC100_CLKSRC1);
 	if (enable)
 		val |= S5PC100_CLKSRC1_CLK48M_MASK;
 	else
 		val &= ~S5PC100_CLKSRC1_CLK48M_MASK;
 
-	__raw_writel(val, S5PC1XX_CLK_SRC1);
+	__raw_writel(val, S5PC100_CLKSRC1);
 	local_irq_restore(flags);
 
 	return 0;
@@ -685,7 +685,7 @@ static struct clk init_clocks[] = {
 		.id		= -1,
 		.parent		= NULL,
 		.enable		= s5pc1xx_sclk0_ctrl,
-		.ctrlbit	= S5PC1XX_CLKGATE_SCLK0_HPM,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK0_HPM,
 	}, {
 		.name		= "sclk_onenand",
 		.id		= -1,
@@ -801,10 +801,10 @@ static struct clksrc_clk clk_mout_apll = {
 		.name		= "mout_apll",
 		.id		= -1,
 	},
-	.shift		= S5PC1XX_CLKSRC0_APLL_SHIFT,
-	.mask		= S5PC1XX_CLKSRC0_APLL_MASK,
+	.shift		= S5PC100_CLKSRC0_APLL_SHIFT,
+	.mask		= S5PC100_CLKSRC0_APLL_MASK,
 	.sources	= &clk_src_apll,
-	.reg_source	= S5PC1XX_CLK_SRC0,
+	.reg_source	= S5PC100_CLKSRC0,
 };
 
 static struct clk clk_fout_epll = {
@@ -827,10 +827,10 @@ static struct clksrc_clk clk_mout_epll = {
 		.name		= "mout_epll",
 		.id		= -1,
 	},
-	.shift		= S5PC1XX_CLKSRC0_EPLL_SHIFT,
-	.mask		= S5PC1XX_CLKSRC0_EPLL_MASK,
+	.shift		= S5PC100_CLKSRC0_EPLL_SHIFT,
+	.mask		= S5PC100_CLKSRC0_EPLL_MASK,
 	.sources	= &clk_src_epll,
-	.reg_source	= S5PC1XX_CLK_SRC0,
+	.reg_source	= S5PC100_CLKSRC0,
 };
 
 static struct clk *clk_src_mpll_list[] = {
@@ -848,10 +848,10 @@ static struct clksrc_clk clk_mout_mpll = {
 		.name		= "mout_mpll",
 		.id		= -1,
 	},
-	.shift		= S5PC1XX_CLKSRC0_MPLL_SHIFT,
-	.mask		= S5PC1XX_CLKSRC0_MPLL_MASK,
+	.shift		= S5PC100_CLKSRC0_MPLL_SHIFT,
+	.mask		= S5PC100_CLKSRC0_MPLL_MASK,
 	.sources	= &clk_src_mpll,
-	.reg_source	= S5PC1XX_CLK_SRC0,
+	.reg_source	= S5PC100_CLKSRC0,
 };
 
 static unsigned long s5pc1xx_clk_doutmpll_get_rate(struct clk *clk)
@@ -861,7 +861,7 @@ static unsigned long s5pc1xx_clk_doutmpll_get_rate(struct clk *clk)
 
 	printk(KERN_DEBUG "%s: parent is %ld\n", __func__, rate);
 
-	clkdiv = __raw_readl(S5PC1XX_CLK_DIV1) & S5PC100_CLKDIV1_MPLL_MASK;
+	clkdiv = __raw_readl(S5PC100_CLKDIV1) & S5PC100_CLKDIV1_MPLL_MASK;
 	rate /= (clkdiv >> S5PC100_CLKDIV1_MPLL_SHIFT) + 1;
 
 	return rate;
@@ -881,7 +881,7 @@ static unsigned long s5pc1xx_clk_doutmpll2_get_rate(struct clk *clk)
 
 	printk(KERN_DEBUG "%s: parent is %ld\n", __func__, rate);
 
-	clkdiv = __raw_readl(S5PC1XX_CLK_DIV1) & S5PC100_CLKDIV1_MPLL2_MASK;
+	clkdiv = __raw_readl(S5PC100_CLKDIV1) & S5PC100_CLKDIV1_MPLL2_MASK;
 	rate /= (clkdiv >> S5PC100_CLKDIV1_MPLL2_SHIFT) + 1;
 
 	return rate;
@@ -1007,8 +1007,8 @@ static struct clksrc_clk clk_uart_uclk1 = {
 	.mask		= S5PC100_CLKSRC1_UART_MASK,
 	.sources	= &clkset_uart,
 	.divider_shift	= S5PC100_CLKDIV2_UART_SHIFT,
-	.reg_divider	= S5PC1XX_CLK_DIV2,
-	.reg_source	= S5PC1XX_CLK_SRC1,
+	.reg_divider	= S5PC100_CLKDIV2,
+	.reg_source	= S5PC100_CLKSRC1,
 };
 
 /* Clock initialisation code */
@@ -1061,8 +1061,8 @@ void __init_or_cpufreq s5pc100_setup_clocks(void)
 
 	printk(KERN_DEBUG "%s: registering clocks\n", __func__);
 
-	clkdiv0 = __raw_readl(S5PC1XX_CLK_DIV0);
-	clkdiv1 = __raw_readl(S5PC1XX_CLK_DIV1);
+	clkdiv0 = __raw_readl(S5PC100_CLKDIV0);
+	clkdiv1 = __raw_readl(S5PC100_CLKDIV1);
 
 	printk(KERN_DEBUG "%s: clkdiv0 = %08x, clkdiv1 = %08x\n",
 			__func__, clkdiv0, clkdiv1);
@@ -1075,15 +1075,15 @@ void __init_or_cpufreq s5pc100_setup_clocks(void)
 
 	printk(KERN_DEBUG "%s: xtal is %ld\n", __func__, xtal);
 
-	apll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC1XX_APLL_CON));
-	mpll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC1XX_MPLL_CON));
-	epll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC1XX_EPLL_CON));
+	apll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC100_APLL_CON));
+	mpll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC100_MPLL_CON));
+	epll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC100_EPLL_CON));
 	hpll = s5pc1xx_get_pll(xtal, __raw_readl(S5PC100_HPLL_CON));
 
 	printk(KERN_INFO "S5PC100: PLL settings, A=%ld, M=%ld, E=%ld, H=%ld\n",
 	       apll, mpll, epll, hpll);
 
-	armclk = apll / GET_DIV(clkdiv0, S5PC1XX_CLKDIV0_APLL);
+	armclk = apll / GET_DIV(clkdiv0, S5PC100_CLKDIV0_APLL);
 	armclk = armclk / GET_DIV(clkdiv0, S5PC100_CLKDIV0_ARM);
 	hclkd0 = armclk / GET_DIV(clkdiv0, S5PC100_CLKDIV0_D0);
 	pclkd0 = hclkd0 / GET_DIV(clkdiv0, S5PC100_CLKDIV0_PCLKD0);
