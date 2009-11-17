@@ -16,6 +16,21 @@ struct vlan_priority_tci_mapping {
 	struct vlan_priority_tci_mapping	*next;
 };
 
+
+/**
+ *	struct vlan_rx_stats - VLAN percpu rx stats
+ *	@rx_packets: number of received packets
+ *	@rx_bytes: number of received bytes
+ *	@multicast: number of received multicast packets
+ *	@rx_errors: number of errors
+ */
+struct vlan_rx_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long multicast;
+	unsigned long rx_errors;
+};
+
 /**
  *	struct vlan_dev_info - VLAN private device data
  *	@nr_ingress_mappings: number of ingress priority mappings
@@ -29,6 +44,7 @@ struct vlan_priority_tci_mapping {
  *	@dent: proc dir entry
  *	@cnt_inc_headroom_on_tx: statistic - number of skb expansions on TX
  *	@cnt_encap_on_xmit: statistic - number of skb encapsulations on TX
+ *	@vlan_rx_stats: ptr to percpu rx stats
  */
 struct vlan_dev_info {
 	unsigned int				nr_ingress_mappings;
@@ -45,6 +61,7 @@ struct vlan_dev_info {
 	struct proc_dir_entry			*dent;
 	unsigned long				cnt_inc_headroom_on_tx;
 	unsigned long				cnt_encap_on_xmit;
+	struct vlan_rx_stats			*vlan_rx_stats;
 };
 
 static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
