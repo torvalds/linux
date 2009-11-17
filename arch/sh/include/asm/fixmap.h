@@ -65,6 +65,7 @@ enum fixed_addresses {
 
 extern void __set_fixmap(enum fixed_addresses idx,
 			 unsigned long phys, pgprot_t flags);
+extern void __clear_fixmap(enum fixed_addresses idx, pgprot_t flags);
 
 #define set_fixmap(idx, phys) \
 		__set_fixmap(idx, phys, PAGE_KERNEL)

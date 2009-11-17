@@ -39,7 +39,7 @@ unsigned long cached_to_uncached = P2SEG - P1SEG;
 #endif
 
 #ifdef CONFIG_MMU
-static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
+static pte_t *__get_pte_phys(unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -49,28 +49,52 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
 		pgd_ERROR(*pgd);
-		return;
+		return NULL;
 	}
 
 	pud = pud_alloc(NULL, pgd, addr);
 	if (unlikely(!pud)) {
 		pud_ERROR(*pud);
-		return;
+		return NULL;
 	}
 
 	pmd = pmd_alloc(NULL, pud, addr);
 	if (unlikely(!pmd)) {
 		pmd_ERROR(*pmd);
-		return;
+		return NULL;
 	}
 
 	pte = pte_offset_kernel(pmd, addr);
+	return pte;
+}
+
+static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
+{
+	pte_t *pte;
+
+	pte = __get_pte_phys(addr);
 	if (!pte_none(*pte)) {
 		pte_ERROR(*pte);
 		return;
 	}
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
+	local_flush_tlb_one(get_asid(), addr);
+
+	if (pgprot_val(prot) & _PAGE_WIRED)
+		tlb_wire_entry(NULL, addr, *pte);
+}
+
+static void clear_pte_phys(unsigned long addr, pgprot_t prot)
+{
+	pte_t *pte;
+
+	pte = __get_pte_phys(addr);
+
+	if (pgprot_val(prot) & _PAGE_WIRED)
+		tlb_unwire_entry();
+
+	set_pte(pte, pfn_pte(0, __pgprot(0)));
 	local_flush_tlb_one(get_asid(), addr);
 }
 
@@ -99,6 +123,18 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	}
 
 	set_pte_phys(address, phys, prot);
+}
+
+void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+
+	clear_pte_phys(address, prot);
 }
 
 void __init page_table_range_init(unsigned long start, unsigned long end,
