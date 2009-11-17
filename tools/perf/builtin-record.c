@@ -439,6 +439,11 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		header = perf_header__new();
 
+	if (header == NULL) {
+		pr_err("Not enough memory for reading perf file header\n");
+		return -1;
+	}
+
 	if (raw_samples) {
 		perf_header__set_feat(header, HEADER_TRACE_INFO);
 	} else {

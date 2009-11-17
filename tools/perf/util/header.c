@@ -65,14 +65,15 @@ struct perf_header *perf_header__new(void)
 {
 	struct perf_header *self = calloc(sizeof(*self), 1);
 
-	if (!self)
-		die("nomem");
+	if (self != NULL) {
+		self->size = 1;
+		self->attr = malloc(sizeof(void *));
 
-	self->size = 1;
-	self->attr = malloc(sizeof(void *));
-
-	if (!self->attr)
-		die("nomem");
+		if (self->attr == NULL) {
+			free(self);
+			self = NULL;
+		}
+	}
 
 	return self;
 }
@@ -425,6 +426,9 @@ struct perf_header *perf_header__read(int fd)
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
+
+	if (self == NULL)
+		die("nomem");
 
 	if (perf_file_header__read(&f_header, self, fd) < 0)
 		die("incompatible file format");
