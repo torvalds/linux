@@ -172,6 +172,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* Acer laptop reports DVI-D as DVI-I */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1025) &&
+	    (dev->pdev->subsystem_device == 0x013c)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_DVII) &&
+		    (supported_device == ATOM_DEVICE_DFP1_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
 	return true;
 }
 
