@@ -326,7 +326,7 @@ static unsigned int superio_startup_irq(unsigned int irq)
 }
 
 static struct irq_chip superio_interrupt_type = {
-	.typename =	SUPERIO,
+	.name	 =	SUPERIO,
 	.startup =	superio_startup_irq,
 	.shutdown =	superio_disable_irq,
 	.enable =	superio_enable_irq,
