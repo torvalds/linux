@@ -67,7 +67,7 @@ char *perf_header__find_event(u64 id);
 struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr);
 void perf_header_attr__delete(struct perf_header_attr *self);
 
-void perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
+int perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 
 u64 perf_header__sample_type(struct perf_header *header);
 struct perf_event_attr *

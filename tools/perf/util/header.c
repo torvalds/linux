@@ -39,18 +39,23 @@ void perf_header_attr__delete(struct perf_header_attr *self)
 	free(self);
 }
 
-void perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
+int perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
 {
 	int pos = self->ids;
 
 	self->ids++;
 	if (self->ids > self->size) {
-		self->size *= 2;
-		self->id = realloc(self->id, self->size * sizeof(u64));
-		if (!self->id)
-			die("nomem");
+		int nsize = self->size * 2;
+		u64 *nid = realloc(self->id, nsize * sizeof(u64));
+
+		if (nid == NULL)
+			return -1;
+
+		self->size = nsize;
+		self->id = nid;
 	}
 	self->id[pos] = id;
+	return 0;
 }
 
 /*
@@ -444,7 +449,8 @@ struct perf_header *perf_header__read(int fd)
 		for (j = 0; j < nr_ids; j++) {
 			do_read(fd, &f_id, sizeof(f_id));
 
-			perf_header_attr__add_id(attr, f_id);
+			if (perf_header_attr__add_id(attr, f_id) < 0)
+				die("nomem");
 		}
 		if (perf_header__add_attr(self, attr) < 0)
 			 die("nomem");
