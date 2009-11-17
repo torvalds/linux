@@ -138,9 +138,9 @@ static void rt_mutex_adjust_prio(struct task_struct *task)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&task->pi_lock, flags);
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	__rt_mutex_adjust_prio(task);
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 }
 
 /*
@@ -195,7 +195,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	/*
 	 * Task can not go away as we did a get_task() before !
 	 */
-	spin_lock_irqsave(&task->pi_lock, flags);
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
 
 	waiter = task->pi_blocked_on;
 	/*
@@ -232,7 +232,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 
 	lock = waiter->lock;
 	if (!spin_trylock(&lock->wait_lock)) {
-		spin_unlock_irqrestore(&task->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 		cpu_relax();
 		goto retry;
 	}
@@ -253,13 +253,13 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	plist_add(&waiter->list_entry, &lock->wait_list);
 
 	/* Release the task */
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 	put_task_struct(task);
 
 	/* Grab the next task */
 	task = rt_mutex_owner(lock);
 	get_task_struct(task);
-	spin_lock_irqsave(&task->pi_lock, flags);
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
 
 	if (waiter == rt_mutex_top_waiter(lock)) {
 		/* Boost the owner */
@@ -277,7 +277,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		__rt_mutex_adjust_prio(task);
 	}
 
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 
 	top_waiter = rt_mutex_top_waiter(lock);
 	spin_unlock(&lock->wait_lock);
@@ -288,7 +288,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	goto again;
 
  out_unlock_pi:
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
  out_put_task:
 	put_task_struct(task);
 
@@ -313,9 +313,9 @@ static inline int try_to_steal_lock(struct rt_mutex *lock,
 	if (pendowner == task)
 		return 1;
 
-	spin_lock_irqsave(&pendowner->pi_lock, flags);
+	raw_spin_lock_irqsave(&pendowner->pi_lock, flags);
 	if (task->prio >= pendowner->prio) {
-		spin_unlock_irqrestore(&pendowner->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&pendowner->pi_lock, flags);
 		return 0;
 	}
 
@@ -325,7 +325,7 @@ static inline int try_to_steal_lock(struct rt_mutex *lock,
 	 * priority.
 	 */
 	if (likely(!rt_mutex_has_waiters(lock))) {
-		spin_unlock_irqrestore(&pendowner->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&pendowner->pi_lock, flags);
 		return 1;
 	}
 
@@ -333,7 +333,7 @@ static inline int try_to_steal_lock(struct rt_mutex *lock,
 	next = rt_mutex_top_waiter(lock);
 	plist_del(&next->pi_list_entry, &pendowner->pi_waiters);
 	__rt_mutex_adjust_prio(pendowner);
-	spin_unlock_irqrestore(&pendowner->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&pendowner->pi_lock, flags);
 
 	/*
 	 * We are going to steal the lock and a waiter was
@@ -350,10 +350,10 @@ static inline int try_to_steal_lock(struct rt_mutex *lock,
 	 * might be task:
 	 */
 	if (likely(next->task != task)) {
-		spin_lock_irqsave(&task->pi_lock, flags);
+		raw_spin_lock_irqsave(&task->pi_lock, flags);
 		plist_add(&next->pi_list_entry, &task->pi_waiters);
 		__rt_mutex_adjust_prio(task);
-		spin_unlock_irqrestore(&task->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 	}
 	return 1;
 }
@@ -420,7 +420,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 	unsigned long flags;
 	int chain_walk = 0, res;
 
-	spin_lock_irqsave(&task->pi_lock, flags);
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	__rt_mutex_adjust_prio(task);
 	waiter->task = task;
 	waiter->lock = lock;
@@ -434,17 +434,17 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 
 	task->pi_blocked_on = waiter;
 
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 
 	if (waiter == rt_mutex_top_waiter(lock)) {
-		spin_lock_irqsave(&owner->pi_lock, flags);
+		raw_spin_lock_irqsave(&owner->pi_lock, flags);
 		plist_del(&top_waiter->pi_list_entry, &owner->pi_waiters);
 		plist_add(&waiter->pi_list_entry, &owner->pi_waiters);
 
 		__rt_mutex_adjust_prio(owner);
 		if (owner->pi_blocked_on)
 			chain_walk = 1;
-		spin_unlock_irqrestore(&owner->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&owner->pi_lock, flags);
 	}
 	else if (debug_rt_mutex_detect_deadlock(waiter, detect_deadlock))
 		chain_walk = 1;
@@ -483,7 +483,7 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
 	struct task_struct *pendowner;
 	unsigned long flags;
 
-	spin_lock_irqsave(&current->pi_lock, flags);
+	raw_spin_lock_irqsave(&current->pi_lock, flags);
 
 	waiter = rt_mutex_top_waiter(lock);
 	plist_del(&waiter->list_entry, &lock->wait_list);
@@ -500,7 +500,7 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
 
 	rt_mutex_set_owner(lock, pendowner, RT_MUTEX_OWNER_PENDING);
 
-	spin_unlock_irqrestore(&current->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 
 	/*
 	 * Clear the pi_blocked_on variable and enqueue a possible
@@ -509,7 +509,7 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
 	 * waiter with higher priority than pending-owner->normal_prio
 	 * is blocked on the unboosted (pending) owner.
 	 */
-	spin_lock_irqsave(&pendowner->pi_lock, flags);
+	raw_spin_lock_irqsave(&pendowner->pi_lock, flags);
 
 	WARN_ON(!pendowner->pi_blocked_on);
 	WARN_ON(pendowner->pi_blocked_on != waiter);
@@ -523,7 +523,7 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
 		next = rt_mutex_top_waiter(lock);
 		plist_add(&next->pi_list_entry, &pendowner->pi_waiters);
 	}
-	spin_unlock_irqrestore(&pendowner->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&pendowner->pi_lock, flags);
 
 	wake_up_process(pendowner);
 }
@@ -541,15 +541,15 @@ static void remove_waiter(struct rt_mutex *lock,
 	unsigned long flags;
 	int chain_walk = 0;
 
-	spin_lock_irqsave(&current->pi_lock, flags);
+	raw_spin_lock_irqsave(&current->pi_lock, flags);
 	plist_del(&waiter->list_entry, &lock->wait_list);
 	waiter->task = NULL;
 	current->pi_blocked_on = NULL;
-	spin_unlock_irqrestore(&current->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 
 	if (first && owner != current) {
 
-		spin_lock_irqsave(&owner->pi_lock, flags);
+		raw_spin_lock_irqsave(&owner->pi_lock, flags);
 
 		plist_del(&waiter->pi_list_entry, &owner->pi_waiters);
 
@@ -564,7 +564,7 @@ static void remove_waiter(struct rt_mutex *lock,
 		if (owner->pi_blocked_on)
 			chain_walk = 1;
 
-		spin_unlock_irqrestore(&owner->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&owner->pi_lock, flags);
 	}
 
 	WARN_ON(!plist_node_empty(&waiter->pi_list_entry));
@@ -592,15 +592,15 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 	struct rt_mutex_waiter *waiter;
 	unsigned long flags;
 
-	spin_lock_irqsave(&task->pi_lock, flags);
+	raw_spin_lock_irqsave(&task->pi_lock, flags);
 
 	waiter = task->pi_blocked_on;
 	if (!waiter || waiter->list_entry.prio == task->prio) {
-		spin_unlock_irqrestore(&task->pi_lock, flags);
+		raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 		return;
 	}
 
-	spin_unlock_irqrestore(&task->pi_lock, flags);
+	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 
 	/* gets dropped in rt_mutex_adjust_prio_chain()! */
 	get_task_struct(task);
