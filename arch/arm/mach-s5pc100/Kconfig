@@ -18,6 +18,8 @@ config MACH_SMDKC100
 	bool "SMDKC100"
 	select CPU_S5PC100
 	select S3C_DEV_FB
+	select S3C_DEV_I2C1
+	select S5PC1XX_SETUP_I2C0
 	select S5PC1XX_SETUP_I2C1
 	select S5PC1XX_SETUP_FB_24BPP
 	help

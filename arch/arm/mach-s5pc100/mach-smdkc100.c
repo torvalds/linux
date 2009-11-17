@@ -42,6 +42,7 @@
 #include <plat/cpu.h>
 #include <plat/s5pc100.h>
 #include <plat/fb.h>
+#include <plat/iic.h>
 
 #define UCON (S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK)
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)
@@ -76,6 +77,14 @@ static struct s3c2410_uartcfg smdkc100_uartcfgs[] __initdata = {
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x51,
 	},
+};
+
+/* I2C0 */
+static struct i2c_board_info i2c_devs0[] __initdata = {
+};
+
+/* I2C1 */
+static struct i2c_board_info i2c_devs1[] __initdata = {
 };
 
 /* LCD power controller */
@@ -135,6 +144,8 @@ static struct s3c_fb_platdata smdkc100_lcd_pdata __initdata = {
 static struct map_desc smdkc100_iodesc[] = {};
 
 static struct platform_device *smdkc100_devices[] __initdata = {
+	&s3c_device_i2c0,
+	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&smdkc100_lcd_powerdev,
 };
@@ -148,6 +159,12 @@ static void __init smdkc100_map_io(void)
 
 static void __init smdkc100_machine_init(void)
 {
+	/* I2C */
+	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c1_set_platdata(NULL);
+	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
+	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
 	s3c_fb_set_platdata(&smdkc100_lcd_pdata);
 
 	/* LCD init */
