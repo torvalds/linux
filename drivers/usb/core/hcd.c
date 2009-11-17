@@ -1607,7 +1607,7 @@ int usb_hcd_check_bandwidth(struct usb_device *udev,
 {
 	int num_intfs, i, j;
 	struct usb_interface_cache *intf_cache;
-	struct usb_host_interface *alt = 0;
+	struct usb_host_interface *alt = NULL;
 	int ret = 0;
 	struct usb_hcd *hcd;
 	struct usb_host_endpoint *ep;
