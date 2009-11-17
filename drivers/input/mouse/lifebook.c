@@ -199,10 +199,10 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 		return -1;
 
 	/*
-	   Enable absolute output -- ps2_command fails always but if
-	   you leave this call out the touchsreen will never send
-	   absolute coordinates
-	*/
+	 * Enable absolute output -- ps2_command fails always but if
+	 * you leave this call out the touchsreen will never send
+	 * absolute coordinates
+	 */
 	param = lifebook_use_6byte_proto ? 0x08 : 0x07;
 	ps2_command(ps2dev, &param, PSMOUSE_CMD_SETRES);
 
@@ -284,8 +284,8 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 
 	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
 	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
-	dev2->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_RIGHT);
+	dev2->keybit[BIT_WORD(BTN_LEFT)] =
+				BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
 
 	error = input_register_device(priv->dev2);
 	if (error)
@@ -310,6 +310,7 @@ int lifebook_init(struct psmouse *psmouse)
 
 	dev1->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	dev1->relbit[0] = 0;
+	dev1->keybit[BIT_WORD(BTN_MOUSE)] = 0;
 	dev1->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(dev1, ABS_X, 0, max_coord, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, max_coord, 0, 0);
