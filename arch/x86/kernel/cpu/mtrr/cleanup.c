@@ -689,8 +689,6 @@ static int __init mtrr_need_cleanup(void)
 			continue;
 		if (!size)
 			type = MTRR_NUM_TYPES;
-		if (type == MTRR_TYPE_WRPROT)
-			type = MTRR_TYPE_UNCACHABLE;
 		num[type]++;
 	}
 
