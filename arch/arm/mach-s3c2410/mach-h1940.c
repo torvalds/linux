@@ -205,6 +205,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&h1940_device_leds,
 	&h1940_device_bluetooth,
 	&s3c_device_sdi,
+	&s3c_device_rtc,
 };
 
 static void __init h1940_map_io(void)
