@@ -36,7 +36,7 @@
 
 #define PPP_VERSION	"2.4.2"
 
-#define OBUFSIZE	256
+#define OBUFSIZE	4096
 
 /* Structure for storing local state. */
 struct asyncppp {
