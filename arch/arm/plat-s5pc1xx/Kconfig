@@ -37,6 +37,11 @@ config CPU_S5PC100_CLOCK
 
 # platform specific device setup
 
+config S5PC1XX_SETUP_FB_24BPP
+	bool
+	help
+          Common setup code for S5PC1XX with an 24bpp RGB display helper.
+
 config S5PC100_SETUP_I2C0
 	bool
 	default y
