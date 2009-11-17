@@ -23,6 +23,8 @@
 #include <linux/init.h>
 #include <linux/vt_kern.h>
 #include <linux/platform_device.h>
+#include <linux/adb.h>
+#include <linux/cuda.h>
 
 #define BOOTINFO_COMPAT_1_0
 #include <asm/setup.h>
@@ -889,6 +891,10 @@ static void __init mac_identify(void)
 	oss_init();
 	psc_init();
 	baboon_init();
+
+#ifdef CONFIG_ADB_CUDA
+	find_via_cuda();
+#endif
 }
 
 static void __init mac_report_hardware(void)
