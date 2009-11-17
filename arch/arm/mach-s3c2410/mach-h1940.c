@@ -21,6 +21,9 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
+
+#include <linux/mmc/host.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,8 +35,11 @@
 
 #include <plat/regs-serial.h>
 #include <mach/regs-lcd.h>
-#include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
+
+#include <mach/regs-gpio.h>
+#include <mach/gpio-fns.h>
+#include <mach/gpio-nrs.h>
 
 #include <mach/h1940.h>
 #include <mach/h1940-latch.h>
@@ -46,6 +52,7 @@
 #include <plat/cpu.h>
 #include <plat/pll.h>
 #include <plat/pm.h>
+#include <plat/mci.h>
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {
@@ -181,6 +188,13 @@ static struct platform_device h1940_device_bluetooth = {
 	.id               = -1,
 };
 
+static struct s3c24xx_mci_pdata h1940_mmc_cfg = {
+	.gpio_detect   = S3C2410_GPF(5),
+	.gpio_wprotect = S3C2410_GPH(8),
+	.set_power     = NULL,
+	.ocr_avail     = MMC_VDD_32_33,
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
@@ -190,6 +204,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_usbgadget,
 	&h1940_device_leds,
 	&h1940_device_bluetooth,
+	&s3c_device_sdi,
 };
 
 static void __init h1940_map_io(void)
@@ -218,6 +233,8 @@ static void __init h1940_init(void)
 	s3c24xx_fb_set_platdata(&h1940_fb_info);
  	s3c24xx_udc_set_platdata(&h1940_udc_cfg);
 	s3c_i2c0_set_platdata(NULL);
+
+	s3c_device_sdi.dev.platform_data = &h1940_mmc_cfg;
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
