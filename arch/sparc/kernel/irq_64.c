@@ -187,7 +187,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %9s", irq_desc[i].chip->typename);
+		seq_printf(p, " %9s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -484,7 +484,7 @@ static void sun4v_virq_eoi(unsigned int virt_irq)
 }
 
 static struct irq_chip sun4u_irq = {
-	.typename	= "sun4u",
+	.name		= "sun4u",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
 	.eoi		= sun4u_irq_eoi,
@@ -492,7 +492,7 @@ static struct irq_chip sun4u_irq = {
 };
 
 static struct irq_chip sun4v_irq = {
-	.typename	= "sun4v",
+	.name		= "sun4v",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
 	.eoi		= sun4v_irq_eoi,
@@ -500,7 +500,7 @@ static struct irq_chip sun4v_irq = {
 };
 
 static struct irq_chip sun4v_virq = {
-	.typename	= "vsun4v",
+	.name		= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
 	.eoi		= sun4v_virq_eoi,
