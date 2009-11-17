@@ -91,9 +91,6 @@ static int mtd_blktrans_thread(void *arg)
 	struct request_queue *rq = tr->blkcore_priv->rq;
 	struct request *req = NULL;
 
-	/* we might get involved when memory gets low, so use PF_MEMALLOC */
-	current->flags |= PF_MEMALLOC;
-
 	spin_lock_irq(rq->queue_lock);
 
 	while (!kthread_should_stop()) {
