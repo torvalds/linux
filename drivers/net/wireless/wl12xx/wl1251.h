@@ -354,6 +354,8 @@ struct wl1251 {
 	/* is firmware in elp mode */
 	bool elp;
 
+	struct delayed_work elp_work;
+
 	/* we can be in psm, but not in elp, we have to differentiate */
 	bool psm;
 

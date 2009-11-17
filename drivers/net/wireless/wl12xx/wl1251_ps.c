@@ -28,17 +28,41 @@
 
 #define WL1251_WAKEUP_TIMEOUT 2000
 
+void wl1251_elp_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1251 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1251, elp_work);
+
+	wl1251_debug(DEBUG_PSM, "elp work");
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->elp || !wl->psm)
+		goto out;
+
+	wl1251_debug(DEBUG_PSM, "chip to elp");
+	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	wl->elp = true;
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+#define ELP_ENTRY_DELAY  5
+
 /* Routines to toggle sleep mode while in ELP */
 void wl1251_ps_elp_sleep(struct wl1251 *wl)
 {
-	if (wl->elp || !wl->psm)
-		return;
+	unsigned long delay;
 
-	wl1251_debug(DEBUG_PSM, "chip to elp");
-
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
-
-	wl->elp = true;
+	if (wl->psm) {
+		cancel_delayed_work(&wl->elp_work);
+		delay = msecs_to_jiffies(ELP_ENTRY_DELAY);
+		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work, delay);
+	}
 }
 
 int wl1251_ps_elp_wakeup(struct wl1251 *wl)

@@ -1367,6 +1367,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	skb_queue_head_init(&wl->tx_queue);
 
 	INIT_WORK(&wl->filter_work, wl1251_filter_work);
+	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->scanning = false;
 	wl->default_key = 0;
