@@ -594,13 +594,7 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 static int mcp251x_setup(struct net_device *net, struct mcp251x_priv *priv,
 			 struct spi_device *spi)
 {
-	int ret;
-
-	ret = open_candev(net);
-	if (ret) {
-		dev_err(&spi->dev, "unable to set initial baudrate!\n");
-		return ret;
-	}
+	mcp251x_do_set_bittiming(net);
 
 	/* Enable RX0->RX1 buffer roll over and disable filters */
 	mcp251x_write_bits(spi, RXBCTRL(0),
@@ -671,6 +665,12 @@ static int mcp251x_open(struct net_device *net)
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	int ret;
 
+	ret = open_candev(net);
+	if (ret) {
+		dev_err(&spi->dev, "unable to set initial baudrate!\n");
+		return ret;
+	}
+
 	if (pdata->transceiver_enable)
 		pdata->transceiver_enable(1);
 
@@ -684,6 +684,7 @@ static int mcp251x_open(struct net_device *net)
 		dev_err(&spi->dev, "failed to acquire irq %d\n", spi->irq);
 		if (pdata->transceiver_enable)
 			pdata->transceiver_enable(0);
+		close_candev(net);
 		return ret;
 	}
 
@@ -692,8 +693,10 @@ static int mcp251x_open(struct net_device *net)
 	ret = mcp251x_setup(net, priv, spi);
 	if (ret) {
 		free_irq(spi->irq, net);
+		mcp251x_hw_sleep(spi);
 		if (pdata->transceiver_enable)
 			pdata->transceiver_enable(0);
+		close_candev(net);
 		return ret;
 	}
 	mcp251x_set_normal_mode(spi);
@@ -956,7 +959,6 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	priv->can.bittiming_const = &mcp251x_bittiming_const;
 	priv->can.do_set_mode = mcp251x_do_set_mode;
 	priv->can.clock.freq = pdata->oscillator_frequency / 2;
-	priv->can.do_set_bittiming = mcp251x_do_set_bittiming;
 	priv->net = net;
 	dev_set_drvdata(&spi->dev, priv);
 
