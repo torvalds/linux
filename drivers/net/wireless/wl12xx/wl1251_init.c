@@ -364,6 +364,11 @@ int wl1251_hw_init(struct wl1251 *wl)
 	if (ret < 0)
 		goto out_free_data_path;
 
+	/* Initialize connection monitoring thresholds */
+	ret = wl1251_acx_conn_monit_params(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
 	/* Beacon filtering */
 	ret = wl1251_hw_init_beacon_filter(wl);
 	if (ret < 0)

@@ -550,6 +550,35 @@ out:
 	return ret;
 }
 
+int wl1251_acx_conn_monit_params(struct wl1251 *wl)
+{
+	struct acx_conn_monit_params *acx;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx connection monitor parameters");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->synch_fail_thold = SYNCH_FAIL_DEFAULT_THRESHOLD;
+	acx->bss_lose_timeout = NO_BEACON_DEFAULT_TIMEOUT;
+
+	ret = wl1251_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("failed to set connection monitor "
+			       "parameters: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
 int wl1251_acx_sg_enable(struct wl1251 *wl)
 {
 	struct acx_bt_wlan_coex *pta;
