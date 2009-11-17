@@ -1651,8 +1651,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	int sync = wake_flags & WF_SYNC;
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 
-	update_curr(cfs_rq);
-
 	if (unlikely(rt_prio(p->prio))) {
 		resched_task(curr);
 		return;
@@ -1709,6 +1707,8 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	find_matching_se(&se, &pse);
 
 	BUG_ON(!pse);
+
+	update_curr(cfs_rq);
 
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		resched_task(curr);
