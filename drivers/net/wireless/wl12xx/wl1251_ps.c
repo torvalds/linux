@@ -119,6 +119,11 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 	case STATION_POWER_SAVE_MODE:
 		wl1251_debug(DEBUG_PSM, "entering psm");
 
+		/* enable beacon filtering */
+		ret = wl1251_acx_beacon_filter_opt(wl, true);
+		if (ret < 0)
+			return ret;
+
 		ret = wl1251_acx_wake_up_conditions(wl,
 						    WAKE_UP_EVENT_DTIM_BITMAP,
 						    wl->listen_int);
@@ -139,6 +144,11 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 	default:
 		wl1251_debug(DEBUG_PSM, "leaving psm");
 		ret = wl1251_ps_set_elp(wl, false);
+		if (ret < 0)
+			return ret;
+
+		/* disable beacon filtering */
+		ret = wl1251_acx_beacon_filter_opt(wl, false);
 		if (ret < 0)
 			return ret;
 

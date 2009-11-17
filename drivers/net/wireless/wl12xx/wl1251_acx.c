@@ -494,7 +494,7 @@ out:
 	return ret;
 }
 
-int wl1251_acx_beacon_filter_opt(struct wl1251 *wl)
+int wl1251_acx_beacon_filter_opt(struct wl1251 *wl, bool enable_filter)
 {
 	struct acx_beacon_filter_option *beacon_filter;
 	int ret;
@@ -507,7 +507,7 @@ int wl1251_acx_beacon_filter_opt(struct wl1251 *wl)
 		goto out;
 	}
 
-	beacon_filter->enable = 0;
+	beacon_filter->enable = enable_filter;
 	beacon_filter->max_num_beacons = 0;
 
 	ret = wl1251_cmd_configure(wl, ACX_BEACON_FILTER_OPT,
@@ -525,6 +525,7 @@ out:
 int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 {
 	struct acx_beacon_filter_ie_table *ie_table;
+	int idx = 0;
 	int ret;
 
 	wl1251_debug(DEBUG_ACX, "acx beacon filter table");
@@ -535,8 +536,10 @@ int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 		goto out;
 	}
 
-	ie_table->num_ie = 0;
-	memset(ie_table->table, 0, BEACON_FILTER_TABLE_MAX_SIZE);
+	/* configure default beacon pass-through rules */
+	ie_table->num_ie = 1;
+	ie_table->table[idx++] = BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN;
+	ie_table->table[idx++] = BEACON_RULE_PASS_ON_APPEARANCE;
 
 	ret = wl1251_cmd_configure(wl, ACX_BEACON_FILTER_TABLE,
 				   ie_table, sizeof(*ie_table));

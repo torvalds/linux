@@ -147,7 +147,8 @@ int wl1251_hw_init_beacon_filter(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl1251_acx_beacon_filter_opt(wl);
+	/* disable beacon filtering at this stage */
+	ret = wl1251_acx_beacon_filter_opt(wl, false);
 	if (ret < 0)
 		return ret;
 
