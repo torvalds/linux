@@ -2440,7 +2440,7 @@ static struct attribute_group lcs_group_attr_group = {
 	.attrs = lcs_group_attrs,
 };
 
-static struct attribute_group *lcs_group_attr_groups[] = {
+static const struct attribute_group *lcs_group_attr_groups[] = {
 	&lcs_group_attr_group,
 	NULL,
 };

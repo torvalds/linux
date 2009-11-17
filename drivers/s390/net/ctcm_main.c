@@ -1806,7 +1806,7 @@ static struct attribute_group ctcm_group_attr_group = {
 	.attrs = ctcm_group_attrs,
 };
 
-static struct attribute_group *ctcm_group_attr_groups[] = {
+static const struct attribute_group *ctcm_group_attr_groups[] = {
 	&ctcm_group_attr_group,
 	NULL,
 };

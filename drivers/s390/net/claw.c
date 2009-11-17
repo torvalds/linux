@@ -310,7 +310,7 @@ static struct attribute_group claw_group_attr_group = {
 	.attrs = claw_group_attrs,
 };
 
-static struct attribute_group *claw_group_attr_groups[] = {
+static const struct attribute_group *claw_group_attr_groups[] = {
 	&claw_group_attr_group,
 	NULL,
 };
