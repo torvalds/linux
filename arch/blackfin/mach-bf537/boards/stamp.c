@@ -1526,6 +1526,11 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		I2C_BOARD_INFO("adau1761", 0x38),
 	},
 #endif
+#if defined(CONFIG_AD525X_DPOT) || defined(CONFIG_AD525X_DPOT_MODULE)
+	{
+		I2C_BOARD_INFO("ad5258", 0x18),
+	},
+#endif
 };
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
