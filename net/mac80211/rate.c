@@ -284,8 +284,15 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	struct rate_control_ref *ref, *old;
 
 	ASSERT_RTNL();
+
 	if (local->open_count)
 		return -EBUSY;
+
+	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) {
+		if (WARN_ON(!local->ops->set_rts_threshold))
+			return -EINVAL;
+		return 0;
+	}
 
 	ref = rate_control_alloc(name, local);
 	if (!ref) {
@@ -305,7 +312,6 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
 	       ref->ops->name);
 
-
 	return 0;
 }
 
@@ -314,6 +320,10 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 	struct rate_control_ref *ref;
 
 	ref = local->rate_ctrl;
+
+	if (!ref)
+		return;
+
 	local->rate_ctrl = NULL;
 	rate_control_put(ref);
 }

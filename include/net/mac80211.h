@@ -855,6 +855,19 @@ enum ieee80211_tkip_key_type {
  * any particular flags. There are some exceptions to this rule,
  * however, so you are advised to review these flags carefully.
  *
+ * @IEEE80211_HW_HAS_RATE_CONTROL:
+ *	The hardware or firmware includes rate control, and cannot be
+ *	controlled by the stack. As such, no rate control algorithm
+ *	should be instantiated, and the TX rate reported to userspace
+ *	will be taken from the TX status instead of the rate control
+ *	algorithm.
+ *	Note that this requires that the driver implement a number of
+ *	callbacks so it has the correct information, it needs to have
+ *	the @set_rts_threshold callback and must look at the BSS config
+ *	@use_cts_prot for G/N protection, @use_short_slot for slot
+ *	timing in 2.4 GHz and @use_short_preamble for preambles for
+ *	CCK frames.
+ *
  * @IEEE80211_HW_RX_INCLUDES_FCS:
  *	Indicates that received frames passed to the stack include
  *	the FCS at the end.
@@ -913,6 +926,7 @@ enum ieee80211_tkip_key_type {
  *	avoid waking up cpu.
  */
 enum ieee80211_hw_flags {
+	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
 	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
 	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
