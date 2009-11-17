@@ -1105,8 +1105,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl->beacon_int = bss_conf->beacon_int;
 			wl->dtim_period = bss_conf->dtim_period;
 
-			/* FIXME: call join */
-
+			ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
+							  wl->dtim_period);
 			wl->aid = bss_conf->aid;
 
 			ret = wl1251_build_ps_poll(wl, wl->aid);
