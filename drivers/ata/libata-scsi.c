@@ -154,8 +154,7 @@ static ssize_t ata_scsi_lpm_put(struct device *dev,
 	 */
 	for (i = 1; i < ARRAY_SIZE(link_pm_policy); i++) {
 		const int len = strlen(link_pm_policy[i].name);
-		if (strncmp(link_pm_policy[i].name, buf, len) == 0 &&
-		   buf[len] == '\n') {
+		if (strncmp(link_pm_policy[i].name, buf, len) == 0) {
 			policy = link_pm_policy[i].value;
 			break;
 		}
