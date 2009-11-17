@@ -403,15 +403,21 @@ static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
+	int err;
 
 	version->version_major = dev->driver->major;
 	version->version_minor = dev->driver->minor;
 	version->version_patchlevel = dev->driver->patchlevel;
-	drm_copy_field(version->name, &version->name_len, dev->driver->name);
-	drm_copy_field(version->date, &version->date_len, dev->driver->date);
-	drm_copy_field(version->desc, &version->desc_len, dev->driver->desc);
+	err = drm_copy_field(version->name, &version->name_len,
+			dev->driver->name);
+	if (!err)
+		err = drm_copy_field(version->date, &version->date_len,
+				dev->driver->date);
+	if (!err)
+		err = drm_copy_field(version->desc, &version->desc_len,
+				dev->driver->desc);
 
-	return 0;
+	return err;
 }
 
 /**
