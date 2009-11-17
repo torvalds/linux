@@ -47,6 +47,7 @@
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
+#include <asm/unaligned.h>
 
 #include "libata.h"
 
@@ -1963,6 +1964,7 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 		0x80,	/* page 0x80, unit serial no page */
 		0x83,	/* page 0x83, device ident page */
 		0x89,	/* page 0x89, ata info page */
+		0xb0,	/* page 0xb0, block limits page */
 		0xb1,	/* page 0xb1, block device characteristics page */
 	};
 
@@ -2081,6 +2083,41 @@ static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf)
 	rbuf[56] = ATA_CMD_ID_ATA;
 
 	memcpy(&rbuf[60], &args->id[0], 512);
+	return 0;
+}
+
+static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
+{
+	u32 min_io_sectors;
+
+	rbuf[1] = 0xb0;
+	rbuf[3] = 0x3c;		/* required VPD size with unmap support */
+
+	/*
+	 * Optimal transfer length granularity.
+	 *
+	 * This is always one physical block, but for disks with a smaller
+	 * logical than physical sector size we need to figure out what the
+	 * latter is.
+	 */
+	if (ata_id_has_large_logical_sectors(args->id))
+		min_io_sectors = ata_id_logical_per_physical_sectors(args->id);
+	else
+		min_io_sectors = 1;
+	put_unaligned_be16(min_io_sectors, &rbuf[6]);
+
+	/*
+	 * Optimal unmap granularity.
+	 *
+	 * The ATA spec doesn't even know about a granularity or alignment
+	 * for the TRIM command.  We can leave away most of the unmap related
+	 * VPD page entries, but we have specifify a granularity to signal
+	 * that we support some form of unmap - in thise case via WRITE SAME
+	 * with the unmap bit set.
+	 */
+	if (ata_id_has_trim(args->id))
+		put_unaligned_be32(1, &rbuf[28]);
+
 	return 0;
 }
 
@@ -2373,6 +2410,9 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		rbuf[13] = log_per_phys;
 		rbuf[14] = (lowest_aligned >> 8) & 0x3f;
 		rbuf[15] = lowest_aligned;
+
+		if (ata_id_has_trim(args->id))
+			rbuf[14] |= 0x80;
 	}
 
 	return 0;
@@ -2895,6 +2935,58 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	return 1;
 }
 
+static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	struct ata_device *dev = qc->dev;
+	const u8 *cdb = scmd->cmnd;
+	u64 block;
+	u32 n_block;
+	u32 size;
+	void *buf;
+
+	/* we may not issue DMA commands if no DMA mode is set */
+	if (unlikely(!dev->dma_mode))
+		goto invalid_fld;
+
+	if (unlikely(scmd->cmd_len < 16))
+		goto invalid_fld;
+	scsi_16_lba_len(cdb, &block, &n_block);
+
+	/* for now we only support WRITE SAME with the unmap bit set */
+	if (unlikely(!(cdb[1] & 0x8)))
+		goto invalid_fld;
+
+	/*
+	 * WRITE SAME always has a sector sized buffer as payload, this
+	 * should never be a multiple entry S/G list.
+	 */
+	if (!scsi_sg_count(scmd))
+		goto invalid_fld;
+
+	buf = page_address(sg_page(scsi_sglist(scmd)));
+	size = ata_set_lba_range_entries(buf, 512 / 8, block, n_block);
+
+	tf->protocol = ATA_PROT_DMA;
+	tf->hob_feature = 0;
+	tf->feature = ATA_DSM_TRIM;
+	tf->hob_nsect = (size / 512) >> 8;
+	tf->nsect = size / 512;
+	tf->command = ATA_CMD_DSM;
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48 |
+		     ATA_TFLAG_WRITE;
+
+	ata_qc_set_pc_nbytes(qc);
+
+	return 0;
+
+ invalid_fld:
+	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x00);
+	/* "Invalid field in cdb" */
+	return 1;
+}
+
 /**
  *	ata_get_xlat_func - check if SCSI to ATA translation is possible
  *	@dev: ATA device
@@ -2918,6 +3010,9 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case WRITE_10:
 	case WRITE_16:
 		return ata_scsi_rw_xlat;
+
+	case 0x93 /*WRITE_SAME_16*/:
+		return ata_scsi_write_same_xlat;
 
 	case SYNCHRONIZE_CACHE:
 		if (ata_try_flush_cache(dev))
@@ -3107,6 +3202,9 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			break;
 		case 0x89:
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_89);
+			break;
+		case 0xb0:
+			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b0);
 			break;
 		case 0xb1:
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b1);

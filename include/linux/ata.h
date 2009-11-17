@@ -87,6 +87,7 @@ enum {
 	ATA_ID_HW_CONFIG	= 93,
 	ATA_ID_SPG		= 98,
 	ATA_ID_LBA_CAPACITY_2	= 100,
+	ATA_ID_SECTOR_SIZE	= 106,
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
@@ -636,6 +637,18 @@ static inline int ata_id_flush_ext_enabled(const u16 *id)
 	 * so check bit 10 too
 	 */
 	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
+}
+
+static inline int ata_id_has_large_logical_sectors(const u16 *id)
+{
+	if ((id[ATA_ID_SECTOR_SIZE] & 0xc000) != 0x4000)
+		return 0;
+	return id[ATA_ID_SECTOR_SIZE] & (1 << 13);
+}
+
+static inline u8 ata_id_logical_per_physical_sectors(const u16 *id)
+{
+	return id[ATA_ID_SECTOR_SIZE] & 0xf;
 }
 
 static inline int ata_id_has_lba48(const u16 *id)
