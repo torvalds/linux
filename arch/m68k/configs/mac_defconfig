@@ -839,9 +839,7 @@ CONFIG_HIDRAW=y
 #
 # Character devices
 #
-CONFIG_MAC_SCC=y
 CONFIG_MAC_HID=y
-CONFIG_SERIAL_CONSOLE=y
 
 #
 # File systems
