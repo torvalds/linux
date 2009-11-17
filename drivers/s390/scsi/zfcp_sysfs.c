@@ -224,6 +224,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 
 	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
+	flush_work(&unit->scsi_work);
 	zfcp_unit_put(unit);
 out:
 	mutex_unlock(&zfcp_data.config_mutex);

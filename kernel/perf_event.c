@@ -2674,20 +2674,21 @@ static void perf_output_wakeup(struct perf_output_handle *handle)
 static void perf_output_lock(struct perf_output_handle *handle)
 {
 	struct perf_mmap_data *data = handle->data;
-	int cpu;
+	int cur, cpu = get_cpu();
 
 	handle->locked = 0;
 
-	local_irq_save(handle->flags);
-	cpu = smp_processor_id();
+	for (;;) {
+		cur = atomic_cmpxchg(&data->lock, -1, cpu);
+		if (cur == -1) {
+			handle->locked = 1;
+			break;
+		}
+		if (cur == cpu)
+			break;
 
-	if (in_nmi() && atomic_read(&data->lock) == cpu)
-		return;
-
-	while (atomic_cmpxchg(&data->lock, -1, cpu) != -1)
 		cpu_relax();
-
-	handle->locked = 1;
+	}
 }
 
 static void perf_output_unlock(struct perf_output_handle *handle)
@@ -2733,7 +2734,7 @@ again:
 	if (atomic_xchg(&data->wakeup, 0))
 		perf_output_wakeup(handle);
 out:
-	local_irq_restore(handle->flags);
+	put_cpu();
 }
 
 void perf_output_copy(struct perf_output_handle *handle,
@@ -3976,14 +3977,51 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 		regs = task_pt_regs(current);
 
 	if (regs) {
-		if (perf_event_overflow(event, 0, &data, regs))
-			ret = HRTIMER_NORESTART;
+		if (!(event->attr.exclude_idle && current->pid == 0))
+			if (perf_event_overflow(event, 0, &data, regs))
+				ret = HRTIMER_NORESTART;
 	}
 
 	period = max_t(u64, 10000, event->hw.sample_period);
 	hrtimer_forward_now(hrtimer, ns_to_ktime(period));
 
 	return ret;
+}
+
+static void perf_swevent_start_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swevent_hrtimer;
+	if (hwc->sample_period) {
+		u64 period;
+
+		if (hwc->remaining) {
+			if (hwc->remaining < 0)
+				period = 10000;
+			else
+				period = hwc->remaining;
+			hwc->remaining = 0;
+		} else {
+			period = max_t(u64, 10000, hwc->sample_period);
+		}
+		__hrtimer_start_range_ns(&hwc->hrtimer,
+				ns_to_ktime(period), 0,
+				HRTIMER_MODE_REL, 0);
+	}
+}
+
+static void perf_swevent_cancel_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (hwc->sample_period) {
+		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
+		hwc->remaining = ktime_to_ns(remaining);
+
+		hrtimer_cancel(&hwc->hrtimer);
+	}
 }
 
 /*
@@ -4008,22 +4046,14 @@ static int cpu_clock_perf_event_enable(struct perf_event *event)
 	int cpu = raw_smp_processor_id();
 
 	atomic64_set(&hwc->prev_count, cpu_clock(cpu));
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
-		u64 period = max_t(u64, 10000, hwc->sample_period);
-		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
-	}
+	perf_swevent_start_hrtimer(event);
 
 	return 0;
 }
 
 static void cpu_clock_perf_event_disable(struct perf_event *event)
 {
-	if (event->hw.sample_period)
-		hrtimer_cancel(&event->hw.hrtimer);
+	perf_swevent_cancel_hrtimer(event);
 	cpu_clock_perf_event_update(event);
 }
 
@@ -4060,22 +4090,15 @@ static int task_clock_perf_event_enable(struct perf_event *event)
 	now = event->ctx->time;
 
 	atomic64_set(&hwc->prev_count, now);
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
-		u64 period = max_t(u64, 10000, hwc->sample_period);
-		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
-	}
+
+	perf_swevent_start_hrtimer(event);
 
 	return 0;
 }
 
 static void task_clock_perf_event_disable(struct perf_event *event)
 {
-	if (event->hw.sample_period)
-		hrtimer_cancel(&event->hw.hrtimer);
+	perf_swevent_cancel_hrtimer(event);
 	task_clock_perf_event_update(event, event->ctx->time);
 
 }
@@ -4252,6 +4275,8 @@ static const struct pmu *sw_perf_event_init(struct perf_event *event)
 	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
+	case PERF_COUNT_SW_ALIGNMENT_FAULTS:
+	case PERF_COUNT_SW_EMULATION_FAULTS:
 		if (!event->parent) {
 			atomic_inc(&perf_swevent_enabled[event_id]);
 			event->destroy = sw_perf_event_destroy;

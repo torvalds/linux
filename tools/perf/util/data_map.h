@@ -27,5 +27,6 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    int full_paths,
 			    int *cwdlen,
 			    char **cwd);
+int perf_header__read_build_ids(int input, off_t offset, off_t file_size);
 
 #endif

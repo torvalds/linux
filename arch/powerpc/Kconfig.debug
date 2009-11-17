@@ -46,7 +46,7 @@ config DEBUG_STACK_USAGE
 
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
-	depends on PPC_PSERIES && DEBUG_FS
+	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
 	help
 	  Adds code to keep track of the number of hypervisor calls made and
 	  the amount of time spent in hypervisor calls.  Wall time spent in

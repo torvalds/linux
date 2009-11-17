@@ -60,7 +60,7 @@ static int			system_wide			=      0;
 static int			default_interval		=      0;
 
 static int			count_filter			=      5;
-static int			print_entries			=     15;
+static int			print_entries;
 
 static int			target_pid			=     -1;
 static int			inherit				=      0;
@@ -75,6 +75,9 @@ static int			freq				=   1000; /* 1 KHz */
 static int			delay_secs			=      2;
 static int			zero                            =      0;
 static int			dump_symtab                     =      0;
+
+static bool			hide_kernel_symbols		=  false;
+static bool			hide_user_symbols		=  false;
 
 /*
  * Source
@@ -104,6 +107,7 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
+	u8			origin;
 	struct map		*map;
 	struct source_line	*source;
 	struct source_line	*lines;
@@ -114,6 +118,36 @@ struct sym_entry {
 /*
  * Source functions
  */
+
+/* most GUI terminals set LINES (although some don't export it) */
+static int term_rows(void)
+{
+	char *lines_string = getenv("LINES");
+	int n_lines;
+
+	if (lines_string && (n_lines = atoi(lines_string)) > 0)
+		return n_lines;
+#ifdef TIOCGWINSZ
+	else {
+		struct winsize ws;
+		if (!ioctl(1, TIOCGWINSZ, &ws) && ws.ws_row)
+			return ws.ws_row;
+	}
+#endif
+	return 25;
+}
+
+static void update_print_entries(void)
+{
+	print_entries = term_rows();
+	if (print_entries > 9)
+		print_entries -= 9;
+}
+
+static void sig_winch_handler(int sig __used)
+{
+	update_print_entries();
+}
 
 static void parse_source(struct sym_entry *syme)
 {
@@ -318,7 +352,7 @@ static void show_details(struct sym_entry *syme)
 }
 
 /*
- * Symbols will be added here in record_ip and will get out
+ * Symbols will be added here in event__process_sample and will get out
  * after decayed.
  */
 static LIST_HEAD(active_symbols);
@@ -400,6 +434,13 @@ static void print_sym_table(void)
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
 		syme->snap_count = syme->count[snap];
 		if (syme->snap_count != 0) {
+			if ((hide_user_symbols &&
+			     syme->origin == PERF_RECORD_MISC_USER) ||
+			    (hide_kernel_symbols &&
+			     syme->origin == PERF_RECORD_MISC_KERNEL)) {
+				list_remove_active_sym(syme);
+				continue;
+			}
 			syme->weight = sym_weight(syme);
 			rb_insert_active_sym(&tmp, syme);
 			sum_ksamples += syme->snap_count;
@@ -459,18 +500,18 @@ static void print_sym_table(void)
 	}
 
 	if (nr_counters == 1)
-		printf("             samples    pcnt");
+		printf("             samples  pcnt");
 	else
-		printf("   weight    samples    pcnt");
+		printf("   weight    samples  pcnt");
 
 	if (verbose)
 		printf("         RIP       ");
-	printf("   kernel function\n");
-	printf("   %s    _______   _____",
+	printf(" function                                 DSO\n");
+	printf("   %s    _______ _____",
 	       nr_counters == 1 ? "      " : "______");
 	if (verbose)
-		printf("   ________________");
-	printf("   _______________\n\n");
+		printf(" ________________");
+	printf(" ________________________________ ________________\n\n");
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct symbol *sym;
@@ -486,16 +527,15 @@ static void print_sym_table(void)
 					 sum_ksamples));
 
 		if (nr_counters == 1 || !display_weighted)
-			printf("%20.2f - ", syme->weight);
+			printf("%20.2f ", syme->weight);
 		else
-			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
+			printf("%9.1f %10ld ", syme->weight, syme->snap_count);
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		if (verbose)
-			printf(" - %016llx", sym->start);
-		printf(" : %s", sym->name);
-		if (syme->map->dso->name[0] == '[')
-			printf(" \t%s", syme->map->dso->name);
+			printf(" %016llx", sym->start);
+		printf(" %-32s", sym->name);
+		printf(" %s", syme->map->dso->short_name);
 		printf("\n");
 	}
 }
@@ -608,6 +648,12 @@ static void print_mapped_keys(void)
 	if (nr_counters > 1)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
 
+	fprintf(stdout,
+		"\t[K]     hide kernel_symbols symbols.             \t(%s)\n",
+		hide_kernel_symbols ? "yes" : "no");
+	fprintf(stdout,
+		"\t[U]     hide user symbols.               \t(%s)\n",
+		hide_user_symbols ? "yes" : "no");
 	fprintf(stdout, "\t[z]     toggle sample zeroing.             \t(%d)\n", zero ? 1 : 0);
 	fprintf(stdout, "\t[qQ]    quit.\n");
 }
@@ -621,6 +667,8 @@ static int key_mapped(int c)
 		case 'z':
 		case 'q':
 		case 'Q':
+		case 'K':
+		case 'U':
 			return 1;
 		case 'E':
 		case 'w':
@@ -669,6 +717,11 @@ static void handle_keypress(int c)
 			break;
 		case 'e':
 			prompt_integer(&print_entries, "Enter display entries (lines)");
+			if (print_entries == 0) {
+				update_print_entries();
+				signal(SIGWINCH, sig_winch_handler);
+			} else
+				signal(SIGWINCH, SIG_DFL);
 			break;
 		case 'E':
 			if (nr_counters > 1) {
@@ -693,6 +746,9 @@ static void handle_keypress(int c)
 		case 'F':
 			prompt_percent(&sym_pcnt_filter, "Enter details display event filter (percent)");
 			break;
+		case 'K':
+			hide_kernel_symbols = !hide_kernel_symbols;
+			break;
 		case 'q':
 		case 'Q':
 			printf("exiting.\n");
@@ -711,6 +767,9 @@ static void handle_keypress(int c)
 				__zero_source_counters(syme);
 				pthread_mutex_unlock(&syme->source_lock);
 			}
+			break;
+		case 'U':
+			hide_user_symbols = !hide_user_symbols;
 			break;
 		case 'w':
 			display_weighted = ~display_weighted;
@@ -790,7 +849,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = dso__sym_priv(map->dso, sym);
+	syme = symbol__priv(sym);
 	syme->map = map;
 	pthread_mutex_init(&syme->source_lock, NULL);
 	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
@@ -808,8 +867,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 static int parse_symbols(void)
 {
-	if (dsos__load_kernel(vmlinux_name, sizeof(struct sym_entry),
-			      symbol_filter, 1) <= 0)
+	if (dsos__load_kernel(vmlinux_name, symbol_filter, 1) <= 0)
 		return -1;
 
 	if (dump_symtab)
@@ -818,41 +876,104 @@ static int parse_symbols(void)
 	return 0;
 }
 
-/*
- * Binary search in the histogram table and record the hit:
- */
-static void record_ip(u64 ip, int counter)
+static void event__process_sample(const event_t *self, int counter)
 {
+	u64 ip = self->ip.ip;
 	struct map *map;
-	struct symbol *sym = kernel_maps__find_symbol(ip, &map);
+	struct sym_entry *syme;
+	struct symbol *sym;
+	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (sym != NULL) {
-		struct sym_entry *syme = dso__sym_priv(map->dso, sym);
+	switch (origin) {
+	case PERF_RECORD_MISC_USER: {
+		struct thread *thread;
 
-		if (!syme->skip) {
-			syme->count[counter]++;
-			record_precise_ip(syme, counter, ip);
-			pthread_mutex_lock(&active_symbols_lock);
-			if (list_empty(&syme->node) || !syme->node.next)
-				__list_insert_active_sym(syme);
-			pthread_mutex_unlock(&active_symbols_lock);
+		if (hide_user_symbols)
 			return;
+
+		thread = threads__findnew(self->ip.pid);
+		if (thread == NULL)
+			return;
+
+		map = thread__find_map(thread, ip);
+		if (map != NULL) {
+			ip = map->map_ip(map, ip);
+			sym = map__find_symbol(map, ip, symbol_filter);
+			if (sym == NULL)
+				return;
+			userspace_samples++;
+			break;
 		}
 	}
+		/*
+		 * If this is outside of all known maps,
+		 * and is a negative address, try to look it
+		 * up in the kernel dso, as it might be a
+		 * vsyscall or vdso (which executes in user-mode).
+		 */
+		if ((long long)ip >= 0)
+			return;
+		/* Fall thru */
+	case PERF_RECORD_MISC_KERNEL:
+		if (hide_kernel_symbols)
+			return;
 
-	samples--;
-}
-
-static void process_event(u64 ip, int counter, int user)
-{
-	samples++;
-
-	if (user) {
-		userspace_samples++;
+		sym = kernel_maps__find_symbol(ip, &map);
+		if (sym == NULL)
+			return;
+		break;
+	default:
 		return;
 	}
 
-	record_ip(ip, counter);
+	syme = symbol__priv(sym);
+
+	if (!syme->skip) {
+		syme->count[counter]++;
+		syme->origin = origin;
+		record_precise_ip(syme, counter, ip);
+		pthread_mutex_lock(&active_symbols_lock);
+		if (list_empty(&syme->node) || !syme->node.next)
+			__list_insert_active_sym(syme);
+		pthread_mutex_unlock(&active_symbols_lock);
+		++samples;
+		return;
+	}
+}
+
+static void event__process_mmap(event_t *self)
+{
+	struct thread *thread = threads__findnew(self->mmap.pid);
+
+	if (thread != NULL) {
+		struct map *map = map__new(&self->mmap, NULL, 0);
+		if (map != NULL)
+			thread__insert_map(thread, map);
+	}
+}
+
+static void event__process_comm(event_t *self)
+{
+	struct thread *thread = threads__findnew(self->comm.pid);
+
+	if (thread != NULL)
+		thread__set_comm(thread, self->comm.comm);
+}
+
+static int event__process(event_t *event)
+{
+	switch (event->header.type) {
+	case PERF_RECORD_COMM:
+		event__process_comm(event);
+		break;
+	case PERF_RECORD_MMAP:
+		event__process_mmap(event);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 struct mmap_data {
@@ -925,13 +1046,11 @@ static void mmap_read_counter(struct mmap_data *md)
 			event = &event_copy;
 		}
 
+		if (event->header.type == PERF_RECORD_SAMPLE)
+			event__process_sample(event, md->counter);
+		else
+			event__process(event);
 		old += size;
-
-		if (event->header.type == PERF_RECORD_SAMPLE) {
-			int user =
-	(event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK) == PERF_RECORD_MISC_USER;
-			process_event(event->ip.ip, md->counter, user);
-		}
 	}
 
 	md->prev = old;
@@ -973,6 +1092,7 @@ static void start_counter(int i, int counter)
 	}
 
 	attr->inherit		= (cpu < 0) && inherit;
+	attr->mmap		= 1;
 
 try_again:
 	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
@@ -980,7 +1100,7 @@ try_again:
 	if (fd[i][counter] < 0) {
 		int err = errno;
 
-		if (err == EPERM)
+		if (err == EPERM || err == EACCES)
 			die("No permission - are you root?\n");
 		/*
 		 * If it's cycles then fall back to hrtimer
@@ -1030,6 +1150,11 @@ static int __cmd_top(void)
 	pthread_t thread;
 	int i, counter;
 	int ret;
+
+	if (target_pid != -1)
+		event__synthesize_thread(target_pid, event__process);
+	else
+		event__synthesize_threads(event__process);
 
 	for (i = 0; i < nr_cpus; i++) {
 		group_fd = -1;
@@ -1087,6 +1212,8 @@ static const struct option options[] = {
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
 	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
+		    "hide kernel symbols"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
@@ -1109,6 +1236,8 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('E', "entries", &print_entries,
 		    "display this many functions"),
+	OPT_BOOLEAN('U', "hide_user_symbols", &hide_user_symbols,
+		    "hide user symbols"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
@@ -1118,7 +1247,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init();
+	symbol__init(sizeof(struct sym_entry));
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -1171,6 +1300,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
+
+	if (print_entries == 0) {
+		update_print_entries();
+		signal(SIGWINCH, sig_winch_handler);
+	}
 
 	return __cmd_top();
 }

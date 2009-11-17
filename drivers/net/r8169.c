@@ -1029,7 +1029,10 @@ static void rtl8169_vlan_rx_register(struct net_device *dev,
 
 	spin_lock_irqsave(&tp->lock, flags);
 	tp->vlgrp = grp;
-	if (tp->vlgrp)
+	/*
+	 * Do not disable RxVlan on 8110SCd.
+	 */
+	if (tp->vlgrp || (tp->mac_version == RTL_GIGA_MAC_VER_05))
 		tp->cp_cmd |= RxVlan;
 	else
 		tp->cp_cmd &= ~RxVlan;
@@ -3197,6 +3200,14 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	rtl8169_init_phy(dev, tp);
+
+	/*
+	 * Pretend we are using VLANs; This bypasses a nasty bug where
+	 * Interrupts stop flowing on high load on 8110SCd controllers.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | RxVlan);
+
 	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
 out:
@@ -3368,7 +3379,7 @@ static u16 rtl_rw_cpluscmd(void __iomem *ioaddr)
 static void rtl_set_rx_max_size(void __iomem *ioaddr, unsigned int rx_buf_sz)
 {
 	/* Low hurts. Let's disable the filtering. */
-	RTL_W16(RxMaxSize, rx_buf_sz);
+	RTL_W16(RxMaxSize, rx_buf_sz + 1);
 }
 
 static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)

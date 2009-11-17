@@ -51,8 +51,6 @@ static int __pm_runtime_idle(struct device *dev)
 {
 	int retval = 0;
 
-	dev_dbg(dev, "__pm_runtime_idle()!\n");
-
 	if (dev->power.runtime_error)
 		retval = -EINVAL;
 	else if (dev->power.idle_notification)
@@ -93,8 +91,6 @@ static int __pm_runtime_idle(struct device *dev)
 	wake_up_all(&dev->power.wait_queue);
 
  out:
-	dev_dbg(dev, "__pm_runtime_idle() returns %d!\n", retval);
-
 	return retval;
 }
 

@@ -547,7 +547,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 	if (!vers1)
 		return -ENOMEM;
 
-	if (!pccard_read_tuple(p_dev->socket, p_dev->func,
+	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL,
 			       CISTPL_MANFID, &manf_id)) {
 		p_dev->manf_id = manf_id.manf;
 		p_dev->card_id = manf_id.card;
@@ -581,9 +581,9 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		kfree(devgeo);
 	}
 
-	if (!pccard_read_tuple(p_dev->socket, p_dev->func, CISTPL_VERS_1,
+	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL, CISTPL_VERS_1,
 			       vers1)) {
-		for (i=0; i < vers1->ns; i++) {
+		for (i = 0; i < min_t(unsigned int, 4, vers1->ns); i++) {
 			char *tmp;
 			unsigned int length;
 
@@ -733,7 +733,7 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		return -EAGAIN; /* try again, but later... */
 	}
 
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &no_chains);
+	ret = pccard_validate_cis(s, &no_chains);
 	if (ret || !no_chains) {
 		ds_dev_dbg(0, &s->dev, "invalid CIS or invalid resources\n");
 		return -ENODEV;

@@ -20,16 +20,27 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 	return n;
 }
 
-struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size, symbol_filter_t filter)
+void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
+	       struct dso *dso)
+{
+	self->start    = start;
+	self->end      = end;
+	self->pgoff    = pgoff;
+	self->dso      = dso;
+	self->map_ip   = map__map_ip;
+	self->unmap_ip = map__unmap_ip;
+	RB_CLEAR_NODE(&self->rb_node);
+}
+
+struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
 
 	if (self != NULL) {
 		const char *filename = event->filename;
 		char newfilename[PATH_MAX];
+		struct dso *dso;
 		int anon;
-		bool new_dso;
 
 		if (cwd) {
 			int n = strcommon(filename, cwd, cwdlen);
@@ -48,38 +59,61 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 			filename = newfilename;
 		}
 
-		self->start = event->start;
-		self->end   = event->start + event->len;
-		self->pgoff = event->pgoff;
-
-		self->dso = dsos__findnew(filename, sym_priv_size, &new_dso);
-		if (self->dso == NULL)
+		dso = dsos__findnew(filename);
+		if (dso == NULL)
 			goto out_delete;
 
-		if (new_dso) {
-			int nr = dso__load(self->dso, self, filter);
-
-			if (nr < 0)
-				pr_warning("Failed to open %s, continuing "
-					   "without symbols\n",
-					   self->dso->long_name);
-			else if (nr == 0)
-				pr_warning("No symbols found in %s, maybe "
-					   "install a debug package?\n",
-					   self->dso->long_name);
-		}
+		map__init(self, event->start, event->start + event->len,
+			  event->pgoff, dso);
 
 		if (self->dso == vdso || anon)
 			self->map_ip = self->unmap_ip = identity__map_ip;
-		else {
-			self->map_ip = map__map_ip;
-			self->unmap_ip = map__unmap_ip;
-		}
 	}
 	return self;
 out_delete:
 	free(self);
 	return NULL;
+}
+
+#define DSO__DELETED "(deleted)"
+
+struct symbol *
+map__find_symbol(struct map *self, u64 ip, symbol_filter_t filter)
+{
+	if (!self->dso->loaded) {
+		int nr = dso__load(self->dso, self, filter);
+
+		if (nr < 0) {
+			if (self->dso->has_build_id) {
+				char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+				build_id__sprintf(self->dso->build_id,
+						  sizeof(self->dso->build_id),
+						  sbuild_id);
+				pr_warning("%s with build id %s not found",
+					   self->dso->long_name, sbuild_id);
+			} else
+				pr_warning("Failed to open %s",
+					   self->dso->long_name);
+			pr_warning(", continuing without symbols\n");
+			return NULL;
+		} else if (nr == 0) {
+			const char *name = self->dso->long_name;
+			const size_t len = strlen(name);
+			const size_t real_len = len - sizeof(DSO__DELETED);
+
+			if (len > sizeof(DSO__DELETED) &&
+			    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
+				pr_warning("%.*s was updated, restart the long running apps that use it!\n",
+					   (int)real_len, name);
+			} else {
+				pr_warning("no symbols found in %s, maybe install a debug package?\n", name);
+			}
+			return NULL;
+		}
+	}
+
+	return self->dso->find_symbol(self->dso, ip);
 }
 
 struct map *map__clone(struct map *self)

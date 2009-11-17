@@ -63,7 +63,7 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 		if (r) {
 			goto out_cleanup;
 		}
-		r = radeon_copy_dma(rdev, saddr, daddr, size / 4096, fence);
+		r = radeon_copy_dma(rdev, saddr, daddr, size / RADEON_GPU_PAGE_SIZE, fence);
 		if (r) {
 			goto out_cleanup;
 		}
@@ -88,7 +88,7 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 		if (r) {
 			goto out_cleanup;
 		}
-		r = radeon_copy_blit(rdev, saddr, daddr, size / 4096, fence);
+		r = radeon_copy_blit(rdev, saddr, daddr, size / RADEON_GPU_PAGE_SIZE, fence);
 		if (r) {
 			goto out_cleanup;
 		}

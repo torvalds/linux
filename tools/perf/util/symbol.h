@@ -27,6 +27,16 @@ static inline char *bfd_demangle(void __used *v, const char __used *c,
 #endif
 #endif
 
+/*
+ * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
+ * for newer versions we can use mmap to reduce memory usage:
+ */
+#ifdef LIBELF_NO_MMAP
+# define PERF_ELF_C_READ_MMAP ELF_C_READ
+#else
+# define PERF_ELF_C_READ_MMAP ELF_C_READ_MMAP
+#endif
+
 #ifndef DMGL_PARAMS
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
@@ -39,42 +49,51 @@ struct symbol {
 	char		name[0];
 };
 
+extern unsigned int symbol__priv_size;
+
+static inline void *symbol__priv(struct symbol *self)
+{
+	return ((void *)self) - symbol__priv_size;
+}
+
 struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
-	unsigned int	 sym_priv_size;
-	unsigned char	 adjust_symbols;
-	unsigned char	 slen_calculated;
+	u8		 adjust_symbols:1;
+	u8		 slen_calculated:1;
+	u8		 loaded:1;
+	u8		 has_build_id:1;
 	unsigned char	 origin;
+	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
 	char	 	 *long_name;
 	char		 name[0];
 };
 
-struct dso *dso__new(const char *name, unsigned int sym_priv_size);
+struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
-
-static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
-{
-	return ((void *)sym) - self->sym_priv_size;
-}
 
 struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
-int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
-		      symbol_filter_t filter, int modules);
-struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size,
-			  bool *is_new);
+int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter, int modules);
+struct dso *dsos__findnew(const char *name);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
+size_t dsos__fprintf_buildid(FILE *fp);
 
+size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
+void dso__set_build_id(struct dso *self, void *build_id);
 
-int load_kernel(unsigned int sym_priv_size, symbol_filter_t filter);
+int filename__read_build_id(const char *filename, void *bf, size_t size);
+bool fetch_build_id_table(struct list_head *head);
+int build_id__sprintf(u8 *self, int len, char *bf);
 
-void symbol__init(void);
+int load_kernel(symbol_filter_t filter);
+
+void symbol__init(unsigned int priv_size);
 
 extern struct list_head dsos;
 extern struct map *kernel_map;

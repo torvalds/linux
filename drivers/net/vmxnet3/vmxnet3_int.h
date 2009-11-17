@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/ethtool.h>
@@ -59,7 +60,6 @@
 #include <linux/if_vlan.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
-#include <linux/dst.h>
 
 #include "vmxnet3_defs.h"
 

@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <asm/cpu-info.h>
 #include <bcm63xx_cpu.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -284,6 +285,7 @@ void __init bcm63xx_cpu_init(void)
 {
 	unsigned int tmp, expected_cpu_id;
 	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int cpu = smp_processor_id();
 
 	/* soc registers location depends on cpu type */
 	expected_cpu_id = 0;
@@ -293,6 +295,7 @@ void __init bcm63xx_cpu_init(void)
 	 * BCM6338 as the same PrId as BCM3302 see arch/mips/kernel/cpu-probe.c
 	 */
 	case CPU_BCM3302:
+		__cpu_name[cpu] = "Broadcom BCM6338";
 		expected_cpu_id = BCM6338_CPU_ID;
 		bcm63xx_regs_base = bcm96338_regs_base;
 		bcm63xx_irqs = bcm96338_irqs;

@@ -5,6 +5,7 @@
 
 int hex2u64(const char *ptr, u64 *val);
 char *strxfrchar(char *s, char from, char to);
+s64 perf_atoll(const char *str);
 
 #define _STR(x) #x
 #define STR(x) _STR(x)

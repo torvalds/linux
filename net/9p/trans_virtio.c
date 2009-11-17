@@ -43,7 +43,6 @@
 #include <net/9p/transport.h>
 #include <linux/scatterlist.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_9p.h>
 
 #define VIRTQUEUE_NUM	128

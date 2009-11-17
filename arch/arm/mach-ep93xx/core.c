@@ -206,7 +206,6 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (i = 0; i < 8; i++) {
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_B(0)) + i;
-			desc = irq_desc + gpio_irq;
 			generic_handle_irq(gpio_irq);
 		}
 	}

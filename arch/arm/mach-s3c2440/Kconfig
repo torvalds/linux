@@ -103,6 +103,7 @@ config MACH_MINI2440
 	select LEDS_TRIGGER_BACKLIGHT
 	select SND_S3C24XX_SOC_S3C24XX_UDA134X
 	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here to select support for the MINI2440. Is a 10cm x 10cm board
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.

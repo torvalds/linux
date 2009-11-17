@@ -69,6 +69,7 @@ void __init board_setup(void)
 #else
 	au_writel(0xf, Au1500_PCI_CFG);
 #endif
+	board_pci_idsel = mtx1_pci_idsel;
 #endif
 
 	/* Initialize sys_pinfunc */
@@ -84,8 +85,6 @@ void __init board_setup(void)
 	/* Enable LED and set it to green */
 	alchemy_gpio_direction_output(211, 1);	/* green on */
 	alchemy_gpio_direction_output(212, 0);	/* red off */
-
-	board_pci_idsel = mtx1_pci_idsel;
 
 	printk(KERN_INFO "4G Systems MTX-1 Board\n");
 }

@@ -366,7 +366,7 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	if (r < 0)
 		goto out;
 
-	gpmc_cs_enable_mem(cs, res->start, res->end - res->start + 1);
+	gpmc_cs_enable_mem(cs, res->start, resource_size(res));
 	*base = res->start;
 	gpmc_cs_set_reserved(cs, 1);
 out:

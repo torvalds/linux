@@ -70,6 +70,35 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 }
 
+int perf_header__read_build_ids(int input, off_t offset, off_t size)
+{
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	off_t limit = offset + size;
+	int err = -1;
+
+	while (offset < limit) {
+		struct dso *dso;
+		ssize_t len;
+
+		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
+			goto out;
+
+		len = bev.header.size - sizeof(bev);
+		if (read(input, filename, len) != len)
+			goto out;
+
+		dso = dsos__findnew(filename);
+		if (dso != NULL)
+			dso__set_build_id(dso, &bev.build_id);
+
+		offset += bev.header.size;
+	}
+	err = 0;
+out:
+	return err;
+}
+
 int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    const char *input_name,
 			    int force,
@@ -130,7 +159,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		if (curr_handler->sample_type_check(sample_type) < 0)
 			exit(-1);
 
-	if (load_kernel(0, NULL) < 0) {
+	if (load_kernel(NULL) < 0) {
 		perror("failed to load kernel symbols");
 		return EXIT_FAILURE;
 	}
