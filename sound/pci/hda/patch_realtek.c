@@ -11471,8 +11471,10 @@ static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9025, "Sony VAIO Z21MN", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK(0x104d, 0x9035, "Sony VAIO VGN-FW170J", ALC262_AUTO),
 	SND_PCI_QUIRK(0x104d, 0x9047, "Sony VAIO Type G", ALC262_AUTO),
+#if 0 /* disable the quirk since model=auto works better in recent versions */
 	SND_PCI_QUIRK_MASK(0x104d, 0xff00, 0x9000, "Sony VAIO",
 			   ALC262_SONY_ASSAMD),
+#endif
 	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
 		      ALC262_TOSHIBA_RX1),
 	SND_PCI_QUIRK(0x1179, 0xff7b, "Toshiba S06", ALC262_TOSHIBA_S06),
