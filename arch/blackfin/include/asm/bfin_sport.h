@@ -1,23 +1,13 @@
 /*
- * bfin_sport.h - userspace header for bfin sport driver
+ * bfin_sport.h - interface to Blackfin SPORTs
  *
- * Copyright 2004-2008 Analog Devices Inc.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
 
 #ifndef __BFIN_SPORT_H__
 #define __BFIN_SPORT_H__
-
-#ifdef __KERNEL__
-#include <linux/cdev.h>
-#include <linux/mutex.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
-#endif
-
-#define SPORT_MAJOR	237
-#define SPORT_NR_DEVS	2
 
 /* Sport mode: it can be set to TDM, i2s or others */
 #define NORM_MODE	0x0
@@ -35,7 +25,7 @@ struct sport_config {
 	unsigned int mode:3;
 
 	/* if TDM mode is selected, channels must be set */
-	int channels;		/* Must be in 8 units */
+	int channels;	/* Must be in 8 units */
 	unsigned int frame_delay:4;	/* Delay between frame sync pulse and first bit */
 
 	/* I2S mode */
@@ -69,94 +59,137 @@ struct sport_config {
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
+
+/*
+ * All Blackfin system MMRs are padded to 32bits even if the register
+ * itself is only 16bits.  So use a helper macro to streamline this.
+ */
+#define __BFP(m) u16 m; u16 __pad_##m
 struct sport_register {
-	unsigned short tcr1;
-	unsigned short reserved0;
-	unsigned short tcr2;
-	unsigned short reserved1;
-	unsigned short tclkdiv;
-	unsigned short reserved2;
-	unsigned short tfsdiv;
-	unsigned short reserved3;
-	unsigned long tx;
-	unsigned long reserved_l0;
-	unsigned long rx;
-	unsigned long reserved_l1;
-	unsigned short rcr1;
-	unsigned short reserved4;
-	unsigned short rcr2;
-	unsigned short reserved5;
-	unsigned short rclkdiv;
-	unsigned short reserved6;
-	unsigned short rfsdiv;
-	unsigned short reserved7;
-	unsigned short stat;
-	unsigned short reserved8;
-	unsigned short chnl;
-	unsigned short reserved9;
-	unsigned short mcmc1;
-	unsigned short reserved10;
-	unsigned short mcmc2;
-	unsigned short reserved11;
-	unsigned long mtcs0;
-	unsigned long mtcs1;
-	unsigned long mtcs2;
-	unsigned long mtcs3;
-	unsigned long mrcs0;
-	unsigned long mrcs1;
-	unsigned long mrcs2;
-	unsigned long mrcs3;
+	__BFP(tcr1);
+	__BFP(tcr2);
+	__BFP(tclkdiv);
+	__BFP(tfsdiv);
+	union {
+		u32 tx32;
+		u16 tx16;
+	};
+	u32 __pad_tx;
+	union {
+		u32 rx32;	/* use the anomaly wrapper below */
+		u16 rx16;
+	};
+	u32 __pad_rx;
+	__BFP(rcr1);
+	__BFP(rcr2);
+	__BFP(rclkdiv);
+	__BFP(rfsdiv);
+	__BFP(stat);
+	__BFP(chnl);
+	__BFP(mcmc1);
+	__BFP(mcmc2);
+	u32 mtcs0;
+	u32 mtcs1;
+	u32 mtcs2;
+	u32 mtcs3;
+	u32 mrcs0;
+	u32 mrcs1;
+	u32 mrcs2;
+	u32 mrcs3;
 };
+#undef __BFP
 
-struct sport_dev {
-	struct cdev cdev;	/* Char device structure */
-
-	int sport_num;
-
-	int dma_rx_chan;
-	int dma_tx_chan;
-
-	int rx_irq;
-	unsigned char *rx_buf;	/* Buffer store the received data */
-	int rx_len;		/* How many bytes will be received */
-	int rx_received;	/* How many bytes has been received */
-
-	int tx_irq;
-	const unsigned char *tx_buf;
-	int tx_len;
-	int tx_sent;
-
-	int err_irq;
-
-	struct mutex mutex;	/* mutual exclusion semaphore */
-	struct task_struct *task;
-
-	wait_queue_head_t waitq;
-	int	wait_con;
-	struct sport_register *regs;
-	struct sport_config config;
-};
+#define bfin_read_sport_rx32(base) \
+({ \
+	struct sport_register *__mmrs = (void *)base; \
+	u32 __ret; \
+	unsigned long flags; \
+	if (ANOMALY_05000473) \
+		local_irq_save(flags); \
+	__ret = __mmrs->rx32; \
+	if (ANOMALY_05000473) \
+		local_irq_restore(flags); \
+	__ret; \
+})
 
 #endif
 
-#define SPORT_TCR1	0
-#define	SPORT_TCR2	1
-#define	SPORT_TCLKDIV	2
-#define	SPORT_TFSDIV	3
-#define	SPORT_RCR1	8
-#define	SPORT_RCR2	9
-#define SPORT_RCLKDIV	10
-#define	SPORT_RFSDIV	11
-#define SPORT_CHANNEL	13
-#define SPORT_MCMC1	14
-#define SPORT_MCMC2	15
-#define SPORT_MTCS0	16
-#define SPORT_MTCS1	17
-#define SPORT_MTCS2	18
-#define SPORT_MTCS3	19
-#define SPORT_MRCS0	20
-#define SPORT_MRCS1	21
-#define SPORT_MRCS2	22
-#define SPORT_MRCS3	23
+/* Workaround defBF*.h SPORT MMRs till they get cleansed */
+#undef DTYPE_NORM
+#undef SLEN
+#undef SP_WOFF
+#undef SP_WSIZE
+
+/* SPORT_TCR1 Masks */
+#define TSPEN		0x0001	/* TX enable */
+#define ITCLK		0x0002	/* Internal TX Clock Select */
+#define TDTYPE		0x000C	/* TX Data Formatting Select */
+#define DTYPE_NORM	0x0000	/* Data Format Normal */
+#define DTYPE_ULAW	0x0008	/* Compand Using u-Law */
+#define DTYPE_ALAW	0x000C	/* Compand Using A-Law */
+#define TLSBIT		0x0010	/* TX Bit Order */
+#define ITFS		0x0200	/* Internal TX Frame Sync Select */
+#define TFSR		0x0400	/* TX Frame Sync Required Select */
+#define DITFS		0x0800	/* Data Independent TX Frame Sync Select */
+#define LTFS		0x1000	/* Low TX Frame Sync Select */
+#define LATFS		0x2000	/* Late TX Frame Sync Select */
+#define TCKFE		0x4000	/* TX Clock Falling Edge Select */
+
+/* SPORT_TCR2 Masks */
+#define SLEN		0x001F	/* SPORT TX Word Length (2 - 31) */
+#define DP_SLEN(x)	BFIN_DEPOSIT(SLEN, x)
+#define EX_SLEN(x)	BFIN_EXTRACT(SLEN, x)
+#define TXSE		0x0100	/* TX Secondary Enable */
+#define TSFSE		0x0200	/* TX Stereo Frame Sync Enable */
+#define TRFST		0x0400	/* TX Right-First Data Order */
+
+/* SPORT_RCR1 Masks */
+#define RSPEN		0x0001	/* RX enable */
+#define IRCLK		0x0002	/* Internal RX Clock Select */
+#define RDTYPE		0x000C	/* RX Data Formatting Select */
+/* DTYPE_* defined above */
+#define RLSBIT		0x0010	/* RX Bit Order */
+#define IRFS		0x0200	/* Internal RX Frame Sync Select */
+#define RFSR		0x0400	/* RX Frame Sync Required Select */
+#define LRFS		0x1000	/* Low RX Frame Sync Select */
+#define LARFS		0x2000	/* Late RX Frame Sync Select */
+#define RCKFE		0x4000	/* RX Clock Falling Edge Select */
+
+/* SPORT_RCR2 Masks */
+/* SLEN defined above */
+#define RXSE		0x0100	/* RX Secondary Enable */
+#define RSFSE		0x0200	/* RX Stereo Frame Sync Enable */
+#define RRFST		0x0400	/* Right-First Data Order */
+
+/* SPORT_STAT Masks */
+#define RXNE		0x0001	/* RX FIFO Not Empty Status */
+#define RUVF		0x0002	/* RX Underflow Status */
+#define ROVF		0x0004	/* RX Overflow Status */
+#define TXF		0x0008	/* TX FIFO Full Status */
+#define TUVF		0x0010	/* TX Underflow Status */
+#define TOVF		0x0020	/* TX Overflow Status */
+#define TXHRE		0x0040	/* TX Hold Register Empty */
+
+/* SPORT_MCMC1 Masks */
+#define SP_WOFF		0x03FF	/* Multichannel Window Offset Field */
+#define DP_SP_WOFF(x)	BFIN_DEPOSIT(SP_WOFF, x)
+#define EX_SP_WOFF(x)	BFIN_EXTRACT(SP_WOFF, x)
+#define SP_WSIZE	0xF000	/* Multichannel Window Size Field */
+#define DP_SP_WSIZE(x)	BFIN_DEPOSIT(SP_WSIZE, x)
+#define EX_SP_WSIZE(x)	BFIN_EXTRACT(SP_WSIZE, x)
+
+/* SPORT_MCMC2 Masks */
+#define MCCRM		0x0003	/* Multichannel Clock Recovery Mode */
+#define REC_BYPASS	0x0000	/* Bypass Mode (No Clock Recovery) */
+#define REC_2FROM4	0x0002	/* Recover 2 MHz Clock from 4 MHz Clock */
+#define REC_8FROM16	0x0003	/* Recover 8 MHz Clock from 16 MHz Clock */
+#define MCDTXPE		0x0004	/* Multichannel DMA Transmit Packing */
+#define MCDRXPE		0x0008	/* Multichannel DMA Receive Packing */
+#define MCMEN		0x0010	/* Multichannel Frame Mode Enable */
+#define FSDR		0x0080	/* Multichannel Frame Sync to Data Relationship */
+#define MFD		0xF000	/* Multichannel Frame Delay */
+#define DP_MFD(x)	BFIN_DEPOSIT(MFD, x)
+#define EX_MFD(x)	BFIN_EXTRACT(MFD, x)
 
 #endif

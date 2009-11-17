@@ -12,6 +12,8 @@
 #include <mach/anomaly.h>
 
 #define MK_BMSK_(x) (1<<x)
+#define BFIN_DEPOSIT(mask, x)	(((x) << __ffs(mask)) & (mask))
+#define BFIN_EXTRACT(mask, x)	(((x) & (mask)) >> __ffs(mask))
 
 #ifndef __ASSEMBLY__
 
