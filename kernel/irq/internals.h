@@ -18,7 +18,7 @@ extern void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume);
 extern struct lock_class_key irq_desc_lock_class;
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 extern void clear_kstat_irqs(struct irq_desc *desc);
-extern spinlock_t sparse_irq_lock;
+extern raw_spinlock_t sparse_irq_lock;
 
 #ifdef CONFIG_SPARSE_IRQ
 /* irq_desc_ptrs allocated at boot time */

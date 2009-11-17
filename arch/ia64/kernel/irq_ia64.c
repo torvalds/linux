@@ -345,7 +345,7 @@ static irqreturn_t smp_irq_move_cleanup_interrupt(int irq, void *dev_id)
 
 		desc = irq_desc + irq;
 		cfg = irq_cfg + irq;
-		spin_lock(&desc->lock);
+		raw_spin_lock(&desc->lock);
 		if (!cfg->move_cleanup_count)
 			goto unlock;
 
@@ -358,7 +358,7 @@ static irqreturn_t smp_irq_move_cleanup_interrupt(int irq, void *dev_id)
 		spin_unlock_irqrestore(&vector_lock, flags);
 		cfg->move_cleanup_count--;
 	unlock:
-		spin_unlock(&desc->lock);
+		raw_spin_unlock(&desc->lock);
 	}
 	return IRQ_HANDLED;
 }
