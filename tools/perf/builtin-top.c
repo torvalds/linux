@@ -78,6 +78,14 @@ static int			dump_symtab                     =      0;
 
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
+static struct winsize		winsize;
+static const char		*graph_line			=
+	"_____________________________________________________________________"
+	"_____________________________________________________________________";
+static const char		*graph_dotted_line			=
+	"---------------------------------------------------------------------"
+	"---------------------------------------------------------------------"
+	"---------------------------------------------------------------------";
 
 /*
  * Source
@@ -107,6 +115,7 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
+	u16			name_len;
 	u8			origin;
 	struct map		*map;
 	struct source_line	*source;
@@ -119,34 +128,40 @@ struct sym_entry {
  * Source functions
  */
 
-/* most GUI terminals set LINES (although some don't export it) */
-static int term_rows(void)
+static void get_term_dimensions(struct winsize *ws)
 {
-	char *lines_string = getenv("LINES");
-	int n_lines;
+	char *s = getenv("LINES");
 
-	if (lines_string && (n_lines = atoi(lines_string)) > 0)
-		return n_lines;
-#ifdef TIOCGWINSZ
-	else {
-		struct winsize ws;
-		if (!ioctl(1, TIOCGWINSZ, &ws) && ws.ws_row)
-			return ws.ws_row;
+	if (s != NULL) {
+		ws->ws_row = atoi(s);
+		s = getenv("COLUMNS");
+		if (s != NULL) {
+			ws->ws_col = atoi(s);
+			if (ws->ws_row && ws->ws_col)
+				return;
+		}
 	}
+#ifdef TIOCGWINSZ
+	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
+	    ws->ws_row && ws->ws_col)
+		return;
 #endif
-	return 25;
+	ws->ws_row = 25;
+	ws->ws_col = 80;
 }
 
-static void update_print_entries(void)
+static void update_print_entries(struct winsize *ws)
 {
-	print_entries = term_rows();
+	print_entries = ws->ws_row;
+
 	if (print_entries > 9)
 		print_entries -= 9;
 }
 
 static void sig_winch_handler(int sig __used)
 {
-	update_print_entries();
+	get_term_dimensions(&winsize);
+	update_print_entries(&winsize);
 }
 
 static void parse_source(struct sym_entry *syme)
@@ -423,6 +438,8 @@ static void print_sym_table(void)
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
+	int sym_width = 0, dso_width;
+	const int win_width = winsize.ws_col - 1;
 
 	samples = userspace_samples = 0;
 
@@ -434,6 +451,7 @@ static void print_sym_table(void)
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
 		syme->snap_count = syme->count[snap];
 		if (syme->snap_count != 0) {
+
 			if ((hide_user_symbols &&
 			     syme->origin == PERF_RECORD_MISC_USER) ||
 			    (hide_kernel_symbols &&
@@ -453,8 +471,7 @@ static void print_sym_table(void)
 
 	puts(CONSOLE_CLEAR);
 
-	printf(
-"------------------------------------------------------------------------------\n");
+	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
 		samples_per_sec,
 		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
@@ -492,26 +509,44 @@ static void print_sym_table(void)
 			printf(", %d CPUs)\n", nr_cpus);
 	}
 
-	printf("------------------------------------------------------------------------------\n\n");
+	printf("%-*.*s\n\n", win_width, win_width, graph_dotted_line);
 
 	if (sym_filter_entry) {
 		show_details(sym_filter_entry);
 		return;
 	}
 
+	/*
+	 * Find the longest symbol name that will be displayed
+	 */
+	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
+		syme = rb_entry(nd, struct sym_entry, rb_node);
+		if (++printed > print_entries ||
+		    (int)syme->snap_count < count_filter)
+			continue;
+
+		if (syme->name_len > sym_width)
+			sym_width = syme->name_len;
+	}
+
+	printed = 0;
+
 	if (nr_counters == 1)
 		printf("             samples  pcnt");
 	else
 		printf("   weight    samples  pcnt");
 
+	dso_width = winsize.ws_col - sym_width - 29;
+
 	if (verbose)
 		printf("         RIP       ");
-	printf(" function                                 DSO\n");
+	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
 	printf("   %s    _______ _____",
 	       nr_counters == 1 ? "      " : "______");
 	if (verbose)
 		printf(" ________________");
-	printf(" ________________________________ ________________\n\n");
+	printf(" %-*.*s %-*.*s\n\n", sym_width, sym_width, graph_line,
+	       dso_width, dso_width, graph_line);
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct symbol *sym;
@@ -534,8 +569,11 @@ static void print_sym_table(void)
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		if (verbose)
 			printf(" %016llx", sym->start);
-		printf(" %-32s", sym->name);
-		printf(" %s", syme->map->dso->short_name);
+		printf(" %-*.*s", sym_width, sym_width, sym->name);
+		printf(" %-*.*s", dso_width, dso_width,
+		       dso_width >= syme->map->dso->long_name_len ?
+					syme->map->dso->long_name :
+					syme->map->dso->short_name);
 		printf("\n");
 	}
 }
@@ -718,7 +756,7 @@ static void handle_keypress(int c)
 		case 'e':
 			prompt_integer(&print_entries, "Enter display entries (lines)");
 			if (print_entries == 0) {
-				update_print_entries();
+				sig_winch_handler(SIGWINCH);
 				signal(SIGWINCH, sig_winch_handler);
 			} else
 				signal(SIGWINCH, SIG_DFL);
@@ -861,6 +899,9 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 			break;
 		}
 	}
+
+	if (!syme->skip)
+		syme->name_len = strlen(sym->name);
 
 	return 0;
 }
@@ -1301,8 +1342,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
 
+	get_term_dimensions(&winsize);
 	if (print_entries == 0) {
-		update_print_entries();
+		update_print_entries(&winsize);
 		signal(SIGWINCH, sig_winch_handler);
 	}
 
