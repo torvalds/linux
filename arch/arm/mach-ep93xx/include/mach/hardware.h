@@ -1,6 +1,7 @@
 /*
  * arch/arm/mach-ep93xx/include/mach/hardware.h
  */
+
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
