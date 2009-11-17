@@ -14,6 +14,7 @@ obj-				:=
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
 obj-y				+= irq.o
+obj-y				+= clock.o
 
 # CPU support
 
