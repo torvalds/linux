@@ -162,6 +162,11 @@ my $alignment;		# The .align value to use for $mcount_section
 my $section_type;	# Section header plus possible alignment command
 my $can_use_local = 0; 	# If we can use local function references
 
+# Shut up recordmcount if user has older objcopy
+my $quiet_recordmcount = ".tmp_quiet_recordmcount";
+my $print_warning = 1;
+$print_warning = 0 if ( -f $quiet_recordmcount);
+
 ##
 # check_objcopy - whether objcopy supports --globalize-symbols
 #
@@ -179,10 +184,13 @@ sub check_objcopy
     }
     close (IN);
 
-    if (!$can_use_local) {
+    if (!$can_use_local && $print_warning) {
 	print STDERR "WARNING: could not find objcopy version or version " .
 	    "is less than 2.17.\n" .
-	    "\tLocal function references is disabled.\n";
+	    "\tLocal function references are disabled.\n";
+	open (QUIET, ">$quiet_recordmcount");
+	printf QUIET "Disables the warning from recordmcount.pl\n";
+	close QUIET;
     }
 }
 
