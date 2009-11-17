@@ -164,7 +164,7 @@ static __devinit int wm831x_backup_probe(struct platform_device *pdev)
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_backup *devdata;
 	struct power_supply *backup;
-	int ret, irq, i;
+	int ret;
 
 	devdata = kzalloc(sizeof(struct wm831x_backup), GFP_KERNEL);
 	if (devdata == NULL)
