@@ -509,6 +509,12 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		     conf->type, conf->mac_addr);
 
 	mutex_lock(&wl->mutex);
+	if (wl->vif) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	wl->vif = conf->vif;
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
@@ -538,7 +544,12 @@ out:
 static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 					 struct ieee80211_if_init_conf *conf)
 {
+	struct wl1251 *wl = hw->priv;
+
+	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
+	wl->vif = NULL;
+	mutex_unlock(&wl->mutex);
 }
 
 static int wl1251_build_null_data(struct wl1251 *wl)
@@ -1372,6 +1383,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
 	wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
+	wl->vif = NULL;
 
 	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
 		wl->tx_frames[i] = NULL;

@@ -374,6 +374,8 @@ struct wl1251 {
 	u8 buffer_busyword[WL1251_BUSY_WORD_LEN];
 	struct wl1251_rx_descriptor *rx_descriptor;
 
+	struct ieee80211_vif *vif;
+
 	u32 chip_id;
 	char fw_ver[21];
 };
