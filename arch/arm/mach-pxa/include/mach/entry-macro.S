@@ -46,5 +46,6 @@
 		beq	1001f
 		bic	\irqstat, \irqstat, #0x80000000
 		mov	\irqnr, \irqstat, lsr #16
+		add	\irqnr, \irqnr, #(PXA_IRQ(0))
 1001:
 		.endm
