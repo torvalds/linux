@@ -71,6 +71,8 @@
 #define _PAGE_EXT_KERN_WRITE	0x1000	/* EPR4-bit: Kernel space writable */
 #define _PAGE_EXT_KERN_READ	0x2000	/* EPR5-bit: Kernel space readable */
 
+#define _PAGE_EXT_WIRED		0x4000	/* software: Wire TLB entry */
+
 /* Wrapper for extended mode pgprot twiddling */
 #define _PAGE_EXT(x)		((unsigned long long)(x) << 32)
 
@@ -163,6 +165,8 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #define _PAGE_CHG_MASK \
 	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | \
 	 _PAGE_DIRTY | _PAGE_SPECIAL)
+
+#define _PAGE_WIRED	(_PAGE_EXT(_PAGE_EXT_WIRED))
 
 #ifndef __ASSEMBLY__
 

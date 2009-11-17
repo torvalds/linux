@@ -97,6 +97,22 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 
 #define tlb_migrate_finish(mm)		do { } while (0)
 
+#ifdef CONFIG_CPU_SH4
+extern void tlb_wire_entry(struct vm_area_struct *, unsigned long, pte_t);
+extern void tlb_unwire_entry(void);
+#else
+static inline void tlb_wire_entry(struct vm_area_struct *vma ,
+				  unsigned long addr, pte_t pte)
+{
+	BUG();
+}
+
+static inline void tlb_unwire_entry(void)
+{
+	BUG();
+}
+#endif /* CONFIG_CPU_SH4 */
+
 #else /* CONFIG_MMU */
 
 #define tlb_start_vma(tlb, vma)				do { } while (0)
