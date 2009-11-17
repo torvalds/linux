@@ -368,14 +368,25 @@ module_exit(drm_core_exit);
 /**
  * Copy and IOCTL return string to user space
  */
-#define DRM_COPY(name, value)                                         \
-	len = strlen(value);                                          \
-	if (len > name##_len) len = name##_len;                       \
-	name##_len = strlen(value);                                   \
-	if (len && name) {                                            \
-		if (copy_to_user(name, value, len))                   \
-			return -EFAULT;                               \
-	}
+static int drm_copy_field(char *buf, size_t *buf_len, const char *value)
+{
+	int len;
+
+	/* don't overflow userbuf */
+	len = strlen(value);
+	if (len > *buf_len)
+		len = *buf_len;
+
+	/* let userspace know exact length of driver value (which could be
+	 * larger than the userspace-supplied buffer) */
+	*buf_len = strlen(value);
+
+	/* finally, try filling in the userbuf */
+	if (len && buf)
+		if (copy_to_user(buf, value, len))
+			return -EFAULT;
+	return 0;
+}
 
 /**
  * Get version information
@@ -392,14 +403,13 @@ static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
-	int len;
 
 	version->version_major = dev->driver->major;
 	version->version_minor = dev->driver->minor;
 	version->version_patchlevel = dev->driver->patchlevel;
-	DRM_COPY(version->name, dev->driver->name);
-	DRM_COPY(version->date, dev->driver->date);
-	DRM_COPY(version->desc, dev->driver->desc);
+	drm_copy_field(version->name, &version->name_len, dev->driver->name);
+	drm_copy_field(version->date, &version->date_len, dev->driver->date);
+	drm_copy_field(version->desc, &version->desc_len, dev->driver->desc);
 
 	return 0;
 }
