@@ -212,9 +212,10 @@ out:
 	return ret;
 }
 
+#define WL1251_IRQ_LOOP_COUNT 10
 static void wl1251_irq_work(struct work_struct *work)
 {
-	u32 intr;
+	u32 intr, ctr = WL1251_IRQ_LOOP_COUNT;
 	struct wl1251 *wl =
 		container_of(work, struct wl1251, irq_work);
 	int ret;
@@ -235,78 +236,84 @@ static void wl1251_irq_work(struct work_struct *work)
 	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
 	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
 
-	if (wl->data_path) {
-		wl->rx_counter =
-			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
+	do {
+		if (wl->data_path) {
+			wl->rx_counter = wl1251_mem_read32(
+				wl, wl->data_path->rx_control_addr);
 
-		/* We handle a frmware bug here */
-		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
-		case 0:
-			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
-			intr &= ~WL1251_ACX_INTR_RX0_DATA;
-			intr &= ~WL1251_ACX_INTR_RX1_DATA;
-			break;
-		case 1:
-			wl1251_debug(DEBUG_IRQ, "RX: FW +1");
-			intr |= WL1251_ACX_INTR_RX0_DATA;
-			intr &= ~WL1251_ACX_INTR_RX1_DATA;
-			break;
-		case 2:
-			wl1251_debug(DEBUG_IRQ, "RX: FW +2");
-			intr |= WL1251_ACX_INTR_RX0_DATA;
-			intr |= WL1251_ACX_INTR_RX1_DATA;
-			break;
-		default:
-			wl1251_warning("RX: FW and host out of sync: %d",
-				       wl->rx_counter - wl->rx_handled);
-			break;
+			/* We handle a frmware bug here */
+			switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
+			case 0:
+				wl1251_debug(DEBUG_IRQ,
+					     "RX: FW and host in sync");
+				intr &= ~WL1251_ACX_INTR_RX0_DATA;
+				intr &= ~WL1251_ACX_INTR_RX1_DATA;
+				break;
+			case 1:
+				wl1251_debug(DEBUG_IRQ, "RX: FW +1");
+				intr |= WL1251_ACX_INTR_RX0_DATA;
+				intr &= ~WL1251_ACX_INTR_RX1_DATA;
+				break;
+			case 2:
+				wl1251_debug(DEBUG_IRQ, "RX: FW +2");
+				intr |= WL1251_ACX_INTR_RX0_DATA;
+				intr |= WL1251_ACX_INTR_RX1_DATA;
+				break;
+			default:
+				wl1251_warning(
+					"RX: FW and host out of sync: %d",
+					wl->rx_counter - wl->rx_handled);
+				break;
+			}
+
+			wl->rx_handled = wl->rx_counter;
+
+			wl1251_debug(DEBUG_IRQ, "RX counter: %d",
+				     wl->rx_counter);
 		}
 
-		wl->rx_handled = wl->rx_counter;
+		intr &= wl->intr_mask;
 
+		if (intr == 0) {
+			wl1251_debug(DEBUG_IRQ, "INTR is 0");
+			goto out_sleep;
+		}
 
-		wl1251_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
-	}
+		if (intr & WL1251_ACX_INTR_RX0_DATA) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+			wl1251_rx(wl);
+		}
 
-	intr &= wl->intr_mask;
+		if (intr & WL1251_ACX_INTR_RX1_DATA) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+			wl1251_rx(wl);
+		}
 
-	if (intr == 0) {
-		wl1251_debug(DEBUG_IRQ, "INTR is 0");
-		wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
-				   ~(wl->intr_mask));
+		if (intr & WL1251_ACX_INTR_TX_RESULT) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+			wl1251_tx_complete(wl);
+		}
 
-		goto out_sleep;
-	}
+		if (intr & (WL1251_ACX_INTR_EVENT_A |
+			    WL1251_ACX_INTR_EVENT_B)) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)",
+				     intr);
+			if (intr & WL1251_ACX_INTR_EVENT_A)
+				wl1251_event_handle(wl, 0);
+			else
+				wl1251_event_handle(wl, 1);
+		}
 
-	if (intr & WL1251_ACX_INTR_RX0_DATA) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
-		wl1251_rx(wl);
-	}
+		if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
+			wl1251_debug(DEBUG_IRQ,
+				     "WL1251_ACX_INTR_INIT_COMPLETE");
 
-	if (intr & WL1251_ACX_INTR_RX1_DATA) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
-		wl1251_rx(wl);
-	}
+		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
 
-	if (intr & WL1251_ACX_INTR_TX_RESULT) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
-		wl1251_tx_complete(wl);
-	}
-
-	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
-		if (intr & WL1251_ACX_INTR_EVENT_A)
-			wl1251_event_handle(wl, 0);
-		else
-			wl1251_event_handle(wl, 1);
-	}
-
-	if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
-
-	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
+	} while (intr && --ctr);
 
 out_sleep:
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
 	wl1251_ps_elp_sleep(wl);
 
 out:
