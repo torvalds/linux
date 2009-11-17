@@ -111,7 +111,6 @@ static int			display_weighted		=     -1;
 struct sym_entry {
 	struct rb_node		rb_node;
 	struct list_head	node;
-	unsigned long		count[MAX_COUNTERS];
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
@@ -122,6 +121,7 @@ struct sym_entry {
 	struct source_line	*lines;
 	struct source_line	**lines_tail;
 	pthread_mutex_t		source_lock;
+	unsigned long		count[0];
 };
 
 /*
@@ -130,7 +130,7 @@ struct sym_entry {
 
 static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
 {
-       return (struct symbol *)(self + 1);
+       return ((void *)self) + symbol__priv_size;
 }
 
 static void get_term_dimensions(struct winsize *ws)
@@ -1314,8 +1314,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init(sizeof(struct sym_entry));
-
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
@@ -1331,6 +1329,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	if (!nr_counters)
 		nr_counters = 1;
+
+	symbol__init(sizeof(struct sym_entry) +
+		     (nr_counters + 1) * sizeof(unsigned long));
 
 	if (delay_secs < 1)
 		delay_secs = 1;
