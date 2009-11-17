@@ -166,10 +166,12 @@ ifdef NO_64BIT
   MBITS := -m32
 else
   #
-  # If we're on a 64-bit kernel, use -m64:
+  # If we're on a 64-bit kernel (except ia64), use -m64:
   #
-  ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
-    MBITS := -m64
+  ifneq ($(uname_M),ia64)
+    ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
+      MBITS := -m64
+    endif
   endif
 endif
 
