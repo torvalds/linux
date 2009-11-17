@@ -270,6 +270,8 @@ static int __devinit wl1251_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	wl->use_eeprom = pdata->use_eeprom;
+
 	ret = request_irq(wl->irq, wl1251_irq, 0, DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1251_error("request_irq() failed: %d", ret);

@@ -269,6 +269,7 @@ struct wl1251 {
 
 	void (*set_power)(bool enable);
 	int irq;
+	bool use_eeprom;
 
 	enum wl1251_state state;
 	struct mutex mutex;

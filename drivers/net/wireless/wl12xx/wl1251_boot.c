@@ -494,13 +494,19 @@ int wl1251_boot(struct wl1251 *wl)
 		goto out;
 
 	/* 2. start processing NVS file */
-	ret = wl1251_boot_upload_nvs(wl);
-	if (ret < 0)
-		goto out;
+	if (wl->use_eeprom) {
+		wl1251_reg_write32(wl, ACX_REG_EE_START, START_EEPROM_MGR);
+		msleep(4000);
+		wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, USE_EEPROM);
+	} else {
+		ret = wl1251_boot_upload_nvs(wl);
+		if (ret < 0)
+			goto out;
 
-	/* write firmware's last address (ie. it's length) to
-	 * ACX_EEPROMLESS_IND_REG */
-	wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, wl->fw_len);
+		/* write firmware's last address (ie. it's length) to
+		 * ACX_EEPROMLESS_IND_REG */
+		wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, wl->fw_len);
+	}
 
 	/* 6. read the EEPROM parameters */
 	tmp = wl1251_reg_read32(wl, SCR_PAD2);
