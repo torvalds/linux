@@ -314,8 +314,8 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 static int wl1251_boot_upload_firmware(struct wl1251 *wl)
 {
 	int addr, chunk_num, partition_limit;
-	size_t fw_data_len;
-	u8 *p;
+	size_t fw_data_len, len;
+	u8 *p, *buf;
 
 	/* whal_FwCtrl_LoadFwImageSm() */
 
@@ -332,6 +332,12 @@ static int wl1251_boot_upload_firmware(struct wl1251 *wl)
 	if ((fw_data_len % 4) != 0) {
 		wl1251_error("firmware length not multiple of four");
 		return -EIO;
+	}
+
+	buf = kmalloc(CHUNK_SIZE, GFP_KERNEL);
+	if (!buf) {
+		wl1251_error("allocation for firmware upload chunk failed");
+		return -ENOMEM;
 	}
 
 	wl1251_set_partition(wl, WL1251_PART_DOWN_MEM_START,
@@ -364,7 +370,11 @@ static int wl1251_boot_upload_firmware(struct wl1251 *wl)
 		p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
 		wl1251_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
-		wl1251_mem_write(wl, addr, p, CHUNK_SIZE);
+
+		/* need to copy the chunk for dma */
+		len = CHUNK_SIZE;
+		memcpy(buf, p, len);
+		wl1251_mem_write(wl, addr, buf, len);
 
 		chunk_num++;
 	}
@@ -372,9 +382,16 @@ static int wl1251_boot_upload_firmware(struct wl1251 *wl)
 	/* 10.4 upload the last chunk */
 	addr = WL1251_PART_DOWN_MEM_START + chunk_num * CHUNK_SIZE;
 	p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
+
+	/* need to copy the chunk for dma */
+	len = fw_data_len % CHUNK_SIZE;
+	memcpy(buf, p, len);
+
 	wl1251_debug(DEBUG_BOOT, "uploading fw last chunk (%zu B) 0x%p to 0x%x",
-		     fw_data_len % CHUNK_SIZE, p, addr);
-	wl1251_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
+		     len, p, addr);
+	wl1251_mem_write(wl, addr, buf, len);
+
+	kfree(buf);
 
 	return 0;
 }
