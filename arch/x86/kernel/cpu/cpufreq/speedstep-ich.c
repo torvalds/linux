@@ -39,7 +39,7 @@ static struct pci_dev *speedstep_chipset_dev;
 
 /* speedstep_processor
  */
-static unsigned int speedstep_processor;
+static enum speedstep_processor speedstep_processor;
 
 static u32 pmbase;
 
