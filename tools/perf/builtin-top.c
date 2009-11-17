@@ -128,6 +128,11 @@ struct sym_entry {
  * Source functions
  */
 
+static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
+{
+       return (struct symbol *)(self + 1);
+}
+
 static void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
@@ -181,7 +186,7 @@ static void parse_source(struct sym_entry *syme)
 		goto out_assign;
 	}
 
-	sym = (struct symbol *)(syme + 1);
+	sym = sym_entry__symbol(syme);
 	map = syme->map;
 	path = map->dso->long_name;
 
@@ -276,7 +281,7 @@ out_unlock:
 
 static void lookup_sym_source(struct sym_entry *syme)
 {
-	struct symbol *symbol = (struct symbol *)(syme + 1);
+	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
 	char pattern[PATH_MAX];
 
@@ -325,7 +330,7 @@ static void show_details(struct sym_entry *syme)
 	if (!syme->source)
 		return;
 
-	symbol = (struct symbol *)(syme + 1);
+	symbol = sym_entry__symbol(syme);
 	printf("Showing %s for %s\n", event_name(sym_counter), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
@@ -573,7 +578,7 @@ static void print_sym_table(void)
 		double pcnt;
 
 		syme = rb_entry(nd, struct sym_entry, rb_node);
-		sym = (struct symbol *)(syme + 1);
+		sym = sym_entry__symbol(syme);
 
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
@@ -661,7 +666,7 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 	pthread_mutex_unlock(&active_symbols_lock);
 
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
-		struct symbol *sym = (struct symbol *)(syme + 1);
+		struct symbol *sym = sym_entry__symbol(syme);
 
 		if (!strcmp(buf, sym->name)) {
 			found = syme;
@@ -685,7 +690,7 @@ static void print_mapped_keys(void)
 	char *name = NULL;
 
 	if (sym_filter_entry) {
-		struct symbol *sym = (struct symbol *)(sym_filter_entry+1);
+		struct symbol *sym = sym_entry__symbol(sym_filter_entry);
 		name = sym->name;
 	}
 
