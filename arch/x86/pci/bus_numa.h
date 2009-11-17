@@ -2,7 +2,7 @@
 
 /*
  * sub bus (transparent) will use entres from 3 to store extra from
- * root, so need to make sure we have enought slot there, Should we
+ * root, so need to make sure we have enough slot there, Should we
  * increase PCI_BUS_NUM_RESOURCES?
  */
 #define RES_NUM 16
