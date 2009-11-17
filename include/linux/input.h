@@ -1040,6 +1040,7 @@ struct ff_effect {
  * @absmin: minimum values for events coming from absolute axes
  * @absfuzz: describes noisiness for axes
  * @absflat: size of the center flat position (used by joydev)
+ * @absres: resolution used for events coming form absolute axes
  * @open: this method is called when the very first user calls
  *	input_open_device(). The driver must prepare the device
  *	to start generating events (start polling thread,
