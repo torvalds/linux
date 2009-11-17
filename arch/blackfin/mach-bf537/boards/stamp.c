@@ -824,14 +824,12 @@ static struct bfin5xx_spi_chip lq035q1_spi_chip_info = {
 static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
 	.enable_dma	= 1,
 	.bits_per_word	= 8,
-	.cs_gpio = GPIO_PF10,
 };
 #endif
 
 #if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
 static struct bfin5xx_spi_chip adf7021_spi_chip_info = {
 	.bits_per_word = 16,
-	.cs_gpio = GPIO_PF10,
 };
 
 #include <linux/spi/adf702x.h>
@@ -1103,7 +1101,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.irq = IRQ_PF6,
 		.bus_num = 0,
-		.chip_select = 0,	/* GPIO controlled SSEL */
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
 		.controller_data = &enc28j60_spi_chip_info,
 		.mode = SPI_MODE_0,
 	},
@@ -1125,7 +1123,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "adf702x",
 		.max_speed_hz = 16000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,	/* GPIO controlled SSEL */
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
 		.controller_data = &adf7021_spi_chip_info,
 		.platform_data = &adf7021_platform_data,
 		.mode = SPI_MODE_0,
@@ -1148,7 +1146,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI controller data */
 static struct bfin5xx_spi_master bfin_spi0_info = {
-	.num_chipselect = 8,
+	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
