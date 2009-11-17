@@ -31,15 +31,9 @@
 #include <asm/mach/pci.h>
 
 #define SLOT0_DEVID	0
-#define SLOT0_INTA	10
-#define SLOT0_INTB	11
-
 #define SLOT1_DEVID	1
-#define SLOT1_INTA	11
-#define SLOT1_INTB	10
-
-#define SLOT_COUNT	2
-#define INT_PIN_COUNT	2
+#define INTA		10 /* slot 1 has INTA and INTB crossed */
+#define INTB		11
 
 /*
  * Slot 0 isn't actually populated with a card connector but
@@ -49,26 +43,22 @@
  */
 void __init gtwx5715_pci_preinit(void)
 {
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTA), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT0_INTB), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTA), IRQ_TYPE_LEVEL_LOW);
-	set_irq_type(IXP4XX_GPIO_IRQ(SLOT1_INTB), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTA), IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IXP4XX_GPIO_IRQ(INTB), IRQ_TYPE_LEVEL_LOW);
 	ixp4xx_pci_preinit();
 }
 
 
 static int __init gtwx5715_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	int rc;
-	static int gtwx5715_irqmap[SLOT_COUNT][INT_PIN_COUNT] = {
-		{IXP4XX_GPIO_IRQ(SLOT0_INTA), IXP4XX_GPIO_IRQ(SLOT0_INTB)},
-		{IXP4XX_GPIO_IRQ(SLOT1_INTA), IXP4XX_GPIO_IRQ(SLOT1_INTB)},
-	};
+	int rc = -1;
 
-	if (slot >= SLOT_COUNT || pin >= INT_PIN_COUNT)
-		rc = -1;
-	else
-		rc = gtwx5715_irqmap[slot][pin - 1];
+	if ((slot == SLOT0_DEVID && pin == 1) ||
+	    (slot == SLOT1_DEVID && pin == 2))
+		rc = IXP4XX_GPIO_IRQ(INTA);
+	else if ((slot == SLOT0_DEVID && pin == 2) ||
+		 (slot == SLOT1_DEVID && pin == 1))
+		rc = IXP4XX_GPIO_IRQ(INTB);
 
 	printk(KERN_INFO "%s: Mapped slot %d pin %d to IRQ %d\n",
 	       __func__, slot, pin, rc);
