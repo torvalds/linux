@@ -479,7 +479,7 @@ static int nmclan_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &mace_interrupt;
+    link->irq.Handler = mace_interrupt;
     link->irq.Instance = dev;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;

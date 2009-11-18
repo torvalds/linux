@@ -610,9 +610,8 @@ static int xl_open(struct net_device *dev)
 
 	u16 switchsettings, switchsettings_eeprom  ;
  
-	if(request_irq(dev->irq, &xl_interrupt, IRQF_SHARED , "3c359", dev)) {
+	if (request_irq(dev->irq, xl_interrupt, IRQF_SHARED , "3c359", dev))
 		return -EAGAIN;
-	}
 
 	/* 
 	 * Read the information from the EEPROM that we need.

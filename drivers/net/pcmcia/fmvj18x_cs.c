@@ -264,7 +264,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &fjn_interrupt;
+    link->irq.Handler = fjn_interrupt;
     link->irq.Instance = dev;
 
     /* General socket configuration */
