@@ -2176,7 +2176,7 @@ static int velocity_open(struct net_device *dev)
 
 	velocity_init_registers(vptr, VELOCITY_INIT_COLD);
 
-	ret = request_irq(vptr->pdev->irq, &velocity_intr, IRQF_SHARED,
+	ret = request_irq(vptr->pdev->irq, velocity_intr, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret < 0) {
 		/* Power down the chip */
