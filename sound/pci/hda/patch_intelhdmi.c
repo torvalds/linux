@@ -259,6 +259,25 @@ static int intel_hdmi_read_pin_conn(struct hda_codec *codec, hda_nid_t pin_nid)
 	return 0;
 }
 
+static void hdmi_get_show_eld(struct hda_codec *codec, hda_nid_t pin_nid,
+			      struct hdmi_eld *eld)
+{
+	if (!snd_hdmi_get_eld(eld, codec, pin_nid))
+		snd_hdmi_show_eld(eld);
+}
+
+static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
+			       struct hdmi_eld *eld)
+{
+	int present = snd_hda_pin_sense(codec, pin_nid);
+
+	eld->monitor_present	= !!(present & AC_PINSENSE_PRESENCE);
+	eld->eld_valid		= !!(present & AC_PINSENSE_ELDV);
+
+	if (present & AC_PINSENSE_ELDV)
+		hdmi_get_show_eld(codec, pin_nid, eld);
+}
+
 static int intel_hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 {
 	struct intel_hdmi_spec *spec = codec->spec;
@@ -268,6 +287,8 @@ static int intel_hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 			   "HDMI: no space for pin %d \n", pin_nid);
 		return -EINVAL;
 	}
+
+	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[spec->num_pins]);
 
 	spec->pin[spec->num_pins] = pin_nid;
 	spec->num_pins++;
@@ -434,15 +455,6 @@ static void hdmi_debug_channel_mapping(struct hda_codec *codec, hda_nid_t nid)
 						slot >> 4, slot & 0xf);
 	}
 #endif
-}
-
-static void hdmi_parse_eld(struct hda_codec *codec, int index)
-{
-	struct intel_hdmi_spec *spec = codec->spec;
-	struct hdmi_eld *eld = &spec->sink_eld[index];
-
-	if (!snd_hdmi_get_eld(eld, codec, spec->pin[index]))
-		snd_hdmi_show_eld(eld);
 }
 
 
@@ -677,7 +689,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	spec->sink_eld[index].eld_valid = eldv;
 
 	if (pind && eldv) {
-		hdmi_parse_eld(codec, index);
+		hdmi_get_show_eld(codec, spec->pin[index], &spec->sink_eld[index]);
 		/* TODO: do real things about ELD */
 	}
 }
