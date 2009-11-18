@@ -337,10 +337,9 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			/* TRAP();*/
 
-			etdev->TxMacTest = readl(&iomem->txmac.tx_test);
 			dev_warn(&etdev->pdev->dev,
 				    "RxDMA_ERR interrupt, error %x\n",
-				    etdev->TxMacTest);
+				    readl(&iomem->txmac.tx_test));
 		}
 
 		/* Handle the Wake on LAN Event */

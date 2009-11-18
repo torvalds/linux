@@ -213,9 +213,6 @@ struct et131x_adapter {
 	u32 MCAddressCount;
 	u8 MCList[NIC_MAX_MCAST_LIST][ETH_ALEN];
 
-	/* MAC test */
-	u32 TxMacTest;
-
 	/* Pointer to the device's PCI register space */
 	ADDRESS_MAP_t __iomem *regs;
 
