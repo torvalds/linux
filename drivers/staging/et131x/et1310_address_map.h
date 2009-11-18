@@ -727,59 +727,26 @@ typedef union _TXMAC_ERR_CNT_t {
 /*
  * structure for max fill reg in txmac address map
  * located at address 0x300C
+ * 31-12: unused
+ * 11-0: max fill
  */
-typedef union _TXMAC_MAX_FILL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;		/* bits 12-31 */
-		u32 max_fill:12;	/* bits 0-11 */
-#else
-		u32 max_fill:12;	/* bits 0-11 */
-		u32 unused:20;		/* bits 12-31 */
-#endif
-	} bits;
-} TXMAC_MAX_FILL_t, *PTXMAC_MAX_FILL_t;
 
 /*
  * structure for cf parameter reg in txmac address map
  * located at address 0x3010
+ * 31-16: cfep
+ * 15-0: cfpt
  */
-typedef union _TXMAC_CF_PARAM_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 cfep:16;	/* bits 16-31 */
-		u32 cfpt:16;	/* bits 0-15 */
-#else
-		u32 cfpt:16;	/* bits 0-15 */
-		u32 cfep:16;	/* bits 16-31 */
-#endif
-	} bits;
-} TXMAC_CF_PARAM_t, *PTXMAC_CF_PARAM_t;
 
 /*
  * structure for tx test reg in txmac address map
  * located at address 0x3014
+ * 31-17: unused
+ * 16: reserved1
+ * 15: txtest_en
+ * 14-11: unused
+ * 10-0: txq test pointer
  */
-typedef union _TXMAC_TXTEST_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused2:15;		/* bits 17-31 */
-		u32 reserved1:1;	/* bit 16 */
-		u32 txtest_en:1;	/* bit 15 */
-		u32 unused1:4;		/* bits 11-14 */
-		u32 txqtest_ptr:11;	/* bits 0-11 */
-#else
-		u32 txqtest_ptr:11;	/* bits 0-10 */
-		u32 unused1:4;		/* bits 11-14 */
-		u32 txtest_en:1;	/* bit 15 */
-		u32 reserved1:1;	/* bit 16 */
-		u32 unused2:15;		/* bits 17-31 */
-#endif
-	} bits;
-} TXMAC_TXTEST_t, *PTXMAC_TXTEST_t;
 
 /*
  * structure for error reg in txmac address map
@@ -869,9 +836,9 @@ typedef struct _TXMAC_t {		/* Location: */
 	TXMAC_CTL_t ctl;		/*  0x3000 */
 	TXMAC_SHADOW_PTR_t shadow_ptr;	/*  0x3004 */
 	TXMAC_ERR_CNT_t err_cnt;	/*  0x3008 */
-	TXMAC_MAX_FILL_t max_fill;	/*  0x300C */
-	TXMAC_CF_PARAM_t cf_param;	/*  0x3010 */
-	TXMAC_TXTEST_t tx_test;		/*  0x3014 */
+	u32 max_fill;			/*  0x300C */
+	u32 cf_param;			/*  0x3010 */
+	u32 tx_test;			/*  0x3014 */
 	TXMAC_ERR_t err;		/*  0x3018 */
 	TXMAC_ERR_INT_t err_int;	/*  0x301C */
 	TXMAC_BP_CTRL_t bp_ctrl;	/*  0x3020 */

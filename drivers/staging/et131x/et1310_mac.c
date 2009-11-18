@@ -371,19 +371,15 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
 {
 	struct _TXMAC_t __iomem *pTxMac = &etdev->regs->txmac;
-	TXMAC_CF_PARAM_t Local;
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (etdev->FlowControl == None) {
-		writel(0, &pTxMac->cf_param.value);
-	} else {
-		Local.bits.cfpt = 0x40;
-		Local.bits.cfep = 0x0;
-		writel(Local.value, &pTxMac->cf_param.value);
-	}
+	if (etdev->FlowControl == None)
+		writel(0, &pTxMac->cf_param);
+	else
+		writel(0x40, &pTxMac->cf_param);
 }
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
