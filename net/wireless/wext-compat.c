@@ -437,6 +437,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err, i;
+	bool rejoin = false;
 
 	if (!wdev->wext.keys) {
 		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
@@ -466,8 +467,24 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 
 	if (remove) {
 		err = 0;
-		if (wdev->current_bss)
+		if (wdev->current_bss) {
+			/*
+			 * If removing the current TX key, we will need to
+			 * join a new IBSS without the privacy bit clear.
+			 */
+			if (idx == wdev->wext.default_key &&
+			    wdev->iftype == NL80211_IFTYPE_ADHOC) {
+				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				rejoin = true;
+			}
 			err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
+		}
+		/*
+		 * Applications using wireless extensions expect to be
+		 * able to delete keys that don't exist, so allow that.
+		 */
+		if (err == -ENOENT)
+			err = 0;
 		if (!err) {
 			if (!addr) {
 				wdev->wext.keys->params[idx].key_len = 0;
@@ -478,12 +495,9 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			else if (idx == wdev->wext.default_mgmt_key)
 				wdev->wext.default_mgmt_key = -1;
 		}
-		/*
-		 * Applications using wireless extensions expect to be
-		 * able to delete keys that don't exist, so allow that.
-		 */
-		if (err == -ENOENT)
-			return 0;
+
+		if (!err && rejoin)
+			err = cfg80211_ibss_wext_join(rdev, wdev);
 
 		return err;
 	}
@@ -511,11 +525,25 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	if ((params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     params->cipher == WLAN_CIPHER_SUITE_WEP104) &&
 	    (tx_key || (!addr && wdev->wext.default_key == -1))) {
-		if (wdev->current_bss)
+		if (wdev->current_bss) {
+			/*
+			 * If we are getting a new TX key from not having
+			 * had one before we need to join a new IBSS with
+			 * the privacy bit set.
+			 */
+			if (wdev->iftype == NL80211_IFTYPE_ADHOC &&
+			    wdev->wext.default_key == -1) {
+				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				rejoin = true;
+			}
 			err = rdev->ops->set_default_key(&rdev->wiphy,
 							 dev, idx);
-		if (!err)
+		}
+		if (!err) {
 			wdev->wext.default_key = idx;
+			if (rejoin)
+				err = cfg80211_ibss_wext_join(rdev, wdev);
+		}
 		return err;
 	}
 
@@ -539,10 +567,13 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
+	/* devlist mutex needed for possible IBSS re-join */
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_set_encryption(rdev, dev, addr, remove,
 					tx_key, idx, params);
 	wdev_unlock(dev->ieee80211_ptr);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
