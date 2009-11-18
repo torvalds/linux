@@ -1236,14 +1236,14 @@ int avc_ca_get_mmi(struct firedtv *fdtv, char *mmi_object, unsigned int *len)
 
 #define CMP_OUTPUT_PLUG_CONTROL_REG_0	0xfffff0000904ULL
 
-static int cmp_read(struct firedtv *fdtv, void *buf, u64 addr, size_t len)
+static int cmp_read(struct firedtv *fdtv, u64 addr, __be32 *data)
 {
 	int ret;
 
 	if (mutex_lock_interruptible(&fdtv->avc_mutex))
 		return -EINTR;
 
-	ret = fdtv->backend->read(fdtv, addr, buf, len);
+	ret = fdtv->backend->read(fdtv, addr, data);
 	if (ret < 0)
 		dev_err(fdtv->device, "CMP: read I/O error\n");
 
@@ -1293,7 +1293,7 @@ int cmp_establish_pp_connection(struct firedtv *fdtv, int plug, int channel)
 	int attempts = 0;
 	int ret;
 
-	ret = cmp_read(fdtv, opcr, opcr_address, 4);
+	ret = cmp_read(fdtv, opcr_address, opcr);
 	if (ret < 0)
 		return ret;
 
@@ -1357,7 +1357,7 @@ void cmp_break_pp_connection(struct firedtv *fdtv, int plug, int channel)
 	u64 opcr_address = CMP_OUTPUT_PLUG_CONTROL_REG_0 + (plug << 2);
 	int attempts = 0;
 
-	if (cmp_read(fdtv, opcr, opcr_address, 4) < 0)
+	if (cmp_read(fdtv, opcr_address, opcr) < 0)
 		return;
 
 repeat:

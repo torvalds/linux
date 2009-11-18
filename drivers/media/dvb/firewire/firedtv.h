@@ -74,7 +74,7 @@ struct firedtv;
 
 struct firedtv_backend {
 	int (*lock)(struct firedtv *fdtv, u64 addr, __be32 data[]);
-	int (*read)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
+	int (*read)(struct firedtv *fdtv, u64 addr, void *data);
 	int (*write)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
 	int (*start_iso)(struct firedtv *fdtv);
 	void (*stop_iso)(struct firedtv *fdtv);

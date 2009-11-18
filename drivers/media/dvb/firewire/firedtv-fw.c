@@ -46,10 +46,9 @@ static int node_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
 	return node_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
 }
 
-static int node_read(struct firedtv *fdtv, u64 addr, void *data, size_t len)
+static int node_read(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return node_req(fdtv, addr, data, len, len == 4 ?
-			TCODE_READ_QUADLET_REQUEST : TCODE_READ_BLOCK_REQUEST);
+	return node_req(fdtv, addr, data, 4, TCODE_READ_QUADLET_REQUEST);
 }
 
 static int node_write(struct firedtv *fdtv, u64 addr, void *data, size_t len)
