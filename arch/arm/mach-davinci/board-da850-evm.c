@@ -46,8 +46,20 @@
 
 static struct mtd_partition da850_evm_norflash_partition[] = {
 	{
-		.name           = "NOR filesystem",
+		.name           = "bootloaders + env",
 		.offset         = 0,
+		.size           = SZ_512K,
+		.mask_flags     = MTD_WRITEABLE,
+	},
+	{
+		.name           = "kernel",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = SZ_2M,
+		.mask_flags     = 0,
+	},
+	{
+		.name           = "filesystem",
+		.offset         = MTDPART_OFS_APPEND,
 		.size           = MTDPART_SIZ_FULL,
 		.mask_flags     = 0,
 	},
