@@ -287,17 +287,12 @@ void et131x_isr_handler(struct work_struct *work)
 				u32 pm_csr;
 
 				/* Tell the device to send a pause packet via
-				 * the back pressure register
+				 * the back pressure register (bp req  and
+				 * bp xon/xoff)
 				 */
 				pm_csr = readl(&iomem->global.pm_csr);
-				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
-					TXMAC_BP_CTRL_t bp_ctrl = { 0 };
-
-					bp_ctrl.bits.bp_req = 1;
-					bp_ctrl.bits.bp_xonxoff = 1;
-					writel(bp_ctrl.value,
-					       &iomem->txmac.bp_ctrl.value);
-				}
+				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
+					writel(3, &iomem->txmac.bp_ctrl);
 			}
 		}
 

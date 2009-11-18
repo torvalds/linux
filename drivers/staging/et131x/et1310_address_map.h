@@ -803,21 +803,11 @@ typedef union _TXMAC_ERR_INT_t {
 /*
  * structure for error interrupt reg in txmac address map
  * located at address 0x3020
+ *
+ * 31-2: unused
+ * 1: bp_req
+ * 0: bp_xonxoff
  */
-typedef union _TXMAC_CP_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:30;		/* bits 2-31 */
-		u32 bp_req:1;		/* bit 1 */
-		u32 bp_xonxoff:1;	/* bit 0 */
-#else
-		u32 bp_xonxoff:1;	/* bit 0 */
-		u32 bp_req:1;		/* bit 1 */
-		u32 unused:30;		/* bits 2-31 */
-#endif
-	} bits;
-} TXMAC_BP_CTRL_t, *PTXMAC_BP_CTRL_t;
 
 /*
  * Tx MAC Module of JAGCore Address Mapping
@@ -831,7 +821,7 @@ typedef struct _TXMAC_t {		/* Location: */
 	u32 tx_test;			/*  0x3014 */
 	TXMAC_ERR_t err;		/*  0x3018 */
 	TXMAC_ERR_INT_t err_int;	/*  0x301C */
-	TXMAC_BP_CTRL_t bp_ctrl;	/*  0x3020 */
+	u32 bp_ctrl;			/*  0x3020 */
 } TXMAC_t, *PTXMAC_t;
 
 /* END OF TXMAC REGISTER ADDRESS MAP */
