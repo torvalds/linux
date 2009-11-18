@@ -666,8 +666,8 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->mesh_id_len = elen;
 			break;
 		case WLAN_EID_MESH_CONFIG:
-			elems->mesh_config = pos;
-			elems->mesh_config_len = elen;
+			if (elen >= sizeof(struct ieee80211_meshconf_ie))
+				elems->mesh_config = (void *)pos;
 			break;
 		case WLAN_EID_PEER_LINK:
 			elems->peer_link = pos;

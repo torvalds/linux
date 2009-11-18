@@ -217,7 +217,7 @@ static bool is_mesh(struct cfg80211_bss *a,
 		     a->len_information_elements);
 	if (!ie)
 		return false;
-	if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
+	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
 		return false;
 
 	/*
@@ -225,7 +225,8 @@ static bool is_mesh(struct cfg80211_bss *a,
 	 * comparing since that may differ between stations taking
 	 * part in the same mesh.
 	 */
-	return memcmp(ie + 2, meshcfg, IEEE80211_MESH_CONFIG_LEN - 2) == 0;
+	return memcmp(ie + 2, meshcfg,
+	    sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
 }
 
 static int cmp_bss(struct cfg80211_bss *a,
@@ -399,7 +400,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				  res->pub.information_elements,
 				  res->pub.len_information_elements);
 		if (!meshid || !meshcfg ||
-		    meshcfg[1] != IEEE80211_MESH_CONFIG_LEN) {
+		    meshcfg[1] != sizeof(struct ieee80211_meshconf_ie)) {
 			/* bogus mesh */
 			kref_put(&res->ref, bss_release);
 			return NULL;
@@ -865,7 +866,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			break;
 		case WLAN_EID_MESH_CONFIG:
 			ismesh = true;
-			if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
+			if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
 				break;
 			buf = kmalloc(50, GFP_ATOMIC);
 			if (!buf)

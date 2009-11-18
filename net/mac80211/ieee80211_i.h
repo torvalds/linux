@@ -798,7 +798,7 @@ struct ieee802_11_elems {
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
 	struct ieee80211_ht_info *ht_info_elem;
-	u8 *mesh_config;
+	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peer_link;
 	u8 *preq;
@@ -826,7 +826,6 @@ struct ieee802_11_elems {
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
-	u8 mesh_config_len;
 	u8 mesh_id_len;
 	u8 peer_link_len;
 	u8 preq_len;
