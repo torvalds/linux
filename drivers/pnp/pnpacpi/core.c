@@ -144,7 +144,7 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 }
 #endif
 
-static struct pnp_protocol pnpacpi_protocol = {
+struct pnp_protocol pnpacpi_protocol = {
 	.name	 = "Plug and Play ACPI",
 	.get	 = pnpacpi_get_resources,
 	.set	 = pnpacpi_set_resources,
@@ -154,6 +154,7 @@ static struct pnp_protocol pnpacpi_protocol = {
 	.resume = pnpacpi_resume,
 #endif
 };
+EXPORT_SYMBOL(pnpacpi_protocol);
 
 static int __init pnpacpi_add_device(struct acpi_device *device)
 {
