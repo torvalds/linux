@@ -1273,21 +1273,6 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 	return err;
 }
 
-static int nilfs_touch_segusage(struct inode *sufile, __u64 segnum)
-{
-	struct buffer_head *bh_su;
-	struct nilfs_segment_usage *raw_su;
-	int err;
-
-	err = nilfs_sufile_get_segment_usage(sufile, segnum, &raw_su, &bh_su);
-	if (unlikely(err))
-		return err;
-	nilfs_mdt_mark_buffer_dirty(bh_su);
-	nilfs_mdt_mark_dirty(sufile);
-	nilfs_sufile_put_segment_usage(sufile, segnum, bh_su);
-	return 0;
-}
-
 static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 					    struct the_nilfs *nilfs)
 {
@@ -1312,7 +1297,7 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 	}
 	sci->sc_segbuf_nblocks = segbuf->sb_rest_blocks;
 
-	err = nilfs_touch_segusage(nilfs->ns_sufile, segbuf->sb_segnum);
+	err = nilfs_sufile_mark_dirty(nilfs->ns_sufile, segbuf->sb_segnum);
 	if (unlikely(err))
 		return err;
 
@@ -1352,7 +1337,7 @@ static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
 	 * not be dirty.  The following call ensures that the buffer is dirty
 	 * and will pin the buffer on memory until the sufile is written.
 	 */
-	err = nilfs_touch_segusage(sufile, prev->sb_nextnum);
+	err = nilfs_sufile_mark_dirty(sufile, prev->sb_nextnum);
 	if (unlikely(err))
 		return err;
 

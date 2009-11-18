@@ -502,6 +502,25 @@ void nilfs_sufile_put_segment_usage(struct inode *sufile, __u64 segnum,
 }
 
 /**
+ * nilfs_sufile_mark_dirty - mark the buffer having a segment usage dirty
+ * @sufile: inode of segment usage file
+ * @segnum: segment number
+ */
+int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum)
+{
+	struct buffer_head *bh;
+	int ret;
+
+	ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 0, &bh);
+	if (!ret) {
+		nilfs_mdt_mark_buffer_dirty(bh);
+		nilfs_mdt_mark_dirty(sufile);
+		brelse(bh);
+	}
+	return ret;
+}
+
+/**
  * nilfs_sufile_get_stat - get segment usage statistics
  * @sufile: inode of segment usage file
  * @stat: pointer to a structure of segment usage statistics
