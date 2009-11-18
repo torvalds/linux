@@ -118,7 +118,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	writel(0x00A1F037, &pMac->hfdp);
 
 	/* Next lets configure the MAC Interface Control register */
-	writel(0, &pMac->if_ctrl.value);
+	writel(0, &pMac->if_ctrl);
 
 	/* Let's move on to setting up the mii management configuration */
 	writel(0x07, &pMac->mii_mgmt_cfg);	/* Clock reset 0x7 */
@@ -162,22 +162,23 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
 	u32 cfg1;
 	u32 cfg2;
-	MAC_IF_CTRL_t ifctrl;
+	u32 ifctrl;
 	TXMAC_CTL_t ctl;
 
 	ctl.value = readl(&etdev->regs->txmac.ctl.value);
 	cfg1 = readl(&pMac->cfg1);
 	cfg2 = readl(&pMac->cfg2);
-	ifctrl.value = readl(&pMac->if_ctrl.value);
+	ifctrl = readl(&pMac->if_ctrl);
 
 	/* Set up the if mode bits */
 	cfg2 &= ~0x300;
 	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		cfg2 |= 0x200;
-		ifctrl.bits.phy_mode = 0x0;
+		/* Phy mode bit */
+		ifctrl &= ~(1 << 24);
 	} else {
 		cfg2 |= 0x100;
-		ifctrl.bits.phy_mode = 0x1;
+		ifctrl |= (1 << 24);
 	}
 
 	/* We need to enable Rx/Tx */
@@ -198,9 +199,11 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	if (etdev->duplex_mode)
 		cfg2 |= 0x01;
 
-	ifctrl.bits.ghd_mode = !etdev->duplex_mode;
+	ifctrl &= ~(1 << 26);
+	if (!etdev->duplex_mode)
+		ifctrl |= (1<<26);	/* Enable ghd */
 
-	writel(ifctrl.value, &pMac->if_ctrl.value);
+	writel(ifctrl, &pMac->if_ctrl);
 	writel(cfg2, &pMac->cfg2);
 
 	do {

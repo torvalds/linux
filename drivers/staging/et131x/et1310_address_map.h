@@ -1451,49 +1451,25 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for Interface Control reg in mac address map.
  * located at address 0x5038
+ *
+ * 31: reset if module
+ * 30-28: reserved
+ * 27: tbi mode
+ * 26: ghd mode
+ * 25: lhd mode
+ * 24: phy mode
+ * 23: reset per mii
+ * 22-17: reserved
+ * 16: speed
+ * 15: reset pe100x
+ * 14-11: reserved
+ * 10: force quiet
+ * 9: no cipher
+ * 8: disable link fail
+ * 7: reset gpsi
+ * 6-1: reserved
+ * 0: enable jabber protection
  */
-typedef union _MAC_IF_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reset_if_module:1;	/* bit 31 */
-		u32 reserved4:3;		/* bit 28-30 */
-		u32 tbi_mode:1;		/* bit 27 */
-		u32 ghd_mode:1;		/* bit 26 */
-		u32 lhd_mode:1;		/* bit 25 */
-		u32 phy_mode:1;		/* bit 24 */
-		u32 reset_per_mii:1;	/* bit 23 */
-		u32 reserved3:6;		/* bits 17-22 */
-		u32 speed:1;		/* bit 16 */
-		u32 reset_pe100x:1;	/* bit 15 */
-		u32 reserved2:4;		/* bits 11-14 */
-		u32 force_quiet:1;		/* bit 10 */
-		u32 no_cipher:1;		/* bit 9 */
-		u32 disable_link_fail:1;	/* bit 8 */
-		u32 reset_gpsi:1;		/* bit 7 */
-		u32 reserved1:6;		/* bits 1-6 */
-		u32 enab_jab_protect:1;	/* bit 0 */
-#else
-		u32 enab_jab_protect:1;	/* bit 0 */
-		u32 reserved1:6;		/* bits 1-6 */
-		u32 reset_gpsi:1;		/* bit 7 */
-		u32 disable_link_fail:1;	/* bit 8 */
-		u32 no_cipher:1;		/* bit 9 */
-		u32 force_quiet:1;		/* bit 10 */
-		u32 reserved2:4;		/* bits 11-14 */
-		u32 reset_pe100x:1;	/* bit 15 */
-		u32 speed:1;		/* bit 16 */
-		u32 reserved3:6;		/* bits 17-22 */
-		u32 reset_per_mii:1;	/* bit 23 */
-		u32 phy_mode:1;		/* bit 24 */
-		u32 lhd_mode:1;		/* bit 25 */
-		u32 ghd_mode:1;		/* bit 26 */
-		u32 tbi_mode:1;		/* bit 27 */
-		u32 reserved4:3;		/* bit 28-30 */
-		u32 reset_if_module:1;	/* bit 31 */
-#endif
-	} bits;
-} MAC_IF_CTRL_t, *PMAC_IF_CTRL_t;
 
 /*
  * structure for Interface Status reg in mac address map.
@@ -1588,7 +1564,7 @@ typedef struct _MAC_t {					/* Location: */
 	u32 mii_mgmt_ctrl;				/*  0x502C */
 	u32 mii_mgmt_stat;				/*  0x5030 */
 	u32 mii_mgmt_indicator;				/*  0x5034 */
-	MAC_IF_CTRL_t if_ctrl;				/*  0x5038 */
+	u32 if_ctrl;					/*  0x5038 */
 	MAC_IF_STAT_t if_stat;				/*  0x503C */
 	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
 	MAC_STATION_ADDR2_t station_addr_2;		/*  0x5044 */
