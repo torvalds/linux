@@ -534,10 +534,18 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 	if (client->trunc_wq == NULL)
 		goto fail_pg_inv_wq;
 
+	/* set up mempools */
+	err = -ENOMEM;
+	client->wb_pagevec_pool = mempool_create_kmalloc_pool(10,
+			      client->mount_args->wsize >> PAGE_CACHE_SHIFT);
+	if (!client->wb_pagevec_pool)
+		goto fail_trunc_wq;
+
+
 	/* subsystems */
 	err = ceph_monc_init(&client->monc, client);
 	if (err < 0)
-		goto fail_trunc_wq;
+		goto fail_mempool;
 	err = ceph_osdc_init(&client->osdc, client);
 	if (err < 0)
 		goto fail_monc;
@@ -550,6 +558,8 @@ fail_osdc:
 	ceph_osdc_stop(&client->osdc);
 fail_monc:
 	ceph_monc_stop(&client->monc);
+fail_mempool:
+	mempool_destroy(client->wb_pagevec_pool);
 fail_trunc_wq:
 	destroy_workqueue(client->trunc_wq);
 fail_pg_inv_wq:
@@ -581,8 +591,7 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	if (client->msgr)
 		ceph_messenger_destroy(client->msgr);
-	if (client->wb_pagevec_pool)
-		mempool_destroy(client->wb_pagevec_pool);
+	mempool_destroy(client->wb_pagevec_pool);
 
 	destroy_mount_args(client->mount_args);
 
@@ -845,14 +854,6 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 		dout("get_sb got existing client %p\n", client);
 	} else {
 		dout("get_sb using new client %p\n", client);
-
-		/* set up mempools */
-		err = -ENOMEM;
-		client->wb_pagevec_pool = mempool_create_kmalloc_pool(10,
-			      client->mount_args->wsize >> PAGE_CACHE_SHIFT);
-		if (!client->wb_pagevec_pool)
-			goto out_splat;
-
 		err = ceph_register_bdi(sb, client);
 		if (err < 0)
 			goto out_splat;
