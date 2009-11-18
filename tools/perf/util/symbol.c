@@ -962,25 +962,6 @@ out:
 	return err;
 }
 
-static char *dso__read_build_id(struct dso *self)
-{
-	int len;
-	char *build_id = NULL;
-	unsigned char rawbf[BUILD_ID_SIZE];
-
-	len = filename__read_build_id(self->long_name, rawbf, sizeof(rawbf));
-	if (len < 0)
-		goto out;
-
-	build_id = malloc(len * 2 + 1);
-	if (build_id == NULL)
-		goto out;
-
-	build_id__sprintf(rawbf, len, build_id);
-out:
-	return build_id;
-}
-
 char dso__symtab_origin(const struct dso *self)
 {
 	static const char origin[] = {
@@ -1001,7 +982,8 @@ char dso__symtab_origin(const struct dso *self)
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 {
 	int size = PATH_MAX;
-	char *name = malloc(size), *build_id = NULL;
+	char *name = malloc(size);
+	u8 build_id[BUILD_ID_SIZE];
 	int ret = -1;
 	int fd;
 
@@ -1023,8 +1005,6 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 
 more:
 	do {
-		int berr = 0;
-
 		self->origin++;
 		switch (self->origin) {
 		case DSO__ORIG_FEDORA:
@@ -1036,12 +1016,18 @@ more:
 				 self->long_name);
 			break;
 		case DSO__ORIG_BUILDID:
-			build_id = dso__read_build_id(self);
-			if (build_id != NULL) {
+			if (filename__read_build_id(self->long_name, build_id,
+						    sizeof(build_id))) {
+				char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+
+				build_id__sprintf(build_id, sizeof(build_id),
+						  build_id_hex);
 				snprintf(name, size,
 					 "/usr/lib/debug/.build-id/%.2s/%s.debug",
-					build_id, build_id + 2);
-				goto compare_build_id;
+					build_id_hex, build_id_hex + 2);
+				if (self->has_build_id)
+					goto compare_build_id;
+				break;
 			}
 			self->origin++;
 			/* Fall thru */
@@ -1054,18 +1040,12 @@ more:
 		}
 
 		if (self->has_build_id) {
-			bool match;
-			build_id = malloc(BUILD_ID_SIZE);
-			if (build_id == NULL)
+			if (filename__read_build_id(name, build_id,
+						    sizeof(build_id)) < 0)
 				goto more;
-			berr = filename__read_build_id(name, build_id,
-						       BUILD_ID_SIZE);
 compare_build_id:
-			match = berr > 0 && memcmp(build_id, self->build_id,
-						   sizeof(self->build_id)) == 0;
-			free(build_id);
-			build_id = NULL;
-			if (!match)
+			if (memcmp(build_id, self->build_id,
+				   sizeof(self->build_id)) != 0)
 				goto more;
 		}
 
