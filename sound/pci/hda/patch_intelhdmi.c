@@ -433,7 +433,7 @@ static void hdmi_debug_channel_mapping(struct hda_codec *codec, hda_nid_t nid)
 		slot = snd_hda_codec_read(codec, nid, 0,
 						AC_VERB_GET_HDMI_CHAN_SLOT, i);
 		printk(KERN_DEBUG "HDMI: ASP channel %d => slot %d\n",
-						slot >> 4, slot & 0x7);
+						slot >> 4, slot & 0xf);
 	}
 #endif
 }
