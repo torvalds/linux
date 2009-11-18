@@ -339,19 +339,10 @@ typedef union _RXDMA_CSR_t {
 /*
  * structure for number of packets done reg in rxdma address map
  * located at address 0x200C
+ *
+ * 31-8: unused
+ * 7-0: num done
  */
-typedef union _RXDMA_NUM_PKT_DONE_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:24;	/* bits 8-31 */
-		u32 num_done:8;	/* bits 0-7 */
-#else
-		u32 num_done:8;	/* bits 0-7 */
-		u32 unused:24;	/* bits 8-31 */
-#endif
-	} bits;
-} RXDMA_NUM_PKT_DONE_t, *PRXDMA_NUM_PKT_DONE_t;
 
 /*
  * structure for max packet time reg in rxdma address map
@@ -394,19 +385,10 @@ typedef union _RXDMA_NUM_PKT_DONE_t {
 /*
  * structure for packet status ring number of descriptors reg in rxdma address
  * map.  Located at address 0x2028
+ *
+ * 31-12: unused
+ * 11-0: psr ndes
  */
-typedef union _RXDMA_PSR_NUM_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;		/* bits 12-31 */
-		u32 psr_ndes:12;	/* bit 0-11 */
-#else
-		u32 psr_ndes:12;	/* bit 0-11 */
-		u32 unused:20;		/* bits 12-31 */
-#endif
-	} bits;
-} RXDMA_PSR_NUM_DES_t, *PRXDMA_PSR_NUM_DES_t;
 
 /*
  * structure for packet status ring available offset reg in rxdma address map
@@ -449,36 +431,18 @@ typedef union _RXDMA_PSR_FULL_OFFSET_t {
 /*
  * structure for packet status ring access index reg in rxdma address map
  * located at address 0x2034
+ *
+ * 31-5: unused
+ * 4-0: psr_ai
  */
-typedef union _RXDMA_PSR_ACCESS_INDEX_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:27;	/* bits 5-31 */
-		u32 psr_ai:5;	/* bits 0-4 */
-#else
-		u32 psr_ai:5;	/* bits 0-4 */
-		u32 unused:27;	/* bits 5-31 */
-#endif
-	} bits;
-} RXDMA_PSR_ACCESS_INDEX_t, *PRXDMA_PSR_ACCESS_INDEX_t;
 
 /*
  * structure for packet status ring minimum descriptors reg in rxdma address
  * map.  Located at address 0x2038
+ *
+ * 31-12: unused
+ * 11-0: psr_min
  */
-typedef union _RXDMA_PSR_MIN_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;	/* bits 12-31 */
-		u32 psr_min:12;	/* bits 0-11 */
-#else
-		u32 psr_min:12;	/* bits 0-11 */
-		u32 unused:20;	/* bits 12-31 */
-#endif
-	} bits;
-} RXDMA_PSR_MIN_DES_t, *PRXDMA_PSR_MIN_DES_t;
 
 /*
  * structure for free buffer ring base lo address reg in rxdma address map
@@ -495,6 +459,9 @@ typedef union _RXDMA_PSR_MIN_DES_t {
 /*
  * structure for free buffer ring number of descriptors reg in rxdma address
  * map.  Located at address 0x2044
+ *
+ * 31-10: unused
+ * 9-0: fbr ndesc
  */
 typedef union _RXDMA_FBR_NUM_DES_t {
 	u32 value;
@@ -524,36 +491,18 @@ typedef union _RXDMA_FBR_NUM_DES_t {
 /*
  * structure for free buffer cache 0 full offset reg in rxdma address map
  * located at address 0x2050
+ *
+ * 31-5: unused
+ * 4-0: fbc rdi
  */
-typedef union _RXDMA_FBC_RD_INDEX_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:27;	/* bits 5-31 */
-		u32 fbc_rdi:5;	/* bit 0-4 */
-#else
-		u32 fbc_rdi:5;	/* bit 0-4 */
-		u32 unused:27;	/* bits 5-31 */
-#endif
-	} bits;
-} RXDMA_FBC_RD_INDEX_t, *PRXDMA_FBC_RD_INDEX_t;
 
 /*
  * structure for free buffer ring 0 minimum descriptor reg in rxdma address map
  * located at address 0x2054
+ *
+ * 31-10: unused
+ * 9-0: fbr min
  */
-typedef union _RXDMA_FBR_MIN_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;	/* bits 10-31 */
-		u32 fbr_min:10;	/* bits 0-9 */
-#else
-		u32 fbr_min:10;	/* bits 0-9 */
-		u32 unused:22;	/* bits 10-31 */
-#endif
-	} bits;
-} RXDMA_FBR_MIN_DES_t, *PRXDMA_FBR_MIN_DES_t;
 
 /*
  * structure for free buffer ring 1 base address lo reg in rxdma address map
@@ -599,32 +548,32 @@ typedef struct _RXDMA_t {				/* Location: */
 	RXDMA_CSR_t csr;				/*  0x2000 */
 	u32 dma_wb_base_lo;				/*  0x2004 */
 	u32 dma_wb_base_hi;				/*  0x2008 */
-	RXDMA_NUM_PKT_DONE_t num_pkt_done;		/*  0x200C */
+	u32 num_pkt_done;				/*  0x200C */
 	u32 max_pkt_time;				/*  0x2010 */
 	u32 rxq_rd_addr;				/*  0x2014 */
-	u32 rxq_rd_addr_ext;			/*  0x2018 */
+	u32 rxq_rd_addr_ext;				/*  0x2018 */
 	u32 rxq_wr_addr;				/*  0x201C */
 	u32 psr_base_lo;				/*  0x2020 */
 	u32 psr_base_hi;				/*  0x2024 */
-	RXDMA_PSR_NUM_DES_t psr_num_des;		/*  0x2028 */
+	u32 psr_num_des;				/*  0x2028 */
 	RXDMA_PSR_AVAIL_OFFSET_t psr_avail_offset;	/*  0x202C */
 	RXDMA_PSR_FULL_OFFSET_t psr_full_offset;	/*  0x2030 */
-	RXDMA_PSR_ACCESS_INDEX_t psr_access_index;	/*  0x2034 */
-	RXDMA_PSR_MIN_DES_t psr_min_des;		/*  0x2038 */
+	u32 psr_access_index;				/*  0x2034 */
+	u32 psr_min_des;				/*  0x2038 */
 	u32 fbr0_base_lo;				/*  0x203C */
 	u32 fbr0_base_hi;				/*  0x2040 */
-	RXDMA_FBR_NUM_DES_t fbr0_num_des;		/*  0x2044 */
-	u32 fbr0_avail_offset;			/*  0x2048 */
-	u32 fbr0_full_offset;			/*  0x204C */
-	RXDMA_FBC_RD_INDEX_t fbr0_rd_index;		/*  0x2050 */
-	RXDMA_FBR_MIN_DES_t fbr0_min_des;		/*  0x2054 */
+	u32 fbr0_num_des;				/*  0x2044 */
+	u32 fbr0_avail_offset;				/*  0x2048 */
+	u32 fbr0_full_offset;				/*  0x204C */
+	u32 fbr0_rd_index;				/*  0x2050 */
+	u32 fbr0_min_des;				/*  0x2054 */
 	u32 fbr1_base_lo;				/*  0x2058 */
 	u32 fbr1_base_hi;				/*  0x205C */
-	RXDMA_FBR_NUM_DES_t fbr1_num_des;		/*  0x2060 */
-	u32 fbr1_avail_offset;			/*  0x2064 */
-	u32 fbr1_full_offset;			/*  0x2068 */
-	RXDMA_FBC_RD_INDEX_t fbr1_rd_index;		/*  0x206C */
-	RXDMA_FBR_MIN_DES_t fbr1_min_des;		/*  0x2070 */
+	u32 fbr1_num_des;				/*  0x2060 */
+	u32 fbr1_avail_offset;				/*  0x2064 */
+	u32 fbr1_full_offset;				/*  0x2068 */
+	u32 fbr1_rd_index;				/*  0x206C */
+	u32 fbr1_min_des;				/*  0x2070 */
 } RXDMA_t, *PRXDMA_t;
 
 /* END OF RXDMA REGISTER ADDRESS MAP */

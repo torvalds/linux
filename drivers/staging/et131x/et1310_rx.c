@@ -598,7 +598,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
 	PFBR_DESC_t fbr_entry;
 	u32 entry;
-	RXDMA_PSR_NUM_DES_t psr_num_des;
+	u32 psr_num_des;
 	unsigned long flags;
 
 	/* Halt RXDMA to perform the reconfigure.  */
@@ -623,12 +623,12 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	writel((u32) ((u64)rx_local->pPSRingPa >> 32),
 	       &rx_dma->psr_base_hi);
 	writel((u32) rx_local->pPSRingPa, &rx_dma->psr_base_lo);
-	writel(rx_local->PsrNumEntries - 1, &rx_dma->psr_num_des.value);
+	writel(rx_local->PsrNumEntries - 1, &rx_dma->psr_num_des);
 	writel(0, &rx_dma->psr_full_offset.value);
 
-	psr_num_des.value = readl(&rx_dma->psr_num_des.value);
-	writel((psr_num_des.bits.psr_ndes * LO_MARK_PERCENT_FOR_PSR) / 100,
-	       &rx_dma->psr_min_des.value);
+	psr_num_des = readl(&rx_dma->psr_num_des) & 0xFFF;
+	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
+	       &rx_dma->psr_min_des);
 
 	spin_lock_irqsave(&etdev->RcvLock, flags);
 
@@ -650,7 +650,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 */
 	writel((u32) (rx_local->Fbr1Realpa >> 32), &rx_dma->fbr1_base_hi);
 	writel((u32) rx_local->Fbr1Realpa, &rx_dma->fbr1_base_lo);
-	writel(rx_local->Fbr1NumEntries - 1, &rx_dma->fbr1_num_des.value);
+	writel(rx_local->Fbr1NumEntries - 1, &rx_dma->fbr1_num_des);
 	writel(ET_DMA10_WRAP, &rx_dma->fbr1_full_offset);
 
 	/* This variable tracks the free buffer ring 1 full position, so it
@@ -658,7 +658,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 */
 	rx_local->local_Fbr1_full = ET_DMA10_WRAP;
 	writel(((rx_local->Fbr1NumEntries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	       &rx_dma->fbr1_min_des.value);
+	       &rx_dma->fbr1_min_des);
 
 #ifdef USE_FBR0
 	/* Now's the best time to initialize FBR0 contents */
@@ -672,7 +672,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 
 	writel((u32) (rx_local->Fbr0Realpa >> 32), &rx_dma->fbr0_base_hi);
 	writel((u32) rx_local->Fbr0Realpa, &rx_dma->fbr0_base_lo);
-	writel(rx_local->Fbr0NumEntries - 1, &rx_dma->fbr0_num_des.value);
+	writel(rx_local->Fbr0NumEntries - 1, &rx_dma->fbr0_num_des);
 	writel(ET_DMA10_WRAP, &rx_dma->fbr0_full_offset);
 
 	/* This variable tracks the free buffer ring 0 full position, so it
@@ -680,7 +680,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 */
 	rx_local->local_Fbr0_full = ET_DMA10_WRAP;
 	writel(((rx_local->Fbr0NumEntries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	       &rx_dma->fbr0_min_des.value);
+	       &rx_dma->fbr0_min_des);
 #endif
 
 	/* Program the number of packets we will receive before generating an
@@ -688,7 +688,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 * For version B silicon, this value gets updated once autoneg is
 	 *complete.
 	 */
-	writel(PARM_RX_NUM_BUFS_DEF, &rx_dma->num_pkt_done.value);
+	writel(PARM_RX_NUM_BUFS_DEF, &rx_dma->num_pkt_done);
 
 	/* The "time_done" is not working correctly to coalesce interrupts
 	 * after a given time period, but rather is giving us an interrupt
@@ -712,7 +712,7 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
 	if ((etdev->linkspeed == TRUEPHY_SPEED_100MBPS) ||
 	    (etdev->linkspeed == TRUEPHY_SPEED_10MBPS)) {
 		writel(0, &etdev->regs->rxdma.max_pkt_time);
-		writel(1, &etdev->regs->rxdma.num_pkt_done.value);
+		writel(1, &etdev->regs->rxdma.num_pkt_done);
 	}
 }
 
