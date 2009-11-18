@@ -241,10 +241,6 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		GPIOF,
 	};
 
-	/* Set sensible defaults in case we can't find the general block
-	   or it is the wrong chipset */
-	dev_priv->crt_ddc_bus = -1;
-
 	general = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (general) {
 		u16 block_size = get_blocksize(general);
