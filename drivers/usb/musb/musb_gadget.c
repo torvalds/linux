@@ -966,6 +966,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 	musb_ep->desc = desc;
 	musb_ep->busy = 0;
+	musb_ep->wedged = 0;
 	status = 0;
 
 	pr_debug("%s periph: enabled %s for %s %s, %smaxpacket %d\n",
@@ -1262,7 +1263,8 @@ int musb_gadget_set_halt(struct usb_ep *ep, int value)
 				goto done;
 			}
 		}
-	}
+	} else
+		musb_ep->wedged = 0;
 
 	/* set/clear the stall and toggle bits */
 	DBG(2, "%s: %s stall\n", ep->name, value ? "set" : "clear");
@@ -1299,6 +1301,21 @@ int musb_gadget_set_halt(struct usb_ep *ep, int value)
 done:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return status;
+}
+
+/*
+ * Sets the halt feature with the clear requests ignored
+ */
+int musb_gadget_set_wedge(struct usb_ep *ep)
+{
+	struct musb_ep		*musb_ep = to_musb_ep(ep);
+
+	if (!ep)
+		return -EINVAL;
+
+	musb_ep->wedged = 1;
+
+	return usb_ep_set_halt(ep);
 }
 
 static int musb_gadget_fifo_status(struct usb_ep *ep)
@@ -1371,6 +1388,7 @@ static const struct usb_ep_ops musb_ep_ops = {
 	.queue		= musb_gadget_queue,
 	.dequeue	= musb_gadget_dequeue,
 	.set_halt	= musb_gadget_set_halt,
+	.set_wedge	= musb_gadget_set_wedge,
 	.fifo_status	= musb_gadget_fifo_status,
 	.fifo_flush	= musb_gadget_fifo_flush
 };

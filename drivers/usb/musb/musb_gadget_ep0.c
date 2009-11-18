@@ -273,6 +273,11 @@ __acquires(musb->lock)
 				if (!musb_ep->desc)
 					break;
 
+				handled = 1;
+				/* Ignore request if endpoint is wedged */
+				if (musb_ep->wedged)
+					break;
+
 				/* REVISIT do it directly, no locking games */
 				spin_unlock(&musb->lock);
 				musb_gadget_set_halt(&musb_ep->end_point, 0);
@@ -280,7 +285,6 @@ __acquires(musb->lock)
 
 				/* select ep0 again */
 				musb_ep_select(mbase, 0);
-				handled = 1;
 				} break;
 			default:
 				/* class, vendor, etc ... delegate */
