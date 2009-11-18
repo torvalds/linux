@@ -340,17 +340,6 @@ void ceph_con_close(struct ceph_connection *con)
 }
 
 /*
- * clean up connection state
- */
-void ceph_con_shutdown(struct ceph_connection *con)
-{
-	dout("con_shutdown %p\n", con);
-	reset_connection(con);
-	set_bit(DEAD, &con->state);
-	con_close_socket(con); /* silently ignore errors */
-}
-
-/*
  * Reopen a closed connection, with a new peer address.
  */
 void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
@@ -380,7 +369,7 @@ void ceph_con_put(struct ceph_connection *con)
 	     atomic_read(&con->nref), atomic_read(&con->nref) - 1);
 	BUG_ON(atomic_read(&con->nref) == 0);
 	if (atomic_dec_and_test(&con->nref)) {
-		ceph_con_shutdown(con);
+		BUG_ON(con->sock);
 		kfree(con);
 	}
 }
