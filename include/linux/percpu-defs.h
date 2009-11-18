@@ -24,7 +24,7 @@
  * input parameter is a percpu pointer.
  */
 #define __verify_pcpu_ptr(ptr)	do {					\
-	void __percpu *__vpp_verify = (typeof(ptr))NULL;		\
+	const void __percpu *__vpp_verify = (typeof(ptr))NULL;		\
 	(void)__vpp_verify;						\
 } while (0)
 
