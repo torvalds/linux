@@ -422,24 +422,18 @@ static void hdmi_stop_infoframe_trans(struct hda_codec *codec,
 						AC_DIPXMIT_DISABLE);
 }
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
 static int hdmi_get_channel_count(struct hda_codec *codec, hda_nid_t nid)
 {
 	return 1 + snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_CVT_CHAN_COUNT, 0);
 }
-#endif
 
 static void hdmi_set_channel_count(struct hda_codec *codec,
 				   hda_nid_t nid, int chs)
 {
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CVT_CHAN_COUNT, chs - 1);
-
-#ifdef CONFIG_SND_DEBUG_VERBOSE
 	if (chs != hdmi_get_channel_count(codec, nid))
-		snd_printd(KERN_INFO "HDMI channel count: expect %d, get %d\n",
-			   chs, hdmi_get_channel_count(codec, nid));
-#endif
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CVT_CHAN_COUNT, chs - 1);
 }
 
 static void hdmi_debug_channel_mapping(struct hda_codec *codec, hda_nid_t nid)
