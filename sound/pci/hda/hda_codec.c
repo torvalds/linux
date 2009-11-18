@@ -1317,6 +1317,40 @@ u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
 }
 EXPORT_SYMBOL_HDA(snd_hda_query_pin_caps);
 
+/**
+ * snd_hda_pin_sense - execute pin sense measurement
+ * @codec: the CODEC to sense
+ * @nid: the pin NID to sense
+ *
+ * Execute necessary pin sense measurement and return its Presence Detect,
+ * Impedance, ELD Valid etc. status bits.
+ */
+u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid)
+{
+	u32 pincap = snd_hda_query_pin_caps(codec, nid);
+
+	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+
+	return snd_hda_codec_read(codec, nid, 0,
+				  AC_VERB_GET_PIN_SENSE, 0);
+}
+EXPORT_SYMBOL_HDA(snd_hda_pin_sense);
+
+/**
+ * snd_hda_jack_detect - query pin Presence Detect status
+ * @codec: the CODEC to sense
+ * @nid: the pin NID to sense
+ *
+ * Query and return the pin's Presence Detect status.
+ */
+int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
+{
+        u32 sense = snd_hda_pin_sense(codec, nid);
+        return !!(sense & AC_PINSENSE_PRESENCE);
+}
+EXPORT_SYMBOL_HDA(snd_hda_jack_detect);
+
 /*
  * read the current volume to info
  * if the cache exists, read the cache value.

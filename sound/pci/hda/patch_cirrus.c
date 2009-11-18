@@ -807,7 +807,7 @@ static void cs_automute(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int caps, present, hp_present;
+	unsigned int caps, hp_present;
 	hda_nid_t nid;
 	int i;
 
@@ -817,12 +817,7 @@ static void cs_automute(struct hda_codec *codec)
 		caps = snd_hda_query_pin_caps(codec, nid);
 		if (!(caps & AC_PINCAP_PRES_DETECT))
 			continue;
-		if (caps & AC_PINCAP_TRIG_REQ)
-			snd_hda_codec_read(codec, nid, 0,
-					   AC_VERB_SET_PIN_SENSE, 0);
-		present = snd_hda_codec_read(codec, nid, 0,
-					     AC_VERB_GET_PIN_SENSE, 0);
-		hp_present |= (present & AC_PINSENSE_PRESENCE) != 0;
+		hp_present = snd_hda_jack_detect(codec, nid);
 		if (hp_present)
 			break;
 	}
@@ -844,15 +839,11 @@ static void cs_automic(struct hda_codec *codec)
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
-	unsigned int caps, present;
+	unsigned int present;
 	
 	nid = cfg->input_pins[spec->automic_idx];
-	caps = snd_hda_query_pin_caps(codec, nid);
-	if (caps & AC_PINCAP_TRIG_REQ)
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
-	present = snd_hda_codec_read(codec, nid, 0,
-				     AC_VERB_GET_PIN_SENSE, 0);
-	if (present & AC_PINSENSE_PRESENCE)
+	present = snd_hda_jack_detect(codec, nid);
+	if (present)
 		change_cur_input(codec, spec->automic_idx, 0);
 	else {
 		unsigned int imic = (spec->automic_idx == AUTO_PIN_MIC) ?

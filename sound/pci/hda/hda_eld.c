@@ -309,17 +309,12 @@ out_fail:
 	return -EINVAL;
 }
 
-static int hdmi_present_sense(struct hda_codec *codec, hda_nid_t nid)
-{
-	return snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PIN_SENSE, 0);
-}
-
 static int hdmi_eld_valid(struct hda_codec *codec, hda_nid_t nid)
 {
 	int eldv;
 	int present;
 
-	present = hdmi_present_sense(codec, nid);
+	present = snd_hda_pin_sense(codec, nid);
 	eldv    = (present & AC_PINSENSE_ELDV);
 	present = (present & AC_PINSENSE_PRESENCE);
 
