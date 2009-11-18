@@ -33,6 +33,12 @@
 #include <linux/configfs.h>
 #include <linux/rbtree.h>
 
+enum o2nm_fence_method {
+	O2NM_FENCE_RESET	= 0,
+	O2NM_FENCE_PANIC,
+	O2NM_FENCE_METHODS,	/* Number of fence methods */
+};
+
 struct o2nm_node {
 	spinlock_t		nd_lock;
 	struct config_item	nd_item;
@@ -58,6 +64,7 @@ struct o2nm_cluster {
 	unsigned int		cl_idle_timeout_ms;
 	unsigned int		cl_keepalive_delay_ms;
 	unsigned int		cl_reconnect_delay_ms;
+	enum o2nm_fence_method	cl_fence_method;
 
 	/* this bitmap is part of a hack for disk bitmap.. will go eventually. - zab */
 	unsigned long	cl_nodes_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
