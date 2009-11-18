@@ -624,7 +624,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	       &rx_dma->psr_base_hi);
 	writel((u32) rx_local->pPSRingPa, &rx_dma->psr_base_lo);
 	writel(rx_local->PsrNumEntries - 1, &rx_dma->psr_num_des);
-	writel(0, &rx_dma->psr_full_offset.value);
+	writel(0, &rx_dma->psr_full_offset);
 
 	psr_num_des = readl(&rx_dma->psr_num_des) & 0xFFF;
 	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
@@ -633,8 +633,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	spin_lock_irqsave(&etdev->RcvLock, flags);
 
 	/* These local variables track the PSR in the adapter structure */
-	rx_local->local_psr_full.bits.psr_full = 0;
-	rx_local->local_psr_full.bits.psr_full_wrap = 0;
+	rx_local->local_psr_full = 0;
 
 	/* Now's the best time to initialize FBR1 contents */
 	fbr_entry = (PFBR_DESC_t) rx_local->pFbr1RingVa;
@@ -808,17 +807,18 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	 */
 	status = (PRX_STATUS_BLOCK_t) rx_local->pRxStatusVa;
 
+	/* FIXME: tidy later when conversions complete */
 	if (status->Word1.bits.PSRoffset ==
-			rx_local->local_psr_full.bits.psr_full &&
+			(rx_local->local_psr_full & 0xFFF) &&
 			status->Word1.bits.PSRwrap ==
-			rx_local->local_psr_full.bits.psr_full_wrap) {
+			((rx_local->local_psr_full >> 12) & 1)) {
 		/* Looks like this ring is not updated yet */
 		return NULL;
 	}
 
 	/* The packet status ring indicates that data is available. */
 	psr = (PPKT_STAT_DESC_t) (rx_local->pPSRingVa) +
-			rx_local->local_psr_full.bits.psr_full;
+			(rx_local->local_psr_full & 0xFFF);
 
 	/* Grab any information that is required once the PSR is
 	 * advanced, since we can no longer rely on the memory being
@@ -830,14 +830,16 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	Word0 = psr->word0;
 
 	/* Indicate that we have used this PSR entry. */
-	if (++rx_local->local_psr_full.bits.psr_full >
-	    rx_local->PsrNumEntries - 1) {
-		rx_local->local_psr_full.bits.psr_full = 0;
-		rx_local->local_psr_full.bits.psr_full_wrap ^= 1;
+	/* FIXME wrap 12 */
+	rx_local->local_psr_full = (rx_local->local_psr_full + 1) & 0xFFF;
+	if (rx_local->local_psr_full  > rx_local->PsrNumEntries - 1) {
+		/* Clear psr full and toggle the wrap bit */
+		rx_local->local_psr_full &=  0xFFF;
+		rx_local->local_psr_full ^= 0x1000;
 	}
 
-	writel(rx_local->local_psr_full.value,
-	       &etdev->regs->rxdma.psr_full_offset.value);
+	writel(rx_local->local_psr_full,
+	       &etdev->regs->rxdma.psr_full_offset);
 
 #ifndef USE_FBR0
 	if (rindex != 1) {
@@ -860,7 +862,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		dev_err(&etdev->pdev->dev,
 			  "NICRxPkts PSR Entry %d indicates "
 			  "length of %d and/or bad bi(%d)\n",
-			  rx_local->local_psr_full.bits.psr_full,
+			  rx_local->local_psr_full & 0xFFF,
 			  len, bindex);
 		return NULL;
 	}

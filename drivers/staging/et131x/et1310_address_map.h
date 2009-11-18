@@ -393,40 +393,20 @@ typedef union _RXDMA_CSR_t {
 /*
  * structure for packet status ring available offset reg in rxdma address map
  * located at address 0x202C
+ *
+ * 31-13: unused
+ * 12: psr avail wrap
+ * 11-0: psr avail
  */
-typedef union _RXDMA_PSR_AVAIL_OFFSET_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:19;		/* bits 13-31 */
-		u32 psr_avail_wrap:1;	/* bit 12 */
-		u32 psr_avail:12;	/* bit 0-11 */
-#else
-		u32 psr_avail:12;	/* bit 0-11 */
-		u32 psr_avail_wrap:1;	/* bit 12 */
-		u32 unused:19;		/* bits 13-31 */
-#endif
-	} bits;
-} RXDMA_PSR_AVAIL_OFFSET_t, *PRXDMA_PSR_AVAIL_OFFSET_t;
 
 /*
  * structure for packet status ring full offset reg in rxdma address map
  * located at address 0x2030
+ *
+ * 31-13: unused
+ * 12: psr full wrap
+ * 11-0: psr full
  */
-typedef union _RXDMA_PSR_FULL_OFFSET_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:19;		/* bits 13-31 */
-		u32 psr_full_wrap:1;	/* bit 12 */
-		u32 psr_full:12;	/* bit 0-11 */
-#else
-		u32 psr_full:12;	/* bit 0-11 */
-		u32 psr_full_wrap:1;	/* bit 12 */
-		u32 unused:19;		/* bits 13-31 */
-#endif
-	} bits;
-} RXDMA_PSR_FULL_OFFSET_t, *PRXDMA_PSR_FULL_OFFSET_t;
 
 /*
  * structure for packet status ring access index reg in rxdma address map
@@ -556,8 +536,8 @@ typedef struct _RXDMA_t {				/* Location: */
 	u32 psr_base_lo;				/*  0x2020 */
 	u32 psr_base_hi;				/*  0x2024 */
 	u32 psr_num_des;				/*  0x2028 */
-	RXDMA_PSR_AVAIL_OFFSET_t psr_avail_offset;	/*  0x202C */
-	RXDMA_PSR_FULL_OFFSET_t psr_full_offset;	/*  0x2030 */
+	u32 psr_avail_offset;				/*  0x202C */
+	u32 psr_full_offset;				/*  0x2030 */
 	u32 psr_access_index;				/*  0x2034 */
 	u32 psr_min_des;				/*  0x2038 */
 	u32 fbr0_base_lo;				/*  0x203C */

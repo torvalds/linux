@@ -300,7 +300,7 @@ typedef struct _rx_ring_t {
 
 	void *pPSRingVa;
 	dma_addr_t pPSRingPa;
-	RXDMA_PSR_FULL_OFFSET_t local_psr_full;
+	u32 local_psr_full;
 	u32 PsrNumEntries;
 
 	void *pRxStatusVa;
