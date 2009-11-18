@@ -388,4 +388,5 @@ extern int CIFSSMBSetPosixACL(const int xid, struct cifsTconInfo *tcon,
 		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSGetExtAttr(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
+extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
 #endif			/* _CIFSPROTO_H */

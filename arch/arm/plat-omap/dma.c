@@ -691,13 +691,16 @@ static inline void disable_lnk(int lch)
 static inline void omap2_enable_irq_lch(int lch)
 {
 	u32 val;
+	unsigned long flags;
 
 	if (!cpu_class_is_omap2())
 		return;
 
+	spin_lock_irqsave(&dma_chan_lock, flags);
 	val = dma_read(IRQENABLE_L0);
 	val |= 1 << lch;
 	dma_write(val, IRQENABLE_L0);
+	spin_unlock_irqrestore(&dma_chan_lock, flags);
 }
 
 int omap_request_dma(int dev_id, const char *dev_name,
@@ -799,10 +802,13 @@ void omap_free_dma(int lch)
 
 	if (cpu_class_is_omap2()) {
 		u32 val;
+
+		spin_lock_irqsave(&dma_chan_lock, flags);
 		/* Disable interrupts */
 		val = dma_read(IRQENABLE_L0);
 		val &= ~(1 << lch);
 		dma_write(val, IRQENABLE_L0);
+		spin_unlock_irqrestore(&dma_chan_lock, flags);
 
 		/* Clear the CSR register and IRQ status register */
 		dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR(lch));
@@ -1107,6 +1113,14 @@ EXPORT_SYMBOL(omap_get_dma_active_status);
 int omap_dma_running(void)
 {
 	int lch;
+
+	/*
+	 * On OMAP1510, internal LCD controller will start the transfer
+	 * when it gets enabled, so assume DMA running if LCD enabled.
+	 */
+	if (cpu_is_omap1510())
+		if (omap_readw(0xfffec000 + 0x00) & (1 << 0))
+			return 1;
 
 	/* Check if LCD DMA is running */
 	if (cpu_is_omap16xx())

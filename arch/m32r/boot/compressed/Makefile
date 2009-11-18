@@ -1,5 +1,5 @@
 #
-# linux/arch/sh/boot/compressed/Makefile
+# linux/arch/m32r/boot/compressed/Makefile
 #
 # create a compressed vmlinux image from the original vmlinux
 #
@@ -47,5 +47,5 @@ suffix_$(CONFIG_KERNEL_GZIP)	= gz
 suffix_$(CONFIG_KERNEL_BZIP2)	= bz2
 suffix_$(CONFIG_KERNEL_LZMA)	= lzma
 
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix_y) FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
 	$(call if_changed,ld)

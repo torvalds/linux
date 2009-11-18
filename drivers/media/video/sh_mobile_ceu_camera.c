@@ -1173,8 +1173,8 @@ static int get_scales(struct soc_camera_device *icd,
 	width_in = scale_up(cam->ceu_rect.width, *scale_h);
 	height_in = scale_up(cam->ceu_rect.height, *scale_v);
 
-	*scale_h = calc_generic_scale(cam->ceu_rect.width, icd->user_width);
-	*scale_v = calc_generic_scale(cam->ceu_rect.height, icd->user_height);
+	*scale_h = calc_generic_scale(width_in, icd->user_width);
+	*scale_v = calc_generic_scale(height_in, icd->user_height);
 
 	return 0;
 }

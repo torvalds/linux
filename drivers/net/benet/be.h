@@ -259,6 +259,8 @@ struct be_adapter {
 	u32 port_num;
 	bool promiscuous;
 	u32 cap;
+	u32 rx_fc;		/* Rx flow control */
+	u32 tx_fc;		/* Tx flow control */
 };
 
 extern const struct ethtool_ops be_ethtool_ops;
