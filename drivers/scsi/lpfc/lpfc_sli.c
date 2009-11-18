@@ -5748,7 +5748,7 @@ static int
 lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		union lpfc_wqe *wqe)
 {
-	uint32_t payload_len = 0;
+	uint32_t xmit_len = 0, total_len = 0;
 	uint8_t ct = 0;
 	uint32_t fip;
 	uint32_t abort_tag;
@@ -5757,6 +5757,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	uint16_t xritag;
 	struct ulp_bde64 *bpl = NULL;
 	uint32_t els_id = ELS_ID_DEFAULT;
+	int numBdes, i;
+	struct ulp_bde64 bde;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
 	/* The fcp commands will set command type */
@@ -5774,6 +5776,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	wqe->words[7] = 0; /* The ct field has moved so reset */
 	/* words0-2 bpl convert bde */
 	if (iocbq->iocb.un.genreq64.bdl.bdeFlags == BUFF_TYPE_BLP_64) {
+		numBdes = iocbq->iocb.un.genreq64.bdl.bdeSize /
+				sizeof(struct ulp_bde64);
 		bpl  = (struct ulp_bde64 *)
 			((struct lpfc_dmabuf *)iocbq->context3)->virt;
 		if (!bpl)
@@ -5786,9 +5790,14 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		 * can assign it to the sgl.
 		 */
 		wqe->generic.bde.tus.w  = le32_to_cpu(bpl->tus.w);
-		payload_len = wqe->generic.bde.tus.f.bdeSize;
+		xmit_len = wqe->generic.bde.tus.f.bdeSize;
+		total_len = 0;
+		for (i = 0; i < numBdes; i++) {
+			bde.tus.w  = le32_to_cpu(bpl[i].tus.w);
+			total_len += bde.tus.f.bdeSize;
+		}
 	} else
-		payload_len = iocbq->iocb.un.fcpi64.bdl.bdeSize;
+		xmit_len = iocbq->iocb.un.fcpi64.bdl.bdeSize;
 
 	iocbq->iocb.ulpIoTag = iocbq->iotag;
 	cmnd = iocbq->iocb.ulpCommand;
@@ -5802,7 +5811,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 				iocbq->iocb.ulpCommand);
 			return IOCB_ERROR;
 		}
-		wqe->els_req.payload_len = payload_len;
+		wqe->els_req.payload_len = xmit_len;
 		/* Els_reguest64 has a TMO */
 		bf_set(wqe_tmo, &wqe->els_req.wqe_com,
 			iocbq->iocb.ulpTimeout);
@@ -5831,6 +5840,15 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(lpfc_wqe_gen_els_id, &wqe->generic, els_id);
 
 	break;
+	case CMD_XMIT_SEQUENCE64_CX:
+		bf_set(lpfc_wqe_gen_context, &wqe->generic,
+					iocbq->iocb.un.ulpWord[3]);
+		wqe->generic.word3 = 0;
+		bf_set(wqe_rcvoxid, &wqe->generic, iocbq->iocb.ulpContext);
+		bf_set(wqe_xc, &wqe->generic, 1);
+		/* The entire sequence is transmitted for this IOCB */
+		xmit_len = total_len;
+		cmnd = CMD_XMIT_SEQUENCE64_CR;
 	case CMD_XMIT_SEQUENCE64_CR:
 		/* word3 iocb=io_tag32 wqe=payload_offset */
 		/* payload offset used for multilpe outstanding
@@ -5840,7 +5858,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		/* word4 relative_offset memcpy */
 		/* word5 r_ctl/df_ctl memcpy */
 		bf_set(lpfc_wqe_gen_pu, &wqe->generic, 0);
-		wqe->xmit_sequence.xmit_len = payload_len;
+		wqe->xmit_sequence.xmit_len = xmit_len;
+		command_type = OTHER_COMMAND;
 	break;
 	case CMD_XMIT_BCAST64_CN:
 		/* word3 iocb=iotag32 wqe=payload_len */
@@ -5869,7 +5888,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	case CMD_FCP_IREAD64_CR:
 		/* FCP_CMD is always the 1st sgl entry */
 		wqe->fcp_iread.payload_len =
-			payload_len + sizeof(struct fcp_rsp);
+			xmit_len + sizeof(struct fcp_rsp);
 
 		/* word 4 (xfer length) should have been set on the memcpy */
 
@@ -5906,7 +5925,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		 * sgl[1] = rsp.
 		 *
 		 */
-		wqe->gen_req.command_len = payload_len;
+		wqe->gen_req.command_len = xmit_len;
 		/* Word4 parameter  copied in the memcpy */
 		/* Word5 [rctl, type, df_ctl, la] copied in memcpy */
 		/* word6 context tag copied in memcpy */
@@ -5979,10 +5998,25 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		 * iocbq from scratch.
 		 */
 		memset(wqe, 0, sizeof(union lpfc_wqe));
+		/* OX_ID is invariable to who sent ABTS to CT exchange */
 		bf_set(xmit_bls_rsp64_oxid, &wqe->xmit_bls_rsp,
-		       iocbq->iocb.un.ulpWord[3]);
-		bf_set(xmit_bls_rsp64_rxid, &wqe->xmit_bls_rsp,
-		       iocbq->sli4_xritag);
+		       bf_get(lpfc_abts_oxid, &iocbq->iocb.un.bls_acc));
+		if (bf_get(lpfc_abts_orig, &iocbq->iocb.un.bls_acc) ==
+		    LPFC_ABTS_UNSOL_INT) {
+			/* ABTS sent by initiator to CT exchange, the
+			 * RX_ID field will be filled with the newly
+			 * allocated responder XRI.
+			 */
+			bf_set(xmit_bls_rsp64_rxid, &wqe->xmit_bls_rsp,
+			       iocbq->sli4_xritag);
+		} else {
+			/* ABTS sent by responder to CT exchange, the
+			 * RX_ID field will be filled with the responder
+			 * RX_ID from ABTS.
+			 */
+			bf_set(xmit_bls_rsp64_rxid, &wqe->xmit_bls_rsp,
+			       bf_get(lpfc_abts_rxid, &iocbq->iocb.un.bls_acc));
+		}
 		bf_set(xmit_bls_rsp64_seqcnthi, &wqe->xmit_bls_rsp, 0xffff);
 		bf_set(wqe_xmit_bls_pt, &wqe->xmit_bls_rsp.wqe_dest, 0x1);
 		bf_set(wqe_ctxt_tag, &wqe->xmit_bls_rsp.wqe_com,
@@ -6044,7 +6078,6 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	uint16_t xritag;
 	union lpfc_wqe wqe;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[ring_number];
-	uint32_t fcp_wqidx;
 
 	if (piocb->sli4_xritag == NO_XRI) {
 		if (piocb->iocb.ulpCommand == CMD_ABORT_XRI_CN ||
@@ -6079,8 +6112,17 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 		return IOCB_ERROR;
 
 	if (piocb->iocb_flag &  LPFC_IO_FCP) {
-		fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
-		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[fcp_wqidx], &wqe))
+		/*
+		 * For FCP command IOCB, get a new WQ index to distribute
+		 * WQE across the WQsr. On the other hand, for abort IOCB,
+		 * it carries the same WQ index to the original command
+		 * IOCB.
+		 */
+		if ((piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
+		    (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN))
+			piocb->fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
+		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[piocb->fcp_wqidx],
+				     &wqe))
 			return IOCB_ERROR;
 	} else {
 		if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, &wqe))
@@ -7070,6 +7112,9 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	iabt->ulpLe = 1;
 	iabt->ulpClass = icmd->ulpClass;
 
+	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
+	abtsiocbp->fcp_wqidx = cmdiocb->fcp_wqidx;
+
 	if (phba->link_state >= LPFC_LINK_UP)
 		iabt->ulpCommand = CMD_ABORT_XRI_CN;
 	else
@@ -7272,6 +7317,9 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		abtsiocb->iocb.ulpLe = 1;
 		abtsiocb->iocb.ulpClass = cmd->ulpClass;
 		abtsiocb->vport = phba->pport;
+
+		/* ABTS WQE must go to the same WQ as the WQE to be aborted */
+		abtsiocb->fcp_wqidx = iocbq->fcp_wqidx;
 
 		if (lpfc_is_link_up(phba))
 			abtsiocb->iocb.ulpCommand = CMD_ABORT_XRI_CN;
@@ -8671,7 +8719,6 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	uint32_t status;
 	unsigned long iflags;
 
-	lpfc_sli4_rq_release(hrq, drq);
 	if (bf_get(lpfc_rcqe_rq_id, rcqe) != hrq->queue_id)
 		goto out;
 
@@ -8681,6 +8728,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2537 Receive Frame Truncated!!\n");
 	case FC_STATUS_RQ_SUCCESS:
+		lpfc_sli4_rq_release(hrq, drq);
 		spin_lock_irqsave(&phba->hbalock, iflags);
 		dma_buf = lpfc_sli_hbqbuf_get(&phba->hbqs[0].hbq_buffer_list);
 		if (!dma_buf) {
@@ -10997,8 +11045,8 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 {
 	struct lpfc_iocbq *ctiocb = NULL;
 	struct lpfc_nodelist *ndlp;
-	uint16_t oxid;
-	uint32_t sid;
+	uint16_t oxid, rxid;
+	uint32_t sid, fctl;
 	IOCB_t *icmd;
 
 	if (!lpfc_is_link_up(phba))
@@ -11006,6 +11054,7 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+	rxid = be16_to_cpu(fc_hdr->fh_rx_id);
 
 	ndlp = lpfc_findnode_did(phba->pport, sid);
 	if (!ndlp) {
@@ -11020,9 +11069,12 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 	if (!ctiocb)
 		return;
 
+	/* Extract the F_CTL field from FC_HDR */
+	fctl = sli4_fctl_from_fc_hdr(fc_hdr);
+
 	icmd = &ctiocb->iocb;
-	icmd->un.xseq64.bdl.ulpIoTag32 = 0;
 	icmd->un.xseq64.bdl.bdeSize = 0;
+	icmd->un.xseq64.bdl.ulpIoTag32 = 0;
 	icmd->un.xseq64.w5.hcsw.Dfctl = 0;
 	icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_ACC;
 	icmd->un.xseq64.w5.hcsw.Type = FC_TYPE_BLS;
@@ -11033,12 +11085,29 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = ndlp->nlp_rpi;
-	icmd->un.ulpWord[3] = oxid;
 
-	ctiocb->sli4_xritag = NO_XRI;
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
 	ctiocb->iocb_cmpl = lpfc_sli4_seq_abort_acc_cmpl;
+
+	if (fctl & FC_FC_EX_CTX) {
+		/* ABTS sent by responder to CT exchange, construction
+		 * of BA_ACC will use OX_ID from ABTS for the XRI_TAG
+		 * field and RX_ID from ABTS for RX_ID field.
+		 */
+		bf_set(lpfc_abts_orig, &icmd->un.bls_acc, LPFC_ABTS_UNSOL_RSP);
+		bf_set(lpfc_abts_rxid, &icmd->un.bls_acc, rxid);
+		ctiocb->sli4_xritag = oxid;
+	} else {
+		/* ABTS sent by initiator to CT exchange, construction
+		 * of BA_ACC will need to allocate a new XRI as for the
+		 * XRI_TAG and RX_ID fields.
+		 */
+		bf_set(lpfc_abts_orig, &icmd->un.bls_acc, LPFC_ABTS_UNSOL_INT);
+		bf_set(lpfc_abts_rxid, &icmd->un.bls_acc, NO_XRI);
+		ctiocb->sli4_xritag = NO_XRI;
+	}
+	bf_set(lpfc_abts_oxid, &icmd->un.bls_acc, oxid);
 
 	/* Xmit CT abts accept on exchange <xid> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
@@ -11066,19 +11135,31 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct fc_frame_header fc_hdr;
+	uint32_t fctl;
 	bool abts_par;
-
-	/* Try to abort partially assembled seq */
-	abts_par = lpfc_sli4_abort_partial_seq(vport, dmabuf);
 
 	/* Make a copy of fc_hdr before the dmabuf being released */
 	memcpy(&fc_hdr, dmabuf->hbuf.virt, sizeof(struct fc_frame_header));
+	fctl = sli4_fctl_from_fc_hdr(&fc_hdr);
 
-	/* Send abort to ULP if partially seq abort failed */
-	if (abts_par == false)
-		lpfc_sli4_send_seq_to_ulp(vport, dmabuf);
-	else
+	if (fctl & FC_FC_EX_CTX) {
+		/*
+		 * ABTS sent by responder to exchange, just free the buffer
+		 */
 		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+	} else {
+		/*
+		 * ABTS sent by initiator to exchange, need to do cleanup
+		 */
+		/* Try to abort partially assembled seq */
+		abts_par = lpfc_sli4_abort_partial_seq(vport, dmabuf);
+
+		/* Send abort to ULP if partially seq abort failed */
+		if (abts_par == false)
+			lpfc_sli4_send_seq_to_ulp(vport, dmabuf);
+		else
+			lpfc_in_buf_free(phba, &dmabuf->dbuf);
+	}
 	/* Send basic accept (BA_ACC) to the abort requester */
 	lpfc_sli4_seq_abort_acc(phba, &fc_hdr);
 }

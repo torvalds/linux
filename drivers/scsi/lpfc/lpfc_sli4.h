@@ -63,6 +63,11 @@
 	 (fc_hdr)->fh_s_id[1] <<  8 | \
 	 (fc_hdr)->fh_s_id[2])
 
+#define sli4_fctl_from_fc_hdr(fc_hdr)  \
+	((fc_hdr)->fh_f_ctl[0] << 16 | \
+	 (fc_hdr)->fh_f_ctl[1] <<  8 | \
+	 (fc_hdr)->fh_f_ctl[2])
+
 enum lpfc_sli4_queue_type {
 	LPFC_EQ,
 	LPFC_GCQ,

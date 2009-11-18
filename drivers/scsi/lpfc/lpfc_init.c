@@ -4931,7 +4931,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->vpi_base = phba->sli4_hba.max_cfg_param.vpi_base;
 		phba->vfi_base = phba->sli4_hba.max_cfg_param.vfi_base;
 		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
-		phba->max_vpi = phba->sli4_hba.max_cfg_param.max_vpi;
+		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
+				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"2003 cfg params XRI(B:%d M:%d), "

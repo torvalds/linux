@@ -194,6 +194,26 @@ struct lpfc_sli4_flags {
 #define lpfc_fip_flag_WORD word0
 };
 
+struct sli4_bls_acc {
+	uint32_t word0_rsvd;      /* Word0 must be reserved */
+	uint32_t word1;
+#define lpfc_abts_orig_SHIFT      0
+#define lpfc_abts_orig_MASK       0x00000001
+#define lpfc_abts_orig_WORD       word1
+#define LPFC_ABTS_UNSOL_RSP       1
+#define LPFC_ABTS_UNSOL_INT       0
+	uint32_t word2;
+#define lpfc_abts_rxid_SHIFT      0
+#define lpfc_abts_rxid_MASK       0x0000FFFF
+#define lpfc_abts_rxid_WORD       word2
+#define lpfc_abts_oxid_SHIFT      16
+#define lpfc_abts_oxid_MASK       0x0000FFFF
+#define lpfc_abts_oxid_WORD       word2
+	uint32_t word3;
+	uint32_t word4;
+	uint32_t word5_rsvd;	/* Word5 must be reserved */
+};
+
 /* event queue entry structure */
 struct lpfc_eqe {
 	uint32_t word0;
@@ -1980,7 +2000,8 @@ struct lpfc_bmbx_create {
 #define SGL_ALIGN_SZ 64
 #define SGL_PAGE_SIZE 4096
 /* align SGL addr on a size boundary - adjust address up */
-#define NO_XRI ((uint16_t)-1)
+#define NO_XRI  ((uint16_t)-1)
+
 struct wqe_common {
 	uint32_t word6;
 #define wqe_xri_tag_SHIFT     0

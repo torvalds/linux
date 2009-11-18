@@ -66,6 +66,7 @@ struct lpfc_iocbq {
 	uint8_t abort_count;
 	uint8_t rsvd2;
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
+	uint32_t fcp_wqidx;	/* index to FCP work queue */
 	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */

@@ -202,6 +202,7 @@ struct lpfc_stats {
 	uint32_t elsRcvLIRR;
 	uint32_t elsRcvRPS;
 	uint32_t elsRcvRPL;
+	uint32_t elsRcvRRQ;
 	uint32_t elsXmitFLOGI;
 	uint32_t elsXmitFDISC;
 	uint32_t elsXmitPLOGI;
