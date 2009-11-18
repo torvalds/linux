@@ -508,24 +508,35 @@ static void hdmi_clear_dip_buffers(struct hda_codec *codec, hda_nid_t pin_nid)
 #endif
 }
 
+static void hdmi_checksum_audio_infoframe(struct hdmi_audio_infoframe *ai)
+{
+	u8 *bytes = (u8 *)ai;
+	u8 sum = 0;
+	int i;
+
+	ai->checksum = 0;
+
+	for (i = 0; i < sizeof(*ai); i++)
+		sum += bytes[i];
+
+	ai->checksum = - sum;
+}
+
 static void hdmi_fill_audio_infoframe(struct hda_codec *codec,
 				      hda_nid_t pin_nid,
 				      struct hdmi_audio_infoframe *ai)
 {
-	u8 *params = (u8 *)ai;
-	u8 sum = 0;
+	u8 *bytes = (u8 *)ai;
 	int i;
 
 	hdmi_debug_dip_size(codec, pin_nid);
 	hdmi_clear_dip_buffers(codec, pin_nid); /* be paranoid */
 
-	for (i = 0; i < sizeof(*ai); i++)
-		sum += params[i];
-	ai->checksum = - sum;
+	hdmi_checksum_audio_infoframe(ai);
 
 	hdmi_set_dip_index(codec, pin_nid, 0x0, 0x0);
 	for (i = 0; i < sizeof(*ai); i++)
-		hdmi_write_dip_byte(codec, pin_nid, params[i]);
+		hdmi_write_dip_byte(codec, pin_nid, bytes[i]);
 }
 
 /*
