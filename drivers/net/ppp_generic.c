@@ -1944,8 +1944,15 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	}
 
 	/* Pull completed packets off the queue and receive them. */
-	while ((skb = ppp_mp_reconstruct(ppp)))
-		ppp_receive_nonmp_frame(ppp, skb);
+	while ((skb = ppp_mp_reconstruct(ppp))) {
+		if (pskb_may_pull(skb, 2))
+			ppp_receive_nonmp_frame(ppp, skb);
+		else {
+			++ppp->dev->stats.rx_length_errors;
+			kfree_skb(skb);
+			ppp_receive_error(ppp);
+		}
+	}
 
 	return;
 

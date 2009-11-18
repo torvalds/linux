@@ -4332,6 +4332,8 @@ F:	drivers/video/aty/aty128fb.c
 
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
+M:	Ivo van Doorn <IvDoorn@gmail.com>
+M:	Gertjan van Wingerde <gwingerde@gmail.com>
 L:	linux-wireless@vger.kernel.org
 L:	users@rt2x00.serialmonkey.com (moderated for non-subscribers)
 W:	http://rt2x00.serialmonkey.com/
@@ -4419,7 +4421,7 @@ RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F	Documentation/rfkill.txt
+F:	Documentation/rfkill.txt
 F:	net/rfkill/
 
 RISCOM8 DRIVER
