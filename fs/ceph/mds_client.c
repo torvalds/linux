@@ -2552,7 +2552,7 @@ static void delayed_work(struct work_struct *work)
 }
 
 
-void ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
+int ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 {
 	mdsc->client = client;
 	mutex_init(&mdsc->mutex);
@@ -2582,6 +2582,7 @@ void ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 	init_waitqueue_head(&mdsc->cap_flushing_wq);
 	spin_lock_init(&mdsc->dentry_lru_lock);
 	INIT_LIST_HEAD(&mdsc->dentry_lru);
+	return 0;
 }
 
 /*

@@ -1127,19 +1127,26 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->num_requests = 0;
 	INIT_DELAYED_WORK(&osdc->timeout_work, handle_timeout);
 
+	err = -ENOMEM;
 	osdc->req_mempool = mempool_create_kmalloc_pool(10,
 					sizeof(struct ceph_osd_request));
 	if (!osdc->req_mempool)
-		return -ENOMEM;
+		goto out;
 
 	err = ceph_msgpool_init(&osdc->msgpool_op, 4096, 10, true);
 	if (err < 0)
-		return -ENOMEM;
+		goto out_mempool;
 	err = ceph_msgpool_init(&osdc->msgpool_op_reply, 512, 0, false);
 	if (err < 0)
-		return -ENOMEM;
-
+		goto out_msgpool;
 	return 0;
+
+out_msgpool:
+	ceph_msgpool_destroy(&osdc->msgpool_op);
+out_mempool:
+	mempool_destroy(osdc->req_mempool);
+out:
+	return err;
 }
 
 void ceph_osdc_stop(struct ceph_osd_client *osdc)

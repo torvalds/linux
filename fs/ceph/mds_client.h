@@ -282,7 +282,7 @@ extern void ceph_put_mds_session(struct ceph_mds_session *s);
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
 			     struct ceph_msg *msg, int mds);
 
-extern void ceph_mdsc_init(struct ceph_mds_client *mdsc,
+extern int ceph_mdsc_init(struct ceph_mds_client *mdsc,
 			   struct ceph_client *client);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
 extern void ceph_mdsc_stop(struct ceph_mds_client *mdsc);

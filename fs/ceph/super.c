@@ -530,9 +530,13 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 	err = ceph_osdc_init(&client->osdc, client);
 	if (err < 0)
 		goto fail_monc;
-	ceph_mdsc_init(&client->mdsc, client);
+	err = ceph_mdsc_init(&client->mdsc, client);
+	if (err < 0)
+		goto fail_osdc;
 	return client;
 
+fail_osdc:
+	ceph_osdc_stop(&client->osdc);
 fail_monc:
 	ceph_monc_stop(&client->monc);
 fail_trunc_wq:
