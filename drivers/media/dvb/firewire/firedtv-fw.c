@@ -79,19 +79,14 @@ struct firedtv_receive_context {
 static int queue_iso(struct firedtv_receive_context *ctx, int index)
 {
 	struct fw_iso_packet p;
-	int err;
 
 	p.payload_length = MAX_PACKET_SIZE;
-	p.interrupt = !(ctx->interrupt_packet & (IRQ_INTERVAL - 1));
+	p.interrupt = !(++ctx->interrupt_packet & (IRQ_INTERVAL - 1));
 	p.skip = 0;
 	p.header_length = ISO_HEADER_SIZE;
 
-	err = fw_iso_context_queue(ctx->context, &p, &ctx->buffer,
-				   index * MAX_PACKET_SIZE);
-	if (!err)
-		ctx->interrupt_packet++;
-
-	return err;
+	return fw_iso_context_queue(ctx->context, &p, &ctx->buffer,
+				    index * MAX_PACKET_SIZE);
 }
 
 static void handle_iso(struct fw_iso_context *context, u32 cycle,
@@ -150,7 +145,7 @@ static int start_iso(struct firedtv *fdtv)
 	if (err)
 		goto fail_context_destroy;
 
-	ctx->interrupt_packet = 1;
+	ctx->interrupt_packet = 0;
 	ctx->current_packet = 0;
 
 	for (i = 0; i < N_PAGES; i++)
