@@ -26,6 +26,21 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
+static char *bits_names(unsigned int bits, char *names[], int size)
+{
+	int i, n;
+	static char buf[128];
+
+	for (i = 0, n = 0; i < size; i++) {
+		if (bits & (1U<<i) && names[i])
+			n += snprintf(buf + n, sizeof(buf) - n, " %s",
+				      names[i]);
+	}
+	buf[n] = '\0';
+
+	return buf;
+}
+
 static const char *get_wid_type_name(unsigned int wid_value)
 {
 	static char *names[16] = {
@@ -398,8 +413,24 @@ static const char *get_pwr_state(u32 state)
 static void print_power_state(struct snd_info_buffer *buffer,
 			      struct hda_codec *codec, hda_nid_t nid)
 {
+	static char *names[] = {
+		[ilog2(AC_PWRST_D0SUP)]		= "D0",
+		[ilog2(AC_PWRST_D1SUP)]		= "D1",
+		[ilog2(AC_PWRST_D2SUP)]		= "D2",
+		[ilog2(AC_PWRST_D3SUP)]		= "D3",
+		[ilog2(AC_PWRST_D3COLDSUP)]	= "D3cold",
+		[ilog2(AC_PWRST_S3D3COLDSUP)]	= "S3D3cold",
+		[ilog2(AC_PWRST_CLKSTOP)]	= "CLKSTOP",
+		[ilog2(AC_PWRST_EPSS)]		= "EPSS",
+	};
+
+	int sup = snd_hda_param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
+	if (sup)
+		snd_iprintf(buffer, "  Power states: %s\n",
+			    bits_names(sup, names, ARRAY_SIZE(names)));
+
 	snd_iprintf(buffer, "  Power: setting=%s, actual=%s\n",
 		    get_pwr_state(pwr & AC_PWRST_SETTING),
 		    get_pwr_state((pwr & AC_PWRST_ACTUAL) >>

@@ -286,6 +286,10 @@ enum {
 #define AC_PWRST_D1SUP			(1<<1)
 #define AC_PWRST_D2SUP			(1<<2)
 #define AC_PWRST_D3SUP			(1<<3)
+#define AC_PWRST_D3COLDSUP		(1<<4)
+#define AC_PWRST_S3D3COLDSUP		(1<<29)
+#define AC_PWRST_CLKSTOP		(1<<30)
+#define AC_PWRST_EPSS			(1U<<31)
 
 /* Power state values */
 #define AC_PWRST_SETTING		(0xf<<0)
