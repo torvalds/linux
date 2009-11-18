@@ -2835,6 +2835,9 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba *phba = vport->phba;
 	int val = 0, rc = -EINVAL;
 
+	/* AER not supported on OC devices yet */
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+		return -EPERM;
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
@@ -2851,10 +2854,11 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 				phba->cfg_aer_support = 0;
 				rc = strlen(buf);
 			} else
-				rc = -EINVAL;
-		} else
+				rc = -EPERM;
+		} else {
 			phba->cfg_aer_support = 0;
-		rc = strlen(buf);
+			rc = strlen(buf);
+		}
 		break;
 	case 1:
 		if (!(phba->hba_flag & HBA_AER_ENABLED)) {
@@ -2866,10 +2870,11 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 				phba->cfg_aer_support = 1;
 				rc = strlen(buf);
 			} else
-				 rc = -EINVAL;
-		} else
+				 rc = -EPERM;
+		} else {
 			phba->cfg_aer_support = 1;
-		rc = strlen(buf);
+			rc = strlen(buf);
+		}
 		break;
 	default:
 		rc = -EINVAL;
@@ -2905,6 +2910,12 @@ lpfc_param_show(aer_support)
 static int
 lpfc_aer_support_init(struct lpfc_hba *phba, int val)
 {
+	/* AER not supported on OC devices yet */
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
+		phba->cfg_aer_support = 0;
+		return -EPERM;
+	}
+
 	if (val == 0 || val == 1) {
 		phba->cfg_aer_support = val;
 		return 0;
@@ -2913,6 +2924,7 @@ lpfc_aer_support_init(struct lpfc_hba *phba, int val)
 			"2712 lpfc_aer_support attribute value %d out "
 			"of range, allowed values are 0|1, setting it "
 			"to default value of 1\n", val);
+	/* By default, try to enable AER on a device */
 	phba->cfg_aer_support = 1;
 	return -EINVAL;
 }
@@ -2948,18 +2960,23 @@ lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	int val, rc = -1;
 
+	/* AER not supported on OC devices yet */
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+		return -EPERM;
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
 		return -EINVAL;
+	if (val != 1)
+		return -EINVAL;
 
-	if (val == 1 && phba->hba_flag & HBA_AER_ENABLED)
+	if (phba->hba_flag & HBA_AER_ENABLED)
 		rc = pci_cleanup_aer_uncorrect_error_status(phba->pcidev);
 
 	if (rc == 0)
 		return strlen(buf);
 	else
-		return -EINVAL;
+		return -EPERM;
 }
 
 static DEVICE_ATTR(lpfc_aer_state_cleanup, S_IWUSR, NULL,

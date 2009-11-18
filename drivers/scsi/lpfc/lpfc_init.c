@@ -7142,6 +7142,28 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 }
 
 /**
+ * lpfc_sli_prep_dev_for_recover - Prepare SLI3 device for pci slot recover
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is called to prepare the SLI3 device for PCI slot recover. It
+ * aborts and stops all the on-going I/Os on the pci device.
+ **/
+static void
+lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2723 PCI channel I/O abort preparing for recovery\n");
+	/* Prepare for bringing HBA offline */
+	lpfc_offline_prep(phba);
+	/* Clear sli active flag to prevent sysfs access to HBA */
+	spin_lock_irq(&phba->hbalock);
+	phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
+	/* Stop and flush all I/Os and bring HBA offline */
+	lpfc_offline(phba);
+}
+
+/**
  * lpfc_sli_prep_dev_for_reset - Prepare SLI3 device for pci slot reset
  * @phba: pointer to lpfc hba data structure.
  *
@@ -7156,7 +7178,7 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2710 PCI channel I/O frozen\n");
+			"2710 PCI channel disable preparing for reset\n");
 	/* Disable interrupt and pci device */
 	lpfc_sli_disable_intr(phba);
 	pci_disable_device(phba->pcidev);
@@ -7181,7 +7203,7 @@ static void
 lpfc_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2711 PCI channel I/O permanent failure\n");
+			"2711 PCI channel permanent disable for failure\n");
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
 	/* Clean up all driver's outstanding SCSI I/Os */
@@ -7214,7 +7236,8 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 
 	switch (state) {
 	case pci_channel_io_normal:
-		/* Non-fatal error, do nothing */
+		/* Non-fatal error, prepare for recovery */
+		lpfc_sli_prep_dev_for_recover(phba);
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		/* Fatal error, prepare for slot reset */
