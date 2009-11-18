@@ -25,7 +25,7 @@
 
 struct phonet_device_list {
 	struct list_head list;
-	spinlock_t lock;
+	struct mutex lock;
 };
 
 struct phonet_device_list *phonet_device_list(struct net *net);
