@@ -321,7 +321,14 @@ int radeon_parse_options(char *options)
 
 int radeonfb_probe(struct drm_device *dev)
 {
-	return drm_fb_helper_single_fb_probe(dev, 32, &radeonfb_create);
+	struct radeon_device *rdev = dev->dev_private;
+	int bpp_sel = 32;
+
+	/* select 8 bpp console on RN50 or 16MB cards */
+	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
+		bpp_sel = 8;
+
+	return drm_fb_helper_single_fb_probe(dev, bpp_sel, &radeonfb_create);
 }
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
