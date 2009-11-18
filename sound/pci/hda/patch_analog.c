@@ -720,10 +720,10 @@ static struct snd_kcontrol_new ad1986a_laptop_intmic_mixers[] = {
 static void ad1986a_automic(struct hda_codec *codec)
 {
 	unsigned int present;
-	present = snd_hda_codec_read(codec, 0x1f, 0, AC_VERB_GET_PIN_SENSE, 0);
+	present = snd_hda_jack_detect(codec, 0x1f);
 	/* 0 = 0x1f, 2 = 0x1d, 4 = mixed */
 	snd_hda_codec_write(codec, 0x0f, 0, AC_VERB_SET_CONNECT_SEL,
-			    (present & AC_PINSENSE_PRESENCE) ? 0 : 2);
+			    present ? 0 : 2);
 }
 
 #define AD1986A_MIC_EVENT		0x36
@@ -762,10 +762,8 @@ static void ad1986a_update_hp(struct hda_codec *codec)
 static void ad1986a_hp_automute(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
-	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x1a, 0, AC_VERB_GET_PIN_SENSE, 0);
-	spec->jack_present = !!(present & 0x80000000);
+	spec->jack_present = snd_hda_jack_detect(codec, 0x1a);
 	if (spec->inv_jack_detect)
 		spec->jack_present = !spec->jack_present;
 	ad1986a_update_hp(codec);
@@ -1555,8 +1553,7 @@ static void ad1981_hp_automute(struct hda_codec *codec)
 {
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x06, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, 0x06);
 	snd_hda_codec_amp_stereo(codec, 0x05, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
@@ -1576,8 +1573,7 @@ static void ad1981_hp_automic(struct hda_codec *codec)
 	};
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x08, 0,
-			    	 AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, 0x08);
 	if (present)
 		snd_hda_sequence_write(codec, mic_jack_on);
 	else
@@ -2532,7 +2528,7 @@ static void ad1988_laptop_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	if ((res >> 26) != AD1988_HP_EVENT)
 		return;
-	if (snd_hda_codec_read(codec, 0x11, 0, AC_VERB_GET_PIN_SENSE, 0) & (1 << 31))
+	if (snd_hda_jack_detect(codec, 0x11))
 		snd_hda_sequence_write(codec, ad1988_laptop_hp_on);
 	else
 		snd_hda_sequence_write(codec, ad1988_laptop_hp_off);
@@ -3778,8 +3774,7 @@ static void ad1884a_hp_automute(struct hda_codec *codec)
 {
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x11, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, 0x11);
 	snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 	snd_hda_codec_write(codec, 0x16, 0, AC_VERB_SET_EAPD_BTLENABLE,
@@ -3791,8 +3786,7 @@ static void ad1884a_hp_automic(struct hda_codec *codec)
 {
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x14, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, 0x14);
 	snd_hda_codec_write(codec, 0x0c, 0, AC_VERB_SET_CONNECT_SEL,
 			    present ? 0 : 1);
 }
@@ -3827,13 +3821,9 @@ static void ad1884a_laptop_automute(struct hda_codec *codec)
 {
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x11, 0, AC_VERB_GET_PIN_SENSE, 0);
-	present &= AC_PINSENSE_PRESENCE;
-	if (!present) {
-		present = snd_hda_codec_read(codec, 0x12, 0,
-					     AC_VERB_GET_PIN_SENSE, 0);
-		present &= AC_PINSENSE_PRESENCE;
-	}
+	present = snd_hda_jack_detect(codec, 0x11);
+	if (!present)
+		present = snd_hda_jack_detect(codec, 0x12);
 	snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 	snd_hda_codec_write(codec, 0x16, 0, AC_VERB_SET_EAPD_BTLENABLE,
@@ -3845,11 +3835,9 @@ static void ad1884a_laptop_automic(struct hda_codec *codec)
 {
 	unsigned int idx;
 
-	if (snd_hda_codec_read(codec, 0x14, 0, AC_VERB_GET_PIN_SENSE, 0) &
-	    AC_PINSENSE_PRESENCE)
+	if (snd_hda_jack_detect(codec, 0x14))
 		idx = 0;
-	else if (snd_hda_codec_read(codec, 0x1c, 0, AC_VERB_GET_PIN_SENSE, 0) &
-		 AC_PINSENSE_PRESENCE)
+	else if (snd_hda_jack_detect(codec, 0x1c))
 		idx = 4;
 	else
 		idx = 1;
@@ -4018,8 +4006,7 @@ static void ad1984a_thinkpad_automute(struct hda_codec *codec)
 {
 	unsigned int present;
 
-	present = snd_hda_codec_read(codec, 0x11, 0, AC_VERB_GET_PIN_SENSE, 0)
-		& AC_PINSENSE_PRESENCE;
+	present = snd_hda_jack_detect(codec, 0x11);
 	snd_hda_codec_amp_stereo(codec, 0x12, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
@@ -4127,14 +4114,12 @@ static struct snd_kcontrol_new ad1984a_touchsmart_mixers[] = {
 /* switch to external mic if plugged */
 static void ad1984a_touchsmart_automic(struct hda_codec *codec)
 {
-	if (snd_hda_codec_read(codec, 0x1c, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000) {
+	if (snd_hda_jack_detect(codec, 0x1c))
 		snd_hda_codec_write(codec, 0x0c, 0,
 				     AC_VERB_SET_CONNECT_SEL, 0x4);
-	} else {
+	else
 		snd_hda_codec_write(codec, 0x0c, 0,
 				     AC_VERB_SET_CONNECT_SEL, 0x5);
-	}
 }
 
 

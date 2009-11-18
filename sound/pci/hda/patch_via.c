@@ -547,8 +547,7 @@ static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 	unsigned no_presence = (def_conf & AC_DEFCFG_MISC)
 		>> AC_DEFCFG_MISC_SHIFT
 		& AC_DEFCFG_MISC_NO_PRESENCE; /* do not support pin sense */
-	unsigned present = snd_hda_codec_read(codec, nid, 0,
-					      AC_VERB_GET_PIN_SENSE, 0) >> 31;
+	unsigned present = snd_hda_jack_detect(codec, nid);
 	struct via_spec *spec = codec->spec;
 	if ((spec->smart51_enabled && is_smart51_pins(spec, nid))
 	    || ((no_presence || present)
@@ -786,14 +785,11 @@ static void set_jack_power_state(struct hda_codec *codec)
 
 		/* Mono out */
 		/* SW4(28h)->MW1(29h)-> PW12 (2ah)*/
-		present = snd_hda_codec_read(
-			codec, 0x1c, 0, AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+		present = snd_hda_jack_detect(codec, 0x1c);
 		if (present)
 			mono_out = 0;
 		else {
-			present = snd_hda_codec_read(
-				codec, 0x1d, 0, AC_VERB_GET_PIN_SENSE, 0)
-				& 0x80000000;
+			present = snd_hda_jack_detect(codec, 0x1d);
 			if (!spec->hp_independent_mode && present)
 				mono_out = 0;
 			else
@@ -872,8 +868,7 @@ static void set_jack_power_state(struct hda_codec *codec)
 
 		/* Class-D */
 		/* PW0 (24h), MW0(18h), MUX0(34h) */
-		present = snd_hda_codec_read(
-			codec, 0x25, 0, AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+		present = snd_hda_jack_detect(codec, 0x25);
 		parm = AC_PWRST_D3;
 		set_pin_power_state(codec, 0x24, &parm);
 		if (present) {
@@ -894,8 +889,7 @@ static void set_jack_power_state(struct hda_codec *codec)
 
 		/* Mono Out */
 		/* PW15 (31h), MW8(17h), MUX8(3bh) */
-		present = snd_hda_codec_read(
-			codec, 0x26, 0, AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+		present = snd_hda_jack_detect(codec, 0x26);
 		parm = AC_PWRST_D3;
 		set_pin_power_state(codec, 0x31, &parm);
 		if (present) {
@@ -973,8 +967,7 @@ static void set_jack_power_state(struct hda_codec *codec)
 
 		/* Internal Speaker */
 		/* PW0 (24h), MW0(14h), MUX0(34h) */
-		present = snd_hda_codec_read(
-			codec, 0x25, 0, AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+		present = snd_hda_jack_detect(codec, 0x25);
 		parm = AC_PWRST_D3;
 		set_pin_power_state(codec, 0x24, &parm);
 		if (present) {
@@ -994,8 +987,7 @@ static void set_jack_power_state(struct hda_codec *codec)
 		}
 		/* Mono Out */
 		/* PW13 (31h), MW13(1ch), MUX13(3ch), MW14(3eh) */
-		present = snd_hda_codec_read(
-			codec, 0x28, 0, AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+		present = snd_hda_jack_detect(codec, 0x28);
 		parm = AC_PWRST_D3;
 		set_pin_power_state(codec, 0x31, &parm);
 		if (present) {
@@ -1920,8 +1912,7 @@ static void via_hp_automute(struct hda_codec *codec)
 	unsigned int present = 0;
 	struct via_spec *spec = codec->spec;
 
-	present = snd_hda_codec_read(codec, spec->autocfg.hp_pins[0], 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode) {
 		struct snd_ctl_elem_id id;
@@ -1947,9 +1938,8 @@ static void via_mono_automute(struct hda_codec *codec)
 	if (spec->codec_type != VT1716S)
 		return;
 
-	lineout_present = snd_hda_codec_read(
-		codec, spec->autocfg.line_out_pins[0], 0,
-		AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	lineout_present = snd_hda_jack_detect(codec,
+					      spec->autocfg.line_out_pins[0]);
 
 	/* Mute Mono Out if Line Out is plugged */
 	if (lineout_present) {
@@ -1958,9 +1948,7 @@ static void via_mono_automute(struct hda_codec *codec)
 		return;
 	}
 
-	hp_present = snd_hda_codec_read(
-		codec, spec->autocfg.hp_pins[0], 0,
-		AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode)
 		snd_hda_codec_amp_stereo(
@@ -2025,8 +2013,7 @@ static void via_speaker_automute(struct hda_codec *codec)
 	if (spec->codec_type != VT2002P && spec->codec_type != VT1812)
 		return;
 
-	hp_present = snd_hda_codec_read(codec, spec->autocfg.hp_pins[0], 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode) {
 		struct snd_ctl_elem_id id;
@@ -2055,11 +2042,9 @@ static void via_hp_bind_automute(struct hda_codec *codec)
 	if (!spec->autocfg.hp_pins[0] || !spec->autocfg.line_out_pins[0])
 		return;
 
-	hp_present = snd_hda_codec_read(codec, spec->autocfg.hp_pins[0], 0,
-					AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
-	present = snd_hda_codec_read(codec, spec->autocfg.line_out_pins[0], 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_jack_detect(codec, spec->autocfg.line_out_pins[0]);
 
 	if (!spec->hp_independent_mode) {
 		/* Mute Line-Outs */
@@ -2529,8 +2514,7 @@ static void vt1708_update_hp_jack_state(struct work_struct *work)
 		return;
 	/* if jack state toggled */
 	if (spec->vt1708_hp_present
-	    != (snd_hda_codec_read(spec->codec, spec->autocfg.hp_pins[0], 0,
-				   AC_VERB_GET_PIN_SENSE, 0) >> 31)) {
+	    != snd_hda_jack_detect(spec->codec, spec->autocfg.hp_pins[0])) {
 		spec->vt1708_hp_present ^= 1;
 		via_hp_automute(spec->codec);
 	}
