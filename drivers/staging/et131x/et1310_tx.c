@@ -209,7 +209,7 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 	       &txdma->pr_base_lo);
 
 	/* Initialise the transmit DMA engine */
-	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des.value);
+	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des);
 
 	/* Load the completion writeback physical address */
 	writel((u32)((u64)etdev->tx_ring.tx_status_pa >> 32),

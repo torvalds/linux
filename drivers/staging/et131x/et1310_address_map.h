@@ -198,20 +198,10 @@ typedef struct _GLOBAL_t {			/* Location: */
 /*
  * structure for txdma packet ring number of descriptor reg in txdma address
  * map.  Located at address 0x100C
+ *
+ * 31-10: unused
+ * 9-0: pr ndes
  */
-typedef union _TXDMA_PR_NUM_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;	/* bits 10-31 */
-		u32 pr_ndes:10;	/* bits 0-9 */
-#else
-		u32 pr_ndes:10;	/* bits 0-9 */
-		u32 unused:22;	/* bits 10-31 */
-#endif
-	} bits;
-} TXDMA_PR_NUM_DES_t, *PTXDMA_PR_NUM_DES_t;
-
 
 #define ET_DMA10_MASK		0x3FF	/* 10 bit mask for DMA10W types */
 #define ET_DMA10_WRAP		0x400
@@ -261,7 +251,7 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 csr;			/*  0x1000 */
 	u32 pr_base_hi;			/*  0x1004 */
 	u32 pr_base_lo;			/*  0x1008 */
-	TXDMA_PR_NUM_DES_t pr_num_des;	/*  0x100C */
+	u32 pr_num_des;			/*  0x100C */
 	u32 txq_wr_addr;		/*  0x1010 */
 	u32 txq_wr_addr_ext;		/*  0x1014 */
 	u32 txq_rd_addr;		/*  0x1018 */
