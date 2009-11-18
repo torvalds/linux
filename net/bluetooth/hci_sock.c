@@ -445,10 +445,10 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
 			skb_queue_tail(&hdev->raw_q, skb);
-			hci_sched_tx(hdev);
+			tasklet_schedule(&hdev->tx_task);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
-			hci_sched_cmd(hdev);
+			tasklet_schedule(&hdev->cmd_task);
 		}
 	} else {
 		if (!capable(CAP_NET_RAW)) {
@@ -457,7 +457,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
-		hci_sched_tx(hdev);
+		tasklet_schedule(&hdev->tx_task);
 	}
 
 	err = len;

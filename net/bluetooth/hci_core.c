@@ -193,8 +193,9 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	while ((skb = skb_dequeue(&hdev->driver_init))) {
 		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 		skb->dev = (void *) hdev;
+
 		skb_queue_tail(&hdev->cmd_q, skb);
-		hci_sched_cmd(hdev);
+		tasklet_schedule(&hdev->cmd_task);
 	}
 	skb_queue_purge(&hdev->driver_init);
 
@@ -1005,7 +1006,8 @@ int hci_recv_frame(struct sk_buff *skb)
 
 	/* Queue frame for rx task */
 	skb_queue_tail(&hdev->rx_q, skb);
-	hci_sched_rx(hdev);
+	tasklet_schedule(&hdev->rx_task);
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_recv_frame);
@@ -1216,8 +1218,9 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 	skb->dev = (void *) hdev;
+
 	skb_queue_tail(&hdev->cmd_q, skb);
-	hci_sched_cmd(hdev);
+	tasklet_schedule(&hdev->cmd_task);
 
 	return 0;
 }
@@ -1294,7 +1297,8 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 		spin_unlock_bh(&conn->data_q.lock);
 	}
 
-	hci_sched_tx(hdev);
+	tasklet_schedule(&hdev->tx_task);
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_send_acl);
@@ -1321,8 +1325,10 @@ int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 
 	skb->dev = (void *) hdev;
 	bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
+
 	skb_queue_tail(&conn->data_q, skb);
-	hci_sched_tx(hdev);
+	tasklet_schedule(&hdev->tx_task);
+
 	return 0;
 }
 EXPORT_SYMBOL(hci_send_sco);
@@ -1635,7 +1641,7 @@ static void hci_cmd_task(unsigned long arg)
 			hdev->cmd_last_tx = jiffies;
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
-			hci_sched_cmd(hdev);
+			tasklet_schedule(&hdev->cmd_task);
 		}
 	}
 }
