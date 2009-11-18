@@ -2135,7 +2135,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 
 	if (!adapter->have_msi)
 		flags |= IRQF_SHARED;
-	err = request_irq(adapter->pdev->irq, &atl1c_intr, flags,
+	err = request_irq(adapter->pdev->irq, atl1c_intr, flags,
 			netdev->name, netdev);
 	if (err) {
 		if (netif_msg_ifup(adapter))
