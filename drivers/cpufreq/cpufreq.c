@@ -767,8 +767,9 @@ static struct kobj_type ktype_cpufreq = {
  *   0:        Success
  *   Positive: When we have a managed CPU and the sysfs got symlinked
  */
-int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
-		struct sys_device *sys_dev)
+static int cpufreq_add_dev_policy(unsigned int cpu,
+				  struct cpufreq_policy *policy,
+				  struct sys_device *sys_dev)
 {
 	int ret = 0;
 #ifdef CONFIG_SMP
@@ -842,7 +843,8 @@ int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
 
 
 /* symlink affected CPUs */
-int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
+static int cpufreq_add_dev_symlink(unsigned int cpu,
+				   struct cpufreq_policy *policy)
 {
 	unsigned int j;
 	int ret = 0;
@@ -869,8 +871,9 @@ int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
 	return ret;
 }
 
-int cpufreq_add_dev_interface(unsigned int cpu, struct cpufreq_policy *policy,
-		struct sys_device *sys_dev)
+static int cpufreq_add_dev_interface(unsigned int cpu,
+				     struct cpufreq_policy *policy,
+				     struct sys_device *sys_dev)
 {
 	struct cpufreq_policy new_policy;
 	struct freq_attr **drv_attr;
