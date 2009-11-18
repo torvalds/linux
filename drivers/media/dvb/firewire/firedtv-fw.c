@@ -6,9 +6,9 @@
 #include <linux/errno.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
-#include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -73,7 +73,7 @@ struct firedtv_receive_context {
 	struct fw_iso_buffer buffer;
 	int interrupt_packet;
 	int current_packet;
-	char *packets[N_PACKETS];
+	char *pages[N_PAGES];
 };
 
 static int queue_iso(struct firedtv_receive_context *ctx, int index)
@@ -100,7 +100,7 @@ static void handle_iso(struct fw_iso_context *context, u32 cycle,
 	struct firedtv *fdtv = data;
 	struct firedtv_receive_context *ctx = fdtv->backend_data;
 	__be32 *h, *h_end;
-	int i = ctx->current_packet, length, err;
+	int length, err, i = ctx->current_packet;
 	char *p, *p_end;
 
 	for (h = header, h_end = h + header_length / 4; h < h_end; h++) {
@@ -110,7 +110,8 @@ static void handle_iso(struct fw_iso_context *context, u32 cycle,
 			length = MAX_PACKET_SIZE;
 		}
 
-		p = ctx->packets[i];
+		p = ctx->pages[i / PACKETS_PER_PAGE]
+				+ (i % PACKETS_PER_PAGE) * MAX_PACKET_SIZE;
 		p_end = p + length;
 
 		for (p += CIP_HEADER_SIZE + MPEG2_TS_HEADER_SIZE; p < p_end;
@@ -130,8 +131,7 @@ static int start_iso(struct firedtv *fdtv)
 {
 	struct firedtv_receive_context *ctx;
 	struct fw_device *device = device_of(fdtv);
-	char *p;
-	int i, j, k, err;
+	int i, err;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -153,11 +153,8 @@ static int start_iso(struct firedtv *fdtv)
 	ctx->interrupt_packet = 1;
 	ctx->current_packet = 0;
 
-	for (i = 0, k = 0; k < N_PAGES; k++) {
-		p = kmap(ctx->buffer.pages[k]);
-		for (j = 0; j < PACKETS_PER_PAGE && i < N_PACKETS; j++, i++)
-			ctx->packets[i] = p + j * MAX_PACKET_SIZE;
-	}
+	for (i = 0; i < N_PAGES; i++)
+		ctx->pages[i] = page_address(ctx->buffer.pages[i]);
 
 	for (i = 0; i < N_PACKETS; i++) {
 		err = queue_iso(ctx, i);
