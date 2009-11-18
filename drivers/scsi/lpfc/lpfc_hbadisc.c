@@ -1018,13 +1018,12 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		return;
 	}
+	spin_lock_irqsave(&phba->hbalock, flags);
 	phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
 	phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-	if (vport->port_state != LPFC_FLOGI) {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (vport->port_state != LPFC_FLOGI)
 		lpfc_initial_flogi(vport);
-	}
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
@@ -1460,12 +1459,15 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 
 	if (phba->link_state >= LPFC_LINK_UP)
 		lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
-	else
+	else {
 		/*
 		 * Do not continue FCF discovery and clear FCF_DISC_INPROGRESS
 		 * flag
 		 */
+		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	if (unreg_fcf) {
 		spin_lock_irq(&phba->hbalock);
@@ -2264,7 +2266,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * This shost reference might have been taken at the beginning of
 	 * lpfc_vport_delete()
 	 */
-	if (vport->load_flag & FC_UNLOADING)
+	if ((vport->load_flag & FC_UNLOADING) && (vport != phba->pport))
 		scsi_host_put(shost);
 }
 

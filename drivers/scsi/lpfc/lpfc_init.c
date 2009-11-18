@@ -2320,6 +2320,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	/* Release all the lpfc_scsi_bufs maintained by this host. */
+	spin_lock(&phba->scsi_buf_list_lock);
 	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list) {
 		list_del(&sb->list);
 		pci_pool_free(phba->lpfc_scsi_dma_buf_pool, sb->data,
@@ -2327,6 +2328,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 		kfree(sb);
 		phba->total_scsi_bufs--;
 	}
+	spin_unlock(&phba->scsi_buf_list_lock);
 
 	/* Release all the lpfc_iocbq entries maintained by this host. */
 	list_for_each_entry_safe(io, io_next, &phba->lpfc_iocb_list, list) {
@@ -2334,9 +2336,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 		kfree(io);
 		phba->total_iocbq_bufs--;
 	}
-
 	spin_unlock_irq(&phba->hbalock);
-
 	return 0;
 }
 
