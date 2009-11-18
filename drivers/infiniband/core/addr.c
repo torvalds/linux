@@ -131,6 +131,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
+		read_lock(&dev_base_lock);
 		for_each_netdev(&init_net, dev) {
 			if (ipv6_chk_addr(&init_net,
 					  &((struct sockaddr_in6 *) addr)->sin6_addr,
@@ -139,6 +140,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 				break;
 			}
 		}
+		read_unlock(&dev_base_lock);
 		break;
 #endif
 	}
@@ -391,14 +393,17 @@ static int addr_resolve_local(struct sockaddr *src_in,
 	{
 		struct in6_addr *a;
 
+		read_lock(&dev_base_lock);
 		for_each_netdev(&init_net, dev)
 			if (ipv6_chk_addr(&init_net,
 					  &((struct sockaddr_in6 *) dst_in)->sin6_addr,
 					  dev, 1))
 				break;
 
-		if (!dev)
+		if (!dev) {
+			read_unlock(&dev_base_lock);
 			return -EADDRNOTAVAIL;
+		}
 
 		a = &((struct sockaddr_in6 *) src_in)->sin6_addr;
 
@@ -416,6 +421,7 @@ static int addr_resolve_local(struct sockaddr *src_in,
 			if (!ret)
 				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
 		}
+		read_unlock(&dev_base_lock);
 		break;
 	}
 #endif
