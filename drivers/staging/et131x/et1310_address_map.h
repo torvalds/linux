@@ -675,23 +675,11 @@ typedef union _TXMAC_CTL_t {
 /*
  * structure for shadow pointer reg in txmac address map
  * located at address 0x3004
+ * 31-27: reserved
+ * 26-16: txq rd ptr
+ * 15-11: reserved
+ * 10-0: txq wr ptr
  */
-typedef union _TXMAC_SHADOW_PTR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:5;	/* bits 27-31 */
-		u32 txq_rd_ptr:11;	/* bits 16-26 */
-		u32 reserved:5;		/* bits 11-15 */
-		u32 txq_wr_ptr:11;	/* bits 0-10 */
-#else
-		u32 txq_wr_ptr:11;	/* bits 0-10 */
-		u32 reserved:5;		/* bits 11-15 */
-		u32 txq_rd_ptr:11;	/* bits 16-26 */
-		u32 reserved2:5;	/* bits 27-31 */
-#endif
-	} bits;
-} TXMAC_SHADOW_PTR_t, *PTXMAC_SHADOW_PTR_t;
 
 /*
  * structure for error count reg in txmac address map
@@ -814,7 +802,7 @@ typedef union _TXMAC_ERR_INT_t {
  */
 typedef struct _TXMAC_t {		/* Location: */
 	TXMAC_CTL_t ctl;		/*  0x3000 */
-	TXMAC_SHADOW_PTR_t shadow_ptr;	/*  0x3004 */
+	u32 shadow_ptr;			/*  0x3004 */
 	TXMAC_ERR_CNT_t err_cnt;	/*  0x3008 */
 	u32 max_fill;			/*  0x300C */
 	u32 cf_param;			/*  0x3010 */
