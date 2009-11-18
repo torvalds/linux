@@ -17,13 +17,13 @@ struct security_class_mapping {
 
 const char *progname;
 
-void usage(void)
+static void usage(void)
 {
 	printf("usage: %s flask.h av_permissions.h\n", progname);
 	exit(1);
 }
 
-char *stoupperx(const char *s)
+static char *stoupperx(const char *s)
 {
 	char *s2 = strdup(s);
 	char *p;
