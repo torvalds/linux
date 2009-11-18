@@ -1136,7 +1136,7 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode, unsigned char u
 static void kbd_rawcode(unsigned char data)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
-	kbd = kbd_table + fg_console;
+	kbd = kbd_table + vc->vc_num;
 	if (kbd->kbdmode == VC_RAW)
 		put_queue(vc, data);
 }
@@ -1157,7 +1157,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 		tty->driver_data = vc;
 	}
 
-	kbd = kbd_table + fg_console;
+	kbd = kbd_table + vc->vc_num;
 
 	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
 		sysrq_alt = down ? keycode : 0;
