@@ -1457,21 +1457,16 @@ static void nilfs_segctor_update_segusage(struct nilfs_sc_info *sci,
 					  struct inode *sufile)
 {
 	struct nilfs_segment_buffer *segbuf;
-	struct buffer_head *bh_su;
-	struct nilfs_segment_usage *raw_su;
 	unsigned long live_blocks;
 	int ret;
 
 	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list) {
-		ret = nilfs_sufile_get_segment_usage(sufile, segbuf->sb_segnum,
-						     &raw_su, &bh_su);
-		WARN_ON(ret); /* always succeed because bh_su is dirty */
 		live_blocks = segbuf->sb_sum.nblocks +
 			(segbuf->sb_pseg_start - segbuf->sb_fseg_start);
-		raw_su->su_lastmod = cpu_to_le64(sci->sc_seg_ctime);
-		raw_su->su_nblocks = cpu_to_le32(live_blocks);
-		nilfs_sufile_put_segment_usage(sufile, segbuf->sb_segnum,
-					       bh_su);
+		ret = nilfs_sufile_set_segment_usage(sufile, segbuf->sb_segnum,
+						     live_blocks,
+						     sci->sc_seg_ctime);
+		WARN_ON(ret); /* always succeed because the segusage is dirty */
 	}
 }
 
@@ -1479,25 +1474,18 @@ static void nilfs_segctor_cancel_segusage(struct nilfs_sc_info *sci,
 					  struct inode *sufile)
 {
 	struct nilfs_segment_buffer *segbuf;
-	struct buffer_head *bh_su;
-	struct nilfs_segment_usage *raw_su;
 	int ret;
 
 	segbuf = NILFS_FIRST_SEGBUF(&sci->sc_segbufs);
-	ret = nilfs_sufile_get_segment_usage(sufile, segbuf->sb_segnum,
-					     &raw_su, &bh_su);
-	WARN_ON(ret); /* always succeed because bh_su is dirty */
-	raw_su->su_nblocks = cpu_to_le32(segbuf->sb_pseg_start -
-					 segbuf->sb_fseg_start);
-	nilfs_sufile_put_segment_usage(sufile, segbuf->sb_segnum, bh_su);
+	ret = nilfs_sufile_set_segment_usage(sufile, segbuf->sb_segnum,
+					     segbuf->sb_pseg_start -
+					     segbuf->sb_fseg_start, 0);
+	WARN_ON(ret); /* always succeed because the segusage is dirty */
 
 	list_for_each_entry_continue(segbuf, &sci->sc_segbufs, sb_list) {
-		ret = nilfs_sufile_get_segment_usage(sufile, segbuf->sb_segnum,
-						     &raw_su, &bh_su);
+		ret = nilfs_sufile_set_segment_usage(sufile, segbuf->sb_segnum,
+						     0, 0);
 		WARN_ON(ret); /* always succeed */
-		raw_su->su_nblocks = 0;
-		nilfs_sufile_put_segment_usage(sufile, segbuf->sb_segnum,
-					       bh_su);
 	}
 }
 
