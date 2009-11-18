@@ -48,6 +48,7 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "locking.h"
+#include "ctree.h"
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
@@ -740,6 +741,97 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 	}
 out:
 	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+  Search INODE_REFs to identify path name of 'dirid' directory
+  in a 'tree_id' tree. and sets path name to 'name'.
+*/
+static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
+				u64 tree_id, u64 dirid, char *name)
+{
+	struct btrfs_root *root;
+	struct btrfs_key key;
+	char *name_stack, *ptr;
+	int ret = -1;
+	int slot;
+	int len;
+	int total_len = 0;
+	struct btrfs_inode_ref *iref;
+	struct extent_buffer *l;
+	struct btrfs_path *path;
+
+	if (dirid == BTRFS_FIRST_FREE_OBJECTID) {
+		name[0]='\0';
+		return 0;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	name_stack = kzalloc(BTRFS_PATH_NAME_MAX+1, GFP_NOFS);
+	if (!name_stack) {
+		btrfs_free_path(path);
+		return -ENOMEM;
+	}
+
+	ptr = &name_stack[BTRFS_PATH_NAME_MAX];
+
+	key.objectid = tree_id;
+	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
+	root = btrfs_read_fs_root_no_name(info, &key);
+	if (IS_ERR(root)) {
+		printk(KERN_ERR "could not find root %llu\n", tree_id);
+		return -ENOENT;
+	}
+
+	key.objectid = dirid;
+	key.type = BTRFS_INODE_REF_KEY;
+	key.offset = 0;
+
+	while(1) {
+		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+		if (ret < 0)
+			goto out;
+
+		l = path->nodes[0];
+		slot = path->slots[0];
+		btrfs_item_key_to_cpu(l, &key, slot);
+
+		if (ret > 0 && (key.objectid != dirid ||
+					key.type != BTRFS_INODE_REF_KEY))
+			goto out;
+
+		iref = btrfs_item_ptr(l, slot, struct btrfs_inode_ref);
+		len = btrfs_inode_ref_name_len(l, iref);
+		ptr -= len + 1;
+		total_len += len + 1;
+		if (ptr < name_stack)
+			goto out;
+
+		*(ptr + len) = '/';
+		read_extent_buffer(l, ptr,(unsigned long)(iref + 1), len);
+
+		if (key.offset == BTRFS_FIRST_FREE_OBJECTID)
+			break;
+
+		btrfs_release_path(root, path);
+		key.objectid = key.offset;
+		key.offset = 0;
+		dirid = key.objectid;
+
+	}
+	if (ptr < name_stack)
+		goto out;
+	strncpy(name, ptr, total_len);
+	name[total_len]='\0';
+	ret = 0;
+out:
+	btrfs_free_path(path);
+	kfree(name_stack);
 	return ret;
 }
 
