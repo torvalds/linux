@@ -376,7 +376,7 @@ static void tsi108_pci_irq_end(u_int irq)
  */
 
 static struct irq_chip tsi108_pci_irq = {
-	.typename = "tsi108_PCI_int",
+	.name = "tsi108_PCI_int",
 	.mask = tsi108_pci_irq_disable,
 	.ack = tsi108_pci_irq_ack,
 	.end = tsi108_pci_irq_end,

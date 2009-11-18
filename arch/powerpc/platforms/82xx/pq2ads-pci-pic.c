@@ -69,7 +69,6 @@ static void pq2ads_pci_unmask_irq(unsigned int virq)
 }
 
 static struct irq_chip pq2ads_pci_ic = {
-	.typename = "PQ2 ADS PCI",
 	.name = "PQ2 ADS PCI",
 	.end = pq2ads_pci_unmask_irq,
 	.mask = pq2ads_pci_mask_irq,

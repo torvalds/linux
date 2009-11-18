@@ -149,7 +149,7 @@ static int mpc52xx_gpt_irq_set_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip mpc52xx_gpt_irq_chip = {
-	.typename = "MPC52xx GPT",
+	.name = "MPC52xx GPT",
 	.unmask = mpc52xx_gpt_irq_unmask,
 	.mask = mpc52xx_gpt_irq_mask,
 	.ack = mpc52xx_gpt_irq_ack,

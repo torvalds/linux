@@ -74,7 +74,7 @@ static void media5200_irq_mask(unsigned int virq)
 }
 
 static struct irq_chip media5200_irq_chip = {
-	.typename = "Media5200 FPGA",
+	.name = "Media5200 FPGA",
 	.unmask = media5200_irq_unmask,
 	.mask = media5200_irq_mask,
 	.mask_ack = media5200_irq_mask,

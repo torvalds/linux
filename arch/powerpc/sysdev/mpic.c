@@ -1062,19 +1062,19 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->name = name;
 
 	mpic->hc_irq = mpic_irq_chip;
-	mpic->hc_irq.typename = name;
+	mpic->hc_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_irq.set_affinity = mpic_set_affinity;
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	mpic->hc_ht_irq = mpic_irq_ht_chip;
-	mpic->hc_ht_irq.typename = name;
+	mpic->hc_ht_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_ht_irq.set_affinity = mpic_set_affinity;
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
 	mpic->hc_ipi = mpic_ipi_chip;
-	mpic->hc_ipi.typename = name;
+	mpic->hc_ipi.name = name;
 #endif /* CONFIG_SMP */
 
 	mpic->flags = flags;

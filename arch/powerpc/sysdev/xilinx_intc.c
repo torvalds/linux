@@ -106,7 +106,7 @@ static void xilinx_intc_level_unmask(unsigned int virq)
 }
 
 static struct irq_chip xilinx_intc_level_irqchip = {
-	.typename = "Xilinx Level INTC",
+	.name = "Xilinx Level INTC",
 	.mask = xilinx_intc_mask,
 	.mask_ack = xilinx_intc_mask,
 	.unmask = xilinx_intc_level_unmask,
@@ -133,7 +133,7 @@ static void xilinx_intc_edge_ack(unsigned int virq)
 }
 
 static struct irq_chip xilinx_intc_edge_irqchip = {
-	.typename = "Xilinx Edge  INTC",
+	.name = "Xilinx Edge  INTC",
 	.mask = xilinx_intc_mask,
 	.unmask = xilinx_intc_edge_unmask,
 	.ack = xilinx_intc_edge_ack,

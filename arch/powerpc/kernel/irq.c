@@ -223,7 +223,7 @@ int show_interrupts(struct seq_file *p, void *v)
 #endif /* CONFIG_SMP */
 
 	if (desc->chip)
-		seq_printf(p, " %s ", desc->chip->typename);
+		seq_printf(p, " %s ", desc->chip->name);
 	else
 		seq_puts(p, "  None      ");
 
@@ -1112,8 +1112,8 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%5d  ", i);
 			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
 
-			if (desc->chip && desc->chip->typename)
-				p = desc->chip->typename;
+			if (desc->chip && desc->chip->name)
+				p = desc->chip->name;
 			else
 				p = none;
 			seq_printf(m, "%-15s  ", p);

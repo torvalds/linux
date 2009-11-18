@@ -149,7 +149,7 @@ static void gef_pic_unmask(unsigned int virq)
 }
 
 static struct irq_chip gef_pic_chip = {
-	.typename	= "gefp",
+	.name		= "gefp",
 	.mask		= gef_pic_mask,
 	.mask_ack	= gef_pic_mask_ack,
 	.unmask		= gef_pic_unmask,

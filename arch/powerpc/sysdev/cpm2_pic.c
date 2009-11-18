@@ -184,7 +184,7 @@ static int cpm2_set_irq_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip cpm2_pic = {
-	.typename = " CPM2 SIU ",
+	.name = " CPM2 SIU ",
 	.mask = cpm2_mask_irq,
 	.unmask = cpm2_unmask_irq,
 	.ack = cpm2_ack,
