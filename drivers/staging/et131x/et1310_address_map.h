@@ -356,19 +356,10 @@ typedef union _RXDMA_NUM_PKT_DONE_t {
 /*
  * structure for max packet time reg in rxdma address map
  * located at address 0x2010
+ *
+ * 31-18: unused
+ * 17-0: time done
  */
-typedef union _RXDMA_MAX_PKT_TIME_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:14;		/* bits 18-31 */
-		u32 time_done:18;	/* bits 0-17 */
-#else
-		u32 time_done:18;	/* bits 0-17 */
-		u32 unused:14;		/* bits 18-31 */
-#endif
-	} bits;
-} RXDMA_MAX_PKT_TIME_t, *PRXDMA_MAX_PKT_TIME_t;
 
 /*
  * structure for rx queue read address reg in rxdma address map
@@ -609,7 +600,7 @@ typedef struct _RXDMA_t {				/* Location: */
 	u32 dma_wb_base_lo;				/*  0x2004 */
 	u32 dma_wb_base_hi;				/*  0x2008 */
 	RXDMA_NUM_PKT_DONE_t num_pkt_done;		/*  0x200C */
-	RXDMA_MAX_PKT_TIME_t max_pkt_time;		/*  0x2010 */
+	u32 max_pkt_time;				/*  0x2010 */
 	u32 rxq_rd_addr;				/*  0x2014 */
 	u32 rxq_rd_addr_ext;			/*  0x2018 */
 	u32 rxq_wr_addr;				/*  0x201C */

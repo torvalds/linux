@@ -695,7 +695,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 * regardless of whether we have received packets.
 	 * This value gets updated once autoneg is complete.
 	 */
-	writel(PARM_RX_TIME_INT_DEF, &rx_dma->max_pkt_time.value);
+	writel(PARM_RX_TIME_INT_DEF, &rx_dma->max_pkt_time);
 
 	spin_unlock_irqrestore(&etdev->RcvLock, flags);
 }
@@ -711,7 +711,7 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
 	 */
 	if ((etdev->linkspeed == TRUEPHY_SPEED_100MBPS) ||
 	    (etdev->linkspeed == TRUEPHY_SPEED_10MBPS)) {
-		writel(0, &etdev->regs->rxdma.max_pkt_time.value);
+		writel(0, &etdev->regs->rxdma.max_pkt_time);
 		writel(1, &etdev->regs->rxdma.num_pkt_done.value);
 	}
 }
