@@ -35,16 +35,6 @@ static int anon_inodefs_get_sb(struct file_system_type *fs_type, int flags,
 			     mnt);
 }
 
-static int anon_inodefs_delete_dentry(struct dentry *dentry)
-{
-	/*
-	 * We faked vfs to believe the dentry was hashed when we created it.
-	 * Now we restore the flag so that dput() will work correctly.
-	 */
-	dentry->d_flags |= DCACHE_UNHASHED;
-	return 1;
-}
-
 /*
  * anon_inodefs_dname() is called from d_path().
  */
@@ -60,7 +50,6 @@ static struct file_system_type anon_inode_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 static const struct dentry_operations anon_inodefs_dentry_operations = {
-	.d_delete	= anon_inodefs_delete_dentry,
 	.d_dname	= anon_inodefs_dname,
 };
 
@@ -129,8 +118,6 @@ struct file *anon_inode_getfile(const char *name,
 	atomic_inc(&anon_inode_inode->i_count);
 
 	path.dentry->d_op = &anon_inodefs_dentry_operations;
-	/* Do not publish this dentry inside the global dentry hash table */
-	path.dentry->d_flags &= ~DCACHE_UNHASHED;
 	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;
