@@ -548,7 +548,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->TNPDA, priv->tx_ring[1].dma);
 	rtl818x_iowrite32(priv, &priv->map->TLPDA, priv->tx_ring[0].dma);
 
-	ret = request_irq(priv->pdev->irq, &rtl8180_interrupt,
+	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
