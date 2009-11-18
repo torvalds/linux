@@ -355,7 +355,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 
 	init_timer(&rs_sta->rate_scale_flush);
 	rs_sta->rate_scale_flush.data = (unsigned long)rs_sta;
-	rs_sta->rate_scale_flush.function = &iwl3945_bg_rate_scale_flush;
+	rs_sta->rate_scale_flush.function = iwl3945_bg_rate_scale_flush;
 
 	for (i = 0; i < IWL_RATE_COUNT_3945; i++)
 		iwl3945_clear_window(&rs_sta->win[i]);
