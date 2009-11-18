@@ -24,6 +24,8 @@
  *
  */
 
+#include <net/ip6_checksum.h>
+
 #include "vmxnet3_int.h"
 
 char vmxnet3_driver_name[] = "vmxnet3";
