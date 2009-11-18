@@ -429,112 +429,102 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 	DBG(4, "<== %s, txcsr %04x\n", musb_ep->end_point.name, csr);
 
 	dma = is_dma_capable() ? musb_ep->dma : NULL;
-	do {
-		/* REVISIT for high bandwidth, MUSB_TXCSR_P_INCOMPTX
-		 * probably rates reporting as a host error
+
+	/*
+	 * REVISIT: for high bandwidth, MUSB_TXCSR_P_INCOMPTX
+	 * probably rates reporting as a host error.
+	 */
+	if (csr & MUSB_TXCSR_P_SENTSTALL) {
+		csr |=	MUSB_TXCSR_P_WZC_BITS;
+		csr &= ~MUSB_TXCSR_P_SENTSTALL;
+		musb_writew(epio, MUSB_TXCSR, csr);
+		return;
+	}
+
+	if (csr & MUSB_TXCSR_P_UNDERRUN) {
+		/* We NAKed, no big deal... little reason to care. */
+		csr |=	 MUSB_TXCSR_P_WZC_BITS;
+		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
+		musb_writew(epio, MUSB_TXCSR, csr);
+		DBG(20, "underrun on ep%d, req %p\n", epnum, request);
+	}
+
+	if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
+		/*
+		 * SHOULD NOT HAPPEN... has with CPPI though, after
+		 * changing SENDSTALL (and other cases); harmless?
 		 */
-		if (csr & MUSB_TXCSR_P_SENTSTALL) {
+		DBG(5, "%s dma still busy?\n", musb_ep->end_point.name);
+		return;
+	}
+
+	if (request) {
+		u8	is_dma = 0;
+
+		if (dma && (csr & MUSB_TXCSR_DMAENAB)) {
+			is_dma = 1;
 			csr |= MUSB_TXCSR_P_WZC_BITS;
-			csr &= ~MUSB_TXCSR_P_SENTSTALL;
+			csr &= ~(MUSB_TXCSR_DMAENAB | MUSB_TXCSR_P_UNDERRUN |
+				 MUSB_TXCSR_TXPKTRDY);
 			musb_writew(epio, MUSB_TXCSR, csr);
-			break;
+			/* Ensure writebuffer is empty. */
+			csr = musb_readw(epio, MUSB_TXCSR);
+			request->actual += musb_ep->dma->actual_len;
+			DBG(4, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
+				epnum, csr, musb_ep->dma->actual_len, request);
 		}
 
-		if (csr & MUSB_TXCSR_P_UNDERRUN) {
-			/* we NAKed, no big deal ... little reason to care */
-			csr |= MUSB_TXCSR_P_WZC_BITS;
-			csr &= ~(MUSB_TXCSR_P_UNDERRUN
-					| MUSB_TXCSR_TXPKTRDY);
-			musb_writew(epio, MUSB_TXCSR, csr);
-			DBG(20, "underrun on ep%d, req %p\n", epnum, request);
-		}
-
-		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
-			/* SHOULD NOT HAPPEN ... has with cppi though, after
-			 * changing SENDSTALL (and other cases); harmless?
+		if (is_dma || request->actual == request->length) {
+			/*
+			 * First, maybe a terminating short packet. Some DMA
+			 * engines might handle this by themselves.
 			 */
-			DBG(5, "%s dma still busy?\n", musb_ep->end_point.name);
-			break;
-		}
-
-		if (request) {
-			u8	is_dma = 0;
-
-			if (dma && (csr & MUSB_TXCSR_DMAENAB)) {
-				is_dma = 1;
-				csr |= MUSB_TXCSR_P_WZC_BITS;
-				csr &= ~(MUSB_TXCSR_DMAENAB
-						| MUSB_TXCSR_P_UNDERRUN
-						| MUSB_TXCSR_TXPKTRDY);
-				musb_writew(epio, MUSB_TXCSR, csr);
-				/* ensure writebuffer is empty */
-				csr = musb_readw(epio, MUSB_TXCSR);
-				request->actual += musb_ep->dma->actual_len;
-				DBG(4, "TXCSR%d %04x, dma off, "
-						"len %zu, req %p\n",
-					epnum, csr,
-					musb_ep->dma->actual_len,
-					request);
-			}
-
-			if (is_dma || request->actual == request->length) {
-
-				/* First, maybe a terminating short packet.
-				 * Some DMA engines might handle this by
-				 * themselves.
-				 */
-				if ((request->zero
-						&& request->length
-						&& (request->length
-							% musb_ep->packet_sz)
-							== 0)
+			if ((request->zero && request->length
+				&& request->length % musb_ep->packet_sz == 0)
 #ifdef CONFIG_USB_INVENTRA_DMA
-					|| (is_dma &&
-						((!dma->desired_mode) ||
-						    (request->actual &
-						    (musb_ep->packet_sz - 1))))
+				|| (is_dma && (!dma->desired_mode ||
+					(request->actual &
+						(musb_ep->packet_sz - 1))))
 #endif
-				) {
-					/* on dma completion, fifo may not
-					 * be available yet ...
-					 */
-					if (csr & MUSB_TXCSR_TXPKTRDY)
-						break;
-
-					DBG(4, "sending zero pkt\n");
-					musb_writew(epio, MUSB_TXCSR,
-							MUSB_TXCSR_MODE
-							| MUSB_TXCSR_TXPKTRDY);
-					request->zero = 0;
-				}
-
-				/* ... or if not, then complete it */
-				musb_g_giveback(musb_ep, request, 0);
-
-				/* kickstart next transfer if appropriate;
-				 * the packet that just completed might not
-				 * be transmitted for hours or days.
-				 * REVISIT for double buffering...
-				 * FIXME revisit for stalls too...
+			) {
+				/*
+				 * On DMA completion, FIFO may not be
+				 * available yet...
 				 */
-				musb_ep_select(mbase, epnum);
-				csr = musb_readw(epio, MUSB_TXCSR);
-				if (csr & MUSB_TXCSR_FIFONOTEMPTY)
-					break;
-				request = musb_ep->desc
-						? next_request(musb_ep)
-						: NULL;
-				if (!request) {
-					DBG(4, "%s idle now\n",
-						musb_ep->end_point.name);
-					break;
-				}
+				if (csr & MUSB_TXCSR_TXPKTRDY)
+					return;
+
+				DBG(4, "sending zero pkt\n");
+				musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_MODE
+						| MUSB_TXCSR_TXPKTRDY);
+				request->zero = 0;
 			}
 
-			txstate(musb, to_musb_request(request));
+			/* ... or if not, then complete it. */
+			musb_g_giveback(musb_ep, request, 0);
+
+			/*
+			 * Kickstart next transfer if appropriate;
+			 * the packet that just completed might not
+			 * be transmitted for hours or days.
+			 * REVISIT for double buffering...
+			 * FIXME revisit for stalls too...
+			 */
+			musb_ep_select(mbase, epnum);
+			csr = musb_readw(epio, MUSB_TXCSR);
+			if (csr & MUSB_TXCSR_FIFONOTEMPTY)
+				return;
+
+			if (!musb_ep->desc) {
+				DBG(4, "%s idle now\n",
+					musb_ep->end_point.name);
+				return;
+			} else
+				request = next_request(musb_ep);
 		}
 
-	} while (0);
+		txstate(musb, to_musb_request(request));
+	}
 }
 
 /* ------------------------------------------------------------ */
