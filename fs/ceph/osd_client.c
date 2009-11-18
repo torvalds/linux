@@ -350,10 +350,8 @@ static void put_osd(struct ceph_osd *osd)
 {
 	dout("put_osd %p %d -> %d\n", osd, atomic_read(&osd->o_ref),
 	     atomic_read(&osd->o_ref) - 1);
-	if (atomic_dec_and_test(&osd->o_ref)) {
-		ceph_con_shutdown(&osd->o_con);
+	if (atomic_dec_and_test(&osd->o_ref))
 		kfree(osd);
-	}
 }
 
 /*

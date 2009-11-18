@@ -274,10 +274,8 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 {
 	dout("mdsc put_session %p %d -> %d\n", s,
 	     atomic_read(&s->s_ref), atomic_read(&s->s_ref)-1);
-	if (atomic_dec_and_test(&s->s_ref)) {
-		ceph_con_shutdown(&s->s_con);
+	if (atomic_dec_and_test(&s->s_ref))
 		kfree(s);
-	}
 }
 
 /*
@@ -326,7 +324,6 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	s->s_con.ops = &mds_con_ops;
 	s->s_con.peer_name.type = CEPH_ENTITY_TYPE_MDS;
 	s->s_con.peer_name.num = cpu_to_le64(mds);
-	ceph_con_open(&s->s_con, ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
 
 	spin_lock_init(&s->s_cap_lock);
 	s->s_cap_gen = 0;
@@ -352,7 +349,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 		dout("register_session realloc to %d\n", newmax);
 		sa = kcalloc(newmax, sizeof(void *), GFP_NOFS);
 		if (sa == NULL)
-			return ERR_PTR(-ENOMEM);
+			goto fail_realloc;
 		if (mdsc->sessions) {
 			memcpy(sa, mdsc->sessions,
 			       mdsc->max_sessions * sizeof(void *));
@@ -363,17 +360,26 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	}
 	mdsc->sessions[mds] = s;
 	atomic_inc(&s->s_ref);  /* one ref to sessions[], one to caller */
+
+	ceph_con_open(&s->s_con, ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
+
 	return s;
+
+fail_realloc:
+	kfree(s);
+	return ERR_PTR(-ENOMEM);
 }
 
 /*
  * called under mdsc->mutex
  */
-static void unregister_session(struct ceph_mds_client *mdsc, int mds)
+static void unregister_session(struct ceph_mds_client *mdsc,
+			       struct ceph_mds_session *s)
 {
-	dout("unregister_session mds%d %p\n", mds, mdsc->sessions[mds]);
-	ceph_put_mds_session(mdsc->sessions[mds]);
-	mdsc->sessions[mds] = NULL;
+	dout("unregister_session mds%d %p\n", s->s_mds, s);
+	mdsc->sessions[s->s_mds] = NULL;
+	ceph_con_close(&s->s_con);
+	ceph_put_mds_session(s);
 }
 
 /*
@@ -1870,7 +1876,7 @@ static void handle_session(struct ceph_mds_session *session,
 		break;
 
 	case CEPH_SESSION_CLOSE:
-		unregister_session(mdsc, mds);
+		unregister_session(mdsc, session);
 		remove_session_caps(session);
 		wake = 1; /* for good measure */
 		complete(&mdsc->session_close_waiters);
@@ -2199,7 +2205,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 				/* the session never opened, just close it
 				 * out now */
 				__wake_requests(mdsc, &s->s_waiting);
-				unregister_session(mdsc, i);
+				unregister_session(mdsc, s);
 			} else {
 				/* just close it */
 				mutex_unlock(&mdsc->mutex);
@@ -2724,7 +2730,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	for (i = 0; i < mdsc->max_sessions; i++) {
 		if (mdsc->sessions[i]) {
 			session = get_session(mdsc->sessions[i]);
-			unregister_session(mdsc, i);
+			unregister_session(mdsc, session);
 			mutex_unlock(&mdsc->mutex);
 			mutex_lock(&session->s_mutex);
 			remove_session_caps(session);
