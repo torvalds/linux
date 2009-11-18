@@ -115,7 +115,7 @@
 #define IEEE80211_MAX_SSID_LEN		32
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
-#define IEEE80211_MESH_CONFIG_LEN	24
+#define IEEE80211_MESH_CONFIG_LEN	7
 
 #define IEEE80211_QOS_CTL_LEN		2
 #define IEEE80211_QOS_CTL_TID_MASK	0x000F
@@ -552,6 +552,20 @@ struct ieee80211_tim_ie {
 	u8 bitmap_ctrl;
 	/* variable size: 1 - 251 bytes */
 	u8 virtual_map[1];
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_rann_ie
+ *
+ * This structure refers to "Root Announcement information element"
+ */
+struct ieee80211_rann_ie {
+	u8 rann_flags;
+	u8 rann_hopcount;
+	u8 rann_ttl;
+	u8 rann_addr[6];
+	u32 rann_seq;
+	u32 rann_metric;
 } __attribute__ ((packed));
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
@@ -1070,6 +1084,7 @@ enum ieee80211_eid {
 	WLAN_EID_PREQ = 68,
 	WLAN_EID_PREP = 69,
 	WLAN_EID_PERR = 70,
+	WLAN_EID_RANN = 49,	/* compatible with FreeBSD */
 	/* 802.11h */
 	WLAN_EID_PWR_CONSTRAINT = 32,
 	WLAN_EID_PWR_CAPABILITY = 33,

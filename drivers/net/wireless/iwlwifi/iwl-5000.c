@@ -661,9 +661,13 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 		iwl_txq_ctx_activate(priv, i);
 		iwl5000_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
-	/* TODO - need to initialize those FIFOs inside the loop above,
-	 * not only mark them as active */
-	iwl_txq_ctx_activate(priv, 4);
+
+	/*
+	 * TODO - need to initialize these queues and map them to FIFOs
+	 * in the loop above, not only mark them as active. We do this
+	 * because we want the first aggregation queue to be queue #10,
+	 * but do not use 8 or 9 otherwise yet.
+	 */
 	iwl_txq_ctx_activate(priv, 7);
 	iwl_txq_ctx_activate(priv, 8);
 	iwl_txq_ctx_activate(priv, 9);
@@ -1387,8 +1391,8 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 		priv->active_rxon.channel, channel);
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
 	cmd.channel = cpu_to_le16(channel);
-	cmd.rxon_flags = priv->active_rxon.flags;
-	cmd.rxon_filter_flags = priv->active_rxon.filter_flags;
+	cmd.rxon_flags = priv->staging_rxon.flags;
+	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
 	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
 	ch_info = iwl_get_channel_info(priv, priv->band, channel);
 	if (ch_info)
@@ -1398,6 +1402,8 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 			priv->active_rxon.channel, channel);
 		return -EFAULT;
 	}
+	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_sync(priv, &hcmd);
 }

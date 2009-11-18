@@ -138,6 +138,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_CIPHER_SUITE_GROUP] = { .type = NLA_U32 },
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
 	[NL80211_ATTR_PID] = { .type = NLA_U32 },
+	[NL80211_ATTR_4ADDR] = { .type = NLA_U8 },
 };
 
 /* policy for the attributes */
@@ -150,6 +151,26 @@ nl80211_key_policy[NL80211_KEY_MAX + 1] __read_mostly = {
 	[NL80211_KEY_DEFAULT] = { .type = NLA_FLAG },
 	[NL80211_KEY_DEFAULT_MGMT] = { .type = NLA_FLAG },
 };
+
+/* ifidx get helper */
+static int nl80211_get_ifidx(struct netlink_callback *cb)
+{
+	int res;
+
+	res = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
+			  nl80211_fam.attrbuf, nl80211_fam.maxattr,
+			  nl80211_policy);
+	if (res)
+		return res;
+
+	if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
+		return -EINVAL;
+
+	res = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
+	if (!res)
+		return -EINVAL;
+	return res;
+}
 
 /* IE validation */
 static bool is_valid_ie_attr(const struct nlattr *attr)
@@ -987,6 +1008,13 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		change = true;
 	}
 
+	if (info->attrs[NL80211_ATTR_4ADDR]) {
+		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
+		change = true;
+	} else {
+		params.use_4addr = -1;
+	}
+
 	if (info->attrs[NL80211_ATTR_MNTR_FLAGS]) {
 		if (ntype != NL80211_IFTYPE_MONITOR) {
 			err = -EINVAL;
@@ -1052,6 +1080,9 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
 		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
 	}
+
+	if (info->attrs[NL80211_ATTR_4ADDR])
+		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 
 	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
@@ -1682,20 +1713,10 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	int sta_idx = cb->args[1];
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
 
 	rtnl_lock();
 
@@ -1800,7 +1821,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 }
 
 /*
- * Get vlan interface making sure it is on the right wiphy.
+ * Get vlan interface making sure it is running and on the right wiphy.
  */
 static int get_vlan(struct genl_info *info,
 		    struct cfg80211_registered_device *rdev,
@@ -1818,6 +1839,8 @@ static int get_vlan(struct genl_info *info,
 			return -EINVAL;
 		if ((*vlan)->ieee80211_ptr->wiphy != &rdev->wiphy)
 			return -EINVAL;
+		if (!netif_running(*vlan))
+			return -ENETDOWN;
 	}
 	return 0;
 }
@@ -2105,9 +2128,9 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 pid, u32 seq,
 	if (pinfo->filled & MPATH_INFO_FRAME_QLEN)
 		NLA_PUT_U32(msg, NL80211_MPATH_INFO_FRAME_QLEN,
 			    pinfo->frame_qlen);
-	if (pinfo->filled & MPATH_INFO_DSN)
-		NLA_PUT_U32(msg, NL80211_MPATH_INFO_DSN,
-			    pinfo->dsn);
+	if (pinfo->filled & MPATH_INFO_SN)
+		NLA_PUT_U32(msg, NL80211_MPATH_INFO_SN,
+			    pinfo->sn);
 	if (pinfo->filled & MPATH_INFO_METRIC)
 		NLA_PUT_U32(msg, NL80211_MPATH_INFO_METRIC,
 			    pinfo->metric);
@@ -2145,20 +2168,10 @@ static int nl80211_dump_mpath(struct sk_buff *skb,
 	int path_idx = cb->args[1];
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
 
 	rtnl_lock();
 
@@ -2605,6 +2618,8 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 			cur_params.dot11MeshHWMPpreqMinInterval);
 	NLA_PUT_U16(msg, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
 			cur_params.dot11MeshHWMPnetDiameterTraversalTime);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_HWMP_ROOTMODE,
+			cur_params.dot11MeshHWMPRootMode);
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
 	err = genlmsg_reply(msg, info);
@@ -2715,6 +2730,10 @@ static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
 			dot11MeshHWMPnetDiameterTraversalTime,
 			mask, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
 			nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg,
+			dot11MeshHWMPRootMode, mask,
+			NL80211_MESHCONF_HWMP_ROOTMODE,
+			nla_get_u8);
 
 	/* Apply changes */
 	err = rdev->ops->set_mesh_params(&rdev->wiphy, dev, &cfg, mask);
@@ -3181,21 +3200,11 @@ static int nl80211_dump_scan(struct sk_buff *skb,
 	int start = cb->args[1], idx = 0;
 	int err;
 
-	if (!ifidx) {
-		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
-				  nl80211_policy);
-		if (err)
-			return err;
-
-		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
-			return -EINVAL;
-
-		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
-		if (!ifidx)
-			return -EINVAL;
-		cb->args[0] = ifidx;
-	}
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
+	cb->args[0] = ifidx;
 
 	dev = dev_get_by_index(sock_net(skb->sk), ifidx);
 	if (!dev)
@@ -3236,6 +3245,106 @@ static int nl80211_dump_scan(struct sk_buff *skb,
 	dev_put(dev);
 
 	return err;
+}
+
+static int nl80211_send_survey(struct sk_buff *msg, u32 pid, u32 seq,
+				int flags, struct net_device *dev,
+				struct survey_info *survey)
+{
+	void *hdr;
+	struct nlattr *infoattr;
+
+	/* Survey without a channel doesn't make sense */
+	if (!survey->channel)
+		return -EINVAL;
+
+	hdr = nl80211hdr_put(msg, pid, seq, flags,
+			     NL80211_CMD_NEW_SURVEY_RESULTS);
+	if (!hdr)
+		return -ENOMEM;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+
+	infoattr = nla_nest_start(msg, NL80211_ATTR_SURVEY_INFO);
+	if (!infoattr)
+		goto nla_put_failure;
+
+	NLA_PUT_U32(msg, NL80211_SURVEY_INFO_FREQUENCY,
+		    survey->channel->center_freq);
+	if (survey->filled & SURVEY_INFO_NOISE_DBM)
+		NLA_PUT_U8(msg, NL80211_SURVEY_INFO_NOISE,
+			    survey->noise);
+
+	nla_nest_end(msg, infoattr);
+
+	return genlmsg_end(msg, hdr);
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nl80211_dump_survey(struct sk_buff *skb,
+			struct netlink_callback *cb)
+{
+	struct survey_info survey;
+	struct cfg80211_registered_device *dev;
+	struct net_device *netdev;
+	int ifidx = cb->args[0];
+	int survey_idx = cb->args[1];
+	int res;
+
+	if (!ifidx)
+		ifidx = nl80211_get_ifidx(cb);
+	if (ifidx < 0)
+		return ifidx;
+	cb->args[0] = ifidx;
+
+	rtnl_lock();
+
+	netdev = __dev_get_by_index(sock_net(skb->sk), ifidx);
+	if (!netdev) {
+		res = -ENODEV;
+		goto out_rtnl;
+	}
+
+	dev = cfg80211_get_dev_from_ifindex(sock_net(skb->sk), ifidx);
+	if (IS_ERR(dev)) {
+		res = PTR_ERR(dev);
+		goto out_rtnl;
+	}
+
+	if (!dev->ops->dump_survey) {
+		res = -EOPNOTSUPP;
+		goto out_err;
+	}
+
+	while (1) {
+		res = dev->ops->dump_survey(&dev->wiphy, netdev, survey_idx,
+					    &survey);
+		if (res == -ENOENT)
+			break;
+		if (res)
+			goto out_err;
+
+		if (nl80211_send_survey(skb,
+				NETLINK_CB(cb->skb).pid,
+				cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				netdev,
+				&survey) < 0)
+			goto out;
+		survey_idx++;
+	}
+
+ out:
+	cb->args[1] = survey_idx;
+	res = skb->len;
+ out_err:
+	cfg80211_unlock_rdev(dev);
+ out_rtnl:
+	rtnl_unlock();
+
+	return res;
 }
 
 static bool nl80211_valid_auth_type(enum nl80211_auth_type auth_type)
@@ -4314,6 +4423,11 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_wiphy_netns,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_SURVEY,
+		.policy = nl80211_policy,
+		.dumpit = nl80211_dump_survey,
 	},
 };
 static struct genl_multicast_group nl80211_mlme_mcgrp = {

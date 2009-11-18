@@ -19,14 +19,16 @@
 
 #include <linux/etherdevice.h>
 #include <linux/device.h>
-#include <net/mac80211.h>
 #include <linux/leds.h>
 
-#include "hw.h"
 #include "rc.h"
 #include "debug.h"
-#include "../ath.h"
-#include "../debug.h"
+#include "common.h"
+
+/*
+ * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
+ * should rely on this file or its contents.
+ */
 
 struct ath_node;
 
@@ -99,18 +101,6 @@ enum buffer_type {
 	BUF_XRETRY		= BIT(5),
 };
 
-struct ath_buf_state {
-	int bfs_nframes;
-	u16 bfs_al;
-	u16 bfs_frmlen;
-	int bfs_seqno;
-	int bfs_tidno;
-	int bfs_retries;
-	u8 bf_type;
-	u32 bfs_keyix;
-	enum ath9k_key_type bfs_keytype;
-};
-
 #define bf_nframes      	bf_state.bfs_nframes
 #define bf_al           	bf_state.bfs_al
 #define bf_frmlen       	bf_state.bfs_frmlen
@@ -124,21 +114,6 @@ struct ath_buf_state {
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
-
-struct ath_buf {
-	struct list_head list;
-	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
-					   an aggregate) */
-	struct ath_buf *bf_next;	/* next subframe in the aggregate */
-	struct sk_buff *bf_mpdu;	/* enclosing frame structure */
-	struct ath_desc *bf_desc;	/* virtual addr of desc */
-	dma_addr_t bf_daddr;		/* physical addr of desc */
-	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
-	bool bf_stale;
-	u16 bf_flags;
-	struct ath_buf_state bf_state;
-	dma_addr_t bf_dmacontext;
-};
 
 struct ath_descdma {
 	struct ath_desc *dd_desc;
@@ -159,25 +134,15 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define ATH_MAX_ANTENNA         3
 #define ATH_RXBUF               512
-#define WME_NUM_TID             16
 #define ATH_TXBUF               512
 #define ATH_TXMAXTRY            13
 #define ATH_MGT_TXMAXTRY        4
-#define WME_BA_BMP_SIZE         64
-#define WME_MAX_BA              WME_BA_BMP_SIZE
-#define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
 
 #define TID_TO_WME_AC(_tid)				\
 	((((_tid) == 0) || ((_tid) == 3)) ? WME_AC_BE :	\
 	 (((_tid) == 1) || ((_tid) == 2)) ? WME_AC_BK :	\
 	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
 	 WME_AC_VO)
-
-#define WME_AC_BE   0
-#define WME_AC_BK   1
-#define WME_AC_VI   2
-#define WME_AC_VO   3
-#define WME_NUM_AC  4
 
 #define ADDBA_EXCHANGE_ATTEMPTS    10
 #define ATH_AGGR_DELIM_SZ          4
@@ -252,30 +217,6 @@ struct ath_txq {
 #define AGGR_ADDBA_COMPLETE  BIT(2)
 #define AGGR_ADDBA_PROGRESS  BIT(3)
 
-struct ath_atx_tid {
-	struct list_head list;
-	struct list_head buf_q;
-	struct ath_node *an;
-	struct ath_atx_ac *ac;
-	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
-	u16 seq_start;
-	u16 seq_next;
-	u16 baw_size;
-	int tidno;
-	int baw_head;	/* first un-acked tx buffer */
-	int baw_tail;	/* next unused tx buffer slot */
-	int sched;
-	int paused;
-	u8 state;
-};
-
-struct ath_atx_ac {
-	int sched;
-	int qnum;
-	struct list_head list;
-	struct list_head tid_q;
-};
-
 struct ath_tx_control {
 	struct ath_txq *txq;
 	int if_id;
@@ -285,29 +226,6 @@ struct ath_tx_control {
 #define ATH_TX_ERROR        0x01
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
-
-#define ATH_RSSI_LPF_LEN 		10
-#define RSSI_LPF_THRESHOLD		-20
-#define ATH_RSSI_EP_MULTIPLIER     (1<<7)
-#define ATH_EP_MUL(x, mul)         ((x) * (mul))
-#define ATH_RSSI_IN(x)             (ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
-#define ATH_LPF_RSSI(x, y, len) \
-    ((x != ATH_RSSI_DUMMY_MARKER) ? (((x) * ((len) - 1) + (y)) / (len)) : (y))
-#define ATH_RSSI_LPF(x, y) do {                     			\
-    if ((y) >= RSSI_LPF_THRESHOLD)                         		\
-	x = ATH_LPF_RSSI((x), ATH_RSSI_IN((y)), ATH_RSSI_LPF_LEN);  	\
-} while (0)
-#define ATH_EP_RND(x, mul) 						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-
-struct ath_node {
-	struct ath_softc *an_sc;
-	struct ath_atx_tid tid[WME_NUM_TID];
-	struct ath_atx_ac ac[WME_NUM_AC];
-	u16 maxampdu;
-	u8 mpdudensity;
-	int last_rssi;
-};
 
 struct ath_tx {
 	u16 seq_no;
@@ -323,7 +241,6 @@ struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
 	u32 *rxlink;
-	int bufsize;
 	unsigned int rxfilter;
 	spinlock_t rxflushlock;
 	spinlock_t rxbuflock;
@@ -434,16 +351,6 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
-struct ath_ani {
-	bool caldone;
-	int16_t noise_floor;
-	unsigned int longcal_timer;
-	unsigned int shortcal_timer;
-	unsigned int resetcal_timer;
-	unsigned int checkani_timer;
-	struct timer_list timer;
-};
-
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
 	ATH_BTCOEX_NO_STOMP,
@@ -503,18 +410,7 @@ struct ath_led {
 #define ATH_CHAN_MAX            255
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
 
-/*
- * The key cache is used for h/w cipher state and also for
- * tracking station state such as the current tx antenna.
- * We also setup a mapping table between key cache slot indices
- * and station state to short-circuit node lookups on rx.
- * Different parts have different size key caches.  We handle
- * up to ATH_KEYMAX entries (could dynamically allocate state).
- */
-#define	ATH_KEYMAX	        128     /* max key cache size we handle */
-
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
-#define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
 
 #define SC_OP_INVALID           BIT(0)
@@ -573,9 +469,6 @@ struct ath_softc {
 	u16 curtxpow;
 	u8 nbcnvifs;
 	u16 nvifs;
-	u32 keymax;
-	DECLARE_BITMAP(keymap, ATH_KEYMAX);
-	u8 splitmic;
 	bool ps_enabled;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
@@ -601,7 +494,6 @@ struct ath_softc {
 
 	int beacon_interval;
 
-	struct ath_ani ani;
 #ifdef CONFIG_ATH9K_DEBUG
 	struct ath9k_debug debug;
 #endif
@@ -620,6 +512,7 @@ struct ath_wiphy {
 		ATH_WIPHY_PAUSED,
 		ATH_WIPHY_SCAN,
 	} state;
+	bool idle;
 	int chan_idx;
 	int chan_is_ht;
 };
@@ -654,8 +547,9 @@ void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan);
-void ath_radio_enable(struct ath_softc *sc);
-void ath_radio_disable(struct ath_softc *sc);
+
+void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
+void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
@@ -691,6 +585,10 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
 void ath9k_wiphy_work(struct work_struct *work);
 bool ath9k_all_wiphys_idle(struct ath_softc *sc);
+void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
+
+void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
+void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
 
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 #endif /* ATH9K_H */

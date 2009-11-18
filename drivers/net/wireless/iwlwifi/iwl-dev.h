@@ -324,8 +324,9 @@ struct iwl_channel_info {
 #define IWL_MIN_NUM_QUEUES	10
 
 /*
- * uCode queue management definitions ...
- * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00.
+ * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00,
+ * the driver maps it into the appropriate device FIFO for the
+ * uCode.
  */
 #define IWL_CMD_QUEUE_NUM	4
 
@@ -926,13 +927,11 @@ enum iwl_access_mode {
 /**
  * enum iwl_pa_type - Power Amplifier type
  * @IWL_PA_SYSTEM:  based on uCode configuration
- * @IWL_PA_HYBRID: use both Internal and external PA
  * @IWL_PA_INTERNAL: use Internal only
  */
 enum iwl_pa_type {
 	IWL_PA_SYSTEM = 0,
-	IWL_PA_HYBRID = 1,
-	IWL_PA_INTERNAL = 2,
+	IWL_PA_INTERNAL = 1,
 };
 
 /* interrupt statistics */
@@ -992,6 +991,17 @@ struct traffic_stats {
 	u64 data_bytes;
 };
 #endif
+
+/*
+ * iwl_switch_rxon: "channel switch" structure
+ *
+ * @ switch_in_progress: channel switch in progress
+ * @ channel: new channel
+ */
+struct iwl_switch_rxon {
+	bool switch_in_progress;
+	__le16 channel;
+};
 
 struct iwl_priv {
 
@@ -1086,7 +1096,7 @@ struct iwl_priv {
 	const struct iwl_rxon_cmd active_rxon;
 	struct iwl_rxon_cmd staging_rxon;
 
-	struct iwl_rxon_cmd recovery_rxon;
+	struct iwl_switch_rxon switch_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */

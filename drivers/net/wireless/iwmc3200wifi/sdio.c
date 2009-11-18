@@ -399,6 +399,9 @@ static struct iwm_if_ops if_sdio_ops = {
 	.calib_lmac_name = "iwmc3200wifi-calib-sdio.bin",
 	.lmac_name = "iwmc3200wifi-lmac-sdio.bin",
 };
+MODULE_FIRMWARE("iwmc3200wifi-umac-sdio.bin");
+MODULE_FIRMWARE("iwmc3200wifi-calib-sdio.bin");
+MODULE_FIRMWARE("iwmc3200wifi-lmac-sdio.bin");
 
 static int iwm_sdio_probe(struct sdio_func *func,
 			  const struct sdio_device_id *id)

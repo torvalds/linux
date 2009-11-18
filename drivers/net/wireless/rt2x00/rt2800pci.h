@@ -1,5 +1,12 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
+	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
+	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
+	Copyright (C) 2009 Mattias Nissler <mattias.nissler@gmx.de>
+	Copyright (C) 2009 Mark Asselstine <asselsm@gmail.com>
+	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
+	Copyright (C) 2009 Bart Zolnierkiewicz <bzolnier@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -54,34 +61,6 @@
 #define TX_MAX_CNT(__x)			TX_MAX_CNT0 + ((__x) * TX_QUEUE_REG_OFFSET)
 #define TX_CTX_IDX(__x)			TX_CTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET)
 #define TX_DTX_IDX(__x)			TX_DTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET)
-
-/*
- * EFUSE_CSR: RT3090 EEPROM
- */
-#define EFUSE_CTRL			0x0580
-#define EFUSE_CTRL_ADDRESS_IN		FIELD32(0x03fe0000)
-#define EFUSE_CTRL_MODE			FIELD32(0x000000c0)
-#define EFUSE_CTRL_KICK			FIELD32(0x40000000)
-
-/*
- * EFUSE_DATA0
- */
-#define EFUSE_DATA0			0x0590
-
-/*
- * EFUSE_DATA1
- */
-#define EFUSE_DATA1			0x0594
-
-/*
- * EFUSE_DATA2
- */
-#define EFUSE_DATA2			0x0598
-
-/*
- * EFUSE_DATA3
- */
-#define EFUSE_DATA3			0x059c
 
 /*
  * 8051 firmware image.

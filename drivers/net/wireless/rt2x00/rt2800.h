@@ -1,5 +1,12 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
+	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
+	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
+	Copyright (C) 2009 Mattias Nissler <mattias.nissler@gmx.de>
+	Copyright (C) 2009 Mark Asselstine <asselsm@gmail.com>
+	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
+	Copyright (C) 2009 Bart Zolnierkiewicz <bzolnier@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -360,6 +367,35 @@
 #define RF_CSR_CFG_REGNUM		FIELD32(0x00001f00)
 #define RF_CSR_CFG_WRITE		FIELD32(0x00010000)
 #define RF_CSR_CFG_BUSY			FIELD32(0x00020000)
+
+/*
+ * EFUSE_CSR: RT30x0 EEPROM
+ */
+#define EFUSE_CTRL			0x0580
+#define EFUSE_CTRL_ADDRESS_IN		FIELD32(0x03fe0000)
+#define EFUSE_CTRL_MODE			FIELD32(0x000000c0)
+#define EFUSE_CTRL_KICK			FIELD32(0x40000000)
+#define EFUSE_CTRL_PRESENT		FIELD32(0x80000000)
+
+/*
+ * EFUSE_DATA0
+ */
+#define EFUSE_DATA0			0x0590
+
+/*
+ * EFUSE_DATA1
+ */
+#define EFUSE_DATA1			0x0594
+
+/*
+ * EFUSE_DATA2
+ */
+#define EFUSE_DATA2			0x0598
+
+/*
+ * EFUSE_DATA3
+ */
+#define EFUSE_DATA3			0x059c
 
 /*
  * MAC Control/Status Registers(CSR).

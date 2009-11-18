@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 open80211s Ltd.
+ * Copyright (c) 2008, 2009 open80211s Ltd.
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -463,10 +463,11 @@ void mesh_plink_broken(struct sta_info *sta)
 		    mpath->flags & MESH_PATH_ACTIVE &&
 		    !(mpath->flags & MESH_PATH_FIXED)) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
-			++mpath->dsn;
+			++mpath->sn;
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_error_tx(mpath->dst,
-					cpu_to_le32(mpath->dsn),
+			mesh_path_error_tx(MESH_TTL, mpath->dst,
+					cpu_to_le32(mpath->sn),
+					PERR_RCODE_DEST_UNREACH,
 					sdata->dev->broadcast, sdata);
 		} else
 		spin_unlock_bh(&mpath->state_lock);
@@ -601,7 +602,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mesh_path *mpath;
-	u32 dsn = 0;
+	u32 sn = 0;
 
 	if (memcmp(hdr->addr4, sdata->dev->dev_addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
@@ -610,8 +611,9 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		ra = hdr->addr1;
 		mpath = mesh_path_lookup(da, sdata);
 		if (mpath)
-			dsn = ++mpath->dsn;
-		mesh_path_error_tx(skb->data, cpu_to_le32(dsn), ra, sdata);
+			sn = ++mpath->sn;
+		mesh_path_error_tx(MESH_TTL, skb->data, cpu_to_le32(sn),
+				   PERR_RCODE_NO_ROUTE, ra, sdata);
 	}
 
 	kfree_skb(skb);
@@ -646,7 +648,7 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
 {
 	spin_lock_bh(&mpath->state_lock);
 	mesh_path_assign_nexthop(mpath, next_hop);
-	mpath->dsn = 0xffff;
+	mpath->sn = 0xffff;
 	mpath->metric = 0;
 	mpath->hop_count = 0;
 	mpath->exp_time = 0;

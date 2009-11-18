@@ -1,6 +1,6 @@
 config PCMCIA_NETWAVE
 	tristate "Xircom Netwave AirSurfer Pcmcia wireless support"
-	depends on PCMCIA
+	depends on PCMCIA && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	help

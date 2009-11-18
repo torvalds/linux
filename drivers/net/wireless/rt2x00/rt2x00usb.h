@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,8 @@
 
 #ifndef RT2X00USB_H
 #define RT2X00USB_H
+
+#include <linux/usb.h>
 
 #define to_usb_device_intf(d) \
 ({ \

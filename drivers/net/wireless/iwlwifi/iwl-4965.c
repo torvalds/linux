@@ -1449,14 +1449,14 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	is_ht40 = is_ht40_channel(priv->staging_rxon.flags);
 
 	if (is_ht40 &&
-	    (priv->active_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	    (priv->staging_rxon.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
 	cmd.channel = cpu_to_le16(channel);
-	cmd.rxon_flags = priv->active_rxon.flags;
-	cmd.rxon_filter_flags = priv->active_rxon.filter_flags;
+	cmd.rxon_flags = priv->staging_rxon.flags;
+	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
 	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
@@ -1473,8 +1473,10 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 		return rc;
 	}
 
-	rc = iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
-	return rc;
+	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.switch_in_progress = true;
+
+	return iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 }
 
 /**
@@ -2228,7 +2230,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl4965_mod_params,
 	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
+	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = true,

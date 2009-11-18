@@ -752,6 +752,7 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mandatory_rates(sdata->local,
 			sdata->local->hw.conf.channel->band);
 	sdata->drop_unencrypted = 0;
+	sdata->use_4addr = 0;
 
 	return 0;
 }
@@ -818,6 +819,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ieee80211_sdata_set_mesh_id(sdata,
 					    params->mesh_id_len,
 					    params->mesh_id);
+
+	if (params && params->use_4addr >= 0)
+		sdata->use_4addr = !!params->use_4addr;
 
 	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);

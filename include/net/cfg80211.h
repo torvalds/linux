@@ -206,10 +206,12 @@ struct ieee80211_supported_band {
  * struct vif_params - describes virtual interface parameters
  * @mesh_id: mesh ID to use
  * @mesh_id_len: length of the mesh ID
+ * @use_4addr: use 4-address frames
  */
 struct vif_params {
        u8 *mesh_id;
        int mesh_id_len;
+       int use_4addr;
 };
 
 /**
@@ -230,6 +232,35 @@ struct key_params {
 	int key_len;
 	int seq_len;
 	u32 cipher;
+};
+
+/**
+ * enum survey_info_flags - survey information flags
+ *
+ * Used by the driver to indicate which info in &struct survey_info
+ * it has filled in during the get_survey().
+ */
+enum survey_info_flags {
+	SURVEY_INFO_NOISE_DBM = 1<<0,
+};
+
+/**
+ * struct survey_info - channel survey response
+ *
+ * Used by dump_survey() to report back per-channel survey information.
+ *
+ * @channel: the channel this survey record reports, mandatory
+ * @filled: bitflag of flags from &enum survey_info_flags
+ * @noise: channel noise in dBm. This and all following fields are
+ *     optional
+ *
+ * This structure can later be expanded with things like
+ * channel duty cycle etc.
+ */
+struct survey_info {
+	struct ieee80211_channel *channel;
+	u32 filled;
+	s8 noise;
 };
 
 /**
@@ -418,7 +449,7 @@ enum monitor_flags {
  * in during get_station() or dump_station().
  *
  * MPATH_INFO_FRAME_QLEN: @frame_qlen filled
- * MPATH_INFO_DSN: @dsn filled
+ * MPATH_INFO_SN: @sn filled
  * MPATH_INFO_METRIC: @metric filled
  * MPATH_INFO_EXPTIME: @exptime filled
  * MPATH_INFO_DISCOVERY_TIMEOUT: @discovery_timeout filled
@@ -427,7 +458,7 @@ enum monitor_flags {
  */
 enum mpath_info_flags {
 	MPATH_INFO_FRAME_QLEN		= BIT(0),
-	MPATH_INFO_DSN			= BIT(1),
+	MPATH_INFO_SN			= BIT(1),
 	MPATH_INFO_METRIC		= BIT(2),
 	MPATH_INFO_EXPTIME		= BIT(3),
 	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
@@ -442,7 +473,7 @@ enum mpath_info_flags {
  *
  * @filled: bitfield of flags from &enum mpath_info_flags
  * @frame_qlen: number of queued frames for this destination
- * @dsn: destination sequence number
+ * @sn: target sequence number
  * @metric: metric (cost) of this mesh path
  * @exptime: expiration time for the mesh path from now, in msecs
  * @flags: mesh path flags
@@ -456,7 +487,7 @@ enum mpath_info_flags {
 struct mpath_info {
 	u32 filled;
 	u32 frame_qlen;
-	u32 dsn;
+	u32 sn;
 	u32 metric;
 	u32 exptime;
 	u32 discovery_timeout;
@@ -506,6 +537,7 @@ struct mesh_config {
 	u32 dot11MeshHWMPactivePathTimeout;
 	u16 dot11MeshHWMPpreqMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
+	u8  dot11MeshHWMPRootMode;
 };
 
 /**
@@ -941,6 +973,8 @@ struct cfg80211_bitrate_mask {
  * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
  *	functions to adjust rfkill hw state
  *
+ * @dump_survey: get site survey information.
+ *
  * @testmode_cmd: run a test mode command
  */
 struct cfg80211_ops {
@@ -1059,6 +1093,9 @@ struct cfg80211_ops {
 				    struct net_device *dev,
 				    const u8 *peer,
 				    const struct cfg80211_bitrate_mask *mask);
+
+	int	(*dump_survey)(struct wiphy *wiphy, struct net_device *netdev,
+			int idx, struct survey_info *info);
 
 	/* some temporary stuff to finish wext */
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,

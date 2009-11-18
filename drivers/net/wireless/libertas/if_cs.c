@@ -48,6 +48,7 @@
 MODULE_AUTHOR("Holger Schurig <hs4233@mail.mn-solutions.de>");
 MODULE_DESCRIPTION("Driver for Marvell 83xx compact flash WLAN cards");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("libertas_cs_helper.fw");
 
 
 

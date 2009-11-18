@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -221,19 +222,6 @@ void rt2x00queue_free(struct rt2x00_dev *rt2x00dev);
 void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 			     struct sk_buff *skb,
 			     struct rxdone_entry_desc *rxdesc);
-
-/**
- * rt2x00link_calculate_signal - Calculate signal quality
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @rssi: RX Frame RSSI
- *
- * Calculate the signal quality of a frame based on the rssi
- * measured during the receiving of the frame and the global
- * link quality statistics measured since the start of the
- * link tuning. The result is a value between 0 and 100 which
- * is an indication of the signal quality.
- */
-int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi);
 
 /**
  * rt2x00link_start_tuner - Start periodic link tuner work

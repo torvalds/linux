@@ -1,5 +1,9 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2009 Mattias Nissler <mattias.nissler@gmx.de>
+	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
+	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
+	Copyright (C) 2009 Axel Kollhofer <rain_maker@root-forum.org>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -594,16 +598,16 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	rt2x00_desc_read(rxwi, 2, &rxwi2);
 	rt2x00_desc_read(rxwi, 3, &rxwi3);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_CRC_ERROR))
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
 		rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
 		rxdesc->cipher_status =
-		    rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
+		    rt2x00_get_field32(rxd0, RXINFO_W0_CIPHER_ERROR);
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_DECRYPTED)) {
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_DECRYPTED)) {
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during
 		 * decryption. Unfortunately the descriptor doesn't contain
@@ -618,10 +622,10 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD)) {
+	if (rt2x00_get_field32(rxd0, RXINFO_W0_L2PAD)) {
 		rxdesc->dev_flags |= RXDONE_L2PAD;
 		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
@@ -667,400 +671,18 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
  */
 static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 {
-	u16 word;
-	u8 *mac;
-	u8 default_lna_gain;
+	if (rt2800_efuse_detect(rt2x00dev))
+		rt2800_read_eeprom_efuse(rt2x00dev);
+	else
+		rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom,
+				      EEPROM_SIZE);
 
-	rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom, EEPROM_SIZE);
-
-	/*
-	 * Start validation of the data that has been read.
-	 */
-	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
-	if (!is_valid_ether_addr(mac)) {
-		random_ether_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
-	}
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
-	if (word == 0xffff) {
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_TXPATH, 1);
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF2820);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
-		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
-	} else if (rt2x00_rev(&rt2x00dev->chip) < RT2883_VERSION) {
-		/*
-		 * There is a max of 2 RX streams for RT2870 series
-		 */
-		if (rt2x00_get_field16(word, EEPROM_ANTENNA_RXPATH) > 2)
-			rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
-	}
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &word);
-	if (word == 0xffff) {
-		rt2x00_set_field16(&word, EEPROM_NIC_HW_RADIO, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_DYNAMIC_TX_AGC, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_A, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_CARDBUS_ACCEL, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_SB_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_SB_A, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_WPS_PBC, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_A, 0);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
-		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
-	}
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
-	if ((word & 0x00ff) == 0x00ff) {
-		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
-		rt2x00_set_field16(&word, EEPROM_FREQ_LED_MODE,
-				   LED_MODE_TXRX_ACTIVITY);
-		rt2x00_set_field16(&word, EEPROM_FREQ_LED_POLARITY, 0);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED1, 0x5555);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED2, 0x2221);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED3, 0xa9f8);
-		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
-	}
-
-	/*
-	 * During the LNA validation we are going to use
-	 * lna0 as correct value. Note that EEPROM_LNA
-	 * is never validated.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LNA, &word);
-	default_lna_gain = rt2x00_get_field16(word, EEPROM_LNA_A0);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG, &word);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_BG_OFFSET0)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_BG_OFFSET0, 0);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_BG_OFFSET1)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_BG_OFFSET1, 0);
-	rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_BG, word);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG2, &word);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_BG2_OFFSET2)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_BG2_OFFSET2, 0);
-	if (rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0x00 ||
-	    rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0xff)
-		rt2x00_set_field16(&word, EEPROM_RSSI_BG2_LNA_A1,
-				   default_lna_gain);
-	rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_BG2, word);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_A, &word);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_A_OFFSET0)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_A_OFFSET0, 0);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_A_OFFSET1)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_A_OFFSET1, 0);
-	rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_A, word);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_A2, &word);
-	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_A2_OFFSET2)) > 10)
-		rt2x00_set_field16(&word, EEPROM_RSSI_A2_OFFSET2, 0);
-	if (rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0x00 ||
-	    rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0xff)
-		rt2x00_set_field16(&word, EEPROM_RSSI_A2_LNA_A2,
-				   default_lna_gain);
-	rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_A2, word);
-
-	return 0;
-}
-
-static int rt2800usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
-{
-	u32 reg;
-	u16 value;
-	u16 eeprom;
-
-	/*
-	 * Read EEPROM word for configuration.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
-
-	/*
-	 * Identify RF chipset.
-	 */
-	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
-	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-	rt2x00_set_chip(rt2x00dev, RT2870, value, reg);
-
-	/*
-	 * The check for rt2860 is not a typo, some rt2870 hardware
-	 * identifies itself as rt2860 in the CSR register.
-	 */
-	if (!rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28600000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28700000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28800000) &&
-	    !rt2x00_check_rev(&rt2x00dev->chip, 0xffff0000, 0x30700000)) {
-		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
-		return -ENODEV;
-	}
-
-	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2850) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2720) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2750) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3020) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2020)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
-		return -ENODEV;
-	}
-
-	/*
-	 * Identify default antenna configuration.
-	 */
-	rt2x00dev->default_ant.tx =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH);
-	rt2x00dev->default_ant.rx =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH);
-
-	/*
-	 * Read frequency offset and RF programming sequence.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
-	rt2x00dev->freq_offset = rt2x00_get_field16(eeprom, EEPROM_FREQ_OFFSET);
-
-	/*
-	 * Read external LNA informations.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
-
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA_A))
-		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA_BG))
-		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
-
-	/*
-	 * Detect if this device has an hardware controlled radio.
-	 */
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_HW_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-
-	/*
-	 * Store led settings, for correct led behaviour.
-	 */
-#ifdef CONFIG_RT2X00_LIB_LEDS
-	rt2800_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
-	rt2800_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
-	rt2800_init_led(rt2x00dev, &rt2x00dev->led_qual, LED_TYPE_QUALITY);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ,
-			   &rt2x00dev->led_mcu_reg);
-#endif /* CONFIG_RT2X00_LIB_LEDS */
-
-	return 0;
-}
-
-/*
- * RF value list for rt2870
- * Supports: 2.4 GHz (all) & 5.2 GHz (RF2850 & RF2750)
- */
-static const struct rf_channel rf_vals[] = {
-	{ 1,  0x18402ecc, 0x184c0786, 0x1816b455, 0x1800510b },
-	{ 2,  0x18402ecc, 0x184c0786, 0x18168a55, 0x1800519f },
-	{ 3,  0x18402ecc, 0x184c078a, 0x18168a55, 0x1800518b },
-	{ 4,  0x18402ecc, 0x184c078a, 0x18168a55, 0x1800519f },
-	{ 5,  0x18402ecc, 0x184c078e, 0x18168a55, 0x1800518b },
-	{ 6,  0x18402ecc, 0x184c078e, 0x18168a55, 0x1800519f },
-	{ 7,  0x18402ecc, 0x184c0792, 0x18168a55, 0x1800518b },
-	{ 8,  0x18402ecc, 0x184c0792, 0x18168a55, 0x1800519f },
-	{ 9,  0x18402ecc, 0x184c0796, 0x18168a55, 0x1800518b },
-	{ 10, 0x18402ecc, 0x184c0796, 0x18168a55, 0x1800519f },
-	{ 11, 0x18402ecc, 0x184c079a, 0x18168a55, 0x1800518b },
-	{ 12, 0x18402ecc, 0x184c079a, 0x18168a55, 0x1800519f },
-	{ 13, 0x18402ecc, 0x184c079e, 0x18168a55, 0x1800518b },
-	{ 14, 0x18402ecc, 0x184c07a2, 0x18168a55, 0x18005193 },
-
-	/* 802.11 UNI / HyperLan 2 */
-	{ 36, 0x18402ecc, 0x184c099a, 0x18158a55, 0x180ed1a3 },
-	{ 38, 0x18402ecc, 0x184c099e, 0x18158a55, 0x180ed193 },
-	{ 40, 0x18402ec8, 0x184c0682, 0x18158a55, 0x180ed183 },
-	{ 44, 0x18402ec8, 0x184c0682, 0x18158a55, 0x180ed1a3 },
-	{ 46, 0x18402ec8, 0x184c0686, 0x18158a55, 0x180ed18b },
-	{ 48, 0x18402ec8, 0x184c0686, 0x18158a55, 0x180ed19b },
-	{ 52, 0x18402ec8, 0x184c068a, 0x18158a55, 0x180ed193 },
-	{ 54, 0x18402ec8, 0x184c068a, 0x18158a55, 0x180ed1a3 },
-	{ 56, 0x18402ec8, 0x184c068e, 0x18158a55, 0x180ed18b },
-	{ 60, 0x18402ec8, 0x184c0692, 0x18158a55, 0x180ed183 },
-	{ 62, 0x18402ec8, 0x184c0692, 0x18158a55, 0x180ed193 },
-	{ 64, 0x18402ec8, 0x184c0692, 0x18158a55, 0x180ed1a3 },
-
-	/* 802.11 HyperLan 2 */
-	{ 100, 0x18402ec8, 0x184c06b2, 0x18178a55, 0x180ed783 },
-	{ 102, 0x18402ec8, 0x184c06b2, 0x18578a55, 0x180ed793 },
-	{ 104, 0x18402ec8, 0x185c06b2, 0x18578a55, 0x180ed1a3 },
-	{ 108, 0x18402ecc, 0x185c0a32, 0x18578a55, 0x180ed193 },
-	{ 110, 0x18402ecc, 0x184c0a36, 0x18178a55, 0x180ed183 },
-	{ 112, 0x18402ecc, 0x184c0a36, 0x18178a55, 0x180ed19b },
-	{ 116, 0x18402ecc, 0x184c0a3a, 0x18178a55, 0x180ed1a3 },
-	{ 118, 0x18402ecc, 0x184c0a3e, 0x18178a55, 0x180ed193 },
-	{ 120, 0x18402ec4, 0x184c0382, 0x18178a55, 0x180ed183 },
-	{ 124, 0x18402ec4, 0x184c0382, 0x18178a55, 0x180ed193 },
-	{ 126, 0x18402ec4, 0x184c0382, 0x18178a55, 0x180ed15b },
-	{ 128, 0x18402ec4, 0x184c0382, 0x18178a55, 0x180ed1a3 },
-	{ 132, 0x18402ec4, 0x184c0386, 0x18178a55, 0x180ed18b },
-	{ 134, 0x18402ec4, 0x184c0386, 0x18178a55, 0x180ed193 },
-	{ 136, 0x18402ec4, 0x184c0386, 0x18178a55, 0x180ed19b },
-	{ 140, 0x18402ec4, 0x184c038a, 0x18178a55, 0x180ed183 },
-
-	/* 802.11 UNII */
-	{ 149, 0x18402ec4, 0x184c038a, 0x18178a55, 0x180ed1a7 },
-	{ 151, 0x18402ec4, 0x184c038e, 0x18178a55, 0x180ed187 },
-	{ 153, 0x18402ec4, 0x184c038e, 0x18178a55, 0x180ed18f },
-	{ 157, 0x18402ec4, 0x184c038e, 0x18178a55, 0x180ed19f },
-	{ 159, 0x18402ec4, 0x184c038e, 0x18178a55, 0x180ed1a7 },
-	{ 161, 0x18402ec4, 0x184c0392, 0x18178a55, 0x180ed187 },
-	{ 165, 0x18402ec4, 0x184c0392, 0x18178a55, 0x180ed197 },
-	{ 167, 0x18402ec4, 0x184c03d2, 0x18179855, 0x1815531f },
-	{ 169, 0x18402ec4, 0x184c03d2, 0x18179855, 0x18155327 },
-	{ 171, 0x18402ec4, 0x184c03d6, 0x18179855, 0x18155307 },
-	{ 173, 0x18402ec4, 0x184c03d6, 0x18179855, 0x1815530f },
-
-	/* 802.11 Japan */
-	{ 184, 0x15002ccc, 0x1500491e, 0x1509be55, 0x150c0a0b },
-	{ 188, 0x15002ccc, 0x15004922, 0x1509be55, 0x150c0a13 },
-	{ 192, 0x15002ccc, 0x15004926, 0x1509be55, 0x150c0a1b },
-	{ 196, 0x15002ccc, 0x1500492a, 0x1509be55, 0x150c0a23 },
-	{ 208, 0x15002ccc, 0x1500493a, 0x1509be55, 0x150c0a13 },
-	{ 212, 0x15002ccc, 0x1500493e, 0x1509be55, 0x150c0a1b },
-	{ 216, 0x15002ccc, 0x15004982, 0x1509be55, 0x150c0a23 },
-};
-
-/*
- * RF value list for rt3070
- * Supports: 2.4 GHz
- */
-static const struct rf_channel rf_vals_3070[] = {
-	{1,  241, 2, 2 },
-	{2,  241, 2, 7 },
-	{3,  242, 2, 2 },
-	{4,  242, 2, 7 },
-	{5,  243, 2, 2 },
-	{6,  243, 2, 7 },
-	{7,  244, 2, 2 },
-	{8,  244, 2, 7 },
-	{9,  245, 2, 2 },
-	{10, 245, 2, 7 },
-	{11, 246, 2, 2 },
-	{12, 246, 2, 7 },
-	{13, 247, 2, 2 },
-	{14, 248, 2, 4 },
-};
-
-static int rt2800usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
-{
-	struct hw_mode_spec *spec = &rt2x00dev->spec;
-	struct channel_info *info;
-	char *tx_power1;
-	char *tx_power2;
-	unsigned int i;
-	u16 eeprom;
-
-	/*
-	 * Initialize all hw fields.
-	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_SIGNAL_DBM |
-	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
-	rt2x00dev->hw->extra_tx_headroom = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
-
-	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
-	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
-				rt2x00_eeprom_addr(rt2x00dev,
-						   EEPROM_MAC_ADDR_0));
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
-
-	/*
-	 * Initialize HT information.
-	 */
-	spec->ht.ht_supported = true;
-	spec->ht.cap =
-	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
-	    IEEE80211_HT_CAP_GRN_FLD |
-	    IEEE80211_HT_CAP_SGI_20 |
-	    IEEE80211_HT_CAP_SGI_40 |
-	    IEEE80211_HT_CAP_TX_STBC |
-	    IEEE80211_HT_CAP_RX_STBC |
-	    IEEE80211_HT_CAP_PSMP_SUPPORT;
-	spec->ht.ampdu_factor = 3;
-	spec->ht.ampdu_density = 4;
-	spec->ht.mcs.tx_params =
-	    IEEE80211_HT_MCS_TX_DEFINED |
-	    IEEE80211_HT_MCS_TX_RX_DIFF |
-	    ((rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) - 1) <<
-		IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
-
-	switch (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH)) {
-	case 3:
-		spec->ht.mcs.rx_mask[2] = 0xff;
-	case 2:
-		spec->ht.mcs.rx_mask[1] = 0xff;
-	case 1:
-		spec->ht.mcs.rx_mask[0] = 0xff;
-		spec->ht.mcs.rx_mask[4] = 0x1; /* MCS32 */
-		break;
-	}
-
-	/*
-	 * Initialize hw_mode information.
-	 */
-	spec->supported_bands = SUPPORT_BAND_2GHZ;
-	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
-
-	if (rt2x00_rf(&rt2x00dev->chip, RF2820) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF2720)) {
-		spec->num_channels = 14;
-		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2850) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2750)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
-		spec->num_channels = ARRAY_SIZE(rf_vals);
-		spec->channels = rf_vals;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF3020) ||
-		   rt2x00_rf(&rt2x00dev->chip, RF2020)) {
-		spec->num_channels = ARRAY_SIZE(rf_vals_3070);
-		spec->channels = rf_vals_3070;
-	}
-
-	/*
-	 * Create channel information array
-	 */
-	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	spec->channels_info = info;
-
-	tx_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG1);
-	tx_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG2);
-
-	for (i = 0; i < 14; i++) {
-		info[i].tx_power1 = TXPOWER_G_FROM_DEV(tx_power1[i]);
-		info[i].tx_power2 = TXPOWER_G_FROM_DEV(tx_power2[i]);
-	}
-
-	if (spec->num_channels > 14) {
-		tx_power1 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A1);
-		tx_power2 = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A2);
-
-		for (i = 14; i < spec->num_channels; i++) {
-			info[i].tx_power1 = TXPOWER_A_FROM_DEV(tx_power1[i]);
-			info[i].tx_power2 = TXPOWER_A_FROM_DEV(tx_power2[i]);
-		}
-	}
-
-	return 0;
+	return rt2800_validate_eeprom(rt2x00dev);
 }
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.register_read		= rt2x00usb_register_read,
+	.register_read_lock	= rt2x00usb_register_read_lock,
 	.register_write		= rt2x00usb_register_write,
 	.register_write_lock	= rt2x00usb_register_write_lock,
 
@@ -1074,8 +696,6 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
-
 	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
 	/*
@@ -1085,14 +705,14 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	if (retval)
 		return retval;
 
-	retval = rt2800usb_init_eeprom(rt2x00dev);
+	retval = rt2800_init_eeprom(rt2x00dev);
 	if (retval)
 		return retval;
 
 	/*
 	 * Initialize hw specifications.
 	 */
-	retval = rt2800usb_probe_hw_mode(rt2x00dev);
+	retval = rt2800_probe_hw_mode(rt2x00dev);
 	if (retval)
 		return retval;
 

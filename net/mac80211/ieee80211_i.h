@@ -208,6 +208,9 @@ struct ieee80211_if_wds {
 
 struct ieee80211_if_vlan {
 	struct list_head list;
+
+	/* used for all tx if the VLAN is configured to 4-addr mode */
+	struct sta_info *sta;
 };
 
 struct mesh_stats {
@@ -352,6 +355,7 @@ struct ieee80211_if_mesh {
 	struct work_struct work;
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
+	struct timer_list mesh_path_root_timer;
 	struct sk_buff_head skb_queue;
 
 	unsigned long timers_running;
@@ -361,23 +365,23 @@ struct ieee80211_if_mesh {
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;
 	/* Active Path Selection Protocol Identifier */
-	u8 mesh_pp_id[4];
+	u8 mesh_pp_id;
 	/* Active Path Selection Metric Identifier */
-	u8 mesh_pm_id[4];
+	u8 mesh_pm_id;
 	/* Congestion Control Mode Identifier */
-	u8 mesh_cc_id[4];
+	u8 mesh_cc_id;
 	/* Synchronization Protocol Identifier */
-	u8 mesh_sp_id[4];
+	u8 mesh_sp_id;
 	/* Authentication Protocol Identifier */
-	u8 mesh_auth_id[4];
-	/* Local mesh Destination Sequence Number */
-	u32 dsn;
+	u8 mesh_auth_id;
+	/* Local mesh Sequence Number */
+	u32 sn;
 	/* Last used PREQ ID */
 	u32 preq_id;
 	atomic_t mpaths;
-	/* Timestamp of last DSN update */
-	unsigned long last_dsn_update;
-	/* Timestamp of last DSN sent */
+	/* Timestamp of last SN update */
+	unsigned long last_sn_update;
+	/* Timestamp of last SN sent */
 	unsigned long last_preq;
 	struct mesh_rmc *rmc;
 	spinlock_t mesh_preq_queue_lock;
@@ -456,6 +460,8 @@ struct ieee80211_sub_if_data {
 
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
+
+	bool use_4addr; /* use 4-address frames */
 
 	union {
 		struct ieee80211_if_ap ap;
@@ -799,6 +805,7 @@ struct ieee802_11_elems {
 	u8 *preq;
 	u8 *prep;
 	u8 *perr;
+	struct ieee80211_rann_ie *rann;
 	u8 *ch_switch_elem;
 	u8 *country_elem;
 	u8 *pwr_constr_elem;

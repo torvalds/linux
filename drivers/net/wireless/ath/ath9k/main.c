@@ -405,34 +405,34 @@ static void ath_ani_calibrate(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	/* Long calibration runs independently of short calibration. */
-	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
+	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
 		ath_print(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
-		sc->ani.longcal_timer = timestamp;
+		common->ani.longcal_timer = timestamp;
 	}
 
 	/* Short calibration applies only while caldone is false */
-	if (!sc->ani.caldone) {
-		if ((timestamp - sc->ani.shortcal_timer) >= short_cal_interval) {
+	if (!common->ani.caldone) {
+		if ((timestamp - common->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
 			ath_print(common, ATH_DBG_ANI,
 				  "shortcal @%lu\n", jiffies);
-			sc->ani.shortcal_timer = timestamp;
-			sc->ani.resetcal_timer = timestamp;
+			common->ani.shortcal_timer = timestamp;
+			common->ani.resetcal_timer = timestamp;
 		}
 	} else {
-		if ((timestamp - sc->ani.resetcal_timer) >=
+		if ((timestamp - common->ani.resetcal_timer) >=
 		    ATH_RESTART_CALINTERVAL) {
-			sc->ani.caldone = ath9k_hw_reset_calvalid(ah);
-			if (sc->ani.caldone)
-				sc->ani.resetcal_timer = timestamp;
+			common->ani.caldone = ath9k_hw_reset_calvalid(ah);
+			if (common->ani.caldone)
+				common->ani.resetcal_timer = timestamp;
 		}
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - sc->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
-		sc->ani.checkani_timer = timestamp;
+		common->ani.checkani_timer = timestamp;
 	}
 
 	/* Skip all processing if there's nothing to do. */
@@ -443,21 +443,21 @@ static void ath_ani_calibrate(unsigned long data)
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
-			sc->ani.caldone =
+			common->ani.caldone =
 				ath9k_hw_calibrate(ah,
 						   ah->curchan,
 						   common->rx_chainmask,
 						   longcal);
 
 			if (longcal)
-				sc->ani.noise_floor = ath9k_hw_getchan_noise(ah,
+				common->ani.noise_floor = ath9k_hw_getchan_noise(ah,
 								     ah->curchan);
 
 			ath_print(common, ATH_DBG_ANI,
 				  " calibrate chan %u/%x nf: %d\n",
 				  ah->curchan->channel,
 				  ah->curchan->channelFlags,
-				  sc->ani.noise_floor);
+				  common->ani.noise_floor);
 		}
 	}
 
@@ -473,21 +473,21 @@ set_timer:
 	cal_interval = ATH_LONG_CALINTERVAL;
 	if (sc->sc_ah->config.enable_ani)
 		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
-	if (!sc->ani.caldone)
+	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
-	mod_timer(&sc->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
+	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 }
 
-static void ath_start_ani(struct ath_softc *sc)
+static void ath_start_ani(struct ath_common *common)
 {
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
-	sc->ani.longcal_timer = timestamp;
-	sc->ani.shortcal_timer = timestamp;
-	sc->ani.checkani_timer = timestamp;
+	common->ani.longcal_timer = timestamp;
+	common->ani.shortcal_timer = timestamp;
+	common->ani.checkani_timer = timestamp;
 
-	mod_timer(&sc->ani.timer,
+	mod_timer(&common->ani.timer,
 		  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 }
 
@@ -733,10 +733,11 @@ static u32 ath_get_extchanmode(struct ath_softc *sc,
 	return chanmode;
 }
 
-static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
+static int ath_setkey_tkip(struct ath_common *common, u16 keyix, const u8 *key,
 			   struct ath9k_keyval *hk, const u8 *addr,
 			   bool authenticator)
 {
+	struct ath_hw *ah = common->ah;
 	const u8 *key_rxmic;
 	const u8 *key_txmic;
 
@@ -756,42 +757,42 @@ static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
 			memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
 			memcpy(hk->kv_txmic, key_rxmic, sizeof(hk->kv_mic));
 		}
-		return ath9k_hw_set_keycache_entry(sc->sc_ah, keyix, hk, addr);
+		return ath9k_hw_set_keycache_entry(ah, keyix, hk, addr);
 	}
-	if (!sc->splitmic) {
+	if (!common->splitmic) {
 		/* TX and RX keys share the same key cache entry. */
 		memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
 		memcpy(hk->kv_txmic, key_txmic, sizeof(hk->kv_txmic));
-		return ath9k_hw_set_keycache_entry(sc->sc_ah, keyix, hk, addr);
+		return ath9k_hw_set_keycache_entry(ah, keyix, hk, addr);
 	}
 
 	/* Separate key cache entries for TX and RX */
 
 	/* TX key goes at first index, RX key at +32. */
 	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
-	if (!ath9k_hw_set_keycache_entry(sc->sc_ah, keyix, hk, NULL)) {
+	if (!ath9k_hw_set_keycache_entry(ah, keyix, hk, NULL)) {
 		/* TX MIC entry failed. No need to proceed further */
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+		ath_print(common, ATH_DBG_FATAL,
 			  "Setting TX MIC Key Failed\n");
 		return 0;
 	}
 
 	memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
 	/* XXX delete tx key on failure? */
-	return ath9k_hw_set_keycache_entry(sc->sc_ah, keyix + 32, hk, addr);
+	return ath9k_hw_set_keycache_entry(ah, keyix + 32, hk, addr);
 }
 
-static int ath_reserve_key_cache_slot_tkip(struct ath_softc *sc)
+static int ath_reserve_key_cache_slot_tkip(struct ath_common *common)
 {
 	int i;
 
-	for (i = IEEE80211_WEP_NKID; i < sc->keymax / 2; i++) {
-		if (test_bit(i, sc->keymap) ||
-		    test_bit(i + 64, sc->keymap))
+	for (i = IEEE80211_WEP_NKID; i < common->keymax / 2; i++) {
+		if (test_bit(i, common->keymap) ||
+		    test_bit(i + 64, common->keymap))
 			continue; /* At least one part of TKIP key allocated */
-		if (sc->splitmic &&
-		    (test_bit(i + 32, sc->keymap) ||
-		     test_bit(i + 64 + 32, sc->keymap)))
+		if (common->splitmic &&
+		    (test_bit(i + 32, common->keymap) ||
+		     test_bit(i + 64 + 32, common->keymap)))
 			continue; /* At least one part of TKIP key allocated */
 
 		/* Found a free slot for a TKIP key */
@@ -800,60 +801,60 @@ static int ath_reserve_key_cache_slot_tkip(struct ath_softc *sc)
 	return -1;
 }
 
-static int ath_reserve_key_cache_slot(struct ath_softc *sc)
+static int ath_reserve_key_cache_slot(struct ath_common *common)
 {
 	int i;
 
 	/* First, try to find slots that would not be available for TKIP. */
-	if (sc->splitmic) {
-		for (i = IEEE80211_WEP_NKID; i < sc->keymax / 4; i++) {
-			if (!test_bit(i, sc->keymap) &&
-			    (test_bit(i + 32, sc->keymap) ||
-			     test_bit(i + 64, sc->keymap) ||
-			     test_bit(i + 64 + 32, sc->keymap)))
+	if (common->splitmic) {
+		for (i = IEEE80211_WEP_NKID; i < common->keymax / 4; i++) {
+			if (!test_bit(i, common->keymap) &&
+			    (test_bit(i + 32, common->keymap) ||
+			     test_bit(i + 64, common->keymap) ||
+			     test_bit(i + 64 + 32, common->keymap)))
 				return i;
-			if (!test_bit(i + 32, sc->keymap) &&
-			    (test_bit(i, sc->keymap) ||
-			     test_bit(i + 64, sc->keymap) ||
-			     test_bit(i + 64 + 32, sc->keymap)))
+			if (!test_bit(i + 32, common->keymap) &&
+			    (test_bit(i, common->keymap) ||
+			     test_bit(i + 64, common->keymap) ||
+			     test_bit(i + 64 + 32, common->keymap)))
 				return i + 32;
-			if (!test_bit(i + 64, sc->keymap) &&
-			    (test_bit(i , sc->keymap) ||
-			     test_bit(i + 32, sc->keymap) ||
-			     test_bit(i + 64 + 32, sc->keymap)))
+			if (!test_bit(i + 64, common->keymap) &&
+			    (test_bit(i , common->keymap) ||
+			     test_bit(i + 32, common->keymap) ||
+			     test_bit(i + 64 + 32, common->keymap)))
 				return i + 64;
-			if (!test_bit(i + 64 + 32, sc->keymap) &&
-			    (test_bit(i, sc->keymap) ||
-			     test_bit(i + 32, sc->keymap) ||
-			     test_bit(i + 64, sc->keymap)))
+			if (!test_bit(i + 64 + 32, common->keymap) &&
+			    (test_bit(i, common->keymap) ||
+			     test_bit(i + 32, common->keymap) ||
+			     test_bit(i + 64, common->keymap)))
 				return i + 64 + 32;
 		}
 	} else {
-		for (i = IEEE80211_WEP_NKID; i < sc->keymax / 2; i++) {
-			if (!test_bit(i, sc->keymap) &&
-			    test_bit(i + 64, sc->keymap))
+		for (i = IEEE80211_WEP_NKID; i < common->keymax / 2; i++) {
+			if (!test_bit(i, common->keymap) &&
+			    test_bit(i + 64, common->keymap))
 				return i;
-			if (test_bit(i, sc->keymap) &&
-			    !test_bit(i + 64, sc->keymap))
+			if (test_bit(i, common->keymap) &&
+			    !test_bit(i + 64, common->keymap))
 				return i + 64;
 		}
 	}
 
 	/* No partially used TKIP slots, pick any available slot */
-	for (i = IEEE80211_WEP_NKID; i < sc->keymax; i++) {
+	for (i = IEEE80211_WEP_NKID; i < common->keymax; i++) {
 		/* Do not allow slots that could be needed for TKIP group keys
 		 * to be used. This limitation could be removed if we know that
 		 * TKIP will not be used. */
 		if (i >= 64 && i < 64 + IEEE80211_WEP_NKID)
 			continue;
-		if (sc->splitmic) {
+		if (common->splitmic) {
 			if (i >= 32 && i < 32 + IEEE80211_WEP_NKID)
 				continue;
 			if (i >= 64 + 32 && i < 64 + 32 + IEEE80211_WEP_NKID)
 				continue;
 		}
 
-		if (!test_bit(i, sc->keymap))
+		if (!test_bit(i, common->keymap))
 			return i; /* Found a free slot for a key */
 	}
 
@@ -861,11 +862,12 @@ static int ath_reserve_key_cache_slot(struct ath_softc *sc)
 	return -1;
 }
 
-static int ath_key_config(struct ath_softc *sc,
+static int ath_key_config(struct ath_common *common,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *key)
 {
+	struct ath_hw *ah = common->ah;
 	struct ath9k_keyval hk;
 	const u8 *mac = NULL;
 	int ret = 0;
@@ -911,48 +913,50 @@ static int ath_key_config(struct ath_softc *sc,
 		mac = sta->addr;
 
 		if (key->alg == ALG_TKIP)
-			idx = ath_reserve_key_cache_slot_tkip(sc);
+			idx = ath_reserve_key_cache_slot_tkip(common);
 		else
-			idx = ath_reserve_key_cache_slot(sc);
+			idx = ath_reserve_key_cache_slot(common);
 		if (idx < 0)
 			return -ENOSPC; /* no free key cache entries */
 	}
 
 	if (key->alg == ALG_TKIP)
-		ret = ath_setkey_tkip(sc, idx, key->key, &hk, mac,
+		ret = ath_setkey_tkip(common, idx, key->key, &hk, mac,
 				      vif->type == NL80211_IFTYPE_AP);
 	else
-		ret = ath9k_hw_set_keycache_entry(sc->sc_ah, idx, &hk, mac);
+		ret = ath9k_hw_set_keycache_entry(ah, idx, &hk, mac);
 
 	if (!ret)
 		return -EIO;
 
-	set_bit(idx, sc->keymap);
+	set_bit(idx, common->keymap);
 	if (key->alg == ALG_TKIP) {
-		set_bit(idx + 64, sc->keymap);
-		if (sc->splitmic) {
-			set_bit(idx + 32, sc->keymap);
-			set_bit(idx + 64 + 32, sc->keymap);
+		set_bit(idx + 64, common->keymap);
+		if (common->splitmic) {
+			set_bit(idx + 32, common->keymap);
+			set_bit(idx + 64 + 32, common->keymap);
 		}
 	}
 
 	return idx;
 }
 
-static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
+static void ath_key_delete(struct ath_common *common, struct ieee80211_key_conf *key)
 {
-	ath9k_hw_keyreset(sc->sc_ah, key->hw_key_idx);
+	struct ath_hw *ah = common->ah;
+
+	ath9k_hw_keyreset(ah, key->hw_key_idx);
 	if (key->hw_key_idx < IEEE80211_WEP_NKID)
 		return;
 
-	clear_bit(key->hw_key_idx, sc->keymap);
+	clear_bit(key->hw_key_idx, common->keymap);
 	if (key->alg != ALG_TKIP)
 		return;
 
-	clear_bit(key->hw_key_idx + 64, sc->keymap);
-	if (sc->splitmic) {
-		clear_bit(key->hw_key_idx + 32, sc->keymap);
-		clear_bit(key->hw_key_idx + 64 + 32, sc->keymap);
+	clear_bit(key->hw_key_idx + 64, common->keymap);
+	if (common->splitmic) {
+		clear_bit(key->hw_key_idx + 32, common->keymap);
+		clear_bit(key->hw_key_idx + 64 + 32, common->keymap);
 	}
 }
 
@@ -1023,12 +1027,12 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		/* Reset rssi stats */
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
-		ath_start_ani(sc);
+		ath_start_ani(common);
 	} else {
 		ath_print(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		common->curaid = 0;
 		/* Stop ANI */
-		del_timer_sync(&sc->ani.timer);
+		del_timer_sync(&common->ani.timer);
 	}
 }
 
@@ -1200,11 +1204,11 @@ fail:
 	ath_deinit_leds(sc);
 }
 
-void ath_radio_enable(struct ath_softc *sc)
+void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = sc->hw->conf.channel;
+	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
 
 	ath9k_ps_wakeup(sc);
@@ -1241,18 +1245,18 @@ void ath_radio_enable(struct ath_softc *sc)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
 
-	ieee80211_wake_queues(sc->hw);
+	ieee80211_wake_queues(hw);
 	ath9k_ps_restore(sc);
 }
 
-void ath_radio_disable(struct ath_softc *sc)
+void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ieee80211_channel *channel = sc->hw->conf.channel;
+	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
 
 	ath9k_ps_wakeup(sc);
-	ieee80211_stop_queues(sc->hw);
+	ieee80211_stop_queues(hw);
 
 	/* Disable LED */
 	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
@@ -1266,7 +1270,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	ath_flushrecv(sc);		/* flush recv queue */
 
 	if (!ah->curchan)
-		ah->curchan = ath_get_curchannel(sc, sc->hw);
+		ah->curchan = ath_get_curchannel(sc, hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
@@ -1679,19 +1683,19 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	}
 
 	/* Get the hardware key cache size. */
-	sc->keymax = ah->caps.keycache_size;
-	if (sc->keymax > ATH_KEYMAX) {
+	common->keymax = ah->caps.keycache_size;
+	if (common->keymax > ATH_KEYMAX) {
 		ath_print(common, ATH_DBG_ANY,
 			  "Warning, using only %u entries in %u key cache\n",
-			  ATH_KEYMAX, sc->keymax);
-		sc->keymax = ATH_KEYMAX;
+			  ATH_KEYMAX, common->keymax);
+		common->keymax = ATH_KEYMAX;
 	}
 
 	/*
 	 * Reset the key cache since some parts do not
 	 * reset the contents on initial power up.
 	 */
-	for (i = 0; i < sc->keymax; i++)
+	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
 	/* default to MONITOR mode */
@@ -1761,8 +1765,8 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* Initializes the noise floor to a reasonable default value.
 	 * Later on this will be updated during ANI processing. */
 
-	sc->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
-	setup_timer(&sc->ani.timer, ath_ani_calibrate, (unsigned long)sc);
+	common->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
+	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {
@@ -1788,7 +1792,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 				      ATH9K_CIPHER_MIC, NULL)
 	    && ath9k_hw_getcapability(ah, ATH9K_CAP_TKIP_SPLIT,
 				      0, NULL))
-		sc->splitmic = 1;
+		common->splitmic = 1;
 
 	/* turn on mcast key search if possible */
 	if (!ath9k_hw_getcapability(ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
@@ -2634,7 +2638,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if (conf->type == NL80211_IFTYPE_AP    ||
 	    conf->type == NL80211_IFTYPE_ADHOC ||
 	    conf->type == NL80211_IFTYPE_MONITOR)
-		ath_start_ani(sc);
+		ath_start_ani(common);
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -2655,7 +2659,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	/* Stop ANI */
-	del_timer_sync(&sc->ani.timer);
+	del_timer_sync(&common->ani.timer);
 
 	/* Reclaim beacon resources */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
@@ -2688,23 +2692,38 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ath_hw *ah = sc->sc_ah;
-	bool all_wiphys_idle = false, disable_radio = false;
+	bool disable_radio;
 
 	mutex_lock(&sc->mutex);
 
-	/* Leave this as the first check */
+	/*
+	 * Leave this as the first check because we need to turn on the
+	 * radio if it was disabled before prior to processing the rest
+	 * of the changes. Likewise we must only disable the radio towards
+	 * the end.
+	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		bool enable_radio;
+		bool all_wiphys_idle;
+		bool idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
 		spin_lock_bh(&sc->wiphy_lock);
 		all_wiphys_idle =  ath9k_all_wiphys_idle(sc);
+		ath9k_set_wiphy_idle(aphy, idle);
+
+		if (!idle && all_wiphys_idle)
+			enable_radio = true;
+
+		/*
+		 * After we unlock here its possible another wiphy
+		 * can be re-renabled so to account for that we will
+		 * only disable the radio toward the end of this routine
+		 * if by then all wiphys are still idle.
+		 */
 		spin_unlock_bh(&sc->wiphy_lock);
 
-		if (conf->flags & IEEE80211_CONF_IDLE){
-			if (all_wiphys_idle)
-				disable_radio = true;
-		}
-		else if (all_wiphys_idle) {
-			ath_radio_enable(sc);
+		if (enable_radio) {
+			ath_radio_enable(sc, hw);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
 		}
@@ -2779,9 +2798,13 @@ skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
 
+	spin_lock_bh(&sc->wiphy_lock);
+	disable_radio = ath9k_all_wiphys_idle(sc);
+	spin_unlock_bh(&sc->wiphy_lock);
+
 	if (disable_radio) {
 		ath_print(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
-		ath_radio_disable(sc);
+		ath_radio_disable(sc, hw);
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -2898,7 +2921,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath_key_config(sc, vif, sta, key);
+		ret = ath_key_config(common, vif, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
@@ -2911,7 +2934,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		}
 		break;
 	case DISABLE_KEY:
-		ath_key_delete(sc, key);
+		ath_key_delete(common, key);
 		break;
 	default:
 		ret = -EINVAL;

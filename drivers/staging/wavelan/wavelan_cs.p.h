@@ -446,7 +446,7 @@
 #include <pcmcia/ds.h>
 
 /* Wavelan declarations */
-#include "i82593.h"	/* Definitions for the Intel chip */
+#include <linux/i82593.h>	/* Definitions for the Intel chip */
 
 #include "wavelan_cs.h"	/* Others bits of the hardware */
 

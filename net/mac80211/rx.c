@@ -507,7 +507,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_is_action(hdr->frame_control)) {
 			mgmt = (struct ieee80211_mgmt *)hdr;
-			if (mgmt->u.action.category != PLINK_CATEGORY)
+			if (mgmt->u.action.category != MESH_PLINK_CATEGORY)
 				return RX_DROP_MONITOR;
 			return RX_CONTINUE;
 		}
@@ -1181,6 +1181,13 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->dev;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN && !sdata->use_4addr &&
+	    ieee80211_has_a4(hdr->frame_control))
+		return -1;
+	if (sdata->use_4addr && is_multicast_ether_addr(hdr->addr1))
+		return -1;
 
 	return ieee80211_data_to_8023(rx->skb, dev->dev_addr, sdata->vif.type);
 }
@@ -1229,7 +1236,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
-	    (rx->flags & IEEE80211_RX_RA_MATCH)) {
+	    (rx->flags & IEEE80211_RX_RA_MATCH) && !rx->sdata->use_4addr) {
 		if (is_multicast_ether_addr(ehdr->h_dest)) {
 			/*
 			 * send multicast frames both to higher layers in
@@ -1534,6 +1541,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	__le16 fc = hdr->frame_control;
 	int err;
 
@@ -1541,6 +1549,14 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
+		return RX_DROP_MONITOR;
+
+	/*
+	 * Allow the cooked monitor interface of an AP to see 4-addr frames so
+	 * that a 4-addr station can be detected and moved into a separate VLAN
+	 */
+	if (ieee80211_has_a4(hdr->frame_control) &&
+	    sdata->vif.type == NL80211_IFTYPE_AP)
 		return RX_DROP_MONITOR;
 
 	err = __ieee80211_data_to_8023(rx);
@@ -1983,7 +1999,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
-		if (!bssid)
+		if (!bssid && !sdata->use_4addr)
 			return 0;
 		if (!multicast &&
 		    compare_ether_addr(sdata->dev->dev_addr, hdr->addr1) != 0) {
@@ -2425,9 +2441,21 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto drop;
 
 	if (status->flag & RX_FLAG_HT) {
-		/* rate_idx is MCS index */
-		if (WARN_ON(status->rate_idx < 0 ||
-			    status->rate_idx >= 76))
+		/*
+		 * rate_idx is MCS index, which can be [0-76] as documented on:
+		 *
+		 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
+		 *
+		 * Anything else would be some sort of driver or hardware error.
+		 * The driver should catch hardware errors.
+		 */
+		if (WARN((status->rate_idx < 0 ||
+			 status->rate_idx > 76),
+			 "Rate marked as an HT rate but passed "
+			 "status->rate_idx is not "
+			 "an MCS index [0-76]: %d (0x%02x)\n",
+			 status->rate_idx,
+			 status->rate_idx))
 			goto drop;
 		/* HT rates are not in the table - use the highest legacy rate
 		 * for now since other parts of mac80211 may not yet be fully

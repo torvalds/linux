@@ -2566,9 +2566,10 @@ struct iwl_scan_channel {
 /**
  * struct iwl_ssid_ie - directed scan network information element
  *
- * Up to 4 of these may appear in REPLY_SCAN_CMD, selected by "type" field
- * in struct iwl_scan_channel; each channel may select different ssids from
- * among the 4 entries.  SSID IEs get transmitted in reverse order of entry.
+ * Up to 20 of these may appear in REPLY_SCAN_CMD (Note: Only 4 are in
+ * 3945 SCAN api), selected by "type" bit field in struct iwl_scan_channel;
+ * each channel may select different ssids from among the 20 (4) entries.
+ * SSID IEs get transmitted in reverse order of entry.
  */
 struct iwl_ssid_ie {
 	u8 id;

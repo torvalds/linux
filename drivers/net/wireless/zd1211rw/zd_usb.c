@@ -318,6 +318,13 @@ error:
 	return r;
 }
 
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "uphr");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "uphr");
+
 /* Read data from device address space using "firmware interface" which does
  * not require firmware to be loaded. */
 int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len)

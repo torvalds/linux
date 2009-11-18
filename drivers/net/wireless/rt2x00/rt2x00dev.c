@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -430,7 +430,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->rate_idx = rate_idx;
-	rx_status->qual = rt2x00link_calculate_signal(rt2x00dev, rxdesc.rssi);
 	rx_status->signal = rxdesc.rssi;
 	rx_status->noise = rxdesc.noise;
 	rx_status->flag = rxdesc.flags;

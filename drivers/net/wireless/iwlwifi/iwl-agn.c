@@ -122,6 +122,17 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
+	/*
+	 * receive commit_rxon request
+	 * abort any previous channel switch if still in process
+	 */
+	if (priv->switch_rxon.switch_in_progress &&
+	    (priv->switch_rxon.channel != priv->staging_rxon.channel)) {
+		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
+		      le16_to_cpu(priv->switch_rxon.channel));
+		priv->switch_rxon.switch_in_progress = false;
+	}
+
 	/* If we don't need to send a full RXON, we can use
 	 * iwl_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
@@ -133,6 +144,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		}
 
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
+		iwl_print_rx_config_cmd(priv);
 		return 0;
 	}
 
@@ -228,6 +240,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		}
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 	}
+	iwl_print_rx_config_cmd(priv);
 
 	iwl_init_sensitivity(priv);
 
@@ -1071,6 +1084,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	u32 inta = 0;
 	u32 handled = 0;
 	unsigned long flags;
+	u32 i;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
@@ -1181,12 +1195,8 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
-		iwl_txq_update_write_ptr(priv, &priv->txq[0]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[1]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[2]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[3]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[4]);
-		iwl_txq_update_write_ptr(priv, &priv->txq[5]);
+		for (i = 0; i < priv->hw_params.max_txq_num; i++)
+			iwl_txq_update_write_ptr(priv, &priv->txq[i]);
 
 		priv->isr_stats.wakeup++;
 
@@ -1653,6 +1663,7 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
+	unsigned long reg_flags;
 
 	if (num_events == 0)
 		return;
@@ -1668,26 +1679,38 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
+	/* Make sure device is powered up for SRAM reads */
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+
+	/* Set starting address; reads will auto-increment */
+	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	rmb();
+
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	* place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read_targ_mem(priv, ptr);
-		ptr += sizeof(u32);
-		time = iwl_read_targ_mem(priv, ptr);
-		ptr += sizeof(u32);
+		ev = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
 			trace_iwlwifi_dev_ucode_event(priv, 0, time, ev);
 			IWL_ERR(priv, "EVT_LOG:0x%08x:%04u\n", time, ev);
 		} else {
-			data = iwl_read_targ_mem(priv, ptr);
-			ptr += sizeof(u32);
+			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 			IWL_ERR(priv, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
 			trace_iwlwifi_dev_ucode_event(priv, time, data, ev);
 		}
 	}
+
+	/* Allow device to power down */
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
+
+/* For sanity check only.  Actual size is determined by uCode, typ. 512 */
+#define MAX_EVENT_LOG_SIZE (512)
 
 void iwl_dump_nic_event_log(struct iwl_priv *priv)
 {
@@ -1713,6 +1736,18 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
 	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
 	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
+
+	if (capacity > MAX_EVENT_LOG_SIZE) {
+		IWL_ERR(priv, "Log capacity %d is bogus, limit to %d entries\n",
+			capacity, MAX_EVENT_LOG_SIZE);
+		capacity = MAX_EVENT_LOG_SIZE;
+	}
+
+	if (next_entry > MAX_EVENT_LOG_SIZE) {
+		IWL_ERR(priv, "Log write index %d is bogus, limit to %d\n",
+			next_entry, MAX_EVENT_LOG_SIZE);
+		next_entry = MAX_EVENT_LOG_SIZE;
+	}
 
 	size = num_wraps ? capacity : next_entry;
 
@@ -1899,18 +1934,16 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(priv);
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_clear_bit(priv, CSR_GP_CNTRL,
-			 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_txq_ctx_stop(priv);
 	iwl_rxq_stop(priv);
 
-	iwl_write_prph(priv, APMG_CLK_DIS_REG,
-				APMG_CLK_VAL_DMA_CLK_RQT);
-
+	/* Power-down device's busmaster DMA clocks */
+	iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
+
+	/* Make sure (redundant) we've released our request to stay awake */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
 	priv->cfg->ops->lib->apm_ops.stop(priv);
@@ -3439,14 +3472,6 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x423D, PCI_ANY_ID, iwl5150_agn_cfg)},
 
 /* 6x00 Series */
-	{IWL_PCI_DEVICE(0x008D, 0x1301, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1321, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1326, iwl6000h_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1306, iwl6000h_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x008D, 0x1307, iwl6000h_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x008E, 0x1311, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008E, 0x1316, iwl6000h_2abg_cfg)},
-
 	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x422B, 0x1121, iwl6000_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x422C, 0x1301, iwl6000i_2agn_cfg)},

@@ -1,5 +1,7 @@
 config ATH9K_HW
 	tristate
+config ATH9K_COMMON
+	tristate
 
 config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
@@ -8,6 +10,7 @@ config ATH9K
 	select MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
+	select ATH9K_COMMON
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
