@@ -2202,7 +2202,6 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	int rv;
 	int class_type = pdev->class & PCI_ERMC_CLASSCODE_TYPE_MASK;
 	struct smi_info *info;
-	int first_reg_offset = 0;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -2240,9 +2239,6 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 
 	info->addr_source_cleanup = ipmi_pci_cleanup;
 	info->addr_source_data = pdev;
-
-	if (pdev->subsystem_vendor == PCI_HP_VENDOR_ID)
-		first_reg_offset = 1;
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
 		info->io_setup = port_setup;
