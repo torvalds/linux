@@ -542,8 +542,7 @@ int avc_tuner_dsd(struct firedtv *fdtv,
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -584,8 +583,7 @@ int avc_tuner_set_pids(struct firedtv *fdtv, unsigned char pidc, u16 pid[])
 	if (pidc > 16 && pidc != 0xff)
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -629,8 +627,7 @@ int avc_tuner_get_ts(struct firedtv *fdtv)
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret, sl;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -670,8 +667,7 @@ int avc_identify_subunit(struct firedtv *fdtv)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -712,8 +708,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int length, ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -795,8 +790,7 @@ int avc_lnb_control(struct firedtv *fdtv, char voltage, char burst,
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int i, j, k, ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -844,8 +838,7 @@ int avc_register_remote_control(struct firedtv *fdtv)
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -883,8 +876,7 @@ int avc_tuner_host2ca(struct firedtv *fdtv)
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -943,8 +935,7 @@ int avc_ca_app_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int pos, ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -986,8 +977,7 @@ int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int pos, ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1028,8 +1018,7 @@ int avc_ca_reset(struct firedtv *fdtv)
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1073,8 +1062,7 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 	if (unlikely(avc_debug & AVC_DEBUG_APPLICATION_PMT))
 		debug_pmt(msg, length);
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1196,8 +1184,7 @@ int avc_ca_get_time_date(struct firedtv *fdtv, int *interval)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1233,8 +1220,7 @@ int avc_ca_enter_menu(struct firedtv *fdtv)
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1267,8 +1253,7 @@ int avc_ca_get_mmi(struct firedtv *fdtv, char *mmi_object, unsigned int *len)
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	memset(c, 0, sizeof(*c));
 
@@ -1306,8 +1291,7 @@ static int cmp_read(struct firedtv *fdtv, u64 addr, __be32 *data)
 {
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	ret = fdtv->backend->read(fdtv, addr, data);
 	if (ret < 0)
@@ -1322,8 +1306,7 @@ static int cmp_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
 {
 	int ret;
 
-	if (mutex_lock_interruptible(&fdtv->avc_mutex))
-		return -EINTR;
+	mutex_lock(&fdtv->avc_mutex);
 
 	/* data[] is stack-allocated and should not be DMA-mapped. */
 	memcpy(fdtv->avc_data, data, 8);
