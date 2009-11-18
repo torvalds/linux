@@ -514,8 +514,8 @@ struct lpfc_register {
 
 #define LPFC_UERR_STATUS_HI		0x00A4
 #define LPFC_UERR_STATUS_LO		0x00A0
-#define LPFC_ONLINE0			0x00B0
-#define LPFC_ONLINE1			0x00B4
+#define LPFC_UE_MASK_HI			0x00AC
+#define LPFC_UE_MASK_LO			0x00A8
 #define LPFC_SCRATCHPAD			0x0058
 
 /* BAR0 Registers */

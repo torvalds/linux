@@ -263,6 +263,9 @@ lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_EVENT);
 	bf_set(lpfc_eqcq_doorbell_eqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.EQCQDBregaddr);
+	/* PCI read to flush PCI pipeline on re-arming for INTx mode */
+	if ((q->phba->intr_type == INTx) && (arm == LPFC_QUEUE_REARM))
+		readl(q->phba->sli4_hba.EQCQDBregaddr);
 	return released;
 }
 
@@ -7686,31 +7689,28 @@ static int
 lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 {
 	uint32_t uerr_sta_hi, uerr_sta_lo;
-	uint32_t onlnreg0, onlnreg1;
 
 	/* For now, use the SLI4 device internal unrecoverable error
 	 * registers for error attention. This can be changed later.
 	 */
-	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
-	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
-	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
-		uerr_sta_lo = readl(phba->sli4_hba.UERRLOregaddr);
-		uerr_sta_hi = readl(phba->sli4_hba.UERRHIregaddr);
-		if (uerr_sta_lo || uerr_sta_hi) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"1423 HBA Unrecoverable error: "
-					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
-					"online0_reg=0x%x, online1_reg=0x%x\n",
-					uerr_sta_lo, uerr_sta_hi,
-					onlnreg0, onlnreg1);
-			phba->work_status[0] = uerr_sta_lo;
-			phba->work_status[1] = uerr_sta_hi;
-			/* Set the driver HA work bitmap */
-			phba->work_ha |= HA_ERATT;
-			/* Indicate polling handles this ERATT */
-			phba->hba_flag |= HBA_ERATT_HANDLED;
-			return 1;
-		}
+	uerr_sta_lo = readl(phba->sli4_hba.UERRLOregaddr);
+	uerr_sta_hi = readl(phba->sli4_hba.UERRHIregaddr);
+	if ((~phba->sli4_hba.ue_mask_lo & uerr_sta_lo) ||
+	    (~phba->sli4_hba.ue_mask_hi & uerr_sta_hi)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1423 HBA Unrecoverable error: "
+				"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
+				"ue_mask_lo_reg=0x%x, ue_mask_hi_reg=0x%x\n",
+				uerr_sta_lo, uerr_sta_hi,
+				phba->sli4_hba.ue_mask_lo,
+				phba->sli4_hba.ue_mask_hi);
+		phba->work_status[0] = uerr_sta_lo;
+		phba->work_status[1] = uerr_sta_hi;
+		/* Set the driver HA work bitmap */
+		phba->work_ha |= HA_ERATT;
+		/* Indicate polling handles this ERATT */
+		phba->hba_flag |= HBA_ERATT_HANDLED;
+		return 1;
 	}
 	return 0;
 }
@@ -7833,7 +7833,7 @@ irqreturn_t
 lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 {
 	struct lpfc_hba  *phba;
-	uint32_t ha_copy;
+	uint32_t ha_copy, hc_copy;
 	uint32_t work_ha_copy;
 	unsigned long status;
 	unsigned long iflag;
@@ -7891,8 +7891,13 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 		}
 
 		/* Clear up only attention source related to slow-path */
+		hc_copy = readl(phba->HCregaddr);
+		writel(hc_copy & ~(HC_MBINT_ENA | HC_R2INT_ENA |
+			HC_LAINT_ENA | HC_ERINT_ENA),
+			phba->HCregaddr);
 		writel((ha_copy & (HA_MBATT | HA_R2_CLR_MSK)),
 			phba->HAregaddr);
+		writel(hc_copy, phba->HCregaddr);
 		readl(phba->HAregaddr); /* flush */
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 	} else
@@ -8202,6 +8207,7 @@ lpfc_sli_intr_handler(int irq, void *dev_id)
 	struct lpfc_hba  *phba;
 	irqreturn_t sp_irq_rc, fp_irq_rc;
 	unsigned long status1, status2;
+	uint32_t hc_copy;
 
 	/*
 	 * Get the driver's phba structure from the dev_id and
@@ -8239,7 +8245,12 @@ lpfc_sli_intr_handler(int irq, void *dev_id)
 	}
 
 	/* Clear attention sources except link and error attentions */
+	hc_copy = readl(phba->HCregaddr);
+	writel(hc_copy & ~(HC_MBINT_ENA | HC_R0INT_ENA | HC_R1INT_ENA
+		| HC_R2INT_ENA | HC_LAINT_ENA | HC_ERINT_ENA),
+		phba->HCregaddr);
 	writel((phba->ha_copy & ~(HA_LATT | HA_ERATT)), phba->HAregaddr);
+	writel(hc_copy, phba->HCregaddr);
 	readl(phba->HAregaddr); /* flush */
 	spin_unlock(&phba->hbalock);
 

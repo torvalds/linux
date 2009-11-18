@@ -293,9 +293,8 @@ struct lpfc_sli4_hba {
 	/* BAR0 PCI config space register memory map */
 	void __iomem *UERRLOregaddr; /* Address to UERR_STATUS_LO register */
 	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
-	void __iomem *ONLINE0regaddr; /* Address to components of internal UE */
-	void __iomem *ONLINE1regaddr; /* Address to components of internal UE */
-#define LPFC_ONLINE_NERR	0xFFFFFFFF
+	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
+	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
 	void __iomem *SCRATCHPADregaddr; /* Address to scratchpad register */
 	/* BAR1 FCoE function CSR register memory map */
 	void __iomem *STAregaddr;    /* Address to HST_STATE register */
@@ -309,6 +308,8 @@ struct lpfc_sli4_hba {
 	void __iomem *MQDBregaddr;   /* Address to MQ_DOORBELL register */
 	void __iomem *BMBXregaddr;   /* Address to BootStrap MBX register */
 
+	uint32_t ue_mask_lo;
+	uint32_t ue_mask_hi;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */

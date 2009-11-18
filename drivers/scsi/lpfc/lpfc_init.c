@@ -1529,10 +1529,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	int GE = 0;
 	int oneConnect = 0; /* default is not a oneConnect */
 	struct {
-		char * name;
-		int    max_speed;
-		char * bus;
-	} m = {"<Unknown>", 0, ""};
+		char *name;
+		char *bus;
+		char *function;
+	} m = {"<Unknown>", "", ""};
 
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
@@ -1553,136 +1553,155 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
-		m = (typeof(m)){"LP6000", max_speed, "PCI"};
+		m = (typeof(m)){"LP6000", "PCI", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			m = (typeof(m)){"LP7000", max_speed,  "PCI"};
+			m = (typeof(m)){"LP7000", "PCI",
+					"Fibre Channel Adapter"};
 		else
-			m = (typeof(m)){"LP7000E", max_speed, "PCI"};
+			m = (typeof(m)){"LP7000E", "PCI",
+					"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
-		m = (typeof(m)){"LP8000", max_speed, "PCI"};
+		m = (typeof(m)){"LP8000", "PCI",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			m = (typeof(m)){"LP9002", max_speed, "PCI"};
+			m = (typeof(m)){"LP9002", "PCI",
+					"Fibre Channel Adapter"};
 		else
-			m = (typeof(m)){"LP9000", max_speed, "PCI"};
+			m = (typeof(m)){"LP9000", "PCI",
+					"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_RFLY:
-		m = (typeof(m)){"LP952", max_speed, "PCI"};
+		m = (typeof(m)){"LP952", "PCI",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
-		m = (typeof(m)){"LP9802", max_speed, "PCI-X"};
+		m = (typeof(m)){"LP9802", "PCI-X",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_THOR:
-		m = (typeof(m)){"LP10000", max_speed, "PCI-X"};
+		m = (typeof(m)){"LP10000", "PCI-X",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_VIPER:
-		m = (typeof(m)){"LPX1000", max_speed,  "PCI-X"};
+		m = (typeof(m)){"LPX1000",  "PCI-X",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PFLY:
-		m = (typeof(m)){"LP982", max_speed, "PCI-X"};
+		m = (typeof(m)){"LP982", "PCI-X",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_TFLY:
-		m = (typeof(m)){"LP1050", max_speed, "PCI-X"};
+		m = (typeof(m)){"LP1050", "PCI-X",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS:
-		m = (typeof(m)){"LP11000", max_speed, "PCI-X2"};
+		m = (typeof(m)){"LP11000", "PCI-X2",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_SCSP:
-		m = (typeof(m)){"LP11000-SP", max_speed, "PCI-X2"};
+		m = (typeof(m)){"LP11000-SP", "PCI-X2",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HELIOS_DCSP:
-		m = (typeof(m)){"LP11002-SP", max_speed, "PCI-X2"};
+		m = (typeof(m)){"LP11002-SP",  "PCI-X2",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE:
-		m = (typeof(m)){"LPe1000", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe1000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_SCSP:
-		m = (typeof(m)){"LPe1000-SP", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe1000-SP", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_DCSP:
-		m = (typeof(m)){"LPe1002-SP", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe1002-SP", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_BMID:
-		m = (typeof(m)){"LP1150", max_speed, "PCI-X2"};
+		m = (typeof(m)){"LP1150", "PCI-X2", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		m = (typeof(m)){"LP111", max_speed, "PCI-X2"};
+		m = (typeof(m)){"LP111", "PCI-X2", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
-		m = (typeof(m)){"LPe11000", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe11000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_SCSP:
-		m = (typeof(m)){"LPe11000", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe11000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-		m = (typeof(m)){"LP2105", max_speed, "PCIe"};
+		m = (typeof(m)){"LP2105", "PCIe", "FCoE Adapter"};
 		GE = 1;
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		m = (typeof(m)){"LPe1150", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe1150", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		m = (typeof(m)){"LPe111", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe111", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP101:
-		m = (typeof(m)){"LP101", max_speed, "PCI-X"};
+		m = (typeof(m)){"LP101", "PCI-X", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		m = (typeof(m)){"LP10000-S", max_speed, "PCI"};
+		m = (typeof(m)){"LP10000-S", "PCI", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LP11000S:
-		m = (typeof(m)){"LP11000-S", max_speed,
-			"PCI-X2"};
+		m = (typeof(m)){"LP11000-S", "PCI-X2", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_LPE11000S:
-		m = (typeof(m)){"LPe11000-S", max_speed,
-			"PCIe"};
+		m = (typeof(m)){"LPe11000-S", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT:
-		m = (typeof(m)){"LPe12000", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe12000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT_MID:
-		m = (typeof(m)){"LPe1250", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe1250", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT_SMB:
-		m = (typeof(m)){"LPe121", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe121", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT_DCSP:
-		m = (typeof(m)){"LPe12002-SP", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe12002-SP", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT_SCSP:
-		m = (typeof(m)){"LPe12000-SP", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe12000-SP", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SAT_S:
-		m = (typeof(m)){"LPe12000-S", max_speed, "PCIe"};
+		m = (typeof(m)){"LPe12000-S", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_HORNET:
-		m = (typeof(m)){"LP21000", max_speed, "PCIe"};
+		m = (typeof(m)){"LP21000", "PCIe", "FCoE Adapter"};
 		GE = 1;
 		break;
 	case PCI_DEVICE_ID_PROTEUS_VF:
-		m = (typeof(m)) {"LPev12000", max_speed, "PCIe IOV"};
+		m = (typeof(m)){"LPev12000", "PCIe IOV",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PROTEUS_PF:
-		m = (typeof(m)) {"LPev12000", max_speed, "PCIe IOV"};
+		m = (typeof(m)){"LPev12000", "PCIe IOV",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_PROTEUS_S:
-		m = (typeof(m)) {"LPemv12002-S", max_speed, "PCIe IOV"};
+		m = (typeof(m)){"LPemv12002-S", "PCIe IOV",
+				"Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_TIGERSHARK:
 		oneConnect = 1;
-		m = (typeof(m)) {"OCe10100-F", max_speed, "PCIe"};
+		m = (typeof(m)){"OCe10100", "PCIe", "FCoE"};
 		break;
-	case PCI_DEVICE_ID_TS_BE3:
+	case PCI_DEVICE_ID_TOMCAT:
 		oneConnect = 1;
-		m = (typeof(m)) {"OCeXXXXX-F", max_speed, "PCIe"};
+		m = (typeof(m)){"OCe11100", "PCIe", "FCoE"};
+		break;
+	case PCI_DEVICE_ID_FALCON:
+		m = (typeof(m)){"LPSe12002-ML1-E", "PCIe",
+				"EmulexSecure Fibre"};
 		break;
 	default:
-		m = (typeof(m)){ NULL };
+		m = (typeof(m)){"Unknown", "", ""};
 		break;
 	}
 
@@ -1694,17 +1713,14 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	if (descp && descp[0] == '\0') {
 		if (oneConnect)
 			snprintf(descp, 255,
-				"Emulex OneConnect %s, FCoE Initiator, Port %s",
-				m.name,
+				"Emulex OneConnect %s, %s Initiator, Port %s",
+				m.name, m.function,
 				phba->Port);
 		else
 			snprintf(descp, 255,
 				"Emulex %s %d%s %s %s",
-				m.name, m.max_speed,
-				(GE) ? "GE" : "Gb",
-				m.bus,
-				(GE) ? "FCoE Adapter" :
-					"Fibre Channel Adapter");
+				m.name, max_speed, (GE) ? "GE" : "Gb",
+				m.bus, m.function);
 	}
 }
 
@@ -4618,7 +4634,6 @@ int
 lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 {
 	struct lpfc_register sta_reg, uerrlo_reg, uerrhi_reg, scratchpad;
-	uint32_t onlnreg0, onlnreg1;
 	int i, port_error = -ENODEV;
 
 	if (!phba->sli4_hba.STAregaddr)
@@ -4662,21 +4677,20 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			bf_get(lpfc_scratchpad_slirev, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel1, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel2, &scratchpad));
-
+	phba->sli4_hba.ue_mask_lo = readl(phba->sli4_hba.UEMASKLOregaddr);
+	phba->sli4_hba.ue_mask_hi = readl(phba->sli4_hba.UEMASKHIregaddr);
 	/* With uncoverable error, log the error message and return error */
-	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
-	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
-	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
-		uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
-		uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
-		if (uerrlo_reg.word0 || uerrhi_reg.word0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"1422 HBA Unrecoverable error: "
-					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
-					"online0_reg=0x%x, online1_reg=0x%x\n",
-					uerrlo_reg.word0, uerrhi_reg.word0,
-					onlnreg0, onlnreg1);
-		}
+	uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
+	uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
+	if ((~phba->sli4_hba.ue_mask_lo & uerrlo_reg.word0) ||
+	    (~phba->sli4_hba.ue_mask_hi & uerrhi_reg.word0)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1422 HBA Unrecoverable error: "
+				"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
+				"ue_mask_lo_reg=0x%x, ue_mask_hi_reg=0x%x\n",
+				uerrlo_reg.word0, uerrhi_reg.word0,
+				phba->sli4_hba.ue_mask_lo,
+				phba->sli4_hba.ue_mask_hi);
 		return -ENODEV;
 	}
 
@@ -4697,10 +4711,10 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba)
 					LPFC_UERR_STATUS_LO;
 	phba->sli4_hba.UERRHIregaddr = phba->sli4_hba.conf_regs_memmap_p +
 					LPFC_UERR_STATUS_HI;
-	phba->sli4_hba.ONLINE0regaddr = phba->sli4_hba.conf_regs_memmap_p +
-					LPFC_ONLINE0;
-	phba->sli4_hba.ONLINE1regaddr = phba->sli4_hba.conf_regs_memmap_p +
-					LPFC_ONLINE1;
+	phba->sli4_hba.UEMASKLOregaddr = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_UE_MASK_LO;
+	phba->sli4_hba.UEMASKHIregaddr = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_UE_MASK_HI;
 	phba->sli4_hba.SCRATCHPADregaddr = phba->sli4_hba.conf_regs_memmap_p +
 					LPFC_SCRATCHPAD;
 }
@@ -8116,7 +8130,9 @@ static struct pci_device_id lpfc_id_table[] = {
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TIGERSHARK,
 		PCI_ANY_ID, PCI_ANY_ID, },
-	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TS_BE3,
+	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TOMCAT,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_FALCON,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };
