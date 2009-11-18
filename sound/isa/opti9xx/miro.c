@@ -1277,7 +1277,7 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 		if (mpu_port < 0) {
 			snd_card_free(card);
 			snd_printk(KERN_ERR "unable to find a free MPU401 port\n");
-			return -EBUSY
+			return -EBUSY;
 		}
 	}
 	if (miro->irq == SNDRV_AUTO_IRQ) {
