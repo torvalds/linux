@@ -93,6 +93,7 @@ enum {
 	STAC_92HD83XXX_REF,
 	STAC_92HD83XXX_PWR_REF,
 	STAC_DELL_S14,
+	STAC_92HD83XXX_HP,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -1624,6 +1625,7 @@ static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = "ref",
 	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
 	[STAC_DELL_S14] = "dell-s14",
+	[STAC_92HD83XXX_HP] = "hp",
 };
 
 static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1634,6 +1636,8 @@ static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 		      "DFI LanParty", STAC_92HD83XXX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02ba,
 		      "unknown Dell", STAC_DELL_S14),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xff00, 0x3600,
+		      "HP", STAC_92HD83XXX_HP),
 	{} /* terminator */
 };
 
@@ -4834,6 +4838,23 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 
 	return 0;
 }
+
+static int idt92hd83xxx_hp_check_power_status(struct hda_codec *codec,
+					      hda_nid_t nid)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (nid != 0x13)
+		return 0;
+	if (snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) & HDA_AMP_MUTE)
+		spec->gpio_data |= spec->gpio_led; /* mute LED on */
+	else
+		spec->gpio_data &= ~spec->gpio_led; /* mute LED off */
+	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_dir, spec->gpio_data);
+
+	return 0;
+}
+
 #endif
 
 static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
@@ -5199,6 +5220,22 @@ again:
 		break;
 	}
 
+	codec->patch_ops = stac92xx_patch_ops;
+
+	if (spec->board_config == STAC_92HD83XXX_HP)
+		spec->gpio_led = 0x01;
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (spec->gpio_led) {
+		spec->gpio_mask |= spec->gpio_led;
+		spec->gpio_dir |= spec->gpio_led;
+		spec->gpio_data |= spec->gpio_led;
+		/* register check_power_status callback. */
+		codec->patch_ops.check_power_status =
+			idt92hd83xxx_hp_check_power_status;
+	}
+#endif	
+
 	err = stac92xx_parse_auto_config(codec, 0x1d, 0);
 	if (!err) {
 		if (spec->board_config < 0) {
@@ -5233,8 +5270,6 @@ again:
 	 */
 	snd_hda_codec_write_cache(codec, nid, 0,
 			AC_VERB_SET_CONNECT_SEL, num_dacs);
-
-	codec->patch_ops = stac92xx_patch_ops;
 
 	codec->proc_widget_hook = stac92hd_proc_hook;
 
