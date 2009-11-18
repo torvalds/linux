@@ -9,6 +9,7 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+#include <limits.h>
 #include <sys/utsname.h>
 
 enum dso_origin {
@@ -943,6 +944,50 @@ out:
 	return err;
 }
 
+int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
+{
+	int fd, err = -1;
+
+	if (size < BUILD_ID_SIZE)
+		goto out;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		goto out;
+
+	while (1) {
+		char bf[BUFSIZ];
+		GElf_Nhdr nhdr;
+		int namesz, descsz;
+
+		if (read(fd, &nhdr, sizeof(nhdr)) != sizeof(nhdr))
+			break;
+
+		namesz = (nhdr.n_namesz + 3) & -4U;
+		descsz = (nhdr.n_descsz + 3) & -4U;
+		if (nhdr.n_type == NT_GNU_BUILD_ID &&
+		    nhdr.n_namesz == sizeof("GNU")) {
+			if (read(fd, bf, namesz) != namesz)
+				break;
+			if (memcmp(bf, "GNU", sizeof("GNU")) == 0) {
+				if (read(fd, build_id,
+				    BUILD_ID_SIZE) == BUILD_ID_SIZE) {
+					err = 0;
+					break;
+				}
+			} else if (read(fd, bf, descsz) != descsz)
+				break;
+		} else {
+			int n = namesz + descsz;
+			if (read(fd, bf, n) != n)
+				break;
+		}
+	}
+	close(fd);
+out:
+	return err;
+}
+
 char dso__symtab_origin(const struct dso *self)
 {
 	static const char origin[] = {
@@ -1218,7 +1263,7 @@ static struct map *map__new2(u64 start, struct dso *dso)
 	return self;
 }
 
-static int dsos__load_modules(void)
+int dsos__load_modules(void)
 {
 	char *line = NULL;
 	size_t n;
@@ -1267,6 +1312,12 @@ static int dsos__load_modules(void)
 			dso__delete(dso);
 			goto out_delete_line;
 		}
+
+		snprintf(name, sizeof(name),
+			 "/sys/module/%s/notes/.note.gnu.build-id", line);
+		if (sysfs__read_build_id(name, dso->build_id,
+					 sizeof(dso->build_id)) == 0)
+			dso->has_build_id = true;
 
 		dso->origin = DSO__ORIG_KMODULE;
 		kernel_maps__insert(map);
