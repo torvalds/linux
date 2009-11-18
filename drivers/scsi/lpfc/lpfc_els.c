@@ -177,9 +177,22 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		((elscmd == ELS_CMD_FLOGI) ||
 		 (elscmd == ELS_CMD_FDISC) ||
 		 (elscmd == ELS_CMD_LOGO)))
-		elsiocb->iocb_flag |= LPFC_FIP_ELS;
+		switch (elscmd) {
+		case ELS_CMD_FLOGI:
+		elsiocb->iocb_flag |= ((ELS_ID_FLOGI << LPFC_FIP_ELS_ID_SHIFT)
+					& LPFC_FIP_ELS_ID_MASK);
+		break;
+		case ELS_CMD_FDISC:
+		elsiocb->iocb_flag |= ((ELS_ID_FDISC << LPFC_FIP_ELS_ID_SHIFT)
+					& LPFC_FIP_ELS_ID_MASK);
+		break;
+		case ELS_CMD_LOGO:
+		elsiocb->iocb_flag |= ((ELS_ID_LOGO << LPFC_FIP_ELS_ID_SHIFT)
+					& LPFC_FIP_ELS_ID_MASK);
+		break;
+		}
 	else
-		elsiocb->iocb_flag &= ~LPFC_FIP_ELS;
+		elsiocb->iocb_flag &= ~LPFC_FIP_ELS_ID_MASK;
 
 	icmd = &elsiocb->iocb;
 
@@ -591,7 +604,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	} else {
 		ndlp->nlp_type |= NLP_FABRIC;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-		if (vport->vfi_state & LPFC_VFI_REGISTERED) {
+		if (vport->vpi_state & LPFC_VPI_REGISTERED) {
 			lpfc_start_fdiscs(phba);
 			lpfc_do_scr_ns_plogi(phba, vport);
 		} else
@@ -5401,7 +5414,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (lpfc_els_chk_latt(vport))
 		goto dropit;
 
-	/* Ignore traffic recevied during vport shutdown. */
+	/* Ignore traffic received during vport shutdown. */
 	if (vport->load_flag & FC_UNLOADING)
 		goto dropit;
 

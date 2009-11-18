@@ -389,7 +389,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * by the port.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-		(pport->vfi_state & LPFC_VFI_REGISTERED)) {
+	    (pport->vpi_state & LPFC_VPI_REGISTERED)) {
 		rc = lpfc_sli4_init_vpi(phba, vpi);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,

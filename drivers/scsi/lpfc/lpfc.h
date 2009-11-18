@@ -290,8 +290,8 @@ struct lpfc_vport {
 
 	uint16_t vpi;
 	uint16_t vfi;
-	uint8_t vfi_state;
-#define LPFC_VFI_REGISTERED	0x1
+	uint8_t vpi_state;
+#define LPFC_VPI_REGISTERED	0x1
 
 	uint32_t fc_flag;	/* FC flags */
 /* Several of these flags are HBA centric and should be moved to

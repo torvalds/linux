@@ -820,6 +820,10 @@ lpfc_reg_vpi(struct lpfc_vport *vport, LPFC_MBOXQ_t *pmb)
 	mb->un.varRegVpi.vpi = vport->vpi + vport->phba->vpi_base;
 	mb->un.varRegVpi.sid = vport->fc_myDID;
 	mb->un.varRegVpi.vfi = vport->vfi + vport->phba->vfi_base;
+	memcpy(mb->un.varRegVpi.wwn, &vport->fc_portname,
+	       sizeof(struct lpfc_name));
+	mb->un.varRegVpi.wwn[0] = cpu_to_le32(mb->un.varRegVpi.wwn[0]);
+	mb->un.varRegVpi.wwn[1] = cpu_to_le32(mb->un.varRegVpi.wwn[1]);
 
 	mb->mbxCommand = MBX_REG_VPI;
 	mb->mbxOwner = OWN_HOST;
@@ -1818,6 +1822,9 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	bf_set(lpfc_reg_vfi_vfi, reg_vfi, vport->vfi + vport->phba->vfi_base);
 	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, vport->phba->fcf.fcfi);
 	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->vpi + vport->phba->vpi_base);
+	memcpy(reg_vfi->wwn, &vport->fc_portname, sizeof(struct lpfc_name));
+	reg_vfi->wwn[0] = cpu_to_le32(reg_vfi->wwn[0]);
+	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
 	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
 	reg_vfi->bde.addrLow = putPaddrLow(phys);
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);

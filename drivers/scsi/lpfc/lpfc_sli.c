@@ -5756,12 +5756,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	uint8_t cmnd;
 	uint16_t xritag;
 	struct ulp_bde64 *bpl = NULL;
+	uint32_t els_id = ELS_ID_DEFAULT;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
 	/* The fcp commands will set command type */
 	if (iocbq->iocb_flag &  LPFC_IO_FCP)
 		command_type = FCP_COMMAND;
-	else if (fip && (iocbq->iocb_flag & LPFC_FIP_ELS))
+	else if (fip && (iocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK))
 		command_type = ELS_COMMAND_FIP;
 	else
 		command_type = ELS_COMMAND_NON_FIP;
@@ -5822,6 +5823,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(lpfc_wqe_gen_ct, &wqe->generic, ct);
 		bf_set(lpfc_wqe_gen_pu, &wqe->generic, 0);
 		/* CCP CCPE PV PRI in word10 were set in the memcpy */
+
+		if (command_type == ELS_COMMAND_FIP) {
+			els_id = ((iocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK)
+					>> LPFC_FIP_ELS_ID_SHIFT);
+		}
+		bf_set(lpfc_wqe_gen_els_id, &wqe->generic, els_id);
+
 	break;
 	case CMD_XMIT_SEQUENCE64_CR:
 		/* word3 iocb=io_tag32 wqe=payload_offset */
@@ -11282,7 +11290,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	}
 	fcfi = bf_get(lpfc_rcqe_fcf_id, &dmabuf->cq_event.cqe.rcqe_cmpl);
 	vport = lpfc_fc_frame_to_vport(phba, fc_hdr, fcfi);
-	if (!vport) {
+	if (!vport || !(vport->vpi_state & LPFC_VPI_REGISTERED)) {
 		/* throw out the frame */
 		lpfc_in_buf_free(phba, &dmabuf->dbuf);
 		return;

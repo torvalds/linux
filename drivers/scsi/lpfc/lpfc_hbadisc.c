@@ -1798,8 +1798,8 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto fail_free_mem;
 	}
-	/* Mark the vport has registered with its VFI */
-	vport->vfi_state |= LPFC_VFI_REGISTERED;
+	/* The VPI is implicitly registered when the VFI is registered */
+	vport->vpi_state |= LPFC_VPI_REGISTERED;
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		lpfc_start_fdiscs(phba);
@@ -2257,6 +2257,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 mb->mbxStatus);
 		break;
 	}
+	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
 	/*
@@ -2314,6 +2315,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto out;
 	}
 
+	vport->vpi_state |= LPFC_VPI_REGISTERED;
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
 	if (vport->fc_npr_cnt)
@@ -4464,7 +4466,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_mbx_unreg_vpi(vports[i]);
 			vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			vports[i]->vfi_state &= ~LPFC_VFI_REGISTERED;
+			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 

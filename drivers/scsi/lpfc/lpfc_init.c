@@ -2229,7 +2229,7 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 
 			if (vports[i]->load_flag & FC_UNLOADING)
 				continue;
-			vports[i]->vfi_state &= ~LPFC_VFI_REGISTERED;
+			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
 			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
@@ -3047,7 +3047,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
 		vport = lpfc_find_vport_by_vpid(phba,
-				acqe_fcoe->index /*- phba->vpi_base*/);
+				acqe_fcoe->index - phba->vpi_base);
 		if (!vport)
 			break;
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);

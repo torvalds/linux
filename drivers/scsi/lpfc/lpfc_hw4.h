@@ -453,6 +453,13 @@ struct lpfc_wqe_generic{
 #define lpfc_wqe_gen_wqec_SHIFT		7
 #define lpfc_wqe_gen_wqec_MASK		0x00000001
 #define lpfc_wqe_gen_wqec_WORD		word11
+#define ELS_ID_FLOGI 3
+#define ELS_ID_FDISC 2
+#define ELS_ID_LOGO  1
+#define ELS_ID_DEFAULT 0
+#define lpfc_wqe_gen_els_id_SHIFT	4
+#define lpfc_wqe_gen_els_id_MASK	0x00000003
+#define lpfc_wqe_gen_els_id_WORD	word11
 #define lpfc_wqe_gen_cmd_type_SHIFT	0
 #define lpfc_wqe_gen_cmd_type_MASK	0x0000000F
 #define lpfc_wqe_gen_cmd_type_WORD	word11
@@ -1395,8 +1402,7 @@ struct lpfc_mbx_reg_vfi {
 #define lpfc_reg_vfi_fcfi_SHIFT		0
 #define lpfc_reg_vfi_fcfi_MASK		0x0000FFFF
 #define lpfc_reg_vfi_fcfi_WORD		word2
-	uint32_t word3_rsvd;
-	uint32_t word4_rsvd;
+	uint32_t wwn[2];
 	struct ulp_bde64 bde;
 	uint32_t word8_rsvd;
 	uint32_t word9_rsvd;
