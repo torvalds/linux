@@ -43,10 +43,13 @@
  * we leave them always unmasked in IMR and then control enabling them through
  * PIPESTAT alone.
  */
-#define I915_INTERRUPT_ENABLE_FIX (I915_ASLE_INTERRUPT |		 \
-				   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT | \
-				   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT | \
-				   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+#define I915_INTERRUPT_ENABLE_FIX			\
+	(I915_ASLE_INTERRUPT |				\
+	 I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |		\
+	 I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |		\
+	 I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |	\
+	 I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |	\
+	 I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
 
 /** Interrupts that we mask and unmask at runtime. */
 #define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT)
@@ -643,14 +646,22 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
 
+		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
+			intel_prepare_page_flip(dev, 0);
+
+		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
+			intel_prepare_page_flip(dev, 1);
+
 		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
+			intel_finish_page_flip(dev, 0);
 		}
 
 		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
+			intel_finish_page_flip(dev, 1);
 		}
 
 		if ((pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||

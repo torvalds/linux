@@ -148,6 +148,7 @@ struct intel_crtc {
 	struct timer_list idle_timer;
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
+	struct intel_unpin_work *unpin_work;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -210,6 +211,9 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
+
+extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
+extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);

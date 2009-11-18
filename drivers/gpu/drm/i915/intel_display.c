@@ -1191,6 +1191,51 @@ out_disable:
 }
 
 static int
+intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
+{
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	u32 alignment;
+	int ret;
+
+	switch (obj_priv->tiling_mode) {
+	case I915_TILING_NONE:
+		alignment = 64 * 1024;
+		break;
+	case I915_TILING_X:
+		/* pin() will align the object as required by fence */
+		alignment = 0;
+		break;
+	case I915_TILING_Y:
+		/* FIXME: Is this true? */
+		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
+		return -EINVAL;
+	default:
+		BUG();
+	}
+
+	alignment = 256 * 1024;
+	ret = i915_gem_object_pin(obj, alignment);
+	if (ret != 0)
+		return ret;
+
+	/* Install a fence for tiled scan-out. Pre-i965 always needs a
+	 * fence, whereas 965+ only requires a fence if using
+	 * framebuffer compression.  For simplicity, we always install
+	 * a fence as the cost is not that onerous.
+	 */
+	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj);
+		if (ret != 0) {
+			i915_gem_object_unpin(obj);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
 {
@@ -1209,7 +1254,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	int dspstride = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
 	int dsptileoff = (plane == 0 ? DSPATILEOFF : DSPBTILEOFF);
 	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
-	u32 dspcntr, alignment;
+	u32 dspcntr;
 	int ret;
 
 	/* no fb bound */
@@ -1231,24 +1276,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	obj = intel_fb->obj;
 	obj_priv = obj->driver_private;
 
-	switch (obj_priv->tiling_mode) {
-	case I915_TILING_NONE:
-		alignment = 64 * 1024;
-		break;
-	case I915_TILING_X:
-		/* pin() will align the object as required by fence */
-		alignment = 0;
-		break;
-	case I915_TILING_Y:
-		/* FIXME: Is this true? */
-		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
-		return -EINVAL;
-	default:
-		BUG();
-	}
-
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_object_pin(obj, alignment);
+	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
@@ -1259,20 +1288,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
-	}
-
-	/* Install a fence for tiled scan-out. Pre-i965 always needs a fence,
-	 * whereas 965+ only requires a fence if using framebuffer compression.
-	 * For simplicity, we always install a fence as the cost is not that onerous.
-	 */
-	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj);
-		if (ret != 0) {
-			i915_gem_object_unpin(obj);
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
 	}
 
 	dspcntr = I915_READ(dspcntr_reg);
@@ -4068,6 +4083,153 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 	kfree(intel_crtc);
 }
 
+struct intel_unpin_work {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_gem_object *obj;
+	struct drm_pending_vblank_event *event;
+	int pending;
+};
+
+static void intel_unpin_work_fn(struct work_struct *__work)
+{
+	struct intel_unpin_work *work =
+		container_of(__work, struct intel_unpin_work, work);
+
+	mutex_lock(&work->dev->struct_mutex);
+	i915_gem_object_unpin(work->obj);
+	drm_gem_object_unreference(work->obj);
+	mutex_unlock(&work->dev->struct_mutex);
+	kfree(work);
+}
+
+void intel_finish_page_flip(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_unpin_work *work;
+	struct drm_i915_gem_object *obj_priv;
+	struct drm_pending_vblank_event *e;
+	struct timeval now;
+	unsigned long flags;
+
+	/* Ignore early vblank irqs */
+	if (intel_crtc == NULL)
+		return;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	work = intel_crtc->unpin_work;
+	if (work == NULL || !work->pending) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		return;
+	}
+
+	intel_crtc->unpin_work = NULL;
+	drm_vblank_put(dev, intel_crtc->pipe);
+
+	if (work->event) {
+		e = work->event;
+		do_gettimeofday(&now);
+		e->event.sequence = drm_vblank_count(dev, intel_crtc->pipe);
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+		list_add_tail(&e->base.link,
+			      &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	obj_priv = work->obj->driver_private;
+	if (atomic_dec_and_test(&obj_priv->pending_flip))
+		DRM_WAKEUP(&dev_priv->pending_flip_queue);
+	schedule_work(&work->work);
+}
+
+void intel_prepare_page_flip(struct drm_device *dev, int plane)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(dev_priv->plane_to_crtc_mapping[plane]);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (intel_crtc->unpin_work)
+		intel_crtc->unpin_work->pending = 1;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+
+static int intel_crtc_page_flip(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_framebuffer *intel_fb;
+	struct drm_i915_gem_object *obj_priv;
+	struct drm_gem_object *obj;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_unpin_work *work;
+	unsigned long flags;
+	int ret;
+	RING_LOCALS;
+
+	work = kzalloc(sizeof *work, GFP_KERNEL);
+	if (work == NULL)
+		return -ENOMEM;
+
+	mutex_lock(&dev->struct_mutex);
+
+	work->event = event;
+	work->dev = crtc->dev;
+	intel_fb = to_intel_framebuffer(crtc->fb);
+	work->obj = intel_fb->obj;
+	INIT_WORK(&work->work, intel_unpin_work_fn);
+
+	/* We borrow the event spin lock for protecting unpin_work */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (intel_crtc->unpin_work) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		kfree(work);
+		mutex_unlock(&dev->struct_mutex);
+		return -EBUSY;
+	}
+	intel_crtc->unpin_work = work;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	intel_fb = to_intel_framebuffer(fb);
+	obj = intel_fb->obj;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj);
+	if (ret != 0) {
+		kfree(work);
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
+
+	/* Reference the old fb object for the scheduled work. */
+	drm_gem_object_reference(work->obj);
+
+	crtc->fb = fb;
+	i915_gem_object_flush_write_domain(obj);
+	drm_vblank_get(dev, intel_crtc->pipe);
+	obj_priv = obj->driver_private;
+	atomic_inc(&obj_priv->pending_flip);
+
+	BEGIN_LP_RING(4);
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
+	OUT_RING((fb->width << 16) | fb->height);
+	ADVANCE_LP_RING();
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.dpms = intel_crtc_dpms,
 	.mode_fixup = intel_crtc_mode_fixup,
@@ -4084,12 +4246,14 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.gamma_set = intel_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = intel_crtc_destroy,
+	.page_flip = intel_crtc_page_flip,
 };
 
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct intel_crtc *intel_crtc;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	intel_crtc = kzalloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), GFP_KERNEL);

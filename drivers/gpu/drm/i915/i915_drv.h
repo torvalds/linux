@@ -536,6 +536,10 @@ typedef struct drm_i915_private {
 	/* indicate whether the LVDS_BORDER should be enabled or not */
 	unsigned int lvds_border_bits;
 
+	struct drm_crtc *plane_to_crtc_mapping[2];
+	struct drm_crtc *pipe_to_crtc_mapping[2];
+	wait_queue_head_t pending_flip_queue;
+
 	/* Reclocking support */
 	bool render_reclock_avail;
 	bool lvds_downclock_avail;
@@ -639,6 +643,13 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	int madv;
+
+	/**
+	 * Number of crtcs where this object is currently the fb, but
+	 * will be page flipped away on the next vblank.  When it
+	 * reaches 0, dev_priv->pending_flip_queue will be woken up.
+	 */
+	atomic_t pending_flip;
 };
 
 /**
@@ -830,6 +841,7 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
+void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
