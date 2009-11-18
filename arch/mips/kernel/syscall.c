@@ -28,7 +28,9 @@
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/ipc.h>
+#include <linux/uaccess.h>
 
+#include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/cachectl.h>
 #include <asm/cacheflush.h>
@@ -290,12 +292,116 @@ SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 	return 0;
 }
 
-asmlinkage int _sys_sysmips(long cmd, long arg1, long arg2, long arg3)
+static inline int mips_atomic_set(struct pt_regs *regs,
+	unsigned long addr, unsigned long new)
 {
+	unsigned long old, tmp;
+	unsigned int err;
+
+	if (unlikely(addr & 3))
+		return -EINVAL;
+
+	if (unlikely(!access_ok(VERIFY_WRITE, addr, 4)))
+		return -EINVAL;
+
+	if (cpu_has_llsc && R10000_LLSC_WAR) {
+		__asm__ __volatile__ (
+		"	li	%[err], 0				\n"
+		"1:	ll	%[old], (%[addr])			\n"
+		"	move	%[tmp], %[new]				\n"
+		"2:	sc	%[tmp], (%[addr])			\n"
+		"	beqzl	%[tmp], 1b				\n"
+		"3:							\n"
+		"	.section .fixup,\"ax\"				\n"
+		"4:	li	%[err], %[efault]			\n"
+		"	j	3b					\n"
+		"	.previous					\n"
+		"	.section __ex_table,\"a\"			\n"
+		"	"STR(PTR)"	1b, 4b				\n"
+		"	"STR(PTR)"	2b, 4b				\n"
+		"	.previous					\n"
+		: [old] "=&r" (old),
+		  [err] "=&r" (err),
+		  [tmp] "=&r" (tmp)
+		: [addr] "r" (addr),
+		  [new] "r" (new),
+		  [efault] "i" (-EFAULT)
+		: "memory");
+	} else if (cpu_has_llsc) {
+		__asm__ __volatile__ (
+		"	li	%[err], 0				\n"
+		"1:	ll	%[old], (%[addr])			\n"
+		"	move	%[tmp], %[new]				\n"
+		"2:	sc	%[tmp], (%[addr])			\n"
+		"	bnez	%[tmp], 4f				\n"
+		"3:							\n"
+		"	.subsection 2					\n"
+		"4:	b	1b					\n"
+		"	.previous					\n"
+		"							\n"
+		"	.section .fixup,\"ax\"				\n"
+		"5:	li	%[err], %[efault]			\n"
+		"	j	3b					\n"
+		"	.previous					\n"
+		"	.section __ex_table,\"a\"			\n"
+		"	"STR(PTR)"	1b, 5b				\n"
+		"	"STR(PTR)"	2b, 5b				\n"
+		"	.previous					\n"
+		: [old] "=&r" (old),
+		  [err] "=&r" (err),
+		  [tmp] "=&r" (tmp)
+		: [addr] "r" (addr),
+		  [new] "r" (new),
+		  [efault] "i" (-EFAULT)
+		: "memory");
+	} else {
+		do {
+			preempt_disable();
+			ll_bit = 1;
+			ll_task = current;
+			preempt_enable();
+
+			err = __get_user(old, (unsigned int *) addr);
+			err |= __put_user(new, (unsigned int *) addr);
+			if (err)
+				break;
+			rmb();
+		} while (!ll_bit);
+	}
+
+	if (unlikely(err))
+		return err;
+
+	regs->regs[2] = old;
+	regs->regs[7] = 0;	/* No error */
+
+	/*
+	 * Don't let your children do this ...
+	 */
+	__asm__ __volatile__(
+	"	move	$29, %0						\n"
+	"	j	syscall_exit					\n"
+	: /* no outputs */
+	: "r" (regs));
+
+	/* unreached.  Honestly.  */
+	while (1);
+}
+
+save_static_function(sys_sysmips);
+static int __used noinline
+_sys_sysmips(nabi_no_regargs struct pt_regs regs)
+{
+	long cmd, arg1, arg2, arg3;
+
+	cmd = regs.regs[4];
+	arg1 = regs.regs[5];
+	arg2 = regs.regs[6];
+	arg3 = regs.regs[7];
+
 	switch (cmd) {
 	case MIPS_ATOMIC_SET:
-		printk(KERN_CRIT "How did I get here?\n");
-		return -EINVAL;
+		return mips_atomic_set(&regs, arg1, arg2);
 
 	case MIPS_FIXADE:
 		if (arg1 & ~3)

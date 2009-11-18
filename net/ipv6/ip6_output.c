@@ -57,18 +57,6 @@
 
 static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 
-static __inline__ void ipv6_select_ident(struct sk_buff *skb, struct frag_hdr *fhdr)
-{
-	static u32 ipv6_fragmentation_id = 1;
-	static DEFINE_SPINLOCK(ip6_id_lock);
-
-	spin_lock_bh(&ip6_id_lock);
-	fhdr->identification = htonl(ipv6_fragmentation_id);
-	if (++ipv6_fragmentation_id == 0)
-		ipv6_fragmentation_id = 1;
-	spin_unlock_bh(&ip6_id_lock);
-}
-
 int __ip6_local_out(struct sk_buff *skb)
 {
 	int len;
@@ -206,7 +194,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	struct ipv6hdr *hdr;
 	u8  proto = fl->proto;
 	int seg_len = skb->len;
-	int hlimit, tclass;
+	int hlimit = -1;
+	int tclass = 0;
 	u32 mtu;
 
 	if (opt) {
@@ -249,18 +238,12 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	/*
 	 *	Fill in the IPv6 header
 	 */
-
-	hlimit = -1;
-	if (np)
+	if (np) {
+		tclass = np->tclass;
 		hlimit = np->hop_limit;
+	}
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
-
-	tclass = -1;
-	if (np)
-		tclass = np->tclass;
-	if (tclass < 0)
-		tclass = 0;
 
 	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
 
@@ -706,7 +689,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		skb_reset_network_header(skb);
 		memcpy(skb_network_header(skb), tmp_hdr, hlen);
 
-		ipv6_select_ident(skb, fh);
+		ipv6_select_ident(fh);
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
 		fh->frag_off = htons(IP6_MF);
@@ -844,7 +827,7 @@ slow_path:
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
 		if (!frag_id) {
-			ipv6_select_ident(skb, fh);
+			ipv6_select_ident(fh);
 			frag_id = fh->identification;
 		} else
 			fh->identification = frag_id;
@@ -1087,11 +1070,13 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 	if (!err) {
 		struct frag_hdr fhdr;
 
-		/* specify the length of each IP datagram fragment*/
-		skb_shinfo(skb)->gso_size = mtu - fragheaderlen -
-					    sizeof(struct frag_hdr);
+		/* Specify the length of each IPv6 datagram fragment.
+		 * It has to be a multiple of 8.
+		 */
+		skb_shinfo(skb)->gso_size = (mtu - fragheaderlen -
+					     sizeof(struct frag_hdr)) & ~7;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
-		ipv6_select_ident(skb, &fhdr);
+		ipv6_select_ident(&fhdr);
 		skb_shinfo(skb)->ip6_frag_id = fhdr.identification;
 		__skb_queue_tail(&sk->sk_write_queue, skb);
 
@@ -1526,7 +1511,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	err = ip6_local_out(skb);
 	if (err) {
 		if (err > 0)
-			err = np->recverr ? net_xmit_errno(err) : 0;
+			err = net_xmit_errno(err);
 		if (err)
 			goto error;
 	}
@@ -1535,6 +1520,7 @@ out:
 	ip6_cork_release(inet, np);
 	return err;
 error:
+	IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
 	goto out;
 }
 

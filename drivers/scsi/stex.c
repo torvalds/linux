@@ -55,6 +55,7 @@ enum {
 	OIS	= 0x30,	/* MU_OUTBOUND_INTERRUPT_STATUS */
 	OIM	= 0x3c,	/* MU_OUTBOUND_INTERRUPT_MASK */
 
+	YIOA_STATUS				= 0x00,
 	YH2I_INT				= 0x20,
 	YINT_EN					= 0x34,
 	YI2H_INT				= 0x9c,
@@ -107,6 +108,10 @@ enum {
 	SS_STS_HANDSHAKE			= 0x20000000,
 
 	SS_HEAD_HANDSHAKE			= 0x80,
+
+	SS_H2I_INT_RESET			= 0x100,
+
+	SS_MU_OPERATIONAL			= 0x80000000,
 
 	STEX_CDB_LENGTH				= 16,
 	STATUS_VAR_LEN				= 128,
@@ -884,7 +889,7 @@ static void stex_ss_mu_intr(struct st_hba *hba)
 		tag = (u16)value;
 		if (unlikely(tag >= hba->host->can_queue)) {
 			printk(KERN_WARNING DRV_NAME
-					"(%s): invalid tag\n", pci_name(hba->pdev));
+				"(%s): invalid tag\n", pci_name(hba->pdev));
 			continue;
 		}
 
@@ -1040,16 +1045,27 @@ static int stex_ss_handshake(struct st_hba *hba)
 	void __iomem *base = hba->mmio_base;
 	struct st_msg_header *msg_h;
 	struct handshake_frame *h;
-	__le32 *scratch = hba->scratch;
+	__le32 *scratch;
 	u32 data;
 	unsigned long before;
 	int ret = 0;
 
-	h = (struct handshake_frame *)(hba->alloc_rq(hba));
-	msg_h = (struct st_msg_header *)h - 1;
+	before = jiffies;
+	while ((readl(base + YIOA_STATUS) & SS_MU_OPERATIONAL) == 0) {
+		if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
+			printk(KERN_ERR DRV_NAME
+				"(%s): firmware not operational\n",
+				pci_name(hba->pdev));
+			return -1;
+		}
+		msleep(1);
+	}
+
+	msg_h = (struct st_msg_header *)hba->dma_mem;
 	msg_h->handle = cpu_to_le64(hba->dma_handle);
 	msg_h->flag = SS_HEAD_HANDSHAKE;
 
+	h = (struct handshake_frame *)(msg_h + 1);
 	h->rb_phy = cpu_to_le64(hba->dma_handle);
 	h->req_sz = cpu_to_le16(hba->rq_size);
 	h->req_cnt = cpu_to_le16(hba->rq_count+1);
@@ -1205,6 +1221,13 @@ static void stex_hard_reset(struct st_hba *hba)
 			hba->pdev->saved_config_space[i]);
 }
 
+static void stex_ss_reset(struct st_hba *hba)
+{
+	writel(SS_H2I_INT_RESET, hba->mmio_base + YH2I_INT);
+	readl(hba->mmio_base + YH2I_INT);
+	ssleep(5);
+}
+
 static int stex_reset(struct scsi_cmnd *cmd)
 {
 	struct st_hba *hba;
@@ -1221,6 +1244,8 @@ static int stex_reset(struct scsi_cmnd *cmd)
 
 	if (hba->cardtype == st_shasta)
 		stex_hard_reset(hba);
+	else if (hba->cardtype == st_yel)
+		stex_ss_reset(hba);
 
 	if (hba->cardtype != st_yosemite) {
 		if (stex_handshake(hba)) {

@@ -21,7 +21,7 @@
 
 #define VXGE_DRIVER_NAME		"vxge"
 #define VXGE_DRIVER_VENDOR		"Neterion, Inc"
-#define VXGE_DRIVER_VERSION_MAJOR 0
+#define VXGE_DRIVER_FW_VERSION_MAJOR	1
 
 #define DRV_VERSION	VXGE_VERSION_MAJOR"."VXGE_VERSION_MINOR"."\
 	VXGE_VERSION_FIX"."VXGE_VERSION_BUILD"-"\
@@ -260,6 +260,7 @@ struct vxge_ring {
 	int gro_enable;
 
 	struct napi_struct napi;
+	struct napi_struct *napi_p;
 
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
@@ -363,7 +364,6 @@ struct vxgedev {
 
 	struct __vxge_hw_vpath_handle *vp_handles[VXGE_HW_MAX_VIRTUAL_PATHS];
 	void __iomem *bar0;
-	void __iomem *bar1;
 	struct vxge_sw_stats	stats;
 	int		mtu;
 	/* Below variables are used for vpath selection to transmit a packet */
@@ -378,6 +378,7 @@ struct vxgedev {
 
 struct vxge_rx_priv {
 	struct sk_buff		*skb;
+	unsigned char		*skb_data;
 	dma_addr_t		data_dma;
 	dma_addr_t		data_size;
 };
@@ -428,7 +429,8 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 enum vxge_hw_status
 vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
-	enum vxge_hw_fifo_tcode t_code, void *userdata, void **skb_ptr);
+	enum vxge_hw_fifo_tcode t_code, void *userdata,
+	struct sk_buff ***skb_ptr, int nr_skbs, int *more);
 
 int vxge_close(struct net_device *dev);
 

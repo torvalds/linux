@@ -1066,40 +1066,6 @@ static void txq_set_fixed_prio_mode(struct tx_queue *txq)
 	}
 }
 
-static void txq_set_wrr(struct tx_queue *txq, int weight)
-{
-	struct mv643xx_eth_private *mp = txq_to_mp(txq);
-	int off;
-	u32 val;
-
-	/*
-	 * Turn off fixed priority mode.
-	 */
-	off = 0;
-	switch (mp->shared->tx_bw_control) {
-	case TX_BW_CONTROL_OLD_LAYOUT:
-		off = TXQ_FIX_PRIO_CONF;
-		break;
-	case TX_BW_CONTROL_NEW_LAYOUT:
-		off = TXQ_FIX_PRIO_CONF_MOVED;
-		break;
-	}
-
-	if (off) {
-		val = rdlp(mp, off);
-		val &= ~(1 << txq->index);
-		wrlp(mp, off, val);
-
-		/*
-		 * Configure WRR weight for this queue.
-		 */
-
-		val = rdlp(mp, off);
-		val = (val & ~0xff) | (weight & 0xff);
-		wrlp(mp, TXQ_BW_WRR_CONF(txq->index), val);
-	}
-}
-
 
 /* mii management interface *************************************************/
 static irqreturn_t mv643xx_eth_err_irq(int irq, void *dev_id)

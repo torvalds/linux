@@ -368,7 +368,7 @@ error:
 	return r;
 }
 
-/* MAC address: if custom mac addresses are to to be used CR_MAC_ADDR_P1 and
+/* MAC address: if custom mac addresses are to be used CR_MAC_ADDR_P1 and
  *              CR_MAC_ADDR_P2 must be overwritten
  */
 int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
@@ -1278,11 +1278,11 @@ int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 	other_led = chip->link_led == LED1 ? LED2 : LED1;
 
 	switch (status) {
-	case LED_OFF:
+	case ZD_LED_OFF:
 		ioreqs[0].value = FW_LINK_OFF;
 		ioreqs[1].value = v[1] & ~(LED1|LED2);
 		break;
-	case LED_SCANNING:
+	case ZD_LED_SCANNING:
 		ioreqs[0].value = FW_LINK_OFF;
 		ioreqs[1].value = v[1] & ~other_led;
 		if (get_seconds() % 3 == 0) {
@@ -1291,7 +1291,7 @@ int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 			ioreqs[1].value |= chip->link_led;
 		}
 		break;
-	case LED_ASSOCIATED:
+	case ZD_LED_ASSOCIATED:
 		ioreqs[0].value = FW_LINK_TX;
 		ioreqs[1].value = v[1] & ~other_led;
 		ioreqs[1].value |= chip->link_led;

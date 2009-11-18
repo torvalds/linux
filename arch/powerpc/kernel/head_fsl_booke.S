@@ -361,7 +361,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 	/* ptr to current thread */
 	addi	r4,r2,THREAD	/* init task's THREAD */
-	mtspr	SPRN_SPRG3,r4
+	mtspr	SPRN_SPRG_THREAD,r4
 
 	/* stack */
 	lis	r1,init_thread_union@h
@@ -532,12 +532,12 @@ interrupt_base:
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
-	mtspr	SPRN_SPRG0, r10		/* Save some working registers */
-	mtspr	SPRN_SPRG1, r11
-	mtspr	SPRN_SPRG4W, r12
-	mtspr	SPRN_SPRG5W, r13
+	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
+	mtspr	SPRN_SPRG_WSCRATCH1, r11
+	mtspr	SPRN_SPRG_WSCRATCH2, r12
+	mtspr	SPRN_SPRG_WSCRATCH3, r13
 	mfcr	r11
-	mtspr	SPRN_SPRG7W, r11
+	mtspr	SPRN_SPRG_WSCRATCH4, r11
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -557,7 +557,7 @@ interrupt_base:
 
 	/* Get the PGD for the current thread */
 3:
-	mfspr	r11,SPRN_SPRG3
+	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
 4:
@@ -575,7 +575,12 @@ interrupt_base:
 	 *       place or can we save a couple of instructions here ?
 	 */
 	mfspr	r12,SPRN_ESR
+#ifdef CONFIG_PTE_64BIT
+	li	r13,_PAGE_PRESENT
+	oris	r13,r13,_PAGE_ACCESSED@h
+#else
 	li	r13,_PAGE_PRESENT|_PAGE_ACCESSED
+#endif
 	rlwimi	r13,r12,11,29,29
 
 	FIND_PTE
@@ -598,12 +603,12 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	DataStorage
 
 	/* Instruction TLB Error Interrupt */
@@ -613,12 +618,12 @@ interrupt_base:
 	 * to a different point.
 	 */
 	START_EXCEPTION(InstructionTLBError)
-	mtspr	SPRN_SPRG0, r10		/* Save some working registers */
-	mtspr	SPRN_SPRG1, r11
-	mtspr	SPRN_SPRG4W, r12
-	mtspr	SPRN_SPRG5W, r13
+	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
+	mtspr	SPRN_SPRG_WSCRATCH1, r11
+	mtspr	SPRN_SPRG_WSCRATCH2, r12
+	mtspr	SPRN_SPRG_WSCRATCH3, r13
 	mfcr	r11
-	mtspr	SPRN_SPRG7W, r11
+	mtspr	SPRN_SPRG_WSCRATCH4, r11
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -638,12 +643,17 @@ interrupt_base:
 
 	/* Get the PGD for the current thread */
 3:
-	mfspr	r11,SPRN_SPRG3
+	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
 4:
 	/* Make up the required permissions */
-	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_HWEXEC
+#ifdef CONFIG_PTE_64BIT
+	li	r13,_PAGE_PRESENT | _PAGE_EXEC
+	oris	r13,r13,_PAGE_ACCESSED@h
+#else
+	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
+#endif
 
 	FIND_PTE
 	andc.	r13,r13,r11		/* Check permission */
@@ -666,12 +676,12 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
 #ifdef CONFIG_SPE
@@ -733,7 +743,7 @@ finish_tlb_load:
 
 	mfspr	r12, SPRN_MAS2
 #ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r11, 26, 24, 31	/* extract ...WIMGE from pte */
+	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
@@ -742,23 +752,27 @@ finish_tlb_load:
 #endif
 	mtspr	SPRN_MAS2, r12
 
-	li	r10, (_PAGE_HWEXEC | _PAGE_PRESENT)
+#ifdef CONFIG_PTE_64BIT
+	rlwinm	r12, r11, 32-2, 26, 31	/* Move in perm bits */
+	andi.	r10, r11, _PAGE_DIRTY
+	bne	1f
+	li	r10, MAS3_SW | MAS3_UW
+	andc	r12, r12, r10
+1:	rlwimi	r12, r13, 20, 0, 11	/* grab RPN[32:43] */
+	rlwimi	r12, r11, 20, 12, 19	/* grab RPN[44:51] */
+	mtspr	SPRN_MAS3, r12
+BEGIN_MMU_FTR_SECTION
+	srwi	r10, r13, 12		/* grab RPN[12:31] */
+	mtspr	SPRN_MAS7, r10
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
+#else
+	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
 	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
 	slwi	r10, r12, 1
 	or	r10, r10, r12
 	iseleq	r12, r12, r10
-	
-#ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
-	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
-	mtspr	SPRN_MAS3, r12
-BEGIN_MMU_FTR_SECTION
-	srwi	r10, r13, 8		/* grab RPN[8:31] */
-	mtspr	SPRN_MAS7, r10
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
-#else
 	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
@@ -790,12 +804,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	rfi					/* Force context change */
 
 #ifdef CONFIG_SPE
@@ -839,7 +853,7 @@ load_up_spe:
 #endif /* !CONFIG_SMP */
 	/* enable use of SPE after return */
 	oris	r9,r9,MSR_SPE@h
-	mfspr	r5,SPRN_SPRG3		/* current task's THREAD (phys) */
+	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
 	li	r4,1
 	li	r10,THREAD_ACC
 	stw	r4,THREAD_USED_SPE(r5)
@@ -1118,7 +1132,7 @@ __secondary_start:
 
 	/* ptr to current thread */
 	addi	r4,r2,THREAD	/* address of our thread_struct */
-	mtspr	SPRN_SPRG3,r4
+	mtspr	SPRN_SPRG_THREAD,r4
 
 	/* Setup the defaults for TLB entries */
 	li	r4,(MAS4_TSIZED(BOOK3E_PAGESZ_4K))@l

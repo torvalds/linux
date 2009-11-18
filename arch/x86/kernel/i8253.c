@@ -19,12 +19,6 @@
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
 
-#ifdef CONFIG_X86_32
-static void pit_disable_clocksource(void);
-#else
-static inline void pit_disable_clocksource(void) { }
-#endif
-
 /*
  * HPET replaces the PIT, when enabled. So we need to know, which of
  * the two timers is used
@@ -57,12 +51,10 @@ static void init_pit_timer(enum clock_event_mode mode,
 			outb_pit(0, PIT_CH0);
 			outb_pit(0, PIT_CH0);
 		}
-		pit_disable_clocksource();
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* One shot setup */
-		pit_disable_clocksource();
 		outb_pit(0x38, PIT_MODE);
 		break;
 
@@ -199,17 +191,6 @@ static struct clocksource pit_cs = {
 	.mult		= 0,
 	.shift		= 20,
 };
-
-static void pit_disable_clocksource(void)
-{
-	/*
-	 * Use mult to check whether it is registered or not
-	 */
-	if (pit_cs.mult) {
-		clocksource_unregister(&pit_cs);
-		pit_cs.mult = 0;
-	}
-}
 
 static int __init init_pit_clocksource(void)
 {

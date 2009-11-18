@@ -265,45 +265,12 @@ static inline void littleton_init_keypad(void) {}
 #endif
 
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
-static int littleton_mci_init(struct device *dev,
-			      irq_handler_t littleton_detect_int, void *data)
-{
-	int err, gpio_cd = GPIO_MMC1_CARD_DETECT;
-
-	err = gpio_request(gpio_cd, "mmc card detect");
-	if (err)
-		goto err_request_cd;
-
-	gpio_direction_input(gpio_cd);
-
-	err = request_irq(gpio_to_irq(gpio_cd), littleton_detect_int,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "mmc card detect", data);
-	if (err) {
-		dev_err(dev, "failed to request card detect IRQ\n");
-		goto err_request_irq;
-	}
-	return 0;
-
-err_request_irq:
-	gpio_free(gpio_cd);
-err_request_cd:
-	return err;
-}
-
-static void littleton_mci_exit(struct device *dev, void *data)
-{
-	int gpio_cd = GPIO_MMC1_CARD_DETECT;
-
-	free_irq(gpio_to_irq(gpio_cd), data);
-	gpio_free(gpio_cd);
-}
-
 static struct pxamci_platform_data littleton_mci_platform_data = {
-	.detect_delay	= 20,
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init 		= littleton_mci_init,
-	.exit		= littleton_mci_exit,
+	.detect_delay		= 20,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_MMC1_CARD_DETECT,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 static void __init littleton_init_mmc(void)

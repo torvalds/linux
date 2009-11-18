@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include "i915_drv.h"
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
@@ -74,6 +75,7 @@
 #define INTEL_LVDS_CLONE_BIT 14
 #define INTEL_DVO_TMDS_CLONE_BIT 15
 #define INTEL_DVO_LVDS_CLONE_BIT 16
+#define INTEL_EDP_CLONE_BIT 17
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -110,8 +112,8 @@ struct intel_output {
 
 struct intel_crtc {
 	struct drm_crtc base;
-	int pipe;
-	int plane;
+	enum pipe pipe;
+	enum plane plane;
 	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
@@ -180,4 +182,5 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
+
 #endif /* __INTEL_DRV_H__ */

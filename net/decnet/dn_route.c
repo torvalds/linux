@@ -774,7 +774,7 @@ static int dn_rt_bug(struct sk_buff *skb)
 
 	kfree_skb(skb);
 
-	return NET_RX_BAD;
+	return NET_RX_DROP;
 }
 
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
@@ -1750,7 +1750,7 @@ void __init dn_route_init(void)
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;
 	add_timer(&dn_route_timer);
 
-	goal = num_physpages >> (26 - PAGE_SHIFT);
+	goal = totalram_pages >> (26 - PAGE_SHIFT);
 
 	for(order = 0; (1UL << order) < goal; order++)
 		/* NOTHING */;

@@ -11,9 +11,12 @@
 
 
 /* Timer Registers */
-#define TIMER_TIMR          0x1B7004
-#define INTERRUPT_GIP       0x1B7010
-#define INTERRUPT_GIE       0x1B7014
+#define WC		0x1b7000
+#define TIMR		0x1b7004
+# define	TIMR_IE		(1<<15)
+# define	TIMR_IP		(1<<14)
+#define GIP		0x1b7010
+#define GIE		0x1b7014
 
 /* I2C Registers */
 #define I2C_IF_ADDRESS   0x1B9000

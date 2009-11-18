@@ -810,12 +810,7 @@ VOID RT28xxUsbStaAsicForceWakeup(
 	AutoWakeupCfg.word = 0;
 	RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
 
-#ifndef RT30xx
-	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x00);
-#endif
-#ifdef RT30xx
 	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x02);
-#endif
 
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
 }
@@ -852,12 +847,7 @@ VOID RT28xxUsbMlmeRadioOn(
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
 
-#ifndef RT30xx
-    	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x00);
-#endif
-#ifdef RT30xx
     	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x02);
-#endif
 		RTMPusecDelay(10000);
 
 	NICResetFromError(pAd);
@@ -908,22 +898,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 		BssTableInit(&pAd->ScanTab);
 	}
 
-#ifndef RT30xx
-	// Disable MAC Tx/Rx
-	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
-	Value &= (0xfffffff3);
-	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
-
-	// MAC_SYS_CTRL => value = 0x0 => 40mA
-	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0);
-
-	// PWR_PIN_CFG => value = 0x0 => 40mA
-	RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0);
-
-	// TX_PIN_CFG => value = 0x0 => 20mA
-	RTMP_IO_WRITE32(pAd, TX_PIN_CFG, 0);
-#endif
-
 	if (pAd->CommonCfg.BBPCurrentBW == BW_40)
 	{
 		// Must using 40MHz.
@@ -935,13 +909,11 @@ VOID RT28xxUsbMlmeRadioOFF(
 		AsicTurnOffRFClk(pAd, pAd->CommonCfg.Channel);
 	}
 
-#ifdef RT30xx
 	// Disable Tx/Rx DMA
 	RTUSBReadMACRegister(pAd, WPDMA_GLO_CFG, &GloCfg.word);	   // disable DMA
 	GloCfg.field.EnableTxDMA = 0;
 	GloCfg.field.EnableRxDMA = 0;
 	RTUSBWriteMACRegister(pAd, WPDMA_GLO_CFG, GloCfg.word);	   // abort all TX rings
-#endif
 
 	// Waiting for DMA idle
 	i = 0;
@@ -954,12 +926,10 @@ VOID RT28xxUsbMlmeRadioOFF(
 		RTMPusecDelay(1000);
 	}while (i++ < 100);
 
-#ifdef RT30xx
 	// Disable MAC Tx/Rx
 	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
 	Value &= (0xfffffff3);
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
-#endif
 
 	AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
 }

@@ -169,10 +169,11 @@ static int ether1394_header_cache(const struct neighbour *neigh,
 static void ether1394_header_cache_update(struct hh_cache *hh,
 					  const struct net_device *dev,
 					  const unsigned char *haddr);
-static int ether1394_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ether1394_tx(struct sk_buff *skb,
+				struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
 
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
 static int ether1394_write(struct hpsb_host *host, int srcid, int destid,
 			   quadlet_t *data, u64 addr, size_t len, u16 flags);
@@ -1300,7 +1301,6 @@ static void ether1394_iso(struct hpsb_iso *iso)
 
 	hpsb_iso_recv_release_packets(iso, i);
 
-	dev->last_rx = jiffies;
 }
 
 /******************************************
@@ -1555,7 +1555,8 @@ static void ether1394_complete_cb(void *__ptask)
 }
 
 /* Transmit a packet (called by kernel) */
-static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ether1394_tx(struct sk_buff *skb,
+				struct net_device *dev)
 {
 	struct eth1394hdr hdr_buf;
 	struct eth1394_priv *priv = netdev_priv(dev);
@@ -1694,14 +1695,6 @@ fail:
 	dev->stats.tx_errors++;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/*
-	 * FIXME: According to a patch from 2003-02-26, "returning non-zero
-	 * causes serious problems" here, allegedly.  Before that patch,
-	 * -ERRNO was returned which is not appropriate under Linux 2.6.
-	 * Perhaps more needs to be done?  Stop the queue in serious
-	 * conditions and restart it elsewhere?
-	 */
-	/* return NETDEV_TX_BUSY; */
 	return NETDEV_TX_OK;
 }
 
@@ -1712,7 +1705,7 @@ static void ether1394_get_drvinfo(struct net_device *dev,
 	strcpy(info->bus_info, "ieee1394"); /* FIXME provide more detail? */
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = ether1394_get_drvinfo
 };
 

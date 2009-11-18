@@ -13,14 +13,13 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #endif
-
-#include <asm/gpio.h>
 
 #define PCA953X_INPUT          0
 #define PCA953X_OUTPUT         1
@@ -40,6 +39,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9557", 8, },
 
 	{ "max7310", 8, },
+	{ "max7315", 8, },
 	{ "pca6107", 8, },
 	{ "tca6408", 8, },
 	{ "tca6416", 16, },

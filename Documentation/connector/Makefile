@@ -9,3 +9,8 @@ hostprogs-y := ucon
 always := $(hostprogs-y)
 
 HOSTCFLAGS_ucon.o += -I$(objtree)/usr/include
+
+all: modules
+
+modules clean:
+	$(MAKE) -C ../.. SUBDIRS=$(PWD) $@

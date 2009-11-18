@@ -151,6 +151,8 @@ struct mmci_host {
 	struct mmc_data		*data;
 	struct mmc_host		*mmc;
 	struct clk		*clk;
+	int			gpio_cd;
+	int			gpio_wp;
 
 	unsigned int		data_xfered;
 
@@ -159,7 +161,7 @@ struct mmci_host {
 	unsigned int		mclk;
 	unsigned int		cclk;
 	u32			pwr;
-	struct mmc_platform_data *plat;
+	struct mmci_platform_data *plat;
 
 	u8			hw_designer;
 	u8			hw_revision:4;
@@ -173,6 +175,7 @@ struct mmci_host {
 	struct scatterlist	*sg_ptr;
 	unsigned int		sg_off;
 	unsigned int		size;
+	struct regulator	*vcc;
 };
 
 static inline void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)

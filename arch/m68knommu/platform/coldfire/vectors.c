@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/5307/vectors.c
+ *	linux/arch/m68knommu/platform/coldfire/vectors.c
  *
  *	Copyright (C) 1999-2007, Greg Ungerer <gerg@snapgear.com>
  */
@@ -15,7 +15,6 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfdma.h>
 #include <asm/mcfwdebug.h>
 
 /***************************************************************************/
@@ -76,23 +75,6 @@ void __init init_vectors(void)
 #ifdef TRAP_DBG_INTERRUPT
 	_ramvec[12] = dbginterrupt;
 #endif
-}
-
-/***************************************************************************/
-
-void enable_vector(unsigned int irq)
-{
-	/* Currently no action on ColdFire */
-}
-
-void disable_vector(unsigned int irq)
-{
-	/* Currently no action on ColdFire */
-}
-
-void ack_vector(unsigned int irq)
-{
-	/* Currently no action on ColdFire */
 }
 
 /***************************************************************************/

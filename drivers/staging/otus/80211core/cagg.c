@@ -2845,7 +2845,7 @@ u16_t   zfAggSendAddbaRequest(zdev_t* dev, u16_t *dst, u16_t ac, u16_t up)
 
 
     /*
-     * TBD : Maximum size of managment frame
+     * TBD : Maximum size of management frame
      */
     if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
     {
@@ -3286,7 +3286,7 @@ u16_t   zfAggSendAddbaResponse(zdev_t* dev, struct aggBaFrameParameter *bf)
 
 
     /*
-     * TBD : Maximum size of managment frame
+     * TBD : Maximum size of management frame
      */
     if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
     {
@@ -3439,7 +3439,7 @@ u16_t   zfAggSendBar(zdev_t* dev, TID_TX tid_tx, struct aggBarControl *aggBarCon
 
 
     /*
-     * TBD : Maximum size of managment frame
+     * TBD : Maximum size of management frame
      */
     if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
     {

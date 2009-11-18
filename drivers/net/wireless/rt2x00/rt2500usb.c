@@ -277,7 +277,6 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT2X00_LIB_RFKILL
 static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
 	u16 reg;
@@ -285,9 +284,6 @@ static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_read(rt2x00dev, MAC_CSR19, &reg);
 	return rt2x00_get_field32(reg, MAC_CSR19_BIT7);
 }
-#else
-#define rt2500usb_rfkill_poll	NULL
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2500usb_brightness_set(struct led_classdev *led_cdev,
@@ -491,10 +487,6 @@ static void rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
 				 struct rt2x00lib_erp *erp)
 {
 	u16 reg;
-
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR1, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR1_ACK_TIMEOUT, erp->ack_timeout);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR1, reg);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
@@ -1242,8 +1234,6 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
@@ -1291,7 +1281,7 @@ static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
-	u16 reg;
+	u16 reg, reg0;
 
 	if (queue != QID_BEACON) {
 		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
@@ -1302,16 +1292,19 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {
 		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
 		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
+		reg0 = reg;
 		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
 		/*
 		 * Beacon generation will fail initially.
-		 * To prevent this we need to register the TXRX_CSR19
-		 * register several times.
+		 * To prevent this we need to change the TXRX_CSR19
+		 * register several times (reg0 is the same as reg
+		 * except for TXRX_CSR19_BEACON_GEN, which is 0 in reg0
+		 * and 1 in reg).
 		 */
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
 }
@@ -1603,10 +1596,8 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-#ifdef CONFIG_RT2X00_LIB_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
 	 * Check if the BBP tuning should be disabled.
@@ -1879,7 +1870,6 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt) {
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
@@ -1902,11 +1892,13 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
+	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };
 
 static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {

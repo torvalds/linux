@@ -98,19 +98,15 @@
 #define MSR_RI		__MASK(MSR_RI_LG)	/* Recoverable Exception */
 #define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC_BOOK3S_64)
+/* Server variant */
 #define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV
 #define MSR_KERNEL      MSR_ | MSR_SF
-
 #define MSR_USER32	MSR_ | MSR_PR | MSR_EE
 #define MSR_USER64	MSR_USER32 | MSR_SF
-
-#else /* 32-bit */
+#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_8xx)
 /* Default MSR for kernel mode. */
-#ifndef MSR_KERNEL	/* reg_booke.h also defines this */
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
-#endif
-
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
 #endif
 
@@ -643,6 +639,137 @@
 #define MMCR0_PMC2_CYCLES	0x1
 #define MMCR0_PMC2_ITLB		0x7
 #define MMCR0_PMC2_LOADMISSTIME	0x5
+#endif
+
+/*
+ * SPRG usage:
+ *
+ * All 64-bit:
+ *	- SPRG1 stores PACA pointer
+ *
+ * 64-bit server:
+ *	- SPRG0 unused (reserved for HV on Power4)
+ *	- SPRG2 scratch for exception vectors
+ *	- SPRG3 unused (user visible)
+ *
+ * 64-bit embedded
+ *	- SPRG0 generic exception scratch
+ *	- SPRG2 TLB exception stack
+ *	- SPRG3 unused (user visible)
+ *	- SPRG4 unused (user visible)
+ *	- SPRG6 TLB miss scratch (user visible, sorry !)
+ *	- SPRG7 critical exception scratch
+ *	- SPRG8 machine check exception scratch
+ *	- SPRG9 debug exception scratch
+ *
+ * All 32-bit:
+ *	- SPRG3 current thread_info pointer
+ *        (virtual on BookE, physical on others)
+ *
+ * 32-bit classic:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 indicator that we are in RTAS
+ *	- SPRG4 (603 only) pseudo TLB LRU data
+ *
+ * 32-bit 40x:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 scratch for exception vectors
+ *	- SPRG4 scratch for exception vectors (not 403)
+ *	- SPRG5 scratch for exception vectors (not 403)
+ *	- SPRG6 scratch for exception vectors (not 403)
+ *	- SPRG7 scratch for exception vectors (not 403)
+ *
+ * 32-bit 440 and FSL BookE:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors (*)
+ *	- SPRG2 scratch for crit interrupts handler
+ *	- SPRG4 scratch for exception vectors
+ *	- SPRG5 scratch for exception vectors
+ *	- SPRG6 scratch for machine check handler
+ *	- SPRG7 scratch for exception vectors
+ *	- SPRG9 scratch for debug vectors (e500 only)
+ *
+ *      Additionally, BookE separates "read" and "write"
+ *      of those registers. That allows to use the userspace
+ *      readable variant for reads, which can avoid a fault
+ *      with KVM type virtualization.
+ *
+ *      (*) Under KVM, the host SPRG1 is used to point to
+ *      the current VCPU data structure
+ *
+ * 32-bit 8xx:
+ *	- SPRG0 scratch for exception vectors
+ *	- SPRG1 scratch for exception vectors
+ *	- SPRG2 apparently unused but initialized
+ *
+ */
+#ifdef CONFIG_PPC64
+#define SPRN_SPRG_PACA 		SPRN_SPRG1
+#else
+#define SPRN_SPRG_THREAD 	SPRN_SPRG3
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
+#endif
+
+#ifdef CONFIG_PPC_BOOK3E_64
+#define SPRN_SPRG_MC_SCRATCH	SPRN_SPRG8
+#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG7
+#define SPRN_SPRG_DBG_SCRATCH	SPRN_SPRG9
+#define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
+#define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
+#define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_32
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_RTAS		SPRN_SPRG2
+#define SPRN_SPRG_603_LRU	SPRN_SPRG4
+#endif
+
+#ifdef CONFIG_40x
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
+#define SPRN_SPRG_SCRATCH3	SPRN_SPRG4
+#define SPRN_SPRG_SCRATCH4	SPRN_SPRG5
+#define SPRN_SPRG_SCRATCH5	SPRN_SPRG6
+#define SPRN_SPRG_SCRATCH6	SPRN_SPRG7
+#endif
+
+#ifdef CONFIG_BOOKE
+#define SPRN_SPRG_RSCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_WSCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_RSCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_WSCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_RSCRATCH_CRIT	SPRN_SPRG2
+#define SPRN_SPRG_WSCRATCH_CRIT	SPRN_SPRG2
+#define SPRN_SPRG_RSCRATCH2	SPRN_SPRG4R
+#define SPRN_SPRG_WSCRATCH2	SPRN_SPRG4W
+#define SPRN_SPRG_RSCRATCH3	SPRN_SPRG5R
+#define SPRN_SPRG_WSCRATCH3	SPRN_SPRG5W
+#define SPRN_SPRG_RSCRATCH_MC	SPRN_SPRG6R
+#define SPRN_SPRG_WSCRATCH_MC	SPRN_SPRG6W
+#define SPRN_SPRG_RSCRATCH4	SPRN_SPRG7R
+#define SPRN_SPRG_WSCRATCH4	SPRN_SPRG7W
+#ifdef CONFIG_E200
+#define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG6R
+#define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG6W
+#else
+#define SPRN_SPRG_RSCRATCH_DBG	SPRN_SPRG9
+#define SPRN_SPRG_WSCRATCH_DBG	SPRN_SPRG9
+#endif
+#define SPRN_SPRG_RVCPU		SPRN_SPRG1
+#define SPRN_SPRG_WVCPU		SPRN_SPRG1
+#endif
+
+#ifdef CONFIG_8xx
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
+#define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
 #endif
 
 /*

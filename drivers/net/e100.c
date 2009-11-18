@@ -151,6 +151,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -1426,18 +1427,30 @@ static int e100_phy_init(struct nic *nic)
 	} else
 		DPRINTK(HW, DEBUG, "phy_addr = %d\n", nic->mii.phy_id);
 
-	/* Isolate all the PHY ids */
-	for (addr = 0; addr < 32; addr++)
-		mdio_write(netdev, addr, MII_BMCR, BMCR_ISOLATE);
-	/* Select the discovered PHY */
-	bmcr &= ~BMCR_ISOLATE;
-	mdio_write(netdev, nic->mii.phy_id, MII_BMCR, bmcr);
-
 	/* Get phy ID */
 	id_lo = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID1);
 	id_hi = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID2);
 	nic->phy = (u32)id_hi << 16 | (u32)id_lo;
 	DPRINTK(HW, DEBUG, "phy ID = 0x%08X\n", nic->phy);
+
+	/* Select the phy and isolate the rest */
+	for (addr = 0; addr < 32; addr++) {
+		if (addr != nic->mii.phy_id) {
+			mdio_write(netdev, addr, MII_BMCR, BMCR_ISOLATE);
+		} else if (nic->phy != phy_82552_v) {
+			bmcr = mdio_read(netdev, addr, MII_BMCR);
+			mdio_write(netdev, addr, MII_BMCR,
+				bmcr & ~BMCR_ISOLATE);
+		}
+	}
+	/*
+	 * Workaround for 82552:
+	 * Clear the ISOLATE bit on selected phy_id last (mirrored on all
+	 * other phy_id's) using bmcr value from addr discovery loop above.
+	 */
+	if (nic->phy == phy_82552_v)
+		mdio_write(netdev, nic->mii.phy_id, MII_BMCR,
+			bmcr & ~BMCR_ISOLATE);
 
 	/* Handle National tx phys */
 #define NCS_PHY_MODEL_MASK	0xFFF0FFFF
@@ -1690,7 +1703,8 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
 }
 
-static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
+				   struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 	int err;
@@ -1720,7 +1734,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	netdev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int e100_tx_clean(struct nic *nic)

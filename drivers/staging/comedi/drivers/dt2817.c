@@ -47,7 +47,8 @@ Configuration options:
 #define DT2817_CR 0
 #define DT2817_DATA 1
 
-static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dt2817_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int dt2817_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt2817 = {
 	.driver_name = "dt2817",
@@ -58,8 +59,9 @@ static struct comedi_driver driver_dt2817 = {
 
 COMEDI_INITCLEANUP(driver_dt2817);
 
-static int dt2817_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2817_dio_insn_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
 {
 	int mask;
 	int chan;
@@ -96,8 +98,9 @@ static int dt2817_dio_insn_config(struct comedi_device *dev, struct comedi_subde
 	return 1;
 }
 
-static int dt2817_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dt2817_dio_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int changed;
 
@@ -115,13 +118,13 @@ static int dt2817_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevi
 			outb(s->state & 0xff, dev->iobase + DT2817_DATA + 0);
 		if (changed & 0x0000ff00)
 			outb((s->state >> 8) & 0xff,
-				dev->iobase + DT2817_DATA + 1);
+			     dev->iobase + DT2817_DATA + 1);
 		if (changed & 0x00ff0000)
 			outb((s->state >> 16) & 0xff,
-				dev->iobase + DT2817_DATA + 2);
+			     dev->iobase + DT2817_DATA + 2);
 		if (changed & 0xff000000)
 			outb((s->state >> 24) & 0xff,
-				dev->iobase + DT2817_DATA + 3);
+			     dev->iobase + DT2817_DATA + 3);
 	}
 	data[1] = inb(dev->iobase + DT2817_DATA + 0);
 	data[1] |= (inb(dev->iobase + DT2817_DATA + 1) << 8);

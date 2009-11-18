@@ -64,6 +64,7 @@ struct multipath {
 	spinlock_t lock;
 
 	const char *hw_handler_name;
+	char *hw_handler_params;
 	unsigned nr_priority_groups;
 	struct list_head priority_groups;
 	unsigned pg_init_required;	/* pg_init needs calling? */
@@ -219,6 +220,7 @@ static void free_multipath(struct multipath *m)
 	}
 
 	kfree(m->hw_handler_name);
+	kfree(m->hw_handler_params);
 	mempool_destroy(m->mpio_pool);
 	kfree(m);
 }
@@ -615,6 +617,17 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 			dm_put_device(ti, p->path.dev);
 			goto bad;
 		}
+
+		if (m->hw_handler_params) {
+			r = scsi_dh_set_params(q, m->hw_handler_params);
+			if (r < 0) {
+				ti->error = "unable to set hardware "
+							"handler parameters";
+				scsi_dh_detach(q);
+				dm_put_device(ti, p->path.dev);
+				goto bad;
+			}
+		}
 	}
 
 	r = ps->type->add_path(ps, &p->path, as->argc, as->argv, &ti->error);
@@ -705,6 +718,7 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 static int parse_hw_handler(struct arg_set *as, struct multipath *m)
 {
 	unsigned hw_argc;
+	int ret;
 	struct dm_target *ti = m->ti;
 
 	static struct param _params[] = {
@@ -726,17 +740,33 @@ static int parse_hw_handler(struct arg_set *as, struct multipath *m)
 	request_module("scsi_dh_%s", m->hw_handler_name);
 	if (scsi_dh_handler_exist(m->hw_handler_name) == 0) {
 		ti->error = "unknown hardware handler type";
-		kfree(m->hw_handler_name);
-		m->hw_handler_name = NULL;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
-	if (hw_argc > 1)
-		DMWARN("Ignoring user-specified arguments for "
-		       "hardware handler \"%s\"", m->hw_handler_name);
+	if (hw_argc > 1) {
+		char *p;
+		int i, j, len = 4;
+
+		for (i = 0; i <= hw_argc - 2; i++)
+			len += strlen(as->argv[i]) + 1;
+		p = m->hw_handler_params = kzalloc(len, GFP_KERNEL);
+		if (!p) {
+			ti->error = "memory allocation failed";
+			ret = -ENOMEM;
+			goto fail;
+		}
+		j = sprintf(p, "%d", hw_argc - 1);
+		for (i = 0, p+=j+1; i <= hw_argc - 2; i++, p+=j+1)
+			j = sprintf(p, "%s", as->argv[i]);
+	}
 	consume(as, hw_argc - 1);
 
 	return 0;
+fail:
+	kfree(m->hw_handler_name);
+	m->hw_handler_name = NULL;
+	return ret;
 }
 
 static int parse_features(struct arg_set *as, struct multipath *m)

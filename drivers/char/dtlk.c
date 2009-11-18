@@ -56,6 +56,7 @@
 #include <linux/errno.h>	/* for -EBUSY */
 #include <linux/ioport.h>	/* for request_region */
 #include <linux/delay.h>	/* for loops_per_jiffy */
+#include <linux/sched.h>
 #include <linux/smp_lock.h>	/* cycle_kernel_lock() */
 #include <asm/io.h>		/* for inb_p, outb_p, inb, outb, etc. */
 #include <asm/uaccess.h>	/* for get_user, etc. */

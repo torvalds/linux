@@ -806,15 +806,30 @@ static int cs4270_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
 	struct snd_soc_codec *codec = &cs4270->codec;
-	int reg = snd_soc_read(codec, CS4270_PWRCTL) | CS4270_PWRCTL_PDN_ALL;
 
-	return snd_soc_write(codec, CS4270_PWRCTL, reg);
+	return snd_soc_suspend_device(codec->dev);
 }
 
 static int cs4270_i2c_resume(struct i2c_client *client)
 {
 	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
 	struct snd_soc_codec *codec = &cs4270->codec;
+
+	return snd_soc_resume_device(codec->dev);
+}
+
+static int cs4270_soc_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	struct snd_soc_codec *codec = cs4270_codec;
+	int reg = snd_soc_read(codec, CS4270_PWRCTL) | CS4270_PWRCTL_PDN_ALL;
+
+	return snd_soc_write(codec, CS4270_PWRCTL, reg);
+}
+
+static int cs4270_soc_resume(struct platform_device *pdev)
+{
+	struct snd_soc_codec *codec = cs4270_codec;
+	struct i2c_client *i2c_client = codec->control_data;
 	int reg;
 
 	/* In case the device was put to hard reset during sleep, we need to
@@ -825,7 +840,7 @@ static int cs4270_i2c_resume(struct i2c_client *client)
 	for (reg = CS4270_FIRSTREG; reg <= CS4270_LASTREG; reg++) {
 		u8 val = snd_soc_read(codec, reg);
 
-		if (i2c_smbus_write_byte_data(client, reg, val)) {
+		if (i2c_smbus_write_byte_data(i2c_client, reg, val)) {
 			dev_err(codec->dev, "i2c write failed\n");
 			return -EIO;
 		}
@@ -840,6 +855,8 @@ static int cs4270_i2c_resume(struct i2c_client *client)
 #else
 #define cs4270_i2c_suspend	NULL
 #define cs4270_i2c_resume	NULL
+#define cs4270_soc_suspend	NULL
+#define cs4270_soc_resume	NULL
 #endif /* CONFIG_PM */
 
 /*
@@ -868,7 +885,9 @@ static struct i2c_driver cs4270_i2c_driver = {
  */
 struct snd_soc_codec_device soc_codec_device_cs4270 = {
 	.probe = 	cs4270_probe,
-	.remove = 	cs4270_remove
+	.remove = 	cs4270_remove,
+	.suspend =	cs4270_soc_suspend,
+	.resume =	cs4270_soc_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_device_cs4270);
 

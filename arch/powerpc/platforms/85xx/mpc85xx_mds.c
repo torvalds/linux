@@ -47,6 +47,7 @@
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include <sysdev/simple_gpio.h>
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
@@ -254,7 +255,8 @@ static void __init mpc85xx_mds_setup_arch(void)
 #ifdef CONFIG_SWIOTLB
 	if (lmb_end_of_DRAM() > max) {
 		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_pci_dma_ops);
+		set_pci_dma_ops(&swiotlb_dma_ops);
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
 	}
 #endif
 }
@@ -304,6 +306,9 @@ static struct of_device_id mpc85xx_ids[] = {
 
 static int __init mpc85xx_publish_devices(void)
 {
+	if (machine_is(mpc8569_mds))
+		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
+
 	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, mpc85xx_ids, NULL);
 

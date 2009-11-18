@@ -201,6 +201,19 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Mygica X8506 DMB-TH",
 		.portb		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_MAGICPRO_PROHDTVE2] = {
+		.name		= "Magic-Pro ProHDTV Extreme 2",
+		.portb		= CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_HAUPPAUGE_HVR1850] = {
+		.name		= "Hauppauge WinTV-HVR1850",
+		.portb		= CX23885_MPEG_ENCODER,
+		.portc		= CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_COMPRO_VIDEOMATE_E800] = {
+		.name		= "Compro VideoMate E800",
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -324,6 +337,18 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x8651,
 		.card      = CX23885_BOARD_MYGICA_X8506,
+	}, {
+		.subvendor = 0x14f1,
+		.subdevice = 0x8657,
+		.card      = CX23885_BOARD_MAGICPRO_PROHDTVE2,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x8541,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1850,
+	}, {
+		.subvendor = 0x1858,
+		.subdevice = 0xe800,
+		.card      = CX23885_BOARD_COMPRO_VIDEOMATE_E800,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -483,8 +508,13 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		/* WinTV-HVR1700 (PCIe, OEM, No IR, full height)
 		 * DVB-T and MPEG2 HW Encoder */
 		break;
+	case 85021:
+		/* WinTV-HVR1850 (PCIe, OEM, RCA in, IR, FM,
+			Dual channel ATSC and MPEG2 HW Encoder */
+		break;
 	default:
-		printk(KERN_WARNING "%s: warning: unknown hauppauge model #%d\n",
+		printk(KERN_WARNING "%s: warning: "
+			"unknown hauppauge model #%d\n",
 			dev->name, tv.model);
 		break;
 	}
@@ -514,6 +544,7 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
+	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 		/* Tuner Reset Command */
 		bitmask = 0x04;
 		break;
@@ -574,13 +605,23 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		/* CX23417 GPIO's */
 		/* EIO15 Zilog Reset */
 		/* EIO14 S5H1409/CX24227 Reset */
+		mc417_gpio_enable(dev, GPIO_15 | GPIO_14, 1);
+
+		/* Put the demod into reset and protect the eeprom */
+		mc417_gpio_clear(dev, GPIO_15 | GPIO_14);
+		mdelay(100);
+
+		/* Bring the demod and blaster out of reset */
+		mc417_gpio_set(dev, GPIO_15 | GPIO_14);
+		mdelay(100);
 
 		/* Force the TDA8295A into reset and back */
-		cx_set(GP0_IO, 0x00040004);
+		cx23885_gpio_enable(dev, GPIO_2, 1);
+		cx23885_gpio_set(dev, GPIO_2);
 		mdelay(20);
-		cx_clear(GP0_IO, 0x00000004);
+		cx23885_gpio_clear(dev, GPIO_2);
 		mdelay(20);
-		cx_set(GP0_IO, 0x00040004);
+		cx23885_gpio_set(dev, GPIO_2);
 		mdelay(20);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
@@ -655,6 +696,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
+	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 		/* GPIO-2  xc3028 tuner reset */
 
 		/* The following GPIO's are on the internal AVCore (cx25840) */
@@ -715,13 +757,44 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_set(dev, GPIO_9);
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
+	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 		/* GPIO-1 reset XC5000 */
-		/* GPIO-2 reset LGS8GL5 */
+		/* GPIO-2 reset LGS8GL5 / LGS8G75 */
 		cx_set(GP0_IO, 0x00060000);
 		cx_clear(GP0_IO, 0x00000006);
 		mdelay(100);
 		cx_set(GP0_IO, 0x00060006);
 		mdelay(100);
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+		/* GPIO-0 656_CLK */
+		/* GPIO-1 656_D0 */
+		/* GPIO-2 Wake# */
+		/* GPIO-3-10 cx23417 data0-7 */
+		/* GPIO-11-14 cx23417 addr0-3 */
+		/* GPIO-15-18 cx23417 READY, CS, RD, WR */
+		/* GPIO-19 IR_RX */
+		/* GPIO-20 C_IR_TX */
+		/* GPIO-21 I2S DAT */
+		/* GPIO-22 I2S WCLK */
+		/* GPIO-23 I2S BCLK */
+		/* ALT GPIO: EXP GPIO LATCH */
+
+		/* CX23417 GPIO's */
+		/* GPIO-14 S5H1411/CX24228 Reset */
+		/* GPIO-13 EEPROM write protect */
+		mc417_gpio_enable(dev, GPIO_14 | GPIO_13, 1);
+
+		/* Put the demod into reset and protect the eeprom */
+		mc417_gpio_clear(dev, GPIO_14 | GPIO_13);
+		mdelay(100);
+
+		/* Bring the demod out of reset */
+		mc417_gpio_set(dev, GPIO_14);
+		mdelay(100);
+
+		/* CX24228 GPIO */
+		/* Connected to IF / Mux */
 		break;
 	}
 }
@@ -739,6 +812,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 		/* FIXME: Implement me */
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
@@ -778,6 +852,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
@@ -827,6 +902,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
+	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -844,6 +920,8 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1210:
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 	default:
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
@@ -860,9 +938,10 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
+	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
-				"cx25840", "cx25840", 0x88 >> 1);
+				"cx25840", "cx25840", 0x88 >> 1, NULL);
 		v4l2_subdev_call(dev->sd_cx25840, core, load_fw);
 		break;
 	}

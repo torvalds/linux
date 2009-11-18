@@ -24,7 +24,7 @@
 
 int sum;
 
-int map_mem(char *path, off_t offset, size_t length, int touch)
+static int map_mem(char *path, off_t offset, size_t length, int touch)
 {
 	int fd, rc;
 	void *addr;
@@ -62,7 +62,7 @@ int map_mem(char *path, off_t offset, size_t length, int touch)
 	return 0;
 }
 
-int scan_tree(char *path, char *file, off_t offset, size_t length, int touch)
+static int scan_tree(char *path, char *file, off_t offset, size_t length, int touch)
 {
 	struct dirent **namelist;
 	char *name, *path2;
@@ -119,7 +119,7 @@ skip:
 
 char buf[1024];
 
-int read_rom(char *path)
+static int read_rom(char *path)
 {
 	int fd, rc;
 	size_t size = 0;
@@ -146,7 +146,7 @@ int read_rom(char *path)
 	return size;
 }
 
-int scan_rom(char *path, char *file)
+static int scan_rom(char *path, char *file)
 {
 	struct dirent **namelist;
 	char *name, *path2;

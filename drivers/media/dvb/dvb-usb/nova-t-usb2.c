@@ -22,51 +22,51 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* Hauppauge NOVA-T USB2 keys */
 static struct dvb_usb_rc_key haupp_rc_keys [] = {
-	{ 0x1e, 0x00, KEY_0 },
-	{ 0x1e, 0x01, KEY_1 },
-	{ 0x1e, 0x02, KEY_2 },
-	{ 0x1e, 0x03, KEY_3 },
-	{ 0x1e, 0x04, KEY_4 },
-	{ 0x1e, 0x05, KEY_5 },
-	{ 0x1e, 0x06, KEY_6 },
-	{ 0x1e, 0x07, KEY_7 },
-	{ 0x1e, 0x08, KEY_8 },
-	{ 0x1e, 0x09, KEY_9 },
-	{ 0x1e, 0x0a, KEY_KPASTERISK },
-	{ 0x1e, 0x0b, KEY_RED },
-	{ 0x1e, 0x0c, KEY_RADIO },
-	{ 0x1e, 0x0d, KEY_MENU },
-	{ 0x1e, 0x0e, KEY_GRAVE }, /* # */
-	{ 0x1e, 0x0f, KEY_MUTE },
-	{ 0x1e, 0x10, KEY_VOLUMEUP },
-	{ 0x1e, 0x11, KEY_VOLUMEDOWN },
-	{ 0x1e, 0x12, KEY_CHANNEL },
-	{ 0x1e, 0x14, KEY_UP },
-	{ 0x1e, 0x15, KEY_DOWN },
-	{ 0x1e, 0x16, KEY_LEFT },
-	{ 0x1e, 0x17, KEY_RIGHT },
-	{ 0x1e, 0x18, KEY_VIDEO },
-	{ 0x1e, 0x19, KEY_AUDIO },
-	{ 0x1e, 0x1a, KEY_MEDIA },
-	{ 0x1e, 0x1b, KEY_EPG },
-	{ 0x1e, 0x1c, KEY_TV },
-	{ 0x1e, 0x1e, KEY_NEXT },
-	{ 0x1e, 0x1f, KEY_BACK },
-	{ 0x1e, 0x20, KEY_CHANNELUP },
-	{ 0x1e, 0x21, KEY_CHANNELDOWN },
-	{ 0x1e, 0x24, KEY_LAST }, /* Skip backwards */
-	{ 0x1e, 0x25, KEY_OK },
-	{ 0x1e, 0x29, KEY_BLUE},
-	{ 0x1e, 0x2e, KEY_GREEN },
-	{ 0x1e, 0x30, KEY_PAUSE },
-	{ 0x1e, 0x32, KEY_REWIND },
-	{ 0x1e, 0x34, KEY_FASTFORWARD },
-	{ 0x1e, 0x35, KEY_PLAY },
-	{ 0x1e, 0x36, KEY_STOP },
-	{ 0x1e, 0x37, KEY_RECORD },
-	{ 0x1e, 0x38, KEY_YELLOW },
-	{ 0x1e, 0x3b, KEY_GOTO },
-	{ 0x1e, 0x3d, KEY_POWER },
+	{ 0x1e00, KEY_0 },
+	{ 0x1e01, KEY_1 },
+	{ 0x1e02, KEY_2 },
+	{ 0x1e03, KEY_3 },
+	{ 0x1e04, KEY_4 },
+	{ 0x1e05, KEY_5 },
+	{ 0x1e06, KEY_6 },
+	{ 0x1e07, KEY_7 },
+	{ 0x1e08, KEY_8 },
+	{ 0x1e09, KEY_9 },
+	{ 0x1e0a, KEY_KPASTERISK },
+	{ 0x1e0b, KEY_RED },
+	{ 0x1e0c, KEY_RADIO },
+	{ 0x1e0d, KEY_MENU },
+	{ 0x1e0e, KEY_GRAVE }, /* # */
+	{ 0x1e0f, KEY_MUTE },
+	{ 0x1e10, KEY_VOLUMEUP },
+	{ 0x1e11, KEY_VOLUMEDOWN },
+	{ 0x1e12, KEY_CHANNEL },
+	{ 0x1e14, KEY_UP },
+	{ 0x1e15, KEY_DOWN },
+	{ 0x1e16, KEY_LEFT },
+	{ 0x1e17, KEY_RIGHT },
+	{ 0x1e18, KEY_VIDEO },
+	{ 0x1e19, KEY_AUDIO },
+	{ 0x1e1a, KEY_MEDIA },
+	{ 0x1e1b, KEY_EPG },
+	{ 0x1e1c, KEY_TV },
+	{ 0x1e1e, KEY_NEXT },
+	{ 0x1e1f, KEY_BACK },
+	{ 0x1e20, KEY_CHANNELUP },
+	{ 0x1e21, KEY_CHANNELDOWN },
+	{ 0x1e24, KEY_LAST }, /* Skip backwards */
+	{ 0x1e25, KEY_OK },
+	{ 0x1e29, KEY_BLUE},
+	{ 0x1e2e, KEY_GREEN },
+	{ 0x1e30, KEY_PAUSE },
+	{ 0x1e32, KEY_REWIND },
+	{ 0x1e34, KEY_FASTFORWARD },
+	{ 0x1e35, KEY_PLAY },
+	{ 0x1e36, KEY_STOP },
+	{ 0x1e37, KEY_RECORD },
+	{ 0x1e38, KEY_YELLOW },
+	{ 0x1e3b, KEY_GOTO },
+	{ 0x1e3d, KEY_POWER },
 };
 
 /* Firmware bug? sometimes, when a new key is pressed, the previous pressed key
@@ -92,10 +92,11 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			deb_rc("raw key code 0x%02x, 0x%02x, 0x%02x to c: %02x d: %02x toggle: %d\n",key[1],key[2],key[3],custom,data,toggle);
 
 			for (i = 0; i < ARRAY_SIZE(haupp_rc_keys); i++) {
-				if (haupp_rc_keys[i].data == data &&
-					haupp_rc_keys[i].custom == custom) {
+				if (rc5_data(&haupp_rc_keys[i]) == data &&
+					rc5_custom(&haupp_rc_keys[i]) == custom) {
 
-					deb_rc("c: %x, d: %x\n",haupp_rc_keys[i].data,haupp_rc_keys[i].custom);
+					deb_rc("c: %x, d: %x\n", rc5_data(&haupp_rc_keys[i]),
+								 rc5_custom(&haupp_rc_keys[i]));
 
 					*event = haupp_rc_keys[i].event;
 					*state = REMOTE_KEY_PRESSED;

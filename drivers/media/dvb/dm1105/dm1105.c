@@ -44,6 +44,14 @@
 #include "cx24116.h"
 #include "z0194a.h"
 
+#define UNSET (-1U)
+
+#define DM1105_BOARD_NOAUTO		UNSET
+#define DM1105_BOARD_UNKNOWN		0
+#define DM1105_BOARD_DVBWORLD_2002	1
+#define DM1105_BOARD_DVBWORLD_2004	2
+#define DM1105_BOARD_AXESS_DM05		3
+
 /* ----------------------------------------------- */
 /*
  * PCI ID's
@@ -153,19 +161,104 @@
 
 /* GPIO's for LNB power control */
 #define DM1105_LNB_MASK				0x00000000
+#define DM1105_LNB_OFF				0x00020000
 #define DM1105_LNB_13V				0x00010100
 #define DM1105_LNB_18V				0x00000100
 
 /* GPIO's for LNB power control for Axess DM05 */
 #define DM05_LNB_MASK				0x00000000
+#define DM05_LNB_OFF				0x00020000/* actually 13v */
 #define DM05_LNB_13V				0x00020000
 #define DM05_LNB_18V				0x00030000
+
+static unsigned int card[]  = {[0 ... 3] = UNSET };
+module_param_array(card,  int, NULL, 0444);
+MODULE_PARM_DESC(card, "card type");
 
 static int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 
+static unsigned int dm1105_devcount;
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
+struct dm1105_board {
+	char                    *name;
+};
+
+struct dm1105_subid {
+	u16     subvendor;
+	u16     subdevice;
+	u32     card;
+};
+
+static const struct dm1105_board dm1105_boards[] = {
+	[DM1105_BOARD_UNKNOWN] = {
+		.name		= "UNKNOWN/GENERIC",
+	},
+	[DM1105_BOARD_DVBWORLD_2002] = {
+		.name		= "DVBWorld PCI 2002",
+	},
+	[DM1105_BOARD_DVBWORLD_2004] = {
+		.name		= "DVBWorld PCI 2004",
+	},
+	[DM1105_BOARD_AXESS_DM05] = {
+		.name		= "Axess/EasyTv DM05",
+	},
+};
+
+static const struct dm1105_subid dm1105_subids[] = {
+	{
+		.subvendor = 0x0000,
+		.subdevice = 0x2002,
+		.card      = DM1105_BOARD_DVBWORLD_2002,
+	}, {
+		.subvendor = 0x0001,
+		.subdevice = 0x2002,
+		.card      = DM1105_BOARD_DVBWORLD_2002,
+	}, {
+		.subvendor = 0x0000,
+		.subdevice = 0x2004,
+		.card      = DM1105_BOARD_DVBWORLD_2004,
+	}, {
+		.subvendor = 0x0001,
+		.subdevice = 0x2004,
+		.card      = DM1105_BOARD_DVBWORLD_2004,
+	}, {
+		.subvendor = 0x195d,
+		.subdevice = 0x1105,
+		.card      = DM1105_BOARD_AXESS_DM05,
+	},
+};
+
+static void dm1105_card_list(struct pci_dev *pci)
+{
+	int i;
+
+	if (0 == pci->subsystem_vendor &&
+			0 == pci->subsystem_device) {
+		printk(KERN_ERR
+			"dm1105: Your board has no valid PCI Subsystem ID\n"
+			"dm1105: and thus can't be autodetected\n"
+			"dm1105: Please pass card=<n> insmod option to\n"
+			"dm1105: workaround that.  Redirect complaints to\n"
+			"dm1105: the vendor of the TV card.  Best regards,\n"
+			"dm1105: -- tux\n");
+	} else {
+		printk(KERN_ERR
+			"dm1105: Your board isn't known (yet) to the driver.\n"
+			"dm1105: You can try to pick one of the existing\n"
+			"dm1105: card configs via card=<n> insmod option.\n"
+			"dm1105: Updating to the latest version might help\n"
+			"dm1105: as well.\n");
+	}
+	printk(KERN_ERR "Here is a list of valid choices for the card=<n> "
+		   "insmod option:\n");
+	for (i = 0; i < ARRAY_SIZE(dm1105_boards); i++)
+		printk(KERN_ERR "dm1105:    card=%d -> %s\n",
+				i, dm1105_boards[i].name);
+}
 
 /* infrared remote control */
 struct infrared {
@@ -193,6 +286,8 @@ struct dm1105dvb {
 	struct dvb_frontend *fe;
 	struct dvb_net dvbnet;
 	unsigned int full_ts_users;
+	unsigned int boardnr;
+	int nr;
 
 	/* i2c */
 	struct i2c_adapter i2c_adap;
@@ -211,7 +306,6 @@ struct dm1105dvb {
 	unsigned int	PacketErrorCount;
 	unsigned int dmarst;
 	spinlock_t lock;
-
 };
 
 #define dm_io_mem(reg)	((unsigned long)(&dm1105dvb->io_mem[reg]))
@@ -326,16 +420,20 @@ static inline struct dm1105dvb *frontend_to_dm1105dvb(struct dvb_frontend *fe)
 static int dm1105dvb_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct dm1105dvb *dm1105dvb = frontend_to_dm1105dvb(fe);
-	u32 lnb_mask, lnb_13v, lnb_18v;
+	u32 lnb_mask, lnb_13v, lnb_18v, lnb_off;
 
-	switch (dm1105dvb->pdev->subsystem_device) {
-	case PCI_DEVICE_ID_DM05:
+	switch (dm1105dvb->boardnr) {
+	case DM1105_BOARD_AXESS_DM05:
 		lnb_mask = DM05_LNB_MASK;
+		lnb_off = DM05_LNB_OFF;
 		lnb_13v = DM05_LNB_13V;
 		lnb_18v = DM05_LNB_18V;
 		break;
+	case DM1105_BOARD_DVBWORLD_2002:
+	case DM1105_BOARD_DVBWORLD_2004:
 	default:
 		lnb_mask = DM1105_LNB_MASK;
+		lnb_off = DM1105_LNB_OFF;
 		lnb_13v = DM1105_LNB_13V;
 		lnb_18v = DM1105_LNB_18V;
 	}
@@ -343,8 +441,10 @@ static int dm1105dvb_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t volta
 	outl(lnb_mask, dm_io_mem(DM1105_GPIOCTR));
 	if (voltage == SEC_VOLTAGE_18)
 		outl(lnb_18v , dm_io_mem(DM1105_GPIOVAL));
-	else
+	else if (voltage == SEC_VOLTAGE_13)
 		outl(lnb_13v, dm_io_mem(DM1105_GPIOVAL));
+	else
+		outl(lnb_off, dm_io_mem(DM1105_GPIOVAL));
 
 	return 0;
 }
@@ -477,7 +577,7 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 {
 	struct input_dev *input_dev;
-	IR_KEYTAB_TYPE *ir_codes = ir_codes_dm1105_nec;
+	struct ir_scancode_table *ir_codes = &ir_codes_dm1105_nec_table;
 	int ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
@@ -589,8 +689,8 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 {
 	int ret;
 
-	switch (dm1105dvb->pdev->subsystem_device) {
-	case PCI_DEVICE_ID_DW2004:
+	switch (dm1105dvb->boardnr) {
+	case DM1105_BOARD_DVBWORLD_2004:
 		dm1105dvb->fe = dvb_attach(
 			cx24116_attach, &serit_sp2633_config,
 			&dm1105dvb->i2c_adap);
@@ -598,6 +698,8 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
 
 		break;
+	case DM1105_BOARD_DVBWORLD_2002:
+	case DM1105_BOARD_AXESS_DM05:
 	default:
 		dm1105dvb->fe = dvb_attach(
 			stv0299_attach, &sharp_z0194a_config,
@@ -676,11 +778,31 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	struct dvb_demux *dvbdemux;
 	struct dmx_demux *dmx;
 	int ret = -ENOMEM;
+	int i;
 
 	dm1105dvb = kzalloc(sizeof(struct dm1105dvb), GFP_KERNEL);
 	if (!dm1105dvb)
 		return -ENOMEM;
 
+	/* board config */
+	dm1105dvb->nr = dm1105_devcount;
+	dm1105dvb->boardnr = UNSET;
+	if (card[dm1105dvb->nr] < ARRAY_SIZE(dm1105_boards))
+		dm1105dvb->boardnr = card[dm1105dvb->nr];
+	for (i = 0; UNSET == dm1105dvb->boardnr &&
+				i < ARRAY_SIZE(dm1105_subids); i++)
+		if (pdev->subsystem_vendor ==
+			dm1105_subids[i].subvendor &&
+				pdev->subsystem_device ==
+					dm1105_subids[i].subdevice)
+			dm1105dvb->boardnr = dm1105_subids[i].card;
+
+	if (UNSET == dm1105dvb->boardnr) {
+		dm1105dvb->boardnr = DM1105_BOARD_UNKNOWN;
+		dm1105_card_list(pdev);
+	}
+
+	dm1105_devcount++;
 	dm1105dvb->pdev = pdev;
 	dm1105dvb->buffer_size = 5 * DM1105_DMA_BYTES;
 	dm1105dvb->PacketErrorCount = 0;
@@ -853,6 +975,7 @@ static void __devexit dm1105_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+	dm1105_devcount--;
 	kfree(dm1105dvb);
 }
 
@@ -861,17 +984,12 @@ static struct pci_device_id dm1105_id_table[] __devinitdata = {
 		.vendor = PCI_VENDOR_ID_TRIGEM,
 		.device = PCI_DEVICE_ID_DM1105,
 		.subvendor = PCI_ANY_ID,
-		.subdevice = PCI_DEVICE_ID_DW2002,
-	}, {
-		.vendor = PCI_VENDOR_ID_TRIGEM,
-		.device = PCI_DEVICE_ID_DM1105,
-		.subvendor = PCI_ANY_ID,
-		.subdevice = PCI_DEVICE_ID_DW2004,
+		.subdevice = PCI_ANY_ID,
 	}, {
 		.vendor = PCI_VENDOR_ID_AXESS,
 		.device = PCI_DEVICE_ID_DM05,
-		.subvendor = PCI_VENDOR_ID_AXESS,
-		.subdevice = PCI_DEVICE_ID_DM05,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
 	}, {
 		/* empty */
 	},

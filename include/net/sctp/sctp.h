@@ -486,15 +486,16 @@ static inline __s32 sctp_jitter(__u32 rto)
 }
 
 /* Break down data chunks at this point.  */
-static inline int sctp_frag_point(const struct sctp_sock *sp, int pmtu)
+static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
+	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
 	int frag = pmtu;
 
 	frag -= sp->pf->af->net_header_len;
 	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
 
-	if (sp->user_frag)
-		frag = min_t(int, frag, sp->user_frag);
+	if (asoc->user_frag)
+		frag = min_t(int, frag, asoc->user_frag);
 
 	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
 

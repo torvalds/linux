@@ -133,8 +133,7 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
 		.platform_data = &board_eeprom,
 	}, {
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
-		.type = "pcf8563",
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	}
 };
 #endif
@@ -203,7 +202,8 @@ static struct pad_desc pcm043_pads[] = {
 	MX35_PAD_D3_VSYNC__IPU_DISPB_D3_VSYNC,
 	MX35_PAD_D3_REV__IPU_DISPB_D3_REV,
 	MX35_PAD_D3_CLS__IPU_DISPB_D3_CLS,
-	MX35_PAD_D3_SPL__IPU_DISPB_D3_SPL
+	/* gpio */
+	MX35_PAD_ATA_CS0__GPIO2_6,
 };
 
 /*
@@ -245,7 +245,7 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx35_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx35_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &pcm043_timer,
 MACHINE_END

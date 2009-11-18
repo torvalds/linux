@@ -349,6 +349,7 @@ int sta_info_insert(struct sta_info *sta)
 		goto out_free;
 	}
 	list_add(&sta->list, &local->sta_list);
+	local->sta_generation++;
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
 
@@ -360,6 +361,7 @@ int sta_info_insert(struct sta_info *sta)
 					     u.ap);
 
 		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD, &sta->sta);
+		sdata = sta->sdata;
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -485,6 +487,7 @@ static void __sta_info_unlink(struct sta_info **sta)
 	}
 
 	local->num_sta--;
+	local->sta_generation++;
 
 	if (local->ops->sta_notify) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -494,6 +497,7 @@ static void __sta_info_unlink(struct sta_info **sta)
 
 		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
 			       &(*sta)->sta);
+		sdata = (*sta)->sdata;
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {

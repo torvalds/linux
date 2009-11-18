@@ -32,7 +32,7 @@
 
 extern void markeins_led(const char *);
 
-static int bus_frequency = 0;
+static int bus_frequency;
 
 static void markeins_machine_restart(char *command)
 {

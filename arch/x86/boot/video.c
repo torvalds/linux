@@ -221,7 +221,6 @@ static unsigned int mode_menu(void)
 	}
 }
 
-#ifdef CONFIG_VIDEO_RETAIN
 /* Save screen content to the heap */
 static struct saved_screen {
 	int x, y;
@@ -299,10 +298,6 @@ static void restore_screen(void)
 	ireg.dl = saved.curx;
 	intcall(0x10, &ireg, NULL);
 }
-#else
-#define save_screen()		((void)0)
-#define restore_screen()	((void)0)
-#endif
 
 void set_video(void)
 {

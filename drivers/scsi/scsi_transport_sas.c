@@ -1692,10 +1692,6 @@ sas_attach_transport(struct sas_function_template *ft)
 	i->f = ft;
 
 	count = 0;
-	SETUP_PORT_ATTRIBUTE(num_phys);
-	i->host_attrs[count] = NULL;
-
-	count = 0;
 	SETUP_PHY_ATTRIBUTE(initiator_port_protocols);
 	SETUP_PHY_ATTRIBUTE(target_port_protocols);
 	SETUP_PHY_ATTRIBUTE(device_type);

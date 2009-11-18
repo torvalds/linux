@@ -40,8 +40,8 @@ static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *subd,
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };
 
-static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *subd,
-						    unsigned int data)
+static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice
+						    *subd, unsigned int data)
 {
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };

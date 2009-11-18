@@ -1043,10 +1043,15 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	runtime->oss.channels = params_channels(params);
 	runtime->oss.rate = params_rate(params);
 
-	runtime->oss.params = 0;
-	runtime->oss.prepare = 1;
 	vfree(runtime->oss.buffer);
 	runtime->oss.buffer = vmalloc(runtime->oss.period_bytes);
+	if (!runtime->oss.buffer) {
+		err = -ENOMEM;
+		goto failure;
+	}
+
+	runtime->oss.params = 0;
+	runtime->oss.prepare = 1;
 	runtime->oss.buffer_used = 0;
 	if (runtime->dma_area)
 		snd_pcm_format_set_silence(runtime->format, runtime->dma_area, bytes_to_samples(runtime, runtime->dma_bytes));
@@ -2836,7 +2841,8 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 				   struct snd_info_buffer *buffer)
 {
 	struct snd_pcm_str *pstr = entry->private_data;
-	char line[128], str[32], task_name[32], *ptr;
+	char line[128], str[32], task_name[32];
+	const char *ptr;
 	int idx1;
 	struct snd_pcm_oss_setup *setup, *setup1, template;
 

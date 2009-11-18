@@ -59,6 +59,9 @@
 #define SO_TIMESTAMPING		37
 #define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
+#define SO_PROTOCOL		38
+#define SO_DOMAIN		39
+
 #endif /* _ASM_SOCKET_H */
 
 

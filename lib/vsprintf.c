@@ -25,6 +25,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ioport.h>
+#include <net/addrconf.h>
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
@@ -580,7 +581,7 @@ static char *symbol_string(char *buf, char *end, void *ptr,
 	unsigned long value = (unsigned long) ptr;
 #ifdef CONFIG_KALLSYMS
 	char sym[KSYM_SYMBOL_LEN];
-	if (ext != 'f')
+	if (ext != 'f' && ext != 's')
 		sprint_symbol(sym, value);
 	else
 		kallsyms_lookup(value, NULL, NULL, NULL, sym);
@@ -630,60 +631,161 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 }
 
 static char *mac_address_string(char *buf, char *end, u8 *addr,
-				struct printf_spec spec)
+				struct printf_spec spec, const char *fmt)
 {
-	char mac_addr[6 * 3]; /* (6 * 2 hex digits), 5 colons and trailing zero */
+	char mac_addr[sizeof("xx:xx:xx:xx:xx:xx")];
 	char *p = mac_addr;
 	int i;
 
 	for (i = 0; i < 6; i++) {
 		p = pack_hex_byte(p, addr[i]);
-		if (!(spec.flags & SPECIAL) && i != 5)
+		if (fmt[0] == 'M' && i != 5)
 			*p++ = ':';
 	}
 	*p = '\0';
-	spec.flags &= ~SPECIAL;
 
 	return string(buf, end, mac_addr, spec);
 }
 
-static char *ip6_addr_string(char *buf, char *end, u8 *addr,
-				struct printf_spec spec)
+static char *ip4_string(char *p, const u8 *addr, bool leading_zeros)
 {
-	char ip6_addr[8 * 5]; /* (8 * 4 hex digits), 7 colons and trailing zero */
-	char *p = ip6_addr;
 	int i;
 
+	for (i = 0; i < 4; i++) {
+		char temp[3];	/* hold each IP quad in reverse order */
+		int digits = put_dec_trunc(temp, addr[i]) - temp;
+		if (leading_zeros) {
+			if (digits < 3)
+				*p++ = '0';
+			if (digits < 2)
+				*p++ = '0';
+		}
+		/* reverse the digits in the quad */
+		while (digits--)
+			*p++ = temp[digits];
+		if (i < 3)
+			*p++ = '.';
+	}
+
+	*p = '\0';
+	return p;
+}
+
+static char *ip6_compressed_string(char *p, const char *addr)
+{
+	int i;
+	int j;
+	int range;
+	unsigned char zerolength[8];
+	int longest = 1;
+	int colonpos = -1;
+	u16 word;
+	u8 hi;
+	u8 lo;
+	bool needcolon = false;
+	bool useIPv4;
+	struct in6_addr in6;
+
+	memcpy(&in6, addr, sizeof(struct in6_addr));
+
+	useIPv4 = ipv6_addr_v4mapped(&in6) || ipv6_addr_is_isatap(&in6);
+
+	memset(zerolength, 0, sizeof(zerolength));
+
+	if (useIPv4)
+		range = 6;
+	else
+		range = 8;
+
+	/* find position of longest 0 run */
+	for (i = 0; i < range; i++) {
+		for (j = i; j < range; j++) {
+			if (in6.s6_addr16[j] != 0)
+				break;
+			zerolength[i]++;
+		}
+	}
+	for (i = 0; i < range; i++) {
+		if (zerolength[i] > longest) {
+			longest = zerolength[i];
+			colonpos = i;
+		}
+	}
+
+	/* emit address */
+	for (i = 0; i < range; i++) {
+		if (i == colonpos) {
+			if (needcolon || i == 0)
+				*p++ = ':';
+			*p++ = ':';
+			needcolon = false;
+			i += longest - 1;
+			continue;
+		}
+		if (needcolon) {
+			*p++ = ':';
+			needcolon = false;
+		}
+		/* hex u16 without leading 0s */
+		word = ntohs(in6.s6_addr16[i]);
+		hi = word >> 8;
+		lo = word & 0xff;
+		if (hi) {
+			if (hi > 0x0f)
+				p = pack_hex_byte(p, hi);
+			else
+				*p++ = hex_asc_lo(hi);
+		}
+		if (hi || lo > 0x0f)
+			p = pack_hex_byte(p, lo);
+		else
+			*p++ = hex_asc_lo(lo);
+		needcolon = true;
+	}
+
+	if (useIPv4) {
+		if (needcolon)
+			*p++ = ':';
+		p = ip4_string(p, &in6.s6_addr[12], false);
+	}
+
+	*p = '\0';
+	return p;
+}
+
+static char *ip6_string(char *p, const char *addr, const char *fmt)
+{
+	int i;
 	for (i = 0; i < 8; i++) {
-		p = pack_hex_byte(p, addr[2 * i]);
-		p = pack_hex_byte(p, addr[2 * i + 1]);
-		if (!(spec.flags & SPECIAL) && i != 7)
+		p = pack_hex_byte(p, *addr++);
+		p = pack_hex_byte(p, *addr++);
+		if (fmt[0] == 'I' && i != 7)
 			*p++ = ':';
 	}
+
 	*p = '\0';
-	spec.flags &= ~SPECIAL;
+	return p;
+}
+
+static char *ip6_addr_string(char *buf, char *end, const u8 *addr,
+			     struct printf_spec spec, const char *fmt)
+{
+	char ip6_addr[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255")];
+
+	if (fmt[0] == 'I' && fmt[2] == 'c')
+		ip6_compressed_string(ip6_addr, addr);
+	else
+		ip6_string(ip6_addr, addr, fmt);
 
 	return string(buf, end, ip6_addr, spec);
 }
 
-static char *ip4_addr_string(char *buf, char *end, u8 *addr,
-				struct printf_spec spec)
+static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
+			     struct printf_spec spec, const char *fmt)
 {
-	char ip4_addr[4 * 4]; /* (4 * 3 decimal digits), 3 dots and trailing zero */
-	char temp[3];	/* hold each IP quad in reverse order */
-	char *p = ip4_addr;
-	int i, digits;
+	char ip4_addr[sizeof("255.255.255.255")];
 
-	for (i = 0; i < 4; i++) {
-		digits = put_dec_trunc(temp, addr[i]) - temp;
-		/* reverse the digits in the quad */
-		while (digits--)
-			*p++ = temp[digits];
-		if (i != 3)
-			*p++ = '.';
-	}
-	*p = '\0';
-	spec.flags &= ~SPECIAL;
+	ip4_string(ip4_addr, addr, fmt[0] == 'i');
 
 	return string(buf, end, ip4_addr, spec);
 }
@@ -697,16 +799,21 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr,
  *
  * - 'F' For symbolic function descriptor pointers with offset
  * - 'f' For simple symbolic function names without offset
- * - 'S' For symbolic direct pointers
+ * - 'S' For symbolic direct pointers with offset
+ * - 's' For symbolic direct pointers without offset
  * - 'R' For a struct resource pointer, it prints the range of
  *       addresses (not the name nor the flags)
  * - 'M' For a 6-byte MAC address, it prints the address in the
  *       usual colon-separated hex notation
- * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way (dot-separated
- *       decimal for v4 and colon separated network-order 16 bit hex for v6)
- * - 'i' [46] for 'raw' IPv4/IPv6 addresses, IPv6 omits the colons, IPv4 is
- *       currently the same
- *
+ * - 'm' For a 6-byte MAC address, it prints the hex address without colons
+ * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
+ *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
+ *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
+ * - 'i' [46] for 'raw' IPv4/IPv6 addresses
+ *       IPv6 omits the colons (01020304...0f)
+ *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
+ * - 'I6c' for IPv6 addresses printed as specified by
+ *       http://www.ietf.org/id/draft-kawamura-ipv6-text-representation-03.txt
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
@@ -721,25 +828,30 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'F':
 	case 'f':
 		ptr = dereference_function_descriptor(ptr);
+	case 's':
 		/* Fallthrough */
 	case 'S':
 		return symbol_string(buf, end, ptr, spec, *fmt);
 	case 'R':
 		return resource_string(buf, end, ptr, spec);
-	case 'm':
-		spec.flags |= SPECIAL;
-		/* Fallthrough */
-	case 'M':
-		return mac_address_string(buf, end, ptr, spec);
-	case 'i':
-		spec.flags |= SPECIAL;
-		/* Fallthrough */
-	case 'I':
-		if (fmt[1] == '6')
-			return ip6_addr_string(buf, end, ptr, spec);
-		if (fmt[1] == '4')
-			return ip4_addr_string(buf, end, ptr, spec);
-		spec.flags &= ~SPECIAL;
+	case 'M':			/* Colon separated: 00:01:02:03:04:05 */
+	case 'm':			/* Contiguous: 000102030405 */
+		return mac_address_string(buf, end, ptr, spec, fmt);
+	case 'I':			/* Formatted IP supported
+					 * 4:	1.2.3.4
+					 * 6:	0001:0203:...:0708
+					 * 6c:	1::708 or 1::1.2.3.4
+					 */
+	case 'i':			/* Contiguous:
+					 * 4:	001.002.003.004
+					 * 6:   000102...0f
+					 */
+		switch (fmt[1]) {
+		case '6':
+			return ip6_addr_string(buf, end, ptr, spec, fmt);
+		case '4':
+			return ip4_addr_string(buf, end, ptr, spec, fmt);
+		}
 		break;
 	}
 	spec.flags |= SMALL;
@@ -958,10 +1070,12 @@ qualifier:
  * @args: Arguments for the format string
  *
  * This function follows C99 vsnprintf, but has some extensions:
- * %pS output the name of a text symbol
+ * %pS output the name of a text symbol with offset
+ * %ps output the name of a text symbol without offset
  * %pF output the name of a function pointer with its offset
  * %pf output the name of a function pointer without its offset
  * %pR output the address range in a struct resource
+ * %n is ignored
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing
@@ -983,13 +1097,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 	/* Reject out-of-range values early.  Large positive sizes are
 	   used for unknown buffer sizes. */
-	if (unlikely((int) size < 0)) {
-		/* There can be only one.. */
-		static char warn = 1;
-		WARN_ON(warn);
-		warn = 0;
+	if (WARN_ON_ONCE((int) size < 0))
 		return 0;
-	}
 
 	str = buf;
 	end = buf + size;
@@ -1417,11 +1526,7 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  * a binary buffer that generated by vbin_printf.
  *
  * The format follows C99 vsnprintf, but has some extensions:
- * %pS output the name of a text symbol
- * %pF output the name of a function pointer with its offset
- * %pf output the name of a function pointer without its offset
- * %pR output the address range in a struct resource
- * %n is ignored
+ *  see vsnprintf comment for details.
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing
@@ -1439,13 +1544,8 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 
 	struct printf_spec spec = {0};
 
-	if (unlikely((int) size < 0)) {
-		/* There can be only one.. */
-		static char warn = 1;
-		WARN_ON(warn);
-		warn = 0;
+	if (WARN_ON_ONCE((int) size < 0))
 		return 0;
-	}
 
 	str = buf;
 	end = buf + size;
@@ -1671,7 +1771,7 @@ int vsscanf(const char * buf, const char * fmt, va_list args)
 		 * advance both strings to next white space
 		 */
 		if (*fmt == '*') {
-			while (!isspace(*fmt) && *fmt)
+			while (!isspace(*fmt) && *fmt != '%' && *fmt)
 				fmt++;
 			while (!isspace(*str) && *str)
 				str++;

@@ -108,6 +108,9 @@ static int linear_congested(void *data, int bits)
 	linear_conf_t *conf;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	rcu_read_lock();
 	conf = rcu_dereference(mddev->private);
 
@@ -288,7 +291,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	sector_t start_sector;
 	int cpu;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}

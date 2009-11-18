@@ -254,6 +254,7 @@ void rds_cong_map_updated(struct rds_cong_map *map, uint64_t portmask)
 		read_unlock_irqrestore(&rds_cong_monitor_lock, flags);
 	}
 }
+EXPORT_SYMBOL_GPL(rds_cong_map_updated);
 
 int rds_cong_updated_since(unsigned long *recent)
 {

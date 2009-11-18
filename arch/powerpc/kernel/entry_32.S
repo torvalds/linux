@@ -88,7 +88,7 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,_SRR1(r11)
 
-	mfspr	r8,SPRN_SPRG3
+	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,SAVED_KSP_LIMIT(r11)
 	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
@@ -108,7 +108,7 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_SRR1
 	stw	r0,crit_srr1@l(0)
 
-	mfspr	r8,SPRN_SPRG3
+	mfspr	r8,SPRN_SPRG_THREAD
 	lwz	r0,KSP_LIMIT(r8)
 	stw	r0,saved_ksp_limit@l(0)
 	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
@@ -138,7 +138,7 @@ transfer_to_handler:
 	mfspr	r2,SPRN_XER
 	stw	r12,_CTR(r11)
 	stw	r2,_XER(r11)
-	mfspr	r12,SPRN_SPRG3
+	mfspr	r12,SPRN_SPRG_THREAD
 	addi	r2,r12,-THREAD
 	tovirt(r2,r2)			/* set r2 to current */
 	beq	2f			/* if from user, fix up THREAD.regs */
@@ -680,7 +680,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 
 	tophys(r0,r4)
 	CLR_TOP32(r0)
-	mtspr	SPRN_SPRG3,r0	/* Update current THREAD phys addr */
+	mtspr	SPRN_SPRG_THREAD,r0	/* Update current THREAD phys addr */
 	lwz	r1,KSP(r4)	/* Load new stack pointer */
 
 	/* save the old current 'last' for return value */
@@ -1057,7 +1057,7 @@ exc_exit_restart_end:
 #ifdef CONFIG_40x
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
-	mfspr	r9,SPRN_SPRG3
+	mfspr	r9,SPRN_SPRG_THREAD
 	lis	r10,saved_ksp_limit@ha;
 	lwz	r10,saved_ksp_limit@l(r10);
 	tovirt(r9,r9);
@@ -1074,7 +1074,7 @@ ret_from_crit_exc:
 #ifdef CONFIG_BOOKE
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
-	mfspr	r9,SPRN_SPRG3
+	mfspr	r9,SPRN_SPRG_THREAD
 	lwz	r10,SAVED_KSP_LIMIT(r1)
 	stw	r10,KSP_LIMIT(r9)
 	RESTORE_xSRR(SRR0,SRR1);
@@ -1083,7 +1083,7 @@ ret_from_crit_exc:
 
 	.globl	ret_from_debug_exc
 ret_from_debug_exc:
-	mfspr	r9,SPRN_SPRG3
+	mfspr	r9,SPRN_SPRG_THREAD
 	lwz	r10,SAVED_KSP_LIMIT(r1)
 	stw	r10,KSP_LIMIT(r9)
 	lwz	r9,THREAD_INFO-THREAD(r9)
@@ -1097,7 +1097,7 @@ ret_from_debug_exc:
 
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
-	mfspr	r9,SPRN_SPRG3
+	mfspr	r9,SPRN_SPRG_THREAD
 	lwz	r10,SAVED_KSP_LIMIT(r1)
 	stw	r10,KSP_LIMIT(r9)
 	RESTORE_xSRR(SRR0,SRR1);
@@ -1255,7 +1255,7 @@ _GLOBAL(enter_rtas)
 	MTMSRD(r0)		/* don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
-	mtspr	SPRN_SPRG2,r7
+	mtspr	SPRN_SPRG_RTAS,r7
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI
@@ -1265,7 +1265,7 @@ _GLOBAL(enter_rtas)
 	FIX_SRR1(r9,r0)
 	addi	r1,r1,INT_FRAME_SIZE
 	li	r0,0
-	mtspr	SPRN_SPRG2,r0
+	mtspr	SPRN_SPRG_RTAS,r0
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
 	RFI			/* return to caller */

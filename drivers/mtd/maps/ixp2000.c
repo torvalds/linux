@@ -184,7 +184,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	info->map.bankwidth = 1;
 
 	/*
- 	 * map_priv_2 is used to store a ptr to to the bank_setup routine
+ 	 * map_priv_2 is used to store a ptr to the bank_setup routine
  	 */
 	info->map.map_priv_2 = (unsigned long) ixp_data->bank_setup;
 

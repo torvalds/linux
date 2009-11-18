@@ -468,7 +468,7 @@ static int handle_ctrl(int has_ac3, struct saa6752hs_mpeg_params *params,
 		if (set && new != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
 		    (!has_ac3 || new != V4L2_MPEG_AUDIO_ENCODING_AC3))
 			return -ERANGE;
-		new = old;
+		params->au_encoding = new;
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		old = params->au_l2_bitrate;

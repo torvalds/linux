@@ -176,7 +176,7 @@ static int tda10021_set_symbolrate (struct tda10021_state* state, u32 symbolrate
 	tmp =  ((symbolrate << 4) % FIN) << 8;
 	ratio = (ratio << 8) + tmp / FIN;
 	tmp = (tmp % FIN) << 8;
-	ratio = (ratio << 8) + (tmp + FIN/2) / FIN;
+	ratio = (ratio << 8) + DIV_ROUND_CLOSEST(tmp, FIN);
 
 	BDR = ratio;
 	BDRI = (((XIN << 5) / symbolrate) + 1) / 2;

@@ -150,7 +150,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
-			     int cq, int srqn)
+			     int cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
@@ -168,7 +168,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->doorbell_qpn = swab32(ring->qp.qpn << 8);
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
-				ring->cqn, srqn, &ring->context);
+				ring->cqn, &ring->context);
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
 			       &ring->qp, &ring->qp_state);
@@ -589,7 +589,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -766,7 +766,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Poll CQ here */
 	mlx4_en_xmit_poll(priv, tx_ind);
 
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_drop:
 	dev_kfree_skb_any(skb);

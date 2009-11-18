@@ -364,7 +364,7 @@ static ssize_t qeth_dev_layer2_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->options.layer2 ? 1:0);
+	return sprintf(buf, "%i\n", card->options.layer2);
 }
 
 static ssize_t qeth_dev_layer2_store(struct device *dev,

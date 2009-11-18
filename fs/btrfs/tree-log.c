@@ -137,11 +137,20 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
+		if (!root->log_start_pid) {
+			root->log_start_pid = current->pid;
+			root->log_multiple_pids = false;
+		} else if (root->log_start_pid != current->pid) {
+			root->log_multiple_pids = true;
+		}
+
 		root->log_batch++;
 		atomic_inc(&root->log_writers);
 		mutex_unlock(&root->log_mutex);
 		return 0;
 	}
+	root->log_multiple_pids = false;
+	root->log_start_pid = current->pid;
 	mutex_lock(&root->fs_info->tree_log_mutex);
 	if (!root->fs_info->log_root_tree) {
 		ret = btrfs_init_log_root_tree(trans, root->fs_info);
@@ -263,8 +272,8 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct walk_control *wc, u64 gen)
 {
 	if (wc->pin)
-		btrfs_update_pinned_extents(log->fs_info->extent_root,
-					    eb->start, eb->len, 1);
+		btrfs_pin_extent(log->fs_info->extent_root,
+				 eb->start, eb->len, 0);
 
 	if (btrfs_buffer_uptodate(eb, gen)) {
 		if (wc->write)
@@ -534,7 +543,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
 	ret = btrfs_drop_extents(trans, root, inode,
-			 start, extent_end, extent_end, start, &alloc_hint);
+			 start, extent_end, extent_end, start, &alloc_hint, 1);
 	BUG_ON(ret);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -1971,6 +1980,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
+	u64 log_transid = 0;
 
 	mutex_lock(&root->log_mutex);
 	index1 = root->log_transid % 2;
@@ -1987,10 +1997,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		unsigned long batch = root->log_batch;
-		mutex_unlock(&root->log_mutex);
-		schedule_timeout_uninterruptible(1);
-		mutex_lock(&root->log_mutex);
-
+		if (root->log_multiple_pids) {
+			mutex_unlock(&root->log_mutex);
+			schedule_timeout_uninterruptible(1);
+			mutex_lock(&root->log_mutex);
+		}
 		wait_for_writer(trans, root);
 		if (batch == root->log_batch)
 			break;
@@ -2003,14 +2014,19 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
+	/* we start IO on  all the marked extents here, but we don't actually
+	 * wait for them until later.
+	 */
+	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
 	root->log_batch = 0;
+	log_transid = root->log_transid;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
+	root->log_start_pid = 0;
 	smp_mb();
 	/*
 	 * log tree has been flushed to disk, new modifications of
@@ -2036,6 +2052,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	index2 = log_root_tree->log_transid % 2;
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2055,6 +2072,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * check the full commit flag again
 	 */
 	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
@@ -2063,6 +2081,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
 				&log_root_tree->dirty_log_pages);
 	BUG_ON(ret);
+	btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
 				log_root_tree->node->start);
@@ -2082,8 +2101,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * the running transaction open, so a full commit can't hop
 	 * in and cause problems either.
 	 */
-	write_ctree_super(trans, root->fs_info->tree_root, 2);
+	write_ctree_super(trans, root->fs_info->tree_root, 1);
 	ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (root->last_log_commit < log_transid)
+		root->last_log_commit = log_transid;
+	mutex_unlock(&root->log_mutex);
 
 out_wake_log_root:
 	atomic_set(&log_root_tree->log_commit[index2], 0);
@@ -2605,7 +2629,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 								extent);
 				cs = btrfs_file_extent_offset(src, extent);
 				cl = btrfs_file_extent_num_bytes(src,
-								extent);;
+								extent);
 				if (btrfs_file_extent_compression(src,
 								  extent)) {
 					cs = 0;
@@ -2841,7 +2865,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			break;
 
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
@@ -2851,6 +2875,21 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 out:
 	return ret;
 }
+
+static int inode_in_log(struct btrfs_trans_handle *trans,
+		 struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (BTRFS_I(inode)->logged_trans == trans->transid &&
+	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
+		ret = 1;
+	mutex_unlock(&root->log_mutex);
+	return ret;
+}
+
 
 /*
  * helper function around btrfs_log_inode to make sure newly created
@@ -2880,10 +2919,21 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_no_trans;
 	}
 
+	if (root != BTRFS_I(inode)->root ||
+	    btrfs_root_refs(&root->root_item) == 0) {
+		ret = 1;
+		goto end_no_trans;
+	}
+
 	ret = check_parent_dirs_for_sync(trans, inode, parent,
 					 sb, last_committed);
 	if (ret)
 		goto end_no_trans;
+
+	if (inode_in_log(trans, inode)) {
+		ret = BTRFS_NO_LOG_SYNC;
+		goto end_no_trans;
+	}
 
 	start_log_trans(trans, root);
 
@@ -2907,12 +2957,15 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 			break;
 
 		inode = parent->d_inode;
+		if (root != BTRFS_I(inode)->root)
+			break;
+
 		if (BTRFS_I(inode)->generation >
 		    root->fs_info->last_trans_committed) {
 			ret = btrfs_log_inode(trans, root, inode, inode_only);
 			BUG_ON(ret);
 		}
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
@@ -2951,7 +3004,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_key tmp_key;
 	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
-	u64 highest_inode;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
 		.stage = 0,
@@ -3009,11 +3061,6 @@ again:
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
 						      path);
 			BUG_ON(ret);
-		}
-		ret = btrfs_find_highest_inode(wc.replay_dest, &highest_inode);
-		if (ret == 0) {
-			wc.replay_dest->highest_inode = highest_inode;
-			wc.replay_dest->last_inode_alloc = highest_inode;
 		}
 
 		key.offset = found_key.offset - 1;

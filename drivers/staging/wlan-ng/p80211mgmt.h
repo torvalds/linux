@@ -100,15 +100,9 @@
 #ifndef _P80211MGMT_H
 #define _P80211MGMT_H
 
-/*================================================================*/
-/* Project Includes */
-
 #ifndef  _P80211HDR_H
 #include "p80211hdr.h"
 #endif
-
-/*================================================================*/
-/* Constants */
 
 /*-- Information Element IDs --------------------*/
 #define WLAN_EID_SSID		0

@@ -184,11 +184,11 @@ static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
  */
 
 static const struct comedi_lrange range_daqp_ai = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25)
-	}
+							BIP_RANGE(10),
+							BIP_RANGE(5),
+							BIP_RANGE(2.5),
+							BIP_RANGE(1.25)
+							}
 };
 
 static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
@@ -211,7 +211,7 @@ static struct comedi_driver driver_daqp = {
 static void daqp_dump(struct comedi_device *dev)
 {
 	printk("DAQP: status %02x; aux status %02x\n",
-		inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
+	       inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
 }
 
 static void hex_dump(char *str, void *ptr, int len)
@@ -236,7 +236,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -264,7 +264,7 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static void daqp_interrupt(int irq, void *dev_id)
 {
-	struct local_info_t *local = (struct local_info_t *) dev_id;
+	struct local_info_t *local = (struct local_info_t *)dev_id;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	int loop_limit = 10000;
@@ -272,7 +272,7 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 	if (local == NULL) {
 		printk(KERN_WARNING
-			"daqp_interrupt(): irq %d for unknown device.\n", irq);
+		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
 		return;
 	}
 
@@ -284,20 +284,20 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
-			"daqp_interrupt(): struct comedi_device not yet attached.\n");
+		       "daqp_interrupt(): struct comedi_device not yet attached.\n");
 		return;
 	}
 
 	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
-			"daqp_interrupt(): NULL comedi_subdevice.\n");
+		       "daqp_interrupt(): NULL comedi_subdevice.\n");
 		return;
 	}
 
-	if ((struct local_info_t *) s->private != local) {
+	if ((struct local_info_t *)s->private != local) {
 		printk(KERN_WARNING
-			"daqp_interrupt(): invalid comedi_subdevice.\n");
+		       "daqp_interrupt(): invalid comedi_subdevice.\n");
 		return;
 	}
 
@@ -311,13 +311,13 @@ static void daqp_interrupt(int irq, void *dev_id)
 	case buffer:
 
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
-				& DAQP_STATUS_FIFO_EMPTY)) {
+			 & DAQP_STATUS_FIFO_EMPTY)) {
 
 			short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
-					COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
 				printk("daqp: data lost\n");
 				daqp_ai_cancel(dev, s);
 				break;
@@ -348,7 +348,7 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 		if (loop_limit <= 0) {
 			printk(KERN_WARNING
-				"loop_limit reached in daqp_interrupt()\n");
+			       "loop_limit reached in daqp_interrupt()\n");
 			daqp_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		}
@@ -361,10 +361,11 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 /* One-shot analog data acquisition routine */
 
-static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int daqp_ai_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 	int i;
 	int v;
 	int counter = 10000;
@@ -384,7 +385,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	/* Program one scan list entry */
 
 	v = DAQP_SCANLIST_CHANNEL(CR_CHAN(insn->chanspec))
-		| DAQP_SCANLIST_GAIN(CR_RANGE(insn->chanspec));
+	    | DAQP_SCANLIST_GAIN(CR_RANGE(insn->chanspec));
 
 	if (CR_AREF(insn->chanspec) == AREF_DIFF) {
 		v |= DAQP_SCANLIST_DIFFERENTIAL;
@@ -402,7 +403,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	/* Set trigger */
 
 	v = DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL
-		| DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
+	    | DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
 
 	outb(v, dev->iobase + DAQP_CONTROL);
 
@@ -411,7 +412,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	 */
 
 	while (--counter
-		&& (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
 		printk("daqp: couldn't clear interrupts in status register\n");
 		return -1;
@@ -427,7 +428,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 
 		/* Start conversion */
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-			dev->iobase + DAQP_COMMAND);
+		     dev->iobase + DAQP_COMMAND);
 
 		/* Wait for interrupt service routine to unblock semaphore */
 		/* Maybe could use a timeout here, but it's interruptible */
@@ -467,8 +468,8 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  * the command passes.
  */
 
-static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int daqp_ai_cmdtest(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -507,7 +508,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 
 	/* note that mutual compatiblity is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
+	    cmd->scan_begin_src != TRIG_FOLLOW)
 		err++;
 	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
 		err++;
@@ -528,7 +529,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 #define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER
-		&& cmd->scan_begin_arg < MAX_SPEED) {
+	    && cmd->scan_begin_arg < MAX_SPEED) {
 		cmd->scan_begin_arg = MAX_SPEED;
 		err++;
 	}
@@ -539,8 +540,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 	 */
 
 	if (cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER
-		&& cmd->scan_begin_arg !=
-		cmd->convert_arg * cmd->scan_end_arg) {
+	    && cmd->scan_begin_arg != cmd->convert_arg * cmd->scan_end_arg) {
 		err++;
 	}
 
@@ -574,7 +574,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		daqp_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				 cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -582,7 +582,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		daqp_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				 cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -595,7 +595,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 
 static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter = 100;
 	int scanlist_start_on_every_entry;
@@ -631,14 +631,14 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		int counter = daqp_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 1;
 	} else {
 		int counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
@@ -654,7 +654,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* Program one scan list entry */
 
 		v = DAQP_SCANLIST_CHANNEL(CR_CHAN(chanspec))
-			| DAQP_SCANLIST_GAIN(CR_RANGE(chanspec));
+		    | DAQP_SCANLIST_GAIN(CR_RANGE(chanspec));
 
 		if (CR_AREF(chanspec) == AREF_DIFF) {
 			v |= DAQP_SCANLIST_DIFFERENTIAL;
@@ -765,7 +765,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Set trigger */
 
 	v = DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL
-		| DAQP_CONTROL_PACER_5MHz | DAQP_CONTROL_FIFO_INT_ENABLE;
+	    | DAQP_CONTROL_PACER_5MHz | DAQP_CONTROL_FIFO_INT_ENABLE;
 
 	outb(v, dev->iobase + DAQP_CONTROL);
 
@@ -774,7 +774,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	while (--counter
-		&& (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
 		printk("daqp: couldn't clear interrupts in status register\n");
 		return -1;
@@ -786,17 +786,18 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-		dev->iobase + DAQP_COMMAND);
+	     dev->iobase + DAQP_COMMAND);
 
 	return 0;
 }
 
 /* Single-shot analog output routine */
 
-static int daqp_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int daqp_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 	int d;
 	unsigned int chan;
 
@@ -820,10 +821,11 @@ static int daqp_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice
 
 /* Digital input routine */
 
-static int daqp_di_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int daqp_di_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -836,10 +838,11 @@ static int daqp_di_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 
 /* Digital output routine */
 
-static int daqp_do_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int daqp_do_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *) s->private;
+	struct local_info_t *local = (struct local_info_t *)s->private;
 
 	if (local->stop) {
 		return -EIO;
@@ -866,7 +869,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
 		printk("comedi%d: No such daqp device %d\n",
-			dev->minor, it->options[0]);
+		       dev->minor, it->options[0]);
 		return -EIO;
 	}
 
@@ -899,7 +902,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 					break;
 			i++;
 			if ((i < tuple.TupleDataLen - 4)
-				&& (strncmp(buf + i, "DAQP", 4) == 0)) {
+			    && (strncmp(buf + i, "DAQP", 4) == 0)) {
 				strncpy(local->board_name, buf + i,
 					sizeof(local->board_name));
 			}
@@ -913,7 +916,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	printk("comedi%d: attaching daqp%d (io 0x%04lx)\n",
-		dev->minor, it->options[0], dev->iobase);
+	       dev->minor, it->options[0], dev->iobase);
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
@@ -1076,7 +1079,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = daqp_interrupt;
 	link->irq.Instance = local;
@@ -1234,7 +1237,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		/* If we got this far, we're cool! */
 		break;
 
-	      next_entry:
+next_entry:
 		last_ret = pcmcia_get_next_tuple(link, &tuple);
 		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
@@ -1280,20 +1283,20 @@ static void daqp_cs_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x",
-		dev->node.dev_name, link->conf.ConfigIndex);
+	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-			link->io.BasePort1 + link->io.NumPorts1 - 1);
+		       link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-			link->io.BasePort2 + link->io.NumPorts2 - 1);
+		       link->io.BasePort2 + link->io.NumPorts2 - 1);
 	printk("\n");
 
 	return;
 
-      cs_failed:
+cs_failed:
 	daqp_cs_release(link);
 
 }				/* daqp_cs_config */
@@ -1354,7 +1357,7 @@ struct pcmcia_driver daqp_cs_driver = {
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+		.name = dev_info,
 		},
 };
 

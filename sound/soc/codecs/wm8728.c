@@ -43,45 +43,6 @@ static const u16 wm8728_reg_defaults[] = {
 	0x100,
 };
 
-static inline unsigned int wm8728_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
-	return cache[reg];
-}
-
-static inline void wm8728_write_reg_cache(struct snd_soc_codec *codec,
-	u16 reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
-	cache[reg] = value;
-}
-
-/*
- * write to the WM8728 register space
- */
-static int wm8728_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D9 WM8728 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8728_write_reg_cache(codec, reg, value);
-
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
 static const DECLARE_TLV_DB_SCALE(wm8728_tlv, -12750, 50, 1);
 
 static const struct snd_kcontrol_new wm8728_snd_controls[] = {
@@ -121,12 +82,12 @@ static int wm8728_add_widgets(struct snd_soc_codec *codec)
 static int wm8728_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = wm8728_read_reg_cache(codec, WM8728_DACCTL);
+	u16 mute_reg = snd_soc_read(codec, WM8728_DACCTL);
 
 	if (mute)
-		wm8728_write(codec, WM8728_DACCTL, mute_reg | 1);
+		snd_soc_write(codec, WM8728_DACCTL, mute_reg | 1);
 	else
-		wm8728_write(codec, WM8728_DACCTL, mute_reg & ~1);
+		snd_soc_write(codec, WM8728_DACCTL, mute_reg & ~1);
 
 	return 0;
 }
@@ -138,7 +99,7 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	u16 dac = wm8728_read_reg_cache(codec, WM8728_DACCTL);
+	u16 dac = snd_soc_read(codec, WM8728_DACCTL);
 
 	dac &= ~0x18;
 
@@ -155,7 +116,7 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	wm8728_write(codec, WM8728_DACCTL, dac);
+	snd_soc_write(codec, WM8728_DACCTL, dac);
 
 	return 0;
 }
@@ -164,7 +125,7 @@ static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 iface = wm8728_read_reg_cache(codec, WM8728_IFCTL);
+	u16 iface = snd_soc_read(codec, WM8728_IFCTL);
 
 	/* Currently only I2S is supported by the driver, though the
 	 * hardware is more flexible.
@@ -204,7 +165,7 @@ static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	wm8728_write(codec, WM8728_IFCTL, iface);
+	snd_soc_write(codec, WM8728_IFCTL, iface);
 	return 0;
 }
 
@@ -220,19 +181,19 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Power everything up... */
-			reg = wm8728_read_reg_cache(codec, WM8728_DACCTL);
-			wm8728_write(codec, WM8728_DACCTL, reg & ~0x4);
+			reg = snd_soc_read(codec, WM8728_DACCTL);
+			snd_soc_write(codec, WM8728_DACCTL, reg & ~0x4);
 
 			/* ..then sync in the register cache. */
 			for (i = 0; i < ARRAY_SIZE(wm8728_reg_defaults); i++)
-				wm8728_write(codec, i,
-					     wm8728_read_reg_cache(codec, i));
+				snd_soc_write(codec, i,
+					     snd_soc_read(codec, i));
 		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		reg = wm8728_read_reg_cache(codec, WM8728_DACCTL);
-		wm8728_write(codec, WM8728_DACCTL, reg | 0x4);
+		reg = snd_soc_read(codec, WM8728_DACCTL);
+		snd_soc_write(codec, WM8728_DACCTL, reg | 0x4);
 		break;
 	}
 	codec->bias_level = level;
@@ -287,15 +248,14 @@ static int wm8728_resume(struct platform_device *pdev)
  * initialise the WM8728 driver
  * register the mixer and dsp interfaces with the kernel
  */
-static int wm8728_init(struct snd_soc_device *socdev)
+static int wm8728_init(struct snd_soc_device *socdev,
+		       enum snd_soc_control_type control)
 {
 	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	codec->name = "WM8728";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8728_read_reg_cache;
-	codec->write = wm8728_write;
 	codec->set_bias_level = wm8728_set_bias_level;
 	codec->dai = &wm8728_dai;
 	codec->num_dai = 1;
@@ -307,11 +267,18 @@ static int wm8728_init(struct snd_soc_device *socdev)
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
 
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
+	if (ret < 0) {
+		printk(KERN_ERR "wm8728: failed to configure cache I/O: %d\n",
+		       ret);
+		goto err;
+	}
+
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8728: failed to create pcms\n");
-		goto pcm_err;
+		goto err;
 	}
 
 	/* power on device */
@@ -331,7 +298,7 @@ static int wm8728_init(struct snd_soc_device *socdev)
 card_err:
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-pcm_err:
+err:
 	kfree(codec->reg_cache);
 	return ret;
 }
@@ -357,7 +324,7 @@ static int wm8728_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
-	ret = wm8728_init(socdev);
+	ret = wm8728_init(socdev, SND_SOC_I2C);
 	if (ret < 0)
 		pr_err("failed to initialise WM8728\n");
 
@@ -437,7 +404,7 @@ static int __devinit wm8728_spi_probe(struct spi_device *spi)
 
 	codec->control_data = spi;
 
-	ret = wm8728_init(socdev);
+	ret = wm8728_init(socdev, SND_SOC_SPI);
 	if (ret < 0)
 		dev_err(&spi->dev, "failed to initialise WM8728\n");
 
@@ -458,30 +425,6 @@ static struct spi_driver wm8728_spi_driver = {
 	.probe		= wm8728_spi_probe,
 	.remove		= __devexit_p(wm8728_spi_remove),
 };
-
-static int wm8728_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
 #endif /* CONFIG_SPI_MASTER */
 
 static int wm8728_probe(struct platform_device *pdev)
@@ -506,13 +449,11 @@ static int wm8728_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8728_add_i2c_device(pdev, setup);
 	}
 #endif
 #if defined(CONFIG_SPI_MASTER)
 	if (setup->spi) {
-		codec->hw_write = (hw_write_t)wm8728_spi_write;
 		ret = spi_register_driver(&wm8728_spi_driver);
 		if (ret != 0)
 			printk(KERN_ERR "can't add spi driver");

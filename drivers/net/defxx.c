@@ -300,7 +300,8 @@ static int		dfx_rcv_init(DFX_board_t *bp, int get_buffers);
 static void		dfx_rcv_queue_process(DFX_board_t *bp);
 static void		dfx_rcv_flush(DFX_board_t *bp);
 
-static int		dfx_xmt_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
+				     struct net_device *dev);
 static int		dfx_xmt_done(DFX_board_t *bp);
 static void		dfx_xmt_flush(DFX_board_t *bp);
 
@@ -3188,11 +3189,8 @@ static void dfx_rcv_queue_process(
  *   None
  */
 
-static int dfx_xmt_queue_pkt(
-	struct sk_buff	*skb,
-	struct net_device	*dev
-	)
-
+static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
+				     struct net_device *dev)
 	{
 	DFX_board_t		*bp = netdev_priv(dev);
 	u8			prod;				/* local transmit producer index */
@@ -3218,7 +3216,7 @@ static int dfx_xmt_queue_pkt(
 		bp->xmt_length_errors++;		/* bump error counter */
 		netif_wake_queue(dev);
 		dev_kfree_skb(skb);
-		return(0);				/* return "success" */
+		return NETDEV_TX_OK;			/* return "success" */
 	}
 	/*
 	 * See if adapter link is available, if not, free buffer
@@ -3241,7 +3239,7 @@ static int dfx_xmt_queue_pkt(
 			bp->xmt_discards++;					/* bump error counter */
 			dev_kfree_skb(skb);		/* free sk_buff now */
 			netif_wake_queue(dev);
-			return(0);							/* return "success" */
+			return NETDEV_TX_OK;		/* return "success" */
 			}
 		}
 
@@ -3345,7 +3343,7 @@ static int dfx_xmt_queue_pkt(
 	dfx_port_write_long(bp, PI_PDQ_K_REG_TYPE_2_PROD, bp->rcv_xmt_reg.lword);
 	spin_unlock_irqrestore(&bp->lock, flags);
 	netif_wake_queue(dev);
-	return(0);							/* packet queued to adapter */
+	return NETDEV_TX_OK;	/* packet queued to adapter */
 	}
 
 

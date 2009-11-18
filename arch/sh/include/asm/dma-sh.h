@@ -16,6 +16,7 @@
 
 /* DMAOR contorl: The DMAOR access size is different by CPU.*/
 #if defined(CONFIG_CPU_SUBTYPE_SH7723)	|| \
+    defined(CONFIG_CPU_SUBTYPE_SH7724)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define dmaor_read_reg(n) \
@@ -114,5 +115,18 @@ static u32 dma_base_addr[] __maybe_unused = {
 #define TCR     0x08
 #define CHCR    0x0C
 #define DMAOR	0x40
+
+/*
+ * for dma engine
+ *
+ * SuperH DMA mode
+ */
+#define SHDMA_MIX_IRQ	(1 << 1)
+#define SHDMA_DMAOR1	(1 << 2)
+#define SHDMA_DMAE1		(1 << 3)
+
+struct sh_dmae_pdata {
+	unsigned int mode;
+};
 
 #endif /* __DMA_SH_H */

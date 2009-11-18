@@ -671,14 +671,6 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	lp->link_up = 0;
 	lp->tt = fnic_transport_template;
 
-	lp->emp = fc_exch_mgr_alloc(lp, FC_CLASS_3,
-				    FCPIO_HOST_EXCH_RANGE_START,
-				    FCPIO_HOST_EXCH_RANGE_END);
-	if (!lp->emp) {
-		err = -ENOMEM;
-		goto err_out_remove_scsi_host;
-	}
-
 	lp->max_retry_count = fnic->config.flogi_retries;
 	lp->max_rport_retry_count = fnic->config.plogi_retries;
 	lp->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |
@@ -693,11 +685,17 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fc_set_wwnn(lp, fnic->config.node_wwn);
 	fc_set_wwpn(lp, fnic->config.port_wwn);
 
-	fc_exch_init(lp);
 	fc_lport_init(lp);
+	fc_exch_init(lp);
 	fc_elsct_init(lp);
 	fc_rport_init(lp);
 	fc_disc_init(lp);
+
+	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCPIO_HOST_EXCH_RANGE_START,
+			       FCPIO_HOST_EXCH_RANGE_END, NULL)) {
+		err = -ENOMEM;
+		goto err_out_remove_scsi_host;
+	}
 
 	fc_lport_config(lp);
 
@@ -738,7 +736,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	return 0;
 
 err_out_free_exch_mgr:
-	fc_exch_mgr_free(lp->emp);
+	fc_exch_mgr_free(lp);
 err_out_remove_scsi_host:
 	fc_remove_host(fnic->lport->host);
 	scsi_remove_host(fnic->lport->host);
@@ -827,7 +825,7 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 
 	fc_remove_host(fnic->lport->host);
 	scsi_remove_host(fnic->lport->host);
-	fc_exch_mgr_free(fnic->lport->emp);
+	fc_exch_mgr_free(fnic->lport);
 	vnic_dev_notify_unset(fnic->vdev);
 	fnic_free_vnic_resources(fnic);
 	fnic_free_intr(fnic);

@@ -212,10 +212,6 @@ static struct omap_lcd_config palmte_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_uart_config palmte_uart_config __initdata = {
-	.enabled_uarts = (1 << 0) | (1 << 1) | (0 << 2),
-};
-
 #ifdef CONFIG_APM
 /*
  * Values measured in 10 minute intervals averaged over 10 samples.
@@ -302,7 +298,6 @@ static void palmte_get_power_status(struct apm_power_info *info, int *battery)
 
 static struct omap_board_config_kernel palmte_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&palmte_lcd_config },
-	{ OMAP_TAG_UART,	&palmte_uart_config },
 };
 
 static struct spi_board_info palmte_spi_info[] __initdata = {
@@ -347,6 +342,14 @@ static void __init palmte_misc_gpio_setup(void)
 
 static void __init omap_palmte_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	omap_board_config = palmte_config;
 	omap_board_config_size = ARRAY_SIZE(palmte_config);
 

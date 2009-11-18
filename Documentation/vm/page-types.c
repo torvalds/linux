@@ -2,9 +2,13 @@
  * page-types: Tool for querying page flags
  *
  * Copyright (C) 2009 Intel corporation
- * Copyright (C) 2009 Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Authors: Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Released under the General Public License (GPL).
  */
 
+#define _LARGEFILE64_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,9 +17,30 @@
 #include <string.h>
 #include <getopt.h>
 #include <limits.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
+
+
+/*
+ * pagemap kernel ABI bits
+ */
+
+#define PM_ENTRY_BYTES      sizeof(uint64_t)
+#define PM_STATUS_BITS      3
+#define PM_STATUS_OFFSET    (64 - PM_STATUS_BITS)
+#define PM_STATUS_MASK      (((1LL << PM_STATUS_BITS) - 1) << PM_STATUS_OFFSET)
+#define PM_STATUS(nr)       (((nr) << PM_STATUS_OFFSET) & PM_STATUS_MASK)
+#define PM_PSHIFT_BITS      6
+#define PM_PSHIFT_OFFSET    (PM_STATUS_OFFSET - PM_PSHIFT_BITS)
+#define PM_PSHIFT_MASK      (((1LL << PM_PSHIFT_BITS) - 1) << PM_PSHIFT_OFFSET)
+#define PM_PSHIFT(x)        (((u64) (x) << PM_PSHIFT_OFFSET) & PM_PSHIFT_MASK)
+#define PM_PFRAME_MASK      ((1LL << PM_PSHIFT_OFFSET) - 1)
+#define PM_PFRAME(x)        ((x) & PM_PFRAME_MASK)
+
+#define PM_PRESENT          PM_STATUS(4LL)
+#define PM_SWAP             PM_STATUS(2LL)
 
 
 /*
@@ -47,7 +72,9 @@
 #define KPF_COMPOUND_TAIL	16
 #define KPF_HUGE		17
 #define KPF_UNEVICTABLE		18
+#define KPF_HWPOISON		19
 #define KPF_NOPAGE		20
+#define KPF_KSM			21
 
 /* [32-] kernel hacking assistances */
 #define KPF_RESERVED		32
@@ -94,7 +121,9 @@ static char *page_flag_names[] = {
 	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
 	[KPF_HUGE]		= "G:huge",
 	[KPF_UNEVICTABLE]	= "u:unevictable",
+	[KPF_HWPOISON]		= "X:hwpoison",
 	[KPF_NOPAGE]		= "n:nopage",
+	[KPF_KSM]		= "x:ksm",
 
 	[KPF_RESERVED]		= "r:reserved",
 	[KPF_MLOCKED]		= "m:mlocked",
@@ -126,6 +155,11 @@ static int		nr_addr_ranges;
 static unsigned long	opt_offset[MAX_ADDR_RANGES];
 static unsigned long	opt_size[MAX_ADDR_RANGES];
 
+#define MAX_VMAS	10240
+static int		nr_vmas;
+static unsigned long	pg_start[MAX_VMAS];
+static unsigned long	pg_end[MAX_VMAS];
+
 #define MAX_BIT_FILTERS	64
 static int		nr_bit_filters;
 static uint64_t		opt_mask[MAX_BIT_FILTERS];
@@ -133,9 +167,15 @@ static uint64_t		opt_bits[MAX_BIT_FILTERS];
 
 static int		page_size;
 
-#define PAGES_BATCH	(64 << 10)	/* 64k pages */
+static int		pagemap_fd;
 static int		kpageflags_fd;
-static uint64_t		kpageflags_buf[KPF_BYTES * PAGES_BATCH];
+
+static int		opt_hwpoison;
+static int		opt_unpoison;
+
+static char		*hwpoison_debug_fs = "/debug/hwpoison";
+static int		hwpoison_inject_fd;
+static int		hwpoison_forget_fd;
 
 #define HASH_SHIFT	13
 #define HASH_SIZE	(1 << HASH_SHIFT)
@@ -158,12 +198,17 @@ static uint64_t 	page_flags[HASH_SIZE];
 	type __min2 = (y);			\
 	__min1 < __min2 ? __min1 : __min2; })
 
-unsigned long pages2mb(unsigned long pages)
+#define max_t(type, x, y) ({			\
+	type __max1 = (x);			\
+	type __max2 = (y);			\
+	__max1 > __max2 ? __max1 : __max2; })
+
+static unsigned long pages2mb(unsigned long pages)
 {
 	return (pages * page_size) >> 20;
 }
 
-void fatal(const char *x, ...)
+static void fatal(const char *x, ...)
 {
 	va_list ap;
 
@@ -173,12 +218,80 @@ void fatal(const char *x, ...)
 	exit(EXIT_FAILURE);
 }
 
+int checked_open(const char *pathname, int flags)
+{
+	int fd = open(pathname, flags);
+
+	if (fd < 0) {
+		perror(pathname);
+		exit(EXIT_FAILURE);
+	}
+
+	return fd;
+}
+
+/*
+ * pagemap/kpageflags routines
+ */
+
+static unsigned long do_u64_read(int fd, char *name,
+				 uint64_t *buf,
+				 unsigned long index,
+				 unsigned long count)
+{
+	long bytes;
+
+	if (index > ULONG_MAX / 8)
+		fatal("index overflow: %lu\n", index);
+
+	if (lseek(fd, index * 8, SEEK_SET) < 0) {
+		perror(name);
+		exit(EXIT_FAILURE);
+	}
+
+	bytes = read(fd, buf, count * 8);
+	if (bytes < 0) {
+		perror(name);
+		exit(EXIT_FAILURE);
+	}
+	if (bytes % 8)
+		fatal("partial read: %lu bytes\n", bytes);
+
+	return bytes / 8;
+}
+
+static unsigned long kpageflags_read(uint64_t *buf,
+				     unsigned long index,
+				     unsigned long pages)
+{
+	return do_u64_read(kpageflags_fd, PROC_KPAGEFLAGS, buf, index, pages);
+}
+
+static unsigned long pagemap_read(uint64_t *buf,
+				  unsigned long index,
+				  unsigned long pages)
+{
+	return do_u64_read(pagemap_fd, "/proc/pid/pagemap", buf, index, pages);
+}
+
+static unsigned long pagemap_pfn(uint64_t val)
+{
+	unsigned long pfn;
+
+	if (val & PM_PRESENT)
+		pfn = PM_PFRAME(val);
+	else
+		pfn = 0;
+
+	return pfn;
+}
+
 
 /*
  * page flag names
  */
 
-char *page_flag_name(uint64_t flags)
+static char *page_flag_name(uint64_t flags)
 {
 	static char buf[65];
 	int present;
@@ -197,7 +310,7 @@ char *page_flag_name(uint64_t flags)
 	return buf;
 }
 
-char *page_flag_longname(uint64_t flags)
+static char *page_flag_longname(uint64_t flags)
 {
 	static char buf[1024];
 	int i, n;
@@ -221,32 +334,42 @@ char *page_flag_longname(uint64_t flags)
  * page list and summary
  */
 
-void show_page_range(unsigned long offset, uint64_t flags)
+static void show_page_range(unsigned long voffset,
+			    unsigned long offset, uint64_t flags)
 {
 	static uint64_t      flags0;
+	static unsigned long voff;
 	static unsigned long index;
 	static unsigned long count;
 
-	if (flags == flags0 && offset == index + count) {
+	if (flags == flags0 && offset == index + count &&
+	    (!opt_pid || voffset == voff + count)) {
 		count++;
 		return;
 	}
 
-	if (count)
-		printf("%lu\t%lu\t%s\n",
+	if (count) {
+		if (opt_pid)
+			printf("%lx\t", voff);
+		printf("%lx\t%lx\t%s\n",
 				index, count, page_flag_name(flags0));
+	}
 
 	flags0 = flags;
 	index  = offset;
+	voff   = voffset;
 	count  = 1;
 }
 
-void show_page(unsigned long offset, uint64_t flags)
+static void show_page(unsigned long voffset,
+		      unsigned long offset, uint64_t flags)
 {
-	printf("%lu\t%s\n", offset, page_flag_name(flags));
+	if (opt_pid)
+		printf("%lx\t", voffset);
+	printf("%lx\t%s\n", offset, page_flag_name(flags));
 }
 
-void show_summary(void)
+static void show_summary(void)
 {
 	int i;
 
@@ -272,7 +395,7 @@ void show_summary(void)
  * page flag filters
  */
 
-int bit_mask_ok(uint64_t flags)
+static int bit_mask_ok(uint64_t flags)
 {
 	int i;
 
@@ -289,7 +412,7 @@ int bit_mask_ok(uint64_t flags)
 	return 1;
 }
 
-uint64_t expand_overloaded_flags(uint64_t flags)
+static uint64_t expand_overloaded_flags(uint64_t flags)
 {
 	/* SLOB/SLUB overload several page flags */
 	if (flags & BIT(SLAB)) {
@@ -308,7 +431,7 @@ uint64_t expand_overloaded_flags(uint64_t flags)
 	return flags;
 }
 
-uint64_t well_known_flags(uint64_t flags)
+static uint64_t well_known_flags(uint64_t flags)
 {
 	/* hide flags intended only for kernel hacker */
 	flags &= ~KPF_HACKERS_BITS;
@@ -320,12 +443,68 @@ uint64_t well_known_flags(uint64_t flags)
 	return flags;
 }
 
+static uint64_t kpageflags_flags(uint64_t flags)
+{
+	flags = expand_overloaded_flags(flags);
+
+	if (!opt_raw)
+		flags = well_known_flags(flags);
+
+	return flags;
+}
+
+/*
+ * page actions
+ */
+
+static void prepare_hwpoison_fd(void)
+{
+	char buf[100];
+
+	if (opt_hwpoison && !hwpoison_inject_fd) {
+		sprintf(buf, "%s/corrupt-pfn", hwpoison_debug_fs);
+		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
+	}
+
+	if (opt_unpoison && !hwpoison_forget_fd) {
+		sprintf(buf, "%s/renew-pfn", hwpoison_debug_fs);
+		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
+	}
+}
+
+static int hwpoison_page(unsigned long offset)
+{
+	char buf[100];
+	int len;
+
+	len = sprintf(buf, "0x%lx\n", offset);
+	len = write(hwpoison_inject_fd, buf, len);
+	if (len < 0) {
+		perror("hwpoison inject");
+		return len;
+	}
+	return 0;
+}
+
+static int unpoison_page(unsigned long offset)
+{
+	char buf[100];
+	int len;
+
+	len = sprintf(buf, "0x%lx\n", offset);
+	len = write(hwpoison_forget_fd, buf, len);
+	if (len < 0) {
+		perror("hwpoison forget");
+		return len;
+	}
+	return 0;
+}
 
 /*
  * page frame walker
  */
 
-int hash_slot(uint64_t flags)
+static int hash_slot(uint64_t flags)
 {
 	int k = HASH_KEY(flags);
 	int i;
@@ -352,73 +531,124 @@ int hash_slot(uint64_t flags)
 	exit(EXIT_FAILURE);
 }
 
-void add_page(unsigned long offset, uint64_t flags)
+static void add_page(unsigned long voffset,
+		     unsigned long offset, uint64_t flags)
 {
-	flags = expand_overloaded_flags(flags);
-
-	if (!opt_raw)
-		flags = well_known_flags(flags);
+	flags = kpageflags_flags(flags);
 
 	if (!bit_mask_ok(flags))
 		return;
 
+	if (opt_hwpoison)
+		hwpoison_page(offset);
+	if (opt_unpoison)
+		unpoison_page(offset);
+
 	if (opt_list == 1)
-		show_page_range(offset, flags);
+		show_page_range(voffset, offset, flags);
 	else if (opt_list == 2)
-		show_page(offset, flags);
+		show_page(voffset, offset, flags);
 
 	nr_pages[hash_slot(flags)]++;
 	total_pages++;
 }
 
-void walk_pfn(unsigned long index, unsigned long count)
+#define KPAGEFLAGS_BATCH	(64 << 10)	/* 64k pages */
+static void walk_pfn(unsigned long voffset,
+		     unsigned long index,
+		     unsigned long count)
 {
+	uint64_t buf[KPAGEFLAGS_BATCH];
 	unsigned long batch;
-	unsigned long n;
+	unsigned long pages;
 	unsigned long i;
 
-	if (index > ULONG_MAX / KPF_BYTES)
-		fatal("index overflow: %lu\n", index);
-
-	lseek(kpageflags_fd, index * KPF_BYTES, SEEK_SET);
-
 	while (count) {
-		batch = min_t(unsigned long, count, PAGES_BATCH);
-		n = read(kpageflags_fd, kpageflags_buf, batch * KPF_BYTES);
-		if (n == 0)
+		batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
+		pages = kpageflags_read(buf, index, batch);
+		if (pages == 0)
 			break;
-		if (n < 0) {
-			perror(PROC_KPAGEFLAGS);
-			exit(EXIT_FAILURE);
-		}
 
-		if (n % KPF_BYTES != 0)
-			fatal("partial read: %lu bytes\n", n);
-		n = n / KPF_BYTES;
+		for (i = 0; i < pages; i++)
+			add_page(voffset + i, index + i, buf[i]);
 
-		for (i = 0; i < n; i++)
-			add_page(index + i, kpageflags_buf[i]);
-
-		index += batch;
-		count -= batch;
+		index += pages;
+		count -= pages;
 	}
 }
 
-void walk_addr_ranges(void)
+#define PAGEMAP_BATCH	(64 << 10)
+static void walk_vma(unsigned long index, unsigned long count)
+{
+	uint64_t buf[PAGEMAP_BATCH];
+	unsigned long batch;
+	unsigned long pages;
+	unsigned long pfn;
+	unsigned long i;
+
+	while (count) {
+		batch = min_t(unsigned long, count, PAGEMAP_BATCH);
+		pages = pagemap_read(buf, index, batch);
+		if (pages == 0)
+			break;
+
+		for (i = 0; i < pages; i++) {
+			pfn = pagemap_pfn(buf[i]);
+			if (pfn)
+				walk_pfn(index + i, pfn, 1);
+		}
+
+		index += pages;
+		count -= pages;
+	}
+}
+
+static void walk_task(unsigned long index, unsigned long count)
+{
+	const unsigned long end = index + count;
+	unsigned long start;
+	int i = 0;
+
+	while (index < end) {
+
+		while (pg_end[i] <= index)
+			if (++i >= nr_vmas)
+				return;
+		if (pg_start[i] >= end)
+			return;
+
+		start = max_t(unsigned long, pg_start[i], index);
+		index = min_t(unsigned long, pg_end[i], end);
+
+		assert(start < index);
+		walk_vma(start, index - start);
+	}
+}
+
+static void add_addr_range(unsigned long offset, unsigned long size)
+{
+	if (nr_addr_ranges >= MAX_ADDR_RANGES)
+		fatal("too many addr ranges\n");
+
+	opt_offset[nr_addr_ranges] = offset;
+	opt_size[nr_addr_ranges] = min_t(unsigned long, size, ULONG_MAX-offset);
+	nr_addr_ranges++;
+}
+
+static void walk_addr_ranges(void)
 {
 	int i;
 
-	kpageflags_fd = open(PROC_KPAGEFLAGS, O_RDONLY);
-	if (kpageflags_fd < 0) {
-		perror(PROC_KPAGEFLAGS);
-		exit(EXIT_FAILURE);
-	}
+	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
 
 	if (!nr_addr_ranges)
-		walk_pfn(0, ULONG_MAX);
+		add_addr_range(0, ULONG_MAX);
 
 	for (i = 0; i < nr_addr_ranges; i++)
-		walk_pfn(opt_offset[i], opt_size[i]);
+		if (!opt_pid)
+			walk_pfn(0, opt_offset[i], opt_size[i]);
+		else
+			walk_task(opt_offset[i], opt_size[i]);
 
 	close(kpageflags_fd);
 }
@@ -428,7 +658,7 @@ void walk_addr_ranges(void)
  * user interface
  */
 
-const char *page_flag_type(uint64_t flag)
+static const char *page_flag_type(uint64_t flag)
 {
 	if (flag & KPF_HACKERS_BITS)
 		return "(r)";
@@ -437,7 +667,7 @@ const char *page_flag_type(uint64_t flag)
 	return "   ";
 }
 
-void usage(void)
+static void usage(void)
 {
 	int i, j;
 
@@ -446,20 +676,22 @@ void usage(void)
 "            -r|--raw                  Raw mode, for kernel developers\n"
 "            -a|--addr    addr-spec    Walk a range of pages\n"
 "            -b|--bits    bits-spec    Walk pages with specified bits\n"
-#if 0 /* planned features */
 "            -p|--pid     pid          Walk process address space\n"
+#if 0 /* planned features */
 "            -f|--file    filename     Walk file address space\n"
 #endif
 "            -l|--list                 Show page details in ranges\n"
 "            -L|--list-each            Show page details one by one\n"
 "            -N|--no-summary           Don't show summay info\n"
+"            -X|--hwpoison             hwpoison pages\n"
+"            -x|--unpoison             unpoison pages\n"
 "            -h|--help                 Show this usage message\n"
 "addr-spec:\n"
 "            N                         one page at offset N (unit: pages)\n"
 "            N+M                       pages range from N to N+M-1\n"
 "            N,M                       pages range from N to M-1\n"
 "            N,                        pages range from N to end\n"
-"            ,M                        pages range from 0 to M\n"
+"            ,M                        pages range from 0 to M-1\n"
 "bits-spec:\n"
 "            bit1,bit2                 (flags & (bit1|bit2)) != 0\n"
 "            bit1,bit2=bit1            (flags & (bit1|bit2)) == bit1\n"
@@ -482,7 +714,7 @@ void usage(void)
 		"(r) raw mode bits  (o) overloaded bits\n");
 }
 
-unsigned long long parse_number(const char *str)
+static unsigned long long parse_number(const char *str)
 {
 	unsigned long long n;
 
@@ -494,26 +726,58 @@ unsigned long long parse_number(const char *str)
 	return n;
 }
 
-void parse_pid(const char *str)
+static void parse_pid(const char *str)
 {
+	FILE *file;
+	char buf[5000];
+
 	opt_pid = parse_number(str);
+
+	sprintf(buf, "/proc/%d/pagemap", opt_pid);
+	pagemap_fd = checked_open(buf, O_RDONLY);
+
+	sprintf(buf, "/proc/%d/maps", opt_pid);
+	file = fopen(buf, "r");
+	if (!file) {
+		perror(buf);
+		exit(EXIT_FAILURE);
+	}
+
+	while (fgets(buf, sizeof(buf), file) != NULL) {
+		unsigned long vm_start;
+		unsigned long vm_end;
+		unsigned long long pgoff;
+		int major, minor;
+		char r, w, x, s;
+		unsigned long ino;
+		int n;
+
+		n = sscanf(buf, "%lx-%lx %c%c%c%c %llx %x:%x %lu",
+			   &vm_start,
+			   &vm_end,
+			   &r, &w, &x, &s,
+			   &pgoff,
+			   &major, &minor,
+			   &ino);
+		if (n < 10) {
+			fprintf(stderr, "unexpected line: %s\n", buf);
+			continue;
+		}
+		pg_start[nr_vmas] = vm_start / page_size;
+		pg_end[nr_vmas] = vm_end / page_size;
+		if (++nr_vmas >= MAX_VMAS) {
+			fprintf(stderr, "too many VMAs\n");
+			break;
+		}
+	}
+	fclose(file);
 }
 
-void parse_file(const char *name)
+static void parse_file(const char *name)
 {
 }
 
-void add_addr_range(unsigned long offset, unsigned long size)
-{
-	if (nr_addr_ranges >= MAX_ADDR_RANGES)
-		fatal("too much addr ranges\n");
-
-	opt_offset[nr_addr_ranges] = offset;
-	opt_size[nr_addr_ranges] = size;
-	nr_addr_ranges++;
-}
-
-void parse_addr_range(const char *optarg)
+static void parse_addr_range(const char *optarg)
 {
 	unsigned long offset;
 	unsigned long size;
@@ -547,7 +811,7 @@ void parse_addr_range(const char *optarg)
 	add_addr_range(offset, size);
 }
 
-void add_bits_filter(uint64_t mask, uint64_t bits)
+static void add_bits_filter(uint64_t mask, uint64_t bits)
 {
 	if (nr_bit_filters >= MAX_BIT_FILTERS)
 		fatal("too much bit filters\n");
@@ -557,7 +821,7 @@ void add_bits_filter(uint64_t mask, uint64_t bits)
 	nr_bit_filters++;
 }
 
-uint64_t parse_flag_name(const char *str, int len)
+static uint64_t parse_flag_name(const char *str, int len)
 {
 	int i;
 
@@ -577,7 +841,7 @@ uint64_t parse_flag_name(const char *str, int len)
 	return parse_number(str);
 }
 
-uint64_t parse_flag_names(const char *str, int all)
+static uint64_t parse_flag_names(const char *str, int all)
 {
 	const char *p    = str;
 	uint64_t   flags = 0;
@@ -596,7 +860,7 @@ uint64_t parse_flag_names(const char *str, int all)
 	return flags;
 }
 
-void parse_bits_mask(const char *optarg)
+static void parse_bits_mask(const char *optarg)
 {
 	uint64_t mask;
 	uint64_t bits;
@@ -621,7 +885,7 @@ void parse_bits_mask(const char *optarg)
 }
 
 
-struct option opts[] = {
+static struct option opts[] = {
 	{ "raw"       , 0, NULL, 'r' },
 	{ "pid"       , 1, NULL, 'p' },
 	{ "file"      , 1, NULL, 'f' },
@@ -630,6 +894,8 @@ struct option opts[] = {
 	{ "list"      , 0, NULL, 'l' },
 	{ "list-each" , 0, NULL, 'L' },
 	{ "no-summary", 0, NULL, 'N' },
+	{ "hwpoison"  , 0, NULL, 'X' },
+	{ "unpoison"  , 0, NULL, 'x' },
 	{ "help"      , 0, NULL, 'h' },
 	{ NULL        , 0, NULL, 0 }
 };
@@ -641,7 +907,7 @@ int main(int argc, char *argv[])
 	page_size = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"rp:f:a:b:lLNh", opts, NULL)) != -1) {
+				"rp:f:a:b:lLNXxh", opts, NULL)) != -1) {
 		switch (c) {
 		case 'r':
 			opt_raw = 1;
@@ -667,6 +933,14 @@ int main(int argc, char *argv[])
 		case 'N':
 			opt_no_summary = 1;
 			break;
+		case 'X':
+			opt_hwpoison = 1;
+			prepare_hwpoison_fd();
+			break;
+		case 'x':
+			opt_unpoison = 1;
+			prepare_hwpoison_fd();
+			break;
 		case 'h':
 			usage();
 			exit(0);
@@ -676,15 +950,17 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (opt_list && opt_pid)
+		printf("voffset\t");
 	if (opt_list == 1)
-		printf("offset\tcount\tflags\n");
+		printf("offset\tlen\tflags\n");
 	if (opt_list == 2)
 		printf("offset\tflags\n");
 
 	walk_addr_ranges();
 
 	if (opt_list == 1)
-		show_page_range(0, 0);  /* drain the buffer */
+		show_page_range(0, 0, 0);  /* drain the buffer */
 
 	if (opt_no_summary)
 		return 0;

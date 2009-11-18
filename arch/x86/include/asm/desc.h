@@ -288,12 +288,25 @@ static inline void load_LDT(mm_context_t *pc)
 
 static inline unsigned long get_desc_base(const struct desc_struct *desc)
 {
-	return desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24);
+	return (unsigned)(desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24));
+}
+
+static inline void set_desc_base(struct desc_struct *desc, unsigned long base)
+{
+	desc->base0 = base & 0xffff;
+	desc->base1 = (base >> 16) & 0xff;
+	desc->base2 = (base >> 24) & 0xff;
 }
 
 static inline unsigned long get_desc_limit(const struct desc_struct *desc)
 {
 	return desc->limit0 | (desc->limit << 16);
+}
+
+static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
+{
+	desc->limit0 = limit & 0xffff;
+	desc->limit = (limit >> 16) & 0xf;
 }
 
 static inline void _set_gate(int gate, unsigned type, void *addr,

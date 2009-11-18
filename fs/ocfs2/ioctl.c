@@ -21,6 +21,7 @@
 #include "ocfs2_fs.h"
 #include "ioctl.h"
 #include "resize.h"
+#include "refcounttree.h"
 
 #include <linux/ext2_fs.h>
 
@@ -115,6 +116,9 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int status;
 	struct ocfs2_space_resv sr;
 	struct ocfs2_new_group_input input;
+	struct reflink_arguments args;
+	const char *old_path, *new_path;
+	bool preserve;
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
@@ -160,6 +164,15 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		return ocfs2_group_add(inode, &input);
+	case OCFS2_IOC_REFLINK:
+		if (copy_from_user(&args, (struct reflink_arguments *)arg,
+				   sizeof(args)))
+			return -EFAULT;
+		old_path = (const char *)(unsigned long)args.old_path;
+		new_path = (const char *)(unsigned long)args.new_path;
+		preserve = (args.preserve != 0);
+
+		return ocfs2_reflink_ioctl(inode, old_path, new_path, preserve);
 	default:
 		return -ENOTTY;
 	}
@@ -182,6 +195,7 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_GROUP_EXTEND:
 	case OCFS2_IOC_GROUP_ADD:
 	case OCFS2_IOC_GROUP_ADD64:
+	case OCFS2_IOC_REFLINK:
 		break;
 	default:
 		return -ENOIOCTLCMD;

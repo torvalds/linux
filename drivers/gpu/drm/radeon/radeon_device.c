@@ -29,6 +29,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
+#include <linux/vgaarb.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -481,6 +482,18 @@ void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
+/* if we get transitioned to only one device, tak VGA back */
+static unsigned int radeon_vga_set_decode(void *cookie, bool state)
+{
+	struct radeon_device *rdev = cookie;
+	radeon_vga_set_state(rdev, state);
+	if (state)
+		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
+		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	else
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
+
 void radeon_agp_disable(struct radeon_device *rdev)
 {
 	rdev->flags &= ~RADEON_IS_AGP;
@@ -573,9 +586,15 @@ int radeon_device_init(struct radeon_device *rdev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)rdev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)rdev->rmmio_size);
 
+	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	/* this will fail for cards that aren't VGA class devices, just
+	 * ignore it */
+	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
+
 	r = radeon_init(rdev);
 	if (r)
 		return r;
+
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
@@ -600,8 +619,8 @@ void radeon_device_fini(struct radeon_device *rdev)
 {
 	DRM_INFO("radeon: finishing device.\n");
 	rdev->shutdown = true;
-	/* Order matter so becarefull if you rearrange anythings */
 	radeon_fini(rdev);
+	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
 }

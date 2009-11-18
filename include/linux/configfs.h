@@ -27,8 +27,8 @@
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please read Documentation/filesystems/configfs.txt before using the
- * configfs interface, ESPECIALLY the parts about reference counts and
+ * Please read Documentation/filesystems/configfs/configfs.txt before using
+ * the configfs interface, ESPECIALLY the parts about reference counts and
  * item destructors.
  */
 

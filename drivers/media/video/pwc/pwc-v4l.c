@@ -1033,7 +1033,7 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			if (std->index != 0)
 				return -EINVAL;
 			std->id = V4L2_STD_UNKNOWN;
-			strncpy(std->name, "webcam", sizeof(std->name));
+			strlcpy(std->name, "webcam", sizeof(std->name));
 			return 0;
 		}
 

@@ -104,6 +104,7 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 int attempt_back_merge(struct request_queue *q, struct request *rq);
 int attempt_front_merge(struct request_queue *q, struct request *rq);
 void blk_recalc_rq_segments(struct request *rq);
+void blk_rq_set_mixed_merge(struct request *rq);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 

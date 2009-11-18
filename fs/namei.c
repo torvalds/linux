@@ -169,6 +169,36 @@ void putname(const char *name)
 EXPORT_SYMBOL(putname);
 #endif
 
+/*
+ * This does basic POSIX ACL permission checking
+ */
+static int acl_permission_check(struct inode *inode, int mask,
+		int (*check_acl)(struct inode *inode, int mask))
+{
+	umode_t			mode = inode->i_mode;
+
+	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
+
+	if (current_fsuid() == inode->i_uid)
+		mode >>= 6;
+	else {
+		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
+			int error = check_acl(inode, mask);
+			if (error != -EAGAIN)
+				return error;
+		}
+
+		if (in_group_p(inode->i_gid))
+			mode >>= 3;
+	}
+
+	/*
+	 * If the DACs are ok we don't need any capability check.
+	 */
+	if ((mask & ~mode) == 0)
+		return 0;
+	return -EACCES;
+}
 
 /**
  * generic_permission  -  check for access rights on a Posix-like filesystem
@@ -184,32 +214,15 @@ EXPORT_SYMBOL(putname);
 int generic_permission(struct inode *inode, int mask,
 		int (*check_acl)(struct inode *inode, int mask))
 {
-	umode_t			mode = inode->i_mode;
-
-	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
-
-	if (current_fsuid() == inode->i_uid)
-		mode >>= 6;
-	else {
-		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
-			int error = check_acl(inode, mask);
-			if (error == -EACCES)
-				goto check_capabilities;
-			else if (error != -EAGAIN)
-				return error;
-		}
-
-		if (in_group_p(inode->i_gid))
-			mode >>= 3;
-	}
+	int ret;
 
 	/*
-	 * If the DACs are ok we don't need any capability check.
+	 * Do the basic POSIX ACL permission checks.
 	 */
-	if ((mask & ~mode) == 0)
-		return 0;
+	ret = acl_permission_check(inode, mask, check_acl);
+	if (ret != -EACCES)
+		return ret;
 
- check_capabilities:
 	/*
 	 * Read/write DACs are always overridable.
 	 * Executable DACs are overridable if at least one exec bit is set.
@@ -262,7 +275,7 @@ int inode_permission(struct inode *inode, int mask)
 	if (inode->i_op->permission)
 		retval = inode->i_op->permission(inode, mask);
 	else
-		retval = generic_permission(inode, mask, NULL);
+		retval = generic_permission(inode, mask, inode->i_op->check_acl);
 
 	if (retval)
 		return retval;
@@ -432,29 +445,22 @@ static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name,
  */
 static int exec_permission_lite(struct inode *inode)
 {
-	umode_t	mode = inode->i_mode;
+	int ret;
 
-	if (inode->i_op->permission)
-		return -EAGAIN;
-
-	if (current_fsuid() == inode->i_uid)
-		mode >>= 6;
-	else if (in_group_p(inode->i_gid))
-		mode >>= 3;
-
-	if (mode & MAY_EXEC)
+	if (inode->i_op->permission) {
+		ret = inode->i_op->permission(inode, MAY_EXEC);
+		if (!ret)
+			goto ok;
+		return ret;
+	}
+	ret = acl_permission_check(inode, MAY_EXEC, inode->i_op->check_acl);
+	if (!ret)
 		goto ok;
 
-	if ((inode->i_mode & S_IXUGO) && capable(CAP_DAC_OVERRIDE))
+	if (capable(CAP_DAC_OVERRIDE) || capable(CAP_DAC_READ_SEARCH))
 		goto ok;
 
-	if (S_ISDIR(inode->i_mode) && capable(CAP_DAC_OVERRIDE))
-		goto ok;
-
-	if (S_ISDIR(inode->i_mode) && capable(CAP_DAC_READ_SEARCH))
-		goto ok;
-
-	return -EACCES;
+	return ret;
 ok:
 	return security_inode_permission(inode, MAY_EXEC);
 }
@@ -853,12 +859,6 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 
 		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode);
-		if (err == -EAGAIN)
-			err = inode_permission(nd->path.dentry->d_inode,
-					       MAY_EXEC);
-		if (!err)
-			err = ima_path_check(&nd->path, MAY_EXEC,
-				             IMA_COUNT_UPDATE);
  		if (err)
 			break;
 
@@ -1533,9 +1533,11 @@ int may_open(struct path *path, int acc_mode, int flag)
 	if (error)
 		return error;
 
-	error = ima_path_check(path,
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC),
+	error = ima_path_check(path, acc_mode ?
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
+			       ACC_MODE(flag) & (MAY_READ | MAY_WRITE),
 			       IMA_COUNT_UPDATE);
+
 	if (error)
 		return error;
 	/*

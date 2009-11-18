@@ -59,7 +59,7 @@ static int dn_phase3_output(struct sk_buff *);
 /*
  * For talking to broadcast devices: Ethernet & PPP
  */
-static struct neigh_ops dn_long_ops = {
+static const struct neigh_ops dn_long_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_long_error_report,
 	.output =		dn_long_output,
@@ -71,7 +71,7 @@ static struct neigh_ops dn_long_ops = {
 /*
  * For talking to pointopoint and multidrop devices: DDCMP and X.25
  */
-static struct neigh_ops dn_short_ops = {
+static const struct neigh_ops dn_short_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_short_error_report,
 	.output =		dn_short_output,
@@ -83,7 +83,7 @@ static struct neigh_ops dn_short_ops = {
 /*
  * For talking to DECnet phase III nodes
  */
-static struct neigh_ops dn_phase3_ops = {
+static const struct neigh_ops dn_phase3_ops = {
 	.family =		AF_DECnet,
 	.error_report =		dn_short_error_report, /* Can use short version here */
 	.output =		dn_phase3_output,

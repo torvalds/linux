@@ -76,9 +76,8 @@ get_v4l_control(struct file             *file,
 			dprintk("VIDIOC_G_CTRL: %d\n", err);
 			return 0;
 		}
-		return ((ctrl2.value - qctrl2.minimum) * 65535
-			 + (qctrl2.maximum - qctrl2.minimum) / 2)
-			/ (qctrl2.maximum - qctrl2.minimum);
+		return DIV_ROUND_CLOSEST((ctrl2.value-qctrl2.minimum) * 65535,
+					 qctrl2.maximum - qctrl2.minimum);
 	}
 	return 0;
 }
@@ -565,10 +564,9 @@ static noinline long v4l1_compat_get_input_info(
 		break;
 	}
 	chan->norm = 0;
-	err = drv(file, VIDIOC_G_STD, &sid);
-	if (err < 0)
-		dprintk("VIDIOCGCHAN / VIDIOC_G_STD: %ld\n", err);
-	if (err == 0) {
+	/* Note: G_STD might not be present for radio receivers,
+	 * so we should ignore any errors. */
+	if (drv(file, VIDIOC_G_STD, &sid) == 0) {
 		if (sid & V4L2_STD_PAL)
 			chan->norm = VIDEO_MODE_PAL;
 		if (sid & V4L2_STD_NTSC)
@@ -777,10 +775,9 @@ static noinline long v4l1_compat_get_tuner(
 			tun->flags |= VIDEO_TUNER_SECAM;
 	}
 
-	err = drv(file, VIDIOC_G_STD, &sid);
-	if (err < 0)
-		dprintk("VIDIOCGTUNER / VIDIOC_G_STD: %ld\n", err);
-	if (err == 0) {
+	/* Note: G_STD might not be present for radio receivers,
+	 * so we should ignore any errors. */
+	if (drv(file, VIDIOC_G_STD, &sid) == 0) {
 		if (sid & V4L2_STD_PAL)
 			tun->mode = VIDEO_MODE_PAL;
 		if (sid & V4L2_STD_NTSC)

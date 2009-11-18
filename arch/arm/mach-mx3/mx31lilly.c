@@ -148,7 +148,7 @@ MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x100,
 	.map_io		= mx31_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx31_init_irq,
 	.init_machine	= mx31lilly_board_init,
 	.timer		= &mx31lilly_timer,
 MACHINE_END

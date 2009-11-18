@@ -33,13 +33,10 @@
  *	BSS_SECTION(0, 0, 0)
  *	_end = .;
  *
- *	/DISCARD/ : {
- *		EXIT_TEXT
- *		EXIT_DATA
- *		EXIT_CALL
- *	}
  *	STABS_DEBUG
  *	DWARF_DEBUG
+ *
+ *	DISCARDS		// must be the last
  * }
  *
  * [__init_begin, __init_end] is the init section that may be freed after init
@@ -91,7 +88,8 @@
 #endif
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
-#define MCOUNT_REC()	VMLINUX_SYMBOL(__start_mcount_loc) = .; \
+#define MCOUNT_REC()	. = ALIGN(8);				\
+			VMLINUX_SYMBOL(__start_mcount_loc) = .; \
 			*(__mcount_loc)				\
 			VMLINUX_SYMBOL(__stop_mcount_loc) = .;
 #else
@@ -331,7 +329,6 @@
 	/* __*init sections */						\
 	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
 		*(.ref.rodata)						\
-		MCOUNT_REC()						\
 		DEV_KEEP(init.rodata)					\
 		DEV_KEEP(exit.rodata)					\
 		CPU_KEEP(init.rodata)					\
@@ -455,6 +452,7 @@
 	MEM_DISCARD(init.data)						\
 	KERNEL_CTORS()							\
 	*(.init.rodata)							\
+	MCOUNT_REC()							\
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)
@@ -626,6 +624,23 @@
 #define INIT_RAM_FS
 #endif
 
+/*
+ * Default discarded sections.
+ *
+ * Some archs want to discard exit text/data at runtime rather than
+ * link time due to cross-section references such as alt instructions,
+ * bug table, eh_frame, etc.  DISCARDS must be the last of output
+ * section definitions so that such archs put those in earlier section
+ * definitions.
+ */
+#define DISCARDS							\
+	/DISCARD/ : {							\
+	EXIT_TEXT							\
+	EXIT_DATA							\
+	EXIT_CALL							\
+	*(.discard)							\
+	}
+
 /**
  * PERCPU_VADDR - define output section for percpu area
  * @vaddr: explicit base address (optional)
@@ -706,12 +721,12 @@
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
 		INIT_TASK_DATA(inittask)				\
+		NOSAVE_DATA						\
+		PAGE_ALIGNED_DATA(pagealigned)				\
 		CACHELINE_ALIGNED_DATA(cacheline)			\
 		READ_MOSTLY_DATA(cacheline)				\
 		DATA_DATA						\
 		CONSTRUCTORS						\
-		NOSAVE_DATA						\
-		PAGE_ALIGNED_DATA(pagealigned)				\
 	}
 
 #define INIT_TEXT_SECTION(inittext_align)				\

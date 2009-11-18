@@ -35,7 +35,7 @@ typedef struct device_extension_s {
 #define MAX_DEVICES 256
 
 static pdevice_extension_t s2250_dev_table[MAX_DEVICES];
-static DECLARE_MUTEX(s2250_dev_table_mutex);
+static DEFINE_MUTEX(s2250_dev_table_mutex);
 
 #define to_s2250loader_dev_common(d) container_of(d, device_extension_t, kref)
 static void s2250loader_delete(struct kref *kref)
@@ -67,7 +67,7 @@ static int s2250loader_probe(struct usb_interface *interface,
 		printk(KERN_ERR "can't handle multiple config\n");
 		return -1;
 	}
-	down(&s2250_dev_table_mutex);
+	mutex_lock(&s2250_dev_table_mutex);
 
 	for (minor = 0; minor < MAX_DEVICES; minor++) {
 		if (s2250_dev_table[minor] == NULL)
@@ -96,7 +96,7 @@ static int s2250loader_probe(struct usb_interface *interface,
 
 	kref_init(&(s->kref));
 
-	up(&s2250_dev_table_mutex);
+	mutex_unlock(&s2250_dev_table_mutex);
 
 	if (request_firmware(&fw, S2250_LOADER_FIRMWARE, &usbdev->dev)) {
 		printk(KERN_ERR
@@ -128,7 +128,7 @@ static int s2250loader_probe(struct usb_interface *interface,
 	return 0;
 
 failed:
-	up(&s2250_dev_table_mutex);
+	mutex_unlock(&s2250_dev_table_mutex);
 failed2:
 	if (s)
 		kref_put(&(s->kref), s2250loader_delete);

@@ -1,22 +1,12 @@
 header-y += ip6t_HL.h
 header-y += ip6t_LOG.h
-header-y += ip6t_MARK.h
 header-y += ip6t_REJECT.h
 header-y += ip6t_ah.h
-header-y += ip6t_esp.h
 header-y += ip6t_frag.h
-header-y += ip6t_hl.h
 header-y += ip6t_ipv6header.h
-header-y += ip6t_length.h
-header-y += ip6t_limit.h
-header-y += ip6t_mac.h
-header-y += ip6t_mark.h
+header-y += ip6t_hl.h
 header-y += ip6t_mh.h
-header-y += ip6t_multiport.h
 header-y += ip6t_opts.h
-header-y += ip6t_owner.h
-header-y += ip6t_physdev.h
-header-y += ip6t_policy.h
 header-y += ip6t_rt.h
 
 unifdef-y += ip6_tables.h

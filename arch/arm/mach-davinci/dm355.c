@@ -30,6 +30,7 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -360,8 +361,8 @@ static struct davinci_clk dm355_clks[] = {
 	CLK(NULL, "uart1", &uart1_clk),
 	CLK(NULL, "uart2", &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
-	CLK("soc-audio.0", NULL, &asp0_clk),
-	CLK("soc-audio.1", NULL, &asp1_clk),
+	CLK("davinci-asp.0", NULL, &asp0_clk),
+	CLK("davinci-asp.1", NULL, &asp1_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
 	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
 	CLK(NULL, "spi0", &spi0_clk),
@@ -481,6 +482,20 @@ INT_CFG(DM355,  INT_EDMA_TC1_ERR,     4,    1,    1,     false)
 EVT_CFG(DM355,  EVT8_ASP1_TX,	      0,    1,    0,     false)
 EVT_CFG(DM355,  EVT9_ASP1_RX,	      1,    1,    0,     false)
 EVT_CFG(DM355,  EVT26_MMC0_RX,	      2,    1,    0,     false)
+
+MUX_CFG(DM355,	VOUT_FIELD,	1,   18,    3,	  1,	 false)
+MUX_CFG(DM355,	VOUT_FIELD_G70,	1,   18,    3,	  0,	 false)
+MUX_CFG(DM355,	VOUT_HVSYNC,	1,   16,    1,	  0,	 false)
+MUX_CFG(DM355,	VOUT_COUTL_EN,	1,   0,     0xff, 0x55,  false)
+MUX_CFG(DM355,	VOUT_COUTH_EN,	1,   8,     0xff, 0x55,  false)
+
+MUX_CFG(DM355,	VIN_PCLK,	0,   14,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_WEN,	0,   13,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_VD,	0,   12,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_HD,	0,   11,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_YIN_EN,	0,   10,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CINL_EN,	0,   0,   0xff, 0x55,	 false)
+MUX_CFG(DM355,	VIN_CINH_EN,	0,   8,     3,    3,	 false)
 #endif
 };
 
@@ -558,17 +573,38 @@ static const s8 dma_chan_dm355_no_event[] = {
 	-1
 };
 
-static struct edma_soc_info dm355_edma_info = {
-	.n_channel	= 64,
-	.n_region	= 4,
-	.n_slot		= 128,
-	.n_tc		= 2,
-	.noevent	= dma_chan_dm355_no_event,
+static const s8
+queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{-1, -1},
+};
+
+static const s8
+queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 3},
+	{1, 7},
+	{-1, -1},
+};
+
+static struct edma_soc_info dm355_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 4,
+		.n_slot			= 128,
+		.n_tc			= 2,
+		.n_cc			= 1,
+		.noevent		= dma_chan_dm355_no_event,
+		.queue_tc_mapping	= queue_tc_mapping,
+		.queue_priority_mapping	= queue_priority_mapping,
+	},
 };
 
 static struct resource edma_resources[] = {
 	{
-		.name	= "edma_cc",
+		.name	= "edma_cc0",
 		.start	= 0x01c00000,
 		.end	= 0x01c00000 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
@@ -586,10 +622,12 @@ static struct resource edma_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.name	= "edma0",
 		.start	= IRQ_CCINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
+		.name	= "edma0_err",
 		.start	= IRQ_CCERRINT,
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -598,11 +636,97 @@ static struct resource edma_resources[] = {
 
 static struct platform_device dm355_edma_device = {
 	.name			= "edma",
-	.id			= -1,
-	.dev.platform_data	= &dm355_edma_info,
+	.id			= 0,
+	.dev.platform_data	= dm355_edma_info,
 	.num_resources		= ARRAY_SIZE(edma_resources),
 	.resource		= edma_resources,
 };
+
+static struct resource dm355_asp1_resources[] = {
+	{
+		.start	= DAVINCI_ASP1_BASE,
+		.end	= DAVINCI_ASP1_BASE + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP1_TX,
+		.end	= DAVINCI_DMA_ASP1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP1_RX,
+		.end	= DAVINCI_DMA_ASP1_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm355_asp1_device = {
+	.name		= "davinci-asp",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(dm355_asp1_resources),
+	.resource	= dm355_asp1_resources,
+};
+
+static struct resource dm355_vpss_resources[] = {
+	{
+		/* VPSS BL Base address */
+		.name		= "vpss",
+		.start          = 0x01c70800,
+		.end            = 0x01c70800 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		/* VPSS CLK Base address */
+		.name		= "vpss",
+		.start          = 0x01c70000,
+		.end            = 0x01c70000 + 0xf,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm355_vpss_device = {
+	.name			= "vpss",
+	.id			= -1,
+	.dev.platform_data	= "dm355_vpss",
+	.num_resources		= ARRAY_SIZE(dm355_vpss_resources),
+	.resource		= dm355_vpss_resources,
+};
+
+static struct resource vpfe_resources[] = {
+	{
+		.start          = IRQ_VDINT0,
+		.end            = IRQ_VDINT0,
+		.flags          = IORESOURCE_IRQ,
+	},
+	{
+		.start          = IRQ_VDINT1,
+		.end            = IRQ_VDINT1,
+		.flags          = IORESOURCE_IRQ,
+	},
+	/* CCDC Base address */
+	{
+		.flags          = IORESOURCE_MEM,
+		.start          = 0x01c70600,
+		.end            = 0x01c70600 + 0x1ff,
+	},
+};
+
+static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device vpfe_capture_dev = {
+	.name		= CAPTURE_DRV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(vpfe_resources),
+	.resource	= vpfe_resources,
+	.dev = {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void dm355_set_vpfe_config(struct vpfe_config *cfg)
+{
+	vpfe_capture_dev.dev.platform_data = cfg;
+}
 
 /*----------------------------------------------------------------------*/
 
@@ -704,7 +828,6 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.intc_irq_prios		= dm355_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm355_timer_info,
-	.wdt_base		= IO_ADDRESS(DAVINCI_WDOG_BASE),
 	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM355_GPIOBNK0,
@@ -712,6 +835,19 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
+{
+	/* we don't use ASP1 IRQs, or we'd need to mux them ... */
+	if (evt_enable & ASP1_TX_EVT_EN)
+		davinci_cfg_reg(DM355_EVT8_ASP1_TX);
+
+	if (evt_enable & ASP1_RX_EVT_EN)
+		davinci_cfg_reg(DM355_EVT9_ASP1_RX);
+
+	dm355_asp1_device.dev.platform_data = pdata;
+	platform_device_register(&dm355_asp1_device);
+}
 
 void __init dm355_init(void)
 {
@@ -725,6 +861,20 @@ static int __init dm355_init_devices(void)
 
 	davinci_cfg_reg(DM355_INT_EDMA_CC);
 	platform_device_register(&dm355_edma_device);
+	platform_device_register(&dm355_vpss_device);
+	/*
+	 * setup Mux configuration for vpfe input and register
+	 * vpfe capture platform device
+	 */
+	davinci_cfg_reg(DM355_VIN_PCLK);
+	davinci_cfg_reg(DM355_VIN_CAM_WEN);
+	davinci_cfg_reg(DM355_VIN_CAM_VD);
+	davinci_cfg_reg(DM355_VIN_CAM_HD);
+	davinci_cfg_reg(DM355_VIN_YIN_EN);
+	davinci_cfg_reg(DM355_VIN_CINL_EN);
+	davinci_cfg_reg(DM355_VIN_CINH_EN);
+	platform_device_register(&vpfe_capture_dev);
+
 	return 0;
 }
 postcore_initcall(dm355_init_devices);

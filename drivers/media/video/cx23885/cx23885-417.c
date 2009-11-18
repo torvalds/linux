@@ -630,6 +630,39 @@ int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value)
 	return retval;
 }
 
+void mc417_gpio_set(struct cx23885_dev *dev, u32 mask)
+{
+	u32 val;
+
+	/* Set the gpio value */
+	mc417_register_read(dev, 0x900C, &val);
+	val |= (mask & 0x000ffff);
+	mc417_register_write(dev, 0x900C, val);
+}
+
+void mc417_gpio_clear(struct cx23885_dev *dev, u32 mask)
+{
+	u32 val;
+
+	/* Clear the gpio value */
+	mc417_register_read(dev, 0x900C, &val);
+	val &= ~(mask & 0x0000ffff);
+	mc417_register_write(dev, 0x900C, val);
+}
+
+void mc417_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput)
+{
+	u32 val;
+
+	/* Enable GPIO direction bits */
+	mc417_register_read(dev, 0x9020, &val);
+	if (asoutput)
+		val |= (mask & 0x0000ffff);
+	else
+		val &= ~(mask & 0x0000ffff);
+
+	mc417_register_write(dev, 0x9020, val);
+}
 /* ------------------------------------------------------------------ */
 
 /* MPEG encoder API */
@@ -955,25 +988,8 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 	retval |= mc417_register_write(dev, IVTV_REG_HW_BLOCKS,
 		IVTV_CMD_HW_BLOCKS_RST);
 
-	/* Restore GPIO settings, make sure EIO14 is enabled as an output. */
-	dprintk(2, "%s: GPIO output EIO 0-15 was = 0x%x\n",
-		__func__, gpio_output);
-	/* Power-up seems to have GPIOs AFU. This was causing digital side
-	 * to fail at power-up. Seems GPIOs should be set to 0x10ff0411 at
-	 * power-up.
-	 * gpio_output |= (1<<14);
-	 */
-	/* Note: GPIO14 is specific to the HVR1800 here */
-	gpio_output = 0x10ff0411 | (1<<14);
-	retval |= mc417_register_write(dev, 0x9020, gpio_output | (1<<14));
-	dprintk(2, "%s: GPIO output EIO 0-15 now = 0x%x\n",
-		__func__, gpio_output);
-
-	dprintk(1, "%s: GPIO value  EIO 0-15 was = 0x%x\n",
-		__func__, value);
-	value |= (1<<14);
-	dprintk(1, "%s: GPIO value  EIO 0-15 now = 0x%x\n",
-		__func__, value);
+	/* F/W power up disturbs the GPIOs, restore state */
+	retval |= mc417_register_write(dev, 0x9020, gpio_output);
 	retval |= mc417_register_write(dev, 0x900C, value);
 
 	retval |= mc417_register_read(dev, IVTV_REG_VPU, &value);
@@ -1787,9 +1803,6 @@ int cx23885_417_register(struct cx23885_dev *dev)
 		printk(KERN_INFO "%s: can't register mpeg device\n", dev->name);
 		return err;
 	}
-
-	/* Initialize MC417 registers */
-	cx23885_mc417_init(dev);
 
 	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
 	       dev->name, dev->v4l_device->num);

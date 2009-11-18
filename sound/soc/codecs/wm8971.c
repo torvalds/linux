@@ -59,44 +59,7 @@ static const u16 wm8971_reg[] = {
 	0x0079, 0x0079, 0x0079,          /* 40 */
 };
 
-static inline unsigned int wm8971_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg < WM8971_REG_COUNT)
-		return cache[reg];
-
-	return -1;
-}
-
-static inline void wm8971_write_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg < WM8971_REG_COUNT)
-		cache[reg] = value;
-}
-
-static int wm8971_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D9 WM8753 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8971_write_reg_cache (codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-#define wm8971_reset(c)	wm8971_write(c, WM8971_RESET, 0)
+#define wm8971_reset(c)	snd_soc_write(c, WM8971_RESET, 0)
 
 /* WM8971 Controls */
 static const char *wm8971_bass[] = { "Linear Control", "Adaptive Boost" };
@@ -521,7 +484,7 @@ static int wm8971_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	wm8971_write(codec, WM8971_IFACE, iface);
+	snd_soc_write(codec, WM8971_IFACE, iface);
 	return 0;
 }
 
@@ -533,8 +496,8 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8971_priv *wm8971 = codec->private_data;
-	u16 iface = wm8971_read_reg_cache(codec, WM8971_IFACE) & 0x1f3;
-	u16 srate = wm8971_read_reg_cache(codec, WM8971_SRATE) & 0x1c0;
+	u16 iface = snd_soc_read(codec, WM8971_IFACE) & 0x1f3;
+	u16 srate = snd_soc_read(codec, WM8971_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8971->sysclk, params_rate(params));
 
 	/* bit size */
@@ -553,9 +516,9 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set iface & srate */
-	wm8971_write(codec, WM8971_IFACE, iface);
+	snd_soc_write(codec, WM8971_IFACE, iface);
 	if (coeff >= 0)
-		wm8971_write(codec, WM8971_SRATE, srate |
+		snd_soc_write(codec, WM8971_SRATE, srate |
 			(coeff_div[coeff].sr << 1) | coeff_div[coeff].usb);
 
 	return 0;
@@ -564,33 +527,33 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 static int wm8971_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = wm8971_read_reg_cache(codec, WM8971_ADCDAC) & 0xfff7;
+	u16 mute_reg = snd_soc_read(codec, WM8971_ADCDAC) & 0xfff7;
 
 	if (mute)
-		wm8971_write(codec, WM8971_ADCDAC, mute_reg | 0x8);
+		snd_soc_write(codec, WM8971_ADCDAC, mute_reg | 0x8);
 	else
-		wm8971_write(codec, WM8971_ADCDAC, mute_reg);
+		snd_soc_write(codec, WM8971_ADCDAC, mute_reg);
 	return 0;
 }
 
 static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
-	u16 pwr_reg = wm8971_read_reg_cache(codec, WM8971_PWR1) & 0xfe3e;
+	u16 pwr_reg = snd_soc_read(codec, WM8971_PWR1) & 0xfe3e;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		/* set vmid to 50k and unmute dac */
-		wm8971_write(codec, WM8971_PWR1, pwr_reg | 0x00c1);
+		snd_soc_write(codec, WM8971_PWR1, pwr_reg | 0x00c1);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* mute dac and set vmid to 500k, enable VREF */
-		wm8971_write(codec, WM8971_PWR1, pwr_reg | 0x0140);
+		snd_soc_write(codec, WM8971_PWR1, pwr_reg | 0x0140);
 		break;
 	case SND_SOC_BIAS_OFF:
-		wm8971_write(codec, WM8971_PWR1, 0x0001);
+		snd_soc_write(codec, WM8971_PWR1, 0x0001);
 		break;
 	}
 	codec->bias_level = level;
@@ -667,8 +630,8 @@ static int wm8971_resume(struct platform_device *pdev)
 
 	/* charge wm8971 caps */
 	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
-		reg = wm8971_read_reg_cache(codec, WM8971_PWR1) & 0xfe3e;
-		wm8971_write(codec, WM8971_PWR1, reg | 0x01c0);
+		reg = snd_soc_read(codec, WM8971_PWR1) & 0xfe3e;
+		snd_soc_write(codec, WM8971_PWR1, reg | 0x01c0);
 		codec->bias_level = SND_SOC_BIAS_ON;
 		queue_delayed_work(wm8971_workq, &codec->delayed_work,
 			msecs_to_jiffies(1000));
@@ -677,15 +640,14 @@ static int wm8971_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int wm8971_init(struct snd_soc_device *socdev)
+static int wm8971_init(struct snd_soc_device *socdev,
+		       enum snd_soc_control_type control)
 {
 	struct snd_soc_codec *codec = socdev->card->codec;
 	int reg, ret = 0;
 
 	codec->name = "WM8971";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8971_read_reg_cache;
-	codec->write = wm8971_write;
 	codec->set_bias_level = wm8971_set_bias_level;
 	codec->dai = &wm8971_dai;
 	codec->reg_cache_size = ARRAY_SIZE(wm8971_reg);
@@ -695,42 +657,48 @@ static int wm8971_init(struct snd_soc_device *socdev)
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
 
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
+	if (ret < 0) {
+		printk(KERN_ERR "wm8971: failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
+
 	wm8971_reset(codec);
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8971: failed to create pcms\n");
-		goto pcm_err;
+		goto err;
 	}
 
 	/* charge output caps - set vmid to 5k for quick power up */
-	reg = wm8971_read_reg_cache(codec, WM8971_PWR1) & 0xfe3e;
-	wm8971_write(codec, WM8971_PWR1, reg | 0x01c0);
+	reg = snd_soc_read(codec, WM8971_PWR1) & 0xfe3e;
+	snd_soc_write(codec, WM8971_PWR1, reg | 0x01c0);
 	codec->bias_level = SND_SOC_BIAS_STANDBY;
 	queue_delayed_work(wm8971_workq, &codec->delayed_work,
 		msecs_to_jiffies(1000));
 
 	/* set the update bits */
-	reg = wm8971_read_reg_cache(codec, WM8971_LDAC);
-	wm8971_write(codec, WM8971_LDAC, reg | 0x0100);
-	reg = wm8971_read_reg_cache(codec, WM8971_RDAC);
-	wm8971_write(codec, WM8971_RDAC, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_LDAC);
+	snd_soc_write(codec, WM8971_LDAC, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_RDAC);
+	snd_soc_write(codec, WM8971_RDAC, reg | 0x0100);
 
-	reg = wm8971_read_reg_cache(codec, WM8971_LOUT1V);
-	wm8971_write(codec, WM8971_LOUT1V, reg | 0x0100);
-	reg = wm8971_read_reg_cache(codec, WM8971_ROUT1V);
-	wm8971_write(codec, WM8971_ROUT1V, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_LOUT1V);
+	snd_soc_write(codec, WM8971_LOUT1V, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_ROUT1V);
+	snd_soc_write(codec, WM8971_ROUT1V, reg | 0x0100);
 
-	reg = wm8971_read_reg_cache(codec, WM8971_LOUT2V);
-	wm8971_write(codec, WM8971_LOUT2V, reg | 0x0100);
-	reg = wm8971_read_reg_cache(codec, WM8971_ROUT2V);
-	wm8971_write(codec, WM8971_ROUT2V, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_LOUT2V);
+	snd_soc_write(codec, WM8971_LOUT2V, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_ROUT2V);
+	snd_soc_write(codec, WM8971_ROUT2V, reg | 0x0100);
 
-	reg = wm8971_read_reg_cache(codec, WM8971_LINVOL);
-	wm8971_write(codec, WM8971_LINVOL, reg | 0x0100);
-	reg = wm8971_read_reg_cache(codec, WM8971_RINVOL);
-	wm8971_write(codec, WM8971_RINVOL, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_LINVOL);
+	snd_soc_write(codec, WM8971_LINVOL, reg | 0x0100);
+	reg = snd_soc_read(codec, WM8971_RINVOL);
+	snd_soc_write(codec, WM8971_RINVOL, reg | 0x0100);
 
 	snd_soc_add_controls(codec, wm8971_snd_controls,
 				ARRAY_SIZE(wm8971_snd_controls));
@@ -745,7 +713,7 @@ static int wm8971_init(struct snd_soc_device *socdev)
 card_err:
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-pcm_err:
+err:
 	kfree(codec->reg_cache);
 	return ret;
 }
@@ -767,7 +735,7 @@ static int wm8971_i2c_probe(struct i2c_client *i2c,
 
 	codec->control_data = i2c;
 
-	ret = wm8971_init(socdev);
+	ret = wm8971_init(socdev, SND_SOC_I2C);
 	if (ret < 0)
 		pr_err("failed to initialise WM8971\n");
 
@@ -877,7 +845,6 @@ static int wm8971_probe(struct platform_device *pdev)
 
 #if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8971_add_i2c_device(pdev, setup);
 	}
 #endif

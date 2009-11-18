@@ -96,7 +96,8 @@ static void fmvj18x_detach(struct pcmcia_device *p_dev);
 static int fjn_config(struct net_device *dev, struct ifmap *map);
 static int fjn_open(struct net_device *dev);
 static int fjn_close(struct net_device *dev);
-static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static irqreturn_t fjn_interrupt(int irq, void *dev_id);
 static void fjn_rx(struct net_device *dev);
 static void fjn_reset(struct net_device *dev);
@@ -856,7 +857,8 @@ static void fjn_tx_timeout(struct net_device *dev)
     netif_wake_queue(dev);
 }
 
-static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
     struct local_info_t *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
@@ -865,7 +867,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
     if (length < ETH_ZLEN)
     {
     	if (skb_padto(skb, ETH_ZLEN))
-    		return 0;
+    		return NETDEV_TX_OK;
     	length = ETH_ZLEN;
     }
 
@@ -924,7 +926,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
     }
     dev_kfree_skb (skb);
 
-    return 0;
+    return NETDEV_TX_OK;
 } /* fjn_start_xmit */
 
 /*====================================================================*/

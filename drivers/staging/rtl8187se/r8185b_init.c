@@ -22,28 +22,16 @@ Notes:
 #include <linux/spinlock.h>
 #include "r8180_hw.h"
 #include "r8180.h"
-#include "r8180_sa2400.h"  /* PHILIPS Radio frontend */
-#include "r8180_max2820.h" /* MAXIM Radio frontend */
-#include "r8180_gct.h"     /* GCT Radio frontend */
 #include "r8180_rtl8225.h" /* RTL8225 Radio frontend */
-#include "r8180_rtl8255.h" /* RTL8255 Radio frontend */
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8180_wx.h"
 
-#ifdef CONFIG_RTL8180_PM
-#include "r8180_pm.h"
-#endif
+#include "ieee80211/dot11d.h"
 
-#ifdef ENABLE_DOT11D
-#include "dot11d.h"
-#endif
-
-#ifdef CONFIG_RTL8185B
 
 //#define CONFIG_RTL8180_IO_MAP
 
 #define TC_3W_POLL_MAX_TRY_CNT 5
-#ifdef CONFIG_RTL818X_S
 static u8 MAC_REG_TABLE[][2]={
                         //PAGA 0:
                         // 0x34(BRSR), 0xBE(RATE_FALLBACK_CTL), 0x1E0(ARFR) would set in HwConfigureRTL8185()
@@ -124,97 +112,6 @@ static u8 OFDM_CONFIG[]={
 			0xC0, 0xC1, 0x58, 0xF1, 0x00, 0xC4, 0x90, 0x3e,
 			0xD8, 0x3C, 0x7B, 0x10, 0x10
 		};
-#else
- static u8 MAC_REG_TABLE[][2]={
-			//PAGA 0:
-			{0xf0, 0x32}, {0xf1, 0x32}, {0xf2, 0x00}, {0xf3, 0x00}, {0xf4, 0x32},
-			{0xf5, 0x43}, {0xf6, 0x00}, {0xf7, 0x00}, {0xf8, 0x46}, {0xf9, 0xa4},
-			{0xfa, 0x00}, {0xfb, 0x00}, {0xfc, 0x96}, {0xfd, 0xa4}, {0xfe, 0x00},
-			{0xff, 0x00},
-
-			//PAGE 1:
-			{0x5e, 0x01},
-			{0x58, 0x4b}, {0x59, 0x00}, {0x5a, 0x4b}, {0x5b, 0x00}, {0x60, 0x4b},
-			{0x61, 0x09}, {0x62, 0x4b}, {0x63, 0x09}, {0xce, 0x0f}, {0xcf, 0x00},
-			{0xe0, 0xff}, {0xe1, 0x0f}, {0xe2, 0x00}, {0xf0, 0x4e}, {0xf1, 0x01},
-			{0xf2, 0x02}, {0xf3, 0x03}, {0xf4, 0x04}, {0xf5, 0x05}, {0xf6, 0x06},
-			{0xf7, 0x07}, {0xf8, 0x08},
-
-
-			//PAGE 2:
-			{0x5e, 0x02},
-			{0x0c, 0x04}, {0x21, 0x61}, {0x22, 0x68}, {0x23, 0x6f}, {0x24, 0x76},
-			{0x25, 0x7d}, {0x26, 0x84}, {0x27, 0x8d}, {0x4d, 0x08}, {0x4e, 0x00},
-			{0x50, 0x05}, {0x51, 0xf5}, {0x52, 0x04}, {0x53, 0xa0}, {0x54, 0x1f},
-			{0x55, 0x23}, {0x56, 0x45}, {0x57, 0x67}, {0x58, 0x08}, {0x59, 0x08},
-			{0x5a, 0x08}, {0x5b, 0x08}, {0x60, 0x08}, {0x61, 0x08}, {0x62, 0x08},
-			{0x63, 0x08}, {0x64, 0xcf}, {0x72, 0x56}, {0x73, 0x9a},
-
-			//PAGA 0:
-			{0x5e, 0x00},
-			{0x34, 0xff}, {0x35, 0x0f}, {0x5b, 0x40}, {0x84, 0x88}, {0x85, 0x24},
-			{0x88, 0x54}, {0x8b, 0xb8}, {0x8c, 0x07}, {0x8d, 0x00}, {0x94, 0x1b},
-			{0x95, 0x12}, {0x96, 0x00}, {0x97, 0x06}, {0x9d, 0x1a}, {0x9f, 0x10},
-			{0xb4, 0x22}, {0xbe, 0x80}, {0xdb, 0x00}, {0xee, 0x00}, {0x5b, 0x42},
-			{0x91, 0x03},
-
-			//PAGE 2:
-			{0x5e, 0x02},
-			{0x4c, 0x03},
-
-			//PAGE 0:
-			{0x5e, 0x00},
-
-			//PAGE 3:
-			{0x5e, 0x03},
-			{0x9f, 0x00},
-
-			//PAGE 0:
-			{0x5e, 0x00},
-			{0x8c, 0x01}, {0x8d, 0x10},{0x8e, 0x08}, {0x8f, 0x00}
-		};
-
-
-static u8  ZEBRA_AGC[]={
-	0,
-	0x5e,0x5e,0x5e,0x5e,0x5d,0x5b,0x59,0x57,0x55,0x53,0x51,0x4f,0x4d,0x4b,0x49,0x47,
-	0x45,0x43,0x41,0x3f,0x3d,0x3b,0x39,0x37,0x35,0x33,0x31,0x2f,0x2d,0x2b,0x29,0x27,
-	0x25,0x23,0x21,0x1f,0x1d,0x1b,0x19,0x17,0x15,0x13,0x11,0x0f,0x0d,0x0b,0x09,0x07,
-	0x05,0x03,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-	0x19,0x19,0x19,0x019,0x19,0x19,0x19,0x19,0x19,0x19,0x1e,0x1f,0x20,0x21,0x21,0x22,
-	0x23,0x24,0x24,0x25,0x25,0x26,0x26,0x27,0x27,0x28,0x28,0x28,0x29,0x2a,0x2a,0x2b,
-	0x2b,0x2b,0x2c,0x2c,0x2c,0x2d,0x2d,0x2d,0x2e,0x2e,0x2f,0x30,0x31,0x31,0x31,0x31,
-	0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31
-	};
-
-static u32 ZEBRA_RF_RX_GAIN_TABLE[]={
-	0,
-	0x0400,0x0401,0x0402,0x0403,0x0404,0x0405,0x0408,0x0409,
-	0x040a,0x040b,0x0502,0x0503,0x0504,0x0505,0x0540,0x0541,
-	0x0542,0x0543,0x0544,0x0545,0x0580,0x0581,0x0582,0x0583,
-	0x0584,0x0585,0x0588,0x0589,0x058a,0x058b,0x0643,0x0644,
-	0x0645,0x0680,0x0681,0x0682,0x0683,0x0684,0x0685,0x0688,
-	0x0689,0x068a,0x068b,0x068c,0x0742,0x0743,0x0744,0x0745,
-	0x0780,0x0781,0x0782,0x0783,0x0784,0x0785,0x0788,0x0789,
-	0x078a,0x078b,0x078c,0x078d,0x0790,0x0791,0x0792,0x0793,
-	0x0794,0x0795,0x0798,0x0799,0x079a,0x079b,0x079c,0x079d,
-	0x07a0,0x07a1,0x07a2,0x07a3,0x07a4,0x07a5,0x07a8,0x07a9,
-	0x03aa,0x03ab,0x03ac,0x03ad,0x03b0,0x03b1,0x03b2,0x03b3,
-	0x03b4,0x03b5,0x03b8,0x03b9,0x03ba,0x03bb,0x03bb
-};
-
-// 2006.07.13, SD3 szuyitasi:
-//	OFDM.0x03=0x0C (original is 0x0F)
-// Use the new SD3 given param, by shien chang, 2006.07.14
-static u8 OFDM_CONFIG[]={
-	0x10, 0x0d, 0x01, 0x0C, 0x14, 0xfb, 0x0f, 0x60, 0x00, 0x60,
-	0x00, 0x00, 0x00, 0x5c, 0x00, 0x00, 0x40, 0x00, 0x40, 0x00,
-	0x00, 0x00, 0xa8, 0x46, 0xb2, 0x33, 0x07, 0xa5, 0x6f, 0x55,
-	0xc8, 0xb3, 0x0a, 0xe1, 0x1c, 0x8a, 0xb6, 0x83, 0x34, 0x0f,
-	0x4f, 0x23, 0x6f, 0xc2, 0x6b, 0x40, 0x80, 0x00, 0xc0, 0xc1,
-	0x58, 0xf1, 0x00, 0xe4, 0x90, 0x3e, 0x6d, 0x3c, 0xff, 0x07
-};
-#endif
 
 /*---------------------------------------------------------------
   * Hardware IO
@@ -228,37 +125,9 @@ PlatformIOWrite1Byte(
 	u8		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 	write_nic_byte(dev, offset, data);
 	read_nic_byte(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_byte(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_byte(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite1Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 
 void
@@ -268,38 +137,10 @@ PlatformIOWrite2Byte(
 	u16		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 	write_nic_word(dev, offset, data);
 	read_nic_word(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_word(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_word(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite2Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 u8 PlatformIORead1Byte(struct net_device *dev, u32 offset);
 
@@ -310,7 +151,6 @@ PlatformIOWrite4Byte(
 	u32		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 //{by amy 080312
 if (offset == PhyAddr)
 	{//For Base Band configuration.
@@ -354,33 +194,6 @@ if (offset == PhyAddr)
 		write_nic_dword(dev, offset, data);
 		read_nic_dword(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 	}
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_word(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_dword(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite4Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 
 u8
@@ -391,36 +204,8 @@ PlatformIORead1Byte(
 {
 	u8	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_byte(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_byte(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_byte(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead1Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }
@@ -433,36 +218,8 @@ PlatformIORead2Byte(
 {
 	u16	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_word(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_word(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_word(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead2Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }
@@ -475,36 +232,8 @@ PlatformIORead4Byte(
 {
 	u32	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_dword(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_dword(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_dword(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead4Byte(): illegal page number: %d, offset: %#X\n", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }
@@ -542,12 +271,10 @@ ZEBRA_RFSerialWrite(
 	u16				UshortBuffer;
 
 	u8			u1bTmp;
-#ifdef CONFIG_RTL818X_S
 	// RTL8187S HSSI Read/Write Function
 	u1bTmp = read_nic_byte(dev, RF_SW_CONFIG);
 	u1bTmp |=   RF_SW_CFG_SI;   //reg08[1]=1 Serial Interface(SI)
 	write_nic_byte(dev, RF_SW_CONFIG, u1bTmp);
-#endif
 	UshortBuffer = read_nic_word(dev, RFPinsOutput);
 	oval = UshortBuffer & 0xfff8; // We shall clear bit0, 1, 2 first, 2005.10.28, by rcnjko.
 
@@ -918,7 +645,6 @@ RF_WriteReg(
 					1);					// bWrite
          		}
 			break;
-  #ifdef CONFIG_RTL818X_S
 			case HW_THREE_WIRE_PI: //Parallel Interface
 			{ // Pure HW 3-wire.
 				data2Write = (data << 4) | (u32)(offset & 0x0f);
@@ -952,7 +678,6 @@ RF_WriteReg(
 //                                 printk(" exit ZEBRA_RFSerialWrite\n ");
 			}
 			break;
-  #endif
 
 
 		default:
@@ -985,13 +710,11 @@ ZEBRA_RFSerialRead(
 	u8			u1bTmp;
 	ThreeWireReg	tdata;
 	//PHAL_DATA_8187	pHalData = GetHalData8187(pAdapter);
-#ifdef CONFIG_RTL818X_S
 	{ // RTL8187S HSSI Read/Write Function
 		u1bTmp = read_nic_byte(dev, RF_SW_CONFIG);
 		u1bTmp |=   RF_SW_CFG_SI;   //reg08[1]=1 Serial Interface(SI)
 		write_nic_byte(dev, RF_SW_CONFIG, u1bTmp);
 	}
-#endif
 
 	wReg80 = oval = read_nic_word(dev, RFPinsOutput);
 	oval2 = read_nic_word(dev, RFPinsEnable);
@@ -1115,7 +838,6 @@ RF_ReadReg(
 	case RF_ZEBRA4:
 		switch(priv->RegThreeWireMode)
 		{
-#ifdef CONFIG_RTL818X_S
 			case HW_THREE_WIRE_PI: // For 87S  Parallel Interface.
 			{
 				data2Write = ((u32)(offset&0x0f));
@@ -1145,7 +867,6 @@ RF_ReadReg(
 			}
 			break;
 
-#endif
 			// Perform SW 3-wire programming by driver.
 			default:
 			{
@@ -1204,7 +925,6 @@ ReadBBPortUchar(
 	return RegisterContent;
 }
 //{by amy 080312
-#ifdef CONFIG_RTL818X_S
 //
 //	Description:
 //		Perform Antenna settings with antenna diversity on 87SE.
@@ -1286,7 +1006,6 @@ SetAntennaConfig87SE(
 	priv->CurrAntennaIndex = DefaultAnt; // Update default settings.
 	return	bAntennaSwitched;
 }
-#endif
 //by amy 080312
 /*---------------------------------------------------------------
   * Hardware Initialization.
@@ -1305,7 +1024,6 @@ ZEBRA_Config_85BASIC_HardCode(
 	u32	u4bRegOffset, u4bRegValue, u4bRF23, u4bRF24;
        u8			u1b24E;
 
-#ifdef CONFIG_RTL818X_S
 
 	//=============================================================================
 	// 87S_PCIE :: RADIOCFG.TXT
@@ -1470,11 +1188,6 @@ ZEBRA_Config_85BASIC_HardCode(
 	RF_WriteReg(dev, 0x05, 0x05ab);			mdelay(1); // Rx mode//+edward
 	RF_WriteReg(dev, 0x00, 0x009f);			mdelay(1); // Rx mode//+edward
 
-#if 0//-edward
-	RF_WriteReg(dev, 0x00, 0x0197);			mdelay(1);
-	RF_WriteReg(dev, 0x05, 0x05ab);			mdelay(1);
-	RF_WriteReg(dev, 0x00, 0x009F);			mdelay(1);
-#endif
 	RF_WriteReg(dev, 0x01, 0x0000);			mdelay(1); // Rx mode//+edward
 	RF_WriteReg(dev, 0x02, 0x0000);			mdelay(1); // Rx mode//+edward
 	//power save parameters.
@@ -1494,14 +1207,7 @@ ZEBRA_Config_85BASIC_HardCode(
 		CCK reg0x06[3]=1'b1: turn off unused circuits before cca = 1
 		CCK reg0x06[2]=1'b1: turn off cck's circuit if macrst =0
 	*/
-#if 0
-	write_nic_dword(dev, PHY_ADR, 0x0100c880);
-	write_nic_dword(dev, PHY_ADR, 0x01001c86);
-	write_nic_dword(dev, PHY_ADR, 0x01007890);
-	write_nic_dword(dev, PHY_ADR, 0x0100d0ae);
-	write_nic_dword(dev, PHY_ADR, 0x010006af);
-	write_nic_dword(dev, PHY_ADR, 0x01004681);
-#endif
+
 	write_phy_cck(dev,0x00,0xc8);
 	write_phy_cck(dev,0x06,0x1c);
 	write_phy_cck(dev,0x10,0x78);
@@ -1513,72 +1219,6 @@ ZEBRA_Config_85BASIC_HardCode(
 	write_nic_byte(dev, CCK_TXAGC, 0x10);
 	write_nic_byte(dev, OFDM_TXAGC, 0x1B);
 	write_nic_byte(dev, ANTSEL, 0x03);
-#else
-	//=============================================================================
-	// RADIOCFG.TXT
-	//=============================================================================
-
-	RF_WriteReg(dev, 0x00, 0x00b7);			mdelay(1);
-	RF_WriteReg(dev, 0x01, 0x0ee0);			mdelay(1);
-	RF_WriteReg(dev, 0x02, 0x044d);			mdelay(1);
-	RF_WriteReg(dev, 0x03, 0x0441);			mdelay(1);
-	RF_WriteReg(dev, 0x04, 0x08c3);			mdelay(1);
-	RF_WriteReg(dev, 0x05, 0x0c72);			mdelay(1);
-	RF_WriteReg(dev, 0x06, 0x00e6);			mdelay(1);
-	RF_WriteReg(dev, 0x07, 0x082a);			mdelay(1);
-	RF_WriteReg(dev, 0x08, 0x003f);			mdelay(1);
-	RF_WriteReg(dev, 0x09, 0x0335);			mdelay(1);
-	RF_WriteReg(dev, 0x0a, 0x09d4);			mdelay(1);
-	RF_WriteReg(dev, 0x0b, 0x07bb);			mdelay(1);
-	RF_WriteReg(dev, 0x0c, 0x0850);			mdelay(1);
-	RF_WriteReg(dev, 0x0d, 0x0cdf);			mdelay(1);
-	RF_WriteReg(dev, 0x0e, 0x002b);			mdelay(1);
-	RF_WriteReg(dev, 0x0f, 0x0114);			mdelay(1);
-
-	RF_WriteReg(dev, 0x00, 0x01b7);			mdelay(1);
-
-
-	for(i=1;i<=95;i++)
-	{
-		RF_WriteReg(dev, 0x01, i);	mdelay(1);
-		RF_WriteReg(dev, 0x02, ZEBRA_RF_RX_GAIN_TABLE[i]); mdelay(1);
-		//DbgPrint("RF - 0x%x = 0x%x", i, ZEBRA_RF_RX_GAIN_TABLE[i]);
-	}
-
-	RF_WriteReg(dev, 0x03, 0x0080);			mdelay(1); 	// write reg 18
-	RF_WriteReg(dev, 0x05, 0x0004);			mdelay(1);	// write reg 20
-	RF_WriteReg(dev, 0x00, 0x00b7);			mdelay(1);	// switch to reg0-reg15
-	//0xfd
-	//0xfd
-	//0xfd
-	RF_WriteReg(dev, 0x02, 0x0c4d);			mdelay(1);
-	mdelay(100);	// Deay 100 ms. //0xfe
-	mdelay(100);	// Deay 100 ms. //0xfe
-	RF_WriteReg(dev, 0x02, 0x044d);			mdelay(1);
-	RF_WriteReg(dev, 0x00, 0x02bf);			mdelay(1);	//0x002f disable 6us corner change,  06f--> enable
-
-	//=============================================================================
-
-	//=============================================================================
-	// CCKCONF.TXT
-	//=============================================================================
-
-	//=============================================================================
-
-	//=============================================================================
-	// Follow WMAC RTL8225_Config()
-	//=============================================================================
-
-	// power control
-	write_nic_byte(dev, CCK_TXAGC, 0x03);
-	write_nic_byte(dev, OFDM_TXAGC, 0x07);
-	write_nic_byte(dev, ANTSEL, 0x03);
-
-	//=============================================================================
-
-	// OFDM BBP setup
-//	SetOutputEnableOfRfPins(dev);//by amy
-#endif
 
 
 
@@ -1633,69 +1273,9 @@ ZEBRA_Config_85BASIC_HardCode(
 //by amy for antenna
 	//=============================================================================
 //{by amy 080312
-#ifdef CONFIG_RTL818X_S
 	// Config Sw/Hw  Combinational Antenna Diversity. Added by Roger, 2008.02.26.
 	SetAntennaConfig87SE(dev, priv->bDefaultAntenna1, priv->bSwAntennaDiverity);
-#endif
 //by amy 080312}
-#if 0
-	// Config Sw/Hw  Antenna Diversity
-	if( priv->bSwAntennaDiverity )  //  Use SW+Hw Antenna Diversity
-	{
-		if( priv->bDefaultAntenna1 == true )  // aux antenna
-		{
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0xbb); // Reg11 : bb
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0xc7); // Reg01 : c7
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54);   // Reg0d : 54
-			write_phy_ofdm(dev, 0x18, 0xb2);  // Reg18 : b2
-		}
-		else //  main antenna
-		{
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			//base band
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0x9b); // Reg11 : 9b
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0xc7); // Reg01 : c7
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c);   // Reg0d : 5c
-			write_phy_ofdm(dev, 0x18, 0xb2);  // Reg18 : b2
-		}
-	}
-	else   // Disable Antenna Diversity
-	{
-		if( priv->bDefaultAntenna1 == true ) // aux Antenna
-		{
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0xbb); // Reg11 : bb
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0x47); // Reg01 : 47
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54);   // Reg0d : 54
-			write_phy_ofdm(dev, 0x18, 0x32);  // Reg18 : 32
-		}
-		else // main Antenna
-		{
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0x9b); // Reg11 : 9b
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0x47); // Reg01 : 47
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c);   // Reg0d : 5c
-			write_phy_ofdm(dev, 0x18, 0x32);  // Reg18 : 32
-		}
-	}
-#endif
 //by amy for antenna
 }
 
@@ -1722,69 +1302,6 @@ UpdateInitialGain(
 
 	switch(priv->rf_chip)
 	{
-#if 0
-	case RF_ZEBRA2:
-		// Dynamic set initial gain, by shien chang, 2006.07.14
-		switch(priv->InitialGain)
-		{
-			case 1: //m861dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 1: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfa85);	mdelay(1);
-				break;
-
-			case 2: //m862dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 2: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 3: //m863dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 3: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x96a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 4: //m864dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 4: -78 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 5: //m82dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 5: -74 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x3697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 6: //m78dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 6: -70 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x4697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 7: //m74dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 7: -66 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x5697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			default:	//MP
-				DMESG("RTL8185B + 8225 Initial Gain State 1: -82 dBm (default)\n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfa85);	mdelay(1);
-				break;
-		}
-		break;
-#endif
 	case RF_ZEBRA4:
 		// Dynamic set initial gain, follow 87B
 		switch(priv->InitialGain)
@@ -1861,7 +1378,6 @@ UpdateInitialGain(
 		break;
 	}
 }
-#ifdef CONFIG_RTL818X_S
 //
 //	Description:
 //		Tx Power tracking mechanism routine on 87SE.
@@ -1882,7 +1398,6 @@ InitTxPwrTracking87SE(
 	RF_WriteReg(dev, 0x02, u4bRfReg|PWR_METER_EN);			mdelay(1);
 }
 
-#endif
 void
 PhyConfig8185(
 	struct net_device *dev
@@ -1900,7 +1415,6 @@ PhyConfig8185(
 		break;
 	}
 //{by amy 080312
-#ifdef CONFIG_RTL818X_S
 	// Set default initial gain state to 4, approved by SD3 DZ, by Bruce, 2007-06-06.
 	if(priv->bDigMechanism)
 	{
@@ -1917,7 +1431,6 @@ PhyConfig8185(
 	if(priv->bTxPowerTrack)
 		InitTxPwrTracking87SE(dev);
 
-#endif
 //by amy 080312}
 	priv->InitialGainBackUp= priv->InitialGain;
 	UpdateInitialGain(dev);
@@ -2005,16 +1518,8 @@ HwConfigureRTL8185(
 		// <RJ_TODO_8185B> We shall set up the ARFR according to user's setting.
 		//write_nic_word(dev, ARFR, 0x0fff); // set 1M ~ 54M
 //by amy
-#if 0
-		PlatformIOWrite2Byte(dev, ARFR, 0x0fff); 	// set 1M ~ 54M
-#endif
-#ifdef CONFIG_RTL818X_S
 	        // Aadded by Roger, 2007.11.15.
 	        PlatformIOWrite2Byte(dev, ARFR, 0x0fff); //set 1M ~ 54Mbps.
-#else
-		PlatformIOWrite2Byte(dev, ARFR, 0x0c00); //set 48Mbps, 54Mbps.
-                // By SD3 szuyi's request. by Roger, 2007.03.26.
-#endif
 //by amy
 	}
 	else
@@ -2084,10 +1589,6 @@ MacConfig_85BASIC(
 	// Asked for by SD3 CM Lin, 2006.06.27, by rcnjko.
 	//PlatformIOWrite4Byte(dev, RFTiming, 0x00004001);
 //by amy
-#if 0
-	write_nic_dword(dev, RFTiming, 0x00004001);
-#endif
-#ifdef CONFIG_RTL818X_S
 	// power save parameter based on "87SE power save parameters 20071127.doc", as follow.
 
 	//Enable DA10 TX power saving
@@ -2108,9 +1609,6 @@ MacConfig_85BASIC(
 	write_nic_word(dev, 0x37C, 0x00EC);
 //	write_nic_word(dev, 0x37E, 0x00FE);//-edward
 	write_nic_word(dev, 0x37E, 0x00EC);//+edward
-#else
-       write_nic_dword(dev, RFTiming, 0x00004003);
-#endif
        write_nic_byte(dev, 0x24E,0x01);
 //by amy
 
@@ -2231,11 +1729,9 @@ ActUpdateChannelAccessSetting(
 
 		//lzm reserved 080826
 #if 1
-#ifdef THOMAS_TURBO
 		// For turbo mode setting. port from 87B by Isaiah 2008-08-01
 		if( ieee->current_network.Turbo_Enable == 1 )
 			AcParam.f.TXOPLimit = 0x01FF;
-#endif
 		// For 87SE with Intel 4965  Ad-Hoc mode have poor throughput (19MB)
 		if (ieee->iw_mode == IW_MODE_ADHOC)
 			AcParam.f.TXOPLimit = 0x0020;
@@ -2477,16 +1973,6 @@ MgntDisconnectIBSS(
 	notify_wx_assoc_event(priv->ieee80211);
 
 	// Stop SW Beacon.Use hw beacon so do not need to do so.by amy
-#if 0
-	if(pMgntInfo->bEnableSwBeaconTimer)
-	{
-		// SwBeaconTimer will stop if pMgntInfo->mIbss==FALSE, see SwBeaconCallback() for details.
-// comment out by haich, 2007.10.01
-//#if DEV_BUS_TYPE==USB_INTERFACE
-		PlatformCancelTimer( Adapter, &pMgntInfo->SwBeaconTimer);
-//#endif
-	}
-#endif
 
 //		MgntIndicateMediaStatus( Adapter, RT_MEDIA_DISCONNECT, GENERAL_INDICATE );
 
@@ -2576,10 +2062,8 @@ MgntDisconnect(
 
 	// Indication of disassociation event.
 	//DrvIFIndicateDisassociation(Adapter, asRsn);
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(priv->ieee80211))
 		Dot11d_Reset(priv->ieee80211);
-#endif
 	// In adhoc mode, update beacon frame.
 	if( priv->ieee80211->state == IEEE80211_LINKED )
 	{
@@ -2844,19 +2328,7 @@ InactivePowerSave(
 	//
 	// To solve CAM values miss in RF OFF, rewrite CAM values after RF ON. By Bruce, 2007-09-20.
 	//
-#if 0
-	while( index < 4 )
-	{
-		if( ( pMgntInfo->SecurityInfo.PairwiseEncAlgorithm == WEP104_Encryption ) ||
-			(pMgntInfo->SecurityInfo.PairwiseEncAlgorithm == WEP40_Encryption) )
-		{
-			if( pMgntInfo->SecurityInfo.KeyLen[index] != 0)
-			pAdapter->HalFunc.SetKeyHandler(pAdapter, index, 0, FALSE, pMgntInfo->SecurityInfo.PairwiseEncAlgorithm, TRUE, FALSE);
 
-		}
-		index++;
-	}
-#endif
 	priv->bSwRfProcessing = false;
 }
 
@@ -2981,22 +2453,14 @@ void rtl8185b_adapter_start(struct net_device *dev)
 	write_nic_byte(dev, CR9346, 0xc0);	// enable config register write
 //by amy
 	tmpu8 = read_nic_byte(dev, CONFIG3);
-#ifdef CONFIG_RTL818X_S
 	write_nic_byte(dev, CONFIG3, (tmpu8 |CONFIG3_PARM_En) );
-#else
-	write_nic_byte(dev, CONFIG3, (tmpu8 |CONFIG3_PARM_En | CONFIG3_CLKRUN_En) );
-#endif
 //by amy
 	// Turn on Analog power.
 	// Asked for by William, otherwise, MAC 3-wire can't work, 2006.06.27, by rcnjko.
 	write_nic_dword(dev, ANAPARAM2, ANAPARM2_ASIC_ON);
 	write_nic_dword(dev, ANAPARAM, ANAPARM_ASIC_ON);
 //by amy
-#ifdef CONFIG_RTL818X_S
 	write_nic_word(dev, ANAPARAM3, 0x0010);
-#else
-      write_nic_byte(dev, ANAPARAM3, 0x00);
-#endif
 //by amy
 
 	write_nic_byte(dev, CONFIG3, tmpu8);
@@ -3082,7 +2546,6 @@ void rtl8185b_adapter_start(struct net_device *dev)
 		InitWirelessMode = ieee->mode;
 	}
 //by amy for power save
-#ifdef ENABLE_IPS
 //	printk("initialize ENABLE_IPS\n");
 	priv->eRFPowerState = eRfOff;
 	priv->RfOffReason = 0;
@@ -3107,7 +2570,6 @@ void rtl8185b_adapter_start(struct net_device *dev)
 	//	printk("rf off cost jiffies:%lx\n", (tmp2-tmp)*1000/HZ);
 
 	}
-#endif
 //	IPSEnter(dev);
 //by amy for power save
 #ifdef TODO
@@ -3151,58 +2613,6 @@ void rtl8185b_rx_enable(struct net_device *dev)
 	//u32 rxconf;
 	/* for now we accept data, management & ctl frame*/
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-#if 0
-	rxconf=read_nic_dword(dev,RX_CONF);
-	rxconf = rxconf &~ MAC_FILTER_MASK;
-	rxconf = rxconf | (1<<ACCEPT_MNG_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_DATA_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_BCAST_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_MCAST_FRAME_SHIFT);
-//	rxconf = rxconf | (1<<ACCEPT_CRCERR_FRAME_SHIFT);
-	if (dev->flags & IFF_PROMISC) DMESG ("NIC in promisc mode");
-
-	if(priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
-	   dev->flags & IFF_PROMISC){
-		rxconf = rxconf | (1<<ACCEPT_ALLMAC_FRAME_SHIFT);
-	}else{
-		rxconf = rxconf | (1<<ACCEPT_NICMAC_FRAME_SHIFT);
-		if(priv->card_8185 == 0)
-			rxconf = rxconf | (1<<RX_CHECK_BSSID_SHIFT);
-	}
-
-	/*if(priv->ieee80211->iw_mode == IW_MODE_MASTER){
-		rxconf = rxconf | (1<<ACCEPT_ALLMAC_FRAME_SHIFT);
-		rxconf = rxconf | (1<<RX_CHECK_BSSID_SHIFT);
-	}*/
-
-	if(priv->ieee80211->iw_mode == IW_MODE_MONITOR){
-		rxconf = rxconf | (1<<ACCEPT_CTL_FRAME_SHIFT);
-		rxconf = rxconf | (1<<ACCEPT_ICVERR_FRAME_SHIFT);
-		rxconf = rxconf | (1<<ACCEPT_PWR_FRAME_SHIFT);
-	}
-
-	if( priv->crcmon == 1 && priv->ieee80211->iw_mode == IW_MODE_MONITOR)
-		rxconf = rxconf | (1<<ACCEPT_CRCERR_FRAME_SHIFT);
-
-	//if(!priv->card_8185){
-		rxconf = rxconf &~ RX_FIFO_THRESHOLD_MASK;
-		rxconf = rxconf | (RX_FIFO_THRESHOLD_NONE<<RX_FIFO_THRESHOLD_SHIFT);
-	//}
-
-	rxconf = rxconf | (1<<RX_AUTORESETPHY_SHIFT);
-	rxconf = rxconf &~ MAX_RX_DMA_MASK;
-	rxconf = rxconf | (MAX_RX_DMA_2048<<MAX_RX_DMA_SHIFT);
-
-	//if(!priv->card_8185)
-		rxconf = rxconf | RCR_ONLYERLPKT;
-
-	rxconf = rxconf &~ RCR_CS_MASK;
-	if(!priv->card_8185)
-		rxconf |= (priv->rcr_csense<<RCR_CS_SHIFT);
-//	rxconf &=~ 0xfff00000;
-//	rxconf |= 0x90100000;//9014f76f;
-	write_nic_dword(dev, RX_CONF, rxconf);
-#endif
 
 	if (dev->flags & IFF_PROMISC) DMESG ("NIC in promisc mode");
 
@@ -3244,76 +2654,6 @@ void rtl8185b_tx_enable(struct net_device *dev)
 	//u32 txconf;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
-#if 0
-	txconf= read_nic_dword(dev,TX_CONF);
-	if(priv->card_8185){
-
-
-		byte = read_nic_byte(dev,CW_CONF);
-		byte &= ~(1<<CW_CONF_PERPACKET_CW_SHIFT);
-		byte &= ~(1<<CW_CONF_PERPACKET_RETRY_SHIFT);
-		write_nic_byte(dev, CW_CONF, byte);
-
-		tx_agc_ctl = read_nic_byte(dev, TX_AGC_CTL);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_GAIN_SHIFT);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT);
-		tx_agc_ctl |=(1<<TX_AGC_CTL_FEEDBACK_ANT);
-		write_nic_byte(dev, TX_AGC_CTL, tx_agc_ctl);
-		/*
-		write_nic_word(dev, 0x5e, 0x01);
-		force_pci_posting(dev);
-		mdelay(1);
-		write_nic_word(dev, 0xfe, 0x10);
-		force_pci_posting(dev);
-		mdelay(1);
-		write_nic_word(dev, 0x5e, 0x00);
-		force_pci_posting(dev);
-		mdelay(1);
-		*/
-		write_nic_byte(dev, 0xec, 0x3f); /* Disable early TX */
-	}
-
-	if(priv->card_8185){
-
-		txconf = txconf &~ (1<<TCR_PROBE_NOTIMESTAMP_SHIFT);
-
-	}else{
-
-		if(hwseqnum)
-			txconf= txconf &~ (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-		else
-			txconf= txconf | (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-	}
-
-	txconf = txconf &~ TX_LOOPBACK_MASK;
-	txconf = txconf | (TX_LOOPBACK_NONE <<TX_LOOPBACK_SHIFT);
-	txconf = txconf &~ TCR_DPRETRY_MASK;
-	txconf = txconf &~ TCR_RTSRETRY_MASK;
-	txconf = txconf | (priv->retry_data<<TX_DPRETRY_SHIFT);
-	txconf = txconf | (priv->retry_rts<<TX_RTSRETRY_SHIFT);
-	txconf = txconf &~ (1<<TX_NOCRC_SHIFT);
-
-	if(priv->card_8185){
-		if(priv->hw_plcp_len)
-			txconf = txconf &~ TCR_PLCP_LEN;
-		else
-			txconf = txconf | TCR_PLCP_LEN;
-	}else{
-		txconf = txconf &~ TCR_SAT;
-	}
-	txconf = txconf &~ TCR_MXDMA_MASK;
-	txconf = txconf | (TCR_MXDMA_2048<<TCR_MXDMA_SHIFT);
-	txconf = txconf | TCR_CWMIN;
-	txconf = txconf | TCR_DISCW;
-
-//	if(priv->ieee80211->hw_wep)
-//		txconf=txconf &~ (1<<TX_NOICV_SHIFT);
-//	else
-		txconf=txconf | (1<<TX_NOICV_SHIFT);
-
-	write_nic_dword(dev,TX_CONF,txconf);
-#endif
-
 	write_nic_dword(dev, TCR, priv->TransmitConfig);
 	byte = read_nic_byte(dev, MSR);
 	byte |= MSR_LINK_ENEDCA;
@@ -3339,4 +2679,3 @@ void rtl8185b_tx_enable(struct net_device *dev)
 }
 
 
-#endif

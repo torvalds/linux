@@ -35,8 +35,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	unsigned cpu = smp_processor_id();
 
 	if(prev != next){
-		cpu_clear(cpu, prev->cpu_vm_mask);
-		cpu_set(cpu, next->cpu_vm_mask);
+		cpumask_clear_cpu(cpu, mm_cpumask(prev));
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 		if(next != &init_mm)
 			__switch_mm(&next->context.id);
 	}

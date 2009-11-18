@@ -8,6 +8,6 @@
 #ifndef __ASM_BFIN_FTRACE_H__
 #define __ASM_BFIN_FTRACE_H__
 
-#define MCOUNT_INSN_SIZE	8 /* sizeof mcount call: LINK + CALL */
+#define MCOUNT_INSN_SIZE	6 /* sizeof "[++sp] = rets; call __mcount;" */
 
 #endif

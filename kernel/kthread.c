@@ -16,8 +16,6 @@
 #include <linux/mutex.h>
 #include <trace/events/sched.h>
 
-#define KTHREAD_NICE_LEVEL (-5)
-
 static DEFINE_SPINLOCK(kthread_create_lock);
 static LIST_HEAD(kthread_create_list);
 struct task_struct *kthreadd_task;
@@ -145,35 +143,11 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 		 * The kernel thread should not inherit these properties.
 		 */
 		sched_setscheduler_nocheck(create.result, SCHED_NORMAL, &param);
-		set_user_nice(create.result, KTHREAD_NICE_LEVEL);
 		set_cpus_allowed_ptr(create.result, cpu_all_mask);
 	}
 	return create.result;
 }
 EXPORT_SYMBOL(kthread_create);
-
-/**
- * kthread_bind - bind a just-created kthread to a cpu.
- * @k: thread created by kthread_create().
- * @cpu: cpu (might not be online, must be possible) for @k to run on.
- *
- * Description: This function is equivalent to set_cpus_allowed(),
- * except that @cpu doesn't need to be online, and the thread must be
- * stopped (i.e., just returned from kthread_create()).
- */
-void kthread_bind(struct task_struct *k, unsigned int cpu)
-{
-	/* Must have done schedule() in kthread() before we set_task_cpu */
-	if (!wait_task_inactive(k, TASK_UNINTERRUPTIBLE)) {
-		WARN_ON(1);
-		return;
-	}
-	set_task_cpu(k, cpu);
-	k->cpus_allowed = cpumask_of_cpu(cpu);
-	k->rt.nr_cpus_allowed = 1;
-	k->flags |= PF_THREAD_BOUND;
-}
-EXPORT_SYMBOL(kthread_bind);
 
 /**
  * kthread_stop - stop a thread created by kthread_create().
@@ -221,7 +195,6 @@ int kthreadd(void *unused)
 	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
 	ignore_signals(tsk);
-	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
 	set_mems_allowed(node_possible_map);
 

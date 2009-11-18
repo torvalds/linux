@@ -457,6 +457,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
+		.rpc_message = &msg,
 		.callback_ops = &nfs_write_direct_ops,
 		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
@@ -933,9 +934,6 @@ out:
  * the new i_size and this client must read the updated size
  * back into its cache.  We let the server do generic write
  * parameter checking and report problems.
- *
- * We also avoid an unnecessary invocation of generic_osync_inode(),
- * as it is fairly meaningless to sync the metadata of an NFS file.
  *
  * We eliminate local atime updates, see direct read above.
  *

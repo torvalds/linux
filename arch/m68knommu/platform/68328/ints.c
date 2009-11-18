@@ -73,34 +73,6 @@ extern e_vector *_ramvec;
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
-/*
- * This function should be called during kernel startup to initialize
- * the machine vector table.
- */
-void __init init_vectors(void)
-{
-	int i;
-
-	/* set up the vectors */
-	for (i = 72; i < 256; ++i)
-		_ramvec[i] = (e_vector) bad_interrupt;
-
-	_ramvec[32] = system_call;
-
-	_ramvec[65] = (e_vector) inthandler1;
-	_ramvec[66] = (e_vector) inthandler2;
-	_ramvec[67] = (e_vector) inthandler3;
-	_ramvec[68] = (e_vector) inthandler4;
-	_ramvec[69] = (e_vector) inthandler5;
-	_ramvec[70] = (e_vector) inthandler6;
-	_ramvec[71] = (e_vector) inthandler7;
- 
-	IVR = 0x40; /* Set DragonBall IVR (interrupt base) to 64 */
-
-	/* turn off all interrupts */
-	IMR = ~0;
-}
-
 /* The 68k family did not have a good way to determine the source
  * of interrupts until later in the family.  The EC000 core does
  * not provide the vector number on the stack, we vector everything
@@ -163,18 +135,54 @@ void process_int(int vec, struct pt_regs *fp)
 	}
 }
 
-void enable_vector(unsigned int irq)
+static void intc_irq_unmask(unsigned int irq)
 {
 	IMR &= ~(1<<irq);
 }
 
-void disable_vector(unsigned int irq)
+static void intc_irq_mask(unsigned int irq)
 {
 	IMR |= (1<<irq);
 }
 
-void ack_vector(unsigned int irq)
+static struct irq_chip intc_irq_chip = {
+	.name		= "M68K-INTC",
+	.mask		= intc_irq_mask,
+	.unmask		= intc_irq_unmask,
+};
+
+/*
+ * This function should be called during kernel startup to initialize
+ * the machine vector table.
+ */
+void __init init_IRQ(void)
 {
-	/* Nothing needed */
+	int i;
+
+	/* set up the vectors */
+	for (i = 72; i < 256; ++i)
+		_ramvec[i] = (e_vector) bad_interrupt;
+
+	_ramvec[32] = system_call;
+
+	_ramvec[65] = (e_vector) inthandler1;
+	_ramvec[66] = (e_vector) inthandler2;
+	_ramvec[67] = (e_vector) inthandler3;
+	_ramvec[68] = (e_vector) inthandler4;
+	_ramvec[69] = (e_vector) inthandler5;
+	_ramvec[70] = (e_vector) inthandler6;
+	_ramvec[71] = (e_vector) inthandler7;
+
+	IVR = 0x40; /* Set DragonBall IVR (interrupt base) to 64 */
+
+	/* turn off all interrupts */
+	IMR = ~0;
+
+	for (i = 0; (i < NR_IRQS); i++) {
+		irq_desc[i].status = IRQ_DISABLED;
+		irq_desc[i].action = NULL;
+		irq_desc[i].depth = 1;
+		irq_desc[i].chip = &intc_irq_chip;
+	}
 }
 

@@ -29,7 +29,8 @@
  * @c: UBIFS file-system description object
  *
  * This function scans the master node LEBs and search for the latest master
- * node. Returns zero in case of success and a negative error code in case of
+ * node. Returns zero in case of success, %-EUCLEAN if there master area is
+ * corrupted and requires recovery, and a negative error code in case of
  * failure.
  */
 static int scan_for_master(struct ubifs_info *c)
@@ -40,7 +41,7 @@ static int scan_for_master(struct ubifs_info *c)
 
 	lnum = UBIFS_MST_LNUM;
 
-	sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+	sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 	nodes_cnt = sleb->nodes_cnt;
@@ -48,7 +49,7 @@ static int scan_for_master(struct ubifs_info *c)
 		snod = list_entry(sleb->nodes.prev, struct ubifs_scan_node,
 				  list);
 		if (snod->type != UBIFS_MST_NODE)
-			goto out;
+			goto out_dump;
 		memcpy(c->mst_node, snod->node, snod->len);
 		offs = snod->offs;
 	}
@@ -56,7 +57,7 @@ static int scan_for_master(struct ubifs_info *c)
 
 	lnum += 1;
 
-	sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+	sleb = ubifs_scan(c, lnum, 0, c->sbuf, 1);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 	if (sleb->nodes_cnt != nodes_cnt)
@@ -65,7 +66,7 @@ static int scan_for_master(struct ubifs_info *c)
 		goto out;
 	snod = list_entry(sleb->nodes.prev, struct ubifs_scan_node, list);
 	if (snod->type != UBIFS_MST_NODE)
-		goto out;
+		goto out_dump;
 	if (snod->offs != offs)
 		goto out;
 	if (memcmp((void *)c->mst_node + UBIFS_CH_SZ,
@@ -77,6 +78,12 @@ static int scan_for_master(struct ubifs_info *c)
 	return 0;
 
 out:
+	ubifs_scan_destroy(sleb);
+	return -EUCLEAN;
+
+out_dump:
+	ubifs_err("unexpected node type %d master LEB %d:%d",
+		  snod->type, lnum, snod->offs);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
@@ -256,7 +263,8 @@ int ubifs_read_master(struct ubifs_info *c)
 
 	err = scan_for_master(c);
 	if (err) {
-		err = ubifs_recover_master_node(c);
+		if (err == -EUCLEAN)
+			err = ubifs_recover_master_node(c);
 		if (err)
 			/*
 			 * Note, we do not free 'c->mst_node' here because the

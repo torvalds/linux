@@ -78,7 +78,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
 	}
 
 	if (copy_to_user(it.range_ptr, lr->range,
-			sizeof(struct comedi_krange) * lr->length))
+			 sizeof(struct comedi_krange) * lr->length))
 		return -EFAULT;
 
 	return 0;
@@ -128,11 +128,12 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 	if (s->range_table) {
 		for (i = 0; i < n; i++)
 			if (CR_CHAN(chanlist[i]) >= s->n_chan ||
-				CR_RANGE(chanlist[i]) >= s->range_table->length
-				|| aref_invalid(s, chanlist[i])) {
-				printk("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
-					i, chanlist[i], s->n_chan,
-					s->range_table->length);
+			    CR_RANGE(chanlist[i]) >= s->range_table->length
+			    || aref_invalid(s, chanlist[i])) {
+				printk
+				    ("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
+				     i, chanlist[i], s->n_chan,
+				     s->range_table->length);
 #if 0
 				for (i = 0; i < n; i++)
 					printk("[%d]=0x%08x\n", i, chanlist[i]);
@@ -143,11 +144,11 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 		for (i = 0; i < n; i++) {
 			chan = CR_CHAN(chanlist[i]);
 			if (chan >= s->n_chan ||
-				CR_RANGE(chanlist[i]) >=
-				s->range_table_list[chan]->length
-				|| aref_invalid(s, chanlist[i])) {
+			    CR_RANGE(chanlist[i]) >=
+			    s->range_table_list[chan]->length
+			    || aref_invalid(s, chanlist[i])) {
 				printk("bad chanlist[%d]=0x%08x\n", i,
-					chanlist[i]);
+				       chanlist[i]);
 				return -EINVAL;
 			}
 		}

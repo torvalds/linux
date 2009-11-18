@@ -17,6 +17,7 @@
 #include <linux/inet.h>
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "dns_resolve.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -95,6 +96,20 @@ static int nfs4_validate_fspath(const struct vfsmount *mnt_parent,
 	return 0;
 }
 
+static size_t nfs_parse_server_name(char *string, size_t len,
+		struct sockaddr *sa, size_t salen)
+{
+	ssize_t ret;
+
+	ret = rpc_pton(string, len, sa, salen);
+	if (ret == 0) {
+		ret = nfs_dns_resolve_name(string, len, sa, salen);
+		if (ret < 0)
+			ret = 0;
+	}
+	return ret;
+}
+
 static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				     char *page, char *page2,
 				     const struct nfs4_fs_location *location)
@@ -106,7 +121,7 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 	mnt_path = nfs4_pathname_string(&location->rootpath, page2, PAGE_SIZE);
 	if (IS_ERR(mnt_path))
-		return mnt;
+		return ERR_CAST(mnt_path);
 	mountdata->mnt_path = mnt_path;
 	maxbuflen = mnt_path - 1 - page2;
 
@@ -117,15 +132,16 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 		if (buf->len <= 0 || buf->len >= maxbuflen)
 			continue;
 
-		mountdata->addr = (struct sockaddr *)&addr;
-
 		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
 			continue;
-		nfs_parse_ip_address(buf->data, buf->len,
-				mountdata->addr, &mountdata->addrlen);
-		if (mountdata->addr->sa_family == AF_UNSPEC)
+
+		mountdata->addrlen = nfs_parse_server_name(buf->data, buf->len,
+				(struct sockaddr *)&addr, sizeof(addr));
+		if (mountdata->addrlen == 0)
 			continue;
-		nfs_set_port(mountdata->addr, NFS_PORT);
+
+		mountdata->addr = (struct sockaddr *)&addr;
+		rpc_set_port(mountdata->addr, NFS_PORT);
 
 		memcpy(page2, buf->data, buf->len);
 		page2[buf->len] = '\0';

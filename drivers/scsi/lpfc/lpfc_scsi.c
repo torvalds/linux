@@ -56,8 +56,6 @@ static char *dif_op_str[] = {
 	"SCSI_PROT_WRITE_INSERT",
 	"SCSI_PROT_READ_PASS",
 	"SCSI_PROT_WRITE_PASS",
-	"SCSI_PROT_READ_CONVERT",
-	"SCSI_PROT_WRITE_CONVERT"
 };
 static void
 lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb);
@@ -1131,13 +1129,11 @@ lpfc_sc_to_sli_prof(struct scsi_cmnd *sc)
 			ret_prof = LPFC_PROF_A1;
 			break;
 
-		case SCSI_PROT_READ_CONVERT:
-		case SCSI_PROT_WRITE_CONVERT:
+		case SCSI_PROT_READ_PASS:
+		case SCSI_PROT_WRITE_PASS:
 			ret_prof = LPFC_PROF_AST1;
 			break;
 
-		case SCSI_PROT_READ_PASS:
-		case SCSI_PROT_WRITE_PASS:
 		case SCSI_PROT_NORMAL:
 		default:
 			printk(KERN_ERR "Bad op/guard:%d/%d combination\n",
@@ -1157,8 +1153,6 @@ lpfc_sc_to_sli_prof(struct scsi_cmnd *sc)
 			ret_prof = LPFC_PROF_C1;
 			break;
 
-		case SCSI_PROT_READ_CONVERT:
-		case SCSI_PROT_WRITE_CONVERT:
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
 		case SCSI_PROT_NORMAL:
@@ -1209,8 +1203,7 @@ lpfc_get_cmd_dif_parms(struct scsi_cmnd *sc, uint16_t *apptagmask,
 	static int cnt;
 
 	if (protcnt && (op == SCSI_PROT_WRITE_STRIP ||
-				op == SCSI_PROT_WRITE_PASS ||
-				op == SCSI_PROT_WRITE_CONVERT)) {
+				op == SCSI_PROT_WRITE_PASS)) {
 
 		cnt++;
 		spt = page_address(sg_page(scsi_prot_sglist(sc))) +
@@ -1501,8 +1494,6 @@ lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 	case SCSI_PROT_WRITE_STRIP:
 	case SCSI_PROT_READ_PASS:
 	case SCSI_PROT_WRITE_PASS:
-	case SCSI_PROT_WRITE_CONVERT:
-	case SCSI_PROT_READ_CONVERT:
 		ret = LPFC_PG_TYPE_DIF_BUF;
 		break;
 	default:
@@ -2142,7 +2133,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	} else if (resp_info & RESID_OVER) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 				 "9028 FCP command x%x residual overrun error. "
-				 "Data: x%x x%x \n", cmnd->cmnd[0],
+				 "Data: x%x x%x\n", cmnd->cmnd[0],
 				 scsi_bufflen(cmnd), scsi_get_resid(cmnd));
 		host_status = DID_ERROR;
 
@@ -2843,7 +2834,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 				dif_op_str[scsi_get_prot_op(cmnd)]);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 				"9034 BLKGRD: CDB: %02x %02x %02x %02x %02x "
-				"%02x %02x %02x %02x %02x \n",
+				"%02x %02x %02x %02x %02x\n",
 				cmnd->cmnd[0], cmnd->cmnd[1], cmnd->cmnd[2],
 				cmnd->cmnd[3], cmnd->cmnd[4], cmnd->cmnd[5],
 				cmnd->cmnd[6], cmnd->cmnd[7], cmnd->cmnd[8],
@@ -2871,7 +2862,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 				dif_op_str[scsi_get_prot_op(cmnd)]);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 				 "9039 BLKGRD: CDB: %02x %02x %02x %02x %02x "
-				 "%02x %02x %02x %02x %02x \n",
+				 "%02x %02x %02x %02x %02x\n",
 				 cmnd->cmnd[0], cmnd->cmnd[1], cmnd->cmnd[2],
 				 cmnd->cmnd[3], cmnd->cmnd[4], cmnd->cmnd[5],
 				 cmnd->cmnd[6], cmnd->cmnd[7], cmnd->cmnd[8],
@@ -3584,6 +3575,7 @@ struct scsi_host_template lpfc_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
+	.vendor_id		= LPFC_NL_VENDOR_ID,
 };
 
 struct scsi_host_template lpfc_vport_template = {

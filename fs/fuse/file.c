@@ -1063,7 +1063,8 @@ ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 				break;
 		}
 	}
-	fuse_put_request(fc, req);
+	if (!IS_ERR(req))
+		fuse_put_request(fc, req);
 	if (res > 0)
 		*ppos = pos;
 
@@ -1313,7 +1314,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct fuse_file_vm_ops = {
+static const struct vm_operations_struct fuse_file_vm_ops = {
 	.close		= fuse_vma_close,
 	.fault		= filemap_fault,
 	.page_mkwrite	= fuse_page_mkwrite,
@@ -1599,7 +1600,7 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
 			kaddr += copy;
 		}
 
-		kunmap(map);
+		kunmap(page);
 	}
 
 	return 0;

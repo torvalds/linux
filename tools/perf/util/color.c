@@ -166,7 +166,7 @@ int perf_color_default_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int color_vfprintf(FILE *fp, const char *color, const char *fmt,
+static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 		va_list args, const char *trail)
 {
 	int r = 0;
@@ -191,6 +191,10 @@ static int color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	return r;
 }
 
+int color_vfprintf(FILE *fp, const char *color, const char *fmt, va_list args)
+{
+	return __color_vfprintf(fp, color, fmt, args, NULL);
+}
 
 
 int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
@@ -199,7 +203,7 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = color_vfprintf(fp, color, fmt, args, NULL);
+	r = color_vfprintf(fp, color, fmt, args);
 	va_end(args);
 	return r;
 }
@@ -209,7 +213,7 @@ int color_fprintf_ln(FILE *fp, const char *color, const char *fmt, ...)
 	va_list args;
 	int r;
 	va_start(args, fmt);
-	r = color_vfprintf(fp, color, fmt, args, "\n");
+	r = __color_vfprintf(fp, color, fmt, args, "\n");
 	va_end(args);
 	return r;
 }
@@ -242,9 +246,9 @@ int color_fwrite_lines(FILE *fp, const char *color,
 	return 0;
 }
 
-char *get_percent_color(double percent)
+const char *get_percent_color(double percent)
 {
-	char *color = PERF_COLOR_NORMAL;
+	const char *color = PERF_COLOR_NORMAL;
 
 	/*
 	 * We color high-overhead entries in red, mid-overhead
@@ -263,7 +267,7 @@ char *get_percent_color(double percent)
 int percent_color_fprintf(FILE *fp, const char *fmt, double percent)
 {
 	int r;
-	char *color;
+	const char *color;
 
 	color = get_percent_color(percent);
 	r = color_fprintf(fp, color, fmt, percent);

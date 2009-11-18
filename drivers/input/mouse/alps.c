@@ -279,7 +279,7 @@ static const struct alps_model_info *alps_get_model(struct psmouse *psmouse, int
  * subsequent commands. It looks like glidepad is behind stickpointer,
  * I'd thought it would be other way around...
  */
-static int alps_passthrough_mode(struct psmouse *psmouse, int enable)
+static int alps_passthrough_mode(struct psmouse *psmouse, bool enable)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	int cmd = enable ? PSMOUSE_CMD_SETSCALE21 : PSMOUSE_CMD_SETSCALE11;
@@ -367,16 +367,16 @@ static int alps_poll(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 	unsigned char buf[6];
-	int poll_failed;
+	bool poll_failed;
 
 	if (priv->i->flags & ALPS_PASS)
-		alps_passthrough_mode(psmouse, 1);
+		alps_passthrough_mode(psmouse, true);
 
 	poll_failed = ps2_command(&psmouse->ps2dev, buf,
 				  PSMOUSE_CMD_POLL | (psmouse->pktsize << 8)) < 0;
 
 	if (priv->i->flags & ALPS_PASS)
-		alps_passthrough_mode(psmouse, 0);
+		alps_passthrough_mode(psmouse, false);
 
 	if (poll_failed || (buf[0] & priv->i->mask0) != priv->i->byte0)
 		return -1;
@@ -401,10 +401,12 @@ static int alps_hw_init(struct psmouse *psmouse, int *version)
 	if (!priv->i)
 		return -1;
 
-	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 1))
+	if ((priv->i->flags & ALPS_PASS) &&
+	    alps_passthrough_mode(psmouse, true)) {
 		return -1;
+	}
 
-	if (alps_tap_mode(psmouse, 1)) {
+	if (alps_tap_mode(psmouse, true)) {
 		printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
 		return -1;
 	}
@@ -414,8 +416,10 @@ static int alps_hw_init(struct psmouse *psmouse, int *version)
 		return -1;
 	}
 
-	if ((priv->i->flags & ALPS_PASS) && alps_passthrough_mode(psmouse, 0))
+	if ((priv->i->flags & ALPS_PASS) &&
+	    alps_passthrough_mode(psmouse, false)) {
 		return -1;
+	}
 
 	/* ALPS needs stream mode, otherwise it won't report any data */
 	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSTREAM)) {
@@ -519,7 +523,7 @@ init_fail:
 	return -1;
 }
 
-int alps_detect(struct psmouse *psmouse, int set_properties)
+int alps_detect(struct psmouse *psmouse, bool set_properties)
 {
 	int version;
 	const struct alps_model_info *model;

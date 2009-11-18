@@ -6,7 +6,7 @@
 #ifndef _LBS_DECL_H_
 #define _LBS_DECL_H_
 
-#include <linux/device.h>
+#include <linux/netdevice.h>
 
 #include "defs.h"
 
@@ -41,7 +41,8 @@ u8 lbs_data_rate_to_fw_index(u32 rate);
 int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len);
 void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 			  int result);
-int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb,
+				struct net_device *dev);
 int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band);
 
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *);

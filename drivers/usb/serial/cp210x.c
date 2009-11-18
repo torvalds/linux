@@ -33,8 +33,7 @@
 /*
  * Function Prototypes
  */
-static int cp210x_open(struct tty_struct *, struct usb_serial_port *,
-							struct file *);
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *);
 static void cp210x_cleanup(struct usb_serial_port *);
 static void cp210x_close(struct usb_serial_port *);
 static void cp210x_get_termios(struct tty_struct *,
@@ -114,6 +113,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x166A, 0x0303) }, /* Clipsal 5500PCU C-Bus USB interface */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ USB_DEVICE(0x18EF, 0xE00F) }, /* ELV USB-I2C-Interface */
+	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
 	{ } /* Terminating Entry */
 };
 
@@ -368,8 +368,7 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 	return baud;
 }
 
-static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	int result;
@@ -399,12 +398,6 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-
-	/* Set the DTR and RTS pins low */
-	cp210x_tiocmset_port(tty ? (struct usb_serial_port *) tty->driver_data
-			: port,
-		NULL, TIOCM_DTR | TIOCM_RTS, 0);
-
 	return 0;
 }
 

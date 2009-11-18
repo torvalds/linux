@@ -236,18 +236,6 @@ static int subdev_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int subdev_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
-{
-	struct ivtv *itv = sd_to_ivtv(sd);
-	u16 mask, data;
-
-	mask = itv->card->gpio_audio_input.mask;
-	data = itv->card->gpio_audio_input.tuner;
-	if (mask)
-		write_reg((read_reg(IVTV_REG_GPIO_OUT) & ~mask) | (data & mask), IVTV_REG_GPIO_OUT);
-	return 0;
-}
-
 static int subdev_s_audio_routing(struct v4l2_subdev *sd,
 				  u32 input, u32 output, u32 config)
 {
@@ -344,7 +332,6 @@ static const struct v4l2_subdev_core_ops subdev_core_ops = {
 	.g_ctrl = subdev_g_ctrl,
 	.s_ctrl = subdev_s_ctrl,
 	.queryctrl = subdev_queryctrl,
-	.s_std = subdev_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops subdev_tuner_ops = {

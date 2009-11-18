@@ -334,6 +334,15 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_init_chunk_t)))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 
+	/* If the INIT is coming toward a closing socket, we'll send back
+	 * and ABORT.  Essentially, this catches the race of INIT being
+	 * backloged to the socket at the same time as the user isses close().
+	 * Since the socket and all its associations are going away, we
+	 * can treat this OOTB
+	 */
+	if (sctp_sstate(ep->base.sk, CLOSING))
+		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
+
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
 	if (!sctp_verify_init(asoc, chunk->chunk_hdr->type,
@@ -962,7 +971,7 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 {
 	struct sctp_transport *transport = (struct sctp_transport *) arg;
 
-	if (asoc->overall_error_count > asoc->max_retrans) {
+	if (asoc->overall_error_count >= asoc->max_retrans) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
@@ -1106,7 +1115,8 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 
 	/* Make sure that the HEARTBEAT-ACK chunk has a valid length.  */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_heartbeat_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_chunkhdr_t) +
+					    sizeof(sctp_sender_hb_info_t)))
 		return sctp_sf_violation_chunklen(ep, asoc, type, arg,
 						  commands);
 
@@ -2561,6 +2571,12 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown(const struct sctp_endpoint *ep,
 	chunk->subh.shutdown_hdr = sdh;
 	ctsn = ntohl(sdh->cum_tsn_ack);
 
+	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
+		SCTP_DEBUG_PRINTK("ctsn %x\n", ctsn);
+		SCTP_DEBUG_PRINTK("ctsn_ack_point %x\n", asoc->ctsn_ack_point);
+		return SCTP_DISPOSITION_DISCARD;
+	}
+
 	/* If Cumulative TSN Ack beyond the max tsn currently
 	 * send, terminating the association and respond to the
 	 * sender with an ABORT.
@@ -2624,6 +2640,7 @@ sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(const struct sctp_endpoint *ep,
 {
 	struct sctp_chunk *chunk = arg;
 	sctp_shutdownhdr_t *sdh;
+	__u32 ctsn;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
@@ -2635,12 +2652,19 @@ sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(const struct sctp_endpoint *ep,
 						  commands);
 
 	sdh = (sctp_shutdownhdr_t *)chunk->skb->data;
+	ctsn = ntohl(sdh->cum_tsn_ack);
+
+	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
+		SCTP_DEBUG_PRINTK("ctsn %x\n", ctsn);
+		SCTP_DEBUG_PRINTK("ctsn_ack_point %x\n", asoc->ctsn_ack_point);
+		return SCTP_DISPOSITION_DISCARD;
+	}
 
 	/* If Cumulative TSN Ack beyond the max tsn currently
 	 * send, terminating the association and respond to the
 	 * sender with an ABORT.
 	 */
-	if (!TSN_lt(ntohl(sdh->cum_tsn_ack), asoc->next_tsn))
+	if (!TSN_lt(ctsn, asoc->next_tsn))
 		return sctp_sf_violation_ctsn(ep, asoc, type, arg, commands);
 
 	/* verify, by checking the Cumulative TSN Ack field of the
@@ -2867,6 +2891,9 @@ sctp_disposition_t sctp_sf_eat_data_6_2(const struct sctp_endpoint *ep,
 		goto discard_force;
 	case SCTP_IERROR_NO_DATA:
 		goto consume;
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_abort_violation(ep, asoc, chunk, commands,
+			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
 	default:
 		BUG();
 	}
@@ -2977,6 +3004,9 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(const struct sctp_endpoint *ep,
 		break;
 	case SCTP_IERROR_NO_DATA:
 		goto consume;
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_abort_violation(ep, asoc, chunk, commands,
+			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
 	default:
 		BUG();
 	}
@@ -3519,6 +3549,12 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 		asconf_ack = sctp_assoc_lookup_asconf_ack(asoc, hdr->serial);
 		if (!asconf_ack)
 			return SCTP_DISPOSITION_DISCARD;
+
+		/* Reset the transport so that we select the correct one
+		 * this time around.  This is to make sure that we don't
+		 * accidentally use a stale transport that's been removed.
+		 */
+		asconf_ack->transport = NULL;
 	} else {
 		/* ADDIP 5.2 E5) Otherwise, the ASCONF Chunk is discarded since
 		 * it must be either a stale packet or from an attacker.
@@ -4546,9 +4582,9 @@ sctp_disposition_t sctp_sf_do_prm_send(const struct sctp_endpoint *ep,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
-	struct sctp_chunk *chunk = arg;
+	struct sctp_datamsg *msg = arg;
 
-	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(chunk));
+	sctp_add_cmd_sf(commands, SCTP_CMD_SEND_MSG, SCTP_DATAMSG(msg));
 	return SCTP_DISPOSITION_CONSUME;
 }
 
@@ -5847,6 +5883,9 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	__u32 tsn;
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
 	struct sock *sk = asoc->base.sk;
+	u16 ssn;
+	u16 sid;
+	u8 ordered = 0;
 
 	data_hdr = chunk->subh.data_hdr = (sctp_datahdr_t *)chunk->skb->data;
 	skb_pull(chunk->skb, sizeof(sctp_datahdr_t));
@@ -5986,8 +6025,10 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 */
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
 		SCTP_INC_STATS(SCTP_MIB_INUNORDERCHUNKS);
-	else
+	else {
 		SCTP_INC_STATS(SCTP_MIB_INORDERCHUNKS);
+		ordered = 1;
+	}
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
 	 *
@@ -5997,7 +6038,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * with cause set to "Invalid Stream Identifier" (See Section 3.3.10)
 	 * and discard the DATA chunk.
 	 */
-	if (ntohs(data_hdr->stream) >= asoc->c.sinit_max_instreams) {
+	sid = ntohs(data_hdr->stream);
+	if (sid >= asoc->c.sinit_max_instreams) {
 		/* Mark tsn as received even though we drop it */
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
 
@@ -6008,6 +6050,18 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 					SCTP_CHUNK(err));
 		return SCTP_IERROR_BAD_STREAM;
+	}
+
+	/* Check to see if the SSN is possible for this TSN.
+	 * The biggest gap we can record is 4K wide.  Since SSNs wrap
+	 * at an unsigned short, there is no way that an SSN can
+	 * wrap and for a valid TSN.  We can simply check if the current
+	 * SSN is smaller then the next expected one.  If it is, it wrapped
+	 * and is invalid.
+	 */
+	ssn = ntohs(data_hdr->ssn);
+	if (ordered && SSN_lt(ssn, sctp_ssn_peek(&asoc->ssnmap->in, sid))) {
+		return SCTP_IERROR_PROTO_VIOLATION;
 	}
 
 	/* Send the data up to the user.  Note:  Schedule  the

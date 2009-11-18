@@ -132,6 +132,7 @@ struct lpfc_sli4_link {
 
 struct lpfc_fcf {
 	uint8_t	 fabric_name[8];
+	uint8_t	 switch_name[8];
 	uint8_t  mac_addr[6];
 	uint16_t fcf_indx;
 	uint16_t fcfi;
@@ -150,6 +151,10 @@ struct lpfc_fcf {
 #define LPFC_REGION23_SIGNATURE "RG23"
 #define LPFC_REGION23_VERSION	1
 #define LPFC_REGION23_LAST_REC  0xff
+#define DRIVER_SPECIFIC_TYPE	0xA2
+#define LINUX_DRIVER_ID		0x20
+#define PORT_STE_TYPE		0x1
+
 struct lpfc_fip_param_hdr {
 	uint8_t type;
 #define FCOE_PARAM_TYPE		0xA0

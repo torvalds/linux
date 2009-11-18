@@ -15,6 +15,8 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <net/dst.h>
+#include <net/xfrm.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
@@ -310,11 +312,12 @@ struct hwsim_radiotap_hdr {
 } __attribute__ ((packed));
 
 
-static int hwsim_mon_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	/* TODO: allow packet injection */
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -404,10 +407,18 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	rx_status.freq = data->channel->center_freq;
 	rx_status.band = data->channel->band;
 	rx_status.rate_idx = info->control.rates[0].idx;
-	/* TODO: simulate signal strength (and optional packet drop) */
+	/* TODO: simulate real signal strength (and optional packet loss) */
+	rx_status.signal = -50;
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
+	/* release the skb's source info */
+	skb_orphan(skb);
+	skb_dst_drop(skb);
+	skb->mark = 0;
+	secpath_reset(skb);
+	nf_reset(skb);
 
 	/* Copy skb to all enabled radios that are on the current frequency */
 	spin_lock(&hwsim_radio_lock);
@@ -430,7 +441,8 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (memcmp(hdr->addr1, data2->hw->wiphy->perm_addr,
 			   ETH_ALEN) == 0)
 			ack = true;
-		ieee80211_rx_irqsafe(data2->hw, nskb, &rx_status);
+		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
+		ieee80211_rx_irqsafe(data2->hw, nskb);
 	}
 	spin_unlock(&hwsim_radio_lock);
 
@@ -571,9 +583,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 					    unsigned int changed_flags,
-					    unsigned int *total_flags,
-					    int mc_count,
-					    struct dev_addr_list *mc_list)
+					    unsigned int *total_flags,u64 multicast)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 
@@ -621,6 +631,9 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
 		if (WARN_ON(!data->beacon_int))
 			data->beacon_int = 1;
+		if (data->started)
+			mod_timer(&data->beacon_timer,
+				  jiffies + data->beacon_int);
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -690,6 +703,74 @@ static int mac80211_hwsim_conf_tx(
 	return 0;
 }
 
+#ifdef CONFIG_NL80211_TESTMODE
+/*
+ * This section contains example code for using netlink
+ * attributes with the testmode command in nl80211.
+ */
+
+/* These enums need to be kept in sync with userspace */
+enum hwsim_testmode_attr {
+	__HWSIM_TM_ATTR_INVALID	= 0,
+	HWSIM_TM_ATTR_CMD	= 1,
+	HWSIM_TM_ATTR_PS	= 2,
+
+	/* keep last */
+	__HWSIM_TM_ATTR_AFTER_LAST,
+	HWSIM_TM_ATTR_MAX	= __HWSIM_TM_ATTR_AFTER_LAST - 1
+};
+
+enum hwsim_testmode_cmd {
+	HWSIM_TM_CMD_SET_PS		= 0,
+	HWSIM_TM_CMD_GET_PS		= 1,
+};
+
+static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
+	[HWSIM_TM_ATTR_CMD] = { .type = NLA_U32 },
+	[HWSIM_TM_ATTR_PS] = { .type = NLA_U32 },
+};
+
+static int hwsim_fops_ps_write(void *dat, u64 val);
+
+static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
+				       void *data, int len)
+{
+	struct mac80211_hwsim_data *hwsim = hw->priv;
+	struct nlattr *tb[HWSIM_TM_ATTR_MAX + 1];
+	struct sk_buff *skb;
+	int err, ps;
+
+	err = nla_parse(tb, HWSIM_TM_ATTR_MAX, data, len,
+			hwsim_testmode_policy);
+	if (err)
+		return err;
+
+	if (!tb[HWSIM_TM_ATTR_CMD])
+		return -EINVAL;
+
+	switch (nla_get_u32(tb[HWSIM_TM_ATTR_CMD])) {
+	case HWSIM_TM_CMD_SET_PS:
+		if (!tb[HWSIM_TM_ATTR_PS])
+			return -EINVAL;
+		ps = nla_get_u32(tb[HWSIM_TM_ATTR_PS]);
+		return hwsim_fops_ps_write(hwsim, ps);
+	case HWSIM_TM_CMD_GET_PS:
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+						nla_total_size(sizeof(u32)));
+		if (!skb)
+			return -ENOMEM;
+		NLA_PUT_U32(skb, HWSIM_TM_ATTR_PS, hwsim->ps);
+		return cfg80211_testmode_reply(skb);
+	default:
+		return -EOPNOTSUPP;
+	}
+
+ nla_put_failure:
+	kfree_skb(skb);
+	return -ENOBUFS;
+}
+#endif
+
 static const struct ieee80211_ops mac80211_hwsim_ops =
 {
 	.tx = mac80211_hwsim_tx,
@@ -703,6 +784,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.sta_notify = mac80211_hwsim_sta_notify,
 	.set_tim = mac80211_hwsim_set_tim,
 	.conf_tx = mac80211_hwsim_conf_tx,
+	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)
 };
 
 
@@ -757,7 +839,6 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *data = dat;
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
-	DECLARE_MAC_BUF(buf);
 	struct sk_buff *skb;
 	struct ieee80211_pspoll *pspoll;
 
@@ -787,7 +868,6 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 				struct ieee80211_vif *vif, int ps)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
-	DECLARE_MAC_BUF(buf);
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 
@@ -945,7 +1025,8 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
 
-		hw->flags = IEEE80211_HW_MFP_CAPABLE;
+		hw->flags = IEEE80211_HW_MFP_CAPABLE |
+			    IEEE80211_HW_SIGNAL_DBM;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);

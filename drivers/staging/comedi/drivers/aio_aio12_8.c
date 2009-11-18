@@ -77,7 +77,7 @@ struct aio12_8_boardtype {
 
 static const struct aio12_8_boardtype board_types[] = {
 	{
-	.name = "aio_aio12_8"},
+	 .name = "aio_aio12_8"},
 };
 
 #define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
@@ -88,13 +88,14 @@ struct aio12_8_private {
 
 #define devpriv	((struct aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ai_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned char control =
-		ADC_MODE_NORMAL |
-		(CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
+	    ADC_MODE_NORMAL |
+	    (CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
 
 	/* read status to clear EOC latch */
 	inb(dev->iobase + AIO12_8_STATUS);
@@ -107,7 +108,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevic
 
 		/*  Wait for conversion to complete */
 		while (timeout &&
-			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
+		       !(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
 			printk("timeout %d\n", timeout);
 			udelay(1);
@@ -122,8 +123,9 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ao_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -133,8 +135,9 @@ static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevic
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ao_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -154,14 +157,15 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevi
 static const struct comedi_lrange range_aio_aio12_8 = {
 	4,
 	{
-			UNI_RANGE(5),
-			BIP_RANGE(5),
-			UNI_RANGE(10),
-			BIP_RANGE(10),
-		}
+	 UNI_RANGE(5),
+	 BIP_RANGE(5),
+	 UNI_RANGE(10),
+	 BIP_RANGE(10),
+	 }
 };
 
-static int aio_aio12_8_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int aio_aio12_8_attach(struct comedi_device *dev,
+			      struct comedi_devconfig *it)
 {
 	int iobase;
 	struct comedi_subdevice *s;

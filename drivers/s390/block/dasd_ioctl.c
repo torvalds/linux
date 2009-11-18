@@ -98,8 +98,8 @@ static int dasd_ioctl_quiesce(struct dasd_block *block)
 	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
 
-	dev_info(&base->cdev->dev, "The DASD has been put in the quiesce "
-		 "state\n");
+	pr_info("%s: The DASD has been put in the quiesce "
+		"state\n", dev_name(&base->cdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
 	base->stopped |= DASD_STOPPED_QUIESCE;
 	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
@@ -119,8 +119,8 @@ static int dasd_ioctl_resume(struct dasd_block *block)
 	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
 
-	dev_info(&base->cdev->dev, "I/O operations have been resumed "
-		 "on the DASD\n");
+	pr_info("%s: I/O operations have been resumed "
+		"on the DASD\n", dev_name(&base->cdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
 	base->stopped &= ~DASD_STOPPED_QUIESCE;
 	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
@@ -146,8 +146,8 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		return -EPERM;
 
 	if (base->state != DASD_STATE_BASIC) {
-		dev_warn(&base->cdev->dev,
-			 "The DASD cannot be formatted while it is enabled\n");
+		pr_warning("%s: The DASD cannot be formatted while it is "
+			   "enabled\n",  dev_name(&base->cdev->dev));
 		return -EBUSY;
 	}
 
@@ -175,9 +175,9 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		dasd_sfree_request(cqr, cqr->memdev);
 		if (rc) {
 			if (rc != -ERESTARTSYS)
-				dev_err(&base->cdev->dev,
-					"Formatting unit %d failed with "
-					"rc=%d\n", fdata->start_unit, rc);
+				pr_err("%s: Formatting unit %d failed with "
+				       "rc=%d\n", dev_name(&base->cdev->dev),
+				       fdata->start_unit, rc);
 			return rc;
 		}
 		fdata->start_unit++;
@@ -204,9 +204,9 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	if (copy_from_user(&fdata, argp, sizeof(struct format_data_t)))
 		return -EFAULT;
 	if (bdev != bdev->bd_contains) {
-		dev_warn(&block->base->cdev->dev,
-			 "The specified DASD is a partition and cannot be "
-			 "formatted\n");
+		pr_warning("%s: The specified DASD is a partition and cannot "
+			   "be formatted\n",
+			   dev_name(&block->base->cdev->dev));
 		return -EINVAL;
 	}
 	return dasd_format(block, &fdata);

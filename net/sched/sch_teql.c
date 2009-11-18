@@ -268,7 +268,7 @@ static inline int teql_resolve(struct sk_buff *skb,
 	return __teql_resolve(skb, skb_res, dev);
 }
 
-static int teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct teql_master *master = netdev_priv(dev);
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
@@ -307,14 +307,14 @@ restart:
 
 				if (!netif_tx_queue_stopped(slave_txq) &&
 				    !netif_tx_queue_frozen(slave_txq) &&
-				    slave_ops->ndo_start_xmit(skb, slave) == 0) {
+				    slave_ops->ndo_start_xmit(skb, slave) == NETDEV_TX_OK) {
 					txq_trans_update(slave_txq);
 					__netif_tx_unlock(slave_txq);
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
 					txq->tx_packets++;
 					txq->tx_bytes += length;
-					return 0;
+					return NETDEV_TX_OK;
 				}
 				__netif_tx_unlock(slave_txq);
 			}
@@ -323,7 +323,7 @@ restart:
 			break;
 		case 1:
 			master->slaves = NEXT_SLAVE(q);
-			return 0;
+			return NETDEV_TX_OK;
 		default:
 			nores = 1;
 			break;
@@ -345,7 +345,7 @@ restart:
 drop:
 	txq->tx_dropped++;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int teql_master_open(struct net_device *dev)

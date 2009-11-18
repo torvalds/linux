@@ -25,7 +25,7 @@ static int mfd_add_device(struct device *parent, int id,
 	int ret = -ENOMEM;
 	int r;
 
-	pdev = platform_device_alloc(cell->name, id);
+	pdev = platform_device_alloc(cell->name, id + cell->id);
 	if (!pdev)
 		goto fail_alloc;
 

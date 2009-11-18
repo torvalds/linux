@@ -14,6 +14,7 @@
  */
 
 #include <crypto/internal/skcipher.h>
+#include <linux/cpumask.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -24,6 +25,8 @@
 #include <linux/seq_file.h>
 
 #include "internal.h"
+
+static const char *skcipher_default_geniv __read_mostly;
 
 static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key,
 			    unsigned int keylen)
@@ -180,7 +183,14 @@ EXPORT_SYMBOL_GPL(crypto_givcipher_type);
 
 const char *crypto_default_geniv(const struct crypto_alg *alg)
 {
-	return alg->cra_flags & CRYPTO_ALG_ASYNC ? "eseqiv" : "chainiv";
+	if (((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	     CRYPTO_ALG_TYPE_BLKCIPHER ? alg->cra_blkcipher.ivsize :
+					 alg->cra_ablkcipher.ivsize) !=
+	    alg->cra_blocksize)
+		return "chainiv";
+
+	return alg->cra_flags & CRYPTO_ALG_ASYNC ?
+	       "eseqiv" : skcipher_default_geniv;
 }
 
 static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
@@ -201,8 +211,9 @@ static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
 	int err;
 
 	larval = crypto_larval_lookup(alg->cra_driver_name,
+				      (type & ~CRYPTO_ALG_TYPE_MASK) |
 				      CRYPTO_ALG_TYPE_GIVCIPHER,
-				      CRYPTO_ALG_TYPE_MASK);
+				      mask | CRYPTO_ALG_TYPE_MASK);
 	err = PTR_ERR(larval);
 	if (IS_ERR(larval))
 		goto out;
@@ -360,3 +371,17 @@ err:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ablkcipher);
+
+static int __init skcipher_module_init(void)
+{
+	skcipher_default_geniv = num_possible_cpus() > 1 ?
+				 "eseqiv" : "chainiv";
+	return 0;
+}
+
+static void skcipher_module_exit(void)
+{
+}
+
+module_init(skcipher_module_init);
+module_exit(skcipher_module_exit);

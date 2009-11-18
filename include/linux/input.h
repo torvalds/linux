@@ -1123,7 +1123,7 @@ struct input_dev {
 	struct mutex mutex;
 
 	unsigned int users;
-	int going_away;
+	bool going_away;
 
 	struct device dev;
 

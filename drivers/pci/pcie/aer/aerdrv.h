@@ -16,12 +16,9 @@
 #define AER_NONFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
-#define AER_UNCORRECTABLE		4
-#define AER_ERROR_MASK			0x001fffff
-#define AER_ERROR(d)			(d & AER_ERROR_MASK)
 
 /* Root Error Status Register Bits */
-#define ROOT_ERR_STATUS_MASKS			0x0f
+#define ROOT_ERR_STATUS_MASKS		0x0f
 
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
@@ -32,8 +29,6 @@
 #define ERR_COR_ID(d)			(d & 0xffff)
 #define ERR_UNCOR_ID(d)			(d >> 16)
 
-#define AER_SUCCESS			0
-#define AER_UNSUCCESS			1
 #define AER_ERROR_SOURCES_MAX		100
 
 #define AER_LOG_TLP_MASKS		(PCI_ERR_UNC_POISON_TLP|	\
@@ -42,13 +37,6 @@
 					PCI_ERR_UNC_COMP_ABORT|		\
 					PCI_ERR_UNC_UNX_COMP|		\
 					PCI_ERR_UNC_MALF_TLP)
-
-/* AER Error Info Flags */
-#define AER_TLP_HEADER_VALID_FLAG	0x00000001
-#define AER_MULTI_ERROR_VALID_FLAG	0x00000002
-
-#define ERR_CORRECTABLE_ERROR_MASK	0x000031c1
-#define ERR_UNCORRECTABLE_ERROR_MASK	0x001ff010
 
 struct header_log_regs {
 	unsigned int dw0;
@@ -61,11 +49,20 @@ struct header_log_regs {
 struct aer_err_info {
 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
 	int error_dev_num;
-	u16 id;
-	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
-	int flags;
+
+	unsigned int id:16;
+
+	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
+	unsigned int __pad1:5;
+	unsigned int multi_error_valid:1;
+
+	unsigned int first_error:5;
+	unsigned int __pad2:2;
+	unsigned int tlp_header_valid:1;
+
 	unsigned int status;		/* COR/UNCOR Error Status */
-	struct header_log_regs tlp; 	/* TLP Header */
+	unsigned int mask;		/* COR/UNCOR Error Mask */
+	struct header_log_regs tlp;	/* TLP Header */
 };
 
 struct aer_err_source {
@@ -125,6 +122,7 @@ extern void aer_delete_rootport(struct aer_rpc *rpc);
 extern int aer_init(struct pcie_device *dev);
 extern void aer_isr(struct work_struct *work);
 extern void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
+extern void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info);
 extern irqreturn_t aer_irq(int irq, void *context);
 
 #ifdef CONFIG_ACPI
@@ -136,4 +134,4 @@ static inline int aer_osc_setup(struct pcie_device *pciedev)
 }
 #endif
 
-#endif //_AERDRV_H_
+#endif /* _AERDRV_H_ */

@@ -79,7 +79,8 @@ static int amd64_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		tmp = agp_bridge->driver->mask_memory(agp_bridge,
-			mem->pages[i], mask_type);
+						      page_to_phys(mem->pages[i]),
+						      mask_type);
 
 		BUG_ON(tmp & 0xffffff0000000ffcULL);
 		pte = (tmp & 0x000000ff00000000ULL) >> 28;
@@ -177,7 +178,7 @@ static const struct aper_size_info_32 amd_8151_sizes[7] =
 
 static int amd_8151_configure(void)
 {
-	unsigned long gatt_bus = virt_to_gart(agp_bridge->gatt_table_real);
+	unsigned long gatt_bus = virt_to_phys(agp_bridge->gatt_table_real);
 	int i;
 
 	/* Configure AGP regs in each x86-64 host bridge. */
@@ -557,7 +558,7 @@ static void __devexit agp_amd64_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 
-	release_mem_region(virt_to_gart(bridge->gatt_table_real),
+	release_mem_region(virt_to_phys(bridge->gatt_table_real),
 			   amd64_aperture_sizes[bridge->aperture_size_idx].size);
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);

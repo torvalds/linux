@@ -23,11 +23,13 @@ comment "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
+	depends on CRYPTO_ANSI_CPRNG
 	help
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
-	  this is.
+	  this is. Note that CRYPTO_ANSI_CPRNG is requred if this
+	  option is selected
 
 config CRYPTO_ALGAPI
 	tristate
@@ -156,7 +158,7 @@ config CRYPTO_GCM
 	tristate "GCM/GMAC support"
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
-	select CRYPTO_GF128MUL
+	select CRYPTO_GHASH
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
@@ -267,6 +269,18 @@ config CRYPTO_XCBC
 		http://csrc.nist.gov/encryption/modes/proposedmodes/
 		 xcbc-mac/xcbc-mac-spec.pdf
 
+config CRYPTO_VMAC
+	tristate "VMAC support"
+	depends on EXPERIMENTAL
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  VMAC is a message authentication algorithm designed for
+	  very high speed on 64-bit architectures.
+
+	  See also:
+	  <http://fastcrypto.org/vmac>
+
 comment "Digest"
 
 config CRYPTO_CRC32C
@@ -288,6 +302,13 @@ config CRYPTO_CRC32C_INTEL
 	  which will enable any routine to use the CRC32 instruction to
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
+
+config CRYPTO_GHASH
+	tristate "GHASH digest algorithm"
+	select CRYPTO_SHASH
+	select CRYPTO_GF128MUL
+	help
+	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
 
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
@@ -780,13 +801,14 @@ comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG
 	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	default m
 	select CRYPTO_AES
 	select CRYPTO_RNG
-	select CRYPTO_FIPS
 	help
 	  This option enables the generic pseudo random number generator
 	  for cryptographic modules.  Uses the Algorithm specified in
-	  ANSI X9.31 A.2.4
+	  ANSI X9.31 A.2.4. Not this option must be enabled if CRYPTO_FIPS 
+	  is selected
 
 source "drivers/crypto/Kconfig"
 

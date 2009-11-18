@@ -9,6 +9,7 @@
  */
 #include <linux/module.h>
 #include <linux/bootmem.h>
+#include <linux/lmb.h>
 #include <linux/mm.h>
 #include <linux/numa.h>
 #include <linux/pfn.h>
@@ -26,6 +27,15 @@ EXPORT_SYMBOL_GPL(node_data);
 void __init setup_memory(void)
 {
 	unsigned long free_pfn = PFN_UP(__pa(_end));
+	u64 base = min_low_pfn << PAGE_SHIFT;
+	u64 size = (max_low_pfn << PAGE_SHIFT) - min_low_pfn;
+
+	lmb_add(base, size);
+
+	/* Reserve the LMB regions used by the kernel, initrd, etc.. */
+	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+		    (PFN_PHYS(free_pfn) + PAGE_SIZE - 1) -
+		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
 
 	/*
 	 * Node 0 sets up its pgdat at the first available pfn,
@@ -45,24 +55,23 @@ void __init setup_memory(void)
 
 void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 {
-	unsigned long bootmap_pages, bootmap_start, bootmap_size;
-	unsigned long start_pfn, free_pfn, end_pfn;
+	unsigned long bootmap_pages;
+	unsigned long start_pfn, end_pfn;
+	unsigned long bootmem_paddr;
 
 	/* Don't allow bogus node assignment */
 	BUG_ON(nid > MAX_NUMNODES || nid == 0);
 
-	/*
-	 * The free pfn starts at the beginning of the range, and is
-	 * advanced as necessary for pgdat and node map allocations.
-	 */
-	free_pfn = start_pfn = start >> PAGE_SHIFT;
+	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
+
+	lmb_add(start, end - start);
 
 	__add_active_range(nid, start_pfn, end_pfn);
 
 	/* Node-local pgdat */
-	NODE_DATA(nid) = pfn_to_kaddr(free_pfn);
-	free_pfn += PFN_UP(sizeof(struct pglist_data));
+	NODE_DATA(nid) = __va(lmb_alloc_base(sizeof(struct pglist_data),
+					     SMP_CACHE_BYTES, end_pfn));
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
 	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
@@ -71,16 +80,17 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 
 	/* Node-local bootmap */
 	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-	bootmap_start = (unsigned long)pfn_to_kaddr(free_pfn);
-	bootmap_size = init_bootmem_node(NODE_DATA(nid), free_pfn, start_pfn,
-				    end_pfn);
+	bootmem_paddr = lmb_alloc_base(bootmap_pages << PAGE_SHIFT,
+				       PAGE_SIZE, end_pfn);
+	init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
+			  start_pfn, end_pfn);
 
 	free_bootmem_with_active_regions(nid, end_pfn);
 
 	/* Reserve the pgdat and bootmap space with the bootmem allocator */
 	reserve_bootmem_node(NODE_DATA(nid), start_pfn << PAGE_SHIFT,
 			     sizeof(struct pglist_data), BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(nid), free_pfn << PAGE_SHIFT,
+	reserve_bootmem_node(NODE_DATA(nid), bootmem_paddr,
 			     bootmap_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
 
 	/* It's up */

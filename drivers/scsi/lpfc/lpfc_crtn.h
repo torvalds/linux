@@ -21,9 +21,11 @@
 typedef int (*node_filter)(struct lpfc_nodelist *, void *);
 
 struct fc_rport;
-void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
+void lpfc_down_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_sli_read_link_ste(struct lpfc_hba *);
+void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t, uint16_t);
 void lpfc_dump_wakeup_param(struct lpfc_hba *, LPFC_MBOXQ_t *);
-void lpfc_dump_static_vport(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
+int lpfc_dump_static_vport(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
 int lpfc_dump_fcoe_param(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_async(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
@@ -135,6 +137,9 @@ int lpfc_els_disc_adisc(struct lpfc_vport *);
 int lpfc_els_disc_plogi(struct lpfc_vport *);
 void lpfc_els_timeout(unsigned long);
 void lpfc_els_timeout_handler(struct lpfc_vport *);
+struct lpfc_iocbq *lpfc_prep_els_iocb(struct lpfc_vport *, uint8_t, uint16_t,
+				      uint8_t, struct lpfc_nodelist *,
+				      uint32_t, uint32_t);
 void lpfc_hb_timeout_handler(struct lpfc_hba *);
 
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
@@ -182,11 +187,12 @@ int lpfc_mbox_dev_check(struct lpfc_hba *);
 int lpfc_mbox_tmo_val(struct lpfc_hba *, int);
 void lpfc_init_vfi(struct lpfcMboxq *, struct lpfc_vport *);
 void lpfc_reg_vfi(struct lpfcMboxq *, struct lpfc_vport *, dma_addr_t);
-void lpfc_init_vpi(struct lpfcMboxq *, uint16_t);
+void lpfc_init_vpi(struct lpfc_hba *, struct lpfcMboxq *, uint16_t);
 void lpfc_unreg_vfi(struct lpfcMboxq *, uint16_t);
 void lpfc_reg_fcfi(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_unreg_fcfi(struct lpfcMboxq *, uint16_t);
 void lpfc_resume_rpi(struct lpfcMboxq *, struct lpfc_nodelist *);
+int lpfc_check_pending_fcoe_event(struct lpfc_hba *, uint8_t);
 
 void lpfc_config_hbq(struct lpfc_hba *, uint32_t, struct lpfc_hbq_init *,
 	uint32_t , LPFC_MBOXQ_t *);
@@ -234,6 +240,7 @@ void lpfc_sli_def_mbox_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 			struct lpfc_iocbq *, uint32_t);
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
+void lpfc_sli_bemem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
 void lpfc_sli_flush_fcp_rings(struct lpfc_hba *);
 int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
@@ -360,3 +367,8 @@ void lpfc_start_fdiscs(struct lpfc_hba *phba);
 #define HBA_EVENT_LINK_UP                2
 #define HBA_EVENT_LINK_DOWN              3
 
+/* functions to support SGIOv4/bsg interface */
+int lpfc_bsg_request(struct fc_bsg_job *);
+int lpfc_bsg_timeout(struct fc_bsg_job *);
+void lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
+			     struct lpfc_iocbq *);

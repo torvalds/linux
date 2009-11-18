@@ -153,14 +153,11 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 
 	page = pfn_to_page(pfn);
 	mapping = page_mapping(page);
-	if (mapping) {
 #ifndef CONFIG_SMP
-		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
-
-		if (dirty)
-			__flush_dcache_page(mapping, page);
+	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
+		__flush_dcache_page(mapping, page);
 #endif
-
+	if (mapping) {
 		if (cache_is_vivt())
 			make_coherent(mapping, vma, addr, pfn);
 		else if (vma->vm_flags & VM_EXEC)

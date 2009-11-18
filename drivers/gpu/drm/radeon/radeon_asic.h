@@ -50,6 +50,7 @@ extern int r100_suspend(struct radeon_device *rdev);
 extern int r100_resume(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+void r100_vga_set_state(struct radeon_device *rdev, bool state);
 int r100_gpu_reset(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
@@ -81,6 +82,7 @@ static struct radeon_asic r100_asic = {
 	.fini = &r100_fini,
 	.suspend = &r100_suspend,
 	.resume = &r100_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r100_gpu_reset,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
@@ -135,6 +137,7 @@ static struct radeon_asic r300_asic = {
 	.fini = &r300_fini,
 	.suspend = &r300_suspend,
 	.resume = &r300_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
@@ -173,6 +176,7 @@ static struct radeon_asic r420_asic = {
 	.fini = &r420_fini,
 	.suspend = &r420_suspend,
 	.resume = &r420_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
@@ -216,6 +220,7 @@ static struct radeon_asic rs400_asic = {
 	.fini = &rs400_fini,
 	.suspend = &rs400_suspend,
 	.resume = &rs400_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
@@ -263,6 +268,7 @@ static struct radeon_asic rs600_asic = {
 	.fini = &rs600_fini,
 	.suspend = &rs600_suspend,
 	.resume = &rs600_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.gart_tlb_flush = &rs600_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
@@ -303,6 +309,7 @@ static struct radeon_asic rs690_asic = {
 	.fini = &rs690_fini,
 	.suspend = &rs690_suspend,
 	.resume = &rs690_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
@@ -349,6 +356,7 @@ static struct radeon_asic rv515_asic = {
 	.fini = &rv515_fini,
 	.suspend = &rv515_suspend,
 	.resume = &rv515_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
@@ -386,6 +394,7 @@ static struct radeon_asic r520_asic = {
 	.fini = &rv515_fini,
 	.suspend = &rv515_suspend,
 	.resume = &r520_resume,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
@@ -419,6 +428,7 @@ int r600_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 int r600_suspend(struct radeon_device *rdev);
 int r600_resume(struct radeon_device *rdev);
+void r600_vga_set_state(struct radeon_device *rdev, bool state);
 int r600_wb_init(struct radeon_device *rdev);
 void r600_wb_fini(struct radeon_device *rdev);
 void r600_cp_commit(struct radeon_device *rdev);
@@ -452,6 +462,7 @@ static struct radeon_asic r600_asic = {
 	.suspend = &r600_suspend,
 	.resume = &r600_resume,
 	.cp_commit = &r600_cp_commit,
+	.vga_set_state = &r600_vga_set_state,
 	.gpu_reset = &r600_gpu_reset,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
@@ -491,6 +502,7 @@ static struct radeon_asic rv770_asic = {
 	.resume = &rv770_resume,
 	.cp_commit = &r600_cp_commit,
 	.gpu_reset = &rv770_gpu_reset,
+	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
 	.ring_test = &r600_ring_test,

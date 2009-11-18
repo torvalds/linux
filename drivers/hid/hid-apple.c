@@ -451,7 +451,7 @@ static struct hid_driver apple_driver = {
 	.input_mapped = apple_input_mapped,
 };
 
-static int apple_init(void)
+static int __init apple_init(void)
 {
 	int ret;
 
@@ -462,7 +462,7 @@ static int apple_init(void)
 	return ret;
 }
 
-static void apple_exit(void)
+static void __exit apple_exit(void)
 {
 	hid_unregister_driver(&apple_driver);
 }

@@ -815,8 +815,10 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
 	void *kaddr;
 	int ret;
 
-	if (cno == 0)
-		return -ENOENT; /* checkpoint number 0 is invalid */
+	/* CP number is invalid if it's zero or larger than the
+	largest	exist one.*/
+	if (cno == 0 || cno >= nilfs_mdt_cno(cpfile))
+		return -ENOENT;
 	down_read(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &bh);
@@ -824,7 +826,10 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
 		goto out;
 	kaddr = kmap_atomic(bh->b_page, KM_USER0);
 	cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, bh, kaddr);
-	ret = nilfs_checkpoint_snapshot(cp);
+	if (nilfs_checkpoint_invalid(cp))
+		ret = -ENOENT;
+	else
+		ret = nilfs_checkpoint_snapshot(cp);
 	kunmap_atomic(kaddr, KM_USER0);
 	brelse(bh);
 

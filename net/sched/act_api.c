@@ -1011,7 +1011,7 @@ replay:
 }
 
 static struct nlattr *
-find_dump_kind(struct nlmsghdr *n)
+find_dump_kind(const struct nlmsghdr *n)
 {
 	struct nlattr *tb1, *tb2[TCA_ACT_MAX+1];
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];

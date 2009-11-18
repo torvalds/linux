@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/ccid3.c
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>
@@ -52,7 +50,7 @@ static int ccid3_debug;
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
-	static char *ccid3_state_names[] = {
+	static const char *const ccid3_state_names[] = {
 	[TFRC_SSTATE_NO_SENT]  = "NO_SENT",
 	[TFRC_SSTATE_NO_FBACK] = "NO_FBACK",
 	[TFRC_SSTATE_FBACK]    = "FBACK",
@@ -646,7 +644,7 @@ enum ccid3_fback_type {
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
-	static char *ccid3_rx_state_names[] = {
+	static const char *const ccid3_rx_state_names[] = {
 	[TFRC_RSTATE_NO_DATA] = "NO_DATA",
 	[TFRC_RSTATE_DATA]    = "DATA",
 	[TFRC_RSTATE_TERM]    = "TERM",
@@ -750,7 +748,8 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-/** ccid3_first_li  -  Implements [RFC 3448, 6.3.1]
+/**
+ * ccid3_first_li  -  Implements [RFC 5348, 6.3.1]
  *
  * Determine the length of the first loss interval via inverse lookup.
  * Assume that X_recv can be computed by the throughput equation

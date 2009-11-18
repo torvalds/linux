@@ -33,7 +33,7 @@
 #include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int uch_config = -1;
 module_param(uch_config, int, 0);
@@ -1136,7 +1136,7 @@ static int __devinit vt1211_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, res->end - res->start + 1, DRVNAME)) {
+	if (!request_region(res->start, resource_size(res), DRVNAME)) {
 		err = -EBUSY;
 		dev_err(dev, "Failed to request region 0x%lx-0x%lx\n",
 			(unsigned long)res->start, (unsigned long)res->end);
@@ -1209,7 +1209,7 @@ EXIT_DEV_REMOVE:
 	dev_err(dev, "Sysfs interface creation failed (%d)\n", err);
 EXIT_DEV_REMOVE_SILENT:
 	vt1211_remove_sysfs(pdev);
-	release_region(res->start, res->end - res->start + 1);
+	release_region(res->start, resource_size(res));
 EXIT_KFREE:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -1228,7 +1228,7 @@ static int __devexit vt1211_remove(struct platform_device *pdev)
 	kfree(data);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_region(res->start, res->end - res->start + 1);
+	release_region(res->start, resource_size(res));
 
 	return 0;
 }

@@ -28,7 +28,7 @@
 #include <linux/mempolicy.h>
 #include <linux/rmap.h>
 #include <linux/mmu_notifier.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -570,9 +570,9 @@ again:			remove_next = 1 + (end > next->vm_end);
 
 	/*
 	 * When changing only vma->vm_end, we don't really need
-	 * anon_vma lock: but is that case worth optimizing out?
+	 * anon_vma lock.
 	 */
-	if (vma->anon_vma)
+	if (vma->anon_vma && (insert || importer || start != vma->vm_start))
 		anon_vma = vma->anon_vma;
 	if (anon_vma) {
 		spin_lock(&anon_vma->lock);
@@ -656,9 +656,6 @@ again:			remove_next = 1 + (end > next->vm_end);
 	validate_mm(mm);
 }
 
-/* Flags that can be inherited from an existing mapping when merging */
-#define VM_MERGEABLE_FLAGS (VM_CAN_NONLINEAR)
-
 /*
  * If the vma has a ->close operation then the driver probably needs to release
  * per-vma resources, so we don't attempt to merge those.
@@ -666,7 +663,8 @@ again:			remove_next = 1 + (end > next->vm_end);
 static inline int is_mergeable_vma(struct vm_area_struct *vma,
 			struct file *file, unsigned long vm_flags)
 {
-	if ((vma->vm_flags ^ vm_flags) & ~VM_MERGEABLE_FLAGS)
+	/* VM_CAN_NONLINEAR may get set later by f_op->mmap() */
+	if ((vma->vm_flags ^ vm_flags) & ~VM_CAN_NONLINEAR)
 		return 0;
 	if (vma->vm_file != file)
 		return 0;
@@ -905,7 +903,7 @@ void vm_stat_account(struct mm_struct *mm, unsigned long flags,
 #endif /* CONFIG_PROC_FS */
 
 /*
- * The caller must hold down_write(current->mm->mmap_sem).
+ * The caller must hold down_write(&current->mm->mmap_sem).
  */
 
 unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
@@ -951,6 +949,24 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	if (mm->map_count > sysctl_max_map_count)
 		return -ENOMEM;
 
+	if (flags & MAP_HUGETLB) {
+		struct user_struct *user = NULL;
+		if (file)
+			return -EINVAL;
+
+		/*
+		 * VM_NORESERVE is used because the reservations will be
+		 * taken when vm_ops->mmap() is called
+		 * A dummy user value is used because we are not locking
+		 * memory so no accounting is necessary
+		 */
+		len = ALIGN(len, huge_page_size(&default_hstate));
+		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
+						&user, HUGETLB_ANONHUGE_INODE);
+		if (IS_ERR(file))
+			return PTR_ERR(file);
+	}
+
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
@@ -965,11 +981,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 
-	if (flags & MAP_LOCKED) {
+	if (flags & MAP_LOCKED)
 		if (!can_do_mlock())
 			return -EPERM;
-		vm_flags |= VM_LOCKED;
-	}
 
 	/* mlock MCL_FUTURE? */
 	if (vm_flags & VM_LOCKED) {
@@ -1195,20 +1209,20 @@ munmap_back:
 			goto unmap_and_free_vma;
 		if (vm_flags & VM_EXECUTABLE)
 			added_exe_file_vma(mm);
+
+		/* Can addr have changed??
+		 *
+		 * Answer: Yes, several device drivers can do it in their
+		 *         f_op->mmap method. -DaveM
+		 */
+		addr = vma->vm_start;
+		pgoff = vma->vm_pgoff;
+		vm_flags = vma->vm_flags;
 	} else if (vm_flags & VM_SHARED) {
 		error = shmem_zero_setup(vma);
 		if (error)
 			goto free_vma;
 	}
-
-	/* Can addr have changed??
-	 *
-	 * Answer: Yes, several device drivers can do it in their
-	 *         f_op->mmap method. -DaveM
-	 */
-	addr = vma->vm_start;
-	pgoff = vma->vm_pgoff;
-	vm_flags = vma->vm_flags;
 
 	if (vma_wants_writenotify(vma))
 		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
@@ -1220,7 +1234,7 @@ munmap_back:
 	if (correct_wcount)
 		atomic_inc(&inode->i_writecount);
 out:
-	perf_counter_mmap(vma);
+	perf_event_mmap(vma);
 
 	mm->total_vm += len >> PAGE_SHIFT;
 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
@@ -2111,6 +2125,7 @@ void exit_mmap(struct mm_struct *mm)
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
+
 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
@@ -2267,7 +2282,7 @@ static void special_mapping_close(struct vm_area_struct *vma)
 {
 }
 
-static struct vm_operations_struct special_mapping_vmops = {
+static const struct vm_operations_struct special_mapping_vmops = {
 	.close = special_mapping_close,
 	.fault = special_mapping_fault,
 };
@@ -2308,7 +2323,7 @@ int install_special_mapping(struct mm_struct *mm,
 
 	mm->total_vm += len >> PAGE_SHIFT;
 
-	perf_counter_mmap(vma);
+	perf_event_mmap(vma);
 
 	return 0;
 }

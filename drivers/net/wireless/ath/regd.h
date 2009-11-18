@@ -18,8 +18,15 @@
 #define REGD_H
 
 #include <linux/nl80211.h>
-
 #include <net/cfg80211.h>
+
+#include "ath.h"
+
+enum ctl_group {
+	CTL_FCC = 0x10,
+	CTL_MKK = 0x40,
+	CTL_ETSI = 0x30,
+};
 
 #define NO_CTL 0xff
 #define SD_NO_CTL               0xE0
@@ -47,27 +54,10 @@
 #define CHANNEL_HALF_BW         10
 #define CHANNEL_QUARTER_BW      5
 
-struct reg_dmn_pair_mapping {
-	u16 regDmnEnum;
-	u16 reg_5ghz_ctl;
-	u16 reg_2ghz_ctl;
-};
-
 struct country_code_to_enum_rd {
 	u16 countryCode;
 	u16 regDmnEnum;
 	const char *isoName;
-};
-
-struct ath_regulatory {
-	char alpha2[2];
-	u16 country_code;
-	u16 max_power_level;
-	u32 tp_scale;
-	u16 current_rd;
-	u16 current_rd_ext;
-	int16_t power_limit;
-	struct reg_dmn_pair_mapping *regpair;
 };
 
 enum CountryCode {

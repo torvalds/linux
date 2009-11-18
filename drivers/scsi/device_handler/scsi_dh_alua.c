@@ -663,7 +663,7 @@ static int alua_activate(struct scsi_device *sdev)
 			goto out;
 	}
 
-	if (h->tpgs == TPGS_MODE_EXPLICIT && h->state != TPGS_STATE_OPTIMIZED)
+	if (h->tpgs & TPGS_MODE_EXPLICIT && h->state != TPGS_STATE_OPTIMIZED)
 		err = alua_stpg(sdev, TPGS_STATE_OPTIMIZED, h);
 
 out:

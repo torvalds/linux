@@ -214,13 +214,15 @@ tape_med_state_set(struct tape_device *device, enum tape_medium_state newstate)
 	switch(newstate){
 	case MS_UNLOADED:
 		device->tape_generic_status |= GMT_DR_OPEN(~0);
-		dev_info(&device->cdev->dev, "The tape cartridge has been "
-			"successfully unloaded\n");
+		if (device->medium_state == MS_LOADED)
+			pr_info("%s: The tape cartridge has been successfully "
+				"unloaded\n", dev_name(&device->cdev->dev));
 		break;
 	case MS_LOADED:
 		device->tape_generic_status &= ~GMT_DR_OPEN(~0);
-		dev_info(&device->cdev->dev, "A tape cartridge has been "
-			"mounted\n");
+		if (device->medium_state == MS_UNLOADED)
+			pr_info("%s: A tape cartridge has been mounted\n",
+				dev_name(&device->cdev->dev));
 		break;
 	default:
 		// print nothing
@@ -358,11 +360,11 @@ tape_generic_online(struct tape_device *device,
 
 out_char:
 	tapechar_cleanup_device(device);
+out_minor:
+	tape_remove_minor(device);
 out_discipline:
 	device->discipline->cleanup_device(device);
 	device->discipline = NULL;
-out_minor:
-	tape_remove_minor(device);
 out:
 	module_put(discipline->owner);
 	return rc;
@@ -654,8 +656,8 @@ tape_generic_remove(struct ccw_device *cdev)
 			 */
 			DBF_EVENT(3, "(%08x): Drive in use vanished!\n",
 				device->cdev_id);
-			dev_warn(&device->cdev->dev, "A tape unit was detached"
-				" while in use\n");
+			pr_warning("%s: A tape unit was detached while in "
+				   "use\n", dev_name(&device->cdev->dev));
 			tape_state_set(device, TS_NOT_OPER);
 			__tape_discard_requests(device);
 			spin_unlock_irq(get_ccwdev_lock(device->cdev));

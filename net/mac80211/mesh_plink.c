@@ -409,7 +409,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	baselen = (u8 *) mgmt->u.action.u.plink_action.variable - (u8 *) mgmt;
 	if (mgmt->u.action.u.plink_action.action_code == PLINK_CONFIRM) {
 		baseaddr += 4;
-		baselen -= 4;
+		baselen += 4;
 	}
 	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
 	if (!elems.peer_link) {

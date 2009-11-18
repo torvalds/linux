@@ -176,6 +176,7 @@ read the file /proc/PID/status:
   CapBnd: ffffffffffffffff
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
+  Stack usage:    12 kB
 
 This shows you nearly the same information you would get if you viewed it with
 the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
@@ -229,6 +230,7 @@ Table 1-2: Contents of the statm files (as of 2.6.30-rc7)
  Mems_allowed_list           Same as previous, but in "list format"
  voluntary_ctxt_switches     number of voluntary context switches
  nonvoluntary_ctxt_switches  number of non voluntary context switches
+ Stack usage:                stack usage high water mark (round up to page size)
 ..............................................................................
 
 Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
@@ -307,7 +309,7 @@ address           perms offset  dev   inode      pathname
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
 0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
 a7cb1000-a7cb2000 ---p 00000000 00:00 0
-a7cb2000-a7eb2000 rw-p 00000000 00:00 0
+a7cb2000-a7eb2000 rw-p 00000000 00:00 0          [threadstack:001ff4b4]
 a7eb2000-a7eb3000 ---p 00000000 00:00 0
 a7eb3000-a7ed5000 rw-p 00000000 00:00 0
 a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
@@ -343,6 +345,7 @@ is not associated with a file:
  [stack]                  = the stack of the main process
  [vdso]                   = the "virtual dynamic shared object",
                             the kernel system call handler
+ [threadstack:xxxxxxxx]   = the stack of the thread, xxxxxxxx is the stack size
 
  or if empty, the mapping is anonymous.
 
@@ -374,6 +377,19 @@ of memory currently marked as referenced or accessed.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
+
+The /proc/PID/clear_refs is used to reset the PG_Referenced and ACCESSED/YOUNG
+bits on both physical and virtual pages associated with a process.
+To clear the bits for all the pages associated with the process
+    > echo 1 > /proc/PID/clear_refs
+
+To clear the bits for the anonymous pages associated with the process
+    > echo 2 > /proc/PID/clear_refs
+
+To clear the bits for the file mapped pages associated with the process
+    > echo 3 > /proc/PID/clear_refs
+Any other value written to /proc/PID/clear_refs will have no effect.
+
 
 1.2 Kernel data
 ---------------
@@ -1032,9 +1048,9 @@ Various pieces   of  information about  kernel activity  are  available in the
 since the system first booted.  For a quick look, simply cat the file:
 
   > cat /proc/stat
-  cpu  2255 34 2290 22625563 6290 127 456 0
-  cpu0 1132 34 1441 11311718 3675 127 438 0
-  cpu1 1123 0 849 11313845 2614 0 18 0
+  cpu  2255 34 2290 22625563 6290 127 456 0 0
+  cpu0 1132 34 1441 11311718 3675 127 438 0 0
+  cpu1 1123 0 849 11313845 2614 0 18 0 0
   intr 114930548 113199788 3 0 5 263 0 4 [... lots more numbers ...]
   ctxt 1990473
   btime 1062191376
@@ -1056,6 +1072,7 @@ second).  The meanings of the columns are as follows, from left to right:
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait
+- guest: running a guest
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
@@ -1096,7 +1113,6 @@ Table 1-12: Files in /proc/fs/ext4/<devname>
 ..............................................................................
  File            Content                                        
  mb_groups       details of multiblock allocator buddy cache of free blocks
- mb_history      multiblock allocation history
 ..............................................................................
 
 
@@ -1191,7 +1207,7 @@ The following heuristics are then applied:
  * if the task was reniced, its score doubles
  * superuser or direct hardware access tasks (CAP_SYS_ADMIN, CAP_SYS_RESOURCE
  	or CAP_SYS_RAWIO) have their score divided by 4
- * if oom condition happened in one cpuset and checked task does not belong
+ * if oom condition happened in one cpuset and checked process does not belong
  	to it, its score is divided by 8
  * the resulting score is multiplied by two to the power of oom_adj, i.e.
 	points <<= oom_adj when it is positive and

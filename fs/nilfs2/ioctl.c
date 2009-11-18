@@ -297,7 +297,18 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 			       (unsigned long long)vdesc->vd_vblocknr);
 		return ret;
 	}
-	bh->b_private = vdesc;
+	if (unlikely(!list_empty(&bh->b_assoc_buffers))) {
+		printk(KERN_CRIT "%s: conflicting %s buffer: ino=%llu, "
+		       "cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu\n",
+		       __func__, vdesc->vd_flags ? "node" : "data",
+		       (unsigned long long)vdesc->vd_ino,
+		       (unsigned long long)vdesc->vd_cno,
+		       (unsigned long long)vdesc->vd_offset,
+		       (unsigned long long)vdesc->vd_blocknr,
+		       (unsigned long long)vdesc->vd_vblocknr);
+		brelse(bh);
+		return -EEXIST;
+	}
 	list_add_tail(&bh->b_assoc_buffers, buffers);
 	return 0;
 }
@@ -335,24 +346,10 @@ static int nilfs_ioctl_move_blocks(struct the_nilfs *nilfs,
 	list_for_each_entry_safe(bh, n, &buffers, b_assoc_buffers) {
 		ret = nilfs_gccache_wait_and_mark_dirty(bh);
 		if (unlikely(ret < 0)) {
-			if (ret == -EEXIST) {
-				vdesc = bh->b_private;
-				printk(KERN_CRIT
-				       "%s: conflicting %s buffer: "
-				       "ino=%llu, cno=%llu, offset=%llu, "
-				       "blocknr=%llu, vblocknr=%llu\n",
-				       __func__,
-				       vdesc->vd_flags ? "node" : "data",
-				       (unsigned long long)vdesc->vd_ino,
-				       (unsigned long long)vdesc->vd_cno,
-				       (unsigned long long)vdesc->vd_offset,
-				       (unsigned long long)vdesc->vd_blocknr,
-				       (unsigned long long)vdesc->vd_vblocknr);
-			}
+			WARN_ON(ret == -EEXIST);
 			goto failed;
 		}
 		list_del_init(&bh->b_assoc_buffers);
-		bh->b_private = NULL;
 		brelse(bh);
 	}
 	return nmembs;
@@ -360,7 +357,6 @@ static int nilfs_ioctl_move_blocks(struct the_nilfs *nilfs,
  failed:
 	list_for_each_entry_safe(bh, n, &buffers, b_assoc_buffers) {
 		list_del_init(&bh->b_assoc_buffers);
-		bh->b_private = NULL;
 		brelse(bh);
 	}
 	return ret;
@@ -442,12 +438,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	const char *msg;
 	int ret;
 
-	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], kbufs[0]);
-	if (ret < 0) {
-		msg = "cannot read source blocks";
-		goto failed;
-	}
-
 	ret = nilfs_ioctl_delete_checkpoints(nilfs, &argv[1], kbufs[1]);
 	if (ret < 0) {
 		/*
@@ -477,7 +467,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	return 0;
 
  failed:
-	nilfs_remove_all_gcinode(nilfs);
 	printk(KERN_ERR "NILFS: GC failed during preparation: %s: err=%d\n",
 	       msg, ret);
 	return ret;
@@ -548,7 +537,27 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		}
 	}
 
-	ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+	/*
+	 * nilfs_ioctl_move_blocks() will call nilfs_gc_iget(),
+	 * which will operates an inode list without blocking.
+	 * To protect the list from concurrent operations,
+	 * nilfs_ioctl_move_blocks should be atomic operation.
+	 */
+	if (test_and_set_bit(THE_NILFS_GC_RUNNING, &nilfs->ns_flags)) {
+		ret = -EBUSY;
+		goto out_free;
+	}
+
+	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], kbufs[0]);
+	if (ret < 0)
+		printk(KERN_ERR "NILFS: GC failed during preparation: "
+			"cannot read source blocks: err=%d\n", ret);
+	else
+		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+
+	if (ret < 0)
+		nilfs_remove_all_gcinode(nilfs);
+	clear_nilfs_gc_running(nilfs);
 
  out_free:
 	while (--n >= 0)

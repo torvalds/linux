@@ -46,6 +46,9 @@
 #define IXGBE_FCBUFF_MIN	4096	/* 4KB min */
 #define IXGBE_FCOE_DDP_MAX	512	/* 9 bits xid */
 
+/* Default traffic class to use for FCoE */
+#define IXGBE_FCOE_DEFTC	3
+
 /* fcerr */
 #define IXGBE_FCERR_BADCRC       0x00100000
 
@@ -59,6 +62,7 @@ struct ixgbe_fcoe_ddp {
 };
 
 struct ixgbe_fcoe {
+	u8 tc;
 	spinlock_t lock;
 	struct pci_pool *pool;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];

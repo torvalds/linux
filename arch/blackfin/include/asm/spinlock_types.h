@@ -1,3 +1,9 @@
+/*
+ * Copyright 2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef __ASM_SPINLOCK_TYPES_H
 #define __ASM_SPINLOCK_TYPES_H
 

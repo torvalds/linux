@@ -352,7 +352,6 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 		/* bt878 */
 		strlcpy(btv->c.i2c_adap.name, "bt878",
 			sizeof(btv->c.i2c_adap.name));
-		btv->c.i2c_adap.id = I2C_HW_B_BT848;	/* FIXME */
 		btv->c.i2c_adap.algo = &bttv_algo;
 	} else {
 		/* bt848 */
@@ -362,7 +361,6 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 
 		strlcpy(btv->c.i2c_adap.name, "bttv",
 			sizeof(btv->c.i2c_adap.name));
-		btv->c.i2c_adap.id = I2C_HW_B_BT848;
 		memcpy(&btv->i2c_algo, &bttv_i2c_algo_bit_template,
 		       sizeof(bttv_i2c_algo_bit_template));
 		btv->i2c_algo.udelay = i2c_udelay;

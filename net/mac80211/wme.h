@@ -20,6 +20,7 @@
 
 extern const int ieee802_1d_to_ac[8];
 
-u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb);
+void ieee80211_select_queue(struct ieee80211_local *local,
+			    struct sk_buff *skb);
 
 #endif /* _WME_H */

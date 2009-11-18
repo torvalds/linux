@@ -124,6 +124,7 @@ static void srp_ring_free(struct device *dev, struct srp_buf **ring, size_t max,
 		dma_free_coherent(dev, size, ring[i]->buf, ring[i]->dma);
 		kfree(ring[i]);
 	}
+	kfree(ring);
 }
 
 int srp_target_alloc(struct srp_target *target, struct device *dev,

@@ -24,6 +24,20 @@
 #include <linux/ioport.h>
 #include <sound/core.h>
 
+#ifdef CONFIG_SND_DEBUG
+
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+#define DEFAULT_DEBUG_LEVEL	2
+#else
+#define DEFAULT_DEBUG_LEVEL	1
+#endif
+
+static int debug = DEFAULT_DEBUG_LEVEL;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Debug level (0 = disable)");
+
+#endif /* CONFIG_SND_DEBUG */
+
 void release_and_free_resource(struct resource *res)
 {
 	if (res) {
@@ -35,46 +49,53 @@ void release_and_free_resource(struct resource *res)
 EXPORT_SYMBOL(release_and_free_resource);
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
-void snd_verbose_printk(const char *file, int line, const char *format, ...)
+/* strip the leading path if the given path is absolute */
+static const char *sanity_file_name(const char *path)
 {
-	va_list args;
-	
-	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
-		char tmp[] = "<0>";
-		tmp[1] = format[1];
-		printk("%sALSA %s:%d: ", tmp, file, line);
-		format += 3;
-	} else {
-		printk("ALSA %s:%d: ", file, line);
-	}
-	va_start(args, format);
-	vprintk(format, args);
-	va_end(args);
+	if (*path == '/')
+		return strrchr(path, '/') + 1;
+	else
+		return path;
 }
 
-EXPORT_SYMBOL(snd_verbose_printk);
+/* print file and line with a certain printk prefix */
+static int print_snd_pfx(unsigned int level, const char *path, int line,
+			 const char *format)
+{
+	const char *file = sanity_file_name(path);
+	char tmp[] = "<0>";
+	const char *pfx = level ? KERN_DEBUG : KERN_DEFAULT;
+	int ret = 0;
+
+	if (format[0] == '<' && format[2] == '>') {
+		tmp[1] = format[1];
+		pfx = tmp;
+		ret = 1;
+	}
+	printk("%sALSA %s:%d: ", pfx, file, line);
+	return ret;
+}
+#else
+#define print_snd_pfx(level, path, line, format)	0
 #endif
 
-#if defined(CONFIG_SND_DEBUG) && defined(CONFIG_SND_VERBOSE_PRINTK)
-void snd_verbose_printd(const char *file, int line, const char *format, ...)
+#if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
+void __snd_printk(unsigned int level, const char *path, int line,
+		  const char *format, ...)
 {
 	va_list args;
 	
-	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
-		char tmp[] = "<0>";
-		tmp[1] = format[1];
-		printk("%sALSA %s:%d: ", tmp, file, line);
-		format += 3;
-	} else {
-		printk(KERN_DEBUG "ALSA %s:%d: ", file, line);
-	}
+#ifdef CONFIG_SND_DEBUG	
+	if (debug < level)
+		return;
+#endif
 	va_start(args, format);
+	if (print_snd_pfx(level, path, line, format))
+		format += 3; /* skip the printk level-prefix */
 	vprintk(format, args);
 	va_end(args);
-
 }
-
-EXPORT_SYMBOL(snd_verbose_printd);
+EXPORT_SYMBOL_GPL(__snd_printk);
 #endif
 
 #ifdef CONFIG_PCI

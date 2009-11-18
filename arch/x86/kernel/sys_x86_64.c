@@ -18,9 +18,9 @@
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
 
-asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
-		unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long off)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, unsigned long, off)
 {
 	long error;
 	struct file *file;
@@ -226,7 +226,7 @@ bottomup:
 }
 
 
-asmlinkage long sys_uname(struct new_utsname __user *name)
+SYSCALL_DEFINE1(uname, struct new_utsname __user *, name)
 {
 	int err;
 	down_read(&uts_sem);

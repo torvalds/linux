@@ -166,6 +166,29 @@
 #define CLK46X_SPEED_4096KHZ	((   16 << 22) | (280 << 12) | 1023)
 #define CLK46X_SPEED_8192KHZ	((    8 << 22) | (280 << 12) | 2047)
 
+/*
+ * HSS_CONFIG_CLOCK_CR register consists of 3 parts:
+ *     A (10 bits), B (10 bits) and C (12 bits).
+ * IXP42x HSS clock generator operation (verified with an oscilloscope):
+ * Each clock bit takes 7.5 ns (1 / 133.xx MHz).
+ * The clock sequence consists of (C - B) states of 0s and 1s, each state is
+ * A bits wide. It's followed by (B + 1) states of 0s and 1s, each state is
+ * (A + 1) bits wide.
+ *
+ * The resulting average clock frequency (assuming 33.333 MHz oscillator) is:
+ * freq = 66.666 MHz / (A + (B + 1) / (C + 1))
+ * minumum freq = 66.666 MHz / (A + 1)
+ * maximum freq = 66.666 MHz / A
+ *
+ * Example: A = 2, B = 2, C = 7, CLOCK_CR register = 2 << 22 | 2 << 12 | 7
+ * freq = 66.666 MHz / (2 + (2 + 1) / (7 + 1)) = 28.07 MHz (Mb/s).
+ * The clock sequence is: 1100110011 (5 doubles) 000111000 (3 triples).
+ * The sequence takes (C - B) * A + (B + 1) * (A + 1) = 5 * 2 + 3 * 3 bits
+ * = 19 bits (each 7.5 ns long) = 142.5 ns (then the sequence repeats).
+ * The sequence consists of 4 complete clock periods, thus the average
+ * frequency (= clock rate) is 4 / 142.5 ns = 28.07 MHz (Mb/s).
+ * (max specified clock rate for IXP42x HSS is 8.192 Mb/s).
+ */
 
 /* hss_config, LUT entries */
 #define TDMMAP_UNASSIGNED	0
@@ -239,6 +262,7 @@ struct port {
 	unsigned int clock_type, clock_rate, loopback;
 	unsigned int initialized, carrier;
 	u8 hdlc_cfg;
+	u32 clock_reg;
 };
 
 /* NPE message structure */
@@ -393,7 +417,7 @@ static void hss_config(struct port *port)
 	msg.cmd = PORT_CONFIG_WRITE;
 	msg.hss_port = port->id;
 	msg.index = HSS_CONFIG_CLOCK_CR;
-	msg.data32 = CLK42X_SPEED_2048KHZ /* FIXME */;
+	msg.data32 = port->clock_reg;
 	hss_npe_send(port, &msg, "HSS_SET_CLOCK_CR");
 
 	memset(&msg, 0, sizeof(msg));
@@ -1160,6 +1184,62 @@ static int hss_hdlc_attach(struct net_device *dev, unsigned short encoding,
 	}
 }
 
+static u32 check_clock(u32 rate, u32 a, u32 b, u32 c,
+		       u32 *best, u32 *best_diff, u32 *reg)
+{
+	/* a is 10-bit, b is 10-bit, c is 12-bit */
+	u64 new_rate;
+	u32 new_diff;
+
+	new_rate = ixp4xx_timer_freq * (u64)(c + 1);
+	do_div(new_rate, a * (c + 1) + b + 1);
+	new_diff = abs((u32)new_rate - rate);
+
+	if (new_diff < *best_diff) {
+		*best = new_rate;
+		*best_diff = new_diff;
+		*reg = (a << 22) | (b << 12) | c;
+	}
+	return new_diff;
+}
+
+static void find_best_clock(u32 rate, u32 *best, u32 *reg)
+{
+	u32 a, b, diff = 0xFFFFFFFF;
+
+	a = ixp4xx_timer_freq / rate;
+
+	if (a > 0x3FF) { /* 10-bit value - we can go as slow as ca. 65 kb/s */
+		check_clock(rate, 0x3FF, 1, 1, best, &diff, reg);
+		return;
+	}
+	if (a == 0) { /* > 66.666 MHz */
+		a = 1; /* minimum divider is 1 (a = 0, b = 1, c = 1) */
+		rate = ixp4xx_timer_freq;
+	}
+
+	if (rate * a == ixp4xx_timer_freq) { /* don't divide by 0 later */
+		check_clock(rate, a - 1, 1, 1, best, &diff, reg);
+		return;
+	}
+
+	for (b = 0; b < 0x400; b++) {
+		u64 c = (b + 1) * (u64)rate;
+		do_div(c, ixp4xx_timer_freq - rate * a);
+		c--;
+		if (c >= 0xFFF) { /* 12-bit - no need to check more 'b's */
+			if (b == 0 && /* also try a bit higher rate */
+			    !check_clock(rate, a - 1, 1, 1, best, &diff, reg))
+				return;
+			check_clock(rate, a, b, 0xFFF, best, &diff, reg);
+			return;
+		}
+		if (!check_clock(rate, a, b, c, best, &diff, reg))
+			return;
+		if (!check_clock(rate, a, b, c + 1, best, &diff, reg))
+			return;
+	}
+}
 
 static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -1182,7 +1262,7 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 		memset(&new_line, 0, sizeof(new_line));
 		new_line.clock_type = port->clock_type;
-		new_line.clock_rate = 2048000; /* FIXME */
+		new_line.clock_rate = port->clock_rate;
 		new_line.loopback = port->loopback;
 		if (copy_to_user(line, &new_line, size))
 			return -EFAULT;
@@ -1206,7 +1286,13 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 
 		port->clock_type = clk; /* Update settings */
-		/* FIXME port->clock_rate = new_line.clock_rate */;
+		if (clk == CLOCK_INT)
+			find_best_clock(new_line.clock_rate, &port->clock_rate,
+					&port->clock_reg);
+		else {
+			port->clock_rate = 0;
+			port->clock_reg = CLK42X_SPEED_2048KHZ;
+		}
 		port->loopback = new_line.loopback;
 
 		spin_lock_irqsave(&npe_lock, flags);
@@ -1266,7 +1352,8 @@ static int __devinit hss_init_one(struct platform_device *pdev)
 	dev->netdev_ops = &hss_hdlc_ops;
 	dev->tx_queue_len = 100;
 	port->clock_type = CLOCK_EXT;
-	port->clock_rate = 2048000;
+	port->clock_rate = 0;
+	port->clock_reg = CLK42X_SPEED_2048KHZ;
 	port->id = pdev->id;
 	port->dev = &pdev->dev;
 	port->plat = pdev->dev.platform_data;

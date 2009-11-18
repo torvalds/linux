@@ -209,7 +209,7 @@ static ssize_t dtl_file_read(struct file *filp, char __user *buf, size_t len,
 	return n_read * sizeof(struct dtl_entry);
 }
 
-static struct file_operations dtl_fops = {
+static const struct file_operations dtl_fops = {
 	.open		= dtl_file_open,
 	.release	= dtl_file_release,
 	.read		= dtl_file_read,

@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <linux/sched.h>
 #include "iwch_provider.h"
 #include "iwch.h"
 #include "iwch_cm.h"
@@ -889,6 +890,7 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.rqe_count = iwch_rqes_posted(qhp);
 	init_attr.flags = qhp->attr.mpa_attr.initiator ? MPA_INITIATOR : 0;
+	init_attr.chan = qhp->ep->l2t->smt_idx;
 	if (peer2peer) {
 		init_attr.rtr_type = RTR_READ;
 		if (init_attr.ord == 0 && qhp->attr.mpa_attr.initiator)

@@ -439,7 +439,7 @@ static inline u32 divide(u32 numerator, u32 denominator)
 	if (denominator == 0)
 		return ~0;
 
-	return (numerator + denominator / 2) / denominator;
+	return DIV_ROUND_CLOSEST(numerator, denominator);
 }
 
 /* LG Innotek TDTE-E001P (Infineon TUA6034) */

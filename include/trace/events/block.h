@@ -171,6 +171,7 @@ TRACE_EVENT(block_rq_complete,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->errors)
 );
+
 TRACE_EVENT(block_bio_bounce,
 
 	TP_PROTO(struct request_queue *q, struct bio *bio),
@@ -186,7 +187,8 @@ TRACE_EVENT(block_bio_bounce,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bio->bi_bdev->bd_dev;
+		__entry->dev		= bio->bi_bdev ?
+					  bio->bi_bdev->bd_dev : 0;
 		__entry->sector		= bio->bi_sector;
 		__entry->nr_sector	= bio->bi_size >> 9;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
@@ -476,6 +478,39 @@ TRACE_EVENT(block_remap,
 		__entry->old_dev	= dev;
 		__entry->old_sector	= from;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
+	),
+
+	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector,
+		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
+		  (unsigned long long)__entry->old_sector)
+);
+
+TRACE_EVENT(block_rq_remap,
+
+	TP_PROTO(struct request_queue *q, struct request *rq, dev_t dev,
+		 sector_t from),
+
+	TP_ARGS(q, rq, dev, from),
+
+	TP_STRUCT__entry(
+		__field( dev_t,		dev		)
+		__field( sector_t,	sector		)
+		__field( unsigned int,	nr_sector	)
+		__field( dev_t,		old_dev		)
+		__field( sector_t,	old_sector	)
+		__array( char,		rwbs,	6	)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= disk_devt(rq->rq_disk);
+		__entry->sector		= blk_rq_pos(rq);
+		__entry->nr_sector	= blk_rq_sectors(rq);
+		__entry->old_dev	= dev;
+		__entry->old_sector	= from;
+		blk_fill_rwbs_rq(__entry->rwbs, rq);
 	),
 
 	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",

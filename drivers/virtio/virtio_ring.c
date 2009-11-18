@@ -208,7 +208,11 @@ add_head:
 
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
-	return 0;
+
+	/* If we're indirect, we can fit many (assuming not OOM). */
+	if (vq->indirect)
+		return vq->num_free ? vq->vring.num : 0;
+	return vq->num_free;
 }
 
 static void vring_kick(struct virtqueue *_vq)
@@ -280,6 +284,9 @@ static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
 		END_USE(vq);
 		return NULL;
 	}
+
+	/* Only get used array entries after they have been exposed by host. */
+	rmb();
 
 	i = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].id;
 	*len = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].len;

@@ -927,8 +927,8 @@ out:
 	return;
 }
 
-static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
-		 struct qeth_qdio_out_buffer *buf)
+static void __qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
+		 struct qeth_qdio_out_buffer *buf, unsigned int qeth_skip_skb)
 {
 	int i;
 	struct sk_buff *skb;
@@ -937,11 +937,13 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	if (buf->buffer->element[0].flags & 0x40)
 		atomic_dec(&queue->set_pci_flags_count);
 
-	skb = skb_dequeue(&buf->skb_list);
-	while (skb) {
-		atomic_dec(&skb->users);
-		dev_kfree_skb_any(skb);
+	if (!qeth_skip_skb) {
 		skb = skb_dequeue(&buf->skb_list);
+		while (skb) {
+			atomic_dec(&skb->users);
+			dev_kfree_skb_any(skb);
+			skb = skb_dequeue(&buf->skb_list);
+		}
 	}
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(queue->card); ++i) {
 		if (buf->buffer->element[i].addr && buf->is_header[i])
@@ -955,6 +957,12 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	buf->buffer->element[15].flags = 0;
 	buf->next_element_to_fill = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
+}
+
+static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
+		struct qeth_qdio_out_buffer *buf)
+{
+	__qeth_clear_output_buffer(queue, buf, 0);
 }
 
 void qeth_clear_qdio_buffers(struct qeth_card *card)
@@ -1152,8 +1160,9 @@ static void qeth_core_sl_print(struct seq_file *m, struct service_level *slr)
 {
 	struct qeth_card *card = container_of(slr, struct qeth_card,
 					qeth_service_level);
-	seq_printf(m, "qeth: %s firmware level %s\n", CARD_BUS_ID(card),
-			card->info.mcl_level);
+	if (card->info.mcl_level[0])
+		seq_printf(m, "qeth: %s firmware level %s\n",
+			CARD_BUS_ID(card), card->info.mcl_level);
 }
 
 static struct qeth_card *qeth_alloc_card(void)
@@ -2685,6 +2694,13 @@ static int qeth_handle_send_error(struct qeth_card *card,
 	int sbalf15 = buffer->buffer->element[15].flags & 0xff;
 
 	QETH_DBF_TEXT(TRACE, 6, "hdsnderr");
+	if (card->info.type == QETH_CARD_TYPE_IQD) {
+		if (sbalf15 == 0) {
+			qdio_err = 0;
+		} else {
+			qdio_err = 1;
+		}
+	}
 	qeth_check_qdio_errors(buffer->buffer, qdio_err, "qouterr");
 
 	if (!qdio_err)
@@ -2817,6 +2833,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		}
 	}
 
+	queue->sync_iqdio_error = 0;
 	queue->card->dev->trans_start = jiffies;
 	if (queue->card->options.performance_stats) {
 		queue->card->perf_stats.outbound_do_qdio_cnt++;
@@ -2832,6 +2849,10 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		queue->card->perf_stats.outbound_do_qdio_time +=
 			qeth_get_micros() -
 			queue->card->perf_stats.outbound_do_qdio_start_time;
+	if (rc > 0) {
+		if (!(rc & QDIO_ERROR_SIGA_BUSY))
+			queue->sync_iqdio_error = rc & 3;
+	}
 	if (rc) {
 		queue->card->stats.tx_errors += count;
 		/* ignore temporary SIGA errors without busy condition */
@@ -2899,6 +2920,7 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
 	struct qeth_qdio_out_buffer *buffer;
 	int i;
+	unsigned qeth_send_err;
 
 	QETH_DBF_TEXT(TRACE, 6, "qdouhdl");
 	if (qdio_error & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
@@ -2915,8 +2937,9 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	}
 	for (i = first_element; i < (first_element + count); ++i) {
 		buffer = &queue->bufs[i % QDIO_MAX_BUFFERS_PER_Q];
-		qeth_handle_send_error(card, buffer, qdio_error);
-		qeth_clear_output_buffer(queue, buffer);
+		qeth_send_err = qeth_handle_send_error(card, buffer, qdio_error);
+		__qeth_clear_output_buffer(queue, buffer,
+			(qeth_send_err == QETH_SEND_ERROR_RETRY) ? 1 : 0);
 	}
 	atomic_sub(count, &queue->used_buffers);
 	/* check if we need to do something on this outbound queue */
@@ -2929,55 +2952,6 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 			card->perf_stats.outbound_handler_start_time;
 }
 EXPORT_SYMBOL_GPL(qeth_qdio_output_handler);
-
-int qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
-{
-	int cast_type = RTN_UNSPEC;
-
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		return cast_type;
-
-	if (skb_dst(skb) && skb_dst(skb)->neighbour) {
-		cast_type = skb_dst(skb)->neighbour->type;
-		if ((cast_type == RTN_BROADCAST) ||
-		    (cast_type == RTN_MULTICAST) ||
-		    (cast_type == RTN_ANYCAST))
-			return cast_type;
-		else
-			return RTN_UNSPEC;
-	}
-	/* try something else */
-	if (skb->protocol == ETH_P_IPV6)
-		return (skb_network_header(skb)[24] == 0xff) ?
-				RTN_MULTICAST : 0;
-	else if (skb->protocol == ETH_P_IP)
-		return ((skb_network_header(skb)[16] & 0xf0) == 0xe0) ?
-				RTN_MULTICAST : 0;
-	/* ... */
-	if (!memcmp(skb->data, skb->dev->broadcast, 6))
-		return RTN_BROADCAST;
-	else {
-		u16 hdr_mac;
-
-		hdr_mac = *((u16 *)skb->data);
-		/* tr multicast? */
-		switch (card->info.link_type) {
-		case QETH_LINK_TYPE_HSTR:
-		case QETH_LINK_TYPE_LANE_TR:
-			if ((hdr_mac == QETH_TR_MAC_NC) ||
-			    (hdr_mac == QETH_TR_MAC_C))
-				return RTN_MULTICAST;
-			break;
-		/* eth or so multicast? */
-		default:
-		if ((hdr_mac == QETH_ETH_MAC_V4) ||
-			    (hdr_mac == QETH_ETH_MAC_V6))
-				return RTN_MULTICAST;
-		}
-	}
-	return cast_type;
-}
-EXPORT_SYMBOL_GPL(qeth_get_cast_type);
 
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 			int ipv, int cast_type)
@@ -3159,7 +3133,10 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 		int offset, int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
+	struct sk_buff *skb1;
+	struct qeth_skb_data *retry_ctrl;
 	int index;
+	int rc;
 
 	/* spin until we get the queue ... */
 	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
@@ -3178,6 +3155,25 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
 	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	qeth_flush_buffers(queue, index, 1);
+	if (queue->sync_iqdio_error == 2) {
+		skb1 = skb_dequeue(&buffer->skb_list);
+		while (skb1) {
+			atomic_dec(&skb1->users);
+			skb1 = skb_dequeue(&buffer->skb_list);
+		}
+		retry_ctrl = (struct qeth_skb_data *) &skb->cb[16];
+		if (retry_ctrl->magic != QETH_SKB_MAGIC) {
+			retry_ctrl->magic = QETH_SKB_MAGIC;
+			retry_ctrl->count = 0;
+		}
+		if (retry_ctrl->count < QETH_SIGA_CC2_RETRIES) {
+			retry_ctrl->count++;
+			rc = dev_queue_xmit(skb);
+		} else {
+			dev_kfree_skb_any(skb);
+			QETH_DBF_TEXT(QERR, 2, "qrdrop");
+		}
+	}
 	return 0;
 out:
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);

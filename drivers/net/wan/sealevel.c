@@ -156,7 +156,8 @@ static int sealevel_ioctl(struct net_device *d, struct ifreq *ifr, int cmd)
  *	Passed network frames, fire them downwind.
  */
 
-static int sealevel_queue_xmit(struct sk_buff *skb, struct net_device *d)
+static netdev_tx_t sealevel_queue_xmit(struct sk_buff *skb,
+					     struct net_device *d)
 {
 	return z8530_queue_xmit(dev_to_chan(d)->chan, skb);
 }

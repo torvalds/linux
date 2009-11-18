@@ -11,7 +11,10 @@ over a rather long period of time, but improvements are always welcome!
 	structure is updated more than about 10% of the time, then
 	you should strongly consider some other approach, unless
 	detailed performance measurements show that RCU is nonetheless
-	the right tool for the job.
+	the right tool for the job.  Yes, you might think of RCU
+	as simply cutting overhead off of the readers and imposing it
+	on the writers.  That is exactly why normal uses of RCU will
+	do much more reading than updating.
 
 	Another exception is where performance is not an issue, and RCU
 	provides a simpler implementation.  An example of this situation
@@ -240,10 +243,11 @@ over a rather long period of time, but improvements are always welcome!
 	instead need to use synchronize_irq() or synchronize_sched().
 
 12.	Any lock acquired by an RCU callback must be acquired elsewhere
-	with irq disabled, e.g., via spin_lock_irqsave().  Failing to
-	disable irq on a given acquisition of that lock will result in
-	deadlock as soon as the RCU callback happens to interrupt that
-	acquisition's critical section.
+	with softirq disabled, e.g., via spin_lock_irqsave(),
+	spin_lock_bh(), etc.  Failing to disable irq on a given
+	acquisition of that lock will result in deadlock as soon as the
+	RCU callback happens to interrupt that acquisition's critical
+	section.
 
 13.	RCU callbacks can be and are executed in parallel.  In many cases,
 	the callback code simply wrappers around kfree(), so that this
@@ -310,3 +314,9 @@ over a rather long period of time, but improvements are always welcome!
 	Because these primitives only wait for pre-existing readers,
 	it is the caller's responsibility to guarantee safety to
 	any subsequent readers.
+
+16.	The various RCU read-side primitives do -not- contain memory
+	barriers.  The CPU (and in some cases, the compiler) is free
+	to reorder code into and out of RCU read-side critical sections.
+	It is the responsibility of the RCU update-side primitives to
+	deal with this.

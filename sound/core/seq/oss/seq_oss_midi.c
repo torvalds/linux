@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <sound/asoundef.h>
 #include "seq_oss_midi.h"
 #include "seq_oss_readq.h"
 #include "seq_oss_timer.h"
@@ -476,19 +477,20 @@ snd_seq_oss_midi_reset(struct seq_oss_devinfo *dp, int dev)
 		ev.source.port = dp->port;
 		if (dp->seq_mode == SNDRV_SEQ_OSS_MODE_SYNTH) {
 			ev.type = SNDRV_SEQ_EVENT_SENSING;
-			snd_seq_oss_dispatch(dp, &ev, 0, 0); /* active sensing */
+			snd_seq_oss_dispatch(dp, &ev, 0, 0);
 		}
 		for (c = 0; c < 16; c++) {
 			ev.type = SNDRV_SEQ_EVENT_CONTROLLER;
 			ev.data.control.channel = c;
-			ev.data.control.param = 123;
-			snd_seq_oss_dispatch(dp, &ev, 0, 0); /* all notes off */
+			ev.data.control.param = MIDI_CTL_ALL_NOTES_OFF;
+			snd_seq_oss_dispatch(dp, &ev, 0, 0);
 			if (dp->seq_mode == SNDRV_SEQ_OSS_MODE_MUSIC) {
-				ev.data.control.param = 121;
-				snd_seq_oss_dispatch(dp, &ev, 0, 0); /* reset all controllers */
+				ev.data.control.param =
+					MIDI_CTL_RESET_CONTROLLERS;
+				snd_seq_oss_dispatch(dp, &ev, 0, 0);
 				ev.type = SNDRV_SEQ_EVENT_PITCHBEND;
 				ev.data.control.value = 0;
-				snd_seq_oss_dispatch(dp, &ev, 0, 0); /* bender off */
+				snd_seq_oss_dispatch(dp, &ev, 0, 0);
 			}
 		}
 	}

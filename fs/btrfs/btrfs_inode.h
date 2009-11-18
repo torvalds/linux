@@ -86,6 +86,12 @@ struct btrfs_inode {
 	 * transid of the trans_handle that last modified this inode
 	 */
 	u64 last_trans;
+
+	/*
+	 * log transid when this inode was last modified
+	 */
+	u64 last_sub_trans;
+
 	/*
 	 * transid that last logged this inode
 	 */
@@ -128,6 +134,16 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
+	 * Counters to keep track of the number of extent item's we may use due
+	 * to delalloc and such.  outstanding_extents is the number of extent
+	 * items we think we'll end up using, and reserved_extents is the number
+	 * of extent items we've reserved metadata for.
+	 */
+	spinlock_t accounting_lock;
+	int reserved_extents;
+	int outstanding_extents;
+
+	/*
 	 * ordered_data_close is set by truncate when a file that used
 	 * to have good data has been truncated to zero.  When it is set
 	 * the btrfs file release call will add this inode to the
@@ -138,6 +154,7 @@ struct btrfs_inode {
 	 * of these.
 	 */
 	unsigned ordered_data_close:1;
+	unsigned dummy_inode:1;
 
 	struct inode vfs_inode;
 };

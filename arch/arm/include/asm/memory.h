@@ -44,7 +44,13 @@
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
+#ifndef CONFIG_THUMB2_KERNEL
 #define MODULES_VADDR		(PAGE_OFFSET - 16*1024*1024)
+#else
+/* smaller range for Thumb-2 symbols relocation (2^24)*/
+#define MODULES_VADDR		(PAGE_OFFSET - 8*1024*1024)
+#endif
+
 #if TASK_SIZE > MODULES_VADDR
 #error Top of user space clashes with start of module space
 #endif
@@ -212,7 +218,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
  *
  *  page_to_pfn(page)	convert a struct page * to a PFN number
  *  pfn_to_page(pfn)	convert a _valid_ PFN number to struct page *
- *  pfn_valid(pfn)	indicates whether a PFN number is valid
  *
  *  virt_to_page(k)	convert a _valid_ virtual address to struct page *
  *  virt_addr_valid(k)	indicates whether a virtual address is valid
@@ -220,10 +225,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #ifndef CONFIG_DISCONTIGMEM
 
 #define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
-
-#ifndef CONFIG_SPARSEMEM
-#define pfn_valid(pfn)		((pfn) >= PHYS_PFN_OFFSET && (pfn) < (PHYS_PFN_OFFSET + max_mapnr))
-#endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
@@ -240,18 +241,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 
 #define arch_pfn_to_nid(pfn)	PFN_TO_NID(pfn)
 #define arch_local_page_offset(pfn, nid) LOCAL_MAP_NR((pfn) << PAGE_SHIFT)
-
-#define pfn_valid(pfn)						\
-	({							\
-		unsigned int nid = PFN_TO_NID(pfn);		\
-		int valid = nid < MAX_NUMNODES;			\
-		if (valid) {					\
-			pg_data_t *node = NODE_DATA(nid);	\
-			valid = (pfn - node->node_start_pfn) <	\
-				node->node_spanned_pages;	\
-		}						\
-		valid;						\
-	})
 
 #define virt_to_page(kaddr)					\
 	(ADDR_TO_MAPBASE(kaddr) + LOCAL_MAP_NR(kaddr))

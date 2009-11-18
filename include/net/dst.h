@@ -8,6 +8,7 @@
 #ifndef _NET_DST_H
 #define _NET_DST_H
 
+#include <net/dst_ops.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -100,28 +101,6 @@ struct dst_entry
 		struct rt6_info   *rt6_next;
 		struct dn_route  *dn_next;
 	};
-};
-
-
-struct dst_ops
-{
-	unsigned short		family;
-	__be16			protocol;
-	unsigned		gc_thresh;
-
-	int			(*gc)(struct dst_ops *ops);
-	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);
-	void			(*destroy)(struct dst_entry *);
-	void			(*ifdown)(struct dst_entry *,
-					  struct net_device *dev, int how);
-	struct dst_entry *	(*negative_advice)(struct dst_entry *);
-	void			(*link_failure)(struct sk_buff *);
-	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
-	int			(*local_out)(struct sk_buff *skb);
-
-	atomic_t		entries;
-	struct kmem_cache 		*kmem_cachep;
-	struct net              *dst_net;
 };
 
 #ifdef __KERNEL__

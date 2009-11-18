@@ -12,7 +12,6 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
-#include <linux/utsname.h>
 #include <linux/mm.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
@@ -26,8 +25,7 @@
 #include "acl.h"
 #include "bmap.h"
 #include "dir.h"
-#include "eaops.h"
-#include "eattr.h"
+#include "xattr.h"
 #include "glock.h"
 #include "inode.h"
 #include "meta_io.h"
@@ -349,7 +347,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 
 	error = gfs2_trans_begin(sdp, 2*RES_DINODE + RES_LEAF + RES_RG_BIT, 0);
 	if (error)
-		goto out_rgrp;
+		goto out_gunlock;
 
 	error = gfs2_dir_del(dip, &dentry->d_name);
         if (error)
@@ -1302,60 +1300,53 @@ static int gfs2_setxattr(struct dentry *dentry, const char *name,
 			 const void *data, size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
-	struct gfs2_ea_request er;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	int ret;
 
-	memset(&er, 0, sizeof(struct gfs2_ea_request));
-	er.er_type = gfs2_ea_name2type(name, &er.er_name);
-	if (er.er_type == GFS2_EATYPE_UNUSED)
-		return -EOPNOTSUPP;
-	er.er_data = (char *)data;
-	er.er_name_len = strlen(er.er_name);
-	er.er_data_len = size;
-	er.er_flags = flags;
-
-	gfs2_assert_warn(GFS2_SB(inode), !(er.er_flags & GFS2_ERF_MODE));
-
-	return gfs2_ea_set(GFS2_I(inode), &er);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	ret = gfs2_glock_nq(&gh);
+	if (ret == 0) {
+		ret = generic_setxattr(dentry, name, data, size, flags);
+		gfs2_glock_dq(&gh);
+	}
+	gfs2_holder_uninit(&gh);
+	return ret;
 }
 
 static ssize_t gfs2_getxattr(struct dentry *dentry, const char *name,
 			     void *data, size_t size)
 {
-	struct gfs2_ea_request er;
+	struct inode *inode = dentry->d_inode;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	int ret;
 
-	memset(&er, 0, sizeof(struct gfs2_ea_request));
-	er.er_type = gfs2_ea_name2type(name, &er.er_name);
-	if (er.er_type == GFS2_EATYPE_UNUSED)
-		return -EOPNOTSUPP;
-	er.er_data = data;
-	er.er_name_len = strlen(er.er_name);
-	er.er_data_len = size;
-
-	return gfs2_ea_get(GFS2_I(dentry->d_inode), &er);
-}
-
-static ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
-{
-	struct gfs2_ea_request er;
-
-	memset(&er, 0, sizeof(struct gfs2_ea_request));
-	er.er_data = (size) ? buffer : NULL;
-	er.er_data_len = size;
-
-	return gfs2_ea_list(GFS2_I(dentry->d_inode), &er);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
+	ret = gfs2_glock_nq(&gh);
+	if (ret == 0) {
+		ret = generic_getxattr(dentry, name, data, size);
+		gfs2_glock_dq(&gh);
+	}
+	gfs2_holder_uninit(&gh);
+	return ret;
 }
 
 static int gfs2_removexattr(struct dentry *dentry, const char *name)
 {
-	struct gfs2_ea_request er;
+	struct inode *inode = dentry->d_inode;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	int ret;
 
-	memset(&er, 0, sizeof(struct gfs2_ea_request));
-	er.er_type = gfs2_ea_name2type(name, &er.er_name);
-	if (er.er_type == GFS2_EATYPE_UNUSED)
-		return -EOPNOTSUPP;
-	er.er_name_len = strlen(er.er_name);
-
-	return gfs2_ea_remove(GFS2_I(dentry->d_inode), &er);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	ret = gfs2_glock_nq(&gh);
+	if (ret == 0) {
+		ret = generic_removexattr(dentry, name);
+		gfs2_glock_dq(&gh);
+	}
+	gfs2_holder_uninit(&gh);
+	return ret;
 }
 
 static int gfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,

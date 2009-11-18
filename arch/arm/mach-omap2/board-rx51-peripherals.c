@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/board-rx51-flash.c
+ * linux/arch/arm/mach-omap2/board-rx51-peripherals.c
  *
  * Copyright (C) 2008-2009 Nokia
  *
@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/i2c/twl4030.h>
@@ -19,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
+#include <linux/mmc/host.h>
 
 #include <mach/mcspi.h>
 #include <mach/mux.h>
@@ -26,7 +28,6 @@
 #include <mach/common.h>
 #include <mach/dma.h>
 #include <mach/gpmc.h>
-#include <mach/keypad.h>
 #include <mach/onenand.h>
 #include <mach/gpmc-smc91x.h>
 
@@ -35,58 +36,62 @@
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
 
-static int rx51_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_Q),
-	KEY(0, 1, KEY_W),
-	KEY(0, 2, KEY_E),
-	KEY(0, 3, KEY_R),
-	KEY(0, 4, KEY_T),
-	KEY(0, 5, KEY_Y),
-	KEY(0, 6, KEY_U),
-	KEY(0, 7, KEY_I),
-	KEY(1, 0, KEY_O),
+	KEY(0, 1, KEY_O),
+	KEY(0, 2, KEY_P),
+	KEY(0, 3, KEY_COMMA),
+	KEY(0, 4, KEY_BACKSPACE),
+	KEY(0, 6, KEY_A),
+	KEY(0, 7, KEY_S),
+	KEY(1, 0, KEY_W),
 	KEY(1, 1, KEY_D),
-	KEY(1, 2, KEY_DOT),
-	KEY(1, 3, KEY_V),
-	KEY(1, 4, KEY_DOWN),
-	KEY(2, 0, KEY_P),
-	KEY(2, 1, KEY_F),
+	KEY(1, 2, KEY_F),
+	KEY(1, 3, KEY_G),
+	KEY(1, 4, KEY_H),
+	KEY(1, 5, KEY_J),
+	KEY(1, 6, KEY_K),
+	KEY(1, 7, KEY_L),
+	KEY(2, 0, KEY_E),
+	KEY(2, 1, KEY_DOT),
 	KEY(2, 2, KEY_UP),
-	KEY(2, 3, KEY_B),
-	KEY(2, 4, KEY_RIGHT),
-	KEY(3, 0, KEY_COMMA),
-	KEY(3, 1, KEY_G),
-	KEY(3, 2, KEY_ENTER),
+	KEY(2, 3, KEY_ENTER),
+	KEY(2, 5, KEY_Z),
+	KEY(2, 6, KEY_X),
+	KEY(2, 7, KEY_C),
+	KEY(3, 0, KEY_R),
+	KEY(3, 1, KEY_V),
+	KEY(3, 2, KEY_B),
 	KEY(3, 3, KEY_N),
-	KEY(4, 0, KEY_BACKSPACE),
-	KEY(4, 1, KEY_H),
-	KEY(4, 3, KEY_M),
+	KEY(3, 4, KEY_M),
+	KEY(3, 5, KEY_SPACE),
+	KEY(3, 6, KEY_SPACE),
+	KEY(3, 7, KEY_LEFT),
+	KEY(4, 0, KEY_T),
+	KEY(4, 1, KEY_DOWN),
+	KEY(4, 2, KEY_RIGHT),
 	KEY(4, 4, KEY_LEFTCTRL),
-	KEY(5, 1, KEY_J),
-	KEY(5, 2, KEY_Z),
-	KEY(5, 3, KEY_SPACE),
-	KEY(5, 4, KEY_LEFTSHIFT),
-	KEY(6, 0, KEY_A),
-	KEY(6, 1, KEY_K),
-	KEY(6, 2, KEY_X),
-	KEY(6, 3, KEY_SPACE),
-	KEY(6, 4, KEY_FN),
-	KEY(7, 0, KEY_S),
-	KEY(7, 1, KEY_L),
-	KEY(7, 2, KEY_C),
-	KEY(7, 3, KEY_LEFT),
-	KEY(0xff, 0, KEY_F6),
-	KEY(0xff, 1, KEY_F7),
-	KEY(0xff, 2, KEY_F8),
-	KEY(0xff, 4, KEY_F9),
-	KEY(0xff, 5, KEY_F10),
+	KEY(4, 5, KEY_RIGHTALT),
+	KEY(4, 6, KEY_LEFTSHIFT),
+	KEY(5, 0, KEY_Y),
+	KEY(6, 0, KEY_U),
+	KEY(7, 0, KEY_I),
+	KEY(7, 1, KEY_F7),
+	KEY(7, 2, KEY_F8),
+	KEY(0xff, 2, KEY_F9),
+	KEY(0xff, 4, KEY_F10),
+	KEY(0xff, 5, KEY_F11),
+};
+
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
 };
 
 static struct twl4030_keypad_data rx51_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= rx51_keymap,
-	.keymapsize	= ARRAY_SIZE(rx51_keymap),
 	.rep		= 1,
 };
 
@@ -102,6 +107,7 @@ static struct twl4030_hsmmc_info mmc[] = {
 		.cover_only	= true,
 		.gpio_cd	= 160,
 		.gpio_wp	= -EINVAL,
+		.power_saving	= true,
 	},
 	{
 		.name		= "internal",
@@ -109,6 +115,8 @@ static struct twl4030_hsmmc_info mmc[] = {
 		.wires		= 8,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
+		.power_saving	= true,
 	},
 	{}	/* Terminator */
 };
@@ -282,7 +290,124 @@ static struct twl4030_usb_data rx51_usb_data = {
 	.usb_mode		= T2_USB_MODE_ULPI,
 };
 
-static struct twl4030_platform_data rx51_twldata = {
+static struct twl4030_ins sleep_on_seq[] __initdata = {
+/*
+ * Turn off VDD1 and VDD2.
+ */
+	{MSG_SINGULAR(DEV_GRP_P1, 0xf, RES_STATE_OFF), 4},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x10, RES_STATE_OFF), 2},
+/*
+ * And also turn off the OMAP3 PLLs and the sysclk output.
+ */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x7, RES_STATE_OFF), 3},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x17, RES_STATE_OFF), 3},
+};
+
+static struct twl4030_script sleep_on_script __initdata = {
+	.script = sleep_on_seq,
+	.size   = ARRAY_SIZE(sleep_on_seq),
+	.flags  = TWL4030_SLEEP_SCRIPT,
+};
+
+static struct twl4030_ins wakeup_seq[] __initdata = {
+/*
+ * Reenable the OMAP3 PLLs.
+ * Wakeup VDD1 and VDD2.
+ * Reenable sysclk output.
+ */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x7, RES_STATE_ACTIVE), 0x30},
+	{MSG_SINGULAR(DEV_GRP_P1, 0xf, RES_STATE_ACTIVE), 0x30},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x10, RES_STATE_ACTIVE), 0x37},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x19, RES_STATE_ACTIVE), 3},
+};
+
+static struct twl4030_script wakeup_script __initdata = {
+	.script	= wakeup_seq,
+	.size	= ARRAY_SIZE(wakeup_seq),
+	.flags	= TWL4030_WAKEUP12_SCRIPT,
+};
+
+static struct twl4030_ins wakeup_p3_seq[] __initdata = {
+/*
+ * Wakeup VDD1 (dummy to be able to insert a delay)
+ * Enable CLKEN
+ */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x17, RES_STATE_ACTIVE), 3},
+};
+
+static struct twl4030_script wakeup_p3_script __initdata = {
+	.script	= wakeup_p3_seq,
+	.size	= ARRAY_SIZE(wakeup_p3_seq),
+	.flags	= TWL4030_WAKEUP3_SCRIPT,
+};
+
+static struct twl4030_ins wrst_seq[] __initdata = {
+/*
+ * Reset twl4030.
+ * Reset VDD1 regulator.
+ * Reset VDD2 regulator.
+ * Reset VPLL1 regulator.
+ * Enable sysclk output.
+ * Reenable twl4030.
+ */
+	{MSG_SINGULAR(DEV_GRP_NULL, RES_RESET, RES_STATE_OFF), 2},
+	{MSG_BROADCAST(DEV_GRP_NULL, RES_GRP_ALL, 0, 1, RES_STATE_ACTIVE),
+		0x13},
+	{MSG_BROADCAST(DEV_GRP_NULL, RES_GRP_PP, 0, 2, RES_STATE_WRST), 0x13},
+	{MSG_BROADCAST(DEV_GRP_NULL, RES_GRP_PP, 0, 3, RES_STATE_OFF), 0x13},
+	{MSG_SINGULAR(DEV_GRP_NULL, RES_VDD1, RES_STATE_WRST), 0x13},
+	{MSG_SINGULAR(DEV_GRP_NULL, RES_VDD2, RES_STATE_WRST), 0x13},
+	{MSG_SINGULAR(DEV_GRP_NULL, RES_VPLL1, RES_STATE_WRST), 0x35},
+	{MSG_SINGULAR(DEV_GRP_P1, RES_HFCLKOUT, RES_STATE_ACTIVE), 2},
+	{MSG_SINGULAR(DEV_GRP_NULL, RES_RESET, RES_STATE_ACTIVE), 2},
+};
+
+static struct twl4030_script wrst_script __initdata = {
+	.script = wrst_seq,
+	.size   = ARRAY_SIZE(wrst_seq),
+	.flags  = TWL4030_WRST_SCRIPT,
+};
+
+static struct twl4030_script *twl4030_scripts[] __initdata = {
+	/* wakeup12 script should be loaded before sleep script, otherwise a
+	   board might hit retention before loading of wakeup script is
+	   completed. This can cause boot failures depending on timing issues.
+	*/
+	&wakeup_script,
+	&sleep_on_script,
+	&wakeup_p3_script,
+	&wrst_script,
+};
+
+static struct twl4030_resconfig twl4030_rconfig[] __initdata = {
+	{ .resource = RES_VINTANA1, .devgroup = -1, .type = -1, .type2 = 1 },
+	{ .resource = RES_VINTANA2, .devgroup = -1, .type = -1, .type2 = 1 },
+	{ .resource = RES_VINTDIG, .devgroup = -1, .type = -1, .type2 = 1 },
+	{ .resource = RES_VMMC1, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VMMC2, .devgroup = DEV_GRP_NULL, .type = -1,
+	  .type2 = 3},
+	{ .resource = RES_VAUX1, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VAUX2, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VAUX3, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VAUX4, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VPLL2, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VDAC, .devgroup = -1, .type = -1, .type2 = 3},
+	{ .resource = RES_VSIM, .devgroup = DEV_GRP_NULL, .type = -1,
+	  .type2 = 3},
+	{ .resource = RES_CLKEN, .devgroup = DEV_GRP_P3, .type = -1,
+		.type2 = 1 },
+	{ 0, 0},
+};
+
+static struct twl4030_power_data rx51_t2scripts_data __initdata = {
+	.scripts        = twl4030_scripts,
+	.num = ARRAY_SIZE(twl4030_scripts),
+	.resource_config = twl4030_rconfig,
+};
+
+
+
+static struct twl4030_platform_data rx51_twldata __initdata = {
 	.irq_base		= TWL4030_IRQ_BASE,
 	.irq_end		= TWL4030_IRQ_END,
 
@@ -291,6 +416,7 @@ static struct twl4030_platform_data rx51_twldata = {
 	.keypad			= &rx51_kp_data,
 	.madc			= &rx51_madc_data,
 	.usb			= &rx51_usb_data,
+	.power			= &rx51_t2scripts_data,
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,
@@ -318,7 +444,7 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 		rx51_twldata.vmmc2 = &rx51_vmmc2;
 	}
-	omap_register_i2c_bus(1, 2600, rx51_peripherals_i2c_board_info_1,
+	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
 			ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
 	omap_register_i2c_bus(2, 100, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);

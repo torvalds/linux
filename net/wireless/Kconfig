@@ -1,6 +1,47 @@
 config CFG80211
-	tristate "Improved wireless configuration API"
+	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
+	---help---
+	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
+	  Enable this if you have a wireless device.
+
+	  For more information refer to documentation on the wireless wiki:
+
+	  http://wireless.kernel.org/en/developers/Documentation/cfg80211
+
+	  When built as a module it will be called cfg80211.
+
+config NL80211_TESTMODE
+	bool "nl80211 testmode command"
+	depends on CFG80211
+	help
+	  The nl80211 testmode command helps implementing things like
+	  factory calibration or validation tools for wireless chips.
+
+	  Select this option ONLY for kernels that are specifically
+	  built for such purposes.
+
+	  Debugging tools that are supposed to end up in the hands of
+	  users should better be implemented with debugfs.
+
+	  Say N.
+
+config CFG80211_DEVELOPER_WARNINGS
+	bool "enable developer warnings"
+	depends on CFG80211
+	default n
+	help
+	  This option enables some additional warnings that help
+	  cfg80211 developers and driver developers, but that can
+	  trigger due to races with userspace.
+
+	  For example, when a driver reports that it was disconnected
+	  from the AP, but the user disconnects manually at the same
+	  time, the warning might trigger spuriously due to races.
+
+	  Say Y only if you are developing cfg80211 or a driver based
+	  on it (or mac80211).
+
 
 config CFG80211_REG_DEBUG
 	bool "cfg80211 regulatory debugging"
@@ -8,8 +49,28 @@ config CFG80211_REG_DEBUG
 	default n
 	---help---
 	  You can enable this if you want to debug regulatory changes.
+	  For more information on cfg80211 regulatory refer to the wireless
+	  wiki:
+
+	  http://wireless.kernel.org/en/developers/Regulatory
 
 	  If unsure, say N.
+
+config CFG80211_DEFAULT_PS
+	bool "enable powersave by default"
+	depends on CFG80211
+	default y
+	help
+	  This option enables powersave mode by default.
+
+	  If this causes your applications to misbehave you should fix your
+	  applications instead -- they need to register their network
+	  latency requirement, see Documentation/power/pm_qos_interface.txt.
+
+config CFG80211_DEFAULT_PS_VALUE
+	int
+	default 1 if CFG80211_DEFAULT_PS
+	default 0
 
 config CFG80211_DEBUGFS
 	bool "cfg80211 DebugFS entries"
@@ -35,19 +96,13 @@ config WIRELESS_OLD_REGULATORY
 
 config WIRELESS_EXT
 	bool "Wireless extensions"
-	default n
+	default y
 	---help---
 	  This option enables the legacy wireless extensions
 	  (wireless network interface configuration via ioctls.)
 
-	  Wireless extensions will be replaced by cfg80211 and
-	  will be required only by legacy drivers that implement
-	  wireless extension handlers. This option does not
-	  affect the wireless-extension backward compatibility
-	  code in cfg80211.
-
-	  Say N (if you can) unless you know you need wireless
-	  extensions for external modules.
+	  Say Y unless you've upgraded all your userspace to use
+	  nl80211 instead of wireless extensions.
 
 config WIRELESS_EXT_SYSFS
 	bool "Wireless extensions sysfs files"

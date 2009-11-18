@@ -328,6 +328,15 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 }
 
 /*
+ * Fill in the task's elfregs structure for a core dump.
+ */
+int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs)
+{
+	elf_core_copy_regs(elfregs, task_pt_regs(t));
+	return 1;
+}
+
+/*
  * fill in the fpe structure for a core dump...
  */
 int dump_fpu (struct pt_regs *regs, struct user_fp *fp)
@@ -388,7 +397,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.ARM_r2 = (unsigned long)fn;
 	regs.ARM_r3 = (unsigned long)kernel_thread_exit;
 	regs.ARM_pc = (unsigned long)kernel_thread_helper;
-	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE;
+	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE | PSR_ISETSTATE;
 
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }

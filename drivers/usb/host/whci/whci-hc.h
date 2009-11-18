@@ -264,6 +264,7 @@ struct whc_qset {
 	unsigned in_sw_list:1;
 	unsigned in_hw_list:1;
 	unsigned remove:1;
+	unsigned reset:1;
 	struct urb *pause_after_urb;
 	struct completion remove_complete;
 	int max_burst;

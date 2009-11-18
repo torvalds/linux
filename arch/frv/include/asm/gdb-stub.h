@@ -90,7 +90,6 @@ extern void gdbstub_do_rx(void);
 extern asmlinkage void __debug_stub_init_break(void);
 extern asmlinkage void __break_hijack_kernel_event(void);
 extern asmlinkage void __break_hijack_kernel_event_breaks_here(void);
-extern asmlinkage void start_kernel(void);
 
 extern asmlinkage void gdbstub_rx_handler(void);
 extern asmlinkage void gdbstub_rx_irq(void);

@@ -108,6 +108,8 @@ static void bitmap_free_page(struct bitmap *bitmap, unsigned char *page)
  * allocated while we're using it
  */
 static int bitmap_checkpage(struct bitmap *bitmap, unsigned long page, int create)
+__releases(bitmap->lock)
+__acquires(bitmap->lock)
 {
 	unsigned char *mappage;
 
@@ -325,7 +327,6 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 	return 0;
 
  bad_alignment:
-	rcu_read_unlock();
 	return -EINVAL;
 }
 
@@ -1207,6 +1208,8 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
 					    sector_t offset, int *blocks,
 					    int create)
+__releases(bitmap->lock)
+__acquires(bitmap->lock)
 {
 	/* If 'create', we might release the lock and reclaim it.
 	 * The lock must have been taken with interrupts enabled.
@@ -1621,10 +1624,11 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->offset = mddev->bitmap_offset;
 	if (file) {
 		get_file(file);
-		do_sync_mapping_range(file->f_mapping, 0, LLONG_MAX,
-				      SYNC_FILE_RANGE_WAIT_BEFORE |
-				      SYNC_FILE_RANGE_WRITE |
-				      SYNC_FILE_RANGE_WAIT_AFTER);
+		/* As future accesses to this file will use bmap,
+		 * and bypass the page cache, we must sync the file
+		 * first.
+		 */
+		vfs_fsync(file, file->f_dentry, 1);
 	}
 	/* read superblock from bitmap file (this sets bitmap->chunksize) */
 	err = bitmap_read_sb(bitmap);

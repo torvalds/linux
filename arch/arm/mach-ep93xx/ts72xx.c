@@ -12,19 +12,18 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
-#include <linux/m48t86.h>
 #include <linux/io.h>
-#include <linux/i2c.h>
+#include <linux/m48t86.h>
+#include <linux/mtd/physmap.h>
+
 #include <mach/hardware.h>
+#include <mach/ts72xx.h>
+
 #include <asm/mach-types.h>
-#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/arch.h>
+
 
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{

@@ -38,7 +38,7 @@
  *   0.3a - implemented pools of write URBs
  *   0.3  - alpha version for public testing
  *   0.2  - TIOCMGET works, so autopilot(1) can be used!
- *   0.1  - can be used to to pilot-xfer -p /dev/ttyUSB0 -l
+ *   0.1  - can be used to do pilot-xfer -p /dev/ttyUSB0 -l
  *
  *   The driver skeleton is mainly based on mct_u232.c and various other
  *   pieces of code shamelessly copied from the drivers/usb/serial/ directory.
@@ -75,8 +75,7 @@ static int debug;
 static int  klsi_105_startup(struct usb_serial *serial);
 static void klsi_105_disconnect(struct usb_serial *serial);
 static void klsi_105_release(struct usb_serial *serial);
-static int  klsi_105_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void klsi_105_close(struct usb_serial_port *port);
 static int  klsi_105_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
@@ -358,8 +357,7 @@ static void klsi_105_release(struct usb_serial *serial)
 	}
 } /* klsi_105_release */
 
-static int  klsi_105_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
@@ -370,10 +368,6 @@ static int  klsi_105_open(struct tty_struct *tty,
 	unsigned long flags;
 
 	dbg("%s port %d", __func__, port->number);
-
-	/* force low_latency on so that our tty_push actually forces
-	 * the data through
-	 * tty->low_latency = 1; */
 
 	/* Do a defined restart:
 	 * Set up sane default baud rate and send the 'READ_ON'
@@ -957,7 +951,7 @@ static void klsi_105_unthrottle(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, port->number);
 
 	port->read_urb->dev = port->serial->dev;
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
 			"%s - failed submitting read urb, error %d\n",

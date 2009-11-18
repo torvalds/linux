@@ -123,8 +123,6 @@ struct sisusb_usb_data {
 	int numobufs;		/* number of obufs = number of out urbs */
 	char *obuf[NUMOBUFS], *ibuf;	/* transfer buffers */
 	int obufsize, ibufsize;
-	dma_addr_t transfer_dma_out[NUMOBUFS];
-	dma_addr_t transfer_dma_in;
 	struct urb *sisurbout[NUMOBUFS];
 	struct urb *sisurbin;
 	unsigned char urbstatus[NUMOBUFS];

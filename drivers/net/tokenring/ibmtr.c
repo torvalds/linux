@@ -108,6 +108,7 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 #define IBMTR_DEBUG_MESSAGES 0
 
 #include <linux/module.h>
+#include <linux/sched.h>
 
 #ifdef PCMCIA		/* required for ibmtr_cs.c to build */
 #undef MODULE		/* yes, really */
@@ -191,7 +192,8 @@ static int 	tok_init_card(struct net_device *dev);
 static void	tok_open_adapter(unsigned long dev_addr);
 static void 	open_sap(unsigned char type, struct net_device *dev);
 static void 	tok_set_multicast_list(struct net_device *dev);
-static int 	tok_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t tok_send_packet(struct sk_buff *skb,
+					 struct net_device *dev);
 static int 	tok_close(struct net_device *dev);
 static irqreturn_t tok_interrupt(int irq, void *dev_id);
 static void 	initial_tok_int(struct net_device *dev);
@@ -1022,7 +1024,8 @@ static void tok_set_multicast_list(struct net_device *dev)
 
 #define STATION_ID_OFST 4
 
-static int tok_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tok_send_packet(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct tok_info *ti;
 	unsigned long flags;
@@ -1041,7 +1044,7 @@ static int tok_send_packet(struct sk_buff *skb, struct net_device *dev)
 	writeb(CMD_IN_SRB, ti->mmio + ACA_OFFSET + ACA_SET + ISRA_ODD);
 	spin_unlock_irqrestore(&(ti->lock), flags);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*****************************************************************************/
@@ -1141,9 +1144,16 @@ static void dir_open_adapter (struct net_device *dev)
                 } else {
 			char **prphase = printphase;
 			char **prerror = printerror;
+			int pnr = err / 16 - 1;
+			int enr = err % 16 - 1;
 			DPRINTK("TR Adapter misc open failure, error code = ");
-			printk("0x%x, Phase: %s, Error: %s\n",
-				err, prphase[err/16 -1], prerror[err%16 -1]);
+			if (pnr < 0 || pnr >= ARRAY_SIZE(printphase) ||
+					enr < 0 ||
+					enr >= ARRAY_SIZE(printerror))
+				printk("0x%x, invalid Phase/Error.", err);
+			else
+				printk("0x%x, Phase: %s, Error: %s\n", err,
+						prphase[pnr], prerror[enr]);
 			printk(" retrying after %ds delay...\n",
 					TR_RETRY_INTERVAL/HZ);
                 }

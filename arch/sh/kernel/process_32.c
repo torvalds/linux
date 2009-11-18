@@ -23,6 +23,7 @@
 #include <linux/tick.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
+#include <linux/ftrace.h>
 #include <linux/preempt.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -31,15 +32,35 @@
 #include <asm/ubc.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
+#include <asm/watchdog.h>
 
 int ubc_usercnt = 0;
 
+#ifdef CONFIG_32BIT
+static void watchdog_trigger_immediate(void)
+{
+	sh_wdt_write_cnt(0xFF);
+	sh_wdt_write_csr(0xC2);
+}
+
+void machine_restart(char * __unused)
+{
+	local_irq_disable();
+
+	/* Use watchdog timer to trigger reset */
+	watchdog_trigger_immediate();
+
+	while (1)
+		cpu_sleep();
+}
+#else
 void machine_restart(char * __unused)
 {
 	/* SR.BL=1 and invoke address error to let CPU reset (manual reset) */
 	asm volatile("ldc %0, sr\n\t"
 		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
 }
+#endif
 
 void machine_halt(void)
 {
@@ -264,8 +285,8 @@ static void ubc_set_tracing(int asid, unsigned long pc)
  *	switch_to(x,y) should switch tasks from x to y.
  *
  */
-struct task_struct *__switch_to(struct task_struct *prev,
-				struct task_struct *next)
+__notrace_funcgraph struct task_struct *
+__switch_to(struct task_struct *prev, struct task_struct *next)
 {
 #if defined(CONFIG_SH_FPU)
 	unlazy_fpu(prev, task_pt_regs(prev));

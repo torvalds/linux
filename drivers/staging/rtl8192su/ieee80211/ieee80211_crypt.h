@@ -82,12 +82,5 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *, int);
 void ieee80211_crypt_deinit_handler(unsigned long);
 void ieee80211_crypt_delayed_deinit(struct ieee80211_device *ieee,
 				    struct ieee80211_crypt_data **crypt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#define offset_in_page(p) ((unsigned long)(p) & ~PAGE_MASK)
-#endif
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,31))
-#define crypto_alloc_tfm crypto_alloc_tfm_rsl
-#define crypto_free_tfm crypto_free_tfm_rsl
-#endif
 
 #endif

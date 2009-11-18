@@ -51,7 +51,7 @@ cxgb3_cpl_handler_func t3c_handlers[NUM_CPL_CMDS];
 
 static void open_rnic_dev(struct t3cdev *);
 static void close_rnic_dev(struct t3cdev *);
-static void iwch_err_handler(struct t3cdev *, u32, u32);
+static void iwch_event_handler(struct t3cdev *, u32, u32);
 
 struct cxgb3_client t3c_client = {
 	.name = "iw_cxgb3",
@@ -59,7 +59,7 @@ struct cxgb3_client t3c_client = {
 	.remove = close_rnic_dev,
 	.handlers = t3c_handlers,
 	.redirect = iwch_ep_redirect,
-	.err_handler = iwch_err_handler
+	.event_handler = iwch_event_handler
 };
 
 static LIST_HEAD(dev_list);
@@ -105,11 +105,9 @@ static void rnic_init(struct iwch_dev *rnicp)
 static void open_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *rnicp;
-	static int vers_printed;
 
 	PDBG("%s t3cdev %p\n", __func__,  tdev);
-	if (!vers_printed++)
-		printk(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
+	printk_once(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
 		       DRV_VERSION);
 	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
 	if (!rnicp) {
@@ -162,20 +160,35 @@ static void close_rnic_dev(struct t3cdev *tdev)
 	mutex_unlock(&dev_mutex);
 }
 
-static void iwch_err_handler(struct t3cdev *tdev, u32 status, u32 error)
+static void iwch_event_handler(struct t3cdev *tdev, u32 evt, u32 port_id)
 {
 	struct cxio_rdev *rdev = tdev->ulp;
-	struct iwch_dev *rnicp = rdev_to_iwch_dev(rdev);
+	struct iwch_dev *rnicp;
 	struct ib_event event;
+	u32    portnum = port_id + 1;
 
-	if (status == OFFLOAD_STATUS_DOWN) {
+	if (!rdev)
+		return;
+	rnicp = rdev_to_iwch_dev(rdev);
+	switch (evt) {
+	case OFFLOAD_STATUS_DOWN: {
 		rdev->flags = CXIO_ERROR_FATAL;
-
-		event.device = &rnicp->ibdev;
 		event.event  = IB_EVENT_DEVICE_FATAL;
-		event.element.port_num = 0;
-		ib_dispatch_event(&event);
+		break;
+		}
+	case OFFLOAD_PORT_DOWN: {
+		event.event  = IB_EVENT_PORT_ERR;
+		break;
+		}
+	case OFFLOAD_PORT_UP: {
+		event.event  = IB_EVENT_PORT_ACTIVE;
+		break;
+		}
 	}
+
+	event.device = &rnicp->ibdev;
+	event.element.port_num = portnum;
+	ib_dispatch_event(&event);
 
 	return;
 }

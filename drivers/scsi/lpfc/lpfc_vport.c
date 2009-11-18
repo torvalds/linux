@@ -313,22 +313,6 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
-	/*
-	 * In SLI4, the vpi must be activated before it can be used
-	 * by the port.
-	 */
-	if (phba->sli_rev == LPFC_SLI_REV4) {
-		rc = lpfc_sli4_init_vpi(phba, vpi);
-		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
-					"1838 Failed to INIT_VPI on vpi %d "
-					"status %d\n", vpi, rc);
-			rc = VPORT_NORESOURCES;
-			lpfc_free_vpi(phba, vpi);
-			goto error_out;
-		}
-	}
-
 	/* Assign an unused board number */
 	if ((instance = lpfc_get_instance()) < 0) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
@@ -367,12 +351,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
-	memcpy(vport->fc_portname.u.wwn, vport->fc_sparam.portName.u.wwn, 8);
-	memcpy(vport->fc_nodename.u.wwn, vport->fc_sparam.nodeName.u.wwn, 8);
-	if (fc_vport->node_name != 0)
-		u64_to_wwn(fc_vport->node_name, vport->fc_nodename.u.wwn);
-	if (fc_vport->port_name != 0)
-		u64_to_wwn(fc_vport->port_name, vport->fc_portname.u.wwn);
+	u64_to_wwn(fc_vport->node_name, vport->fc_nodename.u.wwn);
+	u64_to_wwn(fc_vport->port_name, vport->fc_portname.u.wwn);
 
 	memcpy(&vport->fc_sparam.portName, vport->fc_portname.u.wwn, 8);
 	memcpy(&vport->fc_sparam.nodeName, vport->fc_nodename.u.wwn, 8);
@@ -404,7 +384,34 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	*(struct lpfc_vport **)fc_vport->dd_data = vport;
 	vport->fc_vport = fc_vport;
 
+	/*
+	 * In SLI4, the vpi must be activated before it can be used
+	 * by the port.
+	 */
+	if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		(pport->vfi_state & LPFC_VFI_REGISTERED)) {
+		rc = lpfc_sli4_init_vpi(phba, vpi);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
+					"1838 Failed to INIT_VPI on vpi %d "
+					"status %d\n", vpi, rc);
+			rc = VPORT_NORESOURCES;
+			lpfc_free_vpi(phba, vpi);
+			goto error_out;
+		}
+	} else if (phba->sli_rev == LPFC_SLI_REV4) {
+		/*
+		 * Driver cannot INIT_VPI now. Set the flags to
+		 * init_vpi when reg_vfi complete.
+		 */
+		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
+		rc = VPORT_OK;
+		goto out;
+	}
+
 	if ((phba->link_state < LPFC_LINK_UP) ||
+	    (pport->port_state < LPFC_FABRIC_CFG_LINK) ||
 	    (phba->fc_topology == TOPOLOGY_LOOP)) {
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		rc = VPORT_OK;
@@ -661,7 +668,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				lpfc_printf_log(vport->phba, KERN_WARNING,
 						LOG_VPORT,
 						"1829 CT command failed to "
-						"delete objects on fabric. \n");
+						"delete objects on fabric\n");
 		}
 		/* First look for the Fabric ndlp */
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);

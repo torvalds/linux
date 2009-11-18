@@ -145,9 +145,10 @@ enum iwch_ep_state {
 };
 
 enum iwch_ep_flags {
-	PEER_ABORT_IN_PROGRESS	= (1 << 0),
-	ABORT_REQ_IN_PROGRESS	= (1 << 1),
-	RELEASE_RESOURCES	= (1 << 2),
+	PEER_ABORT_IN_PROGRESS	= 0,
+	ABORT_REQ_IN_PROGRESS	= 1,
+	RELEASE_RESOURCES	= 2,
+	CLOSE_SENT		= 3,
 };
 
 struct iwch_ep_common {
@@ -162,7 +163,7 @@ struct iwch_ep_common {
 	wait_queue_head_t waitq;
 	int rpl_done;
 	int rpl_err;
-	u32 flags;
+	unsigned long flags;
 };
 
 struct iwch_listen_ep {

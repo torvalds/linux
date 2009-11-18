@@ -1713,7 +1713,7 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
-	cfg_mem = kzalloc(sizeof(cfg_mem), GFP_KERNEL);
+	cfg_mem = kzalloc(sizeof(*cfg_mem), GFP_KERNEL);
 	if (!cfg_mem)
 		return -ENOMEM;
 	cfg_mem->data = data;

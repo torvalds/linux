@@ -3,7 +3,7 @@
 
 #ifdef __ASSEMBLY__
 # define __ASM_FORM(x)	x
-# define __ASM_EX_SEC	.section __ex_table
+# define __ASM_EX_SEC	.section __ex_table, "a"
 #else
 # define __ASM_FORM(x)	" " #x " "
 # define __ASM_EX_SEC	" .section __ex_table,\"a\"\n"
@@ -38,10 +38,18 @@
 #define _ASM_DI		__ASM_REG(di)
 
 /* Exception table entry */
+#ifdef __ASSEMBLY__
+# define _ASM_EXTABLE(from,to)	    \
+	__ASM_EX_SEC ;		    \
+	_ASM_ALIGN ;		    \
+	_ASM_PTR from , to ;	    \
+	.previous
+#else
 # define _ASM_EXTABLE(from,to) \
 	__ASM_EX_SEC	\
 	_ASM_ALIGN "\n" \
 	_ASM_PTR #from "," #to "\n" \
 	" .previous\n"
+#endif
 
 #endif /* _ASM_X86_ASM_H */

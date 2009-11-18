@@ -88,12 +88,12 @@ static struct hid_driver belkin_driver = {
 	.probe = belkin_probe,
 };
 
-static int belkin_init(void)
+static int __init belkin_init(void)
 {
 	return hid_register_driver(&belkin_driver);
 }
 
-static void belkin_exit(void)
+static void __exit belkin_exit(void)
 {
 	hid_unregister_driver(&belkin_driver);
 }

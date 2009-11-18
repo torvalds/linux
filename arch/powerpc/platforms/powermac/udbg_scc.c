@@ -1,5 +1,5 @@
 /*
- * udbg for for zilog scc ports as found on Apple PowerMacs
+ * udbg for zilog scc ports as found on Apple PowerMacs
  *
  * Copyright (C) 2001-2005 PPC 64 Team, IBM Corp
  *

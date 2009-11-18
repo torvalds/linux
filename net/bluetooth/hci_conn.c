@@ -246,6 +246,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 
+	atomic_set(&conn->devref, 0);
+
 	hci_conn_init_sysfs(conn);
 
 	tasklet_enable(&hdev->tx_task);
@@ -288,7 +290,7 @@ int hci_conn_del(struct hci_conn *conn)
 
 	skb_queue_purge(&conn->data_q);
 
-	hci_conn_del_sysfs(conn);
+	hci_conn_put_device(conn);
 
 	hci_dev_put(hdev);
 
@@ -582,6 +584,19 @@ void hci_conn_check_pending(struct hci_dev *hdev)
 
 	hci_dev_unlock(hdev);
 }
+
+void hci_conn_hold_device(struct hci_conn *conn)
+{
+	atomic_inc(&conn->devref);
+}
+EXPORT_SYMBOL(hci_conn_hold_device);
+
+void hci_conn_put_device(struct hci_conn *conn)
+{
+	if (atomic_dec_and_test(&conn->devref))
+		hci_conn_del_sysfs(conn);
+}
+EXPORT_SYMBOL(hci_conn_put_device);
 
 int hci_get_conn_list(void __user *arg)
 {

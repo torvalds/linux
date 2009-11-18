@@ -418,6 +418,23 @@ License: GPLv2 or OpenIB.org BSD license, no source visible
 
 --------------------------------------------------------------------------
 
+Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
+
+File: cxgb3/ael2005_opt_edc.bin.ihex
+File: cxgb3/ael2005_twx_edc.bin.ihex
+File: cxgb3/ael2020_twx_edc.bin.ihex
+
+Licence:
+ *	Copyright (c) 2007-2009 NetLogic Microsystems, Inc.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
 Driver: e100 -- Intel PRO/100 Ethernet NIC
 
 File: e100/d101m_ucode.bin
@@ -579,6 +596,11 @@ Found in hex form in kernel source.
 Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
 
 File: cis/LA-PCM.cis
+      cis/PCMLM28.cis
+      cis/DP83903.cis
+      cis/NE2K.cis
+      cis/tamarack.cis
+      cis/PE-200.cis
 
 Licence: GPL
 
@@ -599,6 +621,22 @@ Originally developed by the pcmcia-cs project
 Driver: PCMCIA_3C574 - 3Com PCMCIA adapter
 
 File: cis/3CCFEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: SERIAL_8250_CS - Serial PCMCIA adapter
+
+File: cis/MT5634ZLX.cis
+      cis/RS-COM-2P.cis
+      cis/COMpad2.cis
+      cis/COMpad4.cis
+      cis/SW_555_SER.cis
+      cis/SW_7xx_SER.cis
+      cis/SW_8xx_SER.cis
 
 Licence: GPL
 

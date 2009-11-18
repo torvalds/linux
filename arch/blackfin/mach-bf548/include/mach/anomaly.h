@@ -7,7 +7,7 @@
  */
 
 /* This file should be up to date with:
- *  - Revision H, 01/16/2009; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
+ *  - Revision I, 07/23/2009; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -162,6 +162,8 @@
 #define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
 /* Incorrect Use of Stack in Lockbox Firmware During Authentication */
 #define ANOMALY_05000431 (__SILICON_REVISION__ < 3)
+/* SW Breakpoints Ignored Upon Return From Lockbox Authentication */
+#define ANOMALY_05000434 (1)
 /* OTP Write Accesses Not Supported */
 #define ANOMALY_05000442 (__SILICON_REVISION__ < 1)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
@@ -176,12 +178,26 @@
 #define ANOMALY_05000449 (__SILICON_REVISION__ == 1)
 /* USB DMA Mode 1 Short Packet Data Corruption */
 #define ANOMALY_05000450 (1)
+/* Incorrect Default Hysteresis Setting for RESET, NMI, and BMODE Signals */
+#define ANOMALY_05000452 (__SILICON_REVISION__ < 1)
 /* USB Receive Interrupt Is Not Generated in DMA Mode 1 */
-#define ANOMALY_05000456 (__SILICON_REVISION__ < 3)
+#define ANOMALY_05000456 (1)
+/* Host DMA Port Responds to Certain Bus Activity Without HOST_CE Assertion */
+#define ANOMALY_05000457 (1)
+/* USB DMA Mode 1 Failure When Multiple USB DMA Channels Are Concurrently Enabled */
+#define ANOMALY_05000460 (1)
 /* False Hardware Error when RETI Points to Invalid Memory */
 #define ANOMALY_05000461 (1)
+/* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
+#define ANOMALY_05000462 (1)
+/* USB DMA RX Data Corruption */
+#define ANOMALY_05000463 (1)
+/* USB TX DMA Hang */
+#define ANOMALY_05000464 (1)
 /* USB Rx DMA hang */
 #define ANOMALY_05000465 (1)
+/* TxPktRdy Bit Not Set for Transmit Endpoint When Core and DMA Access USB Endpoint FIFOs Simultaneously */
+#define ANOMALY_05000466 (1)
 /* Possible RX data corruption when control & data EP FIFOs are accessed via the core */
 #define ANOMALY_05000467 (1)
 
@@ -230,6 +246,7 @@
 #define ANOMALY_05000364 (0)
 #define ANOMALY_05000380 (0)
 #define ANOMALY_05000400 (0)
+#define ANOMALY_05000402 (0)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)

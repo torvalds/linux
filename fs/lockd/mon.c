@@ -61,43 +61,6 @@ static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
 	return (struct sockaddr *)&nsm->sm_addr;
 }
 
-static void nsm_display_ipv4_address(const struct sockaddr *sap, char *buf,
-				     const size_t len)
-{
-	const struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	snprintf(buf, len, "%pI4", &sin->sin_addr.s_addr);
-}
-
-static void nsm_display_ipv6_address(const struct sockaddr *sap, char *buf,
-				     const size_t len)
-{
-	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
-
-	if (ipv6_addr_v4mapped(&sin6->sin6_addr))
-		snprintf(buf, len, "%pI4", &sin6->sin6_addr.s6_addr32[3]);
-	else if (sin6->sin6_scope_id != 0)
-		snprintf(buf, len, "%pI6%%%u", &sin6->sin6_addr,
-				sin6->sin6_scope_id);
-	else
-		snprintf(buf, len, "%pI6", &sin6->sin6_addr);
-}
-
-static void nsm_display_address(const struct sockaddr *sap,
-				char *buf, const size_t len)
-{
-	switch (sap->sa_family) {
-	case AF_INET:
-		nsm_display_ipv4_address(sap, buf, len);
-		break;
-	case AF_INET6:
-		nsm_display_ipv6_address(sap, buf, len);
-		break;
-	default:
-		snprintf(buf, len, "unsupported address family");
-		break;
-	}
-}
-
 static struct rpc_clnt *nsm_create(void)
 {
 	struct sockaddr_in sin = {
@@ -246,7 +209,7 @@ static struct nsm_handle *nsm_lookup_addr(const struct sockaddr *sap)
 	struct nsm_handle *nsm;
 
 	list_for_each_entry(nsm, &nsm_handles, sm_link)
-		if (nlm_cmp_addr(nsm_addr(nsm), sap))
+		if (rpc_cmp_addr(nsm_addr(nsm), sap))
 			return nsm;
 	return NULL;
 }
@@ -307,8 +270,11 @@ static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,
 	memcpy(nsm_addr(new), sap, salen);
 	new->sm_addrlen = salen;
 	nsm_init_private(new);
-	nsm_display_address((const struct sockaddr *)&new->sm_addr,
-				new->sm_addrbuf, sizeof(new->sm_addrbuf));
+
+	if (rpc_ntop(nsm_addr(new), new->sm_addrbuf,
+					sizeof(new->sm_addrbuf)) == 0)
+		(void)snprintf(new->sm_addrbuf, sizeof(new->sm_addrbuf),
+				"unsupported address family");
 	memcpy(new->sm_name, hostname, hostname_len);
 	new->sm_name[hostname_len] = '\0';
 

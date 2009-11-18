@@ -30,6 +30,7 @@
  * fb aperture size and the amount of pre-reserved memory.
  */
 #define INTEL_GMCH_CTRL		0x52
+#define INTEL_GMCH_VGA_DISABLE  (1 << 1)
 #define INTEL_GMCH_ENABLED	0x4
 #define INTEL_GMCH_MEM_MASK	0x1
 #define INTEL_GMCH_MEM_64M	0x1
@@ -85,6 +86,10 @@
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
 #define LBB	0xf4
+#define GDRST 0xc0
+#define  GDRST_FULL	(0<<2)
+#define  GDRST_RENDER	(1<<2)
+#define  GDRST_MEDIA	(3<<2)
 
 /* VGA stuff */
 
@@ -343,8 +348,36 @@
 #define   FBC_CTL_PLANEA	(0<<0)
 #define   FBC_CTL_PLANEB	(1<<0)
 #define FBC_FENCE_OFF		0x0321b
+#define FBC_TAG			0x03300
 
 #define FBC_LL_SIZE		(1536)
+
+/* Framebuffer compression for GM45+ */
+#define DPFC_CB_BASE		0x3200
+#define DPFC_CONTROL		0x3208
+#define   DPFC_CTL_EN		(1<<31)
+#define   DPFC_CTL_PLANEA	(0<<30)
+#define   DPFC_CTL_PLANEB	(1<<30)
+#define   DPFC_CTL_FENCE_EN	(1<<29)
+#define   DPFC_SR_EN		(1<<10)
+#define   DPFC_CTL_LIMIT_1X	(0<<6)
+#define   DPFC_CTL_LIMIT_2X	(1<<6)
+#define   DPFC_CTL_LIMIT_4X	(2<<6)
+#define DPFC_RECOMP_CTL		0x320c
+#define   DPFC_RECOMP_STALL_EN	(1<<27)
+#define   DPFC_RECOMP_STALL_WM_SHIFT (16)
+#define   DPFC_RECOMP_STALL_WM_MASK (0x07ff0000)
+#define   DPFC_RECOMP_TIMER_COUNT_SHIFT (0)
+#define   DPFC_RECOMP_TIMER_COUNT_MASK (0x0000003f)
+#define DPFC_STATUS		0x3210
+#define   DPFC_INVAL_SEG_SHIFT  (16)
+#define   DPFC_INVAL_SEG_MASK	(0x07ff0000)
+#define   DPFC_COMP_SEG_SHIFT	(0)
+#define   DPFC_COMP_SEG_MASK	(0x000003ff)
+#define DPFC_STATUS2		0x3214
+#define DPFC_FENCE_YOFF		0x3218
+#define DPFC_CHICKEN		0x3224
+#define   DPFC_HT_MODIFY	(1<<31)
 
 /*
  * GPIO regs
@@ -935,6 +968,8 @@
 #define   LVDS_PORT_EN			(1 << 31)
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
 #define   LVDS_PIPEB_SELECT		(1 << 30)
+/* Enable border for unscaled (or aspect-scaled) display */
+#define   LVDS_BORDER_ENABLE		(1 << 15)
 /*
  * Enables the A0-A2 data pairs and CLKA, containing 18 bits of color data per
  * pixel.
@@ -1044,6 +1079,8 @@
  */
 #define   BACKLIGHT_DUTY_CYCLE_SHIFT		(0)
 #define   BACKLIGHT_DUTY_CYCLE_MASK		(0xffff)
+
+#define BLC_HIST_CTL		0x61260
 
 /* TV port control */
 #define TV_CTL			0x68000
@@ -1747,6 +1784,11 @@
 #define   PIPE_START_VBLANK_INTERRUPT_STATUS	(1UL<<2) /* 965 or later */
 #define   PIPE_VBLANK_INTERRUPT_STATUS		(1UL<<1)
 #define   PIPE_OVERLAY_UPDATED_STATUS		(1UL<<0)
+#define   PIPE_BPC_MASK 			(7 << 5) /* Ironlake */
+#define   PIPE_8BPC				(0 << 5)
+#define   PIPE_10BPC				(1 << 5)
+#define   PIPE_6BPC				(2 << 5)
+#define   PIPE_12BPC				(3 << 5)
 
 #define DSPARB			0x70030
 #define   DSPARB_CSTART_MASK	(0x7f << 7)
@@ -1757,17 +1799,29 @@
 #define   DSPARB_AEND_SHIFT	0
 
 #define DSPFW1			0x70034
+#define   DSPFW_SR_SHIFT	23
+#define   DSPFW_CURSORB_SHIFT	16
+#define   DSPFW_PLANEB_SHIFT	8
 #define DSPFW2			0x70038
+#define   DSPFW_CURSORA_MASK	0x00003f00
+#define   DSPFW_CURSORA_SHIFT	16
 #define DSPFW3			0x7003c
+#define   DSPFW_HPLL_SR_EN	(1<<31)
+#define   DSPFW_CURSOR_SR_SHIFT	24
 #define   IGD_SELF_REFRESH_EN	(1<<30)
 
 /* FIFO watermark sizes etc */
+#define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64
 #define I830_FIFO_LINE_SIZE	32
+
+#define G4X_FIFO_SIZE		127
 #define I945_FIFO_SIZE		127 /* 945 & 965 */
 #define I915_FIFO_SIZE		95
 #define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
+
+#define G4X_MAX_WM		0x3f
 #define I915_MAX_WM		0x3f
 
 #define IGD_DISPLAY_FIFO	512 /* in 64byte unit */
@@ -1997,8 +2051,15 @@
 #define PFA_CTL_1               0x68080
 #define PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define  PF_FILTER_MASK		(3<<23)
+#define  PF_FILTER_PROGRAMMED	(0<<23)
+#define  PF_FILTER_MED_3x3	(1<<23)
+#define  PF_FILTER_EDGE_ENHANCE	(2<<23)
+#define  PF_FILTER_EDGE_SOFTEN	(3<<23)
 #define PFA_WIN_SZ		0x68074
 #define PFB_WIN_SZ		0x68874
+#define PFA_WIN_POS		0x68070
+#define PFB_WIN_POS		0x68870
 
 /* legacy palette */
 #define LGC_PALETTE_A           0x4a000
@@ -2114,11 +2175,11 @@
 #define  DREF_CPU_SOURCE_OUTPUT_MASK		(3<<13)
 #define  DREF_SSC_SOURCE_DISABLE                (0<<11)
 #define  DREF_SSC_SOURCE_ENABLE                 (2<<11)
-#define  DREF_SSC_SOURCE_MASK			(2<<11)
+#define  DREF_SSC_SOURCE_MASK			(3<<11)
 #define  DREF_NONSPREAD_SOURCE_DISABLE          (0<<9)
 #define  DREF_NONSPREAD_CK505_ENABLE		(1<<9)
 #define  DREF_NONSPREAD_SOURCE_ENABLE           (2<<9)
-#define  DREF_NONSPREAD_SOURCE_MASK		(2<<9)
+#define  DREF_NONSPREAD_SOURCE_MASK		(3<<9)
 #define  DREF_SUPERSPREAD_SOURCE_DISABLE        (0<<7)
 #define  DREF_SUPERSPREAD_SOURCE_ENABLE         (2<<7)
 #define  DREF_SSC4_DOWNSPREAD                   (0<<6)

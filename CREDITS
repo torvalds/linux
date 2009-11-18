@@ -2800,7 +2800,7 @@ D: Starter of Linux1394 effort
 S: ask per mail for current address
 
 N: Nicolas Pitre
-E: nico@cam.org
+E: nico@fluxnic.net
 D: StrongARM SA1100 support integrator & hacker
 D: Xscale PXA architecture
 D: unified SMC 91C9x/91C11x ethernet driver (smc91x)

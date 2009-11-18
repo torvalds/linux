@@ -165,7 +165,7 @@ static int ves1820_set_symbolrate(struct ves1820_state *state, u32 symbolrate)
 	tmp = ((symbolrate << 4) % fin) << 8;
 	ratio = (ratio << 8) + tmp / fin;
 	tmp = (tmp % fin) << 8;
-	ratio = (ratio << 8) + (tmp + fin / 2) / fin;
+	ratio = (ratio << 8) + DIV_ROUND_CLOSEST(tmp, fin);
 
 	BDR = ratio;
 	BDRI = (((state->config->xin << 5) / symbolrate) + 1) / 2;

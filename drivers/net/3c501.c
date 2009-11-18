@@ -409,7 +409,7 @@ static void el_timeout(struct net_device *dev)
  * no real choice.
  */
 
-static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
@@ -485,7 +485,7 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (el_debug > 2)
 				pr_debug(" queued xmit.\n");
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		/* A receive upset our load, despite our best efforts */
 		if (el_debug > 2)

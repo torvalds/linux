@@ -95,8 +95,8 @@ TODO:
 /* static unsigned short pci_list_builded=0;      =1 list of card is know */
 
 static const struct comedi_lrange range_pci1723 = { 1, {
-			BIP_RANGE(10)
-	}
+							BIP_RANGE(10)
+							}
 };
 
 /*
@@ -116,23 +116,24 @@ struct pci1723_board {
 
 static const struct pci1723_board boardtypes[] = {
 	{
-	.name = "pci1723",
-	.vendor_id = ADVANTECH_VENDOR,
-	.device_id = 0x1723,
-	.iorange = IORANGE_1723,
-	.cardtype = TYPE_PCI1723,
-	.n_aochan = 8,
-	.n_diochan = 16,
-	.ao_maxdata = 0xffff,
-	.rangelist_ao = &range_pci1723,
-		},
+	 .name = "pci1723",
+	 .vendor_id = ADVANTECH_VENDOR,
+	 .device_id = 0x1723,
+	 .iorange = IORANGE_1723,
+	 .cardtype = TYPE_PCI1723,
+	 .n_aochan = 8,
+	 .n_diochan = 16,
+	 .ao_maxdata = 0xffff,
+	 .rangelist_ao = &range_pci1723,
+	 },
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(pci1723_pci_table) = {
-	{PCI_VENDOR_ID_ADVANTECH, 0x1723, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_ADVANTECH, 0x1723, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
@@ -143,7 +144,8 @@ MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci1723_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int pci1723_detach(struct comedi_device *dev);
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
@@ -189,7 +191,7 @@ static int pci1723_reset(struct comedi_device *dev)
 		/*  set all ranges to +/- 10V */
 		devpriv->da_range[i] = 0;
 		outw(((devpriv->da_range[i] << 4) | i),
-			PCI1723_RANGE_CALIBRATION_MODE);
+		     PCI1723_RANGE_CALIBRATION_MODE);
 	}
 
 	outw(0, dev->iobase + PCI1723_CHANGE_CHA_OUTPUT_TYPE_STROBE);	/*  update ranges */
@@ -202,8 +204,9 @@ static int pci1723_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int pci1723_insn_read_ao(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci1723_insn_read_ao(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
 
@@ -218,8 +221,9 @@ static int pci1723_insn_read_ao(struct comedi_device *dev, struct comedi_subdevi
 /*
   analog data output;
 */
-static int pci1723_ao_write_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci1723_ao_write_winsn(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
@@ -238,8 +242,9 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev, struct comedi_subde
 /*
   digital i/o config/query
 */
-static int pci1723_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci1723_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -278,8 +283,9 @@ static int pci1723_dio_insn_config(struct comedi_device *dev, struct comedi_subd
 /*
   digital i/o bits read/write
 */
-static int pci1723_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci1723_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -294,7 +300,8 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
  * Attach is called by the Comedi core to configure the driver
  * for a pci1723 board.
  */
-static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pci1723_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
@@ -304,8 +311,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	int opt_bus, opt_slot;
 	const char *errstr;
 
-	printk("comedi%d: adv_pci1723: board=%s", dev->minor,
-		this_board->name);
+	printk("comedi%d: adv_pci1723: board=%s", dev->minor, this_board->name);
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
@@ -321,12 +327,12 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	pcidev = NULL;
 	while (NULL != (pcidev =
 			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				this_board->device_id, pcidev))) {
+				       this_board->device_id, pcidev))) {
 		/* Found matching vendor/device. */
 		if (opt_bus || opt_slot) {
 			/* Check bus/slot. */
 			if (opt_bus != pcidev->bus->number
-				|| opt_slot != PCI_SLOT(pcidev->devfn))
+			    || opt_slot != PCI_SLOT(pcidev->devfn))
 				continue;	/* no match */
 		}
 		/*
@@ -334,7 +340,8 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		 * Enable PCI device and request regions.
 		 */
 		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
-			errstr = "failed to enable PCI device and request regions!";
+			errstr =
+			    "failed to enable PCI device and request regions!";
 			continue;
 		}
 		break;
@@ -343,7 +350,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
 			printk(" - Card at b:s %d:%d %s\n",
-				opt_bus, opt_slot, errstr);
+			       opt_bus, opt_slot, errstr);
 		} else {
 			printk(" - Card %s\n", errstr);
 		}
@@ -356,7 +363,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	iobase = pci_resource_start(pcidev, 2);
 
 	printk(", b:s:f=%d:%d:%d, io=0x%4x", pci_bus, pci_slot, pci_func,
-		iobase);
+	       iobase);
 
 	dev->iobase = iobase;
 
@@ -416,7 +423,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags =
-			SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		    SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_diochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_diochan;

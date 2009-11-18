@@ -77,7 +77,7 @@ void __init mem_init(void)
 	num_physpages = totalram_pages;
 	max_pfn = totalram_pages;
 	printk(KERN_INFO "Memory: %luk available\n",
-	       (unsigned long) nr_free_pages() << (PAGE_SHIFT-10));
+	       nr_free_pages() << (PAGE_SHIFT-10));
 	kmalloc_ok = 1;
 
 #ifdef CONFIG_HIGHMEM

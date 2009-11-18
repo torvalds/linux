@@ -18,16 +18,17 @@
  */
 
 #include "usbip_common.h"
+#include <linux/kthread.h>
 
 static int event_handler(struct usbip_device *ud)
 {
-	dbg_eh("enter\n");
+	usbip_dbg_eh("enter\n");
 
 	/*
 	 * Events are handled by only this thread.
 	 */
-	while (usbip_event_happend(ud)) {
-		dbg_eh("pending event %lx\n", ud->event);
+	while (usbip_event_happened(ud)) {
+		usbip_dbg_eh("pending event %lx\n", ud->event);
 
 		/*
 		 * NOTE: shutdown must come first.
@@ -77,30 +78,38 @@ static void event_handler_loop(struct usbip_task *ut)
 
 	while (1) {
 		if (signal_pending(current)) {
-			dbg_eh("signal catched!\n");
+			usbip_dbg_eh("signal catched!\n");
 			break;
 		}
 
 		if (event_handler(ud) < 0)
 			break;
 
-		wait_event_interruptible(ud->eh_waitq, usbip_event_happend(ud));
-		dbg_eh("wakeup\n");
+		wait_event_interruptible(ud->eh_waitq,
+					usbip_event_happened(ud));
+		usbip_dbg_eh("wakeup\n");
 	}
 }
 
-void usbip_start_eh(struct usbip_device *ud)
+int usbip_start_eh(struct usbip_device *ud)
 {
 	struct usbip_task *eh = &ud->eh;
+	struct task_struct *th;
 
 	init_waitqueue_head(&ud->eh_waitq);
 	ud->event = 0;
 
 	usbip_task_init(eh, "usbip_eh", event_handler_loop);
 
-	kernel_thread(usbip_thread, (void *)eh, 0);
+	th = kthread_run(usbip_thread, (void *)eh, "usbip");
+	if (IS_ERR(th)) {
+		printk(KERN_WARNING
+			"Unable to start control thread\n");
+		return PTR_ERR(th);
+	}
 
 	wait_for_completion(&eh->thread_done);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usbip_start_eh);
 
@@ -109,7 +118,7 @@ void usbip_stop_eh(struct usbip_device *ud)
 	struct usbip_task *eh = &ud->eh;
 
 	wait_for_completion(&eh->thread_done);
-	dbg_eh("usbip_eh has finished\n");
+	usbip_dbg_eh("usbip_eh has finished\n");
 }
 EXPORT_SYMBOL_GPL(usbip_stop_eh);
 
@@ -125,17 +134,17 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 }
 EXPORT_SYMBOL_GPL(usbip_event_add);
 
-int usbip_event_happend(struct usbip_device *ud)
+int usbip_event_happened(struct usbip_device *ud)
 {
-	int happend = 0;
+	int happened = 0;
 
 	spin_lock(&ud->lock);
 
 	if (ud->event != 0)
-		happend = 1;
+		happened = 1;
 
 	spin_unlock(&ud->lock);
 
-	return happend;
+	return happened;
 }
-EXPORT_SYMBOL_GPL(usbip_event_happend);
+EXPORT_SYMBOL_GPL(usbip_event_happened);

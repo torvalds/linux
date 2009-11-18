@@ -114,6 +114,7 @@ static int last_fb_vc = MAX_NR_CONSOLES - 1;
 static int fbcon_is_default = 1; 
 static int fbcon_has_exited;
 static int primary_device = -1;
+static int fbcon_has_console_bind;
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
 static int map_override;
@@ -544,6 +545,8 @@ static int fbcon_takeover(int show_logo)
 			con2fb_map[i] = -1;
 		}
 		info_idx = -1;
+	} else {
+		fbcon_has_console_bind = 1;
 	}
 
 	return err;
@@ -725,7 +728,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 				  int oldidx, int found)
 {
 	struct fbcon_ops *ops = oldinfo->fbcon_par;
-	int err = 0;
+	int err = 0, ret;
 
 	if (oldinfo->fbops->fb_release &&
 	    oldinfo->fbops->fb_release(oldinfo, 0)) {
@@ -752,8 +755,14 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		  newinfo in an undefined state. Thus, a call to
 		  fb_set_par() may be needed for the newinfo.
 		*/
-		if (newinfo->fbops->fb_set_par)
-			newinfo->fbops->fb_set_par(newinfo);
+		if (newinfo->fbops->fb_set_par) {
+			ret = newinfo->fbops->fb_set_par(newinfo);
+
+			if (ret)
+				printk(KERN_ERR "con2fb_release_oldinfo: "
+					"detected unhandled fb_set_par error, "
+					"error code %d\n", ret);
+		}
 	}
 
 	return err;
@@ -763,11 +772,18 @@ static void con2fb_init_display(struct vc_data *vc, struct fb_info *info,
 				int unit, int show_logo)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
+	int ret;
 
 	ops->currcon = fg_console;
 
-	if (info->fbops->fb_set_par && !(ops->flags & FBCON_FLAGS_INIT))
-		info->fbops->fb_set_par(info);
+	if (info->fbops->fb_set_par && !(ops->flags & FBCON_FLAGS_INIT)) {
+		ret = info->fbops->fb_set_par(info);
+
+		if (ret)
+			printk(KERN_ERR "con2fb_init_display: detected "
+				"unhandled fb_set_par error, "
+				"error code %d\n", ret);
+	}
 
 	ops->flags |= FBCON_FLAGS_INIT;
 	ops->graphics = 0;
@@ -1006,7 +1022,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	struct vc_data *svc = *default_mode;
 	struct display *t, *p = &fb_display[vc->vc_num];
 	int logo = 1, new_rows, new_cols, rows, cols, charcnt = 256;
-	int cap;
+	int cap, ret;
 
 	if (info_idx == -1 || info == NULL)
 	    return;
@@ -1092,8 +1108,15 @@ static void fbcon_init(struct vc_data *vc, int init)
 	 */
 	if (CON_IS_VISIBLE(vc) && vc->vc_mode == KD_TEXT) {
 		if (info->fbops->fb_set_par &&
-		    !(ops->flags & FBCON_FLAGS_INIT))
-			info->fbops->fb_set_par(info);
+		    !(ops->flags & FBCON_FLAGS_INIT)) {
+			ret = info->fbops->fb_set_par(info);
+
+			if (ret)
+				printk(KERN_ERR "fbcon_init: detected "
+					"unhandled fb_set_par error, "
+					"error code %d\n", ret);
+		}
+
 		ops->flags |= FBCON_FLAGS_INIT;
 	}
 
@@ -2119,7 +2142,7 @@ static int fbcon_switch(struct vc_data *vc)
 	struct fbcon_ops *ops;
 	struct display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var;
-	int i, prev_console, charcnt = 256;
+	int i, ret, prev_console, charcnt = 256;
 
 	info = registered_fb[con2fb_map[vc->vc_num]];
 	ops = info->fbcon_par;
@@ -2174,8 +2197,14 @@ static int fbcon_switch(struct vc_data *vc)
 
 	if (old_info != NULL && (old_info != info ||
 				 info->flags & FBINFO_MISC_ALWAYS_SETPAR)) {
-		if (info->fbops->fb_set_par)
-			info->fbops->fb_set_par(info);
+		if (info->fbops->fb_set_par) {
+			ret = info->fbops->fb_set_par(info);
+
+			if (ret)
+				printk(KERN_ERR "fbcon_switch: detected "
+					"unhandled fb_set_par error, "
+					"error code %d\n", ret);
+		}
 
 		if (old_info != info)
 			fbcon_del_cursor_timer(old_info);
@@ -2923,6 +2952,10 @@ static int fbcon_unbind(void)
 
 	ret = unbind_con_driver(&fb_con, first_fb_vc, last_fb_vc,
 				fbcon_is_default);
+
+	if (!ret)
+		fbcon_has_console_bind = 0;
+
 	return ret;
 }
 #else
@@ -2935,6 +2968,9 @@ static inline int fbcon_unbind(void)
 static int fbcon_fb_unbind(int idx)
 {
 	int i, new_idx = -1, ret = 0;
+
+	if (!fbcon_has_console_bind)
+		return 0;
 
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] != idx &&

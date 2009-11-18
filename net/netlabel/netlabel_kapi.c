@@ -185,8 +185,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 	return 0;
 
 cfg_unlbl_map_add_failure:
-	if (entry != NULL)
-		kfree(entry->domain);
+	kfree(entry->domain);
 	kfree(entry);
 	kfree(addrmap);
 	kfree(map4);
@@ -385,8 +384,7 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 
 cfg_cipsov4_map_add_failure:
 	cipso_v4_doi_putdef(doi_def);
-	if (entry != NULL)
-		kfree(entry->domain);
+	kfree(entry->domain);
 	kfree(entry);
 	kfree(addrmap);
 	kfree(addrinfo);

@@ -1826,7 +1826,7 @@ static int irda_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
  *
  */
 static int irda_setsockopt(struct socket *sock, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *self = irda_sk(sk);

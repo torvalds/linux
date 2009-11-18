@@ -495,6 +495,13 @@ and for each vararg a long value. So e.g. for a debug entry with a format
 string plus two varargs one would need to allocate a (3 * sizeof(long)) 
 byte data area in the debug_register() function.
 
+IMPORTANT: Using "%s" in sprintf event functions is dangerous. You can only
+use "%s" in the sprintf event functions, if the memory for the passed string is
+available as long as the debug feature exists. The reason behind this is that
+due to performance considerations only a pointer to the string is stored in
+the debug feature. If you log a string that is freed afterwards, you will get
+an OOPS when inspecting the debug feature, because then the debug feature will
+access the already freed memory.
 
 NOTE: If using the sprintf view do NOT use other event/exception functions
 than the sprintf-event and -exception functions.

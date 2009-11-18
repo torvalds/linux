@@ -20,6 +20,7 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/localtimer.h>
+#include <asm/unified.h>
 
 #include <mach/board-eb.h>
 #include <mach/board-pb11mp.h>
@@ -137,26 +138,19 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init poke_milo(void)
 {
-	extern void secondary_startup(void);
-
 	/* nobody is to be released from the pen yet */
 	pen_release = -1;
 
 	/*
-	 * write the address of secondary startup into the system-wide
-	 * flags register, then clear the bottom two bits, which is what
-	 * BootMonitor is waiting for
+	 * Write the address of secondary startup into the system-wide flags
+	 * register. The BootMonitor waits for this register to become
+	 * non-zero.
 	 */
-#if 1
 #define REALVIEW_SYS_FLAGSS_OFFSET 0x30
-	__raw_writel(virt_to_phys(realview_secondary_startup),
+#define REALVIEW_SYS_FLAGSC_OFFSET 0x34
+	__raw_writel(BSYM(virt_to_phys(realview_secondary_startup)),
 		     __io_address(REALVIEW_SYS_BASE) +
 		     REALVIEW_SYS_FLAGSS_OFFSET);
-#define REALVIEW_SYS_FLAGSC_OFFSET 0x34
-	__raw_writel(3,
-		     __io_address(REALVIEW_SYS_BASE) +
-		     REALVIEW_SYS_FLAGSC_OFFSET);
-#endif
 
 	mb();
 }

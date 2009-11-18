@@ -36,6 +36,12 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define	NEFF_SIGN	(1LL << (NEFF - 1))
 #define	NEFF_MASK	(-1LL << NEFF)
 
+static inline unsigned long long neff_sign_extend(unsigned long val)
+{
+	unsigned long long extended = val;
+	return (extended & NEFF_SIGN) ? (extended | NEFF_MASK) : extended;
+}
+
 #ifdef CONFIG_29BIT
 #define NPHYS		29
 #else
@@ -133,26 +139,24 @@ typedef pte_t *pte_addr_t;
  */
 #define pgtable_cache_init()	do { } while (0)
 
-#if !defined(CONFIG_CACHE_OFF) && (defined(CONFIG_CPU_SH4) || \
-	defined(CONFIG_SH7705_CACHE_32KB))
-struct mm_struct;
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-#endif
-
 struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct * vma,
-			     unsigned long address, pte_t pte);
+
+extern void __update_cache(struct vm_area_struct *vma,
+			   unsigned long address, pte_t pte);
+extern void __update_tlb(struct vm_area_struct *vma,
+			 unsigned long address, pte_t pte);
+
+static inline void
+update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
+	__update_cache(vma, address, pte);
+	__update_tlb(vma, address, pte);
+}
+
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd);
-
-#if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_CPU_SH4) && defined(CONFIG_MMU)
-extern void kmap_coherent_init(void);
-#else
-#define kmap_coherent_init()	do { } while (0)
-#endif
 
 /* arch/sh/mm/mmap.c */
 #define HAVE_ARCH_UNMAPPED_AREA

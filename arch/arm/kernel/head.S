@@ -76,7 +76,7 @@
  */
 	.section ".text.head", "ax"
 ENTRY(stext)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
+	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9 @ ensure svc mode
 						@ and irqs disabled
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
@@ -97,8 +97,10 @@ ENTRY(stext)
 	 */
 	ldr	r13, __switch_data		@ address to jump to after
 						@ mmu has been enabled
-	adr	lr, __enable_mmu		@ return (PIC) address
-	add	pc, r10, #PROCINFO_INITFUNC
+	adr	lr, BSYM(__enable_mmu)		@ return (PIC) address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
 ENDPROC(stext)
 
 #if defined(CONFIG_SMP)
@@ -110,7 +112,7 @@ ENTRY(secondary_startup)
 	 * the processor type - there is no need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
+	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
@@ -121,12 +123,15 @@ ENTRY(secondary_startup)
 	 * Use the page tables supplied from  __cpu_up.
 	 */
 	adr	r4, __secondary_data
-	ldmia	r4, {r5, r7, r13}		@ address to jump to after
+	ldmia	r4, {r5, r7, r12}		@ address to jump to after
 	sub	r4, r4, r5			@ mmu has been enabled
 	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
-	adr	lr, __enable_mmu		@ return address
-	add	pc, r10, #PROCINFO_INITFUNC	@ initialise processor
-						@ (return control reg)
+	adr	lr, BSYM(__enable_mmu)		@ return address
+	mov	r13, r12			@ __secondary_switched address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
+						  @ (return control reg)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
 ENDPROC(secondary_startup)
 
 	/*
@@ -193,8 +198,8 @@ __turn_mmu_on:
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
 	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
 	mov	r3, r3
-	mov	r3, r3
-	mov	pc, r13
+	mov	r3, r13
+	mov	pc, r3
 ENDPROC(__turn_mmu_on)
 
 
@@ -235,7 +240,8 @@ __create_page_tables:
 	 * will be removed by paging_init().  We use our current program
 	 * counter to determine corresponding section base address.
 	 */
-	mov	r6, pc, lsr #20			@ start of kernel section
+	mov	r6, pc
+	mov	r6, r6, lsr #20			@ start of kernel section
 	orr	r3, r7, r6, lsl #20		@ flags + kernel base
 	str	r3, [r4, r6, lsl #2]		@ identity mapping
 

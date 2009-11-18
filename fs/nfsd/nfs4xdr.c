@@ -1599,7 +1599,8 @@ static __be32 nfsd4_encode_fs_location4(struct nfsd4_fs_location *location,
 static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, __be32 *stat)
 {
 	struct svc_fh tmp_fh;
-	char *path, *rootpath;
+	char *path = NULL, *rootpath;
+	size_t rootlen;
 
 	fh_init(&tmp_fh, NFS4_FHSIZE);
 	*stat = exp_pseudoroot(rqstp, &tmp_fh);
@@ -1609,14 +1610,18 @@ static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, __be32 *
 
 	path = exp->ex_pathname;
 
-	if (strncmp(path, rootpath, strlen(rootpath))) {
+	rootlen = strlen(rootpath);
+	if (strncmp(path, rootpath, rootlen)) {
 		dprintk("nfsd: fs_locations failed;"
 			"%s is not contained in %s\n", path, rootpath);
 		*stat = nfserr_notsupp;
-		return NULL;
+		path = NULL;
+		goto out;
 	}
-
-	return path + strlen(rootpath);
+	path += rootlen;
+out:
+	fh_put(&tmp_fh);
+	return path;
 }
 
 /*
@@ -1793,11 +1798,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 				goto out_nfserr;
 		}
 	}
-	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
-		if (exp->ex_fslocs.locations == NULL) {
-			bmval0 &= ~FATTR4_WORD0_FS_LOCATIONS;
-		}
-	}
 	if ((buflen -= 16) < 0)
 		goto out_resource;
 
@@ -1825,8 +1825,6 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			goto out_resource;
 		if (!aclsupport)
 			word0 &= ~FATTR4_WORD0_ACL;
-		if (!exp->ex_fslocs.locations)
-			word0 &= ~FATTR4_WORD0_FS_LOCATIONS;
 		if (!word2) {
 			WRITE32(2);
 			WRITE32(word0);
@@ -3064,6 +3062,7 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 	WRITE32(0);
 
 	ADJUST_ARGS();
+	resp->cstate.datap = p; /* DRC cache data pointer */
 	return 0;
 }
 
@@ -3166,7 +3165,7 @@ static int nfsd4_check_drc_limit(struct nfsd4_compoundres *resp)
 		return status;
 
 	session = resp->cstate.session;
-	if (session == NULL || slot->sl_cache_entry.ce_cachethis == 0)
+	if (session == NULL || slot->sl_cachethis == 0)
 		return status;
 
 	if (resp->opcnt >= args->opcnt)
@@ -3291,6 +3290,7 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	/*
 	 * All that remains is to write the tag and operation count...
 	 */
+	struct nfsd4_compound_state *cs = &resp->cstate;
 	struct kvec *iov;
 	p = resp->tagp;
 	*p++ = htonl(resp->taglen);
@@ -3304,17 +3304,11 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 		iov = &rqstp->rq_res.head[0];
 	iov->iov_len = ((char*)resp->p) - (char*)iov->iov_base;
 	BUG_ON(iov->iov_len > PAGE_SIZE);
-	if (nfsd4_has_session(&resp->cstate)) {
-		if (resp->cstate.status == nfserr_replay_cache &&
-				!nfsd4_not_cached(resp)) {
-			iov->iov_len = resp->cstate.iovlen;
-		} else {
-			nfsd4_store_cache_entry(resp);
-			dprintk("%s: SET SLOT STATE TO AVAILABLE\n", __func__);
-			resp->cstate.slot->sl_inuse = 0;
-		}
-		if (resp->cstate.session)
-			nfsd4_put_session(resp->cstate.session);
+	if (nfsd4_has_session(cs) && cs->status != nfserr_replay_cache) {
+		nfsd4_store_cache_entry(resp);
+		dprintk("%s: SET SLOT STATE TO AVAILABLE\n", __func__);
+		resp->cstate.slot->sl_inuse = false;
+		nfsd4_put_session(resp->cstate.session);
 	}
 	return 1;
 }

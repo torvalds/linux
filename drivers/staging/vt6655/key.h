@@ -27,21 +27,12 @@
  *
  */
 
-
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4
@@ -76,7 +67,7 @@ typedef struct tagSKeyItem
     BYTE        byReserved0;
     DWORD       dwKeyIndex;
     PVOID       pvKeyTable;
-} SKeyItem, DEF* PSKeyItem; //64
+} SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
 {
@@ -93,12 +84,12 @@ typedef struct tagSKeyTable
     WORD        wKeyCtl;      // for address of wKeyCtl at align 4
 
     BYTE        byReserved1[6];
-} SKeyTable, DEF* PSKeyTable; //348
+} SKeyTable, *PSKeyTable; //348
 
 typedef struct tagSKeyManagement
 {
     SKeyTable   KeyTable[MAX_KEY_TABLE];
-} SKeyManagement, DEF* PSKeyManagement;
+} SKeyManagement, * PSKeyManagement;
 
 /*---------------------  Export Types  ------------------------------*/
 
@@ -109,9 +100,6 @@ typedef struct tagSKeyManagement
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 VOID KeyvInitTable(PSKeyManagement pTable, DWORD_PTR dwIoBase);
 
@@ -191,12 +179,6 @@ BOOL KeybSetAllGroupKey (
     DWORD_PTR       dwIoBase,
     BYTE            byLocalID
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-
-#endif /* __cplusplus */
-
 
 #endif // __KEY_H__
 

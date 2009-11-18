@@ -28,11 +28,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
-
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
-
 
 
 //extern struct zsWdsStruct wds[ZM_WDS_PORT_NUMBER];
@@ -156,10 +152,7 @@ void zfLnxRecvEth(zdev_t* dev, zbuf_t* buf, u16_t port)
     switch(netif_rx(buf))
 #endif
     {
-    case NET_RX_BAD:
     case NET_RX_DROP:
-    case NET_RX_CN_MOD:
-    case NET_RX_CN_HIGH:
         break;
     default:
             macp->drv_stats.net_stats.rx_packets++;

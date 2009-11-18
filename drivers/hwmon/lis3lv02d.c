@@ -454,6 +454,15 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 					(p->click_thresh_y << 4));
 		}
 
+		if (p->wakeup_flags && (dev->whoami == LIS_SINGLE_ID)) {
+			dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
+			dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
+			/* default to 2.5ms for now */
+			dev->write(dev, FF_WU_DURATION_1, 1);
+			/* enable high pass filter for both free-fall units */
+			dev->write(dev, CTRL_REG2, HP_FF_WU1 | HP_FF_WU2);
+		}
+
 		if (p->irq_cfg)
 			dev->write(dev, CTRL_REG3, p->irq_cfg);
 	}

@@ -646,14 +646,14 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		tvee->has_radio = 1;
 	}
 
-	if (tuner1 < sizeof(hauppauge_tuner)/sizeof(struct HAUPPAUGE_TUNER)) {
+	if (tuner1 < ARRAY_SIZE(hauppauge_tuner)) {
 		tvee->tuner_type = hauppauge_tuner[tuner1].id;
 		t_name1 = hauppauge_tuner[tuner1].name;
 	} else {
 		t_name1 = "unknown";
 	}
 
-	if (tuner2 < sizeof(hauppauge_tuner)/sizeof(struct HAUPPAUGE_TUNER)) {
+	if (tuner2 < ARRAY_SIZE(hauppauge_tuner)) {
 		tvee->tuner2_type = hauppauge_tuner[tuner2].id;
 		t_name2 = hauppauge_tuner[tuner2].name;
 	} else {

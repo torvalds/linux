@@ -20,12 +20,6 @@
 
 /***************************************************************************/
 
-extern unsigned int mcf_timervector;
-extern unsigned int mcf_profilevector;
-extern unsigned int mcf_timerlevel;
-
-/***************************************************************************/
-
 static struct mcf_platform_uart m5407_uart_platform[] = {
 	{
 		.mapbase	= MCF_MBAR + MCFUART_BASE1,
@@ -55,11 +49,11 @@ static void __init m5407_uart_init_line(int line, int irq)
 	if (line == 0) {
 		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
 		writeb(irq, MCF_MBAR + MCFUART_BASE1 + MCFUART_UIVR);
-		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART1);
+		mcf_mapirq2imr(irq, MCFINTC_UART0);
 	} else if (line == 1) {
 		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
 		writeb(irq, MCF_MBAR + MCFUART_BASE2 + MCFUART_UIVR);
-		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART2);
+		mcf_mapirq2imr(irq, MCFINTC_UART1);
 	}
 }
 
@@ -74,35 +68,19 @@ static void __init m5407_uarts_init(void)
 
 /***************************************************************************/
 
-void mcf_autovector(unsigned int vec)
+static void __init m5407_timers_init(void)
 {
-	volatile unsigned char  *mbar;
+	/* Timer1 is always used as system timer */
+	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI3,
+		MCF_MBAR + MCFSIM_TIMER1ICR);
+	mcf_mapirq2imr(MCF_IRQ_TIMER, MCFINTC_TIMER1);
 
-	if ((vec >= 25) && (vec <= 31)) {
-		mbar = (volatile unsigned char *) MCF_MBAR;
-		vec = 0x1 << (vec - 24);
-		*(mbar + MCFSIM_AVR) |= vec;
-		mcf_setimr(mcf_getimr() & ~vec);
-	}
-}
-
-/***************************************************************************/
-
-void mcf_settimericr(unsigned int timer, unsigned int level)
-{
-	volatile unsigned char *icrp;
-	unsigned int icr, imr;
-
-	if (timer <= 2) {
-		switch (timer) {
-		case 2:  icr = MCFSIM_TIMER2ICR; imr = MCFSIM_IMR_TIMER2; break;
-		default: icr = MCFSIM_TIMER1ICR; imr = MCFSIM_IMR_TIMER1; break;
-		}
-
-		icrp = (volatile unsigned char *) (MCF_MBAR + icr);
-		*icrp = MCFSIM_ICR_AUTOVEC | (level << 2) | MCFSIM_ICR_PRI3;
-		mcf_setimr(mcf_getimr() & ~imr);
-	}
+#ifdef CONFIG_HIGHPROFILE
+	/* Timer2 is to be used as a high speed profile timer  */
+	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL7 | MCFSIM_ICR_PRI3,
+		MCF_MBAR + MCFSIM_TIMER2ICR);
+	mcf_mapirq2imr(MCF_IRQ_PROFILER, MCFINTC_TIMER2);
+#endif
 }
 
 /***************************************************************************/
@@ -120,23 +98,21 @@ void m5407_cpu_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-	mcf_setimr(MCFSIM_IMR_MASKALL);
-
-#if defined(CONFIG_CLEOPATRA)
-	/* Different timer setup - to prevent device clash */
-	mcf_timervector = 30;
-	mcf_profilevector = 31;
-	mcf_timerlevel = 6;
-#endif
-
 	mach_reset = m5407_cpu_reset;
+	m5407_timers_init();
+	m5407_uarts_init();
+
+	/* Only support the external interrupts on their primary level */
+	mcf_mapirq2imr(25, MCFINTC_EINT1);
+	mcf_mapirq2imr(27, MCFINTC_EINT3);
+	mcf_mapirq2imr(29, MCFINTC_EINT5);
+	mcf_mapirq2imr(31, MCFINTC_EINT7);
 }
 
 /***************************************************************************/
 
 static int __init init_BSP(void)
 {
-	m5407_uarts_init();
 	platform_add_devices(m5407_devices, ARRAY_SIZE(m5407_devices));
 	return 0;
 }

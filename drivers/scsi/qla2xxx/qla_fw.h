@@ -1126,7 +1126,7 @@ struct vp_config_entry_24xx {
 	uint16_t id;
 	uint16_t reserved_4;
 	uint16_t hopct;
-	uint8_t reserved_5;
+	uint8_t reserved_5[2];
 };
 
 #define VP_RPT_ID_IOCB_TYPE	0x32	/* Report ID Acquisition entry. */

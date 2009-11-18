@@ -48,7 +48,6 @@ extern unsigned int pcibios_assign_all_busses(void);
 #else
 #define pcibios_assign_all_busses()	0
 #endif
-#define pcibios_scan_all_fns(a, b)	0
 
 extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0x1000
@@ -144,7 +143,11 @@ static inline int __pcibus_to_node(const struct pci_bus *bus)
 static inline const struct cpumask *
 cpumask_of_pcibus(const struct pci_bus *bus)
 {
-	return cpumask_of_node(__pcibus_to_node(bus));
+	int node;
+
+	node = __pcibus_to_node(bus);
+	return (node == -1) ? cpu_online_mask :
+			      cpumask_of_node(node);
 }
 #endif
 

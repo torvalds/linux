@@ -31,25 +31,17 @@
 #include "timing.h"
 #include "../mm/mmu_decl.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	return gfn;
 }
 
-int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
-{
-	return !!(v->arch.pending_exceptions);
-}
-
-int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
-{
-	/* do real check here */
-	return 1;
-}
-
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !(v->arch.msr & MSR_WE);
+	return !(v->arch.msr & MSR_WE) || !!(v->arch.pending_exceptions);
 }
 
 
@@ -122,13 +114,17 @@ struct kvm *kvm_arch_create_vm(void)
 static void kvmppc_free_vcpus(struct kvm *kvm)
 {
 	unsigned int i;
+	struct kvm_vcpu *vcpu;
 
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			kvm_arch_vcpu_free(kvm->vcpus[i]);
-			kvm->vcpus[i] = NULL;
-		}
-	}
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_arch_vcpu_free(vcpu);
+
+	mutex_lock(&kvm->lock);
+	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++)
+		kvm->vcpus[i] = NULL;
+
+	atomic_set(&kvm->online_vcpus, 0);
+	mutex_unlock(&kvm->lock);
 }
 
 void kvm_arch_sync_events(struct kvm *kvm)

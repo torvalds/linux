@@ -95,6 +95,9 @@
 #define AT91SAM9261_SRAM_BASE	0x00300000	/* Internal SRAM base address */
 #define AT91SAM9261_SRAM_SIZE	0x00028000	/* Internal SRAM size (160Kb) */
 
+#define AT91SAM9G10_SRAM_BASE	AT91SAM9261_SRAM_BASE	/* Internal SRAM base address */
+#define AT91SAM9G10_SRAM_SIZE	0x00004000	/* Internal SRAM size (16Kb) */
+
 #define AT91SAM9261_ROM_BASE	0x00400000	/* Internal ROM base address */
 #define AT91SAM9261_ROM_SIZE	SZ_32K		/* Internal ROM size (32Kb) */
 

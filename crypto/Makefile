@@ -3,7 +3,7 @@
 #
 
 obj-$(CONFIG_CRYPTO) += crypto.o
-crypto-objs := api.o cipher.o digest.o compress.o
+crypto-objs := api.o cipher.o compress.o
 
 obj-$(CONFIG_CRYPTO_WORKQUEUE) += crypto_wq.o
 
@@ -22,7 +22,6 @@ obj-$(CONFIG_CRYPTO_BLKCIPHER2) += chainiv.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER2) += eseqiv.o
 obj-$(CONFIG_CRYPTO_SEQIV) += seqiv.o
 
-crypto_hash-objs := hash.o
 crypto_hash-objs += ahash.o
 crypto_hash-objs += shash.o
 obj-$(CONFIG_CRYPTO_HASH2) += crypto_hash.o
@@ -33,6 +32,7 @@ cryptomgr-objs := algboss.o testmgr.o
 
 obj-$(CONFIG_CRYPTO_MANAGER2) += cryptomgr.o
 obj-$(CONFIG_CRYPTO_HMAC) += hmac.o
+obj-$(CONFIG_CRYPTO_VMAC) += vmac.o
 obj-$(CONFIG_CRYPTO_XCBC) += xcbc.o
 obj-$(CONFIG_CRYPTO_NULL) += crypto_null.o
 obj-$(CONFIG_CRYPTO_MD4) += md4.o
@@ -83,6 +83,7 @@ obj-$(CONFIG_CRYPTO_RNG2) += rng.o
 obj-$(CONFIG_CRYPTO_RNG2) += krng.o
 obj-$(CONFIG_CRYPTO_ANSI_CPRNG) += ansi_cprng.o
 obj-$(CONFIG_CRYPTO_TEST) += tcrypt.o
+obj-$(CONFIG_CRYPTO_GHASH) += ghash-generic.o
 
 #
 # generic algorithms and the async_tx api

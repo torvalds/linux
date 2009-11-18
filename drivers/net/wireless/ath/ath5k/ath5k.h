@@ -27,8 +27,6 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
-#include "../regd.h"
-
 /* RX/TX descriptor hw structs
  * TODO: Driver part should only see sw structs */
 #include "desc.h"
@@ -308,6 +306,7 @@ struct ath5k_srev_name {
 #define AR5K_SREV_AR5311B	0x30 /* Spirit */
 #define AR5K_SREV_AR5211	0x40 /* Oahu */
 #define AR5K_SREV_AR5212	0x50 /* Venice */
+#define AR5K_SREV_AR5212_V4	0x54 /* ??? */
 #define AR5K_SREV_AR5213	0x55 /* ??? */
 #define AR5K_SREV_AR5213A	0x59 /* Hainan */
 #define AR5K_SREV_AR2413	0x78 /* Griffin lite */
@@ -713,8 +712,8 @@ struct ath5k_gain {
  * Used internaly for reset_tx_queue).
  * Also see struct struct ieee80211_channel.
  */
-#define IS_CHAN_XR(_c)	((_c.hw_value & CHANNEL_XR) != 0)
-#define IS_CHAN_B(_c)	((_c.hw_value & CHANNEL_B) != 0)
+#define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
+#define IS_CHAN_B(_c)	((_c->hw_value & CHANNEL_B) != 0)
 
 /*
  * The following structure is used to map 2GHz channels to
@@ -919,6 +918,12 @@ enum ath5k_int {
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
+/* Software interrupts used for calibration */
+enum ath5k_software_interrupt {
+	AR5K_SWI_FULL_CALIBRATION = 0x01,
+	AR5K_SWI_SHORT_CALIBRATION = 0x02,
+};
+
 /*
  * Power management
  */
@@ -1029,27 +1034,22 @@ struct ath5k_hw {
 	enum ath5k_int		ah_imr;
 
 	enum nl80211_iftype	ah_op_mode;
-	enum ath5k_power_mode	ah_power_mode;
-	struct ieee80211_channel ah_current_channel;
+	struct ieee80211_channel *ah_current_channel;
 	bool			ah_turbo;
 	bool			ah_calibration;
-	bool			ah_running;
 	bool			ah_single_chip;
+	bool			ah_aes_support;
 	bool			ah_combined_mic;
 
+	enum ath5k_version	ah_version;
+	enum ath5k_radio	ah_radio;
+	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
 	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
-
-	enum ath5k_version	ah_version;
-	enum ath5k_radio	ah_radio;
-	u32			ah_phy;
-
-	bool			ah_5ghz;
-	bool			ah_2ghz;
 
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
@@ -1058,7 +1058,6 @@ struct ath5k_hw {
 	u32			ah_aifs;
 	u32			ah_cw_min;
 	u32			ah_cw_max;
-	bool			ah_software_retry;
 	u32			ah_limit_tx_retries;
 
 	/* Antenna Control */
@@ -1066,6 +1065,7 @@ struct ath5k_hw {
 	u8			ah_ant_mode;
 	u8			ah_tx_ant;
 	u8			ah_def_ant;
+	bool			ah_software_retry;
 
 	u8			ah_sta_id[ETH_ALEN];
 
@@ -1075,10 +1075,8 @@ struct ath5k_hw {
 	u8			ah_bssid[ETH_ALEN];
 	u8			ah_bssid_mask[ETH_ALEN];
 
-	u32			ah_gpio[AR5K_MAX_GPIO];
 	int			ah_gpio_npins;
 
-	struct ath_regulatory	ah_regulatory;
 	struct ath5k_capabilities ah_capabilities;
 
 	struct ath5k_txq_info	ah_txq[AR5K_NUM_TX_QUEUES];
@@ -1130,6 +1128,15 @@ struct ath5k_hw {
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
 
+	/* Calibration timestamp */
+	unsigned long		ah_cal_tstamp;
+
+	/* Calibration interval (secs) */
+	u8			ah_cal_intval;
+
+	/* Software interrupt mask */
+	u8			ah_swi_mask;
+
 	/*
 	 * Function pointers
 	 */
@@ -1153,7 +1160,7 @@ struct ath5k_hw {
  */
 
 /* Attach/Detach Functions */
-extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version);
+extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc);
 extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
 /* LED functions */
@@ -1164,6 +1171,7 @@ extern void ath5k_unregister_leds(struct ath5k_softc *sc);
 
 /* Reset Functions */
 extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
+extern int ath5k_hw_on_hold(struct ath5k_hw *ah);
 extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);
 /* Power management functions */
 extern int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode, bool set_chip, u16 sleep_duration);
@@ -1282,6 +1290,7 @@ extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *chann
 /* PHY calibration */
 extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
+extern void ath5k_hw_calibration_poll(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				struct ieee80211_channel *channel);

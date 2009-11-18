@@ -143,7 +143,7 @@
 /* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
 #define ANOMALY_05000371 (1)
 /* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
-#define ANOMALY_05000402 (__SILICON_REVISION__ >= 5)
+#define ANOMALY_05000402 (__SILICON_REVISION__ == 2)
 /* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
 #define ANOMALY_05000403 (1)
 /* Speculative Fetches Can Cause Undesired External FIFO Operations */

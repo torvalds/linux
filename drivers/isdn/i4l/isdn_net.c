@@ -176,7 +176,8 @@ static __inline__ void isdn_net_zero_frame_cnt(isdn_net_local *lp)
 /* Prototypes */
 
 static int isdn_net_force_dial_lp(isdn_net_local *);
-static int isdn_net_start_xmit(struct sk_buff *, struct net_device *);
+static netdev_tx_t isdn_net_start_xmit(struct sk_buff *,
+					     struct net_device *);
 
 static void isdn_net_ciscohdlck_connected(isdn_net_local *lp);
 static void isdn_net_ciscohdlck_disconnected(isdn_net_local *lp);
@@ -1051,12 +1052,12 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 	isdn_net_dev *nd;
 	isdn_net_local *slp;
 	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
-	int retv = 0;
+	int retv = NETDEV_TX_OK;
 
 	if (((isdn_net_local *) netdev_priv(ndev))->master) {
 		printk("isdn BUG at %s:%d!\n", __FILE__, __LINE__);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* For the other encaps the header has already been built */
@@ -1160,7 +1161,7 @@ static void isdn_net_tx_timeout(struct net_device * ndev)
  * If this interface isn't connected to a ISDN-Channel, find a free channel,
  * and start dialing.
  */
-static int
+static netdev_tx_t
 isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
@@ -1202,7 +1203,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			if (!(ISDN_NET_DIALMODE(*lp) == ISDN_NET_DM_AUTO)) {
 				isdn_net_unreachable(ndev, skb, "dial rejected: interface not in dialmode `auto'");
 				dev_kfree_skb(skb);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 			if (lp->phone[1]) {
 				ulong flags;
@@ -1215,7 +1216,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 					if(time_before(jiffies, lp->dialwait_timer)) {
 						isdn_net_unreachable(ndev, skb, "dial rejected: retry-time not reached");
 						dev_kfree_skb(skb);
-						return 0;
+						return NETDEV_TX_OK;
 					} else
 						lp->dialwait_timer = 0;
 				}
@@ -1243,7 +1244,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 					isdn_net_unreachable(ndev, skb,
 							   "No channel");
 					dev_kfree_skb(skb);
-					return 0;
+					return NETDEV_TX_OK;
 				}
 				/* Log packet, which triggered dialing */
 				if (dev->net_verbose)
@@ -1258,7 +1259,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 						dev_kfree_skb(skb);
 						isdn_net_unbind_channel(lp);
 						spin_unlock_irqrestore(&dev->lock, flags);
-						return 0;	/* STN (skb to nirvana) ;) */
+						return NETDEV_TX_OK;	/* STN (skb to nirvana) ;) */
 					}
 #ifdef CONFIG_IPPP_FILTER
 					if (isdn_ppp_autodial_filter(skb, lp)) {
@@ -1267,7 +1268,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 						spin_unlock_irqrestore(&dev->lock, flags);
 						isdn_net_unreachable(ndev, skb, "dial rejected: packet filtered");
 						dev_kfree_skb(skb);
-						return 0;
+						return NETDEV_TX_OK;
 					}
 #endif
 					spin_unlock_irqrestore(&dev->lock, flags);
@@ -1285,7 +1286,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				isdn_net_unreachable(ndev, skb,
 						     "No phone number");
 				dev_kfree_skb(skb);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 		} else {
 			/* Device is connected to an ISDN channel */ 

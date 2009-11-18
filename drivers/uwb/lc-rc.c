@@ -288,8 +288,8 @@ error_sys_add:
 error_dev_add:
 error_rc_setup:
 	rc->stop(rc);
-	uwbd_stop(rc);
 error_rc_start:
+	uwbd_stop(rc);
 	return result;
 }
 EXPORT_SYMBOL_GPL(uwb_rc_add);

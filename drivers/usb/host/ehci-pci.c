@@ -27,27 +27,7 @@
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 {
-	u32			temp;
 	int			retval;
-
-	/* optional debug port, normally in the first BAR */
-	temp = pci_find_capability(pdev, 0x0a);
-	if (temp) {
-		pci_read_config_dword(pdev, temp, &temp);
-		temp >>= 16;
-		if ((temp & (3 << 13)) == (1 << 13)) {
-			temp &= 0x1fff;
-			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
-			temp = ehci_readl(ehci, &ehci->debug->control);
-			ehci_info(ehci, "debug port %d%s\n",
-				HCS_DEBUG_PORT(ehci->hcs_params),
-				(temp & DBGP_ENABLED)
-					? " IN USE"
-					: "");
-			if (!(temp & DBGP_ENABLED))
-				ehci->debug = NULL;
-		}
-	}
 
 	/* we expect static quirk code to handle the "extended capabilities"
 	 * (currently just BIOS handoff) allowed starting with EHCI 0.96
@@ -129,6 +109,9 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_INTEL:
+		ehci->need_io_watchdog = 0;
+		break;
 	case PCI_VENDOR_ID_TDI:
 		if (pdev->device == PCI_DEVICE_ID_TDI_EHCI) {
 			hcd->has_tt = 1;
@@ -192,6 +175,25 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	}
 
+	/* optional debug port, normally in the first BAR */
+	temp = pci_find_capability(pdev, 0x0a);
+	if (temp) {
+		pci_read_config_dword(pdev, temp, &temp);
+		temp >>= 16;
+		if ((temp & (3 << 13)) == (1 << 13)) {
+			temp &= 0x1fff;
+			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
+			temp = ehci_readl(ehci, &ehci->debug->control);
+			ehci_info(ehci, "debug port %d%s\n",
+				HCS_DEBUG_PORT(ehci->hcs_params),
+				(temp & DBGP_ENABLED)
+					? " IN USE"
+					: "");
+			if (!(temp & DBGP_ENABLED))
+				ehci->debug = NULL;
+		}
+	}
+
 	ehci_reset(ehci);
 
 	/* at least the Genesys GL880S needs fixup here */
@@ -242,7 +244,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	 * System suspend currently expects to be able to suspend the entire
 	 * device tree, device-at-a-time.  If we failed selective suspend
 	 * reports, system suspend would fail; so the root hub code must claim
-	 * success.  That's lying to usbcore, and it matters for for runtime
+	 * success.  That's lying to usbcore, and it matters for runtime
 	 * PM scenarios with selective suspend and remote wakeup...
 	 */
 	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))

@@ -62,6 +62,8 @@ void __init s3c6410_map_io(void)
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
+
+	s3c_device_nand.name = "s3c6400-nand";
 }
 
 void __init s3c6410_init_clocks(int xtal)

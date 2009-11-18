@@ -337,72 +337,89 @@ static const u8 ss_rh_config_descriptor[] = {
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * helper routine for returning string descriptors in UTF-16LE
- * input can actually be ISO-8859-1; ASCII is its 7-bit subset
+/**
+ * ascii2desc() - Helper routine for producing UTF-16LE string descriptors
+ * @s: Null-terminated ASCII (actually ISO-8859-1) string
+ * @buf: Buffer for USB string descriptor (header + UTF-16LE)
+ * @len: Length (in bytes; may be odd) of descriptor buffer.
+ *
+ * The return value is the number of bytes filled in: 2 + 2*strlen(s) or
+ * buflen, whichever is less.
+ *
+ * USB String descriptors can contain at most 126 characters; input
+ * strings longer than that are truncated.
  */
-static unsigned ascii2utf(char *s, u8 *utf, int utfmax)
+static unsigned
+ascii2desc(char const *s, u8 *buf, unsigned len)
 {
-	unsigned retval;
+	unsigned n, t = 2 + 2*strlen(s);
 
-	for (retval = 0; *s && utfmax > 1; utfmax -= 2, retval += 2) {
-		*utf++ = *s++;
-		*utf++ = 0;
+	if (t > 254)
+		t = 254;	/* Longest possible UTF string descriptor */
+	if (len > t)
+		len = t;
+
+	t += USB_DT_STRING << 8;	/* Now t is first 16 bits to store */
+
+	n = len;
+	while (n--) {
+		*buf++ = t;
+		if (!n--)
+			break;
+		*buf++ = t >> 8;
+		t = (unsigned char)*s++;
 	}
-	if (utfmax > 0) {
-		*utf = *s;
-		++retval;
-	}
-	return retval;
+	return len;
 }
 
-/*
- * rh_string - provides manufacturer, product and serial strings for root hub
- * @id: the string ID number (1: serial number, 2: product, 3: vendor)
+/**
+ * rh_string() - provides string descriptors for root hub
+ * @id: the string ID number (0: langids, 1: serial #, 2: product, 3: vendor)
  * @hcd: the host controller for this root hub
- * @data: return packet in UTF-16 LE
- * @len: length of the return packet
+ * @data: buffer for output packet
+ * @len: length of the provided buffer
  *
  * Produces either a manufacturer, product or serial number string for the
  * virtual root hub device.
+ * Returns the number of bytes filled in: the length of the descriptor or
+ * of the provided buffer, whichever is less.
  */
-static unsigned rh_string(int id, struct usb_hcd *hcd, u8 *data, unsigned len)
+static unsigned
+rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 {
-	char buf [100];
+	char buf[100];
+	char const *s;
+	static char const langids[4] = {4, USB_DT_STRING, 0x09, 0x04};
 
 	// language ids
-	if (id == 0) {
-		buf[0] = 4;    buf[1] = 3;	/* 4 bytes string data */
-		buf[2] = 0x09; buf[3] = 0x04;	/* MSFT-speak for "en-us" */
-		len = min_t(unsigned, len, 4);
-		memcpy (data, buf, len);
+	switch (id) {
+	case 0:
+		/* Array of LANGID codes (0x0409 is MSFT-speak for "en-us") */
+		/* See http://www.usb.org/developers/docs/USB_LANGIDs.pdf */
+		if (len > 4)
+			len = 4;
+		memcpy(data, langids, len);
 		return len;
-
-	// serial number
-	} else if (id == 1) {
-		strlcpy (buf, hcd->self.bus_name, sizeof buf);
-
-	// product description
-	} else if (id == 2) {
-		strlcpy (buf, hcd->product_desc, sizeof buf);
-
- 	// id 3 == vendor description
-	} else if (id == 3) {
+	case 1:
+		/* Serial number */
+		s = hcd->self.bus_name;
+		break;
+	case 2:
+		/* Product name */
+		s = hcd->product_desc;
+		break;
+	case 3:
+		/* Manufacturer */
 		snprintf (buf, sizeof buf, "%s %s %s", init_utsname()->sysname,
 			init_utsname()->release, hcd->driver->description);
+		s = buf;
+		break;
+	default:
+		/* Can't happen; caller guarantees it */
+		return 0;
 	}
 
-	switch (len) {		/* All cases fall through */
-	default:
-		len = 2 + ascii2utf (buf, data + 2, len - 2);
-	case 2:
-		data [1] = 3;	/* type == string */
-	case 1:
-		data [0] = 2 * (strlen (buf) + 1);
-	case 0:
-		;		/* Compiler wants a statement here */
-	}
-	return len;
+	return ascii2desc(s, data, len);
 }
 
 

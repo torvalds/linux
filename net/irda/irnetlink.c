@@ -115,7 +115,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 
 	genlmsg_end(msg, hdr);
 
-	return genlmsg_unicast(msg, info->snd_pid);
+	return genlmsg_reply(msg, info);
 
  err_out:
 	nlmsg_free(msg);

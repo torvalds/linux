@@ -317,7 +317,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 	const struct tp_finger *f;
 	struct input_dev *input = dev->input;
 	int raw_p, raw_w, raw_x, raw_y, raw_n;
-	int ptest = 0, origin = 0, ibt = 0, nmin = 0, nmax = 0;
+	int ptest, origin, ibt = 0, nmin = 0, nmax = 0;
 	int abs_p = 0, abs_w = 0, abs_x = 0, abs_y = 0;
 
 	if (size < c->tp_offset || (size - c->tp_offset) % SIZEOF_FINGER != 0)
@@ -345,21 +345,22 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		/* set the integrated button if applicable */
 		if (c->tp_type == TYPE2)
 			ibt = raw2int(dev->tp_data[BUTTON_TYPE2]);
-	}
 
-	/* while tracking finger still valid, count all fingers */
-	if (ptest > PRESSURE_LOW && origin) {
-		abs_p = ptest;
-		abs_w = int2bound(&c->w, raw_w);
-		abs_x = int2bound(&c->x, raw_x - c->x.devmin);
-		abs_y = int2bound(&c->y, c->y.devmax - raw_y);
-		while (raw_n--) {
-			ptest = int2bound(&c->p, raw2int(f->force_major));
-			if (ptest > PRESSURE_LOW)
-				nmax++;
-			if (ptest > PRESSURE_HIGH)
-				nmin++;
-			f++;
+		/* while tracking finger still valid, count all fingers */
+		if (ptest > PRESSURE_LOW && origin) {
+			abs_p = ptest;
+			abs_w = int2bound(&c->w, raw_w);
+			abs_x = int2bound(&c->x, raw_x - c->x.devmin);
+			abs_y = int2bound(&c->y, c->y.devmax - raw_y);
+			while (raw_n--) {
+				ptest = int2bound(&c->p,
+						  raw2int(f->force_major));
+				if (ptest > PRESSURE_LOW)
+					nmax++;
+				if (ptest > PRESSURE_HIGH)
+					nmin++;
+				f++;
+			}
 		}
 	}
 

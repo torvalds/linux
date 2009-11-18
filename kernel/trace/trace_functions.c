@@ -288,11 +288,9 @@ static int
 ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 			 struct ftrace_probe_ops *ops, void *data)
 {
-	char str[KSYM_SYMBOL_LEN];
 	long count = (long)data;
 
-	kallsyms_lookup(ip, NULL, NULL, NULL, str);
-	seq_printf(m, "%s:", str);
+	seq_printf(m, "%ps:", (void *)ip);
 
 	if (ops == &traceon_probe_ops)
 		seq_printf(m, "traceon");

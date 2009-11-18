@@ -20,6 +20,7 @@
 #include "hfc_pci.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 static const char *hfcpci_revision = "$Revision: 1.48.2.4 $";
@@ -1506,8 +1507,6 @@ hfcpci_bh(struct work_struct *work)
 	u_long	flags;
 //      struct PStack *stptr;
 
-	if (!cs)
-		return;
 	if (test_and_clear_bit(D_L1STATECHANGE, &cs->event)) {
 		if (!cs->hw.hfcpci.nt_mode)
 			switch (cs->dc.hfcpci.ph_state) {

@@ -142,7 +142,7 @@ static struct lock_class_key af_family_slock_keys[AF_MAX];
  * strings build-time, so that runtime initialization of socket
  * locks is fast):
  */
-static const char *af_family_key_strings[AF_MAX+1] = {
+static const char *const af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_UNSPEC", "sk_lock-AF_UNIX"     , "sk_lock-AF_INET"     ,
   "sk_lock-AF_AX25"  , "sk_lock-AF_IPX"      , "sk_lock-AF_APPLETALK",
   "sk_lock-AF_NETROM", "sk_lock-AF_BRIDGE"   , "sk_lock-AF_ATMPVC"   ,
@@ -158,7 +158,7 @@ static const char *af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_IEEE802154",
   "sk_lock-AF_MAX"
 };
-static const char *af_family_slock_key_strings[AF_MAX+1] = {
+static const char *const af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_UNSPEC", "slock-AF_UNIX"     , "slock-AF_INET"     ,
   "slock-AF_AX25"  , "slock-AF_IPX"      , "slock-AF_APPLETALK",
   "slock-AF_NETROM", "slock-AF_BRIDGE"   , "slock-AF_ATMPVC"   ,
@@ -174,7 +174,7 @@ static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_IEEE802154",
   "slock-AF_MAX"
 };
-static const char *af_family_clock_key_strings[AF_MAX+1] = {
+static const char *const af_family_clock_key_strings[AF_MAX+1] = {
   "clock-AF_UNSPEC", "clock-AF_UNIX"     , "clock-AF_INET"     ,
   "clock-AF_AX25"  , "clock-AF_IPX"      , "clock-AF_APPLETALK",
   "clock-AF_NETROM", "clock-AF_BRIDGE"   , "clock-AF_ATMPVC"   ,
@@ -446,7 +446,7 @@ static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
  */
 
 int sock_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int val;
@@ -482,6 +482,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		sk->sk_reuse = valbool;
 		break;
 	case SO_TYPE:
+	case SO_PROTOCOL:
+	case SO_DOMAIN:
 	case SO_ERROR:
 		ret = -ENOPROTOOPT;
 		break;
@@ -762,6 +764,14 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_TYPE:
 		v.val = sk->sk_type;
+		break;
+
+	case SO_PROTOCOL:
+		v.val = sk->sk_protocol;
+		break;
+
+	case SO_DOMAIN:
+		v.val = sk->sk_family;
 		break;
 
 	case SO_ERROR:
@@ -1196,12 +1206,12 @@ EXPORT_SYMBOL_GPL(sk_setup_caps);
 
 void __init sk_init(void)
 {
-	if (num_physpages <= 4096) {
+	if (totalram_pages <= 4096) {
 		sysctl_wmem_max = 32767;
 		sysctl_rmem_max = 32767;
 		sysctl_wmem_default = 32767;
 		sysctl_rmem_default = 32767;
-	} else if (num_physpages >= 131072) {
+	} else if (totalram_pages >= 131072) {
 		sysctl_wmem_max = 131071;
 		sysctl_rmem_max = 131071;
 	}
@@ -1218,17 +1228,22 @@ void __init sk_init(void)
 void sock_wfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
-	int res;
+	unsigned int len = skb->truesize;
 
-	/* In case it might be waiting for more memory. */
-	res = atomic_sub_return(skb->truesize, &sk->sk_wmem_alloc);
-	if (!sock_flag(sk, SOCK_USE_WRITE_QUEUE))
+	if (!sock_flag(sk, SOCK_USE_WRITE_QUEUE)) {
+		/*
+		 * Keep a reference on sk_wmem_alloc, this will be released
+		 * after sk_write_space() call
+		 */
+		atomic_sub(len - 1, &sk->sk_wmem_alloc);
 		sk->sk_write_space(sk);
+		len = 1;
+	}
 	/*
-	 * if sk_wmem_alloc reached 0, we are last user and should
-	 * free this sock, as sk_free() call could not do it.
+	 * if sk_wmem_alloc reaches 0, we must finish what sk_free()
+	 * could not do because of in-flight packets
 	 */
-	if (res == 0)
+	if (atomic_sub_and_test(len, &sk->sk_wmem_alloc))
 		__sk_free(sk);
 }
 EXPORT_SYMBOL(sock_wfree);
@@ -1687,7 +1702,7 @@ int sock_no_shutdown(struct socket *sock, int how)
 EXPORT_SYMBOL(sock_no_shutdown);
 
 int sock_no_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	return -EOPNOTSUPP;
 }
@@ -2008,7 +2023,7 @@ EXPORT_SYMBOL(sock_common_recvmsg);
  *	Set socket options on an inet socket.
  */
 int sock_common_setsockopt(struct socket *sock, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 
@@ -2018,7 +2033,7 @@ EXPORT_SYMBOL(sock_common_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
-				  char __user *optval, int optlen)
+				  char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 

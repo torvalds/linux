@@ -223,10 +223,6 @@ static void pseries_lpar_enable_pmcs(void)
 	set = 1UL << 63;
 	reset = 0;
 	plpar_hcall_norets(H_PERFMON, set, reset);
-
-	/* instruct hypervisor to maintain PMCs */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		get_lppaca()->pmcregs_in_use = 1;
 }
 
 static void __init pseries_discover_pic(void)

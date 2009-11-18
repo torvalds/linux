@@ -11,10 +11,6 @@
 #ifndef __ASM_ARCH_MXC_MX31_H__
 #define __ASM_ARCH_MXC_MX31_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
 /*
  * MX31 memory map:
  *
@@ -263,24 +259,7 @@
 #define SYSTEM_REV_MIN		CHIP_REV_1_0
 #define SYSTEM_REV_NUM		3
 
-/* gpio and gpio based interrupt handling */
-#define GPIO_DR		 	0x00
-#define GPIO_GDIR	 	0x04
-#define GPIO_PSR	 	0x08
-#define GPIO_ICR1	 	0x0C
-#define GPIO_ICR2	 	0x10
-#define GPIO_IMR	 	0x14
-#define GPIO_ISR	 	0x18
-#define GPIO_INT_LOW_LEV	0x0
-#define GPIO_INT_HIGH_LEV	0x1
-#define GPIO_INT_RISE_EDGE	0x2
-#define GPIO_INT_FALL_EDGE	0x3
-#define GPIO_INT_NONE		0x4
-
 /* Mandatory defines used globally */
-
-/* this CPU supports up to 96 GPIOs */
-#define ARCH_NR_GPIOS		96
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 

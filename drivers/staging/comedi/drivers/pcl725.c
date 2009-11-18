@@ -20,7 +20,8 @@ Devices: [Advantech] PCL-725 (pcl725)
 #define PCL725_DO 0
 #define PCL725_DI 1
 
-static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl725_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int pcl725_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcl725 = {
 	.driver_name = "pcl725",
@@ -32,7 +33,7 @@ static struct comedi_driver driver_pcl725 = {
 COMEDI_INITCLEANUP(driver_pcl725);
 
 static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -49,7 +50,7 @@ static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

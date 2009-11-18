@@ -21,6 +21,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/security.h>
 #include "sysfs.h"
 
 DEFINE_MUTEX(sysfs_mutex);
@@ -285,6 +286,9 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 		sysfs_put(sd->s_symlink.target_sd);
 	if (sysfs_type(sd) & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
+	if (sd->s_iattr && sd->s_iattr->ia_secdata)
+		security_release_secctx(sd->s_iattr->ia_secdata,
+					sd->s_iattr->ia_secdata_len);
 	kfree(sd->s_iattr);
 	sysfs_free_ino(sd->s_ino);
 	kmem_cache_free(sysfs_dir_cachep, sd);
@@ -760,6 +764,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 const struct inode_operations sysfs_dir_inode_operations = {
 	.lookup		= sysfs_lookup,
 	.setattr	= sysfs_setattr,
+	.setxattr	= sysfs_setxattr,
 };
 
 static void remove_dir(struct sysfs_dirent *sd)
@@ -893,7 +898,8 @@ int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent_kobj)
 
 	mutex_lock(&sysfs_rename_mutex);
 	BUG_ON(!sd->s_parent);
-	new_parent_sd = new_parent_kobj->sd ? new_parent_kobj->sd : &sysfs_root;
+	new_parent_sd = (new_parent_kobj && new_parent_kobj->sd) ?
+		new_parent_kobj->sd : &sysfs_root;
 
 	error = 0;
 	if (sd->s_parent == new_parent_sd)

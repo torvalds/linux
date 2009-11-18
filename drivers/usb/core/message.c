@@ -459,35 +459,23 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 			io->urbs[i]->context = io;
 
 			/*
-			 * Some systems need to revert to PIO when DMA is
-			 * temporarily unavailable.  For their sakes, both
-			 * transfer_buffer and transfer_dma are set when
-			 * possible.  However this can only work on systems
-			 * without:
+			 * Some systems need to revert to PIO when DMA is temporarily
+			 * unavailable.  For their sakes, both transfer_buffer and
+			 * transfer_dma are set when possible.
 			 *
-			 *  - HIGHMEM, since DMA buffers located in high memory
-			 *    are not directly addressable by the CPU for PIO;
-			 *
-			 *  - IOMMU, since dma_map_sg() is allowed to use an
-			 *    IOMMU to make virtually discontiguous buffers be
-			 *    "dma-contiguous" so that PIO and DMA need diferent
-			 *    numbers of URBs.
-			 *
-			 * So when HIGHMEM or IOMMU are in use, transfer_buffer
-			 * is NULL to prevent stale pointers and to help spot
-			 * bugs.
+			 * Note that if IOMMU coalescing occurred, we cannot
+			 * trust sg_page anymore, so check if S/G list shrunk.
 			 */
+			if (io->nents == io->entries && !PageHighMem(sg_page(sg)))
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
+			else
+				io->urbs[i]->transfer_buffer = NULL;
+
 			if (dma) {
 				io->urbs[i]->transfer_dma = sg_dma_address(sg);
 				len = sg_dma_len(sg);
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
-				io->urbs[i]->transfer_buffer = NULL;
-#else
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
-#endif
 			} else {
 				/* hc may use _only_ transfer_buffer */
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
 				len = sg->length;
 			}
 

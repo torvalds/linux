@@ -70,6 +70,7 @@ struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;
+	u16 vlans_enabled;
 	bool clear_to_send;
 };
 

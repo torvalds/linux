@@ -274,7 +274,7 @@ static int open_substream(struct snd_rawmidi *rmidi,
 		return err;
 	substream->opened = 1;
 	if (substream->use_count++ == 0)
-		substream->active_sensing = 1;
+		substream->active_sensing = 0;
 	if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
 		substream->append = 1;
 	rmidi->streams[substream->stream].substream_opened++;

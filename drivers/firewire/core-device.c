@@ -312,7 +312,7 @@ static void init_fw_attribute_group(struct device *dev,
 	group->groups[0] = &group->group;
 	group->groups[1] = NULL;
 	group->group.attrs = group->attrs;
-	dev->groups = group->groups;
+	dev->groups = (const struct attribute_group **) group->groups;
 }
 
 static ssize_t modalias_show(struct device *dev,

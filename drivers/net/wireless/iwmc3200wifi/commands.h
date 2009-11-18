@@ -106,8 +106,7 @@ enum {
 	CFG_TLC_SPATIAL_STREAM_SUPPORTED,
 	CFG_TLC_RETRY_PER_RATE,
 	CFG_TLC_RETRY_PER_HT_RATE,
-	CFG_TLC_FIXED_RATE,
-	CFG_TLC_FIXED_RATE_FLAGS,
+	CFG_TLC_FIXED_MCS,
 	CFG_TLC_CONTROL_FLAGS,
 	CFG_TLC_SR_MIN_FAIL,
 	CFG_TLC_SR_MIN_PASS,
@@ -232,6 +231,7 @@ struct iwm_umac_cmd_get_channel_list {
 /* Wireless mode */
 #define WIRELESS_MODE_11A  0x1
 #define WIRELESS_MODE_11G  0x2
+#define WIRELESS_MODE_11N  0x4
 
 #define UMAC_PROFILE_EX_IE_REQUIRED	0x1
 #define UMAC_PROFILE_QOS_ALLOWED	0x2
@@ -406,8 +406,7 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm);
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);
-int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
-		struct iwm_key *key);
+int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key);
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags);
 int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,

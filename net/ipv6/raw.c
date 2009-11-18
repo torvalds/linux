@@ -642,7 +642,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
+		err = net_xmit_errno(err);
 	if (err)
 		goto error;
 out:
@@ -653,6 +653,8 @@ error_fault:
 	kfree_skb(skb);
 error:
 	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+	if (err == -ENOBUFS && !np->recverr)
+		err = 0;
 	return err;
 }
 
@@ -877,11 +879,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			hlimit = ip6_dst_hoplimit(dst);
 	}
 
-	if (tclass < 0) {
+	if (tclass < 0)
 		tclass = np->tclass;
-		if (tclass < 0)
-			tclass = 0;
-	}
 
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;
@@ -958,7 +957,7 @@ static int rawv6_geticmpfilter(struct sock *sk, int level, int optname,
 
 
 static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	struct raw6_sock *rp = raw6_sk(sk);
 	int val;
@@ -1001,7 +1000,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 }
 
 static int rawv6_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	switch(level) {
 		case SOL_RAW:
@@ -1025,7 +1024,7 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, int optlen)
+				   char __user *optval, unsigned int optlen)
 {
 	switch (level) {
 	case SOL_RAW:

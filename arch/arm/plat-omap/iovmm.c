@@ -47,7 +47,7 @@
  *	'va':	mpu virtual address
  *
  *	'c':	contiguous memory area
- *	'd':	dicontiguous memory area
+ *	'd':	discontiguous memory area
  *	'a':	anonymous memory allocation
  *	'()':	optional feature
  *
@@ -199,7 +199,8 @@ static void *vmap_sg(const struct sg_table *sgt)
 		va += bytes;
 	}
 
-	flush_cache_vmap(new->addr, total);
+	flush_cache_vmap((unsigned long)new->addr,
+				(unsigned long)(new->addr + total));
 	return new->addr;
 
 err_out:
@@ -362,8 +363,9 @@ void *da_to_va(struct iommu *obj, u32 da)
 		goto out;
 	}
 	va = area->va;
-	mutex_unlock(&obj->mmap_lock);
 out:
+	mutex_unlock(&obj->mmap_lock);
+
 	return va;
 }
 EXPORT_SYMBOL_GPL(da_to_va);
@@ -390,14 +392,14 @@ static void sgtable_fill_vmalloc(struct sg_table *sgt, void *_va)
 	}
 
 	va_end = _va + PAGE_SIZE * i;
-	flush_cache_vmap(_va, va_end);
+	flush_cache_vmap((unsigned long)_va, (unsigned long)va_end);
 }
 
 static inline void sgtable_drain_vmalloc(struct sg_table *sgt)
 {
 	/*
 	 * Actually this is not necessary at all, just exists for
-	 * consistency of the code readibility.
+	 * consistency of the code readability.
 	 */
 	BUG_ON(!sgt);
 }
@@ -433,7 +435,7 @@ static inline void sgtable_drain_kmalloc(struct sg_table *sgt)
 {
 	/*
 	 * Actually this is not necessary at all, just exists for
-	 * consistency of the code readibility
+	 * consistency of the code readability
 	 */
 	BUG_ON(!sgt);
 }

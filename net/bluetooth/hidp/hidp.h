@@ -126,6 +126,8 @@ int hidp_get_conninfo(struct hidp_conninfo *ci);
 struct hidp_session {
 	struct list_head list;
 
+	struct hci_conn *conn;
+
 	struct socket *ctrl_sock;
 	struct socket *intr_sock;
 

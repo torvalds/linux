@@ -4,7 +4,8 @@ spufs-y += inode.o file.o context.o syscalls.o coredump.o
 spufs-y += sched.o backing_ops.o hw_ops.o run.o gang.o
 spufs-y += switch.o fault.o lscsa_alloc.o
 
-obj-$(CONFIG_SPU_TRACE)	+= sputrace.o
+# magic for the trace events
+CFLAGS_sched.o := -I$(src)
 
 # Rules to build switch.o with the help of SPU tool chain
 SPU_CROSS	:= spu-

@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/errno.h>
 
 #include <asm/page.h>

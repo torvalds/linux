@@ -168,11 +168,11 @@ Configuration Options:
 static const struct comedi_lrange dmm32at_airanges = {
 	4,
 	{
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-		}
+	 UNI_RANGE(10),
+	 UNI_RANGE(5),
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 }
 };
 
 /* register values for above ranges */
@@ -189,11 +189,11 @@ static const unsigned char dmm32at_rangebits[] = {
 static const struct comedi_lrange dmm32at_aoranges = {
 	4,
 	{
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-		}
+	 UNI_RANGE(10),
+	 UNI_RANGE(5),
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 }
 };
 
 /*
@@ -214,16 +214,16 @@ struct dmm32at_board {
 };
 static const struct dmm32at_board dmm32at_boards[] = {
 	{
-	.name = "dmm32at",
-	.ai_chans = 32,
-	.ai_bits = 16,
-	.ai_ranges = &dmm32at_airanges,
-	.ao_chans = 4,
-	.ao_bits = 12,
-	.ao_ranges = &dmm32at_aoranges,
-	.have_dio = 1,
-	.dio_chans = 24,
-		},
+	 .name = "dmm32at",
+	 .ai_chans = 32,
+	 .ai_bits = 16,
+	 .ai_ranges = &dmm32at_airanges,
+	 .ao_chans = 4,
+	 .ao_bits = 12,
+	 .ao_ranges = &dmm32at_aoranges,
+	 .have_dio = 1,
+	 .dio_chans = 24,
+	 },
 };
 
 /*
@@ -259,7 +259,8 @@ struct dmm32at_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dmm32at_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int dmm32at_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dmm32at = {
 	.driver_name = "dmm32at",
@@ -290,20 +291,29 @@ static struct comedi_driver driver_dmm32at = {
 };
 
 /* prototypes for driver functions below */
-static int dmm32at_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dmm32at_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dmm32at_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dmm32at_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
-static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int dmm32at_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int dmm32at_ai_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_ao_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data);
+static int dmm32at_ai_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd);
+static int dmm32at_ai_cmd(struct comedi_device *dev,
+			  struct comedi_subdevice *s);
+static int dmm32at_ai_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
 static irqreturn_t dmm32at_isr(int irq, void *d);
 void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec);
@@ -314,7 +324,8 @@ void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int dmm32at_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	int ret;
 	struct comedi_subdevice *s;
@@ -369,12 +380,12 @@ static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	airback = dmm_inb(dev, DMM32AT_AIRBACK);
 
 	printk("dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
-		ailo, aihi, fifostat);
+	       ailo, aihi, fifostat);
 	printk("dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
-		aistat, intstat, airback);
+	       aistat, intstat, airback);
 
 	if ((ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
-		(aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
+	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c)) {
 		printk("dmmat32: board detection failed\n");
 		return -EIO;
 	}
@@ -450,7 +461,7 @@ static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_DIOACC);
 		/* set the DIO's to the defualt input setting */
 		devpriv->dio_config = DMM32AT_DIRA | DMM32AT_DIRB |
-			DMM32AT_DIRCL | DMM32AT_DIRCH | DMM32AT_DIENABLE;
+		    DMM32AT_DIRCL | DMM32AT_DIRCH | DMM32AT_DIENABLE;
 		dmm_outb(dev, DMM32AT_DIOCONF, devpriv->dio_config);
 
 		/* set up the subdevice */
@@ -497,8 +508,9 @@ static int dmm32at_detach(struct comedi_device *dev)
  * mode.
  */
 
-static int dmm32at_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_ai_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int d;
@@ -568,8 +580,9 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *
 	return n;
 }
 
-static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int dmm32at_ai_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -618,7 +631,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 
 	/* note that mutual compatiblity is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
+	    cmd->scan_begin_src != TRIG_EXT)
 		err++;
 	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
 		err++;
@@ -703,21 +716,21 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		dmm32at_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				    cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		dmm32at_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				    cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
+		    cmd->scan_begin_arg <
+		    cmd->convert_arg * cmd->scan_end_arg) {
 			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
+			    cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
@@ -733,14 +746,14 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 		start_chan = CR_CHAN(cmd->chanlist[0]);
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) !=
-				(start_chan + i) % s->n_chan) {
+			    (start_chan + i) % s->n_chan) {
 				comedi_error(dev,
-					"entries in chanlist must be consecutive channels, counting upwards\n");
+					     "entries in chanlist must be consecutive channels, counting upwards\n");
 				err++;
 			}
 			if (CR_RANGE(cmd->chanlist[i]) != gain) {
 				comedi_error(dev,
-					"entries in chanlist must all have the same gain\n");
+					     "entries in chanlist must all have the same gain\n");
 				err++;
 			}
 		}
@@ -822,7 +835,8 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 }
 
-static int dmm32at_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int dmm32at_ai_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	devpriv->ai_scans_left = 1;
 	return 0;
@@ -893,8 +907,9 @@ static int dmm32at_ns_to_timer(unsigned int *ns, int round)
 	return *ns;
 }
 
-static int dmm32at_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -936,8 +951,9 @@ static int dmm32at_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int dmm32at_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_ao_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -953,8 +969,9 @@ static int dmm32at_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_dio_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char diobits;
 
@@ -975,7 +992,7 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 
 	/* if either part of dio is set for output */
 	if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
-		((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
+	    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
 		diobits = (s->state & 0x00ff0000) >> 16;
 		dmm_outb(dev, DMM32AT_DIOC, diobits);
 	}
@@ -1006,8 +1023,9 @@ static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 	return 2;
 }
 
-static int dmm32at_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_dio_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char chanbit;
 	int chan = CR_CHAN(insn->chanspec);

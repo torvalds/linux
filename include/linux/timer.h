@@ -175,11 +175,6 @@ extern int mod_timer_pinned(struct timer_list *timer, unsigned long expires);
 
 /*
  * Return when the next timer-wheel timeout occurs (in absolute jiffies),
- * locks the timer base:
- */
-extern unsigned long next_timer_interrupt(void);
-/*
- * Return when the next timer-wheel timeout occurs (in absolute jiffies),
  * locks the timer base and does the comparison against the given
  * jiffie.
  */

@@ -126,7 +126,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp,
 				       int is_outgoing)
 {
-	struct rds_connection *conn, *tmp, *parent = NULL;
+	struct rds_connection *conn, *parent = NULL;
 	struct hlist_head *head = rds_conn_bucket(laddr, faddr);
 	unsigned long flags;
 	int ret;
@@ -155,7 +155,6 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	}
 
 	INIT_HLIST_NODE(&conn->c_hash_node);
-	conn->c_version = RDS_PROTOCOL_3_0;
 	conn->c_laddr = laddr;
 	conn->c_faddr = faddr;
 	spin_lock_init(&conn->c_lock);
@@ -211,26 +210,40 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	  trans->t_name ? trans->t_name : "[unknown]",
 	  is_outgoing ? "(outgoing)" : "");
 
+	/*
+	 * Since we ran without holding the conn lock, someone could
+	 * have created the same conn (either normal or passive) in the
+	 * interim. We check while holding the lock. If we won, we complete
+	 * init and return our conn. If we lost, we rollback and return the
+	 * other one.
+	 */
 	spin_lock_irqsave(&rds_conn_lock, flags);
-	if (parent == NULL) {
-		tmp = rds_conn_lookup(head, laddr, faddr, trans);
-		if (tmp == NULL)
-			hlist_add_head(&conn->c_hash_node, head);
-	} else {
-		tmp = parent->c_passive;
-		if (!tmp)
+	if (parent) {
+		/* Creating passive conn */
+		if (parent->c_passive) {
+			trans->conn_free(conn->c_transport_data);
+			kmem_cache_free(rds_conn_slab, conn);
+			conn = parent->c_passive;
+		} else {
 			parent->c_passive = conn;
-	}
-
-	if (tmp) {
-		trans->conn_free(conn->c_transport_data);
-		kmem_cache_free(rds_conn_slab, conn);
-		conn = tmp;
+			rds_cong_add_conn(conn);
+			rds_conn_count++;
+		}
 	} else {
-		rds_cong_add_conn(conn);
-		rds_conn_count++;
-	}
+		/* Creating normal conn */
+		struct rds_connection *found;
 
+		found = rds_conn_lookup(head, laddr, faddr, trans);
+		if (found) {
+			trans->conn_free(conn->c_transport_data);
+			kmem_cache_free(rds_conn_slab, conn);
+			conn = found;
+		} else {
+			hlist_add_head(&conn->c_hash_node, head);
+			rds_cong_add_conn(conn);
+			rds_conn_count++;
+		}
+	}
 	spin_unlock_irqrestore(&rds_conn_lock, flags);
 
 out:
@@ -242,12 +255,14 @@ struct rds_connection *rds_conn_create(__be32 laddr, __be32 faddr,
 {
 	return __rds_conn_create(laddr, faddr, trans, gfp, 0);
 }
+EXPORT_SYMBOL_GPL(rds_conn_create);
 
 struct rds_connection *rds_conn_create_outgoing(__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp)
 {
 	return __rds_conn_create(laddr, faddr, trans, gfp, 1);
 }
+EXPORT_SYMBOL_GPL(rds_conn_create_outgoing);
 
 void rds_conn_destroy(struct rds_connection *conn)
 {
@@ -290,6 +305,7 @@ void rds_conn_destroy(struct rds_connection *conn)
 
 	rds_conn_count--;
 }
+EXPORT_SYMBOL_GPL(rds_conn_destroy);
 
 static void rds_conn_message_info(struct socket *sock, unsigned int len,
 				  struct rds_info_iterator *iter,
@@ -393,6 +409,7 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 
 	spin_unlock_irqrestore(&rds_conn_lock, flags);
 }
+EXPORT_SYMBOL_GPL(rds_for_each_conn_info);
 
 static int rds_conn_info_visitor(struct rds_connection *conn,
 				  void *buffer)
@@ -468,6 +485,7 @@ void rds_conn_drop(struct rds_connection *conn)
 	atomic_set(&conn->c_state, RDS_CONN_ERROR);
 	queue_work(rds_wq, &conn->c_down_w);
 }
+EXPORT_SYMBOL_GPL(rds_conn_drop);
 
 /*
  * An error occurred on the connection

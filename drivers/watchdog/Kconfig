@@ -55,6 +55,13 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config WM831X_WATCHDOG
+	tristate "WM831x watchdog"
+	depends on MFD_WM831X
+	help
+	  Support for the watchdog in the WM831x AudioPlus PMICs.  When
+	  the watchdog triggers the system will be reset.
+
 config WM8350_WATCHDOG
 	tristate "WM8350 watchdog"
 	depends on MFD_WM8350
@@ -266,6 +273,22 @@ config STMP3XXX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_wdt.
 
+config NUC900_WATCHDOG
+	tristate "Nuvoton NUC900 watchdog"
+	depends on ARCH_W90X900
+	help
+	  Say Y here if to include support for the watchdog timer
+	  for the Nuvoton NUC900 series SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called nuc900_wdt.
+
+config ADX_WATCHDOG
+	tristate "Avionic Design Xanthos watchdog"
+	depends on ARCH_PXA_ADX
+	help
+	  Say Y here if you want support for the watchdog timer on Avionic
+	  Design Xanthos boards.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
@@ -368,6 +391,28 @@ config SC520_WDT
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called sc520_wdt.
+
+config SBC_FITPC2_WATCHDOG
+	tristate "Compulab SBC-FITPC2 watchdog"
+	depends on X86
+	---help---
+	  This is the driver for the built-in watchdog timer on the fit-PC2
+	  Single-board computer made by Compulab.
+
+	  It`s possible to enable watchdog timer either from BIOS (F2) or from booted Linux.
+	  When "Watchdog Timer Value" enabled one can set 31-255 s operational range.
+
+	  Entering BIOS setup temporary disables watchdog operation regardless to current state,
+	  so system will not be restarted while user in BIOS setup.
+
+	  Once watchdog was enabled the system will be restarted every
+	  "Watchdog Timer Value" period, so to prevent it user can restart or
+	  disable the watchdog.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sbc_fitpc2_wdt.
+
+	  Most people will say N.
 
 config EUROTECH_WDT
 	tristate "Eurotech CPU-1220/1410 Watchdog Timer"

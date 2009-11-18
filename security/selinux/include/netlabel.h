@@ -59,7 +59,7 @@ int selinux_netlbl_socket_post_create(struct sock *sk, u16 family);
 int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct sk_buff *skb,
 				u16 family,
-				struct avc_audit_data *ad);
+				struct common_audit_data *ad);
 int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int level,
 				     int optname);
@@ -129,7 +129,7 @@ static inline int selinux_netlbl_socket_post_create(struct sock *sk,
 static inline int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 					      struct sk_buff *skb,
 					      u16 family,
-					      struct avc_audit_data *ad)
+					      struct common_audit_data *ad)
 {
 	return 0;
 }

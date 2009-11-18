@@ -21,8 +21,6 @@ menuconfig ISDN
 
 if ISDN
 
-source "drivers/isdn/mISDN/Kconfig"
-
 menuconfig ISDN_I4L
 	tristate "Old ISDN4Linux (deprecated)"
 	---help---
@@ -41,9 +39,9 @@ menuconfig ISDN_I4L
 	  It is still available, though, for use with adapters that are not
 	  supported by the new CAPI subsystem yet.
 
-if ISDN_I4L
+source "drivers/isdn/mISDN/Kconfig"
+
 source "drivers/isdn/i4l/Kconfig"
-endif
 
 menuconfig ISDN_CAPI
 	tristate "CAPI 2.0 subsystem"

@@ -35,8 +35,8 @@
 
 /* The per-net dccp.v6_ctl_sk is used for sending RSTs and ACKs */
 
-static struct inet_connection_sock_af_ops dccp_ipv6_mapped;
-static struct inet_connection_sock_af_ops dccp_ipv6_af_ops;
+static const struct inet_connection_sock_af_ops dccp_ipv6_mapped;
+static const struct inet_connection_sock_af_ops dccp_ipv6_af_ops;
 
 static void dccp_v6_hash(struct sock *sk)
 {
@@ -1055,7 +1055,7 @@ failure:
 	return err;
 }
 
-static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
+static const struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 	.queue_xmit	   = inet6_csk_xmit,
 	.send_check	   = dccp_v6_send_check,
 	.rebuild_header	   = inet6_sk_rebuild_header,
@@ -1076,7 +1076,7 @@ static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 /*
  *	DCCP over IPv4 via INET6 API
  */
-static struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
+static const struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 	.queue_xmit	   = ip_queue_xmit,
 	.send_check	   = dccp_v4_send_check,
 	.rebuild_header	   = inet_sk_rebuild_header,
@@ -1152,13 +1152,13 @@ static struct proto dccp_v6_prot = {
 #endif
 };
 
-static struct inet6_protocol dccp_v6_protocol = {
+static const struct inet6_protocol dccp_v6_protocol = {
 	.handler	= dccp_v6_rcv,
 	.err_handler	= dccp_v6_err,
 	.flags		= INET6_PROTO_NOPOLICY | INET6_PROTO_FINAL,
 };
 
-static struct proto_ops inet6_dccp_ops = {
+static const struct proto_ops inet6_dccp_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
 	.release	   = inet6_release,

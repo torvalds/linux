@@ -219,7 +219,7 @@ static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 /*
  * Our file operations table
  */
-static struct block_device_operations viodasd_fops = {
+static const struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
 	.open = viodasd_open,
 	.release = viodasd_release,
@@ -416,15 +416,9 @@ retry:
 		goto retry;
 	}
 	if (we.max_disk > (MAX_DISKNO - 1)) {
-		static int warned;
-
-		if (warned == 0) {
-			warned++;
-			printk(VIOD_KERN_INFO
-				"Only examining the first %d "
-				"of %d disks connected\n",
-				MAX_DISKNO, we.max_disk + 1);
-		}
+		printk_once(VIOD_KERN_INFO
+			"Only examining the first %d of %d disks connected\n",
+			MAX_DISKNO, we.max_disk + 1);
 	}
 
 	/* Send the close event to OS/400.  We DON'T expect a response */

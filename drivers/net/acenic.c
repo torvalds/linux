@@ -1209,7 +1209,8 @@ static int __devinit ace_init(struct net_device *dev)
 	memset(ap->info, 0, sizeof(struct ace_info));
 	memset(ap->skb, 0, sizeof(struct ace_skb));
 
-	if (ace_load_firmware(dev))
+	ecode = ace_load_firmware(dev);
+	if (ecode)
 		goto init_error;
 
 	ap->fw_running = 0;
@@ -2464,7 +2465,8 @@ ace_load_tx_bd(struct ace_private *ap, struct tx_desc *desc, u64 addr,
 }
 
 
-static int ace_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ace_start_xmit(struct sk_buff *skb,
+				  struct net_device *dev)
 {
 	struct ace_private *ap = netdev_priv(dev);
 	struct ace_regs __iomem *regs = ap->regs;

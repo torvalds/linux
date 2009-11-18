@@ -1,12 +1,8 @@
 #
 # KVM configuration
 #
-config HAVE_KVM
-       bool
 
-config HAVE_KVM_IRQCHIP
-       bool
-       default y
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
@@ -29,6 +25,9 @@ config KVM
 	select PREEMPT_NOTIFIERS
 	select MMU_NOTIFIER
 	select ANON_INODES
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_EVENTFD
+	select KVM_APIC_ARCHITECTURE
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -62,18 +61,6 @@ config KVM_AMD
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-amd.
-
-config KVM_TRACE
-	bool "KVM trace support"
-	depends on KVM && SYSFS
-	select MARKERS
-	select RELAY
-	select DEBUG_FS
-	default n
-	---help---
-	  This option allows reading a trace of kvm-related events through
-	  relayfs.  Note the ABI is not considered stable and will be
-	  modified in future updates.
 
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.

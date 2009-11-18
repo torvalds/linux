@@ -37,6 +37,8 @@
 #include <linux/suspend.h>
 #include <asm/uaccess.h>
 
+#include <trace/events/module.h>
+
 extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
@@ -78,6 +80,10 @@ int __request_module(bool wait, const char *fmt, ...)
 #define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
 
+	ret = security_kernel_module_request();
+	if (ret)
+		return ret;
+
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
 	va_end(args);
@@ -107,6 +113,8 @@ int __request_module(bool wait, const char *fmt, ...)
 		atomic_dec(&kmod_concurrent);
 		return -ENOMEM;
 	}
+
+	trace_module_request(module_name, wait, _RET_IP_);
 
 	ret = call_usermodehelper(modprobe_path, argv, envp,
 			wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
@@ -462,6 +470,7 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	int retval = 0;
 
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
+	validate_creds(sub_info->cred);
 
 	helper_lock();
 	if (sub_info->path[0] == '\0')

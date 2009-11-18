@@ -16,7 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/fsl_devices.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -48,18 +47,8 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK, MX31_PIN_CSI_VSYNC__CSI_VSYNC,
 	MX31_PIN_GPIO3_0__GPIO3_0, MX31_PIN_GPIO3_1__GPIO3_1,
 	MX31_PIN_TXD2__GPIO1_28,
-	/* USB OTG */
-	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
-	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
-	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
-	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
-	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
-	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
-	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
-	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
-	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
-	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
-	MX31_PIN_USB_OC__GPIO1_30,
+	/* dsPIC resets */
+	MX31_PIN_STXD5__GPIO1_21, MX31_PIN_SRXD5__GPIO1_22,
 };
 
 #define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
@@ -115,31 +104,20 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 	.exit	= marxbot_sdhc2_exit,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
-	.operating_mode	= FSL_USB2_DR_DEVICE,
-	.phy_mode	= FSL_USB2_PHY_ULPI,
-};
+#define TRSLAT_RST_B	IOMUX_TO_GPIO(MX31_PIN_STXD5)
+#define DSPICS_RST_B	IOMUX_TO_GPIO(MX31_PIN_SRXD5)
 
-#define OTG_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST)
-#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
-
-static void marxbot_usbotg_init(void)
+static void dspics_resets_init(void)
 {
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, OTG_PAD_CFG);
+	if (!gpio_request(TRSLAT_RST_B, "translator-rst")) {
+		gpio_direction_output(TRSLAT_RST_B, 1);
+		gpio_export(TRSLAT_RST_B, false);
+	}
 
-	gpio_request(OTG_EN_B, "usb-udc-en");
-	gpio_direction_output(OTG_EN_B, 0);
+	if (!gpio_request(DSPICS_RST_B, "dspics-rst")) {
+		gpio_direction_output(DSPICS_RST_B, 1);
+		gpio_export(DSPICS_RST_B, false);
+	}
 }
 
 /*
@@ -152,8 +130,7 @@ void __init mx31moboard_marxbot_init(void)
 	mxc_iomux_setup_multiple_pins(marxbot_pins, ARRAY_SIZE(marxbot_pins),
 		"marxbot");
 
-	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+	dspics_resets_init();
 
-	marxbot_usbotg_init();
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
 }

@@ -73,16 +73,12 @@ USHORT ShiftInBits(
         RaiseClock(pAd, &x);
 
         RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
-#ifdef RT30xx
-		LowerClock(pAd, &x); //prevent read failed
-#endif
+
+	LowerClock(pAd, &x); /* prevent read failed */
+
         x &= ~(EEDI);
         if(x & EEDO)
             data |= 1;
-
-#ifndef RT30xx
-        LowerClock(pAd, &x);
-#endif
     }
 
     return data;
@@ -185,14 +181,11 @@ USHORT RTMP_EEPROM_READ16(
     UINT32		x;
     USHORT		data;
 
-#ifdef RT30xx
+#ifdef RT2870
 	if (pAd->NicConfig2.field.AntDiversity)
     {
     	pAd->EepromAccess = TRUE;
     }
-//2008/09/11:KH add to support efuse<--
-//2008/09/11:KH add to support efuse-->
-{
 #endif
     Offset /= 2;
     // reset bits and set EECS
@@ -201,17 +194,13 @@ USHORT RTMP_EEPROM_READ16(
     x |= EECS;
     RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
-#ifdef RT30xx
 	// patch can not access e-Fuse issue
     if (!IS_RT3090(pAd))
     {
-#endif
 	// kick a pulse
 	RaiseClock(pAd, &x);
 	LowerClock(pAd, &x);
-#ifdef RT30xx
     }
-#endif
 
     // output the read_opcode and register number in that order
     ShiftOutBits(pAd, EEPROM_READ_OPCODE, 3);
@@ -222,7 +211,7 @@ USHORT RTMP_EEPROM_READ16(
 
     EEpromCleanup(pAd);
 
-#ifdef RT30xx
+#ifdef RT2870
 	// Antenna and EEPROM access are both using EESK pin,
     // Therefor we should avoid accessing EESK at the same time
     // Then restore antenna after EEPROM access
@@ -231,7 +220,6 @@ USHORT RTMP_EEPROM_READ16(
 	    pAd->EepromAccess = FALSE;
 	    AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
     }
-}
 #endif
     return data;
 }	//ReadEEprom
@@ -243,14 +231,11 @@ VOID RTMP_EEPROM_WRITE16(
 {
     UINT32 x;
 
-#ifdef RT30xx
+#ifdef RT2870
 	if (pAd->NicConfig2.field.AntDiversity)
     {
     	pAd->EepromAccess = TRUE;
     }
-	//2008/09/11:KH add to support efuse<--
-//2008/09/11:KH add to support efuse-->
-	{
 #endif
 	Offset /= 2;
 
@@ -262,17 +247,13 @@ VOID RTMP_EEPROM_WRITE16(
     x |= EECS;
     RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
-#ifdef RT30xx
 	// patch can not access e-Fuse issue
     if (!IS_RT3090(pAd))
     {
-#endif
 	// kick a pulse
 	RaiseClock(pAd, &x);
 	LowerClock(pAd, &x);
-#ifdef RT30xx
     }
-#endif
 
     // output the read_opcode ,register number and data in that order
     ShiftOutBits(pAd, EEPROM_WRITE_OPCODE, 3);
@@ -290,7 +271,7 @@ VOID RTMP_EEPROM_WRITE16(
 
     EEpromCleanup(pAd);
 
-#ifdef RT30xx
+#ifdef RT2870
 	// Antenna and EEPROM access are both using EESK pin,
     // Therefor we should avoid accessing EESK at the same time
     // Then restore antenna after EEPROM access
@@ -299,12 +280,10 @@ VOID RTMP_EEPROM_WRITE16(
 	    pAd->EepromAccess = FALSE;
 	    AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
     }
-}
 #endif
 }
 
-//2008/09/11:KH add to support efuse<--
-#ifdef RT30xx
+#ifdef RT2870
 /*
 	========================================================================
 
@@ -1038,7 +1017,7 @@ INT	set_eFuseLoadFromBin_Proc(
 {
 	CHAR					*src;
 	struct file				*srcf;
-	INT 					retval, orgfsuid, orgfsgid;
+	INT 					retval;
    	mm_segment_t			orgfs;
 	UCHAR					*buffer;
 	UCHAR					BinFileSize=0;
@@ -1078,12 +1057,7 @@ INT	set_eFuseLoadFromBin_Proc(
 		kfree(buffer);
 		return FALSE;
 	}
-	/* Don't change to uid 0, let the file be opened as the "normal" user */
-#if 0
-	orgfsuid = current->fsuid;
-	orgfsgid = current->fsgid;
-	current->fsuid=current->fsgid = 0;
-#endif
+
     	orgfs = get_fs();
    	 set_fs(KERNEL_DS);
 
@@ -1146,10 +1120,7 @@ INT	set_eFuseLoadFromBin_Proc(
 		DBGPRINT(RT_DEBUG_TRACE, ("--> Error %d closing %s\n", -retval, src));
 	}
 	set_fs(orgfs);
-#if 0
-	current->fsuid = orgfsuid;
-	current->fsgid = orgfsgid;
-#endif
+
 	for(j=0;j<i;j++)
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("%02X ",buffer[j]));
@@ -1505,6 +1476,4 @@ NTSTATUS eFuseWriteRegistersFromBin(
 
 	return TRUE;
 }
-
-#endif // RT30xx //
-//2008/09/11:KH add to support efuse-->
+#endif

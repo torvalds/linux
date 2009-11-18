@@ -59,21 +59,6 @@ static inline unsigned int ak4535_read_reg_cache(struct snd_soc_codec *codec,
 	return cache[reg];
 }
 
-static inline unsigned int ak4535_read(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u8 data;
-	data = reg;
-
-	if (codec->hw_write(codec->control_data, &data, 1) != 1)
-		return -EIO;
-
-	if (codec->hw_read(codec->control_data, &data, 1) != 1)
-		return -EIO;
-
-	return data;
-};
-
 /*
  * write ak4535 register cache
  */
@@ -635,7 +620,6 @@ static int ak4535_probe(struct platform_device *pdev)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
-		codec->hw_read = (hw_read_t)i2c_master_recv;
 		ret = ak4535_add_i2c_device(pdev, setup);
 	}
 #endif

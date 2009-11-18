@@ -809,7 +809,7 @@ static int ipath_setup_ht_reset(struct ipath_devdata *dd)
  * errors.  We only bother to do this at load time, because it's OK if
  * it happened before we were loaded (first time after boot/reset),
  * but any time after that, it's fatal anyway.  Also need to not check
- * for for upper byte errors if we are in 8 bit mode, so figure out
+ * for upper byte errors if we are in 8 bit mode, so figure out
  * our width.  For now, at least, also complain if it's 8 bit.
  */
 static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,

@@ -364,7 +364,7 @@ static struct atmel_lcdfb_info __initdata cap9adk_lcdc_data;
 /*
  * AC97
  */
-static struct atmel_ac97_data cap9adk_ac97_data = {
+static struct ac97c_platform_data cap9adk_ac97_data = {
 //	.reset_pin	= ... not connected
 };
 

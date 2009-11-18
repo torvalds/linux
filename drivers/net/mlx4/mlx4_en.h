@@ -95,8 +95,6 @@
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
 #define MAX_TX_RINGS		16
 #define MAX_RX_RINGS		16
-#define MAX_RSS_MAP_SIZE	64
-#define RSS_FACTOR		2
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
 #define STAMP_STRIDE		64
@@ -276,13 +274,11 @@ struct mlx4_en_tx_ring {
 };
 
 struct mlx4_en_rx_desc {
-	struct mlx4_wqe_srq_next_seg next;
 	/* actual number of entries depends on rx ring stride */
 	struct mlx4_wqe_data_seg data[0];
 };
 
 struct mlx4_en_rx_ring {
-	struct mlx4_srq srq;
 	struct mlx4_hwq_resources wqres;
 	struct mlx4_en_rx_alloc page_alloc[MLX4_EN_MAX_RX_FRAGS];
 	struct net_lro_mgr lro;
@@ -377,11 +373,9 @@ struct mlx4_en_dev {
 
 
 struct mlx4_en_rss_map {
-	int size;
 	int base_qpn;
-	u16 map[MAX_RSS_MAP_SIZE];
-	struct mlx4_qp qps[MAX_RSS_MAP_SIZE];
-	enum mlx4_qp_state state[MAX_RSS_MAP_SIZE];
+	struct mlx4_qp qps[MAX_RX_RINGS];
+	enum mlx4_qp_state state[MAX_RX_RINGS];
 	struct mlx4_qp indir_qp;
 	enum mlx4_qp_state indir_state;
 };
@@ -524,14 +518,14 @@ int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 void mlx4_en_poll_tx_cq(unsigned long data);
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
-int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring,
 			   u32 size, u16 stride);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring);
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
-			     int cq, int srqn);
+			     int cq);
 void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring);
 
@@ -548,16 +542,13 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
-			     int is_tx, int rss, int qpn, int cqn, int srqn,
+			     int is_tx, int rss, int qpn, int cqn,
 			     struct mlx4_qp_context *context);
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event);
 int mlx4_en_map_buffer(struct mlx4_buf *buf);
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
 
 void mlx4_en_calc_rx_buf(struct net_device *dev);
-void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
-				 struct mlx4_en_rss_map *rss_map,
-				 int num_entries, int num_rings);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring);

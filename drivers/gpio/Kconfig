@@ -155,6 +155,23 @@ config GPIO_TWL4030
 	  Say yes here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
 
+config GPIO_WM831X
+	tristate "WM831x GPIOs"
+	depends on MFD_WM831X
+	help
+	  Say yes here to access the GPIO signals of WM831x power management
+	  chips from Wolfson Microelectronics.
+
+config GPIO_ADP5520
+	tristate "GPIO Support for ADP5520 PMIC"
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for on-chip GPIO found
+	  on Analog Devices ADP5520 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520-gpio.
+
 comment "PCI GPIO expanders:"
 
 config GPIO_BT8XX
@@ -173,6 +190,12 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
+config GPIO_LANGWELL
+	bool "Intel Moorestown Platform Langwell GPIO support"
+	depends on PCI
+	help
+	  Say Y here to support Intel Moorestown platform GPIO.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
@@ -187,5 +210,24 @@ config GPIO_MCP23S08
 	help
 	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
 	  a GPIO interface supporting inputs and outputs.
+
+config GPIO_MC33880
+	tristate "Freescale MC33880 high-side/low-side switch"
+	depends on SPI_MASTER
+	help
+	  SPI driver for Freescale MC33880 high-side/low-side switch.
+	  This provides GPIO interface supporting inputs and outputs.
+
+comment "AC97 GPIO expanders:"
+
+config GPIO_UCB1400
+	bool "Philips UCB1400 GPIO"
+	depends on UCB1400_CORE
+	help
+	  This enables support for the Philips UCB1400 GPIO pins.
+	  The UCB1400 is an AC97 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_gpio.
 
 endif

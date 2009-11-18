@@ -143,6 +143,22 @@ static ssize_t store_flush(struct net_bridge_port *p, unsigned long v)
 }
 static BRPORT_ATTR(flush, S_IWUSR, NULL, store_flush);
 
+static ssize_t show_hairpin_mode(struct net_bridge_port *p, char *buf)
+{
+	int hairpin_mode = (p->flags & BR_HAIRPIN_MODE) ? 1 : 0;
+	return sprintf(buf, "%d\n", hairpin_mode);
+}
+static ssize_t store_hairpin_mode(struct net_bridge_port *p, unsigned long v)
+{
+	if (v)
+		p->flags |= BR_HAIRPIN_MODE;
+	else
+		p->flags &= ~BR_HAIRPIN_MODE;
+	return 0;
+}
+static BRPORT_ATTR(hairpin_mode, S_IRUGO | S_IWUSR,
+		   show_hairpin_mode, store_hairpin_mode);
+
 static struct brport_attribute *brport_attrs[] = {
 	&brport_attr_path_cost,
 	&brport_attr_priority,
@@ -159,6 +175,7 @@ static struct brport_attribute *brport_attrs[] = {
 	&brport_attr_forward_delay_timer,
 	&brport_attr_hold_timer,
 	&brport_attr_flush,
+	&brport_attr_hairpin_mode,
 	NULL
 };
 

@@ -1,33 +1,14 @@
 /*
- * File:         arch/blackfin/mach-common/ints-priority.c
+ * Set up the interrupt priorities
  *
- * Description:  Set up the interrupt priorities
+ * Copyright  2004-2009 Analog Devices Inc.
+ *                 2003 Bas Vermeulen <bas@buyways.nl>
+ *                 2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
+ *            2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
+ *                 1999 D. Jeff Dionne <jeff@uclinux.org>
+ *                 1996 Roman Zippel
  *
- * Modified:
- *               1996 Roman Zippel
- *               1999 D. Jeff Dionne <jeff@uclinux.org>
- *               2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
- *               2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
- *               2003 Metrowerks/Motorola
- *               2003 Bas Vermeulen <bas@buyways.nl>
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2
  */
 
 #include <linux/module.h>
@@ -967,7 +948,7 @@ void __cpuinit init_exception_vectors(void)
 	bfin_write_EVT11(evt_evt11);
 	bfin_write_EVT12(evt_evt12);
 	bfin_write_EVT13(evt_evt13);
-	bfin_write_EVT14(evt14_softirq);
+	bfin_write_EVT14(evt_evt14);
 	bfin_write_EVT15(evt_system_call);
 	CSYNC();
 }
@@ -1052,18 +1033,26 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
+
 #ifdef CONFIG_SMP
+#ifdef CONFIG_TICKSOURCE_GPTMR0
+		case IRQ_TIMER0:
+#endif
+#ifdef CONFIG_TICKSOURCE_CORETMR
+		case IRQ_CORETMR:
+#endif
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
 #endif
+
 #ifdef CONFIG_IPIPE
 #ifndef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
-#endif /* !CONFIG_TICKSOURCE_CORETMR */
+#endif
 		case IRQ_CORETMR:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
@@ -1071,15 +1060,10 @@ int __init init_arch_irq(void)
 			set_irq_handler(irq, handle_level_irq);
 			break;
 #else /* !CONFIG_IPIPE */
-#ifdef CONFIG_TICKSOURCE_GPTMR0
-		case IRQ_TIMER0:
-			set_irq_handler(irq, handle_percpu_irq);
-			break;
-#endif /* CONFIG_TICKSOURCE_GPTMR0 */
 		default:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
-#endif	/* !CONFIG_IPIPE */
+#endif /* !CONFIG_IPIPE */
 		}
 	}
 

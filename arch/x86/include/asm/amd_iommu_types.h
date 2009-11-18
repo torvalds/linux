@@ -143,22 +143,29 @@
 #define EVT_BUFFER_SIZE		8192 /* 512 entries */
 #define EVT_LEN_MASK		(0x9ULL << 56)
 
+#define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
 #define PAGE_MODE_3_LEVEL 0x03
+#define PAGE_MODE_4_LEVEL 0x04
+#define PAGE_MODE_5_LEVEL 0x05
+#define PAGE_MODE_6_LEVEL 0x06
 
-#define IOMMU_PDE_NL_0   0x000ULL
-#define IOMMU_PDE_NL_1   0x200ULL
-#define IOMMU_PDE_NL_2   0x400ULL
-#define IOMMU_PDE_NL_3   0x600ULL
+#define PM_LEVEL_SHIFT(x)	(12 + ((x) * 9))
+#define PM_LEVEL_SIZE(x)	(((x) < 6) ? \
+				  ((1ULL << PM_LEVEL_SHIFT((x))) - 1): \
+				   (0xffffffffffffffffULL))
+#define PM_LEVEL_INDEX(x, a)	(((a) >> PM_LEVEL_SHIFT((x))) & 0x1ffULL)
+#define PM_LEVEL_ENC(x)		(((x) << 9) & 0xe00ULL)
+#define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
+				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
+#define PM_PTE_LEVEL(pte)	(((pte) >> 9) & 0x7ULL)
 
-#define IOMMU_PTE_L2_INDEX(address) (((address) >> 30) & 0x1ffULL)
-#define IOMMU_PTE_L1_INDEX(address) (((address) >> 21) & 0x1ffULL)
-#define IOMMU_PTE_L0_INDEX(address) (((address) >> 12) & 0x1ffULL)
-
-#define IOMMU_MAP_SIZE_L1 (1ULL << 21)
-#define IOMMU_MAP_SIZE_L2 (1ULL << 30)
-#define IOMMU_MAP_SIZE_L3 (1ULL << 39)
+#define PM_MAP_4k		0
+#define PM_ADDR_MASK		0x000ffffffffff000ULL
+#define PM_MAP_MASK(lvl)	(PM_ADDR_MASK & \
+				(~((1ULL << (12 + ((lvl) * 9))) - 1)))
+#define PM_ALIGNED(lvl, addr)	((PM_MAP_MASK(lvl) & (addr)) == (addr))
 
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
@@ -166,11 +173,6 @@
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
-
-#define IOMMU_L1_PDE(address) \
-	((address) | IOMMU_PDE_NL_1 | IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
-#define IOMMU_L2_PDE(address) \
-	((address) | IOMMU_PDE_NL_2 | IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
@@ -194,11 +196,14 @@
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
+#define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has no page
+					      translation */
+
 extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)					\
 	do {								\
 		if (amd_iommu_dump)						\
-			printk(KERN_INFO "AMD IOMMU: " format, ## arg);	\
+			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
 	} while(0);
 
 /*
@@ -226,6 +231,7 @@ struct protection_domain {
 	int mode;		/* paging mode (0-6 levels) */
 	u64 *pt_root;		/* page table root pointer */
 	unsigned long flags;	/* flags to find out type of domain */
+	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	void *priv;		/* private data */
 };
@@ -336,6 +342,9 @@ struct amd_iommu {
 
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
+
+	/* becomes true if a command buffer reset is running */
+	bool reset_in_progress;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
@@ -456,5 +465,8 @@ struct __iommu_counter {
 static inline void amd_iommu_stats_init(void) { }
 
 #endif /* CONFIG_AMD_IOMMU_STATS */
+
+/* some function prototypes */
+extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */

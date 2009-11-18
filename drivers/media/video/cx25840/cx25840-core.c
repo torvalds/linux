@@ -321,6 +321,15 @@ static void cx23885_initialize(struct i2c_client *client)
 	/* Select AFE clock pad output source */
 	cx25840_write(client, 0x144, 0x05);
 
+	/* Drive GPIO2 direction and values for HVR1700
+	 * where an onboard mux selects the output of demodulator
+	 * vs the 417. Failure to set this results in no DTV.
+	 * It's safe to set this across all Hauppauge boards
+	 * currently, regardless of the board type.
+	 */
+	cx25840_write(client, 0x160, 0x1d);
+	cx25840_write(client, 0x164, 0x00);
+
 	/* Do the firmware load in a work handler to prevent.
 	   Otherwise the kernel is blocked waiting for the
 	   bit-banging i2c interface to finish uploading the
@@ -1577,12 +1586,6 @@ static int cx25840_probe(struct i2c_client *client,
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
-
-	if (state->is_cx23885) {
-		/* Drive GPIO2 direction and values */
-		cx25840_write(client, 0x160, 0x1d);
-		cx25840_write(client, 0x164, 0x00);
-	}
 
 	return 0;
 }

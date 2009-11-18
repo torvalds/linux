@@ -387,12 +387,35 @@ ccw_device_done(struct ccw_device *cdev, int state)
 
 	cdev->private->state = state;
 
-	if (state == DEV_STATE_BOXED) {
+	switch (state) {
+	case DEV_STATE_BOXED:
 		CIO_MSG_EVENT(0, "Boxed device %04x on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
 		if (cdev->online && !ccw_device_notify(cdev, CIO_BOXED))
 			ccw_device_schedule_sch_unregister(cdev);
 		cdev->private->flags.donotify = 0;
+		break;
+	case DEV_STATE_NOT_OPER:
+		CIO_MSG_EVENT(0, "Device %04x gone on subchannel %04x\n",
+			      cdev->private->dev_id.devno, sch->schid.sch_no);
+		if (!ccw_device_notify(cdev, CIO_GONE))
+			ccw_device_schedule_sch_unregister(cdev);
+		else
+			ccw_device_set_disconnected(cdev);
+		cdev->private->flags.donotify = 0;
+		break;
+	case DEV_STATE_DISCONNECTED:
+		CIO_MSG_EVENT(0, "Disconnected device %04x on subchannel "
+			      "%04x\n", cdev->private->dev_id.devno,
+			      sch->schid.sch_no);
+		if (!ccw_device_notify(cdev, CIO_NO_PATH))
+			ccw_device_schedule_sch_unregister(cdev);
+		else
+			ccw_device_set_disconnected(cdev);
+		cdev->private->flags.donotify = 0;
+		break;
+	default:
+		break;
 	}
 
 	if (cdev->private->flags.donotify) {
@@ -664,6 +687,10 @@ ccw_device_offline(struct ccw_device *cdev)
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		return 0;
 	}
+	if (cdev->private->state == DEV_STATE_BOXED) {
+		ccw_device_done(cdev, DEV_STATE_BOXED);
+		return 0;
+	}
 	if (ccw_device_is_orphan(cdev)) {
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;
@@ -723,10 +750,20 @@ ccw_device_recog_notoper(struct ccw_device *cdev, enum dev_event dev_event)
 static void ccw_device_generic_notoper(struct ccw_device *cdev,
 				       enum dev_event dev_event)
 {
-	struct subchannel *sch;
+	if (!ccw_device_notify(cdev, CIO_GONE))
+		ccw_device_schedule_sch_unregister(cdev);
+	else
+		ccw_device_set_disconnected(cdev);
+}
 
-	ccw_device_set_notoper(cdev);
-	sch = to_subchannel(cdev->dev.parent);
+/*
+ * Handle path verification event in offline state.
+ */
+static void ccw_device_offline_verify(struct ccw_device *cdev,
+				      enum dev_event dev_event)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
 	css_schedule_eval(sch->schid);
 }
 
@@ -887,6 +924,8 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 	}
 call_handler:
 	cdev->private->state = DEV_STATE_ONLINE;
+	/* In case sensing interfered with setting the device online */
+	wake_up(&cdev->private->wait_q);
 	/* Call the handler. */
 	if (ccw_device_call_handler(cdev) && cdev->private->flags.doverify)
 		/* Start delayed path verification. */
@@ -1149,7 +1188,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_offline_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
+		[DEV_EVENT_VERIFY]	= ccw_device_offline_verify,
 	},
 	[DEV_STATE_VERIFY] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,

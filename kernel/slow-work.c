@@ -26,10 +26,10 @@ static void slow_work_cull_timeout(unsigned long);
 static void slow_work_oom_timeout(unsigned long);
 
 #ifdef CONFIG_SYSCTL
-static int slow_work_min_threads_sysctl(struct ctl_table *, int, struct file *,
+static int slow_work_min_threads_sysctl(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 
-static int slow_work_max_threads_sysctl(struct ctl_table *, int , struct file *,
+static int slow_work_max_threads_sysctl(struct ctl_table *, int ,
 					void __user *, size_t *, loff_t *);
 #endif
 
@@ -493,10 +493,10 @@ static void slow_work_oom_timeout(unsigned long data)
  * Handle adjustment of the minimum number of threads
  */
 static int slow_work_min_threads_sysctl(struct ctl_table *table, int write,
-					struct file *filp, void __user *buffer,
+					void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	int n;
 
 	if (ret == 0) {
@@ -521,10 +521,10 @@ static int slow_work_min_threads_sysctl(struct ctl_table *table, int write,
  * Handle adjustment of the maximum number of threads
  */
 static int slow_work_max_threads_sysctl(struct ctl_table *table, int write,
-					struct file *filp, void __user *buffer,
+					void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	int n;
 
 	if (ret == 0) {

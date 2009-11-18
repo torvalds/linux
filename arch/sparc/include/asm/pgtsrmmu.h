@@ -267,6 +267,7 @@ static inline void srmmu_flush_tlb_page(unsigned long page)
 
 }
 
+#ifndef CONFIG_SPARC_LEON
 static inline unsigned long srmmu_hwprobe(unsigned long vaddr)
 {
 	unsigned long retval;
@@ -278,6 +279,9 @@ static inline unsigned long srmmu_hwprobe(unsigned long vaddr)
 
 	return retval;
 }
+#else
+#define srmmu_hwprobe(addr) (srmmu_swprobe(addr, 0) & SRMMU_PTE_PMASK)
+#endif
 
 static inline int
 srmmu_get_pte (unsigned long addr)

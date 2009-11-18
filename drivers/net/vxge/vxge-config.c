@@ -313,14 +313,6 @@ __vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev)
 		hldev->kdfc = (u8 __iomem *)(hldev->bar0 +
 			VXGE_HW_TOC_GET_KDFC_INITIAL_OFFSET(val64));
 		break;
-	case 2:
-		hldev->kdfc = (u8 __iomem *)(hldev->bar1 +
-			VXGE_HW_TOC_GET_KDFC_INITIAL_OFFSET(val64));
-		break;
-	case 4:
-		hldev->kdfc = (u8 __iomem *)(hldev->bar2 +
-			VXGE_HW_TOC_GET_KDFC_INITIAL_OFFSET(val64));
-		break;
 	default:
 		break;
 	}
@@ -831,8 +823,6 @@ vxge_hw_device_initialize(
 		sizeof(struct vxge_hw_device_config));
 
 	hldev->bar0 = attr->bar0;
-	hldev->bar1 = attr->bar1;
-	hldev->bar2 = attr->bar2;
 	hldev->pdev = attr->pdev;
 
 	hldev->uld_callbacks.link_up = attr->uld_callbacks.link_up;

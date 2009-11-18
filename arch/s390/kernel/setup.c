@@ -156,15 +156,11 @@ __setup("condev=", condev_setup);
 
 static void __init set_preferred_console(void)
 {
-	if (MACHINE_IS_KVM) {
+	if (MACHINE_IS_KVM)
 		add_preferred_console("hvc", 0, NULL);
-		s390_virtio_console_init();
-		return;
-	}
-
-	if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
+	else if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
 		add_preferred_console("ttyS", 0, NULL);
-	if (CONSOLE_IS_3270)
+	else if (CONSOLE_IS_3270)
 		add_preferred_console("tty3270", 0, NULL);
 }
 
@@ -733,7 +729,7 @@ static void __init setup_hwcaps(void)
 
 	if ((facility_list & (1UL << (31 - 22)))
 	    && (facility_list & (1UL << (31 - 30))))
-		elf_hwcap |= 1UL << 8;
+		elf_hwcap |= HWCAP_S390_ETF3EH;
 
 	/*
 	 * Check for additional facilities with store-facility-list-extended.
@@ -752,11 +748,20 @@ static void __init setup_hwcaps(void)
 	    __stfle(&facility_list_extended, 1) > 0) {
 		if ((facility_list_extended & (1ULL << (63 - 42)))
 		    && (facility_list_extended & (1ULL << (63 - 44))))
-			elf_hwcap |= 1UL << 6;
+			elf_hwcap |= HWCAP_S390_DFP;
 	}
 
+	/*
+	 * Huge page support HWCAP_S390_HPAGE is bit 7.
+	 */
 	if (MACHINE_HAS_HPAGE)
-		elf_hwcap |= 1UL << 7;
+		elf_hwcap |= HWCAP_S390_HPAGE;
+
+	/*
+	 * 64-bit register support for 31-bit processes
+	 * HWCAP_S390_HIGH_GPRS is bit 9.
+	 */
+	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
 
 	switch (S390_lowcore.cpu_id.machine) {
 	case 0x9672:

@@ -40,6 +40,7 @@
 
 	.global ia64_do_tlb_purge
 	.global ia64_os_mca_dispatch
+	.global ia64_os_init_on_kdump
 	.global ia64_os_init_dispatch_monarch
 	.global ia64_os_init_dispatch_slave
 
@@ -297,6 +298,25 @@ END(ia64_os_mca_virtual_begin)
 //EndMain//////////////////////////////////////////////////////////////////////
 
 //StartMain////////////////////////////////////////////////////////////////////
+
+//
+// NOP init handler for kdump.  In panic situation, we may receive INIT
+// while kernel transition.  Since we initialize registers on leave from
+// current kernel, no longer monarch/slave handlers of current kernel in
+// virtual mode are called safely.
+// We can unregister these init handlers from SAL, however then the INIT
+// will result in warmboot by SAL and we cannot retrieve the crashdump.
+// Therefore register this NOP function to SAL, to prevent entering virtual
+// mode and resulting warmboot by SAL.
+//
+ia64_os_init_on_kdump:
+	mov		r8=r0		// IA64_INIT_RESUME
+	mov             r9=r10		// SAL_GP
+	mov		r22=r17		// *minstate
+	;;
+	mov		r10=r0		// return to same context
+	mov		b0=r12		// SAL_CHECK return address
+	br		b0
 
 //
 // SAL to OS entry point for INIT on all processors.  This has been defined for
@@ -1073,3 +1093,30 @@ GLOBAL_ENTRY(ia64_get_rnat)
 	mov ar.rsc=3
 	br.ret.sptk.many rp
 END(ia64_get_rnat)
+
+
+// void ia64_set_psr_mc(void)
+//
+// Set psr.mc bit to mask MCA/INIT.
+GLOBAL_ENTRY(ia64_set_psr_mc)
+	rsm psr.i | psr.ic		// disable interrupts
+	;;
+	srlz.d
+	;;
+	mov r14 = psr			// get psr{36:35,31:0}
+	movl r15 = 1f
+	;;
+	dep r14 = -1, r14, PSR_MC, 1	// set psr.mc
+	;;
+	dep r14 = -1, r14, PSR_IC, 1	// set psr.ic
+	;;
+	dep r14 = -1, r14, PSR_BN, 1	// keep bank1 in use
+	;;
+	mov cr.ipsr = r14
+	mov cr.ifs = r0
+	mov cr.iip = r15
+	;;
+	rfi
+1:
+	br.ret.sptk.many rp
+END(ia64_set_psr_mc)

@@ -833,106 +833,6 @@ static int __init acpi_parse_madt_lapic_entries(void)
 extern int es7000_plat;
 #endif
 
-static struct {
-	int gsi_base;
-	int gsi_end;
-} mp_ioapic_routing[MAX_IO_APICS];
-
-int mp_find_ioapic(int gsi)
-{
-	int i = 0;
-
-	/* Find the IOAPIC that manages this GSI. */
-	for (i = 0; i < nr_ioapics; i++) {
-		if ((gsi >= mp_ioapic_routing[i].gsi_base)
-		    && (gsi <= mp_ioapic_routing[i].gsi_end))
-			return i;
-	}
-
-	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for GSI %d\n", gsi);
-	return -1;
-}
-
-int mp_find_ioapic_pin(int ioapic, int gsi)
-{
-	if (WARN_ON(ioapic == -1))
-		return -1;
-	if (WARN_ON(gsi > mp_ioapic_routing[ioapic].gsi_end))
-		return -1;
-
-	return gsi - mp_ioapic_routing[ioapic].gsi_base;
-}
-
-static u8 __init uniq_ioapic_id(u8 id)
-{
-#ifdef CONFIG_X86_32
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
-	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
-		return io_apic_get_unique_id(nr_ioapics, id);
-	else
-		return id;
-#else
-	int i;
-	DECLARE_BITMAP(used, 256);
-	bitmap_zero(used, 256);
-	for (i = 0; i < nr_ioapics; i++) {
-		struct mpc_ioapic *ia = &mp_ioapics[i];
-		__set_bit(ia->apicid, used);
-	}
-	if (!test_bit(id, used))
-		return id;
-	return find_first_zero_bit(used, 256);
-#endif
-}
-
-static int bad_ioapic(unsigned long address)
-{
-	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
-		       "(found %d)\n", MAX_IO_APICS, nr_ioapics);
-		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
-	}
-	if (!address) {
-		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
-		       " found in table, skipping!\n");
-		return 1;
-	}
-	return 0;
-}
-
-void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
-{
-	int idx = 0;
-
-	if (bad_ioapic(address))
-		return;
-
-	idx = nr_ioapics;
-
-	mp_ioapics[idx].type = MP_IOAPIC;
-	mp_ioapics[idx].flags = MPC_APIC_USABLE;
-	mp_ioapics[idx].apicaddr = address;
-
-	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	mp_ioapics[idx].apicid = uniq_ioapic_id(id);
-	mp_ioapics[idx].apicver = io_apic_get_version(idx);
-
-	/*
-	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
-	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
-	 */
-	mp_ioapic_routing[idx].gsi_base = gsi_base;
-	mp_ioapic_routing[idx].gsi_end = gsi_base +
-	    io_apic_get_redir_entries(idx);
-
-	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
-	       "GSI %d-%d\n", idx, mp_ioapics[idx].apicid,
-	       mp_ioapics[idx].apicver, mp_ioapics[idx].apicaddr,
-	       mp_ioapic_routing[idx].gsi_base, mp_ioapic_routing[idx].gsi_end);
-
-	nr_ioapics++;
-}
-
 int __init acpi_probe_gsi(void)
 {
 	int idx;
@@ -947,7 +847,7 @@ int __init acpi_probe_gsi(void)
 
 	max_gsi = 0;
 	for (idx = 0; idx < nr_ioapics; idx++) {
-		gsi = mp_ioapic_routing[idx].gsi_end;
+		gsi = mp_gsi_routing[idx].gsi_end;
 
 		if (gsi > max_gsi)
 			max_gsi = gsi;
@@ -1179,9 +1079,8 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * If MPS is present, it will handle them,
 	 * otherwise the system will stay in PIC mode
 	 */
-	if (acpi_disabled || acpi_noirq) {
+	if (acpi_disabled || acpi_noirq)
 		return -ENODEV;
-	}
 
 	if (!cpu_has_apic)
 		return -ENODEV;

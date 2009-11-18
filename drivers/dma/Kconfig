@@ -17,11 +17,15 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config ASYNC_TX_DISABLE_CHANNEL_SWITCH
+	bool
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
+	select ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
 	  in recent Intel Xeon chipsets.
@@ -97,6 +101,14 @@ config TXX9_DMAC
 	  Support the TXx9 SoC internal DMA controller.  This can be
 	  integrated in chips such as the Toshiba TX4927/38/39.
 
+config SH_DMAE
+	tristate "Renesas SuperH DMAC support"
+	depends on SUPERH && SH_DMA
+	depends on !SH_DMA_API
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas SuperH DMA controllers.
+
 config DMA_ENGINE
 	bool
 
@@ -116,7 +128,7 @@ config NET_DMA
 
 config ASYNC_TX_DMA
 	bool "Async_tx: Offload support for the async_tx api"
-	depends on DMA_ENGINE && !HIGHMEM64G
+	depends on DMA_ENGINE
 	help
 	  This allows the async_tx api to take advantage of offload engines for
 	  memcpy, memset, xor, and raid6 p+q operations.  If your platform has

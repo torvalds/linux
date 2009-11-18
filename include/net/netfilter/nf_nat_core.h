@@ -31,6 +31,6 @@ struct nlattr;
 extern int
 (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				  enum nf_nat_manip_type manip,
-				  struct nlattr *attr);
+				  const struct nlattr *attr);
 
 #endif /* _NF_NAT_CORE_H */

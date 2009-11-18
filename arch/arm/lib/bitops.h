@@ -60,8 +60,8 @@
 	tst	r2, r0, lsl r3
 	\instr	r2, r2, r0, lsl r3
 	\store	r2, [r1]
-	restore_irqs ip
 	moveq	r0, #0
+	restore_irqs ip
 	mov	pc, lr
 	.endm
 #endif

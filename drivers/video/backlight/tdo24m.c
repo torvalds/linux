@@ -472,3 +472,4 @@ module_exit(tdo24m_exit);
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_DESCRIPTION("Driver for Toppoly TDO24M LCD Panel");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:tdo24m");

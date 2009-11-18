@@ -145,14 +145,14 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 		if (add_match_busid(busid) < 0)
 			return -ENOMEM;
 		else {
-			udbg("add busid %s\n", busid);
+			usbip_udbg("add busid %s\n", busid);
 			return count;
 		}
 	} else if (!strncmp(buf, "del ", 4)) {
 		if (del_match_busid(busid) < 0)
 			return -ENODEV;
 		else {
-			udbg("del busid %s\n", busid);
+			usbip_udbg("del busid %s\n", busid);
 			return count;
 		}
 	} else
@@ -213,12 +213,12 @@ void stub_device_cleanup_urbs(struct stub_device *sdev)
 {
 	struct stub_priv *priv;
 
-	udbg("free sdev %p\n", sdev);
+	usbip_udbg("free sdev %p\n", sdev);
 
 	while ((priv = stub_priv_pop(sdev))) {
 		struct urb *urb = priv->urb;
 
-		udbg("   free urb %p\n", urb);
+		usbip_udbg("   free urb %p\n", urb);
 		usb_kill_urb(urb);
 
 		kmem_cache_free(stub_priv_cache, priv);

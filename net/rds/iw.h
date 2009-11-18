@@ -181,7 +181,6 @@ struct rds_iw_device {
 	struct ib_pd		*pd;
 	struct ib_mr		*mr;
 	struct rds_iw_mr_pool	*mr_pool;
-	int			page_shift;
 	int			max_sge;
 	unsigned int		max_wrs;
 	unsigned int		dma_local_lkey:1;

@@ -204,14 +204,14 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 		goto err_free_dev;
 	}
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				"atmel tsadcc regs")) {
 		dev_err(&pdev->dev, "resources is unavailable.\n");
 		err = -EBUSY;
 		goto err_free_dev;
 	}
 
-	tsc_base = ioremap(res->start, res->end - res->start + 1);
+	tsc_base = ioremap(res->start, resource_size(res));
 	if (!tsc_base) {
 		dev_err(&pdev->dev, "failed to map registers.\n");
 		err = -ENOMEM;
@@ -286,7 +286,7 @@ err_free_irq:
 err_unmap_regs:
 	iounmap(tsc_base);
 err_release_mem:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 err_free_dev:
 	input_free_device(ts_dev->input);
 err_free_mem:
@@ -305,7 +305,7 @@ static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iounmap(tsc_base);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	clk_disable(ts_dev->clk);
 	clk_put(ts_dev->clk);

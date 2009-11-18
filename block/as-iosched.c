@@ -146,7 +146,7 @@ enum arq_state {
 #define RQ_STATE(rq)	((enum arq_state)(rq)->elevator_private2)
 #define RQ_SET_STATE(rq, state)	((rq)->elevator_private2 = (void *) state)
 
-static DEFINE_PER_CPU(unsigned long, ioc_count);
+static DEFINE_PER_CPU(unsigned long, as_ioc_count);
 static struct completion *ioc_gone;
 static DEFINE_SPINLOCK(ioc_gone_lock);
 
@@ -161,7 +161,7 @@ static void as_antic_stop(struct as_data *ad);
 static void free_as_io_context(struct as_io_context *aic)
 {
 	kfree(aic);
-	elv_ioc_count_dec(ioc_count);
+	elv_ioc_count_dec(as_ioc_count);
 	if (ioc_gone) {
 		/*
 		 * AS scheduler is exiting, grab exit lock and check
@@ -169,7 +169,7 @@ static void free_as_io_context(struct as_io_context *aic)
 		 * complete ioc_gone and set it back to NULL.
 		 */
 		spin_lock(&ioc_gone_lock);
-		if (ioc_gone && !elv_ioc_count_read(ioc_count)) {
+		if (ioc_gone && !elv_ioc_count_read(as_ioc_count)) {
 			complete(ioc_gone);
 			ioc_gone = NULL;
 		}
@@ -211,7 +211,7 @@ static struct as_io_context *alloc_as_io_context(void)
 		ret->seek_total = 0;
 		ret->seek_samples = 0;
 		ret->seek_mean = 0;
-		elv_ioc_count_inc(ioc_count);
+		elv_ioc_count_inc(as_ioc_count);
 	}
 
 	return ret;
@@ -1507,7 +1507,7 @@ static void __exit as_exit(void)
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */
 	smp_wmb();
-	if (elv_ioc_count_read(ioc_count))
+	if (elv_ioc_count_read(as_ioc_count))
 		wait_for_completion(&all_gone);
 	synchronize_rcu();
 }

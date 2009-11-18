@@ -418,8 +418,6 @@ void ql_dump_qdev(struct ql_adapter *qdev)
 	printk(KERN_ERR PFX "qdev->intr_count 	= %d.\n", qdev->intr_count);
 	printk(KERN_ERR PFX "qdev->tx_ring		= %p.\n",
 	       qdev->tx_ring);
-	printk(KERN_ERR PFX "qdev->rss_ring_first_cq_id 	= %d.\n",
-	       qdev->rss_ring_first_cq_id);
 	printk(KERN_ERR PFX "qdev->rss_ring_count 	= %d.\n",
 	       qdev->rss_ring_count);
 	printk(KERN_ERR PFX "qdev->rx_ring	= %p.\n", qdev->rx_ring);

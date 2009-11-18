@@ -205,7 +205,7 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 	return ret < 0 ? ret : len;
 }
 
-static struct file_operations command_fops = {
+static const struct file_operations command_fops = {
 	.open   = command_open,
 	.write  = command_write,
 	.read   = NULL,
@@ -255,7 +255,7 @@ static int reservations_open(struct inode *inode, struct file *file)
 	return single_open(file, reservations_print, inode->i_private);
 }
 
-static struct file_operations reservations_fops = {
+static const struct file_operations reservations_fops = {
 	.open    = reservations_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -283,7 +283,7 @@ static int drp_avail_open(struct inode *inode, struct file *file)
 	return single_open(file, drp_avail_print, inode->i_private);
 }
 
-static struct file_operations drp_avail_fops = {
+static const struct file_operations drp_avail_fops = {
 	.open    = drp_avail_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

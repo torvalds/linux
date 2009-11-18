@@ -113,7 +113,7 @@
 /* GPIO Pins PC1 and PC4 Can Function as Normal Outputs */
 #define ANOMALY_05000375 (__SILICON_REVISION__ < 4)
 /* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
-#define ANOMALY_05000402 (__SILICON_REVISION__ < 4)
+#define ANOMALY_05000402 (__SILICON_REVISION__ == 3)
 /* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
 #define ANOMALY_05000403 (1)
 /* Speculative Fetches Can Cause Undesired External FIFO Operations */

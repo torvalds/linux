@@ -215,6 +215,7 @@ extern int iop3xx_get_init_atu(void);
  * IOP3XX I/O and Mem space regions for PCI autoconfiguration
  */
 #define IOP3XX_PCI_LOWER_MEM_PA	0x80000000
+#define IOP3XX_PCI_MEM_WINDOW_SIZE	0x08000000
 
 #define IOP3XX_PCI_IO_WINDOW_SIZE	0x00010000
 #define IOP3XX_PCI_LOWER_IO_PA		0x90000000

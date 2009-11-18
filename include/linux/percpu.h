@@ -34,7 +34,7 @@
 
 #ifdef CONFIG_SMP
 
-#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
 
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
@@ -57,19 +57,70 @@
 #endif
 
 extern void *pcpu_base_addr;
+extern const unsigned long *pcpu_unit_offsets;
 
-typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
-typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
+struct pcpu_group_info {
+	int			nr_units;	/* aligned # of units */
+	unsigned long		base_offset;	/* base address offset */
+	unsigned int		*cpu_map;	/* unit->cpu map, empty
+						 * entries contain NR_CPUS */
+};
 
-extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
-				size_t static_size, size_t reserved_size,
-				ssize_t dyn_size, ssize_t unit_size,
-				void *base_addr,
-				pcpu_populate_pte_fn_t populate_pte_fn);
+struct pcpu_alloc_info {
+	size_t			static_size;
+	size_t			reserved_size;
+	size_t			dyn_size;
+	size_t			unit_size;
+	size_t			atom_size;
+	size_t			alloc_size;
+	size_t			__ai_size;	/* internal, don't use */
+	int			nr_groups;	/* 0 if grouping unnecessary */
+	struct pcpu_group_info	groups[];
+};
 
-extern ssize_t __init pcpu_embed_first_chunk(
-				size_t static_size, size_t reserved_size,
-				ssize_t dyn_size, ssize_t unit_size);
+enum pcpu_fc {
+	PCPU_FC_AUTO,
+	PCPU_FC_EMBED,
+	PCPU_FC_PAGE,
+
+	PCPU_FC_NR,
+};
+extern const char *pcpu_fc_names[PCPU_FC_NR];
+
+extern enum pcpu_fc pcpu_chosen_fc;
+
+typedef void * (*pcpu_fc_alloc_fn_t)(unsigned int cpu, size_t size,
+				     size_t align);
+typedef void (*pcpu_fc_free_fn_t)(void *ptr, size_t size);
+typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
+typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
+
+extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+							     int nr_units);
+extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
+
+extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+				size_t reserved_size, ssize_t dyn_size,
+				size_t atom_size,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+
+extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+					 void *base_addr);
+
+#ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+extern int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
+				size_t atom_size,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+				pcpu_fc_alloc_fn_t alloc_fn,
+				pcpu_fc_free_fn_t free_fn);
+#endif
+
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+extern int __init pcpu_page_first_chunk(size_t reserved_size,
+				pcpu_fc_alloc_fn_t alloc_fn,
+				pcpu_fc_free_fn_t free_fn,
+				pcpu_fc_populate_pte_fn_t populate_pte_fn);
+#endif
 
 /*
  * Use this to get to a cpu's version of the per-cpu object
@@ -80,7 +131,7 @@ extern ssize_t __init pcpu_embed_first_chunk(
 
 extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
-#else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#else /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 struct percpu_data {
 	void *ptrs[1];
@@ -99,10 +150,14 @@ struct percpu_data {
         (__typeof__(ptr))__p->ptrs[(cpu)];				\
 })
 
-#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 extern void *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void *__pdata);
+
+#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+extern void __init setup_per_cpu_areas(void);
+#endif
 
 #else /* CONFIG_SMP */
 
@@ -122,6 +177,13 @@ static inline void *__alloc_percpu(size_t size, size_t align)
 static inline void free_percpu(void *p)
 {
 	kfree(p);
+}
+
+static inline void __init setup_per_cpu_areas(void) { }
+
+static inline void *pcpu_lpage_remapped(void *kaddr)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_SMP */

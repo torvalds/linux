@@ -38,7 +38,7 @@ struct hdlc_proto {
 	int (*ioctl)(struct net_device *dev, struct ifreq *ifr);
 	__be16 (*type_trans)(struct sk_buff *skb, struct net_device *dev);
 	int (*netif_rx)(struct sk_buff *skb);
-	int (*xmit)(struct sk_buff *skb, struct net_device *dev);
+	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct module *module;
 	struct hdlc_proto *next; /* next protocol in the list */
 };
@@ -51,7 +51,7 @@ typedef struct hdlc_device {
 		      unsigned short encoding, unsigned short parity);
 
 	/* hardware driver must handle this instead of dev->hard_start_xmit */
-	int (*xmit)(struct sk_buff *skb, struct net_device *dev);
+	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
 
 	/* Things below are for HDLC layer internal use only */
 	const struct hdlc_proto *proto;
@@ -60,7 +60,7 @@ typedef struct hdlc_device {
 	spinlock_t state_lock;
 	void *state;
 	void *priv;
-}hdlc_device;
+} hdlc_device;
 
 
 
@@ -106,7 +106,7 @@ void hdlc_close(struct net_device *dev);
 /* May be used by hardware driver */
 int hdlc_change_mtu(struct net_device *dev, int new_mtu);
 /* Must be pointed to by hw driver's dev->netdev_ops->ndo_start_xmit */
-int hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size);

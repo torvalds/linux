@@ -221,6 +221,8 @@ static const char *sata_pmp_spec_rev_str(const u32 *gscr)
 {
 	u32 rev = gscr[SATA_PMP_GSCR_REV];
 
+	if (rev & (1 << 3))
+		return "1.2";
 	if (rev & (1 << 2))
 		return "1.1";
 	if (rev & (1 << 1))

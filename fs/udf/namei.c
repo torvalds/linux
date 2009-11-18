@@ -943,7 +943,6 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		pc->componentType = 1;
 		pc->lengthComponentIdent = 0;
 		pc->componentFileVersionNum = 0;
-		pc += sizeof(struct pathComponent);
 		elen += sizeof(struct pathComponent);
 	}
 

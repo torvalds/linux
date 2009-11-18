@@ -21,7 +21,6 @@
 
 #include <linux/sched.h>
 #include <linux/oprofile.h>
-#include <linux/vmalloc.h>
 #include <linux/errno.h>
 
 #include "event_buffer.h"
@@ -405,6 +404,21 @@ int oprofile_add_data(struct op_entry *entry, unsigned long val)
 	if (!entry->event)
 		return 0;
 	return op_cpu_buffer_add_data(entry, val);
+}
+
+int oprofile_add_data64(struct op_entry *entry, u64 val)
+{
+	if (!entry->event)
+		return 0;
+	if (op_cpu_buffer_get_size(entry) < 2)
+		/*
+		 * the function returns 0 to indicate a too small
+		 * buffer, even if there is some space left
+		 */
+		return 0;
+	if (!op_cpu_buffer_add_data(entry, (u32)val))
+		return 0;
+	return op_cpu_buffer_add_data(entry, (u32)(val >> 32));
 }
 
 int oprofile_write_commit(struct op_entry *entry)

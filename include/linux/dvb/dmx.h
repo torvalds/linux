@@ -151,5 +151,7 @@ struct dmx_stc {
 #define DMX_GET_CAPS             _IOR('o', 48, dmx_caps_t)
 #define DMX_SET_SOURCE           _IOW('o', 49, dmx_source_t)
 #define DMX_GET_STC              _IOWR('o', 50, struct dmx_stc)
+#define DMX_ADD_PID              _IOW('o', 51, __u16)
+#define DMX_REMOVE_PID           _IOW('o', 52, __u16)
 
 #endif /*_DVBDMX_H_*/

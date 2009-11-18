@@ -1174,7 +1174,7 @@ EXPORT_SYMBOL_GPL(crypto_il_tab);
 	ctx->key_enc[6 * i + 11] = t;		\
 } while (0)
 
-#define loop8(i)	do {			\
+#define loop8tophalf(i)	do {			\
 	t = ror32(t, 8);			\
 	t = ls_box(t) ^ rco_tab[i];		\
 	t ^= ctx->key_enc[8 * i];			\
@@ -1185,6 +1185,10 @@ EXPORT_SYMBOL_GPL(crypto_il_tab);
 	ctx->key_enc[8 * i + 10] = t;			\
 	t ^= ctx->key_enc[8 * i + 3];			\
 	ctx->key_enc[8 * i + 11] = t;			\
+} while (0)
+
+#define loop8(i)	do {				\
+	loop8tophalf(i);				\
 	t  = ctx->key_enc[8 * i + 4] ^ ls_box(t);	\
 	ctx->key_enc[8 * i + 12] = t;			\
 	t ^= ctx->key_enc[8 * i + 5];			\
@@ -1245,8 +1249,9 @@ int crypto_aes_expand_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		ctx->key_enc[5] = le32_to_cpu(key[5]);
 		ctx->key_enc[6] = le32_to_cpu(key[6]);
 		t = ctx->key_enc[7] = le32_to_cpu(key[7]);
-		for (i = 0; i < 7; ++i)
+		for (i = 0; i < 6; ++i)
 			loop8(i);
+		loop8tophalf(i);
 		break;
 	}
 

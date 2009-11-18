@@ -55,6 +55,8 @@ struct thread_info {
 
 #define PREEMPT_ACTIVE		0x10000000
 
+#define THREAD_SIZE (PAGE_SIZE << 1)
+
 /*
  * macros/functions for gaining access to the thread information structure
  */
@@ -75,8 +77,6 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
-
-#define THREAD_SIZE (2*PAGE_SIZE)
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
@@ -125,17 +125,6 @@ static inline unsigned int get_thread_fault_code(void)
 	return ti->flags >> TI_FLAG_FAULT_CODE_SHIFT;
 }
 
-#else /* !__ASSEMBLY__ */
-
-#define THREAD_SIZE	8192
-
-/* how to get the thread information struct from ASM */
-#define GET_THREAD_INFO(reg)	GET_THREAD_INFO reg
-	.macro GET_THREAD_INFO reg
-	ldi	\reg, #-THREAD_SIZE
-	and	\reg, sp
-	.endm
-
 #endif
 
 /*
@@ -149,6 +138,7 @@ static inline unsigned int get_thread_fault_code(void)
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_SINGLESTEP		3	/* restore singlestep on return to user mode */
 #define TIF_IRET		4	/* return with iret */
+#define TIF_NOTIFY_RESUME	5	/* callback before returning to user */
 #define TIF_RESTORE_SIGMASK	8	/* restore signal mask in do_signal() */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
@@ -160,6 +150,7 @@ static inline unsigned int get_thread_fault_code(void)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
 #define _TIF_IRET		(1<<TIF_IRET)
+#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)

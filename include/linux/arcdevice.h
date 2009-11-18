@@ -337,7 +337,8 @@ struct net_device *alloc_arcdev(const char *name);
 
 int arcnet_open(struct net_device *dev);
 int arcnet_close(struct net_device *dev);
-int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
+				     struct net_device *dev);
 void arcnet_timeout(struct net_device *dev);
 
 #endif				/* __KERNEL__ */

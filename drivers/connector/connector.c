@@ -129,21 +129,19 @@ EXPORT_SYMBOL_GPL(cn_netlink_send);
 /*
  * Callback helper - queues work and setup destructor for given data.
  */
-static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), void *data)
+static int cn_call_callback(struct sk_buff *skb)
 {
 	struct cn_callback_entry *__cbq, *__new_cbq;
 	struct cn_dev *dev = &cdev;
+	struct cn_msg *msg = NLMSG_DATA(nlmsg_hdr(skb));
 	int err = -ENODEV;
 
 	spin_lock_bh(&dev->cbdev->queue_lock);
 	list_for_each_entry(__cbq, &dev->cbdev->queue_list, callback_entry) {
 		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 			if (likely(!work_pending(&__cbq->work) &&
-					__cbq->data.ddata == NULL)) {
-				__cbq->data.callback_priv = msg;
-
-				__cbq->data.ddata = data;
-				__cbq->data.destruct_data = destruct_data;
+					__cbq->data.skb == NULL)) {
+				__cbq->data.skb = skb;
 
 				if (queue_cn_work(__cbq, &__cbq->work))
 					err = 0;
@@ -156,10 +154,8 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 				__new_cbq = kzalloc(sizeof(struct cn_callback_entry), GFP_ATOMIC);
 				if (__new_cbq) {
 					d = &__new_cbq->data;
-					d->callback_priv = msg;
+					d->skb = skb;
 					d->callback = __cbq->data.callback;
-					d->ddata = data;
-					d->destruct_data = destruct_data;
 					d->free = __new_cbq;
 
 					__new_cbq->pdev = __cbq->pdev;
@@ -191,7 +187,6 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
  */
 static void cn_rx_skb(struct sk_buff *__skb)
 {
-	struct cn_msg *msg;
 	struct nlmsghdr *nlh;
 	int err;
 	struct sk_buff *skb;
@@ -208,8 +203,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 			return;
 		}
 
-		msg = NLMSG_DATA(nlh);
-		err = cn_call_callback(msg, (void (*)(void *))kfree_skb, skb);
+		err = cn_call_callback(skb);
 		if (err < 0)
 			kfree_skb(skb);
 	}
@@ -269,7 +263,8 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
  *
  * May sleep.
  */
-int cn_add_callback(struct cb_id *id, char *name, void (*callback)(void *))
+int cn_add_callback(struct cb_id *id, char *name,
+		    void (*callback)(struct cn_msg *, struct netlink_skb_parms *))
 {
 	int err;
 	struct cn_dev *dev = &cdev;
@@ -351,9 +346,8 @@ static int cn_ctl_msg_equals(struct cn_ctl_msg *m1, struct cn_ctl_msg *m2)
  *
  * Used for notification of a request's processing.
  */
-static void cn_callback(void *data)
+static void cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
-	struct cn_msg *msg = data;
 	struct cn_ctl_msg *ctl;
 	struct cn_ctl_entry *ent;
 	u32 size;

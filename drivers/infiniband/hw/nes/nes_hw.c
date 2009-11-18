@@ -74,6 +74,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 static void process_critical_error(struct nes_device *nesdev);
 static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
+static void nes_terminate_timeout(unsigned long context);
+static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
 static unsigned char *nes_iwarp_state_str[] = {
@@ -2741,7 +2743,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 				}
 
 skip_rx_indicate0:
-				nesvnic->netdev->last_rx = jiffies;
+				;
 				/* nesvnic->netstats.rx_packets++; */
 				/* nesvnic->netstats.rx_bytes += rx_pkt_size; */
 			}
@@ -2903,6 +2905,417 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 }
 
 
+static u8 *locate_mpa(u8 *pkt, u32 aeq_info)
+{
+	u16 pkt_len;
+
+	if (aeq_info & NES_AEQE_Q2_DATA_ETHERNET) {
+		/* skip over ethernet header */
+		pkt_len = be16_to_cpu(*(u16 *)(pkt + ETH_HLEN - 2));
+		pkt += ETH_HLEN;
+
+		/* Skip over IP and TCP headers */
+		pkt += 4 * (pkt[0] & 0x0f);
+		pkt += 4 * ((pkt[12] >> 4) & 0x0f);
+	}
+	return pkt;
+}
+
+/* Determine if incoming error pkt is rdma layer */
+static u32 iwarp_opcode(struct nes_qp *nesqp, u32 aeq_info)
+{
+	u8 *pkt;
+	u16 *mpa;
+	u32 opcode = 0xffffffff;
+
+	if (aeq_info & NES_AEQE_Q2_DATA_WRITTEN) {
+		pkt = nesqp->hwqp.q2_vbase + BAD_FRAME_OFFSET;
+		mpa = (u16 *)locate_mpa(pkt, aeq_info);
+		opcode = be16_to_cpu(mpa[1]) & 0xf;
+	}
+
+	return opcode;
+}
+
+/* Build iWARP terminate header */
+static int nes_bld_terminate_hdr(struct nes_qp *nesqp, u16 async_event_id, u32 aeq_info)
+{
+	u8 *pkt = nesqp->hwqp.q2_vbase + BAD_FRAME_OFFSET;
+	u16 ddp_seg_len;
+	int copy_len = 0;
+	u8 is_tagged = 0;
+	u8 flush_code = 0;
+	struct nes_terminate_hdr *termhdr;
+
+	termhdr = (struct nes_terminate_hdr *)nesqp->hwqp.q2_vbase;
+	memset(termhdr, 0, 64);
+
+	if (aeq_info & NES_AEQE_Q2_DATA_WRITTEN) {
+
+		/* Use data from offending packet to fill in ddp & rdma hdrs */
+		pkt = locate_mpa(pkt, aeq_info);
+		ddp_seg_len = be16_to_cpu(*(u16 *)pkt);
+		if (ddp_seg_len) {
+			copy_len = 2;
+			termhdr->hdrct = DDP_LEN_FLAG;
+			if (pkt[2] & 0x80) {
+				is_tagged = 1;
+				if (ddp_seg_len >= TERM_DDP_LEN_TAGGED) {
+					copy_len += TERM_DDP_LEN_TAGGED;
+					termhdr->hdrct |= DDP_HDR_FLAG;
+				}
+			} else {
+				if (ddp_seg_len >= TERM_DDP_LEN_UNTAGGED) {
+					copy_len += TERM_DDP_LEN_UNTAGGED;
+					termhdr->hdrct |= DDP_HDR_FLAG;
+				}
+
+				if (ddp_seg_len >= (TERM_DDP_LEN_UNTAGGED + TERM_RDMA_LEN)) {
+					if ((pkt[3] & RDMA_OPCODE_MASK) == RDMA_READ_REQ_OPCODE) {
+						copy_len += TERM_RDMA_LEN;
+						termhdr->hdrct |= RDMA_HDR_FLAG;
+					}
+				}
+			}
+		}
+	}
+
+	switch (async_event_id) {
+	case NES_AEQE_AEID_AMP_UNALLOCATED_STAG:
+		switch (iwarp_opcode(nesqp, aeq_info)) {
+		case IWARP_OPCODE_WRITE:
+			flush_code = IB_WC_LOC_PROT_ERR;
+			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
+			termhdr->error_code = DDP_TAGGED_INV_STAG;
+			break;
+		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+			termhdr->error_code = RDMAP_INV_STAG;
+		}
+		break;
+	case NES_AEQE_AEID_AMP_INVALID_STAG:
+		flush_code = IB_WC_REM_ACCESS_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+		termhdr->error_code = RDMAP_INV_STAG;
+		break;
+	case NES_AEQE_AEID_AMP_BAD_QP:
+		flush_code = IB_WC_LOC_QP_OP_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_QN;
+		break;
+	case NES_AEQE_AEID_AMP_BAD_STAG_KEY:
+	case NES_AEQE_AEID_AMP_BAD_STAG_INDEX:
+		switch (iwarp_opcode(nesqp, aeq_info)) {
+		case IWARP_OPCODE_SEND_INV:
+		case IWARP_OPCODE_SEND_SE_INV:
+			flush_code = IB_WC_REM_OP_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
+			termhdr->error_code = RDMAP_CANT_INV_STAG;
+			break;
+		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+			termhdr->error_code = RDMAP_INV_STAG;
+		}
+		break;
+	case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
+		if (aeq_info & (NES_AEQE_Q2_DATA_ETHERNET | NES_AEQE_Q2_DATA_MPA)) {
+			flush_code = IB_WC_LOC_PROT_ERR;
+			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
+			termhdr->error_code = DDP_TAGGED_BOUNDS;
+		} else {
+			flush_code = IB_WC_REM_ACCESS_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+			termhdr->error_code = RDMAP_INV_BOUNDS;
+		}
+		break;
+	case NES_AEQE_AEID_AMP_RIGHTS_VIOLATION:
+	case NES_AEQE_AEID_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
+	case NES_AEQE_AEID_PRIV_OPERATION_DENIED:
+		flush_code = IB_WC_REM_ACCESS_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+		termhdr->error_code = RDMAP_ACCESS;
+		break;
+	case NES_AEQE_AEID_AMP_TO_WRAP:
+		flush_code = IB_WC_REM_ACCESS_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+		termhdr->error_code = RDMAP_TO_WRAP;
+		break;
+	case NES_AEQE_AEID_AMP_BAD_PD:
+		switch (iwarp_opcode(nesqp, aeq_info)) {
+		case IWARP_OPCODE_WRITE:
+			flush_code = IB_WC_LOC_PROT_ERR;
+			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
+			termhdr->error_code = DDP_TAGGED_UNASSOC_STAG;
+			break;
+		case IWARP_OPCODE_SEND_INV:
+		case IWARP_OPCODE_SEND_SE_INV:
+			flush_code = IB_WC_REM_ACCESS_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+			termhdr->error_code = RDMAP_CANT_INV_STAG;
+			break;
+		default:
+			flush_code = IB_WC_REM_ACCESS_ERR;
+			termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT;
+			termhdr->error_code = RDMAP_UNASSOC_STAG;
+		}
+		break;
+	case NES_AEQE_AEID_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH:
+		flush_code = IB_WC_LOC_LEN_ERR;
+		termhdr->layer_etype = (LAYER_MPA << 4) | DDP_LLP;
+		termhdr->error_code = MPA_MARKER;
+		break;
+	case NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR:
+		flush_code = IB_WC_GENERAL_ERR;
+		termhdr->layer_etype = (LAYER_MPA << 4) | DDP_LLP;
+		termhdr->error_code = MPA_CRC;
+		break;
+	case NES_AEQE_AEID_LLP_SEGMENT_TOO_LARGE:
+	case NES_AEQE_AEID_LLP_SEGMENT_TOO_SMALL:
+		flush_code = IB_WC_LOC_LEN_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_CATASTROPHIC;
+		termhdr->error_code = DDP_CATASTROPHIC_LOCAL;
+		break;
+	case NES_AEQE_AEID_DDP_LCE_LOCAL_CATASTROPHIC:
+	case NES_AEQE_AEID_DDP_NO_L_BIT:
+		flush_code = IB_WC_FATAL_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_CATASTROPHIC;
+		termhdr->error_code = DDP_CATASTROPHIC_LOCAL;
+		break;
+	case NES_AEQE_AEID_DDP_INVALID_MSN_GAP_IN_MSN:
+	case NES_AEQE_AEID_DDP_INVALID_MSN_RANGE_IS_NOT_VALID:
+		flush_code = IB_WC_GENERAL_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_MSN_RANGE;
+		break;
+	case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
+		flush_code = IB_WC_LOC_LEN_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_TOO_LONG;
+		break;
+	case NES_AEQE_AEID_DDP_UBE_INVALID_DDP_VERSION:
+		flush_code = IB_WC_GENERAL_ERR;
+		if (is_tagged) {
+			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_TAGGED_BUFFER;
+			termhdr->error_code = DDP_TAGGED_INV_DDP_VER;
+		} else {
+			termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+			termhdr->error_code = DDP_UNTAGGED_INV_DDP_VER;
+		}
+		break;
+	case NES_AEQE_AEID_DDP_UBE_INVALID_MO:
+		flush_code = IB_WC_GENERAL_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_MO;
+		break;
+	case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:
+		flush_code = IB_WC_REM_OP_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_MSN_NO_BUF;
+		break;
+	case NES_AEQE_AEID_DDP_UBE_INVALID_QN:
+		flush_code = IB_WC_GENERAL_ERR;
+		termhdr->layer_etype = (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER;
+		termhdr->error_code = DDP_UNTAGGED_INV_QN;
+		break;
+	case NES_AEQE_AEID_RDMAP_ROE_INVALID_RDMAP_VERSION:
+		flush_code = IB_WC_GENERAL_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
+		termhdr->error_code = RDMAP_INV_RDMAP_VER;
+		break;
+	case NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE:
+		flush_code = IB_WC_LOC_QP_OP_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
+		termhdr->error_code = RDMAP_UNEXPECTED_OP;
+		break;
+	default:
+		flush_code = IB_WC_FATAL_ERR;
+		termhdr->layer_etype = (LAYER_RDMA << 4) | RDMAP_REMOTE_OP;
+		termhdr->error_code = RDMAP_UNSPECIFIED;
+		break;
+	}
+
+	if (copy_len)
+		memcpy(termhdr + 1, pkt, copy_len);
+
+	if ((flush_code) && ((NES_AEQE_INBOUND_RDMA & aeq_info) == 0)) {
+		if (aeq_info & NES_AEQE_SQ)
+			nesqp->term_sq_flush_code = flush_code;
+		else
+			nesqp->term_rq_flush_code = flush_code;
+	}
+
+	return sizeof(struct nes_terminate_hdr) + copy_len;
+}
+
+static void nes_terminate_connection(struct nes_device *nesdev, struct nes_qp *nesqp,
+		 struct nes_hw_aeqe *aeqe, enum ib_event_type eventtype)
+{
+	u64 context;
+	unsigned long flags;
+	u32 aeq_info;
+	u16 async_event_id;
+	u8 tcp_state;
+	u8 iwarp_state;
+	u32 termlen = 0;
+	u32 mod_qp_flags = NES_CQP_QP_IWARP_STATE_TERMINATE |
+			   NES_CQP_QP_TERM_DONT_SEND_FIN;
+	struct nes_adapter *nesadapter = nesdev->nesadapter;
+
+	if (nesqp->term_flags & NES_TERM_SENT)
+		return; /* Sanity check */
+
+	aeq_info = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_MISC_IDX]);
+	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
+	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
+	async_event_id = (u16)aeq_info;
+
+	context = (unsigned long)nesadapter->qp_table[le32_to_cpu(
+		aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]) - NES_FIRST_QPN];
+	if (!context) {
+		WARN_ON(!context);
+		return;
+	}
+
+	nesqp = (struct nes_qp *)(unsigned long)context;
+	spin_lock_irqsave(&nesqp->lock, flags);
+	nesqp->hw_iwarp_state = iwarp_state;
+	nesqp->hw_tcp_state = tcp_state;
+	nesqp->last_aeq = async_event_id;
+	nesqp->terminate_eventtype = eventtype;
+	spin_unlock_irqrestore(&nesqp->lock, flags);
+
+	if (nesadapter->send_term_ok)
+		termlen = nes_bld_terminate_hdr(nesqp, async_event_id, aeq_info);
+	else
+		mod_qp_flags |= NES_CQP_QP_TERM_DONT_SEND_TERM_MSG;
+
+	nes_terminate_start_timer(nesqp);
+	nesqp->term_flags |= NES_TERM_SENT;
+	nes_hw_modify_qp(nesdev, nesqp, mod_qp_flags, termlen, 0);
+}
+
+static void nes_terminate_send_fin(struct nes_device *nesdev,
+			  struct nes_qp *nesqp, struct nes_hw_aeqe *aeqe)
+{
+	u32 aeq_info;
+	u16 async_event_id;
+	u8 tcp_state;
+	u8 iwarp_state;
+	unsigned long flags;
+
+	aeq_info = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_MISC_IDX]);
+	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
+	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
+	async_event_id = (u16)aeq_info;
+
+	spin_lock_irqsave(&nesqp->lock, flags);
+	nesqp->hw_iwarp_state = iwarp_state;
+	nesqp->hw_tcp_state = tcp_state;
+	nesqp->last_aeq = async_event_id;
+	spin_unlock_irqrestore(&nesqp->lock, flags);
+
+	/* Send the fin only */
+	nes_hw_modify_qp(nesdev, nesqp, NES_CQP_QP_IWARP_STATE_TERMINATE |
+		NES_CQP_QP_TERM_DONT_SEND_TERM_MSG, 0, 0);
+}
+
+/* Cleanup after a terminate sent or received */
+static void nes_terminate_done(struct nes_qp *nesqp, int timeout_occurred)
+{
+	u32 next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR;
+	unsigned long flags;
+	struct nes_vnic *nesvnic = to_nesvnic(nesqp->ibqp.device);
+	struct nes_device *nesdev = nesvnic->nesdev;
+	u8 first_time = 0;
+
+	spin_lock_irqsave(&nesqp->lock, flags);
+	if (nesqp->hte_added) {
+		nesqp->hte_added = 0;
+		next_iwarp_state |= NES_CQP_QP_DEL_HTE;
+	}
+
+	first_time = (nesqp->term_flags & NES_TERM_DONE) == 0;
+	nesqp->term_flags |= NES_TERM_DONE;
+	spin_unlock_irqrestore(&nesqp->lock, flags);
+
+	/* Make sure we go through this only once */
+	if (first_time) {
+		if (timeout_occurred == 0)
+			del_timer(&nesqp->terminate_timer);
+		else
+			next_iwarp_state |= NES_CQP_QP_RESET;
+
+		nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 0);
+		nes_cm_disconn(nesqp);
+	}
+}
+
+static void nes_terminate_received(struct nes_device *nesdev,
+				struct nes_qp *nesqp, struct nes_hw_aeqe *aeqe)
+{
+	u32 aeq_info;
+	u8 *pkt;
+	u32 *mpa;
+	u8 ddp_ctl;
+	u8 rdma_ctl;
+	u16 aeq_id = 0;
+
+	aeq_info = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_MISC_IDX]);
+	if (aeq_info & NES_AEQE_Q2_DATA_WRITTEN) {
+		/* Terminate is not a performance path so the silicon */
+		/* did not validate the frame - do it now */
+		pkt = nesqp->hwqp.q2_vbase + BAD_FRAME_OFFSET;
+		mpa = (u32 *)locate_mpa(pkt, aeq_info);
+		ddp_ctl = (be32_to_cpu(mpa[0]) >> 8) & 0xff;
+		rdma_ctl = be32_to_cpu(mpa[0]) & 0xff;
+		if ((ddp_ctl & 0xc0) != 0x40)
+			aeq_id = NES_AEQE_AEID_DDP_LCE_LOCAL_CATASTROPHIC;
+		else if ((ddp_ctl & 0x03) != 1)
+			aeq_id = NES_AEQE_AEID_DDP_UBE_INVALID_DDP_VERSION;
+		else if (be32_to_cpu(mpa[2]) != 2)
+			aeq_id = NES_AEQE_AEID_DDP_UBE_INVALID_QN;
+		else if (be32_to_cpu(mpa[3]) != 1)
+			aeq_id = NES_AEQE_AEID_DDP_INVALID_MSN_GAP_IN_MSN;
+		else if (be32_to_cpu(mpa[4]) != 0)
+			aeq_id = NES_AEQE_AEID_DDP_UBE_INVALID_MO;
+		else if ((rdma_ctl & 0xc0) != 0x40)
+			aeq_id = NES_AEQE_AEID_RDMAP_ROE_INVALID_RDMAP_VERSION;
+
+		if (aeq_id) {
+			/* Bad terminate recvd - send back a terminate */
+			aeq_info = (aeq_info & 0xffff0000) | aeq_id;
+			aeqe->aeqe_words[NES_AEQE_MISC_IDX] = cpu_to_le32(aeq_info);
+			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
+			return;
+		}
+	}
+
+	nesqp->term_flags |= NES_TERM_RCVD;
+	nesqp->terminate_eventtype = IB_EVENT_QP_FATAL;
+	nes_terminate_start_timer(nesqp);
+	nes_terminate_send_fin(nesdev, nesqp, aeqe);
+}
+
+/* Timeout routine in case terminate fails to complete */
+static void nes_terminate_timeout(unsigned long context)
+{
+	struct nes_qp *nesqp = (struct nes_qp *)(unsigned long)context;
+
+	nes_terminate_done(nesqp, 1);
+}
+
+/* Set a timer in case hw cannot complete the terminate sequence */
+static void nes_terminate_start_timer(struct nes_qp *nesqp)
+{
+	init_timer(&nesqp->terminate_timer);
+	nesqp->terminate_timer.function = nes_terminate_timeout;
+	nesqp->terminate_timer.expires = jiffies + HZ;
+	nesqp->terminate_timer.data = (unsigned long)nesqp;
+	add_timer(&nesqp->terminate_timer);
+}
+
 /**
  * nes_process_iwarp_aeqe
  */
@@ -2910,28 +3323,27 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				   struct nes_hw_aeqe *aeqe)
 {
 	u64 context;
-	u64 aeqe_context = 0;
 	unsigned long flags;
 	struct nes_qp *nesqp;
+	struct nes_hw_cq *hw_cq;
+	struct nes_cq *nescq;
 	int resource_allocated;
-	/* struct iw_cm_id *cm_id; */
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	struct ib_event ibevent;
-	/* struct iw_cm_event cm_event; */
 	u32 aeq_info;
 	u32 next_iwarp_state = 0;
 	u16 async_event_id;
 	u8 tcp_state;
 	u8 iwarp_state;
+	int must_disconn = 1;
+	int must_terminate = 0;
+	struct ib_event ibevent;
 
 	nes_debug(NES_DBG_AEQ, "\n");
 	aeq_info = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_MISC_IDX]);
-	if ((NES_AEQE_INBOUND_RDMA&aeq_info) || (!(NES_AEQE_QP&aeq_info))) {
+	if ((NES_AEQE_INBOUND_RDMA & aeq_info) || (!(NES_AEQE_QP & aeq_info))) {
 		context  = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_CTXT_LOW_IDX]);
 		context += ((u64)le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_CTXT_HIGH_IDX])) << 32;
 	} else {
-		aeqe_context = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_CTXT_LOW_IDX]);
-		aeqe_context += ((u64)le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_CTXT_HIGH_IDX])) << 32;
 		context = (unsigned long)nesadapter->qp_table[le32_to_cpu(
 						aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]) - NES_FIRST_QPN];
 		BUG_ON(!context);
@@ -2948,7 +3360,11 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 
 	switch (async_event_id) {
 		case NES_AEQE_AEID_LLP_FIN_RECEIVED:
-			nesqp = *((struct nes_qp **)&context);
+			nesqp = (struct nes_qp *)(unsigned long)context;
+
+			if (nesqp->term_flags)
+				return; /* Ignore it, wait for close complete */
+
 			if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
 				nesqp->cm_id->add_ref(nesqp->cm_id);
 				schedule_nes_timer(nesqp->cm_node, (struct sk_buff *)nesqp,
@@ -2959,18 +3375,24 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 						nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 						async_event_id, nesqp->last_aeq, tcp_state);
 			}
+
 			if ((tcp_state != NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
 					(nesqp->ibqp_state != IB_QPS_RTS)) {
 				/* FIN Received but tcp state or IB state moved on,
 						should expect a	close complete */
 				return;
 			}
+
 		case NES_AEQE_AEID_LLP_CLOSE_COMPLETE:
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			if (nesqp->term_flags) {
+				nes_terminate_done(nesqp, 0);
+				return;
+			}
+
 		case NES_AEQE_AEID_LLP_CONNECTION_RESET:
-		case NES_AEQE_AEID_TERMINATE_SENT:
-		case NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE:
 		case NES_AEQE_AEID_RESET_SENT:
-			nesqp = *((struct nes_qp **)&context);
+			nesqp = (struct nes_qp *)(unsigned long)context;
 			if (async_event_id == NES_AEQE_AEID_RESET_SENT) {
 				tcp_state = NES_AEQE_TCP_STATE_CLOSED;
 			}
@@ -2982,12 +3404,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			if ((tcp_state == NES_AEQE_TCP_STATE_CLOSED) ||
 					(tcp_state == NES_AEQE_TCP_STATE_TIME_WAIT)) {
 				nesqp->hte_added = 0;
-				spin_unlock_irqrestore(&nesqp->lock, flags);
-				nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u to remove hte\n",
-						nesqp->hwqp.qp_id);
-				nes_hw_modify_qp(nesdev, nesqp,
-						NES_CQP_QP_IWARP_STATE_ERROR | NES_CQP_QP_DEL_HTE, 0);
-				spin_lock_irqsave(&nesqp->lock, flags);
+				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR | NES_CQP_QP_DEL_HTE;
 			}
 
 			if ((nesqp->ibqp_state == IB_QPS_RTS) &&
@@ -2999,151 +3416,106 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 						nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_CLOSING;
 						break;
 					case NES_AEQE_IWARP_STATE_TERMINATE:
-						next_iwarp_state = NES_CQP_QP_IWARP_STATE_TERMINATE;
-						nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_TERMINATE;
-						if (async_event_id == NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE) {
-							next_iwarp_state |= 0x02000000;
-							nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-						}
+						must_disconn = 0; /* terminate path takes care of disconn */
+						if (nesqp->term_flags == 0)
+							must_terminate = 1;
 						break;
-					default:
-						next_iwarp_state = 0;
 				}
-				spin_unlock_irqrestore(&nesqp->lock, flags);
-				if (next_iwarp_state) {
-					nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u. next state = 0x%08X,"
-							" also added another reference\n",
-							nesqp->hwqp.qp_id, next_iwarp_state);
-					nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0);
-				}
-				nes_cm_disconn(nesqp);
 			} else {
 				if (async_event_id ==  NES_AEQE_AEID_LLP_FIN_RECEIVED) {
 					/* FIN Received but ib state not RTS,
 							close complete will be on its way */
-					spin_unlock_irqrestore(&nesqp->lock, flags);
-					return;
+					must_disconn = 0;
 				}
-				spin_unlock_irqrestore(&nesqp->lock, flags);
-				if (async_event_id == NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE) {
-					next_iwarp_state = NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000;
-					nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-					nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u. next state = 0x%08X,"
-							" also added another reference\n",
-							nesqp->hwqp.qp_id, next_iwarp_state);
-					nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0);
+			}
+			spin_unlock_irqrestore(&nesqp->lock, flags);
+
+			if (must_terminate)
+				nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
+			else if (must_disconn) {
+				if (next_iwarp_state) {
+					nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u. next state = 0x%08X\n",
+						  nesqp->hwqp.qp_id, next_iwarp_state);
+					nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 0);
 				}
 				nes_cm_disconn(nesqp);
 			}
 			break;
+
+		case NES_AEQE_AEID_TERMINATE_SENT:
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			nes_terminate_send_fin(nesdev, nesqp, aeqe);
+			break;
+
 		case NES_AEQE_AEID_LLP_TERMINATE_RECEIVED:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_LLP_TERMINATE_RECEIVED"
-					" event on QP%u \n  Q2 Data:\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_FATAL;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			if ((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
-					((nesqp->ibqp_state == IB_QPS_RTS)&&
-					(async_event_id == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
-				nes_cm_disconn(nesqp);
-			} else {
-				nesqp->in_disconnect = 0;
-				wake_up(&nesqp->kick_waitq);
-			}
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			nes_terminate_received(nesdev, nesqp, aeqe);
 			break;
-		case NES_AEQE_AEID_LLP_TOO_MANY_RETRIES:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_ERROR;
-			nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-			nesqp->last_aeq = async_event_id;
-			if (nesqp->cm_id) {
-				nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_LLP_TOO_MANY_RETRIES"
-						" event on QP%u, remote IP = 0x%08X \n",
-						nesqp->hwqp.qp_id,
-						ntohl(nesqp->cm_id->remote_addr.sin_addr.s_addr));
-			} else {
-				nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_LLP_TOO_MANY_RETRIES"
-						" event on QP%u \n",
-						nesqp->hwqp.qp_id);
-			}
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR | NES_CQP_QP_RESET;
-			nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_FATAL;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			break;
+
+		case NES_AEQE_AEID_AMP_BAD_STAG_KEY:
 		case NES_AEQE_AEID_AMP_BAD_STAG_INDEX:
-			if (NES_AEQE_INBOUND_RDMA&aeq_info) {
-				nesqp = nesadapter->qp_table[le32_to_cpu(
-						aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX])-NES_FIRST_QPN];
-			} else {
-				/* TODO: get the actual WQE and mask off wqe index */
-				context &= ~((u64)511);
-				nesqp = *((struct nes_qp **)&context);
-			}
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_AMP_BAD_STAG_INDEX event on QP%u\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			break;
 		case NES_AEQE_AEID_AMP_UNALLOCATED_STAG:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_AMP_UNALLOCATED_STAG event on QP%u\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			break;
+		case NES_AEQE_AEID_AMP_INVALID_STAG:
+		case NES_AEQE_AEID_AMP_RIGHTS_VIOLATION:
+		case NES_AEQE_AEID_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
 		case NES_AEQE_AEID_PRIV_OPERATION_DENIED:
-			nesqp = nesadapter->qp_table[le32_to_cpu(aeqe->aeqe_words
-					[NES_AEQE_COMP_QP_CQ_ID_IDX])-NES_FIRST_QPN];
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_PRIV_OPERATION_DENIED event on QP%u,"
-					" nesqp = %p, AE reported %p\n",
-					nesqp->hwqp.qp_id, nesqp, *((struct nes_qp **)&context));
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
+		case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
+		case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
+		case NES_AEQE_AEID_AMP_TO_WRAP:
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_ACCESS_ERR);
 			break;
+
+		case NES_AEQE_AEID_LLP_SEGMENT_TOO_LARGE:
+		case NES_AEQE_AEID_LLP_SEGMENT_TOO_SMALL:
+		case NES_AEQE_AEID_DDP_UBE_INVALID_MO:
+		case NES_AEQE_AEID_DDP_UBE_INVALID_QN:
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			if (iwarp_opcode(nesqp, aeq_info) > IWARP_OPCODE_TERM) {
+				aeq_info &= 0xffff0000;
+				aeq_info |= NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE;
+				aeqe->aeqe_words[NES_AEQE_MISC_IDX] = cpu_to_le32(aeq_info);
+			}
+
+		case NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE:
+		case NES_AEQE_AEID_LLP_TOO_MANY_RETRIES:
+		case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:
+		case NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR:
+		case NES_AEQE_AEID_AMP_BAD_QP:
+		case NES_AEQE_AEID_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH:
+		case NES_AEQE_AEID_DDP_LCE_LOCAL_CATASTROPHIC:
+		case NES_AEQE_AEID_DDP_NO_L_BIT:
+		case NES_AEQE_AEID_DDP_INVALID_MSN_GAP_IN_MSN:
+		case NES_AEQE_AEID_DDP_INVALID_MSN_RANGE_IS_NOT_VALID:
+		case NES_AEQE_AEID_DDP_UBE_INVALID_DDP_VERSION:
+		case NES_AEQE_AEID_RDMAP_ROE_INVALID_RDMAP_VERSION:
+		case NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE:
+		case NES_AEQE_AEID_AMP_BAD_PD:
+		case NES_AEQE_AEID_AMP_FASTREG_SHARED:
+		case NES_AEQE_AEID_AMP_FASTREG_VALID_STAG:
+		case NES_AEQE_AEID_AMP_FASTREG_MW_STAG:
+		case NES_AEQE_AEID_AMP_FASTREG_INVALID_RIGHTS:
+		case NES_AEQE_AEID_AMP_FASTREG_PBL_TABLE_OVERFLOW:
+		case NES_AEQE_AEID_AMP_FASTREG_INVALID_LENGTH:
+		case NES_AEQE_AEID_AMP_INVALIDATE_SHARED:
+		case NES_AEQE_AEID_AMP_INVALIDATE_MR_WITH_BOUND_WINDOWS:
+		case NES_AEQE_AEID_AMP_MWBIND_VALID_STAG:
+		case NES_AEQE_AEID_AMP_MWBIND_OF_MR_STAG:
+		case NES_AEQE_AEID_AMP_MWBIND_TO_ZERO_BASED_STAG:
+		case NES_AEQE_AEID_AMP_MWBIND_TO_MW_STAG:
+		case NES_AEQE_AEID_AMP_MWBIND_INVALID_RIGHTS:
+		case NES_AEQE_AEID_AMP_MWBIND_INVALID_BOUNDS:
+		case NES_AEQE_AEID_AMP_MWBIND_TO_INVALID_PARENT:
+		case NES_AEQE_AEID_AMP_MWBIND_BIND_DISABLED:
+		case NES_AEQE_AEID_BAD_CLOSE:
+		case NES_AEQE_AEID_RDMA_READ_WHILE_ORD_ZERO:
+		case NES_AEQE_AEID_STAG_ZERO_INVALID:
+		case NES_AEQE_AEID_ROE_INVALID_RDMA_READ_REQUEST:
+		case NES_AEQE_AEID_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
+			nesqp = (struct nes_qp *)(unsigned long)context;
+			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
+			break;
+
 		case NES_AEQE_AEID_CQ_OPERATION_ERROR:
 			context <<= 1;
 			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_CQ_OPERATION_ERROR event on CQ%u, %p\n",
@@ -3153,83 +3525,19 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			if (resource_allocated) {
 				printk(KERN_ERR PFX "%s: Processing an NES_AEQE_AEID_CQ_OPERATION_ERROR event on CQ%u\n",
 						__func__, le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]));
+				hw_cq = (struct nes_hw_cq *)(unsigned long)context;
+				if (hw_cq) {
+					nescq = container_of(hw_cq, struct nes_cq, hw_cq);
+					if (nescq->ibcq.event_handler) {
+						ibevent.device = nescq->ibcq.device;
+						ibevent.event = IB_EVENT_CQ_ERR;
+						ibevent.element.cq = &nescq->ibcq;
+						nescq->ibcq.event_handler(&ibevent, nescq->ibcq.cq_context);
+					}
+				}
 			}
 			break;
-		case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
-			nesqp = nesadapter->qp_table[le32_to_cpu(
-					aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX])-NES_FIRST_QPN];
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG"
-					"_FOR_AVAILABLE_BUFFER event on QP%u\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			/* tell cm to disconnect, cm will queue work to thread */
-			nes_cm_disconn(nesqp);
-			break;
-		case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_DDP_UBE_INVALID_MSN"
-					"_NO_BUFFER_AVAILABLE event on QP%u\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_FATAL;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			/* tell cm to disconnect, cm will queue work to thread */
-			nes_cm_disconn(nesqp);
-			break;
-		case NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_debug(NES_DBG_AEQ, "Processing an NES_AEQE_AEID_LLP_RECEIVED_MPA_CRC_ERROR"
-					" event on QP%u \n  Q2 Data:\n",
-					nesqp->hwqp.qp_id);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_FATAL;
-				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
-			}
-			/* tell cm to disconnect, cm will queue work to thread */
-			nes_cm_disconn(nesqp);
-			break;
-			/* TODO: additional AEs need to be here */
-		case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
-			nesqp = *((struct nes_qp **)&context);
-			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = iwarp_state;
-			nesqp->hw_tcp_state = tcp_state;
-			nesqp->last_aeq = async_event_id;
-			spin_unlock_irqrestore(&nesqp->lock, flags);
-			if (nesqp->ibqp.event_handler) {
-				ibevent.device = nesqp->ibqp.device;
-				ibevent.element.qp = &nesqp->ibqp;
-				ibevent.event = IB_EVENT_QP_ACCESS_ERR;
-				nesqp->ibqp.event_handler(&ibevent,
-						nesqp->ibqp.qp_context);
-			}
-			nes_cm_disconn(nesqp);
-			break;
+
 		default:
 			nes_debug(NES_DBG_AEQ, "Processing an iWARP related AE for QP, misc = 0x%04X\n",
 					async_event_id);
@@ -3237,7 +3545,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	}
 
 }
-
 
 /**
  * nes_iwarp_ce_handler
@@ -3373,6 +3680,8 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 {
 	struct nes_cqp_request *cqp_request;
 	struct nes_hw_cqp_wqe *cqp_wqe;
+	u32 sq_code = (NES_IWARP_CQE_MAJOR_FLUSH << 16) | NES_IWARP_CQE_MINOR_FLUSH;
+	u32 rq_code = (NES_IWARP_CQE_MAJOR_FLUSH << 16) | NES_IWARP_CQE_MINOR_FLUSH;
 	int ret;
 
 	cqp_request = nes_get_cqp_request(nesdev);
@@ -3388,6 +3697,24 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 	}
 	cqp_wqe = &cqp_request->cqp_wqe;
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
+
+	/* If wqe in error was identified, set code to be put into cqe */
+	if ((nesqp->term_sq_flush_code) && (which_wq & NES_CQP_FLUSH_SQ)) {
+		which_wq |= NES_CQP_FLUSH_MAJ_MIN;
+		sq_code = (CQE_MAJOR_DRV << 16) | nesqp->term_sq_flush_code;
+		nesqp->term_sq_flush_code = 0;
+	}
+
+	if ((nesqp->term_rq_flush_code) && (which_wq & NES_CQP_FLUSH_RQ)) {
+		which_wq |= NES_CQP_FLUSH_MAJ_MIN;
+		rq_code = (CQE_MAJOR_DRV << 16) | nesqp->term_rq_flush_code;
+		nesqp->term_rq_flush_code = 0;
+	}
+
+	if (which_wq & NES_CQP_FLUSH_MAJ_MIN) {
+		cqp_wqe->wqe_words[NES_CQP_QP_WQE_FLUSH_SQ_CODE] = cpu_to_le32(sq_code);
+		cqp_wqe->wqe_words[NES_CQP_QP_WQE_FLUSH_RQ_CODE] = cpu_to_le32(rq_code);
+	}
 
 	cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX] =
 			cpu_to_le32(NES_CQP_FLUSH_WQES | which_wq);

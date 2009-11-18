@@ -1721,7 +1721,7 @@ static enum fe_stv0900_signal_type stv0900_dvbs1_acq_workaround(struct dvb_front
 
 	s32 srate, demod_timeout,
 		fec_timeout, freq1, freq0;
-	enum fe_stv0900_signal_type signal_type = STV0900_NODATA;;
+	enum fe_stv0900_signal_type signal_type = STV0900_NODATA;
 
 	switch (demod) {
 	case STV0900_DEMOD_1:

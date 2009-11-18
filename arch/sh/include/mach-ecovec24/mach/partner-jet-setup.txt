@@ -1,0 +1,82 @@
+LIST "partner-jet-setup.txt"
+LIST "(C) Copyright 2009 Renesas Solutions Corp"
+LIST "Kuninori Morimoto <morimoto.kuninori@renesas.com>"
+LIST "--------------------------------"
+LIST "zImage (RAM boot)"
+LIST "This script can be used to boot the kernel from RAM via JTAG:"
+LIST "> < partner-jet-setup.txt"
+LIST "> RD zImage, 0xa8800000"
+LIST "> G=0xa8800000"
+LIST "--------------------------------"
+LIST "romImage (Flash boot)"
+LIST "Use the following command to burn the zImage to flash via JTAG:"
+LIST "> RD romImage, 0"
+LIST "--------------------------------"
+
+LIST "disable watchdog"
+EW 0xa4520004, 0xa507
+
+LIST "MMU"
+ED 0xff000010, 0x00000004
+
+LIST "setup clocks"
+ED 0xa4150024, 0x00004000
+ED 0xa4150000, 0x8E003508
+ED 0xa4150004, 0x00000000
+
+WAIT 1
+
+LIST "BSC"
+ED 0xff800020, 0xa5a50000
+ED 0xfec10000, 0x00000013
+ED 0xfec10004, 0x11110400
+ED 0xfec10024, 0x00000440
+
+WAIT 1
+
+LIST "setup sdram"
+ED 0xfd000108, 0x00000181
+ED 0xfd000020, 0x015B0002
+ED 0xfd000030, 0x03061502
+ED 0xfd000034, 0x02020102
+ED 0xfd000038, 0x01090305
+ED 0xfd00003c, 0x00000002
+ED 0xfd000008, 0x00000005
+ED 0xfd000018, 0x00000001
+
+WAIT 1
+
+ED 0xfd000014, 0x00000002
+ED 0xfd000060, 0x00020000
+ED 0xfd000060, 0x00030000
+ED 0xfd000060, 0x00010040
+ED 0xfd000060, 0x00000532
+ED 0xfd000014, 0x00000002
+ED 0xfd000014, 0x00000004
+ED 0xfd000014, 0x00000004
+ED 0xfd000060, 0x00000432
+ED 0xfd000060, 0x000103C0
+ED 0xfd000060, 0x00010040
+
+WAIT 1
+
+ED 0xfd000010, 0x00000001
+ED 0xfd000044, 0x00000613
+ED 0xfd000048, 0x238C003A
+ED 0xfd000014, 0x00000002
+
+LIST "Dummy read"
+DD 0x0c400000, 0x0c400000
+
+ED 0xfd000014, 0x00000002
+ED 0xfd000014, 0x00000004
+ED 0xfd000108, 0x00000080
+ED 0xfd000040, 0x00010000
+
+WAIT 1
+
+LIST "setup cache"
+ED 0xff00001c, 0x0000090b
+
+LIST "disable USB"
+EW 0xA4D80000, 0x0000

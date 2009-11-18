@@ -1,6 +1,9 @@
 /*
- * l1layout.h
  * Defines a layout of L1 scratchpad memory that userspace can rely on.
+ *
+ * Copyright 2006-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _L1LAYOUT_H_

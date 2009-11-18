@@ -68,22 +68,20 @@ static struct dm9000_plat_data dm9000_platdata = {
  * to gain access to address latch registers and the data path.
  */
 static struct resource dm9000x_resources[] = {
-	[0] = {
+	{
 		.name	= "address area",
 		.start	= IMX_CS5_PHYS,
 		.end	= IMX_CS5_PHYS + 1,
-		.flags	= IORESOURCE_MEM	/* address access */
-	},
-	[1] = {
+		.flags	= IORESOURCE_MEM,	/* address access */
+	}, {
 		.name	= "data area",
 		.start	= IMX_CS5_PHYS + 4,
 		.end	= IMX_CS5_PHYS + 5,
-		.flags	= IORESOURCE_MEM	/* data access */
-	},
-	[2] = {
+		.flags	= IORESOURCE_MEM,	/* data access */
+	}, {
 		.start	= IRQ_GPIOC(3),
 		.end	= IRQ_GPIOC(3),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 
@@ -154,7 +152,7 @@ MACHINE_START(SCB9328, "Synertronixx scb9328")
 	.io_pg_offst	= ((0xe0200000) >> 18) & 0xfffc,
 	.boot_params	= 0x08000100,
 	.map_io		= mx1_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx1_init_irq,
 	.timer		= &scb9328_timer,
 	.init_machine	= scb9328_init,
 MACHINE_END

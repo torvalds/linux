@@ -14,7 +14,7 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi_pmtmr.h>
@@ -35,7 +35,8 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
-#include <asm/perf_counter.h>
+#include <asm/perf_event.h>
+#include <asm/x86_init.h>
 #include <asm/pgalloc.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>
@@ -49,6 +50,7 @@
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 #include <asm/mce.h>
+#include <asm/kvm_para.h>
 
 unsigned int num_processors;
 
@@ -60,7 +62,7 @@ unsigned int boot_cpu_physical_apicid = -1U;
 /*
  * The highest APIC ID seen during enumeration.
  *
- * This determines the messaging protocol we can use: if all APIC IDs
+ * On AMD, this determines the messaging protocol we can use: if all APIC IDs
  * are in the 0 ... 7 range, then we can use logical addressing which
  * has some performance advantages (better broadcasting).
  *
@@ -977,7 +979,7 @@ void lapic_shutdown(void)
 {
 	unsigned long flags;
 
-	if (!cpu_has_apic)
+	if (!cpu_has_apic && !apic_from_smp_config())
 		return;
 
 	local_irq_save(flags);
@@ -1187,7 +1189,7 @@ void __cpuinit setup_local_APIC(void)
 		apic_write(APIC_ESR, 0);
 	}
 #endif
-	perf_counters_lapic_init();
+	perf_events_lapic_init();
 
 	preempt_disable();
 
@@ -1195,8 +1197,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 * This is meaningless in clustered apic mode, so we skip it.
 	 */
-	if (!apic->apic_id_registered())
-		BUG();
+	BUG_ON(!apic->apic_id_registered());
 
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling
@@ -1361,52 +1362,80 @@ void enable_x2apic(void)
 }
 #endif /* CONFIG_X86_X2APIC */
 
-void __init enable_IR_x2apic(void)
+int __init enable_IR(void)
 {
 #ifdef CONFIG_INTR_REMAP
-	int ret;
-	unsigned long flags;
-	struct IO_APIC_route_entry **ioapic_entries = NULL;
-
-	ret = dmar_table_init();
-	if (ret) {
-		pr_debug("dmar_table_init() failed with %d:\n", ret);
-		goto ir_failed;
-	}
-
 	if (!intr_remapping_supported()) {
 		pr_debug("intr-remapping not supported\n");
-		goto ir_failed;
+		return 0;
 	}
-
 
 	if (!x2apic_preenabled && skip_ioapic_setup) {
 		pr_info("Skipped enabling intr-remap because of skipping "
 			"io-apic setup\n");
-		return;
+		return 0;
 	}
+
+	if (enable_intr_remapping(x2apic_supported()))
+		return 0;
+
+	pr_info("Enabled Interrupt-remapping\n");
+
+	return 1;
+
+#endif
+	return 0;
+}
+
+void __init enable_IR_x2apic(void)
+{
+	unsigned long flags;
+	struct IO_APIC_route_entry **ioapic_entries = NULL;
+	int ret, x2apic_enabled = 0;
+	int dmar_table_init_ret = 0;
+
+#ifdef CONFIG_INTR_REMAP
+	dmar_table_init_ret = dmar_table_init();
+	if (dmar_table_init_ret)
+		pr_debug("dmar_table_init() failed with %d:\n",
+				dmar_table_init_ret);
+#endif
 
 	ioapic_entries = alloc_ioapic_entries();
 	if (!ioapic_entries) {
-		pr_info("Allocate ioapic_entries failed: %d\n", ret);
-		goto end;
+		pr_err("Allocate ioapic_entries failed\n");
+		goto out;
 	}
 
 	ret = save_IO_APIC_setup(ioapic_entries);
 	if (ret) {
 		pr_info("Saving IO-APIC state failed: %d\n", ret);
-		goto end;
+		goto out;
 	}
 
 	local_irq_save(flags);
-	mask_IO_APIC_setup(ioapic_entries);
 	mask_8259A();
+	mask_IO_APIC_setup(ioapic_entries);
 
-	ret = enable_intr_remapping(x2apic_supported());
-	if (ret)
-		goto end_restore;
+	if (dmar_table_init_ret)
+		ret = 0;
+	else
+		ret = enable_IR();
 
-	pr_info("Enabled Interrupt-remapping\n");
+	if (!ret) {
+		/* IR is required if there is APIC ID > 255 even when running
+		 * under KVM
+		 */
+		if (max_physical_apicid > 255 || !kvm_para_available())
+			goto nox2apic;
+		/*
+		 * without IR all CPUs can be addressed by IOAPIC/MSI
+		 * only in physical mode
+		 */
+		x2apic_force_phys();
+	}
+
+	x2apic_enabled = 1;
 
 	if (x2apic_supported() && !x2apic_mode) {
 		x2apic_mode = 1;
@@ -1414,40 +1443,24 @@ void __init enable_IR_x2apic(void)
 		pr_info("Enabled x2apic\n");
 	}
 
-end_restore:
-	if (ret)
-		/*
-		 * IR enabling failed
-		 */
+nox2apic:
+	if (!ret) /* IR enabling failed */
 		restore_IO_APIC_setup(ioapic_entries);
-
 	unmask_8259A();
 	local_irq_restore(flags);
 
-end:
+out:
 	if (ioapic_entries)
 		free_ioapic_entries(ioapic_entries);
 
-	if (!ret)
+	if (x2apic_enabled)
 		return;
 
-ir_failed:
 	if (x2apic_preenabled)
-		panic("x2apic enabled by bios. But IR enabling failed");
+		panic("x2apic: enabled by BIOS but kernel init failed.");
 	else if (cpu_has_x2apic)
-		pr_info("Not enabling x2apic,Intr-remapping\n");
-#else
-	if (!cpu_has_x2apic)
-		return;
-
-	if (x2apic_preenabled)
-		panic("x2apic enabled prior OS handover,"
-		      " enable CONFIG_X86_X2APIC, CONFIG_INTR_REMAP");
-#endif
-
-	return;
+		pr_info("Not enabling x2apic, Intr-remapping init failed.\n");
 }
-
 
 #ifdef CONFIG_X86_64
 /*
@@ -1549,8 +1562,6 @@ no_apic:
 #ifdef CONFIG_X86_64
 void __init early_init_lapic_mapping(void)
 {
-	unsigned long phys_addr;
-
 	/*
 	 * If no local APIC can be found then go out
 	 * : it means there is no mpatable and MADT
@@ -1558,11 +1569,9 @@ void __init early_init_lapic_mapping(void)
 	if (!smp_found_config)
 		return;
 
-	phys_addr = mp_lapic_addr;
-
-	set_fixmap_nocache(FIX_APIC_BASE, phys_addr);
+	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
-		    APIC_BASE, phys_addr);
+		    APIC_BASE, mp_lapic_addr);
 
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
@@ -1651,7 +1660,6 @@ int __init APIC_init_uniprocessor(void)
 	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		pr_err("BIOS bug, local APIC 0x%x not detected!...\n",
 			boot_cpu_physical_apicid);
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 		return -1;
 	}
 #endif
@@ -1701,7 +1709,7 @@ int __init APIC_init_uniprocessor(void)
 	localise_nmi_watchdog();
 #endif
 
-	setup_boot_clock();
+	x86_init.timers.setup_percpu_clockev();
 #ifdef CONFIG_X86_64
 	check_nmi_watchdog();
 #endif
@@ -1908,24 +1916,14 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		max_physical_apicid = apicid;
 
 #ifdef CONFIG_X86_32
-	/*
-	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
-	 * but we need to work other dependencies like SMP_SUSPEND etc
-	 * before this can be done without some confusion.
-	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
-	 *       - Ashok Raj <ashok.raj@intel.com>
-	 */
-	if (max_physical_apicid >= 8) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(version)) {
-				def_to_bigsmp = 0;
-				break;
-			}
-			/* If P4 and above fall through */
-		case X86_VENDOR_AMD:
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_INTEL:
+		if (num_processors > 8)
 			def_to_bigsmp = 1;
-		}
+		break;
+	case X86_VENDOR_AMD:
+		if (max_physical_apicid >= 8)
+			def_to_bigsmp = 1;
 	}
 #endif
 

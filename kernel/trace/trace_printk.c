@@ -11,7 +11,6 @@
 #include <linux/ftrace.h>
 #include <linux/string.h>
 #include <linux/module.h>
-#include <linux/marker.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
 #include <linux/list.h>

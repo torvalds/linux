@@ -52,6 +52,31 @@ struct dma_address {
 	uint32_t addr_hi;
 };
 
+#define LPFC_SLIREV_CONF_WORD	0x58
+struct lpfc_sli_intf {
+	uint32_t word0;
+#define lpfc_sli_intf_iftype_MASK 	0x00000007
+#define lpfc_sli_intf_iftype_SHIFT	0
+#define lpfc_sli_intf_iftype_WORD	word0
+#define lpfc_sli_intf_rev_MASK 		0x0000000f
+#define lpfc_sli_intf_rev_SHIFT		4
+#define lpfc_sli_intf_rev_WORD		word0
+#define LPFC_SLIREV_CONF_SLI4	4
+#define lpfc_sli_intf_family_MASK 	0x000000ff
+#define lpfc_sli_intf_family_SHIFT	8
+#define lpfc_sli_intf_family_WORD	word0
+#define lpfc_sli_intf_feat1_MASK 	0x000000ff
+#define lpfc_sli_intf_feat1_SHIFT	16
+#define lpfc_sli_intf_feat1_WORD	word0
+#define lpfc_sli_intf_feat2_MASK 	0x0000001f
+#define lpfc_sli_intf_feat2_SHIFT	24
+#define lpfc_sli_intf_feat2_WORD	word0
+#define lpfc_sli_intf_valid_MASK 	0x00000007
+#define lpfc_sli_intf_valid_SHIFT	29
+#define lpfc_sli_intf_valid_WORD	word0
+#define LPFC_SLI_INTF_VALID		6
+};
+
 #define LPFC_SLI4_BAR0		1
 #define LPFC_SLI4_BAR1		2
 #define LPFC_SLI4_BAR2		4
@@ -1181,6 +1206,32 @@ struct fcf_record {
 #define lpfc_fcf_record_fcf_state_MASK		0x0000FFFF
 #define lpfc_fcf_record_fcf_state_WORD		word8
 	uint8_t vlan_bitmap[512];
+	uint32_t word137;
+#define lpfc_fcf_record_switch_name_0_SHIFT	0
+#define lpfc_fcf_record_switch_name_0_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_0_WORD	word137
+#define lpfc_fcf_record_switch_name_1_SHIFT	8
+#define lpfc_fcf_record_switch_name_1_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_1_WORD	word137
+#define lpfc_fcf_record_switch_name_2_SHIFT	16
+#define lpfc_fcf_record_switch_name_2_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_2_WORD	word137
+#define lpfc_fcf_record_switch_name_3_SHIFT	24
+#define lpfc_fcf_record_switch_name_3_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_3_WORD	word137
+	uint32_t word138;
+#define lpfc_fcf_record_switch_name_4_SHIFT	0
+#define lpfc_fcf_record_switch_name_4_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_4_WORD	word138
+#define lpfc_fcf_record_switch_name_5_SHIFT	8
+#define lpfc_fcf_record_switch_name_5_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_5_WORD	word138
+#define lpfc_fcf_record_switch_name_6_SHIFT	16
+#define lpfc_fcf_record_switch_name_6_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_6_WORD	word138
+#define lpfc_fcf_record_switch_name_7_SHIFT	24
+#define lpfc_fcf_record_switch_name_7_MASK	0x000000FF
+#define lpfc_fcf_record_switch_name_7_WORD	word138
 };
 
 struct lpfc_mbx_read_fcf_tbl {
@@ -1385,20 +1436,17 @@ struct lpfc_mbx_unreg_vfi {
 
 struct lpfc_mbx_resume_rpi {
 	uint32_t word1;
-#define lpfc_resume_rpi_rpi_SHIFT	0
-#define lpfc_resume_rpi_rpi_MASK	0x0000FFFF
-#define lpfc_resume_rpi_rpi_WORD	word1
+#define lpfc_resume_rpi_index_SHIFT	0
+#define lpfc_resume_rpi_index_MASK	0x0000FFFF
+#define lpfc_resume_rpi_index_WORD	word1
+#define lpfc_resume_rpi_ii_SHIFT	30
+#define lpfc_resume_rpi_ii_MASK		0x00000003
+#define lpfc_resume_rpi_ii_WORD		word1
+#define RESUME_INDEX_RPI		0
+#define RESUME_INDEX_VPI		1
+#define RESUME_INDEX_VFI		2
+#define RESUME_INDEX_FCFI		3
 	uint32_t event_tag;
-	uint32_t word3_rsvd;
-	uint32_t word4_rsvd;
-	uint32_t word5_rsvd;
-	uint32_t word6;
-#define lpfc_resume_rpi_vpi_SHIFT	0
-#define lpfc_resume_rpi_vpi_MASK	0x0000FFFF
-#define lpfc_resume_rpi_vpi_WORD	word6
-#define lpfc_resume_rpi_vfi_SHIFT	16
-#define lpfc_resume_rpi_vfi_MASK	0x0000FFFF
-#define lpfc_resume_rpi_vfi_WORD	word6
 };
 
 #define REG_FCF_INVALID_QID	0xFFFF

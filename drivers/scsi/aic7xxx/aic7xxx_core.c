@@ -5223,7 +5223,7 @@ ahc_chip_init(struct ahc_softc *ahc)
 
 	/*
 	 * Setup the allowed SCSI Sequences based on operational mode.
-	 * If we are a target, we'll enalbe select in operations once
+	 * If we are a target, we'll enable select in operations once
 	 * we've had a lun enabled.
 	 */
 	scsiseq_template = ENSELO|ENAUTOATNO|ENAUTOATNP;

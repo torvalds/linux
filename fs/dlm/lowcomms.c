@@ -106,6 +106,7 @@ struct connection {
 #define CF_CONNECT_PENDING 3
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
+#define CF_CLOSE 6
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
@@ -299,6 +300,8 @@ static void lowcomms_write_space(struct sock *sk)
 
 static inline void lowcomms_connect_sock(struct connection *con)
 {
+	if (test_bit(CF_CLOSE, &con->flags))
+		return;
 	if (!test_and_set_bit(CF_CONNECT_PENDING, &con->flags))
 		queue_work(send_workqueue, &con->swork);
 }
@@ -312,6 +315,10 @@ static void lowcomms_state_change(struct sock *sk)
 int dlm_lowcomms_connect_node(int nodeid)
 {
 	struct connection *con;
+
+	/* with sctp there's no connecting without sending */
+	if (dlm_config.ci_protocol != 0)
+		return 0;
 
 	if (nodeid == dlm_our_nodeid())
 		return 0;
@@ -452,9 +459,9 @@ static void process_sctp_notification(struct connection *con,
 			int prim_len, ret;
 			int addr_len;
 			struct connection *new_con;
-			struct file *file;
 			sctp_peeloff_arg_t parg;
 			int parglen = sizeof(parg);
+			int err;
 
 			/*
 			 * We get this before any data for an association.
@@ -509,19 +516,22 @@ static void process_sctp_notification(struct connection *con,
 			ret = kernel_getsockopt(con->sock, IPPROTO_SCTP,
 						SCTP_SOCKOPT_PEELOFF,
 						(void *)&parg, &parglen);
-			if (ret) {
+			if (ret < 0) {
 				log_print("Can't peel off a socket for "
-					  "connection %d to node %d: err=%d\n",
+					  "connection %d to node %d: err=%d",
 					  parg.associd, nodeid, ret);
+				return;
 			}
-			file = fget(parg.sd);
-			new_con->sock = SOCKET_I(file->f_dentry->d_inode);
+			new_con->sock = sockfd_lookup(parg.sd, &err);
+			if (!new_con->sock) {
+				log_print("sockfd_lookup error %d", err);
+				return;
+			}
 			add_sock(new_con->sock, new_con);
-			fput(file);
-			put_unused_fd(parg.sd);
+			sockfd_put(new_con->sock);
 
-			log_print("got new/restarted association %d nodeid %d",
-				 (int)sn->sn_assoc_change.sac_assoc_id, nodeid);
+			log_print("connecting to %d sctp association %d",
+				 nodeid, (int)sn->sn_assoc_change.sac_assoc_id);
 
 			/* Send any pending writes */
 			clear_bit(CF_CONNECT_PENDING, &new_con->flags);
@@ -834,8 +844,6 @@ static void sctp_init_assoc(struct connection *con)
 	if (con->retries++ > MAX_CONNECT_RETRIES)
 		return;
 
-	log_print("Initiating association with node %d", con->nodeid);
-
 	if (nodeid_to_addr(con->nodeid, (struct sockaddr *)&rem_addr)) {
 		log_print("no address for nodeid %d", con->nodeid);
 		return;
@@ -852,11 +860,14 @@ static void sctp_init_assoc(struct connection *con)
 	outmessage.msg_flags = MSG_EOR;
 
 	spin_lock(&con->writequeue_lock);
-	e = list_entry(con->writequeue.next, struct writequeue_entry,
-		       list);
 
-	BUG_ON((struct list_head *) e == &con->writequeue);
+	if (list_empty(&con->writequeue)) {
+		spin_unlock(&con->writequeue_lock);
+		log_print("writequeue empty for nodeid %d", con->nodeid);
+		return;
+	}
 
+	e = list_first_entry(&con->writequeue, struct writequeue_entry, list);
 	len = e->len;
 	offset = e->offset;
 	spin_unlock(&con->writequeue_lock);
@@ -926,10 +937,8 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out_err;
 
 	memset(&saddr, 0, sizeof(saddr));
-	if (dlm_nodeid_to_addr(con->nodeid, &saddr)) {
-		sock_release(sock);
+	if (dlm_nodeid_to_addr(con->nodeid, &saddr))
 		goto out_err;
-	}
 
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
@@ -1284,7 +1293,6 @@ out:
 static void send_to_sock(struct connection *con)
 {
 	int ret = 0;
-	ssize_t(*sendpage) (struct socket *, struct page *, int, size_t, int);
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
 	int len, offset;
@@ -1292,8 +1300,6 @@ static void send_to_sock(struct connection *con)
 	mutex_lock(&con->sock_mutex);
 	if (con->sock == NULL)
 		goto out_connect;
-
-	sendpage = con->sock->ops->sendpage;
 
 	spin_lock(&con->writequeue_lock);
 	for (;;) {
@@ -1309,8 +1315,8 @@ static void send_to_sock(struct connection *con)
 
 		ret = 0;
 		if (len) {
-			ret = sendpage(con->sock, e->page, offset, len,
-				       msg_flags);
+			ret = kernel_sendpage(con->sock, e->page, offset, len,
+					      msg_flags);
 			if (ret == -EAGAIN || ret == 0) {
 				cond_resched();
 				goto out;
@@ -1370,6 +1376,13 @@ int dlm_lowcomms_close(int nodeid)
 	log_print("closing connection to node %d", nodeid);
 	con = nodeid2con(nodeid, 0);
 	if (con) {
+		clear_bit(CF_CONNECT_PENDING, &con->flags);
+		clear_bit(CF_WRITE_PENDING, &con->flags);
+		set_bit(CF_CLOSE, &con->flags);
+		if (cancel_work_sync(&con->swork))
+			log_print("canceled swork for node %d", nodeid);
+		if (cancel_work_sync(&con->rwork))
+			log_print("canceled rwork for node %d", nodeid);
 		clean_one_writequeue(con);
 		close_connection(con, true);
 	}
@@ -1395,9 +1408,10 @@ static void process_send_sockets(struct work_struct *work)
 
 	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags)) {
 		con->connect_action(con);
+		set_bit(CF_WRITE_PENDING, &con->flags);
 	}
-	clear_bit(CF_WRITE_PENDING, &con->flags);
-	send_to_sock(con);
+	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags))
+		send_to_sock(con);
 }
 
 

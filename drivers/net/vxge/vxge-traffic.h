@@ -35,8 +35,6 @@
 			VXGE_HW_HEADER_VLAN_SIZE + \
 			VXGE_HW_HEADER_SNAP_SIZE)
 
-#define VXGE_HW_TCPIP_HEADER_MAX_SIZE	(64 + 64)
-
 /* 32bit alignments */
 #define VXGE_HW_HEADER_ETHERNET_II_802_3_ALIGN		2
 #define VXGE_HW_HEADER_802_2_SNAP_ALIGN			2
@@ -2328,7 +2326,7 @@ enum vxge_hw_status vxge_hw_vpath_poll_rx(
 
 enum vxge_hw_status vxge_hw_vpath_poll_tx(
 	struct __vxge_hw_fifo *fifoh,
-	void **skb_ptr);
+	struct sk_buff ***skb_ptr, int nr_skb, int *more);
 
 enum vxge_hw_status vxge_hw_vpath_alarm_process(
 	struct __vxge_hw_vpath_handle *vpath_handle,

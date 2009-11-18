@@ -348,7 +348,7 @@ struct expr *expr_trans_bool(struct expr *e)
 /*
  * e1 || e2 -> ?
  */
-struct expr *expr_join_or(struct expr *e1, struct expr *e2)
+static struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 {
 	struct expr *tmp;
 	struct symbol *sym1, *sym2;
@@ -412,7 +412,7 @@ struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 	return NULL;
 }
 
-struct expr *expr_join_and(struct expr *e1, struct expr *e2)
+static struct expr *expr_join_and(struct expr *e1, struct expr *e2)
 {
 	struct expr *tmp;
 	struct symbol *sym1, *sym2;
@@ -1098,6 +1098,8 @@ void expr_fprint(struct expr *e, FILE *out)
 static void expr_print_gstr_helper(void *data, struct symbol *sym, const char *str)
 {
 	str_append((struct gstr*)data, str);
+	if (sym)
+		str_printf((struct gstr*)data, " [=%s]", sym_get_string_value(sym));
 }
 
 void expr_gstr_print(struct expr *e, struct gstr *gs)

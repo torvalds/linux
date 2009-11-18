@@ -56,6 +56,7 @@
 #include "zl10353.h"
 
 #include "zl10036.h"
+#include "zl10039.h"
 #include "mt312.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -968,6 +969,10 @@ static struct zl10036_config avertv_a700_tuner = {
 	.tuner_address = 0x60,
 };
 
+static struct mt312_config zl10313_compro_s350_config = {
+	.demod_address = 0x0e,
+};
+
 static struct lgdt3305_config hcw_lgdt3305_config = {
 	.i2c_addr           = 0x0e,
 	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
@@ -1002,10 +1007,27 @@ static struct tda18271_config hcw_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 	.config  = 3,
+	.output_opt = TDA18271_OUTPUT_LT_OFF,
 };
 
 static struct tda829x_config tda829x_no_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
+static struct tda10048_config zolid_tda10048_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_PARALLEL_OUTPUT,
+	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
+	.inversion        = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3500,
+	.dtv8_if_freq_khz = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
+	.disable_gate_access = 1,
+};
+
+static struct tda18271_config zolid_tda18271_config = {
+	.gate    = TDA18271_GATE_ANALOG,
 };
 
 /* ==================================================================
@@ -1457,7 +1479,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216ME_MK3);
+				   TUNER_PHILIPS_FMD1216MEX_MK3);
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
@@ -1471,6 +1493,29 @@ static int dvb_init(struct saa7134_dev *dev)
 				wprintk("%s: No zl10036 found!\n",
 					__func__);
 			}
+		}
+		break;
+	case SAA7134_BOARD_VIDEOMATE_S350:
+		fe0->dvb.frontend = dvb_attach(mt312_attach,
+				&zl10313_compro_s350_config, &dev->i2c_adap);
+		if (fe0->dvb.frontend)
+			if (dvb_attach(zl10039_attach, fe0->dvb.frontend,
+					0x60, &dev->i2c_adap) == NULL)
+				wprintk("%s: No zl10039 found!\n",
+					__func__);
+
+		break;
+	case SAA7134_BOARD_ZOLID_HYBRID_PCI:
+		fe0->dvb.frontend = dvb_attach(tda10048_attach,
+					       &zolid_tda10048_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &zolid_tda18271_config);
 		}
 		break;
 	default:

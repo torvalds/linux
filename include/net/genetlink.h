@@ -3,6 +3,7 @@
 
 #include <linux/genetlink.h>
 #include <net/netlink.h>
+#include <net/net_namespace.h>
 
 /**
  * struct genl_multicast_group - generic netlink multicast group
@@ -27,6 +28,8 @@ struct genl_multicast_group
  * @name: name of family
  * @version: protocol version
  * @maxattr: maximum number of attributes supported
+ * @netnsok: set to true if the family can handle network
+ *	namespaces and should be presented in all of them
  * @attrbuf: buffer to store parsed attributes
  * @ops_list: list of all assigned operations
  * @family_list: family list
@@ -39,6 +42,7 @@ struct genl_family
 	char			name[GENL_NAMSIZ];
 	unsigned int		version;
 	unsigned int		maxattr;
+	bool			netnsok;
 	struct nlattr **	attrbuf;	/* private */
 	struct list_head	ops_list;	/* private */
 	struct list_head	family_list;	/* private */
@@ -62,7 +66,31 @@ struct genl_info
 	struct genlmsghdr *	genlhdr;
 	void *			userhdr;
 	struct nlattr **	attrs;
+#ifdef CONFIG_NET_NS
+	struct net *		_net;
+#endif
 };
+
+#ifdef CONFIG_NET_NS
+static inline struct net *genl_info_net(struct genl_info *info)
+{
+	return info->_net;
+}
+
+static inline void genl_info_net_set(struct genl_info *info, struct net *net)
+{
+	info->_net = net;
+}
+#else
+static inline struct net *genl_info_net(struct genl_info *info)
+{
+	return &init_net;
+}
+
+static inline void genl_info_net_set(struct genl_info *info, struct net *net)
+{
+}
+#endif
 
 /**
  * struct genl_ops - generic netlink operations
@@ -97,8 +125,6 @@ extern int genl_register_mc_group(struct genl_family *family,
 				  struct genl_multicast_group *grp);
 extern void genl_unregister_mc_group(struct genl_family *family,
 				     struct genl_multicast_group *grp);
-
-extern struct sock *genl_sock;
 
 /**
  * genlmsg_put - Add generic netlink header to netlink message
@@ -170,7 +196,21 @@ static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 }
 
 /**
- * genlmsg_multicast - multicast a netlink message
+ * genlmsg_multicast_netns - multicast a netlink message to a specific netns
+ * @net: the net namespace
+ * @skb: netlink message as socket buffer
+ * @pid: own netlink pid to avoid sending to yourself
+ * @group: multicast group id
+ * @flags: allocation flags
+ */
+static inline int genlmsg_multicast_netns(struct net *net, struct sk_buff *skb,
+					  u32 pid, unsigned int group, gfp_t flags)
+{
+	return nlmsg_multicast(net->genl_sock, skb, pid, group, flags);
+}
+
+/**
+ * genlmsg_multicast - multicast a netlink message to the default netns
  * @skb: netlink message as socket buffer
  * @pid: own netlink pid to avoid sending to yourself
  * @group: multicast group id
@@ -179,17 +219,29 @@ static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 static inline int genlmsg_multicast(struct sk_buff *skb, u32 pid,
 				    unsigned int group, gfp_t flags)
 {
-	return nlmsg_multicast(genl_sock, skb, pid, group, flags);
+	return genlmsg_multicast_netns(&init_net, skb, pid, group, flags);
 }
+
+/**
+ * genlmsg_multicast_allns - multicast a netlink message to all net namespaces
+ * @skb: netlink message as socket buffer
+ * @pid: own netlink pid to avoid sending to yourself
+ * @group: multicast group id
+ * @flags: allocation flags
+ *
+ * This function must hold the RTNL or rcu_read_lock().
+ */
+int genlmsg_multicast_allns(struct sk_buff *skb, u32 pid,
+			    unsigned int group, gfp_t flags);
 
 /**
  * genlmsg_unicast - unicast a netlink message
  * @skb: netlink message as socket buffer
  * @pid: netlink pid of the destination socket
  */
-static inline int genlmsg_unicast(struct sk_buff *skb, u32 pid)
+static inline int genlmsg_unicast(struct net *net, struct sk_buff *skb, u32 pid)
 {
-	return nlmsg_unicast(genl_sock, skb, pid);
+	return nlmsg_unicast(net->genl_sock, skb, pid);
 }
 
 /**
@@ -199,7 +251,7 @@ static inline int genlmsg_unicast(struct sk_buff *skb, u32 pid)
  */
 static inline int genlmsg_reply(struct sk_buff *skb, struct genl_info *info)
 {
-	return genlmsg_unicast(skb, info->snd_pid);
+	return genlmsg_unicast(genl_info_net(info), skb, info->snd_pid);
 }
 
 /**

@@ -807,9 +807,9 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 				mib_p->fddiPORTLerFlag ;
 			sp->p4050_pad = 0 ;
 			sp->p4050_cutoff =
-				mib_p->fddiPORTLer_Cutoff ; ;
+				mib_p->fddiPORTLer_Cutoff ;
 			sp->p4050_alarm =
-				mib_p->fddiPORTLer_Alarm ; ;
+				mib_p->fddiPORTLer_Alarm ;
 			sp->p4050_estimate =
 				mib_p->fddiPORTLer_Estimate ;
 			sp->p4050_reject_ct =
@@ -829,7 +829,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			sp->p4051_porttype =
 				mib_p->fddiPORTMy_Type ;
 			sp->p4051_connectstate =
-				mib_p->fddiPORTConnectState ; ;
+				mib_p->fddiPORTConnectState ;
 			sp->p4051_pc_neighbor =
 				mib_p->fddiPORTNeighborType ;
 			sp->p4051_pc_withhold =
@@ -853,7 +853,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			struct smt_p_4053	*sp ;
 			sp = (struct smt_p_4053 *) to ;
 			sp->p4053_multiple =
-				mib_p->fddiPORTMultiple_P ; ;
+				mib_p->fddiPORTMultiple_P ;
 			sp->p4053_availablepaths =
 				mib_p->fddiPORTAvailablePaths ;
 			sp->p4053_currentpath =

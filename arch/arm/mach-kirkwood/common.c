@@ -838,7 +838,8 @@ int __init kirkwood_find_tclk(void)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (dev == MV88F6281_DEV_ID && rev == MV88F6281_REV_A0)
+	if (dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
+					rev == MV88F6281_REV_A1))
 		return 200000000;
 
 	return 166666667;
@@ -872,6 +873,8 @@ static char * __init kirkwood_id(void)
 			return "MV88F6281-Z0";
 		else if (rev == MV88F6281_REV_A0)
 			return "MV88F6281-A0";
+		else if (rev == MV88F6281_REV_A1)
+			return "MV88F6281-A1";
 		else
 			return "MV88F6281-Rev-Unsupported";
 	} else if (dev == MV88F6192_DEV_ID) {

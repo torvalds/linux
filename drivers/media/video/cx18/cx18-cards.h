@@ -22,13 +22,17 @@
  */
 
 /* hardware flags */
-#define CX18_HW_TUNER		(1 << 0)
-#define CX18_HW_TVEEPROM	(1 << 1)
-#define CX18_HW_CS5345		(1 << 2)
-#define CX18_HW_DVB		(1 << 3)
-#define CX18_HW_418_AV		(1 << 4)
-#define CX18_HW_GPIO_MUX	(1 << 5)
-#define CX18_HW_GPIO_RESET_CTRL	(1 << 6)
+#define CX18_HW_TUNER			(1 << 0)
+#define CX18_HW_TVEEPROM		(1 << 1)
+#define CX18_HW_CS5345			(1 << 2)
+#define CX18_HW_DVB			(1 << 3)
+#define CX18_HW_418_AV			(1 << 4)
+#define CX18_HW_GPIO_MUX		(1 << 5)
+#define CX18_HW_GPIO_RESET_CTRL		(1 << 6)
+#define CX18_HW_Z8F0811_IR_TX_HAUP	(1 << 7)
+#define CX18_HW_Z8F0811_IR_RX_HAUP	(1 << 8)
+#define CX18_HW_Z8F0811_IR_HAUP	(CX18_HW_Z8F0811_IR_RX_HAUP | \
+				 CX18_HW_Z8F0811_IR_TX_HAUP)
 
 /* video inputs */
 #define	CX18_CARD_INPUT_VID_TUNER	1

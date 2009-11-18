@@ -15,7 +15,6 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_dscp.h>
-#include <linux/netfilter_ipv4/ipt_tos.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: DSCP/TOS field match");
@@ -55,14 +54,6 @@ static bool dscp_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
-static bool
-tos_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
-{
-	const struct ipt_tos_info *info = par->matchinfo;
-
-	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
-}
-
 static bool tos_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct xt_tos_match_info *info = par->matchinfo;
@@ -90,14 +81,6 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 		.checkentry	= dscp_mt_check,
 		.match		= dscp_mt6,
 		.matchsize	= sizeof(struct xt_dscp_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "tos",
-		.revision	= 0,
-		.family		= NFPROTO_IPV4,
-		.match		= tos_mt_v0,
-		.matchsize	= sizeof(struct ipt_tos_info),
 		.me		= THIS_MODULE,
 	},
 	{

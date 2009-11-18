@@ -69,6 +69,18 @@ static struct map_desc s3c2412_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
+	{
+		.virtual = (unsigned long)S3C2412_VA_SSMC,
+		.pfn	 = __phys_to_pfn(S3C2412_PA_SSMC),
+		.length	 = SZ_1M,
+		.type	 = MT_DEVICE,
+	},
+	{
+		.virtual = (unsigned long)S3C2412_VA_EBI,
+		.pfn	 = __phys_to_pfn(S3C2412_PA_EBI),
+		.length	 = SZ_1M,
+		.type	 = MT_DEVICE,
+	},
 };
 
 /* uart registration process */

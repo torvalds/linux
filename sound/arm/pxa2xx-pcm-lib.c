@@ -136,6 +136,9 @@ int __pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct pxa2xx_runtime_data *prtd = substream->runtime->private_data;
 
+	if (!prtd || !prtd->params)
+		return 0;
+
 	DCSR(prtd->dma_ch) &= ~DCSR_RUN;
 	DCSR(prtd->dma_ch) = 0;
 	DCMD(prtd->dma_ch) = 0;

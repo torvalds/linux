@@ -141,8 +141,7 @@ static int atihdmi_build_pcms(struct hda_codec *codec)
 	/* FIXME: we must check ELD and change the PCM parameters dynamically
 	 */
 	chans = get_wcaps(codec, CVT_NID);
-	chans = (chans & AC_WCAP_CHAN_CNT_EXT) >> 13;
-	chans = ((chans << 1) | 1) + 1;
+	chans = get_wcaps_channels(chans);
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = chans;
 
 	return 0;

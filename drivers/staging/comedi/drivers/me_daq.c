@@ -51,6 +51,7 @@ from http://www.comedi.org
 */
 
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -151,46 +152,47 @@ static int me_detach(struct comedi_device *dev);
 static const struct comedi_lrange me2000_ai_range = {
 	8,
 	{
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2.5),
-		UNI_RANGE(1.25)
-	}
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 BIP_RANGE(2.5),
+	 BIP_RANGE(1.25),
+	 UNI_RANGE(10),
+	 UNI_RANGE(5),
+	 UNI_RANGE(2.5),
+	 UNI_RANGE(1.25)
+	 }
 };
 
 static const struct comedi_lrange me2600_ai_range = {
 	8,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-		}
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 BIP_RANGE(2.5),
+	 BIP_RANGE(1.25),
+	 UNI_RANGE(10),
+	 UNI_RANGE(5),
+	 UNI_RANGE(2.5),
+	 UNI_RANGE(1.25)
+	 }
 };
 
 static const struct comedi_lrange me2600_ao_range = {
 	3,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			UNI_RANGE(10)
-		}
+	 BIP_RANGE(10),
+	 BIP_RANGE(5),
+	 UNI_RANGE(10)
+	 }
 };
 
 static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
-	{PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
-	{PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
-	{0}
+	{
+	PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID, PCI_ANY_ID,
+		    PCI_ANY_ID, 0, 0, 0}, {
+	PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID, PCI_ANY_ID,
+		    PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, me_pci_table);
@@ -212,48 +214,48 @@ struct me_board {
 
 static const struct me_board me_boards[] = {
 	{
-		/* -- ME-2600i -- */
-		.name = 		ME_DRIVER_NAME,
-		.device_id =		ME2600_DEVICE_ID,
-		/* Analog Output */
-		.ao_channel_nbr =	4,
-		.ao_resolution =	12,
-		.ao_resolution_mask =	0x0fff,
-		.ao_range_list =	&me2600_ao_range,
-		.ai_channel_nbr =	16,
-		/* Analog Input */
-		.ai_resolution =	12,
-		.ai_resolution_mask =	0x0fff,
-		.ai_range_list =	&me2600_ai_range,
-		.dio_channel_nbr =	32,
-		},
+	 /* -- ME-2600i -- */
+	 .name = ME_DRIVER_NAME,
+	 .device_id = ME2600_DEVICE_ID,
+	 /* Analog Output */
+	 .ao_channel_nbr = 4,
+	 .ao_resolution = 12,
+	 .ao_resolution_mask = 0x0fff,
+	 .ao_range_list = &me2600_ao_range,
+	 .ai_channel_nbr = 16,
+	 /* Analog Input */
+	 .ai_resolution = 12,
+	 .ai_resolution_mask = 0x0fff,
+	 .ai_range_list = &me2600_ai_range,
+	 .dio_channel_nbr = 32,
+	 },
 	{
-		/* -- ME-2000i -- */
-		.name =			ME_DRIVER_NAME,
-		.device_id =		ME2000_DEVICE_ID,
-		/* Analog Output */
-		.ao_channel_nbr =	0,
-		.ao_resolution =	0,
-		.ao_resolution_mask =	0,
-		.ao_range_list =	NULL,
-		.ai_channel_nbr =	16,
-		/* Analog Input */
-		.ai_resolution =	12,
-		.ai_resolution_mask =	0x0fff,
-		.ai_range_list =	&me2000_ai_range,
-		.dio_channel_nbr =	32,
-		}
+	 /* -- ME-2000i -- */
+	 .name = ME_DRIVER_NAME,
+	 .device_id = ME2000_DEVICE_ID,
+	 /* Analog Output */
+	 .ao_channel_nbr = 0,
+	 .ao_resolution = 0,
+	 .ao_resolution_mask = 0,
+	 .ao_range_list = NULL,
+	 .ai_channel_nbr = 16,
+	 /* Analog Input */
+	 .ai_resolution = 12,
+	 .ai_resolution_mask = 0x0fff,
+	 .ai_range_list = &me2000_ai_range,
+	 .dio_channel_nbr = 32,
+	 }
 };
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
 
-
 static struct comedi_driver me_driver = {
-      .driver_name =	ME_DRIVER_NAME,
-      .module =		THIS_MODULE,
-      .attach =		me_attach,
-      .detach =		me_detach,
+	.driver_name = ME_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = me_attach,
+	.detach = me_detach,
 };
+
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 
 /* Private data structure */
@@ -292,7 +294,8 @@ static inline void sleep(unsigned sec)
  *
  * ------------------------------------------------------------------
  */
-static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+static int me_dio_insn_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	int bits;
@@ -305,7 +308,7 @@ static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice
 		/* Enable Port A */
 		dev_private->control_2 |= ENABLE_PORT_A;
 		writew(dev_private->control_2,
-			dev_private->me_regbase + ME_CONTROL_2);
+		       dev_private->me_regbase + ME_CONTROL_2);
 	} else {		/* Port B in use */
 
 		bits = 0xffff0000;
@@ -313,7 +316,7 @@ static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice
 		/* Enable Port B */
 		dev_private->control_2 |= ENABLE_PORT_B;
 		writew(dev_private->control_2,
-			dev_private->me_regbase + ME_CONTROL_2);
+		       dev_private->me_regbase + ME_CONTROL_2);
 	}
 
 	if (data[0]) {
@@ -328,7 +331,8 @@ static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice
 }
 
 /* Digital instant input/outputs */
-static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+static int me_dio_insn_bits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
@@ -338,7 +342,7 @@ static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *
 	mask &= s->io_bits;
 	if (mask & 0x0000ffff) {	/* Port A */
 		writew((s->state & 0xffff),
-			dev_private->me_regbase + ME_DIO_PORT_A);
+		       dev_private->me_regbase + ME_DIO_PORT_A);
 	} else {
 		data[1] &= ~0x0000ffff;
 		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_A);
@@ -346,7 +350,7 @@ static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *
 
 	if (mask & 0xffff0000) {	/* Port B */
 		writew(((s->state >> 16) & 0xffff),
-			dev_private->me_regbase + ME_DIO_PORT_B);
+		       dev_private->me_regbase + ME_DIO_PORT_B);
 	} else {
 		data[1] &= ~0xffff0000;
 		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_B) << 16;
@@ -364,7 +368,8 @@ static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *
  */
 
 /* Analog instant input */
-static int me_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *subdevice,
+static int me_ai_insn_read(struct comedi_device *dev,
+			   struct comedi_subdevice *subdevice,
 			   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
@@ -414,8 +419,8 @@ static int me_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s
 	/* get value from ADC fifo */
 	if (i) {
 		data[0] =
-			(readw(dev_private->me_regbase +
-				ME_READ_AD_FIFO) ^ 0x800) & 0x0FFF;
+		    (readw(dev_private->me_regbase +
+			   ME_READ_AD_FIFO) ^ 0x800) & 0x0FFF;
 	} else {
 		printk(KERN_ERR "comedi%d: Cannot get single value\n",
 		       dev->minor);
@@ -450,14 +455,15 @@ static int me_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 /* Test analog input command */
-static int me_ai_do_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd)
+static int me_ai_do_cmd_test(struct comedi_device *dev,
+			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	return 0;
 }
 
 /* Analog input command */
-static int me_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *subdevice)
+static int me_ai_do_cmd(struct comedi_device *dev,
+			struct comedi_subdevice *subdevice)
 {
 	return 0;
 }
@@ -471,7 +477,8 @@ static int me_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *subd
  */
 
 /* Analog instant output */
-static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+static int me_ao_insn_write(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	int chan;
@@ -495,13 +502,13 @@ static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *
 		dev_private->dac_control &= ~(0x0880 >> chan);
 		if (rang == 0)
 			dev_private->dac_control |=
-				((DAC_BIPOLAR_A | DAC_GAIN_1_A) >> chan);
+			    ((DAC_BIPOLAR_A | DAC_GAIN_1_A) >> chan);
 		else if (rang == 1)
 			dev_private->dac_control |=
-				((DAC_BIPOLAR_A | DAC_GAIN_0_A) >> chan);
+			    ((DAC_BIPOLAR_A | DAC_GAIN_0_A) >> chan);
 	}
 	writew(dev_private->dac_control,
-		dev_private->me_regbase + ME_DAC_CONTROL);
+	       dev_private->me_regbase + ME_DAC_CONTROL);
 
 	/* Update dac-control register */
 	readw(dev_private->me_regbase + ME_DAC_CONTROL_UPDATE);
@@ -510,7 +517,7 @@ static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *
 	for (i = 0; i < insn->n; i++) {
 		chan = CR_CHAN((&insn->chanspec)[i]);
 		writew((data[0] & s->maxdata),
-			dev_private->me_regbase + ME_DAC_DATA_A + (chan << 1));
+		       dev_private->me_regbase + ME_DAC_DATA_A + (chan << 1));
 		dev_private->ao_readback[chan] = (data[0] & s->maxdata);
 	}
 
@@ -521,14 +528,15 @@ static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 /* Analog output readback */
-static int me_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int me_ao_insn_read(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		data[i] =
-			dev_private->ao_readback[CR_CHAN((&insn->chanspec)[i])];
+		    dev_private->ao_readback[CR_CHAN((&insn->chanspec)[i])];
 	}
 
 	return 1;
@@ -575,9 +583,9 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	if (length < 16)
 		return -EINVAL;
 	file_length = (((unsigned int)me2600_firmware[0] & 0xff) << 24) +
-		      (((unsigned int)me2600_firmware[1] & 0xff) << 16) +
-		      (((unsigned int)me2600_firmware[2] & 0xff) << 8) +
-		      ((unsigned int)me2600_firmware[3] & 0xff);
+	    (((unsigned int)me2600_firmware[1] & 0xff) << 16) +
+	    (((unsigned int)me2600_firmware[2] & 0xff) << 8) +
+	    ((unsigned int)me2600_firmware[3] & 0xff);
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
@@ -585,7 +593,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	 */
 	for (i = 0; i < file_length; i++)
 		writeb((me2600_firmware[16 + i] & 0xff),
-			dev_private->me_regbase + 0x0);
+		       dev_private->me_regbase + 0x0);
 
 	/* Write 5 dummy values to xilinx */
 	for (i = 0; i < 5; i++)
@@ -653,33 +661,32 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Probe the device to determine what device in the series it is. */
 	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_device != NULL;
-		pci_device =
-		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	     pci_device != NULL;
+	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
 			for (i = 0; i < me_board_nbr; i++) {
 				if (me_boards[i].device_id ==
-					pci_device->device) {
+				    pci_device->device) {
 					/*
 					 * was a particular bus/slot requested?
 					 */
 					if ((it->options[0] != 0)
-						|| (it->options[1] != 0)) {
+					    || (it->options[1] != 0)) {
 						/*
 						 * are we on the wrong bus/slot?
 						 */
 						if (pci_device->bus->number !=
-							it->options[0]
-							|| PCI_SLOT(pci_device->
-								devfn) !=
-							it->options[1]) {
+						    it->options[0]
+						    ||
+						    PCI_SLOT(pci_device->devfn)
+						    != it->options[1]) {
 							continue;
 						}
 					}
 
 					dev->board_ptr = me_boards + i;
-					board = (struct me_board *) dev->
-						board_ptr;
+					board =
+					    (struct me_board *)dev->board_ptr;
 					dev_private->pci_device = pci_device;
 					goto found;
 				}
@@ -694,8 +701,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 found:
 	printk(KERN_INFO "comedi%d: found %s at PCI bus %d, slot %d\n",
-		dev->minor, me_boards[i].name,
-		pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+	       dev->minor, me_boards[i].name,
+	       pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
 	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
@@ -711,7 +718,7 @@ found:
 	plx_regbase_tmp = pci_resource_start(pci_device, 0);
 	plx_regbase_size_tmp = pci_resource_len(pci_device, 0);
 	dev_private->plx_regbase =
-		ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
+	    ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 	dev_private->plx_regbase_size = plx_regbase_size_tmp;
 	if (!dev_private->plx_regbase) {
 		printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
@@ -736,18 +743,21 @@ found:
 			swap_regbase_tmp = regbase_tmp;
 
 			result = pci_write_config_dword(pci_device,
-				PCI_BASE_ADDRESS_0, plx_regbase_tmp);
+							PCI_BASE_ADDRESS_0,
+							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 
 			result = pci_write_config_dword(pci_device,
-				PCI_BASE_ADDRESS_5, swap_regbase_tmp);
+							PCI_BASE_ADDRESS_5,
+							swap_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		} else {
 			plx_regbase_tmp -= 0x80;
 			result = pci_write_config_dword(pci_device,
-				PCI_BASE_ADDRESS_0, plx_regbase_tmp);
+							PCI_BASE_ADDRESS_0,
+							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		}
@@ -822,7 +832,8 @@ found:
 	subdevice->insn_config = me_dio_insn_config;
 	subdevice->io_bits = 0;
 
-	printk(KERN_INFO "comedi%d: "ME_DRIVER_NAME" attached.\n", dev->minor);
+	printk(KERN_INFO "comedi%d: " ME_DRIVER_NAME " attached.\n",
+	       dev->minor);
 	return 0;
 }
 

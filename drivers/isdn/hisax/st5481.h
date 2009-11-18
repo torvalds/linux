@@ -226,7 +226,7 @@ printk(KERN_WARNING "%s:%s: " format "\n" , __FILE__,  __func__ , ## arg)
 #define INFO(format, arg...) \
 printk(KERN_INFO "%s:%s: " format "\n" , __FILE__,  __func__ , ## arg)
 
-#include "isdnhdlc.h"
+#include <linux/isdn/hdlc.h>
 #include "fsm.h"
 #include "hisax_if.h"
 #include <linux/skbuff.h>

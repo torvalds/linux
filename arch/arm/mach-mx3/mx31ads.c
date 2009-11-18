@@ -517,7 +517,7 @@ static void __init mx31ads_map_io(void)
 
 static void __init mx31ads_init_irq(void)
 {
-	mxc_init_irq();
+	mx31_init_irq();
 	mx31ads_init_expio();
 }
 

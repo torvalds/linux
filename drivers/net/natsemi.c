@@ -621,7 +621,7 @@ static void drain_ring(struct net_device *dev);
 static void free_ring(struct net_device *dev);
 static void reinit_ring(struct net_device *dev);
 static void init_registers(struct net_device *dev);
-static int start_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t intr_handler(int irq, void *dev_instance);
 static void netdev_error(struct net_device *dev, int intr_status);
 static int natsemi_poll(struct napi_struct *napi, int budget);
@@ -2079,7 +2079,7 @@ static void reinit_ring(struct net_device *dev)
 	reinit_rx(dev);
 }
 
-static int start_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
@@ -2125,7 +2125,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d.\n",
 			dev->name, np->cur_tx, entry);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void netdev_tx_done(struct net_device *dev)
@@ -3053,12 +3053,10 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
-	case SIOCDEVPRIVATE:		/* for binary compat, remove in 2.5 */
 		data->phy_id = np->phy_addr_external;
 		/* Fall Through */
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
-	case SIOCDEVPRIVATE+1:		/* for binary compat, remove in 2.5 */
 		/* The phy_id is not enough to uniquely identify
 		 * the intended target. Therefore the command is sent to
 		 * the given mii on the current port.
@@ -3077,9 +3075,6 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-	case SIOCDEVPRIVATE+2:		/* for binary compat, remove in 2.5 */
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (dev->if_port == PORT_TP) {
 			if ((data->phy_id & 0x1f) == np->phy_addr_external) {
  				if ((data->reg_num & 0x1f) == MII_ADVERTISE)

@@ -280,8 +280,8 @@ kvmap_dtlb_nonlinear:
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* Do not use the TSB for vmemmap.  */
-	mov		(VMEMMAP_BASE >> 24), %g5
-	sllx		%g5, 24, %g5
+	mov		(VMEMMAP_BASE >> 40), %g5
+	sllx		%g5, 40, %g5
 	cmp		%g4,%g5
 	bgeu,pn		%xcc, kvmap_vmemmap
 	 nop
@@ -293,8 +293,8 @@ kvmap_dtlb_tsbmiss:
 	sethi		%hi(MODULES_VADDR), %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, kvmap_dtlb_longpath
-	 mov		(VMALLOC_END >> 24), %g5
-	sllx		%g5, 24, %g5
+	 mov		(VMALLOC_END >> 40), %g5
+	sllx		%g5, 40, %g5
 	cmp		%g4, %g5
 	bgeu,pn		%xcc, kvmap_dtlb_longpath
 	 nop

@@ -171,6 +171,36 @@ static void ks8851_wrreg16(struct ks8851_net *ks, unsigned reg, unsigned val)
 }
 
 /**
+ * ks8851_wrreg8 - write 8bit register value to chip
+ * @ks: The chip state
+ * @reg: The register address
+ * @val: The value to write
+ *
+ * Issue a write to put the value @val into the register specified in @reg.
+ */
+static void ks8851_wrreg8(struct ks8851_net *ks, unsigned reg, unsigned val)
+{
+	struct spi_transfer *xfer = &ks->spi_xfer1;
+	struct spi_message *msg = &ks->spi_msg1;
+	__le16 txb[2];
+	int ret;
+	int bit;
+
+	bit = 1 << (reg & 3);
+
+	txb[0] = cpu_to_le16(MK_OP(bit, reg) | KS_SPIOP_WR);
+	txb[1] = val;
+
+	xfer->tx_buf = txb;
+	xfer->rx_buf = NULL;
+	xfer->len = 3;
+
+	ret = spi_sync(ks->spidev, msg);
+	if (ret < 0)
+		ks_err(ks, "spi_sync() failed\n");
+}
+
+/**
  * ks8851_rx_1msg - select whether to use one or two messages for spi read
  * @ks: The device structure
  *
@@ -322,13 +352,12 @@ static void ks8851_soft_reset(struct ks8851_net *ks, unsigned op)
 static int ks8851_write_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
-	u16 *mcp = (u16 *)dev->dev_addr;
+	int i;
 
 	mutex_lock(&ks->lock);
 
-	ks8851_wrreg16(ks, KS_MARL, mcp[0]);
-	ks8851_wrreg16(ks, KS_MARM, mcp[1]);
-	ks8851_wrreg16(ks, KS_MARH, mcp[2]);
+	for (i = 0; i < ETH_ALEN; i++)
+		ks8851_wrreg8(ks, KS_MAR(i), dev->dev_addr[i]);
 
 	mutex_unlock(&ks->lock);
 
@@ -868,11 +897,12 @@ static int ks8851_net_stop(struct net_device *dev)
  * and secondly so we can round up more than one packet to transmit which
  * means we can try and avoid generating too many transmit done interrupts.
  */
-static int ks8851_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned needed = calc_txlen(skb->len);
-	int ret = NETDEV_TX_OK;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	if (netif_msg_tx_queued(ks))
 		ks_dbg(ks, "%s: skb %p, %d@%p\n", __func__,
@@ -950,7 +980,7 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 			mcptr = mcptr->next;
 		}
 
-		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXAE | RXCR1_RXPAFMA;
+		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXPAFMA;
 	} else {
 		/* just accept broadcast / unicast */
 		rxctrl.rxcr1 = RXCR1_RXPAFMA;
@@ -1238,6 +1268,9 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	ndev->netdev_ops = &ks8851_netdev_ops;
 	ndev->irq = spi->irq;
 
+	/* issue a global soft reset to reset the device. */
+	ks8851_soft_reset(ks, GRR_GSR);
+
 	/* simple check for a valid chip being connected to the bus */
 
 	if ((ks8851_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
@@ -1320,3 +1353,4 @@ MODULE_LICENSE("GPL");
 
 module_param_named(message, msg_enable, int, 0);
 MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_ALIAS("spi:ks8851");

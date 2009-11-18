@@ -15,6 +15,42 @@
 
 #include <linux/crypto.h>
 
+struct crypto_ahash;
+
+struct hash_alg_common {
+	unsigned int digestsize;
+	unsigned int statesize;
+
+	struct crypto_alg base;
+};
+
+struct ahash_request {
+	struct crypto_async_request base;
+
+	unsigned int nbytes;
+	struct scatterlist *src;
+	u8 *result;
+
+	/* This field may only be used by the ahash API code. */
+	void *priv;
+
+	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+};
+
+struct ahash_alg {
+	int (*init)(struct ahash_request *req);
+	int (*update)(struct ahash_request *req);
+	int (*final)(struct ahash_request *req);
+	int (*finup)(struct ahash_request *req);
+	int (*digest)(struct ahash_request *req);
+	int (*export)(struct ahash_request *req, void *out);
+	int (*import)(struct ahash_request *req, const void *in);
+	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
+		      unsigned int keylen);
+
+	struct hash_alg_common halg;
+};
+
 struct shash_desc {
 	struct crypto_shash *tfm;
 	u32 flags;
@@ -24,7 +60,6 @@ struct shash_desc {
 
 struct shash_alg {
 	int (*init)(struct shash_desc *desc);
-	int (*reinit)(struct shash_desc *desc);
 	int (*update)(struct shash_desc *desc, const u8 *data,
 		      unsigned int len);
 	int (*final)(struct shash_desc *desc, u8 *out);
@@ -32,38 +67,48 @@ struct shash_alg {
 		     unsigned int len, u8 *out);
 	int (*digest)(struct shash_desc *desc, const u8 *data,
 		      unsigned int len, u8 *out);
+	int (*export)(struct shash_desc *desc, void *out);
+	int (*import)(struct shash_desc *desc, const void *in);
 	int (*setkey)(struct crypto_shash *tfm, const u8 *key,
 		      unsigned int keylen);
 
 	unsigned int descsize;
-	unsigned int digestsize;
+
+	/* These fields must match hash_alg_common. */
+	unsigned int digestsize
+		__attribute__ ((aligned(__alignof__(struct hash_alg_common))));
+	unsigned int statesize;
 
 	struct crypto_alg base;
 };
 
 struct crypto_ahash {
+	int (*init)(struct ahash_request *req);
+	int (*update)(struct ahash_request *req);
+	int (*final)(struct ahash_request *req);
+	int (*finup)(struct ahash_request *req);
+	int (*digest)(struct ahash_request *req);
+	int (*export)(struct ahash_request *req, void *out);
+	int (*import)(struct ahash_request *req, const void *in);
+	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
+		      unsigned int keylen);
+
+	unsigned int reqsize;
 	struct crypto_tfm base;
 };
 
 struct crypto_shash {
+	unsigned int descsize;
 	struct crypto_tfm base;
 };
 
 static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
 {
-	return (struct crypto_ahash *)tfm;
+	return container_of(tfm, struct crypto_ahash, base);
 }
 
-static inline struct crypto_ahash *crypto_alloc_ahash(const char *alg_name,
-						      u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	mask &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_AHASH;
-	mask |= CRYPTO_ALG_TYPE_AHASH_MASK;
-
-	return __crypto_ahash_cast(crypto_alloc_base(alg_name, type, mask));
-}
+struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
+					u32 mask);
 
 static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
 {
@@ -72,7 +117,7 @@ static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
 
 static inline void crypto_free_ahash(struct crypto_ahash *tfm)
 {
-	crypto_free_tfm(crypto_ahash_tfm(tfm));
+	crypto_destroy_tfm(tfm, crypto_ahash_tfm(tfm));
 }
 
 static inline unsigned int crypto_ahash_alignmask(
@@ -81,14 +126,26 @@ static inline unsigned int crypto_ahash_alignmask(
 	return crypto_tfm_alg_alignmask(crypto_ahash_tfm(tfm));
 }
 
-static inline struct ahash_tfm *crypto_ahash_crt(struct crypto_ahash *tfm)
+static inline struct hash_alg_common *__crypto_hash_alg_common(
+	struct crypto_alg *alg)
 {
-	return &crypto_ahash_tfm(tfm)->crt_ahash;
+	return container_of(alg, struct hash_alg_common, base);
+}
+
+static inline struct hash_alg_common *crypto_hash_alg_common(
+	struct crypto_ahash *tfm)
+{
+	return __crypto_hash_alg_common(crypto_ahash_tfm(tfm)->__crt_alg);
 }
 
 static inline unsigned int crypto_ahash_digestsize(struct crypto_ahash *tfm)
 {
-	return crypto_ahash_crt(tfm)->digestsize;
+	return crypto_hash_alg_common(tfm)->digestsize;
+}
+
+static inline unsigned int crypto_ahash_statesize(struct crypto_ahash *tfm)
+{
+	return crypto_hash_alg_common(tfm)->statesize;
 }
 
 static inline u32 crypto_ahash_get_flags(struct crypto_ahash *tfm)
@@ -114,7 +171,7 @@ static inline struct crypto_ahash *crypto_ahash_reqtfm(
 
 static inline unsigned int crypto_ahash_reqsize(struct crypto_ahash *tfm)
 {
-	return crypto_ahash_crt(tfm)->reqsize;
+	return tfm->reqsize;
 }
 
 static inline void *ahash_request_ctx(struct ahash_request *req)
@@ -122,44 +179,30 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
 	return req->__ctx;
 }
 
-static inline int crypto_ahash_setkey(struct crypto_ahash *tfm,
-				      const u8 *key, unsigned int keylen)
-{
-	struct ahash_tfm *crt = crypto_ahash_crt(tfm);
+int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
+			unsigned int keylen);
+int crypto_ahash_finup(struct ahash_request *req);
+int crypto_ahash_final(struct ahash_request *req);
+int crypto_ahash_digest(struct ahash_request *req);
 
-	return crt->setkey(tfm, key, keylen);
+static inline int crypto_ahash_export(struct ahash_request *req, void *out)
+{
+	return crypto_ahash_reqtfm(req)->export(req, out);
 }
 
-static inline int crypto_ahash_digest(struct ahash_request *req)
+static inline int crypto_ahash_import(struct ahash_request *req, const void *in)
 {
-	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
-	return crt->digest(req);
+	return crypto_ahash_reqtfm(req)->import(req, in);
 }
-
-static inline void crypto_ahash_export(struct ahash_request *req, u8 *out)
-{
-	memcpy(out, ahash_request_ctx(req),
-	       crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
-}
-
-int crypto_ahash_import(struct ahash_request *req, const u8 *in);
 
 static inline int crypto_ahash_init(struct ahash_request *req)
 {
-	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
-	return crt->init(req);
+	return crypto_ahash_reqtfm(req)->init(req);
 }
 
 static inline int crypto_ahash_update(struct ahash_request *req)
 {
-	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
-	return crt->update(req);
-}
-
-static inline int crypto_ahash_final(struct ahash_request *req)
-{
-	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
-	return crt->final(req);
+	return crypto_ahash_reqtfm(req)->update(req);
 }
 
 static inline void ahash_request_set_tfm(struct ahash_request *req,
@@ -184,7 +227,7 @@ static inline struct ahash_request *ahash_request_alloc(
 
 static inline void ahash_request_free(struct ahash_request *req)
 {
-	kfree(req);
+	kzfree(req);
 }
 
 static inline struct ahash_request *ahash_request_cast(
@@ -251,6 +294,11 @@ static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
 	return crypto_shash_alg(tfm)->digestsize;
 }
 
+static inline unsigned int crypto_shash_statesize(struct crypto_shash *tfm)
+{
+	return crypto_shash_alg(tfm)->statesize;
+}
+
 static inline u32 crypto_shash_get_flags(struct crypto_shash *tfm)
 {
 	return crypto_tfm_get_flags(crypto_shash_tfm(tfm));
@@ -268,7 +316,7 @@ static inline void crypto_shash_clear_flags(struct crypto_shash *tfm, u32 flags)
 
 static inline unsigned int crypto_shash_descsize(struct crypto_shash *tfm)
 {
-	return crypto_shash_alg(tfm)->descsize;
+	return tfm->descsize;
 }
 
 static inline void *shash_desc_ctx(struct shash_desc *desc)
@@ -281,12 +329,15 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out);
 
-static inline void crypto_shash_export(struct shash_desc *desc, u8 *out)
+static inline int crypto_shash_export(struct shash_desc *desc, void *out)
 {
-	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(desc->tfm));
+	return crypto_shash_alg(desc->tfm)->export(desc, out);
 }
 
-int crypto_shash_import(struct shash_desc *desc, const u8 *in);
+static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
+{
+	return crypto_shash_alg(desc->tfm)->import(desc, in);
+}
 
 static inline int crypto_shash_init(struct shash_desc *desc)
 {

@@ -7,17 +7,17 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/msr.h>
-#include <asm/uaccess.h>
 #include <asm/ds.h>
 #include <asm/bugs.h>
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_64
-#include <asm/topology.h>
+#include <linux/topology.h>
 #include <asm/numa_64.h>
 #endif
 
@@ -174,7 +174,8 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_F00F_BUG
 	/*
 	 * All current models of Pentium and Pentium with MMX technology CPUs
-	 * have the F0 0F bug, which lets nonprivileged users lock up the system.
+	 * have the F0 0F bug, which lets nonprivileged users lock up the
+	 * system.
 	 * Note that the workaround only should be initialized once...
 	 */
 	c->f00f_bug = 0;
@@ -207,7 +208,7 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 			printk (KERN_INFO "CPU: C0 stepping P4 Xeon detected.\n");
 			printk (KERN_INFO "CPU: Disabling hardware prefetching (Errata 037)\n");
 			lo |= MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE;
-			wrmsr (MSR_IA32_MISC_ENABLE, lo, hi);
+			wrmsr(MSR_IA32_MISC_ENABLE, lo, hi);
 		}
 	}
 
@@ -283,7 +284,7 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 	/* Intel has a non-standard dependency on %ecx for this CPUID level. */
 	cpuid_count(4, 0, &eax, &ebx, &ecx, &edx);
 	if (eax & 0x1f)
-		return ((eax >> 26) + 1);
+		return (eax >> 26) + 1;
 	else
 		return 1;
 }
@@ -347,6 +348,12 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		/* Check for version and the number of counters */
 		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
+	}
+
+	if (c->cpuid_level > 6) {
+		unsigned ecx = cpuid_ecx(6);
+		if (ecx & 0x01)
+			set_cpu_cap(c, X86_FEATURE_APERFMPERF);
 	}
 
 	if (cpu_has_xmm2)

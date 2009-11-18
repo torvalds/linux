@@ -9,7 +9,6 @@
    Released under the terms of GPL (General Public Licence)
 */
 
-#ifdef CONFIG_RTL8192_PM
 #include "r8192U.h"
 #include "r8192U_pm.h"
 
@@ -22,11 +21,8 @@ int rtl8192U_save_state (struct pci_dev *dev, u32 state)
 
 int rtl8192U_suspend(struct usb_interface *intf, pm_message_t state)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct net_device *dev = usb_get_intfdata(intf);
-#else
-	//struct net_device *dev = (struct net_device *)ptr;
-#endif
+
 	RT_TRACE(COMP_POWER, "============> r8192U suspend call.\n");
 
 	if(dev) {
@@ -48,11 +44,7 @@ int rtl8192U_suspend(struct usb_interface *intf, pm_message_t state)
 
 int rtl8192U_resume (struct usb_interface *intf)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct net_device *dev = usb_get_intfdata(intf);
-#else
-	//struct net_device *dev = (struct net_device *)ptr;
-#endif
 
 	RT_TRACE(COMP_POWER, "================>r8192U resume call.");
 
@@ -78,4 +70,3 @@ int rtl8192U_enable_wake (struct pci_dev *dev, u32 state, int enable)
 	return(-EAGAIN);
 }
 
-#endif //CONFIG_RTL8192_PM

@@ -581,7 +581,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
     spin_unlock_irqrestore(&mp->lock, flags);
 
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 static void mace_set_multicast(struct net_device *dev)

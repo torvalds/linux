@@ -931,15 +931,11 @@ static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
 #endif /* CONFIG_HOTPLUG */
 
 #ifdef CONFIG_PM
-static int serio_suspend(struct device *dev, pm_message_t state)
+static int serio_suspend(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
 
-	if (!serio->suspended && state.event == PM_EVENT_SUSPEND)
-		serio_cleanup(serio);
-
-	serio->suspended = state.event == PM_EVENT_SUSPEND ||
-			   state.event == PM_EVENT_FREEZE;
+	serio_cleanup(serio);
 
 	return 0;
 }
@@ -952,13 +948,17 @@ static int serio_resume(struct device *dev)
 	 * Driver reconnect can take a while, so better let kseriod
 	 * deal with it.
 	 */
-	if (serio->suspended) {
-		serio->suspended = false;
-		serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
-	}
+	serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
 
 	return 0;
 }
+
+static const struct dev_pm_ops serio_pm_ops = {
+	.suspend	= serio_suspend,
+	.resume		= serio_resume,
+	.poweroff	= serio_suspend,
+	.restore	= serio_resume,
+};
 #endif /* CONFIG_PM */
 
 /* called from serio_driver->connect/disconnect methods under serio_mutex */
@@ -1015,8 +1015,7 @@ static struct bus_type serio_bus = {
 	.remove		= serio_driver_remove,
 	.shutdown	= serio_shutdown,
 #ifdef CONFIG_PM
-	.suspend	= serio_suspend,
-	.resume		= serio_resume,
+	.pm		= &serio_pm_ops,
 #endif
 };
 

@@ -82,13 +82,6 @@ SECTIONS
 
   _end = . ;
 
-  /* Sections to be discarded */
-  /DISCARD/ : {
-	EXIT_TEXT
-	EXIT_DATA
-	*(.exitcall.exit)
-	}
-
   /* Stabs debugging sections.  */
   .stab 0 : { *(.stab) }
   .stabstr 0 : { *(.stabstr) }
@@ -97,4 +90,7 @@ SECTIONS
   .stab.index 0 : { *(.stab.index) }
   .stab.indexstr 0 : { *(.stab.indexstr) }
   .comment 0 : { *(.comment) }
+
+  /* Sections to be discarded */
+  DISCARDS
 }

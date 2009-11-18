@@ -215,7 +215,7 @@ int __init get_memcfg_from_srat(void)
 		goto out_fail;
 
 	if (num_memory_chunks == 0) {
-		printk(KERN_WARNING
+		printk(KERN_DEBUG
 			 "could not find any ACPI SRAT memory areas.\n");
 		goto out_fail;
 	}
@@ -277,7 +277,7 @@ int __init get_memcfg_from_srat(void)
 	}
 	return 1;
 out_fail:
-	printk(KERN_ERR "failed to get NUMA memory information from SRAT"
+	printk(KERN_DEBUG "failed to get NUMA memory information from SRAT"
 			" table\n");
 	return 0;
 }

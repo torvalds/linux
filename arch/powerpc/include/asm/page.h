@@ -139,7 +139,11 @@ extern phys_addr_t kernstart_addr;
  * Don't compare things with KERNELBASE or PAGE_OFFSET to test for
  * "kernelness", use is_kernel_addr() - it should do what you want.
  */
+#ifdef CONFIG_PPC_BOOK3E_64
+#define is_kernel_addr(x)	((x) >= 0x8000000000000000ul)
+#else
 #define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
+#endif
 
 #ifndef __ASSEMBLY__
 

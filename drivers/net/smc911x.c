@@ -553,7 +553,7 @@ static int smc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_dropped++;
 		spin_unlock_irqrestore(&lp->lock, flags);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 #ifdef SMC_USE_DMA
@@ -566,7 +566,7 @@ static int smc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			lp->pending_tx_skb = skb;
 			netif_stop_queue(dev);
 			spin_unlock_irqrestore(&lp->lock, flags);
-			return 0;
+			return NETDEV_TX_OK;
 		} else {
 			DBG(SMC_DEBUG_TX | SMC_DEBUG_DMA, "%s: Activating Tx DMA\n", dev->name);
 			lp->txdma_active = 1;
@@ -577,7 +577,7 @@ static int smc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	smc911x_hardware_send_pkt(dev);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

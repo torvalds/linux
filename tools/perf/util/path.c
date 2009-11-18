@@ -17,7 +17,7 @@ static char bad_path[] = "/bad-path/";
  * Two hacks:
  */
 
-static char *get_perf_dir(void)
+static const char *get_perf_dir(void)
 {
 	return ".";
 }
@@ -38,8 +38,9 @@ size_t strlcpy(char *dest, const char *src, size_t size)
 static char *get_pathname(void)
 {
 	static char pathname_array[4][PATH_MAX];
-	static int index;
-	return pathname_array[3 & ++index];
+	static int idx;
+
+	return pathname_array[3 & ++idx];
 }
 
 static char *cleanup_path(char *path)
@@ -161,20 +162,24 @@ int perf_mkstemp(char *path, size_t len, const char *template)
 }
 
 
-const char *make_relative_path(const char *abs, const char *base)
+const char *make_relative_path(const char *abs_path, const char *base)
 {
 	static char buf[PATH_MAX + 1];
 	int baselen;
+
 	if (!base)
-		return abs;
+		return abs_path;
+
 	baselen = strlen(base);
-	if (prefixcmp(abs, base))
-		return abs;
-	if (abs[baselen] == '/')
+	if (prefixcmp(abs_path, base))
+		return abs_path;
+	if (abs_path[baselen] == '/')
 		baselen++;
 	else if (base[baselen - 1] != '/')
-		return abs;
-	strcpy(buf, abs + baselen);
+		return abs_path;
+
+	strcpy(buf, abs_path + baselen);
+
 	return buf;
 }
 

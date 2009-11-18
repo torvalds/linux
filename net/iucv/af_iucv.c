@@ -34,7 +34,7 @@
 
 static char iucv_userid[80];
 
-static struct proto_ops iucv_sock_ops;
+static const struct proto_ops iucv_sock_ops;
 
 static struct proto iucv_proto = {
 	.name		= "AF_IUCV",
@@ -59,8 +59,8 @@ do {									\
 	DEFINE_WAIT(__wait);						\
 	long __timeo = timeo;						\
 	ret = 0;							\
+	prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE);	\
 	while (!(condition)) {						\
-		prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE); \
 		if (!__timeo) {						\
 			ret = -EAGAIN;					\
 			break;						\
@@ -361,10 +361,9 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 	}
 
 	parent->sk_state = IUCV_CLOSED;
-	sock_set_flag(parent, SOCK_ZAPPED);
 }
 
-/* Kill socket */
+/* Kill socket (only if zapped and orphaned) */
 static void iucv_sock_kill(struct sock *sk)
 {
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
@@ -426,17 +425,18 @@ static void iucv_sock_close(struct sock *sk)
 
 		skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
-
-		sock_set_flag(sk, SOCK_ZAPPED);
 		break;
 
 	default:
 		sock_set_flag(sk, SOCK_ZAPPED);
+		/* nothing to do here */
 		break;
 	}
 
+	/* mark socket for deletion by iucv_sock_kill() */
+	sock_set_flag(sk, SOCK_ZAPPED);
+
 	release_sock(sk);
-	iucv_sock_kill(sk);
 }
 
 static void iucv_sock_init(struct sock *sk, struct sock *parent)
@@ -569,6 +569,7 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 		if (sk->sk_state == IUCV_CONNECTED ||
 		    sk->sk_state == IUCV_SEVERED ||
+		    sk->sk_state == IUCV_DISCONN ||	/* due to PM restore */
 		    !newsock) {
 			iucv_accept_unlink(sk);
 			if (newsock)
@@ -1035,6 +1036,10 @@ out:
 	return err;
 }
 
+/* iucv_fragment_skb() - Fragment a single IUCV message into multiple skb's
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 {
 	int dataleft, size, copied = 0;
@@ -1069,6 +1074,10 @@ static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 	return 0;
 }
 
+/* iucv_process_message() - Receive a single outstanding IUCV message
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 				 struct iucv_path *path,
 				 struct iucv_message *msg)
@@ -1119,6 +1128,10 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 		skb_queue_head(&iucv_sk(sk)->backlog_skb_q, skb);
 }
 
+/* iucv_process_message_q() - Process outstanding IUCV messages
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message_q(struct sock *sk)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1209,6 +1222,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		kfree_skb(skb);
 
 		/* Queue backlog skbs */
+		spin_lock_bh(&iucv->message_q.lock);
 		rskb = skb_dequeue(&iucv->backlog_skb_q);
 		while (rskb) {
 			if (sock_queue_rcv_skb(sk, rskb)) {
@@ -1220,11 +1234,10 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			}
 		}
 		if (skb_queue_empty(&iucv->backlog_skb_q)) {
-			spin_lock_bh(&iucv->message_q.lock);
 			if (!list_empty(&iucv->message_q.list))
 				iucv_process_message_q(sk);
-			spin_unlock_bh(&iucv->message_q.lock);
 		}
+		spin_unlock_bh(&iucv->message_q.lock);
 	}
 
 done:
@@ -1374,7 +1387,7 @@ static int iucv_sock_release(struct socket *sock)
 
 /* getsockopt and setsockopt */
 static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1682,7 +1695,7 @@ static void iucv_callback_shutdown(struct iucv_path *path, u8 ipuser[16])
 	bh_unlock_sock(sk);
 }
 
-static struct proto_ops iucv_sock_ops = {
+static const struct proto_ops iucv_sock_ops = {
 	.family		= PF_IUCV,
 	.owner		= THIS_MODULE,
 	.release	= iucv_sock_release,

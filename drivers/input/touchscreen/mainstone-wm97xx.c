@@ -31,9 +31,11 @@
 #include <linux/interrupt.h>
 #include <linux/wm97xx.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
+
 #include <mach/regs-ac97.h>
 
-#define VERSION		"0.13"
+#include <asm/mach-types.h>
 
 struct continuous {
 	u16 id;    /* codec id */
@@ -62,6 +64,7 @@ static const struct continuous cinfo[] = {
 /* continuous speed index */
 static int sp_idx;
 static u16 last, tries;
+static int irq;
 
 /*
  * Pen sampling frequency (Hz) in continuous mode.
@@ -171,7 +174,7 @@ up:
 
 static int wm97xx_acc_startup(struct wm97xx *wm)
 {
-	int idx = 0;
+	int idx = 0, ret = 0;
 
 	/* check we have a codec */
 	if (wm->ac97 == NULL)
@@ -191,18 +194,40 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 		 "mainstone accelerated touchscreen driver, %d samples/sec\n",
 		 cinfo[sp_idx].speed);
 
+	/* IRQ driven touchscreen is used on Palm hardware */
+	if (machine_is_palmt5() || machine_is_palmtx() || machine_is_palmld()) {
+		pen_int = 1;
+		irq = 27;
+		/* There is some obscure mutant of WM9712 interbred with WM9713
+		 * used on Palm HW */
+		wm->variant = WM97xx_WM1613;
+	} else if (machine_is_mainstone() && pen_int)
+		irq = 4;
+
+	if (irq) {
+		ret = gpio_request(irq, "Touchscreen IRQ");
+		if (ret)
+			goto out;
+
+		ret = gpio_direction_input(irq);
+		if (ret) {
+			gpio_free(irq);
+			goto out;
+		}
+
+		wm->pen_irq = gpio_to_irq(irq);
+		set_irq_type(wm->pen_irq, IRQ_TYPE_EDGE_BOTH);
+	} else /* pen irq not supported */
+		pen_int = 0;
+
 	/* codec specific irq config */
 	if (pen_int) {
 		switch (wm->id) {
 		case WM9705_ID2:
-			wm->pen_irq = IRQ_GPIO(4);
-			set_irq_type(IRQ_GPIO(4), IRQ_TYPE_EDGE_BOTH);
 			break;
 		case WM9712_ID2:
 		case WM9713_ID2:
-			/* enable pen down interrupt */
 			/* use PEN_DOWN GPIO 13 to assert IRQ on GPIO line 2 */
-			wm->pen_irq = MAINSTONE_AC97_IRQ;
 			wm97xx_config_gpio(wm, WM97XX_GPIO_13, WM97XX_GPIO_IN,
 					   WM97XX_GPIO_POL_HIGH,
 					   WM97XX_GPIO_STICKY,
@@ -220,23 +245,17 @@ static int wm97xx_acc_startup(struct wm97xx *wm)
 		}
 	}
 
-	return 0;
+out:
+	return ret;
 }
 
 static void wm97xx_acc_shutdown(struct wm97xx *wm)
 {
 	/* codec specific deconfig */
 	if (pen_int) {
-		switch (wm->id & 0xffff) {
-		case WM9705_ID2:
-			wm->pen_irq = 0;
-			break;
-		case WM9712_ID2:
-		case WM9713_ID2:
-			/* disable interrupt */
-			wm->pen_irq = 0;
-			break;
-		}
+		if (irq)
+			gpio_free(irq);
+		wm->pen_irq = 0;
 	}
 }
 

@@ -60,9 +60,6 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvmppc_e500_tlb_setup(vcpu_e500);
 
-	/* Use the same core vertion as host's */
-	vcpu->arch.pvr = mfspr(SPRN_PVR);
-
 	return 0;
 }
 
@@ -132,7 +129,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	kmem_cache_free(kvm_vcpu_cache, vcpu_e500);
 }
 
-static int kvmppc_e500_init(void)
+static int __init kvmppc_e500_init(void)
 {
 	int r, i;
 	unsigned long ivor[3];
@@ -160,7 +157,7 @@ static int kvmppc_e500_init(void)
 	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), THIS_MODULE);
 }
 
-static void kvmppc_e500_exit(void)
+static void __init kvmppc_e500_exit(void)
 {
 	kvmppc_booke_exit();
 }

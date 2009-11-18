@@ -735,8 +735,10 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	ipic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,
 				       &ipic_host_ops, 0);
-	if (ipic->irqhost == NULL)
+	if (ipic->irqhost == NULL) {
+		kfree(ipic);
 		return NULL;
+	}
 
 	ipic->regs = ioremap(res.start, res.end - res.start + 1);
 
@@ -780,6 +782,9 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 
 	primary_ipic = ipic;
 	irq_set_default_host(primary_ipic->irqhost);
+
+	ipic_write(ipic->regs, IPIC_SIMSR_H, 0);
+	ipic_write(ipic->regs, IPIC_SIMSR_L, 0);
 
 	printk ("IPIC (%d IRQ sources) at %p\n", NR_IPIC_INTS,
 			primary_ipic->regs);

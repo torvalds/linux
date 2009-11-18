@@ -79,14 +79,14 @@ static void bond_na_send(struct net_device *slave_dev,
 			      ND_OPT_TARGET_LL_ADDR);
 
 	if (!skb) {
-		printk(KERN_ERR DRV_NAME ": NA packet allocation failed\n");
+		pr_err(DRV_NAME ": NA packet allocation failed\n");
 		return;
 	}
 
 	if (vlan_id) {
 		skb = vlan_put_tag(skb, vlan_id);
 		if (!skb) {
-			printk(KERN_ERR DRV_NAME ": failed to insert VLAN tag\n");
+			pr_err(DRV_NAME ": failed to insert VLAN tag\n");
 			return;
 		}
 	}

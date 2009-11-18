@@ -13,15 +13,13 @@
 
 #include <linux/swiotlb.h>
 
-extern struct dma_mapping_ops swiotlb_dma_ops;
-extern struct dma_mapping_ops swiotlb_pci_dma_ops;
-
-int swiotlb_arch_address_needs_mapping(struct device *, dma_addr_t,
-				       size_t size);
+extern struct dma_map_ops swiotlb_dma_ops;
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
 extern unsigned int ppc_swiotlb_enable;
 int __init swiotlb_setup_bus_notifier(void);
+
+extern void pci_dma_dev_setup_swiotlb(struct pci_dev *pdev);
 
 #endif /* __ASM_SWIOTLB_H */

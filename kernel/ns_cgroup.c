@@ -42,8 +42,8 @@ int ns_cgroup_clone(struct task_struct *task, struct pid *pid)
  *       (hence either you are in the same cgroup as task, or in an
  *        ancestor cgroup thereof)
  */
-static int ns_can_attach(struct cgroup_subsys *ss,
-		struct cgroup *new_cgroup, struct task_struct *task)
+static int ns_can_attach(struct cgroup_subsys *ss, struct cgroup *new_cgroup,
+			 struct task_struct *task, bool threadgroup)
 {
 	if (current != task) {
 		if (!capable(CAP_SYS_ADMIN))
@@ -55,6 +55,18 @@ static int ns_can_attach(struct cgroup_subsys *ss,
 
 	if (!cgroup_is_descendant(new_cgroup, task))
 		return -EPERM;
+
+	if (threadgroup) {
+		struct task_struct *c;
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &task->thread_group, thread_group) {
+			if (!cgroup_is_descendant(new_cgroup, c)) {
+				rcu_read_unlock();
+				return -EPERM;
+			}
+		}
+		rcu_read_unlock();
+	}
 
 	return 0;
 }

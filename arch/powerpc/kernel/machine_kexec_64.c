@@ -13,6 +13,7 @@
 #include <linux/kexec.h>
 #include <linux/smp.h>
 #include <linux/thread_info.h>
+#include <linux/init_task.h>
 #include <linux/errno.h>
 
 #include <asm/page.h>
@@ -249,8 +250,8 @@ static void kexec_prepare_cpus(void)
  * We could use a smaller stack if we don't care about anything using
  * current, but that audit has not been performed.
  */
-static union thread_union kexec_stack
-	__attribute__((__section__(".data.init_task"))) = { };
+static union thread_union kexec_stack __init_task_data =
+	{ };
 
 /* Our assembly helper, in kexec_stub.S */
 extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,

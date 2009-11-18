@@ -275,7 +275,7 @@ struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
 };
 
-struct attribute_group *scsi_sysfs_shost_attr_groups[] = {
+const struct attribute_group *scsi_sysfs_shost_attr_groups[] = {
 	&scsi_shost_attr_group,
 	NULL
 };
@@ -745,7 +745,7 @@ static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
 };
 
-static struct attribute_group *scsi_sdev_attr_groups[] = {
+static const struct attribute_group *scsi_sdev_attr_groups[] = {
 	&scsi_sdev_attr_group,
 	NULL
 };
@@ -864,10 +864,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		goto clean_device;
 	}
 
-	/* take a reference for the sdev_dev; this is
-	 * released by the sdev_class .release */
-	get_device(&sdev->sdev_gendev);
-
 	/* create queue files, which may be writable, depending on the host */
 	if (sdev->host->hostt->change_queue_depth)
 		error = device_create_file(&sdev->sdev_gendev, &sdev_attr_queue_depth_rw);
@@ -917,6 +913,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 	device_del(&sdev->sdev_gendev);
 	transport_destroy_device(&sdev->sdev_gendev);
+	put_device(&sdev->sdev_dev);
 	put_device(&sdev->sdev_gendev);
 
 	return error;
@@ -1065,7 +1062,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
 
 	device_initialize(&sdev->sdev_dev);
-	sdev->sdev_dev.parent = &sdev->sdev_gendev;
+	sdev->sdev_dev.parent = get_device(&sdev->sdev_gendev);
 	sdev->sdev_dev.class = &sdev_class;
 	dev_set_name(&sdev->sdev_dev, "%d:%d:%d:%d",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);

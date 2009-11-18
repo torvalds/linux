@@ -887,7 +887,8 @@ static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 #define page_offset(v) ((unsigned long)(v) & ((1 << 12) - 1))
 
-static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
+				      struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	union ibmveth_buf_desc desc;
@@ -971,7 +972,7 @@ out:	spin_lock_irqsave(&adapter->stats_lock, flags);
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int ibmveth_poll(struct napi_struct *napi, int budget)

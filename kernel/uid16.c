@@ -4,7 +4,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/mman.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>

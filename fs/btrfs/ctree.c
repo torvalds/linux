@@ -2853,6 +2853,12 @@ static noinline int split_leaf(struct btrfs_trans_handle *trans,
 	int split;
 	int num_doubles = 0;
 
+	l = path->nodes[0];
+	slot = path->slots[0];
+	if (extend && data_size + btrfs_item_size_nr(l, slot) +
+	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root))
+		return -EOVERFLOW;
+
 	/* first try to make some room by pushing left and right */
 	if (data_size && ins_key->type != BTRFS_DIR_ITEM_KEY) {
 		wret = push_leaf_right(trans, root, path, data_size, 0);

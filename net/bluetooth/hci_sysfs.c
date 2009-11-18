@@ -68,7 +68,7 @@ static struct attribute_group bt_link_group = {
 	.attrs = bt_link_attrs,
 };
 
-static struct attribute_group *bt_link_groups[] = {
+static const struct attribute_group *bt_link_groups[] = {
 	&bt_link_group,
 	NULL
 };
@@ -91,6 +91,8 @@ static void add_conn(struct work_struct *work)
 	struct hci_dev *hdev = conn->hdev;
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
+
+	dev_set_drvdata(&conn->dev, conn);
 
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
@@ -143,8 +145,6 @@ void hci_conn_init_sysfs(struct hci_conn *conn)
 	conn->dev.type = &bt_link;
 	conn->dev.class = bt_class;
 	conn->dev.parent = &hdev->dev;
-
-	dev_set_drvdata(&conn->dev, conn);
 
 	device_initialize(&conn->dev);
 
@@ -392,7 +392,7 @@ static struct attribute_group bt_host_group = {
 	.attrs = bt_host_attrs,
 };
 
-static struct attribute_group *bt_host_groups[] = {
+static const struct attribute_group *bt_host_groups[] = {
 	&bt_host_group,
 	NULL
 };

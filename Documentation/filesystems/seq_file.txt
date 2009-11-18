@@ -46,7 +46,7 @@ better to do. The file is seekable, in that one can do something like the
 following:
 
     dd if=/proc/sequence of=out1 count=1
-    dd if=/proc/sequence skip=1 out=out2 count=1
+    dd if=/proc/sequence skip=1 of=out2 count=1
 
 Then concatenate the output files out1 and out2 and get the right
 result. Yes, it is a thoroughly useless module, but the point is to show

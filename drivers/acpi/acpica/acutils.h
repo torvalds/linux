@@ -324,26 +324,30 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 acpi_status
 acpi_ut_evaluate_numeric_object(char *object_name,
 				struct acpi_namespace_node *device_node,
-				acpi_integer * address);
+				acpi_integer *value);
 
+acpi_status
+acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 *status_flags);
+
+acpi_status
+acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
+			      const char **method_names,
+			      u8 method_count, u8 *out_values);
+
+/*
+ * utids - device ID support
+ */
 acpi_status
 acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id *hid);
-
-acpi_status
-acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
-		    struct acpi_compatible_id_list **return_cid_list);
-
-acpi_status
-acpi_ut_execute_STA(struct acpi_namespace_node *device_node,
-		    u32 * status_flags);
+		    struct acpica_device_id **return_id);
 
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id *uid);
+		    struct acpica_device_id **return_id);
 
 acpi_status
-acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest);
+acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
+		    struct acpica_device_id_list **return_cid_list);
 
 /*
  * utlock - reader/writer locks
@@ -445,6 +449,8 @@ acpi_ut_short_divide(acpi_integer in_dividend,
  */
 const char *acpi_ut_validate_exception(acpi_status status);
 
+u8 acpi_ut_is_pci_root_bridge(char *id);
+
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
 
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
@@ -468,6 +474,12 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 acpi_status
 acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_warning(const char *module_name,
+			   u32 line_number,
+			   char *pathname,
+			   u8 node_flags, const char *format, ...);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 

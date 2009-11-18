@@ -95,17 +95,17 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  * ath5k_hw_attach - Check if hw is supported and init the needed structs
  *
  * @sc: The &struct ath5k_softc we got from the driver's attach function
- * @mac_version: The mac version id (check out ath5k.h) based on pci id
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
+struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah;
 	struct pci_dev *pdev = sc->pdev;
+	struct ath5k_eeprom_info *ee;
 	int ret;
 	u32 srev;
 
@@ -135,9 +135,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ah->ah_software_retry = false;
 
 	/*
-	 * Set the mac version based on the pci id
+	 * Find the mac version
 	 */
-	ah->ah_version = mac_version;
+	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
+	if (srev < AR5K_SREV_AR5311)
+		ah->ah_version = AR5K_AR5210;
+	else if (srev < AR5K_SREV_AR5212)
+		ah->ah_version = AR5K_AR5211;
+	else
+		ah->ah_version = AR5K_AR5212;
 
 	/*Fill the ath5k_hw struct with the needed functions*/
 	ret = ath5k_hw_init_desc_functions(ah);
@@ -145,12 +151,11 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 
 	/* Bring device out of sleep and reset it's units */
-	ret = ath5k_hw_nic_wakeup(ah, CHANNEL_B, true);
+	ret = ath5k_hw_nic_wakeup(ah, 0, true);
 	if (ret)
 		goto err_free;
 
 	/* Get MAC, PHY and RADIO revisions */
-	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
 	ah->ah_mac_srev = srev;
 	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
 	ah->ah_mac_revision = AR5K_REG_MS(srev, AR5K_SREV_REV);
@@ -253,28 +258,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	}
 
 	/*
-	 * Write PCI-E power save settings
-	 */
-	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
-		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
-		/* Shut off RX when elecidle is asserted */
-		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
-		/* TODO: EEPROM work */
-		ath5k_hw_reg_write(ah, 0xe5980579, AR5K_PCIE_SERDES);
-		/* Shut off PLL and CLKREQ active in L1 */
-		ath5k_hw_reg_write(ah, 0x001defff, AR5K_PCIE_SERDES);
-		/* Preserce other settings */
-		ath5k_hw_reg_write(ah, 0x1aaabe40, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0xbe105554, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x000e3007, AR5K_PCIE_SERDES);
-		/* Reset SERDES to load new settings */
-		ath5k_hw_reg_write(ah, 0x00000000, AR5K_PCIE_SERDES_RESET);
-		mdelay(1);
-	}
-
-	/*
 	 * POST
 	 */
 	ret = ath5k_hw_post(ah);
@@ -283,7 +266,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	/* Enable pci core retry fix on Hainan (5213A) and later chips */
 	if (srev >= AR5K_SREV_AR5213A)
-		ath5k_hw_reg_write(ah, AR5K_PCICFG_RETRY_FIX, AR5K_PCICFG);
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PCICFG, AR5K_PCICFG_RETRY_FIX);
 
 	/*
 	 * Get card capabilities, calibration values etc
@@ -295,6 +278,40 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 	}
 
+	/*
+	 * Write PCI-E power save settings
+	 */
+	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
+		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+
+		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
+
+		/* Shut off RX when elecidle is asserted */
+		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
+
+		/* If serdes programing is enabled, increase PCI-E
+		 * tx power for systems with long trace from host
+		 * to minicard connector. */
+		if (ee->ee_serdes)
+			ath5k_hw_reg_write(ah, 0xe5980579, AR5K_PCIE_SERDES);
+		else
+			ath5k_hw_reg_write(ah, 0xf6800579, AR5K_PCIE_SERDES);
+
+		/* Shut off PLL and CLKREQ active in L1 */
+		ath5k_hw_reg_write(ah, 0x001defff, AR5K_PCIE_SERDES);
+
+		/* Preserve other settings */
+		ath5k_hw_reg_write(ah, 0x1aaabe40, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0xbe105554, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x000e3007, AR5K_PCIE_SERDES);
+
+		/* Reset SERDES to load new settings */
+		ath5k_hw_reg_write(ah, 0x00000000, AR5K_PCIE_SERDES_RESET);
+		mdelay(1);
+	}
+
 	/* Get misc capabilities */
 	ret = ath5k_hw_set_capabilities(ah);
 	if (ret) {
@@ -302,6 +319,12 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 			sc->pdev->device);
 		goto err_free;
 	}
+
+	/* Crypto settings */
+	ee = &ah->ah_capabilities.cap_eeprom;
+	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
+		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
 
 	if (srev >= AR5K_SREV_AR2414) {
 		ah->ah_combined_mic = true;
@@ -318,6 +341,9 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ath5k_hw_set_opmode(ah);
 
 	ath5k_hw_rfgain_opt_init(ah);
+
+	/* turn on HW LEDs */
+	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
 
 	return ah;
 err_free:

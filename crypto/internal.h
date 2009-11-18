@@ -25,12 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_CRYPTO_FIPS
-extern int fips_enabled;
-#else
-#define fips_enabled 0
-#endif
+#include <linux/fips.h>
 
 /* Crypto notification events. */
 enum {
@@ -65,18 +60,6 @@ static inline void crypto_exit_proc(void)
 { }
 #endif
 
-static inline unsigned int crypto_digest_ctxsize(struct crypto_alg *alg)
-{
-	unsigned int len = alg->cra_ctxsize;
-
-	if (alg->cra_alignmask) {
-		len = ALIGN(len, (unsigned long)alg->cra_alignmask + 1);
-		len += alg->cra_digest.dia_digestsize;
-	}
-
-	return len;
-}
-
 static inline unsigned int crypto_cipher_ctxsize(struct crypto_alg *alg)
 {
 	return alg->cra_ctxsize;
@@ -91,12 +74,9 @@ struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
 struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask);
 struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
-int crypto_init_digest_ops(struct crypto_tfm *tfm);
-int crypto_init_digest_ops_async(struct crypto_tfm *tfm);
 int crypto_init_cipher_ops(struct crypto_tfm *tfm);
 int crypto_init_compress_ops(struct crypto_tfm *tfm);
 
-void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
@@ -111,11 +91,11 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
 void *crypto_create_tfm(struct crypto_alg *alg,
 			const struct crypto_type *frontend);
+struct crypto_alg *crypto_find_alg(const char *alg_name,
+				   const struct crypto_type *frontend,
+				   u32 type, u32 mask);
 void *crypto_alloc_tfm(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask);
-
-int crypto_register_instance(struct crypto_template *tmpl,
-			     struct crypto_instance *inst);
 
 int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);

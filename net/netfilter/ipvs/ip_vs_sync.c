@@ -17,6 +17,9 @@
  *	Justin Ossevoort	:	Fix endian problem on sync message size.
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/inetdevice.h>
@@ -243,7 +246,7 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 	if (!curr_sb) {
 		if (!(curr_sb=ip_vs_sync_buff_create())) {
 			spin_unlock(&curr_sb_lock);
-			IP_VS_ERR("ip_vs_sync_buff_create failed.\n");
+			pr_err("ip_vs_sync_buff_create failed.\n");
 			return;
 		}
 	}
@@ -409,7 +412,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			if (dest)
 				atomic_dec(&dest->refcnt);
 			if (!cp) {
-				IP_VS_ERR("ip_vs_conn_new failed\n");
+				pr_err("ip_vs_conn_new failed\n");
 				return;
 			}
 		} else if (!cp->dest) {
@@ -577,8 +580,8 @@ static int bind_mcastif_addr(struct socket *sock, char *ifname)
 
 	addr = inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
 	if (!addr)
-		IP_VS_ERR("You probably need to specify IP address on "
-			  "multicast interface.\n");
+		pr_err("You probably need to specify IP address on "
+		       "multicast interface.\n");
 
 	IP_VS_DBG(7, "binding socket with (%s) %pI4\n",
 		  ifname, &addr);
@@ -602,13 +605,13 @@ static struct socket * make_send_sock(void)
 	/* First create a socket */
 	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
-		IP_VS_ERR("Error during creation of socket; terminating\n");
+		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
 
 	result = set_mcast_if(sock->sk, ip_vs_master_mcast_ifn);
 	if (result < 0) {
-		IP_VS_ERR("Error setting outbound mcast interface\n");
+		pr_err("Error setting outbound mcast interface\n");
 		goto error;
 	}
 
@@ -617,14 +620,14 @@ static struct socket * make_send_sock(void)
 
 	result = bind_mcastif_addr(sock, ip_vs_master_mcast_ifn);
 	if (result < 0) {
-		IP_VS_ERR("Error binding address of the mcast interface\n");
+		pr_err("Error binding address of the mcast interface\n");
 		goto error;
 	}
 
 	result = sock->ops->connect(sock, (struct sockaddr *) &mcast_addr,
 			sizeof(struct sockaddr), 0);
 	if (result < 0) {
-		IP_VS_ERR("Error connecting to the multicast addr\n");
+		pr_err("Error connecting to the multicast addr\n");
 		goto error;
 	}
 
@@ -647,7 +650,7 @@ static struct socket * make_receive_sock(void)
 	/* First create a socket */
 	result = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (result < 0) {
-		IP_VS_ERR("Error during creation of socket; terminating\n");
+		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
 
@@ -657,7 +660,7 @@ static struct socket * make_receive_sock(void)
 	result = sock->ops->bind(sock, (struct sockaddr *) &mcast_addr,
 			sizeof(struct sockaddr));
 	if (result < 0) {
-		IP_VS_ERR("Error binding to the multicast addr\n");
+		pr_err("Error binding to the multicast addr\n");
 		goto error;
 	}
 
@@ -666,7 +669,7 @@ static struct socket * make_receive_sock(void)
 			(struct in_addr *) &mcast_addr.sin_addr,
 			ip_vs_backup_mcast_ifn);
 	if (result < 0) {
-		IP_VS_ERR("Error joining to the multicast group\n");
+		pr_err("Error joining to the multicast group\n");
 		goto error;
 	}
 
@@ -706,7 +709,7 @@ ip_vs_send_sync_msg(struct socket *sock, struct ip_vs_sync_mesg *msg)
 	msg->size = htons(msg->size);
 
 	if (ip_vs_send_async(sock, (char *)msg, msize) != msize)
-		IP_VS_ERR("ip_vs_send_async error\n");
+		pr_err("ip_vs_send_async error\n");
 }
 
 static int
@@ -737,9 +740,9 @@ static int sync_thread_master(void *data)
 	struct ip_vs_sync_thread_data *tinfo = data;
 	struct ip_vs_sync_buff *sb;
 
-	IP_VS_INFO("sync thread started: state = MASTER, mcast_ifn = %s, "
-		   "syncid = %d\n",
-		   ip_vs_master_mcast_ifn, ip_vs_master_syncid);
+	pr_info("sync thread started: state = MASTER, mcast_ifn = %s, "
+		"syncid = %d\n",
+		ip_vs_master_mcast_ifn, ip_vs_master_syncid);
 
 	while (!kthread_should_stop()) {
 		while ((sb = sb_dequeue())) {
@@ -780,9 +783,9 @@ static int sync_thread_backup(void *data)
 	struct ip_vs_sync_thread_data *tinfo = data;
 	int len;
 
-	IP_VS_INFO("sync thread started: state = BACKUP, mcast_ifn = %s, "
-		   "syncid = %d\n",
-		   ip_vs_backup_mcast_ifn, ip_vs_backup_syncid);
+	pr_info("sync thread started: state = BACKUP, mcast_ifn = %s, "
+		"syncid = %d\n",
+		ip_vs_backup_mcast_ifn, ip_vs_backup_syncid);
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(*tinfo->sock->sk->sk_sleep,
@@ -794,7 +797,7 @@ static int sync_thread_backup(void *data)
 			len = ip_vs_receive(tinfo->sock, tinfo->buf,
 					sync_recv_mesg_maxlen);
 			if (len <= 0) {
-				IP_VS_ERR("receiving message error\n");
+				pr_err("receiving message error\n");
 				break;
 			}
 
@@ -824,7 +827,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 	int (*threadfn)(void *data);
 	int result = -ENOMEM;
 
-	IP_VS_DBG(7, "%s: pid %d\n", __func__, task_pid_nr(current));
+	IP_VS_DBG(7, "%s(): pid %d\n", __func__, task_pid_nr(current));
 	IP_VS_DBG(7, "Each ip_vs_sync_conn entry needs %Zd bytes\n",
 		  sizeof(struct ip_vs_sync_conn));
 
@@ -901,14 +904,14 @@ out:
 
 int stop_sync_thread(int state)
 {
-	IP_VS_DBG(7, "%s: pid %d\n", __func__, task_pid_nr(current));
+	IP_VS_DBG(7, "%s(): pid %d\n", __func__, task_pid_nr(current));
 
 	if (state == IP_VS_STATE_MASTER) {
 		if (!sync_master_thread)
 			return -ESRCH;
 
-		IP_VS_INFO("stopping master sync thread %d ...\n",
-			   task_pid_nr(sync_master_thread));
+		pr_info("stopping master sync thread %d ...\n",
+			task_pid_nr(sync_master_thread));
 
 		/*
 		 * The lock synchronizes with sb_queue_tail(), so that we don't
@@ -925,8 +928,8 @@ int stop_sync_thread(int state)
 		if (!sync_backup_thread)
 			return -ESRCH;
 
-		IP_VS_INFO("stopping backup sync thread %d ...\n",
-			   task_pid_nr(sync_backup_thread));
+		pr_info("stopping backup sync thread %d ...\n",
+			task_pid_nr(sync_backup_thread));
 
 		ip_vs_sync_state &= ~IP_VS_STATE_BACKUP;
 		kthread_stop(sync_backup_thread);

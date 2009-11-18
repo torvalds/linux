@@ -137,6 +137,8 @@ struct v4l2_subdev_tuner_ops {
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
 	int (*g_tuner)(struct v4l2_subdev *sd, struct v4l2_tuner *vt);
 	int (*s_tuner)(struct v4l2_subdev *sd, struct v4l2_tuner *vt);
+	int (*g_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
+	int (*s_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
 	int (*s_config)(struct v4l2_subdev *sd, const struct v4l2_priv_tun_config *config);
 	int (*s_standby)(struct v4l2_subdev *sd);
@@ -220,6 +222,9 @@ struct v4l2_subdev_video_ops {
 	int (*g_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
 	int (*try_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
 	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*cropcap)(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
+	int (*g_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
+	int (*s_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
 	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);

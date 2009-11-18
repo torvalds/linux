@@ -50,128 +50,35 @@ struct res_map_refresh {
 	int vmode_refresh;
 };
 
-#define NUM_TOTAL_RES_MAP_REFRESH ARRAY_SIZE(res_map_refresh_tbl)
-#define NUM_TOTAL_CEA_MODES  ARRAY_SIZE(CEA_HDMI_Modes)
-#define NUM_TOTAL_CN400_ModeXregs ARRAY_SIZE(CN400_ModeXregs)
-#define NUM_TOTAL_CN700_ModeXregs ARRAY_SIZE(CN700_ModeXregs)
-#define NUM_TOTAL_KM400_ModeXregs ARRAY_SIZE(KM400_ModeXregs)
-#define NUM_TOTAL_CX700_ModeXregs ARRAY_SIZE(CX700_ModeXregs)
-#define NUM_TOTAL_VX800_ModeXregs ARRAY_SIZE(VX800_ModeXregs)
-#define NUM_TOTAL_CLE266_ModeXregs ARRAY_SIZE(CLE266_ModeXregs)
-#define NUM_TOTAL_PATCH_MODE ARRAY_SIZE(res_patch_table)
-#define NUM_TOTAL_MODETABLE ARRAY_SIZE(CLE266Modes)
+extern int NUM_TOTAL_RES_MAP_REFRESH;
+extern int NUM_TOTAL_CEA_MODES;
+extern int NUM_TOTAL_CN400_ModeXregs;
+extern int NUM_TOTAL_CN700_ModeXregs;
+extern int NUM_TOTAL_KM400_ModeXregs;
+extern int NUM_TOTAL_CX700_ModeXregs;
+extern int NUM_TOTAL_VX855_ModeXregs;
+extern int NUM_TOTAL_CLE266_ModeXregs;
+extern int NUM_TOTAL_PATCH_MODE;
+extern int NUM_TOTAL_MODETABLE;
 
 /********************/
 /* Mode Table       */
 /********************/
 
-/* 480x640 */
-extern struct crt_mode_table CRTM480x640[1];
-/* 640x480*/
-extern struct crt_mode_table CRTM640x480[5];
-/*720x480 (GTF)*/
-extern struct crt_mode_table CRTM720x480[1];
-/*720x576 (GTF)*/
-extern struct crt_mode_table CRTM720x576[1];
-/* 800x480 (CVT) */
-extern struct crt_mode_table CRTM800x480[1];
-/* 800x600*/
-extern struct crt_mode_table CRTM800x600[5];
-/* 848x480 (CVT) */
-extern struct crt_mode_table CRTM848x480[1];
-/*856x480 (GTF) convert to 852x480*/
-extern struct crt_mode_table CRTM852x480[1];
-/*1024x512 (GTF)*/
-extern struct crt_mode_table CRTM1024x512[1];
-/* 1024x600*/
-extern struct crt_mode_table CRTM1024x600[1];
-/* 1024x768*/
-extern struct crt_mode_table CRTM1024x768[4];
-/* 1152x864*/
-extern struct crt_mode_table CRTM1152x864[1];
-/* 1280x720 (HDMI 720P)*/
-extern struct crt_mode_table CRTM1280x720[2];
-/*1280x768 (GTF)*/
-extern struct crt_mode_table CRTM1280x768[2];
-/* 1280x800 (CVT) */
-extern struct crt_mode_table CRTM1280x800[1];
-/*1280x960*/
-extern struct crt_mode_table CRTM1280x960[1];
-/* 1280x1024*/
-extern struct crt_mode_table CRTM1280x1024[3];
-/* 1368x768 (GTF) */
-extern struct crt_mode_table CRTM1368x768[1];
-/*1440x1050 (GTF)*/
-extern struct crt_mode_table CRTM1440x1050[1];
-/* 1600x1200*/
-extern struct crt_mode_table CRTM1600x1200[2];
-/* 1680x1050 (CVT) */
-extern struct crt_mode_table CRTM1680x1050[2];
-/* 1680x1050 (CVT Reduce Blanking) */
-extern struct crt_mode_table CRTM1680x1050_RB[1];
-/* 1920x1080 (CVT)*/
-extern struct crt_mode_table CRTM1920x1080[1];
-/* 1920x1080 (CVT with Reduce Blanking) */
-extern struct crt_mode_table CRTM1920x1080_RB[1];
-/* 1920x1440*/
-extern struct crt_mode_table CRTM1920x1440[2];
-/* 1400x1050 (CVT) */
-extern struct crt_mode_table CRTM1400x1050[2];
-/* 1400x1050 (CVT Reduce Blanking) */
-extern struct crt_mode_table CRTM1400x1050_RB[1];
-/* 960x600 (CVT) */
-extern struct crt_mode_table CRTM960x600[1];
-/* 1000x600 (GTF) */
-extern struct crt_mode_table CRTM1000x600[1];
-/* 1024x576 (GTF) */
-extern struct crt_mode_table CRTM1024x576[1];
-/* 1088x612 (CVT) */
-extern struct crt_mode_table CRTM1088x612[1];
-/* 1152x720 (CVT) */
-extern struct crt_mode_table CRTM1152x720[1];
-/* 1200x720 (GTF) */
-extern struct crt_mode_table CRTM1200x720[1];
-/* 1280x600 (GTF) */
-extern struct crt_mode_table CRTM1280x600[1];
-/* 1360x768 (CVT) */
-extern struct crt_mode_table CRTM1360x768[1];
-/* 1360x768 (CVT Reduce Blanking) */
-extern struct crt_mode_table CRTM1360x768_RB[1];
-/* 1366x768 (GTF) */
-extern struct crt_mode_table CRTM1366x768[2];
-/* 1440x900 (CVT) */
-extern struct crt_mode_table CRTM1440x900[2];
-/* 1440x900 (CVT Reduce Blanking) */
-extern struct crt_mode_table CRTM1440x900_RB[1];
-/* 1600x900 (CVT) */
-extern struct crt_mode_table CRTM1600x900[1];
-/* 1600x900 (CVT Reduce Blanking) */
-extern struct crt_mode_table CRTM1600x900_RB[1];
-/* 1600x1024 (GTF) */
-extern struct crt_mode_table CRTM1600x1024[1];
-/* 1792x1344 (DMT) */
-extern struct crt_mode_table CRTM1792x1344[1];
-/* 1856x1392 (DMT) */
-extern struct crt_mode_table CRTM1856x1392[1];
-/* 1920x1200 (CVT) */
-extern struct crt_mode_table CRTM1920x1200[1];
-/* 1920x1200 (CVT with Reduce Blanking) */
-extern struct crt_mode_table CRTM1920x1200_RB[1];
-/* 2048x1536 (CVT) */
-extern struct crt_mode_table CRTM2048x1536[1];
-extern struct VideoModeTable CLE266Modes[47];
-extern struct crt_mode_table CEAM1280x720[1];
-extern struct crt_mode_table CEAM1920x1080[1];
-extern struct VideoModeTable CEA_HDMI_Modes[2];
+extern struct VideoModeTable CLE266Modes[];
+extern struct crt_mode_table CEAM1280x720[];
+extern struct crt_mode_table CEAM1920x1080[];
+extern struct VideoModeTable CEA_HDMI_Modes[];
 
-extern struct res_map_refresh res_map_refresh_tbl[61];
-extern struct io_reg CN400_ModeXregs[52];
-extern struct io_reg CN700_ModeXregs[66];
-extern struct io_reg KM400_ModeXregs[55];
-extern struct io_reg CX700_ModeXregs[58];
-extern struct io_reg VX800_ModeXregs[58];
-extern struct io_reg CLE266_ModeXregs[32];
-extern struct io_reg PM1024x768[2];
-extern struct patch_table res_patch_table[1];
+extern struct res_map_refresh res_map_refresh_tbl[];
+extern struct io_reg CN400_ModeXregs[];
+extern struct io_reg CN700_ModeXregs[];
+extern struct io_reg KM400_ModeXregs[];
+extern struct io_reg CX700_ModeXregs[];
+extern struct io_reg VX800_ModeXregs[];
+extern struct io_reg VX855_ModeXregs[];
+extern struct io_reg CLE266_ModeXregs[];
+extern struct io_reg PM1024x768[];
+extern struct patch_table res_patch_table[];
 extern struct VPITTable VPIT;
 #endif /* __VIAMODE_H__ */

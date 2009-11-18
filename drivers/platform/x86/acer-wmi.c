@@ -746,7 +746,9 @@ static acpi_status WMID_set_u32(u32 value, u32 cap, struct wmi_interface *iface)
 			return AE_BAD_PARAMETER;
 		if (quirks->mailled == 1) {
 			param = value ? 0x92 : 0x93;
+			i8042_lock_chip();
 			i8042_command(&param, 0x1059);
+			i8042_unlock_chip();
 			return 0;
 		}
 		break;

@@ -654,7 +654,7 @@ ct_mixer_kcontrol_new(struct ct_mixer *mixer, struct snd_kcontrol_new *new)
 	int err;
 
 	kctl = snd_ctl_new1(new, mixer->atc);
-	if (NULL == kctl)
+	if (!kctl)
 		return -ENOMEM;
 
 	if (SNDRV_CTL_ELEM_IFACE_PCM == kctl->id.iface)
@@ -837,17 +837,17 @@ static int ct_mixer_get_mem(struct ct_mixer **rmixer)
 	*rmixer = NULL;
 	/* Allocate mem for mixer obj */
 	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
-	if (NULL == mixer)
+	if (!mixer)
 		return -ENOMEM;
 
 	mixer->amixers = kzalloc(sizeof(void *)*(NUM_CT_AMIXERS*CHN_NUM),
 				 GFP_KERNEL);
-	if (NULL == mixer->amixers) {
+	if (!mixer->amixers) {
 		err = -ENOMEM;
 		goto error1;
 	}
 	mixer->sums = kzalloc(sizeof(void *)*(NUM_CT_SUMS*CHN_NUM), GFP_KERNEL);
-	if (NULL == mixer->sums) {
+	if (!mixer->sums) {
 		err = -ENOMEM;
 		goto error2;
 	}

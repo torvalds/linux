@@ -240,16 +240,11 @@ static int nand_dev_ready(struct omap_nand_platform_data *data)
 	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
 }
 
-static struct omap_uart_config fsample_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1)),
-};
-
 static struct omap_lcd_config fsample_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
 static struct omap_board_config_kernel fsample_config[] = {
-	{ OMAP_TAG_UART,	&fsample_uart_config },
 	{ OMAP_TAG_LCD,		&fsample_lcd_config },
 };
 

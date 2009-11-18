@@ -24,6 +24,8 @@
 #define SO_RCVTIMEO	0x1006
 #define SO_ERROR	0x1007
 #define SO_TYPE		0x1008
+#define SO_PROTOCOL	0x1028
+#define SO_DOMAIN	0x1029
 #define SO_PEERNAME	0x2000
 
 #define SO_NO_CHECK	0x400b

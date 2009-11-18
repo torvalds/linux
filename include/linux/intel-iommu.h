@@ -360,4 +360,6 @@ extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
+extern int dmar_ir_support(void);
+
 #endif

@@ -166,7 +166,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -492,7 +492,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -513,7 +513,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -702,7 +702,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -891,7 +891,7 @@ static int dai_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -941,7 +941,7 @@ static int dao_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -1092,7 +1092,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	for (i = 0; i < 8; i++) {
@@ -1110,6 +1110,26 @@ static int daio_mgr_put_ctrl_blk(void *blk)
 	kfree(blk);
 
 	return 0;
+}
+
+/* Timer interrupt */
+static int set_timer_irq(struct hw *hw, int enable)
+{
+	hw_write_20kx(hw, GIE, enable ? IT_INT : 0);
+	return 0;
+}
+
+static int set_timer_tick(struct hw *hw, unsigned int ticks)
+{
+	if (ticks)
+		ticks |= TIMR_IE | TIMR_IP;
+	hw_write_20kx(hw, TIMR, ticks);
+	return 0;
+}
+
+static unsigned int get_wc(struct hw *hw)
+{
+	return hw_read_20kx(hw, WC);
 }
 
 /* Card hardware initialization block */
@@ -1841,6 +1861,22 @@ static int hw_have_digit_io_switch(struct hw *hw)
 	return 0;
 }
 
+static irqreturn_t ct_20k2_interrupt(int irq, void *dev_id)
+{
+	struct hw *hw = dev_id;
+	unsigned int status;
+
+	status = hw_read_20kx(hw, GIP);
+	if (!status)
+		return IRQ_NONE;
+
+	if (hw->irq_callback)
+		hw->irq_callback(hw->irq_callback_data, status);
+
+	hw_write_20kx(hw, GIP, status);
+	return IRQ_HANDLED;
+}
+
 static int hw_card_start(struct hw *hw)
 {
 	int err = 0;
@@ -1868,7 +1904,7 @@ static int hw_card_start(struct hw *hw)
 		hw->io_base = pci_resource_start(hw->pci, 2);
 		hw->mem_base = (unsigned long)ioremap(hw->io_base,
 					pci_resource_len(hw->pci, 2));
-		if (NULL == (void *)hw->mem_base) {
+		if (!hw->mem_base) {
 			err = -ENOENT;
 			goto error2;
 		}
@@ -1879,12 +1915,15 @@ static int hw_card_start(struct hw *hw)
 	set_field(&gctl, GCTL_UAA, 0);
 	hw_write_20kx(hw, GLOBAL_CNTL_GCTL, gctl);
 
-	/*if ((err = request_irq(pci->irq, ct_atc_interrupt, IRQF_SHARED,
-				atc->chip_details->nm_card, hw))) {
-		goto error3;
+	if (hw->irq < 0) {
+		err = request_irq(pci->irq, ct_20k2_interrupt, IRQF_SHARED,
+				  "ctxfi", hw);
+		if (err < 0) {
+			printk(KERN_ERR "XFi: Cannot get irq %d\n", pci->irq);
+			goto error2;
+		}
+		hw->irq = pci->irq;
 	}
-	hw->irq = pci->irq;
-	*/
 
 	pci_set_master(pci);
 
@@ -1923,7 +1962,7 @@ static int hw_card_shutdown(struct hw *hw)
 
 	hw->irq	= -1;
 
-	if (NULL != ((void *)hw->mem_base))
+	if (hw->mem_base)
 		iounmap((void *)hw->mem_base);
 
 	hw->mem_base = (unsigned long)NULL;
@@ -1972,7 +2011,7 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	hw_write_20kx(hw, GLOBAL_CNTL_GCTL, gctl);
 
 	/* Reset all global pending interrupts */
-	hw_write_20kx(hw, INTERRUPT_GIE, 0);
+	hw_write_20kx(hw, GIE, 0);
 	/* Reset all SRC pending interrupts */
 	hw_write_20kx(hw, SRC_IP, 0);
 
@@ -2149,6 +2188,10 @@ static struct hw ct20k2_preset __devinitdata = {
 	.daio_mgr_set_imapnxt = daio_mgr_set_imapnxt,
 	.daio_mgr_set_imapaddr = daio_mgr_set_imapaddr,
 	.daio_mgr_commit_write = daio_mgr_commit_write,
+
+	.set_timer_irq = set_timer_irq,
+	.set_timer_tick = set_timer_tick,
+	.get_wc = get_wc,
 };
 
 int __devinit create_20k2_hw_obj(struct hw **rhw)

@@ -29,9 +29,7 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-#include <mach/at91sam9263.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91sam9263_matrix.h>
 
 #define DRV_NAME "at91_ide"
 

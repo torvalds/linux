@@ -96,8 +96,6 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 		                         E1000_RXD_SPC_VLAN_MASK);
 	else
 		netif_receive_skb(skb);
-
-	netdev->last_rx = jiffies;
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -149,7 +147,6 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 		bufsz = adapter->rx_ps_hdr_size;
 	else
 		bufsz = adapter->rx_buffer_len;
-	bufsz += NET_IP_ALIGN;
 
 	while (cleaned_count--) {
 		rx_desc = IGBVF_RX_DESC_ADV(*rx_ring, i);
@@ -173,7 +170,7 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 		}
 
 		if (!buffer_info->skb) {
-			skb = netdev_alloc_skb(netdev, bufsz);
+			skb = netdev_alloc_skb(netdev, bufsz + NET_IP_ALIGN);
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
@@ -286,7 +283,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 
 		if (!skb_shinfo(skb)->nr_frags) {
 			pci_unmap_single(pdev, buffer_info->dma,
-			                 adapter->rx_ps_hdr_size + NET_IP_ALIGN,
+			                 adapter->rx_ps_hdr_size,
 			                 PCI_DMA_FROMDEVICE);
 			skb_put(skb, hlen);
 		}
@@ -342,8 +339,6 @@ send_up:
 
 		igbvf_receive_skb(adapter, netdev, skb, staterr,
 		                  rx_desc->wb.upper.vlan);
-
-		netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
@@ -2205,9 +2200,9 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 	mmiowb();
 }
 
-static int igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
-                                   struct net_device *netdev,
-                                   struct igbvf_ring *tx_ring)
+static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
+					     struct net_device *netdev,
+					     struct igbvf_ring *tx_ring)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	unsigned int first, tx_flags = 0;
@@ -2280,11 +2275,11 @@ static int igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int igbvf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t igbvf_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct igbvf_ring *tx_ring;
-	int retval;
 
 	if (test_bit(__IGBVF_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
@@ -2293,9 +2288,7 @@ static int igbvf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_ring = &adapter->tx_ring[0];
 
-	retval = igbvf_xmit_frame_ring_adv(skb, netdev, tx_ring);
-
-	return retval;
+	return igbvf_xmit_frame_ring_adv(skb, netdev, tx_ring);
 }
 
 /**
@@ -2511,6 +2504,9 @@ static pci_ers_result_t igbvf_io_error_detected(struct pci_dev *pdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		igbvf_down(adapter);

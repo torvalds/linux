@@ -51,6 +51,7 @@ enum p9_session_flags {
 enum p9_cache_modes {
 	CACHE_NONE,
 	CACHE_LOOSE,
+	CACHE_FSCACHE,
 };
 
 /**
@@ -60,6 +61,8 @@ enum p9_cache_modes {
  * @debug: debug level
  * @afid: authentication handle
  * @cache: cache mode of type &p9_cache_modes
+ * @cachetag: the tag of the cache associated with this session
+ * @fscache: session cookie associated with FS-Cache
  * @options: copy of options string given by user
  * @uname: string user name to mount hierarchy as
  * @aname: mount specifier for remote hierarchy
@@ -68,7 +71,7 @@ enum p9_cache_modes {
  * @dfltgid: default numeric groupid to mount hierarchy as
  * @uid: if %V9FS_ACCESS_SINGLE, the numeric uid which mounted the hierarchy
  * @clnt: reference to 9P network client instantiated for this session
- * @debugfs_dir: reference to debugfs_dir which can be used for add'l debug
+ * @slist: reference to list of registered 9p sessions
  *
  * This structure holds state for each session instance established during
  * a sys_mount() .
@@ -84,6 +87,10 @@ struct v9fs_session_info {
 	unsigned short debug;
 	unsigned int afid;
 	unsigned int cache;
+#ifdef CONFIG_9P_FSCACHE
+	char *cachetag;
+	struct fscache_cookie *fscache;
+#endif
 
 	char *uname;		/* user name to mount as */
 	char *aname;		/* name of remote hierarchy being mounted */
@@ -92,10 +99,8 @@ struct v9fs_session_info {
 	unsigned int dfltgid;	/* default gid for legacy support */
 	u32 uid;		/* if ACCESS_SINGLE, the uid that has access */
 	struct p9_client *clnt;	/* 9p client */
-	struct dentry *debugfs_dir;
+	struct list_head slist; /* list of sessions registered with v9fs */
 };
-
-extern struct dentry *v9fs_debugfs_root;
 
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
 									char *);

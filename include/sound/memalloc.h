@@ -47,7 +47,11 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_UNKNOWN		0	/* not defined */
 #define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
+#ifdef CONFIG_SND_DMA_SGBUF
 #define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
+#else
+#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
+#endif
 
 /*
  * info for buffer allocation
@@ -60,6 +64,7 @@ struct snd_dma_buffer {
 	void *private_data;	/* private for allocator; don't touch */
 };
 
+#ifdef CONFIG_SND_DMA_SGBUF
 /*
  * Scatter-Gather generic device pages
  */
@@ -107,6 +112,7 @@ static inline void *snd_sgbuf_get_ptr(struct snd_sg_buf *sgbuf, size_t offset)
 {
 	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
 }
+#endif /* CONFIG_SND_DMA_SGBUF */
 
 /* allocate/release a buffer */
 int snd_dma_alloc_pages(int type, struct device *dev, size_t size,

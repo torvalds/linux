@@ -30,6 +30,7 @@
 #include "timing.h"
 
 #include "44x_tlb.h"
+#include "trace.h"
 
 #ifndef PPC44x_TLBE_SIZE
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_4K
@@ -263,7 +264,7 @@ static void kvmppc_44x_shadow_release(struct kvmppc_vcpu_44x *vcpu_44x,
 
 	/* XXX set tlb_44x_index to stlb_index? */
 
-	KVMTRACE_1D(STLB_INVAL, &vcpu_44x->vcpu, stlb_index, handler);
+	trace_kvm_stlb_inval(stlb_index);
 }
 
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
@@ -365,8 +366,8 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr,
 	/* Insert shadow mapping into hardware TLB. */
 	kvmppc_44x_tlbe_set_modified(vcpu_44x, victim);
 	kvmppc_44x_tlbwe(victim, &stlbe);
-	KVMTRACE_5D(STLB_WRITE, vcpu, victim, stlbe.tid, stlbe.word0, stlbe.word1,
-	            stlbe.word2, handler);
+	trace_kvm_stlb_write(victim, stlbe.tid, stlbe.word0, stlbe.word1,
+			     stlbe.word2);
 }
 
 /* For a particular guest TLB entry, invalidate the corresponding host TLB
@@ -485,8 +486,8 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 		kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 	}
 
-	KVMTRACE_5D(GTLB_WRITE, vcpu, gtlb_index, tlbe->tid, tlbe->word0,
-	            tlbe->word1, tlbe->word2, handler);
+	trace_kvm_gtlb_write(gtlb_index, tlbe->tid, tlbe->word0, tlbe->word1,
+			     tlbe->word2);
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
 	return EMULATE_DONE;

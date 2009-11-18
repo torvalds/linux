@@ -6,7 +6,6 @@
 # GNU General Public License.
 #
 
-
 obj-$(CONFIG_EDAC)			:= edac_stub.o
 obj-$(CONFIG_EDAC_MM_EDAC)		+= edac_core.o
 
@@ -16,6 +15,8 @@ edac_core-objs	+= edac_module.o edac_device_sysfs.o
 ifdef CONFIG_PCI
 edac_core-objs	+= edac_pci.o edac_pci_sysfs.o
 endif
+
+obj-$(CONFIG_EDAC_DECODE_MCE)		+= edac_mce_amd.o
 
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o
 obj-$(CONFIG_EDAC_CPC925)		+= cpc925_edac.o
@@ -28,11 +29,12 @@ obj-$(CONFIG_EDAC_I82443BXGX)		+= i82443bxgx_edac.o
 obj-$(CONFIG_EDAC_I82875P)		+= i82875p_edac.o
 obj-$(CONFIG_EDAC_I82975X)		+= i82975x_edac.o
 obj-$(CONFIG_EDAC_I3000)		+= i3000_edac.o
+obj-$(CONFIG_EDAC_I3200)		+= i3200_edac.o
 obj-$(CONFIG_EDAC_X38)			+= x38_edac.o
 obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
 
-amd64_edac_mod-y :=  amd64_edac_err_types.o amd64_edac.o
+amd64_edac_mod-y := amd64_edac.o
 amd64_edac_mod-$(CONFIG_EDAC_DEBUG) += amd64_edac_dbg.o
 amd64_edac_mod-$(CONFIG_EDAC_AMD64_ERROR_INJECTION) += amd64_edac_inj.o
 
@@ -45,3 +47,4 @@ obj-$(CONFIG_EDAC_CELL)			+= cell_edac.o
 obj-$(CONFIG_EDAC_PPC4XX)		+= ppc4xx_edac.o
 obj-$(CONFIG_EDAC_AMD8111)		+= amd8111_edac.o
 obj-$(CONFIG_EDAC_AMD8131)		+= amd8131_edac.o
+

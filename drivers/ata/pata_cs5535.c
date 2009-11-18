@@ -202,7 +202,8 @@ static int cs5535_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id cs5535[] = {
-	{ PCI_VDEVICE(NS, 0x002D), },
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_CS5535_IDE), },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_CS5535_IDE), },
 
 	{ },
 };

@@ -73,6 +73,16 @@
 #define S3C2410_BWSCON_WS7		(1<<30)
 #define S3C2410_BWSCON_ST7		(1<<31)
 
+/* accesor functions for getting BANK(n) configuration. (n != 0) */
+
+#define S3C2410_BWSCON_GET(_bwscon, _bank) (((_bwscon) >> ((_bank) * 4)) & 0xf)
+
+#define S3C2410_BWSCON_DW8		(0)
+#define S3C2410_BWSCON_DW16		(1)
+#define S3C2410_BWSCON_DW32		(2)
+#define S3C2410_BWSCON_WS		(1 << 2)
+#define S3C2410_BWSCON_ST		(1 << 3)
+
 /* memory set (rom, ram) */
 #define S3C2410_BANKCON0		S3C2410_MEMREG(0x0004)
 #define S3C2410_BANKCON1		S3C2410_MEMREG(0x0008)

@@ -116,7 +116,7 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	return 0;
 }
 
-static void __init init_ISA_irqs(void)
+void __init init_ISA_irqs(void)
 {
 	int i;
 
@@ -140,8 +140,10 @@ static void __init init_ISA_irqs(void)
 	}
 }
 
-/* Overridden in paravirt.c */
-void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
+void __init init_IRQ(void)
+{
+	x86_init.irqs.intr_init();
+}
 
 static void __init smp_intr_init(void)
 {
@@ -190,7 +192,7 @@ static void __init apic_intr_init(void)
 #ifdef CONFIG_X86_MCE_THRESHOLD
 	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 #endif
-#if defined(CONFIG_X86_NEW_MCE) && defined(CONFIG_X86_LOCAL_APIC)
+#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_LOCAL_APIC)
 	alloc_intr_gate(MCE_SELF_VECTOR, mce_self_interrupt);
 #endif
 
@@ -206,31 +208,11 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 
 	/* Performance monitoring interrupts: */
-# ifdef CONFIG_PERF_COUNTERS
+# ifdef CONFIG_PERF_EVENTS
 	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
 # endif
 
 #endif
-}
-
-/**
- * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
- *
- * Description:
- *	Perform any necessary interrupt initialisation prior to setting up
- *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
- *	interrupts should be initialised here if the machine emulates a PC
- *	in any way.
- **/
-static void __init x86_quirk_pre_intr_init(void)
-{
-#ifdef CONFIG_X86_32
-	if (x86_quirks->arch_pre_intr_init) {
-		if (x86_quirks->arch_pre_intr_init())
-			return;
-	}
-#endif
-	init_ISA_irqs();
 }
 
 void __init native_init_IRQ(void)
@@ -238,7 +220,7 @@ void __init native_init_IRQ(void)
 	int i;
 
 	/* Execute any quirks before the call gates are initialised: */
-	x86_quirk_pre_intr_init();
+	x86_init.irqs.pre_vector_init();
 
 	apic_intr_init();
 
@@ -257,12 +239,6 @@ void __init native_init_IRQ(void)
 		setup_irq(2, &irq2);
 
 #ifdef CONFIG_X86_32
-	/*
-	 * Call quirks after call gates are initialised (usually add in
-	 * the architecture specific gates):
-	 */
-	x86_quirk_intr_init();
-
 	/*
 	 * External FPU? Set up irq13 if so, for
 	 * original braindamaged IBM FERR coupling.

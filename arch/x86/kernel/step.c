@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
+#include <asm/desc.h>
 
 unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs)
 {
@@ -23,7 +24,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 	 * and APM bios ones we just ignore here.
 	 */
 	if ((seg & SEGMENT_TI_MASK) == SEGMENT_LDT) {
-		u32 *desc;
+		struct desc_struct *desc;
 		unsigned long base;
 
 		seg &= ~7UL;
@@ -33,12 +34,10 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 			addr = -1L; /* bogus selector, access would fault */
 		else {
 			desc = child->mm->context.ldt + seg;
-			base = ((desc[0] >> 16) |
-				((desc[1] & 0xff) << 16) |
-				(desc[1] & 0xff000000));
+			base = get_desc_base(desc);
 
 			/* 16-bit code segment? */
-			if (!((desc[1] >> 22) & 1))
+			if (!desc->d)
 				addr &= 0xffff;
 			addr += base;
 		}

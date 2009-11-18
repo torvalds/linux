@@ -193,9 +193,11 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 static int udf_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE) {
+		mutex_lock(&inode->i_mutex);
 		lock_kernel();
 		udf_discard_prealloc(inode);
 		unlock_kernel();
+		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
 }

@@ -37,7 +37,7 @@
   */
 
 #define MSG_COUNT 4
-static DEFINE_PER_CPU(unsigned int, ps3_ipi_virqs[MSG_COUNT]);
+static DEFINE_PER_CPU(unsigned int [MSG_COUNT], ps3_ipi_virqs);
 
 static void do_message_pass(int target, int msg)
 {

@@ -18,12 +18,6 @@ enum {
 	XT_CONNMARK_RESTORE
 };
 
-struct xt_connmark_target_info {
-	unsigned long mark;
-	unsigned long mask;
-	__u8 mode;
-};
-
 struct xt_connmark_tginfo1 {
 	__u32 ctmark, ctmask, nfmask;
 	__u8 mode;

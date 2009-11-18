@@ -231,7 +231,7 @@ typedef enum {
 	SCTP_SS_LISTENING      = TCP_LISTEN,
 	SCTP_SS_ESTABLISHING   = TCP_SYN_SENT,
 	SCTP_SS_ESTABLISHED    = TCP_ESTABLISHED,
-	SCTP_SS_DISCONNECTING  = TCP_CLOSING,
+	SCTP_SS_CLOSING        = TCP_CLOSING,
 } sctp_sock_state_t;
 
 /* These functions map various type to printable names.  */
@@ -241,7 +241,9 @@ const char *sctp_tname(const sctp_subtype_t);	/* timeouts */
 const char *sctp_pname(const sctp_subtype_t);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
-extern const char *sctp_state_tbl[], *sctp_evttype_tbl[], *sctp_status_tbl[];
+extern const char *const sctp_state_tbl[];
+extern const char *const sctp_evttype_tbl[];
+extern const char *const sctp_status_tbl[];
 
 /* Maximum chunk length considering padding requirements. */
 enum { SCTP_MAX_CHUNK_LEN = ((1<<16) - sizeof(__u32)) };
@@ -360,6 +362,13 @@ typedef enum {
 	SCTP_SCOPE_LOOPBACK,		/* IPv4 loopback address */
 	SCTP_SCOPE_UNUSABLE,		/* IPv4 unusable addresses */
 } sctp_scope_t;
+
+typedef enum {
+	SCTP_SCOPE_POLICY_DISABLE,	/* Disable IPv4 address scoping */
+	SCTP_SCOPE_POLICY_ENABLE,	/* Enable IPv4 address scoping */
+	SCTP_SCOPE_POLICY_PRIVATE,	/* Follow draft but allow IPv4 private addresses */
+	SCTP_SCOPE_POLICY_LINK,		/* Follow draft but allow IPv4 link local addresses */
+} sctp_scope_policy_t;
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,

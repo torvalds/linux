@@ -77,3 +77,4 @@
     S_(NULL)
     S_(NULL)
     S_("kernel_service")
+    S_("tun_socket")

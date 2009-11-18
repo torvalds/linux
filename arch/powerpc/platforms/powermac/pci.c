@@ -1286,3 +1286,64 @@ static void fixup_k2_sata(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, 0x0240, fixup_k2_sata);
 
+/*
+ * On U4 (aka CPC945) the PCIe root complex "P2P" bridge resource ranges aren't
+ * configured by the firmware. The bridge itself seems to ignore them but it
+ * causes problems with Linux which then re-assigns devices below the bridge,
+ * thus changing addresses of those devices from what was in the device-tree,
+ * which sucks when those are video cards using offb
+ *
+ * We could just mark it transparent but I prefer fixing up the resources to
+ * properly show what's going on here, as I have some doubts about having them
+ * badly configured potentially being an issue for DMA.
+ *
+ * We leave PIO alone, it seems to be fine
+ *
+ * Oh and there's another funny bug. The OF properties advertize the region
+ * 0xf1000000..0xf1ffffff as being forwarded as memory space. But that's
+ * actually not true, this region is the memory mapped config space. So we
+ * also need to filter it out or we'll map things in the wrong place.
+ */
+static void fixup_u4_pcie(struct pci_dev* dev)
+{
+	struct pci_controller *host = pci_bus_to_host(dev->bus);
+	struct resource *region = NULL;
+	u32 reg;
+	int i;
+
+	/* Only do that on PowerMac */
+	if (!machine_is(powermac))
+		return;
+
+	/* Find the largest MMIO region */
+	for (i = 0; i < 3; i++) {
+		struct resource *r = &host->mem_resources[i];
+		if (!(r->flags & IORESOURCE_MEM))
+			continue;
+		/* Skip the 0xf0xxxxxx..f2xxxxxx regions, we know they
+		 * are reserved by HW for other things
+		 */
+		if (r->start >= 0xf0000000 && r->start < 0xf3000000)
+			continue;
+		if (!region || (r->end - r->start) >
+		    (region->end - region->start))
+			region = r;
+	}
+	/* Nothing found, bail */
+	if (region == 0)
+		return;
+
+	/* Print things out */
+	printk(KERN_INFO "PCI: Fixup U4 PCIe bridge range: %pR\n", region);
+
+	/* Fixup bridge config space. We know it's a Mac, resource aren't
+	 * offset so let's just blast them as-is. We also know that they
+	 * fit in 32 bits
+	 */
+	reg = ((region->start >> 16) & 0xfff0) | (region->end & 0xfff00000);
+	pci_write_config_dword(dev, PCI_MEMORY_BASE, reg);
+	pci_write_config_dword(dev, PCI_PREF_BASE_UPPER32, 0);
+	pci_write_config_dword(dev, PCI_PREF_LIMIT_UPPER32, 0);
+	pci_write_config_dword(dev, PCI_PREF_MEMORY_BASE, 0);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_U4_PCIE, fixup_u4_pcie);

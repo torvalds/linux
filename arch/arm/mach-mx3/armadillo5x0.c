@@ -352,7 +352,7 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= mx31_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx31_init_irq,
 	.timer		= &armadillo5x0_timer,
 	.init_machine	= armadillo5x0_init,
 MACHINE_END

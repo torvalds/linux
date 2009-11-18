@@ -275,7 +275,7 @@ static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
 {
 	memset(a, 0, sizeof(*a));
 	a->a.type = type;
-	a->a.function = func;
+	a->a.smack_audit_data.function = func;
 }
 
 static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,

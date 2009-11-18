@@ -4,7 +4,7 @@ For more details, contact Applied Data Systems or see
 http://www.applieddata.net/products.html
 
 The original Linux support for this product has been provided by
-Nicolas Pitre <nico@cam.org>. Continued development work by
+Nicolas Pitre <nico@fluxnic.net>. Continued development work by
 Woojung Huh <whuh@applieddata.net>
 
 Use 'make graphicsmaster_config' before any 'make config'.
@@ -50,4 +50,4 @@ Notes:
   mode, the timing is off so the image is corrupted.  This will be
   fixed soon.
 
-Any contribution can be sent to nico@cam.org and will be greatly welcome!
+Any contribution can be sent to nico@fluxnic.net and will be greatly welcome!

@@ -503,6 +503,9 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		transport->ssthresh = max(transport->cwnd/2,
 					  4*transport->asoc->pathmtu);
 		transport->cwnd = transport->asoc->pathmtu;
+
+		/* T3-rtx also clears fast recovery on the transport */
+		transport->fast_recovery = 0;
 		break;
 
 	case SCTP_LOWER_CWND_FAST_RTX:

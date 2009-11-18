@@ -146,7 +146,7 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
  *   Pointer to the newly allocated/prepared els iocb data structure
  *   NULL - when els iocb data structure allocation/preparation failed
  **/
-static struct lpfc_iocbq *
+struct lpfc_iocbq *
 lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		   uint16_t cmdSize, uint8_t retry,
 		   struct lpfc_nodelist *ndlp, uint32_t did,

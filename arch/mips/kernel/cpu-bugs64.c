@@ -167,7 +167,7 @@ static inline void check_mult_sh(void)
 	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
-static volatile int daddi_ov __cpuinitdata = 0;
+static volatile int daddi_ov __cpuinitdata;
 
 asmlinkage void __init do_daddi_ov(struct pt_regs *regs)
 {

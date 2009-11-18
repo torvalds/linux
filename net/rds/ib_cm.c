@@ -98,20 +98,33 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	struct ib_qp_attr qp_attr;
 	int err;
 
-	if (event->param.conn.private_data_len) {
+	if (event->param.conn.private_data_len >= sizeof(*dp)) {
 		dp = event->param.conn.private_data;
 
-		rds_ib_set_protocol(conn,
+		/* make sure it isn't empty data */
+		if (dp->dp_protocol_major) {
+			rds_ib_set_protocol(conn,
 				RDS_PROTOCOL(dp->dp_protocol_major,
-					dp->dp_protocol_minor));
-		rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+				dp->dp_protocol_minor));
+			rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+		}
 	}
 
 	printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
-			&conn->c_laddr,
+			&conn->c_faddr,
 			RDS_PROTOCOL_MAJOR(conn->c_version),
 			RDS_PROTOCOL_MINOR(conn->c_version),
 			ic->i_flowctl ? ", flow control" : "");
+
+	/*
+	 * Init rings and fill recv. this needs to wait until protocol negotiation
+	 * is complete, since ring layout is different from 3.0 to 3.1.
+	 */
+	rds_ib_send_init_ring(ic);
+	rds_ib_recv_init_ring(ic);
+	/* Post receive buffers - as a side effect, this will update
+	 * the posted credit count. */
+	rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 1);
 
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);
@@ -145,7 +158,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 	/* XXX tune these? */
 	conn_param->responder_resources = 1;
 	conn_param->initiator_depth = 1;
-	conn_param->retry_count = 7;
+	conn_param->retry_count = min_t(unsigned int, rds_ib_retry_count, 7);
 	conn_param->rnr_retry_count = 7;
 
 	if (dp) {
@@ -190,9 +203,9 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		printk(KERN_WARNING "RDS/ib: unhandled QP event %u "
-		       "on connection to %pI4\n", event->event,
-		       &conn->c_faddr);
+		rds_ib_conn_error(conn, "RDS/IB: Fatal QP Event %u "
+			"- connection %pI4->%pI4, reconnecting\n",
+			event->event, &conn->c_laddr, &conn->c_faddr);
 		break;
 	}
 }
@@ -321,7 +334,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		rdsdebug("send allocation failed\n");
 		goto out;
 	}
-	rds_ib_send_init_ring(ic);
+	memset(ic->i_sends, 0, ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work));
 
 	ic->i_recvs = vmalloc(ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
 	if (ic->i_recvs == NULL) {
@@ -329,13 +342,9 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		rdsdebug("recv allocation failed\n");
 		goto out;
 	}
+	memset(ic->i_recvs, 0, ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
 
-	rds_ib_recv_init_ring(ic);
 	rds_ib_recv_init_ack(ic);
-
-	/* Post receive buffers - as a side effect, this will update
-	 * the posted credit count. */
-	rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 1);
 
 	rdsdebug("conn %p pd %p mr %p cq %p %p\n", conn, ic->i_pd, ic->i_mr,
 		 ic->i_send_cq, ic->i_recv_cq);
@@ -344,19 +353,32 @@ out:
 	return ret;
 }
 
-static u32 rds_ib_protocol_compatible(const struct rds_ib_connect_private *dp)
+static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 {
+	const struct rds_ib_connect_private *dp = event->param.conn.private_data;
 	u16 common;
 	u32 version = 0;
 
-	/* rdma_cm private data is odd - when there is any private data in the
+	/*
+	 * rdma_cm private data is odd - when there is any private data in the
 	 * request, we will be given a pretty large buffer without telling us the
 	 * original size. The only way to tell the difference is by looking at
 	 * the contents, which are initialized to zero.
 	 * If the protocol version fields aren't set, this is a connection attempt
 	 * from an older version. This could could be 3.0 or 2.0 - we can't tell.
-	 * We really should have changed this for OFED 1.3 :-( */
-	if (dp->dp_protocol_major == 0)
+	 * We really should have changed this for OFED 1.3 :-(
+	 */
+
+	/* Be paranoid. RDS always has privdata */
+	if (!event->param.conn.private_data_len) {
+		printk(KERN_NOTICE "RDS incoming connection has no private data, "
+			"rejecting\n");
+		return 0;
+	}
+
+	/* Even if len is crap *now* I still want to check it. -ASG */
+	if (event->param.conn.private_data_len < sizeof (*dp)
+	    || dp->dp_protocol_major == 0)
 		return RDS_PROTOCOL_3_0;
 
 	common = be16_to_cpu(dp->dp_protocol_minor_mask) & RDS_IB_SUPPORTED_PROTOCOLS;
@@ -388,7 +410,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	int err, destroy = 1;
 
 	/* Check whether the remote protocol version matches ours. */
-	version = rds_ib_protocol_compatible(dp);
+	version = rds_ib_protocol_compatible(event);
 	if (!version)
 		goto out;
 

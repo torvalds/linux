@@ -1,0 +1,246 @@
+<refentry id="vidioc-g-modulator">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_MODULATOR, VIDIOC_S_MODULATOR</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_MODULATOR</refname>
+    <refname>VIDIOC_S_MODULATOR</refname>
+    <refpurpose>Get or set modulator attributes</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_modulator
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>const struct v4l2_modulator
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_MODULATOR, VIDIOC_S_MODULATOR</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To query the attributes of a modulator applications initialize
+the <structfield>index</structfield> field and zero out the
+<structfield>reserved</structfield> array of a &v4l2-modulator; and
+call the <constant>VIDIOC_G_MODULATOR</constant> ioctl with a pointer
+to this structure. Drivers fill the rest of the structure or return an
+&EINVAL; when the index is out of bounds. To enumerate all modulators
+applications shall begin at index zero, incrementing by one until the
+driver returns <errorcode>EINVAL</errorcode>.</para>
+
+    <para>Modulators have two writable properties, an audio
+modulation set and the radio frequency. To change the modulated audio
+subprograms, applications initialize the <structfield>index
+</structfield> and <structfield>txsubchans</structfield> fields and the
+<structfield>reserved</structfield> array and call the
+<constant>VIDIOC_S_MODULATOR</constant> ioctl. Drivers may choose a
+different audio modulation if the request cannot be satisfied. However
+this is a write-only ioctl, it does not return the actual audio
+modulation selected.</para>
+
+    <para>To change the radio frequency the &VIDIOC-S-FREQUENCY; ioctl
+is available.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-modulator">
+      <title>struct <structname>v4l2_modulator</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Identifies the modulator, set by the
+application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>name</structfield>[32]</entry>
+	    <entry>Name of the modulator, a NUL-terminated ASCII
+string. This information is intended for the user.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>capability</structfield></entry>
+	    <entry>Modulator capability flags. No flags are defined
+for this field, the tuner flags in &v4l2-tuner;
+are used accordingly. The audio flags indicate the ability
+to encode audio subprograms. They will <emphasis>not</emphasis>
+change for example with the current video standard.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>rangelow</structfield></entry>
+	    <entry>The lowest tunable frequency in units of 62.5
+KHz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
+Hz.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>rangehigh</structfield></entry>
+	    <entry>The highest tunable frequency in units of 62.5
+KHz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
+Hz.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>txsubchans</structfield></entry>
+	    <entry>With this field applications can determine how
+audio sub-carriers shall be modulated. It contains a set of flags as
+defined in <xref linkend="modulator-txsubchans" />. Note the tuner
+<structfield>rxsubchans</structfield> flags are reused, but the
+semantics are different. Video output devices are assumed to have an
+analog or PCM audio input with 1-3 channels. The
+<structfield>txsubchans</structfield> flags select one or more
+channels for modulation, together with some audio subprogram
+indicator, for example a stereo pilot tone.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="modulator-txsubchans">
+      <title>Modulator Audio Transmission Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_MONO</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>Modulate channel 1 as mono audio, when the input
+has more channels, a down-mix of channel 1 and 2. This flag does not
+combine with <constant>V4L2_TUNER_SUB_STEREO</constant> or
+<constant>V4L2_TUNER_SUB_LANG1</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_STEREO</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>Modulate channel 1 and 2 as left and right
+channel of a stereo audio signal. When the input has only one channel
+or two channels and <constant>V4L2_TUNER_SUB_SAP</constant> is also
+set, channel 1 is encoded as left and right channel. This flag does
+not combine with <constant>V4L2_TUNER_SUB_MONO</constant> or
+<constant>V4L2_TUNER_SUB_LANG1</constant>. When the driver does not
+support stereo audio it shall fall back to mono.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_LANG1</constant></entry>
+	    <entry>0x0008</entry>
+	    <entry>Modulate channel 1 and 2 as primary and secondary
+language of a bilingual audio signal. When the input has only one
+channel it is used for both languages. It is not possible to encode
+the primary or secondary language only. This flag does not combine
+with <constant>V4L2_TUNER_SUB_MONO</constant>,
+<constant>V4L2_TUNER_SUB_STEREO</constant> or
+<constant>V4L2_TUNER_SUB_SAP</constant>. If the hardware does not
+support the respective audio matrix, or the current video standard
+does not permit bilingual audio the
+<constant>VIDIOC_S_MODULATOR</constant> ioctl shall return an &EINVAL;
+and the driver shall fall back to mono or stereo mode.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_LANG2</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>Same effect as
+<constant>V4L2_TUNER_SUB_SAP</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_SAP</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>When combined with <constant>V4L2_TUNER_SUB_MONO
+</constant> the first channel is encoded as mono audio, the last
+channel as Second Audio Program. When the input has only one channel
+it is used for both audio tracks. When the input has three channels
+the mono track is a down-mix of channel 1 and 2. When combined with
+<constant>V4L2_TUNER_SUB_STEREO</constant> channel 1 and 2 are
+encoded as left and right stereo audio, channel 3 as Second Audio
+Program. When the input has only two channels, the first is encoded as
+left and right channel and the second as SAP. When the input has only
+one channel it is used for all audio tracks. It is not possible to
+encode a Second Audio Program only. This flag must combine with
+<constant>V4L2_TUNER_SUB_MONO</constant> or
+<constant>V4L2_TUNER_SUB_STEREO</constant>. If the hardware does not
+support the respective audio matrix, or the current video standard
+does not permit SAP the <constant>VIDIOC_S_MODULATOR</constant> ioctl
+shall return an &EINVAL; and driver shall fall back to mono or stereo
+mode.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SUB_RDS</constant></entry>
+	    <entry>0x0010</entry>
+	    <entry>Enable the RDS encoder for a radio FM transmitter.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-modulator;
+<structfield>index</structfield> is out of bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

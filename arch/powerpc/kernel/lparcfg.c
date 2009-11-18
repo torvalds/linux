@@ -35,6 +35,7 @@
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
 #include <asm/vio.h>
+#include <asm/mmu.h>
 
 #define MODULE_VERS "1.8"
 #define MODULE_NAME "lparcfg"
@@ -536,6 +537,8 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		   partition_potential_processors);
 
 	seq_printf(m, "shared_processor_mode=%d\n", lppaca[0].shared_proc);
+
+	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 
 	return 0;
 }

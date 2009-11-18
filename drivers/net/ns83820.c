@@ -111,6 +111,7 @@
 #include <linux/compiler.h>
 #include <linux/prefetch.h>
 #include <linux/ethtool.h>
+#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
@@ -1077,7 +1078,8 @@ static void ns83820_cleanup_tx(struct ns83820 *dev)
  * while trying to track down a bug in either the zero copy code or
  * the tx fifo (hence the MAX_FRAG_LEN).
  */
-static int ns83820_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t ns83820_hard_start_xmit(struct sk_buff *skb,
+					   struct net_device *ndev)
 {
 	struct ns83820 *dev = PRIV(ndev);
 	u32 free_idx, cmdsts, extsts;

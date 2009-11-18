@@ -26,6 +26,8 @@ extern struct trace_event *ftrace_find_event(int type);
 
 extern enum print_line_t trace_nop_print(struct trace_iterator *iter,
 					 int flags);
+extern int
+trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry);
 
 /* used by module unregistering */
 extern int __unregister_ftrace_event(struct trace_event *event);

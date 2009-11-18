@@ -268,13 +268,13 @@ ENTRY(empty_zero_page)
 /*------------------------------------------------------------------------
  * Stack area
  */
-	.section .spi
+	.section .init.data, "aw"
 	ALIGN
 	.global spi_stack_top
 	.zero	1024
 spi_stack_top:
 
-	.section .spu
+	.section .init.data, "aw"
 	ALIGN
 	.global spu_stack_top
 	.zero	1024

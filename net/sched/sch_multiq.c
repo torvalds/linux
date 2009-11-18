@@ -298,9 +298,6 @@ static int multiq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
 
-	if (band >= q->bands)
-		return -EINVAL;
-
 	if (new == NULL)
 		new = &noop_qdisc;
 
@@ -319,9 +316,6 @@ multiq_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
-
-	if (band >= q->bands)
-		return NULL;
 
 	return q->queues[band];
 }
@@ -348,36 +342,13 @@ static void multiq_put(struct Qdisc *q, unsigned long cl)
 	return;
 }
 
-static int multiq_change(struct Qdisc *sch, u32 handle, u32 parent,
-			 struct nlattr **tca, unsigned long *arg)
-{
-	unsigned long cl = *arg;
-	struct multiq_sched_data *q = qdisc_priv(sch);
-
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-static int multiq_delete(struct Qdisc *sch, unsigned long cl)
-{
-	struct multiq_sched_data *q = qdisc_priv(sch);
-	if (cl - 1 > q->bands)
-		return -ENOENT;
-	return 0;
-}
-
-
 static int multiq_dump_class(struct Qdisc *sch, unsigned long cl,
 			     struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 
-	if (cl - 1 > q->bands)
-		return -ENOENT;
 	tcm->tcm_handle |= TC_H_MIN(cl);
-	if (q->queues[cl-1])
-		tcm->tcm_info = q->queues[cl-1]->handle;
+	tcm->tcm_info = q->queues[cl-1]->handle;
 	return 0;
 }
 
@@ -388,6 +359,7 @@ static int multiq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct Qdisc *cl_q;
 
 	cl_q = q->queues[cl - 1];
+	cl_q->qstats.qlen = cl_q->q.qlen;
 	if (gnet_stats_copy_basic(d, &cl_q->bstats) < 0 ||
 	    gnet_stats_copy_queue(d, &cl_q->qstats) < 0)
 		return -1;
@@ -430,8 +402,6 @@ static const struct Qdisc_class_ops multiq_class_ops = {
 	.leaf		=	multiq_leaf,
 	.get		=	multiq_get,
 	.put		=	multiq_put,
-	.change		=	multiq_change,
-	.delete		=	multiq_delete,
 	.walk		=	multiq_walk,
 	.tcf_chain	=	multiq_find_tcf,
 	.bind_tcf	=	multiq_bind,

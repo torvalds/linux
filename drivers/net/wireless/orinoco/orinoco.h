@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
+#include <net/cfg80211.h>
 
 #include "hermes.h"
 
@@ -24,6 +25,7 @@
 
 #define MAX_SCAN_LEN		4096
 
+#define ORINOCO_SEQ_LEN		8
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
@@ -41,23 +43,17 @@ struct orinoco_tkip_key {
 	u8 rx_mic[MIC_KEYLEN];
 };
 
+enum orinoco_alg {
+	ORINOCO_ALG_NONE,
+	ORINOCO_ALG_WEP,
+	ORINOCO_ALG_TKIP
+};
+
 typedef enum {
 	FIRMWARE_TYPE_AGERE,
 	FIRMWARE_TYPE_INTERSIL,
 	FIRMWARE_TYPE_SYMBOL
 } fwtype_t;
-
-struct bss_element {
-	union hermes_scan_info bss;
-	unsigned long last_scanned;
-	struct list_head list;
-};
-
-struct xbss_element {
-	struct agere_ext_scan_info bss;
-	unsigned long last_scanned;
-	struct list_head list;
-};
 
 struct firmware;
 
@@ -66,6 +62,10 @@ struct orinoco_private {
 	struct device *dev;
 	int (*hard_reset)(struct orinoco_private *);
 	int (*stop_fw)(struct orinoco_private *, int);
+
+	struct ieee80211_supported_band band;
+	struct ieee80211_channel channels[14];
+	u32 cipher_suites[3];
 
 	/* Synchronisation stuff */
 	spinlock_t lock;
@@ -114,12 +114,14 @@ struct orinoco_private {
 	unsigned int do_fw_download:1;
 	unsigned int broken_disableport:1;
 	unsigned int broken_monitor:1;
+	unsigned int prefer_port3:1;
 
 	/* Configuration paramaters */
-	u32 iw_mode;
-	int prefer_port3;
-	u16 encode_alg, wep_restrict, tx_key;
-	struct orinoco_key keys[ORINOCO_MAX_KEYS];
+	enum nl80211_iftype iw_mode;
+	enum orinoco_alg encode_alg;
+	u16 wep_restrict, tx_key;
+	struct key_params keys[ORINOCO_MAX_KEYS];
+
 	int bitratemode;
 	char nick[IW_ESSID_MAX_SIZE+1];
 	char desired_essid[IW_ESSID_MAX_SIZE+1];
@@ -140,18 +142,15 @@ struct orinoco_private {
 	int promiscuous, mc_count;
 
 	/* Scanning support */
-	struct list_head bss_list;
-	struct list_head bss_free_list;
-	void *bss_xbss_data;
-
-	int	scan_inprogress;	/* Scan pending... */
-	u32	scan_mode;		/* Type of scan done */
+	struct cfg80211_scan_request *scan_request;
+	struct work_struct process_scan;
+	struct list_head scan_list;
+	spinlock_t scan_lock; /* protects the scan list */
 
 	/* WPA support */
 	u8 *wpa_ie;
 	int wpa_ie_len;
 
-	struct orinoco_tkip_key tkip_key[ORINOCO_MAX_KEYS];
 	struct crypto_hash *rx_tfm_mic;
 	struct crypto_hash *tx_tfm_mic;
 
@@ -182,14 +181,18 @@ extern int orinoco_debug;
 /* Exported prototypes                                              */
 /********************************************************************/
 
-extern struct net_device *alloc_orinocodev(
+extern struct orinoco_private *alloc_orinocodev(
 	int sizeof_card, struct device *device,
 	int (*hard_reset)(struct orinoco_private *),
 	int (*stop_fw)(struct orinoco_private *, int));
-extern void free_orinocodev(struct net_device *dev);
-extern int __orinoco_up(struct net_device *dev);
-extern int __orinoco_down(struct net_device *dev);
-extern int orinoco_reinit_firmware(struct net_device *dev);
+extern void free_orinocodev(struct orinoco_private *priv);
+extern int orinoco_init(struct orinoco_private *priv);
+extern int orinoco_if_add(struct orinoco_private *priv,
+			  unsigned long base_addr,
+			  unsigned int irq);
+extern void orinoco_if_del(struct orinoco_private *priv);
+extern int orinoco_up(struct orinoco_private *priv);
+extern void orinoco_down(struct orinoco_private *priv);
 extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
 
 /********************************************************************/
@@ -215,4 +218,10 @@ static inline void orinoco_unlock(struct orinoco_private *priv,
 	spin_unlock_irqrestore(&priv->lock, *flags);
 }
 
+/*** Navigate from net_device to orinoco_private ***/
+static inline struct orinoco_private *ndev_priv(struct net_device *dev)
+{
+	struct wireless_dev *wdev = netdev_priv(dev);
+	return wdev_priv(wdev);
+}
 #endif /* _ORINOCO_H */

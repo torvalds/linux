@@ -378,6 +378,15 @@ config RTC_DRV_DS3234
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds3234.
 
+config RTC_DRV_PCF2123
+	tristate "NXP PCF2123"
+	help
+	  If you say yes here you get support for the NXP PCF2123
+	  RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf2123.
+
 endif # SPI_MASTER
 
 comment "Platform RTC drivers"
@@ -500,6 +509,17 @@ config RTC_DRV_M48T59
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
 
+config RTC_MXC
+	tristate "Freescale MXC Real Time Clock"
+	depends on ARCH_MXC
+	depends on RTC_CLASS
+	help
+	   If you say yes here you get support for the Freescale MXC
+	   RTC module.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-mxc".
+
 config RTC_DRV_BQ4802
 	tristate "TI BQ4802"
 	help
@@ -518,6 +538,16 @@ config RTC_DRV_V3020
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-v3020.
 
+config RTC_DRV_WM831X
+	tristate "Wolfson Microelectronics WM831x RTC"
+	depends on MFD_WM831X
+	help
+	  If you say yes here you will get support for the RTC subsystem
+	  of the Wolfson Microelectronics WM831X series PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rtc-wm831x".
+
 config RTC_DRV_WM8350
 	tristate "Wolfson Microelectronics WM8350 RTC"
 	depends on MFD_WM8350
@@ -534,6 +564,15 @@ config RTC_DRV_PCF50633
 	help
 	  If you say yes here you get support for the RTC subsystem of the
 	  NXP PCF50633 used in embedded systems.
+
+config RTC_DRV_AB3100
+	tristate "ST-Ericsson AB3100 RTC"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	  Select this to enable the ST-Ericsson AB3100 Mixed Signal IC RTC
+	  support. This chip contains a battery- and capacitor-backed RTC.
+
 
 comment "on-CPU RTC drivers"
 
@@ -758,5 +797,34 @@ config RTC_DRV_PS3
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ps3.
+
+config RTC_DRV_COH901331
+	tristate "ST-Ericsson COH 901 331 RTC"
+	depends on ARCH_U300
+	help
+	  If you say Y here you will get access to ST-Ericsson
+	  COH 901 331 RTC clock found in some ST-Ericsson Mobile
+	  Platforms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rtc-coh901331".
+
+
+config RTC_DRV_STMP
+	tristate "Freescale STMP3xxx RTC"
+	depends on ARCH_STMP3XXX
+	help
+	  If you say yes here you will get support for the onboard
+	  STMP3xxx RTC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-stmp3xxx.
+
+config RTC_DRV_PCAP
+	tristate "PCAP RTC"
+	depends on EZX_PCAP
+	help
+	  If you say Y here you will get support for the RTC found on
+	  the PCAP2 ASIC used on some Motorola phones.
 
 endif # RTC_CLASS

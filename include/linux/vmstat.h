@@ -166,15 +166,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
 	return x;
 }
 
-extern unsigned long global_lru_pages(void);
-
-static inline unsigned long zone_lru_pages(struct zone *zone)
-{
-	return (zone_page_state(zone, NR_ACTIVE_ANON)
-		+ zone_page_state(zone, NR_ACTIVE_FILE)
-		+ zone_page_state(zone, NR_INACTIVE_ANON)
-		+ zone_page_state(zone, NR_INACTIVE_FILE));
-}
+extern unsigned long global_reclaimable_pages(void);
+extern unsigned long zone_reclaimable_pages(struct zone *zone);
 
 #ifdef CONFIG_NUMA
 /*
@@ -209,11 +202,6 @@ extern void zone_statistics(struct zone *, struct zone *);
 #define zone_statistics(_zl,_z) do { } while (0)
 
 #endif /* CONFIG_NUMA */
-
-#define __add_zone_page_state(__z, __i, __d)	\
-		__mod_zone_page_state(__z, __i, __d)
-#define __sub_zone_page_state(__z, __i, __d)	\
-		__mod_zone_page_state(__z, __i,-(__d))
 
 #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
 #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))

@@ -31,32 +31,13 @@
  *
  */
 
-#if !defined(__VNTWIFI_H__)
 #include "vntwifi.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-
-
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__IEEE11h_H__)
 #include "IEEE11h.h"
-#endif
-#if !defined(__COUNTRY_H__)
 #include "country.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__DATARATE_H__)
 #include "datarate.h"
-#endif
+
 //#define	PLICE_DEBUG
 
 /*---------------------  Static Definitions -------------------------*/
@@ -694,7 +675,7 @@ VNTWIFIbSetPMKIDCache (
         return (FALSE);
     }
     pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
-    MEMvCopy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
+    memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
     return (TRUE);
 }
 
@@ -709,7 +690,7 @@ VNTWIFIwGetMaxSupportRate(
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
     for(wRate = RATE_54M; wRate > RATE_1M; wRate--) {
-        if (BITbIsBitOn(pMgmt->sNodeDBTable[0].wSuppRate, (1<<wRate))) {
+        if (pMgmt->sNodeDBTable[0].wSuppRate & (1<<wRate)) {
             return (wRate);
         }
     }
@@ -758,24 +739,24 @@ VNTWIFIbMeasureReport(
         switch (pMgmt->pCurrMeasureEIDRep->byType) {
             case MEASURE_TYPE_BASIC :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_BASIC);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sBasic),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sBasic),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
                 pMgmt->pCurrMeasureEIDRep->sRep.sBasic.byMap = byBasicMap;
                 break;
             case MEASURE_TYPE_CCA :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_CCA);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sCCA),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sCCA),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
                 pMgmt->pCurrMeasureEIDRep->sRep.sCCA.byCCABusyFraction = byCCAFraction;
                 break;
             case MEASURE_TYPE_RPI :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_RPI);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sRPI),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sRPI),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
-                MEMvCopy(pMgmt->pCurrMeasureEIDRep->sRep.sRPI.abyRPIdensity, pbyRPIs, 8);
+                memcpy(pMgmt->pCurrMeasureEIDRep->sRep.sRPI.abyRPIdensity, pbyRPIs, 8);
                 break;
             default :
                 break;

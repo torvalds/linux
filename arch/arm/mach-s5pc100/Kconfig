@@ -1,0 +1,22 @@
+# arch/arm/mach-s5pc100/Kconfig
+#
+# Copyright 2009 Samsung Electronics Co.
+#	Byungho Min <bhmin@samsung.com>
+#
+# Licensed under GPLv2
+
+# Configuration options for the S5PC100 CPU
+
+config CPU_S5PC100
+	bool
+	select CPU_S5PC100_INIT
+	select CPU_S5PC100_CLOCK
+	help
+	  Enable S5PC100 CPU support
+
+config MACH_SMDKC100
+	bool "SMDKC100"
+	select CPU_S5PC100
+	select S5PC1XX_SETUP_I2C1
+	help
+	  Machine support for the Samsung SMDKC100

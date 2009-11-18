@@ -104,6 +104,8 @@ static inline int au1100_gpio2_to_irq(int gpio)
 
 	if ((gpio >= 8) && (gpio <= 15))
 		return MAKE_IRQ(0, 29);		/* shared GPIO208_215 */
+
+	return -ENXIO;
 }
 
 #ifdef CONFIG_SOC_AU1100
@@ -576,6 +578,15 @@ static inline int gpio_to_irq(int gpio)
 static inline int irq_to_gpio(int irq)
 {
 	return alchemy_irq_to_gpio(irq);
+}
+
+static inline int gpio_request(unsigned gpio, const char *label)
+{
+	return 0;
+}
+
+static inline void gpio_free(unsigned gpio)
+{
 }
 
 #endif	/* !CONFIG_ALCHEMY_GPIO_INDIRECT */

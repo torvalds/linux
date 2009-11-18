@@ -29,13 +29,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
-#ifdef MODULE
-#ifdef MODVERSIONS
-#include <linux/modversions.h>
-#endif /* MODVERSIONS */
 #include <linux/module.h>
-#endif /* MODULE */
-
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -70,81 +64,40 @@
 #endif
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>	// New driver API
-#endif	/* WIRELESS_EXT > 12 */
 
 //2008-0409-07, <Add> by Einsn Liu
-#if WIRELESS_EXT > 17
 #ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#endif
 #endif
 //2008-4-14<add> by chester for led issue
 //#define FOR_LED_ON_NOTEBOOK
 //
 
 
-
-//  device specific
 //
-#if !defined(_KCOMPAT_H)
+// device specific
+//
+
 #include "kcompat.h"
-#endif
-
-#if !defined(__DEVICE_CONFIG_H)
 #include "device_cfg.h"
-#endif
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__MIB_H__)
 #include "mib.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-#if !defined(__RC4_H__)
 #include "rc4.h"
-#endif
-#if !defined(__TPCI_H__)
-#include "tpci.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
 
 //PLICE_DEBUG->
 //#define		THREAD
 
 //#define	TASK_LET
 //PLICE_DEBUG<-
-
-// #ifdef PRIVATE_OBJ
-//#if !defined(__DEVICE_MODULE_H)
-//#include "device_module.h"
-//#endif
 
 
 /*---------------------  Export Definitions -------------------------*/
@@ -198,6 +151,7 @@
 #define BB_VGA_CHANGE_THRESHOLD 16
 
 
+
 #ifndef RUN_AT
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
@@ -207,93 +161,6 @@
 
 
 // BUILD OBJ mode
-#ifdef PRIVATE_OBJ
-
-#undef dev_kfree_skb
-#undef dev_kfree_skb_irq
-#undef dev_alloc_skb
-#undef kfree
-#undef del_timer
-#undef init_timer
-#undef add_timer
-#undef kmalloc
-#undef netif_stop_queue
-#undef netif_start_queue
-#undef netif_wake_queue
-#undef netif_queue_stopped
-#undef netif_rx
-#undef netif_running
-#undef udelay
-#undef mdelay
-#undef eth_type_trans
-#undef skb_put
-#undef HZ
-#undef RUN_AT
-#undef pci_alloc_consistent
-#undef pci_free_consistent
-#undef register_netdevice
-#undef register_netdev
-#undef unregister_netdevice
-#undef unregister_netdev
-#undef skb_queue_head_init
-#undef skb_queue_tail
-#undef skb_queue_empty
-#undef free_irq
-#undef copy_from_user
-#undef copy_to_user
-#undef spin_lock_init
-#undef pci_map_single
-#undef pci_unmap_single
-
-// redefine kernel dependent fucntion
-#define dev_kfree_skb       ref_dev_kfree_skb
-#define dev_kfree_skb_irq   ref_dev_kfree_skb_irq
-#define dev_alloc_skb       ref_dev_alloc_skb
-#define kfree               ref_kfree
-#define del_timer           ref_del_timer
-#define init_timer          ref_init_timer
-#define add_timer           ref_add_timer
-#define kmalloc             ref_kmalloc
-#define netif_stop_queue    ref_netif_stop_queue
-#define netif_start_queue   ref_netif_start_queue
-#define netif_wake_queue    ref_netif_wake_queue
-#define netif_queue_stopped ref_netif_queue_stopped
-#define netif_rx            ref_netif_rx
-#define netif_running       ref_netif_running
-#define udelay              ref_udelay
-#define mdelay              ref_mdelay
-#define get_jiffies()       ref_get_jiffies()
-#define RUN_AT(x)           (get_jiffies()+(x))
-#define HZ                  ref_HZ_tick()
-#define eth_type_trans      ref_eth_type_trans
-#define skb_put             ref_skb_put
-#define skb_queue_head_init ref_skb_queue_head_init
-#define skb_queue_tail      ref_skb_queue_tail
-#define skb_queue_empty     ref_skb_queue_empty
-
-#define pci_alloc_consistent    ref_pci_alloc_consistent
-#define pci_free_consistent     ref_pci_free_consistent
-#define register_netdevice      ref_register_netdevice
-#define register_netdev         ref_register_netdev
-#define unregister_netdevice    ref_unregister_netdevice
-#define unregister_netdev       ref_unregister_netdev
-
-#define free_irq                ref_free_irq
-#define copy_from_user          ref_copy_from_user
-#define copy_to_user            ref_copy_to_user
-#define spin_lock_init          ref_spin_lock_init
-#define pci_map_single          ref_pci_map_single
-#define pci_unmap_single        ref_pci_unmap_single
-#endif
-
-
-#ifdef PRIVATE_OBJ
-#undef  printk
-#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) do {} while (0);}
-//#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-#else
-#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-#endif
 
 
 #define	AVAIL_TD(p,q)	((p)->sOpts.nTxDescs[(q)]-((p)->iTDUsed[(q)]))
@@ -304,8 +171,13 @@
 
 
 
+#define PRIVATE_Message                 0
+
 /*---------------------  Export Types  ------------------------------*/
 
+
+#define DBG_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
+#define PRINT_K(p, args...) {if (PRIVATE_Message) printk( p ,##args);}
 
 //0:11A 1:11B 2:11G
 typedef enum _VIA_BB_TYPE
@@ -401,8 +273,7 @@ typedef struct tagSPMKIDCandidateEvent {
     ULONG Version;       // Version of the structure
     ULONG NumCandidates; // No. of pmkid candidates
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
-} SPMKIDCandidateEvent, DEF* PSPMKIDCandidateEvent;
-
+} SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
 //--
 
@@ -414,7 +285,7 @@ typedef struct tagSQuietControl {
     DWORD       dwStartTime;
     BYTE        byPeriod;
     WORD        wDuration;
-} SQuietControl, DEF* PSQuietControl;
+} SQuietControl, *PSQuietControl;
 
 //--
 typedef struct __chip_info_tbl{
@@ -438,7 +309,6 @@ typedef struct tagSCacheEntry{
     BYTE        abyAddr2[U_ETHER_ADDR_LEN];
 } SCacheEntry, *PSCacheEntry;
 
-
 typedef struct tagSCache{
 /* The receive cache is updated circularly.  The next entry to be written is
  * indexed by the "InPtr".
@@ -456,14 +326,10 @@ typedef struct tagSDeFragControlBlock
     BYTE            abyAddr2[U_ETHER_ADDR_LEN];
 	UINT            uLifetime;
     struct sk_buff* skb;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff     ref_skb;
-#endif
     PBYTE           pbyRxBuffer;
     UINT            cbFrameLength;
     BOOL            bInUse;
-} SDeFragControlBlock, DEF* PSDeFragControlBlock;
-
+} SDeFragControlBlock, *PSDeFragControlBlock;
 
 
 
@@ -511,11 +377,11 @@ typedef	struct _RxManagementQueue
 
 
 typedef struct __device_opt {
-    int         nRxDescs0;      //Number of RX descriptors0
-    int         nRxDescs1;      //Number of RX descriptors1
-    int         nTxDescs[2];    //Number of TX descriptors 0, 1
-    int         int_works;      //interrupt limits
-    int         rts_thresh;     //rts threshold
+    int         nRxDescs0;    //Number of RX descriptors0
+    int         nRxDescs1;    //Number of RX descriptors1
+    int         nTxDescs[2];  //Number of TX descriptors 0, 1
+    int         int_works;    //interrupt limits
+    int         rts_thresh;   //rts threshold
     int         frag_thresh;
     int         data_rate;
     int         channel_num;
@@ -703,8 +569,8 @@ typedef struct __device_info {
     BYTE                        byERPFlag;
     WORD                        wUseProtectCntDown;
 
-    BOOL                    bRadioControlOff;
-    BOOL                    bRadioOff;
+    BOOL                        bRadioControlOff;
+    BOOL                        bRadioOff;
     BOOL                    bEnablePSMode;
     WORD                    wListenInterval;
     BOOL                    bPWBitOn;
@@ -760,6 +626,7 @@ typedef struct __device_info {
 //2007-0925-01<Add>by MikeLiu
 //mike add :save old Encryption
     NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
+
     SKeyManagement          sKey;
     DWORD                   dwIVCounter;
 
@@ -768,7 +635,6 @@ typedef struct __device_info {
 
     RC4Ext                  SBox;
     BYTE                    abyPRNG[WLAN_WEPMAX_KEYLEN+3];
-
     BYTE                    byKeyIndex;
     UINT                    uKeyLength;
     BYTE                    abyKey[WLAN_WEP232_KEYLEN];
@@ -806,6 +672,7 @@ typedef struct __device_info {
 
     BYTE                    byBBPreEDRSSI;
     BYTE                    byBBPreEDIndex;
+
 
     BOOL                    bRadioCmd;
     DWORD                   dwDiagRefCount;
@@ -954,9 +821,7 @@ typedef struct __device_info {
     UINT                    uChannel;
     BOOL                    bMACSuspend;
 
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;		// wireless stats
-#endif /* WIRELESS_EXT */
     BOOL                    bCommit;
 
 } DEVICE_INFO, *PSDevice;

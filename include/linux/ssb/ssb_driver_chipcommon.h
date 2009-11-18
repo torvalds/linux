@@ -629,5 +629,15 @@ extern int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 /* PMU support */
 extern void ssb_pmu_init(struct ssb_chipcommon *cc);
 
+enum ssb_pmu_ldo_volt_id {
+	LDO_PAREF = 0,
+	LDO_VOLT1,
+	LDO_VOLT2,
+	LDO_VOLT3,
+};
+
+void ssb_pmu_set_ldo_voltage(struct ssb_chipcommon *cc,
+			     enum ssb_pmu_ldo_volt_id id, u32 voltage);
+void ssb_pmu_set_ldo_paref(struct ssb_chipcommon *cc, bool on);
 
 #endif /* LINUX_SSB_CHIPCO_H_ */

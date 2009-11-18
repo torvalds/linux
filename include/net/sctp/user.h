@@ -210,12 +210,6 @@ enum sctp_sinfo_flags {
 };
 
 
-typedef union {
-	__u8   			raw;
-	struct sctp_initmsg	init;
-	struct sctp_sndrcvinfo	sndrcv;
-} sctp_cmsg_data_t;
-
 /* These are cmsg_types.  */
 typedef enum sctp_cmsg_type {
 	SCTP_INIT,              /* 5.2.1 SCTP Initiation Structure */

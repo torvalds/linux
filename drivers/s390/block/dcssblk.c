@@ -34,7 +34,7 @@ static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
 static int dcssblk_major;
-static struct block_device_operations dcssblk_devops = {
+static const struct block_device_operations dcssblk_devops = {
 	.owner   	= THIS_MODULE,
 	.open    	= dcssblk_open,
 	.release 	= dcssblk_release,

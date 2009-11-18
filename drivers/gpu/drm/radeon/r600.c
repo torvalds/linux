@@ -1537,6 +1537,20 @@ int r600_startup(struct radeon_device *rdev)
 	return 0;
 }
 
+void r600_vga_set_state(struct radeon_device *rdev, bool state)
+{
+	uint32_t temp;
+
+	temp = RREG32(CONFIG_CNTL);
+	if (state == false) {
+		temp &= ~(1<<0);
+		temp |= (1<<1);
+	} else {
+		temp &= ~(1<<1);
+	}
+	WREG32(CONFIG_CNTL, temp);
+}
+
 int r600_resume(struct radeon_device *rdev)
 {
 	int r;

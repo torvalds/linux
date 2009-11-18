@@ -1209,8 +1209,7 @@ static int keyspan_write_room(struct tty_struct *tty)
 }
 
 
-static int keyspan_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct keyspan_port_private 	*p_priv;
 	struct keyspan_serial_private 	*s_priv;

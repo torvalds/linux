@@ -20,6 +20,7 @@
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
 #include <asm/pSeries_reconfig.h>
+#include <asm/mmu.h>
 
 
 
@@ -439,9 +440,15 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!newprop)
 		return -ENOMEM;
 
+	if (!strcmp(name, "slb-size") || !strcmp(name, "ibm,slb-size"))
+		slb_set_size(*(int *)value);
+
 	oldprop = of_find_property(np, name,NULL);
-	if (!oldprop)
+	if (!oldprop) {
+		if (strlen(name))
+			return prom_add_property(np, newprop);
 		return -ENODEV;
+	}
 
 	rc = prom_update_property(np, newprop, oldprop);
 	if (rc)

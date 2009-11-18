@@ -180,6 +180,9 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_MMUCSR0:
 		vcpu->arch.gpr[rt] = 0; break;
 
+	case SPRN_MMUCFG:
+		vcpu->arch.gpr[rt] = mfspr(SPRN_MMUCFG); break;
+
 	/* extra exceptions */
 	case SPRN_IVOR32:
 		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL];

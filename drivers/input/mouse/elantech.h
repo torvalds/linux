@@ -109,10 +109,10 @@ struct elantech_data {
 };
 
 #ifdef CONFIG_MOUSE_PS2_ELANTECH
-int elantech_detect(struct psmouse *psmouse, int set_properties);
+int elantech_detect(struct psmouse *psmouse, bool set_properties);
 int elantech_init(struct psmouse *psmouse);
 #else
-static inline int elantech_detect(struct psmouse *psmouse, int set_properties)
+static inline int elantech_detect(struct psmouse *psmouse, bool set_properties)
 {
 	return -ENOSYS;
 }

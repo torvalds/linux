@@ -288,16 +288,6 @@ config RADIO_TYPHOON
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-typhoon.
 
-config RADIO_TYPHOON_PROC_FS
-	bool "Support for /proc/radio-typhoon"
-	depends on PROC_FS && RADIO_TYPHOON
-	help
-	  Say Y here if you want the typhoon radio card driver to write
-	  status information (frequency, volume, muted, mute frequency,
-	  base address) to /proc/radio-typhoon. The file can be viewed with
-	  your favorite pager (i.e. use "more /proc/radio-typhoon" or "less
-	  /proc/radio-typhoon" or simply "cat /proc/radio-typhoon").
-
 config RADIO_TYPHOON_PORT
 	hex "Typhoon I/O port (0x316 or 0x336)"
 	depends on RADIO_TYPHOON=y
@@ -339,6 +329,29 @@ config RADIO_ZOLTRIX_PORT
 	help
 	  Enter the I/O port of your Zoltrix radio card.
 
+config I2C_SI4713
+	tristate "I2C driver for Silicon Labs Si4713 device"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  Say Y here if you want support to Si4713 I2C device.
+	  This device driver supports only i2c bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called si4713.
+
+config RADIO_SI4713
+	tristate "Silicon Labs Si4713 FM Radio Transmitter support"
+	depends on I2C && VIDEO_V4L2
+	select I2C_SI4713
+	---help---
+	  Say Y here if you want support to Si4713 FM Radio Transmitter.
+	  This device can transmit audio through FM. It can transmit
+	  RDS and RBDS signals as well. This module is the v4l2 radio
+	  interface for the i2c driver of this device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-si4713.
+
 config USB_DSBR
 	tristate "D-Link/GemTek USB FM radio support"
 	depends on USB && VIDEO_V4L2
@@ -351,29 +364,11 @@ config USB_DSBR
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
 
-config USB_SI470X
-	tristate "Silicon Labs Si470x FM Radio Receiver support"
-	depends on USB && VIDEO_V4L2
-	---help---
-	  This is a driver for USB devices with the Silicon Labs SI470x
-	  chip. Currently these devices are known to work:
-	  - 10c4:818a: Silicon Labs USB FM Radio Reference Design
-	  - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music)
-	  - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
+config RADIO_SI470X
+	bool "Silicon Labs Si470x FM Radio Receiver support"
+	depends on VIDEO_V4L2
 
-	  Sound is provided by the ALSA USB Audio/MIDI driver. Therefore
-	  if you don't want to use the device solely for RDS receiving,
-	  it is recommended to also select SND_USB_AUDIO.
-
-	  Please have a look at the documentation, especially on how
-	  to redirect the audio stream from the radio to your sound device:
-	  Documentation/video4linux/si470x.txt
-
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-si470x.
+source "drivers/media/radio/si470x/Kconfig"
 
 config USB_MR800
 	tristate "AverMedia MR 800 USB FM radio support"

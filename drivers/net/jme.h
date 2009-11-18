@@ -25,7 +25,7 @@
 #define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
-#define DRV_VERSION	"1.0.4"
+#define DRV_VERSION	"1.0.5"
 #define PFX		DRV_NAME ": "
 
 #define PCI_DEVICE_ID_JMICRON_JMC250	0x0250
@@ -247,7 +247,7 @@ enum jme_txdesc_flags_bits {
 };
 
 #define TXDESC_MSS_SHIFT	2
-enum jme_rxdescwb_flags_bits {
+enum jme_txwbdesc_flags_bits {
 	TXWBFLAG_OWN	= 0x80,
 	TXWBFLAG_INT	= 0x40,
 	TXWBFLAG_TMOUT	= 0x20,
@@ -372,7 +372,6 @@ struct jme_buffer_info {
 /*
  * The structure holding buffer information and ring descriptors all together.
  */
-#define MAX_RING_DESC_NR	1024
 struct jme_ring {
 	void *alloc;		/* pointer to allocated memory */
 	void *desc;		/* pointer to ring memory  */
@@ -380,7 +379,7 @@ struct jme_ring {
 	dma_addr_t dma;		/* phys address for ring dma */
 
 	/* Buffer information corresponding to each descriptor */
-	struct jme_buffer_info bufinf[MAX_RING_DESC_NR];
+	struct jme_buffer_info *bufinf;
 
 	int next_to_use;
 	atomic_t next_to_clean;
@@ -411,13 +410,10 @@ struct jme_ring {
 /*
  * Jmac Adapter Private data
  */
-#define SHADOW_REG_NR 8
 struct jme_adapter {
 	struct pci_dev          *pdev;
 	struct net_device       *dev;
 	void __iomem            *regs;
-	dma_addr_t		shadow_dma;
-	u32			*shadow_regs;
 	struct mii_if_info	mii_if;
 	struct jme_ring		rxring[RX_RING_NR];
 	struct jme_ring		txring[TX_RING_NR];
@@ -462,10 +458,6 @@ struct jme_adapter {
 					  unsigned short vlan_tag);
 	DECLARE_NAPI_STRUCT
 	DECLARE_NET_DEVICE_STATS
-};
-
-enum shadow_reg_val {
-	SHADOW_IEVE = 0,
 };
 
 enum jme_flags_bits {
@@ -1101,13 +1093,6 @@ enum jme_chipmode_bit_masks {
 enum jme_chipmode_shifts {
 	CM_FPGAVER_SHIFT	= 16,
 	CM_CHIPREV_SHIFT	= 8,
-};
-
-/*
- * Shadow base address register bits
- */
-enum jme_shadow_base_address_bits {
-	SHBA_POSTEN	= 0x1,
 };
 
 /*

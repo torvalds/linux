@@ -38,6 +38,8 @@ struct zl10353_state {
 	struct zl10353_config config;
 
 	enum fe_bandwidth bandwidth;
+       u32 ucblocks;
+       u32 frequency;
 };
 
 static int debug;
@@ -198,6 +200,8 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	u8 pllbuf[6] = { 0x67 }, acq_ctl = 0;
 	u16 tps = 0;
 	struct dvb_ofdm_parameters *op = &param->u.ofdm;
+
+       state->frequency = param->frequency;
 
 	zl10353_single_write(fe, RESET, 0x80);
 	udelay(200);
@@ -464,7 +468,7 @@ static int zl10353_get_parameters(struct dvb_frontend *fe,
 		break;
 	}
 
-	param->frequency = 0;
+       param->frequency = state->frequency;
 	op->bandwidth = state->bandwidth;
 	param->inversion = INVERSION_AUTO;
 
@@ -542,9 +546,13 @@ static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int zl10353_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
+       u32 ubl = 0;
 
-	*ucblocks = zl10353_read_register(state, RS_UBC_1) << 8 |
-		    zl10353_read_register(state, RS_UBC_0);
+       ubl = zl10353_read_register(state, RS_UBC_1) << 8 |
+	     zl10353_read_register(state, RS_UBC_0);
+
+       state->ucblocks += ubl;
+       *ucblocks = state->ucblocks;
 
 	return 0;
 }

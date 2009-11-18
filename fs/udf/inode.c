@@ -90,19 +90,16 @@ no_delete:
 }
 
 /*
- * If we are going to release inode from memory, we discard preallocation and
- * truncate last inode extent to proper length. We could use drop_inode() but
- * it's called under inode_lock and thus we cannot mark inode dirty there.  We
- * use clear_inode() but we have to make sure to write inode as it's not written
- * automatically.
+ * If we are going to release inode from memory, we truncate last inode extent
+ * to proper length. We could use drop_inode() but it's called under inode_lock
+ * and thus we cannot mark inode dirty there.  We use clear_inode() but we have
+ * to make sure to write inode as it's not written automatically.
  */
 void udf_clear_inode(struct inode *inode)
 {
 	struct udf_inode_info *iinfo;
 	if (!(inode->i_sb->s_flags & MS_RDONLY)) {
 		lock_kernel();
-		/* Discard preallocation for directories, symlinks, etc. */
-		udf_discard_prealloc(inode);
 		udf_truncate_tail_extent(inode);
 		unlock_kernel();
 		write_inode_now(inode, 0);
@@ -664,8 +661,12 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	udf_split_extents(inode, &c, offset, newblocknum, laarr, &endnum);
 
 #ifdef UDF_PREALLOCATE
-	/* preallocate blocks */
-	udf_prealloc_extents(inode, c, lastblock, laarr, &endnum);
+	/* We preallocate blocks only for regular files. It also makes sense
+	 * for directories but there's a problem when to drop the
+	 * preallocation. We might use some delayed work for that but I feel
+	 * it's overengineering for a filesystem like UDF. */
+	if (S_ISREG(inode->i_mode))
+		udf_prealloc_extents(inode, c, lastblock, laarr, &endnum);
 #endif
 
 	/* merge any continuous blocks in laarr */

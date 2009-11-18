@@ -187,6 +187,9 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (trans == NULL) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);
+		if (printk_ratelimit())
+			printk(KERN_INFO "RDS: rds_bind() could not find a transport, "
+				"load rds_tcp or rds_rdma?\n");
 		goto out;
 	}
 

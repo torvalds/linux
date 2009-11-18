@@ -12,10 +12,10 @@
 #define _LIFEBOOK_H
 
 #ifdef CONFIG_MOUSE_PS2_LIFEBOOK
-int lifebook_detect(struct psmouse *psmouse, int set_properties);
+int lifebook_detect(struct psmouse *psmouse, bool set_properties);
 int lifebook_init(struct psmouse *psmouse);
 #else
-inline int lifebook_detect(struct psmouse *psmouse, int set_properties)
+inline int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 {
 	return -ENOSYS;
 }

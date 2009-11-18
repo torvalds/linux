@@ -1,6 +1,5 @@
 menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
-	default n
 	help
 	  Generic Voltage and Current Regulator support.
 
@@ -30,7 +29,6 @@ config REGULATOR_DEBUG
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
-	default n
 	help
 	  This driver provides support for fixed voltage regulators,
 	  useful for systems which use a combination of software
@@ -38,7 +36,6 @@ config REGULATOR_FIXED_VOLTAGE
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
-	default n
 	help
 	  This driver provides a virtual consumer for the voltage and
           current regulator API which provides sysfs controls for
@@ -49,17 +46,15 @@ config REGULATOR_VIRTUAL_CONSUMER
 
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
-	default n
 	help
 	  There are some classes of devices that are controlled entirely
-	  from user space. Usersapce consumer driver provides ability to
+	  from user space. Userspace consumer driver provides ability to
 	  control power supplies for such devices.
 
           If unsure, say no.
 
 config REGULATOR_BQ24022
 	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
-	default n
 	help
 	  This driver controls a TI bq24022 Charger attached via
 	  GPIOs. The provided current regulator can enable/disable
@@ -69,7 +64,6 @@ config REGULATOR_BQ24022
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"
 	depends on I2C
-	default n
 	help
 	  This driver controls a Maxim 1586 or 1587 voltage output
 	  regulator via I2C bus. The provided regulator is suitable
@@ -81,6 +75,13 @@ config REGULATOR_TWL4030
 	help
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
+
+config REGULATOR_WM831X
+	tristate "Wolfson Microelcronics WM831x PMIC regulators"
+	depends on MFD_WM831X
+	help
+	  Support the voltage and current regulators of the WM831x series
+	  of PMIC devices.
 
 config REGULATOR_WM8350
 	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"
@@ -117,4 +118,44 @@ config REGULATOR_LP3971
 	 Say Y here to support the voltage regulators and convertors
 	 on National Semiconductors LP3971 PMIC
 
+config REGULATOR_PCAP
+	tristate "PCAP2 regulator driver"
+	depends on EZX_PCAP
+	help
+	 This driver provides support for the voltage regulators of the
+	 PCAP2 PMIC.
+
+config REGULATOR_MC13783
+	tristate "Support regulators on Freescale MC13783 PMIC"
+	depends on MFD_MC13783
+	help
+	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_AB3100
+	tristate "ST-Ericsson AB3100 Regulator functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	 These regulators correspond to functionality in the
+	 AB3100 analog baseband dealing with power regulators
+	 for the system.
+
+config REGULATOR_TPS65023
+	tristate "TI TPS65023 Power regulators"
+	depends on I2C
+	help
+	  This driver supports TPS65023 voltage regulator chips. TPS65023 provides
+	  three step-down converters and two general-purpose LDO voltage regulators.
+	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_TPS6507X
+	tristate "TI TPS6507X Power regulators"
+	depends on I2C
+	help
+	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
+	  three step-down converters and two general-purpose LDO voltage regulators.
+	  It supports TI's software based Class-2 SmartReflex implementation.
+
 endif
+

@@ -38,16 +38,12 @@
     Jan Lee  2006-09-15    RT2860. Change for 802.11n , EEPROM, Led, BA, HT.
 */
 #include "../rt_config.h"
-#ifndef RT30xx
 #ifdef RT2860
 #include "firmware.h"
 #include <linux/bitrev.h>
 #endif
 #ifdef RT2870
-#include "../../rt2870/common/firmware.h"
-#endif
-#endif
-#ifdef RT30xx
+/* New firmware handles both RT2870 and RT3070. */
 #include "../../rt3070/firmware.h"
 #endif
 
@@ -62,59 +58,6 @@ ULONG    BIT32[] = {0x00000001, 0x00000002, 0x00000004, 0x00000008,
 					0x10000000, 0x20000000, 0x40000000, 0x80000000};
 
 char*   CipherName[] = {"none","wep64","wep128","TKIP","AES","CKIP64","CKIP128"};
-
-const unsigned short ccitt_16Table[] = {
-	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
-	0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
-	0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6,
-	0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
-	0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485,
-	0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
-	0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4,
-	0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
-	0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823,
-	0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
-	0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12,
-	0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
-	0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41,
-	0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
-	0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70,
-	0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
-	0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F,
-	0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
-	0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E,
-	0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
-	0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D,
-	0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-	0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C,
-	0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
-	0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB,
-	0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
-	0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A,
-	0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
-	0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9,
-	0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1,
-	0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
-	0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
-};
-#define ByteCRC16(v, crc) \
-	(unsigned short)((crc << 8) ^  ccitt_16Table[((crc >> 8) ^ (v)) & 255])
-
-#ifdef RT2870
-unsigned char BitReverse(unsigned char x)
-{
-	int i;
-	unsigned char Temp=0;
-	for(i=0; ; i++)
-	{
-		if(x & 0x80)	Temp |= 0x80;
-		if(i==7)		break;
-		x	<<= 1;
-		Temp >>= 1;
-	}
-	return Temp;
-}
-#endif
 
 //
 // BBP register initialization set
@@ -147,12 +90,7 @@ REG_PAIR   RT30xx_RFRegTable[] = {
         {RF_R06,          0x02},
         {RF_R07,          0x70},
         {RF_R09,          0x0F},
-#ifndef RT30xx
-        {RF_R10,          0x71},
-#endif
-#ifdef RT30xx
         {RF_R10,          0x41},
-#endif
         {RF_R11,          0x21},
         {RF_R12,          0x7B},
         {RF_R14,          0x90},
@@ -165,9 +103,6 @@ REG_PAIR   RT30xx_RFRegTable[] = {
         {RF_R21,          0xDB},
         {RF_R24,          0x16},
         {RF_R25,          0x01},
-#ifndef RT30xx
-        {RF_R27,          0x03},
-#endif
         {RF_R29,          0x1F},
 };
 #define	NUM_RF_REG_PARMS	(sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR))
@@ -1099,145 +1034,6 @@ NDIS_STATUS	NICReadRegParameters(
 
 	========================================================================
 */
-#ifndef RT30xx
-VOID RTUSBFilterCalibration(
-	IN PRTMP_ADAPTER pAd)
-{
-	UCHAR	R55x = 0, value, FilterTarget = 0x1E, BBPValue;
-	UINT	loop = 0, count = 0, loopcnt = 0, ReTry = 0;
-	UCHAR	RF_R24_Value = 0;
-
-	// Give bbp filter initial value
-	pAd->Mlme.CaliBW20RfR24 = 0x16;
-	pAd->Mlme.CaliBW40RfR24 = 0x36;  //Bit[5] must be 1 for BW 40
-
-	do
-	{
-		if (loop == 1)	//BandWidth = 40 MHz
-		{
-			// Write 0x27 to RF_R24 to program filter
-			RF_R24_Value = 0x27;
-			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-			FilterTarget = 0x19;
-
-			// when calibrate BW40, BBP mask must set to BW40.
-			RTUSBReadBBPRegister(pAd, BBP_R4, &BBPValue);
-			BBPValue&= (~0x18);
-			BBPValue|= (0x10);
-			RTUSBWriteBBPRegister(pAd, BBP_R4, BBPValue);
-		}
-		else			//BandWidth = 20 MHz
-		{
-			// Write 0x07 to RF_R24 to program filter
-			RF_R24_Value = 0x07;
-			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-			FilterTarget = 0x16;
-		}
-
-		// Write 0x01 to RF_R22 to enable baseband loopback mode
-		RT30xxReadRFRegister(pAd, RF_R22, &value);
-		value |= 0x01;
-		RT30xxWriteRFRegister(pAd, RF_R22, value);
-
-		// Write 0x00 to BBP_R24 to set power & frequency of passband test tone
-		RTUSBWriteBBPRegister(pAd, BBP_R24, 0);
-
-		do
-		{
-			// Write 0x90 to BBP_R25 to transmit test tone
-			RTUSBWriteBBPRegister(pAd, BBP_R25, 0x90);
-
-			RTMPusecDelay(1000);
-			// Read BBP_R55[6:0] for received power, set R55x = BBP_R55[6:0]
-			RTUSBReadBBPRegister(pAd, BBP_R55, &value);
-			R55x = value & 0xFF;
-
-		} while ((ReTry++ < 100) && (R55x == 0));
-
-		// Write 0x06 to BBP_R24 to set power & frequency of stopband test tone
-		RTUSBWriteBBPRegister(pAd, BBP_R24, 0x06);
-
-		while(TRUE)
-		{
-			// Write 0x90 to BBP_R25 to transmit test tone
-			RTUSBWriteBBPRegister(pAd, BBP_R25, 0x90);
-
-			//We need to wait for calibration
-			RTMPusecDelay(1000);
-			RTUSBReadBBPRegister(pAd, BBP_R55, &value);
-			value &= 0xFF;
-			if ((R55x - value) < FilterTarget)
-			{
-				RF_R24_Value ++;
-			}
-			else if ((R55x - value) == FilterTarget)
-			{
-				RF_R24_Value ++;
-				count ++;
-			}
-			else
-			{
-				break;
-			}
-
-			// prevent infinite loop cause driver hang.
-			if (loopcnt++ > 100)
-			{
-				DBGPRINT(RT_DEBUG_ERROR, ("RTUSBFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating", loopcnt));
-				break;
-			}
-
-			// Write RF_R24 to program filter
-			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-		}
-
-		if (count > 0)
-		{
-			RF_R24_Value = RF_R24_Value - ((count) ? (1) : (0));
-		}
-
-		// Store for future usage
-		if (loopcnt < 100)
-		{
-			if (loop++ == 0)
-			{
-				//BandWidth = 20 MHz
-				pAd->Mlme.CaliBW20RfR24 = (UCHAR)RF_R24_Value;
-			}
-			else
-			{
-				//BandWidth = 40 MHz
-				pAd->Mlme.CaliBW40RfR24 = (UCHAR)RF_R24_Value;
-				break;
-			}
-		}
-		else
-			break;
-
-		RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-
-		// reset count
-		count = 0;
-	} while(TRUE);
-
-	//
-	// Set back to initial state
-	//
-	RTUSBWriteBBPRegister(pAd, BBP_R24, 0);
-
-	RT30xxReadRFRegister(pAd, RF_R22, &value);
-	value &= ~(0x01);
-	RT30xxWriteRFRegister(pAd, RF_R22, value);
-
-	// set BBP back to BW20
-	RTUSBReadBBPRegister(pAd, BBP_R4, &BBPValue);
-	BBPValue&= (~0x18);
-	RTUSBWriteBBPRegister(pAd, BBP_R4, BBPValue);
-
-	DBGPRINT(RT_DEBUG_TRACE, ("RTUSBFilterCalibration - CaliBW20RfR24=0x%x, CaliBW40RfR24=0x%x\n", pAd->Mlme.CaliBW20RfR24, pAd->Mlme.CaliBW40RfR24));
-}
-#endif /* RT30xx */
-#ifdef RT30xx
 VOID RTMPFilterCalibration(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -1246,9 +1042,13 @@ VOID RTMPFilterCalibration(
 	UCHAR	RF_R24_Value = 0;
 
 	// Give bbp filter initial value
+#ifndef RT2870
+	pAd->Mlme.CaliBW20RfR24 = 0x16;
+	pAd->Mlme.CaliBW40RfR24 = 0x36;  //Bit[5] must be 1 for BW 40
+#else
 	pAd->Mlme.CaliBW20RfR24 = 0x1F;
 	pAd->Mlme.CaliBW40RfR24 = 0x2F; //Bit[5] must be 1 for BW 40
-
+#endif
 	do
 	{
 		if (loop == 1)	//BandWidth = 40 MHz
@@ -1266,11 +1066,12 @@ VOID RTMPFilterCalibration(
 			BBPValue&= (~0x18);
 			BBPValue|= (0x10);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
-
+#ifdef RT2870
 			// set to BW40
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value |= 0x20;
 			RT30xxWriteRFRegister(pAd, RF_R31, value);
+#endif
 		}
 		else			//BandWidth = 20 MHz
 		{
@@ -1281,11 +1082,12 @@ VOID RTMPFilterCalibration(
 				FilterTarget = 0x13;
 			else
 				FilterTarget = 0x16;
-
+#ifdef RT2870
 			// set to BW20
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value &= (~0x20);
 			RT30xxWriteRFRegister(pAd, RF_R31, value);
+#endif
 		}
 
 		// Write 0x01 to RF_R22 to enable baseband loopback mode
@@ -1390,37 +1192,12 @@ VOID RTMPFilterCalibration(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RTMPFilterCalibration - CaliBW20RfR24=0x%x, CaliBW40RfR24=0x%x\n", pAd->Mlme.CaliBW20RfR24, pAd->Mlme.CaliBW40RfR24));
 }
-#endif /* RT30xx */
 
 VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 {
 	INT i;
 	// Driver must read EEPROM to get RfIcType before initial RF registers
 	// Initialize RF register to default value
-#ifndef RT30xx
-        if (IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) ||(pAd->RfIcType == RFIC_2020)))
-        {
-                // Init RF calibration
-                // Driver should toggle RF R30 bit7 before init RF registers
-                ULONG RfReg = 0;
-                RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR)&RfReg);
-                RfReg |= 0x80;
-                RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
-                RTMPusecDelay(1000);
-                RfReg &= 0x7F;
-                RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
-
-                // Initialize RF register to default value
-                for (i = 0; i < NUM_RF_REG_PARMS; i++)
-                {
-                        RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
-                }
-
-                //For RF filter Calibration
-                RTUSBFilterCalibration(pAd);
-        }
-#endif
-#ifdef RT30xx
 	if (IS_RT3070(pAd) || IS_RT3071(pAd))
 	{
 		// Init RF calibration
@@ -1441,7 +1218,6 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
 		}
 
-		// add by johnli
 		if (IS_RT3070(pAd))
 		{
 			//  Update MAC 0x05D4 from 01xxxxxx to 0Dxxxxxx (voltage 1.2V to 1.35V) for RT3070 to improve yield rate
@@ -1498,7 +1274,6 @@ VOID NICInitRT30xxRFRegisters(IN PRTMP_ADAPTER pAd)
 			RT30xxLoadRFNormalModeSetup(pAd);
 		}
 	}
-#endif
 }
 #endif // RT2870 //
 
@@ -1675,7 +1450,6 @@ VOID	NICReadEEPROMParameters(
 	Antenna.word = pAd->EEPROMDefaultValue[0];
 	if (Antenna.word == 0xFFFF)
 	{
-#ifdef RT30xx
 		if(IS_RT3090(pAd))
 		{
 			Antenna.word = 0;
@@ -1685,15 +1459,12 @@ VOID	NICReadEEPROMParameters(
 		}
 		else
 		{
-#endif // RT30xx //
 		Antenna.word = 0;
 		Antenna.field.RfIcType = RFIC_2820;
 		Antenna.field.TxPath = 1;
 		Antenna.field.RxPath = 2;
 		DBGPRINT(RT_DEBUG_WARN, ("E2PROM error, hard code as 0x%04x\n", Antenna.word));
-#ifdef RT30xx
 		}
-#endif // RT30xx //
 	}
 
 	// Choose the desired Tx&Rx stream.
@@ -1722,9 +1493,6 @@ VOID	NICReadEEPROMParameters(
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
 	{
-#ifndef RT30xx
-		NicConfig2.word = 0;
-#endif
 		if ((NicConfig2.word & 0x00ff) == 0xff)
 		{
 			NicConfig2.word &= 0xff00;
@@ -1917,14 +1685,6 @@ VOID	NICReadEEPROMParameters(
 
 	RTMPReadTxPwrPerRate(pAd);
 
-#ifdef RT30xx
-	if (IS_RT30xx(pAd))
-	{
-		eFusePhysicalReadRegisters(pAd, EFUSE_TAG, 2, &value);
-		pAd->EFuseTag = (value & 0xff);
-	}
-#endif // RT30xx //
-
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICReadEEPROMParameters\n"));
 }
 
@@ -1969,10 +1729,9 @@ VOID	NICInitAsicFromEEPROM(
 		}
 	}
 
-#ifndef RT30xx
+#ifndef RT2870
 	Antenna.word = pAd->Antenna.word;
-#endif
-#ifdef RT30xx
+#else
 	Antenna.word = pAd->EEPROMDefaultValue[0];
 	if (Antenna.word == 0xFFFF)
 	{
@@ -1983,7 +1742,7 @@ VOID	NICInitAsicFromEEPROM(
 	pAd->Mlme.RealRxPath = (UCHAR) Antenna.field.RxPath;
 	pAd->RfIcType = (UCHAR) Antenna.field.RfIcType;
 
-#ifdef RT30xx
+#ifdef RT2870
 	DBGPRINT(RT_DEBUG_WARN, ("pAd->RfIcType = %d, RealRxPath=%d, TxPath = %d\n", pAd->RfIcType, pAd->Mlme.RealRxPath,Antenna.field.TxPath));
 
 	// Save the antenna for future use
@@ -1991,7 +1750,7 @@ VOID	NICInitAsicFromEEPROM(
 #endif
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
-#ifdef RT30xx
+#ifdef RT2870
 	{
 		if ((NicConfig2.word & 0x00ff) == 0xff)
 		{
@@ -2007,7 +1766,7 @@ VOID	NICInitAsicFromEEPROM(
 	// Save the antenna for future use
 	pAd->NicConfig2.word = NicConfig2.word;
 
-#ifdef RT30xx
+#ifdef RT2870
 	// set default antenna as main
 	if (pAd->RfIcType == RFIC_3020)
 		AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
@@ -2078,10 +1837,8 @@ VOID	NICInitAsicFromEEPROM(
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = TRUE;
 	else
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = FALSE;
-	//
-	// Since BBP has been progamed, to make sure BBP setting will be
-	// upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND!!
-	//
+
+	/* BBP has been programmed so reset to UNKNOWN_BAND */
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
@@ -2351,10 +2108,8 @@ NDIS_STATUS	NICInitializeAsic(
 	UINT32			MacCsr0 = 0;
 	NTSTATUS		Status;
 	UCHAR			Value = 0xff;
-#endif // RT2870 //
-#ifdef RT30xx
 	UINT32			eFuseCtrl;
-#endif // RT30xx //
+#endif
 	USHORT			KeyIdx;
 	INT				i,apidx;
 
@@ -2418,20 +2173,7 @@ NDIS_STATUS	NICInitializeAsic(
 #endif // RT3070 //
 		RTMP_IO_WRITE32(pAd, (USHORT)MACRegTable[Index].Register, MACRegTable[Index].Value);
 	}
-
-#ifndef RT30xx
-	if(IS_RT3070(pAd))
-	{
-		// According to Frank Hsu (from Gary Tsao)
-		RTMP_IO_WRITE32(pAd, (USHORT)TX_SW_CFG0, 0x00000400);
-
-		// Initialize RT3070 serial MAC registers which is different from RT2870 serial
-		RTUSBWriteMACRegister(pAd, TX_SW_CFG1, 0);
-		RTUSBWriteMACRegister(pAd, TX_SW_CFG2, 0);
-	}
-#endif
 #endif // RT2870 //
-
 
 	{
 		for (Index = 0; Index < NUM_STA_MAC_REG_PARMS; Index++)
@@ -2445,7 +2187,6 @@ NDIS_STATUS	NICInitializeAsic(
 		}
 	}
 
-#ifdef RT30xx
 	// Initialize RT3070 serial MAc registers which is different from RT2870 serial
 	if (IS_RT3090(pAd))
 	{
@@ -2468,6 +2209,7 @@ NDIS_STATUS	NICInitializeAsic(
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0);
 		}
 	}
+#ifdef RT2870
 	else if (IS_RT3070(pAd))
 	{
 		RTMP_IO_WRITE32(pAd, TX_SW_CFG1, 0);
@@ -2514,22 +2256,11 @@ NDIS_STATUS	NICInitializeAsic(
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBPRegTable[Index].Register, BBPRegTable[Index].Value);
 	}
 
-#ifndef RT30xx
+#ifndef RT2870
 	// for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT.
 	if ((pAd->MACVersion&0xffff) != 0x0101)
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R84, 0x19);
-
-#ifdef RT2870
-	//write RT3070 BBP wchich different with 2870 after write RT2870 BBP
-	if (IS_RT3070(pAd))
-	{
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0a);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R84, 0x99);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R105, 0x05);
-	}
-#endif // RT2870 //
-#endif
-#ifdef RT30xx
+#else
 	// for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT.
 	// RT3090 should not program BBP R84 to 0x19, otherwise TX will block.
 	if (((pAd->MACVersion&0xffff) != 0x0101) && (!IS_RT30xx(pAd)))
@@ -2666,8 +2397,7 @@ NDIS_STATUS	NICInitializeAsic(
 	Counter&=0xffffff00;
 	Counter|=0x000001e;
 	RTMP_IO_WRITE32(pAd, USB_CYC_CFG, Counter);
-#endif // RT2870 //
-#ifdef RT30xx
+
 	pAd->bUseEfuse=FALSE;
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrl);
 	pAd->bUseEfuse = ( (eFuseCtrl & 0x80000000) == 0x80000000) ? 1 : 0;
@@ -2678,9 +2408,8 @@ NDIS_STATUS	NICInitializeAsic(
 	else
 	{
 			DBGPRINT(RT_DEBUG_TRACE, ("NVM is EEPROM\n"));
-
 	}
-#endif // RT30xx //
+#endif
 
 	{
 		// for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT.
@@ -3160,73 +2889,6 @@ VOID NICUpdateRawCounters(
 		pAd->RalinkCounters.TransmittedAMPDUCount.u.LowPart += (TxAggCnt7.field.AggSize16Count / 16);
 	}
 
-#ifdef DBG_DIAGNOSE
-	{
-		RtmpDiagStruct	*pDiag;
-		COUNTER_RALINK	*pRalinkCounters;
-		UCHAR			ArrayCurIdx, i;
-
-		pDiag = &pAd->DiagStruct;
-		pRalinkCounters = &pAd->RalinkCounters;
-		ArrayCurIdx = pDiag->ArrayCurIdx;
-
-		if (pDiag->inited == 0)
-		{
-			NdisZeroMemory(pDiag, sizeof(struct _RtmpDiagStrcut_));
-			pDiag->ArrayStartIdx = pDiag->ArrayCurIdx = 0;
-			pDiag->inited = 1;
-		}
-		else
-		{
-			// Tx
-			pDiag->TxFailCnt[ArrayCurIdx] = TxStaCnt0.field.TxFailCount;
-			pDiag->TxAggCnt[ArrayCurIdx] = TxAggCnt.field.AggTxCount;
-			pDiag->TxNonAggCnt[ArrayCurIdx] = TxAggCnt.field.NonAggTxCount;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][0] = TxAggCnt0.field.AggSize1Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][1] = TxAggCnt0.field.AggSize2Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][2] = TxAggCnt1.field.AggSize3Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][3] = TxAggCnt1.field.AggSize4Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][4] = TxAggCnt2.field.AggSize5Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][5] = TxAggCnt2.field.AggSize6Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][6] = TxAggCnt3.field.AggSize7Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][7] = TxAggCnt3.field.AggSize8Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][8] = TxAggCnt4.field.AggSize9Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][9] = TxAggCnt4.field.AggSize10Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][10] = TxAggCnt5.field.AggSize11Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][11] = TxAggCnt5.field.AggSize12Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][12] = TxAggCnt6.field.AggSize13Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][13] = TxAggCnt6.field.AggSize14Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][14] = TxAggCnt7.field.AggSize15Count;
-			pDiag->TxAMPDUCnt[ArrayCurIdx][15] = TxAggCnt7.field.AggSize16Count;
-
-			pDiag->RxCrcErrCnt[ArrayCurIdx] = RxStaCnt0.field.CrcErr;
-
-			INC_RING_INDEX(pDiag->ArrayCurIdx,  DIAGNOSE_TIME);
-			ArrayCurIdx = pDiag->ArrayCurIdx;
-			for (i =0; i < 9; i++)
-			{
-				pDiag->TxDescCnt[ArrayCurIdx][i]= 0;
-				pDiag->TxSWQueCnt[ArrayCurIdx][i] =0;
-				pDiag->TxMcsCnt[ArrayCurIdx][i] = 0;
-				pDiag->RxMcsCnt[ArrayCurIdx][i] = 0;
-			}
-			pDiag->TxDataCnt[ArrayCurIdx] = 0;
-			pDiag->TxFailCnt[ArrayCurIdx] = 0;
-			pDiag->RxDataCnt[ArrayCurIdx] = 0;
-			pDiag->RxCrcErrCnt[ArrayCurIdx]  = 0;
-			for (i = 9; i < 24; i++) // 3*3
-			{
-				pDiag->TxDescCnt[ArrayCurIdx][i] = 0;
-				pDiag->TxMcsCnt[ArrayCurIdx][i] = 0;
-				pDiag->RxMcsCnt[ArrayCurIdx][i] = 0;
-}
-
-			if (pDiag->ArrayCurIdx == pDiag->ArrayStartIdx)
-				INC_RING_INDEX(pDiag->ArrayStartIdx,  DIAGNOSE_TIME);
-		}
-
-	}
-#endif // DBG_DIAGNOSE //
 
 
 }
@@ -3652,7 +3314,7 @@ VOID	UserCfgInit(
 		}
 	}
 
-#ifdef RT30xx
+#ifdef RT2870
 	pAd->EepromAccess = FALSE;
 #endif
 	pAd->Antenna.word = 0;

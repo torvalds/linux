@@ -1216,7 +1216,7 @@ static inline void t3_stop_tx_queue(struct netdev_queue *txq,
  *
  *	Add a packet to an SGE Tx queue.  Runs with softirqs disabled.
  */
-int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int qidx;
 	unsigned int ndesc, pidx, credits, gen, compl;

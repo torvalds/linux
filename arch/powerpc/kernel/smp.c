@@ -189,11 +189,11 @@ void arch_send_call_function_single_ipi(int cpu)
 	smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
@@ -269,7 +269,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	cpu_callin_map[boot_cpuid] = 1;
 
 	if (smp_ops)
-		max_cpus = smp_ops->probe();
+		if (smp_ops->probe)
+			max_cpus = smp_ops->probe();
+		else
+			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
  
@@ -284,7 +287,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 
-	cpu_set(boot_cpuid, cpu_online_map);
+	set_cpu_online(boot_cpuid, true);
 	cpu_set(boot_cpuid, per_cpu(cpu_sibling_map, boot_cpuid));
 	cpu_set(boot_cpuid, per_cpu(cpu_core_map, boot_cpuid));
 #ifdef CONFIG_PPC64
@@ -304,7 +307,7 @@ int generic_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		return -EBUSY;
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
 	fixup_irqs(cpu_online_map);
@@ -358,7 +361,7 @@ void generic_mach_cpu_die(void)
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	local_irq_enable();
 }
 #endif
@@ -412,9 +415,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		 * CPUs can take much longer to come up in the
 		 * hotplug case.  Wait five seconds.
 		 */
-		for (c = 25; c && !cpu_callin_map[cpu]; c--) {
-			msleep(200);
-		}
+		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
+			msleep(1);
 #endif
 
 	if (!cpu_callin_map[cpu]) {
@@ -494,7 +496,8 @@ int __devinit start_secondary(void *unused)
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
-	smp_ops->setup_cpu(cpu);
+	if (smp_ops->setup_cpu)
+		smp_ops->setup_cpu(cpu);
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
@@ -505,7 +508,7 @@ int __devinit start_secondary(void *unused)
 
 	ipi_call_lock();
 	notify_cpu_starting(cpu);
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	/* Update sibling maps */
 	base = cpu_first_thread_in_core(cpu);
 	for (i = 0; i < threads_per_core; i++) {
@@ -557,7 +560,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	old_mask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
 	
-	if (smp_ops)
+	if (smp_ops && smp_ops->setup_cpu)
 		smp_ops->setup_cpu(boot_cpuid);
 
 	set_cpus_allowed(current, old_mask);

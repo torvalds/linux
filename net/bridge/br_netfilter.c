@@ -359,7 +359,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 				},
 				.proto = 0,
 			};
-			struct in_device *in_dev = in_dev_get(dev);
+			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
 			/* If err equals -EHOSTUNREACH the error is due to a
 			 * martian destination or due to the fact that
@@ -905,56 +905,72 @@ static unsigned int ip_sabotage_in(unsigned int hook, struct sk_buff *skb,
  * For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * ip_refrag() can return NF_STOLEN. */
 static struct nf_hook_ops br_nf_ops[] __read_mostly = {
-	{ .hook = br_nf_pre_routing,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_PRE_ROUTING,
-	  .priority = NF_BR_PRI_BRNF, },
-	{ .hook = br_nf_local_in,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_LOCAL_IN,
-	  .priority = NF_BR_PRI_BRNF, },
-	{ .hook = br_nf_forward_ip,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_FORWARD,
-	  .priority = NF_BR_PRI_BRNF - 1, },
-	{ .hook = br_nf_forward_arp,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_FORWARD,
-	  .priority = NF_BR_PRI_BRNF, },
-	{ .hook = br_nf_local_out,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_LOCAL_OUT,
-	  .priority = NF_BR_PRI_FIRST, },
-	{ .hook = br_nf_post_routing,
-	  .owner = THIS_MODULE,
-	  .pf = PF_BRIDGE,
-	  .hooknum = NF_BR_POST_ROUTING,
-	  .priority = NF_BR_PRI_LAST, },
-	{ .hook = ip_sabotage_in,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET,
-	  .hooknum = NF_INET_PRE_ROUTING,
-	  .priority = NF_IP_PRI_FIRST, },
-	{ .hook = ip_sabotage_in,
-	  .owner = THIS_MODULE,
-	  .pf = PF_INET6,
-	  .hooknum = NF_INET_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST, },
+	{
+		.hook = br_nf_pre_routing,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_PRE_ROUTING,
+		.priority = NF_BR_PRI_BRNF,
+	},
+	{
+		.hook = br_nf_local_in,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_LOCAL_IN,
+		.priority = NF_BR_PRI_BRNF,
+	},
+	{
+		.hook = br_nf_forward_ip,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_FORWARD,
+		.priority = NF_BR_PRI_BRNF - 1,
+	},
+	{
+		.hook = br_nf_forward_arp,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_FORWARD,
+		.priority = NF_BR_PRI_BRNF,
+	},
+	{
+		.hook = br_nf_local_out,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_LOCAL_OUT,
+		.priority = NF_BR_PRI_FIRST,
+	},
+	{
+		.hook = br_nf_post_routing,
+		.owner = THIS_MODULE,
+		.pf = PF_BRIDGE,
+		.hooknum = NF_BR_POST_ROUTING,
+		.priority = NF_BR_PRI_LAST,
+	},
+	{
+		.hook = ip_sabotage_in,
+		.owner = THIS_MODULE,
+		.pf = PF_INET,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP_PRI_FIRST,
+	},
+	{
+		.hook = ip_sabotage_in,
+		.owner = THIS_MODULE,
+		.pf = PF_INET6,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP6_PRI_FIRST,
+	},
 };
 
 #ifdef CONFIG_SYSCTL
 static
-int brnf_sysctl_call_tables(ctl_table * ctl, int write, struct file *filp,
+int brnf_sysctl_call_tables(ctl_table * ctl, int write,
 			    void __user * buffer, size_t * lenp, loff_t * ppos)
 {
 	int ret;
 
-	ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	if (write && *(int *)(ctl->data))
 		*(int *)(ctl->data) = 1;

@@ -6,7 +6,7 @@
  * for example.  All board-specific configuration goes in your
  * board resources file.
  *
- * Copyright 2000 Nicolas Pitre <nico@cam.org>
+ * Copyright 2000 Nicolas Pitre <nico@fluxnic.net>
  * Copyright 2005-2008 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/

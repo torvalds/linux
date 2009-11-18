@@ -57,7 +57,7 @@ _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
-		_TIF_SECCOMP>>8 | _TIF_SYSCALL_FTRACE>>8)
+		_TIF_SECCOMP>>8 | _TIF_SYSCALL_TRACEPOINT>>8)
 
 #define BASED(name) name-system_call(%r13)
 
@@ -284,10 +284,12 @@ sysc_leave:
 sysc_done:
 
 #ifdef CONFIG_TRACE_IRQFLAGS
+	.section .data,"aw",@progbits
 	.align	8
 	.globl sysc_restore_trace_psw
 sysc_restore_trace_psw:
 	.quad	0, sysc_restore_trace
+	.previous
 #endif
 
 #
@@ -595,10 +597,12 @@ io_leave:
 io_done:
 
 #ifdef CONFIG_TRACE_IRQFLAGS
+	.section .data,"aw",@progbits
 	.align	8
 	.globl io_restore_trace_psw
 io_restore_trace_psw:
 	.quad	0, io_restore_trace
+	.previous
 #endif
 
 #

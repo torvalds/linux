@@ -77,7 +77,7 @@ static unsigned long ack_handle[NR_IRQS];
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
 	struct irq_chip *chip = get_irq_chip(irq);
-	return (void *)((char *)chip - offsetof(struct intc_desc_int, chip));
+	return container_of(chip, struct intc_desc_int, chip);
 }
 
 static inline unsigned int set_field(unsigned int value,
@@ -95,16 +95,19 @@ static inline unsigned int set_field(unsigned int value,
 static void write_8(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writeb(set_field(0, data, h), addr);
+	(void)__raw_readb(addr);	/* Defeat write posting */
 }
 
 static void write_16(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writew(set_field(0, data, h), addr);
+	(void)__raw_readw(addr);	/* Defeat write posting */
 }
 
 static void write_32(unsigned long addr, unsigned long h, unsigned long data)
 {
 	__raw_writel(set_field(0, data, h), addr);
+	(void)__raw_readl(addr);	/* Defeat write posting */
 }
 
 static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
@@ -112,6 +115,7 @@ static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writeb(set_field(__raw_readb(addr), data, h), addr);
+	(void)__raw_readb(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
@@ -120,6 +124,7 @@ static void modify_16(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writew(set_field(__raw_readw(addr), data, h), addr);
+	(void)__raw_readw(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
@@ -128,6 +133,7 @@ static void modify_32(unsigned long addr, unsigned long h, unsigned long data)
 	unsigned long flags;
 	local_irq_save(flags);
 	__raw_writel(set_field(__raw_readl(addr), data, h), addr);
+	(void)__raw_readl(addr);	/* Defeat write posting */
 	local_irq_restore(flags);
 }
 
@@ -657,16 +663,9 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 	return 0;
 }
 
-static unsigned char *intc_evt2irq_table;
-
-unsigned int intc_evt2irq(unsigned int vector)
+static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int irq = evt2irq(vector);
-
-	if (intc_evt2irq_table && intc_evt2irq_table[irq])
-		irq = intc_evt2irq_table[irq];
-
-	return irq;
+	generic_handle_irq((unsigned int)get_irq_data(irq));
 }
 
 void __init register_intc_controller(struct intc_desc *desc)
@@ -739,34 +738,6 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
-	/* keep the first vector only if same enum is used multiple times */
-	for (i = 0; i < desc->nr_vectors; i++) {
-		struct intc_vect *vect = desc->vectors + i;
-		int first_irq = evt2irq(vect->vect);
-
-		if (!vect->enum_id)
-			continue;
-
-		for (k = i + 1; k < desc->nr_vectors; k++) {
-			struct intc_vect *vect2 = desc->vectors + k;
-
-			if (vect->enum_id != vect2->enum_id)
-				continue;
-
-			vect2->enum_id = 0;
-
-			if (!intc_evt2irq_table)
-				intc_evt2irq_table = kzalloc(NR_IRQS, GFP_NOWAIT);
-
-			if (!intc_evt2irq_table) {
-				pr_warning("intc: cannot allocate evt2irq!\n");
-				continue;
-			}
-
-			intc_evt2irq_table[evt2irq(vect2->vect)] = first_irq;
-		}
-	}
-
 	/* register the vectors one by one */
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
@@ -778,11 +749,37 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
 		if (unlikely(!irq_desc)) {
-			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+			pr_info("can't get irq_desc for %d\n", irq);
 			continue;
 		}
 
 		intc_register_irq(desc, d, vect->enum_id, irq);
+
+		for (k = i + 1; k < desc->nr_vectors; k++) {
+			struct intc_vect *vect2 = desc->vectors + k;
+			unsigned int irq2 = evt2irq(vect2->vect);
+
+			if (vect->enum_id != vect2->enum_id)
+				continue;
+
+			/*
+			 * In the case of multi-evt handling and sparse
+			 * IRQ support, each vector still needs to have
+			 * its own backing irq_desc.
+			 */
+			irq_desc = irq_to_desc_alloc_node(irq2, numa_node_id());
+			if (unlikely(!irq_desc)) {
+				pr_info("can't get irq_desc for %d\n", irq2);
+				continue;
+			}
+
+			vect2->enum_id = 0;
+
+			/* redirect this interrupts to the first one */
+			set_irq_chip_and_handler_name(irq2, &d->chip,
+					intc_redirect_irq, "redirect");
+			set_irq_data(irq2, (void *)irq);
+		}
 	}
 }
 

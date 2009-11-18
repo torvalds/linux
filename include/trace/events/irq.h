@@ -8,16 +8,17 @@
 #include <linux/interrupt.h>
 
 #define softirq_name(sirq) { sirq##_SOFTIRQ, #sirq }
-#define show_softirq_name(val)			\
-	__print_symbolic(val,			\
-			 softirq_name(HI),	\
-			 softirq_name(TIMER),	\
-			 softirq_name(NET_TX),	\
-			 softirq_name(NET_RX),	\
-			 softirq_name(BLOCK),	\
-			 softirq_name(TASKLET),	\
-			 softirq_name(SCHED),	\
-			 softirq_name(HRTIMER),	\
+#define show_softirq_name(val)				\
+	__print_symbolic(val,				\
+			 softirq_name(HI),		\
+			 softirq_name(TIMER),		\
+			 softirq_name(NET_TX),		\
+			 softirq_name(NET_RX),		\
+			 softirq_name(BLOCK),		\
+			 softirq_name(BLOCK_IOPOLL),	\
+			 softirq_name(TASKLET),		\
+			 softirq_name(SCHED),		\
+			 softirq_name(HRTIMER),		\
 			 softirq_name(RCU))
 
 /**

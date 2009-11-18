@@ -217,6 +217,9 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
+			else if (IS_IGDNG(dev_priv->dev))
+				dev_priv->lvds_ssc_freq =
+					general->ssc_freq ? 100 : 120;
 			else
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 96;
@@ -348,20 +351,18 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct bdb_driver_features *driver;
 
-	/* set default for chips without eDP */
-	if (!SUPPORTS_EDP(dev)) {
-		dev_priv->edp_support = 0;
-		return;
-	}
-
 	driver = find_section(bdb, BDB_DRIVER_FEATURES);
 	if (!driver)
 		return;
 
-	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+	if (driver && SUPPORTS_EDP(dev) &&
+	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP) {
 		dev_priv->edp_support = 1;
+	} else {
+		dev_priv->edp_support = 0;
+	}
 
-	if (driver->dual_frequency)
+	if (driver && driver->dual_frequency)
 		dev_priv->render_reclock_avail = true;
 }
 

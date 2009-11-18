@@ -14,7 +14,7 @@
 #define __ASM_S390_PROCESSOR_H
 
 #include <linux/linkage.h>
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
@@ -26,7 +26,7 @@
  */
 #define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
 
-static inline void get_cpu_id(cpuid_t *ptr)
+static inline void get_cpu_id(struct cpuid *ptr)
 {
 	asm volatile("stidp 0(%1)" : "=m" (*ptr) : "a" (ptr));
 }
@@ -295,7 +295,7 @@ static inline void ATTRIB_NORET disabled_wait(unsigned long code)
 		"	oi	0x384(1),0x10\n"/* fake protection bit */
 		"	lpswe	0(%1)"
 		: "=m" (ctl_buf)
-		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0");
+		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
 #endif /* __s390x__ */
 	while (1);
 }

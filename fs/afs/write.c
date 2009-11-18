@@ -712,7 +712,6 @@ int afs_writeback_all(struct afs_vnode *vnode)
 		.bdi		= mapping->backing_dev_info,
 		.sync_mode	= WB_SYNC_ALL,
 		.nr_to_write	= LONG_MAX,
-		.for_writepages = 1,
 		.range_cyclic	= 1,
 	};
 	int ret;

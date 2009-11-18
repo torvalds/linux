@@ -187,7 +187,7 @@ static inline void print_ipv6_addr(struct audit_buffer *ab,
 				   char *name1, char *name2)
 {
 	if (!ipv6_addr_any(addr))
-		audit_log_format(ab, " %s=%pI6", name1, addr);
+		audit_log_format(ab, " %s=%pI6c", name1, addr);
 	if (port)
 		audit_log_format(ab, " %s=%d", name2, ntohs(port));
 }
@@ -220,6 +220,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	}
 
 	switch (a->type) {
+	case LSM_AUDIT_NO_AUDIT:
+		return;
 	case LSM_AUDIT_DATA_IPC:
 		audit_log_format(ab, " key=%d ", a->u.ipc_id);
 		break;

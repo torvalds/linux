@@ -140,7 +140,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		goto unlock;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++)
-		if (d->props.rc_key_map[i].data == rc_state[1]) {
+		if (rc5_data(&d->props.rc_key_map[i]) == rc_state[1]) {
 			*event = d->props.rc_key_map[i].event;
 
 			switch(rc_state[0]) {
@@ -337,6 +337,8 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 	int i, pass, ret = 0;
 
 	buff = kmalloc(65536, GFP_KERNEL);
+	if (buff == NULL)
+		return -ENOMEM;
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
@@ -562,42 +564,42 @@ static struct m920x_inits tvwalkertwin_rc_init [] = {
 
 /* ir keymaps */
 static struct dvb_usb_rc_key megasky_rc_keys [] = {
-	{ 0x0, 0x12, KEY_POWER },
-	{ 0x0, 0x1e, KEY_CYCLEWINDOWS }, /* min/max */
-	{ 0x0, 0x02, KEY_CHANNELUP },
-	{ 0x0, 0x05, KEY_CHANNELDOWN },
-	{ 0x0, 0x03, KEY_VOLUMEUP },
-	{ 0x0, 0x06, KEY_VOLUMEDOWN },
-	{ 0x0, 0x04, KEY_MUTE },
-	{ 0x0, 0x07, KEY_OK }, /* TS */
-	{ 0x0, 0x08, KEY_STOP },
-	{ 0x0, 0x09, KEY_MENU }, /* swap */
-	{ 0x0, 0x0a, KEY_REWIND },
-	{ 0x0, 0x1b, KEY_PAUSE },
-	{ 0x0, 0x1f, KEY_FASTFORWARD },
-	{ 0x0, 0x0c, KEY_RECORD },
-	{ 0x0, 0x0d, KEY_CAMERA }, /* screenshot */
-	{ 0x0, 0x0e, KEY_COFFEE }, /* "MTS" */
+	{ 0x0012, KEY_POWER },
+	{ 0x001e, KEY_CYCLEWINDOWS }, /* min/max */
+	{ 0x0002, KEY_CHANNELUP },
+	{ 0x0005, KEY_CHANNELDOWN },
+	{ 0x0003, KEY_VOLUMEUP },
+	{ 0x0006, KEY_VOLUMEDOWN },
+	{ 0x0004, KEY_MUTE },
+	{ 0x0007, KEY_OK }, /* TS */
+	{ 0x0008, KEY_STOP },
+	{ 0x0009, KEY_MENU }, /* swap */
+	{ 0x000a, KEY_REWIND },
+	{ 0x001b, KEY_PAUSE },
+	{ 0x001f, KEY_FASTFORWARD },
+	{ 0x000c, KEY_RECORD },
+	{ 0x000d, KEY_CAMERA }, /* screenshot */
+	{ 0x000e, KEY_COFFEE }, /* "MTS" */
 };
 
 static struct dvb_usb_rc_key tvwalkertwin_rc_keys [] = {
-	{ 0x0, 0x01, KEY_ZOOM }, /* Full Screen */
-	{ 0x0, 0x02, KEY_CAMERA }, /* snapshot */
-	{ 0x0, 0x03, KEY_MUTE },
-	{ 0x0, 0x04, KEY_REWIND },
-	{ 0x0, 0x05, KEY_PLAYPAUSE }, /* Play/Pause */
-	{ 0x0, 0x06, KEY_FASTFORWARD },
-	{ 0x0, 0x07, KEY_RECORD },
-	{ 0x0, 0x08, KEY_STOP },
-	{ 0x0, 0x09, KEY_TIME }, /* Timeshift */
-	{ 0x0, 0x0c, KEY_COFFEE }, /* Recall */
-	{ 0x0, 0x0e, KEY_CHANNELUP },
-	{ 0x0, 0x12, KEY_POWER },
-	{ 0x0, 0x15, KEY_MENU }, /* source */
-	{ 0x0, 0x18, KEY_CYCLEWINDOWS }, /* TWIN PIP */
-	{ 0x0, 0x1a, KEY_CHANNELDOWN },
-	{ 0x0, 0x1b, KEY_VOLUMEDOWN },
-	{ 0x0, 0x1e, KEY_VOLUMEUP },
+	{ 0x0001, KEY_ZOOM }, /* Full Screen */
+	{ 0x0002, KEY_CAMERA }, /* snapshot */
+	{ 0x0003, KEY_MUTE },
+	{ 0x0004, KEY_REWIND },
+	{ 0x0005, KEY_PLAYPAUSE }, /* Play/Pause */
+	{ 0x0006, KEY_FASTFORWARD },
+	{ 0x0007, KEY_RECORD },
+	{ 0x0008, KEY_STOP },
+	{ 0x0009, KEY_TIME }, /* Timeshift */
+	{ 0x000c, KEY_COFFEE }, /* Recall */
+	{ 0x000e, KEY_CHANNELUP },
+	{ 0x0012, KEY_POWER },
+	{ 0x0015, KEY_MENU }, /* source */
+	{ 0x0018, KEY_CYCLEWINDOWS }, /* TWIN PIP */
+	{ 0x001a, KEY_CHANNELDOWN },
+	{ 0x001b, KEY_VOLUMEDOWN },
+	{ 0x001e, KEY_VOLUMEUP },
 };
 
 /* DVB USB Driver stuff */

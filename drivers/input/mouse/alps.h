@@ -26,10 +26,10 @@ struct alps_data {
 };
 
 #ifdef CONFIG_MOUSE_PS2_ALPS
-int alps_detect(struct psmouse *psmouse, int set_properties);
+int alps_detect(struct psmouse *psmouse, bool set_properties);
 int alps_init(struct psmouse *psmouse);
 #else
-inline int alps_detect(struct psmouse *psmouse, int set_properties)
+inline int alps_detect(struct psmouse *psmouse, bool set_properties)
 {
 	return -ENOSYS;
 }

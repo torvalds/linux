@@ -1,6 +1,6 @@
 config NILFS2_FS
 	tristate "NILFS2 file system support (EXPERIMENTAL)"
-	depends on BLOCK && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	select CRC32
 	help
 	  NILFS2 is a log-structured file system (LFS) supporting continuous

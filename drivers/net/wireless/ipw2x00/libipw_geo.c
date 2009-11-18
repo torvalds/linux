@@ -19,7 +19,7 @@
   file called LICENSE.
 
   Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+  Intel Linux Wireless <ilw@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
@@ -41,9 +41,9 @@
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
 
-#include "ieee80211.h"
+#include "libipw.h"
 
-int ieee80211_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
+int libipw_is_valid_channel(struct libipw_device *ieee, u8 channel)
 {
 	int i;
 
@@ -52,27 +52,27 @@ int ieee80211_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
 	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
 		return 0;
 
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
 			/* NOTE: If G mode is currently supported but
 			 * this is a B only channel, we don't see it
 			 * as valid. */
 			if ((ieee->geo.bg[i].channel == channel) &&
-			    !(ieee->geo.bg[i].flags & IEEE80211_CH_INVALID) &&
+			    !(ieee->geo.bg[i].flags & LIBIPW_CH_INVALID) &&
 			    (!(ieee->mode & IEEE_G) ||
-			     !(ieee->geo.bg[i].flags & IEEE80211_CH_B_ONLY)))
-				return IEEE80211_24GHZ_BAND;
+			     !(ieee->geo.bg[i].flags & LIBIPW_CH_B_ONLY)))
+				return LIBIPW_24GHZ_BAND;
 
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_52GHZ_BAND)
 		for (i = 0; i < ieee->geo.a_channels; i++)
 			if ((ieee->geo.a[i].channel == channel) &&
-			    !(ieee->geo.a[i].flags & IEEE80211_CH_INVALID))
-				return IEEE80211_52GHZ_BAND;
+			    !(ieee->geo.a[i].flags & LIBIPW_CH_INVALID))
+				return LIBIPW_52GHZ_BAND;
 
 	return 0;
 }
 
-int ieee80211_channel_to_index(struct ieee80211_device *ieee, u8 channel)
+int libipw_channel_to_index(struct libipw_device *ieee, u8 channel)
 {
 	int i;
 
@@ -81,12 +81,12 @@ int ieee80211_channel_to_index(struct ieee80211_device *ieee, u8 channel)
 	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
 		return -1;
 
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
 			if (ieee->geo.bg[i].channel == channel)
 				return i;
 
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_52GHZ_BAND)
 		for (i = 0; i < ieee->geo.a_channels; i++)
 			if (ieee->geo.a[i].channel == channel)
 				return i;
@@ -94,22 +94,22 @@ int ieee80211_channel_to_index(struct ieee80211_device *ieee, u8 channel)
 	return -1;
 }
 
-u32 ieee80211_channel_to_freq(struct ieee80211_device * ieee, u8 channel)
+u32 libipw_channel_to_freq(struct libipw_device * ieee, u8 channel)
 {
-	const struct ieee80211_channel * ch;
+	const struct libipw_channel * ch;
 
 	/* Driver needs to initialize the geography map before using
 	 * these helper functions */
 	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
 		return 0;
 
-	ch = ieee80211_get_channel(ieee, channel);
+	ch = libipw_get_channel(ieee, channel);
 	if (!ch->channel)
 		return 0;
 	return ch->freq;
 }
 
-u8 ieee80211_freq_to_channel(struct ieee80211_device * ieee, u32 freq)
+u8 libipw_freq_to_channel(struct libipw_device * ieee, u32 freq)
 {
 	int i;
 
@@ -120,12 +120,12 @@ u8 ieee80211_freq_to_channel(struct ieee80211_device * ieee, u32 freq)
 
 	freq /= 100000;
 
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
 			if (ieee->geo.bg[i].freq == freq)
 				return ieee->geo.bg[i].channel;
 
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
+	if (ieee->freq_band & LIBIPW_52GHZ_BAND)
 		for (i = 0; i < ieee->geo.a_channels; i++)
 			if (ieee->geo.a[i].freq == freq)
 				return ieee->geo.a[i].channel;
@@ -133,63 +133,63 @@ u8 ieee80211_freq_to_channel(struct ieee80211_device * ieee, u32 freq)
 	return 0;
 }
 
-int ieee80211_set_geo(struct ieee80211_device *ieee,
-		      const struct ieee80211_geo *geo)
+int libipw_set_geo(struct libipw_device *ieee,
+		      const struct libipw_geo *geo)
 {
 	memcpy(ieee->geo.name, geo->name, 3);
 	ieee->geo.name[3] = '\0';
 	ieee->geo.bg_channels = geo->bg_channels;
 	ieee->geo.a_channels = geo->a_channels;
 	memcpy(ieee->geo.bg, geo->bg, geo->bg_channels *
-	       sizeof(struct ieee80211_channel));
+	       sizeof(struct libipw_channel));
 	memcpy(ieee->geo.a, geo->a, ieee->geo.a_channels *
-	       sizeof(struct ieee80211_channel));
+	       sizeof(struct libipw_channel));
 	return 0;
 }
 
-const struct ieee80211_geo *ieee80211_get_geo(struct ieee80211_device *ieee)
+const struct libipw_geo *libipw_get_geo(struct libipw_device *ieee)
 {
 	return &ieee->geo;
 }
 
-u8 ieee80211_get_channel_flags(struct ieee80211_device * ieee, u8 channel)
+u8 libipw_get_channel_flags(struct libipw_device * ieee, u8 channel)
 {
-	int index = ieee80211_channel_to_index(ieee, channel);
+	int index = libipw_channel_to_index(ieee, channel);
 
 	if (index == -1)
-		return IEEE80211_CH_INVALID;
+		return LIBIPW_CH_INVALID;
 
-	if (channel <= IEEE80211_24GHZ_CHANNELS)
+	if (channel <= LIBIPW_24GHZ_CHANNELS)
 		return ieee->geo.bg[index].flags;
 
 	return ieee->geo.a[index].flags;
 }
 
-static const struct ieee80211_channel bad_channel = {
+static const struct libipw_channel bad_channel = {
 	.channel = 0,
-	.flags = IEEE80211_CH_INVALID,
+	.flags = LIBIPW_CH_INVALID,
 	.max_power = 0,
 };
 
-const struct ieee80211_channel *ieee80211_get_channel(struct ieee80211_device
+const struct libipw_channel *libipw_get_channel(struct libipw_device
 						      *ieee, u8 channel)
 {
-	int index = ieee80211_channel_to_index(ieee, channel);
+	int index = libipw_channel_to_index(ieee, channel);
 
 	if (index == -1)
 		return &bad_channel;
 
-	if (channel <= IEEE80211_24GHZ_CHANNELS)
+	if (channel <= LIBIPW_24GHZ_CHANNELS)
 		return &ieee->geo.bg[index];
 
 	return &ieee->geo.a[index];
 }
 
-EXPORT_SYMBOL(ieee80211_get_channel);
-EXPORT_SYMBOL(ieee80211_get_channel_flags);
-EXPORT_SYMBOL(ieee80211_is_valid_channel);
-EXPORT_SYMBOL(ieee80211_freq_to_channel);
-EXPORT_SYMBOL(ieee80211_channel_to_freq);
-EXPORT_SYMBOL(ieee80211_channel_to_index);
-EXPORT_SYMBOL(ieee80211_set_geo);
-EXPORT_SYMBOL(ieee80211_get_geo);
+EXPORT_SYMBOL(libipw_get_channel);
+EXPORT_SYMBOL(libipw_get_channel_flags);
+EXPORT_SYMBOL(libipw_is_valid_channel);
+EXPORT_SYMBOL(libipw_freq_to_channel);
+EXPORT_SYMBOL(libipw_channel_to_freq);
+EXPORT_SYMBOL(libipw_channel_to_index);
+EXPORT_SYMBOL(libipw_set_geo);
+EXPORT_SYMBOL(libipw_get_geo);

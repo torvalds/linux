@@ -38,7 +38,7 @@
 #include "trans.h"
 #include "util.h"
 #include "sys.h"
-#include "eattr.h"
+#include "xattr.h"
 
 #define args_neq(a1, a2, x) ((a1)->ar_##x != (a2)->ar_##x)
 
@@ -68,6 +68,8 @@ enum {
 	Opt_discard,
 	Opt_nodiscard,
 	Opt_commit,
+	Opt_err_withdraw,
+	Opt_err_panic,
 	Opt_error,
 };
 
@@ -97,6 +99,8 @@ static const match_table_t tokens = {
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
 	{Opt_commit, "commit=%d"},
+	{Opt_err_withdraw, "errors=withdraw"},
+	{Opt_err_panic, "errors=panic"},
 	{Opt_error, NULL}
 };
 
@@ -152,6 +156,11 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			args->ar_localcaching = 1;
 			break;
 		case Opt_debug:
+			if (args->ar_errors == GFS2_ERRORS_PANIC) {
+				fs_info(sdp, "-o debug and -o errors=panic "
+				       "are mutually exclusive.\n");
+				return -EINVAL;
+			}
 			args->ar_debug = 1;
 			break;
 		case Opt_nodebug:
@@ -204,6 +213,17 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 				fs_info(sdp, "commit mount option requires a positive numeric argument\n");
 				return rv ? rv : -EINVAL;
 			}
+			break;
+		case Opt_err_withdraw:
+			args->ar_errors = GFS2_ERRORS_WITHDRAW;
+			break;
+		case Opt_err_panic:
+			if (args->ar_debug) {
+				fs_info(sdp, "-o debug and -o errors=panic "
+					"are mutually exclusive.\n");
+				return -EINVAL;
+			}
+			args->ar_errors = GFS2_ERRORS_PANIC;
 			break;
 		case Opt_error:
 		default:
@@ -768,7 +788,6 @@ restart:
 	/*  Release stuff  */
 
 	iput(sdp->sd_jindex);
-	iput(sdp->sd_inum_inode);
 	iput(sdp->sd_statfs_inode);
 	iput(sdp->sd_rindex);
 	iput(sdp->sd_quota_inode);
@@ -779,10 +798,8 @@ restart:
 	if (!sdp->sd_args.ar_spectator) {
 		gfs2_glock_dq_uninit(&sdp->sd_journal_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		iput(sdp->sd_ir_inode);
 		iput(sdp->sd_sc_inode);
 		iput(sdp->sd_qc_inode);
 	}
@@ -1084,6 +1101,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	gt->gt_log_flush_secs = args.ar_commit;
 	spin_unlock(&gt->gt_spin);
 
+	gfs2_online_uevent(sdp);
 	return 0;
 }
 
@@ -1225,6 +1243,22 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	lfsecs = sdp->sd_tune.gt_log_flush_secs;
 	if (lfsecs != 60)
 		seq_printf(s, ",commit=%d", lfsecs);
+	if (args->ar_errors != GFS2_ERRORS_DEFAULT) {
+		const char *state;
+
+		switch (args->ar_errors) {
+		case GFS2_ERRORS_WITHDRAW:
+			state = "withdraw";
+			break;
+		case GFS2_ERRORS_PANIC:
+			state = "panic";
+			break;
+		default:
+			state = "unknown";
+			break;
+		}
+		seq_printf(s, ",errors=%s", state);
+	}
 	return 0;
 }
 
@@ -1251,6 +1285,10 @@ static void gfs2_delete_inode(struct inode *inode)
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
 	}
+
+	error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
+	if (error)
+		goto out_truncate;
 
 	gfs2_glock_dq_wait(&ip->i_iopen_gh);
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &ip->i_iopen_gh);

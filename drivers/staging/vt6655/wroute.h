@@ -26,16 +26,10 @@
  *
  */
 
-
 #ifndef __WROUTE_H__
 #define __WROUTE_H__
 
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -45,19 +39,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __WROUTE_H__
 

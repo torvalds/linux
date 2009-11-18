@@ -38,7 +38,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
@@ -146,6 +145,12 @@ idtoname_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 }
 
 static int
+idtoname_upcall(struct cache_detail *cd, struct cache_head *ch)
+{
+	return sunrpc_cache_pipe_upcall(cd, ch, idtoname_request);
+}
+
+static int
 idtoname_match(struct cache_head *ca, struct cache_head *cb)
 {
 	struct ent *a = container_of(ca, struct ent, h);
@@ -175,10 +180,10 @@ idtoname_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 }
 
 static void
-warn_no_idmapd(struct cache_detail *detail)
+warn_no_idmapd(struct cache_detail *detail, int has_died)
 {
 	printk("nfsd: nfsv4 idmapping failing: has idmapd %s?\n",
-			detail->last_close? "died" : "not been started");
+			has_died ? "died" : "not been started");
 }
 
 
@@ -192,7 +197,7 @@ static struct cache_detail idtoname_cache = {
 	.hash_table	= idtoname_table,
 	.name		= "nfs4.idtoname",
 	.cache_put	= ent_put,
-	.cache_request	= idtoname_request,
+	.cache_upcall	= idtoname_upcall,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
 	.warn_no_listener = warn_no_idmapd,
@@ -325,6 +330,12 @@ nametoid_request(struct cache_detail *cd, struct cache_head *ch, char **bpp,
 }
 
 static int
+nametoid_upcall(struct cache_detail *cd, struct cache_head *ch)
+{
+	return sunrpc_cache_pipe_upcall(cd, ch, nametoid_request);
+}
+
+static int
 nametoid_match(struct cache_head *ca, struct cache_head *cb)
 {
 	struct ent *a = container_of(ca, struct ent, h);
@@ -363,7 +374,7 @@ static struct cache_detail nametoid_cache = {
 	.hash_table	= nametoid_table,
 	.name		= "nfs4.nametoid",
 	.cache_put	= ent_put,
-	.cache_request	= nametoid_request,
+	.cache_upcall	= nametoid_upcall,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
 	.warn_no_listener = warn_no_idmapd,

@@ -20,11 +20,6 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(ltc4215);
-
 /* Here are names of the chip's registers (a.k.a. commands) */
 enum ltc4215_cmd {
 	LTC4215_CONTROL			= 0x00, /* rw */
@@ -246,8 +241,12 @@ static const struct attribute_group ltc4215_group = {
 static int ltc4215_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	struct i2c_adapter *adapter = client->adapter;
 	struct ltc4215_data *data;
 	int ret;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -ENODEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -259,7 +258,7 @@ static int ltc4215_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Initialize the LTC4215 chip */
-	/* TODO */
+	i2c_smbus_write_byte_data(client, LTC4215_FAULT, 0x00);
 
 	/* Register sysfs hooks */
 	ret = sysfs_create_group(&client->dev.kobj, &ltc4215_group);
@@ -294,56 +293,20 @@ static int ltc4215_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ltc4215_detect(struct i2c_client *client,
-			  int kind,
-			  struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
-
-	if (kind < 0) {		/* probed detection - check the chip type */
-		s32 v;		/* 8 bits from the chip, or -ERRNO */
-
-		/*
-		 * Register 0x01 bit b7 is reserved, expect 0
-		 * Register 0x03 bit b6 and b7 are reserved, expect 0
-		 */
-		v = i2c_smbus_read_byte_data(client, LTC4215_ALERT);
-		if (v < 0 || (v & (1 << 7)) != 0)
-			return -ENODEV;
-
-		v = i2c_smbus_read_byte_data(client, LTC4215_FAULT);
-		if (v < 0 || (v & ((1 << 6) | (1 << 7))) != 0)
-				return -ENODEV;
-	}
-
-	strlcpy(info->type, "ltc4215", I2C_NAME_SIZE);
-	dev_info(&adapter->dev, "ltc4215 %s at address 0x%02x\n",
-			kind < 0 ? "probed" : "forced",
-			client->addr);
-
-	return 0;
-}
-
 static const struct i2c_device_id ltc4215_id[] = {
-	{ "ltc4215", ltc4215 },
+	{ "ltc4215", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc4215_id);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ltc4215_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ltc4215",
 	},
 	.probe		= ltc4215_probe,
 	.remove		= ltc4215_remove,
 	.id_table	= ltc4215_id,
-	.detect		= ltc4215_detect,
-	.address_data	= &addr_data,
 };
 
 static int __init ltc4215_init(void)

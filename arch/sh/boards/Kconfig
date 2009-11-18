@@ -160,7 +160,6 @@ config SH_SH7785LCR
 	bool "SH7785LCR"
 	depends on CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
-	select IO_TRAPPED if MMU
 
 config SH_SH7785LCR_29BIT_PHYSMAPS
 	bool "SH7785LCR 29bit physmaps"
@@ -170,6 +169,13 @@ config SH_SH7785LCR_29BIT_PHYSMAPS
 	  This board has 2 physical memory maps. It can be changed with
 	  DIP switch(S2-5). If you set the DIP switch for S2-5 = ON,
 	  you can access all on-board device in 29bit address mode.
+
+config SH_SH7785LCR_PT
+	bool "SH7785LCR prototype board on 32-bit MMU mode"
+	depends on SH_SH7785LCR && 32BIT
+	default n
+	help
+	  If you use prototype board, this option is enabled.
 
 config SH_URQUELL
 	bool "Urquell"
@@ -192,6 +198,20 @@ config SH_AP325RXA
 	help
 	  Renesas "AP-325RXA" support.
 	  Compatible with ALGO SYSTEM CO.,LTD. "AP-320A"
+
+config SH_KFR2R09
+	bool "KFR2R09"
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  "Kit For R2R for 2009" support.
+
+config SH_ECOVEC
+	bool "EcoVec"
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Renesas "R0P7724LC0011/21RL (EcoVec)" support.
 
 config SH_SH7763RDP
 	bool "SH7763RDP"

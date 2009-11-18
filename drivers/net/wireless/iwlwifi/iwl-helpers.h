@@ -145,4 +145,25 @@ static inline void iwl_stop_queue(struct iwl_priv *priv, u8 queue)
 #define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue
 #define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
 
+static inline void iwl_disable_interrupts(struct iwl_priv *priv)
+{
+	clear_bit(STATUS_INT_ENABLED, &priv->status);
+
+	/* disable interrupts from uCode/NIC to host */
+	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
+
+	/* acknowledge/clear/reset any interrupts still pending
+	 * from uCode or flow handler (Rx/Tx DMA) */
+	iwl_write32(priv, CSR_INT, 0xffffffff);
+	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
+	IWL_DEBUG_ISR(priv, "Disabled interrupts\n");
+}
+
+static inline void iwl_enable_interrupts(struct iwl_priv *priv)
+{
+	IWL_DEBUG_ISR(priv, "Enabling interrupts\n");
+	set_bit(STATUS_INT_ENABLED, &priv->status);
+	iwl_write32(priv, CSR_INT_MASK, priv->inta_mask);
+}
+
 #endif				/* __iwl_helpers_h__ */

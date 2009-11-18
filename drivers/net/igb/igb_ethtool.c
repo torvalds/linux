@@ -34,6 +34,7 @@
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
+#include <linux/sched.h>
 
 #include "igb.h"
 
@@ -168,8 +169,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->duplex = -1;
 	}
 
-	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
-			 hw->mac.autoneg) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	ecmd->autoneg = hw->mac.autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -191,23 +191,20 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
-		if (hw->phy.media_type == e1000_media_type_fiber)
-			hw->phy.autoneg_advertised = ADVERTISED_1000baseT_Full |
-						     ADVERTISED_FIBRE |
-						     ADVERTISED_Autoneg;
-		else
-			hw->phy.autoneg_advertised = ecmd->advertising |
-						     ADVERTISED_TP |
-						     ADVERTISED_Autoneg;
+		hw->phy.autoneg_advertised = ecmd->advertising |
+					     ADVERTISED_TP |
+					     ADVERTISED_Autoneg;
 		ecmd->advertising = hw->phy.autoneg_advertised;
-	} else
+		if (adapter->fc_autoneg)
+			hw->fc.requested_mode = e1000_fc_default;
+	} else {
 		if (igb_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
 			clear_bit(__IGB_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
+	}
 
 	/* reset the link */
-
 	if (netif_running(adapter->netdev)) {
 		igb_down(adapter);
 		igb_up(adapter);
@@ -227,11 +224,11 @@ static void igb_get_pauseparam(struct net_device *netdev,
 	pause->autoneg =
 		(adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	if (hw->fc.type == e1000_fc_rx_pause)
+	if (hw->fc.current_mode == e1000_fc_rx_pause)
 		pause->rx_pause = 1;
-	else if (hw->fc.type == e1000_fc_tx_pause)
+	else if (hw->fc.current_mode == e1000_fc_tx_pause)
 		pause->tx_pause = 1;
-	else if (hw->fc.type == e1000_fc_full) {
+	else if (hw->fc.current_mode == e1000_fc_full) {
 		pause->rx_pause = 1;
 		pause->tx_pause = 1;
 	}
@@ -249,26 +246,28 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (pause->rx_pause && pause->tx_pause)
-		hw->fc.type = e1000_fc_full;
-	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = e1000_fc_rx_pause;
-	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc.type = e1000_fc_tx_pause;
-	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = e1000_fc_none;
-
-	hw->fc.original_type = hw->fc.type;
-
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
+		hw->fc.requested_mode = e1000_fc_default;
 		if (netif_running(adapter->netdev)) {
 			igb_down(adapter);
 			igb_up(adapter);
 		} else
 			igb_reset(adapter);
-	} else
-		retval = ((hw->phy.media_type == e1000_media_type_fiber) ?
-			  igb_setup_link(hw) : igb_force_mac_fc(hw));
+	} else {
+		if (pause->rx_pause && pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_full;
+		else if (pause->rx_pause && !pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_rx_pause;
+		else if (!pause->rx_pause && pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_tx_pause;
+		else if (!pause->rx_pause && !pause->tx_pause)
+			hw->fc.requested_mode = e1000_fc_none;
+
+		hw->fc.current_mode = hw->fc.requested_mode;
+
+		retval = ((hw->phy.media_type == e1000_media_type_copper) ?
+			  igb_force_mac_fc(hw) : igb_setup_link(hw));
+	}
 
 	clear_bit(__IGB_RESETTING, &adapter->state);
 	return retval;
@@ -733,7 +732,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct igb_ring *temp_ring;
-	int i, err;
+	int i, err = 0;
 	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -753,18 +752,30 @@ static int igb_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
+	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
+		msleep(1);
+
+	if (!netif_running(adapter->netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			adapter->tx_ring[i].count = new_tx_count;
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i].count = new_rx_count;
+		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto clear_reset;
+	}
+
 	if (adapter->num_tx_queues > adapter->num_rx_queues)
 		temp_ring = vmalloc(adapter->num_tx_queues * sizeof(struct igb_ring));
 	else
 		temp_ring = vmalloc(adapter->num_rx_queues * sizeof(struct igb_ring));
-	if (!temp_ring)
-		return -ENOMEM;
 
-	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+	if (!temp_ring) {
+		err = -ENOMEM;
+		goto clear_reset;
+	}
 
-	if (netif_running(adapter->netdev))
-		igb_down(adapter);
+	igb_down(adapter);
 
 	/*
 	 * We can't just free everything and then setup again,
@@ -821,14 +832,11 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 		adapter->rx_ring_count = new_rx_count;
 	}
-
-	err = 0;
 err_setup:
-	if (netif_running(adapter->netdev))
-		igb_up(adapter);
-
-	clear_bit(__IGB_RESETTING, &adapter->state);
+	igb_up(adapter);
 	vfree(temp_ring);
+clear_reset:
+	clear_bit(__IGB_RESETTING, &adapter->state);
 	return err;
 }
 
@@ -1483,8 +1491,7 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	if (hw->phy.media_type == e1000_media_type_fiber ||
-	    hw->phy.media_type == e1000_media_type_internal_serdes) {
+	if (hw->phy.media_type == e1000_media_type_internal_serdes) {
 		reg = rd32(E1000_RCTL);
 		reg |= E1000_RCTL_LBM_TCVR;
 		wr32(E1000_RCTL, reg);
@@ -1843,7 +1850,6 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
 
 	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
 		return -EOPNOTSUPP;
@@ -1851,11 +1857,6 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (igb_wol_exclusion(adapter, wol) ||
 	    !device_can_wakeup(&adapter->pdev->dev))
 		return wol->wolopts ? -EOPNOTSUPP : 0;
-
-	switch (hw->device_id) {
-	default:
-		break;
-	}
 
 	/* these settings will always override what we currently have */
 	adapter->wol = 0;
@@ -2025,7 +2026,7 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
-static struct ethtool_ops igb_ethtool_ops = {
+static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings           = igb_get_settings,
 	.set_settings           = igb_set_settings,
 	.get_drvinfo            = igb_get_drvinfo,

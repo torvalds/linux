@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/system.h
  *
- * Copyright (c) 1999 Nicolas Pitre <nico@cam.org>
+ * Copyright (c) 1999 Nicolas Pitre <nico@fluxnic.net>
  */
 #include <mach/hardware.h>
 

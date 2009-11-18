@@ -7,7 +7,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/utsname.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
@@ -299,7 +298,6 @@ static void nfs3_free_createdata(struct nfs3_createdata *data)
 
 /*
  * Create a regular file.
- * For now, we don't implement O_EXCL.
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,

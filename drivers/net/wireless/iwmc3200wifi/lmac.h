@@ -396,6 +396,25 @@ enum {
 	CALIBRATION_CMD_NUM,
 };
 
+enum {
+	CALIB_CFG_RX_BB_IDX       = 0,
+	CALIB_CFG_DC_IDX          = 1,
+	CALIB_CFG_LO_IDX          = 2,
+	CALIB_CFG_TX_IQ_IDX       = 3,
+	CALIB_CFG_RX_IQ_IDX       = 4,
+	CALIB_CFG_NOISE_IDX       = 5,
+	CALIB_CFG_CRYSTAL_IDX     = 6,
+	CALIB_CFG_TEMPERATURE_IDX = 7,
+	CALIB_CFG_PAPD_IDX        = 8,
+	CALIB_CFG_LAST_IDX        = CALIB_CFG_PAPD_IDX,
+	CALIB_CFG_MODULE_NUM,
+};
+
+#define IWM_CALIB_MAP_INIT_MSK		0xFFFF
+#define IWM_CALIB_MAP_PER_LMAC(m)	((m & 0xFF0000) >> 16)
+#define IWM_CALIB_MAP_PER_UMAC(m)	((m & 0xFF000000) >> 24)
+#define IWM_CALIB_OPCODE_TO_INDEX(op)   (op - PHY_CALIBRATE_OPCODES_NUM)
+
 struct iwm_lmac_calib_hdr {
 	u8 opcode;
 	u8 first_grp;

@@ -18,13 +18,6 @@
 #include <linux/interrupt.h>
 #include <asm/lowcore.h>
 
-/* irq_cpustat_t is unused currently, but could be converted
- * into a percpu variable instead of storing softirq_pending
- * on the lowcore */
-typedef struct {
-	unsigned int __softirq_pending;
-} irq_cpustat_t;
-
 #define local_softirq_pending() (S390_lowcore.softirq_pending)
 
 #define __ARCH_IRQ_STAT

@@ -151,7 +151,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 	dprintk(2, "%s()\n", __func__);
 
 	if (dev->urb_streaming) {
-		dprintk(2, "%s: iso xfer already running!\n", __func__);
+		dprintk(2, "%s: bulk xfer already running!\n", __func__);
 		return 0;
 	}
 

@@ -36,6 +36,7 @@
 #include <mach/dma.h>
 
 #include "s3c-i2s-v2.h"
+#include "s3c24xx-pcm.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 
@@ -229,6 +230,8 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
 
+#define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
+
 /*
  * Wait for the LR signal to allow synchronisation to the L/R clock
  * from the codec. May only be needed for slave mode.
@@ -236,19 +239,21 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 static int s3c2412_snd_lrsync(struct s3c_i2sv2_info *i2s)
 {
 	u32 iiscon;
-	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	unsigned long loops = msecs_to_loops(5);
 
 	pr_debug("Entered %s\n", __func__);
 
-	while (1) {
+	while (--loops) {
 		iiscon = readl(i2s->regs + S3C2412_IISCON);
 		if (iiscon & S3C2412_IISCON_LRINDEX)
 			break;
 
-		if (timeout < jiffies) {
-			printk(KERN_ERR "%s: timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
+		cpu_relax();
+	}
+
+	if (!loops) {
+		printk(KERN_ERR "%s: timeout\n", __func__);
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -357,19 +362,19 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 #endif
 
 #ifdef CONFIG_PLAT_S3C64XX
-	iismod &= ~0x606;
+	iismod &= ~(S3C64XX_IISMOD_BLC_MASK | S3C2412_IISMOD_BCLK_MASK);
 	/* Sample size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
 		/* 8 bit sample, 16fs BCLK */
-		iismod |= 0x2004;
+		iismod |= (S3C64XX_IISMOD_BLC_8BIT | S3C2412_IISMOD_BCLK_16FS);
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		/* 16 bit sample, 32fs BCLK */
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		/* 24 bit sample, 48fs BCLK */
-		iismod |= 0x4002;
+		iismod |= (S3C64XX_IISMOD_BLC_24BIT | S3C2412_IISMOD_BCLK_48FS);
 		break;
 	}
 #endif
@@ -387,6 +392,8 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
 	int ret = 0;
+	int channel = ((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -416,6 +423,14 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			s3c2412_snd_txctrl(i2s, 1);
 
 		local_irq_restore(irqs);
+
+		/*
+		 * Load the next buffer to DMA to meet the reqirement
+		 * of the auto reload mechanism of S3C24XX.
+		 * This call won't bother S3C64XX.
+		 */
+		s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
+
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:

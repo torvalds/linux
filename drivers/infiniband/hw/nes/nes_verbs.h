@@ -40,6 +40,10 @@ struct nes_device;
 #define NES_MAX_USER_DB_REGIONS  4096
 #define NES_MAX_USER_WQ_REGIONS  4096
 
+#define NES_TERM_SENT            0x01
+#define NES_TERM_RCVD            0x02
+#define NES_TERM_DONE            0x04
+
 struct nes_ucontext {
 	struct ib_ucontext ibucontext;
 	struct nes_device  *nesdev;
@@ -119,6 +123,11 @@ struct nes_wq {
 	spinlock_t lock;
 };
 
+struct disconn_work {
+	struct work_struct    work;
+	struct nes_qp         *nesqp;
+};
+
 struct iw_cm_id;
 struct ietf_mpa_frame;
 
@@ -127,7 +136,6 @@ struct nes_qp {
 	void                  *allocated_buffer;
 	struct iw_cm_id       *cm_id;
 	struct workqueue_struct *wq;
-	struct work_struct    disconn_work;
 	struct nes_cq         *nesscq;
 	struct nes_cq         *nesrcq;
 	struct nes_pd         *nespd;
@@ -155,9 +163,13 @@ struct nes_qp {
 	void	              *pbl_vbase;
 	dma_addr_t            pbl_pbase;
 	struct page           *page;
+	struct timer_list     terminate_timer;
+	enum ib_event_type    terminate_eventtype;
 	wait_queue_head_t     kick_waitq;
 	u16                   in_disconnect;
 	u16                   private_data_len;
+	u16                   term_sq_flush_code;
+	u16                   term_rq_flush_code;
 	u8                    active_conn;
 	u8                    skip_lsmm;
 	u8                    user_mode;
@@ -165,7 +177,7 @@ struct nes_qp {
 	u8                    hw_iwarp_state;
 	u8                    flush_issued;
 	u8                    hw_tcp_state;
-	u8                    disconn_pending;
+	u8                    term_flags;
 	u8                    destroyed;
 };
 #endif			/* NES_VERBS_H */

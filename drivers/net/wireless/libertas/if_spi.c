@@ -134,7 +134,7 @@ static void spu_transaction_finish(struct if_spi_card *card)
 static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 {
 	int err = 0;
-	u16 reg_out = cpu_to_le16(reg | IF_SPI_WRITE_OPERATION_MASK);
+	__le16 reg_out = cpu_to_le16(reg | IF_SPI_WRITE_OPERATION_MASK);
 	struct spi_message m;
 	struct spi_transfer reg_trans;
 	struct spi_transfer data_trans;
@@ -166,7 +166,7 @@ static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 
 static inline int spu_write_u16(struct if_spi_card *card, u16 reg, u16 val)
 {
-	u16 buff;
+	__le16 buff;
 
 	buff = cpu_to_le16(val);
 	return spu_write(card, reg, (u8 *)&buff, sizeof(u16));
@@ -188,7 +188,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 {
 	unsigned int delay;
 	int err = 0;
-	u16 reg_out = cpu_to_le16(reg | IF_SPI_READ_OPERATION_MASK);
+	__le16 reg_out = cpu_to_le16(reg | IF_SPI_READ_OPERATION_MASK);
 	struct spi_message m;
 	struct spi_transfer reg_trans;
 	struct spi_transfer dummy_trans;
@@ -235,7 +235,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 /* Read 16 bits from an SPI register */
 static inline int spu_read_u16(struct if_spi_card *card, u16 reg, u16 *val)
 {
-	u16 buf;
+	__le16 buf;
 	int ret;
 
 	ret = spu_read(card, reg, (u8 *)&buf, sizeof(buf));
@@ -248,7 +248,7 @@ static inline int spu_read_u16(struct if_spi_card *card, u16 reg, u16 *val)
  * The low 16 bits are read first. */
 static int spu_read_u32(struct if_spi_card *card, u16 reg, u32 *val)
 {
-	u32 buf;
+	__le32 buf;
 	int err;
 
 	err = spu_read(card, reg, (u8 *)&buf, sizeof(buf));
@@ -376,7 +376,7 @@ static int spu_set_bus_mode(struct if_spi_card *card, u16 mode)
 	err = spu_read_u16(card, IF_SPI_SPU_BUS_MODE_REG, &rval);
 	if (err)
 		return err;
-	if (rval != mode) {
+	if ((rval & 0xF) != mode) {
 		lbs_pr_err("Can't read bus mode register.\n");
 		return -EIO;
 	}
@@ -737,7 +737,7 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 		goto out;
 	} else if (len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_pr_err("%s: error: card has %d bytes of data, but "
-			   "our maximum skb size is %lu\n",
+			   "our maximum skb size is %zu\n",
 			   __func__, len, MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
 		err = -EINVAL;
 		goto out;
@@ -1118,7 +1118,6 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 	priv->card = card;
 	priv->hw_host_to_card = if_spi_host_to_card;
 	priv->fw_ready = 1;
-	priv->ps_supported = 1;
 
 	/* Initialize interrupt handling stuff. */
 	card->run_thread = 1;
@@ -1171,12 +1170,13 @@ static int __devexit libertas_spi_remove(struct spi_device *spi)
 
 	lbs_deb_spi("libertas_spi_remove\n");
 	lbs_deb_enter(LBS_DEB_SPI);
-	priv->surpriseremoved = 1;
 
 	lbs_stop_card(priv);
+	lbs_remove_card(priv); /* will call free_netdev */
+
+	priv->surpriseremoved = 1;
 	free_irq(spi->irq, card);
 	if_spi_terminate_spi_thread(card);
-	lbs_remove_card(priv); /* will call free_netdev */
 	if (card->pdata->teardown)
 		card->pdata->teardown(spi);
 	free_if_spi_card(card);
@@ -1222,3 +1222,4 @@ MODULE_DESCRIPTION("Libertas SPI WLAN Driver");
 MODULE_AUTHOR("Andrey Yurovsky <andrey@cozybit.com>, "
 	      "Colin McCabe <colin@cozybit.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:libertas_spi");

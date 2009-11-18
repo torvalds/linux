@@ -176,8 +176,26 @@ static int fat_cont_expand(struct inode *inode, loff_t size)
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	if (IS_SYNC(inode))
-		err = sync_page_range_nolock(inode, mapping, start, count);
+	if (IS_SYNC(inode)) {
+		int err2;
+
+		/*
+		 * Opencode syncing since we don't have a file open to use
+		 * standard fsync path.
+		 */
+		err = filemap_fdatawrite_range(mapping, start,
+					       start + count - 1);
+		err2 = sync_mapping_buffers(mapping);
+		if (!err)
+			err = err2;
+		err2 = write_inode_now(inode, 1);
+		if (!err)
+			err = err2;
+		if (!err) {
+			err =  filemap_fdatawait_range(mapping, start,
+						       start + count - 1);
+		}
+	}
 out:
 	return err;
 }

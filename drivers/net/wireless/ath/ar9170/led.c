@@ -90,9 +90,12 @@ static void ar9170_update_leds(struct work_struct *work)
 	ar9170_set_leds_state(ar, led_val);
 	mutex_unlock(&ar->mutex);
 
-	if (rerun)
-		queue_delayed_work(ar->hw->workqueue, &ar->led_work,
-				   msecs_to_jiffies(blink_delay));
+	if (!rerun)
+		return;
+
+	ieee80211_queue_delayed_work(ar->hw,
+				     &ar->led_work,
+				     msecs_to_jiffies(blink_delay));
 }
 
 static void ar9170_led_brightness_set(struct led_classdev *led,
@@ -110,7 +113,7 @@ static void ar9170_led_brightness_set(struct led_classdev *led,
 	}
 
 	if (likely(IS_ACCEPTING_CMD(ar) && arl->toggled))
-		queue_delayed_work(ar->hw->workqueue, &ar->led_work, HZ/10);
+		ieee80211_queue_delayed_work(ar->hw, &ar->led_work, HZ/10);
 }
 
 static int ar9170_register_led(struct ar9170 *ar, int i, char *name,

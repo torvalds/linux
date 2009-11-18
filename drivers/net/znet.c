@@ -156,7 +156,8 @@ struct netidblk {
 };
 
 static int	znet_open(struct net_device *dev);
-static int	znet_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t znet_send_packet(struct sk_buff *skb,
+				    struct net_device *dev);
 static irqreturn_t znet_interrupt(int irq, void *dev_id);
 static void	znet_rx(struct net_device *dev);
 static int	znet_close(struct net_device *dev);
@@ -168,7 +169,6 @@ static void znet_tx_timeout (struct net_device *dev);
 static int znet_request_resources (struct net_device *dev)
 {
 	struct znet_private *znet = netdev_priv(dev);
-	unsigned long flags;
 
 	if (request_irq (dev->irq, &znet_interrupt, 0, "ZNet", dev))
 		goto failed;
@@ -186,13 +186,9 @@ static int znet_request_resources (struct net_device *dev)
  free_sia:
 	release_region (znet->sia_base, znet->sia_size);
  free_tx_dma:
-	flags = claim_dma_lock();
 	free_dma (znet->tx_dma);
-	release_dma_lock (flags);
  free_rx_dma:
-	flags = claim_dma_lock();
 	free_dma (znet->rx_dma);
-	release_dma_lock (flags);
  free_irq:
 	free_irq (dev->irq, dev);
  failed:
@@ -202,14 +198,11 @@ static int znet_request_resources (struct net_device *dev)
 static void znet_release_resources (struct net_device *dev)
 {
 	struct znet_private *znet = netdev_priv(dev);
-	unsigned long flags;
 
 	release_region (znet->sia_base, znet->sia_size);
 	release_region (dev->base_addr, znet->io_size);
-	flags = claim_dma_lock();
 	free_dma (znet->tx_dma);
 	free_dma (znet->rx_dma);
-	release_dma_lock (flags);
 	free_irq (dev->irq, dev);
 }
 
@@ -534,7 +527,7 @@ static void znet_tx_timeout (struct net_device *dev)
 	netif_wake_queue (dev);
 }
 
-static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct znet_private *znet = netdev_priv(dev);
@@ -546,7 +539,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -600,7 +593,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		  printk(KERN_DEBUG "%s: Transmitter queued, length %d.\n", dev->name, length);
 	}
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The ZNET interrupt handler. */

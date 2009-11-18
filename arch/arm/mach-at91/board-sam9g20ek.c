@@ -50,7 +50,7 @@ static void __init ek_map_io(void)
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
@@ -273,6 +273,7 @@ static void __init ek_add_device_buttons(void) {}
 static struct i2c_board_info __initdata ek_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("24c512", 0x50),
+		I2C_BOARD_INFO("wm8731", 0x1b),
 	},
 };
 

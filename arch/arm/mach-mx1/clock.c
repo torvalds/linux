@@ -18,10 +18,13 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/list.h>
 #include <linux/math64.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+
+#include <asm/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
@@ -94,7 +97,6 @@ static unsigned long clk16m_get_rate(struct clk *clk)
 }
 
 static struct clk clk16m = {
-	.name = "CLK16M",
 	.get_rate = clk16m_get_rate,
 	.enable = _clk_enable,
 	.enable_reg = CCM_CSCR,
@@ -111,7 +113,6 @@ static unsigned long clk32_get_rate(struct clk *clk)
 }
 
 static struct clk clk32 = {
-	.name = "CLK32",
 	.get_rate = clk32_get_rate,
 };
 
@@ -121,7 +122,6 @@ static unsigned long clk32_premult_get_rate(struct clk *clk)
 }
 
 static struct clk clk32_premult = {
-	.name = "CLK32_premultiplier",
 	.parent = &clk32,
 	.get_rate = clk32_premult_get_rate,
 };
@@ -156,7 +156,6 @@ static int prem_clk_set_parent(struct clk *clk, struct clk *parent)
 }
 
 static struct clk prem_clk = {
-	.name = "prem_clk",
 	.set_parent = prem_clk_set_parent,
 };
 
@@ -167,7 +166,6 @@ static unsigned long system_clk_get_rate(struct clk *clk)
 }
 
 static struct clk system_clk = {
-	.name = "system_clk",
 	.parent = &prem_clk,
 	.get_rate = system_clk_get_rate,
 };
@@ -179,7 +177,6 @@ static unsigned long mcu_clk_get_rate(struct clk *clk)
 }
 
 static struct clk mcu_clk = {
-	.name = "mcu_clk",
 	.parent = &clk32_premult,
 	.get_rate = mcu_clk_get_rate,
 };
@@ -195,7 +192,6 @@ static unsigned long fclk_get_rate(struct clk *clk)
 }
 
 static struct clk fclk = {
-	.name = "fclk",
 	.parent = &mcu_clk,
 	.get_rate = fclk_get_rate,
 };
@@ -238,7 +234,6 @@ static int hclk_set_rate(struct clk *clk, unsigned long rate)
 }
 
 static struct clk hclk = {
-	.name = "hclk",
 	.parent = &system_clk,
 	.get_rate = hclk_get_rate,
 	.round_rate = hclk_round_rate,
@@ -280,7 +275,6 @@ static int clk48m_set_rate(struct clk *clk, unsigned long rate)
 }
 
 static struct clk clk48m = {
-	.name = "CLK48M",
 	.parent = &system_clk,
 	.get_rate = clk48m_get_rate,
 	.round_rate = clk48m_round_rate,
@@ -400,21 +394,18 @@ static int perclk3_set_rate(struct clk *clk, unsigned long rate)
 
 static struct clk perclk[] = {
 	{
-		.name = "perclk",
 		.id = 0,
 		.parent = &system_clk,
 		.get_rate = perclk1_get_rate,
 		.round_rate = perclk1_round_rate,
 		.set_rate = perclk1_set_rate,
 	}, {
-		.name = "perclk",
 		.id = 1,
 		.parent = &system_clk,
 		.get_rate = perclk2_get_rate,
 		.round_rate = perclk2_round_rate,
 		.set_rate = perclk2_set_rate,
 	}, {
-		.name = "perclk",
 		.id = 2,
 		.parent = &system_clk,
 		.get_rate = perclk3_get_rate,
@@ -457,12 +448,10 @@ static int clko_set_parent(struct clk *clk, struct clk *parent)
 }
 
 static struct clk clko_clk = {
-	.name = "clko_clk",
 	.set_parent = clko_set_parent,
 };
 
 static struct clk dma_clk = {
-	.name = "dma",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -473,7 +462,6 @@ static struct clk dma_clk = {
 };
 
 static struct clk csi_clk = {
-	.name = "csi_clk",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -484,7 +472,6 @@ static struct clk csi_clk = {
 };
 
 static struct clk mma_clk = {
-	.name = "mma_clk",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -495,7 +482,6 @@ static struct clk mma_clk = {
 };
 
 static struct clk usbd_clk = {
-	.name = "usbd_clk",
 	.parent = &clk48m,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -506,99 +492,85 @@ static struct clk usbd_clk = {
 };
 
 static struct clk gpt_clk = {
-	.name = "gpt_clk",
 	.parent = &perclk[0],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk uart_clk = {
-	.name = "uart",
 	.parent = &perclk[0],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk i2c_clk = {
-	.name = "i2c_clk",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk spi_clk = {
-	.name = "spi_clk",
 	.parent = &perclk[1],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk sdhc_clk = {
-	.name = "sdhc_clk",
 	.parent = &perclk[1],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk lcdc_clk = {
-	.name = "lcdc_clk",
 	.parent = &perclk[1],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk mshc_clk = {
-	.name = "mshc_clk",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk ssi_clk = {
-	.name = "ssi_clk",
 	.parent = &perclk[2],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
 };
 
 static struct clk rtc_clk = {
-	.name = "rtc_clk",
 	.parent = &clk32,
 };
 
-static struct clk *mxc_clks[] = {
-	&clk16m,
-	&clk32,
-	&clk32_premult,
-	&prem_clk,
-	&system_clk,
-	&mcu_clk,
-	&fclk,
-	&hclk,
-	&clk48m,
-	&perclk[0],
-	&perclk[1],
-	&perclk[2],
-	&clko_clk,
-	&dma_clk,
-	&csi_clk,
-	&mma_clk,
-	&usbd_clk,
-	&gpt_clk,
-	&uart_clk,
-	&i2c_clk,
-	&spi_clk,
-	&sdhc_clk,
-	&lcdc_clk,
-	&mshc_clk,
-	&ssi_clk,
-	&rtc_clk,
+#define _REGISTER_CLOCK(d, n, c) \
+	{ \
+		.dev_id = d, \
+		.con_id = n, \
+		.clk = &c, \
+	},
+static struct clk_lookup lookups[] __initdata = {
+	_REGISTER_CLOCK(NULL, "dma", dma_clk)
+	_REGISTER_CLOCK("mx1-camera.0", NULL, csi_clk)
+	_REGISTER_CLOCK(NULL, "mma", mma_clk)
+	_REGISTER_CLOCK("imx_udc.0", NULL, usbd_clk)
+	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
+	_REGISTER_CLOCK("imx-uart.0", NULL, uart_clk)
+	_REGISTER_CLOCK("imx-uart.1", NULL, uart_clk)
+	_REGISTER_CLOCK("imx-uart.2", NULL, uart_clk)
+	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c_clk)
+	_REGISTER_CLOCK("spi_imx.0", NULL, spi_clk)
+	_REGISTER_CLOCK("imx-mmc.0", NULL, sdhc_clk)
+	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
+	_REGISTER_CLOCK(NULL, "mshc", mshc_clk)
+	_REGISTER_CLOCK(NULL, "ssi", ssi_clk)
+	_REGISTER_CLOCK("mxc_rtc.0", NULL, rtc_clk)
 };
 
 int __init mx1_clocks_init(unsigned long fref)
 {
-	struct clk **clkp;
 	unsigned int reg;
+	int i;
 
 	/* disable clocks we are able to */
 	__raw_writel(0, SCM_GCCR);
@@ -620,13 +592,13 @@ int __init mx1_clocks_init(unsigned long fref)
 	reg = (reg & CCM_CSCR_CLKO_MASK) >> CCM_CSCR_CLKO_OFFSET;
 	clko_clk.parent = (struct clk *)clko_clocks[reg];
 
-	for (clkp = mxc_clks; clkp < mxc_clks + ARRAY_SIZE(mxc_clks); clkp++)
-		clk_register(*clkp);
+	for (i = 0; i < ARRAY_SIZE(lookups); i++)
+		clkdev_add(&lookups[i]);
 
 	clk_enable(&hclk);
 	clk_enable(&fclk);
 
-	mxc_timer_init(&gpt_clk);
+	mxc_timer_init(&gpt_clk, IO_ADDRESS(TIM1_BASE_ADDR), TIM1_INT);
 
 	return 0;
 }

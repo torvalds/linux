@@ -493,6 +493,38 @@ s3c_irq_demux_extint4t7(unsigned int irq,
 	}
 }
 
+#ifdef CONFIG_FIQ
+/**
+ * s3c24xx_set_fiq - set the FIQ routing
+ * @irq: IRQ number to route to FIQ on processor.
+ * @on: Whether to route @irq to the FIQ, or to remove the FIQ routing.
+ *
+ * Change the state of the IRQ to FIQ routing depending on @irq and @on. If
+ * @on is true, the @irq is checked to see if it can be routed and the
+ * interrupt controller updated to route the IRQ. If @on is false, the FIQ
+ * routing is cleared, regardless of which @irq is specified.
+ */
+int s3c24xx_set_fiq(unsigned int irq, bool on)
+{
+	u32 intmod;
+	unsigned offs;
+
+	if (on) {
+		offs = irq - FIQ_START;
+		if (offs > 31)
+			return -EINVAL;
+
+		intmod = 1 << offs;
+	} else {
+		intmod = 0;
+	}
+
+	__raw_writel(intmod, S3C2410_INTMOD);
+	return 0;
+}
+#endif
+
+
 /* s3c24xx_init_irq
  *
  * Initialise S3C2410 IRQ system
@@ -504,6 +536,10 @@ void __init s3c24xx_init_irq(void)
 	unsigned long last;
 	int irqno;
 	int i;
+
+#ifdef CONFIG_FIQ
+	init_FIQ();
+#endif
 
 	irqdbf("s3c2410_init_irq: clearing interrupt status flags\n");
 

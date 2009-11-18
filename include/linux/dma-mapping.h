@@ -58,6 +58,7 @@ struct dma_map_ops {
 				   enum dma_data_direction dir);
 	int (*mapping_error)(struct device *dev, dma_addr_t dma_addr);
 	int (*dma_supported)(struct device *dev, u64 mask);
+	int (*set_dma_mask)(struct device *dev, u64 mask);
 	int is_phys;
 };
 
@@ -96,11 +97,6 @@ static inline int valid_dma_direction(int dma_direction)
 static inline int is_device_dma_capable(struct device *dev)
 {
 	return dev->dma_mask != NULL && *dev->dma_mask != DMA_MASK_NONE;
-}
-
-static inline int is_buffer_dma_capable(u64 mask, dma_addr_t addr, size_t size)
-{
-	return addr + size <= mask;
 }
 
 #ifdef CONFIG_HAS_DMA

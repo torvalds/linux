@@ -4,7 +4,7 @@
  * Copyright (C) 1998 Deborah Wallach.
  * Twiddles  (C) 1999 Hugo Fiennes <hugo@empeg.com>
  *
- * 2000/03/29 (C) Nicolas Pitre <nico@cam.org>
+ * 2000/03/29 (C) Nicolas Pitre <nico@fluxnic.net>
  *	Rewritten: big cleanup, much simpler, better HZ accuracy.
  *
  */
@@ -77,7 +77,7 @@ static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.set_mode	= sa1100_osmr0_set_mode,
 };
 
-static cycle_t sa1100_read_oscr(void)
+static cycle_t sa1100_read_oscr(struct clocksource *s)
 {
 	return OSCR;
 }

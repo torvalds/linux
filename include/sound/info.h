@@ -110,13 +110,13 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 static inline void snd_card_info_read_oss(struct snd_info_buffer *buffer) {}
 #endif
 
-int snd_iprintf(struct snd_info_buffer *buffer, char *fmt, ...) \
+int snd_iprintf(struct snd_info_buffer *buffer, const char *fmt, ...) \
 				__attribute__ ((format (printf, 2, 3)));
 int snd_info_init(void);
 int snd_info_done(void);
 
 int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len);
-char *snd_info_get_str(char *dest, char *src, int len);
+const char *snd_info_get_str(char *dest, const char *src, int len);
 struct snd_info_entry *snd_info_create_module_entry(struct module *module,
 					       const char *name,
 					       struct snd_info_entry *parent);

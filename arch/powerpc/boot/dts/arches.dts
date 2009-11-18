@@ -124,6 +124,16 @@
 		dcr-reg = <0x00c 0x002>;
 	};
 
+	L2C0: l2c {
+		compatible = "ibm,l2-cache-460gt", "ibm,l2-cache";
+		dcr-reg = <0x020 0x008		/* Internal SRAM DCR's */
+			   0x030 0x008>;	/* L2 cache DCR's */
+		cache-line-size = <32>;		/* 32 bytes */
+		cache-size = <262144>;		/* L2, 256K */
+		interrupt-parent = <&UIC1>;
+		interrupts = <11 1>;
+	};
+
 	plb {
 		compatible = "ibm,plb-460gt", "ibm,plb4";
 		#address-cells = <2>;
@@ -168,6 +178,38 @@
 				/* ranges property is supplied by U-Boot */
 				interrupts = <0x6 0x4>;
 				interrupt-parent = <&UIC1>;
+
+				nor_flash@0,0 {
+					compatible = "amd,s29gl256n", "cfi-flash";
+					bank-width = <2>;
+					reg = <0x00000000 0x00000000 0x02000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0x00000000 0x001e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <0x001e0000 0x00020000>;
+					};
+					partition@200000 {
+						label = "root";
+						reg = <0x00200000 0x00200000>;
+					};
+					partition@400000 {
+						label = "user";
+						reg = <0x00400000 0x01b60000>;
+					};
+					partition@1f60000 {
+						label = "env";
+						reg = <0x01f60000 0x00040000>;
+					};
+					partition@1fa0000 {
+						label = "u-boot";
+						reg = <0x01fa0000 0x00060000>;
+					};
+				};
 			};
 
 			UART0: serial@ef600300 {
@@ -186,6 +228,14 @@
 				reg = <0xef600700 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x2 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				sttm@4a {
+					compatible = "ad,ad7414";
+					reg = <0x4a>;
+					interrupt-parent = <&UIC1>;
+					interrupts = <0x0 0x8>;
+				};
 			};
 
 			IIC1: i2c@ef600800 {

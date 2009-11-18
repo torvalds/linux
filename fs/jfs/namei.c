@@ -1543,7 +1543,7 @@ const struct inode_operations jfs_dir_inode_operations = {
 	.removexattr	= jfs_removexattr,
 #ifdef CONFIG_JFS_POSIX_ACL
 	.setattr	= jfs_setattr,
-	.permission	= jfs_permission,
+	.check_acl	= jfs_check_acl,
 #endif
 };
 

@@ -159,7 +159,9 @@ union offset_union {
 
 #define __get8_unaligned_check(ins,val,addr,err)	\
 	__asm__(					\
-	"1:	"ins"	%1, [%2], #1\n"			\
+ ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+ THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+ THUMB(	"	add	%2, %2, #1\n"	)		\
 	"2:\n"						\
 	"	.section .fixup,\"ax\"\n"		\
 	"	.align	2\n"				\
@@ -215,7 +217,9 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
 		__asm__( FIRST_BYTE_16				\
-		"1:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"2:	"ins"	%1, [%2]\n"			\
 		"3:\n"						\
@@ -245,11 +249,17 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
 		__asm__( FIRST_BYTE_32				\
-		"1:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"1:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
-		"2:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"2:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"2:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
-		"3:	"ins"	%1, [%2], #1\n"			\
+	 ARM(	"3:	"ins"	%1, [%2], #1\n"	)		\
+	 THUMB(	"3:	"ins"	%1, [%2]\n"	)		\
+	 THUMB(	"	add	%2, %2, #1\n"	)		\
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"4:	"ins"	%1, [%2]\n"			\
 		"5:\n"						\

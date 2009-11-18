@@ -1,0 +1,189 @@
+<refentry id="func-read">
+  <refmeta>
+    <refentrytitle>V4L2 read()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>v4l2-read</refname>
+    <refpurpose>Read from a V4L2 device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;unistd.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>ssize_t <function>read</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>void *<parameter>buf</parameter></paramdef>
+	<paramdef>size_t <parameter>count</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>buf</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>count</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para><function>read()</function> attempts to read up to
+<parameter>count</parameter> bytes from file descriptor
+<parameter>fd</parameter> into the buffer starting at
+<parameter>buf</parameter>. The layout of the data in the buffer is
+discussed in the respective device interface section, see ##. If <parameter>count</parameter> is zero,
+<function>read()</function> returns zero and has no other results. If
+<parameter>count</parameter> is greater than
+<constant>SSIZE_MAX</constant>, the result is unspecified. Regardless
+of the <parameter>count</parameter> value each
+<function>read()</function> call will provide at most one frame (two
+fields) worth of data.</para>
+
+    <para>By default <function>read()</function> blocks until data
+becomes available. When the <constant>O_NONBLOCK</constant> flag was
+given to the &func-open; function it
+returns immediately with an &EAGAIN; when no data is available. The
+&func-select; or &func-poll; functions
+can always be used to suspend execution until data becomes available. All
+drivers supporting the <function>read()</function> function must also
+support <function>select()</function> and
+<function>poll()</function>.</para>
+
+    <para>Drivers can implement read functionality in different
+ways, using a single or multiple buffers and discarding the oldest or
+newest frames once the internal buffers are filled.</para>
+
+    <para><function>read()</function> never returns a "snapshot" of a
+buffer being filled. Using a single buffer the driver will stop
+capturing when the application starts reading the buffer until the
+read is finished. Thus only the period of the vertical blanking
+interval is available for reading, or the capture rate must fall below
+the nominal frame rate of the video standard.</para>
+
+<para>The behavior of
+<function>read()</function> when called during the active picture
+period or the vertical blanking separating the top and bottom field
+depends on the discarding policy. A driver discarding the oldest
+frames keeps capturing into an internal buffer, continuously
+overwriting the previously, not read frame, and returns the frame
+being received at the time of the <function>read()</function> call as
+soon as it is complete.</para>
+
+    <para>A driver discarding the newest frames stops capturing until
+the next <function>read()</function> call. The frame being received at
+<function>read()</function> time is discarded, returning the following
+frame instead. Again this implies a reduction of the capture rate to
+one half or less of the nominal frame rate. An example of this model
+is the video read mode of the bttv driver, initiating a DMA to user
+memory when <function>read()</function> is called and returning when
+the DMA finished.</para>
+
+    <para>In the multiple buffer model drivers maintain a ring of
+internal buffers, automatically advancing to the next free buffer.
+This allows continuous capturing when the application can empty the
+buffers fast enough. Again, the behavior when the driver runs out of
+free buffers depends on the discarding policy.</para>
+
+    <para>Applications can get and set the number of buffers used
+internally by the driver with the &VIDIOC-G-PARM; and &VIDIOC-S-PARM;
+ioctls. They are optional, however. The discarding policy is not
+reported and cannot be changed. For minimum requirements see <xref
+	linkend="devices" />.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success, the number of bytes read is returned. It is not
+an error if this number is smaller than the number of bytes requested,
+or the amount of data required for one frame. This may happen for
+example because <function>read()</function> was interrupted by a
+signal. On error, -1 is returned, and the <varname>errno</varname>
+variable is set appropriately. In this case the next read will start
+at the beginning of a new frame. Possible error codes are:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EAGAIN</errorcode></term>
+	<listitem>
+	  <para>Non-blocking I/O has been selected using
+O_NONBLOCK and no data was immediately available for reading.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBADF</errorcode></term>
+	<listitem>
+	  <para><parameter>fd</parameter> is not a valid file
+descriptor or is not open for reading, or the process already has the
+maximum number of files open.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The driver does not support multiple read streams and the
+device is already in use.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EFAULT</errorcode></term>
+	<listitem>
+	  <para><parameter>buf</parameter> references an inaccessible
+memory area.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINTR</errorcode></term>
+	<listitem>
+	  <para>The call was interrupted by a signal before any
+data was read.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EIO</errorcode></term>
+	<listitem>
+	  <para>I/O error. This indicates some hardware problem or a
+failure to communicate with a remote device (USB camera etc.).</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <function>read()</function> function is not
+supported by this driver, not on this device, or generally not on this
+type of device.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

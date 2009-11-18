@@ -525,12 +525,12 @@ lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
 			CHECK_LED (lk, leds_on, leds_off, LED_SCROLLL, LK_LED_SCROLLLOCK);
 			CHECK_LED (lk, leds_on, leds_off, LED_SLEEP, LK_LED_WAIT);
 			if (leds_on != 0) {
-				lk->serio->write (lk->serio, LK_CMD_LED_ON);
-				lk->serio->write (lk->serio, leds_on);
+				serio_write (lk->serio, LK_CMD_LED_ON);
+				serio_write (lk->serio, leds_on);
 			}
 			if (leds_off != 0) {
-				lk->serio->write (lk->serio, LK_CMD_LED_OFF);
-				lk->serio->write (lk->serio, leds_off);
+				serio_write (lk->serio, LK_CMD_LED_OFF);
+				serio_write (lk->serio, leds_off);
 			}
 			return 0;
 
@@ -539,20 +539,20 @@ lkkbd_event (struct input_dev *dev, unsigned int type, unsigned int code,
 				case SND_CLICK:
 					if (value == 0) {
 						DBG ("%s: Deactivating key clicks\n", __func__);
-						lk->serio->write (lk->serio, LK_CMD_DISABLE_KEYCLICK);
-						lk->serio->write (lk->serio, LK_CMD_DISABLE_CTRCLICK);
+						serio_write (lk->serio, LK_CMD_DISABLE_KEYCLICK);
+						serio_write (lk->serio, LK_CMD_DISABLE_CTRCLICK);
 					} else {
 						DBG ("%s: Activating key clicks\n", __func__);
-						lk->serio->write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
-						lk->serio->write (lk->serio, volume_to_hw (lk->keyclick_volume));
-						lk->serio->write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
-						lk->serio->write (lk->serio, volume_to_hw (lk->ctrlclick_volume));
+						serio_write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
+						serio_write (lk->serio, volume_to_hw (lk->keyclick_volume));
+						serio_write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
+						serio_write (lk->serio, volume_to_hw (lk->ctrlclick_volume));
 					}
 					return 0;
 
 				case SND_BELL:
 					if (value != 0)
-						lk->serio->write (lk->serio, LK_CMD_SOUND_BELL);
+						serio_write (lk->serio, LK_CMD_SOUND_BELL);
 
 					return 0;
 			}
@@ -579,10 +579,10 @@ lkkbd_reinit (struct work_struct *work)
 	unsigned char leds_off = 0;
 
 	/* Ask for ID */
-	lk->serio->write (lk->serio, LK_CMD_REQUEST_ID);
+	serio_write (lk->serio, LK_CMD_REQUEST_ID);
 
 	/* Reset parameters */
-	lk->serio->write (lk->serio, LK_CMD_SET_DEFAULTS);
+	serio_write (lk->serio, LK_CMD_SET_DEFAULTS);
 
 	/* Set LEDs */
 	CHECK_LED (lk, leds_on, leds_off, LED_CAPSL, LK_LED_SHIFTLOCK);
@@ -590,12 +590,12 @@ lkkbd_reinit (struct work_struct *work)
 	CHECK_LED (lk, leds_on, leds_off, LED_SCROLLL, LK_LED_SCROLLLOCK);
 	CHECK_LED (lk, leds_on, leds_off, LED_SLEEP, LK_LED_WAIT);
 	if (leds_on != 0) {
-		lk->serio->write (lk->serio, LK_CMD_LED_ON);
-		lk->serio->write (lk->serio, leds_on);
+		serio_write (lk->serio, LK_CMD_LED_ON);
+		serio_write (lk->serio, leds_on);
 	}
 	if (leds_off != 0) {
-		lk->serio->write (lk->serio, LK_CMD_LED_OFF);
-		lk->serio->write (lk->serio, leds_off);
+		serio_write (lk->serio, LK_CMD_LED_OFF);
+		serio_write (lk->serio, leds_off);
 	}
 
 	/*
@@ -603,31 +603,31 @@ lkkbd_reinit (struct work_struct *work)
 	 * only work with a LK401 keyboard and grants access to
 	 * LAlt, RAlt, RCompose and RShift.
 	 */
-	lk->serio->write (lk->serio, LK_CMD_ENABLE_LK401);
+	serio_write (lk->serio, LK_CMD_ENABLE_LK401);
 
 	/* Set all keys to UPDOWN mode */
 	for (division = 1; division <= 14; division++)
-		lk->serio->write (lk->serio, LK_CMD_SET_MODE (LK_MODE_UPDOWN,
+		serio_write (lk->serio, LK_CMD_SET_MODE (LK_MODE_UPDOWN,
 					division));
 
 	/* Enable bell and set volume */
-	lk->serio->write (lk->serio, LK_CMD_ENABLE_BELL);
-	lk->serio->write (lk->serio, volume_to_hw (lk->bell_volume));
+	serio_write (lk->serio, LK_CMD_ENABLE_BELL);
+	serio_write (lk->serio, volume_to_hw (lk->bell_volume));
 
 	/* Enable/disable keyclick (and possibly set volume) */
 	if (test_bit (SND_CLICK, lk->dev->snd)) {
-		lk->serio->write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
-		lk->serio->write (lk->serio, volume_to_hw (lk->keyclick_volume));
-		lk->serio->write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
-		lk->serio->write (lk->serio, volume_to_hw (lk->ctrlclick_volume));
+		serio_write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
+		serio_write (lk->serio, volume_to_hw (lk->keyclick_volume));
+		serio_write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
+		serio_write (lk->serio, volume_to_hw (lk->ctrlclick_volume));
 	} else {
-		lk->serio->write (lk->serio, LK_CMD_DISABLE_KEYCLICK);
-		lk->serio->write (lk->serio, LK_CMD_DISABLE_CTRCLICK);
+		serio_write (lk->serio, LK_CMD_DISABLE_KEYCLICK);
+		serio_write (lk->serio, LK_CMD_DISABLE_CTRCLICK);
 	}
 
 	/* Sound the bell if needed */
 	if (test_bit (SND_BELL, lk->dev->snd))
-		lk->serio->write (lk->serio, LK_CMD_SOUND_BELL);
+		serio_write (lk->serio, LK_CMD_SOUND_BELL);
 }
 
 /*
@@ -684,8 +684,10 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 	input_dev->keycode = lk->keycode;
 	input_dev->keycodesize = sizeof (lk_keycode_t);
 	input_dev->keycodemax = LK_NUM_KEYCODES;
+
 	for (i = 0; i < LK_NUM_KEYCODES; i++)
-		set_bit (lk->keycode[i], input_dev->keybit);
+		__set_bit (lk->keycode[i], input_dev->keybit);
+	__clear_bit(KEY_RESERVED, input_dev->keybit);
 
 	serio_set_drvdata (serio, lk);
 
@@ -697,7 +699,7 @@ lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto fail3;
 
-	lk->serio->write (lk->serio, LK_CMD_POWERCYCLE_RESET);
+	serio_write (lk->serio, LK_CMD_POWERCYCLE_RESET);
 
 	return 0;
 

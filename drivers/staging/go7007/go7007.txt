@@ -2,7 +2,7 @@ This is a driver for the WIS GO7007SB multi-format video encoder.
 
 Pete Eberlein <pete@sensoray.com>
 
-The driver was originally released under the GPL and is currently hosted at:
+The driver was orignally released under the GPL and is currently hosted at:
 http://nikosapi.org/wiki/index.php/WIS_Go7007_Linux_driver
 The go7007 firmware can be acquired from the package on the site above.
 
@@ -24,10 +24,10 @@ These should be used instead of the non-standard GO7007 ioctls described
 below.
 
 
-The README files from the original package appears below:
+The README files from the orignal package appear below:
 
 ---------------------------------------------------------------------------
-                     WIS GO7007SB Public Linux Driver
+		     WIS GO7007SB Public Linux Driver
 ---------------------------------------------------------------------------
 
 
@@ -78,23 +78,23 @@ All vendor-built kernels should already be configured properly.  However,
 for custom-built kernels, the following options need to be enabled in the
 kernel as built-in or modules:
 
-        CONFIG_HOTPLUG           - Support for hot-pluggable devices
-        CONFIG_MODULES           - Enable loadable module support
-        CONFIG_KMOD              - Automatic kernel module loading
-        CONFIG_FW_LOADER         - Hotplug firmware loading support
-        CONFIG_I2C               - I2C support
-        CONFIG_VIDEO_DEV         - Video For Linux
-        CONFIG_SOUND             - Sound card support
-        CONFIG_SND               - Advanced Linux Sound Architecture
-        CONFIG_USB               - Support for Host-side USB
-        CONFIG_USB_DEVICEFS      - USB device filesystem
-        CONFIG_USB_EHCI_HCD      - EHCI HCD (USB 2.0) support
+	CONFIG_HOTPLUG           - Support for hot-pluggable devices
+	CONFIG_MODULES           - Enable loadable module support
+	CONFIG_KMOD              - Automatic kernel module loading
+	CONFIG_FW_LOADER         - Hotplug firmware loading support
+	CONFIG_I2C               - I2C support
+	CONFIG_VIDEO_DEV         - Video For Linux
+	CONFIG_SOUND             - Sound card support
+	CONFIG_SND               - Advanced Linux Sound Architecture
+	CONFIG_USB               - Support for Host-side USB
+	CONFIG_USB_DEVICEFS      - USB device filesystem
+	CONFIG_USB_EHCI_HCD      - EHCI HCD (USB 2.0) support
 
 Additionally, to use the example application, the following options need to
 be enabled in the ALSA section:
 
-        CONFIG_SND_MIXER_OSS     - OSS Mixer API
-        CONFIG_SND_PCM_OSS       - OSS PCM (digital audio) API
+	CONFIG_SND_MIXER_OSS     - OSS Mixer API
+	CONFIG_SND_PCM_OSS       - OSS PCM (digital audio) API
 
 The hotplug scripts, along with the fxload utility, must also be installed.
 These scripts can be obtained from <http://linux-hotplug.sourceforge.net/>.
@@ -107,7 +107,7 @@ fxload and for loading firmware into the driver using the firmware agent.
 
 Most users should be able to compile the driver by simply running:
 
-        $ make
+	$ make
 
 in the top-level directory of the driver kit.  First the kernel modules
 will be built, followed by the example applications.
@@ -117,12 +117,12 @@ currently-running kernel, or if the module should be built for a kernel
 other than the currently-running kernel, an additional parameter will need
 to be passed to make to specify the appropriate kernel source directory:
 
-        $ make KERNELSRC=/usr/src/linux-2.6.10-custom3
+	$ make KERNELSRC=/usr/src/linux-2.6.10-custom3
 
 Once the compile completes, the driver and firmware files should be
 installed by running:
 
-        $ make install
+	$ make install
 
 The kernel modules will be placed in "/lib/modules/<KERNEL VERSION>/extra"
 and the firmware files will be placed in the appropriate hotplug firmware
@@ -200,7 +200,7 @@ stereo audio broadcasts on the A2 carrier.
 To verify that the configuration has been placed in the correct location,
 execute:
 
-        $ modprobe -c | grep wis-sony-tuner
+	$ modprobe -c | grep wis-sony-tuner
 
 If the configuration line appears, then modprobe will pass the parameters
 correctly the next time the wis-sony-tuner module is loaded into the
@@ -223,7 +223,7 @@ This application will auto-detect the V4L2 and ALSA/OSS device names of the
 hardware and will record video and audio to an AVI file for a specified
 number of seconds.  For example:
 
-        $ apps/gorecord -duration 60 capture.avi
+	$ apps/gorecord -duration 60 capture.avi
 
 If this application does not successfully record an AVI file, the error
 messages produced by gorecord and recorded in the system log (usually in
@@ -286,35 +286,35 @@ features of the GO7007SB encoder, which are described below:
 
     Fields in struct go7007_comp_params:
 
-        __u32                        The maximum number of frames in each
-          gop_size                   Group Of Pictures; i.e. the maximum
-                                     number of frames minus one between
-                                     each key frame.
+	__u32                        The maximum number of frames in each
+	  gop_size                   Group Of Pictures; i.e. the maximum
+				     number of frames minus one between
+				     each key frame.
 
-        __u32                        The maximum number of sequential
-          max_b_frames               bidirectionally-predicted frames.
-                                     (B-frames are not yet supported.)
+	__u32                        The maximum number of sequential
+	  max_b_frames               bidirectionally-predicted frames.
+				     (B-frames are not yet supported.)
 
-        enum go7007_aspect_ratio     The aspect ratio to be encoded in the
-          aspect_ratio               meta-data of the compressed format.
+	enum go7007_aspect_ratio     The aspect ratio to be encoded in the
+	  aspect_ratio               meta-data of the compressed format.
 
-                                     Choices are:
-                                        GO7007_ASPECT_RATIO_1_1
-                                        GO7007_ASPECT_RATIO_4_3_NTSC
-                                        GO7007_ASPECT_RATIO_4_3_PAL
-                                        GO7007_ASPECT_RATIO_16_9_NTSC
-                                        GO7007_ASPECT_RATIO_16_9_PAL
+				     Choices are:
+					GO7007_ASPECT_RATIO_1_1
+					GO7007_ASPECT_RATIO_4_3_NTSC
+					GO7007_ASPECT_RATIO_4_3_PAL
+					GO7007_ASPECT_RATIO_16_9_NTSC
+					GO7007_ASPECT_RATIO_16_9_PAL
 
-        __u32                        Bit-wise OR of control flags (below)
-          flags
+	__u32                        Bit-wise OR of control flags (below)
+	  flags
 
     Flags in struct go7007_comp_params:
 
-        GO7007_COMP_CLOSED_GOP       Only produce self-contained GOPs, used
-                                     to produce streams appropriate for
-                                     random seeking.
+	GO7007_COMP_CLOSED_GOP       Only produce self-contained GOPs, used
+				     to produce streams appropriate for
+				     random seeking.
 
-        GO7007_COMP_OMIT_SEQ_HEADER  Omit the stream sequence header.
+	GO7007_COMP_OMIT_SEQ_HEADER  Omit the stream sequence header.
 
 
   GO7007IOC_S_MPEG_PARAMS, GO7007IOC_G_MPEG_PARAMS
@@ -337,56 +337,56 @@ features of the GO7007SB encoder, which are described below:
 
     Fields in struct go7007_mpeg_params:
 
-        enum go7007_mpeg_video_standard
-          mpeg_video_standard        The MPEG video standard in which to
-                                     compress the video.
+	enum go7007_mpeg_video_standard
+	  mpeg_video_standard        The MPEG video standard in which to
+				     compress the video.
 
-                                     Choices are:
-                                        GO7007_MPEG_VIDEO_MPEG1
-                                        GO7007_MPEG_VIDEO_MPEG2
-                                        GO7007_MPEG_VIDEO_MPEG4
+				     Choices are:
+					GO7007_MPEG_VIDEO_MPEG1
+					GO7007_MPEG_VIDEO_MPEG2
+					GO7007_MPEG_VIDEO_MPEG4
 
-        __u32                        Bit-wise OR of control flags (below)
-          flags
+	__u32                        Bit-wise OR of control flags (below)
+	  flags
 
-        __u32                        The profile and level indication to be
-          pali                       stored in the sequence header.  This
-                                     is only used as an indicator to the
-                                     decoder, and does not affect the MPEG
-                                     features used in the video stream.
-                                     Not valid for MPEG1.
+	__u32                        The profile and level indication to be
+	  pali                       stored in the sequence header.  This
+				     is only used as an indicator to the
+				     decoder, and does not affect the MPEG
+				     features used in the video stream.
+				     Not valid for MPEG1.
 
-                                     Choices for MPEG2 are:
-                                        GO7007_MPEG2_PROFILE_MAIN_MAIN
+				     Choices for MPEG2 are:
+					GO7007_MPEG2_PROFILE_MAIN_MAIN
 
-                                     Choices for MPEG4 are:
-                                        GO7007_MPEG4_PROFILE_S_L0
-                                        GO7007_MPEG4_PROFILE_S_L1
-                                        GO7007_MPEG4_PROFILE_S_L2
-                                        GO7007_MPEG4_PROFILE_S_L3
-                                        GO7007_MPEG4_PROFILE_ARTS_L1
-                                        GO7007_MPEG4_PROFILE_ARTS_L2
-                                        GO7007_MPEG4_PROFILE_ARTS_L3
-                                        GO7007_MPEG4_PROFILE_ARTS_L4
-                                        GO7007_MPEG4_PROFILE_AS_L0
-                                        GO7007_MPEG4_PROFILE_AS_L1
-                                        GO7007_MPEG4_PROFILE_AS_L2
-                                        GO7007_MPEG4_PROFILE_AS_L3
-                                        GO7007_MPEG4_PROFILE_AS_L4
-                                        GO7007_MPEG4_PROFILE_AS_L5
+				     Choices for MPEG4 are:
+					GO7007_MPEG4_PROFILE_S_L0
+					GO7007_MPEG4_PROFILE_S_L1
+					GO7007_MPEG4_PROFILE_S_L2
+					GO7007_MPEG4_PROFILE_S_L3
+					GO7007_MPEG4_PROFILE_ARTS_L1
+					GO7007_MPEG4_PROFILE_ARTS_L2
+					GO7007_MPEG4_PROFILE_ARTS_L3
+					GO7007_MPEG4_PROFILE_ARTS_L4
+					GO7007_MPEG4_PROFILE_AS_L0
+					GO7007_MPEG4_PROFILE_AS_L1
+					GO7007_MPEG4_PROFILE_AS_L2
+					GO7007_MPEG4_PROFILE_AS_L3
+					GO7007_MPEG4_PROFILE_AS_L4
+					GO7007_MPEG4_PROFILE_AS_L5
 
     Flags in struct go7007_mpeg_params:
 
-        GO7007_MPEG_FORCE_DVD_MODE   Force all compression parameters and
-                                     bitrate control settings to comply
-                                     with DVD MPEG2 stream requirements.
-                                     This overrides most compression and
-                                     bitrate settings!
+	GO7007_MPEG_FORCE_DVD_MODE   Force all compression parameters and
+				     bitrate control settings to comply
+				     with DVD MPEG2 stream requirements.
+				     This overrides most compression and
+				     bitrate settings!
 
-        GO7007_MPEG_OMIT_GOP_HEADER  Omit the GOP header.
+	GO7007_MPEG_OMIT_GOP_HEADER  Omit the GOP header.
 
-        GO7007_MPEG_REPEAT_SEQHEADER Repeat the MPEG sequence header at
-                                     the start of each GOP.
+	GO7007_MPEG_REPEAT_SEQHEADER Repeat the MPEG sequence header at
+				     the start of each GOP.
 
 
   GO7007IOC_S_BITRATE, GO7007IOC_G_BITRATE
@@ -404,7 +404,7 @@ features of the GO7007SB encoder, which are described below:
 
 
 ----------------------------------------------------------------------------
-                   Installing the WIS PCI Voyager Driver
+		   Installing the WIS PCI Voyager Driver
 ---------------------------------------------------------------------------
 
 The WIS PCI Voyager driver requires several patches to the Linux 2.6.11.x

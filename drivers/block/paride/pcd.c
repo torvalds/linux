@@ -219,8 +219,6 @@ static int pcd_sector;		/* address of next requested sector */
 static int pcd_count;		/* number of blocks still to do */
 static char *pcd_buf;		/* buffer for request in progress */
 
-static int pcd_warned;		/* Have we logged a phase warning ? */
-
 /* kernel glue structures */
 
 static int pcd_block_open(struct block_device *bdev, fmode_t mode)
@@ -249,7 +247,7 @@ static int pcd_block_media_changed(struct gendisk *disk)
 	return cdrom_media_changed(&cd->info);
 }
 
-static struct block_device_operations pcd_bdops = {
+static const struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
 	.open		= pcd_block_open,
 	.release	= pcd_block_release,
@@ -417,12 +415,10 @@ static int pcd_completion(struct pcd_unit *cd, char *buf, char *fun)
 					printk
 					    ("%s: %s: Unexpected phase %d, d=%d, k=%d\n",
 					     cd->name, fun, p, d, k);
-				if ((verbose < 2) && !pcd_warned) {
-					pcd_warned = 1;
-					printk
-					    ("%s: WARNING: ATAPI phase errors\n",
-					     cd->name);
-				}
+				if (verbose < 2)
+					printk_once(
+					    "%s: WARNING: ATAPI phase errors\n",
+					    cd->name);
 				mdelay(1);
 			}
 			if (k++ > PCD_TMO) {

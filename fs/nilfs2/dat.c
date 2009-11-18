@@ -109,12 +109,6 @@ void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_palloc_commit_free_entry(dat, req);
 }
 
-void nilfs_dat_abort_free(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	nilfs_dat_abort_entry(dat, req);
-	nilfs_palloc_abort_free_entry(dat, req);
-}
-
 int nilfs_dat_prepare_start(struct inode *dat, struct nilfs_palloc_req *req)
 {
 	int ret;
@@ -138,11 +132,6 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 	kunmap_atomic(kaddr, KM_USER0);
 
 	nilfs_dat_commit_entry(dat, req);
-}
-
-void nilfs_dat_abort_start(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	nilfs_dat_abort_entry(dat, req);
 }
 
 int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
@@ -220,6 +209,37 @@ void nilfs_dat_abort_end(struct inode *dat, struct nilfs_palloc_req *req)
 	if (start == nilfs_mdt_cno(dat) && blocknr == 0)
 		nilfs_palloc_abort_free_entry(dat, req);
 	nilfs_dat_abort_entry(dat, req);
+}
+
+int nilfs_dat_prepare_update(struct inode *dat,
+			     struct nilfs_palloc_req *oldreq,
+			     struct nilfs_palloc_req *newreq)
+{
+	int ret;
+
+	ret = nilfs_dat_prepare_end(dat, oldreq);
+	if (!ret) {
+		ret = nilfs_dat_prepare_alloc(dat, newreq);
+		if (ret < 0)
+			nilfs_dat_abort_end(dat, oldreq);
+	}
+	return ret;
+}
+
+void nilfs_dat_commit_update(struct inode *dat,
+			     struct nilfs_palloc_req *oldreq,
+			     struct nilfs_palloc_req *newreq, int dead)
+{
+	nilfs_dat_commit_end(dat, oldreq, dead);
+	nilfs_dat_commit_alloc(dat, newreq);
+}
+
+void nilfs_dat_abort_update(struct inode *dat,
+			    struct nilfs_palloc_req *oldreq,
+			    struct nilfs_palloc_req *newreq)
+{
+	nilfs_dat_abort_end(dat, oldreq);
+	nilfs_dat_abort_alloc(dat, newreq);
 }
 
 /**

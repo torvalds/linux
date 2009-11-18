@@ -727,7 +727,7 @@ static const u8 ov7660_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x05, 0x00, 0x00, 0x00, 0x10},
 						/* Outformat = rawRGB */
 	{0xa1, 0x21, 0x13, 0xb8, 0x00, 0x00, 0x00, 0x10}, /* init COM8 */
-	{0xd1, 0x21, 0x00, 0x01, 0x74, 0x74, 0x00, 0x10},
+	{0xd1, 0x21, 0x00, 0x01, 0x74, 0x92, 0x00, 0x10},
 						/* GAIN BLUE RED VREF */
 	{0xd1, 0x21, 0x04, 0x00, 0x7d, 0x62, 0x00, 0x10},
 						/* COM 1 BAVE GEAVE AECHH */
@@ -783,7 +783,7 @@ static const u8 ov7660_sensor_init[][8] = {
 	{0xc1, 0x21, 0x88, 0xaf, 0xc7, 0xdf, 0x00, 0x10}, /* gamma curve */
 	{0xc1, 0x21, 0x8b, 0x99, 0x99, 0xcf, 0x00, 0x10}, /* reserved */
 	{0xb1, 0x21, 0x92, 0x00, 0x00, 0x00, 0x00, 0x10}, /* DM_LNL/H */
-	{0xb1, 0x21, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x10},
+	{0xa1, 0x21, 0xa1, 0x00, 0x00, 0x00, 0x00, 0x10},
 /****** (some exchanges in the win trace) ******/
 	{0xa1, 0x21, 0x1e, 0x01, 0x00, 0x00, 0x00, 0x10}, /* MVFP */
 						/* bits[3..0]reserved */
@@ -1145,17 +1145,12 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x01, 0x42);
 		break;
 	case SENSOR_OV7660:
-		reg_w1(gspca_dev, 0x01, 0x61);
-		reg_w1(gspca_dev, 0x17, 0x20);
-		reg_w1(gspca_dev, 0x01, 0x60);
-		reg_w1(gspca_dev, 0x01, 0x40);
-		break;
 	case SENSOR_SP80708:
 		reg_w1(gspca_dev, 0x01, 0x63);
 		reg_w1(gspca_dev, 0x17, 0x20);
 		reg_w1(gspca_dev, 0x01, 0x62);
 		reg_w1(gspca_dev, 0x01, 0x42);
-		mdelay(100);
+		msleep(100);
 		reg_w1(gspca_dev, 0x02, 0x62);
 		break;
 /*	case SENSOR_HV7131R: */
@@ -1624,6 +1619,8 @@ static void setvflip(struct sd *sd)
 
 static void setinfrared(struct sd *sd)
 {
+	if (sd->gspca_dev.ctrl_dis & (1 << INFRARED_IDX))
+		return;
 /*fixme: different sequence for StarCam Clip and StarCam 370i */
 /* Clip */
 	i2c_w1(&sd->gspca_dev, 0x02,			/* gpio */
@@ -1637,16 +1634,19 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	if (gspca_dev->ctrl_dis & (1 << FREQ_IDX))
 		return;
 	if (sd->sensor == SENSOR_OV7660) {
+		u8 com8;
+
+		com8 = 0xdf;		/* auto gain/wb/expo */
 		switch (sd->freq) {
 		case 0: /* Banding filter disabled */
-			i2c_w1(gspca_dev, 0x13, 0xdf);
+			i2c_w1(gspca_dev, 0x13, com8 | 0x20);
 			break;
 		case 1: /* 50 hz */
-			i2c_w1(gspca_dev, 0x13, 0xff);
+			i2c_w1(gspca_dev, 0x13, com8);
 			i2c_w1(gspca_dev, 0x3b, 0x0a);
 			break;
 		case 2: /* 60 hz */
-			i2c_w1(gspca_dev, 0x13, 0xff);
+			i2c_w1(gspca_dev, 0x13, com8);
 			i2c_w1(gspca_dev, 0x3b, 0x02);
 			break;
 		}
@@ -1796,12 +1796,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w1(gspca_dev, 0x99, 0x60);
 		break;
 	case SENSOR_OV7660:
-		reg_w1(gspca_dev, 0x9a, 0x05);
-		if (sd->bridge == BRIDGE_SN9C105)
-			reg_w1(gspca_dev, 0x99, 0xff);
-		else
-			reg_w1(gspca_dev, 0x99, 0x5b);
-		break;
 	case SENSOR_SP80708:
 		reg_w1(gspca_dev, 0x9a, 0x05);
 		reg_w1(gspca_dev, 0x99, 0x59);
@@ -2325,18 +2319,19 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
 /*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
-/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
 /*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
-	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
+	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
 	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x21)},
 #endif
 	{USB_DEVICE(0x0c45, 0x6100), BSI(SN9C120, MI0360, 0x5d)}, /*sn9c128*/
-/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6801, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6102), BSI(SN9C120, PO2030N, ??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6802, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x610a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610b), BSI(SN9C120, OV7660, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610c), BSI(SN9C120, HV7131R, 0x11)}, /*sn9c128*/
@@ -2352,6 +2347,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6130), BSI(SN9C120, MI0360, 0x5d)},
 #endif
+/*	{USB_DEVICE(0x0c45, 0x6132), BSI(SN9C120, OV7670, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x6138), BSI(SN9C120, MO4000, 0x21)},
 	{USB_DEVICE(0x0c45, 0x613a), BSI(SN9C120, OV7648, 0x21)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
@@ -2359,7 +2355,9 @@ static const __devinitdata struct usb_device_id device_table[] = {
 #endif
 	{USB_DEVICE(0x0c45, 0x613c), BSI(SN9C120, HV7131R, 0x11)},
 	{USB_DEVICE(0x0c45, 0x613e), BSI(SN9C120, OV7630, 0x21)},
-	{USB_DEVICE(0x0c45, 0x6143), BSI(SN9C120, SP80708, 0x18)},
+/*	{USB_DEVICE(0x0c45, 0x6142), BSI(SN9C120, PO2030N, ??)}, *sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x6143), BSI(SN9C120, SP80708, 0x18)}, /*sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x6148), BSI(SN9C120, OM6802, 0x21)}, /*sn9c120b*/
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

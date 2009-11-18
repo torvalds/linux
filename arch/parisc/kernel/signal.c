@@ -21,10 +21,12 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
+#include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <asm/rt_sigframe.h>
 #include <asm/uaccess.h>
@@ -33,7 +35,6 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_COMPAT
-#include <linux/compat.h>
 #include "signal32.h"
 #endif
 
@@ -467,6 +468,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	tracehook_signal_handler(sig, info, ka, regs, 0);
+
 	return 1;
 }
 
@@ -645,4 +649,11 @@ void do_notify_resume(struct pt_regs *regs, long in_syscall)
 	if (test_thread_flag(TIF_SIGPENDING) ||
 	    test_thread_flag(TIF_RESTORE_SIGMASK))
 		do_signal(regs, in_syscall);
+
+	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }

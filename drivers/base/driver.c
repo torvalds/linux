@@ -181,7 +181,7 @@ void put_driver(struct device_driver *drv)
 EXPORT_SYMBOL_GPL(put_driver);
 
 static int driver_add_groups(struct device_driver *drv,
-			     struct attribute_group **groups)
+			     const struct attribute_group **groups)
 {
 	int error = 0;
 	int i;
@@ -201,7 +201,7 @@ static int driver_add_groups(struct device_driver *drv,
 }
 
 static void driver_remove_groups(struct device_driver *drv,
-				 struct attribute_group **groups)
+				 const struct attribute_group **groups)
 {
 	int i;
 
@@ -236,7 +236,7 @@ int driver_register(struct device_driver *drv)
 		put_driver(other);
 		printk(KERN_ERR "Error: Driver '%s' is already registered, "
 			"aborting...\n", drv->name);
-		return -EEXIST;
+		return -EBUSY;
 	}
 
 	ret = bus_add_driver(drv);

@@ -69,11 +69,6 @@ struct dlci_conf {
 
 #define DLCI_VALID_FLAGS	0x000B
 
-/* FRAD driver uses these to indicate what it did with packet */
-#define DLCI_RET_OK		0x00
-#define DLCI_RET_ERR		0x01
-#define DLCI_RET_DROP		0x02
-
 /* defines for the actual Frame Relay hardware */
 #define FRAD_GET_CONF	(SIOCDEVPRIVATE)
 #define FRAD_SET_CONF	(SIOCDEVPRIVATE + 1)

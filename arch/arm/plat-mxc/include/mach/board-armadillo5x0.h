@@ -12,11 +12,4 @@
 #ifndef __ASM_ARCH_MXC_BOARD_ARMADILLO5X0_H__
 #define __ASM_ARCH_MXC_BOARD_ARMADILLO5X0_H__
 
-#include <mach/hardware.h>
-
-/* mandatory for CONFIG_DEBUG_LL */
-
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
-
 #endif

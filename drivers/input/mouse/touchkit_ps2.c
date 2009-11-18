@@ -67,7 +67,7 @@ static psmouse_ret_t touchkit_ps2_process_byte(struct psmouse *psmouse)
 	return PSMOUSE_FULL_PACKET;
 }
 
-int touchkit_ps2_detect(struct psmouse *psmouse, int set_properties)
+int touchkit_ps2_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct input_dev *dev = psmouse->dev;
 	unsigned char param[3];
@@ -86,7 +86,7 @@ int touchkit_ps2_detect(struct psmouse *psmouse, int set_properties)
 
 	if (set_properties) {
 		dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-		set_bit(BTN_TOUCH, dev->keybit);
+		__set_bit(BTN_TOUCH, dev->keybit);
 		input_set_abs_params(dev, ABS_X, 0, TOUCHKIT_MAX_XC, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, TOUCHKIT_MAX_YC, 0, 0);
 

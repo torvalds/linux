@@ -108,6 +108,8 @@ struct iwm_debugfs {
 	struct dentry *txq_dentry;
 	struct dentry *tx_credit_dentry;
 	struct dentry *rx_ticket_dentry;
+
+	struct dentry *fw_err_dentry;
 };
 
 #ifdef CONFIG_IWM_DEBUG

@@ -125,7 +125,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	if (server->addr.sockAddr.sin_family == AF_INET)
 		sprintf(dp, "ip4=%pI4", &server->addr.sockAddr.sin_addr);
 	else if (server->addr.sockAddr.sin_family == AF_INET6)
-		sprintf(dp, "ip6=%pi6", &server->addr.sockAddr6.sin6_addr);
+		sprintf(dp, "ip6=%pI6", &server->addr.sockAddr6.sin6_addr);
 	else
 		goto out;
 

@@ -406,8 +406,9 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 			 * not be retransmitted
 			 */
 			if (!chunk->tsn_gap_acked) {
-				chunk->transport->flight_size -=
-						sctp_data_size(chunk);
+				if (chunk->transport)
+					chunk->transport->flight_size -=
+							sctp_data_size(chunk);
 				q->outstanding_bytes -= sctp_data_size(chunk);
 				q->asoc->peer.rwnd += (sctp_data_size(chunk) +
 							sizeof(struct sk_buff));
@@ -443,7 +444,8 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 			q->asoc->peer.rwnd += (sctp_data_size(chunk) +
 						sizeof(struct sk_buff));
 			q->outstanding_bytes -= sctp_data_size(chunk);
-			transport->flight_size -= sctp_data_size(chunk);
+			if (chunk->transport)
+				transport->flight_size -= sctp_data_size(chunk);
 
 			/* sctpimpguide-05 Section 2.8.2
 			 * M5) If a T3-rtx timer expires, the
@@ -1310,6 +1312,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 	__u32 rtt;
 	__u8 restart_timer = 0;
 	int bytes_acked = 0;
+	int migrate_bytes = 0;
 
 	/* These state variables are for coherent debug output. --xguo */
 
@@ -1343,8 +1346,9 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 * considering it as 'outstanding'.
 			 */
 			if (!tchunk->tsn_gap_acked) {
-				tchunk->transport->flight_size -=
-						sctp_data_size(tchunk);
+				if (tchunk->transport)
+					tchunk->transport->flight_size -=
+							sctp_data_size(tchunk);
 				q->outstanding_bytes -= sctp_data_size(tchunk);
 			}
 			continue;
@@ -1378,6 +1382,20 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 								  rtt);
 				}
 			}
+
+			/* If the chunk hasn't been marked as ACKED,
+			 * mark it and account bytes_acked if the
+			 * chunk had a valid transport (it will not
+			 * have a transport if ASCONF had deleted it
+			 * while DATA was outstanding).
+			 */
+			if (!tchunk->tsn_gap_acked) {
+				tchunk->tsn_gap_acked = 1;
+				bytes_acked += sctp_data_size(tchunk);
+				if (!tchunk->transport)
+					migrate_bytes += sctp_data_size(tchunk);
+			}
+
 			if (TSN_lte(tsn, sack_ctsn)) {
 				/* RFC 2960  6.3.2 Retransmission Timer Rules
 				 *
@@ -1391,8 +1409,6 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				restart_timer = 1;
 
 				if (!tchunk->tsn_gap_acked) {
-					tchunk->tsn_gap_acked = 1;
-					bytes_acked += sctp_data_size(tchunk);
 					/*
 					 * SFR-CACC algorithm:
 					 * 2) If the SACK contains gap acks
@@ -1432,10 +1448,6 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * older than that newly acknowledged DATA
 				 * chunk, are qualified as 'Stray DATA chunks'.
 				 */
-				if (!tchunk->tsn_gap_acked) {
-					tchunk->tsn_gap_acked = 1;
-					bytes_acked += sctp_data_size(tchunk);
-				}
 				list_add_tail(lchunk, &tlist);
 			}
 
@@ -1491,7 +1503,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 						  tsn);
 				tchunk->tsn_gap_acked = 0;
 
-				bytes_acked -= sctp_data_size(tchunk);
+				if (tchunk->transport)
+					bytes_acked -= sctp_data_size(tchunk);
 
 				/* RFC 2960 6.3.2 Retransmission Timer Rules
 				 *
@@ -1561,6 +1574,14 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 #endif /* SCTP_DEBUG */
 	if (transport) {
 		if (bytes_acked) {
+			/* We may have counted DATA that was migrated
+			 * to this transport due to DEL-IP operation.
+			 * Subtract those bytes, since the were never
+			 * send on this transport and shouldn't be
+			 * credited to this transport.
+			 */
+			bytes_acked -= migrate_bytes;
+
 			/* 8.2. When an outstanding TSN is acknowledged,
 			 * the endpoint shall clear the error counter of
 			 * the destination transport address to which the
@@ -1589,7 +1610,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			transport->flight_size -= bytes_acked;
 			if (transport->flight_size == 0)
 				transport->partial_bytes_acked = 0;
-			q->outstanding_bytes -= bytes_acked;
+			q->outstanding_bytes -= bytes_acked + migrate_bytes;
 		} else {
 			/* RFC 2960 6.1, sctpimpguide-06 2.15.2
 			 * When a sender is doing zero window probing, it

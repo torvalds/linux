@@ -23,6 +23,12 @@ config ARCH_AT91SAM9261
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
+config ARCH_AT91SAM9G10
+	bool "AT91SAM9G10"
+	select CPU_ARM926T
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
 	select CPU_ARM926T
@@ -37,6 +43,12 @@ config ARCH_AT91SAM9RL
 
 config ARCH_AT91SAM9G20
 	bool "AT91SAM9G20"
+	select CPU_ARM926T
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
+config ARCH_AT91SAM9G45
+	bool "AT91SAM9G45"
 	select CPU_ARM926T
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -144,6 +156,13 @@ config MACH_YL9200
 	help
 	  Select this if you are using the ucDragon YL-9200 board.
 
+config MACH_CPUAT91
+	bool "Eukrea CPUAT91"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using the Eukrea Electromatique's
+	  CPUAT91 board <http://www.eukrea.com/>.
+
 endif
 
 # ----------------------------------------------------------
@@ -205,6 +224,13 @@ config MACH_QIL_A9260
 	  Select this if you are using a Calao Systems QIL-A9260 Board.
 	  <http://www.calao-systems.com>
 
+config MACH_CPU9260
+	bool "Eukrea CPU9260 board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9260 Board <http://www.eukrea.com/>
+
 endif
 
 # ----------------------------------------------------------
@@ -219,6 +245,21 @@ config MACH_AT91SAM9261EK
 	help
 	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9G10
+
+comment "AT91SAM9G10 Board Type"
+
+config MACH_AT91SAM9G10EK
+	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9G10
+	help
+	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
 
 endif
 
@@ -248,6 +289,13 @@ config MACH_NEOCORE926
 	help
 	  Select this if you are using the Adeneo Neocore 926 board.
 
+config MACH_AT91SAM9G20EK_2MMC
+	bool "Atmel AT91SAM9G20-EK Evaluation Kit modified for 2 MMC Slots"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
+	  Rev A or B modified for 2 MMC Slots.
+
 endif
 
 # ----------------------------------------------------------
@@ -275,6 +323,29 @@ config MACH_AT91SAM9G20EK
 	depends on ARCH_AT91SAM9G20
 	help
 	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit.
+
+config MACH_CPU9G20
+	bool "Eukrea CPU9G20 board"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9G20 Board <http://www.eukrea.com/>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9G45
+
+comment "AT91SAM9G45 Board Type"
+
+config MACH_AT91SAM9G45EKES
+	bool "Atmel AT91SAM9G45-EKES Evaluation Kit"
+	depends on ARCH_AT91SAM9G45
+	help
+	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
+	  "ES" at the end of the name means that this board is an
+	  Engineering Sample.
 
 endif
 
@@ -315,13 +386,13 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_ECBAT91 || MACH_SAM9_L9260 || MACH_AT91CAP9ADK || MACH_NEOCORE926)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_ECBAT91 || MACH_SAM9_L9260 || MACH_AT91CAP9ADK || MACH_NEOCORE926)
 	help
 	  Enable support for the DataFlash card.
 
 config MTD_NAND_ATMEL_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91CAP9ADK)
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
 	help
 	  On AT91SAM926x boards both types of NAND flash can be present
 	  (8 and 16 bit data bus width).
@@ -383,7 +454,7 @@ config AT91_EARLY_USART2
 
 config AT91_EARLY_USART3
 	bool "USART3"
-	depends on (ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
+	depends on (ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9260 || ARCH_AT91SAM9G20 || ARCH_AT91SAM9G45)
 
 config AT91_EARLY_USART4
 	bool "USART4"

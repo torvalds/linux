@@ -312,7 +312,12 @@ void __cpuinit cpu_probe(void)
 
 	psr = get_psr();
 	put_psr(psr | PSR_EF);
+#ifdef CONFIG_SPARC_LEON
+	fpu_vers = 7;
+#else
 	fpu_vers = ((get_fsr() >> 17) & 0x7);
+#endif
+
 	put_psr(psr);
 
 	set_cpu_and_fpu(psr_impl, psr_vers, fpu_vers);

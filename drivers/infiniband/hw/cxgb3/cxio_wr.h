@@ -327,6 +327,11 @@ enum rdma_init_rtr_types {
 #define V_RTR_TYPE(x)	((x) << S_RTR_TYPE)
 #define G_RTR_TYPE(x)	((((x) >> S_RTR_TYPE)) & M_RTR_TYPE)
 
+#define S_CHAN		4
+#define M_CHAN		0x3
+#define V_CHAN(x)	((x) << S_CHAN)
+#define G_CHAN(x)	((((x) >> S_CHAN)) & M_CHAN)
+
 struct t3_rdma_init_attr {
 	u32 tid;
 	u32 qpid;
@@ -346,6 +351,7 @@ struct t3_rdma_init_attr {
 	u16 flags;
 	u16 rqe_count;
 	u32 irs;
+	u32 chan;
 };
 
 struct t3_rdma_init_wr {

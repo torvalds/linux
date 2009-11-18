@@ -429,20 +429,21 @@ EXPORT_SYMBOL(mangle_path);
  */
 int seq_path(struct seq_file *m, struct path *path, char *esc)
 {
-	if (m->count < m->size) {
-		char *s = m->buf + m->count;
-		char *p = d_path(path, s, m->size - m->count);
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int res = -1;
+
+	if (size) {
+		char *p = d_path(path, buf, size);
 		if (!IS_ERR(p)) {
-			s = mangle_path(s, p, esc);
-			if (s) {
-				p = m->buf + m->count;
-				m->count = s - m->buf;
-				return s - p;
-			}
+			char *end = mangle_path(buf, p, esc);
+			if (end)
+				res = end - buf;
 		}
 	}
-	m->count = m->size;
-	return -1;
+	seq_commit(m, res);
+
+	return res;
 }
 EXPORT_SYMBOL(seq_path);
 
@@ -454,26 +455,28 @@ EXPORT_SYMBOL(seq_path);
 int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 		  char *esc)
 {
-	int err = -ENAMETOOLONG;
-	if (m->count < m->size) {
-		char *s = m->buf + m->count;
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int res = -ENAMETOOLONG;
+
+	if (size) {
 		char *p;
 
 		spin_lock(&dcache_lock);
-		p = __d_path(path, root, s, m->size - m->count);
+		p = __d_path(path, root, buf, size);
 		spin_unlock(&dcache_lock);
-		err = PTR_ERR(p);
+		res = PTR_ERR(p);
 		if (!IS_ERR(p)) {
-			s = mangle_path(s, p, esc);
-			if (s) {
-				p = m->buf + m->count;
-				m->count = s - m->buf;
-				return 0;
-			}
+			char *end = mangle_path(buf, p, esc);
+			if (end)
+				res = end - buf;
+			else
+				res = -ENAMETOOLONG;
 		}
 	}
-	m->count = m->size;
-	return err;
+	seq_commit(m, res);
+
+	return res < 0 ? res : 0;
 }
 
 /*
@@ -481,20 +484,21 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
  */
 int seq_dentry(struct seq_file *m, struct dentry *dentry, char *esc)
 {
-	if (m->count < m->size) {
-		char *s = m->buf + m->count;
-		char *p = dentry_path(dentry, s, m->size - m->count);
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int res = -1;
+
+	if (size) {
+		char *p = dentry_path(dentry, buf, size);
 		if (!IS_ERR(p)) {
-			s = mangle_path(s, p, esc);
-			if (s) {
-				p = m->buf + m->count;
-				m->count = s - m->buf;
-				return s - p;
-			}
+			char *end = mangle_path(buf, p, esc);
+			if (end)
+				res = end - buf;
 		}
 	}
-	m->count = m->size;
-	return -1;
+	seq_commit(m, res);
+
+	return res;
 }
 
 int seq_bitmap(struct seq_file *m, const unsigned long *bits,

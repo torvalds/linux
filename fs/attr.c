@@ -18,7 +18,7 @@
 /* Taken over from the old code... */
 
 /* POSIX UID/GID verification for setting inode attributes. */
-int inode_change_ok(struct inode *inode, struct iattr *attr)
+int inode_change_ok(const struct inode *inode, struct iattr *attr)
 {
 	int retval = -EPERM;
 	unsigned int ia_valid = attr->ia_valid;
@@ -60,8 +60,50 @@ fine:
 error:
 	return retval;
 }
-
 EXPORT_SYMBOL(inode_change_ok);
+
+/**
+ * inode_newsize_ok - may this inode be truncated to a given size
+ * @inode:	the inode to be truncated
+ * @offset:	the new size to assign to the inode
+ * @Returns:	0 on success, -ve errno on failure
+ *
+ * inode_newsize_ok will check filesystem limits and ulimits to check that the
+ * new inode size is within limits. inode_newsize_ok will also send SIGXFSZ
+ * when necessary. Caller must not proceed with inode size change if failure is
+ * returned. @inode must be a file (not directory), with appropriate
+ * permissions to allow truncate (inode_newsize_ok does NOT check these
+ * conditions).
+ *
+ * inode_newsize_ok must be called with i_mutex held.
+ */
+int inode_newsize_ok(const struct inode *inode, loff_t offset)
+{
+	if (inode->i_size < offset) {
+		unsigned long limit;
+
+		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
+		if (limit != RLIM_INFINITY && offset > limit)
+			goto out_sig;
+		if (offset > inode->i_sb->s_maxbytes)
+			goto out_big;
+	} else {
+		/*
+		 * truncation of in-use swapfiles is disallowed - it would
+		 * cause subsequent swapout to scribble on the now-freed
+		 * blocks.
+		 */
+		if (IS_SWAPFILE(inode))
+			return -ETXTBSY;
+	}
+
+	return 0;
+out_sig:
+	send_sig(SIGXFSZ, current, 0);
+out_big:
+	return -EFBIG;
+}
+EXPORT_SYMBOL(inode_newsize_ok);
 
 int inode_setattr(struct inode * inode, struct iattr * attr)
 {

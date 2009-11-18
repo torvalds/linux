@@ -14,7 +14,7 @@ extern void	rtnl_register(int protocol, int msgtype,
 extern int	rtnl_unregister(int protocol, int msgtype);
 extern void	rtnl_unregister_all(int protocol);
 
-static inline int rtnl_msg_family(struct nlmsghdr *nlh)
+static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 {
 	if (nlmsg_len(nlh) >= sizeof(struct rtgenmsg))
 		return ((struct rtgenmsg *) nlmsg_data(nlh))->rtgen_family;
@@ -70,6 +70,9 @@ struct rtnl_link_ops {
 	size_t			(*get_xstats_size)(const struct net_device *dev);
 	int			(*fill_xstats)(struct sk_buff *skb,
 					       const struct net_device *dev);
+	int			(*get_tx_queues)(struct net *net, struct nlattr *tb[],
+						 unsigned int *tx_queues,
+						 unsigned int *real_tx_queues);
 };
 
 extern int	__rtnl_link_register(struct rtnl_link_ops *ops);

@@ -27,7 +27,7 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <asm/system.h>
 #include <linux/videodev2.h>
@@ -49,7 +49,7 @@ int go7007_read_interrupt(struct go7007 *go, u16 *value, u16 *data)
 	go->hpi_ops->read_interrupt(go);
 	if (wait_event_timeout(go->interrupt_waitq,
 				go->interrupt_available, 5*HZ) < 0) {
-		printk(KERN_ERR "go7007: timeout waiting for read interrupt\n");
+		v4l2_err(go->video_dev, "timeout waiting for read interrupt\n");
 		return -1;
 	}
 	if (!go->interrupt_available)
@@ -97,13 +97,12 @@ static int go7007_load_encoder(struct go7007 *go)
 	u16 intr_val, intr_data;
 
 	if (request_firmware(&fw_entry, fw_name, go->dev)) {
-		printk(KERN_ERR
-			"go7007: unable to load firmware from file \"%s\"\n",
-			fw_name);
+		v4l2_err(go, "unable to load firmware from file "
+			"\"%s\"\n", fw_name);
 		return -1;
 	}
 	if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
-		printk(KERN_ERR "go7007: file \"%s\" does not appear to be "
+		v4l2_err(go, "file \"%s\" does not appear to be "
 				"go7007 firmware\n", fw_name);
 		release_firmware(fw_entry);
 		return -1;
@@ -111,7 +110,7 @@ static int go7007_load_encoder(struct go7007 *go)
 	fw_len = fw_entry->size - 16;
 	bounce = kmalloc(fw_len, GFP_KERNEL);
 	if (bounce == NULL) {
-		printk(KERN_ERR "go7007: unable to allocate %d bytes for "
+		v4l2_err(go, "unable to allocate %d bytes for "
 				"firmware transfer\n", fw_len);
 		release_firmware(fw_entry);
 		return -1;
@@ -122,7 +121,7 @@ static int go7007_load_encoder(struct go7007 *go)
 			go7007_send_firmware(go, bounce, fw_len) < 0 ||
 			go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
 			(intr_val & ~0x1) != 0x5a5a) {
-		printk(KERN_ERR "go7007: error transferring firmware\n");
+		v4l2_err(go, "error transferring firmware\n");
 		rv = -1;
 	}
 	kfree(bounce);
@@ -140,9 +139,9 @@ int go7007_boot_encoder(struct go7007 *go, int init_i2c)
 {
 	int ret;
 
-	down(&go->hw_lock);
+	mutex_lock(&go->hw_lock);
 	ret = go7007_load_encoder(go);
-	up(&go->hw_lock);
+	mutex_unlock(&go->hw_lock);
 	if (ret < 0)
 		return -1;
 	if (!init_i2c)
@@ -257,9 +256,9 @@ int go7007_register_encoder(struct go7007 *go)
 
 	printk(KERN_INFO "go7007: registering new %s\n", go->name);
 
-	down(&go->hw_lock);
+	mutex_lock(&go->hw_lock);
 	ret = go7007_init_encoder(go);
-	up(&go->hw_lock);
+	mutex_unlock(&go->hw_lock);
 	if (ret < 0)
 		return -1;
 
@@ -316,7 +315,7 @@ int go7007_start_encoder(struct go7007 *go)
 
 	if (go7007_send_firmware(go, fw, fw_len) < 0 ||
 			go7007_read_interrupt(go, &intr_val, &intr_data) < 0) {
-		printk(KERN_ERR "go7007: error transferring firmware\n");
+		v4l2_err(go->video_dev, "error transferring firmware\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -325,7 +324,7 @@ int go7007_start_encoder(struct go7007 *go)
 	go->parse_length = 0;
 	go->seen_frame = 0;
 	if (go7007_stream_start(go) < 0) {
-		printk(KERN_ERR "go7007: error starting stream transfer\n");
+		v4l2_err(go->video_dev, "error starting stream transfer\n");
 		rv = -1;
 		goto start_error;
 	}
@@ -421,7 +420,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	for (i = 0; i < length; ++i) {
 		if (go->active_buf != NULL &&
 			    go->active_buf->bytesused >= GO7007_BUF_SIZE - 3) {
-			printk(KERN_DEBUG "go7007: dropping oversized frame\n");
+			v4l2_info(go->video_dev, "dropping oversized frame\n");
 			go->active_buf->offset -= go->active_buf->bytesused;
 			go->active_buf->bytesused = 0;
 			go->active_buf->modet_active = 0;
@@ -604,7 +603,7 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	go->tuner_type = -1;
 	go->channel_number = 0;
 	go->name[0] = 0;
-	init_MUTEX(&go->hw_lock);
+	mutex_init(&go->hw_lock);
 	init_waitqueue_head(&go->frame_waitq);
 	spin_lock_init(&go->spinlock);
 	go->video_dev = NULL;
@@ -669,8 +668,8 @@ void go7007_remove(struct go7007 *go)
 		if (i2c_del_adapter(&go->i2c_adapter) == 0)
 			go->i2c_adapter_online = 0;
 		else
-			printk(KERN_ERR
-				"go7007: error removing I2C adapter!\n");
+			v4l2_err(go->video_dev,
+				"error removing I2C adapter!\n");
 	}
 
 	if (go->audio_enabled)

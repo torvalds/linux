@@ -13,6 +13,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
+#include <asm/unwind.h>
 
 #include "proc-macros.S"
 
@@ -21,7 +22,7 @@
  *
  *	Flush the whole D-cache.
  *
- *	Corrupted registers: r0-r5, r7, r9-r11
+ *	Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
  *
  *	- mm    - mm_struct describing address space
  */
@@ -51,8 +52,12 @@ loop1:
 loop2:
 	mov	r9, r4				@ create working copy of max way size
 loop3:
-	orr	r11, r10, r9, lsl r5		@ factor way and cache number into r11
-	orr	r11, r11, r7, lsl r2		@ factor index number into r11
+ ARM(	orr	r11, r10, r9, lsl r5	)	@ factor way and cache number into r11
+ THUMB(	lsl	r6, r9, r5		)
+ THUMB(	orr	r11, r10, r6		)	@ factor way and cache number into r11
+ ARM(	orr	r11, r11, r7, lsl r2	)	@ factor index number into r11
+ THUMB(	lsl	r6, r7, r2		)
+ THUMB(	orr	r11, r11, r6		)	@ factor index number into r11
 	mcr	p15, 0, r11, c7, c14, 2		@ clean & invalidate by set/way
 	subs	r9, r9, #1			@ decrement the way
 	bge	loop3
@@ -82,11 +87,13 @@ ENDPROC(v7_flush_dcache_all)
  *
  */
 ENTRY(v7_flush_kern_cache_all)
-	stmfd	sp!, {r4-r5, r7, r9-r11, lr}
+ ARM(	stmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
 	bl	v7_flush_dcache_all
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}
+ ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
 	mov	pc, lr
 ENDPROC(v7_flush_kern_cache_all)
 
@@ -147,13 +154,16 @@ ENTRY(v7_coherent_kern_range)
  *	- the Icache does not read data from the write buffer
  */
 ENTRY(v7_coherent_user_range)
+ UNWIND(.fnstart		)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	bic	r0, r0, r3
-1:	mcr	p15, 0, r0, c7, c11, 1		@ clean D line to the point of unification
+1:
+ USER(	mcr	p15, 0, r0, c7, c11, 1	)	@ clean D line to the point of unification
 	dsb
-	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I line
+ USER(	mcr	p15, 0, r0, c7, c5, 1	)	@ invalidate I line
 	add	r0, r0, r2
+2:
 	cmp	r0, r1
 	blo	1b
 	mov	r0, #0
@@ -161,6 +171,17 @@ ENTRY(v7_coherent_user_range)
 	dsb
 	isb
 	mov	pc, lr
+
+/*
+ * Fault handling for the cache operation above. If the virtual address in r0
+ * isn't mapped, just try the next page.
+ */
+9001:
+	mov	r0, r0, lsr #12
+	mov	r0, r0, lsl #12
+	add	r0, r0, #4096
+	b	2b
+ UNWIND(.fnend		)
 ENDPROC(v7_coherent_kern_range)
 ENDPROC(v7_coherent_user_range)
 

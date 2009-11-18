@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/memory.h
  *
- * Copyright (C) 1999-2000 Nicolas Pitre <nico@cam.org>
+ * Copyright (C) 1999-2000 Nicolas Pitre <nico@fluxnic.net>
  */
 
 #ifndef __ASM_ARCH_MEMORY_H

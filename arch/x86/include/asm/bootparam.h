@@ -85,7 +85,8 @@ struct efi_info {
 struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
 	struct apm_bios_info apm_bios_info;		/* 0x040 */
-	__u8  _pad2[12];				/* 0x054 */
+	__u8  _pad2[4];					/* 0x054 */
+	__u64  tboot_addr;				/* 0x058 */
 	struct ist_info ist_info;			/* 0x060 */
 	__u8  _pad3[16];				/* 0x070 */
 	__u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
@@ -108,5 +109,15 @@ struct boot_params {
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
+
+enum {
+	X86_SUBARCH_PC = 0,
+	X86_SUBARCH_LGUEST,
+	X86_SUBARCH_XEN,
+	X86_SUBARCH_MRST,
+	X86_NR_SUBARCHS,
+};
+
+
 
 #endif /* _ASM_X86_BOOTPARAM_H */

@@ -120,7 +120,7 @@ static struct vio_driver hvc_vio_driver = {
 	}
 };
 
-static int hvc_vio_init(void)
+static int __init hvc_vio_init(void)
 {
 	int rc;
 
@@ -134,7 +134,7 @@ static int hvc_vio_init(void)
 }
 module_init(hvc_vio_init); /* after drivers/char/hvc_console.c */
 
-static void hvc_vio_exit(void)
+static void __exit hvc_vio_exit(void)
 {
 	vio_unregister_driver(&hvc_vio_driver);
 }

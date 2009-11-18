@@ -508,7 +508,7 @@ static void __init quirk_amd_nb_node(struct pci_dev *dev)
 
 	pci_read_config_dword(nb_ht, 0x60, &val);
 	set_dev_node(&dev->dev, val & 7);
-	pci_dev_put(dev);
+	pci_dev_put(nb_ht);
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,

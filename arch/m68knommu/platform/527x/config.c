@@ -116,22 +116,12 @@ static struct platform_device *m527x_devices[] __initdata = {
 
 /***************************************************************************/
 
-#define	INTC0	(MCF_MBAR + MCFICM_INTC0)
-
 static void __init m527x_uart_init_line(int line, int irq)
 {
 	u16 sepmask;
-	u32 imr;
 
 	if ((line < 0) || (line > 2))
 		return;
-
-	/* level 6, line based priority */
-	writeb(0x30+line, INTC0 + MCFINTC_ICR0 + MCFINT_UART0 + line);
-
-	imr = readl(INTC0 + MCFINTC_IMRL);
-	imr &= ~((1 << (irq - MCFINT_VECBASE)) | 1);
-	writel(imr, INTC0 + MCFINTC_IMRL);
 
 	/*
 	 * External Pin Mask Setting & Enable External Pin for Interface
@@ -157,31 +147,10 @@ static void __init m527x_uarts_init(void)
 
 /***************************************************************************/
 
-static void __init m527x_fec_irq_init(int nr)
-{
-	unsigned long base;
-	u32 imr;
-
-	base = MCF_IPSBAR + (nr ? MCFICM_INTC1 : MCFICM_INTC0);
-
-	writeb(0x28, base + MCFINTC_ICR0 + 23);
-	writeb(0x27, base + MCFINTC_ICR0 + 27);
-	writeb(0x26, base + MCFINTC_ICR0 + 29);
-
-	imr = readl(base + MCFINTC_IMRH);
-	imr &= ~0xf;
-	writel(imr, base + MCFINTC_IMRH);
-	imr = readl(base + MCFINTC_IMRL);
-	imr &= ~0xff800001;
-	writel(imr, base + MCFINTC_IMRL);
-}
-
 static void __init m527x_fec_init(void)
 {
 	u16 par;
 	u8 v;
-
-	m527x_fec_irq_init(0);
 
 	/* Set multi-function pins to ethernet mode for fec0 */
 #if defined(CONFIG_M5271)
@@ -195,29 +164,12 @@ static void __init m527x_fec_init(void)
 #endif
 
 #ifdef CONFIG_FEC2
-	m527x_fec_irq_init(1);
-
 	/* Set multi-function pins to ethernet mode for fec1 */
 	par = readw(MCF_IPSBAR + 0x100082);
 	writew(par | 0xa0, MCF_IPSBAR + 0x100082);
 	v = readb(MCF_IPSBAR + 0x100079);
 	writeb(v | 0xc0, MCF_IPSBAR + 0x100079);
 #endif
-}
-
-/***************************************************************************/
-
-void mcf_disableall(void)
-{
-	*((volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH)) = 0xffffffff;
-	*((volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL)) = 0xffffffff;
-}
-
-/***************************************************************************/
-
-void mcf_autovector(unsigned int vec)
-{
-	/* Everything is auto-vectored on the 5272 */
 }
 
 /***************************************************************************/
@@ -232,7 +184,6 @@ static void m527x_cpu_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-	mcf_disableall();
 	mach_reset = m527x_cpu_reset;
 	m527x_uarts_init();
 	m527x_fec_init();

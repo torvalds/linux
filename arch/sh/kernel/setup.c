@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/lmb.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -48,6 +49,7 @@
 struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 	[0] = {
 		.type			= CPU_SH_NONE,
+		.family			= CPU_FAMILY_UNKNOWN,
 		.loops_per_jiffy	= 10000000,
 	},
 };
@@ -233,38 +235,44 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 void __init setup_bootmem_allocator(unsigned long free_pfn)
 {
 	unsigned long bootmap_size;
+	unsigned long bootmap_pages, bootmem_paddr;
+	u64 total_pages = (lmb_end_of_DRAM() - __MEMORY_START) >> PAGE_SHIFT;
+	int i;
+
+	bootmap_pages = bootmem_bootmap_pages(total_pages);
+
+	bootmem_paddr = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
 
 	/*
 	 * Find a proper area for the bootmem bitmap. After this
 	 * bootstrap step all allocations (until the page allocator
 	 * is intact) must be done via bootmem_alloc().
 	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), free_pfn,
+	bootmap_size = init_bootmem_node(NODE_DATA(0),
+					 bootmem_paddr >> PAGE_SHIFT,
 					 min_low_pfn, max_low_pfn);
 
-	__add_active_range(0, min_low_pfn, max_low_pfn);
+	/* Add active regions with valid PFNs. */
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long start_pfn, end_pfn;
+		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		__add_active_range(0, start_pfn, end_pfn);
+	}
+
+	/*
+	 * Add all physical memory to the bootmem map and mark each
+	 * area as present.
+	 */
 	register_bootmem_low_pages();
 
-	node_set_online(0);
-
-	/*
-	 * Reserve the kernel text and
-	 * Reserve the bootmem bitmap. We do this in two steps (first step
-	 * was init_bootmem()), because this catches the (definitely buggy)
-	 * case of us accidentally initializing the bootmem allocator with
-	 * an invalid RAM area.
-	 */
-	reserve_bootmem(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
-			(PFN_PHYS(free_pfn) + bootmap_size + PAGE_SIZE - 1) -
-			(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET),
-			BOOTMEM_DEFAULT);
-
-	/*
-	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
-	 */
-	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
+	/* Reserve the sections we're already using. */
+	for (i = 0; i < lmb.reserved.cnt; i++)
+		reserve_bootmem(lmb.reserved.region[i].base,
+				lmb_size_bytes(&lmb.reserved, i),
 				BOOTMEM_DEFAULT);
+
+	node_set_online(0);
 
 	sparse_memory_present_with_active_regions(0);
 
@@ -296,12 +304,37 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 static void __init setup_memory(void)
 {
 	unsigned long start_pfn;
+	u64 base = min_low_pfn << PAGE_SHIFT;
+	u64 size = (max_low_pfn << PAGE_SHIFT) - base;
 
 	/*
 	 * Partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
 	start_pfn = PFN_UP(__pa(_end));
+
+	lmb_add(base, size);
+
+	/*
+	 * Reserve the kernel text and
+	 * Reserve the bootmem bitmap. We do this in two steps (first step
+	 * was init_bootmem()), because this catches the (definitely buggy)
+	 * case of us accidentally initializing the bootmem allocator with
+	 * an invalid RAM area.
+	 */
+	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
+		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
+
+	/*
+	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
+	 */
+	if (CONFIG_ZERO_PAGE_OFFSET != 0)
+		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+
+	lmb_analyze();
+	lmb_dump_all();
+
 	setup_bootmem_allocator(start_pfn);
 }
 #else
@@ -372,10 +405,14 @@ void __init setup_arch(char **cmdline_p)
 	if (!memory_end)
 		memory_end = memory_start + __MEMORY_SIZE;
 
-#ifdef CONFIG_CMDLINE_BOOL
+#ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
 #else
 	strlcpy(command_line, COMMAND_LINE, sizeof(command_line));
+#ifdef CONFIG_CMDLINE_EXTEND
+	strlcat(command_line, " ", sizeof(command_line));
+	strlcat(command_line, CONFIG_CMDLINE, sizeof(command_line));
+#endif
 #endif
 
 	/* Save unparsed command line copy for /proc/cmdline */
@@ -402,6 +439,7 @@ void __init setup_arch(char **cmdline_p)
 	nodes_clear(node_online_map);
 
 	/* Setup bootmem with available RAM */
+	lmb_init();
 	setup_memory();
 	sparse_init();
 
@@ -448,7 +486,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7763]	= "SH7763",	[CPU_SH7770]	= "SH7770",
 	[CPU_SH7780]	= "SH7780",	[CPU_SH7781]	= "SH7781",
 	[CPU_SH7343]	= "SH7343",	[CPU_SH7785]	= "SH7785",
-	[CPU_SH7786]	= "SH7786",
+	[CPU_SH7786]	= "SH7786",	[CPU_SH7757]	= "SH7757",
 	[CPU_SH7722]	= "SH7722",	[CPU_SHX3]	= "SH-X3",
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
@@ -511,6 +549,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	if (cpu == 0)
 		seq_printf(m, "machine\t\t: %s\n", get_system_type());
+	else
+		seq_printf(m, "\n");
 
 	seq_printf(m, "processor\t: %d\n", cpu);
 	seq_printf(m, "cpu family\t: %s\n", init_utsname()->machine);

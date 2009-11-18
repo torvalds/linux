@@ -32,7 +32,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/dmi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* Banks */
 #define ABIT_UGURU_ALARM_BANK			0x20 /* 1x 3 bytes */

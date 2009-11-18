@@ -90,9 +90,6 @@
 #define TKIP_AP_RXMICK_OFFSET		(TKIP_AP_TXMICK_OFFSET+LEN_TKIP_TXMICK)
 #define TKIP_GTK_LENGTH				((LEN_TKIP_EK)+(LEN_TKIP_RXMICK)+(LEN_TKIP_TXMICK))
 #define LEN_PTK						((LEN_EAP_KEY)+(LEN_TKIP_KEY))
-#ifndef RT30xx
-#define MIN_LEN_OF_GTK				5
-#endif
 
 // RSN IE Length definition
 #define MAX_LEN_OF_RSNIE         	90

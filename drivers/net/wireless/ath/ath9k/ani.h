@@ -18,15 +18,10 @@
 #define ANI_H
 
 #define HAL_PROCESS_ANI           0x00000001
-#define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
 #define DO_ANI(ah) (((ah)->proc_phyerr & HAL_PROCESS_ANI))
 
-#define HAL_EP_RND(x, mul)						\
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define BEACON_RSSI(ahp)					\
-	HAL_EP_RND(ahp->stats.ast_nodestats.ns_avgbrssi,	\
-		   ATH9K_RSSI_EP_MULTIPLIER)
+#define BEACON_RSSI(ahp) (ahp->stats.avgbrssi)
 
 #define ATH9K_ANI_OFDM_TRIG_HIGH          500
 #define ATH9K_ANI_OFDM_TRIG_LOW           200
@@ -63,13 +58,6 @@ struct ath9k_mib_stats {
 	u32 rts_good;
 	u32 fcs_bad;
 	u32 beacons;
-};
-
-struct ath9k_node_stats {
-	u32 ns_avgbrssi;
-	u32 ns_avgrssi;
-	u32 ns_avgtxrssi;
-	u32 ns_avgtxrate;
 };
 
 struct ar5416AniState {
@@ -115,24 +103,21 @@ struct ar5416Stats {
 	u32 ast_ani_reset;
 	u32 ast_ani_lzero;
 	u32 ast_ani_lneg;
+	u32 avgbrssi;
 	struct ath9k_mib_stats ast_mibstats;
-	struct ath9k_node_stats ast_nodestats;
 };
 #define ah_mibStats stats.ast_mibstats
 
 void ath9k_ani_reset(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah,
-			  const struct ath9k_node_stats *stats,
 			  struct ath9k_channel *chan);
-bool ath9k_hw_phycounters(struct ath_hw *ah);
 void ath9k_enable_mib_counters(struct ath_hw *ah);
 void ath9k_hw_disable_mib_counters(struct ath_hw *ah);
 u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah, u32 *rxc_pcnt,
 				  u32 *rxf_pcnt, u32 *txf_pcnt);
-void ath9k_hw_procmibevent(struct ath_hw *ah,
-			   const struct ath9k_node_stats *stats);
+void ath9k_hw_procmibevent(struct ath_hw *ah);
 void ath9k_hw_ani_setup(struct ath_hw *ah);
-void ath9k_hw_ani_attach(struct ath_hw *ah);
-void ath9k_hw_ani_detach(struct ath_hw *ah);
+void ath9k_hw_ani_init(struct ath_hw *ah);
+void ath9k_hw_ani_disable(struct ath_hw *ah);
 
 #endif /* ANI_H */

@@ -834,7 +834,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				we free and return(0) or don't free and return 1 */
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

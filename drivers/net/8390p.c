@@ -22,7 +22,7 @@ int eip_close(struct net_device *dev)
 }
 EXPORT_SYMBOL(eip_close);
 
-int eip_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t eip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	return __ei_start_xmit(skb, dev);
 }

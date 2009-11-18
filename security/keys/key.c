@@ -500,6 +500,7 @@ int key_negate_and_link(struct key *key,
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
+		key_schedule_gc(key->expiry + key_gc_delay);
 
 		if (test_and_clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags))
 			awaken = 1;
@@ -642,10 +643,8 @@ struct key *key_lookup(key_serial_t id)
 	goto error;
 
  found:
-	/* pretend it doesn't exist if it's dead */
-	if (atomic_read(&key->usage) == 0 ||
-	    test_bit(KEY_FLAG_DEAD, &key->flags) ||
-	    key->type == &key_type_dead)
+	/* pretend it doesn't exist if it is awaiting deletion */
+	if (atomic_read(&key->usage) == 0)
 		goto not_found;
 
 	/* this races with key_put(), but that doesn't matter since key_put()
@@ -890,6 +889,9 @@ EXPORT_SYMBOL(key_update);
  */
 void key_revoke(struct key *key)
 {
+	struct timespec now;
+	time_t time;
+
 	key_check(key);
 
 	/* make sure no one's trying to change or use the key when we mark it
@@ -901,6 +903,14 @@ void key_revoke(struct key *key)
 	if (!test_and_set_bit(KEY_FLAG_REVOKED, &key->flags) &&
 	    key->type->revoke)
 		key->type->revoke(key);
+
+	/* set the death time to no more than the expiry time */
+	now = current_kernel_time();
+	time = now.tv_sec;
+	if (key->revoked_at == 0 || key->revoked_at > time) {
+		key->revoked_at = time;
+		key_schedule_gc(key->revoked_at + key_gc_delay);
+	}
 
 	up_write(&key->sem);
 
@@ -958,8 +968,10 @@ void unregister_key_type(struct key_type *ktype)
 	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
 		key = rb_entry(_n, struct key, serial_node);
 
-		if (key->type == ktype)
+		if (key->type == ktype) {
 			key->type = &key_type_dead;
+			set_bit(KEY_FLAG_DEAD, &key->flags);
+		}
 	}
 
 	spin_unlock(&key_serial_lock);
@@ -983,6 +995,8 @@ void unregister_key_type(struct key_type *ktype)
 
 	spin_unlock(&key_serial_lock);
 	up_write(&key_types_sem);
+
+	key_schedule_gc(0);
 
 } /* end unregister_key_type() */
 

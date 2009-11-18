@@ -43,11 +43,14 @@
 
 unsigned int fmr_pool_size = RDS_FMR_POOL_SIZE;
 unsigned int fmr_message_size = RDS_FMR_SIZE + 1; /* +1 allows for unaligned MRs */
+unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
 module_param(fmr_pool_size, int, 0444);
 MODULE_PARM_DESC(fmr_pool_size, " Max number of fmr per HCA");
 module_param(fmr_message_size, int, 0444);
 MODULE_PARM_DESC(fmr_message_size, " Max size of a RDMA transfer");
+module_param(rds_ib_retry_count, int, 0444);
+MODULE_PARM_DESC(rds_ib_retry_count, " Number of hw retries before reporting an error");
 
 struct list_head rds_ib_devices;
 
@@ -82,9 +85,6 @@ void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_wrs = dev_attr->max_qp_wr;
 	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
 
-	rds_ibdev->fmr_page_shift = max(9, ffs(dev_attr->page_size_cap) - 1);
-	rds_ibdev->fmr_page_size  = 1 << rds_ibdev->fmr_page_shift;
-	rds_ibdev->fmr_page_mask  = ~((u64) rds_ibdev->fmr_page_size - 1);
 	rds_ibdev->fmr_max_remaps = dev_attr->max_map_per_fmr?: 32;
 	rds_ibdev->max_fmrs = dev_attr->max_fmr ?
 			min_t(unsigned int, dev_attr->max_fmr, fmr_pool_size) :
@@ -282,6 +282,7 @@ struct rds_transport rds_ib_transport = {
 	.flush_mrs		= rds_ib_flush_mrs,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
+	.t_type			= RDS_TRANS_IB
 };
 
 int __init rds_ib_init(void)

@@ -18,10 +18,10 @@ underlying hardware counters.
 Performance counters are accessed via special file descriptors.
 There's one file descriptor per virtual counter used.
 
-The special file descriptor is opened via the perf_counter_open()
+The special file descriptor is opened via the perf_event_open()
 system call:
 
-   int sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr,
+   int sys_perf_event_open(struct perf_event_hw_event *hw_event_uptr,
 			     pid_t pid, int cpu, int group_fd,
 			     unsigned long flags);
 
@@ -32,9 +32,9 @@ can be used to set the blocking mode, etc.
 Multiple counters can be kept open at a time, and the counters
 can be poll()ed.
 
-When creating a new counter fd, 'perf_counter_hw_event' is:
+When creating a new counter fd, 'perf_event_hw_event' is:
 
-struct perf_counter_hw_event {
+struct perf_event_hw_event {
         /*
          * The MSB of the config word signifies if the rest contains cpu
          * specific (raw) counter configuration data, if unset, the next
@@ -93,7 +93,7 @@ specified by 'event_id':
 
 /*
  * Generalized performance counter event types, used by the hw_event.event_id
- * parameter of the sys_perf_counter_open() syscall:
+ * parameter of the sys_perf_event_open() syscall:
  */
 enum hw_event_ids {
 	/*
@@ -159,7 +159,7 @@ in size.
  * reads on the counter should return the indicated quantities,
  * in increasing order of bit value, after the counter value.
  */
-enum perf_counter_read_format {
+enum perf_event_read_format {
         PERF_FORMAT_TOTAL_TIME_ENABLED  =  1,
         PERF_FORMAT_TOTAL_TIME_RUNNING  =  2,
 };
@@ -178,7 +178,7 @@ interrupt:
  * Bits that can be set in hw_event.record_type to request information
  * in the overflow packets.
  */
-enum perf_counter_record_format {
+enum perf_event_record_format {
         PERF_RECORD_IP          = 1U << 0,
         PERF_RECORD_TID         = 1U << 1,
         PERF_RECORD_TIME        = 1U << 2,
@@ -228,7 +228,7 @@ these events are recorded in the ring-buffer (see below).
 The 'comm' bit allows tracking of process comm data on process creation.
 This too is recorded in the ring-buffer (see below).
 
-The 'pid' parameter to the perf_counter_open() system call allows the
+The 'pid' parameter to the perf_event_open() system call allows the
 counter to be specific to a task:
 
  pid == 0: if the pid parameter is zero, the counter is attached to the
@@ -258,7 +258,7 @@ The 'flags' parameter is currently unused and must be zero.
 
 The 'group_fd' parameter allows counter "groups" to be set up.  A
 counter group has one counter which is the group "leader".  The leader
-is created first, with group_fd = -1 in the perf_counter_open call
+is created first, with group_fd = -1 in the perf_event_open call
 that creates it.  The rest of the group members are created
 subsequently, with group_fd giving the fd of the group leader.
 (A single counter on its own is created with group_fd = -1 and is
@@ -277,13 +277,13 @@ tracking are logged into a ring-buffer. This ring-buffer is created and
 accessed through mmap().
 
 The mmap size should be 1+2^n pages, where the first page is a meta-data page
-(struct perf_counter_mmap_page) that contains various bits of information such
+(struct perf_event_mmap_page) that contains various bits of information such
 as where the ring-buffer head is.
 
 /*
  * Structure of the page that can be mapped via mmap
  */
-struct perf_counter_mmap_page {
+struct perf_event_mmap_page {
         __u32   version;                /* version number of this structure */
         __u32   compat_version;         /* lowest version this is compat with */
 
@@ -317,7 +317,7 @@ struct perf_counter_mmap_page {
          * Control data for the mmap() data buffer.
          *
          * User-space reading this value should issue an rmb(), on SMP capable
-         * platforms, after reading this value -- see perf_counter_wakeup().
+         * platforms, after reading this value -- see perf_event_wakeup().
          */
         __u32   data_head;              /* head in the data section */
 };
@@ -327,9 +327,9 @@ NOTE: the hw-counter userspace bits are arch specific and are currently only
 
 The following 2^n pages are the ring-buffer which contains events of the form:
 
-#define PERF_EVENT_MISC_KERNEL          (1 << 0)
-#define PERF_EVENT_MISC_USER            (1 << 1)
-#define PERF_EVENT_MISC_OVERFLOW        (1 << 2)
+#define PERF_RECORD_MISC_KERNEL          (1 << 0)
+#define PERF_RECORD_MISC_USER            (1 << 1)
+#define PERF_RECORD_MISC_OVERFLOW        (1 << 2)
 
 struct perf_event_header {
         __u32   type;
@@ -353,8 +353,8 @@ enum perf_event_type {
          *      char                            filename[];
          * };
          */
-        PERF_EVENT_MMAP                 = 1,
-        PERF_EVENT_MUNMAP               = 2,
+        PERF_RECORD_MMAP                 = 1,
+        PERF_RECORD_MUNMAP               = 2,
 
         /*
          * struct {
@@ -364,10 +364,10 @@ enum perf_event_type {
          *      char                            comm[];
          * };
          */
-        PERF_EVENT_COMM                 = 3,
+        PERF_RECORD_COMM                 = 3,
 
         /*
-         * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
+         * When header.misc & PERF_RECORD_MISC_OVERFLOW the event_type field
          * will be PERF_RECORD_*
          *
          * struct {
@@ -397,7 +397,7 @@ Notification of new events is possible through poll()/select()/epoll() and
 fcntl() managing signals.
 
 Normally a notification is generated for every page filled, however one can
-additionally set perf_counter_hw_event.wakeup_events to generate one every
+additionally set perf_event_hw_event.wakeup_events to generate one every
 so many counter overflow events.
 
 Future work will include a splice() interface to the ring-buffer.
@@ -409,11 +409,11 @@ events but does continue to exist and maintain its count value.
 
 An individual counter or counter group can be enabled with
 
-	ioctl(fd, PERF_COUNTER_IOC_ENABLE);
+	ioctl(fd, PERF_EVENT_IOC_ENABLE);
 
 or disabled with
 
-	ioctl(fd, PERF_COUNTER_IOC_DISABLE);
+	ioctl(fd, PERF_EVENT_IOC_DISABLE);
 
 Enabling or disabling the leader of a group enables or disables the
 whole group; that is, while the group leader is disabled, none of the
@@ -424,16 +424,16 @@ other counter.
 
 Additionally, non-inherited overflow counters can use
 
-	ioctl(fd, PERF_COUNTER_IOC_REFRESH, nr);
+	ioctl(fd, PERF_EVENT_IOC_REFRESH, nr);
 
 to enable a counter for 'nr' events, after which it gets disabled again.
 
 A process can enable or disable all the counter groups that are
 attached to it, using prctl:
 
-	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
+	prctl(PR_TASK_PERF_EVENTS_ENABLE);
 
-	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
+	prctl(PR_TASK_PERF_EVENTS_DISABLE);
 
 This applies to all counters on the current process, whether created
 by this process or by another, and doesn't affect any counters that
@@ -447,11 +447,14 @@ Arch requirements
 If your architecture does not have hardware performance metrics, you can
 still use the generic software counters based on hrtimers for sampling.
 
-So to start with, in order to add HAVE_PERF_COUNTERS to your Kconfig, you
+So to start with, in order to add HAVE_PERF_EVENTS to your Kconfig, you
 will need at least this:
-	- asm/perf_counter.h - a basic stub will suffice at first
+	- asm/perf_event.h - a basic stub will suffice at first
 	- support for atomic64 types (and associated helper functions)
-	- set_perf_counter_pending() implemented
+	- set_perf_event_pending() implemented
 
 If your architecture does have hardware capabilities, you can override the
-weak stub hw_perf_counter_init() to register hardware counters.
+weak stub hw_perf_event_init() to register hardware counters.
+
+Architectures that have d-cache aliassing issues, such as Sparc and ARM,
+should select PERF_USE_VMALLOC in order to avoid these for perf mmap().

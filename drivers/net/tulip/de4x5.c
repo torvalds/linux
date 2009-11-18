@@ -895,7 +895,8 @@ static struct {
 ** Public Functions
 */
 static int     de4x5_open(struct net_device *dev);
-static int     de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t de4x5_queue_pkt(struct sk_buff *skb,
+					 struct net_device *dev);
 static irqreturn_t de4x5_interrupt(int irq, void *dev_id);
 static int     de4x5_close(struct net_device *dev);
 static struct  net_device_stats *de4x5_get_stats(struct net_device *dev);
@@ -1456,18 +1457,16 @@ de4x5_sw_reset(struct net_device *dev)
 /*
 ** Writes a socket buffer address to the next available transmit descriptor.
 */
-static int
+static netdev_tx_t
 de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
-    int status = NETDEV_TX_OK;
     u_long flags = 0;
 
     netif_stop_queue(dev);
-    if (!lp->tx_enable) {                   /* Cannot send for now */
+    if (!lp->tx_enable)                   /* Cannot send for now */
 	return NETDEV_TX_LOCKED;
-    }
 
     /*
     ** Clean out the TX ring asynchronously to interrupts - sometimes the
@@ -1521,7 +1520,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     lp->cache.lock = 0;
 
-    return status;
+    return NETDEV_TX_OK;
 }
 
 /*

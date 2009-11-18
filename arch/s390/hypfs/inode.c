@@ -41,7 +41,7 @@ struct hypfs_sb_info {
 
 static const struct file_operations hypfs_file_ops;
 static struct file_system_type hypfs_type;
-static struct super_operations hypfs_s_ops;
+static const struct super_operations hypfs_s_ops;
 
 /* start of list of all dentries, which have to be deleted on update */
 static struct dentry *hypfs_last_dentry;
@@ -355,11 +355,7 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 {
 	struct dentry *dentry;
 	struct inode *inode;
-	struct qstr qname;
 
-	qname.name = name;
-	qname.len = strlen(name);
-	qname.hash = full_name_hash(name, qname.len);
 	mutex_lock(&parent->d_inode->i_mutex);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
@@ -426,7 +422,7 @@ struct dentry *hypfs_create_u64(struct super_block *sb, struct dentry *dir,
 	char tmp[TMP_SIZE];
 	struct dentry *dentry;
 
-	snprintf(tmp, TMP_SIZE, "%lld\n", (unsigned long long int)value);
+	snprintf(tmp, TMP_SIZE, "%llu\n", (unsigned long long int)value);
 	buffer = kstrdup(tmp, GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
@@ -476,7 +472,7 @@ static struct file_system_type hypfs_type = {
 	.kill_sb	= hypfs_kill_super
 };
 
-static struct super_operations hypfs_s_ops = {
+static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= hypfs_drop_inode,
 	.show_options	= hypfs_show_options,
@@ -500,7 +496,7 @@ static int __init hypfs_init(void)
 	}
 	s390_kobj = kobject_create_and_add("s390", hypervisor_kobj);
 	if (!s390_kobj) {
-		rc = -ENOMEM;;
+		rc = -ENOMEM;
 		goto fail_sysfs;
 	}
 	rc = register_filesystem(&hypfs_type);

@@ -399,6 +399,17 @@ struct i2c_device_id {
 			__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
+/* spi */
+
+#define SPI_NAME_SIZE	32
+#define SPI_MODULE_PREFIX "spi:"
+
+struct spi_device_id {
+	char name[SPI_NAME_SIZE];
+	kernel_ulong_t driver_data	/* Data private to the driver */
+			__attribute__((aligned(sizeof(kernel_ulong_t))));
+};
+
 /* dmi */
 enum dmi_field {
 	DMI_NONE,

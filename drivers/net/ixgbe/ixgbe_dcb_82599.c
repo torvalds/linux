@@ -145,8 +145,12 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
 	u32    credit_max    = 0;
 	u8     i             = 0;
 
-	/* Disable the arbiter before changing parameters */
-	IXGBE_WRITE_REG(hw, IXGBE_RTRPCS, IXGBE_RTRPCS_ARBDIS);
+	/*
+	 * Disable the arbiter before changing parameters
+	 * (always enable recycle mode; WSP)
+	 */
+	reg = IXGBE_RTRPCS_RRM | IXGBE_RTRPCS_RAC | IXGBE_RTRPCS_ARBDIS;
+	IXGBE_WRITE_REG(hw, IXGBE_RTRPCS, reg);
 
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;
@@ -193,9 +197,6 @@ s32 ixgbe_dcb_config_tx_desc_arbiter_82599(struct ixgbe_hw *hw,
 	struct tc_bw_alloc *p;
 	u32    reg, max_credits;
 	u8     i;
-
-	/* Disable the arbiter before changing parameters */
-	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, IXGBE_RTTDCS_ARBDIS);
 
 	/* Clear the per-Tx queue credits; we use per-TC instead */
 	for (i = 0; i < 128; i++) {
@@ -244,8 +245,14 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 	u32 reg;
 	u8 i;
 
-	/* Disable the arbiter before changing parameters */
-	IXGBE_WRITE_REG(hw, IXGBE_RTTPCS, IXGBE_RTTPCS_ARBDIS);
+	/*
+	 * Disable the arbiter before changing parameters
+	 * (always enable recycle mode; SP; arb delay)
+	 */
+	reg = IXGBE_RTTPCS_TPPAC | IXGBE_RTTPCS_TPRM |
+	      (IXGBE_RTTPCS_ARBD_DCB << IXGBE_RTTPCS_ARBD_SHIFT) |
+	      IXGBE_RTTPCS_ARBDIS;
+	IXGBE_WRITE_REG(hw, IXGBE_RTTPCS, reg);
 
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;

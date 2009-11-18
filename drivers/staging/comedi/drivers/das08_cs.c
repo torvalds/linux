@@ -56,7 +56,8 @@ static struct pcmcia_device *cur_dev = NULL;
 
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
-static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das08_cs_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it);
 
 static struct comedi_driver driver_das08_cs = {
 	.driver_name = "das08_cs",
@@ -64,12 +65,12 @@ static struct comedi_driver driver_das08_cs = {
 	.attach = das08_cs_attach,
 	.detach = das08_common_detach,
 	.board_name = &das08_cs_boards[0].name,
-	.num_names = sizeof(das08_cs_boards) /
-		sizeof(struct das08_board_struct),
+	.num_names = ARRAY_SIZE(das08_cs_boards),
 	.offset = sizeof(struct das08_board_struct),
 };
 
-static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int das08_cs_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
@@ -122,7 +123,7 @@ static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static const char *version =
-	"das08.c pcmcia code (Frank Hess), modified from dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
+    "das08.c pcmcia code (Frank Hess), modified from dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -226,7 +227,7 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 	DEBUG(0, "das08_pcmcia_detach(0x%p)\n", link);
 
 	if (link->dev_node) {
-		((struct local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *)link->priv)->stop = 1;
 		das08_pcmcia_release(link);
 	}
 
@@ -356,7 +357,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 		/* If we got this far, we're cool! */
 		break;
 
-	      next_entry:
+next_entry:
 		last_fn = GetNextTuple;
 
 		last_ret = pcmcia_get_next_tuple(link, &tuple);
@@ -391,20 +392,20 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x",
-		dev->node.dev_name, link->conf.ConfigIndex);
+	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-			link->io.BasePort1 + link->io.NumPorts1 - 1);
+		       link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-			link->io.BasePort2 + link->io.NumPorts2 - 1);
+		       link->io.BasePort2 + link->io.NumPorts2 - 1);
 	printk("\n");
 
 	return;
 
-      cs_failed:
+cs_failed:
 	cs_error(link, last_fn, last_ret);
 	das08_pcmcia_release(link);
 
@@ -470,7 +471,7 @@ struct pcmcia_driver das08_cs_driver = {
 	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+		.name = dev_info,
 		},
 };
 

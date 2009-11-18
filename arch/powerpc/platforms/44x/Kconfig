@@ -129,6 +129,18 @@ config REDWOOD
 	help
 	  This option enables support for the AMCC PPC460SX Redwood board.
 
+config EIGER
+	bool "Eiger"
+	depends on 44x
+	default n
+	select PPC44x_SIMPLE
+	select 460SX
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	select IBM_NEW_EMAC_RGMII
+	help
+	  This option enables support for the AMCC PPC460SX evaluation board.
+
 config YOSEMITE
 	bool "Yosemite"
 	depends on 44x

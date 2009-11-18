@@ -142,6 +142,17 @@
 #define B43_BFL_BTCMOD			0x4000	/* BFL_BTCOEXIST is given in alternate GPIOs */
 #define B43_BFL_ALTIQ			0x8000	/* alternate I/Q settings */
 
+/* SPROM boardflags_hi values */
+#define B43_BFH_NOPA			0x0001	/* has no PA */
+#define B43_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (not TSSI) */
+#define B43_BFH_PAREF			0x0004	/* uses the PARef LDO */
+#define B43_BFH_3TSWITCH		0x0008	/* uses a triple throw switch shared
+						 * with bluetooth */
+#define B43_BFH_PHASESHIFT		0x0010	/* can support phase shifter */
+#define B43_BFH_BUCKBOOST		0x0020	/* has buck/booster */
+#define B43_BFH_FEM_BT			0x0040	/* has FEM and switch to share antenna
+						 * with bluetooth */
+
 /* GPIO register offset, in both ChipCommon and PCI core. */
 #define B43_GPIO_CONTROL		0x6c
 
@@ -482,6 +493,10 @@ enum {
 
 /* Max size of a security key */
 #define B43_SEC_KEYSIZE			16
+/* Max number of group keys */
+#define B43_NR_GROUP_KEYS		4
+/* Max number of pairwise keys */
+#define B43_NR_PAIRWISE_KEYS		50
 /* Security algorithms. */
 enum {
 	B43_SEC_ALGO_NONE = 0,	/* unencrypted, as of TX header. */
@@ -592,80 +607,7 @@ struct b43_qos_params {
 	struct ieee80211_tx_queue_params p;
 };
 
-struct b43_wldev;
-
-/* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
-struct b43_wl {
-	/* Pointer to the active wireless device on this chip */
-	struct b43_wldev *current_dev;
-	/* Pointer to the ieee80211 hardware data structure */
-	struct ieee80211_hw *hw;
-
-	/* The number of queues that were registered with the mac80211 subsystem
-	 * initially. This is a backup copy of hw->queues in case hw->queues has
-	 * to be dynamically lowered at runtime (Firmware does not support QoS).
-	 * hw->queues has to be restored to the original value before unregistering
-	 * from the mac80211 subsystem. */
-	u16 mac80211_initially_registered_queues;
-
-	struct mutex mutex;
-	spinlock_t irq_lock;
-	/* R/W lock for data transmission.
-	 * Transmissions on 2+ queues can run concurrently, but somebody else
-	 * might sync with TX by write_lock_irqsave()'ing. */
-	rwlock_t tx_lock;
-	/* Lock for LEDs access. */
-	spinlock_t leds_lock;
-	/* Lock for SHM access. */
-	spinlock_t shm_lock;
-
-	/* We can only have one operating interface (802.11 core)
-	 * at a time. General information about this interface follows.
-	 */
-
-	struct ieee80211_vif *vif;
-	/* The MAC address of the operating interface. */
-	u8 mac_addr[ETH_ALEN];
-	/* Current BSSID */
-	u8 bssid[ETH_ALEN];
-	/* Interface type. (IEEE80211_IF_TYPE_XXX) */
-	int if_type;
-	/* Is the card operating in AP, STA or IBSS mode? */
-	bool operating;
-	/* filter flags */
-	unsigned int filter_flags;
-	/* Stats about the wireless interface */
-	struct ieee80211_low_level_stats ieee_stats;
-
-#ifdef CONFIG_B43_HWRNG
-	struct hwrng rng;
-	bool rng_initialized;
-	char rng_name[30 + 1];
-#endif /* CONFIG_B43_HWRNG */
-
-	/* List of all wireless devices on this chip */
-	struct list_head devlist;
-	u8 nr_devs;
-
-	bool radiotap_enabled;
-	bool radio_enabled;
-
-	/* The beacon we are currently using (AP or IBSS mode).
-	 * This beacon stuff is protected by the irq_lock. */
-	struct sk_buff *current_beacon;
-	bool beacon0_uploaded;
-	bool beacon1_uploaded;
-	bool beacon_templates_virgin; /* Never wrote the templates? */
-	struct work_struct beacon_update_trigger;
-
-	/* The current QOS parameters for the 4 queues. */
-	struct b43_qos_params qos_params[4];
-
-	/* Work for adjustment of the transmission power.
-	 * This is scheduled when we determine that the actual TX output
-	 * power doesn't match what we want. */
-	struct work_struct txpower_adjust_work;
-};
+struct b43_wl;
 
 /* The type of the firmware file. */
 enum b43_firmware_file_type {
@@ -739,14 +681,6 @@ enum {
 		smp_wmb();					\
 					} while (0)
 
-/* XXX---   HOW LOCKING WORKS IN B43   ---XXX
- *
- * You should always acquire both, wl->mutex and wl->irq_lock unless:
- * - You don't need to acquire wl->irq_lock, if the interface is stopped.
- * - You don't need to acquire wl->mutex in the IRQ handler, IRQ tasklet
- *   and packet TX path (and _ONLY_ there.)
- */
-
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
 	struct ssb_device *dev;
@@ -755,13 +689,10 @@ struct b43_wldev {
 	/* The device initialization status.
 	 * Use b43_status() to query. */
 	atomic_t __init_status;
-	/* Saved init status for handling suspend. */
-	int suspend_init_status;
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
-	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */
 	bool qos_enabled;		/* TRUE, if QoS is used. */
 	bool hwcrypto_enabled;		/* TRUE, if HW crypto acceleration is enabled. */
 
@@ -781,24 +712,16 @@ struct b43_wldev {
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
 
-	/* The device LEDs. */
-	struct b43_led led_tx;
-	struct b43_led led_rx;
-	struct b43_led led_assoc;
-	struct b43_led led_radio;
-
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
 	u32 dma_reason[6];
 	/* The currently active generic-interrupt mask. */
 	u32 irq_mask;
+
 	/* Link Quality calculation context. */
 	struct b43_noise_calculation noisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */
 	int mac_suspended;
-
-	/* Interrupt Service Routine tasklet (bottom-half) */
-	struct tasklet_struct isr_tasklet;
 
 	/* Periodic tasks */
 	struct delayed_work periodic_work;
@@ -808,8 +731,7 @@ struct b43_wldev {
 
 	/* encryption/decryption */
 	u16 ktp;		/* Key table pointer */
-	u8 max_nr_keys;
-	struct b43_key key[58];
+	struct b43_key key[B43_NR_GROUP_KEYS * 2 + B43_NR_PAIRWISE_KEYS];
 
 	/* Firmware data */
 	struct b43_firmware fw;
@@ -820,7 +742,102 @@ struct b43_wldev {
 	/* Debugging stuff follows. */
 #ifdef CONFIG_B43_DEBUG
 	struct b43_dfsentry *dfsentry;
+	unsigned int irq_count;
+	unsigned int irq_bit_count[32];
+	unsigned int tx_count;
+	unsigned int rx_count;
 #endif
+};
+
+/*
+ * Include goes here to avoid a dependency problem.
+ * A better fix would be to integrate xmit.h into b43.h.
+ */
+#include "xmit.h"
+
+/* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
+struct b43_wl {
+	/* Pointer to the active wireless device on this chip */
+	struct b43_wldev *current_dev;
+	/* Pointer to the ieee80211 hardware data structure */
+	struct ieee80211_hw *hw;
+
+	/* Global driver mutex. Every operation must run with this mutex locked. */
+	struct mutex mutex;
+	/* Hard-IRQ spinlock. This lock protects things used in the hard-IRQ
+	 * handler, only. This basically is just the IRQ mask register. */
+	spinlock_t hardirq_lock;
+
+	/* The number of queues that were registered with the mac80211 subsystem
+	 * initially. This is a backup copy of hw->queues in case hw->queues has
+	 * to be dynamically lowered at runtime (Firmware does not support QoS).
+	 * hw->queues has to be restored to the original value before unregistering
+	 * from the mac80211 subsystem. */
+	u16 mac80211_initially_registered_queues;
+
+	/* We can only have one operating interface (802.11 core)
+	 * at a time. General information about this interface follows.
+	 */
+
+	struct ieee80211_vif *vif;
+	/* The MAC address of the operating interface. */
+	u8 mac_addr[ETH_ALEN];
+	/* Current BSSID */
+	u8 bssid[ETH_ALEN];
+	/* Interface type. (NL80211_IFTYPE_XXX) */
+	int if_type;
+	/* Is the card operating in AP, STA or IBSS mode? */
+	bool operating;
+	/* filter flags */
+	unsigned int filter_flags;
+	/* Stats about the wireless interface */
+	struct ieee80211_low_level_stats ieee_stats;
+
+#ifdef CONFIG_B43_HWRNG
+	struct hwrng rng;
+	bool rng_initialized;
+	char rng_name[30 + 1];
+#endif /* CONFIG_B43_HWRNG */
+
+	/* List of all wireless devices on this chip */
+	struct list_head devlist;
+	u8 nr_devs;
+
+	bool radiotap_enabled;
+	bool radio_enabled;
+
+	/* The beacon we are currently using (AP or IBSS mode). */
+	struct sk_buff *current_beacon;
+	bool beacon0_uploaded;
+	bool beacon1_uploaded;
+	bool beacon_templates_virgin; /* Never wrote the templates? */
+	struct work_struct beacon_update_trigger;
+
+	/* The current QOS parameters for the 4 queues. */
+	struct b43_qos_params qos_params[4];
+
+	/* Work for adjustment of the transmission power.
+	 * This is scheduled when we determine that the actual TX output
+	 * power doesn't match what we want. */
+	struct work_struct txpower_adjust_work;
+
+	/* Packet transmit work */
+	struct work_struct tx_work;
+	/* Queue of packets to be transmitted. */
+	struct sk_buff_head tx_queue;
+
+	/* The device LEDs. */
+	struct b43_leds leds;
+
+#ifdef CONFIG_B43_PIO
+	/*
+	 * RX/TX header/tail buffers used by the frame transmit functions.
+	 */
+	struct b43_rxhdr_fw4 rxhdr;
+	struct b43_txhdr txhdr;
+	u8 rx_tail[4];
+	u8 tx_tail[4];
+#endif /* CONFIG_B43_PIO */
 };
 
 static inline struct b43_wl *hw_to_b43_wl(struct ieee80211_hw *hw)
@@ -834,7 +851,7 @@ static inline struct b43_wldev *dev_to_b43_wldev(struct device *dev)
 	return ssb_get_drvdata(ssb_dev);
 }
 
-/* Is the device operating in a specified mode (IEEE80211_IF_TYPE_XXX). */
+/* Is the device operating in a specified mode (NL80211_IFTYPE_XXX). */
 static inline int b43_is_mode(struct b43_wl *wl, int type)
 {
 	return (wl->operating && wl->if_type == type);

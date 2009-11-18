@@ -24,6 +24,8 @@
 
 #include <asm/prom.h>
 #include <asm/oplib.h>
+#include <asm/leon.h>
+#include <asm/leon_amba.h>
 
 #include "prom.h"
 
@@ -131,6 +133,35 @@ static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 		regs->which_io, regs->phys_addr);
 }
 
+/* "name:vendor:device@irq,addrlo" */
+static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
+{
+	struct amba_prom_registers *regs; unsigned int *intr;
+	unsigned int *device, *vendor;
+	struct property *prop;
+
+	prop = of_find_property(dp, "reg", NULL);
+	if (!prop)
+		return;
+	regs = prop->value;
+	prop = of_find_property(dp, "interrupts", NULL);
+	if (!prop)
+		return;
+	intr = prop->value;
+	prop = of_find_property(dp, "vendor", NULL);
+	if (!prop)
+		return;
+	vendor = prop->value;
+	prop = of_find_property(dp, "device", NULL);
+	if (!prop)
+		return;
+	device = prop->value;
+
+	sprintf(tmp_buf, "%s:%d:%d@%x,%x",
+		dp->name, *vendor, *device,
+		*intr, regs->phys_addr);
+}
+
 static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 {
 	struct device_node *parent = dp->parent;
@@ -143,6 +174,8 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 			return sbus_path_component(dp, tmp_buf);
 		if (!strcmp(parent->type, "ebus"))
 			return ebus_path_component(dp, tmp_buf);
+		if (!strcmp(parent->type, "ambapp"))
+			return ambapp_path_component(dp, tmp_buf);
 
 		/* "isa" is handled with platform naming */
 	}

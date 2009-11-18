@@ -1039,9 +1039,6 @@ static int if_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto err_activate_card;
 
-	if (priv->fwcapinfo & FW_CAPINFO_PS)
-		priv->ps_supported = 1;
-
 out:
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 
@@ -1096,11 +1093,11 @@ static void if_sdio_remove(struct sdio_func *func)
 			lbs_pr_alert("CMD_FUNC_SHUTDOWN cmd failed\n");
 	}
 
-	card->priv->surpriseremoved = 1;
 
 	lbs_deb_sdio("call remove card\n");
 	lbs_stop_card(card->priv);
 	lbs_remove_card(card->priv);
+	card->priv->surpriseremoved = 1;
 
 	flush_workqueue(card->workqueue);
 	destroy_workqueue(card->workqueue);

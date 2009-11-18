@@ -29,7 +29,7 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
-static char *sound_nodename(struct device *dev)
+static char *sound_devnode(struct device *dev, mode_t *mode)
 {
 	if (MAJOR(dev->devt) == SOUND_MAJOR)
 		return NULL;
@@ -50,7 +50,7 @@ static int __init init_soundcore(void)
 		return PTR_ERR(sound_class);
 	}
 
-	sound_class->nodename = sound_nodename;
+	sound_class->devnode = sound_devnode;
 
 	return 0;
 }
@@ -126,6 +126,46 @@ extern int msnd_classic_init(void);
 #ifdef CONFIG_SOUND_MSNDPIN
 extern int msnd_pinnacle_init(void);
 #endif
+
+/*
+ * By default, OSS sound_core claims full legacy minor range (0-255)
+ * of SOUND_MAJOR to trap open attempts to any sound minor and
+ * requests modules using custom sound-slot/service-* module aliases.
+ * The only benefit of doing this is allowing use of custom module
+ * aliases instead of the standard char-major-* ones.  This behavior
+ * prevents alternative OSS implementation and is scheduled to be
+ * removed.
+ *
+ * CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss kernel
+ * parameter are added to allow distros and developers to try and
+ * switch to alternative implementations without needing to rebuild
+ * the kernel in the meantime.  If preclaim_oss is non-zero, the
+ * kernel will behave the same as before.  All SOUND_MAJOR minors are
+ * preclaimed and the custom module aliases along with standard chrdev
+ * ones are emitted if a missing device is opened.  If preclaim_oss is
+ * zero, sound_core only grabs what's actually in use and for missing
+ * devices only the standard chrdev aliases are requested.
+ *
+ * All these clutters are scheduled to be removed along with
+ * sound-slot/service-* module aliases.  Please take a look at
+ * feature-removal-schedule.txt for details.
+ */
+#ifdef CONFIG_SOUND_OSS_CORE_PRECLAIM
+static int preclaim_oss = 1;
+#else
+static int preclaim_oss = 0;
+#endif
+
+module_param(preclaim_oss, int, 0444);
+
+static int soundcore_open(struct inode *, struct file *);
+
+static const struct file_operations soundcore_fops =
+{
+	/* We must have an owner or the module locking fails */
+	.owner	= THIS_MODULE,
+	.open	= soundcore_open,
+};
 
 /*
  *	Low level list operator. Scan the ordered list, find a hole and
@@ -219,8 +259,9 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 
 	if (!s)
 		return -ENOMEM;
-		
+
 	spin_lock(&sound_loader_lock);
+retry:
 	r = __sound_insert_unit(s, list, fops, index, low, top);
 	spin_unlock(&sound_loader_lock);
 	
@@ -231,11 +272,31 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
+	if (!preclaim_oss) {
+		/*
+		 * Something else might have grabbed the minor.  If
+		 * first free slot is requested, rescan with @low set
+		 * to the next unit; otherwise, -EBUSY.
+		 */
+		r = __register_chrdev(SOUND_MAJOR, s->unit_minor, 1, s->name,
+				      &soundcore_fops);
+		if (r < 0) {
+			spin_lock(&sound_loader_lock);
+			__sound_remove_unit(list, s->unit_minor);
+			if (index < 0) {
+				low = s->unit_minor + SOUND_STEP;
+				goto retry;
+			}
+			spin_unlock(&sound_loader_lock);
+			return -EBUSY;
+		}
+	}
+
 	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
 		      NULL, s->name+6);
-	return r;
+	return s->unit_minor;
 
- fail:
+fail:
 	kfree(s);
 	return r;
 }
@@ -254,6 +315,9 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 	p = __sound_remove_unit(list, unit);
 	spin_unlock(&sound_loader_lock);
 	if (p) {
+		if (!preclaim_oss)
+			__unregister_chrdev(SOUND_MAJOR, p->unit_minor, 1,
+					    p->name);
 		device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
 		kfree(p);
 	}
@@ -491,19 +555,6 @@ void unregister_sound_dsp(int unit)
 
 EXPORT_SYMBOL(unregister_sound_dsp);
 
-/*
- *	Now our file operations
- */
-
-static int soundcore_open(struct inode *, struct file *);
-
-static const struct file_operations soundcore_fops=
-{
-	/* We must have an owner or the module locking fails */
-	.owner	= THIS_MODULE,
-	.open	= soundcore_open,
-};
-
 static struct sound_unit *__look_for_unit(int chain, int unit)
 {
 	struct sound_unit *s;
@@ -539,8 +590,9 @@ static int soundcore_open(struct inode *inode, struct file *file)
 	s = __look_for_unit(chain, unit);
 	if (s)
 		new_fops = fops_get(s->unit_fops);
-	if (!new_fops) {
+	if (preclaim_oss && !new_fops) {
 		spin_unlock(&sound_loader_lock);
+
 		/*
 		 *  Please, don't change this order or code.
 		 *  For ALSA slot means soundcard and OSS emulation code
@@ -550,6 +602,17 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		 */
 		request_module("sound-slot-%i", unit>>4);
 		request_module("sound-service-%i-%i", unit>>4, chain);
+
+		/*
+		 * sound-slot/service-* module aliases are scheduled
+		 * for removal in favor of the standard char-major-*
+		 * module aliases.  For the time being, generate both
+		 * the legacy and standard module aliases to ease
+		 * transition.
+		 */
+		if (request_module("char-major-%d-%d", SOUND_MAJOR, unit) > 0)
+			request_module("char-major-%d", SOUND_MAJOR);
+
 		spin_lock(&sound_loader_lock);
 		s = __look_for_unit(chain, unit);
 		if (s)
@@ -593,7 +656,8 @@ static void cleanup_oss_soundcore(void)
 
 static int __init init_oss_soundcore(void)
 {
-	if (register_chrdev(SOUND_MAJOR, "sound", &soundcore_fops)==-1) {
+	if (preclaim_oss &&
+	    register_chrdev(SOUND_MAJOR, "sound", &soundcore_fops) == -1) {
 		printk(KERN_ERR "soundcore: sound device already in use.\n");
 		return -EBUSY;
 	}

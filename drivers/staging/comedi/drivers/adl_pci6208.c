@@ -66,23 +66,23 @@ struct pci6208_board {
 
 static const struct pci6208_board pci6208_boards[] = {
 	/*{
-	.name = "pci6208v",
-	.dev_id = 0x6208,      // not sure
-	.ao_chans = 8
-	   // ,	.ao_bits = 16
+	   .name = "pci6208v",
+	   .dev_id = 0x6208,      // not sure
+	   .ao_chans = 8
+	   // , .ao_bits = 16
 	   },
 	   {
-	.name = "pci6216v",
-	.dev_id = 0x6208,      // not sure
-	.ao_chans = 16
-	   // ,	.ao_bits = 16
+	   .name = "pci6216v",
+	   .dev_id = 0x6208,      // not sure
+	   .ao_chans = 16
+	   // , .ao_bits = 16
 	   }, */
 	{
-	.name = "pci6208a",
-	.dev_id = 0x6208,
-	.ao_chans = 8
-			/* ,	.ao_bits = 16 */
-		}
+	 .name = "pci6208a",
+	 .dev_id = 0x6208,
+	 .ao_chans = 8
+	 /* ,    .ao_bits = 16 */
+	 }
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -90,8 +90,9 @@ static const struct pci6208_board pci6208_boards[] = {
 static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
-	{PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
@@ -107,7 +108,8 @@ struct pci6208_private {
 
 #define devpriv ((struct pci6208_private *)dev->private)
 
-static int pci6208_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci6208_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int pci6208_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_pci6208 = {
@@ -122,13 +124,15 @@ COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);
 static int pci6208_find_device(struct comedi_device *dev, int bus, int slot);
 static int
 pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
-	int dev_minor);
+		  int dev_minor);
 
 /*read/write functions*/
-static int pci6208_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int pci6208_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int pci6208_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int pci6208_ao_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
 /* static int pci6208_dio_insn_bits(struct comedi_device *dev,struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data); */
 /* static int pci6208_dio_insn_config(struct comedi_device *dev,struct comedi_subdevice *s, */
@@ -140,7 +144,8 @@ static int pci6208_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci6208_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int pci6208_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int retval;
@@ -217,8 +222,9 @@ static int pci6208_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static int pci6208_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int i = 0, Data_Read;
 	unsigned short chan = CR_CHAN(insn->chanspec);
@@ -242,8 +248,9 @@ static int pci6208_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int pci6208_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pci6208_ao_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -309,8 +316,8 @@ static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 	int i;
 
 	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_dev != NULL;
-		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	     pci_dev != NULL;
+	     pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
 			for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
 				if (pci6208_boards[i].dev_id == pci_dev->device) {
@@ -318,9 +325,9 @@ static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 					if ((bus != 0) || (slot != 0)) {
 						/*  are we on the wrong bus/slot? */
 						if (pci_dev->bus->number
-							!= bus ||
-							PCI_SLOT(pci_dev->devfn)
-							!= slot) {
+						    != bus ||
+						    PCI_SLOT(pci_dev->devfn)
+						    != slot) {
 							continue;
 						}
 					}
@@ -332,16 +339,16 @@ static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 	}
 
 	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, bus, slot);
+	       dev->minor, bus, slot);
 	return -EIO;
 
-      found:
+found:
 	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
-		dev->minor,
-		pci6208_boards[i].name,
-		pci_dev->bus->number,
-		PCI_SLOT(pci_dev->devfn),
-		PCI_FUNC(pci_dev->devfn), pci_dev->irq);
+	       dev->minor,
+	       pci6208_boards[i].name,
+	       pci_dev->bus->number,
+	       PCI_SLOT(pci_dev->devfn),
+	       PCI_FUNC(pci_dev->devfn), pci_dev->irq);
 
 	/*  TODO: Warn about non-tested boards. */
 	/* switch(board->device_id) */
@@ -355,13 +362,15 @@ static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 
 static int
 pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
-	int dev_minor)
+		  int dev_minor)
 {
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 
 	/*  Enable PCI device and request regions */
 	if (comedi_pci_enable(pci_dev, PCI6208_DRIVER_NAME) < 0) {
-		printk("comedi%d: Failed to enable PCI device and request regions\n", dev_minor);
+		printk
+		    ("comedi%d: Failed to enable PCI device and request regions\n",
+		     dev_minor);
 		return -EIO;
 	}
 	/*  Read local configuration register base address [PCI_BASE_ADDRESS #1]. */
@@ -369,14 +378,14 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 	lcr_io_range = pci_resource_len(pci_dev, 1);
 
 	printk("comedi%d: local config registers at address 0x%4lx [0x%4lx]\n",
-		dev_minor, lcr_io_base, lcr_io_range);
+	       dev_minor, lcr_io_base, lcr_io_range);
 
 	/*  Read PCI6208 register base address [PCI_BASE_ADDRESS #2]. */
 	io_base = pci_resource_start(pci_dev, 2);
 	io_range = pci_resource_end(pci_dev, 2) - io_base + 1;
 
 	printk("comedi%d: 6208 registers at address 0x%4lx [0x%4lx]\n",
-		dev_minor, io_base, io_range);
+	       dev_minor, io_base, io_range);
 
 	*io_base_ptr = io_base;
 	/* devpriv->io_range = io_range; */

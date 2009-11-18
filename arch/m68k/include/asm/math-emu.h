@@ -145,16 +145,16 @@ extern unsigned int fp_debugprint;
  * these are only used during instruction decoding
  * where we always know how deep we're on the stack.
  */
-#define FPS_DO		(PT_D0)
-#define FPS_D1		(PT_D1)
-#define FPS_D2		(PT_D2)
-#define FPS_A0		(PT_A0)
-#define FPS_A1		(PT_A1)
-#define FPS_A2		(PT_A2)
-#define FPS_SR		(PT_SR)
-#define FPS_PC		(PT_PC)
-#define FPS_EA		(PT_PC+6)
-#define FPS_PC2		(PT_PC+10)
+#define FPS_DO		(PT_OFF_D0)
+#define FPS_D1		(PT_OFF_D1)
+#define FPS_D2		(PT_OFF_D2)
+#define FPS_A0		(PT_OFF_A0)
+#define FPS_A1		(PT_OFF_A1)
+#define FPS_A2		(PT_OFF_A2)
+#define FPS_SR		(PT_OFF_SR)
+#define FPS_PC		(PT_OFF_PC)
+#define FPS_EA		(PT_OFF_PC+6)
+#define FPS_PC2		(PT_OFF_PC+10)
 
 .macro	fp_get_fp_reg
 	lea	(FPD_FPREG,FPDATA,%d0.w*4),%a0

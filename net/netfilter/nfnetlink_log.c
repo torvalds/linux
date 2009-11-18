@@ -694,7 +694,8 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 
 static int
 nfulnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nlattr *nfqa[])
+		   const struct nlmsghdr *nlh,
+		   const struct nlattr * const nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -716,7 +717,8 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 
 static int
 nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		   struct nlmsghdr *nlh, struct nlattr *nfula[])
+		   const struct nlmsghdr *nlh,
+		   const struct nlattr * const nfula[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);

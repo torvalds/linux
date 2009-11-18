@@ -621,7 +621,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void qe_set_multicast(struct net_device *dev)

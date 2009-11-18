@@ -18,6 +18,8 @@ struct tracer_stat {
 	int			(*stat_cmp)(void *p1, void *p2);
 	/* Print a stat entry */
 	int			(*stat_show)(struct seq_file *s, void *p);
+	/* Release an entry */
+	void			(*stat_release)(void *stat);
 	/* Print the headers of your stat entries */
 	int			(*stat_headers)(struct seq_file *s);
 };

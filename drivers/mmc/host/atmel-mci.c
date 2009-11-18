@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
+#include <mach/cpu.h>
 #include <mach/board.h>
 
 #include "atmel-mci-regs.h"
@@ -210,6 +211,18 @@ struct atmel_mci_slot {
 	set_bit(event, &host->pending_events)
 
 /*
+ * Enable or disable features/registers based on
+ * whether the processor supports them
+ */
+static bool mci_has_rwproof(void)
+{
+	if (cpu_is_at91sam9261() || cpu_is_at91rm9200())
+		return false;
+	else
+		return true;
+}
+
+/*
  * The debugfs stuff below is mostly optimized away when
  * CONFIG_DEBUG_FS is not set.
  */
@@ -276,8 +289,13 @@ static void atmci_show_status_reg(struct seq_file *s,
 		[3]	= "BLKE",
 		[4]	= "DTIP",
 		[5]	= "NOTBUSY",
+		[6]	= "ENDRX",
+		[7]	= "ENDTX",
 		[8]	= "SDIOIRQA",
 		[9]	= "SDIOIRQB",
+		[12]	= "SDIOWAIT",
+		[14]	= "RXBUFF",
+		[15]	= "TXBUFE",
 		[16]	= "RINDE",
 		[17]	= "RDIRE",
 		[18]	= "RCRCE",
@@ -285,6 +303,11 @@ static void atmci_show_status_reg(struct seq_file *s,
 		[20]	= "RTOE",
 		[21]	= "DCRCE",
 		[22]	= "DTOE",
+		[23]	= "CSTOE",
+		[24]	= "BLKOVRE",
+		[25]	= "DMADONE",
+		[26]	= "FIFOEMPTY",
+		[27]	= "XFRDONE",
 		[30]	= "OVRE",
 		[31]	= "UNRE",
 	};
@@ -576,6 +599,7 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	struct scatterlist		*sg;
 	unsigned int			i;
 	enum dma_data_direction		direction;
+	unsigned int			sglen;
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
@@ -605,11 +629,14 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	else
 		direction = DMA_TO_DEVICE;
 
+	sglen = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, direction);
+	if (sglen != data->sg_len)
+		goto unmap_exit;
 	desc = chan->device->device_prep_slave_sg(chan,
 			data->sg, data->sg_len, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
-		return -ENOMEM;
+		goto unmap_exit;
 
 	host->dma.data_desc = desc;
 	desc->callback = atmci_dma_complete;
@@ -620,6 +647,9 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	chan->device->device_issue_pending(chan);
 
 	return 0;
+unmap_exit:
+	dma_unmap_sg(&host->pdev->dev, data->sg, sglen, direction);
+	return -ENOMEM;
 }
 
 #else /* CONFIG_MMC_ATMELMCI_DMA */
@@ -849,13 +879,15 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			clkdiv = 255;
 		}
 
+		host->mode_reg = MCI_MR_CLKDIV(clkdiv);
+
 		/*
 		 * WRPROOF and RDPROOF prevent overruns/underruns by
 		 * stopping the clock when the FIFO is full/empty.
 		 * This state is not expected to last for long.
 		 */
-		host->mode_reg = MCI_MR_CLKDIV(clkdiv) | MCI_MR_WRPROOF
-					| MCI_MR_RDPROOF;
+		if (mci_has_rwproof())
+			host->mode_reg |= (MCI_MR_WRPROOF | MCI_MR_RDPROOF);
 
 		if (list_empty(&host->queue))
 			mci_writel(host, MR, host->mode_reg);
@@ -1648,8 +1680,10 @@ static int __init atmci_probe(struct platform_device *pdev)
 			nr_slots++;
 	}
 
-	if (!nr_slots)
+	if (!nr_slots) {
+		dev_err(&pdev->dev, "init failed: no slot defined\n");
 		goto err_init_slot;
+	}
 
 	dev_info(&pdev->dev,
 			"Atmel MCI controller at 0x%08lx irq %d, %u slots\n",

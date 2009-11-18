@@ -125,106 +125,64 @@ static void nilfs_direct_set_target_v(struct nilfs_direct *direct,
 	direct->d_bmap.b_last_allocated_ptr = ptr;
 }
 
-static int nilfs_direct_prepare_insert(struct nilfs_direct *direct,
-				       __u64 key,
-				       union nilfs_bmap_ptr_req *req,
-				       struct nilfs_bmap_stats *stats)
-{
-	int ret;
-
-	if (NILFS_BMAP_USE_VBN(&direct->d_bmap))
-		req->bpr_ptr = nilfs_direct_find_target_v(direct, key);
-	ret = nilfs_bmap_prepare_alloc_ptr(&direct->d_bmap, req);
-	if (ret < 0)
-		return ret;
-
-	stats->bs_nblocks = 1;
-	return 0;
-}
-
-static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
-				       union nilfs_bmap_ptr_req *req,
-				       __u64 key, __u64 ptr)
-{
-	struct buffer_head *bh;
-
-	/* ptr must be a pointer to a buffer head. */
-	bh = (struct buffer_head *)((unsigned long)ptr);
-	set_buffer_nilfs_volatile(bh);
-
-	nilfs_bmap_commit_alloc_ptr(&direct->d_bmap, req);
-	nilfs_direct_set_ptr(direct, key, req->bpr_ptr);
-
-	if (!nilfs_bmap_dirty(&direct->d_bmap))
-		nilfs_bmap_set_dirty(&direct->d_bmap);
-
-	if (NILFS_BMAP_USE_VBN(&direct->d_bmap))
-		nilfs_direct_set_target_v(direct, key, req->bpr_ptr);
-}
-
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 {
-	struct nilfs_direct *direct;
+	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
 	union nilfs_bmap_ptr_req req;
-	struct nilfs_bmap_stats stats;
+	struct inode *dat = NULL;
+	struct buffer_head *bh;
 	int ret;
 
-	direct = (struct nilfs_direct *)bmap;
 	if (key > NILFS_DIRECT_KEY_MAX)
 		return -ENOENT;
 	if (nilfs_direct_get_ptr(direct, key) != NILFS_BMAP_INVALID_PTR)
 		return -EEXIST;
 
-	ret = nilfs_direct_prepare_insert(direct, key, &req, &stats);
-	if (ret < 0)
-		return ret;
-	nilfs_direct_commit_insert(direct, &req, key, ptr);
-	nilfs_bmap_add_blocks(bmap, stats.bs_nblocks);
+	if (NILFS_BMAP_USE_VBN(bmap)) {
+		req.bpr_ptr = nilfs_direct_find_target_v(direct, key);
+		dat = nilfs_bmap_get_dat(bmap);
+	}
+	ret = nilfs_bmap_prepare_alloc_ptr(bmap, &req, dat);
+	if (!ret) {
+		/* ptr must be a pointer to a buffer head. */
+		bh = (struct buffer_head *)((unsigned long)ptr);
+		set_buffer_nilfs_volatile(bh);
 
-	return 0;
-}
+		nilfs_bmap_commit_alloc_ptr(bmap, &req, dat);
+		nilfs_direct_set_ptr(direct, key, req.bpr_ptr);
 
-static int nilfs_direct_prepare_delete(struct nilfs_direct *direct,
-				       union nilfs_bmap_ptr_req *req,
-				       __u64 key,
-				       struct nilfs_bmap_stats *stats)
-{
-	int ret;
+		if (!nilfs_bmap_dirty(bmap))
+			nilfs_bmap_set_dirty(bmap);
 
-	req->bpr_ptr = nilfs_direct_get_ptr(direct, key);
-	ret = nilfs_bmap_prepare_end_ptr(&direct->d_bmap, req);
-	if (!ret)
-		stats->bs_nblocks = 1;
+		if (NILFS_BMAP_USE_VBN(bmap))
+			nilfs_direct_set_target_v(direct, key, req.bpr_ptr);
+
+		nilfs_bmap_add_blocks(bmap, 1);
+	}
 	return ret;
-}
-
-static void nilfs_direct_commit_delete(struct nilfs_direct *direct,
-				       union nilfs_bmap_ptr_req *req,
-				       __u64 key)
-{
-	nilfs_bmap_commit_end_ptr(&direct->d_bmap, req);
-	nilfs_direct_set_ptr(direct, key, NILFS_BMAP_INVALID_PTR);
 }
 
 static int nilfs_direct_delete(struct nilfs_bmap *bmap, __u64 key)
 {
-	struct nilfs_direct *direct;
+	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
 	union nilfs_bmap_ptr_req req;
-	struct nilfs_bmap_stats stats;
+	struct inode *dat;
 	int ret;
 
-	direct = (struct nilfs_direct *)bmap;
-	if ((key > NILFS_DIRECT_KEY_MAX) ||
+	if (key > NILFS_DIRECT_KEY_MAX ||
 	    nilfs_direct_get_ptr(direct, key) == NILFS_BMAP_INVALID_PTR)
 		return -ENOENT;
 
-	ret = nilfs_direct_prepare_delete(direct, &req, key, &stats);
-	if (ret < 0)
-		return ret;
-	nilfs_direct_commit_delete(direct, &req, key);
-	nilfs_bmap_sub_blocks(bmap, stats.bs_nblocks);
+	dat = NILFS_BMAP_USE_VBN(bmap) ? nilfs_bmap_get_dat(bmap) : NULL;
+	req.bpr_ptr = nilfs_direct_get_ptr(direct, key);
 
-	return 0;
+	ret = nilfs_bmap_prepare_end_ptr(bmap, &req, dat);
+	if (!ret) {
+		nilfs_bmap_commit_end_ptr(bmap, &req, dat);
+		nilfs_direct_set_ptr(direct, key, NILFS_BMAP_INVALID_PTR);
+		nilfs_bmap_sub_blocks(bmap, 1);
+	}
+	return ret;
 }
 
 static int nilfs_direct_last_key(const struct nilfs_bmap *bmap, __u64 *keyp)
@@ -310,39 +268,36 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 	return 0;
 }
 
-static int nilfs_direct_propagate_v(struct nilfs_direct *direct,
-				    struct buffer_head *bh)
-{
-	union nilfs_bmap_ptr_req oldreq, newreq;
-	__u64 key;
-	__u64 ptr;
-	int ret;
-
-	key = nilfs_bmap_data_get_key(&direct->d_bmap, bh);
-	ptr = nilfs_direct_get_ptr(direct, key);
-	if (!buffer_nilfs_volatile(bh)) {
-		oldreq.bpr_ptr = ptr;
-		newreq.bpr_ptr = ptr;
-		ret = nilfs_bmap_prepare_update_v(&direct->d_bmap, &oldreq,
-						  &newreq);
-		if (ret < 0)
-			return ret;
-		nilfs_bmap_commit_update_v(&direct->d_bmap, &oldreq, &newreq);
-		set_buffer_nilfs_volatile(bh);
-		nilfs_direct_set_ptr(direct, key, newreq.bpr_ptr);
-	} else
-		ret = nilfs_bmap_mark_dirty(&direct->d_bmap, ptr);
-
-	return ret;
-}
-
 static int nilfs_direct_propagate(const struct nilfs_bmap *bmap,
 				  struct buffer_head *bh)
 {
 	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
+	struct nilfs_palloc_req oldreq, newreq;
+	struct inode *dat;
+	__u64 key;
+	__u64 ptr;
+	int ret;
 
-	return NILFS_BMAP_USE_VBN(bmap) ?
-		nilfs_direct_propagate_v(direct, bh) : 0;
+	if (!NILFS_BMAP_USE_VBN(bmap))
+		return 0;
+
+	dat = nilfs_bmap_get_dat(bmap);
+	key = nilfs_bmap_data_get_key(bmap, bh);
+	ptr = nilfs_direct_get_ptr(direct, key);
+	if (!buffer_nilfs_volatile(bh)) {
+		oldreq.pr_entry_nr = ptr;
+		newreq.pr_entry_nr = ptr;
+		ret = nilfs_dat_prepare_update(dat, &oldreq, &newreq);
+		if (ret < 0)
+			return ret;
+		nilfs_dat_commit_update(dat, &oldreq, &newreq,
+					bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
+		set_buffer_nilfs_volatile(bh);
+		nilfs_direct_set_ptr(direct, key, newreq.pr_entry_nr);
+	} else
+		ret = nilfs_dat_mark_dirty(dat, ptr);
+
+	return ret;
 }
 
 static int nilfs_direct_assign_v(struct nilfs_direct *direct,
@@ -351,18 +306,18 @@ static int nilfs_direct_assign_v(struct nilfs_direct *direct,
 				 sector_t blocknr,
 				 union nilfs_binfo *binfo)
 {
+	struct inode *dat = nilfs_bmap_get_dat(&direct->d_bmap);
 	union nilfs_bmap_ptr_req req;
 	int ret;
 
 	req.bpr_ptr = ptr;
-	ret = nilfs_bmap_start_v(&direct->d_bmap, &req, blocknr);
-	if (unlikely(ret < 0))
-		return ret;
-
-	binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
-	binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
-
-	return 0;
+	ret = nilfs_dat_prepare_start(dat, &req.bpr_req);
+	if (!ret) {
+		nilfs_dat_commit_start(dat, &req.bpr_req, blocknr);
+		binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
+		binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+	}
+	return ret;
 }
 
 static int nilfs_direct_assign_p(struct nilfs_direct *direct,

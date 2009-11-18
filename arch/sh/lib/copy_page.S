@@ -30,7 +30,9 @@ ENTRY(copy_page)
 	mov	r4,r10
 	mov	r5,r11
 	mov	r5,r8
-	mov.l	.Lpsz,r0
+	mov	#(PAGE_SIZE >> 10), r0
+	shll8	r0
+	shll2	r0
 	add	r0,r8
 	!
 1:	mov.l	@r11+,r0
@@ -43,7 +45,6 @@ ENTRY(copy_page)
 	mov.l	@r11+,r7
 #if defined(CONFIG_CPU_SH4)
 	movca.l	r0,@r10
-	mov	r10,r0
 #else
 	mov.l	r0,@r10
 #endif
@@ -55,9 +56,6 @@ ENTRY(copy_page)
 	mov.l	r3,@-r10
 	mov.l	r2,@-r10
 	mov.l	r1,@-r10
-#if defined(CONFIG_CPU_SH4)
-	ocbwb	@r0
-#endif
 	cmp/eq	r11,r8
 	bf/s	1b
 	 add	#28,r10
@@ -67,9 +65,6 @@ ENTRY(copy_page)
 	mov.l	@r15+,r8
 	rts
 	 nop
-
-	.balign 4
-.Lpsz:	.long	PAGE_SIZE
 
 /*
  * __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);

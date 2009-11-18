@@ -230,9 +230,11 @@ void disable_irq_nosync(unsigned int irq)
 	if (!desc)
 		return;
 
+	chip_bus_lock(irq, desc);
 	spin_lock_irqsave(&desc->lock, flags);
 	__disable_irq(desc, irq, false);
 	spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(irq, desc);
 }
 EXPORT_SYMBOL(disable_irq_nosync);
 
@@ -294,7 +296,8 @@ void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume)
  *	matches the last disable, processing of interrupts on this
  *	IRQ line is re-enabled.
  *
- *	This function may be called from IRQ context.
+ *	This function may be called from IRQ context only when
+ *	desc->chip->bus_lock and desc->chip->bus_sync_unlock are NULL !
  */
 void enable_irq(unsigned int irq)
 {
@@ -304,9 +307,11 @@ void enable_irq(unsigned int irq)
 	if (!desc)
 		return;
 
+	chip_bus_lock(irq, desc);
 	spin_lock_irqsave(&desc->lock, flags);
 	__enable_irq(desc, irq, false);
 	spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(irq, desc);
 }
 EXPORT_SYMBOL(enable_irq);
 
@@ -436,6 +441,26 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 	return ret;
 }
 
+/*
+ * Default primary interrupt handler for threaded interrupts. Is
+ * assigned as primary handler when request_threaded_irq is called
+ * with handler == NULL. Useful for oneshot interrupts.
+ */
+static irqreturn_t irq_default_primary_handler(int irq, void *dev_id)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+/*
+ * Primary handler for nested threaded interrupts. Should never be
+ * called.
+ */
+static irqreturn_t irq_nested_primary_handler(int irq, void *dev_id)
+{
+	WARN(1, "Primary handler called for nested irq %d\n", irq);
+	return IRQ_NONE;
+}
+
 static int irq_wait_for_interrupt(struct irqaction *action)
 {
 	while (!kthread_should_stop()) {
@@ -449,6 +474,23 @@ static int irq_wait_for_interrupt(struct irqaction *action)
 		schedule();
 	}
 	return -1;
+}
+
+/*
+ * Oneshot interrupts keep the irq line masked until the threaded
+ * handler finished. unmask if the interrupt has not been disabled and
+ * is marked MASKED.
+ */
+static void irq_finalize_oneshot(unsigned int irq, struct irq_desc *desc)
+{
+	chip_bus_lock(irq, desc);
+	spin_lock_irq(&desc->lock);
+	if (!(desc->status & IRQ_DISABLED) && (desc->status & IRQ_MASKED)) {
+		desc->status &= ~IRQ_MASKED;
+		desc->chip->unmask(irq);
+	}
+	spin_unlock_irq(&desc->lock);
+	chip_bus_sync_unlock(irq, desc);
 }
 
 #ifdef CONFIG_SMP
@@ -492,7 +534,7 @@ static int irq_thread(void *data)
 	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO/2, };
 	struct irqaction *action = data;
 	struct irq_desc *desc = irq_to_desc(action->irq);
-	int wake;
+	int wake, oneshot = desc->status & IRQ_ONESHOT;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	current->irqaction = action;
@@ -518,6 +560,9 @@ static int irq_thread(void *data)
 			spin_unlock_irq(&desc->lock);
 
 			action->thread_fn(action->irq, action->dev_id);
+
+			if (oneshot)
+				irq_finalize_oneshot(action->irq, desc);
 		}
 
 		wake = atomic_dec_and_test(&desc->threads_active);
@@ -565,7 +610,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	struct irqaction *old, **old_ptr;
 	const char *old_name = NULL;
 	unsigned long flags;
-	int shared = 0;
+	int nested, shared = 0;
 	int ret;
 
 	if (!desc)
@@ -590,10 +635,32 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		rand_initialize_irq(irq);
 	}
 
+	/* Oneshot interrupts are not allowed with shared */
+	if ((new->flags & IRQF_ONESHOT) && (new->flags & IRQF_SHARED))
+		return -EINVAL;
+
 	/*
-	 * Threaded handler ?
+	 * Check whether the interrupt nests into another interrupt
+	 * thread.
 	 */
-	if (new->thread_fn) {
+	nested = desc->status & IRQ_NESTED_THREAD;
+	if (nested) {
+		if (!new->thread_fn)
+			return -EINVAL;
+		/*
+		 * Replace the primary handler which was provided from
+		 * the driver for non nested interrupt handling by the
+		 * dummy function which warns when called.
+		 */
+		new->handler = irq_nested_primary_handler;
+	}
+
+	/*
+	 * Create a handler thread when a thread function is supplied
+	 * and the interrupt does not nest into another interrupt
+	 * thread.
+	 */
+	if (new->thread_fn && !nested) {
 		struct task_struct *t;
 
 		t = kthread_create(irq_thread, new, "irq/%d-%s", irq,
@@ -662,8 +729,11 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			desc->status |= IRQ_PER_CPU;
 #endif
 
-		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING |
+		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING | IRQ_ONESHOT |
 				  IRQ_INPROGRESS | IRQ_SPURIOUS_DISABLED);
+
+		if (new->flags & IRQF_ONESHOT)
+			desc->status |= IRQ_ONESHOT;
 
 		if (!(desc->status & IRQ_NOAUTOEN)) {
 			desc->depth = 0;
@@ -875,7 +945,14 @@ EXPORT_SYMBOL_GPL(remove_irq);
  */
 void free_irq(unsigned int irq, void *dev_id)
 {
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc)
+		return;
+
+	chip_bus_lock(irq, desc);
 	kfree(__free_irq(irq, dev_id));
+	chip_bus_sync_unlock(irq, desc);
 }
 EXPORT_SYMBOL(free_irq);
 
@@ -884,6 +961,8 @@ EXPORT_SYMBOL(free_irq);
  *	@irq: Interrupt line to allocate
  *	@handler: Function to be called when the IRQ occurs.
  *		  Primary handler for threaded interrupts
+ *		  If NULL and thread_fn != NULL the default
+ *		  primary handler is installed
  *	@thread_fn: Function called from the irq handler thread
  *		    If NULL, no irq thread is created
  *	@irqflags: Interrupt type flags
@@ -963,8 +1042,12 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 
 	if (desc->status & IRQ_NOREQUEST)
 		return -EINVAL;
-	if (!handler)
-		return -EINVAL;
+
+	if (!handler) {
+		if (!thread_fn)
+			return -EINVAL;
+		handler = irq_default_primary_handler;
+	}
 
 	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
 	if (!action)
@@ -976,7 +1059,10 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	action->name = devname;
 	action->dev_id = dev_id;
 
+	chip_bus_lock(irq, desc);
 	retval = __setup_irq(irq, desc, action);
+	chip_bus_sync_unlock(irq, desc);
+
 	if (retval)
 		kfree(action);
 

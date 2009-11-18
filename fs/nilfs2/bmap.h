@@ -28,6 +28,7 @@
 #include <linux/buffer_head.h>
 #include <linux/nilfs2_fs.h>
 #include "alloc.h"
+#include "dat.h"
 
 #define NILFS_BMAP_INVALID_PTR	0
 
@@ -141,7 +142,6 @@ struct nilfs_bmap {
 int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
 void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
-int nilfs_bmap_lookup(struct nilfs_bmap *, unsigned long, unsigned long *);
 int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned);
 int nilfs_bmap_insert(struct nilfs_bmap *, unsigned long, unsigned long);
 int nilfs_bmap_delete(struct nilfs_bmap *, unsigned long);
@@ -160,89 +160,75 @@ void nilfs_bmap_init_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 
 
+static inline int nilfs_bmap_lookup(struct nilfs_bmap *bmap, __u64 key,
+				    __u64 *ptr)
+{
+	return nilfs_bmap_lookup_at_level(bmap, key, 1, ptr);
+}
+
 /*
  * Internal use only
  */
 struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *);
-int nilfs_bmap_prepare_alloc_v(struct nilfs_bmap *,
-			       union nilfs_bmap_ptr_req *);
-void nilfs_bmap_commit_alloc_v(struct nilfs_bmap *,
-			       union nilfs_bmap_ptr_req *);
-void nilfs_bmap_abort_alloc_v(struct nilfs_bmap *,
-			      union nilfs_bmap_ptr_req *);
 
 static inline int nilfs_bmap_prepare_alloc_ptr(struct nilfs_bmap *bmap,
-					       union nilfs_bmap_ptr_req *req)
+					       union nilfs_bmap_ptr_req *req,
+					       struct inode *dat)
 {
-	if (NILFS_BMAP_USE_VBN(bmap))
-		return nilfs_bmap_prepare_alloc_v(bmap, req);
+	if (dat)
+		return nilfs_dat_prepare_alloc(dat, &req->bpr_req);
 	/* ignore target ptr */
 	req->bpr_ptr = bmap->b_last_allocated_ptr++;
 	return 0;
 }
 
 static inline void nilfs_bmap_commit_alloc_ptr(struct nilfs_bmap *bmap,
-					       union nilfs_bmap_ptr_req *req)
+					       union nilfs_bmap_ptr_req *req,
+					       struct inode *dat)
 {
-	if (NILFS_BMAP_USE_VBN(bmap))
-		nilfs_bmap_commit_alloc_v(bmap, req);
+	if (dat)
+		nilfs_dat_commit_alloc(dat, &req->bpr_req);
 }
 
 static inline void nilfs_bmap_abort_alloc_ptr(struct nilfs_bmap *bmap,
-					      union nilfs_bmap_ptr_req *req)
+					      union nilfs_bmap_ptr_req *req,
+					      struct inode *dat)
 {
-	if (NILFS_BMAP_USE_VBN(bmap))
-		nilfs_bmap_abort_alloc_v(bmap, req);
+	if (dat)
+		nilfs_dat_abort_alloc(dat, &req->bpr_req);
 	else
 		bmap->b_last_allocated_ptr--;
 }
 
-int nilfs_bmap_prepare_end_v(struct nilfs_bmap *, union nilfs_bmap_ptr_req *);
-void nilfs_bmap_commit_end_v(struct nilfs_bmap *, union nilfs_bmap_ptr_req *);
-void nilfs_bmap_abort_end_v(struct nilfs_bmap *, union nilfs_bmap_ptr_req *);
-
 static inline int nilfs_bmap_prepare_end_ptr(struct nilfs_bmap *bmap,
-					     union nilfs_bmap_ptr_req *req)
+					     union nilfs_bmap_ptr_req *req,
+					     struct inode *dat)
 {
-	return NILFS_BMAP_USE_VBN(bmap) ?
-		nilfs_bmap_prepare_end_v(bmap, req) : 0;
+	return dat ? nilfs_dat_prepare_end(dat, &req->bpr_req) : 0;
 }
 
 static inline void nilfs_bmap_commit_end_ptr(struct nilfs_bmap *bmap,
-					     union nilfs_bmap_ptr_req *req)
+					     union nilfs_bmap_ptr_req *req,
+					     struct inode *dat)
 {
-	if (NILFS_BMAP_USE_VBN(bmap))
-		nilfs_bmap_commit_end_v(bmap, req);
+	if (dat)
+		nilfs_dat_commit_end(dat, &req->bpr_req,
+				     bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
 }
 
 static inline void nilfs_bmap_abort_end_ptr(struct nilfs_bmap *bmap,
-					    union nilfs_bmap_ptr_req *req)
+					    union nilfs_bmap_ptr_req *req,
+					    struct inode *dat)
 {
-	if (NILFS_BMAP_USE_VBN(bmap))
-		nilfs_bmap_abort_end_v(bmap, req);
+	if (dat)
+		nilfs_dat_abort_end(dat, &req->bpr_req);
 }
-
-int nilfs_bmap_start_v(struct nilfs_bmap *, union nilfs_bmap_ptr_req *,
-		       sector_t);
-int nilfs_bmap_move_v(const struct nilfs_bmap *, __u64, sector_t);
-int nilfs_bmap_mark_dirty(const struct nilfs_bmap *, __u64);
-
 
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *,
 			      const struct buffer_head *);
 
 __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *, __u64);
 __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *);
-
-int nilfs_bmap_prepare_update_v(struct nilfs_bmap *,
-				union nilfs_bmap_ptr_req *,
-				union nilfs_bmap_ptr_req *);
-void nilfs_bmap_commit_update_v(struct nilfs_bmap *,
-				union nilfs_bmap_ptr_req *,
-				union nilfs_bmap_ptr_req *);
-void nilfs_bmap_abort_update_v(struct nilfs_bmap *,
-			       union nilfs_bmap_ptr_req *,
-			       union nilfs_bmap_ptr_req *);
 
 void nilfs_bmap_add_blocks(const struct nilfs_bmap *, int);
 void nilfs_bmap_sub_blocks(const struct nilfs_bmap *, int);

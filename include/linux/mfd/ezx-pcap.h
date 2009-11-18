@@ -25,9 +25,12 @@ struct pcap_chip;
 
 int ezx_pcap_write(struct pcap_chip *, u8, u32);
 int ezx_pcap_read(struct pcap_chip *, u8, u32 *);
+int ezx_pcap_set_bits(struct pcap_chip *, u8, u32, u32);
 int pcap_to_irq(struct pcap_chip *, int);
+int irq_to_pcap(struct pcap_chip *, int);
 int pcap_adc_async(struct pcap_chip *, u8, u32, u8[], void *, void *);
 int pcap_adc_sync(struct pcap_chip *, u8, u32, u8[], u16[]);
+void pcap_set_ts_bits(struct pcap_chip *, u32);
 
 #define PCAP_SECOND_PORT	1
 #define PCAP_CS_AH		2
@@ -224,7 +227,6 @@ int pcap_adc_sync(struct pcap_chip *, u8, u32, u8[], u16[]);
 #define PCAP_LED1		1
 #define PCAP_BL0		2
 #define PCAP_BL1		3
-#define PCAP_VIB		4
 #define PCAP_LED_3MA		0
 #define PCAP_LED_4MA		1
 #define PCAP_LED_5MA		2
@@ -243,9 +245,6 @@ int pcap_adc_sync(struct pcap_chip *, u8, u32, u8[], u16[]);
 #define PCAP_LED0_C_SHIFT	15
 #define PCAP_LED1_C_SHIFT	17
 #define PCAP_BL1_SHIFT		20
-#define PCAP_VIB_MASK		0x3
-#define PCAP_VIB_SHIFT		20
-#define PCAP_VIB_EN		(1 << 19)
 
 /* RTC */
 #define PCAP_RTC_DAY_MASK	0x3fff

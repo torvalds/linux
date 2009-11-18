@@ -5,7 +5,7 @@
  * Author(s): Stefan Weinhuber <wein@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "dasd"
+#define KMSG_COMPONENT "dasd-eckd"
 
 #include <linux/list.h>
 #include <asm/ebcdic.h>
@@ -379,8 +379,7 @@ static int read_unit_address_configuration(struct dasd_device *device,
 	int rc;
 	unsigned long flags;
 
-	cqr = dasd_kmalloc_request("ECKD",
-				   1 /* PSF */	+ 1 /* RSSD */ ,
+	cqr = dasd_kmalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
 				   (sizeof(struct dasd_psf_prssd_data)),
 				   device);
 	if (IS_ERR(cqr))

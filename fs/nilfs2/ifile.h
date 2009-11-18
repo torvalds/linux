@@ -31,7 +31,6 @@
 #include "mdt.h"
 #include "alloc.h"
 
-#define NILFS_IFILE_GFP  NILFS_MDT_GFP
 
 static inline struct nilfs_inode *
 nilfs_ifile_map_inode(struct inode *ifile, ino_t ino, struct buffer_head *ibh)

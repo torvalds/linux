@@ -273,12 +273,19 @@
 #define B43_LPPHY_AFE_DDFS_POINTER_INIT		B43_PHY_OFDM(0xB8) /* AFE DDFS pointer init */
 #define B43_LPPHY_AFE_DDFS_INCR_INIT		B43_PHY_OFDM(0xB9) /* AFE DDFS incr init */
 #define B43_LPPHY_MRCNOISEREDUCTION		B43_PHY_OFDM(0xBA) /* mrcNoiseReduction */
-#define B43_LPPHY_TRLOOKUP3			B43_PHY_OFDM(0xBB) /* TRLookup3 */
-#define B43_LPPHY_TRLOOKUP4			B43_PHY_OFDM(0xBC) /* TRLookup4 */
+#define B43_LPPHY_TR_LOOKUP_3			B43_PHY_OFDM(0xBB) /* TR Lookup 3 */
+#define B43_LPPHY_TR_LOOKUP_4			B43_PHY_OFDM(0xBC) /* TR Lookup 4 */
 #define B43_LPPHY_RADAR_FIFO_STAT		B43_PHY_OFDM(0xBD) /* Radar FIFO Status */
 #define B43_LPPHY_GPIO_OUTEN			B43_PHY_OFDM(0xBE) /* GPIO Out enable */
 #define B43_LPPHY_GPIO_SELECT			B43_PHY_OFDM(0xBF) /* GPIO Select */
 #define B43_LPPHY_GPIO_OUT			B43_PHY_OFDM(0xC0) /* GPIO Out */
+#define B43_LPPHY_4C3				B43_PHY_OFDM(0xC3) /* unknown, used during BB init */
+#define B43_LPPHY_4C4				B43_PHY_OFDM(0xC4) /* unknown, used during BB init */
+#define B43_LPPHY_4C5				B43_PHY_OFDM(0xC5) /* unknown, used during BB init */
+#define B43_LPPHY_TR_LOOKUP_5			B43_PHY_OFDM(0xC7) /* TR Lookup 5 */
+#define B43_LPPHY_TR_LOOKUP_6			B43_PHY_OFDM(0xC8) /* TR Lookup 6 */
+#define B43_LPPHY_TR_LOOKUP_7			B43_PHY_OFDM(0xC9) /* TR Lookup 7 */
+#define B43_LPPHY_TR_LOOKUP_8			B43_PHY_OFDM(0xCA) /* TR Lookup 8 */
 
 
 
@@ -818,14 +825,30 @@ struct b43_phy_lp {
 	enum b43_lpphy_txpctl_mode txpctl_mode;
 
 	/* Transmit isolation medium band */
-	u8 tx_isolation_med_band; /* FIXME initial value? */
+	u8 tx_isolation_med_band;
 	/* Transmit isolation low band */
-	u8 tx_isolation_low_band; /* FIXME initial value? */
+	u8 tx_isolation_low_band;
 	/* Transmit isolation high band */
-	u8 tx_isolation_hi_band; /* FIXME initial value? */
+	u8 tx_isolation_hi_band;
+
+	/* Max transmit power medium band */
+	u16 max_tx_pwr_med_band;
+	/* Max transmit power low band */
+	u16 max_tx_pwr_low_band;
+	/* Max transmit power high band */
+	u16 max_tx_pwr_hi_band;
+
+	/* FIXME What are these used for? */
+	/* FIXME Is 15 the correct array size? */
+	u16 tx_max_rate[15];
+	u16 tx_max_ratel[15];
+	u16 tx_max_rateh[15];
+
+	/* Transmit power arrays */
+	s16 txpa[3], txpal[3], txpah[3];
 
 	/* Receive power offset */
-	u8 rx_pwr_offset; /* FIXME initial value? */
+	u8 rx_pwr_offset;
 
 	/* TSSI transmit count */
 	u16 tssi_tx_count;
@@ -841,16 +864,16 @@ struct b43_phy_lp {
 	s8 tx_pwr_idx_over; /* FIXME initial value? */
 
 	/* RSSI vf */
-	u8 rssi_vf; /* FIXME initial value? */
+	u8 rssi_vf;
 	/* RSSI vc */
-	u8 rssi_vc; /* FIXME initial value? */
+	u8 rssi_vc;
 	/* RSSI gs */
-	u8 rssi_gs; /* FIXME initial value? */
+	u8 rssi_gs;
 
 	/* RC cap */
 	u8 rc_cap; /* FIXME initial value? */
 	/* BX arch */
-	u8 bx_arch; /* FIXME initial value? */
+	u8 bx_arch;
 
 	/* Full calibration channel */
 	u8 full_calib_chan; /* FIXME initial value? */
@@ -858,8 +881,23 @@ struct b43_phy_lp {
 	/* Transmit iqlocal best coeffs */
 	bool tx_iqloc_best_coeffs_valid;
 	u8 tx_iqloc_best_coeffs[11];
+
+	/* Used for "Save/Restore Dig Filt State" */
+	u16 dig_flt_state[9];
+
+	bool crs_usr_disable, crs_sys_disable;
+
+	unsigned int pdiv;
+
+	/* The channel we are tuned to */
+	u8 channel;
 };
 
+enum tssi_mux_mode {
+	TSSI_MUX_PREPA,
+	TSSI_MUX_POSTPA,
+	TSSI_MUX_EXT,
+};
 
 struct b43_phy_operations;
 extern const struct b43_phy_operations b43_phyops_lp;

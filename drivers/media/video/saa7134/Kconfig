@@ -47,6 +47,7 @@ config VIDEO_SAA7134_DVB
 	select DVB_TDA10048 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMISE
+	select DVB_ZL10039 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.

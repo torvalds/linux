@@ -278,6 +278,102 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
 #endif
 
+/* --------------------------------------------------------------------
+ *  MMC / SD Slot for Atmel MCI Driver
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
+static u64 mmc_dmamask = DMA_BIT_MASK(32);
+static struct mci_platform_data mmc_data;
+
+static struct resource mmc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9260_BASE_MCI,
+		.end	= AT91SAM9260_BASE_MCI + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9260_ID_MCI,
+		.end	= AT91SAM9260_ID_MCI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9260_mmc_device = {
+	.name		= "atmel_mci",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &mmc_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &mmc_data,
+	},
+	.resource	= mmc_resources,
+	.num_resources	= ARRAY_SIZE(mmc_resources),
+};
+
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
+{
+	unsigned int i;
+	unsigned int slot_count = 0;
+
+	if (!data)
+		return;
+
+	for (i = 0; i < ATMEL_MCI_MAX_NR_SLOTS; i++) {
+		if (data->slot[i].bus_width) {
+			/* input/irq */
+			if (data->slot[i].detect_pin) {
+				at91_set_gpio_input(data->slot[i].detect_pin, 1);
+				at91_set_deglitch(data->slot[i].detect_pin, 1);
+			}
+			if (data->slot[i].wp_pin)
+				at91_set_gpio_input(data->slot[i].wp_pin, 1);
+
+			switch (i) {
+			case 0:
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA7, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA6, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA9, 1);
+					at91_set_A_periph(AT91_PIN_PA10, 1);
+					at91_set_A_periph(AT91_PIN_PA11, 1);
+				}
+				slot_count++;
+				break;
+			case 1:
+				/* CMD */
+				at91_set_B_periph(AT91_PIN_PA1, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_B_periph(AT91_PIN_PA0, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_B_periph(AT91_PIN_PA5, 1);
+					at91_set_B_periph(AT91_PIN_PA4, 1);
+					at91_set_B_periph(AT91_PIN_PA3, 1);
+				}
+				slot_count++;
+				break;
+			default:
+				printk(KERN_ERR
+					"AT91: SD/MMC slot %d not available\n", i);
+				break;
+			}
+		}
+	}
+
+	if (slot_count) {
+		/* CLK */
+		at91_set_A_periph(AT91_PIN_PA8, 0);
+
+		mmc_data = *data;
+		platform_device_register(&at91sam9260_mmc_device);
+	}
+}
+#else
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data) {}
+#endif
+
 
 /* --------------------------------------------------------------------
  *  NAND / SmartMedia
@@ -1113,6 +1209,122 @@ void __init at91_set_serial_console(unsigned portnr) {}
 void __init at91_add_device_serial(void) {}
 #endif
 
+/* --------------------------------------------------------------------
+ *  CF/IDE
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_BLK_DEV_IDE_AT91) || defined(CONFIG_BLK_DEV_IDE_AT91_MODULE) || \
+	defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE) || \
+	defined(CONFIG_AT91_CF) || defined(CONFIG_AT91_CF_MODULE)
+
+static struct at91_cf_data cf0_data;
+
+static struct resource cf0_resources[] = {
+	[0] = {
+		.start	= AT91_CHIPSELECT_4,
+		.end	= AT91_CHIPSELECT_4 + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device cf0_device = {
+	.id		= 0,
+	.dev		= {
+				.platform_data	= &cf0_data,
+	},
+	.resource	= cf0_resources,
+	.num_resources	= ARRAY_SIZE(cf0_resources),
+};
+
+static struct at91_cf_data cf1_data;
+
+static struct resource cf1_resources[] = {
+	[0] = {
+		.start	= AT91_CHIPSELECT_5,
+		.end	= AT91_CHIPSELECT_5 + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device cf1_device = {
+	.id		= 1,
+	.dev		= {
+				.platform_data	= &cf1_data,
+	},
+	.resource	= cf1_resources,
+	.num_resources	= ARRAY_SIZE(cf1_resources),
+};
+
+void __init at91_add_device_cf(struct at91_cf_data *data)
+{
+	struct platform_device *pdev;
+	unsigned long csa;
+
+	if (!data)
+		return;
+
+	csa = at91_sys_read(AT91_MATRIX_EBICSA);
+
+	switch (data->chipselect) {
+	case 4:
+		at91_set_multi_drive(AT91_PIN_PC8, 0);
+		at91_set_A_periph(AT91_PIN_PC8, 0);
+		csa |= AT91_MATRIX_CS4A_SMC_CF1;
+		cf0_data = *data;
+		pdev = &cf0_device;
+		break;
+	case 5:
+		at91_set_multi_drive(AT91_PIN_PC9, 0);
+		at91_set_A_periph(AT91_PIN_PC9, 0);
+		csa |= AT91_MATRIX_CS5A_SMC_CF2;
+		cf1_data = *data;
+		pdev = &cf1_device;
+		break;
+	default:
+		printk(KERN_ERR "AT91 CF: bad chip-select requested (%u)\n",
+		       data->chipselect);
+		return;
+	}
+
+	at91_sys_write(AT91_MATRIX_EBICSA, csa);
+
+	if (data->rst_pin) {
+		at91_set_multi_drive(data->rst_pin, 0);
+		at91_set_gpio_output(data->rst_pin, 1);
+	}
+
+	if (data->irq_pin) {
+		at91_set_gpio_input(data->irq_pin, 0);
+		at91_set_deglitch(data->irq_pin, 1);
+	}
+
+	if (data->det_pin) {
+		at91_set_gpio_input(data->det_pin, 0);
+		at91_set_deglitch(data->det_pin, 1);
+	}
+
+	at91_set_B_periph(AT91_PIN_PC6, 0);     /* CFCE1 */
+	at91_set_B_periph(AT91_PIN_PC7, 0);     /* CFCE2 */
+	at91_set_A_periph(AT91_PIN_PC10, 0);    /* CFRNW */
+	at91_set_A_periph(AT91_PIN_PC15, 1);    /* NWAIT */
+
+	if (data->flags & AT91_CF_TRUE_IDE)
+#if defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE)
+		pdev->name = "pata_at91";
+#elif defined(CONFIG_BLK_DEV_IDE_AT91) || defined(CONFIG_BLK_DEV_IDE_AT91_MODULE)
+		pdev->name = "at91_ide";
+#else
+#warning "board requires AT91_CF_TRUE_IDE: enable either at91_ide or pata_at91"
+#endif
+	else
+		pdev->name = "at91_cf";
+
+	platform_device_register(pdev);
+}
+
+#else
+void __init at91_add_device_cf(struct at91_cf_data * data) {}
+#endif
 
 /* -------------------------------------------------------------------- */
 /*

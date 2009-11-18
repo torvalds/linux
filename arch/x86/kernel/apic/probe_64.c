@@ -55,24 +55,31 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
 void __init default_setup_apic_routing(void)
 {
 #ifdef CONFIG_X86_X2APIC
-	if (x2apic_mode && (apic != &apic_x2apic_phys &&
+	if (x2apic_mode
 #ifdef CONFIG_X86_UV
-		       apic != &apic_x2apic_uv_x &&
+		       && apic != &apic_x2apic_uv_x
 #endif
-		       apic != &apic_x2apic_cluster)) {
+		       ) {
 		if (x2apic_phys)
 			apic = &apic_x2apic_phys;
 		else
 			apic = &apic_x2apic_cluster;
-		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 	}
 #endif
 
 	if (apic == &apic_flat) {
-		if (max_physical_apicid >= 8)
-			apic = &apic_physflat;
-		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (num_processors > 8)
+				apic = &apic_physflat;
+			break;
+		case X86_VENDOR_AMD:
+			if (max_physical_apicid >= 8)
+				apic = &apic_physflat;
+		}
 	}
+
+	printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 
 	if (is_vsmp_box()) {
 		/* need to update phys_pkg_id */

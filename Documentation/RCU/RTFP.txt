@@ -743,3 +743,80 @@ Revised:
 	RCU, realtime RCU, sleepable RCU, performance.
 "
 }
+
+@article{PaulEMcKenney2008RCUOSR
+,author="Paul E. McKenney and Jonathan Walpole"
+,title="Introducing technology into the {Linux} kernel: a case study"
+,Year="2008"
+,journal="SIGOPS Oper. Syst. Rev."
+,volume="42"
+,number="5"
+,pages="4--17"
+,issn="0163-5980"
+,doi={http://doi.acm.org/10.1145/1400097.1400099}
+,publisher="ACM"
+,address="New York, NY, USA"
+,annotation={
+	Linux changed RCU to a far greater degree than RCU has changed Linux.
+}
+}
+
+@unpublished{PaulEMcKenney2008HierarchicalRCU
+,Author="Paul E. McKenney"
+,Title="Hierarchical {RCU}"
+,month="November"
+,day="3"
+,year="2008"
+,note="Available:
+\url{http://lwn.net/Articles/305782/}
+[Viewed November 6, 2008]"
+,annotation="
+	RCU with combining-tree-based grace-period detection,
+	permitting it to handle thousands of CPUs.
+"
+}
+
+@conference{PaulEMcKenney2009MaliciousURCU
+,Author="Paul E. McKenney"
+,Title="Using a Malicious User-Level {RCU} to Torture {RCU}-Based Algorithms"
+,Booktitle="linux.conf.au 2009"
+,month="January"
+,year="2009"
+,address="Hobart, Australia"
+,note="Available:
+\url{http://www.rdrop.com/users/paulmck/RCU/urcutorture.2009.01.22a.pdf}
+[Viewed February 2, 2009]"
+,annotation="
+	Realtime RCU and torture-testing RCU uses.
+"
+}
+
+@unpublished{MathieuDesnoyers2009URCU
+,Author="Mathieu Desnoyers"
+,Title="[{RFC} git tree] Userspace {RCU} (urcu) for {Linux}"
+,month="February"
+,day="5"
+,year="2009"
+,note="Available:
+\url{http://lkml.org/lkml/2009/2/5/572}
+\url{git://lttng.org/userspace-rcu.git}
+[Viewed February 20, 2009]"
+,annotation="
+	Mathieu Desnoyers's user-space RCU implementation.
+	git://lttng.org/userspace-rcu.git
+"
+}
+
+@unpublished{PaulEMcKenney2009BloatWatchRCU
+,Author="Paul E. McKenney"
+,Title="{RCU}: The {Bloatwatch} Edition"
+,month="March"
+,day="17"
+,year="2009"
+,note="Available:
+\url{http://lwn.net/Articles/323929/}
+[Viewed March 20, 2009]"
+,annotation="
+	Uniprocessor assumptions allow simplified RCU implementation.
+"
+}

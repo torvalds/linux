@@ -41,6 +41,12 @@ extern struct irq_desc *irq_to_desc(unsigned int irq);
 			;						\
 		else
 
+#ifdef CONFIG_SMP
+#define irq_node(irq)	(irq_to_desc(irq)->node)
+#else
+#define irq_node(irq)	0
+#endif
+
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #define for_each_irq_nr(irq)                   \

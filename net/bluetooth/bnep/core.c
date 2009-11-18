@@ -533,6 +533,10 @@ static struct device *bnep_get_device(struct bnep_session *session)
 	return conn ? &conn->dev : NULL;
 }
 
+static struct device_type bnep_type = {
+	.name	= "bluetooth",
+};
+
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 {
 	struct net_device *dev;
@@ -586,6 +590,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 #endif
 
 	SET_NETDEV_DEV(dev, bnep_get_device(s));
+	SET_NETDEV_DEVTYPE(dev, &bnep_type);
 
 	err = register_netdev(dev);
 	if (err) {

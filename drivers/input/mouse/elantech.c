@@ -553,7 +553,7 @@ static struct attribute_group elantech_attr_group = {
 /*
  * Use magic knock to detect Elantech touchpad
  */
-int elantech_detect(struct psmouse *psmouse, int set_properties)
+int elantech_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[3];

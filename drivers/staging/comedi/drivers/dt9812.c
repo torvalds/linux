@@ -89,9 +89,9 @@ for my needs.
 #define F020_MASK_DACxCN_DACxEN		0x80
 
 enum {
-				/* A/D  D/A  DI  DO  CT */
+	/* A/D  D/A  DI  DO  CT */
 	DT9812_DEVID_DT9812_10,	/*  8    2   8   8   1  +/- 10V */
-	DT9812_DEVID_DT9812_2PT5,/* 8    2   8   8   1  0-2.44V */
+	DT9812_DEVID_DT9812_2PT5,	/* 8    2   8   8   1  0-2.44V */
 #if 0
 	DT9812_DEVID_DT9813,	/*  16   2   4   4   1  +/- 10V */
 	DT9812_DEVID_DT9814	/*  24   2   0   0   1  +/- 10V */
@@ -266,7 +266,7 @@ static DECLARE_MUTEX(dt9812_mutex);
 
 static struct usb_device_id dt9812_table[] = {
 	{USB_DEVICE(0x0867, 0x9812)},
-	{ }			/* Terminating entry */
+	{}			/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, dt9812_table);
@@ -301,23 +301,23 @@ struct slot_dt9812 {
 };
 
 static const struct comedi_lrange dt9812_10_ain_range = { 1, {
-			BIP_RANGE(10),
-	}
+							      BIP_RANGE(10),
+							      }
 };
 
 static const struct comedi_lrange dt9812_2pt5_ain_range = { 1, {
-			UNI_RANGE(2.5),
-	}
+								UNI_RANGE(2.5),
+								}
 };
 
 static const struct comedi_lrange dt9812_10_aout_range = { 1, {
-			BIP_RANGE(10),
-	}
+							       BIP_RANGE(10),
+							       }
 };
 
 static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
-			UNI_RANGE(2.5),
-	}
+								 UNI_RANGE(2.5),
+								 }
 };
 
 static struct slot_dt9812 dt9812[DT9812_NUM_SLOTS];
@@ -346,7 +346,7 @@ static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 
 	cmd.cmd = cpu_to_le32(DT9812_R_FLASH_DATA);
 	cmd.u.flash_data_info.address =
-		cpu_to_le16(DT9812_DIAGS_BOARD_INFO_ADDR + offset);
+	    cpu_to_le16(DT9812_DIAGS_BOARD_INFO_ADDR + offset);
 	cmd.u.flash_data_info.numbytes = cpu_to_le16(buf_size);
 
 	/* DT9812 only responds to 32 byte writes!! */
@@ -365,7 +365,7 @@ static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 }
 
 static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
-					  u8 *address, u8 *value)
+					  u8 * address, u8 * value)
 {
 	struct dt9812_usb_cmd cmd;
 	int i, count, retval;
@@ -391,8 +391,8 @@ static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 }
 
 static int dt9812_write_multiple_registers(struct usb_dt9812 *dev,
-					   int reg_count, u8 *address,
-					   u8 *value)
+					   int reg_count, u8 * address,
+					   u8 * value)
 {
 	struct dt9812_usb_cmd cmd;
 	int i, count, retval;
@@ -430,7 +430,7 @@ static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 	return retval;
 }
 
-static int dt9812_digital_in(struct slot_dt9812 *slot, u8 *bits)
+static int dt9812_digital_in(struct slot_dt9812 *slot, u8 * bits)
 {
 	int result = -ENODEV;
 
@@ -449,7 +449,7 @@ static int dt9812_digital_in(struct slot_dt9812 *slot, u8 *bits)
 			 */
 			*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
 			/* printk("%2.2x, %2.2x -> %2.2x\n",
-				  value[0], value[1], *bits); */
+			   value[0], value[1], *bits); */
 		}
 	}
 	up(&slot->mutex);
@@ -476,7 +476,7 @@ static int dt9812_digital_out(struct slot_dt9812 *slot, u8 bits)
 	return result;
 }
 
-static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 *bits)
+static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 * bits)
 {
 	int result = -ENODEV;
 
@@ -516,8 +516,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 
 	rmw->address = F020_SFR_ADC0CF;
 	rmw->and_mask = F020_MASK_ADC0CF_AMP0GN2 |
-			F020_MASK_ADC0CF_AMP0GN1 |
-			F020_MASK_ADC0CF_AMP0GN0;
+	    F020_MASK_ADC0CF_AMP0GN1 | F020_MASK_ADC0CF_AMP0GN0;
 	switch (gain) {
 		/*
 		 * 000 -> Gain =  1
@@ -529,7 +528,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 		 */
 	case DT9812_GAIN_0PT5:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2 ||
-				F020_MASK_ADC0CF_AMP0GN1;
+		    F020_MASK_ADC0CF_AMP0GN1;
 		break;
 	case DT9812_GAIN_1:
 		rmw->or_value = 0x00;
@@ -542,7 +541,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 		break;
 	case DT9812_GAIN_8:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN1 ||
-				F020_MASK_ADC0CF_AMP0GN0;
+		    F020_MASK_ADC0CF_AMP0GN0;
 		break;
 	case DT9812_GAIN_16:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2;
@@ -553,7 +552,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 	}
 }
 
-static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
+static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 * value,
 			    enum dt9812_gain gain)
 {
 	struct dt9812_rmw_byte rmw[3];
@@ -620,7 +619,7 @@ exit:
 }
 
 static int dt9812_analog_out_shadow(struct slot_dt9812 *slot, int channel,
-				    u16 *value)
+				    u16 * value)
 {
 	int result = -ENODEV;
 
@@ -729,32 +728,32 @@ static int dt9812_probe(struct usb_interface *interface,
 			direction = USB_DIR_IN;
 			dev->message_pipe.addr = endpoint->bEndpointAddress;
 			dev->message_pipe.size =
-					le16_to_cpu(endpoint->wMaxPacketSize);
+			    le16_to_cpu(endpoint->wMaxPacketSize);
 
 			break;
 		case 1:
 			direction = USB_DIR_OUT;
 			dev->command_write.addr = endpoint->bEndpointAddress;
 			dev->command_write.size =
-					le16_to_cpu(endpoint->wMaxPacketSize);
+			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		case 2:
 			direction = USB_DIR_IN;
 			dev->command_read.addr = endpoint->bEndpointAddress;
 			dev->command_read.size =
-					le16_to_cpu(endpoint->wMaxPacketSize);
+			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		case 3:
 			direction = USB_DIR_OUT;
 			dev->write_stream.addr = endpoint->bEndpointAddress;
 			dev->write_stream.size =
-					le16_to_cpu(endpoint->wMaxPacketSize);
+			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		case 4:
 			direction = USB_DIR_IN;
 			dev->read_stream.addr = endpoint->bEndpointAddress;
 			dev->read_stream.size =
-					le16_to_cpu(endpoint->wMaxPacketSize);
+			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		}
 		if ((endpoint->bEndpointAddress & USB_DIR_IN) != direction) {
@@ -786,8 +785,7 @@ static int dt9812_probe(struct usb_interface *interface,
 		retval = -ENODEV;
 		goto error;
 	}
-	if (dt9812_read_info(dev, 3, &dev->product,
-			     sizeof(dev->product)) != 0) {
+	if (dt9812_read_info(dev, 3, &dev->product, sizeof(dev->product)) != 0) {
 		err("Failed to read product.");
 		retval = -ENODEV;
 		goto error;
@@ -940,8 +938,9 @@ static void dt9812_comedi_open(struct comedi_device *dev)
 	up(&devpriv->slot->mutex);
 }
 
-static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int dt9812_di_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -952,8 +951,9 @@ static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int dt9812_do_winsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -970,8 +970,9 @@ static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int dt9812_ai_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n;
 
@@ -985,8 +986,9 @@ static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int dt9812_ao_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n;
 	u16 value;
@@ -999,8 +1001,9 @@ static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int dt9812_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
+static int dt9812_ao_winsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n;
 

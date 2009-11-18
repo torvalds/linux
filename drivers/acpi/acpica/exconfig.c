@@ -110,7 +110,14 @@ acpi_ex_add_table(u32 table_index,
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(obj_desc);
 		*ddb_handle = NULL;
+		return_ACPI_STATUS(status);
 	}
+
+	/* Execute any module-level code that was found in the table */
+
+	acpi_ex_exit_interpreter();
+	acpi_ns_exec_module_code_list();
+	acpi_ex_enter_interpreter();
 
 	return_ACPI_STATUS(status);
 }

@@ -596,6 +596,7 @@ struct radeon_asic {
 	void (*fini)(struct radeon_device *rdev);
 	int (*resume)(struct radeon_device *rdev);
 	int (*suspend)(struct radeon_device *rdev);
+	void (*vga_set_state)(struct radeon_device *rdev, bool state);
 	int (*gpu_reset)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
@@ -945,6 +946,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_resume(rdev) (rdev)->asic->resume((rdev))
 #define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
+#define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_gpu_reset(rdev) (rdev)->asic->gpu_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))

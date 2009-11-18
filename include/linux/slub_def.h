@@ -153,12 +153,10 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <= KMALLOC_MIN_SIZE)
 		return KMALLOC_SHIFT_LOW;
 
-#if KMALLOC_MIN_SIZE <= 64
-	if (size > 64 && size <= 96)
+	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
 		return 1;
-	if (size > 128 && size <= 192)
+	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
 		return 2;
-#endif
 	if (size <=          8) return 3;
 	if (size <=         16) return 4;
 	if (size <=         32) return 5;
@@ -303,7 +301,5 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 	return __kmalloc_node(size, flags, node);
 }
 #endif
-
-void __init kmem_cache_init_late(void);
 
 #endif /* _LINUX_SLUB_DEF_H */

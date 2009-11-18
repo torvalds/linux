@@ -1,7 +1,7 @@
 /*
  * arch/arm/plat-iop/setup.c
  *
- * Author: Nicolas Pitre <nico@cam.org>
+ * Author: Nicolas Pitre <nico@fluxnic.net>
  * Copyright (C) 2001 MontaVista Software, Inc.
  * Copyright (C) 2004 Intel Corporation.
  *

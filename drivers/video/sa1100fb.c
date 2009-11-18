@@ -66,7 +66,7 @@
  *	- FrameBuffer memory is now allocated at run-time when the
  *	  driver is initialized.    
  *
- * 2000/04/10: Nicolas Pitre <nico@cam.org>
+ * 2000/04/10: Nicolas Pitre <nico@fluxnic.net>
  *	- Big cleanup for dynamic selection of machine type at run time.
  *
  * 2000/07/19: Jamey Hicks <jamey@crl.dec.com>

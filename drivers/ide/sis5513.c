@@ -2,7 +2,7 @@
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
  * Copyright (C) 2003		Vojtech Pavlik <vojtech@suse.cz>
- * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
+ * Copyright (C) 2007-2009	Bartlomiej Zolnierkiewicz
  *
  * May be copied or modified under the terms of the GNU General Public License
  *
@@ -281,11 +281,13 @@ static void config_drive_art_rwp(ide_drive_t *drive)
 
 	pci_read_config_byte(dev, 0x4b, &reg4bh);
 
-	if (drive->media == ide_disk)
-		rw_prefetch = 0x11 << drive->dn;
+	rw_prefetch = reg4bh & ~(0x11 << drive->dn);
 
-	if ((reg4bh & (0x11 << drive->dn)) != rw_prefetch)
-		pci_write_config_byte(dev, 0x4b, reg4bh|rw_prefetch);
+	if (drive->media == ide_disk)
+		rw_prefetch |= 0x11 << drive->dn;
+
+	if (reg4bh != rw_prefetch)
+		pci_write_config_byte(dev, 0x4b, rw_prefetch);
 }
 
 static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)

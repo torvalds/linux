@@ -99,11 +99,6 @@ xfs_bulkstat_one(
 	void			*dibuff,
 	int			*stat);
 
-int
-xfs_internal_inum(
-	xfs_mount_t		*mp,
-	xfs_ino_t		ino);
-
 typedef int (*inumbers_fmt_pf)(
 	void			__user *ubuffer, /* buffer to write to */
 	const xfs_inogrp_t	*buffer,	/* buffer to read from */

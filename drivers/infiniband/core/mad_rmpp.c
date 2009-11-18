@@ -37,7 +37,8 @@
 enum rmpp_state {
 	RMPP_STATE_ACTIVE,
 	RMPP_STATE_TIMEOUT,
-	RMPP_STATE_COMPLETE
+	RMPP_STATE_COMPLETE,
+	RMPP_STATE_CANCELING
 };
 
 struct mad_rmpp_recv {
@@ -87,18 +88,22 @@ void ib_cancel_rmpp_recvs(struct ib_mad_agent_private *agent)
 
 	spin_lock_irqsave(&agent->lock, flags);
 	list_for_each_entry(rmpp_recv, &agent->rmpp_list, list) {
+		if (rmpp_recv->state != RMPP_STATE_COMPLETE)
+			ib_free_recv_mad(rmpp_recv->rmpp_wc);
+		rmpp_recv->state = RMPP_STATE_CANCELING;
+	}
+	spin_unlock_irqrestore(&agent->lock, flags);
+
+	list_for_each_entry(rmpp_recv, &agent->rmpp_list, list) {
 		cancel_delayed_work(&rmpp_recv->timeout_work);
 		cancel_delayed_work(&rmpp_recv->cleanup_work);
 	}
-	spin_unlock_irqrestore(&agent->lock, flags);
 
 	flush_workqueue(agent->qp_info->port_priv->wq);
 
 	list_for_each_entry_safe(rmpp_recv, temp_rmpp_recv,
 				 &agent->rmpp_list, list) {
 		list_del(&rmpp_recv->list);
-		if (rmpp_recv->state != RMPP_STATE_COMPLETE)
-			ib_free_recv_mad(rmpp_recv->rmpp_wc);
 		destroy_rmpp_recv(rmpp_recv);
 	}
 }
@@ -260,6 +265,10 @@ static void recv_cleanup_handler(struct work_struct *work)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rmpp_recv->agent->lock, flags);
+	if (rmpp_recv->state == RMPP_STATE_CANCELING) {
+		spin_unlock_irqrestore(&rmpp_recv->agent->lock, flags);
+		return;
+	}
 	list_del(&rmpp_recv->list);
 	spin_unlock_irqrestore(&rmpp_recv->agent->lock, flags);
 	destroy_rmpp_recv(rmpp_recv);

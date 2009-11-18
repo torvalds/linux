@@ -779,7 +779,7 @@ static void rds_iw_build_send_fastreg(struct rds_iw_device *rds_iwdev, struct rd
 	send->s_wr.wr.fast_reg.rkey = send->s_mr->rkey;
 	send->s_wr.wr.fast_reg.page_list = send->s_page_list;
 	send->s_wr.wr.fast_reg.page_list_len = nent;
-	send->s_wr.wr.fast_reg.page_shift = rds_iwdev->page_shift;
+	send->s_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
 	send->s_wr.wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE;
 	send->s_wr.wr.fast_reg.iova_start = sg_addr;
 

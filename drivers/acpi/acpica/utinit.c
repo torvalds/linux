@@ -99,32 +99,18 @@ static void acpi_ut_terminate(void)
  *
  * FUNCTION:    acpi_ut_subsystem_shutdown
  *
- * PARAMETERS:  none
+ * PARAMETERS:  None
  *
- * RETURN:      none
+ * RETURN:      None
  *
- * DESCRIPTION: Shutdown the various subsystems.  Don't delete the mutex
- *              objects here -- because the AML debugger may be still running.
+ * DESCRIPTION: Shutdown the various components. Do not delete the mutex
+ *              objects here, because the AML debugger may be still running.
  *
  ******************************************************************************/
 
 void acpi_ut_subsystem_shutdown(void)
 {
-
 	ACPI_FUNCTION_TRACE(ut_subsystem_shutdown);
-
-	/* Just exit if subsystem is already shutdown */
-
-	if (acpi_gbl_shutdown) {
-		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
-		return_VOID;
-	}
-
-	/* Subsystem appears active, go ahead and shut it down */
-
-	acpi_gbl_shutdown = TRUE;
-	acpi_gbl_startup_flags = 0;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 #ifndef ACPI_ASL_COMPILER
 

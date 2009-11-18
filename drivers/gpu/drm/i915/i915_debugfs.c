@@ -96,11 +96,13 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	{
 		struct drm_gem_object *obj = obj_priv->obj;
 
-		seq_printf(m, "    %p: %s %08x %08x %d",
+		seq_printf(m, "    %p: %s %8zd %08x %08x %d %s",
 			   obj,
 			   get_pin_flag(obj_priv),
+			   obj->size,
 			   obj->read_domains, obj->write_domain,
-			   obj_priv->last_rendering_seqno);
+			   obj_priv->last_rendering_seqno,
+			   obj_priv->dirty ? "dirty" : "");
 
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);

@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.10"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.09"
+#define MPT_LINUX_VERSION_COMMON	"3.04.12"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.12"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -157,8 +157,9 @@
 /*
  *	Try to keep these at 2^N-1
  */
-#define MPT_FC_CAN_QUEUE	127
+#define MPT_FC_CAN_QUEUE	1024
 #define MPT_SCSI_CAN_QUEUE	127
+#define MPT_SAS_CAN_QUEUE	127
 
 /*
  * Set the MAX_SGE value based on user input.
@@ -879,23 +880,9 @@ typedef enum {
 
 typedef struct _MPT_SCSI_HOST {
 	MPT_ADAPTER		 *ioc;
-	int			  port;
-	u32			  pad0;
-	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
-	struct timer_list	  timer;
-		/* Pool of memory for holding SCpnts before doing
-		 * OS callbacks. freeQ is the free pool.
-		 */
-	u8			  negoNvram;		/* DV disabled, nego NVRAM */
-	u8			  pad1;
-	u8			  rsvd[2];
-	MPT_FRAME_HDR		 *cmdPtr;		/* Ptr to nonOS request */
-	struct scsi_cmnd	 *abortSCpnt;
-	MPT_LOCAL_REPLY		  localReply;		/* internal cmd reply struct */
 	ushort			  sel_timeout[MPT_MAX_FC_DEVICES];
 	char 			  *info_kbuf;
 	long			  last_queue_full;
-	u16			  tm_iocstatus;
 	u16			  spi_pending;
 	struct list_head	  target_reset_list;
 } MPT_SCSI_HOST;

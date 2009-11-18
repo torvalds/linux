@@ -32,6 +32,7 @@
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <linux/fs_struct.h>
+#include <linux/hardirq.h>
 #include "internal.h"
 
 int sysctl_vfs_cache_pressure __read_mostly = 100;

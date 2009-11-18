@@ -1129,7 +1129,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	if (error == -EOPNOTSUPP)
 		goto out;
 
-	if ((error == -EWOULDBLOCK) && bio_rw_ahead(bio))
+	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
 		goto out;
 
 	if (unlikely(error)) {

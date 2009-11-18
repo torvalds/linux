@@ -55,6 +55,7 @@
 #define SECONDARY_EXEC_ENABLE_EPT               0x00000002
 #define SECONDARY_EXEC_ENABLE_VPID              0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
+#define SECONDARY_EXEC_UNRESTRICTED_GUEST	0x00000080
 
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
@@ -351,9 +352,16 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_INDIVIDUAL_ADDR		0
 #define VMX_EPT_EXTENT_CONTEXT			1
 #define VMX_EPT_EXTENT_GLOBAL			2
+
+#define VMX_EPT_EXECUTE_ONLY_BIT		(1ull)
+#define VMX_EPT_PAGE_WALK_4_BIT			(1ull << 6)
+#define VMX_EPTP_UC_BIT				(1ull << 8)
+#define VMX_EPTP_WB_BIT				(1ull << 14)
+#define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
 #define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
+
 #define VMX_EPT_DEFAULT_GAW			3
 #define VMX_EPT_MAX_GAW				0x4
 #define VMX_EPT_MT_EPTE_SHIFT			3

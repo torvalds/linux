@@ -615,7 +615,7 @@ static const struct xfrm_type esp_type =
 	.output		= esp_output
 };
 
-static struct net_protocol esp4_protocol = {
+static const struct net_protocol esp4_protocol = {
 	.handler	=	xfrm4_rcv,
 	.err_handler	=	esp4_err,
 	.no_policy	=	1,

@@ -369,19 +369,22 @@ static struct platform_device *sx1_devices[] __initdata = {
 };
 /*-----------------------------------------*/
 
-static struct omap_uart_config sx1_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel sx1_config[] __initdata = {
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
-	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
 
 /*-----------------------------------------*/
 
 static void __init omap_sx1_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	platform_add_devices(sx1_devices, ARRAY_SIZE(sx1_devices));
 
 	omap_board_config = sx1_config;

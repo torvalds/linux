@@ -239,7 +239,7 @@ skpinv:	addi	r4,r4,1				/* Increment */
 
 	/* ptr to current thread */
 	addi	r4,r2,THREAD	/* init task's THREAD */
-	mtspr	SPRN_SPRG3,r4
+	mtspr	SPRN_SPRG_THREAD,r4
 
 	/* stack */
 	lis	r1,init_thread_union@h
@@ -350,12 +350,12 @@ interrupt_base:
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
-	mtspr	SPRN_SPRG0, r10		/* Save some working registers */
-	mtspr	SPRN_SPRG1, r11
-	mtspr	SPRN_SPRG4W, r12
-	mtspr	SPRN_SPRG5W, r13
+	mtspr	SPRN_SPRG_WSCRATCH0, r10		/* Save some working registers */
+	mtspr	SPRN_SPRG_WSCRATCH1, r11
+	mtspr	SPRN_SPRG_WSCRATCH2, r12
+	mtspr	SPRN_SPRG_WSCRATCH3, r13
 	mfcr	r11
-	mtspr	SPRN_SPRG7W, r11
+	mtspr	SPRN_SPRG_WSCRATCH4, r11
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -374,7 +374,7 @@ interrupt_base:
 
 	/* Get the PGD for the current thread */
 3:
-	mfspr	r11,SPRN_SPRG3
+	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
 	/* Load PID into MMUCR TID */
@@ -446,12 +446,12 @@ tlb_44x_patch_hwater_D:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	DataStorage
 
 	/* Instruction TLB Error Interrupt */
@@ -461,12 +461,12 @@ tlb_44x_patch_hwater_D:
 	 * to a different point.
 	 */
 	START_EXCEPTION(InstructionTLBError)
-	mtspr	SPRN_SPRG0, r10		/* Save some working registers */
-	mtspr	SPRN_SPRG1, r11
-	mtspr	SPRN_SPRG4W, r12
-	mtspr	SPRN_SPRG5W, r13
+	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
+	mtspr	SPRN_SPRG_WSCRATCH1, r11
+	mtspr	SPRN_SPRG_WSCRATCH2, r12
+	mtspr	SPRN_SPRG_WSCRATCH3, r13
 	mfcr	r11
-	mtspr	SPRN_SPRG7W, r11
+	mtspr	SPRN_SPRG_WSCRATCH4, r11
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -485,7 +485,7 @@ tlb_44x_patch_hwater_D:
 
 	/* Get the PGD for the current thread */
 3:
-	mfspr	r11,SPRN_SPRG3
+	mfspr	r11,SPRN_SPRG_THREAD
 	lwz	r11,PGDIR(r11)
 
 	/* Load PID into MMUCR TID */
@@ -497,7 +497,7 @@ tlb_44x_patch_hwater_D:
 	mtspr	SPRN_MMUCR,r12
 
 	/* Make up the required permissions */
-	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_HWEXEC
+	li	r13,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
 
 	/* Compute pgdir/pmd offset */
 	rlwinm 	r12, r10, PPC44x_PGD_OFF_SHIFT, PPC44x_PGD_OFF_MASK_BIT, 29
@@ -542,12 +542,12 @@ tlb_44x_patch_hwater_I:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
 	/* Debug Interrupt */
@@ -593,12 +593,12 @@ finish_tlb_load:
 
 	/* Done...restore registers and get out of here.
 	*/
-	mfspr	r11, SPRN_SPRG7R
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG5R
-	mfspr	r12, SPRN_SPRG4R
-	mfspr	r11, SPRN_SPRG1
-	mfspr	r10, SPRN_SPRG0
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	rfi					/* Force context change */
 
 /*

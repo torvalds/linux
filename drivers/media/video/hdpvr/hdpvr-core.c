@@ -126,7 +126,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	char *print_buf = kzalloc(5*buf_size+1, GFP_KERNEL);
 	if (!print_buf) {
 		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
-		goto error;
+		return retval;
 	}
 #endif
 
@@ -140,7 +140,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	if (ret != 46) {
 		v4l2_err(&dev->v4l2_dev,
 			 "unexpected answer of status request, len %d\n", ret);
-		goto error;
+		goto unlock;
 	}
 #ifdef HDPVR_DEBUG
 	else {
@@ -163,7 +163,7 @@ static int device_authorization(struct hdpvr_device *dev)
 		v4l2_err(&dev->v4l2_dev, "unknown firmware version 0x%x\n",
 			dev->usbc_buf[1]);
 		ret = -EINVAL;
-		goto error;
+		goto unlock;
 	}
 
 	response = dev->usbc_buf+38;
@@ -188,10 +188,10 @@ static int device_authorization(struct hdpvr_device *dev)
 			      10000);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "magic request returned %d\n", ret);
-	mutex_unlock(&dev->usbc_mutex);
 
 	retval = ret != 8;
-error:
+unlock:
+	mutex_unlock(&dev->usbc_mutex);
 	return retval;
 }
 
@@ -350,6 +350,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	mutex_lock(&dev->io_mutex);
 	if (hdpvr_alloc_buffers(dev, NUM_BUFFERS)) {
+		mutex_unlock(&dev->io_mutex);
 		v4l2_err(&dev->v4l2_dev,
 			 "allocating transfer buffers failed\n");
 		goto error;
@@ -381,7 +382,6 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 error:
 	if (dev) {
-		mutex_unlock(&dev->io_mutex);
 		/* this frees allocated memory */
 		hdpvr_delete(dev);
 	}

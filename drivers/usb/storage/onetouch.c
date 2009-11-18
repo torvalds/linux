@@ -163,7 +163,7 @@ static void usb_onetouch_pm_hook(struct us_data *us, int action)
 			usb_kill_urb(onetouch->irq);
 			break;
 		case US_RESUME:
-			if (usb_submit_urb(onetouch->irq, GFP_KERNEL) != 0)
+			if (usb_submit_urb(onetouch->irq, GFP_NOIO) != 0)
 				dev_err(&onetouch->irq->dev->dev,
 					"usb_submit_urb failed\n");
 			break;

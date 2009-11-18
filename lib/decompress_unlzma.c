@@ -82,6 +82,11 @@ struct rc {
 #define RC_MODEL_TOTAL_BITS 11
 
 
+static int nofill(void *buffer, unsigned int len)
+{
+	return -1;
+}
+
 /* Called twice: once at startup and once in rc_normalize() */
 static void INIT rc_read(struct rc *rc)
 {
@@ -97,7 +102,10 @@ static inline void INIT rc_init(struct rc *rc,
 				       int (*fill)(void*, unsigned int),
 				       char *buffer, int buffer_size)
 {
-	rc->fill = fill;
+	if (fill)
+		rc->fill = fill;
+	else
+		rc->fill = nofill;
 	rc->buffer = (uint8_t *)buffer;
 	rc->buffer_size = buffer_size;
 	rc->buffer_end = rc->buffer + rc->buffer_size;

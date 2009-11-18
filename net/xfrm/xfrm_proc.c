@@ -60,7 +60,7 @@ static int xfrm_statistics_seq_open(struct inode *inode, struct file *file)
 	return single_open_net(inode, file, xfrm_statistics_seq_show);
 }
 
-static struct file_operations xfrm_statistics_seq_fops = {
+static const struct file_operations xfrm_statistics_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = xfrm_statistics_seq_open,
 	.read	 = seq_read,

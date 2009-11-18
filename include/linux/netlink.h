@@ -176,13 +176,18 @@ struct netlink_skb_parms
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
+extern void netlink_table_grab(void);
+extern void netlink_table_ungrab(void);
+
 extern struct sock *netlink_kernel_create(struct net *net,
 					  int unit,unsigned int groups,
 					  void (*input)(struct sk_buff *skb),
 					  struct mutex *cb_mutex,
 					  struct module *module);
 extern void netlink_kernel_release(struct sock *sk);
+extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
+extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_clear_multicast_users(struct sock *sk, unsigned int group);
 extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
 extern int netlink_has_listeners(struct sock *sk, unsigned int group);
@@ -217,12 +222,13 @@ int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
 
 struct netlink_callback
 {
-	struct sk_buff	*skb;
-	struct nlmsghdr	*nlh;
-	int		(*dump)(struct sk_buff * skb, struct netlink_callback *cb);
-	int		(*done)(struct netlink_callback *cb);
-	int		family;
-	long		args[6];
+	struct sk_buff		*skb;
+	const struct nlmsghdr	*nlh;
+	int			(*dump)(struct sk_buff * skb,
+					struct netlink_callback *cb);
+	int			(*done)(struct netlink_callback *cb);
+	int			family;
+	long			args[6];
 };
 
 struct netlink_notify
@@ -258,7 +264,7 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 	NLMSG_NEW(skb, pid, seq, type, len, 0)
 
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
-			      struct nlmsghdr *nlh,
+			      const struct nlmsghdr *nlh,
 			      int (*dump)(struct sk_buff *skb, struct netlink_callback*),
 			      int (*done)(struct netlink_callback*));
 

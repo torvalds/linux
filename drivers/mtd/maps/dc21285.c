@@ -1,7 +1,7 @@
 /*
  * MTD map driver for flash on the DC21285 (the StrongARM-110 companion chip)
  *
- * (C) 2000  Nicolas Pitre <nico@cam.org>
+ * (C) 2000  Nicolas Pitre <nico@fluxnic.net>
  *
  * This code is GPL
  */
@@ -249,5 +249,5 @@ module_exit(cleanup_dc21285);
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Nicolas Pitre <nico@cam.org>");
+MODULE_AUTHOR("Nicolas Pitre <nico@fluxnic.net>");
 MODULE_DESCRIPTION("MTD map driver for DC21285 boards");

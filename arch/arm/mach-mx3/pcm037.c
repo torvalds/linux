@@ -32,6 +32,7 @@
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
 #include <linux/fsl_devices.h>
+#include <linux/can/platform/sja1000.h>
 
 #include <media/soc_camera.h>
 
@@ -169,6 +170,8 @@ static unsigned int pcm037_pins[] = {
 	MX31_PIN_CSI_MCLK__CSI_MCLK,
 	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK,
 	MX31_PIN_CSI_VSYNC__CSI_VSYNC,
+	/* GPIO */
+	IOMUX_MODE(MX31_PIN_ATA_DMACK, IOMUX_CONFIG_GPIO),
 };
 
 static struct physmap_flash_data pcm037_flash_data = {
@@ -244,12 +247,11 @@ static struct imxuart_platform_data uart_pdata = {
 };
 
 static struct resource smsc911x_resources[] = {
-	[0] = {
+	{
 		.start		= CS1_BASE_ADDR + 0x300,
 		.end		= CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
+	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
 		.end		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
 		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
@@ -339,8 +341,7 @@ static struct i2c_board_info pcm037_i2c_devices[] = {
 		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
 		.platform_data = &board_eeprom,
 	}, {
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
-		.type = "pcf8563",
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	}
 };
 
@@ -515,6 +516,33 @@ static struct mx3fb_platform_data mx3fb_pdata = {
 	.num_modes	= ARRAY_SIZE(fb_modedb),
 };
 
+static struct resource pcm970_sja1000_resources[] = {
+	{
+		.start   = CS5_BASE_ADDR,
+		.end     = CS5_BASE_ADDR + 0x100 - 1,
+		.flags   = IORESOURCE_MEM,
+	}, {
+		.start   = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
+		.end     = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
+		.flags   = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+struct sja1000_platform_data pcm970_sja1000_platform_data = {
+	.clock		= 16000000 / 2,
+	.ocr		= 0x40 | 0x18,
+	.cdr		= 0x40,
+};
+
+static struct platform_device pcm970_sja1000 = {
+	.name = "sja1000_platform",
+	.dev = {
+		.platform_data = &pcm970_sja1000_platform_data,
+	},
+	.resource = pcm970_sja1000_resources,
+	.num_resources = ARRAY_SIZE(pcm970_sja1000_resources),
+};
+
 /*
  * Board specific initialization.
  */
@@ -575,6 +603,8 @@ static void __init mxc_board_init(void)
 
 	if (!pcm037_camera_alloc_dma(4 * 1024 * 1024))
 		mxc_register_device(&mx3_camera, &camera_pdata);
+
+	platform_device_register(&pcm970_sja1000);
 }
 
 static void __init pcm037_timer_init(void)
@@ -592,7 +622,7 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &pcm037_timer,
 MACHINE_END

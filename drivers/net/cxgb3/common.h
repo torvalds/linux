@@ -566,6 +566,15 @@ struct cphy_ops {
 
 	u32 mmds;
 };
+enum {
+	EDC_OPT_AEL2005 = 0,
+	EDC_OPT_AEL2005_SIZE = 1084,
+	EDC_TWX_AEL2005 = 1,
+	EDC_TWX_AEL2005_SIZE = 1464,
+	EDC_TWX_AEL2020 = 2,
+	EDC_TWX_AEL2020_SIZE = 1628,
+	EDC_MAX_SIZE = EDC_TWX_AEL2020_SIZE, /* Max cache size */
+};
 
 /* A PHY instance */
 struct cphy {
@@ -577,6 +586,7 @@ struct cphy {
 	unsigned long fifo_errors;	/* FIFO over/under-flows */
 	const struct cphy_ops *ops;	/* PHY operations */
 	struct mdio_if_info mdio;
+	u16 phy_cache[EDC_MAX_SIZE];	/* EDC cache */
 };
 
 /* Convenience MDIO read/write wrappers */

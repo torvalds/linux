@@ -1371,7 +1371,7 @@ static struct cx8802_driver cx8802_blackbird_driver = {
 	.advise_release	= cx8802_blackbird_advise_release,
 };
 
-static int blackbird_init(void)
+static int __init blackbird_init(void)
 {
 	printk(KERN_INFO "cx2388x blackbird driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -1384,7 +1384,7 @@ static int blackbird_init(void)
 	return cx8802_register_driver(&cx8802_blackbird_driver);
 }
 
-static void blackbird_fini(void)
+static void __exit blackbird_fini(void)
 {
 	cx8802_unregister_driver(&cx8802_blackbird_driver);
 }

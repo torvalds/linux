@@ -215,17 +215,8 @@ EXPORT_SYMBOL(oxygen_write_spi);
 
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data)
 {
-	unsigned long timeout;
-
 	/* should not need more than about 300 us */
-	timeout = jiffies + msecs_to_jiffies(1);
-	do {
-		if (!(oxygen_read16(chip, OXYGEN_2WIRE_BUS_STATUS)
-		      & OXYGEN_2WIRE_BUSY))
-			break;
-		udelay(1);
-		cond_resched();
-	} while (time_after_eq(timeout, jiffies));
+	msleep(1);
 
 	oxygen_write8(chip, OXYGEN_2WIRE_MAP, map);
 	oxygen_write8(chip, OXYGEN_2WIRE_DATA, data);

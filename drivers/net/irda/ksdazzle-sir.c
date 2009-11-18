@@ -82,7 +82,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/kref.h>
 #include <linux/usb.h>
 #include <linux/device.h>
 #include <linux/crc32.h>
@@ -298,7 +297,8 @@ static void ksdazzle_send_irq(struct urb *urb)
 /*
  * Called from net/core when new frame is available.
  */
-static int ksdazzle_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ksdazzle_hard_xmit(struct sk_buff *skb,
+					    struct net_device *netdev)
 {
 	struct ksdazzle_cb *kingsun;
 	unsigned int wraplen;

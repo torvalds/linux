@@ -1082,7 +1082,8 @@ intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mo
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
 
 	/* Ensure TV refresh is close to desired refresh */
-	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode)) < 10)
+	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
+				< 1000)
 		return MODE_OK;
 	return MODE_CLOCK_RANGE;
 }
@@ -1760,6 +1761,7 @@ intel_tv_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	tv_priv = (struct intel_tv_priv *)(intel_output + 1);
 	intel_output->type = INTEL_OUTPUT_TVOUT;
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	intel_output->clone_mask = (1 << INTEL_TV_CLONE_BIT);
 	intel_output->enc.possible_crtcs = ((1 << 0) | (1 << 1));
 	intel_output->enc.possible_clones = (1 << INTEL_OUTPUT_TVOUT);

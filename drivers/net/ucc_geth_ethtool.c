@@ -319,9 +319,13 @@ static void uec_get_ethtool_stats(struct net_device *netdev,
 	int i, j = 0;
 
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE) {
-		base = (u32 __iomem *)&ugeth->ug_regs->tx64;
+		if (ugeth->ug_regs)
+			base = (u32 __iomem *)&ugeth->ug_regs->tx64;
+		else
+			base = NULL;
+
 		for (i = 0; i < UEC_HW_STATS_LEN; i++)
-			data[j++] = in_be32(&base[i]);
+			data[j++] = base ? in_be32(&base[i]) : 0;
 	}
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX) {
 		base = (u32 __iomem *)ugeth->p_tx_fw_statistics_pram;
@@ -355,6 +359,44 @@ uec_get_drvinfo(struct net_device *netdev,
 	drvinfo->regdump_len = uec_get_regs_len(netdev);
 }
 
+#ifdef CONFIG_PM
+
+static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(netdev);
+	struct phy_device *phydev = ugeth->phydev;
+
+	if (phydev && phydev->irq)
+		wol->supported |= WAKE_PHY;
+	if (qe_alive_during_sleep())
+		wol->supported |= WAKE_MAGIC;
+
+	wol->wolopts = ugeth->wol_en;
+}
+
+static int uec_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct ucc_geth_private *ugeth = netdev_priv(netdev);
+	struct phy_device *phydev = ugeth->phydev;
+
+	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
+		return -EINVAL;
+	else if (wol->wolopts & WAKE_PHY && (!phydev || !phydev->irq))
+		return -EINVAL;
+	else if (wol->wolopts & WAKE_MAGIC && !qe_alive_during_sleep())
+		return -EINVAL;
+
+	ugeth->wol_en = wol->wolopts;
+	device_set_wakeup_enable(&netdev->dev, ugeth->wol_en);
+
+	return 0;
+}
+
+#else
+#define uec_get_wol NULL
+#define uec_set_wol NULL
+#endif /* CONFIG_PM */
+
 static const struct ethtool_ops uec_ethtool_ops = {
 	.get_settings           = uec_get_settings,
 	.set_settings           = uec_set_settings,
@@ -373,6 +415,8 @@ static const struct ethtool_ops uec_ethtool_ops = {
 	.get_sset_count		= uec_get_sset_count,
 	.get_strings            = uec_get_strings,
 	.get_ethtool_stats      = uec_get_ethtool_stats,
+	.get_wol		= uec_get_wol,
+	.set_wol		= uec_set_wol,
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev)

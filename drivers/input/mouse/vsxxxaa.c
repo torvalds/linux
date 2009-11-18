@@ -384,11 +384,11 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
 	printk (KERN_NOTICE "%s on %s: Forceing standard packet format, "
 			"incremental streaming mode and 72 samples/sec\n",
 			mouse->name, mouse->phys);
-	mouse->serio->write (mouse->serio, 'S');	/* Standard format */
+	serio_write (mouse->serio, 'S');	/* Standard format */
 	mdelay (50);
-	mouse->serio->write (mouse->serio, 'R');	/* Incremental */
+	serio_write (mouse->serio, 'R');	/* Incremental */
 	mdelay (50);
-	mouse->serio->write (mouse->serio, 'L');	/* 72 samples/sec */
+	serio_write (mouse->serio, 'L');	/* 72 samples/sec */
 }
 
 static void
@@ -532,7 +532,7 @@ vsxxxaa_connect (struct serio *serio, struct serio_driver *drv)
 	 * Request selftest. Standard packet format and differential
 	 * mode will be requested after the device ID'ed successfully.
 	 */
-	serio->write (serio, 'T'); /* Test */
+	serio_write (serio, 'T'); /* Test */
 
 	err = input_register_device (input_dev);
 	if (err)

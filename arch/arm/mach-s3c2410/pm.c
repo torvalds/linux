@@ -119,6 +119,18 @@ static int __init s3c2410_pm_drvinit(void)
 }
 
 arch_initcall(s3c2410_pm_drvinit);
+
+static struct sysdev_driver s3c2410a_pm_driver = {
+	.add		= s3c2410_pm_add,
+	.resume		= s3c2410_pm_resume,
+};
+
+static int __init s3c2410a_pm_drvinit(void)
+{
+	return sysdev_driver_register(&s3c2410a_sysclass, &s3c2410a_pm_driver);
+}
+
+arch_initcall(s3c2410a_pm_drvinit);
 #endif
 
 #if defined(CONFIG_CPU_S3C2440)

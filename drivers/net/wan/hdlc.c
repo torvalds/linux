@@ -66,7 +66,7 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 	return hdlc->proto->netif_rx(skb);
 }
 
-int hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 

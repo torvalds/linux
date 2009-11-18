@@ -121,21 +121,21 @@ enum af9015_remote {
 
 /* Leadtek WinFast DTV Dongle Gold */
 static struct dvb_usb_rc_key af9015_rc_keys_leadtek[] = {
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x00, 0x28, KEY_ENTER },
-	{ 0x00, 0x4f, KEY_VOLUMEUP },
-	{ 0x00, 0x50, KEY_VOLUMEDOWN },
-	{ 0x00, 0x51, KEY_CHANNELDOWN },
-	{ 0x00, 0x52, KEY_CHANNELUP },
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0027, KEY_0 },
+	{ 0x0028, KEY_ENTER },
+	{ 0x004f, KEY_VOLUMEUP },
+	{ 0x0050, KEY_VOLUMEDOWN },
+	{ 0x0051, KEY_CHANNELDOWN },
+	{ 0x0052, KEY_CHANNELUP },
 };
 
 static u8 af9015_ir_table_leadtek[] = {
@@ -193,60 +193,60 @@ static u8 af9015_ir_table_leadtek[] = {
 
 /* TwinHan AzureWave AD-TU700(704J) */
 static struct dvb_usb_rc_key af9015_rc_keys_twinhan[] = {
-	{ 0x05, 0x3f, KEY_POWER },
-	{ 0x00, 0x19, KEY_FAVORITES },    /* Favorite List */
-	{ 0x00, 0x04, KEY_TEXT },         /* Teletext */
-	{ 0x00, 0x0e, KEY_POWER },
-	{ 0x00, 0x0e, KEY_INFO },         /* Preview */
-	{ 0x00, 0x08, KEY_EPG },          /* Info/EPG */
-	{ 0x00, 0x0f, KEY_LIST },         /* Record List */
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x00, 0x29, KEY_CANCEL },       /* Cancel */
-	{ 0x00, 0x4c, KEY_CLEAR },        /* Clear */
-	{ 0x00, 0x2a, KEY_BACK },         /* Back */
-	{ 0x00, 0x2b, KEY_TAB },          /* Tab */
-	{ 0x00, 0x52, KEY_UP },           /* up arrow */
-	{ 0x00, 0x51, KEY_DOWN },         /* down arrow */
-	{ 0x00, 0x4f, KEY_RIGHT },        /* right arrow */
-	{ 0x00, 0x50, KEY_LEFT },         /* left arrow */
-	{ 0x00, 0x28, KEY_ENTER },        /* Enter / ok */
-	{ 0x02, 0x52, KEY_VOLUMEUP },
-	{ 0x02, 0x51, KEY_VOLUMEDOWN },
-	{ 0x00, 0x4e, KEY_CHANNELDOWN },
-	{ 0x00, 0x4b, KEY_CHANNELUP },
-	{ 0x00, 0x4a, KEY_RECORD },
-	{ 0x01, 0x11, KEY_PLAY },
-	{ 0x00, 0x17, KEY_PAUSE },
-	{ 0x00, 0x0c, KEY_REWIND },       /* FR << */
-	{ 0x00, 0x11, KEY_FASTFORWARD },  /* FF >> */
-	{ 0x01, 0x15, KEY_PREVIOUS },     /* Replay */
-	{ 0x01, 0x0e, KEY_NEXT },         /* Skip */
-	{ 0x00, 0x13, KEY_CAMERA },       /* Capture */
-	{ 0x01, 0x0f, KEY_LANGUAGE },     /* SAP */
-	{ 0x01, 0x13, KEY_TV2 },          /* PIP */
-	{ 0x00, 0x1d, KEY_ZOOM },         /* Full Screen */
-	{ 0x01, 0x17, KEY_SUBTITLE },     /* Subtitle / CC */
-	{ 0x00, 0x10, KEY_MUTE },
-	{ 0x01, 0x19, KEY_AUDIO },        /* L/R */ /* TODO better event */
-	{ 0x01, 0x16, KEY_SLEEP },        /* Hibernate */
-	{ 0x01, 0x16, KEY_SWITCHVIDEOMODE },
+	{ 0x053f, KEY_POWER },
+	{ 0x0019, KEY_FAVORITES },    /* Favorite List */
+	{ 0x0004, KEY_TEXT },         /* Teletext */
+	{ 0x000e, KEY_POWER },
+	{ 0x000e, KEY_INFO },         /* Preview */
+	{ 0x0008, KEY_EPG },          /* Info/EPG */
+	{ 0x000f, KEY_LIST },         /* Record List */
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0027, KEY_0 },
+	{ 0x0029, KEY_CANCEL },       /* Cancel */
+	{ 0x004c, KEY_CLEAR },        /* Clear */
+	{ 0x002a, KEY_BACK },         /* Back */
+	{ 0x002b, KEY_TAB },          /* Tab */
+	{ 0x0052, KEY_UP },           /* up arrow */
+	{ 0x0051, KEY_DOWN },         /* down arrow */
+	{ 0x004f, KEY_RIGHT },        /* right arrow */
+	{ 0x0050, KEY_LEFT },         /* left arrow */
+	{ 0x0028, KEY_ENTER },        /* Enter / ok */
+	{ 0x0252, KEY_VOLUMEUP },
+	{ 0x0251, KEY_VOLUMEDOWN },
+	{ 0x004e, KEY_CHANNELDOWN },
+	{ 0x004b, KEY_CHANNELUP },
+	{ 0x004a, KEY_RECORD },
+	{ 0x0111, KEY_PLAY },
+	{ 0x0017, KEY_PAUSE },
+	{ 0x000c, KEY_REWIND },       /* FR << */
+	{ 0x0011, KEY_FASTFORWARD },  /* FF >> */
+	{ 0x0115, KEY_PREVIOUS },     /* Replay */
+	{ 0x010e, KEY_NEXT },         /* Skip */
+	{ 0x0013, KEY_CAMERA },       /* Capture */
+	{ 0x010f, KEY_LANGUAGE },     /* SAP */
+	{ 0x0113, KEY_TV2 },          /* PIP */
+	{ 0x001d, KEY_ZOOM },         /* Full Screen */
+	{ 0x0117, KEY_SUBTITLE },     /* Subtitle / CC */
+	{ 0x0010, KEY_MUTE },
+	{ 0x0119, KEY_AUDIO },        /* L/R */ /* TODO better event */
+	{ 0x0116, KEY_SLEEP },        /* Hibernate */
+	{ 0x0116, KEY_SWITCHVIDEOMODE },
 					  /* A/V */ /* TODO does not work */
-	{ 0x00, 0x06, KEY_AGAIN },        /* Recall */
-	{ 0x01, 0x16, KEY_KPPLUS },       /* Zoom+ */ /* TODO does not work */
-	{ 0x01, 0x16, KEY_KPMINUS },      /* Zoom- */ /* TODO does not work */
-	{ 0x02, 0x15, KEY_RED },
-	{ 0x02, 0x0a, KEY_GREEN },
-	{ 0x02, 0x1c, KEY_YELLOW },
-	{ 0x02, 0x05, KEY_BLUE },
+	{ 0x0006, KEY_AGAIN },        /* Recall */
+	{ 0x0116, KEY_KPPLUS },       /* Zoom+ */ /* TODO does not work */
+	{ 0x0116, KEY_KPMINUS },      /* Zoom- */ /* TODO does not work */
+	{ 0x0215, KEY_RED },
+	{ 0x020a, KEY_GREEN },
+	{ 0x021c, KEY_YELLOW },
+	{ 0x0205, KEY_BLUE },
 };
 
 static u8 af9015_ir_table_twinhan[] = {
@@ -304,24 +304,24 @@ static u8 af9015_ir_table_twinhan[] = {
 
 /* A-Link DTU(m) */
 static struct dvb_usb_rc_key af9015_rc_keys_a_link[] = {
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x00, 0x2e, KEY_CHANNELUP },
-	{ 0x00, 0x2d, KEY_CHANNELDOWN },
-	{ 0x04, 0x28, KEY_ZOOM },
-	{ 0x00, 0x41, KEY_MUTE },
-	{ 0x00, 0x42, KEY_VOLUMEDOWN },
-	{ 0x00, 0x43, KEY_VOLUMEUP },
-	{ 0x00, 0x44, KEY_GOTO },         /* jump */
-	{ 0x05, 0x45, KEY_POWER },
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0027, KEY_0 },
+	{ 0x002e, KEY_CHANNELUP },
+	{ 0x002d, KEY_CHANNELDOWN },
+	{ 0x0428, KEY_ZOOM },
+	{ 0x0041, KEY_MUTE },
+	{ 0x0042, KEY_VOLUMEDOWN },
+	{ 0x0043, KEY_VOLUMEUP },
+	{ 0x0044, KEY_GOTO },         /* jump */
+	{ 0x0545, KEY_POWER },
 };
 
 static u8 af9015_ir_table_a_link[] = {
@@ -347,24 +347,24 @@ static u8 af9015_ir_table_a_link[] = {
 
 /* MSI DIGIVOX mini II V3.0 */
 static struct dvb_usb_rc_key af9015_rc_keys_msi[] = {
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x03, 0x0f, KEY_CHANNELUP },
-	{ 0x03, 0x0e, KEY_CHANNELDOWN },
-	{ 0x00, 0x42, KEY_VOLUMEDOWN },
-	{ 0x00, 0x43, KEY_VOLUMEUP },
-	{ 0x05, 0x45, KEY_POWER },
-	{ 0x00, 0x52, KEY_UP },           /* up */
-	{ 0x00, 0x51, KEY_DOWN },         /* down */
-	{ 0x00, 0x28, KEY_ENTER },
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0027, KEY_0 },
+	{ 0x030f, KEY_CHANNELUP },
+	{ 0x030e, KEY_CHANNELDOWN },
+	{ 0x0042, KEY_VOLUMEDOWN },
+	{ 0x0043, KEY_VOLUMEUP },
+	{ 0x0545, KEY_POWER },
+	{ 0x0052, KEY_UP },           /* up */
+	{ 0x0051, KEY_DOWN },         /* down */
+	{ 0x0028, KEY_ENTER },
 };
 
 static u8 af9015_ir_table_msi[] = {
@@ -390,42 +390,42 @@ static u8 af9015_ir_table_msi[] = {
 
 /* MYGICTV U718 */
 static struct dvb_usb_rc_key af9015_rc_keys_mygictv[] = {
-	{ 0x00, 0x3d, KEY_SWITCHVIDEOMODE },
+	{ 0x003d, KEY_SWITCHVIDEOMODE },
 					  /* TV / AV */
-	{ 0x05, 0x45, KEY_POWER },
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x00, 0x41, KEY_MUTE },
-	{ 0x00, 0x2a, KEY_ESC },          /* Esc */
-	{ 0x00, 0x2e, KEY_CHANNELUP },
-	{ 0x00, 0x2d, KEY_CHANNELDOWN },
-	{ 0x00, 0x42, KEY_VOLUMEDOWN },
-	{ 0x00, 0x43, KEY_VOLUMEUP },
-	{ 0x00, 0x52, KEY_UP },           /* up arrow */
-	{ 0x00, 0x51, KEY_DOWN },         /* down arrow */
-	{ 0x00, 0x4f, KEY_RIGHT },        /* right arrow */
-	{ 0x00, 0x50, KEY_LEFT },         /* left arrow */
-	{ 0x00, 0x28, KEY_ENTER },        /* ok */
-	{ 0x01, 0x15, KEY_RECORD },
-	{ 0x03, 0x13, KEY_PLAY },
-	{ 0x01, 0x13, KEY_PAUSE },
-	{ 0x01, 0x16, KEY_STOP },
-	{ 0x03, 0x07, KEY_REWIND },       /* FR << */
-	{ 0x03, 0x09, KEY_FASTFORWARD },  /* FF >> */
-	{ 0x00, 0x3b, KEY_TIME },         /* TimeShift */
-	{ 0x00, 0x3e, KEY_CAMERA },       /* Snapshot */
-	{ 0x03, 0x16, KEY_CYCLEWINDOWS }, /* yellow, min / max */
-	{ 0x00, 0x00, KEY_ZOOM },         /* 'select' (?) */
-	{ 0x03, 0x16, KEY_SHUFFLE },      /* Shuffle */
-	{ 0x03, 0x45, KEY_POWER },
+	{ 0x0545, KEY_POWER },
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0027, KEY_0 },
+	{ 0x0041, KEY_MUTE },
+	{ 0x002a, KEY_ESC },          /* Esc */
+	{ 0x002e, KEY_CHANNELUP },
+	{ 0x002d, KEY_CHANNELDOWN },
+	{ 0x0042, KEY_VOLUMEDOWN },
+	{ 0x0043, KEY_VOLUMEUP },
+	{ 0x0052, KEY_UP },           /* up arrow */
+	{ 0x0051, KEY_DOWN },         /* down arrow */
+	{ 0x004f, KEY_RIGHT },        /* right arrow */
+	{ 0x0050, KEY_LEFT },         /* left arrow */
+	{ 0x0028, KEY_ENTER },        /* ok */
+	{ 0x0115, KEY_RECORD },
+	{ 0x0313, KEY_PLAY },
+	{ 0x0113, KEY_PAUSE },
+	{ 0x0116, KEY_STOP },
+	{ 0x0307, KEY_REWIND },       /* FR << */
+	{ 0x0309, KEY_FASTFORWARD },  /* FF >> */
+	{ 0x003b, KEY_TIME },         /* TimeShift */
+	{ 0x003e, KEY_CAMERA },       /* Snapshot */
+	{ 0x0316, KEY_CYCLEWINDOWS }, /* yellow, min / max */
+	{ 0x0000, KEY_ZOOM },         /* 'select' (?) */
+	{ 0x0316, KEY_SHUFFLE },      /* Shuffle */
+	{ 0x0345, KEY_POWER },
 };
 
 static u8 af9015_ir_table_mygictv[] = {
@@ -516,41 +516,41 @@ static u8 af9015_ir_table_kworld[] = {
 
 /* AverMedia Volar X */
 static struct dvb_usb_rc_key af9015_rc_keys_avermedia[] = {
-	{ 0x05, 0x3d, KEY_PROG1 },       /* SOURCE */
-	{ 0x05, 0x12, KEY_POWER },       /* POWER */
-	{ 0x05, 0x1e, KEY_1 },           /* 1 */
-	{ 0x05, 0x1f, KEY_2 },           /* 2 */
-	{ 0x05, 0x20, KEY_3 },           /* 3 */
-	{ 0x05, 0x21, KEY_4 },           /* 4 */
-	{ 0x05, 0x22, KEY_5 },           /* 5 */
-	{ 0x05, 0x23, KEY_6 },           /* 6 */
-	{ 0x05, 0x24, KEY_7 },           /* 7 */
-	{ 0x05, 0x25, KEY_8 },           /* 8 */
-	{ 0x05, 0x26, KEY_9 },           /* 9 */
-	{ 0x05, 0x3f, KEY_LEFT },        /* L / DISPLAY */
-	{ 0x05, 0x27, KEY_0 },           /* 0 */
-	{ 0x05, 0x0f, KEY_RIGHT },       /* R / CH RTN */
-	{ 0x05, 0x18, KEY_PROG2 },       /* SNAP SHOT */
-	{ 0x05, 0x1c, KEY_PROG3 },       /* 16-CH PREV */
-	{ 0x05, 0x2d, KEY_VOLUMEDOWN },  /* VOL DOWN */
-	{ 0x05, 0x3e, KEY_ZOOM },        /* FULL SCREEN */
-	{ 0x05, 0x2e, KEY_VOLUMEUP },    /* VOL UP */
-	{ 0x05, 0x10, KEY_MUTE },        /* MUTE */
-	{ 0x05, 0x04, KEY_AUDIO },       /* AUDIO */
-	{ 0x05, 0x15, KEY_RECORD },      /* RECORD */
-	{ 0x05, 0x11, KEY_PLAY },        /* PLAY */
-	{ 0x05, 0x16, KEY_STOP },        /* STOP */
-	{ 0x05, 0x0c, KEY_PLAYPAUSE },   /* TIMESHIFT / PAUSE */
-	{ 0x05, 0x05, KEY_BACK },        /* << / RED */
-	{ 0x05, 0x09, KEY_FORWARD },     /* >> / YELLOW */
-	{ 0x05, 0x17, KEY_TEXT },        /* TELETEXT */
-	{ 0x05, 0x0a, KEY_EPG },         /* EPG */
-	{ 0x05, 0x13, KEY_MENU },        /* MENU */
+	{ 0x053d, KEY_PROG1 },       /* SOURCE */
+	{ 0x0512, KEY_POWER },       /* POWER */
+	{ 0x051e, KEY_1 },           /* 1 */
+	{ 0x051f, KEY_2 },           /* 2 */
+	{ 0x0520, KEY_3 },           /* 3 */
+	{ 0x0521, KEY_4 },           /* 4 */
+	{ 0x0522, KEY_5 },           /* 5 */
+	{ 0x0523, KEY_6 },           /* 6 */
+	{ 0x0524, KEY_7 },           /* 7 */
+	{ 0x0525, KEY_8 },           /* 8 */
+	{ 0x0526, KEY_9 },           /* 9 */
+	{ 0x053f, KEY_LEFT },        /* L / DISPLAY */
+	{ 0x0527, KEY_0 },           /* 0 */
+	{ 0x050f, KEY_RIGHT },       /* R / CH RTN */
+	{ 0x0518, KEY_PROG2 },       /* SNAP SHOT */
+	{ 0x051c, KEY_PROG3 },       /* 16-CH PREV */
+	{ 0x052d, KEY_VOLUMEDOWN },  /* VOL DOWN */
+	{ 0x053e, KEY_ZOOM },        /* FULL SCREEN */
+	{ 0x052e, KEY_VOLUMEUP },    /* VOL UP */
+	{ 0x0510, KEY_MUTE },        /* MUTE */
+	{ 0x0504, KEY_AUDIO },       /* AUDIO */
+	{ 0x0515, KEY_RECORD },      /* RECORD */
+	{ 0x0511, KEY_PLAY },        /* PLAY */
+	{ 0x0516, KEY_STOP },        /* STOP */
+	{ 0x050c, KEY_PLAYPAUSE },   /* TIMESHIFT / PAUSE */
+	{ 0x0505, KEY_BACK },        /* << / RED */
+	{ 0x0509, KEY_FORWARD },     /* >> / YELLOW */
+	{ 0x0517, KEY_TEXT },        /* TELETEXT */
+	{ 0x050a, KEY_EPG },         /* EPG */
+	{ 0x0513, KEY_MENU },        /* MENU */
 
-	{ 0x05, 0x0e, KEY_CHANNELUP },   /* CH UP */
-	{ 0x05, 0x0d, KEY_CHANNELDOWN }, /* CH DOWN */
-	{ 0x05, 0x19, KEY_FIRST },       /* |<< / GREEN */
-	{ 0x05, 0x08, KEY_LAST },        /* >>| / BLUE */
+	{ 0x050e, KEY_CHANNELUP },   /* CH UP */
+	{ 0x050d, KEY_CHANNELDOWN }, /* CH DOWN */
+	{ 0x0519, KEY_FIRST },       /* |<< / GREEN */
+	{ 0x0508, KEY_LAST },        /* >>| / BLUE */
 };
 
 static u8 af9015_ir_table_avermedia[] = {
@@ -622,34 +622,34 @@ static u8 af9015_ir_table_avermedia_ks[] = {
 
 /* Digittrade DVB-T USB Stick */
 static struct dvb_usb_rc_key af9015_rc_keys_digittrade[] = {
-	{ 0x01, 0x0f, KEY_LAST },	/* RETURN */
-	{ 0x05, 0x17, KEY_TEXT },	/* TELETEXT */
-	{ 0x01, 0x08, KEY_EPG },	/* EPG */
-	{ 0x05, 0x13, KEY_POWER },	/* POWER */
-	{ 0x01, 0x09, KEY_ZOOM },	/* FULLSCREEN */
-	{ 0x00, 0x40, KEY_AUDIO },	/* DUAL SOUND */
-	{ 0x00, 0x2c, KEY_PRINT },	/* SNAPSHOT */
-	{ 0x05, 0x16, KEY_SUBTITLE },	/* SUBTITLE */
-	{ 0x00, 0x52, KEY_CHANNELUP },	/* CH Up */
-	{ 0x00, 0x51, KEY_CHANNELDOWN },/* Ch Dn */
-	{ 0x00, 0x57, KEY_VOLUMEUP },	/* Vol Up */
-	{ 0x00, 0x56, KEY_VOLUMEDOWN },	/* Vol Dn */
-	{ 0x01, 0x10, KEY_MUTE },	/* MUTE */
-	{ 0x00, 0x27, KEY_0 },
-	{ 0x00, 0x1e, KEY_1 },
-	{ 0x00, 0x1f, KEY_2 },
-	{ 0x00, 0x20, KEY_3 },
-	{ 0x00, 0x21, KEY_4 },
-	{ 0x00, 0x22, KEY_5 },
-	{ 0x00, 0x23, KEY_6 },
-	{ 0x00, 0x24, KEY_7 },
-	{ 0x00, 0x25, KEY_8 },
-	{ 0x00, 0x26, KEY_9 },
-	{ 0x01, 0x17, KEY_PLAYPAUSE },	/* TIMESHIFT */
-	{ 0x01, 0x15, KEY_RECORD },	/* RECORD */
-	{ 0x03, 0x13, KEY_PLAY },	/* PLAY */
-	{ 0x01, 0x16, KEY_STOP },	/* STOP */
-	{ 0x01, 0x13, KEY_PAUSE },	/* PAUSE */
+	{ 0x010f, KEY_LAST },	/* RETURN */
+	{ 0x0517, KEY_TEXT },	/* TELETEXT */
+	{ 0x0108, KEY_EPG },	/* EPG */
+	{ 0x0513, KEY_POWER },	/* POWER */
+	{ 0x0109, KEY_ZOOM },	/* FULLSCREEN */
+	{ 0x0040, KEY_AUDIO },	/* DUAL SOUND */
+	{ 0x002c, KEY_PRINT },	/* SNAPSHOT */
+	{ 0x0516, KEY_SUBTITLE },	/* SUBTITLE */
+	{ 0x0052, KEY_CHANNELUP },	/* CH Up */
+	{ 0x0051, KEY_CHANNELDOWN },/* Ch Dn */
+	{ 0x0057, KEY_VOLUMEUP },	/* Vol Up */
+	{ 0x0056, KEY_VOLUMEDOWN },	/* Vol Dn */
+	{ 0x0110, KEY_MUTE },	/* MUTE */
+	{ 0x0027, KEY_0 },
+	{ 0x001e, KEY_1 },
+	{ 0x001f, KEY_2 },
+	{ 0x0020, KEY_3 },
+	{ 0x0021, KEY_4 },
+	{ 0x0022, KEY_5 },
+	{ 0x0023, KEY_6 },
+	{ 0x0024, KEY_7 },
+	{ 0x0025, KEY_8 },
+	{ 0x0026, KEY_9 },
+	{ 0x0117, KEY_PLAYPAUSE },	/* TIMESHIFT */
+	{ 0x0115, KEY_RECORD },	/* RECORD */
+	{ 0x0313, KEY_PLAY },	/* PLAY */
+	{ 0x0116, KEY_STOP },	/* STOP */
+	{ 0x0113, KEY_PAUSE },	/* PAUSE */
 };
 
 static u8 af9015_ir_table_digittrade[] = {
@@ -685,34 +685,34 @@ static u8 af9015_ir_table_digittrade[] = {
 
 /* TREKSTOR DVB-T USB Stick */
 static struct dvb_usb_rc_key af9015_rc_keys_trekstor[] = {
-	{ 0x07, 0x04, KEY_AGAIN },		/* Home */
-	{ 0x07, 0x05, KEY_MUTE },		/* Mute */
-	{ 0x07, 0x06, KEY_UP },			/* Up */
-	{ 0x07, 0x07, KEY_DOWN },		/* Down */
-	{ 0x07, 0x09, KEY_RIGHT },		/* Right */
-	{ 0x07, 0x0a, KEY_ENTER },		/* OK */
-	{ 0x07, 0x0b, KEY_FASTFORWARD },	/* Fast forward */
-	{ 0x07, 0x0c, KEY_REWIND },		/* Rewind */
-	{ 0x07, 0x0d, KEY_PLAY },		/* Play/Pause */
-	{ 0x07, 0x0e, KEY_VOLUMEUP },		/* Volume + */
-	{ 0x07, 0x0f, KEY_VOLUMEDOWN },		/* Volume - */
-	{ 0x07, 0x10, KEY_RECORD },		/* Record */
-	{ 0x07, 0x11, KEY_STOP },		/* Stop */
-	{ 0x07, 0x12, KEY_ZOOM },		/* TV */
-	{ 0x07, 0x13, KEY_EPG },		/* Info/EPG */
-	{ 0x07, 0x14, KEY_CHANNELDOWN },	/* Channel - */
-	{ 0x07, 0x15, KEY_CHANNELUP },		/* Channel + */
-	{ 0x07, 0x1e, KEY_1 },
-	{ 0x07, 0x1f, KEY_2 },
-	{ 0x07, 0x20, KEY_3 },
-	{ 0x07, 0x21, KEY_4 },
-	{ 0x07, 0x22, KEY_5 },
-	{ 0x07, 0x23, KEY_6 },
-	{ 0x07, 0x24, KEY_7 },
-	{ 0x07, 0x25, KEY_8 },
-	{ 0x07, 0x26, KEY_9 },
-	{ 0x07, 0x08, KEY_LEFT },		/* LEFT */
-	{ 0x07, 0x27, KEY_0 },
+	{ 0x0704, KEY_AGAIN },		/* Home */
+	{ 0x0705, KEY_MUTE },		/* Mute */
+	{ 0x0706, KEY_UP },			/* Up */
+	{ 0x0707, KEY_DOWN },		/* Down */
+	{ 0x0709, KEY_RIGHT },		/* Right */
+	{ 0x070a, KEY_ENTER },		/* OK */
+	{ 0x070b, KEY_FASTFORWARD },	/* Fast forward */
+	{ 0x070c, KEY_REWIND },		/* Rewind */
+	{ 0x070d, KEY_PLAY },		/* Play/Pause */
+	{ 0x070e, KEY_VOLUMEUP },		/* Volume + */
+	{ 0x070f, KEY_VOLUMEDOWN },		/* Volume - */
+	{ 0x0710, KEY_RECORD },		/* Record */
+	{ 0x0711, KEY_STOP },		/* Stop */
+	{ 0x0712, KEY_ZOOM },		/* TV */
+	{ 0x0713, KEY_EPG },		/* Info/EPG */
+	{ 0x0714, KEY_CHANNELDOWN },	/* Channel - */
+	{ 0x0715, KEY_CHANNELUP },		/* Channel + */
+	{ 0x071e, KEY_1 },
+	{ 0x071f, KEY_2 },
+	{ 0x0720, KEY_3 },
+	{ 0x0721, KEY_4 },
+	{ 0x0722, KEY_5 },
+	{ 0x0723, KEY_6 },
+	{ 0x0724, KEY_7 },
+	{ 0x0725, KEY_8 },
+	{ 0x0726, KEY_9 },
+	{ 0x0708, KEY_LEFT },		/* LEFT */
+	{ 0x0727, KEY_0 },
 };
 
 static u8 af9015_ir_table_trekstor[] = {

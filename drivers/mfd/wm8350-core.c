@@ -353,15 +353,15 @@ static void wm8350_irq_call_handler(struct wm8350 *wm8350, int irq)
 }
 
 /*
- * wm8350_irq_worker actually handles the interrupts.  Since all
+ * This is a threaded IRQ handler so can access I2C/SPI.  Since all
  * interrupts are clear on read the IRQ line will be reasserted and
  * the physical IRQ will be handled again if another interrupt is
  * asserted while we run - in the normal course of events this is a
  * rare occurrence so we save I2C/SPI reads.
  */
-static void wm8350_irq_worker(struct work_struct *work)
+static irqreturn_t wm8350_irq(int irq, void *data)
 {
-	struct wm8350 *wm8350 = container_of(work, struct wm8350, irq_work);
+	struct wm8350 *wm8350 = data;
 	u16 level_one, status1, status2, comp;
 
 	/* TODO: Use block reads to improve performance? */
@@ -551,16 +551,6 @@ static void wm8350_irq_worker(struct work_struct *work)
 							WM8350_IRQ_GPIO(i));
 		}
 	}
-
-	enable_irq(wm8350->chip_irq);
-}
-
-static irqreturn_t wm8350_irq(int irq, void *data)
-{
-	struct wm8350 *wm8350 = data;
-
-	disable_irq_nosync(irq);
-	schedule_work(&wm8350->irq_work);
 
 	return IRQ_HANDLED;
 }
@@ -1428,9 +1418,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	mutex_init(&wm8350->auxadc_mutex);
 	mutex_init(&wm8350->irq_mutex);
-	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
 	if (irq) {
-		int flags = 0;
+		int flags = IRQF_ONESHOT;
 
 		if (pdata && pdata->irq_high) {
 			flags |= IRQF_TRIGGER_HIGH;
@@ -1444,8 +1433,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 					  WM8350_IRQ_POL);
 		}
 
-		ret = request_irq(irq, wm8350_irq, flags,
-				  "wm8350", wm8350);
+		ret = request_threaded_irq(irq, NULL, wm8350_irq, flags,
+					   "wm8350", wm8350);
 		if (ret != 0) {
 			dev_err(wm8350->dev, "Failed to request IRQ: %d\n",
 				ret);
@@ -1472,6 +1461,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 				   &(wm8350->codec.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-gpio",
 				   &(wm8350->gpio.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-hwmon",
+				   &(wm8350->hwmon.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-power",
 				   &(wm8350->power.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-rtc", &(wm8350->rtc.pdev));
@@ -1498,11 +1489,11 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 	platform_device_unregister(wm8350->wdt.pdev);
 	platform_device_unregister(wm8350->rtc.pdev);
 	platform_device_unregister(wm8350->power.pdev);
+	platform_device_unregister(wm8350->hwmon.pdev);
 	platform_device_unregister(wm8350->gpio.pdev);
 	platform_device_unregister(wm8350->codec.pdev);
 
 	free_irq(wm8350->chip_irq, wm8350);
-	flush_work(&wm8350->irq_work);
 	kfree(wm8350->reg_cache);
 }
 EXPORT_SYMBOL_GPL(wm8350_device_exit);

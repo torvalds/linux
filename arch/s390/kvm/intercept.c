@@ -1,7 +1,7 @@
 /*
  * intercept.c - in-kernel handling for sie intercepts
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -128,7 +128,7 @@ static int handle_noop(struct kvm_vcpu *vcpu)
 
 static int handle_stop(struct kvm_vcpu *vcpu)
 {
-	int rc;
+	int rc = 0;
 
 	vcpu->stat.exit_stop_request++;
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
@@ -141,12 +141,18 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 			rc = -ENOTSUPP;
 	}
 
+	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
+		vcpu->arch.local_int.action_bits &= ~ACTION_RELOADVCPU_ON_STOP;
+		rc = SIE_INTERCEPT_RERUNVCPU;
+		vcpu->run->exit_reason = KVM_EXIT_INTR;
+	}
+
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 		rc = -ENOTSUPP;
-	} else
-		rc = 0;
+	}
+
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	return rc;
 }
@@ -158,9 +164,9 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_validity++;
 	if ((viwhy == 0x37) && (vcpu->arch.sie_block->prefix
-		<= vcpu->kvm->arch.guest_memsize - 2*PAGE_SIZE)){
+		<= kvm_s390_vcpu_get_memsize(vcpu) - 2*PAGE_SIZE)) {
 		rc = fault_in_pages_writeable((char __user *)
-			 vcpu->kvm->arch.guest_origin +
+			 vcpu->arch.sie_block->gmsor +
 			 vcpu->arch.sie_block->prefix,
 			 2*PAGE_SIZE);
 		if (rc)

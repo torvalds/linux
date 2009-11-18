@@ -284,13 +284,12 @@ int set_dabr(unsigned long dabr)
 		return ppc_md.set_dabr(dabr);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
-#if defined(CONFIG_PPC64) || defined(CONFIG_6xx)
+#if defined(CONFIG_BOOKE)
+	mtspr(SPRN_DAC1, dabr);
+#elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
 #endif
 
-#if defined(CONFIG_BOOKE)
-	mtspr(SPRN_DAC1, dabr);
-#endif
 
 	return 0;
 }
@@ -372,14 +371,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
-
 #if defined(CONFIG_BOOKE)
 	/* If new thread DAC (HW breakpoint) is the same then leave it */
 	if (new->thread.dabr)
 		set_dabr(new->thread.dabr);
+#else
+	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
+		set_dabr(new->thread.dabr);
 #endif
+
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -664,6 +664,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
@@ -671,6 +672,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * to the TOC entry.  The first entry is a pointer to the actual
 	 * function.
  	 */
+#ifdef CONFIG_PPC64
 	kregs->nip = *((unsigned long *)ret_from_fork);
 #else
 	kregs->nip = (unsigned long)ret_from_fork;
@@ -1014,9 +1016,13 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	int curr_frame = current->curr_ret_stack;
 	extern void return_to_handler(void);
-	unsigned long addr = (unsigned long)return_to_handler;
+	unsigned long rth = (unsigned long)return_to_handler;
+	unsigned long mrth = -1;
 #ifdef CONFIG_PPC64
-	addr = *(unsigned long*)addr;
+	extern void mod_return_to_handler(void);
+	rth = *(unsigned long *)rth;
+	mrth = (unsigned long)mod_return_to_handler;
+	mrth = *(unsigned long *)mrth;
 #endif
 #endif
 
@@ -1042,7 +1048,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-			if (ip == addr && curr_frame >= 0) {
+			if ((ip == rth || ip == mrth) && curr_frame >= 0) {
 				printk(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
@@ -1163,7 +1169,22 @@ static inline unsigned long brk_rnd(void)
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+	unsigned long base = mm->brk;
+	unsigned long ret;
+
+#ifdef CONFIG_PPC_STD_MMU_64
+	/*
+	 * If we are using 1TB segments and we are allowed to randomise
+	 * the heap, we can put it above 1TB so it is backed by a 1TB
+	 * segment. Otherwise the heap will be in the bottom 1TB
+	 * which always uses 256MB segments and this may result in a
+	 * performance penalty.
+	 */
+	if (!is_32bit_task() && (mmu_highuser_ssize == MMU_SEGSIZE_1T))
+		base = max_t(unsigned long, mm->brk, 1UL << SID_SHIFT_1T);
+#endif
+
+	ret = PAGE_ALIGN(base + brk_rnd());
 
 	if (ret < mm->brk)
 		return mm->brk;

@@ -534,10 +534,6 @@ static int atl1c_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (atl1c_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
 				    &data->val_out)) {
 			retval = -EIO;
@@ -546,10 +542,6 @@ static int atl1c_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (data->reg_num & ~(0x1F)) {
 			retval = -EFAULT;
 			goto out;
@@ -1740,7 +1732,6 @@ rrs_checked:
 		} else
 			netif_receive_skb(skb);
 
-		netdev->last_rx = jiffies;
 		(*work_done)++;
 		count++;
 	}
@@ -2055,7 +2046,8 @@ static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
 	AT_WRITE_REG(&adapter->hw, REG_MB_PRIO_PROD_IDX, prod_data);
 }
 
-static int atl1c_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
+					  struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
@@ -2304,7 +2296,7 @@ static int atl1c_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 ctrl;
 	u32 mac_ctrl_data;
 	u32 master_ctrl_data;
-	u32 wol_ctrl_data;
+	u32 wol_ctrl_data = 0;
 	u16 mii_bmsr_data;
 	u16 save_autoneg_advertised;
 	u16 mii_intr_status_data;
@@ -2677,6 +2669,9 @@ static pci_ers_result_t atl1c_io_error_detected(struct pci_dev *pdev,
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		atl1c_down(adapter);

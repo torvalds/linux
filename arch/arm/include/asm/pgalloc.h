@@ -36,6 +36,8 @@ extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
 #define pgd_alloc(mm)			get_pgd_slow(mm)
 #define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
 
+#define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
+
 /*
  * Allocate one PTE table.
  *
@@ -57,7 +59,7 @@ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
 {
 	pte_t *pte;
 
-	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+	pte = (pte_t *)__get_free_page(PGALLOC_GFP);
 	if (pte) {
 		clean_dcache_area(pte, sizeof(pte_t) * PTRS_PER_PTE);
 		pte += PTRS_PER_PTE;
@@ -71,10 +73,16 @@ pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
 	struct page *pte;
 
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+#ifdef CONFIG_HIGHPTE
+	pte = alloc_pages(PGALLOC_GFP | __GFP_HIGHMEM, 0);
+#else
+	pte = alloc_pages(PGALLOC_GFP, 0);
+#endif
 	if (pte) {
-		void *page = page_address(pte);
-		clean_dcache_area(page, sizeof(pte_t) * PTRS_PER_PTE);
+		if (!PageHighMem(pte)) {
+			void *page = page_address(pte);
+			clean_dcache_area(page, sizeof(pte_t) * PTRS_PER_PTE);
+		}
 		pgtable_page_ctor(pte);
 	}
 

@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -66,24 +66,12 @@
 #define FAILURE		1
 #endif
 
-#ifndef READ
-#define READ		0
-#define WRITE		1
-#endif
-
-#ifndef SINGLE_BYTE
-#define SINGLE_BYTE	0
-#define DUAL_BYTE	1
-#endif
-
 /* Forward declaration of the private adapter structure */
 struct et131x_adapter;
 
 int32_t EepromWriteByte(struct et131x_adapter *adapter, u32 unAddress,
-			u8 bData, u32 unEepromId,
-			u32 unAddressingMode);
+			u8 bData);
 int32_t EepromReadByte(struct et131x_adapter *adapter, u32 unAddress,
-		       u8 *pbData, u32 unEepromId,
-		       u32 unAddressingMode);
+			u8 *pbData);
 
 #endif /* _ET1310_EEPROM_H_ */

@@ -366,6 +366,7 @@ config ISCSI_TCP
 
 source "drivers/scsi/cxgb3i/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
+source "drivers/scsi/be2iscsi/Kconfig"
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
@@ -1811,6 +1812,12 @@ config ZFCP
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
 
+config SCSI_PMCRAID
+	tristate "PMC SIERRA Linux MaxRAID adapter support"
+	depends on PCI && SCSI
+	---help---
+	  This driver supports the PMC SIERRA MaxRAID adapters.
+
 config SCSI_SRP
 	tristate "SCSI RDMA Protocol helper library"
 	depends on SCSI && PCI
@@ -1820,6 +1827,16 @@ config SCSI_SRP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called libsrp.
+
+config SCSI_BFA_FC
+	tristate "Brocade BFA Fibre Channel Support"
+	depends on PCI && SCSI
+	select SCSI_FC_ATTRS
+	help
+	  This bfa driver supports all Brocade PCIe FC/FCOE host adapters.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called bfa.
 
 endif # SCSI_LOWLEVEL
 

@@ -78,6 +78,7 @@
 #define CB_COLOR0_MASK                                  0x28100
 
 #define	CONFIG_MEMSIZE					0x5428
+#define CONFIG_CNTL					0x5424
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC

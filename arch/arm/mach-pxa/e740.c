@@ -199,7 +199,6 @@ static void __init e740_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
 	pxa_set_ac97_info(NULL);
-	e7xx_irda_init();
 	pxa_set_ficp_info(&e7xx_ficp_platform_data);
 }
 

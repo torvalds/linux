@@ -265,7 +265,7 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31pdk_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31pdk_timer,
 MACHINE_END

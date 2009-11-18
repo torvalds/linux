@@ -605,7 +605,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	if (ret)
 		return ret;
 
-	if (inp < 0 || inp >= cx->nof_inputs)
+	if (inp >= cx->nof_inputs)
 		return -EINVAL;
 
 	if (inp == cx->active_input) {

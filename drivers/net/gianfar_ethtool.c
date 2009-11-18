@@ -293,7 +293,7 @@ static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 	rxtime  = get_ictt_value(priv->rxic);
 	rxcount = get_icft_value(priv->rxic);
 	txtime  = get_ictt_value(priv->txic);
-	txcount = get_icft_value(priv->txic);;
+	txcount = get_icft_value(priv->txic);
 	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, rxtime);
 	cvals->rx_max_coalesced_frames = rxcount;
 

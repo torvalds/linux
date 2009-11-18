@@ -28,7 +28,6 @@
 #include <linux/nilfs2_fs.h>
 #include "mdt.h"
 
-#define NILFS_SUFILE_GFP	NILFS_MDT_GFP
 
 static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 {

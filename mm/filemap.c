@@ -39,10 +39,9 @@
 /*
  * FIXME: remove all knowledge of the buffer layer from the core VM
  */
-#include <linux/buffer_head.h> /* for generic_osync_inode */
+#include <linux/buffer_head.h> /* for try_to_free_buffers */
 
 #include <asm/mman.h>
-
 
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
@@ -59,7 +58,7 @@
 /*
  * Lock ordering:
  *
- *  ->i_mmap_lock		(vmtruncate)
+ *  ->i_mmap_lock		(truncate_pagecache)
  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
  *      ->swap_lock		(exclusive_swap_page, others)
  *        ->mapping->tree_lock
@@ -105,6 +104,10 @@
  *
  *  ->task->proc_lock
  *    ->dcache_lock		(proc_pid_lookup)
+ *
+ *  (code doesn't rely on that order, so you could switch it around)
+ *  ->tasklist_lock             (memory_failure, collect_procs_ao)
+ *    ->i_mmap_lock
  */
 
 /*
@@ -120,6 +123,8 @@ void __remove_from_page_cache(struct page *page)
 	page->mapping = NULL;
 	mapping->nrpages--;
 	__dec_zone_page_state(page, NR_FILE_PAGES);
+	if (PageSwapBacked(page))
+		__dec_zone_page_state(page, NR_SHMEM);
 	BUG_ON(page_mapped(page));
 
 	/*
@@ -307,68 +312,24 @@ int wait_on_page_writeback_range(struct address_space *mapping,
 }
 
 /**
- * sync_page_range - write and wait on all pages in the passed range
- * @inode:	target inode
- * @mapping:	target address_space
- * @pos:	beginning offset in pages to write
- * @count:	number of bytes to write
+ * filemap_fdatawait_range - wait for all under-writeback pages to complete in a given range
+ * @mapping: address space structure to wait for
+ * @start:	offset in bytes where the range starts
+ * @end:	offset in bytes where the range ends (inclusive)
  *
- * Write and wait upon all the pages in the passed range.  This is a "data
- * integrity" operation.  It waits upon in-flight writeout before starting and
- * waiting upon new writeout.  If there was an IO error, return it.
+ * Walk the list of under-writeback pages of the given address space
+ * in the given range and wait for all of them.
  *
- * We need to re-take i_mutex during the generic_osync_inode list walk because
- * it is otherwise livelockable.
+ * This is just a simple wrapper so that callers don't have to convert offsets
+ * to page indexes themselves
  */
-int sync_page_range(struct inode *inode, struct address_space *mapping,
-			loff_t pos, loff_t count)
+int filemap_fdatawait_range(struct address_space *mapping, loff_t start,
+			    loff_t end)
 {
-	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
-	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-	int ret;
-
-	if (!mapping_cap_writeback_dirty(mapping) || !count)
-		return 0;
-	ret = filemap_fdatawrite_range(mapping, pos, pos + count - 1);
-	if (ret == 0) {
-		mutex_lock(&inode->i_mutex);
-		ret = generic_osync_inode(inode, mapping, OSYNC_METADATA);
-		mutex_unlock(&inode->i_mutex);
-	}
-	if (ret == 0)
-		ret = wait_on_page_writeback_range(mapping, start, end);
-	return ret;
+	return wait_on_page_writeback_range(mapping, start >> PAGE_CACHE_SHIFT,
+					    end >> PAGE_CACHE_SHIFT);
 }
-EXPORT_SYMBOL(sync_page_range);
-
-/**
- * sync_page_range_nolock - write & wait on all pages in the passed range without locking
- * @inode:	target inode
- * @mapping:	target address_space
- * @pos:	beginning offset in pages to write
- * @count:	number of bytes to write
- *
- * Note: Holding i_mutex across sync_page_range_nolock() is not a good idea
- * as it forces O_SYNC writers to different parts of the same file
- * to be serialised right until io completion.
- */
-int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
-			   loff_t pos, loff_t count)
-{
-	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
-	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-	int ret;
-
-	if (!mapping_cap_writeback_dirty(mapping) || !count)
-		return 0;
-	ret = filemap_fdatawrite_range(mapping, pos, pos + count - 1);
-	if (ret == 0)
-		ret = generic_osync_inode(inode, mapping, OSYNC_METADATA);
-	if (ret == 0)
-		ret = wait_on_page_writeback_range(mapping, start, end);
-	return ret;
-}
-EXPORT_SYMBOL(sync_page_range_nolock);
+EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
  * filemap_fdatawait - wait for all under-writeback pages to complete
@@ -476,6 +437,8 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
 		if (likely(!error)) {
 			mapping->nrpages++;
 			__inc_zone_page_state(page, NR_FILE_PAGES);
+			if (PageSwapBacked(page))
+				__inc_zone_page_state(page, NR_SHMEM);
 			spin_unlock_irq(&mapping->tree_lock);
 		} else {
 			page->mapping = NULL;
@@ -1648,7 +1611,7 @@ page_not_uptodate:
 }
 EXPORT_SYMBOL(filemap_fault);
 
-struct vm_operations_struct generic_file_vm_ops = {
+const struct vm_operations_struct generic_file_vm_ops = {
 	.fault		= filemap_fault,
 };
 
@@ -2167,20 +2130,7 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		}
 		*ppos = end;
 	}
-
-	/*
-	 * Sync the fs metadata but not the minor inode changes and
-	 * of course not the data as we did direct DMA for the IO.
-	 * i_mutex is held, which protects generic_osync_inode() from
-	 * livelocking.  AIO O_DIRECT ops attempt to sync metadata here.
-	 */
 out:
-	if ((written >= 0 || written == -EIOCBQUEUED) &&
-	    ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		int err = generic_osync_inode(inode, mapping, OSYNC_METADATA);
-		if (err < 0)
-			written = err;
-	}
 	return written;
 }
 EXPORT_SYMBOL(generic_file_direct_write);
@@ -2312,8 +2262,6 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	const struct address_space_operations *a_ops = mapping->a_ops;
-	struct inode *inode = mapping->host;
 	ssize_t status;
 	struct iov_iter i;
 
@@ -2323,16 +2271,6 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	if (likely(status >= 0)) {
 		written += status;
 		*ppos = pos + status;
-
-		/*
-		 * For now, when the user asks for O_SYNC, we'll actually give
-		 * O_DSYNC
-		 */
-		if (unlikely((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-			if (!a_ops->writepage || !is_sync_kiocb(iocb))
-				status = generic_osync_inode(inode, mapping,
-						OSYNC_METADATA|OSYNC_DATA);
-		}
   	}
 	
 	/*
@@ -2348,9 +2286,27 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL(generic_file_buffered_write);
 
-static ssize_t
-__generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
-				unsigned long nr_segs, loff_t *ppos)
+/**
+ * __generic_file_aio_write - write data to a file
+ * @iocb:	IO state structure (file, offset, etc.)
+ * @iov:	vector with data to write
+ * @nr_segs:	number of segments in the vector
+ * @ppos:	position where to write
+ *
+ * This function does all the work needed for actually writing data to a
+ * file. It does all basic checks, removes SUID from the file, updates
+ * modification times and calls proper subroutines depending on whether we
+ * do direct IO or a standard buffered write.
+ *
+ * It expects i_mutex to be grabbed unless we work on a block device or similar
+ * object which does not need locking at all.
+ *
+ * This function does *not* take care of syncing data in case of O_SYNC write.
+ * A caller has to handle it. This is mainly due to the fact that we want to
+ * avoid syncing under i_mutex.
+ */
+ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+				 unsigned long nr_segs, loff_t *ppos)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
@@ -2447,51 +2403,37 @@ out:
 	current->backing_dev_info = NULL;
 	return written ? written : err;
 }
+EXPORT_SYMBOL(__generic_file_aio_write);
 
-ssize_t generic_file_aio_write_nolock(struct kiocb *iocb,
-		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
-{
-	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	ssize_t ret;
-
-	BUG_ON(iocb->ki_pos != pos);
-
-	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
-			&iocb->ki_pos);
-
-	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		ssize_t err;
-
-		err = sync_page_range_nolock(inode, mapping, pos, ret);
-		if (err < 0)
-			ret = err;
-	}
-	return ret;
-}
-EXPORT_SYMBOL(generic_file_aio_write_nolock);
-
+/**
+ * generic_file_aio_write - write data to a file
+ * @iocb:	IO state structure
+ * @iov:	vector with data to write
+ * @nr_segs:	number of segments in the vector
+ * @pos:	position in file where to write
+ *
+ * This is a wrapper around __generic_file_aio_write() to be used by most
+ * filesystems. It takes care of syncing the file in case of O_SYNC file
+ * and acquires i_mutex as needed.
+ */
 ssize_t generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
 
 	BUG_ON(iocb->ki_pos != pos);
 
 	mutex_lock(&inode->i_mutex);
-	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs,
-			&iocb->ki_pos);
+	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
 
-	if (ret > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+	if (ret > 0 || ret == -EIOCBQUEUED) {
 		ssize_t err;
 
-		err = sync_page_range(inode, mapping, pos, ret);
-		if (err < 0)
+		err = generic_write_sync(file, pos, ret);
+		if (err < 0 && ret > 0)
 			ret = err;
 	}
 	return ret;

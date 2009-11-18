@@ -24,34 +24,27 @@
 		mov	\tmp, \tmp, lsr #13
 		and	\tmp, \tmp, #0x7		@ Core G
 		cmp	\tmp, #1
-		bhi	1004f
+		bhi	1002f
 
+		@ Core Generation 1 (PXA25x)
 		mov	\base, #io_p2v(0x40000000)	@ IIR Ctl = 0x40d00000
 		add	\base, \base, #0x00d00000
 		ldr	\irqstat, [\base, #0]		@ ICIP
 		ldr	\irqnr, [\base, #4]		@ ICMR
-		b	1002f
 
-1004:
-		mrc	p6, 0, \irqstat, c6, c0, 0	@ ICIP2
-		mrc	p6, 0, \irqnr, c7, c0, 0	@ ICMR2
-		ands	\irqnr, \irqstat, \irqnr
-		beq	1003f
-		rsb	\irqstat, \irqnr, #0
-		and	\irqstat, \irqstat, \irqnr
-		clz	\irqnr, \irqstat
-		rsb	\irqnr, \irqnr, #31
-		add	\irqnr, \irqnr, #(32 + PXA_IRQ(0))
-		b	1001f
-1003:
-		mrc	p6, 0, \irqstat, c0, c0, 0	@ ICIP
-		mrc	p6, 0, \irqnr, c1, c0, 0	@ ICMR
-1002:
 		ands	\irqnr, \irqstat, \irqnr
 		beq	1001f
 		rsb	\irqstat, \irqnr, #0
 		and	\irqstat, \irqstat, \irqnr
 		clz	\irqnr, \irqstat
 		rsb	\irqnr, \irqnr, #(31 + PXA_IRQ(0))
+		b	1001f
+1002:
+		@ Core Generation 2 (PXA27x) or Core Generation 3 (PXA3xx)
+		mrc	p6, 0, \irqstat, c5, c0, 0	@ ICHP
+		tst	\irqstat, #0x80000000
+		beq	1001f
+		bic	\irqstat, \irqstat, #0x80000000
+		mov	\irqnr, \irqstat, lsr #16
 1001:
 		.endm

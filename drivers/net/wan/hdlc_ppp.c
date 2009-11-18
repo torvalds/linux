@@ -389,6 +389,7 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	for (opt = data; len; len -= opt[1], opt += opt[1]) {
 		if (len < 2 || len < opt[1]) {
 			dev->stats.rx_errors++;
+			kfree(out);
 			return; /* bad packet, drop silently */
 		}
 

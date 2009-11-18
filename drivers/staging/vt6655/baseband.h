@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: baseband.h
  *
  * Purpose: Implement functions to access baseband
@@ -26,23 +27,12 @@
  *
  */
 
-
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -106,11 +96,10 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
+
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Macros ------------------------------*/
-
-
 
 #define BBvClearFOE(dwIoBase)                               \
 {                                                           \
@@ -128,9 +117,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 UINT
 BBuGetFrameTime(
@@ -173,26 +159,19 @@ VOID BBvSetDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
 VOID BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
 
 // timer for antenna diversity
+
 VOID
-TimerSQ3CallBack(
-    IN  HANDLE hDeviceContext
+TimerSQ3CallBack (
+    IN  HANDLE      hDeviceContext
     );
+
 VOID
 TimerState1CallBack(
-    IN  HANDLE hDeviceContext
+    IN  HANDLE      hDeviceContext
     );
 
 void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
 VOID
 BBvClearAntDivSQ3Value (PSDevice pDevice);
 
-
-#ifdef __cplusplus
-}                /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
 #endif // __BASEBAND_H__
-
-
-

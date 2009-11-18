@@ -65,6 +65,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	case 3: args[2] = regs->regs[6];
 	case 2: args[1] = regs->regs[5];
 	case 1:	args[0] = regs->regs[4];
+	case 0:
 		break;
 	default:
 		BUG();

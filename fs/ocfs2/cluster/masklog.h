@@ -113,6 +113,7 @@
 #define ML_EXPORT	0x0000000010000000ULL /* ocfs2 export operations */
 #define ML_XATTR	0x0000000020000000ULL /* ocfs2 extended attributes */
 #define ML_QUOTA	0x0000000040000000ULL /* ocfs2 quota operations */
+#define ML_REFCOUNT	0x0000000080000000ULL /* refcount tree operations */
 /* bits that are infrequently given and frequently matched in the high word */
 #define ML_ERROR	0x0000000100000000ULL /* sent to KERN_ERR */
 #define ML_NOTICE	0x0000000200000000ULL /* setn to KERN_NOTICE */

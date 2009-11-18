@@ -1831,8 +1831,7 @@ static void edge_bulk_out_callback(struct urb *urb)
 	tty_kref_put(tty);
 }
 
-static int edge_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct edgeport_serial *edge_serial;

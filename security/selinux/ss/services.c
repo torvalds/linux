@@ -22,6 +22,11 @@
  *
  *  Added validation of kernel classes and permissions
  *
+ * Updated: KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *
+ *  Added support for bounds domain and audit messaged on masked permissions
+ *
+ * Copyright (C) 2008, 2009 NEC Corporation
  * Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004, 2006 Tresys Technology, LLC
@@ -279,6 +284,95 @@ mls_ops:
 }
 
 /*
+ * security_dump_masked_av - dumps masked permissions during
+ * security_compute_av due to RBAC, MLS/Constraint and Type bounds.
+ */
+static int dump_masked_av_helper(void *k, void *d, void *args)
+{
+	struct perm_datum *pdatum = d;
+	char **permission_names = args;
+
+	BUG_ON(pdatum->value < 1 || pdatum->value > 32);
+
+	permission_names[pdatum->value - 1] = (char *)k;
+
+	return 0;
+}
+
+static void security_dump_masked_av(struct context *scontext,
+				    struct context *tcontext,
+				    u16 tclass,
+				    u32 permissions,
+				    const char *reason)
+{
+	struct common_datum *common_dat;
+	struct class_datum *tclass_dat;
+	struct audit_buffer *ab;
+	char *tclass_name;
+	char *scontext_name = NULL;
+	char *tcontext_name = NULL;
+	char *permission_names[32];
+	int index, length;
+	bool need_comma = false;
+
+	if (!permissions)
+		return;
+
+	tclass_name = policydb.p_class_val_to_name[tclass - 1];
+	tclass_dat = policydb.class_val_to_struct[tclass - 1];
+	common_dat = tclass_dat->comdatum;
+
+	/* init permission_names */
+	if (common_dat &&
+	    hashtab_map(common_dat->permissions.table,
+			dump_masked_av_helper, permission_names) < 0)
+		goto out;
+
+	if (hashtab_map(tclass_dat->permissions.table,
+			dump_masked_av_helper, permission_names) < 0)
+		goto out;
+
+	/* get scontext/tcontext in text form */
+	if (context_struct_to_string(scontext,
+				     &scontext_name, &length) < 0)
+		goto out;
+
+	if (context_struct_to_string(tcontext,
+				     &tcontext_name, &length) < 0)
+		goto out;
+
+	/* audit a message */
+	ab = audit_log_start(current->audit_context,
+			     GFP_ATOMIC, AUDIT_SELINUX_ERR);
+	if (!ab)
+		goto out;
+
+	audit_log_format(ab, "op=security_compute_av reason=%s "
+			 "scontext=%s tcontext=%s tclass=%s perms=",
+			 reason, scontext_name, tcontext_name, tclass_name);
+
+	for (index = 0; index < 32; index++) {
+		u32 mask = (1 << index);
+
+		if ((mask & permissions) == 0)
+			continue;
+
+		audit_log_format(ab, "%s%s",
+				 need_comma ? "," : "",
+				 permission_names[index]
+				 ? permission_names[index] : "????");
+		need_comma = true;
+	}
+	audit_log_end(ab);
+out:
+	/* release scontext/tcontext */
+	kfree(tcontext_name);
+	kfree(scontext_name);
+
+	return;
+}
+
+/*
  * security_boundary_permission - drops violated permissions
  * on boundary constraint.
  */
@@ -347,28 +441,12 @@ static void type_attribute_bounds_av(struct context *scontext,
 	}
 
 	if (masked) {
-		struct audit_buffer *ab;
-		char *stype_name
-			= policydb.p_type_val_to_name[source->value - 1];
-		char *ttype_name
-			= policydb.p_type_val_to_name[target->value - 1];
-		char *tclass_name
-			= policydb.p_class_val_to_name[tclass - 1];
-
 		/* mask violated permissions */
 		avd->allowed &= ~masked;
 
-		/* notice to userspace via audit message */
-		ab = audit_log_start(current->audit_context,
-				     GFP_ATOMIC, AUDIT_SELINUX_ERR);
-		if (!ab)
-			return;
-
-		audit_log_format(ab, "av boundary violation: "
-				 "source=%s target=%s tclass=%s",
-				 stype_name, ttype_name, tclass_name);
-		avc_dump_av(ab, tclass, masked);
-		audit_log_end(ab);
+		/* audit masked permissions */
+		security_dump_masked_av(scontext, tcontext,
+					tclass, masked, "bounds");
 	}
 }
 
@@ -480,7 +558,7 @@ static int context_struct_compute_av(struct context *scontext,
 		if ((constraint->permissions & (avd->allowed)) &&
 		    !constraint_expr_eval(scontext, tcontext, NULL,
 					  constraint->expr)) {
-			avd->allowed = (avd->allowed) & ~(constraint->permissions);
+			avd->allowed &= ~(constraint->permissions);
 		}
 		constraint = constraint->next;
 	}
@@ -499,8 +577,8 @@ static int context_struct_compute_av(struct context *scontext,
 				break;
 		}
 		if (!ra)
-			avd->allowed = (avd->allowed) & ~(PROCESS__TRANSITION |
-							PROCESS__DYNTRANSITION);
+			avd->allowed &= ~(PROCESS__TRANSITION |
+					  PROCESS__DYNTRANSITION);
 	}
 
 	/*
@@ -686,6 +764,26 @@ int security_bounded_transition(u32 old_sid, u32 new_sid)
 			break;
 		}
 		index = type->bounds;
+	}
+
+	if (rc) {
+		char *old_name = NULL;
+		char *new_name = NULL;
+		int length;
+
+		if (!context_struct_to_string(old_context,
+					      &old_name, &length) &&
+		    !context_struct_to_string(new_context,
+					      &new_name, &length)) {
+			audit_log(current->audit_context,
+				  GFP_ATOMIC, AUDIT_SELINUX_ERR,
+				  "op=security_bounded_transition "
+				  "result=denied "
+				  "oldcontext=%s newcontext=%s",
+				  old_name, new_name);
+		}
+		kfree(new_name);
+		kfree(old_name);
 	}
 out:
 	read_unlock(&policy_rwlock);

@@ -15,6 +15,8 @@
 #define RDS_IB_DEFAULT_RECV_WR		1024
 #define RDS_IB_DEFAULT_SEND_WR		256
 
+#define RDS_IB_DEFAULT_RETRY_COUNT	2
+
 #define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* minor versions supported */
 
 extern struct list_head rds_ib_devices;
@@ -157,9 +159,6 @@ struct rds_ib_device {
 	struct ib_pd		*pd;
 	struct ib_mr		*mr;
 	struct rds_ib_mr_pool	*mr_pool;
-	int			fmr_page_shift;
-	int			fmr_page_size;
-	u64			fmr_page_mask;
 	unsigned int		fmr_max_remaps;
 	unsigned int		max_fmrs;
 	int			max_sge;
@@ -247,6 +246,7 @@ extern struct ib_client rds_ib_client;
 
 extern unsigned int fmr_pool_size;
 extern unsigned int fmr_message_size;
+extern unsigned int rds_ib_retry_count;
 
 extern spinlock_t ib_nodev_conns_lock;
 extern struct list_head ib_nodev_conns;
@@ -355,17 +355,25 @@ extern ctl_table rds_ib_sysctl_table[];
 /*
  * Helper functions for getting/setting the header and data SGEs in
  * RDS packets (not RDMA)
+ *
+ * From version 3.1 onwards, header is in front of data in the sge.
  */
 static inline struct ib_sge *
 rds_ib_header_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
-	return &sge[0];
+	if (ic->conn->c_version > RDS_PROTOCOL_3_0)
+		return &sge[0];
+	else
+		return &sge[1];
 }
 
 static inline struct ib_sge *
 rds_ib_data_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
-	return &sge[1];
+	if (ic->conn->c_version > RDS_PROTOCOL_3_0)
+		return &sge[1];
+	else
+		return &sge[0];
 }
 
 #endif

@@ -415,7 +415,7 @@ void __init prepare_namespace(void)
 
 	mount_root();
 out:
+	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
 }
-

@@ -68,7 +68,7 @@ static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 
 	/* allocate a r10bio with room for raid_disks entries in the bios array */
 	r10_bio = kzalloc(size, gfp_flags);
-	if (!r10_bio)
+	if (!r10_bio && conf->mddev)
 		unplug_slaves(conf->mddev);
 
 	return r10_bio;
@@ -631,6 +631,8 @@ static int raid10_congested(void *data, int bits)
 	conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks && ret == 0; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
@@ -796,12 +798,12 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
-	const int do_sync = bio_sync(bio);
+	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
 	struct bio_list bl;
 	unsigned long flags;
 	mdk_rdev_t *blocked_rdev;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
@@ -882,7 +884,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
-		read_bio->bi_rw = READ | do_sync;
+		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 		read_bio->bi_private = r10_bio;
 
 		generic_make_request(read_bio);
@@ -950,7 +952,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			conf->mirrors[d].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync;
+		mbio->bi_rw = WRITE | (do_sync << BIO_RW_SYNCIO);
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
@@ -1610,7 +1612,7 @@ static void raid10d(mddev_t *mddev)
 				raid_end_bio_io(r10_bio);
 				bio_put(bio);
 			} else {
-				const int do_sync = bio_sync(r10_bio->master_bio);
+				const bool do_sync = bio_rw_flagged(r10_bio->master_bio, BIO_RW_SYNCIO);
 				bio_put(bio);
 				rdev = conf->mirrors[mirror].rdev;
 				if (printk_ratelimit())
@@ -1623,13 +1625,14 @@ static void raid10d(mddev_t *mddev)
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
-				bio->bi_rw = READ | do_sync;
+				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 				bio->bi_private = r10_bio;
 				bio->bi_end_io = raid10_end_read_request;
 				unplug = 1;
 				generic_make_request(bio);
 			}
 		}
+		cond_resched();
 	}
 	if (unplug)
 		unplug_slaves(mddev);
@@ -1773,7 +1776,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	max_sync = RESYNC_PAGES << (PAGE_SHIFT-9);
 	if (!test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 		/* recovery... the complicated one */
-		int i, j, k;
+		int j, k;
 		r10_bio = NULL;
 
 		for (i=0 ; i<conf->raid_disks; i++)
@@ -2093,7 +2096,6 @@ static int run(mddev_t *mddev)
 	if (!conf->tmppage)
 		goto out_free_conf;
 
-	conf->mddev = mddev;
 	conf->raid_disks = mddev->raid_disks;
 	conf->near_copies = nc;
 	conf->far_copies = fc;
@@ -2130,6 +2132,7 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	mddev->queue->queue_lock = &conf->device_lock;
 
@@ -2188,7 +2191,7 @@ static int run(mddev_t *mddev)
 	}
 
 
-	mddev->thread = md_register_thread(raid10d, mddev, "%s_raid10");
+	mddev->thread = md_register_thread(raid10d, mddev, NULL);
 	if (!mddev->thread) {
 		printk(KERN_ERR
 		       "raid10: couldn't allocate thread for %s\n",

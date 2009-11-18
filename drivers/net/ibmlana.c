@@ -812,7 +812,7 @@ static int ibmlana_close(struct net_device *dev)
 
 /* transmit a block. */
 
-static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	ibmlana_priv *priv = netdev_priv(dev);
 	int tmplen, addr;

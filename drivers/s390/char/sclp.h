@@ -27,6 +27,7 @@
 #define EVTYP_VT220MSG		0x1A
 #define EVTYP_CONFMGMDATA	0x04
 #define EVTYP_SDIAS		0x1C
+#define EVTYP_ASYNC		0x0A
 
 #define EVTYP_OPCMD_MASK	0x80000000
 #define EVTYP_MSG_MASK		0x40000000
@@ -38,6 +39,7 @@
 #define EVTYP_VT220MSG_MASK	0x00000040
 #define EVTYP_CONFMGMDATA_MASK	0x10000000
 #define EVTYP_SDIAS_MASK	0x00000010
+#define EVTYP_ASYNC_MASK	0x00400000
 
 #define GNRLMSGFLGS_DOM		0x8000
 #define GNRLMSGFLGS_SNDALRM	0x4000
@@ -85,11 +87,11 @@ struct sccb_header {
 } __attribute__((packed));
 
 extern u64 sclp_facilities;
-
 #define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
 #define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
 #define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
+
 
 struct gds_subvector {
 	u8	length;

@@ -50,15 +50,12 @@ void __new_context(struct mm_struct *mm)
 		isb();
 		flush_tlb_all();
 		if (icache_is_vivt_asid_tagged()) {
-			asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
-			    "mcr	p15, 0, %0, c7, c5, 6	@ flush BTAC/BTB\n"
-			    :
-			    : "r" (0));
+			__flush_icache_all();
 			dsb();
 		}
 	}
 	spin_unlock(&cpu_asid_lock);
 
-	mm->cpu_vm_mask = cpumask_of_cpu(smp_processor_id());
+	cpumask_copy(mm_cpumask(mm), cpumask_of(smp_processor_id()));
 	mm->context.id = asid;
 }

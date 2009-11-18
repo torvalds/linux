@@ -107,7 +107,7 @@ struct agp_bridge_driver {
 	void (*agp_enable)(struct agp_bridge_data *, u32);
 	void (*cleanup)(void);
 	void (*tlb_flush)(struct agp_memory *);
-	unsigned long (*mask_memory)(struct agp_bridge_data *, struct page *, int);
+	unsigned long (*mask_memory)(struct agp_bridge_data *, dma_addr_t, int);
 	void (*cache_flush)(void);
 	int (*create_gatt_table)(struct agp_bridge_data *);
 	int (*free_gatt_table)(struct agp_bridge_data *);
@@ -121,12 +121,17 @@ struct agp_bridge_driver {
 	void (*agp_destroy_pages)(struct agp_memory *);
 	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
 	void (*chipset_flush)(struct agp_bridge_data *);
+
+	int (*agp_map_page)(struct page *page, dma_addr_t *ret);
+	void (*agp_unmap_page)(struct page *page, dma_addr_t dma);
+	int (*agp_map_memory)(struct agp_memory *mem);
+	void (*agp_unmap_memory)(struct agp_memory *mem);
 };
 
 struct agp_bridge_data {
 	const struct agp_version *version;
 	const struct agp_bridge_driver *driver;
-	struct vm_operations_struct *vm_ops;
+	const struct vm_operations_struct *vm_ops;
 	void *previous_size;
 	void *current_size;
 	void *dev_private_data;
@@ -134,7 +139,8 @@ struct agp_bridge_data {
 	u32 __iomem *gatt_table;
 	u32 *gatt_table_real;
 	unsigned long scratch_page;
-	unsigned long scratch_page_real;
+	struct page *scratch_page_page;
+	dma_addr_t scratch_page_dma;
 	unsigned long gart_bus_addr;
 	unsigned long gatt_bus_addr;
 	u32 mode;
@@ -291,7 +297,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge);
 void global_cache_flush(void);
 void get_agp_version(struct agp_bridge_data *bridge);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
-				      struct page *page, int type);
+				      dma_addr_t phys, int type);
 int agp_generic_type_to_mask_type(struct agp_bridge_data *bridge,
 				  int type);
 struct agp_bridge_data *agp_generic_find_bridge(struct pci_dev *pdev);
@@ -311,9 +317,6 @@ void agp3_generic_cleanup(void);
 /* aperture sizes have been standardised since v3 */
 #define AGP_GENERIC_SIZES_ENTRIES 11
 extern const struct aper_size_info_16 agp3_generic_sizes[];
-
-#define virt_to_gart(x) (phys_to_gart(virt_to_phys(x)))
-#define gart_to_virt(x) (phys_to_virt(gart_to_phys(x)))
 
 extern int agp_off;
 extern int agp_try_unsupported_boot;

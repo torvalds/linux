@@ -29,6 +29,7 @@ int __init detect_cpu_and_cache_system(void)
 	 */
 	boot_cpu_data.dcache.flags |= SH_CACHE_COMBINED;
 	boot_cpu_data.icache = boot_cpu_data.dcache;
+	boot_cpu_data.family = CPU_FAMILY_SH2;
 
 	return 0;
 }

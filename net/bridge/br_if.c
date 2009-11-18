@@ -256,12 +256,17 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
 	p->port_no = index;
+	p->flags = 0;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	br_stp_port_timer_init(p);
 
 	return p;
 }
+
+static struct device_type br_type = {
+	.name	= "bridge",
+};
 
 int br_add_bridge(struct net *net, const char *name)
 {
@@ -278,6 +283,8 @@ int br_add_bridge(struct net *net, const char *name)
 		if (ret < 0)
 			goto out_free;
 	}
+
+	SET_NETDEV_DEVTYPE(dev, &br_type);
 
 	ret = register_netdevice(dev);
 	if (ret)
@@ -370,12 +377,16 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	struct net_bridge_port *p;
 	int err = 0;
 
-	if (dev->flags & IFF_LOOPBACK || dev->type != ARPHRD_ETHER)
+	/* Don't allow bridging non-ethernet like devices */
+	if ((dev->flags & IFF_LOOPBACK) ||
+	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN)
 		return -EINVAL;
 
+	/* No bridging of bridges */
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit)
 		return -ELOOP;
 
+	/* Device is already being bridged */
 	if (dev->br_port != NULL)
 		return -EBUSY;
 
@@ -425,6 +436,7 @@ err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_put(&p->kobj);
+	p = NULL; /* kobject_put frees */
 err0:
 	dev_set_promiscuity(dev, -1);
 put_back:

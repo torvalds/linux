@@ -44,19 +44,7 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
-static void v9fs_clear_inode(struct inode *);
 static const struct super_operations v9fs_super_ops;
-
-/**
- * v9fs_clear_inode - release an inode
- * @inode: inode to release
- *
- */
-
-static void v9fs_clear_inode(struct inode *inode)
-{
-	filemap_fdatawrite(inode->i_mapping);
-}
 
 /**
  * v9fs_set_super - set the superblock
@@ -220,6 +208,10 @@ v9fs_umount_begin(struct super_block *sb)
 }
 
 static const struct super_operations v9fs_super_ops = {
+#ifdef CONFIG_9P_FSCACHE
+	.alloc_inode = v9fs_alloc_inode,
+	.destroy_inode = v9fs_destroy_inode,
+#endif
 	.statfs = simple_statfs,
 	.clear_inode = v9fs_clear_inode,
 	.show_options = generic_show_options,

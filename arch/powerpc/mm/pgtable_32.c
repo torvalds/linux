@@ -142,7 +142,7 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 		flags |= _PAGE_DIRTY | _PAGE_HWWRITE;
 
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
-	flags &= ~(_PAGE_USER | _PAGE_EXEC | _PAGE_HWEXEC);
+	flags &= ~(_PAGE_USER | _PAGE_EXEC);
 
 	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }

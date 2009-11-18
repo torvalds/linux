@@ -393,7 +393,6 @@ int chp_new(struct chp_id chpid)
 	chp->state = 1;
 	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
 	chp->dev.release = chp_release;
-	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* Obtain channel path description and fill it in. */
 	ret = chsc_determine_base_channel_path_desc(chpid, &chp->desc);
@@ -411,13 +410,15 @@ int chp_new(struct chp_id chpid)
 	} else {
 		chp->cmg = -1;
 	}
+	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* make it known to the system */
 	ret = device_register(&chp->dev);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Could not register chp%x.%02x: %d\n",
 			      chpid.cssid, chpid.id, ret);
-		goto out_free;
+		put_device(&chp->dev);
+		goto out;
 	}
 	ret = sysfs_create_group(&chp->dev.kobj, &chp_attr_group);
 	if (ret) {

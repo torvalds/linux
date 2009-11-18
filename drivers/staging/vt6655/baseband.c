@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: baseband.c
  *
  * Purpose: Implement functions to access baseband
@@ -44,32 +45,16 @@
  *                                Add the comments.
  *      09-01-2003 Bryan YC Fan:  RF & BB tables updated.
  *                                Modified BBvLoopbackOn & BBvLoopbackOff().
+ *
+ *
  */
 
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -80,6 +65,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
+
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -1806,6 +1792,7 @@ BBuGetFrameTime (
 
 
     if (uRateIdx > RATE_54M) {
+	    ASSERT(0);
         return 0;
     }
 
@@ -2041,7 +2028,7 @@ BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData)
     // W_MAX_TIMEOUT is the timeout period
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortB(dwIoBase + MAC_REG_BBREGCTL, &byValue);
-        if (BITbIsBitOn(byValue, BBREGCTL_DONE))
+        if (byValue & BBREGCTL_DONE)
             break;
     }
 
@@ -2050,7 +2037,7 @@ BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData)
 
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x30);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
         return FALSE;
     }
     return TRUE;
@@ -2086,13 +2073,13 @@ BOOL BBbWriteEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData)
     // W_MAX_TIMEOUT is the timeout period
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortB(dwIoBase + MAC_REG_BBREGCTL, &byValue);
-        if (BITbIsBitOn(byValue, BBREGCTL_DONE))
+        if (byValue & BBREGCTL_DONE)
             break;
     }
 
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x31);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
         return FALSE;
     }
     return TRUE;
@@ -2118,7 +2105,7 @@ BOOL BBbIsRegBitsOn (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits)
     BYTE byOrgData;
 
     BBbReadEmbeded(dwIoBase, byBBAddr, &byOrgData);
-    return BITbIsAllBitsOn(byOrgData, byTestBits);
+    return (byOrgData & byTestBits) == byTestBits;
 }
 
 
@@ -2141,7 +2128,7 @@ BOOL BBbIsRegBitsOff (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits)
     BYTE byOrgData;
 
     BBbReadEmbeded(dwIoBase, byBBAddr, &byOrgData);
-    return BITbIsAllBitsOff(byOrgData, byTestBits);
+    return (byOrgData & byTestBits) == 0;
 }
 
 /*
@@ -2807,24 +2794,24 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
         return;
     }
     pDevice->uDiversityCnt++;
-   // DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
+   // DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
 
     pDevice->uNumSQ3[byRxRate]++;
 
     if (pDevice->byAntennaState == 0) {
 
         if (pDevice->uDiversityCnt > pDevice->ulDiversityNValue) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ulDiversityNValue=[%d],54M-[%d]\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ulDiversityNValue=[%d],54M-[%d]\n",
                           (int)pDevice->ulDiversityNValue, (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate]);
 
             if (pDevice->uNumSQ3[pDevice->wAntDiversityMaxRate] < pDevice->uDiversityCnt/2) {
 
                 pDevice->ulRatio_State0 = s_ulGetRatio(pDevice);
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State0, rate = [%08x]\n", (int)pDevice->ulRatio_State0);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State0, rate = [%08x]\n", (int)pDevice->ulRatio_State0);
 
                 if ( pDevice->byTMax == 0 )
                     return;
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1.[%08x], uNumSQ3[%d]=%d, %d\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1.[%08x], uNumSQ3[%d]=%d, %d\n",
                               (int)pDevice->ulRatio_State0, (int)pDevice->wAntDiversityMaxRate,
                               (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
 #ifdef	PLICE_DEBUG
@@ -2852,11 +2839,11 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
             del_timer(&pDevice->TimerSQ3Tmax1);
 
             pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
                           (int)pDevice->ulRatio_State0,(int)pDevice->ulRatio_State1);
 
             if (pDevice->ulRatio_State1 < pDevice->ulRatio_State0) {
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
                               (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
                               (int)pDevice->wAntDiversityMaxRate,
                               (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
@@ -2896,12 +2883,10 @@ TimerSQ3CallBack (
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
-
-
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
     spin_lock_irq(&pDevice->lock);
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.[%08x][%08x], %d\n",(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.[%08x][%08x], %d\n",(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
 #ifdef	PLICE_DEBUG
 		//printk("TimerSQ3CallBack1:call s_vChangeAntenna\n");
 #endif
@@ -2915,8 +2900,8 @@ TimerSQ3CallBack (
     add_timer(&pDevice->TimerSQ3Tmax3);
     add_timer(&pDevice->TimerSQ3Tmax2);
 
-    spin_unlock_irq(&pDevice->lock);
 
+    spin_unlock_irq(&pDevice->lock);
     return;
 }
 
@@ -2946,7 +2931,7 @@ TimerState1CallBack (
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerState1CallBack...");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerState1CallBack...");
 
     spin_lock_irq(&pDevice->lock);
     if (pDevice->uDiversityCnt < pDevice->ulDiversityMValue/100) {
@@ -2961,11 +2946,11 @@ TimerState1CallBack (
         add_timer(&pDevice->TimerSQ3Tmax2);
     } else {
         pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State1, rate0 = %08x,rate1 = %08x\n",
                       (int)pDevice->ulRatio_State0,(int)pDevice->ulRatio_State1);
 
         if ( pDevice->ulRatio_State1 < pDevice->ulRatio_State0 ) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
                           (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
                           (int)pDevice->wAntDiversityMaxRate,
                           (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);

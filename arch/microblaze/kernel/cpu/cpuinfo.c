@@ -28,6 +28,7 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"7.10.d", 0x0b},
 	{"7.20.a", 0x0c},
 	{"7.20.b", 0x0d},
+	{"7.20.c", 0x0e},
 	/* FIXME There is no keycode defined in MBV for these versions */
 	{"2.10.a", 0x10},
 	{"3.00.a", 0x20},
@@ -49,6 +50,8 @@ const struct family_string_key family_string_lookup[] = {
 	{"spartan3a", 0xa},
 	{"spartan3an", 0xb},
 	{"spartan3adsp", 0xc},
+	{"spartan6", 0xd},
+	{"virtex6", 0xe},
 	/* FIXME There is no key code defined for spartan2 */
 	{"spartan2", 0xf0},
 	{NULL, 0},

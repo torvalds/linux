@@ -81,5 +81,6 @@
 
 #define S3C_PA_UART		S3C24A0_PA_UART
 #define S3C_PA_IIC		S3C24A0_PA_IIC
+#define S3C_PA_NAND		S3C24XX_PA_NAND
 
 #endif /* __ASM_ARCH_24A0_MAP_H */

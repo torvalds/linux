@@ -112,22 +112,9 @@ static int blkdev_reread_part(struct block_device *bdev)
 	return res;
 }
 
-static void blk_ioc_discard_endio(struct bio *bio, int err)
-{
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	}
-	complete(bio->bi_private);
-}
-
 static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 			     uint64_t len)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-	int ret = 0;
-
 	if (start & 511)
 		return -EINVAL;
 	if (len & 511)
@@ -137,40 +124,8 @@ static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 
 	if (start + len > (bdev->bd_inode->i_size >> 9))
 		return -EINVAL;
-
-	if (!q->prepare_discard_fn)
-		return -EOPNOTSUPP;
-
-	while (len && !ret) {
-		DECLARE_COMPLETION_ONSTACK(wait);
-		struct bio *bio;
-
-		bio = bio_alloc(GFP_KERNEL, 0);
-
-		bio->bi_end_io = blk_ioc_discard_endio;
-		bio->bi_bdev = bdev;
-		bio->bi_private = &wait;
-		bio->bi_sector = start;
-
-		if (len > queue_max_hw_sectors(q)) {
-			bio->bi_size = queue_max_hw_sectors(q) << 9;
-			len -= queue_max_hw_sectors(q);
-			start += queue_max_hw_sectors(q);
-		} else {
-			bio->bi_size = len << 9;
-			len = 0;
-		}
-		submit_bio(DISCARD_NOBARRIER, bio);
-
-		wait_for_completion(&wait);
-
-		if (bio_flagged(bio, BIO_EOPNOTSUPP))
-			ret = -EOPNOTSUPP;
-		else if (!bio_flagged(bio, BIO_UPTODATE))
-			ret = -EIO;
-		bio_put(bio);
-	}
-	return ret;
+	return blkdev_issue_discard(bdev, start, len, GFP_KERNEL,
+				    DISCARD_FL_WAIT);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
@@ -181,6 +136,11 @@ static int put_ushort(unsigned long arg, unsigned short val)
 static int put_int(unsigned long arg, int val)
 {
 	return put_user(val, (int __user *)arg);
+}
+
+static int put_uint(unsigned long arg, unsigned int val)
+{
+	return put_user(val, (unsigned int __user *)arg);
 }
 
 static int put_long(unsigned long arg, long val)
@@ -308,10 +268,18 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
 	case BLKROGET:
 		return put_int(arg, bdev_read_only(bdev) != 0);
-	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
+	case BLKBSZGET: /* get block device soft block size (cf. BLKSSZGET) */
 		return put_int(arg, block_size(bdev));
-	case BLKSSZGET: /* get block device hardware sector size */
+	case BLKSSZGET: /* get block device logical block size */
 		return put_int(arg, bdev_logical_block_size(bdev));
+	case BLKPBSZGET: /* get block device physical block size */
+		return put_uint(arg, bdev_physical_block_size(bdev));
+	case BLKIOMIN:
+		return put_uint(arg, bdev_io_min(bdev));
+	case BLKIOOPT:
+		return put_uint(arg, bdev_io_opt(bdev));
+	case BLKALIGNOFF:
+		return put_int(arg, bdev_alignment_offset(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
 	case BLKRASET:

@@ -36,8 +36,7 @@
 
 /* Function prototypes for Keyspan serial converter */
 static int  keyspan_open		(struct tty_struct *tty,
-					 struct usb_serial_port *port,
-					 struct file *filp);
+					 struct usb_serial_port *port);
 static void keyspan_close		(struct usb_serial_port *port);
 static void keyspan_dtr_rts		(struct usb_serial_port *port, int on);
 static int  keyspan_startup		(struct usb_serial *serial);

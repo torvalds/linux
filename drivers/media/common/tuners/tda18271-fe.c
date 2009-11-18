@@ -27,12 +27,33 @@ module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level "
 		 "(info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
-static int tda18271_cal_on_startup;
+static int tda18271_cal_on_startup = -1;
 module_param_named(cal, tda18271_cal_on_startup, int, 0644);
 MODULE_PARM_DESC(cal, "perform RF tracking filter calibration on startup");
 
 static DEFINE_MUTEX(tda18271_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
+
+/*---------------------------------------------------------------------*/
+
+static int tda18271_toggle_output(struct dvb_frontend *fe, int standby)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	int ret = tda18271_set_standby_mode(fe, standby ? 1 : 0,
+			priv->output_opt & TDA18271_OUTPUT_LT_OFF ? 1 : 0,
+			priv->output_opt & TDA18271_OUTPUT_XT_OFF ? 1 : 0);
+
+	if (tda_fail(ret))
+		goto fail;
+
+	tda_dbg("%s mode: xtal oscillator %s, slave tuner loop thru %s\n",
+		standby ? "standby" : "active",
+		priv->output_opt & TDA18271_OUTPUT_XT_OFF ? "off" : "on",
+		priv->output_opt & TDA18271_OUTPUT_LT_OFF ? "off" : "on");
+fail:
+	return ret;
+}
 
 /*---------------------------------------------------------------------*/
 
@@ -271,7 +292,7 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	tda18271_lookup_map(fe, RF_CAL_DC_OVER_DT, &freq, &dc_over_dt);
 
 	/* calculate temperature compensation */
-	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal);
+	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal) / 1000;
 
 	regs[R_EB14] = approx + rfcal_comp;
 	ret = tda18271_write_regs(fe, R_EB14, 1);
@@ -800,7 +821,7 @@ static int tda18271_init(struct dvb_frontend *fe)
 
 	mutex_lock(&priv->lock);
 
-	/* power up */
+	/* full power up */
 	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
 	if (tda_fail(ret))
 		goto fail;
@@ -818,6 +839,21 @@ fail:
 	return ret;
 }
 
+static int tda18271_sleep(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	/* enter standby mode, with required output features enabled */
+	ret = tda18271_toggle_output(fe, 1);
+
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 /* ------------------------------------------------------------------ */
 
 static int tda18271_agc(struct dvb_frontend *fe)
@@ -827,8 +863,9 @@ static int tda18271_agc(struct dvb_frontend *fe)
 
 	switch (priv->config) {
 	case 0:
-		/* no LNA */
-		tda_dbg("no agc configuration provided\n");
+		/* no external agc configuration required */
+		if (tda18271_debug & DBG_ADV)
+			tda_dbg("no agc configuration provided\n");
 		break;
 	case 3:
 		/* switch with GPIO of saa713x */
@@ -1010,22 +1047,6 @@ fail:
 	return ret;
 }
 
-static int tda18271_sleep(struct dvb_frontend *fe)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-	int ret;
-
-	mutex_lock(&priv->lock);
-
-	/* standby mode w/ slave tuner output
-	 * & loop thru & xtal oscillator on */
-	ret = tda18271_set_standby_mode(fe, 1, 0, 0);
-
-	mutex_unlock(&priv->lock);
-
-	return ret;
-}
-
 static int tda18271_release(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
@@ -1192,17 +1213,32 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	case 0:
 		goto fail;
 	case 1:
+	{
 		/* new tuner instance */
+		int rf_cal_on_startup;
+
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
 		priv->config = (cfg) ? cfg->config : 0;
+		priv->small_i2c = (cfg) ? cfg->small_i2c : 0;
+		priv->output_opt = (cfg) ?
+			cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
+
+		/* tda18271_cal_on_startup == -1 when cal
+		 * module option is unset */
+		if (tda18271_cal_on_startup == -1) {
+			/* honor attach-time configuration */
+			rf_cal_on_startup =
+				((cfg) && (cfg->rf_cal_on_startup)) ? 1 : 0;
+		} else {
+			/* module option overrides attach configuration */
+			rf_cal_on_startup = tda18271_cal_on_startup;
+		}
+
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
 
 		fe->tuner_priv = priv;
-
-		if (cfg)
-			priv->small_i2c = cfg->small_i2c;
 
 		if (tda_fail(tda18271_get_id(fe)))
 			goto fail;
@@ -1213,18 +1249,29 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		mutex_lock(&priv->lock);
 		tda18271_init_regs(fe);
 
-		if ((tda18271_cal_on_startup) && (priv->id == TDA18271HDC2))
+		if ((rf_cal_on_startup) && (priv->id == TDA18271HDC2))
 			tda18271c2_rf_cal_init(fe);
 
 		mutex_unlock(&priv->lock);
 		break;
+	}
 	default:
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
 
-		/* allow dvb driver to override i2c gate setting */
-		if ((cfg) && (cfg->gate != TDA18271_GATE_ANALOG))
-			priv->gate = cfg->gate;
+		/* allow dvb driver to override configuration settings */
+		if (cfg) {
+			if (cfg->gate != TDA18271_GATE_ANALOG)
+				priv->gate = cfg->gate;
+			if (cfg->role)
+				priv->role = cfg->role;
+			if (cfg->config)
+				priv->config = cfg->config;
+			if (cfg->small_i2c)
+				priv->small_i2c = cfg->small_i2c;
+			if (cfg->output_opt)
+				priv->output_opt = cfg->output_opt;
+		}
 		break;
 	}
 

@@ -147,7 +147,7 @@ static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 			if (fill_addr(skb, pnd->netdev, addr << 2,
 					 NETLINK_CB(cb->skb).pid,
-					cb->nlh->nlmsg_seq, RTM_NEWADDR))
+					cb->nlh->nlmsg_seq, RTM_NEWADDR) < 0)
 				goto out;
 		}
 	}

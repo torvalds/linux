@@ -175,6 +175,7 @@ struct mlx4_ib_dev {
 	spinlock_t		sm_lock;
 
 	struct mutex		cap_mask_mutex;
+	bool			ib_active;
 };
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)

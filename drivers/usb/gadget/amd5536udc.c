@@ -2378,40 +2378,34 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 		if (!ep->cancel_transfer && !list_empty(&ep->queue)) {
 			req = list_entry(ep->queue.next,
 					struct udc_request, queue);
-			if (req) {
-				/*
-				 * length bytes transfered
-				 * check dma done of last desc. in PPBDU mode
-				 */
-				if (use_dma_ppb_du) {
-					td = udc_get_last_dma_desc(req);
-					if (td) {
-						dma_done =
-							AMD_GETBITS(td->status,
-							UDC_DMA_IN_STS_BS);
-						/* don't care DMA done */
-						req->req.actual =
-							req->req.length;
-					}
-				} else {
-					/* assume all bytes transferred */
+			/*
+			 * length bytes transfered
+			 * check dma done of last desc. in PPBDU mode
+			 */
+			if (use_dma_ppb_du) {
+				td = udc_get_last_dma_desc(req);
+				if (td) {
+					dma_done =
+						AMD_GETBITS(td->status,
+						UDC_DMA_IN_STS_BS);
+					/* don't care DMA done */
 					req->req.actual = req->req.length;
 				}
+			} else {
+				/* assume all bytes transferred */
+				req->req.actual = req->req.length;
+			}
 
-				if (req->req.actual == req->req.length) {
-					/* complete req */
-					complete_req(ep, req, 0);
-					req->dma_going = 0;
-					/* further request available ? */
-					if (list_empty(&ep->queue)) {
-						/* disable interrupt */
-						tmp = readl(
-							&dev->regs->ep_irqmsk);
-						tmp |= AMD_BIT(ep->num);
-						writel(tmp,
-							&dev->regs->ep_irqmsk);
-					}
-
+			if (req->req.actual == req->req.length) {
+				/* complete req */
+				complete_req(ep, req, 0);
+				req->dma_going = 0;
+				/* further request available ? */
+				if (list_empty(&ep->queue)) {
+					/* disable interrupt */
+					tmp = readl(&dev->regs->ep_irqmsk);
+					tmp |= AMD_BIT(ep->num);
+					writel(tmp, &dev->regs->ep_irqmsk);
 				}
 			}
 		}

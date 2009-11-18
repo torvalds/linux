@@ -82,6 +82,16 @@ config SCLP_CPI
 	  You should only select this option if you know what you are doing,
 	  need this feature and intend to run your kernel in LPAR.
 
+config SCLP_ASYNC
+	tristate "Support for Call Home via Asynchronous SCLP Records"
+	depends on S390
+	help
+	  This option enables the call home function, which is able to inform
+	  the service element and connected organisations about a kernel panic.
+	  You should only select this option if you know what you are doing,
+	  want for inform other people about your kernel panics,
+	  need this feature and intend to run your kernel in LPAR.
+
 config S390_TAPE
 	tristate "S/390 tape device support"
 	depends on CCW

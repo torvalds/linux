@@ -113,7 +113,7 @@ static int nf_sockopt(struct sock *sk, u_int8_t pf, int val,
 }
 
 int nf_setsockopt(struct sock *sk, u_int8_t pf, int val, char __user *opt,
-		  int len)
+		  unsigned int len)
 {
 	return nf_sockopt(sk, pf, val, opt, &len, 0);
 }
@@ -154,7 +154,7 @@ static int compat_nf_sockopt(struct sock *sk, u_int8_t pf, int val,
 }
 
 int compat_nf_setsockopt(struct sock *sk, u_int8_t pf,
-		int val, char __user *opt, int len)
+		int val, char __user *opt, unsigned int len)
 {
 	return compat_nf_sockopt(sk, pf, val, opt, &len, 0);
 }

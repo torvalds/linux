@@ -241,7 +241,7 @@ static int macb_mii_init(struct macb *bp)
 	struct eth_platform_data *pdata;
 	int err = -ENXIO, i;
 
-	/* Enable managment port */
+	/* Enable management port */
 	macb_writel(bp, NCR, MACB_BIT(MPE));
 
 	bp->mii_bus = mdiobus_alloc();
@@ -679,7 +679,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void macb_free_consistent(struct macb *bp)
@@ -1079,7 +1079,7 @@ static void macb_get_drvinfo(struct net_device *dev,
 	strcpy(info->bus_info, dev_name(&bp->pdev->dev));
 }
 
-static struct ethtool_ops macb_ethtool_ops = {
+static const struct ethtool_ops macb_ethtool_ops = {
 	.get_settings		= macb_get_settings,
 	.set_settings		= macb_set_settings,
 	.get_drvinfo		= macb_get_drvinfo,

@@ -424,17 +424,16 @@ static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
 	struct cx8802_dev *dev= fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
+	cx_set(MO_GP0_IO, 0x6040);
 	switch (voltage) {
 		case SEC_VOLTAGE_13:
-			printk("LNB Voltage SEC_VOLTAGE_13\n");
-			cx_write(MO_GP0_IO, 0x00006040);
+			cx_clear(MO_GP0_IO, 0x20);
 			break;
 		case SEC_VOLTAGE_18:
-			printk("LNB Voltage SEC_VOLTAGE_18\n");
-			cx_write(MO_GP0_IO, 0x00006060);
+			cx_set(MO_GP0_IO, 0x20);
 			break;
 		case SEC_VOLTAGE_OFF:
-			printk("LNB Voltage SEC_VOLTAGE_off\n");
+			cx_clear(MO_GP0_IO, 0x20);
 			break;
 	}
 
@@ -499,9 +498,9 @@ static struct zl10353_config cx88_pinnacle_hybrid_pctv = {
 };
 
 static struct zl10353_config cx88_geniatech_x8000_mt = {
-       .demod_address = (0x1e >> 1),
-       .no_tuner = 1,
-       .disable_i2c_gate_ctrl = 1,
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 static struct s5h1411_config dvico_fusionhdtv7_config = {
@@ -696,6 +695,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
+	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1350,7 +1350,7 @@ static struct cx8802_driver cx8802_dvb_driver = {
 	.advise_release = cx8802_dvb_advise_release,
 };
 
-static int dvb_init(void)
+static int __init dvb_init(void)
 {
 	printk(KERN_INFO "cx88/2: cx2388x dvb driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -1363,7 +1363,7 @@ static int dvb_init(void)
 	return cx8802_register_driver(&cx8802_dvb_driver);
 }
 
-static void dvb_fini(void)
+static void __exit dvb_fini(void)
 {
 	cx8802_unregister_driver(&cx8802_dvb_driver);
 }

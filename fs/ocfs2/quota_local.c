@@ -108,7 +108,7 @@ static int ocfs2_modify_bh(struct inode *inode, struct buffer_head *bh,
 		mlog_errno(status);
 		return status;
 	}
-	status = ocfs2_journal_access_dq(handle, inode, bh,
+	status = ocfs2_journal_access_dq(handle, INODE_CACHE(inode), bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -510,7 +510,8 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				goto out_commit;
 			}
 			/* Release local quota file entry */
-			status = ocfs2_journal_access_dq(handle, lqinode,
+			status = ocfs2_journal_access_dq(handle,
+					INODE_CACHE(lqinode),
 					qbh, OCFS2_JOURNAL_ACCESS_WRITE);
 			if (status < 0) {
 				mlog_errno(status);
@@ -619,7 +620,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 			mlog_errno(status);
 			goto out_bh;
 		}
-		status = ocfs2_journal_access_dq(handle, lqinode, bh,
+		status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode),
+						 bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -993,8 +995,8 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		goto out_trans;
 	}
 	dchunk = (struct ocfs2_local_disk_chunk *)bh->b_data;
-	ocfs2_set_new_buffer_uptodate(lqinode, bh);
-	status = ocfs2_journal_access_dq(handle, lqinode, bh,
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(lqinode), bh);
+	status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode), bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1027,8 +1029,8 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		mlog_errno(status);
 		goto out_trans;
 	}
-	ocfs2_set_new_buffer_uptodate(lqinode, dbh);
-	status = ocfs2_journal_access_dq(handle, lqinode, dbh,
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(lqinode), dbh);
+	status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode), dbh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1131,7 +1133,7 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		mlog_errno(status);
 		goto out;
 	}
-	ocfs2_set_new_buffer_uptodate(lqinode, bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(lqinode), bh);
 
 	/* Local quota info, chunk header and the new block we initialize */
 	handle = ocfs2_start_trans(OCFS2_SB(sb),
@@ -1143,7 +1145,7 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		goto out;
 	}
 	/* Zero created block */
-	status = ocfs2_journal_access_dq(handle, lqinode, bh,
+	status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode), bh,
 				 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1158,7 +1160,8 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		goto out_trans;
 	}
 	/* Update chunk header */
-	status = ocfs2_journal_access_dq(handle, lqinode, chunk->qc_headerbh,
+	status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode),
+					 chunk->qc_headerbh,
 				 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1292,7 +1295,8 @@ static int ocfs2_local_release_dquot(struct dquot *dquot)
 		goto out;
 	}
 
-	status = ocfs2_journal_access_dq(handle, sb_dqopt(sb)->files[type],
+	status = ocfs2_journal_access_dq(handle,
+			INODE_CACHE(sb_dqopt(sb)->files[type]),
 			od->dq_chunk->qc_headerbh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);

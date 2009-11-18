@@ -26,6 +26,8 @@
 #define F_GETOWN	6	/*  for sockets. */
 #define F_SETSIG	10	/*  for sockets. */
 #define F_GETSIG	11	/*  for sockets. */
+#define F_SETOWN_EX	12
+#define F_GETOWN_EX	13
 
 /* for posix fcntl() and lockf() */
 #define F_RDLCK		1

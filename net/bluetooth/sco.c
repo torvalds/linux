@@ -359,20 +359,9 @@ static void sco_sock_kill(struct sock *sk)
 	sock_put(sk);
 }
 
-/* Close socket.
- * Must be called on unlocked socket.
- */
-static void sco_sock_close(struct sock *sk)
+static void __sco_sock_close(struct sock *sk)
 {
-	struct sco_conn *conn;
-
-	sco_sock_clear_timer(sk);
-
-	lock_sock(sk);
-
-	conn = sco_pi(sk)->conn;
-
-	BT_DBG("sk %p state %d conn %p socket %p", sk, sk->sk_state, conn, sk->sk_socket);
+	BT_DBG("sk %p state %d socket %p", sk, sk->sk_state, sk->sk_socket);
 
 	switch (sk->sk_state) {
 	case BT_LISTEN:
@@ -390,9 +379,15 @@ static void sco_sock_close(struct sock *sk)
 		sock_set_flag(sk, SOCK_ZAPPED);
 		break;
 	}
+}
 
+/* Must be called on unlocked socket. */
+static void sco_sock_close(struct sock *sk)
+{
+	sco_sock_clear_timer(sk);
+	lock_sock(sk);
+	__sco_sock_close(sk);
 	release_sock(sk);
-
 	sco_sock_kill(sk);
 }
 
@@ -649,7 +644,7 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err;
 }
 
-static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
@@ -744,6 +739,30 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char
 		break;
 	}
 
+	release_sock(sk);
+	return err;
+}
+
+static int sco_sock_shutdown(struct socket *sock, int how)
+{
+	struct sock *sk = sock->sk;
+	int err = 0;
+
+	BT_DBG("sock %p, sk %p", sock, sk);
+
+	if (!sk)
+		return 0;
+
+	lock_sock(sk);
+	if (!sk->sk_shutdown) {
+		sk->sk_shutdown = SHUTDOWN_MASK;
+		sco_sock_clear_timer(sk);
+		__sco_sock_close(sk);
+
+		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
+			err = bt_sock_wait_state(sk, BT_CLOSED,
+							sk->sk_lingertime);
+	}
 	release_sock(sk);
 	return err;
 }
@@ -969,7 +988,7 @@ static const struct proto_ops sco_sock_ops = {
 	.ioctl		= bt_sock_ioctl,
 	.mmap		= sock_no_mmap,
 	.socketpair	= sock_no_socketpair,
-	.shutdown	= sock_no_shutdown,
+	.shutdown	= sco_sock_shutdown,
 	.setsockopt	= sco_sock_setsockopt,
 	.getsockopt	= sco_sock_getsockopt
 };

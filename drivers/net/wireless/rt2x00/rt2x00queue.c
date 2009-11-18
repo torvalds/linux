@@ -148,33 +148,87 @@ void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
-void rt2x00queue_payload_align(struct sk_buff *skb,
-			       bool l2pad, unsigned int header_length)
+void rt2x00queue_align_frame(struct sk_buff *skb)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	unsigned int frame_length = skb->len;
-	unsigned int align = ALIGN_SIZE(skb, header_length);
+	unsigned int align = ALIGN_SIZE(skb, 0);
 
 	if (!align)
 		return;
 
-	if (l2pad) {
-		if (skbdesc->flags & SKBDESC_L2_PADDED) {
-			/* Remove L2 padding */
-			memmove(skb->data + align, skb->data, header_length);
-			skb_pull(skb, align);
-			skbdesc->flags &= ~SKBDESC_L2_PADDED;
-		} else {
-			/* Add L2 padding */
-			skb_push(skb, align);
-			memmove(skb->data, skb->data + align, header_length);
-			skbdesc->flags |= SKBDESC_L2_PADDED;
-		}
+	skb_push(skb, align);
+	memmove(skb->data, skb->data + align, frame_length);
+	skb_trim(skb, frame_length);
+}
+
+void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_lengt)
+{
+	unsigned int frame_length = skb->len;
+	unsigned int align = ALIGN_SIZE(skb, header_lengt);
+
+	if (!align)
+		return;
+
+	skb_push(skb, align);
+	memmove(skb->data, skb->data + align, frame_length);
+	skb_trim(skb, frame_length);
+}
+
+void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	unsigned int frame_length = skb->len;
+	unsigned int header_align = ALIGN_SIZE(skb, 0);
+	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
+	unsigned int l2pad = 4 - (payload_align - header_align);
+
+	if (header_align == payload_align) {
+		/*
+		 * Both header and payload must be moved the same
+		 * amount of bytes to align them properly. This means
+		 * we don't use the L2 padding but just move the entire
+		 * frame.
+		 */
+		rt2x00queue_align_frame(skb);
+	} else if (!payload_align) {
+		/*
+		 * Simple L2 padding, only the header needs to be moved,
+		 * the payload is already properly aligned.
+		 */
+		skb_push(skb, header_align);
+		memmove(skb->data, skb->data + header_align, frame_length);
+		skbdesc->flags |= SKBDESC_L2_PADDED;
 	} else {
-		/* Generic payload alignment to 4-byte boundary */
-		skb_push(skb, align);
-		memmove(skb->data, skb->data + align, frame_length);
+		/*
+		 *
+		 * Complicated L2 padding, both header and payload need
+		 * to be moved. By default we only move to the start
+		 * of the buffer, so our header alignment needs to be
+		 * increased if there is not enough room for the header
+		 * to be moved.
+		 */
+		if (payload_align > header_align)
+			header_align += 4;
+
+		skb_push(skb, header_align);
+		memmove(skb->data, skb->data + header_align, header_length);
+		memmove(skb->data + header_length + l2pad,
+			skb->data + header_length + l2pad + header_align,
+			frame_length - header_length);
+		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
+}
+
+void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	unsigned int l2pad = 4 - (header_length & 3);
+
+	if (!l2pad || (skbdesc->flags & SKBDESC_L2_PADDED))
+		return;
+
+	memmove(skb->data + l2pad, skb->data, header_length);
+	skb_pull(skb, l2pad);
 }
 
 static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
@@ -324,7 +378,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Check if more fragments are pending
 	 */
-	if (ieee80211_has_morefrags(hdr->frame_control)) {
+	if (ieee80211_has_morefrags(hdr->frame_control) ||
+	    (tx_info->flags & IEEE80211_TX_CTL_MORE_FRAMES)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
 		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags);
 	}
@@ -452,9 +507,18 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
 	}
 
+	/*
+	 * When DMA allocation is required we should guarentee to the
+	 * driver that the DMA is aligned to a 4-byte boundary.
+	 * However some drivers require L2 padding to pad the payload
+	 * rather then the header. This could be a requirement for
+	 * PCI and USB devices, while header alignment only is valid
+	 * for PCI devices.
+	 */
 	if (test_bit(DRIVER_REQUIRE_L2PAD, &queue->rt2x00dev->flags))
-		rt2x00queue_payload_align(entry->skb, true,
-					  txdesc.header_length);
+		rt2x00queue_insert_l2pad(entry->skb, txdesc.header_length);
+	else if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+		rt2x00queue_align_frame(entry->skb);
 
 	/*
 	 * It could be possible that the queue was corrupted and this
@@ -490,14 +554,25 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
+	mutex_lock(&intf->beacon_skb_mutex);
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
+	intf->beacon->skb = NULL;
+
 	if (!enable_beacon) {
 		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_BEACON);
+		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!intf->beacon->skb)
+	if (!intf->beacon->skb) {
+		mutex_unlock(&intf->beacon_skb_mutex);
 		return -ENOMEM;
+	}
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -534,6 +609,8 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon);
 	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
+
+	mutex_unlock(&intf->beacon_skb_mutex);
 
 	return 0;
 }

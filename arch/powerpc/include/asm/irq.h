@@ -302,7 +302,8 @@ extern void irq_free_virt(unsigned int virq, unsigned int count);
 
 /* -- OF helpers -- */
 
-/* irq_create_of_mapping - Map a hardware interrupt into linux virq space
+/**
+ * irq_create_of_mapping - Map a hardware interrupt into linux virq space
  * @controller: Device node of the interrupt controller
  * @inspec: Interrupt specifier from the device-tree
  * @intsize: Size of the interrupt specifier from the device-tree
@@ -314,8 +315,8 @@ extern void irq_free_virt(unsigned int virq, unsigned int count);
 extern unsigned int irq_create_of_mapping(struct device_node *controller,
 					  u32 *intspec, unsigned int intsize);
 
-
-/* irq_of_parse_and_map - Parse nad Map an interrupt into linux virq space
+/**
+ * irq_of_parse_and_map - Parse and Map an interrupt into linux virq space
  * @device: Device node of the device whose interrupt is to be mapped
  * @index: Index of the interrupt to map
  *

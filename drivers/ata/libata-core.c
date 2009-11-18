@@ -709,7 +709,13 @@ u64 ata_tf_read_block(struct ata_taskfile *tf, struct ata_device *dev)
 		head = tf->device & 0xf;
 		sect = tf->lbal;
 
-		block = (cyl * dev->heads + head) * dev->sectors + sect;
+		if (!sect) {
+			ata_dev_printk(dev, KERN_WARNING, "device reported "
+				       "invalid CHS sector 0\n");
+			sect = 1; /* oh well */
+		}
+
+		block = (cyl * dev->heads + head) * dev->sectors + sect - 1;
 	}
 
 	return block;
@@ -2299,29 +2305,49 @@ static inline u8 ata_dev_knobble(struct ata_device *dev)
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
-static void ata_dev_config_ncq(struct ata_device *dev,
+static int ata_dev_config_ncq(struct ata_device *dev,
 			       char *desc, size_t desc_sz)
 {
 	struct ata_port *ap = dev->link->ap;
 	int hdepth = 0, ddepth = ata_id_queue_depth(dev->id);
+	unsigned int err_mask;
+	char *aa_desc = "";
 
 	if (!ata_id_has_ncq(dev->id)) {
 		desc[0] = '\0';
-		return;
+		return 0;
 	}
 	if (dev->horkage & ATA_HORKAGE_NONCQ) {
 		snprintf(desc, desc_sz, "NCQ (not used)");
-		return;
+		return 0;
 	}
 	if (ap->flags & ATA_FLAG_NCQ) {
 		hdepth = min(ap->scsi_host->can_queue, ATA_MAX_QUEUE - 1);
 		dev->flags |= ATA_DFLAG_NCQ;
 	}
 
+	if (!(dev->horkage & ATA_HORKAGE_BROKEN_FPDMA_AA) &&
+		(ap->flags & ATA_FLAG_FPDMA_AA) &&
+		ata_id_has_fpdma_aa(dev->id)) {
+		err_mask = ata_dev_set_feature(dev, SETFEATURES_SATA_ENABLE,
+			SATA_FPDMA_AA);
+		if (err_mask) {
+			ata_dev_printk(dev, KERN_ERR, "failed to enable AA"
+				"(error_mask=0x%x)\n", err_mask);
+			if (err_mask != AC_ERR_DEV) {
+				dev->horkage |= ATA_HORKAGE_BROKEN_FPDMA_AA;
+				return -EIO;
+			}
+		} else
+			aa_desc = ", AA";
+	}
+
 	if (hdepth >= ddepth)
-		snprintf(desc, desc_sz, "NCQ (depth %d)", ddepth);
+		snprintf(desc, desc_sz, "NCQ (depth %d)%s", ddepth, aa_desc);
 	else
-		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
+		snprintf(desc, desc_sz, "NCQ (depth %d/%d)%s", hdepth,
+			ddepth, aa_desc);
+	return 0;
 }
 
 /**
@@ -2461,7 +2487,7 @@ int ata_dev_configure(struct ata_device *dev)
 
 		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
-			char ncq_desc[20];
+			char ncq_desc[24];
 
 			lba_desc = "LBA";
 			dev->flags |= ATA_DFLAG_LBA;
@@ -2475,7 +2501,9 @@ int ata_dev_configure(struct ata_device *dev)
 			}
 
 			/* config NCQ */
-			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
+			rc = ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
+			if (rc)
+				return rc;
 
 			/* print device info to dmesg */
 			if (ata_msg_drv(ap) && print_info) {
@@ -4891,10 +4919,11 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
-	struct ata_port *ap = qc->ap;
+	struct ata_port *ap;
 	unsigned int tag;
 
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
+	ap = qc->ap;
 
 	qc->flags = 0;
 	tag = qc->tag;
@@ -4906,11 +4935,13 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 
 void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
-	struct ata_port *ap = qc->ap;
-	struct ata_link *link = qc->dev->link;
+	struct ata_port *ap;
+	struct ata_link *link;
 
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
+	ap = qc->ap;
+	link = qc->dev->link;
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
@@ -4996,19 +5027,21 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
-		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
-
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
 
 		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
-			if (!ata_tag_internal(qc->tag)) {
-				/* always fill result TF for failed qc */
-				fill_result_tf(qc);
+			/* always fill result TF for failed qc */
+			fill_result_tf(qc);
+
+			if (!ata_tag_internal(qc->tag))
 				ata_qc_schedule_eh(qc);
-				return;
-			}
+			else
+				__ata_qc_complete(qc);
+			return;
 		}
+
+		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
 
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)
@@ -5563,6 +5596,9 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 		dev->link = link;
 		dev->devno = dev - link->device;
+#ifdef CONFIG_ATA_ACPI
+		dev->gtf_filter = ata_acpi_gtf_filter;
+#endif
 		ata_dev_init(dev);
 	}
 }

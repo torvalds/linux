@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/delay.h>
 
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -112,7 +113,7 @@ static void psc_ac97_cold_reset(struct snd_ac97 *ac97)
 	out_8(&regs->op1, MPC52xx_PSC_OP_RES);
 	udelay(10);
 	out_8(&regs->op0, MPC52xx_PSC_OP_RES);
-	udelay(50);
+	msleep(1);
 	psc_ac97_warm_reset(ac97);
 }
 

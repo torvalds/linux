@@ -368,19 +368,34 @@ static inline void innovator_mmc_init(void)
 }
 #endif
 
-static struct omap_uart_config innovator_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel innovator_config[] = {
 	{ OMAP_TAG_LCD,		NULL },
-	{ OMAP_TAG_UART,	&innovator_uart_config },
 };
 
 static void __init innovator_init(void)
 {
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
+		unsigned char reg;
+
+		/* mux pins for uarts */
+		omap_cfg_reg(UART1_TX);
+		omap_cfg_reg(UART1_RTS);
+		omap_cfg_reg(UART2_TX);
+		omap_cfg_reg(UART2_RTS);
+		omap_cfg_reg(UART3_TX);
+		omap_cfg_reg(UART3_RX);
+
+		reg = fpga_read(OMAP1510_FPGA_POWER);
+		reg |= OMAP1510_FPGA_PCR_COM1_EN;
+		fpga_write(reg, OMAP1510_FPGA_POWER);
+		udelay(10);
+
+		reg = fpga_read(OMAP1510_FPGA_POWER);
+		reg |= OMAP1510_FPGA_PCR_COM2_EN;
+		fpga_write(reg, OMAP1510_FPGA_POWER);
+		udelay(10);
+
 		platform_add_devices(innovator1510_devices, ARRAY_SIZE(innovator1510_devices));
 		spi_register_board_info(innovator1510_boardinfo,
 				ARRAY_SIZE(innovator1510_boardinfo));

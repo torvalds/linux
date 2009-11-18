@@ -12,11 +12,6 @@
  * (at your option) any later version.
  */
 
-struct xt_connmark_info {
-	unsigned long mark, mask;
-	__u8 invert;
-};
-
 struct xt_connmark_mtinfo1 {
 	__u32 mark, mask;
 	__u8 invert;

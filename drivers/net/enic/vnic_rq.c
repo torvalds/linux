@@ -62,7 +62,6 @@ static int vnic_rq_alloc_bufs(struct vnic_rq *rq)
 	}
 
 	rq->to_use = rq->to_clean = rq->bufs[0];
-	rq->buf_index = 0;
 
 	return 0;
 }
@@ -113,12 +112,12 @@ int vnic_rq_alloc(struct vnic_dev *vdev, struct vnic_rq *rq, unsigned int index,
 	return 0;
 }
 
-void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
+void vnic_rq_init_start(struct vnic_rq *rq, unsigned int cq_index,
+	unsigned int fetch_index, unsigned int posted_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset)
 {
 	u64 paddr;
-	u32 fetch_index;
 
 	paddr = (u64)rq->ring.base_addr | VNIC_PADDR_TARGET;
 	writeq(paddr, &rq->ctrl->ring_base);
@@ -128,15 +127,27 @@ void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
 	iowrite32(error_interrupt_offset, &rq->ctrl->error_interrupt_offset);
 	iowrite32(0, &rq->ctrl->dropped_packet_count);
 	iowrite32(0, &rq->ctrl->error_status);
+	iowrite32(fetch_index, &rq->ctrl->fetch_index);
+	iowrite32(posted_index, &rq->ctrl->posted_index);
 
-	/* Use current fetch_index as the ring starting point */
-	fetch_index = ioread32(&rq->ctrl->fetch_index);
 	rq->to_use = rq->to_clean =
 		&rq->bufs[fetch_index / VNIC_RQ_BUF_BLK_ENTRIES]
 			[fetch_index % VNIC_RQ_BUF_BLK_ENTRIES];
-	iowrite32(fetch_index, &rq->ctrl->posted_index);
+}
 
-	rq->buf_index = 0;
+void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
+	unsigned int error_interrupt_enable,
+	unsigned int error_interrupt_offset)
+{
+	u32 fetch_index;
+
+	/* Use current fetch_index as the ring starting point */
+	fetch_index = ioread32(&rq->ctrl->fetch_index);
+
+	vnic_rq_init_start(rq, cq_index,
+		fetch_index, fetch_index,
+		error_interrupt_enable,
+		error_interrupt_offset);
 }
 
 unsigned int vnic_rq_error_status(struct vnic_rq *rq)
@@ -191,8 +202,6 @@ void vnic_rq_clean(struct vnic_rq *rq,
 		&rq->bufs[fetch_index / VNIC_RQ_BUF_BLK_ENTRIES]
 			[fetch_index % VNIC_RQ_BUF_BLK_ENTRIES];
 	iowrite32(fetch_index, &rq->ctrl->posted_index);
-
-	rq->buf_index = 0;
 
 	vnic_dev_clear_desc_ring(&rq->ring);
 }

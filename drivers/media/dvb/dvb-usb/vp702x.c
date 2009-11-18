@@ -175,8 +175,8 @@ static int vp702x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 /* keys for the enclosed remote control */
 static struct dvb_usb_rc_key vp702x_rc_keys[] = {
-	{ 0x00, 0x01, KEY_1 },
-	{ 0x00, 0x02, KEY_2 },
+	{ 0x0001, KEY_1 },
+	{ 0x0002, KEY_2 },
 };
 
 /* remote control stuff (does not work with my box) */
@@ -198,7 +198,7 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vp702x_rc_keys); i++)
-		if (vp702x_rc_keys[i].custom == key[1]) {
+		if (rc5_custom(&vp702x_rc_keys[i]) == key[1]) {
 			*state = REMOTE_KEY_PRESSED;
 			*event = vp702x_rc_keys[i].event;
 			break;

@@ -32,9 +32,15 @@
 
 #define S3C_VA_IRQ	S3C_ADDR(0x00000000)	/* irq controller(s) */
 #define S3C_VA_SYS	S3C_ADDR(0x00100000)	/* system control */
-#define S3C_VA_MEM	S3C_ADDR(0x00200000)	/* system control */
+#define S3C_VA_MEM	S3C_ADDR(0x00200000)	/* memory control */
 #define S3C_VA_TIMER	S3C_ADDR(0x00300000)	/* timer block */
 #define S3C_VA_WATCHDOG	S3C_ADDR(0x00400000)	/* watchdog */
 #define S3C_VA_UART	S3C_ADDR(0x01000000)	/* UART */
+
+/* This is used for the CPU specific mappings that may be needed, so that
+ * they do not need to directly used S3C_ADDR() and thus make it easier to
+ * modify the space for mapping.
+ */
+#define S3C_ADDR_CPU(x)	S3C_ADDR(0x00500000 + (x))
 
 #endif /* __ASM_PLAT_MAP_H */

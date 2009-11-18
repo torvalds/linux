@@ -1257,6 +1257,7 @@ static struct scsi_host_template sata_fsl_sht = {
 static struct ata_port_operations sata_fsl_ops = {
 	.inherits		= &sata_pmp_port_ops,
 
+	.qc_defer = ata_std_qc_defer,
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,
 	.qc_fill_rtf = sata_fsl_qc_fill_rtf,

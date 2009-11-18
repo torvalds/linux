@@ -521,7 +521,11 @@ find_block:
 		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
 				start_off);
 		memset(region, 0, size);
-		kmemleak_alloc(region, size, 1, 0);
+		/*
+		 * The min_count is set to 0 so that bootmem allocated blocks
+		 * are never reported as leaks.
+		 */
+		kmemleak_alloc(region, size, 0, 0);
 		return region;
 	}
 

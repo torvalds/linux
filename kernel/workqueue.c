@@ -317,8 +317,6 @@ static int worker_thread(void *__cwq)
 	if (cwq->wq->freezeable)
 		set_freezable();
 
-	set_user_nice(current, -5);
-
 	for (;;) {
 		prepare_to_wait(&cwq->more_work, &wait, TASK_INTERRUPTIBLE);
 		if (!freezing(current) &&
@@ -600,7 +598,12 @@ static struct workqueue_struct *keventd_wq __read_mostly;
  * schedule_work - put work task in global workqueue
  * @work: job to be done
  *
- * This puts a job in the kernel-global workqueue.
+ * Returns zero if @work was already on the kernel-global workqueue and
+ * non-zero otherwise.
+ *
+ * This puts a job in the kernel-global workqueue if it was not already
+ * queued and leaves it in the same position on the kernel-global
+ * workqueue otherwise.
  */
 int schedule_work(struct work_struct *work)
 {
@@ -637,6 +640,24 @@ int schedule_delayed_work(struct delayed_work *dwork,
 EXPORT_SYMBOL(schedule_delayed_work);
 
 /**
+ * flush_delayed_work - block until a dwork_struct's callback has terminated
+ * @dwork: the delayed work which is to be flushed
+ *
+ * Any timeout is cancelled, and any pending work is run immediately.
+ */
+void flush_delayed_work(struct delayed_work *dwork)
+{
+	if (del_timer_sync(&dwork->timer)) {
+		struct cpu_workqueue_struct *cwq;
+		cwq = wq_per_cpu(keventd_wq, get_cpu());
+		__queue_work(cwq, &dwork->work);
+		put_cpu();
+	}
+	flush_work(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work);
+
+/**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
  * @cpu: cpu to use
  * @dwork: job to be done
@@ -664,21 +685,38 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
 int schedule_on_each_cpu(work_func_t func)
 {
 	int cpu;
+	int orig = -1;
 	struct work_struct *works;
 
 	works = alloc_percpu(struct work_struct);
 	if (!works)
 		return -ENOMEM;
 
+	/*
+	 * when running in keventd don't schedule a work item on itself.
+	 * Can just call directly because the work queue is already bound.
+	 * This also is faster.
+	 * Make this a generic parameter for other workqueues?
+	 */
+	if (current_is_keventd()) {
+		orig = raw_smp_processor_id();
+		INIT_WORK(per_cpu_ptr(works, orig), func);
+		func(per_cpu_ptr(works, orig));
+	}
+
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = per_cpu_ptr(works, cpu);
 
+		if (cpu == orig)
+			continue;
 		INIT_WORK(work, func);
 		schedule_work_on(cpu, work);
 	}
-	for_each_online_cpu(cpu)
-		flush_work(per_cpu_ptr(works, cpu));
+	for_each_online_cpu(cpu) {
+		if (cpu != orig)
+			flush_work(per_cpu_ptr(works, cpu));
+	}
 	put_online_cpus();
 	free_percpu(works);
 	return 0;

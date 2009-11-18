@@ -61,10 +61,6 @@
 #define USB_REG_IN_PIPE                     3
 #define USB_REG_OUT_PIPE                    4
 
-#if (WLAN_HOSTIF == WLAN_USB)
-#include <linux/usb.h>
-#endif
-
 #ifdef ZM_HOSTAPD_SUPPORT
 #include "athr_common.h"
 #endif

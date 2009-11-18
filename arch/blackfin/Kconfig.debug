@@ -252,4 +252,10 @@ config ACCESS_CHECK
 
 	  Say N here to disable that check to improve the performance.
 
+config BFIN_ISRAM_SELF_TEST
+	bool "isram boot self tests"
+	default n
+	help
+	  Run some self tests of the isram driver code at boot.
+
 endmenu

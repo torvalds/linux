@@ -586,7 +586,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	alg_data->mif.timer.data = (unsigned long)i2c_pnx->adapter;
 
 	/* Register I/O resource */
-	if (!request_region(alg_data->base, I2C_PNX_REGION_SIZE, pdev->name)) {
+	if (!request_mem_region(alg_data->base, I2C_PNX_REGION_SIZE,
+				pdev->name)) {
 		dev_err(&pdev->dev,
 		       "I/O region 0x%08x for I2C already in use.\n",
 		       alg_data->base);
@@ -650,7 +651,7 @@ out_clock:
 out_unmap:
 	iounmap((void *)alg_data->ioaddr);
 out_release:
-	release_region(alg_data->base, I2C_PNX_REGION_SIZE);
+	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 out_drvdata:
 	platform_set_drvdata(pdev, NULL);
 out:
@@ -667,7 +668,7 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	i2c_del_adapter(adap);
 	i2c_pnx->set_clock_stop(pdev);
 	iounmap((void *)alg_data->ioaddr);
-	release_region(alg_data->base, I2C_PNX_REGION_SIZE);
+	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

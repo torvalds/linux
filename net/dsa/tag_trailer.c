@@ -13,7 +13,7 @@
 #include <linux/netdevice.h>
 #include "dsa_priv.h"
 
-int trailer_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct sk_buff *nskb;

@@ -85,7 +85,7 @@ void __init iop_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
 
-	ticks_per_jiffy = (tick_rate + HZ/2) / HZ;
+	ticks_per_jiffy = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	ticks_per_usec = tick_rate / 1000000;
 	next_jiffy_time = 0xffffffff;
 	iop_tick_rate = tick_rate;

@@ -1073,7 +1073,7 @@ static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 		skb->protocol = htons(ETH_P_IP);
 		skb_pull(skb, sizeof(struct ec_framehdr));
 		netif_rx(skb);
-		return 0;
+		return NET_RX_SUCCESS;
 	}
 
 	sk = ec_listening_socket(hdr->port, hdr->src_stn, hdr->src_net);
@@ -1084,7 +1084,7 @@ static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 			    hdr->port))
 		goto drop;
 
-	return 0;
+	return NET_RX_SUCCESS;
 
 drop:
 	kfree_skb(skb);

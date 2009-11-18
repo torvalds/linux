@@ -930,7 +930,7 @@ static void handle_dma_error_intr(void *arg, uint32_t other_ir)
 
 	if (readl(&port->ip_mem->pci_err_addr_l.raw) & IOC4_PCI_ERR_ADDR_VLD) {
 		printk(KERN_ERR
-			"PCI error address is 0x%lx, "
+			"PCI error address is 0x%llx, "
 				"master is serial port %c %s\n",
 		     (((uint64_t)readl(&port->ip_mem->pci_err_addr_h)
 							 << 32)
@@ -1627,25 +1627,25 @@ static void transmit_chars(struct uart_port *the_port)
 	char *start;
 	struct tty_struct *tty;
 	struct ioc4_port *port = get_ioc4_port(the_port, 0);
-	struct uart_info *info;
+	struct uart_state *state;
 
 	if (!the_port)
 		return;
 	if (!port)
 		return;
 
-	info = the_port->info;
-	tty = info->port.tty;
+	state = the_port->state;
+	tty = state->port.tty;
 
-	if (uart_circ_empty(&info->xmit) || uart_tx_stopped(the_port)) {
+	if (uart_circ_empty(&state->xmit) || uart_tx_stopped(the_port)) {
 		/* Nothing to do or hw stopped */
 		set_notification(port, N_ALL_OUTPUT, 0);
 		return;
 	}
 
-	head = info->xmit.head;
-	tail = info->xmit.tail;
-	start = (char *)&info->xmit.buf[tail];
+	head = state->xmit.head;
+	tail = state->xmit.tail;
+	start = (char *)&state->xmit.buf[tail];
 
 	/* write out all the data or until the end of the buffer */
 	xmit_count = (head < tail) ? (UART_XMIT_SIZE - tail) : (head - tail);
@@ -1658,14 +1658,14 @@ static void transmit_chars(struct uart_port *the_port)
 			/* advance the pointers */
 			tail += result;
 			tail &= UART_XMIT_SIZE - 1;
-			info->xmit.tail = tail;
-			start = (char *)&info->xmit.buf[tail];
+			state->xmit.tail = tail;
+			start = (char *)&state->xmit.buf[tail];
 		}
 	}
-	if (uart_circ_chars_pending(&info->xmit) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(&state->xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(the_port);
 
-	if (uart_circ_empty(&info->xmit)) {
+	if (uart_circ_empty(&state->xmit)) {
 		set_notification(port, N_OUTPUT_LOWAT, 0);
 	} else {
 		set_notification(port, N_OUTPUT_LOWAT, 1);
@@ -1686,7 +1686,7 @@ ioc4_change_speed(struct uart_port *the_port,
 	int baud, bits;
 	unsigned cflag;
 	int new_parity = 0, new_parity_enable = 0, new_stop = 0, new_data = 8;
-	struct uart_info *info = the_port->info;
+	struct uart_state *state = the_port->state;
 
 	cflag = new_termios->c_cflag;
 
@@ -1738,14 +1738,14 @@ ioc4_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	info->port.tty->low_latency = 1;
+	state->port.tty->low_latency = 1;
 
-	if (I_IGNPAR(info->port.tty))
+	if (I_IGNPAR(state->port.tty))
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR
 						| N_FRAMING_ERROR);
-	if (I_IGNBRK(info->port.tty)) {
+	if (I_IGNBRK(state->port.tty)) {
 		the_port->ignore_status_mask &= ~N_BREAK;
-		if (I_IGNPAR(info->port.tty))
+		if (I_IGNPAR(state->port.tty))
 			the_port->ignore_status_mask &= ~N_OVERRUN_ERROR;
 	}
 	if (!(cflag & CREAD)) {
@@ -1784,7 +1784,7 @@ ioc4_change_speed(struct uart_port *the_port,
 static inline int ic4_startup_local(struct uart_port *the_port)
 {
 	struct ioc4_port *port;
-	struct uart_info *info;
+	struct uart_state *state;
 
 	if (!the_port)
 		return -1;
@@ -1793,7 +1793,7 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	if (!port)
 		return -1;
 
-	info = the_port->info;
+	state = the_port->state;
 
 	local_open(port);
 
@@ -1801,7 +1801,7 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
-	ioc4_change_speed(the_port, info->port.tty->termios,
+	ioc4_change_speed(the_port, state->port.tty->termios,
 			  (struct ktermios *)0);
 
 	return 0;
@@ -1882,7 +1882,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 				the_port = port->ip_port;
 				the_port->icount.dcd = 1;
 				wake_up_interruptible
-					    (&the_port-> info->delta_msr_wait);
+					    (&the_port->state->port.delta_msr_wait);
 			} else if ((port->ip_notify & N_DDCD)
 					&& !(shadow & IOC4_SHADOW_DCD)) {
 				/* Flag delta DCD/no DCD */
@@ -1904,7 +1904,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 				the_port->icount.cts =
 					(shadow & IOC4_SHADOW_CTS) ? 1 : 0;
 				wake_up_interruptible
-					(&the_port->info->delta_msr_wait);
+					(&the_port->state->port.delta_msr_wait);
 			}
 		}
 
@@ -2236,8 +2236,8 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
 						   && port->ip_port) {
 						the_port->icount.dcd = 0;
 						wake_up_interruptible
-						    (&the_port->info->
-							delta_msr_wait);
+						    (&the_port->state->
+							port.delta_msr_wait);
 					}
 
 					/* If we had any data to return, we
@@ -2341,17 +2341,17 @@ static void receive_chars(struct uart_port *the_port)
 	unsigned char ch[IOC4_MAX_CHARS];
 	int read_count, request_count = IOC4_MAX_CHARS;
 	struct uart_icount *icount;
-	struct uart_info *info = the_port->info;
+	struct uart_state *state = the_port->state;
 	unsigned long pflags;
 
 	/* Make sure all the pointers are "good" ones */
-	if (!info)
+	if (!state)
 		return;
-	if (!info->port.tty)
+	if (!state->port.tty)
 		return;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = info->port.tty;
+	tty = state->port.tty;
 
 	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS);
 
@@ -2430,19 +2430,19 @@ static void ic4_shutdown(struct uart_port *the_port)
 {
 	unsigned long port_flags;
 	struct ioc4_port *port;
-	struct uart_info *info;
+	struct uart_state *state;
 
 	port = get_ioc4_port(the_port, 0);
 	if (!port)
 		return;
 
-	info = the_port->info;
+	state = the_port->state;
 	port->ip_port = NULL;
 
-	wake_up_interruptible(&info->delta_msr_wait);
+	wake_up_interruptible(&state->port.delta_msr_wait);
 
-	if (info->port.tty)
-		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
+	if (state->port.tty)
+		set_bit(TTY_IO_ERROR, &state->port.tty->flags);
 
 	spin_lock_irqsave(&the_port->lock, port_flags);
 	set_notification(port, N_ALL, 0);
@@ -2538,7 +2538,7 @@ static int ic4_startup(struct uart_port *the_port)
 	int retval;
 	struct ioc4_port *port;
 	struct ioc4_control *control;
-	struct uart_info *info;
+	struct uart_state *state;
 	unsigned long port_flags;
 
 	if (!the_port)
@@ -2546,7 +2546,7 @@ static int ic4_startup(struct uart_port *the_port)
 	port = get_ioc4_port(the_port, 1);
 	if (!port)
 		return -ENODEV;
-	info = the_port->info;
+	state = the_port->state;
 
 	control = port->ip_control;
 	if (!control) {

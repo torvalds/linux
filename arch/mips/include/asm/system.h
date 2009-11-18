@@ -32,6 +32,9 @@ extern asmlinkage void *resume(void *last, void *next, void *next_ti);
 
 struct task_struct;
 
+extern unsigned int ll_bit;
+extern struct task_struct *ll_task;
+
 #ifdef CONFIG_MIPS_MT_FPAFF
 
 /*
@@ -63,11 +66,18 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
+#define __clear_software_ll_bit()					\
+do {									\
+	if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)	\
+		ll_bit = 0;						\
+} while (0)
+
 #define switch_to(prev, next, last)					\
 do {									\
 	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
+	__clear_software_ll_bit();					\
 	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
@@ -84,7 +94,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 {
 	__u32 retval;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(
@@ -99,7 +109,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(
@@ -136,7 +146,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 {
 	__u64 retval;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(
@@ -149,7 +159,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
 		__asm__ __volatile__(

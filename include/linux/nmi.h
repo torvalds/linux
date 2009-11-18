@@ -28,8 +28,23 @@ static inline void acpi_nmi_disable(void) { }
 static inline void acpi_nmi_enable(void) { }
 #endif
 
-#ifndef trigger_all_cpu_backtrace
-#define trigger_all_cpu_backtrace() do { } while (0)
+/*
+ * Create trigger_all_cpu_backtrace() out of the arch-provided
+ * base function. Return whether such support was available,
+ * to allow calling code to fall back to some other mechanism:
+ */
+#ifdef arch_trigger_all_cpu_backtrace
+static inline bool trigger_all_cpu_backtrace(void)
+{
+	arch_trigger_all_cpu_backtrace();
+
+	return true;
+}
+#else
+static inline bool trigger_all_cpu_backtrace(void)
+{
+	return false;
+}
 #endif
 
 #endif

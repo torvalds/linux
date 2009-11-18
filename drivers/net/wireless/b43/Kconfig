@@ -42,8 +42,8 @@ config B43_PCICORE_AUTOSELECT
 	default y
 
 config B43_PCMCIA
-	bool "Broadcom 43xx PCMCIA device support (EXPERIMENTAL)"
-	depends on B43 && SSB_PCMCIAHOST_POSSIBLE && EXPERIMENTAL
+	bool "Broadcom 43xx PCMCIA device support"
+	depends on B43 && SSB_PCMCIAHOST_POSSIBLE
 	select SSB_PCMCIAHOST
 	---help---
 	  Broadcom 43xx PCMCIA device support.
@@ -61,11 +61,28 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
+config B43_SDIO
+	bool "Broadcom 43xx SDIO device support (EXPERIMENTAL)"
+	depends on B43 && SSB_SDIOHOST_POSSIBLE && EXPERIMENTAL
+	select SSB_SDIOHOST
+	---help---
+	  Broadcom 43xx device support for Soft-MAC SDIO devices.
+
+	  With this config option you can drive Soft-MAC b43 cards with a
+	  Secure Digital I/O interface.
+	  This includes the WLAN daughter card found on the Nintendo Wii
+	  video game console.
+	  Note that this does not support Broadcom 43xx Full-MAC devices.
+
+	  It's safe to select Y here, even if you don't have a B43 SDIO device.
+
+	  If unsure, say N.
+
 # Data transfers to the device via PIO
-# This is only needed on PCMCIA devices. All others can do DMA properly.
+# This is only needed on PCMCIA and SDIO devices. All others can do DMA properly.
 config B43_PIO
 	bool
-	depends on B43 && (B43_PCMCIA || B43_FORCE_PIO)
+	depends on B43 && (B43_SDIO || B43_PCMCIA || B43_FORCE_PIO)
 	select SSB_BLOCKIO
 	default y
 
@@ -80,16 +97,14 @@ config B43_NPHY
 	  SAY N.
 
 config B43_PHY_LP
-	bool "IEEE 802.11g LP-PHY support (BROKEN)"
-	depends on B43 && EXPERIMENTAL && BROKEN
+	bool "Support for low-power (LP-PHY) devices (EXPERIMENTAL)"
+	depends on B43 && EXPERIMENTAL
+	default y
 	---help---
 	  Support for the LP-PHY.
-	  The LP-PHY is an IEEE 802.11g based PHY built into some notebooks
-	  and embedded devices.
-
-	  THIS IS BROKEN AND DOES NOT WORK YET.
-
-	  SAY N.
+	  The LP-PHY is a low-power PHY built into some notebooks
+	  and embedded devices. It supports 802.11a/g
+	  (802.11a support is optional, and currently disabled).
 
 # This config option automatically enables b43 LEDS support,
 # if it's possible.

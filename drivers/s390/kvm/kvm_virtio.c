@@ -403,10 +403,14 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 	return len;
 }
 
-void __init s390_virtio_console_init(void)
+static int __init s390_virtio_console_init(void)
 {
-	virtio_cons_early_init(early_put_chars);
+	if (!MACHINE_IS_KVM)
+		return -ENODEV;
+	return virtio_cons_early_init(early_put_chars);
 }
+console_initcall(s390_virtio_console_init);
+
 
 /*
  * We do this after core stuff, but before the drivers.

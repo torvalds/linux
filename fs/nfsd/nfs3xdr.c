@@ -814,17 +814,6 @@ encode_entry_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name,
 	return p;
 }
 
-static __be32 *
-encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p,
-		struct svc_fh *fhp)
-{
-	p = encode_post_op_attr(cd->rqstp, p, fhp);
-	*p++ = xdr_one;			/* yes, a file handle follows */
-	p = encode_fh(p, fhp);
-	fh_put(fhp);
-	return p;
-}
-
 static int
 compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 		const char *name, int namlen)
@@ -836,27 +825,52 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 	dparent = cd->fh.fh_dentry;
 	exp  = cd->fh.fh_export;
 
-	fh_init(fhp, NFS3_FHSIZE);
 	if (isdotent(name, namlen)) {
 		if (namlen == 2) {
 			dchild = dget_parent(dparent);
 			if (dchild == dparent) {
 				/* filesystem root - cannot return filehandle for ".." */
 				dput(dchild);
-				return 1;
+				return -ENOENT;
 			}
 		} else
 			dchild = dget(dparent);
 	} else
 		dchild = lookup_one_len(name, dparent, namlen);
 	if (IS_ERR(dchild))
-		return 1;
-	if (d_mountpoint(dchild) ||
-	    fh_compose(fhp, exp, dchild, &cd->fh) != 0 ||
-	    !dchild->d_inode)
-		rv = 1;
+		return -ENOENT;
+	rv = -ENOENT;
+	if (d_mountpoint(dchild))
+		goto out;
+	rv = fh_compose(fhp, exp, dchild, &cd->fh);
+	if (rv)
+		goto out;
+	if (!dchild->d_inode)
+		goto out;
+	rv = 0;
+out:
 	dput(dchild);
 	return rv;
+}
+
+__be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
+{
+	struct svc_fh	fh;
+	int err;
+
+	fh_init(&fh, NFS3_FHSIZE);
+	err = compose_entry_fh(cd, &fh, name, namlen);
+	if (err) {
+		*p++ = 0;
+		*p++ = 0;
+		goto out;
+	}
+	p = encode_post_op_attr(cd->rqstp, p, &fh);
+	*p++ = xdr_one;			/* yes, a file handle follows */
+	p = encode_fh(p, &fh);
+out:
+	fh_put(&fh);
+	return p;
 }
 
 /*
@@ -929,16 +943,8 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 
 		p = encode_entry_baggage(cd, p, name, namlen, ino);
 
-		/* throw in readdirplus baggage */
-		if (plus) {
-			struct svc_fh	fh;
-
-			if (compose_entry_fh(cd, &fh, name, namlen) > 0) {
-				*p++ = 0;
-				*p++ = 0;
-			} else
-				p = encode_entryplus_baggage(cd, p, &fh);
-		}
+		if (plus)
+			p = encode_entryplus_baggage(cd, p, name, namlen);
 		num_entry_words = p - cd->buffer;
 	} else if (cd->rqstp->rq_respages[pn+1] != NULL) {
 		/* temporarily encode entry into next page, then move back to
@@ -951,17 +957,8 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 
 		p1 = encode_entry_baggage(cd, p1, name, namlen, ino);
 
-		/* throw in readdirplus baggage */
-		if (plus) {
-			struct svc_fh	fh;
-
-			if (compose_entry_fh(cd, &fh, name, namlen) > 0) {
-				/* zero out the filehandle */
-				*p1++ = 0;
-				*p1++ = 0;
-			} else
-				p1 = encode_entryplus_baggage(cd, p1, &fh);
-		}
+		if (plus)
+			p = encode_entryplus_baggage(cd, p1, name, namlen);
 
 		/* determine entry word length and lengths to go in pages */
 		num_entry_words = p1 - tmp;

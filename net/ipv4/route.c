@@ -1514,13 +1514,17 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 void ip_rt_send_redirect(struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
-	struct in_device *in_dev = in_dev_get(rt->u.dst.dev);
+	struct in_device *in_dev;
+	int log_martians;
 
-	if (!in_dev)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(rt->u.dst.dev);
+	if (!in_dev || !IN_DEV_TX_REDIRECTS(in_dev)) {
+		rcu_read_unlock();
 		return;
-
-	if (!IN_DEV_TX_REDIRECTS(in_dev))
-		goto out;
+	}
+	log_martians = IN_DEV_LOG_MARTIANS(in_dev);
+	rcu_read_unlock();
 
 	/* No redirected packets during ip_rt_redirect_silence;
 	 * reset the algorithm.
@@ -1533,7 +1537,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	 */
 	if (rt->u.dst.rate_tokens >= ip_rt_redirect_number) {
 		rt->u.dst.rate_last = jiffies;
-		goto out;
+		return;
 	}
 
 	/* Check for load limit; set rate_last to the latest sent
@@ -1547,7 +1551,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		rt->u.dst.rate_last = jiffies;
 		++rt->u.dst.rate_tokens;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
-		if (IN_DEV_LOG_MARTIANS(in_dev) &&
+		if (log_martians &&
 		    rt->u.dst.rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
 			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
@@ -1555,8 +1559,6 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 				&rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
-out:
-	in_dev_put(in_dev);
 }
 
 static int ip_error(struct sk_buff *skb)
@@ -1852,7 +1854,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			goto e_inval;
 		spec_dst = inet_select_addr(dev, 0, RT_SCOPE_LINK);
 	} else if (fib_validate_source(saddr, 0, tos, 0,
-					dev, &spec_dst, &itag) < 0)
+					dev, &spec_dst, &itag, 0) < 0)
 		goto e_inval;
 
 	rth = dst_alloc(&ipv4_dst_ops);
@@ -1965,7 +1967,7 @@ static int __mkroute_input(struct sk_buff *skb,
 
 
 	err = fib_validate_source(saddr, daddr, tos, FIB_RES_OIF(*res),
-				  in_dev->dev, &spec_dst, &itag);
+				  in_dev->dev, &spec_dst, &itag, skb->mark);
 	if (err < 0) {
 		ip_handle_martian_source(in_dev->dev, in_dev, skb, daddr,
 					 saddr);
@@ -2139,7 +2141,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		int result;
 		result = fib_validate_source(saddr, daddr, tos,
 					     net->loopback_dev->ifindex,
-					     dev, &spec_dst, &itag);
+					     dev, &spec_dst, &itag, skb->mark);
 		if (result < 0)
 			goto martian_source;
 		if (result)
@@ -2168,7 +2170,7 @@ brd_input:
 		spec_dst = inet_select_addr(dev, 0, RT_SCOPE_LINK);
 	else {
 		err = fib_validate_source(saddr, 0, tos, 0, dev, &spec_dst,
-					  &itag);
+					  &itag, skb->mark);
 		if (err < 0)
 			goto martian_source;
 		if (err)
@@ -3034,7 +3036,7 @@ void ip_rt_multicast_event(struct in_device *in_dev)
 
 #ifdef CONFIG_SYSCTL
 static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
-					struct file *filp, void __user *buffer,
+					void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
 	if (write) {
@@ -3044,7 +3046,7 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 
 		memcpy(&ctl, __ctl, sizeof(ctl));
 		ctl.data = &flush_delay;
-		proc_dointvec(&ctl, write, filp, buffer, lenp, ppos);
+		proc_dointvec(&ctl, write, buffer, lenp, ppos);
 
 		net = (struct net *)__ctl->extra1;
 		rt_cache_flush(net, flush_delay);
@@ -3104,12 +3106,11 @@ static void rt_secret_reschedule(int old)
 }
 
 static int ipv4_sysctl_rt_secret_interval(ctl_table *ctl, int write,
-					  struct file *filp,
 					  void __user *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
 	int old = ip_rt_secret_interval;
-	int ret = proc_dointvec_jiffies(ctl, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
 
 	rt_secret_reschedule(old);
 
@@ -3412,7 +3413,7 @@ int __init ip_rt_init(void)
 		alloc_large_system_hash("IP route cache",
 					sizeof(struct rt_hash_bucket),
 					rhash_entries,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					15 : 17,
 					0,
 					&rt_hash_log,
@@ -3442,7 +3443,7 @@ int __init ip_rt_init(void)
 		printk(KERN_ERR "Unable to create route proc files\n");
 #ifdef CONFIG_XFRM
 	xfrm_init();
-	xfrm4_init();
+	xfrm4_init(ip_rt_max_size);
 #endif
 	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL);
 

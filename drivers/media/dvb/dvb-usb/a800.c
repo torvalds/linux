@@ -38,41 +38,41 @@ static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_pr
 }
 
 static struct dvb_usb_rc_key a800_rc_keys[] = {
-	{ 0x02, 0x01, KEY_PROG1 },       /* SOURCE */
-	{ 0x02, 0x00, KEY_POWER },       /* POWER */
-	{ 0x02, 0x05, KEY_1 },           /* 1 */
-	{ 0x02, 0x06, KEY_2 },           /* 2 */
-	{ 0x02, 0x07, KEY_3 },           /* 3 */
-	{ 0x02, 0x09, KEY_4 },           /* 4 */
-	{ 0x02, 0x0a, KEY_5 },           /* 5 */
-	{ 0x02, 0x0b, KEY_6 },           /* 6 */
-	{ 0x02, 0x0d, KEY_7 },           /* 7 */
-	{ 0x02, 0x0e, KEY_8 },           /* 8 */
-	{ 0x02, 0x0f, KEY_9 },           /* 9 */
-	{ 0x02, 0x12, KEY_LEFT },        /* L / DISPLAY */
-	{ 0x02, 0x11, KEY_0 },           /* 0 */
-	{ 0x02, 0x13, KEY_RIGHT },       /* R / CH RTN */
-	{ 0x02, 0x17, KEY_PROG2 },       /* SNAP SHOT */
-	{ 0x02, 0x10, KEY_PROG3 },       /* 16-CH PREV */
-	{ 0x02, 0x1e, KEY_VOLUMEDOWN },  /* VOL DOWN */
-	{ 0x02, 0x0c, KEY_ZOOM },        /* FULL SCREEN */
-	{ 0x02, 0x1f, KEY_VOLUMEUP },    /* VOL UP */
-	{ 0x02, 0x14, KEY_MUTE },        /* MUTE */
-	{ 0x02, 0x08, KEY_AUDIO },       /* AUDIO */
-	{ 0x02, 0x19, KEY_RECORD },      /* RECORD */
-	{ 0x02, 0x18, KEY_PLAY },        /* PLAY */
-	{ 0x02, 0x1b, KEY_STOP },        /* STOP */
-	{ 0x02, 0x1a, KEY_PLAYPAUSE },   /* TIMESHIFT / PAUSE */
-	{ 0x02, 0x1d, KEY_BACK },        /* << / RED */
-	{ 0x02, 0x1c, KEY_FORWARD },     /* >> / YELLOW */
-	{ 0x02, 0x03, KEY_TEXT },        /* TELETEXT */
-	{ 0x02, 0x04, KEY_EPG },         /* EPG */
-	{ 0x02, 0x15, KEY_MENU },        /* MENU */
+	{ 0x0201, KEY_PROG1 },       /* SOURCE */
+	{ 0x0200, KEY_POWER },       /* POWER */
+	{ 0x0205, KEY_1 },           /* 1 */
+	{ 0x0206, KEY_2 },           /* 2 */
+	{ 0x0207, KEY_3 },           /* 3 */
+	{ 0x0209, KEY_4 },           /* 4 */
+	{ 0x020a, KEY_5 },           /* 5 */
+	{ 0x020b, KEY_6 },           /* 6 */
+	{ 0x020d, KEY_7 },           /* 7 */
+	{ 0x020e, KEY_8 },           /* 8 */
+	{ 0x020f, KEY_9 },           /* 9 */
+	{ 0x0212, KEY_LEFT },        /* L / DISPLAY */
+	{ 0x0211, KEY_0 },           /* 0 */
+	{ 0x0213, KEY_RIGHT },       /* R / CH RTN */
+	{ 0x0217, KEY_PROG2 },       /* SNAP SHOT */
+	{ 0x0210, KEY_PROG3 },       /* 16-CH PREV */
+	{ 0x021e, KEY_VOLUMEDOWN },  /* VOL DOWN */
+	{ 0x020c, KEY_ZOOM },        /* FULL SCREEN */
+	{ 0x021f, KEY_VOLUMEUP },    /* VOL UP */
+	{ 0x0214, KEY_MUTE },        /* MUTE */
+	{ 0x0208, KEY_AUDIO },       /* AUDIO */
+	{ 0x0219, KEY_RECORD },      /* RECORD */
+	{ 0x0218, KEY_PLAY },        /* PLAY */
+	{ 0x021b, KEY_STOP },        /* STOP */
+	{ 0x021a, KEY_PLAYPAUSE },   /* TIMESHIFT / PAUSE */
+	{ 0x021d, KEY_BACK },        /* << / RED */
+	{ 0x021c, KEY_FORWARD },     /* >> / YELLOW */
+	{ 0x0203, KEY_TEXT },        /* TELETEXT */
+	{ 0x0204, KEY_EPG },         /* EPG */
+	{ 0x0215, KEY_MENU },        /* MENU */
 
-	{ 0x03, 0x03, KEY_CHANNELUP },   /* CH UP */
-	{ 0x03, 0x02, KEY_CHANNELDOWN }, /* CH DOWN */
-	{ 0x03, 0x01, KEY_FIRST },       /* |<< / GREEN */
-	{ 0x03, 0x00, KEY_LAST },        /* >>| / BLUE */
+	{ 0x0303, KEY_CHANNELUP },   /* CH UP */
+	{ 0x0302, KEY_CHANNELDOWN }, /* CH DOWN */
+	{ 0x0301, KEY_FIRST },       /* |<< / GREEN */
+	{ 0x0300, KEY_LAST },        /* >>| / BLUE */
 
 };
 

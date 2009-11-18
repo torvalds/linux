@@ -81,12 +81,12 @@ static struct hid_driver gyration_driver = {
 	.event = gyration_event,
 };
 
-static int gyration_init(void)
+static int __init gyration_init(void)
 {
 	return hid_register_driver(&gyration_driver);
 }
 
-static void gyration_exit(void)
+static void __exit gyration_exit(void)
 {
 	hid_unregister_driver(&gyration_driver);
 }

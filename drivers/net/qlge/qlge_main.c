@@ -34,7 +34,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -321,6 +320,37 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 
 	switch (type) {
 	case MAC_ADDR_TYPE_MULTI_MAC:
+		{
+			u32 upper = (addr[0] << 8) | addr[1];
+			u32 lower = (addr[2] << 24) | (addr[3] << 16) |
+					(addr[4] << 8) | (addr[5]);
+
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
+				(index << MAC_ADDR_IDX_SHIFT) |
+				type | MAC_ADDR_E);
+			ql_write32(qdev, MAC_ADDR_DATA, lower);
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
+				(index << MAC_ADDR_IDX_SHIFT) |
+				type | MAC_ADDR_E);
+
+			ql_write32(qdev, MAC_ADDR_DATA, upper);
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			break;
+		}
 	case MAC_ADDR_TYPE_CAM_MAC:
 		{
 			u32 cam_output;
@@ -366,18 +396,14 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			   and possibly the function id.  Right now we hardcode
 			   the route field to NIC core.
 			 */
-			if (type == MAC_ADDR_TYPE_CAM_MAC) {
-				cam_output = (CAM_OUT_ROUTE_NIC |
-					      (qdev->
-					       func << CAM_OUT_FUNC_SHIFT) |
-					      (qdev->
-					       rss_ring_first_cq_id <<
-					       CAM_OUT_CQ_ID_SHIFT));
-				if (qdev->vlgrp)
-					cam_output |= CAM_OUT_RV;
-				/* route to NIC core */
-				ql_write32(qdev, MAC_ADDR_DATA, cam_output);
-			}
+			cam_output = (CAM_OUT_ROUTE_NIC |
+				      (qdev->
+				       func << CAM_OUT_FUNC_SHIFT) |
+					(0 << CAM_OUT_CQ_ID_SHIFT));
+			if (qdev->vlgrp)
+				cam_output |= CAM_OUT_RV;
+			/* route to NIC core */
+			ql_write32(qdev, MAC_ADDR_DATA, cam_output);
 			break;
 		}
 	case MAC_ADDR_TYPE_VLAN:
@@ -549,14 +575,14 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 		}
 	case RT_IDX_MCAST:	/* Pass up All Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_ALLMULTI_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
 		}
 	case RT_IDX_MCAST_MATCH:	/* Pass up matched Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_MCAST_MATCH_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
@@ -1649,8 +1675,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 
 	qdev->stats.rx_packets++;
 	qdev->stats.rx_bytes += skb->len;
-	skb_record_rx_queue(skb,
-		rx_ring->cq_id - qdev->rss_ring_first_cq_id);
+	skb_record_rx_queue(skb, rx_ring->cq_id);
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (qdev->vlgrp &&
 			(ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V) &&
@@ -1862,10 +1887,40 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 {
 	struct rx_ring *rx_ring = container_of(napi, struct rx_ring, napi);
 	struct ql_adapter *qdev = rx_ring->qdev;
-	int work_done = ql_clean_inbound_rx_ring(rx_ring, budget);
+	struct rx_ring *trx_ring;
+	int i, work_done = 0;
+	struct intr_context *ctx = &qdev->intr_context[rx_ring->cq_id];
 
 	QPRINTK(qdev, RX_STATUS, DEBUG, "Enter, NAPI POLL cq_id = %d.\n",
 		rx_ring->cq_id);
+
+	/* Service the TX rings first.  They start
+	 * right after the RSS rings. */
+	for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
+		trx_ring = &qdev->rx_ring[i];
+		/* If this TX completion ring belongs to this vector and
+		 * it's not empty then service it.
+		 */
+		if ((ctx->irq_mask & (1 << trx_ring->cq_id)) &&
+			(ql_read_sh_reg(trx_ring->prod_idx_sh_reg) !=
+					trx_ring->cnsmr_idx)) {
+			QPRINTK(qdev, INTR, DEBUG,
+				"%s: Servicing TX completion ring %d.\n",
+				__func__, trx_ring->cq_id);
+			ql_clean_outbound_rx_ring(trx_ring);
+		}
+	}
+
+	/*
+	 * Now service the RSS ring if it's active.
+	 */
+	if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) !=
+					rx_ring->cnsmr_idx) {
+		QPRINTK(qdev, INTR, DEBUG,
+			"%s: Servicing RX completion ring %d.\n",
+			__func__, rx_ring->cq_id);
+		work_done = ql_clean_inbound_rx_ring(rx_ring, budget);
+	}
 
 	if (work_done < budget) {
 		napi_complete(napi);
@@ -1899,12 +1954,10 @@ static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
@@ -1918,46 +1971,12 @@ static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 	if (status)
 		return;
 
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to clear vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 
-}
-
-/* Worker thread to process a given rx_ring that is dedicated
- * to outbound completions.
- */
-static void ql_tx_clean(struct work_struct *work)
-{
-	struct rx_ring *rx_ring =
-	    container_of(work, struct rx_ring, rx_work.work);
-	ql_clean_outbound_rx_ring(rx_ring);
-	ql_enable_completion_interrupt(rx_ring->qdev, rx_ring->irq);
-
-}
-
-/* Worker thread to process a given rx_ring that is dedicated
- * to inbound completions.
- */
-static void ql_rx_clean(struct work_struct *work)
-{
-	struct rx_ring *rx_ring =
-	    container_of(work, struct rx_ring, rx_work.work);
-	ql_clean_inbound_rx_ring(rx_ring, 64);
-	ql_enable_completion_interrupt(rx_ring->qdev, rx_ring->irq);
-}
-
-/* MSI-X Multiple Vector Interrupt Handler for outbound completions. */
-static irqreturn_t qlge_msix_tx_isr(int irq, void *dev_id)
-{
-	struct rx_ring *rx_ring = dev_id;
-	queue_delayed_work_on(rx_ring->cpu, rx_ring->qdev->q_workqueue,
-			      &rx_ring->rx_work, 0);
-	return IRQ_HANDLED;
 }
 
 /* MSI-X Multiple Vector Interrupt Handler for inbound completions. */
@@ -1979,7 +1998,6 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	struct ql_adapter *qdev = rx_ring->qdev;
 	struct intr_context *intr_context = &qdev->intr_context[0];
 	u32 var;
-	int i;
 	int work_done = 0;
 
 	spin_lock(&qdev->hw_lock);
@@ -2007,54 +2025,33 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	/*
 	 * Check MPI processor activity.
 	 */
-	if (var & STS_PI) {
+	if ((var & STS_PI) &&
+		(ql_read32(qdev, INTR_MASK) & INTR_MASK_PI)) {
 		/*
 		 * We've got an async event or mailbox completion.
 		 * Handle it and clear the source of the interrupt.
 		 */
 		QPRINTK(qdev, INTR, ERR, "Got MPI processor interrupt.\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
-		queue_delayed_work_on(smp_processor_id(), qdev->workqueue,
-				      &qdev->mpi_work, 0);
+		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
+		queue_delayed_work_on(smp_processor_id(),
+				qdev->workqueue, &qdev->mpi_work, 0);
 		work_done++;
 	}
 
 	/*
-	 * Check the default queue and wake handler if active.
+	 * Get the bit-mask that shows the active queues for this
+	 * pass.  Compare it to the queues that this irq services
+	 * and call napi if there's a match.
 	 */
-	rx_ring = &qdev->rx_ring[0];
-	if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) != rx_ring->cnsmr_idx) {
-		QPRINTK(qdev, INTR, INFO, "Waking handler for rx_ring[0].\n");
-		ql_disable_completion_interrupt(qdev, intr_context->intr);
-		queue_delayed_work_on(smp_processor_id(), qdev->q_workqueue,
-				      &rx_ring->rx_work, 0);
-		work_done++;
-	}
-
-	if (!test_bit(QL_MSIX_ENABLED, &qdev->flags)) {
-		/*
-		 * Start the DPC for each active queue.
-		 */
-		for (i = 1; i < qdev->rx_ring_count; i++) {
-			rx_ring = &qdev->rx_ring[i];
-			if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) !=
-			    rx_ring->cnsmr_idx) {
+	var = ql_read32(qdev, ISR1);
+	if (var & intr_context->irq_mask) {
 				QPRINTK(qdev, INTR, INFO,
-					"Waking handler for rx_ring[%d].\n", i);
-				ql_disable_completion_interrupt(qdev,
-								intr_context->
-								intr);
-				if (i < qdev->rss_ring_first_cq_id)
-					queue_delayed_work_on(rx_ring->cpu,
-							      qdev->q_workqueue,
-							      &rx_ring->rx_work,
-							      0);
-				else
+			"Waking handler for rx_ring[0].\n");
+		ql_disable_completion_interrupt(qdev, intr_context->intr);
 					napi_schedule(&rx_ring->napi);
 				work_done++;
 			}
-		}
-	}
 	ql_enable_completion_interrupt(qdev, intr_context->intr);
 	return work_done ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -2132,7 +2129,7 @@ static void ql_hw_csum_setup(struct sk_buff *skb,
 				    iph->daddr, len, iph->protocol, 0);
 }
 
-static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct tx_ring_desc *tx_ring_desc;
 	struct ob_mac_iocb_req *mac_iocb_ptr;
@@ -2659,7 +2656,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	    FLAGS_LI;		/* Load irq delay values */
 	if (rx_ring->lbq_len) {
 		cqicb->flags |= FLAGS_LL;	/* Load lbq values */
-		tmp = (u64)rx_ring->lbq_base_dma;;
+		tmp = (u64)rx_ring->lbq_base_dma;
 		base_indirect_ptr = (__le64 *) rx_ring->lbq_base_indirect;
 		page_entries = 0;
 		do {
@@ -2683,7 +2680,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	}
 	if (rx_ring->sbq_len) {
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
-		tmp = (u64)rx_ring->sbq_base_dma;;
+		tmp = (u64)rx_ring->sbq_base_dma;
 		base_indirect_ptr = (__le64 *) rx_ring->sbq_base_indirect;
 		page_entries = 0;
 		do {
@@ -2706,34 +2703,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	}
 	switch (rx_ring->type) {
 	case TX_Q:
-		/* If there's only one interrupt, then we use
-		 * worker threads to process the outbound
-		 * completion handling rx_rings. We do this so
-		 * they can be run on multiple CPUs. There is
-		 * room to play with this more where we would only
-		 * run in a worker if there are more than x number
-		 * of outbound completions on the queue and more
-		 * than one queue active.  Some threshold that
-		 * would indicate a benefit in spite of the cost
-		 * of a context switch.
-		 * If there's more than one interrupt, then the
-		 * outbound completions are processed in the ISR.
-		 */
-		if (!test_bit(QL_MSIX_ENABLED, &qdev->flags))
-			INIT_DELAYED_WORK(&rx_ring->rx_work, ql_tx_clean);
-		else {
-			/* With all debug warnings on we see a WARN_ON message
-			 * when we free the skb in the interrupt context.
-			 */
-			INIT_DELAYED_WORK(&rx_ring->rx_work, ql_tx_clean);
-		}
 		cqicb->irq_delay = cpu_to_le16(qdev->tx_coalesce_usecs);
 		cqicb->pkt_delay = cpu_to_le16(qdev->tx_max_coalesced_frames);
-		break;
-	case DEFAULT_Q:
-		INIT_DELAYED_WORK(&rx_ring->rx_work, ql_rx_clean);
-		cqicb->irq_delay = 0;
-		cqicb->pkt_delay = 0;
 		break;
 	case RX_Q:
 		/* Inbound completion handling rx_rings run in
@@ -2818,17 +2789,20 @@ static void ql_disable_msix(struct ql_adapter *qdev)
 	}
 }
 
+/* We start by trying to get the number of vectors
+ * stored in qdev->intr_count. If we don't get that
+ * many then we reduce the count and try again.
+ */
 static void ql_enable_msix(struct ql_adapter *qdev)
 {
-	int i;
+	int i, err;
 
-	qdev->intr_count = 1;
 	/* Get the MSIX vectors. */
 	if (irq_type == MSIX_IRQ) {
 		/* Try to alloc space for the msix struct,
 		 * if it fails then go to MSI/legacy.
 		 */
-		qdev->msi_x_entry = kcalloc(qdev->rx_ring_count,
+		qdev->msi_x_entry = kcalloc(qdev->intr_count,
 					    sizeof(struct msix_entry),
 					    GFP_KERNEL);
 		if (!qdev->msi_x_entry) {
@@ -2836,26 +2810,36 @@ static void ql_enable_msix(struct ql_adapter *qdev)
 			goto msi;
 		}
 
-		for (i = 0; i < qdev->rx_ring_count; i++)
+		for (i = 0; i < qdev->intr_count; i++)
 			qdev->msi_x_entry[i].entry = i;
 
-		if (!pci_enable_msix
-		    (qdev->pdev, qdev->msi_x_entry, qdev->rx_ring_count)) {
-			set_bit(QL_MSIX_ENABLED, &qdev->flags);
-			qdev->intr_count = qdev->rx_ring_count;
-			QPRINTK(qdev, IFUP, DEBUG,
-				"MSI-X Enabled, got %d vectors.\n",
-				qdev->intr_count);
-			return;
-		} else {
+		/* Loop to get our vectors.  We start with
+		 * what we want and settle for what we get.
+		 */
+		do {
+			err = pci_enable_msix(qdev->pdev,
+				qdev->msi_x_entry, qdev->intr_count);
+			if (err > 0)
+				qdev->intr_count = err;
+		} while (err > 0);
+
+		if (err < 0) {
 			kfree(qdev->msi_x_entry);
 			qdev->msi_x_entry = NULL;
 			QPRINTK(qdev, IFUP, WARNING,
 				"MSI-X Enable failed, trying MSI.\n");
+			qdev->intr_count = 1;
 			irq_type = MSI_IRQ;
+		} else if (err == 0) {
+			set_bit(QL_MSIX_ENABLED, &qdev->flags);
+			QPRINTK(qdev, IFUP, INFO,
+				"MSI-X Enabled, got %d vectors.\n",
+				qdev->intr_count);
+			return;
 		}
 	}
 msi:
+	qdev->intr_count = 1;
 	if (irq_type == MSI_IRQ) {
 		if (!pci_enable_msi(qdev->pdev)) {
 			set_bit(QL_MSI_ENABLED, &qdev->flags);
@@ -2866,6 +2850,71 @@ msi:
 	}
 	irq_type = LEG_IRQ;
 	QPRINTK(qdev, IFUP, DEBUG, "Running with legacy interrupts.\n");
+}
+
+/* Each vector services 1 RSS ring and and 1 or more
+ * TX completion rings.  This function loops through
+ * the TX completion rings and assigns the vector that
+ * will service it.  An example would be if there are
+ * 2 vectors (so 2 RSS rings) and 8 TX completion rings.
+ * This would mean that vector 0 would service RSS ring 0
+ * and TX competion rings 0,1,2 and 3.  Vector 1 would
+ * service RSS ring 1 and TX completion rings 4,5,6 and 7.
+ */
+static void ql_set_tx_vect(struct ql_adapter *qdev)
+{
+	int i, j, vect;
+	u32 tx_rings_per_vector = qdev->tx_ring_count / qdev->intr_count;
+
+	if (likely(test_bit(QL_MSIX_ENABLED, &qdev->flags))) {
+		/* Assign irq vectors to TX rx_rings.*/
+		for (vect = 0, j = 0, i = qdev->rss_ring_count;
+					 i < qdev->rx_ring_count; i++) {
+			if (j == tx_rings_per_vector) {
+				vect++;
+				j = 0;
+			}
+			qdev->rx_ring[i].irq = vect;
+			j++;
+		}
+	} else {
+		/* For single vector all rings have an irq
+		 * of zero.
+		 */
+		for (i = 0; i < qdev->rx_ring_count; i++)
+			qdev->rx_ring[i].irq = 0;
+	}
+}
+
+/* Set the interrupt mask for this vector.  Each vector
+ * will service 1 RSS ring and 1 or more TX completion
+ * rings.  This function sets up a bit mask per vector
+ * that indicates which rings it services.
+ */
+static void ql_set_irq_mask(struct ql_adapter *qdev, struct intr_context *ctx)
+{
+	int j, vect = ctx->intr;
+	u32 tx_rings_per_vector = qdev->tx_ring_count / qdev->intr_count;
+
+	if (likely(test_bit(QL_MSIX_ENABLED, &qdev->flags))) {
+		/* Add the RSS ring serviced by this vector
+		 * to the mask.
+		 */
+		ctx->irq_mask = (1 << qdev->rx_ring[vect].cq_id);
+		/* Add the TX ring(s) serviced by this vector
+		 * to the mask. */
+		for (j = 0; j < tx_rings_per_vector; j++) {
+			ctx->irq_mask |=
+			(1 << qdev->rx_ring[qdev->rss_ring_count +
+			(vect * tx_rings_per_vector) + j].cq_id);
+		}
+	} else {
+		/* For single vector we just shift each queue's
+		 * ID into the mask.
+		 */
+		for (j = 0; j < qdev->rx_ring_count; j++)
+			ctx->irq_mask |= (1 << qdev->rx_ring[j].cq_id);
+	}
 }
 
 /*
@@ -2879,18 +2928,19 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 	int i = 0;
 	struct intr_context *intr_context = &qdev->intr_context[0];
 
-	ql_enable_msix(qdev);
-
 	if (likely(test_bit(QL_MSIX_ENABLED, &qdev->flags))) {
 		/* Each rx_ring has it's
 		 * own intr_context since we have separate
 		 * vectors for each queue.
-		 * This only true when MSI-X is enabled.
 		 */
 		for (i = 0; i < qdev->intr_count; i++, intr_context++) {
 			qdev->rx_ring[i].irq = i;
 			intr_context->intr = i;
 			intr_context->qdev = qdev;
+			/* Set up this vector's bit-mask that indicates
+			 * which queues it services.
+			 */
+			ql_set_irq_mask(qdev, intr_context);
 			/*
 			 * We set up each vectors enable/disable/read bits so
 			 * there's no bit/mask calculations in the critical path.
@@ -2907,21 +2957,14 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 			    INTR_EN_TYPE_MASK | INTR_EN_INTR_MASK |
 			    INTR_EN_TYPE_READ | INTR_EN_IHD_MASK | INTR_EN_IHD |
 			    i;
-
 			if (i == 0) {
-				/*
-				 * Default queue handles bcast/mcast plus
-				 * async events.  Needs buffers.
+				/* The first vector/queue handles
+				 * broadcast/multicast, fatal errors,
+				 * and firmware events.  This in addition
+				 * to normal inbound NAPI processing.
 				 */
 				intr_context->handler = qlge_isr;
-				sprintf(intr_context->name, "%s-default-queue",
-					qdev->ndev->name);
-			} else if (i < qdev->rss_ring_first_cq_id) {
-				/*
-				 * Outbound queue is for outbound completions only.
-				 */
-				intr_context->handler = qlge_msix_tx_isr;
-				sprintf(intr_context->name, "%s-tx-%d",
+				sprintf(intr_context->name, "%s-rx-%d",
 					qdev->ndev->name, i);
 			} else {
 				/*
@@ -2955,9 +2998,17 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 		 */
 		intr_context->handler = qlge_isr;
 		sprintf(intr_context->name, "%s-single_irq", qdev->ndev->name);
-		for (i = 0; i < qdev->rx_ring_count; i++)
-			qdev->rx_ring[i].irq = 0;
+		/* Set up this vector's bit-mask that indicates
+		 * which queues it services. In this case there is
+		 * a single vector so it will service all RSS and
+		 * TX completion rings.
+		 */
+		ql_set_irq_mask(qdev, intr_context);
 	}
+	/* Tell the TX completion rings which MSIx vector
+	 * they will be using.
+	 */
+	ql_set_tx_vect(qdev);
 }
 
 static void ql_free_irq(struct ql_adapter *qdev)
@@ -3055,6 +3106,12 @@ err_irq:
 
 static int ql_start_rss(struct ql_adapter *qdev)
 {
+	u8 init_hash_seed[] = {0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+				0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f,
+				0xb0, 0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b,
+				0x30, 0xb4, 0x77, 0xcb, 0x2d, 0xa3, 0x80,
+				0x30, 0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b,
+				0xbe, 0xac, 0x01, 0xfa};
 	struct ricb *ricb = &qdev->ricb;
 	int status = 0;
 	int i;
@@ -3062,23 +3119,19 @@ static int ql_start_rss(struct ql_adapter *qdev)
 
 	memset((void *)ricb, 0, sizeof(*ricb));
 
-	ricb->base_cq = qdev->rss_ring_first_cq_id | RSS_L4K;
+	ricb->base_cq = RSS_L4K;
 	ricb->flags =
-	    (RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RI4 | RSS_RI6 | RSS_RT4 |
-	     RSS_RT6);
-	ricb->mask = cpu_to_le16(qdev->rss_ring_count - 1);
+		(RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RT4 | RSS_RT6);
+	ricb->mask = cpu_to_le16((u16)(0x3ff));
 
 	/*
 	 * Fill out the Indirection Table.
 	 */
-	for (i = 0; i < 256; i++)
-		hash_id[i] = i & (qdev->rss_ring_count - 1);
+	for (i = 0; i < 1024; i++)
+		hash_id[i] = (i & (qdev->rss_ring_count - 1));
 
-	/*
-	 * Random values for the IPv6 and IPv4 Hash Keys.
-	 */
-	get_random_bytes((void *)&ricb->ipv6_hash_key[0], 40);
-	get_random_bytes((void *)&ricb->ipv4_hash_key[0], 16);
+	memcpy((void *)&ricb->ipv6_hash_key[0], init_hash_seed, 40);
+	memcpy((void *)&ricb->ipv4_hash_key[0], init_hash_seed, 16);
 
 	QPRINTK(qdev, IFUP, DEBUG, "Initializing RSS.\n");
 
@@ -3117,14 +3170,14 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 {
 	int status = 0;
 
-	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
-	if (status)
-		return status;
-
 	/* Clear all the entries in the routing table. */
 	status = ql_clear_routing_entries(qdev);
 	if (status)
-		goto exit;
+		return status;
+
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
 
 	status = ql_set_routing_reg(qdev, RT_IDX_ALL_ERR_SLOT, RT_IDX_ERR, 1);
 	if (status) {
@@ -3217,6 +3270,13 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	ql_write32(qdev, SPLT_HDR, SPLT_HDR_EP |
 		min(SMALL_BUFFER_SIZE, MAX_SPLIT_SIZE));
 
+	/* Set RX packet routing to use port/pci function on which the
+	 * packet arrived on in addition to usual frame routing.
+	 * This is helpful on bonding where both interfaces can have
+	 * the same MAC address.
+	 */
+	ql_write32(qdev, RST_FO, RST_FO_RR_MASK | RST_FO_RR_RCV_FUNC_CQ);
+
 	/* Start up the rx queues. */
 	for (i = 0; i < qdev->rx_ring_count; i++) {
 		status = ql_start_rx_ring(qdev, &qdev->rx_ring[i]);
@@ -3264,7 +3324,7 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	}
 
 	/* Start NAPI for the RSS queues. */
-	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++) {
+	for (i = 0; i < qdev->rss_ring_count; i++) {
 		QPRINTK(qdev, IFUP, DEBUG, "Enabling NAPI for rx_ring[%d].\n",
 			i);
 		napi_enable(&qdev->rx_ring[i].napi);
@@ -3289,6 +3349,13 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 	end_jiffies = jiffies +
 		max((unsigned long)1, usecs_to_jiffies(30));
+
+	/* Stop management traffic. */
+	ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_STOP);
+
+	/* Wait for the NIC and MGMNT FIFOs to empty. */
+	ql_wait_fifo_empty(qdev);
+
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
 	do {
@@ -3304,6 +3371,8 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 		status = -ETIMEDOUT;
 	}
 
+	/* Resume management traffic. */
+	ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_RESUME);
 	return status;
 }
 
@@ -3326,7 +3395,6 @@ static void ql_display_dev_info(struct net_device *ndev)
 static int ql_adapter_down(struct ql_adapter *qdev)
 {
 	int i, status = 0;
-	struct rx_ring *rx_ring;
 
 	ql_link_off(qdev);
 
@@ -3340,27 +3408,8 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 
-	/* The default queue at index 0 is always processed in
-	 * a workqueue.
-	 */
-	cancel_delayed_work_sync(&qdev->rx_ring[0].rx_work);
-
-	/* The rest of the rx_rings are processed in
-	 * a workqueue only if it's a single interrupt
-	 * environment (MSI/Legacy).
-	 */
-	for (i = 1; i < qdev->rx_ring_count; i++) {
-		rx_ring = &qdev->rx_ring[i];
-		/* Only the RSS rings use NAPI on multi irq
-		 * environment.  Outbound completion processing
-		 * is done in interrupt context.
-		 */
-		if (i >= qdev->rss_ring_first_cq_id) {
-			napi_disable(&rx_ring->napi);
-		} else {
-			cancel_delayed_work_sync(&rx_ring->rx_work);
-		}
-	}
+	for (i = 0; i < qdev->rss_ring_count; i++)
+		napi_disable(&qdev->rx_ring[i].napi);
 
 	clear_bit(QL_ADAPTER_UP, &qdev->flags);
 
@@ -3370,17 +3419,15 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 
 	/* Call netif_napi_del() from common point.
 	 */
-	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
+	for (i = 0; i < qdev->rss_ring_count; i++)
 		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	ql_free_rx_buffers(qdev);
 
-	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
 	if (status)
 		QPRINTK(qdev, IFDOWN, ERR, "reset(func #%d) FAILED!\n",
 			qdev->func);
-	spin_unlock(&qdev->hw_lock);
 	return status;
 }
 
@@ -3449,43 +3496,21 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 	int i;
 	struct rx_ring *rx_ring;
 	struct tx_ring *tx_ring;
-	int cpu_cnt = num_online_cpus();
+	int cpu_cnt = min(MAX_CPUS, (int)num_online_cpus());
 
-	/*
-	 * For each processor present we allocate one
-	 * rx_ring for outbound completions, and one
-	 * rx_ring for inbound completions.  Plus there is
-	 * always the one default queue.  For the CPU
-	 * counts we end up with the following rx_rings:
-	 * rx_ring count =
-	 *  one default queue +
-	 *  (CPU count * outbound completion rx_ring) +
-	 *  (CPU count * inbound (RSS) completion rx_ring)
-	 * To keep it simple we limit the total number of
-	 * queues to < 32, so we truncate CPU to 8.
-	 * This limitation can be removed when requested.
+	/* In a perfect world we have one RSS ring for each CPU
+	 * and each has it's own vector.  To do that we ask for
+	 * cpu_cnt vectors.  ql_enable_msix() will adjust the
+	 * vector count to what we actually get.  We then
+	 * allocate an RSS ring for each.
+	 * Essentially, we are doing min(cpu_count, msix_vector_count).
 	 */
-
-	if (cpu_cnt > MAX_CPUS)
-		cpu_cnt = MAX_CPUS;
-
-	/*
-	 * rx_ring[0] is always the default queue.
-	 */
-	/* Allocate outbound completion ring for each CPU. */
+	qdev->intr_count = cpu_cnt;
+	ql_enable_msix(qdev);
+	/* Adjust the RSS ring count to the actual vector count. */
+	qdev->rss_ring_count = qdev->intr_count;
 	qdev->tx_ring_count = cpu_cnt;
-	/* Allocate inbound completion (RSS) ring for each CPU. */
-	qdev->rss_ring_count = cpu_cnt;
-	/* cq_id for the first inbound ring handler. */
-	qdev->rss_ring_first_cq_id = cpu_cnt + 1;
-	/*
-	 * qdev->rx_ring_count:
-	 * Total number of rx_rings.  This includes the one
-	 * default queue, a number of outbound completion
-	 * handler rx_rings, and the number of inbound
-	 * completion handler rx_rings.
-	 */
-	qdev->rx_ring_count = qdev->tx_ring_count + qdev->rss_ring_count + 1;
+	qdev->rx_ring_count = qdev->tx_ring_count + qdev->rss_ring_count;
 
 	for (i = 0; i < qdev->tx_ring_count; i++) {
 		tx_ring = &qdev->tx_ring[i];
@@ -3498,9 +3523,9 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 
 		/*
 		 * The completion queue ID for the tx rings start
-		 * immediately after the default Q ID, which is zero.
+		 * immediately after the rss rings.
 		 */
-		tx_ring->cq_id = i + 1;
+		tx_ring->cq_id = qdev->rss_ring_count + i;
 	}
 
 	for (i = 0; i < qdev->rx_ring_count; i++) {
@@ -3509,10 +3534,9 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 		rx_ring->qdev = qdev;
 		rx_ring->cq_id = i;
 		rx_ring->cpu = i % cpu_cnt;	/* CPU to run handler on. */
-		if (i == 0) {	/* Default queue at index 0. */
+		if (i < qdev->rss_ring_count) {
 			/*
-			 * Default queue handles bcast/mcast plus
-			 * async events.  Needs buffers.
+			 * Inbound (RSS) queues.
 			 */
 			rx_ring->cq_len = qdev->rx_ring_size;
 			rx_ring->cq_size =
@@ -3525,8 +3549,8 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			rx_ring->sbq_size =
 			    rx_ring->sbq_len * sizeof(__le64);
 			rx_ring->sbq_buf_size = SMALL_BUFFER_SIZE * 2;
-			rx_ring->type = DEFAULT_Q;
-		} else if (i < qdev->rss_ring_first_cq_id) {
+			rx_ring->type = RX_Q;
+		} else {
 			/*
 			 * Outbound queue handles outbound completions only.
 			 */
@@ -3541,22 +3565,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			rx_ring->sbq_size = 0;
 			rx_ring->sbq_buf_size = 0;
 			rx_ring->type = TX_Q;
-		} else {	/* Inbound completions (RSS) queues */
-			/*
-			 * Inbound queues handle unicast frames only.
-			 */
-			rx_ring->cq_len = qdev->rx_ring_size;
-			rx_ring->cq_size =
-			    rx_ring->cq_len * sizeof(struct ql_net_rsp_iocb);
-			rx_ring->lbq_len = NUM_LARGE_BUFFERS;
-			rx_ring->lbq_size =
-			    rx_ring->lbq_len * sizeof(__le64);
-			rx_ring->lbq_buf_size = LARGE_BUFFER_SIZE;
-			rx_ring->sbq_len = NUM_SMALL_BUFFERS;
-			rx_ring->sbq_size =
-			    rx_ring->sbq_len * sizeof(__le64);
-			rx_ring->sbq_buf_size = SMALL_BUFFER_SIZE * 2;
-			rx_ring->type = RX_Q;
 		}
 	}
 	return 0;
@@ -3621,7 +3629,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	/*
 	 * Set or clear promiscuous mode if a
 	 * transition is taking place.
@@ -3698,7 +3705,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		}
 	}
 exit:
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 }
 
@@ -3718,10 +3724,8 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return status;
-	spin_lock(&qdev->hw_lock);
 	status = ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
 			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
-	spin_unlock(&qdev->hw_lock);
 	if (status)
 		QPRINTK(qdev, HW, ERR, "Failed to load MAC address.\n");
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
@@ -3739,7 +3743,7 @@ static void ql_asic_reset_work(struct work_struct *work)
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, asic_reset_work.work);
 	int status;
-
+	rtnl_lock();
 	status = ql_adapter_down(qdev);
 	if (status)
 		goto error;
@@ -3748,11 +3752,17 @@ static void ql_asic_reset_work(struct work_struct *work)
 	if (status)
 		goto error;
 
+	/* Restore rx mode. */
+	clear_bit(QL_ALLMULTI, &qdev->flags);
+	clear_bit(QL_PROMISCUOUS, &qdev->flags);
+	qlge_set_multicast_list(qdev->ndev);
+
+	rtnl_unlock();
 	return;
 error:
 	QPRINTK(qdev, IFUP, ALERT,
 		"Driver up/down cycle failed, closing device\n");
-	rtnl_lock();
+
 	set_bit(QL_ADAPTER_UP, &qdev->flags);
 	dev_close(qdev->ndev);
 	rtnl_unlock();
@@ -3845,10 +3855,7 @@ static void ql_release_all(struct pci_dev *pdev)
 		destroy_workqueue(qdev->workqueue);
 		qdev->workqueue = NULL;
 	}
-	if (qdev->q_workqueue) {
-		destroy_workqueue(qdev->q_workqueue);
-		qdev->q_workqueue = NULL;
-	}
+
 	if (qdev->reg_base)
 		iounmap(qdev->reg_base);
 	if (qdev->doorbell_area)
@@ -3871,11 +3878,14 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		return err;
 	}
 
+	qdev->ndev = ndev;
+	qdev->pdev = pdev;
+	pci_set_drvdata(pdev, ndev);
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (pos <= 0) {
 		dev_err(&pdev->dev, PFX "Cannot find PCI Express capability, "
 			"aborting.\n");
-		goto err_out;
+		return pos;
 	} else {
 		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &val16);
 		val16 &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
@@ -3888,7 +3898,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "PCI region request failed.\n");
-		goto err_out;
+		return err;
 	}
 
 	pci_set_master(pdev);
@@ -3906,7 +3916,9 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	pci_set_drvdata(pdev, ndev);
+	/* Set PCIe reset type for EEH to fundamental. */
+	pdev->needs_freset = 1;
+	pci_save_state(pdev);
 	qdev->reg_base =
 	    ioremap_nocache(pci_resource_start(pdev, 1),
 			    pci_resource_len(pdev, 1));
@@ -3926,8 +3938,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	qdev->ndev = ndev;
-	qdev->pdev = pdev;
 	err = ql_get_board_info(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Register access failed.\n");
@@ -3961,15 +3971,12 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	 * Set up the operating parameters.
 	 */
 	qdev->rx_csum = 1;
-
-	qdev->q_workqueue = create_workqueue(ndev->name);
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
 	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
 	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
-	mutex_init(&qdev->mpi_mutex);
 	init_completion(&qdev->ide_completion);
 
 	if (!cards_found) {
@@ -4066,6 +4073,33 @@ static void __devexit qlge_remove(struct pci_dev *pdev)
 	free_netdev(ndev);
 }
 
+/* Clean up resources without touching hardware. */
+static void ql_eeh_close(struct net_device *ndev)
+{
+	int i;
+	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	if (netif_carrier_ok(ndev)) {
+		netif_carrier_off(ndev);
+		netif_stop_queue(ndev);
+	}
+
+	if (test_bit(QL_ADAPTER_UP, &qdev->flags))
+		cancel_delayed_work_sync(&qdev->asic_reset_work);
+	cancel_delayed_work_sync(&qdev->mpi_reset_work);
+	cancel_delayed_work_sync(&qdev->mpi_work);
+	cancel_delayed_work_sync(&qdev->mpi_idc_work);
+	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
+
+	for (i = 0; i < qdev->rss_ring_count; i++)
+		netif_napi_del(&qdev->rx_ring[i].napi);
+
+	clear_bit(QL_ADAPTER_UP, &qdev->flags);
+	ql_tx_ring_clean(qdev);
+	ql_free_rx_buffers(qdev);
+	ql_release_adapter_resources(qdev);
+}
+
 /*
  * This callback is called by the PCI subsystem whenever
  * a PCI bus error is detected.
@@ -4074,12 +4108,21 @@ static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
 					       enum pci_channel_state state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct ql_adapter *qdev = netdev_priv(ndev);
 
-	if (netif_running(ndev))
-		ql_adapter_down(qdev);
-
-	pci_disable_device(pdev);
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		netif_device_detach(ndev);
+		if (netif_running(ndev))
+			ql_eeh_close(ndev);
+		pci_disable_device(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		dev_err(&pdev->dev,
+			"%s: pci_channel_io_perm_failure.\n", __func__);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -4096,25 +4139,15 @@ static pci_ers_result_t qlge_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
+	pdev->error_state = pci_channel_io_normal;
+
+	pci_restore_state(pdev);
 	if (pci_enable_device(pdev)) {
 		QPRINTK(qdev, IFUP, ERR,
 			"Cannot re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-
 	pci_set_master(pdev);
-
-	netif_carrier_off(ndev);
-	ql_adapter_reset(qdev);
-
-	/* Make sure the EEPROM is good */
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
-
-	if (!is_valid_ether_addr(ndev->perm_addr)) {
-		QPRINTK(qdev, IFUP, ERR, "After reset, invalid MAC address.\n");
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -4122,17 +4155,21 @@ static void qlge_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
+	int err = 0;
 
-	pci_set_master(pdev);
-
+	if (ql_adapter_reset(qdev))
+		QPRINTK(qdev, DRV, ERR, "reset FAILED!\n");
 	if (netif_running(ndev)) {
-		if (ql_adapter_up(qdev)) {
+		err = qlge_open(ndev);
+		if (err) {
 			QPRINTK(qdev, IFUP, ERR,
 				"Device initialization failed after reset.\n");
 			return;
 		}
+	} else {
+		QPRINTK(qdev, IFUP, ERR,
+			"Device was not running prior to EEH.\n");
 	}
-
 	netif_device_attach(ndev);
 }
 

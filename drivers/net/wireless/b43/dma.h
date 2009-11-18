@@ -2,7 +2,6 @@
 #define B43_DMA_H_
 
 #include <linux/ieee80211.h>
-#include <linux/spinlock.h>
 
 #include "b43.h"
 
@@ -244,8 +243,6 @@ struct b43_dmaring {
 	/* The QOS priority assigned to this ring. Only used for TX rings.
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
-	/* Lock, only used for TX. */
-	spinlock_t lock;
 	struct b43_wldev *dev;
 #ifdef CONFIG_B43_DEBUG
 	/* Maximum number of used slots. */

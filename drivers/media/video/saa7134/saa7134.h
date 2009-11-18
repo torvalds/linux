@@ -292,6 +292,11 @@ struct saa7134_format {
 #define SAA7134_BOARD_BEHOLD_607RDS_MK5     166
 #define SAA7134_BOARD_BEHOLD_609RDS_MK3     167
 #define SAA7134_BOARD_BEHOLD_609RDS_MK5     168
+#define SAA7134_BOARD_VIDEOMATE_S350        169
+#define SAA7134_BOARD_AVERMEDIA_STUDIO_505  170
+#define SAA7134_BOARD_BEHOLD_X7             171
+#define SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM 172
+#define SAA7134_BOARD_ZOLID_HYBRID_PCI		173
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -539,6 +544,7 @@ struct saa7134_dev {
 	struct i2c_adapter         i2c_adap;
 	struct i2c_client          i2c_client;
 	unsigned char              eedata[256];
+	int 			   has_rds;
 
 	/* video overlay */
 	struct v4l2_framebuffer    ovbuf;
@@ -583,6 +589,10 @@ struct saa7134_dev {
 	int                        last_carrier;
 	int                        nosignal;
 	unsigned int               insuspend;
+
+	/* I2C keyboard data */
+	struct i2c_board_info      info;
+	struct IR_i2c_init_data    init_data;
 
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;

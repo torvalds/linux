@@ -98,7 +98,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_iwm_dbg_modules,
 			iwm_debugfs_u32_read, iwm_debugfs_dbg_modules_write,
 			"%llu\n");
 
-static int iwm_txrx_open(struct inode *inode, struct file *filp)
+static int iwm_generic_open(struct inode *inode, struct file *filp)
 {
 	filp->private_data = inode->i_private;
 	return 0;
@@ -289,23 +289,109 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 	return ret;
 }
 
+static ssize_t iwm_debugfs_fw_err_read(struct file *filp,
+				       char __user *buffer,
+				       size_t count, loff_t *ppos)
+{
+
+	struct iwm_priv *iwm = filp->private_data;
+	char buf[512];
+	int buf_len = 512;
+	size_t len = 0;
+
+	if (*ppos != 0)
+		return 0;
+	if (count < sizeof(buf))
+		return -ENOSPC;
+
+	if (!iwm->last_fw_err)
+		return -ENOMEM;
+
+	if (iwm->last_fw_err->line_num == 0)
+		goto out;
+
+	len += snprintf(buf + len, buf_len - len, "%cMAC FW ERROR:\n",
+	     (le32_to_cpu(iwm->last_fw_err->category) == UMAC_SYS_ERR_CAT_LMAC)
+			? 'L' : 'U');
+	len += snprintf(buf + len, buf_len - len,
+			"\tCategory:    %d\n",
+			le32_to_cpu(iwm->last_fw_err->category));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tStatus:      0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tPC:          0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->pc));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tblink1:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->blink1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tblink2:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->blink2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tilink1:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->ilink1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tilink2:      %d\n",
+			le32_to_cpu(iwm->last_fw_err->ilink2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tData1:       0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->data1));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tData2:       0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->data2));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tLine number: %d\n",
+			le32_to_cpu(iwm->last_fw_err->line_num));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tUMAC status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->umac_status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tLMAC status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->lmac_status));
+
+	len += snprintf(buf + len, buf_len - len,
+			"\tSDIO status: 0x%x\n",
+			le32_to_cpu(iwm->last_fw_err->sdio_status));
+
+out:
+
+	return simple_read_from_buffer(buffer, len, ppos, buf, buf_len);
+}
 
 static const struct file_operations iwm_debugfs_txq_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_txq_read,
 };
 
 static const struct file_operations iwm_debugfs_tx_credit_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_tx_credit_read,
 };
 
 static const struct file_operations iwm_debugfs_rx_ticket_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_txrx_open,
+	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_rx_ticket_read,
+};
+
+static const struct file_operations iwm_debugfs_fw_err_fops = {
+	.owner =	THIS_MODULE,
+	.open =		iwm_generic_open,
+	.read =		iwm_debugfs_fw_err_read,
 };
 
 int iwm_debugfs_init(struct iwm_priv *iwm)
@@ -423,6 +509,16 @@ int iwm_debugfs_init(struct iwm_priv *iwm)
 		goto error;
 	}
 
+	iwm->dbg.fw_err_dentry = debugfs_create_file("last_fw_err", 0200,
+						     iwm->dbg.dbgdir, iwm,
+						     &iwm_debugfs_fw_err_fops);
+	result = PTR_ERR(iwm->dbg.fw_err_dentry);
+	if (IS_ERR(iwm->dbg.fw_err_dentry) && (result != -ENODEV)) {
+		IWM_ERR(iwm, "Couldn't create last FW err: %d\n", result);
+		goto error;
+	}
+
+
 	return 0;
 
  error:
@@ -441,6 +537,7 @@ void iwm_debugfs_exit(struct iwm_priv *iwm)
 	debugfs_remove(iwm->dbg.txq_dentry);
 	debugfs_remove(iwm->dbg.tx_credit_dentry);
 	debugfs_remove(iwm->dbg.rx_ticket_dentry);
+	debugfs_remove(iwm->dbg.fw_err_dentry);
 	if (iwm->bus_ops->debugfs_exit)
 		iwm->bus_ops->debugfs_exit(iwm);
 

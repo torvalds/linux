@@ -25,7 +25,6 @@
 #include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
 

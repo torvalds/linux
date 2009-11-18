@@ -16,10 +16,6 @@ obj-$(CONFIG_HISAX_HFCUSB)		+= hfc_usb.o
 obj-$(CONFIG_HISAX_HFC4S8S)		+= hfc4s8s_l1.o
 obj-$(CONFIG_HISAX_FRITZ_PCIPNP)        += hisax_isac.o hisax_fcpcipnp.o
 
-ifdef CONFIG_HISAX_HDLC
-obj-$(CONFIG_ISDN_DRV_HISAX)		+= isdnhdlc.o
-endif
-
 # Multipart objects.
 
 hisax_st5481-y 				:= st5481_init.o st5481_usb.o st5481_d.o \

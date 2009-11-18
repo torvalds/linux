@@ -2,8 +2,7 @@
 # KVM configuration
 #
 
-config HAVE_KVM_IRQCHIP
-       bool
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
@@ -58,17 +57,6 @@ config KVM_E500
 	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
-
-config KVM_TRACE
-	bool "KVM trace support"
-	depends on KVM && MARKERS && SYSFS
-	select RELAY
-	select DEBUG_FS
-	default n
-	---help---
-	  This option allows reading a trace of kvm-related events through
-	  relayfs.  Note the ABI is not considered stable and will be
-	  modified in future updates.
 
 source drivers/virtio/Kconfig
 

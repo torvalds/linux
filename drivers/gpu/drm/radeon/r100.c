@@ -1778,6 +1778,20 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 }
 
+void r100_vga_set_state(struct radeon_device *rdev, bool state)
+{
+	uint32_t temp;
+
+	temp = RREG32(RADEON_CONFIG_CNTL);
+	if (state == false) {
+		temp &= ~(1<<8);
+		temp |= (1<<9);
+	} else {
+		temp &= ~(1<<9);
+	}
+	WREG32(RADEON_CONFIG_CNTL, temp);
+}
+
 void r100_vram_info(struct radeon_device *rdev)
 {
 	r100_vram_get_type(rdev);

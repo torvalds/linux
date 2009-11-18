@@ -81,7 +81,8 @@ static void ixgb_clean_tx_ring(struct ixgb_adapter *adapter);
 static void ixgb_clean_rx_ring(struct ixgb_adapter *adapter);
 static void ixgb_set_multi(struct net_device *netdev);
 static void ixgb_watchdog(unsigned long data);
-static int ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
+static netdev_tx_t ixgb_xmit_frame(struct sk_buff *skb,
+				   struct net_device *netdev);
 static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
@@ -1442,7 +1443,7 @@ static int ixgb_maybe_stop_tx(struct net_device *netdev,
 	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1 /* for context */ \
 	+ 1 /* one more needed for sentinel TSO workaround */
 
-static int
+static netdev_tx_t
 ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -1459,7 +1460,7 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (skb->len <= 0) {
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (unlikely(ixgb_maybe_stop_tx(netdev, &adapter->tx_ring,
@@ -2226,6 +2227,11 @@ static pci_ers_result_t ixgb_io_error_detected(struct pci_dev *pdev,
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
+
+	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		ixgb_down(adapter, true);

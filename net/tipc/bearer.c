@@ -119,7 +119,7 @@ int  tipc_register_media(u32 media_type,
 		warn("Media <%s> rejected, no broadcast address\n", name);
 		goto exit;
 	}
-	if ((bearer_priority < TIPC_MIN_LINK_PRI) &&
+	if ((bearer_priority < TIPC_MIN_LINK_PRI) ||
 	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
 		warn("Media <%s> rejected, illegal priority (%u)\n", name,
 		     bearer_priority);
