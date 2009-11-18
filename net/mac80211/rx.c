@@ -1666,7 +1666,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	       mgmt->u.action.u.sa_query.trans_id,
 	       WLAN_SA_QUERY_TR_ID_LEN);
 
-	ieee80211_tx_skb(sdata, skb, 1);
+	ieee80211_tx_skb(sdata, skb);
 }
 
 static ieee80211_rx_result debug_noinline

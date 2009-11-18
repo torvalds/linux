@@ -187,7 +187,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		memcpy(pos, &target_sn, 4);
 	}
 
-	ieee80211_tx_skb(sdata, skb, 1);
+	ieee80211_tx_skb(sdata, skb);
 	return 0;
 }
 
@@ -250,7 +250,7 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 	pos += 4;
 	memcpy(pos, &target_rcode, 2);
 
-	ieee80211_tx_skb(sdata, skb, 1);
+	ieee80211_tx_skb(sdata, skb);
 	return 0;
 }
 
