@@ -388,34 +388,34 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
-	struct _MAC_STAT_t __iomem *pDevMacStat =
+	struct _MAC_STAT_t __iomem *macstat =
 		&etdev->regs->macStat;
 
 	/* Next we need to initialize all the MAC_STAT registers to zero on
 	 * the device.
 	 */
-	writel(0, &pDevMacStat->RFcs);
-	writel(0, &pDevMacStat->RAln);
-	writel(0, &pDevMacStat->RFlr);
-	writel(0, &pDevMacStat->RDrp);
-	writel(0, &pDevMacStat->RCde);
-	writel(0, &pDevMacStat->ROvr);
-	writel(0, &pDevMacStat->RFrg);
+	writel(0, &macstat->RFcs);
+	writel(0, &macstat->RAln);
+	writel(0, &macstat->RFlr);
+	writel(0, &macstat->RDrp);
+	writel(0, &macstat->RCde);
+	writel(0, &macstat->ROvr);
+	writel(0, &macstat->RFrg);
 
-	writel(0, &pDevMacStat->TScl);
-	writel(0, &pDevMacStat->TDfr);
-	writel(0, &pDevMacStat->TMcl);
-	writel(0, &pDevMacStat->TLcl);
-	writel(0, &pDevMacStat->TNcl);
-	writel(0, &pDevMacStat->TOvr);
-	writel(0, &pDevMacStat->TUnd);
+	writel(0, &macstat->TScl);
+	writel(0, &macstat->TDfr);
+	writel(0, &macstat->TMcl);
+	writel(0, &macstat->TLcl);
+	writel(0, &macstat->TNcl);
+	writel(0, &macstat->TOvr);
+	writel(0, &macstat->TUnd);
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
 	 * that we do not need to track all counters.
 	 */
-	writel(0xFFFFBE32, &pDevMacStat->Carry1M);
-	writel(0xFFFE7E8B, &pDevMacStat->Carry2M);
+	writel(0xFFFFBE32, &macstat->Carry1M);
+	writel(0xFFFE7E8B, &macstat->Carry2M);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -423,28 +423,28 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 	if (etdev->duplex_mode == 0) {
 		etdev->FlowControl = None;
 	} else {
-		char RemotePause, RemoteAsyncPause;
+		char remote_pause, remote_async_pause;
 
 		ET1310_PhyAccessMiBit(etdev,
-				      TRUEPHY_BIT_READ, 5, 10, &RemotePause);
+				      TRUEPHY_BIT_READ, 5, 10, &remote_pause);
 		ET1310_PhyAccessMiBit(etdev,
 				      TRUEPHY_BIT_READ, 5, 11,
-				      &RemoteAsyncPause);
+				      &remote_async_pause);
 
-		if ((RemotePause == TRUEPHY_BIT_SET) &&
-		    (RemoteAsyncPause == TRUEPHY_BIT_SET)) {
+		if ((remote_pause == TRUEPHY_BIT_SET) &&
+		    (remote_async_pause == TRUEPHY_BIT_SET)) {
 			etdev->FlowControl = etdev->RegistryFlowControl;
-		} else if ((RemotePause == TRUEPHY_BIT_SET) &&
-			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
+		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
+			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
 			if (etdev->RegistryFlowControl == Both)
 				etdev->FlowControl = Both;
 			else
 				etdev->FlowControl = None;
-		} else if ((RemotePause == TRUEPHY_BIT_CLEAR) &&
-			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
+		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
+			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
 			etdev->FlowControl = None;
-		} else {/* if (RemotePause == TRUEPHY_CLEAR_BIT &&
-			       RemoteAsyncPause == TRUEPHY_SET_BIT) */
+		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
+			       remote_async_pause == TRUEPHY_SET_BIT) */
 			if (etdev->RegistryFlowControl == Both)
 				etdev->FlowControl = RxOnly;
 			else
@@ -460,25 +460,25 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
 	struct _ce_stats_t *stats = &etdev->Stats;
-	struct _MAC_STAT_t __iomem *pDevMacStat =
+	struct _MAC_STAT_t __iomem *macstat =
 		&etdev->regs->macStat;
 
-	stats->collisions += readl(&pDevMacStat->TNcl);
-	stats->first_collision += readl(&pDevMacStat->TScl);
-	stats->tx_deferred += readl(&pDevMacStat->TDfr);
-	stats->excessive_collisions += readl(&pDevMacStat->TMcl);
-	stats->late_collisions += readl(&pDevMacStat->TLcl);
-	stats->tx_uflo += readl(&pDevMacStat->TUnd);
-	stats->max_pkt_error += readl(&pDevMacStat->TOvr);
+	stats->collisions += readl(&macstat->TNcl);
+	stats->first_collision += readl(&macstat->TScl);
+	stats->tx_deferred += readl(&macstat->TDfr);
+	stats->excessive_collisions += readl(&macstat->TMcl);
+	stats->late_collisions += readl(&macstat->TLcl);
+	stats->tx_uflo += readl(&macstat->TUnd);
+	stats->max_pkt_error += readl(&macstat->TOvr);
 
-	stats->alignment_err += readl(&pDevMacStat->RAln);
-	stats->crc_err += readl(&pDevMacStat->RCde);
-	stats->norcvbuf += readl(&pDevMacStat->RDrp);
-	stats->rx_ov_flow += readl(&pDevMacStat->ROvr);
-	stats->code_violations += readl(&pDevMacStat->RFcs);
-	stats->length_err += readl(&pDevMacStat->RFlr);
+	stats->alignment_err += readl(&macstat->RAln);
+	stats->crc_err += readl(&macstat->RCde);
+	stats->norcvbuf += readl(&macstat->RDrp);
+	stats->rx_ov_flow += readl(&macstat->ROvr);
+	stats->code_violations += readl(&macstat->RFcs);
+	stats->length_err += readl(&macstat->RFlr);
 
-	stats->other_errors += readl(&pDevMacStat->RFrg);
+	stats->other_errors += readl(&macstat->RFrg);
 }
 
 /**
