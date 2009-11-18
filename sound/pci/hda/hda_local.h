@@ -569,9 +569,11 @@ struct cea_sad {
  * ELD: EDID Like Data
  */
 struct hdmi_eld {
+	bool	monitor_present;
+	bool	eld_valid;
 	int	eld_size;
 	int	baseline_len;
-	int	eld_ver;	/* (eld_ver == 0) indicates invalid ELD */
+	int	eld_ver;
 	int	cea_edid_ver;
 	char	monitor_name[ELD_MAX_MNL + 1];
 	int	manufacture_id;

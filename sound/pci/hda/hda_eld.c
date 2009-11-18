@@ -477,6 +477,8 @@ static void hdmi_print_eld_info(struct snd_info_entry *entry,
 		[4 ... 7] = "reserved"
 	};
 
+	snd_iprintf(buffer, "monitor_present\t\t%d\n", e->monitor_present);
+	snd_iprintf(buffer, "eld_valid\t\t%d\n", e->eld_valid);
 	snd_iprintf(buffer, "monitor_name\t\t%s\n", e->monitor_name);
 	snd_iprintf(buffer, "connection_type\t\t%s\n",
 				eld_connection_type_names[e->conn_type]);
@@ -518,7 +520,11 @@ static void hdmi_write_eld_info(struct snd_info_entry *entry,
 		 * 	monitor_name manufacture_id product_id
 		 * 	eld_version edid_version
 		 */
-		if (!strcmp(name, "connection_type"))
+		if (!strcmp(name, "monitor_present"))
+			e->monitor_present = val;
+		else if (!strcmp(name, "eld_valid"))
+			e->eld_valid = val;
+		else if (!strcmp(name, "connection_type"))
 			e->conn_type = val;
 		else if (!strcmp(name, "port_id"))
 			e->port_id = val;

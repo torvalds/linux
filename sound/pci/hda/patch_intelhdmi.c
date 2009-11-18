@@ -62,8 +62,6 @@ struct intel_hdmi_spec {
 	/*
 	 * HDMI sink attached to each pin
 	 */
-	bool		sink_present[INTEL_HDMI_PINS];
-	bool		sink_eldv[INTEL_HDMI_PINS];
 	struct hdmi_eld sink_eld[INTEL_HDMI_PINS];
 
 	/*
@@ -645,7 +643,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 	for (i = 0; i < spec->num_pins; i++) {
 		if (spec->pin_cvt[i] != nid)
 			continue;
-		if (spec->sink_present[i] != true)
+		if (!spec->sink_eld[i].monitor_present)
 			continue;
 
 		pin_nid = spec->pin[i];
@@ -675,8 +673,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	if (index < 0)
 		return;
 
-	spec->sink_present[index] = pind;
-	spec->sink_eldv[index] = eldv;
+	spec->sink_eld[index].monitor_present = pind;
+	spec->sink_eld[index].eld_valid = eldv;
 
 	if (pind && eldv) {
 		hdmi_parse_eld(codec, index);
