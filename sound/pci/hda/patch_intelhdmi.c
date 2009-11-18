@@ -509,12 +509,12 @@ static void hdmi_fill_audio_infoframe(struct hda_codec *codec,
 	hdmi_debug_dip_size(codec, pin_nid);
 	hdmi_clear_dip_buffers(codec, pin_nid); /* be paranoid */
 
-	for (i = 0; i < sizeof(ai); i++)
+	for (i = 0; i < sizeof(*ai); i++)
 		sum += params[i];
 	ai->checksum = - sum;
 
 	hdmi_set_dip_index(codec, pin_nid, 0x0, 0x0);
-	for (i = 0; i < sizeof(ai); i++)
+	for (i = 0; i < sizeof(*ai); i++)
 		hdmi_write_dip_byte(codec, pin_nid, params[i]);
 }
 
