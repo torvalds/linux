@@ -969,10 +969,14 @@ static int parse_monitor_flags(struct nlattr *nla, u32 *mntrflags)
 }
 
 static int nl80211_valid_4addr(struct cfg80211_registered_device *rdev,
-			       u8 use_4addr, enum nl80211_iftype iftype)
+			       struct net_device *netdev, u8 use_4addr,
+			       enum nl80211_iftype iftype)
 {
-	if (!use_4addr)
+	if (!use_4addr) {
+		if (netdev && netdev->br_port)
+			return -EBUSY;
 		return 0;
+	}
 
 	switch (iftype) {
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1033,7 +1037,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 		change = true;
-		err = nl80211_valid_4addr(rdev, params.use_4addr, ntype);
+		err = nl80211_valid_4addr(rdev, dev, params.use_4addr, ntype);
 		if (err)
 			goto unlock;
 	} else {
@@ -1111,7 +1115,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
-		err = nl80211_valid_4addr(rdev, params.use_4addr, type);
+		err = nl80211_valid_4addr(rdev, NULL, params.use_4addr, type);
 		if (err)
 			goto unlock;
 	}

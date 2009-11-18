@@ -697,6 +697,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		if (!dev->ethtool_ops)
 			dev->ethtool_ops = &cfg80211_ethtool_ops;
+
+		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
+		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
+			dev->priv_flags |= IFF_DONT_BRIDGE;
 		break;
 	case NETDEV_GOING_DOWN:
 		switch (wdev->iftype) {
