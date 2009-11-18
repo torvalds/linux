@@ -772,6 +772,31 @@ static void intel_hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
  * Callbacks
  */
 
+static void hdmi_setup_stream(struct hda_codec *codec, hda_nid_t nid,
+			      u32 stream_tag, int format)
+{
+	int tag;
+	int fmt;
+
+	tag = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0) >> 4;
+	fmt = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_STREAM_FORMAT, 0);
+
+	snd_printdd("hdmi_setup_stream: "
+		    "NID=0x%x, %sstream=0x%x, %sformat=0x%x\n",
+		    nid,
+		    tag == stream_tag ? "" : "new-",
+		    stream_tag,
+		    fmt == format ? "" : "new-",
+		    format);
+
+	if (tag != stream_tag)
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CHANNEL_STREAMID, stream_tag << 4);
+	if (fmt != format)
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_STREAM_FORMAT, format);
+}
+
 static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					   struct hda_codec *codec,
 					   unsigned int stream_tag,
@@ -783,7 +808,7 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	hdmi_setup_audio_infoframe(codec, hinfo->nid, substream);
 
-	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
+	hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
 	return 0;
 }
 
@@ -791,7 +816,6 @@ static int intel_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 					   struct hda_codec *codec,
 					   struct snd_pcm_substream *substream)
 {
-	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
