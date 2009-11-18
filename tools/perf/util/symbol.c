@@ -1352,17 +1352,11 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	return err;
 }
 
-int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter,
-		      int use_modules)
+int dso__load_kernel_sym(struct dso *self, symbol_filter_t filter, int use_modules)
 {
 	int err = -1;
-	struct dso *dso = dso__new(vmlinux);
 
-	if (dso == NULL)
-		return -1;
-
-	dso->short_name = "[kernel]";
-	kernel_map = map__new2(0, dso);
+	kernel_map = map__new2(0, self);
 	if (kernel_map == NULL)
 		goto out_delete_dso;
 
@@ -1374,39 +1368,36 @@ int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter,
 		use_modules = 0;
 	}
 
-	if (vmlinux) {
-		err = dso__load_vmlinux(dso, kernel_map, vmlinux, filter);
-		if (err > 0 && use_modules) {
-			int syms = dsos__load_modules_sym(filter);
+	err = dso__load_vmlinux(self, kernel_map, self->name, filter);
+	if (err > 0 && use_modules) {
+		int syms = dsos__load_modules_sym(filter);
 
-			if (syms < 0)
-				pr_warning("Failed to read module symbols!"
-					   " Continuing...\n");
-			else
-				err += syms;
-		}
+		if (syms < 0)
+			pr_warning("Failed to read module symbols!"
+				   " Continuing...\n");
+		else
+			err += syms;
 	}
 
 	if (err <= 0)
 		err = kernel_maps__load_kallsyms(filter, use_modules);
 
 	if (err > 0) {
-		struct rb_node *node = rb_first(&dso->syms);
+		struct rb_node *node = rb_first(&self->syms);
 		struct symbol *sym = rb_entry(node, struct symbol, rb_node);
 
 		kernel_map->start = sym->start;
-		node = rb_last(&dso->syms);
+		node = rb_last(&self->syms);
 		sym = rb_entry(node, struct symbol, rb_node);
 		kernel_map->end = sym->end;
 
-		dso->origin = DSO__ORIG_KERNEL;
+		self->origin = DSO__ORIG_KERNEL;
 		kernel_maps__insert(kernel_map);
 		/*
 		 * Now that we have all sorted out, just set the ->end of all
 		 * maps:
 		 */
 		kernel_maps__fixup_end();
-		dsos__add(dso);
 
 		if (verbose)
 			kernel_maps__fprintf(stderr);
@@ -1415,7 +1406,7 @@ int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter,
 	return err;
 
 out_delete_dso:
-	dso__delete(dso);
+	dso__delete(self);
 	return -1;
 }
 
@@ -1475,18 +1466,36 @@ size_t dsos__fprintf_buildid(FILE *fp)
 	return ret;
 }
 
-int load_kernel(symbol_filter_t filter)
+struct dso *dsos__load_kernel(void)
 {
-	if (dsos__load_kernel(vmlinux_name, filter, modules) <= 0)
-		return -1;
+	struct dso *kernel = dso__new(vmlinux_name);
 
+	if (kernel == NULL)
+		return NULL;
+
+	kernel->short_name = "[kernel]";
 	vdso = dso__new("[vdso]");
 	if (!vdso)
-		return -1;
+		return NULL;
 
+	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
+				 sizeof(kernel->build_id)) == 0)
+		kernel->has_build_id = true;
+
+	dsos__add(kernel);
 	dsos__add(vdso);
 
-	return 0;
+	return kernel;
+}
+
+int load_kernel(symbol_filter_t filter)
+{
+	struct dso *kernel = dsos__load_kernel();
+
+	if (kernel == NULL)
+		return -1;
+
+	return dso__load_kernel_sym(kernel, filter, modules);
 }
 
 void symbol__init(unsigned int priv_size)

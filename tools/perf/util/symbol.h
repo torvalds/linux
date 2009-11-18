@@ -77,10 +77,10 @@ void dso__delete(struct dso *self);
 
 struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
-int dsos__load_kernel(const char *vmlinux, symbol_filter_t filter, int modules);
 int dsos__load_modules(void);
 struct dso *dsos__findnew(const char *name);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
+int dso__load_kernel_sym(struct dso *self, symbol_filter_t filter, int modules);
 void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp);
 
@@ -94,6 +94,7 @@ int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
+struct dso *dsos__load_kernel(void);
 int load_kernel(symbol_filter_t filter);
 
 void symbol__init(unsigned int priv_size);

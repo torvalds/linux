@@ -948,7 +948,12 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 static int parse_symbols(void)
 {
-	if (dsos__load_kernel(vmlinux_name, symbol_filter, 1) <= 0)
+	struct dso *kernel = dsos__load_kernel();
+
+	if (kernel == NULL)
+		return -1;
+
+	if (dso__load_kernel_sym(kernel, symbol_filter, 1) <= 0)
 		return -1;
 
 	if (dump_symtab)

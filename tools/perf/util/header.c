@@ -241,6 +241,7 @@ perf_header__adds_write(struct perf_header *self, int fd)
 
 		buildid_sec = &feat_sec[idx++];
 
+		dsos__load_kernel();
 		/*
 		 * Read the list of loaded modules with its build_ids
 		 */
