@@ -75,25 +75,6 @@
 #include "debug-levels.h"
 
 
-int i2400m_idle_mode_disabled;	/* 0 (idle mode enabled) by default */
-module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
-MODULE_PARM_DESC(idle_mode_disabled,
-		 "If true, the device will not enable idle mode negotiation "
-		 "with the base station (when connected) to save power.");
-
-int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
-module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
-MODULE_PARM_DESC(rx_reorder_disabled,
-		 "If true, RX reordering will be disabled.");
-
-int i2400m_power_save_disabled;	/* 0 (power saving enabled) by default */
-module_param_named(power_save_disabled, i2400m_power_save_disabled, int, 0644);
-MODULE_PARM_DESC(power_save_disabled,
-		 "If true, the driver will not tell the device to enter "
-		 "power saving mode when it reports it is ready for it. "
-		 "False by default (so the device is told to do power "
-		 "saving).");
-
 static char i2400m_debug_params[128];
 module_param_string(debug, i2400m_debug_params, sizeof(i2400m_debug_params),
 		    0644);

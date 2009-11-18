@@ -155,6 +155,11 @@
 #define D_SUBMODULE rx
 #include "debug-levels.h"
 
+static int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
+module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
+MODULE_PARM_DESC(rx_reorder_disabled,
+		 "If true, RX reordering will be disabled.");
+
 struct i2400m_report_hook_args {
 	struct sk_buff *skb_rx;
 	const struct i2400m_l3l4_hdr *l3l4_hdr;

@@ -885,7 +885,6 @@ extern int i2400m_rx(struct i2400m *, struct sk_buff *);
 extern struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *, size_t *);
 extern void i2400m_tx_msg_sent(struct i2400m *);
 
-extern int i2400m_power_save_disabled;
 
 /*
  * Utility functions
@@ -991,11 +990,6 @@ void __i2400m_msleep(unsigned ms)
 extern int i2400m_barker_db_init(const char *);
 extern void i2400m_barker_db_exit(void);
 
-
-/* Module parameters */
-
-extern int i2400m_idle_mode_disabled;
-extern int i2400m_rx_reorder_disabled;
 
 
 #endif /* #ifndef __I2400M_H__ */
