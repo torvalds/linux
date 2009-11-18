@@ -1146,46 +1146,46 @@ static int __init init_mac80211_hwsim(void)
 			break;
 		case HWSIM_REGTEST_WORLD_ROAM:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			}
 			break;
 		case HWSIM_REGTEST_CUSTOM_WORLD:
-			hw->wiphy->custom_regulatory = true;
+			hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 			wiphy_apply_custom_regulatory(hw->wiphy,
 				&hwsim_world_regdom_custom_01);
 			break;
 		case HWSIM_REGTEST_CUSTOM_WORLD_2:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			} else if (i == 1) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_02);
 			}
 			break;
 		case HWSIM_REGTEST_STRICT_ALL:
-			hw->wiphy->strict_regulatory = true;
+			hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		case HWSIM_REGTEST_STRICT_FOLLOW:
 		case HWSIM_REGTEST_STRICT_AND_DRIVER_REG:
 			if (i == 0)
-				hw->wiphy->strict_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		case HWSIM_REGTEST_ALL:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			} else if (i == 1) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_02);
 			} else if (i == 4)
-				hw->wiphy->strict_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		default:
 			break;

@@ -1108,27 +1108,45 @@ struct cfg80211_ops {
  */
 
 /**
- * struct wiphy - wireless hardware description
- * @idx: the wiphy index assigned to this item
- * @class_dev: the class device representing /sys/class/ieee80211/<wiphy-name>
- * @custom_regulatory: tells us the driver for this device
+ * enum wiphy_flags - wiphy capability flags
+ *
+ * @WIPHY_FLAG_CUSTOM_REGULATORY:  tells us the driver for this device
  * 	has its own custom regulatory domain and cannot identify the
  * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
  * 	we will disregard the first regulatory hint (when the
  * 	initiator is %REGDOM_SET_BY_CORE).
- * @strict_regulatory: tells us the driver for this device will ignore
- * 	regulatory domain settings until it gets its own regulatory domain
- * 	via its regulatory_hint(). After its gets its own regulatory domain
- * 	it will only allow further regulatory domain settings to further
- * 	enhance compliance. For example if channel 13 and 14 are disabled
- * 	by this regulatory domain no user regulatory domain can enable these
- * 	channels at a later time. This can be used for devices which do not
- * 	have calibration information gauranteed for frequencies or settings
- * 	outside of its regulatory domain.
- * @disable_beacon_hints: enable this if your driver needs to ensure that
- *	passive scan flags and beaconing flags may not be lifted by cfg80211
- *	due to regulatory beacon hints. For more information on beacon
+ * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
+ *	ignore regulatory domain settings until it gets its own regulatory
+ *	domain via its regulatory_hint(). After its gets its own regulatory
+ *	domain it will only allow further regulatory domain settings to
+ *	further enhance compliance. For example if channel 13 and 14 are
+ *	disabled by this regulatory domain no user regulatory domain can
+ *	enable these channels at a later time. This can be used for devices
+ *	which do not have calibration information gauranteed for frequencies
+ *	or settings outside of its regulatory domain.
+ * @WIPHY_FLAG_DISABLE_BEACON_HINTS: enable this if your driver needs to ensure
+ *	that passive scan flags and beaconing flags may not be lifted by
+ *	cfg80211 due to regulatory beacon hints. For more information on beacon
  *	hints read the documenation for regulatory_hint_found_beacon()
+ * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
+ *	wiphy at all
+ * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
+ *	by default -- this flag will be set depending on the kernel's default
+ *	on wiphy_new(), but can be changed by the driver if it has a good
+ *	reason to override the default
+ */
+enum wiphy_flags {
+	WIPHY_FLAG_CUSTOM_REGULATORY	= BIT(0),
+	WIPHY_FLAG_STRICT_REGULATORY	= BIT(1),
+	WIPHY_FLAG_DISABLE_BEACON_HINTS	= BIT(2),
+	WIPHY_FLAG_NETNS_OK		= BIT(3),
+	WIPHY_FLAG_PS_ON_BY_DEFAULT	= BIT(4),
+};
+
+/**
+ * struct wiphy - wireless hardware description
+ * @idx: the wiphy index assigned to this item
+ * @class_dev: the class device representing /sys/class/ieee80211/<wiphy-name>
  * @reg_notifier: the driver's regulatory notification callback
  * @regd: the driver's regulatory domain, if one was requested via
  * 	the regulatory_hint() API. This can be used by the driver
@@ -1143,11 +1161,6 @@ struct cfg80211_ops {
  *	-1 = fragmentation disabled, only odd values >= 256 used
  * @rts_threshold: RTS threshold (dot11RTSThreshold); -1 = RTS/CTS disabled
  * @net: the network namespace this wiphy currently lives in
- * @netnsok: if set to false, do not allow changing the netns of this
- *	wiphy at all
- * @ps_default: default for powersave, will be set depending on the
- *	kernel's default on wiphy_new(), but can be changed by the
- *	driver if it has a good reason to override the default
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1158,12 +1171,7 @@ struct wiphy {
 	/* Supported interface modes, OR together BIT(NL80211_IFTYPE_...) */
 	u16 interface_modes;
 
-	bool custom_regulatory;
-	bool strict_regulatory;
-	bool disable_beacon_hints;
-
-	bool netnsok;
-	bool ps_default;
+	u32 flags;
 
 	enum cfg80211_signal_type signal_type;
 

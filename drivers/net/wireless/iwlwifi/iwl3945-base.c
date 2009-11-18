@@ -3904,10 +3904,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->custom_regulatory = true;
-
-	/* Firmware does not support this */
-	hw->wiphy->disable_beacon_hints = true;
+	hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY |
+			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
 	/* we create the 802.11 header and a zero-length SSID element */
