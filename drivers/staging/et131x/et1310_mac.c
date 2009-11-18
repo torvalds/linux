@@ -414,63 +414,8 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 	 * Initially this will be all counters.  It may become clear later
 	 * that we do not need to track all counters.
 	 */
-	{
-		MAC_STAT_REG_1_t Carry1M = { 0xffffffff };
-
-		Carry1M.bits.rdrp = 0;
-		Carry1M.bits.rjbr = 1;
-		Carry1M.bits.rfrg = 0;
-		Carry1M.bits.rovr = 0;
-		Carry1M.bits.rund = 1;
-		Carry1M.bits.rcse = 1;
-		Carry1M.bits.rcde = 0;
-		Carry1M.bits.rflr = 0;
-		Carry1M.bits.raln = 0;
-		Carry1M.bits.rxuo = 1;
-		Carry1M.bits.rxpf = 1;
-		Carry1M.bits.rxcf = 1;
-		Carry1M.bits.rbca = 1;
-		Carry1M.bits.rmca = 1;
-		Carry1M.bits.rfcs = 0;
-		Carry1M.bits.rpkt = 1;
-		Carry1M.bits.rbyt = 1;
-		Carry1M.bits.trmgv = 1;
-		Carry1M.bits.trmax = 1;
-		Carry1M.bits.tr1k = 1;
-		Carry1M.bits.tr511 = 1;
-		Carry1M.bits.tr255 = 1;
-		Carry1M.bits.tr127 = 1;
-		Carry1M.bits.tr64 = 1;
-
-		writel(Carry1M.value, &pDevMacStat->Carry1M.value);
-	}
-
-	{
-		MAC_STAT_REG_2_t Carry2M = { 0xffffffff };
-
-		Carry2M.bits.tdrp = 1;
-		Carry2M.bits.tpfh = 1;
-		Carry2M.bits.tncl = 0;
-		Carry2M.bits.txcl = 1;
-		Carry2M.bits.tlcl = 0;
-		Carry2M.bits.tmcl = 0;
-		Carry2M.bits.tscl = 0;
-		Carry2M.bits.tedf = 1;
-		Carry2M.bits.tdfr = 0;
-		Carry2M.bits.txpf = 1;
-		Carry2M.bits.tbca = 1;
-		Carry2M.bits.tmca = 1;
-		Carry2M.bits.tpkt = 1;
-		Carry2M.bits.tbyt = 1;
-		Carry2M.bits.tfrg = 1;
-		Carry2M.bits.tund = 0;
-		Carry2M.bits.tovr = 0;
-		Carry2M.bits.txcf = 1;
-		Carry2M.bits.tfcs = 1;
-		Carry2M.bits.tjbr = 1;
-
-		writel(Carry2M.value, &pDevMacStat->Carry2M.value);
-	}
+	writel(0xFFFFBE32, &pDevMacStat->Carry1M);
+	writel(0xFFFE7E8B, &pDevMacStat->Carry2M);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -546,17 +491,17 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
  */
 void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 {
-	MAC_STAT_REG_1_t Carry1;
-	MAC_STAT_REG_2_t Carry2;
+	u32 Carry1;
+	u32 Carry2;
 
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1.value = readl(&etdev->regs->macStat.Carry1.value);
-	Carry2.value = readl(&etdev->regs->macStat.Carry2.value);
+	Carry1 = readl(&etdev->regs->macStat.Carry1);
+	Carry2 = readl(&etdev->regs->macStat.Carry2);
 
-	writel(Carry1.value, &etdev->regs->macStat.Carry1.value);
-	writel(Carry2.value, &etdev->regs->macStat.Carry2.value);
+	writel(Carry1, &etdev->regs->macStat.Carry1);
+	writel(Carry2, &etdev->regs->macStat.Carry2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -564,33 +509,33 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	 * revolution of the counter.  This routine is called when the counter
 	 * block indicates that one of the counters has wrapped.
 	 */
-	if (Carry1.bits.rfcs)
+	if (Carry1 & (1 << 14))
 		etdev->Stats.code_violations += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.raln)
+	if (Carry1 & (1 << 8))
 		etdev->Stats.alignment_err += COUNTER_WRAP_12_BIT;
-	if (Carry1.bits.rflr)
+	if (Carry1 & (1 << 7))
 		etdev->Stats.length_err += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rfrg)
+	if (Carry1 & (1 << 2))
 		etdev->Stats.other_errors += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rcde)
+	if (Carry1 & (1 << 6))
 		etdev->Stats.crc_err += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rovr)
+	if (Carry1 & (1 << 3))
 		etdev->Stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rdrp)
+	if (Carry1 & (1 << 0))
 		etdev->Stats.norcvbuf += COUNTER_WRAP_16_BIT;
-	if (Carry2.bits.tovr)
+	if (Carry2 & (1 << 16))
 		etdev->Stats.max_pkt_error += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tund)
+	if (Carry2 & (1 << 15))
 		etdev->Stats.tx_uflo += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tscl)
+	if (Carry2 & (1 << 6))
 		etdev->Stats.first_collision += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tdfr)
+	if (Carry2 & (1 << 8))
 		etdev->Stats.tx_deferred += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tmcl)
+	if (Carry2 & (1 << 5))
 		etdev->Stats.excessive_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tlcl)
+	if (Carry2 & (1 << 4))
 		etdev->Stats.late_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tncl)
+	if (Carry2 & (1 << 2))
 		etdev->Stats.collisions += COUNTER_WRAP_12_BIT;
 }
 

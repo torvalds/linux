@@ -1577,120 +1577,60 @@ typedef struct _MAC_t {					/* Location: */
 /*
  * structure for Carry Register One and it's Mask Register reg located in mac
  * stat address map address 0x6130 and 0x6138.
+ *
+ * 31: tr64
+ * 30: tr127
+ * 29: tr255
+ * 28: tr511
+ * 27: tr1k
+ * 26: trmax
+ * 25: trmgv
+ * 24-17: unused
+ * 16: rbyt
+ * 15: rpkt
+ * 14: rfcs
+ * 13: rmca
+ * 12: rbca
+ * 11: rxcf
+ * 10: rxpf
+ * 9: rxuo
+ * 8: raln
+ * 7: rflr
+ * 6: rcde
+ * 5: rcse
+ * 4: rund
+ * 3: rovr
+ * 2: rfrg
+ * 1: rjbr
+ * 0: rdrp
  */
-typedef union _MAC_STAT_REG_1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 tr64:1;	/* bit 31 */
-		u32 tr127:1;	/* bit 30 */
-		u32 tr255:1;	/* bit 29 */
-		u32 tr511:1;	/* bit 28 */
-		u32 tr1k:1;	/* bit 27 */
-		u32 trmax:1;	/* bit 26 */
-		u32 trmgv:1;	/* bit 25 */
-		u32 unused:8;	/* bits 17-24 */
-		u32 rbyt:1;	/* bit 16 */
-		u32 rpkt:1;	/* bit 15 */
-		u32 rfcs:1;	/* bit 14 */
-		u32 rmca:1;	/* bit 13 */
-		u32 rbca:1;	/* bit 12 */
-		u32 rxcf:1;	/* bit 11 */
-		u32 rxpf:1;	/* bit 10 */
-		u32 rxuo:1;	/* bit 9 */
-		u32 raln:1;	/* bit 8 */
-		u32 rflr:1;	/* bit 7 */
-		u32 rcde:1;	/* bit 6 */
-		u32 rcse:1;	/* bit 5 */
-		u32 rund:1;	/* bit 4 */
-		u32 rovr:1;	/* bit 3 */
-		u32 rfrg:1;	/* bit 2 */
-		u32 rjbr:1;	/* bit 1 */
-		u32 rdrp:1;	/* bit 0 */
-#else
-		u32 rdrp:1;	/* bit 0 */
-		u32 rjbr:1;	/* bit 1 */
-		u32 rfrg:1;	/* bit 2 */
-		u32 rovr:1;	/* bit 3 */
-		u32 rund:1;	/* bit 4 */
-		u32 rcse:1;	/* bit 5 */
-		u32 rcde:1;	/* bit 6 */
-		u32 rflr:1;	/* bit 7 */
-		u32 raln:1;	/* bit 8 */
-		u32 rxuo:1;	/* bit 9 */
-		u32 rxpf:1;	/* bit 10 */
-		u32 rxcf:1;	/* bit 11 */
-		u32 rbca:1;	/* bit 12 */
-		u32 rmca:1;	/* bit 13 */
-		u32 rfcs:1;	/* bit 14 */
-		u32 rpkt:1;	/* bit 15 */
-		u32 rbyt:1;	/* bit 16 */
-		u32 unused:8;	/* bits 17-24 */
-		u32 trmgv:1;	/* bit 25 */
-		u32 trmax:1;	/* bit 26 */
-		u32 tr1k:1;	/* bit 27 */
-		u32 tr511:1;	/* bit 28 */
-		u32 tr255:1;	/* bit 29 */
-		u32 tr127:1;	/* bit 30 */
-		u32 tr64:1;	/* bit 31 */
-#endif
-	} bits;
-} MAC_STAT_REG_1_t, *PMAC_STAT_REG_1_t;
 
 /*
  * structure for Carry Register Two Mask Register reg in mac stat address map.
  * located at address 0x613C
+ *
+ * 31-20: unused
+ * 19: tjbr
+ * 18: tfcs
+ * 17: txcf
+ * 16: tovr
+ * 15: tund
+ * 14: trfg
+ * 13: tbyt
+ * 12: tpkt
+ * 11: tmca
+ * 10: tbca
+ * 9: txpf
+ * 8: tdfr
+ * 7: tedf
+ * 6: tscl
+ * 5: tmcl
+ * 4: tlcl
+ * 3: txcl
+ * 2: tncl
+ * 1: tpfh
+ * 0: tdrp
  */
-typedef union _MAC_STAT_REG_2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:12;	/* bit 20-31 */
-		u32 tjbr:1;	/* bit 19 */
-		u32 tfcs:1;	/* bit 18 */
-		u32 txcf:1;	/* bit 17 */
-		u32 tovr:1;	/* bit 16 */
-		u32 tund:1;	/* bit 15 */
-		u32 tfrg:1;	/* bit 14 */
-		u32 tbyt:1;	/* bit 13 */
-		u32 tpkt:1;	/* bit 12 */
-		u32 tmca:1;	/* bit 11 */
-		u32 tbca:1;	/* bit 10 */
-		u32 txpf:1;	/* bit 9 */
-		u32 tdfr:1;	/* bit 8 */
-		u32 tedf:1;	/* bit 7 */
-		u32 tscl:1;	/* bit 6 */
-		u32 tmcl:1;	/* bit 5 */
-		u32 tlcl:1;	/* bit 4 */
-		u32 txcl:1;	/* bit 3 */
-		u32 tncl:1;	/* bit 2 */
-		u32 tpfh:1;	/* bit 1 */
-		u32 tdrp:1;	/* bit 0 */
-#else
-		u32 tdrp:1;	/* bit 0 */
-		u32 tpfh:1;	/* bit 1 */
-		u32 tncl:1;	/* bit 2 */
-		u32 txcl:1;	/* bit 3 */
-		u32 tlcl:1;	/* bit 4 */
-		u32 tmcl:1;	/* bit 5 */
-		u32 tscl:1;	/* bit 6 */
-		u32 tedf:1;	/* bit 7 */
-		u32 tdfr:1;	/* bit 8 */
-		u32 txpf:1;	/* bit 9 */
-		u32 tbca:1;	/* bit 10 */
-		u32 tmca:1;	/* bit 11 */
-		u32 tpkt:1;	/* bit 12 */
-		u32 tbyt:1;	/* bit 13 */
-		u32 tfrg:1;	/* bit 14 */
-		u32 tund:1;	/* bit 15 */
-		u32 tovr:1;	/* bit 16 */
-		u32 txcf:1;	/* bit 17 */
-		u32 tfcs:1;	/* bit 18 */
-		u32 tjbr:1;	/* bit 19 */
-		u32 unused:12;	/* bit 20-31 */
-#endif
-	} bits;
-} MAC_STAT_REG_2_t, *PMAC_STAT_REG_2_t;
 
 /*
  * MAC STATS Module of JAGCore Address Mapping
@@ -1831,16 +1771,16 @@ typedef struct _MAC_STAT_t {		/* Location: */
 	u32 TFrg;			/*  0x612C */
 
 	/* Carry Register One Register */
-	MAC_STAT_REG_1_t Carry1;	/*  0x6130 */
+	u32 Carry1;			/*  0x6130 */
 
 	/* Carry Register Two Register */
-	MAC_STAT_REG_2_t Carry2;	/*  0x6134 */
+	u32 Carry2;			/*  0x6134 */
 
 	/* Carry Register One Mask Register */
-	MAC_STAT_REG_1_t Carry1M;	/*  0x6138 */
+	u32 Carry1M;			/*  0x6138 */
 
 	/* Carry Register Two Mask Register */
-	MAC_STAT_REG_2_t Carry2M;	/*  0x613C */
+	u32 Carry2M;			/*  0x613C */
 } MAC_STAT_t, *PMAC_STAT_t;
 
 /* END OF MAC STAT REGISTER ADDRESS MAP */
