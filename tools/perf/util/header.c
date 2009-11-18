@@ -176,18 +176,24 @@ static int do_write(int fd, const void *buf, size_t size)
 	return 0;
 }
 
-static int write_buildid_table(int fd, struct list_head *id_head)
+static int dsos__write_buildid_table(int fd)
 {
-	struct build_id_list *iter, *next;
+	struct dso *pos;
 
-	list_for_each_entry_safe(iter, next, id_head, list) {
-		struct build_id_event *b = &iter->event;
+	list_for_each_entry(pos, &dsos, node) {
+		struct build_id_event b;
+		size_t len;
 
-		if (do_write(fd, b, sizeof(*b)) < 0 ||
-		    do_write(fd, iter->dso_name, iter->len) < 0)
+		if (!pos->has_build_id)
+			continue;
+		len = pos->long_name_len + 1;
+		len = ALIGN(len, 64);
+		memset(&b, 0, sizeof(b));
+		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
+		b.header.size = sizeof(b) + len;
+		if (do_write(fd, &b, sizeof(b)) < 0 ||
+		    do_write(fd, pos->long_name, len) < 0)
 			return -1;
-		list_del(&iter->list);
-		free(iter);
 	}
 
 	return 0;
@@ -196,14 +202,13 @@ static int write_buildid_table(int fd, struct list_head *id_head)
 static void
 perf_header__adds_write(struct perf_header *self, int fd)
 {
-	LIST_HEAD(id_list);
 	int nr_sections;
 	struct perf_file_section *feat_sec;
 	int sec_size;
 	u64 sec_start;
 	int idx = 0;
 
-	if (fetch_build_id_table(&id_list))
+	if (dsos__read_build_ids())
 		perf_header__set_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
@@ -238,7 +243,7 @@ perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write build-ids */
 		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);
-		if (write_buildid_table(fd, &id_list) < 0)
+		if (dsos__write_buildid_table(fd) < 0)
 			die("failed to write buildid table");
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) - buildid_sec->offset;
 	}

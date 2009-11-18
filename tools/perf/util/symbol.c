@@ -883,38 +883,19 @@ out_close:
 	return err;
 }
 
-bool fetch_build_id_table(struct list_head *head)
+bool dsos__read_build_ids(void)
 {
-	bool have_buildid = false;
+	bool have_build_id = false;
 	struct dso *pos;
 
-	list_for_each_entry(pos, &dsos, node) {
-		struct build_id_list *new;
-		struct build_id_event b;
-		size_t len;
+	list_for_each_entry(pos, &dsos, node)
+		if (filename__read_build_id(pos->long_name, pos->build_id,
+					    sizeof(pos->build_id)) > 0) {
+			have_build_id	  = true;
+			pos->has_build_id = true;
+		}
 
-		if (filename__read_build_id(pos->long_name,
-					    &b.build_id,
-					    sizeof(b.build_id)) < 0)
-			continue;
-		have_buildid = true;
-		memset(&b.header, 0, sizeof(b.header));
-		len = pos->long_name_len + 1;
-		len = ALIGN(len, 64);
-		b.header.size = sizeof(b) + len;
-
-		new = malloc(sizeof(*new));
-		if (!new)
-			die("No memory\n");
-
-		memcpy(&new->event, &b, sizeof(b));
-		new->dso_name = pos->long_name;
-		new->len = len;
-
-		list_add_tail(&new->list, head);
-	}
-
-	return have_buildid;
+	return have_build_id;
 }
 
 int filename__read_build_id(const char *filename, void *bf, size_t size)
