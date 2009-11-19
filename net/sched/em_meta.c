@@ -310,7 +310,8 @@ META_COLLECTOR(var_sk_bound_if)
 		struct net_device *dev;
 
 		rcu_read_lock();
-		dev = dev_get_by_index_rcu(&init_net, skb->sk->sk_bound_dev_if);
+		dev = dev_get_by_index_rcu(sock_net(skb->sk),
+					   skb->sk->sk_bound_dev_if);
 		*err = var_dev(dev, dst);
 		rcu_read_unlock();
 	}
