@@ -345,7 +345,7 @@ static int el_open(struct net_device *dev)
 	if (el_debug > 2)
 		pr_debug("%s: Doing el_open()...\n", dev->name);
 
-	retval = request_irq(dev->irq, &el_interrupt, 0, dev->name, dev);
+	retval = request_irq(dev->irq, el_interrupt, 0, dev->name, dev);
 	if (retval)
 		return retval;
 

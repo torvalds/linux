@@ -420,7 +420,7 @@ static int bdx_hw_start(struct bdx_priv *priv)
 		  GMAC_RX_FILTER_AM | GMAC_RX_FILTER_AB);
 
 #define BDX_IRQ_TYPE	((priv->nic->irq_type == IRQ_MSI)?0:IRQF_SHARED)
-	if ((rc = request_irq(priv->pdev->irq, &bdx_isr_napi, BDX_IRQ_TYPE,
+	if ((rc = request_irq(priv->pdev->irq, bdx_isr_napi, BDX_IRQ_TYPE,
 			 ndev->name, ndev)))
 		goto err_irq;
 	bdx_enable_interrupts(priv);

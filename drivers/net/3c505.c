@@ -886,7 +886,7 @@ static int elp_open(struct net_device *dev)
 	/*
 	 * install our interrupt service routine
 	 */
-	if ((retval = request_irq(dev->irq, &elp_interrupt, 0, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, elp_interrupt, 0, dev->name, dev))) {
 		pr_err("%s: could not allocate IRQ%d\n", dev->name, dev->irq);
 		return retval;
 	}

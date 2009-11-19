@@ -543,7 +543,7 @@ static int dmfe_open(struct DEVICE *dev)
 
 	DMFE_DBUG(0, "dmfe_open", 0);
 
-	ret = request_irq(dev->irq, &dmfe_interrupt,
+	ret = request_irq(dev->irq, dmfe_interrupt,
 			  IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;

@@ -588,7 +588,7 @@ static int init_i596_mem(struct net_device *dev)
 			     "%s: i82596 initialization successful\n",
 			     dev->name));
 
-	if (request_irq(dev->irq, &i596_interrupt, 0, "i82596", dev)) {
+	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
 		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
 		goto failed;
 	}

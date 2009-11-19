@@ -1016,7 +1016,7 @@ static int sh_eth_open(struct net_device *ndev)
 
 	pm_runtime_get_sync(&mdp->pdev->dev);
 
-	ret = request_irq(ndev->irq, &sh_eth_interrupt,
+	ret = request_irq(ndev->irq, sh_eth_interrupt,
 #if defined(CONFIG_CPU_SUBTYPE_SH7763) || defined(CONFIG_CPU_SUBTYPE_SH7764)
 				IRQF_SHARED,
 #else

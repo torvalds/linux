@@ -973,7 +973,7 @@ sb1000_open(struct net_device *dev)
 	lp->rx_frame_id[1] = 0;
 	lp->rx_frame_id[2] = 0;
 	lp->rx_frame_id[3] = 0;
-	if (request_irq(dev->irq, &sb1000_interrupt, 0, "sb1000", dev)) {
+	if (request_irq(dev->irq, sb1000_interrupt, 0, "sb1000", dev)) {
 		return -EAGAIN;
 	}
 

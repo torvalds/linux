@@ -1014,14 +1014,14 @@ static int korina_open(struct net_device *dev)
 	/* Install the interrupt handler
 	 * that handles the Done Finished
 	 * Ovr and Und Events */
-	ret = request_irq(lp->rx_irq, &korina_rx_dma_interrupt,
+	ret = request_irq(lp->rx_irq, korina_rx_dma_interrupt,
 			IRQF_DISABLED, "Korina ethernet Rx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get Rx DMA IRQ %d\n",
 		    dev->name, lp->rx_irq);
 		goto err_release;
 	}
-	ret = request_irq(lp->tx_irq, &korina_tx_dma_interrupt,
+	ret = request_irq(lp->tx_irq, korina_tx_dma_interrupt,
 			IRQF_DISABLED, "Korina ethernet Tx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get Tx DMA IRQ %d\n",
@@ -1030,7 +1030,7 @@ static int korina_open(struct net_device *dev)
 	}
 
 	/* Install handler for overrun error. */
-	ret = request_irq(lp->ovr_irq, &korina_ovr_interrupt,
+	ret = request_irq(lp->ovr_irq, korina_ovr_interrupt,
 			IRQF_DISABLED, "Ethernet Overflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get OVR IRQ %d\n",
@@ -1039,7 +1039,7 @@ static int korina_open(struct net_device *dev)
 	}
 
 	/* Install handler for underflow error. */
-	ret = request_irq(lp->und_irq, &korina_und_interrupt,
+	ret = request_irq(lp->und_irq, korina_und_interrupt,
 			IRQF_DISABLED, "Ethernet Underflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get UND IRQ %d\n",

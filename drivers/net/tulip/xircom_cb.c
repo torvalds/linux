@@ -458,7 +458,7 @@ static int xircom_open(struct net_device *dev)
 	int retval;
 	enter("xircom_open");
 	printk(KERN_INFO "xircom cardbus adaptor found, registering as %s, using irq %i \n",dev->name,dev->irq);
-	retval = request_irq(dev->irq, &xircom_interrupt, IRQF_SHARED, dev->name, dev);
+	retval = request_irq(dev->irq, xircom_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		leave("xircom_open - No IRQ");
 		return retval;

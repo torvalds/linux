@@ -1661,7 +1661,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 
 	sprintf(adapter->name[vector], "%s:lsc", netdev->name);
 	err = request_irq(adapter->msix_entries[vector].vector,
-	                  &ixgbe_msix_lsc, 0, adapter->name[vector], netdev);
+	                  ixgbe_msix_lsc, 0, adapter->name[vector], netdev);
 	if (err) {
 		DPRINTK(PROBE, ERR,
 			"request_irq for msix_lsc failed: %d\n", err);
@@ -1832,10 +1832,10 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		err = ixgbe_request_msix_irqs(adapter);
 	} else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED) {
-		err = request_irq(adapter->pdev->irq, &ixgbe_intr, 0,
+		err = request_irq(adapter->pdev->irq, ixgbe_intr, 0,
 		                  netdev->name, netdev);
 	} else {
-		err = request_irq(adapter->pdev->irq, &ixgbe_intr, IRQF_SHARED,
+		err = request_irq(adapter->pdev->irq, ixgbe_intr, IRQF_SHARED,
 		                  netdev->name, netdev);
 	}
 

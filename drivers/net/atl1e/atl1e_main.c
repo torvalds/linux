@@ -1930,7 +1930,7 @@ static int atl1e_request_irq(struct atl1e_adapter *adapter)
 
 	if (!adapter->have_msi)
 		flags |= IRQF_SHARED;
-	err = request_irq(adapter->pdev->irq, &atl1e_intr, flags,
+	err = request_irq(adapter->pdev->irq, atl1e_intr, flags,
 			netdev->name, netdev);
 	if (err) {
 		dev_dbg(&pdev->dev,

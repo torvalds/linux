@@ -233,7 +233,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 		/* proceed to try to request regular interrupt */
 	}
 
-	err = request_irq(adapter->pdev->irq, &ixgb_intr, irq_flags,
+	err = request_irq(adapter->pdev->irq, ixgb_intr, irq_flags,
 	                  netdev->name, netdev);
 	if (err) {
 		if (adapter->have_msi)

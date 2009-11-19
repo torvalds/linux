@@ -651,7 +651,7 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 	if (adapter->have_msi)
 		flags &= ~IRQF_SHARED;
 
-	return request_irq(adapter->pdev->irq, &atl2_intr, flags, netdev->name,
+	return request_irq(adapter->pdev->irq, atl2_intr, flags, netdev->name,
 		netdev);
 }
 

@@ -411,7 +411,7 @@ rio_open (struct net_device *dev)
 	int i;
 	u16 macctrl;
 
-	i = request_irq (dev->irq, &rio_interrupt, IRQF_SHARED, dev->name, dev);
+	i = request_irq (dev->irq, rio_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 

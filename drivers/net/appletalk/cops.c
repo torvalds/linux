@@ -328,7 +328,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 
 	/* Reserve any actual interrupt. */
 	if (dev->irq) {
-		retval = request_irq(dev->irq, &cops_interrupt, 0, dev->name, dev);
+		retval = request_irq(dev->irq, cops_interrupt, 0, dev->name, dev);
 		if (retval)
 			goto err_out;
 	}

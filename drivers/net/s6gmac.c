@@ -984,7 +984,7 @@ static int __devinit s6gmac_probe(struct platform_device *pdev)
 	pd->rx_dma = DMA_MASK_DMAC(i);
 	pd->rx_chan = DMA_INDEX_CHNL(i);
 	pd->io = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
-	res = request_irq(dev->irq, &s6gmac_interrupt, 0, dev->name, dev);
+	res = request_irq(dev->irq, s6gmac_interrupt, 0, dev->name, dev);
 	if (res) {
 		printk(KERN_ERR DRV_PRMT "irq request failed: %d\n", dev->irq);
 		goto errirq;

@@ -1016,7 +1016,7 @@ sis900_open(struct net_device *net_dev)
 	/* Equalizer workaround Rule */
 	sis630_set_eq(net_dev, sis_priv->chipset_rev);
 
-	ret = request_irq(net_dev->irq, &sis900_interrupt, IRQF_SHARED,
+	ret = request_irq(net_dev->irq, sis900_interrupt, IRQF_SHARED,
 						net_dev->name, net_dev);
 	if (ret)
 		return ret;

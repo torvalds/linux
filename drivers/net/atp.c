@@ -437,7 +437,7 @@ static int net_open(struct net_device *dev)
 	/* The interrupt line is turned off (tri-stated) when the device isn't in
 	   use.  That's especially important for "attached" interfaces where the
 	   port or interrupt may be shared. */
-	ret = request_irq(dev->irq, &atp_interrupt, 0, dev->name, dev);
+	ret = request_irq(dev->irq, atp_interrupt, 0, dev->name, dev);
 	if (ret)
 		return ret;
 

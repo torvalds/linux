@@ -660,7 +660,7 @@ static int xemaclite_open(struct net_device *dev)
 	xemaclite_set_mac_address(lp, dev->dev_addr);
 
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &xemaclite_interrupt, 0, dev->name, dev);
+	retval = request_irq(dev->irq, xemaclite_interrupt, 0, dev->name, dev);
 	if (retval) {
 		dev_err(&lp->ndev->dev, "Could not allocate interrupt %d\n",
 			dev->irq);

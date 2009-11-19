@@ -928,7 +928,7 @@ static int netdev_open(struct net_device *dev)
 
 	/* Do we ever need to reset the chip??? */
 
-	retval = request_irq(dev->irq, &intr_handler, IRQF_SHARED, dev->name, dev);
+	retval = request_irq(dev->irq, intr_handler, IRQF_SHARED, dev->name, dev);
 	if (retval)
 		return retval;
 

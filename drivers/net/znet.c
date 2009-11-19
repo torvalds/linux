@@ -169,7 +169,7 @@ static int znet_request_resources (struct net_device *dev)
 {
 	struct znet_private *znet = netdev_priv(dev);
 
-	if (request_irq (dev->irq, &znet_interrupt, 0, "ZNet", dev))
+	if (request_irq (dev->irq, znet_interrupt, 0, "ZNet", dev))
 		goto failed;
 	if (request_dma (znet->rx_dma, "ZNet rx"))
 		goto free_irq;

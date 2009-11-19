@@ -260,7 +260,7 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 		dev->irq = 9;
 
 	{
-		int irqval = request_irq(dev->irq, &net_interrupt, 0, cardname, dev);
+		int irqval = request_irq(dev->irq, net_interrupt, 0, cardname, dev);
 		if (irqval) {
 			printk("%s: unable to get IRQ %d (irqval=%d).\n",
 				   dev->name, dev->irq, irqval);
@@ -378,7 +378,7 @@ net_open(struct net_device *dev)
 	 * This is used if the interrupt line can turned off (shared).
 	 * See 3c503.c for an example of selecting the IRQ at config-time.
 	 */
-	if (request_irq(dev->irq, &net_interrupt, 0, cardname, dev)) {
+	if (request_irq(dev->irq, net_interrupt, 0, cardname, dev)) {
 		return -EAGAIN;
 	}
 	/*

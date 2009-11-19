@@ -881,7 +881,7 @@ static int au1000_open(struct net_device *dev)
 	if (au1000_debug > 4)
 		printk("%s: open: dev=%p\n", dev->name, dev);
 
-	if ((retval = request_irq(dev->irq, &au1000_interrupt, 0,
+	if ((retval = request_irq(dev->irq, au1000_interrupt, 0,
 					dev->name, dev))) {
 		printk(KERN_ERR "%s: unable to get IRQ %d\n",
 				dev->name, dev->irq);

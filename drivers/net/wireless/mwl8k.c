@@ -2817,7 +2817,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	struct mwl8k_priv *priv = hw->priv;
 	int rc;
 
-	rc = request_irq(priv->pdev->irq, &mwl8k_interrupt,
+	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
@@ -3482,7 +3482,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
 	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 
-	rc = request_irq(priv->pdev->irq, &mwl8k_interrupt,
+	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",

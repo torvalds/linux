@@ -1133,21 +1133,21 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	/* Hook up test interrupt handler just for this test */
 	if (adapter->msix_entries) {
 		if (request_irq(adapter->msix_entries[0].vector,
-		                &igb_test_intr, 0, netdev->name, adapter)) {
+		                igb_test_intr, 0, netdev->name, adapter)) {
 			*data = 1;
 			return -1;
 		}
 	} else if (adapter->flags & IGB_FLAG_HAS_MSI) {
 		shared_int = false;
 		if (request_irq(irq,
-		                &igb_test_intr, 0, netdev->name, adapter)) {
+		                igb_test_intr, 0, netdev->name, adapter)) {
 			*data = 1;
 			return -1;
 		}
-	} else if (!request_irq(irq, &igb_test_intr, IRQF_PROBE_SHARED,
+	} else if (!request_irq(irq, igb_test_intr, IRQF_PROBE_SHARED,
 				netdev->name, adapter)) {
 		shared_int = false;
-	} else if (request_irq(irq, &igb_test_intr, IRQF_SHARED,
+	} else if (request_irq(irq, igb_test_intr, IRQF_SHARED,
 		 netdev->name, adapter)) {
 		*data = 1;
 		return -1;

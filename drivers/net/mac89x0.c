@@ -337,7 +337,7 @@ net_open(struct net_device *dev)
 	writereg(dev, PP_BusCTL, readreg(dev, PP_BusCTL) & ~ENABLE_IRQ);
 
 	/* Grab the interrupt */
-	if (request_irq(dev->irq, &net_interrupt, 0, "cs89x0", dev))
+	if (request_irq(dev->irq, net_interrupt, 0, "cs89x0", dev))
 		return -EAGAIN;
 
 	/* Set up the IRQ - Apparently magic */

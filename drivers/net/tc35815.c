@@ -1248,7 +1248,7 @@ tc35815_open(struct net_device *dev)
 	 * This is used if the interrupt line can turned off (shared).
 	 * See 3c503.c for an example of selecting the IRQ at config-time.
 	 */
-	if (request_irq(dev->irq, &tc35815_interrupt, IRQF_SHARED,
+	if (request_irq(dev->irq, tc35815_interrupt, IRQF_SHARED,
 			dev->name, dev))
 		return -EAGAIN;
 

@@ -1022,7 +1022,7 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 	/* Request the IRQ lines */
-	ret = request_irq(dev->irq, &stmmac_interrupt,
+	ret = request_irq(dev->irq, stmmac_interrupt,
 			  IRQF_SHARED, dev->name, dev);
 	if (unlikely(ret < 0)) {
 		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",

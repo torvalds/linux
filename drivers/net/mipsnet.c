@@ -211,7 +211,7 @@ static int mipsnet_open(struct net_device *dev)
 {
 	int err;
 
-	err = request_irq(dev->irq, &mipsnet_interrupt,
+	err = request_irq(dev->irq, mipsnet_interrupt,
 			  IRQF_SHARED, dev->name, (void *) dev);
 	if (err) {
 		release_region(dev->base_addr, sizeof(struct mipsnet_regs));

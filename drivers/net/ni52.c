@@ -284,7 +284,7 @@ static int ni52_open(struct net_device *dev)
 	startrecv586(dev);
 	ni_enaint();
 
-	ret = request_irq(dev->irq, &ni52_interrupt, 0, dev->name, dev);
+	ret = request_irq(dev->irq, ni52_interrupt, 0, dev->name, dev);
 	if (ret) {
 		ni_reset586();
 		return ret;

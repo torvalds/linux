@@ -596,7 +596,7 @@ static int streamer_open(struct net_device *dev)
 	        rc=streamer_reset(dev);
 	}
 
-	if (request_irq(dev->irq, &streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
+	if (request_irq(dev->irq, streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
 		return -EAGAIN;
 	}
 #if STREAMER_DEBUG

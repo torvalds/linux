@@ -2410,7 +2410,7 @@ static int sbmac_open(struct net_device *dev)
 	 */
 
 	__raw_readq(sc->sbm_isr);
-	err = request_irq(dev->irq, &sbmac_intr, IRQF_SHARED, dev->name, dev);
+	err = request_irq(dev->irq, sbmac_intr, IRQF_SHARED, dev->name, dev);
 	if (err) {
 		printk(KERN_ERR "%s: unable to get IRQ %d\n", dev->name,
 		       dev->irq);

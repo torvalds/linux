@@ -780,7 +780,7 @@ el3_open(struct net_device *dev)
 	outw(RxReset, ioaddr + EL3_CMD);
 	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 
-	i = request_irq(dev->irq, &el3_interrupt, 0, dev->name, dev);
+	i = request_irq(dev->irq, el3_interrupt, 0, dev->name, dev);
 	if (i)
 		return i;
 

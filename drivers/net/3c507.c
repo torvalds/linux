@@ -399,7 +399,7 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 
 	irq = inb(ioaddr + IRQ_CONFIG) & 0x0f;
 
-	irqval = request_irq(irq, &el16_interrupt, 0, DRV_NAME, dev);
+	irqval = request_irq(irq, el16_interrupt, 0, DRV_NAME, dev);
 	if (irqval) {
 		pr_cont("\n");
 		pr_err("3c507: unable to get IRQ %d (irqval=%d).\n", irq, irqval);

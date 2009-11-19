@@ -226,17 +226,17 @@ static int mpc52xx_fec_open(struct net_device *dev)
 		phy_start(priv->phydev);
 	}
 
-	if (request_irq(dev->irq, &mpc52xx_fec_interrupt, IRQF_SHARED,
+	if (request_irq(dev->irq, mpc52xx_fec_interrupt, IRQF_SHARED,
 	                DRIVER_NAME "_ctrl", dev)) {
 		dev_err(&dev->dev, "ctrl interrupt request failed\n");
 		goto free_phy;
 	}
-	if (request_irq(priv->r_irq, &mpc52xx_fec_rx_interrupt, 0,
+	if (request_irq(priv->r_irq, mpc52xx_fec_rx_interrupt, 0,
 	                DRIVER_NAME "_rx", dev)) {
 		dev_err(&dev->dev, "rx interrupt request failed\n");
 		goto free_ctrl_irq;
 	}
-	if (request_irq(priv->t_irq, &mpc52xx_fec_tx_interrupt, 0,
+	if (request_irq(priv->t_irq, mpc52xx_fec_tx_interrupt, 0,
 	                DRIVER_NAME "_tx", dev)) {
 		dev_err(&dev->dev, "tx interrupt request failed\n");
 		goto free_2irqs;

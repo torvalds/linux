@@ -1274,15 +1274,15 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 		return 0;
 	} else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED) {
 		shared_int = false;
-		if (request_irq(irq, &ixgbe_test_intr, 0, netdev->name,
+		if (request_irq(irq, ixgbe_test_intr, 0, netdev->name,
 				netdev)) {
 			*data = 1;
 			return -1;
 		}
-	} else if (!request_irq(irq, &ixgbe_test_intr, IRQF_PROBE_SHARED,
+	} else if (!request_irq(irq, ixgbe_test_intr, IRQF_PROBE_SHARED,
 	                        netdev->name, netdev)) {
 		shared_int = false;
-	} else if (request_irq(irq, &ixgbe_test_intr, IRQF_SHARED,
+	} else if (request_irq(irq, ixgbe_test_intr, IRQF_SHARED,
 	                       netdev->name, netdev)) {
 		*data = 1;
 		return -1;

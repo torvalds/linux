@@ -376,7 +376,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	}
 	card->io = io;
 
-	if (request_irq(irq, &sca_intr, 0, devname, card)) {
+	if (request_irq(irq, sca_intr, 0, devname, card)) {
 		printk(KERN_ERR "n2: could not allocate IRQ\n");
 		n2_destroy_card(card);
 		return(-EBUSY);

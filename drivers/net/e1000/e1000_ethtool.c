@@ -869,10 +869,10 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* NOTE: we don't test MSI interrupts here, yet */
 	/* Hook up test interrupt handler just for this test */
-	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
+	if (!request_irq(irq, e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
 	                 netdev))
 		shared_int = false;
-	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
+	else if (request_irq(irq, e1000_test_intr, IRQF_SHARED,
 	         netdev->name, netdev)) {
 		*data = 1;
 		return -1;
