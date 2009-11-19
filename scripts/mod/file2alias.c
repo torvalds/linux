@@ -104,7 +104,7 @@ static void device_id_check(const char *modname, const char *device_id,
 static void do_usb_entry(struct usb_device_id *id,
 			 unsigned int bcdDevice_initial, int bcdDevice_initial_digits,
 			 unsigned char range_lo, unsigned char range_hi,
-			 struct module *mod)
+			 unsigned char max, struct module *mod)
 {
 	char alias[500];
 	strcpy(alias, "usb:");
@@ -118,9 +118,22 @@ static void do_usb_entry(struct usb_device_id *id,
 		sprintf(alias + strlen(alias), "%0*X",
 			bcdDevice_initial_digits, bcdDevice_initial);
 	if (range_lo == range_hi)
-		sprintf(alias + strlen(alias), "%u", range_lo);
-	else if (range_lo > 0 || range_hi < 9)
-		sprintf(alias + strlen(alias), "[%u-%u]", range_lo, range_hi);
+		sprintf(alias + strlen(alias), "%X", range_lo);
+	else if (range_lo > 0 || range_hi < max) {
+		if (range_lo > 0x9 || range_hi < 0xA)
+			sprintf(alias + strlen(alias),
+				"[%X-%X]",
+				range_lo,
+				range_hi);
+		else {
+			sprintf(alias + strlen(alias),
+				range_lo < 0x9 ? "[%X-9" : "[%X",
+				range_lo);
+			sprintf(alias + strlen(alias),
+				range_hi > 0xA ? "a-%X]" : "%X]",
+				range_lo);
+		}
+	}
 	if (bcdDevice_initial_digits < (sizeof(id->bcdDevice_lo) * 2 - 1))
 		strcat(alias, "*");
 
@@ -150,7 +163,7 @@ static void do_usb_entry(struct usb_device_id *id,
 static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 {
 	unsigned int devlo, devhi;
-	unsigned char chi, clo;
+	unsigned char chi, clo, max;
 	int ndigits;
 
 	id->match_flags = TO_NATIVE(id->match_flags);
@@ -161,6 +174,17 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 		TO_NATIVE(id->bcdDevice_lo) : 0x0U;
 	devhi = id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI ?
 		TO_NATIVE(id->bcdDevice_hi) : ~0x0U;
+
+	/* Figure out if this entry is in bcd or hex format */
+	max = 0x9; /* Default to decimal format */
+	for (ndigits = 0 ; ndigits < sizeof(id->bcdDevice_lo) * 2 ; ndigits++) {
+		clo = (devlo >> (ndigits << 2)) & 0xf;
+		chi = ((devhi > 0x9999 ? 0x9999 : devhi) >> (ndigits << 2)) & 0xf;
+		if (clo > max || chi > max) {
+			max = 0xf;
+			break;
+		}
+	}
 
 	/*
 	 * Some modules (visor) have empty slots as placeholder for
@@ -173,21 +197,21 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 	for (ndigits = sizeof(id->bcdDevice_lo) * 2 - 1; devlo <= devhi; ndigits--) {
 		clo = devlo & 0xf;
 		chi = devhi & 0xf;
-		if (chi > 9)	/* it's bcd not hex */
-			chi = 9;
+		if (chi > max)	/* If we are in bcd mode, truncate if necessary */
+			chi = max;
 		devlo >>= 4;
 		devhi >>= 4;
 
 		if (devlo == devhi || !ndigits) {
-			do_usb_entry(id, devlo, ndigits, clo, chi, mod);
+			do_usb_entry(id, devlo, ndigits, clo, chi, max, mod);
 			break;
 		}
 
-		if (clo > 0)
-			do_usb_entry(id, devlo++, ndigits, clo, 9, mod);
+		if (clo > 0x0)
+			do_usb_entry(id, devlo++, ndigits, clo, max, max, mod);
 
-		if (chi < 9)
-			do_usb_entry(id, devhi--, ndigits, 0, chi, mod);
+		if (chi < max)
+			do_usb_entry(id, devhi--, ndigits, 0x0, chi, max, mod);
 	}
 }
 
