@@ -320,89 +320,12 @@ int ceph_monc_open_session(struct ceph_mon_client *monc)
 	return 0;
 }
 
-#if 0
-
 /*
  * The monitor responds with mount ack indicate mount success.  The
  * included client ticket allows the client to talk to MDSs and OSDs.
  */
-static void handle_mount_ack(struct ceph_mon_client *monc, struct ceph_msg *msg)
-{
-	struct ceph_client *client = monc->client;
-	struct ceph_monmap *monmap = NULL, *old = monc->monmap;
-	void *p, *end;
-	s32 result;
-	u32 len;
-	s64 cnum;
-	int err = -EINVAL;
-
-	if (client->whoami >= 0) {
-		dout("handle_mount_ack - already mounted\n");
-		return;
-	}
-
-	mutex_lock(&monc->mutex);
-
-	dout("handle_mount_ack\n");
-	p = msg->front.iov_base;
-	end = p + msg->front.iov_len;
-
-	ceph_decode_64_safe(&p, end, cnum, bad);
-	ceph_decode_32_safe(&p, end, result, bad);
-	ceph_decode_32_safe(&p, end, len, bad);
-	if (result) {
-		pr_err("mount denied: %.*s (%d)\n", len, (char *)p,
-		       result);
-		err = result;
-		goto out;
-	}
-	p += len;
-
-	ceph_decode_32_safe(&p, end, len, bad);
-	ceph_decode_need(&p, end, len, bad);
-	monmap = ceph_monmap_decode(p, p + len);
-	if (IS_ERR(monmap)) {
-		pr_err("problem decoding monmap, %d\n",
-		       (int)PTR_ERR(monmap));
-		err = -EINVAL;
-		goto out;
-	}
-	p += len;
-
-	client->monc.monmap = monmap;
-	kfree(old);
-
-	client->signed_ticket = NULL;
-	client->signed_ticket_len = 0;
-
-	monc->want_mount = false;
-
-	client->whoami = cnum;
-	client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
-	client->msgr->inst.name.num = cpu_to_le64(cnum);
-	pr_info("client%lld fsid " FSID_FORMAT "\n",
-		client->whoami, PR_FSID(&client->monc.monmap->fsid));
-
-	ceph_debugfs_client_init(client);
-	__send_subscribe(monc);
-
-	err = 0;
-	goto out;
-
-bad:
-	pr_err("error decoding mount_ack message\n");
-out:
-	client->mount_err = err;
-	mutex_unlock(&monc->mutex);
-	wake_up(&client->mount_wq);
-}
-#endif
-
-/*
- * The monitor responds with mount ack indicate mount success.  The
- * included client ticket allows the client to talk to MDSs and OSDs.
- */
-static void ceph_monc_handle_map(struct ceph_mon_client *monc, struct ceph_msg *msg)
+static void ceph_monc_handle_map(struct ceph_mon_client *monc,
+				 struct ceph_msg *msg)
 {
 	struct ceph_client *client = monc->client;
 	struct ceph_monmap *monmap = NULL, *old = monc->monmap;
@@ -420,40 +343,17 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc, struct ceph_msg *
 		       (int)PTR_ERR(monmap));
 		return;
 	}
-	if (monc->have_fsid &&
-	    ceph_fsid_compare(&monmap->fsid, &monc->monmap->fsid)) {
-		print_hex_dump(KERN_ERR, "monmap->fsid: ", DUMP_PREFIX_NONE, 16, 1,
-			       (void *)&monmap->fsid, 16, 0);
-		print_hex_dump(KERN_ERR, "monc->monmap->fsid: ", DUMP_PREFIX_NONE, 16, 1,
-			       (void *)&monc->monmap->fsid, 16, 0);
 
-		pr_err("fsid mismatch, got a previous map with different fsid");
+	if (ceph_check_fsid(monc->client, &monmap->fsid) < 0) {
 		kfree(monmap);
 		return;
 	}
 
 	client->monc.monmap = monmap;
-	client->monc.have_fsid = true;
 	kfree(old);
 
 	mutex_unlock(&monc->mutex);
 	wake_up(&client->mount_wq);
-}
-
-
-/*
- * init client info after authentication
- */
-static void __init_authenticated_client(struct ceph_mon_client *monc)
-{
-	struct ceph_client *client = monc->client;
-
-	client->signed_ticket = NULL;
-	client->signed_ticket_len = 0;
-	client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
-	client->msgr->inst.name.num = monc->auth->global_id;
-
-	ceph_debugfs_client_init(client);
 }
 
 /*
@@ -754,7 +654,10 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		ceph_con_send(monc->con, monc->m_auth);
 	} else if (monc->auth->ops->is_authenticated(monc->auth)) {
 		dout("authenticated, starting session\n");
-		__init_authenticated_client(monc);
+
+		monc->client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
+		monc->client->msgr->inst.name.num = monc->auth->global_id;
+
 		__send_subscribe(monc);
 		__resend_statfs(monc);
 	}

@@ -19,6 +19,7 @@
 #include "decode.h"
 #include "super.h"
 #include "mon_client.h"
+#include "auth.h"
 
 /*
  * Ceph superblock operations
@@ -510,14 +511,11 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 
 	client->sb = NULL;
 	client->mount_state = CEPH_MOUNT_MOUNTING;
-	client->whoami = -1;
 	client->mount_args = args;
 
 	client->msgr = NULL;
 
 	client->mount_err = 0;
-	client->signed_ticket = NULL;
-	client->signed_ticket_len = 0;
 
 	err = bdi_init(&client->backing_dev_info);
 	if (err < 0)
@@ -582,8 +580,6 @@ static void ceph_destroy_client(struct ceph_client *client)
 	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
 
-	kfree(client->signed_ticket);
-
 	ceph_debugfs_client_cleanup(client);
 	destroy_workqueue(client->wb_wq);
 	destroy_workqueue(client->pg_inv_wq);
@@ -597,6 +593,32 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	kfree(client);
 	dout("destroy_client %p done\n", client);
+}
+
+/*
+ * Initially learn our fsid, or verify an fsid matches.
+ */
+int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
+{
+	if (client->have_fsid) {
+		if (ceph_fsid_compare(&client->fsid, fsid)) {
+			print_hex_dump(KERN_ERR, "this fsid: ",
+				       DUMP_PREFIX_NONE, 16, 1,
+				       (void *)fsid, 16, 0);
+			print_hex_dump(KERN_ERR, " old fsid: ",
+				       DUMP_PREFIX_NONE, 16, 1,
+				       (void *)&client->fsid, 16, 0);
+			pr_err("fsid mismatch\n");
+			return -1;
+		}
+	} else {
+		pr_info("client%lld fsid " FSID_FORMAT "\n",
+			client->monc.auth->global_id, PR_FSID(fsid));
+		memcpy(&client->fsid, fsid, sizeof(*fsid));
+		ceph_debugfs_client_init(client);
+		client->have_fsid = true;
+	}
+	return 0;
 }
 
 /*

@@ -882,16 +882,8 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	/* verify fsid */
 	ceph_decode_need(&p, end, sizeof(fsid), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));
-        if (osdc->client->monc.have_fsid) {
-		if (ceph_fsid_compare(&fsid,
-			              &osdc->client->monc.monmap->fsid)) {
-			pr_err("got osdmap with wrong fsid, ignoring\n");
-			return;
-		}
-	} else {
-		ceph_fsid_set(&osdc->client->monc.monmap->fsid, &fsid);
-		osdc->client->monc.have_fsid = true;
-	}
+	if (ceph_check_fsid(osdc->client, &fsid) < 0)
+		return;
 
 	down_write(&osdc->map_sem);
 

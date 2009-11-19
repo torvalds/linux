@@ -2782,16 +2782,8 @@ void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 
 	ceph_decode_need(&p, end, sizeof(fsid)+2*sizeof(u32), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));
-        if (mdsc->client->monc.have_fsid) {
-		if (ceph_fsid_compare(&fsid,
-				      &mdsc->client->monc.monmap->fsid)) {
-			pr_err("got mdsmap with wrong fsid\n");
-			return;
-		}
-	} else {
-		ceph_fsid_set(&mdsc->client->monc.monmap->fsid, &fsid);
-		mdsc->client->monc.have_fsid = true;
-	}
+	if (ceph_check_fsid(mdsc->client, &fsid) < 0)
+		return;
 	epoch = ceph_decode_32(&p);
 	maplen = ceph_decode_32(&p);
 	dout("handle_map epoch %u len %d\n", epoch, (int)maplen);

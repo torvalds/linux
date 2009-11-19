@@ -113,16 +113,11 @@ static inline unsigned long time_sub(unsigned long a, unsigned long b)
  * mounting the same ceph filesystem/cluster.
  */
 struct ceph_client {
-	__s64 whoami;                   /* my client number */
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_monmap;
-	struct dentry *debugfs_mdsmap, *debugfs_osdmap;
-	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
-#endif
+	struct ceph_fsid fsid;
+	bool have_fsid;
 
 	struct mutex mount_mutex;       /* serialize mount attempts */
 	struct ceph_mount_args *mount_args;
-	struct ceph_fsid fsid;
 
 	struct super_block *sb;
 
@@ -130,8 +125,6 @@ struct ceph_client {
 	wait_queue_head_t mount_wq;
 
 	int mount_err;
-	void *signed_ticket;           /* our keys to the kingdom */
-	int signed_ticket_len;
 
 	struct ceph_messenger *msgr;   /* messenger instance */
 	struct ceph_mon_client monc;
@@ -145,6 +138,12 @@ struct ceph_client {
 	struct workqueue_struct *trunc_wq;
 
 	struct backing_dev_info backing_dev_info;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_monmap;
+	struct dentry *debugfs_mdsmap, *debugfs_osdmap;
+	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
+#endif
 };
 
 static inline struct ceph_client *ceph_client(struct super_block *sb)
@@ -735,6 +734,7 @@ extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
 
 extern const char *ceph_msg_type_name(int type);
+extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 
 #define FSID_FORMAT "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" \
 	"%02x%02x%02x%02x%02x%02x"

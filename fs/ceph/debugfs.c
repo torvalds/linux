@@ -7,6 +7,8 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "mon_client.h"
+#include "auth.h"
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -335,7 +337,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	char name[80];
 
 	snprintf(name, sizeof(name), FSID_FORMAT ".client%lld",
-		 PR_FSID(&client->monc.monmap->fsid), client->whoami);
+		 PR_FSID(&client->fsid), client->monc.auth->global_id);
 
 	client->debugfs_dir = debugfs_create_dir(name, ceph_debugfs_dir);
 	if (!client->debugfs_dir)
