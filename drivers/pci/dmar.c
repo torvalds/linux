@@ -609,6 +609,9 @@ int __init check_zero_address(void)
 				     dmi_get_system_info(DMI_BIOS_VENDOR),
 				     dmi_get_system_info(DMI_BIOS_VERSION),
 				     dmi_get_system_info(DMI_PRODUCT_VERSION));
+#ifdef CONFIG_DMAR
+				dmar_disabled = 1;
+#endif
 				return 0;
 			}
 			break;
