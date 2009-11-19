@@ -474,8 +474,11 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	if (file_new)
-		perf_header__write(header, output, false);
+	if (file_new) {
+		err = perf_header__write(header, output, false);
+		if (err < 0)
+			return err;
+	}
 
 	if (!system_wide)
 		event__synthesize_thread(pid, process_synthesized_event);

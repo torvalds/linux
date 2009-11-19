@@ -59,7 +59,7 @@ struct perf_header *perf_header__new(void);
 void perf_header__delete(struct perf_header *self);
 
 int perf_header__read(struct perf_header *self, int fd);
-void perf_header__write(struct perf_header *self, int fd, bool at_exit);
+int perf_header__write(struct perf_header *self, int fd, bool at_exit);
 
 int perf_header__add_attr(struct perf_header *self,
 			  struct perf_header_attr *attr);
