@@ -360,7 +360,7 @@ static int hpt374_fn1_cable_detect(struct ata_port *ap)
  *	@link: ATA link to reset
  *	@deadline: deadline jiffies for the operation
  *
- *	Perform the initial reset handling for the 370/372 and 374 func 0
+ *	Perform the initial reset handling for the HPT37x.
  */
 
 static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
@@ -371,25 +371,6 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x50, 1, 0x04, 0x04 },
 		{ 0x54, 1, 0x04, 0x04 }
 	};
-	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
-		return -ENOENT;
-
-	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
-	udelay(100);
-
-	return ata_sff_prereset(link, deadline);
-}
-
-static int hpt374_fn1_pre_reset(struct ata_link *link, unsigned long deadline)
-{
-	static const struct pci_bits hpt37x_enable_bits[] = {
-		{ 0x50, 1, 0x04, 0x04 },
-		{ 0x54, 1, 0x04, 0x04 }
-	};
-	struct ata_port *ap = link->ap;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
 
@@ -646,7 +627,7 @@ static struct ata_port_operations hpt372_port_ops = {
 static struct ata_port_operations hpt374_fn1_port_ops = {
 	.inherits	= &hpt372_port_ops,
 	.cable_detect	= hpt374_fn1_cable_detect,
-	.prereset	= hpt374_fn1_pre_reset,
+	.prereset	= hpt37x_pre_reset,
 };
 
 /**
