@@ -14,9 +14,10 @@
 
 #define FSCACHE_DEBUG_LEVEL COOKIE
 #include <linux/module.h>
+#include <linux/seq_file.h>
 #include "internal.h"
 
-const char *fscache_object_states[] = {
+const char *fscache_object_states[FSCACHE_OBJECT__NSTATES] = {
 	[FSCACHE_OBJECT_INIT]		= "OBJECT_INIT",
 	[FSCACHE_OBJECT_LOOKING_UP]	= "OBJECT_LOOKING_UP",
 	[FSCACHE_OBJECT_CREATING]	= "OBJECT_CREATING",
@@ -33,9 +34,28 @@ const char *fscache_object_states[] = {
 };
 EXPORT_SYMBOL(fscache_object_states);
 
+static const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5] = {
+	[FSCACHE_OBJECT_INIT]		= "INIT",
+	[FSCACHE_OBJECT_LOOKING_UP]	= "LOOK",
+	[FSCACHE_OBJECT_CREATING]	= "CRTN",
+	[FSCACHE_OBJECT_AVAILABLE]	= "AVBL",
+	[FSCACHE_OBJECT_ACTIVE]		= "ACTV",
+	[FSCACHE_OBJECT_UPDATING]	= "UPDT",
+	[FSCACHE_OBJECT_DYING]		= "DYNG",
+	[FSCACHE_OBJECT_LC_DYING]	= "LCDY",
+	[FSCACHE_OBJECT_ABORT_INIT]	= "ABTI",
+	[FSCACHE_OBJECT_RELEASING]	= "RELS",
+	[FSCACHE_OBJECT_RECYCLING]	= "RCYC",
+	[FSCACHE_OBJECT_WITHDRAWING]	= "WTHD",
+	[FSCACHE_OBJECT_DEAD]		= "DEAD",
+};
+
 static void fscache_object_slow_work_put_ref(struct slow_work *);
 static int  fscache_object_slow_work_get_ref(struct slow_work *);
 static void fscache_object_slow_work_execute(struct slow_work *);
+#ifdef CONFIG_SLOW_WORK_PROC
+static void fscache_object_slow_work_desc(struct slow_work *, struct seq_file *);
+#endif
 static void fscache_initialise_object(struct fscache_object *);
 static void fscache_lookup_object(struct fscache_object *);
 static void fscache_object_available(struct fscache_object *);
@@ -49,6 +69,9 @@ const struct slow_work_ops fscache_object_slow_work_ops = {
 	.get_ref	= fscache_object_slow_work_get_ref,
 	.put_ref	= fscache_object_slow_work_put_ref,
 	.execute	= fscache_object_slow_work_execute,
+#ifdef CONFIG_SLOW_WORK_PROC
+	.desc		= fscache_object_slow_work_desc,
+#endif
 };
 EXPORT_SYMBOL(fscache_object_slow_work_ops);
 
@@ -325,6 +348,22 @@ static void fscache_object_slow_work_execute(struct slow_work *work)
 	if (object->events & object->event_mask)
 		fscache_enqueue_object(object);
 }
+
+/*
+ * describe an object for slow-work debugging
+ */
+#ifdef CONFIG_SLOW_WORK_PROC
+static void fscache_object_slow_work_desc(struct slow_work *work,
+					  struct seq_file *m)
+{
+	struct fscache_object *object =
+		container_of(work, struct fscache_object, work);
+
+	seq_printf(m, "FSC: OBJ%x: %s",
+		   object->debug_id,
+		   fscache_object_states_short[object->state]);
+}
+#endif
 
 /*
  * initialise an object

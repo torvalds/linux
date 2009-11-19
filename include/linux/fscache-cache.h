@@ -102,6 +102,16 @@ struct fscache_operation {
 
 	/* operation releaser */
 	fscache_operation_release_t release;
+
+#ifdef CONFIG_SLOW_WORK_PROC
+	const char *name;		/* operation name */
+	const char *state;		/* operation state */
+#define fscache_set_op_name(OP, N)	do { (OP)->name  = (N); } while(0)
+#define fscache_set_op_state(OP, S)	do { (OP)->state = (S); } while(0)
+#else
+#define fscache_set_op_name(OP, N)	do { } while(0)
+#define fscache_set_op_state(OP, S)	do { } while(0)
+#endif
 };
 
 extern atomic_t fscache_op_debug_id;
@@ -125,6 +135,7 @@ static inline void fscache_operation_init(struct fscache_operation *op,
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
 	op->release = release;
 	INIT_LIST_HEAD(&op->pend_link);
+	fscache_set_op_state(op, "Init");
 }
 
 /**
@@ -337,6 +348,7 @@ struct fscache_object {
 		FSCACHE_OBJECT_RECYCLING,	/* retiring object */
 		FSCACHE_OBJECT_WITHDRAWING,	/* withdrawing object */
 		FSCACHE_OBJECT_DEAD,		/* object is now dead */
+		FSCACHE_OBJECT__NSTATES
 	} state;
 
 	int			debug_id;	/* debugging ID */

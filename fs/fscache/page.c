@@ -63,14 +63,19 @@ static void fscache_end_page_write(struct fscache_cookie *cookie, struct page *p
 static void fscache_attr_changed_op(struct fscache_operation *op)
 {
 	struct fscache_object *object = op->object;
+	int ret;
 
 	_enter("{OBJ%x OP%x}", object->debug_id, op->debug_id);
 
 	fscache_stat(&fscache_n_attr_changed_calls);
 
-	if (fscache_object_is_active(object) &&
-	    object->cache->ops->attr_changed(object) < 0)
-		fscache_abort_object(object);
+	if (fscache_object_is_active(object)) {
+		fscache_set_op_state(op, "CallFS");
+		ret = object->cache->ops->attr_changed(object);
+		fscache_set_op_state(op, "Done");
+		if (ret < 0)
+			fscache_abort_object(object);
+	}
 
 	_leave("");
 }
@@ -99,6 +104,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 	fscache_operation_init(op, NULL);
 	fscache_operation_init_slow(op, fscache_attr_changed_op);
 	op->flags = FSCACHE_OP_SLOW | (1 << FSCACHE_OP_EXCLUSIVE);
+	fscache_set_op_name(op, "Attr");
 
 	spin_lock(&cookie->lock);
 
@@ -184,6 +190,7 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 	op->start_time	= jiffies;
 	INIT_WORK(&op->op.fast_work, fscache_retrieval_work);
 	INIT_LIST_HEAD(&op->to_do);
+	fscache_set_op_name(&op->op, "Retr");
 	return op;
 }
 
@@ -257,6 +264,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
+	fscache_set_op_name(&op->op, "RetrRA1");
 
 	spin_lock(&cookie->lock);
 
@@ -369,6 +377,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(mapping, end_io_func, context);
 	if (!op)
 		return -ENOMEM;
+	fscache_set_op_name(&op->op, "RetrRAN");
 
 	spin_lock(&cookie->lock);
 
@@ -461,6 +470,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(page->mapping, NULL, NULL);
 	if (!op)
 		return -ENOMEM;
+	fscache_set_op_name(&op->op, "RetrAL1");
 
 	spin_lock(&cookie->lock);
 
@@ -529,6 +539,8 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	_enter("{OP%x,%d}", op->op.debug_id, atomic_read(&op->op.usage));
 
+	fscache_set_op_state(&op->op, "GetPage");
+
 	spin_lock(&cookie->lock);
 	spin_lock(&object->lock);
 
@@ -559,13 +571,17 @@ static void fscache_write_op(struct fscache_operation *_op)
 	spin_unlock(&cookie->lock);
 
 	if (page) {
+		fscache_set_op_state(&op->op, "Store");
 		ret = object->cache->ops->write_page(op, page);
+		fscache_set_op_state(&op->op, "EndWrite");
 		fscache_end_page_write(cookie, page);
 		page_cache_release(page);
-		if (ret < 0)
+		if (ret < 0) {
+			fscache_set_op_state(&op->op, "Abort");
 			fscache_abort_object(object);
-		else
+		} else {
 			fscache_enqueue_operation(&op->op);
+		}
 	}
 
 	_leave("");
@@ -634,6 +650,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	fscache_operation_init(&op->op, fscache_release_write_op);
 	fscache_operation_init_slow(&op->op, fscache_write_op);
 	op->op.flags = FSCACHE_OP_SLOW | (1 << FSCACHE_OP_WAITING);
+	fscache_set_op_name(&op->op, "Write1");
 
 	ret = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
 	if (ret < 0)
