@@ -254,7 +254,7 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 
 	dir = dget_parent(object->dentry);
 
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	ret = cachefiles_bury_object(cache, dir, object->dentry);
 
 	dput(dir);
@@ -307,7 +307,7 @@ lookup_again:
 	/* search the current directory for the element name */
 	_debug("lookup '%s'", name);
 
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 
 	start = jiffies;
 	next = lookup_one_len(name, dir, nlen);
