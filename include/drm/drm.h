@@ -718,6 +718,7 @@ struct drm_event {
 };
 
 #define DRM_EVENT_VBLANK 0x01
+#define DRM_EVENT_FLIP_COMPLETE 0x02
 
 struct drm_event_vblank {
 	struct drm_event base;

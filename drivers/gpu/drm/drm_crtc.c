@@ -2527,7 +2527,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			goto out;
 		}
 
-		e->event.base.type = DRM_EVENT_VBLANK;
+		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof e->event;
 		e->event.user_data = page_flip->user_data;
 		e->base.event = &e->event.base;
