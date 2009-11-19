@@ -688,6 +688,7 @@ config ARCH_DAVINCI
 	select HAVE_IDE
 	select COMMON_CLKDEV
 	select GENERIC_ALLOCATOR
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
 
