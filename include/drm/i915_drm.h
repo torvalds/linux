@@ -271,6 +271,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_GEM               5
 #define I915_PARAM_NUM_FENCES_AVAIL      6
 #define I915_PARAM_HAS_OVERLAY           7
+#define I915_PARAM_HAS_PAGEFLIPPING	 8
 
 typedef struct drm_i915_getparam {
 	int param;
