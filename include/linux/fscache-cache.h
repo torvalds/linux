@@ -234,8 +234,10 @@ struct fscache_cache_ops {
 	struct fscache_object *(*alloc_object)(struct fscache_cache *cache,
 					       struct fscache_cookie *cookie);
 
-	/* look up the object for a cookie */
-	void (*lookup_object)(struct fscache_object *object);
+	/* look up the object for a cookie
+	 * - return -ETIMEDOUT to be requeued
+	 */
+	int (*lookup_object)(struct fscache_object *object);
 
 	/* finished looking up */
 	void (*lookup_complete)(struct fscache_object *object);

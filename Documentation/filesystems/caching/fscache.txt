@@ -235,6 +235,7 @@ proc files.
 		neg=N	Number of negative lookups made
 		pos=N	Number of positive lookups made
 		crt=N	Number of objects created by lookup
+		tmo=N	Number of lookups timed out and requeued
 	Updates	n=N	Number of update cookie requests seen
 		nul=N	Number of upd reqs given a NULL parent
 		run=N	Number of upd reqs granted CPU time

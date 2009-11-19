@@ -98,6 +98,7 @@ atomic_t fscache_n_object_no_alloc;
 atomic_t fscache_n_object_lookups;
 atomic_t fscache_n_object_lookups_negative;
 atomic_t fscache_n_object_lookups_positive;
+atomic_t fscache_n_object_lookups_timed_out;
 atomic_t fscache_n_object_created;
 atomic_t fscache_n_object_avail;
 atomic_t fscache_n_object_dead;
@@ -160,10 +161,11 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_acquires_nobufs),
 		   atomic_read(&fscache_n_acquires_oom));
 
-	seq_printf(m, "Lookups: n=%u neg=%u pos=%u crt=%u\n",
+	seq_printf(m, "Lookups: n=%u neg=%u pos=%u crt=%u tmo=%u\n",
 		   atomic_read(&fscache_n_object_lookups),
 		   atomic_read(&fscache_n_object_lookups_negative),
 		   atomic_read(&fscache_n_object_lookups_positive),
+		   atomic_read(&fscache_n_object_lookups_timed_out),
 		   atomic_read(&fscache_n_object_created));
 
 	seq_printf(m, "Updates: n=%u nul=%u run=%u\n",

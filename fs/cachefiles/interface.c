@@ -114,8 +114,9 @@ nomem_lookup_data:
 
 /*
  * attempt to look up the nominated node in this cache
+ * - return -ETIMEDOUT to be scheduled again
  */
-static void cachefiles_lookup_object(struct fscache_object *_object)
+static int cachefiles_lookup_object(struct fscache_object *_object)
 {
 	struct cachefiles_lookup_data *lookup_data;
 	struct cachefiles_object *parent, *object;
@@ -145,13 +146,14 @@ static void cachefiles_lookup_object(struct fscache_object *_object)
 	    object->fscache.cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX)
 		cachefiles_attr_changed(&object->fscache);
 
-	if (ret < 0) {
+	if (ret < 0 && ret != -ETIMEDOUT) {
 		printk(KERN_WARNING "CacheFiles: Lookup failed error %d\n",
 		       ret);
 		fscache_object_lookup_error(&object->fscache);
 	}
 
 	_leave(" [%d]", ret);
+	return ret;
 }
 
 /*

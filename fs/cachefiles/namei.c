@@ -21,12 +21,6 @@
 #include <linux/security.h>
 #include "internal.h"
 
-static int cachefiles_wait_bit(void *flags)
-{
-	schedule();
-	return 0;
-}
-
 #define CACHEFILES_KEYBUF_SIZE 512
 
 /*
@@ -100,8 +94,8 @@ static noinline void cachefiles_printk_object(struct cachefiles_object *object,
 /*
  * record the fact that an object is now active
  */
-static void cachefiles_mark_object_active(struct cachefiles_cache *cache,
-					  struct cachefiles_object *object)
+static int cachefiles_mark_object_active(struct cachefiles_cache *cache,
+					 struct cachefiles_object *object)
 {
 	struct cachefiles_object *xobject;
 	struct rb_node **_p, *_parent = NULL;
@@ -139,8 +133,8 @@ try_again:
 	rb_insert_color(&object->active_node, &cache->active_nodes);
 
 	write_unlock(&cache->active_lock);
-	_leave("");
-	return;
+	_leave(" = 0");
+	return 0;
 
 	/* an old object from a previous incarnation is hogging the slot - we
 	 * need to wait for it to be destroyed */
@@ -155,13 +149,64 @@ wait_for_old_object:
 	atomic_inc(&xobject->usage);
 	write_unlock(&cache->active_lock);
 
-	_debug(">>> wait");
-	wait_on_bit(&xobject->flags, CACHEFILES_OBJECT_ACTIVE,
-		    cachefiles_wait_bit, TASK_UNINTERRUPTIBLE);
-	_debug("<<< waited");
+	if (test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags)) {
+		wait_queue_head_t *wq;
+
+		signed long timeout = 60 * HZ;
+		wait_queue_t wait;
+		bool requeue;
+
+		/* if the object we're waiting for is queued for processing,
+		 * then just put ourselves on the queue behind it */
+		if (slow_work_is_queued(&xobject->fscache.work)) {
+			_debug("queue OBJ%x behind OBJ%x immediately",
+			       object->fscache.debug_id,
+			       xobject->fscache.debug_id);
+			goto requeue;
+		}
+
+		/* otherwise we sleep until either the object we're waiting for
+		 * is done, or the slow-work facility wants the thread back to
+		 * do other work */
+		wq = bit_waitqueue(&xobject->flags, CACHEFILES_OBJECT_ACTIVE);
+		init_wait(&wait);
+		requeue = false;
+		do {
+			prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
+			if (!test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags))
+				break;
+			requeue = slow_work_sleep_till_thread_needed(
+				&object->fscache.work, &timeout);
+		} while (timeout > 0 && !requeue);
+		finish_wait(wq, &wait);
+
+		if (requeue &&
+		    test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags)) {
+			_debug("queue OBJ%x behind OBJ%x after wait",
+			       object->fscache.debug_id,
+			       xobject->fscache.debug_id);
+			goto requeue;
+		}
+
+		if (timeout <= 0) {
+			printk(KERN_ERR "\n");
+			printk(KERN_ERR "CacheFiles: Error: Overlong"
+			       " wait for old active object to go away\n");
+			cachefiles_printk_object(object, xobject);
+			goto requeue;
+		}
+	}
+
+	ASSERT(!test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags));
 
 	cache->cache.ops->put_object(&xobject->fscache);
 	goto try_again;
+
+requeue:
+	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
+	cache->cache.ops->put_object(&xobject->fscache);
+	_leave(" = -ETIMEDOUT");
+	return -ETIMEDOUT;
 }
 
 /*
@@ -466,11 +511,14 @@ lookup_again:
 	}
 
 	/* note that we're now using this object */
-	cachefiles_mark_object_active(cache, object);
+	ret = cachefiles_mark_object_active(cache, object);
 
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(dir);
 	dir = NULL;
+
+	if (ret == -ETIMEDOUT)
+		goto mark_active_timed_out;
 
 	_debug("=== OBTAINED_OBJECT ===");
 
@@ -515,6 +563,10 @@ create_error:
 		cachefiles_io_error(cache, "Create/mkdir failed");
 	goto error;
 
+mark_active_timed_out:
+	_debug("mark active timed out");
+	goto release_dentry;
+
 check_error:
 	_debug("check error %d", ret);
 	write_lock(&cache->active_lock);
@@ -522,7 +574,7 @@ check_error:
 	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
 	wake_up_bit(&object->flags, CACHEFILES_OBJECT_ACTIVE);
 	write_unlock(&cache->active_lock);
-
+release_dentry:
 	dput(object->dentry);
 	object->dentry = NULL;
 	goto error_out;
@@ -543,9 +595,6 @@ error:
 error_out2:
 	dput(dir);
 error_out:
-	if (ret == -ENOSPC)
-		ret = -ENOBUFS;
-
 	_leave(" = error %d", -ret);
 	return ret;
 }

@@ -468,6 +468,7 @@ static void fscache_lookup_object(struct fscache_object *object)
 {
 	struct fscache_cookie *cookie = object->cookie;
 	struct fscache_object *parent;
+	int ret;
 
 	_enter("");
 
@@ -493,11 +494,18 @@ static void fscache_lookup_object(struct fscache_object *object)
 
 	fscache_stat(&fscache_n_object_lookups);
 	fscache_stat(&fscache_n_cop_lookup_object);
-	object->cache->ops->lookup_object(object);
+	ret = object->cache->ops->lookup_object(object);
 	fscache_stat_d(&fscache_n_cop_lookup_object);
 
 	if (test_bit(FSCACHE_OBJECT_EV_ERROR, &object->events))
 		set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
+
+	if (ret == -ETIMEDOUT) {
+		/* probably stuck behind another object, so move this one to
+		 * the back of the queue */
+		fscache_stat(&fscache_n_object_lookups_timed_out);
+		set_bit(FSCACHE_OBJECT_EV_REQUEUE, &object->events);
+	}
 
 	_leave("");
 }
