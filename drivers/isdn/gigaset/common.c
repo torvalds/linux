@@ -727,7 +727,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->ev_tail = 0;
 	cs->ev_head = 0;
 
-	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
+	tasklet_init(&cs->event_tasklet, gigaset_handle_event,
 		     (unsigned long) cs);
 	cs->commands_pending = 0;
 	cs->cur_at_seq = 0;

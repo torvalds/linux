@@ -2117,7 +2117,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 		return 0;
 	}
 	tasklet_init(&ubc->sent_tasklet,
-		     &write_iso_tasklet, (unsigned long) bcs);
+		     write_iso_tasklet, (unsigned long) bcs);
 
 	spin_lock_init(&ubc->isoinlock);
 	for (i = 0; i < BAS_INURBS; ++i)
@@ -2138,7 +2138,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	ubc->shared0s = 0;
 	ubc->stolen0s = 0;
 	tasklet_init(&ubc->rcvd_tasklet,
-		     &read_iso_tasklet, (unsigned long) bcs);
+		     read_iso_tasklet, (unsigned long) bcs);
 	return 1;
 }
 
