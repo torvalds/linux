@@ -262,27 +262,26 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	unsigned int s_flags = sbi->s_super->s_flags;
 	int really_read_only = bdev_read_only(nilfs->ns_bdev);
 	unsigned valid_fs;
-	int err = 0;
+	int err;
 
-	nilfs_init_recovery_info(&ri);
+	if (nilfs_loaded(nilfs))
+		return 0;
 
 	down_write(&nilfs->ns_sem);
 	valid_fs = (nilfs->ns_mount_state & NILFS_VALID_FS);
 	up_write(&nilfs->ns_sem);
 
-	if (!valid_fs && (s_flags & MS_RDONLY)) {
-		printk(KERN_INFO "NILFS: INFO: recovery "
-		       "required for readonly filesystem.\n");
-		if (really_read_only) {
-			printk(KERN_ERR "NILFS: write access "
-			       "unavailable, cannot proceed.\n");
-			err = -EROFS;
-			goto failed;
+	if (!valid_fs) {
+		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
+		if (s_flags & MS_RDONLY) {
+			printk(KERN_INFO "NILFS: INFO: recovery "
+			       "required for readonly filesystem.\n");
+			printk(KERN_INFO "NILFS: write access will "
+			       "be enabled during recovery.\n");
 		}
-		printk(KERN_INFO "NILFS: write access will "
-		       "be enabled during recovery.\n");
-		sbi->s_super->s_flags &= ~MS_RDONLY;
 	}
+
+	nilfs_init_recovery_info(&ri);
 
 	err = nilfs_search_super_root(nilfs, sbi, &ri);
 	if (unlikely(err)) {
@@ -296,19 +295,46 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto failed;
 	}
 
-	if (!valid_fs) {
-		err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
-		if (unlikely(err)) {
-			nilfs_mdt_destroy(nilfs->ns_cpfile);
-			nilfs_mdt_destroy(nilfs->ns_sufile);
-			nilfs_mdt_destroy(nilfs->ns_dat);
-			goto failed;
+	if (valid_fs)
+		goto skip_recovery;
+
+	if (s_flags & MS_RDONLY) {
+		if (really_read_only) {
+			printk(KERN_ERR "NILFS: write access "
+			       "unavailable, cannot proceed.\n");
+			err = -EROFS;
+			goto failed_unload;
 		}
-		if (ri.ri_need_recovery == NILFS_RECOVERY_SR_UPDATED)
-			sbi->s_super->s_dirt = 1;
+		sbi->s_super->s_flags &= ~MS_RDONLY;
 	}
 
+	err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
+	if (err)
+		goto failed_unload;
+
+	down_write(&nilfs->ns_sem);
+	nilfs->ns_mount_state |= NILFS_VALID_FS;
+	nilfs->ns_sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
+	err = nilfs_commit_super(sbi, 1);
+	up_write(&nilfs->ns_sem);
+
+	if (err) {
+		printk(KERN_ERR "NILFS: failed to update super block. "
+		       "recovery unfinished.\n");
+		goto failed_unload;
+	}
+	printk(KERN_INFO "NILFS: recovery complete.\n");
+
+ skip_recovery:
 	set_nilfs_loaded(nilfs);
+	nilfs_clear_recovery_info(&ri);
+	sbi->s_super->s_flags = s_flags;
+	return 0;
+
+ failed_unload:
+	nilfs_mdt_destroy(nilfs->ns_cpfile);
+	nilfs_mdt_destroy(nilfs->ns_sufile);
+	nilfs_mdt_destroy(nilfs->ns_dat);
 
  failed:
 	nilfs_clear_recovery_info(&ri);

@@ -414,22 +414,6 @@ void nilfs_detach_checkpoint(struct nilfs_sb_info *sbi)
 	up_write(&nilfs->ns_super_sem);
 }
 
-static int nilfs_mark_recovery_complete(struct nilfs_sb_info *sbi)
-{
-	struct the_nilfs *nilfs = sbi->s_nilfs;
-	int err = 0;
-
-	down_write(&nilfs->ns_sem);
-	if (!(nilfs->ns_mount_state & NILFS_VALID_FS)) {
-		nilfs->ns_mount_state |= NILFS_VALID_FS;
-		err = nilfs_commit_super(sbi, 1);
-		if (likely(!err))
-			printk(KERN_INFO "NILFS: recovery complete.\n");
-	}
-	up_write(&nilfs->ns_sem);
-	return err;
-}
-
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
@@ -649,9 +633,7 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 	int mnt_count = le16_to_cpu(sbp->s_mnt_count);
 
 	/* nilfs->sem must be locked by the caller. */
-	if (!(nilfs->ns_mount_state & NILFS_VALID_FS)) {
-		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
-	} else if (nilfs->ns_mount_state & NILFS_ERROR_FS) {
+	if (nilfs->ns_mount_state & NILFS_ERROR_FS) {
 		printk(KERN_WARNING
 		       "NILFS warning: mounting fs with errors\n");
 #if 0
@@ -759,11 +741,10 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
 
-	if (!nilfs_loaded(nilfs)) {
-		err = load_nilfs(nilfs, sbi);
-		if (err)
-			goto failed_sbi;
-	}
+	err = load_nilfs(nilfs, sbi);
+	if (err)
+		goto failed_sbi;
+
 	cno = nilfs_last_cno(nilfs);
 
 	if (sb->s_flags & MS_RDONLY) {
@@ -831,22 +812,12 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		up_write(&nilfs->ns_sem);
 	}
 
-	err = nilfs_mark_recovery_complete(sbi);
-	if (unlikely(err)) {
-		printk(KERN_ERR "NILFS: recovery failed.\n");
-		goto failed_root;
-	}
-
 	down_write(&nilfs->ns_super_sem);
 	if (!nilfs_test_opt(sbi, SNAPSHOT))
 		nilfs->ns_current = sbi;
 	up_write(&nilfs->ns_super_sem);
 
 	return 0;
-
- failed_root:
-	dput(sb->s_root);
-	sb->s_root = NULL;
 
  failed_segctor:
 	nilfs_detach_segment_constructor(sbi);
