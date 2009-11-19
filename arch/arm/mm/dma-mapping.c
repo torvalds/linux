@@ -183,27 +183,13 @@ static int __init consistent_init(void)
 core_initcall(consistent_init);
 
 static void *
-__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
-	    pgprot_t prot)
+__dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 {
-	struct page *page;
 	struct arm_vmregion *c;
-
-	size = PAGE_ALIGN(size);
-
-	page = __dma_alloc_buffer(dev, size, gfp);
-	if (!page)
-		goto no_page;
-
-	if (arch_is_coherent()) {
-		*handle = page_to_dma(dev, page);
-		return page_address(page);
-	}
 
 	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
 		dump_stack();
-		__dma_free_buffer(page, size);
 		return NULL;
 	}
 
@@ -219,11 +205,6 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 
 		pte = consistent_pte[idx] + off;
 		c->vm_pages = page;
-
-		/*
-		 * Set the "dma handle"
-		 */
-		*handle = page_to_dma(dev, page);
 
 		do {
 			BUG_ON(!pte_none(*pte));
@@ -244,11 +225,6 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 
 		return (void *)c->vm_start;
 	}
-
-	if (page)
-		__dma_free_buffer(page, size);
- no_page:
-	*handle = ~0;
 	return NULL;
 }
 
@@ -315,11 +291,17 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
 
 #else	/* !CONFIG_MMU */
 
+#define __dma_alloc_remap(page, size, gfp, prot)	page_address(page)
+#define __dma_free_remap(addr, size)			do { } while (0)
+
+#endif	/* CONFIG_MMU */
+
 static void *
 __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
 	struct page *page;
+	void *addr;
 
 	*handle = ~0;
 	size = PAGE_ALIGN(size);
@@ -328,13 +310,16 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	if (!page)
 		return NULL;
 
-	*handle = page_to_dma(dev, page);
-	return page_address(page);
+	if (!arch_is_coherent())
+		addr = __dma_alloc_remap(page, size, gfp, prot);
+	else
+		addr = page_address(page);
+
+	if (addr)
+		*handle = page_to_dma(dev, page);
+
+	return addr;
 }
-
-#define __dma_free_remap(addr, size)	do { } while (0)
-
-#endif	/* CONFIG_MMU */
 
 /*
  * Allocate DMA-coherent memory space and return both the kernel remapped
