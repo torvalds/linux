@@ -40,8 +40,10 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 
 	_debug("--- monitor %p %lx ---", page, page->flags);
 
-	if (!PageUptodate(page) && !PageError(page))
-		dump_stack();
+	if (!PageUptodate(page) && !PageError(page)) {
+		/* unlocked, not uptodate and not erronous? */
+		_debug("page probably truncated");
+	}
 
 	/* remove from the waitqueue */
 	list_del(&wait->task_list);
@@ -58,6 +60,84 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 
 	fscache_enqueue_retrieval(monitor->op);
 	return 0;
+}
+
+/*
+ * handle a probably truncated page
+ * - check to see if the page is still relevant and reissue the read if
+ *   possible
+ * - return -EIO on error, -ENODATA if the page is gone, -EINPROGRESS if we
+ *   must wait again and 0 if successful
+ */
+static int cachefiles_read_reissue(struct cachefiles_object *object,
+				   struct cachefiles_one_read *monitor)
+{
+	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+	struct page *backpage = monitor->back_page, *backpage2;
+	int ret;
+
+	kenter("{ino=%lx},{%lx,%lx}",
+	       object->backer->d_inode->i_ino,
+	       backpage->index, backpage->flags);
+
+	/* skip if the page was truncated away completely */
+	if (backpage->mapping != bmapping) {
+		kleave(" = -ENODATA [mapping]");
+		return -ENODATA;
+	}
+
+	backpage2 = find_get_page(bmapping, backpage->index);
+	if (!backpage2) {
+		kleave(" = -ENODATA [gone]");
+		return -ENODATA;
+	}
+
+	if (backpage != backpage2) {
+		put_page(backpage2);
+		kleave(" = -ENODATA [different]");
+		return -ENODATA;
+	}
+
+	/* the page is still there and we already have a ref on it, so we don't
+	 * need a second */
+	put_page(backpage2);
+
+	INIT_LIST_HEAD(&monitor->op_link);
+	add_page_wait_queue(backpage, &monitor->monitor);
+
+	if (trylock_page(backpage)) {
+		ret = -EIO;
+		if (PageError(backpage))
+			goto unlock_discard;
+		ret = 0;
+		if (PageUptodate(backpage))
+			goto unlock_discard;
+
+		kdebug("reissue read");
+		ret = bmapping->a_ops->readpage(NULL, backpage);
+		if (ret < 0)
+			goto unlock_discard;
+	}
+
+	/* but the page may have been read before the monitor was installed, so
+	 * the monitor may miss the event - so we have to ensure that we do get
+	 * one in such a case */
+	if (trylock_page(backpage)) {
+		_debug("jumpstart %p {%lx}", backpage, backpage->flags);
+		unlock_page(backpage);
+	}
+
+	/* it'll reappear on the todo list */
+	kleave(" = -EINPROGRESS");
+	return -EINPROGRESS;
+
+unlock_discard:
+	unlock_page(backpage);
+	spin_lock_irq(&object->work_lock);
+	list_del(&monitor->op_link);
+	spin_unlock_irq(&object->work_lock);
+	kleave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -92,20 +172,26 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 
 		_debug("- copy {%lu}", monitor->back_page->index);
 
-		error = -EIO;
+	recheck:
 		if (PageUptodate(monitor->back_page)) {
 			copy_highpage(monitor->netfs_page, monitor->back_page);
 
 			pagevec_add(&pagevec, monitor->netfs_page);
 			fscache_mark_pages_cached(monitor->op, &pagevec);
 			error = 0;
-		}
-
-		if (error)
+		} else if (!PageError(monitor->back_page)) {
+			/* the page has probably been truncated */
+			error = cachefiles_read_reissue(object, monitor);
+			if (error == -EINPROGRESS)
+				goto next;
+			goto recheck;
+		} else {
 			cachefiles_io_error_obj(
 				object,
 				"Readpage failed on backing file %lx",
 				(unsigned long) monitor->back_page->flags);
+			error = -EIO;
+		}
 
 		page_cache_release(monitor->back_page);
 
@@ -114,6 +200,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 		fscache_put_retrieval(op);
 		kfree(monitor);
 
+	next:
 		/* let the thread pool have some air occasionally */
 		max--;
 		if (max < 0 || need_resched()) {
