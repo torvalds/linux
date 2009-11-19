@@ -250,6 +250,7 @@ proc files.
 		ok=N	Number of successful alloc reqs
 		wt=N	Number of alloc reqs that waited on lookup completion
 		nbf=N	Number of alloc reqs rejected -ENOBUFS
+		int=N	Number of alloc reqs aborted -ERESTARTSYS
 		ops=N	Number of alloc reqs submitted
 		owt=N	Number of alloc reqs waited for CPU time
 	Retrvls	n=N	Number of retrieval (read) requests seen
@@ -271,6 +272,7 @@ proc files.
 	Ops	pend=N	Number of times async ops added to pending queues
 		run=N	Number of times async ops given CPU time
 		enq=N	Number of times async ops queued for processing
+		can=N	Number of async ops cancelled
 		dfr=N	Number of async ops queued for deferred release
 		rel=N	Number of async ops released
 		gc=N	Number of deferred-release async ops garbage collected

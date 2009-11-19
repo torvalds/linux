@@ -25,6 +25,7 @@ atomic_t fscache_n_op_requeue;
 atomic_t fscache_n_op_deferred_release;
 atomic_t fscache_n_op_release;
 atomic_t fscache_n_op_gc;
+atomic_t fscache_n_op_cancelled;
 
 atomic_t fscache_n_attr_changed;
 atomic_t fscache_n_attr_changed_ok;
@@ -36,6 +37,7 @@ atomic_t fscache_n_allocs;
 atomic_t fscache_n_allocs_ok;
 atomic_t fscache_n_allocs_wait;
 atomic_t fscache_n_allocs_nobufs;
+atomic_t fscache_n_allocs_intr;
 atomic_t fscache_n_alloc_ops;
 atomic_t fscache_n_alloc_op_waits;
 
@@ -169,11 +171,12 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_attr_changed_nomem),
 		   atomic_read(&fscache_n_attr_changed_calls));
 
-	seq_printf(m, "Allocs : n=%u ok=%u wt=%u nbf=%u\n",
+	seq_printf(m, "Allocs : n=%u ok=%u wt=%u nbf=%u int=%u\n",
 		   atomic_read(&fscache_n_allocs),
 		   atomic_read(&fscache_n_allocs_ok),
 		   atomic_read(&fscache_n_allocs_wait),
-		   atomic_read(&fscache_n_allocs_nobufs));
+		   atomic_read(&fscache_n_allocs_nobufs),
+		   atomic_read(&fscache_n_allocs_intr));
 	seq_printf(m, "Allocs : ops=%u owt=%u\n",
 		   atomic_read(&fscache_n_alloc_ops),
 		   atomic_read(&fscache_n_alloc_op_waits));
@@ -201,10 +204,11 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_store_ops),
 		   atomic_read(&fscache_n_store_calls));
 
-	seq_printf(m, "Ops    : pend=%u run=%u enq=%u\n",
+	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u\n",
 		   atomic_read(&fscache_n_op_pend),
 		   atomic_read(&fscache_n_op_run),
-		   atomic_read(&fscache_n_op_enqueue));
+		   atomic_read(&fscache_n_op_enqueue),
+		   atomic_read(&fscache_n_op_cancelled));
 	seq_printf(m, "Ops    : dfr=%u rel=%u gc=%u\n",
 		   atomic_read(&fscache_n_op_deferred_release),
 		   atomic_read(&fscache_n_op_release),

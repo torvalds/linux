@@ -112,6 +112,7 @@ extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
 extern int fscache_submit_op(struct fscache_object *,
 			     struct fscache_operation *);
+extern int fscache_cancel_op(struct fscache_operation *);
 extern void fscache_abort_object(struct fscache_object *);
 extern void fscache_start_operations(struct fscache_object *);
 extern void fscache_operation_gc(struct work_struct *);
@@ -140,6 +141,7 @@ extern atomic_t fscache_n_op_enqueue;
 extern atomic_t fscache_n_op_deferred_release;
 extern atomic_t fscache_n_op_release;
 extern atomic_t fscache_n_op_gc;
+extern atomic_t fscache_n_op_cancelled;
 
 extern atomic_t fscache_n_attr_changed;
 extern atomic_t fscache_n_attr_changed_ok;
@@ -151,6 +153,7 @@ extern atomic_t fscache_n_allocs;
 extern atomic_t fscache_n_allocs_ok;
 extern atomic_t fscache_n_allocs_wait;
 extern atomic_t fscache_n_allocs_nobufs;
+extern atomic_t fscache_n_allocs_intr;
 extern atomic_t fscache_n_alloc_ops;
 extern atomic_t fscache_n_alloc_op_waits;
 

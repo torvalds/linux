@@ -295,8 +295,20 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
 		_debug(">>> WT");
 		fscache_stat(&fscache_n_retrieval_op_waits);
-		wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				fscache_wait_bit_interruptible,
+				TASK_INTERRUPTIBLE) < 0) {
+			ret = fscache_cancel_op(&op->op);
+			if (ret == 0) {
+				ret = -ERESTARTSYS;
+				goto error;
+			}
+
+			/* it's been removed from the pending queue by another
+			 * party, so we should get to run shortly */
+			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		}
 		_debug("<<< GO");
 	}
 
@@ -313,6 +325,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 		fscache_stat_d(&fscache_n_cop_read_or_alloc_page);
 	}
 
+error:
 	if (ret == -ENOMEM)
 		fscache_stat(&fscache_n_retrievals_nomem);
 	else if (ret == -ERESTARTSYS)
@@ -412,8 +425,20 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
 		_debug(">>> WT");
 		fscache_stat(&fscache_n_retrieval_op_waits);
-		wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				fscache_wait_bit_interruptible,
+				TASK_INTERRUPTIBLE) < 0) {
+			ret = fscache_cancel_op(&op->op);
+			if (ret == 0) {
+				ret = -ERESTARTSYS;
+				goto error;
+			}
+
+			/* it's been removed from the pending queue by another
+			 * party, so we should get to run shortly */
+			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		}
 		_debug("<<< GO");
 	}
 
@@ -430,6 +455,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 		fscache_stat_d(&fscache_n_cop_read_or_alloc_pages);
 	}
 
+error:
 	if (ret == -ENOMEM)
 		fscache_stat(&fscache_n_retrievals_nomem);
 	else if (ret == -ERESTARTSYS)
@@ -505,8 +531,20 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
 		_debug(">>> WT");
 		fscache_stat(&fscache_n_alloc_op_waits);
-		wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				fscache_wait_bit_interruptible,
+				TASK_INTERRUPTIBLE) < 0) {
+			ret = fscache_cancel_op(&op->op);
+			if (ret == 0) {
+				ret = -ERESTARTSYS;
+				goto error;
+			}
+
+			/* it's been removed from the pending queue by another
+			 * party, so we should get to run shortly */
+			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+		}
 		_debug("<<< GO");
 	}
 
@@ -515,7 +553,10 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	ret = object->cache->ops->allocate_page(op, page, gfp);
 	fscache_stat_d(&fscache_n_cop_allocate_page);
 
-	if (ret < 0)
+error:
+	if (ret == -ERESTARTSYS)
+		fscache_stat(&fscache_n_allocs_intr);
+	else if (ret < 0)
 		fscache_stat(&fscache_n_allocs_nobufs);
 	else
 		fscache_stat(&fscache_n_allocs_ok);
