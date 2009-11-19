@@ -291,35 +291,31 @@ static int iwmct_kick_fw(struct iwmct_priv *priv, bool jump)
 
 int iwmct_fw_load(struct iwmct_priv *priv)
 {
-	const struct firmware *raw = NULL;
-	__le32 addr;
-	size_t len;
+	const u8 *fw_name = FW_NAME(FW_API_VER);
+	const struct firmware *raw;
 	const u8 *pdata;
-	const u8 *name = "iwmc3200top.1.fw";
-	int ret = 0;
+	size_t len;
+	__le32 addr;
+	int ret;
 
 	/* clear parser struct */
 	memset(&priv->parser, 0, sizeof(struct iwmct_parser));
-	if (!name) {
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	/* get the firmware */
-	ret = request_firmware(&raw, name, &priv->func->dev);
+	ret = request_firmware(&raw, fw_name, &priv->func->dev);
 	if (ret < 0) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "%s request_firmware failed %d\n",
-			  name, ret);
+			  fw_name, ret);
 		goto exit;
 	}
 
 	if (raw->size < sizeof(struct iwmct_fw_sec_hdr)) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "%s smaller then (%zd) (%zd)\n",
-			  name, sizeof(struct iwmct_fw_sec_hdr), raw->size);
+			  fw_name, sizeof(struct iwmct_fw_sec_hdr), raw->size);
 		goto exit;
 	}
 
-	LOG_INFO(priv, FW_DOWNLOAD, "Read firmware '%s'\n", name);
+	LOG_INFO(priv, FW_DOWNLOAD, "Read firmware '%s'\n", fw_name);
 
 	ret = iwmct_fw_parser_init(priv, raw->data, raw->size, priv->trans_len);
 	if (ret < 0) {
@@ -339,7 +335,7 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 	while (iwmct_parse_next_section(priv, &pdata, &len, &addr)) {
 		if (iwmct_download_section(priv, pdata, len, addr)) {
 			LOG_ERROR(priv, FW_DOWNLOAD,
-				  "%s download section failed\n", name);
+				  "%s download section failed\n", fw_name);
 			ret = -EIO;
 			goto exit;
 		}
