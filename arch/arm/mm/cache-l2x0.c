@@ -28,18 +28,18 @@
 static void __iomem *l2x0_base;
 static DEFINE_SPINLOCK(l2x0_lock);
 
-static inline void sync_writel(unsigned long val, unsigned long reg,
-			       unsigned long complete_mask)
+static inline void cache_wait(void __iomem *reg, unsigned long mask)
 {
-	writel(val, l2x0_base + reg);
 	/* wait for the operation to complete */
-	while (readl(l2x0_base + reg) & complete_mask)
+	while (readl(reg) & mask)
 		;
 }
 
 static inline void cache_sync(void)
 {
-	sync_writel(0, L2X0_CACHE_SYNC, 1);
+	void __iomem *base = l2x0_base;
+	writel(0, base + L2X0_CACHE_SYNC);
+	cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 
 static inline void l2x0_inv_all(void)
@@ -48,32 +48,37 @@ static inline void l2x0_inv_all(void)
 
 	/* invalidate all ways */
 	spin_lock_irqsave(&l2x0_lock, flags);
-	sync_writel(0xff, L2X0_INV_WAY, 0xff);
+	writel(0xff, l2x0_base + L2X0_INV_WAY);
+	cache_wait(l2x0_base + L2X0_INV_WAY, 0xff);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_inv_range(unsigned long start, unsigned long end)
 {
+	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
 	spin_lock_irqsave(&l2x0_lock, flags);
 	if (start & (CACHE_LINE_SIZE - 1)) {
 		start &= ~(CACHE_LINE_SIZE - 1);
-		sync_writel(start, L2X0_CLEAN_INV_LINE_PA, 1);
+		cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+		writel(start, base + L2X0_CLEAN_INV_LINE_PA);
 		start += CACHE_LINE_SIZE;
 	}
 
 	if (end & (CACHE_LINE_SIZE - 1)) {
 		end &= ~(CACHE_LINE_SIZE - 1);
-		sync_writel(end, L2X0_CLEAN_INV_LINE_PA, 1);
+		cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+		writel(end, base + L2X0_CLEAN_INV_LINE_PA);
 	}
 
 	while (start < end) {
 		unsigned long blk_end = start + min(end - start, 4096UL);
 
 		while (start < blk_end) {
-			sync_writel(start, L2X0_INV_LINE_PA, 1);
+			cache_wait(base + L2X0_INV_LINE_PA, 1);
+			writel(start, base + L2X0_INV_LINE_PA);
 			start += CACHE_LINE_SIZE;
 		}
 
@@ -82,12 +87,14 @@ static void l2x0_inv_range(unsigned long start, unsigned long end)
 			spin_lock_irqsave(&l2x0_lock, flags);
 		}
 	}
+	cache_wait(base + L2X0_INV_LINE_PA, 1);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_clean_range(unsigned long start, unsigned long end)
 {
+	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
 	spin_lock_irqsave(&l2x0_lock, flags);
@@ -96,7 +103,8 @@ static void l2x0_clean_range(unsigned long start, unsigned long end)
 		unsigned long blk_end = start + min(end - start, 4096UL);
 
 		while (start < blk_end) {
-			sync_writel(start, L2X0_CLEAN_LINE_PA, 1);
+			cache_wait(base + L2X0_CLEAN_LINE_PA, 1);
+			writel(start, base + L2X0_CLEAN_LINE_PA);
 			start += CACHE_LINE_SIZE;
 		}
 
@@ -105,12 +113,14 @@ static void l2x0_clean_range(unsigned long start, unsigned long end)
 			spin_lock_irqsave(&l2x0_lock, flags);
 		}
 	}
+	cache_wait(base + L2X0_CLEAN_LINE_PA, 1);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_flush_range(unsigned long start, unsigned long end)
 {
+	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
 	spin_lock_irqsave(&l2x0_lock, flags);
@@ -119,7 +129,8 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 		unsigned long blk_end = start + min(end - start, 4096UL);
 
 		while (start < blk_end) {
-			sync_writel(start, L2X0_CLEAN_INV_LINE_PA, 1);
+			cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+			writel(start, base + L2X0_CLEAN_INV_LINE_PA);
 			start += CACHE_LINE_SIZE;
 		}
 
@@ -128,6 +139,7 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 			spin_lock_irqsave(&l2x0_lock, flags);
 		}
 	}
+	cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
