@@ -85,6 +85,7 @@ atomic_t fscache_n_updates_run;
 atomic_t fscache_n_relinquishes;
 atomic_t fscache_n_relinquishes_null;
 atomic_t fscache_n_relinquishes_waitcrt;
+atomic_t fscache_n_relinquishes_retire;
 
 atomic_t fscache_n_cookie_index;
 atomic_t fscache_n_cookie_data;
@@ -168,10 +169,11 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_updates_null),
 		   atomic_read(&fscache_n_updates_run));
 
-	seq_printf(m, "Relinqs: n=%u nul=%u wcr=%u\n",
+	seq_printf(m, "Relinqs: n=%u nul=%u wcr=%u rtr=%u\n",
 		   atomic_read(&fscache_n_relinquishes),
 		   atomic_read(&fscache_n_relinquishes_null),
-		   atomic_read(&fscache_n_relinquishes_waitcrt));
+		   atomic_read(&fscache_n_relinquishes_waitcrt),
+		   atomic_read(&fscache_n_relinquishes_retire));
 
 	seq_printf(m, "AttrChg: n=%u ok=%u nbf=%u oom=%u run=%u\n",
 		   atomic_read(&fscache_n_attr_changed),

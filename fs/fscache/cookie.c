@@ -415,6 +415,8 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 	unsigned long event;
 
 	fscache_stat(&fscache_n_relinquishes);
+	if (retire)
+		fscache_stat(&fscache_n_relinquishes_retire);
 
 	if (!cookie) {
 		fscache_stat(&fscache_n_relinquishes_null);
