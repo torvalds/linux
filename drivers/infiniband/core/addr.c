@@ -461,17 +461,26 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	if (!req)
 		return -ENOMEM;
 
-	if (src_addr)
-		memcpy(&req->src_addr, src_addr, ip_addr_size(src_addr));
-	memcpy(&req->dst_addr, dst_addr, ip_addr_size(dst_addr));
+	src_in = (struct sockaddr *) &req->src_addr;
+	dst_in = (struct sockaddr *) &req->dst_addr;
+
+	if (src_addr) {
+		if (src_addr->sa_family != dst_addr->sa_family) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		memcpy(src_in, src_addr, ip_addr_size(src_addr));
+	} else {
+		src_in->sa_family = dst_addr->sa_family;
+	}
+
+	memcpy(dst_in, dst_addr, ip_addr_size(dst_addr));
 	req->addr = addr;
 	req->callback = callback;
 	req->context = context;
 	req->client = client;
 	atomic_inc(&client->refcount);
-
-	src_in = (struct sockaddr *) &req->src_addr;
-	dst_in = (struct sockaddr *) &req->dst_addr;
 
 	req->status = addr_resolve_local(src_in, dst_in, addr);
 	if (req->status == -EADDRNOTAVAIL)
@@ -490,9 +499,11 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	default:
 		ret = req->status;
 		atomic_dec(&client->refcount);
-		kfree(req);
-		break;
+		goto err;
 	}
+	return ret;
+err:
+	kfree(req);
 	return ret;
 }
 EXPORT_SYMBOL(rdma_resolve_ip);
