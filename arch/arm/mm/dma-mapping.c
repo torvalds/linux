@@ -63,6 +63,68 @@ static u64 get_coherent_dma_mask(struct device *dev)
 	return mask;
 }
 
+/*
+ * Allocate a DMA buffer for 'dev' of size 'size' using the
+ * specified gfp mask.  Note that 'size' must be page aligned.
+ */
+static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gfp)
+{
+	unsigned long order = get_order(size);
+	struct page *page, *p, *e;
+	void *ptr;
+	u64 mask = get_coherent_dma_mask(dev);
+
+#ifdef CONFIG_DMA_API_DEBUG
+	u64 limit = (mask + 1) & ~mask;
+	if (limit && size >= limit) {
+		dev_warn(dev, "coherent allocation too big (requested %#x mask %#llx)\n",
+			size, mask);
+		return NULL;
+	}
+#endif
+
+	if (!mask)
+		return NULL;
+
+	if (mask < 0xffffffffULL)
+		gfp |= GFP_DMA;
+
+	page = alloc_pages(gfp, order);
+	if (!page)
+		return NULL;
+
+	/*
+	 * Now split the huge page and free the excess pages
+	 */
+	split_page(page, order);
+	for (p = page + (size >> PAGE_SHIFT), e = page + (1 << order); p < e; p++)
+		__free_page(p);
+
+	/*
+	 * Ensure that the allocated pages are zeroed, and that any data
+	 * lurking in the kernel direct-mapped region is invalidated.
+	 */
+	ptr = page_address(page);
+	memset(ptr, 0, size);
+	dmac_flush_range(ptr, ptr + size);
+	outer_flush_range(__pa(ptr), __pa(ptr) + size);
+
+	return page;
+}
+
+/*
+ * Free a DMA buffer.  'size' must be page aligned.
+ */
+static void __dma_free_buffer(struct page *page, size_t size)
+{
+	struct page *e = page + (size >> PAGE_SHIFT);
+
+	while (page < e) {
+		__free_page(page);
+		page++;
+	}
+}
+
 #ifdef CONFIG_MMU
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
@@ -88,9 +150,6 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 {
 	struct page *page;
 	struct arm_vmregion *c;
-	unsigned long order;
-	u64 mask = get_coherent_dma_mask(dev);
-	u64 limit;
 
 	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
@@ -98,36 +157,11 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		return NULL;
 	}
 
-	if (!mask)
-		goto no_page;
-
 	size = PAGE_ALIGN(size);
-	limit = (mask + 1) & ~mask;
-	if (limit && size >= limit) {
-		printk(KERN_WARNING "coherent allocation too big "
-		       "(requested %#x mask %#llx)\n", size, mask);
-		goto no_page;
-	}
 
-	order = get_order(size);
-
-	if (mask < 0xffffffffULL)
-		gfp |= GFP_DMA;
-
-	page = alloc_pages(gfp, order);
+	page = __dma_alloc_buffer(dev, size, gfp);
 	if (!page)
 		goto no_page;
-
-	/*
-	 * Invalidate any data that might be lurking in the
-	 * kernel direct-mapped region for device DMA.
-	 */
-	{
-		void *ptr = page_address(page);
-		memset(ptr, 0, size);
-		dmac_flush_range(ptr, ptr + size);
-		outer_flush_range(__pa(ptr), __pa(ptr) + size);
-	}
 
 	/*
 	 * Allocate a virtual address in the consistent mapping region.
@@ -136,14 +170,11 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
 		pte_t *pte;
-		struct page *end = page + (1 << order);
 		int idx = CONSISTENT_PTE_INDEX(c->vm_start);
 		u32 off = CONSISTENT_OFFSET(c->vm_start) & (PTRS_PER_PTE-1);
 
 		pte = consistent_pte[idx] + off;
 		c->vm_pages = page;
-
-		split_page(page, order);
 
 		/*
 		 * Set the "dma handle"
@@ -167,19 +198,11 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 			}
 		} while (size -= PAGE_SIZE);
 
-		/*
-		 * Free the otherwise unused pages.
-		 */
-		while (page < end) {
-			__free_page(page);
-			page++;
-		}
-
 		return (void *)c->vm_start;
 	}
 
 	if (page)
-		__free_pages(page, order);
+		__dma_free_buffer(page, size);
  no_page:
 	*handle = ~0;
 	return NULL;
@@ -357,12 +380,9 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 				 * x86 does not mark the pages reserved...
 				 */
 				ClearPageReserved(page);
-
-				__free_page(page);
 				continue;
 			}
 		}
-
 		printk(KERN_CRIT "%s: bad page in kernel page table\n",
 		       __func__);
 	} while (size -= PAGE_SIZE);
@@ -370,6 +390,8 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	flush_tlb_kernel_range(c->vm_start, c->vm_end);
 
 	arm_vmregion_free(&consistent_head, c);
+
+	__dma_free_buffer(dma_to_page(dev, handle), size);
 	return;
 
  no_area:
