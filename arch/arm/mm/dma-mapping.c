@@ -189,17 +189,23 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	struct page *page;
 	struct arm_vmregion *c;
 
-	if (!consistent_pte[0]) {
-		printk(KERN_ERR "%s: not initialised\n", __func__);
-		dump_stack();
-		return NULL;
-	}
-
 	size = PAGE_ALIGN(size);
 
 	page = __dma_alloc_buffer(dev, size, gfp);
 	if (!page)
 		goto no_page;
+
+	if (arch_is_coherent()) {
+		*handle = page_to_dma(dev, page);
+		return page_address(page);
+	}
+
+	if (!consistent_pte[0]) {
+		printk(KERN_ERR "%s: not initialised\n", __func__);
+		dump_stack();
+		__dma_free_buffer(page, size);
+		return NULL;
+	}
 
 	/*
 	 * Allocate a virtual address in the consistent mapping region.
@@ -341,19 +347,6 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 
 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
 		return memory;
-
-	if (arch_is_coherent()) {
-		struct page *page;
-
-		page = __dma_alloc_buffer(dev, PAGE_ALIGN(size), gfp);
-		if (!page) {
-			*handle = ~0;
-			return NULL;
-		}
-
-		*handle = page_to_dma(dev, page);
-		return page_address(page);
-	}
 
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_noncached(pgprot_kernel));
