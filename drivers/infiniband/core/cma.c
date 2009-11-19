@@ -2687,7 +2687,7 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 	if (cma_any_addr(addr)) {
 		memset(mgid, 0, sizeof *mgid);
 	} else if ((addr->sa_family == AF_INET6) &&
-		   ((be32_to_cpu(sin6->sin6_addr.s6_addr32[0]) & 0xFF10A01B) ==
+		   ((be32_to_cpu(sin6->sin6_addr.s6_addr32[0]) & 0xFFF0FFFF) ==
 								 0xFF10A01B)) {
 		/* IPv6 address is an SA assigned MGID. */
 		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
