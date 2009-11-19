@@ -899,6 +899,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, NO_AUTO_DA_ALLOC))
 		seq_puts(seq, ",noauto_da_alloc");
 
+	if (test_opt(sb, DISCARD))
+		seq_puts(seq, ",discard");
+
 	ext4_show_quota_options(seq, sb);
 
 	return 0;
@@ -1079,7 +1082,8 @@ enum {
 	Opt_usrquota, Opt_grpquota, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 	Opt_block_validity, Opt_noblock_validity,
-	Opt_inode_readahead_blks, Opt_journal_ioprio
+	Opt_inode_readahead_blks, Opt_journal_ioprio,
+	Opt_discard, Opt_nodiscard,
 };
 
 static const match_table_t tokens = {
@@ -1144,6 +1148,8 @@ static const match_table_t tokens = {
 	{Opt_auto_da_alloc, "auto_da_alloc=%u"},
 	{Opt_auto_da_alloc, "auto_da_alloc"},
 	{Opt_noauto_da_alloc, "noauto_da_alloc"},
+	{Opt_discard, "discard"},
+	{Opt_nodiscard, "nodiscard"},
 	{Opt_err, NULL},
 };
 
@@ -1564,6 +1570,12 @@ set_qf_format:
 				clear_opt(sbi->s_mount_opt, NO_AUTO_DA_ALLOC);
 			else
 				set_opt(sbi->s_mount_opt,NO_AUTO_DA_ALLOC);
+			break;
+		case Opt_discard:
+			set_opt(sbi->s_mount_opt, DISCARD);
+			break;
+		case Opt_nodiscard:
+			clear_opt(sbi->s_mount_opt, DISCARD);
 			break;
 		default:
 			ext4_msg(sb, KERN_ERR,

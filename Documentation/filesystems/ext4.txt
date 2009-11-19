@@ -353,6 +353,12 @@ noauto_da_alloc		replacing existing files via patterns such as
 			system crashes before the delayed allocation
 			blocks are forced to disk.
 
+discard		Controls whether ext4 should issue discard/TRIM
+nodiscard(*)		commands to the underlying block device when
+			blocks are freed.  This is useful for SSD devices
+			and sparse/thinly-provisioned LUNs, but it is off
+			by default until sufficient testing has been done.
+
 Data Mode
 =========
 There are 3 different data modes:
