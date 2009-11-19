@@ -232,6 +232,11 @@ int fscache_submit_op(struct fscache_object *object,
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
+	} else if (object->state == FSCACHE_OBJECT_DYING ||
+		   object->state == FSCACHE_OBJECT_LC_DYING ||
+		   object->state == FSCACHE_OBJECT_WITHDRAWING) {
+		fscache_stat(&fscache_n_op_rejected);
+		ret = -ENOBUFS;
 	} else if (!test_bit(FSCACHE_IOERROR, &object->cache->flags)) {
 		fscache_report_unexpected_submission(object, op, ostate);
 		ASSERT(!fscache_object_is_active(object));

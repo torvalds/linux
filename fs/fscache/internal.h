@@ -143,6 +143,7 @@ extern atomic_t fscache_n_op_deferred_release;
 extern atomic_t fscache_n_op_release;
 extern atomic_t fscache_n_op_gc;
 extern atomic_t fscache_n_op_cancelled;
+extern atomic_t fscache_n_op_rejected;
 
 extern atomic_t fscache_n_attr_changed;
 extern atomic_t fscache_n_attr_changed_ok;

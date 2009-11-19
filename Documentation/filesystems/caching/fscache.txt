@@ -276,6 +276,7 @@ proc files.
 		run=N	Number of times async ops given CPU time
 		enq=N	Number of times async ops queued for processing
 		can=N	Number of async ops cancelled
+		rej=N	Number of async ops rejected due to object lookup/create failure
 		dfr=N	Number of async ops queued for deferred release
 		rel=N	Number of async ops released
 		gc=N	Number of deferred-release async ops garbage collected

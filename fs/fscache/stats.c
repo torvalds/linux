@@ -26,6 +26,7 @@ atomic_t fscache_n_op_deferred_release;
 atomic_t fscache_n_op_release;
 atomic_t fscache_n_op_gc;
 atomic_t fscache_n_op_cancelled;
+atomic_t fscache_n_op_rejected;
 
 atomic_t fscache_n_attr_changed;
 atomic_t fscache_n_attr_changed_ok;
@@ -210,11 +211,12 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_store_radix_deletes),
 		   atomic_read(&fscache_n_store_pages_over_limit));
 
-	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u\n",
+	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u rej=%u\n",
 		   atomic_read(&fscache_n_op_pend),
 		   atomic_read(&fscache_n_op_run),
 		   atomic_read(&fscache_n_op_enqueue),
-		   atomic_read(&fscache_n_op_cancelled));
+		   atomic_read(&fscache_n_op_cancelled),
+		   atomic_read(&fscache_n_op_rejected));
 	seq_printf(m, "Ops    : dfr=%u rel=%u gc=%u\n",
 		   atomic_read(&fscache_n_op_deferred_release),
 		   atomic_read(&fscache_n_op_release),
