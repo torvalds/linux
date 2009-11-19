@@ -71,7 +71,6 @@ static const u16 e1000_igp_2_cable_length_table[] =
 #define I82577_CFG_ASSERT_CRS_ON_TX       (1 << 15)
 #define I82577_CFG_ENABLE_DOWNSHIFT       (3 << 10) /* auto downshift 100/10 */
 #define I82577_CTRL_REG                   23
-#define I82577_CTRL_DOWNSHIFT_MASK        (7 << 10)
 
 /* 82577 specific PHY registers */
 #define I82577_PHY_CTRL_2            18
@@ -660,15 +659,6 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = phy->ops.write_phy_reg(hw, I82577_CFG_REG, phy_data);
-	if (ret_val)
-		goto out;
-
-	/* Set number of link attempts before downshift */
-	ret_val = phy->ops.read_phy_reg(hw, I82577_CTRL_REG, &phy_data);
-	if (ret_val)
-		goto out;
-	phy_data &= ~I82577_CTRL_DOWNSHIFT_MASK;
-	ret_val = phy->ops.write_phy_reg(hw, I82577_CTRL_REG, phy_data);
 
 out:
 	return ret_val;
