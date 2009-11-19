@@ -242,11 +242,11 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 	input_dev->phys = ts_dev->phys;
 	input_dev->dev.parent = &pdev->dev;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-
+	__set_bit(EV_ABS, input_dev->evbit);
 	input_set_abs_params(input_dev, ABS_X, 0, 0x3FF, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 0x3FF, 0, 0);
+
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 	/* clk_enable() always returns 0, no need to check it */
 	clk_enable(ts_dev->clk);
