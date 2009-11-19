@@ -246,14 +246,16 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 		return memory;
 
 	if (arch_is_coherent()) {
-		void *virt;
+		struct page *page;
 
-		virt = kmalloc(size, gfp);
-		if (!virt)
+		page = __dma_alloc_buffer(dev, PAGE_ALIGN(size), gfp);
+		if (!page) {
+			*handle = ~0;
 			return NULL;
-		*handle =  virt_to_dma(dev, virt);
+		}
 
-		return virt;
+		*handle = page_to_dma(dev, page);
+		return page_address(page);
 	}
 
 	return __dma_alloc(dev, size, handle, gfp,
@@ -336,12 +338,12 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
 		return;
 
+	size = PAGE_ALIGN(size);
+
 	if (arch_is_coherent()) {
-		kfree(cpu_addr);
+		__dma_free_buffer(dma_to_page(dev, handle), size);
 		return;
 	}
-
-	size = PAGE_ALIGN(size);
 
 	c = arm_vmregion_find_remove(&consistent_head, (unsigned long)cpu_addr);
 	if (!c)
