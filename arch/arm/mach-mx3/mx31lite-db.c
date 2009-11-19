@@ -29,6 +29,8 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/leds.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -153,6 +155,36 @@ static struct spi_imx_master spi0_pdata = {
 	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
 };
 
+/* GPIO LEDs */
+
+static struct gpio_led litekit_leds[] = {
+	{
+		.name           = "GPIO0",
+		.gpio           = IOMUX_TO_GPIO(MX31_PIN_COMPARE),
+		.active_low     = 1,
+		.default_state  = LEDS_GPIO_DEFSTATE_OFF,
+	},
+	{
+		.name           = "GPIO1",
+		.gpio           = IOMUX_TO_GPIO(MX31_PIN_CAPTURE),
+		.active_low     = 1,
+		.default_state  = LEDS_GPIO_DEFSTATE_OFF,
+	}
+};
+
+static struct gpio_led_platform_data litekit_led_platform_data = {
+	.leds           = litekit_leds,
+	.num_leds       = ARRAY_SIZE(litekit_leds),
+};
+
+static struct platform_device litekit_led_device = {
+	.name   = "leds-gpio",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &litekit_led_platform_data,
+	},
+};
+
 void __init mx31lite_db_init(void)
 {
 	mxc_iomux_setup_multiple_pins(litekit_db_board_pins,
@@ -161,5 +193,6 @@ void __init mx31lite_db_init(void)
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
 	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
+	platform_device_register(&litekit_led_device);
 }
 
