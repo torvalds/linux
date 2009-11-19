@@ -353,13 +353,12 @@ static void fscache_object_slow_work_execute(struct slow_work *work)
 
 	_enter("{OBJ%x}", object->debug_id);
 
-	clear_bit(FSCACHE_OBJECT_EV_REQUEUE, &object->events);
-
 	start = jiffies;
 	fscache_object_state_machine(object);
 	fscache_hist(fscache_objs_histogram, start);
 	if (object->events & object->event_mask)
 		fscache_enqueue_object(object);
+	clear_bit(FSCACHE_OBJECT_EV_REQUEUE, &object->events);
 }
 
 /*
