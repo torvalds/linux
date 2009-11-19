@@ -217,6 +217,19 @@ struct v4l2_subdev_audio_ops {
 
    s_routing: see s_routing in audio_ops, except this version is for video
 	devices.
+
+   s_dv_preset: set dv (Digital Video) preset in the sub device. Similar to
+	s_std()
+
+   query_dv_preset: query dv preset in the sub device. This is similar to
+	querystd()
+
+   s_dv_timings(): Set custom dv timings in the sub device. This is used
+	when sub device is capable of setting detailed timing information
+	in the hardware to generate/detect the video signal.
+
+   g_dv_timings(): Get custom dv timings in the sub device.
+
  */
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
@@ -240,6 +253,14 @@ struct v4l2_subdev_video_ops {
 	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
+	int (*s_dv_preset)(struct v4l2_subdev *sd,
+			struct v4l2_dv_preset *preset);
+	int (*query_dv_preset)(struct v4l2_subdev *sd,
+			struct v4l2_dv_preset *preset);
+	int (*s_dv_timings)(struct v4l2_subdev *sd,
+			struct v4l2_dv_timings *timings);
+	int (*g_dv_timings)(struct v4l2_subdev *sd,
+			struct v4l2_dv_timings *timings);
 };
 
 /*
