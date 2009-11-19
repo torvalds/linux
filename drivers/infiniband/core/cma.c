@@ -2691,6 +2691,11 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 								 0xFF10A01B)) {
 		/* IPv6 address is an SA assigned MGID. */
 		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
+	} else if ((addr->sa_family == AF_INET6)) {
+		ipv6_ib_mc_map(&sin6->sin6_addr, dev_addr->broadcast, mc_map);
+		if (id_priv->id.ps == RDMA_PS_UDP)
+			mc_map[7] = 0x01;	/* Use RDMA CM signature */
+		*mgid = *(union ib_gid *) (mc_map + 4);
 	} else {
 		ip_ib_mc_map(sin->sin_addr.s_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)
