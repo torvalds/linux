@@ -160,6 +160,45 @@ static void do_usb_entry(struct usb_device_id *id,
 		   "MODULE_ALIAS(\"%s\");\n", alias);
 }
 
+/* Handles increment/decrement of BCD formatted integers */
+/* Returns the previous value, so it works like i++ or i-- */
+static unsigned int incbcd(unsigned int *bcd,
+			   int inc,
+			   unsigned char max,
+			   size_t chars)
+{
+	unsigned int init = *bcd, i, j;
+	unsigned long long c, dec = 0;
+
+	/* If bcd is not in BCD format, just increment */
+	if (max > 0x9) {
+		*bcd += inc;
+		return init;
+	}
+
+	/* Convert BCD to Decimal */
+	for (i=0 ; i < chars ; i++) {
+		c = (*bcd >> (i << 2)) & 0xf;
+		c = c > 9 ? 9 : c; /* force to bcd just in case */
+		for (j=0 ; j < i ; j++)
+			c = c * 10;
+		dec += c;
+	}
+
+	/* Do our increment/decrement */
+	dec += inc;
+	*bcd  = 0;
+
+	/* Convert back to BCD */
+	for (i=0 ; i < chars ; i++) {
+		for (c=1,j=0 ; j < i ; j++)
+			c = c * 10;
+		c = (dec / c) % 10;
+		*bcd += c << (i << 2);
+	}
+	return init;
+}
+
 static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 {
 	unsigned int devlo, devhi;
@@ -208,10 +247,16 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 		}
 
 		if (clo > 0x0)
-			do_usb_entry(id, devlo++, ndigits, clo, max, max, mod);
+			do_usb_entry(id,
+				     incbcd(&devlo, 1, max,
+					    sizeof(id->bcdDevice_lo) * 2),
+				     ndigits, clo, max, max, mod);
 
 		if (chi < max)
-			do_usb_entry(id, devhi--, ndigits, 0x0, chi, max, mod);
+			do_usb_entry(id,
+				     incbcd(&devhi, -1, max,
+					    sizeof(id->bcdDevice_lo) * 2),
+				     ndigits, 0x0, chi, max, mod);
 	}
 }
 
