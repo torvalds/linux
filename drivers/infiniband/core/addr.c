@@ -107,7 +107,7 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	memcpy(dev_addr->broadcast, dev->broadcast, MAX_ADDR_LEN);
 	if (dst_dev_addr)
 		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
-	dev_addr->src_dev = dev;
+	dev_addr->bound_dev_if = dev->ifindex;
 	return 0;
 }
 EXPORT_SYMBOL(rdma_copy_addr);
@@ -116,6 +116,15 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
 	int ret = -EADDRNOTAVAIL;
+
+	if (dev_addr->bound_dev_if) {
+		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+		if (!dev)
+			return -ENODEV;
+		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		dev_put(dev);
+		return ret;
+	}
 
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -231,6 +240,8 @@ static int addr4_resolve_remote(struct sockaddr_in *src_in,
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
 	fl.nl_u.ip4_u.saddr = src_ip;
+	fl.oif = addr->bound_dev_if;
+
 	ret = ip_route_output_key(&init_net, &rt, &fl);
 	if (ret)
 		goto out;
@@ -279,6 +290,7 @@ static int addr6_resolve_remote(struct sockaddr_in6 *src_in,
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip6_u.daddr = dst_in->sin6_addr;
 	fl.nl_u.ip6_u.saddr = src_in->sin6_addr;
+	fl.oif = addr->bound_dev_if;
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst)
