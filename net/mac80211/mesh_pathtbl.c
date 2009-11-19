@@ -468,7 +468,7 @@ void mesh_plink_broken(struct sta_info *sta)
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(MESH_TTL, mpath->dst,
 					cpu_to_le32(mpath->sn),
-					PERR_RCODE_DEST_UNREACH,
+					cpu_to_le16(PERR_RCODE_DEST_UNREACH),
 					bcast, sdata);
 		} else
 		spin_unlock_bh(&mpath->state_lock);
@@ -614,7 +614,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		if (mpath)
 			sn = ++mpath->sn;
 		mesh_path_error_tx(MESH_TTL, skb->data, cpu_to_le32(sn),
-				   PERR_RCODE_NO_ROUTE, ra, sdata);
+				   cpu_to_le16(PERR_RCODE_NO_ROUTE), ra, sdata);
 	}
 
 	kfree_skb(skb);
