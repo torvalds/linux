@@ -93,6 +93,23 @@ atomic_t fscache_n_checkaux_okay;
 atomic_t fscache_n_checkaux_update;
 atomic_t fscache_n_checkaux_obsolete;
 
+atomic_t fscache_n_cop_alloc_object;
+atomic_t fscache_n_cop_lookup_object;
+atomic_t fscache_n_cop_lookup_complete;
+atomic_t fscache_n_cop_grab_object;
+atomic_t fscache_n_cop_update_object;
+atomic_t fscache_n_cop_drop_object;
+atomic_t fscache_n_cop_put_object;
+atomic_t fscache_n_cop_sync_cache;
+atomic_t fscache_n_cop_attr_changed;
+atomic_t fscache_n_cop_read_or_alloc_page;
+atomic_t fscache_n_cop_read_or_alloc_pages;
+atomic_t fscache_n_cop_allocate_page;
+atomic_t fscache_n_cop_allocate_pages;
+atomic_t fscache_n_cop_write_page;
+atomic_t fscache_n_cop_uncache_page;
+atomic_t fscache_n_cop_dissociate_pages;
+
 /*
  * display the general statistics
  */
@@ -192,6 +209,26 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_op_deferred_release),
 		   atomic_read(&fscache_n_op_release),
 		   atomic_read(&fscache_n_op_gc));
+
+	seq_printf(m, "CacheOp: alo=%d luo=%d luc=%d gro=%d\n",
+		   atomic_read(&fscache_n_cop_alloc_object),
+		   atomic_read(&fscache_n_cop_lookup_object),
+		   atomic_read(&fscache_n_cop_lookup_complete),
+		   atomic_read(&fscache_n_cop_grab_object));
+	seq_printf(m, "CacheOp: upo=%d dro=%d pto=%d atc=%d syn=%d\n",
+		   atomic_read(&fscache_n_cop_update_object),
+		   atomic_read(&fscache_n_cop_drop_object),
+		   atomic_read(&fscache_n_cop_put_object),
+		   atomic_read(&fscache_n_cop_attr_changed),
+		   atomic_read(&fscache_n_cop_sync_cache));
+	seq_printf(m, "CacheOp: rap=%d ras=%d alp=%d als=%d wrp=%d ucp=%d dsp=%d\n",
+		   atomic_read(&fscache_n_cop_read_or_alloc_page),
+		   atomic_read(&fscache_n_cop_read_or_alloc_pages),
+		   atomic_read(&fscache_n_cop_allocate_page),
+		   atomic_read(&fscache_n_cop_allocate_pages),
+		   atomic_read(&fscache_n_cop_write_page),
+		   atomic_read(&fscache_n_cop_uncache_page),
+		   atomic_read(&fscache_n_cop_dissociate_pages));
 	return 0;
 }
 

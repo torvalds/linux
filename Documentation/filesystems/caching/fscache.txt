@@ -274,6 +274,22 @@ proc files.
 		dfr=N	Number of async ops queued for deferred release
 		rel=N	Number of async ops released
 		gc=N	Number of deferred-release async ops garbage collected
+	CacheOp	alo=N	Number of in-progress alloc_object() cache ops
+		luo=N	Number of in-progress lookup_object() cache ops
+		luc=N	Number of in-progress lookup_complete() cache ops
+		gro=N	Number of in-progress grab_object() cache ops
+		upo=N	Number of in-progress update_object() cache ops
+		dro=N	Number of in-progress drop_object() cache ops
+		pto=N	Number of in-progress put_object() cache ops
+		syn=N	Number of in-progress sync_cache() cache ops
+		atc=N	Number of in-progress attr_changed() cache ops
+		rap=N	Number of in-progress read_or_alloc_page() cache ops
+		ras=N	Number of in-progress read_or_alloc_pages() cache ops
+		alp=N	Number of in-progress allocate_page() cache ops
+		als=N	Number of in-progress allocate_pages() cache ops
+		wrp=N	Number of in-progress write_page() cache ops
+		ucp=N	Number of in-progress uncache_page() cache ops
+		dsp=N	Number of in-progress dissociate_pages() cache ops
 
 
  (*) /proc/fs/fscache/histogram

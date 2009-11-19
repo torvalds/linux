@@ -208,9 +208,31 @@ extern atomic_t fscache_n_checkaux_okay;
 extern atomic_t fscache_n_checkaux_update;
 extern atomic_t fscache_n_checkaux_obsolete;
 
+extern atomic_t fscache_n_cop_alloc_object;
+extern atomic_t fscache_n_cop_lookup_object;
+extern atomic_t fscache_n_cop_lookup_complete;
+extern atomic_t fscache_n_cop_grab_object;
+extern atomic_t fscache_n_cop_update_object;
+extern atomic_t fscache_n_cop_drop_object;
+extern atomic_t fscache_n_cop_put_object;
+extern atomic_t fscache_n_cop_sync_cache;
+extern atomic_t fscache_n_cop_attr_changed;
+extern atomic_t fscache_n_cop_read_or_alloc_page;
+extern atomic_t fscache_n_cop_read_or_alloc_pages;
+extern atomic_t fscache_n_cop_allocate_page;
+extern atomic_t fscache_n_cop_allocate_pages;
+extern atomic_t fscache_n_cop_write_page;
+extern atomic_t fscache_n_cop_uncache_page;
+extern atomic_t fscache_n_cop_dissociate_pages;
+
 static inline void fscache_stat(atomic_t *stat)
 {
 	atomic_inc(stat);
+}
+
+static inline void fscache_stat_d(atomic_t *stat)
+{
+	atomic_dec(stat);
 }
 
 extern const struct file_operations fscache_stats_fops;

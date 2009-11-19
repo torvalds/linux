@@ -71,7 +71,9 @@ static void fscache_attr_changed_op(struct fscache_operation *op)
 
 	if (fscache_object_is_active(object)) {
 		fscache_set_op_state(op, "CallFS");
+		fscache_stat(&fscache_n_cop_attr_changed);
 		ret = object->cache->ops->attr_changed(object);
+		fscache_stat_d(&fscache_n_cop_attr_changed);
 		fscache_set_op_state(op, "Done");
 		if (ret < 0)
 			fscache_abort_object(object);
@@ -300,11 +302,15 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 
 	/* ask the cache to honour the operation */
 	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags)) {
+		fscache_stat(&fscache_n_cop_allocate_page);
 		ret = object->cache->ops->allocate_page(op, page, gfp);
+		fscache_stat_d(&fscache_n_cop_allocate_page);
 		if (ret == 0)
 			ret = -ENODATA;
 	} else {
+		fscache_stat(&fscache_n_cop_read_or_alloc_page);
 		ret = object->cache->ops->read_or_alloc_page(op, page, gfp);
+		fscache_stat_d(&fscache_n_cop_read_or_alloc_page);
 	}
 
 	if (ret == -ENOMEM)
@@ -358,7 +364,6 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 				  void *context,
 				  gfp_t gfp)
 {
-	fscache_pages_retrieval_func_t func;
 	struct fscache_retrieval *op;
 	struct fscache_object *object;
 	int ret;
@@ -413,11 +418,17 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	}
 
 	/* ask the cache to honour the operation */
-	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags))
-		func = object->cache->ops->allocate_pages;
-	else
-		func = object->cache->ops->read_or_alloc_pages;
-	ret = func(op, pages, nr_pages, gfp);
+	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags)) {
+		fscache_stat(&fscache_n_cop_allocate_pages);
+		ret = object->cache->ops->allocate_pages(
+			op, pages, nr_pages, gfp);
+		fscache_stat_d(&fscache_n_cop_allocate_pages);
+	} else {
+		fscache_stat(&fscache_n_cop_read_or_alloc_pages);
+		ret = object->cache->ops->read_or_alloc_pages(
+			op, pages, nr_pages, gfp);
+		fscache_stat_d(&fscache_n_cop_read_or_alloc_pages);
+	}
 
 	if (ret == -ENOMEM)
 		fscache_stat(&fscache_n_retrievals_nomem);
@@ -500,7 +511,9 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	}
 
 	/* ask the cache to honour the operation */
+	fscache_stat(&fscache_n_cop_allocate_page);
 	ret = object->cache->ops->allocate_page(op, page, gfp);
+	fscache_stat_d(&fscache_n_cop_allocate_page);
 
 	if (ret < 0)
 		fscache_stat(&fscache_n_allocs_nobufs);
@@ -578,7 +591,9 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	if (page) {
 		fscache_set_op_state(&op->op, "Store");
+		fscache_stat(&fscache_n_cop_write_page);
 		ret = object->cache->ops->write_page(op, page);
+		fscache_stat_d(&fscache_n_cop_write_page);
 		fscache_set_op_state(&op->op, "EndWrite");
 		fscache_end_page_write(cookie, page);
 		page_cache_release(page);
@@ -786,7 +801,9 @@ void __fscache_uncache_page(struct fscache_cookie *cookie, struct page *page)
 	if (TestClearPageFsCache(page) &&
 	    object->cache->ops->uncache_page) {
 		/* the cache backend releases the cookie lock */
+		fscache_stat(&fscache_n_cop_uncache_page);
 		object->cache->ops->uncache_page(object, page);
+		fscache_stat_d(&fscache_n_cop_uncache_page);
 		goto done;
 	}
 

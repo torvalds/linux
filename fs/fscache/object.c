@@ -144,13 +144,17 @@ static void fscache_object_state_machine(struct fscache_object *object)
 	case FSCACHE_OBJECT_UPDATING:
 		clear_bit(FSCACHE_OBJECT_EV_UPDATE, &object->events);
 		fscache_stat(&fscache_n_updates_run);
+		fscache_stat(&fscache_n_cop_update_object);
 		object->cache->ops->update_object(object);
+		fscache_stat_d(&fscache_n_cop_update_object);
 		goto active_transit;
 
 		/* handle an object dying during lookup or creation */
 	case FSCACHE_OBJECT_LC_DYING:
 		object->event_mask &= ~(1 << FSCACHE_OBJECT_EV_UPDATE);
+		fscache_stat(&fscache_n_cop_lookup_complete);
 		object->cache->ops->lookup_complete(object);
+		fscache_stat_d(&fscache_n_cop_lookup_complete);
 
 		spin_lock(&object->lock);
 		object->state = FSCACHE_OBJECT_DYING;
@@ -416,7 +420,9 @@ static void fscache_initialise_object(struct fscache_object *object)
 			 * binding on to us, so we need to make sure we don't
 			 * add ourself to the list multiple times */
 			if (list_empty(&object->dep_link)) {
+				fscache_stat(&fscache_n_cop_grab_object);
 				object->cache->ops->grab_object(object);
+				fscache_stat_d(&fscache_n_cop_grab_object);
 				list_add(&object->dep_link,
 					 &parent->dependents);
 
@@ -478,7 +484,9 @@ static void fscache_lookup_object(struct fscache_object *object)
 	       object->cache->tag->name);
 
 	fscache_stat(&fscache_n_object_lookups);
+	fscache_stat(&fscache_n_cop_lookup_object);
 	object->cache->ops->lookup_object(object);
+	fscache_stat_d(&fscache_n_cop_lookup_object);
 
 	if (test_bit(FSCACHE_OBJECT_EV_ERROR, &object->events))
 		set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
@@ -602,7 +610,9 @@ static void fscache_object_available(struct fscache_object *object)
 	}
 	spin_unlock(&object->lock);
 
+	fscache_stat(&fscache_n_cop_lookup_complete);
 	object->cache->ops->lookup_complete(object);
+	fscache_stat_d(&fscache_n_cop_lookup_complete);
 	fscache_enqueue_dependents(object);
 
 	fscache_hist(fscache_obj_instantiate_histogram, object->lookup_jif);
@@ -625,7 +635,9 @@ static void fscache_drop_object(struct fscache_object *object)
 	list_del_init(&object->cache_link);
 	spin_unlock(&cache->object_list_lock);
 
+	fscache_stat(&fscache_n_cop_drop_object);
 	cache->ops->drop_object(object);
+	fscache_stat_d(&fscache_n_cop_drop_object);
 
 	if (parent) {
 		_debug("release parent OBJ%x {%d}",
@@ -640,7 +652,9 @@ static void fscache_drop_object(struct fscache_object *object)
 	}
 
 	/* this just shifts the object release to the slow work processor */
+	fscache_stat(&fscache_n_cop_put_object);
 	object->cache->ops->put_object(object);
+	fscache_stat_d(&fscache_n_cop_put_object);
 
 	_leave("");
 }
@@ -730,8 +744,12 @@ static int fscache_object_slow_work_get_ref(struct slow_work *work)
 {
 	struct fscache_object *object =
 		container_of(work, struct fscache_object, work);
+	int ret;
 
-	return object->cache->ops->grab_object(object) ? 0 : -EAGAIN;
+	fscache_stat(&fscache_n_cop_grab_object);
+	ret = object->cache->ops->grab_object(object) ? 0 : -EAGAIN;
+	fscache_stat_d(&fscache_n_cop_grab_object);
+	return ret;
 }
 
 /*
@@ -742,7 +760,9 @@ static void fscache_object_slow_work_put_ref(struct slow_work *work)
 	struct fscache_object *object =
 		container_of(work, struct fscache_object, work);
 
-	return object->cache->ops->put_object(object);
+	fscache_stat(&fscache_n_cop_put_object);
+	object->cache->ops->put_object(object);
+	fscache_stat_d(&fscache_n_cop_put_object);
 }
 
 /*
@@ -779,7 +799,9 @@ static void fscache_enqueue_dependents(struct fscache_object *object)
 
 		/* sort onto appropriate lists */
 		fscache_enqueue_object(dep);
+		fscache_stat(&fscache_n_cop_put_object);
 		dep->cache->ops->put_object(dep);
+		fscache_stat_d(&fscache_n_cop_put_object);
 
 		if (!list_empty(&object->dependents))
 			cond_resched_lock(&object->lock);

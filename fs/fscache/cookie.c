@@ -249,7 +249,9 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 	/* ask the cache to allocate an object (we may end up with duplicate
 	 * objects at this stage, but we sort that out later) */
+	fscache_stat(&fscache_n_cop_alloc_object);
 	object = cache->ops->alloc_object(cache, cookie);
+	fscache_stat_d(&fscache_n_cop_alloc_object);
 	if (IS_ERR(object)) {
 		fscache_stat(&fscache_n_object_no_alloc);
 		ret = PTR_ERR(object);
@@ -270,8 +272,11 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 	/* only attach if we managed to allocate all we needed, otherwise
 	 * discard the object we just allocated and instead use the one
 	 * attached to the cookie */
-	if (fscache_attach_object(cookie, object) < 0)
+	if (fscache_attach_object(cookie, object) < 0) {
+		fscache_stat(&fscache_n_cop_put_object);
 		cache->ops->put_object(object);
+		fscache_stat_d(&fscache_n_cop_put_object);
+	}
 
 	_leave(" = 0");
 	return 0;
@@ -287,7 +292,9 @@ object_already_extant:
 	return 0;
 
 error_put:
+	fscache_stat(&fscache_n_cop_put_object);
 	cache->ops->put_object(object);
+	fscache_stat_d(&fscache_n_cop_put_object);
 error:
 	_leave(" = %d", ret);
 	return ret;
