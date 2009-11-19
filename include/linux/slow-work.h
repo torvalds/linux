@@ -24,6 +24,9 @@ struct slow_work;
  * The operations used to support slow work items
  */
 struct slow_work_ops {
+	/* owner */
+	struct module *owner;
+
 	/* get a ref on a work item
 	 * - return 0 if successful, -ve if not
 	 */
@@ -42,6 +45,7 @@ struct slow_work_ops {
  *   queued
  */
 struct slow_work {
+	struct module		*owner;	/* the owning module */
 	unsigned long		flags;
 #define SLOW_WORK_PENDING	0	/* item pending (further) execution */
 #define SLOW_WORK_EXECUTING	1	/* item currently executing */
@@ -84,8 +88,8 @@ static inline void vslow_work_init(struct slow_work *work,
 }
 
 extern int slow_work_enqueue(struct slow_work *work);
-extern int slow_work_register_user(void);
-extern void slow_work_unregister_user(void);
+extern int slow_work_register_user(struct module *owner);
+extern void slow_work_unregister_user(struct module *owner);
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table slow_work_sysctls[];

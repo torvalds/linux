@@ -64,9 +64,11 @@ USING SLOW WORK ITEMS
 Firstly, a module or subsystem wanting to make use of slow work items must
 register its interest:
 
-	 int ret = slow_work_register_user();
+	 int ret = slow_work_register_user(struct module *module);
 
-This will return 0 if successful, or a -ve error upon failure.
+This will return 0 if successful, or a -ve error upon failure.  The module
+pointer should be the module interested in using this facility (almost
+certainly THIS_MODULE).
 
 
 Slow work items may then be set up by:
@@ -110,7 +112,12 @@ operation.  When all a module's slow work items have been processed, and the
 module has no further interest in the facility, it should unregister its
 interest:
 
-	slow_work_unregister_user();
+	slow_work_unregister_user(struct module *module);
+
+The module pointer is used to wait for all outstanding work items for that
+module before completing the unregistration.  This prevents the put_ref() code
+from being taken away before it completes.  module should almost certainly be
+THIS_MODULE.
 
 
 ===============

@@ -45,6 +45,7 @@ static void fscache_enqueue_dependents(struct fscache_object *);
 static void fscache_dequeue_object(struct fscache_object *);
 
 const struct slow_work_ops fscache_object_slow_work_ops = {
+	.owner		= THIS_MODULE,
 	.get_ref	= fscache_object_slow_work_get_ref,
 	.put_ref	= fscache_object_slow_work_put_ref,
 	.execute	= fscache_object_slow_work_execute,

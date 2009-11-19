@@ -453,6 +453,7 @@ static void fscache_op_execute(struct slow_work *work)
 }
 
 const struct slow_work_ops fscache_op_slow_work_ops = {
+	.owner		= THIS_MODULE,
 	.get_ref	= fscache_op_get_ref,
 	.put_ref	= fscache_op_put_ref,
 	.execute	= fscache_op_execute,
