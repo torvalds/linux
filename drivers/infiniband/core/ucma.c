@@ -563,10 +563,10 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 	switch (route->num_paths) {
 	case 0:
 		dev_addr = &route->addr.dev_addr;
-		ib_addr_get_dgid(dev_addr,
-				 (union ib_gid *) &resp->ib_route[0].dgid);
-		ib_addr_get_sgid(dev_addr,
-				 (union ib_gid *) &resp->ib_route[0].sgid);
+		rdma_addr_get_dgid(dev_addr,
+				   (union ib_gid *) &resp->ib_route[0].dgid);
+		rdma_addr_get_sgid(dev_addr,
+				   (union ib_gid *) &resp->ib_route[0].sgid);
 		resp->ib_route[0].pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 		break;
 	case 2:
