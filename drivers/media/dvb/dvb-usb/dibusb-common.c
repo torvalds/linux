@@ -243,6 +243,12 @@ static struct dib3000mc_config mod3000p_dib3000p_config = {
 
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_LITEON &&
+			adap->dev->udev->descriptor.idProduct ==
+			USB_PID_LITEON_DVB_T_WARM) {
+		msleep(1000);
+	}
+
 	if ((adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap, DEFAULT_DIB3000P_I2C_ADDRESS,  &mod3000p_dib3000p_config)) != NULL ||
 		(adap->fe = dvb_attach(dib3000mc_attach, &adap->dev->i2c_adap, DEFAULT_DIB3000MC_I2C_ADDRESS, &mod3000p_dib3000p_config)) != NULL) {
 		if (adap->priv != NULL) {
