@@ -421,6 +421,57 @@ out:
 }
 
 /**
+ *  igb_copper_link_setup_82580 - Setup 82580 PHY for copper link
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets up Carrier-sense on Transmit and downshift values.
+ **/
+s32 igb_copper_link_setup_82580(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data;
+
+
+	if (phy->reset_disable) {
+		ret_val = 0;
+		goto out;
+	}
+
+	if (phy->type == e1000_phy_82580) {
+		ret_val = hw->phy.ops.reset(hw);
+		if (ret_val) {
+			hw_dbg("Error resetting the PHY.\n");
+			goto out;
+		}
+	}
+
+	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	ret_val = phy->ops.read_reg(hw, I82580_CFG_REG, &phy_data);
+	if (ret_val)
+		goto out;
+
+	phy_data |= I82580_CFG_ASSERT_CRS_ON_TX;
+
+	/* Enable downshift */
+	phy_data |= I82580_CFG_ENABLE_DOWNSHIFT;
+
+	ret_val = phy->ops.write_reg(hw, I82580_CFG_REG, phy_data);
+	if (ret_val)
+		goto out;
+
+	/* Set number of link attempts before downshift */
+	ret_val = phy->ops.read_reg(hw, I82580_CTRL_REG, &phy_data);
+	if (ret_val)
+		goto out;
+	phy_data &= ~I82580_CTRL_DOWNSHIFT_MASK;
+	ret_val = phy->ops.write_reg(hw, I82580_CTRL_REG, phy_data);
+
+out:
+	return ret_val;
+}
+
+/**
  *  igb_copper_link_setup_m88 - Setup m88 PHY's for copper link
  *  @hw: pointer to the HW structure
  *
@@ -1888,3 +1939,194 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 	return 0;
 }
 
+/**
+ *  igb_check_polarity_82580 - Checks the polarity.
+ *  @hw: pointer to the HW structure
+ *
+ *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
+ *
+ *  Polarity is determined based on the PHY specific status register.
+ **/
+s32 igb_check_polarity_82580(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+
+
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_STATUS_2, &data);
+
+	if (!ret_val)
+		phy->cable_polarity = (data & I82580_PHY_STATUS2_REV_POLARITY)
+		                      ? e1000_rev_polarity_reversed
+		                      : e1000_rev_polarity_normal;
+
+	return ret_val;
+}
+
+/**
+ *  igb_phy_force_speed_duplex_82580 - Force speed/duplex for I82580 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Calls the PHY setup function to force speed and duplex.  Clears the
+ *  auto-crossover to force MDI manually.  Waits for link and returns
+ *  successful if link up is successful, else -E1000_ERR_PHY (-2).
+ **/
+s32 igb_phy_force_speed_duplex_82580(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data;
+	bool link;
+
+
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
+	if (ret_val)
+		goto out;
+
+	igb_phy_force_speed_duplex_setup(hw, &phy_data);
+
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_data);
+	if (ret_val)
+		goto out;
+
+	/*
+	 * Clear Auto-Crossover to force MDI manually.  82580 requires MDI
+	 * forced whenever speed and duplex are forced.
+	 */
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		goto out;
+
+	phy_data &= ~I82580_PHY_CTRL2_AUTO_MDIX;
+	phy_data &= ~I82580_PHY_CTRL2_FORCE_MDI_MDIX;
+
+	ret_val = phy->ops.write_reg(hw, I82580_PHY_CTRL_2, phy_data);
+	if (ret_val)
+		goto out;
+
+	hw_dbg("I82580_PHY_CTRL_2: %X\n", phy_data);
+
+	udelay(1);
+
+	if (phy->autoneg_wait_to_complete) {
+		hw_dbg("Waiting for forced speed/duplex link on 82580 phy\n");
+
+		ret_val = igb_phy_has_link(hw,
+		                           PHY_FORCE_LIMIT,
+		                           100000,
+		                           &link);
+		if (ret_val)
+			goto out;
+
+		if (!link)
+			hw_dbg("Link taking longer than expected.\n");
+
+		/* Try once more */
+		ret_val = igb_phy_has_link(hw,
+		                           PHY_FORCE_LIMIT,
+		                           100000,
+		                           &link);
+		if (ret_val)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_get_phy_info_82580 - Retrieve I82580 PHY information
+ *  @hw: pointer to the HW structure
+ *
+ *  Read PHY status to determine if link is up.  If link is up, then
+ *  set/determine 10base-T extended distance and polarity correction.  Read
+ *  PHY port status to determine MDI/MDIx and speed.  Based on the speed,
+ *  determine on the cable length, local and remote receiver.
+ **/
+s32 igb_get_phy_info_82580(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	bool link;
+
+
+	ret_val = igb_phy_has_link(hw, 1, 0, &link);
+	if (ret_val)
+		goto out;
+
+	if (!link) {
+		hw_dbg("Phy info is only valid if link is up\n");
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
+	}
+
+	phy->polarity_correction = true;
+
+	ret_val = igb_check_polarity_82580(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_STATUS_2, &data);
+	if (ret_val)
+		goto out;
+
+	phy->is_mdix = (data & I82580_PHY_STATUS2_MDIX) ? true : false;
+
+	if ((data & I82580_PHY_STATUS2_SPEED_MASK) ==
+	    I82580_PHY_STATUS2_SPEED_1000MBPS) {
+		ret_val = hw->phy.ops.get_cable_length(hw);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.read_reg(hw, PHY_1000T_STATUS, &data);
+		if (ret_val)
+			goto out;
+
+		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
+		                ? e1000_1000t_rx_status_ok
+		                : e1000_1000t_rx_status_not_ok;
+
+		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
+		                 ? e1000_1000t_rx_status_ok
+		                 : e1000_1000t_rx_status_not_ok;
+	} else {
+		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
+		phy->local_rx = e1000_1000t_rx_status_undefined;
+		phy->remote_rx = e1000_1000t_rx_status_undefined;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_get_cable_length_82580 - Determine cable length for 82580 PHY
+ *  @hw: pointer to the HW structure
+ *
+ * Reads the diagnostic status register and verifies result is valid before
+ * placing it in the phy_cable_length field.
+ **/
+s32 igb_get_cable_length_82580(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data, length;
+
+
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_DIAG_STATUS, &phy_data);
+	if (ret_val)
+		goto out;
+
+	length = (phy_data & I82580_DSTATUS_CABLE_LENGTH) >>
+	         I82580_DSTATUS_CABLE_LENGTH_SHIFT;
+
+	if (length == E1000_CABLE_LENGTH_UNDEFINED)
+		ret_val = -E1000_ERR_PHY;
+
+	phy->cable_length = length;
+
+out:
+	return ret_val;
+}
