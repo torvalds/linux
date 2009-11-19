@@ -212,24 +212,17 @@ static void *
 __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
-	void *virt;
-	u64 mask = get_coherent_dma_mask(dev);
+	struct page *page;
 
-	if (!mask)
-		goto error;
-
-	if (mask < 0xffffffffULL)
-		gfp |= GFP_DMA;
-	virt = kmalloc(size, gfp);
-	if (!virt)
-		goto error;
-
-	*handle =  virt_to_dma(dev, virt);
-	return virt;
-
-error:
 	*handle = ~0;
-	return NULL;
+	size = PAGE_ALIGN(size);
+
+	page = __dma_alloc_buffer(dev, size, gfp);
+	if (!page)
+		return NULL;
+
+	*handle = page_to_dma(dev, page);
+	return page_address(page);
 }
 #endif	/* CONFIG_MMU */
 
@@ -406,7 +399,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 {
 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
 		return;
-	kfree(cpu_addr);
+	__dma_free_buffer(dma_to_page(dev, handle), PAGE_ALIGN(size));
 }
 #endif	/* CONFIG_MMU */
 EXPORT_SYMBOL(dma_free_coherent);
