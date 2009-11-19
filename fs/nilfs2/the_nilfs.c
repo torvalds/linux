@@ -264,8 +264,14 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	int valid_fs = nilfs_valid_fs(nilfs);
 	int err;
 
-	if (nilfs_loaded(nilfs))
-		return 0;
+	if (nilfs_loaded(nilfs)) {
+		if (valid_fs ||
+		    ((s_flags & MS_RDONLY) && nilfs_test_opt(sbi, NORECOVERY)))
+			return 0;
+		printk(KERN_ERR "NILFS: the filesystem is in an incomplete "
+		       "recovery state.\n");
+		return -EINVAL;
+	}
 
 	if (!valid_fs) {
 		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
@@ -295,6 +301,11 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto skip_recovery;
 
 	if (s_flags & MS_RDONLY) {
+		if (nilfs_test_opt(sbi, NORECOVERY)) {
+			printk(KERN_INFO "NILFS: norecovery option specified. "
+			       "skipping roll-forward recovery\n");
+			goto skip_recovery;
+		}
 		if (really_read_only) {
 			printk(KERN_ERR "NILFS: write access "
 			       "unavailable, cannot proceed.\n");
@@ -302,6 +313,11 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			goto failed_unload;
 		}
 		sbi->s_super->s_flags &= ~MS_RDONLY;
+	} else if (nilfs_test_opt(sbi, NORECOVERY)) {
+		printk(KERN_ERR "NILFS: recovery cancelled because norecovery "
+		       "option was specified for a read/write mount\n");
+		err = -EINVAL;
+		goto failed_unload;
 	}
 
 	err = nilfs_recover_logical_segments(nilfs, sbi, &ri);

@@ -479,6 +479,8 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",errors=panic");
 	if (nilfs_test_opt(sbi, STRICT_ORDER))
 		seq_printf(seq, ",order=strict");
+	if (nilfs_test_opt(sbi, NORECOVERY))
+		seq_printf(seq, ",norecovery");
 
 	return 0;
 }
@@ -547,7 +549,7 @@ static const struct export_operations nilfs_export_ops = {
 
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nobarrier, Opt_snapshot, Opt_order,
+	Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
 	Opt_err,
 };
 
@@ -558,6 +560,7 @@ static match_table_t tokens = {
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
+	{Opt_norecovery, "norecovery"},
 	{Opt_err, NULL}
 };
 
@@ -607,6 +610,9 @@ static int parse_options(char *options, struct super_block *sb)
 				return 0;
 			sbi->s_snapshot_cno = option;
 			nilfs_set_opt(sbi, SNAPSHOT);
+			break;
+		case Opt_norecovery:
+			nilfs_set_opt(sbi, NORECOVERY);
 			break;
 		default:
 			printk(KERN_ERR
@@ -859,6 +865,14 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		printk(KERN_WARNING "NILFS (device %s): couldn't "
 		       "remount to a different snapshot. \n",
 		       sb->s_id);
+		err = -EINVAL;
+		goto restore_opts;
+	}
+
+	if (!nilfs_valid_fs(nilfs)) {
+		printk(KERN_WARNING "NILFS (device %s): couldn't "
+		       "remount because the filesystem is in an "
+		       "incomplete recovery state.\n", sb->s_id);
 		err = -EINVAL;
 		goto restore_opts;
 	}
