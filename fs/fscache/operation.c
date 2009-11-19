@@ -322,6 +322,9 @@ void fscache_put_operation(struct fscache_operation *op)
 
 	object = op->object;
 
+	if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags))
+		atomic_dec(&object->n_reads);
+
 	/* now... we may get called with the object spinlock held, so we
 	 * complete the cleanup here only if we can immediately acquire the
 	 * lock, and defer it otherwise */

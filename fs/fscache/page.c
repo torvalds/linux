@@ -275,6 +275,9 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 
 	ASSERTCMP(object->state, >, FSCACHE_OBJECT_LOOKING_UP);
 
+	atomic_inc(&object->n_reads);
+	set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
+
 	if (fscache_submit_op(object, &op->op) < 0)
 		goto nobufs_unlock;
 	spin_unlock(&cookie->lock);
@@ -385,6 +388,9 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 		goto nobufs_unlock;
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
+
+	atomic_inc(&object->n_reads);
+	set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
 
 	if (fscache_submit_op(object, &op->op) < 0)
 		goto nobufs_unlock;

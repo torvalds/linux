@@ -91,6 +91,8 @@ struct fscache_operation {
 #define FSCACHE_OP_WAITING	4	/* cleared when op is woken */
 #define FSCACHE_OP_EXCLUSIVE	5	/* exclusive op, other ops must wait */
 #define FSCACHE_OP_DEAD		6	/* op is now dead */
+#define FSCACHE_OP_DEC_READ_CNT	7	/* decrement object->n_reads on destruction */
+#define FSCACHE_OP_KEEP_FLAGS	0xc0	/* flags to keep when repurposing an op */
 
 	atomic_t		usage;
 	unsigned		debug_id;	/* debugging ID */
@@ -357,6 +359,7 @@ struct fscache_object {
 	int			n_obj_ops;	/* number of object ops outstanding on object */
 	int			n_in_progress;	/* number of ops in progress */
 	int			n_exclusive;	/* number of exclusive ops queued */
+	atomic_t		n_reads;	/* number of read ops in progress */
 	spinlock_t		lock;		/* state and operations lock */
 
 	unsigned long		lookup_jif;	/* time at which lookup started */
@@ -370,6 +373,7 @@ struct fscache_object {
 #define FSCACHE_OBJECT_EV_RELEASE	4	/* T if netfs requested object release */
 #define FSCACHE_OBJECT_EV_RETIRE	5	/* T if netfs requested object retirement */
 #define FSCACHE_OBJECT_EV_WITHDRAW	6	/* T if cache requested object withdrawal */
+#define FSCACHE_OBJECT_EVENTS_MASK	0x7f	/* mask of all events*/
 
 	unsigned long		flags;
 #define FSCACHE_OBJECT_LOCK		0	/* T if object is busy being processed */
@@ -385,6 +389,9 @@ struct fscache_object {
 	struct list_head	dependents;	/* FIFO of dependent objects */
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
+#ifdef CONFIG_FSCACHE_OBJECT_LIST
+	struct rb_node		objlist_link;	/* link in global object list */
+#endif
 	pgoff_t			store_limit;	/* current storage limit */
 };
 
@@ -433,6 +440,12 @@ void fscache_object_init(struct fscache_object *object,
 
 extern void fscache_object_lookup_negative(struct fscache_object *object);
 extern void fscache_obtained_object(struct fscache_object *object);
+
+#ifdef CONFIG_FSCACHE_OBJECT_LIST
+extern void fscache_object_destroy(struct fscache_object *object);
+#else
+#define fscache_object_destroy(object) do {} while(0)
+#endif
 
 /**
  * fscache_object_destroyed - Note destruction of an object in a cache

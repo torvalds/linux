@@ -299,6 +299,87 @@ proc files.
      jiffy range covered, and the SECS field the equivalent number of seconds.
 
 
+===========
+OBJECT LIST
+===========
+
+If CONFIG_FSCACHE_OBJECT_LIST is enabled, the FS-Cache facility will maintain a
+list of all the objects currently allocated and allow them to be viewed
+through:
+
+	/proc/fs/fscache/objects
+
+This will look something like:
+
+	[root@andromeda ~]# head /proc/fs/fscache/objects
+	OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS EM EV F S | NETFS_COOKIE_DEF TY FL NETFS_DATA       OBJECT_KEY, AUX_DATA
+	======== ======== ==== ===== === === === == ===== == == = = | ================ == == ================ ================
+	   17e4b        2 ACTV     0   0   0   0  0     0 7b  4 0 8 | NFS.fh           DT  0 ffff88001dd82820 010006017edcf8bbc93b43298fdfbe71e50b57b13a172c0117f38472, e567634700000000000000000000000063f2404a000000000000000000000000c9030000000000000000000063f2404a
+	   1693a        2 ACTV     0   0   0   0  0     0 7b  4 0 8 | NFS.fh           DT  0 ffff88002db23380 010006017edcf8bbc93b43298fdfbe71e50b57b1e0162c01a2df0ea6, 420ebc4a000000000000000000000000420ebc4a0000000000000000000000000e1801000000000000000000420ebc4a
+
+where the first set of columns before the '|' describe the object:
+
+	COLUMN	DESCRIPTION
+	=======	===============================================================
+	OBJECT	Object debugging ID (appears as OBJ%x in some debug messages)
+	PARENT	Debugging ID of parent object
+	STAT	Object state
+	CHLDN	Number of child objects of this object
+	OPS	Number of outstanding operations on this object
+	OOP	Number of outstanding child object management operations
+	IPR
+	EX	Number of outstanding exclusive operations
+	READS	Number of outstanding read operations
+	EM	Object's event mask
+	EV	Events raised on this object
+	F	Object flags
+	S	Object slow-work work item flags
+
+and the second set of columns describe the object's cookie, if present:
+
+	COLUMN		DESCRIPTION
+	===============	=======================================================
+	NETFS_COOKIE_DEF Name of netfs cookie definition
+	TY		Cookie type (IX - index, DT - data, hex - special)
+	FL		Cookie flags
+	NETFS_DATA	Netfs private data stored in the cookie
+	OBJECT_KEY	Object key	} 1 column, with separating comma
+	AUX_DATA	Object aux data	} presence may be configured
+
+The data shown may be filtered by attaching the a key to an appropriate keyring
+before viewing the file.  Something like:
+
+		keyctl add user fscache:objlist <restrictions> @s
+
+where <restrictions> are a selection of the following letters:
+
+	K	Show hexdump of object key (don't show if not given)
+	A	Show hexdump of object aux data (don't show if not given)
+
+and the following paired letters:
+
+	C	Show objects that have a cookie
+	c	Show objects that don't have a cookie
+	B	Show objects that are busy
+	b	Show objects that aren't busy
+	W	Show objects that have pending writes
+	w	Show objects that don't have pending writes
+	R	Show objects that have outstanding reads
+	r	Show objects that don't have outstanding reads
+	S	Show objects that have slow work queued
+	s	Show objects that don't have slow work queued
+
+If neither side of a letter pair is given, then both are implied.  For example:
+
+	keyctl add user fscache:objlist KB @s
+
+shows objects that are busy, and lists their object keys, but does not dump
+their auxiliary data.  It also implies "CcWwRrSs", but as 'B' is given, 'b' is
+not implied.
+
+By default all objects and all fields will be shown.
+
+
 =========
 DEBUGGING
 =========

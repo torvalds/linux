@@ -349,6 +349,8 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	object->cookie = cookie;
 	atomic_inc(&cookie->usage);
 	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
+
+	fscache_objlist_add(object);
 	ret = 0;
 
 cant_attach_object:

@@ -331,6 +331,7 @@ static void cachefiles_put_object(struct fscache_object *_object)
 		}
 
 		cache = object->fscache.cache;
+		fscache_object_destroy(&object->fscache);
 		kmem_cache_free(cachefiles_object_jar, object);
 		fscache_object_destroyed(cache);
 	}

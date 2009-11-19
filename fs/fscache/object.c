@@ -34,7 +34,7 @@ const char *fscache_object_states[FSCACHE_OBJECT__NSTATES] = {
 };
 EXPORT_SYMBOL(fscache_object_states);
 
-static const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5] = {
+const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5] = {
 	[FSCACHE_OBJECT_INIT]		= "INIT",
 	[FSCACHE_OBJECT_LOOKING_UP]	= "LOOK",
 	[FSCACHE_OBJECT_CREATING]	= "CRTN",
