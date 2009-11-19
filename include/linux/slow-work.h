@@ -20,6 +20,9 @@
 #include <linux/timer.h>
 
 struct slow_work;
+#ifdef CONFIG_SLOW_WORK_PROC
+struct seq_file;
+#endif
 
 /*
  * The operations used to support slow work items
@@ -38,6 +41,11 @@ struct slow_work_ops {
 
 	/* execute a work item */
 	void (*execute)(struct slow_work *work);
+
+#ifdef CONFIG_SLOW_WORK_PROC
+	/* describe a work item for /proc */
+	void (*desc)(struct slow_work *work, struct seq_file *m);
+#endif
 };
 
 /*
@@ -56,6 +64,9 @@ struct slow_work {
 #define SLOW_WORK_DELAYED	5	/* item is struct delayed_slow_work with active timer */
 	const struct slow_work_ops *ops; /* operations table for this item */
 	struct list_head	link;	/* link in queue */
+#ifdef CONFIG_SLOW_WORK_PROC
+	struct timespec		mark;	/* jiffies at which queued or exec begun */
+#endif
 };
 
 struct delayed_slow_work {

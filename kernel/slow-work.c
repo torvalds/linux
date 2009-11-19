@@ -16,13 +16,8 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
-
-#define SLOW_WORK_CULL_TIMEOUT (5 * HZ)	/* cull threads 5s after running out of
-					 * things to do */
-#define SLOW_WORK_OOM_TIMEOUT (5 * HZ)	/* can't start new threads for 5s after
-					 * OOM */
-
-#define SLOW_WORK_THREAD_LIMIT	255	/* abs maximum number of slow-work threads */
+#include <linux/proc_fs.h>
+#include "slow-work.h"
 
 static void slow_work_cull_timeout(unsigned long);
 static void slow_work_oom_timeout(unsigned long);
@@ -117,6 +112,15 @@ static DEFINE_MUTEX(slow_work_unreg_sync_lock);
 #endif
 
 /*
+ * Data for tracking currently executing items for indication through /proc
+ */
+#ifdef CONFIG_SLOW_WORK_PROC
+struct slow_work *slow_work_execs[SLOW_WORK_THREAD_LIMIT];
+pid_t slow_work_pids[SLOW_WORK_THREAD_LIMIT];
+DEFINE_RWLOCK(slow_work_execs_lock);
+#endif
+
+/*
  * The queues of work items and the lock governing access to them.  These are
  * shared between all the CPUs.  It doesn't make sense to have per-CPU queues
  * as the number of threads bears no relation to the number of CPUs.
@@ -124,9 +128,9 @@ static DEFINE_MUTEX(slow_work_unreg_sync_lock);
  * There are two queues of work items: one for slow work items, and one for
  * very slow work items.
  */
-static LIST_HEAD(slow_work_queue);
-static LIST_HEAD(vslow_work_queue);
-static DEFINE_SPINLOCK(slow_work_queue_lock);
+LIST_HEAD(slow_work_queue);
+LIST_HEAD(vslow_work_queue);
+DEFINE_SPINLOCK(slow_work_queue_lock);
 
 /*
  * The thread controls.  A variable used to signal to the threads that they
@@ -182,7 +186,7 @@ static unsigned slow_work_calc_vsmax(void)
  * Attempt to execute stuff queued on a slow thread.  Return true if we managed
  * it, false if there was nothing to do.
  */
-static bool slow_work_execute(int id)
+static noinline bool slow_work_execute(int id)
 {
 #ifdef CONFIG_MODULES
 	struct module *module;
@@ -227,6 +231,10 @@ static bool slow_work_execute(int id)
 	if (work)
 		slow_work_thread_processing[id] = work->owner;
 #endif
+	if (work) {
+		slow_work_mark_time(work);
+		slow_work_begin_exec(id, work);
+	}
 
 	spin_unlock_irq(&slow_work_queue_lock);
 
@@ -246,6 +254,8 @@ static bool slow_work_execute(int id)
 
 	/* wake up anyone waiting for this work to be complete */
 	wake_up_bit(&work->flags, SLOW_WORK_EXECUTING);
+
+	slow_work_end_exec(id, work);
 
 	/* if someone tried to enqueue the item whilst we were executing it,
 	 * then it'll be left unenqueued to avoid multiple threads trying to
@@ -285,6 +295,7 @@ auto_requeue:
 	 * - we transfer our ref on the item back to the appropriate queue
 	 * - don't wake another thread up as we're awake already
 	 */
+	slow_work_mark_time(work);
 	if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
 		list_add_tail(&work->link, &vslow_work_queue);
 	else
@@ -368,6 +379,7 @@ int slow_work_enqueue(struct slow_work *work)
 			ret = slow_work_get_ref(work);
 			if (ret < 0)
 				goto failed;
+			slow_work_mark_time(work);
 			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
 				list_add_tail(&work->link, &vslow_work_queue);
 			else
@@ -489,6 +501,7 @@ static void delayed_slow_work_timer(unsigned long data)
 			set_bit(SLOW_WORK_ENQ_DEFERRED, &work->flags);
 			put = true;
 		} else {
+			slow_work_mark_time(work);
 			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
 				list_add_tail(&work->link, &vslow_work_queue);
 			else
@@ -627,6 +640,7 @@ static int slow_work_thread(void *_data)
 	id = find_first_zero_bit(slow_work_ids, SLOW_WORK_THREAD_LIMIT);
 	BUG_ON(id < 0 || id >= SLOW_WORK_THREAD_LIMIT);
 	__set_bit(id, slow_work_ids);
+	slow_work_set_thread_pid(id, current->pid);
 	spin_unlock_irq(&slow_work_queue_lock);
 
 	sprintf(current->comm, "kslowd%03u", id);
@@ -669,6 +683,7 @@ static int slow_work_thread(void *_data)
 	}
 
 	spin_lock_irq(&slow_work_queue_lock);
+	slow_work_set_thread_pid(id, 0);
 	__clear_bit(id, slow_work_ids);
 	spin_unlock_irq(&slow_work_queue_lock);
 
@@ -722,6 +737,9 @@ static void slow_work_new_thread_execute(struct slow_work *work)
 static const struct slow_work_ops slow_work_new_thread_ops = {
 	.owner		= THIS_MODULE,
 	.execute	= slow_work_new_thread_execute,
+#ifdef CONFIG_SLOW_WORK_PROC
+	.desc		= slow_work_new_thread_desc,
+#endif
 };
 
 /*
@@ -948,6 +966,10 @@ static int __init init_slow_work(void)
 #ifdef CONFIG_SYSCTL
 	if (slow_work_max_max_threads < nr_cpus * 2)
 		slow_work_max_max_threads = nr_cpus * 2;
+#endif
+#ifdef CONFIG_SLOW_WORK_PROC
+	proc_create("slow_work_rq", S_IFREG | 0400, NULL,
+		    &slow_work_runqueue_fops);
 #endif
 	return 0;
 }

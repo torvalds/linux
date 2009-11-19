@@ -149,7 +149,8 @@ ITEM OPERATIONS
 ===============
 
 Each work item requires a table of operations of type struct slow_work_ops.
-Only ->execute() is required, getting and putting of a reference are optional.
+Only ->execute() is required; the getting and putting of a reference and the
+describing of an item are all optional.
 
  (*) Get a reference on an item:
 
@@ -179,6 +180,16 @@ Only ->execute() is required, getting and putting of a reference are optional.
      This should perform the work required of the item.  It may sleep, it may
      perform disk I/O and it may wait for locks.
 
+ (*) View an item through /proc:
+
+	void (*desc)(struct slow_work *work, struct seq_file *m);
+
+     If supplied, this should print to 'm' a small string describing the work
+     the item is to do.  This should be no more than about 40 characters, and
+     shouldn't include a newline character.
+
+     See the 'Viewing executing and queued items' section below.
+
 
 ==================
 POOL CONFIGURATION
@@ -203,3 +214,50 @@ The slow-work thread pool has a number of configurables:
      is bounded to between 1 and one fewer than the number of active threads.
      This ensures there is always at least one thread that can process very
      slow work items, and always at least one thread that won't.
+
+
+==================================
+VIEWING EXECUTING AND QUEUED ITEMS
+==================================
+
+If CONFIG_SLOW_WORK_PROC is enabled, a proc file is made available:
+
+	/proc/slow_work_rq
+
+through which the list of work items being executed and the queues of items to
+be executed may be viewed.  The owner of a work item is given the chance to
+add some information of its own.
+
+The contents look something like the following:
+
+    THR PID   ITEM ADDR        FL MARK  DESC
+    === ===== ================ == ===== ==========
+      0  3005 ffff880023f52348  a 952ms FSC: OBJ17d3: LOOK
+      1  3006 ffff880024e33668  2 160ms FSC: OBJ17e5 OP60d3b: Write1/Store fl=2
+      2  3165 ffff8800296dd180  a 424ms FSC: OBJ17e4: LOOK
+      3  4089 ffff8800262c8d78  a 212ms FSC: OBJ17ea: CRTN
+      4  4090 ffff88002792bed8  2 388ms FSC: OBJ17e8 OP60d36: Write1/Store fl=2
+      5  4092 ffff88002a0ef308  2 388ms FSC: OBJ17e7 OP60d2e: Write1/Store fl=2
+      6  4094 ffff88002abaf4b8  2 132ms FSC: OBJ17e2 OP60d4e: Write1/Store fl=2
+      7  4095 ffff88002bb188e0  a 388ms FSC: OBJ17e9: CRTN
+    vsq     - ffff880023d99668  1 308ms FSC: OBJ17e0 OP60f91: Write1/EnQ fl=2
+    vsq     - ffff8800295d1740  1 212ms FSC: OBJ16be OP4d4b6: Write1/EnQ fl=2
+    vsq     - ffff880025ba3308  1 160ms FSC: OBJ179a OP58dec: Write1/EnQ fl=2
+    vsq     - ffff880024ec83e0  1 160ms FSC: OBJ17ae OP599f2: Write1/EnQ fl=2
+    vsq     - ffff880026618e00  1 160ms FSC: OBJ17e6 OP60d33: Write1/EnQ fl=2
+    vsq     - ffff880025a2a4b8  1 132ms FSC: OBJ16a2 OP4d583: Write1/EnQ fl=2
+    vsq     - ffff880023cbe6d8  9 212ms FSC: OBJ17eb: LOOK
+    vsq     - ffff880024d37590  9 212ms FSC: OBJ17ec: LOOK
+    vsq     - ffff880027746cb0  9 212ms FSC: OBJ17ed: LOOK
+    vsq     - ffff880024d37ae8  9 212ms FSC: OBJ17ee: LOOK
+    vsq     - ffff880024d37cb0  9 212ms FSC: OBJ17ef: LOOK
+    vsq     - ffff880025036550  9 212ms FSC: OBJ17f0: LOOK
+    vsq     - ffff8800250368e0  9 212ms FSC: OBJ17f1: LOOK
+    vsq     - ffff880025036aa8  9 212ms FSC: OBJ17f2: LOOK
+
+In the 'THR' column, executing items show the thread they're occupying and
+queued threads indicate which queue they're on.  'PID' shows the process ID of
+a slow-work thread that's executing something.  'FL' shows the work item flags.
+'MARK' indicates how long since an item was queued or began executing.  Lastly,
+the 'DESC' column permits the owner of an item to give some information.
+
