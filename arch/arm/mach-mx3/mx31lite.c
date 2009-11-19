@@ -2,6 +2,7 @@
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
  *  Copyright 2005-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ *  Copyright (C) 2009 Daniel Mack <daniel@caiaq.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,20 +26,25 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/smsc911x.h>
+#include <linux/mfd/mc13783.h>
+#include <linux/spi/spi.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+
+#include <mach/hardware.h>
+#include <mach/common.h>
 #include <mach/board-mx31lite.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/irqs.h>
 #include <mach/mxc_nand.h>
+#include <mach/spi.h>
+
 #include "devices.h"
 
 /*
@@ -48,6 +54,14 @@
 static unsigned int mx31lite_pins[] = {
 	/* LAN9117 IRQ pin */
 	IOMUX_MODE(MX31_PIN_SFS6, IOMUX_CONFIG_GPIO),
+	/* SPI 1 */
+	MX31_PIN_CSPI2_SCLK__SCLK,
+	MX31_PIN_CSPI2_MOSI__MOSI,
+	MX31_PIN_CSPI2_MISO__MISO,
+	MX31_PIN_CSPI2_SPI_RDY__SPI_RDY,
+	MX31_PIN_CSPI2_SS0__SS0,
+	MX31_PIN_CSPI2_SS1__SS1,
+	MX31_PIN_CSPI2_SS2__SS2,
 };
 
 static struct mxc_nand_platform_data mx31lite_nand_board_info = {
@@ -81,6 +95,35 @@ static struct platform_device smsc911x_device = {
 	.dev		= {
 		.platform_data = &smsc911x_config,
 	},
+};
+
+/*
+ * SPI
+ *
+ * The MC13783 is the only hard-wired SPI device on the module.
+ */
+
+static int spi_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+};
+
+static struct spi_imx_master spi1_pdata = {
+	.chipselect	= spi_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
+};
+
+static struct mc13783_platform_data mc13783_pdata __initdata = {
+	.flags  = MC13783_USE_RTC |
+		  MC13783_USE_REGULATOR,
+};
+
+static struct spi_board_info mc13783_spi_dev __initdata = {
+	.modalias       = "mc13783",
+	.max_speed_hz   = 1000000,
+	.bus_num	= 1,
+	.chip_select    = 0,
+	.platform_data  = &mc13783_pdata,
+	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
 };
 
 /*
@@ -131,6 +174,8 @@ static void __init mxc_board_init(void)
 				      "mx31lite");
 
 	mxc_register_device(&mxc_nand_device, &mx31lite_nand_board_info);
+	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	spi_register_board_info(&mc13783_spi_dev, 1);
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");

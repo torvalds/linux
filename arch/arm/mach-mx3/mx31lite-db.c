@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +40,7 @@
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lite.h>
 #include <mach/mmc.h>
+#include <mach/spi.h>
 
 #include "devices.h"
 
@@ -55,6 +57,14 @@ static unsigned int litekit_db_board_pins[] __initdata = {
 	MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
+	/* SPI 0 */
+	MX31_PIN_CSPI1_SCLK__SCLK,
+	MX31_PIN_CSPI1_MOSI__MOSI,
+	MX31_PIN_CSPI1_MISO__MISO,
+	MX31_PIN_CSPI1_SPI_RDY__SPI_RDY,
+	MX31_PIN_CSPI1_SS0__SS0,
+	MX31_PIN_CSPI1_SS1__SS1,
+	MX31_PIN_CSPI1_SS2__SS2,
 };
 
 /* UART */
@@ -130,6 +140,19 @@ static struct imxmmc_platform_data mmc_pdata = {
 	.exit	   = mxc_mmc1_exit,
 };
 
+/* SPI */
+
+static int spi_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
+	MXC_SPI_CS(2),
+};
+
+static struct spi_imx_master spi0_pdata = {
+	.chipselect	= spi_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
+};
+
 void __init mx31lite_db_init(void)
 {
 	mxc_iomux_setup_multiple_pins(litekit_db_board_pins,
@@ -137,5 +160,6 @@ void __init mx31lite_db_init(void)
 					"development board pins");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
+	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
 }
 
