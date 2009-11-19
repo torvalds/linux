@@ -184,17 +184,6 @@ static void addr_send_arp(struct sockaddr *dst_in)
 	memset(&fl, 0, sizeof fl);
 
 	switch (dst_in->sa_family) {
-	case AF_INET:
-		fl.nl_u.ip4_u.daddr =
-			((struct sockaddr_in *) dst_in)->sin_addr.s_addr;
-
-		if (ip_route_output_key(&init_net, &rt, &fl))
-			return;
-
-		neigh_event_send(rt->u.dst.neighbour, NULL);
-		ip_rt_put(rt);
-		break;
-
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
 	{
@@ -215,9 +204,9 @@ static void addr_send_arp(struct sockaddr *dst_in)
 	}
 }
 
-static int addr4_resolve_remote(struct sockaddr_in *src_in,
-			       struct sockaddr_in *dst_in,
-			       struct rdma_dev_addr *addr)
+static int addr4_resolve(struct sockaddr_in *src_in,
+			 struct sockaddr_in *dst_in,
+			 struct rdma_dev_addr *addr)
 {
 	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
@@ -235,6 +224,16 @@ static int addr4_resolve_remote(struct sockaddr_in *src_in,
 	if (ret)
 		goto out;
 
+	src_in->sin_family = AF_INET;
+	src_in->sin_addr.s_addr = rt->rt_src;
+
+	if (rt->idev->dev->flags & IFF_LOOPBACK) {
+		ret = rdma_translate_ip((struct sockaddr *) dst_in, addr);
+		if (!ret)
+			memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
+		goto put;
+	}
+
 	/* If the device does ARP internally, return 'done' */
 	if (rt->idev->dev->flags & IFF_NOARP) {
 		rdma_copy_addr(addr, rt->idev->dev, NULL);
@@ -242,19 +241,12 @@ static int addr4_resolve_remote(struct sockaddr_in *src_in,
 	}
 
 	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->idev->dev);
-	if (!neigh) {
+	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
+		neigh_event_send(rt->u.dst.neighbour, NULL);
 		ret = -ENODATA;
+		if (neigh)
+			goto release;
 		goto put;
-	}
-
-	if (!(neigh->nud_state & NUD_VALID)) {
-		ret = -ENODATA;
-		goto release;
-	}
-
-	if (!src_ip) {
-		src_in->sin_family = dst_in->sin_family;
-		src_in->sin_addr.s_addr = rt->rt_src;
 	}
 
 	ret = rdma_copy_addr(addr, neigh->dev, neigh->ha);
@@ -305,12 +297,12 @@ static int addr6_resolve_remote(struct sockaddr_in6 *src_in,
 }
 #endif
 
-static int addr_resolve_remote(struct sockaddr *src_in,
-				struct sockaddr *dst_in,
-				struct rdma_dev_addr *addr)
+static int addr_resolve(struct sockaddr *src_in,
+			struct sockaddr *dst_in,
+			struct rdma_dev_addr *addr)
 {
 	if (src_in->sa_family == AF_INET) {
-		return addr4_resolve_remote((struct sockaddr_in *) src_in,
+		return addr4_resolve((struct sockaddr_in *) src_in,
 			(struct sockaddr_in *) dst_in, addr);
 	} else
 		return addr6_resolve_remote((struct sockaddr_in6 *) src_in,
@@ -330,8 +322,7 @@ static void process_req(struct work_struct *work)
 		if (req->status == -ENODATA) {
 			src_in = (struct sockaddr *) &req->src_addr;
 			dst_in = (struct sockaddr *) &req->dst_addr;
-			req->status = addr_resolve_remote(src_in, dst_in,
-							  req->addr);
+			req->status = addr_resolve(src_in, dst_in, req->addr);
 			if (req->status && time_after_eq(jiffies, req->timeout))
 				req->status = -ETIMEDOUT;
 			else if (req->status == -ENODATA)
@@ -363,32 +354,6 @@ static int addr_resolve_local(struct sockaddr *src_in,
 	int ret;
 
 	switch (dst_in->sa_family) {
-	case AF_INET:
-	{
-		__be32 src_ip = ((struct sockaddr_in *) src_in)->sin_addr.s_addr;
-		__be32 dst_ip = ((struct sockaddr_in *) dst_in)->sin_addr.s_addr;
-
-		dev = ip_dev_find(&init_net, dst_ip);
-		if (!dev)
-			return -EADDRNOTAVAIL;
-
-		if (ipv4_is_zeronet(src_ip)) {
-			src_in->sa_family = dst_in->sa_family;
-			((struct sockaddr_in *) src_in)->sin_addr.s_addr = dst_ip;
-			ret = rdma_copy_addr(addr, dev, dev->dev_addr);
-		} else if (ipv4_is_loopback(src_ip)) {
-			ret = rdma_translate_ip(dst_in, addr);
-			if (!ret)
-				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
-		} else {
-			ret = rdma_translate_ip(src_in, addr);
-			if (!ret)
-				memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
-		}
-		dev_put(dev);
-		break;
-	}
-
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
 	{
@@ -473,7 +438,7 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 
 	req->status = addr_resolve_local(src_in, dst_in, addr);
 	if (req->status == -EADDRNOTAVAIL)
-		req->status = addr_resolve_remote(src_in, dst_in, addr);
+		req->status = addr_resolve(src_in, dst_in, addr);
 
 	switch (req->status) {
 	case 0:
