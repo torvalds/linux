@@ -105,6 +105,7 @@ static inline void fscache_done_parent_op(struct fscache_object *object)
 static void fscache_object_state_machine(struct fscache_object *object)
 {
 	enum fscache_object_state new_state;
+	struct fscache_cookie *cookie;
 
 	ASSERT(object != NULL);
 
@@ -158,11 +159,17 @@ static void fscache_object_state_machine(struct fscache_object *object)
 
 		spin_lock(&object->lock);
 		object->state = FSCACHE_OBJECT_DYING;
-		if (object->cookie &&
-		    test_and_clear_bit(FSCACHE_COOKIE_CREATING,
-				       &object->cookie->flags))
-			wake_up_bit(&object->cookie->flags,
-				    FSCACHE_COOKIE_CREATING);
+		cookie = object->cookie;
+		if (cookie) {
+			if (test_and_clear_bit(FSCACHE_COOKIE_LOOKING_UP,
+					       &cookie->flags))
+				wake_up_bit(&cookie->flags,
+					    FSCACHE_COOKIE_LOOKING_UP);
+			if (test_and_clear_bit(FSCACHE_COOKIE_CREATING,
+					       &cookie->flags))
+				wake_up_bit(&cookie->flags,
+					    FSCACHE_COOKIE_CREATING);
+		}
 		spin_unlock(&object->lock);
 
 		fscache_done_parent_op(object);
