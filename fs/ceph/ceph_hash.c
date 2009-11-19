@@ -85,7 +85,7 @@ unsigned ceph_str_hash_linux(const char *str, unsigned length)
         unsigned long hash = 0;
 	unsigned char c;
 
-        while (length-- > 0) {
+        while (length--) {
 		c = *str++;
 		hash = (hash + (c << 4) + (c >> 4)) * 11;
 	}
