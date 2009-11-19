@@ -295,6 +295,7 @@ static inline void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx
 void acpi_processor_ppc_init(void);
 void acpi_processor_ppc_exit(void);
 int acpi_processor_ppc_has_changed(struct acpi_processor *pr);
+extern int acpi_processor_get_bios_limit(int cpu, unsigned int *limit);
 #else
 static inline void acpi_processor_ppc_init(void)
 {
@@ -316,6 +317,11 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 	}
 	return 0;
 }
+static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
+{
+	return -ENODEV;
+}
+
 #endif				/* CONFIG_CPU_FREQ */
 
 /* in processor_throttling.c */

@@ -647,6 +647,21 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 	return policy->governor->show_setspeed(policy, buf);
 }
 
+/**
+ * show_scaling_driver - show the current cpufreq HW/BIOS limitation
+ */
+static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
+{
+	unsigned int limit;
+	int ret;
+	if (cpufreq_driver->bios_limit) {
+		ret = cpufreq_driver->bios_limit(policy->cpu, &limit);
+		if (!ret)
+			return sprintf(buf, "%u\n", limit);
+	}
+	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
+}
+
 #define define_one_ro(_name) \
 static struct freq_attr _name = \
 __ATTR(_name, 0444, show_##_name, NULL)
@@ -666,6 +681,7 @@ define_one_ro(cpuinfo_transition_latency);
 define_one_ro(scaling_available_governors);
 define_one_ro(scaling_driver);
 define_one_ro(scaling_cur_freq);
+define_one_ro(bios_limit);
 define_one_ro(related_cpus);
 define_one_ro(affected_cpus);
 define_one_rw(scaling_min_freq);
@@ -902,6 +918,11 @@ static int cpufreq_add_dev_interface(unsigned int cpu,
 	}
 	if (cpufreq_driver->target) {
 		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+		if (ret)
+			goto err_out_kobj_put;
+	}
+	if (cpufreq_driver->bios_limit) {
+		ret = sysfs_create_file(&policy->kobj, &bios_limit.attr);
 		if (ret)
 			goto err_out_kobj_put;
 	}
