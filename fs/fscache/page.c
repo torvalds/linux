@@ -43,6 +43,75 @@ void __fscache_wait_on_page_write(struct fscache_cookie *cookie, struct page *pa
 EXPORT_SYMBOL(__fscache_wait_on_page_write);
 
 /*
+ * decide whether a page can be released, possibly by cancelling a store to it
+ * - we're allowed to sleep if __GFP_WAIT is flagged
+ */
+bool __fscache_maybe_release_page(struct fscache_cookie *cookie,
+				  struct page *page,
+				  gfp_t gfp)
+{
+	struct page *xpage;
+	void *val;
+
+	_enter("%p,%p,%x", cookie, page, gfp);
+
+	rcu_read_lock();
+	val = radix_tree_lookup(&cookie->stores, page->index);
+	if (!val) {
+		rcu_read_unlock();
+		fscache_stat(&fscache_n_store_vmscan_not_storing);
+		__fscache_uncache_page(cookie, page);
+		return true;
+	}
+
+	/* see if the page is actually undergoing storage - if so we can't get
+	 * rid of it till the cache has finished with it */
+	if (radix_tree_tag_get(&cookie->stores, page->index,
+			       FSCACHE_COOKIE_STORING_TAG)) {
+		rcu_read_unlock();
+		goto page_busy;
+	}
+
+	/* the page is pending storage, so we attempt to cancel the store and
+	 * discard the store request so that the page can be reclaimed */
+	spin_lock(&cookie->stores_lock);
+	rcu_read_unlock();
+
+	if (radix_tree_tag_get(&cookie->stores, page->index,
+			       FSCACHE_COOKIE_STORING_TAG)) {
+		/* the page started to undergo storage whilst we were looking,
+		 * so now we can only wait or return */
+		spin_unlock(&cookie->stores_lock);
+		goto page_busy;
+	}
+
+	xpage = radix_tree_delete(&cookie->stores, page->index);
+	spin_unlock(&cookie->stores_lock);
+
+	if (xpage) {
+		fscache_stat(&fscache_n_store_vmscan_cancelled);
+		fscache_stat(&fscache_n_store_radix_deletes);
+		ASSERTCMP(xpage, ==, page);
+	} else {
+		fscache_stat(&fscache_n_store_vmscan_gone);
+	}
+
+	wake_up_bit(&cookie->flags, 0);
+	if (xpage)
+		page_cache_release(xpage);
+	__fscache_uncache_page(cookie, page);
+	return true;
+
+page_busy:
+	/* we might want to wait here, but that could deadlock the allocator as
+	 * the slow-work threads writing to the cache may all end up sleeping
+	 * on memory allocation */
+	fscache_stat(&fscache_n_store_vmscan_busy);
+	return false;
+}
+EXPORT_SYMBOL(__fscache_maybe_release_page);
+
+/*
  * note that a page has finished being written to the cache
  */
 static void fscache_end_page_write(struct fscache_object *object,
@@ -57,6 +126,8 @@ static void fscache_end_page_write(struct fscache_object *object,
 		/* delete the page from the tree if it is now no longer
 		 * pending */
 		spin_lock(&cookie->stores_lock);
+		radix_tree_tag_clear(&cookie->stores, page->index,
+				     FSCACHE_COOKIE_STORING_TAG);
 		if (!radix_tree_tag_get(&cookie->stores, page->index,
 					FSCACHE_COOKIE_PENDING_TAG)) {
 			fscache_stat(&fscache_n_store_radix_deletes);
@@ -640,8 +711,12 @@ static void fscache_write_op(struct fscache_operation *_op)
 		goto superseded;
 	}
 
-	radix_tree_tag_clear(&cookie->stores, page->index,
-			     FSCACHE_COOKIE_PENDING_TAG);
+	if (page) {
+		radix_tree_tag_set(&cookie->stores, page->index,
+				   FSCACHE_COOKIE_STORING_TAG);
+		radix_tree_tag_clear(&cookie->stores, page->index,
+				     FSCACHE_COOKIE_PENDING_TAG);
+	}
 
 	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);

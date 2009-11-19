@@ -272,6 +272,10 @@ proc files.
 		pgs=N	Number of pages given store req processing time
 		rxd=N	Number of store reqs deleted from tracking tree
 		olm=N	Number of store reqs over store limit
+	VmScan	nos=N	Number of release reqs against pages with no pending store
+		gon=N	Number of release reqs against pages stored by time lock granted
+		bsy=N	Number of release reqs ignored due to in-progress store
+		can=N	Number of page stores cancelled due to release req
 	Ops	pend=N	Number of times async ops added to pending queues
 		run=N	Number of times async ops given CPU time
 		enq=N	Number of times async ops queued for processing

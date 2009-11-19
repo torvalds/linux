@@ -180,6 +180,11 @@ extern atomic_t fscache_n_store_pages;
 extern atomic_t fscache_n_store_radix_deletes;
 extern atomic_t fscache_n_store_pages_over_limit;
 
+extern atomic_t fscache_n_store_vmscan_not_storing;
+extern atomic_t fscache_n_store_vmscan_gone;
+extern atomic_t fscache_n_store_vmscan_busy;
+extern atomic_t fscache_n_store_vmscan_cancelled;
+
 extern atomic_t fscache_n_marks;
 extern atomic_t fscache_n_uncaches;
 
