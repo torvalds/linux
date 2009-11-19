@@ -62,7 +62,19 @@ applicable).
 It also tracks 4 contention points per class. A contention point is a call site
 that had to wait on lock acquisition.
 
+ - CONFIGURATION
+
+Lock statistics are enabled via CONFIG_LOCK_STATS.
+
  - USAGE
+
+Enable collection of statistics:
+
+# echo 1 >/proc/sys/kernel/lock_stat
+
+Disable collection of statistics:
+
+# echo 0 >/proc/sys/kernel/lock_stat
 
 Look at the current lock statistics:
 
