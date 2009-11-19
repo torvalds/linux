@@ -803,7 +803,8 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	struct cachefiles_cache *cache;
 	mm_segment_t old_fs;
 	struct file *file;
-	loff_t pos;
+	loff_t pos, eof;
+	size_t len;
 	void *data;
 	int ret;
 
@@ -837,15 +838,29 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 		ret = -EIO;
 		if (file->f_op->write) {
 			pos = (loff_t) page->index << PAGE_SHIFT;
+
+			/* we mustn't write more data than we have, so we have
+			 * to beware of a partial page at EOF */
+			eof = object->fscache.store_limit_l;
+			len = PAGE_SIZE;
+			if (eof & ~PAGE_MASK) {
+				ASSERTCMP(pos, <, eof);
+				if (eof - pos < PAGE_SIZE) {
+					_debug("cut short %llx to %llx",
+					       pos, eof);
+					len = eof - pos;
+					ASSERTCMP(pos + len, ==, eof);
+				}
+			}
+
 			data = kmap(page);
 			old_fs = get_fs();
 			set_fs(KERNEL_DS);
 			ret = file->f_op->write(
-				file, (const void __user *) data, PAGE_SIZE,
-				&pos);
+				file, (const void __user *) data, len, &pos);
 			set_fs(old_fs);
 			kunmap(page);
-			if (ret != PAGE_SIZE)
+			if (ret != len)
 				ret = -EIO;
 		}
 		fput(file);

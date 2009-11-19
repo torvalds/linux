@@ -404,12 +404,26 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	if (oi_size == ni_size)
 		return 0;
 
-	newattrs.ia_size = ni_size;
-	newattrs.ia_valid = ATTR_SIZE;
-
 	cachefiles_begin_secure(cache, &saved_cred);
 	mutex_lock(&object->backer->d_inode->i_mutex);
+
+	/* if there's an extension to a partial page at the end of the backing
+	 * file, we need to discard the partial page so that we pick up new
+	 * data after it */
+	if (oi_size & ~PAGE_MASK && ni_size > oi_size) {
+		_debug("discard tail %llx", oi_size);
+		newattrs.ia_valid = ATTR_SIZE;
+		newattrs.ia_size = oi_size & PAGE_MASK;
+		ret = notify_change(object->backer, &newattrs);
+		if (ret < 0)
+			goto truncate_failed;
+	}
+
+	newattrs.ia_valid = ATTR_SIZE;
+	newattrs.ia_size = ni_size;
 	ret = notify_change(object->backer, &newattrs);
+
+truncate_failed:
 	mutex_unlock(&object->backer->d_inode->i_mutex);
 	cachefiles_end_secure(cache, saved_cred);
 

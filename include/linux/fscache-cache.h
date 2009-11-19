@@ -395,6 +395,7 @@ struct fscache_object {
 	struct rb_node		objlist_link;	/* link in global object list */
 #endif
 	pgoff_t			store_limit;	/* current storage limit */
+	loff_t			store_limit_l;	/* current storage limit */
 };
 
 extern const char *fscache_object_states[];
@@ -439,6 +440,7 @@ void fscache_object_init(struct fscache_object *object,
 	object->events = object->event_mask = 0;
 	object->flags = 0;
 	object->store_limit = 0;
+	object->store_limit_l = 0;
 	object->cache = cache;
 	object->cookie = cookie;
 	object->parent = NULL;
@@ -491,6 +493,7 @@ static inline void fscache_object_lookup_error(struct fscache_object *object)
 static inline
 void fscache_set_store_limit(struct fscache_object *object, loff_t i_size)
 {
+	object->store_limit_l = i_size;
 	object->store_limit = i_size >> PAGE_SHIFT;
 	if (i_size & ~PAGE_MASK)
 		object->store_limit++;
