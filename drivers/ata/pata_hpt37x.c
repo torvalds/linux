@@ -303,24 +303,16 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
 }
 
 /**
- *	hpt37x_pre_reset	-	reset the hpt37x bus
- *	@link: ATA link to reset
- *	@deadline: deadline jiffies for the operation
+ *	hpt37x_cable_detect	-	Detect the cable type
+ *	@ap: ATA port to detect on
  *
- *	Perform the initial reset handling for the 370/372 and 374 func 0
+ *	Return the cable type attached to this port
  */
 
-static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
+static int hpt37x_cable_detect(struct ata_port *ap)
 {
-	u8 scr2, ata66;
-	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	static const struct pci_bits hpt37x_enable_bits[] = {
-		{ 0x50, 1, 0x04, 0x04 },
-		{ 0x54, 1, 0x04, 0x04 }
-	};
-	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
-		return -ENOENT;
+	u8 scr2, ata66;
 
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
@@ -330,9 +322,57 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x5B, scr2);
 
 	if (ata66 & (2 >> ap->port_no))
-		ap->cbl = ATA_CBL_PATA40;
+		return ATA_CBL_PATA40;
 	else
-		ap->cbl = ATA_CBL_PATA80;
+		return ATA_CBL_PATA80;
+}
+
+/**
+ *	hpt374_fn1_cable_detect	-	Detect the cable type
+ *	@ap: ATA port to detect on
+ *
+ *	Return the cable type attached to this port
+ */
+
+static int hpt374_fn1_cable_detect(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	unsigned int mcrbase = 0x50 + 4 * ap->port_no;
+	u16 mcr3;
+	u8 ata66;
+
+	/* Do the extra channel work */
+	pci_read_config_word(pdev, mcrbase + 2, &mcr3);
+	/* Set bit 15 of 0x52 to enable TCBLID as input */
+	pci_write_config_word(pdev, mcrbase + 2, mcr3 | 0x8000);
+	pci_read_config_byte(pdev, 0x5A, &ata66);
+	/* Reset TCBLID/FCBLID to output */
+	pci_write_config_word(pdev, mcrbase + 2, mcr3);
+
+	if (ata66 & (2 >> ap->port_no))
+		return ATA_CBL_PATA40;
+	else
+		return ATA_CBL_PATA80;
+}
+
+/**
+ *	hpt37x_pre_reset	-	reset the hpt37x bus
+ *	@link: ATA link to reset
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	Perform the initial reset handling for the 370/372 and 374 func 0
+ */
+
+static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	static const struct pci_bits hpt37x_enable_bits[] = {
+		{ 0x50, 1, 0x04, 0x04 },
+		{ 0x54, 1, 0x04, 0x04 }
+	};
+	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
+		return -ENOENT;
 
 	/* Reset the state machine */
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
@@ -347,28 +387,11 @@ static int hpt374_fn1_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x50, 1, 0x04, 0x04 },
 		{ 0x54, 1, 0x04, 0x04 }
 	};
-	u16 mcr3;
-	u8 ata66;
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int mcrbase = 0x50 + 4 * ap->port_no;
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
-
-	/* Do the extra channel work */
-	pci_read_config_word(pdev, mcrbase + 2, &mcr3);
-	/* Set bit 15 of 0x52 to enable TCBLID as input
-	 */
-	pci_write_config_word(pdev, mcrbase + 2, mcr3 | 0x8000);
-	pci_read_config_byte(pdev, 0x5A, &ata66);
-	/* Reset TCBLID/FCBLID to output */
-	pci_write_config_word(pdev, mcrbase + 2, mcr3);
-
-	if (ata66 & (2 >> ap->port_no))
-		ap->cbl = ATA_CBL_PATA40;
-	else
-		ap->cbl = ATA_CBL_PATA80;
 
 	/* Reset the state machine */
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
@@ -584,6 +607,7 @@ static struct ata_port_operations hpt370_port_ops = {
 	.bmdma_stop	= hpt370_bmdma_stop,
 
 	.mode_filter	= hpt370_filter,
+	.cable_detect	= hpt37x_cable_detect,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
@@ -608,6 +632,7 @@ static struct ata_port_operations hpt372_port_ops = {
 
 	.bmdma_stop	= hpt37x_bmdma_stop,
 
+	.cable_detect	= hpt37x_cable_detect,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
@@ -620,6 +645,7 @@ static struct ata_port_operations hpt372_port_ops = {
 
 static struct ata_port_operations hpt374_fn1_port_ops = {
 	.inherits	= &hpt372_port_ops,
+	.cable_detect	= hpt374_fn1_cable_detect,
 	.prereset	= hpt374_fn1_pre_reset,
 };
 
