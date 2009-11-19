@@ -236,11 +236,16 @@ static bool slow_work_execute(int id)
 	if (!test_and_clear_bit(SLOW_WORK_PENDING, &work->flags))
 		BUG();
 
-	work->ops->execute(work);
+	/* don't execute if the work is in the process of being cancelled */
+	if (!test_bit(SLOW_WORK_CANCELLING, &work->flags))
+		work->ops->execute(work);
 
 	if (very_slow)
 		atomic_dec(&vslow_work_executing_count);
 	clear_bit_unlock(SLOW_WORK_EXECUTING, &work->flags);
+
+	/* wake up anyone waiting for this work to be complete */
+	wake_up_bit(&work->flags, SLOW_WORK_EXECUTING);
 
 	/* if someone tried to enqueue the item whilst we were executing it,
 	 * then it'll be left unenqueued to avoid multiple threads trying to
@@ -314,11 +319,16 @@ auto_requeue:
  * allowed to pick items to execute.  This ensures that very slow items won't
  * overly block ones that are just ordinarily slow.
  *
- * Returns 0 if successful, -EAGAIN if not.
+ * Returns 0 if successful, -EAGAIN if not (or -ECANCELED if cancelled work is
+ * attempted queued)
  */
 int slow_work_enqueue(struct slow_work *work)
 {
 	unsigned long flags;
+	int ret;
+
+	if (test_bit(SLOW_WORK_CANCELLING, &work->flags))
+		return -ECANCELED;
 
 	BUG_ON(slow_work_user_count <= 0);
 	BUG_ON(!work);
@@ -334,6 +344,9 @@ int slow_work_enqueue(struct slow_work *work)
 	 */
 	if (!test_and_set_bit_lock(SLOW_WORK_PENDING, &work->flags)) {
 		spin_lock_irqsave(&slow_work_queue_lock, flags);
+
+		if (unlikely(test_bit(SLOW_WORK_CANCELLING, &work->flags)))
+			goto cancelled;
 
 		/* we promise that we will not attempt to execute the work
 		 * function in more than one thread simultaneously
@@ -352,8 +365,9 @@ int slow_work_enqueue(struct slow_work *work)
 		if (test_bit(SLOW_WORK_EXECUTING, &work->flags)) {
 			set_bit(SLOW_WORK_ENQ_DEFERRED, &work->flags);
 		} else {
-			if (slow_work_get_ref(work) < 0)
-				goto cant_get_ref;
+			ret = slow_work_get_ref(work);
+			if (ret < 0)
+				goto failed;
 			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
 				list_add_tail(&work->link, &vslow_work_queue);
 			else
@@ -365,11 +379,66 @@ int slow_work_enqueue(struct slow_work *work)
 	}
 	return 0;
 
-cant_get_ref:
+cancelled:
+	ret = -ECANCELED;
+failed:
 	spin_unlock_irqrestore(&slow_work_queue_lock, flags);
-	return -EAGAIN;
+	return ret;
 }
 EXPORT_SYMBOL(slow_work_enqueue);
+
+static int slow_work_wait(void *word)
+{
+	schedule();
+	return 0;
+}
+
+/**
+ * slow_work_cancel - Cancel a slow work item
+ * @work: The work item to cancel
+ *
+ * This function will cancel a previously enqueued work item. If we cannot
+ * cancel the work item, it is guarenteed to have run when this function
+ * returns.
+ */
+void slow_work_cancel(struct slow_work *work)
+{
+	bool wait = true, put = false;
+
+	set_bit(SLOW_WORK_CANCELLING, &work->flags);
+
+	spin_lock_irq(&slow_work_queue_lock);
+
+	if (test_bit(SLOW_WORK_PENDING, &work->flags) &&
+	    !list_empty(&work->link)) {
+		/* the link in the pending queue holds a reference on the item
+		 * that we will need to release */
+		list_del_init(&work->link);
+		wait = false;
+		put = true;
+		clear_bit(SLOW_WORK_PENDING, &work->flags);
+
+	} else if (test_and_clear_bit(SLOW_WORK_ENQ_DEFERRED, &work->flags)) {
+		/* the executor is holding our only reference on the item, so
+		 * we merely need to wait for it to finish executing */
+		clear_bit(SLOW_WORK_PENDING, &work->flags);
+	}
+
+	spin_unlock_irq(&slow_work_queue_lock);
+
+	/* the EXECUTING flag is set by the executor whilst the spinlock is set
+	 * and before the item is dequeued - so assuming the above doesn't
+	 * actually dequeue it, simply waiting for the EXECUTING flag to be
+	 * released here should be sufficient */
+	if (wait)
+		wait_on_bit(&work->flags, SLOW_WORK_EXECUTING, slow_work_wait,
+			    TASK_UNINTERRUPTIBLE);
+
+	clear_bit(SLOW_WORK_CANCELLING, &work->flags);
+	if (put)
+		slow_work_put_ref(work);
+}
+EXPORT_SYMBOL(slow_work_cancel);
 
 /*
  * Schedule a cull of the thread pool at some time in the near future

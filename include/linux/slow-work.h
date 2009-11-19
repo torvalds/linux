@@ -51,6 +51,7 @@ struct slow_work {
 #define SLOW_WORK_EXECUTING	1	/* item currently executing */
 #define SLOW_WORK_ENQ_DEFERRED	2	/* item enqueue deferred */
 #define SLOW_WORK_VERY_SLOW	3	/* item is very slow */
+#define SLOW_WORK_CANCELLING	4	/* item is being cancelled, don't enqueue */
 	const struct slow_work_ops *ops; /* operations table for this item */
 	struct list_head	link;	/* link in queue */
 };
@@ -88,6 +89,7 @@ static inline void vslow_work_init(struct slow_work *work,
 }
 
 extern int slow_work_enqueue(struct slow_work *work);
+extern void slow_work_cancel(struct slow_work *work);
 extern int slow_work_register_user(struct module *owner);
 extern void slow_work_unregister_user(struct module *owner);
 

@@ -108,7 +108,17 @@ on the item, 0 otherwise.
 
 
 The items are reference counted, so there ought to be no need for a flush
-operation.  When all a module's slow work items have been processed, and the
+operation.  But as the reference counting is optional, means to cancel
+existing work items are also included:
+
+	cancel_slow_work(&myitem);
+
+can be used to cancel pending work.  The above cancel function waits for
+existing work to have been executed (or prevent execution of them, depending
+on timing).
+
+
+When all a module's slow work items have been processed, and the
 module has no further interest in the facility, it should unregister its
 interest:
 
