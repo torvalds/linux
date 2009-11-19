@@ -153,8 +153,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting.  Note that
-                     	if the filesystem was not unmounted cleanly,
+norecovery		Don't load the journal on mounting.  Note that
+noload			if the filesystem was not unmounted cleanly,
                      	skipping the journal replay will lead to the
                      	filesystem containing inconsistencies that can
                      	lead to any number of problems.
