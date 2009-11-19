@@ -545,8 +545,13 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_release_region;
 	}
-	if (pdata)
+	if (pdata) {
 		dev->enable_channel_combine = pdata->enable_channel_combine;
+		dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].sram_size =
+			pdata->sram_size_playback;
+		dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].sram_size =
+			pdata->sram_size_capture;
+	}
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		ret = -ENODEV;
