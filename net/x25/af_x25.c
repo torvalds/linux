@@ -1471,6 +1471,17 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		case SIOCX25SCAUSEDIAG: {
+			struct x25_causediag causediag;
+			rc = -EFAULT;
+			if (copy_from_user(&causediag, argp, sizeof(causediag)))
+				break;
+			x25->causediag = causediag;
+			rc = 0;
+			break;
+
+		}
+
 		case SIOCX25SCUDMATCHLEN: {
 			struct x25_subaddr sub_addr;
 			rc = -EINVAL;
@@ -1639,6 +1650,7 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 	case SIOCX25GCALLUSERDATA:
 	case SIOCX25SCALLUSERDATA:
 	case SIOCX25GCAUSEDIAG:
+	case SIOCX25SCAUSEDIAG:
 	case SIOCX25SCUDMATCHLEN:
 	case SIOCX25CALLACCPTAPPRV:
 	case SIOCX25SENDCALLACCPT:
