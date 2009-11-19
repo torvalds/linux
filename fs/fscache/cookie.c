@@ -102,7 +102,9 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	cookie->netfs_data	= netfs_data;
 	cookie->flags		= 0;
 
-	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS);
+	/* radix tree insertion won't use the preallocation pool unless it's
+	 * told it may not wait */
+	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_WAIT);
 
 	switch (cookie->def->type) {
 	case FSCACHE_COOKIE_TYPE_INDEX:

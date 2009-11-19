@@ -200,6 +200,9 @@ radix_tree_node_free(struct radix_tree_node *node)
  * ensure that the addition of a single element in the tree cannot fail.  On
  * success, return zero, with preemption disabled.  On error, return -ENOMEM
  * with preemption not disabled.
+ *
+ * To make use of this facility, the radix tree must be initialised without
+ * __GFP_WAIT being passed to INIT_RADIX_TREE().
  */
 int radix_tree_preload(gfp_t gfp_mask)
 {
