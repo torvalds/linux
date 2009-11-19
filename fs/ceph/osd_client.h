@@ -13,6 +13,7 @@ struct ceph_msg;
 struct ceph_snap_context;
 struct ceph_osd_request;
 struct ceph_osd_client;
+struct ceph_authorizer;
 
 /*
  * completion callback for async writepages
@@ -29,6 +30,9 @@ struct ceph_osd {
 	struct rb_node o_node;
 	struct ceph_connection o_con;
 	struct list_head o_requests;
+	struct ceph_authorizer *o_authorizer;
+	void *o_authorizer_buf, *o_authorizer_reply_buf;
+	size_t o_authorizer_buf_len, o_authorizer_reply_buf_len;
 };
 
 /* an in-flight request */

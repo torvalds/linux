@@ -6,6 +6,7 @@
 
 #include "mon_client.h"
 #include "super.h"
+#include "auth.h"
 #include "decode.h"
 
 /*
@@ -38,6 +39,10 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	struct ceph_fsid fsid;
 	u32 epoch, num_mon;
 	u16 version;
+	u32 len;
+
+	ceph_decode_32_safe(&p, end, len, bad);
+	ceph_decode_need(&p, end, len, bad);
 
 	dout("monmap_decode %p %p len %d\n", p, end, (int)(end-p));
 
@@ -95,8 +100,10 @@ static void __close_session(struct ceph_mon_client *monc)
 {
 	if (monc->con) {
 		dout("__close_session closing mon%d\n", monc->cur_mon);
+		ceph_con_revoke(monc->con, monc->m_auth);
 		ceph_con_close(monc->con);
 		monc->cur_mon = -1;
+		ceph_auth_reset(monc->auth);
 	}
 }
 
@@ -106,6 +113,7 @@ static void __close_session(struct ceph_mon_client *monc)
 static int __open_session(struct ceph_mon_client *monc)
 {
 	char r;
+	int ret;
 
 	if (monc->cur_mon < 0) {
 		get_random_bytes(&r, 1);
@@ -121,6 +129,15 @@ static int __open_session(struct ceph_mon_client *monc)
 		monc->con->peer_name.num = cpu_to_le64(monc->cur_mon);
 		ceph_con_open(monc->con,
 			      &monc->monmap->mon_inst[monc->cur_mon].addr);
+
+		/* initiatiate authentication handshake */
+		ret = ceph_auth_build_hello(monc->auth,
+					    monc->m_auth->front.iov_base,
+					    monc->m_auth->front_max);
+		monc->m_auth->front.iov_len = ret;
+		monc->m_auth->hdr.front_len = cpu_to_le32(ret);
+		ceph_msg_get(monc->m_auth);  /* keep our ref */
+		ceph_con_send(monc->con, monc->m_auth);
 	} else {
 		dout("open_session mon%d already open\n", monc->cur_mon);
 	}
@@ -139,7 +156,7 @@ static void __schedule_delayed(struct ceph_mon_client *monc)
 {
 	unsigned delay;
 
-	if (monc->cur_mon < 0 || monc->want_mount || __sub_expired(monc))
+	if (monc->cur_mon < 0 || __sub_expired(monc))
 		delay = 10 * HZ;
 	else
 		delay = 20 * HZ;
@@ -161,7 +178,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		struct ceph_mon_subscribe_item *i;
 		void *p, *end;
 
-		msg = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 64, 0, 0, NULL);
+		msg = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, 0, 0, NULL);
 		if (!msg)
 			return;
 
@@ -173,7 +190,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		if (monc->want_next_osdmap) {
 			dout("__send_subscribe to 'osdmap' %u\n",
 			     (unsigned)monc->have_osdmap);
-			ceph_encode_32(&p, 2);
+			ceph_encode_32(&p, 3);
 			ceph_encode_string(&p, end, "osdmap", 6);
 			i = p;
 			i->have = cpu_to_le64(monc->have_osdmap);
@@ -181,11 +198,16 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 			p += sizeof(*i);
 			monc->want_next_osdmap = 2;  /* requested */
 		} else {
-			ceph_encode_32(&p, 1);
+			ceph_encode_32(&p, 2);
 		}
 		ceph_encode_string(&p, end, "mdsmap", 6);
 		i = p;
 		i->have = cpu_to_le64(monc->have_mdsmap);
+		i->onetime = 0;
+		p += sizeof(*i);
+		ceph_encode_string(&p, end, "monmap", 6);
+		i = p;
+		i->have = 0;
 		i->onetime = 0;
 		p += sizeof(*i);
 
@@ -256,7 +278,7 @@ void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc)
 	mutex_unlock(&monc->mutex);
 }
 
-
+#if 0
 /*
  * mount
  */
@@ -264,12 +286,8 @@ static void __request_mount(struct ceph_mon_client *monc)
 {
 	struct ceph_msg *msg;
 	struct ceph_client_mount *h;
-	int err;
 
 	dout("__request_mount\n");
-	err = __open_session(monc);
-	if (err)
-		return;
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_MOUNT, sizeof(*h), 0, 0, NULL);
 	if (IS_ERR(msg))
 		return;
@@ -279,8 +297,12 @@ static void __request_mount(struct ceph_mon_client *monc)
 	h->monhdr.session_mon_tid = 0;
 	ceph_con_send(monc->con, msg);
 }
+#endif
 
-int ceph_monc_request_mount(struct ceph_mon_client *monc)
+/*
+ * 
+ */
+int ceph_monc_open_session(struct ceph_mon_client *monc)
 {
 	if (!monc->con) {
 		monc->con = kmalloc(sizeof(*monc->con), GFP_KERNEL);
@@ -292,11 +314,13 @@ int ceph_monc_request_mount(struct ceph_mon_client *monc)
 	}
 
 	mutex_lock(&monc->mutex);
-	__request_mount(monc);
+	__open_session(monc);
 	__schedule_delayed(monc);
 	mutex_unlock(&monc->mutex);
 	return 0;
 }
+
+#if 0
 
 /*
  * The monitor responds with mount ack indicate mount success.  The
@@ -372,9 +396,65 @@ out:
 	mutex_unlock(&monc->mutex);
 	wake_up(&client->mount_wq);
 }
+#endif
+
+/*
+ * The monitor responds with mount ack indicate mount success.  The
+ * included client ticket allows the client to talk to MDSs and OSDs.
+ */
+static void ceph_monc_handle_map(struct ceph_mon_client *monc, struct ceph_msg *msg)
+{
+	struct ceph_client *client = monc->client;
+	struct ceph_monmap *monmap = NULL, *old = monc->monmap;
+	void *p, *end;
+
+	mutex_lock(&monc->mutex);
+
+	dout("handle_monmap\n");
+	p = msg->front.iov_base;
+	end = p + msg->front.iov_len;
+
+	monmap = ceph_monmap_decode(p, end);
+	if (IS_ERR(monmap)) {
+		pr_err("problem decoding monmap, %d\n",
+		       (int)PTR_ERR(monmap));
+		return;
+	}
+	if (monc->have_fsid &&
+	    ceph_fsid_compare(&monmap->fsid, &monc->monmap->fsid)) {
+		print_hex_dump(KERN_ERR, "monmap->fsid: ", DUMP_PREFIX_NONE, 16, 1,
+			       (void *)&monmap->fsid, 16, 0);
+		print_hex_dump(KERN_ERR, "monc->monmap->fsid: ", DUMP_PREFIX_NONE, 16, 1,
+			       (void *)&monc->monmap->fsid, 16, 0);
+
+		pr_err("fsid mismatch, got a previous map with different fsid");
+		kfree(monmap);
+		return;
+	}
+
+	client->monc.monmap = monmap;
+	client->monc.have_fsid = true;
+	kfree(old);
+
+	mutex_unlock(&monc->mutex);
+	wake_up(&client->mount_wq);
+}
 
 
+/*
+ * init client info after authentication
+ */
+static void __init_authenticated_client(struct ceph_mon_client *monc)
+{
+	struct ceph_client *client = monc->client;
 
+	client->signed_ticket = NULL;
+	client->signed_ticket_len = 0;
+	client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
+	client->msgr->inst.name.num = monc->auth->global_id;
+
+	ceph_debugfs_client_init(client);
+}
 
 /*
  * statfs
@@ -414,12 +494,8 @@ static int send_statfs(struct ceph_mon_client *monc,
 {
 	struct ceph_msg *msg;
 	struct ceph_mon_statfs *h;
-	int err;
 
 	dout("send_statfs tid %llu\n", req->tid);
-	err = __open_session(monc);
-	if (err)
-		return err;
 	msg = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h), 0, 0, NULL);
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
@@ -514,17 +590,14 @@ static void delayed_work(struct work_struct *work)
 
 	dout("monc delayed_work\n");
 	mutex_lock(&monc->mutex);
-	if (monc->want_mount) {
-		__request_mount(monc);
+	if (monc->hunting) {
+		__close_session(monc);
+		__open_session(monc);  /* continue hunting */
 	} else {
-		if (monc->hunting) {
-			__close_session(monc);
-			__open_session(monc);  /* continue hunting */
-		} else {
-			ceph_con_keepalive(monc->con);
-		}
+		ceph_con_keepalive(monc->con);
+		if (monc->auth->ops->is_authenticated(monc->auth))
+			__send_subscribe(monc);
 	}
-	__send_subscribe(monc);
 	__schedule_delayed(monc);
 	mutex_unlock(&monc->mutex);
 }
@@ -555,6 +628,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		monc->monmap->mon_inst[i].name.num = cpu_to_le64(i);
 	}
 	monc->monmap->num_mon = num_mon;
+	monc->have_fsid = false;
 
 	/* release addr memory */
 	kfree(args->mon_addr);
@@ -579,21 +653,37 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 	monc->con = NULL;
 
+	/* authentication */
+	monc->auth = ceph_auth_init(cl->mount_args->name,
+				    cl->mount_args->secret);
+	if (IS_ERR(monc->auth))
+		return PTR_ERR(monc->auth);
+	monc->auth->want_keys =
+		CEPH_ENTITY_TYPE_AUTH | CEPH_ENTITY_TYPE_MON |
+		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
+
 	/* msg pools */
-	err = ceph_msgpool_init(&monc->msgpool_mount_ack, 4096, 1, false);
-	if (err < 0)
-		goto out;
 	err = ceph_msgpool_init(&monc->msgpool_subscribe_ack,
 			       sizeof(struct ceph_mon_subscribe_ack), 1, false);
 	if (err < 0)
-		goto out;
+		goto out_monmap;
 	err = ceph_msgpool_init(&monc->msgpool_statfs_reply,
 				sizeof(struct ceph_mon_statfs_reply), 0, false);
 	if (err < 0)
-		goto out;
+		goto out_pool1;
+	err = ceph_msgpool_init(&monc->msgpool_auth_reply, 4096, 1, false);
+	if (err < 0)
+		goto out_pool2;
+
+	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, 0, 0, NULL);
+	if (IS_ERR(monc->m_auth)) {
+		err = PTR_ERR(monc->m_auth);
+		monc->m_auth = NULL;
+		goto out_pool3;
+	}
 
 	monc->cur_mon = -1;
-	monc->hunting = false;  /* not really */
+	monc->hunting = true;
 	monc->sub_renew_after = jiffies;
 	monc->sub_sent = 0;
 
@@ -605,7 +695,16 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->have_mdsmap = 0;
 	monc->have_osdmap = 0;
 	monc->want_next_osdmap = 1;
-	monc->want_mount = true;
+	return 0;
+
+out_pool3:
+	ceph_msgpool_destroy(&monc->msgpool_auth_reply);
+out_pool2:
+	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
+out_pool1:
+	ceph_msgpool_destroy(&monc->msgpool_statfs_reply);
+out_monmap:
+	kfree(monc->monmap);
 out:
 	return err;
 }
@@ -624,13 +723,43 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 	}
 	mutex_unlock(&monc->mutex);
 
-	ceph_msgpool_destroy(&monc->msgpool_mount_ack);
+	ceph_auth_destroy(monc->auth);
+
+	ceph_msg_put(monc->m_auth);
 	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
 	ceph_msgpool_destroy(&monc->msgpool_statfs_reply);
+	ceph_msgpool_destroy(&monc->msgpool_auth_reply);
 
 	kfree(monc->monmap);
 }
 
+
+static void handle_auth_reply(struct ceph_mon_client *monc,
+			      struct ceph_msg *msg)
+{
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
+				     msg->front.iov_len,
+				     monc->m_auth->front.iov_base,
+				     monc->m_auth->front_max);
+	if (ret < 0) {
+		monc->client->mount_err = ret;
+		wake_up(&monc->client->mount_wq);
+	} else if (ret > 0) {
+		monc->m_auth->front.iov_len = ret;
+		monc->m_auth->hdr.front_len = cpu_to_le32(ret);
+		ceph_msg_get(monc->m_auth);  /* keep our ref */
+		ceph_con_send(monc->con, monc->m_auth);
+	} else if (monc->auth->ops->is_authenticated(monc->auth)) {
+		dout("authenticated, starting session\n");
+		__init_authenticated_client(monc);
+		__send_subscribe(monc);
+		__resend_statfs(monc);
+	}
+	mutex_unlock(&monc->mutex);
+}
 
 /*
  * handle incoming message
@@ -644,8 +773,8 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		return;
 
 	switch (type) {
-	case CEPH_MSG_CLIENT_MOUNT_ACK:
-		handle_mount_ack(monc, msg);
+	case CEPH_MSG_AUTH_REPLY:
+		handle_auth_reply(monc, msg);
 		break;
 
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
@@ -654,6 +783,10 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 
 	case CEPH_MSG_STATFS_REPLY:
 		handle_statfs_reply(monc, msg);
+		break;
+
+	case CEPH_MSG_MON_MAP:
+		ceph_monc_handle_map(monc, msg);
 		break;
 
 	case CEPH_MSG_MDS_MAP:
@@ -682,12 +815,12 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	int front = le32_to_cpu(hdr->front_len);
 
 	switch (type) {
-	case CEPH_MSG_CLIENT_MOUNT_ACK:
-		return ceph_msgpool_get(&monc->msgpool_mount_ack, front);
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
 		return ceph_msgpool_get(&monc->msgpool_subscribe_ack, front);
 	case CEPH_MSG_STATFS_REPLY:
 		return ceph_msgpool_get(&monc->msgpool_statfs_reply, front);
+	case CEPH_MSG_AUTH_REPLY:
+		return ceph_msgpool_get(&monc->msgpool_auth_reply, front);
 	}
 	return ceph_alloc_msg(con, hdr);
 }
@@ -717,10 +850,7 @@ static void mon_fault(struct ceph_connection *con)
 	if (!monc->hunting) {
 		/* start hunting */
 		monc->hunting = true;
-		if (__open_session(monc) == 0) {
-			__send_subscribe(monc);
-			__resend_statfs(monc);
-		}
+		__open_session(monc);
 	} else {
 		/* already hunting, let's wait a bit */
 		__schedule_delayed(monc);

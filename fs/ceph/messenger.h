@@ -26,6 +26,12 @@ struct ceph_connection_operations {
 	/* handle an incoming message. */
 	void (*dispatch) (struct ceph_connection *con, struct ceph_msg *m);
 
+	/* authorize an outgoing connection */
+	int (*get_authorizer) (struct ceph_connection *con,
+			       void **buf, int *len, int *proto,
+			       void **reply_buf, int *reply_len, int force_new);
+	int (*verify_authorizer_reply) (struct ceph_connection *con, int len);
+
 	/* protocol version mismatch */
 	void (*bad_proto) (struct ceph_connection *con);
 
@@ -143,6 +149,10 @@ struct ceph_connection {
 	u32 connect_seq;      /* identify the most recent connection
 				 attempt for this connection, client */
 	u32 peer_global_seq;  /* peer's global seq for this connection */
+
+	int auth_retry;       /* true if we need a newer authorizer */
+	void *auth_reply_buf;   /* where to put the authorizer reply */
+	int auth_reply_buf_len;
 
 	/* out queue */
 	struct mutex out_mutex;

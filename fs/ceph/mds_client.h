@@ -100,6 +100,10 @@ struct ceph_mds_session {
 
 	struct ceph_connection s_con;
 
+	struct ceph_authorizer *s_authorizer;
+	void             *s_authorizer_buf, *s_authorizer_reply_buf;
+	size_t            s_authorizer_buf_len, s_authorizer_reply_buf_len;
+
 	/* protected by s_cap_lock */
 	spinlock_t        s_cap_lock;
 	u32               s_cap_gen;  /* inc each time we get mds stale msg */

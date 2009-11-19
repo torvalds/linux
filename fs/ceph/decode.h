@@ -98,6 +98,7 @@ static inline void ceph_encode_addr(struct ceph_entity_addr *a)
 static inline void ceph_decode_addr(struct ceph_entity_addr *a)
 {
 	a->in_addr.ss_family = ntohs(a->in_addr.ss_family);
+	WARN_ON(a->in_addr.ss_family == 512);
 }
 
 /*
@@ -122,6 +123,11 @@ static inline void ceph_encode_8(void **p, u8 v)
 {
 	*(u8 *)*p = v;
 	(*p)++;
+}
+static inline void ceph_encode_copy(void **p, const void *s, int len)
+{
+	memcpy(*p, s, len);
+	*p += len;
 }
 
 /*

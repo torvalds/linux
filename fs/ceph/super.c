@@ -128,6 +128,8 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_puts(m, ",noasyncreaddir");
 	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
 		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
+	if (args->name)
+		seq_printf(m, ",name=%s", args->name);
 	if (args->secret)
 		seq_puts(m, ",secret=<hidden>");
 	return 0;
@@ -224,12 +226,12 @@ const char *ceph_msg_type_name(int type)
 	switch (type) {
 	case CEPH_MSG_SHUTDOWN: return "shutdown";
 	case CEPH_MSG_PING: return "ping";
+	case CEPH_MSG_AUTH: return "auth";
+	case CEPH_MSG_AUTH_REPLY: return "auth_reply";
 	case CEPH_MSG_MON_MAP: return "mon_map";
 	case CEPH_MSG_MON_GET_MAP: return "mon_get_map";
 	case CEPH_MSG_MON_SUBSCRIBE: return "mon_subscribe";
 	case CEPH_MSG_MON_SUBSCRIBE_ACK: return "mon_subscribe_ack";
-	case CEPH_MSG_CLIENT_MOUNT: return "client_mount";
-	case CEPH_MSG_CLIENT_MOUNT_ACK: return "client_mount_ack";
 	case CEPH_MSG_STATFS: return "statfs";
 	case CEPH_MSG_STATFS_REPLY: return "statfs_reply";
 	case CEPH_MSG_MDS_MAP: return "mds_map";
@@ -267,6 +269,7 @@ enum {
 	Opt_last_int,
 	/* int args above */
 	Opt_snapdirname,
+	Opt_name,
 	Opt_secret,
 	Opt_last_string,
 	/* string args above */
@@ -293,6 +296,7 @@ static match_table_t arg_tokens = {
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
 	/* int args above */
 	{Opt_snapdirname, "snapdirname=%s"},
+	{Opt_name, "name=%s"},
 	{Opt_secret, "secret=%s"},
 	/* string args above */
 	{Opt_ip, "ip=%s"},
@@ -407,6 +411,11 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 					      argstr[0].to-argstr[0].from,
 					      GFP_KERNEL);
 			break;
+		case Opt_name:
+			args->name = kstrndup(argstr[0].from,
+					      argstr[0].to-argstr[0].from,
+					      GFP_KERNEL);
+			break;
 		case Opt_secret:
 			args->secret = kstrndup(argstr[0].from,
 						argstr[0].to-argstr[0].from,
@@ -476,6 +485,8 @@ static void destroy_mount_args(struct ceph_mount_args *args)
 	dout("destroy_mount_args %p\n", args);
 	kfree(args->snapdir_name);
 	args->snapdir_name = NULL;
+	kfree(args->name);
+	args->name = NULL;
 	kfree(args->secret);
 	args->secret = NULL;
 	kfree(args);
@@ -657,27 +668,23 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 		client->msgr->nocrc = ceph_test_opt(client, NOCRC);
 	}
 
-	/* send mount request, and wait for mon, mds, and osd maps */
-	err = ceph_monc_request_mount(&client->monc);
+	/* open session, and wait for mon, mds, and osd maps */
+	err = ceph_monc_open_session(&client->monc);
 	if (err < 0)
 		goto out;
 
-	while (!have_mon_map(client) && !client->mount_err) {
+	while (!have_mon_map(client)) {
 		err = -EIO;
 		if (timeout && time_after_eq(jiffies, started + timeout))
 			goto out;
 
 		/* wait */
-		dout("mount waiting for mount\n");
-		err = wait_event_interruptible_timeout(client->mount_wq,
-			       client->mount_err || have_mon_map(client),
+		dout("mount waiting for mon_map\n");
+		err = wait_event_interruptible_timeout(client->mount_wq, /* FIXME */
+			       have_mon_map(client),
 			       timeout);
 		if (err == -EINTR || err == -ERESTARTSYS)
 			goto out;
-		if (client->mount_err) {
-			err = client->mount_err;
-			goto out;
-		}
 	}
 
 	dout("mount opening root\n");
@@ -795,7 +802,6 @@ static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 		client->backing_dev_info.ra_pages =
 			(client->mount_args->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
-
 	err = bdi_register_dev(&client->backing_dev_info, sb->s_dev);
 	return err;
 }

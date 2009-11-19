@@ -61,6 +61,7 @@ struct ceph_mount_args {
 	int max_readdir;      /* max readdir size */
 	int osd_timeout;
 	char *snapdir_name;   /* default ".snap" */
+	char *name;
 	char *secret;
 	int cap_release_safety;
 };
@@ -75,6 +76,7 @@ struct ceph_mount_args {
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_SNAPDIRNAME_DEFAULT ".snap"
+#define CEPH_AUTH_NAME_DEFAULT   "guest"
 
 /*
  * Delay telling the MDS we no longer want caps, in case we reopen

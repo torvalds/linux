@@ -75,6 +75,16 @@ struct ceph_file_layout {
 int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 
 
+/* crypto algorithms */
+#define CEPH_CRYPTO_NONE 0x0
+#define CEPH_CRYPTO_AES  0x1
+
+/* security/authentication protocols */
+#define CEPH_AUTH_UNKNOWN	0x0
+#define CEPH_AUTH_NONE	 	0x1
+#define CEPH_AUTH_CEPHX	 	0x2
+
+
 /*********************************************
  * message layer
  */
@@ -90,12 +100,12 @@ int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 /* client <-> monitor */
 #define CEPH_MSG_MON_MAP                4
 #define CEPH_MSG_MON_GET_MAP            5
-#define CEPH_MSG_CLIENT_MOUNT           10
-#define CEPH_MSG_CLIENT_MOUNT_ACK       11
 #define CEPH_MSG_STATFS                 13
 #define CEPH_MSG_STATFS_REPLY           14
 #define CEPH_MSG_MON_SUBSCRIBE          15
 #define CEPH_MSG_MON_SUBSCRIBE_ACK      16
+#define CEPH_MSG_AUTH			17
+#define CEPH_MSG_AUTH_REPLY		18
 
 /* client <-> mds */
 #define CEPH_MSG_MDS_MAP                21

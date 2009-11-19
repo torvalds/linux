@@ -550,6 +550,27 @@ static void prepare_write_keepalive(struct ceph_connection *con)
  * Connection negotiation.
  */
 
+static void prepare_connect_authorizer(struct ceph_connection *con)
+{
+	void *auth_buf;
+	int auth_len = 0;
+	int auth_protocol = 0;
+
+	if (con->ops->get_authorizer)
+		con->ops->get_authorizer(con, &auth_buf, &auth_len,
+					 &auth_protocol, &con->auth_reply_buf,
+					 &con->auth_reply_buf_len,
+					 con->auth_retry);
+
+	con->out_connect.authorizer_protocol = cpu_to_le32(auth_protocol);
+	con->out_connect.authorizer_len = cpu_to_le32(auth_len);
+
+	con->out_kvec[con->out_kvec_left].iov_base = auth_buf;
+	con->out_kvec[con->out_kvec_left].iov_len = auth_len;
+	con->out_kvec_left++;
+	con->out_kvec_bytes += auth_len;
+}
+
 /*
  * We connected to a peer and are saying hello.
  */
@@ -592,6 +613,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
+
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -611,6 +633,8 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	con->out_kvec_cur = con->out_kvec;
 	con->out_more = 0;
 	set_bit(WRITE_PENDING, &con->state);
+
+	prepare_connect_authorizer(con);
 }
 
 
@@ -777,6 +801,13 @@ static void prepare_read_connect(struct ceph_connection *con)
 	con->in_base_pos = 0;
 }
 
+static void prepare_read_connect_retry(struct ceph_connection *con)
+{
+	dout("prepare_read_connect_retry %p\n", con);
+	con->in_base_pos = strlen(CEPH_BANNER) + sizeof(con->actual_peer_addr)
+		+ sizeof(con->peer_addr_for_me);
+}
+
 static void prepare_read_ack(struct ceph_connection *con)
 {
 	dout("prepare_read_ack %p\n", con);
@@ -853,9 +884,14 @@ static int read_partial_connect(struct ceph_connection *con)
 	ret = read_partial(con, &to, sizeof(con->in_reply), &con->in_reply);
 	if (ret <= 0)
 		goto out;
+	ret = read_partial(con, &to, le32_to_cpu(con->in_reply.authorizer_len),
+			   con->auth_reply_buf);
+	if (ret <= 0)
+		goto out;
 
-	dout("read_partial_connect %p connect_seq = %u, global_seq = %u\n",
-	     con, le32_to_cpu(con->in_reply.connect_seq),
+	dout("read_partial_connect %p tag %d, con_seq = %u, g_seq = %u\n",
+	     con, (int)con->in_reply.tag,
+	     le32_to_cpu(con->in_reply.connect_seq),
 	     le32_to_cpu(con->in_reply.global_seq));
 out:
 	return ret;
@@ -1051,6 +1087,20 @@ static int process_connect(struct ceph_connection *con)
 		set_bit(CLOSED, &con->state);  /* in case there's queued work */
 		return -1;
 
+	case CEPH_MSGR_TAG_BADAUTHORIZER:
+		con->auth_retry++;
+		dout("process_connect %p got BADAUTHORIZER attempt %d\n", con,
+		     con->auth_retry);
+		if (con->auth_retry == 2) {
+			con->error_msg = "connect authorization failure";
+			reset_connection(con);
+			set_bit(CLOSED, &con->state);
+			return -1;
+		}
+		con->auth_retry = 1;
+		prepare_write_connect(con->msgr, con, 0);
+		prepare_read_connect_retry(con);
+		break;
 
 	case CEPH_MSGR_TAG_RESETSESSION:
 		/*

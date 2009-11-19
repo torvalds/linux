@@ -21,7 +21,7 @@
  * whenever the wire protocol changes.  try to keep this string length
  * constant.
  */
-#define CEPH_BANNER "ceph v023"
+#define CEPH_BANNER "ceph v024"
 #define CEPH_BANNER_MAX_LEN 30
 
 
@@ -46,11 +46,16 @@ struct ceph_entity_name {
 	__le64 num;
 } __attribute__ ((packed));
 
-#define CEPH_ENTITY_TYPE_MON    1
-#define CEPH_ENTITY_TYPE_MDS    2
-#define CEPH_ENTITY_TYPE_OSD    3
-#define CEPH_ENTITY_TYPE_CLIENT 4
-#define CEPH_ENTITY_TYPE_ADMIN  5
+#define CEPH_ENTITY_TYPE_MON    0x01
+#define CEPH_ENTITY_TYPE_MDS    0x02
+#define CEPH_ENTITY_TYPE_OSD    0x04
+#define CEPH_ENTITY_TYPE_CLIENT 0x08
+#define CEPH_ENTITY_TYPE_ADMIN  0x10
+#define CEPH_ENTITY_TYPE_AUTH   0x20
+
+#define CEPH_ENTITY_TYPE_ANY    0xFF
+
+extern const char *ceph_entity_type_name(int type);
 
 /*
  * entity_addr -- network address
@@ -94,6 +99,7 @@ struct ceph_entity_inst {
 #define CEPH_MSGR_TAG_ACK           8  /* message ack */
 #define CEPH_MSGR_TAG_KEEPALIVE     9  /* just a keepalive byte! */
 #define CEPH_MSGR_TAG_BADPROTOVER  10  /* bad protocol version */
+#define CEPH_MSGR_TAG_BADAUTHORIZER 11 /* bad authorizer */
 
 
 /*
@@ -104,6 +110,8 @@ struct ceph_msg_connect {
 	__le32 global_seq;   /* count connections initiated by this host */
 	__le32 connect_seq;  /* count connections initiated in this session */
 	__le32 protocol_version;
+	__le32 authorizer_protocol;
+	__le32 authorizer_len;
 	__u8  flags;         /* CEPH_MSG_CONNECT_* */
 } __attribute__ ((packed));
 
@@ -112,6 +120,7 @@ struct ceph_msg_connect_reply {
 	__le32 global_seq;
 	__le32 connect_seq;
 	__le32 protocol_version;
+	__le32 authorizer_len;
 	__u8 flags;
 } __attribute__ ((packed));
 

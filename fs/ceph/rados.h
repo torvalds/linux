@@ -157,7 +157,6 @@ struct ceph_eversion {
 #define CEPH_OSD_OP_MODE_WR    0x2000
 #define CEPH_OSD_OP_MODE_RMW   0x3000
 #define CEPH_OSD_OP_MODE_SUB   0x4000
-#define CEPH_OSD_OP_MODE_EXEC  0x8000
 
 #define CEPH_OSD_OP_TYPE       0x0f00
 #define CEPH_OSD_OP_TYPE_LOCK  0x0100
@@ -285,6 +284,7 @@ enum {
 	CEPH_OSD_FLAG_BALANCE_READS = 256,
 	CEPH_OSD_FLAG_PARALLELEXEC = 512, /* execute op in parallel */
 	CEPH_OSD_FLAG_PGOP = 1024,      /* pg op, no object */
+	CEPH_OSD_FLAG_EXEC = 2048,      /* op may exec */
 };
 
 enum {

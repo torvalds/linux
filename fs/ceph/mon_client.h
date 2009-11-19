@@ -9,6 +9,7 @@
 
 struct ceph_client;
 struct ceph_mount_args;
+struct ceph_auth_client;
 
 /*
  * The monitor map enumerates the set of all monitors.
@@ -58,23 +59,26 @@ struct ceph_mon_client {
 	struct mutex mutex;
 	struct delayed_work delayed_work;
 
+	struct ceph_auth_client *auth;
+	struct ceph_msg *m_auth;
+
 	bool hunting;
 	int cur_mon;                       /* last monitor i contacted */
 	unsigned long sub_sent, sub_renew_after;
 	struct ceph_connection *con;
+	bool have_fsid;
 
 	/* msg pools */
-	struct ceph_msgpool msgpool_mount_ack;
 	struct ceph_msgpool msgpool_subscribe_ack;
 	struct ceph_msgpool msgpool_statfs_reply;
+	struct ceph_msgpool msgpool_auth_reply;
 
 	/* pending statfs requests */
 	struct radix_tree_root statfs_request_tree;
 	int num_statfs_requests;
 	u64 last_tid;
 
-	/* mds/osd map or mount requests */
-	bool want_mount;
+	/* mds/osd map */
 	int want_next_osdmap; /* 1 = want, 2 = want+asked */
 	u32 have_osdmap, have_mdsmap;
 
@@ -101,10 +105,10 @@ extern int ceph_monc_got_osdmap(struct ceph_mon_client *monc, u32 have);
 
 extern void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc);
 
-extern int ceph_monc_request_mount(struct ceph_mon_client *monc);
-
 extern int ceph_monc_do_statfs(struct ceph_mon_client *monc,
 			       struct ceph_statfs *buf);
+
+extern int ceph_monc_open_session(struct ceph_mon_client *monc);
 
 
 

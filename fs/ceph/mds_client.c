@@ -8,6 +8,7 @@
 #include "super.h"
 #include "messenger.h"
 #include "decode.h"
+#include "auth.h"
 
 /*
  * A cluster of MDS (metadata server) daemons is responsible for
@@ -274,8 +275,12 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 {
 	dout("mdsc put_session %p %d -> %d\n", s,
 	     atomic_read(&s->s_ref), atomic_read(&s->s_ref)-1);
-	if (atomic_dec_and_test(&s->s_ref))
+	if (atomic_dec_and_test(&s->s_ref)) {
+		if (s->s_authorizer)
+			s->s_mdsc->client->monc.auth->ops->destroy_authorizer(
+				s->s_mdsc->client->monc.auth, s->s_authorizer);
 		kfree(s);
+	}
 }
 
 /*
@@ -2777,9 +2782,15 @@ void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 
 	ceph_decode_need(&p, end, sizeof(fsid)+2*sizeof(u32), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));
-	if (ceph_fsid_compare(&fsid, &mdsc->client->monc.monmap->fsid)) {
-		pr_err("got mdsmap with wrong fsid\n");
-		return;
+        if (mdsc->client->monc.have_fsid) {
+		if (ceph_fsid_compare(&fsid,
+				      &mdsc->client->monc.monmap->fsid)) {
+			pr_err("got mdsmap with wrong fsid\n");
+			return;
+		}
+	} else {
+		ceph_fsid_set(&mdsc->client->monc.monmap->fsid, &fsid);
+		mdsc->client->monc.have_fsid = true;
 	}
 	epoch = ceph_decode_32(&p);
 	maplen = ceph_decode_32(&p);
@@ -2895,10 +2906,60 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 	ceph_msg_put(msg);
 }
 
+/*
+ * authentication
+ */
+static int get_authorizer(struct ceph_connection *con,
+			  void **buf, int *len, int *proto,
+			  void **reply_buf, int *reply_len, int force_new)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_mds_client *mdsc = s->s_mdsc;
+	struct ceph_auth_client *ac = mdsc->client->monc.auth;
+	int ret = 0;
+
+	if (force_new && s->s_authorizer) {
+		ac->ops->destroy_authorizer(ac, s->s_authorizer);
+		s->s_authorizer = NULL;
+	}
+	if (s->s_authorizer == NULL) {
+		if (ac->ops->create_authorizer) {
+			ret = ac->ops->create_authorizer(
+				ac, CEPH_ENTITY_TYPE_MDS,
+				&s->s_authorizer,
+				&s->s_authorizer_buf,
+				&s->s_authorizer_buf_len,
+				&s->s_authorizer_reply_buf,
+				&s->s_authorizer_reply_buf_len);
+			if (ret)
+				return ret;
+		}
+	}
+
+	*proto = ac->protocol;
+	*buf = s->s_authorizer_buf;
+	*len = s->s_authorizer_buf_len;
+	*reply_buf = s->s_authorizer_reply_buf;
+	*reply_len = s->s_authorizer_reply_buf_len;
+	return 0;
+}
+
+
+static int verify_authorizer_reply(struct ceph_connection *con, int len)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_mds_client *mdsc = s->s_mdsc;
+	struct ceph_auth_client *ac = mdsc->client->monc.auth;
+
+	return ac->ops->verify_authorizer_reply(ac, s->s_authorizer, len);
+}
+
 const static struct ceph_connection_operations mds_con_ops = {
 	.get = con_get,
 	.put = con_put,
 	.dispatch = dispatch,
+	.get_authorizer = get_authorizer,
+	.verify_authorizer_reply = verify_authorizer_reply,
 	.peer_reset = peer_reset,
 	.alloc_msg = ceph_alloc_msg,
 	.alloc_middle = ceph_alloc_middle,
