@@ -57,8 +57,11 @@ static void fscache_end_page_write(struct fscache_object *object,
 		/* delete the page from the tree if it is now no longer
 		 * pending */
 		spin_lock(&cookie->stores_lock);
-		fscache_stat(&fscache_n_store_radix_deletes);
-		xpage = radix_tree_delete(&cookie->stores, page->index);
+		if (!radix_tree_tag_get(&cookie->stores, page->index,
+					FSCACHE_COOKIE_PENDING_TAG)) {
+			fscache_stat(&fscache_n_store_radix_deletes);
+			xpage = radix_tree_delete(&cookie->stores, page->index);
+		}
 		spin_unlock(&cookie->stores_lock);
 		wake_up_bit(&cookie->flags, 0);
 	}
