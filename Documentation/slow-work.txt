@@ -41,6 +41,13 @@ expand files, provided the time taken to do so isn't too long.
 Operations of both types may sleep during execution, thus tying up the thread
 loaned to it.
 
+A further class of work item is available, based on the slow work item class:
+
+ (*) Delayed slow work items.
+
+These are slow work items that have a timer to defer queueing of the item for
+a while.
+
 
 THREAD-TO-CLASS ALLOCATION
 --------------------------
@@ -95,6 +102,10 @@ Slow work items may then be set up by:
 
      or:
 
+	delayed_slow_work_init(&myitem, &myitem_ops);
+
+     or:
+
 	vslow_work_init(&myitem, &myitem_ops);
 
      depending on its class.
@@ -104,7 +115,9 @@ A suitably set up work item can then be enqueued for processing:
 	int ret = slow_work_enqueue(&myitem);
 
 This will return a -ve error if the thread pool is unable to gain a reference
-on the item, 0 otherwise.
+on the item, 0 otherwise, or (for delayed work):
+
+	int ret = delayed_slow_work_enqueue(&myitem, my_jiffy_delay);
 
 
 The items are reference counted, so there ought to be no need for a flush
@@ -112,6 +125,7 @@ operation.  But as the reference counting is optional, means to cancel
 existing work items are also included:
 
 	cancel_slow_work(&myitem);
+	cancel_delayed_slow_work(&myitem);
 
 can be used to cancel pending work.  The above cancel function waits for
 existing work to have been executed (or prevent execution of them, depending

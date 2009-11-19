@@ -17,6 +17,7 @@
 #ifdef CONFIG_SLOW_WORK
 
 #include <linux/sysctl.h>
+#include <linux/timer.h>
 
 struct slow_work;
 
@@ -52,8 +53,14 @@ struct slow_work {
 #define SLOW_WORK_ENQ_DEFERRED	2	/* item enqueue deferred */
 #define SLOW_WORK_VERY_SLOW	3	/* item is very slow */
 #define SLOW_WORK_CANCELLING	4	/* item is being cancelled, don't enqueue */
+#define SLOW_WORK_DELAYED	5	/* item is struct delayed_slow_work with active timer */
 	const struct slow_work_ops *ops; /* operations table for this item */
 	struct list_head	link;	/* link in queue */
+};
+
+struct delayed_slow_work {
+	struct slow_work	work;
+	struct timer_list	timer;
 };
 
 /**
@@ -69,6 +76,20 @@ static inline void slow_work_init(struct slow_work *work,
 	work->flags = 0;
 	work->ops = ops;
 	INIT_LIST_HEAD(&work->link);
+}
+
+/**
+ * slow_work_init - Initialise a delayed slow work item
+ * @work: The work item to initialise
+ * @ops: The operations to use to handle the slow work item
+ *
+ * Initialise a delayed slow work item.
+ */
+static inline void delayed_slow_work_init(struct delayed_slow_work *dwork,
+					  const struct slow_work_ops *ops)
+{
+	init_timer(&dwork->timer);
+	slow_work_init(&dwork->work, ops);
 }
 
 /**
@@ -92,6 +113,14 @@ extern int slow_work_enqueue(struct slow_work *work);
 extern void slow_work_cancel(struct slow_work *work);
 extern int slow_work_register_user(struct module *owner);
 extern void slow_work_unregister_user(struct module *owner);
+
+extern int delayed_slow_work_enqueue(struct delayed_slow_work *dwork,
+				     unsigned long delay);
+
+static inline void delayed_slow_work_cancel(struct delayed_slow_work *dwork)
+{
+	slow_work_cancel(&dwork->work);
+}
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table slow_work_sysctls[];

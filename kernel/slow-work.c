@@ -406,11 +406,40 @@ void slow_work_cancel(struct slow_work *work)
 	bool wait = true, put = false;
 
 	set_bit(SLOW_WORK_CANCELLING, &work->flags);
+	smp_mb();
+
+	/* if the work item is a delayed work item with an active timer, we
+	 * need to wait for the timer to finish _before_ getting the spinlock,
+	 * lest we deadlock against the timer routine
+	 *
+	 * the timer routine will leave DELAYED set if it notices the
+	 * CANCELLING flag in time
+	 */
+	if (test_bit(SLOW_WORK_DELAYED, &work->flags)) {
+		struct delayed_slow_work *dwork =
+			container_of(work, struct delayed_slow_work, work);
+		del_timer_sync(&dwork->timer);
+	}
 
 	spin_lock_irq(&slow_work_queue_lock);
 
-	if (test_bit(SLOW_WORK_PENDING, &work->flags) &&
-	    !list_empty(&work->link)) {
+	if (test_bit(SLOW_WORK_DELAYED, &work->flags)) {
+		/* the timer routine aborted or never happened, so we are left
+		 * holding the timer's reference on the item and should just
+		 * drop the pending flag and wait for any ongoing execution to
+		 * finish */
+		struct delayed_slow_work *dwork =
+			container_of(work, struct delayed_slow_work, work);
+
+		BUG_ON(timer_pending(&dwork->timer));
+		BUG_ON(!list_empty(&work->link));
+
+		clear_bit(SLOW_WORK_DELAYED, &work->flags);
+		put = true;
+		clear_bit(SLOW_WORK_PENDING, &work->flags);
+
+	} else if (test_bit(SLOW_WORK_PENDING, &work->flags) &&
+		   !list_empty(&work->link)) {
 		/* the link in the pending queue holds a reference on the item
 		 * that we will need to release */
 		list_del_init(&work->link);
@@ -439,6 +468,102 @@ void slow_work_cancel(struct slow_work *work)
 		slow_work_put_ref(work);
 }
 EXPORT_SYMBOL(slow_work_cancel);
+
+/*
+ * Handle expiry of the delay timer, indicating that a delayed slow work item
+ * should now be queued if not cancelled
+ */
+static void delayed_slow_work_timer(unsigned long data)
+{
+	struct slow_work *work = (struct slow_work *) data;
+	unsigned long flags;
+	bool queued = false, put = false;
+
+	spin_lock_irqsave(&slow_work_queue_lock, flags);
+	if (likely(!test_bit(SLOW_WORK_CANCELLING, &work->flags))) {
+		clear_bit(SLOW_WORK_DELAYED, &work->flags);
+
+		if (test_bit(SLOW_WORK_EXECUTING, &work->flags)) {
+			/* we discard the reference the timer was holding in
+			 * favour of the one the executor holds */
+			set_bit(SLOW_WORK_ENQ_DEFERRED, &work->flags);
+			put = true;
+		} else {
+			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
+				list_add_tail(&work->link, &vslow_work_queue);
+			else
+				list_add_tail(&work->link, &slow_work_queue);
+			queued = true;
+		}
+	}
+
+	spin_unlock_irqrestore(&slow_work_queue_lock, flags);
+	if (put)
+		slow_work_put_ref(work);
+	if (queued)
+		wake_up(&slow_work_thread_wq);
+}
+
+/**
+ * delayed_slow_work_enqueue - Schedule a delayed slow work item for processing
+ * @dwork: The delayed work item to queue
+ * @delay: When to start executing the work, in jiffies from now
+ *
+ * This is similar to slow_work_enqueue(), but it adds a delay before the work
+ * is actually queued for processing.
+ *
+ * The item can have delayed processing requested on it whilst it is being
+ * executed.  The delay will begin immediately, and if it expires before the
+ * item finishes executing, the item will be placed back on the queue when it
+ * has done executing.
+ */
+int delayed_slow_work_enqueue(struct delayed_slow_work *dwork,
+			      unsigned long delay)
+{
+	struct slow_work *work = &dwork->work;
+	unsigned long flags;
+	int ret;
+
+	if (delay == 0)
+		return slow_work_enqueue(&dwork->work);
+
+	BUG_ON(slow_work_user_count <= 0);
+	BUG_ON(!work);
+	BUG_ON(!work->ops);
+
+	if (test_bit(SLOW_WORK_CANCELLING, &work->flags))
+		return -ECANCELED;
+
+	if (!test_and_set_bit_lock(SLOW_WORK_PENDING, &work->flags)) {
+		spin_lock_irqsave(&slow_work_queue_lock, flags);
+
+		if (test_bit(SLOW_WORK_CANCELLING, &work->flags))
+			goto cancelled;
+
+		/* the timer holds a reference whilst it is pending */
+		ret = work->ops->get_ref(work);
+		if (ret < 0)
+			goto cant_get_ref;
+
+		if (test_and_set_bit(SLOW_WORK_DELAYED, &work->flags))
+			BUG();
+		dwork->timer.expires = jiffies + delay;
+		dwork->timer.data = (unsigned long) work;
+		dwork->timer.function = delayed_slow_work_timer;
+		add_timer(&dwork->timer);
+
+		spin_unlock_irqrestore(&slow_work_queue_lock, flags);
+	}
+
+	return 0;
+
+cancelled:
+	ret = -ECANCELED;
+cant_get_ref:
+	spin_unlock_irqrestore(&slow_work_queue_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(delayed_slow_work_enqueue);
 
 /*
  * Schedule a cull of the thread pool at some time in the near future
