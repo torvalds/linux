@@ -1093,7 +1093,7 @@ static void process_samples(void)
 
 static int __cmd_timechart(void)
 {
-	int ret, rc = EXIT_FAILURE;
+	int err, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
 	unsigned long head, shift;
 	struct stat statbuf;
@@ -1111,8 +1111,8 @@ static int __cmd_timechart(void)
 		exit(-1);
 	}
 
-	ret = fstat(input, &statbuf);
-	if (ret < 0) {
+	err = fstat(input, &statbuf);
+	if (err < 0) {
 		perror("failed to stat file");
 		exit(-1);
 	}
@@ -1122,7 +1122,16 @@ static int __cmd_timechart(void)
 		exit(0);
 	}
 
-	header = perf_header__read(input);
+	header = perf_header__new();
+	if (header == NULL)
+		return -ENOMEM;
+
+	err = perf_header__read(header, input);
+	if (err < 0) {
+		perf_header__delete(header);
+		return err;
+	}
+
 	head = header->data_offset;
 
 	sample_type = perf_header__sample_type(header);

@@ -55,7 +55,10 @@ struct perf_header {
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
-struct perf_header *perf_header__read(int fd);
+struct perf_header *perf_header__new(void);
+void perf_header__delete(struct perf_header *self);
+
+int perf_header__read(struct perf_header *self, int fd);
 void perf_header__write(struct perf_header *self, int fd, bool at_exit);
 
 int perf_header__add_attr(struct perf_header *self,
@@ -74,8 +77,6 @@ struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header);
 void perf_header__set_feat(struct perf_header *self, int feat);
 bool perf_header__has_feat(const struct perf_header *self, int feat);
-
-struct perf_header *perf_header__new(void);
 
 int perf_header__process_sections(struct perf_header *self, int fd,
 				  int (*process)(struct perf_file_section *self,

@@ -78,16 +78,24 @@ struct perf_header *perf_header__new(void)
 	return self;
 }
 
+void perf_header__delete(struct perf_header *self)
+{
+	int i;
+
+	for (i = 0; i < self->attrs; ++i)
+		perf_header_attr__delete(self->attr[i]);
+
+	free(self->attr);
+	free(self);
+}
+
 int perf_header__add_attr(struct perf_header *self,
 			  struct perf_header_attr *attr)
 {
-	int pos = self->attrs;
-
 	if (self->frozen)
 		return -1;
 
-	self->attrs++;
-	if (self->attrs > self->size) {
+	if (self->attrs == self->size) {
 		int nsize = self->size * 2;
 		struct perf_header_attr **nattr;
 
@@ -98,7 +106,8 @@ int perf_header__add_attr(struct perf_header *self,
 		self->size = nsize;
 		self->attr = nattr;
 	}
-	self->attr[pos] = attr;
+
+	self->attr[self->attrs++] = attr;
 	return 0;
 }
 
@@ -441,19 +450,17 @@ static int perf_file_section__process(struct perf_file_section *self,
 	return 0;
 }
 
-struct perf_header *perf_header__read(int fd)
+int perf_header__read(struct perf_header *self, int fd)
 {
-	struct perf_header	*self = perf_header__new();
 	struct perf_file_header f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
 
-	if (self == NULL)
-		die("nomem");
-
-	if (perf_file_header__read(&f_header, self, fd) < 0)
-		die("incompatible file format");
+	if (perf_file_header__read(&f_header, self, fd) < 0) {
+		pr_debug("incompatible file format\n");
+		return -EINVAL;
+	}
 
 	nr_attrs = f_header.attrs.size / sizeof(f_attr);
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
@@ -467,7 +474,7 @@ struct perf_header *perf_header__read(int fd)
 
 		attr = perf_header_attr__new(&f_attr.attr);
 		if (attr == NULL)
-			 die("nomem");
+			 return -ENOMEM;
 
 		nr_ids = f_attr.ids.size / sizeof(u64);
 		lseek(fd, f_attr.ids.offset, SEEK_SET);
@@ -475,11 +482,15 @@ struct perf_header *perf_header__read(int fd)
 		for (j = 0; j < nr_ids; j++) {
 			do_read(fd, &f_id, sizeof(f_id));
 
-			if (perf_header_attr__add_id(attr, f_id) < 0)
-				die("nomem");
+			if (perf_header_attr__add_id(attr, f_id) < 0) {
+				perf_header_attr__delete(attr);
+				return -ENOMEM;
+			}
 		}
-		if (perf_header__add_attr(self, attr) < 0)
-			 die("nomem");
+		if (perf_header__add_attr(self, attr) < 0) {
+			perf_header_attr__delete(attr);
+			return -ENOMEM;
+		}
 
 		lseek(fd, tmp, SEEK_SET);
 	}
@@ -487,8 +498,8 @@ struct perf_header *perf_header__read(int fd)
 	if (f_header.event_types.size) {
 		lseek(fd, f_header.event_types.offset, SEEK_SET);
 		events = malloc(f_header.event_types.size);
-		if (!events)
-			die("nomem");
+		if (events == NULL)
+			return -ENOMEM;
 		do_read(fd, events, f_header.event_types.size);
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
@@ -498,8 +509,7 @@ struct perf_header *perf_header__read(int fd)
 	lseek(fd, self->data_offset, SEEK_SET);
 
 	self->frozen = 1;
-
-	return self;
+	return 0;
 }
 
 u64 perf_header__sample_type(struct perf_header *header)

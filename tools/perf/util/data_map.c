@@ -106,7 +106,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    int *cwdlen,
 			    char **cwd)
 {
-	int ret, rc = EXIT_FAILURE;
+	int err, rc = EXIT_FAILURE;
 	struct perf_header *header;
 	unsigned long head, shift;
 	unsigned long offset = 0;
@@ -132,8 +132,8 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		exit(-1);
 	}
 
-	ret = fstat(input, &input_stat);
-	if (ret < 0) {
+	err = fstat(input, &input_stat);
+	if (err < 0) {
 		perror("failed to stat file");
 		exit(-1);
 	}
@@ -149,8 +149,16 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		exit(0);
 	}
 
-	*pheader = perf_header__read(input);
-	header = *pheader;
+	header = perf_header__new();
+	if (header == NULL)
+		return -ENOMEM;
+
+	err = perf_header__read(header, input);
+	if (err < 0) {
+		perf_header__delete(header);
+		return err;
+	}
+	*pheader = header;
 	head = header->data_offset;
 
 	sample_type = perf_header__sample_type(header);
