@@ -157,6 +157,34 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(agg_status);
 
+static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	char buf[200], *p = buf;
+	int i;
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
+
+	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
+			htc->ht_supported ? "" : "not ");
+	if (htc->ht_supported) {
+		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.2x\n", htc->cap);
+		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
+				htc->ampdu_factor, htc->ampdu_density);
+		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
+		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
+			p += scnprintf(p, sizeof(buf)+buf-p, " %.2x",
+					htc->mcs.rx_mask[i]);
+		p += scnprintf(p, sizeof(buf)+buf-p, "\nMCS rx highest: %d\n",
+				le16_to_cpu(htc->mcs.rx_highest));
+		p += scnprintf(p, sizeof(buf)+buf-p, "MCS tx params: %x\n",
+				htc->mcs.tx_params);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+}
+STA_OPS(ht_capa);
+
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
 		sta->debugfs.dir, sta, &sta_ ##name## _ops);
@@ -207,6 +235,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(last_signal);
 	DEBUGFS_ADD(last_noise);
 	DEBUGFS_ADD(wep_weak_iv_count);
+	DEBUGFS_ADD(ht_capa);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
