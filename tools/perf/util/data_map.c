@@ -106,7 +106,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    int *cwdlen,
 			    char **cwd)
 {
-	int err, rc = EXIT_FAILURE;
+	int err;
 	struct perf_header *header;
 	unsigned long head, shift;
 	unsigned long offset = 0;
@@ -118,64 +118,69 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 	int input;
 	char *buf;
 
-	if (!curr_handler)
-		die("Forgot to register perf file handler");
+	if (curr_handler == NULL) {
+		pr_debug("Forgot to register perf file handler\n");
+		return -EINVAL;
+	}
 
 	page_size = getpagesize();
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
-		fprintf(stderr, " failed to open file: %s", input_name);
+		pr_err("Failed to open file: %s", input_name);
 		if (!strcmp(input_name, "perf.data"))
-			fprintf(stderr, "  (try 'perf record' first)");
-		fprintf(stderr, "\n");
-		exit(-1);
+			pr_err("  (try 'perf record' first)");
+		pr_err("\n");
+		return -errno;
 	}
 
-	err = fstat(input, &input_stat);
-	if (err < 0) {
-		perror("failed to stat file");
-		exit(-1);
+	if (fstat(input, &input_stat) < 0) {
+		pr_err("failed to stat file");
+		err = -errno;
+		goto out_close;
 	}
 
+	err = -EACCES;
 	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
-		fprintf(stderr, "file: %s not owned by current user or root\n",
+		pr_err("file: %s not owned by current user or root\n",
 			input_name);
-		exit(-1);
+		goto out_close;
 	}
 
-	if (!input_stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
+	if (input_stat.st_size == 0) {
+		pr_info("zero-sized file, nothing to do!\n");
+		goto done;
 	}
 
+	err = -ENOMEM;
 	header = perf_header__new();
 	if (header == NULL)
-		return -ENOMEM;
+		goto out_close;
 
 	err = perf_header__read(header, input);
-	if (err < 0) {
-		perf_header__delete(header);
-		return err;
-	}
+	if (err < 0)
+		goto out_delete;
 	*pheader = header;
 	head = header->data_offset;
 
 	sample_type = perf_header__sample_type(header);
 
-	if (curr_handler->sample_type_check)
-		if (curr_handler->sample_type_check(sample_type) < 0)
-			exit(-1);
+	err = -EINVAL;
+	if (curr_handler->sample_type_check &&
+	    curr_handler->sample_type_check(sample_type) < 0)
+		goto out_delete;
 
+	err = -ENOMEM;
 	if (load_kernel(NULL) < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
+		pr_err("failed to load kernel symbols\n");
+		goto out_delete;
 	}
 
 	if (!full_paths) {
 		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
-			perror("failed to get the current directory");
-			return EXIT_FAILURE;
+			pr_err("failed to get the current directory\n");
+			err = -errno;
+			goto out_delete;
 		}
 		*cwd = __cwd;
 		*cwdlen = strlen(*cwd);
@@ -189,11 +194,12 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 	head -= shift;
 
 remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
+	buf = mmap(NULL, page_size * mmap_window, PROT_READ,
+		   MAP_SHARED, input, offset);
 	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
+		pr_err("failed to mmap file\n");
+		err = -errno;
+		goto out_delete;
 	}
 
 more:
@@ -250,10 +256,12 @@ more:
 		goto more;
 
 done:
-	rc = EXIT_SUCCESS;
+	err = 0;
+out_close:
 	close(input);
 
-	return rc;
+	return err;
+out_delete:
+	perf_header__delete(header);
+	goto out_close;
 }
-
-
