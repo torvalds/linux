@@ -205,8 +205,6 @@ static void __init setup_port_multiplexing(void)
 
 static void __init mpr2_setup(char **cmdline_p)
 {
-	__set_io_port_base(0xa0000000);
-
 	/* set Pin Select Register A:
 	 * /PCC_CD1, /PCC_CD2,  PCC_BVD1, PCC_BVD2,
 	 * /IOIS16,  IRQ4,	IRQ5,	  USB1d_SUSPEND

@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>

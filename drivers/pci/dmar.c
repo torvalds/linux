@@ -175,15 +175,6 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *)header;
-	if (!drhd->address) {
-		/* Promote an attitude of violence to a BIOS engineer today */
-		WARN(1, "Your BIOS is broken; DMAR reported at address zero!\n"
-		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-		     dmi_get_system_info(DMI_BIOS_VENDOR),
-		     dmi_get_system_info(DMI_BIOS_VERSION),
-		     dmi_get_system_info(DMI_PRODUCT_VERSION));
-		return -ENODEV;
-	}
 	dmaru = kzalloc(sizeof(*dmaru), GFP_KERNEL);
 	if (!dmaru)
 		return -ENOMEM;
@@ -354,6 +345,7 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	struct acpi_dmar_hardware_unit *drhd;
 	struct acpi_dmar_reserved_memory *rmrr;
 	struct acpi_dmar_atsr *atsr;
+	struct acpi_dmar_rhsa *rhsa;
 
 	switch (header->type) {
 	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
@@ -374,6 +366,12 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	case ACPI_DMAR_TYPE_ATSR:
 		atsr = container_of(header, struct acpi_dmar_atsr, header);
 		printk(KERN_INFO PREFIX "ATSR flags: %#x\n", atsr->flags);
+		break;
+	case ACPI_DMAR_HARDWARE_AFFINITY:
+		rhsa = container_of(header, struct acpi_dmar_rhsa, header);
+		printk(KERN_INFO PREFIX "RHSA base: %#016Lx proximity domain: %#x\n",
+		       (unsigned long long)rhsa->base_address,
+		       rhsa->proximity_domain);
 		break;
 	}
 }
@@ -459,9 +457,13 @@ parse_dmar_table(void)
 			ret = dmar_parse_one_atsr(entry_header);
 #endif
 			break;
+		case ACPI_DMAR_HARDWARE_AFFINITY:
+			/* We don't do anything with RHSA (yet?) */
+			break;
 		default:
 			printk(KERN_WARNING PREFIX
-				"Unknown DMAR structure type\n");
+				"Unknown DMAR structure type %d\n",
+				entry_header->type);
 			ret = 0; /* for forward compatibility */
 			break;
 		}
@@ -580,12 +582,50 @@ int __init dmar_table_init(void)
 	return 0;
 }
 
+int __init check_zero_address(void)
+{
+	struct acpi_table_dmar *dmar;
+	struct acpi_dmar_header *entry_header;
+	struct acpi_dmar_hardware_unit *drhd;
+
+	dmar = (struct acpi_table_dmar *)dmar_tbl;
+	entry_header = (struct acpi_dmar_header *)(dmar + 1);
+
+	while (((unsigned long)entry_header) <
+			(((unsigned long)dmar) + dmar_tbl->length)) {
+		/* Avoid looping forever on bad ACPI tables */
+		if (entry_header->length == 0) {
+			printk(KERN_WARNING PREFIX
+				"Invalid 0-length structure\n");
+			return 0;
+		}
+
+		if (entry_header->type == ACPI_DMAR_TYPE_HARDWARE_UNIT) {
+			drhd = (void *)entry_header;
+			if (!drhd->address) {
+				/* Promote an attitude of violence to a BIOS engineer today */
+				WARN(1, "Your BIOS is broken; DMAR reported at address zero!\n"
+				     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+				     dmi_get_system_info(DMI_BIOS_VENDOR),
+				     dmi_get_system_info(DMI_BIOS_VERSION),
+				     dmi_get_system_info(DMI_PRODUCT_VERSION));
+				return 0;
+			}
+			break;
+		}
+
+		entry_header = ((void *)entry_header + entry_header->length);
+	}
+	return 1;
+}
+
 void __init detect_intel_iommu(void)
 {
 	int ret;
 
 	ret = dmar_table_detect();
-
+	if (ret)
+		ret = check_zero_address();
 	{
 #ifdef CONFIG_INTR_REMAP
 		struct acpi_table_dmar *dmar;

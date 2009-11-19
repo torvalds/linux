@@ -46,6 +46,8 @@ static u64		turbo_frequency;
 
 static u64		first_time, last_time;
 
+static int		power_only;
+
 
 static struct perf_header	*header;
 
@@ -547,7 +549,7 @@ static void end_sample_processing(void)
 	u64 cpu;
 	struct power_event *pwr;
 
-	for (cpu = 0; cpu < numcpus; cpu++) {
+	for (cpu = 0; cpu <= numcpus; cpu++) {
 		pwr = malloc(sizeof(struct power_event));
 		if (!pwr)
 			return;
@@ -763,17 +765,38 @@ static void draw_wakeups(void)
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
 						if (p->pid == we->waker) {
 							from = c->Y;
-							task_from = c->comm;
+							task_from = strdup(c->comm);
 						}
 						if (p->pid == we->wakee) {
 							to = c->Y;
-							task_to = c->comm;
+							task_to = strdup(c->comm);
 						}
+					}
+					c = c->next;
+				}
+				c = p->all;
+				while (c) {
+					if (p->pid == we->waker && !from) {
+						from = c->Y;
+						task_from = strdup(c->comm);
+					}
+					if (p->pid == we->wakee && !to) {
+						to = c->Y;
+						task_to = strdup(c->comm);
 					}
 					c = c->next;
 				}
 			}
 			p = p->next;
+		}
+
+		if (!task_from) {
+			task_from = malloc(40);
+			sprintf(task_from, "[%i]", we->waker);
+		}
+		if (!task_to) {
+			task_to = malloc(40);
+			sprintf(task_to, "[%i]", we->wakee);
 		}
 
 		if (we->waker == -1)
@@ -783,6 +806,9 @@ static void draw_wakeups(void)
 		else
 			svg_partial_wakeline(we->time, from, task_from, to, task_to);
 		we = we->next;
+
+		free(task_from);
+		free(task_to);
 	}
 }
 
@@ -871,7 +897,7 @@ static int determine_display_tasks(u64 threshold)
 		/* no exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = last_time;
-		if (p->total_time >= threshold)
+		if (p->total_time >= threshold && !power_only)
 			p->display = 1;
 
 		c = p->all;
@@ -882,7 +908,7 @@ static int determine_display_tasks(u64 threshold)
 			if (c->start_time == 1)
 				c->start_time = first_time;
 
-			if (c->total_time >= threshold) {
+			if (c->total_time >= threshold && !power_only) {
 				c->display = 1;
 				count++;
 			}
@@ -1134,6 +1160,8 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width,
 		    "page width"),
+	OPT_BOOLEAN('p', "power-only", &power_only,
+		    "output power data only"),
 	OPT_END()
 };
 

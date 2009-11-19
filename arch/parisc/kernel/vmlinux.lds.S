@@ -28,6 +28,7 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 	
 /* ld script to make hppa Linux kernel */
 #ifndef CONFIG_64BIT
@@ -134,6 +135,15 @@ SECTIONS
 	__init_begin = .;
 	INIT_TEXT_SECTION(16384)
 	INIT_DATA_SECTION(16)
+	/* we have to discard exit text and such at runtime, not link time */
+	.exit.text :
+	{
+		EXIT_TEXT
+	}
+	.exit.data :
+	{
+		EXIT_DATA
+	}
 
 	PERCPU(PAGE_SIZE)
 	. = ALIGN(PAGE_SIZE);

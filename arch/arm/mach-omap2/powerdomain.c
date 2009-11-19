@@ -273,35 +273,50 @@ struct powerdomain *pwrdm_lookup(const char *name)
 }
 
 /**
- * pwrdm_for_each - call function on each registered clockdomain
+ * pwrdm_for_each_nolock - call function on each registered clockdomain
  * @fn: callback function *
  *
  * Call the supplied function for each registered powerdomain.  The
  * callback function can return anything but 0 to bail out early from
- * the iterator.  The callback function is called with the pwrdm_rwlock
- * held for reading, so no powerdomain structure manipulation
- * functions should be called from the callback, although hardware
- * powerdomain control functions are fine.  Returns the last return
- * value of the callback function, which should be 0 for success or
- * anything else to indicate failure; or -EINVAL if the function
- * pointer is null.
+ * the iterator.  Returns the last return value of the callback function, which
+ * should be 0 for success or anything else to indicate failure; or -EINVAL if
+ * the function pointer is null.
  */
-int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
-			void *user)
+int pwrdm_for_each_nolock(int (*fn)(struct powerdomain *pwrdm, void *user),
+				void *user)
 {
 	struct powerdomain *temp_pwrdm;
-	unsigned long flags;
 	int ret = 0;
 
 	if (!fn)
 		return -EINVAL;
 
-	read_lock_irqsave(&pwrdm_rwlock, flags);
 	list_for_each_entry(temp_pwrdm, &pwrdm_list, node) {
 		ret = (*fn)(temp_pwrdm, user);
 		if (ret)
 			break;
 	}
+
+	return ret;
+}
+
+/**
+ * pwrdm_for_each - call function on each registered clockdomain
+ * @fn: callback function *
+ *
+ * This function is the same as 'pwrdm_for_each_nolock()', but keeps the
+ * &pwrdm_rwlock locked for reading, so no powerdomain structure manipulation
+ * functions should be called from the callback, although hardware powerdomain
+ * control functions are fine.
+ */
+int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
+			void *user)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&pwrdm_rwlock, flags);
+	ret = pwrdm_for_each_nolock(fn, user);
 	read_unlock_irqrestore(&pwrdm_rwlock, flags);
 
 	return ret;

@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/timex.h>
 #include <linux/errno.h>

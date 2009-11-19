@@ -40,6 +40,7 @@
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <linux/sched.h>
 
 #include "iwm.h"
 #include "bus.h"

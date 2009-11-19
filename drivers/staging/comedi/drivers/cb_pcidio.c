@@ -53,7 +53,8 @@ Passing a zero for an option is the same as leaving it unspecified.
  * Some drivers use arrays such as this, other do not.
  */
 struct pcidio_board {
-	const char *name;	/*  anme of the board */
+	const char *name;	/*  name of the board */
+	int dev_id;
 	int n_8255;		/*  number of 8255 chips on board */
 
 	/*  indices of base address regions */
@@ -64,18 +65,21 @@ struct pcidio_board {
 static const struct pcidio_board pcidio_boards[] = {
 	{
 	 .name = "pci-dio24",
+	 .dev_id = 0x0028,
 	 .n_8255 = 1,
 	 .pcicontroler_badrindex = 1,
 	 .dioregs_badrindex = 2,
 	 },
 	{
 	 .name = "pci-dio24h",
+	 .dev_id = 0x0014,
 	 .n_8255 = 1,
 	 .pcicontroler_badrindex = 1,
 	 .dioregs_badrindex = 2,
 	 },
 	{
 	 .name = "pci-dio48h",
+	 .dev_id = 0x000b,
 	 .n_8255 = 2,
 	 .pcicontroler_badrindex = 0,
 	 .dioregs_badrindex = 1,
@@ -206,7 +210,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			continue;
 		/*  loop through cards supported by this driver */
 		for (index = 0; index < ARRAY_SIZE(pcidio_boards); index++) {
-			if (pcidio_pci_table[index].device != pcidev->device)
+			if (pcidio_boards[index].dev_id != pcidev->device)
 				continue;
 
 			/*  was a particular bus/slot requested? */

@@ -876,7 +876,6 @@ xfs_dqrele_inode(
 		ip->i_gdquot = NULL;
 	}
 	xfs_iput(ip, XFS_ILOCK_EXCL);
-	IRELE(ip);
 
 	return 0;
 }

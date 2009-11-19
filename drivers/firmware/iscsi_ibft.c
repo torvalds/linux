@@ -939,7 +939,7 @@ static int __init ibft_init(void)
 
 	if (ibft_addr) {
 		printk(KERN_INFO "iBFT detected at 0x%llx.\n",
-		       (u64)virt_to_phys((void *)ibft_addr));
+		       (u64)isa_virt_to_bus(ibft_addr));
 
 		rc = ibft_check_device();
 		if (rc)

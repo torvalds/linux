@@ -1,3 +1,9 @@
+/*
+ * Copyright 2007-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef _IRQ_HANDLER_H
 #define _IRQ_HANDLER_H
 

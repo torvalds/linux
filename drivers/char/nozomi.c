@@ -48,6 +48,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/sched.h>
 #include <linux/serial.h>
 #include <linux/interrupt.h>
 #include <linux/kmod.h>

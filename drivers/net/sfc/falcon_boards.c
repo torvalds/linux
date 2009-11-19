@@ -327,7 +327,7 @@ static int sfn4111t_reset(struct efx_nic *efx)
 	efx_oword_t reg;
 
 	/* GPIO 3 and the GPIO register are shared with I2C, so block that */
-	mutex_lock(&efx->i2c_adap.bus_lock);
+	i2c_lock_adapter(&efx->i2c_adap);
 
 	/* Pull RST_N (GPIO 2) low then let it up again, setting the
 	 * FLASH_CFG_1 strap (GPIO 3) appropriately.  Only change the
@@ -343,7 +343,7 @@ static int sfn4111t_reset(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 	msleep(1);
 
-	mutex_unlock(&efx->i2c_adap.bus_lock);
+	i2c_unlock_adapter(&efx->i2c_adap);
 
 	ssleep(1);
 	return 0;

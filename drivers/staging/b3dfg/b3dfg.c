@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 
 static unsigned int b3dfg_nbuf = 2;
 

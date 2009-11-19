@@ -47,6 +47,18 @@ config EDAC_DEBUG_VERBOSE
 	  Source file name and line number where debugging message
 	  printed will be added to debugging message.
 
+ config EDAC_DECODE_MCE
+	tristate "Decode MCEs in human-readable form (only on AMD for now)"
+	depends on CPU_SUP_AMD && X86_MCE
+	default y
+	---help---
+	  Enable this option if you want to decode Machine Check Exceptions
+	  occuring on your machine in human-readable form.
+
+	  You should definitely say Y here in case you want to decode MCEs
+	  which occur really early upon boot, before the module infrastructure
+	  has been initialized.
+
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
 	help
@@ -59,7 +71,7 @@ config EDAC_MM_EDAC
 
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h, F11h"
-	depends on EDAC_MM_EDAC && K8_NB && X86_64 && PCI && CPU_SUP_AMD
+	depends on EDAC_MM_EDAC && K8_NB && X86_64 && PCI && EDAC_DECODE_MCE
 	help
 	  Support for error detection and correction on the AMD 64
 	  Families of Memory Controllers (K8, F10h and F11h)

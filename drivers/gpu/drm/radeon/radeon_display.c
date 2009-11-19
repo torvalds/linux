@@ -106,51 +106,44 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
-/** Sets the color ramps on behalf of RandR */
+/** Sets the color ramps on behalf of fbcon */
 void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			      u16 blue, int regno)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (regno == 0)
-		DRM_DEBUG("gamma set %d\n", radeon_crtc->crtc_id);
 	radeon_crtc->lut_r[regno] = red >> 6;
 	radeon_crtc->lut_g[regno] = green >> 6;
 	radeon_crtc->lut_b[regno] = blue >> 6;
+}
+
+/** Gets the color ramps on behalf of fbcon */
+void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, int regno)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	*red = radeon_crtc->lut_r[regno] << 6;
+	*green = radeon_crtc->lut_g[regno] << 6;
+	*blue = radeon_crtc->lut_b[regno] << 6;
 }
 
 static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				  u16 *blue, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i, j;
+	int i;
 
 	if (size != 256) {
 		return;
 	}
-	if (crtc->fb == NULL) {
-		return;
-	}
 
-	if (crtc->fb->depth == 16) {
-		for (i = 0; i < 64; i++) {
-			if (i <= 31) {
-				for (j = 0; j < 8; j++) {
-					radeon_crtc->lut_r[i * 8 + j] = red[i] >> 6;
-					radeon_crtc->lut_b[i * 8 + j] = blue[i] >> 6;
-				}
-			}
-			for (j = 0; j < 4; j++)
-				radeon_crtc->lut_g[i * 4 + j] = green[i] >> 6;
-		}
-	} else {
-		for (i = 0; i < 256; i++) {
-			radeon_crtc->lut_r[i] = red[i] >> 6;
-			radeon_crtc->lut_g[i] = green[i] >> 6;
-			radeon_crtc->lut_b[i] = blue[i] >> 6;
-		}
+	/* userspace palettes are always correct as is */
+	for (i = 0; i < 256; i++) {
+		radeon_crtc->lut_r[i] = red[i] >> 6;
+		radeon_crtc->lut_g[i] = green[i] >> 6;
+		radeon_crtc->lut_b[i] = blue[i] >> 6;
 	}
-
 	radeon_crtc_load_lut(crtc);
 }
 
@@ -341,27 +334,19 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
-	struct edid *edid;
 	int ret = 0;
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {
 		radeon_i2c_do_lock(radeon_connector, 1);
-		edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 		radeon_i2c_do_lock(radeon_connector, 0);
-	} else
-		edid = radeon_connector->edid;
+	}
 
-	if (edid) {
-		/* update digital bits here */
-		if (edid->input & DRM_EDID_INPUT_DIGITAL)
-			radeon_connector->use_digital = 1;
-		else
-			radeon_connector->use_digital = 0;
-		drm_mode_connector_update_edid_property(&radeon_connector->base, edid);
-		ret = drm_add_edid_modes(&radeon_connector->base, edid);
-		kfree(edid);
+	if (radeon_connector->edid) {
+		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
+		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
@@ -724,7 +709,11 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (ret) {
 		return ret;
 	}
-	/* allocate crtcs - TODO single crtc */
+
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	/* allocate crtcs */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
@@ -764,7 +753,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
 			memcpy(&radeon_crtc->native_mode,
 				&radeon_encoder->native_mode,
-				sizeof(struct radeon_native_mode));
+				sizeof(struct drm_display_mode));
 			first = false;
 		} else {
 			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
@@ -782,10 +771,10 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	if (radeon_crtc->rmx_type != RMX_OFF) {
 		fixed20_12 a, b;
 		a.full = rfixed_const(crtc->mode.vdisplay);
-		b.full = rfixed_const(radeon_crtc->native_mode.panel_xres);
+		b.full = rfixed_const(radeon_crtc->native_mode.hdisplay);
 		radeon_crtc->vsc.full = rfixed_div(a, b);
 		a.full = rfixed_const(crtc->mode.hdisplay);
-		b.full = rfixed_const(radeon_crtc->native_mode.panel_yres);
+		b.full = rfixed_const(radeon_crtc->native_mode.vdisplay);
 		radeon_crtc->hsc.full = rfixed_div(a, b);
 	} else {
 		radeon_crtc->vsc.full = rfixed_const(1);

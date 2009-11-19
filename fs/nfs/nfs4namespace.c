@@ -121,7 +121,7 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 	mnt_path = nfs4_pathname_string(&location->rootpath, page2, PAGE_SIZE);
 	if (IS_ERR(mnt_path))
-		return mnt;
+		return ERR_CAST(mnt_path);
 	mountdata->mnt_path = mnt_path;
 	maxbuflen = mnt_path - 1 - page2;
 
@@ -132,15 +132,15 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 		if (buf->len <= 0 || buf->len >= maxbuflen)
 			continue;
 
-		mountdata->addr = (struct sockaddr *)&addr;
-
 		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
 			continue;
-		mountdata->addrlen = nfs_parse_server_name(buf->data,
-				buf->len,
-				mountdata->addr, mountdata->addrlen);
+
+		mountdata->addrlen = nfs_parse_server_name(buf->data, buf->len,
+				(struct sockaddr *)&addr, sizeof(addr));
 		if (mountdata->addrlen == 0)
 			continue;
+
+		mountdata->addr = (struct sockaddr *)&addr;
 		rpc_set_port(mountdata->addr, NFS_PORT);
 
 		memcpy(page2, buf->data, buf->len);

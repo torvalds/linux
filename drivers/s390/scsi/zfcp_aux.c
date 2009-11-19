@@ -80,28 +80,35 @@ int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
 
 static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 {
+	struct ccw_device *ccwdev;
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
 
-	mutex_lock(&zfcp_data.config_mutex);
-	read_lock_irq(&zfcp_data.config_lock);
-	adapter = zfcp_get_adapter_by_busid(busid);
-	if (adapter)
-		zfcp_adapter_get(adapter);
-	read_unlock_irq(&zfcp_data.config_lock);
+	ccwdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (!ccwdev)
+		return;
 
+	if (ccw_device_set_online(ccwdev))
+		goto out_ccwdev;
+
+	mutex_lock(&zfcp_data.config_mutex);
+	adapter = dev_get_drvdata(&ccwdev->dev);
 	if (!adapter)
-		goto out_adapter;
-	port = zfcp_port_enqueue(adapter, wwpn, 0, 0);
-	if (IS_ERR(port))
+		goto out_unlock;
+	zfcp_adapter_get(adapter);
+
+	port = zfcp_get_port_by_wwpn(adapter, wwpn);
+	if (!port)
 		goto out_port;
+
+	zfcp_port_get(port);
 	unit = zfcp_unit_enqueue(port, lun);
 	if (IS_ERR(unit))
 		goto out_unit;
 	mutex_unlock(&zfcp_data.config_mutex);
-	ccw_device_set_online(adapter->ccw_device);
 
+	zfcp_erp_unit_reopen(unit, 0, "auidc_1", NULL);
 	zfcp_erp_wait(adapter);
 	flush_work(&unit->scsi_work);
 
@@ -111,20 +118,23 @@ out_unit:
 	zfcp_port_put(port);
 out_port:
 	zfcp_adapter_put(adapter);
-out_adapter:
+out_unlock:
 	mutex_unlock(&zfcp_data.config_mutex);
+out_ccwdev:
+	put_device(&ccwdev->dev);
 	return;
 }
 
 static void __init zfcp_init_device_setup(char *devstr)
 {
 	char *token;
-	char *str;
+	char *str, *str_saved;
 	char busid[ZFCP_BUS_ID_SIZE];
 	u64 wwpn, lun;
 
 	/* duplicate devstr and keep the original for sysfs presentation*/
-	str = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str_saved = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str = str_saved;
 	if (!str)
 		return;
 
@@ -143,12 +153,12 @@ static void __init zfcp_init_device_setup(char *devstr)
 	if (!token || strict_strtoull(token, 0, (unsigned long long *) &lun))
 		goto err_out;
 
-	kfree(str);
+	kfree(str_saved);
 	zfcp_init_device_configure(busid, wwpn, lun);
 	return;
 
- err_out:
-	kfree(str);
+err_out:
+	kfree(str_saved);
 	pr_err("%s is not a valid SCSI device\n", devstr);
 }
 
@@ -593,10 +603,8 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	int retval = 0;
 	unsigned long flags;
 
-	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
-	zfcp_adapter_scsi_unregister(adapter);
 	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
 			   &zfcp_sysfs_adapter_attrs);
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);

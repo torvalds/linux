@@ -1568,22 +1568,22 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-#ifdef BIO_RW_DISCARD
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
 	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL,
 			     DISCARD_FL_BARRIER);
 }
-#endif
 
 static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 				u64 num_bytes)
 {
-#ifdef BIO_RW_DISCARD
 	int ret;
 	u64 map_length = num_bytes;
 	struct btrfs_multi_bio *multi = NULL;
+
+	if (!btrfs_test_opt(root, DISCARD))
+		return 0;
 
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
@@ -1604,9 +1604,6 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	}
 
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
@@ -2824,14 +2821,17 @@ int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
 					   num_items);
 
 	spin_lock(&meta_sinfo->lock);
-	if (BTRFS_I(inode)->delalloc_reserved_extents <=
-	    BTRFS_I(inode)->delalloc_extents) {
+	spin_lock(&BTRFS_I(inode)->accounting_lock);
+	if (BTRFS_I(inode)->reserved_extents <=
+	    BTRFS_I(inode)->outstanding_extents) {
+		spin_unlock(&BTRFS_I(inode)->accounting_lock);
 		spin_unlock(&meta_sinfo->lock);
 		return 0;
 	}
+	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 
-	BTRFS_I(inode)->delalloc_reserved_extents--;
-	BUG_ON(BTRFS_I(inode)->delalloc_reserved_extents < 0);
+	BTRFS_I(inode)->reserved_extents--;
+	BUG_ON(BTRFS_I(inode)->reserved_extents < 0);
 
 	if (meta_sinfo->bytes_delalloc < num_bytes) {
 		bug = true;
@@ -2864,6 +2864,107 @@ static void check_force_delalloc(struct btrfs_space_info *meta_sinfo)
 		meta_sinfo->force_delalloc = 0;
 }
 
+struct async_flush {
+	struct btrfs_root *root;
+	struct btrfs_space_info *info;
+	struct btrfs_work work;
+};
+
+static noinline void flush_delalloc_async(struct btrfs_work *work)
+{
+	struct async_flush *async;
+	struct btrfs_root *root;
+	struct btrfs_space_info *info;
+
+	async = container_of(work, struct async_flush, work);
+	root = async->root;
+	info = async->info;
+
+	btrfs_start_delalloc_inodes(root);
+	wake_up(&info->flush_wait);
+	btrfs_wait_ordered_extents(root, 0);
+
+	spin_lock(&info->lock);
+	info->flushing = 0;
+	spin_unlock(&info->lock);
+	wake_up(&info->flush_wait);
+
+	kfree(async);
+}
+
+static void wait_on_flush(struct btrfs_space_info *info)
+{
+	DEFINE_WAIT(wait);
+	u64 used;
+
+	while (1) {
+		prepare_to_wait(&info->flush_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		spin_lock(&info->lock);
+		if (!info->flushing) {
+			spin_unlock(&info->lock);
+			break;
+		}
+
+		used = info->bytes_used + info->bytes_reserved +
+			info->bytes_pinned + info->bytes_readonly +
+			info->bytes_super + info->bytes_root +
+			info->bytes_may_use + info->bytes_delalloc;
+		if (used < info->total_bytes) {
+			spin_unlock(&info->lock);
+			break;
+		}
+		spin_unlock(&info->lock);
+		schedule();
+	}
+	finish_wait(&info->flush_wait, &wait);
+}
+
+static void flush_delalloc(struct btrfs_root *root,
+				 struct btrfs_space_info *info)
+{
+	struct async_flush *async;
+	bool wait = false;
+
+	spin_lock(&info->lock);
+
+	if (!info->flushing) {
+		info->flushing = 1;
+		init_waitqueue_head(&info->flush_wait);
+	} else {
+		wait = true;
+	}
+
+	spin_unlock(&info->lock);
+
+	if (wait) {
+		wait_on_flush(info);
+		return;
+	}
+
+	async = kzalloc(sizeof(*async), GFP_NOFS);
+	if (!async)
+		goto flush;
+
+	async->root = root;
+	async->info = info;
+	async->work.func = flush_delalloc_async;
+
+	btrfs_queue_worker(&root->fs_info->enospc_workers,
+			   &async->work);
+	wait_on_flush(info);
+	return;
+
+flush:
+	btrfs_start_delalloc_inodes(root);
+	btrfs_wait_ordered_extents(root, 0);
+
+	spin_lock(&info->lock);
+	info->flushing = 0;
+	spin_unlock(&info->lock);
+	wake_up(&info->flush_wait);
+}
+
 static int maybe_allocate_chunk(struct btrfs_root *root,
 				 struct btrfs_space_info *info)
 {
@@ -2876,10 +2977,10 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 
 	free_space = btrfs_super_total_bytes(disk_super);
 	/*
-	 * we allow the metadata to grow to a max of either 5gb or 5% of the
+	 * we allow the metadata to grow to a max of either 10gb or 5% of the
 	 * space in the volume.
 	 */
-	min_metadata = min((u64)5 * 1024 * 1024 * 1024,
+	min_metadata = min((u64)10 * 1024 * 1024 * 1024,
 			     div64_u64(free_space * 5, 100));
 	if (info->total_bytes >= min_metadata) {
 		spin_unlock(&info->lock);
@@ -2894,7 +2995,7 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	if (!info->allocating_chunk) {
 		info->force_alloc = 1;
 		info->allocating_chunk = 1;
-		init_waitqueue_head(&info->wait);
+		init_waitqueue_head(&info->allocate_wait);
 	} else {
 		wait = true;
 	}
@@ -2902,7 +3003,7 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	spin_unlock(&info->lock);
 
 	if (wait) {
-		wait_event(info->wait,
+		wait_event(info->allocate_wait,
 			   !info->allocating_chunk);
 		return 1;
 	}
@@ -2923,7 +3024,7 @@ out:
 	spin_lock(&info->lock);
 	info->allocating_chunk = 0;
 	spin_unlock(&info->lock);
-	wake_up(&info->wait);
+	wake_up(&info->allocate_wait);
 
 	if (ret)
 		return 0;
@@ -2981,21 +3082,20 @@ again:
 			filemap_flush(inode->i_mapping);
 			goto again;
 		} else if (flushed == 3) {
-			btrfs_start_delalloc_inodes(root);
-			btrfs_wait_ordered_extents(root, 0);
+			flush_delalloc(root, meta_sinfo);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);
 		meta_sinfo->bytes_delalloc -= num_bytes;
 		spin_unlock(&meta_sinfo->lock);
 		printk(KERN_ERR "enospc, has %d, reserved %d\n",
-		       BTRFS_I(inode)->delalloc_extents,
-		       BTRFS_I(inode)->delalloc_reserved_extents);
+		       BTRFS_I(inode)->outstanding_extents,
+		       BTRFS_I(inode)->reserved_extents);
 		dump_space_info(meta_sinfo, 0, 0);
 		return -ENOSPC;
 	}
 
-	BTRFS_I(inode)->delalloc_reserved_extents++;
+	BTRFS_I(inode)->reserved_extents++;
 	check_force_delalloc(meta_sinfo);
 	spin_unlock(&meta_sinfo->lock);
 
@@ -3094,8 +3194,7 @@ again:
 		}
 
 		if (retries == 2) {
-			btrfs_start_delalloc_inodes(root);
-			btrfs_wait_ordered_extents(root, 0);
+			flush_delalloc(root, meta_sinfo);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);
@@ -3588,6 +3687,14 @@ static int pin_down_bytes(struct btrfs_trans_handle *trans,
 	if (is_data)
 		goto pinit;
 
+	/*
+	 * discard is sloooow, and so triggering discards on
+	 * individual btree blocks isn't a good plan.  Just
+	 * pin everything in discard mode.
+	 */
+	if (btrfs_test_opt(root, DISCARD))
+		goto pinit;
+
 	buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 	if (!buf)
 		goto pinit;
@@ -3995,7 +4102,7 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 }
 
 enum btrfs_loop_type {
-	LOOP_CACHED_ONLY = 0,
+	LOOP_FIND_IDEAL = 0,
 	LOOP_CACHING_NOWAIT = 1,
 	LOOP_CACHING_WAIT = 2,
 	LOOP_ALLOC_CHUNK = 3,
@@ -4024,11 +4131,15 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *block_group = NULL;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
+	int done_chunk_alloc = 0;
 	struct btrfs_space_info *space_info;
 	int last_ptr_loop = 0;
 	int loop = 0;
 	bool found_uncached_bg = false;
 	bool failed_cluster_refill = false;
+	bool failed_alloc = false;
+	u64 ideal_cache_percent = 0;
+	u64 ideal_cache_offset = 0;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -4064,14 +4175,19 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 		empty_cluster = 0;
 
 	if (search_start == hint_byte) {
+ideal_cache:
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
 		/*
 		 * we don't want to use the block group if it doesn't match our
 		 * allocation bits, or if its not cached.
+		 *
+		 * However if we are re-searching with an ideal block group
+		 * picked out then we don't care that the block group is cached.
 		 */
 		if (block_group && block_group_bits(block_group, data) &&
-		    block_group_cache_done(block_group)) {
+		    (block_group->cached != BTRFS_CACHE_NO ||
+		     search_start == ideal_cache_offset)) {
 			down_read(&space_info->groups_sem);
 			if (list_empty(&block_group->list) ||
 			    block_group->ro) {
@@ -4083,13 +4199,13 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 				 */
 				btrfs_put_block_group(block_group);
 				up_read(&space_info->groups_sem);
-			} else
+			} else {
 				goto have_block_group;
+			}
 		} else if (block_group) {
 			btrfs_put_block_group(block_group);
 		}
 	}
-
 search:
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups, list) {
@@ -4101,27 +4217,44 @@ search:
 
 have_block_group:
 		if (unlikely(block_group->cached == BTRFS_CACHE_NO)) {
+			u64 free_percent;
+
+			free_percent = btrfs_block_group_used(&block_group->item);
+			free_percent *= 100;
+			free_percent = div64_u64(free_percent,
+						 block_group->key.offset);
+			free_percent = 100 - free_percent;
+			if (free_percent > ideal_cache_percent &&
+			    likely(!block_group->ro)) {
+				ideal_cache_offset = block_group->key.objectid;
+				ideal_cache_percent = free_percent;
+			}
+
 			/*
-			 * we want to start caching kthreads, but not too many
-			 * right off the bat so we don't overwhelm the system,
-			 * so only start them if there are less than 2 and we're
-			 * in the initial allocation phase.
+			 * We only want to start kthread caching if we are at
+			 * the point where we will wait for caching to make
+			 * progress, or if our ideal search is over and we've
+			 * found somebody to start caching.
 			 */
 			if (loop > LOOP_CACHING_NOWAIT ||
-			    atomic_read(&space_info->caching_threads) < 2) {
+			    (loop > LOOP_FIND_IDEAL &&
+			     atomic_read(&space_info->caching_threads) < 2)) {
 				ret = cache_block_group(block_group);
 				BUG_ON(ret);
 			}
+			found_uncached_bg = true;
+
+			/*
+			 * If loop is set for cached only, try the next block
+			 * group.
+			 */
+			if (loop == LOOP_FIND_IDEAL)
+				goto loop;
 		}
 
 		cached = block_group_cache_done(block_group);
-		if (unlikely(!cached)) {
+		if (unlikely(!cached))
 			found_uncached_bg = true;
-
-			/* if we only want cached bgs, loop */
-			if (loop == LOOP_CACHED_ONLY)
-				goto loop;
-		}
 
 		if (unlikely(block_group->ro))
 			goto loop;
@@ -4233,14 +4366,23 @@ refill_cluster:
 
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
-		if (!offset && (cached || (!cached &&
-					   loop == LOOP_CACHING_NOWAIT))) {
-			goto loop;
-		} else if (!offset && (!cached &&
-				       loop > LOOP_CACHING_NOWAIT)) {
+		/*
+		 * If we didn't find a chunk, and we haven't failed on this
+		 * block group before, and this block group is in the middle of
+		 * caching and we are ok with waiting, then go ahead and wait
+		 * for progress to be made, and set failed_alloc to true.
+		 *
+		 * If failed_alloc is true then we've already waited on this
+		 * block group once and should move on to the next block group.
+		 */
+		if (!offset && !failed_alloc && !cached &&
+		    loop > LOOP_CACHING_NOWAIT) {
 			wait_block_group_cache_progress(block_group,
-					num_bytes + empty_size);
+						num_bytes + empty_size);
+			failed_alloc = true;
 			goto have_block_group;
+		} else if (!offset) {
+			goto loop;
 		}
 checks:
 		search_start = stripe_align(root, offset);
@@ -4288,13 +4430,16 @@ checks:
 		break;
 loop:
 		failed_cluster_refill = false;
+		failed_alloc = false;
 		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
 
-	/* LOOP_CACHED_ONLY, only search fully cached block groups
-	 * LOOP_CACHING_NOWAIT, search partially cached block groups, but
-	 *			dont wait foR them to finish caching
+	/* LOOP_FIND_IDEAL, only search caching/cached bg's, and don't wait for
+	 *			for them to make caching progress.  Also
+	 *			determine the best possible bg to cache
+	 * LOOP_CACHING_NOWAIT, search partially cached block groups, kicking
+	 *			caching kthreads as we move along
 	 * LOOP_CACHING_WAIT, search everything, and wait if our bg is caching
 	 * LOOP_ALLOC_CHUNK, force a chunk allocation and try again
 	 * LOOP_NO_EMPTY_SIZE, set empty_size and empty_cluster to 0 and try
@@ -4303,12 +4448,47 @@ loop:
 	if (!ins->objectid && loop < LOOP_NO_EMPTY_SIZE &&
 	    (found_uncached_bg || empty_size || empty_cluster ||
 	     allowed_chunk_alloc)) {
-		if (found_uncached_bg) {
+		if (loop == LOOP_FIND_IDEAL && found_uncached_bg) {
 			found_uncached_bg = false;
-			if (loop < LOOP_CACHING_WAIT) {
-				loop++;
+			loop++;
+			if (!ideal_cache_percent &&
+			    atomic_read(&space_info->caching_threads))
 				goto search;
-			}
+
+			/*
+			 * 1 of the following 2 things have happened so far
+			 *
+			 * 1) We found an ideal block group for caching that
+			 * is mostly full and will cache quickly, so we might
+			 * as well wait for it.
+			 *
+			 * 2) We searched for cached only and we didn't find
+			 * anything, and we didn't start any caching kthreads
+			 * either, so chances are we will loop through and
+			 * start a couple caching kthreads, and then come back
+			 * around and just wait for them.  This will be slower
+			 * because we will have 2 caching kthreads reading at
+			 * the same time when we could have just started one
+			 * and waited for it to get far enough to give us an
+			 * allocation, so go ahead and go to the wait caching
+			 * loop.
+			 */
+			loop = LOOP_CACHING_WAIT;
+			search_start = ideal_cache_offset;
+			ideal_cache_percent = 0;
+			goto ideal_cache;
+		} else if (loop == LOOP_FIND_IDEAL) {
+			/*
+			 * Didn't find a uncached bg, wait on anything we find
+			 * next.
+			 */
+			loop = LOOP_CACHING_WAIT;
+			goto search;
+		}
+
+		if (loop < LOOP_CACHING_WAIT) {
+			loop++;
+			goto search;
 		}
 
 		if (loop == LOOP_ALLOC_CHUNK) {
@@ -4320,7 +4500,8 @@ loop:
 			ret = do_chunk_alloc(trans, root, num_bytes +
 					     2 * 1024 * 1024, data, 1);
 			allowed_chunk_alloc = 0;
-		} else {
+			done_chunk_alloc = 1;
+		} else if (!done_chunk_alloc) {
 			space_info->force_alloc = 1;
 		}
 
@@ -4799,6 +4980,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 refs;
+	u64 flags;
 	u64 last = 0;
 	u32 nritems;
 	u32 blocksize;
@@ -4836,15 +5018,19 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 		    generation <= root->root_key.offset)
 			continue;
 
+		/* We don't lock the tree block, it's OK to be racy here */
+		ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
+					       &refs, &flags);
+		BUG_ON(ret);
+		BUG_ON(refs == 0);
+
 		if (wc->stage == DROP_REFERENCE) {
-			ret = btrfs_lookup_extent_info(trans, root,
-						bytenr, blocksize,
-						&refs, NULL);
-			BUG_ON(ret);
-			BUG_ON(refs == 0);
 			if (refs == 1)
 				goto reada;
 
+			if (wc->level == 1 &&
+			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+				continue;
 			if (!wc->update_ref ||
 			    generation <= root->root_key.offset)
 				continue;
@@ -4852,6 +5038,10 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 			ret = btrfs_comp_cpu_keys(&key,
 						  &wc->update_progress);
 			if (ret < 0)
+				continue;
+		} else {
+			if (wc->level == 1 &&
+			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
 				continue;
 		}
 reada:
@@ -4876,7 +5066,7 @@ reada:
 static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_path *path,
-				   struct walk_control *wc)
+				   struct walk_control *wc, int lookup_info)
 {
 	int level = wc->level;
 	struct extent_buffer *eb = path->nodes[level];
@@ -4891,8 +5081,9 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 	 * when reference count of tree block is 1, it won't increase
 	 * again. once full backref flag is set, we never clear it.
 	 */
-	if ((wc->stage == DROP_REFERENCE && wc->refs[level] != 1) ||
-	    (wc->stage == UPDATE_BACKREF && !(wc->flags[level] & flag))) {
+	if (lookup_info &&
+	    ((wc->stage == DROP_REFERENCE && wc->refs[level] != 1) ||
+	     (wc->stage == UPDATE_BACKREF && !(wc->flags[level] & flag)))) {
 		BUG_ON(!path->locks[level]);
 		ret = btrfs_lookup_extent_info(trans, root,
 					       eb->start, eb->len,
@@ -4953,7 +5144,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
-				 struct walk_control *wc)
+				 struct walk_control *wc, int *lookup_info)
 {
 	u64 bytenr;
 	u64 generation;
@@ -4973,8 +5164,10 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	 * for the subtree
 	 */
 	if (wc->stage == UPDATE_BACKREF &&
-	    generation <= root->root_key.offset)
+	    generation <= root->root_key.offset) {
+		*lookup_info = 1;
 		return 1;
+	}
 
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	blocksize = btrfs_level_size(root, level - 1);
@@ -4987,14 +5180,19 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	btrfs_tree_lock(next);
 	btrfs_set_lock_blocking(next);
 
-	if (wc->stage == DROP_REFERENCE) {
-		ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
-					       &wc->refs[level - 1],
-					       &wc->flags[level - 1]);
-		BUG_ON(ret);
-		BUG_ON(wc->refs[level - 1] == 0);
+	ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
+				       &wc->refs[level - 1],
+				       &wc->flags[level - 1]);
+	BUG_ON(ret);
+	BUG_ON(wc->refs[level - 1] == 0);
+	*lookup_info = 0;
 
+	if (wc->stage == DROP_REFERENCE) {
 		if (wc->refs[level - 1] > 1) {
+			if (level == 1 &&
+			    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+				goto skip;
+
 			if (!wc->update_ref ||
 			    generation <= root->root_key.offset)
 				goto skip;
@@ -5008,12 +5206,17 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 			wc->stage = UPDATE_BACKREF;
 			wc->shared_level = level - 1;
 		}
+	} else {
+		if (level == 1 &&
+		    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+			goto skip;
 	}
 
 	if (!btrfs_buffer_uptodate(next, generation)) {
 		btrfs_tree_unlock(next);
 		free_extent_buffer(next);
 		next = NULL;
+		*lookup_info = 1;
 	}
 
 	if (!next) {
@@ -5036,21 +5239,22 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 skip:
 	wc->refs[level - 1] = 0;
 	wc->flags[level - 1] = 0;
+	if (wc->stage == DROP_REFERENCE) {
+		if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
+			parent = path->nodes[level]->start;
+		} else {
+			BUG_ON(root->root_key.objectid !=
+			       btrfs_header_owner(path->nodes[level]));
+			parent = 0;
+		}
 
-	if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
-		parent = path->nodes[level]->start;
-	} else {
-		BUG_ON(root->root_key.objectid !=
-		       btrfs_header_owner(path->nodes[level]));
-		parent = 0;
+		ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
+					root->root_key.objectid, level - 1, 0);
+		BUG_ON(ret);
 	}
-
-	ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
-				root->root_key.objectid, level - 1, 0);
-	BUG_ON(ret);
-
 	btrfs_tree_unlock(next);
 	free_extent_buffer(next);
+	*lookup_info = 1;
 	return 1;
 }
 
@@ -5164,6 +5368,7 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 				   struct walk_control *wc)
 {
 	int level = wc->level;
+	int lookup_info = 1;
 	int ret;
 
 	while (level >= 0) {
@@ -5171,14 +5376,14 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 		    btrfs_header_nritems(path->nodes[level]))
 			break;
 
-		ret = walk_down_proc(trans, root, path, wc);
+		ret = walk_down_proc(trans, root, path, wc, lookup_info);
 		if (ret > 0)
 			break;
 
 		if (level == 0)
 			break;
 
-		ret = do_walk_down(trans, root, path, wc);
+		ret = do_walk_down(trans, root, path, wc, &lookup_info);
 		if (ret > 0) {
 			path->slots[level]++;
 			continue;

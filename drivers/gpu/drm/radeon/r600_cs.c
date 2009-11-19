@@ -252,7 +252,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
-	reg = header >> 2;
+	reg = CP_PACKET0_GET_REG(header);
 	mutex_lock(&p->rdev->ddev->mode_config.mutex);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
@@ -466,6 +466,23 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
 			switch (reg) {
+			case SQ_ESGS_RING_BASE:
+			case SQ_GSVS_RING_BASE:
+			case SQ_ESTMP_RING_BASE:
+			case SQ_GSTMP_RING_BASE:
+			case SQ_VSTMP_RING_BASE:
+			case SQ_PSTMP_RING_BASE:
+			case SQ_FBUF_RING_BASE:
+			case SQ_REDUC_RING_BASE:
+			case SX_MEMORY_EXPORT_BASE:
+				r = r600_cs_packet_next_reloc(p, &reloc);
+				if (r) {
+					DRM_ERROR("bad SET_CONFIG_REG "
+							"0x%04X\n", reg);
+					return -EINVAL;
+				}
+				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				break;
 			case CP_COHER_BASE:
 				/* use PACKET3_SURFACE_SYNC */
 				return -EINVAL;
@@ -487,6 +504,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			reg = start_reg + (4 * i);
 			switch (reg) {
 			case DB_DEPTH_BASE:
+			case DB_HTILE_DATA_BASE:
 			case CB_COLOR0_BASE:
 			case CB_COLOR1_BASE:
 			case CB_COLOR2_BASE:

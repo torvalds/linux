@@ -125,6 +125,7 @@ int ccw_device_stlck(struct ccw_device *);
 void ccw_device_trigger_reprobe(struct ccw_device *);
 void ccw_device_kill_io(struct ccw_device *);
 int ccw_device_notify(struct ccw_device *, int);
+void ccw_device_set_disconnected(struct ccw_device *cdev);
 void ccw_device_set_notoper(struct ccw_device *cdev);
 
 /* qdio needs this. */

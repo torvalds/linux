@@ -186,7 +186,7 @@ static int r520_startup(struct radeon_device *rdev)
 	}
 	/* Enable IRQ */
 	rdev->irq.sw_int = true;
-	r100_irq_set(rdev);
+	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -228,7 +228,6 @@ int r520_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
@@ -261,6 +260,8 @@ int r520_init(struct radeon_device *rdev)
 	}
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Get vram informations */
 	r520_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */

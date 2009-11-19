@@ -546,7 +546,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 
 	if (was_throttled) {
 		/* Resume reading from device */
-		usb_serial_generic_resubmit_read_urb(port, GFP_KERNEL);
+		flush_and_resubmit_read_urb(port);
 	}
 }
 

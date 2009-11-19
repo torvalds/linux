@@ -359,7 +359,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 		max_depth -= 2;
 		if (!max_depth)
 			max_depth = 1;
-		if (q->in_flight[0] > max_depth)
+		if (q->in_flight[BLK_RW_ASYNC] > max_depth)
 			return 1;
 	}
 

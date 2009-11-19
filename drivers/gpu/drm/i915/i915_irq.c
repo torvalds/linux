@@ -725,6 +725,16 @@ void i915_user_irq_put(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
+void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	if (dev_priv->trace_irq_seqno == 0)
+		i915_user_irq_get(dev);
+
+	dev_priv->trace_irq_seqno = seqno;
+}
+
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
