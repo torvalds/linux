@@ -27,6 +27,76 @@ static int cachefiles_wait_bit(void *flags)
 	return 0;
 }
 
+#define CACHEFILES_KEYBUF_SIZE 512
+
+/*
+ * dump debugging info about an object
+ */
+static noinline
+void __cachefiles_printk_object(struct cachefiles_object *object,
+				const char *prefix,
+				u8 *keybuf)
+{
+	struct fscache_cookie *cookie;
+	unsigned keylen, loop;
+
+	printk(KERN_ERR "%sobject: OBJ%x\n",
+	       prefix, object->fscache.debug_id);
+	printk(KERN_ERR "%sobjstate=%s fl=%lx swfl=%lx ev=%lx[%lx]\n",
+	       prefix, fscache_object_states[object->fscache.state],
+	       object->fscache.flags, object->fscache.work.flags,
+	       object->fscache.events,
+	       object->fscache.event_mask & FSCACHE_OBJECT_EVENTS_MASK);
+	printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
+	       prefix, object->fscache.n_ops, object->fscache.n_in_progress,
+	       object->fscache.n_exclusive);
+	printk(KERN_ERR "%sparent=%p\n",
+	       prefix, object->fscache.parent);
+
+	spin_lock(&object->fscache.lock);
+	cookie = object->fscache.cookie;
+	if (cookie) {
+		printk(KERN_ERR "%scookie=%p [pr=%p nd=%p fl=%lx]\n",
+		       prefix,
+		       object->fscache.cookie,
+		       object->fscache.cookie->parent,
+		       object->fscache.cookie->netfs_data,
+		       object->fscache.cookie->flags);
+		if (keybuf)
+			keylen = cookie->def->get_key(cookie->netfs_data, keybuf,
+						      CACHEFILES_KEYBUF_SIZE);
+		else
+			keylen = 0;
+	} else {
+		printk(KERN_ERR "%scookie=NULL\n", prefix);
+		keylen = 0;
+	}
+	spin_unlock(&object->fscache.lock);
+
+	if (keylen) {
+		printk(KERN_ERR "%skey=[%u] '", prefix, keylen);
+		for (loop = 0; loop < keylen; loop++)
+			printk("%02x", keybuf[loop]);
+		printk("'\n");
+	}
+}
+
+/*
+ * dump debugging info about a pair of objects
+ */
+static noinline void cachefiles_printk_object(struct cachefiles_object *object,
+					      struct cachefiles_object *xobject)
+{
+	u8 *keybuf;
+
+	keybuf = kmalloc(CACHEFILES_KEYBUF_SIZE, GFP_NOIO);
+	if (object)
+		__cachefiles_printk_object(object, "", keybuf);
+	if (xobject)
+		__cachefiles_printk_object(xobject, "x", keybuf);
+	kfree(keybuf);
+}
+
 /*
  * record the fact that an object is now active
  */
@@ -42,8 +112,11 @@ static void cachefiles_mark_object_active(struct cachefiles_cache *cache,
 try_again:
 	write_lock(&cache->active_lock);
 
-	if (test_and_set_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags))
+	if (test_and_set_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags)) {
+		printk(KERN_ERR "CacheFiles: Error: Object already active\n");
+		cachefiles_printk_object(object, NULL);
 		BUG();
+	}
 
 	dentry = object->dentry;
 	_p = &cache->active_nodes.rb_node;
@@ -76,32 +149,7 @@ wait_for_old_object:
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "CacheFiles: Error:"
 		       " Unexpected object collision\n");
-		printk(KERN_ERR "xobject: OBJ%x\n",
-		       xobject->fscache.debug_id);
-		printk(KERN_ERR "xobjstate=%s\n",
-		       fscache_object_states[xobject->fscache.state]);
-		printk(KERN_ERR "xobjflags=%lx\n", xobject->fscache.flags);
-		printk(KERN_ERR "xobjevent=%lx [%lx]\n",
-		       xobject->fscache.events, xobject->fscache.event_mask);
-		printk(KERN_ERR "xops=%u inp=%u exc=%u\n",
-		       xobject->fscache.n_ops, xobject->fscache.n_in_progress,
-		       xobject->fscache.n_exclusive);
-		printk(KERN_ERR "xcookie=%p [pr=%p nd=%p fl=%lx]\n",
-		       xobject->fscache.cookie,
-		       xobject->fscache.cookie->parent,
-		       xobject->fscache.cookie->netfs_data,
-		       xobject->fscache.cookie->flags);
-		printk(KERN_ERR "xparent=%p\n",
-		       xobject->fscache.parent);
-		printk(KERN_ERR "object: OBJ%x\n",
-		       object->fscache.debug_id);
-		printk(KERN_ERR "cookie=%p [pr=%p nd=%p fl=%lx]\n",
-		       object->fscache.cookie,
-		       object->fscache.cookie->parent,
-		       object->fscache.cookie->netfs_data,
-		       object->fscache.cookie->flags);
-		printk(KERN_ERR "parent=%p\n",
-		       object->fscache.parent);
+		cachefiles_printk_object(object, xobject);
 		BUG();
 	}
 	atomic_inc(&xobject->usage);
