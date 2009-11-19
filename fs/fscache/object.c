@@ -201,6 +201,7 @@ static void fscache_object_state_machine(struct fscache_object *object)
 		}
 		spin_unlock(&object->lock);
 		fscache_enqueue_dependents(object);
+		fscache_start_operations(object);
 		goto terminal_transit;
 
 		/* handle an abort during initialisation */

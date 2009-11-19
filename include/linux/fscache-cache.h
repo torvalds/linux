@@ -404,6 +404,10 @@ extern const char *fscache_object_states[];
 	 (obj)->state >= FSCACHE_OBJECT_AVAILABLE &&	      \
 	 (obj)->state < FSCACHE_OBJECT_DYING)
 
+#define fscache_object_is_dead(obj)				\
+	(test_bit(FSCACHE_IOERROR, &(obj)->cache->flags) &&	\
+	 (obj)->state >= FSCACHE_OBJECT_DYING)
+
 extern const struct slow_work_ops fscache_object_slow_work_ops;
 
 /**

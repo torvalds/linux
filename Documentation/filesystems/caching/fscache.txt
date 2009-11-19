@@ -253,6 +253,7 @@ proc files.
 		int=N	Number of alloc reqs aborted -ERESTARTSYS
 		ops=N	Number of alloc reqs submitted
 		owt=N	Number of alloc reqs waited for CPU time
+		abt=N	Number of alloc reqs aborted due to object death
 	Retrvls	n=N	Number of retrieval (read) requests seen
 		ok=N	Number of successful retr reqs
 		wt=N	Number of retr reqs that waited on lookup completion
@@ -262,6 +263,7 @@ proc files.
 		oom=N	Number of retr reqs failed -ENOMEM
 		ops=N	Number of retr reqs submitted
 		owt=N	Number of retr reqs waited for CPU time
+		abt=N	Number of retr reqs aborted due to object death
 	Stores	n=N	Number of storage (write) requests seen
 		ok=N	Number of successful store reqs
 		agn=N	Number of store reqs on a page already pending storage

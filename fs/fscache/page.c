@@ -314,6 +314,43 @@ static int fscache_wait_for_deferred_lookup(struct fscache_cookie *cookie)
 }
 
 /*
+ * wait for an object to become active (or dead)
+ */
+static int fscache_wait_for_retrieval_activation(struct fscache_object *object,
+						 struct fscache_retrieval *op,
+						 atomic_t *stat_op_waits,
+						 atomic_t *stat_object_dead)
+{
+	int ret;
+
+	if (!test_bit(FSCACHE_OP_WAITING, &op->op.flags))
+		goto check_if_dead;
+
+	_debug(">>> WT");
+	fscache_stat(stat_op_waits);
+	if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+			fscache_wait_bit_interruptible,
+			TASK_INTERRUPTIBLE) < 0) {
+		ret = fscache_cancel_op(&op->op);
+		if (ret == 0)
+			return -ERESTARTSYS;
+
+		/* it's been removed from the pending queue by another party,
+		 * so we should get to run shortly */
+		wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
+			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+	}
+	_debug("<<< GO");
+
+check_if_dead:
+	if (unlikely(fscache_object_is_dead(object))) {
+		fscache_stat(stat_object_dead);
+		return -ENOBUFS;
+	}
+	return 0;
+}
+
+/*
  * read a page from the cache or allocate a block in which to store it
  * - we return:
  *   -ENOMEM	- out of memory, nothing done
@@ -376,25 +413,12 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 
 	/* we wait for the operation to become active, and then process it
 	 * *here*, in this thread, and not in the thread pool */
-	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
-		_debug(">>> WT");
-		fscache_stat(&fscache_n_retrieval_op_waits);
-		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				fscache_wait_bit_interruptible,
-				TASK_INTERRUPTIBLE) < 0) {
-			ret = fscache_cancel_op(&op->op);
-			if (ret == 0) {
-				ret = -ERESTARTSYS;
-				goto error;
-			}
-
-			/* it's been removed from the pending queue by another
-			 * party, so we should get to run shortly */
-			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
-		}
-		_debug("<<< GO");
-	}
+	ret = fscache_wait_for_retrieval_activation(
+		object, op,
+		__fscache_stat(&fscache_n_retrieval_op_waits),
+		__fscache_stat(&fscache_n_retrievals_object_dead));
+	if (ret < 0)
+		goto error;
 
 	/* ask the cache to honour the operation */
 	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags)) {
@@ -506,25 +530,12 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 
 	/* we wait for the operation to become active, and then process it
 	 * *here*, in this thread, and not in the thread pool */
-	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
-		_debug(">>> WT");
-		fscache_stat(&fscache_n_retrieval_op_waits);
-		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				fscache_wait_bit_interruptible,
-				TASK_INTERRUPTIBLE) < 0) {
-			ret = fscache_cancel_op(&op->op);
-			if (ret == 0) {
-				ret = -ERESTARTSYS;
-				goto error;
-			}
-
-			/* it's been removed from the pending queue by another
-			 * party, so we should get to run shortly */
-			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
-		}
-		_debug("<<< GO");
-	}
+	ret = fscache_wait_for_retrieval_activation(
+		object, op,
+		__fscache_stat(&fscache_n_retrieval_op_waits),
+		__fscache_stat(&fscache_n_retrievals_object_dead));
+	if (ret < 0)
+		goto error;
 
 	/* ask the cache to honour the operation */
 	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags)) {
@@ -612,25 +623,12 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 
 	fscache_stat(&fscache_n_alloc_ops);
 
-	if (test_bit(FSCACHE_OP_WAITING, &op->op.flags)) {
-		_debug(">>> WT");
-		fscache_stat(&fscache_n_alloc_op_waits);
-		if (wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				fscache_wait_bit_interruptible,
-				TASK_INTERRUPTIBLE) < 0) {
-			ret = fscache_cancel_op(&op->op);
-			if (ret == 0) {
-				ret = -ERESTARTSYS;
-				goto error;
-			}
-
-			/* it's been removed from the pending queue by another
-			 * party, so we should get to run shortly */
-			wait_on_bit(&op->op.flags, FSCACHE_OP_WAITING,
-				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
-		}
-		_debug("<<< GO");
-	}
+	ret = fscache_wait_for_retrieval_activation(
+		object, op,
+		__fscache_stat(&fscache_n_alloc_op_waits),
+		__fscache_stat(&fscache_n_allocs_object_dead));
+	if (ret < 0)
+		goto error;
 
 	/* ask the cache to honour the operation */
 	fscache_stat(&fscache_n_cop_allocate_page);

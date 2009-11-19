@@ -156,6 +156,7 @@ extern atomic_t fscache_n_allocs_ok;
 extern atomic_t fscache_n_allocs_wait;
 extern atomic_t fscache_n_allocs_nobufs;
 extern atomic_t fscache_n_allocs_intr;
+extern atomic_t fscache_n_allocs_object_dead;
 extern atomic_t fscache_n_alloc_ops;
 extern atomic_t fscache_n_alloc_op_waits;
 
@@ -166,6 +167,7 @@ extern atomic_t fscache_n_retrievals_nodata;
 extern atomic_t fscache_n_retrievals_nobufs;
 extern atomic_t fscache_n_retrievals_intr;
 extern atomic_t fscache_n_retrievals_nomem;
+extern atomic_t fscache_n_retrievals_object_dead;
 extern atomic_t fscache_n_retrieval_ops;
 extern atomic_t fscache_n_retrieval_op_waits;
 
@@ -249,9 +251,12 @@ static inline void fscache_stat_d(atomic_t *stat)
 	atomic_dec(stat);
 }
 
+#define __fscache_stat(stat) (stat)
+
 extern const struct file_operations fscache_stats_fops;
 #else
 
+#define __fscache_stat(stat) (NULL)
 #define fscache_stat(stat) do {} while (0)
 #endif
 

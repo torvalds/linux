@@ -39,6 +39,7 @@ atomic_t fscache_n_allocs_ok;
 atomic_t fscache_n_allocs_wait;
 atomic_t fscache_n_allocs_nobufs;
 atomic_t fscache_n_allocs_intr;
+atomic_t fscache_n_allocs_object_dead;
 atomic_t fscache_n_alloc_ops;
 atomic_t fscache_n_alloc_op_waits;
 
@@ -49,6 +50,7 @@ atomic_t fscache_n_retrievals_nodata;
 atomic_t fscache_n_retrievals_nobufs;
 atomic_t fscache_n_retrievals_intr;
 atomic_t fscache_n_retrievals_nomem;
+atomic_t fscache_n_retrievals_object_dead;
 atomic_t fscache_n_retrieval_ops;
 atomic_t fscache_n_retrieval_op_waits;
 
@@ -188,9 +190,10 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_allocs_wait),
 		   atomic_read(&fscache_n_allocs_nobufs),
 		   atomic_read(&fscache_n_allocs_intr));
-	seq_printf(m, "Allocs : ops=%u owt=%u\n",
+	seq_printf(m, "Allocs : ops=%u owt=%u abt=%u\n",
 		   atomic_read(&fscache_n_alloc_ops),
-		   atomic_read(&fscache_n_alloc_op_waits));
+		   atomic_read(&fscache_n_alloc_op_waits),
+		   atomic_read(&fscache_n_allocs_object_dead));
 
 	seq_printf(m, "Retrvls: n=%u ok=%u wt=%u nod=%u nbf=%u"
 		   " int=%u oom=%u\n",
@@ -201,9 +204,10 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_retrievals_nobufs),
 		   atomic_read(&fscache_n_retrievals_intr),
 		   atomic_read(&fscache_n_retrievals_nomem));
-	seq_printf(m, "Retrvls: ops=%u owt=%u\n",
+	seq_printf(m, "Retrvls: ops=%u owt=%u abt=%u\n",
 		   atomic_read(&fscache_n_retrieval_ops),
-		   atomic_read(&fscache_n_retrieval_op_waits));
+		   atomic_read(&fscache_n_retrieval_op_waits),
+		   atomic_read(&fscache_n_retrievals_object_dead));
 
 	seq_printf(m, "Stores : n=%u ok=%u agn=%u nbf=%u oom=%u\n",
 		   atomic_read(&fscache_n_stores),
