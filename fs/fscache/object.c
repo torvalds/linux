@@ -158,7 +158,8 @@ static void fscache_object_state_machine(struct fscache_object *object)
 
 		spin_lock(&object->lock);
 		object->state = FSCACHE_OBJECT_DYING;
-		if (test_and_clear_bit(FSCACHE_COOKIE_CREATING,
+		if (object->cookie &&
+		    test_and_clear_bit(FSCACHE_COOKIE_CREATING,
 				       &object->cookie->flags))
 			wake_up_bit(&object->cookie->flags,
 				    FSCACHE_COOKIE_CREATING);
@@ -594,7 +595,8 @@ static void fscache_object_available(struct fscache_object *object)
 
 	spin_lock(&object->lock);
 
-	if (test_and_clear_bit(FSCACHE_COOKIE_CREATING, &object->cookie->flags))
+	if (object->cookie &&
+	    test_and_clear_bit(FSCACHE_COOKIE_CREATING, &object->cookie->flags))
 		wake_up_bit(&object->cookie->flags, FSCACHE_COOKIE_CREATING);
 
 	fscache_done_parent_op(object);
@@ -630,6 +632,9 @@ static void fscache_drop_object(struct fscache_object *object)
 	struct fscache_cache *cache = object->cache;
 
 	_enter("{OBJ%x,%d}", object->debug_id, object->n_children);
+
+	ASSERTCMP(object->cookie, ==, NULL);
+	ASSERT(hlist_unhashed(&object->cookie_link));
 
 	spin_lock(&cache->object_list_lock);
 	list_del_init(&object->cache_link);
