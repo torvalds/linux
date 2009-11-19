@@ -1134,6 +1134,9 @@ struct cfg80211_ops {
  *	by default -- this flag will be set depending on the kernel's default
  *	on wiphy_new(), but can be changed by the driver if it has a good
  *	reason to override the default
+ * @WIPHY_FLAG_4ADDR_AP: supports 4addr mode even on AP (with a single station
+ *	on a VLAN interface)
+ * @WIPHY_FLAG_4ADDR_STATION: supports 4addr mode even as a station
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY	= BIT(0),
@@ -1141,6 +1144,8 @@ enum wiphy_flags {
 	WIPHY_FLAG_DISABLE_BEACON_HINTS	= BIT(2),
 	WIPHY_FLAG_NETNS_OK		= BIT(3),
 	WIPHY_FLAG_PS_ON_BY_DEFAULT	= BIT(4),
+	WIPHY_FLAG_4ADDR_AP		= BIT(5),
+	WIPHY_FLAG_4ADDR_STATION	= BIT(6),
 };
 
 /**
@@ -1366,6 +1371,10 @@ struct cfg80211_cached_keys;
  * @ssid_len: (private) Used by the internal configuration code
  * @wext: (private) Used by the internal wireless extensions compat code
  * @wext_bssid: (private) Used by the internal wireless extensions compat code
+ * @use_4addr: indicates 4addr mode is used on this interface, must be
+ *	set by driver (if supported) on add_interface BEFORE registering the
+ *	netdev and may otherwise be used by driver read-only, will be update
+ *	by cfg80211 on change_interface
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -1378,6 +1387,8 @@ struct wireless_dev {
 	struct mutex mtx;
 
 	struct work_struct cleanup_work;
+
+	bool use_4addr;
 
 	/* currently used for IBSS and SME - might be rearranged later */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];

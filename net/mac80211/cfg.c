@@ -42,15 +42,6 @@ static bool nl80211_params_check(enum nl80211_iftype type,
 	if (!nl80211_type_check(type))
 		return false;
 
-	if (params->use_4addr > 0) {
-		switch(type) {
-		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_STATION:
-			break;
-		default:
-			return false;
-		}
-	}
 	return true;
 }
 
@@ -107,11 +98,15 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 					    params->mesh_id_len,
 					    params->mesh_id);
 
-	if (params->use_4addr >= 0)
-		sdata->use_4addr = !!params->use_4addr;
-
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR || !flags)
 		return 0;
+
+	if (type == NL80211_IFTYPE_AP_VLAN &&
+	    params && params->use_4addr == 0)
+		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
+	else if (type == NL80211_IFTYPE_STATION &&
+		 params && params->use_4addr >= 0)
+		sdata->u.mgd.use_4addr = params->use_4addr;
 
 	sdata->u.mntr_flags = *flags;
 	return 0;
@@ -827,7 +822,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 			return -EINVAL;
 		}
 
-		if (vlansdata->use_4addr) {
+		if (params->vlan->ieee80211_ptr->use_4addr) {
 			if (vlansdata->u.vlan.sta)
 				return -EBUSY;
 

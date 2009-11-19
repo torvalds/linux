@@ -659,6 +659,8 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EOPNOTSUPP;
 
 	if (ntype != otype) {
+		dev->ieee80211_ptr->use_4addr = false;
+
 		switch (otype) {
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, false);
@@ -681,6 +683,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 					     ntype, flags, params);
 
 	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
+
+	if (!err && params && params->use_4addr != -1)
+		dev->ieee80211_ptr->use_4addr = params->use_4addr;
 
 	return err;
 }

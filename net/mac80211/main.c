@@ -328,7 +328,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	if (!wiphy)
 		return NULL;
 
-	wiphy->flags |= WIPHY_FLAG_NETNS_OK;
+	wiphy->flags |= WIPHY_FLAG_NETNS_OK |
+			WIPHY_FLAG_4ADDR_AP |
+			WIPHY_FLAG_4ADDR_STATION;
 	wiphy->privid = mac80211_wiphy_privid;
 
 	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */

@@ -312,6 +312,8 @@ struct ieee80211_if_managed {
 	} mfp; /* management frame protection */
 
 	int wmm_last_param_set;
+
+	u8 use_4addr;
 };
 
 enum ieee80211_ibss_request {
@@ -458,8 +460,6 @@ struct ieee80211_sub_if_data {
 
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
-
-	bool use_4addr; /* use 4-address frames */
 
 	union {
 		struct ieee80211_if_ap ap;
