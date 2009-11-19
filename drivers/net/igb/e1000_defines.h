@@ -49,6 +49,7 @@
 #define E1000_CTRL_EXT_PFRSTD    0x00004000
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX  0x00400000
 #define E1000_CTRL_EXT_LINK_MODE_SGMII   0x00800000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_IRCA           0x00000001
@@ -557,8 +558,12 @@
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
 
-#define E1000_NVM_CFG_DONE_PORT_0  0x40000 /* MNG config cycle done */
-#define E1000_NVM_CFG_DONE_PORT_1  0x80000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
+#define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_2  0x100000 /* ...for third port */
+#define E1000_NVM_CFG_DONE_PORT_3  0x200000 /* ...for fourth port */
+
+#define NVM_82580_LAN_FUNC_OFFSET(a) (a ? (0x40 + (0x40 * a)) : 0)
 
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK       0x3000
@@ -625,6 +630,7 @@
  */
 #define M88E1111_I_PHY_ID    0x01410CC0
 #define IGP03E1000_E_PHY_ID  0x02A80390
+#define I82580_I_PHY_ID      0x015403A0
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */

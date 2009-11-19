@@ -38,6 +38,11 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 
 #define E1000_RAR_ENTRIES_82575   16
 #define E1000_RAR_ENTRIES_82576   24
+#define E1000_RAR_ENTRIES_82580   24
+
+#define E1000_SW_SYNCH_MB              0x00000100
+#define E1000_STAT_DEV_RST_SET         0x00100000
+#define E1000_CTRL_DEV_RST             0x20000000
 
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
@@ -232,5 +237,6 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
+u16 igb_rxpbs_adjust_82580(u32 data);
 
 #endif

@@ -61,10 +61,11 @@ s32  igb_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 				u32 usec_interval, bool *success);
 s32  igb_phy_init_script_igp3(struct e1000_hw *hw);
+s32  igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
+s32  igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_copper_link_setup_82580(struct e1000_hw *hw);
-s32  igb_check_polarity_82580(struct e1000_hw *hw);
 s32  igb_get_phy_info_82580(struct e1000_hw *hw);
 s32  igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
 s32  igb_get_cable_length_82580(struct e1000_hw *hw);

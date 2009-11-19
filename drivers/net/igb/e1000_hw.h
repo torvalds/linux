@@ -47,19 +47,30 @@ struct e1000_hw;
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
+#define E1000_DEV_ID_82580_COPPER             0x150E
+#define E1000_DEV_ID_82580_FIBER              0x150F
+#define E1000_DEV_ID_82580_SERDES             0x1510
+#define E1000_DEV_ID_82580_SGMII              0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
 
 #define E1000_FUNC_0     0
 #define E1000_FUNC_1     1
+#define E1000_FUNC_2     2
+#define E1000_FUNC_3     3
 
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
 #define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2   6
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3   9
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_82575,
 	e1000_82576,
+	e1000_82580,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
@@ -290,6 +301,7 @@ struct e1000_mac_operations {
 
 struct e1000_phy_operations {
 	s32  (*acquire)(struct e1000_hw *);
+	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
@@ -466,6 +478,7 @@ struct e1000_mbx_info {
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
+	bool global_device_reset;
 };
 
 struct e1000_hw {

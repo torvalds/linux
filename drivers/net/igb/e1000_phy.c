@@ -136,7 +136,7 @@ out:
  *  Reads the MDI control regsiter in the PHY at offset and stores the
  *  information read to data.
  **/
-static s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 i, mdic = 0;
@@ -194,7 +194,7 @@ out:
  *
  *  Writes data to MDI control register in the PHY at offset.
  **/
-static s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
+s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 i, mdic = 0;
@@ -1947,7 +1947,7 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
  *
  *  Polarity is determined based on the PHY specific status register.
  **/
-s32 igb_check_polarity_82580(struct e1000_hw *hw)
+static s32 igb_check_polarity_82580(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;

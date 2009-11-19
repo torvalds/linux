@@ -34,6 +34,7 @@
 #define E1000_EERD     0x00014  /* EEPROM Read - RW */
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
+#define E1000_MDICNFG  0x00E04  /* MDI Config - RW */
 #define E1000_SCTL     0x00024  /* SerDes Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
