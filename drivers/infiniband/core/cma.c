@@ -330,11 +330,11 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	union ib_gid gid;
 	int ret = -ENODEV;
 
-	switch (rdma_node_get_transport(dev_addr->dev_type)) {
-	case RDMA_TRANSPORT_IB:
+	switch (dev_addr->dev_type) {
+	case ARPHRD_INFINIBAND:
 		ib_addr_get_sgid(dev_addr, &gid);
 		break;
-	case RDMA_TRANSPORT_IWARP:
+	case ARPHRD_ETHER:
 		iw_addr_get_sgid(dev_addr, &gid);
 		break;
 	default:

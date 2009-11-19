@@ -36,7 +36,6 @@
 #include <linux/mutex.h>
 #include <linux/inetdevice.h>
 #include <linux/workqueue.h>
-#include <linux/if_arp.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>
@@ -92,17 +91,7 @@ EXPORT_SYMBOL(rdma_addr_unregister_client);
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 		     const unsigned char *dst_dev_addr)
 {
-	switch (dev->type) {
-	case ARPHRD_INFINIBAND:
-		dev_addr->dev_type = RDMA_NODE_IB_CA;
-		break;
-	case ARPHRD_ETHER:
-		dev_addr->dev_type = RDMA_NODE_RNIC;
-		break;
-	default:
-		return -EADDRNOTAVAIL;
-	}
-
+	dev_addr->dev_type = dev->type;
 	memcpy(dev_addr->src_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
 	memcpy(dev_addr->broadcast, dev->broadcast, MAX_ADDR_LEN);
 	if (dst_dev_addr)

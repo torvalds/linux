@@ -36,6 +36,7 @@
 
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/socket.h>
 #include <rdma/ib_verbs.h>
@@ -60,7 +61,7 @@ struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
 	unsigned char broadcast[MAX_ADDR_LEN];
-	enum rdma_node_type dev_type;
+	unsigned short dev_type;
 	int bound_dev_if;
 };
 
