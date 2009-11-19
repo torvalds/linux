@@ -17,6 +17,7 @@
  * - cache->object_list_lock
  * - object->lock
  * - object->parent->lock
+ * - cookie->stores_lock
  * - fscache_thread_lock
  *
  */
@@ -174,6 +175,9 @@ extern atomic_t fscache_n_stores_nobufs;
 extern atomic_t fscache_n_stores_oom;
 extern atomic_t fscache_n_store_ops;
 extern atomic_t fscache_n_store_calls;
+extern atomic_t fscache_n_store_pages;
+extern atomic_t fscache_n_store_radix_deletes;
+extern atomic_t fscache_n_store_pages_over_limit;
 
 extern atomic_t fscache_n_marks;
 extern atomic_t fscache_n_uncaches;

@@ -36,6 +36,7 @@ void fscache_cookie_init_once(void *_cookie)
 
 	memset(cookie, 0, sizeof(*cookie));
 	spin_lock_init(&cookie->lock);
+	spin_lock_init(&cookie->stores_lock);
 	INIT_HLIST_HEAD(&cookie->backing_objects);
 }
 

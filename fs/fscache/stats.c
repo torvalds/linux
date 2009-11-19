@@ -58,6 +58,9 @@ atomic_t fscache_n_stores_nobufs;
 atomic_t fscache_n_stores_oom;
 atomic_t fscache_n_store_ops;
 atomic_t fscache_n_store_calls;
+atomic_t fscache_n_store_pages;
+atomic_t fscache_n_store_radix_deletes;
+atomic_t fscache_n_store_pages_over_limit;
 
 atomic_t fscache_n_marks;
 atomic_t fscache_n_uncaches;
@@ -200,9 +203,12 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_stores_again),
 		   atomic_read(&fscache_n_stores_nobufs),
 		   atomic_read(&fscache_n_stores_oom));
-	seq_printf(m, "Stores : ops=%u run=%u\n",
+	seq_printf(m, "Stores : ops=%u run=%u pgs=%u rxd=%u olm=%u\n",
 		   atomic_read(&fscache_n_store_ops),
-		   atomic_read(&fscache_n_store_calls));
+		   atomic_read(&fscache_n_store_calls),
+		   atomic_read(&fscache_n_store_pages),
+		   atomic_read(&fscache_n_store_radix_deletes),
+		   atomic_read(&fscache_n_store_pages_over_limit));
 
 	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u\n",
 		   atomic_read(&fscache_n_op_pend),

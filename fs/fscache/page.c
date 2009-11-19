@@ -45,16 +45,26 @@ EXPORT_SYMBOL(__fscache_wait_on_page_write);
 /*
  * note that a page has finished being written to the cache
  */
-static void fscache_end_page_write(struct fscache_cookie *cookie, struct page *page)
+static void fscache_end_page_write(struct fscache_object *object,
+				   struct page *page)
 {
-	struct page *xpage;
+	struct fscache_cookie *cookie;
+	struct page *xpage = NULL;
 
-	spin_lock(&cookie->lock);
-	xpage = radix_tree_delete(&cookie->stores, page->index);
-	spin_unlock(&cookie->lock);
-	ASSERT(xpage != NULL);
-
-	wake_up_bit(&cookie->flags, 0);
+	spin_lock(&object->lock);
+	cookie = object->cookie;
+	if (cookie) {
+		/* delete the page from the tree if it is now no longer
+		 * pending */
+		spin_lock(&cookie->stores_lock);
+		fscache_stat(&fscache_n_store_radix_deletes);
+		xpage = radix_tree_delete(&cookie->stores, page->index);
+		spin_unlock(&cookie->stores_lock);
+		wake_up_bit(&cookie->flags, 0);
+	}
+	spin_unlock(&object->lock);
+	if (xpage)
+		page_cache_release(xpage);
 }
 
 /*
@@ -591,7 +601,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 	struct fscache_storage *op =
 		container_of(_op, struct fscache_storage, op);
 	struct fscache_object *object = op->op.object;
-	struct fscache_cookie *cookie = object->cookie;
+	struct fscache_cookie *cookie;
 	struct page *page;
 	unsigned n;
 	void *results[1];
@@ -601,15 +611,16 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	fscache_set_op_state(&op->op, "GetPage");
 
-	spin_lock(&cookie->lock);
 	spin_lock(&object->lock);
+	cookie = object->cookie;
 
-	if (!fscache_object_is_active(object)) {
+	if (!fscache_object_is_active(object) || !cookie) {
 		spin_unlock(&object->lock);
-		spin_unlock(&cookie->lock);
 		_leave("");
 		return;
 	}
+
+	spin_lock(&cookie->stores_lock);
 
 	fscache_stat(&fscache_n_store_calls);
 
@@ -621,23 +632,25 @@ static void fscache_write_op(struct fscache_operation *_op)
 		goto superseded;
 	page = results[0];
 	_debug("gang %d [%lx]", n, page->index);
-	if (page->index > op->store_limit)
+	if (page->index > op->store_limit) {
+		fscache_stat(&fscache_n_store_pages_over_limit);
 		goto superseded;
+	}
 
 	radix_tree_tag_clear(&cookie->stores, page->index,
 			     FSCACHE_COOKIE_PENDING_TAG);
 
+	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
-	spin_unlock(&cookie->lock);
 
 	if (page) {
 		fscache_set_op_state(&op->op, "Store");
+		fscache_stat(&fscache_n_store_pages);
 		fscache_stat(&fscache_n_cop_write_page);
 		ret = object->cache->ops->write_page(op, page);
 		fscache_stat_d(&fscache_n_cop_write_page);
 		fscache_set_op_state(&op->op, "EndWrite");
-		fscache_end_page_write(cookie, page);
-		page_cache_release(page);
+		fscache_end_page_write(object, page);
 		if (ret < 0) {
 			fscache_set_op_state(&op->op, "Abort");
 			fscache_abort_object(object);
@@ -653,9 +666,9 @@ superseded:
 	/* this writer is going away and there aren't any more things to
 	 * write */
 	_debug("cease");
+	spin_unlock(&cookie->stores_lock);
 	clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
 	spin_unlock(&object->lock);
-	spin_unlock(&cookie->lock);
 	_leave("");
 }
 
@@ -731,6 +744,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	/* add the page to the pending-storage radix tree on the backing
 	 * object */
 	spin_lock(&object->lock);
+	spin_lock(&cookie->stores_lock);
 
 	_debug("store limit %llx", (unsigned long long) object->store_limit);
 
@@ -751,6 +765,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	if (test_and_set_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags))
 		goto already_pending;
 
+	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
 
 	op->op.debug_id	= atomic_inc_return(&fscache_op_debug_id);
@@ -772,6 +787,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 already_queued:
 	fscache_stat(&fscache_n_stores_again);
 already_pending:
+	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
 	spin_unlock(&cookie->lock);
 	radix_tree_preload_end();
@@ -781,7 +797,9 @@ already_pending:
 	return 0;
 
 submit_failed:
+	spin_lock(&cookie->stores_lock);
 	radix_tree_delete(&cookie->stores, page->index);
+	spin_unlock(&cookie->stores_lock);
 	page_cache_release(page);
 	ret = -ENOBUFS;
 	goto nobufs;

@@ -269,6 +269,9 @@ proc files.
 		oom=N	Number of store reqs failed -ENOMEM
 		ops=N	Number of store reqs submitted
 		run=N	Number of store reqs granted CPU time
+		pgs=N	Number of pages given store req processing time
+		rxd=N	Number of store reqs deleted from tracking tree
+		olm=N	Number of store reqs over store limit
 	Ops	pend=N	Number of times async ops added to pending queues
 		run=N	Number of times async ops given CPU time
 		enq=N	Number of times async ops queued for processing
