@@ -1443,8 +1443,6 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		        msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 	}
 
-	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
-
 	rcu_read_lock();
 
 	if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
@@ -1574,6 +1572,8 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	skb_set_transport_header(skb, len_rthdr);
 
 	memset(info, 0, sizeof(*info));
+
+	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	/* pass the radiotap header up to xmit */
 	ieee80211_xmit(IEEE80211_DEV_TO_SUB_IF(dev), skb);
