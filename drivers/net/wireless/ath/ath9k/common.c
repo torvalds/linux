@@ -231,26 +231,35 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 {
 	struct ath_hw *ah = common->ah;
 	struct ieee80211_hdr *hdr;
-	int hdrlen, padsize;
+	int hdrlen, padpos, padsize;
 	u8 keyix;
 	__le16 fc;
 
 	/* see if any padding is done by the hw and remove it */
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+	padpos = 24;
 	fc = hdr->frame_control;
+	if ((fc & cpu_to_le16(IEEE80211_FCTL_FROMDS|IEEE80211_FCTL_TODS)) ==
+	    cpu_to_le16(IEEE80211_FCTL_FROMDS|IEEE80211_FCTL_TODS)) {
+	  padpos += 6; /* ETH_ALEN */
+	}
+	if ((fc & cpu_to_le16(IEEE80211_STYPE_QOS_DATA|IEEE80211_FCTL_FTYPE)) ==
+	    cpu_to_le16(IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA)) {
+	  padpos += 2;
+	}
 
 	/* The MAC header is padded to have 32-bit boundary if the
 	 * packet payload is non-zero. The general calculation for
 	 * padsize would take into account odd header lengths:
-	 * padsize = (4 - hdrlen % 4) % 4; However, since only
+	 * padsize = (4 - padpos % 4) % 4; However, since only
 	 * even-length headers are used, padding can only be 0 or 2
 	 * bytes and we can optimize this a bit. In addition, we must
 	 * not try to remove padding from short control frames that do
 	 * not have payload. */
-	padsize = hdrlen & 3;
-	if (padsize && hdrlen >= 24) {
-		memmove(skb->data + padsize, skb->data, hdrlen);
+	padsize = padpos & 3;
+	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, padpos);
 		skb_pull(skb, padsize);
 	}
 
