@@ -152,6 +152,9 @@ static inline void delayed_slow_work_cancel(struct delayed_slow_work *dwork)
 	slow_work_cancel(&dwork->work);
 }
 
+extern bool slow_work_sleep_till_thread_needed(struct slow_work *work,
+					       signed long *_timeout);
+
 #ifdef CONFIG_SYSCTL
 extern ctl_table slow_work_sysctls[];
 #endif

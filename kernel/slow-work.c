@@ -133,6 +133,15 @@ LIST_HEAD(vslow_work_queue);
 DEFINE_SPINLOCK(slow_work_queue_lock);
 
 /*
+ * The following are two wait queues that get pinged when a work item is placed
+ * on an empty queue.  These allow work items that are hogging a thread by
+ * sleeping in a way that could be deferred to yield their thread and enqueue
+ * themselves.
+ */
+static DECLARE_WAIT_QUEUE_HEAD(slow_work_queue_waits_for_occupation);
+static DECLARE_WAIT_QUEUE_HEAD(vslow_work_queue_waits_for_occupation);
+
+/*
  * The thread controls.  A variable used to signal to the threads that they
  * should exit when the queue is empty, a waitqueue used by the threads to wait
  * for signals, and a completion set by the last thread to exit.
@@ -306,6 +315,50 @@ auto_requeue:
 }
 
 /**
+ * slow_work_sleep_till_thread_needed - Sleep till thread needed by other work
+ * work: The work item under execution that wants to sleep
+ * _timeout: Scheduler sleep timeout
+ *
+ * Allow a requeueable work item to sleep on a slow-work processor thread until
+ * that thread is needed to do some other work or the sleep is interrupted by
+ * some other event.
+ *
+ * The caller must set up a wake up event before calling this and must have set
+ * the appropriate sleep mode (such as TASK_UNINTERRUPTIBLE) and tested its own
+ * condition before calling this function as no test is made here.
+ *
+ * False is returned if there is nothing on the queue; true is returned if the
+ * work item should be requeued
+ */
+bool slow_work_sleep_till_thread_needed(struct slow_work *work,
+					signed long *_timeout)
+{
+	wait_queue_head_t *wfo_wq;
+	struct list_head *queue;
+
+	DEFINE_WAIT(wait);
+
+	if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags)) {
+		wfo_wq = &vslow_work_queue_waits_for_occupation;
+		queue = &vslow_work_queue;
+	} else {
+		wfo_wq = &slow_work_queue_waits_for_occupation;
+		queue = &slow_work_queue;
+	}
+
+	if (!list_empty(queue))
+		return true;
+
+	add_wait_queue_exclusive(wfo_wq, &wait);
+	if (list_empty(queue))
+		*_timeout = schedule_timeout(*_timeout);
+	finish_wait(wfo_wq, &wait);
+
+	return !list_empty(queue);
+}
+EXPORT_SYMBOL(slow_work_sleep_till_thread_needed);
+
+/**
  * slow_work_enqueue - Schedule a slow work item for processing
  * @work: The work item to queue
  *
@@ -335,6 +388,8 @@ auto_requeue:
  */
 int slow_work_enqueue(struct slow_work *work)
 {
+	wait_queue_head_t *wfo_wq;
+	struct list_head *queue;
 	unsigned long flags;
 	int ret;
 
@@ -354,6 +409,14 @@ int slow_work_enqueue(struct slow_work *work)
 	 * maintaining our promise
 	 */
 	if (!test_and_set_bit_lock(SLOW_WORK_PENDING, &work->flags)) {
+		if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags)) {
+			wfo_wq = &vslow_work_queue_waits_for_occupation;
+			queue = &vslow_work_queue;
+		} else {
+			wfo_wq = &slow_work_queue_waits_for_occupation;
+			queue = &slow_work_queue;
+		}
+
 		spin_lock_irqsave(&slow_work_queue_lock, flags);
 
 		if (unlikely(test_bit(SLOW_WORK_CANCELLING, &work->flags)))
@@ -380,11 +443,13 @@ int slow_work_enqueue(struct slow_work *work)
 			if (ret < 0)
 				goto failed;
 			slow_work_mark_time(work);
-			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
-				list_add_tail(&work->link, &vslow_work_queue);
-			else
-				list_add_tail(&work->link, &slow_work_queue);
+			list_add_tail(&work->link, queue);
 			wake_up(&slow_work_thread_wq);
+
+			/* if someone who could be requeued is sleeping on a
+			 * thread, then ask them to yield their thread */
+			if (work->link.prev == queue)
+				wake_up(wfo_wq);
 		}
 
 		spin_unlock_irqrestore(&slow_work_queue_lock, flags);
@@ -487,9 +552,19 @@ EXPORT_SYMBOL(slow_work_cancel);
  */
 static void delayed_slow_work_timer(unsigned long data)
 {
+	wait_queue_head_t *wfo_wq;
+	struct list_head *queue;
 	struct slow_work *work = (struct slow_work *) data;
 	unsigned long flags;
-	bool queued = false, put = false;
+	bool queued = false, put = false, first = false;
+
+	if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags)) {
+		wfo_wq = &vslow_work_queue_waits_for_occupation;
+		queue = &vslow_work_queue;
+	} else {
+		wfo_wq = &slow_work_queue_waits_for_occupation;
+		queue = &slow_work_queue;
+	}
 
 	spin_lock_irqsave(&slow_work_queue_lock, flags);
 	if (likely(!test_bit(SLOW_WORK_CANCELLING, &work->flags))) {
@@ -502,17 +577,18 @@ static void delayed_slow_work_timer(unsigned long data)
 			put = true;
 		} else {
 			slow_work_mark_time(work);
-			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
-				list_add_tail(&work->link, &vslow_work_queue);
-			else
-				list_add_tail(&work->link, &slow_work_queue);
+			list_add_tail(&work->link, queue);
 			queued = true;
+			if (work->link.prev == queue)
+				first = true;
 		}
 	}
 
 	spin_unlock_irqrestore(&slow_work_queue_lock, flags);
 	if (put)
 		slow_work_put_ref(work);
+	if (first)
+		wake_up(wfo_wq);
 	if (queued)
 		wake_up(&slow_work_thread_wq);
 }

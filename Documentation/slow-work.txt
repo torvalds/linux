@@ -158,6 +158,50 @@ with a requeue pending).  This can be used to work out whether an item on which
 another depends is on the queue, thus allowing a dependent item to be queued
 after it.
 
+If the above shows an item on which another depends not to be queued, then the
+owner of the dependent item might need to wait.  However, to avoid locking up
+the threads unnecessarily be sleeping in them, it can make sense under some
+circumstances to return the work item to the queue, thus deferring it until
+some other items have had a chance to make use of the yielded thread.
+
+To yield a thread and defer an item, the work function should simply enqueue
+the work item again and return.  However, this doesn't work if there's nothing
+actually on the queue, as the thread just vacated will jump straight back into
+the item's work function, thus busy waiting on a CPU.
+
+Instead, the item should use the thread to wait for the dependency to go away,
+but rather than using schedule() or schedule_timeout() to sleep, it should use
+the following function:
+
+	bool requeue = slow_work_sleep_till_thread_needed(
+			struct slow_work *work,
+			signed long *_timeout);
+
+This will add a second wait and then sleep, such that it will be woken up if
+either something appears on the queue that could usefully make use of the
+thread - and behind which this item can be queued, or if the event the caller
+set up to wait for happens.  True will be returned if something else appeared
+on the queue and this work function should perhaps return, of false if
+something else woke it up.  The timeout is as for schedule_timeout().
+
+For example:
+
+	wq = bit_waitqueue(&my_flags, MY_BIT);
+	init_wait(&wait);
+	requeue = false;
+	do {
+		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
+		if (!test_bit(MY_BIT, &my_flags))
+			break;
+		requeue = slow_work_sleep_till_thread_needed(&my_work,
+							     &timeout);
+	} while (timeout > 0 && !requeue);
+	finish_wait(wq, &wait);
+	if (!test_bit(MY_BIT, &my_flags)
+		goto do_my_thing;
+	if (requeue)
+		return; // to slow_work
+
 
 ===============
 ITEM OPERATIONS
