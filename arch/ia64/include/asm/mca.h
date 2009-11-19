@@ -106,6 +106,11 @@ struct ia64_sal_os_state {
 	unsigned long		os_status;		/* OS status to SAL, enum below */
 	unsigned long		context;		/* 0 if return to same context
 							   1 if return to new context */
+
+	/* I-resources */
+	unsigned long		iip;
+	unsigned long		ipsr;
+	unsigned long		ifs;
 };
 
 enum {
