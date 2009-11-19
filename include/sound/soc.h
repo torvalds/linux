@@ -230,6 +230,7 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid);
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
+int snd_soc_calc_bclk(int fs, int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
 
 /* set runtime hw params */

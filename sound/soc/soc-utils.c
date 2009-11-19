@@ -54,6 +54,12 @@ int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params)
 }
 EXPORT_SYMBOL_GPL(snd_soc_params_to_frame_size);
 
+int snd_soc_calc_bclk(int fs, int sample_size, int channels, int tdm_slots)
+{
+	return fs * snd_soc_calc_frame_size(sample_size, channels, tdm_slots);
+}
+EXPORT_SYMBOL_GPL(snd_soc_calc_bclk);
+
 int snd_soc_params_to_bclk(struct snd_pcm_hw_params *params)
 {
 	int ret;
