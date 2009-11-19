@@ -437,11 +437,7 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 
 	event = retire ? FSCACHE_OBJECT_EV_RETIRE : FSCACHE_OBJECT_EV_RELEASE;
 
-	/* detach pointers back to the netfs */
 	spin_lock(&cookie->lock);
-
-	cookie->netfs_data	= NULL;
-	cookie->def		= NULL;
 
 	/* break links with all the active objects */
 	while (!hlist_empty(&cookie->backing_objects)) {
@@ -464,6 +460,10 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 			/* the cookie refcount shouldn't be reduced to 0 yet */
 			BUG();
 	}
+
+	/* detach pointers back to the netfs */
+	cookie->netfs_data	= NULL;
+	cookie->def		= NULL;
 
 	spin_unlock(&cookie->lock);
 
