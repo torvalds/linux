@@ -109,6 +109,13 @@ config SH_DMAE
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
 
+config COH901318
+	bool "ST-Ericsson COH901318 DMA support"
+	select DMA_ENGINE
+	depends on ARCH_U300
+	help
+	  Enable support for ST-Ericsson COH 901 318 DMA.
+
 config DMA_ENGINE
 	bool
 
