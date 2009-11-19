@@ -76,6 +76,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	/* pick out active nodes from mds_info (state > 0) */
 	n = ceph_decode_32(p);
 	for (i = 0; i < n; i++) {
+		u64 global_id;
 		u32 namelen;
 		s32 mds, inc, state;
 		u64 state_seq;
@@ -84,10 +85,10 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		u32 num_export_targets;
 		void *pexport_targets = NULL;
 
-		ceph_decode_need(p, end, sizeof(addr) + 1 + sizeof(u32), bad);
-		ceph_decode_copy(p, &addr, sizeof(addr));
-		ceph_decode_addr(&addr);
+		ceph_decode_need(p, end, sizeof(u64)*2 + 1 + sizeof(u32), bad);
+		global_id = ceph_decode_64(p);
 		infoversion = ceph_decode_8(p);
+		*p += sizeof(u64);
 		namelen = ceph_decode_32(p);  /* skip mds name */
 		*p += namelen;
 
@@ -99,7 +100,8 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		inc = ceph_decode_32(p);
 		state = ceph_decode_32(p);
 		state_seq = ceph_decode_64(p);
-		*p += sizeof(addr);
+		ceph_decode_copy(p, &addr, sizeof(addr));
+		ceph_decode_addr(&addr);
 		*p += sizeof(struct ceph_timespec);
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
@@ -112,10 +114,11 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 			num_export_targets = 0;
 		}
 
-		dout("mdsmap_decode %d/%d mds%d.%d %s %s\n",
-		     i+1, n, mds, inc, pr_addr(&addr.in_addr),
+		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
+		     i+1, n, global_id, mds, inc, pr_addr(&addr.in_addr),
 		     ceph_mds_state_name(state));
 		if (mds >= 0 && mds < m->m_max_mds && state > 0) {
+			m->m_info[mds].global_id = global_id;
 			m->m_info[mds].state = state;
 			m->m_info[mds].addr = addr;
 			m->m_info[mds].num_export_targets = num_export_targets;

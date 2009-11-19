@@ -9,6 +9,7 @@
  * we limit fields to those the client actually xcares about
  */
 struct ceph_mds_info {
+	u64 global_id;
 	struct ceph_entity_addr addr;
 	s32 state;
 	int num_export_targets;
