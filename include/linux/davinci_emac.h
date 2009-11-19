@@ -8,8 +8,8 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#ifndef _MACH_DAVINCI_EMAC_H
-#define _MACH_DAVINCI_EMAC_H
+#ifndef _LINUX_DAVINCI_EMAC_H
+#define _LINUX_DAVINCI_EMAC_H
 
 #include <linux/if_ether.h>
 #include <linux/memory.h>

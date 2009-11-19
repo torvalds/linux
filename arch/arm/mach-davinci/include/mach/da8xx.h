@@ -13,10 +13,10 @@
 
 #include <video/da8xx-fb.h>
 
+#include <linux/davinci_emac.h>
 #include <mach/serial.h>
 #include <mach/edma.h>
 #include <mach/i2c.h>
-#include <mach/emac.h>
 #include <mach/asp.h>
 #include <mach/mmc.h>
 #include <mach/usb.h>

@@ -62,11 +62,10 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/davinci_emac.h>
 
 #include <asm/irq.h>
 #include <asm/page.h>
-
-#include <mach/emac.h>
 
 static int debug_level;
 module_param(debug_level, int, 0);
