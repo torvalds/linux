@@ -113,11 +113,13 @@ struct x86_cpuinit_ops {
 
 /**
  * struct x86_platform_ops - platform specific runtime functions
+ * @is_untracked_pat_range	exclude from PAT logic
  * @calibrate_tsc:		calibrate TSC
  * @get_wallclock:		get time from HW clock like RTC etc.
  * @set_wallclock:		set time back to HW clock
  */
 struct x86_platform_ops {
+	int (*is_untracked_pat_range)(u64 start, u64 end);
 	unsigned long (*calibrate_tsc)(void);
 	unsigned long (*get_wallclock)(void);
 	int (*set_wallclock)(unsigned long nowtime);

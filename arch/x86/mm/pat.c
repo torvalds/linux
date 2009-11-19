@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
+#include <asm/x86_init.h>
 #include <asm/pgtable.h>
 #include <asm/fcntl.h>
 #include <asm/e820.h>
@@ -348,6 +349,11 @@ static int free_ram_pages_type(u64 start, u64 end)
 	return 0;
 }
 
+int default_is_untracked_pat_range(u64 start, u64 end)
+{
+	return is_ISA_range(start, end);
+}
+
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
@@ -388,7 +394,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	/* Low ISA region is always mapped WB in page table. No need to track */
-	if (is_ISA_range(start, end - 1)) {
+	if (x86_platform.is_untracked_pat_range(start, end - 1)) {
 		if (new_type)
 			*new_type = _PAGE_CACHE_WB;
 		return 0;
@@ -499,7 +505,7 @@ int free_memtype(u64 start, u64 end)
 		return 0;
 
 	/* Low ISA region is always mapped WB. No need to track */
-	if (is_ISA_range(start, end - 1))
+	if (x86_platform.is_untracked_pat_range(start, end - 1))
 		return 0;
 
 	is_range_ram = pat_pagerange_is_ram(start, end);
@@ -582,7 +588,7 @@ static unsigned long lookup_memtype(u64 paddr)
 	int rettype = _PAGE_CACHE_WB;
 	struct memtype *entry;
 
-	if (is_ISA_range(paddr, paddr + PAGE_SIZE - 1))
+	if (x86_platform.is_untracked_pat_range(paddr, paddr + PAGE_SIZE - 1))
 		return rettype;
 
 	if (pat_pagerange_is_ram(paddr, paddr + PAGE_SIZE)) {
