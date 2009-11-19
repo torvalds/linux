@@ -42,21 +42,12 @@
 #include "devices.h"
 
 /*
- * This file contains the board-specific initialization routines.
+ * This file contains the module-specific initialization routines.
  */
 
 static unsigned int mx31lite_pins[] = {
-	/* UART1 */
-	MX31_PIN_CTS1__CTS1,
-	MX31_PIN_RTS1__RTS1,
-	MX31_PIN_TXD1__TXD1,
-	MX31_PIN_RXD1__RXD1,
 	/* LAN9117 IRQ pin */
 	IOMUX_MODE(MX31_PIN_SFS6, IOMUX_CONFIG_GPIO),
-};
-
-static struct imxuart_platform_data uart_pdata = {
-	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static struct mxc_nand_platform_data mx31lite_nand_board_info = {
@@ -118,17 +109,27 @@ void __init mx31lite_map_io(void)
 	iotable_init(mx31lite_io_desc, ARRAY_SIZE(mx31lite_io_desc));
 }
 
-/*
- * Board specific initialization.
- */
+static int mx31lite_baseboard;
+core_param(mx31lite_baseboard, mx31lite_baseboard, int, 0444);
+
 static void __init mxc_board_init(void)
 {
 	int ret;
 
+	switch (mx31lite_baseboard) {
+	case MX31LITE_NOBOARD:
+		break;
+	case MX31LITE_DB:
+		mx31lite_db_init();
+		break;
+	default:
+		printk(KERN_ERR "Illegal mx31lite_baseboard type %d\n",
+				mx31lite_baseboard);
+	}
+
 	mxc_iomux_setup_multiple_pins(mx31lite_pins, ARRAY_SIZE(mx31lite_pins),
 				      "mx31lite");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_nand_device, &mx31lite_nand_board_info);
 
 	/* SMSC9117 IRQ pin */
@@ -150,12 +151,7 @@ struct sys_timer mx31lite_timer = {
 	.init	= mx31lite_timer_init,
 };
 
-/*
- * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_MX31LITE data structure.
- */
-
-MACHINE_START(MX31LITE, "LogicPD MX31 LITEKIT")
+MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io        = AIPS1_BASE_ADDR,
 	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
