@@ -3947,7 +3947,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	hw->pdev = pdev;
 	spin_lock_init(&hw->hw_lock);
 	spin_lock_init(&hw->phy_lock);
-	tasklet_init(&hw->phy_task, &skge_extirq, (unsigned long) hw);
+	tasklet_init(&hw->phy_task, skge_extirq, (unsigned long) hw);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {

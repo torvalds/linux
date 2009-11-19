@@ -2764,19 +2764,19 @@ jme_init_one(struct pci_dev *pdev,
 	atomic_set(&jme->rx_empty, 1);
 
 	tasklet_init(&jme->pcc_task,
-		     &jme_pcc_tasklet,
+		     jme_pcc_tasklet,
 		     (unsigned long) jme);
 	tasklet_init(&jme->linkch_task,
-		     &jme_link_change_tasklet,
+		     jme_link_change_tasklet,
 		     (unsigned long) jme);
 	tasklet_init(&jme->txclean_task,
-		     &jme_tx_clean_tasklet,
+		     jme_tx_clean_tasklet,
 		     (unsigned long) jme);
 	tasklet_init(&jme->rxclean_task,
-		     &jme_rx_clean_tasklet,
+		     jme_rx_clean_tasklet,
 		     (unsigned long) jme);
 	tasklet_init(&jme->rxempty_task,
-		     &jme_rx_empty_tasklet,
+		     jme_rx_empty_tasklet,
 		     (unsigned long) jme);
 	tasklet_disable_nosync(&jme->linkch_task);
 	tasklet_disable_nosync(&jme->txclean_task);
