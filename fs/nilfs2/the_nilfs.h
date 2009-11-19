@@ -258,6 +258,16 @@ static inline void nilfs_put_sbinfo(struct nilfs_sb_info *sbi)
 		kfree(sbi);
 }
 
+static inline int nilfs_valid_fs(struct the_nilfs *nilfs)
+{
+	unsigned valid_fs;
+
+	down_read(&nilfs->ns_sem);
+	valid_fs = (nilfs->ns_mount_state & NILFS_VALID_FS);
+	up_read(&nilfs->ns_sem);
+	return valid_fs;
+}
+
 static inline void
 nilfs_get_segment_range(struct the_nilfs *nilfs, __u64 segnum,
 			sector_t *seg_start, sector_t *seg_end)
