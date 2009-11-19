@@ -88,8 +88,7 @@ static int input_open_polled_device(struct input_dev *input)
 	if (dev->open)
 		dev->open(dev);
 
-	queue_delayed_work(polldev_wq, &dev->work,
-			   msecs_to_jiffies(dev->poll_interval));
+	queue_delayed_work(polldev_wq, &dev->work, 0);
 
 	return 0;
 }
