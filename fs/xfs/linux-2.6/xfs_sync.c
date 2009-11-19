@@ -351,7 +351,7 @@ xfs_commit_dummy_trans(
 	return error;
 }
 
-int
+STATIC int
 xfs_sync_fsdata(
 	struct xfs_mount	*mp,
 	int			flags)

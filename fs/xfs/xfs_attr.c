@@ -197,7 +197,7 @@ xfs_attr_get(
 /*
  * Calculate how many blocks we need for the new attribute,
  */
-int
+STATIC int
 xfs_attr_calc_size(
 	struct xfs_inode 	*ip,
 	int			namelen,
