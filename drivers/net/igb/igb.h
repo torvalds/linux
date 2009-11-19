@@ -320,6 +320,7 @@ struct igb_adapter {
 #define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
 
 #define IGB_82576_TSYNC_SHIFT 19
+#define IGB_82580_TSYNC_SHIFT 24
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,

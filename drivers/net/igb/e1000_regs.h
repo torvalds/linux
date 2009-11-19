@@ -89,6 +89,8 @@
 #define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
 #define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
 #define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_TSAUXC     0x0B640 /* Timesync Auxiliary Control register */
+#define E1000_SYSTIMR    0x0B6F8 /* System time register Residue */
 
 /* Filtering Registers */
 #define E1000_SAQF(_n) (0x5980 + 4 * (_n))
@@ -318,4 +320,6 @@
 #define array_rd32(reg, offset) \
 	(readl(hw->hw_addr + reg + ((offset) << 2)))
 
+/* DMA Coalescing registers */
+#define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
 #endif
