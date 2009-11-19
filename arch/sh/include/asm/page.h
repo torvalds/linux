@@ -88,7 +88,7 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define __pte(x)	((pte_t) { (x) } )
 #else
 typedef struct { unsigned long long pte_low; } pte_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long long pgprot; } pgprot_t;
 typedef struct { unsigned long pgd; } pgd_t;
 #define pte_val(x)	((x).pte_low)
 #define __pte(x)	((pte_t) { (x) } )
