@@ -125,7 +125,7 @@ ITEM OPERATIONS
 ===============
 
 Each work item requires a table of operations of type struct slow_work_ops.
-All members are required:
+Only ->execute() is required, getting and putting of a reference are optional.
 
  (*) Get a reference on an item:
 

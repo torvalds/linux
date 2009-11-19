@@ -145,6 +145,20 @@ static DECLARE_COMPLETION(slow_work_last_thread_exited);
 static int slow_work_user_count;
 static DEFINE_MUTEX(slow_work_user_lock);
 
+static inline int slow_work_get_ref(struct slow_work *work)
+{
+	if (work->ops->get_ref)
+		return work->ops->get_ref(work);
+
+	return 0;
+}
+
+static inline void slow_work_put_ref(struct slow_work *work)
+{
+	if (work->ops->put_ref)
+		work->ops->put_ref(work);
+}
+
 /*
  * Calculate the maximum number of active threads in the pool that are
  * permitted to process very slow work items.
@@ -248,7 +262,7 @@ static bool slow_work_execute(int id)
 	}
 
 	/* sort out the race between module unloading and put_ref() */
-	work->ops->put_ref(work);
+	slow_work_put_ref(work);
 
 #ifdef CONFIG_MODULES
 	module = slow_work_thread_processing[id];
@@ -309,7 +323,6 @@ int slow_work_enqueue(struct slow_work *work)
 	BUG_ON(slow_work_user_count <= 0);
 	BUG_ON(!work);
 	BUG_ON(!work->ops);
-	BUG_ON(!work->ops->get_ref);
 
 	/* when honouring an enqueue request, we only promise that we will run
 	 * the work function in the future; we do not promise to run it once
@@ -339,7 +352,7 @@ int slow_work_enqueue(struct slow_work *work)
 		if (test_bit(SLOW_WORK_EXECUTING, &work->flags)) {
 			set_bit(SLOW_WORK_ENQ_DEFERRED, &work->flags);
 		} else {
-			if (work->ops->get_ref(work) < 0)
+			if (slow_work_get_ref(work) < 0)
 				goto cant_get_ref;
 			if (test_bit(SLOW_WORK_VERY_SLOW, &work->flags))
 				list_add_tail(&work->link, &vslow_work_queue);
@@ -480,21 +493,6 @@ static void slow_work_cull_timeout(unsigned long data)
 }
 
 /*
- * Get a reference on slow work thread starter
- */
-static int slow_work_new_thread_get_ref(struct slow_work *work)
-{
-	return 0;
-}
-
-/*
- * Drop a reference on slow work thread starter
- */
-static void slow_work_new_thread_put_ref(struct slow_work *work)
-{
-}
-
-/*
  * Start a new slow work thread
  */
 static void slow_work_new_thread_execute(struct slow_work *work)
@@ -529,8 +527,6 @@ static void slow_work_new_thread_execute(struct slow_work *work)
 
 static const struct slow_work_ops slow_work_new_thread_ops = {
 	.owner		= THIS_MODULE,
-	.get_ref	= slow_work_new_thread_get_ref,
-	.put_ref	= slow_work_new_thread_put_ref,
 	.execute	= slow_work_new_thread_execute,
 };
 
