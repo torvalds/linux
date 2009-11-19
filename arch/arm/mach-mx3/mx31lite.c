@@ -30,6 +30,7 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -181,6 +182,32 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 };
 
 /*
+ * NOR flash
+ */
+
+static struct physmap_flash_data nor_flash_data = {
+	.width  = 2,
+};
+
+static struct resource nor_flash_resource = {
+	.start  = 0xa0000000,
+	.end    = 0xa1ffffff,
+	.flags  = IORESOURCE_MEM,
+};
+
+static struct platform_device physmap_flash_device = {
+	.name   = "physmap-flash",
+	.id     = 0,
+	.dev    = {
+		.platform_data  = &nor_flash_data,
+	},
+	.resource = &nor_flash_resource,
+	.num_resources = 1,
+};
+
+
+
+/*
  * This structure defines the MX31 memory map.
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
@@ -227,7 +254,10 @@ static void __init mxc_board_init(void)
 	mxc_iomux_setup_multiple_pins(mx31lite_pins, ARRAY_SIZE(mx31lite_pins),
 				      "mx31lite");
 
+	/* NOR and NAND flash */
+	platform_device_register(&physmap_flash_device);
 	mxc_register_device(&mxc_nand_device, &mx31lite_nand_board_info);
+
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
