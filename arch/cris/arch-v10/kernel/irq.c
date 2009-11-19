@@ -133,7 +133,7 @@ static void end_crisv10_irq(unsigned int irq)
 }
 
 static struct irq_chip crisv10_irq_type = {
-	.typename =    "CRISv10",
+	.name =        "CRISv10",
 	.startup =     startup_crisv10_irq,
 	.shutdown =    shutdown_crisv10_irq,
 	.enable =      enable_crisv10_irq,
