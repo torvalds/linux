@@ -120,6 +120,25 @@ static inline void vslow_work_init(struct slow_work *work,
 	INIT_LIST_HEAD(&work->link);
 }
 
+/**
+ * slow_work_is_queued - Determine if a slow work item is on the work queue
+ * work: The work item to test
+ *
+ * Determine if the specified slow-work item is on the work queue.  This
+ * returns true if it is actually on the queue.
+ *
+ * If the item is executing and has been marked for requeue when execution
+ * finishes, then false will be returned.
+ *
+ * Anyone wishing to wait for completion of execution can wait on the
+ * SLOW_WORK_EXECUTING bit.
+ */
+static inline bool slow_work_is_queued(struct slow_work *work)
+{
+	unsigned long flags = work->flags;
+	return flags & SLOW_WORK_PENDING && !(flags & SLOW_WORK_EXECUTING);
+}
+
 extern int slow_work_enqueue(struct slow_work *work);
 extern void slow_work_cancel(struct slow_work *work);
 extern int slow_work_register_user(struct module *owner);

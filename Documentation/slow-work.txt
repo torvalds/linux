@@ -144,6 +144,21 @@ from being taken away before it completes.  module should almost certainly be
 THIS_MODULE.
 
 
+================
+HELPER FUNCTIONS
+================
+
+The slow-work facility provides a function by which it can be determined
+whether or not an item is queued for later execution:
+
+	bool queued = slow_work_is_queued(struct slow_work *work);
+
+If it returns false, then the item is not on the queue (it may be executing
+with a requeue pending).  This can be used to work out whether an item on which
+another depends is on the queue, thus allowing a dependent item to be queued
+after it.
+
+
 ===============
 ITEM OPERATIONS
 ===============
