@@ -579,7 +579,6 @@ struct ieee80211_local {
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
 	unsigned int filter_flags; /* FIF_* */
-	struct iw_statistics wstats;
 
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
