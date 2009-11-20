@@ -578,6 +578,7 @@ static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 			WARN_ON(!fip->fcf_count);
 			fip->fcf_count--;
 			kfree(fcf);
+			fc_lport_get_stats(fip->lp)->VLinkFailureCount++;
 		} else if (fcoe_ctlr_mtu_valid(fcf) &&
 			   (!sel_time || time_before(sel_time, fcf->time))) {
 			sel_time = fcf->time;
@@ -990,6 +991,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		LIBFCOE_FIP_DBG(fip, "performing Clear Virtual Link\n");
 
 		spin_lock_bh(&fip->lock);
+		fc_lport_get_stats(lport)->VLinkFailureCount++;
 		fcoe_ctlr_reset(fip);
 		spin_unlock_bh(&fip->lock);
 
