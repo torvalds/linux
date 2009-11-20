@@ -953,8 +953,16 @@ static int parse_symbols(void)
 	if (kernel == NULL)
 		return -1;
 
+	if (dsos__load_modules() < 0)
+		pr_debug("Couldn't read the complete list of modules, "
+			 "continuing...\n");
+
+	if (dsos__load_modules_sym(symbol_filter) < 0)
+		pr_warning("Failed to read module symbols, continuing...\n");
+
 	if (dso__load_kernel_sym(kernel, symbol_filter, 1) <= 0)
-		return -1;
+		pr_debug("Couldn't read the complete list of kernel symbols, "
+			 "continuing...\n");
 
 	if (dump_symtab)
 		dsos__fprintf(stderr);

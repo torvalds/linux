@@ -1230,7 +1230,7 @@ failure:
 	return -1;
 }
 
-static int dsos__load_modules_sym(symbol_filter_t filter)
+int dsos__load_modules_sym(symbol_filter_t filter)
 {
 	struct utsname uts;
 	char modules_path[PATH_MAX];
@@ -1352,33 +1352,18 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	return err;
 }
 
-int dso__load_kernel_sym(struct dso *self, symbol_filter_t filter, int use_modules)
+int dso__load_kernel_sym(struct dso *self, symbol_filter_t filter,
+			 int use_modules)
 {
-	int err = -1;
+	int err;
 
 	kernel_map = map__new2(0, self);
 	if (kernel_map == NULL)
-		goto out_delete_dso;
+		return -1;
 
 	kernel_map->map_ip = kernel_map->unmap_ip = identity__map_ip;
 
-	if (use_modules && dsos__load_modules() < 0) {
-		pr_warning("Failed to load list of modules in use! "
-			   "Continuing...\n");
-		use_modules = 0;
-	}
-
 	err = dso__load_vmlinux(self, kernel_map, self->name, filter);
-	if (err > 0 && use_modules) {
-		int syms = dsos__load_modules_sym(filter);
-
-		if (syms < 0)
-			pr_warning("Failed to read module symbols!"
-				   " Continuing...\n");
-		else
-			err += syms;
-	}
-
 	if (err <= 0)
 		err = kernel_maps__load_kallsyms(filter, use_modules);
 
@@ -1404,17 +1389,12 @@ int dso__load_kernel_sym(struct dso *self, symbol_filter_t filter, int use_modul
 	}
 
 	return err;
-
-out_delete_dso:
-	dso__delete(self);
-	return -1;
 }
 
 LIST_HEAD(dsos);
 struct dso	*vdso;
 
 const char	*vmlinux_name = "vmlinux";
-int		modules;
 
 static void dsos__add(struct dso *dso)
 {
@@ -1488,14 +1468,26 @@ struct dso *dsos__load_kernel(void)
 	return kernel;
 }
 
-int load_kernel(symbol_filter_t filter)
+int load_kernel(symbol_filter_t filter, bool use_modules)
 {
 	struct dso *kernel = dsos__load_kernel();
 
 	if (kernel == NULL)
 		return -1;
 
-	return dso__load_kernel_sym(kernel, filter, modules);
+	if (use_modules) {
+		if (dsos__load_modules() < 0)
+			pr_warning("Failed to load list of modules in use, "
+				   "continuing...\n");
+		else if (dsos__load_modules_sym(filter) < 0)
+			pr_warning("Failed to read module symbols, "
+				   "continuing...\n");
+	}
+
+	if (dso__load_kernel_sym(kernel, filter, use_modules) < 0)
+		pr_warning("Failed to read kernel symbols, continuing...\n");
+
+	return 0;
 }
 
 void symbol__init(unsigned int priv_size)

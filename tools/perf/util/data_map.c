@@ -171,7 +171,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		goto out_delete;
 
 	err = -ENOMEM;
-	if (load_kernel(NULL) < 0) {
+	if (load_kernel(NULL, 1) < 0) {
 		pr_err("failed to load kernel symbols\n");
 		goto out_delete;
 	}
