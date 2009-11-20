@@ -43,10 +43,6 @@
  * 82583V Gigabit Network Connection
  */
 
-#include <linux/netdevice.h>
-#include <linux/delay.h>
-#include <linux/pci.h>
-
 #include "e1000.h"
 
 #define ID_LED_RESERVED_F746 0xF746

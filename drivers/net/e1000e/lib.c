@@ -26,11 +26,6 @@
 
 *******************************************************************************/
 
-#include <linux/netdevice.h>
-#include <linux/ethtool.h>
-#include <linux/delay.h>
-#include <linux/pci.h>
-
 #include "e1000.h"
 
 enum e1000_mng_mode {

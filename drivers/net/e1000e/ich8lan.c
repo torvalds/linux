@@ -54,11 +54,6 @@
  * 82578DC Gigabit Network Connection
  */
 
-#include <linux/netdevice.h>
-#include <linux/ethtool.h>
-#include <linux/delay.h>
-#include <linux/pci.h>
-
 #include "e1000.h"
 
 #define ICH_FLASH_GFPREG		0x0000
