@@ -390,6 +390,7 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 		/* data */
 		stats->data_bytes += len;
 	}
+	iwl_leds_background(priv);
 }
 #endif
 /*****************************************************

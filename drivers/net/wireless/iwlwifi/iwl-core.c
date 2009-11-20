@@ -3187,6 +3187,7 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 		stats->data_cnt++;
 		stats->data_bytes += len;
 	}
+	iwl_leds_background(priv);
 }
 EXPORT_SYMBOL(iwl_update_stats);
 #endif
