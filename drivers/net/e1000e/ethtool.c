@@ -604,7 +604,9 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	 * and flush shadow RAM for applicable controllers
 	 */
 	if ((first_word <= NVM_CHECKSUM_REG) ||
-	    (hw->mac.type == e1000_82574) || (hw->mac.type == e1000_82573))
+	    (hw->mac.type == e1000_82583) ||
+	    (hw->mac.type == e1000_82574) ||
+	    (hw->mac.type == e1000_82573))
 		ret_val = e1000e_update_nvm_checksum(hw);
 
 out:
@@ -1839,6 +1841,7 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 
 	if ((hw->phy.type == e1000_phy_ife) ||
 	    (hw->mac.type == e1000_pchlan) ||
+	    (hw->mac.type == e1000_82583) ||
 	    (hw->mac.type == e1000_82574)) {
 		INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
 		if (!adapter->blink_timer.function) {
