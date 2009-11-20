@@ -317,7 +317,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 		return memory;
 
 	return __dma_alloc(dev, size, handle, gfp,
-			   pgprot_noncached(pgprot_kernel));
+			   pgprot_dmacoherent(pgprot_kernel));
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
 
@@ -365,7 +365,7 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
 		      void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
 	return dma_mmap(dev, vma, cpu_addr, dma_addr, size);
 }
 EXPORT_SYMBOL(dma_mmap_coherent);
