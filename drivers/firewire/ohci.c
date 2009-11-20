@@ -1904,15 +1904,30 @@ static int handle_it_packet(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
+	int i;
+	struct descriptor *pd;
 
-	if (last->transfer_status == 0)
-		/* This descriptor isn't done yet, stop iteration. */
+	for (pd = d; pd <= last; pd++)
+		if (pd->transfer_status)
+			break;
+	if (pd > last)
+		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS)
+	i = ctx->header_length;
+	if (i + 4 < PAGE_SIZE) {
+		/* Present this value as big-endian to match the receive code */
+		*(__be32 *)(ctx->header + i) = cpu_to_be32(
+				((u32)le16_to_cpu(pd->transfer_status) << 16) |
+				le16_to_cpu(pd->res_count));
+		ctx->header_length += 4;
+	}
+	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ctx->base.callback(&ctx->base, le16_to_cpu(last->res_count),
-				   0, NULL, ctx->base.callback_data);
-
+				   ctx->header_length, ctx->header,
+				   ctx->base.callback_data);
+		ctx->header_length = 0;
+	}
 	return 1;
 }
 
