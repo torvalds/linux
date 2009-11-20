@@ -111,6 +111,8 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *,
 				      void *, u32 timeout);
 static void fcoe_recv_frame(struct sk_buff *skb);
 
+static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
+
 module_param_call(create, fcoe_create, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
 MODULE_PARM_DESC(create, "Create fcoe fcoe using net device passed in.");
@@ -141,6 +143,7 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.ddp_setup = fcoe_ddp_setup,
 	.ddp_done = fcoe_ddp_done,
 	.elsct_send = fcoe_elsct_send,
+	.get_lesb = fcoe_get_lesb,
 };
 
 struct fc_function_template fcoe_transport_function = {
@@ -2454,4 +2457,35 @@ static void fcoe_set_vport_symbolic_name(struct fc_vport *vport)
 		return;
 	lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RSPN_ID,
 			     NULL, NULL, 3 * lport->r_a_tov);
+}
+
+/**
+ * fcoe_get_lesb() - Fill the FCoE Link Error Status Block
+ * @lport: the local port
+ * @fc_lesb: the link error status block
+ */
+static void fcoe_get_lesb(struct fc_lport *lport,
+			 struct fc_els_lesb *fc_lesb)
+{
+	unsigned int cpu;
+	u32 lfc, vlfc, mdac;
+	struct fcoe_dev_stats *devst;
+	struct fcoe_fc_els_lesb *lesb;
+	struct net_device *netdev = fcoe_netdev(lport);
+
+	lfc = 0;
+	vlfc = 0;
+	mdac = 0;
+	lesb = (struct fcoe_fc_els_lesb *)fc_lesb;
+	memset(lesb, 0, sizeof(*lesb));
+	for_each_possible_cpu(cpu) {
+		devst = per_cpu_ptr(lport->dev_stats, cpu);
+		lfc += devst->LinkFailureCount;
+		vlfc += devst->VLinkFailureCount;
+		mdac += devst->MissDiscAdvCount;
+	}
+	lesb->lesb_link_fail = htonl(lfc);
+	lesb->lesb_vlink_fail = htonl(vlfc);
+	lesb->lesb_miss_fka = htonl(mdac);
+	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev)->rx_crc_errors);
 }

@@ -511,6 +511,12 @@ struct libfc_function_template {
 	 */
 	int (*ddp_done)(struct fc_lport *, u16);
 	/*
+	 * Allow LLD to fill its own Link Error Status Block
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
+	/*
 	 * Send a frame using an existing sequence and exchange.
 	 *
 	 * STATUS: OPTIONAL
