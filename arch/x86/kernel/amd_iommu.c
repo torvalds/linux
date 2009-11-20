@@ -1175,7 +1175,9 @@ static void __attach_device(struct amd_iommu *iommu,
 	/* update DTE entry */
 	set_dte_entry(devid, domain);
 
-	domain->dev_cnt += 1;
+	/* Do reference counting */
+	domain->dev_iommu[iommu->index] += 1;
+	domain->dev_cnt                 += 1;
 
 	/* ready */
 	spin_unlock(&domain->lock);
@@ -1209,6 +1211,9 @@ static void attach_device(struct amd_iommu *iommu,
  */
 static void __detach_device(struct protection_domain *domain, u16 devid)
 {
+	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
+
+	BUG_ON(!iommu);
 
 	/* lock domain */
 	spin_lock(&domain->lock);
@@ -1223,8 +1228,9 @@ static void __detach_device(struct protection_domain *domain, u16 devid)
 
 	amd_iommu_apply_erratum_63(devid);
 
-	/* decrease reference counter */
-	domain->dev_cnt -= 1;
+	/* decrease reference counters */
+	domain->dev_iommu[iommu->index] -= 1;
+	domain->dev_cnt                 -= 1;
 
 	/* ready */
 	spin_unlock(&domain->lock);
