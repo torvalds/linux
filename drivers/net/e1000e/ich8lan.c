@@ -706,7 +706,9 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
  **/
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw)
 {
-	u32 fwsm = er32(FWSM);
+	u32 fwsm;
+
+	fwsm = er32(FWSM);
 
 	return (fwsm & E1000_FWSM_MODE_MASK) ==
 		(E1000_ICH_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT);
@@ -2349,9 +2351,7 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 	u32 flash_bank_size = nvm->flash_bank_size * 2;
 	s32 ret_val;
 	s32 count = 0;
-	s32 iteration;
-	s32 sector_size;
-	s32 j;
+	s32 j, iteration, sector_size;
 
 	hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
 

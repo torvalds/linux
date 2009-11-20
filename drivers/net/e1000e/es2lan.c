@@ -695,8 +695,7 @@ static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
-	u16 phy_data;
-	u16 index;
+	u16 phy_data, index;
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_DSP_DISTANCE, &phy_data);
 	if (ret_val)
@@ -746,8 +745,7 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
  **/
 static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
-	u32 ctrl;
-	u32 icr;
+	u32 ctrl, icr;
 	s32 ret_val;
 
 	/*
