@@ -964,7 +964,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int pos = 0;
 	int cnt;
 	int ret;
-	const size_t bufsz = sizeof(char) * 60 * priv->cfg->num_of_queues;
+	const size_t bufsz = sizeof(char) * 64 * priv->cfg->num_of_queues;
 
 	if (!priv->txq) {
 		IWL_ERR(priv, "txq not ready\n");
