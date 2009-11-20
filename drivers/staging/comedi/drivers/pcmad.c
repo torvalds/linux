@@ -113,9 +113,8 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		data[n] = inb(dev->iobase + PCMAD_LSB);
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
-		if (devpriv->twos_comp) {
+		if (devpriv->twos_comp)
 			data[n] ^= (1 << (this_board->n_ai_bits - 1));
-		}
 	}
 
 	return n;
@@ -168,9 +167,8 @@ static int pcmad_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pcmad: remove\n", dev->minor);
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 	if (dev->iobase)
 		release_region(dev->iobase, PCMAD_SIZE);
 
