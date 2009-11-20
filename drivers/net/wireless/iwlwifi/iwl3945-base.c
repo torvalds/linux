@@ -1482,7 +1482,6 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 static const char *desc_lookup(int i)
 {
 	switch (i) {
@@ -1613,10 +1612,42 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
+/**
+ * iwl3945_print_last_event_logs - Dump the newest # of event log to syslog
+ */
+static void iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
+				      u32 num_wraps, u32 next_entry,
+				      u32 size, u32 mode)
+{
+	/*
+	 * display the newest DEFAULT_LOG_ENTRIES entries
+	 * i.e the entries just before the next ont that uCode would fill.
+	 */
+	if (num_wraps) {
+		if (next_entry < size) {
+			iwl3945_print_event_log(priv,
+					capacity - (size - next_entry),
+					size - next_entry, mode);
+			iwl3945_print_event_log(priv, 0,
+				    next_entry, mode);
+		} else
+			iwl3945_print_event_log(priv, next_entry - size,
+				    size, mode);
+	} else {
+		if (next_entry < size)
+			iwl3945_print_event_log(priv, 0, next_entry, mode);
+		else
+			iwl3945_print_event_log(priv, next_entry - size,
+					    size, mode);
+	}
+}
+
 /* For sanity check only.  Actual size is determined by uCode, typ. 512 */
 #define IWL3945_MAX_EVENT_LOG_SIZE (512)
 
-void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
+#define DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES (20)
+
+void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1657,8 +1688,17 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 		return;
 	}
 
-	IWL_ERR(priv, "Start IWL Event Log Dump: display count %d, wraps %d\n",
-		  size, num_wraps);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS))
+		size = (size > DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES)
+			? DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES : size;
+#else
+	size = (size > DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES)
+		? DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES : size;
+#endif
+
+	IWL_ERR(priv, "Start IWL Event Log Dump: display last %d count\n",
+		  size);
 
 	/* if uCode has wrapped back to top of log, start at the oldest entry,
 	 * i.e the next one that uCode would fill. */
@@ -1669,17 +1709,27 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	/* (then/else) start at top of log */
 	iwl3945_print_event_log(priv, 0, next_entry, mode);
 
-}
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
+		/* if uCode has wrapped back to top of log,
+		 * start at the oldest entry,
+		 * i.e the next one that uCode would fill.
+		 */
+		if (num_wraps)
+			iwl3945_print_event_log(priv, next_entry,
+				    capacity - next_entry, mode);
+
+		/* (then/else) start at top of log */
+		iwl3945_print_event_log(priv, 0, next_entry, mode);
+	} else
+		iwl3945_print_last_event_logs(priv, capacity, num_wraps,
+					next_entry, size, mode);
 #else
-void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
-{
-}
-
-void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
-{
-}
-
+	iwl3945_print_last_event_logs(priv, capacity, num_wraps,
+				next_entry, size, mode);
 #endif
+
+}
 
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 {

@@ -1362,11 +1362,10 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
 	priv->cfg->ops->lib->dump_nic_error_log(priv);
+	priv->cfg->ops->lib->dump_nic_event_log(priv, false);
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) {
-		priv->cfg->ops->lib->dump_nic_event_log(priv);
+	if (iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS)
 		iwl_print_rx_config_cmd(priv);
-	}
 #endif
 
 	wake_up_interruptible(&priv->wait_command_queue);
