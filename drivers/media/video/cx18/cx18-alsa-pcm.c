@@ -344,7 +344,7 @@ int snd_cx18_pcm_create(struct snd_cx18_card *cxsc)
 	snd_pcm_set_ops(sp, SNDRV_PCM_STREAM_CAPTURE, &snd_cx18_pcm_capture_ops);
 	sp->info_flags = 0;
 	sp->private_data = cxsc;
-	strcpy(sp->name, "Conexant cx23418 Capture");
+	strlcpy(sp->name, cx->card_name, sizeof(sp->name));
 
 	return 0;
 
