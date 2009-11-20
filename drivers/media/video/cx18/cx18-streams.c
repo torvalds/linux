@@ -745,6 +745,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	atomic_inc(&cx->tot_capturing);
 	return 0;
 }
+EXPORT_SYMBOL(cx18_start_v4l2_encode_stream);
 
 void cx18_stop_all_captures(struct cx18 *cx)
 {
@@ -810,6 +811,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 
 	return 0;
 }
+EXPORT_SYMBOL(cx18_stop_v4l2_encode_stream);
 
 u32 cx18_find_handle(struct cx18 *cx)
 {
