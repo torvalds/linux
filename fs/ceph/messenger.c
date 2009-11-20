@@ -348,6 +348,7 @@ void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
 	set_bit(OPENING, &con->state);
 	clear_bit(CLOSED, &con->state);
 	memcpy(&con->peer_addr, addr, sizeof(*addr));
+	con->delay = 0;      /* reset backoff memory */
 	queue_con(con);
 }
 
@@ -1162,8 +1163,6 @@ static int process_connect(struct ceph_connection *con)
 		     con->connect_seq);
 		WARN_ON(con->connect_seq !=
 			le32_to_cpu(con->in_reply.connect_seq));
-
-		con->delay = 0;  /* reset backoff memory */
 		prepare_read_tag(con);
 		break;
 
