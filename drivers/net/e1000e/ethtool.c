@@ -1260,6 +1260,10 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	hw->mac.autoneg = 0;
 
+	/* Workaround: K1 must be disabled for stable 1Gbps operation */
+	if (hw->mac.type == e1000_pchlan)
+		e1000_configure_k1_ich8lan(hw, false);
+
 	if (hw->phy.type == e1000_phy_m88) {
 		/* Auto-MDI/MDIX Off */
 		e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);

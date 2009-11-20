@@ -224,7 +224,6 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw);
 static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
 static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw);
 static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
-static s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -1023,7 +1022,7 @@ out:
  *
  *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
  **/
-static s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
+s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 {
 	s32 ret_val = 0;
 	u32 ctrl_reg = 0;
