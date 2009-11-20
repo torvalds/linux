@@ -706,16 +706,17 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 	memset (best_clock, 0, sizeof (*best_clock));
 
-	for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
-		for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
-		     clock.m1++) {
-			for (clock.m2 = limit->m2.min;
-			     clock.m2 <= limit->m2.max; clock.m2++) {
-				/* m1 is always 0 in IGD */
-				if (clock.m2 >= clock.m1 && !IS_IGD(dev))
-					break;
-				for (clock.n = limit->n.min;
-				     clock.n <= limit->n.max; clock.n++) {
+	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
+	     clock.m1++) {
+		for (clock.m2 = limit->m2.min;
+		     clock.m2 <= limit->m2.max; clock.m2++) {
+			/* m1 is always 0 in IGD */
+			if (clock.m2 >= clock.m1 && !IS_IGD(dev))
+				break;
+			for (clock.n = limit->n.min;
+			     clock.n <= limit->n.max; clock.n++) {
+				for (clock.p1 = limit->p1.min;
+					clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
 					intel_clock(dev, refclk, &clock);
