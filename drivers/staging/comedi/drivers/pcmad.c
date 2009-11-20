@@ -34,11 +34,11 @@ Configuration options:
   [0] - I/O port base
   [1] - unused
   [2] - Analog input reference
-          0 = single ended
-          1 = differential
+	  0 = single ended
+	  1 = differential
   [3] - Analog input encoding (must match jumpers)
-          0 = straight binary
-          1 = two's complement
+	  0 = straight binary
+	  1 = two's complement
 */
 
 #include <linux/interrupt.h>
