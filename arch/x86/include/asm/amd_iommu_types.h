@@ -231,6 +231,7 @@ extern bool amd_iommu_dump;
  * independent of their use.
  */
 struct protection_domain {
+	struct list_head list;  /* for list of all protection domains */
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
@@ -374,6 +375,12 @@ extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
 
 /* Number of IOMMUs present in the system */
 extern int amd_iommus_present;
+
+/*
+ * Declarations for the global list of all protection domains
+ */
+extern spinlock_t amd_iommu_pd_lock;
+extern struct list_head amd_iommu_pd_list;
 
 /*
  * Structure defining one entry in the device table

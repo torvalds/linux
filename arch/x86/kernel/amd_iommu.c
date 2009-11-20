@@ -985,6 +985,31 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
  *
  ****************************************************************************/
 
+/*
+ * This function adds a protection domain to the global protection domain list
+ */
+static void add_domain_to_list(struct protection_domain *domain)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
+	list_add(&domain->list, &amd_iommu_pd_list);
+	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
+}
+
+/*
+ * This function removes a protection domain to the global
+ * protection domain list
+ */
+static void del_domain_from_list(struct protection_domain *domain)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
+	list_del(&domain->list);
+	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
+}
+
 static u16 domain_id_alloc(void)
 {
 	unsigned long flags;
@@ -1073,6 +1098,8 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	if (!dom)
 		return;
 
+	del_domain_from_list(&dom->domain);
+
 	free_pagetable(&dom->domain);
 
 	for (i = 0; i < APERTURE_MAX_RANGES; ++i) {
@@ -1112,6 +1139,8 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu)
 
 	dma_dom->need_flush = false;
 	dma_dom->target_dev = 0xffff;
+
+	add_domain_to_list(&dma_dom->domain);
 
 	if (alloc_new_range(iommu, dma_dom, true, GFP_KERNEL))
 		goto free_dma_dom;
@@ -2188,6 +2217,8 @@ static void protection_domain_free(struct protection_domain *domain)
 	if (!domain)
 		return;
 
+	del_domain_from_list(domain);
+
 	if (domain->id)
 		domain_id_free(domain->id);
 
@@ -2206,6 +2237,8 @@ static struct protection_domain *protection_domain_alloc(void)
 	domain->id = domain_id_alloc();
 	if (!domain->id)
 		goto out_err;
+
+	add_domain_to_list(domain);
 
 	return domain;
 
