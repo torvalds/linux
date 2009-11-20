@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -5364,7 +5364,7 @@ static int __init e1000_init_module(void)
 	int ret;
 	printk(KERN_INFO "%s: Intel(R) PRO/1000 Network Driver - %s\n",
 	       e1000e_driver_name, e1000e_driver_version);
-	printk(KERN_INFO "%s: Copyright (c) 1999-2008 Intel Corporation.\n",
+	printk(KERN_INFO "%s: Copyright (c) 1999 - 2009 Intel Corporation.\n",
 	       e1000e_driver_name);
 	ret = pci_register_driver(&e1000_driver);
 	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, e1000e_driver_name,
