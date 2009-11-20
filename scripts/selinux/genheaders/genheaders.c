@@ -13,7 +13,7 @@ struct security_class_mapping {
 #include "classmap.h"
 #include "initial_sid_to_string.h"
 
-#define max(x, y) ((x > y) ? x : y)
+#define max(x, y) (((int)(x) > (int)(y)) ? x : y)
 
 const char *progname;
 
