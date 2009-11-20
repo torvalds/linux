@@ -353,8 +353,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 				u16 length, struct ieee80211_hdr *header);
 const char *get_mgmt_string(int cmd);
 const char *get_ctrl_string(int cmd);
-void iwl_clear_tx_stats(struct iwl_priv *priv);
-void iwl_clear_rx_stats(struct iwl_priv *priv);
+void iwl_clear_traffic_stats(struct iwl_priv *priv);
 void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
 		      u16 len);
 #else

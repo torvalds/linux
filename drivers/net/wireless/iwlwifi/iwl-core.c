@@ -3079,15 +3079,11 @@ const char *get_ctrl_string(int cmd)
 	}
 }
 
-void iwl_clear_tx_stats(struct iwl_priv *priv)
+void iwl_clear_traffic_stats(struct iwl_priv *priv)
 {
 	memset(&priv->tx_stats, 0, sizeof(struct traffic_stats));
-
-}
-
-void iwl_clear_rx_stats(struct iwl_priv *priv)
-{
 	memset(&priv->rx_stats, 0, sizeof(struct traffic_stats));
+	priv->led_tpt = 0;
 }
 
 /*
