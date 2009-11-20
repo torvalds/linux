@@ -51,6 +51,13 @@ endif
 ifndef CONFIG_FUNCTION_TRACER
 cflags-y := -ffunction-sections
 endif
+ifdef CONFIG_FUNCTION_GRAPH_TRACER
+  ifndef KBUILD_MCOUNT_RA_ADDRESS
+    ifeq ($(call cc-option-yn,-mmcount-ra-address), y)
+      cflags-y += -mmcount-ra-address -DKBUILD_MCOUNT_RA_ADDRESS
+    endif
+  endif
+endif
 cflags-y += $(call cc-option, -mno-check-zero-division)
 
 ifdef CONFIG_32BIT

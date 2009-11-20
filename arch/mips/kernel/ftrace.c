@@ -148,6 +148,7 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 #endif				/* !CONFIG_DYNAMIC_FTRACE */
 
+#ifndef KBUILD_MCOUNT_RA_ADDRESS
 #define S_RA_SP	(0xafbf << 16)	/* s{d,w} ra, offset(sp) */
 #define S_R_SP	(0xafb0 << 16)  /* s{d,w} R, offset(sp) */
 #define OFFSET_MASK	0xffff	/* stack offset range: 0 ~ PT_SIZE */
@@ -201,6 +202,8 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 	return 0;
 }
 
+#endif
+
 /*
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
@@ -218,19 +221,26 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	/* "parent" is the stack address saved the return address of the caller
-	 * of _mcount, for a leaf function not save the return address in the
-	 * stack address, so, we "emulate" one in _mcount's stack space, and
-	 * hijack it directly, but for a non-leaf function, it will save the
-	 * return address to the its stack space, so, we can not hijack the
-	 * "parent" directly, but need to find the real stack address,
+	 * of _mcount.
+	 *
+	 * if the gcc < 4.5, a leaf function does not save the return address
+	 * in the stack address, so, we "emulate" one in _mcount's stack space,
+	 * and hijack it directly, but for a non-leaf function, it save the
+	 * return address to the its own stack space, we can not hijack it
+	 * directly, but need to find the real stack address,
 	 * ftrace_get_parent_addr() does it!
+	 *
+	 * if gcc>= 4.5, with the new -mmcount-ra-address option, for a
+	 * non-leaf function, the location of the return address will be saved
+	 * to $12 for us, and for a leaf function, only put a zero into $12. we
+	 * do it in ftrace_graph_caller of mcount.S.
 	 */
 
 	/* old = *parent; */
 	safe_load_stack(old, parent, faulted);
 	if (unlikely(faulted))
 		goto out;
-
+#ifndef KBUILD_MCOUNT_RA_ADDRESS
 	parent = (unsigned long *)ftrace_get_parent_addr(self_addr, old,
 							 (unsigned long)parent,
 							 fp);
@@ -238,7 +248,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * ra, stop function graph tracer and return */
 	if (parent == 0)
 		goto out;
-
+#endif
 	/* *parent = return_hooker; */
 	safe_store_stack(return_hooker, parent, faulted);
 	if (unlikely(faulted))
