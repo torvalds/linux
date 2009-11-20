@@ -378,6 +378,8 @@ static void ioat3_timer_event(unsigned long data)
 			u32 chanerr;
 
 			chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+			dev_err(to_dev(chan), "%s: Channel halted (%x)\n",
+				__func__, chanerr);
 			BUG_ON(is_ioat_bug(chanerr));
 		}
 
