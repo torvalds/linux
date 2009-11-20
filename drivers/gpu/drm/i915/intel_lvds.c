@@ -914,6 +914,61 @@ static int intel_lid_present(void)
 #endif
 
 /**
+ * intel_find_lvds_downclock - find the reduced downclock for LVDS in EDID
+ * @dev: drm device
+ * @connector: LVDS connector
+ *
+ * Find the reduced downclock for LVDS in EDID.
+ */
+static void intel_find_lvds_downclock(struct drm_device *dev,
+				struct drm_connector *connector)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *scan, *panel_fixed_mode;
+	int temp_downclock;
+
+	panel_fixed_mode = dev_priv->panel_fixed_mode;
+	temp_downclock = panel_fixed_mode->clock;
+
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(scan, &connector->probed_modes, head) {
+		/*
+		 * If one mode has the same resolution with the fixed_panel
+		 * mode while they have the different refresh rate, it means
+		 * that the reduced downclock is found for the LVDS. In such
+		 * case we can set the different FPx0/1 to dynamically select
+		 * between low and high frequency.
+		 */
+		if (scan->hdisplay == panel_fixed_mode->hdisplay &&
+			scan->hsync_start == panel_fixed_mode->hsync_start &&
+			scan->hsync_end == panel_fixed_mode->hsync_end &&
+			scan->htotal == panel_fixed_mode->htotal &&
+			scan->vdisplay == panel_fixed_mode->vdisplay &&
+			scan->vsync_start == panel_fixed_mode->vsync_start &&
+			scan->vsync_end == panel_fixed_mode->vsync_end &&
+			scan->vtotal == panel_fixed_mode->vtotal) {
+			if (scan->clock < temp_downclock) {
+				/*
+				 * The downclock is already found. But we
+				 * expect to find the lower downclock.
+				 */
+				temp_downclock = scan->clock;
+			}
+		}
+	}
+	mutex_unlock(&dev->mode_config.mutex);
+	if (temp_downclock < panel_fixed_mode->clock) {
+		/* We found the downclock for LVDS. */
+		dev_priv->lvds_downclock_avail = 1;
+		dev_priv->lvds_downclock = temp_downclock;
+		DRM_DEBUG_KMS("LVDS downclock is found in EDID. "
+				"Normal clock %dKhz, downclock %dKhz\n",
+				panel_fixed_mode->clock, temp_downclock);
+	}
+	return;
+}
+
+/**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
  *
@@ -1023,6 +1078,7 @@ void intel_lvds_init(struct drm_device *dev)
 			dev_priv->panel_fixed_mode =
 				drm_mode_duplicate(dev, scan);
 			mutex_unlock(&dev->mode_config.mutex);
+			intel_find_lvds_downclock(dev, connector);
 			goto out;
 		}
 		mutex_unlock(&dev->mode_config.mutex);

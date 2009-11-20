@@ -2869,14 +2869,25 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (limit->find_reduced_pll && dev_priv->lvds_downclock_avail) {
+	if (is_lvds && limit->find_reduced_pll &&
+			dev_priv->lvds_downclock_avail) {
 		memcpy(&reduced_clock, &clock, sizeof(intel_clock_t));
 		has_reduced_clock = limit->find_reduced_pll(limit, crtc,
-							    (adjusted_mode->clock*3/4),
+							    dev_priv->lvds_downclock,
 							    refclk,
 							    &reduced_clock);
+		if (has_reduced_clock && (clock.p != reduced_clock.p)) {
+			/*
+			 * If the different P is found, it means that we can't
+			 * switch the display clock by using the FP0/FP1.
+			 * In such case we will disable the LVDS downclock
+			 * feature.
+			 */
+			DRM_DEBUG_KMS("Different P is found for "
+						"LVDS clock/downclock\n");
+			has_reduced_clock = 0;
+		}
 	}
-
 	/* SDVO TV has fixed PLL values depend on its clock range,
 	   this mirrors vbios setting. */
 	if (is_sdvo && is_tv) {

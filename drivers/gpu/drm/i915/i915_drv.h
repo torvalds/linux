@@ -539,6 +539,8 @@ typedef struct drm_i915_private {
 	/* Reclocking support */
 	bool render_reclock_avail;
 	bool lvds_downclock_avail;
+	/* indicates the reduced downclock for LVDS*/
+	int lvds_downclock;
 	struct work_struct idle_work;
 	struct timer_list idle_timer;
 	bool busy;
