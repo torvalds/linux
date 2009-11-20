@@ -449,7 +449,7 @@ got_map:
 		 * trick of looking in the whole kernel symbol list.
 		 */
 		if ((long long)ip < 0)
-			return kernel_maps__find_symbol(ip, mapp);
+			return kernel_maps__find_symbol(ip, mapp, NULL);
 	}
 	dump_printf(" ...... dso: %s\n",
 		    map ? map->dso->long_name : "<not found>");
@@ -496,7 +496,7 @@ static struct symbol **resolve_callchain(struct thread *thread, struct map *map,
 		case PERF_CONTEXT_HV:
 			break;
 		case PERF_CONTEXT_KERNEL:
-			sym = kernel_maps__find_symbol(ip, &map);
+			sym = kernel_maps__find_symbol(ip, &map, NULL);
 			break;
 		default:
 			sym = resolve_symbol(thread, &map, &ip);
@@ -716,7 +716,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		level = 'k';
-		sym = kernel_maps__find_symbol(ip, &map);
+		sym = kernel_maps__find_symbol(ip, &map, NULL);
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else if (cpumode == PERF_RECORD_MISC_USER) {

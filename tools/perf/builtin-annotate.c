@@ -157,7 +157,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		level = 'k';
-		sym = kernel_maps__find_symbol(ip, &map);
+		sym = kernel_maps__find_symbol(ip, &map, symbol_filter);
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
@@ -637,9 +637,9 @@ static int __cmd_annotate(void)
 		exit(0);
 	}
 
-	if (load_kernel(symbol_filter, use_modules) < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
+	if (kernel_maps__init(use_modules) < 0) {
+		pr_err("failed to create kernel maps for symbol resolution\b");
+		return -1;
 	}
 
 remap:

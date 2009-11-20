@@ -75,6 +75,29 @@ out_delete:
 	return NULL;
 }
 
+void map__delete(struct map *self)
+{
+	free(self);
+}
+
+void map__fixup_start(struct map *self)
+{
+	struct rb_node *nd = rb_first(&self->dso->syms);
+	if (nd != NULL) {
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		self->start = sym->start;
+	}
+}
+
+void map__fixup_end(struct map *self)
+{
+	struct rb_node *nd = rb_last(&self->dso->syms);
+	if (nd != NULL) {
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		self->end = sym->end;
+	}
+}
+
 #define DSO__DELETED "(deleted)"
 
 struct symbol *

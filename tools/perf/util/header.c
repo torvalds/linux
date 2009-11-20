@@ -253,11 +253,11 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		buildid_sec = &feat_sec[idx++];
 
-		dsos__load_kernel();
 		/*
-		 * Read the list of loaded modules with its build_ids
+		 * Read the kernel buildid nad the list of loaded modules with
+		 * its build_ids:
 		 */
-		dsos__load_modules();
+		kernel_maps__init(true);
 
 		/* Write build-ids */
 		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);
