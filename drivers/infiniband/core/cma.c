@@ -1472,15 +1472,6 @@ static void cma_listen_on_all(struct rdma_id_private *id_priv)
 	mutex_unlock(&lock);
 }
 
-static int cma_bind_any(struct rdma_cm_id *id, sa_family_t af)
-{
-	struct sockaddr_storage addr_in;
-
-	memset(&addr_in, 0, sizeof addr_in);
-	addr_in.ss_family = af;
-	return rdma_bind_addr(id, (struct sockaddr *) &addr_in);
-}
-
 int rdma_listen(struct rdma_cm_id *id, int backlog)
 {
 	struct rdma_id_private *id_priv;
@@ -1488,7 +1479,8 @@ int rdma_listen(struct rdma_cm_id *id, int backlog)
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 	if (id_priv->state == CMA_IDLE) {
-		ret = cma_bind_any(id, AF_INET);
+		((struct sockaddr *) &id->route.addr.src_addr)->sa_family = AF_INET;
+		ret = rdma_bind_addr(id, (struct sockaddr *) &id->route.addr.src_addr);
 		if (ret)
 			return ret;
 	}
@@ -1885,10 +1877,14 @@ err:
 static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 			 struct sockaddr *dst_addr)
 {
-	if (src_addr && src_addr->sa_family)
-		return rdma_bind_addr(id, src_addr);
-	else
-		return cma_bind_any(id, dst_addr->sa_family);
+	if (!src_addr || !src_addr->sa_family) {
+		src_addr = (struct sockaddr *) &id->route.addr.src_addr;
+		if ((src_addr->sa_family = dst_addr->sa_family) == AF_INET6) {
+			((struct sockaddr_in6 *) src_addr)->sin6_scope_id =
+				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
+		}
+	}
+	return rdma_bind_addr(id, src_addr);
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
@@ -2084,6 +2080,25 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	return ret;
 }
 
+static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
+			       struct sockaddr *addr)
+{
+#if defined(CONFIG_IPv6) || defined(CONFIG_IPV6_MODULE)
+	struct sockaddr_in6 *sin6;
+
+	if (addr->sa_family != AF_INET6)
+		return 0;
+
+	sin6 = (struct sockaddr_in6 *) addr;
+	if ((ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
+	    !sin6->sin6_scope_id)
+			return -EINVAL;
+
+	dev_addr->bound_dev_if = sin6->sin6_scope_id;
+#endif
+	return 0;
+}
+
 int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 {
 	struct rdma_id_private *id_priv;
@@ -2095,6 +2110,10 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 	id_priv = container_of(id, struct rdma_id_private, id);
 	if (!cma_comp_exch(id_priv, CMA_IDLE, CMA_ADDR_BOUND))
 		return -EINVAL;
+
+	ret = cma_check_linklocal(&id->route.addr.dev_addr, addr);
+	if (ret)
+		goto err1;
 
 	if (cma_loopback_addr(addr)) {
 		ret = cma_bind_loopback(id_priv);
