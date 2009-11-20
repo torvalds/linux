@@ -47,6 +47,10 @@
    setting this to 1 you ensure that radio0 is now also radio1. */
 int cx18_first_minor;
 
+/* Callback for registering extensions */
+int (*cx18_ext_init)(struct cx18 *);
+EXPORT_SYMBOL(cx18_ext_init);
+
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
@@ -242,6 +246,9 @@ MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
+
+/* Forward Declaration */
+static void request_modules(struct cx18 *dev);
 
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
@@ -1049,6 +1056,10 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	}
 
 	CX18_INFO("Initialized card: %s\n", cx->card_name);
+
+	/* Load cx18 submodules (cx18-alsa) */
+	request_modules(cx);
+
 	return 0;
 
 free_streams:
@@ -1236,6 +1247,29 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	v4l2_device_unregister(v4l2_dev);
 	kfree(cx);
 }
+
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx18 *dev=container_of(work, struct cx18, request_module_wk);
+
+	/* Make sure cx18-alsa module is loaded */
+	request_module("cx18-alsa");
+
+	/* Initialize cx18-alsa for this instance of the cx18 device */
+	if (cx18_ext_init != NULL)
+		cx18_ext_init(dev);
+}
+
+static void request_modules(struct cx18 *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 /* define a pci_driver for card detection */
 static struct pci_driver cx18_pci_driver = {

@@ -637,12 +637,18 @@ struct cx18 {
 	u32 active_input;
 	v4l2_std_id std;
 	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
+
+	/* Used for cx18-alsa module loading */
+	struct work_struct request_module_wk;
 };
 
 static inline struct cx18 *to_cx18(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx18, v4l2_dev);
 }
+
+/* cx18 extensions to be loaded */
+extern int (*cx18_ext_init)(struct cx18 *);
 
 /* Globals */
 extern int cx18_first_minor;

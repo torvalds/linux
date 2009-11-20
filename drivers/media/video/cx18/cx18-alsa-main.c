@@ -190,11 +190,9 @@ err_exit:
 	return ret;
 }
 
-static int __init cx18_alsa_init_callback(struct device *dev, void *data)
+int cx18_alsa_load(struct cx18 *cx)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
-	int *count = data;
-	struct cx18 *cx;
+	struct v4l2_device *v4l2_dev = &cx->v4l2_dev;
 	struct cx18_stream *s;
 
 	if (v4l2_dev == NULL) {
@@ -227,41 +225,16 @@ static int __init cx18_alsa_init_callback(struct device *dev, void *data)
 			      __func__);
 	} else {
 		CX18_DEBUG_ALSA_INFO("%s: created cx18 ALSA interface instance "
-				     "%d\n", __func__, *count);
-		(*count)++;
+				     "\n", __func__);
 	}
 	return 0;
 }
 
 static int __init cx18_alsa_init(void)
 {
-	struct device_driver *drv;
-	int count = 0;
-	int ret;
-
 	printk(KERN_INFO "cx18-alsa: module loading...\n");
-
-	drv = driver_find("cx18", &pci_bus_type);
-	if (drv == NULL) {
-		printk("cx18-alsa: drv was null\n");
-		return -ENODEV;
-	}
-	ret = driver_for_each_device(drv, NULL, &count,
-				     cx18_alsa_init_callback);
-	put_driver(drv);
-
-	if (count == 0) {
-		printk(KERN_ERR "cx18-alsa: no cx18 cards found with a PCM "
-		       "capture stream allocated\n");
-		ret = -ENODEV;
-	} else {
-		printk(KERN_INFO "cx18-alsa: ALSA interface(s) created for %d "
-		       "cx18 card(s)\n", count);
-		ret = 0;
-	}
-
-	printk(KERN_INFO "cx18-alsa: module load complete\n");
-	return ret;
+	cx18_ext_init = &cx18_alsa_load;
+	return 0;
 }
 
 static void snd_cx18_exit(struct snd_cx18_card *cxsc)
@@ -308,6 +281,7 @@ static void cx18_alsa_exit(void)
 	ret = driver_for_each_device(drv, NULL, NULL, cx18_alsa_exit_callback);
 	put_driver(drv);
 
+	cx18_ext_init = NULL;
 	printk(KERN_INFO "cx18-alsa: module unload complete\n");
 }
 
