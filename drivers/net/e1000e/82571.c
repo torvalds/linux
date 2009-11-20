@@ -1114,6 +1114,13 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg |= (1 << 22);
 		ew32(GCR, reg);
 
+		/*
+		 * Workaround for hardware errata.
+		 * apply workaround for hardware errata documented in errata
+		 * docs Fixes issue where some error prone or unreliable PCIe
+		 * completions are occurring, particularly with ASPM enabled.
+		 * Without fix, issue can cause tx timeouts.
+		 */
 		reg = er32(GCR2);
 		reg |= 1;
 		ew32(GCR2, reg);
