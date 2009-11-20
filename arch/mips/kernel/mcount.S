@@ -58,6 +58,33 @@
 	 move ra, AT
 	.endm
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+NESTED(ftrace_caller, PT_SIZE, ra)
+	.globl _mcount
+_mcount:
+	b	ftrace_stub
+	 nop
+	lw	t0, function_trace_stop
+	bnez	t0, ftrace_stub
+	 nop
+
+	MCOUNT_SAVE_REGS
+
+	move	a0, ra		/* arg1: next ip, selfaddr */
+	.globl ftrace_call
+ftrace_call:
+	nop	/* a placeholder for the call to a real tracing function */
+	 move	a1, AT		/* arg2: the caller's next ip, parent */
+
+	MCOUNT_RESTORE_REGS
+	.globl ftrace_stub
+ftrace_stub:
+	RETURN_BACK
+	END(ftrace_caller)
+
+#else	/* ! CONFIG_DYNAMIC_FTRACE */
+
 NESTED(_mcount, PT_SIZE, ra)
 	lw	t0, function_trace_stop
 	bnez	t0, ftrace_stub
@@ -81,6 +108,8 @@ static_trace:
 ftrace_stub:
 	RETURN_BACK
 	END(_mcount)
+
+#endif	/* ! CONFIG_DYNAMIC_FTRACE */
 
 	.set at
 	.set reorder
