@@ -87,7 +87,6 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	/* Allocate memory */
 	item = kmalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
 	if (NULL == item) {
-		CX18_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
 	item->cx = cx;
