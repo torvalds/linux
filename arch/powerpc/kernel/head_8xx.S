@@ -333,26 +333,20 @@ InstructionTLBMiss:
 	mfspr	r11, SPRN_MD_TWC	/* ....and get the pte address */
 	lwz	r10, 0(r11)	/* Get the pte */
 
-#ifdef CONFIG_SWAP
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */
-	stw	r10, 0(r11)
-4:
-#else
-	ori	r10, r10, _PAGE_ACCESSED
-	stw	r10, 0(r11)
-#endif
+	andi.	r11, r10, _PAGE_ACCESSED | _PAGE_PRESENT
+	cmpwi	cr0, r11, _PAGE_ACCESSED | _PAGE_PRESENT
+	bne-	cr0, 2f
+
+	/* Clear PP lsb, 0x400 */
+	rlwinm 	r10, r10, 0, 22, 20
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-2:	li	r11, 0x00f0
+	li	r11, 0x00f0
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 	DO_8xx_CPU6(0x2d80, r3)
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
@@ -365,6 +359,22 @@ InstructionTLBMiss:
 	lwz	r3, 8(r0)
 #endif
 	rfi
+2:
+	mfspr	r11, SPRN_SRR1
+	/* clear all error bits as TLB Miss
+	 * sets a few unconditionally
+	*/
+	rlwinm	r11, r11, 0, 0xffff
+	mtspr	SPRN_SRR1, r11
+
+	mfspr	r10, SPRN_M_TW	/* Restore registers */
+	lwz	r11, 0(r0)
+	mtcr	r11
+	lwz	r11, 4(r0)
+#ifdef CONFIG_8xx_CPU6
+	lwz	r3, 8(r0)
+#endif
+	b	InstructionAccess
 
 	. = 0x1200
 DataStoreTLBMiss:
@@ -409,21 +419,27 @@ DataStoreTLBMiss:
 	DO_8xx_CPU6(0x3b80, r3)
 	mtspr	SPRN_MD_TWC, r11
 
-#ifdef CONFIG_SWAP
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-4:
-	/* and update pte in table */
-#else
-	ori	r10, r10, _PAGE_ACCESSED
-#endif
-	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */
-	stw	r10, 0(r11)
+	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
+	 * We also need to know if the insn is a load/store, so:
+	 * Clear _PAGE_PRESENT and load that which will
+	 * trap into DTLB Error with store bit set accordinly.
+	 */
+	/* PRESENT=0x1, ACCESSED=0x20
+	 * r11 = ((r10 & PRESENT) & ((r10 & ACCESSED) >> 5));
+	 * r10 = (r10 & ~PRESENT) | r11;
+	 */
+	rlwinm	r11, r10, 32-5, 31, 31
+	and	r11, r11, r10
+	rlwimi	r10, r11, 0, 31, 31
+
+	/* Honour kernel RO, User NA */
+	andi.	r11, r10, _PAGE_USER | _PAGE_RW
+	bne-	cr0, 5f
+	ori	r10,r10, 0x200 /* Extended encoding, bit 22 */
+5:	xori	r10, r10, _PAGE_RW  /* invert RW bit */
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
@@ -469,11 +485,12 @@ DataTLBError:
 	stw	r10, 0(r0)
 	stw	r11, 4(r0)
 
-	/* First, make sure this was a store operation.
+	mfspr	r11, SPRN_DSISR
+	andis.	r11, r11, 0x4800	/* !translation or protection */
+	bne	2f	/* branch if either is set */
+	/* Only Change bit left now, do it here as it is faster
+	 * than trapping to the C fault handler.
 	*/
-	mfspr	r10, SPRN_DSISR
-	andis.	r11, r10, 0x0200	/* If set, indicates store op */
-	beq	2f
 
 	/* The EA of a data TLB miss is automatically stored in the MD_EPN
 	 * register.  The EA of a data TLB error is automatically stored in
@@ -522,26 +539,12 @@ DataTLBError:
 	mfspr	r11, SPRN_MD_TWC		/* ....and get the pte address */
 	lwz	r10, 0(r11)		/* Get the pte */
 
-	andi.	r11, r10, _PAGE_RW	/* Is it writeable? */
-	beq	2f			/* Bail out if not */
-
-	/* Update 'changed', among others.
-	*/
-#ifdef CONFIG_SWAP
-	ori	r10, r10, _PAGE_DIRTY|_PAGE_HWWRITE
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-4:
-#else
-	ori	r10, r10, _PAGE_DIRTY|_PAGE_ACCESSED|_PAGE_HWWRITE
-#endif
-	mfspr	r11, SPRN_MD_TWC		/* Get pte address again */
+	ori	r10, r10, _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HWWRITE
 	stw	r10, 0(r11)		/* and update pte in table */
+	xori	r10, r10, _PAGE_RW	/* RW bit is inverted */
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
