@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
+#include <linux/ftrace.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/sgi/hpc3.h>
@@ -150,7 +151,7 @@ static void indy_local1_irqdispatch(void)
 
 extern void ip22_be_interrupt(int irq);
 
-static void indy_buserror_irq(void)
+static void __irq_entry indy_buserror_irq(void)
 {
 	int irq = SGI_BUSERR_IRQ;
 
