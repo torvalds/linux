@@ -422,6 +422,10 @@ DataStoreTLBMiss:
 	 * above.
 	 */
 	rlwimi	r11, r10, 0, 27, 27
+	/* Insert the WriteThru flag into the TWC from the Linux PTE.
+	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
+	 */
+	rlwimi	r11, r10, 32-5, 30, 30
 	DO_8xx_CPU6(0x3b80, r3)
 	mtspr	SPRN_MD_TWC, r11
 
@@ -559,6 +563,10 @@ DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR 
 	 * It is bit 27 of both the Linux PTE and the TWC
 	 */
 	rlwimi	r11, r10, 0, 27, 27
+	/* Insert the WriteThru flag into the TWC from the Linux PTE.
+	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
+	 */
+	rlwimi	r11, r10, 32-5, 30, 30
 	DO_8xx_CPU6(0x3b80, r3)
 	mtspr	SPRN_MD_TWC, r11
 	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */

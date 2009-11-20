@@ -35,11 +35,12 @@
 #define _PAGE_SPECIAL	0x0008	/* SW entry, forced to 0 by the TLB miss */
 #define _PAGE_DIRTY	0x0100	/* C: page changed */
 
-/* These 3 software bits must be masked out when the entry is loaded
- * into the TLB, 2 SW bits left.
+/* These 4 software bits must be masked out when the entry is loaded
+ * into the TLB, 1 SW bit left(0x0080).
  */
 #define _PAGE_GUARDED	0x0010	/* software: guarded access */
 #define _PAGE_ACCESSED	0x0020	/* software: page referenced */
+#define _PAGE_WRITETHRU	0x0040	/* software: caching is write through */
 
 /* Setting any bits in the nibble with the follow two controls will
  * require a TLB exception handler change.  It is assumed unused bits
