@@ -1334,13 +1334,37 @@ out_failure:
 static int dso__load_vmlinux(struct dso *self, struct map *map,
 			     const char *vmlinux, symbol_filter_t filter)
 {
-	int err, fd = open(vmlinux, O_RDONLY);
+	int err = -1, fd;
 
-	self->loaded = 1;
+	if (self->has_build_id) {
+		u8 build_id[BUILD_ID_SIZE];
 
+		if (filename__read_build_id(vmlinux, build_id,
+					    sizeof(build_id)) < 0) {
+			pr_debug("No build_id in %s, ignoring it\n", vmlinux);
+			return -1;
+		}
+		if (!dso__build_id_equal(self, build_id)) {
+			char expected_build_id[BUILD_ID_SIZE * 2 + 1],
+			     vmlinux_build_id[BUILD_ID_SIZE * 2 + 1];
+
+			build_id__sprintf(self->build_id,
+					  sizeof(self->build_id),
+					  expected_build_id);
+			build_id__sprintf(build_id, sizeof(build_id),
+					  vmlinux_build_id);
+			pr_debug("build_id in %s is %s while expected is %s, "
+				 "ignoring it\n", vmlinux, vmlinux_build_id,
+				 expected_build_id);
+			return -1;
+		}
+	}
+
+	fd = open(vmlinux, O_RDONLY);
 	if (fd < 0)
 		return -1;
 
+	self->loaded = 1;
 	err = dso__load_sym(self, map, self->long_name, fd, filter, 1, 0);
 
 	close(fd);
