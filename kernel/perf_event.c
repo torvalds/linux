@@ -3267,15 +3267,10 @@ static void perf_event_task_ctx(struct perf_event_context *ctx,
 {
 	struct perf_event *event;
 
-	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
-		return;
-
-	rcu_read_lock();
 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
 		if (perf_event_task_match(event))
 			perf_event_task_output(event, task_event);
 	}
-	rcu_read_unlock();
 }
 
 static void perf_event_task_event(struct perf_task_event *task_event)
@@ -3283,11 +3278,11 @@ static void perf_event_task_event(struct perf_task_event *task_event)
 	struct perf_cpu_context *cpuctx;
 	struct perf_event_context *ctx = task_event->task_ctx;
 
+	rcu_read_lock();
 	cpuctx = &get_cpu_var(perf_cpu_context);
 	perf_event_task_ctx(&cpuctx->ctx, task_event);
 	put_cpu_var(perf_cpu_context);
 
-	rcu_read_lock();
 	if (!ctx)
 		ctx = rcu_dereference(task_event->task->perf_event_ctxp);
 	if (ctx)
