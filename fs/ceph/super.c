@@ -712,10 +712,14 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 		/* wait */
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->mount_wq, /* FIXME */
-			       have_mon_map(client),
+			       have_mon_map(client) || (client->mount_err < 0),
 			       timeout);
 		if (err == -EINTR || err == -ERESTARTSYS)
 			goto out;
+		if (client->mount_err < 0) {
+			err = client->mount_err;
+			goto out;
+		}
 	}
 
 	dout("mount opening root\n");

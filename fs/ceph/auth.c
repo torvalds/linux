@@ -169,6 +169,11 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	}
 
 	if (ac->negotiating) {
+		/* server does not support our protocols? */
+		if (!protocol && result < 0) {
+			ret = result;
+			goto out;
+		}
 		/* set up (new) protocol handler? */
 		if (ac->protocol && ac->protocol != protocol) {
 			ac->ops->destroy(ac);
