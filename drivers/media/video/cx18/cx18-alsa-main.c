@@ -2,6 +2,9 @@
  *  ALSA interface to cx18 PCM capture streams
  *
  *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Devin Heitmueller <dheitmueller@kernellabs.com>
+ *
+ *  Portions of this work were sponsored by ONELAN Limited.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,10 +34,14 @@
 #include <sound/initval.h>
 
 #include "cx18-driver.h"
+#include "cx18-version.h"
+#include "cx18-alsa.h"
 #include "cx18-alsa-mixer.h"
 #include "cx18-alsa-pcm.h"
 
 int cx18_alsa_debug;
+
+#define CX18_DEBUG_ALSA_INFO(fmt, arg...) printk(KERN_INFO "%s: " fmt, "cx18-alsa", ## arg)
 
 module_param_named(debug, cx18_alsa_debug, int, 0644);
 MODULE_PARM_DESC(debug,
@@ -116,6 +123,8 @@ static int __init snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
 	snprintf(sc->longname, sizeof(sc->longname),
 		 "CX23418 #%d %s TV/FM Radio/Line-In Capture",
 		 cx->instance, cx->card_name);
+
+	return 0;
 }
 
 static int __init snd_cx18_init(struct v4l2_device *v4l2_dev)
@@ -151,12 +160,6 @@ static int __init snd_cx18_init(struct v4l2_device *v4l2_dev)
 	/* (4) Set the driver ID and name strings */
 	snd_cx18_card_set_names(cxsc);
 
-	/* (5) Create other components: mixer, PCM, & proc files */
-	ret = snd_cx18_mixer_create(cxsc);
-	if (ret) {
-		CX18_ALSA_WARN("%s: snd_cx18_mixer_create() failed with err %d:"
-			       "proceeding anyway\n", __func__, ret);
-	}
 
 	ret = snd_cx18_pcm_create(cxsc);
 	if (ret) {
@@ -201,6 +204,11 @@ static int __init cx18_alsa_init_callback(struct device *dev, void *data)
 	}
 
 	cx = to_cx18(v4l2_dev);
+	if (cx == NULL) {
+		printk(KERN_ERR "cx18-alsa cx is NULL\n");
+		return 0;
+	}
+
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
 	if (s->video_dev == NULL) {
 		CX18_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
@@ -234,6 +242,10 @@ static int __init cx18_alsa_init(void)
 	printk(KERN_INFO "cx18-alsa: module loading...\n");
 
 	drv = driver_find("cx18", &pci_bus_type);
+	if (drv == NULL) {
+		printk("cx18-alsa: drv was null\n");
+		return -ENODEV;
+	}
 	ret = driver_for_each_device(drv, NULL, &count,
 				     cx18_alsa_init_callback);
 	put_driver(drv);
@@ -254,7 +266,7 @@ static int __init cx18_alsa_init(void)
 
 static void snd_cx18_exit(struct snd_cx18_card *cxsc)
 {
-	struct cx18 *cx = to_cx18(cxsc->4l2_dev);
+	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
 
 	/* FIXME - pointer checks & shutdown cxsc */
 
