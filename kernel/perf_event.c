@@ -3886,15 +3886,10 @@ static void perf_swevent_ctx_event(struct perf_event_context *ctx,
 {
 	struct perf_event *event;
 
-	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
-		return;
-
-	rcu_read_lock();
 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
 		if (perf_swevent_match(event, type, event_id, data, regs))
 			perf_swevent_add(event, nr, nmi, data, regs);
 	}
-	rcu_read_unlock();
 }
 
 static int *perf_swevent_recursion_context(struct perf_cpu_context *cpuctx)
@@ -3926,9 +3921,9 @@ static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
 	(*recursion)++;
 	barrier();
 
+	rcu_read_lock();
 	perf_swevent_ctx_event(&cpuctx->ctx, type, event_id,
 				 nr, nmi, data, regs);
-	rcu_read_lock();
 	/*
 	 * doesn't really matter which of the child contexts the
 	 * events ends up in.
