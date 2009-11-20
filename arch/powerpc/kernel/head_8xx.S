@@ -552,9 +552,16 @@ DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR 
 	 */
 	ori	r11, r11, 1		/* Set valid bit in physical L2 page */
 	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11		/* Load pte table base address */
-	mfspr	r11, SPRN_MD_TWC		/* ....and get the pte address */
-	lwz	r10, 0(r11)		/* Get the pte */
+	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
+	mfspr	r10, SPRN_MD_TWC	/* ....and get the pte address */
+	lwz	r10, 0(r10)		/* Get the pte */
+	/* Insert the Guarded flag into the TWC from the Linux PTE.
+	 * It is bit 27 of both the Linux PTE and the TWC
+	 */
+	rlwimi	r11, r10, 0, 27, 27
+	DO_8xx_CPU6(0x3b80, r3)
+	mtspr	SPRN_MD_TWC, r11
+	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */
 
 	ori	r10, r10, _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HWWRITE
 	stw	r10, 0(r11)		/* and update pte in table */
