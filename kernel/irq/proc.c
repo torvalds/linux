@@ -136,7 +136,7 @@ out:
 
 static int default_affinity_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, default_affinity_show, NULL);
+	return single_open(file, default_affinity_show, PDE(inode)->data);
 }
 
 static const struct file_operations default_affinity_proc_fops = {
