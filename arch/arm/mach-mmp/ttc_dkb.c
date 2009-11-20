@@ -85,7 +85,7 @@ static struct mtd_partition ttc_dkb_onenand_partitions[] = {
 	}
 };
 
-static struct flash_platform_data ttc_dkb_onenand_info = {
+static struct onenand_platform_data ttc_dkb_onenand_info = {
 	.parts		= ttc_dkb_onenand_partitions,
 	.nr_parts	= ARRAY_SIZE(ttc_dkb_onenand_partitions),
 };

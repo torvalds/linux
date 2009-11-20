@@ -545,7 +545,7 @@ static struct mtd_partition saar_onenand_partitions[] = {
 	}
 };
 
-static struct flash_platform_data saar_onenand_info = {
+static struct onenand_platform_data saar_onenand_info = {
 	.parts		= saar_onenand_partitions,
 	.nr_parts	= ARRAY_SIZE(saar_onenand_partitions),
 };
