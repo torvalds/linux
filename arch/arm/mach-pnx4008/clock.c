@@ -806,7 +806,7 @@ static struct clk_lookup onchip_clkreg[] = {
 	{ .clk = &uart4_ck,	.con_id = "uart4_ck"	},
 	{ .clk = &uart5_ck,	.con_id = "uart5_ck"	},
 	{ .clk = &uart6_ck,	.con_id = "uart6_ck"	},
-	{ .clk = &wdt_ck,	.con_id = "wdt_ck"	},
+	{ .clk = &wdt_ck,	.dev_id = "pnx4008-watchdog" },
 };
 
 static void local_clk_disable(struct clk *clk)

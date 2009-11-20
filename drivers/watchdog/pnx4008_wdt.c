@@ -273,7 +273,7 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	}
 	wdt_base = (void __iomem *)IO_ADDRESS(res->start);
 
-	wdt_clk = clk_get(&pdev->dev, "wdt_ck");
+	wdt_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt_clk)) {
 		ret = PTR_ERR(wdt_clk);
 		release_resource(wdt_mem);
