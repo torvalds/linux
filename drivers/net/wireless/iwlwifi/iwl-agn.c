@@ -1266,15 +1266,24 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * 3- update RX shared data to indicate last write index.
 		 * 4- send interrupt.
 		 * This could lead to RX race, driver could receive RX interrupt
-		 * but the shared data changes does not reflect this.
-		 * this could lead to RX race, RX periodic will solve this race
+		 * but the shared data changes does not reflect this;
+		 * periodic interrupt will detect any dangling Rx activity.
 		 */
-		iwl_write32(priv, CSR_INT_PERIODIC_REG,
+
+		/* Disable periodic interrupt; we use it as just a one-shot. */
+		iwl_write8(priv, CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
 		iwl_rx_handle(priv);
-		/* Only set RX periodic if real RX is received. */
+
+		/*
+		 * Enable periodic interrupt in 8 msec only if we received
+		 * real RX interrupt (instead of just periodic int), to catch
+		 * any dangling Rx interrupt.  If it was just the periodic
+		 * interrupt, there was no dangling Rx activity, and no need
+		 * to extend the periodic interrupt; one-shot is enough.
+		 */
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
-			iwl_write32(priv, CSR_INT_PERIODIC_REG,
+			iwl_write8(priv, CSR_INT_PERIODIC_REG,
 				    CSR_INT_PERIODIC_ENA);
 
 		priv->isr_stats.rx++;

@@ -477,7 +477,8 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
 			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
-	iwl_write32(priv, CSR_INT_COALESCING, 0x40);
+	/* Set interrupt coalescing timer to 64 x 32 = 2048 usecs */
+	iwl_write8(priv, CSR_INT_COALESCING, 0x40);
 
 	return 0;
 }

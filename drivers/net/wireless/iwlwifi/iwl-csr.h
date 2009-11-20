@@ -173,8 +173,8 @@
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
 #define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
 
-#define CSR_INT_PERIODIC_DIS			(0x00)
-#define CSR_INT_PERIODIC_ENA			(0xFF)
+#define CSR_INT_PERIODIC_DIS			(0x00) /* disable periodic int*/
+#define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */

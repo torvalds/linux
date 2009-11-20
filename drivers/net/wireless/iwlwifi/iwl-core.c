@@ -255,7 +255,10 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->cfg->ops->lib->apm_ops.init(priv);
-	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
+
+	/* Set interrupt coalescing timer to 512 usecs */
+	iwl_write8(priv, CSR_INT_COALESCING, 512 / 32);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
