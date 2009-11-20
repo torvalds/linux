@@ -630,8 +630,6 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	u32 extcnf_ctrl, timeout = PHY_CFG_TIMEOUT;
 	s32 ret_val = 0;
 
-	might_sleep();
-
 	mutex_lock(&swflag_mutex);
 
 	while (timeout) {
