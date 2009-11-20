@@ -22,9 +22,10 @@
 
 #define K 1024
 
-static const char *length_str = "1MB";
-static const char *routine    = "default";
-static int use_clock = 0;
+static const char	*length_str	= "1MB";
+static const char	*routine	= "default";
+static int		use_clock	= 0;
+static int		clock_fd;
 
 static const struct option options[] = {
 	OPT_STRING('l', "length", &length_str, "1MB",
@@ -57,17 +58,19 @@ static const char * const bench_mem_memcpy_usage[] = {
 	NULL
 };
 
-static int clock_fd;
-
 static struct perf_event_attr clock_attr = {
-	.type = PERF_TYPE_HARDWARE,
-	.config = PERF_COUNT_HW_CPU_CYCLES
+	.type		= PERF_TYPE_HARDWARE,
+	.config		= PERF_COUNT_HW_CPU_CYCLES
 };
 
 static void init_clock(void)
 {
 	clock_fd = sys_perf_event_open(&clock_attr, getpid(), -1, -1, 0);
-	BUG_ON(clock_fd < 0);
+
+	if (clock_fd < 0 && errno == ENOSYS)
+		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
+	else
+		BUG_ON(clock_fd < 0);
 }
 
 static u64 get_clock(void)
@@ -104,7 +107,8 @@ int bench_mem_memcpy(int argc, const char **argv,
 	tv_diff.tv_sec = 0;
 	tv_diff.tv_usec = 0;
 	length = (size_t)perf_atoll((char *)length_str);
-	if ((long long int)length <= 0) {
+
+	if ((s64)length <= 0) {
 		fprintf(stderr, "Invalid length:%s\n", length_str);
 		return 1;
 	}
@@ -124,9 +128,12 @@ int bench_mem_memcpy(int argc, const char **argv,
 	}
 
 	dst = calloc(length, sizeof(char));
-	assert(dst);
+	if (!dst)
+		die("memory allocation failed - maybe length is too large?\n");
+
 	src = calloc(length, sizeof(char));
-	assert(src);
+	if (!src)
+		die("memory allocation failed - maybe length is too large?\n");
 
 	if (bench_format == BENCH_FORMAT_DEFAULT) {
 		printf("# Copying %s Bytes from %p to %p ...\n\n",
@@ -136,8 +143,9 @@ int bench_mem_memcpy(int argc, const char **argv,
 	if (use_clock) {
 		init_clock();
 		clock_start = get_clock();
-	} else
+	} else {
 		BUG_ON(gettimeofday(&tv_start, NULL));
+	}
 
 	routines[i].fn(dst, src, length);
 
@@ -176,9 +184,8 @@ int bench_mem_memcpy(int argc, const char **argv,
 			printf("%lf\n", bps);
 		break;
 	default:
-		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
-		exit(1);
+		/* reaching this means there's some disaster: */
+		die("unknown format: %d\n", bench_format);
 		break;
 	}
 
