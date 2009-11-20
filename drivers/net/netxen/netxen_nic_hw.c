@@ -463,7 +463,7 @@ netxen_nic_enable_mcast_filter(struct netxen_adapter *adapter)
 {
 	u32	val = 0;
 	u16 port = adapter->physical_port;
-	u8 *addr = adapter->netdev->dev_addr;
+	u8 *addr = adapter->mac_addr;
 
 	if (adapter->mc_enabled)
 		return 0;
@@ -492,7 +492,7 @@ netxen_nic_disable_mcast_filter(struct netxen_adapter *adapter)
 {
 	u32	val = 0;
 	u16 port = adapter->physical_port;
-	u8 *addr = adapter->netdev->dev_addr;
+	u8 *addr = adapter->mac_addr;
 
 	if (!adapter->mc_enabled)
 		return 0;
@@ -687,7 +687,7 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 
 	list_splice_tail_init(&adapter->mac_list, &del_list);
 
-	nx_p3_nic_add_mac(adapter, netdev->dev_addr, &del_list);
+	nx_p3_nic_add_mac(adapter, adapter->mac_addr, &del_list);
 	nx_p3_nic_add_mac(adapter, bcast_addr, &del_list);
 
 	if (netdev->flags & IFF_PROMISC) {
