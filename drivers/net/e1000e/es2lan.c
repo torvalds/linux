@@ -116,8 +116,6 @@ static s32  e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 /**
  *  e1000_init_phy_params_80003es2lan - Init ESB2 PHY func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 {
@@ -147,8 +145,6 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 /**
  *  e1000_init_nvm_params_80003es2lan - Init ESB2 NVM func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 {
@@ -195,8 +191,6 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 /**
  *  e1000_init_mac_params_80003es2lan - Init ESB2 MAC func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 {
@@ -267,8 +261,7 @@ static s32 e1000_get_variants_80003es2lan(struct e1000_adapter *adapter)
  *  e1000_acquire_phy_80003es2lan - Acquire rights to access PHY
  *  @hw: pointer to the HW structure
  *
- *  A wrapper to acquire access rights to the correct PHY.  This is a
- *  function pointer entry point called by the api module.
+ *  A wrapper to acquire access rights to the correct PHY.
  **/
 static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 {
@@ -282,8 +275,7 @@ static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
  *  e1000_release_phy_80003es2lan - Release rights to access PHY
  *  @hw: pointer to the HW structure
  *
- *  A wrapper to release access rights to the correct PHY.  This is a
- *  function pointer entry point called by the api module.
+ *  A wrapper to release access rights to the correct PHY.
  **/
 static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 {
@@ -328,8 +320,7 @@ static void e1000_release_mac_csr_80003es2lan(struct e1000_hw *hw)
  *  e1000_acquire_nvm_80003es2lan - Acquire rights to access NVM
  *  @hw: pointer to the HW structure
  *
- *  Acquire the semaphore to access the EEPROM.  This is a function
- *  pointer entry point called by the api module.
+ *  Acquire the semaphore to access the EEPROM.
  **/
 static s32 e1000_acquire_nvm_80003es2lan(struct e1000_hw *hw)
 {
@@ -351,8 +342,7 @@ static s32 e1000_acquire_nvm_80003es2lan(struct e1000_hw *hw)
  *  e1000_release_nvm_80003es2lan - Relinquish rights to access NVM
  *  @hw: pointer to the HW structure
  *
- *  Release the semaphore used to access the EEPROM.  This is a
- *  function pointer entry point called by the api module.
+ *  Release the semaphore used to access the EEPROM.
  **/
 static void e1000_release_nvm_80003es2lan(struct e1000_hw *hw)
 {
@@ -434,8 +424,7 @@ static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
  *  @offset: offset of the register to read
  *  @data: pointer to the data returned from the operation
  *
- *  Read the GG82563 PHY register.  This is a function pointer entry
- *  point called by the api module.
+ *  Read the GG82563 PHY register.
  **/
 static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 						  u32 offset, u16 *data)
@@ -499,8 +488,7 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
  *  @offset: offset of the register to read
  *  @data: value to write to the register
  *
- *  Write to the GG82563 PHY register.  This is a function pointer entry
- *  point called by the api module.
+ *  Write to the GG82563 PHY register.
  **/
 static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 						   u32 offset, u16 data)
@@ -565,8 +553,7 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
  *  @words: number of words to write
  *  @data: buffer of data to write to the NVM
  *
- *  Write "words" of data to the ESB2 NVM.  This is a function
- *  pointer entry point called by the api module.
+ *  Write "words" of data to the ESB2 NVM.
  **/
 static s32 e1000_write_nvm_80003es2lan(struct e1000_hw *hw, u16 offset,
 				       u16 words, u16 *data)
@@ -730,7 +717,6 @@ static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
  *  @duplex: pointer to duplex buffer
  *
  *  Retrieve the current speed and duplex configuration.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
 					      u16 *duplex)
@@ -756,7 +742,6 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
  *  @hw: pointer to the HW structure
  *
  *  Perform a global reset to the ESB2 controller.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
@@ -805,7 +790,6 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  Initialize the hw bits, LED, VFTA, MTA, link and hw counters.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 {

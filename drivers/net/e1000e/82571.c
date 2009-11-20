@@ -72,8 +72,6 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 {
@@ -136,8 +134,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 /**
  *  e1000_init_nvm_params_82571 - Init NVM func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 {
@@ -201,8 +197,6 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 /**
  *  e1000_init_mac_params_82571 - Init MAC func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 {
@@ -830,8 +824,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  *  e1000_reset_hw_82571 - Reset hardware
  *  @hw: pointer to the HW structure
  *
- *  This resets the hardware into a known state.  This is a
- *  function pointer entry point called by the api module.
+ *  This resets the hardware into a known state.
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
