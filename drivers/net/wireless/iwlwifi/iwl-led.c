@@ -219,7 +219,6 @@ EXPORT_SYMBOL(iwl_leds_background);
 void iwl_leds_init(struct iwl_priv *priv)
 {
 	priv->last_blink_rate = 0;
-	priv->led_tpt = 0;
 	priv->last_blink_time = 0;
 	priv->allow_blinking = 0;
 }
