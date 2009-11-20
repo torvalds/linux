@@ -1120,6 +1120,8 @@ static void perf_event_sync_stat(struct perf_event_context *ctx,
 	if (!ctx->nr_stat)
 		return;
 
+	update_context_time(ctx);
+
 	event = list_first_entry(&ctx->event_list,
 				   struct perf_event, event_entry);
 
@@ -1162,8 +1164,6 @@ void perf_event_task_sched_out(struct task_struct *task,
 
 	if (likely(!ctx || !cpuctx->task_ctx))
 		return;
-
-	update_context_time(ctx);
 
 	rcu_read_lock();
 	parent = rcu_dereference(ctx->parent_ctx);
