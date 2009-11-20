@@ -545,7 +545,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	int ret = 0;
 
-	if (WARN_ON(!local->ops->ampdu_action))
+	if (!local->ops->ampdu_action)
 		return -EINVAL;
 
 	if (tid >= STA_TID_NUM)
