@@ -34,7 +34,6 @@ struct i2c_pnx_algo_data {
 };
 
 struct i2c_pnx_data {
-	u32 (*calculate_input_freq) (struct platform_device *pdev);
 	struct i2c_adapter *adapter;
 };
 

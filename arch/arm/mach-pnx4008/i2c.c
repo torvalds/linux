@@ -18,12 +18,6 @@
 #include <mach/irqs.h>
 #include <mach/i2c.h>
 
-static u32 calculate_input_freq(struct platform_device *pdev)
-{
-	return HCLK_MHZ;
-}
-
-
 static struct i2c_pnx_algo_data pnx_algo_data0 = {
 	.base = PNX4008_I2C1_BASE,
 	.irq = I2C_1_INT,
@@ -54,17 +48,14 @@ static struct i2c_adapter pnx_adapter2 = {
 };
 
 static struct i2c_pnx_data i2c0_data = {
-	.calculate_input_freq = calculate_input_freq,
 	.adapter = &pnx_adapter0,
 };
 
 static struct i2c_pnx_data i2c1_data = {
-	.calculate_input_freq = calculate_input_freq,
 	.adapter = &pnx_adapter1,
 };
 
 static struct i2c_pnx_data i2c2_data = {
-	.calculate_input_freq = calculate_input_freq,
 	.adapter = &pnx_adapter2,
 };
 

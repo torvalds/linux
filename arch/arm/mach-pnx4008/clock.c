@@ -638,9 +638,10 @@ static struct clk flash_ck = {
 static struct clk i2c0_ck = {
 	.name = "i2c0_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 0,
 	.enable_reg = I2CCLKCTRL_REG,
+	.rate = 13000000,
 	.enable = clk_reg_enable,
 	.disable = clk_reg_disable,
 };
@@ -648,9 +649,10 @@ static struct clk i2c0_ck = {
 static struct clk i2c1_ck = {
 	.name = "i2c1_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 1,
 	.enable_reg = I2CCLKCTRL_REG,
+	.rate = 13000000,
 	.enable = clk_reg_enable,
 	.disable = clk_reg_disable,
 };
@@ -658,9 +660,10 @@ static struct clk i2c1_ck = {
 static struct clk i2c2_ck = {
 	.name = "i2c2_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 2,
 	.enable_reg = USB_OTG_CLKCTRL_REG,
+	.rate = 13000000,
 	.enable = clk_reg_enable,
 	.disable = clk_reg_disable,
 };

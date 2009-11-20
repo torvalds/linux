@@ -31,7 +31,6 @@
 #define I2C_PNX_TIMEOUT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ	100
 #define I2C_PNX_REGION_SIZE	0x100
-#define PNX_DEFAULT_FREQ	13 /* MHz */
 
 static inline int wait_timeout(long timeout, struct i2c_pnx_algo_data *data)
 {
@@ -578,7 +577,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	unsigned long tmp;
 	int ret = 0;
 	struct i2c_pnx_algo_data *alg_data;
-	int freq_mhz;
+	unsigned long freq;
 	struct i2c_pnx_data *i2c_pnx = pdev->dev.platform_data;
 
 	if (!i2c_pnx || !i2c_pnx->adapter) {
@@ -597,14 +596,6 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	if (IS_ERR(alg_data->clk)) {
 		ret = PTR_ERR(alg_data->clk);
 		goto out_drvdata;
-	}
-
-	if (i2c_pnx->calculate_input_freq)
-		freq_mhz = i2c_pnx->calculate_input_freq(pdev);
-	else {
-		freq_mhz = PNX_DEFAULT_FREQ;
-		dev_info(&pdev->dev, "Setting bus frequency to default value: "
-		       "%d MHz\n", freq_mhz);
 	}
 
 	init_timer(&alg_data->mif.timer);
@@ -632,6 +623,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_unmap;
 
+	freq = clk_get_rate(alg_data->clk);
+
 	/*
 	 * Clock Divisor High This value is the number of system clocks
 	 * the serial clock (SCL) will be high.
@@ -643,7 +636,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	 * the deglitching filter length.
 	 */
 
-	tmp = ((freq_mhz * 1000) / I2C_PNX_SPEED_KHZ) / 2 - 2;
+	tmp = ((freq / 1000) / I2C_PNX_SPEED_KHZ) / 2 - 2;
 	iowrite32(tmp, I2C_REG_CKH(alg_data));
 	iowrite32(tmp, I2C_REG_CKL(alg_data));
 
