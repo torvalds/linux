@@ -394,8 +394,7 @@ static s32 e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw,
-		       "Driver can't access resource, SW_FW_SYNC timeout.\n");
+		e_dbg("Driver can't access resource, SW_FW_SYNC timeout.\n");
 		return -E1000_ERR_SWFW_SYNC;
 	}
 
@@ -597,7 +596,7 @@ static s32 e1000_get_cfg_done_80003es2lan(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout) {
-		hw_dbg(hw, "MNG configuration cycle has not completed.\n");
+		e_dbg("MNG configuration cycle has not completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -630,7 +629,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	hw_dbg(hw, "GG82563 PSCR: %X\n", phy_data);
+	e_dbg("GG82563 PSCR: %X\n", phy_data);
 
 	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
@@ -648,7 +647,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 	udelay(1);
 
 	if (hw->phy.autoneg_wait_to_complete) {
-		hw_dbg(hw, "Waiting for forced speed/duplex link "
+		e_dbg("Waiting for forced speed/duplex link "
 			 "on GG82563 phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
@@ -771,9 +770,9 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
 	if (ret_val)
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
+		e_dbg("PCI-E Master disable polling has failed.\n");
 
-	hw_dbg(hw, "Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	ew32(RCTL, 0);
@@ -785,7 +784,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 
 	ret_val = e1000_acquire_phy_80003es2lan(hw);
-	hw_dbg(hw, "Issuing a global reset to MAC\n");
+	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 	e1000_release_phy_80003es2lan(hw);
 
@@ -820,19 +819,19 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	/* Initialize identification LED */
 	ret_val = e1000e_id_led_init(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error initializing identification LED\n");
+		e_dbg("Error initializing identification LED\n");
 		return ret_val;
 	}
 
 	/* Disabling VLAN filtering */
-	hw_dbg(hw, "Initializing the IEEE VLAN\n");
+	e_dbg("Initializing the IEEE VLAN\n");
 	e1000e_clear_vfta(hw);
 
 	/* Setup the receive address. */
 	e1000e_init_rx_addrs(hw, mac->rar_entry_count);
 
 	/* Zero out the Multicast HASH table */
-	hw_dbg(hw, "Zeroing the MTA\n");
+	e_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
@@ -989,7 +988,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	/* SW Reset the PHY so all changes take effect */
 	ret_val = e1000e_commit_phy(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error Resetting the PHY\n");
+		e_dbg("Error Resetting the PHY\n");
 		return ret_val;
 	}
 

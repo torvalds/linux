@@ -368,7 +368,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 
 	/* Can't read flash registers if the register set isn't mapped. */
 	if (!hw->flash_address) {
-		hw_dbg(hw, "ERROR: Flash registers not mapped\n");
+		e_dbg("ERROR: Flash registers not mapped\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -550,7 +550,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_config_fc_after_link_up(hw);
 	if (ret_val)
-		hw_dbg(hw, "Error configuring flow control\n");
+		e_dbg("Error configuring flow control\n");
 
 out:
 	return ret_val;
@@ -644,7 +644,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		hw_dbg(hw, "SW/FW/HW has locked the resource for too long.\n");
+		e_dbg("SW/FW/HW has locked the resource for too long.\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -664,7 +664,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		hw_dbg(hw, "Failed to acquire the semaphore.\n");
+		e_dbg("Failed to acquire the semaphore.\n");
 		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
 		ret_val = -E1000_ERR_CONFIG;
@@ -773,12 +773,12 @@ static s32 e1000_phy_force_speed_duplex_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	hw_dbg(hw, "IFE PMC: %X\n", data);
+	e_dbg("IFE PMC: %X\n", data);
 
 	udelay(1);
 
 	if (phy->autoneg_wait_to_complete) {
-		hw_dbg(hw, "Waiting for forced speed/duplex link on IFE phy.\n");
+		e_dbg("Waiting for forced speed/duplex link on IFE phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw,
 						     PHY_FORCE_LIMIT,
@@ -788,7 +788,7 @@ static s32 e1000_phy_force_speed_duplex_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!link)
-			hw_dbg(hw, "Link taking longer than expected.\n");
+			e_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
 		ret_val = e1000e_phy_has_link_generic(hw,
@@ -1203,7 +1203,7 @@ static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw)
 	 * leave the PHY in a bad state possibly resulting in no link.
 	 */
 	if (loop == 0)
-		hw_dbg(hw, "LAN_INIT_DONE not set, increase timeout\n");
+		e_dbg("LAN_INIT_DONE not set, increase timeout\n");
 
 	/* Clear the Init Done bit for the next init event */
 	data = er32(STATUS);
@@ -1274,7 +1274,7 @@ static s32 e1000_get_phy_info_ife_ich8lan(struct e1000_hw *hw)
 		return ret_val;
 
 	if (!link) {
-		hw_dbg(hw, "Phy info is only valid if link is up\n");
+		e_dbg("Phy info is only valid if link is up\n");
 		return -E1000_ERR_CONFIG;
 	}
 
@@ -1604,7 +1604,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 
 			return 0;
 		}
-		hw_dbg(hw, "Unable to determine valid NVM bank via EEC - "
+		e_dbg("Unable to determine valid NVM bank via EEC - "
 		       "reading flash signature\n");
 		/* fall-thru */
 	default:
@@ -1634,7 +1634,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 			return 0;
 		}
 
-		hw_dbg(hw, "ERROR: No valid NVM bank present\n");
+		e_dbg("ERROR: No valid NVM bank present\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -1662,7 +1662,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	if ((offset >= nvm->word_size) || (words > nvm->word_size - offset) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		e_dbg("nvm parameter(s) out of bounds\n");
 		ret_val = -E1000_ERR_NVM;
 		goto out;
 	}
@@ -1671,7 +1671,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		hw_dbg(hw, "Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could not detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -1697,7 +1697,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 out:
 	if (ret_val)
-		hw_dbg(hw, "NVM read error: %d\n", ret_val);
+		e_dbg("NVM read error: %d\n", ret_val);
 
 	return ret_val;
 }
@@ -1719,7 +1719,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 
 	/* Check if the flash descriptor is valid */
 	if (hsfsts.hsf_status.fldesvalid == 0) {
-		hw_dbg(hw, "Flash descriptor invalid.  "
+		e_dbg("Flash descriptor invalid.  "
 			 "SW Sequencing must be used.");
 		return -E1000_ERR_NVM;
 	}
@@ -1769,7 +1769,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 			hsfsts.hsf_status.flcdone = 1;
 			ew16flash(ICH_FLASH_HSFSTS, hsfsts.regval);
 		} else {
-			hw_dbg(hw, "Flash controller busy, cannot get access");
+			e_dbg("Flash controller busy, cannot get access");
 		}
 	}
 
@@ -1919,7 +1919,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 				/* Repeat for some time before giving up. */
 				continue;
 			} else if (hsfsts.hsf_status.flcdone == 0) {
-				hw_dbg(hw, "Timeout error - flash cycle "
+				e_dbg("Timeout error - flash cycle "
 					 "did not complete.");
 				break;
 			}
@@ -1947,7 +1947,7 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	if ((offset >= nvm->word_size) || (words > nvm->word_size - offset) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		e_dbg("nvm parameter(s) out of bounds\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -1998,7 +1998,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 */
 	ret_val =  e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		hw_dbg(hw, "Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could not detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -2072,7 +2072,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 */
 	if (ret_val) {
 		/* Possibly read-only, see e1000e_write_protect_nvm_ich8lan() */
-		hw_dbg(hw, "Flash commit failed.\n");
+		e_dbg("Flash commit failed.\n");
 		nvm->ops.release_nvm(hw);
 		goto out;
 	}
@@ -2128,7 +2128,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 
 out:
 	if (ret_val)
-		hw_dbg(hw, "NVM update error: %d\n", ret_val);
+		e_dbg("NVM update error: %d\n", ret_val);
 
 	return ret_val;
 }
@@ -2278,7 +2278,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 			/* Repeat for some time before giving up. */
 			continue;
 		if (hsfsts.hsf_status.flcdone == 0) {
-			hw_dbg(hw, "Timeout error - flash cycle "
+			e_dbg("Timeout error - flash cycle "
 				 "did not complete.");
 			break;
 		}
@@ -2323,7 +2323,7 @@ static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw,
 		return ret_val;
 
 	for (program_retries = 0; program_retries < 100; program_retries++) {
-		hw_dbg(hw, "Retrying Byte %2.2X at offset %u\n", byte, offset);
+		e_dbg("Retrying Byte %2.2X at offset %u\n", byte, offset);
 		udelay(100);
 		ret_val = e1000_write_flash_byte_ich8lan(hw, offset, byte);
 		if (!ret_val)
@@ -2458,7 +2458,7 @@ static s32 e1000_valid_led_default_ich8lan(struct e1000_hw *hw, u16 *data)
 
 	ret_val = e1000_read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		e_dbg("NVM Read Error\n");
 		return ret_val;
 	}
 
@@ -2588,10 +2588,10 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
 	if (ret_val) {
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
+		e_dbg("PCI-E Master disable polling has failed.\n");
 	}
 
-	hw_dbg(hw, "Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	/*
@@ -2643,7 +2643,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	}
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 	/* Whether or not the swflag was acquired, we need to reset the part */
-	hw_dbg(hw, "Issuing a global reset to ich8lan\n");
+	e_dbg("Issuing a global reset to ich8lan\n");
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
 	msleep(20);
 
@@ -2663,7 +2663,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			 * return with an error. This can happen in situations
 			 * where there is no eeprom and prevents getting link.
 			 */
-			hw_dbg(hw, "Auto Read Done did not complete\n");
+			e_dbg("Auto Read Done did not complete\n");
 		}
 	}
 	/* Dummy read to clear the phy wakeup bit after lcd reset */
@@ -2725,7 +2725,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error initializing identification LED\n");
+		e_dbg("Error initializing identification LED\n");
 		return ret_val;
 	}
 
@@ -2733,7 +2733,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	e1000e_init_rx_addrs(hw, mac->rar_entry_count);
 
 	/* Zero out the Multicast HASH table */
-	hw_dbg(hw, "Zeroing the MTA\n");
+	e_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
@@ -2879,7 +2879,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
 
-	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n",
+	e_dbg("After fix-ups FlowControl is now = %x\n",
 		hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
@@ -3094,7 +3094,7 @@ void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 
 	if (hw->mac.type != e1000_ich8lan) {
-		hw_dbg(hw, "Workaround applies to ICH8 only.\n");
+		e_dbg("Workaround applies to ICH8 only.\n");
 		return;
 	}
 
@@ -3372,8 +3372,7 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 		if (status & E1000_STATUS_PHYRA)
 			ew32(STATUS, status & ~E1000_STATUS_PHYRA);
 		else
-			hw_dbg(hw,
-			       "PHY Reset Asserted not set - needs delay\n");
+			e_dbg("PHY Reset Asserted not set - needs delay\n");
 	}
 
 	e1000e_get_cfg_done(hw);
@@ -3388,7 +3387,7 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	} else {
 		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
 			/* Maybe we should do a basic PHY config */
-			hw_dbg(hw, "EEPROM not present\n");
+			e_dbg("EEPROM not present\n");
 			return -E1000_ERR_CONFIG;
 		}
 	}

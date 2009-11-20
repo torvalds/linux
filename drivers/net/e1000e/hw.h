@@ -925,15 +925,4 @@ struct e1000_hw {
 	} dev_spec;
 };
 
-#ifdef DEBUG
-#define hw_dbg(hw, format, arg...) \
-	printk(KERN_DEBUG "%s: " format, e1000e_get_hw_dev_name(hw), ##arg)
-#else
-static inline int __attribute__ ((format (printf, 2, 3)))
-hw_dbg(struct e1000_hw *hw, const char *format, ...)
-{
-	return 0;
-}
-#endif
-
 #endif

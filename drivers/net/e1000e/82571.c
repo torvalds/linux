@@ -309,7 +309,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 			 * indicates that the bootagent or EFI code has
 			 * improperly left this bit enabled
 			 */
-			hw_dbg(hw, "Please update your 82571 Bootagent\n");
+			e_dbg("Please update your 82571 Bootagent\n");
 		}
 		ew32(SWSM, swsm & ~E1000_SWSM_SMBI);
 	}
@@ -483,7 +483,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 	}
 
 	if (i == sw_timeout) {
-		hw_dbg(hw, "Driver can't access device - SMBI bit is set.\n");
+		e_dbg("Driver can't access device - SMBI bit is set.\n");
 		hw->dev_spec.e82571.smb_counter++;
 	}
 	/* Get the FW semaphore. */
@@ -501,7 +501,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 	if (i == fw_timeout) {
 		/* Release semaphores */
 		e1000_put_hw_semaphore_82571(hw);
-		hw_dbg(hw, "Driver can't access the NVM\n");
+		e_dbg("Driver can't access the NVM\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -708,7 +708,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		e_dbg("nvm parameter(s) out of bounds\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -749,7 +749,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout) {
-		hw_dbg(hw, "MNG configuration cycle has not completed.\n");
+		e_dbg("MNG configuration cycle has not completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -848,9 +848,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
 	if (ret_val)
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
+		e_dbg("PCI-E Master disable polling has failed.\n");
 
-	hw_dbg(hw, "Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	ew32(RCTL, 0);
@@ -889,7 +889,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
-	hw_dbg(hw, "Issuing a global reset to MAC\n");
+	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
@@ -955,12 +955,12 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* Initialize identification LED */
 	ret_val = e1000e_id_led_init(hw);
 	if (ret_val) {
-		hw_dbg(hw, "Error initializing identification LED\n");
+		e_dbg("Error initializing identification LED\n");
 		return ret_val;
 	}
 
 	/* Disabling VLAN filtering */
-	hw_dbg(hw, "Initializing the IEEE VLAN\n");
+	e_dbg("Initializing the IEEE VLAN\n");
 	e1000e_clear_vfta(hw);
 
 	/* Setup the receive address. */
@@ -974,7 +974,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000e_init_rx_addrs(hw, rar_count);
 
 	/* Zero out the Multicast HASH table */
-	hw_dbg(hw, "Zeroing the MTA\n");
+	e_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
@@ -1383,7 +1383,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				 */
 				mac->serdes_link_state =
 				    e1000_serdes_link_autoneg_progress;
-				hw_dbg(hw, "AN_UP     -> AN_PROG\n");
+				e_dbg("AN_UP     -> AN_PROG\n");
 			}
 		break;
 
@@ -1401,7 +1401,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				    (ctrl & ~E1000_CTRL_SLU));
 				mac->serdes_link_state =
 				    e1000_serdes_link_autoneg_progress;
-				hw_dbg(hw, "FORCED_UP -> AN_PROG\n");
+				e_dbg("FORCED_UP -> AN_PROG\n");
 			}
 			break;
 
@@ -1415,7 +1415,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			if (status & E1000_STATUS_LU)  {
 				mac->serdes_link_state =
 				    e1000_serdes_link_autoneg_complete;
-				hw_dbg(hw, "AN_PROG   -> AN_UP\n");
+				e_dbg("AN_PROG   -> AN_UP\n");
 			} else {
 				/*
 				 * Disable autoneg, force link up and
@@ -1430,12 +1430,12 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				ret_val =
 				    e1000e_config_fc_after_link_up(hw);
 				if (ret_val) {
-					hw_dbg(hw, "Error config flow control\n");
+					e_dbg("Error config flow control\n");
 					break;
 				}
 				mac->serdes_link_state =
 				    e1000_serdes_link_forced_up;
-				hw_dbg(hw, "AN_PROG   -> FORCED_UP\n");
+				e_dbg("AN_PROG   -> FORCED_UP\n");
 			}
 			mac->serdes_has_link = true;
 			break;
@@ -1450,14 +1450,14 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			    (ctrl & ~E1000_CTRL_SLU));
 			mac->serdes_link_state =
 			    e1000_serdes_link_autoneg_progress;
-			hw_dbg(hw, "DOWN      -> AN_PROG\n");
+			e_dbg("DOWN      -> AN_PROG\n");
 			break;
 		}
 	} else {
 		if (!(rxcw & E1000_RXCW_SYNCH)) {
 			mac->serdes_has_link = false;
 			mac->serdes_link_state = e1000_serdes_link_down;
-			hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
 			 * We have sync, and can tolerate one
@@ -1469,7 +1469,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			if (rxcw & E1000_RXCW_IV) {
 				mac->serdes_link_state = e1000_serdes_link_down;
 				mac->serdes_has_link = false;
-				hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+				e_dbg("ANYSTATE  -> DOWN\n");
 			}
 		}
 	}
@@ -1491,7 +1491,7 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 
 	ret_val = e1000_read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		e_dbg("NVM Read Error\n");
 		return ret_val;
 	}
 

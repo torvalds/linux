@@ -48,9 +48,9 @@ struct e1000_info;
 
 #ifdef DEBUG
 #define e_dbg(format, arg...) \
-	e_printk(KERN_DEBUG , adapter, format, ## arg)
+	e_printk(KERN_DEBUG , hw->adapter, format, ## arg)
 #else
-#define e_dbg(format, arg...) do { (void)(adapter); } while (0)
+#define e_dbg(format, arg...) do { (void)(hw); } while (0)
 #endif
 
 #define e_err(format, arg...) \

@@ -65,17 +65,6 @@ static const struct e1000_info *e1000_info_tbl[] = {
 	[board_pchlan]		= &e1000_pch_info,
 };
 
-#ifdef DEBUG
-/**
- * e1000_get_hw_dev_name - return device name string
- * used by hardware layer to print debugging information
- **/
-char *e1000e_get_hw_dev_name(struct e1000_hw *hw)
-{
-	return hw->adapter->netdev->name;
-}
-#endif
-
 /**
  * e1000_desc_unused - calculate if we have unused descriptors
  **/
@@ -415,6 +404,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_ring *rx_ring = adapter->rx_ring;
 	struct e1000_rx_desc *rx_desc, *next_rxd;
 	struct e1000_buffer *buffer_info, *next_buffer;
@@ -464,8 +454,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		 * packet, also make sure the frame isn't just CRC only */
 		if (!(status & E1000_RXD_STAT_EOP) || (length <= 4)) {
 			/* All receives must fit into a single buffer */
-			e_dbg("%s: Receive packet consumed multiple buffers\n",
-			      netdev->name);
+			e_dbg("Receive packet consumed multiple buffers\n");
 			/* recycle */
 			buffer_info->skb = skb;
 			goto next_desc;
@@ -682,6 +671,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 				  int *work_done, int work_to_do)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	union e1000_rx_desc_packet_split *rx_desc, *next_rxd;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
@@ -725,8 +715,8 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		buffer_info->dma = 0;
 
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
-			e_dbg("%s: Packet Split buffers didn't pick up the "
-			      "full packet\n", netdev->name);
+			e_dbg("Packet Split buffers didn't pick up the full "
+			      "packet\n");
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
@@ -739,8 +729,8 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		length = le16_to_cpu(rx_desc->wb.middle.length0);
 
 		if (!length) {
-			e_dbg("%s: Last part of the packet spanning multiple "
-			      "descriptors\n", netdev->name);
+			e_dbg("Last part of the packet spanning multiple "
+			      "descriptors\n");
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
@@ -2931,7 +2921,7 @@ static irqreturn_t e1000_intr_msi_test(int irq, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 icr = er32(ICR);
 
-	e_dbg("%s: icr is %08X\n", netdev->name, icr);
+	e_dbg("icr is %08X\n", icr);
 	if (icr & E1000_ICR_RXSEQ) {
 		adapter->flags &= ~FLAG_MSI_TEST_FAILED;
 		wmb();
@@ -3001,7 +2991,7 @@ static int e1000_test_msi_interrupt(struct e1000_adapter *adapter)
 		goto msi_test_failed;
 
 	/* okay so the test worked, restore settings */
-	e_dbg("%s: MSI interrupt test succeeded!\n", netdev->name);
+	e_dbg("MSI interrupt test succeeded!\n");
 msi_test_failed:
 	e1000e_set_interrupt_capability(adapter);
 	e1000_request_irq(adapter);
