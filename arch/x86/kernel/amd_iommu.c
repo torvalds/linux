@@ -528,20 +528,6 @@ static void flush_all_domains_on_iommu(struct amd_iommu *iommu)
 
 }
 
-/*
- * This function is used to flush the IO/TLB for a given protection domain
- * on every IOMMU in the system
- */
-static void iommu_flush_domain(u16 domid)
-{
-	struct amd_iommu *iommu;
-
-	INC_STATS_COUNTER(domain_flush_all);
-
-	for_each_iommu(iommu)
-		flush_domain_on_iommu(iommu, domid);
-}
-
 void amd_iommu_flush_all_domains(void)
 {
 	struct amd_iommu *iommu;
@@ -1464,7 +1450,7 @@ static void update_domain(struct protection_domain *domain)
 
 	update_device_table(domain);
 	flush_devices_by_domain(domain);
-	iommu_flush_domain(domain->id);
+	iommu_flush_tlb_pde(domain);
 
 	domain->updated = false;
 }
@@ -2377,7 +2363,7 @@ static void amd_iommu_unmap_range(struct iommu_domain *dom,
 		iova  += PAGE_SIZE;
 	}
 
-	iommu_flush_domain(domain->id);
+	iommu_flush_tlb_pde(domain);
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
