@@ -567,6 +567,8 @@ struct perf_pending_entry {
 
 typedef void (*perf_callback_t)(struct perf_event *, void *);
 
+struct perf_sample_data;
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -657,6 +659,10 @@ struct perf_event {
 
 	struct pid_namespace		*ns;
 	u64				id;
+
+	void (*overflow_handler)(struct perf_event *event,
+			int nmi, struct perf_sample_data *data,
+			struct pt_regs *regs);
 
 #ifdef CONFIG_EVENT_PROFILE
 	struct event_filter		*filter;
