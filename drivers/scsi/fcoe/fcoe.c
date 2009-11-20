@@ -545,6 +545,23 @@ static void fcoe_queue_timer(ulong lport)
 }
 
 /**
+ * fcoe_get_wwn() - Get the world wide name from LLD if it supports it
+ * @netdev: the associated net device
+ * @wwn: the output WWN
+ * @type: the type of WWN (WWPN or WWNN)
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
+{
+	const struct net_device_ops *ops = netdev->netdev_ops;
+
+	if (ops->ndo_fcoe_get_wwn)
+		return ops->ndo_fcoe_get_wwn(netdev, wwn, type);
+	return -EINVAL;
+}
+
+/**
  * fcoe_netdev_config() - Set up net devive for SW FCoE
  * @lport:  The local port that is associated with the net device
  * @netdev: The associated net device
@@ -611,9 +628,13 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 		 */
 		if (netdev->priv_flags & IFF_802_1Q_VLAN)
 			vid = vlan_dev_vlan_id(netdev);
-		wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
+
+		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))
+			wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
 		fc_set_wwnn(lport, wwnn);
-		wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 2, vid);
+		if (fcoe_get_wwn(netdev, &wwpn, NETDEV_FCOE_WWPN))
+			wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr,
+						 2, vid);
 		fc_set_wwpn(lport, wwpn);
 	}
 
