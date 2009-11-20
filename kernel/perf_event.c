@@ -3759,16 +3759,16 @@ again:
 	return nr;
 }
 
-static void perf_swevent_overflow(struct perf_event *event,
+static void perf_swevent_overflow(struct perf_event *event, u64 overflow,
 				    int nmi, struct perf_sample_data *data,
 				    struct pt_regs *regs)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int throttle = 0;
-	u64 overflow;
 
 	data->period = event->hw.last_period;
-	overflow = perf_swevent_set_period(event);
+	if (!overflow)
+		overflow = perf_swevent_set_period(event);
 
 	if (hwc->interrupts == MAX_INTERRUPTS)
 		return;
@@ -3801,14 +3801,19 @@ static void perf_swevent_add(struct perf_event *event, u64 nr,
 
 	atomic64_add(nr, &event->count);
 
-	if (!hwc->sample_period)
-		return;
-
 	if (!regs)
 		return;
 
-	if (!atomic64_add_negative(nr, &hwc->period_left))
-		perf_swevent_overflow(event, nmi, data, regs);
+	if (!hwc->sample_period)
+		return;
+
+	if (nr == 1 && hwc->sample_period == 1 && !event->attr.freq)
+		return perf_swevent_overflow(event, 1, nmi, data, regs);
+
+	if (atomic64_add_negative(nr, &hwc->period_left))
+		return;
+
+	perf_swevent_overflow(event, 0, nmi, data, regs);
 }
 
 static int perf_swevent_is_counting(struct perf_event *event)
