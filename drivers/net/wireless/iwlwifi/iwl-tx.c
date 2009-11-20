@@ -1022,7 +1022,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		IWL_ERR(priv, "No space for Tx\n");
+		IWL_ERR(priv, "No space in command queue\n");
 		if (iwl_within_ct_kill_margin(priv))
 			iwl_tt_enter_ct_kill(priv);
 		else {
