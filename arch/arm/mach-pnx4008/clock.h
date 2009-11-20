@@ -14,8 +14,6 @@
 #define __ARCH_ARM_PNX4008_CLOCK_H__
 
 struct clk {
-	struct list_head node;
-	struct module *owner;
 	const char *name;
 	struct clk *parent;
 	struct clk *propagate_next;

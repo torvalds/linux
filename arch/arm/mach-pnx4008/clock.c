@@ -22,8 +22,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include <asm/clkdev.h>
 
+#include <mach/hardware.h>
 #include <mach/clock.h>
 #include "clock.h"
 
@@ -747,7 +748,7 @@ static struct clk wdt_ck = {
 /* These clocks are visible outside this module
  * and can be initialized
  */
-static struct clk *onchip_clks[] = {
+static struct clk *onchip_clks[] __initdata = {
 	&ck_13MHz,
 	&ck_pll1,
 	&ck_pll4,
@@ -775,6 +776,36 @@ static struct clk *onchip_clks[] = {
 	&uart5_ck,
 	&uart6_ck,
 	&wdt_ck,
+};
+
+static struct clk_lookup onchip_clkreg[] = {
+	{ .clk = &ck_13MHz,	.con_id = "ck_13MHz"	},
+	{ .clk = &ck_pll1,	.con_id = "ck_pll1"	},
+	{ .clk = &ck_pll4,	.con_id = "ck_pll4"	},
+	{ .clk = &ck_pll5,	.con_id = "ck_pll5"	},
+	{ .clk = &ck_pll3,	.con_id = "ck_pll3"	},
+	{ .clk = &vfp9_ck,	.con_id = "vfp9_ck"	},
+	{ .clk = &m2hclk_ck,	.con_id = "m2hclk_ck"	},
+	{ .clk = &hclk_ck,	.con_id = "hclk_ck"	},
+	{ .clk = &dma_ck,	.con_id = "dma_ck"	},
+	{ .clk = &flash_ck,	.con_id = "flash_ck"	},
+	{ .clk = &dum_ck,	.con_id = "dum_ck"	},
+	{ .clk = &keyscan_ck,	.con_id = "keyscan_ck"	},
+	{ .clk = &pwm1_ck,	.con_id = "pwm1_ck"	},
+	{ .clk = &pwm2_ck,	.con_id = "pwm2_ck"	},
+	{ .clk = &jpeg_ck,	.con_id = "jpeg_ck"	},
+	{ .clk = &ms_ck,	.con_id = "ms_ck"	},
+	{ .clk = &touch_ck,	.con_id = "touch_ck"	},
+	{ .clk = &i2c0_ck,	.con_id = "i2c0_ck"	},
+	{ .clk = &i2c1_ck,	.con_id = "i2c1_ck"	},
+	{ .clk = &i2c2_ck,	.con_id = "i2c2_ck"	},
+	{ .clk = &spi0_ck,	.con_id = "spi0_ck"	},
+	{ .clk = &spi1_ck,	.con_id = "spi1_ck"	},
+	{ .clk = &uart3_ck,	.con_id = "uart3_ck"	},
+	{ .clk = &uart4_ck,	.con_id = "uart4_ck"	},
+	{ .clk = &uart5_ck,	.con_id = "uart5_ck"	},
+	{ .clk = &uart6_ck,	.con_id = "uart6_ck"	},
+	{ .clk = &wdt_ck,	.con_id = "wdt_ck"	},
 };
 
 static int local_clk_enable(struct clk *clk)
@@ -865,35 +896,6 @@ out:
 }
 
 EXPORT_SYMBOL(clk_set_rate);
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *clk = ERR_PTR(-ENOENT);
-	struct clk **clkp;
-
-	clock_lock();
-	for (clkp = onchip_clks; clkp < onchip_clks + ARRAY_SIZE(onchip_clks);
-	     clkp++) {
-		if (strcmp(id, (*clkp)->name) == 0
-		    && try_module_get((*clkp)->owner)) {
-			clk = (*clkp);
-			break;
-		}
-	}
-	clock_unlock();
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-	clock_lock();
-	if (clk && !IS_ERR(clk))
-		module_put(clk->owner);
-	clock_unlock();
-}
-EXPORT_SYMBOL(clk_put);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
@@ -986,6 +988,8 @@ static int __init clk_init(void)
 
 	/* Disable autoclocking */
 	__raw_writeb(0xff, AUTOCLK_CTRL);
+
+	clkdev_add_table(onchip_clkreg, ARRAY_SIZE(onchip_clkreg));
 
 	return 0;
 }
