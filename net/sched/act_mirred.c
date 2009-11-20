@@ -185,7 +185,7 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
 	skb2->dev = dev;
-	skb2->iif = skb->dev->ifindex;
+	skb2->skb_iif = skb->dev->ifindex;
 	dev_queue_xmit(skb2);
 	err = 0;
 

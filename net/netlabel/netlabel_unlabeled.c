@@ -1550,7 +1550,7 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	struct netlbl_unlhsh_iface *iface;
 
 	rcu_read_lock();
-	iface = netlbl_unlhsh_search_iface_def(skb->iif);
+	iface = netlbl_unlhsh_search_iface_def(skb->skb_iif);
 	if (iface == NULL)
 		goto unlabel_getattr_nolabel;
 	switch (family) {

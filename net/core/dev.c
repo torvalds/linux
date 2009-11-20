@@ -2287,7 +2287,7 @@ static int ing_filter(struct sk_buff *skb)
 	if (MAX_RED_LOOP < ttl++) {
 		printk(KERN_WARNING
 		       "Redir loop detected Dropping packet (%d->%d)\n",
-		       skb->iif, dev->ifindex);
+		       skb->skb_iif, dev->ifindex);
 		return TC_ACT_SHOT;
 	}
 
@@ -2395,8 +2395,8 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (netpoll_receive_skb(skb))
 		return NET_RX_DROP;
 
-	if (!skb->iif)
-		skb->iif = skb->dev->ifindex;
+	if (!skb->skb_iif)
+		skb->skb_iif = skb->dev->ifindex;
 
 	null_or_orig = NULL;
 	orig_dev = skb->dev;

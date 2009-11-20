@@ -343,9 +343,9 @@ tcf_match_indev(struct sk_buff *skb, char *indev)
 	struct net_device *dev;
 
 	if (indev[0]) {
-		if  (!skb->iif)
+		if  (!skb->skb_iif)
 			return 0;
-		dev = __dev_get_by_index(dev_net(skb->dev), skb->iif);
+		dev = __dev_get_by_index(dev_net(skb->dev), skb->skb_iif);
 		if (!dev || strcmp(indev, dev->name))
 			return 0;
 	}
