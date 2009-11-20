@@ -899,13 +899,19 @@ bool dsos__read_build_ids(void)
 	return have_build_id;
 }
 
+/*
+ * Align offset to 4 bytes as needed for note name and descriptor data.
+ */
+#define NOTE_ALIGN(n) (((n) + 3) & -4U)
+
 int filename__read_build_id(const char *filename, void *bf, size_t size)
 {
 	int fd, err = -1;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
-	Elf_Data *build_id_data;
+	Elf_Data *data;
 	Elf_Scn *sec;
+	void *ptr;
 	Elf *elf;
 
 	if (size < BUILD_ID_SIZE)
@@ -928,14 +934,37 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 
 	sec = elf_section_by_name(elf, &ehdr, &shdr,
 				  ".note.gnu.build-id", NULL);
-	if (sec == NULL)
+	if (sec == NULL) {
+		sec = elf_section_by_name(elf, &ehdr, &shdr,
+					  ".notes", NULL);
+		if (sec == NULL)
+			goto out_elf_end;
+	}
+
+	data = elf_getdata(sec, NULL);
+	if (data == NULL)
 		goto out_elf_end;
 
-	build_id_data = elf_getdata(sec, NULL);
-	if (build_id_data == NULL)
-		goto out_elf_end;
-	memcpy(bf, build_id_data->d_buf + 16, BUILD_ID_SIZE);
-	err = BUILD_ID_SIZE;
+	ptr = data->d_buf;
+	while (ptr < (data->d_buf + data->d_size)) {
+		GElf_Nhdr *nhdr = ptr;
+		int namesz = NOTE_ALIGN(nhdr->n_namesz),
+		    descsz = NOTE_ALIGN(nhdr->n_descsz);
+		const char *name;
+
+		ptr += sizeof(*nhdr);
+		name = ptr;
+		ptr += namesz;
+		if (nhdr->n_type == NT_GNU_BUILD_ID &&
+		    nhdr->n_namesz == sizeof("GNU")) {
+			if (memcmp(name, "GNU", sizeof("GNU")) == 0) {
+				memcpy(bf, ptr, BUILD_ID_SIZE);
+				err = BUILD_ID_SIZE;
+				break;
+			}
+		}
+		ptr += descsz;
+	}
 out_elf_end:
 	elf_end(elf);
 out_close:
@@ -963,8 +992,8 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 		if (read(fd, &nhdr, sizeof(nhdr)) != sizeof(nhdr))
 			break;
 
-		namesz = (nhdr.n_namesz + 3) & -4U;
-		descsz = (nhdr.n_descsz + 3) & -4U;
+		namesz = NOTE_ALIGN(nhdr.n_namesz);
+		descsz = NOTE_ALIGN(nhdr.n_descsz);
 		if (nhdr.n_type == NT_GNU_BUILD_ID &&
 		    nhdr.n_namesz == sizeof("GNU")) {
 			if (read(fd, bf, namesz) != namesz)
