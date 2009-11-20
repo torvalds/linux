@@ -1985,7 +1985,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		return -E1000_ERR_NVM;
 	}
 
-	ret_val = nvm->ops.acquire_nvm(hw);
+	ret_val = nvm->ops.acquire(hw);
 	if (ret_val)
 		return ret_val;
 
@@ -1996,7 +1996,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 		ret_val = e1000_ready_nvm_eeprom(hw);
 		if (ret_val) {
-			nvm->ops.release_nvm(hw);
+			nvm->ops.release(hw);
 			return ret_val;
 		}
 
@@ -2035,7 +2035,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	}
 
 	msleep(10);
-	nvm->ops.release_nvm(hw);
+	nvm->ops.release(hw);
 	return 0;
 }
 

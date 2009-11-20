@@ -4419,7 +4419,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	e1e_wphy(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
 
 	/* activate PHY wakeup */
-	retval = hw->phy.ops.acquire_phy(hw);
+	retval = hw->phy.ops.acquire(hw);
 	if (retval) {
 		e_err("Could not acquire PHY\n");
 		return retval;
@@ -4436,7 +4436,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	if (retval)
 		e_err("Could not set PHY Host Wakeup bit\n");
 out:
-	hw->phy.ops.release_phy(hw);
+	hw->phy.ops.release(hw);
 
 	return retval;
 }

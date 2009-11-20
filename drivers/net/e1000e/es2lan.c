@@ -1378,30 +1378,30 @@ static struct e1000_mac_operations es2_mac_ops = {
 };
 
 static struct e1000_phy_operations es2_phy_ops = {
-	.acquire_phy		= e1000_acquire_phy_80003es2lan,
+	.acquire		= e1000_acquire_phy_80003es2lan,
 	.check_reset_block	= e1000e_check_reset_block_generic,
-	.commit_phy	 	= e1000e_phy_sw_reset,
+	.commit		 	= e1000e_phy_sw_reset,
 	.force_speed_duplex 	= e1000_phy_force_speed_duplex_80003es2lan,
 	.get_cfg_done       	= e1000_get_cfg_done_80003es2lan,
 	.get_cable_length   	= e1000_get_cable_length_80003es2lan,
-	.get_phy_info       	= e1000e_get_phy_info_m88,
-	.read_phy_reg       	= e1000_read_phy_reg_gg82563_80003es2lan,
-	.release_phy		= e1000_release_phy_80003es2lan,
-	.reset_phy	  	= e1000e_phy_hw_reset_generic,
+	.get_info       	= e1000e_get_phy_info_m88,
+	.read_reg       	= e1000_read_phy_reg_gg82563_80003es2lan,
+	.release		= e1000_release_phy_80003es2lan,
+	.reset		  	= e1000e_phy_hw_reset_generic,
 	.set_d0_lplu_state  	= NULL,
 	.set_d3_lplu_state  	= e1000e_set_d3_lplu_state,
-	.write_phy_reg      	= e1000_write_phy_reg_gg82563_80003es2lan,
+	.write_reg      	= e1000_write_phy_reg_gg82563_80003es2lan,
 	.cfg_on_link_up      	= e1000_cfg_on_link_up_80003es2lan,
 };
 
 static struct e1000_nvm_operations es2_nvm_ops = {
-	.acquire_nvm		= e1000_acquire_nvm_80003es2lan,
-	.read_nvm		= e1000e_read_nvm_eerd,
-	.release_nvm		= e1000_release_nvm_80003es2lan,
-	.update_nvm		= e1000e_update_nvm_checksum_generic,
+	.acquire		= e1000_acquire_nvm_80003es2lan,
+	.read			= e1000e_read_nvm_eerd,
+	.release		= e1000_release_nvm_80003es2lan,
+	.update			= e1000e_update_nvm_checksum_generic,
 	.valid_led_default	= e1000e_valid_led_default,
-	.validate_nvm		= e1000e_validate_nvm_checksum_generic,
-	.write_nvm		= e1000_write_nvm_80003es2lan,
+	.validate		= e1000e_validate_nvm_checksum_generic,
+	.write			= e1000_write_nvm_80003es2lan,
 };
 
 struct e1000_info e1000_es2_info = {

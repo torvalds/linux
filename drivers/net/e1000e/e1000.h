@@ -584,7 +584,7 @@ extern s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
-	return hw->phy.ops.reset_phy(hw);
+	return hw->phy.ops.reset(hw);
 }
 
 static inline s32 e1000_check_reset_block(struct e1000_hw *hw)
@@ -594,12 +594,12 @@ static inline s32 e1000_check_reset_block(struct e1000_hw *hw)
 
 static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return hw->phy.ops.read_phy_reg(hw, offset, data);
+	return hw->phy.ops.read_reg(hw, offset, data);
 }
 
 static inline s32 e1e_wphy(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return hw->phy.ops.write_phy_reg(hw, offset, data);
+	return hw->phy.ops.write_reg(hw, offset, data);
 }
 
 static inline s32 e1000_get_cable_length(struct e1000_hw *hw)
@@ -619,27 +619,27 @@ extern s32 e1000e_read_mac_addr(struct e1000_hw *hw);
 
 static inline s32 e1000_validate_nvm_checksum(struct e1000_hw *hw)
 {
-	return hw->nvm.ops.validate_nvm(hw);
+	return hw->nvm.ops.validate(hw);
 }
 
 static inline s32 e1000e_update_nvm_checksum(struct e1000_hw *hw)
 {
-	return hw->nvm.ops.update_nvm(hw);
+	return hw->nvm.ops.update(hw);
 }
 
 static inline s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
-	return hw->nvm.ops.read_nvm(hw, offset, words, data);
+	return hw->nvm.ops.read(hw, offset, words, data);
 }
 
 static inline s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
-	return hw->nvm.ops.write_nvm(hw, offset, words, data);
+	return hw->nvm.ops.write(hw, offset, words, data);
 }
 
 static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 {
-	return hw->phy.ops.get_phy_info(hw);
+	return hw->phy.ops.get_info(hw);
 }
 
 static inline s32 e1000e_check_mng_mode(struct e1000_hw *hw)
