@@ -114,6 +114,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	struct lvds_dvo_timing *dvo_timing;
 	struct drm_display_mode *panel_fixed_mode;
 	int lfp_data_size, dvo_timing_offset;
+	int i, temp_downclock;
+	struct drm_display_mode *temp_mode;
 
 	/* Defaults if we can't find VBT info */
 	dev_priv->lvds_dither = 0;
@@ -162,6 +164,46 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
 
+	temp_mode = kzalloc(sizeof(*temp_mode), GFP_KERNEL);
+	temp_downclock = panel_fixed_mode->clock;
+	/*
+	 * enumerate the LVDS panel timing info entry in VBT to check whether
+	 * the LVDS downclock is found.
+	 */
+	for (i = 0; i < 16; i++) {
+		entry = (struct bdb_lvds_lfp_data_entry *)
+			((uint8_t *)lvds_lfp_data->data + (lfp_data_size * i));
+		dvo_timing = (struct lvds_dvo_timing *)
+			((unsigned char *)entry + dvo_timing_offset);
+
+		fill_detail_timing_data(temp_mode, dvo_timing);
+
+		if (temp_mode->hdisplay == panel_fixed_mode->hdisplay &&
+		temp_mode->hsync_start == panel_fixed_mode->hsync_start &&
+		temp_mode->hsync_end == panel_fixed_mode->hsync_end &&
+		temp_mode->htotal == panel_fixed_mode->htotal &&
+		temp_mode->vdisplay == panel_fixed_mode->vdisplay &&
+		temp_mode->vsync_start == panel_fixed_mode->vsync_start &&
+		temp_mode->vsync_end == panel_fixed_mode->vsync_end &&
+		temp_mode->vtotal == panel_fixed_mode->vtotal &&
+		temp_mode->clock < temp_downclock) {
+			/*
+			 * downclock is already found. But we expect
+			 * to find the lower downclock.
+			 */
+			temp_downclock = temp_mode->clock;
+		}
+		/* clear it to zero */
+		memset(temp_mode, 0, sizeof(*temp_mode));
+	}
+	kfree(temp_mode);
+	if (temp_downclock < panel_fixed_mode->clock) {
+		dev_priv->lvds_downclock_avail = 1;
+		dev_priv->lvds_downclock = temp_downclock;
+		DRM_DEBUG_KMS("LVDS downclock is found in VBT. ",
+				"Normal Clock %dKHz, downclock %dKHz\n",
+				temp_downclock, panel_fixed_mode->clock);
+	}
 	return;
 }
 
