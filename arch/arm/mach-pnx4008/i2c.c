@@ -21,11 +21,9 @@
 static int set_clock_run(struct platform_device *pdev)
 {
 	struct clk *clk;
-	char name[10];
 	int retval = 0;
 
-	snprintf(name, 10, "i2c%d_ck", pdev->id);
-	clk = clk_get(&pdev->dev, name);
+	clk = clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, 1);
 		clk_put(clk);
@@ -38,11 +36,9 @@ static int set_clock_run(struct platform_device *pdev)
 static int set_clock_stop(struct platform_device *pdev)
 {
 	struct clk *clk;
-	char name[10];
 	int retval = 0;
 
-	snprintf(name, 10, "i2c%d_ck", pdev->id);
-	clk = clk_get(&pdev->dev, name);
+	clk = clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, 0);
 		clk_put(clk);
