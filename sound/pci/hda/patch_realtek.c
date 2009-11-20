@@ -1772,6 +1772,8 @@ static void alc888_acer_aspire_4930g_setup(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x15;
 	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
 }
 
 static void alc888_acer_aspire_6530g_setup(struct hda_codec *codec)
