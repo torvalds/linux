@@ -571,7 +571,7 @@ __ioat3_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 	dump_desc_dbg(ioat, compl_desc);
 
 	/* we leave the channel locked to ensure in order submission */
-	return &desc->txd;
+	return &compl_desc->txd;
 }
 
 static struct dma_async_tx_descriptor *
@@ -730,7 +730,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	dump_desc_dbg(ioat, compl_desc);
 
 	/* we leave the channel locked to ensure in order submission */
-	return &desc->txd;
+	return &compl_desc->txd;
 }
 
 static struct dma_async_tx_descriptor *
