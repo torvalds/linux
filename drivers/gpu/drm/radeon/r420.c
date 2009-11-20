@@ -257,7 +257,7 @@ void r420_fini(struct radeon_device *rdev)
 	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	if (rdev->is_atom_bios) {
 		radeon_atombios_fini(rdev);
 	} else {
@@ -325,7 +325,7 @@ int r420_init(struct radeon_device *rdev)
 		return r;
 	}
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r) {
 		return r;
 	}

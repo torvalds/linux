@@ -184,7 +184,7 @@ int r600_pcie_gart_enable(struct radeon_device *rdev)
 void r600_pcie_gart_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	int i;
+	int i, r;
 
 	/* Disable all tables */
 	for (i = 0; i < 7; i++)
@@ -212,8 +212,12 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(MC_VM_L1_TLB_MCB_RD_HDP_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_WR_HDP_CNTL, tmp);
 	if (rdev->gart.table.vram.robj) {
-		radeon_object_kunmap(rdev->gart.table.vram.robj);
-		radeon_object_unpin(rdev->gart.table.vram.robj);
+		r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(rdev->gart.table.vram.robj);
+			radeon_bo_unpin(rdev->gart.table.vram.robj);
+			radeon_bo_unreserve(rdev->gart.table.vram.robj);
+		}
 	}
 }
 
@@ -1436,10 +1440,16 @@ int r600_ring_test(struct radeon_device *rdev)
 
 void r600_wb_disable(struct radeon_device *rdev)
 {
+	int r;
+
 	WREG32(SCRATCH_UMSK, 0);
 	if (rdev->wb.wb_obj) {
-		radeon_object_kunmap(rdev->wb.wb_obj);
-		radeon_object_unpin(rdev->wb.wb_obj);
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0))
+			return;
+		radeon_bo_kunmap(rdev->wb.wb_obj);
+		radeon_bo_unpin(rdev->wb.wb_obj);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
 	}
 }
 
@@ -1447,7 +1457,7 @@ void r600_wb_fini(struct radeon_device *rdev)
 {
 	r600_wb_disable(rdev);
 	if (rdev->wb.wb_obj) {
-		radeon_object_unref(&rdev->wb.wb_obj);
+		radeon_bo_unref(&rdev->wb.wb_obj);
 		rdev->wb.wb = NULL;
 		rdev->wb.wb_obj = NULL;
 	}
@@ -1458,22 +1468,29 @@ int r600_wb_enable(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_GTT, false, &rdev->wb.wb_obj);
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
 		if (r) {
-			dev_warn(rdev->dev, "failed to create WB buffer (%d).\n", r);
+			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
 		}
-		r = radeon_object_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
-				&rdev->wb.gpu_addr);
-		if (r) {
-			dev_warn(rdev->dev, "failed to pin WB buffer (%d).\n", r);
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0)) {
 			r600_wb_fini(rdev);
 			return r;
 		}
-		r = radeon_object_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+				&rdev->wb.gpu_addr);
 		if (r) {
-			dev_warn(rdev->dev, "failed to map WB buffer (%d).\n", r);
+			radeon_bo_unreserve(rdev->wb.wb_obj);
+			dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+			r600_wb_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
 			r600_wb_fini(rdev);
 			return r;
 		}
@@ -1563,10 +1580,14 @@ int r600_startup(struct radeon_device *rdev)
 	}
 	r600_gpu_init(rdev);
 
-	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			      &rdev->r600_blit.shader_gpu_addr);
+	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+			&rdev->r600_blit.shader_gpu_addr);
+	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	if (r) {
-		DRM_ERROR("failed to pin blit object %d\n", r);
+		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
 		return r;
 	}
 
@@ -1639,13 +1660,19 @@ int r600_resume(struct radeon_device *rdev)
 
 int r600_suspend(struct radeon_device *rdev)
 {
+	int r;
+
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
-	radeon_object_unpin(rdev->r600_blit.shader_obj);
+	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+	if (unlikely(r != 0))
+		return r;
+	radeon_bo_unpin(rdev->r600_blit.shader_obj);
+	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	return 0;
 }
 
@@ -1710,7 +1737,7 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 
@@ -1782,7 +1809,7 @@ void r600_fini(struct radeon_device *rdev)
 	radeon_clocks_fini(rdev);
 	if (rdev->flags & RADEON_IS_AGP)
 		radeon_agp_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
@@ -1897,24 +1924,28 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
 	rdev->ih.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, rdev->ih.ring_size,
-					 true,
-					 RADEON_GEM_DOMAIN_GTT,
-					 false,
-					 &rdev->ih.ring_obj);
+		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
+				     true,
+				     RADEON_GEM_DOMAIN_GTT,
+				     &rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to create ih ring buffer (%d).\n", r);
 			return r;
 		}
-		r = radeon_object_pin(rdev->ih.ring_obj,
-				      RADEON_GEM_DOMAIN_GTT,
-				      &rdev->ih.gpu_addr);
+		r = radeon_bo_reserve(rdev->ih.ring_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->ih.ring_obj,
+				  RADEON_GEM_DOMAIN_GTT,
+				  &rdev->ih.gpu_addr);
 		if (r) {
+			radeon_bo_unreserve(rdev->ih.ring_obj);
 			DRM_ERROR("radeon: failed to pin ih ring buffer (%d).\n", r);
 			return r;
 		}
-		r = radeon_object_kmap(rdev->ih.ring_obj,
-				       (void **)&rdev->ih.ring);
+		r = radeon_bo_kmap(rdev->ih.ring_obj,
+				   (void **)&rdev->ih.ring);
+		radeon_bo_unreserve(rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to map ih ring buffer (%d).\n", r);
 			return r;
@@ -1928,10 +1959,15 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
 
 static void r600_ih_ring_fini(struct radeon_device *rdev)
 {
+	int r;
 	if (rdev->ih.ring_obj) {
-		radeon_object_kunmap(rdev->ih.ring_obj);
-		radeon_object_unpin(rdev->ih.ring_obj);
-		radeon_object_unref(&rdev->ih.ring_obj);
+		r = radeon_bo_reserve(rdev->ih.ring_obj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(rdev->ih.ring_obj);
+			radeon_bo_unpin(rdev->ih.ring_obj);
+			radeon_bo_unreserve(rdev->ih.ring_obj);
+		}
+		radeon_bo_unref(&rdev->ih.ring_obj);
 		rdev->ih.ring = NULL;
 		rdev->ih.ring_obj = NULL;
 	}

@@ -261,24 +261,27 @@ int r100_wb_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
-					 true,
-					 RADEON_GEM_DOMAIN_GTT,
-					 false, &rdev->wb.wb_obj);
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
+					RADEON_GEM_DOMAIN_GTT,
+					&rdev->wb.wb_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed to create WB buffer (%d).\n", r);
+			dev_err(rdev->dev, "(%d) create WB buffer failed\n", r);
 			return r;
 		}
-		r = radeon_object_pin(rdev->wb.wb_obj,
-				      RADEON_GEM_DOMAIN_GTT,
-				      &rdev->wb.gpu_addr);
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+					&rdev->wb.gpu_addr);
 		if (r) {
-			DRM_ERROR("radeon: failed to pin WB buffer (%d).\n", r);
+			dev_err(rdev->dev, "(%d) pin WB buffer failed\n", r);
+			radeon_bo_unreserve(rdev->wb.wb_obj);
 			return r;
 		}
-		r = radeon_object_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed to map WB buffer (%d).\n", r);
+			dev_err(rdev->dev, "(%d) map WB buffer failed\n", r);
 			return r;
 		}
 	}
@@ -296,11 +299,19 @@ void r100_wb_disable(struct radeon_device *rdev)
 
 void r100_wb_fini(struct radeon_device *rdev)
 {
+	int r;
+
 	r100_wb_disable(rdev);
 	if (rdev->wb.wb_obj) {
-		radeon_object_kunmap(rdev->wb.wb_obj);
-		radeon_object_unpin(rdev->wb.wb_obj);
-		radeon_object_unref(&rdev->wb.wb_obj);
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0)) {
+			dev_err(rdev->dev, "(%d) can't finish WB\n", r);
+			return;
+		}
+		radeon_bo_kunmap(rdev->wb.wb_obj);
+		radeon_bo_unpin(rdev->wb.wb_obj);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+		radeon_bo_unref(&rdev->wb.wb_obj);
 		rdev->wb.wb = NULL;
 		rdev->wb.wb_obj = NULL;
 	}
@@ -1294,17 +1305,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 
 int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
 					 struct radeon_cs_packet *pkt,
-					 struct radeon_object *robj)
+					 struct radeon_bo *robj)
 {
 	unsigned idx;
 	u32 value;
 	idx = pkt->idx + 1;
 	value = radeon_get_ib_value(p, idx + 2);
-	if ((value + 1) > radeon_object_size(robj)) {
+	if ((value + 1) > radeon_bo_size(robj)) {
 		DRM_ERROR("[drm] Buffer too small for PACKET3 INDX_BUFFER "
 			  "(need %u have %lu) !\n",
 			  value + 1,
-			  radeon_object_size(robj));
+			  radeon_bo_size(robj));
 		return -EINVAL;
 	}
 	return 0;
@@ -2608,7 +2619,7 @@ static int r100_cs_track_cube(struct radeon_device *rdev,
 			      struct r100_cs_track *track, unsigned idx)
 {
 	unsigned face, w, h;
-	struct radeon_object *cube_robj;
+	struct radeon_bo *cube_robj;
 	unsigned long size;
 
 	for (face = 0; face < 5; face++) {
@@ -2621,9 +2632,9 @@ static int r100_cs_track_cube(struct radeon_device *rdev,
 
 		size += track->textures[idx].cube_info[face].offset;
 
-		if (size > radeon_object_size(cube_robj)) {
+		if (size > radeon_bo_size(cube_robj)) {
 			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
-				  size, radeon_object_size(cube_robj));
+				  size, radeon_bo_size(cube_robj));
 			r100_cs_track_texture_print(&track->textures[idx]);
 			return -1;
 		}
@@ -2634,7 +2645,7 @@ static int r100_cs_track_cube(struct radeon_device *rdev,
 static int r100_cs_track_texture_check(struct radeon_device *rdev,
 				       struct r100_cs_track *track)
 {
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	unsigned long size;
 	unsigned u, i, w, h;
 	int ret;
@@ -2690,9 +2701,9 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 				  "%u\n", track->textures[u].tex_coord_type, u);
 			return -EINVAL;
 		}
-		if (size > radeon_object_size(robj)) {
+		if (size > radeon_bo_size(robj)) {
 			DRM_ERROR("Texture of unit %u needs %lu bytes but is "
-				  "%lu\n", u, size, radeon_object_size(robj));
+				  "%lu\n", u, size, radeon_bo_size(robj));
 			r100_cs_track_texture_print(&track->textures[u]);
 			return -EINVAL;
 		}
@@ -2714,10 +2725,10 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		}
 		size = track->cb[i].pitch * track->cb[i].cpp * track->maxy;
 		size += track->cb[i].offset;
-		if (size > radeon_object_size(track->cb[i].robj)) {
+		if (size > radeon_bo_size(track->cb[i].robj)) {
 			DRM_ERROR("[drm] Buffer too small for color buffer %d "
 				  "(need %lu have %lu) !\n", i, size,
-				  radeon_object_size(track->cb[i].robj));
+				  radeon_bo_size(track->cb[i].robj));
 			DRM_ERROR("[drm] color buffer %d (%u %u %u %u)\n",
 				  i, track->cb[i].pitch, track->cb[i].cpp,
 				  track->cb[i].offset, track->maxy);
@@ -2731,10 +2742,10 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		}
 		size = track->zb.pitch * track->zb.cpp * track->maxy;
 		size += track->zb.offset;
-		if (size > radeon_object_size(track->zb.robj)) {
+		if (size > radeon_bo_size(track->zb.robj)) {
 			DRM_ERROR("[drm] Buffer too small for z buffer "
 				  "(need %lu have %lu) !\n", size,
-				  radeon_object_size(track->zb.robj));
+				  radeon_bo_size(track->zb.robj));
 			DRM_ERROR("[drm] zbuffer (%u %u %u %u)\n",
 				  track->zb.pitch, track->zb.cpp,
 				  track->zb.offset, track->maxy);
@@ -2752,11 +2763,12 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 					  "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
-			if (size > radeon_object_size(track->arrays[i].robj)) {
-				DRM_ERROR("(PW %u) Vertex array %u need %lu dwords "
-					   "have %lu dwords\n", prim_walk, i,
-					   size >> 2,
-					   radeon_object_size(track->arrays[i].robj) >> 2);
+			if (size > radeon_bo_size(track->arrays[i].robj)) {
+				dev_err(rdev->dev, "(PW %u) Vertex array %u "
+					"need %lu dwords have %lu dwords\n",
+					prim_walk, i, size >> 2,
+					radeon_bo_size(track->arrays[i].robj)
+					>> 2);
 				DRM_ERROR("Max indices %u\n", track->max_indx);
 				return -EINVAL;
 			}
@@ -2770,10 +2782,12 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 					  "bound\n", prim_walk, i);
 				return -EINVAL;
 			}
-			if (size > radeon_object_size(track->arrays[i].robj)) {
-				DRM_ERROR("(PW %u) Vertex array %u need %lu dwords "
-					   "have %lu dwords\n", prim_walk, i, size >> 2,
-					   radeon_object_size(track->arrays[i].robj) >> 2);
+			if (size > radeon_bo_size(track->arrays[i].robj)) {
+				dev_err(rdev->dev, "(PW %u) Vertex array %u "
+					"need %lu dwords have %lu dwords\n",
+					prim_walk, i, size >> 2,
+					radeon_bo_size(track->arrays[i].robj)
+					>> 2);
 				return -EINVAL;
 			}
 		}
@@ -3188,7 +3202,7 @@ void r100_fini(struct radeon_device *rdev)
 		r100_pci_gart_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
@@ -3276,7 +3290,7 @@ int r100_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 	if (rdev->flags & RADEON_IS_PCI) {

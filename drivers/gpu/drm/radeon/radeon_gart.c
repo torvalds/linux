@@ -78,11 +78,9 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj == NULL) {
-		r = radeon_object_create(rdev, NULL,
-					 rdev->gart.table_size,
-					 true,
-					 RADEON_GEM_DOMAIN_VRAM,
-					 false, &rdev->gart.table.vram.robj);
+		r = radeon_bo_create(rdev, NULL, rdev->gart.table_size,
+					true, RADEON_GEM_DOMAIN_VRAM,
+					&rdev->gart.table.vram.robj);
 		if (r) {
 			return r;
 		}
@@ -95,32 +93,38 @@ int radeon_gart_table_vram_pin(struct radeon_device *rdev)
 	uint64_t gpu_addr;
 	int r;
 
-	r = radeon_object_pin(rdev->gart.table.vram.robj,
-			      RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
+	r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->gart.table.vram.robj,
+				RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (r) {
-		radeon_object_unref(&rdev->gart.table.vram.robj);
+		radeon_bo_unreserve(rdev->gart.table.vram.robj);
 		return r;
 	}
-	r = radeon_object_kmap(rdev->gart.table.vram.robj,
-			       (void **)&rdev->gart.table.vram.ptr);
-	if (r) {
-		radeon_object_unpin(rdev->gart.table.vram.robj);
-		radeon_object_unref(&rdev->gart.table.vram.robj);
-		DRM_ERROR("radeon: failed to map gart vram table.\n");
-		return r;
-	}
+	r = radeon_bo_kmap(rdev->gart.table.vram.robj,
+				(void **)&rdev->gart.table.vram.ptr);
+	if (r)
+		radeon_bo_unpin(rdev->gart.table.vram.robj);
+	radeon_bo_unreserve(rdev->gart.table.vram.robj);
 	rdev->gart.table_addr = gpu_addr;
-	return 0;
+	return r;
 }
 
 void radeon_gart_table_vram_free(struct radeon_device *rdev)
 {
+	int r;
+
 	if (rdev->gart.table.vram.robj == NULL) {
 		return;
 	}
-	radeon_object_kunmap(rdev->gart.table.vram.robj);
-	radeon_object_unpin(rdev->gart.table.vram.robj);
-	radeon_object_unref(&rdev->gart.table.vram.robj);
+	r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+	if (likely(r == 0)) {
+		radeon_bo_kunmap(rdev->gart.table.vram.robj);
+		radeon_bo_unpin(rdev->gart.table.vram.robj);
+		radeon_bo_unreserve(rdev->gart.table.vram.robj);
+	}
+	radeon_bo_unref(&rdev->gart.table.vram.robj);
 }
 
 

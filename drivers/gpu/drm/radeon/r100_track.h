@@ -10,26 +10,26 @@
  * CS functions
  */
 struct r100_cs_track_cb {
-	struct radeon_object	*robj;
+	struct radeon_bo	*robj;
 	unsigned		pitch;
 	unsigned		cpp;
 	unsigned		offset;
 };
 
 struct r100_cs_track_array {
-	struct radeon_object	*robj;
+	struct radeon_bo	*robj;
 	unsigned		esize;
 };
 
 struct r100_cs_cube_info {
-	struct radeon_object	*robj;
-	unsigned                offset;
+	struct radeon_bo	*robj;
+	unsigned		offset;
 	unsigned		width;
 	unsigned		height;
 };
 
 struct r100_cs_track_texture {
-	struct radeon_object	*robj;
+	struct radeon_bo	*robj;
 	struct r100_cs_cube_info cube_info[5]; /* info for 5 non-primary faces */
 	unsigned		pitch;
 	unsigned		width;

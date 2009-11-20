@@ -150,7 +150,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_TT:
-		man->gpu_offset = 0;
+		man->gpu_offset = rdev->mc.gtt_location;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -180,7 +180,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
-		man->gpu_offset = 0;
+		man->gpu_offset = rdev->mc.vram_location;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
@@ -482,27 +482,31 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
-	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM, 0,
-			   ((rdev->mc.real_vram_size) >> PAGE_SHIFT));
+	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
+				0, rdev->mc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-	r = radeon_object_create(rdev, NULL, 256 * 1024, true,
-				 RADEON_GEM_DOMAIN_VRAM, false,
-				 &rdev->stollen_vga_memory);
+	r = radeon_bo_create(rdev, NULL, 256 * 1024, true,
+				RADEON_GEM_DOMAIN_VRAM,
+				&rdev->stollen_vga_memory);
 	if (r) {
 		return r;
 	}
-	r = radeon_object_pin(rdev->stollen_vga_memory, RADEON_GEM_DOMAIN_VRAM, NULL);
+	r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
+	if (r)
+		return r;
+	r = radeon_bo_pin(rdev->stollen_vga_memory, RADEON_GEM_DOMAIN_VRAM, NULL);
+	radeon_bo_unreserve(rdev->stollen_vga_memory);
 	if (r) {
-		radeon_object_unref(&rdev->stollen_vga_memory);
+		radeon_bo_unref(&rdev->stollen_vga_memory);
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
 		 (unsigned)rdev->mc.real_vram_size / (1024 * 1024));
-	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT, 0,
-			   ((rdev->mc.gtt_size) >> PAGE_SHIFT));
+	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
+				0, rdev->mc.gtt_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		return r;
@@ -523,9 +527,15 @@ int radeon_ttm_init(struct radeon_device *rdev)
 
 void radeon_ttm_fini(struct radeon_device *rdev)
 {
+	int r;
+
 	if (rdev->stollen_vga_memory) {
-		radeon_object_unpin(rdev->stollen_vga_memory);
-		radeon_object_unref(&rdev->stollen_vga_memory);
+		r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
+		if (r == 0) {
+			radeon_bo_unpin(rdev->stollen_vga_memory);
+			radeon_bo_unreserve(rdev->stollen_vga_memory);
+		}
+		radeon_bo_unref(&rdev->stollen_vga_memory);
 	}
 	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_TT);
