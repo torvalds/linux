@@ -2722,10 +2722,9 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
-		return ret_val;
-	}
+		/* This is not fatal and we should not stop init due to this */
 
 	/* Setup the receive address. */
 	e1000e_init_rx_addrs(hw, mac->rar_entry_count);
