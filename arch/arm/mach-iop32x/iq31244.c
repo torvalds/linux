@@ -78,7 +78,6 @@ static void __init iq31244_timer_init(void)
 
 static struct sys_timer iq31244_timer = {
 	.init		= iq31244_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 
