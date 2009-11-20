@@ -108,6 +108,15 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
 		spin_unlock(&dcache_lock);
 		path_put(&root);
 		path_put(&ns_root);
+		/* Prepend "/proc" prefix if using internal proc vfs mount. */
+		if (!IS_ERR(sp) && (path->mnt->mnt_parent == path->mnt) &&
+		    (strcmp(path->mnt->mnt_sb->s_type->name, "proc") == 0)) {
+			sp -= 5;
+			if (sp >= newname)
+				memcpy(sp, "/proc", 5);
+			else
+				sp = ERR_PTR(-ENOMEM);
+		}
 	}
 	if (IS_ERR(sp))
 		error = PTR_ERR(sp);
