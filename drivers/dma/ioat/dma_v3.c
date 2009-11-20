@@ -1117,6 +1117,7 @@ static int __devinit ioat3_dma_self_test(struct ioatdma_device *device)
 int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
+	int dca_en = system_has_dca_enabled(pdev);
 	struct dma_device *dma;
 	struct dma_chan *c;
 	struct ioat_chan_common *chan;
@@ -1137,6 +1138,11 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
 	cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
+
+	/* dca is incompatible with raid operations */
+	if (dca_en && (cap & (IOAT_CAP_XOR|IOAT_CAP_PQ)))
+		cap &= ~(IOAT_CAP_XOR|IOAT_CAP_PQ);
+
 	if (cap & IOAT_CAP_XOR) {
 		is_raid_device = true;
 		dma->max_xor = 8;

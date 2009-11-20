@@ -103,7 +103,7 @@ static int dca_enabled_in_bios(struct pci_dev *pdev)
 	return res;
 }
 
-static int system_has_dca_enabled(struct pci_dev *pdev)
+int system_has_dca_enabled(struct pci_dev *pdev)
 {
 	if (boot_cpu_has(X86_FEATURE_DCA))
 		return dca_enabled_in_bios(pdev);
