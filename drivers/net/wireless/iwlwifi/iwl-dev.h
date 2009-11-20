@@ -544,14 +544,6 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
-
-struct iwl3945_station_entry {
-	struct iwl3945_addsta_cmd sta;
-	struct iwl_tid_data tid[MAX_TID_COUNT];
-	u8 used;
-	struct iwl_hw_key keyinfo;
-};
-
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
