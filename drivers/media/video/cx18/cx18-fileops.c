@@ -40,7 +40,7 @@
    associated VBI and IDX streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-static int cx18_claim_stream(struct cx18_open_id *id, int type)
+int cx18_claim_stream(struct cx18_open_id *id, int type)
 {
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[type];
@@ -96,10 +96,11 @@ static int cx18_claim_stream(struct cx18_open_id *id, int type)
 	set_bit(CX18_F_S_INTERNAL_USE, &s_assoc->s_flags);
 	return 0;
 }
+EXPORT_SYMBOL(cx18_claim_stream);
 
 /* This function releases a previously claimed stream. It will take into
    account associated VBI streams. */
-static void cx18_release_stream(struct cx18_stream *s)
+void cx18_release_stream(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_stream *s_assoc;
@@ -154,6 +155,7 @@ static void cx18_release_stream(struct cx18_stream *s)
 		}
 	}
 }
+EXPORT_SYMBOL(cx18_release_stream);
 
 static void cx18_dualwatch(struct cx18 *cx)
 {
