@@ -562,14 +562,28 @@ EXPORT_SYMBOL(fcoe_ctlr_els_send);
  * times its keep-alive period including fuzz.
  *
  * In addition, determine the time when an FCF selection can occur.
+ *
+ * Also, increment the MissDiscAdvCount when no advertisement is received
+ * for the corresponding FCF for 1.5 * FKA_ADV_PERIOD (FC-BB-5 LESB).
  */
 static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *next;
 	unsigned long sel_time = 0;
+	unsigned long mda_time = 0;
 
 	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
+		mda_time = fcf->fka_period + (fcf->fka_period >> 1);
+		if ((fip->sel_fcf == fcf) &&
+		    (time_after(jiffies, fcf->time + mda_time))) {
+			mod_timer(&fip->timer, jiffies + mda_time);
+			fc_lport_get_stats(fip->lp)->MissDiscAdvCount++;
+			printk(KERN_INFO "libfcoe: host%d: Missing Discovery "
+			       "Advertisement for fab %llx count %lld\n",
+			       fip->lp->host->host_no, fcf->fabric_name,
+			       fc_lport_get_stats(fip->lp)->MissDiscAdvCount);
+		}
 		if (time_after(jiffies, fcf->time + fcf->fka_period * 3 +
 			       msecs_to_jiffies(FIP_FCF_FUZZ * 3))) {
 			if (fip->sel_fcf == fcf)
