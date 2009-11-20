@@ -472,7 +472,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	DEBUG(printk("pcl816 pcl812_ai_cmdtest\n"); pcl816_cmdtest_out(-1, cmd);
 	    );
