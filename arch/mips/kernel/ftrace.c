@@ -27,7 +27,13 @@ static unsigned int ftrace_nop = 0x00000000;
 
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
-	*(unsigned int *)ip = new_code;
+	int faulted;
+
+	/* *(unsigned int *)ip = new_code; */
+	safe_store_code(new_code, ip, faulted);
+
+	if (unlikely(faulted))
+		return -EFAULT;
 
 	flush_icache_range(ip, ip + 8);
 
@@ -41,14 +47,20 @@ int ftrace_make_nop(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int new;
+	int faulted;
 	unsigned long ip = rec->ip;
 
 	/* We have compiled module with -mlong-calls, but compiled the kernel
 	 * without it, we need to cope with them respectively. */
 	if (ip & 0x40000000) {
 		/* record it for ftrace_make_call */
-		if (lui_v1 == 0)
-			lui_v1 = *(unsigned int *)ip;
+		if (lui_v1 == 0) {
+			/* lui_v1 = *(unsigned int *)ip; */
+			safe_load_code(lui_v1, ip, faulted);
+
+			if (unlikely(faulted))
+				return -EFAULT;
+		}
 
 		/* lui v1, hi_16bit_of_mcount        --> b 1f (0x10000004)
 		 * addiu v1, v1, low_16bit_of_mcount
@@ -147,6 +159,7 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 {
 	unsigned long sp, ip, ra;
 	unsigned int code;
+	int faulted;
 
 	/* in module or kernel? */
 	if (self_addr & 0x40000000) {
@@ -162,8 +175,11 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 	do {
 		ip -= 4;
 
-		/* get the code at "ip" */
-		code = *(unsigned int *)ip;
+		/* get the code at "ip": code = *(unsigned int *)ip; */
+		safe_load_code(code, ip, faulted);
+
+		if (unlikely(faulted))
+			return 0;
 
 		/* If we hit the non-store instruction before finding where the
 		 * ra is stored, then this is a leaf function and it does not
@@ -174,11 +190,14 @@ unsigned long ftrace_get_parent_addr(unsigned long self_addr,
 	} while (((code & S_RA_SP) != S_RA_SP));
 
 	sp = fp + (code & OFFSET_MASK);
-	ra = *(unsigned long *)sp;
+
+	/* ra = *(unsigned long *)sp; */
+	safe_load_stack(ra, sp, faulted);
+	if (unlikely(faulted))
+		return 0;
 
 	if (ra == parent)
 		return sp;
-
 	return 0;
 }
 
@@ -193,6 +212,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 	    &return_to_handler;
+	int faulted;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
@@ -206,21 +226,23 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * ftrace_get_parent_addr() does it!
 	 */
 
-	old = *parent;
+	/* old = *parent; */
+	safe_load_stack(old, parent, faulted);
+	if (unlikely(faulted))
+		goto out;
 
 	parent = (unsigned long *)ftrace_get_parent_addr(self_addr, old,
 							 (unsigned long)parent,
 							 fp);
-
 	/* If fails when getting the stack address of the non-leaf function's
 	 * ra, stop function graph tracer and return */
-	if (parent == 0) {
-		ftrace_graph_stop();
-		WARN_ON(1);
-		return;
-	}
+	if (parent == 0)
+		goto out;
 
-	*parent = return_hooker;
+	/* *parent = return_hooker; */
+	safe_store_stack(return_hooker, parent, faulted);
+	if (unlikely(faulted))
+		goto out;
 
 	if (ftrace_push_return_trace(old, self_addr, &trace.depth, fp) ==
 	    -EBUSY) {
@@ -235,5 +257,9 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		current->curr_ret_stack--;
 		*parent = old;
 	}
+	return;
+out:
+	ftrace_graph_stop();
+	WARN_ON(1);
 }
 #endif				/* CONFIG_FUNCTION_GRAPH_TRACER */
