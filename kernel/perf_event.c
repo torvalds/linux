@@ -1526,8 +1526,11 @@ static void __perf_event_read(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
+	spin_lock(&ctx->lock);
 	update_context_time(ctx);
 	update_event_times(event);
+	spin_unlock(&ctx->lock);
+
 	event->pmu->read(event);
 }
 
@@ -1541,7 +1544,13 @@ static u64 perf_event_read(struct perf_event *event)
 		smp_call_function_single(event->oncpu,
 					 __perf_event_read, event, 1);
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
+		struct perf_event_context *ctx = event->ctx;
+		unsigned long flags;
+
+		spin_lock_irqsave(&ctx->lock, flags);
+		update_context_time(ctx);
 		update_event_times(event);
+		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
 	return atomic64_read(&event->count);
