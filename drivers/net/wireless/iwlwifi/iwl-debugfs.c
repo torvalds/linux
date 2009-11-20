@@ -228,13 +228,21 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 					size_t count, loff_t *ppos)
 {
 	u32 val;
-	char buf[1024];
+	char *buf;
 	ssize_t ret;
 	int i;
 	int pos = 0;
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	const size_t bufsz = sizeof(buf);
+	size_t bufsz;
 
+	bufsz =  30 + priv->dbgfs->sram_len * sizeof(char) * 12;
+	buf = kmalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: %d\n",
+			priv->dbgfs->sram_len);
+	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: %d\n",
+			priv->dbgfs->sram_offset);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
 		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \
 					priv->dbgfs->sram_len - i);
@@ -251,11 +259,14 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 				break;
 			}
 		}
+		if (!(i % 16))
+			pos += scnprintf(buf + pos, bufsz - pos, "\n");
 		pos += scnprintf(buf + pos, bufsz - pos, "0x%08x ", val);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "\n");
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
 	return ret;
 }
 
