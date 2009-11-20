@@ -1526,10 +1526,9 @@ static void __perf_event_read(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	if (ctx->is_active)
-		update_context_time(ctx);
-	event->pmu->read(event);
+	update_context_time(ctx);
 	update_event_times(event);
+	event->pmu->read(event);
 }
 
 static u64 perf_event_read(struct perf_event *event)
