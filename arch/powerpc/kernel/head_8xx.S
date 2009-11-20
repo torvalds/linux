@@ -438,15 +438,20 @@ DataStoreTLBMiss:
 	 * r11 = ((r10 & PRESENT) & ((r10 & ACCESSED) >> 5));
 	 * r10 = (r10 & ~PRESENT) | r11;
 	 */
-	rlwinm	r11, r10, 32-5, 31, 31
+	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
 	and	r11, r11, r10
-	rlwimi	r10, r11, 0, 31, 31
+	rlwimi	r10, r11, 0, _PAGE_PRESENT
 
 	/* Honour kernel RO, User NA */
-	andi.	r11, r10, _PAGE_USER | _PAGE_RW
-	bne-	cr0, 5f
-	ori	r10,r10, 0x200 /* Extended encoding, bit 22 */
-5:	xori	r10, r10, _PAGE_RW  /* invert RW bit */
+	/* 0x200 == Extended encoding, bit 22 */
+	/* r11 =  (r10 & _PAGE_USER) >> 2 */
+	rlwinm	r11, r10, 32-2, 0x200
+	or	r10, r11, r10
+	/* r11 =  (r10 & _PAGE_RW) >> 1 */
+	rlwinm	r11, r10, 32-1, 0x200
+	or	r10, r11, r10
+	/* invert RW and 0x200 bits */
+	xori	r10, r10, _PAGE_RW | 0x200
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 22 and 28 must be clear.
