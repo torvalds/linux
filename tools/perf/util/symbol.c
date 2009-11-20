@@ -108,6 +108,8 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 
 static void dso__set_long_name(struct dso *self, char *name)
 {
+	if (name == NULL)
+		return;
 	self->long_name = name;
 	self->long_name_len = strlen(name);
 }
@@ -1377,8 +1379,11 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 {
 	int err = dso__load_vmlinux(self, map, self->name, filter);
 
-	if (err <= 0)
+	if (err <= 0) {
 		err = kernel_maps__load_kallsyms(filter);
+		if (err > 0)
+                        dso__set_long_name(self, strdup("[kernel.kallsyms]"));
+	}
 
 	if (err > 0) {
 		map__fixup_start(map);
