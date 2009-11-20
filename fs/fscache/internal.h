@@ -259,6 +259,7 @@ extern const struct file_operations fscache_stats_fops;
 
 #define __fscache_stat(stat) (NULL)
 #define fscache_stat(stat) do {} while (0)
+#define fscache_stat_d(stat) do {} while (0)
 #endif
 
 /*
