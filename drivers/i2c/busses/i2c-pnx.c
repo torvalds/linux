@@ -545,18 +545,23 @@ static struct i2c_algorithm pnx_algorithm = {
 	.functionality = i2c_pnx_func,
 };
 
+#ifdef CONFIG_PM
 static int i2c_pnx_controller_suspend(struct platform_device *pdev,
 				      pm_message_t state)
 {
 	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	return i2c_pnx->suspend(pdev, state);
+	return i2c_pnx->set_clock_run(pdev);
 }
 
 static int i2c_pnx_controller_resume(struct platform_device *pdev)
 {
 	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	return i2c_pnx->resume(pdev);
+	return i2c_pnx->set_clock_run(pdev);
 }
+#else
+#define i2c_pnx_controller_suspend	NULL
+#define i2c_pnx_controller_resume	NULL
+#endif
 
 static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 {

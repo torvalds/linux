@@ -48,24 +48,6 @@ static int set_clock_stop(struct platform_device *pdev)
 	return retval;
 }
 
-static int i2c_pnx_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	int retval = 0;
-#ifdef CONFIG_PM
-	retval = set_clock_run(pdev);
-#endif
-	return retval;
-}
-
-static int i2c_pnx_resume(struct platform_device *pdev)
-{
-	int retval = 0;
-#ifdef CONFIG_PM
-	retval = set_clock_run(pdev);
-#endif
-	return retval;
-}
-
 static u32 calculate_input_freq(struct platform_device *pdev)
 {
 	return HCLK_MHZ;
@@ -102,8 +84,6 @@ static struct i2c_adapter pnx_adapter2 = {
 };
 
 static struct i2c_pnx_data i2c0_data = {
-	.suspend = i2c_pnx_suspend,
-	.resume = i2c_pnx_resume,
 	.calculate_input_freq = calculate_input_freq,
 	.set_clock_run = set_clock_run,
 	.set_clock_stop = set_clock_stop,
@@ -111,8 +91,6 @@ static struct i2c_pnx_data i2c0_data = {
 };
 
 static struct i2c_pnx_data i2c1_data = {
-	.suspend = i2c_pnx_suspend,
-	.resume = i2c_pnx_resume,
 	.calculate_input_freq = calculate_input_freq,
 	.set_clock_run = set_clock_run,
 	.set_clock_stop = set_clock_stop,
@@ -120,8 +98,6 @@ static struct i2c_pnx_data i2c1_data = {
 };
 
 static struct i2c_pnx_data i2c2_data = {
-	.suspend = i2c_pnx_suspend,
-	.resume = i2c_pnx_resume,
 	.calculate_input_freq = calculate_input_freq,
 	.set_clock_run = set_clock_run,
 	.set_clock_stop = set_clock_stop,
