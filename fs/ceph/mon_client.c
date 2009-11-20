@@ -278,27 +278,6 @@ void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc)
 	mutex_unlock(&monc->mutex);
 }
 
-#if 0
-/*
- * mount
- */
-static void __request_mount(struct ceph_mon_client *monc)
-{
-	struct ceph_msg *msg;
-	struct ceph_client_mount *h;
-
-	dout("__request_mount\n");
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_MOUNT, sizeof(*h), 0, 0, NULL);
-	if (IS_ERR(msg))
-		return;
-	h = msg->front.iov_base;
-	h->monhdr.have_version = 0;
-	h->monhdr.session_mon = cpu_to_le16(-1);
-	h->monhdr.session_mon_tid = 0;
-	ceph_con_send(monc->con, msg);
-}
-#endif
-
 /*
  * 
  */
