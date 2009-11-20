@@ -209,10 +209,6 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 		do {
 			BUG_ON(!pte_none(*pte));
 
-			/*
-			 * x86 does not mark the pages reserved...
-			 */
-			SetPageReserved(page);
 			set_pte_ext(pte, mk_pte(page, prot), 0);
 			page++;
 			pte++;
@@ -257,7 +253,6 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
 	addr = c->vm_start;
 	do {
 		pte_t pte = ptep_get_and_clear(&init_mm, addr, ptep);
-		unsigned long pfn;
 
 		ptep++;
 		addr += PAGE_SIZE;
@@ -267,21 +262,9 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
 			ptep = consistent_pte[++idx];
 		}
 
-		if (!pte_none(pte) && pte_present(pte)) {
-			pfn = pte_pfn(pte);
-
-			if (pfn_valid(pfn)) {
-				struct page *page = pfn_to_page(pfn);
-
-				/*
-				 * x86 does not mark the pages reserved...
-				 */
-				ClearPageReserved(page);
-				continue;
-			}
-		}
-		printk(KERN_CRIT "%s: bad page in kernel page table\n",
-		       __func__);
+		if (pte_none(pte) || !pte_present(pte))
+			printk(KERN_CRIT "%s: bad page in kernel page table\n",
+			       __func__);
 	} while (size -= PAGE_SIZE);
 
 	flush_tlb_kernel_range(c->vm_start, c->vm_end);
