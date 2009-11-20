@@ -1061,8 +1061,6 @@ static int context_equiv(struct perf_event_context *ctx1,
 		&& !ctx1->pin_count && !ctx2->pin_count;
 }
 
-static void __perf_event_read(void *event);
-
 static void __perf_event_sync_stat(struct perf_event *event,
 				     struct perf_event *next_event)
 {
@@ -1080,8 +1078,8 @@ static void __perf_event_sync_stat(struct perf_event *event,
 	 */
 	switch (event->state) {
 	case PERF_EVENT_STATE_ACTIVE:
-		__perf_event_read(event);
-		break;
+		event->pmu->read(event);
+		/* fall-through */
 
 	case PERF_EVENT_STATE_INACTIVE:
 		update_event_times(event);
