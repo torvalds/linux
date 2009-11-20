@@ -230,7 +230,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
+	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
+	                ? true : false;
 
 	/* check for link */
 	switch (hw->phy.media_type) {
@@ -753,7 +754,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 /**
  *  e1000_set_d0_lplu_state_82571 - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When activating LPLU
  *  this function also disables smart speed and vice versa.  LPLU will not be
@@ -1521,7 +1522,7 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 bool e1000e_get_laa_state_82571(struct e1000_hw *hw)
 {
 	if (hw->mac.type != e1000_82571)
-		return 0;
+		return false;
 
 	return hw->dev_spec.e82571.laa_is_present;
 }

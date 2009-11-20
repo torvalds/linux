@@ -834,7 +834,7 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 	msleep(100);
 
 	/* disable lplu d0 during driver init */
-	ret_val = e1000_set_d0_lplu_state(hw, 0);
+	ret_val = e1000_set_d0_lplu_state(hw, false);
 	if (ret_val) {
 		e_dbg("Error Disabling LPLU D0\n");
 		return ret_val;
@@ -1545,7 +1545,7 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
 		break;
 	default:
 		/* speed downshift not supported */
-		phy->speed_downgraded = 0;
+		phy->speed_downgraded = false;
 		return 0;
 	}
 
@@ -1907,7 +1907,7 @@ s32 e1000e_get_phy_info_igp(struct e1000_hw *hw)
 		return -E1000_ERR_CONFIG;
 	}
 
-	phy->polarity_correction = 1;
+	phy->polarity_correction = true;
 
 	ret_val = e1000_check_polarity_igp(hw);
 	if (ret_val)

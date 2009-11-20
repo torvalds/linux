@@ -401,7 +401,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 
 	/* Clear shadow ram */
 	for (i = 0; i < nvm->word_size; i++) {
-		dev_spec->shadow_ram[i].modified = 0;
+		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value    = 0xFFFF;
 	}
 
@@ -430,7 +430,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	if (mac->type == e1000_ich8lan)
 		mac->rar_entry_count--;
 	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = 1;
+	mac->arc_subsystem_valid = true;
 
 	/* LED operations */
 	switch (mac->type) {
@@ -464,7 +464,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 
 	/* Enable PCS Lock-loss workaround for ICH8 */
 	if (mac->type == e1000_ich8lan)
-		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, 1);
+		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
 
 	return 0;
 }
@@ -1403,7 +1403,7 @@ out:
 /**
  *  e1000_set_d0_lplu_state_ich8lan - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -1489,7 +1489,7 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 /**
  *  e1000_set_d3_lplu_state_ich8lan - Set Low Power Linkup D3 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D3 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
@@ -1952,7 +1952,7 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	nvm->ops.acquire(hw);
 
 	for (i = 0; i < words; i++) {
-		dev_spec->shadow_ram[offset+i].modified = 1;
+		dev_spec->shadow_ram[offset+i].modified = true;
 		dev_spec->shadow_ram[offset+i].value = data[i];
 	}
 
@@ -2111,7 +2111,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 
 	/* Great!  Everything worked, we can now clear the cached entries. */
 	for (i = 0; i < E1000_ICH8_SHADOW_RAM_WORDS; i++) {
-		dev_spec->shadow_ram[i].modified = 0;
+		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value = 0xFFFF;
 	}
 
@@ -3083,8 +3083,8 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *  @state: boolean value used to set the current Kumeran workaround state
  *
- *  If ICH8, set the current Kumeran workaround state (enabled - TRUE
- *  /disabled - FALSE).
+ *  If ICH8, set the current Kumeran workaround state (enabled - true
+ *  /disabled - false).
  **/
 void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state)

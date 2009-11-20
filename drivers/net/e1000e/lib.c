@@ -371,7 +371,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	if (!link)
 		return ret_val; /* No link detected */
 
-	mac->get_link_status = 0;
+	mac->get_link_status = false;
 
 	/*
 	 * Check if there was DownShift, must be checked
@@ -1603,7 +1603,7 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 	mac->ifs_step_size = IFS_STEP;
 	mac->ifs_ratio = IFS_RATIO;
 
-	mac->in_ifs_mode = 0;
+	mac->in_ifs_mode = false;
 	ew32(AIT, 0);
 }
 
@@ -1620,7 +1620,7 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 
 	if ((mac->collision_delta * mac->ifs_ratio) > mac->tx_packet_delta) {
 		if (mac->tx_packet_delta > MIN_NUM_XMITS) {
-			mac->in_ifs_mode = 1;
+			mac->in_ifs_mode = true;
 			if (mac->current_ifs_val < mac->ifs_max_val) {
 				if (!mac->current_ifs_val)
 					mac->current_ifs_val = mac->ifs_min_val;
@@ -1634,7 +1634,7 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 		if (mac->in_ifs_mode &&
 		    (mac->tx_packet_delta <= MIN_NUM_XMITS)) {
 			mac->current_ifs_val = 0;
-			mac->in_ifs_mode = 0;
+			mac->in_ifs_mode = false;
 			ew32(AIT, 0);
 		}
 	}
@@ -2277,7 +2277,7 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 
 	/* No manageability, no filtering */
 	if (!e1000e_check_mng_mode(hw)) {
-		hw->mac.tx_pkt_filtering = 0;
+		hw->mac.tx_pkt_filtering = false;
 		return 0;
 	}
 
@@ -2287,7 +2287,7 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 */
 	ret_val = e1000_mng_enable_host_if(hw);
 	if (ret_val != 0) {
-		hw->mac.tx_pkt_filtering = 0;
+		hw->mac.tx_pkt_filtering = false;
 		return ret_val;
 	}
 
@@ -2306,17 +2306,17 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 * take the safe route of assuming Tx filtering is enabled.
 	 */
 	if ((hdr_csum != csum) || (hdr->signature != E1000_IAMT_SIGNATURE)) {
-		hw->mac.tx_pkt_filtering = 1;
+		hw->mac.tx_pkt_filtering = true;
 		return 1;
 	}
 
 	/* Cookie area is valid, make the final check for filtering. */
 	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING)) {
-		hw->mac.tx_pkt_filtering = 0;
+		hw->mac.tx_pkt_filtering = false;
 		return 0;
 	}
 
-	hw->mac.tx_pkt_filtering = 1;
+	hw->mac.tx_pkt_filtering = true;
 	return 1;
 }
 
@@ -2473,7 +2473,7 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 {
 	u32 manc;
 	u32 fwsm, factps;
-	bool ret_val = 0;
+	bool ret_val = false;
 
 	manc = er32(MANC);
 
@@ -2488,13 +2488,13 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
 		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT))) {
-			ret_val = 1;
+			ret_val = true;
 			return ret_val;
 		}
 	} else {
 		if ((manc & E1000_MANC_SMBUS_EN) &&
 		    !(manc & E1000_MANC_ASF_EN)) {
-			ret_val = 1;
+			ret_val = true;
 			return ret_val;
 		}
 	}
