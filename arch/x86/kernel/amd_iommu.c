@@ -499,43 +499,48 @@ static void iommu_flush_tlb_pde(struct protection_domain *domain)
 }
 
 /*
- * This function flushes one domain on one IOMMU
+ * This function flushes all domains that have devices on the given IOMMU
  */
-static void flush_domain_on_iommu(struct amd_iommu *iommu, u16 domid)
-{
-	struct iommu_cmd cmd;
-	unsigned long flags;
-
-	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
-				      domid, 1, 1);
-
-	spin_lock_irqsave(&iommu->lock, flags);
-	__iommu_queue_command(iommu, &cmd);
-	__iommu_completion_wait(iommu);
-	__iommu_wait_for_completion(iommu);
-	spin_unlock_irqrestore(&iommu->lock, flags);
-}
-
 static void flush_all_domains_on_iommu(struct amd_iommu *iommu)
 {
-	int i;
+	u64 address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
+	struct protection_domain *domain;
+	unsigned long flags;
 
-	for (i = 1; i < MAX_DOMAIN_ID; ++i) {
-		if (!test_bit(i, amd_iommu_pd_alloc_bitmap))
+	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
+
+	list_for_each_entry(domain, &amd_iommu_pd_list, list) {
+		if (domain->dev_iommu[iommu->index] == 0)
 			continue;
-		flush_domain_on_iommu(iommu, i);
+
+		spin_lock(&domain->lock);
+		iommu_queue_inv_iommu_pages(iommu, address, domain->id, 1, 1);
+		iommu_flush_complete(domain);
+		spin_unlock(&domain->lock);
 	}
 
+	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
 }
 
+/*
+ * This function uses heavy locking and may disable irqs for some time. But
+ * this is no issue because it is only called during resume.
+ */
 void amd_iommu_flush_all_domains(void)
 {
 	struct protection_domain *domain;
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
 
 	list_for_each_entry(domain, &amd_iommu_pd_list, list) {
+		spin_lock(&domain->lock);
 		iommu_flush_tlb_pde(domain);
 		iommu_flush_complete(domain);
+		spin_unlock(&domain->lock);
 	}
+
+	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
 }
 
 static void flush_all_devices_for_iommu(struct amd_iommu *iommu)
