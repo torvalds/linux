@@ -1517,7 +1517,6 @@ static void __perf_event_read(void *info)
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_event *event = info;
 	struct perf_event_context *ctx = event->ctx;
-	unsigned long flags;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -1529,12 +1528,10 @@ static void __perf_event_read(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	local_irq_save(flags);
 	if (ctx->is_active)
 		update_context_time(ctx);
 	event->pmu->read(event);
 	update_event_times(event);
-	local_irq_restore(flags);
 }
 
 static u64 perf_event_read(struct perf_event *event)
