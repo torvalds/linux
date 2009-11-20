@@ -383,24 +383,51 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 
 int netxen_p2_nic_set_promisc(struct netxen_adapter *adapter, u32 mode)
 {
-	__u32 reg;
+	u32 mac_cfg;
+	u32 cnt = 0;
+	__u32 reg = 0x0200;
 	u32 port = adapter->physical_port;
+	u16 board_type = adapter->ahw.board_type;
 
 	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
 
-	reg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port));
-	if (mode == NETXEN_NIU_PROMISC_MODE)
-		reg = (reg | 0x2000UL);
-	else
-		reg = (reg & ~0x2000UL);
+	mac_cfg = NXRD32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port));
+	mac_cfg &= ~0x4;
+	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg);
 
-	if (mode == NETXEN_NIU_ALLMULTI_MODE)
-		reg = (reg | 0x1000UL);
-	else
-		reg = (reg & ~0x1000UL);
+	if ((board_type == NETXEN_BRDTYPE_P2_SB31_10G_IMEZ) ||
+			(board_type == NETXEN_BRDTYPE_P2_SB31_10G_HMEZ))
+		reg = (0x20 << port);
 
-	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
+	NXWR32(adapter, NETXEN_NIU_FRAME_COUNT_SELECT, reg);
+
+	mdelay(10);
+
+	while (NXRD32(adapter, NETXEN_NIU_FRAME_COUNT) && ++cnt < 20)
+		mdelay(10);
+
+	if (cnt < 20) {
+
+		reg = NXRD32(adapter,
+			NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port));
+
+		if (mode == NETXEN_NIU_PROMISC_MODE)
+			reg = (reg | 0x2000UL);
+		else
+			reg = (reg & ~0x2000UL);
+
+		if (mode == NETXEN_NIU_ALLMULTI_MODE)
+			reg = (reg | 0x1000UL);
+		else
+			reg = (reg & ~0x1000UL);
+
+		NXWR32(adapter,
+			NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
+	}
+
+	mac_cfg |= 0x4;
+	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), mac_cfg);
 
 	return 0;
 }
