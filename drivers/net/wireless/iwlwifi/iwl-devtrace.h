@@ -14,7 +14,7 @@ static inline void trace_ ## name(proto) {}
 #define PRIV_ASSIGN	__entry->priv = priv
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM iwlwifi
+#define TRACE_SYSTEM iwlwifi_io
 
 TRACE_EVENT(iwlwifi_dev_ioread32,
 	TP_PROTO(struct iwl_priv *priv, u32 offs, u32 val),
@@ -63,6 +63,9 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 	),
 	TP_printk("[%p] write io[%#x] = %#x)", __entry->priv, __entry->offs, __entry->val)
 );
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM iwlwifi
 
 TRACE_EVENT(iwlwifi_dev_hcmd,
 	TP_PROTO(struct iwl_priv *priv, void *hcmd, size_t len, u32 flags),
