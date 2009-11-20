@@ -823,8 +823,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		}
 
 		if (params->vlan->ieee80211_ptr->use_4addr) {
-			if (vlansdata->u.vlan.sta)
+			if (vlansdata->u.vlan.sta) {
+				rcu_read_unlock();
 				return -EBUSY;
+			}
 
 			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
 		}
