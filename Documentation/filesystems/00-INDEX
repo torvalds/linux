@@ -62,6 +62,8 @@ jfs.txt
 	- info and mount options for the JFS filesystem.
 locks.txt
 	- info on file locking implementations, flock() vs. fcntl(), etc.
+logfs.txt
+	- info on the LogFS flash filesystem.
 mandatory-locking.txt
 	- info on the Linux implementation of Sys V mandatory file locking.
 ncpfs.txt
