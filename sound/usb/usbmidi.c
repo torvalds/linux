@@ -1062,15 +1062,6 @@ static int snd_usbmidi_in_endpoint_create(struct snd_usb_midi* umidi,
 	return 0;
 }
 
-static unsigned int snd_usbmidi_count_bits(unsigned int x)
-{
-	unsigned int bits;
-
-	for (bits = 0; x; ++bits)
-		x &= x - 1;
-	return bits;
-}
-
 /*
  * Frees an output endpoint.
  * May be called when ep hasn't been initialized completely.
@@ -1914,8 +1905,8 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 	out_ports = 0;
 	in_ports = 0;
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
-		out_ports += snd_usbmidi_count_bits(endpoints[i].out_cables);
-		in_ports += snd_usbmidi_count_bits(endpoints[i].in_cables);
+		out_ports += hweight16(endpoints[i].out_cables);
+		in_ports += hweight16(endpoints[i].in_cables);
 	}
 	err = snd_usbmidi_create_rawmidi(umidi, out_ports, in_ports);
 	if (err < 0) {
