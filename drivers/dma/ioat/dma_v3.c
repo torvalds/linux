@@ -1206,6 +1206,16 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		device->timer_fn = ioat2_timer_event;
 	}
 
+	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
+	dma->device_prep_dma_pq_val = NULL;
+	#endif
+
+	#ifdef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
+	dma_cap_clear(DMA_XOR_VAL, dma->cap_mask);
+	dma->device_prep_dma_xor_val = NULL;
+	#endif
+
 	/* -= IOAT ver.3 workarounds =- */
 	/* Write CHANERRMSK_INT with 3E07h to mask out the errors
 	 * that can cause stability issues for IOAT ver.3
