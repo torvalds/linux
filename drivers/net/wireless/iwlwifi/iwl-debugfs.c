@@ -235,13 +235,21 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
 	size_t bufsz;
 
-	bufsz =  30 + priv->dbgfs->sram_len * sizeof(char) * 12;
+	/* default is to dump the entire data segment */
+	if (!priv->dbgfs->sram_offset && !priv->dbgfs->sram_len) {
+		priv->dbgfs->sram_offset = 0x800000;
+		if (priv->ucode_type == UCODE_INIT)
+			priv->dbgfs->sram_len = priv->ucode_init_data.len;
+		else
+			priv->dbgfs->sram_len = priv->ucode_data.len;
+	}
+	bufsz =  30 + priv->dbgfs->sram_len * sizeof(char) * 10;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: %d\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n",
 			priv->dbgfs->sram_len);
-	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: %d\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n",
 			priv->dbgfs->sram_offset);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
 		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \
