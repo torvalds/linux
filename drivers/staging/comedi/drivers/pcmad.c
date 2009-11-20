@@ -134,11 +134,12 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_NOTICE "comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCMAD_SIZE, "pcmad")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
+	printk(KERN_CONT "\n");
 	dev->iobase = iobase;
 
 	ret = alloc_subdevices(dev, 1);
@@ -165,7 +166,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int pcmad_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pcmad: remove\n", dev->minor);
+	printk(KERN_NOTICE "comedi%d: pcmad: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
