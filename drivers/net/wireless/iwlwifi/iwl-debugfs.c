@@ -47,9 +47,9 @@
 		goto err; 						\
 } while (0)
 
-#define DEBUGFS_ADD_FILE(name, parent) do {                             \
+#define DEBUGFS_ADD_FILE(name, parent, mode) do {                       \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_file(#name, S_IWUSR | S_IRUSR,                   \
+	debugfs_create_file(#name, mode,                                \
 				dbgfs->dir_##parent, priv,              \
 				&iwl_dbgfs_##name##_ops);               \
 	if (!(dbgfs->dbgfs_##parent##_files.file_##name))               \
@@ -1868,34 +1868,34 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
 	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
 	DEBUGFS_ADD_DIR(debug, dbgfs->dir_drv);
-	DEBUGFS_ADD_FILE(nvm, data);
-	DEBUGFS_ADD_FILE(sram, data);
-	DEBUGFS_ADD_FILE(log_event, data);
-	DEBUGFS_ADD_FILE(stations, data);
-	DEBUGFS_ADD_FILE(channels, data);
-	DEBUGFS_ADD_FILE(status, data);
-	DEBUGFS_ADD_FILE(interrupt, data);
-	DEBUGFS_ADD_FILE(qos, data);
-	DEBUGFS_ADD_FILE(led, data);
-	DEBUGFS_ADD_FILE(sleep_level_override, data);
-	DEBUGFS_ADD_FILE(current_sleep_command, data);
-	DEBUGFS_ADD_FILE(thermal_throttling, data);
-	DEBUGFS_ADD_FILE(disable_ht40, data);
-	DEBUGFS_ADD_FILE(rx_statistics, debug);
-	DEBUGFS_ADD_FILE(tx_statistics, debug);
-	DEBUGFS_ADD_FILE(traffic_log, debug);
-	DEBUGFS_ADD_FILE(rx_queue, debug);
-	DEBUGFS_ADD_FILE(tx_queue, debug);
-	DEBUGFS_ADD_FILE(tx_power, debug);
-	DEBUGFS_ADD_FILE(power_save_status, debug);
-	DEBUGFS_ADD_FILE(clear_ucode_statistics, debug);
-	DEBUGFS_ADD_FILE(clear_traffic_statistics, debug);
+	DEBUGFS_ADD_FILE(nvm, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(sram, data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(log_event, data, S_IWUSR);
+	DEBUGFS_ADD_FILE(stations, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(channels, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(status, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(interrupt, data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(qos, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(led, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(sleep_level_override, data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(current_sleep_command, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(thermal_throttling, data, S_IRUSR);
+	DEBUGFS_ADD_FILE(disable_ht40, data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_statistics, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(tx_statistics, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(traffic_log, debug, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_queue, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(tx_queue, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(tx_power, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(power_save_status, debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(clear_ucode_statistics, debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(clear_traffic_statistics, debug, S_IWUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
-		DEBUGFS_ADD_FILE(ucode_rx_stats, debug);
-		DEBUGFS_ADD_FILE(ucode_tx_stats, debug);
-		DEBUGFS_ADD_FILE(ucode_general_stats, debug);
-		DEBUGFS_ADD_FILE(sensitivity, debug);
-		DEBUGFS_ADD_FILE(chain_noise, debug);
+		DEBUGFS_ADD_FILE(ucode_rx_stats, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(ucode_tx_stats, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(ucode_general_stats, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(sensitivity, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(chain_noise, debug, S_IRUSR);
 	}
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
