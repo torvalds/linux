@@ -884,6 +884,11 @@ out_close:
 	return err;
 }
 
+static bool dso__build_id_equal(const struct dso *self, u8 *build_id)
+{
+	return memcmp(self->build_id, build_id, sizeof(self->build_id)) == 0;
+}
+
 bool dsos__read_build_ids(void)
 {
 	bool have_build_id = false;
@@ -1099,8 +1104,7 @@ more:
 						    sizeof(build_id)) < 0)
 				goto more;
 compare_build_id:
-			if (memcmp(build_id, self->build_id,
-				   sizeof(self->build_id)) != 0)
+			if (!dso__build_id_equal(self, build_id))
 				goto more;
 		}
 
