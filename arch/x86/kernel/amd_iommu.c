@@ -451,7 +451,7 @@ static void __iommu_flush_pages(struct protection_domain *domain,
 				u64 address, size_t size, int pde)
 {
 	int s = 0, i;
-	unsigned pages = iommu_num_pages(address, size, PAGE_SIZE);
+	unsigned long pages = iommu_num_pages(address, size, PAGE_SIZE);
 
 	address &= PAGE_MASK;
 
@@ -487,23 +487,15 @@ static void iommu_flush_pages(struct protection_domain *domain,
 }
 
 /* Flush the whole IO/TLB for a given protection domain */
-static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
+static void iommu_flush_tlb(struct protection_domain *domain)
 {
-	u64 address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
-
-	INC_STATS_COUNTER(domain_flush_single);
-
-	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 1);
+	__iommu_flush_pages(domain, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS, 0);
 }
 
 /* Flush the whole IO/TLB for a given protection domain - including PDE */
-static void iommu_flush_tlb_pde(struct amd_iommu *iommu, u16 domid)
+static void iommu_flush_tlb_pde(struct protection_domain *domain)
 {
-       u64 address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
-
-       INC_STATS_COUNTER(domain_flush_single);
-
-       iommu_queue_inv_iommu_pages(iommu, address, domid, 1, 1);
+	__iommu_flush_pages(domain, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS, 1);
 }
 
 /*
@@ -1236,7 +1228,7 @@ static void attach_device(struct amd_iommu *iommu,
 	 * here to evict all dirty stuff.
 	 */
 	iommu_queue_inv_dev_entry(iommu, devid);
-	iommu_flush_tlb_pde(iommu, domain->id);
+	iommu_flush_tlb_pde(domain);
 }
 
 /*
@@ -1697,7 +1689,7 @@ retry:
 	ADD_STATS_COUNTER(alloced_io_mem, size);
 
 	if (unlikely(dma_dom->need_flush && !amd_iommu_unmap_flush)) {
-		iommu_flush_tlb(iommu, dma_dom->domain.id);
+		iommu_flush_tlb(&dma_dom->domain);
 		dma_dom->need_flush = false;
 	} else if (unlikely(iommu_has_npcache(iommu)))
 		iommu_flush_pages(&dma_dom->domain, address, size);
