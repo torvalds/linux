@@ -2478,6 +2478,16 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			priv->assoc_id = 0;
 			iwl_led_disassociate(priv);
+
+			/*
+			 * inform the ucode that there is no longer an
+			 * association and that no more packets should be
+			 * send
+			 */
+			priv->staging_rxon.filter_flags &=
+				~RXON_FILTER_ASSOC_MSK;
+			priv->staging_rxon.assoc_id = 0;
+			iwlcore_commit_rxon(priv);
 		}
 	}
 
