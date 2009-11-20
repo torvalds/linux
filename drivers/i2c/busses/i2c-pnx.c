@@ -19,7 +19,9 @@
 #include <linux/completion.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-pnx.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
+#include <mach/i2c.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
@@ -53,6 +55,9 @@ static inline void i2c_pnx_arm_timer(struct i2c_adapter *adap)
 	struct i2c_pnx_algo_data *data = adap->algo_data;
 	struct timer_list *timer = &data->mif.timer;
 	int expires = I2C_PNX_TIMEOUT / (1000 / HZ);
+
+	if (expires <= 1)
+		expires = 2;
 
 	del_timer_sync(timer);
 
