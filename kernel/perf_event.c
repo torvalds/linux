@@ -1782,6 +1782,7 @@ u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
 	*enabled = 0;
 	*running = 0;
 
+	mutex_lock(&event->child_mutex);
 	total += perf_event_read(event);
 	*enabled += event->total_time_enabled +
 			atomic64_read(&event->child_total_time_enabled);
@@ -1793,6 +1794,7 @@ u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
 		*enabled += child->total_time_enabled;
 		*running += child->total_time_running;
 	}
+	mutex_unlock(&event->child_mutex);
 
 	return total;
 }
@@ -1802,10 +1804,12 @@ static int perf_event_read_group(struct perf_event *event,
 				   u64 read_format, char __user *buf)
 {
 	struct perf_event *leader = event->group_leader, *sub;
-	int n = 0, size = 0, ret = 0;
+	int n = 0, size = 0, ret = -EFAULT;
+	struct perf_event_context *ctx = leader->ctx;
 	u64 values[5];
 	u64 count, enabled, running;
 
+	mutex_lock(&ctx->mutex);
 	count = perf_event_read_value(leader, &enabled, &running);
 
 	values[n++] = 1 + leader->nr_siblings;
@@ -1820,9 +1824,9 @@ static int perf_event_read_group(struct perf_event *event,
 	size = n * sizeof(u64);
 
 	if (copy_to_user(buf, values, size))
-		return -EFAULT;
+		goto unlock;
 
-	ret += size;
+	ret = size;
 
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
 		n = 0;
@@ -1833,11 +1837,15 @@ static int perf_event_read_group(struct perf_event *event,
 
 		size = n * sizeof(u64);
 
-		if (copy_to_user(buf + size, values, size))
-			return -EFAULT;
+		if (copy_to_user(buf + size, values, size)) {
+			ret = -EFAULT;
+			goto unlock;
+		}
 
 		ret += size;
 	}
+unlock:
+	mutex_unlock(&ctx->mutex);
 
 	return ret;
 }
@@ -1884,12 +1892,10 @@ perf_read_hw(struct perf_event *event, char __user *buf, size_t count)
 		return -ENOSPC;
 
 	WARN_ON_ONCE(event->ctx->parent_ctx);
-	mutex_lock(&event->child_mutex);
 	if (read_format & PERF_FORMAT_GROUP)
 		ret = perf_event_read_group(event, read_format, buf);
 	else
 		ret = perf_event_read_one(event, read_format, buf);
-	mutex_unlock(&event->child_mutex);
 
 	return ret;
 }
