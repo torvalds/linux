@@ -1679,8 +1679,7 @@ static int fc_lport_els_request(struct fc_bsg_job *job,
 	char *pp;
 	int len;
 
-	fp = fc_frame_alloc(lport, sizeof(struct fc_frame_header) +
-			    job->request_payload.payload_len);
+	fp = fc_frame_alloc(lport, job->request_payload.payload_len);
 	if (!fp)
 		return -ENOMEM;
 
