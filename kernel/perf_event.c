@@ -1784,30 +1784,15 @@ u64 perf_event_read_value(struct perf_event *event)
 }
 EXPORT_SYMBOL_GPL(perf_event_read_value);
 
-static int perf_event_read_entry(struct perf_event *event,
-				   u64 read_format, char __user *buf)
-{
-	int n = 0, count = 0;
-	u64 values[2];
-
-	values[n++] = perf_event_read_value(event);
-	if (read_format & PERF_FORMAT_ID)
-		values[n++] = primary_event_id(event);
-
-	count = n * sizeof(u64);
-
-	if (copy_to_user(buf, values, count))
-		return -EFAULT;
-
-	return count;
-}
-
 static int perf_event_read_group(struct perf_event *event,
 				   u64 read_format, char __user *buf)
 {
 	struct perf_event *leader = event->group_leader, *sub;
-	int n = 0, size = 0, err = -EFAULT;
-	u64 values[3];
+	int n = 0, size = 0, ret = 0;
+	u64 values[5];
+	u64 count;
+
+	count = perf_event_read_value(leader);
 
 	values[n++] = 1 + leader->nr_siblings;
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
@@ -1818,28 +1803,33 @@ static int perf_event_read_group(struct perf_event *event,
 		values[n++] = leader->total_time_running +
 			atomic64_read(&leader->child_total_time_running);
 	}
+	values[n++] = count;
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_event_id(leader);
 
 	size = n * sizeof(u64);
 
 	if (copy_to_user(buf, values, size))
 		return -EFAULT;
 
-	err = perf_event_read_entry(leader, read_format, buf + size);
-	if (err < 0)
-		return err;
-
-	size += err;
+	ret += size;
 
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
-		err = perf_event_read_entry(sub, read_format,
-				buf + size);
-		if (err < 0)
-			return err;
+		n = 0;
 
-		size += err;
+		values[n++] = perf_event_read_value(sub);
+		if (read_format & PERF_FORMAT_ID)
+			values[n++] = primary_event_id(sub);
+
+		size = n * sizeof(u64);
+
+		if (copy_to_user(buf + size, values, size))
+			return -EFAULT;
+
+		ret += size;
 	}
 
-	return size;
+	return ret;
 }
 
 static int perf_event_read_one(struct perf_event *event,
