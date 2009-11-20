@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2007-2008 Advanced Micro Devices, Inc.
+ * Copyright (C) 2009 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <joerg.roedel@amd.com>
- *         Leo Duran <leo.duran@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -17,19 +16,23 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ASM_X86_AMD_IOMMU_H
-#define _ASM_X86_AMD_IOMMU_H
+#ifndef _ASM_X86_AMD_IOMMU_PROTO_H
+#define _ASM_X86_AMD_IOMMU_PROTO_H
 
-#include <linux/irqreturn.h>
+struct amd_iommu;
 
-#ifdef CONFIG_AMD_IOMMU
+extern int amd_iommu_init_dma_ops(void);
+extern int amd_iommu_init_passthrough(void);
+extern irqreturn_t amd_iommu_int_handler(int irq, void *data);
+extern void amd_iommu_flush_all_domains(void);
+extern void amd_iommu_flush_all_devices(void);
+extern void amd_iommu_apply_erratum_63(u16 devid);
+extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 
-extern void amd_iommu_detect(void);
+#ifndef CONFIG_AMD_IOMMU_STATS
 
-#else
+static inline void amd_iommu_stats_init(void) { }
 
-static inline void amd_iommu_detect(void) { }
+#endif /* !CONFIG_AMD_IOMMU_STATS */
 
-#endif
-
-#endif /* _ASM_X86_AMD_IOMMU_H */
+#endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */

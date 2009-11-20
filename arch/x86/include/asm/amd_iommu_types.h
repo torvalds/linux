@@ -462,11 +462,6 @@ struct __iommu_counter {
 #define ADD_STATS_COUNTER(name, x)
 #define SUB_STATS_COUNTER(name, x)
 
-static inline void amd_iommu_stats_init(void) { }
-
 #endif /* CONFIG_AMD_IOMMU_STATS */
-
-/* some function prototypes */
-extern void amd_iommu_reset_cmd_buffer(struct amd_iommu *iommu);
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */
