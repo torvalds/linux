@@ -530,10 +530,12 @@ static void flush_all_domains_on_iommu(struct amd_iommu *iommu)
 
 void amd_iommu_flush_all_domains(void)
 {
-	struct amd_iommu *iommu;
+	struct protection_domain *domain;
 
-	for_each_iommu(iommu)
-		flush_all_domains_on_iommu(iommu);
+	list_for_each_entry(domain, &amd_iommu_pd_list, list) {
+		iommu_flush_tlb_pde(domain);
+		iommu_flush_complete(domain);
+	}
 }
 
 static void flush_all_devices_for_iommu(struct amd_iommu *iommu)
