@@ -1604,7 +1604,6 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	return ret;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 static const char *desc_lookup_text[] = {
 	"OK",
 	"FAIL",
@@ -1696,6 +1695,8 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		ilink1, ilink2);
 
 }
+
+#ifdef CONFIG_IWLWIFI_DEBUG
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))
 
