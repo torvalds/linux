@@ -13,6 +13,7 @@
 #define __I2C_PNX_H__
 
 struct platform_device;
+struct clk;
 
 struct i2c_pnx_mif {
 	int			ret;		/* Return value */
@@ -29,12 +30,11 @@ struct i2c_pnx_algo_data {
 	int			irq;
 	struct i2c_pnx_mif	mif;
 	int			last;
+	struct clk		*clk;
 };
 
 struct i2c_pnx_data {
 	u32 (*calculate_input_freq) (struct platform_device *pdev);
-	int (*set_clock_run) (struct platform_device *pdev);
-	int (*set_clock_stop) (struct platform_device *pdev);
 	struct i2c_adapter *adapter;
 };
 

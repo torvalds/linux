@@ -20,6 +20,9 @@
 #include <linux/platform_device.h>
 #include <linux/i2c-pnx.h>
 #include <linux/io.h>
+#include <linux/err.h>
+#include <linux/clk.h>
+
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 #include <asm/irq.h>
@@ -550,13 +553,22 @@ static int i2c_pnx_controller_suspend(struct platform_device *pdev,
 				      pm_message_t state)
 {
 	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	return i2c_pnx->set_clock_run(pdev);
+	struct i2c_pnx_algo_data *alg_data = i2c_pnx->adapter->algo_data;
+
+	/* FIXME: disable clock? */
+	clk_set_rate(alg_data->clk, 1);
+
+	return 0;
 }
 
 static int i2c_pnx_controller_resume(struct platform_device *pdev)
 {
 	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	return i2c_pnx->set_clock_run(pdev);
+	struct i2c_pnx_algo_data *alg_data = i2c_pnx->adapter->algo_data;
+
+	clk_set_rate(alg_data->clk, 1);
+
+	return 0;
 }
 #else
 #define i2c_pnx_controller_suspend	NULL
@@ -580,6 +592,15 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c_pnx);
 
+	i2c_pnx->adapter->algo = &pnx_algorithm;
+	alg_data = i2c_pnx->adapter->algo_data;
+
+	alg_data->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(alg_data->clk)) {
+		ret = PTR_ERR(alg_data->clk);
+		goto out_drvdata;
+	}
+
 	if (i2c_pnx->calculate_input_freq)
 		freq_mhz = i2c_pnx->calculate_input_freq(pdev);
 	else {
@@ -588,9 +609,6 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		       "%d MHz\n", freq_mhz);
 	}
 
-	i2c_pnx->adapter->algo = &pnx_algorithm;
-
-	alg_data = i2c_pnx->adapter->algo_data;
 	init_timer(&alg_data->mif.timer);
 	alg_data->mif.timer.function = i2c_pnx_timeout;
 	alg_data->mif.timer.data = (unsigned long)i2c_pnx->adapter;
@@ -602,7 +620,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		       "I/O region 0x%08x for I2C already in use.\n",
 		       alg_data->base);
 		ret = -ENODEV;
-		goto out_drvdata;
+		goto out_clkget;
 	}
 
 	if (!(alg_data->ioaddr =
@@ -612,7 +630,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		goto out_release;
 	}
 
-	i2c_pnx->set_clock_run(pdev);
+	clk_set_rate(alg_data->clk, 1);
 
 	/*
 	 * Clock Divisor High This value is the number of system clocks
@@ -658,11 +676,13 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 out_irq:
 	free_irq(alg_data->irq, i2c_pnx->adapter);
 out_clock:
-	i2c_pnx->set_clock_stop(pdev);
+	clk_set_rate(alg_data->clk, 0);
 out_unmap:
 	iounmap((void *)alg_data->ioaddr);
 out_release:
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
+out_clkget:
+	clk_put(alg_data->clk);
 out_drvdata:
 	platform_set_drvdata(pdev, NULL);
 out:
@@ -677,9 +697,10 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 
 	free_irq(alg_data->irq, i2c_pnx->adapter);
 	i2c_del_adapter(adap);
-	i2c_pnx->set_clock_stop(pdev);
+	clk_set_rate(alg_data->clk, 0);
 	iounmap((void *)alg_data->ioaddr);
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
+	clk_put(alg_data->clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

@@ -18,36 +18,6 @@
 #include <mach/irqs.h>
 #include <mach/i2c.h>
 
-static int set_clock_run(struct platform_device *pdev)
-{
-	struct clk *clk;
-	int retval = 0;
-
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
-		clk_set_rate(clk, 1);
-		clk_put(clk);
-	} else
-		retval = -ENOENT;
-
-	return retval;
-}
-
-static int set_clock_stop(struct platform_device *pdev)
-{
-	struct clk *clk;
-	int retval = 0;
-
-	clk = clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk)) {
-		clk_set_rate(clk, 0);
-		clk_put(clk);
-	} else
-		retval = -ENOENT;
-
-	return retval;
-}
-
 static u32 calculate_input_freq(struct platform_device *pdev)
 {
 	return HCLK_MHZ;
@@ -85,22 +55,16 @@ static struct i2c_adapter pnx_adapter2 = {
 
 static struct i2c_pnx_data i2c0_data = {
 	.calculate_input_freq = calculate_input_freq,
-	.set_clock_run = set_clock_run,
-	.set_clock_stop = set_clock_stop,
 	.adapter = &pnx_adapter0,
 };
 
 static struct i2c_pnx_data i2c1_data = {
 	.calculate_input_freq = calculate_input_freq,
-	.set_clock_run = set_clock_run,
-	.set_clock_stop = set_clock_stop,
 	.adapter = &pnx_adapter1,
 };
 
 static struct i2c_pnx_data i2c2_data = {
 	.calculate_input_freq = calculate_input_freq,
-	.set_clock_run = set_clock_run,
-	.set_clock_stop = set_clock_stop,
 	.adapter = &pnx_adapter2,
 };
 
