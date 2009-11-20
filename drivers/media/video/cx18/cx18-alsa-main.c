@@ -41,7 +41,11 @@
 
 int cx18_alsa_debug;
 
-#define CX18_DEBUG_ALSA_INFO(fmt, arg...) printk(KERN_INFO "%s: " fmt, "cx18-alsa", ## arg)
+#define CX18_DEBUG_ALSA_INFO(fmt, arg...) \
+	do { \
+		if (cx18_alsa_debug & 2) \
+			printk(KERN_INFO "%s: " fmt, "cx18-alsa", ## arg); \
+	} while (0);
 
 module_param_named(debug, cx18_alsa_debug, int, 0644);
 MODULE_PARM_DESC(debug,
