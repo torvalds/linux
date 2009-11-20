@@ -225,6 +225,7 @@ struct be_eth_rx_compl {
 #define NUM_FLASHDIR_ENTRIES		32
 
 #define FLASHROM_TYPE_ISCSI_ACTIVE	0
+#define FLASHROM_TYPE_REDBOOT		1
 #define FLASHROM_TYPE_BIOS		2
 #define FLASHROM_TYPE_PXE_BIOS		3
 #define FLASHROM_TYPE_FCOE_BIOS		8
@@ -234,9 +235,11 @@ struct be_eth_rx_compl {
 
 #define FLASHROM_OPER_FLASH		1
 #define FLASHROM_OPER_SAVE		2
+#define FLASHROM_OPER_REPORT		4
 
 #define FLASH_IMAGE_MAX_SIZE            (1310720) /* Max firmware image size */
 #define FLASH_BIOS_IMAGE_MAX_SIZE       (262144)  /* Max OPTION ROM image sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE    (262144)  /* Max redboot image sz */
 
 /* Offsets for components on Flash. */
 #define FLASH_iSCSI_PRIMARY_IMAGE_START (1048576)
@@ -246,6 +249,8 @@ struct be_eth_rx_compl {
 #define FLASH_iSCSI_BIOS_START          (7340032)
 #define FLASH_PXE_BIOS_START            (7864320)
 #define FLASH_FCoE_BIOS_START           (524288)
+#define FLASH_REDBOOT_START		(32768)
+#define FLASH_REDBOOT_ISM_START		(0)
 
 struct controller_id {
 	u32 vendor;

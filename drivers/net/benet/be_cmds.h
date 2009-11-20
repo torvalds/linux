@@ -118,6 +118,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_MULTICAST_SET		3
 #define OPCODE_COMMON_NTWK_VLAN_CONFIG  		4
 #define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY		5
+#define OPCODE_COMMON_READ_FLASHROM			6
 #define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
@@ -846,3 +847,4 @@ extern int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
+extern int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc);

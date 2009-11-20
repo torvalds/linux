@@ -1721,6 +1721,31 @@ static int be_close(struct net_device *netdev)
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
 char flash_cookie[2][16] =	{"*** SE FLAS",
 				"H DIRECTORY *** "};
+
+static bool be_flash_redboot(struct be_adapter *adapter,
+			const u8 *p)
+{
+	u32 crc_offset;
+	u8 flashed_crc[4];
+	int status;
+	crc_offset = FLASH_REDBOOT_START + FLASH_REDBOOT_IMAGE_MAX_SIZE - 4
+			+ sizeof(struct flash_file_hdr) - 32*1024;
+	p += crc_offset;
+	status = be_cmd_get_flash_crc(adapter, flashed_crc);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+		"could not get crc from flash, not flashing redboot\n");
+		return false;
+	}
+
+	/*update redboot only if crc does not match*/
+	if (!memcmp(flashed_crc, p, 4))
+		return false;
+	else
+		return true;
+
+}
+
 static int be_flash_image(struct be_adapter *adapter,
 			const struct firmware *fw,
 			struct be_dma_mem *flash_cmd, u32 flash_type)
@@ -1759,6 +1784,12 @@ static int be_flash_image(struct be_adapter *adapter,
 	case FLASHROM_TYPE_PXE_BIOS:
 		image_offset = FLASH_PXE_BIOS_START;
 		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_REDBOOT:
+		if (!be_flash_redboot(adapter, fw->data))
+			return 0;
+		image_offset = FLASH_REDBOOT_ISM_START;
+		image_size = FLASH_REDBOOT_IMAGE_MAX_SIZE;
 		break;
 	default:
 		return 0;
