@@ -155,6 +155,7 @@ struct fcoe_fcf {
 	u8 pri;
 	u16 flags;
 	u32 fka_period;
+	u8 fd_flags:1;
 };
 
 /* FIP API functions */

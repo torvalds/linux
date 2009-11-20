@@ -665,6 +665,8 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			if (dlen != sizeof(struct fip_fka_desc))
 				goto len_err;
 			fka = (struct fip_fka_desc *)desc;
+			if (fka->fd_flags & FIP_FKA_ADV_D)
+				fcf->fd_flags = 1;
 			t = ntohl(fka->fd_fka_period);
 			if (t >= FCOE_CTLR_MIN_FKA)
 				fcf->fka_period = msecs_to_jiffies(t);
@@ -1160,7 +1162,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		}
 	}
 
-	if (sel) {
+	if (sel && !sel->fd_flags) {
 		if (time_after_eq(jiffies, fip->ctlr_ka_time)) {
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
 			fip->send_ctlr_ka = 1;
