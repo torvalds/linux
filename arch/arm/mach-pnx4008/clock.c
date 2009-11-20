@@ -57,18 +57,19 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
-static inline void clk_reg_disable(struct clk *clk)
+static void clk_reg_disable(struct clk *clk)
 {
 	if (clk->enable_reg)
 		__raw_writel(__raw_readl(clk->enable_reg) &
 			     ~(1 << clk->enable_shift), clk->enable_reg);
 }
 
-static inline void clk_reg_enable(struct clk *clk)
+static int clk_reg_enable(struct clk *clk)
 {
 	if (clk->enable_reg)
 		__raw_writel(__raw_readl(clk->enable_reg) |
 			     (1 << clk->enable_shift), clk->enable_reg);
+	return 0;
 }
 
 static inline void clk_reg_disable1(struct clk *clk)
@@ -814,7 +815,9 @@ static void local_clk_disable(struct clk *clk)
 		return;
 
 	if (!(--clk->usecount)) {
-		if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
+		if (clk->disable)
+			clk->disable(clk);
+		else if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
 			clk->set_rate(clk, 0);
 		if (clk->parent)
 			local_clk_disable(clk->parent);
@@ -832,8 +835,10 @@ static int local_clk_enable(struct clk *clk)
 				goto out;
 		}
 
-		if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
-		    && clk->user_rate)
+		if (clk->enable)
+			ret = clk->enable(clk);
+		else if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
+			    && clk->user_rate)
 			ret = clk->set_rate(clk, clk->user_rate);
 
 		if (ret != 0 && clk->parent) {
@@ -960,15 +965,21 @@ static int __init clk_init(void)
 
 	for (clkp = onchip_clks; clkp < onchip_clks + ARRAY_SIZE(onchip_clks);
 	     clkp++) {
-		if (((*clkp)->flags & NEEDS_INITIALIZATION)
-		    && ((*clkp)->set_rate)) {
-			(*clkp)->user_rate = (*clkp)->rate;
-			local_set_rate((*clkp), (*clkp)->user_rate);
-			if ((*clkp)->set_parent)
-				(*clkp)->set_parent((*clkp), (*clkp)->parent);
+		struct clk *clk = *clkp;
+		if (clk->flags & NEEDS_INITIALIZATION) {
+			if (clk->set_rate) {
+				clk->user_rate = clk->rate;
+				local_set_rate(clk, clk->user_rate);
+				if (clk->set_parent)
+					clk->set_parent(clk, clk->parent);
+			}
+			if (clk->enable && clk->usecount)
+				clk->enable(clk);
+			if (clk->disable && !clk->usecount)
+				clk->disable(clk);
 		}
 		pr_debug("%s: clock %s, rate %ld\n",
-			__func__, (*clkp)->name, (*clkp)->rate);
+			__func__, clk->name, clk->rate);
 	}
 
 	local_clk_enable(&ck_pll4);
