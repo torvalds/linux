@@ -240,11 +240,11 @@ static void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
 static inline bool ixgbe_tx_is_paused(struct ixgbe_adapter *adapter,
                                       struct ixgbe_ring *tx_ring)
 {
-	int tc;
 	u32 txoff = IXGBE_TFCS_TXOFF;
 
 #ifdef CONFIG_IXGBE_DCB
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		int tc;
 		int reg_idx = tx_ring->reg_idx;
 		int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
 
