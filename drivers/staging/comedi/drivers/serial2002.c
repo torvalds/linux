@@ -404,8 +404,8 @@ static void serial_2002_open(struct comedi_device *dev)
 	} else {
 		struct config_t {
 
-			int kind;
-			int bits;
+			short int kind;
+			short int bits;
 			int min;
 			int max;
 		};
