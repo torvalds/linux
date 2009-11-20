@@ -808,49 +808,40 @@ static struct clk_lookup onchip_clkreg[] = {
 	{ .clk = &wdt_ck,	.con_id = "wdt_ck"	},
 };
 
+static void local_clk_disable(struct clk *clk)
+{
+	if (WARN_ON(clk->usecount == 0))
+		return;
+
+	if (!(--clk->usecount)) {
+		if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
+			clk->set_rate(clk, 0);
+		if (clk->parent)
+			local_clk_disable(clk->parent);
+	}
+}
+
 static int local_clk_enable(struct clk *clk)
 {
 	int ret = 0;
 
-	if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
-	    && clk->user_rate)
-		ret = clk->set_rate(clk, clk->user_rate);
-	return ret;
-}
+	if (clk->usecount == 0) {
+		if (clk->parent) {
+			ret = local_clk_enable(clk->parent);
+			if (ret != 0)
+				goto out;
+		}
 
-static void local_clk_disable(struct clk *clk)
-{
-	if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
-		clk->set_rate(clk, 0);
-}
+		if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
+		    && clk->user_rate)
+			ret = clk->set_rate(clk, clk->user_rate);
 
-static void local_clk_unuse(struct clk *clk)
-{
-	if (clk->usecount > 0 && !(--clk->usecount)) {
-		local_clk_disable(clk);
-		if (clk->parent)
-			local_clk_unuse(clk->parent);
-	}
-}
-
-static int local_clk_use(struct clk *clk)
-{
-	int ret = 0;
-	if (clk->usecount++ == 0) {
-		if (clk->parent)
-			ret = local_clk_use(clk->parent);
-
-		if (ret != 0) {
-			clk->usecount--;
+		if (ret != 0 && clk->parent) {
+			local_clk_disable(clk->parent);
 			goto out;
 		}
 
-		ret = local_clk_enable(clk);
-
-		if (ret != 0 && clk->parent) {
-			local_clk_unuse(clk->parent);
-			clk->usecount--;
-		}
+		clk->usecount++;
 	}
 out:
 	return ret;
@@ -909,10 +900,10 @@ EXPORT_SYMBOL(clk_get_rate);
 
 int clk_enable(struct clk *clk)
 {
-	int ret = 0;
+	int ret;
 
 	clock_lock();
-	ret = local_clk_use(clk);
+	ret = local_clk_enable(clk);
 	clock_unlock();
 	return ret;
 }
@@ -922,7 +913,7 @@ EXPORT_SYMBOL(clk_enable);
 void clk_disable(struct clk *clk)
 {
 	clock_lock();
-	local_clk_unuse(clk);
+	local_clk_disable(clk);
 	clock_unlock();
 }
 
@@ -980,7 +971,7 @@ static int __init clk_init(void)
 			__func__, (*clkp)->name, (*clkp)->rate);
 	}
 
-	local_clk_use(&ck_pll4);
+	local_clk_enable(&ck_pll4);
 
 	/* if ck_13MHz is not used, disable it. */
 	if (ck_13MHz.usecount == 0)
