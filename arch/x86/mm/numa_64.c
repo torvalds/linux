@@ -239,8 +239,14 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	bootmap = early_node_mem(nodeid, bootmap_start, end,
 				 bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
 	if (bootmap == NULL)  {
-		if (nodedata_phys < start || nodedata_phys >= end)
-			free_bootmem(nodedata_phys, pgdat_size);
+		if (nodedata_phys < start || nodedata_phys >= end) {
+			/*
+			 * only need to free it if it is from other node
+			 * bootmem
+			 */
+			if (nid != nodeid)
+				free_bootmem(nodedata_phys, pgdat_size);
+		}
 		node_data[nodeid] = NULL;
 		return;
 	}
