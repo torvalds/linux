@@ -51,7 +51,7 @@ config SND_HDA_INPUT_BEEP_MODE
 
 config SND_HDA_INPUT_JACK
 	bool "Support jack plugging notification via input layer"
-	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	depends on INPUT=y || INPUT=SND
 	select SND_JACK
 	help
 	  Say Y here to enable the jack plugging notification via
