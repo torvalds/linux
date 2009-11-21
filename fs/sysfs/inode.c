@@ -205,17 +205,6 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-
-/*
- * sysfs has a different i_mutex lock order behavior for i_mutex than other
- * filesystems; sysfs i_mutex is called in many places with subsystem locks
- * held. At the same time, many of the VFS locking rules do not apply to
- * sysfs at all (cross directory rename for example). To untangle this mess
- * (which gives false positives in lockdep), we're giving sysfs inodes their
- * own class for i_mutex.
- */
-static struct lock_class_key sysfs_inode_imutex_key;
-
 static int sysfs_count_nlink(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *child;
@@ -268,7 +257,6 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 	inode->i_mapping->a_ops = &sysfs_aops;
 	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
 	inode->i_op = &sysfs_inode_operations;
-	lockdep_set_class(&inode->i_mutex, &sysfs_inode_imutex_key);
 
 	set_default_inode_attr(inode, sd->s_mode);
 	sysfs_refresh_inode(sd, inode);

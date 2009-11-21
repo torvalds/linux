@@ -1279,28 +1279,6 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	return __lookup_hash(&this, base, NULL);
 }
 
-/**
- * lookup_one_noperm - bad hack for sysfs
- * @name:	pathname component to lookup
- * @base:	base directory to lookup from
- *
- * This is a variant of lookup_one_len that doesn't perform any permission
- * checks.   It's a horrible hack to work around the braindead sysfs
- * architecture and should not be used anywhere else.
- *
- * DON'T USE THIS FUNCTION EVER, thanks.
- */
-struct dentry *lookup_one_noperm(const char *name, struct dentry *base)
-{
-	int err;
-	struct qstr this;
-
-	err = __lookup_one_len(name, &this, base, strlen(name));
-	if (err)
-		return ERR_PTR(err);
-	return __lookup_hash(&this, base, NULL);
-}
-
 int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {

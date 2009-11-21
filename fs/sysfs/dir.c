@@ -25,7 +25,6 @@
 #include "sysfs.h"
 
 DEFINE_MUTEX(sysfs_mutex);
-DEFINE_MUTEX(sysfs_rename_mutex);
 DEFINE_SPINLOCK(sysfs_assoc_lock);
 
 static DEFINE_SPINLOCK(sysfs_ino_lock);
@@ -82,46 +81,6 @@ static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 			break;
 		}
 	}
-}
-
-/**
- *	sysfs_get_dentry - get dentry for the given sysfs_dirent
- *	@sd: sysfs_dirent of interest
- *
- *	Get dentry for @sd.  Dentry is looked up if currently not
- *	present.  This function descends from the root looking up
- *	dentry for each step.
- *
- *	LOCKING:
- *	mutex_lock(sysfs_rename_mutex)
- *
- *	RETURNS:
- *	Pointer to found dentry on success, ERR_PTR() value on error.
- */
-struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd)
-{
-	struct dentry *dentry = dget(sysfs_sb->s_root);
-
-	while (dentry->d_fsdata != sd) {
-		struct sysfs_dirent *cur;
-		struct dentry *parent;
-
-		/* find the first ancestor which hasn't been looked up */
-		cur = sd;
-		while (cur->s_parent != dentry->d_fsdata)
-			cur = cur->s_parent;
-
-		/* look it up */
-		parent = dentry;
-		mutex_lock(&parent->d_inode->i_mutex);
-		dentry = lookup_one_noperm(cur->s_name, parent);
-		mutex_unlock(&parent->d_inode->i_mutex);
-		dput(parent);
-
-		if (IS_ERR(dentry))
-			break;
-	}
-	return dentry;
 }
 
 /**
@@ -315,6 +274,14 @@ static int sysfs_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if (sd->s_flags & SYSFS_FLAG_REMOVED)
 		goto out_bad;
 
+	/* The sysfs dirent has been moved? */
+	if (dentry->d_parent->d_fsdata != sd->s_parent)
+		goto out_bad;
+
+	/* The sysfs dirent has been renamed */
+	if (strcmp(dentry->d_name.name, sd->s_name) != 0)
+		goto out_bad;
+
 	mutex_unlock(&sysfs_mutex);
 out_valid:
 	return 1;
@@ -322,6 +289,12 @@ out_bad:
 	/* Remove the dentry from the dcache hashes.
 	 * If this is a deleted dentry we use d_drop instead of d_delete
 	 * so sysfs doesn't need to cope with negative dentries.
+	 *
+	 * If this is a dentry that has simply been renamed we
+	 * use d_drop to remove it from the dcache lookup on its
+	 * old parent.  If this dentry persists later when a lookup
+	 * is performed at its new name the dentry will be readded
+	 * to the dcache hashes.
 	 */
 	is_dir = (sysfs_type(sd) == SYSFS_DIR);
 	mutex_unlock(&sysfs_mutex);
@@ -705,10 +678,15 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* instantiate and hash dentry */
-	dentry->d_op = &sysfs_dentry_ops;
-	dentry->d_fsdata = sysfs_get(sd);
-	d_instantiate(dentry, inode);
-	d_rehash(dentry);
+	ret = d_find_alias(inode);
+	if (!ret) {
+		dentry->d_op = &sysfs_dentry_ops;
+		dentry->d_fsdata = sysfs_get(sd);
+		d_add(dentry, inode);
+	} else {
+		d_move(ret, dentry);
+		iput(inode);
+	}
 
  out_unlock:
 	mutex_unlock(&sysfs_mutex);
@@ -785,62 +763,32 @@ void sysfs_remove_dir(struct kobject * kobj)
 int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 {
 	struct sysfs_dirent *sd = kobj->sd;
-	struct dentry *parent = NULL;
-	struct dentry *old_dentry = NULL, *new_dentry = NULL;
 	const char *dup_name = NULL;
 	int error;
 
-	mutex_lock(&sysfs_rename_mutex);
+	mutex_lock(&sysfs_mutex);
 
 	error = 0;
 	if (strcmp(sd->s_name, new_name) == 0)
 		goto out;	/* nothing to rename */
 
-	/* get the original dentry */
-	old_dentry = sysfs_get_dentry(sd);
-	if (IS_ERR(old_dentry)) {
-		error = PTR_ERR(old_dentry);
-		old_dentry = NULL;
-		goto out;
-	}
-
-	parent = old_dentry->d_parent;
-
-	/* lock parent and get dentry for new name */
-	mutex_lock(&parent->d_inode->i_mutex);
-	mutex_lock(&sysfs_mutex);
-
 	error = -EEXIST;
 	if (sysfs_find_dirent(sd->s_parent, new_name))
-		goto out_unlock;
-
-	error = -ENOMEM;
-	new_dentry = d_alloc_name(parent, new_name);
-	if (!new_dentry)
-		goto out_unlock;
+		goto out;
 
 	/* rename sysfs_dirent */
 	error = -ENOMEM;
 	new_name = dup_name = kstrdup(new_name, GFP_KERNEL);
 	if (!new_name)
-		goto out_unlock;
+		goto out;
 
 	dup_name = sd->s_name;
 	sd->s_name = new_name;
 
-	/* rename */
-	d_add(new_dentry, NULL);
-	d_move(old_dentry, new_dentry);
-
 	error = 0;
- out_unlock:
-	mutex_unlock(&sysfs_mutex);
-	mutex_unlock(&parent->d_inode->i_mutex);
-	kfree(dup_name);
-	dput(old_dentry);
-	dput(new_dentry);
  out:
-	mutex_unlock(&sysfs_rename_mutex);
+	mutex_unlock(&sysfs_mutex);
+	kfree(dup_name);
 	return error;
 }
 
@@ -848,12 +796,11 @@ int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent_kobj)
 {
 	struct sysfs_dirent *sd = kobj->sd;
 	struct sysfs_dirent *new_parent_sd;
-	struct dentry *old_parent, *new_parent = NULL;
-	struct dentry *old_dentry = NULL, *new_dentry = NULL;
 	int error;
 
-	mutex_lock(&sysfs_rename_mutex);
 	BUG_ON(!sd->s_parent);
+
+	mutex_lock(&sysfs_mutex);
 	new_parent_sd = (new_parent_kobj && new_parent_kobj->sd) ?
 		new_parent_kobj->sd : &sysfs_root;
 
@@ -861,61 +808,20 @@ int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent_kobj)
 	if (sd->s_parent == new_parent_sd)
 		goto out;	/* nothing to move */
 
-	/* get dentries */
-	old_dentry = sysfs_get_dentry(sd);
-	if (IS_ERR(old_dentry)) {
-		error = PTR_ERR(old_dentry);
-		old_dentry = NULL;
-		goto out;
-	}
-	old_parent = old_dentry->d_parent;
-
-	new_parent = sysfs_get_dentry(new_parent_sd);
-	if (IS_ERR(new_parent)) {
-		error = PTR_ERR(new_parent);
-		new_parent = NULL;
-		goto out;
-	}
-
-again:
-	mutex_lock(&old_parent->d_inode->i_mutex);
-	if (!mutex_trylock(&new_parent->d_inode->i_mutex)) {
-		mutex_unlock(&old_parent->d_inode->i_mutex);
-		goto again;
-	}
-	mutex_lock(&sysfs_mutex);
-
 	error = -EEXIST;
 	if (sysfs_find_dirent(new_parent_sd, sd->s_name))
-		goto out_unlock;
-
-	error = -ENOMEM;
-	new_dentry = d_alloc_name(new_parent, sd->s_name);
-	if (!new_dentry)
-		goto out_unlock;
-
-	error = 0;
-	d_add(new_dentry, NULL);
-	d_move(old_dentry, new_dentry);
+		goto out;
 
 	/* Remove from old parent's list and insert into new parent's list. */
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
-	drop_nlink(old_parent->d_inode);
 	sysfs_put(sd->s_parent);
 	sd->s_parent = new_parent_sd;
-	inc_nlink(new_parent->d_inode);
 	sysfs_link_sibling(sd);
 
- out_unlock:
+	error = 0;
+out:
 	mutex_unlock(&sysfs_mutex);
-	mutex_unlock(&new_parent->d_inode->i_mutex);
-	mutex_unlock(&old_parent->d_inode->i_mutex);
- out:
-	dput(new_parent);
-	dput(old_dentry);
-	dput(new_dentry);
-	mutex_unlock(&sysfs_rename_mutex);
 	return error;
 }
 
