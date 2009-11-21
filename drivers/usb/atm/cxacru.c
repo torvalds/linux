@@ -5,6 +5,7 @@
  *  Copyright (C) 2004 David Woodhouse, Duncan Sands, Roman Kagan
  *  Copyright (C) 2005 Duncan Sands, Roman Kagan (rkagan % mail ! ru)
  *  Copyright (C) 2007 Simon Arlott
+ *  Copyright (C) 2009 Simon Arlott
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the Free
@@ -43,7 +44,7 @@
 #include "usbatm.h"
 
 #define DRIVER_AUTHOR	"Roman Kagan, David Woodhouse, Duncan Sands, Simon Arlott"
-#define DRIVER_VERSION	"0.3"
+#define DRIVER_VERSION	"0.4"
 #define DRIVER_DESC	"Conexant AccessRunner ADSL USB modem driver"
 
 static const char cxacru_driver_name[] = "cxacru";
