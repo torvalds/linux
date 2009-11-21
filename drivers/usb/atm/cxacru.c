@@ -978,11 +978,9 @@ cleanup:
 
 static void cxacru_upload_firmware(struct cxacru_data *instance,
 				   const struct firmware *fw,
-				   const struct firmware *bp,
-				   const struct firmware *cf)
+				   const struct firmware *bp)
 {
 	int ret;
-	int off;
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct usb_device *usb_dev = usbatm->usb_dev;
 	__le16 signature[] = { usb_dev->descriptor.idVendor,
@@ -1066,24 +1064,6 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 		usb_err(usbatm, "modem failed to initialize: %d\n", ret);
 		return;
 	}
-
-	/* Load config data (le32), doing one packet at a time */
-	if (cf)
-		for (off = 0; off < cf->size / 4; ) {
-			__le32 buf[CMD_PACKET_SIZE / 4 - 1];
-			int i, len = min_t(int, cf->size / 4 - off, CMD_PACKET_SIZE / 4 / 2 - 1);
-			buf[0] = cpu_to_le32(len);
-			for (i = 0; i < len; i++, off++) {
-				buf[i * 2 + 1] = cpu_to_le32(off);
-				memcpy(buf + i * 2 + 2, cf->data + off * 4, 4);
-			}
-			ret = cxacru_cm(instance, CM_REQUEST_CARD_DATA_SET,
-					(u8 *) buf, len, NULL, 0);
-			if (ret < 0) {
-				usb_err(usbatm, "load config data failed: %d\n", ret);
-				return;
-			}
-		}
 }
 
 static int cxacru_find_firmware(struct cxacru_data *instance,
@@ -1109,7 +1089,7 @@ static int cxacru_find_firmware(struct cxacru_data *instance,
 static int cxacru_heavy_init(struct usbatm_data *usbatm_instance,
 			     struct usb_interface *usb_intf)
 {
-	const struct firmware *fw, *bp, *cf;
+	const struct firmware *fw, *bp;
 	struct cxacru_data *instance = usbatm_instance->driver_data;
 
 	int ret = cxacru_find_firmware(instance, "fw", &fw);
@@ -1127,13 +1107,8 @@ static int cxacru_heavy_init(struct usbatm_data *usbatm_instance,
 		}
 	}
 
-	if (cxacru_find_firmware(instance, "cf", &cf))		/* optional */
-		cf = NULL;
+	cxacru_upload_firmware(instance, fw, bp);
 
-	cxacru_upload_firmware(instance, fw, bp, cf);
-
-	if (cf)
-		release_firmware(cf);
 	if (instance->modem_type->boot_rom_patch)
 		release_firmware(bp);
 	release_firmware(fw);

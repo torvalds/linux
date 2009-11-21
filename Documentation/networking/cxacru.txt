@@ -4,6 +4,12 @@ While it is capable of managing/maintaining the ADSL connection without the
 module loaded, the device will sometimes stop responding after unloading the
 driver and it is necessary to unplug/remove power to the device to fix this.
 
+Note: support for cxacru-cf.bin has been removed. It was not loaded correctly
+so it had no effect on the device configuration. Fixing it could have stopped
+existing devices working when an invalid configuration is supplied.
+
+There is a script cxacru-cf.py to convert an existing file to the sysfs form.
+
 Detected devices will appear as ATM devices named "cxacru". In /sys/class/atm/
 these are directories named cxacruN where N is the device number. A symlink
 named device points to the USB interface device's directory which contains
