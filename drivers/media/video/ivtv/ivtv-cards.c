@@ -1025,13 +1025,15 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 /* AVerMedia UltraTV 1500 MCE (newer non-cx88 version, M113 variant) card */
 
 static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
-	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 }, /* NTSC */
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc01b }, /* PAL/SECAM */
 	{ 0, 0, 0 }
 };
 
 static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
 	.type = IVTV_CARD_AVER_ULTRA1500MCE,
 	.name = "AVerMedia UltraTV 1500 MCE / AVerTV M113 Philips Tuner",
+	.comment = "For non-NTSC tuners, use the pal= or secam= module options",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
@@ -1058,6 +1060,7 @@ static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
 	.tuners = {
 		/* The UltraTV 1500 MCE has a Philips FM1236 MK5 TV/FM tuner */
 		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216MK5 },
 	},
 	.pci_list = ivtv_pci_aver_ultra1500mce,
 	.i2c = &ivtv_i2c_std,
