@@ -50,6 +50,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
+#include <media/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
 #include "cx23418.h"
@@ -605,6 +606,8 @@ struct cx18 {
 	struct i2c_adapter i2c_adap[2];
 	struct i2c_algo_bit_data i2c_algo[2];
 	struct cx18_i2c_algo_callback_data i2c_algo_cb_data[2];
+
+	struct IR_i2c_init_data ir_i2c_init_data;
 
 	/* gpio */
 	u32 gpio_dir;
