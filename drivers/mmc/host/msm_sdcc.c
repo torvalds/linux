@@ -299,6 +299,7 @@ static int msmsdcc_config_dma(struct msmsdcc_host *host, struct mmc_data *data)
 	host->dma.hdr.cmdptr = DMOV_CMD_PTR_LIST |
 			       DMOV_CMD_ADDR(host->dma.cmdptr_busaddr);
 	host->dma.hdr.complete_func = msmsdcc_dma_complete_func;
+	host->dma.hdr.execute_func = NULL;
 
 	return 0;
 }

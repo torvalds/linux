@@ -28,6 +28,8 @@ struct msm_dmov_cmd {
 	void (*complete_func)(struct msm_dmov_cmd *cmd,
 			      unsigned int result,
 			      struct msm_dmov_errdata *err);
+	void (*execute_func)(struct msm_dmov_cmd *cmd);
+	void *data;
 };
 
 void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd);
