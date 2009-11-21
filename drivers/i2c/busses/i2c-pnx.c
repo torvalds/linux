@@ -53,14 +53,14 @@ static inline int wait_reset(long timeout, struct i2c_pnx_algo_data *data)
 static inline void i2c_pnx_arm_timer(struct i2c_pnx_algo_data *alg_data)
 {
 	struct timer_list *timer = &alg_data->mif.timer;
-	int expires = I2C_PNX_TIMEOUT / (1000 / HZ);
+	unsigned long expires = msecs_to_jiffies(I2C_PNX_TIMEOUT);
 
 	if (expires <= 1)
 		expires = 2;
 
 	del_timer_sync(timer);
 
-	dev_dbg(&alg_data->adapter.dev, "Timer armed at %lu plus %u jiffies.\n",
+	dev_dbg(&alg_data->adapter.dev, "Timer armed at %lu plus %lu jiffies.\n",
 		jiffies, expires);
 
 	timer->expires = jiffies + expires;
