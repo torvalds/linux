@@ -965,6 +965,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5 },
 	/* enable line-in */
 	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 },
 	.xceive_pin = 10,
