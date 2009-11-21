@@ -1333,6 +1333,7 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	if (instance->atm_dev) {
 		sysfs_remove_link(&instance->atm_dev->class_dev.kobj, "device");
 		atm_dev_deregister(instance->atm_dev);
+		instance->atm_dev = NULL;
 	}
 
 	usbatm_put_instance(instance);	/* taken in usbatm_usb_probe */

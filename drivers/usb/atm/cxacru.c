@@ -200,9 +200,12 @@ static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, \
 static ssize_t cxacru_sysfs_show_##_name(struct device *dev, \
 	struct device_attribute *attr, char *buf) \
 { \
-	struct usb_interface *intf = to_usb_interface(dev); \
-	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf); \
-	struct cxacru_data *instance = usbatm_instance->driver_data; \
+	struct cxacru_data *instance = to_usbatm_driver_data(\
+		to_usb_interface(dev)); \
+\
+	if (instance == NULL) \
+		return -ENODEV; \
+\
 	return cxacru_sysfs_showattr_##_type(instance->card_info[_value], buf); \
 } \
 CXACRU__ATTR_INIT(_name)
@@ -288,22 +291,28 @@ static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
 static ssize_t cxacru_sysfs_show_mac_address(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf);
-	struct atm_dev *atm_dev = usbatm_instance->atm_dev;
+	struct cxacru_data *instance = to_usbatm_driver_data(
+			to_usb_interface(dev));
 
-	return snprintf(buf, PAGE_SIZE, "%pM\n", atm_dev->esi);
+	if (instance == NULL || instance->usbatm->atm_dev == NULL)
+		return -ENODEV;
+
+	return snprintf(buf, PAGE_SIZE, "%pM\n",
+		instance->usbatm->atm_dev->esi);
 }
 
 static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf);
-	struct cxacru_data *instance = usbatm_instance->driver_data;
-	u32 value = instance->card_info[CXINF_LINE_STARTABLE];
-
 	static char *str[] = { "running", "stopped" };
+	struct cxacru_data *instance = to_usbatm_driver_data(
+			to_usb_interface(dev));
+	u32 value;
+
+	if (instance == NULL)
+		return -ENODEV;
+
+	value = instance->card_info[CXINF_LINE_STARTABLE];
 	if (unlikely(value >= ARRAY_SIZE(str)))
 		return snprintf(buf, PAGE_SIZE, "%u\n", value);
 	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
@@ -312,9 +321,8 @@ static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,
 static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf);
-	struct cxacru_data *instance = usbatm_instance->driver_data;
+	struct cxacru_data *instance = to_usbatm_driver_data(
+			to_usb_interface(dev));
 	int ret;
 	int poll = -1;
 	char str_cmd[8];
@@ -328,13 +336,16 @@ static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
 		return -EINVAL;
 	ret = 0;
 
+	if (instance == NULL)
+		return -ENODEV;
+
 	if (mutex_lock_interruptible(&instance->adsl_state_serialize))
 		return -ERESTARTSYS;
 
 	if (!strcmp(str_cmd, "stop") || !strcmp(str_cmd, "restart")) {
 		ret = cxacru_cm(instance, CM_REQUEST_CHIP_ADSL_LINE_STOP, NULL, 0, NULL, 0);
 		if (ret < 0) {
-			atm_err(usbatm_instance, "change adsl state:"
+			atm_err(instance->usbatm, "change adsl state:"
 				" CHIP_ADSL_LINE_STOP returned %d\n", ret);
 
 			ret = -EIO;
@@ -354,7 +365,7 @@ static ssize_t cxacru_sysfs_store_adsl_state(struct device *dev,
 	if (!strcmp(str_cmd, "start") || !strcmp(str_cmd, "restart")) {
 		ret = cxacru_cm(instance, CM_REQUEST_CHIP_ADSL_LINE_START, NULL, 0, NULL, 0);
 		if (ret < 0) {
-			atm_err(usbatm_instance, "change adsl state:"
+			atm_err(instance->usbatm, "change adsl state:"
 				" CHIP_ADSL_LINE_START returned %d\n", ret);
 
 			ret = -EIO;
@@ -649,9 +660,6 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 {
 	struct cxacru_data *instance = usbatm_instance->driver_data;
 	struct usb_interface *intf = usbatm_instance->usb_intf;
-	/*
-	struct atm_dev *atm_dev = usbatm_instance->atm_dev;
-	*/
 	int ret;
 	int start_polling = 1;
 
