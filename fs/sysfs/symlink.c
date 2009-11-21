@@ -214,6 +214,9 @@ const struct inode_operations sysfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= sysfs_follow_link,
 	.put_link	= sysfs_put_link,
+	.setattr	= sysfs_setattr,
+	.getattr	= sysfs_getattr,
+	.permission	= sysfs_permission,
 };
 
 

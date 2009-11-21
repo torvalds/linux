@@ -800,7 +800,9 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 const struct inode_operations sysfs_dir_inode_operations = {
 	.lookup		= sysfs_lookup,
+	.permission	= sysfs_permission,
 	.setattr	= sysfs_setattr,
+	.getattr	= sysfs_getattr,
 	.setxattr	= sysfs_setxattr,
 };
 

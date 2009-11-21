@@ -37,7 +37,9 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 };
 
 static const struct inode_operations sysfs_inode_operations ={
+	.permission	= sysfs_permission,
 	.setattr	= sysfs_setattr,
+	.getattr	= sysfs_getattr,
 	.setxattr	= sysfs_setxattr,
 };
 
@@ -196,7 +198,6 @@ static inline void set_default_inode_attr(struct inode * inode, mode_t mode)
 
 static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 {
-	inode->i_mode = iattr->ia_mode;
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
 	inode->i_atime = iattr->ia_atime;
@@ -227,38 +228,56 @@ static int sysfs_count_nlink(struct sysfs_dirent *sd)
 	return nr + 2;
 }
 
+static void sysfs_refresh_inode(struct sysfs_dirent *sd, struct inode *inode)
+{
+	struct sysfs_inode_attrs *iattrs = sd->s_iattr;
+
+	inode->i_mode = sd->s_mode;
+	if (iattrs) {
+		/* sysfs_dirent has non-default attributes
+		 * get them from persistent copy in sysfs_dirent
+		 */
+		set_inode_attr(inode, &iattrs->ia_iattr);
+		security_inode_notifysecctx(inode,
+					    iattrs->ia_secdata,
+					    iattrs->ia_secdata_len);
+	}
+
+	if (sysfs_type(sd) == SYSFS_DIR)
+		inode->i_nlink = sysfs_count_nlink(sd);
+}
+
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct inode *inode = dentry->d_inode;
+
+	mutex_lock(&sysfs_mutex);
+	sysfs_refresh_inode(sd, inode);
+	mutex_unlock(&sysfs_mutex);
+
+	generic_fillattr(inode, stat);
+	return 0;
+}
+
 static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
 	struct bin_attribute *bin_attr;
-	struct sysfs_inode_attrs *iattrs;
 
 	inode->i_private = sysfs_get(sd);
 	inode->i_mapping->a_ops = &sysfs_aops;
 	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
 	inode->i_op = &sysfs_inode_operations;
-	inode->i_ino = sd->s_ino;
 	lockdep_set_class(&inode->i_mutex, &sysfs_inode_imutex_key);
 
-	iattrs = sd->s_iattr;
-	if (iattrs) {
-		/* sysfs_dirent has non-default attributes
-		 * get them for the new inode from persistent copy
-		 * in sysfs_dirent
-		 */
-		set_inode_attr(inode, &iattrs->ia_iattr);
-		if (iattrs->ia_secdata)
-			security_inode_notifysecctx(inode,
-						iattrs->ia_secdata,
-						iattrs->ia_secdata_len);
-	} else
-		set_default_inode_attr(inode, sd->s_mode);
+	set_default_inode_attr(inode, sd->s_mode);
+	sysfs_refresh_inode(sd, inode);
 
 	/* initialize inode according to type */
 	switch (sysfs_type(sd)) {
 	case SYSFS_DIR:
 		inode->i_op = &sysfs_dir_inode_operations;
 		inode->i_fop = &sysfs_dir_operations;
-		inode->i_nlink = sysfs_count_nlink(sd);
 		break;
 	case SYSFS_KOBJ_ATTR:
 		inode->i_size = PAGE_SIZE;
@@ -340,4 +359,15 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 		return 0;
 	else
 		return -ENOENT;
+}
+
+int sysfs_permission(struct inode *inode, int mask)
+{
+	struct sysfs_dirent *sd = inode->i_private;
+
+	mutex_lock(&sysfs_mutex);
+	sysfs_refresh_inode(sd, inode);
+	mutex_unlock(&sysfs_mutex);
+
+	return generic_permission(inode, mask, NULL);
 }
