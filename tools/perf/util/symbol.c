@@ -71,6 +71,12 @@ static void kernel_maps__fixup_end(void)
 		curr = rb_entry(nd, struct map, rb_node);
 		prev->end = curr->start - 1;
 	}
+
+	/*
+	 * We still haven't the actual symbols, so guess the
+	 * last map final address.
+	 */
+	curr->end = ~0UL;
 }
 
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
@@ -1319,12 +1325,6 @@ static int kernel_maps__create_module_maps(void)
 	free(line);
 	fclose(file);
 
-	/*
-	 * Now that we have all sorted out, just set the ->end of all
-	 * maps:
-	 */
-	kernel_maps__fixup_end();
-
 	return dsos__set_modules_path();
 
 out_delete_line:
@@ -1493,7 +1493,10 @@ int kernel_maps__init(bool use_modules)
 	if (use_modules && kernel_maps__create_module_maps() < 0)
 		pr_warning("Failed to load list of modules in use, "
 			   "continuing...\n");
-
+	/*
+	 * Now that we have all the maps created, just set the ->end of them:
+	 */
+	kernel_maps__fixup_end();
 	return 0;
 }
 
