@@ -149,6 +149,36 @@ static const char * const hw_devicenames[] = {
 	"gpio",
 };
 
+/* Instantiate the IR receiver device using probing -- undesirable */
+struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
+{
+	struct i2c_board_info info;
+	/*
+	 * The external IR receiver is at i2c address 0x34.
+	 * The internal IR receiver is at i2c address 0x30.
+	 *
+	 * In theory, both can be fitted, and Hauppauge suggests an external
+	 * overrides an internal.  That's why we probe 0x1a (~0x34) first. CB
+	 *
+	 * Some of these addresses we probe may collide with other i2c address
+	 * allocations, so this function must be called after all other i2c
+	 * devices we care about are registered.
+	 */
+	const unsigned short addr_list[] = {
+		0x1a,	/* Hauppauge IR external - collides with WM8739 */
+		0x18,	/* Hauppauge IR internal */
+		0x71,	/* Hauppauge IR (PVR150) */
+		0x64,	/* Pixelview IR */
+		0x30,	/* KNC ONE IR */
+		0x6b,	/* Adaptec IR */
+		I2C_CLIENT_END
+	};
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	return i2c_new_probed_device(&itv->i2c_adap, &info, addr_list);
+}
+
 int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 {
 	struct v4l2_subdev *sd;
@@ -579,7 +609,7 @@ static struct i2c_client ivtv_i2c_client_template = {
 	.name = "ivtv internal",
 };
 
-/* init + register i2c adapter + instantiate IR receiver */
+/* init + register i2c adapter */
 int init_ivtv_i2c(struct ivtv *itv)
 {
 	int retval;
@@ -625,32 +655,6 @@ int init_ivtv_i2c(struct ivtv *itv)
 		retval = i2c_add_adapter(&itv->i2c_adap);
 	else
 		retval = i2c_bit_add_bus(&itv->i2c_adap);
-
-	/* Instantiate the IR receiver device, if present */
-	if (retval == 0) {
-		struct i2c_board_info info;
-		/* The external IR receiver is at i2c address 0x34 (0x35 for
-		   reads).  Future Hauppauge cards will have an internal
-		   receiver at 0x30 (0x31 for reads).  In theory, both can be
-		   fitted, and Hauppauge suggest an external overrides an
-		   internal.
-
-		   That's why we probe 0x1a (~0x34) first. CB
-		*/
-		const unsigned short addr_list[] = {
-			0x1a,	/* Hauppauge IR external */
-			0x18,	/* Hauppauge IR internal */
-			0x71,	/* Hauppauge IR (PVR150) */
-			0x64,	/* Pixelview IR */
-			0x30,	/* KNC ONE IR */
-			0x6b,	/* Adaptec IR */
-			I2C_CLIENT_END
-		};
-
-		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-		i2c_new_probed_device(&itv->i2c_adap, &info, addr_list);
-	}
 
 	return retval;
 }

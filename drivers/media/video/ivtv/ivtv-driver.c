@@ -884,6 +884,9 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 			itv->hw_flags |= device;
 	}
 
+	/* probe for legacy IR controllers that aren't in card definitions */
+	ivtv_i2c_new_ir_legacy(itv);
+
 	if (itv->card->hw_all & IVTV_HW_CX25840)
 		itv->sd_video = ivtv_find_hw(itv, IVTV_HW_CX25840);
 	else if (itv->card->hw_all & IVTV_HW_SAA717X)
