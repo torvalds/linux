@@ -29,6 +29,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/irq_regs.h>
 
@@ -1725,6 +1726,26 @@ static int perf_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+int perf_event_release_kernel(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+
+	WARN_ON_ONCE(ctx->parent_ctx);
+	mutex_lock(&ctx->mutex);
+	perf_event_remove_from_context(event);
+	mutex_unlock(&ctx->mutex);
+
+	mutex_lock(&event->owner->perf_event_mutex);
+	list_del_init(&event->owner_entry);
+	mutex_unlock(&event->owner->perf_event_mutex);
+	put_task_struct(event->owner);
+
+	free_event(event);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(perf_event_release_kernel);
+
 static int perf_event_read_size(struct perf_event *event)
 {
 	int entry = sizeof(u64); /* value */
@@ -1750,7 +1771,7 @@ static int perf_event_read_size(struct perf_event *event)
 	return size;
 }
 
-static u64 perf_event_read_value(struct perf_event *event)
+u64 perf_event_read_value(struct perf_event *event)
 {
 	struct perf_event *child;
 	u64 total = 0;
@@ -1761,6 +1782,7 @@ static u64 perf_event_read_value(struct perf_event *event)
 
 	return total;
 }
+EXPORT_SYMBOL_GPL(perf_event_read_value);
 
 static int perf_event_read_entry(struct perf_event *event,
 				   u64 read_format, char __user *buf)
@@ -4231,6 +4253,51 @@ static void perf_event_free_filter(struct perf_event *event)
 
 #endif /* CONFIG_EVENT_PROFILE */
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+static void bp_perf_event_destroy(struct perf_event *event)
+{
+	release_bp_slot(event);
+}
+
+static const struct pmu *bp_perf_event_init(struct perf_event *bp)
+{
+	int err;
+	/*
+	 * The breakpoint is already filled if we haven't created the counter
+	 * through perf syscall
+	 * FIXME: manage to get trigerred to NULL if it comes from syscalls
+	 */
+	if (!bp->callback)
+		err = register_perf_hw_breakpoint(bp);
+	else
+		err = __register_perf_hw_breakpoint(bp);
+	if (err)
+		return ERR_PTR(err);
+
+	bp->destroy = bp_perf_event_destroy;
+
+	return &perf_ops_bp;
+}
+
+void perf_bp_event(struct perf_event *bp, void *regs)
+{
+	/* TODO */
+}
+#else
+static void bp_perf_event_destroy(struct perf_event *event)
+{
+}
+
+static const struct pmu *bp_perf_event_init(struct perf_event *bp)
+{
+	return NULL;
+}
+
+void perf_bp_event(struct perf_event *bp, void *regs)
+{
+}
+#endif
+
 atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 static void sw_perf_event_destroy(struct perf_event *event)
@@ -4297,6 +4364,7 @@ perf_event_alloc(struct perf_event_attr *attr,
 		   struct perf_event_context *ctx,
 		   struct perf_event *group_leader,
 		   struct perf_event *parent_event,
+		   perf_callback_t callback,
 		   gfp_t gfpflags)
 {
 	const struct pmu *pmu;
@@ -4339,6 +4407,11 @@ perf_event_alloc(struct perf_event_attr *attr,
 
 	event->state		= PERF_EVENT_STATE_INACTIVE;
 
+	if (!callback && parent_event)
+		callback = parent_event->callback;
+	
+	event->callback	= callback;
+
 	if (attr->disabled)
 		event->state = PERF_EVENT_STATE_OFF;
 
@@ -4372,6 +4445,11 @@ perf_event_alloc(struct perf_event_attr *attr,
 	case PERF_TYPE_TRACEPOINT:
 		pmu = tp_perf_event_init(event);
 		break;
+
+	case PERF_TYPE_BREAKPOINT:
+		pmu = bp_perf_event_init(event);
+		break;
+
 
 	default:
 		break;
@@ -4615,7 +4693,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	}
 
 	event = perf_event_alloc(&attr, cpu, ctx, group_leader,
-				     NULL, GFP_KERNEL);
+				     NULL, NULL, GFP_KERNEL);
 	err = PTR_ERR(event);
 	if (IS_ERR(event))
 		goto err_put_context;
@@ -4663,6 +4741,58 @@ err_put_context:
 	return err;
 }
 
+/**
+ * perf_event_create_kernel_counter
+ *
+ * @attr: attributes of the counter to create
+ * @cpu: cpu in which the counter is bound
+ * @pid: task to profile
+ */
+struct perf_event *
+perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
+				 pid_t pid, perf_callback_t callback)
+{
+	struct perf_event *event;
+	struct perf_event_context *ctx;
+	int err;
+
+	/*
+	 * Get the target context (task or percpu):
+	 */
+
+	ctx = find_get_context(pid, cpu);
+	if (IS_ERR(ctx))
+		return NULL;
+
+	event = perf_event_alloc(attr, cpu, ctx, NULL,
+				     NULL, callback, GFP_KERNEL);
+	err = PTR_ERR(event);
+	if (IS_ERR(event))
+		goto err_put_context;
+
+	event->filp = NULL;
+	WARN_ON_ONCE(ctx->parent_ctx);
+	mutex_lock(&ctx->mutex);
+	perf_install_in_context(ctx, event, cpu);
+	++ctx->generation;
+	mutex_unlock(&ctx->mutex);
+
+	event->owner = current;
+	get_task_struct(current);
+	mutex_lock(&current->perf_event_mutex);
+	list_add_tail(&event->owner_entry, &current->perf_event_list);
+	mutex_unlock(&current->perf_event_mutex);
+
+	return event;
+
+err_put_context:
+	if (err < 0)
+		put_ctx(ctx);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(perf_event_create_kernel_counter);
+
 /*
  * inherit a event from parent task to child task:
  */
@@ -4688,7 +4818,7 @@ inherit_event(struct perf_event *parent_event,
 	child_event = perf_event_alloc(&parent_event->attr,
 					   parent_event->cpu, child_ctx,
 					   group_leader, parent_event,
-					   GFP_KERNEL);
+					   NULL, GFP_KERNEL);
 	if (IS_ERR(child_event))
 		return child_event;
 	get_ctx(child_ctx);

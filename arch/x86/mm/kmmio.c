@@ -540,8 +540,14 @@ kmmio_die_notifier(struct notifier_block *nb, unsigned long val, void *args)
 	struct die_args *arg = args;
 
 	if (val == DIE_DEBUG && (arg->err & DR_STEP))
-		if (post_kmmio_handler(arg->err, arg->regs) == 1)
+		if (post_kmmio_handler(arg->err, arg->regs) == 1) {
+			/*
+			 * Reset the BS bit in dr6 (pointed by args->err) to
+			 * denote completion of processing
+			 */
+			(*(unsigned long *)ERR_PTR(arg->err)) &= ~DR_STEP;
 			return NOTIFY_STOP;
+		}
 
 	return NOTIFY_DONE;
 }
