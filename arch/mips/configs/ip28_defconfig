@@ -815,7 +815,7 @@ CONFIG_MAGIC_SYSRQ=y
 # CONFIG_HEADERS_CHECK is not set
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_SAMPLES is not set
-CONFIG_CMDLINE=""
+# CONFIG_CMDLINE_BOOL is not set
 
 #
 # Security options

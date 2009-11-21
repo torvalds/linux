@@ -891,7 +891,9 @@ CONFIG_FRAME_WARN=1024
 # CONFIG_HEADERS_CHECK is not set
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_SAMPLES is not set
+CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="cca=3 mem=64M console=ttyVR0,115200 ip=any root=/dev/nfs"
+# CONFIG_CMDLINE_OVERRIDE is not set
 
 #
 # Security options

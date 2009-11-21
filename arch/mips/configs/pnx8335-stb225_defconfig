@@ -1033,7 +1033,7 @@ CONFIG_FRAME_WARN=1024
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_SAMPLES is not set
 # CONFIG_KERNEL_TESTS is not set
-CONFIG_CMDLINE=""
+# CONFIG_CMDLINE_BOOL is not set
 
 #
 # Security options

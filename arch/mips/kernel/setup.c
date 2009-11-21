@@ -58,8 +58,12 @@ EXPORT_SYMBOL(mips_machtype);
 
 struct boot_mem_map boot_mem_map;
 
-static char command_line[COMMAND_LINE_SIZE];
-       char arcs_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+static char __initdata command_line[COMMAND_LINE_SIZE];
+char __initdata arcs_cmdline[COMMAND_LINE_SIZE];
+
+#ifdef CONFIG_CMDLINE_BOOL
+static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+#endif
 
 /*
  * mips_io_port_base is the begin of the address space to which x86 style
@@ -458,8 +462,20 @@ static void __init arch_mem_init(char **cmdline_p)
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
 
-	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+#ifdef CONFIG_CMDLINE_BOOL
+#ifdef CONFIG_CMDLINE_OVERRIDE
+	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+#else
+	if (builtin_cmdline[0]) {
+		strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
+		strlcat(arcs_cmdline, builtin_cmdline, COMMAND_LINE_SIZE);
+	}
+	strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
+#endif
+#else
+	strlcpy(boot_command_line, arcs_cmdline, COMMAND_LINE_SIZE);
+#endif
+	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 
 	*cmdline_p = command_line;
 

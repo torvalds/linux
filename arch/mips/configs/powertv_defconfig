@@ -1418,7 +1418,9 @@ CONFIG_BRANCH_PROFILE_NONE=y
 CONFIG_HAVE_ARCH_KGDB=y
 # CONFIG_KGDB is not set
 # CONFIG_KMEMCHECK is not set
+CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="rw dhash_entries=1024 ihash_entries=1024 ip=10.0.1.3:10.0.1.1:10.0.1.1:255.255.255.0:zeus:eth0: root=/dev/nfs nfsroot=/nfsroot/cramfs,wsize=512,rsize=512,tcp nokgdb console=ttyUSB0,115200 memsize=252M"
+# CONFIG_CMDLINE_OVERRIDE is not set
 # CONFIG_DEBUG_STACK_USAGE is not set
 # CONFIG_RUNTIME_DEBUG is not set
 

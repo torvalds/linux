@@ -1051,7 +1051,9 @@ CONFIG_TRACING_SUPPORT=y
 # CONFIG_DYNAMIC_DEBUG is not set
 # CONFIG_SAMPLES is not set
 CONFIG_HAVE_ARCH_KGDB=y
+CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="rootfstype=squashfs,jffs2"
+# CONFIG_CMDLINE_OVERRIDE is not set
 
 #
 # Security options
