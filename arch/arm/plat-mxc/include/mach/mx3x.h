@@ -260,11 +260,12 @@
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 
-extern unsigned int system_rev;
+extern unsigned int mx31_cpu_rev;
+extern void mx31_read_cpu_rev(void);
 
 static inline int mx31_revision(void)
 {
-	return system_rev;
+	return mx31_cpu_rev;
 }
 #endif
 
