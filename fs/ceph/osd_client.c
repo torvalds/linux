@@ -1249,11 +1249,12 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct ceph_osd *osd = con->private;
-	struct ceph_osd_client *osdc = osd->o_osdc;
+	struct ceph_osd_client *osdc;
 	int type = le16_to_cpu(msg->hdr.type);
 
 	if (!osd)
 		return;
+	osdc = osd->o_osdc;
 
 	switch (type) {
 	case CEPH_MSG_OSD_MAP:
