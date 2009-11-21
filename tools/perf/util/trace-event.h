@@ -248,7 +248,7 @@ unsigned long long
 raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
 
-void read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
+int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {

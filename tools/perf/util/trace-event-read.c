@@ -471,11 +471,11 @@ void trace_report(int fd)
 
 	read_or_die(buf, 3);
 	if (memcmp(buf, test, 3) != 0)
-		die("not an trace data file");
+		die("no trace data in the file");
 
 	read_or_die(buf, 7);
 	if (memcmp(buf, "tracing", 7) != 0)
-		die("not a trace file (missing tracing)");
+		die("not a trace file (missing 'tracing' tag)");
 
 	version = read_string();
 	if (show_version)
