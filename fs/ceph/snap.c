@@ -226,8 +226,6 @@ static int adjust_snap_realm_parent(struct ceph_mds_client *mdsc,
 		return 0;
 
 	parent = ceph_lookup_snap_realm(mdsc, parentino);
-	if (IS_ERR(parent))
-		return PTR_ERR(parent);
 	if (!parent) {
 		parent = ceph_create_snap_realm(mdsc, parentino);
 		if (IS_ERR(parent))
@@ -541,10 +539,6 @@ more:
 	p += sizeof(u64) * le32_to_cpu(ri->num_prior_parent_snaps);
 
 	realm = ceph_lookup_snap_realm(mdsc, le64_to_cpu(ri->ino));
-	if (IS_ERR(realm)) {
-		err = PTR_ERR(realm);
-		goto fail;
-	}
 	if (!realm) {
 		realm = ceph_create_snap_realm(mdsc, le64_to_cpu(ri->ino));
 		if (IS_ERR(realm)) {
@@ -762,8 +756,6 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 		ri = p;
 
 		realm = ceph_lookup_snap_realm(mdsc, split);
-		if (IS_ERR(realm))
-			goto out;
 		if (!realm) {
 			realm = ceph_create_snap_realm(mdsc, split);
 			if (IS_ERR(realm))
@@ -829,8 +821,6 @@ skip_inode:
 			struct ceph_snap_realm *child =
 				ceph_lookup_snap_realm(mdsc,
 					   le64_to_cpu(split_realms[i]));
-			if (IS_ERR(child))
-				continue;
 			if (!child)
 				continue;
 			adjust_snap_realm_parent(mdsc, child, realm->ino);
