@@ -464,6 +464,8 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  */
 int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
+	struct sysfs_inode_attrs *ps_iattr;
+
 	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
 		return -EEXIST;
 
@@ -475,6 +477,13 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	acxt->cnt++;
 
 	sysfs_link_sibling(sd);
+
+	/* Update timestamps on the parent */
+	ps_iattr = acxt->parent_sd->s_iattr;
+	if (ps_iattr) {
+		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
+		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
+	}
 
 	return 0;
 }
@@ -554,9 +563,18 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  */
 void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
+	struct sysfs_inode_attrs *ps_iattr;
+
 	BUG_ON(sd->s_flags & SYSFS_FLAG_REMOVED);
 
 	sysfs_unlink_sibling(sd);
+
+	/* Update timestamps on the parent */
+	ps_iattr = acxt->parent_sd->s_iattr;
+	if (ps_iattr) {
+		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
+		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
+	}
 
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
 	sd->s_sibling = acxt->removed;
