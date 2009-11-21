@@ -27,6 +27,8 @@ void xen_pre_suspend(void)
 
 void xen_post_suspend(int suspend_cancelled)
 {
+	xen_build_mfn_list_list();
+
 	xen_setup_shared_info();
 
 	if (suspend_cancelled) {
