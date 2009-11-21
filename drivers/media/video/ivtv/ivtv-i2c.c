@@ -564,13 +564,15 @@ static struct i2c_adapter ivtv_i2c_adap_template = {
 	.owner = THIS_MODULE,
 };
 
+#define IVTV_ALGO_BIT_TIMEOUT	(2)	/* seconds */
+
 static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
 	.setsda		= ivtv_setsda_old,
 	.setscl		= ivtv_setscl_old,
 	.getsda		= ivtv_getsda_old,
 	.getscl		= ivtv_getscl_old,
-	.udelay		= 10,
-	.timeout	= 200,
+	.udelay		= IVTV_DEFAULT_I2C_CLOCK_PERIOD / 2,  /* microseconds */
+	.timeout	= IVTV_ALGO_BIT_TIMEOUT * HZ,         /* jiffies */
 };
 
 static struct i2c_client ivtv_i2c_client_template = {
@@ -602,6 +604,7 @@ int init_ivtv_i2c(struct ivtv *itv)
 		memcpy(&itv->i2c_algo, &ivtv_i2c_algo_template,
 		       sizeof(struct i2c_algo_bit_data));
 	}
+	itv->i2c_algo.udelay = itv->options.i2c_clock_period / 2;
 	itv->i2c_algo.data = itv;
 	itv->i2c_adap.algo_data = &itv->i2c_algo;
 

@@ -176,12 +176,16 @@ extern int ivtv_debug;
 
 #define IVTV_MAX_PGM_INDEX (400)
 
+/* Default I2C SCL period in microseconds */
+#define IVTV_DEFAULT_I2C_CLOCK_PERIOD	20
+
 struct ivtv_options {
 	int kilobytes[IVTV_MAX_STREAMS];        /* size in kilobytes of each stream */
 	int cardtype;				/* force card type on load */
 	int tuner;				/* set tuner on load */
 	int radio;				/* enable/disable radio */
 	int newi2c;				/* new I2C algorithm */
+	int i2c_clock_period;			/* period of SCL for I2C bus */
 };
 
 /* ivtv-specific mailbox template */
