@@ -14,12 +14,15 @@
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/i8042.h>
+#include <linux/module.h>
 
 #include <asm/i8259.h>
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
 
 #include <loongson.h>
+
+#include "ec_kb3310b.h"
 
 #define I8042_KBD_IRQ		1
 #define I8042_CTR_KBDINT	0x01
@@ -49,9 +52,6 @@ static int i8042_enable_kbd_port(void)
 	return 0;
 }
 
-/*
- * The i8042 is connnected to i8259A
- */
 void setup_wakeup_events(void)
 {
 	int irq_mask;
@@ -65,9 +65,74 @@ void setup_wakeup_events(void)
 
 		/* enable keyboard port */
 		i8042_enable_kbd_port();
+
+		/* Wakeup CPU via SCI lid open event */
+		outb(irq_mask & ~(1 << PIC_CASCADE_IR), PIC_MASTER_IMR);
+		inb(PIC_MASTER_IMR);
+		outb(0xff & ~(1 << (SCI_IRQ_NUM - 8)), PIC_SLAVE_IMR);
+		inb(PIC_SLAVE_IMR);
+
 		break;
 
 	default:
 		break;
 	}
+}
+
+static struct delayed_work lid_task;
+static int initialized;
+/* yeeloong_report_lid_status will be implemented in yeeloong_laptop.c */
+sci_handler yeeloong_report_lid_status;
+EXPORT_SYMBOL(yeeloong_report_lid_status);
+static void yeeloong_lid_update_task(struct work_struct *work)
+{
+	if (yeeloong_report_lid_status)
+		yeeloong_report_lid_status(BIT_LID_DETECT_ON);
+}
+
+int wakeup_loongson(void)
+{
+	int irq;
+
+	/* query the interrupt number */
+	irq = mach_i8259_irq();
+	if (irq < 0)
+		return 0;
+
+	printk(KERN_INFO "%s: irq = %d\n", __func__, irq);
+
+	if (irq == I8042_KBD_IRQ)
+		return 1;
+	else if (irq == SCI_IRQ_NUM) {
+		int ret, sci_event;
+		/* query the event number */
+		ret = ec_query_seq(CMD_GET_EVENT_NUM);
+		if (ret < 0)
+			return 0;
+		sci_event = ec_get_event_num();
+		if (sci_event < 0)
+			return 0;
+		if (sci_event == EVENT_LID) {
+			int lid_status;
+			/* check the LID status */
+			lid_status = ec_read(REG_LID_DETECT);
+			/* wakeup cpu when people open the LID */
+			if (lid_status == BIT_LID_DETECT_ON) {
+				/* If we call it directly here, the WARNING
+				 * will be sent out by getnstimeofday
+				 * via "WARN_ON(timekeeping_suspended);"
+				 * because we can not schedule in suspend mode.
+				 */
+				if (initialized == 0) {
+					INIT_DELAYED_WORK(&lid_task,
+						yeeloong_lid_update_task);
+					initialized = 1;
+				}
+				schedule_delayed_work(&lid_task, 1);
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }

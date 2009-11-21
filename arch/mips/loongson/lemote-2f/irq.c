@@ -9,6 +9,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/i8259.h>
@@ -30,7 +31,7 @@
  * The generic i8259_irq() make the kernel hang on booting.  Since we cannot
  * get the irq via the IRR directly, we access the ISR instead.
  */
-static inline int mach_i8259_irq(void)
+int mach_i8259_irq(void)
 {
 	int irq, isr;
 
@@ -60,6 +61,7 @@ static inline int mach_i8259_irq(void)
 
 	return irq;
 }
+EXPORT_SYMBOL(mach_i8259_irq);
 
 static void i8259_irqdispatch(void)
 {
