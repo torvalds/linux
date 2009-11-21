@@ -3391,7 +3391,7 @@ static void perf_event_comm_event(struct perf_comm_event *comm_event)
 	char comm[TASK_COMM_LEN];
 
 	memset(comm, 0, sizeof(comm));
-	strncpy(comm, comm_event->task->comm, sizeof(comm));
+	strlcpy(comm, comm_event->task->comm, sizeof(comm));
 	size = ALIGN(strlen(comm)+1, sizeof(u64));
 
 	comm_event->comm = comm;
