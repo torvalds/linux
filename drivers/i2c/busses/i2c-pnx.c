@@ -612,8 +612,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		goto out_clkget;
 	}
 
-	if (!(alg_data->ioaddr =
-			(u32)ioremap(alg_data->base, I2C_PNX_REGION_SIZE))) {
+	alg_data->ioaddr = ioremap(alg_data->base, I2C_PNX_REGION_SIZE);
+	if (!alg_data->ioaddr) {
 		dev_err(&pdev->dev, "Couldn't ioremap I2C I/O region\n");
 		ret = -ENOMEM;
 		goto out_release;
@@ -671,7 +671,7 @@ out_irq:
 out_clock:
 	clk_disable(alg_data->clk);
 out_unmap:
-	iounmap((void *)alg_data->ioaddr);
+	iounmap(alg_data->ioaddr);
 out_release:
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 out_clkget:
@@ -691,7 +691,7 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	free_irq(alg_data->irq, i2c_pnx->adapter);
 	i2c_del_adapter(adap);
 	clk_disable(alg_data->clk);
-	iounmap((void *)alg_data->ioaddr);
+	iounmap(alg_data->ioaddr);
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 	clk_put(alg_data->clk);
 	platform_set_drvdata(pdev, NULL);

@@ -26,7 +26,7 @@ struct i2c_pnx_mif {
 
 struct i2c_pnx_algo_data {
 	u32			base;
-	u32			ioaddr;
+	void __iomem		*ioaddr;
 	int			irq;
 	struct i2c_pnx_mif	mif;
 	int			last;
