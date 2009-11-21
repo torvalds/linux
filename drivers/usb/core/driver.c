@@ -83,6 +83,47 @@ static ssize_t store_new_id(struct device_driver *driver,
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 
+/**
+ * store_remove_id - remove a USB device ID from this driver
+ * @driver: target device driver
+ * @buf: buffer for scanning device ID data
+ * @count: input size
+ *
+ * Removes a dynamic usb device ID from this driver.
+ */
+static ssize_t
+store_remove_id(struct device_driver *driver, const char *buf, size_t count)
+{
+	struct usb_dynid *dynid, *n;
+	struct usb_driver *usb_driver = to_usb_driver(driver);
+	u32 idVendor = 0;
+	u32 idProduct = 0;
+	int fields = 0;
+	int retval = 0;
+
+	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
+	if (fields < 2)
+		return -EINVAL;
+
+	spin_lock(&usb_driver->dynids.lock);
+	list_for_each_entry_safe(dynid, n, &usb_driver->dynids.list, node) {
+		struct usb_device_id *id = &dynid->id;
+		if ((id->idVendor == idVendor) &&
+		    (id->idProduct == idProduct)) {
+			list_del(&dynid->node);
+			kfree(dynid);
+			retval = 0;
+			break;
+		}
+	}
+	spin_unlock(&usb_driver->dynids.lock);
+
+	if (retval)
+		return retval;
+	return count;
+}
+static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
+
 static int usb_create_newid_file(struct usb_driver *usb_drv)
 {
 	int error = 0;
@@ -107,6 +148,21 @@ static void usb_remove_newid_file(struct usb_driver *usb_drv)
 				   &driver_attr_new_id);
 }
 
+static int
+usb_create_removeid_file(struct usb_driver *drv)
+{
+	int error = 0;
+	if (drv->probe != NULL)
+		error = driver_create_file(&drv->drvwrap.driver,
+				&driver_attr_remove_id);
+	return error;
+}
+
+static void usb_remove_removeid_file(struct usb_driver *drv)
+{
+	driver_remove_file(&drv->drvwrap.driver, &driver_attr_remove_id);
+}
+
 static void usb_free_dynids(struct usb_driver *usb_drv)
 {
 	struct usb_dynid *dynid, *n;
@@ -125,6 +181,16 @@ static inline int usb_create_newid_file(struct usb_driver *usb_drv)
 }
 
 static void usb_remove_newid_file(struct usb_driver *usb_drv)
+{
+}
+
+static int
+usb_create_removeid_file(struct usb_driver *drv)
+{
+	return 0;
+}
+
+static void usb_remove_removeid_file(struct usb_driver *drv)
 {
 }
 
@@ -774,19 +840,34 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
 	retval = driver_register(&new_driver->drvwrap.driver);
+	if (retval)
+		goto out;
 
-	if (!retval) {
-		pr_info("%s: registered new interface driver %s\n",
+	usbfs_update_special();
+
+	retval = usb_create_newid_file(new_driver);
+	if (retval)
+		goto out_newid;
+
+	retval = usb_create_removeid_file(new_driver);
+	if (retval)
+		goto out_removeid;
+
+	pr_info("%s: registered new interface driver %s\n",
 			usbcore_name, new_driver->name);
-		usbfs_update_special();
-		usb_create_newid_file(new_driver);
-	} else {
-		printk(KERN_ERR "%s: error %d registering interface "
+
+out:
+	return retval;
+
+out_removeid:
+	usb_remove_newid_file(new_driver);
+out_newid:
+	driver_unregister(&new_driver->drvwrap.driver);
+
+	printk(KERN_ERR "%s: error %d registering interface "
 			"	driver %s\n",
 			usbcore_name, retval, new_driver->name);
-	}
-
-	return retval;
+	goto out;
 }
 EXPORT_SYMBOL_GPL(usb_register_driver);
 
@@ -806,6 +887,7 @@ void usb_deregister(struct usb_driver *driver)
 	pr_info("%s: deregistering interface driver %s\n",
 			usbcore_name, driver->name);
 
+	usb_remove_removeid_file(driver);
 	usb_remove_newid_file(driver);
 	usb_free_dynids(driver);
 	driver_unregister(&driver->drvwrap.driver);
