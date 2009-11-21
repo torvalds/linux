@@ -117,10 +117,6 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		return error;
 
 	iattr->ia_valid &= ~ATTR_SIZE; /* ignore size changes */
-	if (iattr->ia_valid & ATTR_MODE) {
-		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
-			iattr->ia_mode &= ~S_ISGID;
-	}
 
 	error = inode_setattr(inode, iattr);
 	if (error)
