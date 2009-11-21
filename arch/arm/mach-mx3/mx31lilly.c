@@ -31,6 +31,8 @@
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
 #include <linux/mtd/physmap.h>
+#include <linux/spi/spi.h>
+#include <linux/mfd/mc13783.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -111,6 +113,8 @@ static struct platform_device *devices[] __initdata = {
 	&physmap_flash_device,
 };
 
+/* SPI */
+
 static int spi_internal_chipselect[] = {
 	MXC_SPI_CS(0),
 	MXC_SPI_CS(1),
@@ -125,6 +129,18 @@ static struct spi_imx_master spi0_pdata = {
 static struct spi_imx_master spi1_pdata = {
 	.chipselect = spi_internal_chipselect,
 	.num_chipselect = ARRAY_SIZE(spi_internal_chipselect),
+};
+
+static struct mc13783_platform_data mc13783_pdata __initdata = {
+	.flags = MC13783_USE_RTC | MC13783_USE_TOUCHSCREEN,
+};
+
+static struct spi_board_info mc13783_dev __initdata = {
+	.modalias	= "mc13783",
+	.max_speed_hz	= 1000000,
+	.bus_num	= 1,
+	.chip_select	= 0,
+	.platform_data	= &mc13783_pdata,
 };
 
 static int mx31lilly_baseboard;
@@ -164,6 +180,7 @@ static void __init mx31lilly_board_init(void)
 
 	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	spi_register_board_info(&mc13783_dev, 1);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

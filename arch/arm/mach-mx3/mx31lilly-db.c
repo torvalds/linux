@@ -29,8 +29,6 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/spi/spi.h>
-#include <linux/mfd/mc13783.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -214,22 +212,6 @@ static void __init mx31lilly_init_fb(void)
 	gpio_direction_output(LCD_VCC_EN_GPIO, 1);
 }
 
-/* SPI */
-
-static struct mc13783_platform_data mc13783_pdata __initdata = {
-	.flags = MC13783_USE_RTC | MC13783_USE_TOUCHSCREEN,
-};
-
-static struct spi_board_info lilly_spi_devs[] __initdata = {
-	{
-		.modalias	= "mc13783",
-		.max_speed_hz	= 1000000,
-		.bus_num	= 1,
-		.chip_select	= 0,
-		.platform_data	= &mc13783_pdata,
-	},
-};
-
 void __init mx31lilly_db_init(void)
 {
 	mxc_iomux_setup_multiple_pins(lilly_db_board_pins,
@@ -240,6 +222,5 @@ void __init mx31lilly_db_init(void)
 	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
 	mx31lilly_init_fb();
-	spi_register_board_info(lilly_spi_devs, ARRAY_SIZE(lilly_spi_devs));
 }
 
