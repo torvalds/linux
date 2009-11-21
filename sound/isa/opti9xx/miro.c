@@ -110,7 +110,6 @@ struct snd_miro {
 	unsigned long pwd_reg;
 
 	spinlock_t lock;
-	struct snd_card *card;
 	struct snd_pcm *pcm;
 
 	long wss_base;
@@ -131,8 +130,6 @@ struct snd_miro {
 
 	struct mutex aci_mutex;
 };
-
-static void snd_miro_proc_init(struct snd_miro * miro);
 
 static char * snd_opti9xx_names[] = {
 	"unkown",
@@ -457,11 +454,9 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 	right = ucontrol->value.integer.value[1];
 
 	setreg_right = (kcontrol->private_value >> 8) & 0xff;
-	if (setreg_right == ACI_SET_MASTER) {
-		setreg_left = setreg_right + 1;
-	} else {
-		setreg_left = setreg_right + 8;
-	}
+	setreg_left = setreg_right + 8;
+	if (setreg_right == ACI_SET_MASTER)
+		setreg_left -= 7;
 
 	getreg_right = kcontrol->private_value & 0xff;
 	getreg_left = getreg_right + 1;
@@ -667,16 +662,14 @@ static int __devinit snd_set_aci_init_values(struct snd_miro *miro)
 	return 0;
 }
 
-static int __devinit snd_miro_mixer(struct snd_miro *miro)
+static int __devinit snd_miro_mixer(struct snd_card *card,
+				    struct snd_miro *miro)
 {
-	struct snd_card *card;
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!miro || !miro->card))
+	if (snd_BUG_ON(!miro || !card))
 		return -EINVAL;
-
-	card = miro->card;
 
 	switch (miro->hardware) {
 	case OPTi9XX_HW_82C924:
@@ -950,11 +943,12 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 	snd_iprintf(buffer, "  preamp  : 0x%x\n", miro->aci_preamp);
 }
 
-static void __devinit snd_miro_proc_init(struct snd_miro * miro)
+static void __devinit snd_miro_proc_init(struct snd_card *card,
+					 struct snd_miro *miro)
 {
 	struct snd_info_entry *entry;
 
-	if (! snd_card_proc_new(miro->card, "miro", &entry))
+	if (!snd_card_proc_new(card, "miro", &entry))
 		snd_info_set_text_ops(entry, miro, snd_miro_proc_read);
 }
 
@@ -971,20 +965,18 @@ static int __devinit snd_miro_configure(struct snd_miro *chip)
 	unsigned char mpu_irq_bits;
 	unsigned long flags;
 
+	snd_miro_write_mask(chip, OPTi9XX_MC_REG(1), 0x80, 0x80);
+	snd_miro_write_mask(chip, OPTi9XX_MC_REG(2), 0x20, 0x20); /* OPL4 */
+	snd_miro_write_mask(chip, OPTi9XX_MC_REG(5), 0x02, 0x02);
+
 	switch (chip->hardware) {
 	case OPTi9XX_HW_82C924:
 		snd_miro_write_mask(chip, OPTi9XX_MC_REG(6), 0x02, 0x02);
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(1), 0x80, 0x80);
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(2), 0x20, 0x20); /* OPL4 */
 		snd_miro_write_mask(chip, OPTi9XX_MC_REG(3), 0xf0, 0xff);
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(5), 0x02, 0x02);
 		break;
 	case OPTi9XX_HW_82C929:
 		/* untested init commands for OPTi929 */
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(1), 0x80, 0x80);
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(2), 0x20, 0x20); /* OPL4 */
 		snd_miro_write_mask(chip, OPTi9XX_MC_REG(4), 0x00, 0x0c);
-		snd_miro_write_mask(chip, OPTi9XX_MC_REG(5), 0x02, 0x02);
 		break;
 	default:
 		snd_printk(KERN_ERR "chip %d not supported\n", chip->hardware);
@@ -1156,7 +1148,6 @@ static int __devinit snd_card_miro_aci_detect(struct snd_card *card,
 
 	/* get ACI port from OPTi9xx MC 4 */
 
-	miro->mc_base = 0xf8c;
 	regval=inb(miro->mc_base + 4);
 	miro->aci_port = (regval & 0x10) ? 0x344: 0x354;
 
@@ -1232,7 +1223,13 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 
 	card->private_free = snd_card_miro_free;
 	miro = card->private_data;
-	miro->card = card;
+
+	error = snd_card_miro_detect(card, miro);
+	if (error < 0) {
+		snd_card_free(card);
+		snd_printk(KERN_ERR "unable to detect OPTi9xx chip\n");
+		return -ENODEV;
+	}
 
 	if ((error = snd_card_miro_aci_detect(card, miro)) < 0) {
 		snd_card_free(card);
@@ -1241,13 +1238,8 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 	}
 
 	/* init proc interface */
-	snd_miro_proc_init(miro);
+	snd_miro_proc_init(card, miro);
 
-	if ((error = snd_card_miro_detect(card, miro)) < 0) {
-		snd_card_free(card);
-		snd_printk(KERN_ERR "unable to detect OPTi9xx chip\n");
-		return -ENODEV;
-	}
 
 	if (! miro->res_mc_base &&
 	    (miro->res_mc_base = request_region(miro->mc_base, miro->mc_base_size,
@@ -1341,7 +1333,8 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 
 	miro->pcm = pcm;
 
-	if ((error = snd_miro_mixer(miro)) < 0) {
+	error = snd_miro_mixer(card, miro);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}
