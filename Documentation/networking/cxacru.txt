@@ -15,6 +15,15 @@ several sysfs attribute files for retrieving device statistics:
 * adsl_headend_environment
 	Information about the remote headend.
 
+* adsl_config
+	Configuration writing interface.
+	Write parameters in hexadecimal format <index>=<value>,
+	separated by whitespace, e.g.:
+		"1=0 a=5"
+	Up to 7 parameters at a time will be sent and the modem will restart
+	the ADSL connection when any value is set. These are logged for future
+	reference.
+
 * downstream_attenuation (dB)
 * downstream_bits_per_frame
 * downstream_rate (kbps)
