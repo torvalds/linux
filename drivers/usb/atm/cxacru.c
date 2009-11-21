@@ -725,6 +725,9 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	mutex_unlock(&instance->poll_state_serialize);
 	mutex_unlock(&instance->adsl_state_serialize);
 
+	printk(KERN_INFO "%s%d: %s %pM\n", atm_dev->type, atm_dev->number,
+			usbatm_instance->description, atm_dev->esi);
+
 	if (start_polling)
 		cxacru_poll_status(&instance->poll_work.work);
 	return 0;
@@ -939,6 +942,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	}
 
 	/* Firmware */
+	usb_info(usbatm, "loading firmware\n");
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, FW_ADDR, fw->data, fw->size);
 	if (ret) {
 		usb_err(usbatm, "Firmware upload failed: %d\n", ret);
@@ -947,6 +951,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 
 	/* Boot ROM patch */
 	if (instance->modem_type->boot_rom_patch) {
+		usb_info(usbatm, "loading boot ROM patch\n");
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_ADDR, bp->data, bp->size);
 		if (ret) {
 			usb_err(usbatm, "Boot ROM patching failed: %d\n", ret);
@@ -961,6 +966,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 		return;
 	}
 
+	usb_info(usbatm, "starting device\n");
 	if (instance->modem_type->boot_rom_patch) {
 		val = cpu_to_le32(BR_ADDR);
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_STACK_ADDR, (u8 *) &val, 4);
@@ -1004,8 +1010,6 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 				return;
 			}
 		}
-
-	msleep_interruptible(4000);
 }
 
 static int cxacru_find_firmware(struct cxacru_data *instance,
