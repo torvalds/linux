@@ -34,7 +34,7 @@
 #define DP_LINK_STATUS_SIZE	6
 
 bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
-			   int num_bytes, u8 *read_byte, 
+			   int num_bytes, u8 *read_byte,
 			   u8 read_buf_len, u8 delay)
 {
 	struct drm_device *dev = chan->dev;
@@ -42,9 +42,9 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	PROCESS_AUX_CHANNEL_TRANSACTION_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
-	
+
 	memset(&args, 0, sizeof(args));
-	
+
 	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
 
 	memcpy(base, req_bytes, num_bytes);
@@ -53,7 +53,7 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	args.lpDataOut = 16;
 	args.ucDataOutLen = 0;
 	args.ucChannelID = chan->i2c_id;
-	args.ucDelay = delay;
+	args.ucDelay = delay / 10;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
@@ -158,24 +158,24 @@ bool radeon_dp_aux_native_read(struct radeon_connector *radeon_connector, uint16
 	return ret;
 }
 
-void radeon_dp_getdpcp(struct radeon_connector *radeon_connector)
+void radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 	u8 msg[25];
 	int ret;
 
-	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCP_REV, 0, 8, msg);
+	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCD_REV, 0, 8, msg);
 	if (ret) {
-		memcpy(radeon_dig_connector->dpcp, msg, 8);
-		{ 
+		memcpy(radeon_dig_connector->dpcd, msg, 8);
+		{
 			int i;
-			printk("DPCP: ");
+			printk("DPCD: ");
 			for (i = 0; i < 8; i++)
 				printk("%02x ", msg[i]);
 			printk("\n");
 		}
 	}
-	radeon_dig_connector->dpcp[0] = 0;
+	radeon_dig_connector->dpcd[0] = 0;
 	return;
 }
 
@@ -199,8 +199,8 @@ static bool atom_dp_get_link_status(struct radeon_connector *radeon_connector,
 static void dp_set_power(struct radeon_connector *radeon_connector, u8 power_state)
 {
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
-	if (radeon_dig_connector->dpcp[0] >= 0x11) {
-		radeon_dp_aux_native_write(radeon_connector, 0x600, 1,
+	if (radeon_dig_connector->dpcd[0] >= 0x11) {
+		radeon_dp_aux_native_write(radeon_connector, DP_SET_POWER, 1,
 					   &power_state);
 	}
 }

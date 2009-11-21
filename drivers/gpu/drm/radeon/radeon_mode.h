@@ -335,7 +335,7 @@ struct radeon_connector_atom_dig {
 	bool linkb;
 	uint16_t uc_i2c_id;
 	struct radeon_i2c_chan *dp_i2c_bus;
-	u8 dpcp[8];
+	u8 dpcd[8];
 };
 
 struct radeon_connector {
@@ -362,7 +362,7 @@ struct radeon_framebuffer {
 };
 
 extern int radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
-extern void radeon_dp_getdpcp(struct radeon_connector *connector);
+extern void radeon_dp_getdpcd(struct radeon_connector *connector);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
 

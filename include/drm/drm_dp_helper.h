@@ -43,7 +43,7 @@
 #define AUX_I2C_REPLY_MASK	(0x3 << 6)
 
 /* AUX CH addresses */
-#define DP_DPCP_REV 0x0
+#define DP_DPCD_REV 0x0
 
 #define	DP_LINK_BW_SET		0x100
 # define DP_LINK_BW_1_62		    0x06
@@ -131,6 +131,8 @@
 #define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+
+#define DP_SET_POWER                        0x600
 
 #define MODE_I2C_START	1
 #define MODE_I2C_WRITE	2
