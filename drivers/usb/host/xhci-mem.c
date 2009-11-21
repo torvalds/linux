@@ -779,14 +779,17 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 
 	command->in_ctx =
 		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
-	if (!command->in_ctx)
+	if (!command->in_ctx) {
+		kfree(command);
 		return NULL;
+	}
 
 	if (allocate_completion) {
 		command->completion =
 			kzalloc(sizeof(struct completion), mem_flags);
 		if (!command->completion) {
 			xhci_free_container_ctx(xhci, command->in_ctx);
+			kfree(command);
 			return NULL;
 		}
 		init_completion(command->completion);
