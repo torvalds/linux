@@ -587,10 +587,16 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	alg_data = kzalloc(sizeof(*alg_data), GFP_KERNEL);
+	if (!alg_data) {
+		ret = -ENOMEM;
+		goto err_kzalloc;
+	}
+
 	platform_set_drvdata(pdev, i2c_pnx);
 
 	i2c_pnx->adapter->algo = &pnx_algorithm;
-	alg_data = i2c_pnx->adapter->algo_data;
+	i2c_pnx->adapter->algo_data = alg_data;
 
 	alg_data->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(alg_data->clk)) {
@@ -603,16 +609,16 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	alg_data->mif.timer.data = (unsigned long)i2c_pnx->adapter;
 
 	/* Register I/O resource */
-	if (!request_mem_region(alg_data->base, I2C_PNX_REGION_SIZE,
+	if (!request_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE,
 				pdev->name)) {
 		dev_err(&pdev->dev,
 		       "I/O region 0x%08x for I2C already in use.\n",
-		       alg_data->base);
+		       i2c_pnx->base);
 		ret = -ENODEV;
 		goto out_clkget;
 	}
 
-	alg_data->ioaddr = ioremap(alg_data->base, I2C_PNX_REGION_SIZE);
+	alg_data->ioaddr = ioremap(i2c_pnx->base, I2C_PNX_REGION_SIZE);
 	if (!alg_data->ioaddr) {
 		dev_err(&pdev->dev, "Couldn't ioremap I2C I/O region\n");
 		ret = -ENOMEM;
@@ -647,7 +653,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	}
 	init_completion(&alg_data->mif.complete);
 
-	ret = request_irq(alg_data->irq, i2c_pnx_interrupt,
+	ret = request_irq(i2c_pnx->irq, i2c_pnx_interrupt,
 			0, pdev->name, i2c_pnx->adapter);
 	if (ret)
 		goto out_clock;
@@ -662,21 +668,23 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(&pdev->dev, "%s: Master at %#8x, irq %d.\n",
-	       i2c_pnx->adapter->name, alg_data->base, alg_data->irq);
+	       i2c_pnx->adapter->name, i2c_pnx->base, i2c_pnx->irq);
 
 	return 0;
 
 out_irq:
-	free_irq(alg_data->irq, i2c_pnx->adapter);
+	free_irq(i2c_pnx->irq, i2c_pnx->adapter);
 out_clock:
 	clk_disable(alg_data->clk);
 out_unmap:
 	iounmap(alg_data->ioaddr);
 out_release:
-	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
+	release_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE);
 out_clkget:
 	clk_put(alg_data->clk);
 out_drvdata:
+	kfree(alg_data);
+err_kzalloc:
 	platform_set_drvdata(pdev, NULL);
 out:
 	return ret;
@@ -688,12 +696,13 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	struct i2c_adapter *adap = i2c_pnx->adapter;
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
-	free_irq(alg_data->irq, i2c_pnx->adapter);
+	free_irq(i2c_pnx->irq, i2c_pnx->adapter);
 	i2c_del_adapter(adap);
 	clk_disable(alg_data->clk);
 	iounmap(alg_data->ioaddr);
-	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
+	release_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE);
 	clk_put(alg_data->clk);
+	kfree(alg_data);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
