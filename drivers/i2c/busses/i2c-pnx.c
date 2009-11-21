@@ -551,8 +551,7 @@ static struct i2c_algorithm pnx_algorithm = {
 static int i2c_pnx_controller_suspend(struct platform_device *pdev,
 				      pm_message_t state)
 {
-	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	struct i2c_pnx_algo_data *alg_data = i2c_pnx->adapter->algo_data;
+	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 
 	/* FIXME: shouldn't this be clk_disable? */
 	clk_enable(alg_data->clk);
@@ -562,8 +561,7 @@ static int i2c_pnx_controller_suspend(struct platform_device *pdev,
 
 static int i2c_pnx_controller_resume(struct platform_device *pdev)
 {
-	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	struct i2c_pnx_algo_data *alg_data = i2c_pnx->adapter->algo_data;
+	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 
 	return clk_enable(alg_data->clk);
 }
@@ -580,7 +578,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	unsigned long freq;
 	struct i2c_pnx_data *i2c_pnx = pdev->dev.platform_data;
 
-	if (!i2c_pnx || !i2c_pnx->adapter) {
+	if (!i2c_pnx || !i2c_pnx->name) {
 		dev_err(&pdev->dev, "%s: no platform data supplied\n",
 		       __func__);
 		ret = -EINVAL;
@@ -593,10 +591,15 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 		goto err_kzalloc;
 	}
 
-	platform_set_drvdata(pdev, i2c_pnx);
+	platform_set_drvdata(pdev, alg_data);
 
-	i2c_pnx->adapter->algo = &pnx_algorithm;
-	i2c_pnx->adapter->algo_data = alg_data;
+	strlcpy(alg_data->adapter.name, i2c_pnx->name,
+		sizeof(alg_data->adapter.name));
+	alg_data->adapter.dev.parent = &pdev->dev;
+	alg_data->adapter.algo = &pnx_algorithm;
+	alg_data->adapter.algo_data = alg_data;
+	alg_data->adapter.nr = pdev->id;
+	alg_data->i2c_pnx = i2c_pnx;
 
 	alg_data->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(alg_data->clk)) {
@@ -606,7 +609,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	init_timer(&alg_data->mif.timer);
 	alg_data->mif.timer.function = i2c_pnx_timeout;
-	alg_data->mif.timer.data = (unsigned long)i2c_pnx->adapter;
+	alg_data->mif.timer.data = (unsigned long)&alg_data->adapter;
 
 	/* Register I/O resource */
 	if (!request_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE,
@@ -654,26 +657,24 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	init_completion(&alg_data->mif.complete);
 
 	ret = request_irq(i2c_pnx->irq, i2c_pnx_interrupt,
-			0, pdev->name, i2c_pnx->adapter);
+			0, pdev->name, &alg_data->adapter);
 	if (ret)
 		goto out_clock;
 
 	/* Register this adapter with the I2C subsystem */
-	i2c_pnx->adapter->dev.parent = &pdev->dev;
-	i2c_pnx->adapter->nr = pdev->id;
-	ret = i2c_add_numbered_adapter(i2c_pnx->adapter);
+	ret = i2c_add_numbered_adapter(&alg_data->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
 		goto out_irq;
 	}
 
 	dev_dbg(&pdev->dev, "%s: Master at %#8x, irq %d.\n",
-	       i2c_pnx->adapter->name, i2c_pnx->base, i2c_pnx->irq);
+	       alg_data->adapter.name, i2c_pnx->base, i2c_pnx->irq);
 
 	return 0;
 
 out_irq:
-	free_irq(i2c_pnx->irq, i2c_pnx->adapter);
+	free_irq(i2c_pnx->irq, &alg_data->adapter);
 out_clock:
 	clk_disable(alg_data->clk);
 out_unmap:
@@ -692,12 +693,11 @@ out:
 
 static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 {
-	struct i2c_pnx_data *i2c_pnx = platform_get_drvdata(pdev);
-	struct i2c_adapter *adap = i2c_pnx->adapter;
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
+	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
+	struct i2c_pnx_data *i2c_pnx = alg_data->i2c_pnx;
 
-	free_irq(i2c_pnx->irq, i2c_pnx->adapter);
-	i2c_del_adapter(adap);
+	free_irq(i2c_pnx->irq, &alg_data->adapter);
+	i2c_del_adapter(&alg_data->adapter);
 	clk_disable(alg_data->clk);
 	iounmap(alg_data->ioaddr);
 	release_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE);
