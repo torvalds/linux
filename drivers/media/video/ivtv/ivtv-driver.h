@@ -64,6 +64,7 @@
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
+#include <media/ir-kbd-i2c.h>
 
 #include <linux/ivtv.h>
 
@@ -681,6 +682,7 @@ struct ivtv {
 	int i2c_state;                  /* i2c bit state */
 	struct mutex i2c_bus_lock;      /* lock i2c bus */
 
+	struct IR_i2c_init_data ir_i2c_init_data;
 
 	/* Program Index information */
 	u32 pgm_info_offset;            /* start of pgm info in encoder memory */

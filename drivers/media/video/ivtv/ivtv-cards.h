@@ -87,25 +87,27 @@
 #define IVTV_PCI_ID_GOTVIEW1		0xffac
 #define IVTV_PCI_ID_GOTVIEW2 		0xffad
 
-/* hardware flags, no gaps allowed, IVTV_HW_GPIO must always be last */
-#define IVTV_HW_CX25840   (1 << 0)
-#define IVTV_HW_SAA7115   (1 << 1)
-#define IVTV_HW_SAA7127   (1 << 2)
-#define IVTV_HW_MSP34XX   (1 << 3)
-#define IVTV_HW_TUNER     (1 << 4)
-#define IVTV_HW_WM8775    (1 << 5)
-#define IVTV_HW_CS53L32A  (1 << 6)
-#define IVTV_HW_TVEEPROM  (1 << 7)
-#define IVTV_HW_SAA7114   (1 << 8)
-#define IVTV_HW_UPD64031A (1 << 9)
-#define IVTV_HW_UPD6408X  (1 << 10)
-#define IVTV_HW_SAA717X   (1 << 11)
-#define IVTV_HW_WM8739    (1 << 12)
-#define IVTV_HW_VP27SMPX  (1 << 13)
-#define IVTV_HW_M52790    (1 << 14)
-#define IVTV_HW_GPIO      (1 << 15)
+/* hardware flags, no gaps allowed */
+#define IVTV_HW_CX25840		(1 << 0)
+#define IVTV_HW_SAA7115		(1 << 1)
+#define IVTV_HW_SAA7127		(1 << 2)
+#define IVTV_HW_MSP34XX		(1 << 3)
+#define IVTV_HW_TUNER		(1 << 4)
+#define IVTV_HW_WM8775		(1 << 5)
+#define IVTV_HW_CS53L32A	(1 << 6)
+#define IVTV_HW_TVEEPROM	(1 << 7)
+#define IVTV_HW_SAA7114		(1 << 8)
+#define IVTV_HW_UPD64031A	(1 << 9)
+#define IVTV_HW_UPD6408X	(1 << 10)
+#define IVTV_HW_SAA717X		(1 << 11)
+#define IVTV_HW_WM8739		(1 << 12)
+#define IVTV_HW_VP27SMPX	(1 << 13)
+#define IVTV_HW_M52790		(1 << 14)
+#define IVTV_HW_GPIO		(1 << 15)
+#define IVTV_HW_I2C_IR_RX_AVER	(1 << 16)
 
 #define IVTV_HW_SAA711X   (IVTV_HW_SAA7115 | IVTV_HW_SAA7114)
+#define IVTV_HW_IR_ANY	  (IVTV_HW_I2C_IR_RX_AVER)
 
 /* video inputs */
 #define	IVTV_CARD_INPUT_VID_TUNER	1

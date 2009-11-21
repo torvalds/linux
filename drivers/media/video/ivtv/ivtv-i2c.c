@@ -88,6 +88,7 @@
 #define IVTV_UPD64083_I2C_ADDR 		0x5c
 #define IVTV_VP27SMPX_I2C_ADDR      	0x5b
 #define IVTV_M52790_I2C_ADDR      	0x48
+#define IVTV_AVERMEDIA_IR_RX_I2C_ADDR	0x40
 
 /* This array should match the IVTV_HW_ defines */
 static const u8 hw_addrs[] = {
@@ -106,7 +107,8 @@ static const u8 hw_addrs[] = {
 	IVTV_WM8739_I2C_ADDR,
 	IVTV_VP27SMPX_I2C_ADDR,
 	IVTV_M52790_I2C_ADDR,
-	0 		/* IVTV_HW_GPIO dummy driver ID */
+	0,				/* IVTV_HW_GPIO dummy driver ID */
+	IVTV_AVERMEDIA_IR_RX_I2C_ADDR	/* IVTV_HW_I2C_IR_RX_AVER */
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -126,7 +128,8 @@ static const char *hw_modules[] = {
 	"wm8739",
 	"vp27smpx",
 	"m52790",
-	NULL
+	NULL,
+	NULL		/* IVTV_HW_I2C_IR_RX_AVER */
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -147,7 +150,33 @@ static const char * const hw_devicenames[] = {
 	"vp27smpx",
 	"m52790",
 	"gpio",
+	"ir_video",	/* IVTV_HW_I2C_IR_RX_AVER */
 };
+
+static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adap = &itv->i2c_adap;
+	struct IR_i2c_init_data *init_data = &itv->ir_i2c_init_data;
+	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
+
+	/* Our default information for ir-kbd-i2c.c to use */
+	switch (hw) {
+	case IVTV_HW_I2C_IR_RX_AVER:
+		init_data->ir_codes = &ir_codes_avermedia_cardbus_table;
+		init_data->internal_get_key_func =
+					IR_KBD_GET_KEY_AVERMEDIA_CARDBUS;
+		init_data->type = IR_TYPE_OTHER;
+		init_data->name = "AVerMedia AVerTV card";
+		break;
+	}
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.platform_data = init_data;
+	strlcpy(info.type, type, I2C_NAME_SIZE);
+
+	return i2c_new_probed_device(adap, &info, addr_list) == NULL ? -1 : 0;
+}
 
 /* Instantiate the IR receiver device using probing -- undesirable */
 struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
@@ -208,8 +237,15 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 			sd->grp_id = 1 << idx;
 		return sd ? 0 : -1;
 	}
+
+	if (hw & IVTV_HW_IR_ANY)
+		return ivtv_i2c_new_ir(itv, hw, type, hw_addrs[idx]);
+
+	/* Is it not an I2C device or one we do not wish to register? */
 	if (!hw_addrs[idx])
 		return -1;
+
+	/* It's an I2C device other than an analog tuner or IR chip */
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type, 0, I2C_ADDRS(hw_addrs[idx]));
@@ -617,11 +653,10 @@ int init_ivtv_i2c(struct ivtv *itv)
 	IVTV_DEBUG_I2C("i2c init\n");
 
 	/* Sanity checks for the I2C hardware arrays. They must be the
-	 * same size and GPIO must be the last entry.
+	 * same size.
 	 */
 	if (ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
-	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_modules) ||
-	    IVTV_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 1))) {
+	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_modules)) {
 		IVTV_ERR("Mismatched I2C hardware arrays\n");
 		return -ENODEV;
 	}

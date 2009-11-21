@@ -955,7 +955,8 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739 |
+		  IVTV_HW_I2C_IR_RX_AVER,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
