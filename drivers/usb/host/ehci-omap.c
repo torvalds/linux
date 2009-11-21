@@ -558,7 +558,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	omap = kzalloc(sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
 		ret = -ENOMEM;
-		goto err_create_hcd;
+		goto err_disabled;
 	}
 
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, &pdev->dev,
@@ -653,6 +653,7 @@ err_ioremap:
 	usb_put_hcd(hcd);
 
 err_create_hcd:
+	kfree(omap);
 err_disabled:
 err_pdata:
 	return ret;
