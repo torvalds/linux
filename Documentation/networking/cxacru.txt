@@ -61,6 +61,7 @@ several sysfs attribute files for retrieving device statistics:
 * mac_address
 
 * modulation
+	"" (when not connected)
 	"ANSI T1.413"
 	"ITU-T G.992.1 (G.DMT)"
 	"ITU-T G.992.2 (G.LITE)"

@@ -267,12 +267,12 @@ static ssize_t cxacru_sysfs_showattr_LINE(u32 value, char *buf)
 static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
 {
 	static char *str[] = {
-			NULL,
+			"",
 			"ANSI T1.413",
 			"ITU-T G.992.1 (G.DMT)",
 			"ITU-T G.992.2 (G.LITE)"
 	};
-	if (unlikely(value >= ARRAY_SIZE(str) || str[value] == NULL))
+	if (unlikely(value >= ARRAY_SIZE(str)))
 		return snprintf(buf, PAGE_SIZE, "%u\n", value);
 	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
 }
