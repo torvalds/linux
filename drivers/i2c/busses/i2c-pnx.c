@@ -52,10 +52,9 @@ static inline int wait_reset(long timeout, struct i2c_pnx_algo_data *data)
 	return (timeout <= 0);
 }
 
-static inline void i2c_pnx_arm_timer(struct i2c_adapter *adap)
+static inline void i2c_pnx_arm_timer(struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *data = adap->algo_data;
-	struct timer_list *timer = &data->mif.timer;
+	struct timer_list *timer = &alg_data->mif.timer;
 	int expires = I2C_PNX_TIMEOUT / (1000 / HZ);
 
 	if (expires <= 1)
@@ -63,11 +62,11 @@ static inline void i2c_pnx_arm_timer(struct i2c_adapter *adap)
 
 	del_timer_sync(timer);
 
-	dev_dbg(&adap->dev, "Timer armed at %lu plus %u jiffies.\n",
+	dev_dbg(&alg_data->adapter.dev, "Timer armed at %lu plus %u jiffies.\n",
 		jiffies, expires);
 
 	timer->expires = jiffies + expires;
-	timer->data = (unsigned long)adap;
+	timer->data = (unsigned long)&alg_data;
 
 	add_timer(timer);
 }
@@ -79,34 +78,33 @@ static inline void i2c_pnx_arm_timer(struct i2c_adapter *adap)
  *
  * Generate a START signal in the desired mode.
  */
-static int i2c_pnx_start(unsigned char slave_addr, struct i2c_adapter *adap)
+static int i2c_pnx_start(unsigned char slave_addr,
+	struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
-
-	dev_dbg(&adap->dev, "%s(): addr 0x%x mode %d\n", __func__,
+	dev_dbg(&alg_data->adapter.dev, "%s(): addr 0x%x mode %d\n", __func__,
 		slave_addr, alg_data->mif.mode);
 
 	/* Check for 7 bit slave addresses only */
 	if (slave_addr & ~0x7f) {
-		dev_err(&adap->dev, "%s: Invalid slave address %x. "
+		dev_err(&alg_data->adapter.dev, "%s: Invalid slave address %x. "
 		       "Only 7-bit addresses are supported\n",
-		       adap->name, slave_addr);
+		       alg_data->adapter.name, slave_addr);
 		return -EINVAL;
 	}
 
 	/* First, make sure bus is idle */
 	if (wait_timeout(I2C_PNX_TIMEOUT, alg_data)) {
 		/* Somebody else is monopolizing the bus */
-		dev_err(&adap->dev, "%s: Bus busy. Slave addr = %02x, "
+		dev_err(&alg_data->adapter.dev, "%s: Bus busy. Slave addr = %02x, "
 		       "cntrl = %x, stat = %x\n",
-		       adap->name, slave_addr,
+		       alg_data->adapter.name, slave_addr,
 		       ioread32(I2C_REG_CTL(alg_data)),
 		       ioread32(I2C_REG_STS(alg_data)));
 		return -EBUSY;
 	} else if (ioread32(I2C_REG_STS(alg_data)) & mstatus_afi) {
 		/* Sorry, we lost the bus */
-		dev_err(&adap->dev, "%s: Arbitration failure. "
-		       "Slave addr = %02x\n", adap->name, slave_addr);
+		dev_err(&alg_data->adapter.dev, "%s: Arbitration failure. "
+		       "Slave addr = %02x\n", alg_data->adapter.name, slave_addr);
 		return -EIO;
 	}
 
@@ -117,14 +115,14 @@ static int i2c_pnx_start(unsigned char slave_addr, struct i2c_adapter *adap)
 	iowrite32(ioread32(I2C_REG_STS(alg_data)) | mstatus_tdi | mstatus_afi,
 		  I2C_REG_STS(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): sending %#x\n", __func__,
+	dev_dbg(&alg_data->adapter.dev, "%s(): sending %#x\n", __func__,
 		(slave_addr << 1) | start_bit | alg_data->mif.mode);
 
 	/* Write the slave address, START bit and R/W bit */
 	iowrite32((slave_addr << 1) | start_bit | alg_data->mif.mode,
 		  I2C_REG_TX(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): exit\n", __func__);
+	dev_dbg(&alg_data->adapter.dev, "%s(): exit\n", __func__);
 
 	return 0;
 }
@@ -135,13 +133,12 @@ static int i2c_pnx_start(unsigned char slave_addr, struct i2c_adapter *adap)
  *
  * Generate a STOP signal to terminate the master transaction.
  */
-static void i2c_pnx_stop(struct i2c_adapter *adap)
+static void i2c_pnx_stop(struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 	/* Only 1 msec max timeout due to interrupt context */
 	long timeout = 1000;
 
-	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): entering: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	/* Write a STOP bit to TX FIFO */
@@ -155,7 +152,7 @@ static void i2c_pnx_stop(struct i2c_adapter *adap)
 		timeout--;
 	}
 
-	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): exiting: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 }
 
@@ -165,12 +162,11 @@ static void i2c_pnx_stop(struct i2c_adapter *adap)
  *
  * Sends one byte of data to the slave
  */
-static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
+static int i2c_pnx_master_xmit(struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 	u32 val;
 
-	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): entering: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	if (alg_data->mif.len > 0) {
@@ -186,14 +182,14 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 		alg_data->mif.len--;
 		iowrite32(val, I2C_REG_TX(alg_data));
 
-		dev_dbg(&adap->dev, "%s(): xmit %#x [%d]\n", __func__,
+		dev_dbg(&alg_data->adapter.dev, "%s(): xmit %#x [%d]\n", __func__,
 			val, alg_data->mif.len + 1);
 
 		if (alg_data->mif.len == 0) {
 			if (alg_data->last) {
 				/* Wait until the STOP is seen. */
 				if (wait_timeout(I2C_PNX_TIMEOUT, alg_data))
-					dev_err(&adap->dev, "The bus is still "
+					dev_err(&alg_data->adapter.dev, "The bus is still "
 						"active after timeout\n");
 			}
 			/* Disable master interrupts */
@@ -203,14 +199,14 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 
 			del_timer_sync(&alg_data->mif.timer);
 
-			dev_dbg(&adap->dev, "%s(): Waking up xfer routine.\n",
+			dev_dbg(&alg_data->adapter.dev, "%s(): Waking up xfer routine.\n",
 				__func__);
 
 			complete(&alg_data->mif.complete);
 		}
 	} else if (alg_data->mif.len == 0) {
 		/* zero-sized transfer */
-		i2c_pnx_stop(adap);
+		i2c_pnx_stop(alg_data);
 
 		/* Disable master interrupts. */
 		iowrite32(ioread32(I2C_REG_CTL(alg_data)) &
@@ -219,13 +215,13 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 
 		/* Stop timer. */
 		del_timer_sync(&alg_data->mif.timer);
-		dev_dbg(&adap->dev, "%s(): Waking up xfer routine after "
+		dev_dbg(&alg_data->adapter.dev, "%s(): Waking up xfer routine after "
 			"zero-xfer.\n", __func__);
 
 		complete(&alg_data->mif.complete);
 	}
 
-	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): exiting: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	return 0;
@@ -237,20 +233,19 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
  *
  * Reads one byte data from the slave
  */
-static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
+static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 	unsigned int val = 0;
 	u32 ctl = 0;
 
-	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): entering: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	/* Check, whether there is already data,
 	 * or we didn't 'ask' for it yet.
 	 */
 	if (ioread32(I2C_REG_STS(alg_data)) & mstatus_rfe) {
-		dev_dbg(&adap->dev, "%s(): Write dummy data to fill "
+		dev_dbg(&alg_data->adapter.dev, "%s(): Write dummy data to fill "
 			"Rx-fifo...\n", __func__);
 
 		if (alg_data->mif.len == 1) {
@@ -283,7 +278,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 	if (alg_data->mif.len > 0) {
 		val = ioread32(I2C_REG_RX(alg_data));
 		*alg_data->mif.buf++ = (u8) (val & 0xff);
-		dev_dbg(&adap->dev, "%s(): rcv 0x%x [%d]\n", __func__, val,
+		dev_dbg(&alg_data->adapter.dev, "%s(): rcv 0x%x [%d]\n", __func__, val,
 			alg_data->mif.len);
 
 		alg_data->mif.len--;
@@ -291,7 +286,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 			if (alg_data->last)
 				/* Wait until the STOP is seen. */
 				if (wait_timeout(I2C_PNX_TIMEOUT, alg_data))
-					dev_err(&adap->dev, "The bus is still "
+					dev_err(&alg_data->adapter.dev, "The bus is still "
 						"active after timeout\n");
 
 			/* Disable master interrupts */
@@ -306,7 +301,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 		}
 	}
 
-	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): exiting: stat = %04x.\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	return 0;
@@ -314,11 +309,10 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 
 static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 {
+	struct i2c_pnx_algo_data *alg_data = dev_id;
 	u32 stat, ctl;
-	struct i2c_adapter *adap = dev_id;
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
-	dev_dbg(&adap->dev, "%s(): mstat = %x mctrl = %x, mode = %d\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): mstat = %x mctrl = %x, mode = %d\n",
 		__func__,
 		ioread32(I2C_REG_STS(alg_data)),
 		ioread32(I2C_REG_CTL(alg_data)),
@@ -341,10 +335,10 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 		complete(&alg_data->mif.complete);
 	} else if (stat & mstatus_nai) {
 		/* Slave did not acknowledge, generate a STOP */
-		dev_dbg(&adap->dev, "%s(): "
+		dev_dbg(&alg_data->adapter.dev, "%s(): "
 			"Slave did not acknowledge, generating a STOP.\n",
 			__func__);
-		i2c_pnx_stop(adap);
+		i2c_pnx_stop(alg_data);
 
 		/* Disable master interrupts. */
 		ctl = ioread32(I2C_REG_CTL(alg_data));
@@ -370,9 +364,9 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 		 */
 		if ((stat & mstatus_drmi) || !(stat & mstatus_rfe)) {
 			if (alg_data->mif.mode == I2C_SMBUS_WRITE) {
-				i2c_pnx_master_xmit(adap);
+				i2c_pnx_master_xmit(alg_data);
 			} else if (alg_data->mif.mode == I2C_SMBUS_READ) {
-				i2c_pnx_master_rcv(adap);
+				i2c_pnx_master_rcv(alg_data);
 			}
 		}
 	}
@@ -381,7 +375,7 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 	stat = ioread32(I2C_REG_STS(alg_data));
 	iowrite32(stat | mstatus_tdi | mstatus_afi, I2C_REG_STS(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): exiting, stat = %x ctrl = %x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): exiting, stat = %x ctrl = %x.\n",
 		 __func__, ioread32(I2C_REG_STS(alg_data)),
 		 ioread32(I2C_REG_CTL(alg_data)));
 
@@ -390,11 +384,10 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 
 static void i2c_pnx_timeout(unsigned long data)
 {
-	struct i2c_adapter *adap = (struct i2c_adapter *)data;
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
+	struct i2c_pnx_algo_data *alg_data = (struct i2c_pnx_algo_data *)data;
 	u32 ctl;
 
-	dev_err(&adap->dev, "Master timed out. stat = %04x, cntrl = %04x. "
+	dev_err(&alg_data->adapter.dev, "Master timed out. stat = %04x, cntrl = %04x. "
 	       "Resetting master...\n",
 	       ioread32(I2C_REG_STS(alg_data)),
 	       ioread32(I2C_REG_CTL(alg_data)));
@@ -411,15 +404,14 @@ static void i2c_pnx_timeout(unsigned long data)
 	complete(&alg_data->mif.complete);
 }
 
-static inline void bus_reset_if_active(struct i2c_adapter *adap)
+static inline void bus_reset_if_active(struct i2c_pnx_algo_data *alg_data)
 {
-	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 	u32 stat;
 
 	if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_active) {
-		dev_err(&adap->dev,
+		dev_err(&alg_data->adapter.dev,
 			"%s: Bus is still active after xfer. Reset it...\n",
-		       adap->name);
+		       alg_data->adapter.name);
 		iowrite32(ioread32(I2C_REG_CTL(alg_data)) | mcntrl_reset,
 			  I2C_REG_CTL(alg_data));
 		wait_reset(I2C_PNX_TIMEOUT, alg_data);
@@ -453,10 +445,10 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 	u32 stat = ioread32(I2C_REG_STS(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): entering: %d messages, stat = %04x.\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): entering: %d messages, stat = %04x.\n",
 		__func__, num, ioread32(I2C_REG_STS(alg_data)));
 
-	bus_reset_if_active(adap);
+	bus_reset_if_active(alg_data);
 
 	/* Process transactions in a loop. */
 	for (i = 0; rc >= 0 && i < num; i++) {
@@ -466,9 +458,9 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		addr = pmsg->addr;
 
 		if (pmsg->flags & I2C_M_TEN) {
-			dev_err(&adap->dev,
+			dev_err(&alg_data->adapter.dev,
 				"%s: 10 bits addr not supported!\n",
-				adap->name);
+				alg_data->adapter.name);
 			rc = -EINVAL;
 			break;
 		}
@@ -480,11 +472,11 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		alg_data->mif.ret = 0;
 		alg_data->last = (i == num - 1);
 
-		dev_dbg(&adap->dev, "%s(): mode %d, %d bytes\n", __func__,
+		dev_dbg(&alg_data->adapter.dev, "%s(): mode %d, %d bytes\n", __func__,
 			alg_data->mif.mode,
 			alg_data->mif.len);
 
-		i2c_pnx_arm_timer(adap);
+		i2c_pnx_arm_timer(alg_data);
 
 		/* initialize the completion var */
 		init_completion(&alg_data->mif.complete);
@@ -495,7 +487,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			  I2C_REG_CTL(alg_data));
 
 		/* Put start-code and slave-address on the bus. */
-		rc = i2c_pnx_start(addr, adap);
+		rc = i2c_pnx_start(addr, alg_data);
 		if (rc < 0)
 			break;
 
@@ -504,31 +496,31 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 		if (!(rc = alg_data->mif.ret))
 			completed++;
-		dev_dbg(&adap->dev, "%s(): Complete, return code = %d.\n",
+		dev_dbg(&alg_data->adapter.dev, "%s(): Complete, return code = %d.\n",
 			__func__, rc);
 
 		/* Clear TDI and AFI bits in case they are set. */
 		if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_tdi) {
-			dev_dbg(&adap->dev,
+			dev_dbg(&alg_data->adapter.dev,
 				"%s: TDI still set... clearing now.\n",
-			       adap->name);
+				alg_data->adapter.name);
 			iowrite32(stat, I2C_REG_STS(alg_data));
 		}
 		if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_afi) {
-			dev_dbg(&adap->dev,
+			dev_dbg(&alg_data->adapter.dev,
 				"%s: AFI still set... clearing now.\n",
-			       adap->name);
+				alg_data->adapter.name);
 			iowrite32(stat, I2C_REG_STS(alg_data));
 		}
 	}
 
-	bus_reset_if_active(adap);
+	bus_reset_if_active(alg_data);
 
 	/* Cleanup to be sure... */
 	alg_data->mif.buf = NULL;
 	alg_data->mif.len = 0;
 
-	dev_dbg(&adap->dev, "%s(): exiting, stat = %x\n",
+	dev_dbg(&alg_data->adapter.dev, "%s(): exiting, stat = %x\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	if (completed != num)
@@ -609,7 +601,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	init_timer(&alg_data->mif.timer);
 	alg_data->mif.timer.function = i2c_pnx_timeout;
-	alg_data->mif.timer.data = (unsigned long)&alg_data->adapter;
+	alg_data->mif.timer.data = (unsigned long)alg_data;
 
 	/* Register I/O resource */
 	if (!request_mem_region(i2c_pnx->base, I2C_PNX_REGION_SIZE,
@@ -657,7 +649,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	init_completion(&alg_data->mif.complete);
 
 	ret = request_irq(i2c_pnx->irq, i2c_pnx_interrupt,
-			0, pdev->name, &alg_data->adapter);
+			0, pdev->name, alg_data);
 	if (ret)
 		goto out_clock;
 
@@ -674,7 +666,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	free_irq(i2c_pnx->irq, &alg_data->adapter);
+	free_irq(i2c_pnx->irq, alg_data);
 out_clock:
 	clk_disable(alg_data->clk);
 out_unmap:
@@ -696,7 +688,7 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 	struct i2c_pnx_data *i2c_pnx = alg_data->i2c_pnx;
 
-	free_irq(i2c_pnx->irq, &alg_data->adapter);
+	free_irq(i2c_pnx->irq, alg_data);
 	i2c_del_adapter(&alg_data->adapter);
 	clk_disable(alg_data->clk);
 	iounmap(alg_data->ioaddr);
