@@ -105,6 +105,26 @@ enum cxacru_cm_request {
 	CM_REQUEST_MAX,
 };
 
+/* commands for interaction with the flash memory
+ *
+ * read:  response is the contents of the first 60 bytes of flash memory
+ * write: request contains the 60 bytes of data to write to flash memory
+ *        response is the contents of the first 60 bytes of flash memory
+ *
+ * layout: PP PP VV VV  MM MM MM MM  MM MM ?? ??  SS SS SS SS  SS SS SS SS
+ *         SS SS SS SS  SS SS SS SS  00 00 00 00  00 00 00 00  00 00 00 00
+ *         00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00
+ *
+ *   P: le16  USB Product ID
+ *   V: le16  USB Vendor ID
+ *   M: be48  MAC Address
+ *   S: le16  ASCII Serial Number
+ */
+enum cxacru_cm_flash {
+	CM_FLASH_READ = 0xa1,
+	CM_FLASH_WRITE = 0xa2
+};
+
 /* reply codes to the commands above */
 enum cxacru_cm_status {
 	CM_STATUS_UNDEFINED,
