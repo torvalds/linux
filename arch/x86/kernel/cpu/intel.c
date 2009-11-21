@@ -263,8 +263,12 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
 	node = apicid_to_node[apicid];
-	if (node == NUMA_NO_NODE || !node_online(node))
+	if (node == NUMA_NO_NODE)
 		node = first_node(node_online_map);
+	else if (!node_online(node)) {
+		/* reuse the value from init_cpu_to_node() */
+		node = cpu_to_node(cpu);
+	}
 	numa_set_node(cpu, node);
 
 	printk(KERN_INFO "CPU %d/0x%x -> Node %d\n", cpu, apicid, node);
