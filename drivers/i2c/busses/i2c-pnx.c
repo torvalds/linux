@@ -25,8 +25,6 @@
 
 #include <mach/hardware.h>
 #include <mach/i2c.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
 
 #define I2C_PNX_TIMEOUT		10 /* msec */
 #define I2C_PNX_SPEED_KHZ	100
