@@ -537,7 +537,7 @@ static void wm8350_client_dev_register(struct wm8350 *wm8350,
 	int ret;
 
 	*pdev = platform_device_alloc(name, -1);
-	if (pdev == NULL) {
+	if (*pdev == NULL) {
 		dev_err(wm8350->dev, "Failed to allocate %s\n", name);
 		return;
 	}
