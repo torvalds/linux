@@ -89,6 +89,10 @@
 #define IVTV_VP27SMPX_I2C_ADDR      	0x5b
 #define IVTV_M52790_I2C_ADDR      	0x48
 #define IVTV_AVERMEDIA_IR_RX_I2C_ADDR	0x40
+#define IVTV_HAUP_EXT_IR_RX_I2C_ADDR 	0x1a
+#define IVTV_HAUP_INT_IR_RX_I2C_ADDR 	0x18
+#define IVTV_Z8F0811_IR_TX_I2C_ADDR	0x70
+#define IVTV_Z8F0811_IR_RX_I2C_ADDR	0x71
 
 /* This array should match the IVTV_HW_ defines */
 static const u8 hw_addrs[] = {
@@ -108,7 +112,11 @@ static const u8 hw_addrs[] = {
 	IVTV_VP27SMPX_I2C_ADDR,
 	IVTV_M52790_I2C_ADDR,
 	0,				/* IVTV_HW_GPIO dummy driver ID */
-	IVTV_AVERMEDIA_IR_RX_I2C_ADDR	/* IVTV_HW_I2C_IR_RX_AVER */
+	IVTV_AVERMEDIA_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_AVER */
+	IVTV_HAUP_EXT_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
+	IVTV_HAUP_INT_IR_RX_I2C_ADDR,	/* IVTV_HW_I2C_IR_RX_HAUP_INT */
+	IVTV_Z8F0811_IR_TX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
+	IVTV_Z8F0811_IR_RX_I2C_ADDR,	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -129,7 +137,11 @@ static const char *hw_modules[] = {
 	"vp27smpx",
 	"m52790",
 	NULL,
-	NULL		/* IVTV_HW_I2C_IR_RX_AVER */
+	NULL,		/* IVTV_HW_I2C_IR_RX_AVER */
+	NULL,		/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
+	NULL,		/* IVTV_HW_I2C_IR_RX_HAUP_INT */
+	NULL,		/* IVTV_HW_Z8F0811_IR_TX_HAUP */
+	NULL,		/* IVTV_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the IVTV_HW_ defines */
@@ -150,7 +162,11 @@ static const char * const hw_devicenames[] = {
 	"vp27smpx",
 	"m52790",
 	"gpio",
-	"ir_video",	/* IVTV_HW_I2C_IR_RX_AVER */
+	"ir_video",		/* IVTV_HW_I2C_IR_RX_AVER */
+	"ir_video",		/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
+	"ir_video",		/* IVTV_HW_I2C_IR_RX_HAUP_INT */
+	"ir_tx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_TX_HAUP */
+	"ir_rx_z8f0811_haup",	/* IVTV_HW_Z8F0811_IR_RX_HAUP */
 };
 
 static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
@@ -160,6 +176,20 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 	struct IR_i2c_init_data *init_data = &itv->ir_i2c_init_data;
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
+	/* Only allow one IR transmitter to be registered per board */
+	if (hw & IVTV_HW_IR_TX_ANY) {
+		if (itv->hw_flags & IVTV_HW_IR_TX_ANY)
+			return -1;
+		memset(&info, 0, sizeof(struct i2c_board_info));
+		strlcpy(info.type, type, I2C_NAME_SIZE);
+		return i2c_new_probed_device(adap, &info, addr_list) == NULL
+								     ? -1 : 0;
+	}
+
+	/* Only allow one IR receiver to be registered per board */
+	if (itv->hw_flags & IVTV_HW_IR_RX_ANY)
+		return -1;
+
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
 	case IVTV_HW_I2C_IR_RX_AVER:
@@ -168,6 +198,21 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 					IR_KBD_GET_KEY_AVERMEDIA_CARDBUS;
 		init_data->type = IR_TYPE_OTHER;
 		init_data->name = "AVerMedia AVerTV card";
+		break;
+	case IVTV_HW_I2C_IR_RX_HAUP_EXT:
+	case IVTV_HW_I2C_IR_RX_HAUP_INT:
+		/* Default to old black remote */
+		init_data->ir_codes = &ir_codes_rc5_tv_table;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
+		init_data->type = IR_TYPE_RC5;
+		init_data->name = itv->card_name;
+		break;
+	case IVTV_HW_Z8F0811_IR_RX_HAUP:
+		/* Default to grey remote */
+		init_data->ir_codes = &ir_codes_hauppauge_new_table;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+		init_data->type = IR_TYPE_RC5;
+		init_data->name = itv->card_name;
 		break;
 	}
 
@@ -197,8 +242,6 @@ struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
 		0x1a,	/* Hauppauge IR external - collides with WM8739 */
 		0x18,	/* Hauppauge IR internal */
 		0x71,	/* Hauppauge IR (PVR150) */
-		0x64,	/* Pixelview IR */
-		0x30,	/* KNC ONE IR */
 		0x6b,	/* Adaptec IR */
 		I2C_CLIENT_END
 	};
