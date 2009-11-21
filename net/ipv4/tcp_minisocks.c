@@ -26,13 +26,7 @@
 #include <net/inet_common.h>
 #include <net/xfrm.h>
 
-#ifdef CONFIG_SYSCTL
-#define SYNC_INIT 0 /* let the user enable it */
-#else
-#define SYNC_INIT 1
-#endif
-
-int sysctl_tcp_syncookies __read_mostly = SYNC_INIT;
+int sysctl_tcp_syncookies __read_mostly = 1;
 EXPORT_SYMBOL(sysctl_tcp_syncookies);
 
 int sysctl_tcp_abort_on_overflow __read_mostly;
