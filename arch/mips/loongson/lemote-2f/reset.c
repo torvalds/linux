@@ -20,6 +20,7 @@
 #include <loongson.h>
 
 #include <cs5536/cs5536.h>
+#include "ec_kb3310b.h"
 
 static void reset_cpu(void)
 {
@@ -75,30 +76,12 @@ static void fl2f_shutdown(void)
 
 /* reset support for yeeloong2f and mengloong2f notebook */
 
-/*
- * The following registers are determined by the EC index configuration.
- * 1. fill the PORT_HIGH as EC register high part.
- * 2. fill the PORT_LOW as EC register low part.
- * 3. fill the PORT_DATA as EC register write data or get the data from it.
- */
-
-#define	EC_IO_PORT_HIGH	0x0381
-#define	EC_IO_PORT_LOW	0x0382
-#define	EC_IO_PORT_DATA	0x0383
-#define	REG_RESET_HIGH	0xF4	/* reset the machine auto-clear : rd/wr */
-#define REG_RESET_LOW	0xEC
-#define	BIT_RESET_ON	(1 << 0)
-
 void ml2f_reboot(void)
 {
 	reset_cpu();
 
 	/* sending an reset signal to EC(embedded controller) */
-	outb(REG_RESET_HIGH, EC_IO_PORT_HIGH);
-	outb(REG_RESET_LOW, EC_IO_PORT_LOW);
-	mmiowb();
-	outb(BIT_RESET_ON, EC_IO_PORT_DATA);
-	mmiowb();
+	ec_write(REG_RESET, BIT_RESET_ON);
 }
 
 #define yl2f89_reboot ml2f_reboot
