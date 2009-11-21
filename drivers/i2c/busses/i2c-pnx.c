@@ -650,7 +650,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	free_irq(alg_data->irq, alg_data);
+	free_irq(alg_data->irq, i2c_pnx->adapter);
 out_clock:
 	i2c_pnx->set_clock_stop(pdev);
 out_unmap:
@@ -669,7 +669,7 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	struct i2c_adapter *adap = i2c_pnx->adapter;
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
-	free_irq(alg_data->irq, alg_data);
+	free_irq(alg_data->irq, i2c_pnx->adapter);
 	i2c_del_adapter(adap);
 	i2c_pnx->set_clock_stop(pdev);
 	iounmap((void *)alg_data->ioaddr);
