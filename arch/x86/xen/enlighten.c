@@ -148,6 +148,8 @@ void xen_vcpu_restore(void)
 			    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
 				BUG();
 
+			xen_setup_runstate_info(cpu);
+
 			xen_vcpu_setup(cpu);
 
 			if (other_cpu &&
