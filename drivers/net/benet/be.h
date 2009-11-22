@@ -254,6 +254,7 @@ struct be_adapter {
 	struct vlan_group *vlan_grp;
 	u16 num_vlans;
 	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
+	struct be_dma_mem mc_cmd_mem;
 
 	struct be_stats_obj stats;
 	/* Work queue used to perform periodic tasks like getting statistics */

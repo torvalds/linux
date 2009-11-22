@@ -990,24 +990,30 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
  * (mc == NULL) => multicast promiscous
  */
 int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
-		struct dev_mc_list *mc_list, u32 mc_count)
+		struct dev_mc_list *mc_list, u32 mc_count,
+		struct be_dma_mem *mem)
 {
-#define BE_MAX_MC		32 /* set mcast promisc if > 32 */
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_mcast_mac_config *req;
+	struct be_cmd_req_mcast_mac_config *req = mem->va;
+	struct be_sge *sge;
+	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
-	req = embedded_payload(wrb);
+	sge = nonembedded_sgl(wrb);
+	memset(req, 0, sizeof(*req));
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(mem->dma));
+	sge->pa_lo = cpu_to_le32(mem->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(mem->size);
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_MULTICAST_SET, sizeof(*req));
 
 	req->interface_id = if_id;
-	if (mc_list && mc_count <= BE_MAX_MC) {
+	if (mc_list) {
 		int i;
 		struct dev_mc_list *mc;
 
@@ -1019,11 +1025,10 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 		req->promiscuous = 1;
 	}
 
-	be_mcc_notify_wait(adapter);
+	status = be_mcc_notify_wait(adapter);
 
 	spin_unlock_bh(&adapter->mcc_lock);
-
-	return 0;
+	return status;
 }
 
 /* Uses synchrounous mcc */

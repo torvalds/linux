@@ -562,13 +562,15 @@ static void be_set_multicast_list(struct net_device *netdev)
 		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);
 	}
 
-	if (netdev->flags & IFF_ALLMULTI) {
-		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0);
+	/* Enable multicast promisc if num configured exceeds what we support */
+	if (netdev->flags & IFF_ALLMULTI || netdev->mc_count > BE_MAX_MC) {
+		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0,
+				&adapter->mc_cmd_mem);
 		goto done;
 	}
 
 	be_cmd_multicast_set(adapter, adapter->if_handle, netdev->mc_list,
-		netdev->mc_count);
+		netdev->mc_count, &adapter->mc_cmd_mem);
 done:
 	return;
 }
@@ -2009,34 +2011,61 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		pci_free_consistent(adapter->pdev, mem->size,
 			mem->va, mem->dma);
+
+	mem = &adapter->mc_cmd_mem;
+	if (mem->va)
+		pci_free_consistent(adapter->pdev, mem->size,
+			mem->va, mem->dma);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
 	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
+	struct be_dma_mem *mc_cmd_mem = &adapter->mc_cmd_mem;
 	int status;
 
 	status = be_map_pci_bars(adapter);
 	if (status)
-		return status;
+		goto done;
 
 	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
 	mbox_mem_alloc->va = pci_alloc_consistent(adapter->pdev,
 				mbox_mem_alloc->size, &mbox_mem_alloc->dma);
 	if (!mbox_mem_alloc->va) {
-		be_unmap_pci_bars(adapter);
-		return -1;
+		status = -ENOMEM;
+		goto unmap_pci_bars;
 	}
+
 	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
 	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
+
+	mc_cmd_mem->size = sizeof(struct be_cmd_req_mcast_mac_config);
+	mc_cmd_mem->va = pci_alloc_consistent(adapter->pdev, mc_cmd_mem->size,
+			&mc_cmd_mem->dma);
+	if (mc_cmd_mem->va == NULL) {
+		status = -ENOMEM;
+		goto free_mbox;
+	}
+	memset(mc_cmd_mem->va, 0, mc_cmd_mem->size);
+
 	spin_lock_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
 	return 0;
+
+free_mbox:
+	pci_free_consistent(adapter->pdev, mbox_mem_alloc->size,
+		mbox_mem_alloc->va, mbox_mem_alloc->dma);
+
+unmap_pci_bars:
+	be_unmap_pci_bars(adapter);
+
+done:
+	return status;
 }
 
 static void be_stats_cleanup(struct be_adapter *adapter)
