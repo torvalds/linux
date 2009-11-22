@@ -357,6 +357,57 @@ static struct be_mcc_wrb *wrb_from_mccq(struct be_adapter *adapter)
 	return wrb;
 }
 
+/* Tell fw we're about to start firing cmds by writing a
+ * special pattern across the wrb hdr; uses mbox
+ */
+int be_cmd_fw_init(struct be_adapter *adapter)
+{
+	u8 *wrb;
+	int status;
+
+	spin_lock(&adapter->mbox_lock);
+
+	wrb = (u8 *)wrb_from_mbox(adapter);
+	*wrb++ = 0xFF;
+	*wrb++ = 0x12;
+	*wrb++ = 0x34;
+	*wrb++ = 0xFF;
+	*wrb++ = 0xFF;
+	*wrb++ = 0x56;
+	*wrb++ = 0x78;
+	*wrb = 0xFF;
+
+	status = be_mbox_notify_wait(adapter);
+
+	spin_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+/* Tell fw we're done with firing cmds by writing a
+ * special pattern across the wrb hdr; uses mbox
+ */
+int be_cmd_fw_clean(struct be_adapter *adapter)
+{
+	u8 *wrb;
+	int status;
+
+	spin_lock(&adapter->mbox_lock);
+
+	wrb = (u8 *)wrb_from_mbox(adapter);
+	*wrb++ = 0xFF;
+	*wrb++ = 0xAA;
+	*wrb++ = 0xBB;
+	*wrb++ = 0xFF;
+	*wrb++ = 0xFF;
+	*wrb++ = 0xCC;
+	*wrb++ = 0xDD;
+	*wrb = 0xFF;
+
+	status = be_mbox_notify_wait(adapter);
+
+	spin_unlock(&adapter->mbox_lock);
+	return status;
+}
 int be_cmd_eq_create(struct be_adapter *adapter,
 		struct be_queue_info *eq, int eq_delay)
 {

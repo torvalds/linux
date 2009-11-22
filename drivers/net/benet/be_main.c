@@ -1682,6 +1682,8 @@ static int be_clear(struct be_adapter *adapter)
 
 	be_cmd_if_destroy(adapter, adapter->if_handle);
 
+	/* tell fw we're done with firing cmds */
+	be_cmd_fw_clean(adapter);
 	return 0;
 }
 
@@ -2117,17 +2119,10 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-static int be_hw_up(struct be_adapter *adapter)
+static int be_get_config(struct be_adapter *adapter)
 {
 	int status;
-
-	status = be_cmd_POST(adapter);
-	if (status)
-		return status;
-
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		return status;
+	u8 mac[ETH_ALEN];
 
 	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
 	if (status)
@@ -2135,7 +2130,17 @@ static int be_hw_up(struct be_adapter *adapter)
 
 	status = be_cmd_query_fw_cfg(adapter,
 				&adapter->port_num, &adapter->cap);
-	return status;
+	if (status)
+		return status;
+
+	memset(mac, 0, ETH_ALEN);
+	status = be_cmd_mac_addr_query(adapter, mac,
+			MAC_ADDRESS_TYPE_NETWORK, true /*permanent */, 0);
+	if (status)
+		return status;
+	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+
+	return 0;
 }
 
 static int __devinit be_probe(struct pci_dev *pdev,
@@ -2144,7 +2149,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	int status = 0;
 	struct be_adapter *adapter;
 	struct net_device *netdev;
-	u8 mac[ETH_ALEN];
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -2164,6 +2168,8 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	pci_set_drvdata(pdev, adapter);
 	adapter->netdev = netdev;
+	be_netdev_init(netdev);
+	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	be_msix_enable(adapter);
 
@@ -2182,27 +2188,34 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto free_netdev;
 
+	/* sync up with fw's ready state */
+	status = be_cmd_POST(adapter);
+	if (status)
+		goto ctrl_clean;
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto ctrl_clean;
+
+	status = be_cmd_reset_function(adapter);
+	if (status)
+		goto ctrl_clean;
+
 	status = be_stats_init(adapter);
 	if (status)
 		goto ctrl_clean;
 
-	status = be_hw_up(adapter);
+	status = be_get_config(adapter);
 	if (status)
 		goto stats_clean;
-
-	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
-			true /* permanent */, 0);
-	if (status)
-		goto stats_clean;
-	memcpy(netdev->dev_addr, mac, ETH_ALEN);
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
-	be_netdev_init(netdev);
-	SET_NETDEV_DEV(netdev, &adapter->pdev->dev);
 
 	status = be_setup(adapter);
 	if (status)
 		goto stats_clean;
+
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
@@ -2261,6 +2274,11 @@ static int be_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
 
 	be_setup(adapter);
 	if (netif_running(netdev)) {

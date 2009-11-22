@@ -851,3 +851,5 @@ extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
 extern int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc);
+extern int be_cmd_fw_init(struct be_adapter *adapter);
+extern int be_cmd_fw_clean(struct be_adapter *adapter);
