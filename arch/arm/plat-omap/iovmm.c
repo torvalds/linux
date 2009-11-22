@@ -617,7 +617,7 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 		 u32 flags)
 {
 	size_t bytes;
-	void *va;
+	void *va = NULL;
 
 	if (!obj || !obj->dev || !sgt)
 		return -EINVAL;
@@ -627,9 +627,11 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 		return -EINVAL;
 	bytes = PAGE_ALIGN(bytes);
 
-	va = vmap_sg(sgt);
-	if (IS_ERR(va))
-		return PTR_ERR(va);
+	if (flags & IOVMF_MMIO) {
+		va = vmap_sg(sgt);
+		if (IS_ERR(va))
+			return PTR_ERR(va);
+	}
 
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_DISCONT;
