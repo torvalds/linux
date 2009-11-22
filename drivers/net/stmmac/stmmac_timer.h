@@ -26,6 +26,7 @@ struct stmmac_timer {
 	void (*timer_start) (unsigned int new_freq);
 	void (*timer_stop) (void);
 	unsigned int freq;
+	unsigned int enable;
 };
 
 /* Open the HW timer device and return 0 in case of success */
