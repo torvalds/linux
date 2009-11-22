@@ -3903,11 +3903,13 @@ int perf_swevent_get_recursion_context(int **recursion)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(perf_swevent_get_recursion_context);
 
 void perf_swevent_put_recursion_context(int *recursion)
 {
 	(*recursion)--;
 }
+EXPORT_SYMBOL_GPL(perf_swevent_put_recursion_context);
 
 static void __do_perf_sw_event(enum perf_type_id type, u32 event_id,
 			       u64 nr, int nmi,
