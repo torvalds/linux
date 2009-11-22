@@ -16,6 +16,7 @@ enum {
 	HW_BREAKPOINT_X = 4,
 };
 
+#ifdef __KERNEL__
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
@@ -133,5 +134,6 @@ static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
 }
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
+#endif /* __KERNEL__ */
 
 #endif /* _LINUX_HW_BREAKPOINT_H */
