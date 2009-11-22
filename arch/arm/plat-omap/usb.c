@@ -159,11 +159,14 @@ static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 		 *  - OTG support on this port not yet written
 		 */
 
-		l = omap_readl(USB_TRANSCEIVER_CTRL);
-		l &= ~(7 << 4);
-		if (!is_device)
-			l |= (3 << 1);
-		omap_writel(l, USB_TRANSCEIVER_CTRL);
+		/* Don't do this for omap7xx -- it causes USB to not work correctly */
+		if (!cpu_is_omap7xx()) {
+			l = omap_readl(USB_TRANSCEIVER_CTRL);
+			l &= ~(7 << 4);
+			if (!is_device)
+				l |= (3 << 1);
+			omap_writel(l, USB_TRANSCEIVER_CTRL);
+		}
 
 		return 3 << 16;
 	}
@@ -603,7 +606,12 @@ omap_otg_init(struct omap_usb_config *config)
 	if (config->otg || config->register_dev) {
 		syscon &= ~DEV_IDLE_EN;
 		udc_device.dev.platform_data = config;
-		/* FIXME patch IRQ numbers for omap730 */
+		/* IRQ numbers for omap7xx */
+		if(cpu_is_omap7xx()) {
+			udc_resources[1].start = INT_7XX_USB_GENI;
+			udc_resources[2].start = INT_7XX_USB_NON_ISO;
+			udc_resources[3].start = INT_7XX_USB_ISO;
+		}
 		status = platform_device_register(&udc_device);
 		if (status)
 			pr_debug("can't register UDC device, %d\n", status);
