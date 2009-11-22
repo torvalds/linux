@@ -6,6 +6,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
+#include <linux/interrupt.h>
 
 typedef u32 mbox_msg_t;
 struct omap_mbox;
@@ -28,8 +29,10 @@ struct omap_mbox_ops {
 	int		(*fifo_empty)(struct omap_mbox *mbox);
 	int		(*fifo_full)(struct omap_mbox *mbox);
 	/* irq */
-	void		(*enable_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
-	void		(*disable_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
+	void		(*enable_irq)(struct omap_mbox *mbox,
+						omap_mbox_irq_t irq);
+	void		(*disable_irq)(struct omap_mbox *mbox,
+						omap_mbox_irq_t irq);
 	void		(*ack_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
 	int		(*is_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
 	/* ctx */
@@ -41,6 +44,7 @@ struct omap_mbox_queue {
 	spinlock_t		lock;
 	struct request_queue	*queue;
 	struct work_struct	work;
+	struct tasklet_struct	tasklet;
 	int	(*callback)(void *);
 	struct omap_mbox	*mbox;
 };
