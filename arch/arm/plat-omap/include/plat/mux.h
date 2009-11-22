@@ -849,6 +849,11 @@ enum omap34xx_index {
 
 	/* SYS_NIRQ T2 INT1 */
 	AF26_34XX_SYS_NIRQ,
+
+	/* EHCI GPIO's for OMAP3EVM (Rev >= E) */
+	AH14_34XX_GPIO21,
+	AF9_34XX_GPIO22,
+	U3_34XX_GPIO61,
 };
 
 struct omap_mux_cfg {
