@@ -3004,6 +3004,14 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pdev->vendor == PCI_VENDOR_ID_MARVELL && !marvell_enable)
 		return -ENODEV;
 
+	/* Promise's PDC42819 is a SAS/SATA controller that has an AHCI mode.
+	 * At the moment, we can only use the AHCI mode. Let the users know
+	 * that for SAS drives they're out of luck.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_PROMISE)
+		dev_printk(KERN_INFO, &pdev->dev, "PDC42819 "
+			   "can only drive SATA devices with this driver\n");
+
 	/* acquire resources */
 	rc = pcim_enable_device(pdev);
 	if (rc)
