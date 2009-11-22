@@ -20,26 +20,22 @@
 #define OMAP_UART1_BASE		0xfffb0000
 #define OMAP_UART2_BASE		0xfffb0800
 #define OMAP_UART3_BASE		0xfffb9800
-#define OMAP_MAX_NR_PORTS	3
 #elif defined(CONFIG_ARCH_OMAP2)
 /* OMAP2 serial ports */
 #define OMAP_UART1_BASE		0x4806a000
 #define OMAP_UART2_BASE		0x4806c000
 #define OMAP_UART3_BASE		0x4806e000
-#define OMAP_MAX_NR_PORTS	3
 #elif defined(CONFIG_ARCH_OMAP3)
 /* OMAP3 serial ports */
 #define OMAP_UART1_BASE		0x4806a000
 #define OMAP_UART2_BASE		0x4806c000
 #define OMAP_UART3_BASE		0x49020000
-#define OMAP_MAX_NR_PORTS	3
 #elif defined(CONFIG_ARCH_OMAP4)
 /* OMAP4 serial ports */
 #define OMAP_UART1_BASE		0x4806a000
 #define OMAP_UART2_BASE		0x4806c000
 #define OMAP_UART3_BASE		0x48020000
 #define OMAP_UART4_BASE		0x4806e000
-#define OMAP_MAX_NR_PORTS	4
 #endif
 
 #define OMAP1510_BASE_BAUD	(12000000/16)
