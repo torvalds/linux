@@ -467,7 +467,7 @@ static int call__match(struct symbol *sym)
 	return 0;
 }
 
-static struct symbol **resolve_callchain(struct thread *thread, struct map *map,
+static struct symbol **resolve_callchain(struct thread *thread,
 					 struct ip_callchain *chain,
 					 struct symbol **parent)
 {
@@ -496,10 +496,10 @@ static struct symbol **resolve_callchain(struct thread *thread, struct map *map,
 		case PERF_CONTEXT_HV:
 			break;
 		case PERF_CONTEXT_KERNEL:
-			sym = kernel_maps__find_symbol(ip, &map, NULL);
+			sym = kernel_maps__find_symbol(ip, NULL, NULL);
 			break;
 		default:
-			sym = resolve_symbol(thread, &map, &ip);
+			sym = resolve_symbol(thread, NULL, &ip);
 			break;
 		}
 
@@ -529,7 +529,7 @@ hist_entry__add(struct thread *thread, struct map *map,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || callchain) && chain)
-		syms = resolve_callchain(thread, map, chain, &parent);
+		syms = resolve_callchain(thread, chain, &parent);
 
 	he = __hist_entry__add(thread, map, sym, parent,
 			       ip, count, level, &hit);
