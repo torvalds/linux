@@ -242,6 +242,14 @@ void __init omap3_check_revision(void)
 			omap_revision = OMAP3630_REV_ES1_0;
 		}
 		break;
+	case 0xb868:
+		/* Handle OMAP35xx/AM35xx devices
+		 *
+		 * Set the device to be OMAP3505 here. Actual device
+		 * is identified later based on the features.
+		 */
+		omap_revision = OMAP3505_REV(rev);
+		break;
 	default:
 		/* Unknown default to latest silicon rev as default*/
 		omap_revision = OMAP3630_REV_ES1_0;
@@ -267,20 +275,36 @@ void __init omap3_cpuinfo(void)
 	 * and CPU class bits.
 	 */
 	if (cpu_is_omap3630())
-		strcpy(cpu_name, "3630");
+		strcpy(cpu_name, "OMAP3630");
+	else if (cpu_is_omap3505()) {
+		/*
+		 * AM35xx devices
+		 */
+		if (omap3_has_sgx()) {
+			omap_revision = OMAP3517_REV(rev);
+			strcpy(cpu_name, "AM3517");
+		}
+		else {
+			/* Already set in omap3_check_revision() */
+			strcpy(cpu_name, "AM3505");
+		}
+	}
+	/*
+	 * OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices
+	 */
 	else if (omap3_has_iva() && omap3_has_sgx())
-		strcpy(cpu_name, "3430/3530");
+		strcpy(cpu_name, "OMAP3430/3530");
 	else if (omap3_has_sgx()) {
 		omap_revision = OMAP3525_REV(rev);
-		strcpy(cpu_name, "3525");
+		strcpy(cpu_name, "OMAP3525");
 	}
 	else if (omap3_has_iva()) {
 		omap_revision = OMAP3515_REV(rev);
-		strcpy(cpu_name, "3515");
+		strcpy(cpu_name, "OMAP3515");
 	}
 	else {
 		omap_revision = OMAP3503_REV(rev);
-		strcpy(cpu_name, "3503");
+		strcpy(cpu_name, "OMAP3503");
 	}
 
 	switch (rev) {
@@ -307,7 +331,7 @@ void __init omap3_cpuinfo(void)
 	/*
 	 * Print verbose information
 	 */
-	pr_info("OMAP%s ES%s\n", cpu_name, cpu_rev);
+	pr_info("%s ES%s\n", cpu_name, cpu_rev);
 
 	OMAP3_SHOW_FEATURE(l2cache);
 	OMAP3_SHOW_FEATURE(iva);
