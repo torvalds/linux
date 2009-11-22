@@ -499,44 +499,6 @@ error_return:
 }
 
 /**
- * ext4_free_blocks() -- Free given blocks and update quota
- * @handle:		handle for this transaction
- * @inode:		inode
- * @block:		start physical block to free
- * @count:		number of blocks to count
- * @metadata: 		Are these metadata blocks
- */
-void ext4_free_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t block, unsigned long count,
-			int metadata)
-{
-	struct super_block *sb;
-	unsigned long dquot_freed_blocks;
-
-	/* this isn't the right place to decide whether block is metadata
-	 * inode.c/extents.c knows better, but for safety ... */
-	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		metadata = 1;
-
-	/* We need to make sure we don't reuse
-	 * block released untill the transaction commit.
-	 * writeback mode have weak data consistency so
-	 * don't force data as metadata when freeing block
-	 * for writeback mode.
-	 */
-	if (metadata == 0 && !ext4_should_writeback_data(inode))
-		metadata = 1;
-
-	sb = inode->i_sb;
-
-	ext4_mb_free_blocks(handle, inode, block, count,
-			    metadata, &dquot_freed_blocks);
-	if (dquot_freed_blocks)
-		vfs_dq_free_block(inode, dquot_freed_blocks);
-	return;
-}
-
-/**
  * ext4_has_free_blocks()
  * @sbi:	in-core super block structure.
  * @nblocks:	number of needed blocks
