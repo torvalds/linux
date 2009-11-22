@@ -511,10 +511,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 
 	cpu = smp_processor_id();
 
-	if (in_nmi())
-		trace_buf = rcu_dereference(perf_trace_buf_nmi);
-	else
-		trace_buf = rcu_dereference(perf_trace_buf);
+	trace_buf = rcu_dereference(perf_trace_buf);
 
 	if (!trace_buf)
 		goto end;
@@ -617,10 +614,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 
 	cpu = smp_processor_id();
 
-	if (in_nmi())
-		trace_buf = rcu_dereference(perf_trace_buf_nmi);
-	else
-		trace_buf = rcu_dereference(perf_trace_buf);
+	trace_buf = rcu_dereference(perf_trace_buf);
 
 	if (!trace_buf)
 		goto end;
