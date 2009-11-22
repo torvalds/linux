@@ -40,7 +40,7 @@
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
-#include "miro.h"
+#include <sound/aci.h>
 
 MODULE_AUTHOR("Martin Langer <martin-langer@gmx.de>");
 MODULE_LICENSE("GPL");

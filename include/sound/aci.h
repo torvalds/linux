@@ -1,5 +1,5 @@
-#ifndef _MIRO_H_
-#define _MIRO_H_
+#ifndef _ACI_H_
+#define _ACI_H_
 
 #define ACI_REG_COMMAND		0	/* write register offset */
 #define ACI_REG_STATUS		1	/* read register offset */
@@ -70,4 +70,4 @@
 #define ACI_SET_EQ6		0x45
 #define ACI_SET_EQ7		0x46	/* ... to Treble */
 
-#endif  /* _MIRO_H_ */
+#endif  /* _ACI_H_ */
