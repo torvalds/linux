@@ -31,6 +31,8 @@
 static struct omap_mbox *mboxes;
 static DEFINE_RWLOCK(mboxes_lock);
 
+static int mbox_configured;
+
 /* Mailbox FIFO handle functions */
 static inline mbox_msg_t mbox_fifo_read(struct omap_mbox *mbox)
 {
@@ -266,13 +268,20 @@ static void mbox_queue_free(struct omap_mbox_queue *q)
 
 static int omap_mbox_startup(struct omap_mbox *mbox)
 {
-	int ret;
+	int ret = 0;
 	struct omap_mbox_queue *mq;
 
 	if (likely(mbox->ops->startup)) {
-		ret = mbox->ops->startup(mbox);
-		if (unlikely(ret))
+		write_lock(&mboxes_lock);
+		if (!mbox_configured)
+			ret = mbox->ops->startup(mbox);
+
+		if (unlikely(ret)) {
+			write_unlock(&mboxes_lock);
 			return ret;
+		}
+		mbox_configured++;
+		write_unlock(&mboxes_lock);
 	}
 
 	ret = request_irq(mbox->irq, mbox_interrupt, IRQF_DISABLED,
@@ -317,8 +326,14 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 
 	free_irq(mbox->irq, mbox);
 
-	if (unlikely(mbox->ops->shutdown))
-		mbox->ops->shutdown(mbox);
+	if (unlikely(mbox->ops->shutdown)) {
+		write_lock(&mboxes_lock);
+		if (mbox_configured > 0)
+			mbox_configured--;
+		if (!mbox_configured)
+			mbox->ops->shutdown(mbox);
+		write_unlock(&mboxes_lock);
+	}
 }
 
 static struct omap_mbox **find_mboxes(const char *name)
