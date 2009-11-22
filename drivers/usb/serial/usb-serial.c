@@ -381,7 +381,7 @@ static int serial_write_room(struct tty_struct *tty)
 static int serial_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("%s = port %d", __func__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* if the device was unplugged then any remaining characters
 	   fell out of the connector ;) */
