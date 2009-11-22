@@ -392,7 +392,6 @@ static void sgtable_fill_vmalloc(struct sg_table *sgt, void *_va)
 	}
 
 	va_end = _va + PAGE_SIZE * i;
-	flush_cache_vmap((unsigned long)_va, (unsigned long)va_end);
 }
 
 static inline void sgtable_drain_vmalloc(struct sg_table *sgt)
@@ -427,8 +426,6 @@ static void sgtable_fill_kmalloc(struct sg_table *sgt, u32 pa, size_t len)
 		len -= bytes;
 	}
 	BUG_ON(len);
-
-	clean_dcache_area(va, len);
 }
 
 static inline void sgtable_drain_kmalloc(struct sg_table *sgt)
