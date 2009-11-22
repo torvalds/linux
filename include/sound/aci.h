@@ -70,4 +70,21 @@
 #define ACI_SET_EQ6		0x45
 #define ACI_SET_EQ7		0x46	/* ... to Treble */
 
+struct snd_miro_aci {
+	unsigned long aci_port;
+	int aci_vendor;
+	int aci_product;
+	int aci_version;
+	int aci_amp;
+	int aci_preamp;
+	int aci_solomode;
+
+	struct mutex aci_mutex;
+};
+
+int snd_aci_cmd(struct snd_miro_aci *aci, int write1, int write2, int write3);
+
+struct snd_miro_aci *snd_aci_get_aci(void);
+
 #endif  /* _ACI_H_ */
+
