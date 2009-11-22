@@ -609,6 +609,12 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 				omap_cfg_reg(AG4_3430_MMC2_DAT2);
 				omap_cfg_reg(AF4_3430_MMC2_DAT3);
 			}
+			if (mmc_controller->slots[0].wires == 8) {
+				omap_cfg_reg(AE4_3430_MMC2_DAT4);
+				omap_cfg_reg(AH3_3430_MMC2_DAT5);
+				omap_cfg_reg(AF3_3430_MMC2_DAT6);
+				omap_cfg_reg(AE3_3430_MMC2_DAT7);
+			}
 		}
 
 		/*
