@@ -8,7 +8,6 @@
 #include <linux/blkdev.h>
 
 typedef u32 mbox_msg_t;
-typedef void (mbox_receiver_t)(mbox_msg_t msg);
 struct omap_mbox;
 
 typedef int __bitwise omap_mbox_irq_t;
