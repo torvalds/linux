@@ -78,7 +78,7 @@ struct smssdio_device {
 
 static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 {
-	int ret;
+	int ret = 0;
 	struct smssdio_device *smsdev;
 
 	smsdev = context;
