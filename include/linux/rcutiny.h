@@ -39,6 +39,11 @@ void rcu_bh_qs(int cpu);
 #define rcu_init_sched()	do { } while (0)
 extern void rcu_check_callbacks(int cpu, int user);
 
+static inline int rcu_needs_cpu(int cpu)
+{
+	return 0;
+}
+
 /*
  * Return the number of grace periods.
  */
@@ -56,6 +61,8 @@ static inline long rcu_batches_completed_bh(void)
 }
 
 extern int rcu_expedited_torture_stats(char *page);
+
+#define synchronize_rcu synchronize_sched
 
 static inline void synchronize_rcu_expedited(void)
 {
@@ -85,6 +92,10 @@ static inline void rcu_exit_nohz(void)
 }
 
 #endif /* #else #ifdef CONFIG_NO_HZ */
+
+static inline void rcu_scheduler_starting(void)
+{
+}
 
 static inline void exit_rcu(void)
 {
