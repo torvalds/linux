@@ -125,7 +125,8 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"bclk",		&bclk_1510,	CK_1510 | CK_310),
 	CLK(NULL,	"bclk",		&bclk_16xx,	CK_16XX),
 	CLK("mmci-omap.0", "fck",	&mmc1_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK("mmci-omap.0", "ick",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK("mmci-omap.0", "fck",	&mmc3_ck,	CK_7XX),
+	CLK("mmci-omap.0", "ick",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK("mmci-omap.1", "fck",	&mmc2_ck,	CK_16XX),
 	CLK("mmci-omap.1", "ick",	&armper_ck.clk,	CK_16XX),
 	/* Virtual clocks */

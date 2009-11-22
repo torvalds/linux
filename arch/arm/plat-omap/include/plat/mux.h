@@ -219,6 +219,11 @@ enum omap7xx_index {
 	AA17_7XX_USB_DM,
 	W16_7XX_USB_PU_EN,
 	W17_7XX_USB_VBUSI,
+
+	/* MMC */
+	MMC_7XX_CMD,
+	MMC_7XX_CLK,
+	MMC_7XX_DAT0,
 };
 
 enum omap1xxx_index {
