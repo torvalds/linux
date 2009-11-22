@@ -83,11 +83,11 @@ MODULE_PARM_DESC(roamdelta,
 	"set roaming tendency: 0=aggressive, 1=moderate, "
 				"2=conservative (default: moderate)");
 
-static int modparam_workaround_interval = 500;
+static int modparam_workaround_interval;
 module_param_named(workaround_interval, modparam_workaround_interval,
 							int, 0444);
 MODULE_PARM_DESC(workaround_interval,
-	"set stall workaround interval in msecs (default: 500)");
+	"set stall workaround interval in msecs (0=disabled) (default: 0)");
 
 
 /* various RNDIS OID defs */
@@ -2550,7 +2550,7 @@ static void rndis_device_poller(struct work_struct *work)
 	/* Workaround transfer stalls on poor quality links.
 	 * TODO: find right way to fix these stalls (as stalls do not happen
 	 * with ndiswrapper/windows driver). */
-	if (priv->last_qual <= 25) {
+	if (priv->param_workaround_interval > 0 && priv->last_qual <= 25) {
 		/* Decrease stats worker interval to catch stalls.
 		 * faster. Faster than 400-500ms causes packet loss,
 		 * Slower doesn't catch stalls fast enough.
