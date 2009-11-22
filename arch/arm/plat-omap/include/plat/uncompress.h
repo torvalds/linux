@@ -44,8 +44,12 @@ static void putc(int c)
 	uart = (volatile u8 *)(OMAP_UART3_BASE);
 #elif defined(CONFIG_OMAP_LL_DEBUG_UART2)
 	uart = (volatile u8 *)(OMAP_UART2_BASE);
-#else
+#elif defined(CONFIG_OMAP_LL_DEBUG_UART1)
 	uart = (volatile u8 *)(OMAP_UART1_BASE);
+#elif defined(CONFIG_OMAP_LL_DEBUG_NONE)
+	return;
+#else
+	return;
 #endif
 
 #ifdef CONFIG_ARCH_OMAP1
