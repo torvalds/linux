@@ -5,6 +5,21 @@
 
 #include <plat/board.h>
 
+#define OMAP3_HS_USB_PORTS	3
+enum ehci_hcd_omap_mode {
+	EHCI_HCD_OMAP_MODE_UNKNOWN,
+	EHCI_HCD_OMAP_MODE_PHY,
+	EHCI_HCD_OMAP_MODE_TLL,
+};
+
+struct ehci_hcd_omap_platform_data {
+	enum ehci_hcd_omap_mode		port_mode[OMAP3_HS_USB_PORTS];
+	unsigned			phy_reset:1;
+
+	/* have to be valid if phy_reset is true and portx is in phy mode */
+	int	reset_gpio_port[OMAP3_HS_USB_PORTS];
+};
+
 /*-------------------------------------------------------------------------*/
 
 #define OMAP1_OTG_BASE			0xfffb0400
@@ -28,6 +43,8 @@
 #define OMAP_OHCI_BASE			OMAP2_OHCI_BASE
 
 extern void usb_musb_init(void);
+
+extern void usb_ehci_init(struct ehci_hcd_omap_platform_data *pdata);
 
 #endif
 
