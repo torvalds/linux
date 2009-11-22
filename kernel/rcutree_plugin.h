@@ -160,11 +160,51 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 	return !list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 }
 
+/*
+ * Record a quiescent state for all tasks that were previously queued
+ * on the specified rcu_node structure and that were blocking the current
+ * RCU grace period.  The caller must hold the specified rnp->lock with
+ * irqs disabled, and this lock is released upon return, but irqs remain
+ * disabled.
+ */
+static void task_quiet(struct rcu_node *rnp, unsigned long flags)
+	__releases(rnp->lock)
+{
+	unsigned long mask;
+	struct rcu_node *rnp_p;
+
+	if (rnp->qsmask != 0 || rcu_preempted_readers(rnp)) {
+		spin_unlock_irqrestore(&rnp->lock, flags);
+		return;  /* Still need more quiescent states! */
+	}
+
+	rnp_p = rnp->parent;
+	if (rnp_p == NULL) {
+		/*
+		 * Either there is only one rcu_node in the tree,
+		 * or tasks were kicked up to root rcu_node due to
+		 * CPUs going offline.
+		 */
+		cpu_quiet_msk_finish(&rcu_preempt_state, flags);
+		return;
+	}
+
+	/* Report up the rest of the hierarchy. */
+	mask = rnp->grpmask;
+	spin_unlock(&rnp->lock);	/* irqs remain disabled. */
+	spin_lock(&rnp_p->lock);	/* irqs already disabled. */
+	cpu_quiet_msk(mask, &rcu_preempt_state, rnp_p, flags);
+}
+
+/*
+ * Handle special cases during rcu_read_unlock(), such as needing to
+ * notify RCU core processing or task having blocked during the RCU
+ * read-side critical section.
+ */
 static void rcu_read_unlock_special(struct task_struct *t)
 {
 	int empty;
 	unsigned long flags;
-	unsigned long mask;
 	struct rcu_node *rnp;
 	int special;
 
@@ -213,30 +253,15 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		/*
 		 * If this was the last task on the current list, and if
 		 * we aren't waiting on any CPUs, report the quiescent state.
-		 * Note that both cpu_quiet_msk_finish() and cpu_quiet_msk()
-		 * drop rnp->lock and restore irq.
+		 * Note that task_quiet() releases rnp->lock.
 		 */
-		if (!empty && rnp->qsmask == 0 &&
-		    !rcu_preempted_readers(rnp)) {
-			struct rcu_node *rnp_p;
-
-			if (rnp->parent == NULL) {
-				/* Only one rcu_node in the tree. */
-				cpu_quiet_msk_finish(&rcu_preempt_state, flags);
-				return;
-			}
-			/* Report up the rest of the hierarchy. */
-			mask = rnp->grpmask;
+		if (empty)
 			spin_unlock_irqrestore(&rnp->lock, flags);
-			rnp_p = rnp->parent;
-			spin_lock_irqsave(&rnp_p->lock, flags);
-			WARN_ON_ONCE(rnp->qsmask);
-			cpu_quiet_msk(mask, &rcu_preempt_state, rnp_p, flags);
-			return;
-		}
-		spin_unlock(&rnp->lock);
+		else
+			task_quiet(rnp, flags);
+	} else {
+		local_irq_restore(flags);
 	}
-	local_irq_restore(flags);
 }
 
 /*
@@ -303,6 +328,8 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
  * rcu_node.  The reason for not just moving them to the immediate
  * parent is to remove the need for rcu_read_unlock_special() to
  * make more than two attempts to acquire the target rcu_node's lock.
+ * Returns true if there were tasks blocking the current RCU grace
+ * period.
  *
  * Returns 1 if there was previously a task blocking the current grace
  * period on the specified rcu_node structure.
@@ -316,7 +343,7 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	int i;
 	struct list_head *lp;
 	struct list_head *lp_root;
-	int retval = rcu_preempted_readers(rnp);
+	int retval;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	struct task_struct *tp;
 
@@ -334,6 +361,7 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	 * rcu_nodes in terms of gp_num value.  This fact allows us to
 	 * move the blocked_tasks[] array directly, element by element.
 	 */
+	retval = rcu_preempted_readers(rnp);
 	for (i = 0; i < 2; i++) {
 		lp = &rnp->blocked_tasks[i];
 		lp_root = &rnp_root->blocked_tasks[i];
@@ -346,7 +374,6 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 			spin_unlock(&rnp_root->lock); /* irqs remain disabled */
 		}
 	}
-
 	return retval;
 }
 
@@ -511,6 +538,16 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 {
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/* Because preemptible RCU does not exist, no quieting of tasks. */
+static void task_quiet(struct rcu_node *rnp, unsigned long flags)
+{
+	spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 

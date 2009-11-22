@@ -51,7 +51,7 @@
 
 /* Data structures. */
 
-static struct lock_class_key rcu_root_class;
+static struct lock_class_key rcu_node_class[NUM_RCU_LVLS];
 
 #define RCU_STATE_INITIALIZER(name) { \
 	.level = { &name.node[0] }, \
@@ -936,6 +936,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	unsigned long mask;
+	int need_quiet = 0;
 	struct rcu_data *rdp = rsp->rda[cpu];
 	struct rcu_node *rnp;
 
@@ -949,29 +950,30 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 		spin_lock(&rnp->lock);		/* irqs already disabled. */
 		rnp->qsmaskinit &= ~mask;
 		if (rnp->qsmaskinit != 0) {
-			spin_unlock(&rnp->lock); /* irqs remain disabled. */
+			if (rnp != rdp->mynode)
+				spin_unlock(&rnp->lock); /* irqs remain disabled. */
 			break;
 		}
-
-		/*
-		 * If there was a task blocking the current grace period,
-		 * and if all CPUs have checked in, we need to propagate
-		 * the quiescent state up the rcu_node hierarchy.  But that
-		 * is inconvenient at the moment due to deadlock issues if
-		 * this should end the current grace period.  So set the
-		 * offlined CPU's bit in ->qsmask in order to force the
-		 * next force_quiescent_state() invocation to clean up this
-		 * mess in a deadlock-free manner.
-		 */
-		if (rcu_preempt_offline_tasks(rsp, rnp, rdp) && !rnp->qsmask)
-			rnp->qsmask |= mask;
-
+		if (rnp == rdp->mynode)
+			need_quiet = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+		else
+			spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		mask = rnp->grpmask;
-		spin_unlock(&rnp->lock);	/* irqs remain disabled. */
 		rnp = rnp->parent;
 	} while (rnp != NULL);
 
-	spin_unlock_irqrestore(&rsp->onofflock, flags);
+	/*
+	 * We still hold the leaf rcu_node structure lock here, and
+	 * irqs are still disabled.  The reason for this subterfuge is
+	 * because invoking task_quiet() with ->onofflock held leads
+	 * to deadlock.
+	 */
+	spin_unlock(&rsp->onofflock); /* irqs remain disabled. */
+	rnp = rdp->mynode;
+	if (need_quiet)
+		task_quiet(rnp, flags);
+	else
+		spin_unlock_irqrestore(&rnp->lock, flags);
 
 	rcu_adopt_orphan_cbs(rsp);
 }
@@ -1731,6 +1733,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 		rnp = rsp->level[i];
 		for (j = 0; j < rsp->levelcnt[i]; j++, rnp++) {
 			spin_lock_init(&rnp->lock);
+			lockdep_set_class(&rnp->lock, &rcu_node_class[i]);
 			rnp->gpnum = 0;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
@@ -1753,7 +1756,6 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 			INIT_LIST_HEAD(&rnp->blocked_tasks[1]);
 		}
 	}
-	lockdep_set_class(&rcu_get_root(rsp)->lock, &rcu_root_class);
 }
 
 /*
