@@ -137,13 +137,8 @@ struct ftrace_event_call {
 
 #define FTRACE_MAX_PROFILE_SIZE	2048
 
-struct perf_trace_buf {
-	char	buf[FTRACE_MAX_PROFILE_SIZE];
-	int	recursion;
-};
-
-extern struct perf_trace_buf	*perf_trace_buf;
-extern struct perf_trace_buf	*perf_trace_buf_nmi;
+extern char *perf_trace_buf;
+extern char *perf_trace_buf_nmi;
 
 #define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */

@@ -9,31 +9,33 @@
 #include "trace.h"
 
 
-struct perf_trace_buf *perf_trace_buf;
+char *perf_trace_buf;
 EXPORT_SYMBOL_GPL(perf_trace_buf);
 
-struct perf_trace_buf *perf_trace_buf_nmi;
+char *perf_trace_buf_nmi;
 EXPORT_SYMBOL_GPL(perf_trace_buf_nmi);
+
+typedef typeof(char [FTRACE_MAX_PROFILE_SIZE]) perf_trace_t ;
 
 /* Count the events in use (per event id, not per instance) */
 static int	total_profile_count;
 
 static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 {
-	struct perf_trace_buf *buf;
+	char *buf;
 	int ret = -ENOMEM;
 
 	if (atomic_inc_return(&event->profile_count))
 		return 0;
 
 	if (!total_profile_count) {
-		buf = alloc_percpu(struct perf_trace_buf);
+		buf = (char *)alloc_percpu(perf_trace_t);
 		if (!buf)
 			goto fail_buf;
 
 		rcu_assign_pointer(perf_trace_buf, buf);
 
-		buf = alloc_percpu(struct perf_trace_buf);
+		buf = (char *)alloc_percpu(perf_trace_t);
 		if (!buf)
 			goto fail_buf_nmi;
 
@@ -79,7 +81,7 @@ int ftrace_profile_enable(int event_id)
 
 static void ftrace_profile_disable_event(struct ftrace_event_call *event)
 {
-	struct perf_trace_buf *buf, *nmi_buf;
+	char *buf, *nmi_buf;
 
 	if (!atomic_add_negative(-1, &event->profile_count))
 		return;

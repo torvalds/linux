@@ -874,6 +874,8 @@ extern int perf_output_begin(struct perf_output_handle *handle,
 extern void perf_output_end(struct perf_output_handle *handle);
 extern void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
+extern int perf_swevent_get_recursion_context(int **recursion);
+extern void perf_swevent_put_recursion_context(int *recursion);
 #else
 static inline void
 perf_event_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -902,6 +904,8 @@ static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
 static inline void perf_event_comm(struct task_struct *tsk)		{ }
 static inline void perf_event_fork(struct task_struct *tsk)		{ }
 static inline void perf_event_init(void)				{ }
+static int perf_swevent_get_recursion_context(int **recursion)	{ return -1; }
+static void perf_swevent_put_recursion_context(int *recursion)		{ }
 
 #endif
 
