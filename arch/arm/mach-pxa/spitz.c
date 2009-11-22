@@ -802,10 +802,12 @@ static void __init spitz_init(void)
 {
 	spitz_ficp_platform_data.gpio_pwdown = SPITZ_GPIO_IR_ON;
 
+#ifdef CONFIG_MACH_BORZOI
 	if (machine_is_borzoi()) {
 		sharpsl_nand_platform_data.badblock_pattern = &sharpsl_akita_bbt;
 		sharpsl_nand_platform_data.ecc_layout = &akita_oobinfo;
 	}
+#endif
 
 	platform_scoop_config = &spitz_pcmcia_config;
 
