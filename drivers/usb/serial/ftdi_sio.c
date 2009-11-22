@@ -1552,8 +1552,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	kref_init(&priv->kref);
 	spin_lock_init(&priv->tx_lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
-	/* This will push the characters through immediately rather
-	   than queue a task to deliver them */
+
 	priv->flags = ASYNC_LOW_LATENCY;
 
 	if (quirk && quirk->port_probe)
