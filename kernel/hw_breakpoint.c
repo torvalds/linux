@@ -40,12 +40,6 @@
 
 #include <linux/hw_breakpoint.h>
 
-#include <asm/processor.h>
-
-#ifdef CONFIG_X86
-#include <asm/debugreg.h>
-#endif
-
 /*
  * Constraints data
  */
