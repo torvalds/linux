@@ -1423,10 +1423,9 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 			}
 			break;
 		}
-	}
-	if (state->fe.dtv_property_cache.isdbt_sb_mode == 1)
 		for (i = 0; i < 8; i++)
 			dib8000_write_word(state, 343 + i, ncoeff[i]);
+	}
 
 	// P_small_coef_ext_enable=ISDB-Tsb, P_small_narrow_band=ISDB-Tsb, P_small_last_seg=13, P_small_offset_num_car=5
 	dib8000_write_word(state, 351,
