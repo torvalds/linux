@@ -21,6 +21,8 @@
 #include <plat/common.h>
 #include <plat/board.h>
 
+#include <mach/board-zoom.h>
+
 #include "sdram-micron-mt46h32m32lf-6.h"
 
 static void __init omap_zoom2_init_irq(void)
@@ -56,13 +58,10 @@ static struct twl4030_platform_data zoom2_twldata = {
 
 #endif
 
-extern int __init omap_zoom2_debugboard_init(void);
-extern void __init zoom_peripherals_init(void);
-
 static void __init omap_zoom2_init(void)
 {
 	zoom_peripherals_init();
-	omap_zoom2_debugboard_init();
+	zoom_debugboard_init();
 }
 
 static void __init omap_zoom2_map_io(void)
