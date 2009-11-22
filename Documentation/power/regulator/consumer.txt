@@ -104,7 +104,7 @@ to set the limit to 500mA when supplying power.
 
 Consumers can control their supply current limit by calling :-
 
-int regulator_set_current_limit(regulator, min_uV, max_uV);
+int regulator_set_current_limit(regulator, min_uA, max_uA);
 
 Where min_uA and max_uA are the minimum and maximum acceptable current limit in
 microamps.
