@@ -30,16 +30,16 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mcspi.h>
-#include <mach/mux.h>
-#include <mach/board.h>
-#include <mach/usb.h>
-#include <mach/common.h>
-#include <mach/dma.h>
-#include <mach/gpmc.h>
+#include <plat/mcspi.h>
+#include <plat/mux.h>
+#include <plat/board.h>
+#include <plat/usb.h>
+#include <plat/common.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
 
-#include <mach/control.h>
-#include <mach/gpmc-smc91x.h>
+#include <plat/control.h>
+#include <plat/gpmc-smc91x.h>
 
 #include "sdram-qimonda-hyb18m512160af-6.h"
 #include "mmc-twl4030.h"
@@ -511,7 +511,7 @@ static void __init omap_3430sdp_map_io(void)
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_3430sdp_map_io,
 	.init_irq	= omap_3430sdp_init_irq,

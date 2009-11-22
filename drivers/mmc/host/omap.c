@@ -30,12 +30,12 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <mach/board.h>
-#include <mach/mmc.h>
+#include <plat/board.h>
+#include <plat/mmc.h>
 #include <mach/gpio.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
-#include <mach/fpga.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x04

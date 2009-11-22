@@ -18,8 +18,8 @@
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
 
-#include <mach/iommu.h>
-#include <mach/iovmm.h>
+#include <plat/iommu.h>
+#include <plat/iovmm.h>
 
 #include "iopgtable.h"
 

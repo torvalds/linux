@@ -23,12 +23,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/board.h>
+#include <plat/common.h>
 #include <mach/irqs.h>
-#include <mach/mcspi.h>
-#include <mach/onenand.h>
-#include <mach/serial.h>
+#include <plat/mcspi.h>
+#include <plat/onenand.h>
+#include <plat/serial.h>
 
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
 	.turbo_mode	= 0,
@@ -121,7 +121,7 @@ static void __init n8x0_init_machine(void)
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.init_irq	= n8x0_init_irq,
@@ -131,7 +131,7 @@ MACHINE_END
 
 MACHINE_START(NOKIA_N810, "Nokia N810")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.init_irq	= n8x0_init_irq,
@@ -141,7 +141,7 @@ MACHINE_END
 
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= n8x0_map_io,
 	.init_irq	= n8x0_init_irq,

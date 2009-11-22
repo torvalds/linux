@@ -34,14 +34,14 @@
 #include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/tc.h>
-#include <mach/dma.h>
-#include <mach/board.h>
-#include <mach/irda.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/tc.h>
+#include <plat/dma.h>
+#include <plat/board.h>
+#include <plat/irda.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1

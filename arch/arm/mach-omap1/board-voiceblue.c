@@ -29,11 +29,11 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
+#include <plat/common.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/usb.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/usb.h>
 
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{

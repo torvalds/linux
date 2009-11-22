@@ -27,7 +27,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
-#include <mach/fpga.h>
+#include <plat/fpga.h>
 #include <mach/gpio.h>
 
 static void fpga_mask_irq(unsigned int irq)

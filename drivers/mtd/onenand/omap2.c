@@ -36,13 +36,13 @@
 #include <linux/io.h>
 
 #include <asm/mach/flash.h>
-#include <mach/gpmc.h>
-#include <mach/onenand.h>
+#include <plat/gpmc.h>
+#include <plat/onenand.h>
 #include <mach/gpio.h>
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 
-#include <mach/board.h>
+#include <plat/board.h>
 
 #define DRIVER_NAME "omap2-onenand"
 

@@ -18,10 +18,10 @@
 #include <linux/platform_device.h>
 
 #include <mach/irqs.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
-#include <mach/cpu.h>
-#include <mach/mcbsp.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
+#include <plat/cpu.h>
+#include <plat/mcbsp.h>
 
 static void omap2_mcbsp2_mux_setup(void)
 {

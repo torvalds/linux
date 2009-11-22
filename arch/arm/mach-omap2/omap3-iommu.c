@@ -12,7 +12,7 @@
 
 #include <linux/platform_device.h>
 
-#include <mach/iommu.h>
+#include <plat/iommu.h>
 
 #define OMAP3_MMU1_BASE	0x480bd400
 #define OMAP3_MMU2_BASE	0x5d000000

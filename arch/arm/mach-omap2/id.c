@@ -21,9 +21,9 @@
 
 #include <asm/cputype.h>
 
-#include <mach/common.h>
-#include <mach/control.h>
-#include <mach/cpu.h>
+#include <plat/common.h>
+#include <plat/control.h>
+#include <plat/cpu.h>
 
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;

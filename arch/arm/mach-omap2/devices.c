@@ -20,12 +20,12 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <mach/control.h>
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/control.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 #include <mach/gpio.h>
-#include <mach/mmc.h>
+#include <plat/mmc.h>
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
@@ -250,7 +250,7 @@ static inline void omap_init_sti(void) {}
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
-#include <mach/mcspi.h>
+#include <plat/mcspi.h>
 
 #define OMAP2_MCSPI1_BASE		0x48098000
 #define OMAP2_MCSPI2_BASE		0x4809a000

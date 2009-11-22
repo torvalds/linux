@@ -52,9 +52,9 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <mach/dma.h>
-#include <mach/usb.h>
-#include <mach/control.h>
+#include <plat/dma.h>
+#include <plat/usb.h>
+#include <plat/control.h>
 
 #include "omap_udc.h"
 

@@ -26,9 +26,9 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
-#include <mach/hwa742.h>
+#include <plat/dma.h>
+#include <plat/omapfb.h>
+#include <plat/hwa742.h>
 
 #define HWA742_REV_CODE_REG       0x0
 #define HWA742_CONFIG_REG         0x2

@@ -15,7 +15,7 @@
  */
 #undef DEBUG
 
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 
 #ifndef __ASSEMBLER__
 extern void __iomem *omap2_sdrc_base;
@@ -48,9 +48,12 @@ static inline u32 sms_read_reg(u16 reg)
 	return __raw_readl(OMAP_SMS_REGADDR(reg));
 }
 #else
-#define OMAP242X_SDRC_REGADDR(reg)	OMAP2_IO_ADDRESS(OMAP2420_SDRC_BASE + (reg))
-#define OMAP243X_SDRC_REGADDR(reg)	OMAP2_IO_ADDRESS(OMAP243X_SDRC_BASE + (reg))
-#define OMAP34XX_SDRC_REGADDR(reg)	OMAP2_IO_ADDRESS(OMAP343X_SDRC_BASE + (reg))
+#define OMAP242X_SDRC_REGADDR(reg)					\
+			OMAP2_L3_IO_ADDRESS(OMAP2420_SDRC_BASE + (reg))
+#define OMAP243X_SDRC_REGADDR(reg)					\
+			OMAP2_L3_IO_ADDRESS(OMAP243X_SDRC_BASE + (reg))
+#define OMAP34XX_SDRC_REGADDR(reg)					\
+			OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE + (reg))
 #endif	/* __ASSEMBLER__ */
 
 #endif

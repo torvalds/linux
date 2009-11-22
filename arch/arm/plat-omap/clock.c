@@ -24,7 +24,7 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);

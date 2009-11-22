@@ -38,14 +38,14 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/board.h>
+#include <plat/common.h>
 #include <mach/gpio.h>
-#include <mach/gpmc.h>
+#include <plat/gpmc.h>
 #include <mach/hardware.h>
-#include <mach/nand.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
+#include <plat/nand.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
@@ -67,7 +67,7 @@
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 
-#include <mach/mcspi.h>
+#include <plat/mcspi.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
@@ -451,7 +451,7 @@ static void __init overo_map_io(void)
 
 MACHINE_START(OVERO, "Gumstix Overo")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= overo_map_io,
 	.init_irq	= overo_init_irq,
