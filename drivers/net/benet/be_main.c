@@ -170,7 +170,8 @@ void netdev_stats_update(struct be_adapter *adapter)
 		port_stats->rx_udp_checksum_errs;
 
 	/*  no space in linux buffers: best possible approximation */
-	dev_stats->rx_dropped = erx_stats->rx_drops_no_fragments[0];
+	dev_stats->rx_dropped =
+		erx_stats->rx_drops_no_fragments[adapter->rx_obj.q.id];
 
 	/* detailed rx errors */
 	dev_stats->rx_length_errors = port_stats->rx_in_range_errors +
