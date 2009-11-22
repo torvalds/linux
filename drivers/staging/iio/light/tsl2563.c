@@ -38,8 +38,6 @@
 #include "../iio.h"
 #include "tsl2563.h"
 
-#define DRIVER_NAME  "tsl2563"
-
 /* Use this many bits for fraction part. */
 #define ADC_FRAC_BITS		(14)
 
@@ -738,14 +736,17 @@ out:
 }
 
 static const struct i2c_device_id tsl2563_id[] = {
-	{ DRIVER_NAME, 0 },
-	{ },
+	{ "tsl2560", 0 },
+	{ "tsl2561", 1 },
+	{ "tsl2562", 2 },
+	{ "tsl2563", 3 },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, tsl2563_id);
 
 static struct i2c_driver tsl2563_i2c_driver = {
 	.driver = {
-		.name	 = DRIVER_NAME,
+		.name	 = "tsl2563",
 	},
 	.suspend	= tsl2563_suspend,
 	.resume		= tsl2563_resume,
