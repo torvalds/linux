@@ -489,6 +489,12 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			/* on-chip level shifting via PBIAS0/PBIAS1 */
 			mmc->slots[0].set_power = twl_mmc1_set_power;
 			mmc->slots[0].set_sleep = twl_mmc1_set_sleep;
+
+			/* Omap3630 HSMMC1 supports only 4-bit */
+			if (cpu_is_omap3630() && c->wires > 4) {
+				c->wires = 4;
+				mmc->slots[0].wires = c->wires;
+			}
 			break;
 		case 2:
 			if (c->ext_clock)
