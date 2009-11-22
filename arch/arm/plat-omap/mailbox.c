@@ -50,14 +50,6 @@ static inline int mbox_fifo_full(struct omap_mbox *mbox)
 }
 
 /* Mailbox IRQ handle functions */
-static inline void enable_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
-{
-	mbox->ops->enable_irq(mbox, irq);
-}
-static inline void disable_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
-{
-	mbox->ops->disable_irq(mbox, irq);
-}
 static inline void ack_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	if (mbox->ops->ack_irq)
@@ -144,7 +136,7 @@ static void mbox_tx_work(struct work_struct *work)
 
 		ret = __mbox_msg_send(mbox, tx_data->msg);
 		if (ret) {
-			enable_mbox_irq(mbox, IRQ_TX);
+			omap_mbox_enable_irq(mbox, IRQ_TX);
 			spin_lock(q->queue_lock);
 			blk_requeue_request(q, rq);
 			spin_unlock(q->queue_lock);
@@ -196,7 +188,7 @@ static void mbox_rxq_fn(struct request_queue *q)
 
 static void __mbox_tx_interrupt(struct omap_mbox *mbox)
 {
-	disable_mbox_irq(mbox, IRQ_TX);
+	omap_mbox_disable_irq(mbox, IRQ_TX);
 	ack_mbox_irq(mbox, IRQ_TX);
 	schedule_work(&mbox->txq->work);
 }

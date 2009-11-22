@@ -92,4 +92,16 @@ static inline void omap_mbox_restore_ctx(struct omap_mbox *mbox)
 	mbox->ops->restore_ctx(mbox);
 }
 
+static inline void omap_mbox_enable_irq(struct omap_mbox *mbox,
+					omap_mbox_irq_t irq)
+{
+	mbox->ops->enable_irq(mbox, irq);
+}
+
+static inline void omap_mbox_disable_irq(struct omap_mbox *mbox,
+					 omap_mbox_irq_t irq)
+{
+	mbox->ops->disable_irq(mbox, irq);
+}
+
 #endif /* MAILBOX_H */
