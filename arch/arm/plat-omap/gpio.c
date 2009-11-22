@@ -195,6 +195,7 @@ struct gpio_bank {
 	spinlock_t lock;
 	struct gpio_chip chip;
 	struct clk *dbck;
+	u32 mod_usage;
 };
 
 #define METHOD_MPUIO		0
@@ -628,6 +629,10 @@ void omap_set_gpio_debounce(int gpio, int enable)
 #else
 	reg += OMAP24XX_GPIO_DEBOUNCE_EN;
 #endif
+	if (!(bank->mod_usage & l)) {
+		printk(KERN_ERR "GPIO %d not requested\n", gpio);
+		return;
+	}
 
 	spin_lock_irqsave(&bank->lock, flags);
 	val = __raw_readl(reg);
@@ -662,6 +667,11 @@ void omap_set_gpio_debounce_time(int gpio, int enc_time)
 
 	bank = get_gpio_bank(gpio);
 	reg = bank->base;
+
+	if (!bank->mod_usage) {
+		printk(KERN_ERR "GPIO not requested\n");
+		return;
+	}
 
 	enc_time &= 0xff;
 #ifdef CONFIG_ARCH_OMAP4
@@ -1144,6 +1154,16 @@ static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
 		__raw_writel(__raw_readl(reg) | (1 << offset), reg);
 	}
 #endif
+	if (!cpu_class_is_omap1()) {
+		if (!bank->mod_usage) {
+			u32 ctrl;
+			ctrl = __raw_readl(bank->base + OMAP24XX_GPIO_CTRL);
+			ctrl &= 0xFFFFFFFE;
+			/* Module is enabled, clocks are not gated */
+			__raw_writel(ctrl, bank->base + OMAP24XX_GPIO_CTRL);
+		}
+		bank->mod_usage |= 1 << offset;
+	}
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
@@ -1170,6 +1190,16 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 		__raw_writel(1 << offset, reg);
 	}
 #endif
+	if (!cpu_class_is_omap1()) {
+		bank->mod_usage &= ~(1 << offset);
+		if (!bank->mod_usage) {
+			u32 ctrl;
+			ctrl = __raw_readl(bank->base + OMAP24XX_GPIO_CTRL);
+			/* Module is disabled, clocks are gated */
+			ctrl |= 1;
+			__raw_writel(ctrl, bank->base + OMAP24XX_GPIO_CTRL);
+		}
+	}
 	_reset_gpio(bank, bank->chip.base + offset);
 	spin_unlock_irqrestore(&bank->lock, flags);
 }
@@ -1749,6 +1779,8 @@ static int __init _omap_gpio_init(void)
 			gpio_count = 32;
 		}
 #endif
+
+		bank->mod_usage = 0;
 		/* REVISIT eventually switch from OMAP-specific gpio structs
 		 * over to the generic ones
 		 */
