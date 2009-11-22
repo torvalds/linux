@@ -733,12 +733,13 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 			le32_to_cpu(u.get_c->status));
 
 	if (ret == 0) {
+		memcpy(data, u.buf + le32_to_cpu(u.get_c->offset) + 8, *len);
+
 		ret = le32_to_cpu(u.get_c->len);
 		if (ret > *len)
 			*len = ret;
-		memcpy(data, u.buf + le32_to_cpu(u.get_c->offset) + 8, *len);
-		ret = rndis_error_status(u.get_c->status);
 
+		ret = rndis_error_status(u.get_c->status);
 		if (ret < 0)
 			devdbg(dev, "rndis_query_oid(%s): device returned "
 				"error,  0x%08x (%d)", oid_to_string(oid),
