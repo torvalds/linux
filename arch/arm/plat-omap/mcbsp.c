@@ -298,9 +298,7 @@ int omap_mcbsp_get_dma_op_mode(unsigned int id)
 	}
 	mcbsp = id_to_mcbsp_ptr(id);
 
-	spin_lock_irq(&mcbsp->lock);
 	dma_op_mode = mcbsp->dma_op_mode;
-	spin_unlock_irq(&mcbsp->lock);
 
 	return dma_op_mode;
 }
@@ -318,7 +316,6 @@ static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
 		syscon = OMAP_MCBSP_READ(mcbsp->io_base, SYSCON);
 		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03) | CLOCKACTIVITY(0x03));
 
-		spin_lock_irq(&mcbsp->lock);
 		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
 			syscon |= (ENAWAKEUP | SIDLEMODE(0x02) |
 					CLOCKACTIVITY(0x02));
@@ -327,7 +324,6 @@ static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
 		} else {
 			syscon |= SIDLEMODE(0x01);
 		}
-		spin_unlock_irq(&mcbsp->lock);
 
 		OMAP_MCBSP_WRITE(mcbsp->io_base, SYSCON, syscon);
 	}
@@ -1145,9 +1141,7 @@ static ssize_t dma_op_mode_show(struct device *dev,
 	ssize_t len = 0;
 	const char * const *s;
 
-	spin_lock_irq(&mcbsp->lock);
 	dma_op_mode = mcbsp->dma_op_mode;
-	spin_unlock_irq(&mcbsp->lock);
 
 	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++) {
 		if (dma_op_mode == i)
