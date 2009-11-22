@@ -30,6 +30,8 @@
 #ifndef __ASM_ARCH_OMAP_CPU_H
 #define __ASM_ARCH_OMAP_CPU_H
 
+#include <linux/bitops.h>
+
 /*
  * Omap device type i.e. EMU/HS/TST/GP/BAD
  */
@@ -422,5 +424,28 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
+
+/*
+ * Runtime detection of OMAP3 features
+ */
+extern u32 omap3_features;
+
+#define OMAP3_HAS_L2CACHE		BIT(0)
+#define OMAP3_HAS_IVA			BIT(1)
+#define OMAP3_HAS_SGX			BIT(2)
+#define OMAP3_HAS_NEON			BIT(3)
+#define OMAP3_HAS_ISP			BIT(4)
+
+#define OMAP3_HAS_FEATURE(feat,flag)			\
+static inline unsigned int omap3_has_ ##feat(void)	\
+{							\
+	return (omap3_features & OMAP3_HAS_ ##flag);	\
+}							\
+
+OMAP3_HAS_FEATURE(l2cache, L2CACHE)
+OMAP3_HAS_FEATURE(sgx, SGX)
+OMAP3_HAS_FEATURE(iva, IVA)
+OMAP3_HAS_FEATURE(neon, NEON)
+OMAP3_HAS_FEATURE(isp, ISP)
 
 #endif

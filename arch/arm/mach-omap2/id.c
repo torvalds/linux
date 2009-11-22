@@ -28,6 +28,7 @@
 static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;
 
+u32 omap3_features;
 
 unsigned int omap_rev(void)
 {
@@ -155,7 +156,33 @@ void __init omap24xx_check_revision(void)
 	pr_info("\n");
 }
 
-void __init omap34xx_check_revision(void)
+#define OMAP3_CHECK_FEATURE(status,feat)				\
+	if (((status & OMAP3_ ##feat## _MASK) 				\
+		>> OMAP3_ ##feat## _SHIFT) != FEAT_ ##feat## _NONE) { 	\
+		omap3_features |= OMAP3_HAS_ ##feat;			\
+	}
+
+void __init omap3_check_features(void)
+{
+	u32 status;
+
+	omap3_features = 0;
+
+	status = omap_ctrl_readl(OMAP3_CONTROL_OMAP_STATUS);
+
+	OMAP3_CHECK_FEATURE(status, L2CACHE);
+	OMAP3_CHECK_FEATURE(status, IVA);
+	OMAP3_CHECK_FEATURE(status, SGX);
+	OMAP3_CHECK_FEATURE(status, NEON);
+	OMAP3_CHECK_FEATURE(status, ISP);
+
+	/*
+	 * TODO: Get additional info (where applicable)
+	 *       e.g. Size of L2 cache.
+	 */
+}
+
+void __init omap3_check_revision(void)
 {
 	u32 cpuid, idcode;
 	u16 hawkeye;
@@ -212,6 +239,22 @@ out:
 	pr_info("OMAP%04x %s\n", omap_rev() >> 16, rev_name);
 }
 
+#define OMAP3_SHOW_FEATURE(feat)		\
+	if (omap3_has_ ##feat()) {		\
+		pr_info (" - "#feat" : Y");	\
+	} else {				\
+		pr_info (" - "#feat" : N");	\
+	}
+
+void __init omap3_cpuinfo(void)
+{
+	OMAP3_SHOW_FEATURE(l2cache);
+	OMAP3_SHOW_FEATURE(iva);
+	OMAP3_SHOW_FEATURE(sgx);
+	OMAP3_SHOW_FEATURE(neon);
+	OMAP3_SHOW_FEATURE(isp);
+}
+
 /*
  * Try to detect the exact revision of the omap we're running on
  */
@@ -223,8 +266,11 @@ void __init omap2_check_revision(void)
 	 */
 	if (cpu_is_omap24xx())
 		omap24xx_check_revision();
-	else if (cpu_is_omap34xx())
-		omap34xx_check_revision();
+	else if (cpu_is_omap34xx()) {
+		omap3_check_features();
+		omap3_check_revision();
+		omap3_cpuinfo();
+	}
 	else if (cpu_is_omap44xx()) {
 		printk(KERN_INFO "FIXME: CPU revision = OMAP4430\n");
 		return;
