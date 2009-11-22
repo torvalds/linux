@@ -30,6 +30,8 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 
+struct omap_sdrc_params *rx51_get_sdram_timings(void);
+
 static struct omap_lcd_config rx51_lcd_config = {
 	.ctrl_name	= "internal",
 };
@@ -55,9 +57,12 @@ static struct omap_board_config_kernel rx51_config[] = {
 
 static void __init rx51_init_irq(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
-	omap2_init_common_hw(NULL, NULL);
+	sdrc_params = rx51_get_sdram_timings();
+	omap2_init_common_hw(sdrc_params, sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();
 }
