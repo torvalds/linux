@@ -1184,7 +1184,6 @@ static int read_latency_timer(struct usb_serial_port *port)
 	unsigned short latency = 0;
 	int rv = 0;
 
-
 	dbg("%s", __func__);
 
 	rv = usb_control_msg(udev,
@@ -1197,8 +1196,9 @@ static int read_latency_timer(struct usb_serial_port *port)
 	if (rv < 0) {
 		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
 		return -EIO;
-	}
-	return latency;
+	} else
+		priv->latency = latency;
+	return rv;
 }
 
 static int get_serial_info(struct usb_serial_port *port,
@@ -1584,7 +1584,8 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	ftdi_determine_type(port);
 	ftdi_set_max_packet_size(port);
-	read_latency_timer(port);
+	if (read_latency_timer(port) < 0)
+		priv->latency = 16;
 	create_sysfs_attrs(port);
 	return 0;
 }
