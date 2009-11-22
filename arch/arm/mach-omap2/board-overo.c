@@ -394,6 +394,18 @@ static struct platform_device *overo_devices[] __initdata = {
 	&overo_lcd_device,
 };
 
+static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+
+	.phy_reset  = true,
+	.reset_gpio_port[0]  = -EINVAL,
+	.reset_gpio_port[1]  = OVERO_GPIO_USBH_NRESET,
+	.reset_gpio_port[2]  = -EINVAL
+};
+
+
 static void __init overo_init(void)
 {
 	overo_i2c_init();
@@ -401,6 +413,7 @@ static void __init overo_init(void)
 	omap_serial_init();
 	overo_flash_init();
 	usb_musb_init();
+	usb_ehci_init(&ehci_pdata);
 	overo_ads7846_init();
 	overo_init_smsc911x();
 
@@ -443,14 +456,6 @@ static void __init overo_init(void)
 	else
 		printk(KERN_ERR "could not obtain gpio for "
 					"OVERO_GPIO_USBH_CPEN\n");
-
-	if ((gpio_request(OVERO_GPIO_USBH_NRESET,
-			  "OVERO_GPIO_USBH_NRESET") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_USBH_NRESET, 1) == 0))
-		gpio_export(OVERO_GPIO_USBH_NRESET, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_USBH_NRESET\n");
 }
 
 static void __init overo_map_io(void)
