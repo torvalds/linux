@@ -178,15 +178,6 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 }
 
 /*
- * Null function to handle CPU being onlined.  Longer term, we want to
- * make TINY_RCU avoid using rcupdate.c, but later...
- */
-int rcu_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
-{
-	return NOTIFY_OK;
-}
-
-/*
  * Wait for a grace period to elapse.  But it is illegal to invoke
  * synchronize_sched() from within an RCU read-side critical section.
  * Therefore, any legal call to synchronize_sched() is a quiescent
@@ -285,7 +276,7 @@ void rcu_barrier_sched(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
-void __rcu_init(void)
+void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }

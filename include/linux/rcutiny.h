@@ -38,7 +38,6 @@ void rcu_bh_qs(int cpu);
 
 #define rcu_init_sched()	do { } while (0)
 extern void rcu_check_callbacks(int cpu, int user);
-extern void __rcu_init(void);
 
 /*
  * Return the number of grace periods.
@@ -69,7 +68,6 @@ static inline void synchronize_rcu_bh_expedited(void)
 }
 
 struct notifier_block;
-extern int rcu_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu);
 
 #ifdef CONFIG_NO_HZ
 

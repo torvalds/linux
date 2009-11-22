@@ -161,28 +161,6 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_bh);
 
 #endif /* #ifndef CONFIG_TINY_RCU */
 
-static int __cpuinit rcu_barrier_cpu_hotplug(struct notifier_block *self,
-		unsigned long action, void *hcpu)
-{
-	return rcu_cpu_notify(self, action, hcpu);
-}
-
-void __init rcu_init(void)
-{
-	int i;
-
-	__rcu_init();
-	cpu_notifier(rcu_barrier_cpu_hotplug, 0);
-
-	/*
-	 * We don't need protection against CPU-hotplug here because
-	 * this is called early in boot, before either interrupts
-	 * or the scheduler are operational.
-	 */
-	for_each_online_cpu(i)
-		rcu_barrier_cpu_hotplug(NULL, CPU_UP_PREPARE, (void *)(long)i);
-}
-
 void rcu_scheduler_starting(void)
 {
 	WARN_ON(num_online_cpus() != 1);
