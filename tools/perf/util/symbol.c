@@ -1189,7 +1189,7 @@ static int dsos__set_modules_path_dir(char *dirname)
 	DIR *dir = opendir(dirname);
 
 	if (!dir) {
-		pr_err("%s: cannot open %s dir\n", __func__, dirname);
+		pr_debug("%s: cannot open %s dir\n", __func__, dirname);
 		return -1;
 	}
 
@@ -1500,8 +1500,8 @@ int kernel_maps__init(bool use_modules)
 		return -1;
 
 	if (use_modules && kernel_maps__create_module_maps() < 0)
-		pr_warning("Failed to load list of modules in use, "
-			   "continuing...\n");
+		pr_debug("Failed to load list of modules in use, "
+			 "continuing...\n");
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
