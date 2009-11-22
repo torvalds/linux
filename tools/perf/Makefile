@@ -148,6 +148,8 @@ all::
 # broken, or spawning external process is slower than built-in grep perf has).
 #
 # Define LDFLAGS=-static to build a static binary.
+#
+# Define EXTRA_CFLAGS=-m64 or EXTRA_CFLAGS=-m32 as appropriate for cross-builds.
 
 PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN
@@ -159,22 +161,6 @@ uname_O := $(shell sh -c 'uname -o 2>/dev/null || echo not')
 uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
 uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
 uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
-
-#
-# Add -m32 for cross-builds:
-#
-ifdef NO_64BIT
-  MBITS := -m32
-else
-  #
-  # If we're on a 64-bit kernel (except ia64), use -m64:
-  #
-  ifneq ($(uname_M),ia64)
-    ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
-      MBITS := -m64
-    endif
-  endif
-endif
 
 # CFLAGS and LDFLAGS are for the users to override from the command line.
 
@@ -212,7 +198,7 @@ ifndef PERF_DEBUG
   CFLAGS_OPTIMIZE = -O6
 endif
 
-CFLAGS = $(MBITS) -ggdb3 -Wall -Wextra -std=gnu99 -Werror $(CFLAGS_OPTIMIZE) -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS)
+CFLAGS = -ggdb3 -Wall -Wextra -std=gnu99 -Werror $(CFLAGS_OPTIMIZE) -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS) $(EXTRA_CFLAGS)
 EXTLIBS = -lpthread -lrt -lelf -lm
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
