@@ -187,7 +187,6 @@ void __init omap3_check_revision(void)
 	u32 cpuid, idcode;
 	u16 hawkeye;
 	u8 rev;
-	char *rev_name = "ES1.0";
 
 	/*
 	 * We cannot access revision registers on ES1.0.
@@ -197,7 +196,7 @@ void __init omap3_check_revision(void)
 	cpuid = read_cpuid(CPUID_ID);
 	if ((((cpuid >> 4) & 0xfff) == 0xc08) && ((cpuid & 0xf) == 0x0)) {
 		omap_revision = OMAP3430_REV_ES1_0;
-		goto out;
+		return;
 	}
 
 	/*
@@ -212,31 +211,24 @@ void __init omap3_check_revision(void)
 
 	if (hawkeye == 0xb7ae) {
 		switch (rev) {
-		case 0:
+		case 0: /* Take care of early samples */
+		case 1:
 			omap_revision = OMAP3430_REV_ES2_0;
-			rev_name = "ES2.0";
 			break;
 		case 2:
 			omap_revision = OMAP3430_REV_ES2_1;
-			rev_name = "ES2.1";
 			break;
 		case 3:
 			omap_revision = OMAP3430_REV_ES3_0;
-			rev_name = "ES3.0";
 			break;
 		case 4:
 			omap_revision = OMAP3430_REV_ES3_1;
-			rev_name = "ES3.1";
 			break;
 		default:
 			/* Use the latest known revision as default */
 			omap_revision = OMAP3430_REV_ES3_1;
-			rev_name = "Unknown revision\n";
 		}
 	}
-
-out:
-	pr_info("OMAP%04x %s\n", omap_rev() >> 16, rev_name);
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\
@@ -248,6 +240,57 @@ out:
 
 void __init omap3_cpuinfo(void)
 {
+	u8 rev = GET_OMAP_REVISION();
+	char cpu_name[16], cpu_rev[16];
+
+	/* OMAP3430 and OMAP3530 are assumed to be same.
+	 *
+	 * OMAP3525, OMAP3515 and OMAP3503 can be detected only based
+	 * on available features. Upon detection, update the CPU id
+	 * and CPU class bits.
+	 */
+	if (omap3_has_iva() && omap3_has_sgx()) {
+		strcpy(cpu_name, "3430/3530");
+	}
+	else if (omap3_has_sgx()) {
+		omap_revision = OMAP3525_REV(rev);
+		strcpy(cpu_name, "3525");
+	}
+	else if (omap3_has_iva()) {
+		omap_revision = OMAP3515_REV(rev);
+		strcpy(cpu_name, "3515");
+	}
+	else {
+		omap_revision = OMAP3503_REV(rev);
+		strcpy(cpu_name, "3503");
+	}
+
+	switch (rev) {
+	case OMAP_REVBITS_00:
+		strcpy(cpu_rev, "1.0");
+		break;
+	case OMAP_REVBITS_10:
+		strcpy(cpu_rev, "2.0");
+		break;
+	case OMAP_REVBITS_20:
+		strcpy(cpu_rev, "2.1");
+		break;
+	case OMAP_REVBITS_30:
+		strcpy(cpu_rev, "3.0");
+		break;
+	case OMAP_REVBITS_40:
+		strcpy(cpu_rev, "3.1");
+		break;
+	default:
+		/* Use the latest known revision as default */
+		strcpy(cpu_rev, "3.1");
+	}
+
+	/*
+	 * Print verbose information
+	 */
+	pr_info("OMAP%s ES%s\n", cpu_name, cpu_rev);
+
 	OMAP3_SHOW_FEATURE(l2cache);
 	OMAP3_SHOW_FEATURE(iva);
 	OMAP3_SHOW_FEATURE(sgx);
