@@ -209,7 +209,9 @@ void __init omap3_check_revision(void)
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 
-	if (hawkeye == 0xb7ae) {
+	switch (hawkeye) {
+	case 0xb7ae:
+		/* Handle 34xx/35xx devices */
 		switch (rev) {
 		case 0: /* Take care of early samples */
 		case 1:
@@ -228,6 +230,21 @@ void __init omap3_check_revision(void)
 			/* Use the latest known revision as default */
 			omap_revision = OMAP3430_REV_ES3_1;
 		}
+		break;
+	case 0xb891:
+		/* Handle 36xx devices */
+		switch (rev) {
+		case 0:
+			omap_revision = OMAP3630_REV_ES1_0;
+			break;
+		default:
+			/* Use the latest known revision as default */
+			omap_revision = OMAP3630_REV_ES1_0;
+		}
+		break;
+	default:
+		/* Unknown default to latest silicon rev as default*/
+		omap_revision = OMAP3630_REV_ES1_0;
 	}
 }
 
@@ -249,9 +266,10 @@ void __init omap3_cpuinfo(void)
 	 * on available features. Upon detection, update the CPU id
 	 * and CPU class bits.
 	 */
-	if (omap3_has_iva() && omap3_has_sgx()) {
+	if (cpu_is_omap3630())
+		strcpy(cpu_name, "3630");
+	else if (omap3_has_iva() && omap3_has_sgx())
 		strcpy(cpu_name, "3430/3530");
-	}
 	else if (omap3_has_sgx()) {
 		omap_revision = OMAP3525_REV(rev);
 		strcpy(cpu_name, "3525");

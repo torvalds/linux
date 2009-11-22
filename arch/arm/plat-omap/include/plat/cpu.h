@@ -180,6 +180,7 @@ IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
 IS_OMAP_SUBCLASS(343x, 0x343)
+IS_OMAP_SUBCLASS(363x, 0x363)
 
 #define cpu_is_omap7xx()		0
 #define cpu_is_omap15xx()		0
@@ -325,6 +326,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_is_omap3525()		0
 #define cpu_is_omap3530()		0
 #define cpu_is_omap3430()		0
+#define cpu_is_omap3630()		0
 
 /*
  * Whether we have MULTI_OMAP1 or not, we still need to distinguish
@@ -389,6 +391,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 						(omap3_has_sgx()) &&	\
 						(!omap3_has_iva()))
 # define cpu_is_omap3530()		(cpu_is_omap3430())
+# undef cpu_is_omap3630
+# define cpu_is_omap3630()		is_omap363x()
 #endif
 
 # if defined(CONFIG_ARCH_OMAP4)
@@ -418,6 +422,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP3430_REV_ES2_1	0x34302034
 #define OMAP3430_REV_ES3_0	0x34303034
 #define OMAP3430_REV_ES3_1	0x34304034
+
+#define OMAP3630_REV_ES1_0	0x36300034
 
 #define OMAP35XX_CLASS		0x35000034
 #define OMAP3503_REV(v)		(OMAP35XX_CLASS | (0x3503 << 16) | (v << 12))
