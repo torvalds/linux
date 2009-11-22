@@ -257,11 +257,8 @@ void __init omap3_check_revision(void)
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\
-	if (omap3_has_ ##feat()) {		\
-		pr_info (" - "#feat" : Y");	\
-	} else {				\
-		pr_info (" - "#feat" : N");	\
-	}
+	if (omap3_has_ ##feat())		\
+		printk(#feat" ");
 
 void __init omap3_cpuinfo(void)
 {
@@ -331,13 +328,15 @@ void __init omap3_cpuinfo(void)
 	/*
 	 * Print verbose information
 	 */
-	pr_info("%s ES%s\n", cpu_name, cpu_rev);
+	pr_info("%s ES%s (", cpu_name, cpu_rev);
 
 	OMAP3_SHOW_FEATURE(l2cache);
 	OMAP3_SHOW_FEATURE(iva);
 	OMAP3_SHOW_FEATURE(sgx);
 	OMAP3_SHOW_FEATURE(neon);
 	OMAP3_SHOW_FEATURE(isp);
+
+	printk(")\n");
 }
 
 /*
