@@ -133,15 +133,15 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
 		goto bad;
 	}
-	if (edid->revision > 4)
-		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
-
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
 	if (csum) {
 		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
 		goto bad;
 	}
+
+	if (edid->revision > 4)
+		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
 
 	return 1;
 
@@ -1060,19 +1060,19 @@ static int drm_ddc_read_edid(struct drm_connector *connector,
 			     struct i2c_adapter *adapter,
 			     char *buf, int len)
 {
-	int ret;
+	int i;
 
-	ret = drm_do_probe_ddc_edid(adapter, buf, len);
-	if (ret != 0) {
-		goto end;
+	for (i = 0; i < 4; i++) {
+		if (drm_do_probe_ddc_edid(adapter, buf, len))
+			return -1;
+		if (edid_is_valid((struct edid *)buf))
+			return 0;
 	}
-	if (!edid_is_valid((struct edid *)buf)) {
-		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
-			 drm_get_connector_name(connector));
-		ret = -1;
-	}
-end:
-	return ret;
+
+	/* repeated checksum failures; warn, but carry on */
+	dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
+		 drm_get_connector_name(connector));
+	return -1;
 }
 
 /**
