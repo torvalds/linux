@@ -307,25 +307,34 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 {
 	struct rb_node *next;
 
-	printf("\n ------------------------------------------------------------------------------\n");
-	if (is_caller)
-		printf(" Callsite          |");
-	else
-		printf(" Alloc Ptr         |");
-	printf(" Total_alloc/Per |  Total_req/Per  |  Hit   | Fragmentation\n");
-	printf(" ------------------------------------------------------------------------------\n");
+	printf("%.78s\n", graph_dotted_line);
+	printf("%-28s|",  is_caller ? "Callsite": "Alloc Ptr");
+	printf("Total_alloc/Per | Total_req/Per | Hit  | Frag\n");
+	printf("%.78s\n", graph_dotted_line);
 
 	next = rb_first(root);
 
 	while (next && n_lines--) {
-		struct alloc_stat *data;
+		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
+						   node);
+		struct symbol *sym = NULL;
+		char bf[BUFSIZ];
+		u64 addr;
 
-		data = rb_entry(next, struct alloc_stat, node);
+		if (is_caller) {
+			addr = data->call_site;
+			sym = kernel_maps__find_symbol(addr, NULL, NULL);
+		} else
+			addr = data->ptr;
 
-		printf(" %-16p  | %8llu/%-6lu | %8llu/%-6lu | %6lu | %8.3f%%\n",
-		       is_caller ? (void *)(unsigned long)data->call_site :
-				   (void *)(unsigned long)data->ptr,
-		       (unsigned long long)data->bytes_alloc,
+		if (sym != NULL)
+			snprintf(bf, sizeof(bf), "%s/%Lx", sym->name,
+				 addr - sym->start);
+		else
+			snprintf(bf, sizeof(bf), "%#Lx", addr);
+
+		printf("%-28s|%8llu/%-6lu |%8llu/%-6lu|%6lu|%8.3f%%\n",
+		       bf, (unsigned long long)data->bytes_alloc,
 		       (unsigned long)data->bytes_alloc / data->hit,
 		       (unsigned long long)data->bytes_req,
 		       (unsigned long)data->bytes_req / data->hit,
