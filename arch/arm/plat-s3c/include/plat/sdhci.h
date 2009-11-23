@@ -57,6 +57,7 @@ struct s3c_sdhci_platdata {
  */
 extern void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd);
 extern void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd);
+extern void s3c_sdhci2_set_platdata(struct s3c_sdhci_platdata *pd);
 
 /* Default platform data, exported so that per-cpu initialisation can
  * set the correct one when there are more than one cpu type selected.
@@ -64,11 +65,13 @@ extern void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd);
 
 extern struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata;
 extern struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata;
+extern struct s3c_sdhci_platdata s3c_hsmmc2_def_platdata;
 
 /* Helper function availablity */
 
 extern void s3c64xx_setup_sdhci0_cfg_gpio(struct platform_device *, int w);
 extern void s3c64xx_setup_sdhci1_cfg_gpio(struct platform_device *, int w);
+extern void s3c64xx_setup_sdhci2_cfg_gpio(struct platform_device *, int w);
 
 /* S3C6400 SDHCI setup */
 
@@ -102,6 +105,17 @@ static inline void s3c6400_default_sdhci1(void)
 #else
 static inline void s3c6400_default_sdhci1(void) { }
 #endif /* CONFIG_S3C_DEV_HSMMC1 */
+
+#ifdef CONFIG_S3C_DEV_HSMMC2
+static inline void s3c6400_default_sdhci2(void)
+{
+	s3c_hsmmc2_def_platdata.clocks = s3c6400_hsmmc_clksrcs;
+	s3c_hsmmc2_def_platdata.cfg_gpio = s3c64xx_setup_sdhci2_cfg_gpio;
+	s3c_hsmmc2_def_platdata.cfg_card = s3c6400_setup_sdhci_cfg_card;
+}
+#else
+static inline void s3c6400_default_sdhci2(void) { }
+#endif /* CONFIG_S3C_DEV_HSMMC2 */
 
 #else
 static inline void s3c6400_default_sdhci0(void) { }
@@ -139,6 +153,17 @@ static inline void s3c6410_default_sdhci1(void)
 #else
 static inline void s3c6410_default_sdhci1(void) { }
 #endif /* CONFIG_S3C_DEV_HSMMC1 */
+
+#ifdef CONFIG_S3C_DEV_HSMMC2
+static inline void s3c6410_default_sdhci2(void)
+{
+	s3c_hsmmc2_def_platdata.clocks = s3c6410_hsmmc_clksrcs;
+	s3c_hsmmc2_def_platdata.cfg_gpio = s3c64xx_setup_sdhci2_cfg_gpio;
+	s3c_hsmmc2_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
+}
+#else
+static inline void s3c6410_default_sdhci2(void) { }
+#endif /* CONFIG_S3C_DEV_HSMMC2 */
 
 #else
 static inline void s3c6410_default_sdhci0(void) { }
