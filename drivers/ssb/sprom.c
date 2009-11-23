@@ -13,6 +13,8 @@
 
 #include "ssb_private.h"
 
+#include <linux/ctype.h>
+
 
 static const struct ssb_sprom *fallback_sprom;
 
@@ -33,17 +35,27 @@ static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len,
 static int hex2sprom(u16 *sprom, const char *dump, size_t len,
 		     size_t sprom_size_words)
 {
-	char tmp[5] = { 0 };
-	int cnt = 0;
+	char c, tmp[5] = { 0 };
+	int err, cnt = 0;
 	unsigned long parsed;
 
-	if (len < sprom_size_words * 2)
+	/* Strip whitespace at the end. */
+	while (len) {
+		c = dump[len - 1];
+		if (!isspace(c) && c != '\0')
+			break;
+		len--;
+	}
+	/* Length must match exactly. */
+	if (len != sprom_size_words * 4)
 		return -EINVAL;
 
 	while (cnt < sprom_size_words) {
 		memcpy(tmp, dump, 4);
 		dump += 4;
-		parsed = simple_strtoul(tmp, NULL, 16);
+		err = strict_strtoul(tmp, 16, &parsed);
+		if (err)
+			return err;
 		sprom[cnt++] = swab16((u16)parsed);
 	}
 
