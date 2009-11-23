@@ -47,16 +47,8 @@ static int __initdata dt_root_size_cells;
 
 typedef u32 cell_t;
 
-static struct boot_param_header *initial_boot_params;
-
 /* export that to outside world */
 struct device_node *of_chosen;
-
-static inline char *find_flat_dt_string(u32 offset)
-{
-	return ((char *)initial_boot_params) +
-		initial_boot_params->off_dt_strings + offset;
-}
 
 /**
  * This function is used to scan the flattened device-tree, it is

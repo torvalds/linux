@@ -73,24 +73,12 @@ unsigned long tce_alloc_start, tce_alloc_end;
 
 typedef u32 cell_t;
 
-#if 0
-static struct boot_param_header *initial_boot_params __initdata;
-#else
-struct boot_param_header *initial_boot_params;
-#endif
-
 extern struct device_node *allnodes;	/* temporary while merging */
 
 extern rwlock_t devtree_lock;	/* temporary while merging */
 
 /* export that to outside world */
 struct device_node *of_chosen;
-
-static inline char *find_flat_dt_string(u32 offset)
-{
-	return ((char *)initial_boot_params) +
-		initial_boot_params->off_dt_strings + offset;
-}
 
 /**
  * This function is used to scan the flattened device-tree, it is

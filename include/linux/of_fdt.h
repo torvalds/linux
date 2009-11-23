@@ -57,7 +57,11 @@ struct boot_param_header {
 	u32	dt_struct_size;		/* size of the DT structure block */
 };
 
+/* TBD: Temporary export of fdt globals - remove when code fully merged */
+extern struct boot_param_header *initial_boot_params;
+
 /* For scanning the flat device-tree at boot time */
+extern char *find_flat_dt_string(u32 offset);
 extern int __init of_scan_flat_dt(int (*it)(unsigned long node,
 					    const char *uname, int depth,
 					    void *data),
