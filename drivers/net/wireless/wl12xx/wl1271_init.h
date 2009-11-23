@@ -28,6 +28,8 @@
 
 int wl1271_hw_init_power_auth(struct wl1271 *wl);
 int wl1271_hw_init(struct wl1271 *wl);
+int wl1271_init_general_parms(struct wl1271 *wl);
+int wl1271_init_radio_parms(struct wl1271 *wl);
 
 /* These are not really a TEST_CMD, but the ref driver uses them as such */
 #define TEST_CMD_INI_FILE_RADIO_PARAM   0x19

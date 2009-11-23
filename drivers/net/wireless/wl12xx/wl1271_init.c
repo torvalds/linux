@@ -193,7 +193,7 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_general_parms(struct wl1271 *wl)
+int wl1271_init_general_parms(struct wl1271 *wl)
 {
 	struct wl1271_general_parms *gen_parms;
 	struct conf_general_parms *g = &wl->conf.init.genparam;
@@ -224,7 +224,7 @@ static int wl1271_init_general_parms(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_radio_parms(struct wl1271 *wl)
+int wl1271_init_radio_parms(struct wl1271 *wl)
 {
 	struct wl1271_radio_parms *radio_parms;
 	struct conf_radio_parms *r = &wl->conf.init.radioparam;
