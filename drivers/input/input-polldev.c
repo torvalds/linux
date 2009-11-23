@@ -88,7 +88,9 @@ static int input_open_polled_device(struct input_dev *input)
 	if (dev->open)
 		dev->open(dev);
 
-	queue_delayed_work(polldev_wq, &dev->work, 0);
+	/* Only start polling if polling is enabled */
+	if (dev->poll_interval > 0)
+		queue_delayed_work(polldev_wq, &dev->work, 0);
 
 	return 0;
 }
