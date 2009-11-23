@@ -2009,6 +2009,46 @@ static void cxt5066_automic(struct hda_codec *codec)
 	}
 }
 
+/* toggle input of built-in digital mic and mic jack appropriately */
+static void cxt5066_vostro_automic(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	unsigned int present;
+
+	struct hda_verb ext_mic_present[] = {
+		/* enable external mic, port B */
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, spec->ext_mic_bias},
+
+		/* switch to external mic input */
+		{0x17, AC_VERB_SET_CONNECT_SEL, 0},
+		{0x14, AC_VERB_SET_CONNECT_SEL, 0},
+
+		/* disable internal digital mic */
+		{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{}
+	};
+	static struct hda_verb ext_mic_absent[] = {
+		/* enable internal mic, port C */
+		{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+
+		/* switch to internal mic input */
+		{0x14, AC_VERB_SET_CONNECT_SEL, 2},
+
+		/* disable external mic, port B */
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{}
+	};
+
+	present = snd_hda_jack_detect(codec, 0x1a);
+	if (present) {
+		snd_printdd("CXT5066: external microphone detected\n");
+		snd_hda_sequence_write(codec, ext_mic_present);
+	} else {
+		snd_printdd("CXT5066: external microphone absent\n");
+		snd_hda_sequence_write(codec, ext_mic_absent);
+	}
+}
+
 /* mute internal speaker if HP is plugged */
 static void cxt5066_hp_automute(struct hda_codec *codec)
 {
@@ -2037,6 +2077,20 @@ static void cxt5066_unsol_event(struct hda_codec *codec, unsigned int res)
 		break;
 	case CONEXANT_MIC_EVENT:
 		cxt5066_automic(codec);
+		break;
+	}
+}
+
+/* unsolicited event for jack sensing */
+static void cxt5066_vostro_event(struct hda_codec *codec, unsigned int res)
+{
+	snd_printdd("CXT5066_vostro: unsol event %x (%x)\n", res, res >> 26);
+	switch (res >> 26) {
+	case CONEXANT_HP_EVENT:
+		cxt5066_hp_automute(codec);
+		break;
+	case CONEXANT_MIC_EVENT:
+		cxt5066_vostro_automic(codec);
 		break;
 	}
 }
@@ -2282,6 +2336,67 @@ static struct hda_verb cxt5066_init_verbs_olpc[] = {
 	{ } /* end */
 };
 
+static struct hda_verb cxt5066_init_verbs_vostro[] = {
+	/* Port A: headphones */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x19, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
+
+	/* Port B: external microphone */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port C: unused */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port D: unused */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port E: unused, but has primary EAPD */
+	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x1d, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
+
+	/* Port F: unused */
+	{0x1e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port G: internal speakers */
+	{0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x1f, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
+
+	/* DAC1 */
+	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* DAC2: unused */
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+
+	/* Digital microphone port */
+	{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+
+	/* Audio input selectors */
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x3},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+
+	/* Disable SPDIF */
+	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x22, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* enable unsolicited events for Port A and B */
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_MIC_EVENT},
+	{ } /* end */
+};
+
 static struct hda_verb cxt5066_init_verbs_portd_lo[] = {
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ } /* end */
@@ -2303,6 +2418,7 @@ enum {
 	CXT5066_LAPTOP,			/* Laptops w/ EAPD support */
 	CXT5066_DELL_LAPTOP,	/* Dell Laptop */
 	CXT5066_OLPC_XO_1_5,	/* OLPC XO 1.5 */
+	CXT5066_DELL_VOSTO,	/* Dell Vostro 1015i */
 	CXT5066_MODELS
 };
 
@@ -2310,6 +2426,7 @@ static const char *cxt5066_models[CXT5066_MODELS] = {
 	[CXT5066_LAPTOP]		= "laptop",
 	[CXT5066_DELL_LAPTOP]	= "dell-laptop",
 	[CXT5066_OLPC_XO_1_5]	= "olpc-xo-1_5",
+	[CXT5066_DELL_VOSTO]    = "dell-vostro"
 };
 
 static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
@@ -2318,6 +2435,7 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x02f5, "Dell",
 		      CXT5066_DELL_LAPTOP),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT5066_OLPC_XO_1_5),
+	SND_PCI_QUIRK(0x1028, 0x0402, "Dell Vostro", CXT5066_DELL_VOSTO),
 	{}
 };
 
@@ -2385,6 +2503,19 @@ static int patch_cxt5066(struct hda_codec *codec)
 		/* input source automatically selected */
 		spec->input_mux = NULL;
 		break;
+	case CXT5066_DELL_VOSTO:
+		codec->patch_ops.unsol_event = cxt5066_vostro_event;
+		spec->init_verbs[0] = cxt5066_init_verbs_vostro;
+		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
+		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
+		spec->port_d_mode = 0;
+
+		/* no S/PDIF out */
+		spec->multiout.dig_out_nid = 0;
+
+		/* input source automatically selected */
+		spec->input_mux = NULL;
+		break;
 	}
 
 	return 0;
@@ -2402,6 +2533,8 @@ static struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_cxt5051 },
 	{ .id = 0x14f15066, .name = "CX20582 (Pebble)",
 	  .patch = patch_cxt5066 },
+	{ .id = 0x14f15067, .name = "CX20583 (Pebble HSF)",
+	  .patch = patch_cxt5066 },
 	{} /* terminator */
 };
 
@@ -2409,6 +2542,7 @@ MODULE_ALIAS("snd-hda-codec-id:14f15045");
 MODULE_ALIAS("snd-hda-codec-id:14f15047");
 MODULE_ALIAS("snd-hda-codec-id:14f15051");
 MODULE_ALIAS("snd-hda-codec-id:14f15066");
+MODULE_ALIAS("snd-hda-codec-id:14f15067");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");
