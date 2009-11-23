@@ -399,6 +399,12 @@ static int __init ring_buffer_benchmark_init(void)
 	if (IS_ERR(producer))
 		goto out_kill;
 
+	/*
+	 * Run them as low-prio background tasks by default:
+	 */
+	set_user_nice(consumer, 19);
+	set_user_nice(producer, 19);
+
 	return 0;
 
  out_kill:
