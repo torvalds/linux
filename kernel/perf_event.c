@@ -246,6 +246,44 @@ static void perf_unpin_context(struct perf_event_context *ctx)
 	put_ctx(ctx);
 }
 
+static inline u64 perf_clock(void)
+{
+	return cpu_clock(smp_processor_id());
+}
+
+/*
+ * Update the record of the current time in a context.
+ */
+static void update_context_time(struct perf_event_context *ctx)
+{
+	u64 now = perf_clock();
+
+	ctx->time += now - ctx->timestamp;
+	ctx->timestamp = now;
+}
+
+/*
+ * Update the total_time_enabled and total_time_running fields for a event.
+ */
+static void update_event_times(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+	u64 run_end;
+
+	if (event->state < PERF_EVENT_STATE_INACTIVE ||
+	    event->group_leader->state < PERF_EVENT_STATE_INACTIVE)
+		return;
+
+	event->total_time_enabled = ctx->time - event->tstamp_enabled;
+
+	if (event->state == PERF_EVENT_STATE_INACTIVE)
+		run_end = event->tstamp_stopped;
+	else
+		run_end = ctx->time;
+
+	event->total_time_running = run_end - event->tstamp_running;
+}
+
 /*
  * Add a event from the lists for its context.
  * Must be called with ctx->mutex and ctx->lock held.
@@ -294,6 +332,7 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 	if (event->group_leader != event)
 		event->group_leader->nr_siblings--;
 
+	update_event_times(event);
 	event->state = PERF_EVENT_STATE_OFF;
 
 	/*
@@ -452,44 +491,6 @@ retry:
 	if (!list_empty(&event->group_entry))
 		list_del_event(event, ctx);
 	spin_unlock_irq(&ctx->lock);
-}
-
-static inline u64 perf_clock(void)
-{
-	return cpu_clock(smp_processor_id());
-}
-
-/*
- * Update the record of the current time in a context.
- */
-static void update_context_time(struct perf_event_context *ctx)
-{
-	u64 now = perf_clock();
-
-	ctx->time += now - ctx->timestamp;
-	ctx->timestamp = now;
-}
-
-/*
- * Update the total_time_enabled and total_time_running fields for a event.
- */
-static void update_event_times(struct perf_event *event)
-{
-	struct perf_event_context *ctx = event->ctx;
-	u64 run_end;
-
-	if (event->state < PERF_EVENT_STATE_INACTIVE ||
-	    event->group_leader->state < PERF_EVENT_STATE_INACTIVE)
-		return;
-
-	event->total_time_enabled = ctx->time - event->tstamp_enabled;
-
-	if (event->state == PERF_EVENT_STATE_INACTIVE)
-		run_end = event->tstamp_stopped;
-	else
-		run_end = ctx->time;
-
-	event->total_time_running = run_end - event->tstamp_running;
 }
 
 /*
@@ -4931,7 +4932,6 @@ __perf_event_exit_task(struct perf_event *child_event,
 {
 	struct perf_event *parent_event;
 
-	update_event_times(child_event);
 	perf_event_remove_from_context(child_event);
 
 	parent_event = child_event->parent;
