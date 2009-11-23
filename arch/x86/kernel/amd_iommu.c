@@ -1432,35 +1432,24 @@ static struct dma_ops_domain *find_protection_domain(u16 devid)
  * If the device is not yet associated with a domain this is also done
  * in this function.
  */
-static int get_device_resources(struct device *dev,
-				struct amd_iommu **iommu,
-				struct protection_domain **domain,
-				u16 *bdf)
+static bool get_device_resources(struct device *dev,
+				 struct amd_iommu **iommu,
+				 struct protection_domain **domain,
+				 u16 *bdf)
 {
 	struct dma_ops_domain *dma_dom;
 	struct pci_dev *pcidev;
 	u16 _bdf;
 
-	*iommu = NULL;
-	*domain = NULL;
-	*bdf = 0xffff;
+	if (!check_device(dev))
+		return false;
 
-	if (dev->bus != &pci_bus_type)
-		return 0;
-
-	pcidev = to_pci_dev(dev);
-	_bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
-
-	/* device not translated by any IOMMU in the system? */
-	if (_bdf > amd_iommu_last_bdf)
-		return 0;
-
-	*bdf = amd_iommu_alias_table[_bdf];
-
-	*iommu = amd_iommu_rlookup_table[*bdf];
-	if (*iommu == NULL)
-		return 0;
+	pcidev  = to_pci_dev(dev);
+	_bdf    = calc_devid(pcidev->bus->number, pcidev->devfn);
+	*bdf    = amd_iommu_alias_table[_bdf];
+	*iommu  = amd_iommu_rlookup_table[*bdf];
 	*domain = domain_for_device(*bdf);
+
 	if (*domain == NULL) {
 		dma_dom = find_protection_domain(*bdf);
 		if (!dma_dom)
@@ -1474,7 +1463,7 @@ static int get_device_resources(struct device *dev,
 	if (domain_for_device(_bdf) == NULL)
 		attach_device(*iommu, *domain, _bdf);
 
-	return 1;
+	return true;
 }
 
 static void update_device_table(struct protection_domain *domain)
@@ -1797,16 +1786,11 @@ static dma_addr_t map_page(struct device *dev, struct page *page,
 
 	INC_STATS_COUNTER(cnt_map_single);
 
-	if (!check_device(dev))
-		return DMA_ERROR_CODE;
-
-	dma_mask = *dev->dma_mask;
-
-	get_device_resources(dev, &iommu, &domain, &devid);
-
-	if (iommu == NULL || domain == NULL)
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
 		/* device not handled by any AMD IOMMU */
 		return (dma_addr_t)paddr;
+
+	dma_mask = *dev->dma_mask;
 
 	if (!dma_ops_domain(domain))
 		return DMA_ERROR_CODE;
@@ -1838,8 +1822,7 @@ static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 	INC_STATS_COUNTER(cnt_unmap_single);
 
-	if (!check_device(dev) ||
-	    !get_device_resources(dev, &iommu, &domain, &devid))
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
 		/* device not handled by any AMD IOMMU */
 		return;
 
@@ -1893,15 +1876,10 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 
 	INC_STATS_COUNTER(cnt_map_sg);
 
-	if (!check_device(dev))
-		return 0;
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
+		return map_sg_no_iommu(dev, sglist, nelems, dir);
 
 	dma_mask = *dev->dma_mask;
-
-	get_device_resources(dev, &iommu, &domain, &devid);
-
-	if (!iommu || !domain)
-		return map_sg_no_iommu(dev, sglist, nelems, dir);
 
 	if (!dma_ops_domain(domain))
 		return 0;
@@ -1958,8 +1936,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 	INC_STATS_COUNTER(cnt_unmap_sg);
 
-	if (!check_device(dev) ||
-	    !get_device_resources(dev, &iommu, &domain, &devid))
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
 		return;
 
 	if (!dma_ops_domain(domain))
@@ -1994,23 +1971,21 @@ static void *alloc_coherent(struct device *dev, size_t size,
 
 	INC_STATS_COUNTER(cnt_alloc_coherent);
 
-	if (!check_device(dev))
-		return NULL;
+	if (!get_device_resources(dev, &iommu, &domain, &devid)) {
+		virt_addr = (void *)__get_free_pages(flag, get_order(size));
+		*dma_addr = __pa(virt_addr);
+		return virt_addr;
+	}
 
-	if (!get_device_resources(dev, &iommu, &domain, &devid))
-		flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	dma_mask  = dev->coherent_dma_mask;
+	flag     &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	flag     |= __GFP_ZERO;
 
-	flag |= __GFP_ZERO;
 	virt_addr = (void *)__get_free_pages(flag, get_order(size));
 	if (!virt_addr)
 		return NULL;
 
 	paddr = virt_to_phys(virt_addr);
-
-	if (!iommu || !domain) {
-		*dma_addr = (dma_addr_t)paddr;
-		return virt_addr;
-	}
 
 	if (!dma_ops_domain(domain))
 		goto out_free;
@@ -2054,12 +2029,7 @@ static void free_coherent(struct device *dev, size_t size,
 
 	INC_STATS_COUNTER(cnt_free_coherent);
 
-	if (!check_device(dev))
-		return;
-
-	get_device_resources(dev, &iommu, &domain, &devid);
-
-	if (!iommu || !domain)
+	if (!get_device_resources(dev, &iommu, &domain, &devid))
 		goto free_mem;
 
 	if (!dma_ops_domain(domain))
