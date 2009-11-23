@@ -425,7 +425,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 
 		if (efx_dev_registered(efx))
 			netif_tx_lock_bh(efx->net_dev);
-		rc = efx_xmit(efx, tx_queue, skb);
+		rc = efx_enqueue_skb(tx_queue, skb);
 		if (efx_dev_registered(efx))
 			netif_tx_unlock_bh(efx->net_dev);
 

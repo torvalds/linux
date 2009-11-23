@@ -23,9 +23,8 @@
 #define EFX_MEM_BAR 2
 
 /* TX */
-extern netdev_tx_t efx_xmit(struct efx_nic *efx,
-				  struct efx_tx_queue *tx_queue,
-				  struct sk_buff *skb);
+extern netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
+				   struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern void efx_stop_queue(struct efx_nic *efx);
 extern void efx_wake_queue(struct efx_nic *efx);
