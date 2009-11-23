@@ -615,7 +615,6 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	sctp_xmit_t retval = SCTP_XMIT_OK;
 	size_t datasize, rwnd, inflight, flight_size;
 	struct sctp_transport *transport = packet->transport;
-	__u32 max_burst_bytes;
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_outq *q = &asoc->outqueue;
 
@@ -646,28 +645,6 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 			retval = SCTP_XMIT_RWND_FULL;
 			goto finish;
 		}
-	}
-
-	/* sctpimpguide-05 2.14.2
-	 * D) When the time comes for the sender to
-	 * transmit new DATA chunks, the protocol parameter Max.Burst MUST
-	 * first be applied to limit how many new DATA chunks may be sent.
-	 * The limit is applied by adjusting cwnd as follows:
-	 * 	if ((flightsize + Max.Burst * MTU) < cwnd)
-	 *		cwnd = flightsize + Max.Burst * MTU
-	 */
-	max_burst_bytes = asoc->max_burst * asoc->pathmtu;
-	if ((flight_size + max_burst_bytes) < transport->cwnd) {
-		transport->cwnd = flight_size + max_burst_bytes;
-		SCTP_DEBUG_PRINTK("%s: cwnd limited by max_burst: "
-				  "transport: %p, cwnd: %d, "
-				  "ssthresh: %d, flight_size: %d, "
-				  "pba: %d\n",
-				  __func__, transport,
-				  transport->cwnd,
-				  transport->ssthresh,
-				  transport->flight_size,
-				  transport->partial_bytes_acked);
 	}
 
 	/* RFC 2960 6.1  Transmission of DATA Chunks

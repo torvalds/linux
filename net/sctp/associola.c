@@ -738,6 +738,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	peer->partial_bytes_acked = 0;
 	peer->flight_size = 0;
+	peer->burst_limited = 0;
 
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
