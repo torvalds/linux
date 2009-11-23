@@ -15,9 +15,10 @@ enum {
 };
 
 #ifdef __KERNEL__
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
 
 #include <linux/perf_event.h>
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
 
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
 {
