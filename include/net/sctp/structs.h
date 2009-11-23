@@ -231,6 +231,11 @@ extern struct sctp_globals {
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         int checksum_disable;
+
+	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
+	 * bits is an indicator of when to send and window update SACK.
+	 */
+	int rwnd_update_shift;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -267,6 +272,7 @@ extern struct sctp_globals {
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 #define sctp_auth_enable		(sctp_globals.auth_enable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
+#define sctp_rwnd_upd_shift		(sctp_globals.rwnd_update_shift)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {

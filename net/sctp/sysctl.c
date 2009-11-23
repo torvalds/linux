@@ -52,6 +52,7 @@ static int int_max = INT_MAX;
 static int sack_timer_min = 1;
 static int sack_timer_max = 500;
 static int addr_scope_max = 3; /* check sctp_scope_policy_t in include/net/sctp/constants.h for max entries */
+static int rwnd_scale_max = 16;
 
 extern int sysctl_sctp_mem[3];
 extern int sysctl_sctp_rmem[3];
@@ -284,6 +285,18 @@ static ctl_table sctp_table[] = {
 		.extra1		= &zero,
 		.extra2		= &addr_scope_max,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "rwnd_update_shift",
+		.data		= &sctp_rwnd_upd_shift,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &one,
+		.extra2		= &rwnd_scale_max,
+	},
+
 	{ .ctl_name = 0 }
 };
 
