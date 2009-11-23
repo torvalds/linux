@@ -31,6 +31,8 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_ATH_DEBUG
+
 static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -70,6 +72,8 @@ static const struct file_operations fops_debug = {
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE
 };
+
+#endif
 
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -563,10 +567,12 @@ int ath9k_init_debug(struct ath_hw *ah)
 	if (!sc->debug.debugfs_phy)
 		goto err;
 
+#ifdef CONFIG_ATH_DEBUG
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
 		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
 	if (!sc->debug.debugfs_debug)
 		goto err;
+#endif
 
 	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
 				       sc->debug.debugfs_phy, sc, &fops_dma);

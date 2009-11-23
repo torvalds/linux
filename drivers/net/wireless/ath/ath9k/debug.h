@@ -23,13 +23,13 @@
 struct ath_txq;
 struct ath_buf;
 
-#ifdef CONFIG_ATH9K_DEBUG
+#ifdef CONFIG_ATH9K_DEBUGFS
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
 #else
 #define TX_STAT_INC(q, c) do { } while (0)
 #endif
 
-#ifdef CONFIG_ATH9K_DEBUG
+#ifdef CONFIG_ATH9K_DEBUGFS
 
 /**
  * struct ath_interrupt_stats - Contains statistics about interrupts
@@ -186,6 +186,6 @@ static inline void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 {
 }
 
-#endif /* CONFIG_ATH9K_DEBUG */
+#endif /* CONFIG_ATH9K_DEBUGFS */
 
 #endif /* DEBUG_H */
