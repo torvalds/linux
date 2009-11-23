@@ -608,7 +608,7 @@ static void ads7846_rx(void *ads)
 
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
-		input_report_abs(input, ABS_PRESSURE, Rt);
+		input_report_abs(input, ABS_PRESSURE, ts->pressure_max - Rt);
 
 		input_sync(input);
 #ifdef VERBOSE
