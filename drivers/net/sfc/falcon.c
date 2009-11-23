@@ -2485,7 +2485,7 @@ int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 	efx_oword_t glb_ctl_reg_ker;
 	int rc;
 
-	EFX_LOG(efx, "performing hardware reset (%d)\n", method);
+	EFX_LOG(efx, "performing %s hardware reset\n", RESET_TYPE(method));
 
 	/* Initiate device reset */
 	if (method == RESET_TYPE_WORLD) {

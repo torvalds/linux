@@ -20,19 +20,6 @@
 #include "spi.h"
 #include "mdio_10g.h"
 
-const char *efx_loopback_mode_names[] = {
-	[LOOPBACK_NONE]		= "NONE",
-	[LOOPBACK_GMAC]		= "GMAC",
-	[LOOPBACK_XGMII]	= "XGMII",
-	[LOOPBACK_XGXS]		= "XGXS",
-	[LOOPBACK_XAUI] 	= "XAUI",
-	[LOOPBACK_GPHY]		= "GPHY",
-	[LOOPBACK_PHYXS]	= "PHYXS",
-	[LOOPBACK_PCS]	 	= "PCS",
-	[LOOPBACK_PMAPMD]	= "PMA/PMD",
-	[LOOPBACK_NETWORK]	= "NETWORK",
-};
-
 struct ethtool_string {
 	char name[ETH_GSTRING_LEN];
 };
@@ -290,7 +277,7 @@ static void efx_fill_test(unsigned int test_index,
 #define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->queue
 #define EFX_RX_QUEUE_NAME(_rx_queue) "rxq%d", _rx_queue->queue
 #define EFX_LOOPBACK_NAME(_mode, _counter)			\
-	"loopback.%s." _counter, LOOPBACK_MODE_NAME(mode)
+	"loopback.%s." _counter, STRING_TABLE_LOOKUP(_mode, efx_loopback_mode)
 
 /**
  * efx_fill_loopback_test - fill in a block of loopback self-test entries

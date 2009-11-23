@@ -394,8 +394,23 @@ enum efx_led_mode {
 	EFX_LED_DEFAULT	= 2
 };
 
-#define STRING_TABLE_LOOKUP(val, member)	\
-	member ## _names[val]
+#define STRING_TABLE_LOOKUP(val, member) \
+	((val) < member ## _max) ? member ## _names[val] : "(invalid)"
+
+extern const char *efx_loopback_mode_names[];
+extern const unsigned int efx_loopback_mode_max;
+#define LOOPBACK_MODE(efx) \
+	STRING_TABLE_LOOKUP((efx)->loopback_mode, efx_loopback_mode)
+
+extern const char *efx_interrupt_mode_names[];
+extern const unsigned int efx_interrupt_mode_max;
+#define INT_MODE(efx) \
+	STRING_TABLE_LOOKUP(efx->interrupt_mode, efx_interrupt_mode)
+
+extern const char *efx_reset_type_names[];
+extern const unsigned int efx_reset_type_max;
+#define RESET_TYPE(type) \
+	STRING_TABLE_LOOKUP(type, efx_reset_type)
 
 enum efx_int_mode {
 	/* Be careful if altering to correct macro below */

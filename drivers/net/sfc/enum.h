@@ -40,12 +40,6 @@ enum efx_loopback_mode {
 
 #define LOOPBACK_TEST_MAX LOOPBACK_PMAPMD
 
-extern const char *efx_loopback_mode_names[];
-#define LOOPBACK_MODE_NAME(mode)			\
-	STRING_TABLE_LOOKUP(mode, efx_loopback_mode)
-#define LOOPBACK_MODE(efx)				\
-	LOOPBACK_MODE_NAME(efx->loopback_mode)
-
 /* These loopbacks occur within the controller */
 #define LOOPBACKS_INTERNAL ((1 << LOOPBACK_GMAC) |     \
 			    (1 << LOOPBACK_XGMII)|     \

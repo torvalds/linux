@@ -175,8 +175,8 @@ static int efx_test_interrupts(struct efx_nic *efx,
 	return -ETIMEDOUT;
 
  success:
-	EFX_LOG(efx, "test interrupt (mode %d) seen on CPU%d\n",
-		efx->interrupt_mode, efx->last_irq_cpu);
+	EFX_LOG(efx, "%s test interrupt seen on CPU%d\n", INT_MODE(efx),
+		efx->last_irq_cpu);
 	tests->interrupt = 1;
 	return 0;
 }
