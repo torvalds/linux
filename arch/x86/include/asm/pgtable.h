@@ -274,7 +274,7 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
 	/*
 	 * PAT type is always WB for untracked ranges, so no need to check.
 	 */
-	if (x86_platform.is_untracked_pat_range(paddr, paddr + size - 1))
+	if (x86_platform.is_untracked_pat_range(paddr, paddr + size))
 		return 1;
 
 	/*
