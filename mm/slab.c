@@ -604,67 +604,6 @@ static struct kmem_cache cache_cache = {
 
 #define BAD_ALIEN_MAGIC 0x01020304ul
 
-#ifdef CONFIG_LOCKDEP
-
-/*
- * Slab sometimes uses the kmalloc slabs to store the slab headers
- * for other slabs "off slab".
- * The locking for this is tricky in that it nests within the locks
- * of all other slabs in a few places; to deal with this special
- * locking we put on-slab caches into a separate lock-class.
- *
- * We set lock class for alien array caches which are up during init.
- * The lock annotation will be lost if all cpus of a node goes down and
- * then comes back up during hotplug
- */
-static struct lock_class_key on_slab_l3_key;
-static struct lock_class_key on_slab_alc_key;
-
-static inline void init_lock_keys(void)
-
-{
-	int q;
-	struct cache_sizes *s = malloc_sizes;
-
-	while (s->cs_size != ULONG_MAX) {
-		for_each_node(q) {
-			struct array_cache **alc;
-			int r;
-			struct kmem_list3 *l3 = s->cs_cachep->nodelists[q];
-			if (!l3 || OFF_SLAB(s->cs_cachep))
-				continue;
-			lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
-			alc = l3->alien;
-			/*
-			 * FIXME: This check for BAD_ALIEN_MAGIC
-			 * should go away when common slab code is taught to
-			 * work even without alien caches.
-			 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
-			 * for alloc_alien_cache,
-			 */
-			if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
-				continue;
-			for_each_node(r) {
-				if (alc[r])
-					lockdep_set_class(&alc[r]->lock,
-					     &on_slab_alc_key);
-			}
-		}
-		s++;
-	}
-}
-#else
-static inline void init_lock_keys(void)
-{
-}
-#endif
-
-/*
- * Guard access to the cache-chain.
- */
-static DEFINE_MUTEX(cache_chain_mutex);
-static struct list_head cache_chain;
-
 /*
  * chicken and egg problem: delay the per-cpu array allocation
  * until the general caches are up.
@@ -684,6 +623,79 @@ int slab_is_available(void)
 {
 	return g_cpucache_up >= EARLY;
 }
+
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Slab sometimes uses the kmalloc slabs to store the slab headers
+ * for other slabs "off slab".
+ * The locking for this is tricky in that it nests within the locks
+ * of all other slabs in a few places; to deal with this special
+ * locking we put on-slab caches into a separate lock-class.
+ *
+ * We set lock class for alien array caches which are up during init.
+ * The lock annotation will be lost if all cpus of a node goes down and
+ * then comes back up during hotplug
+ */
+static struct lock_class_key on_slab_l3_key;
+static struct lock_class_key on_slab_alc_key;
+
+static void init_node_lock_keys(int q)
+{
+	struct cache_sizes *s = malloc_sizes;
+
+	if (g_cpucache_up != FULL)
+		return;
+
+	for (s = malloc_sizes; s->cs_size != ULONG_MAX; s++) {
+		struct array_cache **alc;
+		struct kmem_list3 *l3;
+		int r;
+
+		l3 = s->cs_cachep->nodelists[q];
+		if (!l3 || OFF_SLAB(s->cs_cachep))
+			return;
+		lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
+		alc = l3->alien;
+		/*
+		 * FIXME: This check for BAD_ALIEN_MAGIC
+		 * should go away when common slab code is taught to
+		 * work even without alien caches.
+		 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
+		 * for alloc_alien_cache,
+		 */
+		if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
+			return;
+		for_each_node(r) {
+			if (alc[r])
+				lockdep_set_class(&alc[r]->lock,
+					&on_slab_alc_key);
+		}
+	}
+}
+
+static inline void init_lock_keys(void)
+{
+	int node;
+
+	for_each_node(node)
+		init_node_lock_keys(node);
+}
+#else
+static void init_node_lock_keys(int q)
+{
+}
+
+static inline void init_lock_keys(void)
+{
+}
+#endif
+
+/*
+ * Guard access to the cache-chain.
+ */
+static DEFINE_MUTEX(cache_chain_mutex);
+static struct list_head cache_chain;
 
 static DEFINE_PER_CPU(struct delayed_work, reap_work);
 
@@ -1254,6 +1266,8 @@ static int __cpuinit cpuup_prepare(long cpu)
 		kfree(shared);
 		free_alien_cache(alien);
 	}
+	init_node_lock_keys(node);
+
 	return 0;
 bad:
 	cpuup_canceled(cpu);
