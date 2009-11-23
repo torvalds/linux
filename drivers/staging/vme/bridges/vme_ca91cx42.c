@@ -25,6 +25,7 @@
 #include <linux/poll.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>

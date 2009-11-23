@@ -3216,6 +3216,7 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	struct dasd_eckd_characteristics temp_rdc_data;
 	int is_known, rc;
 	struct dasd_uid temp_uid;
+	unsigned long flags;
 
 	private = (struct dasd_eckd_private *) device->private;
 
@@ -3228,7 +3229,8 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	rc = dasd_eckd_generate_uid(device, &private->uid);
 	dasd_get_uid(device->cdev, &temp_uid);
 	if (memcmp(&private->uid, &temp_uid, sizeof(struct dasd_uid)) != 0)
-		dev_err(&device->cdev->dev, "The UID of the DASD has changed\n");
+		dev_err(&device->cdev->dev, "The UID of the DASD has "
+			"changed\n");
 	if (rc)
 		goto out_err;
 	dasd_set_uid(device->cdev, &private->uid);
@@ -3256,9 +3258,9 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 			  "device: %s", rc, dev_name(&device->cdev->dev));
 		goto out_err;
 	}
-	spin_lock(get_ccwdev_lock(device->cdev));
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	memcpy(&private->rdc_data, &temp_rdc_data, sizeof(temp_rdc_data));
-	spin_unlock(get_ccwdev_lock(device->cdev));
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 
 	/* add device to alias management */
 	dasd_alias_add_device(device);

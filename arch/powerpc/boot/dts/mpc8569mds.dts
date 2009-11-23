@@ -487,8 +487,8 @@
 				 &qe_pio_f 5 0   /* USBTN */
 				 &qe_pio_f 6 0   /* USBRP */
 				 &qe_pio_f 8 0   /* USBRN */
-				 &bcsr17   6 0   /* SPEED */
-				 &bcsr17   5 1>; /* POWER */
+				 &bcsr17   1 0   /* SPEED */
+				 &bcsr17   2 0>; /* POWER */
 		};
 
 		enet0: ucc@2000 {

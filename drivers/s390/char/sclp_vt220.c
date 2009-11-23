@@ -705,21 +705,6 @@ out_driver:
 }
 __initcall(sclp_vt220_tty_init);
 
-#ifdef CONFIG_SCLP_VT220_CONSOLE
-
-static void
-sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)
-{
-	__sclp_vt220_write((const unsigned char *) buf, count, 1, 1, 0);
-}
-
-static struct tty_driver *
-sclp_vt220_con_device(struct console *c, int *index)
-{
-	*index = 0;
-	return sclp_vt220_driver;
-}
-
 static void __sclp_vt220_flush_buffer(void)
 {
 	unsigned long flags;
@@ -774,6 +759,21 @@ static void sclp_vt220_pm_event_fn(struct sclp_register *reg,
 		sclp_vt220_resume();
 		break;
 	}
+}
+
+#ifdef CONFIG_SCLP_VT220_CONSOLE
+
+static void
+sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)
+{
+	__sclp_vt220_write((const unsigned char *) buf, count, 1, 1, 0);
+}
+
+static struct tty_driver *
+sclp_vt220_con_device(struct console *c, int *index)
+{
+	*index = 0;
+	return sclp_vt220_driver;
 }
 
 static int

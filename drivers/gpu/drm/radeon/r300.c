@@ -113,7 +113,7 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	tmp = RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
 	WREG32_PCIE(RADEON_PCIE_TX_GART_START_LO, rdev->mc.gtt_location);
-	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 4096;
+	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - RADEON_GPU_PAGE_SIZE;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_END_LO, tmp);
 	WREG32_PCIE(RADEON_PCIE_TX_GART_START_HI, 0);
 	WREG32_PCIE(RADEON_PCIE_TX_GART_END_HI, 0);

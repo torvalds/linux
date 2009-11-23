@@ -394,7 +394,8 @@ frame_data:
 			PDEBUG(D_PACK, "End of frame detected");
 
 			/* Complete the last frame (if any) */
-			gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
+			frame = gspca_frame_add(gspca_dev, LAST_PACKET,
+						frame, data, 0);
 
 			if (chunk_len)
 				PDEBUG(D_ERR, "Chunk length is "

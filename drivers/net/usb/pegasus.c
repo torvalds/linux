@@ -62,8 +62,11 @@ static char *devid=NULL;
 static struct usb_eth_dev usb_dev_id[] = {
 #define	PEGASUS_DEV(pn, vid, pid, flags)	\
 	{.name = pn, .vendor = vid, .device = pid, .private = flags},
+#define PEGASUS_DEV_CLASS(pn, vid, pid, dclass, flags) \
+	PEGASUS_DEV(pn, vid, pid, flags)
 #include "pegasus.h"
 #undef	PEGASUS_DEV
+#undef	PEGASUS_DEV_CLASS
 	{NULL, 0, 0, 0},
 	{NULL, 0, 0, 0}
 };
@@ -71,8 +74,18 @@ static struct usb_eth_dev usb_dev_id[] = {
 static struct usb_device_id pegasus_ids[] = {
 #define	PEGASUS_DEV(pn, vid, pid, flags) \
 	{.match_flags = USB_DEVICE_ID_MATCH_DEVICE, .idVendor = vid, .idProduct = pid},
+/*
+ * The Belkin F8T012xx1 bluetooth adaptor has the same vendor and product
+ * IDs as the Belkin F5D5050, so we need to teach the pegasus driver to
+ * ignore adaptors belonging to the "Wireless" class 0xE0. For this one
+ * case anyway, seeing as the pegasus is for "Wired" adaptors.
+ */
+#define PEGASUS_DEV_CLASS(pn, vid, pid, dclass, flags) \
+	{.match_flags = (USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_DEV_CLASS), \
+	.idVendor = vid, .idProduct = pid, .bDeviceClass = dclass},
 #include "pegasus.h"
 #undef	PEGASUS_DEV
+#undef	PEGASUS_DEV_CLASS
 	{},
 	{}
 };

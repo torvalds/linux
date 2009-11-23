@@ -364,6 +364,7 @@ unifdef-y += utsname.h
 unifdef-y += videodev2.h
 unifdef-y += videodev.h
 unifdef-y += virtio_config.h
+unifdef-y += virtio_ids.h
 unifdef-y += virtio_blk.h
 unifdef-y += virtio_net.h
 unifdef-y += virtio_9p.h

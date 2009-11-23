@@ -1125,7 +1125,6 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 	/* configure operational mode */
 	ath5k_hw_set_opmode(ah);
 
-	ath5k_hw_set_mcast_filter(ah, 0, 0);
 	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "RX filter 0x%x\n", rfilt);
 }
 

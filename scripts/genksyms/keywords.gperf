@@ -1,4 +1,6 @@
 %{
+struct resword;
+static const struct resword *is_reserved_word(register const char *str, register unsigned int len);
 %}
 struct resword { const char *name; int token; }
 %%

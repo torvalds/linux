@@ -1741,6 +1741,7 @@ config KS8851
 config KS8851_MLL
 	tristate "Micrel KS8851 MLL"
 	depends on HAS_IOMEM
+	select MII
 	help
 	  This platform driver is for Micrel KS8851 Address/data bus
 	  multiplexed network chip.
@@ -2481,6 +2482,8 @@ config S6GMAC
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s6gmac.
+
+source "drivers/net/stmmac/Kconfig"
 
 endif # NETDEV_1000
 
@@ -3229,5 +3232,13 @@ config VIRTIO_NET
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config VMXNET3
+       tristate "VMware VMXNET3 ethernet driver"
+       depends on PCI && X86 && INET
+       help
+         This driver supports VMware's vmxnet3 virtual ethernet NIC.
+         To compile this driver as a module, choose M here: the
+         module will be called vmxnet3.
 
 endif # NETDEVICES

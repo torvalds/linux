@@ -30,7 +30,6 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 /* global data */
-static const char device_name[] = "pcieport-driver";
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
@@ -262,7 +261,7 @@ static struct pci_error_handlers pcie_portdrv_err_handler = {
 };
 
 static struct pci_driver pcie_portdriver = {
-	.name		= (char *)device_name,
+	.name		= "pcieport",
 	.id_table	= &port_pci_ids[0],
 
 	.probe		= pcie_portdrv_probe,

@@ -332,6 +332,7 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 				unsigned int data_len)
 {
 	struct b43_wldev *dev = q->dev;
+	struct b43_wl *wl = dev->wl;
 	const u8 *data = _data;
 
 	ctl |= B43_PIO_TXCTL_WRITELO | B43_PIO_TXCTL_WRITEHI;
@@ -341,13 +342,12 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 			q->mmio_base + B43_PIO_TXDATA,
 			sizeof(u16));
 	if (data_len & 1) {
-		u8 tail[2] = { 0, };
-
 		/* Write the last byte. */
 		ctl &= ~B43_PIO_TXCTL_WRITEHI;
 		b43_piotx_write16(q, B43_PIO_TXCTL, ctl);
-		tail[0] = data[data_len - 1];
-		ssb_block_write(dev->dev, tail, 2,
+		wl->tx_tail[0] = data[data_len - 1];
+		wl->tx_tail[1] = 0;
+		ssb_block_write(dev->dev, wl->tx_tail, 2,
 				q->mmio_base + B43_PIO_TXDATA,
 				sizeof(u16));
 	}
@@ -382,6 +382,7 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 				unsigned int data_len)
 {
 	struct b43_wldev *dev = q->dev;
+	struct b43_wl *wl = dev->wl;
 	const u8 *data = _data;
 
 	ctl |= B43_PIO8_TXCTL_0_7 | B43_PIO8_TXCTL_8_15 |
@@ -392,29 +393,31 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 			q->mmio_base + B43_PIO8_TXDATA,
 			sizeof(u32));
 	if (data_len & 3) {
-		u8 tail[4] = { 0, };
-
+		wl->tx_tail[3] = 0;
 		/* Write the last few bytes. */
 		ctl &= ~(B43_PIO8_TXCTL_8_15 | B43_PIO8_TXCTL_16_23 |
 			 B43_PIO8_TXCTL_24_31);
 		switch (data_len & 3) {
 		case 3:
 			ctl |= B43_PIO8_TXCTL_16_23 | B43_PIO8_TXCTL_8_15;
-			tail[0] = data[data_len - 3];
-			tail[1] = data[data_len - 2];
-			tail[2] = data[data_len - 1];
+			wl->tx_tail[0] = data[data_len - 3];
+			wl->tx_tail[1] = data[data_len - 2];
+			wl->tx_tail[2] = data[data_len - 1];
 			break;
 		case 2:
 			ctl |= B43_PIO8_TXCTL_8_15;
-			tail[0] = data[data_len - 2];
-			tail[1] = data[data_len - 1];
+			wl->tx_tail[0] = data[data_len - 2];
+			wl->tx_tail[1] = data[data_len - 1];
+			wl->tx_tail[2] = 0;
 			break;
 		case 1:
-			tail[0] = data[data_len - 1];
+			wl->tx_tail[0] = data[data_len - 1];
+			wl->tx_tail[1] = 0;
+			wl->tx_tail[2] = 0;
 			break;
 		}
 		b43_piotx_write32(q, B43_PIO8_TXCTL, ctl);
-		ssb_block_write(dev->dev, tail, 4,
+		ssb_block_write(dev->dev, wl->tx_tail, 4,
 				q->mmio_base + B43_PIO8_TXDATA,
 				sizeof(u32));
 	}
@@ -446,8 +449,9 @@ static void pio_tx_frame_4byte_queue(struct b43_pio_txpacket *pack,
 static int pio_tx_frame(struct b43_pio_txqueue *q,
 			struct sk_buff *skb)
 {
+	struct b43_wldev *dev = q->dev;
+	struct b43_wl *wl = dev->wl;
 	struct b43_pio_txpacket *pack;
-	struct b43_txhdr txhdr;
 	u16 cookie;
 	int err;
 	unsigned int hdrlen;
@@ -458,8 +462,8 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 			  struct b43_pio_txpacket, list);
 
 	cookie = generate_cookie(q, pack);
-	hdrlen = b43_txhdr_size(q->dev);
-	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb,
+	hdrlen = b43_txhdr_size(dev);
+	err = b43_generate_txhdr(dev, (u8 *)&wl->txhdr, skb,
 				 info, cookie);
 	if (err)
 		return err;
@@ -467,15 +471,15 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* Tell the firmware about the cookie of the last
 		 * mcast frame, so it can clear the more-data bit in it. */
-		b43_shm_write16(q->dev, B43_SHM_SHARED,
+		b43_shm_write16(dev, B43_SHM_SHARED,
 				B43_SHM_SH_MCASTCOOKIE, cookie);
 	}
 
 	pack->skb = skb;
 	if (q->rev >= 8)
-		pio_tx_frame_4byte_queue(pack, (const u8 *)&txhdr, hdrlen);
+		pio_tx_frame_4byte_queue(pack, (const u8 *)&wl->txhdr, hdrlen);
 	else
-		pio_tx_frame_2byte_queue(pack, (const u8 *)&txhdr, hdrlen);
+		pio_tx_frame_2byte_queue(pack, (const u8 *)&wl->txhdr, hdrlen);
 
 	/* Remove it from the list of available packet slots.
 	 * It will be put back when we receive the status report. */
@@ -615,14 +619,14 @@ void b43_pio_get_tx_stats(struct b43_wldev *dev,
 static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 {
 	struct b43_wldev *dev = q->dev;
-	struct b43_rxhdr_fw4 rxhdr;
+	struct b43_wl *wl = dev->wl;
 	u16 len;
 	u32 macstat;
 	unsigned int i, padding;
 	struct sk_buff *skb;
 	const char *err_msg = NULL;
 
-	memset(&rxhdr, 0, sizeof(rxhdr));
+	memset(&wl->rxhdr, 0, sizeof(wl->rxhdr));
 
 	/* Check if we have data and wait for it to get ready. */
 	if (q->rev >= 8) {
@@ -660,16 +664,16 @@ data_ready:
 
 	/* Get the preamble (RX header) */
 	if (q->rev >= 8) {
-		ssb_block_read(dev->dev, &rxhdr, sizeof(rxhdr),
+		ssb_block_read(dev->dev, &wl->rxhdr, sizeof(wl->rxhdr),
 			       q->mmio_base + B43_PIO8_RXDATA,
 			       sizeof(u32));
 	} else {
-		ssb_block_read(dev->dev, &rxhdr, sizeof(rxhdr),
+		ssb_block_read(dev->dev, &wl->rxhdr, sizeof(wl->rxhdr),
 			       q->mmio_base + B43_PIO_RXDATA,
 			       sizeof(u16));
 	}
 	/* Sanity checks. */
-	len = le16_to_cpu(rxhdr.frame_len);
+	len = le16_to_cpu(wl->rxhdr.frame_len);
 	if (unlikely(len > 0x700)) {
 		err_msg = "len > 0x700";
 		goto rx_error;
@@ -679,7 +683,7 @@ data_ready:
 		goto rx_error;
 	}
 
-	macstat = le32_to_cpu(rxhdr.mac_status);
+	macstat = le32_to_cpu(wl->rxhdr.mac_status);
 	if (macstat & B43_RX_MAC_FCSERR) {
 		if (!(q->dev->wl->filter_flags & FIF_FCSFAIL)) {
 			/* Drop frames with failed FCS. */
@@ -704,24 +708,22 @@ data_ready:
 			       q->mmio_base + B43_PIO8_RXDATA,
 			       sizeof(u32));
 		if (len & 3) {
-			u8 tail[4] = { 0, };
-
 			/* Read the last few bytes. */
-			ssb_block_read(dev->dev, tail, 4,
+			ssb_block_read(dev->dev, wl->rx_tail, 4,
 				       q->mmio_base + B43_PIO8_RXDATA,
 				       sizeof(u32));
 			switch (len & 3) {
 			case 3:
-				skb->data[len + padding - 3] = tail[0];
-				skb->data[len + padding - 2] = tail[1];
-				skb->data[len + padding - 1] = tail[2];
+				skb->data[len + padding - 3] = wl->rx_tail[0];
+				skb->data[len + padding - 2] = wl->rx_tail[1];
+				skb->data[len + padding - 1] = wl->rx_tail[2];
 				break;
 			case 2:
-				skb->data[len + padding - 2] = tail[0];
-				skb->data[len + padding - 1] = tail[1];
+				skb->data[len + padding - 2] = wl->rx_tail[0];
+				skb->data[len + padding - 1] = wl->rx_tail[1];
 				break;
 			case 1:
-				skb->data[len + padding - 1] = tail[0];
+				skb->data[len + padding - 1] = wl->rx_tail[0];
 				break;
 			}
 		}
@@ -730,17 +732,15 @@ data_ready:
 			       q->mmio_base + B43_PIO_RXDATA,
 			       sizeof(u16));
 		if (len & 1) {
-			u8 tail[2] = { 0, };
-
 			/* Read the last byte. */
-			ssb_block_read(dev->dev, tail, 2,
+			ssb_block_read(dev->dev, wl->rx_tail, 2,
 				       q->mmio_base + B43_PIO_RXDATA,
 				       sizeof(u16));
-			skb->data[len + padding - 1] = tail[0];
+			skb->data[len + padding - 1] = wl->rx_tail[0];
 		}
 	}
 
-	b43_rx(q->dev, skb, &rxhdr);
+	b43_rx(q->dev, skb, &wl->rxhdr);
 
 	return 1;
 

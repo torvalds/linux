@@ -1,3 +1,5 @@
+#!/bin/sh
+
 TARGET=$1
 ARCH=$2
 SMP=$3
@@ -50,7 +52,7 @@ UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS $TIMESTAMP"
 # Truncate to maximum length
 
 UTS_LEN=64
-UTS_TRUNCATE="sed -e s/\(.\{1,$UTS_LEN\}\).*/\1/"
+UTS_TRUNCATE="cut -b -$UTS_LEN"
 
 # Generate a temporary compile.h
 
@@ -66,9 +68,13 @@ UTS_TRUNCATE="sed -e s/\(.\{1,$UTS_LEN\}\).*/\1/"
   echo \#define LINUX_COMPILE_HOST \"`hostname | $UTS_TRUNCATE`\"
 
   if [ -x /bin/dnsdomainname ]; then
-    echo \#define LINUX_COMPILE_DOMAIN \"`dnsdomainname | $UTS_TRUNCATE`\"
+    domain=`dnsdomainname 2> /dev/null`
   elif [ -x /bin/domainname ]; then
-    echo \#define LINUX_COMPILE_DOMAIN \"`domainname | $UTS_TRUNCATE`\"
+    domain=`domainname 2> /dev/null`
+  fi
+
+  if [ -n "$domain" ]; then
+    echo \#define LINUX_COMPILE_DOMAIN \"`echo $domain | $UTS_TRUNCATE`\"
   else
     echo \#define LINUX_COMPILE_DOMAIN
   fi

@@ -217,20 +217,25 @@ static void snd_pdacf_detach(struct pcmcia_device *link)
  * configuration callback
  */
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int pdacf_config(struct pcmcia_device *link)
 {
 	struct snd_pdacf *pdacf = link->priv;
-	int last_fn, last_ret;
+	int ret;
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
 	link->conf.ConfigIndex = 0x5;
 
-	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_io(link, &link->io);
+	if (ret)
+		goto failed;
+
+	ret = pcmcia_request_irq(link, &link->irq);
+	if (ret)
+		goto failed;
+
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
@@ -238,8 +243,6 @@ static int pdacf_config(struct pcmcia_device *link)
 	link->dev_node = &pdacf->node;
 	return 0;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);
 	return -ENODEV;

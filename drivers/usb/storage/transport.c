@@ -696,7 +696,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		/* device supports and needs bigger sense buffer */
 		if (us->fflags & US_FL_SANE_SENSE)
 			sense_size = ~0;
-
+Retry_Sense:
 		US_DEBUGP("Issuing auto-REQUEST_SENSE\n");
 
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sense_size);
@@ -720,6 +720,21 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			srb->result = DID_ABORT << 16;
 			goto Handle_Errors;
 		}
+
+		/* Some devices claim to support larger sense but fail when
+		 * trying to request it. When a transport failure happens
+		 * using US_FS_SANE_SENSE, we always retry with a standard
+		 * (small) sense request. This fixes some USB GSM modems
+		 */
+		if (temp_result == USB_STOR_TRANSPORT_FAILED &&
+		    (us->fflags & US_FL_SANE_SENSE) &&
+		    sense_size != US_SENSE_SIZE) {
+			US_DEBUGP("-- auto-sense failure, retry small sense\n");
+			sense_size = US_SENSE_SIZE;
+			goto Retry_Sense;
+		}
+
+		/* Other failures */
 		if (temp_result != USB_STOR_TRANSPORT_GOOD) {
 			US_DEBUGP("-- auto-sense failure\n");
 

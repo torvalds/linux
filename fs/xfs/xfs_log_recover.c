@@ -1980,7 +1980,7 @@ xlog_recover_do_reg_buffer(
 					"XFS: NULL dquot in %s.", __func__);
 				goto next;
 			}
-			if (item->ri_buf[i].i_len < sizeof(xfs_dqblk_t)) {
+			if (item->ri_buf[i].i_len < sizeof(xfs_disk_dquot_t)) {
 				cmn_err(CE_ALERT,
 					"XFS: dquot too small (%d) in %s.",
 					item->ri_buf[i].i_len, __func__);
@@ -2635,7 +2635,7 @@ xlog_recover_do_dquot_trans(
 			"XFS: NULL dquot in %s.", __func__);
 		return XFS_ERROR(EIO);
 	}
-	if (item->ri_buf[1].i_len < sizeof(xfs_dqblk_t)) {
+	if (item->ri_buf[1].i_len < sizeof(xfs_disk_dquot_t)) {
 		cmn_err(CE_ALERT,
 			"XFS: dquot too small (%d) in %s.",
 			item->ri_buf[1].i_len, __func__);

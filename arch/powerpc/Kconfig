@@ -414,6 +414,10 @@ config ARCH_SPARSEMEM_DEFAULT
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
+config SYS_SUPPORTS_HUGETLBFS
+       def_bool y
+       depends on PPC_BOOK3S_64
+
 source "mm/Kconfig"
 
 config ARCH_MEMORY_PROBE

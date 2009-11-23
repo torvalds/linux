@@ -483,7 +483,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		data[3] = 0x2c;			   /* reg 2, H size/8 */
 		data[4] = 0x48;			   /* reg 3, V size/4 */
 		data[6] = 0x06;			   /* reg 5, H start  */
-		data[8] = 0x06 + sd->sensor_type;  /* reg 7, V start  */
+		data[8] = 0x06 - sd->sensor_type;  /* reg 7, V start  */
 		break;
 	}
 	err_code = mr_write(gspca_dev, 11);
