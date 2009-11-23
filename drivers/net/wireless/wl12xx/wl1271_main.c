@@ -251,14 +251,7 @@ static struct conf_drv_settings default_conf = {
 		},
 		.sr_enable                   = 1,
 		.genparam                    = {
-			/*
-			 * FIXME: The correct value CONF_REF_CLK_38_4_E
-			 *        causes the firmware to crash on boot.
-			 *        The value 5 apparently is an
-			 *        unnoficial XTAL configuration of the
-			 *        same frequency, which appears to work.
-			 */
-			.ref_clk             = 5,
+			.ref_clk             = CONF_REF_CLK_38_4_E,
 			.settling_time       = 5,
 			.clk_valid_on_wakeup = 0,
 			.dc2dcmode           = 0,
