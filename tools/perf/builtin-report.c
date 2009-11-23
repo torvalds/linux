@@ -52,6 +52,7 @@ static char		*pretty_printing_style = default_pretty_printing_style;
 static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
+const char		*vmlinux_name;
 
 static char		*cwd;
 static int		cwdlen;
@@ -925,8 +926,9 @@ static int __cmd_report(void)
 
 	register_perf_file_handler(&file_handler);
 
-	ret = mmap_dispatch_perf_file(&header, input_name, force, full_paths,
-				      &cwdlen, &cwd);
+	ret = mmap_dispatch_perf_file(&header, input_name, vmlinux_name,
+				      !vmlinux_name, force,
+				      full_paths, &cwdlen, &cwd);
 	if (ret)
 		return ret;
 

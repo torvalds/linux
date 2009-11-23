@@ -257,7 +257,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		 * Read the kernel buildid nad the list of loaded modules with
 		 * its build_ids:
 		 */
-		kernel_maps__init(true);
+		kernel_maps__init(NULL, false, true);
 
 		/* Write build-ids */
 		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);

@@ -1718,7 +1718,8 @@ static int read_events(void)
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	return mmap_dispatch_perf_file(&header, input_name, 0, 0, &cwdlen, &cwd);
+	return mmap_dispatch_perf_file(&header, input_name, NULL, false, 0, 0,
+				       &cwdlen, &cwd);
 }
 
 static void print_bad_events(void)

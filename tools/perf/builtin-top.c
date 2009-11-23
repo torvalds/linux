@@ -79,6 +79,7 @@ static int			dump_symtab                     =      0;
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
 static struct winsize		winsize;
+const char 			*vmlinux_name;
 static const char		*graph_line			=
 	"_____________________________________________________________________"
 	"_____________________________________________________________________";
@@ -1341,7 +1342,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (delay_secs < 1)
 		delay_secs = 1;
 
-	err = kernel_maps__init(true);
+	err = kernel_maps__init(vmlinux_name, !vmlinux_name, true);
 	if (err < 0)
 		return err;
 	parse_source(sym_filter_entry);

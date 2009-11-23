@@ -37,6 +37,7 @@ static bool		use_modules;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
+const char		*vmlinux_name;
 
 struct sym_hist {
 	u64		sum;
@@ -637,7 +638,7 @@ static int __cmd_annotate(void)
 		exit(0);
 	}
 
-	if (kernel_maps__init(use_modules) < 0) {
+	if (kernel_maps__init(vmlinux_name, true, use_modules) < 0) {
 		pr_err("failed to create kernel maps for symbol resolution\b");
 		return -1;
 	}

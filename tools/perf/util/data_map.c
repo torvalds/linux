@@ -101,6 +101,8 @@ out:
 
 int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    const char *input_name,
+			    const char *vmlinux_name,
+			    bool try_vmlinux_path,
 			    int force,
 			    int full_paths,
 			    int *cwdlen,
@@ -171,7 +173,7 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 		goto out_delete;
 
 	err = -ENOMEM;
-	if (kernel_maps__init(true) < 0) {
+	if (kernel_maps__init(vmlinux_name, try_vmlinux_path, true) < 0) {
 		pr_err("failed to setup the kernel maps to resolve symbols\n");
 		goto out_delete;
 	}

@@ -93,7 +93,8 @@ int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
-int kernel_maps__init(bool use_modules);
+int kernel_maps__init(const char *vmlinux_name, bool try_vmlinux_path,
+		      bool use_modules);
 size_t kernel_maps__fprintf(FILE *fp);
 
 void symbol__init(unsigned int priv_size);
@@ -101,5 +102,4 @@ void symbol__init(unsigned int priv_size);
 extern struct list_head dsos;
 extern struct map *kernel_map;
 extern struct dso *vdso;
-extern const char *vmlinux_name;
 #endif /* __PERF_SYMBOL */

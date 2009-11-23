@@ -34,6 +34,8 @@ static void kernel_maps__insert(struct map *map);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				symbol_filter_t filter);
 unsigned int symbol__priv_size;
+static int vmlinux_path__nr_entries;
+static char **vmlinux_path;
 
 static struct rb_root kernel_maps;
 
@@ -1386,15 +1388,43 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				symbol_filter_t filter)
 {
-	int err = dso__load_vmlinux(self, map, self->name, filter);
+	int err;
+	bool is_kallsyms;
 
+	if (vmlinux_path != NULL) {
+		int i;
+		pr_debug("Looking at the vmlinux_path (%d entries long)\n",
+			 vmlinux_path__nr_entries);
+		for (i = 0; i < vmlinux_path__nr_entries; ++i) {
+			err = dso__load_vmlinux(self, map, vmlinux_path[i],
+						filter);
+			if (err > 0) {
+				pr_debug("Using %s for symbols\n",
+					 vmlinux_path[i]);
+				dso__set_long_name(self,
+						   strdup(vmlinux_path[i]));
+				goto out_fixup;
+			}
+		}
+	}
+
+	is_kallsyms = self->long_name[0] == '[';
+	if (is_kallsyms)
+		goto do_kallsyms;
+
+	err = dso__load_vmlinux(self, map, self->long_name, filter);
 	if (err <= 0) {
+		pr_info("The file %s cannot be used, "
+			"trying to use /proc/kallsyms...", self->long_name);
+		sleep(2);
+do_kallsyms:
 		err = kernel_maps__load_kallsyms(filter);
-		if (err > 0)
+		if (err > 0 && !is_kallsyms)
                         dso__set_long_name(self, strdup("[kernel.kallsyms]"));
 	}
 
 	if (err > 0) {
+out_fixup:
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
@@ -1403,9 +1433,7 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 }
 
 LIST_HEAD(dsos);
-struct dso	*vdso;
-
-const char	*vmlinux_name = "vmlinux";
+struct dso *vdso;
 
 static void dsos__add(struct dso *dso)
 {
@@ -1457,9 +1485,9 @@ size_t dsos__fprintf_buildid(FILE *fp)
 	return ret;
 }
 
-static int kernel_maps__create_kernel_map(void)
+static int kernel_maps__create_kernel_map(const char *vmlinux_name)
 {
-	struct dso *kernel = dso__new(vmlinux_name);
+	struct dso *kernel = dso__new(vmlinux_name ?: "[kernel.kallsyms]");
 
 	if (kernel == NULL)
 		return -1;
@@ -1468,10 +1496,10 @@ static int kernel_maps__create_kernel_map(void)
 	if (kernel_map == NULL)
 		goto out_delete_kernel_dso;
 
-	kernel_map->map_ip = kernel_map->unmap_ip = identity__map_ip;
+	kernel_map->map_ip	 = kernel_map->unmap_ip = identity__map_ip;
+	kernel->short_name	 = "[kernel]";
+	kernel->kernel		 = 1;
 
-	kernel->short_name = "[kernel]";
-	kernel->kernel = 1;
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
 		goto out_delete_kernel_map;
@@ -1494,10 +1522,71 @@ out_delete_kernel_dso:
 	return -1;
 }
 
-int kernel_maps__init(bool use_modules)
+static void vmlinux_path__exit(void)
 {
-	if (kernel_maps__create_kernel_map() < 0)
+	while (--vmlinux_path__nr_entries >= 0) {
+		free(vmlinux_path[vmlinux_path__nr_entries]);
+		vmlinux_path[vmlinux_path__nr_entries] = NULL;
+	}
+
+	free(vmlinux_path);
+	vmlinux_path = NULL;
+}
+
+static int vmlinux_path__init(void)
+{
+	struct utsname uts;
+	char bf[PATH_MAX];
+
+	if (uname(&uts) < 0)
 		return -1;
+
+	vmlinux_path = malloc(sizeof(char *) * 5);
+	if (vmlinux_path == NULL)
+		return -1;
+
+	vmlinux_path[vmlinux_path__nr_entries] = strdup("vmlinux");
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+	++vmlinux_path__nr_entries;
+	vmlinux_path[vmlinux_path__nr_entries] = strdup("/boot/vmlinux");
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+	++vmlinux_path__nr_entries;
+	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", uts.release);
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+	++vmlinux_path__nr_entries;
+	snprintf(bf, sizeof(bf), "/lib/modules/%s/build/vmlinux", uts.release);
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+	++vmlinux_path__nr_entries;
+	snprintf(bf, sizeof(bf), "/usr/lib/debug/lib/modules/%s/vmlinux",
+		 uts.release);
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+	++vmlinux_path__nr_entries;
+
+	return 0;
+
+out_fail:
+	vmlinux_path__exit();
+	return -1;
+}
+
+int kernel_maps__init(const char *vmlinux_name, bool try_vmlinux_path,
+		      bool use_modules)
+{
+	if (try_vmlinux_path && vmlinux_path__init() < 0)
+		return -1;
+
+	if (kernel_maps__create_kernel_map(vmlinux_name) < 0) {
+		vmlinux_path__exit();
+		return -1;
+	}
 
 	if (use_modules && kernel_maps__create_module_maps() < 0)
 		pr_debug("Failed to load list of modules in use, "
