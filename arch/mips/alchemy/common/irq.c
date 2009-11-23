@@ -51,8 +51,9 @@ struct au1xxx_irqmap {
 	int im_irq;
 	int im_type;
 	int im_request;		/* set 1 to get higher priority */
-} au1xxx_ic0_map[] __initdata = {
-#if defined(CONFIG_SOC_AU1000)
+};
+
+struct au1xxx_irqmap au1000_irqmap[] __initdata = {
 	{ AU1000_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1000_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1000_UART2_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
@@ -84,9 +85,10 @@ struct au1xxx_irqmap {
 	{ AU1000_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1000_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1000_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-#elif defined(CONFIG_SOC_AU1500)
-
+struct au1xxx_irqmap au1500_irqmap[] __initdata = {
 	{ AU1500_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1500_PCI_INTA,	  IRQ_TYPE_LEVEL_LOW,   0 },
 	{ AU1500_PCI_INTB,	  IRQ_TYPE_LEVEL_LOW,   0 },
@@ -116,9 +118,10 @@ struct au1xxx_irqmap {
 	{ AU1500_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1500_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1500_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-#elif defined(CONFIG_SOC_AU1100)
-
+struct au1xxx_irqmap au1100_irqmap[] __initdata = {
 	{ AU1100_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1100_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1100_SD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
@@ -150,9 +153,10 @@ struct au1xxx_irqmap {
 	{ AU1100_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1100_LCD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1100_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-#elif defined(CONFIG_SOC_AU1550)
-
+struct au1xxx_irqmap au1550_irqmap[] __initdata = {
 	{ AU1550_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1550_PCI_INTA,	  IRQ_TYPE_LEVEL_LOW,   0 },
 	{ AU1550_PCI_INTB,	  IRQ_TYPE_LEVEL_LOW,   0 },
@@ -181,9 +185,10 @@ struct au1xxx_irqmap {
 	{ AU1550_USB_HOST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
 	{ AU1550_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1550_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ -1, },
+};
 
-#elif defined(CONFIG_SOC_AU1200)
-
+struct au1xxx_irqmap au1200_irqmap[] __initdata = {
 	{ AU1200_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1200_SWT_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
 	{ AU1200_SD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
@@ -207,10 +212,7 @@ struct au1xxx_irqmap {
 	{ AU1200_USB_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1200_LCD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
 	{ AU1200_MAE_BOTH_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
-
-#else
-#error "Error: Unknown Alchemy SOC"
-#endif
+	{ -1, },
 };
 
 
@@ -547,36 +549,9 @@ handle:
 	do_IRQ(off);
 }
 
-/* setup edge/level and assign request 0/1 */
-static void __init setup_irqmap(struct au1xxx_irqmap *map, int count)
+static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 {
 	unsigned int bit, irq_nr;
-
-	while (count--) {
-		irq_nr = map[count].im_irq;
-
-		if (((irq_nr < AU1000_INTC0_INT_BASE) ||
-		     (irq_nr >= AU1000_INTC0_INT_BASE + 32)) &&
-		    ((irq_nr < AU1000_INTC1_INT_BASE) ||
-		     (irq_nr >= AU1000_INTC1_INT_BASE + 32)))
-			continue;
-
-		if (irq_nr >= AU1000_INTC1_INT_BASE) {
-			bit = irq_nr - AU1000_INTC1_INT_BASE;
-			if (map[count].im_request)
-				au_writel(1 << bit, IC1_ASSIGNSET);
-		} else {
-			bit = irq_nr - AU1000_INTC0_INT_BASE;
-			if (map[count].im_request)
-				au_writel(1 << bit, IC0_ASSIGNSET);
-		}
-
-		au1x_ic_settype(irq_nr, map[count].im_type);
-	}
-}
-
-void __init arch_init_irq(void)
-{
 	int i;
 
 	/*
@@ -620,7 +595,43 @@ void __init arch_init_irq(void)
 	/*
 	 * Initialize IC0, which is fixed per processor.
 	 */
-	setup_irqmap(au1xxx_ic0_map, ARRAY_SIZE(au1xxx_ic0_map));
+	while (map->im_irq != -1) {
+		irq_nr = map->im_irq;
+
+		if (irq_nr >= AU1000_INTC1_INT_BASE) {
+			bit = irq_nr - AU1000_INTC1_INT_BASE;
+			if (map->im_request)
+				au_writel(1 << bit, IC1_ASSIGNSET);
+		} else {
+			bit = irq_nr - AU1000_INTC0_INT_BASE;
+			if (map->im_request)
+				au_writel(1 << bit, IC0_ASSIGNSET);
+		}
+
+		au1x_ic_settype(irq_nr, map->im_type);
+		++map;
+	}
 
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
+}
+
+void __init arch_init_irq(void)
+{
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		au1000_init_irq(au1000_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1500:
+		au1000_init_irq(au1500_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1100:
+		au1000_init_irq(au1100_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1550:
+		au1000_init_irq(au1550_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1200:
+		au1000_init_irq(au1200_irqmap);
+		break;
+	}
 }
