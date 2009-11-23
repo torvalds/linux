@@ -83,9 +83,9 @@
 #define PMA_PMD_LED_FLASH	(3)
 #define PMA_PMD_LED_MASK	3
 /* All LEDs under hardware control */
-#define PMA_PMD_LED_FULL_AUTO	(0)
+#define SFT9001_PMA_PMD_LED_DEFAULT 0
 /* Green and Amber under hardware control, Red off */
-#define PMA_PMD_LED_DEFAULT	(PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN)
+#define SFX7101_PMA_PMD_LED_DEFAULT (PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN)
 
 #define PMA_PMD_SPEED_ENABLE_REG 49192
 #define PMA_PMD_100TX_ADV_LBN    1
@@ -291,7 +291,7 @@ static int tenxpress_init(struct efx_nic *efx)
 		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_CTRL_REG,
 				  1 << PMA_PMA_LED_ACTIVITY_LBN, true);
 		efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG,
-			       PMA_PMD_LED_DEFAULT);
+			       SFX7101_PMA_PMD_LED_DEFAULT);
 	}
 
 	return 0;
@@ -624,7 +624,10 @@ void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 			(PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN) |
 			(PMA_PMD_LED_FLASH << PMA_PMD_LED_LINK_LBN);
 	else
-		reg = PMA_PMD_LED_DEFAULT;
+		if (efx->phy_type == PHY_TYPE_SFX7101)
+			reg = SFX7101_PMA_PMD_LED_DEFAULT;
+		else
+			reg = SFT9001_PMA_PMD_LED_DEFAULT;
 
 	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG, reg);
 }
