@@ -77,12 +77,14 @@ static int
 mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 		      struct ext4_extent **extent)
 {
+	struct ext4_extent_header *eh;
 	int ppos, leaf_ppos = path->p_depth;
 
 	ppos = leaf_ppos;
 	if (EXT_LAST_EXTENT(path[ppos].p_hdr) > path[ppos].p_ext) {
 		/* leaf block */
 		*extent = ++path[ppos].p_ext;
+		path[ppos].p_block = ext_pblock(path[ppos].p_ext);
 		return 0;
 	}
 
@@ -119,9 +121,18 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 					ext_block_hdr(path[cur_ppos+1].p_bh);
 			}
 
+			path[leaf_ppos].p_ext = *extent = NULL;
+
+			eh = path[leaf_ppos].p_hdr;
+			if (le16_to_cpu(eh->eh_entries) == 0)
+				/* empty leaf is found */
+				return -ENODATA;
+
 			/* leaf block */
 			path[leaf_ppos].p_ext = *extent =
 				EXT_FIRST_EXTENT(path[leaf_ppos].p_hdr);
+			path[leaf_ppos].p_block =
+					ext_pblock(path[leaf_ppos].p_ext);
 			return 0;
 		}
 	}
@@ -155,40 +166,15 @@ mext_check_null_inode(struct inode *inode1, struct inode *inode2,
 }
 
 /**
- * mext_double_down_read - Acquire two inodes' read semaphore
+ * double_down_write_data_sem - Acquire two inodes' write lock of i_data_sem
  *
  * @orig_inode:		original inode structure
  * @donor_inode:	donor inode structure
- * Acquire read semaphore of the two inodes (orig and donor) by i_ino order.
+ * Acquire write lock of i_data_sem of the two inodes (orig and donor) by
+ * i_ino order.
  */
 static void
-mext_double_down_read(struct inode *orig_inode, struct inode *donor_inode)
-{
-	struct inode *first = orig_inode, *second = donor_inode;
-
-	/*
-	 * Use the inode number to provide the stable locking order instead
-	 * of its address, because the C language doesn't guarantee you can
-	 * compare pointers that don't come from the same array.
-	 */
-	if (donor_inode->i_ino < orig_inode->i_ino) {
-		first = donor_inode;
-		second = orig_inode;
-	}
-
-	down_read(&EXT4_I(first)->i_data_sem);
-	down_read(&EXT4_I(second)->i_data_sem);
-}
-
-/**
- * mext_double_down_write - Acquire two inodes' write semaphore
- *
- * @orig_inode:		original inode structure
- * @donor_inode:	donor inode structure
- * Acquire write semaphore of the two inodes (orig and donor) by i_ino order.
- */
-static void
-mext_double_down_write(struct inode *orig_inode, struct inode *donor_inode)
+double_down_write_data_sem(struct inode *orig_inode, struct inode *donor_inode)
 {
 	struct inode *first = orig_inode, *second = donor_inode;
 
@@ -207,28 +193,14 @@ mext_double_down_write(struct inode *orig_inode, struct inode *donor_inode)
 }
 
 /**
- * mext_double_up_read - Release two inodes' read semaphore
+ * double_up_write_data_sem - Release two inodes' write lock of i_data_sem
  *
  * @orig_inode:		original inode structure to be released its lock first
  * @donor_inode:	donor inode structure to be released its lock second
- * Release read semaphore of two inodes (orig and donor).
+ * Release write lock of i_data_sem of two inodes (orig and donor).
  */
 static void
-mext_double_up_read(struct inode *orig_inode, struct inode *donor_inode)
-{
-	up_read(&EXT4_I(orig_inode)->i_data_sem);
-	up_read(&EXT4_I(donor_inode)->i_data_sem);
-}
-
-/**
- * mext_double_up_write - Release two inodes' write semaphore
- *
- * @orig_inode:		original inode structure to be released its lock first
- * @donor_inode:	donor inode structure to be released its lock second
- * Release write semaphore of two inodes (orig and donor).
- */
-static void
-mext_double_up_write(struct inode *orig_inode, struct inode *donor_inode)
+double_up_write_data_sem(struct inode *orig_inode, struct inode *donor_inode)
 {
 	up_write(&EXT4_I(orig_inode)->i_data_sem);
 	up_write(&EXT4_I(donor_inode)->i_data_sem);
@@ -688,8 +660,6 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	int replaced_count = 0;
 	int dext_alen;
 
-	mext_double_down_write(orig_inode, donor_inode);
-
 	/* Get the original extent for the block "orig_off" */
 	*err = get_ext_path(orig_inode, orig_off, &orig_path);
 	if (*err)
@@ -785,7 +755,6 @@ out:
 		kfree(donor_path);
 	}
 
-	mext_double_up_write(orig_inode, donor_inode);
 	return replaced_count;
 }
 
@@ -851,6 +820,11 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	 * Just swap data blocks between orig and donor.
 	 */
 	if (uninit) {
+		/*
+		 * Protect extent trees against block allocations
+		 * via delalloc
+		 */
+		double_down_write_data_sem(orig_inode, donor_inode);
 		replaced_count = mext_replace_branches(handle, orig_inode,
 						donor_inode, orig_blk_offset,
 						block_len_in_page, err);
@@ -858,6 +832,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		/* Clear the inode cache not to refer to the old data */
 		ext4_ext_invalidate_cache(orig_inode);
 		ext4_ext_invalidate_cache(donor_inode);
+		double_up_write_data_sem(orig_inode, donor_inode);
 		goto out2;
 	}
 
@@ -905,6 +880,8 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	/* Release old bh and drop refs */
 	try_to_release_page(page, 0);
 
+	/* Protect extent trees against block allocations via delalloc */
+	double_down_write_data_sem(orig_inode, donor_inode);
 	replaced_count = mext_replace_branches(handle, orig_inode, donor_inode,
 					orig_blk_offset, block_len_in_page,
 					&err2);
@@ -913,13 +890,17 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 			block_len_in_page = replaced_count;
 			replaced_size =
 				block_len_in_page << orig_inode->i_blkbits;
-		} else
+		} else {
+			double_up_write_data_sem(orig_inode, donor_inode);
 			goto out;
+		}
 	}
 
 	/* Clear the inode cache not to refer to the old data */
 	ext4_ext_invalidate_cache(orig_inode);
 	ext4_ext_invalidate_cache(donor_inode);
+
+	double_up_write_data_sem(orig_inode, donor_inode);
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << orig_inode->i_blkbits, 0);
@@ -1236,16 +1217,16 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		return -EINVAL;
 	}
 
-	/* protect orig and donor against a truncate */
+	/* Protect orig and donor inodes against a truncate */
 	ret1 = mext_inode_double_lock(orig_inode, donor_inode);
 	if (ret1 < 0)
 		return ret1;
 
-	mext_double_down_read(orig_inode, donor_inode);
+	/* Protect extent tree against block allocations via delalloc */
+	double_down_write_data_sem(orig_inode, donor_inode);
 	/* Check the filesystem environment whether move_extent can be done */
 	ret1 = mext_check_arguments(orig_inode, donor_inode, orig_start,
 					donor_start, &len, *moved_len);
-	mext_double_up_read(orig_inode, donor_inode);
 	if (ret1)
 		goto out;
 
@@ -1308,6 +1289,10 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			 ext4_ext_get_actual_len(ext_cur), block_end + 1) -
 		     max(le32_to_cpu(ext_cur->ee_block), block_start);
 
+	/* Discard preallocations of two inodes */
+	ext4_discard_preallocations(orig_inode);
+	ext4_discard_preallocations(donor_inode);
+
 	while (!last_extent && le32_to_cpu(ext_cur->ee_block) <= block_end) {
 		seq_blocks += add_blocks;
 
@@ -1359,14 +1344,14 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		seq_start = le32_to_cpu(ext_cur->ee_block);
 		rest_blocks = seq_blocks;
 
-		/* Discard preallocations of two inodes */
-		down_write(&EXT4_I(orig_inode)->i_data_sem);
-		ext4_discard_preallocations(orig_inode);
-		up_write(&EXT4_I(orig_inode)->i_data_sem);
-
-		down_write(&EXT4_I(donor_inode)->i_data_sem);
-		ext4_discard_preallocations(donor_inode);
-		up_write(&EXT4_I(donor_inode)->i_data_sem);
+		/*
+		 * Up semaphore to avoid following problems:
+		 * a. transaction deadlock among ext4_journal_start,
+		 *    ->write_begin via pagefault, and jbd2_journal_commit
+		 * b. racing with ->readpage, ->write_begin, and ext4_get_block
+		 *    in move_extent_per_page
+		 */
+		double_up_write_data_sem(orig_inode, donor_inode);
 
 		while (orig_page_offset <= seq_end_page) {
 
@@ -1381,14 +1366,14 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			/* Count how many blocks we have exchanged */
 			*moved_len += block_len_in_page;
 			if (ret1 < 0)
-				goto out;
+				break;
 			if (*moved_len > len) {
 				ext4_error(orig_inode->i_sb, __func__,
 					"We replaced blocks too much! "
 					"sum of replaced: %llu requested: %llu",
 					*moved_len, len);
 				ret1 = -EIO;
-				goto out;
+				break;
 			}
 
 			orig_page_offset++;
@@ -1399,6 +1384,10 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			else
 				block_len_in_page = rest_blocks;
 		}
+
+		double_down_write_data_sem(orig_inode, donor_inode);
+		if (ret1 < 0)
+			break;
 
 		/* Decrease buffer counter */
 		if (holecheck_path)
@@ -1429,7 +1418,7 @@ out:
 		ext4_ext_drop_refs(holecheck_path);
 		kfree(holecheck_path);
 	}
-
+	double_up_write_data_sem(orig_inode, donor_inode);
 	ret2 = mext_inode_double_unlock(orig_inode, donor_inode);
 
 	if (ret1)
