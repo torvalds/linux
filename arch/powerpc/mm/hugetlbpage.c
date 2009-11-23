@@ -436,18 +436,27 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
 	return 1;
 }
 
+static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
+				      unsigned long sz)
+{
+	unsigned long __boundary = (addr + sz) & ~(sz-1);
+	return (__boundary - 1 < end - 1) ? __boundary : end;
+}
+
 int gup_hugepd(hugepd_t *hugepd, unsigned pdshift,
 	       unsigned long addr, unsigned long end,
 	       int write, struct page **pages, int *nr)
 {
 	pte_t *ptep;
 	unsigned long sz = 1UL << hugepd_shift(*hugepd);
+	unsigned long next;
 
 	ptep = hugepte_offset(hugepd, addr, pdshift);
 	do {
+		next = hugepte_addr_end(addr, end, sz);
 		if (!gup_hugepte(ptep, sz, addr, end, write, pages, nr))
 			return 0;
-	} while (ptep++, addr += sz, addr != end);
+	} while (ptep++, addr = next, addr != end);
 
 	return 1;
 }
