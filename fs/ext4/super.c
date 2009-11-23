@@ -1673,13 +1673,13 @@ static int ext4_fill_flex_info(struct super_block *sb)
 	size_t size;
 	int i;
 
-	if (!sbi->s_es->s_log_groups_per_flex) {
+	sbi->s_log_groups_per_flex = sbi->s_es->s_log_groups_per_flex;
+	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
+
+	if (groups_per_flex < 2) {
 		sbi->s_log_groups_per_flex = 0;
 		return 1;
 	}
-
-	sbi->s_log_groups_per_flex = sbi->s_es->s_log_groups_per_flex;
-	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
 
 	/* We allocate both existing and potentially added groups */
 	flex_group_count = ((sbi->s_groups_count + groups_per_flex - 1) +
