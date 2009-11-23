@@ -17,7 +17,6 @@ struct ep93xx_eth_data
 
 void ep93xx_map_io(void);
 void ep93xx_init_irq(void);
-void ep93xx_init_time(unsigned long);
 
 /* EP93xx System Controller software locked register write */
 void ep93xx_syscon_swlocked_write(unsigned int val, void __iomem *reg);

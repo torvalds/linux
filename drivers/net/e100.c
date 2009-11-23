@@ -1427,18 +1427,30 @@ static int e100_phy_init(struct nic *nic)
 	} else
 		DPRINTK(HW, DEBUG, "phy_addr = %d\n", nic->mii.phy_id);
 
-	/* Isolate all the PHY ids */
-	for (addr = 0; addr < 32; addr++)
-		mdio_write(netdev, addr, MII_BMCR, BMCR_ISOLATE);
-	/* Select the discovered PHY */
-	bmcr &= ~BMCR_ISOLATE;
-	mdio_write(netdev, nic->mii.phy_id, MII_BMCR, bmcr);
-
 	/* Get phy ID */
 	id_lo = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID1);
 	id_hi = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID2);
 	nic->phy = (u32)id_hi << 16 | (u32)id_lo;
 	DPRINTK(HW, DEBUG, "phy ID = 0x%08X\n", nic->phy);
+
+	/* Select the phy and isolate the rest */
+	for (addr = 0; addr < 32; addr++) {
+		if (addr != nic->mii.phy_id) {
+			mdio_write(netdev, addr, MII_BMCR, BMCR_ISOLATE);
+		} else if (nic->phy != phy_82552_v) {
+			bmcr = mdio_read(netdev, addr, MII_BMCR);
+			mdio_write(netdev, addr, MII_BMCR,
+				bmcr & ~BMCR_ISOLATE);
+		}
+	}
+	/*
+	 * Workaround for 82552:
+	 * Clear the ISOLATE bit on selected phy_id last (mirrored on all
+	 * other phy_id's) using bmcr value from addr discovery loop above.
+	 */
+	if (nic->phy == phy_82552_v)
+		mdio_write(netdev, nic->mii.phy_id, MII_BMCR,
+			bmcr & ~BMCR_ISOLATE);
 
 	/* Handle National tx phys */
 #define NCS_PHY_MODEL_MASK	0xFFF0FFFF

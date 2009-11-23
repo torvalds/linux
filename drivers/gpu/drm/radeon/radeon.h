@@ -139,6 +139,10 @@ struct radeon_clock {
 	uint32_t default_sclk;
 };
 
+/*
+ * Power management
+ */
+int radeon_pm_init(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -275,6 +279,8 @@ union radeon_gart_table {
 	struct radeon_gart_table_ram	ram;
 	struct radeon_gart_table_vram	vram;
 };
+
+#define RADEON_GPU_PAGE_SIZE 4096
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
@@ -621,7 +627,9 @@ struct radeon_asic {
 		    uint64_t dst_offset,
 		    unsigned num_pages,
 		    struct radeon_fence *fence);
+	uint32_t (*get_engine_clock)(struct radeon_device *rdev);
 	void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
+	uint32_t (*get_memory_clock)(struct radeon_device *rdev);
 	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
 	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
@@ -783,6 +791,7 @@ struct radeon_device {
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	struct r600_blit r600_blit;
+	int msi_enabled; /* msi enabled */
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -952,7 +961,9 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy_blit((rdev), (s), (d), (np), (f))
 #define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy_dma((rdev), (s), (d), (np), (f))
 #define radeon_copy(rdev, s, d, np, f) (rdev)->asic->copy((rdev), (s), (d), (np), (f))
+#define radeon_get_engine_clock(rdev) (rdev)->asic->get_engine_clock((rdev))
 #define radeon_set_engine_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
+#define radeon_get_memory_clock(rdev) (rdev)->asic->get_memory_clock((rdev))
 #define radeon_set_memory_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))

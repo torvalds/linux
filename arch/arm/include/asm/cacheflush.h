@@ -414,9 +414,14 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 
 static inline void __flush_icache_all(void)
 {
+#ifdef CONFIG_ARM_ERRATA_411920
+	extern void v6_icache_inval_all(void);
+	v6_icache_inval_all();
+#else
 	asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
 	    :
 	    : "r" (0));
+#endif
 }
 
 #define ARCH_HAS_FLUSH_ANON_PAGE

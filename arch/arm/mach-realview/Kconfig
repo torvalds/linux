@@ -70,6 +70,8 @@ config MACH_REALVIEW_PBX
 	bool "Support RealView/PBX platform"
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
+	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !HIGH_PHYS_OFFSET
+	select ZONE_DMA if SPARSEMEM
 	help
 	  Include support for the ARM(R) RealView PBX platform.
 
@@ -82,6 +84,7 @@ config REALVIEW_HIGH_PHYS_OFFSET
 	  0x70000000, 256MB of which being mirrored at 0x00000000. If
 	  the board supports 512MB of RAM, this option allows the
 	  memory to be accessed contiguously at the high physical
-	  offset.
+	  offset. On the PBX board, disabling this option allows 1GB of
+	  RAM to be used with SPARSEMEM.
 
 endmenu

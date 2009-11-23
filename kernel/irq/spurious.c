@@ -121,7 +121,9 @@ static void poll_all_shared_irqs(void)
 		if (!(status & IRQ_SPURIOUS_DISABLED))
 			continue;
 
+		local_irq_disable();
 		try_one_irq(i, desc);
+		local_irq_enable();
 	}
 }
 

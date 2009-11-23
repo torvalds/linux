@@ -704,7 +704,7 @@ static int __init fb_probe(struct platform_device *device)
 
 	if (i == ARRAY_SIZE(known_lcd_panels)) {
 		dev_err(&device->dev, "GLCD: No valid panel found\n");
-		ret = ENODEV;
+		ret = -ENODEV;
 		goto err_clk_disable;
 	} else
 		dev_info(&device->dev, "GLCD: Found %s panel\n",

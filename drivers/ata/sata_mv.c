@@ -1382,6 +1382,25 @@ static int mv_qc_defer(struct ata_queued_cmd *qc)
 	 */
 	if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH)
 		return ATA_DEFER_PORT;
+
+	/* PIO commands need exclusive link: no other commands [DMA or PIO]
+	 * can run concurrently.
+	 * set excl_link when we want to send a PIO command in DMA mode
+	 * or a non-NCQ command in NCQ mode.
+	 * When we receive a command from that link, and there are no
+	 * outstanding commands, mark a flag to clear excl_link and let
+	 * the command go through.
+	 */
+	if (unlikely(ap->excl_link)) {
+		if (link == ap->excl_link) {
+			if (ap->nr_active_links)
+				return ATA_DEFER_PORT;
+			qc->flags |= ATA_QCFLAG_CLEAR_EXCL;
+			return 0;
+		} else
+			return ATA_DEFER_PORT;
+	}
+
 	/*
 	 * If the port is completely idle, then allow the new qc.
 	 */
@@ -1395,8 +1414,14 @@ static int mv_qc_defer(struct ata_queued_cmd *qc)
 	 * doesn't allow it.
 	 */
 	if ((pp->pp_flags & MV_PP_FLAG_EDMA_EN) &&
-	    (pp->pp_flags & MV_PP_FLAG_NCQ_EN) && ata_is_ncq(qc->tf.protocol))
-		return 0;
+	    (pp->pp_flags & MV_PP_FLAG_NCQ_EN)) {
+		if (ata_is_ncq(qc->tf.protocol))
+			return 0;
+		else {
+			ap->excl_link = link;
+			return ATA_DEFER_PORT;
+		}
+	}
 
 	return ATA_DEFER_PORT;
 }

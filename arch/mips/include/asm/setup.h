@@ -1,7 +1,7 @@
 #ifndef _MIPS_SETUP_H
 #define _MIPS_SETUP_H
 
-#define COMMAND_LINE_SIZE	256
+#define COMMAND_LINE_SIZE	4096
 
 #ifdef  __KERNEL__
 extern void setup_early_printk(void);

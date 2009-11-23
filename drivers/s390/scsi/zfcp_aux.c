@@ -128,12 +128,13 @@ out_ccwdev:
 static void __init zfcp_init_device_setup(char *devstr)
 {
 	char *token;
-	char *str;
+	char *str, *str_saved;
 	char busid[ZFCP_BUS_ID_SIZE];
 	u64 wwpn, lun;
 
 	/* duplicate devstr and keep the original for sysfs presentation*/
-	str = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str_saved = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str = str_saved;
 	if (!str)
 		return;
 
@@ -152,12 +153,12 @@ static void __init zfcp_init_device_setup(char *devstr)
 	if (!token || strict_strtoull(token, 0, (unsigned long long *) &lun))
 		goto err_out;
 
-	kfree(str);
+	kfree(str_saved);
 	zfcp_init_device_configure(busid, wwpn, lun);
 	return;
 
- err_out:
-	kfree(str);
+err_out:
+	kfree(str_saved);
 	pr_err("%s is not a valid SCSI device\n", devstr);
 }
 

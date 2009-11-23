@@ -1919,6 +1919,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 
 request_reset:
 	adapter->need_fw_reset = 1;
+	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)

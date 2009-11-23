@@ -836,17 +836,32 @@ static int i8042_controller_selftest(void)
 static int i8042_controller_init(void)
 {
 	unsigned long flags;
+	int n = 0;
+	unsigned char ctr[2];
 
 /*
- * Save the CTR for restoral on unload / reboot.
+ * Save the CTR for restore on unload / reboot.
  */
 
-	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_RCTR)) {
-		printk(KERN_ERR "i8042.c: Can't read CTR while initializing i8042.\n");
-		return -EIO;
-	}
+	do {
+		if (n >= 10) {
+			printk(KERN_ERR
+				"i8042.c: Unable to get stable CTR read.\n");
+			return -EIO;
+		}
 
-	i8042_initial_ctr = i8042_ctr;
+		if (n != 0)
+			udelay(50);
+
+		if (i8042_command(&ctr[n++ % 2], I8042_CMD_CTL_RCTR)) {
+			printk(KERN_ERR
+				"i8042.c: Can't read CTR while initializing i8042.\n");
+			return -EIO;
+		}
+
+	} while (n < 2 || ctr[0] != ctr[1]);
+
+	i8042_initial_ctr = i8042_ctr = ctr[0];
 
 /*
  * Disable the keyboard interface and interrupt.
@@ -895,6 +910,12 @@ static int i8042_controller_init(void)
 		return -EIO;
 	}
 
+/*
+ * Flush whatever accumulated while we were disabling keyboard port.
+ */
+
+	i8042_flush();
+
 	return 0;
 }
 
@@ -914,7 +935,7 @@ static void i8042_controller_reset(void)
 	i8042_ctr |= I8042_CTR_KBDDIS | I8042_CTR_AUXDIS;
 	i8042_ctr &= ~(I8042_CTR_KBDINT | I8042_CTR_AUXINT);
 
-	if (i8042_command(&i8042_initial_ctr, I8042_CMD_CTL_WCTR))
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
 		printk(KERN_WARNING "i8042.c: Can't write CTR while resetting.\n");
 
 /*

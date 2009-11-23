@@ -306,24 +306,25 @@ EXPORT_SYMBOL_GPL(rpc_sockaddr2uaddr);
  * @sap: buffer into which to plant socket address
  * @salen: size of buffer
  *
+ * @uaddr does not have to be '\0'-terminated, but strict_strtoul() and
+ * rpc_pton() require proper string termination to be successful.
+ *
  * Returns the size of the socket address if successful; otherwise
  * zero is returned.
  */
 size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 			  struct sockaddr *sap, const size_t salen)
 {
-	char *c, buf[RPCBIND_MAXUADDRLEN];
+	char *c, buf[RPCBIND_MAXUADDRLEN + sizeof('\0')];
 	unsigned long portlo, porthi;
 	unsigned short port;
 
-	if (uaddr_len > sizeof(buf))
+	if (uaddr_len > RPCBIND_MAXUADDRLEN)
 		return 0;
 
 	memcpy(buf, uaddr, uaddr_len);
 
-	buf[uaddr_len] = '\n';
-	buf[uaddr_len + 1] = '\0';
-
+	buf[uaddr_len] = '\0';
 	c = strrchr(buf, '.');
 	if (unlikely(c == NULL))
 		return 0;
@@ -332,9 +333,7 @@ size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 	if (unlikely(portlo > 255))
 		return 0;
 
-	c[0] = '\n';
-	c[1] = '\0';
-
+	*c = '\0';
 	c = strrchr(buf, '.');
 	if (unlikely(c == NULL))
 		return 0;
@@ -345,8 +344,7 @@ size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 
 	port = (unsigned short)((porthi << 8) | portlo);
 
-	c[0] = '\0';
-
+	*c = '\0';
 	if (rpc_pton(buf, strlen(buf), sap, salen) == 0)
 		return 0;
 

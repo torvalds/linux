@@ -16,7 +16,7 @@
 #ifndef __ASM_PLAT_MFP_H
 #define __ASM_PLAT_MFP_H
 
-#define mfp_to_gpio(m)	((m) % 128)
+#define mfp_to_gpio(m)	((m) % 256)
 
 /* list of all the configurable MFP pins */
 enum {
