@@ -162,10 +162,10 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 	skb_trim(skb, frame_length);
 }
 
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_lengt)
+void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
 {
 	unsigned int frame_length = skb->len;
-	unsigned int align = ALIGN_SIZE(skb, header_lengt);
+	unsigned int align = ALIGN_SIZE(skb, header_length);
 
 	if (!align)
 		return;
