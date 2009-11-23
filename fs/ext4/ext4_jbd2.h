@@ -139,6 +139,10 @@ int __ext4_journal_forget(const char *where, handle_t *handle,
 int __ext4_journal_revoke(const char *where, handle_t *handle,
 				ext4_fsblk_t blocknr, struct buffer_head *bh);
 
+int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
+		  struct inode *inode, struct buffer_head *bh,
+		  ext4_fsblk_t blocknr);
+
 int __ext4_journal_get_create_access(const char *where,
 				handle_t *handle, struct buffer_head *bh);
 
@@ -151,6 +155,9 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 	__ext4_journal_get_write_access(__func__, (handle), (bh))
 #define ext4_journal_revoke(handle, blocknr, bh) \
 	__ext4_journal_revoke(__func__, (handle), (blocknr), (bh))
+#define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
+	__ext4_forget(__func__, (handle), (is_metadata), (inode), (bh),\
+		      (block_nr))
 #define ext4_journal_get_create_access(handle, bh) \
 	__ext4_journal_get_create_access(__func__, (handle), (bh))
 #define ext4_journal_forget(handle, bh) \
