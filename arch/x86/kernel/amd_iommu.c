@@ -2047,10 +2047,10 @@ static void prealloc_protection_domains(void)
 	struct pci_dev *dev = NULL;
 	struct dma_ops_domain *dma_dom;
 	struct amd_iommu *iommu;
-	u16 devid;
+	u16 devid, __devid;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		devid = calc_devid(dev->bus->number, dev->devfn);
+		__devid = devid = calc_devid(dev->bus->number, dev->devfn);
 		if (devid > amd_iommu_last_bdf)
 			continue;
 		devid = amd_iommu_alias_table[devid];
@@ -2064,6 +2064,10 @@ static void prealloc_protection_domains(void)
 			continue;
 		init_unity_mappings_for_device(dma_dom, devid);
 		dma_dom->target_dev = devid;
+
+		attach_device(iommu, &dma_dom->domain, devid);
+		if (__devid != devid)
+			attach_device(iommu, &dma_dom->domain, __devid);
 
 		list_add_tail(&dma_dom->list, &iommu_pd_list);
 	}
