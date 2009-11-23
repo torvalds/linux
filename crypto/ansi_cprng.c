@@ -357,14 +357,6 @@ static int cprng_get_random(struct crypto_rng *tfm, u8 *rdata,
 	return get_prng_bytes(rdata, dlen, prng, 0);
 }
 
-static int fips_cprng_get_random(struct crypto_rng *tfm, u8 *rdata,
-			    unsigned int dlen)
-{
-	struct prng_context *prng = crypto_rng_ctx(tfm);
-
-	return get_prng_bytes(rdata, dlen, prng, 1);
-}
-
 /*
  *  This is the cprng_registered reset method the seed value is
  *  interpreted as the tuple { V KEY DT}
@@ -390,26 +382,6 @@ static int cprng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 	return 0;
 }
 
-static int fips_cprng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
-{
-	u8 rdata[DEFAULT_BLK_SZ];
-	int rc;
-
-	struct prng_context *prng = crypto_rng_ctx(tfm);
-
-	rc = cprng_reset(tfm, seed, slen);
-
-	if (!rc)
-		goto out;
-
-	/* this primes our continuity test */
-	rc = get_prng_bytes(rdata, DEFAULT_BLK_SZ, prng, 0);
-	prng->rand_data_valid = DEFAULT_BLK_SZ;
-
-out:
-	return rc;
-}
-
 static struct crypto_alg rng_alg = {
 	.cra_name		= "stdrng",
 	.cra_driver_name	= "ansi_cprng",
@@ -431,6 +403,34 @@ static struct crypto_alg rng_alg = {
 };
 
 #ifdef CONFIG_CRYPTO_FIPS
+static int fips_cprng_get_random(struct crypto_rng *tfm, u8 *rdata,
+			    unsigned int dlen)
+{
+	struct prng_context *prng = crypto_rng_ctx(tfm);
+
+	return get_prng_bytes(rdata, dlen, prng, 1);
+}
+
+static int fips_cprng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
+{
+	u8 rdata[DEFAULT_BLK_SZ];
+	int rc;
+
+	struct prng_context *prng = crypto_rng_ctx(tfm);
+
+	rc = cprng_reset(tfm, seed, slen);
+
+	if (!rc)
+		goto out;
+
+	/* this primes our continuity test */
+	rc = get_prng_bytes(rdata, DEFAULT_BLK_SZ, prng, 0);
+	prng->rand_data_valid = DEFAULT_BLK_SZ;
+
+out:
+	return rc;
+}
+
 static struct crypto_alg fips_rng_alg = {
 	.cra_name		= "fips(ansi_cprng)",
 	.cra_driver_name	= "fips_ansi_cprng",
