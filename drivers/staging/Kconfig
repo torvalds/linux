@@ -145,5 +145,7 @@ source "drivers/staging/wavelan/Kconfig"
 
 source "drivers/staging/netwave/Kconfig"
 
+source "drivers/staging/sm7xx/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
