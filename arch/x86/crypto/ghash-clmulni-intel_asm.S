@@ -19,6 +19,8 @@
 #include <linux/linkage.h>
 #include <asm/inst.h>
 
+.data
+
 .align 16
 .Lbswap_mask:
 	.octa 0x000102030405060708090a0b0c0d0e0f
