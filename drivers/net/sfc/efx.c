@@ -21,9 +21,6 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include "net_driver.h"
-#include "ethtool.h"
-#include "tx.h"
-#include "rx.h"
 #include "efx.h"
 #include "mdio_10g.h"
 #include "falcon.h"

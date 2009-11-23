@@ -20,7 +20,6 @@
 #include <linux/rtnetlink.h>
 #include <asm/io.h>
 #include "net_driver.h"
-#include "ethtool.h"
 #include "efx.h"
 #include "falcon.h"
 #include "selftest.h"

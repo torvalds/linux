@@ -15,7 +15,6 @@
 #include <linux/if_ether.h>
 #include <linux/highmem.h>
 #include "net_driver.h"
-#include "tx.h"
 #include "efx.h"
 #include "falcon.h"
 #include "workarounds.h"

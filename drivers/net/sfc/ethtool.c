@@ -16,7 +16,6 @@
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
-#include "ethtool.h"
 #include "falcon.h"
 #include "spi.h"
 #include "mdio_10g.h"
