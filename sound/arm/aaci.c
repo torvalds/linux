@@ -18,10 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -534,7 +531,7 @@ static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 	struct aaci_runtime *aacirun = runtime->private_data;
 
 	aacirun->start	= (void *)runtime->dma_area;
-	aacirun->end	= aacirun->start + runtime->dma_bytes;
+	aacirun->end	= aacirun->start + snd_pcm_lib_buffer_bytes(substream);
 	aacirun->ptr	= aacirun->start;
 	aacirun->period	=
 	aacirun->bytes	= frames_to_bytes(runtime, runtime->period_size);
