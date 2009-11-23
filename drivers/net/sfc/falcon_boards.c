@@ -721,12 +721,21 @@ static struct falcon_board_data board_data[] = {
 	  sfn4112f_init },
 };
 
+static struct falcon_board falcon_dummy_board = {
+	.init		= efx_port_dummy_op_int,
+	.init_phy	= efx_port_dummy_op_void,
+	.set_id_led	= efx_port_dummy_op_set_id_led,
+	.monitor	= efx_port_dummy_op_int,
+	.fini		= efx_port_dummy_op_void,
+};
+
 void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 {
 	struct falcon_board *board = falcon_board(efx);
 	struct falcon_board_data *data = NULL;
 	int i;
 
+	*board = falcon_dummy_board;
 	board->type = FALCON_BOARD_TYPE(revision_info);
 	board->major = FALCON_BOARD_MAJOR(revision_info);
 	board->minor = FALCON_BOARD_MINOR(revision_info);

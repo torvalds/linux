@@ -394,31 +394,6 @@ enum efx_led_mode {
 	EFX_LED_DEFAULT	= 2
 };
 
-/**
- * struct falcon_board - board information
- * @type: Board model type
- * @major: Major rev. ('A', 'B' ...)
- * @minor: Minor rev. (0, 1, ...)
- * @init: Allocate resources and initialise peripheral hardware
- * @init_phy: Do board-specific PHY initialisation
- * @set_id_led: Set state of identifying LED or revert to automatic function
- * @monitor: Board-specific health check function
- * @fini: Shut down hardware and free resources
- * @hwmon_client: I2C client for hardware monitor
- * @ioexp_client: I2C client for power/port control
- */
-struct falcon_board {
-	int type;
-	int major;
-	int minor;
-	int (*init) (struct efx_nic *nic);
-	void (*init_phy) (struct efx_nic *efx);
-	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
-	int (*monitor) (struct efx_nic *nic);
-	void (*fini) (struct efx_nic *nic);
-	struct i2c_client *hwmon_client, *ioexp_client;
-};
-
 #define STRING_TABLE_LOOKUP(val, member)	\
 	member ## _names[val]
 
@@ -665,7 +640,6 @@ union efx_multicast_hash {
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @i2c_adap: I2C adapter
- * @board_info: Board-level information
  * @state: Device state flag. Serialised by the rtnl_lock.
  * @reset_pending: Pending reset method (normally RESET_TYPE_NONE)
  * @tx_queue: TX DMA queues
@@ -752,7 +726,6 @@ struct efx_nic {
 	unsigned int irq_rx_moderation;
 
 	struct i2c_adapter i2c_adap;
-	struct falcon_board board_info;
 
 	enum nic_state state;
 	enum reset_type reset_pending;

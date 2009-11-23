@@ -1878,7 +1878,7 @@ static struct pci_device_id efx_pci_table[] __devinitdata = {
 
 /**************************************************************************
  *
- * Dummy PHY/MAC/Board operations
+ * Dummy PHY/MAC operations
  *
  * Can be used for some unimplemented operations
  * Needed so all function pointers are valid and do not have to be tested
@@ -1906,14 +1906,6 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 	.poll		 = efx_port_dummy_op_void,
 	.fini		 = efx_port_dummy_op_void,
 	.clear_interrupt = efx_port_dummy_op_void,
-};
-
-static struct falcon_board efx_dummy_board_info = {
-	.init		= efx_port_dummy_op_int,
-	.init_phy	= efx_port_dummy_op_void,
-	.set_id_led	= efx_port_dummy_op_set_id_led,
-	.monitor	= efx_port_dummy_op_int,
-	.fini		= efx_port_dummy_op_void,
 };
 
 /**************************************************************************
@@ -1944,7 +1936,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->state = STATE_INIT;
 	efx->reset_pending = RESET_TYPE_NONE;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
-	efx->board_info = efx_dummy_board_info;
 
 	efx->net_dev = net_dev;
 	efx->rx_checksum_enabled = true;
