@@ -766,7 +766,7 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	ati_remote->interface = interface;
 
 	usb_make_path(udev, ati_remote->phys, sizeof(ati_remote->phys));
-	strlcpy(ati_remote->phys, "/input0", sizeof(ati_remote->phys));
+	strlcat(ati_remote->phys, "/input0", sizeof(ati_remote->phys));
 
 	if (udev->manufacturer)
 		strlcpy(ati_remote->name, udev->manufacturer, sizeof(ati_remote->name));
