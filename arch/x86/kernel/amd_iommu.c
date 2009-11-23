@@ -788,11 +788,11 @@ static u64 *fetch_pte(struct protection_domain *domain,
  * aperture in case of dma_ops domain allocation or address allocation
  * failure.
  */
-static int alloc_new_range(struct amd_iommu *iommu,
-			   struct dma_ops_domain *dma_dom,
+static int alloc_new_range(struct dma_ops_domain *dma_dom,
 			   bool populate, gfp_t gfp)
 {
 	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
+	struct amd_iommu *iommu;
 	int i;
 
 #ifdef CONFIG_IOMMU_STRESS
@@ -832,14 +832,17 @@ static int alloc_new_range(struct amd_iommu *iommu,
 	dma_dom->aperture_size += APERTURE_RANGE_SIZE;
 
 	/* Intialize the exclusion range if necessary */
-	if (iommu->exclusion_start &&
-	    iommu->exclusion_start >= dma_dom->aperture[index]->offset &&
-	    iommu->exclusion_start < dma_dom->aperture_size) {
-		unsigned long startpage = iommu->exclusion_start >> PAGE_SHIFT;
-		int pages = iommu_num_pages(iommu->exclusion_start,
-					    iommu->exclusion_length,
-					    PAGE_SIZE);
-		dma_ops_reserve_addresses(dma_dom, startpage, pages);
+	for_each_iommu(iommu) {
+		if (iommu->exclusion_start &&
+		    iommu->exclusion_start >= dma_dom->aperture[index]->offset
+		    && iommu->exclusion_start < dma_dom->aperture_size) {
+			unsigned long startpage;
+			int pages = iommu_num_pages(iommu->exclusion_start,
+						    iommu->exclusion_length,
+						    PAGE_SIZE);
+			startpage = iommu->exclusion_start >> PAGE_SHIFT;
+			dma_ops_reserve_addresses(dma_dom, startpage, pages);
+		}
 	}
 
 	/*
@@ -1143,7 +1146,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu)
 
 	add_domain_to_list(&dma_dom->domain);
 
-	if (alloc_new_range(iommu, dma_dom, true, GFP_KERNEL))
+	if (alloc_new_range(dma_dom, true, GFP_KERNEL))
 		goto free_dma_dom;
 
 	/*
@@ -1686,7 +1689,7 @@ retry:
 		 */
 		dma_dom->next_address = dma_dom->aperture_size;
 
-		if (alloc_new_range(iommu, dma_dom, false, GFP_ATOMIC))
+		if (alloc_new_range(dma_dom, false, GFP_ATOMIC))
 			goto out;
 
 		/*
