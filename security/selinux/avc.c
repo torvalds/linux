@@ -117,7 +117,7 @@ static void avc_dump_av(struct audit_buffer *ab, u16 tclass, u32 av)
 	i = 0;
 	perm = 1;
 	while (i < (sizeof(av) * 8)) {
-		if (perm & av) {
+		if ((perm & av) && perms[i]) {
 			audit_log_format(ab, " %s", perms[i]);
 			av &= ~perm;
 		}

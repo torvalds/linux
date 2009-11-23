@@ -239,6 +239,13 @@ static void map_decision(u16 tclass, struct av_decision *avd,
 			if (!allow_unknown && !current_mapping[tclass].perms[i])
 				result |= 1<<i;
 		}
+		/*
+		 * In case the kernel has a bug and requests a permission
+		 * between num_perms and the maximum permission number, we
+		 * should audit that denial
+		 */
+		for (; i < (sizeof(u32)*8); i++)
+			result |= 1<<i;
 		avd->auditdeny = result;
 	}
 }
