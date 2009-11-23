@@ -84,6 +84,9 @@
 #include <iconv.h>
 #endif
 
+extern const char *graph_line;
+extern const char *graph_dotted_line;
+
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
  */
