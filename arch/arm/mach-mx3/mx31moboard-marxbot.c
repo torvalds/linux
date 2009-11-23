@@ -25,11 +25,15 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
+#include <linux/usb/otg.h>
+
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/mmc.h>
+#include <mach/mxc_ehci.h>
+#include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
 
@@ -56,6 +60,12 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_STXD5__GPIO1_21, MX31_PIN_SRXD5__GPIO1_22,
 	/*battery detection */
 	MX31_PIN_LCS0__GPIO3_23,
+	/* USB H1 */
+	MX31_PIN_CSPI1_MISO__USBH1_RXDP, MX31_PIN_CSPI1_MOSI__USBH1_RXDM,
+	MX31_PIN_CSPI1_SS0__USBH1_TXDM, MX31_PIN_CSPI1_SS1__USBH1_TXDP,
+	MX31_PIN_CSPI1_SS2__USBH1_RCV, MX31_PIN_CSPI1_SCLK__USBH1_OEB,
+	MX31_PIN_CSPI1_SPI_RDY__USBH1_FS, MX31_PIN_SFS6__USBH1_SUSPEND,
+	MX31_PIN_NFRE_B__GPIO1_11, MX31_PIN_NFALE__GPIO1_12,
 };
 
 #define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
@@ -213,6 +223,80 @@ static int __init marxbot_cam_init(void)
 	return 0;
 }
 
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+static int marxbot_usbh1_hw_init(struct platform_device *pdev)
+{
+	mxc_iomux_set_gpr(MUX_PGP_USB_SUSPEND, true);
+
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_MISO, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_MOSI, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SCLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SPI_RDY, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SFS6, USB_PAD_CFG);
+
+	return 0;
+}
+
+#define USBH1_VBUSEN_B	IOMUX_TO_GPIO(MX31_PIN_NFRE_B)
+#define USBH1_MODE	IOMUX_TO_GPIO(MX31_PIN_NFALE)
+
+static int marxbot_isp1105_init(struct otg_transceiver *otg)
+{
+	int ret = gpio_request(USBH1_MODE, "usbh1-mode");
+	if (ret)
+		return ret;
+	/* single ended */
+	gpio_direction_output(USBH1_MODE, 0);
+
+	ret = gpio_request(USBH1_VBUSEN_B, "usbh1-vbusen");
+	if (ret) {
+		gpio_free(USBH1_MODE);
+		return ret;
+	}
+	gpio_direction_output(USBH1_VBUSEN_B, 1);
+
+	return 0;
+}
+
+
+static int marxbot_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
+{
+	if (on)
+		gpio_set_value(USBH1_VBUSEN_B, 0);
+	else
+		gpio_set_value(USBH1_VBUSEN_B, 1);
+
+	return 0;
+}
+
+static struct mxc_usbh_platform_data usbh1_pdata = {
+	.init	= marxbot_usbh1_hw_init,
+	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
+};
+
+static int __init marxbot_usbh1_init(void)
+{
+	struct otg_transceiver *otg;
+
+	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
+	if (!otg)
+		return -ENOMEM;
+
+	otg->label	= "ISP1105";
+	otg->init	= marxbot_isp1105_init;
+	otg->set_vbus	= marxbot_isp1105_set_vbus;
+
+	usbh1_pdata.otg = otg;
+
+	return mxc_register_device(&mx31_usbh1, &usbh1_pdata);
+}
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -237,4 +321,6 @@ void __init mx31moboard_marxbot_init(void)
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_LCS0), "bat-present");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_LCS0));
 	gpio_export(IOMUX_TO_GPIO(MX31_PIN_LCS0), false);
+
+	marxbot_usbh1_init();
 }

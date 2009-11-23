@@ -32,6 +32,9 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 
+#include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -44,8 +47,10 @@
 #include <mach/ipu.h>
 #include <mach/i2c.h>
 #include <mach/mmc.h>
+#include <mach/mxc_ehci.h>
 #include <mach/mx3_camera.h>
 #include <mach/spi.h>
+#include <mach/ulpi.h>
 
 #include "devices.h"
 
@@ -79,6 +84,15 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
 	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
 	MX31_PIN_USB_OC__GPIO1_30,
+	/* USB H2 */
+	MX31_PIN_USBH2_DATA0__USBH2_DATA0,
+	MX31_PIN_USBH2_DATA1__USBH2_DATA1,
+	MX31_PIN_STXD3__USBH2_DATA2, MX31_PIN_SRXD3__USBH2_DATA3,
+	MX31_PIN_SCK3__USBH2_DATA4, MX31_PIN_SFS3__USBH2_DATA5,
+	MX31_PIN_STXD6__USBH2_DATA6, MX31_PIN_SRXD6__USBH2_DATA7,
+	MX31_PIN_USBH2_CLK__USBH2_CLK, MX31_PIN_USBH2_DIR__USBH2_DIR,
+	MX31_PIN_USBH2_NXT__USBH2_NXT, MX31_PIN_USBH2_STP__USBH2_STP,
+	MX31_PIN_SCK6__GPIO1_25,
 	/* LEDs */
 	MX31_PIN_SVEN0__GPIO2_0, MX31_PIN_STX0__GPIO2_1,
 	MX31_PIN_SRX0__GPIO2_2, MX31_PIN_SIMPD0__GPIO2_3,
@@ -332,6 +346,56 @@ static struct fsl_usb2_platform_data usb_pdata = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
+#define USBH2_EN_B IOMUX_TO_GPIO(MX31_PIN_SCK6)
+
+static int moboard_usbh2_hw_init(struct platform_device *pdev)
+{
+	int ret = gpio_request(USBH2_EN_B, "usbh2-en");
+	if (ret)
+		return ret;
+
+	mxc_iomux_set_gpr(MUX_PGP_UH2, true);
+
+	mxc_iomux_set_pad(MX31_PIN_USBH2_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_STP, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBH2_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SRXD6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_STXD6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SFS3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SCK3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SRXD3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_STXD3, USB_PAD_CFG);
+
+	gpio_direction_output(USBH2_EN_B, 0);
+
+	return 0;
+}
+
+static int moboard_usbh2_hw_exit(struct platform_device *pdev)
+{
+	gpio_free(USBH2_EN_B);
+	return 0;
+}
+
+static struct mxc_usbh_platform_data usbh2_pdata = {
+	.init	= moboard_usbh2_hw_init,
+	.exit	= moboard_usbh2_hw_exit,
+	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
+};
+
+static int __init moboard_usbh2_init(void)
+{
+	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+
+	return mxc_register_device(&mx31_usbh2, &usbh2_pdata);
+}
+
+
 static struct gpio_led mx31moboard_leds[] = {
 	{
 		.name 	= "coreboard-led-0:red:running",
@@ -472,6 +536,7 @@ static void __init mxc_board_init(void)
 
 	moboard_usbotg_init();
 	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	moboard_usbh2_init();
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
