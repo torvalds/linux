@@ -447,9 +447,8 @@ retry:
 	 * can remove the event safely, if the call above did not
 	 * succeed.
 	 */
-	if (!list_empty(&event->group_entry)) {
+	if (!list_empty(&event->group_entry))
 		list_del_event(event, ctx);
-	}
 	spin_unlock_irq(&ctx->lock);
 }
 
@@ -1033,10 +1032,10 @@ void __perf_event_sched_out(struct perf_event_context *ctx,
 	update_context_time(ctx);
 
 	perf_disable();
-	if (ctx->nr_active)
+	if (ctx->nr_active) {
 		list_for_each_entry(event, &ctx->group_list, group_entry)
 			group_sched_out(event, cpuctx, ctx);
-
+	}
 	perf_enable();
  out:
 	spin_unlock(&ctx->lock);
