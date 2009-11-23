@@ -206,6 +206,7 @@ enum sctp_sinfo_flags {
 	SCTP_UNORDERED = 1,  /* Send/receive message unordered. */
 	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
 	SCTP_ABORT=4,        /* Send an ABORT message to the peer. */
+	SCTP_SACK_IMMEDIATELY = 8,	/* SACK should be sent without delay */
 	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */	
 };
 

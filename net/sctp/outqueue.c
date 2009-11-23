@@ -1011,6 +1011,13 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				break;
 
 			case SCTP_XMIT_OK:
+				/* The sender is in the SHUTDOWN-PENDING state,
+				 * The sender MAY set the I-bit in the DATA
+				 * chunk header.
+				 */
+				if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING)
+					chunk->chunk_hdr->flags |= SCTP_DATA_SACK_IMM;
+
 				break;
 
 			default:
