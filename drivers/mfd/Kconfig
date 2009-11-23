@@ -195,7 +195,7 @@ config MFD_WM8400
 	  the functionality of the device.
 
 config MFD_WM831X
-	tristate "Support Wolfson Microelectronics WM831x/2x PMICs"
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
 	select MFD_CORE
 	depends on I2C
 	help
