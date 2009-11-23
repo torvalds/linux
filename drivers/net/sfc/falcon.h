@@ -29,6 +29,11 @@ static inline int falcon_rev(struct efx_nic *efx)
 	return efx->pci_dev->revision;
 }
 
+static inline struct falcon_board *falcon_board(struct efx_nic *efx)
+{
+	return &efx->board_info;
+}
+
 extern struct efx_nic_type falcon_a_nic_type;
 extern struct efx_nic_type falcon_b_nic_type;
 

@@ -188,14 +188,14 @@ static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	do {
-		efx->board_info.set_id_led(efx, EFX_LED_ON);
+		falcon_board(efx)->set_id_led(efx, EFX_LED_ON);
 		schedule_timeout_interruptible(HZ / 2);
 
-		efx->board_info.set_id_led(efx, EFX_LED_OFF);
+		falcon_board(efx)->set_id_led(efx, EFX_LED_OFF);
 		schedule_timeout_interruptible(HZ / 2);
 	} while (!signal_pending(current) && --count != 0);
 
-	efx->board_info.set_id_led(efx, EFX_LED_DEFAULT);
+	falcon_board(efx)->set_id_led(efx, EFX_LED_DEFAULT);
 	return 0;
 }
 

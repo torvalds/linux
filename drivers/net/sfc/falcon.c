@@ -2877,8 +2877,17 @@ int falcon_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
+	rc = falcon_board(efx)->init(efx);
+	if (rc) {
+		EFX_ERR(efx, "failed to initialise board\n");
+		goto fail6;
+	}
+
 	return 0;
 
+ fail6:
+	BUG_ON(i2c_del_adapter(&efx->i2c_adap));
+	memset(&efx->i2c_adap, 0, sizeof(efx->i2c_adap));
  fail5:
 	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
@@ -3069,6 +3078,8 @@ void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
+
+	falcon_board(efx)->fini(efx);
 
 	/* Remove I2C adapter and clear it in preparation for a retry */
 	rc = i2c_del_adapter(&efx->i2c_adap);

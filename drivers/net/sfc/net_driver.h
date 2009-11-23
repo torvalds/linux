@@ -395,7 +395,7 @@ enum efx_led_mode {
 };
 
 /**
- * struct efx_board - board information
+ * struct falcon_board - board information
  * @type: Board model type
  * @major: Major rev. ('A', 'B' ...)
  * @minor: Minor rev. (0, 1, ...)
@@ -407,7 +407,7 @@ enum efx_led_mode {
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
-struct efx_board {
+struct falcon_board {
 	int type;
 	int major;
 	int minor;
@@ -752,7 +752,7 @@ struct efx_nic {
 	unsigned int irq_rx_moderation;
 
 	struct i2c_adapter i2c_adap;
-	struct efx_board board_info;
+	struct falcon_board board_info;
 
 	enum nic_state state;
 	enum reset_type reset_pending;
