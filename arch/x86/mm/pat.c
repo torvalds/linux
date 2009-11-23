@@ -349,11 +349,6 @@ static int free_ram_pages_type(u64 start, u64 end)
 	return 0;
 }
 
-int default_is_untracked_pat_range(u64 start, u64 end)
-{
-	return is_ISA_range(start, end);
-}
-
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB

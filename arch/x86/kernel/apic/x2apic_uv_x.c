@@ -37,12 +37,12 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 static enum uv_system_type uv_system_type;
 static u64 gru_start_paddr, gru_end_paddr;
 
-static int is_GRU_range(u64 start, u64 end)
+static inline bool is_GRU_range(u64 start, u64 end)
 {
 	return start >= gru_start_paddr && end < gru_end_paddr;
 }
 
-static int uv_is_untracked_pat_range(u64 start, u64 end)
+static bool uv_is_untracked_pat_range(u64 start, u64 end)
 {
 	return is_ISA_range(start, end) || is_GRU_range(start, end);
 }

@@ -70,8 +70,8 @@ struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
 };
 
 struct x86_platform_ops x86_platform = {
-	.is_untracked_pat_range		= default_is_untracked_pat_range,
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,
+	.is_untracked_pat_range		= is_ISA_range,
 };
