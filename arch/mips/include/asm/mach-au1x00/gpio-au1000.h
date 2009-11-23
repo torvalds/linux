@@ -236,19 +236,19 @@ static inline int alchemy_gpio1_is_valid(int gpio)
 
 static inline int alchemy_gpio1_to_irq(int gpio)
 {
-#if defined(CONFIG_SOC_AU1000)
-	return au1000_gpio1_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1100)
-	return au1100_gpio1_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1500)
-	return au1500_gpio1_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1550)
-	return au1550_gpio1_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1200)
-	return au1200_gpio1_to_irq(gpio);
-#else
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		return au1000_gpio1_to_irq(gpio);
+	case ALCHEMY_CPU_AU1100:
+		return au1100_gpio1_to_irq(gpio);
+	case ALCHEMY_CPU_AU1500:
+		return au1500_gpio1_to_irq(gpio);
+	case ALCHEMY_CPU_AU1550:
+		return au1550_gpio1_to_irq(gpio);
+	case ALCHEMY_CPU_AU1200:
+		return au1200_gpio1_to_irq(gpio);
+	}
 	return -ENXIO;
-#endif
 }
 
 /*
@@ -306,19 +306,19 @@ static inline int alchemy_gpio2_is_valid(int gpio)
 
 static inline int alchemy_gpio2_to_irq(int gpio)
 {
-#if defined(CONFIG_SOC_AU1000)
-	return au1000_gpio2_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1100)
-	return au1100_gpio2_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1500)
-	return au1500_gpio2_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1550)
-	return au1550_gpio2_to_irq(gpio);
-#elif defined(CONFIG_SOC_AU1200)
-	return au1200_gpio2_to_irq(gpio);
-#else
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		return au1000_gpio2_to_irq(gpio);
+	case ALCHEMY_CPU_AU1100:
+		return au1100_gpio2_to_irq(gpio);
+	case ALCHEMY_CPU_AU1500:
+		return au1500_gpio2_to_irq(gpio);
+	case ALCHEMY_CPU_AU1550:
+		return au1550_gpio2_to_irq(gpio);
+	case ALCHEMY_CPU_AU1200:
+		return au1200_gpio2_to_irq(gpio);
+	}
 	return -ENXIO;
-#endif
 }
 
 /**********************************************************************/
@@ -374,10 +374,13 @@ static inline void alchemy_gpio2_enable_int(int gpio2)
 
 	gpio2 -= ALCHEMY_GPIO2_BASE;
 
-#if defined(CONFIG_SOC_AU1100) || defined(CONFIG_SOC_AU1500)
 	/* Au1100/Au1500 have GPIO208-215 enable bits at 0..7 */
-	gpio2 -= 8;
-#endif
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1100:
+	case ALCHEMY_CPU_AU1500:
+		gpio2 -= 8;
+	}
+
 	local_irq_save(flags);
 	__alchemy_gpio2_mod_int(gpio2, 1);
 	local_irq_restore(flags);
@@ -395,10 +398,13 @@ static inline void alchemy_gpio2_disable_int(int gpio2)
 
 	gpio2 -= ALCHEMY_GPIO2_BASE;
 
-#if defined(CONFIG_SOC_AU1100) || defined(CONFIG_SOC_AU1500)
 	/* Au1100/Au1500 have GPIO208-215 enable bits at 0..7 */
-	gpio2 -= 8;
-#endif
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1100:
+	case ALCHEMY_CPU_AU1500:
+		gpio2 -= 8;
+	}
+
 	local_irq_save(flags);
 	__alchemy_gpio2_mod_int(gpio2, 0);
 	local_irq_restore(flags);
@@ -484,19 +490,19 @@ static inline int alchemy_gpio_to_irq(int gpio)
 
 static inline int alchemy_irq_to_gpio(int irq)
 {
-#if defined(CONFIG_SOC_AU1000)
-	return au1000_irq_to_gpio(irq);
-#elif defined(CONFIG_SOC_AU1100)
-	return au1100_irq_to_gpio(irq);
-#elif defined(CONFIG_SOC_AU1500)
-	return au1500_irq_to_gpio(irq);
-#elif defined(CONFIG_SOC_AU1550)
-	return au1550_irq_to_gpio(irq);
-#elif defined(CONFIG_SOC_AU1200)
-	return au1200_irq_to_gpio(irq);
-#else
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		return au1000_irq_to_gpio(irq);
+	case ALCHEMY_CPU_AU1100:
+		return au1100_irq_to_gpio(irq);
+	case ALCHEMY_CPU_AU1500:
+		return au1500_irq_to_gpio(irq);
+	case ALCHEMY_CPU_AU1550:
+		return au1550_irq_to_gpio(irq);
+	case ALCHEMY_CPU_AU1200:
+		return au1200_irq_to_gpio(irq);
+	}
 	return -ENXIO;
-#endif
 }
 
 /**********************************************************************/
