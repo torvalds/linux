@@ -18,6 +18,10 @@
  * Copyright (C) 2009, Frederic Weisbecker <fweisbec@gmail.com>
  *
  * Thanks to Ingo Molnar for his many suggestions.
+ *
+ * Authors: Alan Stern <stern@rowland.harvard.edu>
+ *          K.Prasad <prasad@linux.vnet.ibm.com>
+ *          Frederic Weisbecker <fweisbec@gmail.com>
  */
 
 /*

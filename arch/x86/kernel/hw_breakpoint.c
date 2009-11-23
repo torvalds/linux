@@ -16,6 +16,10 @@
  * Copyright (C) 2007 Alan Stern
  * Copyright (C) 2009 IBM Corporation
  * Copyright (C) 2009 Frederic Weisbecker <fweisbec@gmail.com>
+ *
+ * Authors: Alan Stern <stern@rowland.harvard.edu>
+ *          K.Prasad <prasad@linux.vnet.ibm.com>
+ *          Frederic Weisbecker <fweisbec@gmail.com>
  */
 
 /*
