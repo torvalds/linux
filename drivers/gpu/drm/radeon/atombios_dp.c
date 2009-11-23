@@ -52,7 +52,7 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	args.lpAuxRequest = 0;
 	args.lpDataOut = 16;
 	args.ucDataOutLen = 0;
-	args.ucChannelID = chan->i2c_id;
+	args.ucChannelID = chan->rec.i2c_id;
 	args.ucDelay = delay / 10;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -60,7 +60,7 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	if (args.ucReplyStatus) {
 		DRM_ERROR("failed to get auxch %02x%02x %02x %02x 0x%02x %02x\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
-			  chan->i2c_id, args.ucReplyStatus);
+			  chan->rec.i2c_id, args.ucReplyStatus);
 		return false;
 	}
 
@@ -102,7 +102,7 @@ int radeon_dp_getsinktype(struct radeon_connector *radeon_connector)
 	struct radeon_device *rdev = dev->dev_private;
 
 	return radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_GET_SINK_TYPE, 0,
-					 radeon_dig_connector->uc_i2c_id, 0);
+					 radeon_dig_connector->dp_i2c_bus->rec.i2c_id, 0);
 }
 
 union dig_transmitter_control {

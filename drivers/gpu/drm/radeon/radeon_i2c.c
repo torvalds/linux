@@ -69,13 +69,15 @@ void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	 * holds the i2c port in a bad state - switch hw i2c away before
 	 * doing DDC - do this for all r200s/r300s/r400s for safety sake
 	 */
-	if ((rdev->family >= CHIP_R200) && !ASIC_IS_AVIVO(rdev)) {
-		if (rec->a_clk_reg == RADEON_GPIO_MONID) {
-			WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-						R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
-		} else {
-			WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-						R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
+	if (rec->hw_capable) {
+		if ((rdev->family >= CHIP_R200) && !ASIC_IS_AVIVO(rdev)) {
+			if (rec->a_clk_reg == RADEON_GPIO_MONID) {
+				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
+			} else {
+				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
+			}
 		}
 	}
 
@@ -86,6 +88,12 @@ void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	temp = RREG32(rec->a_data_reg) & ~rec->a_data_mask;
 	WREG32(rec->a_data_reg, temp);
 
+	/* set the pins to input */
+	temp = RREG32(rec->en_clk_reg) & ~rec->en_clk_mask;
+	WREG32(rec->en_clk_reg, temp);
+
+	temp = RREG32(rec->en_data_reg) & ~rec->en_data_mask;
+	WREG32(rec->en_data_reg, temp);
 
 	/* mask the gpio pins for software use */
 	temp = RREG32(rec->mask_clk_reg);
@@ -199,7 +207,8 @@ out_free:
 }
 
 struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
-					     const char *name, bool dp, u8 i2c_id)
+					     struct radeon_i2c_bus_rec *rec,
+					     const char *name)
 {
 	struct radeon_i2c_chan *i2c;
 	int ret;
@@ -208,7 +217,7 @@ struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 	if (i2c == NULL)
 		return NULL;
 
-	i2c->i2c_id = i2c_id;
+	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);

@@ -1148,16 +1148,16 @@
 #       define RADEON_IO_MCLK_MAX_DYN_STOP_LAT (1 << 13)
 #       define RADEON_MC_MCLK_DYN_ENABLE    (1 << 14)
 #       define RADEON_IO_MCLK_DYN_ENABLE    (1 << 15)
+
 #define RADEON_GPIOPAD_MASK                 0x0198
 #define RADEON_GPIOPAD_A		    0x019c
 #define RADEON_GPIOPAD_EN                   0x01a0
 #define RADEON_GPIOPAD_Y                    0x01a4
-#define RADEON_LCD_GPIO_MASK                0x01a0
-#define RADEON_LCD_GPIO_Y_REG               0x01a4
-#define RADEON_MDGPIO_A_REG                 0x01ac
-#define RADEON_MDGPIO_EN_REG                0x01b0
-#define RADEON_MDGPIO_MASK                  0x0198
-#define RADEON_MDGPIO_Y_REG                 0x01b4
+#define RADEON_MDGPIO_MASK                  0x01a8
+#define RADEON_MDGPIO_A                     0x01ac
+#define RADEON_MDGPIO_EN                    0x01b0
+#define RADEON_MDGPIO_Y                     0x01b4
+
 #define RADEON_MEM_ADDR_CONFIG              0x0148
 #define RADEON_MEM_BASE                     0x0f10 /* PCI */
 #define RADEON_MEM_CNTL                     0x0140

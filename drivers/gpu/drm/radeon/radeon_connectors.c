@@ -952,7 +952,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  struct radeon_i2c_bus_rec *i2c_bus,
 			  bool linkb,
 			  uint32_t igp_lane_info,
-			  uint16_t connector_object_id, uint8_t uc_i2c_id)
+			  uint16_t connector_object_id)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
@@ -1083,8 +1083,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		if (ret)
 			goto failed;
 		/* add DP i2c bus */
-		radeon_dig_connector->uc_i2c_id = uc_i2c_id;
-		radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, "DP-auxch", true, uc_i2c_id);
+		radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
 		if (i2c_bus->valid) {
 			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DP");
 			if (!radeon_connector->ddc_bus)

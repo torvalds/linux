@@ -106,6 +106,13 @@ enum radeon_tv_std {
  */
 struct radeon_i2c_bus_rec {
 	bool valid;
+	/* id used by atom */
+	uint8_t i2c_id;
+	/* can be used with hw i2c engine */
+	bool hw_capable;
+	/* uses multi-media i2c engine */
+	bool mm_i2c;
+	/* regs and bits */
 	uint32_t mask_clk_reg;
 	uint32_t mask_data_reg;
 	uint32_t a_clk_reg;
@@ -172,7 +179,6 @@ struct radeon_i2c_chan {
 		struct i2c_algo_bit_data bit;
 	} algo;
 	struct radeon_i2c_bus_rec rec;
-	uint8_t i2c_id;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -333,7 +339,6 @@ struct radeon_encoder {
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
 	bool linkb;
-	uint16_t uc_i2c_id;
 	struct radeon_i2c_chan *dp_i2c_bus;
 	u8 dpcd[8];
 };
@@ -352,8 +357,6 @@ struct radeon_connector {
 	void *con_priv;
 	bool dac_load_detect;
 	uint16_t connector_object_id;
-	/* need to keep this for display port */
-//	
 };
 
 struct radeon_framebuffer {
@@ -362,12 +365,13 @@ struct radeon_framebuffer {
 };
 
 extern int radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
-extern void radeon_dp_getdpcd(struct radeon_connector *connector);
+extern void radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
 
 extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
-						    const char *name, bool dp, u8 i2c_id);
+						    struct radeon_i2c_bus_rec *rec,
+						    const char *name);
 extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);
