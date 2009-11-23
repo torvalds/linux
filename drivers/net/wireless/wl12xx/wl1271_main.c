@@ -222,7 +222,7 @@ static struct conf_drv_settings default_conf = {
 			.snr_pkt_avg_weight  = 10
 		},
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
-		.bet_max_consecutive         = 100,
+		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 3
 	},
 	.init = {
