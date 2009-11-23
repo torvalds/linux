@@ -1704,31 +1704,6 @@ static void free_event(struct perf_event *event)
 	call_rcu(&event->rcu_head, free_event_rcu);
 }
 
-/*
- * Called when the last reference to the file is gone.
- */
-static int perf_release(struct inode *inode, struct file *file)
-{
-	struct perf_event *event = file->private_data;
-	struct perf_event_context *ctx = event->ctx;
-
-	file->private_data = NULL;
-
-	WARN_ON_ONCE(ctx->parent_ctx);
-	mutex_lock(&ctx->mutex);
-	perf_event_remove_from_context(event);
-	mutex_unlock(&ctx->mutex);
-
-	mutex_lock(&event->owner->perf_event_mutex);
-	list_del_init(&event->owner_entry);
-	mutex_unlock(&event->owner->perf_event_mutex);
-	put_task_struct(event->owner);
-
-	free_event(event);
-
-	return 0;
-}
-
 int perf_event_release_kernel(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
@@ -1748,6 +1723,18 @@ int perf_event_release_kernel(struct perf_event *event)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(perf_event_release_kernel);
+
+/*
+ * Called when the last reference to the file is gone.
+ */
+static int perf_release(struct inode *inode, struct file *file)
+{
+	struct perf_event *event = file->private_data;
+
+	file->private_data = NULL;
+
+	return perf_event_release_kernel(event);
+}
 
 static int perf_event_read_size(struct perf_event *event)
 {
