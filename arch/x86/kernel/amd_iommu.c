@@ -1585,8 +1585,7 @@ static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
  * This is the generic map function. It maps one 4kb page at paddr to
  * the given address in the DMA address space for the domain.
  */
-static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
-				     struct dma_ops_domain *dom,
+static dma_addr_t dma_ops_domain_map(struct dma_ops_domain *dom,
 				     unsigned long address,
 				     phys_addr_t paddr,
 				     int direction)
@@ -1620,8 +1619,7 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 /*
  * The generic unmapping function for on page in the DMA address space.
  */
-static void dma_ops_domain_unmap(struct amd_iommu *iommu,
-				 struct dma_ops_domain *dom,
+static void dma_ops_domain_unmap(struct dma_ops_domain *dom,
 				 unsigned long address)
 {
 	struct aperture_range *aperture;
@@ -1700,7 +1698,7 @@ retry:
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
-		ret = dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		ret = dma_ops_domain_map(dma_dom, start, paddr, dir);
 		if (ret == DMA_ERROR_CODE)
 			goto out_unmap;
 
@@ -1724,7 +1722,7 @@ out_unmap:
 
 	for (--i; i >= 0; --i) {
 		start -= PAGE_SIZE;
-		dma_ops_domain_unmap(iommu, dma_dom, start);
+		dma_ops_domain_unmap(dma_dom, start);
 	}
 
 	dma_ops_free_addresses(dma_dom, address, pages);
@@ -1754,7 +1752,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	start = dma_addr;
 
 	for (i = 0; i < pages; ++i) {
-		dma_ops_domain_unmap(iommu, dma_dom, start);
+		dma_ops_domain_unmap(dma_dom, start);
 		start += PAGE_SIZE;
 	}
 
