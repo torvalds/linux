@@ -4120,6 +4120,8 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 			      __le32 *last)
 {
 	__le32 *p;
+	int	is_metadata = S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode);
+
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
@@ -4150,11 +4152,11 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 
 			*p = 0;
 			tbh = sb_find_get_block(inode->i_sb, nr);
-			ext4_forget(handle, 0, inode, tbh, nr);
+			ext4_forget(handle, is_metadata, inode, tbh, nr);
 		}
 	}
 
-	ext4_free_blocks(handle, inode, block_to_free, count, 0);
+	ext4_free_blocks(handle, inode, block_to_free, count, is_metadata);
 }
 
 /**
