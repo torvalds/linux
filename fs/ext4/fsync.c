@@ -60,7 +60,7 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 
 	ret = flush_aio_dio_completed_IO(inode);
 	if (ret < 0)
-		goto out;
+		return ret;
 	/*
 	 * data=writeback:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
@@ -79,10 +79,8 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		goto out;
-	}
+	if (ext4_should_journal_data(inode))
+		return ext4_force_commit(inode->i_sb);
 
 	if (!journal)
 		ret = sync_mapping_buffers(inode->i_mapping);
