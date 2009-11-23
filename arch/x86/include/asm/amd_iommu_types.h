@@ -248,6 +248,14 @@ struct protection_domain {
 };
 
 /*
+ * This struct contains device specific data for the IOMMU
+ */
+struct iommu_dev_data {
+	struct device *alias;		  /* The Alias Device */
+	struct protection_domain *domain; /* Domain the device is bound to */
+};
+
+/*
  * For dynamic growth the aperture size is split into ranges of 128MB of
  * DMA address space each. This struct represents one such range.
  */
