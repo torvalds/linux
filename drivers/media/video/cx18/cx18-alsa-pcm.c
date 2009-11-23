@@ -75,7 +75,6 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct v4l2_device *v4l2_dev = cxsc->v4l2_dev;
-	struct snd_card *sc = cxsc->sc;
 	struct cx18 *cx = to_cx18(v4l2_dev);
 	struct cx18_stream *s;
 	struct cx18_open_id *item;

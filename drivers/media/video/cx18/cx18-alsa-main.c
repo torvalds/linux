@@ -255,7 +255,6 @@ static int cx18_alsa_exit_callback(struct device *dev, void *data)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct snd_cx18_card *cxsc;
-	struct cx18 *cx;
 
 	if (v4l2_dev == NULL) {
 		printk(KERN_ERR "cx18-alsa: %s: struct v4l2_device * is NULL\n",
