@@ -13,8 +13,7 @@
 #include <asm/atomic.h>
 #include <asm/blackfin.h>
 #include <asm/page.h>
-
-#define MAX_DMA_ADDRESS PAGE_OFFSET
+#include <asm-generic/dma.h>
 
 /* DMA_CONFIG Masks */
 #define DMAEN			0x0001	/* DMA Channel Enable */
@@ -257,8 +256,6 @@ static inline void enable_dma(unsigned int channel)
 	dma_ch[channel].regs->curr_y_count = 0;
 	dma_ch[channel].regs->cfg |= DMAEN;
 }
-void free_dma(unsigned int channel);
-int request_dma(unsigned int channel, const char *device_id);
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data);
 
 static inline void dma_disable_irq(unsigned int channel)
