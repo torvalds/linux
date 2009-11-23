@@ -57,7 +57,7 @@ typedef struct _drive_info_struct
 
 struct Cmd_sg_list {
 	SGDescriptor_struct	*sgchain;
-	dma64_addr_t		sg_chain_dma;
+	dma_addr_t		sg_chain_dma;
 	int			chain_block_size;
 };
 
