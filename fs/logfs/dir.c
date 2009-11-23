@@ -224,10 +224,14 @@ static int logfs_unlink(struct inode *dir, struct dentry *dentry)
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
 	page = logfs_get_dd_page(dir, dentry);
-	if (!page)
+	if (!page) {
+		kfree(ta);
 		return -ENOENT;
-	if (IS_ERR(page))
+	}
+	if (IS_ERR(page)) {
+		kfree(ta);
 		return PTR_ERR(page);
+	}
 	index = page->index;
 	page_cache_release(page);
 
