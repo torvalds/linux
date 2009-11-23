@@ -2074,7 +2074,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		ext_debug("free last %u blocks starting %llu\n", num, start);
 		for (i = 0; i < num; i++) {
 			bh = sb_find_get_block(inode->i_sb, start + i);
-			ext4_forget(handle, 0, inode, bh, start + i);
+			ext4_forget(handle, metadata, inode, bh, start + i);
 		}
 		ext4_free_blocks(handle, inode, start, num, metadata);
 	} else if (from == le32_to_cpu(ex->ee_block)
