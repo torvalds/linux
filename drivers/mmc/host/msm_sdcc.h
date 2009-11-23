@@ -215,7 +215,6 @@ struct msmsdcc_host {
 	struct clk		*pclk;		/* SDCC peripheral bus clock */
 	unsigned int		clks_on;	/* set if clocks are enabled */
 	struct timer_list	busclk_timer;
-	int			use_bustimer;
 
 	unsigned int		eject;		/* eject state */
 
