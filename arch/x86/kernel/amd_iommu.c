@@ -1653,7 +1653,6 @@ static void dma_ops_domain_unmap(struct dma_ops_domain *dom,
  * Must be called with the domain lock held.
  */
 static dma_addr_t __map_single(struct device *dev,
-			       struct amd_iommu *iommu,
 			       struct dma_ops_domain *dma_dom,
 			       phys_addr_t paddr,
 			       size_t size,
@@ -1737,8 +1736,7 @@ out_unmap:
  * Does the reverse of the __map_single function. Must be called with
  * the domain lock held too
  */
-static void __unmap_single(struct amd_iommu *iommu,
-			   struct dma_ops_domain *dma_dom,
+static void __unmap_single(struct dma_ops_domain *dma_dom,
 			   dma_addr_t dma_addr,
 			   size_t size,
 			   int dir)
@@ -1797,7 +1795,7 @@ static dma_addr_t map_page(struct device *dev, struct page *page,
 		return DMA_ERROR_CODE;
 
 	spin_lock_irqsave(&domain->lock, flags);
-	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir, false,
+	addr = __map_single(dev, domain->priv, paddr, size, dir, false,
 			    dma_mask);
 	if (addr == DMA_ERROR_CODE)
 		goto out;
@@ -1832,7 +1830,7 @@ static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	__unmap_single(iommu, domain->priv, dma_addr, size, dir);
+	__unmap_single(domain->priv, dma_addr, size, dir);
 
 	iommu_flush_complete(domain);
 
@@ -1890,7 +1888,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	for_each_sg(sglist, s, nelems, i) {
 		paddr = sg_phys(s);
 
-		s->dma_address = __map_single(dev, iommu, domain->priv,
+		s->dma_address = __map_single(dev, domain->priv,
 					      paddr, s->length, dir, false,
 					      dma_mask);
 
@@ -1910,7 +1908,7 @@ out:
 unmap:
 	for_each_sg(sglist, s, mapped_elems, i) {
 		if (s->dma_address)
-			__unmap_single(iommu, domain->priv, s->dma_address,
+			__unmap_single(domain->priv, s->dma_address,
 				       s->dma_length, dir);
 		s->dma_address = s->dma_length = 0;
 	}
@@ -1946,7 +1944,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 	spin_lock_irqsave(&domain->lock, flags);
 
 	for_each_sg(sglist, s, nelems, i) {
-		__unmap_single(iommu, domain->priv, s->dma_address,
+		__unmap_single(domain->priv, s->dma_address,
 			       s->dma_length, dir);
 		s->dma_address = s->dma_length = 0;
 	}
@@ -1996,7 +1994,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
+	*dma_addr = __map_single(dev, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
 	if (*dma_addr == DMA_ERROR_CODE) {
@@ -2038,7 +2036,7 @@ static void free_coherent(struct device *dev, size_t size,
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	__unmap_single(iommu, domain->priv, dma_addr, size, DMA_BIDIRECTIONAL);
+	__unmap_single(domain->priv, dma_addr, size, DMA_BIDIRECTIONAL);
 
 	iommu_flush_complete(domain);
 
