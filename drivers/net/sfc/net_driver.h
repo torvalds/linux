@@ -399,11 +399,11 @@ enum efx_led_mode {
  * @type: Board model type
  * @major: Major rev. ('A', 'B' ...)
  * @minor: Minor rev. (0, 1, ...)
- * @init: Initialisation function
- * @init_leds: Sets up board LEDs. May be called repeatedly.
+ * @init: Allocate resources and initialise peripheral hardware
+ * @init_phy: Do board-specific PHY initialisation
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @monitor: Board-specific health check function
- * @fini: Cleanup function
+ * @fini: Shut down hardware and free resources
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
@@ -412,10 +412,7 @@ struct efx_board {
 	int major;
 	int minor;
 	int (*init) (struct efx_nic *nic);
-	/* As the LEDs are typically attached to the PHY, LEDs
-	 * have a separate init callback that happens later than
-	 * board init. */
-	void (*init_leds)(struct efx_nic *efx);
+	void (*init_phy) (struct efx_nic *efx);
 	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
 	int (*monitor) (struct efx_nic *nic);
 	void (*fini) (struct efx_nic *nic);

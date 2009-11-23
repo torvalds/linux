@@ -1910,7 +1910,7 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 
 static struct efx_board efx_dummy_board_info = {
 	.init		= efx_port_dummy_op_int,
-	.init_leds	= efx_port_dummy_op_void,
+	.init_phy	= efx_port_dummy_op_void,
 	.set_id_led	= efx_port_dummy_op_set_id_led,
 	.monitor	= efx_port_dummy_op_int,
 	.fini		= efx_port_dummy_op_void,

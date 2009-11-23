@@ -303,6 +303,8 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	u16 old_adv, adv;
 	int rc = 0;
 
+	efx->board_info.init_phy(efx);
+
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)
 		return -ENOMEM;

@@ -499,9 +499,22 @@ static struct i2c_board_info sfn4111t_r5_hwmon_info = {
 	I2C_BOARD_INFO("max6646", 0x4d),
 };
 
+static void sfn4111t_init_phy(struct efx_nic *efx)
+{
+	if (!(efx->phy_mode & PHY_MODE_SPECIAL)) {
+		if (sft9001_wait_boot(efx) != -EINVAL)
+			return;
+
+		efx->phy_mode = PHY_MODE_SPECIAL;
+		efx_stats_disable(efx);
+	}
+
+	sfn4111t_reset(efx);
+	sft9001_wait_boot(efx);
+}
+
 static int sfn4111t_init(struct efx_nic *efx)
 {
-	int i = 0;
 	int rc;
 
 	efx->board_info.hwmon_client =
@@ -512,6 +525,7 @@ static int sfn4111t_init(struct efx_nic *efx)
 	if (!efx->board_info.hwmon_client)
 		return -EIO;
 
+	efx->board_info.init_phy = sfn4111t_init_phy;
 	efx->board_info.set_id_led = tenxpress_set_id_led;
 	efx->board_info.monitor = sfn4111t_check_hw;
 	efx->board_info.fini = sfn4111t_fini;
@@ -520,20 +534,13 @@ static int sfn4111t_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_hwmon;
 
-	do {
-		if (efx->phy_mode & PHY_MODE_SPECIAL) {
-			/* PHY may not generate a 156.25 MHz clock and MAC
-			 * stats fetch will fail. */
-			efx_stats_disable(efx);
-			sfn4111t_reset(efx);
-		}
-		rc = sft9001_wait_boot(efx);
-		if (rc == 0)
-			return 0;
-		efx->phy_mode = PHY_MODE_SPECIAL;
-	} while (rc == -EINVAL && ++i < 2);
+	if (efx->phy_mode & PHY_MODE_SPECIAL)
+		/* PHY may not generate a 156.25 MHz clock and MAC
+		 * stats fetch will fail. */
+		efx_stats_disable(efx);
 
-	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
+	return 0;
+
 fail_hwmon:
 	i2c_unregister_device(efx->board_info.hwmon_client);
 	return rc;
@@ -574,7 +581,7 @@ static struct i2c_board_info sfe4002_hwmon_info = {
 #define SFE4002_RX_LED    (0)	/* Green */
 #define SFE4002_TX_LED    (1)	/* Amber */
 
-static void sfe4002_init_leds(struct efx_nic *efx)
+static void sfe4002_init_phy(struct efx_nic *efx)
 {
 	/* Set the TX and RX LEDs to reflect status and activity, and the
 	 * fault LED off */
@@ -609,7 +616,7 @@ static int sfe4002_init(struct efx_nic *efx)
 	if (rc)
 		return rc;
 	efx->board_info.monitor = sfe4002_check_hw;
-	efx->board_info.init_leds = sfe4002_init_leds;
+	efx->board_info.init_phy = sfe4002_init_phy;
 	efx->board_info.set_id_led = sfe4002_set_id_led;
 	efx->board_info.fini = efx_fini_lm87;
 	return 0;
@@ -641,7 +648,7 @@ static struct i2c_board_info sfn4112f_hwmon_info = {
 #define SFN4112F_ACT_LED	0
 #define SFN4112F_LINK_LED	1
 
-static void sfn4112f_init_leds(struct efx_nic *efx)
+static void sfn4112f_init_phy(struct efx_nic *efx)
 {
 	falcon_qt202x_set_led(efx, SFN4112F_ACT_LED,
 			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACT);
@@ -680,7 +687,7 @@ static int sfn4112f_init(struct efx_nic *efx)
 	if (rc)
 		return rc;
 	efx->board_info.monitor = sfn4112f_check_hw;
-	efx->board_info.init_leds = sfn4112f_init_leds;
+	efx->board_info.init_phy = sfn4112f_init_phy;
 	efx->board_info.set_id_led = sfn4112f_set_id_led;
 	efx->board_info.fini = efx_fini_lm87;
 	return 0;
