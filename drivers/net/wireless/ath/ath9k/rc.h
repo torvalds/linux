@@ -104,6 +104,7 @@ enum {
  */
 struct ath_rate_table {
 	int rate_cnt;
+	int mcs_start;
 	struct {
 		int valid;
 		int valid_single_stream;
@@ -179,8 +180,6 @@ enum ath9k_internal_frame_type {
 	ATH9K_INT_UNPAUSE
 };
 
-void ath_rate_attach(struct ath_softc *sc);
-u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
 

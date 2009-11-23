@@ -104,37 +104,55 @@ static struct ieee80211_channel ath9k_5ghz_chantable[] = {
 	CHAN5G(5825, 37), /* Channel 165 */
 };
 
+/* Atheros hardware rate code addition for short premble */
+#define SHPCHECK(__hw_rate, __flags) \
+	((__flags & IEEE80211_RATE_SHORT_PREAMBLE) ? (__hw_rate | 0x04 ) : 0)
+
+#define RATE(_bitrate, _hw_rate, _flags) {              \
+	.bitrate        = (_bitrate),                   \
+	.flags          = (_flags),                     \
+	.hw_value       = (_hw_rate),                   \
+	.hw_value_short = (SHPCHECK(_hw_rate, _flags))  \
+}
+
+static struct ieee80211_rate ath9k_legacy_rates[] = {
+	RATE(10, 0x1b, 0),
+	RATE(20, 0x1a, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(55, 0x19, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(110, 0x18, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(60, 0x0b, 0),
+	RATE(90, 0x0f, 0),
+	RATE(120, 0x0a, 0),
+	RATE(180, 0x0e, 0),
+	RATE(240, 0x09, 0),
+	RATE(360, 0x0d, 0),
+	RATE(480, 0x08, 0),
+	RATE(540, 0x0c, 0),
+};
+
 static void ath_cache_conf_rate(struct ath_softc *sc,
 				struct ieee80211_conf *conf)
 {
 	switch (conf->channel->band) {
 	case IEEE80211_BAND_2GHZ:
 		if (conf_is_ht20(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT20];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT20;
 		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40MINUS;
 		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40PLUS;
 		else
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11G];
+			sc->cur_rate_mode = ATH9K_MODE_11G;
 		break;
 	case IEEE80211_BAND_5GHZ:
 		if (conf_is_ht20(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT20];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT20;
 		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40MINUS;
 		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40PLUS;
 		else
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11A];
+			sc->cur_rate_mode = ATH9K_MODE_11A;
 		break;
 	default:
 		BUG_ON(1);
@@ -187,51 +205,6 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 		return 16;
 	default:
 		return 0;
-	}
-}
-
-static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
-{
-	const struct ath_rate_table *rate_table = NULL;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
-	int i, maxrates;
-
-	switch (band) {
-	case IEEE80211_BAND_2GHZ:
-		rate_table = sc->hw_rate_table[ATH9K_MODE_11G];
-		break;
-	case IEEE80211_BAND_5GHZ:
-		rate_table = sc->hw_rate_table[ATH9K_MODE_11A];
-		break;
-	default:
-		break;
-	}
-
-	if (rate_table == NULL)
-		return;
-
-	sband = &sc->sbands[band];
-	rate = sc->rates[band];
-
-	if (rate_table->rate_cnt > ATH_RATE_MAX)
-		maxrates = ATH_RATE_MAX;
-	else
-		maxrates = rate_table->rate_cnt;
-
-	for (i = 0; i < maxrates; i++) {
-		rate[i].bitrate = rate_table->info[i].ratekbps / 100;
-		rate[i].hw_value = rate_table->info[i].ratecode;
-		if (rate_table->info[i].short_preamble) {
-			rate[i].hw_value_short = rate_table->info[i].ratecode |
-				rate_table->info[i].short_preamble;
-			rate[i].flags = IEEE80211_RATE_SHORT_PREAMBLE;
-		}
-		sband->n_bitrates++;
-
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
-			  "Rate: %2dMbps, ratecode: %2d\n",
-			  rate[i].bitrate / 10, rate[i].hw_value);
 	}
 }
 
@@ -1701,12 +1674,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* default to MONITOR mode */
 	sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
 
-	/* Setup rate tables */
-
-	ath_rate_attach(sc);
-	ath_setup_rates(sc, IEEE80211_BAND_2GHZ);
-	ath_setup_rates(sc, IEEE80211_BAND_5GHZ);
-
 	/*
 	 * Allocate hardware transmit queues: one queue for
 	 * beacon frames and one data queue for each QoS
@@ -1827,19 +1794,22 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* setup channels and rates */
 
 	sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
-	sc->sbands[IEEE80211_BAND_2GHZ].bitrates =
-		sc->rates[IEEE80211_BAND_2GHZ];
 	sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
 	sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
 		ARRAY_SIZE(ath9k_2ghz_chantable);
+	sc->sbands[IEEE80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
+	sc->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
+		ARRAY_SIZE(ath9k_legacy_rates);
 
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes)) {
 		sc->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_chantable;
-		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
-			sc->rates[IEEE80211_BAND_5GHZ];
 		sc->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		sc->sbands[IEEE80211_BAND_5GHZ].n_channels =
 			ARRAY_SIZE(ath9k_5ghz_chantable);
+		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
+			ath9k_legacy_rates + 4;
+		sc->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
+			ARRAY_SIZE(ath9k_legacy_rates) - 4;
 	}
 
 	switch (ah->btcoex_hw.scheme) {

@@ -65,9 +65,9 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
-	const struct ath_rate_table *rt;
 	int flags, antenna, ctsrate = 0, ctsduration = 0;
-	u8 rate;
+	struct ieee80211_supported_band *sband;
+	u8 rate = 0;
 
 	ds = bf->bf_desc;
 	flags = ATH9K_TXDESC_NOACK;
@@ -91,10 +91,10 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	ds->ds_data = bf->bf_buf_addr;
 
-	rt = sc->cur_rate_table;
-	rate = rt->info[0].ratecode;
+	sband = &sc->sbands[common->hw->conf.channel->band];
+	rate = sband->bitrates[0].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		rate |= rt->info[0].short_preamble;
+		rate |= sband->bitrates[0].hw_value_short;
 
 	ath9k_hw_set11n_txdesc(ah, ds, skb->len + FCS_LEN,
 			       ATH9K_PKT_TYPE_BEACON,

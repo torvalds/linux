@@ -21,7 +21,6 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 
-#include "rc.h"
 #include "debug.h"
 #include "common.h"
 
@@ -423,6 +422,7 @@ struct ath_led {
 #define SC_OP_BT_PRIORITY_DETECTED BIT(21)
 
 struct ath_wiphy;
+struct ath_rate_table;
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
@@ -467,9 +467,8 @@ struct ath_softc {
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
-	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
-	const struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	const struct ath_rate_table *cur_rate_table;
+	enum wireless_mode cur_rate_mode;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	struct ath_led radio_led;

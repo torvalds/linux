@@ -255,21 +255,11 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
-void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
+void ath_debug_stat_rc(struct ath_softc *sc, int final_rate)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_rate *rates = tx_info->status.rates;
-	int final_ts_idx = 0, idx, i;
 	struct ath_rc_stats *stats;
 
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (!rates[i].count)
-			break;
-
-		final_ts_idx = i;
-	}
-	idx = rates[final_ts_idx].idx;
-	stats = &sc->debug.stats.rcstats[idx];
+	stats = &sc->debug.stats.rcstats[final_rate];
 	stats->success++;
 }
 

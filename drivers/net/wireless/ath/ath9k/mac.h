@@ -616,7 +616,6 @@ enum ath9k_cipher {
 
 struct ath_hw;
 struct ath9k_channel;
-struct ath_rate_table;
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);

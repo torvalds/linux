@@ -70,6 +70,29 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 			     int nbad, int txok, bool update_rc);
 
+enum {
+	MCS_DEFAULT,
+	MCS_HT40,
+	MCS_HT40_SGI,
+};
+
+static int ath_max_4ms_framelen[3][16] = {
+	[MCS_DEFAULT] = {
+		3216,  6434,  9650,  12868, 19304, 25740,  28956,  32180,
+		6430,  12860, 19300, 25736, 38600, 51472,  57890,  64320,
+	},
+	[MCS_HT40] = {
+		6684,  13368, 20052, 26738, 40104, 53476,  60156,  66840,
+		13360, 26720, 40080, 53440, 80160, 106880, 120240, 133600,
+	},
+	[MCS_HT40_SGI] = {
+		/* TODO: Only MCS 7 and 15 updated, recalculate the rest */
+		6684,  13368, 20052, 26738, 40104, 53476,  60156,  74200,
+		13360, 26720, 40080, 53440, 80160, 106880, 120240, 148400,
+	}
+};
+
+
 /*********************/
 /* Aggregation logic */
 /*********************/
@@ -459,7 +482,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 			   struct ath_atx_tid *tid)
 {
-	const struct ath_rate_table *rate_table = sc->cur_rate_table;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
@@ -480,12 +502,20 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 
 	for (i = 0; i < 4; i++) {
 		if (rates[i].count) {
-			if (!WLAN_RC_PHY_HT(rate_table->info[rates[i].idx].phy)) {
+			int modeidx;
+			if (!(rates[i].flags & IEEE80211_TX_RC_MCS)) {
 				legacy = 1;
 				break;
 			}
 
-			frmlen = rate_table->info[rates[i].idx].max_4ms_framelen;
+			if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
+				modeidx = MCS_HT40_SGI;
+			else if (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+				modeidx = MCS_HT40;
+			else
+				modeidx = MCS_DEFAULT;
+
+			frmlen = ath_max_4ms_framelen[modeidx][rates[i].idx];
 			max_4ms_framelen = min(max_4ms_framelen, frmlen);
 		}
 	}
@@ -523,12 +553,11 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 				  struct ath_buf *bf, u16 frmlen)
 {
-	const struct ath_rate_table *rt = sc->cur_rate_table;
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	u32 nsymbits, nsymbols;
 	u16 minlen;
-	u8 rc, flags, rix;
+	u8 flags, rix;
 	int width, half_gi, ndelim, mindelim;
 
 	/* Select standard number of delimiters based on frame length alone */
@@ -558,7 +587,6 @@ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 
 	rix = tx_info->control.rates[0].idx;
 	flags = tx_info->control.rates[0].flags;
-	rc = rt->info[rix].ratecode;
 	width = (flags & IEEE80211_TX_RC_40_MHZ_WIDTH) ? 1 : 0;
 	half_gi = (flags & IEEE80211_TX_RC_SHORT_GI) ? 1 : 0;
 
@@ -570,7 +598,7 @@ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 	if (nsymbols == 0)
 		nsymbols = 1;
 
-	nsymbits = bits_per_symbol[HT_RC_2_MCS(rc)][width];
+	nsymbits = bits_per_symbol[rix][width];
 	minlen = (nsymbols * nsymbits) / BITS_PER_BYTE;
 
 	if (frmlen < minlen) {
@@ -1425,22 +1453,14 @@ static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
 static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 			    int width, int half_gi, bool shortPreamble)
 {
-	const struct ath_rate_table *rate_table = sc->cur_rate_table;
 	u32 nbits, nsymbits, duration, nsymbols;
-	u8 rc;
 	int streams, pktlen;
 
 	pktlen = bf_isaggr(bf) ? bf->bf_al : bf->bf_frmlen;
-	rc = rate_table->info[rix].ratecode;
-
-	/* for legacy rates, use old function to compute packet duration */
-	if (!IS_HT_RATE(rc))
-		return ath9k_hw_computetxtime(sc->sc_ah, rate_table, pktlen,
-					      rix, shortPreamble);
 
 	/* find number of symbols: PLCP + data */
 	nbits = (pktlen << 3) + OFDM_PLCP_BITS;
-	nsymbits = bits_per_symbol[HT_RC_2_MCS(rc)][width];
+	nsymbits = bits_per_symbol[rix][width];
 	nsymbols = (nbits + nsymbits - 1) / nsymbits;
 
 	if (!half_gi)
@@ -1449,7 +1469,7 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 		duration = SYMBOL_TIME_HALFGI(nsymbols);
 
 	/* addup duration for legacy/ht training and signal fields */
-	streams = HT_RC_2_STREAMS(rc);
+	streams = HT_RC_2_STREAMS(rix);
 	duration += L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 
 	return duration;
@@ -1458,11 +1478,11 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	const struct ath_rate_table *rt = sc->cur_rate_table;
 	struct ath9k_11n_rate_series series[4];
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
+	const struct ieee80211_rate *rate;
 	struct ieee80211_hdr *hdr;
 	int i, flags = 0;
 	u8 rix = 0, ctsrate = 0;
@@ -1481,11 +1501,10 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	 * checking the BSS's global flag.
 	 * But for the rate series, IEEE80211_TX_RC_USE_SHORT_PREAMBLE is used.
 	 */
+	rate = ieee80211_get_rts_cts_rate(sc->hw, tx_info);
+	ctsrate = rate->hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		ctsrate = rt->info[tx_info->control.rts_cts_rate_idx].ratecode |
-			rt->info[tx_info->control.rts_cts_rate_idx].short_preamble;
-	else
-		ctsrate = rt->info[tx_info->control.rts_cts_rate_idx].ratecode;
+		ctsrate |= rate->hw_value_short;
 
 	/*
 	 * ATH9K_TXDESC_RTSENA and ATH9K_TXDESC_CTSENA are mutually exclusive.
@@ -1508,18 +1527,15 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		flags &= ~(ATH9K_TXDESC_RTSENA);
 
 	for (i = 0; i < 4; i++) {
+		bool is_40, is_sgi, is_sp;
+		int phy;
+
 		if (!rates[i].count || (rates[i].idx < 0))
 			continue;
 
 		rix = rates[i].idx;
 		series[i].Tries = rates[i].count;
 		series[i].ChSel = common->tx_chainmask;
-
-		if (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			series[i].Rate = rt->info[rix].ratecode |
-				rt->info[rix].short_preamble;
-		else
-			series[i].Rate = rt->info[rix].ratecode;
 
 		if (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
@@ -1528,10 +1544,36 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
 			series[i].RateFlags |= ATH9K_RATESERIES_HALFGI;
 
-		series[i].PktDuration = ath_pkt_duration(sc, rix, bf,
-			 (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH) != 0,
-			 (rates[i].flags & IEEE80211_TX_RC_SHORT_GI),
-			 (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE));
+		is_sgi = !!(rates[i].flags & IEEE80211_TX_RC_SHORT_GI);
+		is_40 = !!(rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH);
+		is_sp = !!(rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE);
+
+		if (rates[i].flags & IEEE80211_TX_RC_MCS) {
+			/* MCS rates */
+			series[i].Rate = rix | 0x80;
+			series[i].PktDuration = ath_pkt_duration(sc, rix, bf,
+				 is_40, is_sgi, is_sp);
+			continue;
+		}
+
+		/* legcay rates */
+		if ((tx_info->band == IEEE80211_BAND_2GHZ) &&
+		    !(rate->flags & IEEE80211_RATE_ERP_G))
+			phy = WLAN_RC_PHY_CCK;
+		else
+			phy = WLAN_RC_PHY_OFDM;
+
+		rate = &sc->sbands[tx_info->band].bitrates[rates[i].idx];
+		series[i].Rate = rate->hw_value;
+		if (rate->hw_value_short) {
+			if (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+				series[i].Rate |= rate->hw_value_short;
+		} else {
+			is_sp = false;
+		}
+
+		series[i].PktDuration = ath9k_hw_computetxtime(sc->sc_ah,
+			phy, rate->bitrate * 100, bf->bf_frmlen, rix, is_sp);
 	}
 
 	/* set dur_update_en for l-sig computation except for PS-Poll frames */
@@ -1920,8 +1962,10 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 		}
 	}
 
-	for (i = tx_rateindex + 1; i < hw->max_rates; i++)
+	for (i = tx_rateindex + 1; i < hw->max_rates; i++) {
 		tx_info->status.rates[i].count = 0;
+		tx_info->status.rates[i].idx = -1;
+	}
 
 	tx_info->status.rates[tx_rateindex].count = bf->bf_retries + 1;
 }
