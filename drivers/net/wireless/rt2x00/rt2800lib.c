@@ -2072,7 +2072,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize HT information.
 	 */
-	spec->ht.ht_supported = true;
+	if (!rt2x00_rf(chip, RF2020))
+		spec->ht.ht_supported = true;
+	else
+		spec->ht.ht_supported = false;
+
 	spec->ht.cap =
 	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 	    IEEE80211_HT_CAP_GRN_FLD |
