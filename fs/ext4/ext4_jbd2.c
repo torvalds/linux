@@ -34,22 +34,6 @@ int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 	return err;
 }
 
-int __ext4_journal_forget(const char *where, handle_t *handle,
-				struct buffer_head *bh)
-{
-	int err = 0;
-
-	if (ext4_handle_valid(handle)) {
-		err = jbd2_journal_forget(handle, bh);
-		if (err)
-			ext4_journal_abort_handle(where, __func__, bh,
-						  handle, err);
-	}
-	else
-		bforget(bh);
-	return err;
-}
-
 /*
  * The ext4 forget function must perform a revoke if we are freeing data
  * which has been journaled.  Metadata (eg. indirect blocks) must be
@@ -93,7 +77,11 @@ int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
 	    (!is_metadata && !ext4_should_journal_data(inode))) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call jbd2_journal_forget");
-			return __ext4_journal_forget(where, handle, bh);
+			err = jbd2_journal_forget(handle, bh);
+			if (err)
+				ext4_journal_abort_handle(where, __func__, bh,
+							  handle, err);
+			return err;
 		}
 		return 0;
 	}

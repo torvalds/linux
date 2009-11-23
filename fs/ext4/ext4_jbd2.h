@@ -127,10 +127,6 @@ int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 				struct buffer_head *bh);
 
-/* When called with an invalid handle, this will still do a put on the BH */
-int __ext4_journal_forget(const char *where, handle_t *handle,
-				struct buffer_head *bh);
-
 int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
 		  struct inode *inode, struct buffer_head *bh,
 		  ext4_fsblk_t blocknr);
@@ -150,8 +146,6 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 		      (block_nr))
 #define ext4_journal_get_create_access(handle, bh) \
 	__ext4_journal_get_create_access(__func__, (handle), (bh))
-#define ext4_journal_forget(handle, bh) \
-	__ext4_journal_forget(__func__, (handle), (bh))
 #define ext4_handle_dirty_metadata(handle, inode, bh) \
 	__ext4_handle_dirty_metadata(__func__, (handle), (inode), (bh))
 

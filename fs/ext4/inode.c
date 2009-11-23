@@ -767,7 +767,13 @@ failed:
 	/* Allocation failed, free what we already allocated */
 	for (i = 1; i <= n ; i++) {
 		BUFFER_TRACE(branch[i].bh, "call jbd2_journal_forget");
-		ext4_journal_forget(handle, branch[i].bh);
+		/* 
+		 * Note: is_metadata is 0 because branch[i].bh is
+		 * newly allocated, so there is no need to revoke the
+		 * block.  If we do, it's harmless, but not necessary.
+		 */
+		ext4_forget(handle, 0, inode, branch[i].bh,
+			    branch[i].bh->b_blocknr);
 	}
 	for (i = 0; i < indirect_blks; i++)
 		ext4_free_blocks(handle, inode, new_blocks[i], 1, 0);
@@ -852,7 +858,13 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 err_out:
 	for (i = 1; i <= num; i++) {
 		BUFFER_TRACE(where[i].bh, "call jbd2_journal_forget");
-		ext4_journal_forget(handle, where[i].bh);
+		/* 
+		 * Note: is_metadata is 0 because branch[i].bh is
+		 * newly allocated, so there is no need to revoke the
+		 * block.  If we do, it's harmless, but not necessary.
+		 */
+		ext4_forget(handle, 0, inode, where[i].bh,
+			    where[i].bh->b_blocknr);
 		ext4_free_blocks(handle, inode,
 					le32_to_cpu(where[i-1].key), 1, 0);
 	}
