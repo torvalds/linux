@@ -586,9 +586,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 	/* We now own the SKB */
 	skb = rx_buf->skb;
 	rx_buf->skb = NULL;
-
-	EFX_BUG_ON_PARANOID(rx_buf->page);
-	EFX_BUG_ON_PARANOID(rx_buf->skb);
 	EFX_BUG_ON_PARANOID(!skb);
 
 	/* Set the SKB flags */
