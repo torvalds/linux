@@ -76,6 +76,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	 */
 	if (slice_mm_new_context(mm))
 		slice_set_user_psize(mm, mmu_virtual_psize);
+	subpage_prot_init_new_context(mm);
 	mm->context.id = index;
 
 	return 0;
@@ -92,5 +93,6 @@ EXPORT_SYMBOL_GPL(__destroy_context);
 void destroy_context(struct mm_struct *mm)
 {
 	__destroy_context(mm->context.id);
+	subpage_prot_free(mm);
 	mm->context.id = NO_CONTEXT;
 }
