@@ -2985,7 +2985,7 @@ static ssize_t
 ftrace_pid_write(struct file *filp, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
-	char buf[64];
+	char buf[64], *tmp;
 	long val;
 	int ret;
 
@@ -3001,11 +3001,11 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	 * Allow "echo > set_ftrace_pid" or "echo -n '' > set_ftrace_pid"
 	 * to clean the filter quietly.
 	 */
-	strstrip(buf);
-	if (strlen(buf) == 0)
+	tmp = strstrip(buf);
+	if (strlen(tmp) == 0)
 		return 1;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = strict_strtol(tmp, 10, &val);
 	if (ret < 0)
 		return ret;
 
@@ -3391,4 +3391,3 @@ void ftrace_graph_stop(void)
 	ftrace_stop();
 }
 #endif
-
