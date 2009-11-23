@@ -2721,26 +2721,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL)) {
 		if (ext4_load_journal(sb, es, journal_devnum))
 			goto failed_mount3;
-		if (!(sb->s_flags & MS_RDONLY) &&
-		    EXT4_SB(sb)->s_journal->j_failed_commit) {
-			ext4_msg(sb, KERN_CRIT, "error: "
-			       "ext4_fill_super: Journal transaction "
-			       "%u is corrupt",
-			       EXT4_SB(sb)->s_journal->j_failed_commit);
-			if (test_opt(sb, ERRORS_RO)) {
-				ext4_msg(sb, KERN_CRIT,
-				       "Mounting filesystem read-only");
-				sb->s_flags |= MS_RDONLY;
-				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-			}
-			if (test_opt(sb, ERRORS_PANIC)) {
-				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-				ext4_commit_super(sb, 1);
-				goto failed_mount4;
-			}
-		}
 	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
 	      EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER)) {
 		ext4_msg(sb, KERN_ERR, "required journal recovery "
