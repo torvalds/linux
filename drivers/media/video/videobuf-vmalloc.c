@@ -392,7 +392,7 @@ static struct videobuf_qtype_ops qops = {
 
 void videobuf_queue_vmalloc_init(struct videobuf_queue* q,
 			 const struct videobuf_queue_ops *ops,
-			 void *dev,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
