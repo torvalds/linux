@@ -14,6 +14,7 @@
  *  - General Touch
  *  - GoTop Super_Q2/GogoPen/PenPower tablets
  *  - JASTEC USB touch controller/DigiTech DTR-02U
+ *  - Zytronic capacitive touchscreen
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -73,6 +74,15 @@ struct usbtouch_device_info {
 	int min_press, max_press;
 	int rept_size;
 
+	/*
+	 * Always service the USB devices irq not just when the input device is
+	 * open. This is useful when devices have a watchdog which prevents us
+	 * from periodically polling the device. Leave this unset unless your
+	 * touchscreen device requires it, as it does consume more of the USB
+	 * bandwidth.
+	 */
+	bool irq_always;
+
 	void (*process_pkt) (struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
 
 	/*
@@ -121,6 +131,7 @@ enum {
 	DEVTYPE_GOTOP,
 	DEVTYPE_JASTEC,
 	DEVTYPE_E2I,
+	DEVTYPE_ZYTRONIC,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -201,6 +212,11 @@ static struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_E2I
 	{USB_DEVICE(0x1ac7, 0x0001), .driver_info = DEVTYPE_E2I},
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
+	{USB_DEVICE(0x14c8, 0x0003), .driver_info = DEVTYPE_ZYTRONIC},
+#endif
+
 	{}
 };
 
@@ -621,6 +637,39 @@ static int jastec_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 }
 #endif
 
+/*****************************************************************************
+ * Zytronic Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
+static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	switch (pkt[0]) {
+	case 0x3A: /* command response */
+		dbg("%s: Command response %d", __func__, pkt[1]);
+		break;
+
+	case 0xC0: /* down */
+		dev->x = (pkt[1] & 0x7f) | ((pkt[2] & 0x07) << 7);
+		dev->y = (pkt[3] & 0x7f) | ((pkt[4] & 0x07) << 7);
+		dev->touch = 1;
+		dbg("%s: down %d,%d", __func__, dev->x, dev->y);
+		return 1;
+
+	case 0x80: /* up */
+		dev->x = (pkt[1] & 0x7f) | ((pkt[2] & 0x07) << 7);
+		dev->y = (pkt[3] & 0x7f) | ((pkt[4] & 0x07) << 7);
+		dev->touch = 0;
+		dbg("%s: up %d,%d", __func__, dev->x, dev->y);
+		return 1;
+
+	default:
+		dbg("%s: Unknown return %d", __func__, pkt[0]);
+		break;
+	}
+
+	return 0;
+}
+#endif
 
 /*****************************************************************************
  * the different device descriptors
@@ -783,6 +832,18 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.read_data	= e2i_read_data,
 	},
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
+	[DEVTYPE_ZYTRONIC] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x03ff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x03ff,
+		.rept_size	= 5,
+		.read_data	= zytronic_read_data,
+		.irq_always     = true,
+	},
+#endif
 };
 
 
@@ -933,8 +994,10 @@ static int usbtouch_open(struct input_dev *input)
 
 	usbtouch->irq->dev = usbtouch->udev;
 
-	if (usb_submit_urb(usbtouch->irq, GFP_KERNEL))
-		return -EIO;
+	if (!usbtouch->type->irq_always) {
+		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL))
+		  return -EIO;
+	}
 
 	return 0;
 }
@@ -943,7 +1006,8 @@ static void usbtouch_close(struct input_dev *input)
 {
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 
-	usb_kill_urb(usbtouch->irq);
+	if (!usbtouch->type->irq_always)
+		usb_kill_urb(usbtouch->irq);
 }
 
 
@@ -1065,6 +1129,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 	}
 
 	usb_set_intfdata(intf, usbtouch);
+
+	if (usbtouch->type->irq_always)
+		usb_submit_urb(usbtouch->irq, GFP_KERNEL);
 
 	return 0;
 
