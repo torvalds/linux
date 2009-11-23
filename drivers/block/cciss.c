@@ -4326,10 +4326,15 @@ clean4:
 	for (k = 0; k < hba[i]->nr_cmds; k++)
 		kfree(hba[i]->scatter_list[k]);
 	kfree(hba[i]->scatter_list);
-	for (j = 0; j < hba[i]->nr_cmds; j++) {
-		if (hba[i]->cmd_sg_list[j])
-			kfree(hba[i]->cmd_sg_list[j]->sgchain);
-		kfree(hba[i]->cmd_sg_list[j]);
+	/* Only free up extra s/g lists if controller supports them */
+	if (hba[i]->chainsize > 0) {
+		for (j = 0; j < hba[i]->nr_cmds; j++) {
+			if (hba[i]->cmd_sg_list[j]) {
+				kfree(hba[i]->cmd_sg_list[j]->sgchain);
+				kfree(hba[i]->cmd_sg_list[j]);
+			}
+		}
+		kfree(hba[i]->cmd_sg_list);
 	}
 	if (hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
@@ -4448,9 +4453,15 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	for (j = 0; j < hba[i]->nr_cmds; j++)
 		kfree(hba[i]->scatter_list[j]);
 	kfree(hba[i]->scatter_list);
-	for (j = 0; j < hba[i]->nr_cmds; j++) {
-		kfree(hba[i]->cmd_sg_list[j]->sgchain);
-		kfree(hba[i]->cmd_sg_list[j]);
+	/* Only free up extra s/g lists if controller supports them */
+	if (hba[i]->chainsize > 0) {
+		for (j = 0; j < hba[i]->nr_cmds; j++) {
+			if (hba[i]->cmd_sg_list[j]) {
+				kfree(hba[i]->cmd_sg_list[j]->sgchain);
+				kfree(hba[i]->cmd_sg_list[j]);
+			}
+		}
+		kfree(hba[i]->cmd_sg_list);
 	}
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
