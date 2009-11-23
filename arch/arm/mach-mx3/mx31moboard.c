@@ -213,6 +213,7 @@ static struct mc13783_platform_data moboard_pmic = {
 	.regulators = moboard_regulators,
 	.num_regulators = ARRAY_SIZE(moboard_regulators),
 	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC,
+		MC13783_USE_ADC,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
@@ -224,12 +225,6 @@ static struct spi_board_info moboard_spi_board_info[] __initdata = {
 		.chip_select = 0,
 		.platform_data = &moboard_pmic,
 		.mode = SPI_CS_HIGH,
-	},
-	{
-		.modalias = "spidev",
-		.max_speed_hz = 300000,
-		.bus_num = 1,
-		.chip_select = 1, /* according spi1_cs[] ! */
 	},
 };
 

@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
@@ -126,6 +127,15 @@ static void dspics_resets_init(void)
 	}
 }
 
+static struct spi_board_info marxbot_spi_board_info[] __initdata = {
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 300000,
+		.bus_num = 1,
+		.chip_select = 1, /* according spi1_cs[] ! */
+	},
+};
+
 #define TURRETCAM_POWER	IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)
 #define BASECAM_POWER	IOMUX_TO_GPIO(MX31_PIN_CSI_D5)
 #define TURRETCAM_RST_B	IOMUX_TO_GPIO(MX31_PIN_GPIO3_0)
@@ -216,6 +226,9 @@ void __init mx31moboard_marxbot_init(void)
 	dspics_resets_init();
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+
+	spi_register_board_info(marxbot_spi_board_info,
+		ARRAY_SIZE(marxbot_spi_board_info));
 
 	marxbot_cam_init();
 	platform_add_devices(marxbot_cameras, ARRAY_SIZE(marxbot_cameras));
