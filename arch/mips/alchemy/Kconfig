@@ -1,5 +1,5 @@
-# au1000-style gpio
-config ALCHEMY_GPIO_AU1000
+# au1000-style gpio and interrupt controllers
+config ALCHEMY_GPIOINT_AU1000
 	bool
 
 # select this in your board config if you don't want to use the gpio
@@ -133,27 +133,27 @@ endchoice
 config SOC_AU1000
 	bool
 	select SOC_AU1X00
-	select ALCHEMY_GPIO_AU1000
+	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1100
 	bool
 	select SOC_AU1X00
-	select ALCHEMY_GPIO_AU1000
+	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1500
 	bool
 	select SOC_AU1X00
-	select ALCHEMY_GPIO_AU1000
+	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1550
 	bool
 	select SOC_AU1X00
-	select ALCHEMY_GPIO_AU1000
+	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1200
 	bool
 	select SOC_AU1X00
-	select ALCHEMY_GPIO_AU1000
+	select ALCHEMY_GPIOINT_AU1000
 
 config SOC_AU1X00
 	bool
