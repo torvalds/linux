@@ -182,13 +182,14 @@ static void qt202x_phy_poll(struct efx_nic *efx)
 {
 	int link_up = qt202x_link_ok(efx);
 	/* Simulate a PHY event if link state has changed */
-	if (link_up != efx->link_up)
+	if (link_up != efx->link_state.up)
 		falcon_sim_phy_event(efx);
 }
 
 static void qt202x_phy_reconfigure(struct efx_nic *efx)
 {
 	struct qt202x_phy_data *phy_data = efx->phy_data;
+	struct efx_link_state *link_state = &efx->link_state;
 
 	if (efx->phy_type == PHY_TYPE_QT2025C) {
 		/* There are several different register bits which can
@@ -215,10 +216,10 @@ static void qt202x_phy_reconfigure(struct efx_nic *efx)
 	efx_mdio_phy_reconfigure(efx);
 
 	phy_data->phy_mode = efx->phy_mode;
-	efx->link_up = qt202x_link_ok(efx);
-	efx->link_speed = 10000;
-	efx->link_fd = true;
-	efx->link_fc = efx->wanted_fc;
+	link_state->up = qt202x_link_ok(efx);
+	link_state->speed = 10000;
+	link_state->fd = true;
+	link_state->fc = efx->wanted_fc;
 }
 
 static void qt202x_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)

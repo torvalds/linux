@@ -1905,7 +1905,7 @@ static int falcon_reset_macs(struct efx_nic *efx)
 
 	/* If we've reset the EM block and the link is up, then
 	 * we'll have to kick the XAUI link so the PHY can recover */
-	if (efx->link_up && EFX_IS10G(efx) && EFX_WORKAROUND_5147(efx))
+	if (efx->link_state.up && EFX_IS10G(efx) && EFX_WORKAROUND_5147(efx))
 		falcon_reset_xaui(efx);
 
 	return 0;
@@ -1939,17 +1939,18 @@ void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 0);
 	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 
-	if (!efx->link_up)
+	if (!efx->link_state.up)
 		falcon_drain_tx_fifo(efx);
 }
 
 void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 {
+	struct efx_link_state *link_state = &efx->link_state;
 	efx_oword_t reg;
 	int link_speed;
 	bool tx_fc;
 
-	switch (efx->link_speed) {
+	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;
 	case 1000:  link_speed = 2; break;
 	case 100:   link_speed = 1; break;
@@ -1969,7 +1970,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	 * discarded. */
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		EFX_SET_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN,
-				    !efx->link_up);
+				    !link_state->up);
 	}
 
 	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
@@ -1980,7 +1981,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	/* Transmission of pause frames when RX crosses the threshold is
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
-	tx_fc = !!(efx->link_fc & EFX_FC_TX);
+	tx_fc = !!(efx->link_state.fc & EFX_FC_TX);
 	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, tx_fc);
 
@@ -2175,11 +2176,11 @@ int falcon_switch_mac(struct efx_nic *efx)
 
 	/* Internal loopbacks override the phy speed setting */
 	if (efx->loopback_mode == LOOPBACK_GMAC) {
-		efx->link_speed = 1000;
-		efx->link_fd = true;
+		efx->link_state.speed = 1000;
+		efx->link_state.fd = true;
 	} else if (LOOPBACK_INTERNAL(efx)) {
-		efx->link_speed = 10000;
-		efx->link_fd = true;
+		efx->link_state.speed = 10000;
+		efx->link_state.fd = true;
 	}
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
@@ -2752,7 +2753,7 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 	}
 
 	/* Initial assumed speed */
-	efx->link_speed = EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_10G) ? 10000 : 1000;
+	efx->link_state.speed = EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_10G) ? 10000 : 1000;
 
 	return 0;
 }

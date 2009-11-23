@@ -503,6 +503,7 @@ static void tenxpress_low_power(struct efx_nic *efx)
 static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
+	struct efx_link_state *link_state = &efx->link_state;
 	struct ethtool_cmd ecmd;
 	bool phy_mode_change, loop_reset;
 
@@ -545,37 +546,38 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	phy_data->phy_mode = efx->phy_mode;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		efx->link_speed = 10000;
-		efx->link_fd = true;
-		efx->link_up = sfx7101_link_ok(efx);
+		link_state->speed = 10000;
+		link_state->fd = true;
+		link_state->up = sfx7101_link_ok(efx);
 	} else {
 		efx->phy_op->get_settings(efx, &ecmd);
-		efx->link_speed = ecmd.speed;
-		efx->link_fd = ecmd.duplex == DUPLEX_FULL;
-		efx->link_up = sft9001_link_ok(efx, &ecmd);
+		link_state->speed = ecmd.speed;
+		link_state->fd = ecmd.duplex == DUPLEX_FULL;
+		link_state->up = sft9001_link_ok(efx, &ecmd);
 	}
-	efx->link_fc = efx_mdio_get_pause(efx);
+	link_state->fc = efx_mdio_get_pause(efx);
 }
 
 /* Poll PHY for interrupt */
 static void tenxpress_phy_poll(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
+	struct efx_link_state *link_state = &efx->link_state;
 	bool change = false;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		bool link_ok = sfx7101_link_ok(efx);
-		if (link_ok != efx->link_up) {
+		if (link_ok != link_state->up) {
 			change = true;
 		} else {
 			unsigned int link_fc = efx_mdio_get_pause(efx);
-			if (link_fc != efx->link_fc)
+			if (link_fc != link_state->fc)
 				change = true;
 		}
 		sfx7101_check_bad_lp(efx, link_ok);
 	} else if (efx->loopback_mode) {
 		bool link_ok = sft9001_link_ok(efx, NULL);
-		if (link_ok != efx->link_up)
+		if (link_ok != link_state->up)
 			change = true;
 	} else {
 		int status = efx_mdio_read(efx, MDIO_MMD_PMAPMD,

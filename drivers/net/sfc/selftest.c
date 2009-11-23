@@ -614,7 +614,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 			/* We need both the phy and xaui links to be ok.
 			 * rather than relying on the falcon_xmac irq/poll
 			 * regime, just poll xaui directly */
-			link_up = efx->link_up;
+			link_up = efx->link_state.up;
 			if (link_up && EFX_IS10G(efx) &&
 			    !falcon_xaui_link_ok(efx))
 				link_up = false;

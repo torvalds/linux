@@ -419,7 +419,7 @@ enum phy_type {
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
 
-#define EFX_IS10G(efx) ((efx)->link_speed == 10000)
+#define EFX_IS10G(efx) ((efx)->link_state.speed == 10000)
 
 enum nic_state {
 	STATE_INIT = 0,
@@ -465,6 +465,20 @@ enum efx_fc_type {
 enum efx_mac_type {
 	EFX_GMAC = 1,
 	EFX_XMAC = 2,
+};
+
+/**
+ * struct efx_link_state - Current state of the link
+ * @up: Link is up
+ * @fd: Link is full-duplex
+ * @fc: Actual flow control flags
+ * @speed: Link speed (Mbps)
+ */
+struct efx_link_state {
+	bool up;
+	bool fd;
+	enum efx_fc_type fc;
+	unsigned int speed;
 };
 
 /**
@@ -691,10 +705,7 @@ union efx_multicast_hash {
  * @mdio: PHY MDIO interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @mac_up: MAC link state
- * @link_up: Link status
- * @link_fd: Link is full duplex
- * @link_fc: Actualy flow control flags
- * @link_speed: Link speed (Mbps)
+ * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
@@ -780,10 +791,7 @@ struct efx_nic {
 	enum efx_phy_mode phy_mode;
 
 	bool mac_up;
-	bool link_up;
-	bool link_fd;
-	enum efx_fc_type link_fc;
-	unsigned int link_speed;
+	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
 	bool promiscuous;

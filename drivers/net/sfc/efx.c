@@ -543,6 +543,8 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay)
  */
 static void efx_link_status_changed(struct efx_nic *efx)
 {
+	struct efx_link_state *link_state = &efx->link_state;
+
 	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
 	 * that no events are triggered between unregister_netdev() and the
 	 * driver unloading. A more general condition is that NETDEV_CHANGE
@@ -555,19 +557,19 @@ static void efx_link_status_changed(struct efx_nic *efx)
 		return;
 	}
 
-	if (efx->link_up != netif_carrier_ok(efx->net_dev)) {
+	if (link_state->up != netif_carrier_ok(efx->net_dev)) {
 		efx->n_link_state_changes++;
 
-		if (efx->link_up)
+		if (link_state->up)
 			netif_carrier_on(efx->net_dev);
 		else
 			netif_carrier_off(efx->net_dev);
 	}
 
 	/* Status message for kernel log */
-	if (efx->link_up) {
+	if (link_state->up) {
 		EFX_INFO(efx, "link up at %uMbps %s-duplex (MTU %d)%s\n",
-			 efx->link_speed, efx->link_fd ? "full" : "half",
+			 link_state->speed, link_state->fd ? "full" : "half",
 			 efx->net_dev->mtu,
 			 (efx->promiscuous ? " [PROMISC]" : ""));
 	} else {
@@ -758,7 +760,7 @@ static void efx_fini_port(struct efx_nic *efx)
 	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
-	efx->link_up = false;
+	efx->link_state.up = false;
 	efx_link_status_changed(efx);
 }
 

@@ -85,7 +85,7 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 	s32 alarms1, alarms2;
 
 	/* If link is up then do not monitor temperature */
-	if (EFX_WORKAROUND_7884(efx) && efx->link_up)
+	if (EFX_WORKAROUND_7884(efx) && efx->link_state.up)
 		return 0;
 
 	alarms1 = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);

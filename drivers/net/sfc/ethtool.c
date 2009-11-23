@@ -539,7 +539,7 @@ static u32 efx_ethtool_get_link(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return efx->link_up;
+	return efx->link_state.up;
 }
 
 static int efx_ethtool_get_eeprom_len(struct net_device *net_dev)
@@ -699,7 +699,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	if (EFX_WORKAROUND_11482(efx) && reset) {
 		if (falcon_rev(efx) >= FALCON_REV_B0) {
 			/* Recover by resetting the EM block */
-			if (efx->link_up)
+			if (efx->link_state.up)
 				falcon_drain_tx_fifo(efx);
 		} else {
 			/* Schedule a reset to recover */

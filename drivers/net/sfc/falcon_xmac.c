@@ -89,7 +89,7 @@ static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
 		return;
 
 	/* We expect xgmii faults if the wireside link is up */
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_up)
+	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up)
 		return;
 
 	/* We can only use this interrupt to signal the negative edge of
@@ -132,7 +132,7 @@ bool falcon_xaui_link_ok(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AB_XX_CORE_STAT);
 
 	/* If the link is up, then check the phy side of the xaui link */
-	if (efx->link_up && link_ok)
+	if (efx->link_state.up && link_ok)
 		if (efx->phy_op->mmds & (1 << MDIO_MMD_PHYXS))
 			link_ok = efx_mdio_phyxgxs_lane_sync(efx);
 
@@ -143,7 +143,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 {
 	unsigned int max_frame_len;
 	efx_oword_t reg;
-	bool rx_fc = !!(efx->link_fc & EFX_FC_RX);
+	bool rx_fc = !!(efx->link_state.fc & EFX_FC_RX);
 
 	/* Configure MAC  - cut-thru mode is hard wired on */
 	EFX_POPULATE_DWORD_3(reg,
@@ -356,7 +356,7 @@ static void falcon_xmac_irq(struct efx_nic *efx)
 
 static void falcon_poll_xmac(struct efx_nic *efx)
 {
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_up || efx->mac_up)
+	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up || efx->mac_up)
 		return;
 
 	falcon_mask_status_intr(efx, false);

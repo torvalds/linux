@@ -24,16 +24,17 @@
 
 static void falcon_reconfigure_gmac(struct efx_nic *efx)
 {
+	struct efx_link_state *link_state = &efx->link_state;
 	bool loopback, tx_fc, rx_fc, bytemode;
 	int if_mode;
 	unsigned int max_frame_len;
 	efx_oword_t reg;
 
 	/* Configuration register 1 */
-	tx_fc = (efx->link_fc & EFX_FC_TX) || !efx->link_fd;
-	rx_fc = !!(efx->link_fc & EFX_FC_RX);
+	tx_fc = (link_state->fc & EFX_FC_TX) || !link_state->fd;
+	rx_fc = !!(link_state->fc & EFX_FC_RX);
 	loopback = (efx->loopback_mode == LOOPBACK_GMAC);
-	bytemode = (efx->link_speed == 1000);
+	bytemode = (link_state->speed == 1000);
 
 	EFX_POPULATE_OWORD_5(reg,
 			     FRF_AB_GM_LOOP, loopback,
@@ -50,7 +51,7 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 			     FRF_AB_GM_IF_MODE, if_mode,
 			     FRF_AB_GM_PAD_CRC_EN, 1,
 			     FRF_AB_GM_LEN_CHK, 1,
-			     FRF_AB_GM_FD, efx->link_fd,
+			     FRF_AB_GM_FD, link_state->fd,
 			     FRF_AB_GM_PAMBL_LEN, 0x7/*datasheet recommended */);
 
 	efx_writeo(efx, &reg, FR_AB_GM_CFG2);
@@ -101,8 +102,8 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 	/* FIFO configuration register 5 */
 	efx_reado(efx, &reg, FR_AB_GMF_CFG5);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGBYTMODE, bytemode);
-	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGHDPLX, !efx->link_fd);
-	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTDRPLT64, !efx->link_fd);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGHDPLX, !link_state->fd);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTDRPLT64, !link_state->fd);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTFLTRFRMDC_PAUSE, 0);
 	efx_writeo(efx, &reg, FR_AB_GMF_CFG5);
 	udelay(10);
