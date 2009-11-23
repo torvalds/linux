@@ -2066,18 +2066,18 @@ static u32 ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
  * ixgbe_configure_rscctl - enable RSC for the indicated ring
  * @adapter:    address of board private structure
  * @index:      index of ring to set
- * @rx_buf_len: rx buffer length
  **/
-static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter, int index,
-                                   int rx_buf_len)
+static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter, int index)
 {
 	struct ixgbe_ring *rx_ring;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int j;
 	u32 rscctrl;
+	int rx_buf_len;
 
 	rx_ring = &adapter->rx_ring[index];
 	j = rx_ring->reg_idx;
+	rx_buf_len = rx_ring->rx_buf_len;
 	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(j));
 	rscctrl |= IXGBE_RSCCTL_RSCEN;
 	/*
@@ -2285,7 +2285,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 		/* Enable 82599 HW-RSC */
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			ixgbe_configure_rscctl(adapter, i, rx_buf_len);
+			ixgbe_configure_rscctl(adapter, i);
 
 		/* Disable RSC for ACK packets */
 		IXGBE_WRITE_REG(hw, IXGBE_RSCDBU,
