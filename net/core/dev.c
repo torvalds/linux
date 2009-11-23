@@ -5375,7 +5375,7 @@ EXPORT_SYMBOL(synchronize_net);
  *	unregister_netdevice_queue - remove device from the kernel
  *	@dev: device
  *	@head: list
-
+ *
  *	This function shuts down a device interface and removes it
  *	from the kernel tables.
  *	If head not NULL, device is queued to be unregistered later.
