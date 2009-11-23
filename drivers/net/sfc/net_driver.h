@@ -848,7 +848,6 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 /**
  * struct efx_nic_type - Efx device type definition
- * @mem_bar: Memory BAR number
  * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -863,7 +862,6 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  *	descriptors
  */
 struct efx_nic_type {
-	unsigned int mem_bar;
 	unsigned int mem_map_size;
 	unsigned int txd_ptr_tbl_base;
 	unsigned int rxd_ptr_tbl_base;
