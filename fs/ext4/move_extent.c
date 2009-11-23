@@ -189,7 +189,7 @@ double_down_write_data_sem(struct inode *orig_inode, struct inode *donor_inode)
 	}
 
 	down_write(&EXT4_I(first)->i_data_sem);
-	down_write(&EXT4_I(second)->i_data_sem);
+	down_write_nested(&EXT4_I(second)->i_data_sem, SINGLE_DEPTH_NESTING);
 }
 
 /**
