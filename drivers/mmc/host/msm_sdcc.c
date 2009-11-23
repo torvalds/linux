@@ -48,6 +48,7 @@
 
 #define DRIVER_NAME "msm-sdcc"
 
+#define BUSCLK_PWRSAVE 0
 #define BUSCLK_TIMEOUT (HZ)
 static unsigned int msmsdcc_fmin = 144000;
 static unsigned int msmsdcc_fmax = 50000000;
@@ -64,6 +65,8 @@ static inline void
 msmsdcc_disable_clocks(struct msmsdcc_host *host, int deferr)
 {
 	WARN_ON(!host->clks_on);
+
+	BUG_ON(host->curr.mrq);
 
 	if (deferr) {
 		mod_timer(&host->busclk_timer, jiffies + BUSCLK_TIMEOUT);
@@ -131,7 +134,9 @@ msmsdcc_request_end(struct msmsdcc_host *host, struct mmc_request *mrq)
 	if (mrq->cmd->error == -ETIMEDOUT)
 		mdelay(5);
 
+#if BUSCLK_PWRSAVE
 	msmsdcc_disable_clocks(host, 1);
+#endif
 	/*
 	 * Need to drop the host lock here; mmc_request_done may call
 	 * back into the driver...
@@ -257,7 +262,9 @@ msmsdcc_dma_complete_func(struct msm_dmov_cmd *cmd,
 			mrq->data->bytes_xfered = host->curr.data_xfered;
 
 			spin_unlock_irqrestore(&host->lock, flags);
+#if BUSCLK_PWRSAVE
 			msmsdcc_disable_clocks(host, 1);
+#endif
 			mmc_request_done(host->mmc, mrq);
 			return;
 		} else
@@ -934,7 +941,9 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->pwr = pwr;
 		msmsdcc_writel(host, pwr, MMCIPOWER);
 	}
+#if BUSCLK_PWRSAVE
 	msmsdcc_disable_clocks(host, 1);
+#endif
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -1279,7 +1288,9 @@ msmsdcc_probe(struct platform_device *pdev)
 	if (host->timer.function)
 		pr_info("%s: Polling status mode enabled\n", mmc_hostname(mmc));
 
+#if BUSCLK_PWRSAVE
 	msmsdcc_disable_clocks(host, 1);
+#endif
 	return 0;
  cmd_irq_free:
 	free_irq(cmd_irqres->start, host);
@@ -1341,7 +1352,9 @@ msmsdcc_resume(struct platform_device *dev)
 			mmc_resume_host(mmc);
 		if (host->stat_irq)
 			enable_irq(host->stat_irq);
+#if BUSCLK_PWRSAVE
 		msmsdcc_disable_clocks(host, 1);
+#endif
 	}
 	return 0;
 }
