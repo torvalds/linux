@@ -38,7 +38,7 @@ TRACE_EVENT(ext4_free_inode,
 		__entry->blocks	= inode->i_blocks;
 	),
 
-	TP_printk("dev %s ino %lu mode %d uid %u gid %u blocks %llu",
+	TP_printk("dev %s ino %lu mode 0%o uid %u gid %u blocks %llu",
 		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
 		  __entry->mode, __entry->uid, __entry->gid,
 		  (unsigned long long) __entry->blocks)
@@ -61,7 +61,7 @@ TRACE_EVENT(ext4_request_inode,
 		__entry->mode	= mode;
 	),
 
-	TP_printk("dev %s dir %lu mode %d",
+	TP_printk("dev %s dir %lu mode 0%o",
 		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->dir,
 		  __entry->mode)
 );
@@ -85,7 +85,7 @@ TRACE_EVENT(ext4_allocate_inode,
 		__entry->mode	= mode;
 	),
 
-	TP_printk("dev %s ino %lu dir %lu mode %d",
+	TP_printk("dev %s ino %lu dir %lu mode 0%o",
 		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
 		  (unsigned long) __entry->dir, __entry->mode)
 );
@@ -930,7 +930,7 @@ TRACE_EVENT(ext4_forget,
 		__entry->block	= block;
 	),
 
-	TP_printk("dev %s ino %lu mode %d is_metadata %d block %llu",
+	TP_printk("dev %s ino %lu mode 0%o is_metadata %d block %llu",
 		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
 		  __entry->mode, __entry->is_metadata, __entry->block)
 );
