@@ -131,12 +131,6 @@ static void amd_iommu_stats_init(void)
 
 #endif
 
-/* returns !0 if the IOMMU is caching non-present entries in its TLB */
-static int iommu_has_npcache(struct amd_iommu *iommu)
-{
-	return iommu->cap & (1UL << IOMMU_CAP_NPCACHE);
-}
-
 /****************************************************************************
  *
  * Interrupt handling functions
@@ -1713,7 +1707,7 @@ retry:
 	if (unlikely(dma_dom->need_flush && !amd_iommu_unmap_flush)) {
 		iommu_flush_tlb(&dma_dom->domain);
 		dma_dom->need_flush = false;
-	} else if (unlikely(iommu_has_npcache(iommu)))
+	} else if (unlikely(amd_iommu_np_cache))
 		iommu_flush_pages(&dma_dom->domain, address, size);
 
 out:

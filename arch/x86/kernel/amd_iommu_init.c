@@ -141,6 +141,9 @@ LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 struct amd_iommu *amd_iommus[MAX_IOMMUS];
 int amd_iommus_present;
 
+/* IOMMUs have a non-present cache? */
+bool amd_iommu_np_cache __read_mostly;
+
 /*
  * List of protection domains - used during resume
  */
@@ -890,6 +893,9 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	init_iommu_from_pci(iommu);
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
+
+	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE))
+		amd_iommu_np_cache = true;
 
 	return pci_enable_device(iommu->dev);
 }

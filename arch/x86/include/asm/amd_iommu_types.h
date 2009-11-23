@@ -211,6 +211,9 @@ extern bool amd_iommu_dump;
 			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
 	} while(0);
 
+/* global flag if IOMMUs cache non-present entries */
+extern bool amd_iommu_np_cache;
+
 /*
  * Make iterating over all IOMMUs easier
  */
