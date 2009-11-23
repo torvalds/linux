@@ -662,8 +662,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 				regs->ARM_sp -= 4;
 				usp = (u32 __user *)regs->ARM_sp;
 
-				put_user(regs->ARM_pc, usp);
-				regs->ARM_pc = KERN_RESTART_CODE;
+				if (put_user(regs->ARM_pc, usp) == 0) {
+					regs->ARM_pc = KERN_RESTART_CODE;
+				} else {
+					regs->ARM_sp += 4;
+					force_sigsegv(0, current);
+				}
 #endif
 			}
 		}
