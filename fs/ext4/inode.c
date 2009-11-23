@@ -89,6 +89,7 @@ int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 
 	might_sleep();
 
+	trace_ext4_forget(inode, is_metadata, blocknr);
 	BUFFER_TRACE(bh, "enter");
 
 	jbd_debug(4, "forgetting bh %p: is_metadata = %d, mode %o, "

@@ -907,6 +907,32 @@ TRACE_EVENT(ext4_mballoc_free,
 		  __entry->result_len, __entry->result_logical)
 );
 
+TRACE_EVENT(ext4_forget,
+	TP_PROTO(struct inode *inode, int is_metadata, __u64 block),
+
+	TP_ARGS(inode, is_metadata, block),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	umode_t, mode			)
+		__field(	int,	is_metadata		)
+		__field(	__u64,	block			)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->mode	= inode->i_mode;
+		__entry->is_metadata = is_metadata;
+		__entry->block	= block;
+	),
+
+	TP_printk("dev %s ino %lu mode %d is_metadata %d block %llu",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->mode, __entry->is_metadata, __entry->block)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */
