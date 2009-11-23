@@ -4436,8 +4436,8 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
  * @metadata: 		Are these metadata blocks
  */
 void ext4_free_blocks(handle_t *handle, struct inode *inode,
-		      ext4_fsblk_t block, unsigned long count,
-		      int metadata)
+		      struct buffer_head *bh, ext4_fsblk_t block,
+		      unsigned long count, int flags)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct super_block *sb = inode->i_sb;
@@ -4454,15 +4454,12 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	int err = 0;
 	int ret;
 
-	/* 
-	 * We need to make sure we don't reuse the freed block until
-	 * after the transaction is committed, which we can do by
-	 * treating the block as metadata, below.  We make an
-	 * exception if the inode is to be written in writeback mode
-	 * since writeback mode has weak data consistency guarantees.
-	 */
-	if (!ext4_should_writeback_data(inode))
-		metadata = 1;
+	if (bh) {
+		if (block)
+			BUG_ON(block != bh->b_blocknr);
+		else
+			block = bh->b_blocknr;
+	}
 
 	sbi = EXT4_SB(sb);
 	es = EXT4_SB(sb)->s_es;
@@ -4476,7 +4473,32 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	ext4_debug("freeing block %llu\n", block);
-	trace_ext4_free_blocks(inode, block, count, metadata);
+	trace_ext4_free_blocks(inode, block, count, flags);
+
+	if (flags & EXT4_FREE_BLOCKS_FORGET) {
+		struct buffer_head *tbh = bh;
+		int i;
+
+		BUG_ON(bh && (count > 1));
+
+		for (i = 0; i < count; i++) {
+			if (!bh)
+				tbh = sb_find_get_block(inode->i_sb,
+							block + i);
+			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA, 
+				    inode, tbh, block + i);
+		}
+	}
+
+	/* 
+	 * We need to make sure we don't reuse the freed block until
+	 * after the transaction is committed, which we can do by
+	 * treating the block as metadata, below.  We make an
+	 * exception if the inode is to be written in writeback mode
+	 * since writeback mode has weak data consistency guarantees.
+	 */
+	if (!ext4_should_writeback_data(inode))
+		flags |= EXT4_FREE_BLOCKS_METADATA;
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 	if (ac) {
@@ -4552,7 +4574,8 @@ do_more:
 	err = ext4_mb_load_buddy(sb, block_group, &e4b);
 	if (err)
 		goto error_return;
-	if (metadata && ext4_handle_valid(handle)) {
+
+	if ((flags & EXT4_FREE_BLOCKS_METADATA) && ext4_handle_valid(handle)) {
 		struct ext4_free_data *new_entry;
 		/*
 		 * blocks being freed are metadata. these blocks shouldn't
