@@ -1290,6 +1290,8 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 					ptr->vdisplay > vdisplay)
 				continue;
 		}
+		if (drm_mode_vrefresh(ptr) > 61)
+			continue;
 		mode = drm_mode_duplicate(dev, ptr);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
