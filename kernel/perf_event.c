@@ -4983,6 +4983,7 @@ void perf_event_exit_task(struct task_struct *child)
 	 * the events from it.
 	 */
 	unclone_ctx(child_ctx);
+	update_context_time(child_ctx);
 	spin_unlock_irqrestore(&child_ctx->lock, flags);
 
 	/*
