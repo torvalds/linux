@@ -1375,7 +1375,25 @@ static struct notifier_block device_nb = {
  */
 static bool check_device(struct device *dev)
 {
+	u16 bdf;
+	struct pci_dev *pcidev;
+
 	if (!dev || !dev->dma_mask)
+		return false;
+
+	/* No device or no PCI device */
+	if (!dev || dev->bus != &pci_bus_type)
+		return false;
+
+	pcidev = to_pci_dev(dev);
+
+	bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
+
+	/* Out of our scope? */
+	if (bdf > amd_iommu_last_bdf)
+		return false;
+
+	if (amd_iommu_rlookup_table[bdf] == NULL)
 		return false;
 
 	return true;
@@ -2065,22 +2083,7 @@ free_mem:
  */
 static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	u16 bdf;
-	struct pci_dev *pcidev;
-
-	/* No device or no PCI device */
-	if (!dev || dev->bus != &pci_bus_type)
-		return 0;
-
-	pcidev = to_pci_dev(dev);
-
-	bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
-
-	/* Out of our scope? */
-	if (bdf > amd_iommu_last_bdf)
-		return 0;
-
-	return 1;
+	return check_device(dev);
 }
 
 /*
