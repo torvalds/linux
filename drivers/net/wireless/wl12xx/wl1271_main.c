@@ -815,15 +815,15 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 
 	wdev = dev->ieee80211_ptr;
 	if (wdev == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	wiphy = wdev->wiphy;
 	if (wiphy == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	hw = wiphy_priv(wiphy);
 	if (hw == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	/* Check that the interface is one supported by this driver. */
 	wl_temp = hw->priv;
@@ -832,7 +832,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 			break;
 	}
 	if (wl == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	/* Get the interface IP address for the device. "ifa" will become
 	   NULL if:
@@ -868,7 +868,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 out:
 	mutex_unlock(&wl->mutex);
 
-	return ret;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block wl1271_dev_notifier = {
