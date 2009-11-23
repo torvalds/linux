@@ -2311,11 +2311,10 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
-	/* Note that unless the spp_flag is set to SPP_PMTUD_ENABLE the value
-	 * of this field is ignored.  Note also that a value of zero
-	 * indicates the current setting should be left unchanged.
+	/* Note that a value of zero indicates the current setting should be
+	   left unchanged.
 	 */
-	if ((params->spp_flags & SPP_PMTUD_ENABLE) && params->spp_pathmaxrxt) {
+	if (params->spp_pathmaxrxt) {
 		if (trans) {
 			trans->pathmaxrxt = params->spp_pathmaxrxt;
 		} else if (asoc) {
