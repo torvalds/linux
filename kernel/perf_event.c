@@ -274,7 +274,12 @@ static void update_event_times(struct perf_event *event)
 	    event->group_leader->state < PERF_EVENT_STATE_INACTIVE)
 		return;
 
-	event->total_time_enabled = ctx->time - event->tstamp_enabled;
+	if (ctx->is_active)
+		run_end = ctx->time;
+	else
+		run_end = event->tstamp_stopped;
+
+	event->total_time_enabled = run_end - event->tstamp_enabled;
 
 	if (event->state == PERF_EVENT_STATE_INACTIVE)
 		run_end = event->tstamp_stopped;
