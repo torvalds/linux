@@ -1213,7 +1213,7 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	unsigned long irq_flags;
 	char *trace_buf;
 	char *raw_data;
-	int *recursion;
+	int rctx;
 
 	pc = preempt_count();
 	__size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
@@ -1229,7 +1229,8 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	 */
 	local_irq_save(irq_flags);
 
-	if (perf_swevent_get_recursion_context(&recursion))
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx < 0)
 		goto end_recursion;
 
 	__cpu = smp_processor_id();
@@ -1258,7 +1259,7 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	perf_tp_event(call->id, entry->ip, 1, entry, size);
 
 end:
-	perf_swevent_put_recursion_context(recursion);
+	perf_swevent_put_recursion_context(rctx);
 end_recursion:
 	local_irq_restore(irq_flags);
 
@@ -1276,8 +1277,8 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	int size, __size, i, pc, __cpu;
 	unsigned long irq_flags;
 	char *trace_buf;
-	int *recursion;
 	char *raw_data;
+	int rctx;
 
 	pc = preempt_count();
 	__size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
@@ -1293,7 +1294,8 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	 */
 	local_irq_save(irq_flags);
 
-	if (perf_swevent_get_recursion_context(&recursion))
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx < 0)
 		goto end_recursion;
 
 	__cpu = smp_processor_id();
@@ -1323,7 +1325,7 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	perf_tp_event(call->id, entry->ret_ip, 1, entry, size);
 
 end:
-	perf_swevent_put_recursion_context(recursion);
+	perf_swevent_put_recursion_context(rctx);
 end_recursion:
 	local_irq_restore(irq_flags);
 

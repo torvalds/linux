@@ -481,8 +481,8 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	unsigned long flags;
 	char *trace_buf;
 	char *raw_data;
-	int *recursion;
 	int syscall_nr;
+	int rctx;
 	int size;
 	int cpu;
 
@@ -506,7 +506,8 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	/* Protect the per cpu buffer, begin the rcu read side */
 	local_irq_save(flags);
 
-	if (perf_swevent_get_recursion_context(&recursion))
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx < 0)
 		goto end_recursion;
 
 	cpu = smp_processor_id();
@@ -530,7 +531,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
 
 end:
-	perf_swevent_put_recursion_context(recursion);
+	perf_swevent_put_recursion_context(rctx);
 end_recursion:
 	local_irq_restore(flags);
 }
@@ -582,7 +583,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	int syscall_nr;
 	char *trace_buf;
 	char *raw_data;
-	int *recursion;
+	int rctx;
 	int size;
 	int cpu;
 
@@ -609,7 +610,8 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	/* Protect the per cpu buffer, begin the rcu read side */
 	local_irq_save(flags);
 
-	if (perf_swevent_get_recursion_context(&recursion))
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx < 0)
 		goto end_recursion;
 
 	cpu = smp_processor_id();
@@ -634,7 +636,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
 
 end:
-	perf_swevent_put_recursion_context(recursion);
+	perf_swevent_put_recursion_context(rctx);
 end_recursion:
 	local_irq_restore(flags);
 }

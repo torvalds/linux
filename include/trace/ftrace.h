@@ -724,8 +724,8 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 static void ftrace_profile_##call(proto)				\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	extern int perf_swevent_get_recursion_context(int **recursion); \
-	extern void perf_swevent_put_recursion_context(int *recursion); \
+	extern int perf_swevent_get_recursion_context(void);		\
+	extern void perf_swevent_put_recursion_context(int rctx);	\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	extern void perf_tp_event(int, u64, u64, void *, int);		\
 	struct ftrace_raw_##call *entry;				\
@@ -736,8 +736,8 @@ static void ftrace_profile_##call(proto)				\
 	int __data_size;						\
 	char *trace_buf;						\
 	char *raw_data;							\
-	int *recursion;							\
 	int __cpu;							\
+	int rctx;							\
 	int pc;								\
 									\
 	pc = preempt_count();						\
@@ -753,8 +753,9 @@ static void ftrace_profile_##call(proto)				\
 									\
 	local_irq_save(irq_flags);					\
 									\
-	if (perf_swevent_get_recursion_context(&recursion))		\
-		goto end_recursion;						\
+	rctx = perf_swevent_get_recursion_context();			\
+	if (rctx < 0)							\
+		goto end_recursion;					\
 									\
 	__cpu = smp_processor_id();					\
 									\
@@ -781,9 +782,9 @@ static void ftrace_profile_##call(proto)				\
 	perf_tp_event(event_call->id, __addr, __count, entry,		\
 			     __entry_size);				\
 									\
-end:								\
-	perf_swevent_put_recursion_context(recursion);			\
-end_recursion:									\
+end:									\
+	perf_swevent_put_recursion_context(rctx);			\
+end_recursion:								\
 	local_irq_restore(irq_flags);					\
 									\
 }
