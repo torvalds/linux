@@ -33,6 +33,75 @@
 
 #define DP_LINK_STATUS_SIZE	6
 
+/* move these to drm_dp_helper.c/h */
+
+static const int dp_clocks[] = {
+	54000,  // 1 lane, 1.62 Ghz
+	90000,  // 1 lane, 2.70 Ghz
+	108000, // 2 lane, 1.62 Ghz
+	180000, // 2 lane, 2.70 Ghz
+	216000, // 4 lane, 1.62 Ghz
+	360000, // 4 lane, 2.70 Ghz
+};
+
+static const int num_dp_clocks = sizeof(dp_clocks) / sizeof(int);
+
+int dp_lanes_for_mode_clock(int max_link_bw, int mode_clock)
+{
+	int i;
+
+	switch (max_link_bw) {
+	case DP_LINK_BW_1_62:
+	default:
+		for (i = 0; i < num_dp_clocks; i++) {
+			if (i % 2)
+				continue;
+			if (dp_clocks[i] > mode_clock) {
+				if (i < 2)
+					return 1;
+				else if (i < 4)
+					return 2;
+				else
+					return 4;
+			}
+		}
+		break;
+	case DP_LINK_BW_2_7:
+		for (i = 0; i < num_dp_clocks; i++) {
+			if (dp_clocks[i] > mode_clock) {
+				if (i < 2)
+					return 1;
+				else if (i < 4)
+					return 2;
+				else
+					return 4;
+			}
+		}
+		break;
+	}
+
+	return 0;
+}
+
+int dp_link_clock_for_mode_clock(int max_link_bw, int mode_clock)
+{
+	int i;
+
+	switch (max_link_bw) {
+	case DP_LINK_BW_1_62:
+	default:
+		return 162000;
+		break;
+	case DP_LINK_BW_2_7:
+		for (i = 0; i < num_dp_clocks; i++) {
+			if (dp_clocks[i] > mode_clock)
+				return (i % 2) ? 270000 : 162000;
+		}
+	}
+
+	return 0;
+}
+
 bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 			   int num_bytes, u8 *read_byte,
 			   u8 read_buf_len, u8 delay)

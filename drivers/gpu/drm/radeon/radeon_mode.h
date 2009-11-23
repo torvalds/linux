@@ -366,6 +366,8 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+extern int dp_lanes_for_mode_clock(int max_link_bw, int mode_clock);
+extern int dp_link_clock_for_mode_clock(int max_link_bw, int mode_clock);
 extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern void radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,

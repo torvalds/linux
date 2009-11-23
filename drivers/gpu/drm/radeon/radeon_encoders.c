@@ -554,6 +554,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
+	struct radeon_connector_atom_dig *radeon_dig_connector;
 
 	connector = radeon_get_connector_for_encoder(encoder);
 	if (!connector)
@@ -583,10 +584,10 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		return ATOM_ENCODER_MODE_LVDS;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
-		/*if (radeon_output->MonType == MT_DP)
-		  return ATOM_ENCODER_MODE_DP;
-		  else*/
-		if (drm_detect_hdmi_monitor(radeon_connector->edid))
+		radeon_dig_connector = radeon_connector->con_priv;
+		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+			return ATOM_ENCODER_MODE_DP;
+		else if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
 		else
 			return ATOM_ENCODER_MODE_DVI;
@@ -715,7 +716,15 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 		}
 	}
 
-	if (radeon_encoder->pixel_clock > 165000)
+	args.ucEncoderMode = atombios_get_encoder_mode(encoder);
+
+	if (args.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+		if (dp_link_clock_for_mode_clock(dig_connector->dpcd[1],
+						 radeon_encoder->pixel_clock) == 270000)
+			args.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
+		args.ucLaneNum = dp_lanes_for_mode_clock(dig_connector->dpcd[1],
+							 radeon_encoder->pixel_clock);
+	} else if (radeon_encoder->pixel_clock > 165000)
 		args.ucLaneNum = 8;
 	else
 		args.ucLaneNum = 4;
@@ -724,8 +733,6 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 		args.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
 	else
 		args.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
-
-	args.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
@@ -749,6 +756,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
+	bool is_dp = false;
 
 	connector = radeon_get_connector_for_encoder(encoder);
 	if (!connector)
@@ -765,6 +773,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		return;
 
 	dig_connector = radeon_connector->con_priv;
+
+	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP)
+		is_dp = true;
 
 	memset(&args, 0, sizeof(args));
 
@@ -790,14 +801,16 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		args.v1.asMode.ucLaneSel = lane_num;
 		args.v1.asMode.ucLaneSet = lane_set;
 	} else {
-		if (radeon_encoder->pixel_clock > 165000)
+		if (is_dp)
+			args.v1.usPixelClock =
+				cpu_to_le16(dp_link_clock_for_mode_clock(dig_connector->dpcd[1],
+									 radeon_encoder->pixel_clock) / 10);
+		else if (radeon_encoder->pixel_clock > 165000)
 			args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 		else
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 	}
 	if (ASIC_IS_DCE32(rdev)) {
-		if (radeon_encoder->pixel_clock > 165000)
-			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 		if (dig->dig_block)
 			args.v2.acConfig.ucEncoderSel = 1;
 		if (dig_connector->linkb)
@@ -818,7 +831,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 			break;
 		}
 
-		if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+		if (is_dp)
+			args.v2.acConfig.fCoherentMode = 1;
+		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v2.acConfig.fCoherentMode = 1;
 		}
@@ -866,7 +881,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
 
-		if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+		if (is_dp)
+			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
 		}
