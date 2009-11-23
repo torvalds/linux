@@ -96,8 +96,8 @@ static bool ecn_mt_check(const struct xt_mtchk_param *par)
 	if (info->invert & IPT_ECN_OP_MATCH_MASK)
 		return false;
 
-	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)
-	    && ip->proto != IPPROTO_TCP) {
+	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR) &&
+	    ip->proto != IPPROTO_TCP) {
 		printk(KERN_WARNING "ipt_ecn: can't match TCP bits in rule for"
 		       " non-tcp packets\n");
 		return false;

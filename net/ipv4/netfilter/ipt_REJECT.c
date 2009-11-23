@@ -184,8 +184,8 @@ static bool reject_tg_check(const struct xt_tgchk_param *par)
 		return false;
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
-		if (e->ip.proto != IPPROTO_TCP
-		    || (e->ip.invflags & XT_INV_PROTO)) {
+		if (e->ip.proto != IPPROTO_TCP ||
+		    (e->ip.invflags & XT_INV_PROTO)) {
 			printk("ipt_REJECT: TCP_RESET invalid for non-tcp\n");
 			return false;
 		}

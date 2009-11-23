@@ -59,8 +59,8 @@ masquerade_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	ct = nf_ct_get(skb, &ctinfo);
 	nat = nfct_nat(ct);
 
-	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED
-			    || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
+	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
+			    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 
 	/* Source address is 0.0.0.0 - locally generated packet that is
 	 * probably not supposed to be masqueraded.

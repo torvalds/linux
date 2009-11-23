@@ -77,17 +77,14 @@ static bool ah_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 		 ahinfo->hdrres, ah->reserved,
 		 !(ahinfo->hdrres && ah->reserved));
 
-	return (ah != NULL)
-	       &&
-	       spi_match(ahinfo->spis[0], ahinfo->spis[1],
-			 ntohl(ah->spi),
-			 !!(ahinfo->invflags & IP6T_AH_INV_SPI))
-	       &&
-	       (!ahinfo->hdrlen ||
-		(ahinfo->hdrlen == hdrlen) ^
-		!!(ahinfo->invflags & IP6T_AH_INV_LEN))
-	       &&
-	       !(ahinfo->hdrres && ah->reserved);
+	return (ah != NULL) &&
+		spi_match(ahinfo->spis[0], ahinfo->spis[1],
+			  ntohl(ah->spi),
+			  !!(ahinfo->invflags & IP6T_AH_INV_SPI)) &&
+		(!ahinfo->hdrlen ||
+		 (ahinfo->hdrlen == hdrlen) ^
+		 !!(ahinfo->invflags & IP6T_AH_INV_LEN)) &&
+		!(ahinfo->hdrres && ah->reserved);
 }
 
 static bool ah_mt6_check(const struct xt_mtchk_param *par)
