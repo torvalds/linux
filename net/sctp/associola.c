@@ -512,7 +512,13 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	 * to this destination address earlier. The sender MUST set
 	 * CYCLING_CHANGEOVER to indicate that this switch is a
 	 * double switch to the same destination address.
+	 *
+	 * Really, only bother is we have data queued or outstanding on
+	 * the association.
 	 */
+	if (!asoc->outqueue.outstanding_bytes && !asoc->outqueue.out_qlen)
+		return;
+
 	if (transport->cacc.changeover_active)
 		transport->cacc.cycling_changeover = changeover;
 

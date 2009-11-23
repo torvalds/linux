@@ -1418,6 +1418,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			asoc->init_last_sent_to = t;
 			chunk->transport = t;
 			t->init_sent_count++;
+			/* Set the new transport as primary */
+			sctp_assoc_set_primary(asoc, t);
 			break;
 
 		case SCTP_CMD_INIT_RESTART:
