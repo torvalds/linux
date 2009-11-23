@@ -1589,6 +1589,14 @@ void r100_gpu_init(struct radeon_device *rdev)
 	r100_hdp_reset(rdev);
 }
 
+void r100_hdp_flush(struct radeon_device *rdev)
+{
+	u32 tmp;
+	tmp = RREG32(RADEON_HOST_PATH_CNTL);
+	tmp |= RADEON_HDP_READ_BUFFER_INVALIDATE;
+	WREG32(RADEON_HOST_PATH_CNTL, tmp);
+}
+
 void r100_hdp_reset(struct radeon_device *rdev)
 {
 	uint32_t tmp;

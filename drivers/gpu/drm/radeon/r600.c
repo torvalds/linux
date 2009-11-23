@@ -1101,6 +1101,10 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	(void)RREG32(PCIE_PORT_DATA);
 }
 
+void r600_hdp_flush(struct radeon_device *rdev)
+{
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+}
 
 /*
  * CP & Ring

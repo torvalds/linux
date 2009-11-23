@@ -315,6 +315,7 @@ int radeon_object_wait(struct radeon_object *robj)
 	}
 	spin_unlock(&robj->tobj.lock);
 	radeon_object_unreserve(robj);
+	radeon_hdp_flush(robj->rdev);
 	return r;
 }
 

@@ -639,6 +639,7 @@ struct radeon_asic {
 			       uint32_t offset, uint32_t obj_size);
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
+	void (*hdp_flush)(struct radeon_device *rdev);
 };
 
 /*
@@ -971,6 +972,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
+#define radeon_hdp_flush(rdev) (rdev)->asic->hdp_flush((rdev))
 
 /* Common functions */
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);

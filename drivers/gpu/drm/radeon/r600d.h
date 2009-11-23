@@ -674,4 +674,5 @@
 #define		S_000E60_SOFT_RESET_TSC(x)		(((x) & 1) << 16)
 #define		S_000E60_SOFT_RESET_VMC(x)		(((x) & 1) << 17)
 
+#define R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL		0x5480
 #endif
