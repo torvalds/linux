@@ -69,7 +69,8 @@ extern void efx_hex_dump(const u8 *, unsigned int, const char *);
 /* Dummy PHY ops for PHY drivers */
 extern int efx_port_dummy_op_int(struct efx_nic *efx);
 extern void efx_port_dummy_op_void(struct efx_nic *efx);
-extern void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink);
+extern void
+efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD

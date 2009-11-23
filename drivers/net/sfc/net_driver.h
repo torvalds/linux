@@ -388,6 +388,12 @@ struct efx_channel {
 
 };
 
+enum efx_led_mode {
+	EFX_LED_OFF	= 0,
+	EFX_LED_ON	= 1,
+	EFX_LED_DEFAULT	= 2
+};
+
 /**
  * struct efx_board - board information
  * @type: Board model type
@@ -395,13 +401,9 @@ struct efx_channel {
  * @minor: Minor rev. (0, 1, ...)
  * @init: Initialisation function
  * @init_leds: Sets up board LEDs. May be called repeatedly.
- * @set_id_led: Turns the identification LED on or off
- * @blink: Starts/stops blinking
+ * @set_id_led: Set state of identifying LED or revert to automatic function
  * @monitor: Board-specific health check function
  * @fini: Cleanup function
- * @blink_state: Current blink state
- * @blink_resubmit: Blink timer resubmission flag
- * @blink_timer: Blink timer
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
@@ -414,13 +416,9 @@ struct efx_board {
 	 * have a separate init callback that happens later than
 	 * board init. */
 	void (*init_leds)(struct efx_nic *efx);
-	void (*set_id_led) (struct efx_nic *efx, bool state);
+	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
 	int (*monitor) (struct efx_nic *nic);
-	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
-	bool blink_state;
-	bool blink_resubmit;
-	struct timer_list blink_timer;
 	struct i2c_client *hwmon_client, *ioexp_client;
 };
 

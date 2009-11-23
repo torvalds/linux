@@ -16,7 +16,7 @@
 extern struct efx_phy_operations falcon_sfx7101_phy_ops;
 extern struct efx_phy_operations falcon_sft9001_phy_ops;
 
-extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
+extern void tenxpress_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 
 /* Wait for the PHY to boot. Return 0 on success, -EINVAL if the PHY failed
  * to boot due to corrupt flash, or some other negative error code. */

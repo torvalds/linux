@@ -29,40 +29,6 @@
 #define FALCON_BOARD_SFN4111T 0x51
 #define FALCON_BOARD_SFN4112F 0x52
 
-/* Blink support. If the PHY has no auto-blink mode so we hang it off a timer */
-#define BLINK_INTERVAL (HZ/2)
-
-static void blink_led_timer(unsigned long context)
-{
-	struct efx_nic *efx = (struct efx_nic *)context;
-	struct efx_board *board = &efx->board_info;
-
-	board->set_id_led(efx, board->blink_state);
-	board->blink_state = !board->blink_state;
-	if (board->blink_resubmit)
-		mod_timer(&board->blink_timer, jiffies + BLINK_INTERVAL);
-}
-
-static void board_blink(struct efx_nic *efx, bool blink)
-{
-	struct efx_board *board = &efx->board_info;
-
-	/* The rtnl mutex serialises all ethtool ioctls, so
-	 * nothing special needs doing here. */
-	if (blink) {
-		board->blink_resubmit = true;
-		board->blink_state = false;
-		setup_timer(&board->blink_timer, blink_led_timer,
-			    (unsigned long)efx);
-		mod_timer(&board->blink_timer, jiffies + BLINK_INTERVAL);
-	} else {
-		board->blink_resubmit = false;
-		if (board->blink_timer.function)
-			del_timer_sync(&board->blink_timer);
-		board->init_leds(efx);
-	}
-}
-
 /*****************************************************************************
  * Support for LM87 sensor chip used on several boards
  */
@@ -469,7 +435,7 @@ static int sfe4001_init(struct efx_nic *efx)
 
 	/* 10Xpress has fixed-function LED pins, so there is no board-specific
 	 * blink code. */
-	efx->board_info.blink = tenxpress_phy_blink;
+	efx->board_info.set_id_led = tenxpress_set_id_led;
 
 	efx->board_info.monitor = sfe4001_check_hw;
 	efx->board_info.fini = sfe4001_fini;
@@ -546,7 +512,7 @@ static int sfn4111t_init(struct efx_nic *efx)
 	if (!efx->board_info.hwmon_client)
 		return -EIO;
 
-	efx->board_info.blink = tenxpress_phy_blink;
+	efx->board_info.set_id_led = tenxpress_set_id_led;
 	efx->board_info.monitor = sfn4111t_check_hw;
 	efx->board_info.fini = sfn4111t_fini;
 
@@ -619,10 +585,11 @@ static void sfe4002_init_leds(struct efx_nic *efx)
 	falcon_qt202x_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
 }
 
-static void sfe4002_set_id_led(struct efx_nic *efx, bool state)
+static void sfe4002_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
-	falcon_qt202x_set_led(efx, SFE4002_FAULT_LED, state ? QUAKE_LED_ON :
-			      QUAKE_LED_OFF);
+	falcon_qt202x_set_led(
+		efx, SFE4002_FAULT_LED,
+		(mode == EFX_LED_ON) ? QUAKE_LED_ON : QUAKE_LED_OFF);
 }
 
 static int sfe4002_check_hw(struct efx_nic *efx)
@@ -644,7 +611,6 @@ static int sfe4002_init(struct efx_nic *efx)
 	efx->board_info.monitor = sfe4002_check_hw;
 	efx->board_info.init_leds = sfe4002_init_leds;
 	efx->board_info.set_id_led = sfe4002_set_id_led;
-	efx->board_info.blink = board_blink;
 	efx->board_info.fini = efx_fini_lm87;
 	return 0;
 }
@@ -683,10 +649,23 @@ static void sfn4112f_init_leds(struct efx_nic *efx)
 			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT);
 }
 
-static void sfn4112f_set_id_led(struct efx_nic *efx, bool state)
+static void sfn4112f_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
-	falcon_qt202x_set_led(efx, SFN4112F_LINK_LED,
-			      state ? QUAKE_LED_ON : QUAKE_LED_OFF);
+	int reg;
+
+	switch (mode) {
+	case EFX_LED_OFF:
+		reg = QUAKE_LED_OFF;
+		break;
+	case EFX_LED_ON:
+		reg = QUAKE_LED_ON;
+		break;
+	default:
+		reg = QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT;
+		break;
+	}
+
+	falcon_qt202x_set_led(efx, SFN4112F_LINK_LED, reg);
 }
 
 static int sfn4112f_check_hw(struct efx_nic *efx)
@@ -703,7 +682,6 @@ static int sfn4112f_init(struct efx_nic *efx)
 	efx->board_info.monitor = sfn4112f_check_hw;
 	efx->board_info.init_leds = sfn4112f_init_leds;
 	efx->board_info.set_id_led = sfn4112f_set_id_led;
-	efx->board_info.blink = board_blink;
 	efx->board_info.fini = efx_fini_lm87;
 	return 0;
 }

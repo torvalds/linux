@@ -1890,7 +1890,9 @@ int efx_port_dummy_op_int(struct efx_nic *efx)
 	return 0;
 }
 void efx_port_dummy_op_void(struct efx_nic *efx) {}
-void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink) {}
+void efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+{
+}
 
 static struct efx_mac_operations efx_dummy_mac_operations = {
 	.reconfigure	= efx_port_dummy_op_void,
@@ -1909,9 +1911,8 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 static struct efx_board efx_dummy_board_info = {
 	.init		= efx_port_dummy_op_int,
 	.init_leds	= efx_port_dummy_op_void,
-	.set_id_led	= efx_port_dummy_op_blink,
+	.set_id_led	= efx_port_dummy_op_set_id_led,
 	.monitor	= efx_port_dummy_op_int,
-	.blink		= efx_port_dummy_op_blink,
 	.fini		= efx_port_dummy_op_void,
 };
 

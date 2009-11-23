@@ -187,13 +187,15 @@ static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	efx->board_info.blink(efx, 1);
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (count)
-		schedule_timeout(count * HZ);
-	else
-		schedule();
-	efx->board_info.blink(efx, 0);
+	do {
+		efx->board_info.set_id_led(efx, EFX_LED_ON);
+		schedule_timeout_interruptible(HZ / 2);
+
+		efx->board_info.set_id_led(efx, EFX_LED_OFF);
+		schedule_timeout_interruptible(HZ / 2);
+	} while (!signal_pending(current) && --count != 0);
+
+	efx->board_info.set_id_led(efx, EFX_LED_DEFAULT);
 	return 0;
 }
 

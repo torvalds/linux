@@ -613,21 +613,29 @@ static void tenxpress_phy_fini(struct efx_nic *efx)
 }
 
 
-/* Set the RX and TX LEDs and Link LED flashing. The other LEDs
- * (which probably aren't wired anyway) are left in AUTO mode */
-void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
+/* Override the RX, TX and link LEDs */
+void tenxpress_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
 	int reg;
 
-	if (blink)
-		reg = (PMA_PMD_LED_FLASH << PMA_PMD_LED_TX_LBN) |
-			(PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN) |
-			(PMA_PMD_LED_FLASH << PMA_PMD_LED_LINK_LBN);
-	else
+	switch (mode) {
+	case EFX_LED_OFF:
+		reg = (PMA_PMD_LED_OFF << PMA_PMD_LED_TX_LBN) |
+			(PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN) |
+			(PMA_PMD_LED_OFF << PMA_PMD_LED_LINK_LBN);
+		break;
+	case EFX_LED_ON:
+		reg = (PMA_PMD_LED_ON << PMA_PMD_LED_TX_LBN) |
+			(PMA_PMD_LED_ON << PMA_PMD_LED_RX_LBN) |
+			(PMA_PMD_LED_ON << PMA_PMD_LED_LINK_LBN);
+		break;
+	default:
 		if (efx->phy_type == PHY_TYPE_SFX7101)
 			reg = SFX7101_PMA_PMD_LED_DEFAULT;
 		else
 			reg = SFT9001_PMA_PMD_LED_DEFAULT;
+		break;
+	}
 
 	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG, reg);
 }
