@@ -173,7 +173,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 
 	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
-	if (skb_shinfo((struct sk_buff *)skb)->gso_size)
+	if (skb_shinfo(skb)->gso_size)
 		return efx_enqueue_skb_tso(tx_queue, skb);
 
 	/* Get size of the initial fragment */
@@ -287,7 +287,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 		   skb_shinfo(skb)->nr_frags + 1);
 
 	/* Mark the packet as transmitted, and free the SKB ourselves */
-	dev_kfree_skb_any((struct sk_buff *)skb);
+	dev_kfree_skb_any(skb);
 	goto unwind;
 
  stop:
@@ -1102,7 +1102,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
  mem_err:
 	EFX_ERR(efx, "Out of memory for TSO headers, or PCI mapping error\n");
-	dev_kfree_skb_any((struct sk_buff *)skb);
+	dev_kfree_skb_any(skb);
 	goto unwind;
 
  stop:
