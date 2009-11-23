@@ -908,13 +908,9 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 static enum drm_connector_status radeon_dp_detect(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct drm_encoder *encoder = NULL;
-	struct drm_encoder_helper_funcs *encoder_funcs;
-	struct drm_mode_object *obj;
-	int i;
 	enum drm_connector_status ret = connector_status_disconnected;
-	int sink_type;
-	bool dret;
+	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+	u8 sink_type;
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);
@@ -924,8 +920,17 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 	sink_type = radeon_dp_getsinktype(radeon_connector);
 	if (sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
 		radeon_dp_getdpcd(radeon_connector);
+		radeon_dig_connector->dp_sink_type = sink_type;
 		ret = connector_status_connected;
+	} else {
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
+		if (radeon_ddc_probe(radeon_connector)) {
+			radeon_dig_connector->dp_sink_type = sink_type;
+			ret = connector_status_connected;
+		}
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	}
+
 	return ret;
 }
 

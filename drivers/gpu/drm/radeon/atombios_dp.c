@@ -78,8 +78,8 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	return true;
 }
 
-int radeon_dp_encoder_service(struct radeon_device *rdev, int action, int dp_clock,
-			      uint8_t ucconfig, uint8_t lane_num)
+static u8 radeon_dp_encoder_service(struct radeon_device *rdev, int action, int dp_clock,
+				    uint8_t ucconfig, uint8_t lane_num)
 {
 	DP_ENCODER_SERVICE_PARAMETERS args;
 	int index = GetIndexIntoMasterTable(COMMAND, DPEncoderService);
@@ -95,7 +95,7 @@ int radeon_dp_encoder_service(struct radeon_device *rdev, int action, int dp_clo
 	return args.ucStatus;
 }
 
-int radeon_dp_getsinktype(struct radeon_connector *radeon_connector)
+u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 	struct drm_device *dev = radeon_connector->base.dev;

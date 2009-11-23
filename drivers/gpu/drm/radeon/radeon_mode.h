@@ -339,8 +339,10 @@ struct radeon_encoder {
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
 	bool linkb;
+	/* displayport */
 	struct radeon_i2c_chan *dp_i2c_bus;
 	u8 dpcd[8];
+	u8 dp_sink_type;
 };
 
 struct radeon_connector {
@@ -364,7 +366,7 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
-extern int radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
+extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern void radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
