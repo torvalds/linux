@@ -169,8 +169,8 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 	kernel_cap_t pE, pI, pP;
 
 	ret = cap_validate_magic(header, &tocopy);
-	if (ret != 0)
-		return ret;
+	if ((dataptr == NULL) || (ret != 0))
+		return ((dataptr == NULL) && (ret == -EINVAL)) ? 0 : ret;
 
 	if (get_user(pid, &header->pid))
 		return -EFAULT;
