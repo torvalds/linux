@@ -36,7 +36,7 @@ static struct resource s3c_usb_resource[] = {
 
 static u64 s3c_device_usb_dmamask = 0xffffffffUL;
 
-struct platform_device s3c_device_usb = {
+struct platform_device s3c_device_ohci = {
 	.name		  = "s3c2410-ohci",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_usb_resource),
@@ -47,4 +47,4 @@ struct platform_device s3c_device_usb = {
 	}
 };
 
-EXPORT_SYMBOL(s3c_device_usb);
+EXPORT_SYMBOL(s3c_device_ohci);

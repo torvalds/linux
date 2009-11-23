@@ -203,7 +203,7 @@ static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
 };
 
 static struct platform_device *at2440evb_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_adc,
 	&s3c_device_i2c0,

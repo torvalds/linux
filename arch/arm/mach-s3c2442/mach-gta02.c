@@ -565,7 +565,7 @@ static void __init gta02_map_io(void)
 /* These are the guys that don't need to be children of PMU. */
 
 static struct platform_device *gta02_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_sdi,
 	&s3c_device_usbgadget,
@@ -623,7 +623,7 @@ static void __init gta02_machine_init(void)
 	INIT_DELAYED_WORK(&gta02_charger_work, gta02_charger_worker);
 #endif
 
-	s3c_device_usb.dev.platform_data = &gta02_usb_info;
+	s3c_device_ohci.dev.platform_data = &gta02_usb_info;
 
 	s3c24xx_udc_set_platdata(&gta02_udc_cfg);
 	s3c_nand_set_platdata(&gta02_nand_info);

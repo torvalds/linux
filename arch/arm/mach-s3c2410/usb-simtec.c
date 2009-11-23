@@ -127,6 +127,6 @@ int usb_simtec_init(void)
 	gpio_direction_output(S3C2410_GPB(4), 1);
 	gpio_direction_input(S3C2410_GPG(10));
 
-	s3c_device_usb.dev.platform_data = &usb_simtec_info;
+	s3c_device_ohci.dev.platform_data = &usb_simtec_info;
 	return 0;
 }

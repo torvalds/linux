@@ -272,7 +272,7 @@ static struct platform_device h1940_lcd_powerdev = {
 
 static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_ts,
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,

@@ -235,7 +235,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_fb,
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
 
 #ifdef CONFIG_REGULATOR

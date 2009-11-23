@@ -506,7 +506,7 @@ static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 };
 
 static struct platform_device *mini2440_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 /*	&s3c_device_adc,*/ /* ADC doesn't like living with touchscreen ! */
 	&s3c_device_i2c0,
