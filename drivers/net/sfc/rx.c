@@ -449,15 +449,19 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 
 	/* Pass the skb/page into the LRO engine */
 	if (rx_buf->page) {
-		struct sk_buff *skb = napi_get_frags(napi);
+		struct page *page = rx_buf->page;
+		struct sk_buff *skb;
 
+		EFX_BUG_ON_PARANOID(rx_buf->skb);
+		rx_buf->page = NULL;
+
+		skb = napi_get_frags(napi);
 		if (!skb) {
-			put_page(rx_buf->page);
-			gro_result = GRO_DROP;
-			goto out;
+			put_page(page);
+			return;
 		}
 
-		skb_shinfo(skb)->frags[0].page = rx_buf->page;
+		skb_shinfo(skb)->frags[0].page = page;
 		skb_shinfo(skb)->frags[0].page_offset =
 			efx_rx_buf_offset(rx_buf);
 		skb_shinfo(skb)->frags[0].size = rx_buf->len;
@@ -470,16 +474,14 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 			checksummed ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 
 		gro_result = napi_gro_frags(napi);
-
-out:
-		EFX_BUG_ON_PARANOID(rx_buf->skb);
-		rx_buf->page = NULL;
 	} else {
-		EFX_BUG_ON_PARANOID(!rx_buf->skb);
-		EFX_BUG_ON_PARANOID(!checksummed);
+		struct sk_buff *skb = rx_buf->skb;
 
-		gro_result = napi_gro_receive(napi, rx_buf->skb);
+		EFX_BUG_ON_PARANOID(!skb);
+		EFX_BUG_ON_PARANOID(!checksummed);
 		rx_buf->skb = NULL;
+
+		gro_result = napi_gro_receive(napi, skb);
 	}
 
 	if (gro_result == GRO_NORMAL) {
