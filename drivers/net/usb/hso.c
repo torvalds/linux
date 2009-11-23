@@ -378,7 +378,7 @@ static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 }
 
 #define DUMP(buf_, len_)	\
-	dbg_dump(__LINE__, __func__, buf_, len_)
+	dbg_dump(__LINE__, __func__, (unsigned char *)buf_, len_)
 
 #define DUMP1(buf_, len_)			\
 	do {					\
@@ -1527,7 +1527,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 		dev_warn(&usb->dev,
 			 "hso received invalid serial state notification\n");
 		DUMP(serial_state_notification,
-		     sizeof(hso_serial_state_notifation))
+		     sizeof(struct hso_serial_state_notification));
 	} else {
 
 		UART_state_bitmap = le16_to_cpu(serial_state_notification->
