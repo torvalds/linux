@@ -1,4 +1,4 @@
-
+#include "../../../include/linux/hw_breakpoint.h"
 #include "util.h"
 #include "../perf.h"
 #include "parse-options.h"
@@ -540,6 +540,81 @@ static enum event_result parse_tracepoint_event(const char **strp,
 						     attr, strp);
 }
 
+static enum event_result
+parse_breakpoint_type(const char *type, const char **strp,
+		      struct perf_event_attr *attr)
+{
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		if (!type[i])
+			break;
+
+		switch (type[i]) {
+		case 'r':
+			attr->bp_type |= HW_BREAKPOINT_R;
+			break;
+		case 'w':
+			attr->bp_type |= HW_BREAKPOINT_W;
+			break;
+		case 'x':
+			attr->bp_type |= HW_BREAKPOINT_X;
+			break;
+		default:
+			return EVT_FAILED;
+		}
+	}
+	if (!attr->bp_type) /* Default */
+		attr->bp_type = HW_BREAKPOINT_R | HW_BREAKPOINT_W;
+
+	*strp = type + i;
+
+	return EVT_HANDLED;
+}
+
+static enum event_result
+parse_breakpoint_event(const char **strp, struct perf_event_attr *attr)
+{
+	const char *target;
+	const char *type;
+	char *endaddr;
+	u64 addr;
+	enum event_result err;
+
+	target = strchr(*strp, ':');
+	if (!target)
+		return EVT_FAILED;
+
+	if (strncmp(*strp, "mem", target - *strp) != 0)
+		return EVT_FAILED;
+
+	target++;
+
+	addr = strtoull(target, &endaddr, 0);
+	if (target == endaddr)
+		return EVT_FAILED;
+
+	attr->bp_addr = addr;
+	*strp = endaddr;
+
+	type = strchr(target, ':');
+
+	/* If no type is defined, just rw as default */
+	if (!type) {
+		attr->bp_type = HW_BREAKPOINT_R | HW_BREAKPOINT_W;
+	} else {
+		err = parse_breakpoint_type(++type, strp, attr);
+		if (err == EVT_FAILED)
+			return EVT_FAILED;
+	}
+
+	/* We should find a nice way to override the access type */
+	attr->bp_len = HW_BREAKPOINT_LEN_4;
+	attr->type = PERF_TYPE_BREAKPOINT;
+
+	return EVT_HANDLED;
+}
+
 static int check_events(const char *str, unsigned int i)
 {
 	int n;
@@ -670,6 +745,10 @@ parse_event_symbols(const char **str, struct perf_event_attr *attr)
 		goto modifier;
 
 	ret = parse_generic_hw_event(str, attr);
+	if (ret != EVT_FAILED)
+		goto modifier;
+
+	ret = parse_breakpoint_event(str, attr);
 	if (ret != EVT_FAILED)
 		goto modifier;
 
@@ -857,6 +936,9 @@ void print_events(void)
 	printf("\n");
 	printf("  %-42s [raw hardware event descriptor]\n",
 		"rNNN");
+	printf("\n");
+
+	printf("  %-42s [hardware breakpoint]\n", "mem:<addr>[:access]");
 	printf("\n");
 
 	print_tracepoint_events();
