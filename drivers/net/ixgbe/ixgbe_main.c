@@ -2336,23 +2336,25 @@ static void ixgbe_vlan_rx_register(struct net_device *netdev,
 	 * not in DCB mode.
 	 */
 	ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
+
+	/* Disable CFI check */
+	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+
+	/* enable VLAN tag stripping */
 	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-		ctrl |= IXGBE_VLNCTRL_VME | IXGBE_VLNCTRL_VFE;
-		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+		ctrl |= IXGBE_VLNCTRL_VME;
 	} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		ctrl |= IXGBE_VLNCTRL_VFE;
-		/* enable VLAN tag insert/strip */
-		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
 		for (i = 0; i < adapter->num_rx_queues; i++) {
+			u32 ctrl;
 			j = adapter->rx_ring[i].reg_idx;
 			ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_RXDCTL(j));
 			ctrl |= IXGBE_RXDCTL_VME;
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_RXDCTL(j), ctrl);
 		}
 	}
+
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+
 	ixgbe_vlan_rx_add_vid(netdev, 0);
 
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
