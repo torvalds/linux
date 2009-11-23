@@ -1087,7 +1087,7 @@ static void usbtouch_disconnect(struct usb_interface *intf)
 
 	dbg("%s - usbtouch is initialized, cleaning up", __func__);
 	usb_set_intfdata(intf, NULL);
-	usb_kill_urb(usbtouch->irq);
+	/* this will stop IO via close */
 	input_unregister_device(usbtouch->input);
 	usb_free_urb(usbtouch->irq);
 	usbtouch_free_buffers(interface_to_usbdev(intf), usbtouch);
