@@ -112,14 +112,12 @@ struct ath_rate_table {
 		u32 ratekbps;
 		u32 user_ratekbps;
 		u8 ratecode;
-		u8 short_preamble;
 		u8 dot11rate;
 		u8 ctrl_rate;
 		u8 base_index;
 		u8 cw40index;
 		u8 sgi_index;
 		u8 ht_index;
-		u32 max_4ms_framelen;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
 	u8 initial_ratemax;
