@@ -3954,12 +3954,12 @@ out:
 void __perf_sw_event(u32 event_id, u64 nr, int nmi,
 			    struct pt_regs *regs, u64 addr)
 {
-	struct perf_sample_data data = {
-		.addr = addr,
-	};
+	struct perf_sample_data data;
 
-	do_perf_sw_event(PERF_TYPE_SOFTWARE, event_id, nr, nmi,
-				&data, regs);
+	data.addr = addr;
+	data.raw  = NULL;
+
+	do_perf_sw_event(PERF_TYPE_SOFTWARE, event_id, nr, nmi, &data, regs);
 }
 
 static void perf_swevent_read(struct perf_event *event)
