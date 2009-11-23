@@ -159,6 +159,7 @@ struct ixgbe_ring {
 	struct ixgbe_queue_stats stats;
 	unsigned long reinit_state;
 	u64 rsc_count;			/* stat for coalesced packets */
+	u64 rsc_flush;			/* stats for flushed packets */
 
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -375,7 +376,8 @@ struct ixgbe_adapter {
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;
 #endif /* IXGBE_FCOE */
-	u64 rsc_count;
+	u64 rsc_total_count;
+	u64 rsc_total_flush;
 	u32 wol;
 	u16 eeprom_version;
 };
