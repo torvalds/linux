@@ -217,14 +217,12 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	if (rt2x00_intf_is_pci(rt2x00dev)) {
-		/*
-		* RT2880 and RT3052 don't support MCU requests.
-		*/
-		if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
-		    rt2x00_rt(&rt2x00dev->chip, RT3052))
-			return;
-	}
+	/*
+	 * RT2880 and RT3052 don't support MCU requests.
+	 */
+	if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
+	    rt2x00_rt(&rt2x00dev->chip, RT3052))
+		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -1482,8 +1480,7 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
 	}
 
-	if (rt2x00_intf_is_pci(rt2x00dev) &&
-	    rt2x00_rt(&rt2x00dev->chip, RT3052)) {
+	if (rt2x00_rt(&rt2x00dev->chip, RT3052)) {
 		rt2800_bbp_write(rt2x00dev, 31, 0x08);
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
