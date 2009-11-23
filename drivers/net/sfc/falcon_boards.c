@@ -51,7 +51,8 @@
 static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
 			 const u8 *reg_values)
 {
-	struct i2c_client *client = i2c_new_device(&efx->i2c_adap, info);
+	struct falcon_board *board = falcon_board(efx);
+	struct i2c_client *client = i2c_new_device(&board->i2c_adap, info);
 	int rc;
 
 	if (!client)
@@ -65,7 +66,7 @@ static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
 			goto err;
 	}
 
-	falcon_board(efx)->hwmon_client = client;
+	board->hwmon_client = client;
 	return 0;
 
 err:
@@ -290,10 +291,11 @@ fail_on:
 
 static int sfn4111t_reset(struct efx_nic *efx)
 {
+	struct falcon_board *board = falcon_board(efx);
 	efx_oword_t reg;
 
 	/* GPIO 3 and the GPIO register are shared with I2C, so block that */
-	i2c_lock_adapter(&efx->i2c_adap);
+	i2c_lock_adapter(&board->i2c_adap);
 
 	/* Pull RST_N (GPIO 2) low then let it up again, setting the
 	 * FLASH_CFG_1 strap (GPIO 3) appropriately.  Only change the
@@ -309,7 +311,7 @@ static int sfn4111t_reset(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 	msleep(1);
 
-	i2c_unlock_adapter(&efx->i2c_adap);
+	i2c_unlock_adapter(&board->i2c_adap);
 
 	ssleep(1);
 	return 0;
@@ -416,10 +418,10 @@ static int sfe4001_init(struct efx_nic *efx)
 
 #if defined(CONFIG_SENSORS_LM90) || defined(CONFIG_SENSORS_LM90_MODULE)
 	board->hwmon_client =
-		i2c_new_device(&efx->i2c_adap, &sfe4001_hwmon_info);
+		i2c_new_device(&board->i2c_adap, &sfe4001_hwmon_info);
 #else
 	board->hwmon_client =
-		i2c_new_dummy(&efx->i2c_adap, sfe4001_hwmon_info.addr);
+		i2c_new_dummy(&board->i2c_adap, sfe4001_hwmon_info.addr);
 #endif
 	if (!board->hwmon_client)
 		return -EIO;
@@ -430,7 +432,7 @@ static int sfe4001_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_hwmon;
 
-	board->ioexp_client = i2c_new_dummy(&efx->i2c_adap, PCA9539);
+	board->ioexp_client = i2c_new_dummy(&board->i2c_adap, PCA9539);
 	if (!board->ioexp_client) {
 		rc = -EIO;
 		goto fail_hwmon;
@@ -522,7 +524,7 @@ static int sfn4111t_init(struct efx_nic *efx)
 	int rc;
 
 	board->hwmon_client =
-		i2c_new_device(&efx->i2c_adap,
+		i2c_new_device(&board->i2c_adap,
 			       (board->minor < 5) ?
 			       &sfn4111t_a0_hwmon_info :
 			       &sfn4111t_r5_hwmon_info);

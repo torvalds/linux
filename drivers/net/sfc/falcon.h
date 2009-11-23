@@ -40,6 +40,8 @@ static inline int falcon_rev(struct efx_nic *efx)
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @monitor: Board-specific health check function
  * @fini: Shut down hardware and free resources
+ * @i2c_adap: I2C adapter for on-board peripherals
+ * @i2c_data: Data for bit-banging algorithm
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
@@ -52,18 +54,18 @@ struct falcon_board {
 	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
 	int (*monitor) (struct efx_nic *nic);
 	void (*fini) (struct efx_nic *nic);
+	struct i2c_adapter i2c_adap;
+	struct i2c_algo_bit_data i2c_data;
 	struct i2c_client *hwmon_client, *ioexp_client;
 };
 
 /**
  * struct falcon_nic_data - Falcon NIC state
  * @pci_dev2: The secondary PCI device if present
- * @i2c_data: Operations and state for I2C bit-bashing algorithm
  * @board: Board state and functions
  */
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
-	struct i2c_algo_bit_data i2c_data;
 	struct falcon_board board;
 };
 

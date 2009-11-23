@@ -2799,6 +2799,7 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 int falcon_probe_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data;
+	struct falcon_board *board;
 	int rc;
 
 	/* Allocate storage for hardware specific data */
@@ -2856,13 +2857,15 @@ int falcon_probe_nic(struct efx_nic *efx)
 		goto fail5;
 
 	/* Initialise I2C adapter */
-	efx->i2c_adap.owner = THIS_MODULE;
-	nic_data->i2c_data = falcon_i2c_bit_operations;
-	nic_data->i2c_data.data = efx;
-	efx->i2c_adap.algo_data = &nic_data->i2c_data;
-	efx->i2c_adap.dev.parent = &efx->pci_dev->dev;
-	strlcpy(efx->i2c_adap.name, "SFC4000 GPIO", sizeof(efx->i2c_adap.name));
-	rc = i2c_bit_add_bus(&efx->i2c_adap);
+	board = falcon_board(efx);
+	board->i2c_adap.owner = THIS_MODULE;
+	board->i2c_data = falcon_i2c_bit_operations;
+	board->i2c_data.data = efx;
+	board->i2c_adap.algo_data = &board->i2c_data;
+	board->i2c_adap.dev.parent = &efx->pci_dev->dev;
+	strlcpy(board->i2c_adap.name, "SFC4000 GPIO",
+		sizeof(board->i2c_adap.name));
+	rc = i2c_bit_add_bus(&board->i2c_adap);
 	if (rc)
 		goto fail5;
 
@@ -2875,8 +2878,8 @@ int falcon_probe_nic(struct efx_nic *efx)
 	return 0;
 
  fail6:
-	BUG_ON(i2c_del_adapter(&efx->i2c_adap));
-	memset(&efx->i2c_adap, 0, sizeof(efx->i2c_adap));
+	BUG_ON(i2c_del_adapter(&board->i2c_adap));
+	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
  fail5:
 	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
@@ -3066,14 +3069,15 @@ int falcon_init_nic(struct efx_nic *efx)
 void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+	struct falcon_board *board = falcon_board(efx);
 	int rc;
 
 	falcon_board(efx)->fini(efx);
 
 	/* Remove I2C adapter and clear it in preparation for a retry */
-	rc = i2c_del_adapter(&efx->i2c_adap);
+	rc = i2c_del_adapter(&board->i2c_adap);
 	BUG_ON(rc);
-	memset(&efx->i2c_adap, 0, sizeof(efx->i2c_adap));
+	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
 
 	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);

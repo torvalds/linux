@@ -639,7 +639,6 @@ union efx_multicast_hash {
  * @interrupt_mode: Interrupt mode
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
- * @i2c_adap: I2C adapter
  * @state: Device state flag. Serialised by the rtnl_lock.
  * @reset_pending: Pending reset method (normally RESET_TYPE_NONE)
  * @tx_queue: TX DMA queues
@@ -724,8 +723,6 @@ struct efx_nic {
 	enum efx_int_mode interrupt_mode;
 	bool irq_rx_adaptive;
 	unsigned int irq_rx_moderation;
-
-	struct i2c_adapter i2c_adap;
 
 	enum nic_state state;
 	enum reset_type reset_pending;
