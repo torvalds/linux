@@ -1003,6 +1003,21 @@ static struct hash_testvec tgr128_tv_template[] = {
 	},
 };
 
+#define GHASH_TEST_VECTORS 1
+
+static struct hash_testvec ghash_tv_template[] =
+{
+	{
+
+		.key	= "\xdf\xa6\xbf\x4d\xed\x81\xdb\x03\xff\xca\xff\x95\xf8\x30\xf0\x61",
+		.ksize	= 16,
+		.plaintext = "\x95\x2b\x2a\x56\xa5\x60\x04a\xc0\xb3\x2b\x66\x56\xa0\x5b\x40\xb6",
+		.psize	= 16,
+		.digest	= "\xda\x53\xeb\x0a\xd2\xc5\x5b\xb6"
+			  "\x4f\xc4\x80\x2c\xc3\xfe\xda\x60",
+	},
+};
+
 /*
  * HMAC-MD5 test vectors from RFC2202
  * (These need to be fixed to not use strlen).

@@ -1943,6 +1943,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "ghash",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = ghash_tv_template,
+				.count = GHASH_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "hmac(md5)",
 		.test = alg_test_hash,
 		.suite = {
