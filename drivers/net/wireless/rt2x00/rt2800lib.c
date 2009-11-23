@@ -2030,12 +2030,6 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
 
-	if (rt2x00_intf_is_usb(rt2x00dev))
-		rt2x00dev->hw->extra_tx_headroom =
-			TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
-	else if (rt2x00_intf_is_pci(rt2x00dev))
-		rt2x00dev->hw->extra_tx_headroom = TXWI_DESC_SIZE;
-
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
 				rt2x00_eeprom_addr(rt2x00dev,
