@@ -568,7 +568,7 @@ out:
  * @tmp_oext:		the extent that will belong to the donor inode
  * @orig_off:		block offset of original inode
  * @donor_off:		block offset of donor inode
- * @max_count:		the maximun length of extents
+ * @max_count:		the maximum length of extents
  *
  * Return 0 on success, or a negative error value on failure.
  */
@@ -1073,7 +1073,7 @@ mext_check_arguments(struct inode *orig_inode,
 	}
 
 	if (!*len) {
-		ext4_debug("ext4 move extent: len shoudld not be 0 "
+		ext4_debug("ext4 move extent: len should not be 0 "
 			"[ino:orig %lu, donor %lu]\n", orig_inode->i_ino,
 			donor_inode->i_ino);
 		return -EINVAL;
