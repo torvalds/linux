@@ -3831,6 +3831,20 @@ static int perf_swevent_is_counting(struct perf_event *event)
 static int perf_tp_event_match(struct perf_event *event,
 				struct perf_sample_data *data);
 
+static int perf_exclude_event(struct perf_event *event,
+			      struct pt_regs *regs)
+{
+	if (regs) {
+		if (event->attr.exclude_user && user_mode(regs))
+			return 1;
+
+		if (event->attr.exclude_kernel && !user_mode(regs))
+			return 1;
+	}
+
+	return 0;
+}
+
 static int perf_swevent_match(struct perf_event *event,
 				enum perf_type_id type,
 				u32 event_id,
@@ -3842,16 +3856,12 @@ static int perf_swevent_match(struct perf_event *event,
 
 	if (event->attr.type != type)
 		return 0;
+
 	if (event->attr.config != event_id)
 		return 0;
 
-	if (regs) {
-		if (event->attr.exclude_user && user_mode(regs))
-			return 0;
-
-		if (event->attr.exclude_kernel && !user_mode(regs))
-			return 0;
-	}
+	if (perf_exclude_event(event, regs))
+		return 0;
 
 	if (event->attr.type == PERF_TYPE_TRACEPOINT &&
 	    !perf_tp_event_match(event, data))
@@ -4282,9 +4292,15 @@ static const struct pmu *bp_perf_event_init(struct perf_event *bp)
 	return &perf_ops_bp;
 }
 
-void perf_bp_event(struct perf_event *bp, void *regs)
+void perf_bp_event(struct perf_event *bp, void *data)
 {
-	/* TODO */
+	struct perf_sample_data sample;
+	struct pt_regs *regs = data;
+
+	sample.addr = bp->attr.bp_addr;
+
+	if (!perf_exclude_event(bp, regs))
+		perf_swevent_add(bp, 1, 1, &sample, regs);
 }
 #else
 static void bp_perf_event_destroy(struct perf_event *event)
