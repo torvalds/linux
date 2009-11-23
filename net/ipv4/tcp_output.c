@@ -1923,8 +1923,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 * case, when window is shrunk to zero. In this case
 	 * our retransmit serves as a zero window probe.
 	 */
-	if (!before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))
-	    && TCP_SKB_CB(skb)->seq != tp->snd_una)
+	if (!before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)) &&
+	    TCP_SKB_CB(skb)->seq != tp->snd_una)
 		return -EAGAIN;
 
 	if (skb->len > cur_mss) {

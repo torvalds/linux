@@ -95,8 +95,8 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 	/* Only update if port matches */
 	if ((port == 0 || ntohs(inet->inet_dport) == port ||
-	     ntohs(inet->inet_sport) == port)
-	    && (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
+	     ntohs(inet->inet_sport) == port) &&
+	    (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
 
 		spin_lock(&tcp_probe.lock);
 		/* If log fills, just silently drop */

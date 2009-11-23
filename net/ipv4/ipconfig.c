@@ -1172,10 +1172,9 @@ static int __init ic_dynamic(void)
 			schedule_timeout_uninterruptible(1);
 #ifdef IPCONFIG_DHCP
 		/* DHCP isn't done until we get a DHCPACK. */
-		if ((ic_got_reply & IC_BOOTP)
-		    && (ic_proto_enabled & IC_USE_DHCP)
-		    && ic_dhcp_msgtype != DHCPACK)
-		{
+		if ((ic_got_reply & IC_BOOTP) &&
+		    (ic_proto_enabled & IC_USE_DHCP) &&
+		    ic_dhcp_msgtype != DHCPACK) {
 			ic_got_reply = 0;
 			printk(",");
 			continue;
@@ -1344,9 +1343,9 @@ static int __init ip_auto_config(void)
 	 */
 	if (ic_myaddr == NONE ||
 #ifdef CONFIG_ROOT_NFS
-	    (root_server_addr == NONE
-	     && ic_servaddr == NONE
-	     && ROOT_DEV == Root_NFS) ||
+	    (root_server_addr == NONE &&
+	     ic_servaddr == NONE &&
+	     ROOT_DEV == Root_NFS) ||
 #endif
 	    ic_first_dev->next) {
 #ifdef IPCONFIG_DYNAMIC

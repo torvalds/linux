@@ -64,15 +64,15 @@ static int lro_tcp_ip_check(struct iphdr *iph, struct tcphdr *tcph,
 	if (iph->ihl != IPH_LEN_WO_OPTIONS)
 		return -1;
 
-	if (tcph->cwr || tcph->ece || tcph->urg || !tcph->ack
-	    || tcph->rst || tcph->syn || tcph->fin)
+	if (tcph->cwr || tcph->ece || tcph->urg || !tcph->ack ||
+	    tcph->rst || tcph->syn || tcph->fin)
 		return -1;
 
 	if (INET_ECN_is_ce(ipv4_get_dsfield(iph)))
 		return -1;
 
-	if (tcph->doff != TCPH_LEN_WO_OPTIONS
-	    && tcph->doff != TCPH_LEN_W_TIMESTAMP)
+	if (tcph->doff != TCPH_LEN_WO_OPTIONS &&
+	    tcph->doff != TCPH_LEN_W_TIMESTAMP)
 		return -1;
 
 	/* check tcp options (only timestamp allowed) */
@@ -262,10 +262,10 @@ static int lro_check_tcp_conn(struct net_lro_desc *lro_desc,
 			      struct iphdr *iph,
 			      struct tcphdr *tcph)
 {
-	if ((lro_desc->iph->saddr != iph->saddr)
-	    || (lro_desc->iph->daddr != iph->daddr)
-	    || (lro_desc->tcph->source != tcph->source)
-	    || (lro_desc->tcph->dest != tcph->dest))
+	if ((lro_desc->iph->saddr != iph->saddr) ||
+	    (lro_desc->iph->daddr != iph->daddr) ||
+	    (lro_desc->tcph->source != tcph->source) ||
+	    (lro_desc->tcph->dest != tcph->dest))
 		return -1;
 	return 0;
 }
@@ -339,9 +339,9 @@ static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
 	u64 flags;
 	int vlan_hdr_len = 0;
 
-	if (!lro_mgr->get_skb_header
-	    || lro_mgr->get_skb_header(skb, (void *)&iph, (void *)&tcph,
-				       &flags, priv))
+	if (!lro_mgr->get_skb_header ||
+	    lro_mgr->get_skb_header(skb, (void *)&iph, (void *)&tcph,
+				    &flags, priv))
 		goto out;
 
 	if (!(flags & LRO_IPV4) || !(flags & LRO_TCP))
@@ -351,8 +351,8 @@ static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
 	if (!lro_desc)
 		goto out;
 
-	if ((skb->protocol == htons(ETH_P_8021Q))
-	    && !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
+	if ((skb->protocol == htons(ETH_P_8021Q)) &&
+	    !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
 		vlan_hdr_len = VLAN_HLEN;
 
 	if (!lro_desc->active) { /* start new lro session */
@@ -446,9 +446,9 @@ static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 	int hdr_len = LRO_MAX_PG_HLEN;
 	int vlan_hdr_len = 0;
 
-	if (!lro_mgr->get_frag_header
-	    || lro_mgr->get_frag_header(frags, (void *)&mac_hdr, (void *)&iph,
-					(void *)&tcph, &flags, priv)) {
+	if (!lro_mgr->get_frag_header ||
+	    lro_mgr->get_frag_header(frags, (void *)&mac_hdr, (void *)&iph,
+				     (void *)&tcph, &flags, priv)) {
 		mac_hdr = page_address(frags->page) + frags->page_offset;
 		goto out1;
 	}
@@ -472,8 +472,8 @@ static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 		if (!skb)
 			goto out;
 
-		if ((skb->protocol == htons(ETH_P_8021Q))
-		    && !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
+		if ((skb->protocol == htons(ETH_P_8021Q)) &&
+		    !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
 			vlan_hdr_len = VLAN_HLEN;
 
 		iph = (void *)(skb->data + vlan_hdr_len);

@@ -1346,9 +1346,9 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		return;
 
 	net = dev_net(dev);
-	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev)
-	    || ipv4_is_multicast(new_gw) || ipv4_is_lbcast(new_gw)
-	    || ipv4_is_zeronet(new_gw))
+	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev) ||
+	    ipv4_is_multicast(new_gw) || ipv4_is_lbcast(new_gw) ||
+	    ipv4_is_zeronet(new_gw))
 		goto reject_redirect;
 
 	if (!rt_caching(net))
@@ -2311,10 +2311,11 @@ skip_cache:
 				ip_hdr(skb)->protocol);
 			if (our
 #ifdef CONFIG_IP_MROUTE
-			    || (!ipv4_is_local_multicast(daddr) &&
-				IN_DEV_MFORWARD(in_dev))
+				||
+			    (!ipv4_is_local_multicast(daddr) &&
+			     IN_DEV_MFORWARD(in_dev))
 #endif
-			    ) {
+			   ) {
 				rcu_read_unlock();
 				return ip_route_input_mc(skb, daddr, saddr,
 							 tos, dev, our);
@@ -2511,9 +2512,9 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		      of another iface. --ANK
 		 */
 
-		if (oldflp->oif == 0
-		    && (ipv4_is_multicast(oldflp->fl4_dst) ||
-			oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
+		if (oldflp->oif == 0 &&
+		    (ipv4_is_multicast(oldflp->fl4_dst) ||
+		     oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 			dev_out = ip_dev_find(net, oldflp->fl4_src);
 			if (dev_out == NULL)
