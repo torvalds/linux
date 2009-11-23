@@ -11,6 +11,7 @@
 #ifndef EFX_FALCON_H
 #define EFX_FALCON_H
 
+#include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "efx.h"
 
@@ -28,6 +29,16 @@ static inline int falcon_rev(struct efx_nic *efx)
 {
 	return efx->pci_dev->revision;
 }
+
+/**
+ * struct falcon_nic_data - Falcon NIC state
+ * @pci_dev2: The secondary PCI device if present
+ * @i2c_data: Operations and state for I2C bit-bashing algorithm
+ */
+struct falcon_nic_data {
+	struct pci_dev *pci_dev2;
+	struct i2c_algo_bit_data i2c_data;
+};
 
 static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 {

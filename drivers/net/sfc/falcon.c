@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/mii.h>
 #include "net_driver.h"
 #include "bitfield.h"
@@ -32,16 +31,6 @@
  * Falcon is the internal codename for the SFC4000 controller that is
  * present in SFE400X evaluation boards
  */
-
-/**
- * struct falcon_nic_data - Falcon NIC state
- * @pci_dev2: The secondary PCI device if present
- * @i2c_data: Operations and state for I2C bit-bashing algorithm
- */
-struct falcon_nic_data {
-	struct pci_dev *pci_dev2;
-	struct i2c_algo_bit_data i2c_data;
-};
 
 /**************************************************************************
  *
