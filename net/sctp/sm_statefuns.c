@@ -996,14 +996,15 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 				sctp_sf_heartbeat(ep, asoc, type, arg,
 						  commands))
 			return SCTP_DISPOSITION_NOMEM;
+
 		/* Set transport error counter and association error counter
 		 * when sending heartbeat.
 		 */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_IDLE,
-				SCTP_TRANSPORT(transport));
 		sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_HB_SENT,
 				SCTP_TRANSPORT(transport));
 	}
+	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_IDLE,
+			SCTP_TRANSPORT(transport));
 	sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMER_UPDATE,
 			SCTP_TRANSPORT(transport));
 

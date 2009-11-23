@@ -950,12 +950,6 @@ struct sctp_transport {
 	/* Source address. */
 	union sctp_addr saddr;
 
-	/* When was the last time(in jiffies) that a data packet was sent on
-	 * this transport?  This is used to adjust the cwnd when the transport
-	 * becomes inactive.
-	 */
-	unsigned long last_time_used;
-
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval.
 	 */

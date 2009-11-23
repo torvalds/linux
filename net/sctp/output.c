@@ -557,8 +557,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		struct timer_list *timer;
 		unsigned long timeout;
 
-		tp->last_time_used = jiffies;
-
 		/* Restart the AUTOCLOSE timer when sending data. */
 		if (sctp_state(asoc, ESTABLISHED) && asoc->autoclose) {
 			timer = &asoc->timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE];

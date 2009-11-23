@@ -83,7 +83,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->fast_recovery = 0;
 
 	peer->last_time_heard = jiffies;
-	peer->last_time_used = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
 
 	peer->init_sent_count = 0;
@@ -565,10 +564,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 * to be done every RTO interval, we do it every hearbeat
 		 * interval.
 		 */
-		if (time_after(jiffies, transport->last_time_used +
-					transport->rto))
-			transport->cwnd = max(transport->cwnd/2,
-						 4*transport->asoc->pathmtu);
+		transport->cwnd = max(transport->cwnd/2,
+					 4*transport->asoc->pathmtu);
 		break;
 	}
 
