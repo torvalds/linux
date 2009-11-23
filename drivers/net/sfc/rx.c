@@ -564,7 +564,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 	if (unlikely(efx->loopback_selftest)) {
 		efx_loopback_rx_packet(efx, rx_buf->data, rx_buf->len);
 		efx_free_rx_buffer(efx, rx_buf);
-		goto done;
+		return;
 	}
 
 	if (rx_buf->skb) {
@@ -580,7 +580,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 
 	if (likely(checksummed || rx_buf->page)) {
 		efx_rx_packet_lro(channel, rx_buf, checksummed);
-		goto done;
+		return;
 	}
 
 	/* We now own the SKB */
@@ -601,9 +601,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
-
-done:
-	;
 }
 
 void efx_rx_strategy(struct efx_channel *channel)
