@@ -447,10 +447,10 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
  * It invalidates a single PTE if the range to flush is within a single
  * page. Otherwise it flushes the whole TLB of the IOMMU.
  */
-static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
-		u64 address, size_t size)
+static void __iommu_flush_pages(struct protection_domain *domain,
+				u64 address, size_t size, int pde)
 {
-	int s = 0;
+	int s = 0, i;
 	unsigned pages = iommu_num_pages(address, size, PAGE_SIZE);
 
 	address &= PAGE_MASK;
@@ -464,9 +464,26 @@ static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
 		s = 1;
 	}
 
-	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, s);
 
-	return 0;
+	for (i = 0; i < amd_iommus_present; ++i) {
+		if (!domain->dev_iommu[i])
+			continue;
+
+		/*
+		 * Devices of this domain are behind this IOMMU
+		 * We need a TLB flush
+		 */
+		iommu_queue_inv_iommu_pages(amd_iommus[i], address,
+					    domain->id, pde, s);
+	}
+
+	return;
+}
+
+static void iommu_flush_pages(struct protection_domain *domain,
+			     u64 address, size_t size)
+{
+	__iommu_flush_pages(domain, address, size, 0);
 }
 
 /* Flush the whole IO/TLB for a given protection domain */
@@ -1683,7 +1700,7 @@ retry:
 		iommu_flush_tlb(iommu, dma_dom->domain.id);
 		dma_dom->need_flush = false;
 	} else if (unlikely(iommu_has_npcache(iommu)))
-		iommu_flush_pages(iommu, dma_dom->domain.id, address, size);
+		iommu_flush_pages(&dma_dom->domain, address, size);
 
 out:
 	return address;
@@ -1731,7 +1748,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
 	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
-		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
+		iommu_flush_pages(&dma_dom->domain, dma_addr, size);
 		dma_dom->need_flush = false;
 	}
 }
