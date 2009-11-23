@@ -354,15 +354,12 @@ static int wl1271_plt_init(struct wl1271 *wl)
 {
 	int ret;
 
-	/* FIXME: the following parameter setting functions return error
-	 * codes - the reason is so far unknown. The -EIO is therefore
-	 * ignored for the time being. */
 	ret = wl1271_cmd_general_parms(wl);
-	if (ret < 0 && ret != -EIO)
+	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_radio_parms(wl);
-	if (ret < 0 && ret != -EIO)
+	if (ret < 0)
 		return ret;
 
 	ret = wl1271_acx_init_mem_config(wl);
