@@ -239,6 +239,7 @@ setversion_out:
 			}
 		}
 
+		me.moved_len = 0;
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		fput(donor_filp);

@@ -947,7 +947,6 @@ out2:
  * @orig_start:		logical start offset in block for orig
  * @donor_start:	logical start offset in block for donor
  * @len:		the number of blocks to be moved
- * @moved_len:		moved block length
  *
  * Check the arguments of ext4_move_extents() whether the files can be
  * exchanged with each other.
@@ -955,8 +954,8 @@ out2:
  */
 static int
 mext_check_arguments(struct inode *orig_inode,
-			  struct inode *donor_inode, __u64 orig_start,
-			  __u64 donor_start, __u64 *len, __u64 moved_len)
+		     struct inode *donor_inode, __u64 orig_start,
+		     __u64 donor_start, __u64 *len)
 {
 	ext4_lblk_t orig_blocks, donor_blocks;
 	unsigned int blkbits = orig_inode->i_blkbits;
@@ -1007,13 +1006,6 @@ mext_check_arguments(struct inode *orig_inode,
 		ext4_debug("ext4 move extent: orig and donor's start "
 			"offset are not same [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
-		return -EINVAL;
-	}
-
-	if (moved_len) {
-		ext4_debug("ext4 move extent: moved_len should be 0 "
-			"[ino:orig %lu, donor %lu]\n", orig_inode->i_ino,
-			donor_inode->i_ino);
 		return -EINVAL;
 	}
 
@@ -1226,7 +1218,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	double_down_write_data_sem(orig_inode, donor_inode);
 	/* Check the filesystem environment whether move_extent can be done */
 	ret1 = mext_check_arguments(orig_inode, donor_inode, orig_start,
-					donor_start, &len, *moved_len);
+				    donor_start, &len);
 	if (ret1)
 		goto out;
 
