@@ -427,7 +427,7 @@ static const char version[] =
 static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread *t, const char *ifname);
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
-					  const char *ifname);
+					  const char *ifname, bool exact);
 static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
 static void pktgen_reset_all_threads(void);
@@ -1818,9 +1818,10 @@ static struct pktgen_dev *__pktgen_NN_threads(const char *ifname, int remove)
 {
 	struct pktgen_thread *t;
 	struct pktgen_dev *pkt_dev = NULL;
+	bool exact = (remove == FIND);
 
 	list_for_each_entry(t, &pktgen_threads, th_list) {
-		pkt_dev = pktgen_find_dev(t, ifname);
+		pkt_dev = pktgen_find_dev(t, ifname, exact);
 		if (pkt_dev) {
 			if (remove) {
 				if_lock(t);
@@ -3567,13 +3568,18 @@ static int pktgen_thread_worker(void *arg)
 }
 
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
-					  const char *ifname)
+					  const char *ifname, bool exact)
 {
 	struct pktgen_dev *p, *pkt_dev = NULL;
-	if_lock(t);
+	size_t len = strlen(ifname);
 
+	if_lock(t);
 	list_for_each_entry(p, &t->if_list, list)
-		if (strncmp(p->odevname, ifname, IFNAMSIZ) == 0) {
+		if (strncmp(p->odevname, ifname, len) == 0) {
+			if (p->odevname[len]) {
+				if (exact || p->odevname[len] != '@')
+					continue;
+			}
 			pkt_dev = p;
 			break;
 		}
