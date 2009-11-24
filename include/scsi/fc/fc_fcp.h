@@ -83,6 +83,8 @@ struct fcp_cmnd32 {
  * fc_tm_flags - task management flags field.
  */
 #define	FCP_TMF_CLR_ACA		0x40	/* clear ACA condition */
+#define	FCP_TMF_TGT_RESET	0x20	/* target reset task management,
+					   deprecated as of FCP-3 */
 #define	FCP_TMF_LUN_RESET	0x10	/* logical unit reset task management */
 #define	FCP_TMF_CLR_TASK_SET	0x04	/* clear task set */
 #define	FCP_TMF_ABT_TASK_SET	0x02	/* abort task set */
