@@ -1188,7 +1188,7 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
  * It also intializes the page table and the address allocator data
  * structures required for the dma_ops interface
  */
-static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu)
+static struct dma_ops_domain *dma_ops_domain_alloc(void)
 {
 	struct dma_ops_domain *dma_dom;
 
@@ -1443,7 +1443,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		dma_domain = find_protection_domain(devid);
 		if (dma_domain)
 			goto out;
-		dma_domain = dma_ops_domain_alloc(iommu);
+		dma_domain = dma_ops_domain_alloc();
 		if (!dma_domain)
 			goto out;
 		dma_domain->target_dev = devid;
@@ -2085,7 +2085,6 @@ static void prealloc_protection_domains(void)
 {
 	struct pci_dev *dev = NULL;
 	struct dma_ops_domain *dma_dom;
-	struct amd_iommu *iommu;
 	u16 devid;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
@@ -2100,10 +2099,7 @@ static void prealloc_protection_domains(void)
 
 		devid = get_device_id(&dev->dev);
 
-		iommu = amd_iommu_rlookup_table[devid];
-		if (!iommu)
-			continue;
-		dma_dom = dma_ops_domain_alloc(iommu);
+		dma_dom = dma_ops_domain_alloc();
 		if (!dma_dom)
 			continue;
 		init_unity_mappings_for_device(dma_dom, devid);
@@ -2139,7 +2135,7 @@ int __init amd_iommu_init_dma_ops(void)
 	 * protection domain will be assigned to the default one.
 	 */
 	for_each_iommu(iommu) {
-		iommu->default_dom = dma_ops_domain_alloc(iommu);
+		iommu->default_dom = dma_ops_domain_alloc();
 		if (iommu->default_dom == NULL)
 			return -ENOMEM;
 		iommu->default_dom->domain.flags |= PD_DEFAULT_MASK;
