@@ -3095,6 +3095,8 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 
 	switch (menu->id) {
 	case V4L2_CID_POWER_LINE_FREQUENCY:
+		if (menu->index >= ARRAY_SIZE(freq_nm))
+			break;
 		strcpy((char *) menu->name, freq_nm[menu->index]);
 		return 0;
 	}
