@@ -59,7 +59,6 @@ struct iommu_cmd {
 
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
-static struct dma_ops_domain *find_protection_domain(u16 devid);
 static u64 *alloc_pte(struct protection_domain *domain,
 		      unsigned long address, int end_lvl,
 		      u64 **pte_page, gfp_t gfp);
@@ -82,6 +81,34 @@ static inline u16 get_device_id(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	return calc_devid(pdev->bus->number, pdev->devfn);
+}
+
+/*
+ * In this function the list of preallocated protection domains is traversed to
+ * find the domain for a specific device
+ */
+static struct dma_ops_domain *find_protection_domain(u16 devid)
+{
+	struct dma_ops_domain *entry, *ret = NULL;
+	unsigned long flags;
+	u16 alias = amd_iommu_alias_table[devid];
+
+	if (list_empty(&iommu_pd_list))
+		return NULL;
+
+	spin_lock_irqsave(&iommu_pd_list_lock, flags);
+
+	list_for_each_entry(entry, &iommu_pd_list, list) {
+		if (entry->target_dev == devid ||
+		    entry->target_dev == alias) {
+			ret = entry;
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+
+	return ret;
 }
 
 #ifdef CONFIG_AMD_IOMMU_STATS
@@ -1453,34 +1480,6 @@ static bool check_device(struct device *dev)
 		return false;
 
 	return true;
-}
-
-/*
- * In this function the list of preallocated protection domains is traversed to
- * find the domain for a specific device
- */
-static struct dma_ops_domain *find_protection_domain(u16 devid)
-{
-	struct dma_ops_domain *entry, *ret = NULL;
-	unsigned long flags;
-	u16 alias = amd_iommu_alias_table[devid];
-
-	if (list_empty(&iommu_pd_list))
-		return NULL;
-
-	spin_lock_irqsave(&iommu_pd_list_lock, flags);
-
-	list_for_each_entry(entry, &iommu_pd_list, list) {
-		if (entry->target_dev == devid ||
-		    entry->target_dev == alias) {
-			ret = entry;
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
-
-	return ret;
 }
 
 /*
