@@ -582,7 +582,7 @@ found:
  *	although backing storage may not be.
  */
 xfs_buf_t *
-xfs_buf_get_flags(
+xfs_buf_get(
 	xfs_buftarg_t		*target,/* target for buffer		*/
 	xfs_off_t		ioff,	/* starting offset of range	*/
 	size_t			isize,	/* length of range		*/
@@ -661,7 +661,7 @@ _xfs_buf_read(
 }
 
 xfs_buf_t *
-xfs_buf_read_flags(
+xfs_buf_read(
 	xfs_buftarg_t		*target,
 	xfs_off_t		ioff,
 	size_t			isize,
@@ -671,7 +671,7 @@ xfs_buf_read_flags(
 
 	flags |= XBF_READ;
 
-	bp = xfs_buf_get_flags(target, ioff, isize, flags);
+	bp = xfs_buf_get(target, ioff, isize, flags);
 	if (bp) {
 		if (!XFS_BUF_ISDONE(bp)) {
 			XB_TRACE(bp, "read", (unsigned long)flags);
@@ -718,7 +718,7 @@ xfs_buf_readahead(
 		return;
 
 	flags |= (XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
-	xfs_buf_read_flags(target, ioff, isize, flags);
+	xfs_buf_read(target, ioff, isize, flags);
 }
 
 xfs_buf_t *

@@ -2206,6 +2206,7 @@ xlog_recover_do_buffer_trans(
 	xfs_daddr_t		blkno;
 	int			len;
 	ushort			flags;
+	uint			buf_flags;
 
 	buf_f = (xfs_buf_log_format_t *)item->ri_buf[0].i_addr;
 
@@ -2246,12 +2247,11 @@ xlog_recover_do_buffer_trans(
 	}
 
 	mp = log->l_mp;
-	if (flags & XFS_BLI_INODE_BUF) {
-		bp = xfs_buf_read_flags(mp->m_ddev_targp, blkno, len,
-								XFS_BUF_LOCK);
-	} else {
-		bp = xfs_buf_read(mp->m_ddev_targp, blkno, len, 0);
-	}
+	buf_flags = XFS_BUF_LOCK;
+	if (!(flags & XFS_BLI_INODE_BUF))
+		buf_flags |= XFS_BUF_MAPPED;
+
+	bp = xfs_buf_read(mp->m_ddev_targp, blkno, len, buf_flags);
 	if (XFS_BUF_ISERROR(bp)) {
 		xfs_ioerror_alert("xlog_recover_do..(read#1)", log->l_mp,
 				  bp, blkno);
@@ -2350,8 +2350,8 @@ xlog_recover_do_inode_trans(
 		goto error;
 	}
 
-	bp = xfs_buf_read_flags(mp->m_ddev_targp, in_f->ilf_blkno,
-				in_f->ilf_len, XFS_BUF_LOCK);
+	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
+			  XFS_BUF_LOCK);
 	if (XFS_BUF_ISERROR(bp)) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
 				  bp, in_f->ilf_blkno);
