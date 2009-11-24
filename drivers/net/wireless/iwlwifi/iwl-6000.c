@@ -306,6 +306,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -394,8 +395,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
-	.support_sm_ps = true,
-	.support_wimax_coexist = true,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DYNAMIC,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -425,7 +425,6 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
-	.support_wimax_coexist = true,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -456,38 +455,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
-};
-
-struct iwl_cfg iwl6050_3agn_cfg = {
-	.name = "6050 Series 3x3 AGN",
-	.fw_name_pre = IWL6050_FW_PRE,
-	.ucode_api_max = IWL6050_UCODE_API_MAX,
-	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6050_ops,
-	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
-	.valid_tx_ant = ANT_ABC,
-	.valid_rx_ant = ANT_ABC,
-	.pll_cfg_val = 0,
-	.set_l0s = true,
-	.use_bsm = false,
-	.pa_type = IWL_PA_SYSTEM,
-	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
-	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
-	.led_compensation = 51,
-	.use_rts_for_ht = true, /* use rts/cts protection */
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
-	.supports_idle = true,
-	.adv_thermal_throttle = true,
-	.support_ct_kill_exit = true,
-	.support_sm_ps = true,
-	.support_wimax_coexist = true,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

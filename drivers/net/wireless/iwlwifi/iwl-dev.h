@@ -52,19 +52,16 @@ extern struct iwl_cfg iwl4965_agn_cfg;
 extern struct iwl_cfg iwl5300_agn_cfg;
 extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;
-extern struct iwl_cfg iwl5100_bg_cfg;
+extern struct iwl_cfg iwl5100_bgn_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
-extern struct iwl_cfg iwl6000h_2agn_cfg;
-extern struct iwl_cfg iwl6000h_2abg_cfg;
-extern struct iwl_cfg iwl6000h_2bg_cfg;
+extern struct iwl_cfg iwl5150_abg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_2abg_cfg;
-extern struct iwl_cfg iwl6050_3agn_cfg;
 extern struct iwl_cfg iwl1000_bgn_cfg;
 extern struct iwl_cfg iwl1000_bg_cfg;
 
@@ -295,9 +292,6 @@ struct iwl_channel_info {
 
 	/* HT40 channel info */
 	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 ht40_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
-	s8 ht40_min_power;	/* always 0 */
-	s8 ht40_scan_power;	/* (dBm) eeprom, direct scans, any rate */
 	u8 ht40_flags;		/* flags copied from EEPROM */
 	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 
@@ -518,7 +512,6 @@ struct iwl_ht_config {
 	bool is_ht;
 	bool is_40mhz;
 	bool single_chain_sufficient;
-	u8 sm_ps;
 	/* BSS related data */
 	u8 extension_chan_offset;
 	u8 ht_protection;
@@ -552,23 +545,10 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
-#define STA_PS_STATUS_WAKE             0
-#define STA_PS_STATUS_SLEEP            1
-
-
-struct iwl3945_station_entry {
-	struct iwl3945_addsta_cmd sta;
-	struct iwl_tid_data tid[MAX_TID_COUNT];
-	u8 used;
-	u8 ps_status;
-	struct iwl_hw_key keyinfo;
-};
-
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
-	u8 ps_status;
 	struct iwl_hw_key keyinfo;
 };
 
@@ -578,11 +558,12 @@ struct iwl_station_entry {
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
  * space.
- *
- * At the moment use it for the station's rate scaling information.
  */
 struct iwl_station_priv {
 	struct iwl_lq_sta lq_sta;
+	atomic_t pending_frames;
+	bool client;
+	bool asleep;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
@@ -1254,6 +1235,7 @@ struct iwl_priv {
 	/* TX Power */
 	s8 tx_power_user_lmt;
 	s8 tx_power_device_lmt;
+	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
 
 
 #ifdef CONFIG_IWLWIFI_DEBUG

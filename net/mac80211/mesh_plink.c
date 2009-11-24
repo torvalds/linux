@@ -222,7 +222,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &reason, 2);
 	}
 
-	ieee80211_tx_skb(sdata, skb, 1);
+	ieee80211_tx_skb(sdata, skb);
 	return 0;
 }
 

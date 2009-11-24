@@ -167,23 +167,17 @@ struct ath_rate_priv {
 	struct ath_rate_softc *asc;
 };
 
+#define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
+#define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
+#define ATH_TX_INFO_UPDATE_RC		(1 << 2)
+#define ATH_TX_INFO_XRETRY		(1 << 3)
+#define ATH_TX_INFO_UNDERRUN		(1 << 4)
+
 enum ath9k_internal_frame_type {
 	ATH9K_NOT_INTERNAL,
 	ATH9K_INT_PAUSE,
 	ATH9K_INT_UNPAUSE
 };
-
-struct ath_tx_info_priv {
-	struct ath_wiphy *aphy;
-	struct ath_tx_status tx;
-	int n_frames;
-	int n_bad_frames;
-	bool update_rc;
-	enum ath9k_internal_frame_type frame_type;
-};
-
-#define ATH_TX_INFO_PRIV(tx_info) \
-	((struct ath_tx_info_priv *)((tx_info)->rate_driver_data[0]))
 
 void ath_rate_attach(struct ath_softc *sc);
 u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);

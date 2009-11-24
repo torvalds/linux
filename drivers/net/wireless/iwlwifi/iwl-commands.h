@@ -977,6 +977,7 @@ struct iwl_qosparam_cmd {
 #define	STA_MODIFY_TX_RATE_MSK		0x04
 #define STA_MODIFY_ADDBA_TID_MSK	0x08
 #define STA_MODIFY_DELBA_TID_MSK	0x10
+#define STA_MODIFY_SLEEP_TX_COUNT_MSK	0x20
 
 /* Receiver address (actually, Rx station's index into station table),
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
@@ -1107,7 +1108,14 @@ struct iwl4965_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
 	__le16 add_immediate_ba_ssn;
 
-	__le32 reserved2;
+	/*
+	 * Number of packets OK to transmit to station even though
+	 * it is asleep -- used to synchronise PS-poll and u-APSD
+	 * responses while ucode keeps track of STA sleep state.
+	 */
+	__le16 sleep_tx_count;
+
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 /* 5000 */
@@ -1138,7 +1146,14 @@ struct iwl_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */
 	__le16 add_immediate_ba_ssn;
 
-	__le32 reserved2;
+	/*
+	 * Number of packets OK to transmit to station even though
+	 * it is asleep -- used to synchronise PS-poll and u-APSD
+	 * responses while ucode keeps track of STA sleep state.
+	 */
+	__le16 sleep_tx_count;
+
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 
@@ -1689,6 +1704,21 @@ enum {
 	TX_POWER_PA_DETECT_MSK = 0x7f800000,	/* bits 23:30 */
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
+
+static inline u32 iwl_tx_status_to_mac80211(u32 status)
+{
+	status &= TX_STATUS_MSK;
+
+	switch (status) {
+	case TX_STATUS_SUCCESS:
+	case TX_STATUS_DIRECT_DONE:
+		return IEEE80211_TX_STAT_ACK;
+	case TX_STATUS_FAIL_DEST_PS:
+		return IEEE80211_TX_STAT_TX_FILTERED;
+	default:
+		return 0;
+	}
+}
 
 static inline bool iwl_is_tx_success(u32 status)
 {
@@ -3070,6 +3100,10 @@ struct statistics_general {
 	__le32 reserved2;
 	__le32 reserved3;
 } __attribute__ ((packed));
+
+#define UCODE_STATISTICS_CLEAR_MSK		(0x1 << 0)
+#define UCODE_STATISTICS_FREQUENCY_MSK		(0x1 << 1)
+#define UCODE_STATISTICS_NARROW_BAND_MSK	(0x1 << 2)
 
 /*
  * REPLY_STATISTICS_CMD = 0x9c,

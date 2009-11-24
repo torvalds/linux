@@ -205,6 +205,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
 	u8 rate_idx, rate_flags, retry_rates;
+	u8 skbdesc_flags = skbdesc->flags;
 	unsigned int i;
 	bool success;
 
@@ -287,12 +288,12 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	}
 
 	/*
-	 * Only send the status report to mac80211 when TX status was
-	 * requested by it. If this was a extra frame coming through
-	 * a mac80211 library call (RTS/CTS) then we should not send the
-	 * status report back.
+	 * Only send the status report to mac80211 when it's a frame
+	 * that originated in mac80211. If this was a extra frame coming
+	 * through a mac80211 library call (RTS/CTS) then we should not
+	 * send the status report back.
 	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)
+	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211))
 		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
 	else
 		dev_kfree_skb_irq(entry->skb);

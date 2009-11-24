@@ -66,5 +66,6 @@ void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_sta_rx_agg_start(struct iwl_priv *priv,
 			 const u8 *addr, int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid);
-void iwl_update_ps_mode(struct iwl_priv *priv, u16 ps_bit, u8 *addr);
+void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
+void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 #endif /* __iwl_sta_h__ */

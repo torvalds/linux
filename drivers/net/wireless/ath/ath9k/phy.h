@@ -35,9 +35,6 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u16 modesIndex);
 
-void ath9k_hw_decrease_chain_power(struct ath_hw *ah,
-				   struct ath9k_channel *chan);
-
 #define AR_PHY_BASE     0x9800
 #define AR_PHY(_n)      (AR_PHY_BASE + ((_n)<<2))
 

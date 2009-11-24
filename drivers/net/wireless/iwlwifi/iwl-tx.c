@@ -710,6 +710,8 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_sta *sta = info->control.sta;
+	struct iwl_station_priv *sta_priv = NULL;
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	struct iwl_device_cmd *out_cmd;
@@ -771,6 +773,24 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
+
+	if (sta)
+		sta_priv = (void *)sta->drv_priv;
+
+	if (sta_priv && sta_id != priv->hw_params.bcast_sta_id &&
+	    sta_priv->asleep) {
+		WARN_ON(!(info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE));
+		/*
+		 * This sends an asynchronous command to the device,
+		 * but we can rely on it being processed before the
+		 * next frame is processed -- and the next frame to
+		 * this station is the one that will consume this
+		 * counter.
+		 * For now set the counter to just 1 since we do not
+		 * support uAPSD yet.
+		 */
+		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
+	}
 
 	txq_id = skb_get_queue_mapping(skb);
 	if (ieee80211_is_data_qos(fc)) {
@@ -931,6 +951,17 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	ret = iwl_txq_update_write_ptr(priv, txq);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	/*
+	 * At this point the frame is "transmitted" successfully
+	 * and we will get a TX status notification eventually,
+	 * regardless of the value of ret. "ret" only indicates
+	 * whether or not we should update the write pointer.
+	 */
+
+	/* avoid atomic ops if it isn't an associated client */
+	if (sta_priv && sta_priv->client)
+		atomic_inc(&sta_priv->pending_frames);
+
 	if (ret)
 		return ret;
 
@@ -992,7 +1023,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		IWL_ERR(priv, "No space for Tx\n");
+		IWL_ERR(priv, "No space in command queue\n");
 		if (iwl_within_ct_kill_margin(priv))
 			iwl_tt_enter_ct_kill(priv);
 		else {
@@ -1075,6 +1106,24 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return ret ? ret : idx;
 }
 
+static void iwl_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sta *sta;
+	struct iwl_station_priv *sta_priv;
+
+	sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+	if (sta) {
+		sta_priv = (void *)sta->drv_priv;
+		/* avoid atomic ops if this isn't a client */
+		if (sta_priv->client &&
+		    atomic_dec_return(&sta_priv->pending_frames) == 0)
+			ieee80211_sta_block_awake(priv->hw, sta, false);
+	}
+
+	ieee80211_tx_status_irqsafe(priv->hw, skb);
+}
+
 int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
@@ -1094,7 +1143,7 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
+		iwl_tx_status(priv, tx_info->skb[0]);
 		tx_info->skb[0] = NULL;
 
 		if (priv->cfg->ops->lib->txq_inval_byte_cnt_tbl)
@@ -1264,7 +1313,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
-		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(priv->vif, ra, tid);
 	} else {
 		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
@@ -1329,7 +1378,7 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 	if (ret)
 		return ret;
 
-	ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+	ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, ra, tid);
 
 	return 0;
 }
@@ -1353,7 +1402,7 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
-			ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+			ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, addr, tid);
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1361,7 +1410,7 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 		if (tid_data->tfds_in_queue == 0) {
 			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
-			ieee80211_start_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(priv->vif, addr, tid);
 		}
 		break;
 	}

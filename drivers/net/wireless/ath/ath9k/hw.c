@@ -390,8 +390,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
 	ah->config.enable_ani = 1;
-	ah->config.diversity_control = ATH9K_ANT_VARIABLE;
-	ah->config.antenna_switch_swap = 0;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		ah->config.spurchans[i][0] = AR_NO_SPUR;
@@ -446,9 +444,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->acktimeout = (u32) -1;
 	ah->ctstimeout = (u32) -1;
 	ah->globaltxtimeout = (u32) -1;
-
-	ah->gbeacon_rate = 0;
-
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
 
@@ -1151,7 +1146,7 @@ static void ath9k_hw_init_chain_masks(struct ath_hw *ah)
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
 	case 0x3:
-		if (((ah)->hw_version.macVersion <= AR_SREV_VERSION_9160)) {
+		if (ah->hw_version.macVersion == AR_SREV_REVISION_5416_10) {
 			REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
 			REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
 			break;
@@ -2055,9 +2050,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ah->ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
-
-	if (AR_SREV_5416(ah))
-		ath9k_hw_decrease_chain_power(ah, chan);
 
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
 	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(common->macaddr + 4)
@@ -3517,51 +3509,6 @@ void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna)
 	REG_WRITE(ah, AR_DEF_ANTENNA, (antenna & 0x7));
 }
 EXPORT_SYMBOL(ath9k_hw_setantenna);
-
-bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
-			       enum ath9k_ant_setting settings,
-			       struct ath9k_channel *chan,
-			       u8 *tx_chainmask,
-			       u8 *rx_chainmask,
-			       u8 *antenna_cfgd)
-{
-	static u8 tx_chainmask_cfg, rx_chainmask_cfg;
-
-	if (AR_SREV_9280(ah)) {
-		if (!tx_chainmask_cfg) {
-
-			tx_chainmask_cfg = *tx_chainmask;
-			rx_chainmask_cfg = *rx_chainmask;
-		}
-
-		switch (settings) {
-		case ATH9K_ANT_FIXED_A:
-			*tx_chainmask = ATH9K_ANTENNA0_CHAINMASK;
-			*rx_chainmask = ATH9K_ANTENNA0_CHAINMASK;
-			*antenna_cfgd = true;
-			break;
-		case ATH9K_ANT_FIXED_B:
-			if (ah->caps.tx_chainmask >
-			    ATH9K_ANTENNA1_CHAINMASK) {
-				*tx_chainmask = ATH9K_ANTENNA1_CHAINMASK;
-			}
-			*rx_chainmask = ATH9K_ANTENNA1_CHAINMASK;
-			*antenna_cfgd = true;
-			break;
-		case ATH9K_ANT_VARIABLE:
-			*tx_chainmask = tx_chainmask_cfg;
-			*rx_chainmask = rx_chainmask_cfg;
-			*antenna_cfgd = true;
-			break;
-		default:
-			break;
-		}
-	} else {
-		ah->config.diversity_control = settings;
-	}
-
-	return true;
-}
 
 /*********************/
 /* General Operation */

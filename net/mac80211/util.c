@@ -666,8 +666,8 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->mesh_id_len = elen;
 			break;
 		case WLAN_EID_MESH_CONFIG:
-			elems->mesh_config = pos;
-			elems->mesh_config_len = elen;
+			if (elen >= sizeof(struct ieee80211_meshconf_ie))
+				elems->mesh_config = (void *)pos;
 			break;
 		case WLAN_EID_PEER_LINK:
 			elems->peer_link = pos;
@@ -872,7 +872,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(err);
 	}
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
@@ -974,7 +975,8 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	skb_put(skb, ieee80211_build_preq_ies(local, pos, ie, ie_len,
 					      local->hw.conf.channel->band));
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,

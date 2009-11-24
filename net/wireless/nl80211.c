@@ -561,7 +561,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(deauth, DEAUTHENTICATE);
 	CMD(disassoc, DISASSOCIATE);
 	CMD(join_ibss, JOIN_IBSS);
-	if (dev->wiphy.netnsok) {
+	if (dev->wiphy.flags & WIPHY_FLAG_NETNS_OK) {
 		i++;
 		NLA_PUT_U32(msg, i, NL80211_CMD_SET_WIPHY_NETNS);
 	}
@@ -968,6 +968,32 @@ static int parse_monitor_flags(struct nlattr *nla, u32 *mntrflags)
 	return 0;
 }
 
+static int nl80211_valid_4addr(struct cfg80211_registered_device *rdev,
+			       struct net_device *netdev, u8 use_4addr,
+			       enum nl80211_iftype iftype)
+{
+	if (!use_4addr) {
+		if (netdev && netdev->br_port)
+			return -EBUSY;
+		return 0;
+	}
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP_VLAN:
+		if (rdev->wiphy.flags & WIPHY_FLAG_4ADDR_AP)
+			return 0;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (rdev->wiphy.flags & WIPHY_FLAG_4ADDR_STATION)
+			return 0;
+		break;
+	default:
+		break;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
@@ -1011,6 +1037,9 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 		change = true;
+		err = nl80211_valid_4addr(rdev, dev, params.use_4addr, ntype);
+		if (err)
+			goto unlock;
 	} else {
 		params.use_4addr = -1;
 	}
@@ -1033,6 +1062,9 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		err = cfg80211_change_iface(rdev, dev, ntype, flags, &params);
 	else
 		err = 0;
+
+	if (!err && params.use_4addr != -1)
+		dev->ieee80211_ptr->use_4addr = params.use_4addr;
 
  unlock:
 	dev_put(dev);
@@ -1081,8 +1113,12 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
 	}
 
-	if (info->attrs[NL80211_ATTR_4ADDR])
+	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
+		err = nl80211_valid_4addr(rdev, NULL, params.use_4addr, type);
+		if (err)
+			goto unlock;
+	}
 
 	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,

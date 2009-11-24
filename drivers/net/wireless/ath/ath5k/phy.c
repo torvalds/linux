@@ -1399,7 +1399,7 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	if (i_coffd == 0 || q_coffd == 0)
 		goto done;
 
-	i_coff = ((-iq_corr) / i_coffd) & 0x3f;
+	i_coff = ((-iq_corr) / i_coffd);
 
 	/* Boundary check */
 	if (i_coff > 31)
@@ -1407,7 +1407,7 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	if (i_coff < -32)
 		i_coff = -32;
 
-	q_coff = (((s32)i_pwr / q_coffd) - 128) & 0x1f;
+	q_coff = (((s32)i_pwr / q_coffd) - 128);
 
 	/* Boundary check */
 	if (q_coff > 15)

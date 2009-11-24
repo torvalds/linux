@@ -494,7 +494,7 @@ out:
 	return ret;
 }
 
-int wl1251_acx_beacon_filter_opt(struct wl1251 *wl)
+int wl1251_acx_beacon_filter_opt(struct wl1251 *wl, bool enable_filter)
 {
 	struct acx_beacon_filter_option *beacon_filter;
 	int ret;
@@ -507,7 +507,7 @@ int wl1251_acx_beacon_filter_opt(struct wl1251 *wl)
 		goto out;
 	}
 
-	beacon_filter->enable = 0;
+	beacon_filter->enable = enable_filter;
 	beacon_filter->max_num_beacons = 0;
 
 	ret = wl1251_cmd_configure(wl, ACX_BEACON_FILTER_OPT,
@@ -525,6 +525,7 @@ out:
 int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 {
 	struct acx_beacon_filter_ie_table *ie_table;
+	int idx = 0;
 	int ret;
 
 	wl1251_debug(DEBUG_ACX, "acx beacon filter table");
@@ -535,8 +536,10 @@ int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 		goto out;
 	}
 
-	ie_table->num_ie = 0;
-	memset(ie_table->table, 0, BEACON_FILTER_TABLE_MAX_SIZE);
+	/* configure default beacon pass-through rules */
+	ie_table->num_ie = 1;
+	ie_table->table[idx++] = BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN;
+	ie_table->table[idx++] = BEACON_RULE_PASS_ON_APPEARANCE;
 
 	ret = wl1251_cmd_configure(wl, ACX_BEACON_FILTER_TABLE,
 				   ie_table, sizeof(*ie_table));
@@ -547,6 +550,35 @@ int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 
 out:
 	kfree(ie_table);
+	return ret;
+}
+
+int wl1251_acx_conn_monit_params(struct wl1251 *wl)
+{
+	struct acx_conn_monit_params *acx;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx connection monitor parameters");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->synch_fail_thold = SYNCH_FAIL_DEFAULT_THRESHOLD;
+	acx->bss_lose_timeout = NO_BEACON_DEFAULT_TIMEOUT;
+
+	ret = wl1251_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("failed to set connection monitor "
+			       "parameters: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
 	return ret;
 }
 
@@ -914,5 +946,33 @@ int wl1251_acx_mem_cfg(struct wl1251 *wl)
 
 out:
 	kfree(mem_conf);
+	return ret;
+}
+
+int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim)
+{
+	struct wl1251_acx_wr_tbtt_and_dtim *acx;
+	int ret;
+
+	wl1251_debug(DEBUG_ACX, "acx tbtt and dtim");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->tbtt = tbtt;
+	acx->dtim = dtim;
+
+	ret = wl1251_cmd_configure(wl, ACX_WR_TBTT_AND_DTIM,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1251_warning("failed to set tbtt and dtim: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
 	return ret;
 }

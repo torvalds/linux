@@ -16,12 +16,6 @@
 #define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 #define IEEE80211_MESH_RANN_INTERVAL	     (1 * HZ)
 
-#define MESHCONF_PP_OFFSET 	0		/* Path Selection Protocol */
-#define MESHCONF_PM_OFFSET	1		/* Path Selection Metric   */
-#define MESHCONF_CC_OFFSET	2		/* Congestion Control Mode */
-#define MESHCONF_SP_OFFSET	3		/* Synchronization Protocol */
-#define MESHCONF_AUTH_OFFSET	4		/* Authentication Protocol */
-#define MESHCONF_CAPAB_OFFSET 	6
 #define MESHCONF_CAPAB_ACCEPT_PLINKS 0x01
 #define MESHCONF_CAPAB_FORWARDING    0x08
 
@@ -87,12 +81,11 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 	 */
 	if (ifmsh->mesh_id_len == ie->mesh_id_len &&
 		memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
-		(ifmsh->mesh_pp_id == *(ie->mesh_config + MESHCONF_PP_OFFSET))&&
-		(ifmsh->mesh_pm_id == *(ie->mesh_config + MESHCONF_PM_OFFSET))&&
-		(ifmsh->mesh_cc_id == *(ie->mesh_config + MESHCONF_CC_OFFSET))&&
-		(ifmsh->mesh_sp_id == *(ie->mesh_config + MESHCONF_SP_OFFSET))&&
-		(ifmsh->mesh_auth_id == *(ie->mesh_config +
-		    MESHCONF_AUTH_OFFSET)))
+		(ifmsh->mesh_pp_id == ie->mesh_config->meshconf_psel) &&
+		(ifmsh->mesh_pm_id == ie->mesh_config->meshconf_pmetric) &&
+		(ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
+		(ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
+		(ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth))
 		return true;
 
 	return false;
@@ -105,7 +98,7 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
  */
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
-	return (*(ie->mesh_config + MESHCONF_CAPAB_OFFSET) &
+	return (ie->mesh_config->meshconf_cap &
 	    MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
 }
 
@@ -262,9 +255,9 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	if (sdata->u.mesh.mesh_id_len)
 		memcpy(pos, sdata->u.mesh.mesh_id, sdata->u.mesh.mesh_id_len);
 
-	pos = skb_put(skb, 2 + IEEE80211_MESH_CONFIG_LEN);
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_meshconf_ie));
 	*pos++ = WLAN_EID_MESH_CONFIG;
-	*pos++ = IEEE80211_MESH_CONFIG_LEN;
+	*pos++ = sizeof(struct ieee80211_meshconf_ie);
 
 	/* Active path selection protocol ID */
 	*pos++ = sdata->u.mesh.mesh_pp_id;
@@ -394,8 +387,9 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
  *
  * Return the length of the 802.11 (does not include a mesh control header)
  */
-int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc, char
-		*meshda, char *meshsa) {
+int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
+				  const u8 *meshda, const u8 *meshsa)
+{
 	if (is_multicast_ether_addr(meshda)) {
 		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA TA SA */

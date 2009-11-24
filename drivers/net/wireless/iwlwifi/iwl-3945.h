@@ -221,22 +221,13 @@ struct iwl3945_ibss_seq {
  * for use by iwl-*.c
  *
  *****************************************************************************/
-extern int iwl3945_power_init_handle(struct iwl_priv *priv);
-extern int iwl3945_eeprom_init(struct iwl_priv *priv);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
 extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
-extern int iwl3945_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl_tx_queue *txq, int count, u32 id);
 extern void iwl3945_rx_replenish(void *data);
 extern void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
-extern void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-extern int iwl3945_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
-			    const void *data);
-extern int __must_check iwl3945_send_cmd(struct iwl_priv *priv,
-					 struct iwl_host_cmd *cmd);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
-extern void iwl3945_dump_nic_event_log(struct iwl_priv *priv);
+extern void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log);
 extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 
 /*

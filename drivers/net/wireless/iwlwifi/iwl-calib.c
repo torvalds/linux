@@ -900,7 +900,7 @@ void iwl_reset_run_time_calib(struct iwl_priv *priv)
 
 	/* Ask for statistics now, the uCode will send notification
 	 * periodically after association */
-	iwl_send_statistics_request(priv, CMD_ASYNC);
+	iwl_send_statistics_request(priv, CMD_ASYNC, true);
 }
 EXPORT_SYMBOL(iwl_reset_run_time_calib);
 

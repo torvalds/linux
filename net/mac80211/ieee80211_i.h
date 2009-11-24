@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
+#include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include "key.h"
@@ -167,13 +168,10 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;
-	struct net_device *dev;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
-	struct ieee80211_rx_status *status;
-	struct ieee80211_rate *rate;
 
 	unsigned int flags;
 	int queue;
@@ -314,6 +312,8 @@ struct ieee80211_if_managed {
 	} mfp; /* management frame protection */
 
 	int wmm_last_param_set;
+
+	u8 use_4addr;
 };
 
 enum ieee80211_ibss_request {
@@ -461,8 +461,6 @@ struct ieee80211_sub_if_data {
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 
-	bool use_4addr; /* use 4-address frames */
-
 	union {
 		struct ieee80211_if_ap ap;
 		struct ieee80211_if_wds wds;
@@ -581,7 +579,6 @@ struct ieee80211_local {
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
 	unsigned int filter_flags; /* FIF_* */
-	struct iw_statistics wstats;
 
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
@@ -771,8 +768,9 @@ IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-/* this struct represents 802.11n's RA/TID combination */
+/* this struct represents 802.11n's RA/TID combination along with our vif */
 struct ieee80211_ra_tid {
+	struct ieee80211_vif *vif;
 	u8 ra[ETH_ALEN];
 	u16 tid;
 };
@@ -799,7 +797,7 @@ struct ieee802_11_elems {
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
 	struct ieee80211_ht_info *ht_info_elem;
-	u8 *mesh_config;
+	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peer_link;
 	u8 *preq;
@@ -827,7 +825,6 @@ struct ieee802_11_elems {
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
-	u8 mesh_config_len;
 	u8 mesh_id_len;
 	u8 peer_link_len;
 	u8 preq_len;
@@ -950,6 +947,18 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
 
+/*
+ * radiotap header for status frames
+ */
+struct ieee80211_tx_status_rtap_hdr {
+	struct ieee80211_radiotap_header hdr;
+	u8 rate;
+	u8 padding_for_rate;
+	__le16 tx_flags;
+	u8 data_retries;
+} __attribute__ ((packed));
+
+
 /* HT */
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 				       struct ieee80211_ht_cap *ht_cap_ie,
@@ -1017,8 +1026,7 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     struct ieee80211_hdr *hdr, const u8 *tsc,
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata);
-void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      int encrypt);
+void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems);
 u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,

@@ -167,7 +167,7 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	void (*dump_nic_event_log)(struct iwl_priv *priv);
+	void (*dump_nic_event_log)(struct iwl_priv *priv, bool full_log);
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv, u16 channel);
 	/* power management */
@@ -228,7 +228,7 @@ struct iwl_mod_params {
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
- * @support_sm_ps: support spatial multiplexing power save
+ * @sm_ps_mode: spatial multiplexing power save mode
  * @support_wimax_coexist: support wimax/wifi co-exist
  *
  * We enable the driver to be backward compatible wrt API version. The
@@ -285,7 +285,7 @@ struct iwl_cfg {
 	const bool supports_idle;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
-	bool support_sm_ps;
+	u8 sm_ps_mode;
 	const bool support_wimax_coexist;
 };
 
@@ -353,8 +353,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 				u16 length, struct ieee80211_hdr *header);
 const char *get_mgmt_string(int cmd);
 const char *get_ctrl_string(int cmd);
-void iwl_clear_tx_stats(struct iwl_priv *priv);
-void iwl_clear_rx_stats(struct iwl_priv *priv);
+void iwl_clear_traffic_stats(struct iwl_priv *priv);
 void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
 		      u16 len);
 #else
@@ -390,6 +389,7 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 		/* data */
 		stats->data_bytes += len;
 	}
+	iwl_leds_background(priv);
 }
 #endif
 /*****************************************************
@@ -425,6 +425,8 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
+void iwl_reply_statistics(struct iwl_priv *priv,
+			  struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
@@ -576,19 +578,11 @@ int iwl_pci_resume(struct pci_dev *pdev);
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-#ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_dump_nic_event_log(struct iwl_priv *priv);
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
+void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log);
+#ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv);
 #else
-static inline void iwl_dump_nic_event_log(struct iwl_priv *priv)
-{
-}
-
-static inline void iwl_dump_nic_error_log(struct iwl_priv *priv)
-{
-}
-
 static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv)
 {
 }
@@ -669,7 +663,8 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
 extern int iwl_send_bt_config(struct iwl_priv *priv);
-extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
+extern int iwl_send_statistics_request(struct iwl_priv *priv,
+				       u8 flags, bool clear);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		struct iwl_link_quality_cmd *lq, u8 flags);

@@ -859,12 +859,12 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 static bool ath_rc_update_per(struct ath_softc *sc,
 			      const struct ath_rate_table *rate_table,
 			      struct ath_rate_priv *ath_rc_priv,
-			      struct ath_tx_info_priv *tx_info_priv,
+				  struct ieee80211_tx_info *tx_info,
 			      int tx_rate, int xretries, int retries,
 			      u32 now_msec)
 {
 	bool state_change = false;
-	int count;
+	int count, n_bad_frames;
 	u8 last_per;
 	static u32 nretry_to_per_lookup[10] = {
 		100 * 0 / 1,
@@ -880,6 +880,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 	};
 
 	last_per = ath_rc_priv->per[tx_rate];
+	n_bad_frames = tx_info->status.ampdu_len - tx_info->status.ampdu_ack_len;
 
 	if (xretries) {
 		if (xretries == 1) {
@@ -907,7 +908,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 		if (retries >= count)
 			retries = count - 1;
 
-		if (tx_info_priv->n_bad_frames) {
+		if (n_bad_frames) {
 			/* new_PER = 7/8*old_PER + 1/8*(currentPER)
 			 * Assuming that n_frames is not 0.  The current PER
 			 * from the retries is 100 * retries / (retries+1),
@@ -920,14 +921,14 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 			 * the above PER.  The expression below is a
 			 * simplified version of the sum of these two terms.
 			 */
-			if (tx_info_priv->n_frames > 0) {
-				int n_frames, n_bad_frames;
+			if (tx_info->status.ampdu_len > 0) {
+				int n_frames, n_bad_tries;
 				u8 cur_per, new_per;
 
-				n_bad_frames = retries * tx_info_priv->n_frames +
-					tx_info_priv->n_bad_frames;
-				n_frames = tx_info_priv->n_frames * (retries + 1);
-				cur_per = (100 * n_bad_frames / n_frames) >> 3;
+				n_bad_tries = retries * tx_info->status.ampdu_len +
+					n_bad_frames;
+				n_frames = tx_info->status.ampdu_len * (retries + 1);
+				cur_per = (100 * n_bad_tries / n_frames) >> 3;
 				new_per = (u8)(last_per - (last_per >> 3) + cur_per);
 				ath_rc_priv->per[tx_rate] = new_per;
 			}
@@ -943,8 +944,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 		 * this was a probe.  Otherwise, ignore the probe.
 		 */
 		if (ath_rc_priv->probe_rate && ath_rc_priv->probe_rate == tx_rate) {
-			if (retries > 0 || 2 * tx_info_priv->n_bad_frames >
-				tx_info_priv->n_frames) {
+			if (retries > 0 || 2 * n_bad_frames > tx_info->status.ampdu_len) {
 				/*
 				 * Since we probed with just a single attempt,
 				 * any retries means the probe failed.  Also,
@@ -1003,7 +1003,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 
 static void ath_rc_update_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
-			     struct ath_tx_info_priv *tx_info_priv,
+			     struct ieee80211_tx_info *tx_info,
 			     int tx_rate, int xretries, int retries)
 {
 	u32 now_msec = jiffies_to_msecs(jiffies);
@@ -1020,7 +1020,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 
 	/* Update PER first */
 	state_change = ath_rc_update_per(sc, rate_table, ath_rc_priv,
-					 tx_info_priv, tx_rate, xretries,
+					 tx_info, tx_rate, xretries,
 					 retries, now_msec);
 
 	/*
@@ -1098,7 +1098,6 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 			     struct ieee80211_tx_info *tx_info,
 			     int final_ts_idx, int xretries, int long_retry)
 {
-	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 	const struct ath_rate_table *rate_table;
 	struct ieee80211_tx_rate *rates = tx_info->status.rates;
 	u8 flags;
@@ -1124,9 +1123,8 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 					return;
 
 				rix = ath_rc_get_rateindex(rate_table, &rates[i]);
-				ath_rc_update_ht(sc, ath_rc_priv,
-						tx_info_priv, rix,
-						xretries ? 1 : 2,
+				ath_rc_update_ht(sc, ath_rc_priv, tx_info,
+						rix, xretries ? 1 : 2,
 						rates[i].count);
 			}
 		}
@@ -1149,8 +1147,7 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 		return;
 
 	rix = ath_rc_get_rateindex(rate_table, &rates[i]);
-	ath_rc_update_ht(sc, ath_rc_priv, tx_info_priv, rix,
-			 xretries, long_retry);
+	ath_rc_update_ht(sc, ath_rc_priv, tx_info, rix, xretries, long_retry);
 }
 
 static const
@@ -1301,23 +1298,30 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	struct ath_tx_info_priv *tx_info_priv = NULL;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
-	int final_ts_idx, tx_status = 0, is_underrun = 0;
+	int final_ts_idx = 0, tx_status = 0, is_underrun = 0;
+	int long_retry = 0;
 	__le16 fc;
+	int i;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
-	tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-	final_ts_idx = tx_info_priv->tx.ts_rateindex;
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
+		if (!rate->count)
+			break;
+
+		final_ts_idx = i;
+		long_retry = rate->count - 1;
+	}
 
 	if (!priv_sta || !ieee80211_is_data(fc) ||
-	    !tx_info_priv->update_rc)
-		goto exit;
+	    !(tx_info->pad[0] & ATH_TX_INFO_UPDATE_RC))
+		return;
 
-	if (tx_info_priv->tx.ts_status & ATH9K_TXERR_FILT)
-		goto exit;
+	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)
+		return;
 
 	/*
 	 * If underrun error is seen assume it as an excessive retry only
@@ -1325,20 +1329,17 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	 * Adjust the long retry as if the frame was tried hw->max_rate_tries
 	 * times. This affects how ratectrl updates PER for the failed rate.
 	 */
-	if (tx_info_priv->tx.ts_flags &
-	    (ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN) &&
-	    ((sc->sc_ah->tx_trig_level) >= ath_rc_priv->tx_triglevel_max)) {
+	if ((tx_info->pad[0] & ATH_TX_INFO_UNDERRUN) &&
+	    (sc->sc_ah->tx_trig_level >= ath_rc_priv->tx_triglevel_max)) {
 		tx_status = 1;
 		is_underrun = 1;
 	}
 
-	if ((tx_info_priv->tx.ts_status & ATH9K_TXERR_XRETRY) ||
-	    (tx_info_priv->tx.ts_status & ATH9K_TXERR_FIFO))
+	if (tx_info->pad[0] & ATH_TX_INFO_XRETRY)
 		tx_status = 1;
 
 	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
-			 (is_underrun) ? sc->hw->max_rate_tries :
-			 tx_info_priv->tx.ts_longretry);
+			 (is_underrun) ? sc->hw->max_rate_tries : long_retry);
 
 	/* Check if aggregation has to be enabled for this tid */
 	if (conf_is_ht(&sc->hw->conf) &&
@@ -1352,13 +1353,11 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			an = (struct ath_node *)sta->drv_priv;
 
 			if(ath_tx_aggr_check(sc, an, tid))
-				ieee80211_start_tx_ba_session(sc->hw, hdr->addr1, tid);
+				ieee80211_start_tx_ba_session(sta, tid);
 		}
 	}
 
 	ath_debug_stat_rc(sc, skb);
-exit:
-	kfree(tx_info_priv);
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,

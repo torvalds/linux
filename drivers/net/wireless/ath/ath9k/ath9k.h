@@ -198,18 +198,8 @@ struct ath_txq {
 	struct list_head axq_q;
 	spinlock_t axq_lock;
 	u32 axq_depth;
-	u8 axq_aggr_depth;
 	bool stopped;
 	bool axq_tx_inprogress;
-	struct ath_buf *axq_linkbuf;
-
-	/* first desc of the last descriptor that contains CTS */
-	struct ath_desc *axq_lastdsWithCTS;
-
-	/* final desc of the gating desc that determines whether
-	   lastdsWithCTS has been DMA'ed or not */
-	struct ath_desc *axq_gatingds;
-
 	struct list_head axq_acq;
 };
 

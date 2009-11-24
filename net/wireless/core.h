@@ -273,6 +273,8 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		       struct cfg80211_ibss_params *params,
 		       struct cfg80211_cached_keys *connkeys);
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
+int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);

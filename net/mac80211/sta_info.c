@@ -116,14 +116,15 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr)
 	return sta;
 }
 
-struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
-				     struct net_device *dev)
+struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
+				     int idx)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int i = 0;
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		if (dev && dev != sta->sdata->dev)
+		if (sdata != sta->sdata)
 			continue;
 		if (i < idx) {
 			++i;
@@ -147,8 +148,10 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 static void __sta_info_free(struct ieee80211_local *local,
 			    struct sta_info *sta)
 {
-	rate_control_free_sta(sta);
-	rate_control_put(sta->rate_ctrl);
+	if (sta->rate_ctrl) {
+		rate_control_free_sta(sta);
+		rate_control_put(sta->rate_ctrl);
+	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Destroyed STA %pM\n",
@@ -276,6 +279,23 @@ static void sta_unblock(struct work_struct *wk)
 		ieee80211_sta_ps_deliver_poll_response(sta);
 }
 
+static int sta_prepare_rate_control(struct ieee80211_local *local,
+				    struct sta_info *sta, gfp_t gfp)
+{
+	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
+		return 0;
+
+	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
+	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
+						     &sta->sta, gfp);
+	if (!sta->rate_ctrl_priv) {
+		rate_control_put(sta->rate_ctrl);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				u8 *addr, gfp_t gfp)
 {
@@ -295,11 +315,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->local = local;
 	sta->sdata = sdata;
 
-	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
-	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
-						     &sta->sta, gfp);
-	if (!sta->rate_ctrl_priv) {
-		rate_control_put(sta->rate_ctrl);
+	if (sta_prepare_rate_control(local, sta, gfp)) {
 		kfree(sta);
 		return NULL;
 	}

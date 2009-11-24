@@ -994,8 +994,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_is_tx_success(status) ?
-					IEEE80211_TX_STAT_ACK : 0;
+		info->flags |= iwl_tx_status_to_mac80211(status);
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 
 		/* FIXME: code repetition end */
@@ -1140,8 +1139,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 		BUG_ON(txq_id != txq->swq_id);
 
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		info->flags |= iwl_is_tx_success(status) ?
-					IEEE80211_TX_STAT_ACK : 0;
+		info->flags |= iwl_tx_status_to_mac80211(status);
 		iwl_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
@@ -1251,6 +1249,22 @@ int  iwl5000_send_tx_power(struct iwl_priv *priv)
 
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
+
+	if (priv->tx_power_lmt_in_half_dbm &&
+	    priv->tx_power_lmt_in_half_dbm < tx_power_cmd.global_lmt) {
+		/*
+		 * For the newer devices which using enhanced/extend tx power
+		 * table in EEPROM, the format is in half dBm. driver need to
+		 * convert to dBm format before report to mac80211.
+		 * By doing so, there is a possibility of 1/2 dBm resolution
+		 * lost. driver will perform "round-up" operation before
+		 * reporting, but it will cause 1/2 dBm tx power over the
+		 * regulatory limit. Perform the checking here, if the
+		 * "tx_power_user_lmt" is higher than EEPROM value (in
+		 * half-dBm format), lower the tx power based on EEPROM
+		 */
+		tx_power_cmd.global_lmt = priv->tx_power_lmt_in_half_dbm;
+	}
 	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
 
@@ -1584,14 +1598,15 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
-struct iwl_cfg iwl5100_bg_cfg = {
-	.name = "5100BG",
+struct iwl_cfg iwl5100_bgn_cfg = {
+	.name = "5100BGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
+	.sku = IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
@@ -1627,7 +1642,6 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.set_l0s = true,
 	.use_bsm = false,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
@@ -1653,6 +1667,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1676,6 +1691,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1697,6 +1713,29 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.set_l0s = true,
 	.use_bsm = false,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
+};
+
+struct iwl_cfg iwl5150_abg_cfg = {
+	.name = "5150ABG",
+	.fw_name_pre = IWL5150_FW_PRE,
+	.ucode_api_max = IWL5150_UCODE_API_MAX,
+	.ucode_api_min = IWL5150_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G,
+	.ops = &iwl5150_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
+	.num_of_queues = IWL50_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.mod_params = &iwl50_mod_params,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_AB,
+	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
+	.set_l0s = true,
+	.use_bsm = false,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };

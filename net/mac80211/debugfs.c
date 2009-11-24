@@ -52,7 +52,7 @@ DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#08x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
-		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
+	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
 static ssize_t tsf_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)

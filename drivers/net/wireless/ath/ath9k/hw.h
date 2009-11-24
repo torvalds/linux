@@ -148,21 +148,6 @@ enum wireless_mode {
 	ATH9K_MODE_MAX,
 };
 
-/**
- * ath9k_ant_setting - transmit antenna settings
- *
- * Configures the antenna setting to use for transmit.
- *
- * @ATH9K_ANT_VARIABLE: this means transmit on all active antennas
- * @ATH9K_ANT_FIXED_A: this means transmit on the first antenna only
- * @ATH9K_ANT_FIXED_B: this means transmit on the second antenna only
- */
-enum ath9k_ant_setting {
-	ATH9K_ANT_VARIABLE = 0,
-	ATH9K_ANT_FIXED_A,
-	ATH9K_ANT_FIXED_B
-};
-
 enum ath9k_hw_caps {
 	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(0),
 	ATH9K_HW_CAP_MIC_CKIP                   = BIT(1),
@@ -226,8 +211,6 @@ struct ath9k_ops_config {
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
-	enum ath9k_ant_setting diversity_control;
-	u16 antenna_switch_swap;
 	int serialize_regmode;
 	bool intr_mitigation;
 #define SPUR_DISABLE        	0
@@ -572,7 +555,6 @@ struct ath_hw {
 	u32 acktimeout;
 	u32 ctstimeout;
 	u32 globaltxtimeout;
-	u8 gbeacon_rate;
 
 	/* ANI */
 	u32 proc_phyerr;
@@ -659,11 +641,6 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
-bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
-			       enum ath9k_ant_setting settings,
-			       struct ath9k_channel *chan,
-			       u8 *tx_chainmask, u8 *rx_chainmask,
-			       u8 *antenna_cfgd);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);

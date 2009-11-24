@@ -79,6 +79,21 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		}
 	}
 
+	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID && wl->psm) {
+		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
+
+		/* indicate to the stack, that beacons have been lost */
+		ieee80211_beacon_loss(wl->vif);
+	}
+
+	if (vector & REGAINED_BSS_EVENT_ID) {
+		if (wl->psm_requested) {
+			ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	return 0;
 }
 

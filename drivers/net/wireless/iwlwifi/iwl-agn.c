@@ -311,7 +311,7 @@ static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 	list_add(&frame->list, &priv->free_frames);
 }
 
-static unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
+static u32 iwl_fill_beacon_frame(struct iwl_priv *priv,
 					  struct ieee80211_hdr *hdr,
 					  int left)
 {
@@ -328,34 +328,74 @@ static unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
 	return priv->ibss_beacon->len;
 }
 
+/* Parse the beacon frame to find the TIM element and set tim_idx & tim_size */
+static void iwl_set_beacon_tim(struct iwl_priv *priv,
+		struct iwl_tx_beacon_cmd *tx_beacon_cmd,
+		u8 *beacon, u32 frame_size)
+{
+	u16 tim_idx;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)beacon;
+
+	/*
+	 * The index is relative to frame start but we start looking at the
+	 * variable-length part of the beacon.
+	 */
+	tim_idx = mgmt->u.beacon.variable - beacon;
+
+	/* Parse variable-length elements of beacon to find WLAN_EID_TIM */
+	while ((tim_idx < (frame_size - 2)) &&
+			(beacon[tim_idx] != WLAN_EID_TIM))
+		tim_idx += beacon[tim_idx+1] + 2;
+
+	/* If TIM field was found, set variables */
+	if ((tim_idx < (frame_size - 1)) && (beacon[tim_idx] == WLAN_EID_TIM)) {
+		tx_beacon_cmd->tim_idx = cpu_to_le16(tim_idx);
+		tx_beacon_cmd->tim_size = beacon[tim_idx+1];
+	} else
+		IWL_WARN(priv, "Unable to find TIM Element in beacon\n");
+}
+
 static unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
-				       struct iwl_frame *frame, u8 rate)
+				       struct iwl_frame *frame)
 {
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
-	unsigned int frame_size;
+	u32 frame_size;
+	u32 rate_flags;
+	u32 rate;
+	/*
+	 * We have to set up the TX command, the TX Beacon command, and the
+	 * beacon contents.
+	 */
 
+	/* Initialize memory */
 	tx_beacon_cmd = &frame->u.beacon;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
-	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
-
+	/* Set up TX beacon contents */
 	frame_size = iwl_fill_beacon_frame(priv, tx_beacon_cmd->frame,
 				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
+	if (WARN_ON_ONCE(frame_size > MAX_MPDU_SIZE))
+		return 0;
 
-	BUG_ON(frame_size > MAX_MPDU_SIZE);
+	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
-
-	if ((rate == IWL_RATE_1M_PLCP) || (rate >= IWL_RATE_2M_PLCP))
-		tx_beacon_cmd->tx.rate_n_flags =
-			iwl_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
-	else
-		tx_beacon_cmd->tx.rate_n_flags =
-			iwl_hw_set_rate_n_flags(rate, 0);
-
+	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
+	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	tx_beacon_cmd->tx.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK |
-				     TX_CMD_FLG_TSF_MSK |
-				     TX_CMD_FLG_STA_RATE_MSK;
+		TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK;
+
+	/* Set up TX beacon command fields */
+	iwl_set_beacon_tim(priv, tx_beacon_cmd, (u8 *)tx_beacon_cmd->frame,
+			frame_size);
+
+	/* Set up packet rate and flags */
+	rate = iwl_rate_get_lowest_plcp(priv);
+	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant);
+	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
+	if ((rate >= IWL_FIRST_CCK_RATE) && (rate <= IWL_LAST_CCK_RATE))
+		rate_flags |= RATE_MCS_CCK_MSK;
+	tx_beacon_cmd->tx.rate_n_flags = iwl_hw_set_rate_n_flags(rate,
+			rate_flags);
 
 	return sizeof(*tx_beacon_cmd) + frame_size;
 }
@@ -364,19 +404,20 @@ static int iwl_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_frame *frame;
 	unsigned int frame_size;
 	int rc;
-	u8 rate;
 
 	frame = iwl_get_free_frame(priv);
-
 	if (!frame) {
 		IWL_ERR(priv, "Could not obtain free frame buffer for beacon "
 			  "command.\n");
 		return -ENOMEM;
 	}
 
-	rate = iwl_rate_get_lowest_plcp(priv);
-
-	frame_size = iwl_hw_get_beacon_cmd(priv, frame, rate);
+	frame_size = iwl_hw_get_beacon_cmd(priv, frame);
+	if (!frame_size) {
+		IWL_ERR(priv, "Error configuring the beacon command\n");
+		iwl_free_frame(priv, frame);
+		return -EINVAL;
+	}
 
 	rc = iwl_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
 			      &frame->u.cmd[0]);
@@ -613,7 +654,7 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 	if (!iwl_is_ready_rf(priv))
 		return;
 
-	iwl_send_statistics_request(priv, CMD_ASYNC);
+	iwl_send_statistics_request(priv, CMD_ASYNC, false);
 }
 
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
@@ -730,7 +771,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	 * statistics request from the host as well as for the periodic
 	 * statistics notifications (after received beacons) from the uCode.
 	 */
-	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_rx_statistics;
+	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_reply_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl_rx_statistics;
 
 	iwl_setup_spectrum_handlers(priv);
@@ -1038,7 +1079,6 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 		iwl_rx_handle(priv);
 		priv->isr_stats.rx++;
-		iwl_leds_background(priv);
 		handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 	}
 
@@ -1226,19 +1266,27 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * 3- update RX shared data to indicate last write index.
 		 * 4- send interrupt.
 		 * This could lead to RX race, driver could receive RX interrupt
-		 * but the shared data changes does not reflect this.
-		 * this could lead to RX race, RX periodic will solve this race
+		 * but the shared data changes does not reflect this;
+		 * periodic interrupt will detect any dangling Rx activity.
 		 */
-		iwl_write32(priv, CSR_INT_PERIODIC_REG,
+
+		/* Disable periodic interrupt; we use it as just a one-shot. */
+		iwl_write8(priv, CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
 		iwl_rx_handle(priv);
-		/* Only set RX periodic if real RX is received. */
+
+		/*
+		 * Enable periodic interrupt in 8 msec only if we received
+		 * real RX interrupt (instead of just periodic int), to catch
+		 * any dangling Rx interrupt.  If it was just the periodic
+		 * interrupt, there was no dangling Rx activity, and no need
+		 * to extend the periodic interrupt; one-shot is enough.
+		 */
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
-			iwl_write32(priv, CSR_INT_PERIODIC_REG,
+			iwl_write8(priv, CSR_INT_PERIODIC_REG,
 				    CSR_INT_PERIODIC_ENA);
 
 		priv->isr_stats.rx++;
-		iwl_leds_background(priv);
 	}
 
 	/* This "Tx" DMA channel is used only for loading uCode */
@@ -1557,7 +1605,6 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	return ret;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 static const char *desc_lookup_text[] = {
 	"OK",
 	"FAIL",
@@ -1710,10 +1757,42 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
+/**
+ * iwl_print_last_event_logs - Dump the newest # of event log to syslog
+ */
+static void iwl_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
+				      u32 num_wraps, u32 next_entry,
+				      u32 size, u32 mode)
+{
+	/*
+	 * display the newest DEFAULT_LOG_ENTRIES entries
+	 * i.e the entries just before the next ont that uCode would fill.
+	 */
+	if (num_wraps) {
+		if (next_entry < size) {
+			iwl_print_event_log(priv,
+					capacity - (size - next_entry),
+					size - next_entry, mode);
+			iwl_print_event_log(priv, 0,
+				    next_entry, mode);
+		} else
+			iwl_print_event_log(priv, next_entry - size,
+				    size, mode);
+	} else {
+		if (next_entry < size)
+			iwl_print_event_log(priv, 0, next_entry, mode);
+		else
+			iwl_print_event_log(priv, next_entry - size,
+					    size, mode);
+	}
+}
+
 /* For sanity check only.  Actual size is determined by uCode, typ. 512 */
 #define MAX_EVENT_LOG_SIZE (512)
 
-void iwl_dump_nic_event_log(struct iwl_priv *priv)
+#define DEFAULT_DUMP_EVENT_LOG_ENTRIES (20)
+
+void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1758,19 +1837,37 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 		return;
 	}
 
-	IWL_ERR(priv, "Start IWL Event Log Dump: display count %d, wraps %d\n",
-			size, num_wraps);
-
-	/* if uCode has wrapped back to top of log, start at the oldest entry,
-	 * i.e the next one that uCode would fill. */
-	if (num_wraps)
-		iwl_print_event_log(priv, next_entry,
-					capacity - next_entry, mode);
-	/* (then/else) start at top of log */
-	iwl_print_event_log(priv, 0, next_entry, mode);
-
-}
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS))
+		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
+			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
+#else
+	size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
+		? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
 #endif
+	IWL_ERR(priv, "Start IWL Event Log Dump: display last %u entries\n",
+		size);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
+		/*
+		 * if uCode has wrapped back to top of log,
+		 * start at the oldest entry,
+		 * i.e the next one that uCode would fill.
+		 */
+		if (num_wraps)
+			iwl_print_event_log(priv, next_entry,
+					    capacity - next_entry, mode);
+		/* (then/else) start at top of log */
+		iwl_print_event_log(priv, 0, next_entry, mode);
+	} else
+		iwl_print_last_event_logs(priv, capacity, num_wraps,
+					next_entry, size, mode);
+#else
+	iwl_print_last_event_logs(priv, capacity, num_wraps,
+				next_entry, size, mode);
+#endif
+}
 
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
@@ -2360,16 +2457,14 @@ static int iwl_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->custom_regulatory = true;
-
-	/* Firmware does not support this */
-	hw->wiphy->disable_beacon_hints = true;
+	hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY |
+			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
 
 	/*
 	 * For now, disable PS by default because it affects
 	 * RX performance significantly.
 	 */
-	hw->wiphy->ps_default = false;
+	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 	/* we create the 802.11 header and a zero-length SSID element */
@@ -2523,6 +2618,10 @@ void iwl_config_ap(struct iwl_priv *priv)
 			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 
+		/* AP has all antennas */
+		priv->chain_noise_data.active_chains =
+			priv->hw_params.valid_rx_ant;
+		iwl_set_rxon_ht(priv, &priv->current_ht_config);
 		if (priv->cfg->ops->hcmd->set_rxon_chain)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv);
 
@@ -2551,6 +2650,7 @@ void iwl_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
+		iwl_reset_qos(priv);
 		spin_lock_irqsave(&priv->lock, flags);
 		iwl_activate_qos(priv, 1);
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -2646,6 +2746,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 
 static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
 			     enum ieee80211_ampdu_mlme_action action,
 			     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
@@ -2697,6 +2798,45 @@ static int iwl_mac_get_stats(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return 0;
+}
+
+static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum sta_notify_cmd cmd,
+			       struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	int sta_id;
+
+	/*
+	 * TODO: We really should use this callback to
+	 *	 actually maintain the station table in
+	 *	 the device.
+	 */
+
+	switch (cmd) {
+	case STA_NOTIFY_ADD:
+		atomic_set(&sta_priv->pending_frames, 0);
+		if (vif->type == NL80211_IFTYPE_AP)
+			sta_priv->client = true;
+		break;
+	case STA_NOTIFY_SLEEP:
+		WARN_ON(!sta_priv->client);
+		sta_priv->asleep = true;
+		if (atomic_read(&sta_priv->pending_frames) > 0)
+			ieee80211_sta_block_awake(hw, sta, true);
+		break;
+	case STA_NOTIFY_AWAKE:
+		WARN_ON(!sta_priv->client);
+		sta_priv->asleep = false;
+		sta_id = iwl_find_station(priv, sta->addr);
+		if (sta_id != IWL_INVALID_STATION)
+			iwl_sta_modify_ps_wake(priv, sta_id);
+		break;
+	default:
+		break;
+	}
 }
 
 /*****************************************************************************
@@ -2893,7 +3033,7 @@ static ssize_t show_statistics(struct device *d,
 		return -EAGAIN;
 
 	mutex_lock(&priv->mutex);
-	rc = iwl_send_statistics_request(priv, 0);
+	rc = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
 	if (rc) {
@@ -3045,10 +3185,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->band = IEEE80211_BAND_2GHZ;
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
-	if (priv->cfg->support_sm_ps)
-		priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DYNAMIC;
-	else
-		priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
 
 	/* Choose which receivers/antennas to use */
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
@@ -3130,7 +3266,8 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
 	.ampdu_action = iwl_mac_ampdu_action,
-	.hw_scan = iwl_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan,
+	.sta_notify = iwl_mac_sta_notify,
 };
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -3454,23 +3591,63 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
 #endif /* CONFIG_IWL4965 */
 #ifdef CONFIG_IWL5000
-	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bg_cfg)},
-	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bg_cfg)},
-	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5100_abg_cfg)},
-	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5100_abg_cfg)},
-	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5100_abg_cfg)},
-	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5100_abg_cfg)},
-	{IWL_PCI_DEVICE(0x4232, PCI_ANY_ID, iwl5100_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4236, PCI_ANY_ID, iwl5300_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4237, PCI_ANY_ID, iwl5100_agn_cfg)},
-/* 5350 WiFi/WiMax */
-	{IWL_PCI_DEVICE(0x423A, 0x1001, iwl5350_agn_cfg)},
-	{IWL_PCI_DEVICE(0x423A, 0x1021, iwl5350_agn_cfg)},
-	{IWL_PCI_DEVICE(0x423B, 0x1011, iwl5350_agn_cfg)},
-/* 5150 Wifi/WiMax */
-	{IWL_PCI_DEVICE(0x423C, PCI_ANY_ID, iwl5150_agn_cfg)},
-	{IWL_PCI_DEVICE(0x423D, PCI_ANY_ID, iwl5150_agn_cfg)},
+/* 5100 Series WiFi */
+	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1304, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bgn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bgn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5100_abg_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5100_abg_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1221, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1321, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1224, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1324, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1225, iwl5100_bgn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1325, iwl5100_bgn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1226, iwl5100_abg_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5100_abg_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1211, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1311, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1214, iwl5100_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1314, iwl5100_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1215, iwl5100_bgn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1315, iwl5100_bgn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5100_abg_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1316, iwl5100_abg_cfg)}, /* Half Mini Card */
+
+/* 5300 Series WiFi */
+	{IWL_PCI_DEVICE(0x4235, 0x1021, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1121, iwl5300_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1024, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1124, iwl5300_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1001, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1101, iwl5300_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1004, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1104, iwl5300_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1011, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1111, iwl5300_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1014, iwl5300_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1114, iwl5300_agn_cfg)}, /* Half Mini Card */
+
+/* 5350 Series WiFi/WiMax */
+	{IWL_PCI_DEVICE(0x423A, 0x1001, iwl5350_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423A, 0x1021, iwl5350_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423B, 0x1011, iwl5350_agn_cfg)}, /* Mini Card */
+
+/* 5150 Series Wifi/WiMax */
+	{IWL_PCI_DEVICE(0x423C, 0x1201, iwl5150_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1301, iwl5150_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1206, iwl5150_abg_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1306, iwl5150_abg_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1221, iwl5150_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1321, iwl5150_agn_cfg)}, /* Half Mini Card */
+
+	{IWL_PCI_DEVICE(0x423D, 0x1211, iwl5150_agn_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1311, iwl5150_agn_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1216, iwl5150_abg_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1316, iwl5150_abg_cfg)}, /* Half Mini Card */
 
 /* 6x00 Series */
 	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_3agn_cfg)},
@@ -3485,13 +3662,10 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_2abg_cfg)},
 
 /* 6x50 WiFi/WiMax Series */
-	{IWL_PCI_DEVICE(0x0086, 0x1101, iwl6050_3agn_cfg)},
-	{IWL_PCI_DEVICE(0x0086, 0x1121, iwl6050_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0087, 0x1306, iwl6050_2abg_cfg)},
 	{IWL_PCI_DEVICE(0x0087, 0x1321, iwl6050_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0087, 0x1326, iwl6050_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x0088, 0x1111, iwl6050_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x0089, 0x1311, iwl6050_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0089, 0x1316, iwl6050_2abg_cfg)},
 

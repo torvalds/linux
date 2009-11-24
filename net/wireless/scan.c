@@ -217,7 +217,7 @@ static bool is_mesh(struct cfg80211_bss *a,
 		     a->len_information_elements);
 	if (!ie)
 		return false;
-	if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
+	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
 		return false;
 
 	/*
@@ -225,7 +225,8 @@ static bool is_mesh(struct cfg80211_bss *a,
 	 * comparing since that may differ between stations taking
 	 * part in the same mesh.
 	 */
-	return memcmp(ie + 2, meshcfg, IEEE80211_MESH_CONFIG_LEN - 2) == 0;
+	return memcmp(ie + 2, meshcfg,
+	    sizeof(struct ieee80211_meshconf_ie) - 2) == 0;
 }
 
 static int cmp_bss(struct cfg80211_bss *a,
@@ -399,7 +400,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				  res->pub.information_elements,
 				  res->pub.len_information_elements);
 		if (!meshid || !meshcfg ||
-		    meshcfg[1] != IEEE80211_MESH_CONFIG_LEN) {
+		    meshcfg[1] != sizeof(struct ieee80211_meshconf_ie)) {
 			/* bogus mesh */
 			kref_put(&res->ref, bss_release);
 			return NULL;
@@ -865,7 +866,7 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			break;
 		case WLAN_EID_MESH_CONFIG:
 			ismesh = true;
-			if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
+			if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
 				break;
 			buf = kmalloc(50, GFP_ATOMIC);
 			if (!buf)
@@ -873,35 +874,40 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 			cfg = ie + 2;
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "Mesh network (version %d)", cfg[0]);
+			sprintf(buf, "Mesh Network Path Selection Protocol ID: "
+				"0x%02X", cfg[0]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,
 							  &iwe, buf);
-			sprintf(buf, "Path Selection Protocol ID: "
-				"0x%02X%02X%02X%02X", cfg[1], cfg[2], cfg[3],
-							cfg[4]);
+			sprintf(buf, "Path Selection Metric ID: 0x%02X",
+				cfg[1]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,
 							  &iwe, buf);
-			sprintf(buf, "Path Selection Metric ID: "
-				"0x%02X%02X%02X%02X", cfg[5], cfg[6], cfg[7],
-							cfg[8]);
+			sprintf(buf, "Congestion Control Mode ID: 0x%02X",
+				cfg[2]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,
 							  &iwe, buf);
-			sprintf(buf, "Congestion Control Mode ID: "
-				"0x%02X%02X%02X%02X", cfg[9], cfg[10],
-							cfg[11], cfg[12]);
+			sprintf(buf, "Synchronization ID: 0x%02X", cfg[3]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,
 							  &iwe, buf);
-			sprintf(buf, "Channel Precedence: "
-				"0x%02X%02X%02X%02X", cfg[13], cfg[14],
-							cfg[15], cfg[16]);
+			sprintf(buf, "Authentication ID: 0x%02X", cfg[4]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Formation Info: 0x%02X", cfg[5]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(info, current_ev,
+							  end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Capabilities: 0x%02X", cfg[6]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(info, current_ev,
 							  end_buf,

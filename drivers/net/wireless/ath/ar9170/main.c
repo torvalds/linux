@@ -850,6 +850,7 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 		}
 		break;
 
+	case AR9170_RX_STATUS_MODULATION_DUPOFDM:
 	case AR9170_RX_STATUS_MODULATION_OFDM:
 		switch (head->plcp[0] & 0xf) {
 		case 0xb:
@@ -897,8 +898,7 @@ static int ar9170_rx_mac_status(struct ar9170 *ar,
 		status->flag |= RX_FLAG_HT;
 		break;
 
-	case AR9170_RX_STATUS_MODULATION_DUPOFDM:
-		/* XXX */
+	default:
 		if (ar9170_nag_limiter(ar))
 			printk(KERN_ERR "%s: invalid modulation\n",
 			       wiphy_name(ar->hw->wiphy));
@@ -2441,6 +2441,7 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 }
 
 static int ar9170_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
 			       struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
@@ -2470,7 +2471,7 @@ static int ar9170_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->state = AR9170_TID_STATE_PROGRESS;
 		tid_info->active = false;
 		spin_unlock_irqrestore(&ar->tx_ampdu_list_lock, flags);
-		ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
 	case IEEE80211_AMPDU_TX_STOP:
@@ -2480,7 +2481,7 @@ static int ar9170_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->active = false;
 		skb_queue_purge(&tid_info->queue);
 		spin_unlock_irqrestore(&ar->tx_ampdu_list_lock, flags);
-		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

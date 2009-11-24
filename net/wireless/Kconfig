@@ -74,12 +74,6 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
-config CFG80211_DEFAULT_PS_VALUE
-	int
-	default 1 if CFG80211_DEFAULT_PS
-	default 0
-	depends on CFG80211
-
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211

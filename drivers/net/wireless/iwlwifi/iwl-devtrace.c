@@ -5,6 +5,7 @@
 #define CREATE_TRACE_POINTS
 #include "iwl-devtrace.h"
 
+EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_iowrite8);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ioread32);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_iowrite32);
 EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_rx);

@@ -251,6 +251,7 @@ static struct ath_buf* ath_clone_txbuf(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TXBUF_RESET(tbf);
 
+	tbf->aphy = bf->aphy;
 	tbf->bf_mpdu = bf->bf_mpdu;
 	tbf->bf_buf_addr = bf->bf_buf_addr;
 	*(tbf->bf_desc) = *(bf->bf_desc);
@@ -270,7 +271,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	struct ieee80211_hw *hw;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
-	struct ath_tx_info_priv *tx_info_priv;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf_next, *bf_last = bf->bf_lastbf;
 	struct ath_desc *ds = bf_last->bf_desc;
@@ -284,8 +284,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	tx_info = IEEE80211_SKB_CB(skb);
-	tx_info_priv = (struct ath_tx_info_priv *) tx_info->rate_driver_data[0];
-	hw = tx_info_priv->aphy->hw;
+	hw = bf->aphy->hw;
 
 	rcu_read_lock();
 
@@ -464,7 +463,6 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
-	struct ath_tx_info_priv *tx_info_priv;
 	u32 max_4ms_framelen, frmlen;
 	u16 aggr_limit, legacy = 0;
 	int i;
@@ -472,7 +470,6 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	skb = bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->rate_driver_data[0];
 
 	/*
 	 * Find the lowest frame length among the rate series that will have a
@@ -702,7 +699,6 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		/* anchor last desc of aggregate */
 		ath9k_hw_set11n_aggr_last(sc->sc_ah, bf->bf_lastbf->bf_desc);
 
-		txq->axq_aggr_depth++;
 		ath_tx_txqaddbuf(sc, txq, &bf_q);
 		TX_STAT_INC(txq->axq_qnum, a_aggr);
 
@@ -878,8 +874,6 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		INIT_LIST_HEAD(&txq->axq_acq);
 		spin_lock_init(&txq->axq_lock);
 		txq->axq_depth = 0;
-		txq->axq_aggr_depth = 0;
-		txq->axq_linkbuf = NULL;
 		txq->axq_tx_inprogress = false;
 		sc->tx.txqsetup |= 1<<qnum;
 	}
@@ -1014,7 +1008,6 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			txq->axq_linkbuf = NULL;
 			spin_unlock_bh(&txq->axq_lock);
 			break;
 		}
@@ -1199,7 +1192,6 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 
 	list_splice_tail_init(head, &txq->axq_q);
 	txq->axq_depth++;
-	txq->axq_linkbuf = list_entry(txq->axq_q.prev, struct ath_buf, list);
 
 	ath_print(common, ATH_DBG_QUEUE,
 		  "qnum: %d, txq depth: %d\n", txq->axq_qnum, txq->axq_depth);
@@ -1560,21 +1552,26 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ath_tx_info_priv *tx_info_priv;
 	int hdrlen;
 	__le16 fc;
 
-	tx_info_priv = kzalloc(sizeof(*tx_info_priv), GFP_ATOMIC);
-	if (unlikely(!tx_info_priv))
-		return -ENOMEM;
-	tx_info->rate_driver_data[0] = tx_info_priv;
-	tx_info_priv->aphy = aphy;
-	tx_info_priv->frame_type = txctl->frame_type;
+	tx_info->pad[0] = 0;
+	switch (txctl->frame_type) {
+	case ATH9K_NOT_INTERNAL:
+		break;
+	case ATH9K_INT_PAUSE:
+		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_PAUSE;
+		/* fall through */
+	case ATH9K_INT_UNPAUSE:
+		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_INTERNAL;
+		break;
+	}
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
 
 	ATH_TXBUF_RESET(bf);
 
+	bf->aphy = aphy;
 	bf->bf_frmlen = skb->len + FCS_LEN - (hdrlen & 3);
 
 	if (conf_is_ht(&hw->conf) && !is_pae(skb))
@@ -1599,8 +1596,6 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 					   skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_dmacontext))) {
 		bf->bf_mpdu = NULL;
-		kfree(tx_info_priv);
-		tx_info->rate_driver_data[0] = NULL;
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "dma_mapping_error() on TX\n");
 		return -ENOMEM;
@@ -1781,27 +1776,17 @@ exit:
 /*****************/
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-			    int tx_flags)
+			    struct ath_wiphy *aphy, int tx_flags)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int hdrlen, padsize;
-	int frame_type = ATH9K_NOT_INTERNAL;
 
 	ath_print(common, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
 
-	if (tx_info_priv) {
-		hw = tx_info_priv->aphy->hw;
-		frame_type = tx_info_priv->frame_type;
-	}
-
-	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK ||
-	    tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		kfree(tx_info_priv);
-		tx_info->rate_driver_data[0] = NULL;
-	}
+	if (aphy)
+		hw = aphy->hw;
 
 	if (tx_flags & ATH_TX_BAR)
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
@@ -1833,10 +1818,10 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 					SC_OP_WAIT_FOR_TX_ACK));
 	}
 
-	if (frame_type == ATH9K_NOT_INTERNAL)
-		ieee80211_tx_status(hw, skb);
-	else
+	if (unlikely(tx_info->pad[0] & ATH_TX_INFO_FRAME_TYPE_INTERNAL))
 		ath9k_tx_status(hw, skb);
+	else
+		ieee80211_tx_status(hw, skb);
 }
 
 static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
@@ -1859,7 +1844,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	dma_unmap_single(sc->dev, bf->bf_dmacontext, skb->len, DMA_TO_DEVICE);
-	ath_tx_complete(sc, skb, tx_flags);
+	ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 	ath_debug_stat_tx(sc, txq, bf);
 
 	/*
@@ -1907,8 +1892,7 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-	struct ieee80211_hw *hw = tx_info_priv->aphy->hw;
+	struct ieee80211_hw *hw = bf->aphy->hw;
 	u8 i, tx_rateindex;
 
 	if (txok)
@@ -1917,17 +1901,22 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 	tx_rateindex = ds->ds_txstat.ts_rateindex;
 	WARN_ON(tx_rateindex >= hw->max_rates);
 
-	tx_info_priv->update_rc = update_rc;
+	if (update_rc)
+		tx_info->pad[0] |= ATH_TX_INFO_UPDATE_RC;
 	if (ds->ds_txstat.ts_status & ATH9K_TXERR_FILT)
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 
 	if ((ds->ds_txstat.ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (bf->bf_flags & ATH9K_TXDESC_NOACK) == 0 && update_rc) {
 		if (ieee80211_is_data(hdr->frame_control)) {
-			memcpy(&tx_info_priv->tx, &ds->ds_txstat,
-			       sizeof(tx_info_priv->tx));
-			tx_info_priv->n_frames = bf->bf_nframes;
-			tx_info_priv->n_bad_frames = nbad;
+			if (ds->ds_txstat.ts_flags &
+			    (ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN))
+				tx_info->pad[0] |= ATH_TX_INFO_UNDERRUN;
+			if ((ds->ds_txstat.ts_status & ATH9K_TXERR_XRETRY) ||
+			    (ds->ds_txstat.ts_status & ATH9K_TXERR_FIFO))
+				tx_info->pad[0] |= ATH_TX_INFO_XRETRY;
+			tx_info->status.ampdu_len = bf->bf_nframes;
+			tx_info->status.ampdu_ack_len = bf->bf_nframes - nbad;
 		}
 	}
 
@@ -1971,7 +1960,6 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		spin_lock_bh(&txq->axq_lock);
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			txq->axq_linkbuf = NULL;
 			spin_unlock_bh(&txq->axq_lock);
 			break;
 		}
@@ -2005,10 +1993,6 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			spin_unlock_bh(&txq->axq_lock);
 			break;
 		}
-		if (bf->bf_desc == txq->axq_lastdsWithCTS)
-			txq->axq_lastdsWithCTS = NULL;
-		if (ds == txq->axq_gatingds)
-			txq->axq_gatingds = NULL;
 
 		/*
 		 * Remove ath_buf's of the same transmit unit from txq,
@@ -2022,9 +2006,6 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				&txq->axq_q, lastbf->list.prev);
 
 		txq->axq_depth--;
-		if (bf_isaggr(bf))
-			txq->axq_aggr_depth--;
-
 		txok = (ds->ds_txstat.ts_status == 0);
 		txq->axq_tx_inprogress = false;
 		spin_unlock_bh(&txq->axq_lock);

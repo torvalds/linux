@@ -381,7 +381,7 @@ static void wl3501_free_tx_buffer(struct wl3501_card *this, u16 ptr)
 
 static int wl3501_esbq_req_test(struct wl3501_card *this)
 {
-	u8 tmp;
+	u8 tmp = 0;
 
 	wl3501_get_from_wla(this, this->esbq_req_head + 3, &tmp, sizeof(tmp));
 	return tmp & 0x80;

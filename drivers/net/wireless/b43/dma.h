@@ -1,7 +1,7 @@
 #ifndef B43_DMA_H_
 #define B43_DMA_H_
 
-#include <linux/ieee80211.h>
+#include <linux/err.h>
 
 #include "b43.h"
 
@@ -157,13 +157,16 @@ struct b43_dmadesc_generic {
 } __attribute__ ((__packed__));
 
 /* Misc DMA constants */
-#define B43_DMA_RINGMEMSIZE		PAGE_SIZE
 #define B43_DMA0_RX_FRAMEOFFSET		30
 
 /* DMA engine tuning knobs */
 #define B43_TXRING_SLOTS		256
 #define B43_RXRING_SLOTS		64
 #define B43_DMA0_RX_BUFFERSIZE		IEEE80211_MAX_FRAME_LEN
+
+/* Pointer poison */
+#define B43_DMA_PTR_POISON		((void *)ERR_PTR(-ENOMEM))
+#define b43_dma_ptr_is_poisoned(ptr)	(unlikely((ptr) == B43_DMA_PTR_POISON))
 
 
 struct sk_buff;
@@ -243,6 +246,12 @@ struct b43_dmaring {
 	/* The QOS priority assigned to this ring. Only used for TX rings.
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
+	/* Pointers and size of the originally allocated and mapped memory
+	 * region for the descriptor ring. */
+	void *alloc_descbase;
+	dma_addr_t alloc_dmabase;
+	unsigned int alloc_descsize;
+	/* Pointer to our wireless device. */
 	struct b43_wldev *dev;
 #ifdef CONFIG_B43_DEBUG
 	/* Maximum number of used slots. */

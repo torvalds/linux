@@ -115,7 +115,6 @@
 #define IEEE80211_MAX_SSID_LEN		32
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
-#define IEEE80211_MESH_CONFIG_LEN	7
 
 #define IEEE80211_QOS_CTL_LEN		2
 #define IEEE80211_QOS_CTL_TID_MASK	0x000F
@@ -552,6 +551,21 @@ struct ieee80211_tim_ie {
 	u8 bitmap_ctrl;
 	/* variable size: 1 - 251 bytes */
 	u8 virtual_map[1];
+} __attribute__ ((packed));
+
+/**
+ * struct ieee80211_meshconf_ie
+ *
+ * This structure refers to "Mesh Configuration information element"
+ */
+struct ieee80211_meshconf_ie {
+	u8 meshconf_psel;
+	u8 meshconf_pmetric;
+	u8 meshconf_congest;
+	u8 meshconf_synch;
+	u8 meshconf_auth;
+	u8 meshconf_form;
+	u8 meshconf_cap;
 } __attribute__ ((packed));
 
 /**

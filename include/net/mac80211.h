@@ -219,7 +219,7 @@ struct ieee80211_bss_conf {
  *
  * These flags are used with the @flags member of &ieee80211_tx_info.
  *
- * @IEEE80211_TX_CTL_REQ_TX_STATUS: request TX status callback for this frame.
+ * @IEEE80211_TX_CTL_REQ_TX_STATUS: require TX status callback for this frame.
  * @IEEE80211_TX_CTL_ASSIGN_SEQ: The driver has to assign a sequence
  *	number to this frame, taking care of not overwriting the fragment
  *	number and increasing the sequence number only when the
@@ -390,9 +390,11 @@ struct ieee80211_tx_rate {
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
- * @ampdu_ack_len: number of aggregated frames.
+ * @ampdu_ack_len: number of acked aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ampdu_ack_map: block ack bit map for the aggregation.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ampdu_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
  */
@@ -428,7 +430,8 @@ struct ieee80211_tx_info {
 			u8 ampdu_ack_len;
 			u64 ampdu_ack_map;
 			int ack_signal;
-			/* 8 bytes free */
+			u8 ampdu_len;
+			/* 7 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -852,6 +855,19 @@ enum ieee80211_tkip_key_type {
  * any particular flags. There are some exceptions to this rule,
  * however, so you are advised to review these flags carefully.
  *
+ * @IEEE80211_HW_HAS_RATE_CONTROL:
+ *	The hardware or firmware includes rate control, and cannot be
+ *	controlled by the stack. As such, no rate control algorithm
+ *	should be instantiated, and the TX rate reported to userspace
+ *	will be taken from the TX status instead of the rate control
+ *	algorithm.
+ *	Note that this requires that the driver implement a number of
+ *	callbacks so it has the correct information, it needs to have
+ *	the @set_rts_threshold callback and must look at the BSS config
+ *	@use_cts_prot for G/N protection, @use_short_slot for slot
+ *	timing in 2.4 GHz and @use_short_preamble for preambles for
+ *	CCK frames.
+ *
  * @IEEE80211_HW_RX_INCLUDES_FCS:
  *	Indicates that received frames passed to the stack include
  *	the FCS at the end.
@@ -910,6 +926,7 @@ enum ieee80211_tkip_key_type {
  *	avoid waking up cpu.
  */
 enum ieee80211_hw_flags {
+	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
 	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
 	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
@@ -1505,6 +1522,7 @@ struct ieee80211_ops {
 	void (*reset_tsf)(struct ieee80211_hw *hw);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
@@ -2026,8 +2044,7 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 
 /**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @ra: receiver address of the BA session recipient
+ * @sta: the station for which to start a BA session
  * @tid: the TID to BA on.
  *
  * Return: success if addBA request was sent, failure otherwise
@@ -2036,22 +2053,22 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * the need to start aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid);
+int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb - low level driver ready to aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
  * This function must be called by low level driver once it has
  * finished with preparations for the BA session.
  */
-void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid);
+void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
@@ -2059,13 +2076,12 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid);
  * finished with preparations for the BA session.
  * This version of the function is IRQ-safe.
  */
-void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
+void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				      u16 tid);
 
 /**
  * ieee80211_stop_tx_ba_session - Stop a Block Ack session.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @ra: receiver address of the BA session recipient
+ * @sta: the station whose BA session to stop
  * @tid: the TID to stop BA.
  * @initiator: if indicates initiator DELBA frame will be sent.
  *
@@ -2075,24 +2091,23 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
  * the need to stop aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
-				 u8 *ra, u16 tid,
+int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
 				 enum ieee80211_back_parties initiator);
 
 /**
  * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
  * This function must be called by low level driver once it has
  * finished with preparations for the BA session tear down.
  */
-void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid);
+void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
 
 /**
  * ieee80211_stop_tx_ba_cb_irqsafe - low level driver ready to stop aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
@@ -2100,7 +2115,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid);
  * finished with preparations for the BA session tear down.
  * This version of the function is IRQ-safe.
  */
-void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
+void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				     u16 tid);
 
 /**

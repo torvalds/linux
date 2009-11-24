@@ -62,6 +62,26 @@
  *
  */
 
+static inline void _iwl_write8(struct iwl_priv *priv, u32 ofs, u8 val)
+{
+	trace_iwlwifi_dev_iowrite8(priv, ofs, val);
+	iowrite8(val, priv->hw_base + ofs);
+}
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline void __iwl_write8(const char *f, u32 l, struct iwl_priv *priv,
+				 u32 ofs, u8 val)
+{
+	IWL_DEBUG_IO(priv, "write8(0x%08X, 0x%02X) - %s %d\n", ofs, val, f, l);
+	_iwl_write8(priv, ofs, val);
+}
+#define iwl_write8(priv, ofs, val) \
+	__iwl_write8(__FILE__, __LINE__, priv, ofs, val)
+#else
+#define iwl_write8(priv, ofs, val) _iwl_write8(priv, ofs, val)
+#endif
+
+
 static inline void _iwl_write32(struct iwl_priv *priv, u32 ofs, u32 val)
 {
 	trace_iwlwifi_dev_iowrite32(priv, ofs, val);

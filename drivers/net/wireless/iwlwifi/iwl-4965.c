@@ -1818,8 +1818,9 @@ static u16 iwl4965_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	addsta->add_immediate_ba_tid = cmd->add_immediate_ba_tid;
 	addsta->remove_immediate_ba_tid = cmd->remove_immediate_ba_tid;
 	addsta->add_immediate_ba_ssn = cmd->add_immediate_ba_ssn;
+	addsta->sleep_tx_count = cmd->sleep_tx_count;
 	addsta->reserved1 = cpu_to_le16(0);
-	addsta->reserved2 = cpu_to_le32(0);
+	addsta->reserved2 = cpu_to_le16(0);
 
 	return (u16)sizeof(struct iwl4965_addsta_cmd);
 }
@@ -1865,8 +1866,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-		info->flags |= iwl_is_tx_success(status) ?
-			IEEE80211_TX_STAT_ACK : 0;
+		info->flags |= iwl_tx_status_to_mac80211(status);
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
 
@@ -2021,8 +2021,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		}
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		info->flags |= iwl_is_tx_success(status) ?
-					IEEE80211_TX_STAT_ACK : 0;
+		info->flags |= iwl_tx_status_to_mac80211(status);
 		iwl_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
@@ -2240,6 +2239,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.broken_powersave = true,
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
+	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 /* Module firmware */
