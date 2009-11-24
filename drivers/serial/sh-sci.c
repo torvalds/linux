@@ -1370,7 +1370,7 @@ static struct dev_pm_ops sci_dev_pm_ops = {
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
-	.remove		= __devexit_p(sci_remove),
+	.remove		= sci_remove,
 	.driver		= {
 		.name	= "sh-sci",
 		.owner	= THIS_MODULE,
