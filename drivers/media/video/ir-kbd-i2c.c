@@ -353,6 +353,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = &ir_codes_fusionhdtv_mce_table;
 		break;
+	case 0x0b:
 	case 0x47:
 	case 0x71:
 		if (adap->id == I2C_HW_B_CX2388x ||
@@ -422,7 +423,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* Make sure we are all setup before going on */
 	if (!name || !ir->get_key || !ir_type || !ir_codes) {
-		dprintk(1, DEVNAME ": Unsupported device at address 0x%02x\n",
+		dprintk(1, ": Unsupported device at address 0x%02x\n",
 			addr);
 		err = -ENODEV;
 		goto err_out_free;
