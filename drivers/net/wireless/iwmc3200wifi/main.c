@@ -701,12 +701,12 @@ static int __iwm_up(struct iwm_priv *iwm)
 
 	/*
 	 * Read our SKU capabilities.
-	 * If it's valid, we overwrite the wireless mode conf entry and the
-	 * current profile one.
+	 * If it's valid, we AND the configured wireless mode with the
+	 * device EEPROM value as the current profile wireless mode.
 	 */
 	wireless_mode = iwm_eeprom_wireless_mode(iwm);
 	if (wireless_mode) {
-		iwm->conf.wireless_mode = wireless_mode;
+		iwm->conf.wireless_mode &= wireless_mode;
 		if (iwm->umac_profile)
 			iwm->umac_profile->wireless_mode =
 					iwm->conf.wireless_mode;
