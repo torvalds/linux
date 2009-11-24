@@ -319,7 +319,6 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 		kfree(unit);
 		goto err_out;
 	}
-	dev_set_drvdata(&unit->sysfs_device, unit);
 	retval = -EINVAL;
 
 	/* mark unit unusable as long as sysfs registration is not complete */
@@ -688,7 +687,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 		kfree(port);
 		goto err_out;
 	}
-	dev_set_drvdata(&port->sysfs_device, port);
 	retval = -EINVAL;
 
 	if (device_register(&port->sysfs_device)) {

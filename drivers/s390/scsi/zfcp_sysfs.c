@@ -19,7 +19,8 @@ static ssize_t zfcp_sysfs_##_feat##_##_name##_show(struct device *dev,	       \
 						   struct device_attribute *at,\
 						   char *buf)		       \
 {									       \
-	struct _feat_def *_feat = dev_get_drvdata(dev);			       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
+					       sysfs_device);		       \
 									       \
 	return sprintf(buf, _format, _value);				       \
 }									       \
@@ -86,7 +87,8 @@ static ssize_t zfcp_sysfs_##_feat##_failed_show(struct device *dev,	       \
 						struct device_attribute *attr, \
 						char *buf)		       \
 {									       \
-	struct _feat_def *_feat = dev_get_drvdata(dev);			       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
+					       sysfs_device);		       \
 									       \
 	if (atomic_read(&_feat->status) & ZFCP_STATUS_COMMON_ERP_FAILED)       \
 		return sprintf(buf, "1\n");				       \
@@ -97,7 +99,8 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 						 struct device_attribute *attr,\
 						 const char *buf, size_t count)\
 {									       \
-	struct _feat_def *_feat = dev_get_drvdata(dev);			       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
+					       sysfs_device);		       \
 	unsigned long val;						       \
 	int retval = 0;							       \
 									       \
@@ -274,7 +277,8 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct zfcp_port *port = dev_get_drvdata(dev);
+	struct zfcp_port *port = container_of(dev, struct zfcp_port,
+					      sysfs_device);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = -EINVAL;
@@ -305,7 +309,8 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t count)
 {
-	struct zfcp_port *port = dev_get_drvdata(dev);
+	struct zfcp_port *port = container_of(dev, struct zfcp_port,
+					      sysfs_device);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = 0;
