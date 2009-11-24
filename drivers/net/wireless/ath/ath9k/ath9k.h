@@ -420,6 +420,8 @@ struct ath_led {
 #define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
 #define SC_OP_BEACON_SYNC       BIT(19)
 #define SC_OP_BT_PRIORITY_DETECTED BIT(21)
+#define SC_OP_NULLFUNC_COMPLETED BIT(22)
+#define SC_OP_PS_ENABLED	BIT(23)
 
 struct ath_wiphy;
 struct ath_rate_table;

@@ -76,6 +76,7 @@
 #define ATH9K_TXERR_FIFO           0x04
 #define ATH9K_TXERR_XTXOP          0x08
 #define ATH9K_TXERR_TIMER_EXPIRED  0x10
+#define ATH9K_TX_ACKED		   0x20
 
 #define ATH9K_TX_BA                0x01
 #define ATH9K_TX_PWRMGMT           0x02
@@ -380,6 +381,11 @@ struct ar5416_desc {
 #define AR_TxBaStatus       0x40000000
 #define AR_TxStatusRsvd01   0x80000000
 
+/*
+ * AR_FrmXmitOK - Frame transmission success flag. If set, the frame was
+ * transmitted successfully. If clear, no ACK or BA was received to indicate
+ * successful transmission when we were expecting an ACK or BA.
+ */
 #define AR_FrmXmitOK            0x00000001
 #define AR_ExcessiveRetries     0x00000002
 #define AR_FIFOUnderrun         0x00000004

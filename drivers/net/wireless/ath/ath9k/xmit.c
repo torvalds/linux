@@ -1644,6 +1644,14 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	}
 
 	bf->bf_buf_addr = bf->bf_dmacontext;
+
+	/* tag if this is a nullfunc frame to enable PS when AP acks it */
+	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc)) {
+		bf->bf_isnullfunc = true;
+		sc->sc_flags &= ~SC_OP_NULLFUNC_COMPLETED;
+	} else
+		bf->bf_isnullfunc = false;
+
 	return 0;
 }
 
@@ -2036,6 +2044,19 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (status == -EINPROGRESS) {
 			spin_unlock_bh(&txq->axq_lock);
 			break;
+		}
+
+		/*
+		 * We now know the nullfunc frame has been ACKed so we
+		 * can disable RX.
+		 */
+		if (bf->bf_isnullfunc &&
+		    (ds->ds_txstat.ts_status & ATH9K_TX_ACKED)) {
+			if ((sc->sc_flags & SC_OP_PS_ENABLED)) {
+				sc->ps_enabled = true;
+				ath9k_hw_setrxabort(sc->sc_ah, 1);
+			} else
+				sc->sc_flags |= SC_OP_NULLFUNC_COMPLETED;
 		}
 
 		/*

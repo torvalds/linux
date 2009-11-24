@@ -231,6 +231,8 @@ int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
 	ds->ds_txstat.ts_status = 0;
 	ds->ds_txstat.ts_flags = 0;
 
+	if (ads->ds_txstatus1 & AR_FrmXmitOK)
+		ds->ds_txstat.ts_status |= ATH9K_TX_ACKED;
 	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
 	if (ads->ds_txstatus1 & AR_Filtered)
@@ -926,6 +928,13 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 }
 EXPORT_SYMBOL(ath9k_hw_setuprxdesc);
 
+/*
+ * This can stop or re-enables RX.
+ *
+ * If bool is set this will kill any frame which is currently being
+ * transferred between the MAC and baseband and also prevent any new
+ * frames from getting started.
+ */
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 {
 	u32 reg;
