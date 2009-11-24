@@ -77,7 +77,9 @@ struct nilfs_segsum_info {
  * @sb_rest_blocks: Number of residual blocks in the current segment
  * @sb_segsum_buffers: List of buffers for segment summaries
  * @sb_payload_buffers: List of buffers for segment payload
- * @sb_io_error: I/O error status
+ * @sb_nbio: Number of flying bio requests
+ * @sb_err: I/O error status
+ * @sb_bio_event: Completion event of log writing
  */
 struct nilfs_segment_buffer {
 	struct super_block     *sb_super;
@@ -96,7 +98,9 @@ struct nilfs_segment_buffer {
 	struct list_head	sb_payload_buffers; /* including super root */
 
 	/* io status */
-	int			sb_io_error;
+	int			sb_nbio;
+	atomic_t		sb_err;
+	struct completion	sb_bio_event;
 };
 
 #define NILFS_LIST_SEGBUF(head)  \
@@ -177,11 +181,6 @@ struct nilfs_write_info {
 	int			nr_vecs;
 	sector_t		blocknr;
 
-	int			nbio;
-	atomic_t		err;
-	struct completion	bio_event;
-				/* completion event of segment write */
-
 	/*
 	 * The following fields must be set explicitly
 	 */
@@ -195,7 +194,6 @@ void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *,
 				struct nilfs_write_info *);
 int nilfs_segbuf_write(struct nilfs_segment_buffer *,
 		       struct nilfs_write_info *);
-int nilfs_segbuf_wait(struct nilfs_segment_buffer *,
-		      struct nilfs_write_info *);
+int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
 
 #endif /* _NILFS_SEGBUF_H */

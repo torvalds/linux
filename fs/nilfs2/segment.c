@@ -1382,14 +1382,14 @@ static void nilfs_segctor_free_incomplete_segments(struct nilfs_sc_info *sci,
 						   struct the_nilfs *nilfs)
 {
 	struct nilfs_segment_buffer *segbuf;
-	int ret, done = 0;
+	int ret;
 
 	segbuf = NILFS_FIRST_SEGBUF(&sci->sc_segbufs);
 	if (nilfs->ns_nextnum != segbuf->sb_nextnum) {
 		ret = nilfs_sufile_free(nilfs->ns_sufile, segbuf->sb_nextnum);
 		WARN_ON(ret); /* never fails */
 	}
-	if (segbuf->sb_io_error) {
+	if (atomic_read(&segbuf->sb_err)) {
 		/* Case 1: The first segment failed */
 		if (segbuf->sb_pseg_start != segbuf->sb_fseg_start)
 			/* Case 1a:  Partial segment appended into an existing
@@ -1398,19 +1398,16 @@ static void nilfs_segctor_free_incomplete_segments(struct nilfs_sc_info *sci,
 						segbuf->sb_fseg_end);
 		else /* Case 1b:  New full segment */
 			set_nilfs_discontinued(nilfs);
-		done++;
 	}
 
 	list_for_each_entry_continue(segbuf, &sci->sc_segbufs, sb_list) {
 		ret = nilfs_sufile_free(nilfs->ns_sufile, segbuf->sb_nextnum);
 		WARN_ON(ret); /* never fails */
-		if (!done && segbuf->sb_io_error) {
-			if (segbuf->sb_segnum != nilfs->ns_nextnum)
-				/* Case 2: extended segment (!= next) failed */
-				nilfs_sufile_set_error(nilfs->ns_sufile,
-						       segbuf->sb_segnum);
-			done++;
-		}
+		if (atomic_read(&segbuf->sb_err) &&
+		    segbuf->sb_segnum != nilfs->ns_nextnum)
+			/* Case 2: extended segment (!= next) failed */
+			nilfs_sufile_set_error(nilfs->ns_sufile,
+					       segbuf->sb_segnum);
 	}
 }
 
@@ -1801,7 +1798,7 @@ static int nilfs_segctor_write(struct nilfs_sc_info *sci,
 		nilfs_segbuf_prepare_write(segbuf, &wi);
 		err = nilfs_segbuf_write(segbuf, &wi);
 
-		res = nilfs_segbuf_wait(segbuf, &wi);
+		res = nilfs_segbuf_wait(segbuf);
 		err = err ? : res;
 		if (err)
 			return err;
