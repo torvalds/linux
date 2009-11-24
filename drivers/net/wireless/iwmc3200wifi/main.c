@@ -248,7 +248,7 @@ static void iwm_watchdog(unsigned long data)
 
 int iwm_priv_init(struct iwm_priv *iwm)
 {
-	int i;
+	int i, j;
 	char name[32];
 
 	iwm->status = 0;
@@ -292,12 +292,20 @@ int iwm_priv_init(struct iwm_priv *iwm)
 			return -EAGAIN;
 
 		skb_queue_head_init(&iwm->txq[i].queue);
+		skb_queue_head_init(&iwm->txq[i].stopped_queue);
+		spin_lock_init(&iwm->txq[i].lock);
 	}
 
 	for (i = 0; i < IWM_NUM_KEYS; i++)
 		memset(&iwm->keys[i], 0, sizeof(struct iwm_key));
 
 	iwm->default_key = -1;
+
+	for (i = 0; i < IWM_STA_TABLE_NUM; i++)
+		for (j = 0; j < IWM_UMAC_TID_NR; j++) {
+			mutex_init(&iwm->sta_table[i].tid_info[j].mutex);
+			iwm->sta_table[i].tid_info[j].stopped = false;
+		}
 
 	init_timer(&iwm->watchdog);
 	iwm->watchdog.function = iwm_watchdog;
@@ -572,6 +580,7 @@ void iwm_link_off(struct iwm_priv *iwm)
 
 	for (i = 0; i < IWM_TX_QUEUES; i++) {
 		skb_queue_purge(&iwm->txq[i].queue);
+		skb_queue_purge(&iwm->txq[i].stopped_queue);
 
 		iwm->txq[i].concat_count = 0;
 		iwm->txq[i].concat_ptr = iwm->txq[i].concat_buf;

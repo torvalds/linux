@@ -450,6 +450,14 @@ struct iwm_umac_cmd_stats_req {
 	__le32 flags;
 } __attribute__ ((packed));
 
+struct iwm_umac_cmd_stop_resume_tx {
+	u8 flags;
+	u8 sta_id;
+	__le16 stop_resume_tid_msk;
+	__le16 last_seq_num[IWM_UMAC_TID_NR];
+	u16 reserved;
+} __attribute__ ((packed));
+
 /* LMAC commands */
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac);
 int iwm_send_prio_table(struct iwm_priv *iwm);
@@ -478,6 +486,8 @@ int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
 		   int ssid_num);
 int iwm_scan_one_ssid(struct iwm_priv *iwm, u8 *ssid, int ssid_len);
+int iwm_send_umac_stop_resume_tx(struct iwm_priv *iwm,
+				 struct iwm_umac_notif_stop_resume_tx *ntf);
 
 /* UDMA commands */
 int iwm_target_reset(struct iwm_priv *iwm);

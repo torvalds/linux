@@ -1087,6 +1087,71 @@ static int iwm_ntf_channel_info_list(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
+				  unsigned long buf_size,
+				  struct iwm_wifi_cmd *cmd)
+{
+	struct iwm_umac_notif_stop_resume_tx *stp_res_tx =
+		(struct iwm_umac_notif_stop_resume_tx *)buf;
+	struct iwm_sta_info *sta_info;
+	struct iwm_tid_info *tid_info;
+	u8 sta_id = STA_ID_N_COLOR_ID(stp_res_tx->sta_id);
+	u16 tid_msk = le16_to_cpu(stp_res_tx->stop_resume_tid_msk);
+	int bit, ret = 0;
+	bool stop = false;
+
+	IWM_DBG_NTF(iwm, DBG, "stop/resume notification:\n"
+		    "\tflags:       0x%x\n"
+		    "\tSTA id:      %d\n"
+		    "\tTID bitmask: 0x%x\n",
+		    stp_res_tx->flags, stp_res_tx->sta_id,
+		    stp_res_tx->stop_resume_tid_msk);
+
+	if (stp_res_tx->flags & UMAC_STOP_TX_FLAG)
+		stop = true;
+
+	sta_info = &iwm->sta_table[sta_id];
+	if (!sta_info->valid) {
+		IWM_ERR(iwm, "Stoping an invalid STA: %d %d\n",
+			sta_id, stp_res_tx->sta_id);
+		return -EINVAL;
+	}
+
+	for_each_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
+		tid_info = &sta_info->tid_info[bit];
+
+		mutex_lock(&tid_info->mutex);
+		tid_info->stopped = stop;
+		mutex_unlock(&tid_info->mutex);
+
+		if (!stop) {
+			struct iwm_tx_queue *txq;
+			u16 queue = iwm_tid_to_queue(bit);
+
+			if (queue < 0)
+				continue;
+
+			txq = &iwm->txq[queue];
+			/*
+			 * If we resume, we have to move our SKBs
+			 * back to the tx queue and queue some work.
+			 */
+			spin_lock_bh(&txq->lock);
+			skb_queue_splice_init(&txq->queue, &txq->stopped_queue);
+			spin_unlock_bh(&txq->lock);
+
+			queue_work(txq->wq, &txq->worker);
+		}
+
+	}
+
+	/* We send an ACK only for the stop case */
+	if (stop)
+		ret = iwm_send_umac_stop_resume_tx(iwm, stp_res_tx);
+
+	return ret;
+}
+
 static int iwm_ntf_wifi_if_wrapper(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
@@ -1371,6 +1436,7 @@ static const iwm_handler iwm_umac_handlers[] =
 	[UMAC_NOTIFY_OPCODE_STATS]		= iwm_ntf_statistics,
 	[UMAC_CMD_OPCODE_EEPROM_PROXY]		= iwm_ntf_eeprom_proxy,
 	[UMAC_CMD_OPCODE_GET_CHAN_INFO_LIST]	= iwm_ntf_channel_info_list,
+	[UMAC_CMD_OPCODE_STOP_RESUME_STA_TX]	= iwm_ntf_stop_resume_tx,
 	[REPLY_RX_MPDU_CMD]			= iwm_ntf_rx_packet,
 	[UMAC_CMD_OPCODE_WIFI_IF_WRAPPER]	= iwm_ntf_wifi_if_wrapper,
 };

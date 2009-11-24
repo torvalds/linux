@@ -83,6 +83,20 @@ struct iwm_udma_out_wifi_hdr {
 	((UMAC_HDI_ACT_TBL_IDX_RA_UMAC << UMAC_HDI_ACT_TBL_IDX_RA_POS) |\
 	(UMAC_HDI_ACT_TBL_IDX_TID_LMAC << UMAC_HDI_ACT_TBL_IDX_TID_POS))
 
+/* STA ID and color */
+#define STA_ID_SEED                        (0x0f)
+#define STA_ID_POS                         (0)
+#define STA_ID_MSK                         (STA_ID_SEED << STA_ID_POS)
+
+#define STA_COLOR_SEED                     (0x7)
+#define STA_COLOR_POS                      (4)
+#define STA_COLOR_MSK                      (STA_COLOR_SEED << STA_COLOR_POS)
+
+#define STA_ID_N_COLOR_COLOR(id_n_color) \
+	(((id_n_color) & STA_COLOR_MSK) >> STA_COLOR_POS)
+#define STA_ID_N_COLOR_ID(id_n_color) \
+	(((id_n_color) & STA_ID_MSK) >> STA_ID_POS)
+
 /* iwm_umac_notif_alive.page_grp_state Group number -- bits [3:0] */
 #define UMAC_ALIVE_PAGE_STS_GRP_NUM_POS		0
 #define UMAC_ALIVE_PAGE_STS_GRP_NUM_SEED	0xF
@@ -260,6 +274,9 @@ struct iwm_udma_out_wifi_hdr {
 #define UMAC_CMD_OPCODE_GET_CHAN_INFO_LIST	0x16
 #define UMAC_CMD_OPCODE_SET_PARAM_LIST		0x17
 #define UMAC_CMD_OPCODE_GET_PARAM_LIST		0x18
+#define UMAC_CMD_OPCODE_STOP_RESUME_STA_TX      0x19
+#define UMAC_CMD_OPCODE_TEST_BLOCK_ACK          0x1A
+
 #define UMAC_CMD_OPCODE_BASE_WRAPPER            0xFA
 #define UMAC_CMD_OPCODE_LMAC_WRAPPER            0xFB
 #define UMAC_CMD_OPCODE_HW_TEST_WRAPPER         0xFC
@@ -691,13 +708,13 @@ struct iwm_umac_notif_rx_ticket {
 #define UMAC_PHY_NUM_CHAINS     3
 
 #define IWM_UMAC_MGMT_TID	8
-#define IWM_UMAC_TID_NR		8
+#define IWM_UMAC_TID_NR		9 /* 8 TIDs + MGMT */
 
 struct iwm_umac_notif_stats {
 	struct iwm_umac_wifi_in_hdr hdr;
 	__le32 flags;
 	__le32 timestamp;
-	__le16 tid_load[IWM_UMAC_TID_NR + 2]; /* 1 non-QoS + 1 dword align */
+	__le16 tid_load[IWM_UMAC_TID_NR + 1]; /* 1 non-QoS + 1 dword align */
 	__le16 tx_rate[UMAC_NTF_RATE_SAMPLE_NR];
 	__le16 rx_rate[UMAC_NTF_RATE_SAMPLE_NR];
 	__le32 chain_energy[UMAC_PHY_NUM_CHAINS];
@@ -741,6 +758,19 @@ struct iwm_umac_notif_stats {
 	__le32 roam_deauth;
 	__le32 roam_ap_loadblance;
 } __attribute__ ((packed));
+
+#define UMAC_STOP_TX_FLAG    0x1
+#define UMAC_RESUME_TX_FLAG  0x2
+
+#define LAST_SEQ_NUM_INVALID     0xFFFF
+
+struct iwm_umac_notif_stop_resume_tx {
+	struct iwm_umac_wifi_in_hdr hdr;
+	u8 flags; /* UMAC_*_TX_FLAG_* */
+	u8 sta_id;
+	__le16 stop_resume_tid_msk; /* tid bitmask */
+} __attribute__ ((packed));
+
 
 /* WiFi interface wrapper header */
 struct iwm_umac_wifi_if {

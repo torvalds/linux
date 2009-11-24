@@ -131,11 +131,18 @@ struct iwm_notif {
 	unsigned long buf_size;
 };
 
+struct iwm_tid_info {
+	__le16 last_seq_num;
+	bool stopped;
+	struct mutex mutex;
+};
+
 struct iwm_sta_info {
 	u8 addr[ETH_ALEN];
 	bool valid;
 	bool qos;
 	u8 color;
+	struct iwm_tid_info tid_info[IWM_UMAC_TID_NR];
 };
 
 struct iwm_tx_info {
@@ -185,6 +192,8 @@ struct iwm_key {
 struct iwm_tx_queue {
 	int id;
 	struct sk_buff_head queue;
+	struct sk_buff_head stopped_queue;
+	spinlock_t lock;
 	struct workqueue_struct *wq;
 	struct work_struct worker;
 	u8 concat_buf[IWM_HAL_CONCATENATE_BUF_SIZE];
@@ -341,6 +350,7 @@ int iwm_up(struct iwm_priv *iwm);
 int iwm_down(struct iwm_priv *iwm);
 
 /* TX API */
+u16 iwm_tid_to_queue(u16 tid);
 void iwm_tx_credit_inc(struct iwm_priv *iwm, int id, int total_freed_pages);
 void iwm_tx_worker(struct work_struct *work);
 int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

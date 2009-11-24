@@ -929,3 +929,34 @@ int iwm_target_reset(struct iwm_priv *iwm)
 
 	return iwm_hal_send_target_cmd(iwm, &target_cmd, NULL);
 }
+
+int iwm_send_umac_stop_resume_tx(struct iwm_priv *iwm,
+				 struct iwm_umac_notif_stop_resume_tx *ntf)
+{
+	struct iwm_udma_wifi_cmd udma_cmd = UDMA_UMAC_INIT;
+	struct iwm_umac_cmd umac_cmd;
+	struct iwm_umac_cmd_stop_resume_tx stp_res_cmd;
+	struct iwm_sta_info *sta_info;
+	u8 sta_id = STA_ID_N_COLOR_ID(ntf->sta_id);
+	int i;
+
+	sta_info = &iwm->sta_table[sta_id];
+	if (!sta_info->valid) {
+		IWM_ERR(iwm, "Invalid STA: %d\n", sta_id);
+		return -EINVAL;
+	}
+
+	umac_cmd.id = UMAC_CMD_OPCODE_STOP_RESUME_STA_TX;
+	umac_cmd.resp = 0;
+
+	stp_res_cmd.flags = ntf->flags;
+	stp_res_cmd.sta_id = ntf->sta_id;
+	stp_res_cmd.stop_resume_tid_msk = ntf->stop_resume_tid_msk;
+	for (i = 0; i < IWM_UMAC_TID_NR; i++)
+		stp_res_cmd.last_seq_num[i] =
+			sta_info->tid_info[i].last_seq_num;
+
+	return iwm_hal_send_umac_cmd(iwm, &udma_cmd, &umac_cmd, &stp_res_cmd,
+				 sizeof(struct iwm_umac_cmd_stop_resume_tx));
+
+}
