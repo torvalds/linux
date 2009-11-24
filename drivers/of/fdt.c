@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/lmb.h>
+#include <linux/initrd.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
@@ -368,6 +369,42 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 	*p += 4;
 	return mem;
 }
+
+#ifdef CONFIG_BLK_DEV_INITRD
+/**
+ * early_init_dt_check_for_initrd - Decode initrd location from flat tree
+ * @node: reference to node containing initrd location ('chosen')
+ */
+void __init early_init_dt_check_for_initrd(unsigned long node)
+{
+	unsigned long len;
+	u32 *prop;
+
+	pr_debug("Looking for initrd properties... ");
+
+	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &len);
+	if (prop) {
+		initrd_start = (unsigned long)
+				__va(of_read_ulong(prop, len/4));
+
+		prop = of_get_flat_dt_prop(node, "linux,initrd-end", &len);
+		if (prop) {
+			initrd_end = (unsigned long)
+				__va(of_read_ulong(prop, len/4));
+			initrd_below_start_ok = 1;
+		} else {
+			initrd_start = 0;
+		}
+	}
+
+	pr_debug("initrd_start=0x%lx  initrd_end=0x%lx\n",
+		 initrd_start, initrd_end);
+}
+#else
+inline void early_init_dt_check_for_initrd(unsigned long node)
+{
+}
+#endif /* CONFIG_BLK_DEV_INITRD */
 
 /**
  * unflatten_device_tree - create tree of device_nodes from flat blob
