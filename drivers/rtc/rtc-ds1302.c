@@ -201,7 +201,7 @@ static struct platform_driver ds1302_platform_driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ds1302_rtc_remove),
+	.remove		= __devexit_p(ds1302_rtc_remove),
 };
 
 static int __init ds1302_rtc_init(void)
