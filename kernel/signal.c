@@ -1840,6 +1840,9 @@ relock:
 			ka = &sighand->action[signr-1];
 		}
 
+		/* Trace actually delivered signals. */
+		trace_signal_deliver(signr, info, ka);
+
 		if (ka->sa.sa_handler == SIG_IGN) /* Do nothing.  */
 			continue;
 		if (ka->sa.sa_handler != SIG_DFL) {
