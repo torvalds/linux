@@ -1517,6 +1517,10 @@ static const struct of_device_id su_match[] = {
 		.name = "serial",
 		.compatible = "su",
 	},
+	{
+		.type = "serial",
+		.compatible = "su",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, su_match);
@@ -1543,6 +1547,12 @@ static int __init sunsu_init(void)
 			num_uart++;
 	}
 	for_each_node_by_name(dp, "serial") {
+		if (of_device_is_compatible(dp, "su")) {
+			if (su_get_type(dp) == SU_PORT_PORT)
+				num_uart++;
+		}
+	}
+	for_each_node_by_type(dp, "serial") {
 		if (of_device_is_compatible(dp, "su")) {
 			if (su_get_type(dp) == SU_PORT_PORT)
 				num_uart++;
