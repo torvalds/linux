@@ -447,9 +447,52 @@ void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
 EXPORT_SYMBOL(___dma_single_dev_to_cpu);
 
 static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
-				       size_t size, int direction)
+		       size_t size, void (*op)(const void *, const void *))
 {
 	void *vaddr;
+
+	if (!PageHighMem(page)) {
+		vaddr = page_address(page) + offset;
+		op(vaddr, vaddr + size);
+	} else {
+		vaddr = kmap_high_get(page);
+		if (vaddr) {
+			vaddr += offset;
+			op(vaddr, vaddr + size);
+			kunmap_high(page);
+		}
+	}
+}
+
+static void dma_cache_maint_page(struct page *page, unsigned long offset,
+	size_t size, void (*op)(const void *, const void *))
+{
+	/*
+	 * A single sg entry may refer to multiple physically contiguous
+	 * pages.  But we still need to process highmem pages individually.
+	 * If highmem is not configured then the bulk of this loop gets
+	 * optimized out.
+	 */
+	size_t left = size;
+	do {
+		size_t len = left;
+		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
+			if (offset >= PAGE_SIZE) {
+				page += offset / PAGE_SIZE;
+				offset %= PAGE_SIZE;
+			}
+			len = PAGE_SIZE - offset;
+		}
+		dma_cache_maint_contiguous(page, offset, len, op);
+		offset = 0;
+		page++;
+		left -= len;
+	} while (left);
+}
+
+void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
 	unsigned long paddr;
 	void (*inner_op)(const void *, const void *);
 	void (*outer_op)(unsigned long, unsigned long);
@@ -471,52 +514,10 @@ static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
 		BUG();
 	}
 
-	if (!PageHighMem(page)) {
-		vaddr = page_address(page) + offset;
-		inner_op(vaddr, vaddr + size);
-	} else {
-		vaddr = kmap_high_get(page);
-		if (vaddr) {
-			vaddr += offset;
-			inner_op(vaddr, vaddr + size);
-			kunmap_high(page);
-		}
-	}
+	dma_cache_maint_page(page, off, size, inner_op);
 
-	paddr = page_to_phys(page) + offset;
+	paddr = page_to_phys(page) + off;
 	outer_op(paddr, paddr + size);
-}
-
-static void dma_cache_maint_page(struct page *page, unsigned long offset,
-			  size_t size, int dir)
-{
-	/*
-	 * A single sg entry may refer to multiple physically contiguous
-	 * pages.  But we still need to process highmem pages individually.
-	 * If highmem is not configured then the bulk of this loop gets
-	 * optimized out.
-	 */
-	size_t left = size;
-	do {
-		size_t len = left;
-		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
-			if (offset >= PAGE_SIZE) {
-				page += offset / PAGE_SIZE;
-				offset %= PAGE_SIZE;
-			}
-			len = PAGE_SIZE - offset;
-		}
-		dma_cache_maint_contiguous(page, offset, len, dir);
-		offset = 0;
-		page++;
-		left -= len;
-	} while (left);
-}
-
-void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
-	size_t size, enum dma_data_direction dir)
-{
-	dma_cache_maint_page(page, off, size, dir);
 }
 EXPORT_SYMBOL(___dma_page_cpu_to_dev);
 
