@@ -643,6 +643,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_port_name = 1,
 	.show_host_permanent_port_name = 1,
 	.show_host_supported_classes = 1,
+	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
 	.show_host_serial_number = 1,
@@ -652,6 +653,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.get_host_port_state = zfcp_get_host_port_state,
 	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
+	.show_host_active_fc4s = 1,
 	.bsg_request = zfcp_fc_exec_bsg_job,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
