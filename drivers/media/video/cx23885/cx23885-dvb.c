@@ -56,6 +56,8 @@
 #include "netup-init.h"
 #include "lgdt3305.h"
 #include "atbm8830.h"
+#include "ds3000.h"
+#include "cx23885-f300.h"
 
 static unsigned int debug;
 
@@ -427,26 +429,12 @@ static struct stv6110_config netup_stv6110_tunerconfig_b = {
 	.gain = 8, /* +16 dB  - maximum gain */
 };
 
-static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
-{
-	struct cx23885_tsport *port = fe->dvb->priv;
-	struct cx23885_dev *dev = port->dev;
-
-	if (voltage == SEC_VOLTAGE_18)
-		cx_write(MC417_RWD, 0x00001e00);/* GPIO-13 high */
-	else if (voltage == SEC_VOLTAGE_13)
-		cx_write(MC417_RWD, 0x00001a00);/* GPIO-13 low */
-	else
-		cx_write(MC417_RWD, 0x00001800);/* GPIO-12 low */
-	return 0;
-}
-
 static struct cx24116_config tbs_cx24116_config = {
-	.demod_address = 0x05,
+	.demod_address = 0x55,
 };
 
-static struct cx24116_config tevii_cx24116_config = {
-	.demod_address = 0x55,
+static struct ds3000_config tevii_ds3000_config = {
+	.demod_address = 0x68,
 };
 
 static struct cx24116_config dvbworld_cx24116_config = {
@@ -832,23 +820,23 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_TBS_6920:
-		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus = &dev->i2c_bus[1];
 
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
-			&tbs_cx24116_config,
-			&i2c_bus->i2c_adap);
+					&tbs_cx24116_config,
+					&i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend != NULL)
-			fe0->dvb.frontend->ops.set_voltage = tbs_set_voltage;
+			fe0->dvb.frontend->ops.set_voltage = f300_set_voltage;
 
 		break;
 	case CX23885_BOARD_TEVII_S470:
 		i2c_bus = &dev->i2c_bus[1];
 
-		fe0->dvb.frontend = dvb_attach(cx24116_attach,
-			&tevii_cx24116_config,
-			&i2c_bus->i2c_adap);
+		fe0->dvb.frontend = dvb_attach(ds3000_attach,
+					&tevii_ds3000_config,
+					&i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend != NULL)
-			fe0->dvb.frontend->ops.set_voltage = tbs_set_voltage;
+			fe0->dvb.frontend->ops.set_voltage = f300_set_voltage;
 
 		break;
 	case CX23885_BOARD_DVBWORLD_2005:
