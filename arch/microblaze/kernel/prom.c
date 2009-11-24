@@ -50,48 +50,6 @@ typedef u32 cell_t;
 /* export that to outside world */
 struct device_node *of_chosen;
 
-/**
- * This function can be used within scan_flattened_dt callback to get
- * access to properties
- */
-void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
-				unsigned long *size)
-{
-	unsigned long p = node;
-
-	do {
-		u32 tag = *((u32 *)p);
-		u32 sz, noff;
-		const char *nstr;
-
-		p += 4;
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag != OF_DT_PROP)
-			return NULL;
-
-		sz = *((u32 *)p);
-		noff = *((u32 *)(p + 4));
-		p += 8;
-		if (initial_boot_params->version < 0x10)
-			p = _ALIGN(p, sz >= 8 ? 8 : 4);
-
-		nstr = find_flat_dt_string(noff);
-		if (nstr == NULL) {
-			printk(KERN_WARNING "Can't find property index"
-				" name !\n");
-			return NULL;
-		}
-		if (strcmp(name, nstr) == 0) {
-			if (size)
-				*size = sz;
-			return (void *)p;
-		}
-		p += sz;
-		p = _ALIGN(p, 4);
-	} while (1);
-}
-
 int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 {
 	const char *cp;
