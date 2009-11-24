@@ -643,7 +643,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	 * O_EXCL: optimize away the lookup, but don't hash the dentry. Let
 	 * the VFS handle the create.
 	 */
-	if (nd->flags & LOOKUP_EXCL) {
+	if (nd && (nd->flags & LOOKUP_EXCL)) {
 		d_instantiate(direntry, NULL);
 		return 0;
 	}
@@ -675,7 +675,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	 * reduction in network traffic in the other paths.
 	 */
 	if (pTcon->unix_ext) {
-		if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
+		if (nd && !(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
 		     (nd->intent.open.flags & O_CREAT)) {
 			rc = cifs_posix_open(full_path, &newInode, nd->path.mnt,
