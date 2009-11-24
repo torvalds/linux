@@ -451,9 +451,8 @@ static void print_sym_table(void)
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
-	int sym_width = 0, dso_width = 0;
+	int sym_width = 0, dso_width = 0, max_dso_width;
 	const int win_width = winsize.ws_col - 1;
-	struct dso *unique_dso = NULL, *first_dso = NULL;
 
 	samples = userspace_samples = 0;
 
@@ -539,11 +538,6 @@ static void print_sym_table(void)
 		    (int)syme->snap_count < count_filter)
 			continue;
 
-		if (first_dso == NULL)
-			unique_dso = first_dso = syme->map->dso;
-		else if (syme->map->dso != first_dso)
-			unique_dso = NULL;
-
 		if (syme->map->dso->long_name_len > dso_width)
 			dso_width = syme->map->dso->long_name_len;
 
@@ -553,14 +547,10 @@ static void print_sym_table(void)
 
 	printed = 0;
 
-	if (unique_dso)
-		printf("DSO: %s\n", unique_dso->long_name);
-	else {
-		int max_dso_width = winsize.ws_col - sym_width - 29;
-		if (dso_width > max_dso_width)
-			dso_width = max_dso_width;
-		putchar('\n');
-	}
+	max_dso_width = winsize.ws_col - sym_width - 29;
+	if (dso_width > max_dso_width)
+		dso_width = max_dso_width;
+	putchar('\n');
 	if (nr_counters == 1)
 		printf("             samples  pcnt");
 	else
@@ -568,17 +558,13 @@ static void print_sym_table(void)
 
 	if (verbose)
 		printf("         RIP       ");
-	printf(" %-*.*s", sym_width, sym_width, "function");
-	if (!unique_dso)
-		printf(" DSO");
-	putchar('\n');
+	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
 	printf("   %s    _______ _____",
 	       nr_counters == 1 ? "      " : "______");
 	if (verbose)
 		printf(" ________________");
 	printf(" %-*.*s", sym_width, sym_width, graph_line);
-	if (!unique_dso)
-		printf(" %-*.*s", dso_width, dso_width, graph_line);
+	printf(" %-*.*s", dso_width, dso_width, graph_line);
 	puts("\n");
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
@@ -603,12 +589,10 @@ static void print_sym_table(void)
 		if (verbose)
 			printf(" %016llx", sym->start);
 		printf(" %-*.*s", sym_width, sym_width, sym->name);
-		if (!unique_dso)
-			printf(" %-*.*s", dso_width, dso_width,
-			       dso_width >= syme->map->dso->long_name_len ?
-						syme->map->dso->long_name :
-						syme->map->dso->short_name);
-		printf("\n");
+		printf(" %-*.*s\n", dso_width, dso_width,
+		       dso_width >= syme->map->dso->long_name_len ?
+					syme->map->dso->long_name :
+					syme->map->dso->short_name);
 	}
 }
 
