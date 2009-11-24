@@ -214,7 +214,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 		skb_push(skb, header_align);
 		memmove(skb->data, skb->data + header_align, header_length);
 		memmove(skb->data + header_length + l2pad,
-			skb->data + header_length + l2pad + header_align,
+			skb->data + header_length + l2pad + payload_align,
 			frame_length - header_length);
 		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
