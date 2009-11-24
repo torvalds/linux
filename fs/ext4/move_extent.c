@@ -1289,10 +1289,6 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			 ext4_ext_get_actual_len(ext_cur), block_end + 1) -
 		     max(le32_to_cpu(ext_cur->ee_block), block_start);
 
-	/* Discard preallocations of two inodes */
-	ext4_discard_preallocations(orig_inode);
-	ext4_discard_preallocations(donor_inode);
-
 	while (!last_extent && le32_to_cpu(ext_cur->ee_block) <= block_end) {
 		seq_blocks += add_blocks;
 
@@ -1410,6 +1406,11 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 
 	}
 out:
+	if (*moved_len) {
+		ext4_discard_preallocations(orig_inode);
+		ext4_discard_preallocations(donor_inode);
+	}
+
 	if (orig_path) {
 		ext4_ext_drop_refs(orig_path);
 		kfree(orig_path);
