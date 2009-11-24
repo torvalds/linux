@@ -309,22 +309,7 @@ struct fsf_qtcb_header {
 	u8  res4[16];
 } __attribute__ ((packed));
 
-struct fsf_nport_serv_param {
-	u8  common_serv_param[16];
-	u64 wwpn;
-	u64 wwnn;
-	u8  class1_serv_param[16];
-	u8  class2_serv_param[16];
-	u8  class3_serv_param[16];
-	u8  class4_serv_param[16];
-	u8  vendor_version_level[16];
-} __attribute__ ((packed));
-
 #define FSF_PLOGI_MIN_LEN	112
-struct fsf_plogi {
-	u32    code;
-	struct fsf_nport_serv_param serv_param;
-} __attribute__ ((packed));
 
 #define FSF_FCP_CMND_SIZE	288
 #define FSF_FCP_RSP_SIZE	128
@@ -377,13 +362,12 @@ struct fsf_qtcb_bottom_config {
 	u16 timer_interval;
 	u8 res2[8];
 	u32 s_id;
-	struct fsf_nport_serv_param nport_serv_param;
-	u8 reserved_nport_serv_param[16];
+	u8 nport_serv_param[128];
 	u8 res3[8];
 	u32 adapter_ports;
 	u32 hardware_version;
 	u8 serial_number[32];
-	struct fsf_nport_serv_param plogi_payload;
+	u8 plogi_payload[112];
 	struct fsf_statistics_info stat_info;
 	u8 res4[112];
 } __attribute__ ((packed));

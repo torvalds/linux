@@ -75,51 +75,6 @@
 
 #define ZFCP_DID_MASK           0x00FFFFFF
 
-/* see fc-fs */
-#define LS_RSCN  0x61
-#define LS_LOGO  0x05
-#define LS_PLOGI 0x03
-
-struct fcp_rscn_head {
-        u8  command;
-        u8  page_length; /* always 0x04 */
-        u16 payload_len;
-} __attribute__((packed));
-
-struct fcp_rscn_element {
-        u8  reserved:2;
-        u8  event_qual:4;
-        u8  addr_format:2;
-        u32 nport_did:24;
-} __attribute__((packed));
-
-/* see fc-ph */
-struct fcp_logo {
-        u32 command;
-        u32 nport_did;
-	u64 nport_wwpn;
-} __attribute__((packed));
-
-/*
- * FC-FS stuff
- */
-#define R_A_TOV				10 /* seconds */
-
-#define ZFCP_LS_RLS			0x0f
-#define ZFCP_LS_ADISC			0x52
-#define ZFCP_LS_RPS			0x56
-#define ZFCP_LS_RSCN			0x61
-#define ZFCP_LS_RNID			0x78
-
-struct zfcp_ls_adisc {
-	u8		code;
-	u8		field[3];
-	u32		hard_nport_id;
-	u64		wwpn;
-	u64		wwnn;
-	u32		nport_id;
-} __attribute__ ((packed));
-
 /*
  * FC-GS-2 stuff
  */

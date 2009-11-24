@@ -9,20 +9,17 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/types.h>
+#include <scsi/fc/fc_els.h>
+#include <scsi/libfc.h>
 #include "zfcp_ext.h"
+#include "zfcp_fc.h"
 
-enum rscn_address_format {
-	RSCN_PORT_ADDRESS	= 0x0,
-	RSCN_AREA_ADDRESS	= 0x1,
-	RSCN_DOMAIN_ADDRESS	= 0x2,
-	RSCN_FABRIC_ADDRESS	= 0x3,
-};
-
-static u32 rscn_range_mask[] = {
-	[RSCN_PORT_ADDRESS]		= 0xFFFFFF,
-	[RSCN_AREA_ADDRESS]		= 0xFFFF00,
-	[RSCN_DOMAIN_ADDRESS]		= 0xFF0000,
-	[RSCN_FABRIC_ADDRESS]		= 0x000000,
+static u32 zfcp_fc_rscn_range_mask[] = {
+	[ELS_ADDR_FMT_PORT]		= 0xFFFFFF,
+	[ELS_ADDR_FMT_AREA]		= 0xFFFF00,
+	[ELS_ADDR_FMT_DOM]		= 0xFF0000,
+	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
 
 struct gpn_ft_resp_acc {
@@ -144,7 +141,7 @@ void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *gs)
 }
 
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
-				   struct fcp_rscn_element *elem)
+				   struct fc_els_rscn_page *page)
 {
 	unsigned long flags;
 	struct zfcp_adapter *adapter = fsf_req->adapter;
@@ -152,7 +149,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list) {
-		if ((port->d_id & range) == (elem->nport_did & range))
+		if ((port->d_id & range) == (ntoh24(page->rscn_fid) & range))
 			zfcp_fc_test_link(port);
 		if (!port->d_id)
 			zfcp_erp_port_reopen(port,
@@ -165,24 +162,24 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 {
 	struct fsf_status_read_buffer *status_buffer = (void *)fsf_req->data;
-	struct fcp_rscn_head *fcp_rscn_head;
-	struct fcp_rscn_element *fcp_rscn_element;
+	struct fc_els_rscn *head;
+	struct fc_els_rscn_page *page;
 	u16 i;
 	u16 no_entries;
-	u32 range_mask;
+	unsigned int afmt;
 
-	fcp_rscn_head = (struct fcp_rscn_head *) status_buffer->payload.data;
-	fcp_rscn_element = (struct fcp_rscn_element *) fcp_rscn_head;
+	head = (struct fc_els_rscn *) status_buffer->payload.data;
+	page = (struct fc_els_rscn_page *) head;
 
 	/* see FC-FS */
-	no_entries = fcp_rscn_head->payload_len /
-			sizeof(struct fcp_rscn_element);
+	no_entries = head->rscn_plen / sizeof(struct fc_els_rscn_page);
 
 	for (i = 1; i < no_entries; i++) {
 		/* skip head and start with 1st element */
-		fcp_rscn_element++;
-		range_mask = rscn_range_mask[fcp_rscn_element->addr_format];
-		_zfcp_fc_incoming_rscn(fsf_req, range_mask, fcp_rscn_element);
+		page++;
+		afmt = page->rscn_page_flags & ELS_RSCN_ADDR_FMT_MASK;
+		_zfcp_fc_incoming_rscn(fsf_req, zfcp_fc_rscn_range_mask[afmt],
+				       page);
 	}
 	queue_work(fsf_req->adapter->work_queue, &fsf_req->adapter->scan_work);
 }
@@ -204,22 +201,22 @@ static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
 
 static void zfcp_fc_incoming_plogi(struct zfcp_fsf_req *req)
 {
-	struct fsf_status_read_buffer *status_buffer =
-		(struct fsf_status_read_buffer *)req->data;
-	struct fsf_plogi *els_plogi =
-		(struct fsf_plogi *) status_buffer->payload.data;
+	struct fsf_status_read_buffer *status_buffer;
+	struct fc_els_flogi *plogi;
 
-	zfcp_fc_incoming_wwpn(req, els_plogi->serv_param.wwpn);
+	status_buffer = (struct fsf_status_read_buffer *) req->data;
+	plogi = (struct fc_els_flogi *) status_buffer->payload.data;
+	zfcp_fc_incoming_wwpn(req, plogi->fl_wwpn);
 }
 
 static void zfcp_fc_incoming_logo(struct zfcp_fsf_req *req)
 {
 	struct fsf_status_read_buffer *status_buffer =
 		(struct fsf_status_read_buffer *)req->data;
-	struct fcp_logo *els_logo =
-		(struct fcp_logo *) status_buffer->payload.data;
+	struct fc_els_logo *logo =
+		(struct fc_els_logo *) status_buffer->payload.data;
 
-	zfcp_fc_incoming_wwpn(req, els_logo->nport_wwpn);
+	zfcp_fc_incoming_wwpn(req, logo->fl_n_port_wwn);
 }
 
 /**
@@ -233,11 +230,11 @@ void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 	unsigned int els_type = status_buffer->payload.data[0];
 
 	zfcp_dbf_san_incoming_els(fsf_req);
-	if (els_type == LS_PLOGI)
+	if (els_type == ELS_PLOGI)
 		zfcp_fc_incoming_plogi(fsf_req);
-	else if (els_type == LS_LOGO)
+	else if (els_type == ELS_LOGO)
 		zfcp_fc_incoming_logo(fsf_req);
-	else if (els_type == LS_RSCN)
+	else if (els_type == ELS_RSCN)
 		zfcp_fc_incoming_rscn(fsf_req);
 }
 
@@ -379,33 +376,36 @@ void zfcp_fc_trigger_did_lookup(struct zfcp_port *port)
  *
  * Evaluate PLOGI playload and copy important fields into zfcp_port structure
  */
-void zfcp_fc_plogi_evaluate(struct zfcp_port *port, struct fsf_plogi *plogi)
+void zfcp_fc_plogi_evaluate(struct zfcp_port *port, struct fc_els_flogi *plogi)
 {
-	port->maxframe_size = plogi->serv_param.common_serv_param[7] |
-		((plogi->serv_param.common_serv_param[6] & 0x0F) << 8);
-	if (plogi->serv_param.class1_serv_param[0] & 0x80)
+	if (plogi->fl_wwpn != port->wwpn) {
+		port->d_id = 0;
+		dev_warn(&port->adapter->ccw_device->dev,
+			 "A port opened with WWPN 0x%016Lx returned data that "
+			 "identifies it as WWPN 0x%016Lx\n",
+			 (unsigned long long) port->wwpn,
+			 (unsigned long long) plogi->fl_wwpn);
+		return;
+	}
+
+	port->wwnn = plogi->fl_wwnn;
+	port->maxframe_size = plogi->fl_csp.sp_bb_data;
+
+	if (plogi->fl_cssp[0].cp_class & FC_CPC_VALID)
 		port->supported_classes |= FC_COS_CLASS1;
-	if (plogi->serv_param.class2_serv_param[0] & 0x80)
+	if (plogi->fl_cssp[1].cp_class & FC_CPC_VALID)
 		port->supported_classes |= FC_COS_CLASS2;
-	if (plogi->serv_param.class3_serv_param[0] & 0x80)
+	if (plogi->fl_cssp[2].cp_class & FC_CPC_VALID)
 		port->supported_classes |= FC_COS_CLASS3;
-	if (plogi->serv_param.class4_serv_param[0] & 0x80)
+	if (plogi->fl_cssp[3].cp_class & FC_CPC_VALID)
 		port->supported_classes |= FC_COS_CLASS4;
 }
 
-struct zfcp_els_adisc {
-	struct zfcp_send_els els;
-	struct scatterlist req;
-	struct scatterlist resp;
-	struct zfcp_ls_adisc ls_adisc;
-	struct zfcp_ls_adisc ls_adisc_acc;
-};
-
 static void zfcp_fc_adisc_handler(unsigned long data)
 {
-	struct zfcp_els_adisc *adisc = (struct zfcp_els_adisc *) data;
+	struct zfcp_fc_els_adisc *adisc = (struct zfcp_fc_els_adisc *) data;
 	struct zfcp_port *port = adisc->els.port;
-	struct zfcp_ls_adisc *ls_adisc = &adisc->ls_adisc_acc;
+	struct fc_els_adisc *adisc_resp = &adisc->adisc_resp;
 
 	if (adisc->els.status) {
 		/* request rejected or timed out */
@@ -415,9 +415,9 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 	}
 
 	if (!port->wwnn)
-		port->wwnn = ls_adisc->wwnn;
+		port->wwnn = adisc_resp->adisc_wwnn;
 
-	if ((port->wwpn != ls_adisc->wwpn) ||
+	if ((port->wwpn != adisc_resp->adisc_wwpn) ||
 	    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_OPEN)) {
 		zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
 				     "fcadh_2", NULL);
@@ -434,32 +434,33 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 
 static int zfcp_fc_adisc(struct zfcp_port *port)
 {
-	struct zfcp_els_adisc *adisc;
+	struct zfcp_fc_els_adisc *adisc;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	adisc = kzalloc(sizeof(struct zfcp_els_adisc), GFP_ATOMIC);
+	adisc = kzalloc(sizeof(struct zfcp_fc_els_adisc), GFP_ATOMIC);
 	if (!adisc)
 		return -ENOMEM;
 
 	adisc->els.req = &adisc->req;
 	adisc->els.resp = &adisc->resp;
-	sg_init_one(adisc->els.req, &adisc->ls_adisc,
-		    sizeof(struct zfcp_ls_adisc));
-	sg_init_one(adisc->els.resp, &adisc->ls_adisc_acc,
-		    sizeof(struct zfcp_ls_adisc));
+	sg_init_one(adisc->els.req, &adisc->adisc_req,
+		    sizeof(struct fc_els_adisc));
+	sg_init_one(adisc->els.resp, &adisc->adisc_resp,
+		    sizeof(struct fc_els_adisc));
 
 	adisc->els.adapter = adapter;
 	adisc->els.port = port;
 	adisc->els.d_id = port->d_id;
 	adisc->els.handler = zfcp_fc_adisc_handler;
 	adisc->els.handler_data = (unsigned long) adisc;
-	adisc->els.ls_code = adisc->ls_adisc.code = ZFCP_LS_ADISC;
+	adisc->els.ls_code = adisc->adisc_req.adisc_cmd = ELS_ADISC;
 
 	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
 	   without FC-AL-2 capability, so we don't set it */
-	adisc->ls_adisc.wwpn = fc_host_port_name(adapter->scsi_host);
-	adisc->ls_adisc.wwnn = fc_host_node_name(adapter->scsi_host);
-	adisc->ls_adisc.nport_id = fc_host_port_id(adapter->scsi_host);
+	adisc->adisc_req.adisc_wwpn = fc_host_port_name(adapter->scsi_host);
+	adisc->adisc_req.adisc_wwnn = fc_host_node_name(adapter->scsi_host);
+	hton24(adisc->adisc_req.adisc_port_id,
+	       fc_host_port_id(adapter->scsi_host));
 
 	return zfcp_fsf_send_els(&adisc->els);
 }

@@ -10,9 +10,26 @@
 #ifndef ZFCP_FC_H
 #define ZFCP_FC_H
 
+#include <scsi/fc/fc_els.h>
 #include <scsi/fc/fc_fcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
+
+/**
+ * struct zfcp_fc_els_adisc - everything required in zfcp for issuing ELS ADISC
+ * @els: data required for issuing els fsf command
+ * @req: scatterlist entry for ELS ADISC request
+ * @resp: scatterlist entry for ELS ADISC response
+ * @adisc_req: ELS ADISC request data
+ * @adisc_resp: ELS ADISC response data
+ */
+struct zfcp_fc_els_adisc {
+	struct zfcp_send_els els;
+	struct scatterlist req;
+	struct scatterlist resp;
+	struct fc_els_adisc adisc_req;
+	struct fc_els_adisc adisc_resp;
+};
 
 /**
  * zfcp_fc_scsi_to_fcp - setup FCP command with data from scsi_cmnd

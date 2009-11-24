@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/blktrace_api.h>
+#include <scsi/fc/fc_els.h>
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
 #include "zfcp_dbf.h"
@@ -477,17 +478,22 @@ void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 
 static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 {
-	struct fsf_qtcb_bottom_config *bottom;
+	struct fsf_qtcb_bottom_config *bottom = &req->qtcb->bottom.config;
 	struct zfcp_adapter *adapter = req->adapter;
 	struct Scsi_Host *shost = adapter->scsi_host;
+	struct fc_els_flogi *nsp, *plogi;
 
-	bottom = &req->qtcb->bottom.config;
+	/* adjust pointers for missing command code */
+	nsp = (struct fc_els_flogi *) ((u8 *)&bottom->nport_serv_param
+					- sizeof(u32));
+	plogi = (struct fc_els_flogi *) ((u8 *)&bottom->plogi_payload
+					- sizeof(u32));
 
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	fc_host_node_name(shost) = bottom->nport_serv_param.wwnn;
-	fc_host_port_name(shost) = bottom->nport_serv_param.wwpn;
+	fc_host_port_name(shost) = nsp->fl_wwpn;
+	fc_host_node_name(shost) = nsp->fl_wwnn;
 	fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
 	fc_host_speed(shost) = bottom->fc_link_speed;
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
@@ -501,8 +507,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	switch (bottom->fc_topology) {
 	case FSF_TOPO_P2P:
 		adapter->peer_d_id = bottom->peer_d_id & ZFCP_DID_MASK;
-		adapter->peer_wwpn = bottom->plogi_payload.wwpn;
-		adapter->peer_wwnn = bottom->plogi_payload.wwnn;
+		adapter->peer_wwpn = plogi->fl_wwpn;
+		adapter->peer_wwnn = plogi->fl_wwnn;
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
 		break;
 	case FSF_TOPO_FABRIC:
@@ -1068,15 +1074,17 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 				 int max_sbals)
 {
 	int ret;
+	unsigned int fcp_chan_timeout;
 
 	ret = zfcp_fsf_setup_ct_els_sbals(req, sg_req, sg_resp, max_sbals);
 	if (ret)
 		return ret;
 
 	/* common settings for ct/gs and els requests */
+	fcp_chan_timeout = 2 * FC_DEF_R_A_TOV / 1000;
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
-	req->qtcb->bottom.support.timeout = 2 * R_A_TOV;
-	zfcp_fsf_start_timer(req, (2 * R_A_TOV + 10) * HZ);
+	req->qtcb->bottom.support.timeout = fcp_chan_timeout;
+	zfcp_fsf_start_timer(req, (fcp_chan_timeout + 10) * HZ);
 
 	return 0;
 }
@@ -1151,7 +1159,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]){
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			if (port && (send_els->ls_code != ZFCP_LS_ADISC))
+			if (port && (send_els->ls_code != ELS_ADISC))
 				zfcp_fc_test_link(port);
 			/*fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -1419,7 +1427,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_port *port = req->data;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
-	struct fsf_plogi *plogi;
+	struct fc_els_flogi *plogi;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		goto out;
@@ -1469,23 +1477,10 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		 * another GID_PN straight after a port has been opened.
 		 * Alternately, an ADISC/PDISC ELS should suffice, as well.
 		 */
-		plogi = (struct fsf_plogi *) req->qtcb->bottom.support.els;
+		plogi = (struct fc_els_flogi *) req->qtcb->bottom.support.els;
 		if (req->qtcb->bottom.support.els1_length >=
-		    FSF_PLOGI_MIN_LEN) {
-			if (plogi->serv_param.wwpn != port->wwpn) {
-				port->d_id = 0;
-				dev_warn(&port->adapter->ccw_device->dev,
-					 "A port opened with WWPN 0x%016Lx "
-					 "returned data that identifies it as "
-					 "WWPN 0x%016Lx\n",
-					 (unsigned long long) port->wwpn,
-					 (unsigned long long)
-					  plogi->serv_param.wwpn);
-			} else {
-				port->wwnn = plogi->serv_param.wwnn;
+		    FSF_PLOGI_MIN_LEN)
 				zfcp_fc_plogi_evaluate(port, plogi);
-			}
-		}
 		break;
 	case FSF_UNKNOWN_OP_SUBTYPE:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;

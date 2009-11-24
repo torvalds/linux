@@ -9,6 +9,8 @@
 #ifndef ZFCP_EXT_H
 #define ZFCP_EXT_H
 
+#include <linux/types.h>
+#include <scsi/fc/fc_els.h>
 #include "zfcp_def.h"
 
 /* zfcp_aux.c */
@@ -98,7 +100,7 @@ extern void zfcp_fc_scan_ports(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fc_port_did_lookup(struct work_struct *);
 extern void zfcp_fc_trigger_did_lookup(struct zfcp_port *);
-extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
+extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fc_els_flogi *);
 extern void zfcp_fc_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);
 extern void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *);
