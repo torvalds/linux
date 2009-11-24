@@ -1755,16 +1755,23 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	/*
 	 * On backplane, bail out if
 	 * - backplane autoneg was not completed, or if
-	 * - link partner is not AN enabled
+	 * - we are 82599 and link partner is not AN enabled
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		links = IXGBE_READ_REG(hw, IXGBE_LINKS);
-		links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
-		if (((links & IXGBE_LINKS_KX_AN_COMP) == 0) ||
-		    ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0)) {
+		if ((links & IXGBE_LINKS_KX_AN_COMP) == 0) {
 			hw->fc.fc_was_autonegged = false;
 			hw->fc.current_mode = hw->fc.requested_mode;
 			goto out;
+		}
+
+		if (hw->mac.type == ixgbe_mac_82599EB) {
+			links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
+			if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0) {
+				hw->fc.fc_was_autonegged = false;
+				hw->fc.current_mode = hw->fc.requested_mode;
+				goto out;
+			}
 		}
 	}
 
