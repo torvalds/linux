@@ -1831,7 +1831,7 @@ static int perf_event_read_group(struct perf_event *event,
 
 		size = n * sizeof(u64);
 
-		if (copy_to_user(buf + size, values, size)) {
+		if (copy_to_user(buf + ret, values, size)) {
 			ret = -EFAULT;
 			goto unlock;
 		}
