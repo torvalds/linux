@@ -42,9 +42,6 @@
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 
-static int __initdata dt_root_addr_cells;
-static int __initdata dt_root_size_cells;
-
 typedef u32 cell_t;
 
 /* export that to outside world */
@@ -153,26 +150,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif /* CONFIG_CMDLINE */
 
 	pr_debug("Command line is: %s\n", cmd_line);
-
-	/* break now */
-	return 1;
-}
-
-static int __init early_init_dt_scan_root(unsigned long node,
-				const char *uname, int depth, void *data)
-{
-	u32 *prop;
-
-	if (depth != 0)
-		return 0;
-
-	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
-	pr_debug("dt_root_size_cells = %x\n", dt_root_size_cells);
-
-	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
-	pr_debug("dt_root_addr_cells = %x\n", dt_root_addr_cells);
 
 	/* break now */
 	return 1;

@@ -61,10 +61,6 @@
 #define DBG(fmt...)
 #endif
 
-
-static int __initdata dt_root_addr_cells;
-static int __initdata dt_root_size_cells;
-
 #ifdef CONFIG_PPC64
 int __initdata iommu_is_off;
 int __initdata iommu_force_on;
@@ -432,26 +428,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 
 	DBG("Command line is: %s\n", cmd_line);
 
-	/* break now */
-	return 1;
-}
-
-static int __init early_init_dt_scan_root(unsigned long node,
-					  const char *uname, int depth, void *data)
-{
-	u32 *prop;
-
-	if (depth != 0)
-		return 0;
-
-	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
-	DBG("dt_root_size_cells = %x\n", dt_root_size_cells);
-
-	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
-	DBG("dt_root_addr_cells = %x\n", dt_root_addr_cells);
-	
 	/* break now */
 	return 1;
 }

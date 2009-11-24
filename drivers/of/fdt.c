@@ -15,6 +15,9 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
+int __initdata dt_root_addr_cells;
+int __initdata dt_root_size_cells;
+
 struct boot_param_header *initial_boot_params;
 
 char *find_flat_dt_string(u32 offset)
@@ -405,6 +408,29 @@ inline void early_init_dt_check_for_initrd(unsigned long node)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
+
+/**
+ * early_init_dt_scan_root - fetch the top level address and size cells
+ */
+int __init early_init_dt_scan_root(unsigned long node, const char *uname,
+				   int depth, void *data)
+{
+	u32 *prop;
+
+	if (depth != 0)
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
+	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
+	pr_debug("dt_root_size_cells = %x\n", dt_root_size_cells);
+
+	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
+	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
+	pr_debug("dt_root_addr_cells = %x\n", dt_root_addr_cells);
+
+	/* break now */
+	return 1;
+}
 
 /**
  * unflatten_device_tree - create tree of device_nodes from flat blob
