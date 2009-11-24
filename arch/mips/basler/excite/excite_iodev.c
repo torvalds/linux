@@ -34,7 +34,7 @@
 
 static const struct resource *iodev_get_resource(struct platform_device *, const char *, unsigned int);
 static int __init iodev_probe(struct platform_device *);
-static int __exit iodev_remove(struct platform_device *);
+static int __devexit iodev_remove(struct platform_device *);
 static int iodev_open(struct inode *, struct file *);
 static int iodev_release(struct inode *, struct file *);
 static ssize_t iodev_read(struct file *, char __user *, size_t s, loff_t *);
@@ -103,7 +103,7 @@ static int __init iodev_probe(struct platform_device *dev)
 
 
 
-static int __exit iodev_remove(struct platform_device *dev)
+static int __devexit iodev_remove(struct platform_device *dev)
 {
 	return misc_deregister(&miscdev);
 }
