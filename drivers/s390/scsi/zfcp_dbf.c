@@ -870,8 +870,9 @@ void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 	struct zfcp_dbf_scsi_record *rec = &dbf->scsi_buf;
 	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
 	unsigned long flags;
-	struct fcp_rsp_iu *fcp_rsp;
-	char *fcp_rsp_info = NULL, *fcp_sns_info = NULL;
+	struct fcp_resp_with_ext *fcp_rsp;
+	struct fcp_resp_rsp_info *fcp_rsp_info = NULL;
+	char *fcp_sns_info = NULL;
 	int offset = 0, buflen = 0;
 
 	spin_lock_irqsave(&dbf->scsi_lock, flags);
@@ -895,20 +896,22 @@ void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 				rec->scsi_allowed = scsi_cmnd->allowed;
 			}
 			if (fsf_req != NULL) {
-				fcp_rsp = (struct fcp_rsp_iu *)
-				    &(fsf_req->qtcb->bottom.io.fcp_rsp);
-				fcp_rsp_info = (unsigned char *) &fcp_rsp[1];
-				fcp_sns_info =
-				    zfcp_get_fcp_sns_info_ptr(fcp_rsp);
+				fcp_rsp = (struct fcp_resp_with_ext *)
+					&(fsf_req->qtcb->bottom.io.fcp_rsp);
+				fcp_rsp_info = (struct fcp_resp_rsp_info *)
+					&fcp_rsp[1];
+				fcp_sns_info = (char *) &fcp_rsp[1];
+				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
+					fcp_sns_info += fcp_rsp->ext.fr_sns_len;
 
-				rec->rsp_validity = fcp_rsp->validity.value;
-				rec->rsp_scsi_status = fcp_rsp->scsi_status;
-				rec->rsp_resid = fcp_rsp->fcp_resid;
-				if (fcp_rsp->validity.bits.fcp_rsp_len_valid)
-					rec->rsp_code = *(fcp_rsp_info + 3);
-				if (fcp_rsp->validity.bits.fcp_sns_len_valid) {
-					buflen = min((int)fcp_rsp->fcp_sns_len,
-						     ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO);
+				rec->rsp_validity = fcp_rsp->resp.fr_flags;
+				rec->rsp_scsi_status = fcp_rsp->resp.fr_status;
+				rec->rsp_resid = fcp_rsp->ext.fr_resid;
+				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
+					rec->rsp_code = fcp_rsp_info->rsp_code;
+				if (fcp_rsp->resp.fr_flags & FCP_SNS_LEN_VAL) {
+					buflen = min(fcp_rsp->ext.fr_sns_len,
+					   (u32)ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO);
 					rec->sns_info_len = buflen;
 					memcpy(rec->sns_info, fcp_sns_info,
 					       min(buflen,

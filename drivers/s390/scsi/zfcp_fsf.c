@@ -11,6 +11,7 @@
 
 #include <linux/blktrace_api.h>
 #include "zfcp_ext.h"
+#include "zfcp_fc.h"
 #include "zfcp_dbf.h"
 
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
@@ -2159,10 +2160,7 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 {
 	struct scsi_cmnd *scpnt;
-	struct fcp_rsp_iu *fcp_rsp_iu = (struct fcp_rsp_iu *)
-	    &(req->qtcb->bottom.io.fcp_rsp);
-	u32 sns_len;
-	char *fcp_rsp_info = (unsigned char *) &fcp_rsp_iu[1];
+	struct fcp_resp_with_ext *fcp_rsp;
 	unsigned long flags;
 
 	read_lock_irqsave(&req->adapter->abort_lock, flags);
@@ -2183,37 +2181,11 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 		goto skip_fsfstatus;
 	}
 
-	set_msg_byte(scpnt, COMMAND_COMPLETE);
-
-	scpnt->result |= fcp_rsp_iu->scsi_status;
+	fcp_rsp = (struct fcp_resp_with_ext *) &req->qtcb->bottom.io.fcp_rsp;
+	zfcp_fc_eval_fcp_rsp(fcp_rsp, scpnt);
 
 	zfcp_fsf_req_trace(req, scpnt);
 
-	if (unlikely(fcp_rsp_iu->validity.bits.fcp_rsp_len_valid)) {
-		if (fcp_rsp_info[3] == RSP_CODE_GOOD)
-			set_host_byte(scpnt, DID_OK);
-		else {
-			set_host_byte(scpnt, DID_ERROR);
-			goto skip_fsfstatus;
-		}
-	}
-
-	if (unlikely(fcp_rsp_iu->validity.bits.fcp_sns_len_valid)) {
-		sns_len = FSF_FCP_RSP_SIZE - sizeof(struct fcp_rsp_iu) +
-			  fcp_rsp_iu->fcp_rsp_len;
-		sns_len = min(sns_len, (u32) SCSI_SENSE_BUFFERSIZE);
-		sns_len = min(sns_len, fcp_rsp_iu->fcp_sns_len);
-
-		memcpy(scpnt->sense_buffer,
-		       zfcp_get_fcp_sns_info_ptr(fcp_rsp_iu), sns_len);
-	}
-
-	if (unlikely(fcp_rsp_iu->validity.bits.fcp_resid_under)) {
-		scsi_set_resid(scpnt, fcp_rsp_iu->fcp_resid);
-		if (scsi_bufflen(scpnt) - scsi_get_resid(scpnt) <
-		    scpnt->underflow)
-			set_host_byte(scpnt, DID_ERROR);
-	}
 skip_fsfstatus:
 	if (scpnt->result != 0)
 		zfcp_dbf_scsi_result("erro", 3, req->adapter->dbf, scpnt, req);
@@ -2235,11 +2207,13 @@ skip_fsfstatus:
 
 static void zfcp_fsf_send_fcp_ctm_handler(struct zfcp_fsf_req *req)
 {
-	struct fcp_rsp_iu *fcp_rsp_iu = (struct fcp_rsp_iu *)
-	    &(req->qtcb->bottom.io.fcp_rsp);
-	char *fcp_rsp_info = (unsigned char *) &fcp_rsp_iu[1];
+	struct fcp_resp_with_ext *fcp_rsp;
+	struct fcp_resp_rsp_info *rsp_info;
 
-	if ((fcp_rsp_info[3] != RSP_CODE_GOOD) ||
+	fcp_rsp = (struct fcp_resp_with_ext *) &req->qtcb->bottom.io.fcp_rsp;
+	rsp_info = (struct fcp_resp_rsp_info *) &fcp_rsp[1];
+
+	if ((rsp_info->rsp_code != FCP_TMF_CMPL) ||
 	     (req->status & ZFCP_STATUS_FSFREQ_ERROR))
 		req->status |= ZFCP_STATUS_FSFREQ_TMFUNCFAILED;
 }
@@ -2324,20 +2298,6 @@ skip_fsfstatus:
 	}
 }
 
-static void zfcp_set_fcp_dl(struct fcp_cmnd_iu *fcp_cmd, u32 fcp_dl)
-{
-	u32 *fcp_dl_ptr;
-
-	/*
-	 * fcp_dl_addr = start address of fcp_cmnd structure +
-	 * size of fixed part + size of dynamically sized add_dcp_cdb field
-	 * SEE FCP-2 documentation
-	 */
-	fcp_dl_ptr = (u32 *) ((unsigned char *) &fcp_cmd[1] +
-			(fcp_cmd->add_fcp_cdb_length << 2));
-	*fcp_dl_ptr = fcp_dl;
-}
-
 /**
  * zfcp_fsf_send_fcp_command_task - initiate an FCP command (for a SCSI command)
  * @unit: unit where command is sent to
@@ -2347,7 +2307,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 				   struct scsi_cmnd *scsi_cmnd)
 {
 	struct zfcp_fsf_req *req;
-	struct fcp_cmnd_iu *fcp_cmnd_iu;
+	struct fcp_cmnd *fcp_cmnd;
 	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO;
 	struct zfcp_adapter *adapter = unit->port->adapter;
@@ -2379,16 +2339,14 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	req->qtcb->header.lun_handle = unit->handle;
 	req->qtcb->header.port_handle = unit->port->handle;
 	req->qtcb->bottom.io.service_class = FSF_CLASS_3;
+	req->qtcb->bottom.io.fcp_cmnd_length = FCP_CMND_LEN;
 
 	scsi_cmnd->host_scribble = (unsigned char *) req->req_id;
 
-	fcp_cmnd_iu = (struct fcp_cmnd_iu *) &(req->qtcb->bottom.io.fcp_cmnd);
-	fcp_cmnd_iu->fcp_lun = unit->fcp_lun;
 	/*
 	 * set depending on data direction:
 	 *      data direction bits in SBALE (SB Type)
 	 *      data direction bits in QTCB
-	 *      data direction bits in FCP_CMND IU
 	 */
 	switch (scsi_cmnd->sc_data_direction) {
 	case DMA_NONE:
@@ -2396,32 +2354,17 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		break;
 	case DMA_FROM_DEVICE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_READ;
-		fcp_cmnd_iu->rddata = 1;
 		break;
 	case DMA_TO_DEVICE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_WRITE;
 		sbtype = SBAL_FLAGS0_TYPE_WRITE;
-		fcp_cmnd_iu->wddata = 1;
 		break;
 	case DMA_BIDIRECTIONAL:
 		goto failed_scsi_cmnd;
 	}
 
-	if (likely((scsi_cmnd->device->simple_tags) ||
-		   ((atomic_read(&unit->status) & ZFCP_STATUS_UNIT_READONLY) &&
-		    (atomic_read(&unit->status) & ZFCP_STATUS_UNIT_SHARED))))
-		fcp_cmnd_iu->task_attribute = SIMPLE_Q;
-	else
-		fcp_cmnd_iu->task_attribute = UNTAGGED;
-
-	if (unlikely(scsi_cmnd->cmd_len > FCP_CDB_LENGTH))
-		fcp_cmnd_iu->add_fcp_cdb_length =
-			(scsi_cmnd->cmd_len - FCP_CDB_LENGTH) >> 2;
-
-	memcpy(fcp_cmnd_iu->fcp_cdb, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
-
-	req->qtcb->bottom.io.fcp_cmnd_length = sizeof(struct fcp_cmnd_iu) +
-		fcp_cmnd_iu->add_fcp_cdb_length + sizeof(u32);
+	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
 
 	real_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req, sbtype,
 					     scsi_sglist(scsi_cmnd),
@@ -2438,8 +2381,6 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		}
 		goto failed_scsi_cmnd;
 	}
-
-	zfcp_set_fcp_dl(fcp_cmnd_iu, real_bytes);
 
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
@@ -2466,7 +2407,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_unit *unit, u8 tm_flags)
 {
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *req = NULL;
-	struct fcp_cmnd_iu *fcp_cmnd_iu;
+	struct fcp_cmnd *fcp_cmnd;
 	struct zfcp_qdio *qdio = unit->port->adapter->qdio;
 
 	if (unlikely(!(atomic_read(&unit->status) &
@@ -2492,16 +2433,14 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_unit *unit, u8 tm_flags)
 	req->qtcb->header.port_handle = unit->port->handle;
 	req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
 	req->qtcb->bottom.io.service_class = FSF_CLASS_3;
-	req->qtcb->bottom.io.fcp_cmnd_length = 	sizeof(struct fcp_cmnd_iu) +
-						sizeof(u32);
+	req->qtcb->bottom.io.fcp_cmnd_length = FCP_CMND_LEN;
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
 	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE;
 	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
-	fcp_cmnd_iu = (struct fcp_cmnd_iu *) &req->qtcb->bottom.io.fcp_cmnd;
-	fcp_cmnd_iu->fcp_lun = unit->fcp_lun;
-	fcp_cmnd_iu->task_management_flags = tm_flags;
+	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
+	zfcp_fc_fcp_tm(fcp_cmnd, unit->device, tm_flags);
 
 	zfcp_fsf_start_timer(req, ZFCP_SCSI_ER_TIMEOUT);
 	if (!zfcp_fsf_req_send(req))

@@ -73,64 +73,7 @@
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
-/* task attribute values in FCP-2 FCP_CMND IU */
-#define SIMPLE_Q	0
-#define HEAD_OF_Q	1
-#define ORDERED_Q	2
-#define ACA_Q		4
-#define UNTAGGED	5
-
-/* task management flags in FCP-2 FCP_CMND IU */
-#define FCP_CLEAR_ACA		0x40
-#define FCP_TARGET_RESET	0x20
-#define FCP_LOGICAL_UNIT_RESET	0x10
-#define FCP_CLEAR_TASK_SET	0x04
-#define FCP_ABORT_TASK_SET	0x02
-
-#define FCP_CDB_LENGTH		16
-
 #define ZFCP_DID_MASK           0x00FFFFFF
-
-/* FCP(-2) FCP_CMND IU */
-struct fcp_cmnd_iu {
-	u64 fcp_lun;	   /* FCP logical unit number */
-	u8  crn;	           /* command reference number */
-	u8  reserved0:5;	   /* reserved */
-	u8  task_attribute:3;	   /* task attribute */
-	u8  task_management_flags; /* task management flags */
-	u8  add_fcp_cdb_length:6;  /* additional FCP_CDB length */
-	u8  rddata:1;              /* read data */
-	u8  wddata:1;              /* write data */
-	u8  fcp_cdb[FCP_CDB_LENGTH];
-} __attribute__((packed));
-
-/* FCP(-2) FCP_RSP IU */
-struct fcp_rsp_iu {
-	u8  reserved0[10];
-	union {
-		struct {
-			u8 reserved1:3;
-			u8 fcp_conf_req:1;
-			u8 fcp_resid_under:1;
-			u8 fcp_resid_over:1;
-			u8 fcp_sns_len_valid:1;
-			u8 fcp_rsp_len_valid:1;
-		} bits;
-		u8 value;
-	} validity;
-	u8  scsi_status;
-	u32 fcp_resid;
-	u32 fcp_sns_len;
-	u32 fcp_rsp_len;
-} __attribute__((packed));
-
-
-#define RSP_CODE_GOOD		 0
-#define RSP_CODE_LENGTH_MISMATCH 1
-#define RSP_CODE_FIELD_INVALID	 2
-#define RSP_CODE_RO_MISMATCH	 3
-#define RSP_CODE_TASKMAN_UNSUPP	 4
-#define RSP_CODE_TASKMAN_FAILED	 5
 
 /* see fc-fs */
 #define LS_RSCN  0x61

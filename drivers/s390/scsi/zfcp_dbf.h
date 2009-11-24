@@ -22,6 +22,7 @@
 #ifndef ZFCP_DBF_H
 #define ZFCP_DBF_H
 
+#include <scsi/fc/fc_fcp.h>
 #include "zfcp_ext.h"
 #include "zfcp_fsf.h"
 #include "zfcp_def.h"
@@ -343,7 +344,7 @@ static inline
 void zfcp_dbf_scsi_devreset(const char *tag, u8 flag, struct zfcp_unit *unit,
 			    struct scsi_cmnd *scsi_cmnd)
 {
-	zfcp_dbf_scsi(flag == FCP_TARGET_RESET ? "trst" : "lrst", tag, 1,
+	zfcp_dbf_scsi(flag == FCP_TMF_TGT_RESET ? "trst" : "lrst", tag, 1,
 			    unit->port->adapter->dbf, scsi_cmnd, NULL, 0);
 }
 

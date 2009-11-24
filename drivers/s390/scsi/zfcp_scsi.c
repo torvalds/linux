@@ -9,6 +9,8 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/types.h>
+#include <scsi/fc/fc_fcp.h>
 #include <asm/atomic.h>
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
@@ -16,18 +18,6 @@
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
 MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
-
-/* Find start of Sense Information in FCP response unit*/
-char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
-{
-	char *fcp_sns_info_ptr;
-
-	fcp_sns_info_ptr = (unsigned char *) &fcp_rsp_iu[1];
-	if (fcp_rsp_iu->validity.bits.fcp_rsp_len_valid)
-		fcp_sns_info_ptr += fcp_rsp_iu->fcp_rsp_len;
-
-	return fcp_sns_info_ptr;
-}
 
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
@@ -283,12 +273,12 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
-	return zfcp_task_mgmt_function(scpnt, FCP_LOGICAL_UNIT_RESET);
+	return zfcp_task_mgmt_function(scpnt, FCP_TMF_LUN_RESET);
 }
 
 static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *scpnt)
 {
-	return zfcp_task_mgmt_function(scpnt, FCP_TARGET_RESET);
+	return zfcp_task_mgmt_function(scpnt, FCP_TMF_TGT_RESET);
 }
 
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
@@ -325,7 +315,7 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->max_lun = 1;
 	adapter->scsi_host->max_channel = 0;
 	adapter->scsi_host->unique_id = dev_id.devno;
-	adapter->scsi_host->max_cmd_len = 255;
+	adapter->scsi_host->max_cmd_len = 16; /* in struct fcp_cmnd */
 	adapter->scsi_host->transportt = zfcp_data.scsi_transport_template;
 
 	adapter->scsi_host->hostdata[0] = (unsigned long) adapter;
