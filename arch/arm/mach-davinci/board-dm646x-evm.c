@@ -30,6 +30,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/clk.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +40,8 @@
 #include <mach/serial.h>
 #include <mach/i2c.h>
 #include <mach/nand.h>
+
+#include "clock.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -713,7 +716,28 @@ static __init void davinci_dm646x_evm_irq_init(void)
 	davinci_irq_init();
 }
 
+#define DM646X_EVM_REF_FREQ		27000000
+#define DM6467T_EVM_REF_FREQ		33000000
+
+void __init dm646x_board_setup_refclk(struct clk *clk)
+{
+	if (machine_is_davinci_dm6467tevm())
+		clk->rate = DM6467T_EVM_REF_FREQ;
+	else
+		clk->rate = DM646X_EVM_REF_FREQ;
+}
+
 MACHINE_START(DAVINCI_DM6467_EVM, "DaVinci DM646x EVM")
+	.phys_io      = IO_PHYS,
+	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
+	.boot_params  = (0x80000100),
+	.map_io       = davinci_map_io,
+	.init_irq     = davinci_dm646x_evm_irq_init,
+	.timer        = &davinci_timer,
+	.init_machine = evm_init,
+MACHINE_END
+
+MACHINE_START(DAVINCI_DM6467TEVM, "DaVinci DM6467T EVM")
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (0x80000100),

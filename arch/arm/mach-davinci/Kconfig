@@ -91,9 +91,13 @@ config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
 	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
+	select MACH_DAVINCI_DM6467TEVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
+
+config MACH_DAVINCI_DM6467TEVM
+	bool
 
 config MACH_DAVINCI_DM365_EVM
 	bool "TI DM365 EVM"
