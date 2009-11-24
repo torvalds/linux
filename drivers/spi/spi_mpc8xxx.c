@@ -163,11 +163,6 @@ struct mpc8xxx_spi {
 	u32 tx_shift;		/* TX data reg shift when in qe mode */
 
 	unsigned int flags;
-#define SPI_QE_CPU_MODE		(1 << 0) /* QE CPU ("PIO") mode */
-#define SPI_CPM_MODE		(1 << 1) /* CPM/QE ("DMA") mode */
-#define SPI_CPM1		(1 << 2) /* SPI unit is in CPM1 block */
-#define SPI_CPM2		(1 << 3) /* SPI unit is in CPM2 block */
-#define SPI_QE			(1 << 4) /* SPI unit is in QE block */
 
 	struct workqueue_struct *workqueue;
 	struct work_struct work;

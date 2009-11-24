@@ -75,6 +75,11 @@ struct fsl_spi_platform_data {
 	u32 	initial_spmode;	/* initial SPMODE value */
 	s16	bus_num;
 	unsigned int flags;
+#define SPI_QE_CPU_MODE		(1 << 0) /* QE CPU ("PIO") mode */
+#define SPI_CPM_MODE		(1 << 1) /* CPM/QE ("DMA") mode */
+#define SPI_CPM1		(1 << 2) /* SPI unit is in CPM1 block */
+#define SPI_CPM2		(1 << 3) /* SPI unit is in CPM2 block */
+#define SPI_QE			(1 << 4) /* SPI unit is in QE block */
 	/* board specific information */
 	u16	max_chipselect;
 	void	(*cs_control)(struct spi_device *spi, bool on);
