@@ -1181,6 +1181,8 @@ asmlinkage void __init xen_start_kernel(void)
 
 	xen_raw_console_write("about to get started...\n");
 
+	xen_setup_runstate_info(0);
+
 	/* Start the world */
 #ifdef CONFIG_X86_32
 	i386_start_kernel();
