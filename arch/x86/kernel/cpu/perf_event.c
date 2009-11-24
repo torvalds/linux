@@ -2229,10 +2229,10 @@ validate_event(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
 	struct hw_perf_event fake_event = event->hw;
 
-	if (event->pmu != &pmu)
+	if (event->pmu && event->pmu != &pmu)
 		return 0;
 
-	return x86_schedule_event(cpuc, &fake_event);
+	return x86_schedule_event(cpuc, &fake_event) >= 0;
 }
 
 static int validate_group(struct perf_event *event)
