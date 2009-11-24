@@ -1116,7 +1116,6 @@ static int __init sunsab_init(void)
 		if (!sunsab_ports)
 			return -ENOMEM;
 
-		sunsab_reg.cons = SUNSAB_CONSOLE();
 		err = sunserial_register_minors(&sunsab_reg, num_channels);
 		if (err) {
 			kfree(sunsab_ports);
