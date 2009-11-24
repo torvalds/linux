@@ -7,6 +7,8 @@
 #define CONFIG_GENERIC_FIND_FIRST_BIT
 #include "../../../../include/linux/bitops.h"
 
+#undef __KERNEL__
+
 static inline void set_bit(int nr, unsigned long *addr)
 {
 	addr[nr / BITS_PER_LONG] |= 1UL << (nr % BITS_PER_LONG);
