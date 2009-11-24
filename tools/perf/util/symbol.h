@@ -65,8 +65,8 @@ static inline void *symbol__priv(struct symbol *self)
 
 struct dso {
 	struct list_head node;
-	struct rb_root	 syms;
-	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
+	struct rb_root	 functions;
+	struct symbol    *(*find_function)(struct dso *, u64 ip);
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
 	u8		 loaded:1;
@@ -83,7 +83,7 @@ struct dso {
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
 
-struct symbol *dso__find_symbol(struct dso *self, u64 ip);
+struct symbol *dso__find_function(struct dso *self, u64 ip);
 
 struct dso *dsos__findnew(const char *name);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);

@@ -162,7 +162,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		level = 'k';
-		sym = kernel_maps__find_symbol(ip, &map, symbol_filter);
+		sym = kernel_maps__find_function(ip, &map, symbol_filter);
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
@@ -171,7 +171,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		if (map != NULL) {
 got_map:
 			ip = map->map_ip(map, ip);
-			sym = map__find_symbol(map, ip, symbol_filter);
+			sym = map__find_function(map, ip, symbol_filter);
 		} else {
 			/*
 			 * If this is outside of all known maps,

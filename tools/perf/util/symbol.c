@@ -45,9 +45,9 @@ static struct symbol_conf symbol_conf__defaults = {
 
 static struct rb_root kernel_maps;
 
-static void dso__fixup_sym_end(struct dso *self)
+static void symbols__fixup_end(struct rb_root *self)
 {
-	struct rb_node *nd, *prevnd = rb_first(&self->syms);
+	struct rb_node *nd, *prevnd = rb_first(self);
 	struct symbol *curr, *prev;
 
 	if (prevnd == NULL)
@@ -144,8 +144,8 @@ struct dso *dso__new(const char *name)
 		strcpy(self->name, name);
 		dso__set_long_name(self, self->name);
 		self->short_name = self->name;
-		self->syms = RB_ROOT;
-		self->find_symbol = dso__find_symbol;
+		self->functions = RB_ROOT;
+		self->find_function = dso__find_function;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
 		self->loaded = 0;
@@ -155,22 +155,22 @@ struct dso *dso__new(const char *name)
 	return self;
 }
 
-static void dso__delete_symbols(struct dso *self)
+static void symbols__delete(struct rb_root *self)
 {
 	struct symbol *pos;
-	struct rb_node *next = rb_first(&self->syms);
+	struct rb_node *next = rb_first(self);
 
 	while (next) {
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, &self->syms);
+		rb_erase(&pos->rb_node, self);
 		symbol__delete(pos);
 	}
 }
 
 void dso__delete(struct dso *self)
 {
-	dso__delete_symbols(self);
+	symbols__delete(&self->functions);
 	if (self->long_name != self->name)
 		free(self->long_name);
 	free(self);
@@ -182,9 +182,9 @@ void dso__set_build_id(struct dso *self, void *build_id)
 	self->has_build_id = 1;
 }
 
-static void dso__insert_symbol(struct dso *self, struct symbol *sym)
+static void symbols__insert(struct rb_root *self, struct symbol *sym)
 {
-	struct rb_node **p = &self->syms.rb_node;
+	struct rb_node **p = &self->rb_node;
 	struct rb_node *parent = NULL;
 	const u64 ip = sym->start;
 	struct symbol *s;
@@ -198,17 +198,17 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 			p = &(*p)->rb_right;
 	}
 	rb_link_node(&sym->rb_node, parent, p);
-	rb_insert_color(&sym->rb_node, &self->syms);
+	rb_insert_color(&sym->rb_node, self);
 }
 
-struct symbol *dso__find_symbol(struct dso *self, u64 ip)
+static struct symbol *symbols__find(struct rb_root *self, u64 ip)
 {
 	struct rb_node *n;
 
 	if (self == NULL)
 		return NULL;
 
-	n = self->syms.rb_node;
+	n = self->rb_node;
 
 	while (n) {
 		struct symbol *s = rb_entry(n, struct symbol, rb_node);
@@ -222,6 +222,11 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip)
 	}
 
 	return NULL;
+}
+
+struct symbol *dso__find_function(struct dso *self, u64 ip)
+{
+	return symbols__find(&self->functions, ip);
 }
 
 int build_id__sprintf(u8 *self, int len, char *bf)
@@ -253,9 +258,9 @@ size_t dso__fprintf(struct dso *self, FILE *fp)
 	size_t ret = fprintf(fp, "dso: %s (", self->short_name);
 
 	ret += dso__fprintf_buildid(self, fp);
-	ret += fprintf(fp, ")\n");
+	ret += fprintf(fp, ")\nFunctions:\n");
 
-	for (nd = rb_first(&self->syms); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->functions); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		ret += symbol__fprintf(pos, fp);
 	}
@@ -320,7 +325,7 @@ static int kernel_maps__load_all_kallsyms(void)
 		 * kernel_maps__split_kallsyms, when we have split the
 		 * maps per module
 		 */
-		dso__insert_symbol(kernel_map->dso, sym);
+		symbols__insert(&kernel_map->dso->functions, sym);
 	}
 
 	free(line);
@@ -344,7 +349,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 	struct map *map = kernel_map;
 	struct symbol *pos;
 	int count = 0;
-	struct rb_node *next = rb_first(&kernel_map->dso->syms);
+	struct rb_node *next = rb_first(&kernel_map->dso->functions);
 	int kernel_range = 0;
 
 	while (next) {
@@ -394,12 +399,13 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 		}
 
 		if (filter && filter(map, pos)) {
-			rb_erase(&pos->rb_node, &kernel_map->dso->syms);
+			rb_erase(&pos->rb_node, &kernel_map->dso->functions);
 			symbol__delete(pos);
 		} else {
 			if (map != kernel_map) {
-				rb_erase(&pos->rb_node, &kernel_map->dso->syms);
-				dso__insert_symbol(map->dso, pos);
+				rb_erase(&pos->rb_node,
+					 &kernel_map->dso->functions);
+				symbols__insert(&map->dso->functions, pos);
 			}
 			count++;
 		}
@@ -414,7 +420,7 @@ static int kernel_maps__load_kallsyms(symbol_filter_t filter)
 	if (kernel_maps__load_all_kallsyms())
 		return -1;
 
-	dso__fixup_sym_end(kernel_map->dso);
+	symbols__fixup_end(&kernel_map->dso->functions);
 	kernel_map->dso->origin = DSO__ORIG_KERNEL;
 
 	return kernel_maps__split_kallsyms(filter);
@@ -485,7 +491,7 @@ static int dso__load_perf_map(struct dso *self, struct map *map,
 		if (filter && filter(map, sym))
 			symbol__delete(sym);
 		else {
-			dso__insert_symbol(self, sym);
+			symbols__insert(&self->functions, sym);
 			nr_syms++;
 		}
 	}
@@ -683,7 +689,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 			if (filter && filter(map, f))
 				symbol__delete(f);
 			else {
-				dso__insert_symbol(self, f);
+				symbols__insert(&self->functions, f);
 				++nr;
 			}
 		}
@@ -705,7 +711,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 			if (filter && filter(map, f))
 				symbol__delete(f);
 			else {
-				dso__insert_symbol(self, f);
+				symbols__insert(&self->functions, f);
 				++nr;
 			}
 		}
@@ -879,7 +885,7 @@ new_symbol:
 		if (filter && filter(curr_map, f))
 			symbol__delete(f);
 		else {
-			dso__insert_symbol(curr_dso, f);
+			symbols__insert(&curr_dso->functions, f);
 			nr++;
 		}
 	}
@@ -888,7 +894,7 @@ new_symbol:
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0)
-		dso__fixup_sym_end(self);
+		symbols__fixup_end(&self->functions);
 	err = nr;
 out_elf_end:
 	elf_end(elf);
@@ -1160,8 +1166,8 @@ static void kernel_maps__insert(struct map *map)
 	maps__insert(&kernel_maps, map);
 }
 
-struct symbol *kernel_maps__find_symbol(u64 ip, struct map **mapp,
-					symbol_filter_t filter)
+struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
+					  symbol_filter_t filter)
 {
 	struct map *map = maps__find(&kernel_maps, ip);
 
@@ -1170,7 +1176,7 @@ struct symbol *kernel_maps__find_symbol(u64 ip, struct map **mapp,
 
 	if (map) {
 		ip = map->map_ip(map, ip);
-		return map__find_symbol(map, ip, filter);
+		return map__find_function(map, ip, filter);
 	} else
 		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps),
 			  "Empty kernel_maps, was symbol__init() called?\n");
@@ -1432,8 +1438,8 @@ do_kallsyms:
 
 	if (err > 0) {
 out_fixup:
-		map__fixup_start(map);
-		map__fixup_end(map);
+		map__fixup_start(map, &map->dso->functions);
+		map__fixup_end(map, &map->dso->functions);
 	}
 
 	return err;

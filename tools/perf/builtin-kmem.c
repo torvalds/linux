@@ -445,8 +445,7 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = kernel_maps__find_symbol(addr,
-							       NULL, NULL);
+				sym = kernel_maps__find_function(addr, NULL, NULL);
 		} else
 			addr = data->ptr;
 

@@ -948,7 +948,7 @@ static void event__process_sample(const event_t *self, int counter)
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
 			ip = map->map_ip(map, ip);
-			sym = map__find_symbol(map, ip, symbol_filter);
+			sym = map__find_function(map, ip, symbol_filter);
 			if (sym == NULL)
 				return;
 			userspace_samples++;
@@ -968,7 +968,7 @@ static void event__process_sample(const event_t *self, int counter)
 		if (hide_kernel_symbols)
 			return;
 
-		sym = kernel_maps__find_symbol(ip, &map, symbol_filter);
+		sym = kernel_maps__find_function(ip, &map, symbol_filter);
 		if (sym == NULL)
 			return;
 		break;
