@@ -446,24 +446,6 @@ void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
 }
 EXPORT_SYMBOL(___dma_single_dev_to_cpu);
 
-static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
-		       size_t size, void (*op)(const void *, const void *))
-{
-	void *vaddr;
-
-	if (!PageHighMem(page)) {
-		vaddr = page_address(page) + offset;
-		op(vaddr, vaddr + size);
-	} else {
-		vaddr = kmap_high_get(page);
-		if (vaddr) {
-			vaddr += offset;
-			op(vaddr, vaddr + size);
-			kunmap_high(page);
-		}
-	}
-}
-
 static void dma_cache_maint_page(struct page *page, unsigned long offset,
 	size_t size, void (*op)(const void *, const void *))
 {
@@ -476,14 +458,26 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 	size_t left = size;
 	do {
 		size_t len = left;
-		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
-			if (offset >= PAGE_SIZE) {
-				page += offset / PAGE_SIZE;
-				offset %= PAGE_SIZE;
+		void *vaddr;
+
+		if (PageHighMem(page)) {
+			if (len + offset > PAGE_SIZE) {
+				if (offset >= PAGE_SIZE) {
+					page += offset / PAGE_SIZE;
+					offset %= PAGE_SIZE;
+				}
+				len = PAGE_SIZE - offset;
 			}
-			len = PAGE_SIZE - offset;
+			vaddr = kmap_high_get(page);
+			if (vaddr) {
+				vaddr += offset;
+				op(vaddr, vaddr + len);
+				kunmap_high(page);
+			}
+		} else {
+			vaddr = page_address(page) + offset;
+			op(vaddr, vaddr + len);
 		}
-		dma_cache_maint_contiguous(page, offset, len, op);
 		offset = 0;
 		page++;
 		left -= len;
