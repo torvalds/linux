@@ -50,25 +50,6 @@ typedef u32 cell_t;
 /* export that to outside world */
 struct device_node *of_chosen;
 
-int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
-{
-	const char *cp;
-	unsigned long cplen, l;
-
-	cp = of_get_flat_dt_prop(node, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		if (strncasecmp(cp, compat, strlen(compat)) == 0)
-			return 1;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
-}
-
 static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 					unsigned long align)
 {
