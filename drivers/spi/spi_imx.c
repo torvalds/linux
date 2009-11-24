@@ -516,11 +516,12 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 			continue;
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
-			i--;
-			while (i > 0)
+			while (i > 0) {
+				i--;
 				if (spi_imx->chipselect[i] >= 0)
-					gpio_free(spi_imx->chipselect[i--]);
-			dev_err(&pdev->dev, "can't get cs gpios");
+					gpio_free(spi_imx->chipselect[i]);
+			}
+			dev_err(&pdev->dev, "can't get cs gpios\n");
 			goto out_master_put;
 		}
 	}
