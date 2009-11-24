@@ -2246,12 +2246,10 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	}
 	if (cflag & CSIZE) {
 		switch (cflag & CSIZE) {
-		case CS5: urb_value |= 5; dbg("Setting CS5"); break;
-		case CS6: urb_value |= 6; dbg("Setting CS6"); break;
 		case CS7: urb_value |= 7; dbg("Setting CS7"); break;
 		case CS8: urb_value |= 8; dbg("Setting CS8"); break;
 		default:
-			dev_err(&port->dev, "CSIZE was set but not CS5-CS8\n");
+			dev_err(&port->dev, "CSIZE was set but not CS7-CS8\n");
 		}
 	}
 
