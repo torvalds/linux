@@ -27,6 +27,10 @@
 
 #include "internal.h"
 
+#ifndef arch_mmap_check
+#define arch_mmap_check(addr, len, flags)	(0)
+#endif
+
 static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
@@ -368,12 +372,17 @@ out:
 
 static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
 {
+	unsigned long end = vma->vm_end + delta;
 	unsigned long max_addr = TASK_SIZE;
 	if (vma->vm_next)
 		max_addr = vma->vm_next->vm_start;
-	if (max_addr - vma->vm_end < delta)
+	if (max_addr < end || end < vma->vm_end)
 		return 0;
-	/* we need to do arch-specific checks here */
+	if (arch_mmap_check(vma->vm_start, end - vma->vm_start, MAP_FIXED))
+		return 0;
+	if (get_unmapped_area(NULL, vma->vm_start, end - vma->vm_start,
+			      0, MAP_FIXED) & ~PAGE_MASK)
+		return 0;
 	return 1;
 }
 
