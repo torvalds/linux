@@ -6,11 +6,13 @@ choice
 
 config MACH_MX21
 	bool "i.MX21 support"
+	select ARCH_MXC_AUDMUX_V1
 	help
 	  This enables support for Freescale's MX2 based i.MX21 processor.
 
 config MACH_MX27
 	bool "i.MX27 support"
+	select ARCH_MXC_AUDMUX_V1
 	help
 	  This enables support for Freescale's MX2 based i.MX27 processor.
 

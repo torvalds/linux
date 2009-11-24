@@ -43,6 +43,7 @@
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
+#include <mach/mxc_nand.h>
 
 #include "devices.h"
 
@@ -206,6 +207,11 @@ static struct pad_desc pcm043_pads[] = {
 	MX35_PAD_ATA_CS0__GPIO2_6,
 };
 
+static struct mxc_nand_platform_data pcm037_nand_board_info = {
+	.width = 1,
+	.hw_ecc = 1,
+};
+
 /*
  * Board specific initialization.
  */
@@ -216,6 +222,7 @@ static void __init mxc_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 
