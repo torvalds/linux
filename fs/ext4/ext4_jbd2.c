@@ -50,22 +50,6 @@ int __ext4_journal_forget(const char *where, handle_t *handle,
 	return err;
 }
 
-int __ext4_journal_revoke(const char *where, handle_t *handle,
-				ext4_fsblk_t blocknr, struct buffer_head *bh)
-{
-	int err = 0;
-
-	if (ext4_handle_valid(handle)) {
-		err = jbd2_journal_revoke(handle, blocknr, bh);
-		if (err)
-			ext4_journal_abort_handle(where, __func__, bh,
-						  handle, err);
-	}
-	else
-		bforget(bh);
-	return err;
-}
-
 /*
  * The ext4 forget function must perform a revoke if we are freeing data
  * which has been journaled.  Metadata (eg. indirect blocks) must be
@@ -94,6 +78,12 @@ int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
 		  bh, is_metadata, inode->i_mode,
 		  test_opt(inode->i_sb, DATA_FLAGS));
 
+	/* In the no journal case, we can just do a bforget and return */
+	if (!ext4_handle_valid(handle)) {
+		bforget(bh);
+		return 0;
+	}
+
 	/* Never use the revoke function if we are doing full data
 	 * journaling: there is no need to, and a V1 superblock won't
 	 * support it.  Otherwise, only skip the revoke on un-journaled
@@ -111,11 +101,13 @@ int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
 	/*
 	 * data!=journal && (is_metadata || should_journal_data(inode))
 	 */
-	BUFFER_TRACE(bh, "call ext4_journal_revoke");
-	err = __ext4_journal_revoke(where, handle, blocknr, bh);
-	if (err)
+	BUFFER_TRACE(bh, "call jbd2_journal_revoke");
+	err = jbd2_journal_revoke(handle, blocknr, bh);
+	if (err) {
+		ext4_journal_abort_handle(where, __func__, bh, handle, err);
 		ext4_abort(inode->i_sb, __func__,
 			   "error %d when attempting revoke", err);
+	}
 	BUFFER_TRACE(bh, "exit");
 	return err;
 }

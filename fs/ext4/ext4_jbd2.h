@@ -116,12 +116,8 @@ int ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
 
 /*
- * Wrapper functions with which ext4 calls into JBD.  The intent here is
- * to allow these to be turned into appropriate stubs so ext4 can control
- * ext2 filesystems, so ext2+ext4 systems only nee one fs.  This work hasn't
- * been done yet.
+ * Wrapper functions with which ext4 calls into JBD.
  */
-
 void ext4_journal_abort_handle(const char *caller, const char *err_fn,
 		struct buffer_head *bh, handle_t *handle, int err);
 
@@ -134,10 +130,6 @@ int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 /* When called with an invalid handle, this will still do a put on the BH */
 int __ext4_journal_forget(const char *where, handle_t *handle,
 				struct buffer_head *bh);
-
-/* When called with an invalid handle, this will still do a put on the BH */
-int __ext4_journal_revoke(const char *where, handle_t *handle,
-				ext4_fsblk_t blocknr, struct buffer_head *bh);
 
 int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
 		  struct inode *inode, struct buffer_head *bh,
@@ -153,8 +145,6 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 	__ext4_journal_get_undo_access(__func__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
 	__ext4_journal_get_write_access(__func__, (handle), (bh))
-#define ext4_journal_revoke(handle, blocknr, bh) \
-	__ext4_journal_revoke(__func__, (handle), (blocknr), (bh))
 #define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
 	__ext4_forget(__func__, (handle), (is_metadata), (inode), (bh),\
 		      (block_nr))
