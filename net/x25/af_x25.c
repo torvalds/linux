@@ -1729,9 +1729,7 @@ static int __init x25_init(void)
 
 	printk(KERN_INFO "X.25 for Linux Version 0.2\n");
 
-#ifdef CONFIG_SYSCTL
 	x25_register_sysctl();
-#endif
 	x25_proc_init();
 out:
 	return rc;
@@ -1744,9 +1742,7 @@ static void __exit x25_exit(void)
 	x25_link_free();
 	x25_route_free();
 
-#ifdef CONFIG_SYSCTL
 	x25_unregister_sysctl();
-#endif
 
 	unregister_netdevice_notifier(&x25_dev_notifier);
 

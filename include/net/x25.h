@@ -287,8 +287,14 @@ extern unsigned long x25_display_timer(struct sock *);
 extern void x25_check_rbuf(struct sock *);
 
 /* sysctl_net_x25.c */
+#ifdef CONFIG_SYSCTL
 extern void x25_register_sysctl(void);
 extern void x25_unregister_sysctl(void);
+#else
+static inline void x25_register_sysctl(void) {};
+static inline void x25_unregister_sysctl(void) {};
+#endif /* CONFIG_SYSCTL */
+
 struct x25_skb_cb {
 	unsigned flags;
 };
