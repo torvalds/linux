@@ -73,8 +73,6 @@ unsigned long tce_alloc_start, tce_alloc_end;
 
 typedef u32 cell_t;
 
-extern struct device_node *allnodes;	/* temporary while merging */
-
 extern rwlock_t devtree_lock;	/* temporary while merging */
 
 /* export that to outside world */
@@ -117,54 +115,6 @@ static void __init move_device_tree(void)
 	}
 
 	DBG("<- move_device_tree\n");
-}
-
-/**
- * unflattens the device-tree passed by the firmware, creating the
- * tree of struct device_node. It also fills the "name" and "type"
- * pointers of the nodes so the normal device-tree walking functions
- * can be used (this used to be done by finish_device_tree)
- */
-void __init unflatten_device_tree(void)
-{
-	unsigned long start, mem, size;
-	struct device_node **allnextp = &allnodes;
-
-	DBG(" -> unflatten_device_tree()\n");
-
-	/* First pass, scan for size */
-	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
-	size = (size | 3) + 1;
-
-	DBG("  size is %lx, allocating...\n", size);
-
-	/* Allocate memory for the expanded device tree */
-	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
-	mem = (unsigned long) __va(mem);
-
-	((u32 *)mem)[size / 4] = 0xdeadbeef;
-
-	DBG("  unflattening %lx...\n", mem);
-
-	/* Second pass, do actual unflattening */
-	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
-	if (*((u32 *)start) != OF_DT_END)
-		printk(KERN_WARNING "Weird tag at end of tree: %08x\n", *((u32 *)start));
-	if (((u32 *)mem)[size / 4] != 0xdeadbeef)
-		printk(KERN_WARNING "End of tree marker overwritten: %08x\n",
-		       ((u32 *)mem)[size / 4] );
-	*allnextp = NULL;
-
-	/* Get pointer to OF "/chosen" node for use everywhere */
-	of_chosen = of_find_node_by_path("/chosen");
-	if (of_chosen == NULL)
-		of_chosen = of_find_node_by_path("/chosen@0");
-
-	DBG(" <- unflatten_device_tree()\n");
 }
 
 /*

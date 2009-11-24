@@ -9,6 +9,8 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
+#include <linux/lmb.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
@@ -365,4 +367,54 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 	}
 	*p += 4;
 	return mem;
+}
+
+/**
+ * unflatten_device_tree - create tree of device_nodes from flat blob
+ *
+ * unflattens the device-tree passed by the firmware, creating the
+ * tree of struct device_node. It also fills the "name" and "type"
+ * pointers of the nodes so the normal device-tree walking functions
+ * can be used.
+ */
+void __init unflatten_device_tree(void)
+{
+	unsigned long start, mem, size;
+	struct device_node **allnextp = &allnodes;
+
+	pr_debug(" -> unflatten_device_tree()\n");
+
+	/* First pass, scan for size */
+	start = ((unsigned long)initial_boot_params) +
+		initial_boot_params->off_dt_struct;
+	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
+	size = (size | 3) + 1;
+
+	pr_debug("  size is %lx, allocating...\n", size);
+
+	/* Allocate memory for the expanded device tree */
+	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
+	mem = (unsigned long) __va(mem);
+
+	((u32 *)mem)[size / 4] = 0xdeadbeef;
+
+	pr_debug("  unflattening %lx...\n", mem);
+
+	/* Second pass, do actual unflattening */
+	start = ((unsigned long)initial_boot_params) +
+		initial_boot_params->off_dt_struct;
+	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
+	if (*((u32 *)start) != OF_DT_END)
+		pr_warning("Weird tag at end of tree: %08x\n", *((u32 *)start));
+	if (((u32 *)mem)[size / 4] != 0xdeadbeef)
+		pr_warning("End of tree marker overwritten: %08x\n",
+			   ((u32 *)mem)[size / 4]);
+	*allnextp = NULL;
+
+	/* Get pointer to OF "/chosen" node for use everywhere */
+	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen == NULL)
+		of_chosen = of_find_node_by_path("/chosen@0");
+
+	pr_debug(" <- unflatten_device_tree()\n");
 }

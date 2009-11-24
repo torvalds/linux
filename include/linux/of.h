@@ -63,6 +63,9 @@ struct device_node {
 #endif
 };
 
+/* Pointer for first entry in chain of all nodes. */
+extern struct device_node *allnodes;
+
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 {
 	return test_bit(flag, &n->_flags);
