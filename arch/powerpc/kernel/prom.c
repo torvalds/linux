@@ -80,18 +80,6 @@ extern rwlock_t devtree_lock;	/* temporary while merging */
 /* export that to outside world */
 struct device_node *of_chosen;
 
-unsigned long __init of_get_flat_dt_root(void)
-{
-	unsigned long p = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-
-	while(*((u32 *)p) == OF_DT_NOP)
-		p += 4;
-	BUG_ON (*((u32 *)p) != OF_DT_BEGIN_NODE);
-	p += 4;
-	return _ALIGN(p + strlen((char *)p) + 1, 4);
-}
-
 /**
  * This  function can be used within scan_flattened_dt callback to get
  * access to properties
