@@ -343,6 +343,8 @@ struct radeon_connector_atom_dig {
 	struct radeon_i2c_chan *dp_i2c_bus;
 	u8 dpcd[8];
 	u8 dp_sink_type;
+	int dp_clock;
+	int dp_lane_count;
 };
 
 struct radeon_connector {
@@ -366,10 +368,17 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
-extern int dp_lanes_for_mode_clock(int max_link_bw, int mode_clock);
-extern int dp_link_clock_for_mode_clock(int max_link_bw, int mode_clock);
+extern int radeon_dp_mode_valid_helper(struct radeon_connector *radeon_connector,
+				       struct drm_display_mode *mode);
+extern void radeon_dp_set_link_config(struct drm_connector *connector,
+				      struct drm_display_mode *mode);
+extern void dp_link_train(struct drm_encoder *encoder,
+			  struct drm_connector *connector);
 extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern void radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
+extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
+					   int action, uint8_t lane_num,
+					   uint8_t lane_set);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				uint8_t write_byte, uint8_t *read_byte);
 

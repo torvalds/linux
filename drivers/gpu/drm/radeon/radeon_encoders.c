@@ -250,6 +250,12 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 		}
 	}
 
+	if (ASIC_IS_DCE3(rdev) &&
+	    (radeon_encoder->active_device & (ATOM_DEVICE_DFP_SUPPORT))) {
+		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+		radeon_dp_set_link_config(connector, mode);
+	}
+
 	return true;
 }
 
@@ -719,11 +725,9 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	args.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
 	if (args.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
-		if (dp_link_clock_for_mode_clock(dig_connector->dpcd[1],
-						 radeon_encoder->pixel_clock) == 270000)
+		if (dig_connector->dp_clock == 270000)
 			args.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
-		args.ucLaneNum = dp_lanes_for_mode_clock(dig_connector->dpcd[1],
-							 radeon_encoder->pixel_clock);
+		args.ucLaneNum = dig_connector->dp_lane_count;
 	} else if (radeon_encoder->pixel_clock > 165000)
 		args.ucLaneNum = 8;
 	else
@@ -743,7 +747,7 @@ union dig_transmitter_control {
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V2 v2;
 };
 
-static void
+void
 atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t lane_num, uint8_t lane_set)
 {
 	struct drm_device *dev = encoder->dev;
@@ -803,8 +807,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	} else {
 		if (is_dp)
 			args.v1.usPixelClock =
-				cpu_to_le16(dp_link_clock_for_mode_clock(dig_connector->dpcd[1],
-									 radeon_encoder->pixel_clock) / 10);
+				cpu_to_le16(dig_connector->dp_clock / 10);
 		else if (radeon_encoder->pixel_clock > 165000)
 			args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 		else
@@ -1198,12 +1201,16 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
-	if (radeon_encoder->enc_priv) {
-		struct radeon_encoder_atom_dig *dig;
+	if (radeon_encoder->active_device &
+	    (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) {
+		if (radeon_encoder->enc_priv) {
+			struct radeon_encoder_atom_dig *dig;
 
-		dig = radeon_encoder->enc_priv;
-		dig->dig_block = radeon_crtc->crtc_id;
+			dig = radeon_encoder->enc_priv;
+			dig->dig_block = radeon_crtc->crtc_id;
+		}
 	}
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
@@ -1237,6 +1244,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
+		dp_link_train(encoder, connector);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:
 		atombios_ddia_setup(encoder, ATOM_ENABLE);

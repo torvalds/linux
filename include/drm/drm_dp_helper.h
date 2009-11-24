@@ -43,18 +43,41 @@
 #define AUX_I2C_REPLY_MASK	(0x3 << 6)
 
 /* AUX CH addresses */
-#define DP_DPCD_REV 0x0
+/* DPCD */
+#define DP_DPCD_REV                         0x000
 
-#define	DP_LINK_BW_SET		0x100
+#define DP_MAX_LINK_RATE                    0x001
+
+#define DP_MAX_LANE_COUNT                   0x002
+# define DP_MAX_LANE_COUNT_MASK		    0x1f
+# define DP_ENHANCED_FRAME_CAP		    (1 << 7)
+
+#define DP_MAX_DOWNSPREAD                   0x003
+# define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
+
+#define DP_NORP                             0x004
+
+#define DP_DOWNSTREAMPORT_PRESENT           0x005
+# define DP_DWN_STRM_PORT_PRESENT           (1 << 0)
+# define DP_DWN_STRM_PORT_TYPE_MASK         0x06
+/* 00b = DisplayPort */
+/* 01b = Analog */
+/* 10b = TMDS or HDMI */
+/* 11b = Other */
+# define DP_FORMAT_CONVERSION               (1 << 3)
+
+#define DP_MAIN_LINK_CHANNEL_CODING         0x006
+
+/* link configuration */
+#define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 
-#define DP_LANE_COUNT_SET	0x101
+#define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
 # define DP_LANE_COUNT_ENHANCED_FRAME_EN    (1 << 7)
 
-#define DP_TRAINING_PATTERN_SET	0x102
-
+#define DP_TRAINING_PATTERN_SET	            0x102
 # define DP_TRAINING_PATTERN_DISABLE	    0
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
@@ -104,10 +127,13 @@
 
 #define DP_LANE0_1_STATUS		    0x202
 #define DP_LANE2_3_STATUS		    0x203
-
 # define DP_LANE_CR_DONE		    (1 << 0)
 # define DP_LANE_CHANNEL_EQ_DONE	    (1 << 1)
 # define DP_LANE_SYMBOL_LOCKED		    (1 << 2)
+
+#define DP_CHANNEL_EQ_BITS (DP_LANE_CR_DONE |		\
+			    DP_LANE_CHANNEL_EQ_DONE |	\
+			    DP_LANE_SYMBOL_LOCKED)
 
 #define DP_LANE_ALIGN_STATUS_UPDATED	    0x204
 
@@ -122,17 +148,18 @@
 
 #define DP_ADJUST_REQUEST_LANE0_1	    0x206
 #define DP_ADJUST_REQUEST_LANE2_3	    0x207
-
-#define DP_ADJUST_VOLTAGE_SWING_LANE0_MASK  0x03
-#define DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT 0
-#define DP_ADJUST_PRE_EMPHASIS_LANE0_MASK   0x0c
-#define DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT  2
-#define DP_ADJUST_VOLTAGE_SWING_LANE1_MASK  0x30
-#define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
-#define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
-#define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+# define DP_ADJUST_VOLTAGE_SWING_LANE0_MASK  0x03
+# define DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT 0
+# define DP_ADJUST_PRE_EMPHASIS_LANE0_MASK   0x0c
+# define DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT  2
+# define DP_ADJUST_VOLTAGE_SWING_LANE1_MASK  0x30
+# define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
+# define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
+# define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
 #define DP_SET_POWER                        0x600
+# define DP_SET_POWER_D0                    0x1
+# define DP_SET_POWER_D3                    0x2
 
 #define MODE_I2C_START	1
 #define MODE_I2C_WRITE	2

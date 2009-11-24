@@ -934,9 +934,23 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 	return ret;
 }
 
+static int radeon_dp_mode_valid(struct drm_connector *connector,
+				  struct drm_display_mode *mode)
+{
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+
+	/* XXX check mode bandwidth */
+
+	if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+		return radeon_dp_mode_valid_helper(radeon_connector, mode);
+	else
+		return MODE_OK;
+}
+
 struct drm_connector_helper_funcs radeon_dp_connector_helper_funcs = {
 	.get_modes = radeon_dp_get_modes,
-	.mode_valid = radeon_dvi_mode_valid,
+	.mode_valid = radeon_dp_mode_valid,
 	.best_encoder = radeon_dvi_encoder,
 };
 
