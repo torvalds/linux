@@ -71,10 +71,6 @@
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ)
 
-/*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
-
-#define ZFCP_DID_MASK           0x00FFFFFF
-
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /*

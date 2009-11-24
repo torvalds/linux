@@ -11,6 +11,7 @@
 
 #include <linux/pfn.h>
 #include <linux/scatterlist.h>
+#include <scsi/libfc.h>
 
 #define FSF_QTCB_CURRENT_VERSION		0x00000001
 
@@ -228,7 +229,8 @@ struct fsf_status_read_buffer {
 	u32 length;
 	u32 res1;
 	struct fsf_queue_designator queue_designator;
-	u32 d_id;
+	u8 res2;
+	u8 d_id[3];
 	u32 class;
 	u64 fcp_lun;
 	u8  res3[24];
@@ -327,8 +329,8 @@ struct fsf_qtcb_bottom_io {
 
 struct fsf_qtcb_bottom_support {
 	u32 operation_subtype;
-	u8  res1[12];
-	u32 d_id;
+	u8  res1[13];
+	u8 d_id[3];
 	u32 option;
 	u64 fcp_lun;
 	u64 res2;
@@ -357,11 +359,12 @@ struct fsf_qtcb_bottom_config {
 	u32 fc_topology;
 	u32 fc_link_speed;
 	u32 adapter_type;
-	u32 peer_d_id;
+	u8 res0;
+	u8 peer_d_id[3];
 	u8 res1[2];
 	u16 timer_interval;
-	u8 res2[8];
-	u32 s_id;
+	u8 res2[9];
+	u8 s_id[3];
 	u8 nport_serv_param[128];
 	u8 res3[8];
 	u32 adapter_ports;

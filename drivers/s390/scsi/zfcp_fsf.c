@@ -128,7 +128,7 @@ static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 	struct fsf_status_read_buffer *sr_buf = req->data;
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_port *port;
-	int d_id = sr_buf->d_id & ZFCP_DID_MASK;
+	int d_id = ntoh24(sr_buf->d_id);
 
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list)
@@ -494,7 +494,7 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 
 	fc_host_port_name(shost) = nsp->fl_wwpn;
 	fc_host_node_name(shost) = nsp->fl_wwnn;
-	fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
+	fc_host_port_id(shost) = ntoh24(bottom->s_id);
 	fc_host_speed(shost) = bottom->fc_link_speed;
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
 
@@ -506,7 +506,7 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 
 	switch (bottom->fc_topology) {
 	case FSF_TOPO_P2P:
-		adapter->peer_d_id = bottom->peer_d_id & ZFCP_DID_MASK;
+		adapter->peer_d_id = ntoh24(bottom->peer_d_id);
 		adapter->peer_wwpn = plogi->fl_wwpn;
 		adapter->peer_wwnn = plogi->fl_wwnn;
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
@@ -1216,7 +1216,7 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	if (ret)
 		goto failed_send;
 
-	req->qtcb->bottom.support.d_id = els->d_id;
+	hton24(req->qtcb->bottom.support.d_id, els->d_id);
 	req->handler = zfcp_fsf_send_els_handler;
 	req->data = els;
 
@@ -1522,7 +1522,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_port_handler;
-	req->qtcb->bottom.support.d_id = port->d_id;
+	hton24(req->qtcb->bottom.support.d_id, port->d_id);
 	req->data = port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
@@ -1669,7 +1669,7 @@ int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_wka_port_handler;
-	req->qtcb->bottom.support.d_id = wka_port->d_id;
+	hton24(req->qtcb->bottom.support.d_id, wka_port->d_id);
 	req->data = wka_port;
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);

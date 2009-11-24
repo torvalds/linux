@@ -178,7 +178,7 @@ void _zfcp_dbf_hba_fsf_response(const char *tag2, int level,
 
 	case FSF_QTCB_SEND_ELS:
 		send_els = (struct zfcp_send_els *)fsf_req->data;
-		response->u.els.d_id = qtcb->bottom.support.d_id;
+		response->u.els.d_id = ntoh24(qtcb->bottom.support.d_id);
 		response->u.els.ls_code = send_els->ls_code >> 24;
 		break;
 
@@ -812,7 +812,7 @@ void zfcp_dbf_san_incoming_els(struct zfcp_fsf_req *fsf_req)
 	int length = (int)buf->length -
 		     (int)((void *)&buf->payload - (void *)buf);
 
-	zfcp_dbf_san_els("iels", 1, fsf_req, buf->d_id,
+	zfcp_dbf_san_els("iels", 1, fsf_req, ntoh24(buf->d_id),
 			       fc_host_port_id(adapter->scsi_host),
 			       buf->payload.data[0], (void *)buf->payload.data,
 			       length);
