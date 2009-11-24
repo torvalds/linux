@@ -354,8 +354,6 @@ static int iwm_tx_send_concat_packets(struct iwm_priv *iwm,
 	return ret;
 }
 
-#define CONFIG_IWM_TX_CONCATENATED 1
-
 void iwm_tx_worker(struct work_struct *work)
 {
 	struct iwm_priv *iwm;
@@ -414,11 +412,6 @@ void iwm_tx_worker(struct work_struct *work)
 			   "%d, color: %d\n", txq->id, skb, tx_info->sta,
 			   tx_info->color);
 
-#if !CONFIG_IWM_TX_CONCATENATED
-		/* temporarily keep this to comparing the performance */
-		ret = iwm_send_packet(iwm, skb, pool_id);
-#else
-
 		if (txq->concat_count + cmdlen > IWM_HAL_CONCATENATE_BUF_SIZE)
 			iwm_tx_send_concat_packets(iwm, txq);
 
@@ -440,7 +433,7 @@ void iwm_tx_worker(struct work_struct *work)
 		txq->concat_count += ALIGN(cmdlen, 16);
 
 		mutex_unlock(&tid_info->mutex);
-#endif
+
 		kfree_skb(skb);
 	}
 
