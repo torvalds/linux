@@ -684,7 +684,7 @@ void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_wka_port *wka_port = ct->wka_port;
 	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct zfcp_dbf *dbf = adapter->dbf;
-	struct ct_hdr *hdr = sg_virt(ct->req);
+	struct fc_ct_hdr *hdr = sg_virt(ct->req);
 	struct zfcp_dbf_san_record *r = &dbf->san_buf;
 	struct zfcp_dbf_san_record_ct_request *oct = &r->u.ct_req;
 	int level = 3;
@@ -697,17 +697,17 @@ void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = fc_host_port_id(adapter->scsi_host);
 	r->d_id = wka_port->d_id;
-	oct->cmd_req_code = hdr->cmd_rsp_code;
-	oct->revision = hdr->revision;
-	oct->gs_type = hdr->gs_type;
-	oct->gs_subtype = hdr->gs_subtype;
-	oct->options = hdr->options;
-	oct->max_res_size = hdr->max_res_size;
-	oct->len = min((int)ct->req->length - (int)sizeof(struct ct_hdr),
+	oct->cmd_req_code = hdr->ct_cmd;
+	oct->revision = hdr->ct_rev;
+	oct->gs_type = hdr->ct_fs_type;
+	oct->gs_subtype = hdr->ct_fs_subtype;
+	oct->options = hdr->ct_options;
+	oct->max_res_size = hdr->ct_mr_size;
+	oct->len = min((int)ct->req->length - (int)sizeof(struct fc_ct_hdr),
 		       ZFCP_DBF_SAN_MAX_PAYLOAD);
 	debug_event(dbf->san, level, r, sizeof(*r));
 	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct ct_hdr), oct->len);
+			 (void *)hdr + sizeof(struct fc_ct_hdr), oct->len);
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 
@@ -720,7 +720,7 @@ void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
 	struct zfcp_wka_port *wka_port = ct->wka_port;
 	struct zfcp_adapter *adapter = wka_port->adapter;
-	struct ct_hdr *hdr = sg_virt(ct->resp);
+	struct fc_ct_hdr *hdr = sg_virt(ct->resp);
 	struct zfcp_dbf *dbf = adapter->dbf;
 	struct zfcp_dbf_san_record *r = &dbf->san_buf;
 	struct zfcp_dbf_san_record_ct_response *rct = &r->u.ct_resp;
@@ -734,17 +734,17 @@ void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = wka_port->d_id;
 	r->d_id = fc_host_port_id(adapter->scsi_host);
-	rct->cmd_rsp_code = hdr->cmd_rsp_code;
-	rct->revision = hdr->revision;
-	rct->reason_code = hdr->reason_code;
-	rct->expl = hdr->reason_code_expl;
-	rct->vendor_unique = hdr->vendor_unique;
-	rct->max_res_size = hdr->max_res_size;
-	rct->len = min((int)ct->resp->length - (int)sizeof(struct ct_hdr),
+	rct->cmd_rsp_code = hdr->ct_cmd;
+	rct->revision = hdr->ct_rev;
+	rct->reason_code = hdr->ct_reason;
+	rct->expl = hdr->ct_explan;
+	rct->vendor_unique = hdr->ct_vendor;
+	rct->max_res_size = hdr->ct_mr_size;
+	rct->len = min((int)ct->resp->length - (int)sizeof(struct fc_ct_hdr),
 		       ZFCP_DBF_SAN_MAX_PAYLOAD);
 	debug_event(dbf->san, level, r, sizeof(*r));
 	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct ct_hdr), rct->len);
+			 (void *)hdr + sizeof(struct fc_ct_hdr), rct->len);
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 

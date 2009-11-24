@@ -22,32 +22,6 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
 
-struct gpn_ft_resp_acc {
-	u8 control;
-	u8 port_id[3];
-	u8 reserved[4];
-	u64 wwpn;
-} __attribute__ ((packed));
-
-#define ZFCP_CT_SIZE_ONE_PAGE	(PAGE_SIZE - sizeof(struct ct_hdr))
-#define ZFCP_GPN_FT_ENTRIES	(ZFCP_CT_SIZE_ONE_PAGE \
-					/ sizeof(struct gpn_ft_resp_acc))
-#define ZFCP_GPN_FT_BUFFERS 4
-#define ZFCP_GPN_FT_MAX_SIZE (ZFCP_GPN_FT_BUFFERS * PAGE_SIZE \
-				- sizeof(struct ct_hdr))
-#define ZFCP_GPN_FT_MAX_ENTRIES ZFCP_GPN_FT_BUFFERS * (ZFCP_GPN_FT_ENTRIES + 1)
-
-struct ct_iu_gpn_ft_resp {
-	struct ct_hdr header;
-	struct gpn_ft_resp_acc accept[ZFCP_GPN_FT_ENTRIES];
-} __attribute__ ((packed));
-
-struct zfcp_gpn_ft {
-	struct zfcp_send_ct ct;
-	struct scatterlist sg_req;
-	struct scatterlist sg_resp[ZFCP_GPN_FT_BUFFERS];
-};
-
 struct zfcp_fc_ns_handler_data {
 	struct completion done;
 	void (*handler)(unsigned long);
@@ -251,26 +225,26 @@ static void zfcp_fc_ns_handler(unsigned long data)
 
 static void zfcp_fc_ns_gid_pn_eval(unsigned long data)
 {
-	struct zfcp_gid_pn_data *gid_pn = (struct zfcp_gid_pn_data *) data;
+	struct zfcp_fc_gid_pn *gid_pn = (struct zfcp_fc_gid_pn *) data;
 	struct zfcp_send_ct *ct = &gid_pn->ct;
-	struct ct_iu_gid_pn_req *ct_iu_req = sg_virt(ct->req);
-	struct ct_iu_gid_pn_resp *ct_iu_resp = sg_virt(ct->resp);
+	struct zfcp_fc_gid_pn_req *gid_pn_req = sg_virt(ct->req);
+	struct zfcp_fc_gid_pn_resp *gid_pn_resp = sg_virt(ct->resp);
 	struct zfcp_port *port = gid_pn->port;
 
 	if (ct->status)
 		return;
-	if (ct_iu_resp->header.cmd_rsp_code != ZFCP_CT_ACCEPT)
+	if (gid_pn_resp->ct_hdr.ct_cmd != FC_FS_ACC)
 		return;
 
 	/* paranoia */
-	if (ct_iu_req->wwpn != port->wwpn)
+	if (gid_pn_req->gid_pn.fn_wwpn != port->wwpn)
 		return;
 	/* looks like a valid d_id */
-	port->d_id = ct_iu_resp->d_id & ZFCP_DID_MASK;
+	port->d_id = ntoh24(gid_pn_resp->gid_pn.fp_fid);
 }
 
 static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
-				     struct zfcp_gid_pn_data *gid_pn)
+				     struct zfcp_fc_gid_pn *gid_pn)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 	struct zfcp_fc_ns_handler_data compl_rec;
@@ -281,21 +255,21 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 	gid_pn->ct.wka_port = &adapter->gs->ds;
 	gid_pn->ct.handler = zfcp_fc_ns_handler;
 	gid_pn->ct.handler_data = (unsigned long) &compl_rec;
-	gid_pn->ct.req = &gid_pn->req;
-	gid_pn->ct.resp = &gid_pn->resp;
-	sg_init_one(&gid_pn->req, &gid_pn->ct_iu_req,
-		    sizeof(struct ct_iu_gid_pn_req));
-	sg_init_one(&gid_pn->resp, &gid_pn->ct_iu_resp,
-		    sizeof(struct ct_iu_gid_pn_resp));
+	gid_pn->ct.req = &gid_pn->sg_req;
+	gid_pn->ct.resp = &gid_pn->sg_resp;
+	sg_init_one(&gid_pn->sg_req, &gid_pn->gid_pn_req,
+		    sizeof(struct zfcp_fc_gid_pn_req));
+	sg_init_one(&gid_pn->sg_resp, &gid_pn->gid_pn_resp,
+		    sizeof(struct zfcp_fc_gid_pn_resp));
 
 	/* setup nameserver request */
-	gid_pn->ct_iu_req.header.revision = ZFCP_CT_REVISION;
-	gid_pn->ct_iu_req.header.gs_type = ZFCP_CT_DIRECTORY_SERVICE;
-	gid_pn->ct_iu_req.header.gs_subtype = ZFCP_CT_NAME_SERVER;
-	gid_pn->ct_iu_req.header.options = ZFCP_CT_SYNCHRONOUS;
-	gid_pn->ct_iu_req.header.cmd_rsp_code = ZFCP_CT_GID_PN;
-	gid_pn->ct_iu_req.header.max_res_size = ZFCP_CT_SIZE_ONE_PAGE / 4;
-	gid_pn->ct_iu_req.wwpn = port->wwpn;
+	gid_pn->gid_pn_req.ct_hdr.ct_rev = FC_CT_REV;
+	gid_pn->gid_pn_req.ct_hdr.ct_fs_type = FC_FST_DIR;
+	gid_pn->gid_pn_req.ct_hdr.ct_fs_subtype = FC_NS_SUBTYPE;
+	gid_pn->gid_pn_req.ct_hdr.ct_options = 0;
+	gid_pn->gid_pn_req.ct_hdr.ct_cmd = FC_NS_GID_PN;
+	gid_pn->gid_pn_req.ct_hdr.ct_mr_size = ZFCP_FC_CT_SIZE_PAGE / 4;
+	gid_pn->gid_pn_req.gid_pn.fn_wwpn = port->wwpn;
 
 	init_completion(&compl_rec.done);
 	compl_rec.handler = zfcp_fc_ns_gid_pn_eval;
@@ -314,10 +288,10 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 {
 	int ret;
-	struct zfcp_gid_pn_data *gid_pn;
+	struct zfcp_fc_gid_pn *gid_pn;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	gid_pn = mempool_alloc(adapter->pool.gid_pn_data, GFP_ATOMIC);
+	gid_pn = mempool_alloc(adapter->pool.gid_pn, GFP_ATOMIC);
 	if (!gid_pn)
 		return -ENOMEM;
 
@@ -331,7 +305,7 @@ static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 
 	zfcp_fc_wka_port_put(&adapter->gs->ds);
 out:
-	mempool_free(gid_pn, adapter->pool.gid_pn_data);
+	mempool_free(gid_pn, adapter->pool.gid_pn);
 	return ret;
 }
 
@@ -508,7 +482,7 @@ void zfcp_fc_test_link(struct zfcp_port *port)
 		put_device(&port->sysfs_device);
 }
 
-static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
+static void zfcp_free_sg_env(struct zfcp_fc_gpn_ft *gpn_ft, int buf_num)
 {
 	struct scatterlist *sg = &gpn_ft->sg_req;
 
@@ -518,10 +492,10 @@ static void zfcp_free_sg_env(struct zfcp_gpn_ft *gpn_ft, int buf_num)
 	kfree(gpn_ft);
 }
 
-static struct zfcp_gpn_ft *zfcp_alloc_sg_env(int buf_num)
+static struct zfcp_fc_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 {
-	struct zfcp_gpn_ft *gpn_ft;
-	struct ct_iu_gpn_ft_req *req;
+	struct zfcp_fc_gpn_ft *gpn_ft;
+	struct zfcp_fc_gpn_ft_req *req;
 
 	gpn_ft = kzalloc(sizeof(*gpn_ft), GFP_KERNEL);
 	if (!gpn_ft)
@@ -544,25 +518,24 @@ out:
 }
 
 
-static int zfcp_fc_send_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
+static int zfcp_fc_send_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 			       struct zfcp_adapter *adapter, int max_bytes)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
-	struct ct_iu_gpn_ft_req *req = sg_virt(&gpn_ft->sg_req);
+	struct zfcp_fc_gpn_ft_req *req = sg_virt(&gpn_ft->sg_req);
 	struct zfcp_fc_ns_handler_data compl_rec;
 	int ret;
 
 	/* prepare CT IU for GPN_FT */
-	req->header.revision = ZFCP_CT_REVISION;
-	req->header.gs_type = ZFCP_CT_DIRECTORY_SERVICE;
-	req->header.gs_subtype = ZFCP_CT_NAME_SERVER;
-	req->header.options = ZFCP_CT_SYNCHRONOUS;
-	req->header.cmd_rsp_code = ZFCP_CT_GPN_FT;
-	req->header.max_res_size = max_bytes / 4;
-	req->flags = 0;
-	req->domain_id_scope = 0;
-	req->area_id_scope = 0;
-	req->fc4_type = ZFCP_CT_SCSI_FCP;
+	req->ct_hdr.ct_rev = FC_CT_REV;
+	req->ct_hdr.ct_fs_type = FC_FST_DIR;
+	req->ct_hdr.ct_fs_subtype = FC_NS_SUBTYPE;
+	req->ct_hdr.ct_options = 0;
+	req->ct_hdr.ct_cmd = FC_NS_GPN_FT;
+	req->ct_hdr.ct_mr_size = max_bytes / 4;
+	req->gpn_ft.fn_domain_id_scope = 0;
+	req->gpn_ft.fn_area_id_scope = 0;
+	req->gpn_ft.fn_fc4_type = FC_TYPE_FCP;
 
 	/* prepare zfcp_send_ct */
 	ct->wka_port = &adapter->gs->ds;
@@ -593,12 +566,12 @@ static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 	list_move_tail(&port->list, lh);
 }
 
-static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
+static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft, int max_entries)
 {
 	struct zfcp_send_ct *ct = &gpn_ft->ct;
 	struct scatterlist *sg = gpn_ft->sg_resp;
-	struct ct_hdr *hdr = sg_virt(sg);
-	struct gpn_ft_resp_acc *acc = sg_virt(sg);
+	struct fc_ct_hdr *hdr = sg_virt(sg);
+	struct fc_gpn_ft_resp *acc = sg_virt(sg);
 	struct zfcp_adapter *adapter = ct->wka_port->adapter;
 	struct zfcp_port *port, *tmp;
 	unsigned long flags;
@@ -609,38 +582,37 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 	if (ct->status)
 		return -EIO;
 
-	if (hdr->cmd_rsp_code != ZFCP_CT_ACCEPT) {
-		if (hdr->reason_code == ZFCP_CT_UNABLE_TO_PERFORM_CMD)
+	if (hdr->ct_cmd != FC_FS_ACC) {
+		if (hdr->ct_reason == FC_BA_RJT_UNABLE)
 			return -EAGAIN; /* might be a temporary condition */
 		return -EIO;
 	}
 
-	if (hdr->max_res_size) {
+	if (hdr->ct_mr_size) {
 		dev_warn(&adapter->ccw_device->dev,
 			 "The name server reported %d words residual data\n",
-			 hdr->max_res_size);
+			 hdr->ct_mr_size);
 		return -E2BIG;
 	}
 
 	/* first entry is the header */
 	for (x = 1; x < max_entries && !last; x++) {
-		if (x % (ZFCP_GPN_FT_ENTRIES + 1))
+		if (x % (ZFCP_FC_GPN_FT_ENT_PAGE + 1))
 			acc++;
 		else
 			acc = sg_virt(++sg);
 
-		last = acc->control & 0x80;
-		d_id = acc->port_id[0] << 16 | acc->port_id[1] << 8 |
-		       acc->port_id[2];
+		last = acc->fp_flags & FC_NS_FID_LAST;
+		d_id = ntoh24(acc->fp_fid);
 
 		/* don't attach ports with a well known address */
-		if ((d_id & ZFCP_DID_WKA) == ZFCP_DID_WKA)
+		if (d_id >= FC_FID_WELL_KNOWN_BASE)
 			continue;
 		/* skip the adapter's port and known remote ports */
-		if (acc->wwpn == fc_host_port_name(adapter->scsi_host))
+		if (acc->fp_wwpn == fc_host_port_name(adapter->scsi_host))
 			continue;
 
-		port = zfcp_port_enqueue(adapter, acc->wwpn,
+		port = zfcp_port_enqueue(adapter, acc->fp_wwpn,
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
 		if (!IS_ERR(port))
 			zfcp_erp_port_reopen(port, 0, "fcegpf1", NULL);
@@ -672,13 +644,13 @@ void zfcp_fc_scan_ports(struct work_struct *work)
 	struct zfcp_adapter *adapter = container_of(work, struct zfcp_adapter,
 						    scan_work);
 	int ret, i;
-	struct zfcp_gpn_ft *gpn_ft;
+	struct zfcp_fc_gpn_ft *gpn_ft;
 	int chain, max_entries, buf_num, max_bytes;
 
 	chain = adapter->adapter_features & FSF_FEATURE_ELS_CT_CHAINED_SBALS;
-	buf_num = chain ? ZFCP_GPN_FT_BUFFERS : 1;
-	max_entries = chain ? ZFCP_GPN_FT_MAX_ENTRIES : ZFCP_GPN_FT_ENTRIES;
-	max_bytes = chain ? ZFCP_GPN_FT_MAX_SIZE : ZFCP_CT_SIZE_ONE_PAGE;
+	buf_num = chain ? ZFCP_FC_GPN_FT_NUM_BUFS : 1;
+	max_entries = chain ? ZFCP_FC_GPN_FT_MAX_ENT : ZFCP_FC_GPN_FT_ENT_PAGE;
+	max_bytes = chain ? ZFCP_FC_GPN_FT_MAX_SIZE : ZFCP_FC_CT_SIZE_PAGE;
 
 	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT &&
 	    fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPIV)

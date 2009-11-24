@@ -75,25 +75,6 @@
 
 #define ZFCP_DID_MASK           0x00FFFFFF
 
-/*
- * FC-GS-2 stuff
- */
-#define ZFCP_CT_REVISION		0x01
-#define ZFCP_CT_DIRECTORY_SERVICE	0xFC
-#define ZFCP_CT_NAME_SERVER		0x02
-#define ZFCP_CT_SYNCHRONOUS		0x00
-#define ZFCP_CT_SCSI_FCP		0x08
-#define ZFCP_CT_UNABLE_TO_PERFORM_CMD	0x09
-#define ZFCP_CT_GID_PN			0x0121
-#define ZFCP_CT_GPN_FT			0x0172
-#define ZFCP_CT_ACCEPT			0x8002
-#define ZFCP_CT_REJECT			0x8001
-
-/*
- * FC-GS-4 stuff
- */
-#define ZFCP_CT_TIMEOUT			(3 * R_A_TOV)
-
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /*
@@ -118,9 +99,6 @@
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
-
-/* FC-PH/FC-GS well-known address identifiers for generic services */
-#define ZFCP_DID_WKA				0xFFFFF0
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
@@ -162,49 +140,9 @@ struct zfcp_adapter_mempool {
 	mempool_t *scsi_abort;
 	mempool_t *status_read_req;
 	mempool_t *status_read_data;
-	mempool_t *gid_pn_data;
+	mempool_t *gid_pn;
 	mempool_t *qtcb_pool;
 };
-
-/*
- * header for CT_IU
- */
-struct ct_hdr {
-	u8 revision;		// 0x01
-	u8 in_id[3];		// 0x00
-	u8 gs_type;		// 0xFC	Directory Service
-	u8 gs_subtype;		// 0x02	Name Server
-	u8 options;		// 0x00 single bidirectional exchange
-	u8 reserved0;
-	u16 cmd_rsp_code;	// 0x0121 GID_PN, or 0x0100 GA_NXT
-	u16 max_res_size;	// <= (4096 - 16) / 4
-	u8 reserved1;
-	u8 reason_code;
-	u8 reason_code_expl;
-	u8 vendor_unique;
-} __attribute__ ((packed));
-
-/* nameserver request CT_IU -- for requests where
- * a port name is required */
-struct ct_iu_gid_pn_req {
-	struct ct_hdr header;
-	u64 wwpn;
-} __attribute__ ((packed));
-
-/* FS_ACC IU and data unit for GID_PN nameserver request */
-struct ct_iu_gid_pn_resp {
-	struct ct_hdr header;
-	u32 d_id;
-} __attribute__ ((packed));
-
-struct ct_iu_gpn_ft_req {
-	struct ct_hdr header;
-	u8 flags;
-	u8 domain_id_scope;
-	u8 area_id_scope;
-	u8 fc4_type;
-} __attribute__ ((packed));
-
 
 /**
  * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
@@ -224,16 +162,6 @@ struct zfcp_send_ct {
 	unsigned long handler_data;
 	struct completion *completion;
 	int status;
-};
-
-/* used for name server requests in error recovery */
-struct zfcp_gid_pn_data {
-	struct zfcp_send_ct ct;
-	struct scatterlist req;
-	struct scatterlist resp;
-	struct ct_iu_gid_pn_req ct_iu_req;
-	struct ct_iu_gid_pn_resp ct_iu_resp;
-        struct zfcp_port *port;
 };
 
 /**

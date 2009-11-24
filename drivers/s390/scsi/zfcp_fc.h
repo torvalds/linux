@@ -12,8 +12,88 @@
 
 #include <scsi/fc/fc_els.h>
 #include <scsi/fc/fc_fcp.h>
+#include <scsi/fc/fc_ns.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
+
+#define ZFCP_FC_CT_SIZE_PAGE	  (PAGE_SIZE - sizeof(struct fc_ct_hdr))
+#define ZFCP_FC_GPN_FT_ENT_PAGE	  (ZFCP_FC_CT_SIZE_PAGE \
+					/ sizeof(struct fc_gpn_ft_resp))
+#define ZFCP_FC_GPN_FT_NUM_BUFS	  4 /* memory pages */
+
+#define ZFCP_FC_GPN_FT_MAX_SIZE	  (ZFCP_FC_GPN_FT_NUM_BUFS * PAGE_SIZE \
+					- sizeof(struct fc_ct_hdr))
+#define ZFCP_FC_GPN_FT_MAX_ENT	  (ZFCP_FC_GPN_FT_NUM_BUFS * \
+					(ZFCP_FC_GPN_FT_ENT_PAGE + 1))
+
+/**
+ * struct zfcp_fc_gid_pn_req - container for ct header plus gid_pn request
+ * @ct_hdr: FC GS common transport header
+ * @gid_pn: GID_PN request
+ */
+struct zfcp_fc_gid_pn_req {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_ns_gid_pn	gid_pn;
+} __packed;
+
+/**
+ * struct zfcp_fc_gid_pn_resp - container for ct header plus gid_pn response
+ * @ct_hdr: FC GS common transport header
+ * @gid_pn: GID_PN response
+ */
+struct zfcp_fc_gid_pn_resp {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_gid_pn_resp	gid_pn;
+} __packed;
+
+/**
+ * struct zfcp_fc_gid_pn - everything required in zfcp for gid_pn request
+ * @ct: data passed to zfcp_fsf for issuing fsf request
+ * @sg_req: scatterlist entry for request data
+ * @sg_resp: scatterlist entry for response data
+ * @gid_pn_req: GID_PN request data
+ * @gid_pn_resp: GID_PN response data
+ */
+struct zfcp_fc_gid_pn {
+	struct zfcp_send_ct ct;
+	struct scatterlist sg_req;
+	struct scatterlist sg_resp;
+	struct zfcp_fc_gid_pn_req gid_pn_req;
+	struct zfcp_fc_gid_pn_resp gid_pn_resp;
+	struct zfcp_port *port;
+};
+
+/**
+ * struct zfcp_fc_gpn_ft - container for ct header plus gpn_ft request
+ * @ct_hdr: FC GS common transport header
+ * @gpn_ft: GPN_FT request
+ */
+struct zfcp_fc_gpn_ft_req {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_ns_gid_ft	gpn_ft;
+} __packed;
+
+/**
+ * struct zfcp_fc_gpn_ft_resp - container for ct header plus gpn_ft response
+ * @ct_hdr: FC GS common transport header
+ * @gpn_ft: Array of gpn_ft response data to fill one memory page
+ */
+struct zfcp_fc_gpn_ft_resp {
+	struct fc_ct_hdr	ct_hdr;
+	struct fc_gpn_ft_resp	gpn_ft[ZFCP_FC_GPN_FT_ENT_PAGE];
+} __packed;
+
+/**
+ * struct zfcp_fc_gpn_ft - zfcp data for gpn_ft request
+ * @ct: data passed to zfcp_fsf for issuing fsf request
+ * @sg_req: scatter list entry for gpn_ft request
+ * @sg_resp: scatter list entries for gpn_ft responses (per memory page)
+ */
+struct zfcp_fc_gpn_ft {
+	struct zfcp_send_ct ct;
+	struct scatterlist sg_req;
+	struct scatterlist sg_resp[ZFCP_FC_GPN_FT_NUM_BUFS];
+};
 
 /**
  * struct zfcp_fc_els_adisc - everything required in zfcp for issuing ELS ADISC

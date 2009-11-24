@@ -31,6 +31,7 @@
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 #include "zfcp_ext.h"
+#include "zfcp_fc.h"
 
 #define ZFCP_BUS_ID_SIZE	20
 
@@ -159,7 +160,7 @@ static int __init zfcp_module_init(void)
 	int retval = -ENOMEM;
 
 	zfcp_data.gpn_ft_cache = zfcp_cache_hw_align("zfcp_gpn",
-					sizeof(struct ct_iu_gpn_ft_req));
+					sizeof(struct zfcp_fc_gpn_ft_req));
 	if (!zfcp_data.gpn_ft_cache)
 		goto out;
 
@@ -174,7 +175,7 @@ static int __init zfcp_module_init(void)
 		goto out_sr_cache;
 
 	zfcp_data.gid_pn_cache = zfcp_cache_hw_align("zfcp_gid",
-					sizeof(struct zfcp_gid_pn_data));
+					sizeof(struct zfcp_fc_gid_pn));
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
@@ -407,9 +408,9 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 	if (!adapter->pool.status_read_data)
 		return -ENOMEM;
 
-	adapter->pool.gid_pn_data =
+	adapter->pool.gid_pn =
 		mempool_create_slab_pool(1, zfcp_data.gid_pn_cache);
-	if (!adapter->pool.gid_pn_data)
+	if (!adapter->pool.gid_pn)
 		return -ENOMEM;
 
 	return 0;
@@ -429,8 +430,8 @@ static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 		mempool_destroy(adapter->pool.status_read_req);
 	if (adapter->pool.status_read_data)
 		mempool_destroy(adapter->pool.status_read_data);
-	if (adapter->pool.gid_pn_data)
-		mempool_destroy(adapter->pool.gid_pn_data);
+	if (adapter->pool.gid_pn)
+		mempool_destroy(adapter->pool.gid_pn);
 }
 
 /**
