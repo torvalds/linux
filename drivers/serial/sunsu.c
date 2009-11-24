@@ -1409,6 +1409,7 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	struct uart_sunsu_port *up;
 	struct resource *rp;
 	enum su_type type;
+	bool ignore_line;
 	int err;
 
 	type = su_get_type(dp);
@@ -1467,9 +1468,14 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 
 	up->port.ops = &sunsu_pops;
 
+	ignore_line = false;
+	if (!strcmp(dp->name, "rsc-console") ||
+	    !strcmp(dp->name, "lom-console"))
+		ignore_line = true;
+
 	sunserial_console_match(SUNSU_CONSOLE(), dp,
 				&sunsu_reg, up->port.line,
-				false);
+				ignore_line);
 	err = uart_add_one_port(&sunsu_reg, &up->port);
 	if (err)
 		goto out_unmap;
