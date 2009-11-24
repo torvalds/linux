@@ -187,7 +187,6 @@ static int __init zfcp_module_init(void)
 		goto out_gid_cache;
 
 	mutex_init(&zfcp_data.config_mutex);
-	rwlock_init(&zfcp_data.config_lock);
 
 	zfcp_data.scsi_transport_template =
 		fc_attach_transport(&zfcp_transport_functions);
@@ -238,12 +237,18 @@ module_init(zfcp_module_init);
  */
 struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
 {
+	unsigned long flags;
 	struct zfcp_unit *unit;
 
-	list_for_each_entry(unit, &port->unit_list_head, list)
+	read_lock_irqsave(&port->unit_list_lock, flags);
+	list_for_each_entry(unit, &port->unit_list, list)
 		if ((unit->fcp_lun == fcp_lun) &&
-		    !(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_REMOVE))
-		    return unit;
+		    !(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_REMOVE)) {
+			zfcp_unit_get(unit);
+			read_unlock_irqrestore(&port->unit_list_lock, flags);
+			return unit;
+		}
+	read_unlock_irqrestore(&port->unit_list_lock, flags);
 	return NULL;
 }
 
@@ -257,12 +262,18 @@ struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
 struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 					u64 wwpn)
 {
+	unsigned long flags;
 	struct zfcp_port *port;
 
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list)
 		if ((port->wwpn == wwpn) &&
-		    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE))
+		    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE)) {
+			zfcp_port_get(port);
+			read_unlock_irqrestore(&adapter->port_list_lock, flags);
 			return port;
+		}
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 	return NULL;
 }
 
@@ -284,12 +295,11 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 {
 	struct zfcp_unit *unit;
 
-	read_lock_irq(&zfcp_data.config_lock);
-	if (zfcp_get_unit_by_lun(port, fcp_lun)) {
-		read_unlock_irq(&zfcp_data.config_lock);
+	unit = zfcp_get_unit_by_lun(port, fcp_lun);
+	if (unit) {
+		zfcp_unit_put(unit);
 		return ERR_PTR(-EINVAL);
 	}
-	read_unlock_irq(&zfcp_data.config_lock);
 
 	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
 	if (!unit)
@@ -335,12 +345,12 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 
 	zfcp_unit_get(unit);
 
-	write_lock_irq(&zfcp_data.config_lock);
-	list_add_tail(&unit->list, &port->unit_list_head);
+	write_lock_irq(&port->unit_list_lock);
+	list_add_tail(&unit->list, &port->unit_list);
+	write_unlock_irq(&port->unit_list_lock);
+
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
-
-	write_unlock_irq(&zfcp_data.config_lock);
 
 	zfcp_port_get(port);
 
@@ -356,11 +366,11 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
  */
 void zfcp_unit_dequeue(struct zfcp_unit *unit)
 {
+	struct zfcp_port *port = unit->port;
+
 	wait_event(unit->remove_wq, atomic_read(&unit->refcount) == 0);
-	write_lock_irq(&zfcp_data.config_lock);
-	list_del(&unit->list);
-	write_unlock_irq(&zfcp_data.config_lock);
-	zfcp_port_put(unit->port);
+	list_del(&unit->list); /* no list locking required */
+	zfcp_port_put(port);
 	sysfs_remove_group(&unit->sysfs_device.kobj, &zfcp_sysfs_unit_attrs);
 	device_unregister(&unit->sysfs_device);
 }
@@ -539,11 +549,13 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (zfcp_fc_gs_setup(adapter))
 		goto generic_services_failed;
 
+	rwlock_init(&adapter->port_list_lock);
+	INIT_LIST_HEAD(&adapter->port_list);
+
 	init_waitqueue_head(&adapter->remove_wq);
 	init_waitqueue_head(&adapter->erp_ready_wq);
 	init_waitqueue_head(&adapter->erp_done_wqh);
 
-	INIT_LIST_HEAD(&adapter->port_list_head);
 	INIT_LIST_HEAD(&adapter->erp_ready_head);
 	INIT_LIST_HEAD(&adapter->erp_running_head);
 
@@ -650,19 +662,20 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 {
 	struct zfcp_port *port;
 
-	read_lock_irq(&zfcp_data.config_lock);
-	if (zfcp_get_port_by_wwpn(adapter, wwpn)) {
-		read_unlock_irq(&zfcp_data.config_lock);
-		return ERR_PTR(-EINVAL);
+	port = zfcp_get_port_by_wwpn(adapter, wwpn);
+	if (port) {
+		zfcp_port_put(port);
+		return ERR_PTR(-EEXIST);
 	}
-	read_unlock_irq(&zfcp_data.config_lock);
 
 	port = kzalloc(sizeof(struct zfcp_port), GFP_KERNEL);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
+	rwlock_init(&port->unit_list_lock);
+	INIT_LIST_HEAD(&port->unit_list);
+
 	init_waitqueue_head(&port->remove_wq);
-	INIT_LIST_HEAD(&port->unit_list_head);
 	INIT_WORK(&port->gid_pn_work, zfcp_fc_port_did_lookup);
 	INIT_WORK(&port->test_link_work, zfcp_fc_link_test_work);
 	INIT_WORK(&port->rport_work, zfcp_scsi_rport_work);
@@ -698,12 +711,12 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 
 	zfcp_port_get(port);
 
-	write_lock_irq(&zfcp_data.config_lock);
-	list_add_tail(&port->list, &adapter->port_list_head);
+	write_lock_irq(&adapter->port_list_lock);
+	list_add_tail(&port->list, &adapter->port_list);
+	write_unlock_irq(&adapter->port_list_lock);
+
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &port->status);
-
-	write_unlock_irq(&zfcp_data.config_lock);
 
 	zfcp_adapter_get(adapter);
 	return port;
@@ -715,12 +728,11 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
  */
 void zfcp_port_dequeue(struct zfcp_port *port)
 {
-	write_lock_irq(&zfcp_data.config_lock);
-	list_del(&port->list);
-	write_unlock_irq(&zfcp_data.config_lock);
+	struct zfcp_adapter *adapter = port->adapter;
+
+	list_del(&port->list); /* no list locking required here */
 	wait_event(port->remove_wq, atomic_read(&port->refcount) == 0);
-	cancel_work_sync(&port->rport_work); /* usually not necessary */
-	zfcp_adapter_put(port->adapter);
+	zfcp_adapter_put(adapter);
 	sysfs_remove_group(&port->sysfs_device.kobj, &zfcp_sysfs_port_attrs);
 	device_unregister(&port->sysfs_device);
 }

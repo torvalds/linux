@@ -100,9 +100,10 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 
 	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
-	if (!adapter)
-		goto out;
 	mutex_unlock(&zfcp_data.config_mutex);
+
+	if (!adapter)
+		return;
 
 	cancel_work_sync(&adapter->scan_work);
 
@@ -111,18 +112,21 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	/* this also removes the scsi devices, so call it first */
 	zfcp_adapter_scsi_unregister(adapter);
 
-	write_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry_safe(port, p, &adapter->port_list_head, list) {
-		list_for_each_entry_safe(unit, u, &port->unit_list_head, list) {
-			list_move(&unit->list, &unit_remove_lh);
+	write_lock_irq(&adapter->port_list_lock);
+	list_for_each_entry_safe(port, p, &adapter->port_list, list) {
+		write_lock(&port->unit_list_lock);
+		list_for_each_entry_safe(unit, u, &port->unit_list, list) {
 			atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE,
 					&unit->status);
+			list_move(&unit->list, &unit_remove_lh);
 		}
-		list_move(&port->list, &port_remove_lh);
+		write_unlock(&port->unit_list_lock);
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
+		list_move(&port->list, &port_remove_lh);
 	}
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-	write_unlock_irq(&zfcp_data.config_lock);
+	write_unlock_irq(&adapter->port_list_lock);
+	mutex_unlock(&zfcp_data.config_mutex);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
 		list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
@@ -131,9 +135,6 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	}
 	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 	zfcp_adapter_dequeue(adapter);
-
-out:
-	mutex_unlock(&zfcp_data.config_mutex);
 }
 
 /**

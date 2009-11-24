@@ -128,49 +128,44 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 }
 
 static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *adapter,
-					  int channel, unsigned int id,
-					  unsigned int lun)
+					  unsigned int id, u64 lun)
 {
+	unsigned long flags;
 	struct zfcp_port *port;
-	struct zfcp_unit *unit;
-	int scsi_lun;
+	struct zfcp_unit *unit = NULL;
 
-	list_for_each_entry(port, &adapter->port_list_head, list) {
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list) {
 		if (!port->rport || (id != port->rport->scsi_target_id))
 			continue;
-		list_for_each_entry(unit, &port->unit_list_head, list) {
-			scsi_lun = scsilun_to_int(
-				(struct scsi_lun *)&unit->fcp_lun);
-			if (lun == scsi_lun)
-				return unit;
-		}
+		unit = zfcp_get_unit_by_lun(port, lun);
+		if (unit)
+			break;
 	}
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 
-	return NULL;
+	return unit;
 }
 
 static int zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_unit *unit;
-	unsigned long flags;
-	int retval = -ENXIO;
+	u64 lun;
 
 	adapter = (struct zfcp_adapter *) sdp->host->hostdata[0];
 	if (!adapter)
 		goto out;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	unit = zfcp_unit_lookup(adapter, sdp->channel, sdp->id, sdp->lun);
+	int_to_scsilun(sdp->lun, (struct scsi_lun *)&lun);
+	unit = zfcp_unit_lookup(adapter, sdp->id, lun);
 	if (unit) {
 		sdp->hostdata = unit;
 		unit->device = sdp;
-		zfcp_unit_get(unit);
-		retval = 0;
+		return 0;
 	}
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 out:
-	return retval;
+	return -ENXIO;
 }
 
 static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
@@ -338,12 +333,12 @@ void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	if (!shost)
 		return;
 
-	read_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock_irq(&adapter->port_list_lock);
+	list_for_each_entry(port, &adapter->port_list, list)
 		if (port->rport)
 			port->rport = NULL;
+	read_unlock_irq(&adapter->port_list_lock);
 
-	read_unlock_irq(&zfcp_data.config_lock);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
@@ -508,7 +503,7 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  * @rport: The FC rport where to teminate I/O
  *
  * Abort all pending SCSI commands for a port by closing the
- * port. Using a reopen for avoids a conflict with a shutdown
+ * port. Using a reopen avoiding a conflict with a shutdown
  * overwriting a reopen.
  */
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
@@ -518,11 +513,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	struct zfcp_adapter *adapter =
 		(struct zfcp_adapter *)shost->hostdata[0];
 
-	write_lock_irq(&zfcp_data.config_lock);
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
-	if (port)
-		zfcp_port_get(port);
-	write_unlock_irq(&zfcp_data.config_lock);
 
 	if (port) {
 		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
@@ -589,10 +580,13 @@ void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
 
 void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *adapter)
 {
+	unsigned long flags;
 	struct zfcp_port *port;
 
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list)
 		zfcp_scsi_schedule_rport_block(port);
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
 void zfcp_scsi_rport_work(struct work_struct *work)

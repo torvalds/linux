@@ -145,10 +145,11 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 				   struct fcp_rscn_element *elem)
 {
 	unsigned long flags;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_port *port;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list) {
 		if ((port->d_id & range) == (elem->nport_did & range))
 			zfcp_fc_test_link(port);
 		if (!port->d_id)
@@ -156,8 +157,7 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 					     ZFCP_STATUS_COMMON_ERP_FAILED,
 					     "fcrscn1", NULL);
 	}
-
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
 static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
@@ -187,18 +187,17 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 
 static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
 {
+	unsigned long flags;
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_port *port;
-	unsigned long flags;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &adapter->port_list_head, list)
-		if (port->wwpn == wwpn)
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list)
+		if (port->wwpn == wwpn) {
+			zfcp_erp_port_forced_reopen(port, 0, "fciwwp1", req);
 			break;
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
-
-	if (port && (port->wwpn == wwpn))
-		zfcp_erp_port_forced_reopen(port, 0, "fciwwp1", req);
+		}
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
 static void zfcp_fc_incoming_plogi(struct zfcp_fsf_req *req)
@@ -579,20 +578,17 @@ static int zfcp_fc_send_gpn_ft(struct zfcp_gpn_ft *gpn_ft,
 
 static void zfcp_fc_validate_port(struct zfcp_port *port)
 {
-	struct zfcp_adapter *adapter = port->adapter;
-
 	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
 		return;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
-	    !list_empty(&port->unit_list_head)) {
+	    !list_empty(&port->unit_list)) {
 		zfcp_port_put(port);
 		return;
 	}
 	zfcp_erp_port_shutdown(port, 0, "fcpval1", NULL);
-	zfcp_erp_wait(adapter);
 	zfcp_port_put(port);
 	zfcp_port_dequeue(port);
 }
@@ -605,6 +601,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 	struct gpn_ft_resp_acc *acc = sg_virt(sg);
 	struct zfcp_adapter *adapter = ct->wka_port->adapter;
 	struct zfcp_port *port, *tmp;
+	unsigned long flags;
 	u32 d_id;
 	int ret = 0, x, last = 0;
 
@@ -643,21 +640,20 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 		/* skip the adapter's port and known remote ports */
 		if (acc->wwpn == fc_host_port_name(adapter->scsi_host))
 			continue;
-		port = zfcp_get_port_by_wwpn(adapter, acc->wwpn);
-		if (port)
-			continue;
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
-		if (IS_ERR(port))
-			ret = PTR_ERR(port);
-		else
+		if (!IS_ERR(port))
 			zfcp_erp_port_reopen(port, 0, "fcegpf1", NULL);
+		else if (PTR_ERR(port) != -EEXIST)
+			ret = PTR_ERR(port);
 	}
 
 	zfcp_erp_wait(adapter);
-	list_for_each_entry_safe(port, tmp, &adapter->port_list_head, list)
+	write_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry_safe(port, tmp, &adapter->port_list, list)
 		zfcp_fc_validate_port(port);
+	write_unlock_irqrestore(&adapter->port_list_lock, flags);
 	mutex_unlock(&zfcp_data.config_mutex);
 	return ret;
 }
@@ -760,15 +756,14 @@ int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *job)
 
 	els_fc_job->els.adapter = adapter;
 	if (rport) {
-		read_lock_irq(&zfcp_data.config_lock);
 		port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
-		if (port)
-			els_fc_job->els.d_id = port->d_id;
-		read_unlock_irq(&zfcp_data.config_lock);
 		if (!port) {
 			kfree(els_fc_job);
 			return -EINVAL;
 		}
+
+		els_fc_job->els.d_id = port->d_id;
+		zfcp_port_put(port);
 	} else {
 		port_did = job->request->rqst_data.h_els.port_id;
 		els_fc_job->els.d_id = (port_did[0] << 16) +

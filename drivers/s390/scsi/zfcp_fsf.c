@@ -122,36 +122,32 @@ void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 
 static void zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *req)
 {
+	unsigned long flags;
 	struct fsf_status_read_buffer *sr_buf = req->data;
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_port *port;
 	int d_id = sr_buf->d_id & ZFCP_DID_MASK;
-	unsigned long flags;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list)
 		if (port->d_id == d_id) {
-			read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 			zfcp_erp_port_reopen(port, 0, "fssrpc1", req);
-			return;
+			break;
 		}
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }
 
 static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, char *id,
 					 struct fsf_link_down_info *link_down)
 {
 	struct zfcp_adapter *adapter = req->adapter;
-	unsigned long flags;
 
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED)
 		return;
 
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_scsi_schedule_rports_block(adapter);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
 	if (!link_down)
 		goto out;
@@ -1765,9 +1761,11 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		/* can't use generic zfcp_erp_modify_port_status because
 		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port */
 		atomic_clear_mask(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
-		list_for_each_entry(unit, &port->unit_list_head, list)
+		read_lock(&port->unit_list_lock);
+		list_for_each_entry(unit, &port->unit_list, list)
 			atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
 					  &unit->status);
+		read_unlock(&port->unit_list_lock);
 		zfcp_erp_port_boxed(port, "fscpph2", req);
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			       ZFCP_STATUS_FSFREQ_RETRY;
@@ -1787,9 +1785,11 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port
 		 */
 		atomic_clear_mask(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
-		list_for_each_entry(unit, &port->unit_list_head, list)
+		read_lock(&port->unit_list_lock);
+		list_for_each_entry(unit, &port->unit_list, list)
 			atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
 					  &unit->status);
+		read_unlock(&port->unit_list_lock);
 		break;
 	}
 }

@@ -153,15 +153,14 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 		goto out;
 	}
 
-	write_lock_irq(&zfcp_data.config_lock);
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
-	if (port && (atomic_read(&port->refcount) == 0)) {
-		zfcp_port_get(port);
+	if (port && (atomic_read(&port->refcount) == 1)) {
 		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
+		write_lock_irq(&adapter->port_list_lock);
 		list_move(&port->list, &port_remove_lh);
+		write_unlock_irq(&adapter->port_list_lock);
 	} else
 		port = NULL;
-	write_unlock_irq(&zfcp_data.config_lock);
 
 	if (!port) {
 		retval = -ENXIO;
@@ -253,35 +252,28 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 		goto out;
 	}
 
-	write_lock_irq(&zfcp_data.config_lock);
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (unit) {
-		write_unlock_irq(&zfcp_data.config_lock);
-		/* wait for possible timeout during SCSI probe */
-		flush_work(&unit->scsi_work);
-		write_lock_irq(&zfcp_data.config_lock);
-
-		if (atomic_read(&unit->refcount) == 0) {
-			zfcp_unit_get(unit);
-			atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE,
-					&unit->status);
-			list_move(&unit->list, &unit_remove_lh);
-		} else {
-			unit = NULL;
-		}
-	}
-
-	write_unlock_irq(&zfcp_data.config_lock);
-
 	if (!unit) {
-		retval = -ENXIO;
+		retval = -EINVAL;
 		goto out;
 	}
 
-	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
-	zfcp_erp_wait(unit->port->adapter);
-	zfcp_unit_put(unit);
-	zfcp_unit_dequeue(unit);
+	/* wait for possible timeout during SCSI probe */
+	flush_work(&unit->scsi_work);
+
+	if (atomic_read(&unit->refcount) == 1) {
+		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
+
+		write_lock_irq(&port->unit_list_lock);
+		list_move(&unit->list, &unit_remove_lh);
+		write_unlock_irq(&port->unit_list_lock);
+
+		zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
+		zfcp_erp_wait(unit->port->adapter);
+		zfcp_unit_put(unit);
+		zfcp_unit_dequeue(unit);
+	} else
+		zfcp_unit_put(unit);
 out:
 	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;

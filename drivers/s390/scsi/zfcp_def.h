@@ -461,7 +461,8 @@ struct zfcp_adapter {
         u32			hardware_version;  /* of FCP channel */
 	u16			timer_ticks;       /* time int for a tick */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
-	struct list_head	port_list_head;	   /* remote port list */
+	struct list_head	port_list;	   /* remote port list */
+	rwlock_t		port_list_lock;    /* port list lock */
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
 	spinlock_t		req_list_lock;	   /* request list lock */
@@ -504,7 +505,8 @@ struct zfcp_port {
 	wait_queue_head_t      remove_wq;      /* can be used to wait for
 						  refcount drop to zero */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
-	struct list_head       unit_list_head; /* head of logical unit list */
+	struct list_head	unit_list;	/* head of logical unit list */
+	rwlock_t		unit_list_lock; /* unit list lock */
 	atomic_t	       status;	       /* status of this remote port */
 	u64		       wwnn;	       /* WWNN if known */
 	u64		       wwpn;	       /* WWPN */
@@ -601,9 +603,6 @@ struct zfcp_fsf_req {
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
 	struct scsi_transport_template *scsi_transport_template;
-	rwlock_t                config_lock;        /* serialises changes
-						       to adapter/port/unit
-						       lists */
 	struct mutex		config_mutex;
 	struct kmem_cache	*gpn_ft_cache;
 	struct kmem_cache	*qtcb_cache;
