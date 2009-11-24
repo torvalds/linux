@@ -325,6 +325,7 @@ static unsigned long mremap_to(unsigned long addr,
 	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
 	unsigned long charged = 0;
+	unsigned long map_flags;
 
 	if (new_addr & ~PAGE_MASK)
 		goto out;
@@ -362,9 +363,23 @@ static unsigned long mremap_to(unsigned long addr,
 		goto out;
 	}
 
-	ret = move_vma(vma, addr, old_len, new_len, new_addr);
+	map_flags = MAP_FIXED;
+	if (vma->vm_flags & VM_MAYSHARE)
+		map_flags |= MAP_SHARED;
+	ret = arch_mmap_check(new_addr, new_len, map_flags);
+	if (ret)
+		goto out1;
+	ret = get_unmapped_area(vma->vm_file, new_addr, new_len, vma->vm_pgoff +
+				((addr - vma->vm_start) >> PAGE_SHIFT),
+				map_flags);
 	if (ret & ~PAGE_MASK)
-		vm_unacct_memory(charged);
+		goto out1;
+
+	ret = move_vma(vma, addr, old_len, new_len, new_addr);
+	if (!(ret & ~PAGE_MASK))
+		goto out;
+out1:
+	vm_unacct_memory(charged);
 
 out:
 	return ret;
