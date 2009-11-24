@@ -1972,6 +1972,10 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 		break;
 	}
 
+	/* if in mixed tx/rx queues per vector mode, report only rx settings */
+	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+		return 0;
+
 	/* only valid if in constant ITR mode */
 	switch (adapter->tx_itr_setting) {
 	case 0:
@@ -1997,12 +2001,9 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_q_vector *q_vector;
 	int i;
 
-	/*
-	 * don't accept tx specific changes if we've got mixed RxTx vectors
-	 * test and jump out here if needed before changing the rx numbers
-	 */
-	if ((1000000/ec->tx_coalesce_usecs) != adapter->tx_eitr_param &&
-	    adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+	/* don't accept tx specific changes if we've got mixed RxTx vectors */
+	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count
+	   && ec->tx_coalesce_usecs)
 		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
