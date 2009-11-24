@@ -1099,7 +1099,7 @@ static struct platform_driver mxcnd_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   },
-	.remove = __exit_p(mxcnd_remove),
+	.remove = __devexit_p(mxcnd_remove),
 	.suspend = mxcnd_suspend,
 	.resume = mxcnd_resume,
 };
