@@ -14,7 +14,7 @@
 /* zfcp_aux.c */
 extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, u64);
 extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
-extern int zfcp_adapter_enqueue(struct ccw_device *);
+extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
@@ -24,11 +24,14 @@ extern int zfcp_sg_setup_table(struct scatterlist *, int);
 extern void zfcp_device_unregister(struct device *,
 				   const struct attribute_group *);
 extern void zfcp_adapter_release(struct kref *);
+extern void zfcp_adapter_unregister(struct zfcp_adapter *);
 
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);
 extern int zfcp_ccw_priv_sch(struct zfcp_adapter *);
 extern struct ccw_driver zfcp_ccw_driver;
+extern struct zfcp_adapter *zfcp_ccw_adapter_by_cdev(struct ccw_device *);
+extern void zfcp_ccw_adapter_put(struct zfcp_adapter *);
 
 /* zfcp_cfdc.c */
 extern struct miscdevice zfcp_cfdc_misc;

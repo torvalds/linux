@@ -622,8 +622,6 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 		return -E2BIG;
 	}
 
-	mutex_lock(&zfcp_data.config_mutex);
-
 	/* first entry is the header */
 	for (x = 1; x < max_entries && !last; x++) {
 		if (x % (ZFCP_GPN_FT_ENTRIES + 1))
@@ -655,7 +653,6 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 	list_for_each_entry_safe(port, tmp, &adapter->port_list, list)
 		zfcp_fc_validate_port(port, &remove_lh);
 	write_unlock_irqrestore(&adapter->port_list_lock, flags);
-	mutex_unlock(&zfcp_data.config_mutex);
 
 	list_for_each_entry_safe(port, tmp, &remove_lh, list) {
 		zfcp_erp_port_shutdown(port, 0, "fcegpf2", NULL);

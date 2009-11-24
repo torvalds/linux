@@ -80,23 +80,21 @@ int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
 
 static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 {
-	struct ccw_device *ccwdev;
+	struct ccw_device *cdev;
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
 
-	ccwdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
-	if (!ccwdev)
+	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (!cdev)
 		return;
 
-	if (ccw_device_set_online(ccwdev))
-		goto out_ccwdev;
+	if (ccw_device_set_online(cdev))
+		goto out_ccw_device;
 
-	mutex_lock(&zfcp_data.config_mutex);
-	adapter = dev_get_drvdata(&ccwdev->dev);
+	adapter = zfcp_ccw_adapter_by_cdev(cdev);
 	if (!adapter)
-		goto out_unlock;
-	kref_get(&adapter->ref);
+		goto out_ccw_device;
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
 	if (!port)
@@ -105,21 +103,17 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	unit = zfcp_unit_enqueue(port, lun);
 	if (IS_ERR(unit))
 		goto out_unit;
-	mutex_unlock(&zfcp_data.config_mutex);
 
 	zfcp_erp_unit_reopen(unit, 0, "auidc_1", NULL);
 	zfcp_erp_wait(adapter);
 	flush_work(&unit->scsi_work);
 
-	mutex_lock(&zfcp_data.config_mutex);
 out_unit:
 	put_device(&port->sysfs_device);
 out_port:
-	kref_put(&adapter->ref, zfcp_adapter_release);
-out_unlock:
-	mutex_unlock(&zfcp_data.config_mutex);
-out_ccwdev:
-	put_device(&ccwdev->dev);
+	zfcp_ccw_adapter_put(adapter);
+out_ccw_device:
+	put_device(&cdev->dev);
 	return;
 }
 
@@ -183,8 +177,6 @@ static int __init zfcp_module_init(void)
 					sizeof(struct zfcp_gid_pn_data));
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
-
-	mutex_init(&zfcp_data.config_mutex);
 
 	zfcp_data.scsi_transport_template =
 		fc_attach_transport(&zfcp_transport_functions);
@@ -296,7 +288,6 @@ static void zfcp_unit_release(struct device *dev)
  * @port: pointer to port where unit is added
  * @fcp_lun: FCP LUN of unit to be enqueued
  * Returns: pointer to enqueued unit on success, ERR_PTR on error
- * Locks: config_mutex must be held to serialize changes to the unit list
  *
  * Sets up some unit internal structures and creates sysfs entry.
  */
@@ -371,7 +362,6 @@ err_out:
 
 static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 {
-	/* must only be called with zfcp_data.config_mutex taken */
 	adapter->pool.erp_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.erp_req)
@@ -419,7 +409,6 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 
 static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
 {
-	/* zfcp_data.config_mutex must be held */
 	if (adapter->pool.erp_req)
 		mempool_destroy(adapter->pool.erp_req);
 	if (adapter->pool.scsi_req)
@@ -501,24 +490,22 @@ static void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
  * zfcp_adapter_enqueue - enqueue a new adapter to the list
  * @ccw_device: pointer to the struct cc_device
  *
- * Returns:	0             if a new adapter was successfully enqueued
- *		-ENOMEM       if alloc failed
+ * Returns:	struct zfcp_adapter*
  * Enqueues an adapter at the end of the adapter list in the driver data.
  * All adapter internal structures are set up.
  * Proc-fs entries are also created.
- * locks: config_mutex must be held to serialize changes to the adapter list
  */
-int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
+struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 {
 	struct zfcp_adapter *adapter;
 
 	if (!get_device(&ccw_device->dev))
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	adapter = kzalloc(sizeof(struct zfcp_adapter), GFP_KERNEL);
 	if (!adapter) {
 		put_device(&ccw_device->dev);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	kref_init(&adapter->ref);
@@ -578,11 +565,30 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
 	if (!zfcp_adapter_scsi_register(adapter))
-		return 0;
+		return adapter;
 
 failed:
-	kref_put(&adapter->ref, zfcp_adapter_release);
-	return -ENOMEM;
+	zfcp_adapter_unregister(adapter);
+	return ERR_PTR(-ENOMEM);
+}
+
+void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
+{
+	struct ccw_device *cdev = adapter->ccw_device;
+
+	cancel_work_sync(&adapter->scan_work);
+	cancel_work_sync(&adapter->stat_work);
+	zfcp_destroy_adapter_work_queue(adapter);
+
+	zfcp_fc_wka_ports_force_offline(adapter->gs);
+	zfcp_adapter_scsi_unregister(adapter);
+	sysfs_remove_group(&cdev->dev.kobj, &zfcp_sysfs_adapter_attrs);
+
+	zfcp_erp_thread_kill(adapter);
+	zfcp_dbf_adapter_unregister(adapter->dbf);
+	zfcp_qdio_destroy(adapter->qdio);
+
+	zfcp_ccw_adapter_put(adapter); /* final put to release */
 }
 
 /**
@@ -594,27 +600,16 @@ void zfcp_adapter_release(struct kref *ref)
 {
 	struct zfcp_adapter *adapter = container_of(ref, struct zfcp_adapter,
 						    ref);
-	struct ccw_device *ccw_device = adapter->ccw_device;
-
-	cancel_work_sync(&adapter->stat_work);
-
-	zfcp_fc_wka_ports_force_offline(adapter->gs);
-	sysfs_remove_group(&ccw_device->dev.kobj, &zfcp_sysfs_adapter_attrs);
-
-	dev_set_drvdata(&ccw_device->dev, NULL);
+	struct ccw_device *cdev = adapter->ccw_device;
 
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	zfcp_fc_gs_destroy(adapter);
-	zfcp_erp_thread_kill(adapter);
-	zfcp_destroy_adapter_work_queue(adapter);
-	zfcp_dbf_adapter_unregister(adapter->dbf);
 	zfcp_free_low_mem_buffers(adapter);
-	zfcp_qdio_destroy(adapter->qdio);
 	kfree(adapter->req_list);
 	kfree(adapter->fc_stats);
 	kfree(adapter->stats_reset_data);
 	kfree(adapter);
-	put_device(&ccw_device->dev);
+	put_device(&cdev->dev);
 }
 
 /**
@@ -636,7 +631,7 @@ static void zfcp_port_release(struct device *dev)
 	struct zfcp_port *port = container_of(dev, struct zfcp_port,
 					      sysfs_device);
 
-	kref_put(&port->adapter->ref, zfcp_adapter_release);
+	zfcp_ccw_adapter_put(port->adapter);
 	kfree(port);
 }
 
@@ -647,7 +642,6 @@ static void zfcp_port_release(struct device *dev)
  * @status: initial status for the port
  * @d_id: destination id of the remote port to be enqueued
  * Returns: pointer to enqueued port on success, ERR_PTR on error
- * Locks: config_mutex must be held to serialize changes to the port list
  *
  * All port internal structures are set up and the sysfs entry is generated.
  * d_id is used to enqueue ports with a well known address like the Directory
@@ -718,7 +712,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 err_out_put:
 	device_unregister(&port->sysfs_device);
 err_out:
-	kref_put(&adapter->ref, zfcp_adapter_release);
+	zfcp_ccw_adapter_put(adapter);
 	return ERR_PTR(retval);
 }
 

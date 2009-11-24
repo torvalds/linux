@@ -26,23 +26,36 @@ static ssize_t zfcp_sysfs_##_feat##_##_name##_show(struct device *dev,	       \
 static ZFCP_DEV_ATTR(_feat, _name, S_IRUGO,				       \
 		     zfcp_sysfs_##_feat##_##_name##_show, NULL);
 
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, status, "0x%08x\n",
-		 atomic_read(&adapter->status));
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_wwnn, "0x%016llx\n",
-		 (unsigned long long) adapter->peer_wwnn);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_wwpn, "0x%016llx\n",
-		 (unsigned long long) adapter->peer_wwpn);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, peer_d_id, "0x%06x\n",
-		 adapter->peer_d_id);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, card_version, "0x%04x\n",
-		 adapter->hydra_version);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, lic_version, "0x%08x\n",
-		 adapter->fsf_lic_version);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, hardware_version, "0x%08x\n",
-		 adapter->hardware_version);
-ZFCP_DEFINE_ATTR(zfcp_adapter, adapter, in_recovery, "%d\n",
-		 (atomic_read(&adapter->status) &
-		  ZFCP_STATUS_COMMON_ERP_INUSE) != 0);
+#define ZFCP_DEFINE_A_ATTR(_name, _format, _value)			     \
+static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev,	     \
+						 struct device_attribute *at,\
+						 char *buf)		     \
+{									     \
+	struct ccw_device *cdev = to_ccwdev(dev);			     \
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);	     \
+	int i;								     \
+									     \
+	if (!adapter)							     \
+		return -ENODEV;						     \
+									     \
+	i = sprintf(buf, _format, _value);				     \
+	zfcp_ccw_adapter_put(adapter);					     \
+	return i;							     \
+}									     \
+static ZFCP_DEV_ATTR(adapter, _name, S_IRUGO,				     \
+		     zfcp_sysfs_adapter_##_name##_show, NULL);
+
+ZFCP_DEFINE_A_ATTR(status, "0x%08x\n", atomic_read(&adapter->status));
+ZFCP_DEFINE_A_ATTR(peer_wwnn, "0x%016llx\n",
+		   (unsigned long long) adapter->peer_wwnn);
+ZFCP_DEFINE_A_ATTR(peer_wwpn, "0x%016llx\n",
+		   (unsigned long long) adapter->peer_wwpn);
+ZFCP_DEFINE_A_ATTR(peer_d_id, "0x%06x\n", adapter->peer_d_id);
+ZFCP_DEFINE_A_ATTR(card_version, "0x%04x\n", adapter->hydra_version);
+ZFCP_DEFINE_A_ATTR(lic_version, "0x%08x\n", adapter->fsf_lic_version);
+ZFCP_DEFINE_A_ATTR(hardware_version, "0x%08x\n", adapter->hardware_version);
+ZFCP_DEFINE_A_ATTR(in_recovery, "%d\n", (atomic_read(&adapter->status) &
+					 ZFCP_STATUS_COMMON_ERP_INUSE) != 0);
 
 ZFCP_DEFINE_ATTR(zfcp_port, port, status, "0x%08x\n",
 		 atomic_read(&port->status));
@@ -88,7 +101,6 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 	unsigned long val;						       \
 	int retval = 0;							       \
 									       \
-	mutex_lock(&zfcp_data.config_mutex);				       \
 	if (atomic_read(&_feat->status) & ZFCP_STATUS_COMMON_REMOVE) {	       \
 		retval = -EBUSY;					       \
 		goto out;						       \
@@ -105,28 +117,89 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 				  _reopen_id, NULL);			       \
 	zfcp_erp_wait(_adapter);					       \
 out:									       \
-	mutex_unlock(&zfcp_data.config_mutex);				       \
 	return retval ? retval : (ssize_t) count;			       \
 }									       \
 static ZFCP_DEV_ATTR(_feat, failed, S_IWUSR | S_IRUGO,			       \
 		     zfcp_sysfs_##_feat##_failed_show,			       \
 		     zfcp_sysfs_##_feat##_failed_store);
 
-ZFCP_SYSFS_FAILED(zfcp_adapter, adapter, adapter, "syafai1", "syafai2");
 ZFCP_SYSFS_FAILED(zfcp_port, port, port->adapter, "sypfai1", "sypfai2");
 ZFCP_SYSFS_FAILED(zfcp_unit, unit, unit->port->adapter, "syufai1", "syufai2");
+
+static ssize_t zfcp_sysfs_adapter_failed_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
+	int i;
+
+	if (!adapter)
+		return -ENODEV;
+
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_ERP_FAILED)
+		i = sprintf(buf, "1\n");
+	else
+		i = sprintf(buf, "0\n");
+
+	zfcp_ccw_adapter_put(adapter);
+	return i;
+}
+
+static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
+	unsigned long val;
+	int retval = 0;
+
+	if (!adapter)
+		return -ENODEV;
+
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
+		retval = -EBUSY;
+		goto out;
+	}
+
+	if (strict_strtoul(buf, 0, &val) || val != 0) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	zfcp_erp_modify_adapter_status(adapter, "syafai1", NULL,
+				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
+				"syafai2", NULL);
+	zfcp_erp_wait(adapter);
+out:
+	zfcp_ccw_adapter_put(adapter);
+	return retval ? retval : (ssize_t) count;
+}
+static ZFCP_DEV_ATTR(adapter, failed, S_IWUSR | S_IRUGO,
+		     zfcp_sysfs_adapter_failed_show,
+		     zfcp_sysfs_adapter_failed_store);
 
 static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t count)
 {
-	struct zfcp_adapter *adapter = dev_get_drvdata(dev);
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
 	int ret;
 
-	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE)
-		return -EBUSY;
+	if (!adapter)
+		return -ENODEV;
+
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	ret = zfcp_fc_scan_ports(adapter);
+out:
+	zfcp_ccw_adapter_put(adapter);
 	return ret ? ret : (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_rescan, S_IWUSR, NULL,
@@ -136,12 +209,15 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t count)
 {
-	struct zfcp_adapter *adapter = dev_get_drvdata(dev);
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
 	struct zfcp_port *port;
 	u64 wwpn;
 	int retval = 0;
 
-	mutex_lock(&zfcp_data.config_mutex);
+	if (!adapter)
+		return -ENODEV;
+
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -169,7 +245,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	zfcp_erp_port_shutdown(port, 0, "syprs_1", NULL);
 	zfcp_device_unregister(&port->sysfs_device, &zfcp_sysfs_port_attrs);
  out:
-	mutex_unlock(&zfcp_data.config_mutex);
+	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_remove, S_IWUSR, NULL,
@@ -203,7 +279,6 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	u64 fcp_lun;
 	int retval = -EINVAL;
 
-	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -222,7 +297,6 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	zfcp_erp_wait(unit->port->adapter);
 	flush_work(&unit->scsi_work);
 out:
-	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
@@ -236,7 +310,6 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	u64 fcp_lun;
 	int retval = 0;
 
-	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
 		retval = -EBUSY;
 		goto out;
@@ -267,7 +340,6 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
 	zfcp_device_unregister(&unit->sysfs_device, &zfcp_sysfs_unit_attrs);
 out:
-	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
