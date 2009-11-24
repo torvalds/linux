@@ -1031,19 +1031,14 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	if (!lvds_is_present_in_vbt(dev)) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+	/*
+	 * Assume LVDS is present if there's an ACPI lid device or if the
+	 * device is present in the VBT.
+	 */
+	if (!lvds_is_present_in_vbt(dev) && !intel_lid_present()) {
+		DRM_DEBUG_KMS("LVDS is not present in VBT and no lid detected\n");
 		return;
 	}
-	/* Assume that any device without an ACPI LID device also doesn't
-	 * have an integrated LVDS.  We would be better off parsing the BIOS
-	 * to get a reliable indicator, but that code isn't written yet.
-	 *
-	 * In the case of all-in-one desktops using LVDS that we've seen,
-	 * they're using SDVO LVDS.
-	 */
-	if (!intel_lid_present())
-		return;
 
 	if (IS_IGDNG(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
