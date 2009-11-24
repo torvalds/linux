@@ -176,6 +176,26 @@ int iwm_eeprom_fat_channels(struct iwm_priv *iwm)
 	return 0;
 }
 
+u32 iwm_eeprom_wireless_mode(struct iwm_priv *iwm)
+{
+	u16 sku_cap;
+	u32 wireless_mode = 0;
+
+	sku_cap = *((u16 *)iwm_eeprom_access(iwm, IWM_EEPROM_SKU_CAP));
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_BAND_24GHZ)
+		wireless_mode |= WIRELESS_MODE_11G;
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_BAND_52GHZ)
+		wireless_mode |= WIRELESS_MODE_11A;
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_11N_ENABLE)
+		wireless_mode |= WIRELESS_MODE_11N;
+
+	return wireless_mode;
+}
+
+
 int iwm_eeprom_init(struct iwm_priv *iwm)
 {
 	int i, ret = 0;
