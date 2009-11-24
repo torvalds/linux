@@ -40,52 +40,7 @@
 #include <mach/i2c.h>
 #include <mach/nand.h>
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
-
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x20008000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x42000000
-
 #define NAND_BLOCK_SIZE		SZ_128K
-
-/* CPLD Register 0 bits to control ATA */
-#define DM646X_EVM_ATA_RST		BIT(0)
-#define DM646X_EVM_ATA_PWD		BIT(1)
-
-#define DM646X_EVM_PHY_MASK		(0x2)
-#define DM646X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
-
-#define VIDCLKCTL_OFFSET	(DAVINCI_SYSTEM_MODULE_BASE + 0x38)
-#define VSCLKDIS_OFFSET		(DAVINCI_SYSTEM_MODULE_BASE + 0x6c)
-#define VCH2CLK_MASK		(BIT_MASK(10) | BIT_MASK(9) | BIT_MASK(8))
-#define VCH2CLK_SYSCLK8		(BIT(9))
-#define VCH2CLK_AUXCLK		(BIT(9) | BIT(8))
-#define VCH3CLK_MASK		(BIT_MASK(14) | BIT_MASK(13) | BIT_MASK(12))
-#define VCH3CLK_SYSCLK8		(BIT(13))
-#define VCH3CLK_AUXCLK		(BIT(14) | BIT(13))
-
-#define VIDCH2CLK		(BIT(10))
-#define VIDCH3CLK		(BIT(11))
-#define VIDCH1CLK		(BIT(4))
-#define TVP7002_INPUT		(BIT(4))
-#define TVP5147_INPUT		(~BIT(4))
-#define VPIF_INPUT_ONE_CHANNEL	(BIT(5))
-#define VPIF_INPUT_TWO_CHANNEL	(~BIT(5))
-#define TVP5147_CH0		"tvp514x-0"
-#define TVP5147_CH1		"tvp514x-1"
-
-static void __iomem *vpif_vidclkctl_reg;
-static void __iomem *vpif_vsclkdis_reg;
-/* spin lock for updating above registers */
-static spinlock_t vpif_reg_lock;
-
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
 
 /* Note: We are setting first partition as 'bootloader' constituting UBL, U-Boot
  * and U-Boot environment this avoids dependency on any particular combination
@@ -120,6 +75,9 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.options		= 0,
 };
 
+#define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x20008000
+#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x42000000
+
 static struct resource davinci_nand_resources[] = {
 	{
 		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
@@ -143,6 +101,17 @@ static struct platform_device davinci_nand_device = {
 		.platform_data	= &davinci_nand_data,
 	},
 };
+
+#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
+    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
+#define HAS_ATA 1
+#else
+#define HAS_ATA 0
+#endif
+
+/* CPLD Register 0 bits to control ATA */
+#define DM646X_EVM_ATA_RST		BIT(0)
+#define DM646X_EVM_ATA_PWD		BIT(1)
 
 /* CPLD Register 0 Client: used for I/O Control */
 static int cpld_reg0_probe(struct i2c_client *client,
@@ -424,6 +393,30 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_delay      = 0 /* usec */,
 };
 
+#define VIDCLKCTL_OFFSET	(DAVINCI_SYSTEM_MODULE_BASE + 0x38)
+#define VSCLKDIS_OFFSET		(DAVINCI_SYSTEM_MODULE_BASE + 0x6c)
+#define VCH2CLK_MASK		(BIT_MASK(10) | BIT_MASK(9) | BIT_MASK(8))
+#define VCH2CLK_SYSCLK8		(BIT(9))
+#define VCH2CLK_AUXCLK		(BIT(9) | BIT(8))
+#define VCH3CLK_MASK		(BIT_MASK(14) | BIT_MASK(13) | BIT_MASK(12))
+#define VCH3CLK_SYSCLK8		(BIT(13))
+#define VCH3CLK_AUXCLK		(BIT(14) | BIT(13))
+
+#define VIDCH2CLK		(BIT(10))
+#define VIDCH3CLK		(BIT(11))
+#define VIDCH1CLK		(BIT(4))
+#define TVP7002_INPUT		(BIT(4))
+#define TVP5147_INPUT		(~BIT(4))
+#define VPIF_INPUT_ONE_CHANNEL	(BIT(5))
+#define VPIF_INPUT_TWO_CHANNEL	(~BIT(5))
+#define TVP5147_CH0		"tvp514x-0"
+#define TVP5147_CH1		"tvp514x-1"
+
+static void __iomem *vpif_vidclkctl_reg;
+static void __iomem *vpif_vsclkdis_reg;
+/* spin lock for updating above registers */
+static spinlock_t vpif_reg_lock;
+
 static int set_vpif_clock(int mux_mode, int hd)
 {
 	unsigned long flags;
@@ -689,6 +682,13 @@ static void __init davinci_map_io(void)
 {
 	dm646x_init();
 }
+
+static struct davinci_uart_config uart_config __initdata = {
+	.enabled_uarts = (1 << 0),
+};
+
+#define DM646X_EVM_PHY_MASK		(0x2)
+#define DM646X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
 static __init void evm_init(void)
 {
