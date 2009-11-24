@@ -53,20 +53,21 @@ void sunserial_unregister_minors(struct uart_driver *drv, int count)
 EXPORT_SYMBOL(sunserial_unregister_minors);
 
 int sunserial_console_match(struct console *con, struct device_node *dp,
-			    struct uart_driver *drv, int line)
+			    struct uart_driver *drv, int line, bool ignore_line)
 {
-	int off;
-
 	if (!con || of_console_device != dp)
 		return 0;
 
-	off = 0;
-	if (of_console_options &&
-	    *of_console_options == 'b')
-		off = 1;
+	if (!ignore_line) {
+		int off = 0;
 
-	if ((line & 1) != off)
-		return 0;
+		if (of_console_options &&
+		    *of_console_options == 'b')
+			off = 1;
+
+		if ((line & 1) != off)
+			return 0;
+	}
 
 	con->index = line;
 	drv->cons = con;

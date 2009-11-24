@@ -1468,7 +1468,8 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	up->port.ops = &sunsu_pops;
 
 	sunserial_console_match(SUNSU_CONSOLE(), dp,
-				&sunsu_reg, up->port.line);
+				&sunsu_reg, up->port.line,
+				false);
 	err = uart_add_one_port(&sunsu_reg, &up->port);
 	if (err)
 		goto out_unmap;
