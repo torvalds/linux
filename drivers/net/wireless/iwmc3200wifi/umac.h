@@ -298,6 +298,7 @@ struct iwm_udma_out_wifi_hdr {
 #define UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID                0x1B
 #define UMAC_WIFI_IF_CMD_SET_HOST_EXTENDED_IE            0x1C
 #define UMAC_WIFI_IF_CMD_GET_SUPPORTED_CHANNELS          0x1E
+#define UMAC_WIFI_IF_CMD_PMKID_UPDATE                    0x1F
 #define UMAC_WIFI_IF_CMD_TX_PWR_TRIGGER                  0x20
 
 /* UMAC WiFi interface ports */
@@ -771,6 +772,7 @@ struct iwm_umac_notif_stop_resume_tx {
 	__le16 stop_resume_tid_msk; /* tid bitmask */
 } __attribute__ ((packed));
 
+#define UMAC_MAX_NUM_PMKIDS 4
 
 /* WiFi interface wrapper header */
 struct iwm_umac_wifi_if {

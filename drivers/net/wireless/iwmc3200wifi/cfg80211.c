@@ -725,6 +725,33 @@ static int iwm_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				       CFG_POWER_INDEX, iwm->conf.power_index);
 }
 
+int iwm_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
+			   struct cfg80211_pmksa *pmksa)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+
+	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_ADD);
+}
+
+int iwm_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
+			   struct cfg80211_pmksa *pmksa)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+
+	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_DEL);
+}
+
+int iwm_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+	struct cfg80211_pmksa pmksa;
+
+	memset(&pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	return iwm_send_pmkid_update(iwm, &pmksa, IWM_CMD_PMKID_FLUSH);
+}
+
+
 static struct cfg80211_ops iwm_cfg80211_ops = {
 	.change_virtual_intf = iwm_cfg80211_change_iface,
 	.add_key = iwm_cfg80211_add_key,
@@ -741,6 +768,9 @@ static struct cfg80211_ops iwm_cfg80211_ops = {
 	.set_tx_power = iwm_cfg80211_set_txpower,
 	.get_tx_power = iwm_cfg80211_get_txpower,
 	.set_power_mgmt = iwm_cfg80211_set_power_mgmt,
+	.set_pmksa = iwm_cfg80211_set_pmksa,
+	.del_pmksa = iwm_cfg80211_del_pmksa,
+	.flush_pmksa = iwm_cfg80211_flush_pmksa,
 };
 
 static const u32 cipher_suites[] = {
@@ -786,6 +816,7 @@ struct wireless_dev *iwm_wdev_alloc(int sizeof_bus, struct device *dev)
 
 	set_wiphy_dev(wdev->wiphy, dev);
 	wdev->wiphy->max_scan_ssids = UMAC_WIFI_IF_PROBE_OPTION_MAX;
+	wdev->wiphy->max_num_pmkids = UMAC_MAX_NUM_PMKIDS;
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				       BIT(NL80211_IFTYPE_ADHOC);
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &iwm_band_2ghz;

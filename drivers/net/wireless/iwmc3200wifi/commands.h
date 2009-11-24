@@ -458,6 +458,17 @@ struct iwm_umac_cmd_stop_resume_tx {
 	u16 reserved;
 } __attribute__ ((packed));
 
+#define IWM_CMD_PMKID_ADD   1
+#define IWM_CMD_PMKID_DEL   2
+#define IWM_CMD_PMKID_FLUSH 3
+
+struct iwm_umac_pmkid_update {
+	__le32 command;
+	u8 bssid[ETH_ALEN];
+	__le16 reserved;
+	u8 pmkid[WLAN_PMKID_LEN];
+} __attribute__ ((packed));
+
 /* LMAC commands */
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac);
 int iwm_send_prio_table(struct iwm_priv *iwm);
@@ -488,6 +499,8 @@ int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
 int iwm_scan_one_ssid(struct iwm_priv *iwm, u8 *ssid, int ssid_len);
 int iwm_send_umac_stop_resume_tx(struct iwm_priv *iwm,
 				 struct iwm_umac_notif_stop_resume_tx *ntf);
+int iwm_send_pmkid_update(struct iwm_priv *iwm,
+			  struct cfg80211_pmksa *pmksa, u32 command);
 
 /* UDMA commands */
 int iwm_target_reset(struct iwm_priv *iwm);

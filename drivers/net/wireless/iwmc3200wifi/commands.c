@@ -960,3 +960,25 @@ int iwm_send_umac_stop_resume_tx(struct iwm_priv *iwm,
 				 sizeof(struct iwm_umac_cmd_stop_resume_tx));
 
 }
+
+int iwm_send_pmkid_update(struct iwm_priv *iwm,
+			  struct cfg80211_pmksa *pmksa, u32 command)
+{
+	struct iwm_umac_pmkid_update update;
+	int ret;
+
+	memset(&update, 0, sizeof(struct iwm_umac_pmkid_update));
+
+	update.command = cpu_to_le32(command);
+	memcpy(&update.bssid, pmksa->bssid, ETH_ALEN);
+	memcpy(&update.pmkid, pmksa->pmkid, WLAN_PMKID_LEN);
+
+	ret = iwm_send_wifi_if_cmd(iwm, &update,
+				   sizeof(struct iwm_umac_pmkid_update), 0);
+	if (ret) {
+		IWM_ERR(iwm, "PMKID update command failed\n");
+		return ret;
+	}
+
+	return 0;
+}
