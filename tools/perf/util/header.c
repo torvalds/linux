@@ -63,7 +63,7 @@ int perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
  */
 struct perf_header *perf_header__new(void)
 {
-	struct perf_header *self = calloc(sizeof(*self), 1);
+	struct perf_header *self = zalloc(sizeof(*self));
 
 	if (self != NULL) {
 		self->size = 1;

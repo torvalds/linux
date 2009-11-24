@@ -309,9 +309,9 @@ static int synthesize_probe_event(struct probe_point *pp)
 {
 	char *buf;
 	int i, len, ret;
-	pp->probes[0] = buf = (char *)calloc(MAX_CMDLEN, sizeof(char));
+	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
 	if (!buf)
-		die("Failed to allocate memory by calloc.");
+		die("Failed to allocate memory by zalloc.");
 	ret = snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
 	if (ret <= 0 || ret >= MAX_CMDLEN)
 		goto error;

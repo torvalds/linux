@@ -179,7 +179,7 @@ static void add_man_viewer(const char *name)
 
 	while (*p)
 		p = &((*p)->next);
-	*p = calloc(1, (sizeof(**p) + len + 1));
+	*p = zalloc(sizeof(**p) + len + 1);
 	strncpy((*p)->name, name, len);
 }
 
@@ -194,7 +194,7 @@ static void do_add_man_viewer_info(const char *name,
 				   size_t len,
 				   const char *value)
 {
-	struct man_viewer_info_list *new = calloc(1, sizeof(*new) + len + 1);
+	struct man_viewer_info_list *new = zalloc(sizeof(*new) + len + 1);
 
 	strncpy(new->name, name, len);
 	new->info = strdup(value);

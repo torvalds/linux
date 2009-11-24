@@ -11,7 +11,7 @@ static struct thread *last_match;
 
 static struct thread *thread__new(pid_t pid)
 {
-	struct thread *self = calloc(1, sizeof(*self));
+	struct thread *self = zalloc(sizeof(*self));
 
 	if (self != NULL) {
 		self->pid = pid;

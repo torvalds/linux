@@ -225,7 +225,7 @@ static void calibrate_sleep_measurement_overhead(void)
 static struct sched_atom *
 get_new_event(struct task_desc *task, u64 timestamp)
 {
-	struct sched_atom *event = calloc(1, sizeof(*event));
+	struct sched_atom *event = zalloc(sizeof(*event));
 	unsigned long idx = task->nr_events;
 	size_t size;
 
@@ -293,7 +293,7 @@ add_sched_event_wakeup(struct task_desc *task, u64 timestamp,
 		return;
 	}
 
-	wakee_event->wait_sem = calloc(1, sizeof(*wakee_event->wait_sem));
+	wakee_event->wait_sem = zalloc(sizeof(*wakee_event->wait_sem));
 	sem_init(wakee_event->wait_sem, 0, 0);
 	wakee_event->specific_wait = 1;
 	event->wait_sem = wakee_event->wait_sem;
@@ -323,7 +323,7 @@ static struct task_desc *register_pid(unsigned long pid, const char *comm)
 	if (task)
 		return task;
 
-	task = calloc(1, sizeof(*task));
+	task = zalloc(sizeof(*task));
 	task->pid = pid;
 	task->nr = nr_tasks;
 	strcpy(task->comm, comm);
@@ -962,9 +962,7 @@ __thread_latency_insert(struct rb_root *root, struct work_atoms *data,
 
 static void thread_atoms_insert(struct thread *thread)
 {
-	struct work_atoms *atoms;
-
-	atoms = calloc(sizeof(*atoms), 1);
+	struct work_atoms *atoms = zalloc(sizeof(*atoms));
 	if (!atoms)
 		die("No memory");
 
@@ -996,9 +994,7 @@ add_sched_out_event(struct work_atoms *atoms,
 		    char run_state,
 		    u64 timestamp)
 {
-	struct work_atom *atom;
-
-	atom = calloc(sizeof(*atom), 1);
+	struct work_atom *atom = zalloc(sizeof(*atom));
 	if (!atom)
 		die("Non memory");
 

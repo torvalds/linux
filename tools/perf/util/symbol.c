@@ -94,15 +94,14 @@ static void kernel_maps__fixup_end(void)
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = calloc(1, (symbol__priv_size +
-					 sizeof(*self) + namelen));
-	if (!self)
+	struct symbol *self = zalloc(symbol__priv_size +
+				     sizeof(*self) + namelen);
+	if (self == NULL)
 		return NULL;
 
-	if (symbol__priv_size) {
-		memset(self, 0, symbol__priv_size);
+	if (symbol__priv_size)
 		self = ((void *)self) + symbol__priv_size;
-	}
+
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
 

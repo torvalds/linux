@@ -127,11 +127,11 @@ int bench_mem_memcpy(int argc, const char **argv,
 		return 1;
 	}
 
-	dst = calloc(length, sizeof(char));
+	dst = zalloc(length);
 	if (!dst)
 		die("memory allocation failed - maybe length is too large?\n");
 
-	src = calloc(length, sizeof(char));
+	src = zalloc(length);
 	if (!src)
 		die("memory allocation failed - maybe length is too large?\n");
 

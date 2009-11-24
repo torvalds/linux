@@ -181,7 +181,7 @@ static void parse_source(struct sym_entry *syme)
 		return;
 
 	if (syme->src == NULL) {
-		syme->src = calloc(1, sizeof(*source));
+		syme->src = zalloc(sizeof(*source));
 		if (syme->src == NULL)
 			return;
 		pthread_mutex_init(&syme->src->lock, NULL);
