@@ -404,7 +404,7 @@ EXPORT_SYMBOL(dma_free_coherent);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-void dma_cache_maint(const void *start, size_t size, int direction)
+static void dma_cache_maint(const void *start, size_t size, int direction)
 {
 	void (*inner_op)(const void *, const void *);
 	void (*outer_op)(unsigned long, unsigned long);
@@ -431,7 +431,20 @@ void dma_cache_maint(const void *start, size_t size, int direction)
 	inner_op(start, start + size);
 	outer_op(__pa(start), __pa(start) + size);
 }
-EXPORT_SYMBOL(dma_cache_maint);
+
+void ___dma_single_cpu_to_dev(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
+{
+	dma_cache_maint(kaddr, size, dir);
+}
+EXPORT_SYMBOL(___dma_single_cpu_to_dev);
+
+void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
+{
+	/* nothing to do */
+}
+EXPORT_SYMBOL(___dma_single_dev_to_cpu);
 
 static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
 				       size_t size, int direction)
@@ -474,7 +487,7 @@ static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
 	outer_op(paddr, paddr + size);
 }
 
-void dma_cache_maint_page(struct page *page, unsigned long offset,
+static void dma_cache_maint_page(struct page *page, unsigned long offset,
 			  size_t size, int dir)
 {
 	/*
@@ -499,7 +512,20 @@ void dma_cache_maint_page(struct page *page, unsigned long offset,
 		left -= len;
 	} while (left);
 }
-EXPORT_SYMBOL(dma_cache_maint_page);
+
+void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	dma_cache_maint_page(page, off, size, dir);
+}
+EXPORT_SYMBOL(___dma_page_cpu_to_dev);
+
+void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	/* nothing to do */
+}
+EXPORT_SYMBOL(___dma_page_dev_to_cpu);
 
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA

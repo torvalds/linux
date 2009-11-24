@@ -57,46 +57,57 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 #endif
 
 /*
- * Private support functions: these are not part of the API and are
- * liable to change.  Drivers must not use these.
- */
-extern void dma_cache_maint(const void *kaddr, size_t size, int rw);
-extern void dma_cache_maint_page(struct page *page, unsigned long offset,
-				 size_t size, int rw);
-
-/*
  * The DMA API is built upon the notion of "buffer ownership".  A buffer
  * is either exclusively owned by the CPU (and therefore may be accessed
  * by it) or exclusively owned by the DMA device.  These helper functions
  * represent the transitions between these two ownership states.
  *
- * As above, these are private support functions and not part of the API.
- * Drivers must not use these.
+ * Note, however, that on later ARMs, this notion does not work due to
+ * speculative prefetches.  We model our approach on the assumption that
+ * the CPU does do speculative prefetches, which means we clean caches
+ * before transfers and delay cache invalidation until transfer completion.
+ *
+ * Private support functions: these are not part of the API and are
+ * liable to change.  Drivers must not use these.
  */
 static inline void __dma_single_cpu_to_dev(const void *kaddr, size_t size,
 	enum dma_data_direction dir)
 {
+	extern void ___dma_single_cpu_to_dev(const void *, size_t,
+		enum dma_data_direction);
+
 	if (!arch_is_coherent())
-		dma_cache_maint(kaddr, size, dir);
+		___dma_single_cpu_to_dev(kaddr, size, dir);
 }
 
 static inline void __dma_single_dev_to_cpu(const void *kaddr, size_t size,
 	enum dma_data_direction dir)
 {
-	/* nothing to do */
+	extern void ___dma_single_dev_to_cpu(const void *, size_t,
+		enum dma_data_direction);
+
+	if (!arch_is_coherent())
+		___dma_single_dev_to_cpu(kaddr, size, dir);
 }
 
 static inline void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
+	extern void ___dma_page_cpu_to_dev(struct page *, unsigned long,
+		size_t, enum dma_data_direction);
+
 	if (!arch_is_coherent())
-		dma_cache_maint_page(page, off, size, dir);
+		___dma_page_cpu_to_dev(page, off, size, dir);
 }
 
 static inline void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 	size_t size, enum dma_data_direction dir)
 {
-	/* nothing to do */
+	extern void ___dma_page_dev_to_cpu(struct page *, unsigned long,
+		size_t, enum dma_data_direction);
+
+	if (!arch_is_coherent())
+		___dma_page_dev_to_cpu(page, off, size, dir);
 }
 
 /*
