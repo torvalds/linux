@@ -43,7 +43,6 @@ static int xen_suspend(void *data)
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
 			err);
-		dpm_resume_noirq(PMSG_RESUME);
 		return err;
 	}
 
@@ -69,7 +68,6 @@ static int xen_suspend(void *data)
 	}
 
 	sysdev_resume();
-	dpm_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
@@ -108,6 +106,9 @@ static void do_suspend(void)
 	}
 
 	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
+
+	dpm_resume_noirq(PMSG_RESUME);
+
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
 		goto out;
@@ -118,8 +119,6 @@ static void do_suspend(void)
 		xs_resume();
 	} else
 		xs_suspend_cancel();
-
-	dpm_resume_noirq(PMSG_RESUME);
 
 resume_devices:
 	dpm_resume_end(PMSG_RESUME);
