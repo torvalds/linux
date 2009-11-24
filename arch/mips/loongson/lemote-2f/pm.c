@@ -22,6 +22,7 @@
 
 #include <loongson.h>
 
+#include <cs5536/cs5536_mfgpt.h>
 #include "ec_kb3310b.h"
 
 #define I8042_KBD_IRQ		1
@@ -135,4 +136,14 @@ int wakeup_loongson(void)
 	}
 
 	return 0;
+}
+
+void __weak mach_suspend(void)
+{
+	disable_mfgpt0_counter();
+}
+
+void __weak mach_resume(void)
+{
+	enable_mfgpt0_counter();
 }
