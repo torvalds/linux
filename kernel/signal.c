@@ -27,7 +27,8 @@
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
-#include <trace/events/sched.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/signal.h>
 
 #include <asm/param.h>
 #include <asm/uaccess.h>
@@ -834,7 +835,7 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	struct sigqueue *q;
 	int override_rlimit;
 
-	trace_sched_signal_send(sig, t);
+	trace_signal_generate(sig, info, t);
 
 	assert_spin_locked(&t->sighand->siglock);
 
