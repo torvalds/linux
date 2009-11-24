@@ -660,6 +660,9 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	int replaced_count = 0;
 	int dext_alen;
 
+	/* Protect extent trees against block allocations via delalloc */
+	double_down_write_data_sem(orig_inode, donor_inode);
+
 	/* Get the original extent for the block "orig_off" */
 	*err = get_ext_path(orig_inode, orig_off, &orig_path);
 	if (*err)
@@ -755,6 +758,11 @@ out:
 		kfree(donor_path);
 	}
 
+	ext4_ext_invalidate_cache(orig_inode);
+	ext4_ext_invalidate_cache(donor_inode);
+
+	double_up_write_data_sem(orig_inode, donor_inode);
+
 	return replaced_count;
 }
 
@@ -820,19 +828,9 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	 * Just swap data blocks between orig and donor.
 	 */
 	if (uninit) {
-		/*
-		 * Protect extent trees against block allocations
-		 * via delalloc
-		 */
-		double_down_write_data_sem(orig_inode, donor_inode);
 		replaced_count = mext_replace_branches(handle, orig_inode,
 						donor_inode, orig_blk_offset,
 						block_len_in_page, err);
-
-		/* Clear the inode cache not to refer to the old data */
-		ext4_ext_invalidate_cache(orig_inode);
-		ext4_ext_invalidate_cache(donor_inode);
-		double_up_write_data_sem(orig_inode, donor_inode);
 		goto out2;
 	}
 
@@ -880,8 +878,6 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	/* Release old bh and drop refs */
 	try_to_release_page(page, 0);
 
-	/* Protect extent trees against block allocations via delalloc */
-	double_down_write_data_sem(orig_inode, donor_inode);
 	replaced_count = mext_replace_branches(handle, orig_inode, donor_inode,
 					orig_blk_offset, block_len_in_page,
 					&err2);
@@ -890,17 +886,9 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 			block_len_in_page = replaced_count;
 			replaced_size =
 				block_len_in_page << orig_inode->i_blkbits;
-		} else {
-			double_up_write_data_sem(orig_inode, donor_inode);
+		} else
 			goto out;
-		}
 	}
-
-	/* Clear the inode cache not to refer to the old data */
-	ext4_ext_invalidate_cache(orig_inode);
-	ext4_ext_invalidate_cache(donor_inode);
-
-	double_up_write_data_sem(orig_inode, donor_inode);
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << orig_inode->i_blkbits, 0);
