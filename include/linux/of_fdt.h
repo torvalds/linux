@@ -72,6 +72,7 @@ extern void *of_get_flat_dt_prop(unsigned long node, const char *name,
 extern int of_flat_dt_is_compatible(unsigned long node, const char *name);
 extern unsigned long of_get_flat_dt_root(void);
 extern void early_init_dt_check_for_initrd(unsigned long node);
+extern u64 dt_mem_next_cell(int s, u32 **cellp);
 
 /* Early flat tree scan hooks */
 extern int early_init_dt_scan_root(unsigned long node, const char *uname,

@@ -432,14 +432,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	return 1;
 }
 
-static u64 __init dt_mem_next_cell(int s, cell_t **cellp)
-{
-	cell_t *p = *cellp;
-
-	*cellp = p + s;
-	return of_read_number(p, s);
-}
-
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Interpret the ibm,dynamic-memory property in the
