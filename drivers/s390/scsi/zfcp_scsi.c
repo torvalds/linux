@@ -264,9 +264,6 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
 		zfcp_dbf_scsi_devreset("fail", tm_flags, unit, scpnt);
 		retval = FAILED;
-	} else if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCNOTSUPP) {
-		zfcp_dbf_scsi_devreset("nsup", tm_flags, unit, scpnt);
-		retval = FAILED;
 	} else
 		zfcp_dbf_scsi_devreset("okay", tm_flags, unit, scpnt);
 
