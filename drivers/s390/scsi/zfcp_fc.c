@@ -184,7 +184,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		range_mask = rscn_range_mask[fcp_rscn_element->addr_format];
 		_zfcp_fc_incoming_rscn(fsf_req, range_mask, fcp_rscn_element);
 	}
-	schedule_work(&fsf_req->adapter->scan_work);
+	queue_work(fsf_req->adapter->work_queue, &fsf_req->adapter->scan_work);
 }
 
 static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)
@@ -664,10 +664,12 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 
 /**
  * zfcp_fc_scan_ports - scan remote ports and attach new ports
- * @adapter: pointer to struct zfcp_adapter
+ * @work: reference to scheduled work
  */
-int zfcp_fc_scan_ports(struct zfcp_adapter *adapter)
+void zfcp_fc_scan_ports(struct work_struct *work)
 {
+	struct zfcp_adapter *adapter = container_of(work, struct zfcp_adapter,
+						    scan_work);
 	int ret, i;
 	struct zfcp_gpn_ft *gpn_ft;
 	int chain, max_entries, buf_num, max_bytes;
@@ -679,17 +681,14 @@ int zfcp_fc_scan_ports(struct zfcp_adapter *adapter)
 
 	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT &&
 	    fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPIV)
-		return 0;
+		return;
 
-	ret = zfcp_fc_wka_port_get(&adapter->gs->ds);
-	if (ret)
-		return ret;
+	if (zfcp_fc_wka_port_get(&adapter->gs->ds))
+		return;
 
 	gpn_ft = zfcp_alloc_sg_env(buf_num);
-	if (!gpn_ft) {
-		ret = -ENOMEM;
+	if (!gpn_ft)
 		goto out;
-	}
 
 	for (i = 0; i < 3; i++) {
 		ret = zfcp_fc_send_gpn_ft(gpn_ft, adapter, max_bytes);
@@ -704,14 +703,8 @@ int zfcp_fc_scan_ports(struct zfcp_adapter *adapter)
 	zfcp_free_sg_env(gpn_ft, buf_num);
 out:
 	zfcp_fc_wka_port_put(&adapter->gs->ds);
-	return ret;
 }
 
-
-void _zfcp_fc_scan_ports_later(struct work_struct *work)
-{
-	zfcp_fc_scan_ports(container_of(work, struct zfcp_adapter, scan_work));
-}
 
 struct zfcp_els_fc_job {
 	struct zfcp_send_els els;

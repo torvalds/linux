@@ -184,15 +184,16 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
-	int ret;
 
 	if (!adapter)
 		return -ENODEV;
 
-	ret = zfcp_fc_scan_ports(adapter);
+	/* sync the user-space- with the kernel-invocation of scan_work */
+	queue_work(adapter->work_queue, &adapter->scan_work);
+	flush_work(&adapter->scan_work);
 	zfcp_ccw_adapter_put(adapter);
 
-	return ret ? ret : (ssize_t) count;
+	return (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_rescan, S_IWUSR, NULL,
 		     zfcp_sysfs_port_rescan_store);

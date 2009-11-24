@@ -1197,7 +1197,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result == ZFCP_ERP_SUCCEEDED) {
 			register_service_level(&adapter->service_level);
-			schedule_work(&adapter->scan_work);
+			queue_work(adapter->work_queue, &adapter->scan_work);
 		} else
 			unregister_service_level(&adapter->service_level);
 		kref_put(&adapter->ref, zfcp_adapter_release);
