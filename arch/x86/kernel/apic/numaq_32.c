@@ -264,11 +264,6 @@ static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 static __init void early_check_numaq(void)
 {
 	/*
-	 * Find possible boot-time SMP configuration:
-	 */
-	early_find_smp_config();
-
-	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)

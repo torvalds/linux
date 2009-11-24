@@ -26,7 +26,7 @@ struct x86_init_mpparse {
 	void (*smp_read_mpc_oem)(struct mpc_table *mpc);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
-	void (*find_smp_config)(unsigned int reserve);
+	void (*find_smp_config)(void);
 	void (*get_smp_config)(unsigned int early);
 };
 

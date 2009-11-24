@@ -71,12 +71,7 @@ static inline void early_get_smp_config(void)
 
 static inline void find_smp_config(void)
 {
-	x86_init.mpparse.find_smp_config(1);
-}
-
-static inline void early_find_smp_config(void)
-{
-	x86_init.mpparse.find_smp_config(0);
+	x86_init.mpparse.find_smp_config();
 }
 
 #ifdef CONFIG_X86_MPPARSE
@@ -89,7 +84,7 @@ extern void default_mpc_oem_bus_info(struct mpc_bus *m, char *str);
 # else
 #  define default_mpc_oem_bus_info NULL
 # endif
-extern void default_find_smp_config(unsigned int reserve);
+extern void default_find_smp_config(void);
 extern void default_get_smp_config(unsigned int early);
 #else
 static inline void early_reserve_e820_mpc_new(void) { }
@@ -97,7 +92,7 @@ static inline void early_reserve_e820_mpc_new(void) { }
 #define default_mpc_apic_id NULL
 #define default_smp_read_mpc_oem NULL
 #define default_mpc_oem_bus_info NULL
-#define default_find_smp_config x86_init_uint_noop
+#define default_find_smp_config x86_init_noop
 #define default_get_smp_config x86_init_uint_noop
 #endif
 

@@ -197,7 +197,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	apic_version[m->apicid] = ver;
 }
 
-static void __init visws_find_smp_config(unsigned int reserve)
+static void __init visws_find_smp_config(void)
 {
 	struct mpc_cpu *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));

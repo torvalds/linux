@@ -57,18 +57,6 @@ static __init void early_get_boot_cpu_id(void)
 	 * need to get boot_cpu_id so can use that to create apicid_to_node
 	 * in k8_scan_nodes()
 	 */
-	/*
-	 * Find possible boot-time SMP configuration:
-	 */
-#ifdef CONFIG_X86_MPPARSE
-	early_find_smp_config();
-#endif
-#ifdef CONFIG_ACPI
-	/*
-	 * Read APIC information from ACPI tables.
-	 */
-	early_acpi_boot_init();
-#endif
 #ifdef CONFIG_X86_MPPARSE
 	/*
 	 * get boot-time SMP configuration:
