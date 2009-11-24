@@ -1329,11 +1329,9 @@ static void sunsu_console_write(struct console *co, const char *s,
  */
 static int __init sunsu_console_setup(struct console *co, char *options)
 {
+	static struct ktermios dummy;
+	struct ktermios termios;
 	struct uart_port *port;
-	int baud = 9600;
-	int bits = 8;
-	int parity = 'n';
-	int flow = 'n';
 
 	printk("Console: ttyS%d (SU)\n",
 	       (sunsu_reg.minor - 64) + co->index);
@@ -1352,10 +1350,15 @@ static int __init sunsu_console_setup(struct console *co, char *options)
 	 */
 	spin_lock_init(&port->lock);
 
-	if (options)
-		uart_parse_options(options, &baud, &parity, &bits, &flow);
+	/* Get firmware console settings.  */
+	sunserial_console_termios(co, to_of_device(port->dev)->node);
 
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	memset(&termios, 0, sizeof(struct ktermios));
+	termios.c_cflag = co->cflag;
+	port->mctrl |= TIOCM_DTR;
+	port->ops->set_termios(port, &termios, &dummy);
+
+	return 0;
 }
 
 static struct console sunsu_console = {
