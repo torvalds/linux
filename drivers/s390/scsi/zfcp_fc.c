@@ -389,15 +389,16 @@ static void zfcp_fc_adisc_handler(void *data)
  out:
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	put_device(&port->sysfs_device);
-	kfree(adisc);
+	kmem_cache_free(zfcp_data.adisc_cache, adisc);
 }
 
 static int zfcp_fc_adisc(struct zfcp_port *port)
 {
 	struct zfcp_fc_els_adisc *adisc;
 	struct zfcp_adapter *adapter = port->adapter;
+	int ret;
 
-	adisc = kzalloc(sizeof(struct zfcp_fc_els_adisc), GFP_ATOMIC);
+	adisc = kmem_cache_alloc(zfcp_data.adisc_cache, GFP_ATOMIC);
 	if (!adisc)
 		return -ENOMEM;
 
@@ -420,7 +421,11 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	hton24(adisc->adisc_req.adisc_port_id,
 	       fc_host_port_id(adapter->scsi_host));
 
-	return zfcp_fsf_send_els(adapter, port->d_id, &adisc->els);
+	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els);
+	if (ret)
+		kmem_cache_free(zfcp_data.adisc_cache, adisc);
+
+	return ret;
 }
 
 void zfcp_fc_link_test_work(struct work_struct *work)

@@ -347,6 +347,7 @@ struct zfcp_data {
 	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
+	struct kmem_cache	*adisc_cache;
 };
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/

@@ -179,6 +179,11 @@ static int __init zfcp_module_init(void)
 	if (!zfcp_data.gid_pn_cache)
 		goto out_gid_cache;
 
+	zfcp_data.adisc_cache = zfcp_cache_hw_align("zfcp_adisc",
+					sizeof(struct zfcp_fc_els_adisc));
+	if (!zfcp_data.adisc_cache)
+		goto out_adisc_cache;
+
 	zfcp_data.scsi_transport_template =
 		fc_attach_transport(&zfcp_transport_functions);
 	if (!zfcp_data.scsi_transport_template)
@@ -206,6 +211,8 @@ out_ccw_register:
 out_misc:
 	fc_release_transport(zfcp_data.scsi_transport_template);
 out_transport:
+	kmem_cache_destroy(zfcp_data.adisc_cache);
+out_adisc_cache:
 	kmem_cache_destroy(zfcp_data.gid_pn_cache);
 out_gid_cache:
 	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
@@ -224,6 +231,7 @@ static void __exit zfcp_module_exit(void)
 	ccw_driver_unregister(&zfcp_ccw_driver);
 	misc_deregister(&zfcp_cfdc_misc);
 	fc_release_transport(zfcp_data.scsi_transport_template);
+	kmem_cache_destroy(zfcp_data.adisc_cache);
 	kmem_cache_destroy(zfcp_data.gid_pn_cache);
 	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
 	kmem_cache_destroy(zfcp_data.qtcb_cache);
