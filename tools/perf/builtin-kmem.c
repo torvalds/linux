@@ -32,15 +32,14 @@ sort_fn_t			caller_sort_fn;
 static int			alloc_lines = -1;
 static int			caller_lines = -1;
 
+static bool			raw_ip;
+
 static char			*cwd;
 static int			cwdlen;
 
 struct alloc_stat {
 	union {
-		struct {
-			char	*name;
-			u64	call_site;
-		};
+		u64	call_site;
 		u64	ptr;
 	};
 	u64	bytes_req;
@@ -323,12 +322,14 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 
 		if (is_caller) {
 			addr = data->call_site;
-			sym = kernel_maps__find_symbol(addr, NULL, NULL);
+			if (!raw_ip)
+				sym = kernel_maps__find_symbol(addr,
+							       NULL, NULL);
 		} else
 			addr = data->ptr;
 
 		if (sym != NULL)
-			snprintf(bf, sizeof(bf), "%s/%Lx", sym->name,
+			snprintf(bf, sizeof(bf), "%s+%Lx", sym->name,
 				 addr - sym->start);
 		else
 			snprintf(bf, sizeof(bf), "%#Lx", addr);
@@ -345,9 +346,9 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 	}
 
 	if (n_lines == -1)
-		printf(" ...               | ...             | ...             | ...    | ...   \n");
+		printf(" ...                        | ...            | ...           | ...    | ...   \n");
 
-	printf(" ------------------------------------------------------------------------------\n");
+	printf("%.78s\n", graph_dotted_line);
 }
 
 static void print_summary(void)
@@ -558,6 +559,7 @@ static const struct option kmem_options[] = {
 	OPT_CALLBACK('l', "line", NULL, "num",
 		     "show n lins",
 		     parse_line_opt),
+	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
 	OPT_END()
 };
 
