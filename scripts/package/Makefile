@@ -79,7 +79,8 @@ clean-files += $(objtree)/binkernel.spec
 # ---------------------------------------------------------------------------
 deb-pkg: FORCE
 	$(MAKE) KBUILD_SRC=
-	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
+	$(KBUILD_PKG_ROOTCMD) $(CONFIG_SHELL) \
+		$(srctree)/scripts/package/builddeb
 
 clean-dirs += $(objtree)/debian/
 
