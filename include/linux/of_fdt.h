@@ -69,6 +69,10 @@ extern void *of_get_flat_dt_prop(unsigned long node, const char *name,
 				 unsigned long *size);
 extern int of_flat_dt_is_compatible(unsigned long node, const char *name);
 extern unsigned long of_get_flat_dt_root(void);
+extern unsigned long unflatten_dt_node(unsigned long mem, unsigned long *p,
+					struct device_node *dad,
+					struct device_node ***allnextpp,
+					unsigned long fpsize);
 
 /* Other Prototypes */
 extern void finish_device_tree(void);
