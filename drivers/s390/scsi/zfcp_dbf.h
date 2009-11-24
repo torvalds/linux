@@ -123,7 +123,6 @@ struct zfcp_dbf_hba_record_response {
 		} unit;
 		struct {
 			u32 d_id;
-			u8 ls_code;
 		} els;
 	} u;
 } __attribute__ ((packed));
@@ -167,6 +166,7 @@ struct zfcp_dbf_san_record_ct_request {
 	u8 options;
 	u16 max_res_size;
 	u32 len;
+	u32 d_id;
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record_ct_response {
@@ -180,16 +180,13 @@ struct zfcp_dbf_san_record_ct_response {
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record_els {
-	u8 ls_code;
-	u32 len;
+	u32 d_id;
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
 	u64 fsf_reqid;
 	u32 fsf_seqno;
-	u32 s_id;
-	u32 d_id;
 	union {
 		struct zfcp_dbf_san_record_ct_request ct_req;
 		struct zfcp_dbf_san_record_ct_response ct_resp;

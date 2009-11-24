@@ -14,6 +14,7 @@
 #include <asm/atomic.h>
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
+#include "zfcp_fc.h"
 
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
@@ -628,20 +629,6 @@ void zfcp_scsi_scan(struct work_struct *work)
 	put_device(&unit->sysfs_device);
 }
 
-static int zfcp_execute_fc_job(struct fc_bsg_job *job)
-{
-	switch (job->request->msgcode) {
-	case FC_BSG_RPT_ELS:
-	case FC_BSG_HST_ELS_NOLOGIN:
-		return zfcp_fc_execute_els_fc_job(job);
-	case FC_BSG_RPT_CT:
-	case FC_BSG_HST_CT:
-		return zfcp_fc_execute_ct_fc_job(job);
-	default:
-		return -EINVAL;
-	}
-}
-
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
@@ -662,13 +649,14 @@ struct fc_function_template zfcp_transport_functions = {
 	.get_host_port_state = zfcp_get_host_port_state,
 	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
-	.bsg_request = zfcp_execute_fc_job,
+	.bsg_request = zfcp_fc_exec_bsg_job,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
 	.disable_target_scan = 1,
+	.dd_bsg_size = sizeof(struct zfcp_fsf_ct_els),
 };
 
 struct zfcp_data zfcp_data = {

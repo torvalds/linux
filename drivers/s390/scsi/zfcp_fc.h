@@ -15,6 +15,7 @@
 #include <scsi/fc/fc_ns.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
+#include "zfcp_fsf.h"
 
 #define ZFCP_FC_CT_SIZE_PAGE	  (PAGE_SIZE - sizeof(struct fc_ct_hdr))
 #define ZFCP_FC_GPN_FT_ENT_PAGE	  (ZFCP_FC_CT_SIZE_PAGE \
@@ -55,7 +56,7 @@ struct zfcp_fc_gid_pn_resp {
  * @gid_pn_resp: GID_PN response data
  */
 struct zfcp_fc_gid_pn {
-	struct zfcp_send_ct ct;
+	struct zfcp_fsf_ct_els ct;
 	struct scatterlist sg_req;
 	struct scatterlist sg_resp;
 	struct zfcp_fc_gid_pn_req gid_pn_req;
@@ -90,7 +91,7 @@ struct zfcp_fc_gpn_ft_resp {
  * @sg_resp: scatter list entries for gpn_ft responses (per memory page)
  */
 struct zfcp_fc_gpn_ft {
-	struct zfcp_send_ct ct;
+	struct zfcp_fsf_ct_els ct;
 	struct scatterlist sg_req;
 	struct scatterlist sg_resp[ZFCP_FC_GPN_FT_NUM_BUFS];
 };
@@ -104,7 +105,7 @@ struct zfcp_fc_gpn_ft {
  * @adisc_resp: ELS ADISC response data
  */
 struct zfcp_fc_els_adisc {
-	struct zfcp_send_els els;
+	struct zfcp_fsf_ct_els els;
 	struct scatterlist req;
 	struct scatterlist resp;
 	struct fc_els_adisc adisc_req;

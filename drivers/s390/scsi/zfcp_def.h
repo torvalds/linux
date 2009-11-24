@@ -132,52 +132,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *qtcb_pool;
 };
 
-/**
- * struct zfcp_send_ct - used to pass parameters to function zfcp_fsf_send_ct
- * @wka_port: port where the request is sent to
- * @req: scatter-gather list for request
- * @resp: scatter-gather list for response
- * @handler: handler function (called for response to the request)
- * @handler_data: data passed to handler function
- * @completion: completion for synchronization purposes
- * @status: used to pass error status to calling function
- */
-struct zfcp_send_ct {
-	struct zfcp_fc_wka_port *wka_port;
-	struct scatterlist *req;
-	struct scatterlist *resp;
-	void (*handler)(unsigned long);
-	unsigned long handler_data;
-	struct completion *completion;
-	int status;
-};
-
-/**
- * struct zfcp_send_els - used to pass parameters to function zfcp_fsf_send_els
- * @adapter: adapter where request is sent from
- * @port: port where ELS is destinated (port reference count has to be increased)
- * @d_id: destiniation id of port where request is sent to
- * @req: scatter-gather list for request
- * @resp: scatter-gather list for response
- * @handler: handler function (called for response to the request)
- * @handler_data: data passed to handler function
- * @completion: completion for synchronization purposes
- * @ls_code: hex code of ELS command
- * @status: used to pass error status to calling function
- */
-struct zfcp_send_els {
-	struct zfcp_adapter *adapter;
-	struct zfcp_port *port;
-	u32 d_id;
-	struct scatterlist *req;
-	struct scatterlist *resp;
-	void (*handler)(unsigned long);
-	unsigned long handler_data;
-	struct completion *completion;
-	int ls_code;
-	int status;
-};
-
 struct zfcp_qdio_queue {
 	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
 	u8		   first;	/* index of next free bfr in queue */

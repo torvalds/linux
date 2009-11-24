@@ -961,10 +961,10 @@ out:
 static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
-	struct zfcp_send_ct *send_ct = req->data;
+	struct zfcp_fsf_ct_els *ct = req->data;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 
-	send_ct->status = -EINVAL;
+	ct->status = -EINVAL;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		goto skip_fsfstatus;
@@ -972,7 +972,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 	switch (header->fsf_status) {
         case FSF_GOOD:
 		zfcp_dbf_san_ct_response(req);
-		send_ct->status = 0;
+		ct->status = 0;
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
 		zfcp_fsf_class_not_supp(req);
@@ -1004,8 +1004,8 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 	}
 
 skip_fsfstatus:
-	if (send_ct->handler)
-		send_ct->handler(send_ct->handler_data);
+	if (ct->handler)
+		ct->handler(ct->handler_data);
 }
 
 static void zfcp_fsf_setup_ct_els_unchained(struct qdio_buffer_element *sbale,
@@ -1094,9 +1094,9 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
  * @ct: pointer to struct zfcp_send_ct with data for request
  * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
  */
-int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
+int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
+		     struct zfcp_fsf_ct_els *ct, mempool_t *pool)
 {
-	struct zfcp_fc_wka_port *wka_port = ct->wka_port;
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;
 	struct zfcp_fsf_req *req;
 	int ret = -EIO;
@@ -1122,7 +1122,7 @@ int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 	req->qtcb->header.port_handle = wka_port->handle;
 	req->data = ct;
 
-	zfcp_dbf_san_ct_request(req);
+	zfcp_dbf_san_ct_request(req, wka_port->d_id);
 
 	ret = zfcp_fsf_req_send(req);
 	if (ret)
@@ -1139,7 +1139,7 @@ out:
 
 static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 {
-	struct zfcp_send_els *send_els = req->data;
+	struct zfcp_fsf_ct_els *send_els = req->data;
 	struct zfcp_port *port = send_els->port;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 
@@ -1159,9 +1159,6 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]){
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
-			if (port && (send_els->ls_code != ELS_ADISC))
-				zfcp_fc_test_link(port);
-			/*fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 		case FSF_SQ_RETRY_IF_POSSIBLE:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
@@ -1193,10 +1190,11 @@ skip_fsfstatus:
  * zfcp_fsf_send_els - initiate an ELS command (FC-FS)
  * @els: pointer to struct zfcp_send_els with data for the command
  */
-int zfcp_fsf_send_els(struct zfcp_send_els *els)
+int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
+		      struct zfcp_fsf_ct_els *els)
 {
 	struct zfcp_fsf_req *req;
-	struct zfcp_qdio *qdio = els->adapter->qdio;
+	struct zfcp_qdio *qdio = adapter->qdio;
 	int ret = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
@@ -1216,7 +1214,7 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els)
 	if (ret)
 		goto failed_send;
 
-	hton24(req->qtcb->bottom.support.d_id, els->d_id);
+	hton24(req->qtcb->bottom.support.d_id, d_id);
 	req->handler = zfcp_fsf_send_els_handler;
 	req->data = els;
 
