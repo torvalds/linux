@@ -28,25 +28,25 @@ struct zfcp_fc_ns_handler_data {
 	unsigned long handler_data;
 };
 
-static int zfcp_fc_wka_port_get(struct zfcp_wka_port *wka_port)
+static int zfcp_fc_wka_port_get(struct zfcp_fc_wka_port *wka_port)
 {
 	if (mutex_lock_interruptible(&wka_port->mutex))
 		return -ERESTARTSYS;
 
-	if (wka_port->status == ZFCP_WKA_PORT_OFFLINE ||
-	    wka_port->status == ZFCP_WKA_PORT_CLOSING) {
-		wka_port->status = ZFCP_WKA_PORT_OPENING;
+	if (wka_port->status == ZFCP_FC_WKA_PORT_OFFLINE ||
+	    wka_port->status == ZFCP_FC_WKA_PORT_CLOSING) {
+		wka_port->status = ZFCP_FC_WKA_PORT_OPENING;
 		if (zfcp_fsf_open_wka_port(wka_port))
-			wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+			wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 	}
 
 	mutex_unlock(&wka_port->mutex);
 
 	wait_event(wka_port->completion_wq,
-		   wka_port->status == ZFCP_WKA_PORT_ONLINE ||
-		   wka_port->status == ZFCP_WKA_PORT_OFFLINE);
+		   wka_port->status == ZFCP_FC_WKA_PORT_ONLINE ||
+		   wka_port->status == ZFCP_FC_WKA_PORT_OFFLINE);
 
-	if (wka_port->status == ZFCP_WKA_PORT_ONLINE) {
+	if (wka_port->status == ZFCP_FC_WKA_PORT_ONLINE) {
 		atomic_inc(&wka_port->refcount);
 		return 0;
 	}
@@ -56,24 +56,24 @@ static int zfcp_fc_wka_port_get(struct zfcp_wka_port *wka_port)
 static void zfcp_fc_wka_port_offline(struct work_struct *work)
 {
 	struct delayed_work *dw = to_delayed_work(work);
-	struct zfcp_wka_port *wka_port =
-			container_of(dw, struct zfcp_wka_port, work);
+	struct zfcp_fc_wka_port *wka_port =
+			container_of(dw, struct zfcp_fc_wka_port, work);
 
 	mutex_lock(&wka_port->mutex);
 	if ((atomic_read(&wka_port->refcount) != 0) ||
-	    (wka_port->status != ZFCP_WKA_PORT_ONLINE))
+	    (wka_port->status != ZFCP_FC_WKA_PORT_ONLINE))
 		goto out;
 
-	wka_port->status = ZFCP_WKA_PORT_CLOSING;
+	wka_port->status = ZFCP_FC_WKA_PORT_CLOSING;
 	if (zfcp_fsf_close_wka_port(wka_port)) {
-		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+		wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 		wake_up(&wka_port->completion_wq);
 	}
 out:
 	mutex_unlock(&wka_port->mutex);
 }
 
-static void zfcp_fc_wka_port_put(struct zfcp_wka_port *wka_port)
+static void zfcp_fc_wka_port_put(struct zfcp_fc_wka_port *wka_port)
 {
 	if (atomic_dec_return(&wka_port->refcount) != 0)
 		return;
@@ -81,7 +81,7 @@ static void zfcp_fc_wka_port_put(struct zfcp_wka_port *wka_port)
 	schedule_delayed_work(&wka_port->work, HZ / 100);
 }
 
-static void zfcp_fc_wka_port_init(struct zfcp_wka_port *wka_port, u32 d_id,
+static void zfcp_fc_wka_port_init(struct zfcp_fc_wka_port *wka_port, u32 d_id,
 				  struct zfcp_adapter *adapter)
 {
 	init_waitqueue_head(&wka_port->completion_wq);
@@ -89,21 +89,21 @@ static void zfcp_fc_wka_port_init(struct zfcp_wka_port *wka_port, u32 d_id,
 	wka_port->adapter = adapter;
 	wka_port->d_id = d_id;
 
-	wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+	wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 	atomic_set(&wka_port->refcount, 0);
 	mutex_init(&wka_port->mutex);
 	INIT_DELAYED_WORK(&wka_port->work, zfcp_fc_wka_port_offline);
 }
 
-static void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *wka)
+static void zfcp_fc_wka_port_force_offline(struct zfcp_fc_wka_port *wka)
 {
 	cancel_delayed_work_sync(&wka->work);
 	mutex_lock(&wka->mutex);
-	wka->status = ZFCP_WKA_PORT_OFFLINE;
+	wka->status = ZFCP_FC_WKA_PORT_OFFLINE;
 	mutex_unlock(&wka->mutex);
 }
 
-void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *gs)
+void zfcp_fc_wka_ports_force_offline(struct zfcp_fc_wka_ports *gs)
 {
 	if (!gs)
 		return;
@@ -111,7 +111,6 @@ void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *gs)
 	zfcp_fc_wka_port_force_offline(&gs->ts);
 	zfcp_fc_wka_port_force_offline(&gs->ds);
 	zfcp_fc_wka_port_force_offline(&gs->as);
-	zfcp_fc_wka_port_force_offline(&gs->ks);
 }
 
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
@@ -834,9 +833,9 @@ int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *job)
 
 int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
 {
-	struct zfcp_wka_ports *wka_ports;
+	struct zfcp_fc_wka_ports *wka_ports;
 
-	wka_ports = kzalloc(sizeof(struct zfcp_wka_ports), GFP_KERNEL);
+	wka_ports = kzalloc(sizeof(struct zfcp_fc_wka_ports), GFP_KERNEL);
 	if (!wka_ports)
 		return -ENOMEM;
 
@@ -845,7 +844,6 @@ int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
 	zfcp_fc_wka_port_init(&wka_ports->ts, FC_FID_TIME_SERV, adapter);
 	zfcp_fc_wka_port_init(&wka_ports->ds, FC_FID_DIR_SERV, adapter);
 	zfcp_fc_wka_port_init(&wka_ports->as, FC_FID_ALIASES, adapter);
-	zfcp_fc_wka_port_init(&wka_ports->ks, FC_FID_SEC_KEY, adapter);
 
 	return 0;
 }

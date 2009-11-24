@@ -112,6 +112,56 @@ struct zfcp_fc_els_adisc {
 };
 
 /**
+ * enum zfcp_fc_wka_status - FC WKA port status in zfcp
+ * @ZFCP_FC_WKA_PORT_OFFLINE: Port is closed and not in use
+ * @ZFCP_FC_WKA_PORT_CLOSING: The FSF "close port" request is pending
+ * @ZFCP_FC_WKA_PORT_OPENING: The FSF "open port" request is pending
+ * @ZFCP_FC_WKA_PORT_ONLINE: The port is open and the port handle is valid
+ */
+enum zfcp_fc_wka_status {
+	ZFCP_FC_WKA_PORT_OFFLINE,
+	ZFCP_FC_WKA_PORT_CLOSING,
+	ZFCP_FC_WKA_PORT_OPENING,
+	ZFCP_FC_WKA_PORT_ONLINE,
+};
+
+/**
+ * struct zfcp_fc_wka_port - representation of well-known-address (WKA) FC port
+ * @adapter: Pointer to adapter structure this WKA port belongs to
+ * @completion_wq: Wait for completion of open/close command
+ * @status: Current status of WKA port
+ * @refcount: Reference count to keep port open as long as it is in use
+ * @d_id: FC destination id or well-known-address
+ * @handle: FSF handle for the open WKA port
+ * @mutex: Mutex used during opening/closing state changes
+ * @work: For delaying the closing of the WKA port
+ */
+struct zfcp_fc_wka_port {
+	struct zfcp_adapter	*adapter;
+	wait_queue_head_t	completion_wq;
+	enum zfcp_fc_wka_status	status;
+	atomic_t		refcount;
+	u32			d_id;
+	u32			handle;
+	struct mutex		mutex;
+	struct delayed_work	work;
+};
+
+/**
+ * struct zfcp_fc_wka_ports - Data structures for FC generic services
+ * @ms: FC Management service
+ * @ts: FC time service
+ * @ds: FC directory service
+ * @as: FC alias service
+ */
+struct zfcp_fc_wka_ports {
+	struct zfcp_fc_wka_port ms;
+	struct zfcp_fc_wka_port ts;
+	struct zfcp_fc_wka_port ds;
+	struct zfcp_fc_wka_port as;
+};
+
+/**
  * zfcp_fc_scsi_to_fcp - setup FCP command with data from scsi_cmnd
  * @fcp: fcp_cmnd to setup
  * @scsi: scsi_cmnd where to get LUN, task attributes/flags and CDB

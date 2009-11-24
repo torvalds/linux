@@ -103,7 +103,7 @@ extern void zfcp_fc_trigger_did_lookup(struct zfcp_port *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fc_els_flogi *);
 extern void zfcp_fc_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);
-extern void zfcp_fc_wka_ports_force_offline(struct zfcp_wka_ports *);
+extern void zfcp_fc_wka_ports_force_offline(struct zfcp_fc_wka_ports *);
 extern int zfcp_fc_gs_setup(struct zfcp_adapter *);
 extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
 extern int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *);
@@ -111,8 +111,8 @@ extern int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *);
 
 /* zfcp_fsf.c */
 extern int zfcp_fsf_open_port(struct zfcp_erp_action *);
-extern int zfcp_fsf_open_wka_port(struct zfcp_wka_port *);
-extern int zfcp_fsf_close_wka_port(struct zfcp_wka_port *);
+extern int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *);
+extern int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *);
 extern int zfcp_fsf_close_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_close_physical_port(struct zfcp_erp_action *);
 extern int zfcp_fsf_open_unit(struct zfcp_erp_action *);

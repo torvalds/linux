@@ -13,6 +13,7 @@
 #include <asm/debug.h>
 #include "zfcp_dbf.h"
 #include "zfcp_ext.h"
+#include "zfcp_fc.h"
 
 static u32 dbfsize = 4;
 
@@ -681,7 +682,7 @@ void zfcp_dbf_rec_action(char *id2, struct zfcp_erp_action *erp_action)
 void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_fc_wka_port *wka_port = ct->wka_port;
 	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct zfcp_dbf *dbf = adapter->dbf;
 	struct fc_ct_hdr *hdr = sg_virt(ct->req);
@@ -718,7 +719,7 @@ void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
 void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_fc_wka_port *wka_port = ct->wka_port;
 	struct zfcp_adapter *adapter = wka_port->adapter;
 	struct fc_ct_hdr *hdr = sg_virt(ct->resp);
 	struct zfcp_dbf *dbf = adapter->dbf;

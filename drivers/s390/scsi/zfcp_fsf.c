@@ -1096,7 +1096,7 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
  */
 int zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool)
 {
-	struct zfcp_wka_port *wka_port = ct->wka_port;
+	struct zfcp_fc_wka_port *wka_port = ct->wka_port;
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;
 	struct zfcp_fsf_req *req;
 	int ret = -EIO;
@@ -1610,11 +1610,11 @@ out:
 
 static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 {
-	struct zfcp_wka_port *wka_port = req->data;
+	struct zfcp_fc_wka_port *wka_port = req->data;
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR) {
-		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+		wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 		goto out;
 	}
 
@@ -1627,13 +1627,13 @@ static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		/* fall through */
 	case FSF_ACCESS_DENIED:
-		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+		wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 		break;
 	case FSF_GOOD:
 		wka_port->handle = header->port_handle;
 		/* fall through */
 	case FSF_PORT_ALREADY_OPEN:
-		wka_port->status = ZFCP_WKA_PORT_ONLINE;
+		wka_port->status = ZFCP_FC_WKA_PORT_ONLINE;
 	}
 out:
 	wake_up(&wka_port->completion_wq);
@@ -1641,10 +1641,10 @@ out:
 
 /**
  * zfcp_fsf_open_wka_port - create and send open wka-port request
- * @wka_port: pointer to struct zfcp_wka_port
+ * @wka_port: pointer to struct zfcp_fc_wka_port
  * Returns: 0 on success, error otherwise
  */
-int zfcp_fsf_open_wka_port(struct zfcp_wka_port *wka_port)
+int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 {
 	struct qdio_buffer_element *sbale;
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;
@@ -1683,23 +1683,23 @@ out:
 
 static void zfcp_fsf_close_wka_port_handler(struct zfcp_fsf_req *req)
 {
-	struct zfcp_wka_port *wka_port = req->data;
+	struct zfcp_fc_wka_port *wka_port = req->data;
 
 	if (req->qtcb->header.fsf_status == FSF_PORT_HANDLE_NOT_VALID) {
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		zfcp_erp_adapter_reopen(wka_port->adapter, 0, "fscwph1", req);
 	}
 
-	wka_port->status = ZFCP_WKA_PORT_OFFLINE;
+	wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 	wake_up(&wka_port->completion_wq);
 }
 
 /**
  * zfcp_fsf_close_wka_port - create and send close wka port request
- * @erp_action: pointer to struct zfcp_erp_action
+ * @wka_port: WKA port to open
  * Returns: 0 on success, error otherwise
  */
-int zfcp_fsf_close_wka_port(struct zfcp_wka_port *wka_port)
+int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *wka_port)
 {
 	struct qdio_buffer_element *sbale;
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;

@@ -104,14 +104,6 @@
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
 #define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
 
-/* well known address (WKA) port status*/
-enum zfcp_wka_status {
-	ZFCP_WKA_PORT_OFFLINE,
-	ZFCP_WKA_PORT_CLOSING,
-	ZFCP_WKA_PORT_OPENING,
-	ZFCP_WKA_PORT_ONLINE,
-};
-
 /* logical unit status */
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
@@ -155,7 +147,7 @@ struct zfcp_adapter_mempool {
  * @status: used to pass error status to calling function
  */
 struct zfcp_send_ct {
-	struct zfcp_wka_port *wka_port;
+	struct zfcp_fc_wka_port *wka_port;
 	struct scatterlist *req;
 	struct scatterlist *resp;
 	void (*handler)(unsigned long);
@@ -188,25 +180,6 @@ struct zfcp_send_els {
 	struct completion *completion;
 	int ls_code;
 	int status;
-};
-
-struct zfcp_wka_port {
-	struct zfcp_adapter	*adapter;
-	wait_queue_head_t	completion_wq;
-	enum zfcp_wka_status	status;
-	atomic_t		refcount;
-	u32			d_id;
-	u32			handle;
-	struct mutex		mutex;
-	struct delayed_work	work;
-};
-
-struct zfcp_wka_ports {
-	struct zfcp_wka_port ms; 	/* management service */
-	struct zfcp_wka_port ts; 	/* time service */
-	struct zfcp_wka_port ds; 	/* directory service */
-	struct zfcp_wka_port as; 	/* alias service */
-	struct zfcp_wka_port ks; 	/* key distribution service */
 };
 
 struct zfcp_qdio_queue {
@@ -309,7 +282,7 @@ struct zfcp_adapter {
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
 	struct task_struct	*erp_thread;
-	struct zfcp_wka_ports	*gs;		   /* generic services */
+	struct zfcp_fc_wka_ports *gs;		   /* generic services */
 	struct zfcp_dbf		*dbf;		   /* debug traces */
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct fc_host_statistics *fc_stats;
