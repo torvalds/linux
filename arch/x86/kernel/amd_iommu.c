@@ -59,15 +59,10 @@ struct iommu_cmd {
 
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
-static u64 *alloc_pte(struct protection_domain *domain,
-		      unsigned long address, int end_lvl,
-		      u64 **pte_page, gfp_t gfp);
 static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages);
 static void reset_iommu_command_buffer(struct amd_iommu *iommu);
-static u64 *fetch_pte(struct protection_domain *domain,
-		      unsigned long address, int map_size);
 static void update_domain(struct protection_domain *domain);
 
 /****************************************************************************
@@ -665,6 +660,100 @@ void amd_iommu_flush_all_devices(void)
  ****************************************************************************/
 
 /*
+ * This function is used to add another level to an IO page table. Adding
+ * another level increases the size of the address space by 9 bits to a size up
+ * to 64 bits.
+ */
+static bool increase_address_space(struct protection_domain *domain,
+				   gfp_t gfp)
+{
+	u64 *pte;
+
+	if (domain->mode == PAGE_MODE_6_LEVEL)
+		/* address space already 64 bit large */
+		return false;
+
+	pte = (void *)get_zeroed_page(gfp);
+	if (!pte)
+		return false;
+
+	*pte             = PM_LEVEL_PDE(domain->mode,
+					virt_to_phys(domain->pt_root));
+	domain->pt_root  = pte;
+	domain->mode    += 1;
+	domain->updated  = true;
+
+	return true;
+}
+
+static u64 *alloc_pte(struct protection_domain *domain,
+		      unsigned long address,
+		      int end_lvl,
+		      u64 **pte_page,
+		      gfp_t gfp)
+{
+	u64 *pte, *page;
+	int level;
+
+	while (address > PM_LEVEL_SIZE(domain->mode))
+		increase_address_space(domain, gfp);
+
+	level =  domain->mode - 1;
+	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
+
+	while (level > end_lvl) {
+		if (!IOMMU_PTE_PRESENT(*pte)) {
+			page = (u64 *)get_zeroed_page(gfp);
+			if (!page)
+				return NULL;
+			*pte = PM_LEVEL_PDE(level, virt_to_phys(page));
+		}
+
+		level -= 1;
+
+		pte = IOMMU_PTE_PAGE(*pte);
+
+		if (pte_page && level == end_lvl)
+			*pte_page = pte;
+
+		pte = &pte[PM_LEVEL_INDEX(level, address)];
+	}
+
+	return pte;
+}
+
+/*
+ * This function checks if there is a PTE for a given dma address. If
+ * there is one, it returns the pointer to it.
+ */
+static u64 *fetch_pte(struct protection_domain *domain,
+		      unsigned long address, int map_size)
+{
+	int level;
+	u64 *pte;
+
+	level =  domain->mode - 1;
+	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
+
+	while (level > map_size) {
+		if (!IOMMU_PTE_PRESENT(*pte))
+			return NULL;
+
+		level -= 1;
+
+		pte = IOMMU_PTE_PAGE(*pte);
+		pte = &pte[PM_LEVEL_INDEX(level, address)];
+
+		if ((PM_PTE_LEVEL(*pte) == 0) && level != map_size) {
+			pte = NULL;
+			break;
+		}
+	}
+
+	return pte;
+}
+
+/*
  * Generic mapping functions. It maps a physical address into a DMA
  * address space. It allocates the page table pages if necessary.
  * In the future it can be extended to a generic mapping function
@@ -818,37 +907,6 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  *
  * called with domain->lock held
  */
-
-/*
- * This function checks if there is a PTE for a given dma address. If
- * there is one, it returns the pointer to it.
- */
-static u64 *fetch_pte(struct protection_domain *domain,
-		      unsigned long address, int map_size)
-{
-	int level;
-	u64 *pte;
-
-	level =  domain->mode - 1;
-	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
-
-	while (level > map_size) {
-		if (!IOMMU_PTE_PRESENT(*pte))
-			return NULL;
-
-		level -= 1;
-
-		pte = IOMMU_PTE_PAGE(*pte);
-		pte = &pte[PM_LEVEL_INDEX(level, address)];
-
-		if ((PM_PTE_LEVEL(*pte) == 0) && level != map_size) {
-			pte = NULL;
-			break;
-		}
-	}
-
-	return pte;
-}
 
 /*
  * This function is used to add a new aperture range to an existing
@@ -1532,69 +1590,6 @@ static void update_domain(struct protection_domain *domain)
 	iommu_flush_tlb_pde(domain);
 
 	domain->updated = false;
-}
-
-/*
- * This function is used to add another level to an IO page table. Adding
- * another level increases the size of the address space by 9 bits to a size up
- * to 64 bits.
- */
-static bool increase_address_space(struct protection_domain *domain,
-				   gfp_t gfp)
-{
-	u64 *pte;
-
-	if (domain->mode == PAGE_MODE_6_LEVEL)
-		/* address space already 64 bit large */
-		return false;
-
-	pte = (void *)get_zeroed_page(gfp);
-	if (!pte)
-		return false;
-
-	*pte             = PM_LEVEL_PDE(domain->mode,
-					virt_to_phys(domain->pt_root));
-	domain->pt_root  = pte;
-	domain->mode    += 1;
-	domain->updated  = true;
-
-	return true;
-}
-
-static u64 *alloc_pte(struct protection_domain *domain,
-		      unsigned long address,
-		      int end_lvl,
-		      u64 **pte_page,
-		      gfp_t gfp)
-{
-	u64 *pte, *page;
-	int level;
-
-	while (address > PM_LEVEL_SIZE(domain->mode))
-		increase_address_space(domain, gfp);
-
-	level =  domain->mode - 1;
-	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
-
-	while (level > end_lvl) {
-		if (!IOMMU_PTE_PRESENT(*pte)) {
-			page = (u64 *)get_zeroed_page(gfp);
-			if (!page)
-				return NULL;
-			*pte = PM_LEVEL_PDE(level, virt_to_phys(page));
-		}
-
-		level -= 1;
-
-		pte = IOMMU_PTE_PAGE(*pte);
-
-		if (pte_page && level == end_lvl)
-			*pte_page = pte;
-
-		pte = &pte[PM_LEVEL_INDEX(level, address)];
-	}
-
-	return pte;
 }
 
 /*
