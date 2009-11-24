@@ -66,6 +66,10 @@ static struct iwm_eeprom_entry eeprom_map[] = {
 	[IWM_EEPROM_SKU_CAP] =
 	{"SKU capabilities", IWM_EEPROM_SKU_CAP_OFF, IWM_EEPROM_SKU_CAP_LEN},
 
+	[IWM_EEPROM_FAT_CHANNELS_CAP] =
+	{"HT channels capabilities", IWM_EEPROM_FAT_CHANNELS_CAP_OFF,
+	 IWM_EEPROM_FAT_CHANNELS_CAP_LEN},
+
 	[IWM_EEPROM_CALIB_RXIQ_OFFSET] =
 	{"RX IQ offset", IWM_EEPROM_CALIB_RXIQ_OFF, IWM_EEPROM_INDIRECT_LEN},
 
@@ -144,6 +148,32 @@ u8 *iwm_eeprom_access(struct iwm_priv *iwm, u8 eeprom_id)
 		return ERR_PTR(-ENODEV);
 
 	return iwm->eeprom + eeprom_map[eeprom_id].offset;
+}
+
+int iwm_eeprom_fat_channels(struct iwm_priv *iwm)
+{
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+	struct ieee80211_supported_band *band;
+	u16 *channels, i;
+
+	channels = (u16 *)iwm_eeprom_access(iwm, IWM_EEPROM_FAT_CHANNELS_CAP);
+	if (IS_ERR(channels))
+		return PTR_ERR(channels);
+
+	band = wiphy->bands[IEEE80211_BAND_2GHZ];
+	band->ht_cap.ht_supported = true;
+
+	for (i = 0; i < IWM_EEPROM_FAT_CHANNELS_24; i++)
+		if (!(channels[i] & IWM_EEPROM_FAT_CHANNEL_ENABLED))
+			band->ht_cap.ht_supported = false;
+
+	band = wiphy->bands[IEEE80211_BAND_5GHZ];
+	band->ht_cap.ht_supported = true;
+	for (i = IWM_EEPROM_FAT_CHANNELS_24; i < IWM_EEPROM_FAT_CHANNELS; i++)
+		if (!(channels[i] & IWM_EEPROM_FAT_CHANNEL_ENABLED))
+			band->ht_cap.ht_supported = false;
+
+	return 0;
 }
 
 int iwm_eeprom_init(struct iwm_priv *iwm)

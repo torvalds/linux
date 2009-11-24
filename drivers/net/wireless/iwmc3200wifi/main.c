@@ -691,6 +691,12 @@ static int __iwm_up(struct iwm_priv *iwm)
 		goto err_disable;
 	}
 
+	ret = iwm_eeprom_fat_channels(iwm);
+	if (ret) {
+		IWM_ERR(iwm, "Couldnt read HT channels EEPROM entries\n");
+		goto err_fw;
+	}
+
 	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "L%s_U%s",
 		 iwm->lmac_version, iwm->umac_version);
 
