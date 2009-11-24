@@ -37,22 +37,6 @@ void zfcp_ccw_adapter_put(struct zfcp_adapter *adapter)
 	spin_unlock_irqrestore(&zfcp_ccw_adapter_ref_lock, flags);
 }
 
-static int zfcp_ccw_suspend(struct ccw_device *cdev)
-
-{
-	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
-
-	if (!adapter)
-		return 0;
-
-	zfcp_erp_adapter_shutdown(adapter, 0, "ccsusp1", NULL);
-	zfcp_erp_wait(adapter);
-
-	zfcp_ccw_adapter_put(adapter);
-
-	return 0;
-}
-
 static int zfcp_ccw_activate(struct ccw_device *cdev)
 
 {
@@ -291,7 +275,7 @@ struct ccw_driver zfcp_ccw_driver = {
 	.set_offline = zfcp_ccw_set_offline,
 	.notify      = zfcp_ccw_notify,
 	.shutdown    = zfcp_ccw_shutdown,
-	.freeze      = zfcp_ccw_suspend,
+	.freeze      = zfcp_ccw_set_offline,
 	.thaw	     = zfcp_ccw_activate,
 	.restore     = zfcp_ccw_activate,
 };
