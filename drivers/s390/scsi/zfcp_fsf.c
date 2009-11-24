@@ -2109,64 +2109,52 @@ static void zfcp_fsf_update_lat(struct fsf_latency_record *lat_rec, u32 lat)
 	lat_rec->max = max(lat_rec->max, lat);
 }
 
-static void zfcp_fsf_req_latency(struct zfcp_fsf_req *req)
+static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 {
-	struct fsf_qual_latency_info *lat_inf;
-	struct latency_cont *lat;
+	struct fsf_qual_latency_info *lat_in;
+	struct latency_cont *lat = NULL;
 	struct zfcp_unit *unit = req->unit;
+	struct zfcp_blk_drv_data blktrc;
+	int ticks = req->adapter->timer_ticks;
 
-	lat_inf = &req->qtcb->prefix.prot_status_qual.latency_info;
+	lat_in = &req->qtcb->prefix.prot_status_qual.latency_info;
 
-	switch (req->qtcb->bottom.io.data_direction) {
-	case FSF_DATADIR_READ:
-		lat = &unit->latencies.read;
-		break;
-	case FSF_DATADIR_WRITE:
-		lat = &unit->latencies.write;
-		break;
-	case FSF_DATADIR_CMND:
-		lat = &unit->latencies.cmd;
-		break;
-	default:
-		return;
+	blktrc.flags = 0;
+	blktrc.magic = ZFCP_BLK_DRV_DATA_MAGIC;
+	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
+		blktrc.flags |= ZFCP_BLK_REQ_ERROR;
+	blktrc.inb_usage = req->queue_req.qdio_inb_usage;
+	blktrc.outb_usage = req->queue_req.qdio_outb_usage;
+
+	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA) {
+		blktrc.flags |= ZFCP_BLK_LAT_VALID;
+		blktrc.channel_lat = lat_in->channel_lat * ticks;
+		blktrc.fabric_lat = lat_in->fabric_lat * ticks;
+
+		switch (req->qtcb->bottom.io.data_direction) {
+		case FSF_DATADIR_READ:
+			lat = &unit->latencies.read;
+			break;
+		case FSF_DATADIR_WRITE:
+			lat = &unit->latencies.write;
+			break;
+		case FSF_DATADIR_CMND:
+			lat = &unit->latencies.cmd;
+			break;
+		}
+
+		if (lat) {
+			spin_lock(&unit->latencies.lock);
+			zfcp_fsf_update_lat(&lat->channel, lat_in->channel_lat);
+			zfcp_fsf_update_lat(&lat->fabric, lat_in->fabric_lat);
+			lat->counter++;
+			spin_unlock(&unit->latencies.lock);
+		}
 	}
 
-	spin_lock(&unit->latencies.lock);
-	zfcp_fsf_update_lat(&lat->channel, lat_inf->channel_lat);
-	zfcp_fsf_update_lat(&lat->fabric, lat_inf->fabric_lat);
-	lat->counter++;
-	spin_unlock(&unit->latencies.lock);
+	blk_add_driver_data(scsi->request->q, scsi->request, &blktrc,
+			    sizeof(blktrc));
 }
-
-#ifdef CONFIG_BLK_DEV_IO_TRACE
-static void zfcp_fsf_trace_latency(struct zfcp_fsf_req *fsf_req)
-{
-	struct fsf_qual_latency_info *lat_inf;
-	struct scsi_cmnd *scsi_cmnd = (struct scsi_cmnd *)fsf_req->data;
-	struct request *req = scsi_cmnd->request;
-	struct zfcp_blk_drv_data trace;
-	int ticks = fsf_req->adapter->timer_ticks;
-
-	trace.flags = 0;
-	trace.magic = ZFCP_BLK_DRV_DATA_MAGIC;
-	if (fsf_req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA) {
-		trace.flags |= ZFCP_BLK_LAT_VALID;
-		lat_inf = &fsf_req->qtcb->prefix.prot_status_qual.latency_info;
-		trace.channel_lat = lat_inf->channel_lat * ticks;
-		trace.fabric_lat = lat_inf->fabric_lat * ticks;
-	}
-	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		trace.flags |= ZFCP_BLK_REQ_ERROR;
-	trace.inb_usage = fsf_req->queue_req.qdio_inb_usage;
-	trace.outb_usage = fsf_req->queue_req.qdio_outb_usage;
-
-	blk_add_driver_data(req->q, req, &trace, sizeof(trace));
-}
-#else
-static inline void zfcp_fsf_trace_latency(struct zfcp_fsf_req *fsf_req)
-{
-}
-#endif
 
 static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 {
@@ -2199,10 +2187,7 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 
 	scpnt->result |= fcp_rsp_iu->scsi_status;
 
-	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA)
-		zfcp_fsf_req_latency(req);
-
-	zfcp_fsf_trace_latency(req);
+	zfcp_fsf_req_trace(req, scpnt);
 
 	if (unlikely(fcp_rsp_iu->validity.bits.fcp_rsp_len_valid)) {
 		if (fcp_rsp_info[3] == RSP_CODE_GOOD)
