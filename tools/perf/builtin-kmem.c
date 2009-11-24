@@ -40,13 +40,14 @@ static int			*cpunode_map;
 static int			max_cpu_num;
 
 struct alloc_stat {
-	union {
-		u64	call_site;
-		u64	ptr;
-	};
+	u64	call_site;
+	u64	ptr;
 	u64	bytes_req;
 	u64	bytes_alloc;
 	u32	hit;
+	u32	pingpong;
+
+	short	alloc_cpu;
 
 	struct rb_node node;
 };
@@ -144,15 +145,12 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static void insert_alloc_stat(unsigned long ptr,
-			      int bytes_req, int bytes_alloc)
+static void insert_alloc_stat(unsigned long call_site, unsigned long ptr,
+			      int bytes_req, int bytes_alloc, int cpu)
 {
 	struct rb_node **node = &root_alloc_stat.rb_node;
 	struct rb_node *parent = NULL;
 	struct alloc_stat *data = NULL;
-
-	if (!alloc_flag)
-		return;
 
 	while (*node) {
 		parent = *node;
@@ -172,7 +170,10 @@ static void insert_alloc_stat(unsigned long ptr,
 		data->bytes_alloc += bytes_req;
 	} else {
 		data = malloc(sizeof(*data));
+		if (!data)
+			die("malloc");
 		data->ptr = ptr;
+		data->pingpong = 0;
 		data->hit = 1;
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
@@ -180,6 +181,8 @@ static void insert_alloc_stat(unsigned long ptr,
 		rb_link_node(&data->node, parent, node);
 		rb_insert_color(&data->node, &root_alloc_stat);
 	}
+	data->call_site = call_site;
+	data->alloc_cpu = cpu;
 }
 
 static void insert_caller_stat(unsigned long call_site,
@@ -188,9 +191,6 @@ static void insert_caller_stat(unsigned long call_site,
 	struct rb_node **node = &root_caller_stat.rb_node;
 	struct rb_node *parent = NULL;
 	struct alloc_stat *data = NULL;
-
-	if (!caller_flag)
-		return;
 
 	while (*node) {
 		parent = *node;
@@ -210,7 +210,10 @@ static void insert_caller_stat(unsigned long call_site,
 		data->bytes_alloc += bytes_req;
 	} else {
 		data = malloc(sizeof(*data));
+		if (!data)
+			die("malloc");
 		data->call_site = call_site;
+		data->pingpong = 0;
 		data->hit = 1;
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
@@ -238,7 +241,7 @@ static void process_alloc_event(struct raw_event_sample *raw,
 	bytes_req = raw_field_value(event, "bytes_req", raw->data);
 	bytes_alloc = raw_field_value(event, "bytes_alloc", raw->data);
 
-	insert_alloc_stat(ptr, bytes_req, bytes_alloc);
+	insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, cpu);
 	insert_caller_stat(call_site, bytes_req, bytes_alloc);
 
 	total_requested += bytes_req;
@@ -253,12 +256,58 @@ static void process_alloc_event(struct raw_event_sample *raw,
 	nr_allocs++;
 }
 
-static void process_free_event(struct raw_event_sample *raw __used,
-			       struct event *event __used,
-			       int cpu __used,
+static int ptr_cmp(struct alloc_stat *, struct alloc_stat *);
+static int callsite_cmp(struct alloc_stat *, struct alloc_stat *);
+
+static struct alloc_stat *search_alloc_stat(unsigned long ptr,
+					    unsigned long call_site,
+					    struct rb_root *root,
+					    sort_fn_t sort_fn)
+{
+	struct rb_node *node = root->rb_node;
+	struct alloc_stat key = { .ptr = ptr, .call_site = call_site };
+
+	while (node) {
+		struct alloc_stat *data;
+		int cmp;
+
+		data = rb_entry(node, struct alloc_stat, node);
+
+		cmp = sort_fn(&key, data);
+		if (cmp < 0)
+			node = node->rb_left;
+		else if (cmp > 0)
+			node = node->rb_right;
+		else
+			return data;
+	}
+	return NULL;
+}
+
+static void process_free_event(struct raw_event_sample *raw,
+			       struct event *event,
+			       int cpu,
 			       u64 timestamp __used,
 			       struct thread *thread __used)
 {
+	unsigned long ptr;
+	struct alloc_stat *s_alloc, *s_caller;
+
+	ptr = raw_field_value(event, "ptr", raw->data);
+
+	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
+	if (!s_alloc)
+		return;
+
+	if (cpu != s_alloc->alloc_cpu) {
+		s_alloc->pingpong++;
+
+		s_caller = search_alloc_stat(0, s_alloc->call_site,
+					     &root_caller_stat, callsite_cmp);
+		assert(s_caller);
+		s_caller->pingpong++;
+	}
+	s_alloc->alloc_cpu = -1;
 }
 
 static void
@@ -379,10 +428,10 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 {
 	struct rb_node *next;
 
-	printf("%.78s\n", graph_dotted_line);
-	printf("%-28s|",  is_caller ? "Callsite": "Alloc Ptr");
-	printf("Total_alloc/Per | Total_req/Per | Hit  | Frag\n");
-	printf("%.78s\n", graph_dotted_line);
+	printf("%.102s\n", graph_dotted_line);
+	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
+	printf(" Total_alloc/Per | Total_req/Per   | Hit   | Ping-pong | Frag\n");
+	printf("%.102s\n", graph_dotted_line);
 
 	next = rb_first(root);
 
@@ -390,7 +439,7 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
 		struct symbol *sym = NULL;
-		char bf[BUFSIZ];
+		char buf[BUFSIZ];
 		u64 addr;
 
 		if (is_caller) {
@@ -402,26 +451,28 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 			addr = data->ptr;
 
 		if (sym != NULL)
-			snprintf(bf, sizeof(bf), "%s+%Lx", sym->name,
+			snprintf(buf, sizeof(buf), "%s+%Lx", sym->name,
 				 addr - sym->start);
 		else
-			snprintf(bf, sizeof(bf), "%#Lx", addr);
+			snprintf(buf, sizeof(buf), "%#Lx", addr);
+		printf(" %-34s |", buf);
 
-		printf("%-28s|%8llu/%-6lu |%8llu/%-6lu|%6lu|%8.3f%%\n",
-		       bf, (unsigned long long)data->bytes_alloc,
+		printf(" %9llu/%-5lu | %9llu/%-5lu | %6lu | %8lu | %6.3f%%\n",
+		       (unsigned long long)data->bytes_alloc,
 		       (unsigned long)data->bytes_alloc / data->hit,
 		       (unsigned long long)data->bytes_req,
 		       (unsigned long)data->bytes_req / data->hit,
 		       (unsigned long)data->hit,
+		       (unsigned long)data->pingpong,
 		       fragmentation(data->bytes_req, data->bytes_alloc));
 
 		next = rb_next(next);
 	}
 
 	if (n_lines == -1)
-		printf(" ...                        | ...            | ...           | ...    | ...   \n");
+		printf(" ...                                | ...             | ...             | ...    | ...      | ...   \n");
 
-	printf("%.78s\n", graph_dotted_line);
+	printf("%.102s\n", graph_dotted_line);
 }
 
 static void print_summary(void)
@@ -597,12 +648,27 @@ static struct sort_dimension frag_sort_dimension = {
 	.cmp	= frag_cmp,
 };
 
+static int pingpong_cmp(struct alloc_stat *l, struct alloc_stat *r)
+{
+	if (l->pingpong < r->pingpong)
+		return -1;
+	else if (l->pingpong > r->pingpong)
+		return 1;
+	return 0;
+}
+
+static struct sort_dimension pingpong_sort_dimension = {
+	.name	= "pingpong",
+	.cmp	= pingpong_cmp,
+};
+
 static struct sort_dimension *avail_sorts[] = {
 	&ptr_sort_dimension,
 	&callsite_sort_dimension,
 	&hit_sort_dimension,
 	&bytes_sort_dimension,
 	&frag_sort_dimension,
+	&pingpong_sort_dimension,
 };
 
 #define NUM_AVAIL_SORTS	\
@@ -703,7 +769,7 @@ static const struct option kmem_options[] = {
 		     "stat selector, Pass 'alloc' or 'caller'.",
 		     parse_stat_opt),
 	OPT_CALLBACK('s', "sort", NULL, "key[,key2...]",
-		     "sort by key(s): ptr, call_site, bytes, hit, frag",
+		     "sort by keys: ptr, call_site, bytes, hit, pingpong, frag",
 		     parse_sort_opt),
 	OPT_CALLBACK('l', "line", NULL, "num",
 		     "show n lins",
