@@ -57,11 +57,6 @@ struct iommu_cmd {
 	u32 data[4];
 };
 
-static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
-			     struct unity_map_entry *e);
-static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
-				      unsigned long start_page,
-				      unsigned int pages);
 static void reset_iommu_command_buffer(struct amd_iommu *iommu);
 static void update_domain(struct protection_domain *domain);
 
@@ -823,28 +818,6 @@ static int iommu_for_unity_map(struct amd_iommu *iommu,
 }
 
 /*
- * Init the unity mappings for a specific IOMMU in the system
- *
- * Basically iterates over all unity mapping entries and applies them to
- * the default domain DMA of that IOMMU if necessary.
- */
-static int iommu_init_unity_mappings(struct amd_iommu *iommu)
-{
-	struct unity_map_entry *entry;
-	int ret;
-
-	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
-		if (!iommu_for_unity_map(iommu, entry))
-			continue;
-		ret = dma_ops_unity_map(iommu->default_dom, entry);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-/*
  * This function actually applies the mapping to the page table of the
  * dma_ops domain.
  */
@@ -867,6 +840,28 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 		if (addr < dma_dom->aperture_size)
 			__set_bit(addr >> PAGE_SHIFT,
 				  dma_dom->aperture[0]->bitmap);
+	}
+
+	return 0;
+}
+
+/*
+ * Init the unity mappings for a specific IOMMU in the system
+ *
+ * Basically iterates over all unity mapping entries and applies them to
+ * the default domain DMA of that IOMMU if necessary.
+ */
+static int iommu_init_unity_mappings(struct amd_iommu *iommu)
+{
+	struct unity_map_entry *entry;
+	int ret;
+
+	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
+		if (!iommu_for_unity_map(iommu, entry))
+			continue;
+		ret = dma_ops_unity_map(iommu->default_dom, entry);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -907,6 +902,26 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  *
  * called with domain->lock held
  */
+
+/*
+ * Used to reserve address ranges in the aperture (e.g. for exclusion
+ * ranges.
+ */
+static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
+				      unsigned long start_page,
+				      unsigned int pages)
+{
+	unsigned int i, last_page = dom->aperture_size >> PAGE_SHIFT;
+
+	if (start_page + pages > last_page)
+		pages = last_page - start_page;
+
+	for (i = start_page; i < start_page + pages; ++i) {
+		int index = i / APERTURE_RANGE_PAGES;
+		int page  = i % APERTURE_RANGE_PAGES;
+		__set_bit(page, dom->aperture[index]->bitmap);
+	}
+}
 
 /*
  * This function is used to add a new aperture range to an existing
@@ -1164,26 +1179,6 @@ static void domain_id_free(int id)
 	if (id > 0 && id < MAX_DOMAIN_ID)
 		__clear_bit(id, amd_iommu_pd_alloc_bitmap);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
-}
-
-/*
- * Used to reserve address ranges in the aperture (e.g. for exclusion
- * ranges.
- */
-static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
-				      unsigned long start_page,
-				      unsigned int pages)
-{
-	unsigned int i, last_page = dom->aperture_size >> PAGE_SHIFT;
-
-	if (start_page + pages > last_page)
-		pages = last_page - start_page;
-
-	for (i = start_page; i < start_page + pages; ++i) {
-		int index = i / APERTURE_RANGE_PAGES;
-		int page  = i % APERTURE_RANGE_PAGES;
-		__set_bit(page, dom->aperture[index]->bitmap);
-	}
 }
 
 static void free_pagetable(struct protection_domain *domain)
