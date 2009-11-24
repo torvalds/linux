@@ -871,6 +871,19 @@ struct cfg80211_bitrate_mask {
 	u32 fixed;   /* fixed bitrate, 0 == not fixed */
 	u32 maxrate; /* in kbps, 0 == no limit */
 };
+/**
+ * struct cfg80211_pmksa - PMK Security Association
+ *
+ * This structure is passed to the set/del_pmksa() method for PMKSA
+ * caching.
+ *
+ * @bssid: The AP's BSSID.
+ * @pmkid: The PMK material itself.
+ */
+struct cfg80211_pmksa {
+	u8 *bssid;
+	u8 *pmkid;
+};
 
 /**
  * struct cfg80211_ops - backend description for wireless configuration
@@ -976,6 +989,13 @@ struct cfg80211_bitrate_mask {
  * @dump_survey: get site survey information.
  *
  * @testmode_cmd: run a test mode command
+ *
+ * @set_pmksa: Cache a PMKID for a BSSID. This is mostly useful for fullmac
+ *	devices running firmwares capable of generating the (re) association
+ *	RSN IE. It allows for faster roaming between WPA2 BSSIDs.
+ * @del_pmksa: Delete a cached PMKID.
+ * @flush_pmksa: Flush all cached PMKIDs.
+ *
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -1097,6 +1117,12 @@ struct cfg80211_ops {
 	int	(*dump_survey)(struct wiphy *wiphy, struct net_device *netdev,
 			int idx, struct survey_info *info);
 
+	int	(*set_pmksa)(struct wiphy *wiphy, struct net_device *netdev,
+			     struct cfg80211_pmksa *pmksa);
+	int	(*del_pmksa)(struct wiphy *wiphy, struct net_device *netdev,
+			     struct cfg80211_pmksa *pmksa);
+	int	(*flush_pmksa)(struct wiphy *wiphy, struct net_device *netdev);
+
 	/* some temporary stuff to finish wext */
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
 				  bool enabled, int timeout);
@@ -1194,6 +1220,8 @@ struct wiphy {
 
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 	u32 hw_version;
+
+	u8 max_num_pmkids;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
