@@ -589,7 +589,6 @@ static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 	    !list_empty(&port->unit_list))
 		return;
 
-	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	list_move_tail(&port->list, lh);
 }
 

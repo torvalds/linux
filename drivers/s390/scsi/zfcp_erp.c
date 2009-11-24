@@ -174,7 +174,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		get_device(&unit->sysfs_device);
+		if (!get_device(&unit->sysfs_device))
+			return NULL;
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status);
 		erp_action = &unit->erp_action;
 		if (!(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_RUNNING))
@@ -183,7 +184,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		get_device(&port->sysfs_device);
+		if (!get_device(&port->sysfs_device))
+			return NULL;
 		zfcp_erp_action_dismiss_port(port);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status);
 		erp_action = &port->erp_action;

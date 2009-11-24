@@ -104,10 +104,8 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 	unsigned long val;						       \
 	int retval = 0;							       \
 									       \
-	if (atomic_read(&_feat->status) & ZFCP_STATUS_COMMON_REMOVE) {	       \
-		retval = -EBUSY;					       \
-		goto out;						       \
-	}								       \
+	if (!(_feat && get_device(&_feat->sysfs_device)))		       \
+		return -EBUSY;						       \
 									       \
 	if (strict_strtoul(buf, 0, &val) || val != 0) {			       \
 		retval = -EINVAL;					       \
@@ -120,6 +118,7 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 				  _reopen_id, NULL);			       \
 	zfcp_erp_wait(_adapter);					       \
 out:									       \
+	put_device(&_feat->sysfs_device);				       \
 	return retval ? retval : (ssize_t) count;			       \
 }									       \
 static ZFCP_DEV_ATTR(_feat, failed, S_IWUSR | S_IRUGO,			       \
@@ -161,11 +160,6 @@ static ssize_t zfcp_sysfs_adapter_failed_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		retval = -EBUSY;
-		goto out;
-	}
-
 	if (strict_strtoul(buf, 0, &val) || val != 0) {
 		retval = -EINVAL;
 		goto out;
@@ -195,14 +189,9 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		ret = -EBUSY;
-		goto out;
-	}
-
 	ret = zfcp_fc_scan_ports(adapter);
-out:
 	zfcp_ccw_adapter_put(adapter);
+
 	return ret ? ret : (ssize_t) count;
 }
 static ZFCP_DEV_ATTR(adapter, port_rescan, S_IWUSR, NULL,
@@ -216,28 +205,19 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	struct zfcp_adapter *adapter = zfcp_ccw_adapter_by_cdev(cdev);
 	struct zfcp_port *port;
 	u64 wwpn;
-	int retval = 0;
+	int retval = -EINVAL;
 
 	if (!adapter)
 		return -ENODEV;
 
-	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		retval = -EBUSY;
+	if (strict_strtoull(buf, 0, (unsigned long long *) &wwpn))
 		goto out;
-	}
-
-	if (strict_strtoull(buf, 0, (unsigned long long *) &wwpn)) {
-		retval = -EINVAL;
-		goto out;
-	}
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
-	if (!port) {
-		retval = -ENXIO;
+	if (!port)
 		goto out;
-	}
-
-	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
+	else
+		retval = 0;
 
 	write_lock_irq(&adapter->port_list_lock);
 	list_del(&port->list);
@@ -283,10 +263,8 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	u64 fcp_lun;
 	int retval = -EINVAL;
 
-	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		retval = -EBUSY;
-		goto out;
-	}
+	if (!(port && get_device(&port->sysfs_device)))
+		return -EBUSY;
 
 	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		goto out;
@@ -294,13 +272,14 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	unit = zfcp_unit_enqueue(port, fcp_lun);
 	if (IS_ERR(unit))
 		goto out;
-
-	retval = 0;
+	else
+		retval = 0;
 
 	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
 	flush_work(&unit->scsi_work);
 out:
+	put_device(&port->sysfs_device);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
@@ -313,28 +292,22 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 					      sysfs_device);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
-	int retval = 0;
+	int retval = -EINVAL;
 
-	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		retval = -EBUSY;
-		goto out;
-	}
+	if (!(port && get_device(&port->sysfs_device)))
+		return -EBUSY;
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun)) {
-		retval = -EINVAL;
+	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
 		goto out;
-	}
 
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (!unit) {
-		retval = -EINVAL;
+	if (!unit)
 		goto out;
-	}
+	else
+		retval = 0;
 
 	/* wait for possible timeout during SCSI probe */
 	flush_work(&unit->scsi_work);
-
-	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 
 	write_lock_irq(&port->unit_list_lock);
 	list_del(&unit->list);
@@ -345,6 +318,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
 	zfcp_device_unregister(&unit->sysfs_device, &zfcp_sysfs_unit_attrs);
 out:
+	put_device(&port->sysfs_device);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);

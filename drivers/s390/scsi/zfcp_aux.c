@@ -245,9 +245,9 @@ struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
 
 	read_lock_irqsave(&port->unit_list_lock, flags);
 	list_for_each_entry(unit, &port->unit_list, list)
-		if ((unit->fcp_lun == fcp_lun) &&
-		    !(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_REMOVE)) {
-			get_device(&unit->sysfs_device);
+		if (unit->fcp_lun == fcp_lun) {
+			if (!get_device(&unit->sysfs_device))
+				unit = NULL;
 			read_unlock_irqrestore(&port->unit_list_lock, flags);
 			return unit;
 		}
@@ -270,9 +270,9 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list)
-		if ((port->wwpn == wwpn) &&
-		    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE)) {
-			get_device(&port->sysfs_device);
+		if (port->wwpn == wwpn) {
+			if (!get_device(&port->sysfs_device))
+				port = NULL;
 			read_unlock_irqrestore(&adapter->port_list_lock, flags);
 			return port;
 		}
@@ -334,9 +334,6 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	}
 	retval = -EINVAL;
 
-	/* mark unit unusable as long as sysfs registration is not complete */
-	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
-
 	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
 
 	spin_lock_init(&unit->latencies.lock);
@@ -360,7 +357,6 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	list_add_tail(&unit->list, &port->unit_list);
 	write_unlock_irq(&port->unit_list_lock);
 
-	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &unit->status);
 
 	return unit;
@@ -565,16 +561,11 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	adapter->service_level.seq_print = zfcp_print_sl;
 
-	/* mark adapter unusable as long as sysfs registration is not complete */
-	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-
 	dev_set_drvdata(&ccw_device->dev, adapter);
 
 	if (sysfs_create_group(&ccw_device->dev.kobj,
 			       &zfcp_sysfs_adapter_attrs))
 		goto failed;
-
-	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return adapter;
@@ -692,9 +683,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	port->sysfs_device.parent = &adapter->ccw_device->dev;
 	port->sysfs_device.release = zfcp_port_release;
 
-	/* mark port unusable as long as sysfs registration is not complete */
-	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
-
 	if (dev_set_name(&port->sysfs_device, "0x%016llx",
 			 (unsigned long long)wwpn)) {
 		kfree(port);
@@ -715,8 +703,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	list_add_tail(&port->list, &adapter->port_list);
 	write_unlock_irq(&adapter->port_list_lock);
 
-	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
-	atomic_set_mask(ZFCP_STATUS_COMMON_RUNNING, &port->status);
+	atomic_set_mask(status | ZFCP_STATUS_COMMON_RUNNING, &port->status);
 
 	return port;
 
