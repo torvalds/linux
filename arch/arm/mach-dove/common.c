@@ -24,6 +24,7 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
+#include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/pci.h>
@@ -760,6 +761,9 @@ void __init dove_init(void)
 	printk(KERN_INFO "Dove 88AP510 SoC, ");
 	printk(KERN_INFO "TCLK = %dMHz\n", (tclk + 499999) / 1000000);
 
+#ifdef CONFIG_CACHE_TAUROS2
+	tauros2_init();
+#endif
 	dove_setup_cpu_mbus();
 
 	dove_ge00_shared_data.t_clk = tclk;
