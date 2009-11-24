@@ -896,6 +896,23 @@ struct drm_connector_funcs radeon_dvi_connector_funcs = {
 	.force = radeon_dvi_force,
 };
 
+static void radeon_dp_connector_destroy(struct drm_connector *connector)
+{
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+
+	if (radeon_connector->ddc_bus)
+		radeon_i2c_destroy(radeon_connector->ddc_bus);
+	if (radeon_connector->edid)
+		kfree(radeon_connector->edid);
+	if (radeon_dig_connector->dp_i2c_bus)
+		radeon_i2c_destroy(radeon_dig_connector->dp_i2c_bus);
+	kfree(radeon_connector->con_priv);
+	drm_sysfs_connector_remove(connector);
+	drm_connector_cleanup(connector);
+	kfree(connector);
+}
+
 static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -959,7 +976,7 @@ struct drm_connector_funcs radeon_dp_connector_funcs = {
 	.detect = radeon_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = radeon_connector_set_property,
-	.destroy = radeon_connector_destroy,
+	.destroy = radeon_dp_connector_destroy,
 	.force = radeon_dvi_force,
 };
 
