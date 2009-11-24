@@ -308,7 +308,8 @@ void sctp_transport_route(struct sctp_transport *transport,
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
 		 */
-		if (asoc && (transport == asoc->peer.active_path))
+		if (asoc && (!asoc->peer.primary_path ||
+				(transport == asoc->peer.active_path)))
 			opt->pf->af->to_sk_saddr(&transport->saddr,
 						 asoc->base.sk);
 	} else

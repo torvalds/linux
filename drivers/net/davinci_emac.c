@@ -2140,9 +2140,6 @@ static int emac_poll(struct napi_struct *napi, int budget)
 	u32 status = 0;
 	u32 num_pkts = 0;
 
-	if (!netif_running(ndev))
-		return 0;
-
 	/* Check interrupt vectors and call packet processing */
 	status = emac_read(EMAC_MACINVECTOR);
 

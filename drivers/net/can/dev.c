@@ -629,6 +629,11 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static size_t can_get_xstats_size(const struct net_device *dev)
+{
+	return sizeof(struct can_device_stats);
+}
+
 static int can_fill_xstats(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -657,6 +662,7 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.changelink	= can_changelink,
 	.get_size	= can_get_size,
 	.fill_info	= can_fill_info,
+	.get_xstats_size = can_get_xstats_size,
 	.fill_xstats	= can_fill_xstats,
 };
 

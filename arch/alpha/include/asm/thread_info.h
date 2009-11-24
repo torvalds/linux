@@ -50,11 +50,11 @@ struct thread_info {
 register struct thread_info *__current_thread_info __asm__("$8");
 #define current_thread_info()  __current_thread_info
 
+#endif /* __ASSEMBLY__ */
+
 /* Thread information allocation.  */
 #define THREAD_SIZE_ORDER 1
 #define THREAD_SIZE (2*PAGE_SIZE)
-
-#endif /* __ASSEMBLY__ */
 
 #define PREEMPT_ACTIVE		0x40000000
 

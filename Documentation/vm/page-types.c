@@ -218,7 +218,7 @@ static void fatal(const char *x, ...)
 	exit(EXIT_FAILURE);
 }
 
-int checked_open(const char *pathname, int flags)
+static int checked_open(const char *pathname, int flags)
 {
 	int fd = open(pathname, flags);
 

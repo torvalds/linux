@@ -526,15 +526,21 @@ static const struct dmi_system_id sw_any_bug_dmi_table[] = {
 
 static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 {
-	/* http://www.intel.com/Assets/PDF/specupdate/314554.pdf
+	/* Intel Xeon Processor 7100 Series Specification Update
+	 * http://www.intel.com/Assets/PDF/specupdate/314554.pdf
 	 * AL30: A Machine Check Exception (MCE) Occurring during an
 	 * Enhanced Intel SpeedStep Technology Ratio Change May Cause
-	 * Both Processor Cores to Lock Up when HT is enabled*/
+	 * Both Processor Cores to Lock Up. */
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
 		if ((c->x86 == 15) &&
 		    (c->x86_model == 6) &&
-		    (c->x86_mask == 8) && smt_capable())
+		    (c->x86_mask == 8)) {
+			printk(KERN_INFO "acpi-cpufreq: Intel(R) "
+			    "Xeon(R) 7100 Errata AL30, processors may "
+			    "lock up on frequency changes: disabling "
+			    "acpi-cpufreq.\n");
 			return -ENODEV;
+		    }
 		}
 	return 0;
 }
@@ -549,13 +555,18 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	unsigned int result = 0;
 	struct cpuinfo_x86 *c = &cpu_data(policy->cpu);
 	struct acpi_processor_performance *perf;
+#ifdef CONFIG_SMP
+	static int blacklisted;
+#endif
 
 	dprintk("acpi_cpufreq_cpu_init\n");
 
 #ifdef CONFIG_SMP
-	result = acpi_cpufreq_blacklist(c);
-	if (result)
-		return result;
+	if (blacklisted)
+		return blacklisted;
+	blacklisted = acpi_cpufreq_blacklist(c);
+	if (blacklisted)
+		return blacklisted;
 #endif
 
 	data = kzalloc(sizeof(struct acpi_cpufreq_data), GFP_KERNEL);

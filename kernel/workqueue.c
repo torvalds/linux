@@ -692,31 +692,29 @@ int schedule_on_each_cpu(work_func_t func)
 	if (!works)
 		return -ENOMEM;
 
-	/*
-	 * when running in keventd don't schedule a work item on itself.
-	 * Can just call directly because the work queue is already bound.
-	 * This also is faster.
-	 * Make this a generic parameter for other workqueues?
-	 */
-	if (current_is_keventd()) {
-		orig = raw_smp_processor_id();
-		INIT_WORK(per_cpu_ptr(works, orig), func);
-		func(per_cpu_ptr(works, orig));
-	}
-
 	get_online_cpus();
+
+	/*
+	 * When running in keventd don't schedule a work item on
+	 * itself.  Can just call directly because the work queue is
+	 * already bound.  This also is faster.
+	 */
+	if (current_is_keventd())
+		orig = raw_smp_processor_id();
+
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = per_cpu_ptr(works, cpu);
 
-		if (cpu == orig)
-			continue;
 		INIT_WORK(work, func);
-		schedule_work_on(cpu, work);
-	}
-	for_each_online_cpu(cpu) {
 		if (cpu != orig)
-			flush_work(per_cpu_ptr(works, cpu));
+			schedule_work_on(cpu, work);
 	}
+	if (orig >= 0)
+		func(per_cpu_ptr(works, orig));
+
+	for_each_online_cpu(cpu)
+		flush_work(per_cpu_ptr(works, cpu));
+
 	put_online_cpus();
 	free_percpu(works);
 	return 0;

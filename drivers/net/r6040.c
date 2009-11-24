@@ -1085,7 +1085,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	int bar = 0;
 	u16 *adrp;
 
-	printk(KERN_INFO "%s\n", version);
+	printk("%s\n", version);
 
 	err = pci_enable_device(pdev);
 	if (err)
