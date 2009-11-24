@@ -35,6 +35,14 @@ config MFD_ASIC3
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
+config MFD_SH_MOBILE_SDHI
+	bool "Support for SuperH Mobile SDHI"
+	depends on SUPERH
+	select MFD_CORE
+	 ---help---
+	  This driver supports the SDHI hardware block found in many
+	  SuperH Mobile SoCs.
+
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
 	depends on I2C && MACH_DAVINCI_DM355_EVM

@@ -18,8 +18,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/spi_gpio.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/ov772x.h>
@@ -28,6 +26,7 @@
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
+#include <asm/suspend.h>
 #include <mach/migor.h>
 #include <cpu/sh7722.h>
 
@@ -390,17 +389,25 @@ static struct platform_device migor_ceu_device = {
 	},
 };
 
-struct spi_gpio_platform_data sdcard_cn9_platform_data = {
-	.sck = GPIO_PTD0,
-	.mosi = GPIO_PTD1,
-	.miso = GPIO_PTD2,
-	.num_chipselect = 1,
+static struct resource sdhi_cn9_resources[] = {
+	[0] = {
+		.name	= "SDHI",
+		.start	= 0x04ce0000,
+		.end	= 0x04ce01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 101,
+		.flags  = IORESOURCE_IRQ,
+	},
 };
 
-static struct platform_device sdcard_cn9_device = {
-	.name		= "spi_gpio",
-	.dev	= {
-		.platform_data	= &sdcard_cn9_platform_data,
+static struct platform_device sdhi_cn9_device = {
+	.name		= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi_cn9_resources),
+	.resource	= sdhi_cn9_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI,
 	},
 };
 
@@ -467,23 +474,24 @@ static struct platform_device *migor_devices[] __initdata = {
 	&migor_ceu_device,
 	&migor_nor_flash_device,
 	&migor_nand_flash_device,
-	&sdcard_cn9_device,
+	&sdhi_cn9_device,
 	&migor_camera[0],
 	&migor_camera[1],
 };
 
-static struct spi_board_info migor_spi_devices[] = {
-	{
-		.modalias = "mmc_spi",
-		.max_speed_hz = 5000000,
-		.chip_select = 0,
-		.controller_data = (void *) GPIO_PTD5,
-	},
-};
+extern char migor_sdram_enter_start;
+extern char migor_sdram_enter_end;
+extern char migor_sdram_leave_start;
+extern char migor_sdram_leave_end;
 
 static int __init migor_devices_setup(void)
 {
-
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&migor_sdram_enter_start,
+					&migor_sdram_enter_end,
+					&migor_sdram_leave_start,
+					&migor_sdram_leave_end);
 #ifdef CONFIG_PM
 	/* Let D11 LED show STATUS0 */
 	gpio_request(GPIO_FN_STATUS0, NULL);
@@ -524,6 +532,16 @@ static int __init migor_devices_setup(void)
 	ctrl_outl((ctrl_inl(BSC_CS6ABCR) & ~0x0600) | 0x0200, BSC_CS6ABCR);
 	gpio_request(GPIO_PTA1, NULL);
 	gpio_direction_input(GPIO_PTA1);
+
+	/* SDHI */
+	gpio_request(GPIO_FN_SDHICD, NULL);
+	gpio_request(GPIO_FN_SDHIWP, NULL);
+	gpio_request(GPIO_FN_SDHID3, NULL);
+	gpio_request(GPIO_FN_SDHID2, NULL);
+	gpio_request(GPIO_FN_SDHID1, NULL);
+	gpio_request(GPIO_FN_SDHID0, NULL);
+	gpio_request(GPIO_FN_SDHICMD, NULL);
+	gpio_request(GPIO_FN_SDHICLK, NULL);
 
 	/* Touch Panel */
 	gpio_request(GPIO_FN_IRQ6, NULL);
@@ -611,9 +629,6 @@ static int __init migor_devices_setup(void)
 
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
-
-	spi_register_board_info(migor_spi_devices,
-				ARRAY_SIZE(migor_spi_devices));
 
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }

@@ -35,28 +35,8 @@
 
 static void __pmb_unmap(struct pmb_entry *);
 
-static struct kmem_cache *pmb_cache;
+static struct pmb_entry pmb_entry_list[NR_PMB_ENTRIES];
 static unsigned long pmb_map;
-
-static struct pmb_entry pmb_init_map[] = {
-	/* vpn         ppn         flags (ub/sz/c/wt) */
-
-	/* P1 Section Mappings */
-	{ 0x80000000, 0x00000000, PMB_SZ_64M  | PMB_C, },
-	{ 0x84000000, 0x04000000, PMB_SZ_64M  | PMB_C, },
-	{ 0x88000000, 0x08000000, PMB_SZ_128M | PMB_C, },
-	{ 0x90000000, 0x10000000, PMB_SZ_64M  | PMB_C, },
-	{ 0x94000000, 0x14000000, PMB_SZ_64M  | PMB_C, },
-	{ 0x98000000, 0x18000000, PMB_SZ_64M  | PMB_C, },
-
-	/* P2 Section Mappings */
-	{ 0xa0000000, 0x00000000, PMB_UB | PMB_SZ_64M  | PMB_WT, },
-	{ 0xa4000000, 0x04000000, PMB_UB | PMB_SZ_64M  | PMB_WT, },
-	{ 0xa8000000, 0x08000000, PMB_UB | PMB_SZ_128M | PMB_WT, },
-	{ 0xb0000000, 0x10000000, PMB_UB | PMB_SZ_64M  | PMB_WT, },
-	{ 0xb4000000, 0x14000000, PMB_UB | PMB_SZ_64M  | PMB_WT, },
-	{ 0xb8000000, 0x18000000, PMB_UB | PMB_SZ_64M  | PMB_WT, },
-};
 
 static inline unsigned long mk_pmb_entry(unsigned int entry)
 {
@@ -73,81 +53,68 @@ static inline unsigned long mk_pmb_data(unsigned int entry)
 	return mk_pmb_entry(entry) | PMB_DATA;
 }
 
-static DEFINE_SPINLOCK(pmb_list_lock);
-static struct pmb_entry *pmb_list;
-
-static inline void pmb_list_add(struct pmb_entry *pmbe)
+static int pmb_alloc_entry(void)
 {
-	struct pmb_entry **p, *tmp;
+	unsigned int pos;
 
-	p = &pmb_list;
-	while ((tmp = *p) != NULL)
-		p = &tmp->next;
+repeat:
+	pos = find_first_zero_bit(&pmb_map, NR_PMB_ENTRIES);
 
-	pmbe->next = tmp;
-	*p = pmbe;
+	if (unlikely(pos > NR_PMB_ENTRIES))
+		return -ENOSPC;
+
+	if (test_and_set_bit(pos, &pmb_map))
+		goto repeat;
+
+	return pos;
 }
 
-static inline void pmb_list_del(struct pmb_entry *pmbe)
-{
-	struct pmb_entry **p, *tmp;
-
-	for (p = &pmb_list; (tmp = *p); p = &tmp->next)
-		if (tmp == pmbe) {
-			*p = tmp->next;
-			return;
-		}
-}
-
-struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
-			    unsigned long flags)
+static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
+				   unsigned long flags, int entry)
 {
 	struct pmb_entry *pmbe;
+	int pos;
 
-	pmbe = kmem_cache_alloc(pmb_cache, GFP_KERNEL);
+	if (entry == PMB_NO_ENTRY) {
+		pos = pmb_alloc_entry();
+		if (pos < 0)
+			return ERR_PTR(pos);
+	} else {
+		if (test_bit(entry, &pmb_map))
+			return ERR_PTR(-ENOSPC);
+		pos = entry;
+	}
+
+	pmbe = &pmb_entry_list[pos];
 	if (!pmbe)
 		return ERR_PTR(-ENOMEM);
 
 	pmbe->vpn	= vpn;
 	pmbe->ppn	= ppn;
 	pmbe->flags	= flags;
-
-	spin_lock_irq(&pmb_list_lock);
-	pmb_list_add(pmbe);
-	spin_unlock_irq(&pmb_list_lock);
+	pmbe->entry	= pos;
 
 	return pmbe;
 }
 
-void pmb_free(struct pmb_entry *pmbe)
+static void pmb_free(struct pmb_entry *pmbe)
 {
-	spin_lock_irq(&pmb_list_lock);
-	pmb_list_del(pmbe);
-	spin_unlock_irq(&pmb_list_lock);
+	int pos = pmbe->entry;
 
-	kmem_cache_free(pmb_cache, pmbe);
+	pmbe->vpn	= 0;
+	pmbe->ppn	= 0;
+	pmbe->flags	= 0;
+	pmbe->entry	= 0;
+
+	clear_bit(pos, &pmb_map);
 }
 
 /*
  * Must be in P2 for __set_pmb_entry()
  */
-int __set_pmb_entry(unsigned long vpn, unsigned long ppn,
-		    unsigned long flags, int *entry)
+static void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
+			    unsigned long flags, int pos)
 {
-	unsigned int pos = *entry;
-
-	if (unlikely(pos == PMB_NO_ENTRY))
-		pos = find_first_zero_bit(&pmb_map, NR_PMB_ENTRIES);
-
-repeat:
-	if (unlikely(pos > NR_PMB_ENTRIES))
-		return -ENOSPC;
-
-	if (test_and_set_bit(pos, &pmb_map)) {
-		pos = find_first_zero_bit(&pmb_map, NR_PMB_ENTRIES);
-		goto repeat;
-	}
-
 	ctrl_outl(vpn | PMB_V, mk_pmb_addr(pos));
 
 #ifdef CONFIG_CACHE_WRITETHROUGH
@@ -161,35 +128,21 @@ repeat:
 #endif
 
 	ctrl_outl(ppn | flags | PMB_V, mk_pmb_data(pos));
-
-	*entry = pos;
-
-	return 0;
 }
 
-int __uses_jump_to_uncached set_pmb_entry(struct pmb_entry *pmbe)
+static void __uses_jump_to_uncached set_pmb_entry(struct pmb_entry *pmbe)
 {
-	int ret;
-
 	jump_to_uncached();
-	ret = __set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, &pmbe->entry);
+	__set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, pmbe->entry);
 	back_to_cached();
-
-	return ret;
 }
 
-void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
+static void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned int entry = pmbe->entry;
 	unsigned long addr;
 
-	/*
-	 * Don't allow clearing of wired init entries, P1 or P2 access
-	 * without a corresponding mapping in the PMB will lead to reset
-	 * by the TLB.
-	 */
-	if (unlikely(entry < ARRAY_SIZE(pmb_init_map) ||
-		     entry >= NR_PMB_ENTRIES))
+	if (unlikely(entry >= NR_PMB_ENTRIES))
 		return;
 
 	jump_to_uncached();
@@ -202,8 +155,6 @@ void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
 	ctrl_outl(ctrl_inl(addr) & ~PMB_V, addr);
 
 	back_to_cached();
-
-	clear_bit(entry, &pmb_map);
 }
 
 
@@ -239,23 +190,17 @@ long pmb_remap(unsigned long vaddr, unsigned long phys,
 
 again:
 	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
-		int ret;
-
 		if (size < pmb_sizes[i].size)
 			continue;
 
-		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag);
+		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag,
+				 PMB_NO_ENTRY);
 		if (IS_ERR(pmbe)) {
 			err = PTR_ERR(pmbe);
 			goto out;
 		}
 
-		ret = set_pmb_entry(pmbe);
-		if (ret != 0) {
-			pmb_free(pmbe);
-			err = -EBUSY;
-			goto out;
-		}
+		set_pmb_entry(pmbe);
 
 		phys	+= pmb_sizes[i].size;
 		vaddr	+= pmb_sizes[i].size;
@@ -292,11 +237,16 @@ out:
 
 void pmb_unmap(unsigned long addr)
 {
-	struct pmb_entry **p, *pmbe;
+	struct pmb_entry *pmbe = NULL;
+	int i;
 
-	for (p = &pmb_list; (pmbe = *p); p = &pmbe->next)
-		if (pmbe->vpn == addr)
-			break;
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		if (test_bit(i, &pmb_map)) {
+			pmbe = &pmb_entry_list[i];
+			if (pmbe->vpn == addr)
+				break;
+		}
+	}
 
 	if (unlikely(!pmbe))
 		return;
@@ -306,13 +256,22 @@ void pmb_unmap(unsigned long addr)
 
 static void __pmb_unmap(struct pmb_entry *pmbe)
 {
-	WARN_ON(!test_bit(pmbe->entry, &pmb_map));
+	BUG_ON(!test_bit(pmbe->entry, &pmb_map));
 
 	do {
 		struct pmb_entry *pmblink = pmbe;
 
-		if (pmbe->entry != PMB_NO_ENTRY)
-			clear_pmb_entry(pmbe);
+		/*
+		 * We may be called before this pmb_entry has been
+		 * entered into the PMB table via set_pmb_entry(), but
+		 * that's OK because we've allocated a unique slot for
+		 * this entry in pmb_alloc() (even if we haven't filled
+		 * it yet).
+		 *
+		 * Therefore, calling clear_pmb_entry() is safe as no
+		 * other mapping can be using that slot.
+		 */
+		clear_pmb_entry(pmbe);
 
 		pmbe = pmblink->link;
 
@@ -320,42 +279,34 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
-static void pmb_cache_ctor(void *pmb)
+#ifdef CONFIG_PMB
+int __uses_jump_to_uncached pmb_init(void)
 {
-	struct pmb_entry *pmbe = pmb;
-
-	memset(pmb, 0, sizeof(struct pmb_entry));
-
-	pmbe->entry = PMB_NO_ENTRY;
-}
-
-static int __uses_jump_to_uncached pmb_init(void)
-{
-	unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
-	unsigned int entry, i;
-
-	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
-
-	pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
-				      SLAB_PANIC, pmb_cache_ctor);
+	unsigned int i;
+	long size, ret;
 
 	jump_to_uncached();
 
 	/*
-	 * Ordering is important, P2 must be mapped in the PMB before we
-	 * can set PMB.SE, and P1 must be mapped before we jump back to
-	 * P1 space.
+	 * Insert PMB entries for the P1 and P2 areas so that, after
+	 * we've switched the MMU to 32-bit mode, the semantics of P1
+	 * and P2 are the same as in 29-bit mode, e.g.
+	 *
+	 *	P1 - provides a cached window onto physical memory
+	 *	P2 - provides an uncached window onto physical memory
 	 */
-	for (entry = 0; entry < nr_entries; entry++) {
-		struct pmb_entry *pmbe = pmb_init_map + entry;
+	size = __MEMORY_START + __MEMORY_SIZE;
 
-		__set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, &entry);
-	}
+	ret = pmb_remap(P1SEG, 0x00000000, size, PMB_C);
+	BUG_ON(ret != size);
+
+	ret = pmb_remap(P2SEG, 0x00000000, size, PMB_WT | PMB_UB);
+	BUG_ON(ret != size);
 
 	ctrl_outl(0, PMB_IRMCR);
 
 	/* PMB.SE and UB[7] */
-	ctrl_outl((1 << 31) | (1 << 7), PMB_PASCR);
+	ctrl_outl(PASCR_SE | (1 << 7), PMB_PASCR);
 
 	/* Flush out the TLB */
 	i =  ctrl_inl(MMUCR);
@@ -366,7 +317,53 @@ static int __uses_jump_to_uncached pmb_init(void)
 
 	return 0;
 }
-arch_initcall(pmb_init);
+#else
+int __uses_jump_to_uncached pmb_init(void)
+{
+	int i;
+	unsigned long addr, data;
+
+	jump_to_uncached();
+
+	for (i = 0; i < PMB_ENTRY_MAX; i++) {
+		struct pmb_entry *pmbe;
+		unsigned long vpn, ppn, flags;
+
+		addr = PMB_DATA + (i << PMB_E_SHIFT);
+		data = ctrl_inl(addr);
+		if (!(data & PMB_V))
+			continue;
+
+		if (data & PMB_C) {
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+			data |= PMB_WT;
+#elif defined(CONFIG_CACHE_WRITEBACK)
+			data &= ~PMB_WT;
+#else
+			data &= ~(PMB_C | PMB_WT);
+#endif
+		}
+		ctrl_outl(data, addr);
+
+		ppn = data & PMB_PFN_MASK;
+
+		flags = data & (PMB_C | PMB_WT | PMB_UB);
+		flags |= data & PMB_SZ_MASK;
+
+		addr = PMB_ADDR + (i << PMB_E_SHIFT);
+		data = ctrl_inl(addr);
+
+		vpn = data & PMB_PFN_MASK;
+
+		pmbe = pmb_alloc(vpn, ppn, flags, i);
+		WARN_ON(IS_ERR(pmbe));
+	}
+
+	back_to_cached();
+
+	return 0;
+}
+#endif /* CONFIG_PMB */
 
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {
@@ -434,15 +431,18 @@ postcore_initcall(pmb_debugfs_init);
 static int pmb_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 {
 	static pm_message_t prev_state;
+	int i;
 
 	/* Restore the PMB after a resume from hibernation */
 	if (state.event == PM_EVENT_ON &&
 	    prev_state.event == PM_EVENT_FREEZE) {
 		struct pmb_entry *pmbe;
-		spin_lock_irq(&pmb_list_lock);
-		for (pmbe = pmb_list; pmbe; pmbe = pmbe->next)
-			set_pmb_entry(pmbe);
-		spin_unlock_irq(&pmb_list_lock);
+		for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+			if (test_bit(i, &pmb_map)) {
+				pmbe = &pmb_entry_list[i];
+				set_pmb_entry(pmbe);
+			}
+		}
 	}
 	prev_state = state;
 	return 0;

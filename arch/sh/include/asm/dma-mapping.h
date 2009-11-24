@@ -1,193 +1,52 @@
 #ifndef __ASM_SH_DMA_MAPPING_H
 #define __ASM_SH_DMA_MAPPING_H
 
-#include <linux/mm.h>
-#include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
-#include <asm/cacheflush.h>
-#include <asm/io.h>
+extern struct dma_map_ops *dma_ops;
+extern void no_iommu_init(void);
+
+static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+{
+	return dma_ops;
+}
+
 #include <asm-generic/dma-coherent.h>
+#include <asm-generic/dma-mapping-common.h>
 
-extern struct bus_type pci_bus_type;
+static inline int dma_supported(struct device *dev, u64 mask)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
 
-#define dma_supported(dev, mask)	(1)
+	if (ops->dma_supported)
+		return ops->dma_supported(dev, mask);
+
+	return 1;
+}
 
 static inline int dma_set_mask(struct device *dev, u64 mask)
 {
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
+	if (ops->set_dma_mask)
+		return ops->set_dma_mask(dev, mask);
 
 	*dev->dma_mask = mask;
 
 	return 0;
 }
 
-void *dma_alloc_coherent(struct device *dev, size_t size,
-			 dma_addr_t *dma_handle, gfp_t flag);
-
-void dma_free_coherent(struct device *dev, size_t size,
-		       void *vaddr, dma_addr_t dma_handle);
-
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction dir);
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
+
+#ifdef CONFIG_DMA_COHERENT
 #define dma_is_consistent(d, h) (1)
-
-static inline dma_addr_t dma_map_single(struct device *dev,
-					void *ptr, size_t size,
-					enum dma_data_direction dir)
-{
-	dma_addr_t addr = virt_to_phys(ptr);
-
-#if defined(CONFIG_PCI) && !defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-	if (dev->bus == &pci_bus_type)
-		return addr;
+#else
+#define dma_is_consistent(d, h) (0)
 #endif
-	dma_cache_sync(dev, ptr, size, dir);
-
-	debug_dma_map_page(dev, virt_to_page(ptr),
-			   (unsigned long)ptr & ~PAGE_MASK, size,
-			   dir, addr, true);
-
-	return addr;
-}
-
-static inline void dma_unmap_single(struct device *dev, dma_addr_t addr,
-				    size_t size, enum dma_data_direction dir)
-{
-	debug_dma_unmap_page(dev, addr, size, dir, true);
-}
-
-static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
-			     int nents, enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++) {
-#if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, dir);
-#endif
-		sg[i].dma_address = sg_phys(&sg[i]);
-		sg[i].dma_length = sg[i].length;
-	}
-
-	debug_dma_map_sg(dev, sg, nents, i, dir);
-
-	return nents;
-}
-
-static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-				int nents, enum dma_data_direction dir)
-{
-	debug_dma_unmap_sg(dev, sg, nents, dir);
-}
-
-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction dir)
-{
-	return dma_map_single(dev, page_address(page) + offset, size, dir);
-}
-
-static inline void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
-				  size_t size, enum dma_data_direction dir)
-{
-	dma_unmap_single(dev, dma_address, size, dir);
-}
-
-static inline void __dma_sync_single(struct device *dev, dma_addr_t dma_handle,
-				   size_t size, enum dma_data_direction dir)
-{
-#if defined(CONFIG_PCI) && !defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-	if (dev->bus == &pci_bus_type)
-		return;
-#endif
-	dma_cache_sync(dev, phys_to_virt(dma_handle), size, dir);
-}
-
-static inline void dma_sync_single_range(struct device *dev,
-					 dma_addr_t dma_handle,
-					 unsigned long offset, size_t size,
-					 enum dma_data_direction dir)
-{
-#if defined(CONFIG_PCI) && !defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-	if (dev->bus == &pci_bus_type)
-		return;
-#endif
-	dma_cache_sync(dev, phys_to_virt(dma_handle) + offset, size, dir);
-}
-
-static inline void __dma_sync_sg(struct device *dev, struct scatterlist *sg,
-			       int nelems, enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nelems; i++) {
-#if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, dir);
-#endif
-		sg[i].dma_address = sg_phys(&sg[i]);
-		sg[i].dma_length = sg[i].length;
-	}
-}
-
-static inline void dma_sync_single_for_cpu(struct device *dev,
-					   dma_addr_t dma_handle, size_t size,
-					   enum dma_data_direction dir)
-{
-	__dma_sync_single(dev, dma_handle, size, dir);
-	debug_dma_sync_single_for_cpu(dev, dma_handle, size, dir);
-}
-
-static inline void dma_sync_single_for_device(struct device *dev,
-					      dma_addr_t dma_handle,
-					      size_t size,
-					      enum dma_data_direction dir)
-{
-	__dma_sync_single(dev, dma_handle, size, dir);
-	debug_dma_sync_single_for_device(dev, dma_handle, size, dir);
-}
-
-static inline void dma_sync_single_range_for_cpu(struct device *dev,
-						 dma_addr_t dma_handle,
-						 unsigned long offset,
-						 size_t size,
-						 enum dma_data_direction direction)
-{
-	dma_sync_single_for_cpu(dev, dma_handle+offset, size, direction);
-	debug_dma_sync_single_range_for_cpu(dev, dma_handle,
-					    offset, size, direction);
-}
-
-static inline void dma_sync_single_range_for_device(struct device *dev,
-						    dma_addr_t dma_handle,
-						    unsigned long offset,
-						    size_t size,
-						    enum dma_data_direction direction)
-{
-	dma_sync_single_for_device(dev, dma_handle+offset, size, direction);
-	debug_dma_sync_single_range_for_device(dev, dma_handle,
-					       offset, size, direction);
-}
-
-
-static inline void dma_sync_sg_for_cpu(struct device *dev,
-				       struct scatterlist *sg, int nelems,
-				       enum dma_data_direction dir)
-{
-	__dma_sync_sg(dev, sg, nelems, dir);
-	debug_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
-}
-
-static inline void dma_sync_sg_for_device(struct device *dev,
-					  struct scatterlist *sg, int nelems,
-					  enum dma_data_direction dir)
-{
-	__dma_sync_sg(dev, sg, nelems, dir);
-	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
-}
 
 static inline int dma_get_cache_alignment(void)
 {
@@ -200,20 +59,50 @@ static inline int dma_get_cache_alignment(void)
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops->mapping_error)
+		return ops->mapping_error(dev, dma_addr);
+
 	return dma_addr == 0;
 }
 
-#define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+static inline void *dma_alloc_coherent(struct device *dev, size_t size,
+				       dma_addr_t *dma_handle, gfp_t gfp)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
+	void *memory;
 
-extern int
-dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
-			    dma_addr_t device_addr, size_t size, int flags);
+	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
+		return memory;
+	if (!ops->alloc_coherent)
+		return NULL;
 
-extern void
-dma_release_declared_memory(struct device *dev);
+	memory = ops->alloc_coherent(dev, size, dma_handle, gfp);
+	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
 
-extern void *
-dma_mark_declared_memory_occupied(struct device *dev,
-				  dma_addr_t device_addr, size_t size);
+	return memory;
+}
+
+static inline void dma_free_coherent(struct device *dev, size_t size,
+				     void *vaddr, dma_addr_t dma_handle)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	WARN_ON(irqs_disabled());	/* for portability */
+
+	if (dma_release_from_coherent(dev, get_order(size), vaddr))
+		return;
+
+	debug_dma_free_coherent(dev, size, vaddr, dma_handle);
+	if (ops->free_coherent)
+		ops->free_coherent(dev, size, vaddr, dma_handle);
+}
+
+/* arch/sh/mm/consistent.c */
+extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+					dma_addr_t *dma_addr, gfp_t flag);
+extern void dma_generic_free_coherent(struct device *dev, size_t size,
+				      void *vaddr, dma_addr_t dma_handle);
 
 #endif /* __ASM_SH_DMA_MAPPING_H */

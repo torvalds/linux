@@ -12,6 +12,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <cpu/registers.h>
 #include <asm/processor.h>
 
 /*
@@ -45,6 +46,31 @@ do {								\
 static inline reg_size_t register_align(void *val)
 {
 	return (unsigned long long)(signed long long)(signed long)val;
+}
+
+#define SR_BL_LL	0x0000000010000000LL
+
+static inline void set_bl_bit(void)
+{
+	unsigned long long __dummy0, __dummy1 = SR_BL_LL;
+
+	__asm__ __volatile__("getcon	" __SR ", %0\n\t"
+			     "or	%0, %1, %0\n\t"
+			     "putcon	%0, " __SR "\n\t"
+			     : "=&r" (__dummy0)
+			     : "r" (__dummy1));
+
+}
+
+static inline void clear_bl_bit(void)
+{
+	unsigned long long __dummy0, __dummy1 = ~SR_BL_LL;
+
+	__asm__ __volatile__("getcon	" __SR ", %0\n\t"
+			     "and	%0, %1, %0\n\t"
+			     "putcon	%0, " __SR "\n\t"
+			     : "=&r" (__dummy0)
+			     : "r" (__dummy1));
 }
 
 #endif /* __ASM_SH_SYSTEM_64_H */

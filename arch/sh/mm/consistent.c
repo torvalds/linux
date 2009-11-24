@@ -15,10 +15,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
+
+struct dma_map_ops *dma_ops;
+EXPORT_SYMBOL(dma_ops);
 
 static int __init dma_init(void)
 {
@@ -27,14 +31,11 @@ static int __init dma_init(void)
 }
 fs_initcall(dma_init);
 
-void *dma_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t gfp)
+void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+				 dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret, *ret_nocache;
 	int order = get_order(size);
-
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &ret))
-		return ret;
 
 	ret = (void *)__get_free_pages(gfp, order);
 	if (!ret)
@@ -57,35 +58,26 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 
 	*dma_handle = virt_to_phys(ret);
 
-	debug_dma_alloc_coherent(dev, size, *dma_handle, ret_nocache);
-
 	return ret_nocache;
 }
-EXPORT_SYMBOL(dma_alloc_coherent);
 
-void dma_free_coherent(struct device *dev, size_t size,
-			 void *vaddr, dma_addr_t dma_handle)
+void dma_generic_free_coherent(struct device *dev, size_t size,
+			       void *vaddr, dma_addr_t dma_handle)
 {
 	int order = get_order(size);
 	unsigned long pfn = dma_handle >> PAGE_SHIFT;
 	int k;
 
-	WARN_ON(irqs_disabled());	/* for portability */
-
-	if (dma_release_from_coherent(dev, order, vaddr))
-		return;
-
-	debug_dma_free_coherent(dev, size, vaddr, dma_handle);
 	for (k = 0; k < (1 << order); k++)
 		__free_pages(pfn_to_page(pfn + k), 0);
+
 	iounmap(vaddr);
 }
-EXPORT_SYMBOL(dma_free_coherent);
 
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction direction)
 {
-#ifdef CONFIG_CPU_SH5
+#if defined(CONFIG_CPU_SH5) || defined(CONFIG_PMB)
 	void *p1addr = vaddr;
 #else
 	void *p1addr = (void*) P1SEGADDR((unsigned long)vaddr);

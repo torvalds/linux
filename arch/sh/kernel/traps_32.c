@@ -945,13 +945,8 @@ void __init trap_init(void)
 	set_exception_table_evt(0x800, do_reserved_inst);
 	set_exception_table_evt(0x820, do_illegal_slot_inst);
 #elif defined(CONFIG_SH_FPU)
-#ifdef CONFIG_CPU_SUBTYPE_SHX3
-	set_exception_table_evt(0xd80, fpu_state_restore_trap_handler);
-	set_exception_table_evt(0xda0, fpu_state_restore_trap_handler);
-#else
 	set_exception_table_evt(0x800, fpu_state_restore_trap_handler);
 	set_exception_table_evt(0x820, fpu_state_restore_trap_handler);
-#endif
 #endif
 
 #ifdef CONFIG_CPU_SH2

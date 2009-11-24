@@ -90,15 +90,11 @@
 #define ctrl_outl		__raw_writel
 #define ctrl_outq		__raw_writeq
 
+extern unsigned long generic_io_base;
+
 static inline void ctrl_delay(void)
 {
-#ifdef CONFIG_CPU_SH4
-	__raw_readw(CCN_PVR);
-#elif defined(P2SEG)
-	__raw_readw(P2SEG);
-#else
-#error "Need a dummy address for delay"
-#endif
+	__raw_readw(generic_io_base);
 }
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
@@ -186,8 +182,6 @@ __BUILD_MEMORY_STRING(q, u64)
 
 #define IO_SPACE_LIMIT 0xffffffff
 
-extern unsigned long generic_io_base;
-
 /*
  * This function provides a method for the generic case where a
  * board-specific ioport_map simply needs to return the port + some
@@ -246,7 +240,7 @@ void __iounmap(void __iomem *addr);
 static inline void __iomem *
 __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 {
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
+#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED) && !defined(CONFIG_PMB)
 	unsigned long last_addr = offset + size - 1;
 #endif
 	void __iomem *ret;
@@ -255,7 +249,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	if (ret)
 		return ret;
 
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
+#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED) && !defined(CONFIG_PMB)
 	/*
 	 * For P1 and P2 space this is trivial, as everything is already
 	 * mapped. Uncached access for P1 addresses are done through P2.

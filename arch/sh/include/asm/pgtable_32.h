@@ -108,7 +108,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED | _PAGE_FILE)
 #endif
 
-#define _PAGE_FLAGS_HARDWARE_MASK	(PHYS_ADDR_MASK & ~(_PAGE_CLEAR_FLAGS))
+#define _PAGE_FLAGS_HARDWARE_MASK	(phys_addr_mask() & ~(_PAGE_CLEAR_FLAGS))
 
 /* Hardware flags, page size encoding */
 #if !defined(CONFIG_MMU)

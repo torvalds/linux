@@ -78,11 +78,10 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
-/* Atomic operations are already serializing on SH */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
+#define smp_mb__before_atomic_dec()	smp_mb()
+#define smp_mb__after_atomic_dec()	smp_mb()
+#define smp_mb__before_atomic_inc()	smp_mb()
+#define smp_mb__after_atomic_inc()	smp_mb()
 
 #include <asm-generic/atomic-long.h>
 #include <asm-generic/atomic64.h>

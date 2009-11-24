@@ -142,6 +142,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	return pid;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 /*
  * Free current thread data structures etc..
@@ -186,6 +187,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 	return fpvalid;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 asmlinkage void ret_from_fork(void);
 

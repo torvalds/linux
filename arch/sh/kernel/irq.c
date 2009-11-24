@@ -37,7 +37,15 @@ void ack_bad_irq(unsigned int irq)
  */
 static int show_other_interrupts(struct seq_file *p, int prec)
 {
+	int j;
+
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stat[j].__nmi_count);
+	seq_printf(p, "  Non-maskable interrupts\n");
+
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
+
 	return 0;
 }
 
@@ -254,6 +262,12 @@ asmlinkage void do_softirq(void)
 void __init init_IRQ(void)
 {
 	plat_irq_setup();
+
+	/*
+	 * Pin any of the legacy IRQ vectors that haven't already been
+	 * grabbed by the platform
+	 */
+	reserve_irq_legacy();
 
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)

@@ -232,4 +232,33 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 				   unsigned long r6, unsigned long r7,
 				   struct pt_regs __regs);
 
+static inline void set_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"or	%2, %0\n\t"
+		"and	%3, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "r" (0x10000000), "r" (0xffffff0f)
+		: "memory"
+	);
+}
+
+static inline void clear_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"and	%2, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "1" (~0x10000000)
+		: "memory"
+	);
+}
+
 #endif /* __ASM_SH_SYSTEM_32_H */

@@ -101,7 +101,7 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
 	else if (!oldset)
 		oldset = &current->blocked;
@@ -115,11 +115,9 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			/*
 			 * If a signal was successfully delivered, the
 			 * saved sigmask is in its frame, and we can
-			 * clear the TIF_RESTORE_SIGMASK flag.
+			 * clear the TS_RESTORE_SIGMASK flag.
 			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 			tracehook_signal_handler(signr, &info, &ka, regs, 0);
 			return 1;
 		}
@@ -146,8 +144,8 @@ no_signal:
 	}
 
 	/* No signal to deliver -- put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 
@@ -176,6 +174,7 @@ sys_sigsuspend(old_sigset_t mask,
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
+		set_restore_sigmask();
 		regs->pc += 4;    /* because sys_sigreturn decrements the pc */
 		if (do_signal(regs, &saveset)) {
 			/* pc now points at signal handler. Need to decrement
