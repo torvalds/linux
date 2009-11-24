@@ -555,6 +555,8 @@ typedef struct drm_i915_private {
 	struct timer_list idle_timer;
 	bool busy;
 	u16 orig_clock;
+	int child_dev_num;
+	struct child_device_config *child_dev;
 	struct drm_connector *int_lvds_connector;
 } drm_i915_private_t;
 
