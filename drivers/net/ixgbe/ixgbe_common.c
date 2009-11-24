@@ -1382,10 +1382,10 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 	hw->addr_ctrl.overflow_promisc = 0;
 
 	/* Zero out the other receive addresses */
-	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use);
-	for (i = 1; i <= uc_addr_in_use; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(i), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(i), 0);
+	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use + 1);
+	for (i = 0; i < uc_addr_in_use; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(1+i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(1+i), 0);
 	}
 
 	/* Add the new addresses */
