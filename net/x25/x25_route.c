@@ -136,8 +136,10 @@ struct net_device *x25_dev_get(char *devname)
 #if defined(CONFIG_LLC) || defined(CONFIG_LLC_MODULE)
 					&& dev->type != ARPHRD_ETHER
 #endif
-					)))
+					))){
 		dev_put(dev);
+		dev = NULL;
+	}
 
 	return dev;
 }
