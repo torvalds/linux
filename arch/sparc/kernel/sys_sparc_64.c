@@ -614,12 +614,6 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 
 	if (test_thread_flag(TIF_32BIT))
 		goto out;
-	if (unlikely(new_len >= VA_EXCLUDE_START))
-		goto out;
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
-		goto out;
 
 	down_write(&current->mm->mmap_sem);
 	ret = do_mremap(addr, old_len, new_len, flags, new_addr);

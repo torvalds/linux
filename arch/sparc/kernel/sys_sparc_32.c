@@ -287,27 +287,6 @@ long sparc_remap_file_pages(unsigned long start, unsigned long size,
 				    (pgoff >> (PAGE_SHIFT - 12)), flags);
 }
 
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
-                
-asmlinkage unsigned long sparc_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr)
-{
-	unsigned long ret = -EINVAL;
-
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
-		goto out;
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-out:
-	return ret;       
-}
-
 /* we come to here via sys_nis_syscall so it can setup the regs argument */
 asmlinkage unsigned long
 c_sys_nis_syscall (struct pt_regs *regs)
