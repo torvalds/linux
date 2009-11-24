@@ -1699,6 +1699,41 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 	.destroy = intel_tv_enc_destroy,
 };
 
+/*
+ * Enumerate the child dev array parsed from VBT to check whether
+ * the integrated TV is present.
+ * If it is present, return 1.
+ * If it is not present, return false.
+ * If no child dev is parsed from VBT, it assumes that the TV is present.
+ */
+int tv_is_present_in_vbt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct child_device_config *p_child;
+	int i, ret;
+
+	if (!dev_priv->child_dev_num)
+		return 1;
+
+	ret = 0;
+	for (i = 0; i < dev_priv->child_dev_num; i++) {
+		p_child = dev_priv->child_dev + i;
+		/*
+		 * If the device type is not TV, continue.
+		 */
+		if (p_child->device_type != DEVICE_TYPE_INT_TV &&
+			p_child->device_type != DEVICE_TYPE_TV)
+			continue;
+		/* Only when the addin_offset is non-zero, it is regarded
+		 * as present.
+		 */
+		if (p_child->addin_offset) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
+}
 
 void
 intel_tv_init(struct drm_device *dev)
@@ -1714,6 +1749,10 @@ intel_tv_init(struct drm_device *dev)
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 		return;
 
+	if (!tv_is_present_in_vbt(dev)) {
+		DRM_DEBUG_KMS("Integrated TV is not present.\n");
+		return;
+	}
 	/* Even if we have an encoder we may not have a connector */
 	if (!dev_priv->int_tv_support)
 		return;
