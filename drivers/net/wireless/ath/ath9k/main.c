@@ -2364,7 +2364,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
-	int hdrlen, padsize;
+	int padpos, padsize;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
 		ath_print(common, ATH_DBG_XMIT,
@@ -2374,7 +2375,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	if (sc->ps_enabled) {
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		/*
 		 * mac80211 does not set PM field for normal data frames, so we
 		 * need to update that based on the current PS mode.
@@ -2394,7 +2394,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		 * power save mode. Need to wake up hardware for the TX to be
 		 * completed and if needed, also for RX of buffered frames.
 		 */
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
@@ -2422,7 +2421,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	 * BSSes.
 	 */
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 			sc->tx.seq_no += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
@@ -2430,13 +2428,13 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	/* Add the padding after the header if this is not already done */
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	if (hdrlen & 3) {
-		padsize = hdrlen % 4;
+	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padsize = padpos & 3;
+	if (padsize && skb->len>padpos) {
 		if (skb_headroom(skb) < padsize)
 			return -1;
 		skb_push(skb, padsize);
-		memmove(skb->data, skb->data + padsize, hdrlen);
+		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
 	/* Check if a tx queue is available */

@@ -1596,6 +1596,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int hdrlen;
 	__le16 fc;
+	int padpos, padsize;
 
 	tx_info->pad[0] = 0;
 	switch (txctl->frame_type) {
@@ -1614,7 +1615,13 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	ATH_TXBUF_RESET(bf);
 
 	bf->aphy = aphy;
-	bf->bf_frmlen = skb->len + FCS_LEN - (hdrlen & 3);
+	bf->bf_frmlen = skb->len + FCS_LEN;
+	/* Remove the padding size from bf_frmlen, if any */
+	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padsize = padpos & 3;
+	if (padsize && skb->len>padpos+padsize) {
+		bf->bf_frmlen -= padsize;
+	}
 
 	if (conf_is_ht(&hw->conf) && !is_pae(skb))
 		bf->bf_state.bf_type |= BUF_HT;

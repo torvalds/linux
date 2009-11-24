@@ -123,3 +123,5 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 				  struct ath_rx_status *rx_stats,
 				  struct ieee80211_rx_status *rxs,
 				  bool decrypt_error);
+
+int ath9k_cmn_padpos(__le16 frame_control);
