@@ -27,7 +27,6 @@ extern void zfcp_adapter_release(struct kref *);
 extern void zfcp_adapter_unregister(struct zfcp_adapter *);
 
 /* zfcp_ccw.c */
-extern int zfcp_ccw_register(void);
 extern int zfcp_ccw_priv_sch(struct zfcp_adapter *);
 extern struct ccw_driver zfcp_ccw_driver;
 extern struct zfcp_adapter *zfcp_ccw_adapter_by_cdev(struct ccw_device *);

@@ -279,14 +279,3 @@ struct ccw_driver zfcp_ccw_driver = {
 	.thaw	     = zfcp_ccw_activate,
 	.restore     = zfcp_ccw_activate,
 };
-
-/**
- * zfcp_ccw_register - ccw register function
- *
- * Registers the driver at the common i/o layer. This function will be called
- * at module load time/system start.
- */
-int __init zfcp_ccw_register(void)
-{
-	return ccw_driver_register(&zfcp_ccw_driver);
-}

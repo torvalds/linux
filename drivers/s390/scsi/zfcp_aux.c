@@ -189,7 +189,7 @@ static int __init zfcp_module_init(void)
 		goto out_misc;
 	}
 
-	retval = zfcp_ccw_register();
+	retval = ccw_driver_register(&zfcp_ccw_driver);
 	if (retval) {
 		pr_err("The zfcp device driver could not register with "
 		       "the common I/O layer\n");
@@ -217,6 +217,19 @@ out:
 }
 
 module_init(zfcp_module_init);
+
+static void __exit zfcp_module_exit(void)
+{
+	ccw_driver_unregister(&zfcp_ccw_driver);
+	misc_deregister(&zfcp_cfdc_misc);
+	fc_release_transport(zfcp_data.scsi_transport_template);
+	kmem_cache_destroy(zfcp_data.gid_pn_cache);
+	kmem_cache_destroy(zfcp_data.sr_buffer_cache);
+	kmem_cache_destroy(zfcp_data.qtcb_cache);
+	kmem_cache_destroy(zfcp_data.gpn_ft_cache);
+}
+
+module_exit(zfcp_module_exit);
 
 /**
  * zfcp_get_unit_by_lun - find unit in unit list of port by FCP LUN
