@@ -138,21 +138,20 @@ EXPORT_SYMBOL(request_dma);
 
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 {
-	BUG_ON(channel >= MAX_DMA_CHANNELS ||
+	int ret;
+	unsigned int irq;
+
+	BUG_ON(channel >= MAX_DMA_CHANNELS || !callback ||
 			!atomic_read(&dma_ch[channel].chan_status));
 
-	if (callback != NULL) {
-		int ret;
-		unsigned int irq = channel2irq(channel);
+	irq = channel2irq(channel);
+	ret = request_irq(irq, callback, 0, dma_ch[channel].device_id, data);
+	if (ret)
+		return ret;
 
-		ret = request_irq(irq, callback, IRQF_DISABLED,
-			dma_ch[channel].device_id, data);
-		if (ret)
-			return ret;
+	dma_ch[channel].irq = irq;
+	dma_ch[channel].data = data;
 
-		dma_ch[channel].irq = irq;
-		dma_ch[channel].data = data;
-	}
 	return 0;
 }
 EXPORT_SYMBOL(set_dma_callback);
