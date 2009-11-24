@@ -883,7 +883,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
 
-	sunserial_console_termios(con);
+	sunserial_console_termios(con, to_of_device(up->port.dev)->node);
 
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
