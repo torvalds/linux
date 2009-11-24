@@ -79,7 +79,7 @@ static int			dump_symtab                     =      0;
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
 static struct winsize		winsize;
-const char 			*vmlinux_name;
+struct symbol_conf		symbol_conf;
 
 /*
  * Source
@@ -128,7 +128,7 @@ struct sym_entry {
 
 static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
 {
-       return ((void *)self) + symbol__priv_size;
+       return ((void *)self) + symbol_conf.priv_size;
 }
 
 static void get_term_dimensions(struct winsize *ws)
@@ -695,7 +695,7 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (vmlinux_name) {
+	if (symbol_conf.vmlinux_name) {
 		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 		fprintf(stdout, "\t[S]     stop annotation.\n");
@@ -732,7 +732,7 @@ static int key_mapped(int c)
 		case 'F':
 		case 's':
 		case 'S':
-			return vmlinux_name ? 1 : 0;
+			return symbol_conf.vmlinux_name ? 1 : 0;
 		default:
 			break;
 	}
@@ -1261,7 +1261,8 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
-	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
 		    "hide kernel symbols"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
@@ -1295,7 +1296,7 @@ static const struct option options[] = {
 
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
-	int counter, err;
+	int counter;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -1313,15 +1314,16 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (!nr_counters)
 		nr_counters = 1;
 
-	symbol__init(sizeof(struct sym_entry) +
-		     (nr_counters + 1) * sizeof(unsigned long));
+	symbol_conf.priv_size = (sizeof(struct sym_entry) +
+				 (nr_counters + 1) * sizeof(unsigned long));
+	if (symbol_conf.vmlinux_name == NULL)
+		symbol_conf.try_vmlinux_path = true;
+	if (symbol__init(&symbol_conf) < 0)
+		return -1;
 
 	if (delay_secs < 1)
 		delay_secs = 1;
 
-	err = kernel_maps__init(vmlinux_name, !vmlinux_name, true);
-	if (err < 0)
-		return err;
 	parse_source(sym_filter_entry);
 
 	/*

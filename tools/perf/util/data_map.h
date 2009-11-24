@@ -23,8 +23,6 @@ struct perf_file_handler {
 void register_perf_file_handler(struct perf_file_handler *handler);
 int mmap_dispatch_perf_file(struct perf_header **pheader,
 			    const char *input_name,
-			    const char *vmlinux_name,
-			    bool try_vmlinux_path,
 			    int force,
 			    int full_paths,
 			    int *cwdlen,

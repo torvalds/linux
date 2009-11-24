@@ -39,7 +39,6 @@ static char		*dso_list_str, *comm_list_str, *sym_list_str,
 static struct strlist	*dso_list, *comm_list, *sym_list;
 
 static int		force;
-static bool		use_modules;
 
 static int		full_paths;
 static int		show_nr_samples;
@@ -53,11 +52,12 @@ static char		*pretty_printing_style = default_pretty_printing_style;
 static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
-const char		*vmlinux_name;
 
 static struct perf_header *header;
 
 static u64		sample_type;
+
+struct symbol_conf	symbol_conf;
 
 
 static size_t
@@ -865,8 +865,7 @@ static int __cmd_report(void)
 
 	register_perf_file_handler(&file_handler);
 
-	ret = mmap_dispatch_perf_file(&header, input_name, vmlinux_name,
-				      !vmlinux_name, force,
+	ret = mmap_dispatch_perf_file(&header, input_name, force,
 				      full_paths, &cwdlen, &cwd);
 	if (ret)
 		return ret;
@@ -963,9 +962,10 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_BOOLEAN('m', "modules", &use_modules,
+	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
 		    "Show a column with the number of samples"),
@@ -1035,7 +1035,8 @@ static void setup_list(struct strlist **list, const char *list_str,
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init(0);
+	if (symbol__init(&symbol_conf) < 0)
+		return -1;
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 

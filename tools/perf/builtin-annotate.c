@@ -34,11 +34,9 @@ static int		input;
 static int		full_paths;
 
 static int		print_line;
-static bool		use_modules;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
-const char		*vmlinux_name;
 
 struct sym_hist {
 	u64		sum;
@@ -54,6 +52,11 @@ struct sym_ext {
 struct sym_priv {
 	struct sym_hist	*hist;
 	struct sym_ext	*ext;
+};
+
+static struct symbol_conf symbol_conf = {
+	.priv_size	  = sizeof(struct sym_priv),
+	.try_vmlinux_path = true,
 };
 
 static const char *sym_hist_filter;
@@ -586,11 +589,6 @@ static int __cmd_annotate(void)
 		exit(0);
 	}
 
-	if (kernel_maps__init(vmlinux_name, true, use_modules) < 0) {
-		pr_err("failed to create kernel maps for symbol resolution\b");
-		return -1;
-	}
-
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
@@ -691,8 +689,9 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
-	OPT_BOOLEAN('m', "modules", &use_modules,
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('l', "print-line", &print_line,
 		    "print matching source lines (may be slow)"),
@@ -718,7 +717,8 @@ static void setup_sorting(void)
 
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init(sizeof(struct sym_priv));
+	if (symbol__init(&symbol_conf) < 0)
+		return -1;
 
 	page_size = getpagesize();
 

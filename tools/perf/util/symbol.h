@@ -49,6 +49,13 @@ struct symbol {
 	char		name[0];
 };
 
+struct symbol_conf {
+	unsigned short	priv_size;
+	bool		try_vmlinux_path,
+			use_modules;
+	const char	*vmlinux_name;
+};
+
 extern unsigned int symbol__priv_size;
 
 static inline void *symbol__priv(struct symbol *self)
@@ -93,11 +100,9 @@ int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
-int kernel_maps__init(const char *vmlinux_name, bool try_vmlinux_path,
-		      bool use_modules);
 size_t kernel_maps__fprintf(FILE *fp);
 
-void symbol__init(unsigned int priv_size);
+int symbol__init(struct symbol_conf *conf);
 
 extern struct list_head dsos;
 extern struct map *kernel_map;

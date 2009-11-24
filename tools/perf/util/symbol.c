@@ -6,6 +6,7 @@
 
 #include "debug.h"
 
+#include <asm/bug.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
@@ -36,6 +37,11 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 unsigned int symbol__priv_size;
 static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
+
+static struct symbol_conf symbol_conf__defaults = {
+	.use_modules	  = true,
+	.try_vmlinux_path = true,
+};
 
 static struct rb_root kernel_maps;
 
@@ -1166,7 +1172,9 @@ struct symbol *kernel_maps__find_symbol(u64 ip, struct map **mapp,
 	if (map) {
 		ip = map->map_ip(map, ip);
 		return map__find_symbol(map, ip, filter);
-	}
+	} else
+		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps),
+			  "Empty kernel_maps, was symbol__init() called?\n");
 
 	return NULL;
 }
@@ -1485,9 +1493,9 @@ size_t dsos__fprintf_buildid(FILE *fp)
 	return ret;
 }
 
-static int kernel_maps__create_kernel_map(const char *vmlinux_name)
+static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 {
-	struct dso *kernel = dso__new(vmlinux_name ?: "[kernel.kallsyms]");
+	struct dso *kernel = dso__new(conf->vmlinux_name ?: "[kernel.kallsyms]");
 
 	if (kernel == NULL)
 		return -1;
@@ -1577,18 +1585,21 @@ out_fail:
 	return -1;
 }
 
-int kernel_maps__init(const char *vmlinux_name, bool try_vmlinux_path,
-		      bool use_modules)
+static int kernel_maps__init(const struct symbol_conf *conf)
 {
-	if (try_vmlinux_path && vmlinux_path__init() < 0)
+	const struct symbol_conf *pconf = conf ?: &symbol_conf__defaults;
+
+	symbol__priv_size = pconf->priv_size;
+
+	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
-	if (kernel_maps__create_kernel_map(vmlinux_name) < 0) {
+	if (kernel_maps__create_kernel_map(pconf) < 0) {
 		vmlinux_path__exit();
 		return -1;
 	}
 
-	if (use_modules && kernel_maps__create_module_maps() < 0)
+	if (pconf->use_modules && kernel_maps__create_module_maps() < 0)
 		pr_debug("Failed to load list of modules in use, "
 			 "continuing...\n");
 	/*
@@ -1598,8 +1609,8 @@ int kernel_maps__init(const char *vmlinux_name, bool try_vmlinux_path,
 	return 0;
 }
 
-void symbol__init(unsigned int priv_size)
+int symbol__init(struct symbol_conf *conf)
 {
 	elf_version(EV_CURRENT);
-	symbol__priv_size = priv_size;
+	return kernel_maps__init(conf);
 }
