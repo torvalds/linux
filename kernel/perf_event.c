@@ -3914,7 +3914,7 @@ void perf_swevent_put_recursion_context(int rctx)
 {
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	barrier();
-	cpuctx->recursion[rctx]++;
+	cpuctx->recursion[rctx]--;
 	put_cpu_var(perf_cpu_context);
 }
 EXPORT_SYMBOL_GPL(perf_swevent_put_recursion_context);
