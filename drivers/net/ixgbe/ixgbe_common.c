@@ -1784,6 +1784,20 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	}
 
 	/*
+	 * Bail out on
+	 * - copper or CX4 adapters
+	 * - fiber adapters running at 10gig
+	 */
+	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
+	     (hw->phy.media_type == ixgbe_media_type_cx4) ||
+	     ((hw->phy.media_type == ixgbe_media_type_fiber) &&
+	     (speed == IXGBE_LINK_SPEED_10GB_FULL))) {
+		hw->fc.fc_was_autonegged = false;
+		hw->fc.current_mode = hw->fc.requested_mode;
+		goto out;
+	}
+
+	/*
 	 * Read the AN advertisement and LP ability registers and resolve
 	 * local flow control settings accordingly
 	 */
