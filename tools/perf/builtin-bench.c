@@ -12,6 +12,7 @@
  *
  * Available subsystem list:
  *  sched ... scheduler and IPC mechanism
+ *  mem   ... memory access performance
  *
  */
 
@@ -43,6 +44,15 @@ static struct bench_suite sched_suites[] = {
 	  NULL                  }
 };
 
+static struct bench_suite mem_suites[] = {
+	{ "memcpy",
+	  "Simple memory copy in various ways",
+	  bench_mem_memcpy },
+	{ NULL,
+	  NULL,
+	  NULL             }
+};
+
 struct bench_subsys {
 	const char *name;
 	const char *summary;
@@ -53,9 +63,12 @@ static struct bench_subsys subsystems[] = {
 	{ "sched",
 	  "scheduler and IPC mechanism",
 	  sched_suites },
+	{ "mem",
+	  "memory access performance",
+	  mem_suites },
 	{ NULL,
 	  NULL,
-	  NULL         }
+	  NULL       }
 };
 
 static void dump_suites(int subsys_index)
