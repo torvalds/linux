@@ -187,6 +187,8 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 			    const s8 pattern_type, const s8 end_type,
 			    const char *function)
 {
+	const char *const start = filename;
+	bool in_repetition = false;
 	bool contains_pattern = false;
 	unsigned char c;
 	unsigned char d;
@@ -212,9 +214,13 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 		if (c == '/')
 			goto out;
 	}
-	while ((c = *filename++) != '\0') {
+	while (1) {
+		c = *filename++;
+		if (!c)
+			break;
 		if (c == '\\') {
-			switch ((c = *filename++)) {
+			c = *filename++;
+			switch (c) {
 			case '\\':  /* "\\" */
 				continue;
 			case '$':   /* "\$" */
@@ -231,6 +237,22 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 					break; /* Must not contain pattern */
 				contains_pattern = true;
 				continue;
+			case '{':   /* "/\{" */
+				if (filename - 3 < start ||
+				    *(filename - 3) != '/')
+					break;
+				if (pattern_type == -1)
+					break; /* Must not contain pattern */
+				contains_pattern = true;
+				in_repetition = true;
+				continue;
+			case '}':   /* "\}/" */
+				if (*filename != '/')
+					break;
+				if (!in_repetition)
+					break;
+				in_repetition = false;
+				continue;
 			case '0':   /* "\ooo" */
 			case '1':
 			case '2':
@@ -246,6 +268,8 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 					continue; /* pattern is not \000 */
 			}
 			goto out;
+		} else if (in_repetition && c == '/') {
+			goto out;
 		} else if (tomoyo_is_invalid(c)) {
 			goto out;
 		}
@@ -254,6 +278,8 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 		if (!contains_pattern)
 			goto out;
 	}
+	if (in_repetition)
+		goto out;
 	return true;
  out:
 	printk(KERN_DEBUG "%s: Invalid pathname '%s'\n", function,
@@ -360,33 +386,6 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname)
 }
 
 /**
- * tomoyo_path_depth - Evaluate the number of '/' in a string.
- *
- * @pathname: The string to evaluate.
- *
- * Returns path depth of the string.
- *
- * I score 2 for each of the '/' in the @pathname
- * and score 1 if the @pathname ends with '/'.
- */
-static int tomoyo_path_depth(const char *pathname)
-{
-	int i = 0;
-
-	if (pathname) {
-		const char *ep = pathname + strlen(pathname);
-		if (pathname < ep--) {
-			if (*ep != '/')
-				i++;
-			while (pathname <= ep)
-				if (*ep-- == '/')
-					i += 2;
-		}
-	}
-	return i;
-}
-
-/**
  * tomoyo_const_part_length - Evaluate the initial length without a pattern in a token.
  *
  * @filename: The string to evaluate.
@@ -444,11 +443,10 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr)
 	ptr->is_dir = len && (name[len - 1] == '/');
 	ptr->is_patterned = (ptr->const_len < len);
 	ptr->hash = full_name_hash(name, len);
-	ptr->depth = tomoyo_path_depth(name);
 }
 
 /**
- * tomoyo_file_matches_to_pattern2 - Pattern matching without '/' character
+ * tomoyo_file_matches_pattern2 - Pattern matching without '/' character
  * and "\-" pattern.
  *
  * @filename:     The start of string to check.
@@ -458,10 +456,10 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr)
  *
  * Returns true if @filename matches @pattern, false otherwise.
  */
-static bool tomoyo_file_matches_to_pattern2(const char *filename,
-					    const char *filename_end,
-					    const char *pattern,
-					    const char *pattern_end)
+static bool tomoyo_file_matches_pattern2(const char *filename,
+					 const char *filename_end,
+					 const char *pattern,
+					 const char *pattern_end)
 {
 	while (filename < filename_end && pattern < pattern_end) {
 		char c;
@@ -519,7 +517,7 @@ static bool tomoyo_file_matches_to_pattern2(const char *filename,
 		case '*':
 		case '@':
 			for (i = 0; i <= filename_end - filename; i++) {
-				if (tomoyo_file_matches_to_pattern2(
+				if (tomoyo_file_matches_pattern2(
 						    filename + i, filename_end,
 						    pattern + 1, pattern_end))
 					return true;
@@ -550,7 +548,7 @@ static bool tomoyo_file_matches_to_pattern2(const char *filename,
 					j++;
 			}
 			for (i = 1; i <= j; i++) {
-				if (tomoyo_file_matches_to_pattern2(
+				if (tomoyo_file_matches_pattern2(
 						    filename + i, filename_end,
 						    pattern + 1, pattern_end))
 					return true;
@@ -567,7 +565,7 @@ static bool tomoyo_file_matches_to_pattern2(const char *filename,
 }
 
 /**
- * tomoyo_file_matches_to_pattern - Pattern matching without without '/' character.
+ * tomoyo_file_matches_pattern - Pattern matching without without '/' character.
  *
  * @filename:     The start of string to check.
  * @filename_end: The end of string to check.
@@ -576,7 +574,7 @@ static bool tomoyo_file_matches_to_pattern2(const char *filename,
  *
  * Returns true if @filename matches @pattern, false otherwise.
  */
-static bool tomoyo_file_matches_to_pattern(const char *filename,
+static bool tomoyo_file_matches_pattern(const char *filename,
 					   const char *filename_end,
 					   const char *pattern,
 					   const char *pattern_end)
@@ -589,10 +587,10 @@ static bool tomoyo_file_matches_to_pattern(const char *filename,
 		/* Split at "\-" pattern. */
 		if (*pattern++ != '\\' || *pattern++ != '-')
 			continue;
-		result = tomoyo_file_matches_to_pattern2(filename,
-							 filename_end,
-							 pattern_start,
-							 pattern - 2);
+		result = tomoyo_file_matches_pattern2(filename,
+						      filename_end,
+						      pattern_start,
+						      pattern - 2);
 		if (first)
 			result = !result;
 		if (result)
@@ -600,64 +598,35 @@ static bool tomoyo_file_matches_to_pattern(const char *filename,
 		first = false;
 		pattern_start = pattern;
 	}
-	result = tomoyo_file_matches_to_pattern2(filename, filename_end,
-						 pattern_start, pattern_end);
+	result = tomoyo_file_matches_pattern2(filename, filename_end,
+					      pattern_start, pattern_end);
 	return first ? result : !result;
 }
 
 /**
- * tomoyo_path_matches_pattern - Check whether the given filename matches the given pattern.
- * @filename: The filename to check.
- * @pattern:  The pattern to compare.
+ * tomoyo_path_matches_pattern2 - Do pathname pattern matching.
  *
- * Returns true if matches, false otherwise.
+ * @f: The start of string to check.
+ * @p: The start of pattern to compare.
  *
- * The following patterns are available.
- *   \\     \ itself.
- *   \ooo   Octal representation of a byte.
- *   \*     More than or equals to 0 character other than '/'.
- *   \@     More than or equals to 0 character other than '/' or '.'.
- *   \?     1 byte character other than '/'.
- *   \$     More than or equals to 1 decimal digit.
- *   \+     1 decimal digit.
- *   \X     More than or equals to 1 hexadecimal digit.
- *   \x     1 hexadecimal digit.
- *   \A     More than or equals to 1 alphabet character.
- *   \a     1 alphabet character.
- *   \-     Subtraction operator.
+ * Returns true if @f matches @p, false otherwise.
  */
-bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
-				 const struct tomoyo_path_info *pattern)
+static bool tomoyo_path_matches_pattern2(const char *f, const char *p)
 {
-	/*
-	  if (!filename || !pattern)
-	  return false;
-	*/
-	const char *f = filename->name;
-	const char *p = pattern->name;
-	const int len = pattern->const_len;
+	const char *f_delimiter;
+	const char *p_delimiter;
 
-	/* If @pattern doesn't contain pattern, I can use strcmp(). */
-	if (!pattern->is_patterned)
-		return !tomoyo_pathcmp(filename, pattern);
-	/* Dont compare if the number of '/' differs. */
-	if (filename->depth != pattern->depth)
-		return false;
-	/* Compare the initial length without patterns. */
-	if (strncmp(f, p, len))
-		return false;
-	f += len;
-	p += len;
-	/* Main loop. Compare each directory component. */
 	while (*f && *p) {
-		const char *f_delimiter = strchr(f, '/');
-		const char *p_delimiter = strchr(p, '/');
+		f_delimiter = strchr(f, '/');
 		if (!f_delimiter)
 			f_delimiter = f + strlen(f);
+		p_delimiter = strchr(p, '/');
 		if (!p_delimiter)
 			p_delimiter = p + strlen(p);
-		if (!tomoyo_file_matches_to_pattern(f, f_delimiter,
-						    p, p_delimiter))
+		if (*p == '\\' && *(p + 1) == '{')
+			goto recursive;
+		if (!tomoyo_file_matches_pattern(f, f_delimiter, p,
+						 p_delimiter))
 			return false;
 		f = f_delimiter;
 		if (*f)
@@ -671,6 +640,79 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 	       (*(p + 1) == '*' || *(p + 1) == '@'))
 		p += 2;
 	return !*f && !*p;
+ recursive:
+	/*
+	 * The "\{" pattern is permitted only after '/' character.
+	 * This guarantees that below "*(p - 1)" is safe.
+	 * Also, the "\}" pattern is permitted only before '/' character
+	 * so that "\{" + "\}" pair will not break the "\-" operator.
+	 */
+	if (*(p - 1) != '/' || p_delimiter <= p + 3 || *p_delimiter != '/' ||
+	    *(p_delimiter - 1) != '}' || *(p_delimiter - 2) != '\\')
+		return false; /* Bad pattern. */
+	do {
+		/* Compare current component with pattern. */
+		if (!tomoyo_file_matches_pattern(f, f_delimiter, p + 2,
+						 p_delimiter - 2))
+			break;
+		/* Proceed to next component. */
+		f = f_delimiter;
+		if (!*f)
+			break;
+		f++;
+		/* Continue comparison. */
+		if (tomoyo_path_matches_pattern2(f, p_delimiter + 1))
+			return true;
+		f_delimiter = strchr(f, '/');
+	} while (f_delimiter);
+	return false; /* Not matched. */
+}
+
+/**
+ * tomoyo_path_matches_pattern - Check whether the given filename matches the given pattern.
+ *
+ * @filename: The filename to check.
+ * @pattern:  The pattern to compare.
+ *
+ * Returns true if matches, false otherwise.
+ *
+ * The following patterns are available.
+ *   \\     \ itself.
+ *   \ooo   Octal representation of a byte.
+ *   \*     Zero or more repetitions of characters other than '/'.
+ *   \@     Zero or more repetitions of characters other than '/' or '.'.
+ *   \?     1 byte character other than '/'.
+ *   \$     One or more repetitions of decimal digits.
+ *   \+     1 decimal digit.
+ *   \X     One or more repetitions of hexadecimal digits.
+ *   \x     1 hexadecimal digit.
+ *   \A     One or more repetitions of alphabet characters.
+ *   \a     1 alphabet character.
+ *
+ *   \-     Subtraction operator.
+ *
+ *   /\{dir\}/   '/' + 'One or more repetitions of dir/' (e.g. /dir/ /dir/dir/
+ *               /dir/dir/dir/ ).
+ */
+bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
+				 const struct tomoyo_path_info *pattern)
+{
+	const char *f = filename->name;
+	const char *p = pattern->name;
+	const int len = pattern->const_len;
+
+	/* If @pattern doesn't contain pattern, I can use strcmp(). */
+	if (!pattern->is_patterned)
+		return !tomoyo_pathcmp(filename, pattern);
+	/* Don't compare directory and non-directory. */
+	if (filename->is_dir != pattern->is_dir)
+		return false;
+	/* Compare the initial length without patterns. */
+	if (strncmp(f, p, len))
+		return false;
+	f += len;
+	p += len;
+	return tomoyo_path_matches_pattern2(f, p);
 }
 
 /**
