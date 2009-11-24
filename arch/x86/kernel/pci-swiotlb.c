@@ -50,6 +50,8 @@ static struct dma_map_ops swiotlb_dma_ops = {
  */
 int __init pci_swiotlb_init(void)
 {
+	int use_swiotlb = swiotlb | swiotlb_force;
+
 	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
 #ifdef CONFIG_X86_64
 	if (!no_iommu && max_pfn > MAX_DMA32_PFN)
@@ -63,5 +65,5 @@ int __init pci_swiotlb_init(void)
 		dma_ops = &swiotlb_dma_ops;
 	}
 
-	return swiotlb_force;
+	return use_swiotlb;
 }
