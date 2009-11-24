@@ -24,6 +24,7 @@
 #include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "util/process_events.h"
 
 static char		const *input_name = "perf.data";
 
@@ -202,32 +203,6 @@ got_map:
 }
 
 static int
-process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct map *map = map__new(&event->mmap, NULL, 0);
-	struct thread *thread = threads__findnew(event->mmap.pid);
-
-	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->mmap.pid,
-		(void *)(long)event->mmap.start,
-		(void *)(long)event->mmap.len,
-		(void *)(long)event->mmap.pgoff,
-		event->mmap.filename);
-
-	if (thread == NULL || map == NULL) {
-		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
-		return 0;
-	}
-
-	thread__insert_map(thread, map);
-	total_mmap++;
-
-	return 0;
-}
-
-static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct thread *thread = threads__findnew(event->comm.pid);
@@ -248,33 +223,6 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_fork_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread = threads__findnew(event->fork.pid);
-	struct thread *parent = threads__findnew(event->fork.ppid);
-
-	dump_printf("%p [%p]: PERF_RECORD_FORK: %d:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->fork.pid, event->fork.ppid);
-
-	/*
-	 * A thread clone will have the same PID for both
-	 * parent and child.
-	 */
-	if (thread == parent)
-		return 0;
-
-	if (!thread || !parent || thread__fork(thread, parent)) {
-		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
-		return -1;
-	}
-	total_fork++;
-
-	return 0;
-}
-
-static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	switch (event->header.type) {
@@ -288,7 +236,7 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 		return process_comm_event(event, offset, head);
 
 	case PERF_RECORD_FORK:
-		return process_fork_event(event, offset, head);
+		return process_task_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
