@@ -15,15 +15,15 @@
 extern struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *, u64);
 extern struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *, u64);
 extern int zfcp_adapter_enqueue(struct ccw_device *);
-extern void zfcp_adapter_dequeue(struct zfcp_adapter *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
-extern void zfcp_port_dequeue(struct zfcp_port *);
 extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
-extern void zfcp_unit_dequeue(struct zfcp_unit *);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
+extern void zfcp_device_unregister(struct device *,
+				   const struct attribute_group *);
+extern void zfcp_adapter_release(struct kref *);
 
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);

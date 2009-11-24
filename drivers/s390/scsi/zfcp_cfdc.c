@@ -98,7 +98,7 @@ static struct zfcp_adapter *zfcp_cfdc_get_adapter(u32 devno)
 	if (!adapter)
 		goto out_put;
 
-	zfcp_adapter_get(adapter);
+	kref_get(&adapter->ref);
 out_put:
 	put_device(&ccwdev->dev);
 out:
@@ -212,7 +212,6 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		retval = -ENXIO;
 		goto free_buffer;
 	}
-	zfcp_adapter_get(adapter);
 
 	retval = zfcp_cfdc_sg_setup(data->command, fsf_cfdc->sg,
 				    data_user->control_file);
@@ -245,7 +244,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
  free_sg:
 	zfcp_sg_free_table(fsf_cfdc->sg, ZFCP_CFDC_PAGES);
  adapter_put:
-	zfcp_adapter_put(adapter);
+	kref_put(&adapter->ref, zfcp_adapter_release);
  free_buffer:
 	kfree(data);
  no_mem_sense:

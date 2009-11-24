@@ -1492,7 +1492,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	}
 
 out:
-	zfcp_port_put(port);
+	put_device(&port->sysfs_device);
 }
 
 /**
@@ -1530,14 +1530,14 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	req->data = port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
-	zfcp_port_get(port);
+	get_device(&port->sysfs_device);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
 		erp_action->fsf_req = NULL;
-		zfcp_port_put(port);
+		put_device(&port->sysfs_device);
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -2335,7 +2335,7 @@ skip_fsfstatus:
 	else {
 		zfcp_fsf_send_fcp_command_task_handler(req);
 		req->unit = NULL;
-		zfcp_unit_put(unit);
+		put_device(&unit->sysfs_device);
 	}
 }
 
@@ -2387,7 +2387,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	zfcp_unit_get(unit);
+	get_device(&unit->sysfs_device);
 	req->unit = unit;
 	req->data = scsi_cmnd;
 	req->handler = zfcp_fsf_send_fcp_command_handler;
@@ -2463,7 +2463,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	goto out;
 
 failed_scsi_cmnd:
-	zfcp_unit_put(unit);
+	put_device(&unit->sysfs_device);
 	zfcp_fsf_req_free(req);
 	scsi_cmnd->host_scribble = NULL;
 out:

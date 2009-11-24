@@ -446,9 +446,7 @@ struct zfcp_qdio {
 };
 
 struct zfcp_adapter {
-	atomic_t                refcount;          /* reference count */
-	wait_queue_head_t	remove_wq;         /* can be used to wait for
-						      refcount drop to zero */
+	struct kref		ref;
 	u64			peer_wwnn;	   /* P2P peer WWNN */
 	u64			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
@@ -501,9 +499,6 @@ struct zfcp_port {
 	struct device          sysfs_device;   /* sysfs device */
 	struct fc_rport        *rport;         /* rport of fc transport class */
 	struct list_head       list;	       /* list of remote ports */
-	atomic_t               refcount;       /* reference count */
-	wait_queue_head_t      remove_wq;      /* can be used to wait for
-						  refcount drop to zero */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
 	struct list_head	unit_list;	/* head of logical unit list */
 	rwlock_t		unit_list_lock; /* unit list lock */
@@ -525,9 +520,6 @@ struct zfcp_port {
 struct zfcp_unit {
 	struct device          sysfs_device;   /* sysfs device */
 	struct list_head       list;	       /* list of logical units */
-	atomic_t               refcount;       /* reference count */
-	wait_queue_head_t      remove_wq;      /* can be used to wait for
-						  refcount drop to zero */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
 	u64		       fcp_lun;	       /* own FCP_LUN */
@@ -654,49 +646,6 @@ zfcp_reqlist_find_safe(struct zfcp_adapter *adapter, struct zfcp_fsf_req *req)
 				return request;
 	}
 	return NULL;
-}
-
-/*
- *  functions needed for reference/usage counting
- */
-
-static inline void
-zfcp_unit_get(struct zfcp_unit *unit)
-{
-	atomic_inc(&unit->refcount);
-}
-
-static inline void
-zfcp_unit_put(struct zfcp_unit *unit)
-{
-	if (atomic_dec_return(&unit->refcount) == 0)
-		wake_up(&unit->remove_wq);
-}
-
-static inline void
-zfcp_port_get(struct zfcp_port *port)
-{
-	atomic_inc(&port->refcount);
-}
-
-static inline void
-zfcp_port_put(struct zfcp_port *port)
-{
-	if (atomic_dec_return(&port->refcount) == 0)
-		wake_up(&port->remove_wq);
-}
-
-static inline void
-zfcp_adapter_get(struct zfcp_adapter *adapter)
-{
-	atomic_inc(&adapter->refcount);
-}
-
-static inline void
-zfcp_adapter_put(struct zfcp_adapter *adapter)
-{
-	if (atomic_dec_return(&adapter->refcount) == 0)
-		wake_up(&adapter->remove_wq);
 }
 
 #endif /* ZFCP_DEF_H */

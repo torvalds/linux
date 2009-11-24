@@ -128,13 +128,15 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	write_unlock_irq(&adapter->port_list_lock);
 	mutex_unlock(&zfcp_data.config_mutex);
 
-	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
-		list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
-			zfcp_unit_dequeue(unit);
-		zfcp_port_dequeue(port);
-	}
-	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
-	zfcp_adapter_dequeue(adapter);
+	list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
+		zfcp_device_unregister(&unit->sysfs_device,
+				       &zfcp_sysfs_unit_attrs);
+
+	list_for_each_entry_safe(port, p, &port_remove_lh, list)
+		zfcp_device_unregister(&port->sysfs_device,
+				       &zfcp_sysfs_port_attrs);
+
+	kref_put(&adapter->ref, zfcp_adapter_release);
 }
 
 /**

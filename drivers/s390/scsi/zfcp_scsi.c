@@ -52,7 +52,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 	unit->device = NULL;
-	zfcp_unit_put(unit);
+	put_device(&unit->sysfs_device);
 }
 
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
@@ -335,8 +335,7 @@ void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 
 	read_lock_irq(&adapter->port_list_lock);
 	list_for_each_entry(port, &adapter->port_list, list)
-		if (port->rport)
-			port->rport = NULL;
+		port->rport = NULL;
 	read_unlock_irq(&adapter->port_list_lock);
 
 	fc_remove_host(shost);
@@ -356,7 +355,7 @@ zfcp_init_fc_host_stats(struct zfcp_adapter *adapter)
 		fc_stats = kmalloc(sizeof(*fc_stats), GFP_KERNEL);
 		if (!fc_stats)
 			return NULL;
-		adapter->fc_stats = fc_stats; /* freed in adater_dequeue */
+		adapter->fc_stats = fc_stats; /* freed in adapter_release */
 	}
 	memset(adapter->fc_stats, 0, sizeof(*adapter->fc_stats));
 	return adapter->fc_stats;
@@ -472,7 +471,7 @@ static void zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 		adapter->stats_reset = jiffies/HZ;
 		kfree(adapter->stats_reset_data);
 		adapter->stats_reset_data = data; /* finally freed in
-						     adapter_dequeue */
+						     adapter_release */
 	}
 }
 
@@ -517,7 +516,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 
 	if (port) {
 		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
-		zfcp_port_put(port);
+		put_device(&port->sysfs_device);
 	}
 }
 
@@ -559,23 +558,23 @@ static void zfcp_scsi_rport_block(struct zfcp_port *port)
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
 {
-	zfcp_port_get(port);
+	get_device(&port->sysfs_device);
 	port->rport_task = RPORT_ADD;
 
 	if (!queue_work(port->adapter->work_queue, &port->rport_work))
-		zfcp_port_put(port);
+		put_device(&port->sysfs_device);
 }
 
 void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
 {
-	zfcp_port_get(port);
+	get_device(&port->sysfs_device);
 	port->rport_task = RPORT_DEL;
 
 	if (port->rport && queue_work(port->adapter->work_queue,
 				      &port->rport_work))
 		return;
 
-	zfcp_port_put(port);
+	put_device(&port->sysfs_device);
 }
 
 void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *adapter)
@@ -604,7 +603,7 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 		}
 	}
 
-	zfcp_port_put(port);
+	put_device(&port->sysfs_device);
 }
 
 
@@ -622,7 +621,7 @@ void zfcp_scsi_scan(struct work_struct *work)
 				 scsilun_to_int((struct scsi_lun *)
 						&unit->fcp_lun), 0);
 
-	zfcp_unit_put(unit);
+	put_device(&unit->sysfs_device);
 }
 
 static int zfcp_execute_fc_job(struct fc_bsg_job *job)

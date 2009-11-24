@@ -1067,6 +1067,8 @@ err_out:
  */
 void zfcp_dbf_adapter_unregister(struct zfcp_dbf *dbf)
 {
+	if (!dbf)
+		return;
 	debug_unregister(dbf->scsi);
 	debug_unregister(dbf->san);
 	debug_unregister(dbf->hba);

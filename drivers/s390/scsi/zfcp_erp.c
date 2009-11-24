@@ -174,7 +174,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		zfcp_unit_get(unit);
+		get_device(&unit->sysfs_device);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status);
 		erp_action = &unit->erp_action;
 		if (!(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_RUNNING))
@@ -183,7 +183,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		zfcp_port_get(port);
+		get_device(&port->sysfs_device);
 		zfcp_erp_action_dismiss_port(port);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status);
 		erp_action = &port->erp_action;
@@ -192,7 +192,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		zfcp_adapter_get(adapter);
+		kref_get(&adapter->ref);
 		zfcp_erp_action_dismiss_adapter(adapter);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status);
 		erp_action = &adapter->erp_action;
@@ -1177,19 +1177,19 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			zfcp_unit_get(unit);
+			get_device(&unit->sysfs_device);
 			if (scsi_queue_work(unit->port->adapter->scsi_host,
 					    &unit->scsi_work) <= 0)
-				zfcp_unit_put(unit);
+				put_device(&unit->sysfs_device);
 		}
-		zfcp_unit_put(unit);
+		put_device(&unit->sysfs_device);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (result == ZFCP_ERP_SUCCEEDED)
 			zfcp_scsi_schedule_rport_register(port);
-		zfcp_port_put(port);
+		put_device(&port->sysfs_device);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
@@ -1198,7 +1198,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 			schedule_work(&adapter->scan_work);
 		} else
 			unregister_service_level(&adapter->service_level);
-		zfcp_adapter_put(adapter);
+		kref_put(&adapter->ref, zfcp_adapter_release);
 		break;
 	}
 }
@@ -1224,8 +1224,9 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	unsigned long flags;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	write_lock_irqsave(&adapter->erp_lock, flags);
+	kref_get(&adapter->ref);
 
+	write_lock_irqsave(&adapter->erp_lock, flags);
 	zfcp_erp_strategy_check_fsfreq(erp_action);
 
 	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED) {
@@ -1282,6 +1283,7 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	if (retval != ZFCP_ERP_CONTINUES)
 		zfcp_erp_action_cleanup(erp_action, retval);
 
+	kref_put(&adapter->ref, zfcp_adapter_release);
 	return retval;
 }
 

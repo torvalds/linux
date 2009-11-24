@@ -3,7 +3,7 @@
  *
  * sysfs attributes.
  *
- * Copyright IBM Corporation 2008
+ * Copyright IBM Corporation 2008, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -140,7 +140,6 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	struct zfcp_port *port;
 	u64 wwpn;
 	int retval = 0;
-	LIST_HEAD(port_remove_lh);
 
 	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
@@ -154,23 +153,21 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	}
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
-	if (port && (atomic_read(&port->refcount) == 1)) {
-		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
-		write_lock_irq(&adapter->port_list_lock);
-		list_move(&port->list, &port_remove_lh);
-		write_unlock_irq(&adapter->port_list_lock);
-	} else
-		port = NULL;
-
 	if (!port) {
 		retval = -ENXIO;
 		goto out;
 	}
 
+	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status);
+
+	write_lock_irq(&adapter->port_list_lock);
+	list_del(&port->list);
+	write_unlock_irq(&adapter->port_list_lock);
+
+	put_device(&port->sysfs_device);
+
 	zfcp_erp_port_shutdown(port, 0, "syprs_1", NULL);
-	zfcp_erp_wait(adapter);
-	zfcp_port_put(port);
-	zfcp_port_dequeue(port);
+	zfcp_device_unregister(&port->sysfs_device, &zfcp_sysfs_port_attrs);
  out:
 	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
@@ -224,7 +221,6 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
 	flush_work(&unit->scsi_work);
-	zfcp_unit_put(unit);
 out:
 	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
@@ -239,7 +235,6 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = 0;
-	LIST_HEAD(unit_remove_lh);
 
 	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
@@ -261,19 +256,16 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	/* wait for possible timeout during SCSI probe */
 	flush_work(&unit->scsi_work);
 
-	if (atomic_read(&unit->refcount) == 1) {
-		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
+	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 
-		write_lock_irq(&port->unit_list_lock);
-		list_move(&unit->list, &unit_remove_lh);
-		write_unlock_irq(&port->unit_list_lock);
+	write_lock_irq(&port->unit_list_lock);
+	list_del(&unit->list);
+	write_unlock_irq(&port->unit_list_lock);
 
-		zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
-		zfcp_erp_wait(unit->port->adapter);
-		zfcp_unit_put(unit);
-		zfcp_unit_dequeue(unit);
-	} else
-		zfcp_unit_put(unit);
+	put_device(&unit->sysfs_device);
+
+	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
+	zfcp_device_unregister(&unit->sysfs_device, &zfcp_sysfs_unit_attrs);
 out:
 	mutex_unlock(&zfcp_data.config_mutex);
 	return retval ? retval : (ssize_t) count;
