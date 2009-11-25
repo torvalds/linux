@@ -2882,6 +2882,10 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	if (ret)
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
 
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
+		if ((qnum == sc->tx.hwq_map[ATH9K_WME_AC_BE]) && !ret)
+			ath_beaconq_config(sc);
+
 	mutex_unlock(&sc->mutex);
 
 	return ret;
