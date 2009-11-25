@@ -96,7 +96,7 @@ ENTRY(xen_sysret32)
 	pushq $__USER32_CS
 	pushq %rcx
 
-	pushq $VGCF_in_syscall
+	pushq $0
 1:	jmp hypercall_iret
 ENDPATCH(xen_sysret32)
 RELOC(xen_sysret32, 1b+1)
@@ -151,7 +151,7 @@ ENTRY(xen_syscall32_target)
 ENTRY(xen_sysenter_target)
 	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
 	mov $-ENOSYS, %rax
-	pushq $VGCF_in_syscall
+	pushq $0
 	jmp hypercall_iret
 ENDPROC(xen_syscall32_target)
 ENDPROC(xen_sysenter_target)
