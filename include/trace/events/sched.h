@@ -83,7 +83,7 @@ TRACE_EVENT(sched_wait_task,
  * (NOTE: the 'rq' argument is not used by generic trace events,
  *        but used by the latency tracer plugin. )
  */
-TRACE_EVENT(sched_wakeup,
+TRACE_EVENT_TEMPLATE(sched_wakeup_template,
 
 	TP_PROTO(struct rq *rq, struct task_struct *p, int success),
 
@@ -109,6 +109,10 @@ TRACE_EVENT(sched_wakeup,
 		  __entry->comm, __entry->pid, __entry->prio,
 		  __entry->success, __entry->target_cpu)
 );
+
+DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
+	     TP_PROTO(struct rq *rq, struct task_struct *p, int success),
+	     TP_ARGS(rq, p, success));
 
 /*
  * Tracepoint for waking up a new task:
@@ -116,32 +120,9 @@ TRACE_EVENT(sched_wakeup,
  * (NOTE: the 'rq' argument is not used by generic trace events,
  *        but used by the latency tracer plugin. )
  */
-TRACE_EVENT(sched_wakeup_new,
-
-	TP_PROTO(struct rq *rq, struct task_struct *p, int success),
-
-	TP_ARGS(rq, p, success),
-
-	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
-		__field(	int,	prio			)
-		__field(	int,	success			)
-		__field(	int,	target_cpu		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->prio		= p->prio;
-		__entry->success	= success;
-		__entry->target_cpu	= task_cpu(p);
-	),
-
-	TP_printk("comm=%s pid=%d prio=%d success=%d target_cpu=%03d",
-		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success, __entry->target_cpu)
-);
+DEFINE_EVENT(sched_wakeup_template, sched_wakeup_new,
+	     TP_PROTO(struct rq *rq, struct task_struct *p, int success),
+	     TP_ARGS(rq, p, success));
 
 /*
  * Tracepoint for task switches, performed by the scheduler:
@@ -216,10 +197,7 @@ TRACE_EVENT(sched_migrate_task,
 		  __entry->orig_cpu, __entry->dest_cpu)
 );
 
-/*
- * Tracepoint for freeing a task:
- */
-TRACE_EVENT(sched_process_free,
+TRACE_EVENT_TEMPLATE(sched_process_template,
 
 	TP_PROTO(struct task_struct *p),
 
@@ -240,31 +218,21 @@ TRACE_EVENT(sched_process_free,
 	TP_printk("comm=%s pid=%d prio=%d",
 		  __entry->comm, __entry->pid, __entry->prio)
 );
+
+/*
+ * Tracepoint for freeing a task:
+ */
+DEFINE_EVENT(sched_process_template, sched_process_free,
+	     TP_PROTO(struct task_struct *p),
+	     TP_ARGS(p));
+	     
 
 /*
  * Tracepoint for a task exiting:
  */
-TRACE_EVENT(sched_process_exit,
-
-	TP_PROTO(struct task_struct *p),
-
-	TP_ARGS(p),
-
-	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
-		__field(	int,	prio			)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->prio		= p->prio;
-	),
-
-	TP_printk("comm=%s pid=%d prio=%d",
-		  __entry->comm, __entry->pid, __entry->prio)
-);
+DEFINE_EVENT(sched_process_template, sched_process_exit,
+	     TP_PROTO(struct task_struct *p),
+	     TP_ARGS(p));
 
 /*
  * Tracepoint for a waiting task:
@@ -348,12 +316,7 @@ TRACE_EVENT(sched_signal_send,
  * XXX the below sched_stat tracepoints only apply to SCHED_OTHER/BATCH/IDLE
  *     adding sched_stat support to SCHED_FIFO/RR would be welcome.
  */
-
-/*
- * Tracepoint for accounting wait time (time the task is runnable
- * but not actually running due to scheduler contention).
- */
-TRACE_EVENT(sched_stat_wait,
+TRACE_EVENT_TEMPLATE(sched_stat_template,
 
 	TP_PROTO(struct task_struct *tsk, u64 delay),
 
@@ -378,6 +341,37 @@ TRACE_EVENT(sched_stat_wait,
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->delay)
 );
+
+
+/*
+ * Tracepoint for accounting wait time (time the task is runnable
+ * but not actually running due to scheduler contention).
+ */
+DEFINE_EVENT(sched_stat_template, sched_stat_wait,
+	     TP_PROTO(struct task_struct *tsk, u64 delay),
+	     TP_ARGS(tsk, delay));
+
+/*
+ * Tracepoint for accounting sleep time (time the task is not runnable,
+ * including iowait, see below).
+ */
+DEFINE_EVENT_PRINT(sched_stat_template, sched_stat_sleep,
+		   TP_PROTO(struct task_struct *tsk, u64 delay),
+		   TP_ARGS(tsk, delay),
+		   TP_printk("task: %s:%d sleep: %Lu [ns]",
+			     __entry->comm, __entry->pid,
+			     (unsigned long long)__entry->delay));
+
+/*
+ * Tracepoint for accounting iowait time (time the task is not runnable
+ * due to waiting on IO to complete).
+ */
+DEFINE_EVENT_PRINT(sched_stat_template, sched_stat_iowait,
+		   TP_PROTO(struct task_struct *tsk, u64 delay),
+		   TP_ARGS(tsk, delay),
+		   TP_printk("task: %s:%d iowait: %Lu [ns]",
+			     __entry->comm, __entry->pid,
+			     (unsigned long long)__entry->delay));
 
 /*
  * Tracepoint for accounting runtime (time the task is executing
@@ -410,66 +404,6 @@ TRACE_EVENT(sched_stat_runtime,
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->runtime,
 			(unsigned long long)__entry->vruntime)
-);
-
-/*
- * Tracepoint for accounting sleep time (time the task is not runnable,
- * including iowait, see below).
- */
-TRACE_EVENT(sched_stat_sleep,
-
-	TP_PROTO(struct task_struct *tsk, u64 delay),
-
-	TP_ARGS(tsk, delay),
-
-	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	delay			)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-		__entry->pid	= tsk->pid;
-		__entry->delay	= delay;
-	)
-	TP_perf_assign(
-		__perf_count(delay);
-	),
-
-	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
-			__entry->comm, __entry->pid,
-			(unsigned long long)__entry->delay)
-);
-
-/*
- * Tracepoint for accounting iowait time (time the task is not runnable
- * due to waiting on IO to complete).
- */
-TRACE_EVENT(sched_stat_iowait,
-
-	TP_PROTO(struct task_struct *tsk, u64 delay),
-
-	TP_ARGS(tsk, delay),
-
-	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	delay			)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-		__entry->pid	= tsk->pid;
-		__entry->delay	= delay;
-	)
-	TP_perf_assign(
-		__perf_count(delay);
-	),
-
-	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
-			__entry->comm, __entry->pid,
-			(unsigned long long)__entry->delay)
 );
 
 #endif /* _TRACE_SCHED_H */
