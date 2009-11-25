@@ -109,8 +109,8 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
 		 * used to generate the interrupt message."
 		 */
 		pos = pci_pcie_cap(dev);
-		pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
-		entry = (reg16 >> 9) & PCIE_PORT_MSI_VECTOR_MASK;
+		pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
+		entry = (reg16 & PCI_EXP_FLAGS_IRQ) >> 9;
 		if (entry >= nr_entries)
 			goto Error;
 
@@ -230,12 +230,11 @@ static int get_port_device_capability(struct pci_dev *dev)
 	u32 reg32;
 
 	pos = pci_pcie_cap(dev);
-	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	/* Hot-Plug Capable */
-	if (reg16 & PORT_TO_SLOT_MASK) {
-		pci_read_config_dword(dev, 
-			pos + PCIE_SLOT_CAPABILITIES_REG, &reg32);
-		if (reg32 & SLOT_HP_CAPABLE_MASK)
+	if (reg16 & PCI_EXP_FLAGS_SLOT) {
+		pci_read_config_dword(dev, pos + PCI_EXP_SLTCAP, &reg32);
+		if (reg32 & PCI_EXP_SLTCAP_HPC)
 			services |= PCIE_PORT_SERVICE_HP;
 	}
 	/* AER capable */
