@@ -113,6 +113,13 @@ struct efx_special_buffer {
 	int entries;
 };
 
+enum efx_flush_state {
+	FLUSH_NONE,
+	FLUSH_PENDING,
+	FLUSH_FAILED,
+	FLUSH_DONE,
+};
+
 /**
  * struct efx_tx_buffer - An Efx TX buffer
  * @skb: The associated socket buffer.
@@ -189,7 +196,7 @@ struct efx_tx_queue {
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
-	bool flushed;
+	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -284,7 +291,7 @@ struct efx_rx_queue {
 	struct page *buf_page;
 	dma_addr_t buf_dma_addr;
 	char *buf_data;
-	bool flushed;
+	enum efx_flush_state flushed;
 };
 
 /**
