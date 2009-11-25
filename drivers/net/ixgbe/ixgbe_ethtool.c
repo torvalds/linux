@@ -205,6 +205,56 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->autoneg = AUTONEG_DISABLE;
 	}
 
+	/* Get PHY type */
+	switch (adapter->hw.phy.type) {
+	case ixgbe_phy_tn:
+	case ixgbe_phy_cu_unknown:
+		/* Copper 10G-BASET */
+		ecmd->port = PORT_TP;
+		break;
+	case ixgbe_phy_qt:
+		ecmd->port = PORT_FIBRE;
+		break;
+	case ixgbe_phy_nl:
+	case ixgbe_phy_tw_tyco:
+	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_ftl:
+	case ixgbe_phy_sfp_avago:
+	case ixgbe_phy_sfp_intel:
+	case ixgbe_phy_sfp_unknown:
+		switch (adapter->hw.phy.sfp_type) {
+		/* SFP+ devices, further checking needed */
+		case ixgbe_sfp_type_da_cu:
+		case ixgbe_sfp_type_da_cu_core0:
+		case ixgbe_sfp_type_da_cu_core1:
+			ecmd->port = PORT_DA;
+			break;
+		case ixgbe_sfp_type_sr:
+		case ixgbe_sfp_type_lr:
+		case ixgbe_sfp_type_srlr_core0:
+		case ixgbe_sfp_type_srlr_core1:
+			ecmd->port = PORT_FIBRE;
+			break;
+		case ixgbe_sfp_type_not_present:
+			ecmd->port = PORT_NONE;
+			break;
+		case ixgbe_sfp_type_unknown:
+		default:
+			ecmd->port = PORT_OTHER;
+			break;
+		}
+		break;
+	case ixgbe_phy_xaui:
+		ecmd->port = PORT_NONE;
+		break;
+	case ixgbe_phy_unknown:
+	case ixgbe_phy_generic:
+	case ixgbe_phy_sfp_unsupported:
+	default:
+		ecmd->port = PORT_OTHER;
+		break;
+	}
+
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up) {
 		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
