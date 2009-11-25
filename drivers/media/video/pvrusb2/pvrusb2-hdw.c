@@ -1447,6 +1447,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	const struct firmware *fw_entry = NULL;
 	void  *fw_ptr;
 	unsigned int pipe;
+	unsigned int fwsize;
 	int ret;
 	u16 address;
 
@@ -1473,19 +1474,20 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	usb_clear_halt(hdw->usb_dev, usb_sndbulkpipe(hdw->usb_dev, 0 & 0x7f));
 
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);
+	fwsize = fw_entry->size;
 
-	if ((fw_entry->size != 0x2000) &&
-	    (!(hdw->hdw_desc->flag_fx2_16kb && (fw_entry->size == 0x4000)))) {
+	if ((fwsize != 0x2000) &&
+	    (!(hdw->hdw_desc->flag_fx2_16kb && (fwsize == 0x4000)))) {
 		if (hdw->hdw_desc->flag_fx2_16kb) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "Wrong fx2 firmware size"
 				   " (expected 8192 or 16384, got %u)",
-				   fw_entry->size);
+				   fwsize);
 		} else {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "Wrong fx2 firmware size"
 				   " (expected 8192, got %u)",
-				   fw_entry->size);
+				   fwsize);
 		}
 		release_firmware(fw_entry);
 		return -ENOMEM;
@@ -1504,7 +1506,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	   chunk. */
 
 	ret = 0;
-	for(address = 0; address < fw_entry->size; address += 0x800) {
+	for (address = 0; address < fwsize; address += 0x800) {
 		memcpy(fw_ptr, fw_entry->data + address, 0x800);
 		ret += usb_control_msg(hdw->usb_dev, pipe, 0xa0, 0x40, address,
 				       0, fw_ptr, 0x800, HZ);
