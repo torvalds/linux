@@ -820,6 +820,7 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
 	&backlight,
 	&w3220,
+	&hx4700_lcd,
 	&egpio,
 	&bq24022,
 	&gpio_vbus,
