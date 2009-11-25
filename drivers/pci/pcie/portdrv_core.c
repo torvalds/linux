@@ -297,28 +297,6 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 }
 
 /**
- * pcie_port_device_probe - check if device is a PCI Express port
- * @dev: Device to check
- */
-int pcie_port_device_probe(struct pci_dev *dev)
-{
-	int pos, type;
-	u16 reg;
-
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return -ENODEV;
-
-	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg);
-	type = (reg >> 4) & PORT_TYPE_MASK;
-	if (	type == PCIE_RC_PORT || type == PCIE_SW_UPSTREAM_PORT ||
-		type == PCIE_SW_DOWNSTREAM_PORT )
-		return 0;
-
-	return -ENODEV;
-}
-
-/**
  * pcie_port_device_register - register PCI Express port
  * @dev: PCI Express port to register
  *
