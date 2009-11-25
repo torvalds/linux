@@ -408,8 +408,8 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 		goto free_irq;
 	}
 
-	dev_info(dev, "at 0x%08X mapped to 0x%08X, irq=%d\n",
-		(u32)mem->start, (u32)xspi->regs, xspi->irq);
+	dev_info(dev, "at 0x%08llX mapped to 0x%p, irq=%d\n",
+		(unsigned long long)mem->start, xspi->regs, xspi->irq);
 	return master;
 
 free_irq:
