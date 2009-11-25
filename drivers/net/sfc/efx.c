@@ -1237,19 +1237,6 @@ static void efx_remove_all(struct efx_nic *efx)
 	efx_remove_nic(efx);
 }
 
-/* A convinience function to safely flush all the queues */
-void efx_flush_queues(struct efx_nic *efx)
-{
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
-	efx_stop_all(efx);
-
-	efx_fini_channels(efx);
-	efx_init_channels(efx);
-
-	efx_start_all(efx);
-}
-
 /**************************************************************************
  *
  * Interrupt moderation

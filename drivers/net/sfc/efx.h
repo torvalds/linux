@@ -56,7 +56,6 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
-extern void efx_flush_queues(struct efx_nic *efx);
 #define EFX_EVQ_SIZE 4096
 #define EFX_EVQ_MASK (EFX_EVQ_SIZE - 1)
 
