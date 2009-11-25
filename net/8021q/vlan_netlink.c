@@ -60,7 +60,8 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])
 	if (data[IFLA_VLAN_FLAGS]) {
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
 		if ((flags->flags & flags->mask) &
-		    ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP))
+		    ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
+		      VLAN_FLAG_LOOSE_BINDING))
 			return -EINVAL;
 	}
 
