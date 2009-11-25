@@ -6,6 +6,7 @@
 
 
 #include <net/iw_handler.h>
+#include <net/lib80211.h>
 
 
 /* Mesh statistics */
@@ -40,6 +41,16 @@ struct net_device *lbs_mesh_set_dev(struct lbs_private *priv,
 	struct net_device *dev, struct rxpd *rxpd);
 void lbs_mesh_set_txpd(struct lbs_private *priv,
 	struct net_device *dev, struct txpd *txpd);
+
+
+/* Command handling */
+
+struct cmd_ds_command;
+
+int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
+	u16 cmd_action, void *pdata_buf);
+int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
+	u16 cmd_action, void *pdata_buf);
 
 
 /* Persistent configuration */
