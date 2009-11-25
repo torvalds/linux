@@ -93,7 +93,7 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	va_list ap;
 	int ret;
 
-	if (!len)
+	if (s->full || !len)
 		return 0;
 
 	va_start(ap, fmt);
@@ -101,8 +101,10 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	va_end(ap);
 
 	/* If we can't write it all, don't bother writing anything */
-	if (ret >= len)
+	if (ret >= len) {
+		s->full = 1;
 		return 0;
+	}
 
 	s->len += ret;
 
@@ -127,14 +129,16 @@ trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 	int len = (PAGE_SIZE - 1) - s->len;
 	int ret;
 
-	if (!len)
+	if (s->full || !len)
 		return 0;
 
 	ret = vsnprintf(s->buffer + s->len, len, fmt, args);
 
 	/* If we can't write it all, don't bother writing anything */
-	if (ret >= len)
+	if (ret >= len) {
+		s->full = 1;
 		return 0;
+	}
 
 	s->len += ret;
 
@@ -147,14 +151,16 @@ int trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
 	int len = (PAGE_SIZE - 1) - s->len;
 	int ret;
 
-	if (!len)
+	if (s->full || !len)
 		return 0;
 
 	ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
 
 	/* If we can't write it all, don't bother writing anything */
-	if (ret >= len)
+	if (ret >= len) {
+		s->full = 1;
 		return 0;
+	}
 
 	s->len += ret;
 
@@ -175,8 +181,13 @@ int trace_seq_puts(struct trace_seq *s, const char *str)
 {
 	int len = strlen(str);
 
-	if (len > ((PAGE_SIZE - 1) - s->len))
+	if (s->full)
 		return 0;
+
+	if (len > ((PAGE_SIZE - 1) - s->len)) {
+		s->full = 1;
+		return 0;
+	}
 
 	memcpy(s->buffer + s->len, str, len);
 	s->len += len;
@@ -186,8 +197,13 @@ int trace_seq_puts(struct trace_seq *s, const char *str)
 
 int trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
-	if (s->len >= (PAGE_SIZE - 1))
+	if (s->full)
 		return 0;
+
+	if (s->len >= (PAGE_SIZE - 1)) {
+		s->full = 1;
+		return 0;
+	}
 
 	s->buffer[s->len++] = c;
 
@@ -196,8 +212,13 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 
 int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len)
 {
-	if (len > ((PAGE_SIZE - 1) - s->len))
+	if (s->full)
 		return 0;
+
+	if (len > ((PAGE_SIZE - 1) - s->len)) {
+		s->full = 1;
+		return 0;
+	}
 
 	memcpy(s->buffer + s->len, mem, len);
 	s->len += len;
@@ -210,6 +231,9 @@ int trace_seq_putmem_hex(struct trace_seq *s, const void *mem, size_t len)
 	unsigned char hex[HEX_CHARS];
 	const unsigned char *data = mem;
 	int i, j;
+
+	if (s->full)
+		return 0;
 
 #ifdef __BIG_ENDIAN
 	for (i = 0, j = 0; i < len; i++) {
@@ -228,8 +252,13 @@ void *trace_seq_reserve(struct trace_seq *s, size_t len)
 {
 	void *ret;
 
-	if (len > ((PAGE_SIZE - 1) - s->len))
+	if (s->full)
+		return 0;
+
+	if (len > ((PAGE_SIZE - 1) - s->len)) {
+		s->full = 1;
 		return NULL;
+	}
 
 	ret = s->buffer + s->len;
 	s->len += len;
@@ -241,8 +270,14 @@ int trace_seq_path(struct trace_seq *s, struct path *path)
 {
 	unsigned char *p;
 
-	if (s->len >= (PAGE_SIZE - 1))
+	if (s->full)
 		return 0;
+
+	if (s->len >= (PAGE_SIZE - 1)) {
+		s->full = 1;
+		return 0;
+	}
+
 	p = d_path(path, s->buffer + s->len, PAGE_SIZE - s->len);
 	if (!IS_ERR(p)) {
 		p = mangle_path(s->buffer + s->len, p, "\n");
@@ -255,6 +290,7 @@ int trace_seq_path(struct trace_seq *s, struct path *path)
 		return 1;
 	}
 
+	s->full = 1;
 	return 0;
 }
 
@@ -380,6 +416,9 @@ int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 	struct file *file = NULL;
 	unsigned long vmstart = 0;
 	int ret = 1;
+
+	if (s->full)
+		return 0;
 
 	if (mm) {
 		const struct vm_area_struct *vma;
