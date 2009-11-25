@@ -86,9 +86,15 @@
 #define ATH9K_TX_SW_ABORTED        0x40
 #define ATH9K_TX_SW_FILTERED       0x80
 
+/* 64 bytes */
 #define MIN_TX_FIFO_THRESHOLD   0x1
+
+/*
+ * Single stream device AR9285 and AR9271 require 2 KB
+ * to work around a hardware issue, all other devices
+ * have can use the max 4 KB limit.
+ */
 #define MAX_TX_FIFO_THRESHOLD   ((4096 / 64) - 1)
-#define INIT_TX_FIFO_THRESHOLD  MIN_TX_FIFO_THRESHOLD
 
 struct ath_tx_status {
 	u32 ts_tstamp;

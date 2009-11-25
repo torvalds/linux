@@ -226,6 +226,7 @@ struct ath9k_ops_config {
 #define AR_SPUR_FEEQ_BOUND_HT20 10
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
+	u8 max_txtrig_level;
 };
 
 enum ath9k_int {
