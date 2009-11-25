@@ -114,7 +114,7 @@ static int set_osc_freq(struct atbm_state *priv, u32 freq /*in kHz*/)
 
 static int set_if_freq(struct atbm_state *priv, u32 freq /*in kHz*/)
 {
-	
+
 	u32 fs = priv->config->osc_clk_freq;
 	double t;
 	u32 val;
@@ -161,15 +161,6 @@ static int is_locked(struct atbm_state *priv, u8 *locked)
 	return 0;
 }
 
-static int set_agc_config(struct atbm_state *priv,
-	u8 min, u8 max, u8 hold_loop)
-{
-	atbm8830_write_reg(priv, REG_AGC_MIN, min);
-	atbm8830_write_reg(priv, REG_AGC_MAX, max);
-	atbm8830_write_reg(priv, REG_AGC_HOLD_LOOP, hold_loop);
-
-	return 0;
-}
 
 static int set_static_channel_mode(struct atbm_state *priv)
 {
