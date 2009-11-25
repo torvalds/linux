@@ -2183,11 +2183,29 @@ static int falcon_mdio_read(struct net_device *net_dev,
 	return rc;
 }
 
+static void falcon_clock_mac(struct efx_nic *efx)
+{
+	unsigned strap_val;
+	efx_oword_t nic_stat;
+
+	/* Configure the NIC generated MAC clock correctly */
+	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
+	strap_val = EFX_IS10G(efx) ? 5 : 3;
+	if (falcon_rev(efx) >= FALCON_REV_B0) {
+		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP_EN, 1);
+		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP, strap_val);
+		efx_writeo(efx, &nic_stat, FR_AB_NIC_STAT);
+	} else {
+		/* Falcon A1 does not support 1G/10G speed switching
+		 * and must not be used with a PHY that does. */
+		BUG_ON(EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_PINS) !=
+		       strap_val);
+	}
+}
+
 int falcon_switch_mac(struct efx_nic *efx)
 {
 	struct efx_mac_operations *old_mac_op = efx->mac_op;
-	efx_oword_t nic_stat;
-	unsigned strap_val;
 	int rc = 0;
 
 	/* Don't try to fetch MAC stats while we're switching MACs */
@@ -2206,23 +2224,10 @@ int falcon_switch_mac(struct efx_nic *efx)
 	efx->mac_op = (EFX_IS10G(efx) ?
 		       &falcon_xmac_operations : &falcon_gmac_operations);
 
-	/* Always push the NIC_STAT_REG setting even if the mac hasn't
-	 * changed, because this function is run post online reset */
-	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
-	strap_val = EFX_IS10G(efx) ? 5 : 3;
-	if (falcon_rev(efx) >= FALCON_REV_B0) {
-		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP_EN, 1);
-		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP, strap_val);
-		efx_writeo(efx, &nic_stat, FR_AB_NIC_STAT);
-	} else {
-		/* Falcon A1 does not support 1G/10G speed switching
-		 * and must not be used with a PHY that does. */
-		BUG_ON(EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_PINS) !=
-		       strap_val);
-	}
-
 	if (old_mac_op == efx->mac_op)
 		goto out;
+
+	falcon_clock_mac(efx);
 
 	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
 	/* Not all macs support a mac-level link state */
@@ -2981,6 +2986,9 @@ int falcon_init_nic(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(temp, FRF_AB_USE_NIC_CLK, true);
 		efx_writeo(efx, &temp, FR_AB_GPIO_CTL);
 	}
+
+	/* Select the correct MAC */
+	falcon_clock_mac(efx);
 
 	rc = falcon_reset_sram(efx);
 	if (rc)
