@@ -1189,7 +1189,6 @@ static struct atbm8830_config mygica_d689_atbm8830_cfg = {
 static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
-	int n;
 
 	/* Select required USB configuration */
 	if (usb_set_interface(d->udev, 0, 0) < 0)
