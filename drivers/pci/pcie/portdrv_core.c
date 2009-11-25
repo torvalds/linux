@@ -205,6 +205,14 @@ static int init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 	return 0;
 }
 
+static void cleanup_service_irqs(struct pci_dev *dev)
+{
+	if (dev->msix_enabled)
+		pci_disable_msix(dev);
+	else if (dev->msi_enabled)
+		pci_disable_msi(dev);
+}
+
 /**
  * get_port_device_capability - discover capabilities of a PCI Express port
  * @dev: PCI Express port to examine
@@ -332,10 +340,12 @@ int pcie_port_device_register(struct pci_dev *dev)
 	}
 	if (!nr_serv) {
 		status = -ENODEV;
-		goto error_disable;
+		goto error_cleanup_irqs;
 	}
 	return 0;
 
+error_cleanup_irqs:
+	cleanup_service_irqs(dev);
 error_disable:
 	pci_disable_device(dev);
 error_kfree:
@@ -410,12 +420,7 @@ void pcie_port_device_remove(struct pci_dev *dev)
 	struct pcie_port_data *port_data = pci_get_drvdata(dev);
 
 	device_for_each_child(&dev->dev, NULL, remove_iter);
-
-	if (dev->msix_enabled)
-		pci_disable_msix(dev);
-	else if (dev->msi_enabled)
-		pci_disable_msi(dev);
-
+	cleanup_service_irqs(dev);
 	pci_disable_device(dev);
 	kfree(port_data);
 }
