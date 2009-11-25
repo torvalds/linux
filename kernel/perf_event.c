@@ -4303,10 +4303,6 @@ void perf_bp_event(struct perf_event *bp, void *data)
 		perf_swevent_add(bp, 1, 1, &sample, regs);
 }
 #else
-static void bp_perf_event_destroy(struct perf_event *event)
-{
-}
-
 static const struct pmu *bp_perf_event_init(struct perf_event *bp)
 {
 	return NULL;
