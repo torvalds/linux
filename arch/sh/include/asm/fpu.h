@@ -25,6 +25,7 @@ void fpu_state_restore(struct pt_regs *regs);
 #define save_fpu(tsk)		do { } while (0)
 #define release_fpu(regs)	do { } while (0)
 #define grab_fpu(regs)		do { } while (0)
+#define fpu_state_restore(regs)	do { } while (0)
 
 #endif
 
