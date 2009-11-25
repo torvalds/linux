@@ -186,7 +186,8 @@ static void efx_fini_channels(struct efx_nic *efx);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
-		if (efx->state == STATE_RUNNING)	\
+		if ((efx->state == STATE_RUNNING) ||	\
+		    (efx->state == STATE_DISABLED))	\
 			ASSERT_RTNL();			\
 	} while (0)
 
