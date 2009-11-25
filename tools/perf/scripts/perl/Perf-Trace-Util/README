@@ -1,0 +1,35 @@
+Perf-Trace-Util version 0.01
+============================
+
+This module contains utility functions for use with perf trace.
+
+INSTALLATION
+
+Building perf with perf trace Perl scripting should install this
+module in the right place.
+
+You should make sure libperl is installed first e.g. apt-get install
+libperl-dev.
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  blah blah blah
+
+COPYRIGHT AND LICENCE
+
+Put the correct copyright and licence information here.
+
+Copyright (C) 2009 by Tom Zanussi <tzanussi@gmail.com>
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.10.0 or,
+at your option, any later version of Perl 5 you may have available.
+
+Alternatively, this software may be distributed under the terms of the
+GNU General Public License ("GPL") version 2 as published by the Free
+Software Foundation.
+
+
+
