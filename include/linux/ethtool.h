@@ -631,6 +631,8 @@ struct ethtool_ops {
 #define PORT_MII		0x02
 #define PORT_FIBRE		0x03
 #define PORT_BNC		0x04
+#define PORT_DA			0x05
+#define PORT_NONE		0xef
 #define PORT_OTHER		0xff
 
 /* Which transceiver to use. */
