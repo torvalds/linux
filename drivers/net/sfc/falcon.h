@@ -158,6 +158,7 @@ extern int falcon_probe_nic(struct efx_nic *efx);
 extern int falcon_init_nic(struct efx_nic *efx);
 extern int falcon_flush_queues(struct efx_nic *efx);
 extern int falcon_reset_hw(struct efx_nic *efx, enum reset_type method);
+extern void falcon_monitor(struct efx_nic *efx);
 extern void falcon_remove_nic(struct efx_nic *efx);
 extern void falcon_update_nic_stats(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);

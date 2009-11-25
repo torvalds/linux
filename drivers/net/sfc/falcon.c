@@ -2612,6 +2612,21 @@ fail5:
 	return rc;
 }
 
+void falcon_monitor(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = falcon_board(efx)->type->monitor(efx);
+	if (rc) {
+		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
+			(rc == -ERANGE) ? "reported fault" : "failed");
+		efx->phy_mode |= PHY_MODE_LOW_POWER;
+		falcon_sim_phy_event(efx);
+	}
+	efx->phy_op->poll(efx);
+	efx->mac_op->poll(efx);
+}
+
 /* Zeroes out the SRAM contents.  This routine must be called in
  * process context and is allowed to sleep.
  */

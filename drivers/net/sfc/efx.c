@@ -1293,7 +1293,6 @@ static void efx_monitor(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
 					   monitor_work.work);
-	int rc;
 
 	EFX_TRACE(efx, "hardware monitor executing on CPU %d\n",
 		  raw_smp_processor_id());
@@ -1305,15 +1304,7 @@ static void efx_monitor(struct work_struct *data)
 		goto out_requeue;
 	if (!efx->port_enabled)
 		goto out_unlock;
-	rc = falcon_board(efx)->type->monitor(efx);
-	if (rc) {
-		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
-			(rc == -ERANGE) ? "reported fault" : "failed");
-		efx->phy_mode |= PHY_MODE_LOW_POWER;
-		falcon_sim_phy_event(efx);
-	}
-	efx->phy_op->poll(efx);
-	efx->mac_op->poll(efx);
+	falcon_monitor(efx);
 
 out_unlock:
 	mutex_unlock(&efx->mac_lock);
