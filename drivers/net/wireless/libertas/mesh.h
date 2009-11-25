@@ -53,4 +53,15 @@ void lbs_persist_config_remove(struct net_device *net);
 extern struct iw_handler_def mesh_handler_def;
 
 
+/* Ethtool statistics */
+
+struct ethtool_stats;
+
+void lbs_mesh_ethtool_get_stats(struct net_device *dev,
+	struct ethtool_stats *stats, uint64_t *data);
+int lbs_mesh_ethtool_get_sset_count(struct net_device *dev, int sset);
+void lbs_mesh_ethtool_get_strings(struct net_device *dev,
+	uint32_t stringset, uint8_t *s);
+
+
 #endif
