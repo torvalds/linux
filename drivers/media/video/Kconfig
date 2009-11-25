@@ -600,7 +600,7 @@ source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
-	depends on ISA && VIDEO_V4L1
+	depends on ISA && VIDEO_V4L2
 	help
 	  Say Y if you have such a thing.
 
