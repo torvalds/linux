@@ -737,23 +737,27 @@ static int efx_init_port(struct efx_nic *efx)
 
 	EFX_LOG(efx, "init port\n");
 
+	mutex_lock(&efx->mac_lock);
+
 	rc = efx->phy_op->init(efx);
 	if (rc)
-		return rc;
-	mutex_lock(&efx->mac_lock);
+		goto fail1;
 	efx->phy_op->reconfigure(efx);
 	rc = falcon_switch_mac(efx);
-	mutex_unlock(&efx->mac_lock);
 	if (rc)
-		goto fail;
+		goto fail2;
 	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
 	efx_stats_enable(efx);
+
+	mutex_unlock(&efx->mac_lock);
 	return 0;
 
-fail:
+fail2:
 	efx->phy_op->fini(efx);
+fail1:
+	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
 
