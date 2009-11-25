@@ -704,10 +704,12 @@ static int create_trace_probe(int argc, char **argv)
 		ret = parse_probe_arg(arg, &tp->args[i].fetch, is_return);
 		if (ret) {
 			pr_info("Parse error at argument%d. (%d)\n", i, ret);
+			kfree(tp->args[i].name);
 			goto error;
 		}
+
+		tp->nr_args++;
 	}
-	tp->nr_args = i;
 
 	ret = register_trace_probe(tp);
 	if (ret)
