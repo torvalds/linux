@@ -625,8 +625,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					break;
 			}
 			pin = iterm->id;
-		} else if (pin < selector->selector.bNrInPins) {
-			pin = selector->selector.baSourceID[index];
+		} else if (pin < selector->bNrInPins) {
+			pin = selector->baSourceID[index];
 			list_for_each_entry(iterm, &chain->entities, chain) {
 				if (!UVC_ENTITY_IS_ITERM(iterm))
 					continue;
@@ -680,7 +680,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			break;
 		}
 
-		if (input == 0 || input > chain->selector->selector.bNrInPins)
+		if (input == 0 || input > chain->selector->bNrInPins)
 			return -EINVAL;
 
 		return uvc_query_ctrl(chain->dev, UVC_SET_CUR,

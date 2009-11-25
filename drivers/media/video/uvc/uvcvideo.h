@@ -293,11 +293,9 @@ struct uvc_entity {
 		} media;
 
 		struct {
-			__u8  bSourceID;
 		} output;
 
 		struct {
-			__u8  bSourceID;
 			__u16 wMaxMultiplier;
 			__u8  bControlSize;
 			__u8  *bmControls;
@@ -305,20 +303,19 @@ struct uvc_entity {
 		} processing;
 
 		struct {
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 		} selector;
 
 		struct {
 			__u8  guidExtensionCode[16];
 			__u8  bNumControls;
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 			__u8  bControlSize;
 			__u8  *bmControls;
 			__u8  *bmControlsType;
 		} extension;
 	};
+
+	__u8 bNrInPins;
+	__u8 *baSourceID;
 
 	unsigned int ncontrols;
 	struct uvc_control *controls;
