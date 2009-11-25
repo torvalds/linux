@@ -253,6 +253,7 @@ struct protection_domain {
 struct iommu_dev_data {
 	struct device *alias;		  /* The Alias Device */
 	struct protection_domain *domain; /* Domain the device is bound to */
+	atomic_t bind;			  /* Domain attach reverent count */
 };
 
 /*

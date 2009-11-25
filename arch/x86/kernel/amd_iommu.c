@@ -152,6 +152,8 @@ static int iommu_init_device(struct device *dev)
 	if (pdev)
 		dev_data->alias = &pdev->dev;
 
+	atomic_set(&dev_data->bind, 0);
+
 	dev->archdata.iommu = dev_data;
 
 
@@ -1403,16 +1405,21 @@ static int __attach_device(struct device *dev,
 		return -EBUSY;
 
 	/* Do real assignment */
-	if (alias != devid &&
-	    alias_data->domain == NULL) {
-		alias_data->domain = domain;
-		set_dte_entry(alias, domain);
+	if (alias != devid) {
+		if (alias_data->domain == NULL) {
+			alias_data->domain = domain;
+			set_dte_entry(alias, domain);
+		}
+
+		atomic_inc(&alias_data->bind);
 	}
 
 	if (dev_data->domain == NULL) {
 		dev_data->domain = domain;
 		set_dte_entry(devid, domain);
 	}
+
+	atomic_inc(&dev_data->bind);
 
 	/* ready */
 	spin_unlock(&domain->lock);
@@ -1449,20 +1456,34 @@ static int attach_device(struct device *dev,
  */
 static void __detach_device(struct device *dev)
 {
-	u16 devid = get_device_id(dev);
+	u16 devid = get_device_id(dev), alias;
 	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 	struct iommu_dev_data *dev_data = get_dev_data(dev);
+	struct iommu_dev_data *alias_data;
 
 	BUG_ON(!iommu);
 
-	clear_dte_entry(devid);
-	dev_data->domain = NULL;
+	devid = get_device_id(dev);
+	alias = get_device_id(dev_data->alias);
+
+	if (devid != alias) {
+		alias_data = get_dev_data(dev_data->alias);
+		if (atomic_dec_and_test(&alias_data->bind)) {
+			clear_dte_entry(alias);
+			alias_data->domain = NULL;
+		}
+	}
+
+	if (atomic_dec_and_test(&dev_data->bind)) {
+		clear_dte_entry(devid);
+		dev_data->domain = NULL;
+	}
 
 	/*
 	 * If we run in passthrough mode the device must be assigned to the
 	 * passthrough domain if it is detached from any other domain
 	 */
-	if (iommu_pass_through)
+	if (iommu_pass_through && dev_data->domain == NULL)
 		__attach_device(dev, pt_domain);
 }
 
