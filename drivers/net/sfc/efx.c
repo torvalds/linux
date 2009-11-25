@@ -688,11 +688,18 @@ static void efx_phy_work(struct work_struct *data)
 	mutex_unlock(&efx->mac_lock);
 }
 
+/* Asynchronous work item for changing MAC promiscuity and multicast
+ * hash.  Avoid a drain/rx_ingress enable by reconfiguring the current
+ * MAC directly. */
 static void efx_mac_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic, mac_work);
 
 	mutex_lock(&efx->mac_lock);
+	if (efx->port_enabled) {
+		falcon_push_multicast_hash(efx);
+		efx->mac_op->reconfigure(efx);
+	}
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -771,7 +778,12 @@ static void efx_start_port(struct efx_nic *efx)
 
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
-	__efx_reconfigure_port(efx);
+
+	/* efx_mac_work() might have been scheduled after efx_stop_port(),
+	 * and then cancelled by efx_flush_all() */
+	falcon_push_multicast_hash(efx);
+	efx->mac_op->reconfigure(efx);
+
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -1534,16 +1546,14 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct dev_mc_list *mc_list = net_dev->mc_list;
 	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-	bool promiscuous = !!(net_dev->flags & IFF_PROMISC);
-	bool changed = (efx->promiscuous != promiscuous);
 	u32 crc;
 	int bit;
 	int i;
 
-	efx->promiscuous = promiscuous;
+	efx->promiscuous = !!(net_dev->flags & IFF_PROMISC);
 
 	/* Build multicast hash table */
-	if (promiscuous || (net_dev->flags & IFF_ALLMULTI)) {
+	if (efx->promiscuous || (net_dev->flags & IFF_ALLMULTI)) {
 		memset(mc_hash, 0xff, sizeof(*mc_hash));
 	} else {
 		memset(mc_hash, 0x00, sizeof(*mc_hash));
@@ -1553,17 +1563,17 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 			set_bit_le(bit, mc_hash->byte);
 			mc_list = mc_list->next;
 		}
+
+		/* Broadcast packets go through the multicast hash filter.
+		 * ether_crc_le() of the broadcast address is 0xbe2612ff
+		 * so we always add bit 0xff to the mask.
+		 */
+		set_bit_le(0xff, mc_hash->byte);
 	}
 
-	if (!efx->port_enabled)
-		/* Delay pushing settings until efx_start_port() */
-		return;
-
-	if (changed)
-		queue_work(efx->workqueue, &efx->phy_work);
-
-	/* Create and activate new global multicast hash table */
-	falcon_set_multicast_hash(efx);
+	if (efx->port_enabled)
+		queue_work(efx->workqueue, &efx->mac_work);
+	/* Otherwise efx_start_port() will do this */
 }
 
 static const struct net_device_ops efx_netdev_ops = {

@@ -1993,7 +1993,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
 
 	/* Restore the multicast hash registers. */
-	falcon_set_multicast_hash(efx);
+	falcon_push_multicast_hash(efx);
 
 	/* Transmission of pause frames when RX crosses the threshold is
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
@@ -2327,15 +2327,11 @@ void falcon_remove_port(struct efx_nic *efx)
  **************************************************************************
  */
 
-void falcon_set_multicast_hash(struct efx_nic *efx)
+void falcon_push_multicast_hash(struct efx_nic *efx)
 {
 	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
 
-	/* Broadcast packets go through the multicast hash filter.
-	 * ether_crc_le() of the broadcast address is 0xbe2612ff
-	 * so we always add bit 0xff to the mask.
-	 */
-	set_bit_le(0xff, mc_hash->byte);
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
 	efx_writeo(efx, &mc_hash->oword[0], FR_AB_MAC_MC_HASH_REG0);
 	efx_writeo(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);

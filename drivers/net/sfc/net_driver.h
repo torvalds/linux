@@ -730,7 +730,7 @@ union efx_multicast_hash {
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
  * @phy_work: work item for dealing with PHY events
- * @mac_work: work item for dealing with MAC events
+ * @mac_work: Work item for changing MAC promiscuity and multicast hash
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
