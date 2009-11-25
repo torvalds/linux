@@ -1735,7 +1735,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	}
 	local_irq_restore(flags);
 
-	if (unlikely((gfpflags & __GFP_ZERO) && object))
+	if (unlikely(gfpflags & __GFP_ZERO) && object)
 		memset(object, 0, objsize);
 
 	kmemcheck_slab_alloc(s, gfpflags, object, c->objsize);
