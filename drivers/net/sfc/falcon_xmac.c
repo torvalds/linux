@@ -64,7 +64,7 @@ int falcon_reset_xaui(struct efx_nic *efx)
 	int count;
 
 	/* Start reset sequence */
-	EFX_POPULATE_DWORD_1(reg, FRF_AB_XX_RST_XX_EN, 1);
+	EFX_POPULATE_OWORD_1(reg, FRF_AB_XX_RST_XX_EN, 1);
 	efx_writeo(efx, &reg, FR_AB_XX_PWR_RST);
 
 	/* Wait up to 10 ms for completion, then reinitialise */
@@ -146,14 +146,14 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 	bool rx_fc = !!(efx->link_state.fc & EFX_FC_RX);
 
 	/* Configure MAC  - cut-thru mode is hard wired on */
-	EFX_POPULATE_DWORD_3(reg,
+	EFX_POPULATE_OWORD_3(reg,
 			     FRF_AB_XM_RX_JUMBO_MODE, 1,
 			     FRF_AB_XM_TX_STAT_EN, 1,
 			     FRF_AB_XM_RX_STAT_EN, 1);
 	efx_writeo(efx, &reg, FR_AB_XM_GLB_CFG);
 
 	/* Configure TX */
-	EFX_POPULATE_DWORD_6(reg,
+	EFX_POPULATE_OWORD_6(reg,
 			     FRF_AB_XM_TXEN, 1,
 			     FRF_AB_XM_TX_PRMBL, 1,
 			     FRF_AB_XM_AUTO_PAD, 1,
@@ -163,7 +163,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AB_XM_TX_CFG);
 
 	/* Configure RX */
-	EFX_POPULATE_DWORD_5(reg,
+	EFX_POPULATE_OWORD_5(reg,
 			     FRF_AB_XM_RXEN, 1,
 			     FRF_AB_XM_AUTO_DEPAD, 0,
 			     FRF_AB_XM_ACPT_ALL_MCAST, 1,
@@ -173,14 +173,14 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 
 	/* Set frame length */
 	max_frame_len = EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
-	EFX_POPULATE_DWORD_1(reg, FRF_AB_XM_MAX_RX_FRM_SIZE, max_frame_len);
+	EFX_POPULATE_OWORD_1(reg, FRF_AB_XM_MAX_RX_FRM_SIZE, max_frame_len);
 	efx_writeo(efx, &reg, FR_AB_XM_RX_PARAM);
-	EFX_POPULATE_DWORD_2(reg,
+	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_XM_MAX_TX_FRM_SIZE, max_frame_len,
 			     FRF_AB_XM_TX_JUMBO_MODE, 1);
 	efx_writeo(efx, &reg, FR_AB_XM_TX_PARAM);
 
-	EFX_POPULATE_DWORD_2(reg,
+	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_XM_PAUSE_TIME, 0xfffe, /* MAX PAUSE TIME */
 			     FRF_AB_XM_DIS_FCNTL, !rx_fc);
 	efx_writeo(efx, &reg, FR_AB_XM_FC);
