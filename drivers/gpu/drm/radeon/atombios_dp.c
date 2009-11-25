@@ -42,9 +42,6 @@ static char *voltage_names[] = {
 static char *pre_emph_names[] = {
         "0dB", "3.5dB", "6dB", "9.5dB"
 };
-static char *link_train_names[] = {
-        "pattern 1", "pattern 2", "idle", "off"
-};
 
 static const int dp_clocks[] = {
 	54000,  // 1 lane, 1.62 Ghz
