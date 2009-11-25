@@ -46,8 +46,8 @@
 #include <asm/debugreg.h>
 
 /* Per cpu debug control register value */
-DEFINE_PER_CPU(unsigned long, dr7);
-EXPORT_PER_CPU_SYMBOL(dr7);
+DEFINE_PER_CPU(unsigned long, cpu_dr7);
+EXPORT_PER_CPU_SYMBOL(cpu_dr7);
 
 /* Per cpu debug address registers values */
 static DEFINE_PER_CPU(unsigned long, cpu_debugreg[HBP_NUM]);
@@ -118,7 +118,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	set_debugreg(info->address, i);
 	__get_cpu_var(cpu_debugreg[i]) = info->address;
 
-	dr7 = &__get_cpu_var(dr7);
+	dr7 = &__get_cpu_var(cpu_dr7);
 	*dr7 |= encode_dr7(i, info->len, info->type);
 
 	set_debugreg(*dr7, 7);
@@ -153,7 +153,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	if (WARN_ONCE(i == HBP_NUM, "Can't find any breakpoint slot"))
 		return;
 
-	dr7 = &__get_cpu_var(dr7);
+	dr7 = &__get_cpu_var(cpu_dr7);
 	*dr7 &= ~encode_dr7(i, info->len, info->type);
 
 	set_debugreg(*dr7, 7);
@@ -437,7 +437,7 @@ void hw_breakpoint_restore(void)
 	set_debugreg(__get_cpu_var(cpu_debugreg[2]), 2);
 	set_debugreg(__get_cpu_var(cpu_debugreg[3]), 3);
 	set_debugreg(current->thread.debugreg6, 6);
-	set_debugreg(__get_cpu_var(dr7), 7);
+	set_debugreg(__get_cpu_var(cpu_dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 

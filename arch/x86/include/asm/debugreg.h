@@ -75,7 +75,7 @@
  */
 #ifdef __KERNEL__
 
-DECLARE_PER_CPU(unsigned long, dr7);
+DECLARE_PER_CPU(unsigned long, cpu_dr7);
 
 static inline void hw_breakpoint_disable(void)
 {
@@ -91,7 +91,7 @@ static inline void hw_breakpoint_disable(void)
 
 static inline int hw_breakpoint_active(void)
 {
-	return __get_cpu_var(dr7) & DR_GLOBAL_ENABLE_MASK;
+	return __get_cpu_var(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
 
 extern void aout_dump_debugregs(struct user *dump);
