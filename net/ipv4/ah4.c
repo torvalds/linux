@@ -444,7 +444,7 @@ static int ah_init_state(struct xfrm_state *x)
 	}
 
 	ahp->icv_full_len = aalg_desc->uinfo.auth.icv_fullbits/8;
-	ahp->icv_trunc_len = aalg_desc->uinfo.auth.icv_truncbits/8;
+	ahp->icv_trunc_len = x->aalg->alg_trunc_len/8;
 
 	BUG_ON(ahp->icv_trunc_len > MAX_AH_AUTH_LEN);
 
