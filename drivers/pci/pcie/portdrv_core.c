@@ -291,19 +291,15 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 int pcie_port_device_register(struct pci_dev *dev)
 {
 	struct pcie_port_data *port_data;
-	int status, capabilities, irq_mode, i, nr_serv, pos;
+	int status, capabilities, irq_mode, i, nr_serv;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
-	u16 reg16;
 
 	port_data = kzalloc(sizeof(*port_data), GFP_KERNEL);
 	if (!port_data)
 		return -ENOMEM;
 	pci_set_drvdata(dev, port_data);
 
-	/* Get port type */
-	pos = pci_pcie_cap(dev);
-	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
-	port_data->port_type = (reg16 >> 4) & PORT_TYPE_MASK;
+	port_data->port_type = dev->pcie_type;
 
 	capabilities = get_port_device_capability(dev);
 	/* Root ports are capable of generating PME too */
