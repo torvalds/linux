@@ -123,9 +123,9 @@ static int set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
 
-	if (dev->pcie_type == PCIE_RC_PORT ||
-	    dev->pcie_type == PCIE_SW_UPSTREAM_PORT ||
-	    dev->pcie_type == PCIE_SW_DOWNSTREAM_PORT) {
+	if ((dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) ||
+	    (dev->pcie_type == PCI_EXP_TYPE_UPSTREAM) ||
+	    (dev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)) {
 		if (enable)
 			pci_enable_pcie_error_reporting(dev);
 		else
@@ -437,10 +437,9 @@ static int find_aer_service_iter(struct device *device, void *data)
 	result = (struct find_aer_service_data *) data;
 
 	if (device->bus == &pcie_port_bus_type) {
-		struct pcie_port_data *port_data;
+		struct pcie_device *pcie = to_pcie_device(device);
 
-		port_data = pci_get_drvdata(to_pcie_device(device)->port);
-		if (port_data->port_type == PCIE_SW_DOWNSTREAM_PORT)
+		if (pcie->port->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)
 			result->is_downstream = 1;
 
 		driver = device->driver;

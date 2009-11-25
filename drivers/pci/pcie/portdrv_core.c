@@ -296,7 +296,6 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
  */
 int pcie_port_device_register(struct pci_dev *dev)
 {
-	struct pcie_port_data *port_data;
 	int status, capabilities, i, nr_service;
 	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
 
@@ -305,17 +304,10 @@ int pcie_port_device_register(struct pci_dev *dev)
 	if (!capabilities)
 		return -ENODEV;
 
-	/* Allocate driver data for port device */
-	port_data = kzalloc(sizeof(*port_data), GFP_KERNEL);
-	if (!port_data)
-		return -ENOMEM;
-	port_data->port_type = dev->pcie_type;
-	pci_set_drvdata(dev, port_data);
-
 	/* Enable PCI Express port device */
 	status = pci_enable_device(dev);
 	if (status)
-		goto error_kfree;
+		return status;
 	pci_set_master(dev);
 	/*
 	 * Initialize service irqs. Don't use service devices that
@@ -347,8 +339,6 @@ error_cleanup_irqs:
 	cleanup_service_irqs(dev);
 error_disable:
 	pci_disable_device(dev);
-error_kfree:
-	kfree(port_data);
 	return status;
 }
 
@@ -416,12 +406,9 @@ static int remove_iter(struct device *dev, void *data)
  */
 void pcie_port_device_remove(struct pci_dev *dev)
 {
-	struct pcie_port_data *port_data = pci_get_drvdata(dev);
-
 	device_for_each_child(&dev->dev, NULL, remove_iter);
 	cleanup_service_irqs(dev);
 	pci_disable_device(dev);
-	kfree(port_data);
 }
 
 /**

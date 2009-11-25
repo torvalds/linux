@@ -53,7 +53,7 @@ static struct pci_error_handlers aer_error_handlers = {
 
 static struct pcie_port_service_driver aerdriver = {
 	.name		= "aer",
-	.port_type	= PCIE_RC_PORT,
+	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
 	.service	= PCIE_PORT_SERVICE_AER,
 
 	.probe		= aer_probe,

@@ -10,10 +10,7 @@
 #define _PCIEPORT_IF_H_
 
 /* Port Type */
-#define PCIE_RC_PORT			4	/* Root port of RC */
-#define PCIE_SW_UPSTREAM_PORT		5	/* Upstream port of Switch */
-#define PCIE_SW_DOWNSTREAM_PORT		6	/* Downstream port of Switch */
-#define PCIE_ANY_PORT			7
+#define PCIE_ANY_PORT			(~0)
 
 /* Service Type */
 #define PCIE_PORT_SERVICE_PME_SHIFT	0	/* Power Management Event */
@@ -24,10 +21,6 @@
 #define PCIE_PORT_SERVICE_HP		(1 << PCIE_PORT_SERVICE_HP_SHIFT)
 #define PCIE_PORT_SERVICE_VC_SHIFT	3	/* Virtual Channel */
 #define PCIE_PORT_SERVICE_VC		(1 << PCIE_PORT_SERVICE_VC_SHIFT)
-
-struct pcie_port_data {
-	int port_type;		/* Type of the port */
-};
 
 struct pcie_device {
 	int 		irq;	    /* Service IRQ/MSI/MSI-X Vector */
