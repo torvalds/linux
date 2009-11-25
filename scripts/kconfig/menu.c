@@ -38,7 +38,7 @@ static void prop_warn(struct property *prop, const char *fmt, ...)
 	va_end(ap);
 }
 
-void menu_init(void)
+void _menu_init(void)
 {
 	current_entry = current_menu = &rootmenu;
 	last_entry_ptr = &rootmenu.list;
@@ -514,6 +514,20 @@ void get_symbol_str(struct gstr *r, struct symbol *sym)
 	}
 	str_append(r, "\n\n");
 }
+
+struct gstr get_relations_str(struct symbol **sym_arr)
+{
+	struct symbol *sym;
+	struct gstr res = str_new();
+	int i;
+
+	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
+		get_symbol_str(&res, sym);
+	if (!i)
+		str_append(&res, _("No matches found.\n"));
+	return res;
+}
+
 
 void menu_get_ext_help(struct menu *menu, struct gstr *help)
 {

@@ -17,7 +17,8 @@ P(menu_get_root_menu,struct menu *,(struct menu *menu));
 P(menu_get_parent_menu,struct menu *,(struct menu *menu));
 P(menu_has_help,bool,(struct menu *menu));
 P(menu_get_help,const char *,(struct menu *menu));
-P(get_symbol_str,void,(struct gstr *r, struct symbol *sym));
+P(get_symbol_str, void, (struct gstr *r, struct symbol *sym));
+P(get_relations_str, struct gstr, (struct symbol **sym_arr));
 P(menu_get_ext_help,void,(struct menu *menu, struct gstr *help));
 
 /* symbol.c */
