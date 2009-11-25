@@ -297,13 +297,15 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 int pcie_port_device_register(struct pci_dev *dev)
 {
 	struct pcie_port_data *port_data;
-	int status, capabilities, i, nr_serv;
+	int status, capabilities, i, nr_service;
 	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
 
+	/* Get and check PCI Express port services */
 	capabilities = get_port_device_capability(dev);
 	if (!capabilities)
 		return -ENODEV;
 
+	/* Allocate driver data for port device */
 	port_data = kzalloc(sizeof(*port_data), GFP_KERNEL);
 	if (!port_data)
 		return -ENOMEM;
@@ -315,7 +317,6 @@ int pcie_port_device_register(struct pci_dev *dev)
 	if (status)
 		goto error_kfree;
 	pci_set_master(dev);
-
 	/*
 	 * Initialize service irqs. Don't use service devices that
 	 * require interrupts if there is no way to generate them.
@@ -328,20 +329,18 @@ int pcie_port_device_register(struct pci_dev *dev)
 	}
 
 	/* Allocate child services if any */
-	for (i = 0, nr_serv = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
+	status = -ENODEV;
+	nr_service = 0;
+	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
 		int service = 1 << i;
-
 		if (!(capabilities & service))
 			continue;
-
-		status = pcie_device_init(dev, service, irqs[i]);
-		if (!status)
-			nr_serv++;
+		if (!pcie_device_init(dev, service, irqs[i]))
+			nr_service++;
 	}
-	if (!nr_serv) {
-		status = -ENODEV;
+	if (!nr_service)
 		goto error_cleanup_irqs;
-	}
+
 	return 0;
 
 error_cleanup_irqs:
