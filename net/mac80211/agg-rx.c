@@ -41,8 +41,7 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	       sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
-	if (drv_ampdu_action(local, &sta->sdata->vif,
-			     IEEE80211_AMPDU_RX_STOP,
+	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
 			     &sta->sta, tid, NULL))
 		printk(KERN_DEBUG "HW problem - can not stop rx "
 				"aggregation for tid %d\n", tid);
@@ -280,8 +279,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		goto end;
 	}
 
-	ret = drv_ampdu_action(local, &sta->sdata->vif,
-			       IEEE80211_AMPDU_RX_START,
+	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
 			       &sta->sta, tid, &start_seq_num);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx A-MPDU request on tid %d result %d\n", tid, ret);

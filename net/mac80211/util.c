@@ -1066,7 +1066,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD,
+			drv_sta_notify(local, sdata, STA_NOTIFY_ADD,
 				       &sta->sta);
 		}
 		spin_unlock_irqrestore(&local->sta_lock, flags);

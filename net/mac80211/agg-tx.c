@@ -144,7 +144,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
 
-	ret = drv_ampdu_action(local, &sta->sdata->vif,
+	ret = drv_ampdu_action(local, sta->sdata,
 			       IEEE80211_AMPDU_TX_STOP,
 			       &sta->sta, tid, NULL);
 
@@ -303,8 +303,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 
 	start_seq_num = sta->tid_seq[tid];
 
-	ret = drv_ampdu_action(local, &sdata->vif,
-			       IEEE80211_AMPDU_TX_START,
+	ret = drv_ampdu_action(local, sdata, IEEE80211_AMPDU_TX_START,
 			       pubsta, tid, &start_seq_num);
 
 	if (ret) {
@@ -420,7 +419,7 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	ieee80211_agg_splice_finish(local, sta, tid);
 	spin_unlock(&local->ampdu_lock);
 
-	drv_ampdu_action(local, &sta->sdata->vif,
+	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
 			 &sta->sta, tid, NULL);
 }

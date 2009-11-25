@@ -25,10 +25,12 @@ static inline void trace_ ## name(proto) {}
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr
 
-#define VIF_ENTRY	__field(enum nl80211_iftype, vif_type) __field(void *, vif)
-#define VIF_ASSIGN	__entry->vif_type = vif ? vif->type : 0; __entry->vif = vif
-#define VIF_PR_FMT	" vif:%p(%d)"
-#define VIF_PR_ARG	__entry->vif, __entry->vif_type
+#define VIF_ENTRY	__field(enum nl80211_iftype, vif_type) __field(void *, sdata) \
+			__string(vif_name, sdata->dev ? sdata->dev->name : "<nodev>")
+#define VIF_ASSIGN	__entry->vif_type = sdata->vif.type; __entry->sdata = sdata; \
+			__assign_str(vif_name, sdata->dev ? sdata->dev->name : "<nodev>")
+#define VIF_PR_FMT	" vif:%s(%d)"
+#define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type
 
 TRACE_EVENT(drv_start,
 	TP_PROTO(struct ieee80211_local *local, int ret),
@@ -70,10 +72,10 @@ TRACE_EVENT(drv_stop,
 
 TRACE_EVENT(drv_add_interface,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_vif *vif,
+		 struct ieee80211_sub_if_data *sdata,
 		 int ret),
 
-	TP_ARGS(local, vif, ret),
+	TP_ARGS(local, sdata, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -85,7 +87,7 @@ TRACE_EVENT(drv_add_interface,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, vif->addr, 6);
+		memcpy(__entry->addr, sdata->vif.addr, 6);
 		__entry->ret = ret;
 	),
 
@@ -96,9 +98,9 @@ TRACE_EVENT(drv_add_interface,
 );
 
 TRACE_EVENT(drv_remove_interface,
-	TP_PROTO(struct ieee80211_local *local, struct ieee80211_vif *vif),
+	TP_PROTO(struct ieee80211_local *local, struct ieee80211_sub_if_data *sdata),
 
-	TP_ARGS(local, vif),
+	TP_ARGS(local, sdata),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -109,7 +111,7 @@ TRACE_EVENT(drv_remove_interface,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, vif->addr, 6);
+		memcpy(__entry->addr, sdata->vif.addr, 6);
 	),
 
 	TP_printk(
@@ -163,11 +165,11 @@ TRACE_EVENT(drv_config,
 
 TRACE_EVENT(drv_bss_info_changed,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_vif *vif,
+		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_bss_conf *info,
 		 u32 changed),
 
-	TP_ARGS(local, vif, info, changed),
+	TP_ARGS(local, sdata, info, changed),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -291,11 +293,11 @@ TRACE_EVENT(drv_set_tim,
 
 TRACE_EVENT(drv_set_key,
 	TP_PROTO(struct ieee80211_local *local,
-		 enum set_key_cmd cmd, struct ieee80211_vif *vif,
+		 enum set_key_cmd cmd, struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta,
 		 struct ieee80211_key_conf *key, int ret),
 
-	TP_ARGS(local, cmd, vif, sta, key, ret),
+	TP_ARGS(local, cmd, sdata, sta, key, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -489,11 +491,11 @@ TRACE_EVENT(drv_set_rts_threshold,
 
 TRACE_EVENT(drv_sta_notify,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_vif *vif,
+		 struct ieee80211_sub_if_data *sdata,
 		 enum sta_notify_cmd cmd,
 		 struct ieee80211_sta *sta),
 
-	TP_ARGS(local, vif, cmd, sta),
+	TP_ARGS(local, sdata, cmd, sta),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -654,12 +656,12 @@ TRACE_EVENT(drv_tx_last_beacon,
 
 TRACE_EVENT(drv_ampdu_action,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_vif *vif,
+		 struct ieee80211_sub_if_data *sdata,
 		 enum ieee80211_ampdu_mlme_action action,
 		 struct ieee80211_sta *sta, u16 tid,
 		 u16 *ssn, int ret),
 
-	TP_ARGS(local, vif, action, sta, tid, ssn, ret),
+	TP_ARGS(local, sdata, action, sta, tid, ssn, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY

@@ -139,7 +139,7 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = drv_set_key(key->local, SET_KEY, &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 
 	if (!ret) {
 		spin_lock_bh(&todo_lock);
@@ -181,7 +181,7 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = drv_set_key(key->local, DISABLE_KEY, &sdata->vif,
+	ret = drv_set_key(key->local, DISABLE_KEY, sdata,
 			  sta, &key->conf);
 
 	if (ret)
