@@ -409,6 +409,12 @@ static __init void map_mmioh_high(int max_pnode)
 		map_high("MMIOH", mmioh.s.base, shift, max_pnode, map_uc);
 }
 
+static __init void map_low_mmrs(void)
+{
+	init_extra_mapping_uc(UV_GLOBAL_MMR32_BASE, UV_GLOBAL_MMR32_SIZE);
+	init_extra_mapping_uc(UV_LOCAL_MMR_BASE, UV_LOCAL_MMR_SIZE);
+}
+
 static __init void uv_rtc_init(void)
 {
 	long status;
@@ -549,6 +555,8 @@ void __init uv_system_init(void)
 	int gnode_extra, max_pnode = 0;
 	unsigned long mmr_base, present, paddr;
 	unsigned short pnode_mask;
+
+	map_low_mmrs();
 
 	m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
 	m_val = m_n_config.s.m_skt;
