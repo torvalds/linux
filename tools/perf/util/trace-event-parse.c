@@ -1888,7 +1888,7 @@ find_any_field(struct event *event, const char *name)
 	return find_field(event, name);
 }
 
-static unsigned long long read_size(void *ptr, int size)
+unsigned long long read_size(void *ptr, int size)
 {
 	switch (size) {
 	case 1:
@@ -1973,7 +1973,7 @@ int trace_parse_common_type(void *data)
 			      "common_type");
 }
 
-static int parse_common_pid(void *data)
+int trace_parse_common_pid(void *data)
 {
 	static int pid_offset;
 	static int pid_size;
@@ -2023,6 +2023,14 @@ struct event *trace_find_event(int id)
 			break;
 	}
 	return event;
+}
+
+struct event *trace_find_next_event(struct event *event)
+{
+	if (!event)
+		return event_list;
+
+	return event->next;
 }
 
 static unsigned long long eval_num_arg(void *data, int size,
@@ -2164,7 +2172,7 @@ static const struct flag flags[] = {
 	{ "HRTIMER_RESTART", 1 },
 };
 
-static unsigned long long eval_flag(const char *flag)
+unsigned long long eval_flag(const char *flag)
 {
 	int i;
 
@@ -2694,7 +2702,7 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 	if (!(event->flags & EVENT_FL_ISFUNCRET))
 		return NULL;
 
-	pid = parse_common_pid(next->data);
+	pid = trace_parse_common_pid(next->data);
 	field = find_field(event, "func");
 	if (!field)
 		die("function return does not have field func");
@@ -2980,7 +2988,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		return;
 	}
 
-	pid = parse_common_pid(data);
+	pid = trace_parse_common_pid(data);
 
 	if (event->flags & (EVENT_FL_ISFUNCENT | EVENT_FL_ISFUNCRET))
 		return pretty_print_func_graph(data, size, event, cpu,

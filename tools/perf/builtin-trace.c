@@ -38,6 +38,8 @@ static void setup_scripting(void)
 	/* make sure PERF_EXEC_PATH is set for scripts */
 	perf_set_argv_exec_path(perf_exec_path());
 
+	setup_perl_scripting();
+
 	scripting_ops = &default_scripting_ops;
 }
 

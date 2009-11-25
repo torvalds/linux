@@ -407,6 +407,7 @@ LIB_OBJS += util/thread.o
 LIB_OBJS += util/trace-event-parse.o
 LIB_OBJS += util/trace-event-read.o
 LIB_OBJS += util/trace-event-info.o
+LIB_OBJS += util/trace-event-perl.o
 LIB_OBJS += util/svghelper.o
 LIB_OBJS += util/sort.o
 LIB_OBJS += util/hist.o
@@ -487,6 +488,15 @@ else
 	EXTLIBS += -lelf -ldwarf
 	LIB_H += util/probe-finder.h
 	LIB_OBJS += util/probe-finder.o
+endif
+
+PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts`
+PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts`
+
+ifneq ($(shell sh -c "(echo '\#include <EXTERN.h>'; echo '\#include <perl.h>'; echo 'int main(void) { perl_alloc(); return 0; }') | $(CC) -x c - $(PERL_EMBED_CCOPTS) -o /dev/null $(PERL_EMBED_LDOPTS) > /dev/null 2>&1 && echo y"), y)
+	BASIC_CFLAGS += -DNO_LIBPERL
+else
+	ALL_LDFLAGS += $(PERL_EMBED_LDOPTS)
 endif
 
 ifdef NO_DEMANGLE
@@ -859,6 +869,9 @@ util/hweight.o: ../../lib/hweight.c PERF-CFLAGS
 
 util/find_next_bit.o: ../../lib/find_next_bit.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o util/find_next_bit.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/trace-event-perl.o: util/trace-event-perl.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/trace-event-perl.o -c $(ALL_CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes  -Wno-unused-parameter $<
 
 perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)

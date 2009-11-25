@@ -245,10 +245,14 @@ extern int latency_format;
 
 int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
+int trace_parse_common_pid(void *data);
 struct event *trace_find_event(int id);
+struct event *trace_find_next_event(struct event *event);
+unsigned long long read_size(void *ptr, int size);
 unsigned long long
 raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
+unsigned long long eval_flag(const char *flag);
 
 int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
 
@@ -271,5 +275,8 @@ struct scripting_ops {
 };
 
 int script_spec_register(const char *spec, struct scripting_ops *ops);
+
+extern struct scripting_ops perl_scripting_ops;
+void setup_perl_scripting(void);
 
 #endif /* __PERF_TRACE_EVENTS_H */
