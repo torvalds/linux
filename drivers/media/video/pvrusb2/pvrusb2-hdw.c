@@ -1474,8 +1474,19 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);
 
-	if (fw_entry->size != 0x2000){
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,"wrong fx2 firmware size");
+	if ((fw_entry->size != 0x2000) &&
+	    (!(hdw->hdw_desc->flag_fx2_16kb && (fw_entry->size == 0x4000)))) {
+		if (hdw->hdw_desc->flag_fx2_16kb) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192 or 16384, got %u)",
+				   fw_entry->size);
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192, got %u)",
+				   fw_entry->size);
+		}
 		release_firmware(fw_entry);
 		return -ENOMEM;
 	}
