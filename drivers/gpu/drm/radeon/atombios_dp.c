@@ -627,10 +627,11 @@ void dp_link_train(struct drm_encoder *encoder,
 
 	/* set initial vs/emph */
 	memset(train_set, 0, 4);
-	dp_update_dpvs_emph(radeon_connector, encoder, train_set);
 	udelay(400);
 	/* set training pattern 1 on the sink */
 	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_1);
+
+	dp_update_dpvs_emph(radeon_connector, encoder, train_set);
 
 	/* clock recovery loop */
 	clock_recovery = false;
