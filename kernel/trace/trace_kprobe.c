@@ -760,7 +760,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	char buf[MAX_ARGSTR_LEN + 1];
 
 	seq_printf(m, "%c", probe_is_return(tp) ? 'r' : 'p');
-	seq_printf(m, ":%s", tp->call.name);
+	seq_printf(m, ":%s/%s", tp->call.system, tp->call.name);
 
 	if (tp->symbol)
 		seq_printf(m, " %s+%u", probe_symbol(tp), tp->rp.kp.offset);
