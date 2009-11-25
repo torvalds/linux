@@ -1171,9 +1171,10 @@ static int patch_cxt5045(struct hda_codec *codec)
 
 	switch (codec->subsystem_id >> 16) {
 	case 0x103c:
-		/* HP laptop has a really bad sound over 0dB on NID 0x17.
-		 * Fix max PCM level to 0 dB
-		 * (originall it has 0x2b steps with 0dB offset 0x14)
+	case 0x1734:
+		/* HP & Fujitsu-Siemens laptops have really bad sound over 0dB
+		 * on NID 0x17. Fix max PCM level to 0 dB
+		 * (originally it has 0x2b steps with 0dB offset 0x14)
 		 */
 		snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
 					  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
