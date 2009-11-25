@@ -1224,7 +1224,6 @@ static int uvc_scan_chain_entity(struct uvc_video_chain *chain,
 			return -1;
 		}
 
-		list_add_tail(&entity->chain, &chain->extensions);
 		break;
 
 	case UVC_VC_PROCESSING_UNIT:
@@ -1263,7 +1262,6 @@ static int uvc_scan_chain_entity(struct uvc_video_chain *chain,
 		if (uvc_trace_param & UVC_TRACE_PROBE)
 			printk(" <- IT %d\n", entity->id);
 
-		list_add_tail(&entity->chain, &chain->iterms);
 		break;
 
 	case UVC_TT_STREAMING:
@@ -1276,7 +1274,6 @@ static int uvc_scan_chain_entity(struct uvc_video_chain *chain,
 			return -1;
 		}
 
-		list_add_tail(&entity->chain, &chain->iterms);
 		break;
 
 	default:
@@ -1285,6 +1282,7 @@ static int uvc_scan_chain_entity(struct uvc_video_chain *chain,
 		return -1;
 	}
 
+	list_add_tail(&entity->chain, &chain->entities);
 	return 0;
 }
 
@@ -1315,7 +1313,7 @@ static int uvc_scan_chain_forward(struct uvc_video_chain *chain,
 				return -EINVAL;
 			}
 
-			list_add_tail(&forward->chain, &chain->extensions);
+			list_add_tail(&forward->chain, &chain->entities);
 			if (uvc_trace_param & UVC_TRACE_PROBE) {
 				if (!found)
 					printk(" (->");
@@ -1335,7 +1333,7 @@ static int uvc_scan_chain_forward(struct uvc_video_chain *chain,
 				return -EINVAL;
 			}
 
-			list_add_tail(&forward->chain, &chain->oterms);
+			list_add_tail(&forward->chain, &chain->entities);
 			if (uvc_trace_param & UVC_TRACE_PROBE) {
 				if (!found)
 					printk(" (->");
@@ -1391,7 +1389,7 @@ static int uvc_scan_chain_backward(struct uvc_video_chain *chain,
 			if (uvc_trace_param & UVC_TRACE_PROBE)
 				printk(" %d", term->id);
 
-			list_add_tail(&term->chain, &chain->iterms);
+			list_add_tail(&term->chain, &chain->entities);
 			uvc_scan_chain_forward(chain, term, entity);
 		}
 
@@ -1412,7 +1410,7 @@ static int uvc_scan_chain(struct uvc_video_chain *chain,
 	int id;
 
 	entity = oterm;
-	list_add_tail(&entity->chain, &chain->oterms);
+	list_add_tail(&entity->chain, &chain->entities);
 	uvc_trace(UVC_TRACE_PROBE, "Scanning UVC chain: OT %d", entity->id);
 
 	id = entity->output.bSourceID;
@@ -1452,21 +1450,25 @@ static int uvc_scan_chain(struct uvc_video_chain *chain,
 	return 0;
 }
 
-static unsigned int uvc_print_terms(struct list_head *terms, char *buffer)
+static unsigned int uvc_print_terms(struct list_head *terms, u16 dir,
+		char *buffer)
 {
 	struct uvc_entity *term;
 	unsigned int nterms = 0;
 	char *p = buffer;
 
 	list_for_each_entry(term, terms, chain) {
-		p += sprintf(p, "%u", term->id);
-		if (term->chain.next != terms) {
+		if (!UVC_ENTITY_IS_TERM(term) ||
+		    UVC_TERM_DIRECTION(term) != dir)
+			continue;
+
+		if (nterms)
 			p += sprintf(p, ",");
-			if (++nterms >= 4) {
-				p += sprintf(p, "...");
-				break;
-			}
+		if (++nterms >= 4) {
+			p += sprintf(p, "...");
+			break;
 		}
+		p += sprintf(p, "%u", term->id);
 	}
 
 	return p - buffer;
@@ -1477,9 +1479,9 @@ static const char *uvc_print_chain(struct uvc_video_chain *chain)
 	static char buffer[43];
 	char *p = buffer;
 
-	p += uvc_print_terms(&chain->iterms, p);
+	p += uvc_print_terms(&chain->entities, UVC_TERM_INPUT, p);
 	p += sprintf(p, " -> ");
-	uvc_print_terms(&chain->oterms, p);
+	uvc_print_terms(&chain->entities, UVC_TERM_OUTPUT, p);
 
 	return buffer;
 }
@@ -1510,9 +1512,7 @@ static int uvc_scan_device(struct uvc_device *dev)
 		if (chain == NULL)
 			return -ENOMEM;
 
-		INIT_LIST_HEAD(&chain->iterms);
-		INIT_LIST_HEAD(&chain->oterms);
-		INIT_LIST_HEAD(&chain->extensions);
+		INIT_LIST_HEAD(&chain->entities);
 		mutex_init(&chain->ctrl_mutex);
 		chain->dev = dev;
 
@@ -1685,13 +1685,13 @@ static int uvc_register_video(struct uvc_device *dev,
  * Register all video devices in all chains.
  */
 static int uvc_register_terms(struct uvc_device *dev,
-	struct uvc_video_chain *chain, struct list_head *terms)
+	struct uvc_video_chain *chain)
 {
 	struct uvc_streaming *stream;
 	struct uvc_entity *term;
 	int ret;
 
-	list_for_each_entry(term, terms, chain) {
+	list_for_each_entry(term, &chain->entities, chain) {
 		if (UVC_ENTITY_TYPE(term) != UVC_TT_STREAMING)
 			continue;
 
@@ -1717,11 +1717,7 @@ static int uvc_register_chains(struct uvc_device *dev)
 	int ret;
 
 	list_for_each_entry(chain, &dev->chains, list) {
-		ret = uvc_register_terms(dev, chain, &chain->iterms);
-		if (ret < 0)
-			return ret;
-
-		ret = uvc_register_terms(dev, chain, &chain->oterms);
+		ret = uvc_register_terms(dev, chain);
 		if (ret < 0)
 			return ret;
 	}

@@ -75,6 +75,7 @@ struct uvc_xu_control {
 
 #define UVC_TERM_INPUT			0x0000
 #define UVC_TERM_OUTPUT			0x8000
+#define UVC_TERM_DIRECTION(term)	((term)->type & 0x8000)
 
 #define UVC_ENTITY_TYPE(entity)		((entity)->type & 0x7fff)
 #define UVC_ENTITY_IS_UNIT(entity)	(((entity)->type & 0xff00) == 0)
@@ -408,11 +409,9 @@ struct uvc_video_chain {
 	struct uvc_device *dev;
 	struct list_head list;
 
-	struct list_head iterms;		/* Input terminals */
-	struct list_head oterms;		/* Output terminals */
+	struct list_head entities;		/* All entities */
 	struct uvc_entity *processing;		/* Processing unit */
 	struct uvc_entity *selector;		/* Selector unit */
-	struct list_head extensions;		/* Extension units */
 
 	struct mutex ctrl_mutex;
 };

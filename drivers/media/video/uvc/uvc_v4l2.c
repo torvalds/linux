@@ -620,12 +620,16 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
 			if (index != 0)
 				return -EINVAL;
-			iterm = list_first_entry(&chain->iterms,
-					struct uvc_entity, chain);
+			list_for_each_entry(iterm, &chain->entities, chain) {
+				if (UVC_ENTITY_IS_ITERM(iterm))
+					break;
+			}
 			pin = iterm->id;
 		} else if (pin < selector->selector.bNrInPins) {
 			pin = selector->selector.baSourceID[index];
-			list_for_each_entry(iterm, chain->iterms.next, chain) {
+			list_for_each_entry(iterm, &chain->entities, chain) {
+				if (!UVC_ENTITY_IS_ITERM(iterm))
+					continue;
 				if (iterm->id == pin)
 					break;
 			}
