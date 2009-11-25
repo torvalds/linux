@@ -270,7 +270,7 @@ va1j5jf8007t_tune(struct dvb_frontend *fe,
 {
 	struct va1j5jf8007t_state *state;
 	int ret;
-	int lock, retry;
+	int lock = 0, retry = 0;
 
 	state = fe->demodulator_priv;
 
