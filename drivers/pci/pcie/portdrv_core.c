@@ -241,6 +241,9 @@ static int get_port_device_capability(struct pci_dev *dev)
 	/* VC support */
 	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
 		services |= PCIE_PORT_SERVICE_VC;
+	/* Root ports are capable of generating PME too */
+	if (dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+		services |= PCIE_PORT_SERVICE_PME;
 
 	return services;
 }
@@ -302,9 +305,6 @@ int pcie_port_device_register(struct pci_dev *dev)
 	port_data->port_type = dev->pcie_type;
 
 	capabilities = get_port_device_capability(dev);
-	/* Root ports are capable of generating PME too */
-	if (port_data->port_type == PCIE_RC_PORT)
-		capabilities |= PCIE_PORT_SERVICE_PME;
 
 	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
 	if (irq_mode == PCIE_PORT_NO_IRQ) {
