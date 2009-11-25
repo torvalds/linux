@@ -276,7 +276,7 @@ static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	wdt_reg = ioremap_nocache(r->start, r->end - r->start);
+	wdt_reg = ioremap_nocache(r->start, resource_size(r));
 	if (!wdt_reg) {
 		printk(KERN_ERR PFX "failed to remap I/O resources\n");
 		return -ENXIO;
