@@ -297,14 +297,16 @@ int pcie_port_device_register(struct pci_dev *dev)
 	int status, capabilities, irq_mode, i, nr_serv;
 	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
 
+	capabilities = get_port_device_capability(dev);
+	if (!capabilities)
+		return -ENODEV;
+
 	port_data = kzalloc(sizeof(*port_data), GFP_KERNEL);
 	if (!port_data)
 		return -ENOMEM;
 	pci_set_drvdata(dev, port_data);
 
 	port_data->port_type = dev->pcie_type;
-
-	capabilities = get_port_device_capability(dev);
 
 	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
 	if (irq_mode == PCIE_PORT_NO_IRQ) {
