@@ -22,9 +22,33 @@ struct lbs_mesh_stats {
 
 
 struct net_device;
+struct lbs_private;
+
+int lbs_init_mesh(struct lbs_private *priv);
+int lbs_deinit_mesh(struct lbs_private *priv);
+
+int lbs_add_mesh(struct lbs_private *priv);
+void lbs_remove_mesh(struct lbs_private *priv);
+
+
+/* Sending / Receiving */
+
+struct rxpd;
+struct txpd;
+
+struct net_device *lbs_mesh_set_dev(struct lbs_private *priv,
+	struct net_device *dev, struct rxpd *rxpd);
+void lbs_mesh_set_txpd(struct lbs_private *priv,
+	struct net_device *dev, struct txpd *txpd);
+
+
+/* Persistent configuration */
 
 void lbs_persist_config_init(struct net_device *net);
 void lbs_persist_config_remove(struct net_device *net);
+
+
+/* WEXT handler */
 
 extern struct iw_handler_def mesh_handler_def;
 
