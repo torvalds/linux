@@ -1522,8 +1522,8 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 
 	trace_firmware("Upload done (%d bytes sent)",ret);
 
-	/* We should have written 8192 bytes */
-	if (ret == 8192) {
+	/* We should have written fwsize bytes */
+	if (ret == fwsize) {
 		hdw->fw1_state = FW1_STATE_RELOAD;
 		return 0;
 	}
