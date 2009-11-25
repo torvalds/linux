@@ -592,7 +592,9 @@ xfs_bmap_add_extent(
 	if (nextents == 0) {
 		XFS_BMAP_TRACE_INSERT("insert empty", ip, 0, 1, new, NULL,
 			whichfork);
-		xfs_iext_insert(ifp, 0, 1, new);
+		xfs_iext_insert(ip, 0, 1, new,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
+
 		ASSERT(cur == NULL);
 		ifp->if_lastex = 0;
 		if (!isnullstartblock(new->br_startblock)) {
@@ -849,7 +851,7 @@ xfs_bmap_add_extent_delay_real(
 		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC|RC", ip, idx - 1,
 			XFS_DATA_FORK);
 		XFS_BMAP_TRACE_DELETE("LF|RF|LC|RC", ip, idx, 2, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 2);
+		xfs_iext_remove(ip, idx, 2, state);
 		ip->i_df.if_lastex = idx - 1;
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
@@ -895,7 +897,7 @@ xfs_bmap_add_extent_delay_real(
 			XFS_DATA_FORK);
 		ip->i_df.if_lastex = idx - 1;
 		XFS_BMAP_TRACE_DELETE("LF|RF|LC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
 		else {
@@ -930,7 +932,7 @@ xfs_bmap_add_extent_delay_real(
 		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|RC", ip, idx, XFS_DATA_FORK);
 		ip->i_df.if_lastex = idx;
 		XFS_BMAP_TRACE_DELETE("LF|RF|RC", ip, idx + 1, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx + 1, 1);
+		xfs_iext_remove(ip, idx + 1, 1, state);
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
 		else {
@@ -1037,7 +1039,7 @@ xfs_bmap_add_extent_delay_real(
 		xfs_bmbt_set_blockcount(ep, temp);
 		XFS_BMAP_TRACE_INSERT("LF", ip, idx, 1, new, NULL,
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1127,7 +1129,7 @@ xfs_bmap_add_extent_delay_real(
 		xfs_bmbt_set_blockcount(ep, temp);
 		XFS_BMAP_TRACE_INSERT("RF", ip, idx + 1, 1, new, NULL,
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 1, new);
+		xfs_iext_insert(ip, idx + 1, 1, new, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1182,7 +1184,7 @@ xfs_bmap_add_extent_delay_real(
 		r[1].br_blockcount = temp2;
 		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 2, &r[0], &r[1],
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 2, &r[0]);
+		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1397,7 +1399,7 @@ xfs_bmap_add_extent_unwritten_real(
 		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC|RC", ip, idx - 1,
 			XFS_DATA_FORK);
 		XFS_BMAP_TRACE_DELETE("LF|RF|LC|RC", ip, idx, 2, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 2);
+		xfs_iext_remove(ip, idx, 2, state);
 		ip->i_df.if_lastex = idx - 1;
 		ip->i_d.di_nextents -= 2;
 		if (cur == NULL)
@@ -1447,7 +1449,7 @@ xfs_bmap_add_extent_unwritten_real(
 			XFS_DATA_FORK);
 		ip->i_df.if_lastex = idx - 1;
 		XFS_BMAP_TRACE_DELETE("LF|RF|LC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1490,7 +1492,7 @@ xfs_bmap_add_extent_unwritten_real(
 			XFS_DATA_FORK);
 		ip->i_df.if_lastex = idx;
 		XFS_BMAP_TRACE_DELETE("LF|RF|RC", ip, idx + 1, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx + 1, 1);
+		xfs_iext_remove(ip, idx + 1, 1, state);
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1616,7 +1618,7 @@ xfs_bmap_add_extent_unwritten_real(
 		XFS_BMAP_TRACE_POST_UPDATE("LF", ip, idx, XFS_DATA_FORK);
 		XFS_BMAP_TRACE_INSERT("LF", ip, idx, 1, new, NULL,
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1702,7 +1704,7 @@ xfs_bmap_add_extent_unwritten_real(
 		XFS_BMAP_TRACE_POST_UPDATE("RF", ip, idx, XFS_DATA_FORK);
 		XFS_BMAP_TRACE_INSERT("RF", ip, idx + 1, 1, new, NULL,
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 1, new);
+		xfs_iext_insert(ip, idx + 1, 1, new, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1752,7 +1754,7 @@ xfs_bmap_add_extent_unwritten_real(
 		r[1].br_state = oldext;
 		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 2, &r[0], &r[1],
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 2, &r[0]);
+		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents += 2;
 		if (cur == NULL)
@@ -1918,7 +1920,7 @@ xfs_bmap_add_extent_hole_delay(
 		XFS_BMAP_TRACE_POST_UPDATE("LC|RC", ip, idx - 1,
 			XFS_DATA_FORK);
 		XFS_BMAP_TRACE_DELETE("LC|RC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		ip->i_df.if_lastex = idx - 1;
 		/* DELTA: Two in-core extents were replaced by one. */
 		temp2 = temp;
@@ -1977,7 +1979,7 @@ xfs_bmap_add_extent_hole_delay(
 		oldlen = newlen = 0;
 		XFS_BMAP_TRACE_INSERT("0", ip, idx, 1, new, NULL,
 			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		/* DELTA: A new in-core extent was added in a hole. */
 		temp2 = new->br_blockcount;
@@ -2032,6 +2034,9 @@ xfs_bmap_add_extent_hole_real(
 	ASSERT(idx <= ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t));
 	ep = xfs_iext_get_ext(ifp, idx);
 	state = 0;
+
+	if (whichfork == XFS_ATTR_FORK)
+		state |= BMAP_ATTRFORK;
 
 	/*
 	 * Check and set flags if this segment has a left neighbor.
@@ -2094,7 +2099,7 @@ xfs_bmap_add_extent_hole_real(
 		XFS_BMAP_TRACE_POST_UPDATE("LC|RC", ip, idx - 1,
 			whichfork);
 		XFS_BMAP_TRACE_DELETE("LC|RC", ip, idx, 1, whichfork);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		ifp->if_lastex = idx - 1;
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) - 1);
@@ -2205,7 +2210,7 @@ xfs_bmap_add_extent_hole_real(
 		 * Insert a new entry.
 		 */
 		XFS_BMAP_TRACE_INSERT("0", ip, idx, 1, new, NULL, whichfork);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ifp->if_lastex = idx;
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
@@ -3147,7 +3152,8 @@ xfs_bmap_del_extent(
 		 * Matches the whole extent.  Delete the entry.
 		 */
 		XFS_BMAP_TRACE_DELETE("3", ip, idx, 1, whichfork);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
 		ifp->if_lastex = idx;
 		if (delay)
 			break;
@@ -3317,7 +3323,8 @@ xfs_bmap_del_extent(
 		XFS_BMAP_TRACE_POST_UPDATE("0", ip, idx, whichfork);
 		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 1, &new, NULL,
 			whichfork);
-		xfs_iext_insert(ifp, idx + 1, 1, &new);
+		xfs_iext_insert(ip, idx + 1, 1, &new,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
 		ifp->if_lastex = idx + 1;
 		break;
 	}

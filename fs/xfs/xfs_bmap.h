@@ -146,6 +146,7 @@ typedef struct xfs_bmalloca {
 #define BMAP_RIGHT_DELAY	(1 << 5)
 #define BMAP_LEFT_VALID		(1 << 6)
 #define BMAP_RIGHT_VALID	(1 << 7)
+#define BMAP_ATTRFORK		(1 << 8)
 
 #if defined(__KERNEL__) && defined(XFS_BMAP_TRACE)
 /*

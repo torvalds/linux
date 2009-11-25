@@ -577,11 +577,11 @@ int		xfs_iread_extents(struct xfs_trans *, struct xfs_inode *, int);
 int		xfs_iextents_copy(struct xfs_inode *, xfs_bmbt_rec_t *, int);
 
 xfs_bmbt_rec_host_t *xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
-void		xfs_iext_insert(xfs_ifork_t *, xfs_extnum_t, xfs_extnum_t,
-				xfs_bmbt_irec_t *);
+void		xfs_iext_insert(xfs_inode_t *, xfs_extnum_t, xfs_extnum_t,
+				xfs_bmbt_irec_t *, int);
 void		xfs_iext_add(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_add_indirect_multi(xfs_ifork_t *, int, xfs_extnum_t, int);
-void		xfs_iext_remove(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_remove(xfs_inode_t *, xfs_extnum_t, int, int);
 void		xfs_iext_remove_inline(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_remove_direct(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_remove_indirect(xfs_ifork_t *, xfs_extnum_t, int);
