@@ -552,7 +552,8 @@ struct em28xx {
 	int capture_type;
 	int vbi_read;
 	unsigned char cur_field;
-
+	unsigned int vbi_width;
+	unsigned int vbi_height; /* lines per field */
 
 	struct work_struct         request_module_wk;
 
