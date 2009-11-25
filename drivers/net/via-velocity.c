@@ -1470,7 +1470,8 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	 *	Do the gymnastics to get the buffer head for data at
 	 *	64byte alignment.
 	 */
-	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->data & 63);
+	skb_reserve(rd_info->skb,
+			64 - ((unsigned long) rd_info->skb->data & 63));
 	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->data,
 					vptr->rx.buf_sz, PCI_DMA_FROMDEVICE);
 
