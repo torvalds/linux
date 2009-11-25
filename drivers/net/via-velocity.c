@@ -275,7 +275,7 @@ VELOCITY_PARAM(rx_thresh, "Receive fifo threshold");
 
 #define DMA_LENGTH_MIN  0
 #define DMA_LENGTH_MAX  7
-#define DMA_LENGTH_DEF  0
+#define DMA_LENGTH_DEF  6
 
 /* DMA_length[] is used for controlling the DMA length
    0: 8 DWORDs
