@@ -954,7 +954,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	u8 guard, crate, constellation, timeI;
 	u8 permu_seg[] = { 6, 5, 7, 4, 8, 3, 9, 2, 10, 1, 11, 0, 12 };
 	u16 i, coeff[4], P_cfr_left_edge = 0, P_cfr_right_edge = 0, seg_mask13 = 0x1fff;	// All 13 segments enabled
-	const s16 *ncoeff, *ana_fe;
+	const s16 *ncoeff = NULL, *ana_fe;
 	u16 tmcc_pow = 0;
 	u16 coff_pow = 0x2800;
 	u16 init_prbs = 0xfff;
