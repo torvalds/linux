@@ -459,6 +459,7 @@ void radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 				printk("%02x ", msg[i]);
 			printk("\n");
 		}
+		return;
 	}
 	dig_connector->dpcd[0] = 0;
 	return;
