@@ -844,7 +844,7 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 		unit->type = UVC_VC_EXTENSION_UNIT;
 		memcpy(unit->extension.guidExtensionCode, &buffer[4], 16);
 		unit->extension.bNumControls = buffer[20];
-		unit->extension.bNrInPins = get_unaligned_le16(&buffer[21]);
+		unit->extension.bNrInPins = buffer[21];
 		unit->extension.baSourceID = (__u8 *)unit + sizeof *unit;
 		memcpy(unit->extension.baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
@@ -1108,7 +1108,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->type = buffer[2];
 		memcpy(unit->extension.guidExtensionCode, &buffer[4], 16);
 		unit->extension.bNumControls = buffer[20];
-		unit->extension.bNrInPins = get_unaligned_le16(&buffer[21]);
+		unit->extension.bNrInPins = buffer[21];
 		unit->extension.baSourceID = (__u8 *)unit + sizeof *unit;
 		memcpy(unit->extension.baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
