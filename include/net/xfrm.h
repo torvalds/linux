@@ -162,7 +162,7 @@ struct xfrm_state {
 	struct xfrm_lifetime_cfg lft;
 
 	/* Data for transformer */
-	struct xfrm_algo	*aalg;
+	struct xfrm_algo_auth	*aalg;
 	struct xfrm_algo	*ealg;
 	struct xfrm_algo	*calg;
 	struct xfrm_algo_aead	*aead;
@@ -1532,10 +1532,20 @@ static inline int xfrm_alg_len(struct xfrm_algo *alg)
 	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
 }
 
+static inline int xfrm_alg_auth_len(struct xfrm_algo_auth *alg)
+{
+	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
+}
+
 #ifdef CONFIG_XFRM_MIGRATE
 static inline struct xfrm_algo *xfrm_algo_clone(struct xfrm_algo *orig)
 {
 	return kmemdup(orig, xfrm_alg_len(orig), GFP_KERNEL);
+}
+
+static inline struct xfrm_algo_auth *xfrm_algo_auth_clone(struct xfrm_algo_auth *orig)
+{
+	return kmemdup(orig, xfrm_alg_auth_len(orig), GFP_KERNEL);
 }
 
 static inline void xfrm_states_put(struct xfrm_state **states, int n)

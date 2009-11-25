@@ -1114,7 +1114,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	x->props.saddr = orig->props.saddr;
 
 	if (orig->aalg) {
-		x->aalg = xfrm_algo_clone(orig->aalg);
+		x->aalg = xfrm_algo_auth_clone(orig->aalg);
 		if (!x->aalg)
 			goto error;
 	}
