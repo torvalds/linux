@@ -32,6 +32,7 @@
 #define VELOCITY_VERSION       "1.14"
 
 #define VELOCITY_IO_SIZE	256
+#define VELOCITY_NAPI_WEIGHT	64
 
 #define PKT_BUF_SZ          1540
 
@@ -1562,6 +1563,8 @@ struct velocity_info {
 	u32 ticks;
 
 	u8 rev_id;
+
+	struct napi_struct napi;
 };
 
 /**
