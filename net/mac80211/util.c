@@ -469,7 +469,7 @@ void ieee80211_iterate_active_interfaces(
 			break;
 		}
 		if (netif_running(sdata->dev))
-			iterator(data, sdata->dev->dev_addr,
+			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
@@ -503,7 +503,7 @@ void ieee80211_iterate_active_interfaces_atomic(
 			break;
 		}
 		if (netif_running(sdata->dev))
-			iterator(data, sdata->dev->dev_addr,
+			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
@@ -848,7 +848,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			    sizeof(*mgmt) + 6 + extra_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
-		       "frame\n", sdata->dev->name);
+		       "frame\n", sdata->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
@@ -858,7 +858,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_AUTH);
 	memcpy(mgmt->da, bssid, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
 	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
@@ -949,7 +949,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			    ie_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
-		       "request\n", sdata->dev->name);
+		       "request\n", sdata->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
@@ -958,7 +958,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	memset(mgmt, 0, 24);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_PROBE_REQ);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (dst) {
 		memcpy(mgmt->da, dst, ETH_ALEN);
 		memcpy(mgmt->bssid, dst, ETH_ALEN);
@@ -1051,7 +1051,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		    netif_running(sdata->dev)) {
 			conf.vif = &sdata->vif;
 			conf.type = sdata->vif.type;
-			conf.mac_addr = sdata->dev->dev_addr;
+			conf.mac_addr = sdata->vif.addr;
 			res = drv_add_interface(local, &conf);
 		}
 	}

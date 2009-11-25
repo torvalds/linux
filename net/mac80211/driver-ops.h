@@ -39,7 +39,7 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 				    struct ieee80211_if_init_conf *conf)
 {
 	int ret = local->ops->add_interface(&local->hw, conf);
-	trace_drv_add_interface(local, conf->mac_addr, conf->vif, ret);
+	trace_drv_add_interface(local, conf->vif, ret);
 	return ret;
 }
 
@@ -47,7 +47,7 @@ static inline void drv_remove_interface(struct ieee80211_local *local,
 					struct ieee80211_if_init_conf *conf)
 {
 	local->ops->remove_interface(&local->hw, conf);
-	trace_drv_remove_interface(local, conf->mac_addr, conf->vif);
+	trace_drv_remove_interface(local, conf->vif);
 }
 
 static inline int drv_config(struct ieee80211_local *local, u32 changed)

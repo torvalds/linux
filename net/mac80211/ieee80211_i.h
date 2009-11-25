@@ -140,7 +140,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 
 struct ieee80211_tx_data {
 	struct sk_buff *skb;
-	struct net_device *dev;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
@@ -432,6 +431,8 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	int drop_unencrypted;
+
+	char name[IFNAMSIZ];
 
 	/*
 	 * keep track of whether the HT opmode (stored in
@@ -937,6 +938,8 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
 
 /* interface handling */
+int ieee80211_iface_init(void);
+void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct net_device **new_dev, enum nl80211_iftype type,
 		     struct vif_params *params);

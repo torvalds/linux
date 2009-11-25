@@ -659,12 +659,14 @@ struct ieee80211_conf {
  * @type: type of this virtual interface
  * @bss_conf: BSS configuration for this interface, either our own
  *	or the BSS we're associated to
+ * @addr: address of this interface
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  */
 struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_bss_conf bss_conf;
+	u8 addr[ETH_ALEN];
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };

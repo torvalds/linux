@@ -223,7 +223,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			printk(KERN_DEBUG "%s: dropped data frame to not "
 			       "associated station %pM\n",
-			       tx->dev->name, hdr->addr1);
+			       tx->sdata->name, hdr->addr1);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
@@ -331,7 +331,7 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: BC TX buffer full - dropping the oldest frame\n",
-			       tx->dev->name);
+			       tx->sdata->name);
 #endif
 		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 	} else
@@ -391,7 +391,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: STA %pM TX "
 				       "buffer full - dropping oldest frame\n",
-				       tx->dev->name, sta->sta.addr);
+				       tx->sdata->name, sta->sta.addr);
 			}
 #endif
 			dev_kfree_skb(old);
@@ -416,7 +416,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	else if (unlikely(staflags & WLAN_STA_PS_STA)) {
 		printk(KERN_DEBUG "%s: STA %pM in PS mode, but pspoll "
-		       "set -> send frame\n", tx->dev->name,
+		       "set -> send frame\n", tx->sdata->name,
 		       sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
@@ -549,7 +549,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		 "%s: Dropped data frame as no usable bitrate found while "
 		 "scanning and associated. Target station: "
 		 "%pM on %d GHz band\n",
-		 tx->dev->name, hdr->addr1,
+		 tx->sdata->name, hdr->addr1,
 		 tx->channel->band ? 5 : 2))
 		return TX_DROP;
 
@@ -1021,7 +1021,6 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	memset(tx, 0, sizeof(*tx));
 	tx->skb = skb;
-	tx->dev = sdata->dev; /* use original interface */
 	tx->local = local;
 	tx->sdata = sdata;
 	tx->channel = local->hw.conf.channel;
@@ -1474,7 +1473,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 					continue;
 				if (tmp_sdata->vif.type != NL80211_IFTYPE_AP)
 					continue;
-				if (compare_ether_addr(tmp_sdata->dev->dev_addr,
+				if (compare_ether_addr(tmp_sdata->vif.addr,
 						       hdr->addr2) == 0) {
 					sdata = tmp_sdata;
 					break;
@@ -1638,7 +1637,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
 			memcpy(hdr.addr1, sta->sta.addr, ETH_ALEN);
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 			hdrlen = 30;
@@ -1652,7 +1651,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
-		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+		memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 24;
 		break;
@@ -1660,7 +1659,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
 		memcpy(hdr.addr1, sdata->u.wds.remote_addr, ETH_ALEN);
-		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+		memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 30;
@@ -1674,8 +1673,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto fail;
 		}
 
-		if (compare_ether_addr(dev->dev_addr,
-					  skb->data + ETH_ALEN) == 0) {
+		if (compare_ether_addr(sdata->vif.addr,
+				       skb->data + ETH_ALEN) == 0) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
@@ -1705,7 +1704,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				}
 			}
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
-					mesh_da, dev->dev_addr);
+					mesh_da, sdata->vif.addr);
 			rcu_read_unlock();
 			if (is_mesh_mcast)
 				meshhdrlen =
@@ -1730,7 +1729,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		if (sdata->u.mgd.use_4addr && ethertype != ETH_P_PAE) {
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 			hdrlen = 30;
@@ -1781,7 +1780,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		unlikely(!is_multicast_ether_addr(hdr.addr1) &&
 		      !(sta_flags & WLAN_STA_AUTHORIZED) &&
 		      !(ethertype == ETH_P_PAE &&
-		       compare_ether_addr(dev->dev_addr,
+		       compare_ether_addr(sdata->vif.addr,
 					  skb->data + ETH_ALEN) == 0))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
@@ -2145,8 +2144,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		mgmt->frame_control =
 		    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 		memset(mgmt->da, 0xff, ETH_ALEN);
-		memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
-		memcpy(mgmt->bssid, sdata->dev->dev_addr, ETH_ALEN);
+		memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 		mgmt->u.beacon.beacon_int =
 			cpu_to_le16(sdata->vif.bss_conf.beacon_int);
 		mgmt->u.beacon.capab_info = 0x0; /* 0x0 for MPs */

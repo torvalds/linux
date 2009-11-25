@@ -372,7 +372,7 @@ int sta_info_insert(struct sta_info *sta)
 		goto out_free;
 	}
 
-	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->dev->dev_addr) == 0 ||
+	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->vif.addr) == 0 ||
 		    is_multicast_ether_addr(sta->sta.addr))) {
 		err = -EINVAL;
 		goto out_free;
@@ -831,7 +831,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",
-			       sdata->dev->name, sta->sta.addr);
+			       sdata->name, sta->sta.addr);
 #endif
 			__sta_info_unlink(&sta);
 			if (sta)
@@ -889,7 +889,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
-	       "since STA not sleeping anymore\n", sdata->dev->name,
+	       "since STA not sleeping anymore\n", sdata->name,
 	       sta->sta.addr, sta->sta.aid, sent - buffered, buffered);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
@@ -948,7 +948,7 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		 */
 		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
 		       "though there are no buffered frames for it\n",
-		       sdata->dev->name, sta->sta.addr);
+		       sdata->name, sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	}
 }

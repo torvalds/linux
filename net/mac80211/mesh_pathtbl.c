@@ -260,7 +260,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->dev->dev_addr, ETH_ALEN) == 0)
+	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -377,7 +377,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->dev->dev_addr, ETH_ALEN) == 0)
+	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -605,7 +605,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 	struct mesh_path *mpath;
 	u32 sn = 0;
 
-	if (memcmp(hdr->addr4, sdata->dev->dev_addr, ETH_ALEN) != 0) {
+	if (memcmp(hdr->addr4, sdata->vif.addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
 
 		da = hdr->addr3;

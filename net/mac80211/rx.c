@@ -283,13 +283,13 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	skb->protocol = htons(ETH_P_802_2);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
-			continue;
-
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
 			continue;
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES)
+			continue;
+
+		if (!netif_running(sdata->dev))
 			continue;
 
 		if (prev_dev) {
@@ -476,7 +476,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	char *dev_addr = rx->sdata->dev->dev_addr;
+	char *dev_addr = rx->sdata->vif.addr;
 
 	if (ieee80211_is_data(hdr->frame_control)) {
 		if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1024,7 +1024,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d enters power save mode\n",
-	       sdata->dev->name, sta->sta.addr, sta->sta.aid);
+	       sdata->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -1038,13 +1038,13 @@ static void ap_sta_ps_end(struct sta_info *sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d exits power save mode\n",
-	       sdata->dev->name, sta->sta.addr, sta->sta.aid);
+	       sdata->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	if (test_sta_flags(sta, WLAN_STA_PS_DRIVER)) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "%s: STA %pM aid %d driver-ps-blocked\n",
-		       sdata->dev->name, sta->sta.addr, sta->sta.aid);
+		       sdata->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		return;
 	}
@@ -1156,7 +1156,7 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: RX reassembly removed oldest "
 		       "fragment entry (idx=%d age=%lu seq=%d last_frag=%d "
 		       "addr1=%pM addr2=%pM\n",
-		       sdata->dev->name, idx,
+		       sdata->name, idx,
 		       jiffies - entry->first_frag_time, entry->seq,
 		       entry->last_frag, hdr->addr1, hdr->addr2);
 #endif
@@ -1424,7 +1424,6 @@ static int
 __ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
-	struct net_device *dev = sdata->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 
 	if (ieee80211_has_a4(hdr->frame_control) &&
@@ -1436,7 +1435,7 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 	     (sdata->vif.type == NL80211_IFTYPE_STATION && sdata->u.mgd.use_4addr)))
 		return -1;
 
-	return ieee80211_data_to_8023(rx->skb, dev->dev_addr, sdata->vif.type);
+	return ieee80211_data_to_8023(rx->skb, sdata->vif.addr, sdata->vif.type);
 }
 
 /*
@@ -1453,7 +1452,7 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * of whether the frame was encrypted or not.
 	 */
 	if (ehdr->h_proto == htons(ETH_P_PAE) &&
-	    (compare_ether_addr(ehdr->h_dest, rx->sdata->dev->dev_addr) == 0 ||
+	    (compare_ether_addr(ehdr->h_dest, rx->sdata->vif.addr) == 0 ||
 	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
 		return true;
 
@@ -1721,7 +1720,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	/* Frame has reached destination.  Don't forward */
 	if (!is_multicast_ether_addr(hdr->addr1) &&
-	    compare_ether_addr(sdata->dev->dev_addr, hdr->addr3) == 0)
+	    compare_ether_addr(sdata->vif.addr, hdr->addr3) == 0)
 		return RX_CONTINUE;
 
 	mesh_hdr->ttl--;
@@ -1738,10 +1737,10 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 			if (!fwd_skb && net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
-						   sdata->dev->name);
+						   sdata->name);
 
 			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
-			memcpy(fwd_hdr->addr2, sdata->dev->dev_addr, ETH_ALEN);
+			memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
 			info = IEEE80211_SKB_CB(fwd_skb);
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
@@ -1870,7 +1869,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *resp;
 
-	if (compare_ether_addr(mgmt->da, sdata->dev->dev_addr) != 0) {
+	if (compare_ether_addr(mgmt->da, sdata->vif.addr) != 0) {
 		/* Not to own unicast address */
 		return;
 	}
@@ -1894,7 +1893,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	resp = (struct ieee80211_mgmt *) skb_put(skb, 24);
 	memset(resp, 0, 24);
 	memcpy(resp->da, mgmt->sa, ETH_ALEN);
-	memcpy(resp->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(resp->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(resp->bssid, sdata->u.mgd.bssid, ETH_ALEN);
 	resp->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
@@ -2274,7 +2273,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (!bssid && !sdata->u.mgd.use_4addr)
 			return 0;
 		if (!multicast &&
-		    compare_ether_addr(sdata->dev->dev_addr, hdr->addr1) != 0) {
+		    compare_ether_addr(sdata->vif.addr, hdr->addr1) != 0) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
@@ -2291,7 +2290,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!multicast &&
-			   compare_ether_addr(sdata->dev->dev_addr,
+			   compare_ether_addr(sdata->vif.addr,
 					      hdr->addr1) != 0) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
@@ -2308,7 +2307,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
-		    compare_ether_addr(sdata->dev->dev_addr,
+		    compare_ether_addr(sdata->vif.addr,
 				       hdr->addr1) != 0) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
@@ -2319,11 +2318,11 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
 		if (!bssid) {
-			if (compare_ether_addr(sdata->dev->dev_addr,
+			if (compare_ether_addr(sdata->vif.addr,
 					       hdr->addr1))
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
-					sdata->dev->dev_addr)) {
+					sdata->vif.addr)) {
 			if (!(rx->flags & IEEE80211_RX_IN_SCAN))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
@@ -2444,7 +2443,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					printk(KERN_DEBUG "%s: failed to copy "
 					       "multicast frame for %s\n",
 					       wiphy_name(local->hw.wiphy),
-					       prev->dev->name);
+					       prev->name);
 				continue;
 			}
 			ieee80211_invoke_rx_handlers(prev, &rx, skb_new, rate);

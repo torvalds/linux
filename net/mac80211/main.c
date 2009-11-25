@@ -32,7 +32,6 @@
 #include "led.h"
 #include "cfg.h"
 #include "debugfs.h"
-#include "debugfs_netdev.h"
 
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
@@ -173,7 +172,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
-		sdata->vif.bss_conf.bssid = sdata->dev->dev_addr;
+		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		sdata->vif.bss_conf.bssid = zero;
 	} else {
@@ -672,11 +671,19 @@ static int __init ieee80211_init(void)
 
 	ret = rc80211_pid_init();
 	if (ret)
-		return ret;
+		goto err_pid;
 
-	ieee80211_debugfs_netdev_init();
+	ret = ieee80211_iface_init();
+	if (ret)
+		goto err_netdev;
 
 	return 0;
+ err_netdev:
+	rc80211_pid_exit();
+ err_pid:
+	rc80211_minstrel_exit();
+
+	return ret;
 }
 
 static void __exit ieee80211_exit(void)
@@ -693,7 +700,7 @@ static void __exit ieee80211_exit(void)
 	if (mesh_allocated)
 		ieee80211s_stop();
 
-	ieee80211_debugfs_netdev_exit();
+	ieee80211_iface_exit();
 }
 
 

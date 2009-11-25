@@ -147,7 +147,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	presp = ieee80211_is_probe_resp(fc);
 	if (presp) {
 		/* ignore ProbeResp to foreign address */
-		if (memcmp(mgmt->da, sdata->dev->dev_addr, ETH_ALEN))
+		if (memcmp(mgmt->da, sdata->vif.addr, ETH_ALEN))
 			return RX_DROP_MONITOR;
 
 		presp = true;

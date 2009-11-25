@@ -70,11 +70,10 @@ TRACE_EVENT(drv_stop,
 
 TRACE_EVENT(drv_add_interface,
 	TP_PROTO(struct ieee80211_local *local,
-		 const u8 *addr,
 		 struct ieee80211_vif *vif,
 		 int ret),
 
-	TP_ARGS(local, addr, vif, ret),
+	TP_ARGS(local, vif, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -86,7 +85,7 @@ TRACE_EVENT(drv_add_interface,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, addr, 6);
+		memcpy(__entry->addr, vif->addr, 6);
 		__entry->ret = ret;
 	),
 
@@ -97,10 +96,9 @@ TRACE_EVENT(drv_add_interface,
 );
 
 TRACE_EVENT(drv_remove_interface,
-	TP_PROTO(struct ieee80211_local *local,
-		 const u8 *addr, struct ieee80211_vif *vif),
+	TP_PROTO(struct ieee80211_local *local, struct ieee80211_vif *vif),
 
-	TP_ARGS(local, addr, vif),
+	TP_ARGS(local, vif),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -111,7 +109,7 @@ TRACE_EVENT(drv_remove_interface,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		memcpy(__entry->addr, addr, 6);
+		memcpy(__entry->addr, vif->addr, 6);
 	),
 
 	TP_printk(

@@ -280,16 +280,11 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-static int notif_registered;
-
 void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[10+IFNAMSIZ];
 
-	if (!notif_registered)
-		return;
-
-	sprintf(buf, "netdev:%s", sdata->dev->name);
+	sprintf(buf, "netdev:%s", sdata->name);
 	sdata->debugfs.dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
 	add_files(sdata);
@@ -304,58 +299,18 @@ void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 	sdata->debugfs.dir = NULL;
 }
 
-static int netdev_notify(struct notifier_block *nb,
-			 unsigned long state,
-			 void *ndev)
+void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	struct net_device *dev = ndev;
 	struct dentry *dir;
-	struct ieee80211_sub_if_data *sdata;
-	char buf[10+IFNAMSIZ];
-
-	if (state != NETDEV_CHANGENAME)
-		return 0;
-
-	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return 0;
-
-	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
-		return 0;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	char buf[10 + IFNAMSIZ];
 
 	dir = sdata->debugfs.dir;
 
 	if (!dir)
-		return 0;
+		return;
 
-	sprintf(buf, "netdev:%s", dev->name);
+	sprintf(buf, "netdev:%s", sdata->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
 		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);
-
-	return 0;
-}
-
-static struct notifier_block mac80211_debugfs_netdev_notifier = {
-	.notifier_call = netdev_notify,
-};
-
-void ieee80211_debugfs_netdev_init(void)
-{
-	int err;
-
-	err = register_netdevice_notifier(&mac80211_debugfs_netdev_notifier);
-	if (err) {
-		printk(KERN_ERR
-		       "mac80211: failed to install netdev notifier,"
-		       " disabling per-netdev debugfs!\n");
-	} else
-		notif_registered = 1;
-}
-
-void ieee80211_debugfs_netdev_exit(void)
-{
-	unregister_netdevice_notifier(&mac80211_debugfs_netdev_notifier);
-	notif_registered = 0;
 }
