@@ -48,6 +48,11 @@ static unsigned long long input_buf_siz;
 
 static int cpus;
 static int long_size;
+static int is_flag_field;
+static int is_symbolic_field;
+
+static struct format_field *
+find_any_field(struct event *event, const char *name);
 
 static void init_input_buf(char *buf, unsigned long long size)
 {
@@ -1301,6 +1306,16 @@ process_entry(struct event *event __unused, struct print_arg *arg,
 	arg->type = PRINT_FIELD;
 	arg->field.name = field;
 
+	if (is_flag_field) {
+		arg->field.field = find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_FLAG;
+		is_flag_field = 0;
+	} else if (is_symbolic_field) {
+		arg->field.field = find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_SYMBOLIC;
+		is_symbolic_field = 0;
+	}
+
 	type = read_token(&token);
 	*tok = token;
 
@@ -1668,9 +1683,11 @@ process_arg_token(struct event *event, struct print_arg *arg,
 			type = process_entry(event, arg, &token);
 		} else if (strcmp(token, "__print_flags") == 0) {
 			free_token(token);
+			is_flag_field = 1;
 			type = process_flags(event, arg, &token);
 		} else if (strcmp(token, "__print_symbolic") == 0) {
 			free_token(token);
+			is_symbolic_field = 1;
 			type = process_symbols(event, arg, &token);
 		} else if (strcmp(token, "__get_str") == 0) {
 			free_token(token);
