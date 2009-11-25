@@ -146,16 +146,29 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 	}
 }
 
+struct pci_check_idx_range {
+	int start;
+	int end;
+};
+
 static void __init pcibios_allocate_resources(int pass)
 {
 	struct pci_dev *dev = NULL;
-	int idx, disabled;
+	int idx, disabled, i;
 	u16 command;
 	struct resource *r;
 
+	struct pci_check_idx_range idx_range[] = {
+		{ PCI_STD_RESOURCES, PCI_STD_RESOURCE_END },
+#ifdef CONFIG_PCI_IOV
+		{ PCI_IOV_RESOURCES, PCI_IOV_RESOURCE_END },
+#endif
+	};
+
 	for_each_pci_dev(dev) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
-		for (idx = 0; idx < PCI_ROM_RESOURCE; idx++) {
+		for (i = 0; i < ARRAY_SIZE(idx_range); i++)
+		for (idx = idx_range[i].start; idx <= idx_range[i].end; idx++) {
 			r = &dev->resource[idx];
 			if (r->parent)		/* Already allocated */
 				continue;
