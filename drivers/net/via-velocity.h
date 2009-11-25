@@ -1005,7 +1005,8 @@ struct mac_regs {
 
 	volatile __le32 RDBaseLo;	/* 0x38 */
 	volatile __le16 RDIdx;		/* 0x3C */
-	volatile __le16 reserved_3E;
+	volatile u8 TQETMR;		/* 0x3E, VT3216 and above only */
+	volatile u8 RQETMR;		/* 0x3F, VT3216 and above only */
 
 	volatile __le32 TDBaseLo[4];	/* 0x40 */
 
@@ -1491,6 +1492,10 @@ struct velocity_opt {
 	int rx_bandwidth_hi;
 	int rx_bandwidth_lo;
 	int rx_bandwidth_en;
+	int rxqueue_timer;
+	int txqueue_timer;
+	int tx_intsup;
+	int rx_intsup;
 	u32 flags;
 };
 
