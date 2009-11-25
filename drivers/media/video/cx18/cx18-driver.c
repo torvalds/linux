@@ -912,7 +912,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		CX18_ERR("Could not register A/V decoder subdevice\n");
 		goto free_map;
 	}
-	cx18_call_hw(cx, CX18_HW_418_AV, core, init, 0);
 
 	/* Initialize GPIO Reset Controller to do chip resets during i2c init */
 	if (cx->card->hw_all & CX18_HW_GPIO_RESET_CTRL) {
