@@ -3514,7 +3514,7 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 
 
 void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
-				int prom_flag,
+				int mode,
 				int enable_flag)
 {
 	int ret;
@@ -3537,11 +3537,12 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 			break;
 		}
 
-		hdw->fw_cpu_flag = (prom_flag == 0);
+		hdw->fw_cpu_flag = (mode != 2);
 		if (hdw->fw_cpu_flag) {
+			hdw->fw_size = (mode == 1) ? 0x4000 : 0x2000;
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
-				   "Preparing to suck out CPU firmware");
-			hdw->fw_size = 0x2000;
+				   "Preparing to suck out CPU firmware"
+				   " (size=%u)", hdw->fw_size);
 			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 			if (!hdw->fw_buffer) {
 				hdw->fw_size = 0;
