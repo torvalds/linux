@@ -156,18 +156,19 @@ extern void native_load_gs_index(unsigned);
  * segment if something goes wrong..
  */
 #define loadsegment(seg, value)			\
+do {						\
+	unsigned short __val = value;		\
 	asm volatile("\n"			\
 		     "1:\t"			\
 		     "movl %k0,%%" #seg "\n"	\
-		     "2:\n"			\
 		     ".section .fixup,\"ax\"\n"	\
-		     "3:\t"			\
-		     "movl %k1, %%" #seg "\n\t"	\
-		     "jmp 2b\n"			\
+		     "2:\t"			\
+		     "xorl %k0,%k0\n\t"		\
+		     "jmp 1b\n"			\
 		     ".previous\n"		\
-		     _ASM_EXTABLE(1b,3b)	\
-		     : :"r" (value), "r" (0) : "memory")
-
+		     _ASM_EXTABLE(1b, 2b)	\
+		     : "+r" (__val) : : "memory"); \
+} while (0)
 
 /*
  * Save a segment register away
