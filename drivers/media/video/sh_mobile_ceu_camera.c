@@ -1730,7 +1730,6 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 
 exit_free_clk:
 	pm_runtime_disable(&pdev->dev);
-exit_free_irq:
 	free_irq(pcdev->irq, pcdev);
 exit_release_mem:
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
