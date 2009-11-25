@@ -55,6 +55,7 @@ static const char *payload_msg =
  * @flush:		Drop all packets in efx_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted
+ * @offload_csum:	Checksums are being offloaded
  * @rx_good:		RX good packet count
  * @rx_bad:		RX bad packet count
  * @payload:		Payload used in tests
@@ -63,10 +64,7 @@ struct efx_loopback_state {
 	bool flush;
 	int packet_count;
 	struct sk_buff **skbs;
-
-	/* Checksums are being offloaded */
 	bool offload_csum;
-
 	atomic_t rx_good;
 	atomic_t rx_bad;
 	struct efx_loopback_payload payload;
