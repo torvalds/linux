@@ -348,7 +348,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 		efx->phy_mode = new_mode;
 		if (new_mode & PHY_MODE_SPECIAL)
 			efx_stats_disable(efx);
-		if (falcon_board(efx)->type == FALCON_BOARD_SFE4001)
+		if (falcon_board(efx)->type->id == FALCON_BOARD_SFE4001)
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);
@@ -438,13 +438,6 @@ static int sfe4001_init(struct efx_nic *efx)
 		goto fail_hwmon;
 	}
 
-	/* 10Xpress has fixed-function LED pins, so there is no board-specific
-	 * blink code. */
-	board->set_id_led = tenxpress_set_id_led;
-
-	board->monitor = sfe4001_check_hw;
-	board->fini = sfe4001_fini;
-
 	if (efx->phy_mode & PHY_MODE_SPECIAL) {
 		/* PHY won't generate a 156.25 MHz clock and MAC stats fetch
 		 * will fail. */
@@ -531,11 +524,6 @@ static int sfn4111t_init(struct efx_nic *efx)
 	if (!board->hwmon_client)
 		return -EIO;
 
-	board->init_phy = sfn4111t_init_phy;
-	board->set_id_led = tenxpress_set_id_led;
-	board->monitor = sfn4111t_check_hw;
-	board->fini = sfn4111t_fini;
-
 	rc = device_create_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 	if (rc)
 		goto fail_hwmon;
@@ -620,15 +608,7 @@ static int sfe4002_check_hw(struct efx_nic *efx)
 
 static int sfe4002_init(struct efx_nic *efx)
 {
-	struct falcon_board *board = falcon_board(efx);
-	int rc = efx_init_lm87(efx, &sfe4002_hwmon_info, sfe4002_lm87_regs);
-	if (rc)
-		return rc;
-	board->monitor = sfe4002_check_hw;
-	board->init_phy = sfe4002_init_phy;
-	board->set_id_led = sfe4002_set_id_led;
-	board->fini = efx_fini_lm87;
-	return 0;
+	return efx_init_lm87(efx, &sfe4002_hwmon_info, sfe4002_lm87_regs);
 }
 
 /*****************************************************************************
@@ -692,67 +672,80 @@ static int sfn4112f_check_hw(struct efx_nic *efx)
 
 static int sfn4112f_init(struct efx_nic *efx)
 {
-	struct falcon_board *board = falcon_board(efx);
-
-	int rc = efx_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
-	if (rc)
-		return rc;
-	board->monitor = sfn4112f_check_hw;
-	board->init_phy = sfn4112f_init_phy;
-	board->set_id_led = sfn4112f_set_id_led;
-	board->fini = efx_fini_lm87;
-	return 0;
+	return efx_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
 }
 
-/* This will get expanded as board-specific details get moved out of the
- * PHY drivers. */
-struct falcon_board_data {
-	u8 type;
-	const char *ref_model;
-	const char *gen_type;
-	int (*init) (struct efx_nic *nic);
+static const struct falcon_board_type board_types[] = {
+	{
+		.id		= FALCON_BOARD_SFE4001,
+		.ref_model	= "SFE4001",
+		.gen_type	= "10GBASE-T adapter",
+		.init		= sfe4001_init,
+		.init_phy	= efx_port_dummy_op_void,
+		.fini		= sfe4001_fini,
+		.set_id_led	= tenxpress_set_id_led,
+		.monitor	= sfe4001_check_hw,
+	},
+	{
+		.id		= FALCON_BOARD_SFE4002,
+		.ref_model	= "SFE4002",
+		.gen_type	= "XFP adapter",
+		.init		= sfe4002_init,
+		.init_phy	= sfe4002_init_phy,
+		.fini		= efx_fini_lm87,
+		.set_id_led	= sfe4002_set_id_led,
+		.monitor	= sfe4002_check_hw,
+	},
+	{
+		.id		= FALCON_BOARD_SFN4111T,
+		.ref_model	= "SFN4111T",
+		.gen_type	= "100/1000/10GBASE-T adapter",
+		.init		= sfn4111t_init,
+		.init_phy	= sfn4111t_init_phy,
+		.fini		= sfn4111t_fini,
+		.set_id_led	= tenxpress_set_id_led,
+		.monitor	= sfn4111t_check_hw,
+	},
+	{
+		.id		= FALCON_BOARD_SFN4112F,
+		.ref_model	= "SFN4112F",
+		.gen_type	= "SFP+ adapter",
+		.init		= sfn4112f_init,
+		.init_phy	= sfn4112f_init_phy,
+		.fini		= efx_fini_lm87,
+		.set_id_led	= sfn4112f_set_id_led,
+		.monitor	= sfn4112f_check_hw,
+	},
 };
 
-
-static struct falcon_board_data board_data[] = {
-	{ FALCON_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
-	{ FALCON_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
-	{ FALCON_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
-	  sfn4111t_init },
-	{ FALCON_BOARD_SFN4112F, "SFN4112F", "SFP+ adapter",
-	  sfn4112f_init },
-};
-
-static struct falcon_board falcon_dummy_board = {
+static const struct falcon_board_type falcon_dummy_board = {
 	.init		= efx_port_dummy_op_int,
 	.init_phy	= efx_port_dummy_op_void,
+	.fini		= efx_port_dummy_op_void,
 	.set_id_led	= efx_port_dummy_op_set_id_led,
 	.monitor	= efx_port_dummy_op_int,
-	.fini		= efx_port_dummy_op_void,
 };
 
 void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 {
 	struct falcon_board *board = falcon_board(efx);
-	struct falcon_board_data *data = NULL;
+	u8 type_id = FALCON_BOARD_TYPE(revision_info);
 	int i;
 
-	*board = falcon_dummy_board;
-	board->type = FALCON_BOARD_TYPE(revision_info);
 	board->major = FALCON_BOARD_MAJOR(revision_info);
 	board->minor = FALCON_BOARD_MINOR(revision_info);
 
-	for (i = 0; i < ARRAY_SIZE(board_data); i++)
-		if (board_data[i].type == board->type)
-			data = &board_data[i];
+	for (i = 0; i < ARRAY_SIZE(board_types); i++)
+		if (board_types[i].id == type_id)
+			board->type = &board_types[i];
 
-	if (data) {
+	if (board->type) {
 		EFX_INFO(efx, "board is %s rev %c%d\n",
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
-			 ? data->ref_model : data->gen_type,
+			 ? board->type->ref_model : board->type->gen_type,
 			 'A' + board->major, board->minor);
-		board->init = data->init;
 	} else {
-		EFX_ERR(efx, "unknown board type %d\n", board->type);
+		EFX_ERR(efx, "unknown board type %d\n", type_id);
+		board->type = &falcon_dummy_board;
 	}
 }

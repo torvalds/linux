@@ -126,7 +126,7 @@ static int qt202x_reset_phy(struct efx_nic *efx)
 	if (rc < 0)
 		goto fail;
 
-	falcon_board(efx)->init_phy(efx);
+	falcon_board(efx)->type->init_phy(efx);
 
 	return rc;
 

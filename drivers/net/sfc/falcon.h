@@ -31,29 +31,41 @@ static inline int falcon_rev(struct efx_nic *efx)
 }
 
 /**
- * struct falcon_board - board information
- * @type: Board model type
- * @major: Major rev. ('A', 'B' ...)
- * @minor: Minor rev. (0, 1, ...)
+ * struct falcon_board_type - board operations and type information
+ * @id: Board type id, as found in NVRAM
+ * @ref_model: Model number of Solarflare reference design
+ * @gen_type: Generic board type description
  * @init: Allocate resources and initialise peripheral hardware
  * @init_phy: Do board-specific PHY initialisation
+ * @fini: Shut down hardware and free resources
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @monitor: Board-specific health check function
- * @fini: Shut down hardware and free resources
+ */
+struct falcon_board_type {
+	u8 id;
+	const char *ref_model;
+	const char *gen_type;
+	int (*init) (struct efx_nic *nic);
+	void (*init_phy) (struct efx_nic *efx);
+	void (*fini) (struct efx_nic *nic);
+	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
+	int (*monitor) (struct efx_nic *nic);
+};
+
+/**
+ * struct falcon_board - board information
+ * @type: Type of board
+ * @major: Major rev. ('A', 'B' ...)
+ * @minor: Minor rev. (0, 1, ...)
  * @i2c_adap: I2C adapter for on-board peripherals
  * @i2c_data: Data for bit-banging algorithm
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
 struct falcon_board {
-	int type;
+	const struct falcon_board_type *type;
 	int major;
 	int minor;
-	int (*init) (struct efx_nic *nic);
-	void (*init_phy) (struct efx_nic *efx);
-	void (*set_id_led) (struct efx_nic *efx, enum efx_led_mode mode);
-	int (*monitor) (struct efx_nic *nic);
-	void (*fini) (struct efx_nic *nic);
 	struct i2c_adapter i2c_adap;
 	struct i2c_algo_bit_data i2c_data;
 	struct i2c_client *hwmon_client, *ioexp_client;

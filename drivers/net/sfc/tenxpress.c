@@ -303,7 +303,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	u16 old_adv, adv;
 	int rc = 0;
 
-	falcon_board(efx)->init_phy(efx);
+	falcon_board(efx)->type->init_phy(efx);
 
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)

@@ -2864,7 +2864,7 @@ int falcon_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	rc = falcon_board(efx)->init(efx);
+	rc = falcon_board(efx)->type->init(efx);
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise board\n");
 		goto fail6;
@@ -3067,7 +3067,7 @@ void falcon_remove_nic(struct efx_nic *efx)
 	struct falcon_board *board = falcon_board(efx);
 	int rc;
 
-	falcon_board(efx)->fini(efx);
+	board->type->fini(efx);
 
 	/* Remove I2C adapter and clear it in preparation for a retry */
 	rc = i2c_del_adapter(&board->i2c_adap);

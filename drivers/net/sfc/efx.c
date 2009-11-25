@@ -1309,7 +1309,7 @@ static void efx_monitor(struct work_struct *data)
 		goto out_requeue;
 	if (!efx->port_enabled)
 		goto out_unlock;
-	rc = falcon_board(efx)->monitor(efx);
+	rc = falcon_board(efx)->type->monitor(efx);
 	if (rc) {
 		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
 			(rc == -ERANGE) ? "reported fault" : "failed");
