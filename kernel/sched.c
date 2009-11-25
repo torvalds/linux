@@ -6915,7 +6915,7 @@ void show_state_filter(unsigned long state_filter)
 	/*
 	 * Only show locks if all tasks are dumped:
 	 */
-	if (state_filter == -1)
+	if (!state_filter)
 		debug_show_all_locks();
 }
 
