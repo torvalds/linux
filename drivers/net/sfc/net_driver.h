@@ -507,14 +507,12 @@ struct efx_link_state {
  * struct efx_mac_operations - Efx MAC operations table
  * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
  * @update_stats: Update statistics
- * @irq: Hardware MAC event callback. Serialised by the mac_lock
- * @poll: Poll for hardware state. Serialised by the mac_lock
+ * @check_fault: Check fault state. True if fault present.
  */
 struct efx_mac_operations {
 	void (*reconfigure) (struct efx_nic *efx);
 	void (*update_stats) (struct efx_nic *efx);
-	void (*irq) (struct efx_nic *efx);
-	void (*poll) (struct efx_nic *efx);
+	bool (*check_fault)(struct efx_nic *efx);
 };
 
 /**
@@ -725,7 +723,7 @@ union efx_multicast_hash {
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mdio: PHY MDIO interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
- * @mac_up: MAC link state
+ * @xmac_poll_required: XMAC link state needs polling
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
@@ -810,7 +808,7 @@ struct efx_nic {
 	struct mdio_if_info mdio;
 	enum efx_phy_mode phy_mode;
 
-	bool mac_up;
+	bool xmac_poll_required;
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 

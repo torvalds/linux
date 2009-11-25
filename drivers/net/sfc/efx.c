@@ -693,8 +693,6 @@ static void efx_mac_work(struct work_struct *data)
 	struct efx_nic *efx = container_of(data, struct efx_nic, mac_work);
 
 	mutex_lock(&efx->mac_lock);
-	if (efx->port_enabled)
-		efx->mac_op->irq(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -774,7 +772,6 @@ static void efx_start_port(struct efx_nic *efx)
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
 	__efx_reconfigure_port(efx);
-	efx->mac_op->irq(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -1903,8 +1900,6 @@ void efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 static struct efx_mac_operations efx_dummy_mac_operations = {
 	.reconfigure	= efx_port_dummy_op_void,
-	.poll		= efx_port_dummy_op_void,
-	.irq		= efx_port_dummy_op_void,
 };
 
 static struct efx_phy_operations efx_dummy_phy_operations = {

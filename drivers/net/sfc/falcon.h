@@ -209,4 +209,6 @@ extern int falcon_test_registers(struct efx_nic *efx);
 extern void falcon_generate_event(struct efx_channel *channel,
 				  efx_qword_t *event);
 
+extern void falcon_poll_xmac(struct efx_nic *efx);
+
 #endif /* EFX_FALCON_H */

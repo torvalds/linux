@@ -610,13 +610,10 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 			flush_workqueue(efx->workqueue);
 			rmb();
 
-			/* We need both the phy and xaui links to be ok.
-			 * rather than relying on the falcon_xmac irq/poll
-			 * regime, just poll xaui directly */
+			/* We need both the PHY and MAC-PHY links to be OK */
 			link_up = efx->link_state.up;
-			if (link_up && EFX_IS10G(efx) &&
-			    !falcon_xaui_link_ok(efx))
-				link_up = false;
+			if (link_up)
+				link_up = !efx->mac_op->check_fault(efx);
 
 		} while ((++count < 20) && !link_up);
 

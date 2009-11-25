@@ -900,7 +900,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 
 	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
 	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_XG_MGT_INTR)) {
-		queue_work(efx->workqueue, &efx->mac_work);
+		efx->xmac_poll_required = true;
 		handled = true;
 	}
 
@@ -2251,7 +2251,7 @@ int falcon_switch_mac(struct efx_nic *efx)
 
 	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
 	/* Not all macs support a mac-level link state */
-	efx->mac_up = true;
+	efx->xmac_poll_required = false;
 
 	rc = falcon_reset_macs(efx);
 out:
@@ -2624,7 +2624,8 @@ void falcon_monitor(struct efx_nic *efx)
 		falcon_sim_phy_event(efx);
 	}
 	efx->phy_op->poll(efx);
-	efx->mac_op->poll(efx);
+	if (EFX_IS10G(efx))
+		falcon_poll_xmac(efx);
 }
 
 /* Zeroes out the SRAM contents.  This routine must be called in

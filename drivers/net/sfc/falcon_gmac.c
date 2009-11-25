@@ -216,9 +216,13 @@ static void falcon_update_stats_gmac(struct efx_nic *efx)
 	mac_stats->rx_lt64 = mac_stats->rx_good_lt64 + mac_stats->rx_bad_lt64;
 }
 
+static bool falcon_gmac_check_fault(struct efx_nic *efx)
+{
+	return false;
+}
+
 struct efx_mac_operations falcon_gmac_operations = {
 	.reconfigure	= falcon_reconfigure_gmac,
 	.update_stats	= falcon_update_stats_gmac,
-	.irq		= efx_port_dummy_op_void,
-	.poll		= efx_port_dummy_op_void,
+	.check_fault 	= falcon_gmac_check_fault,
 };
