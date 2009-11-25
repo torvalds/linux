@@ -643,7 +643,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	 */
 	if (nd && (nd->flags & LOOKUP_EXCL)) {
 		d_instantiate(direntry, NULL);
-		return 0;
+		return NULL;
 	}
 
 	/* can not grab the rename sem here since it would
