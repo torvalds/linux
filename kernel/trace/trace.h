@@ -100,7 +100,7 @@ struct syscall_trace_enter {
 struct syscall_trace_exit {
 	struct trace_entry	ent;
 	int			nr;
-	unsigned long		ret;
+	long			ret;
 };
 
 struct kprobe_trace_entry {
