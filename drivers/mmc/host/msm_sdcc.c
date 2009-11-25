@@ -1315,12 +1315,10 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct mmc_host *mmc = mmc_get_drvdata(dev);
 	int rc = 0;
-	unsigned long flags;
 
 	if (mmc) {
 		struct msmsdcc_host *host = mmc_priv(mmc);
 
-		spin_lock_irqsave(&host->lock, flags);
 		if (host->stat_irq)
 			disable_irq(host->stat_irq);
 
@@ -1330,7 +1328,6 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 			msmsdcc_writel(host, 0, MMCIMASK0);
 
 		}
-		spin_unlock_irqrestore(&host->lock, flags);
 		if (host->clks_on)
 			msmsdcc_disable_clocks(host, 0);
 	}
