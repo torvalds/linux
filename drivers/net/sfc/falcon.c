@@ -49,11 +49,11 @@ static int disable_dma_stats;
  * goes idle.
  */
 #define TX_DC_ENTRIES 16
-#define TX_DC_ENTRIES_ORDER 0
+#define TX_DC_ENTRIES_ORDER 1
 #define TX_DC_BASE 0x130000
 
 #define RX_DC_ENTRIES 64
-#define RX_DC_ENTRIES_ORDER 2
+#define RX_DC_ENTRIES_ORDER 3
 #define RX_DC_BASE 0x100000
 
 static const unsigned int
@@ -2974,14 +2974,14 @@ int falcon_init_nic(struct efx_nic *efx)
 	efx_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */
-	BUILD_BUG_ON(TX_DC_ENTRIES != (16 << TX_DC_ENTRIES_ORDER));
+	BUILD_BUG_ON(TX_DC_ENTRIES != (8 << TX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_TX_DC_SIZE, TX_DC_ENTRIES_ORDER);
 	efx_writeo(efx, &temp, FR_AZ_TX_DC_CFG);
 
 	/* Set RX descriptor cache size.  Set low watermark to size-8, as
 	 * this allows most efficient prefetching.
 	 */
-	BUILD_BUG_ON(RX_DC_ENTRIES != (16 << RX_DC_ENTRIES_ORDER));
+	BUILD_BUG_ON(RX_DC_ENTRIES != (8 << RX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_SIZE, RX_DC_ENTRIES_ORDER);
 	efx_writeo(efx, &temp, FR_AZ_RX_DC_CFG);
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_PF_LWM, RX_DC_ENTRIES - 8);
