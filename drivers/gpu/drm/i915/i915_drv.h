@@ -829,6 +829,7 @@ int i915_lp_ring_sync(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
+int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_gem_object *obj, int id);
 void i915_gem_detach_phys_object(struct drm_device *dev,
