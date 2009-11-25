@@ -144,7 +144,7 @@ static inline int efx_check_lm87(struct efx_nic *efx, unsigned mask)
  */
 
 /**************************************************************************
- * Support for I2C IO Expander device on SFE40001
+ * Support for I2C IO Expander device on SFE4001
  */
 #define	PCA9539 0x74
 

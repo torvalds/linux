@@ -61,7 +61,7 @@ struct falcon_board {
 
 /**
  * struct falcon_nic_data - Falcon NIC state
- * @pci_dev2: The secondary PCI device if present
+ * @pci_dev2: Secondary function of Falcon A
  * @board: Board state and functions
  */
 struct falcon_nic_data {

@@ -27,10 +27,7 @@
 #include "phy.h"
 #include "workarounds.h"
 
-/* Falcon hardware control.
- * Falcon is the internal codename for the SFC4000 controller that is
- * present in SFE400X evaluation boards
- */
+/* Hardware control for SFC4000 (aka Falcon). */
 
 /**************************************************************************
  *
