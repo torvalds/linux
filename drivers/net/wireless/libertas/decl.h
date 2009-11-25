@@ -27,11 +27,6 @@ netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb,
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *);
 
 
-/* persistcfg.c */
-void lbs_persist_config_init(struct net_device *net);
-void lbs_persist_config_remove(struct net_device *net);
-
-
 /* main.c */
 struct lbs_private *lbs_add_card(void *card, struct device *dmdev);
 void lbs_remove_card(struct lbs_private *priv);
