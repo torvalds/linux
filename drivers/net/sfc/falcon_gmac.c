@@ -130,11 +130,6 @@ static void falcon_update_stats_gmac(struct efx_nic *efx)
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	unsigned long old_rx_pause, old_tx_pause;
 	unsigned long new_rx_pause, new_tx_pause;
-	int rc;
-
-	rc = falcon_dma_stats(efx, GDmaDone_offset);
-	if (rc)
-		return;
 
 	/* Pause frames are erroneously counted as errors (SFC bug 3269) */
 	old_rx_pause = mac_stats->rx_pause;

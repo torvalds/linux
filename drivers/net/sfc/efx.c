@@ -637,6 +637,7 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 		netif_addr_unlock_bh(efx->net_dev);
 	}
 
+	falcon_stop_nic_stats(efx);
 	falcon_deconfigure_mac_wrapper(efx);
 
 	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
@@ -650,6 +651,8 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 		goto fail;
 
 	efx->mac_op->reconfigure(efx);
+
+	falcon_start_nic_stats(efx);
 
 	/* Inform kernel of loss/gain of carrier */
 	efx_link_status_changed(efx);
@@ -749,7 +752,6 @@ static int efx_init_port(struct efx_nic *efx)
 	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
-	efx_stats_enable(efx);
 
 	mutex_unlock(&efx->mac_lock);
 	return 0;
@@ -802,7 +804,6 @@ static void efx_fini_port(struct efx_nic *efx)
 	if (!efx->port_initialized)
 		return;
 
-	efx_stats_disable(efx);
 	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
@@ -1158,6 +1159,8 @@ static void efx_start_all(struct efx_nic *efx)
 	if (efx->state == STATE_RUNNING)
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
 				   efx_monitor_interval);
+
+	falcon_start_nic_stats(efx);
 }
 
 /* Flush all delayed work. Should only be called when no more delayed work
@@ -1194,6 +1197,8 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* port_enabled can be read safely under the rtnl lock */
 	if (!efx->port_enabled)
 		return;
+
+	falcon_stop_nic_stats(efx);
 
 	/* Disable interrupts and wait for ISR to complete */
 	falcon_disable_interrupts(efx);
@@ -1438,20 +1443,6 @@ static int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-void efx_stats_disable(struct efx_nic *efx)
-{
-	spin_lock(&efx->stats_lock);
-	++efx->stats_disable_count;
-	spin_unlock(&efx->stats_lock);
-}
-
-void efx_stats_enable(struct efx_nic *efx)
-{
-	spin_lock(&efx->stats_lock);
-	--efx->stats_disable_count;
-	spin_unlock(&efx->stats_lock);
-}
-
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
@@ -1459,17 +1450,9 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct net_device_stats *stats = &net_dev->stats;
 
-	/* Update stats if possible, but do not wait if another thread
-	 * is updating them or if MAC stats fetches are temporarily
-	 * disabled; slightly stale stats are acceptable.
-	 */
-	if (!spin_trylock(&efx->stats_lock))
-		return stats;
-	if (!efx->stats_disable_count) {
-		efx->mac_op->update_stats(efx);
-		falcon_update_nic_stats(efx);
-	}
-	spin_unlock(&efx->stats_lock);
+	spin_lock_bh(&efx->stats_lock);
+	falcon_update_nic_stats(efx);
+	spin_unlock_bh(&efx->stats_lock);
 
 	stats->rx_packets = mac_stats->rx_packets;
 	stats->tx_packets = mac_stats->tx_packets;
@@ -1726,7 +1709,6 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method,
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	efx_stats_disable(efx);
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 	mutex_lock(&efx->spi_lock);
@@ -1776,10 +1758,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
 	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
-	if (ok) {
+	if (ok)
 		efx_start_all(efx);
-		efx_stats_enable(efx);
-	}
 	return rc;
 }
 
@@ -1977,7 +1957,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->rx_checksum_enabled = true;
 	spin_lock_init(&efx->netif_stop_lock);
 	spin_lock_init(&efx->stats_lock);
-	efx->stats_disable_count = 1;
 	mutex_init(&efx->mac_lock);
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
@@ -2219,9 +2198,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail4;
 	}
 
-	/* Switch to the running state before we expose the device to
-	 * the OS.  This is to ensure that the initial gathering of
-	 * MAC stats succeeds. */
+	/* Switch to the running state before we expose the device to the OS,
+	 * so that dev_open()|efx_start_all() will actually start the device */
 	efx->state = STATE_RUNNING;
 
 	rc = efx_register_netdev(efx);

@@ -60,8 +60,12 @@ static void falcon_setup_xaui(struct efx_nic *efx)
 
 int falcon_reset_xaui(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 	int count;
+
+	/* Don't fetch MAC statistics over an XMAC reset */
+	WARN_ON(nic_data->stats_disable_count == 0);
 
 	/* Start reset sequence */
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_XX_RST_XX_EN, 1);
@@ -250,6 +254,8 @@ static void falcon_check_xaui_link_up(struct efx_nic *efx, int tries)
 		/* XAUI link is expected to be down */
 		return;
 
+	falcon_stop_nic_stats(efx);
+
 	while (!efx->mac_up && tries) {
 		EFX_LOG(efx, "bashing xaui\n");
 		falcon_reset_xaui(efx);
@@ -258,6 +264,8 @@ static void falcon_check_xaui_link_up(struct efx_nic *efx, int tries)
 		efx->mac_up = falcon_xaui_link_ok(efx);
 		--tries;
 	}
+
+	falcon_start_nic_stats(efx);
 }
 
 static void falcon_reconfigure_xmac(struct efx_nic *efx)
@@ -276,11 +284,6 @@ static void falcon_reconfigure_xmac(struct efx_nic *efx)
 static void falcon_update_stats_xmac(struct efx_nic *efx)
 {
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	int rc;
-
-	rc = falcon_dma_stats(efx, XgDmaDone_offset);
-	if (rc)
-		return;
 
 	/* Update MAC stats from DMAed values */
 	FALCON_STAT(efx, XgRxOctets, rx_bytes);

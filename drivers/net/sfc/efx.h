@@ -60,8 +60,6 @@ extern void efx_process_channel_now(struct efx_channel *channel);
 #define EFX_EVQ_MASK (EFX_EVQ_SIZE - 1)
 
 /* Ports */
-extern void efx_stats_disable(struct efx_nic *efx);
-extern void efx_stats_enable(struct efx_nic *efx);
 extern void efx_reconfigure_port(struct efx_nic *efx);
 extern void __efx_reconfigure_port(struct efx_nic *efx);
 

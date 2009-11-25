@@ -75,10 +75,18 @@ struct falcon_board {
  * struct falcon_nic_data - Falcon NIC state
  * @pci_dev2: Secondary function of Falcon A
  * @board: Board state and functions
+ * @stats_disable_count: Nest count for disabling statistics fetches
+ * @stats_pending: Is there a pending DMA of MAC statistics.
+ * @stats_timer: A timer for regularly fetching MAC statistics.
+ * @stats_dma_done: Pointer to the flag which indicates DMA completion.
  */
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
 	struct falcon_board board;
+	unsigned int stats_disable_count;
+	bool stats_pending;
+	struct timer_list stats_timer;
+	u32 *stats_dma_done;
 };
 
 static inline struct falcon_board *falcon_board(struct efx_nic *efx)
@@ -128,8 +136,6 @@ extern void falcon_remove_port(struct efx_nic *efx);
 /* MAC/PHY */
 extern int falcon_switch_mac(struct efx_nic *efx);
 extern bool falcon_xaui_link_ok(struct efx_nic *efx);
-extern int falcon_dma_stats(struct efx_nic *efx,
-			    unsigned int done_offset);
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_deconfigure_mac_wrapper(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
@@ -154,6 +160,8 @@ extern int falcon_flush_queues(struct efx_nic *efx);
 extern int falcon_reset_hw(struct efx_nic *efx, enum reset_type method);
 extern void falcon_remove_nic(struct efx_nic *efx);
 extern void falcon_update_nic_stats(struct efx_nic *efx);
+extern void falcon_start_nic_stats(struct efx_nic *efx);
+extern void falcon_stop_nic_stats(struct efx_nic *efx);
 extern void falcon_set_multicast_hash(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 

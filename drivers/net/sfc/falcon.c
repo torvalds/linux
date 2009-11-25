@@ -36,8 +36,6 @@
  **************************************************************************
  */
 
-static int disable_dma_stats;
-
 /* This is set to 16 for a good reason.  In summary, if larger than
  * 16, the descriptor cache holds more than a default socket
  * buffer's worth of packets (for UDP we can only have at most one
@@ -1890,7 +1888,7 @@ static int falcon_reset_macs(struct efx_nic *efx)
 
 	/* MAC stats will fail whilst the TX fifo is draining. Serialise
 	 * the drain sequence with the statistics fetch */
-	efx_stats_disable(efx);
+	falcon_stop_nic_stats(efx);
 
 	efx_reado(efx, &reg, FR_AB_MAC_CTRL);
 	EFX_SET_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN, 1);
@@ -1920,12 +1918,12 @@ static int falcon_reset_macs(struct efx_nic *efx)
 		udelay(10);
 	}
 
-	efx_stats_enable(efx);
-
 	/* If we've reset the EM block and the link is up, then
 	 * we'll have to kick the XAUI link so the PHY can recover */
 	if (efx->link_state.up && EFX_IS10G(efx) && EFX_WORKAROUND_5147(efx))
 		falcon_reset_xaui(efx);
+
+	falcon_start_nic_stats(efx);
 
 	return 0;
 }
@@ -2010,25 +2008,19 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 }
 
-int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
+static void falcon_stats_request(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
-	u32 *dma_done;
-	int i;
 
-	if (disable_dma_stats)
-		return 0;
+	WARN_ON(nic_data->stats_pending);
+	WARN_ON(nic_data->stats_disable_count);
 
-	/* Statistics fetch will fail if the MAC is in TX drain */
-	if (falcon_rev(efx) >= FALCON_REV_B0) {
-		efx_oword_t temp;
-		efx_reado(efx, &temp, FR_AB_MAC_CTRL);
-		if (EFX_OWORD_FIELD(temp, FRF_BB_TXFIFO_DRAIN_EN))
-			return 0;
-	}
+	if (nic_data->stats_dma_done == NULL)
+		return;	/* no mac selected */
 
-	dma_done = (efx->stats_buffer.addr + done_offset);
-	*dma_done = FALCON_STATS_NOT_DONE;
+	*nic_data->stats_dma_done = FALCON_STATS_NOT_DONE;
+	nic_data->stats_pending = true;
 	wmb(); /* ensure done flag is clear */
 
 	/* Initiate DMA transfer of stats */
@@ -2038,17 +2030,37 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 			     efx->stats_buffer.dma_addr);
 	efx_writeo(efx, &reg, FR_AB_MAC_STAT_DMA);
 
-	/* Wait for transfer to complete */
-	for (i = 0; i < 400; i++) {
-		if (*(volatile u32 *)dma_done == FALCON_STATS_DONE) {
-			rmb(); /* Ensure the stats are valid. */
-			return 0;
-		}
-		udelay(10);
-	}
+	mod_timer(&nic_data->stats_timer, round_jiffies_up(jiffies + HZ / 2));
+}
 
-	EFX_ERR(efx, "timed out waiting for statistics\n");
-	return -ETIMEDOUT;
+static void falcon_stats_complete(struct efx_nic *efx)
+{
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
+	if (!nic_data->stats_pending)
+		return;
+
+	nic_data->stats_pending = 0;
+	if (*nic_data->stats_dma_done == FALCON_STATS_DONE) {
+		rmb(); /* read the done flag before the stats */
+		efx->mac_op->update_stats(efx);
+	} else {
+		EFX_ERR(efx, "timed out waiting for statistics\n");
+	}
+}
+
+static void falcon_stats_timer_func(unsigned long context)
+{
+	struct efx_nic *efx = (struct efx_nic *)context;
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
+	spin_lock(&efx->stats_lock);
+
+	falcon_stats_complete(efx);
+	if (nic_data->stats_disable_count == 0)
+		falcon_stats_request(efx);
+
+	spin_unlock(&efx->stats_lock);
 }
 
 /**************************************************************************
@@ -2206,10 +2218,12 @@ static void falcon_clock_mac(struct efx_nic *efx)
 int falcon_switch_mac(struct efx_nic *efx)
 {
 	struct efx_mac_operations *old_mac_op = efx->mac_op;
+	struct falcon_nic_data *nic_data = efx->nic_data;
+	unsigned int stats_done_offset;
 	int rc = 0;
 
 	/* Don't try to fetch MAC stats while we're switching MACs */
-	efx_stats_disable(efx);
+	falcon_stop_nic_stats(efx);
 
 	/* Internal loopbacks override the phy speed setting */
 	if (efx->loopback_mode == LOOPBACK_GMAC) {
@@ -2224,6 +2238,12 @@ int falcon_switch_mac(struct efx_nic *efx)
 	efx->mac_op = (EFX_IS10G(efx) ?
 		       &falcon_xmac_operations : &falcon_gmac_operations);
 
+	if (EFX_IS10G(efx))
+		stats_done_offset = XgDmaDone_offset;
+	else
+		stats_done_offset = GDmaDone_offset;
+	nic_data->stats_dma_done = efx->stats_buffer.addr + stats_done_offset;
+
 	if (old_mac_op == efx->mac_op)
 		goto out;
 
@@ -2235,7 +2255,7 @@ int falcon_switch_mac(struct efx_nic *efx)
 
 	rc = falcon_reset_macs(efx);
 out:
-	efx_stats_enable(efx);
+	falcon_start_nic_stats(efx);
 	return rc;
 }
 
@@ -2900,6 +2920,10 @@ int falcon_probe_nic(struct efx_nic *efx)
 		goto fail6;
 	}
 
+	nic_data->stats_disable_count = 1;
+	setup_timer(&nic_data->stats_timer, &falcon_stats_timer_func,
+		    (unsigned long)efx);
+
 	return 0;
 
  fail6:
@@ -3125,11 +3149,58 @@ void falcon_remove_nic(struct efx_nic *efx)
 
 void falcon_update_nic_stats(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t cnt;
+
+	if (nic_data->stats_disable_count)
+		return;
 
 	efx_reado(efx, &cnt, FR_AZ_RX_NODESC_DROP);
 	efx->n_rx_nodesc_drop_cnt +=
 		EFX_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
+
+	if (nic_data->stats_pending &&
+	    *nic_data->stats_dma_done == FALCON_STATS_DONE) {
+		nic_data->stats_pending = false;
+		rmb(); /* read the done flag before the stats */
+		efx->mac_op->update_stats(efx);
+	}
+}
+
+void falcon_start_nic_stats(struct efx_nic *efx)
+{
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
+	spin_lock_bh(&efx->stats_lock);
+	if (--nic_data->stats_disable_count == 0)
+		falcon_stats_request(efx);
+	spin_unlock_bh(&efx->stats_lock);
+}
+
+void falcon_stop_nic_stats(struct efx_nic *efx)
+{
+	struct falcon_nic_data *nic_data = efx->nic_data;
+	int i;
+
+	might_sleep();
+
+	spin_lock_bh(&efx->stats_lock);
+	++nic_data->stats_disable_count;
+	spin_unlock_bh(&efx->stats_lock);
+
+	del_timer_sync(&nic_data->stats_timer);
+
+	/* Wait enough time for the most recent transfer to
+	 * complete. */
+	for (i = 0; i < 4 && nic_data->stats_pending; i++) {
+		if (*nic_data->stats_dma_done == FALCON_STATS_DONE)
+			break;
+		msleep(1);
+	}
+
+	spin_lock_bh(&efx->stats_lock);
+	falcon_stats_complete(efx);
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 /**************************************************************************

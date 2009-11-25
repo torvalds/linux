@@ -347,14 +347,14 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 		 * MAC stats accordingly. */
 		efx->phy_mode = new_mode;
 		if (new_mode & PHY_MODE_SPECIAL)
-			efx_stats_disable(efx);
+			falcon_stop_nic_stats(efx);
 		if (falcon_board(efx)->type->id == FALCON_BOARD_SFE4001)
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);
 		efx_reconfigure_port(efx);
 		if (!(new_mode & PHY_MODE_SPECIAL))
-			efx_stats_enable(efx);
+			falcon_start_nic_stats(efx);
 	}
 	rtnl_unlock();
 
@@ -441,7 +441,7 @@ static int sfe4001_init(struct efx_nic *efx)
 	if (efx->phy_mode & PHY_MODE_SPECIAL) {
 		/* PHY won't generate a 156.25 MHz clock and MAC stats fetch
 		 * will fail. */
-		efx_stats_disable(efx);
+		falcon_stop_nic_stats(efx);
 	}
 	rc = sfe4001_poweron(efx);
 	if (rc)
@@ -504,7 +504,7 @@ static void sfn4111t_init_phy(struct efx_nic *efx)
 			return;
 
 		efx->phy_mode = PHY_MODE_SPECIAL;
-		efx_stats_disable(efx);
+		falcon_stop_nic_stats(efx);
 	}
 
 	sfn4111t_reset(efx);
@@ -531,7 +531,7 @@ static int sfn4111t_init(struct efx_nic *efx)
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		/* PHY may not generate a 156.25 MHz clock and MAC
 		 * stats fetch will fail. */
-		efx_stats_disable(efx);
+		falcon_stop_nic_stats(efx);
 
 	return 0;
 

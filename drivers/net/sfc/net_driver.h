@@ -717,7 +717,6 @@ union efx_multicast_hash {
  *	&struct net_device_stats.
  * @stats_buffer: DMA buffer for statistics
  * @stats_lock: Statistics update lock. Serialises statistics fetches
- * @stats_disable_count: Nest count for disabling statistics fetches
  * @mac_op: MAC interface
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
@@ -799,7 +798,6 @@ struct efx_nic {
 	struct efx_mac_stats mac_stats;
 	struct efx_buffer stats_buffer;
 	spinlock_t stats_lock;
-	unsigned int stats_disable_count;
 
 	struct efx_mac_operations *mac_op;
 	unsigned char mac_address[ETH_ALEN];
