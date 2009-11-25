@@ -259,4 +259,15 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
 
+struct scripting_ops {
+	const char *name;
+	int (*start_script) (const char *);
+	int (*stop_script) (void);
+	void (*process_event) (int cpu, void *data, int size,
+			       unsigned long long nsecs, char *comm);
+	int (*generate_script) (const char *outfile);
+};
+
+int script_spec_register(const char *spec, struct scripting_ops *ops);
+
 #endif /* __PERF_TRACE_EVENTS_H */
