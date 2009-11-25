@@ -1488,6 +1488,15 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		DRM_DEBUG_KMS("crtc %d dpms on\n", pipe);
+
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+			temp = I915_READ(PCH_LVDS);
+			if ((temp & LVDS_PORT_EN) == 0) {
+				I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
+				POSTING_READ(PCH_LVDS);
+			}
+		}
+
 		if (HAS_eDP) {
 			/* enable eDP PLL */
 			igdng_enable_pll_edp(crtc);
@@ -1674,8 +1683,6 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
 
-		i915_disable_vga(dev);
-
 		/* Disable display plane */
 		temp = I915_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
@@ -1684,6 +1691,8 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
 			I915_READ(dspbase_reg);
 		}
+
+		i915_disable_vga(dev);
 
 		/* disable cpu pipe, disable after all planes disabled */
 		temp = I915_READ(pipeconf_reg);
@@ -1706,9 +1715,15 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		} else
 			DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
 
-		if (HAS_eDP) {
-			igdng_disable_pll_edp(crtc);
+		udelay(100);
+
+		/* Disable PF */
+		temp = I915_READ(pf_ctl_reg);
+		if ((temp & PF_ENABLE) != 0) {
+			I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
+			I915_READ(pf_ctl_reg);
 		}
+		I915_WRITE(pf_win_size, 0);
 
 		/* disable CPU FDI tx and PCH FDI rx */
 		temp = I915_READ(fdi_tx_reg);
@@ -1734,6 +1749,13 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		udelay(100);
 
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+			temp = I915_READ(PCH_LVDS);
+			I915_WRITE(PCH_LVDS, temp & ~LVDS_PORT_EN);
+			I915_READ(PCH_LVDS);
+			udelay(100);
+		}
+
 		/* disable PCH transcoder */
 		temp = I915_READ(transconf_reg);
 		if ((temp & TRANS_ENABLE) != 0) {
@@ -1754,6 +1776,8 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			}
 		}
 
+		udelay(100);
+
 		/* disable PCH DPLL */
 		temp = I915_READ(pch_dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -1761,13 +1785,19 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(pch_dpll_reg);
 		}
 
-		temp = I915_READ(fdi_rx_reg);
-		if ((temp & FDI_RX_PLL_ENABLE) != 0) {
-			temp &= ~FDI_SEL_PCDCLK;
-			temp &= ~FDI_RX_PLL_ENABLE;
-			I915_WRITE(fdi_rx_reg, temp);
-			I915_READ(fdi_rx_reg);
+		if (HAS_eDP) {
+			igdng_disable_pll_edp(crtc);
 		}
+
+		temp = I915_READ(fdi_rx_reg);
+		temp &= ~FDI_SEL_PCDCLK;
+		I915_WRITE(fdi_rx_reg, temp);
+		I915_READ(fdi_rx_reg);
+
+		temp = I915_READ(fdi_rx_reg);
+		temp &= ~FDI_RX_PLL_ENABLE;
+		I915_WRITE(fdi_rx_reg, temp);
+		I915_READ(fdi_rx_reg);
 
 		/* Disable CPU FDI TX PLL */
 		temp = I915_READ(fdi_tx_reg);
@@ -1777,16 +1807,8 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			udelay(100);
 		}
 
-		/* Disable PF */
-		temp = I915_READ(pf_ctl_reg);
-		if ((temp & PF_ENABLE) != 0) {
-			I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
-			I915_READ(pf_ctl_reg);
-		}
-		I915_WRITE(pf_win_size, 0);
-
 		/* Wait for the clocks to turn off. */
-		udelay(150);
+		udelay(100);
 		break;
 	}
 }
