@@ -1472,7 +1472,6 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct net_device *dev = sdata->dev;
-	struct ieee80211_local *local = rx->local;
 	struct sk_buff *skb, *xmit_skb;
 	struct ethhdr *ehdr = (struct ethhdr *) rx->skb->data;
 	struct sta_info *dsta;
@@ -1495,8 +1494,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 				printk(KERN_DEBUG "%s: failed to clone "
 				       "multicast frame\n", dev->name);
 		} else {
-			dsta = sta_info_get(local, skb->data);
-			if (dsta && dsta->sdata->dev == dev) {
+			dsta = sta_info_get(sdata, skb->data);
+			if (dsta) {
 				/*
 				 * The destination station is associated to
 				 * this AP (in this VLAN), so send the frame
@@ -2363,6 +2362,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	int prepares;
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
+	struct sta_info *sta, *tmp;
+	bool found_sta = false;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	memset(&rx, 0, sizeof(rx));
@@ -2379,68 +2380,76 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
 
-	rx.sta = sta_info_get(local, hdr->addr2);
-	if (rx.sta)
-		rx.sdata = rx.sta->sdata;
+	if (ieee80211_is_data(hdr->frame_control)) {
+		for_each_sta_info(local, hdr->addr2, sta, tmp) {
+			rx.sta = sta;
+			found_sta = true;
+			rx.sdata = sta->sdata;
 
-	if (rx.sdata && ieee80211_is_data(hdr->frame_control)) {
-		rx.flags |= IEEE80211_RX_RA_MATCH;
-		prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
-		if (prepares) {
+			rx.flags |= IEEE80211_RX_RA_MATCH;
+			prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
+			if (prepares) {
+				if (status->flag & RX_FLAG_MMIC_ERROR) {
+					if (rx.flags & IEEE80211_RX_RA_MATCH)
+						ieee80211_rx_michael_mic_report(hdr, &rx);
+				} else
+					prev = rx.sdata;
+			}
+		}
+	}
+	if (!found_sta) {
+		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+			if (!netif_running(sdata->dev))
+				continue;
+
+			if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+			    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+				continue;
+
+			rx.sta = sta_info_get(sdata, hdr->addr2);
+
+			rx.flags |= IEEE80211_RX_RA_MATCH;
+			prepares = prepare_for_handlers(sdata, &rx, hdr);
+
+			if (!prepares)
+				continue;
+
 			if (status->flag & RX_FLAG_MMIC_ERROR) {
+				rx.sdata = sdata;
 				if (rx.flags & IEEE80211_RX_RA_MATCH)
-					ieee80211_rx_michael_mic_report(hdr, &rx);
-			} else
-				prev = rx.sdata;
-		}
-	} else list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
-			continue;
+					ieee80211_rx_michael_mic_report(hdr,
+									&rx);
+				continue;
+			}
 
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-		    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			continue;
+			/*
+			 * frame is destined for this interface, but if it's
+			 * not also for the previous one we handle that after
+			 * the loop to avoid copying the SKB once too much
+			 */
 
-		rx.flags |= IEEE80211_RX_RA_MATCH;
-		prepares = prepare_for_handlers(sdata, &rx, hdr);
+			if (!prev) {
+				prev = sdata;
+				continue;
+			}
 
-		if (!prepares)
-			continue;
+			/*
+			 * frame was destined for the previous interface
+			 * so invoke RX handlers for it
+			 */
 
-		if (status->flag & RX_FLAG_MMIC_ERROR) {
-			rx.sdata = sdata;
-			if (rx.flags & IEEE80211_RX_RA_MATCH)
-				ieee80211_rx_michael_mic_report(hdr, &rx);
-			continue;
-		}
-
-		/*
-		 * frame is destined for this interface, but if it's not
-		 * also for the previous one we handle that after the
-		 * loop to avoid copying the SKB once too much
-		 */
-
-		if (!prev) {
+			skb_new = skb_copy(skb, GFP_ATOMIC);
+			if (!skb_new) {
+				if (net_ratelimit())
+					printk(KERN_DEBUG "%s: failed to copy "
+					       "multicast frame for %s\n",
+					       wiphy_name(local->hw.wiphy),
+					       prev->dev->name);
+				continue;
+			}
+			ieee80211_invoke_rx_handlers(prev, &rx, skb_new, rate);
 			prev = sdata;
-			continue;
 		}
-
-		/*
-		 * frame was destined for the previous interface
-		 * so invoke RX handlers for it
-		 */
-
-		skb_new = skb_copy(skb, GFP_ATOMIC);
-		if (!skb_new) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: failed to copy "
-				       "multicast frame for %s\n",
-				       wiphy_name(local->hw.wiphy),
-				       prev->dev->name);
-			continue;
-		}
-		ieee80211_invoke_rx_handlers(prev, &rx, skb_new, rate);
-		prev = sdata;
 	}
 	if (prev)
 		ieee80211_invoke_rx_handlers(prev, &rx, skb, rate);

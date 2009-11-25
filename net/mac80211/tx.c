@@ -1055,7 +1055,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		tx->sta = rcu_dereference(sdata->u.vlan.sta);
 	if (!tx->sta)
-		tx->sta = sta_info_get(local, hdr->addr1);
+		tx->sta = sta_info_get(sdata, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
 	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)) {
@@ -1761,9 +1761,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 */
 	if (!is_multicast_ether_addr(hdr.addr1)) {
 		rcu_read_lock();
-		sta = sta_info_get(local, hdr.addr1);
-		/* XXX: in the future, use sdata to look up the sta */
-		if (sta && sta->sdata == sdata)
+		sta = sta_info_get(sdata, hdr.addr1);
+		if (sta)
 			sta_flags = get_sta_flags(sta);
 		rcu_read_unlock();
 	}
@@ -1922,7 +1921,7 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 		ieee80211_tx(sdata, skb, true);
 	} else {
 		hdr = (struct ieee80211_hdr *)skb->data;
-		sta = sta_info_get(local, hdr->addr1);
+		sta = sta_info_get(sdata, hdr->addr1);
 
 		ret = __ieee80211_tx(local, &skb, sta, true);
 		if (ret != IEEE80211_TX_OK)

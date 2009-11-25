@@ -103,13 +103,16 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 }
 
 /* protected by RCU */
-struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr)
+struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
 	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
-		if (memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
+		if (sta->sdata == sdata &&
+		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference(sta->hnext);
 	}
@@ -377,7 +380,7 @@ int sta_info_insert(struct sta_info *sta)
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
-	if (sta_info_get(local, sta->sta.addr)) {
+	if (sta_info_get(sdata, sta->sta.addr)) {
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 		err = -EEXIST;
 		goto out_free;
@@ -843,11 +846,12 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
 					       const u8 *addr)
 {
-	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
+	struct sta_info *sta, *nxt;
 
-	if (!sta)
-		return NULL;
-	return &sta->sta;
+	/* Just return a random station ... first in list ... */
+	for_each_sta_info(hw_to_local(hw), addr, sta, nxt)
+		return &sta->sta;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
 

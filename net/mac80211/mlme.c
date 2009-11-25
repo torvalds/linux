@@ -202,7 +202,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		ieee80211_hw_config(local, 0);
 
 		rcu_read_lock();
-		sta = sta_info_get(local, bssid);
+		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
 						 IEEE80211_RC_HT_CHANGED);
@@ -1070,7 +1070,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();
-	sta = sta_info_get(local, bssid);
+	sta = sta_info_get(sdata, bssid);
 	if (sta)
 		ieee80211_sta_tear_down_BA_sessions(sta);
 	rcu_read_unlock();
@@ -1109,7 +1109,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, bssid);
+	sta = sta_info_get(sdata, bssid);
 	if (!sta) {
 		rcu_read_unlock();
 		return;
@@ -1489,7 +1489,7 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	/* Add STA entry for the AP */
-	sta = sta_info_get(local, wk->bss->cbss.bssid);
+	sta = sta_info_get(sdata, wk->bss->cbss.bssid);
 	if (!sta) {
 		newsta = true;
 
@@ -1857,7 +1857,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 		rcu_read_lock();
 
-		sta = sta_info_get(local, bssid);
+		sta = sta_info_get(sdata, bssid);
 		if (WARN_ON(!sta)) {
 			rcu_read_unlock();
 			return;

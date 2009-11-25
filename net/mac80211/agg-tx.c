@@ -441,7 +441,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	}
 
 	rcu_read_lock();
-	sta = sta_info_get(local, ra);
+	sta = sta_info_get(sdata, ra);
 	if (!sta) {
 		rcu_read_unlock();
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -564,7 +564,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	rcu_read_lock();
-	sta = sta_info_get(local, ra);
+	sta = sta_info_get(sdata, ra);
 	if (!sta) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find station: %pM\n", ra);

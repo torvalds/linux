@@ -252,7 +252,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 		rcu_read_lock();
 
-		sta = sta_info_get(local, mgmt->sa);
+		sta = sta_info_get(sdata, mgmt->sa);
 		if (sta) {
 			u32 prev_rates;
 

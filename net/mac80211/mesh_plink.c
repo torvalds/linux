@@ -234,7 +234,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data 
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, hw_addr);
+	sta = sta_info_get(sdata, hw_addr);
 	if (!sta) {
 		sta = mesh_plink_alloc(sdata, hw_addr, rates);
 		if (!sta) {
@@ -455,7 +455,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, mgmt->sa);
+	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta && ftype != PLINK_OPEN) {
 		mpl_dbg("Mesh plink: cls or cnf from unknown peer\n");
 		rcu_read_unlock();

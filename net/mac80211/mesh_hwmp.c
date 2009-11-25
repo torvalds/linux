@@ -335,7 +335,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 	bool process = true;
 
 	rcu_read_lock();
-	sta = sta_info_get(local, mgmt->sa);
+	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta) {
 		rcu_read_unlock();
 		return 0;
