@@ -302,6 +302,12 @@ int pcie_port_device_register(struct pci_dev *dev)
 	port_data->port_type = dev->pcie_type;
 	pci_set_drvdata(dev, port_data);
 
+	/* Enable PCI Express port device */
+	status = pci_enable_device(dev);
+	if (status)
+		goto error_kfree;
+	pci_set_master(dev);
+
 	/*
 	 * Initialize service irqs. Don't use service devices that
 	 * require interrupts if there is no way to generate them.
@@ -310,13 +316,8 @@ int pcie_port_device_register(struct pci_dev *dev)
 	if (status) {
 		capabilities &= PCIE_PORT_SERVICE_VC;
 		if (!capabilities)
-			goto Error;
+			goto error_disable;
 	}
-
-	status = pci_enable_device(dev);
-	if (status)
-		goto Error;
-	pci_set_master(dev);
 
 	/* Allocate child services if any */
 	for (i = 0, nr_serv = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
@@ -330,14 +331,14 @@ int pcie_port_device_register(struct pci_dev *dev)
 			nr_serv++;
 	}
 	if (!nr_serv) {
-		pci_disable_device(dev);
 		status = -ENODEV;
-		goto Error;
+		goto error_disable;
 	}
-
 	return 0;
 
- Error:
+error_disable:
+	pci_disable_device(dev);
+error_kfree:
 	kfree(port_data);
 	return status;
 }
