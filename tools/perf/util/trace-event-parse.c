@@ -1982,7 +1982,7 @@ int trace_parse_common_pid(void *data)
 			      "common_pid");
 }
 
-static int parse_common_pc(void *data)
+int parse_common_pc(void *data)
 {
 	static int pc_offset;
 	static int pc_size;
@@ -1991,7 +1991,7 @@ static int parse_common_pc(void *data)
 			      "common_preempt_count");
 }
 
-static int parse_common_flags(void *data)
+int parse_common_flags(void *data)
 {
 	static int flags_offset;
 	static int flags_size;
@@ -2000,7 +2000,7 @@ static int parse_common_flags(void *data)
 			      "common_flags");
 }
 
-static int parse_common_lock_depth(void *data)
+int parse_common_lock_depth(void *data)
 {
 	static int ld_offset;
 	static int ld_size;

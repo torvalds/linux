@@ -29,6 +29,11 @@ typedef int INTERP;
 #define perl_run(a)		(0)
 #define perl_destruct(a)	(0)
 #define perl_free(a)		(0)
+#define pTHX			void
+#define CV			void
+#define dXSUB_SYS
+#define pTHX_
+static inline void newXS(const char *a, void *b, const char *c) {}
 #else
 #include <EXTERN.h>
 #include <perl.h>
@@ -38,5 +43,9 @@ typedef PerlInterpreter * INTERP;
 struct scripting_context {
 	void *event_data;
 };
+
+int get_common_pc(struct scripting_context *context);
+int get_common_flags(struct scripting_context *context);
+int get_common_lock_depth(struct scripting_context *context);
 
 #endif /* __PERF_TRACE_EVENT_PERL_H */

@@ -16,9 +16,44 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
 define_flag_field define_flag_value flag_str dump_flag_fields
 define_symbolic_field define_symbolic_value symbol_str dump_symbolic_fields
+trace_flag_str
 );
 
 our $VERSION = '0.01';
+
+my %trace_flags = (0x00 => "NONE",
+		   0x01 => "IRQS_OFF",
+		   0x02 => "IRQS_NOSUPPORT",
+		   0x04 => "NEED_RESCHED",
+		   0x08 => "HARDIRQ",
+		   0x10 => "SOFTIRQ");
+
+sub trace_flag_str
+{
+    my ($value) = @_;
+
+    my $string;
+
+    my $print_delim = 0;
+
+    foreach my $idx (sort {$a <=> $b} keys %trace_flags) {
+	if (!$value && !$idx) {
+	    $string .= "NONE";
+	    last;
+	}
+
+	if ($idx && ($value & $idx) == $idx) {
+	    if ($print_delim) {
+		$string .= " | ";
+	    }
+	    $string .= "$trace_flags{$idx}";
+	    $print_delim = 1;
+	    $value &= ~$idx;
+	}
+    }
+
+    return $string;
+}
 
 my %flag_fields;
 my %symbolic_fields;

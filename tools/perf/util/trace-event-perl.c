@@ -30,6 +30,21 @@
 #include "trace-event.h"
 #include "trace-event-perl.h"
 
+void xs_init(pTHX);
+
+void boot_Perf__Trace__Context(pTHX_ CV *cv);
+void boot_DynaLoader(pTHX_ CV *cv);
+
+void xs_init(pTHX)
+{
+	const char *file = __FILE__;
+	dXSUB_SYS;
+
+	newXS("Perf::Trace::Context::bootstrap", boot_Perf__Trace__Context,
+	      file);
+	newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+}
+
 INTERP my_perl;
 
 #define FTRACE_MAX_EVENT				\
@@ -227,6 +242,33 @@ static inline struct event *find_cache_event(int type)
 	return event;
 }
 
+int get_common_pc(struct scripting_context *context)
+{
+	int pc;
+
+	pc = parse_common_pc(context->event_data);
+
+	return pc;
+}
+
+int get_common_flags(struct scripting_context *context)
+{
+	int flags;
+
+	flags = parse_common_flags(context->event_data);
+
+	return flags;
+}
+
+int get_common_lock_depth(struct scripting_context *context)
+{
+	int lock_depth;
+
+	lock_depth = parse_common_lock_depth(context->event_data);
+
+	return lock_depth;
+}
+
 static void perl_process_event(int cpu, void *data,
 			       int size __attribute((unused)),
 			       unsigned long long nsecs, char *comm)
@@ -290,6 +332,7 @@ static void perl_process_event(int cpu, void *data,
 	}
 
 	PUTBACK;
+
 	if (get_cv(handler, 0))
 		call_pv(handler, G_SCALAR);
 	else if (get_cv("main::trace_unhandled", 0)) {
@@ -328,7 +371,8 @@ static int perl_start_script(const char *script)
 	my_perl = perl_alloc();
 	perl_construct(my_perl);
 
-	if (perl_parse(my_perl, NULL, 2, (char **)command_line, (char **)NULL))
+	if (perl_parse(my_perl, xs_init, 2, (char **)command_line,
+		       (char **)NULL))
 		return -1;
 
 	perl_run(my_perl);
