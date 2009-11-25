@@ -109,9 +109,6 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 /* Size and alignment of special buffers (4KB) */
 #define FALCON_BUF_SIZE 4096
 
-/* Dummy SRAM size code */
-#define SRM_NB_BSZ_ONCHIP_ONLY (-1)
-
 #define FALCON_IS_DUAL_FUNC(efx)		\
 	(falcon_rev(efx) < FALCON_REV_B0)
 
