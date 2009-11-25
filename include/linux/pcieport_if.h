@@ -25,15 +25,8 @@
 #define PCIE_PORT_SERVICE_VC_SHIFT	3	/* Virtual Channel */
 #define PCIE_PORT_SERVICE_VC		(1 << PCIE_PORT_SERVICE_VC_SHIFT)
 
-/* Root/Upstream/Downstream Port's Interrupt Mode */
-#define PCIE_PORT_NO_IRQ		(-1)
-#define PCIE_PORT_INTx_MODE		0
-#define PCIE_PORT_MSI_MODE		1
-#define PCIE_PORT_MSIX_MODE		2
-
 struct pcie_port_data {
 	int port_type;		/* Type of the port */
-	int port_irq_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */
 };
 
 struct pcie_device {
