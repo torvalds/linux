@@ -158,7 +158,7 @@ static int llc_ui_create(struct net *net, struct socket *sock, int protocol,
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	if (likely(sock->type == SOCK_DGRAM || sock->type == SOCK_STREAM)) {

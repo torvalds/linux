@@ -228,7 +228,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 	head = &fib_info_hash[hash];
 
 	hlist_for_each_entry(fi, node, head, fib_hash) {
-		if (fi->fib_net != nfi->fib_net)
+		if (!net_eq(fi->fib_net, nfi->fib_net))
 			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
@@ -1047,7 +1047,7 @@ int fib_sync_down_addr(struct net *net, __be32 local)
 		return 0;
 
 	hlist_for_each_entry(fi, node, head, fib_lhash) {
-		if (fi->fib_net != net)
+		if (!net_eq(fi->fib_net, net))
 			continue;
 		if (fi->fib_prefsrc == local) {
 			fi->fib_flags |= RTNH_F_DEAD;

@@ -471,7 +471,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_node *node;
 	int dumped = 0;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&

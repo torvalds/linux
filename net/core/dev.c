@@ -985,7 +985,7 @@ rollback:
 	/* For now only devices in the initial network namespace
 	 * are in sysfs.
 	 */
-	if (net == &init_net) {
+	if (net_eq(net, &init_net)) {
 		ret = device_rename(&dev->dev, dev->name);
 		if (ret) {
 			memcpy(dev->name, oldname, IFNAMSIZ);
@@ -4792,7 +4792,7 @@ static void rollback_registered_many(struct list_head *head)
 	list_for_each_entry_safe(dev, aux, head, unreg_list) {
 		int new_net = 1;
 		list_for_each_entry(fdev, &pernet_list, unreg_list) {
-			if (dev_net(dev) == dev_net(fdev)) {
+			if (net_eq(dev_net(dev), dev_net(fdev))) {
 				new_net = 0;
 				dev_put(dev);
 				break;

@@ -655,7 +655,7 @@ static int svc_create(struct net *net, struct socket *sock, int protocol,
 {
 	int error;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	sock->ops = &svc_proto_ops;

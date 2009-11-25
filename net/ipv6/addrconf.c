@@ -4498,7 +4498,7 @@ static int addrconf_init_net(struct net *net)
 	all = &ipv6_devconf;
 	dflt = &ipv6_devconf_dflt;
 
-	if (net != &init_net) {
+	if (!net_eq(net, &init_net)) {
 		all = kmemdup(all, sizeof(ipv6_devconf), GFP_KERNEL);
 		if (all == NULL)
 			goto err_alloc_all;
@@ -4546,7 +4546,7 @@ static void addrconf_exit_net(struct net *net)
 	__addrconf_sysctl_unregister(net->ipv6.devconf_dflt);
 	__addrconf_sysctl_unregister(net->ipv6.devconf_all);
 #endif
-	if (net != &init_net) {
+	if (!net_eq(net, &init_net)) {
 		kfree(net->ipv6.devconf_dflt);
 		kfree(net->ipv6.devconf_all);
 	}

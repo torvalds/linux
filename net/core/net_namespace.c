@@ -280,7 +280,7 @@ out_undo:
 	list_del(&ops->list);
 	if (ops->exit) {
 		for_each_net(undo_net) {
-			if (undo_net == net)
+			if (net_eq(undo_net, net))
 				goto undone;
 			ops->exit(undo_net);
 		}

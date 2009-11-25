@@ -2092,7 +2092,7 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->hash_buckets[h], idx = 0; n; n = n->next) {
-			if (dev_net(n->dev) != net)
+			if (!net_eq(dev_net(n->dev), net))
 				continue;
 			if (idx < s_idx)
 				goto next;

@@ -241,7 +241,7 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 	struct proto *proto;
 	const struct proto_ops *ops;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	switch (sock->type) {

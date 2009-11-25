@@ -1362,7 +1362,7 @@ static int ipx_create(struct net *net, struct socket *sock, int protocol,
 	int rc = -ESOCKTNOSUPPORT;
 	struct sock *sk;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	/*

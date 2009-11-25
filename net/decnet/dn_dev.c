@@ -636,7 +636,7 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr *ifa, **ifap;
 	int err = -EINVAL;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		goto errout;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
@@ -675,7 +675,7 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr *ifa;
 	int err;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
@@ -789,7 +789,7 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct dn_dev *dn_db;
 	struct dn_ifaddr *ifa;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return 0;
 
 	skip_ndevs = cb->args[0];

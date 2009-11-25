@@ -514,7 +514,7 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 	struct x25_sock *x25;
 	int rc = -ESOCKTNOSUPPORT;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_SEQPACKET || protocol)

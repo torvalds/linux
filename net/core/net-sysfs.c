@@ -525,7 +525,7 @@ void netdev_unregister_kobject(struct net_device * net)
 
 	kobject_get(&dev->kobj);
 
-	if (dev_net(net) != &init_net)
+	if (!net_eq(dev_net(net), &init_net))
 		return;
 
 	device_del(dev);
@@ -559,7 +559,7 @@ int netdev_register_kobject(struct net_device *net)
 #endif
 #endif /* CONFIG_SYSFS */
 
-	if (dev_net(net) != &init_net)
+	if (!net_eq(dev_net(net), &init_net))
 		return 0;
 
 	return device_add(dev);

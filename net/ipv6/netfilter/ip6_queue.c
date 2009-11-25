@@ -502,7 +502,7 @@ ipq_rcv_nl_event(struct notifier_block *this,
 	if (event == NETLINK_URELEASE &&
 	    n->protocol == NETLINK_IP6_FW && n->pid) {
 		write_lock_bh(&queue_lock);
-		if ((n->net == &init_net) && (n->pid == peer_pid))
+		if ((net_eq(n->net, &init_net)) && (n->pid == peer_pid))
 			__ipq_reset();
 		write_unlock_bh(&queue_lock);
 	}

@@ -509,7 +509,7 @@ static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	struct rtattr **rta = arg;
 	struct rtmsg *r = NLMSG_DATA(nlh);
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
 	if (dn_fib_check_attr(r, rta))
@@ -529,7 +529,7 @@ static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	struct rtattr **rta = arg;
 	struct rtmsg *r = NLMSG_DATA(nlh);
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
 	if (dn_fib_check_attr(r, rta))

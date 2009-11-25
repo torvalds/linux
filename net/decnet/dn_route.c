@@ -1517,7 +1517,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	struct sk_buff *skb;
 	struct flowi fl;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
 	memset(&fl, 0, sizeof(fl));
@@ -1602,7 +1602,7 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int h, s_h;
 	int idx, s_idx;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) < sizeof(struct rtmsg))

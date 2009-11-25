@@ -616,7 +616,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 
 	_enter("%p,%d", sock, protocol);
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP only */

@@ -454,7 +454,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * unique enough.
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
-				if (ib_net(tb) == net && tb->port == port) {
+				if (net_eq(ib_net(tb), net) &&
+				    tb->port == port) {
 					if (tb->fastreuse >= 0)
 						goto next_port;
 					WARN_ON(hlist_empty(&tb->owners));

@@ -518,7 +518,7 @@ static int rose_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 	struct rose_sock *rose;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_SEQPACKET || protocol != 0)

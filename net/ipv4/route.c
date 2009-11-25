@@ -703,7 +703,7 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 
 static inline int compare_netns(struct rtable *rt1, struct rtable *rt2)
 {
-	return dev_net(rt1->u.dst.dev) == dev_net(rt2->u.dst.dev);
+	return net_eq(dev_net(rt1->u.dst.dev), dev_net(rt2->u.dst.dev));
 }
 
 static inline int rt_is_expired(struct rtable *rth)
@@ -3310,7 +3310,7 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	struct ctl_table *tbl;
 
 	tbl = ipv4_route_flush_table;
-	if (net != &init_net) {
+	if (!net_eq(net, &init_net)) {
 		tbl = kmemdup(tbl, sizeof(ipv4_route_flush_table), GFP_KERNEL);
 		if (tbl == NULL)
 			goto err_dup;

@@ -67,7 +67,7 @@ static inline struct ip6_flowlabel *__fl_lookup(struct net *net, __be32 label)
 	struct ip6_flowlabel *fl;
 
 	for (fl=fl_ht[FL_HASH(label)]; fl; fl = fl->next) {
-		if (fl->label == label && fl->fl_net == net)
+		if (fl->label == label && net_eq(fl->fl_net, net))
 			return fl;
 	}
 	return NULL;
@@ -163,7 +163,8 @@ static void ip6_fl_purge(struct net *net)
 		struct ip6_flowlabel *fl, **flp;
 		flp = &fl_ht[i];
 		while ((fl = *flp) != NULL) {
-			if (fl->fl_net == net && atomic_read(&fl->users) == 0) {
+			if (net_eq(fl->fl_net, net) &&
+			    atomic_read(&fl->users) == 0) {
 				*flp = fl->next;
 				fl_free(fl);
 				atomic_dec(&fl_size);
@@ -630,7 +631,7 @@ static struct ip6_flowlabel *ip6fl_get_first(struct seq_file *seq)
 	for (state->bucket = 0; state->bucket <= FL_HASH_MASK; ++state->bucket) {
 		fl = fl_ht[state->bucket];
 
-		while (fl && fl->fl_net != net)
+		while (fl && !net_eq(fl->fl_net, net))
 			fl = fl->next;
 		if (fl)
 			break;
@@ -645,7 +646,7 @@ static struct ip6_flowlabel *ip6fl_get_next(struct seq_file *seq, struct ip6_flo
 
 	fl = fl->next;
 try_again:
-	while (fl && fl->fl_net != net)
+	while (fl && !net_eq(fl->fl_net, net))
 		fl = fl->next;
 
 	while (!fl) {

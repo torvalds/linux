@@ -612,7 +612,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol,
 	struct econet_sock *eo;
 	int err;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
 	/* Econet only provides datagram services. */

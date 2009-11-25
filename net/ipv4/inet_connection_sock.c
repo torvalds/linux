@@ -112,7 +112,7 @@ again:
 					hashinfo->bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
-				if (ib_net(tb) == net && tb->port == rover) {
+				if (net_eq(ib_net(tb), net) && tb->port == rover) {
 					if (tb->fastreuse > 0 &&
 					    sk->sk_reuse &&
 					    sk->sk_state != TCP_LISTEN &&
@@ -158,7 +158,7 @@ have_snum:
 				hashinfo->bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
-			if (ib_net(tb) == net && tb->port == snum)
+			if (net_eq(ib_net(tb), net) && tb->port == snum)
 				goto tb_found;
 	}
 	tb = NULL;

@@ -1092,7 +1092,7 @@ static inline int do_one_set_err(struct sock *sk,
 	if (sk == p->exclude_sk)
 		goto out;
 
-	if (sock_net(sk) != sock_net(p->exclude_sk))
+	if (!net_eq(sock_net(sk), sock_net(p->exclude_sk)))
 		goto out;
 
 	if (nlk->pid == p->pid || p->group - 1 >= nlk->ngroups ||
