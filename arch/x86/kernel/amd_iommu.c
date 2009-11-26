@@ -285,6 +285,7 @@ static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 		break;
 	case EVENT_TYPE_ILL_CMD:
 		printk("ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
+		iommu->reset_in_progress = true;
 		reset_iommu_command_buffer(iommu);
 		dump_command(address);
 		break;
@@ -407,11 +408,8 @@ static void __iommu_wait_for_completion(struct amd_iommu *iommu)
 	status &= ~MMIO_STATUS_COM_WAIT_INT_MASK;
 	writel(status, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	if (unlikely(i == EXIT_LOOP_COUNT)) {
-		spin_unlock(&iommu->lock);
-		reset_iommu_command_buffer(iommu);
-		spin_lock(&iommu->lock);
-	}
+	if (unlikely(i == EXIT_LOOP_COUNT))
+		iommu->reset_in_progress = true;
 }
 
 /*
@@ -457,6 +455,9 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 out:
 	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	if (iommu->reset_in_progress)
+		reset_iommu_command_buffer(iommu);
 
 	return 0;
 }
@@ -648,8 +649,6 @@ static void reset_iommu_command_buffer(struct amd_iommu *iommu)
 
 	if (iommu->reset_in_progress)
 		panic("AMD-Vi: ILLEGAL_COMMAND_ERROR while resetting command buffer\n");
-
-	iommu->reset_in_progress = true;
 
 	amd_iommu_reset_cmd_buffer(iommu);
 	amd_iommu_flush_all_devices();
