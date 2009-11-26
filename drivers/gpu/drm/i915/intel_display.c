@@ -950,7 +950,7 @@ void
 intel_wait_for_vblank(struct drm_device *dev)
 {
 	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	mdelay(20);
+	msleep(20);
 }
 
 /* Parameters have changed, update FBC info */
