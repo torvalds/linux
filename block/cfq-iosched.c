@@ -1269,19 +1269,6 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	cfq_mark_cfqq_wait_request(cfqq);
 
 	sl = cfqd->cfq_slice_idle;
-	/* are we servicing noidle tree, and there are more queues?
-	 * non-rotational or NCQ: no idle
-	 * non-NCQ rotational : very small idle, to allow
-	 *     fair distribution of slice time for a process doing back-to-back
-	 *     seeks.
-	 */
-	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
-	    service_tree_for(cfqd->serving_prio, SYNC_NOIDLE_WORKLOAD, cfqd)
-		->count > 0) {
-		if (blk_queue_nonrot(cfqd->queue) || cfqd->hw_tag)
-			return;
-		sl = min(sl, msecs_to_jiffies(CFQ_MIN_TT));
-	}
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
 	cfq_log_cfqq(cfqd, cfqq, "arm_idle: %lu", sl);
