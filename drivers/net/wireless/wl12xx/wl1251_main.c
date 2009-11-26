@@ -629,10 +629,6 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out_sleep;
 	}
 
-	ret = wl1251_build_null_data(wl);
-	if (ret < 0)
-		goto out_sleep;
-
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm enabled");
 
