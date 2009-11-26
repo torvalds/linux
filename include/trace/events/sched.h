@@ -355,23 +355,17 @@ DEFINE_EVENT(sched_stat_template, sched_stat_wait,
  * Tracepoint for accounting sleep time (time the task is not runnable,
  * including iowait, see below).
  */
-DEFINE_EVENT_PRINT(sched_stat_template, sched_stat_sleep,
-		   TP_PROTO(struct task_struct *tsk, u64 delay),
-		   TP_ARGS(tsk, delay),
-		   TP_printk("task: %s:%d sleep: %Lu [ns]",
-			     __entry->comm, __entry->pid,
-			     (unsigned long long)__entry->delay));
+DEFINE_EVENT(sched_stat_template, sched_stat_sleep,
+	     TP_PROTO(struct task_struct *tsk, u64 delay),
+	     TP_ARGS(tsk, delay));
 
 /*
  * Tracepoint for accounting iowait time (time the task is not runnable
  * due to waiting on IO to complete).
  */
-DEFINE_EVENT_PRINT(sched_stat_template, sched_stat_iowait,
-		   TP_PROTO(struct task_struct *tsk, u64 delay),
-		   TP_ARGS(tsk, delay),
-		   TP_printk("task: %s:%d iowait: %Lu [ns]",
-			     __entry->comm, __entry->pid,
-			     (unsigned long long)__entry->delay));
+DEFINE_EVENT(sched_stat_template, sched_stat_iowait,
+	     TP_PROTO(struct task_struct *tsk, u64 delay),
+	     TP_ARGS(tsk, delay));
 
 /*
  * Tracepoint for accounting runtime (time the task is executing
