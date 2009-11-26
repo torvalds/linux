@@ -206,19 +206,22 @@ void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		   unsigned long *sp, unsigned long bp, char *log_lvl)
 {
+	unsigned long *irq_stack_end;
+	unsigned long *irq_stack;
 	unsigned long *stack;
+	int cpu;
 	int i;
-	const int cpu = smp_processor_id();
-	unsigned long *irq_stack_end =
-		(unsigned long *)(per_cpu(irq_stack_ptr, cpu));
-	unsigned long *irq_stack =
-		(unsigned long *)(per_cpu(irq_stack_ptr, cpu) - IRQ_STACK_SIZE);
+
+	preempt_disable();
+	cpu = smp_processor_id();
+
+	irq_stack_end	= (unsigned long *)(per_cpu(irq_stack_ptr, cpu));
+	irq_stack	= (unsigned long *)(per_cpu(irq_stack_ptr, cpu) - IRQ_STACK_SIZE);
 
 	/*
-	 * debugging aid: "show_stack(NULL, NULL);" prints the
-	 * back trace for this cpu.
+	 * Debugging aid: "show_stack(NULL, NULL);" prints the
+	 * back trace for this cpu:
 	 */
-
 	if (sp == NULL) {
 		if (task)
 			sp = (unsigned long *)task->thread.sp;
@@ -242,6 +245,8 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
+	preempt_enable();
+
 	printk("\n");
 	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
