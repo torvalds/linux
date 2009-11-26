@@ -3070,6 +3070,16 @@ snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
 	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)
 		return virt_to_page(CAC_ADDR(vaddr));
 #endif
+#if defined(CONFIG_PPC32) && defined(CONFIG_NOT_COHERENT_CACHE)
+	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV) {
+		dma_addr_t addr = substream->runtime->dma_addr + ofs;
+		addr -= get_dma_offset(substream->dma_buffer.dev.dev);
+		/* assume dma_handle set via pfn_to_phys() in
+		 * mm/dma-noncoherent.c
+		 */
+		return pfn_to_page(addr >> PAGE_SHIFT);
+	}
+#endif
 	return virt_to_page(vaddr);
 }
 
