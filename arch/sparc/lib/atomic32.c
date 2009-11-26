@@ -15,8 +15,8 @@
 #define ATOMIC_HASH_SIZE	4
 #define ATOMIC_HASH(a)	(&__atomic_hash[(((unsigned long)a)>>8) & (ATOMIC_HASH_SIZE-1)])
 
-static raw_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] = {
-	[0 ... (ATOMIC_HASH_SIZE-1)] = __RAW_SPIN_LOCK_UNLOCKED
+spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] = {
+	[0 ... (ATOMIC_HASH_SIZE-1)] = SPIN_LOCK_UNLOCKED
 };
 
 #else /* SMP */
@@ -31,11 +31,11 @@ int __atomic_add_return(int i, atomic_t *v)
 {
 	int ret;
 	unsigned long flags;
-	__raw_spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
 
 	ret = (v->counter += i);
 
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 	return ret;
 }
 EXPORT_SYMBOL(__atomic_add_return);
@@ -45,12 +45,12 @@ int atomic_cmpxchg(atomic_t *v, int old, int new)
 	int ret;
 	unsigned long flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
 	ret = v->counter;
 	if (likely(ret == old))
 		v->counter = new;
 
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 	return ret;
 }
 EXPORT_SYMBOL(atomic_cmpxchg);
@@ -60,11 +60,11 @@ int atomic_add_unless(atomic_t *v, int a, int u)
 	int ret;
 	unsigned long flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
 	ret = v->counter;
 	if (ret != u)
 		v->counter += a;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 	return ret != u;
 }
 EXPORT_SYMBOL(atomic_add_unless);
@@ -74,9 +74,9 @@ void atomic_set(atomic_t *v, int i)
 {
 	unsigned long flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
 	v->counter = i;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 }
 EXPORT_SYMBOL(atomic_set);
 
@@ -84,10 +84,10 @@ unsigned long ___set_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
 	old = *addr;
 	*addr = old | mask;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
 
 	return old & mask;
 }
@@ -97,10 +97,10 @@ unsigned long ___clear_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
 	old = *addr;
 	*addr = old & ~mask;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
 
 	return old & mask;
 }
@@ -110,10 +110,10 @@ unsigned long ___change_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(addr), flags);
+	spin_lock_irqsave(ATOMIC_HASH(addr), flags);
 	old = *addr;
 	*addr = old ^ mask;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(addr), flags);
 
 	return old & mask;
 }
@@ -124,10 +124,10 @@ unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 	unsigned long flags;
 	u32 prev;
 
-	__raw_spin_lock_irqsave(ATOMIC_HASH(ptr), flags);
+	spin_lock_irqsave(ATOMIC_HASH(ptr), flags);
 	if ((prev = *ptr) == old)
 		*ptr = new;
-	__raw_spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
+	spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
 
 	return (unsigned long)prev;
 }
