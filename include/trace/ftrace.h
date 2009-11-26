@@ -19,17 +19,17 @@
 #include <linux/ftrace_event.h>
 
 /*
- * TRACE_EVENT_TEMPLATE can be used to add a generic function
+ * DECLARE_EVENT_CLASS can be used to add a generic function
  * handlers for events. That is, if all events have the same
  * parameters and just have distinct trace points.
  * Each tracepoint can be defined with DEFINE_EVENT and that
- * will map the TRACE_EVENT_TEMPLATE to the tracepoint.
+ * will map the DECLARE_EVENT_CLASS to the tracepoint.
  *
  * TRACE_EVENT is a one to one mapping between tracepoint and template.
  */
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, args, tstruct, assign, print) \
-	TRACE_EVENT_TEMPLATE(name,			       \
+	DECLARE_EVENT_CLASS(name,			       \
 			     PARAMS(proto),		       \
 			     PARAMS(args),		       \
 			     PARAMS(tstruct),		       \
@@ -56,8 +56,8 @@
 #undef TP_STRUCT__entry
 #define TP_STRUCT__entry(args...) args
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(name, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(name, proto, args, tstruct, assign, print)	\
 	struct ftrace_raw_##name {					\
 		struct trace_entry	ent;				\
 		tstruct							\
@@ -115,8 +115,8 @@
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 	struct ftrace_data_offsets_##call {				\
 		tstruct;						\
 	};
@@ -203,8 +203,8 @@
 #undef TP_perf_assign
 #define TP_perf_assign(args...)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, func, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
 static int								\
 ftrace_format_setup_##call(struct ftrace_event_call *unused,		\
 			   struct trace_seq *s)				\
@@ -321,8 +321,8 @@ ftrace_format_##name(struct ftrace_event_call *unused,			\
 		ftrace_print_symbols_seq(p, value, symbols);		\
 	})
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static enum print_line_t						\
 ftrace_raw_output_id_##call(int event_id, const char *name,		\
 			    struct trace_iterator *iter, int flags)	\
@@ -428,8 +428,8 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, func, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
 static int								\
 ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
@@ -480,8 +480,8 @@ ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, strlen(src) + 1)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static inline int ftrace_get_offsets_##call(				\
 	struct ftrace_data_offsets_##call *__data_offsets, proto)       \
 {									\
@@ -521,8 +521,8 @@ static inline int ftrace_get_offsets_##call(				\
  *
  */
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)			\
@@ -681,8 +681,8 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
 #define __assign_str(dst, src)						\
 	strcpy(__get_str(dst), src);
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 									\
 static void ftrace_raw_event_id_##call(struct ftrace_event_call *event_call, \
 				       proto)				\
@@ -764,8 +764,8 @@ static int ftrace_raw_init_event_##call(struct ftrace_event_call *unused)\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
@@ -885,8 +885,8 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #undef __perf_count
 #define __perf_count(c) __count = (c)
 
-#undef TRACE_EVENT_TEMPLATE
-#define TRACE_EVENT_TEMPLATE(call, proto, args, tstruct, assign, print)	\
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static void								\
 ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			    proto)					\
