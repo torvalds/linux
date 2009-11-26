@@ -2392,8 +2392,9 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (cfq_class_idle(cfqq))
 		return true;
 
-	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD
-	    && new_cfqq->service_tree == cfqq->service_tree)
+	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
+	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
+	    new_cfqq->service_tree->count == 1)
 		return true;
 
 	/*
