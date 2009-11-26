@@ -195,6 +195,14 @@ static int exclude_super_stripes(struct btrfs_root *root,
 	int stripe_len;
 	int i, nr, ret;
 
+	if (cache->key.objectid < BTRFS_SUPER_INFO_OFFSET) {
+		stripe_len = BTRFS_SUPER_INFO_OFFSET - cache->key.objectid;
+		cache->bytes_super += stripe_len;
+		ret = add_excluded_extent(root, cache->key.objectid,
+					  stripe_len);
+		BUG_ON(ret);
+	}
+
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		bytenr = btrfs_sb_offset(i);
 		ret = btrfs_rmap_block(&root->fs_info->mapping_tree,
@@ -255,7 +263,7 @@ static u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
 		if (ret)
 			break;
 
-		if (extent_start == start) {
+		if (extent_start <= start) {
 			start = extent_end + 1;
 		} else if (extent_start > start && extent_start < end) {
 			size = extent_start - start;
