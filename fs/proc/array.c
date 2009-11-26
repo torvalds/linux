@@ -535,8 +535,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	if (!whole) {
 		min_flt = task->min_flt;
 		maj_flt = task->maj_flt;
-		utime = task_utime(task);
-		stime = task_stime(task);
+		task_times(task, &utime, &stime);
 		gtime = task_gtime(task);
 	}
 

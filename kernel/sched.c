@@ -5191,6 +5191,14 @@ cputime_t task_stime(struct task_struct *p)
 {
 	return p->stime;
 }
+
+void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
+{
+	if (ut)
+		*ut = task_utime(p);
+	if (st)
+		*st = task_stime(p);
+}
 #else
 
 #ifndef nsecs_to_cputime
@@ -5198,41 +5206,48 @@ cputime_t task_stime(struct task_struct *p)
 	msecs_to_cputime(div_u64((__nsecs), NSEC_PER_MSEC))
 #endif
 
-cputime_t task_utime(struct task_struct *p)
+void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
-	cputime_t utime = p->utime, total = utime + p->stime;
-	u64 temp;
+	cputime_t rtime, utime = p->utime, total = utime + p->stime;
 
 	/*
 	 * Use CFS's precise accounting:
 	 */
-	temp = (u64)nsecs_to_cputime(p->se.sum_exec_runtime);
+	rtime = nsecs_to_cputime(p->se.sum_exec_runtime);
 
 	if (total) {
-		temp *= utime;
-		do_div(temp, total);
-	}
-	utime = (cputime_t)temp;
+		u64 temp;
 
+		temp = (u64)(rtime * utime);
+		do_div(temp, total);
+		utime = (cputime_t)temp;
+	} else
+		utime = rtime;
+
+	/*
+	 * Compare with previous values, to keep monotonicity:
+	 */
 	p->prev_utime = max(p->prev_utime, utime);
-	return p->prev_utime;
+	p->prev_stime = max(p->prev_stime, rtime - p->prev_utime);
+
+	if (ut)
+		*ut = p->prev_utime;
+	if (st)
+		*st = p->prev_stime;
+}
+
+cputime_t task_utime(struct task_struct *p)
+{
+	cputime_t utime;
+	task_times(p, &utime, NULL);
+	return utime;
 }
 
 cputime_t task_stime(struct task_struct *p)
 {
 	cputime_t stime;
-
-	/*
-	 * Use CFS's precise accounting. (we subtract utime from
-	 * the total, to make sure the total observed by userspace
-	 * grows monotonically - apps rely on that):
-	 */
-	stime = nsecs_to_cputime(p->se.sum_exec_runtime) - task_utime(p);
-
-	if (stime >= 0)
-		p->prev_stime = max(p->prev_stime, stime);
-
-	return p->prev_stime;
+	task_times(p, NULL, &stime);
+	return stime;
 }
 #endif
 

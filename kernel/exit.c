@@ -91,6 +91,8 @@ static void __exit_signal(struct task_struct *tsk)
 	if (atomic_dec_and_test(&sig->count))
 		posix_cpu_timers_exit_group(tsk);
 	else {
+		cputime_t utime, stime;
+
 		/*
 		 * If there is any task waiting for the group exit
 		 * then notify it:
@@ -110,8 +112,9 @@ static void __exit_signal(struct task_struct *tsk)
 		 * We won't ever get here for the group leader, since it
 		 * will have been the last reference on the signal_struct.
 		 */
-		sig->utime = cputime_add(sig->utime, task_utime(tsk));
-		sig->stime = cputime_add(sig->stime, task_stime(tsk));
+		task_times(tsk, &utime, &stime);
+		sig->utime = cputime_add(sig->utime, utime);
+		sig->stime = cputime_add(sig->stime, stime);
 		sig->gtime = cputime_add(sig->gtime, task_gtime(tsk));
 		sig->min_flt += tsk->min_flt;
 		sig->maj_flt += tsk->maj_flt;
