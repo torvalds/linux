@@ -59,19 +59,25 @@ static DEFINE_PER_CPU(unsigned long, cpu_debugreg[HBP_NUM]);
 static DEFINE_PER_CPU(struct perf_event *, bp_per_reg[HBP_NUM]);
 
 
+static inline unsigned long
+__encode_dr7(int drnum, unsigned int len, unsigned int type)
+{
+	unsigned long bp_info;
+
+	bp_info = (len | type) & 0xf;
+	bp_info <<= (DR_CONTROL_SHIFT + drnum * DR_CONTROL_SIZE);
+	bp_info |= (DR_GLOBAL_ENABLE << (drnum * DR_ENABLE_SIZE));
+
+	return bp_info;
+}
+
 /*
  * Encode the length, type, Exact, and Enable bits for a particular breakpoint
  * as stored in debug register 7.
  */
 unsigned long encode_dr7(int drnum, unsigned int len, unsigned int type)
 {
-	unsigned long bp_info;
-
-	bp_info = (len | type) & 0xf;
-	bp_info <<= (DR_CONTROL_SHIFT + drnum * DR_CONTROL_SIZE);
-	bp_info |= (DR_GLOBAL_ENABLE << (drnum * DR_ENABLE_SIZE)) |
-				DR_GLOBAL_SLOWDOWN;
-	return bp_info;
+	return __encode_dr7(drnum, len, type) | DR_GLOBAL_SLOWDOWN;
 }
 
 /*
@@ -154,7 +160,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		return;
 
 	dr7 = &__get_cpu_var(cpu_dr7);
-	*dr7 &= ~encode_dr7(i, info->len, info->type);
+	*dr7 &= ~__encode_dr7(i, info->len, info->type);
 
 	set_debugreg(*dr7, 7);
 }
