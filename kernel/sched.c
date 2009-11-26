@@ -5182,22 +5182,12 @@ void account_idle_ticks(unsigned long ticks)
  * Use precise platform statistics if available:
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-cputime_t task_utime(struct task_struct *p)
-{
-	return p->utime;
-}
-
-cputime_t task_stime(struct task_struct *p)
-{
-	return p->stime;
-}
-
 void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
 	if (ut)
-		*ut = task_utime(p);
+		*ut = p->utime;
 	if (st)
-		*st = task_stime(p);
+		*st = p->stime;
 }
 #else
 
@@ -5235,26 +5225,7 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	if (st)
 		*st = p->prev_stime;
 }
-
-cputime_t task_utime(struct task_struct *p)
-{
-	cputime_t utime;
-	task_times(p, &utime, NULL);
-	return utime;
-}
-
-cputime_t task_stime(struct task_struct *p)
-{
-	cputime_t stime;
-	task_times(p, NULL, &stime);
-	return stime;
-}
 #endif
-
-inline cputime_t task_gtime(struct task_struct *p)
-{
-	return p->gtime;
-}
 
 /*
  * This function gets called by the timer code, with HZ frequency.

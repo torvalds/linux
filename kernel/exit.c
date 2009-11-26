@@ -115,7 +115,7 @@ static void __exit_signal(struct task_struct *tsk)
 		task_times(tsk, &utime, &stime);
 		sig->utime = cputime_add(sig->utime, utime);
 		sig->stime = cputime_add(sig->stime, stime);
-		sig->gtime = cputime_add(sig->gtime, task_gtime(tsk));
+		sig->gtime = cputime_add(sig->gtime, tsk->gtime);
 		sig->min_flt += tsk->min_flt;
 		sig->maj_flt += tsk->maj_flt;
 		sig->nvcsw += tsk->nvcsw;
