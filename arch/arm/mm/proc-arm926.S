@@ -246,7 +246,7 @@ ENTRY(arm926_flush_kern_dcache_area)
  *
  * (same as v4wb)
  */
-ENTRY(arm926_dma_inv_range)
+arm926_dma_inv_range:
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 	tst	r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -271,7 +271,7 @@ ENTRY(arm926_dma_inv_range)
  *
  * (same as v4wb)
  */
-ENTRY(arm926_dma_clean_range)
+arm926_dma_clean_range:
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -337,8 +337,6 @@ ENTRY(arm926_cache_fns)
 	.long	arm926_flush_kern_dcache_area
 	.long	arm926_dma_map_area
 	.long	arm926_dma_unmap_area
-	.long	arm926_dma_inv_range
-	.long	arm926_dma_clean_range
 	.long	arm926_dma_flush_range
 
 ENTRY(cpu_arm926_dcache_clean_area)

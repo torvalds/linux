@@ -315,7 +315,7 @@ ENTRY(xscale_flush_kern_dcache_area)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_dma_inv_range)
+xscale_dma_inv_range:
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -336,7 +336,7 @@ ENTRY(xscale_dma_inv_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_dma_clean_range)
+xscale_dma_clean_range:
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHELINESIZE
@@ -409,8 +409,6 @@ ENTRY(xscale_cache_fns)
 	.long	xscale_flush_kern_dcache_area
 	.long	xscale_dma_map_area
 	.long	xscale_dma_unmap_area
-	.long	xscale_dma_inv_range
-	.long	xscale_dma_clean_range
 	.long	xscale_dma_flush_range
 
 /*
@@ -435,8 +433,6 @@ ENTRY(xscale_80200_A0_A1_cache_fns)
 	.long	xscale_flush_kern_dcache_area
 	.long	xscale_dma_a0_map_area
 	.long	xscale_dma_unmap_area
-	.long	xscale_dma_flush_range
-	.long	xscale_dma_clean_range
 	.long	xscale_dma_flush_range
 
 ENTRY(cpu_xscale_dcache_clean_area)

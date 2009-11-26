@@ -94,20 +94,6 @@ ENTRY(v4_flush_kern_dcache_area)
 	/* FALLTHROUGH */
 
 /*
- *	dma_inv_range(start, end)
- *
- *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
- *	back.
- *
- *	- start  - virtual start address
- *	- end	 - virtual end address
- */
-ENTRY(v4_dma_inv_range)
-	/* FALLTHROUGH */
-
-/*
  *	dma_flush_range(start, end)
  *
  *	Clean and invalidate the specified virtual address range.
@@ -120,17 +106,6 @@ ENTRY(v4_dma_flush_range)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0		@ flush ID cache
 #endif
-	/* FALLTHROUGH */
-
-/*
- *	dma_clean_range(start, end)
- *
- *	Clean (write back) the specified virtual address range.
- *
- *	- start  - virtual start address
- *	- end	 - virtual end address
- */
-ENTRY(v4_dma_clean_range)
 	mov	pc, lr
 
 /*
@@ -141,7 +116,7 @@ ENTRY(v4_dma_clean_range)
  */
 ENTRY(v4_dma_unmap_area)
 	teq	r2, #DMA_TO_DEVICE
-	bne	v4_dma_inv_range
+	bne	v4_dma_flush_range
 	/* FALLTHROUGH */
 
 /*
@@ -167,7 +142,5 @@ ENTRY(v4_cache_fns)
 	.long	v4_flush_kern_dcache_area
 	.long	v4_dma_map_area
 	.long	v4_dma_unmap_area
-	.long	v4_dma_inv_range
-	.long	v4_dma_clean_range
 	.long	v4_dma_flush_range
 	.size	v4_cache_fns, . - v4_cache_fns

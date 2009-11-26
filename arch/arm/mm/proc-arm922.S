@@ -241,7 +241,7 @@ ENTRY(arm922_flush_kern_dcache_area)
  *
  * (same as v4wb)
  */
-ENTRY(arm922_dma_inv_range)
+arm922_dma_inv_range:
 	tst	r0, #CACHE_DLINESIZE - 1
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -264,7 +264,7 @@ ENTRY(arm922_dma_inv_range)
  *
  * (same as v4wb)
  */
-ENTRY(arm922_dma_clean_range)
+arm922_dma_clean_range:
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -323,8 +323,6 @@ ENTRY(arm922_cache_fns)
 	.long	arm922_flush_kern_dcache_area
 	.long	arm922_dma_map_area
 	.long	arm922_dma_unmap_area
-	.long	arm922_dma_inv_range
-	.long	arm922_dma_clean_range
 	.long	arm922_dma_flush_range
 
 #endif
