@@ -155,8 +155,6 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct veth_net_stats *stats, *rcv_stats;
 	int length, cpu;
 
-	skb_orphan(skb);
-
 	priv = netdev_priv(dev);
 	rcv = priv->peer;
 	rcv_priv = netdev_priv(rcv);
@@ -168,20 +166,12 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(rcv->flags & IFF_UP))
 		goto tx_drop;
 
-	if (skb->len > (rcv->mtu + MTU_PAD))
-		goto rx_drop;
-
-        skb->tstamp.tv64 = 0;
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, rcv);
 	if (dev->features & NETIF_F_NO_CSUM)
 		skb->ip_summed = rcv_priv->ip_summed;
 
-	skb->mark = 0;
-	secpath_reset(skb);
-	nf_reset(skb);
-
-	length = skb->len;
+	length = skb->len + ETH_HLEN;
+	if (dev_forward_skb(rcv, skb) != NET_RX_SUCCESS)
+		goto rx_drop;
 
 	stats->tx_bytes += length;
 	stats->tx_packets++;
@@ -189,7 +179,6 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	rcv_stats->rx_bytes += length;
 	rcv_stats->rx_packets++;
 
-	netif_rx(skb);
 	return NETDEV_TX_OK;
 
 tx_drop:
