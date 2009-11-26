@@ -1019,8 +1019,10 @@ static const struct file_operations memtype_fops = {
 
 static int __init pat_memtype_list_init(void)
 {
-	debugfs_create_file("pat_memtype_list", S_IRUSR, arch_debugfs_dir,
-				NULL, &memtype_fops);
+	if (pat_enabled) {
+		debugfs_create_file("pat_memtype_list", S_IRUSR,
+				    arch_debugfs_dir, NULL, &memtype_fops);
+	}
 	return 0;
 }
 
