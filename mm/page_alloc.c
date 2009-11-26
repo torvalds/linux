@@ -48,11 +48,13 @@
 #include <linux/page_cgroup.h>
 #include <linux/debugobjects.h>
 #include <linux/kmemleak.h>
-#include <trace/events/kmem.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
 #include "internal.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/kmem.h>
 
 /*
  * Array of node states.

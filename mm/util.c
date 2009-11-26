@@ -6,9 +6,6 @@
 #include <linux/sched.h>
 #include <asm/uaccess.h>
 
-#define CREATE_TRACE_POINTS
-#include <trace/events/kmem.h>
-
 /**
  * kstrdup - allocate space for and copy an existing string
  * @s: the string to duplicate
