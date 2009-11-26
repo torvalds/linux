@@ -31,7 +31,7 @@ static struct led_classdev qube_front_led = {
 	.name			= "qube::front",
 	.brightness		= LED_FULL,
 	.brightness_set		= qube_front_led_set,
-	.default_trigger	= "ide-disk",
+	.default_trigger	= "default-on",
 };
 
 static int __devinit cobalt_qube_led_probe(struct platform_device *pdev)
