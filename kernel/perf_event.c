@@ -4780,14 +4780,17 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 	 */
 
 	ctx = find_get_context(pid, cpu);
-	if (IS_ERR(ctx))
-		return NULL;
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto err_exit;
+	}
 
 	event = perf_event_alloc(attr, cpu, ctx, NULL,
 				     NULL, callback, GFP_KERNEL);
-	err = PTR_ERR(event);
-	if (IS_ERR(event))
+	if (IS_ERR(event)) {
+		err = PTR_ERR(event);
 		goto err_put_context;
+	}
 
 	event->filp = NULL;
 	WARN_ON_ONCE(ctx->parent_ctx);
@@ -4804,11 +4807,10 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	return event;
 
-err_put_context:
-	if (err < 0)
-		put_ctx(ctx);
-
-	return NULL;
+ err_put_context:
+	put_ctx(ctx);
+ err_exit:
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(perf_event_create_kernel_counter);
 
