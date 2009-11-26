@@ -16,6 +16,7 @@ extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void flush_dcache_range(unsigned long start, unsigned long end);
 
 #define flush_cache_dup_mm(mm)			do {} while (0)
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)			do {} while (0)
 #define flush_dcache_mmap_lock(mapping)		do {} while (0)
 #define flush_dcache_mmap_unlock(mapping)	do {} while (0)

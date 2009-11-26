@@ -391,6 +391,18 @@ extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
 				 gfp_t, int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
+
+#ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+# error	"You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"
+#endif
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+extern void bio_flush_dcache_pages(struct bio *bi);
+#else
+static inline void bio_flush_dcache_pages(struct bio *bi)
+{
+}
+#endif
+
 extern struct bio *bio_copy_user(struct request_queue *, struct rq_map_data *,
 				 unsigned long, unsigned int, int, gfp_t);
 extern struct bio *bio_copy_user_iov(struct request_queue *,

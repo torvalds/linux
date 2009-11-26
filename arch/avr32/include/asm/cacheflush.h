@@ -107,6 +107,7 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
  * do something here, but only for certain configurations.  No such
  * configurations exist at this time.
  */
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)			do { } while (0)
 #define flush_dcache_mmap_lock(page)		do { } while (0)
 #define flush_dcache_mmap_unlock(page)		do { } while (0)

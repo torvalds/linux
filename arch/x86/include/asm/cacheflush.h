@@ -12,6 +12,7 @@ static inline void flush_cache_range(struct vm_area_struct *vma,
 				     unsigned long start, unsigned long end) { }
 static inline void flush_cache_page(struct vm_area_struct *vma,
 				    unsigned long vmaddr, unsigned long pfn) { }
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 static inline void flush_dcache_page(struct page *page) { }
 static inline void flush_dcache_mmap_lock(struct address_space *mapping) { }
 static inline void flush_dcache_mmap_unlock(struct address_space *mapping) { }

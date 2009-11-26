@@ -75,6 +75,7 @@ BTFIXUPDEF_CALL(void, flush_sig_insns, struct mm_struct *, unsigned long)
 
 extern void sparc_flush_page_to_ram(struct page *page);
 
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 #define flush_dcache_page(page)			sparc_flush_page_to_ram(page)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)

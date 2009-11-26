@@ -37,6 +37,7 @@
 #define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
 
 #define flush_dcache_range(start, end)	__invalidate_dcache_range(start, end)
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)			do { } while (0)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)

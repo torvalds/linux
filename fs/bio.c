@@ -1393,6 +1393,18 @@ void bio_check_pages_dirty(struct bio *bio)
 	}
 }
 
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+void bio_flush_dcache_pages(struct bio *bi)
+{
+	int i;
+	struct bio_vec *bvec;
+
+	bio_for_each_segment(bvec, bi, i)
+		flush_dcache_page(bvec->bv_page);
+}
+EXPORT_SYMBOL(bio_flush_dcache_pages);
+#endif
+
 /**
  * bio_endio - end I/O on a bio
  * @bio:	bio

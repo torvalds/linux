@@ -752,6 +752,17 @@ struct req_iterator {
 #define rq_iter_last(rq, _iter)					\
 		(_iter.bio->bi_next == NULL && _iter.i == _iter.bio->bi_vcnt-1)
 
+#ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+# error	"You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"
+#endif
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+extern void rq_flush_dcache_pages(struct request *rq);
+#else
+static inline void rq_flush_dcache_pages(struct request *rq)
+{
+}
+#endif
+
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
 extern void register_disk(struct gendisk *dev);
