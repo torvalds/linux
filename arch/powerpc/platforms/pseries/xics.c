@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/radix-tree.h>
 #include <linux/cpu.h>
+#include <linux/msi.h>
 #include <linux/of.h>
 
 #include <asm/firmware.h>
@@ -219,6 +220,14 @@ static void xics_unmask_irq(unsigned int virq)
 
 static unsigned int xics_startup(unsigned int virq)
 {
+	/*
+	 * The generic MSI code returns with the interrupt disabled on the
+	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
+	 * at that level, so we do it here by hand.
+	 */
+	if (irq_to_desc(virq)->msi_desc)
+		unmask_msi_irq(virq);
+
 	/* unmask it */
 	xics_unmask_irq(virq);
 	return 0;

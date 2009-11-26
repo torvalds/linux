@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.20';
+my $V = '0.21';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -37,6 +37,7 @@ my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
 my $status = 0;
+my $keywords = 1;
 my $from_filename = 0;
 my $pattern_depth = 0;
 my $version = 0;
@@ -84,6 +85,7 @@ if (!GetOptions(
 		'scm!' => \$scm,
 		'web!' => \$web,
 		'pattern-depth=i' => \$pattern_depth,
+		'k|keywords!' => \$keywords,
 		'f|file' => \$from_filename,
 		'v|version' => \$version,
 		'h|help' => \$help,
@@ -132,6 +134,8 @@ if (!top_of_kernel_tree($lk_path)) {
 ## Read MAINTAINERS for type/value pairs
 
 my @typevalue = ();
+my %keyword_hash;
+
 open(MAINT, "<${lk_path}MAINTAINERS") || die "$P: Can't open MAINTAINERS\n";
 while (<MAINT>) {
     my $line = $_;
@@ -149,6 +153,8 @@ while (<MAINT>) {
 	    if ((-d $value)) {
 		$value =~ s@([^/])$@$1/@;
 	    }
+	} elsif ($type eq "K") {
+	    $keyword_hash{@typevalue} = $value;
 	}
 	push(@typevalue, "$type:$value");
     } elsif (!/^(\s)*$/) {
@@ -188,6 +194,7 @@ if ($email_remove_duplicates) {
 
 my @files = ();
 my @range = ();
+my @keyword_tvi = ();
 
 foreach my $file (@ARGV) {
     ##if $file is a directory and it lacks a trailing slash, add one
@@ -198,11 +205,24 @@ foreach my $file (@ARGV) {
     }
     if ($from_filename) {
 	push(@files, $file);
+	if (-f $file && $keywords) {
+	    open(FILE, "<$file") or die "$P: Can't open ${file}\n";
+	    while (<FILE>) {
+		my $patch_line = $_;
+		foreach my $line (keys %keyword_hash) {
+		    if ($patch_line =~ m/^.*$keyword_hash{$line}/x) {
+			push(@keyword_tvi, $line);
+		    }
+		}
+	    }
+	    close(FILE);
+	}
     } else {
 	my $file_cnt = @files;
 	my $lastfile;
 	open(PATCH, "<$file") or die "$P: Can't open ${file}\n";
 	while (<PATCH>) {
+	    my $patch_line = $_;
 	    if (m/^\+\+\+\s+(\S+)/) {
 		my $filename = $1;
 		$filename =~ s@^[^/]*/@@;
@@ -212,6 +232,12 @@ foreach my $file (@ARGV) {
 	    } elsif (m/^\@\@ -(\d+),(\d+)/) {
 		if ($email_git_blame) {
 		    push(@range, "$lastfile:$1:$2");
+		}
+	    } elsif ($keywords) {
+		foreach my $line (keys %keyword_hash) {
+		    if ($patch_line =~ m/^[+-].*$keyword_hash{$line}/x) {
+			push(@keyword_tvi, $line);
+		    }
 		}
 	    }
 	}
@@ -283,6 +309,13 @@ foreach my $file (@files) {
 
     if ($email && $email_git_blame) {
 	git_assign_blame($file);
+    }
+}
+
+if ($keywords) {
+    @keyword_tvi = sort_and_uniq(@keyword_tvi);
+    foreach my $line (@keyword_tvi) {
+	add_categories($line);
     }
 }
 
@@ -384,6 +417,7 @@ Output type options:
 
 Other options:
   --pattern-depth => Number of pattern directory traversals (default: 0 (all))
+  --keywords => scan patch for keywords (default: 1 (on))
   --version => show version
   --help => show this help information
 
@@ -486,7 +520,6 @@ sub format_email {
 }
 
 sub find_starting_index {
-
     my ($index) = @_;
 
     while ($index > 0) {

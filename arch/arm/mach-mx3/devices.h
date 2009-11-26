@@ -20,7 +20,7 @@ extern struct platform_device mxc_otg_host;
 extern struct platform_device mxc_usbh1;
 extern struct platform_device mxc_usbh2;
 extern struct platform_device mxc_rnga_device;
-extern struct platform_device imx_spi_device0;
-extern struct platform_device imx_spi_device1;
-extern struct platform_device imx_spi_device2;
+extern struct platform_device mxc_spi_device0;
+extern struct platform_device mxc_spi_device1;
+extern struct platform_device mxc_spi_device2;
 

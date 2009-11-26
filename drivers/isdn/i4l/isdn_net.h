@@ -83,19 +83,19 @@ static __inline__ isdn_net_local * isdn_net_get_locked_lp(isdn_net_dev *nd)
 
 	spin_lock_irqsave(&nd->queue_lock, flags);
 	lp = nd->queue;         /* get lp on top of queue */
-	spin_lock(&nd->queue->xmit_lock);
 	while (isdn_net_lp_busy(nd->queue)) {
-		spin_unlock(&nd->queue->xmit_lock);
 		nd->queue = nd->queue->next;
 		if (nd->queue == lp) { /* not found -- should never happen */
 			lp = NULL;
 			goto errout;
 		}
-		spin_lock(&nd->queue->xmit_lock);
 	}
 	lp = nd->queue;
 	nd->queue = nd->queue->next;
+	spin_unlock_irqrestore(&nd->queue_lock, flags);
+	spin_lock(&lp->xmit_lock);
 	local_bh_disable();
+	return lp;
 errout:
 	spin_unlock_irqrestore(&nd->queue_lock, flags);
 	return lp;

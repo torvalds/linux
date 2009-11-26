@@ -994,8 +994,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	P9_DPRINTK(P9_DEBUG_VFS,
 		"%s -> %s (%s)\n", dentry->d_name.name, st->extension, buffer);
 
-	retval = buflen;
-
+	retval = strnlen(buffer, buflen);
 done:
 	kfree(st);
 	return retval;
@@ -1062,7 +1061,7 @@ static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 			__putname(link);
 			link = ERR_PTR(len);
 		} else
-			link[len] = 0;
+			link[min(len, PATH_MAX-1)] = 0;
 	}
 	nd_set_link(nd, link);
 

@@ -1079,7 +1079,7 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 	/* common settings for ct/gs and els requests */
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
 	req->qtcb->bottom.support.timeout = 2 * R_A_TOV;
-	zfcp_fsf_start_timer(req, 2 * R_A_TOV + 10);
+	zfcp_fsf_start_timer(req, (2 * R_A_TOV + 10) * HZ);
 
 	return 0;
 }
@@ -1475,9 +1475,16 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		plogi = (struct fsf_plogi *) req->qtcb->bottom.support.els;
 		if (req->qtcb->bottom.support.els1_length >=
 		    FSF_PLOGI_MIN_LEN) {
-			if (plogi->serv_param.wwpn != port->wwpn)
+			if (plogi->serv_param.wwpn != port->wwpn) {
 				port->d_id = 0;
-			else {
+				dev_warn(&port->adapter->ccw_device->dev,
+					 "A port opened with WWPN 0x%016Lx "
+					 "returned data that identifies it as "
+					 "WWPN 0x%016Lx\n",
+					 (unsigned long long) port->wwpn,
+					 (unsigned long long)
+					  plogi->serv_param.wwpn);
+			} else {
 				port->wwnn = plogi->serv_param.wwnn;
 				zfcp_fc_plogi_evaluate(port, plogi);
 			}

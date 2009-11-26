@@ -26,6 +26,7 @@
 #define _CHANNEL_MGMT_H_
 
 #include <linux/list.h>
+#include <linux/timer.h>
 #include "RingBuffer.h"
 #include "VmbusChannelInterface.h"
 #include "VmbusPacketFormat.h"
@@ -54,7 +55,7 @@ enum vmbus_channel_message_type {
 	ChannelMessageViewRangeRemove		= 18,
 #endif
 	ChannelMessageCount
-} __attribute__((packed));
+};
 
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type MessageType;

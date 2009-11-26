@@ -25,7 +25,7 @@ SECTIONS
 	. = ALIGN(16);
 	.text		: {
 		*(.text .stub .text.* .gnu.linkonce.t.* __ftr_alt_*)
-	}
+	}		      	      			:text
 	PROVIDE(__etext = .);
 	PROVIDE(_etext = .);
 	PROVIDE(etext = .);
@@ -56,7 +56,7 @@ SECTIONS
 	.fixup		: { *(.fixup) }
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
-	.got		: { *(.got) }
+	.got		: { *(.got) }			:text
 	.plt		: { *(.plt) }
 
 	_end = .;

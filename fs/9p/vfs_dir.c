@@ -40,6 +40,24 @@
 #include "fid.h"
 
 /**
+ * struct p9_rdir - readdir accounting
+ * @mutex: mutex protecting readdir
+ * @head: start offset of current dirread buffer
+ * @tail: end offset of current dirread buffer
+ * @buf: dirread buffer
+ *
+ * private structure for keeping track of readdir
+ * allocated on demand
+ */
+
+struct p9_rdir {
+	struct mutex mutex;
+	int head;
+	int tail;
+	uint8_t *buf;
+};
+
+/**
  * dt_type - return file type
  * @mistat: mistat structure
  *
@@ -70,56 +88,79 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	int over;
 	struct p9_wstat st;
-	int err;
+	int err = 0;
 	struct p9_fid *fid;
 	int buflen;
-	char *statbuf;
-	int n, i = 0;
+	int reclen = 0;
+	struct p9_rdir *rdir;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", filp->f_path.dentry->d_name.name);
 	fid = filp->private_data;
 
 	buflen = fid->clnt->msize - P9_IOHDRSZ;
-	statbuf = kmalloc(buflen, GFP_KERNEL);
-	if (!statbuf)
-		return -ENOMEM;
 
-	while (1) {
-		err = v9fs_file_readn(filp, statbuf, NULL, buflen,
-								fid->rdir_fpos);
-		if (err <= 0)
-			break;
+	/* allocate rdir on demand */
+	if (!fid->rdir) {
+		rdir = kmalloc(sizeof(struct p9_rdir) + buflen, GFP_KERNEL);
 
-		n = err;
-		while (i < n) {
-			err = p9stat_read(statbuf + i, buflen-i, &st,
-							fid->clnt->dotu);
+		if (rdir == NULL) {
+			err = -ENOMEM;
+			goto exit;
+		}
+		spin_lock(&filp->f_dentry->d_lock);
+		if (!fid->rdir) {
+			rdir->buf = (uint8_t *)rdir + sizeof(struct p9_rdir);
+			mutex_init(&rdir->mutex);
+			rdir->head = rdir->tail = 0;
+			fid->rdir = (void *) rdir;
+			rdir = NULL;
+		}
+		spin_unlock(&filp->f_dentry->d_lock);
+		kfree(rdir);
+	}
+	rdir = (struct p9_rdir *) fid->rdir;
+
+	err = mutex_lock_interruptible(&rdir->mutex);
+	while (err == 0) {
+		if (rdir->tail == rdir->head) {
+			err = v9fs_file_readn(filp, rdir->buf, NULL,
+							buflen, filp->f_pos);
+			if (err <= 0)
+				goto unlock_and_exit;
+
+			rdir->head = 0;
+			rdir->tail = err;
+		}
+
+		while (rdir->head < rdir->tail) {
+			err = p9stat_read(rdir->buf + rdir->head,
+						buflen - rdir->head, &st,
+						fid->clnt->dotu);
 			if (err) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
 				err = -EIO;
 				p9stat_free(&st);
-				goto free_and_exit;
+				goto unlock_and_exit;
 			}
-
-			i += st.size+2;
-			fid->rdir_fpos += st.size+2;
+			reclen = st.size+2;
 
 			over = filldir(dirent, st.name, strlen(st.name),
 			    filp->f_pos, v9fs_qid2ino(&st.qid), dt_type(&st));
-
-			filp->f_pos += st.size+2;
 
 			p9stat_free(&st);
 
 			if (over) {
 				err = 0;
-				goto free_and_exit;
+				goto unlock_and_exit;
 			}
+			rdir->head += reclen;
+			filp->f_pos += reclen;
 		}
 	}
 
-free_and_exit:
-	kfree(statbuf);
+unlock_and_exit:
+	mutex_unlock(&rdir->mutex);
+exit:
 	return err;
 }
 

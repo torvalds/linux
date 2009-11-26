@@ -2631,7 +2631,7 @@ static void analyze_sbs(mddev_t * mddev)
 			rdev->desc_nr = i++;
 			rdev->raid_disk = rdev->desc_nr;
 			set_bit(In_sync, &rdev->flags);
-		} else if (rdev->raid_disk >= mddev->raid_disks) {
+		} else if (rdev->raid_disk >= (mddev->raid_disks - min(0, mddev->delta_disks))) {
 			rdev->raid_disk = -1;
 			clear_bit(In_sync, &rdev->flags);
 		}
@@ -6504,8 +6504,9 @@ void md_do_sync(mddev_t *mddev)
  skip:
 	mddev->curr_resync = 0;
 	mddev->curr_resync_completed = 0;
-	mddev->resync_min = 0;
-	mddev->resync_max = MaxSector;
+	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+		/* We completed so max setting can be forgotten. */
+		mddev->resync_max = MaxSector;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	wake_up(&resync_wait);
 	set_bit(MD_RECOVERY_DONE, &mddev->recovery);

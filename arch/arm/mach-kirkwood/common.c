@@ -845,7 +845,7 @@ int __init kirkwood_find_tclk(void)
 	return 166666667;
 }
 
-static void kirkwood_timer_init(void)
+static void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);

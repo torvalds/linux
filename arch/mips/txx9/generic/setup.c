@@ -85,7 +85,7 @@ int txx9_ccfg_toeon __initdata = 1;
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 4);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 2);
 	if (!strcmp(id, "imbus_clk"))
 		return (struct clk *)((unsigned long)txx9_gbus_clock / 2);
 	return ERR_PTR(-ENOENT);
@@ -817,7 +817,8 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 out_pdev:
 	platform_device_put(pdev);
 out_gpio:
-	gpio_remove(&iocled->chip);
+	if (gpiochip_remove(&iocled->chip))
+		return;
 out_unmap:
 	iounmap(iocled->mmioaddr);
 out_free:

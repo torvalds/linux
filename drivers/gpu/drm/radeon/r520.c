@@ -260,6 +260,8 @@ int r520_init(struct radeon_device *rdev)
 	}
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Get vram informations */
 	r520_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
