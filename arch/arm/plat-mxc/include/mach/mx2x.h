@@ -25,7 +25,7 @@
 
 /* The following addresses are common between i.MX21 and i.MX27 */
 
-/* Register offests */
+/* Register offsets */
 #define MX2x_AIPI_BASE_ADDR		0x10000000
 #define MX2x_AIPI_BASE_ADDR_VIRT	0xf4000000
 #define MX2x_AIPI_SIZE			SZ_1M
