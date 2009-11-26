@@ -1118,7 +1118,8 @@ static int dac33_i2c_probe(struct i2c_client *client,
 		}
 		if (dac33->irq != -1) {
 			/* Setup work queue */
-			dac33->dac33_wq = create_rt_workqueue("tlv320dac33");
+			dac33->dac33_wq =
+				create_singlethread_workqueue("tlv320dac33");
 			if (dac33->dac33_wq == NULL) {
 				free_irq(dac33->irq, &dac33->codec);
 				ret = -ENOMEM;
