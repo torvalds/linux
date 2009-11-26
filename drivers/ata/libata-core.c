@@ -6616,6 +6616,13 @@ static int __init ata_init(void)
 {
 	ata_parse_force_param();
 
+	/*
+	 * FIXME: In UP case, there is only one workqueue thread and if you
+	 * have more than one PIO device, latency is bloody awful, with
+	 * occasional multi-second "hiccups" as one PIO device waits for
+	 * another.  It's an ugly wart that users DO occasionally complain
+	 * about; luckily most users have at most one PIO polled device.
+	 */
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
 		goto free_force_tbl;
