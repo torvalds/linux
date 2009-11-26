@@ -304,7 +304,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		j = gspca_dev->fr_queue[i];
 		gspca_dev->cur_frame = &gspca_dev->frame[j];
 	}
-	return;
 }
 EXPORT_SYMBOL(gspca_frame_add);
 
@@ -321,7 +320,7 @@ static int gspca_is_compressed(__u32 format)
 	return 0;
 }
 
-static void *rvmalloc(unsigned long size)
+static void *rvmalloc(long size)
 {
 	void *mem;
 	unsigned long adr;
@@ -329,7 +328,7 @@ static void *rvmalloc(unsigned long size)
 	mem = vmalloc_32(size);
 	if (mem != NULL) {
 		adr = (unsigned long) mem;
-		while ((long) size > 0) {
+		while (size > 0) {
 			SetPageReserved(vmalloc_to_page((void *) adr));
 			adr += PAGE_SIZE;
 			size -= PAGE_SIZE;
@@ -1614,7 +1613,7 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 		size -= PAGE_SIZE;
 	}
 
-	vma->vm_ops = (struct vm_operations_struct *) &gspca_vm_ops;
+	vma->vm_ops = &gspca_vm_ops;
 	vma->vm_private_data = frame;
 	gspca_vm_open(vma);
 	ret = 0;
