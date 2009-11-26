@@ -1181,8 +1181,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 					  wl->beacon_int, wl->dtim_period);
 			if (ret < 0)
 				goto out_sleep;
-			wl1251_warning("Set ctsprotect failed %d", ret);
-			goto out_sleep;
 		}
 	}
 
