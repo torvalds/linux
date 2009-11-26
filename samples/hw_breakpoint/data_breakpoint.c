@@ -61,9 +61,6 @@ static int __init hw_break_module_init(void)
 	if (IS_ERR(sample_hbp)) {
 		ret = PTR_ERR(sample_hbp);
 		goto fail;
-	} else if (!sample_hbp) {
-		ret = -EINVAL;
-		goto fail;
 	}
 
 	printk(KERN_INFO "HW Breakpoint for %s write installed\n", ksym_name);

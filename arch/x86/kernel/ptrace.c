@@ -657,10 +657,7 @@ restore:
 					       tsk, true);
 		thread->ptrace_bps[i] = NULL;
 
-		if (!bp) { /* incorrect bp, or we have a bug in bp API */
-			rc = -EINVAL;
-			break;
-		}
+		/* Incorrect bp, or we have a bug in bp API */
 		if (IS_ERR(bp)) {
 			rc = PTR_ERR(bp);
 			bp = NULL;
@@ -729,9 +726,6 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 					       tsk,
 					       bp->attr.disabled);
 	}
-
-	if (!bp)
-		return -EIO;
 	/*
 	 * CHECKME: the previous code returned -EIO if the addr wasn't a
 	 * valid task virtual addr. The new one will return -EINVAL in this

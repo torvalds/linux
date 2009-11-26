@@ -442,7 +442,7 @@ register_wide_hw_breakpoint(unsigned long addr,
 
 		*pevent = bp;
 
-		if (IS_ERR(bp) || !bp) {
+		if (IS_ERR(bp)) {
 			err = PTR_ERR(bp);
 			goto fail;
 		}
@@ -453,7 +453,7 @@ register_wide_hw_breakpoint(unsigned long addr,
 fail:
 	for_each_possible_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
-		if (IS_ERR(*pevent) || !*pevent)
+		if (IS_ERR(*pevent))
 			break;
 		unregister_hw_breakpoint(*pevent);
 	}
