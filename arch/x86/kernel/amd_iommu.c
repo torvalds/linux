@@ -1286,6 +1286,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	dma_dom->domain.id = domain_id_alloc();
 	if (dma_dom->domain.id == 0)
 		goto free_dma_dom;
+	INIT_LIST_HEAD(&dma_dom->domain.dev_list);
 	dma_dom->domain.mode = PAGE_MODE_2_LEVEL;
 	dma_dom->domain.pt_root = (void *)get_zeroed_page(GFP_KERNEL);
 	dma_dom->domain.flags = PD_DMA_OPS_MASK;
@@ -1408,6 +1409,7 @@ static int __attach_device(struct device *dev,
 	if (alias != devid) {
 		if (alias_data->domain == NULL) {
 			alias_data->domain = domain;
+			list_add(&alias_data->list, &domain->dev_list);
 			set_dte_entry(alias, domain);
 		}
 
@@ -1416,6 +1418,7 @@ static int __attach_device(struct device *dev,
 
 	if (dev_data->domain == NULL) {
 		dev_data->domain = domain;
+		list_add(&dev_data->list, &domain->dev_list);
 		set_dte_entry(devid, domain);
 	}
 
@@ -1460,6 +1463,7 @@ static void __detach_device(struct device *dev)
 	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 	struct iommu_dev_data *dev_data = get_dev_data(dev);
 	struct iommu_dev_data *alias_data;
+	unsigned long flags;
 
 	BUG_ON(!iommu);
 
@@ -1469,13 +1473,19 @@ static void __detach_device(struct device *dev)
 	if (devid != alias) {
 		alias_data = get_dev_data(dev_data->alias);
 		if (atomic_dec_and_test(&alias_data->bind)) {
+			spin_lock_irqsave(&alias_data->domain->lock, flags);
 			clear_dte_entry(alias);
+			list_del(&alias_data->list);
+			spin_unlock_irqrestore(&alias_data->domain->lock, flags);
 			alias_data->domain = NULL;
 		}
 	}
 
 	if (atomic_dec_and_test(&dev_data->bind)) {
+		spin_lock_irqsave(&dev_data->domain->lock, flags);
 		clear_dte_entry(devid);
+		list_del(&dev_data->list);
+		spin_unlock_irqrestore(&dev_data->domain->lock, flags);
 		dev_data->domain = NULL;
 	}
 
@@ -2294,6 +2304,7 @@ static struct protection_domain *protection_domain_alloc(void)
 	domain->id = domain_id_alloc();
 	if (!domain->id)
 		goto out_err;
+	INIT_LIST_HEAD(&domain->dev_list);
 
 	add_domain_to_list(domain);
 

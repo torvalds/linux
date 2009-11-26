@@ -235,6 +235,7 @@ extern bool amd_iommu_np_cache;
  */
 struct protection_domain {
 	struct list_head list;  /* for list of all protection domains */
+	struct list_head dev_list; /* List of all devices in this domain */
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
@@ -251,6 +252,7 @@ struct protection_domain {
  * This struct contains device specific data for the IOMMU
  */
 struct iommu_dev_data {
+	struct list_head list;		  /* For domain->dev_list */
 	struct device *alias;		  /* The Alias Device */
 	struct protection_domain *domain; /* Domain the device is bound to */
 	atomic_t bind;			  /* Domain attach reverent count */
