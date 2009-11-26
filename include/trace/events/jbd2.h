@@ -30,7 +30,7 @@ TRACE_EVENT(jbd2_checkpoint,
 		  jbd2_dev_to_name(__entry->dev), __entry->result)
 );
 
-TRACE_EVENT(jbd2_start_commit,
+DECLARE_EVENT_CLASS(jbd2_commit,
 
 	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
@@ -53,73 +53,32 @@ TRACE_EVENT(jbd2_start_commit,
 		  __entry->sync_commit)
 );
 
-TRACE_EVENT(jbd2_commit_locking,
+DEFINE_EVENT(jbd2_commit, jbd2_start_commit,
 
 	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
-	TP_ARGS(journal, commit_transaction),
-
-	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		  )
-		__field(	int,	transaction		  )
-	),
-
-	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
-		__entry->transaction	= commit_transaction->t_tid;
-	),
-
-	TP_printk("dev %s transaction %d sync %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->transaction,
-		  __entry->sync_commit)
+	TP_ARGS(journal, commit_transaction)
 );
 
-TRACE_EVENT(jbd2_commit_flushing,
+DEFINE_EVENT(jbd2_commit, jbd2_commit_locking,
 
 	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
-	TP_ARGS(journal, commit_transaction),
-
-	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		  )
-		__field(	int,	transaction		  )
-	),
-
-	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
-		__entry->transaction	= commit_transaction->t_tid;
-	),
-
-	TP_printk("dev %s transaction %d sync %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->transaction,
-		  __entry->sync_commit)
+	TP_ARGS(journal, commit_transaction)
 );
 
-TRACE_EVENT(jbd2_commit_logging,
+DEFINE_EVENT(jbd2_commit, jbd2_commit_flushing,
 
 	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
-	TP_ARGS(journal, commit_transaction),
+	TP_ARGS(journal, commit_transaction)
+);
 
-	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	char,	sync_commit		  )
-		__field(	int,	transaction		  )
-	),
+DEFINE_EVENT(jbd2_commit, jbd2_commit_logging,
 
-	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
-		__entry->transaction	= commit_transaction->t_tid;
-	),
+	TP_PROTO(journal_t *journal, transaction_t *commit_transaction),
 
-	TP_printk("dev %s transaction %d sync %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->transaction,
-		  __entry->sync_commit)
+	TP_ARGS(journal, commit_transaction)
 );
 
 TRACE_EVENT(jbd2_end_commit,
