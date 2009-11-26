@@ -116,42 +116,58 @@ static int macvlan_addr_busy(const struct macvlan_port *port,
 	return 0;
 }
 
+static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
+				    unsigned int len, bool success,
+				    bool multicast)
+{
+	struct macvlan_rx_stats *rx_stats;
+
+	rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
+	if (likely(success)) {
+		rx_stats->rx_packets++;;
+		rx_stats->rx_bytes += len;
+		if (multicast)
+			rx_stats->multicast++;
+	} else {
+		rx_stats->rx_errors++;
+	}
+}
+
+static int macvlan_broadcast_one(struct sk_buff *skb, struct net_device *dev,
+				 const struct ethhdr *eth)
+{
+	if (!skb)
+		return NET_RX_DROP;
+
+	skb->dev = dev;
+	if (!compare_ether_addr_64bits(eth->h_dest,
+				       dev->broadcast))
+		skb->pkt_type = PACKET_BROADCAST;
+	else
+		skb->pkt_type = PACKET_MULTICAST;
+
+	return netif_rx(skb);
+}
+
 static void macvlan_broadcast(struct sk_buff *skb,
 			      const struct macvlan_port *port)
 {
 	const struct ethhdr *eth = eth_hdr(skb);
 	const struct macvlan_dev *vlan;
 	struct hlist_node *n;
-	struct net_device *dev;
 	struct sk_buff *nskb;
 	unsigned int i;
-	struct macvlan_rx_stats *rx_stats;
+	int err;
 
 	if (skb->protocol == htons(ETH_P_PAUSE))
 		return;
 
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
-			dev = vlan->dev;
-			rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
-
 			nskb = skb_clone(skb, GFP_ATOMIC);
-			if (nskb == NULL) {
-				rx_stats->rx_errors++;
-				continue;
-			}
-
-			rx_stats->rx_bytes += skb->len + ETH_HLEN;
-			rx_stats->rx_packets++;
-			rx_stats->multicast++;
-
-			nskb->dev = dev;
-			if (!compare_ether_addr_64bits(eth->h_dest, dev->broadcast))
-				nskb->pkt_type = PACKET_BROADCAST;
-			else
-				nskb->pkt_type = PACKET_MULTICAST;
-
-			netif_rx(nskb);
+			err = macvlan_broadcast_one(nskb, vlan->dev, eth);
+			macvlan_count_rx(vlan, skb->len + ETH_HLEN,
+					 err == NET_RX_SUCCESS, 1);
 		}
 	}
 }
@@ -163,7 +179,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	const struct macvlan_port *port;
 	const struct macvlan_dev *vlan;
 	struct net_device *dev;
-	struct macvlan_rx_stats *rx_stats;
+	unsigned int len;
 
 	port = rcu_dereference(skb->dev->macvlan_port);
 	if (port == NULL)
@@ -183,15 +199,11 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 		kfree_skb(skb);
 		return NULL;
 	}
-	rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
+	len = skb->len + ETH_HLEN;
 	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (skb == NULL) {
-		rx_stats->rx_errors++;
+	macvlan_count_rx(vlan, len, skb != NULL, 0);
+	if (!skb)
 		return NULL;
-	}
-
-	rx_stats->rx_bytes += skb->len + ETH_HLEN;
-	rx_stats->rx_packets++;
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
