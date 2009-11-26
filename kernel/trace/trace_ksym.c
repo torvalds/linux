@@ -339,14 +339,20 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 					ksym_hbp_handler, true);
 			if (IS_ERR(entry->ksym_hbp))
 				entry->ksym_hbp = NULL;
-			if (!entry->ksym_hbp)
+
+			/* modified without problem */
+			if (entry->ksym_hbp) {
+				ret = 0;
 				goto out;
+			}
+		} else {
+			ret = 0;
 		}
+		/* Error or "symbol:---" case: drop it */
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry);
-		ret = 0;
 		goto out;
 	} else {
 		/* Check for malformed request: (4) */
