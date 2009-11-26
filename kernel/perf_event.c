@@ -338,7 +338,16 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 		event->group_leader->nr_siblings--;
 
 	update_event_times(event);
-	event->state = PERF_EVENT_STATE_OFF;
+
+	/*
+	 * If event was in error state, then keep it
+	 * that way, otherwise bogus counts will be
+	 * returned on read(). The only way to get out
+	 * of error state is by explicit re-enabling
+	 * of the event
+	 */
+	if (event->state > PERF_EVENT_STATE_OFF)
+		event->state = PERF_EVENT_STATE_OFF;
 
 	/*
 	 * If this was a group event with sibling events then
