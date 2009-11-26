@@ -223,6 +223,13 @@ config SPI_S3C24XX_GPIO
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
 
+config SPI_SH_MSIOF
+	tristate "SuperH MSIOF SPI controller"
+	depends on SUPERH && HAVE_CLK
+	select SPI_BITBANG
+	help
+	  SPI driver for SuperH MSIOF blocks.
+
 config SPI_SH_SCI
 	tristate "SuperH SCI SPI controller"
 	depends on SUPERH
