@@ -1953,13 +1953,14 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
-static void mce_disable_cpu(void *h)
+static void __cpuinit mce_disable_cpu(void *h)
 {
 	unsigned long action = *(unsigned long *)h;
 	int i;
 
 	if (!mce_available(&current_cpu_data))
 		return;
+
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_clear();
 	for (i = 0; i < banks; i++) {
@@ -1970,7 +1971,7 @@ static void mce_disable_cpu(void *h)
 	}
 }
 
-static void mce_reenable_cpu(void *h)
+static void __cpuinit mce_reenable_cpu(void *h)
 {
 	unsigned long action = *(unsigned long *)h;
 	int i;
