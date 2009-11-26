@@ -733,7 +733,7 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
  */
 static void drbd_reconfig_start(struct drbd_conf *mdev)
 {
-	wait_event(mdev->state_wait, test_and_set_bit(CONFIG_PENDING, &mdev->flags));
+	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
 	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
 	drbd_thread_start(&mdev->worker);
 }

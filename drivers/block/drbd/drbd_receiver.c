@@ -2400,6 +2400,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 
 
 	*rule_nr = 80;
+	peer = mdev->p_uuid[UI_CURRENT] & ~((u64)1);
 	for (i = UI_HISTORY_START; i <= UI_HISTORY_END; i++) {
 		self = mdev->ldev->md.uuid[i] & ~((u64)1);
 		if (self == peer)
@@ -3499,8 +3500,10 @@ static void drbdd(struct drbd_conf *mdev)
 
 	while (get_t_state(&mdev->receiver) == Running) {
 		drbd_thread_current_set_cpu(mdev);
-		if (!drbd_recv_header(mdev, header))
+		if (!drbd_recv_header(mdev, header)) {
+			drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 			break;
+		}
 
 		if (header->command < P_MAX_CMD)
 			handler = drbd_cmd_handler[header->command];

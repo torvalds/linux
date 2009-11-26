@@ -43,6 +43,8 @@
 #define CN_DST_VAL			0x1
 #define CN_IDX_DM			0x7	/* Device Mapper */
 #define CN_VAL_DM_USERSPACE_LOG		0x1
+#define CN_IDX_DRBD			0x8
+#define CN_VAL_DRBD			0x1
 
 #define CN_NETLINK_USERS		8
 
