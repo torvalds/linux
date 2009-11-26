@@ -494,6 +494,17 @@ static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 	return ret;
 }
 
+static int iommu_flush_device(struct device *dev)
+{
+	struct amd_iommu *iommu;
+	u16 devid;
+
+	devid = get_device_id(dev);
+	iommu = amd_iommu_rlookup_table[devid];
+
+	return iommu_queue_inv_dev_entry(iommu, devid);
+}
+
 static void __iommu_build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 					  u16 domid, int pde, int s)
 {
@@ -1382,7 +1393,7 @@ static void do_attach(struct device *dev, struct protection_domain *domain)
 	domain->dev_cnt                 += 1;
 
 	/* Flush the DTE entry */
-	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_flush_device(dev);
 }
 
 static void do_detach(struct device *dev)
@@ -1405,7 +1416,7 @@ static void do_detach(struct device *dev)
 	clear_dte_entry(devid);
 
 	/* Flush the DTE entry */
-	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_flush_device(dev);
 }
 
 /*
@@ -1610,7 +1621,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		goto out;
 	}
 
-	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_flush_device(dev);
 	iommu_completion_wait(iommu);
 
 out:
@@ -2393,7 +2404,7 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 	if (!iommu)
 		return;
 
-	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_flush_device(dev);
 	iommu_completion_wait(iommu);
 }
 
