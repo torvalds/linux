@@ -175,6 +175,9 @@ struct port {
 
 	/* Is the host device open */
 	bool host_connected;
+
+	/* We should allow only one process to open a port */
+	bool guest_connected;
 };
 
 /* This is the very early arch-specified put chars function. */
@@ -528,6 +531,8 @@ static int port_fops_release(struct inode *inode, struct file *filp)
 	/* Notify host of port being closed */
 	send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 
+	port->guest_connected = false;
+
 	return 0;
 }
 
@@ -545,6 +550,16 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	 */
 	if (is_console_port(port))
 		return -ENXIO;
+
+	/* Allow only one process to open a particular port at a time */
+	spin_lock_irq(&port->inbuf_lock);
+	if (port->guest_connected) {
+		spin_unlock_irq(&port->inbuf_lock);
+		return -EMFILE;
+	}
+
+	port->guest_connected = true;
+	spin_unlock_irq(&port->inbuf_lock);
 
 	/* Notify host of port being opened */
 	send_control_msg(filp->private_data, VIRTIO_CONSOLE_PORT_OPEN, 1);
@@ -709,6 +724,7 @@ int init_port_console(struct port *port)
 	pdrvdata.next_vtermno++;
 	list_add_tail(&port->cons.list, &pdrvdata.consoles);
 	spin_unlock_irq(&pdrvdata_lock);
+	port->guest_connected = true;
 
 	/* Notify host of port being opened */
 	send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
@@ -856,7 +872,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->inbuf = NULL;
 	port->cons.hvc = NULL;
 
-	port->host_connected = false;
+	port->host_connected = port->guest_connected = false;
 
 	port->in_vq = portdev->in_vqs[port->id];
 	port->out_vq = portdev->out_vqs[port->id];
