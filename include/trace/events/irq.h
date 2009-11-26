@@ -82,18 +82,7 @@ TRACE_EVENT(irq_handler_exit,
 		  __entry->irq, __entry->ret ? "handled" : "unhandled")
 );
 
-/**
- * softirq_entry - called immediately before the softirq handler
- * @h: pointer to struct softirq_action
- * @vec: pointer to first struct softirq_action in softirq_vec array
- *
- * The @h parameter, contains a pointer to the struct softirq_action
- * which has a pointer to the action handler that is called. By subtracting
- * the @vec pointer from the @h pointer, we can determine the softirq
- * number. Also, when used in combination with the softirq_exit tracepoint
- * we can determine the softirq latency.
- */
-TRACE_EVENT(softirq_entry,
+DECLARE_EVENT_CLASS(softirq,
 
 	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
 
@@ -112,6 +101,24 @@ TRACE_EVENT(softirq_entry,
 );
 
 /**
+ * softirq_entry - called immediately before the softirq handler
+ * @h: pointer to struct softirq_action
+ * @vec: pointer to first struct softirq_action in softirq_vec array
+ *
+ * The @h parameter, contains a pointer to the struct softirq_action
+ * which has a pointer to the action handler that is called. By subtracting
+ * the @vec pointer from the @h pointer, we can determine the softirq
+ * number. Also, when used in combination with the softirq_exit tracepoint
+ * we can determine the softirq latency.
+ */
+DEFINE_EVENT(softirq, softirq_entry,
+
+	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+
+	TP_ARGS(h, vec)
+);
+
+/**
  * softirq_exit - called immediately after the softirq handler returns
  * @h: pointer to struct softirq_action
  * @vec: pointer to first struct softirq_action in softirq_vec array
@@ -122,22 +129,11 @@ TRACE_EVENT(softirq_entry,
  * combination with the softirq_entry tracepoint we can determine the softirq
  * latency.
  */
-TRACE_EVENT(softirq_exit,
+DEFINE_EVENT(softirq, softirq_exit,
 
 	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
 
-	TP_ARGS(h, vec),
-
-	TP_STRUCT__entry(
-		__field(	int,	vec			)
-	),
-
-	TP_fast_assign(
-		__entry->vec = (int)(h - vec);
-	),
-
-	TP_printk("vec=%d [action=%s]", __entry->vec,
-		  show_softirq_name(__entry->vec))
+	TP_ARGS(h, vec)
 );
 
 #endif /*  _TRACE_IRQ_H */
