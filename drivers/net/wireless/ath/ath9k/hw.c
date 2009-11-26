@@ -343,30 +343,6 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 	return true;
 }
 
-static const char *ath9k_hw_devname(u16 devid)
-{
-	switch (devid) {
-	case AR5416_DEVID_PCI:
-		return "Atheros 5416";
-	case AR5416_DEVID_PCIE:
-		return "Atheros 5418";
-	case AR9160_DEVID_PCI:
-		return "Atheros 9160";
-	case AR5416_AR9100_DEVID:
-		return "Atheros 9100";
-	case AR9280_DEVID_PCI:
-	case AR9280_DEVID_PCIE:
-		return "Atheros 9280";
-	case AR9285_DEVID_PCIE:
-		return "Atheros 9285";
-	case AR5416_DEVID_AR9287_PCI:
-	case AR5416_DEVID_AR9287_PCIE:
-		return "Atheros 9287";
-	}
-
-	return NULL;
-}
-
 static void ath9k_hw_init_config(struct ath_hw *ah)
 {
 	int i;
@@ -1264,12 +1240,6 @@ static void ath9k_hw_init_user_settings(struct ath_hw *ah)
 		ath9k_hw_set_cts_timeout(ah, ah->ctstimeout);
 	if (ah->globaltxtimeout != (u32) -1)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
-}
-
-const char *ath9k_hw_probe(u16 vendorid, u16 devid)
-{
-	return vendorid == ATHEROS_VENDOR_ID ?
-		ath9k_hw_devname(devid) : NULL;
 }
 
 void ath9k_hw_detach(struct ath_hw *ah)
