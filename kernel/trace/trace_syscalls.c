@@ -261,6 +261,10 @@ int syscall_enter_define_fields(struct ftrace_event_call *call)
 	if (ret)
 		return ret;
 
+	ret = trace_define_field(call, SYSCALL_FIELD(int, nr), FILTER_OTHER);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < meta->nb_args; i++) {
 		ret = trace_define_field(call, meta->types[i],
 					 meta->args[i], offset,
@@ -278,6 +282,10 @@ int syscall_exit_define_fields(struct ftrace_event_call *call)
 	int ret;
 
 	ret = trace_define_common_fields(call);
+	if (ret)
+		return ret;
+
+	ret = trace_define_field(call, SYSCALL_FIELD(int, nr), FILTER_OTHER);
 	if (ret)
 		return ret;
 
