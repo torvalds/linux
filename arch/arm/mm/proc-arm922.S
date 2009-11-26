@@ -290,6 +290,30 @@ ENTRY(arm922_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm922_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	arm922_dma_clean_range
+	bcs	arm922_dma_inv_range
+	b	arm922_dma_flush_range
+ENDPROC(arm922_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm922_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(arm922_dma_unmap_area)
+
 ENTRY(arm922_cache_fns)
 	.long	arm922_flush_kern_cache_all
 	.long	arm922_flush_user_cache_all
@@ -297,6 +321,8 @@ ENTRY(arm922_cache_fns)
 	.long	arm922_coherent_kern_range
 	.long	arm922_coherent_user_range
 	.long	arm922_flush_kern_dcache_area
+	.long	arm922_dma_map_area
+	.long	arm922_dma_unmap_area
 	.long	arm922_dma_inv_range
 	.long	arm922_dma_clean_range
 	.long	arm922_dma_flush_range

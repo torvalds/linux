@@ -216,6 +216,30 @@ ENTRY(v4wb_dma_clean_range)
 	.globl	v4wb_dma_flush_range
 	.set	v4wb_dma_flush_range, v4wb_coherent_kern_range
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4wb_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	v4wb_dma_clean_range
+	bcs	v4wb_dma_inv_range
+	b	v4wb_dma_flush_range
+ENDPROC(v4wb_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4wb_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(v4wb_dma_unmap_area)
+
 	__INITDATA
 
 	.type	v4wb_cache_fns, #object
@@ -226,6 +250,8 @@ ENTRY(v4wb_cache_fns)
 	.long	v4wb_coherent_kern_range
 	.long	v4wb_coherent_user_range
 	.long	v4wb_flush_kern_dcache_area
+	.long	v4wb_dma_map_area
+	.long	v4wb_dma_unmap_area
 	.long	v4wb_dma_inv_range
 	.long	v4wb_dma_clean_range
 	.long	v4wb_dma_flush_range

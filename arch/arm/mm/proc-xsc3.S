@@ -304,6 +304,30 @@ ENTRY(xsc3_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xsc3_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	xsc3_dma_clean_range
+	bcs	xsc3_dma_inv_range
+	b	xsc3_dma_flush_range
+ENDPROC(xsc3_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xsc3_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(xsc3_dma_unmap_area)
+
 ENTRY(xsc3_cache_fns)
 	.long	xsc3_flush_kern_cache_all
 	.long	xsc3_flush_user_cache_all
@@ -311,6 +335,8 @@ ENTRY(xsc3_cache_fns)
 	.long	xsc3_coherent_kern_range
 	.long	xsc3_coherent_user_range
 	.long	xsc3_flush_kern_dcache_area
+	.long	xsc3_dma_map_area
+	.long	xsc3_dma_unmap_area
 	.long	xsc3_dma_inv_range
 	.long	xsc3_dma_clean_range
 	.long	xsc3_dma_flush_range

@@ -133,6 +133,28 @@ ENTRY(v4_dma_flush_range)
 ENTRY(v4_dma_clean_range)
 	mov	pc, lr
 
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4_dma_unmap_area)
+	teq	r2, #DMA_TO_DEVICE
+	bne	v4_dma_inv_range
+	/* FALLTHROUGH */
+
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4_dma_map_area)
+	mov	pc, lr
+ENDPROC(v4_dma_unmap_area)
+ENDPROC(v4_dma_map_area)
+
 	__INITDATA
 
 	.type	v4_cache_fns, #object
@@ -143,6 +165,8 @@ ENTRY(v4_cache_fns)
 	.long	v4_coherent_kern_range
 	.long	v4_coherent_user_range
 	.long	v4_flush_kern_dcache_area
+	.long	v4_dma_map_area
+	.long	v4_dma_unmap_area
 	.long	v4_dma_inv_range
 	.long	v4_dma_clean_range
 	.long	v4_dma_flush_range

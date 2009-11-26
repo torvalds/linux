@@ -271,6 +271,30 @@ ENTRY(v7_dma_flush_range)
 	mov	pc, lr
 ENDPROC(v7_dma_flush_range)
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v7_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	v7_dma_clean_range
+	bcs	v7_dma_inv_range
+	b	v7_dma_flush_range
+ENDPROC(v7_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v7_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(v7_dma_unmap_area)
+
 	__INITDATA
 
 	.type	v7_cache_fns, #object
@@ -281,6 +305,8 @@ ENTRY(v7_cache_fns)
 	.long	v7_coherent_kern_range
 	.long	v7_coherent_user_range
 	.long	v7_flush_kern_dcache_area
+	.long	v7_dma_map_area
+	.long	v7_dma_unmap_area
 	.long	v7_dma_inv_range
 	.long	v7_dma_clean_range
 	.long	v7_dma_flush_range
