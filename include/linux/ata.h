@@ -982,17 +982,17 @@ static inline void ata_id_to_hd_driveid(u16 *id)
 }
 
 /*
- * Write up to 'max' LBA Range Entries to the buffer that will cover the
- * extent from sector to sector + count.  This is used for TRIM and for
- * ADD LBA(S) TO NV CACHE PINNED SET.
+ * Write LBA Range Entries to the buffer that will cover the extent from
+ * sector to sector + count.  This is used for TRIM and for ADD LBA(S)
+ * TO NV CACHE PINNED SET.
  */
-static inline unsigned ata_set_lba_range_entries(void *_buffer, unsigned max,
-						u64 sector, unsigned long count)
+static inline unsigned ata_set_lba_range_entries(void *_buffer,
+		unsigned buf_size, u64 sector, unsigned long count)
 {
 	__le64 *buffer = _buffer;
-	unsigned i = 0;
+	unsigned i = 0, used_bytes;
 
-	while (i < max) {
+	while (i < buf_size / 8 ) { /* 6-byte LBA + 2-byte range per entry */
 		u64 entry = sector |
 			((u64)(count > 0xffff ? 0xffff : count) << 48);
 		buffer[i++] = __cpu_to_le64(entry);
@@ -1002,9 +1002,9 @@ static inline unsigned ata_set_lba_range_entries(void *_buffer, unsigned max,
 		sector += 0xffff;
 	}
 
-	max = ALIGN(i * 8, 512);
-	memset(buffer + i, 0, max - i * 8);
-	return max;
+	used_bytes = ALIGN(i * 8, 512);
+	memset(buffer + i, 0, used_bytes - i * 8);
+	return used_bytes;
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)

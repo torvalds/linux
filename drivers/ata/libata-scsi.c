@@ -2972,7 +2972,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 		goto invalid_fld;
 
 	buf = page_address(sg_page(scsi_sglist(scmd)));
-	size = ata_set_lba_range_entries(buf, 512 / 8, block, n_block);
+	size = ata_set_lba_range_entries(buf, 512, block, n_block);
 
 	tf->protocol = ATA_PROT_DMA;
 	tf->hob_feature = 0;
