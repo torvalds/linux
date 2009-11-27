@@ -49,9 +49,6 @@
 
 #include "generic.h"
 
-void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
-EXPORT_SYMBOL(assign_h3600_egpio);
-
 struct gpio_default_state {
 	int gpio;
 	int mode;
@@ -306,72 +303,6 @@ static void __init h3xxx_map_io(void)
 
 #ifdef CONFIG_SA1100_H3100
 
-#define H3100_EGPIO	(*(volatile unsigned int *)H3600_EGPIO_VIRT)
-static unsigned int h3100_egpio = 0;
-
-static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
-{
-	unsigned int egpio = 0;
-	long	     gpio = 0;
-	unsigned long flags;
-
-	switch (x) {
-	case IPAQ_EGPIO_LCD_POWER:
-		egpio |= EGPIO_H3600_LCD_ON;
-		gpio  |= GPIO_H3100_LCD_3V_ON;
-		break;
-	case IPAQ_EGPIO_LCD_ENABLE:
-		break;
-	case IPAQ_EGPIO_CODEC_NRESET:
-		egpio |= EGPIO_H3600_CODEC_NRESET;
-		break;
-	case IPAQ_EGPIO_AUDIO_ON:
-		gpio |= GPIO_H3100_AUD_PWR_ON
-			| GPIO_H3100_AUD_ON;
-		break;
-	case IPAQ_EGPIO_QMUTE:
-		gpio |= GPIO_H3100_QMUTE;
-		break;
-	case IPAQ_EGPIO_OPT_NVRAM_ON:
-		egpio |= EGPIO_H3600_OPT_NVRAM_ON;
-		break;
-	case IPAQ_EGPIO_OPT_ON:
-		egpio |= EGPIO_H3600_OPT_ON;
-		break;
-	case IPAQ_EGPIO_CARD_RESET:
-		egpio |= EGPIO_H3600_CARD_RESET;
-		break;
-	case IPAQ_EGPIO_OPT_RESET:
-		egpio |= EGPIO_H3600_OPT_RESET;
-		break;
-	case IPAQ_EGPIO_IR_ON:
-		gpio |= GPIO_H3100_IR_ON;
-		break;
-	case IPAQ_EGPIO_IR_FSEL:
-		gpio |= GPIO_H3100_IR_FSEL;
-		break;
-	case IPAQ_EGPIO_RS232_ON:
-		egpio |= EGPIO_H3600_RS232_ON;
-		break;
-	case IPAQ_EGPIO_VPP_ON:
-		egpio |= EGPIO_H3600_VPP_ON;
-		break;
-	}
-
-	if (egpio || gpio) {
-		local_irq_save(flags);
-		if (setp) {
-			h3100_egpio |= egpio;
-			GPSR = gpio;
-		} else {
-			h3100_egpio &= ~egpio;
-			GPCR = gpio;
-		}
-		H3100_EGPIO = h3100_egpio;
-		local_irq_restore(flags);
-	}
-}
-
 #define H3100_DIRECT_EGPIO (GPIO_H3100_BT_ON	  \
 			  | GPIO_H3100_GPIO3	  \
 			  | GPIO_H3100_QMUTE	  \
@@ -409,9 +340,6 @@ static void __init h3100_map_io(void)
 	/* Older bootldrs put GPIO2-9 in alternate mode on the
 	   assumption that they are used for video */
 	GAFR &= ~H3100_DIRECT_EGPIO;
-
-	H3100_EGPIO = h3100_egpio;
-	assign_h3600_egpio = h3100_control_egpio;
 }
 
 /*
@@ -465,70 +393,6 @@ MACHINE_END
 
 #ifdef CONFIG_SA1100_H3600
 
-#define H3600_EGPIO	(*(volatile unsigned int *)H3600_EGPIO_VIRT)
-static unsigned int h3600_egpio = EGPIO_H3600_RS232_ON;
-
-static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
-{
-	unsigned int egpio = 0;
-	unsigned long flags;
-
-	switch (x) {
-	case IPAQ_EGPIO_LCD_POWER:
-		egpio |= EGPIO_H3600_LCD_ON |
-			 EGPIO_H3600_LCD_PCI |
-			 EGPIO_H3600_LCD_5V_ON |
-			 EGPIO_H3600_LVDD_ON;
-		break;
-	case IPAQ_EGPIO_LCD_ENABLE:
-		break;
-	case IPAQ_EGPIO_CODEC_NRESET:
-		egpio |= EGPIO_H3600_CODEC_NRESET;
-		break;
-	case IPAQ_EGPIO_AUDIO_ON:
-		egpio |= EGPIO_H3600_AUD_AMP_ON |
-			 EGPIO_H3600_AUD_PWR_ON;
-		break;
-	case IPAQ_EGPIO_QMUTE:
-		egpio |= EGPIO_H3600_QMUTE;
-		break;
-	case IPAQ_EGPIO_OPT_NVRAM_ON:
-		egpio |= EGPIO_H3600_OPT_NVRAM_ON;
-		break;
-	case IPAQ_EGPIO_OPT_ON:
-		egpio |= EGPIO_H3600_OPT_ON;
-		break;
-	case IPAQ_EGPIO_CARD_RESET:
-		egpio |= EGPIO_H3600_CARD_RESET;
-		break;
-	case IPAQ_EGPIO_OPT_RESET:
-		egpio |= EGPIO_H3600_OPT_RESET;
-		break;
-	case IPAQ_EGPIO_IR_ON:
-		egpio |= EGPIO_H3600_IR_ON;
-		break;
-	case IPAQ_EGPIO_IR_FSEL:
-		egpio |= EGPIO_H3600_IR_FSEL;
-		break;
-	case IPAQ_EGPIO_RS232_ON:
-		egpio |= EGPIO_H3600_RS232_ON;
-		break;
-	case IPAQ_EGPIO_VPP_ON:
-		egpio |= EGPIO_H3600_VPP_ON;
-		break;
-	}
-
-	if (egpio) {
-		local_irq_save(flags);
-		if (setp)
-			h3600_egpio |= egpio;
-		else
-			h3600_egpio &= ~egpio;
-		H3600_EGPIO = h3600_egpio;
-		local_irq_restore(flags);
-	}
-}
-
 /*
  * helper for sa1100fb
  */
@@ -567,9 +431,6 @@ static void __init h3600_map_io(void)
 	GPDR = GPIO_H3600_L3_CLOCK |
 	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
 	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0;
-
-	H3600_EGPIO = h3600_egpio;	   /* Maintains across sleep? */
-	assign_h3600_egpio = h3600_control_egpio;
 }
 
 /*

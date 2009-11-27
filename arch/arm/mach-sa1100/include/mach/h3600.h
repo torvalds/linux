@@ -66,27 +66,4 @@
 #define IRQ_GPIO_H3600_OPT_IRQ		IRQ_GPIO24
 #define IRQ_GPIO_H3600_COM_CTS		IRQ_GPIO25
 
-
-#ifndef __ASSEMBLY__
-
-enum ipaq_egpio_type {
-	IPAQ_EGPIO_LCD_POWER,	  /* Power to the LCD panel */
-	IPAQ_EGPIO_CODEC_NRESET,  /* Clear to reset the audio codec (remember to return high) */
-	IPAQ_EGPIO_AUDIO_ON,	  /* Audio power */
-	IPAQ_EGPIO_QMUTE,	  /* Audio muting */
-	IPAQ_EGPIO_OPT_NVRAM_ON,  /* Non-volatile RAM on extension sleeves (SPI interface) */
-	IPAQ_EGPIO_OPT_ON,	  /* Power to extension sleeves */
-	IPAQ_EGPIO_CARD_RESET,	  /* Reset PCMCIA cards on extension sleeve (???) */
-	IPAQ_EGPIO_OPT_RESET,	  /* Reset option pack (???) */
-	IPAQ_EGPIO_IR_ON,	  /* IR sensor/emitter power */
-	IPAQ_EGPIO_IR_FSEL,	  /* IR speed selection 1->fast, 0->slow */
-	IPAQ_EGPIO_RS232_ON,	  /* Maxim RS232 chip power */
-	IPAQ_EGPIO_VPP_ON,	  /* Turn on power to flash programming */
-	IPAQ_EGPIO_LCD_ENABLE,	  /* Enable/disable LCD controller */
-};
-
-extern void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
-
-#endif /* ASSEMBLY */
-
 #endif /* _INCLUDE_H3600_H_ */
