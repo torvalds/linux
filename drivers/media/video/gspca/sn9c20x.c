@@ -1476,8 +1476,9 @@ static int sn9c20x_input_init(struct gspca_dev *gspca_dev)
 	if (input_register_device(sd->input_dev))
 		return -EINVAL;
 
-	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%d",
-				     gspca_dev->vdev.minor);
+	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%s-%s",
+				     gspca_dev->dev->bus->bus_name,
+				     gspca_dev->dev->devpath);
 
 	if (IS_ERR(sd->input_task))
 		return -EINVAL;

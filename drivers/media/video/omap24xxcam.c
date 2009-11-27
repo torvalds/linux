@@ -1450,12 +1450,11 @@ static int omap24xxcam_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int omap24xxcam_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
 	struct omap24xxcam_device *cam = omap24xxcam.priv;
 	struct omap24xxcam_fh *fh;
 	struct v4l2_format format;
 
-	if (!cam || !cam->vfd || (cam->vfd->minor != minor))
+	if (!cam || !cam->vfd)
 		return -ENODEV;
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);

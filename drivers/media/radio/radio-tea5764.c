@@ -460,11 +460,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 static int tea5764_open(struct file *file)
 {
 	/* Currently we support only one device */
-	int minor = video_devdata(file)->minor;
 	struct tea5764_device *radio = video_drvdata(file);
-
-	if (radio->videodev->minor != minor)
-		return -ENODEV;
 
 	mutex_lock(&radio->mutex);
 	/* Only exclusive access */

@@ -1,7 +1,5 @@
 #include <media/saa7146_vv.h>
 
-#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1)
-
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */
 
@@ -455,9 +453,6 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	   configuration data) */
 	dev->ext_vv_data = ext_vv;
 
-	vv->video_minor = -1;
-	vv->vbi_minor = -1;
-
 	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR(("out of memory. aborting.\n"));
@@ -496,7 +491,6 @@ EXPORT_SYMBOL_GPL(saa7146_vv_release);
 int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 			    char *name, int type)
 {
-	struct saa7146_vv *vv = dev->vv_data;
 	struct video_device *vfd;
 	int err;
 	int i;
@@ -524,11 +518,6 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 		return err;
 	}
 
-	if (VFL_TYPE_GRABBER == type)
-		vv->video_minor = vfd->minor;
-	else
-		vv->vbi_minor = vfd->minor;
-
 	INFO(("%s: registered device %s [v4l2]\n",
 		dev->name, video_device_node_name(vfd)));
 
@@ -539,15 +528,7 @@ EXPORT_SYMBOL_GPL(saa7146_register_device);
 
 int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
 {
-	struct saa7146_vv *vv = dev->vv_data;
-
 	DEB_EE(("dev:%p\n",dev));
-
-	if ((*vid)->vfl_type == VFL_TYPE_GRABBER) {
-		vv->video_minor = -1;
-	} else {
-		vv->vbi_minor = -1;
-	}
 
 	video_unregister_device(*vid);
 	*vid = NULL;
