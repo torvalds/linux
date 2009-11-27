@@ -349,7 +349,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct tea5764_device *radio = video_drvdata(file);
 
-	if (f->tuner != 0)
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 	if (f->frequency == 0) {
 		/* We special case this as a power down control. */
@@ -370,6 +370,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct tea5764_device *radio = video_drvdata(file);
 	struct tea5764_regs *r = &radio->regs;
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	tea5764_i2c_read(radio);
 	memset(f, 0, sizeof(f));
 	f->type = V4L2_TUNER_RADIO;

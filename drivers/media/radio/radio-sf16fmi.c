@@ -168,6 +168,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct fmi *fmi = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < RSF16_MINFREQ ||
 			f->frequency > RSF16_MAXFREQ)
 		return -EINVAL;
@@ -182,6 +184,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct fmi *fmi = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = fmi->curfreq;
 	return 0;
