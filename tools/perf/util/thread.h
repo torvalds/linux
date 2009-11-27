@@ -10,6 +10,7 @@ struct thread {
 	struct rb_root		maps[MAP__NR_TYPES];
 	struct list_head	removed_maps[MAP__NR_TYPES];
 	pid_t			pid;
+	bool			use_modules;
 	char			shortname[3];
 	char			*comm;
 	int			comm_len;

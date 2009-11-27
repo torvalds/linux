@@ -381,6 +381,9 @@ static int dso__split_kallsyms(struct dso *self, struct map *map, struct thread 
 
 		module = strchr(pos->name, '\t');
 		if (module) {
+			if (!thread->use_modules)
+				goto discard_symbol;
+
 			*module++ = '\0';
 
 			if (strcmp(self->name, module)) {
@@ -420,7 +423,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map, struct thread 
 		}
 
 		if (filter && filter(curr_map, pos)) {
-			rb_erase(&pos->rb_node, root);
+discard_symbol:		rb_erase(&pos->rb_node, root);
 			symbol__delete(pos);
 		} else {
 			if (curr_map != map) {
@@ -1635,6 +1638,7 @@ int symbol__init(struct symbol_conf *conf)
 		return -1;
 	}
 
+	kthread->use_modules = pconf->use_modules;
 	if (pconf->use_modules && thread__create_module_maps(kthread) < 0)
 		pr_debug("Failed to load list of modules in use, "
 			 "continuing...\n");
