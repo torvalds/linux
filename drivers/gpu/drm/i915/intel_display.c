@@ -4219,7 +4219,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D);
 
-	} else if (IS_I9XX(dev)) {
+	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
@@ -4246,10 +4246,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D);
-	} else
+	} else if (IS_I8XX(dev))
 		intel_dvo_init(dev);
 
-	if (IS_I9XX(dev) && IS_MOBILE(dev) && !IS_IGDNG(dev))
+	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
