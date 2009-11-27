@@ -111,12 +111,32 @@ static struct mtd_partition h3xxx_partitions[] = {
 
 static void h3xxx_set_vpp(int vpp)
 {
-	assign_h3600_egpio(IPAQ_EGPIO_VPP_ON, vpp);
+	gpio_set_value(H3XXX_EGPIO_VPP_ON, vpp);
+}
+
+static int h3xxx_flash_init(void)
+{
+	int err = gpio_request(H3XXX_EGPIO_VPP_ON, "Flash Vpp");
+	if (err)
+		return err;
+
+	err = gpio_direction_output(H3XXX_EGPIO_VPP_ON, 0);
+	if (err)
+		gpio_free(H3XXX_EGPIO_VPP_ON);
+
+	return err;
+}
+
+static void h3xxx_flash_exit(void)
+{
+	gpio_free(H3XXX_EGPIO_VPP_ON);
 }
 
 static struct flash_platform_data h3xxx_flash_data = {
 	.map_name	= "cfi_probe",
 	.set_vpp	= h3xxx_set_vpp,
+	.init		= h3xxx_flash_init,
+	.exit		= h3xxx_flash_exit,
 	.parts		= h3xxx_partitions,
 	.nr_parts	= ARRAY_SIZE(h3xxx_partitions),
 };
@@ -158,7 +178,10 @@ static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
 static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	if (port->mapbase == _Ser3UTCR0)
-		assign_h3600_egpio(IPAQ_EGPIO_RS232_ON, !state);
+		if (!gpio_request(H3XXX_EGPIO_RS232_ON, "RS232 transceiver")) {
+			gpio_direction_output(H3XXX_EGPIO_RS232_ON, !state);
+			gpio_free(H3XXX_EGPIO_RS232_ON);
+		}
 }
 
 /*
@@ -362,7 +385,11 @@ static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
  */
 static void h3100_lcd_power(int enable)
 {
-	assign_h3600_egpio(IPAQ_EGPIO_LCD_POWER, enable);
+	if (!gpio_request(H3XXX_EGPIO_LCD_ON, "LCD ON")) {
+		gpio_set_value(H3100_GPIO_LCD_3V_ON, enable);
+		gpio_direction_output(H3XXX_EGPIO_LCD_ON, enable);
+		gpio_free(H3XXX_EGPIO_LCD_ON);
+	}
 }
 
 
@@ -412,6 +439,7 @@ static struct gpio_default_state h3100_default_gpio[] = {
 	{ H3XXX_GPIO_COM_DCD,	GPIO_MODE_IN,	"COM DCD" },
 	{ H3XXX_GPIO_COM_CTS,	GPIO_MODE_IN,	"COM CTS" },
 	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
+	{ H3100_GPIO_LCD_3V_ON,	GPIO_MODE_OUT0,	"LCD 3v" },
 };
 
 static void __init h3100_mach_init(void)
@@ -506,7 +534,25 @@ static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
  */
 static void h3600_lcd_power(int enable)
 {
-	assign_h3600_egpio(IPAQ_EGPIO_LCD_POWER, enable);
+	if (gpio_request(H3XXX_EGPIO_LCD_ON, "LCD power"))
+		goto err1;
+	if (gpio_request(H3600_EGPIO_LCD_PCI, "LCD control"))
+		goto err2;
+	if (gpio_request(H3600_EGPIO_LCD_5V_ON, "LCD 5v"))
+		goto err3;
+	if (gpio_request(H3600_EGPIO_LVDD_ON, "LCD 9v/-6.5v"))
+		goto err4;
+
+	gpio_direction_output(H3XXX_EGPIO_LCD_ON, enable);
+	gpio_direction_output(H3600_EGPIO_LCD_PCI, enable);
+	gpio_direction_output(H3600_EGPIO_LCD_5V_ON, enable);
+	gpio_direction_output(H3600_EGPIO_LVDD_ON, enable);
+
+	gpio_free(H3600_EGPIO_LVDD_ON);
+err4:	gpio_free(H3600_EGPIO_LCD_5V_ON);
+err3:	gpio_free(H3600_EGPIO_LCD_PCI);
+err2:	gpio_free(H3XXX_EGPIO_LCD_ON);
+err1:	return;
 }
 
 static void __init h3600_map_io(void)
@@ -531,18 +577,47 @@ static void __init h3600_map_io(void)
  */
 static int h3600_irda_set_power(struct device *dev, unsigned int state)
 {
-	assign_h3600_egpio(IPAQ_EGPIO_IR_ON, state);
+	gpio_set_value(H3600_EGPIO_IR_ON, state);
 	return 0;
 }
 
 static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
 {
-	assign_h3600_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
+	gpio_set_value(H3600_EGPIO_IR_FSEL, !(speed < 4000000));
+}
+
+static int h3600_irda_startup(struct device *dev)
+{
+	int err = gpio_request(H3600_EGPIO_IR_ON, "IrDA power");
+	if (err)
+		goto err1;
+	err = gpio_direction_output(H3600_EGPIO_IR_ON, 0);
+	if (err)
+		goto err2;
+	err = gpio_request(H3600_EGPIO_IR_FSEL, "IrDA fsel");
+	if (err)
+		goto err2;
+	err = gpio_direction_output(H3600_EGPIO_IR_FSEL, 0);
+	if (err)
+		goto err3;
+	return 0;
+
+err3:	gpio_free(H3600_EGPIO_IR_FSEL);
+err2:	gpio_free(H3600_EGPIO_IR_ON);
+err1:	return err;
+}
+
+static void h3600_irda_shutdown(struct device *dev)
+{
+	gpio_free(H3600_EGPIO_IR_ON);
+	gpio_free(H3600_EGPIO_IR_FSEL);
 }
 
 static struct irda_platform_data h3600_irda_data = {
 	.set_power	= h3600_irda_set_power,
 	.set_speed	= h3600_irda_set_speed,
+	.startup	= h3600_irda_startup,
+	.shutdown	= h3600_irda_shutdown,
 };
 
 static struct gpio_default_state h3600_default_gpio[] = {

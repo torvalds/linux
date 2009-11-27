@@ -47,9 +47,33 @@ static int h3600_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			goto err02;
 		irqs[0].irq = gpio_to_irq(H3XXX_GPIO_PCMCIA_CD0);
 
-		err = soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
+		err = gpio_request(H3XXX_EGPIO_OPT_NVRAM_ON, "OPT NVRAM ON");
 		if (err)
 			goto err02;
+		err = gpio_direction_output(H3XXX_EGPIO_OPT_NVRAM_ON, 0);
+		if (err)
+			goto err03;
+		err = gpio_request(H3XXX_EGPIO_OPT_ON, "OPT ON");
+		if (err)
+			goto err03;
+		err = gpio_direction_output(H3XXX_EGPIO_OPT_ON, 0);
+		if (err)
+			goto err04;
+		err = gpio_request(H3XXX_EGPIO_OPT_RESET, "OPT RESET");
+		if (err)
+			goto err04;
+		err = gpio_direction_output(H3XXX_EGPIO_OPT_RESET, 0);
+		if (err)
+			goto err05;
+		err = gpio_request(H3XXX_EGPIO_CARD_RESET, "PCMCIA CARD RESET");
+		if (err)
+			goto err05;
+		err = gpio_direction_output(H3XXX_EGPIO_CARD_RESET, 0);
+		if (err)
+			goto err06;
+		err = soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
+		if (err)
+			goto err06;
 		break;
 	case 1:
 		err = gpio_request(H3XXX_GPIO_PCMCIA_IRQ1, "PCMCIA IRQ1");
@@ -75,6 +99,10 @@ static int h3600_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	}
 	return 0;
 
+err06:	gpio_free(H3XXX_EGPIO_CARD_RESET);
+err05:	gpio_free(H3XXX_EGPIO_OPT_RESET);
+err04:	gpio_free(H3XXX_EGPIO_OPT_ON);
+err03:	gpio_free(H3XXX_EGPIO_OPT_NVRAM_ON);
 err02:	gpio_free(H3XXX_GPIO_PCMCIA_CD0);
 err01:	gpio_free(H3XXX_GPIO_PCMCIA_IRQ0);
 err00:	return err;
@@ -88,12 +116,17 @@ static void h3600_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
 	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
   
-	/* Disable CF bus: */
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_NVRAM_ON, 0);
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_ON, 0);
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_RESET, 1);
 	switch (skt->nr) {
 	case 0:
+		/* Disable CF bus: */
+		gpio_set_value(H3XXX_EGPIO_OPT_NVRAM_ON, 0);
+		gpio_set_value(H3XXX_EGPIO_OPT_ON, 0);
+		gpio_set_value(H3XXX_EGPIO_OPT_RESET, 1);
+
+		gpio_free(H3XXX_EGPIO_CARD_RESET);
+		gpio_free(H3XXX_EGPIO_OPT_RESET);
+		gpio_free(H3XXX_EGPIO_OPT_ON);
+		gpio_free(H3XXX_EGPIO_OPT_NVRAM_ON);
 		gpio_free(H3XXX_GPIO_PCMCIA_CD0);
 		gpio_free(H3XXX_GPIO_PCMCIA_IRQ0);
 		break;
@@ -139,7 +172,7 @@ h3600_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_
 		return -1;
 	}
 
-	assign_h3600_egpio(IPAQ_EGPIO_CARD_RESET, !!(state->flags & SS_RESET));
+	gpio_set_value(H3XXX_EGPIO_CARD_RESET, !!(state->flags & SS_RESET));
 
 	/* Silently ignore Vpp, output enable, speaker enable. */
 
@@ -149,9 +182,9 @@ h3600_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_
 static void h3600_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
 {
 	/* Enable CF bus: */
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_NVRAM_ON, 1);
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_ON, 1);
-	assign_h3600_egpio(IPAQ_EGPIO_OPT_RESET, 0);
+	gpio_set_value(H3XXX_EGPIO_OPT_NVRAM_ON, 1);
+	gpio_set_value(H3XXX_EGPIO_OPT_ON, 1);
+	gpio_set_value(H3XXX_EGPIO_OPT_RESET, 0);
 
 	msleep(10);
 
@@ -169,10 +202,10 @@ static void h3600_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 	 * socket 0 then socket 1.
 	 */
 	if (skt->nr == 1) {
-		assign_h3600_egpio(IPAQ_EGPIO_OPT_ON, 0);
-		assign_h3600_egpio(IPAQ_EGPIO_OPT_NVRAM_ON, 0);
+		gpio_set_value(H3XXX_EGPIO_OPT_ON, 0);
+		gpio_set_value(H3XXX_EGPIO_OPT_NVRAM_ON, 0);
 		/* hmm, does this suck power? */
-		assign_h3600_egpio(IPAQ_EGPIO_OPT_RESET, 1);
+		gpio_set_value(H3XXX_EGPIO_OPT_RESET, 1);
 	}
 }
 
