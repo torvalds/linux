@@ -118,6 +118,15 @@ config SND_SOC_ZYLONITE
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell Zylonite reference platform.
 
+config SND_SOC_RAUMFELD
+	tristate "SoC Audio support Raumfeld audio adapter"
+	depends on SND_PXA2XX_SOC && (MACH_RAUMFELD_SPEAKER || MACH_RAUMFELD_CONNECTOR)
+	select SND_PXA_SOC_SSP
+	select SND_SOC_CS4270
+	select SND_SOC_AK4104
+	help
+	  Say Y if you want to add support for SoC audio on Raumfeld devices
+
 config SND_PXA2XX_SOC_MAGICIAN
 	tristate "SoC Audio support for HTC Magician"
 	depends on SND_PXA2XX_SOC && MACH_MAGICIAN
