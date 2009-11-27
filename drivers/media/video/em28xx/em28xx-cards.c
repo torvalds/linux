@@ -225,6 +225,14 @@ static struct em28xx_reg_seq silvercrest_reg_seq[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+static struct em28xx_reg_seq vc211a_enable[] = {
+	{EM28XX_R08_GPIO,	0xff,	0x07,		10},
+	{EM28XX_R08_GPIO,	0xff,	0x0f,		10},
+	{EM28XX_R08_GPIO,	0xff,	0x0b,		10},
+	{	-1,		-1,	-1,		-1},
+};
+
+
 /*
  *  Board definitions
  */
@@ -1007,6 +1015,23 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+	[EM2800_BOARD_VC211A] = {
+		.name         = "Actionmaster/LinXcel/Digitus VC211A",
+		.is_em2800    = 1,
+		.tuner_type   = TUNER_ABSENT,	/* Capture-only board */
+		.decoder      = EM28XX_SAA711X,
+		.input        = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = vc211a_enable,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = vc211a_enable,
 		} },
 	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
