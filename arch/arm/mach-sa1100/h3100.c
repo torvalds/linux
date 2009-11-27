@@ -10,30 +10,13 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/tty.h>
-#include <linux/pm.h>
-#include <linux/device.h>
-#include <linux/mfd/htc-egpio.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
-#include <linux/serial_core.h>
 #include <linux/gpio.h>
-#include <linux/platform_device.h>
 
-#include <asm/irq.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/setup.h>
-
-#include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/irda.h>
-#include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/h3xxx.h>
 
