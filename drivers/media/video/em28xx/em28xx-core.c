@@ -533,8 +533,15 @@ int em28xx_audio_setup(struct em28xx *dev)
 
 	vid1 = em28xx_read_ac97(dev, AC97_VENDOR_ID1);
 	if (vid1 < 0) {
-		/* Device likely doesn't support AC97 */
+		/*
+		 * Device likely doesn't support AC97
+		 * Note: (some) em2800 devices without eeprom reports 0x91 on
+		 *	 CHIPCFG register, even not having an AC97 chip
+		 */
 		em28xx_warn("AC97 chip type couldn't be determined\n");
+		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = 0;
 		goto init_audio;
 	}
 
