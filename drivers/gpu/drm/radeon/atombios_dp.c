@@ -44,12 +44,12 @@ static char *pre_emph_names[] = {
 };
 
 static const int dp_clocks[] = {
-	54000,  // 1 lane, 1.62 Ghz
-	90000,  // 1 lane, 2.70 Ghz
-	108000, // 2 lane, 1.62 Ghz
-	180000, // 2 lane, 2.70 Ghz
-	216000, // 4 lane, 1.62 Ghz
-	360000, // 4 lane, 2.70 Ghz
+	54000,  /* 1 lane, 1.62 Ghz */
+	90000,  /* 1 lane, 2.70 Ghz */
+	108000, /* 2 lane, 1.62 Ghz */
+	180000, /* 2 lane, 2.70 Ghz */
+	216000, /* 4 lane, 1.62 Ghz */
+	360000, /* 4 lane, 2.70 Ghz */
 };
 
 static const int num_dp_clocks = sizeof(dp_clocks) / sizeof(int);
@@ -296,10 +296,10 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 		u8 this_v = dp_get_adjust_request_voltage(link_status, lane);
 		u8 this_p = dp_get_adjust_request_pre_emphasis(link_status, lane);
 
-		DRM_INFO("requested signal parameters: lane %d voltage %s pre_emph %s\n",
-			 lane,
-			 voltage_names[this_v >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
-			 pre_emph_names[this_p >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
+		DRM_DEBUG("requested signal parameters: lane %d voltage %s pre_emph %s\n",
+			  lane,
+			  voltage_names[this_v >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
+			  pre_emph_names[this_p >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
 
 		if (this_v > v)
 			v = this_v;
@@ -313,9 +313,9 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 	if (p >= dp_pre_emphasis_max(v))
 		p = dp_pre_emphasis_max(v) | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-	DRM_INFO("using signal parameters: voltage %s pre_emph %s\n",
-		 voltage_names[(v & DP_TRAIN_VOLTAGE_SWING_MASK) >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
-		 pre_emph_names[(p & DP_TRAIN_PRE_EMPHASIS_MASK) >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
+	DRM_DEBUG("using signal parameters: voltage %s pre_emph %s\n",
+		  voltage_names[(v & DP_TRAIN_VOLTAGE_SWING_MASK) >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
+		  pre_emph_names[(p & DP_TRAIN_PRE_EMPHASIS_MASK) >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
 
 	for (lane = 0; lane < 4; lane++)
 		train_set[lane] = v | p;
@@ -348,7 +348,7 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
 	if (args.ucReplyStatus) {
-		DRM_ERROR("failed to get auxch %02x%02x %02x %02x 0x%02x %02x\n",
+		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
 			  chan->rec.i2c_id, args.ucReplyStatus);
 		return false;
@@ -451,10 +451,10 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 		memcpy(dig_connector->dpcd, msg, 8);
 		{
 			int i;
-			printk("DPCD: ");
+			DRM_DEBUG("DPCD: ");
 			for (i = 0; i < 8; i++)
-				printk("%02x ", msg[i]);
-			printk("\n");
+				DRM_DEBUG("%02x ", msg[i]);
+			DRM_DEBUG("\n");
 		}
 		return true;
 	}
@@ -501,9 +501,9 @@ static bool atom_dp_get_link_status(struct radeon_connector *radeon_connector,
 		return false;
 	}
 
-	DRM_INFO("link status %02x %02x %02x %02x %02x %02x\n",
-		 link_status[0], link_status[1], link_status[2],
-		 link_status[3], link_status[4], link_status[5]);
+	DRM_DEBUG("link status %02x %02x %02x %02x %02x %02x\n",
+		  link_status[0], link_status[1], link_status[2],
+		  link_status[3], link_status[4], link_status[5]);
 	return true;
 }
 
@@ -671,10 +671,10 @@ void dp_link_train(struct drm_encoder *encoder,
 	if (!clock_recovery)
 		DRM_ERROR("clock recovery failed\n");
 	else
-		DRM_INFO("clock recovery at voltage %d pre-emphasis %d\n",
-			 train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
-			 (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
-			 DP_TRAIN_PRE_EMPHASIS_SHIFT);
+		DRM_DEBUG("clock recovery at voltage %d pre-emphasis %d\n",
+			  train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
+			  (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+			  DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
 
 	/* set training pattern 2 on the sink */
@@ -712,10 +712,10 @@ void dp_link_train(struct drm_encoder *encoder,
 	if (!channel_eq)
 		DRM_ERROR("channel eq failed\n");
 	else
-		DRM_INFO("channel eq at voltage %d pre-emphasis %d\n",
-			 train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
-			 (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
-			 >> DP_TRAIN_PRE_EMPHASIS_SHIFT);
+		DRM_DEBUG("channel eq at voltage %d pre-emphasis %d\n",
+			  train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
+			  (train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
+			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
 	/* disable the training pattern on the sink */
 	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_DISABLE);
