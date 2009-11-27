@@ -1516,6 +1516,7 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
 		goto out_delete_kernel_map;
+	vdso->loaded = 1;
 
 	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
 				 sizeof(kernel->build_id)) == 0)
