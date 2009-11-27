@@ -75,6 +75,7 @@ enum {
 	ATA_ID_EIDE_DMA_TIME	= 66,
 	ATA_ID_EIDE_PIO		= 67,
 	ATA_ID_EIDE_PIO_IORDY	= 68,
+	ATA_ID_ADDITIONAL_SUPP	= 69,
 	ATA_ID_QUEUE_DEPTH	= 75,
 	ATA_ID_MAJOR_VER	= 80,
 	ATA_ID_COMMAND_SET_1	= 82,
@@ -813,6 +814,16 @@ static inline int ata_id_has_trim(const u16 *id)
 	if (ata_id_major_version(id) >= 7 &&
 	    (id[ATA_ID_DATA_SET_MGMT] & 1))
 		return 1;
+	return 0;
+}
+
+static inline int ata_id_has_zero_after_trim(const u16 *id)
+{
+	/* DSM supported, deterministic read, and read zero after trim set */
+	if (ata_id_has_trim(id) &&
+	    (id[ATA_ID_ADDITIONAL_SUPP] & 0x4020) == 0x4020)
+		return 1;
+
 	return 0;
 }
 
