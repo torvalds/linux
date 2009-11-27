@@ -141,6 +141,11 @@ static inline void *video_drvdata(struct file *file)
 	return video_get_drvdata(video_devdata(file));
 }
 
+static inline const char *video_device_node_name(struct video_device *vdev)
+{
+	return dev_name(&vdev->dev);
+}
+
 static inline int video_is_unregistered(struct video_device *vdev)
 {
 	return test_bit(V4L2_FL_UNREGISTERED, &vdev->flags);

@@ -551,8 +551,8 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	vdev->dev.release = v4l2_device_release;
 
 	if (nr != -1 && nr != vdev->num && warn_if_nr_in_use)
-		printk(KERN_WARNING "%s: requested %s%d, got %s%d\n",
-				__func__, name_base, nr, name_base, vdev->num);
+		printk(KERN_WARNING "%s: requested %s%d, got %s\n", __func__,
+			name_base, nr, video_device_node_name(vdev));
 
 	/* Part 5: Activate this minor. The char device can now be used. */
 	mutex_lock(&videodev_lock);
