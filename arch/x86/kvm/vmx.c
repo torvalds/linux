@@ -2309,8 +2309,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 		if (vmx->vpid == 0)
 			exec_control &= ~SECONDARY_EXEC_ENABLE_VPID;
-		if (!enable_ept)
+		if (!enable_ept) {
 			exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
+			enable_unrestricted_guest = 0;
+		}
 		if (!enable_unrestricted_guest)
 			exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
 		if (!ple_gap)
