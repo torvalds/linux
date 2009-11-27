@@ -4440,7 +4440,14 @@ static inline int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (!nid)
 		return 0;
-	return snd_hda_jack_detect(codec, nid);
+	/* NOTE: we can't use snd_hda_jack_detect() here because STAC/IDT
+	 * codecs behave wrongly when SET_PIN_SENSE is triggered, although
+	 * the pincap gives TRIG_REQ bit.
+	 */
+	if (snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PIN_SENSE, 0) &
+	    AC_PINSENSE_PRESENCE)
+		return 1;
+	return 0;
 }
 
 static void stac92xx_line_out_detect(struct hda_codec *codec,
