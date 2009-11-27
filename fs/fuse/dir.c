@@ -385,6 +385,9 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (fc->no_create)
 		return -ENOSYS;
 
+	if (flags & O_DIRECT)
+		return -EINVAL;
+
 	forget_req = fuse_get_req(fc);
 	if (IS_ERR(forget_req))
 		return PTR_ERR(forget_req);
