@@ -20,8 +20,18 @@
  *
  */
 
-#ifndef _INCLUDE_H3600_GPIO_H_
-#define _INCLUDE_H3600_GPIO_H_
+#ifndef _INCLUDE_H3XXX_H_
+#define _INCLUDE_H3XXX_H_
+
+/* Physical memory regions corresponding to chip selects */
+#define H3600_EGPIO_PHYS	(SA1100_CS5_PHYS + 0x01000000)
+#define H3600_BANK_2_PHYS	SA1100_CS2_PHYS
+#define H3600_BANK_4_PHYS	SA1100_CS4_PHYS
+
+/* Virtual memory regions corresponding to chip selects 2 & 4 (used on sleeves) */
+#define H3600_EGPIO_VIRT	0xf0000000
+#define H3600_BANK_2_VIRT	0xf1000000
+#define H3600_BANK_4_VIRT	0xf3800000
 
 /*
  * gpiolib numbers for all iPAQs
@@ -77,4 +87,4 @@
 #define H3600_EGPIO_LCD_5V_ON		(H3XXX_EGPIO_BASE + 14) /* enable 5V to LCD. active high. */
 #define H3600_EGPIO_LVDD_ON		(H3XXX_EGPIO_BASE + 15) /* enable 9V and -6.5V to LCD. */
 
-#endif /* _INCLUDE_H3600_GPIO_H_ */
+#endif /* _INCLUDE_H3XXX_H_ */
