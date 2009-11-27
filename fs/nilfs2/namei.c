@@ -200,7 +200,8 @@ out:
 	return err;
 
 out_fail:
-	inode_dec_link_count(inode);
+	drop_nlink(inode);
+	mark_inode_dirty(inode);
 	iput(inode);
 	goto out;
 }
@@ -245,7 +246,8 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (err)
 		return err;
 
-	inode_inc_link_count(dir);
+	inc_nlink(dir);
+	mark_inode_dirty(dir);
 
 	inode = nilfs_new_inode(dir, S_IFDIR | mode);
 	err = PTR_ERR(inode);
@@ -256,7 +258,8 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_fop = &nilfs_dir_operations;
 	inode->i_mapping->a_ops = &nilfs_aops;
 
-	inode_inc_link_count(inode);
+	inc_nlink(inode);
+	mark_inode_dirty(inode);
 
 	err = nilfs_make_empty(inode, dir);
 	if (err)
@@ -276,11 +279,14 @@ out:
 	return err;
 
 out_fail:
-	inode_dec_link_count(inode);
-	inode_dec_link_count(inode);
+	drop_nlink(inode);
+	mark_inode_dirty(inode);
+	drop_nlink(inode);
+	mark_inode_dirty(inode);
 	iput(inode);
 out_dir:
-	inode_dec_link_count(dir);
+	drop_nlink(dir);
+	mark_inode_dirty(dir);
 	goto out;
 }
 
@@ -317,7 +323,8 @@ static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
 		goto out;
 
 	inode->i_ctime = dir->i_ctime;
-	inode_dec_link_count(inode);
+	drop_nlink(inode);
+	mark_inode_dirty(inode);
 	err = 0;
 out:
 	if (!err)
@@ -343,8 +350,10 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 		err = nilfs_unlink(dir, dentry);
 		if (!err) {
 			inode->i_size = 0;
-			inode_dec_link_count(inode);
-			inode_dec_link_count(dir);
+			drop_nlink(inode);
+			mark_inode_dirty(inode);
+			drop_nlink(dir);
+			mark_inode_dirty(dir);
 		}
 	}
 	if (!err)
@@ -395,33 +404,38 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_de = nilfs_find_entry(new_dir, new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
-		inode_inc_link_count(old_inode);
+		inc_nlink(old_inode);
+		mark_inode_dirty(old_inode);
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
 		mark_inode_dirty(new_dir);
 		new_inode->i_ctime = CURRENT_TIME;
 		if (dir_de)
 			drop_nlink(new_inode);
-		inode_dec_link_count(new_inode);
+		drop_nlink(new_inode);
+		mark_inode_dirty(new_inode);
 	} else {
 		if (dir_de) {
 			err = -EMLINK;
 			if (new_dir->i_nlink >= NILFS_LINK_MAX)
 				goto out_dir;
 		}
-		inode_inc_link_count(old_inode);
+		inc_nlink(old_inode);
+		mark_inode_dirty(old_inode);
 		err = nilfs_add_link(new_dentry, old_inode);
 		if (err) {
-			inode_dec_link_count(old_inode);
+			drop_nlink(old_inode);
+			mark_inode_dirty(old_inode);
 			goto out_dir;
 		}
-		if (dir_de)
-			inode_inc_link_count(new_dir);
+		if (dir_de) {
+			inc_nlink(new_dir);
+			mark_inode_dirty(new_dir);
+		}
 	}
 
 	/*
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
-	 * inode_dec_link_count() will mark the inode dirty.
 	 */
 	old_inode->i_ctime = CURRENT_TIME;
 
@@ -430,7 +444,8 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (dir_de) {
 		nilfs_set_link(old_inode, dir_de, dir_page, new_dir);
-		inode_dec_link_count(old_dir);
+		drop_nlink(old_dir);
+		mark_inode_dirty(old_dir);
 	}
 	mark_inode_dirty(old_inode);
 
