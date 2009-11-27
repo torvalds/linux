@@ -31,6 +31,7 @@ enum dso_origin {
 static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static void kernel_maps__insert(struct map *map);
+struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				symbol_filter_t filter);
 unsigned int symbol__priv_size;
@@ -151,11 +152,13 @@ struct dso *dso__new(const char *name)
 	struct dso *self = malloc(sizeof(*self) + strlen(name) + 1);
 
 	if (self != NULL) {
+		int i;
 		strcpy(self->name, name);
 		dso__set_long_name(self, self->name);
 		self->short_name = self->name;
-		self->functions = RB_ROOT;
-		self->find_function = dso__find_function;
+		for (i = 0; i < MAP__NR_TYPES; ++i)
+			self->symbols[i] = RB_ROOT;
+		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
 		self->loaded = 0;
@@ -180,7 +183,9 @@ static void symbols__delete(struct rb_root *self)
 
 void dso__delete(struct dso *self)
 {
-	symbols__delete(&self->functions);
+	int i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		symbols__delete(&self->symbols[i]);
 	if (self->long_name != self->name)
 		free(self->long_name);
 	free(self);
@@ -234,9 +239,9 @@ static struct symbol *symbols__find(struct rb_root *self, u64 ip)
 	return NULL;
 }
 
-struct symbol *dso__find_function(struct dso *self, u64 ip)
+struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr)
 {
-	return symbols__find(&self->functions, ip);
+	return symbols__find(&self->symbols[type], addr);
 }
 
 int build_id__sprintf(u8 *self, int len, char *bf)
@@ -262,17 +267,25 @@ size_t dso__fprintf_buildid(struct dso *self, FILE *fp)
 	return fprintf(fp, "%s", sbuild_id);
 }
 
+static const char * map_type__name[MAP__NR_TYPES] = {
+	[MAP__FUNCTION] = "Functions",
+};
+
 size_t dso__fprintf(struct dso *self, FILE *fp)
 {
+	int i;
 	struct rb_node *nd;
 	size_t ret = fprintf(fp, "dso: %s (", self->short_name);
 
 	ret += dso__fprintf_buildid(self, fp);
-	ret += fprintf(fp, ")\nFunctions:\n");
+	ret += fprintf(fp, ")\n");
+	for (i = 0; i < MAP__NR_TYPES; ++i) {
+		ret += fprintf(fp, "%s:\n", map_type__name[i]);
 
-	for (nd = rb_first(&self->functions); nd; nd = rb_next(nd)) {
-		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
-		ret += symbol__fprintf(pos, fp);
+		for (nd = rb_first(&self->symbols[i]); nd; nd = rb_next(nd)) {
+			struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+			ret += symbol__fprintf(pos, fp);
+		}
 	}
 
 	return ret;
@@ -335,7 +348,7 @@ static int kernel_maps__load_all_kallsyms(void)
 		 * kernel_maps__split_kallsyms, when we have split the
 		 * maps per module
 		 */
-		symbols__insert(&kernel_map__functions->dso->functions, sym);
+		symbols__insert(&kernel_map__functions->dso->symbols[MAP__FUNCTION], sym);
 	}
 
 	free(line);
@@ -359,7 +372,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 	struct map *map = kernel_map__functions;
 	struct symbol *pos;
 	int count = 0;
-	struct rb_node *next = rb_first(&kernel_map__functions->dso->functions);
+	struct rb_node *next = rb_first(&kernel_map__functions->dso->symbols[map->type]);
 	int kernel_range = 0;
 
 	while (next) {
@@ -409,13 +422,13 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 		}
 
 		if (filter && filter(map, pos)) {
-			rb_erase(&pos->rb_node, &kernel_map__functions->dso->functions);
+			rb_erase(&pos->rb_node, &kernel_map__functions->dso->symbols[map->type]);
 			symbol__delete(pos);
 		} else {
 			if (map != kernel_map__functions) {
 				rb_erase(&pos->rb_node,
-					 &kernel_map__functions->dso->functions);
-				symbols__insert(&map->dso->functions, pos);
+					 &kernel_map__functions->dso->symbols[map->type]);
+				symbols__insert(&map->dso->symbols[map->type], pos);
 			}
 			count++;
 		}
@@ -430,7 +443,7 @@ static int kernel_maps__load_kallsyms(symbol_filter_t filter)
 	if (kernel_maps__load_all_kallsyms())
 		return -1;
 
-	symbols__fixup_end(&kernel_map__functions->dso->functions);
+	symbols__fixup_end(&kernel_map__functions->dso->symbols[MAP__FUNCTION]);
 	kernel_map__functions->dso->origin = DSO__ORIG_KERNEL;
 
 	return kernel_maps__split_kallsyms(filter);
@@ -501,7 +514,7 @@ static int dso__load_perf_map(struct dso *self, struct map *map,
 		if (filter && filter(map, sym))
 			symbol__delete(sym);
 		else {
-			symbols__insert(&self->functions, sym);
+			symbols__insert(&self->symbols[map->type], sym);
 			nr_syms++;
 		}
 	}
@@ -699,7 +712,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 			if (filter && filter(map, f))
 				symbol__delete(f);
 			else {
-				symbols__insert(&self->functions, f);
+				symbols__insert(&self->symbols[map->type], f);
 				++nr;
 			}
 		}
@@ -721,7 +734,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 			if (filter && filter(map, f))
 				symbol__delete(f);
 			else {
-				symbols__insert(&self->functions, f);
+				symbols__insert(&self->symbols[map->type], f);
 				++nr;
 			}
 		}
@@ -896,7 +909,7 @@ new_symbol:
 		if (filter && filter(curr_map, f))
 			symbol__delete(f);
 		else {
-			symbols__insert(&curr_dso->functions, f);
+			symbols__insert(&curr_dso->symbols[curr_map->type], f);
 			nr++;
 		}
 	}
@@ -905,7 +918,7 @@ new_symbol:
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0)
-		symbols__fixup_end(&self->functions);
+		symbols__fixup_end(&self->symbols[map->type]);
 	err = nr;
 out_elf_end:
 	elf_end(elf);
@@ -1191,7 +1204,7 @@ struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
 
 	if (map) {
 		ip = map->map_ip(map, ip);
-		return map__find_function(map, ip, filter);
+		return map__find_symbol(map, ip, filter);
 	} else
 		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps__functions),
 			  "Empty kernel_maps, was symbol__init() called?\n");
@@ -1453,8 +1466,8 @@ do_kallsyms:
 
 	if (err > 0) {
 out_fixup:
-		map__fixup_start(map, &map->dso->functions);
-		map__fixup_end(map, &map->dso->functions);
+		map__fixup_start(map);
+		map__fixup_end(map);
 	}
 
 	return err;

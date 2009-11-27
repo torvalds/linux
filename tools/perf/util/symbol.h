@@ -65,8 +65,9 @@ static inline void *symbol__priv(struct symbol *self)
 
 struct dso {
 	struct list_head node;
-	struct rb_root	 functions;
-	struct symbol    *(*find_function)(struct dso *, u64 ip);
+	struct rb_root	 symbols[MAP__NR_TYPES];
+	struct symbol    *(*find_symbol)(struct dso *self,
+					 enum map_type type, u64 addr);
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
@@ -82,8 +83,6 @@ struct dso {
 
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
-
-struct symbol *dso__find_function(struct dso *self, u64 ip);
 
 bool dso__loaded(const struct dso *self, enum map_type type);
 

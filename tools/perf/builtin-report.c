@@ -455,7 +455,7 @@ got_map:
 	dump_printf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
 	*ipp  = ip;
 
-	return map ? map__find_function(map, ip, NULL) : NULL;
+	return map ? map__find_symbol(map, ip, NULL) : NULL;
 }
 
 static int call__match(struct symbol *sym)

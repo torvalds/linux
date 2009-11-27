@@ -82,8 +82,9 @@ void map__delete(struct map *self)
 	free(self);
 }
 
-void map__fixup_start(struct map *self, struct rb_root *symbols)
+void map__fixup_start(struct map *self)
 {
+	struct rb_root *symbols = &self->dso->symbols[self->type];
 	struct rb_node *nd = rb_first(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
@@ -91,8 +92,9 @@ void map__fixup_start(struct map *self, struct rb_root *symbols)
 	}
 }
 
-void map__fixup_end(struct map *self, struct rb_root *symbols)
+void map__fixup_end(struct map *self)
 {
+	struct rb_root *symbols = &self->dso->symbols[self->type];
 	struct rb_node *nd = rb_last(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
@@ -102,8 +104,8 @@ void map__fixup_end(struct map *self, struct rb_root *symbols)
 
 #define DSO__DELETED "(deleted)"
 
-struct symbol *map__find_function(struct map *self, u64 ip,
-				  symbol_filter_t filter)
+struct symbol *map__find_symbol(struct map *self, u64 addr,
+				symbol_filter_t filter)
 {
 	if (!dso__loaded(self->dso, self->type)) {
 		int nr = dso__load(self->dso, self, filter);
@@ -138,7 +140,7 @@ struct symbol *map__find_function(struct map *self, u64 ip,
 		}
 	}
 
-	return self->dso->find_function(self->dso, ip);
+	return self->dso->find_symbol(self->dso, self->type, addr);
 }
 
 struct map *map__clone(struct map *self)

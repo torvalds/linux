@@ -170,7 +170,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
 			ip = map->map_ip(map, ip);
-			sym = map__find_function(map, ip, symbol_filter);
+			sym = map__find_symbol(map, ip, symbol_filter);
 		} else {
 			/*
 			 * If this is outside of all known maps,
