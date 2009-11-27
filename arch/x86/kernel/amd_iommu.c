@@ -1309,8 +1309,6 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain)
 {
 	u64 pte_root = virt_to_phys(domain->pt_root);
 
-	BUG_ON(amd_iommu_pd_table[devid] != NULL);
-
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
 	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | IOMMU_PTE_TV;
@@ -1318,20 +1316,10 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain)
 	amd_iommu_dev_table[devid].data[2] = domain->id;
 	amd_iommu_dev_table[devid].data[1] = upper_32_bits(pte_root);
 	amd_iommu_dev_table[devid].data[0] = lower_32_bits(pte_root);
-
-	amd_iommu_pd_table[devid] = domain;
-
 }
 
 static void clear_dte_entry(u16 devid)
 {
-	struct protection_domain *domain = amd_iommu_pd_table[devid];
-
-	BUG_ON(domain == NULL);
-
-	/* remove domain from the lookup table */
-	amd_iommu_pd_table[devid] = NULL;
-
 	/* remove entry from the device table seen by the hardware */
 	amd_iommu_dev_table[devid].data[0] = IOMMU_PTE_P | IOMMU_PTE_TV;
 	amd_iommu_dev_table[devid].data[1] = 0;
@@ -1641,15 +1629,11 @@ static struct protection_domain *get_domain(struct device *dev)
 
 static void update_device_table(struct protection_domain *domain)
 {
-	unsigned long flags;
-	int i;
+	struct iommu_dev_data *dev_data;
 
-	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
-		if (amd_iommu_pd_table[i] != domain)
-			continue;
-		write_lock_irqsave(&amd_iommu_devtable_lock, flags);
-		set_dte_entry(i, domain);
-		write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+	list_for_each_entry(dev_data, &domain->dev_list, list) {
+		u16 devid = get_device_id(dev_data->dev);
+		set_dte_entry(devid, domain);
 	}
 }
 
@@ -2259,14 +2243,17 @@ free_domains:
 
 static void cleanup_domain(struct protection_domain *domain)
 {
+	struct iommu_dev_data *dev_data, *next;
 	unsigned long flags;
-	u16 devid;
 
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 
-	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid)
-		if (amd_iommu_pd_table[devid] == domain)
-			clear_dte_entry(devid);
+	list_for_each_entry_safe(dev_data, next, &domain->dev_list, list) {
+		struct device *dev = dev_data->dev;
+
+		do_detach(dev);
+		atomic_set(&dev_data->bind, 0);
+	}
 
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 }
