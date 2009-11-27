@@ -29,6 +29,7 @@ enum dso_origin {
 };
 
 static void dsos__add(struct list_head *head, struct dso *dso);
+static struct map *kernel_maps__find_by_dso_name(const char *name);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static void kernel_maps__insert(struct map *map);
 struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
@@ -43,7 +44,7 @@ static struct symbol_conf symbol_conf__defaults = {
 	.try_vmlinux_path = true,
 };
 
-static struct rb_root kernel_maps__functions;
+static struct rb_root kernel_maps[MAP__NR_TYPES];
 
 bool dso__loaded(const struct dso *self, enum map_type type)
 {
@@ -78,10 +79,10 @@ static void symbols__fixup_end(struct rb_root *self)
 		curr->end = roundup(curr->start, 4096);
 }
 
-static void kernel_maps__fixup_end(void)
+static void __kernel_maps__fixup_end(struct rb_root *root)
 {
 	struct map *prev, *curr;
-	struct rb_node *nd, *prevnd = rb_first(&kernel_maps__functions);
+	struct rb_node *nd, *prevnd = rb_first(root);
 
 	if (prevnd == NULL)
 		return;
@@ -99,6 +100,13 @@ static void kernel_maps__fixup_end(void)
 	 * last map final address.
 	 */
 	curr->end = ~0UL;
+}
+
+static void kernel_maps__fixup_end(void)
+{
+	int i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		__kernel_maps__fixup_end(&kernel_maps[i]);
 }
 
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
@@ -449,12 +457,12 @@ static int dso__load_kallsyms(struct dso *self, struct map *map,
 	return dso__split_kallsyms(self, map, filter);
 }
 
-size_t kernel_maps__fprintf(FILE *fp)
+static size_t __kernel_maps__fprintf(enum map_type type, FILE *fp)
 {
-	size_t printed = fprintf(fp, "Kernel maps:\n");
+	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
 	struct rb_node *nd;
 
-	for (nd = rb_first(&kernel_maps__functions); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&kernel_maps[type]); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 
 		printed += fprintf(fp, "Map:");
@@ -464,6 +472,16 @@ size_t kernel_maps__fprintf(FILE *fp)
 			printed += fprintf(fp, "--\n");
 		}
 	}
+
+	return printed;
+}
+
+size_t kernel_maps__fprintf(FILE *fp)
+{
+	size_t printed = fprintf(fp, "Kernel maps:\n");
+	int i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += __kernel_maps__fprintf(i, fp);
 
 	return printed + fprintf(fp, "END kernel maps\n");
 }
@@ -1191,13 +1209,14 @@ out:
 
 static void kernel_maps__insert(struct map *map)
 {
-	maps__insert(&kernel_maps__functions, map);
+	maps__insert(&kernel_maps[map->type], map);
 }
 
-struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
-					  symbol_filter_t filter)
+static struct symbol *kernel_maps__find_symbol(u64 ip, enum map_type type,
+					       struct map **mapp,
+					       symbol_filter_t filter)
 {
-	struct map *map = maps__find(&kernel_maps__functions, ip);
+	struct map *map = maps__find(&kernel_maps[type], ip);
 
 	if (mapp)
 		*mapp = map;
@@ -1206,17 +1225,23 @@ struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
 		ip = map->map_ip(map, ip);
 		return map__find_symbol(map, ip, filter);
 	} else
-		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps__functions),
+		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps[type]),
 			  "Empty kernel_maps, was symbol__init() called?\n");
 
 	return NULL;
 }
 
-struct map *kernel_maps__find_by_dso_name(const char *name)
+struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
+					  symbol_filter_t filter)
+{
+	return kernel_maps__find_symbol(ip, MAP__FUNCTION, mapp, filter);
+}
+
+static struct map *kernel_maps__find_by_dso_name(const char *name)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&kernel_maps__functions); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&kernel_maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
 		struct map *map = rb_entry(nd, struct map, rb_node);
 
 		if (map->dso && strcmp(map->dso->name, name) == 0)

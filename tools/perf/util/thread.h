@@ -28,7 +28,6 @@ struct map *maps__find(struct rb_root *maps, u64 ip);
 
 struct symbol *kernel_maps__find_function(const u64 ip, struct map **mapp,
 					  symbol_filter_t filter);
-struct map *kernel_maps__find_by_dso_name(const char *name);
 
 static inline struct map *thread__find_map(struct thread *self, u64 ip)
 {
