@@ -1,22 +1,12 @@
 /*
+ * Definitions for Compaq iPAQ H3100 and H3600 handheld computers
  *
- * Definitions for H3600 Handheld Computer
+ * (c) 2000 Compaq Computer Corporation. (Author: Jamey Hicks)
+ * (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
  *
- * Copyright 2000 Compaq Computer Corporation.
- *
- * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
- * preserved in its entirety in all copies and derived works.
- *
- * COMPAQ COMPUTER CORPORATION MAKES NO WARRANTIES, EXPRESSED OR IMPLIED,
- * AS TO THE USEFULNESS OR CORRECTNESS OF THIS CODE OR ITS
- * FITNESS FOR ANY PARTICULAR PURPOSE.
- *
- * Author: Jamey Hicks.
- *
- * History:
- *
- * 2001-10-??   Andrew Christian   Added support for iPAQ H3800
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  */
 

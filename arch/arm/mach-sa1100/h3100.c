@@ -1,24 +1,15 @@
 /*
- * Hardware definitions for Compaq iPAQ H3xxx Handheld Computers
+ * Support for Compaq iPAQ H3100 handheld computer
  *
- * Copyright 2000,1 Compaq Computer Corporation.
+ * Copyright (c) 2000,1 Compaq Computer Corporation. (Author: Jamey Hicks)
+ * Copyright (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
  *
- * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
- * preserved in its entirety in all copies and derived works.
- *
- * COMPAQ COMPUTER CORPORATION MAKES NO WARRANTIES, EXPRESSED OR IMPLIED,
- * AS TO THE USEFULNESS OR CORRECTNESS OF THIS CODE OR ITS
- * FITNESS FOR ANY PARTICULAR PURPOSE.
- *
- * Author: Jamey Hicks.
- *
- * History:
- *
- * 2001-10-??	Andrew Christian   Added support for iPAQ H3800
- *				   and abstracted EGPIO interface.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  */
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
