@@ -69,10 +69,10 @@ struct dso {
 	struct symbol    *(*find_function)(struct dso *, u64 ip);
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
-	u8		 loaded:1;
 	u8		 has_build_id:1;
 	u8		 kernel:1;
 	unsigned char	 origin;
+	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
 	u16		 long_name_len;
 	const char	 *short_name;
@@ -84,6 +84,8 @@ struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
 
 struct symbol *dso__find_function(struct dso *self, u64 ip);
+
+bool dso__loaded(const struct dso *self, enum map_type type);
 
 struct dso *dsos__findnew(const char *name);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);

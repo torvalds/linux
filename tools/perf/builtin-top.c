@@ -996,7 +996,7 @@ static void event__process_mmap(event_t *self)
 	struct thread *thread = threads__findnew(self->mmap.pid);
 
 	if (thread != NULL) {
-		struct map *map = map__new(&self->mmap, NULL, 0);
+		struct map *map = map__new(&self->mmap, MAP__FUNCTION, NULL, 0);
 		if (map != NULL)
 			thread__insert_map(thread, map);
 	}

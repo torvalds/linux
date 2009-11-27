@@ -20,9 +20,10 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 	return n;
 }
 
-void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
-	       struct dso *dso)
+void map__init(struct map *self, enum map_type type,
+	       u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
+	self->type     = type;
 	self->start    = start;
 	self->end      = end;
 	self->pgoff    = pgoff;
@@ -32,7 +33,8 @@ void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
 	RB_CLEAR_NODE(&self->rb_node);
 }
 
-struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
+struct map *map__new(struct mmap_event *event, enum map_type type,
+		     char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -63,7 +65,7 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(self, event->start, event->start + event->len,
+		map__init(self, type, event->start, event->start + event->len,
 			  event->pgoff, dso);
 
 		if (self->dso == vdso || anon)
@@ -103,7 +105,7 @@ void map__fixup_end(struct map *self, struct rb_root *symbols)
 struct symbol *map__find_function(struct map *self, u64 ip,
 				  symbol_filter_t filter)
 {
-	if (!self->dso->loaded) {
+	if (!dso__loaded(self->dso, self->type)) {
 		int nr = dso__load(self->dso, self, filter);
 
 		if (nr < 0) {

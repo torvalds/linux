@@ -80,6 +80,10 @@ typedef union event_union {
 	struct sample_event		sample;
 } event_t;
 
+enum map_type {
+	MAP__FUNCTION,
+};
+
 struct map {
 	union {
 		struct rb_node	rb_node;
@@ -87,6 +91,7 @@ struct map {
 	};
 	u64			start;
 	u64			end;
+	enum map_type		type;
 	u64			pgoff;
 	u64			(*map_ip)(struct map *, u64);
 	u64			(*unmap_ip)(struct map *, u64);
@@ -112,9 +117,10 @@ struct symbol;
 
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
-void map__init(struct map *self, u64 start, u64 end, u64 pgoff,
-	       struct dso *dso);
-struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen);
+void map__init(struct map *self, enum map_type type,
+	       u64 start, u64 end, u64 pgoff, struct dso *dso);
+struct map *map__new(struct mmap_event *event, enum map_type,
+		     char *cwd, int cwdlen);
 void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);

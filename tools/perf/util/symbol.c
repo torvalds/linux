@@ -29,7 +29,7 @@ enum dso_origin {
 };
 
 static void dsos__add(struct list_head *head, struct dso *dso);
-static struct map *map__new2(u64 start, struct dso *dso);
+static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static void kernel_maps__insert(struct map *map);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				symbol_filter_t filter);
@@ -44,6 +44,16 @@ static struct symbol_conf symbol_conf__defaults = {
 };
 
 static struct rb_root kernel_maps__functions;
+
+bool dso__loaded(const struct dso *self, enum map_type type)
+{
+	return self->loaded & (1 << type);
+}
+
+static void dso__set_loaded(struct dso *self, enum map_type type)
+{
+	self->loaded |= (1 << type);
+}
 
 static void symbols__fixup_end(struct rb_root *self)
 {
@@ -387,7 +397,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 			if (dso == NULL)
 				return -1;
 
-			map = map__new2(pos->start, dso);
+			map = map__new2(pos->start, dso, MAP__FUNCTION);
 			if (map == NULL) {
 				dso__delete(dso);
 				return -1;
@@ -846,7 +856,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				curr_dso = dso__new(dso_name);
 				if (curr_dso == NULL)
 					goto out_elf_end;
-				curr_map = map__new2(start, curr_dso);
+				curr_map = map__new2(start, curr_dso,
+						     MAP__FUNCTION);
 				if (curr_map == NULL) {
 					dso__delete(curr_dso);
 					goto out_elf_end;
@@ -1076,7 +1087,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	int ret = -1;
 	int fd;
 
-	self->loaded = 1;
+	dso__set_loaded(self, map->type);
 
 	if (self->kernel)
 		return dso__load_kernel_sym(self, map, filter);
@@ -1275,7 +1286,7 @@ static int dsos__set_modules_path(void)
  * they are loaded) and for vmlinux, where only after we load all the
  * symbols we'll know where it starts and ends.
  */
-static struct map *map__new2(u64 start, struct dso *dso)
+static struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -1283,7 +1294,7 @@ static struct map *map__new2(u64 start, struct dso *dso)
 		/*
 		 * ->end will be filled after we load all the symbols
 		 */
-		map__init(self, start, 0, 0, dso);
+		map__init(self, type, start, 0, 0, dso);
 	}
 
 	return self;
@@ -1333,7 +1344,7 @@ static int kernel_maps__create_module_maps(void)
 		if (dso == NULL)
 			goto out_delete_line;
 
-		map = map__new2(start, dso);
+		map = map__new2(start, dso, MAP__FUNCTION);
 		if (map == NULL) {
 			dso__delete(dso);
 			goto out_delete_line;
@@ -1394,7 +1405,7 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	if (fd < 0)
 		return -1;
 
-	self->loaded = 1;
+	dso__set_loaded(self, map->type);
 	err = dso__load_sym(self, map, self->long_name, fd, filter, 1, 0);
 
 	close(fd);
@@ -1522,7 +1533,7 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 	if (kernel == NULL)
 		return -1;
 
-	kernel_map__functions = map__new2(0, kernel);
+	kernel_map__functions = map__new2(0, kernel, MAP__FUNCTION);
 	if (kernel_map__functions == NULL)
 		goto out_delete_kernel_dso;
 
@@ -1533,7 +1544,7 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
 		goto out_delete_kernel_map;
-	vdso->loaded = 1;
+	dso__set_loaded(vdso, MAP__FUNCTION);
 
 	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
 				 sizeof(kernel->build_id)) == 0)
