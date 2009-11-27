@@ -288,17 +288,12 @@ out_dir:
 	goto out;
 }
 
-static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
+static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode;
 	struct nilfs_dir_entry *de;
 	struct page *page;
-	struct nilfs_transaction_info ti;
 	int err;
-
-	err = nilfs_transaction_begin(dir->i_sb, &ti, 0);
-	if (err)
-		return err;
 
 	err = -ENOENT;
 	de = nilfs_find_entry(dir, dentry, &page);
@@ -322,12 +317,26 @@ static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	inode->i_ctime = dir->i_ctime;
 	drop_nlink(inode);
-	mark_inode_dirty(inode);
 	err = 0;
 out:
-	if (!err)
+	return err;
+}
+
+static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
+{
+	struct nilfs_transaction_info ti;
+	int err;
+
+	err = nilfs_transaction_begin(dir->i_sb, &ti, 0);
+	if (err)
+		return err;
+
+	err = nilfs_do_unlink(dir, dentry);
+
+	if (!err) {
+		mark_inode_dirty(dentry->d_inode);
 		err = nilfs_transaction_commit(dir->i_sb);
-	else
+	} else
 		nilfs_transaction_abort(dir->i_sb);
 
 	return err;
@@ -345,7 +354,7 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	err = -ENOTEMPTY;
 	if (nilfs_empty_dir(inode)) {
-		err = nilfs_unlink(dir, dentry);
+		err = nilfs_do_unlink(dir, dentry);
 		if (!err) {
 			inode->i_size = 0;
 			drop_nlink(inode);
