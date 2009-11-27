@@ -464,9 +464,7 @@ static void __init h3600_map_io(void)
 	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
 	GPDR = GPIO_H3600_L3_CLOCK |
 	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
-	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0 |
-	       GPIO_LDD15 | GPIO_LDD14 | GPIO_LDD13 | GPIO_LDD12 |
-	       GPIO_LDD11 | GPIO_LDD10 | GPIO_LDD9  | GPIO_LDD8;
+	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0;
 
 	H3600_EGPIO = h3600_egpio;	   /* Maintains across sleep? */
 	assign_h3600_egpio = h3600_control_egpio;
