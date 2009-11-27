@@ -247,7 +247,6 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		return err;
 
 	inc_nlink(dir);
-	mark_inode_dirty(dir);
 
 	inode = nilfs_new_inode(dir, S_IFDIR | mode);
 	err = PTR_ERR(inode);
@@ -280,7 +279,6 @@ out:
 
 out_fail:
 	drop_nlink(inode);
-	mark_inode_dirty(inode);
 	drop_nlink(inode);
 	mark_inode_dirty(inode);
 	iput(inode);
@@ -405,7 +403,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (!new_de)
 			goto out_dir;
 		inc_nlink(old_inode);
-		mark_inode_dirty(old_inode);
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
 		mark_inode_dirty(new_dir);
 		new_inode->i_ctime = CURRENT_TIME;
@@ -420,7 +417,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				goto out_dir;
 		}
 		inc_nlink(old_inode);
-		mark_inode_dirty(old_inode);
 		err = nilfs_add_link(new_dentry, old_inode);
 		if (err) {
 			drop_nlink(old_inode);
