@@ -148,7 +148,6 @@ DECLARE_STATS_COUNTER(alloced_io_mem);
 DECLARE_STATS_COUNTER(total_map_requests);
 
 static struct dentry *stats_dir;
-static struct dentry *de_isolate;
 static struct dentry *de_fflush;
 
 static void amd_iommu_stats_add(struct __iommu_counter *cnt)
@@ -165,9 +164,6 @@ static void amd_iommu_stats_init(void)
 	stats_dir = debugfs_create_dir("amd-iommu", NULL);
 	if (stats_dir == NULL)
 		return;
-
-	de_isolate = debugfs_create_bool("isolation", 0444, stats_dir,
-					 (u32 *)&amd_iommu_isolate);
 
 	de_fflush  = debugfs_create_bool("fullflush", 0444, stats_dir,
 					 (u32 *)&amd_iommu_unmap_flush);
@@ -2135,11 +2131,9 @@ int __init amd_iommu_init_dma_ops(void)
 	}
 
 	/*
-	 * If device isolation is enabled, pre-allocate the protection
-	 * domains for each device.
+	 * Pre-allocate the protection domains for each device.
 	 */
-	if (amd_iommu_isolate)
-		prealloc_protection_domains();
+	prealloc_protection_domains();
 
 	iommu_detected = 1;
 	swiotlb = 0;

@@ -125,13 +125,6 @@ u16 amd_iommu_last_bdf;			/* largest PCI device id we have
 					   to handle */
 LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
 					   we find in ACPI */
-#ifdef CONFIG_IOMMU_STRESS
-bool amd_iommu_isolate = false;
-#else
-bool amd_iommu_isolate = true;		/* if true, device isolation is
-					   enabled */
-#endif
-
 bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
 
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
@@ -1308,12 +1301,6 @@ static int __init amd_iommu_init(void)
 	if (iommu_pass_through)
 		goto out;
 
-	printk(KERN_INFO "AMD-Vi: device isolation ");
-	if (amd_iommu_isolate)
-		printk("enabled\n");
-	else
-		printk("disabled\n");
-
 	if (amd_iommu_unmap_flush)
 		printk(KERN_INFO "AMD-Vi: IO/TLB flush on unmap enabled\n");
 	else
@@ -1387,10 +1374,6 @@ static int __init parse_amd_iommu_dump(char *str)
 static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
-		if (strncmp(str, "isolate", 7) == 0)
-			amd_iommu_isolate = true;
-		if (strncmp(str, "share", 5) == 0)
-			amd_iommu_isolate = false;
 		if (strncmp(str, "fullflush", 9) == 0)
 			amd_iommu_unmap_flush = true;
 	}

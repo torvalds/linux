@@ -451,9 +451,6 @@ extern struct protection_domain **amd_iommu_pd_table;
 /* allocation bitmap for domain ids */
 extern unsigned long *amd_iommu_pd_alloc_bitmap;
 
-/* will be 1 if device isolation is enabled */
-extern bool amd_iommu_isolate;
-
 /*
  * If true, the addresses will be flushed on unmap time, not when
  * they are reused
