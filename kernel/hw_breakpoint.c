@@ -339,42 +339,16 @@ void unregister_hw_breakpoint(struct perf_event *bp)
 }
 EXPORT_SYMBOL_GPL(unregister_hw_breakpoint);
 
-static struct perf_event *
-register_kernel_hw_breakpoint_cpu(unsigned long addr,
-				  int len,
-				  int type,
-				  perf_callback_t triggered,
-				  int cpu,
-				  bool active)
-{
-	DEFINE_BREAKPOINT_ATTR(attr);
-
-	attr.bp_addr = addr;
-	attr.bp_len = len;
-	attr.bp_type = type;
-
-	if (!active)
-		attr.disabled = 1;
-
-	return perf_event_create_kernel_counter(&attr, cpu, -1, triggered);
-}
-
 /**
  * register_wide_hw_breakpoint - register a wide breakpoint in the kernel
- * @addr: is the memory address that triggers the breakpoint
- * @len: the length of the access to the memory (1 byte, 2 bytes etc...)
- * @type: the type of the access to the memory (read/write/exec)
+ * @attr: breakpoint attributes
  * @triggered: callback to trigger when we hit the breakpoint
- * @active: should we activate it while registering it
  *
  * @return a set of per_cpu pointers to perf events
  */
 struct perf_event **
-register_wide_hw_breakpoint(unsigned long addr,
-			    int len,
-			    int type,
-			    perf_callback_t triggered,
-			    bool active)
+register_wide_hw_breakpoint(struct perf_event_attr *attr,
+			    perf_callback_t triggered)
 {
 	struct perf_event **cpu_events, **pevent, *bp;
 	long err;
@@ -386,8 +360,7 @@ register_wide_hw_breakpoint(unsigned long addr,
 
 	for_each_possible_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
-		bp = register_kernel_hw_breakpoint_cpu(addr, len, type,
-					triggered, cpu, active);
+		bp = perf_event_create_kernel_counter(attr, cpu, -1, triggered);
 
 		*pevent = bp;
 

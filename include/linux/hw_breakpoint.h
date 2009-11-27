@@ -28,6 +28,13 @@ struct perf_event_attr name = {		\
 	.pinned = 1,			\
 };
 
+static inline void hw_breakpoint_init(struct perf_event_attr *attr)
+{
+	attr->type = PERF_TYPE_BREAKPOINT;
+	attr->size = sizeof(*attr);
+	attr->pinned = 1;
+}
+
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
 {
 	return bp->attr.bp_addr;
@@ -59,19 +66,13 @@ modify_user_hw_breakpoint(struct perf_event *bp,
  * Kernel breakpoints are not associated with any particular thread.
  */
 extern struct perf_event *
-register_wide_hw_breakpoint_cpu(unsigned long addr,
-				int len,
-				int type,
+register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_callback_t triggered,
-				int cpu,
-				bool active);
+				int cpu);
 
 extern struct perf_event **
-register_wide_hw_breakpoint(unsigned long addr,
-			    int len,
-			    int type,
-			    perf_callback_t triggered,
-			    bool active);
+register_wide_hw_breakpoint(struct perf_event_attr *attr,
+			    perf_callback_t triggered);
 
 extern int register_perf_hw_breakpoint(struct perf_event *bp);
 extern int __register_perf_hw_breakpoint(struct perf_event *bp);
@@ -100,18 +101,12 @@ modify_user_hw_breakpoint(struct perf_event *bp,
 			  perf_callback_t triggered,
 			  struct task_struct *tsk)	{ return NULL; }
 static inline struct perf_event *
-register_wide_hw_breakpoint_cpu(unsigned long addr,
-				int len,
-				int type,
+register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_callback_t triggered,
-				int cpu,
-				bool active)		{ return NULL; }
+				int cpu)		{ return NULL; }
 static inline struct perf_event **
-register_wide_hw_breakpoint(unsigned long addr,
-			    int len,
-			    int type,
-			    perf_callback_t triggered,
-			    bool active)		{ return NULL; }
+register_wide_hw_breakpoint(struct perf_event_attr *attr,
+			    perf_callback_t triggered)	{ return NULL; }
 static inline int
 register_perf_hw_breakpoint(struct perf_event *bp)	{ return -ENOSYS; }
 static inline int

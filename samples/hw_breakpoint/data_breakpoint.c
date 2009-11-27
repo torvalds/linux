@@ -51,13 +51,13 @@ static void sample_hbp_handler(struct perf_event *temp, void *data)
 static int __init hw_break_module_init(void)
 {
 	int ret;
-	unsigned long addr;
+	DEFINE_BREAKPOINT_ATTR(attr);
 
-	addr = kallsyms_lookup_name(ksym_name);
+	attr.bp_addr = kallsyms_lookup_name(ksym_name);
+	attr.bp_len = HW_BREAKPOINT_LEN_4;
+	attr.bp_type = HW_BREAKPOINT_W | HW_BREAKPOINT_R;
 
-	sample_hbp = register_wide_hw_breakpoint(addr, HW_BREAKPOINT_LEN_4,
-						 HW_BREAKPOINT_W | HW_BREAKPOINT_R,
-						 sample_hbp_handler, true);
+	sample_hbp = register_wide_hw_breakpoint(&attr, sample_hbp_handler);
 	if (IS_ERR(sample_hbp)) {
 		ret = PTR_ERR(sample_hbp);
 		goto fail;

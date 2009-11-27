@@ -42,9 +42,7 @@
 
 struct trace_ksym {
 	struct perf_event	**ksym_hbp;
-	unsigned long		ksym_addr;
-	int			type;
-	int			len;
+	struct perf_event_attr	attr;
 #ifdef CONFIG_PROFILE_KSYM_TRACER
 	unsigned long		counter;
 #endif
@@ -71,7 +69,7 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, node, &ksym_filter_head, ksym_hlist) {
-		if ((entry->ksym_addr == hbp_hit_addr) &&
+		if ((entry->attr.bp_addr == hbp_hit_addr) &&
 		    (entry->counter <= MAX_UL_INT)) {
 			entry->counter++;
 			break;
@@ -192,14 +190,15 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	if (!entry)
 		return -ENOMEM;
 
-	entry->type = op;
-	entry->ksym_addr = addr;
-	entry->len = HW_BREAKPOINT_LEN_4;
+	hw_breakpoint_init(&entry->attr);
+
+	entry->attr.bp_type = op;
+	entry->attr.bp_addr = addr;
+	entry->attr.bp_len = HW_BREAKPOINT_LEN_4;
 
 	ret = -EAGAIN;
-	entry->ksym_hbp = register_wide_hw_breakpoint(entry->ksym_addr,
-					entry->len, entry->type,
-					ksym_hbp_handler, true);
+	entry->ksym_hbp = register_wide_hw_breakpoint(&entry->attr,
+					ksym_hbp_handler);
 
 	if (IS_ERR(entry->ksym_hbp)) {
 		ret = PTR_ERR(entry->ksym_hbp);
@@ -236,12 +235,12 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 	mutex_lock(&ksym_tracer_mutex);
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		ret = trace_seq_printf(s, "%pS:", (void *)entry->ksym_addr);
-		if (entry->type == HW_BREAKPOINT_R)
+		ret = trace_seq_printf(s, "%pS:", (void *)entry->attr.bp_addr);
+		if (entry->attr.bp_type == HW_BREAKPOINT_R)
 			ret = trace_seq_puts(s, "r--\n");
-		else if (entry->type == HW_BREAKPOINT_W)
+		else if (entry->attr.bp_type == HW_BREAKPOINT_W)
 			ret = trace_seq_puts(s, "-w-\n");
-		else if (entry->type == (HW_BREAKPOINT_W | HW_BREAKPOINT_R))
+		else if (entry->attr.bp_type == (HW_BREAKPOINT_W | HW_BREAKPOINT_R))
 			ret = trace_seq_puts(s, "rw-\n");
 		WARN_ON_ONCE(!ret);
 	}
@@ -317,9 +316,9 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 
 	ret = -EINVAL;
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		if (entry->ksym_addr == ksym_addr) {
+		if (entry->attr.bp_addr == ksym_addr) {
 			/* Check for malformed request: (6) */
-			if (entry->type != op)
+			if (entry->attr.bp_type != op)
 				changed = 1;
 			else
 				goto out;
@@ -328,13 +327,12 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	}
 	if (changed) {
 		unregister_wide_hw_breakpoint(entry->ksym_hbp);
-		entry->type = op;
+		entry->attr.bp_type = op;
 		ret = 0;
 		if (op > 0) {
 			entry->ksym_hbp =
-				register_wide_hw_breakpoint(entry->ksym_addr,
-					entry->len, entry->type,
-					ksym_hbp_handler, true);
+				register_wide_hw_breakpoint(&entry->attr,
+					ksym_hbp_handler);
 			if (IS_ERR(entry->ksym_hbp))
 				ret = PTR_ERR(entry->ksym_hbp);
 			else
@@ -489,7 +487,7 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 
 	entry = hlist_entry(stat, struct trace_ksym, ksym_hlist);
 
-	access_type = entry->type;
+	access_type = entry->attr.bp_type;
 
 	switch (access_type) {
 	case HW_BREAKPOINT_R:
@@ -505,7 +503,7 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 		seq_puts(m, "  NA          ");
 	}
 
-	if (lookup_symbol_name(entry->ksym_addr, fn_name) >= 0)
+	if (lookup_symbol_name(entry->attr.bp_addr, fn_name) >= 0)
 		seq_printf(m, "  %-36s", fn_name);
 	else
 		seq_printf(m, "  %-36s", "<NA>");
