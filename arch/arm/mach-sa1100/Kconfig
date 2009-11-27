@@ -59,7 +59,6 @@ config SA1100_H3100
 	  Linux port to this machine can be found at:
 
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3100>
-	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
 config SA1100_H3600
 	bool "Compaq iPAQ H3600/H3700"
@@ -69,7 +68,6 @@ config SA1100_H3600
 	  Linux port to this machine can be found at:
 
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3600>
-	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
 config SA1100_BADGE4
 	bool "HP Labs BadgePAD 4"
