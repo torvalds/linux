@@ -191,14 +191,6 @@ static void __init h3xxx_mach_init(void)
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
 }
 
-/*
- * helper for sa1100fb
- */
-static void h3xxx_lcd_power(int enable)
-{
-	assign_h3600_egpio(IPAQ_EGPIO_LCD_POWER, enable);
-}
-
 static struct map_desc h3600_io_desc[] __initdata = {
   	{	/* static memory bank 2  CS#2 */
 		.virtual	=  H3600_BANK_2_VIRT,
@@ -240,7 +232,6 @@ static void __init h3xxx_map_io(void)
 	PCFR = PCFR_OPDE;
 	PSDR = 0;
 
-	sa1100fb_lcd_power = h3xxx_lcd_power;
 }
 
 /************************* H3100 *************************/
@@ -321,10 +312,20 @@ static void h3100_control_egpio(enum ipaq_egpio_type x, int setp)
 			  | GPIO_H3100_AUD_PWR_ON \
 			  | GPIO_H3100_IR_ON	  \
 			  | GPIO_H3100_IR_FSEL)
+/*
+ * helper for sa1100fb
+ */
+static void h3100_lcd_power(int enable)
+{
+	assign_h3600_egpio(IPAQ_EGPIO_LCD_POWER, enable);
+}
+
 
 static void __init h3100_map_io(void)
 {
 	h3xxx_map_io();
+
+	sa1100fb_lcd_power = h3100_lcd_power;
 
 	/* Initialize h3100-specific values here */
 	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
@@ -455,9 +456,19 @@ static void h3600_control_egpio(enum ipaq_egpio_type x, int setp)
 	}
 }
 
+/*
+ * helper for sa1100fb
+ */
+static void h3600_lcd_power(int enable)
+{
+	assign_h3600_egpio(IPAQ_EGPIO_LCD_POWER, enable);
+}
+
 static void __init h3600_map_io(void)
 {
 	h3xxx_map_io();
+
+	sa1100fb_lcd_power = h3600_lcd_power;
 
 	/* Initialize h3600-specific values here */
 
