@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/smc91x.h>
 #include <mach-se/mach/se7722.h>
 #include <mach-se/mach/mrshpc.h>
@@ -21,7 +22,6 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
-#include <asm/sh_keysc.h>
 #include <cpu/sh7722.h>
 
 /* Heartbeat */

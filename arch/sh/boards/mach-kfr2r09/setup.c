@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/i2c.h>
 #include <linux/usb/r8a66597.h>
 #include <media/soc_camera.h>
@@ -25,7 +26,6 @@
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh_keysc.h>
 #include <cpu/sh7724.h>
 #include <mach/kfr2r09.h>
 

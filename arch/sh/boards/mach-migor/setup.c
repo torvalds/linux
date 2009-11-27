@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
@@ -25,7 +26,6 @@
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh_keysc.h>
 #include <asm/suspend.h>
 #include <mach/migor.h>
 #include <cpu/sh7722.h>
