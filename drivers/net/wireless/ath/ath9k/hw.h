@@ -620,7 +620,7 @@ void ath9k_hw_detach(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
-void ath9k_hw_fill_cap_info(struct ath_hw *ah);
+int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result);
 bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,

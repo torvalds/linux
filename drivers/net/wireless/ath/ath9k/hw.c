@@ -976,7 +976,10 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return r;
 
 	ath9k_hw_init_mode_gain_regs(ah);
-	ath9k_hw_fill_cap_info(ah);
+	r = ath9k_hw_fill_cap_info(ah);
+	if (r)
+		return r;
+
 	ath9k_hw_init_11a_eeprom_fix(ah);
 
 	r = ath9k_hw_init_macaddr(ah);
@@ -3112,7 +3115,7 @@ EXPORT_SYMBOL(ath9k_hw_set_sta_beacon_timers);
 /* HW Capabilities */
 /*******************/
 
-void ath9k_hw_fill_cap_info(struct ath_hw *ah)
+int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
@@ -3143,6 +3146,12 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
+	if ((eeval & (AR5416_OPFLAGS_11G | AR5416_OPFLAGS_11A)) == 0) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "no band has been marked as supported in EEPROM.\n");
+		return -EINVAL;
+	}
+
 	bitmap_zero(pCap->wireless_modes, ATH9K_MODE_MAX);
 
 	if (eeval & AR5416_OPFLAGS_11A) {
@@ -3306,6 +3315,8 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	} else {
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
 	}
+
+	return 0;
 }
 
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,

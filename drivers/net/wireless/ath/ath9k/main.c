@@ -1793,13 +1793,15 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	/* setup channels and rates */
 
-	sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
-	sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
-	sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
-		ARRAY_SIZE(ath9k_2ghz_chantable);
-	sc->sbands[IEEE80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
-	sc->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
-		ARRAY_SIZE(ath9k_legacy_rates);
+	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes)) {
+		sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
+		sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
+		sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
+			ARRAY_SIZE(ath9k_2ghz_chantable);
+		sc->sbands[IEEE80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
+		sc->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
+			ARRAY_SIZE(ath9k_legacy_rates);
+	}
 
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes)) {
 		sc->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_chantable;
@@ -1876,8 +1878,9 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->rate_control_algorithm = "ath9k_rate_control";
 
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-		&sc->sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes))
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&sc->sbands[IEEE80211_BAND_2GHZ];
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
@@ -1916,9 +1919,12 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	reg = &common->regulatory;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		if (test_bit(ATH9K_MODE_11G, ah->caps.wireless_modes))
+			setup_ht_cap(sc,
+				     &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 		if (test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes))
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+			setup_ht_cap(sc,
+				     &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
 	/* initialize tx/rx engine */
