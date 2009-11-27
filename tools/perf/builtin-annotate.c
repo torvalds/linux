@@ -169,7 +169,6 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		level = '.';
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
-got_map:
 			ip = map->map_ip(map, ip);
 			sym = map__find_function(map, ip, symbol_filter);
 		} else {
@@ -183,10 +182,9 @@ got_map:
 			 * the "[vdso]" dso, but for now lets use the old
 			 * trick of looking in the whole kernel symbol list.
 			 */
-			if ((long long)ip < 0) {
-				map = kernel_map__functions;
-				goto got_map;
-			}
+			if ((long long)ip < 0)
+				sym = kernel_maps__find_function(ip, &map,
+								 symbol_filter);
 		}
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");

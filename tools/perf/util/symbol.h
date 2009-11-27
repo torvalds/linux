@@ -105,6 +105,5 @@ size_t kernel_maps__fprintf(FILE *fp);
 int symbol__init(struct symbol_conf *conf);
 
 extern struct list_head dsos__user, dsos__kernel;
-extern struct map *kernel_map__functions;
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

@@ -36,6 +36,7 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 unsigned int symbol__priv_size;
 static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
+static struct map *kernel_map__functions;
 
 static struct symbol_conf symbol_conf__defaults = {
 	.use_modules	  = true,
@@ -1163,8 +1164,6 @@ out:
 		return 0;
 	return ret;
 }
-
-struct map *kernel_map__functions;
 
 static void kernel_maps__insert(struct map *map)
 {
