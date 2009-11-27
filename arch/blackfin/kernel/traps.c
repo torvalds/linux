@@ -524,6 +524,36 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 			break;
 		/* External Memory Addressing Error */
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
+			if (ANOMALY_05000310) {
+				static unsigned long anomaly_rets;
+
+				if ((fp->pc >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				    (fp->pc < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * A false hardware error will happen while fetching at
+					 * the L1 instruction SRAM boundary.  Ignore it.
+					 */
+					anomaly_rets = fp->rets;
+					goto traps_done;
+				} else if (fp->rets == anomaly_rets) {
+					/*
+					 * While boundary code returns to a function, at the ret
+					 * point, a new false hardware error might occur too based
+					 * on tests.  Ignore it too.
+					 */
+					goto traps_done;
+				} else if ((fp->rets >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				           (fp->rets < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * If boundary code calls a function, at the entry point,
+					 * a new false hardware error maybe happen based on tests.
+					 * Ignore it too.
+					 */
+					goto traps_done;
+				} else
+					anomaly_rets = 0;
+			}
+
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
 			strerror = KERN_NOTICE HWC_x3(KERN_NOTICE);
