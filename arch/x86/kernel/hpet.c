@@ -384,11 +384,22 @@ static int hpet_next_event(unsigned long delta,
 	hpet_writel(cnt, HPET_Tn_CMP(timer));
 
 	/*
-	 * We need to read back the CMP register to make sure that
-	 * what we wrote hit the chip before we compare it to the
-	 * counter.
+	 * We need to read back the CMP register on certain HPET
+	 * implementations (ATI chipsets) which seem to delay the
+	 * transfer of the compare register into the internal compare
+	 * logic. With small deltas this might actually be too late as
+	 * the counter could already be higher than the compare value
+	 * at that point and we would wait for the next hpet interrupt
+	 * forever. We found out that reading the CMP register back
+	 * forces the transfer so we can rely on the comparison with
+	 * the counter register below. If the read back from the
+	 * compare register does not match the value we programmed
+	 * then we might have a real hardware problem. We can not do
+	 * much about it here, but at least alert the user/admin with
+	 * a prominent warning.
 	 */
-	WARN_ON_ONCE(hpet_readl(HPET_Tn_CMP(timer)) != cnt);
+	WARN_ONCE(hpet_readl(HPET_Tn_CMP(timer)) != cnt,
+		  KERN_WARNING "hpet: compare register read back failed.\n");
 
 	return (s32)(hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
