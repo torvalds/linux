@@ -4,7 +4,7 @@
 #include "event.h"
 #include "header.h"
 
-typedef int (*event_type_handler_t)(event_t *, unsigned long, unsigned long);
+typedef int (*event_type_handler_t)(event_t *);
 
 struct perf_file_handler {
 	event_type_handler_t	process_sample_event;

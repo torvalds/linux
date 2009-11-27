@@ -22,8 +22,6 @@
 
 static char			const *input_name = "perf.data";
 
-static unsigned long		total_comm = 0;
-
 static struct perf_header	*header;
 static u64			sample_type;
 
@@ -31,9 +29,6 @@ static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
 static int			profile_cpu = -1;
-
-static char			*cwd;
-static int			cwdlen;
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
@@ -632,27 +627,6 @@ static void test_calibrations(void)
 
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
 }
-
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread = threads__findnew(event->comm.tid);
-
-	dump_printf("%p [%p]: perf_event_comm: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
-
-	if (thread == NULL ||
-	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing perf_event_comm, skipping event.\n");
-		return -1;
-	}
-	total_comm++;
-
-	return 0;
-}
-
 
 struct raw_event_sample {
 	u32 size;
@@ -1622,8 +1596,7 @@ process_raw_event(event_t *raw_event __used, void *more_data,
 		process_sched_migrate_task_event(raw, event, cpu, timestamp, thread);
 }
 
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
 	struct thread *thread;
 	u64 ip = event->ip.ip;
@@ -1653,9 +1626,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
@@ -1677,10 +1648,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static int
-process_lost_event(event_t *event __used,
-		   unsigned long offset __used,
-		   unsigned long head __used)
+static int process_lost_event(event_t *event __used)
 {
 	nr_lost_chunks++;
 	nr_lost_events += event->lost.lost;
@@ -1704,7 +1672,7 @@ static int sample_type_check(u64 type)
 
 static struct perf_file_handler file_handler = {
 	.process_sample_event	= process_sample_event,
-	.process_comm_event	= process_comm_event,
+	.process_comm_event	= event__process_comm,
 	.process_lost_event	= process_lost_event,
 	.sample_type_check	= sample_type_check,
 };
@@ -1715,7 +1683,7 @@ static int read_events(void)
 	register_perf_file_handler(&file_handler);
 
 	return mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				       &cwdlen, &cwd);
+				       &event__cwdlen, &event__cwd);
 }
 
 static void print_bad_events(void)

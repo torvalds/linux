@@ -991,25 +991,6 @@ static void event__process_sample(const event_t *self, int counter)
 	}
 }
 
-static void event__process_mmap(event_t *self)
-{
-	struct thread *thread = threads__findnew(self->mmap.pid);
-
-	if (thread != NULL) {
-		struct map *map = map__new(&self->mmap, MAP__FUNCTION, NULL, 0);
-		if (map != NULL)
-			thread__insert_map(thread, map);
-	}
-}
-
-static void event__process_comm(event_t *self)
-{
-	struct thread *thread = threads__findnew(self->comm.pid);
-
-	if (thread != NULL)
-		thread__set_comm(thread, self->comm.comm);
-}
-
 static int event__process(event_t *event)
 {
 	switch (event->header.type) {

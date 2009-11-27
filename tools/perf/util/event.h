@@ -80,6 +80,13 @@ typedef union event_union {
 	struct sample_event		sample;
 } event_t;
 
+struct events_stats {
+	unsigned long total;
+	unsigned long lost;
+};
+
+void event__print_totals(void);
+
 enum map_type {
 	MAP__FUNCTION = 0,
 
@@ -134,5 +141,15 @@ void map__fixup_end(struct map *self);
 
 int event__synthesize_thread(pid_t pid, int (*process)(event_t *event));
 void event__synthesize_threads(int (*process)(event_t *event));
+
+extern char *event__cwd;
+extern int  event__cwdlen;
+extern struct events_stats event__stats;
+extern unsigned long event__total[PERF_RECORD_MAX];
+
+int event__process_comm(event_t *self);
+int event__process_lost(event_t *self);
+int event__process_mmap(event_t *self);
+int event__process_task(event_t *self);
 
 #endif /* __PERF_RECORD_H */

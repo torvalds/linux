@@ -10,13 +10,6 @@ struct callchain_param	callchain_param = {
 	.min_percent = 0.5
 };
 
-unsigned long total;
-unsigned long total_mmap;
-unsigned long total_comm;
-unsigned long total_fork;
-unsigned long total_unknown;
-unsigned long total_lost;
-
 /*
  * histogram, sorted on item, collects counts
  */

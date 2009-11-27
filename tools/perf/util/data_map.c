@@ -8,11 +8,9 @@ static struct perf_file_handler *curr_handler;
 static unsigned long	mmap_window = 32;
 static char		__cwd[PATH_MAX];
 
-static int
-process_event_stub(event_t *event __used,
-		   unsigned long offset __used,
-		   unsigned long head __used)
+static int process_event_stub(event_t *event __used)
 {
+	dump_printf(": unhandled!\n");
 	return 0;
 }
 
@@ -40,30 +38,62 @@ void register_perf_file_handler(struct perf_file_handler *handler)
 	curr_handler = handler;
 }
 
+static const char *event__name[] = {
+	[0]			 = "TOTAL",
+	[PERF_RECORD_MMAP]	 = "MMAP",
+	[PERF_RECORD_LOST]	 = "LOST",
+	[PERF_RECORD_COMM]	 = "COMM",
+	[PERF_RECORD_EXIT]	 = "EXIT",
+	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
+	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
+	[PERF_RECORD_FORK]	 = "FORK",
+	[PERF_RECORD_READ]	 = "READ",
+	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
+};
+
+unsigned long event__total[PERF_RECORD_MAX];
+
+void event__print_totals(void)
+{
+	int i;
+	for (i = 0; i < PERF_RECORD_MAX; ++i)
+		pr_info("%10s events: %10ld\n",
+			event__name[i], event__total[i]);
+}
+
 static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	trace_event(event);
 
+	if (event->header.type < PERF_RECORD_MAX) {
+		dump_printf("%p [%p]: PERF_RECORD_%s",
+			    (void *)(offset + head),
+			    (void *)(long)(event->header.size),
+			    event__name[event->header.type]);
+		++event__total[0];
+		++event__total[event->header.type];
+	}
+
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return curr_handler->process_sample_event(event, offset, head);
+		return curr_handler->process_sample_event(event);
 	case PERF_RECORD_MMAP:
-		return curr_handler->process_mmap_event(event, offset, head);
+		return curr_handler->process_mmap_event(event);
 	case PERF_RECORD_COMM:
-		return curr_handler->process_comm_event(event, offset, head);
+		return curr_handler->process_comm_event(event);
 	case PERF_RECORD_FORK:
-		return curr_handler->process_fork_event(event, offset, head);
+		return curr_handler->process_fork_event(event);
 	case PERF_RECORD_EXIT:
-		return curr_handler->process_exit_event(event, offset, head);
+		return curr_handler->process_exit_event(event);
 	case PERF_RECORD_LOST:
-		return curr_handler->process_lost_event(event, offset, head);
+		return curr_handler->process_lost_event(event);
 	case PERF_RECORD_READ:
-		return curr_handler->process_read_event(event, offset, head);
+		return curr_handler->process_read_event(event);
 	case PERF_RECORD_THROTTLE:
-		return curr_handler->process_throttle_event(event, offset, head);
+		return curr_handler->process_throttle_event(event);
 	case PERF_RECORD_UNTHROTTLE:
-		return curr_handler->process_unthrottle_event(event, offset, head);
+		return curr_handler->process_unthrottle_event(event);
 	default:
 		curr_handler->total_unknown++;
 		return -1;

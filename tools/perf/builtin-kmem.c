@@ -33,9 +33,6 @@ static bool			raw_ip;
 
 static char			default_sort_order[] = "frag,hit,bytes";
 
-static char			*cwd;
-static int			cwdlen;
-
 static int			*cpunode_map;
 static int			max_cpu_num;
 
@@ -124,25 +121,6 @@ static void setup_cpunode_map(void)
 			cpunode_map[cpu] = mem;
 		}
 	}
-}
-
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread = threads__findnew(event->comm.pid);
-
-	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
-
-	if (thread == NULL ||
-	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 static void insert_alloc_stat(unsigned long call_site, unsigned long ptr,
@@ -340,8 +318,7 @@ process_raw_event(event_t *raw_event __used, void *more_data,
 	}
 }
 
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
 	u64 ip = event->ip.ip;
 	u64 timestamp = -1;
@@ -366,9 +343,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
@@ -403,7 +378,7 @@ static int sample_type_check(u64 type)
 
 static struct perf_file_handler file_handler = {
 	.process_sample_event	= process_sample_event,
-	.process_comm_event	= process_comm_event,
+	.process_comm_event	= event__process_comm,
 	.sample_type_check	= sample_type_check,
 };
 
@@ -413,7 +388,7 @@ static int read_events(void)
 	register_perf_file_handler(&file_handler);
 
 	return mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				       &cwdlen, &cwd);
+				       &event__cwdlen, &event__cwd);
 }
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)

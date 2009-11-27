@@ -2,6 +2,7 @@
 #include "event.h"
 #include "debug.h"
 #include "string.h"
+#include "thread.h"
 
 static pid_t event__synthesize_comm(pid_t pid, int full,
 				    int (*process)(event_t *event))
@@ -174,4 +175,77 @@ void event__synthesize_threads(int (*process)(event_t *event))
 	}
 
 	closedir(proc);
+}
+
+char *event__cwd;
+int  event__cwdlen;
+
+struct events_stats event__stats;
+
+int event__process_comm(event_t *self)
+{
+	struct thread *thread = threads__findnew(self->comm.pid);
+
+	dump_printf("PERF_RECORD_COMM: %s:%d\n",
+		    self->comm.comm, self->comm.pid);
+
+	if (thread == NULL || thread__set_comm(thread, self->comm.comm)) {
+		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int event__process_lost(event_t *self)
+{
+	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
+	event__stats.lost += self->lost.lost;
+	return 0;
+}
+
+int event__process_mmap(event_t *self)
+{
+	struct thread *thread = threads__findnew(self->mmap.pid);
+	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
+				   event__cwd, event__cwdlen);
+
+	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
+		    self->mmap.pid, self->mmap.tid,
+		    (void *)(long)self->mmap.start,
+		    (void *)(long)self->mmap.len,
+		    (void *)(long)self->mmap.pgoff,
+		    self->mmap.filename);
+
+	if (thread == NULL || map == NULL)
+		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
+	else
+		thread__insert_map(thread, map);
+
+	return 0;
+}
+
+int event__process_task(event_t *self)
+{
+	struct thread *thread = threads__findnew(self->fork.pid);
+	struct thread *parent = threads__findnew(self->fork.ppid);
+
+	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
+		    self->fork.ppid, self->fork.ptid);
+	/*
+	 * A thread clone will have the same PID for both parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
+	if (self->header.type == PERF_RECORD_EXIT)
+		return 0;
+
+	if (thread == NULL || parent == NULL ||
+	    thread__fork(thread, parent) < 0) {
+		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
+		return -1;
+	}
+
+	return 0;
 }

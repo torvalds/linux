@@ -30,7 +30,6 @@
 #include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
-#include "util/process_events.h"
 
 static char		const *input_name = "perf.data";
 
@@ -655,8 +654,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 	return 0;
 }
 
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
 	char level;
 	struct symbol *sym = NULL;
@@ -673,9 +671,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
@@ -743,47 +739,27 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	total += period;
+	event__stats.total += period;
 
 	return 0;
 }
 
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_comm_event(event_t *event)
 {
 	struct thread *thread = threads__findnew(event->comm.pid);
 
-	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
+	dump_printf(": %s:%d\n", event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm_adjust(thread, event->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
-	total_comm++;
 
 	return 0;
 }
 
-static int
-process_lost_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dump_printf("%p [%p]: PERF_RECORD_LOST: id:%Ld: lost:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->lost.id,
-		event->lost.lost);
-
-	total_lost += event->lost.lost;
-
-	return 0;
-}
-
-static int
-process_read_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_read_event(event_t *event)
 {
 	struct perf_event_attr *attr;
 
@@ -799,14 +775,9 @@ process_read_event(event_t *event, unsigned long offset, unsigned long head)
 					   event->read.value);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_READ: %d %d %s %Lu\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->read.pid,
-			event->read.tid,
-			attr ? __event_name(attr->type, attr->config)
-			     : "FAIL",
-			event->read.value);
+	dump_printf(": %d %d %s %Lu\n", event->read.pid, event->read.tid,
+		    attr ? __event_name(attr->type, attr->config) : "FAIL",
+		    event->read.value);
 
 	return 0;
 }
@@ -842,11 +813,11 @@ static int sample_type_check(u64 type)
 
 static struct perf_file_handler file_handler = {
 	.process_sample_event	= process_sample_event,
-	.process_mmap_event	= process_mmap_event,
+	.process_mmap_event	= event__process_mmap,
 	.process_comm_event	= process_comm_event,
-	.process_exit_event	= process_task_event,
-	.process_fork_event	= process_task_event,
-	.process_lost_event	= process_lost_event,
+	.process_exit_event	= event__process_task,
+	.process_fork_event	= event__process_task,
+	.process_lost_event	= event__process_lost,
 	.process_read_event	= process_read_event,
 	.sample_type_check	= sample_type_check,
 };
@@ -866,19 +837,14 @@ static int __cmd_report(void)
 	register_perf_file_handler(&file_handler);
 
 	ret = mmap_dispatch_perf_file(&header, input_name, force,
-				      full_paths, &cwdlen, &cwd);
+				      full_paths, &event__cwdlen, &event__cwd);
 	if (ret)
 		return ret;
 
-	dump_printf("      IP events: %10ld\n", total);
-	dump_printf("    mmap events: %10ld\n", total_mmap);
-	dump_printf("    comm events: %10ld\n", total_comm);
-	dump_printf("    fork events: %10ld\n", total_fork);
-	dump_printf("    lost events: %10ld\n", total_lost);
-	dump_printf(" unknown events: %10ld\n", file_handler.total_unknown);
-
-	if (dump_trace)
+	if (dump_trace) {
+		event__print_totals();
 		return 0;
+	}
 
 	if (verbose > 3)
 		threads__fprintf(stdout);
@@ -887,8 +853,8 @@ static int __cmd_report(void)
 		dsos__fprintf(stdout);
 
 	collapse__resort();
-	output__resort(total);
-	output__fprintf(stdout, total);
+	output__resort(event__stats.total);
+	output__fprintf(stdout, event__stats.total);
 
 	if (show_threads)
 		perf_read_values_destroy(&show_threads_values);
