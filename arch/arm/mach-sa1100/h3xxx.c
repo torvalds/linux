@@ -12,6 +12,8 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -212,8 +214,44 @@ static struct platform_device h3xxx_egpio = {
 	},
 };
 
+/*
+ * GPIO keys
+ */
+
+static struct gpio_keys_button h3xxx_button_table[] = {
+	{
+		.code		= KEY_POWER,
+		.gpio		= H3XXX_GPIO_PWR_BUTTON,
+		.desc		= "Power Button",
+		.active_low	= 1,
+		.type		= EV_KEY,
+		.wakeup		= 1,
+	}, {
+		.code		= KEY_ENTER,
+		.gpio		= H3XXX_GPIO_ACTION_BUTTON,
+		.active_low	= 1,
+		.desc		= "Action button",
+		.type		= EV_KEY,
+		.wakeup		= 0,
+	},
+};
+
+static struct gpio_keys_platform_data h3xxx_keys_data = {
+	.buttons  = h3xxx_button_table,
+	.nbuttons = ARRAY_SIZE(h3xxx_button_table),
+};
+
+static struct platform_device h3xxx_keys = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &h3xxx_keys_data,
+	},
+};
+
 static struct platform_device *h3xxx_devices[] = {
 	&h3xxx_egpio,
+	&h3xxx_keys,
 };
 
 void __init h3xxx_mach_init(void)
@@ -260,7 +298,6 @@ void __init h3xxx_map_io(void)
 
 	/* Configure suspend conditions */
 	PGSR = 0;
-	PWER = PWER_GPIO0;
 	PCFR = PCFR_OPDE;
 	PSDR = 0;
 
