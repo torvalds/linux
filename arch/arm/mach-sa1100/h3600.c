@@ -188,7 +188,7 @@ static struct sa1100_port_fns h3xxx_port_fns __initdata = {
 };
 
 
-static void h3xxx_mach_init(void)
+static void __init h3xxx_mach_init(void)
 {
 	sa1100_register_uart_fns(&h3xxx_port_fns);
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
@@ -371,7 +371,7 @@ static struct gpio_default_state h3100_default_gpio[] = {
 	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
 };
 
-static void h3100_mach_init(void)
+static void __init h3100_mach_init(void)
 {
 	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
@@ -500,7 +500,7 @@ static struct gpio_default_state h3600_default_gpio[] = {
 	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
 };
 
-static void h3600_mach_init(void)
+static void __init h3600_mach_init(void)
 {
 	h3xxx_init_gpio(h3600_default_gpio, ARRAY_SIZE(h3600_default_gpio));
 	h3xxx_mach_init();
