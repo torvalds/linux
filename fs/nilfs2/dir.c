@@ -595,7 +595,6 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	nilfs_commit_chunk(page, mapping, from, to);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 /*	NILFS_I(inode)->i_flags &= ~NILFS_BTREE_FL; */
-	mark_inode_dirty(inode);
 out:
 	nilfs_put_page(page);
 	return err;

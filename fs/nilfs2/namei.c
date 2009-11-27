@@ -334,6 +334,7 @@ static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
 	err = nilfs_do_unlink(dir, dentry);
 
 	if (!err) {
+		mark_inode_dirty(dir);
 		mark_inode_dirty(dentry->d_inode);
 		err = nilfs_transaction_commit(dir->i_sb);
 	} else
@@ -450,8 +451,8 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (dir_de) {
 		nilfs_set_link(old_inode, dir_de, dir_page, new_dir);
 		drop_nlink(old_dir);
-		mark_inode_dirty(old_dir);
 	}
+	mark_inode_dirty(old_dir);
 	mark_inode_dirty(old_inode);
 
 	err = nilfs_transaction_commit(old_dir->i_sb);
