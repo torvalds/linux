@@ -30,6 +30,7 @@
 #define H3XXX_GPIO_PCMCIA_CD1		10
 #define H3XXX_GPIO_PCMCIA_IRQ1		11
 #define H3XXX_GPIO_PCMCIA_CD0		17
+#define H3XXX_GPIO_ACTION_BUTTON	18
 #define H3XXX_GPIO_SYS_CLK		19
 #define H3XXX_GPIO_PCMCIA_IRQ0		21
 #define H3XXX_GPIO_COM_DCD		23
@@ -37,23 +38,8 @@
 #define H3XXX_GPIO_COM_CTS		25
 #define H3XXX_GPIO_COM_RTS		26
 
-/*
- * GPIO lines that are common across ALL iPAQ models are in "h3600.h"
- * This file contains machine-specific definitions
- */
+/* machine-specific gpios */
 
-#define GPIO_H3600_SUSPEND              GPIO_GPIO (0)
-/* GPIO[2:9] used by LCD on H3600/3800, used as GPIO on H3100 */
-#define GPIO_H3100_BT_ON		GPIO_GPIO (2)
-#define GPIO_H3100_GPIO3		GPIO_GPIO (3)
-#define GPIO_H3100_QMUTE		GPIO_GPIO (4)
-#define GPIO_H3100_LCD_3V_ON		GPIO_GPIO (5)
-#define GPIO_H3100_AUD_ON		GPIO_GPIO (6)
-#define GPIO_H3100_AUD_PWR_ON		GPIO_GPIO (7)
-#define GPIO_H3100_IR_ON		GPIO_GPIO (8)
-#define GPIO_H3100_IR_FSEL		GPIO_GPIO (9)
-
-/* gpiolib versions of the above */
 #define H3100_GPIO_BT_ON		2
 #define H3100_GPIO_QMUTE		4
 #define H3100_GPIO_LCD_3V_ON		5
@@ -62,14 +48,11 @@
 #define H3100_GPIO_IR_ON		8
 #define H3100_GPIO_IR_FSEL		9
 
-/* for H3600, audio sample rate clock generator */
-#define GPIO_H3600_CLK_SET0		GPIO_GPIO (12)
-#define GPIO_H3600_CLK_SET1		GPIO_GPIO (13)
-
-#define GPIO_H3600_ACTION_BUTTON	GPIO_GPIO (18)
-#define GPIO_H3600_SOFT_RESET           GPIO_GPIO (20)   /* Also known as BATT_FAULT */
-#define GPIO_H3600_OPT_LOCK		GPIO_GPIO (22)
-#define GPIO_H3600_OPT_DET		GPIO_GPIO (27)
+#define H3600_GPIO_CLK_SET0		12	/* audio sample rate clock generator */
+#define H3600_GPIO_CLK_SET1		13
+#define H3600_GPIO_SOFT_RESET		20	/* also known as BATT_FAULT */
+#define H3600_GPIO_OPT_LOCK		22
+#define H3600_GPIO_OPT_DET		27
 
 
 /* H3100 / 3600 EGPIO pins */

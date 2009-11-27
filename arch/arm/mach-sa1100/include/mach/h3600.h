@@ -33,28 +33,4 @@
 #define H3600_BANK_2_VIRT	0xf1000000
 #define H3600_BANK_4_VIRT	0xf3800000
 
-/*
-   Machine-independent GPIO definitions
-   --- these are common across all current iPAQ platforms
-*/
-
-#define GPIO_H3600_NPOWER_BUTTON	GPIO_GPIO (0)	/* Also known as the "off button"  */
-
-#define GPIO_H3600_PCMCIA_CD1		GPIO_GPIO (10)
-#define GPIO_H3600_PCMCIA_IRQ1		GPIO_GPIO (11)
-
-/* UDA1341 L3 Interface */
-#define GPIO_H3600_L3_DATA		GPIO_GPIO (14)
-#define GPIO_H3600_L3_MODE		GPIO_GPIO (15)
-#define GPIO_H3600_L3_CLOCK		GPIO_GPIO (16)
-
-#define GPIO_H3600_PCMCIA_CD0		GPIO_GPIO (17)
-#define GPIO_H3600_SYS_CLK		GPIO_GPIO (19)
-#define GPIO_H3600_PCMCIA_IRQ0		GPIO_GPIO (21)
-
-#define GPIO_H3600_COM_DCD		GPIO_GPIO (23)
-#define GPIO_H3600_OPT_IRQ		GPIO_GPIO (24)
-#define GPIO_H3600_COM_CTS		GPIO_GPIO (25)
-#define GPIO_H3600_COM_RTS		GPIO_GPIO (26)
-
 #endif /* _INCLUDE_H3600_H_ */
