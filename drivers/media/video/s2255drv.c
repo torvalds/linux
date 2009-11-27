@@ -1880,7 +1880,7 @@ static void s2255_exit_v4l(struct s2255_dev *dev)
 
 	int i;
 	for (i = 0; i < MAX_CHANNELS; i++) {
-		if (-1 != dev->vdev[i]->minor) {
+		if (video_is_registered(dev->vdev[i])) {
 			video_unregister_device(dev->vdev[i]);
 			printk(KERN_INFO "s2255 unregistered\n");
 		} else {

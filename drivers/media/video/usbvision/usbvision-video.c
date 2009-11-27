@@ -1418,7 +1418,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	if (usbvision->vbi) {
 		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
 		       video_device_node_name(usbvision->vbi));
-		if (usbvision->vbi->minor != -1) {
+		if (video_is_registered(usbvision->vbi)) {
 			video_unregister_device(usbvision->vbi);
 		} else {
 			video_device_release(usbvision->vbi);
@@ -1430,7 +1430,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	if (usbvision->rdev) {
 		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
 		       video_device_node_name(usbvision->rdev));
-		if (usbvision->rdev->minor != -1) {
+		if (video_is_registered(usbvision->rdev)) {
 			video_unregister_device(usbvision->rdev);
 		} else {
 			video_device_release(usbvision->rdev);
@@ -1442,7 +1442,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	if (usbvision->vdev) {
 		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
 		       video_device_node_name(usbvision->vdev));
-		if (usbvision->vdev->minor != -1) {
+		if (video_is_registered(usbvision->vdev)) {
 			video_unregister_device(usbvision->vdev);
 		} else {
 			video_device_release(usbvision->vdev);

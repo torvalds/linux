@@ -1461,7 +1461,7 @@ void cx23885_video_unregister(struct cx23885_dev *dev)
 	cx_clear(PCI_INT_MSK, 1);
 
 	if (dev->video_dev) {
-		if (-1 != dev->video_dev->minor)
+		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);

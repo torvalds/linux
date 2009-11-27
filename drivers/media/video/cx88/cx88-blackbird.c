@@ -1276,7 +1276,7 @@ static int cx8802_blackbird_advise_release(struct cx8802_driver *drv)
 static void blackbird_unregister_video(struct cx8802_dev *dev)
 {
 	if (dev->mpeg_dev) {
-		if (-1 != dev->mpeg_dev->minor)
+		if (video_is_registered(dev->mpeg_dev))
 			video_unregister_device(dev->mpeg_dev);
 		else
 			video_device_release(dev->mpeg_dev);

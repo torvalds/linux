@@ -2160,7 +2160,7 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	if (dev->radio_dev) {
-		if (-1 != dev->radio_dev->minor)
+		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
@@ -2169,7 +2169,7 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 	if (dev->vbi_dev) {
 		em28xx_info("V4L2 device %s deregistered\n",
 			    video_device_node_name(dev->vbi_dev));
-		if (-1 != dev->vbi_dev->minor)
+		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
@@ -2178,7 +2178,7 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 	if (dev->vdev) {
 		em28xx_info("V4L2 device %s deregistered\n",
 			    video_device_node_name(dev->vdev));
-		if (-1 != dev->vdev->minor)
+		if (video_is_registered(dev->vdev))
 			video_unregister_device(dev->vdev);
 		else
 			video_device_release(dev->vdev);

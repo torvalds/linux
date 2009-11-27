@@ -2134,7 +2134,7 @@ static void stradis_release_saa(struct pci_dev *pdev)
 	free_irq(saa->irq, saa);
 	if (saa->saa7146_mem)
 		iounmap(saa->saa7146_mem);
-	if (saa->video_dev.minor != -1)
+	if (video_is_registered(&saa->video_dev))
 		video_unregister_device(&saa->video_dev);
 }
 

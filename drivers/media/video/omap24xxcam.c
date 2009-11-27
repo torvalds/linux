@@ -1696,7 +1696,7 @@ static void omap24xxcam_device_unregister(struct v4l2_int_device *s)
 	omap24xxcam_sensor_exit(cam);
 
 	if (cam->vfd) {
-		if (cam->vfd->minor == -1) {
+		if (!video_is_registered(cam->vfd)) {
 			/*
 			 * The device was never registered, so release the
 			 * video_device struct directly.

@@ -4208,21 +4208,21 @@ static struct video_device *vdev_init(struct bttv *btv,
 static void bttv_unregister_video(struct bttv *btv)
 {
 	if (btv->video_dev) {
-		if (-1 != btv->video_dev->minor)
+		if (video_is_registered(btv->video_dev))
 			video_unregister_device(btv->video_dev);
 		else
 			video_device_release(btv->video_dev);
 		btv->video_dev = NULL;
 	}
 	if (btv->vbi_dev) {
-		if (-1 != btv->vbi_dev->minor)
+		if (video_is_registered(btv->vbi_dev))
 			video_unregister_device(btv->vbi_dev);
 		else
 			video_device_release(btv->vbi_dev);
 		btv->vbi_dev = NULL;
 	}
 	if (btv->radio_dev) {
-		if (-1 != btv->radio_dev->minor)
+		if (video_is_registered(btv->radio_dev))
 			video_unregister_device(btv->radio_dev);
 		else
 			video_device_release(btv->radio_dev);

@@ -5884,7 +5884,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 error:
 	if (ov->vdev) {
-		if (-1 == ov->vdev->minor)
+		if (!video_is_registered(ov->vdev))
 			video_device_release(ov->vdev);
 		else
 			video_unregister_device(ov->vdev);
