@@ -167,7 +167,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 			    map ? map->dso->long_name : "<not found>");
 	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
 		level = '.';
-		map = thread__find_map(thread, ip);
+		map = thread__find_map(thread, MAP__FUNCTION, ip);
 		if (map != NULL) {
 			ip = map->map_ip(map, ip);
 			sym = map__find_symbol(map, ip, symbol_filter);

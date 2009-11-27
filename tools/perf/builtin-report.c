@@ -422,7 +422,7 @@ resolve_symbol(struct thread *thread, struct map **mapp, u64 *ipp)
 	if (!thread)
 		return NULL;
 
-	map = thread__find_map(thread, ip);
+	map = thread__find_map(thread, MAP__FUNCTION, ip);
 	if (map != NULL) {
 		/*
 		 * We have to do this here as we may have a dso

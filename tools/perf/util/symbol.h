@@ -92,7 +92,7 @@ void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp);
 
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
-size_t dso__fprintf(struct dso *self, FILE *fp);
+size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 void dso__set_build_id(struct dso *self, void *build_id);
 

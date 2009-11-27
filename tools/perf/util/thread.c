@@ -9,17 +9,26 @@
 static struct rb_root threads;
 static struct thread *last_match;
 
+void thread__init(struct thread *self, pid_t pid)
+{
+	int i;
+	self->pid = pid;
+	self->comm = NULL;
+	for (i = 0; i < MAP__NR_TYPES; ++i) {
+		self->maps[i] = RB_ROOT;
+		INIT_LIST_HEAD(&self->removed_maps[i]);
+	}
+}
+
 static struct thread *thread__new(pid_t pid)
 {
 	struct thread *self = zalloc(sizeof(*self));
 
 	if (self != NULL) {
-		self->pid = pid;
+		thread__init(self, pid);
 		self->comm = malloc(32);
 		if (self->comm)
 			snprintf(self->comm, 32, ":%d", self->pid);
-		self->maps = RB_ROOT;
-		INIT_LIST_HEAD(&self->removed_maps);
 	}
 
 	return self;
@@ -44,24 +53,68 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-static size_t thread__fprintf(struct thread *self, FILE *fp)
-{
-	struct rb_node *nd;
-	struct map *pos;
-	size_t ret = fprintf(fp, "Thread %d %s\nCurrent maps:\n",
-			     self->pid, self->comm);
+static const char *map_type__name[MAP__NR_TYPES] = {
+	[MAP__FUNCTION] = "Functions",
+};
 
-	for (nd = rb_first(&self->maps); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct map, rb_node);
-		ret += map__fprintf(pos, fp);
+static size_t __thread__fprintf_maps(struct thread *self,
+				     enum map_type type, FILE *fp)
+{
+	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
+	struct rb_node *nd;
+
+	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		printed += fprintf(fp, "Map:");
+		printed += map__fprintf(pos, fp);
+		if (verbose > 1) {
+			printed += dso__fprintf(pos->dso, type, fp);
+			printed += fprintf(fp, "--\n");
+		}
 	}
 
-	ret = fprintf(fp, "Removed maps:\n");
+	return printed;
+}
 
-	list_for_each_entry(pos, &self->removed_maps, node)
-		ret += map__fprintf(pos, fp);
+size_t thread__fprintf_maps(struct thread *self, FILE *fp)
+{
+	size_t printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += __thread__fprintf_maps(self, i, fp);
+	return printed;
+}
 
-	return ret;
+static size_t __thread__fprintf_removed_maps(struct thread *self,
+					     enum map_type type, FILE *fp)
+{
+	struct map *pos;
+	size_t printed = 0;
+
+	list_for_each_entry(pos, &self->removed_maps[type], node) {
+		printed += fprintf(fp, "Map:");
+		printed += map__fprintf(pos, fp);
+		if (verbose > 1) {
+			printed += dso__fprintf(pos->dso, type, fp);
+			printed += fprintf(fp, "--\n");
+		}
+	}
+	return printed;
+}
+
+static size_t thread__fprintf_removed_maps(struct thread *self, FILE *fp)
+{
+	size_t printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += __thread__fprintf_removed_maps(self, i, fp);
+	return printed;
+}
+
+static size_t thread__fprintf(struct thread *self, FILE *fp)
+{
+	size_t printed = fprintf(fp, "Thread %d %s\n", self->pid, self->comm);
+	printed += thread__fprintf_removed_maps(self, fp);
+	printed += fprintf(fp, "Removed maps:\n");
+	return printed + thread__fprintf_removed_maps(self, fp);
 }
 
 struct thread *threads__findnew(pid_t pid)
@@ -117,7 +170,8 @@ struct thread *register_idle_thread(void)
 
 static void thread__remove_overlappings(struct thread *self, struct map *map)
 {
-	struct rb_node *next = rb_first(&self->maps);
+	struct rb_root *root = &self->maps[map->type];
+	struct rb_node *next = rb_first(root);
 
 	while (next) {
 		struct map *pos = rb_entry(next, struct map, rb_node);
@@ -132,13 +186,13 @@ static void thread__remove_overlappings(struct thread *self, struct map *map)
 			map__fprintf(pos, stderr);
 		}
 
-		rb_erase(&pos->rb_node, &self->maps);
+		rb_erase(&pos->rb_node, root);
 		/*
 		 * We may have references to this map, for instance in some
 		 * hist_entry instances, so just move them to a separate
 		 * list.
 		 */
-		list_add_tail(&pos->node, &self->removed_maps);
+		list_add_tail(&pos->node, &self->removed_maps[map->type]);
 	}
 }
 
@@ -185,12 +239,26 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 void thread__insert_map(struct thread *self, struct map *map)
 {
 	thread__remove_overlappings(self, map);
-	maps__insert(&self->maps, map);
+	maps__insert(&self->maps[map->type], map);
+}
+
+static int thread__clone_maps(struct thread *self, struct thread *parent,
+			      enum map_type type)
+{
+	struct rb_node *nd;
+	for (nd = rb_first(&parent->maps[type]); nd; nd = rb_next(nd)) {
+		struct map *map = rb_entry(nd, struct map, rb_node);
+		struct map *new = map__clone(map);
+		if (new == NULL)
+			return -ENOMEM;
+		thread__insert_map(self, new);
+	}
+	return 0;
 }
 
 int thread__fork(struct thread *self, struct thread *parent)
 {
-	struct rb_node *nd;
+	int i;
 
 	if (self->comm)
 		free(self->comm);
@@ -198,14 +266,9 @@ int thread__fork(struct thread *self, struct thread *parent)
 	if (!self->comm)
 		return -ENOMEM;
 
-	for (nd = rb_first(&parent->maps); nd; nd = rb_next(nd)) {
-		struct map *map = rb_entry(nd, struct map, rb_node);
-		struct map *new = map__clone(map);
-		if (!new)
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		if (thread__clone_maps(self, parent, i) < 0)
 			return -ENOMEM;
-		thread__insert_map(self, new);
-	}
-
 	return 0;
 }
 
