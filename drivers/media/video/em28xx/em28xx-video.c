@@ -1060,12 +1060,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
-		/* According to empiatech support the MaxPacketSize is too small
-		 * to support framesizes larger than 640x480 @ 30 fps or 640x576
-		 * @ 25 fps.  As this would cut of a part of the image we prefer
-		 * 360x576 or 360x480 for now */
-		if (width == maxw && height == maxh)
-			width /= 2;
 	} else {
 		/* width must even because of the YUYV format
 		   height must be even because of interlacing */
