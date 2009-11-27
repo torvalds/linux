@@ -71,11 +71,6 @@
 #define GPIO_H3600_OPT_LOCK		GPIO_GPIO (22)
 #define GPIO_H3600_OPT_DET		GPIO_GPIO (27)
 
-/****************************************************/
-
-#define IRQ_GPIO_H3600_ACTION_BUTTON    IRQ_GPIO18
-#define IRQ_GPIO_H3600_OPT_DET		IRQ_GPIO27
-
 
 /* H3100 / 3600 EGPIO pins */
 #define H3XXX_EGPIO_BASE		(GPIO_MAX + 1)
