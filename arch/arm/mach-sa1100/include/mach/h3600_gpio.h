@@ -97,4 +97,28 @@
 #define EGPIO_H3600_LVDD_ON		(1 << 15)  /* enable 9V and -6.5V to LCD. */
 
 
+/* gpiolib versions of EGPIOs */
+
+/* H3100 / 3600 EGPIO pins */
+#define H3XXX_EGPIO_BASE		(GPIO_MAX + 1)
+
+#define H3XXX_EGPIO_VPP_ON		(H3XXX_EGPIO_BASE + 0)
+#define H3XXX_EGPIO_CARD_RESET		(H3XXX_EGPIO_BASE + 1) /* reset the attached pcmcia/compactflash card.  active high. */
+#define H3XXX_EGPIO_OPT_RESET		(H3XXX_EGPIO_BASE + 2) /* reset the attached option pack.  active high. */
+#define H3XXX_EGPIO_CODEC_NRESET	(H3XXX_EGPIO_BASE + 3) /* reset the onboard UDA1341.  active low. */
+#define H3XXX_EGPIO_OPT_NVRAM_ON	(H3XXX_EGPIO_BASE + 4) /* apply power to optionpack nvram, active high. */
+#define H3XXX_EGPIO_OPT_ON		(H3XXX_EGPIO_BASE + 5) /* full power to option pack.  active high. */
+#define H3XXX_EGPIO_LCD_ON		(H3XXX_EGPIO_BASE + 6) /* enable 3.3V to LCD.  active high. */
+#define H3XXX_EGPIO_RS232_ON		(H3XXX_EGPIO_BASE + 7) /* UART3 transceiver force on.  Active high. */
+
+/* H3600 only EGPIO pins */
+#define H3600_EGPIO_LCD_PCI		(H3XXX_EGPIO_BASE + 8) /* LCD control IC enable.  active high. */
+#define H3600_EGPIO_IR_ON		(H3XXX_EGPIO_BASE + 9) /* apply power to IR module.  active high. */
+#define H3600_EGPIO_AUD_AMP_ON		(H3XXX_EGPIO_BASE + 10) /* apply power to audio power amp.  active high. */
+#define H3600_EGPIO_AUD_PWR_ON		(H3XXX_EGPIO_BASE + 11) /* apply power to reset of audio circuit.  active high. */
+#define H3600_EGPIO_QMUTE		(H3XXX_EGPIO_BASE + 12) /* mute control for onboard UDA1341.  active high. */
+#define H3600_EGPIO_IR_FSEL		(H3XXX_EGPIO_BASE + 13) /* IR speed select: 1->fast, 0->slow */
+#define H3600_EGPIO_LCD_5V_ON		(H3XXX_EGPIO_BASE + 14) /* enable 5V to LCD. active high. */
+#define H3600_EGPIO_LVDD_ON		(H3XXX_EGPIO_BASE + 15) /* enable 9V and -6.5V to LCD. */
+
 #endif /* _INCLUDE_H3600_GPIO_H_ */

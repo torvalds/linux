@@ -25,10 +25,12 @@
 #include <linux/tty.h>
 #include <linux/pm.h>
 #include <linux/device.h>
+#include <linux/mfd/htc-egpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/serial_core.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -184,11 +186,54 @@ static struct sa1100_port_fns h3xxx_port_fns __initdata = {
 	.set_wake	= h3xxx_uart_set_wake,
 };
 
+/*
+ * EGPIO
+ */
+
+static struct resource egpio_resources[] = {
+	[0] = {
+		.start	= H3600_EGPIO_PHYS,
+		.end	= H3600_EGPIO_PHYS + 0x4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct htc_egpio_chip egpio_chips[] = {
+	[0] = {
+		.reg_start	= 0,
+		.gpio_base	= H3XXX_EGPIO_BASE,
+		.num_gpios	= 16,
+		.direction	= HTC_EGPIO_OUTPUT,
+		.initial_values	= 0x0080, /* H3XXX_EGPIO_RS232_ON */
+	},
+};
+
+static struct htc_egpio_platform_data egpio_info = {
+	.reg_width	= 16,
+	.bus_width	= 16,
+	.chip		= egpio_chips,
+	.num_chips	= ARRAY_SIZE(egpio_chips),
+};
+
+static struct platform_device h3xxx_egpio = {
+	.name		= "htc-egpio",
+	.id		= -1,
+	.resource	= egpio_resources,
+	.num_resources	= ARRAY_SIZE(egpio_resources),
+	.dev		= {
+		.platform_data = &egpio_info,
+	},
+};
+
+static struct platform_device *h3xxx_devices[] = {
+	&h3xxx_egpio,
+};
 
 static void __init h3xxx_mach_init(void)
 {
 	sa1100_register_uart_fns(&h3xxx_port_fns);
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
+	platform_add_devices(h3xxx_devices, ARRAY_SIZE(h3xxx_devices));
 }
 
 static struct map_desc h3600_io_desc[] __initdata = {
