@@ -1229,7 +1229,8 @@ static void snd_card_miro_free(struct snd_card *card)
 	struct snd_miro *miro = card->private_data;
         
 	release_and_free_resource(miro->res_aci_port);
-	miro->aci->aci_port = 0;
+	if (miro->aci)
+		miro->aci->aci_port = 0;
 	release_and_free_resource(miro->res_mc_base);
 }
 
