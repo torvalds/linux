@@ -2027,8 +2027,8 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		dev->radio_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		cx231xx_info("V4L2 device /dev/vbi%d deregistered\n",
-			     dev->vbi_dev->num);
+		cx231xx_info("V4L2 device %s deregistered\n",
+			     video_device_node_name(dev->vbi_dev));
 		if (-1 != dev->vbi_dev->minor)
 			video_unregister_device(dev->vbi_dev);
 		else
@@ -2036,8 +2036,8 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		dev->vbi_dev = NULL;
 	}
 	if (dev->vdev) {
-		cx231xx_info("V4L2 device /dev/video%d deregistered\n",
-			     dev->vdev->num);
+		cx231xx_info("V4L2 device %s deregistered\n",
+			     video_device_node_name(dev->vdev));
 		if (-1 != dev->vdev->minor)
 			video_unregister_device(dev->vdev);
 		else
@@ -2374,8 +2374,8 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		return ret;
 	}
 
-	cx231xx_info("%s/0: registered device video%d [v4l2]\n",
-		     dev->name, dev->vdev->num);
+	cx231xx_info("%s/0: registered device %s [v4l2]\n",
+		     dev->name, video_device_node_name(dev->vdev));
 
 	/* Initialize VBI template */
 	memcpy(&cx231xx_vbi_template, &cx231xx_video_template,
@@ -2393,8 +2393,8 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		return ret;
 	}
 
-	cx231xx_info("%s/0: registered device vbi%d\n",
-		     dev->name, dev->vbi_dev->num);
+	cx231xx_info("%s/0: registered device %s\n",
+		     dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (cx231xx_boards[dev->model].radio.type == CX231XX_RADIO) {
 		dev->radio_dev = cx231xx_vdev_init(dev, &cx231xx_radio_template,
@@ -2409,12 +2409,13 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 			cx231xx_errdev("can't register radio device\n");
 			return ret;
 		}
-		cx231xx_info("Registered radio device as /dev/radio%d\n",
-			     dev->radio_dev->num);
+		cx231xx_info("Registered radio device as %s\n",
+			     video_device_node_name(dev->radio_dev));
 	}
 
-	cx231xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
-		     dev->vdev->num, dev->vbi_dev->num);
+	cx231xx_info("V4L2 device registered as %s and %s\n",
+		     video_device_node_name(dev->vdev),
+		     video_device_node_name(dev->vbi_dev));
 
 	return 0;
 }

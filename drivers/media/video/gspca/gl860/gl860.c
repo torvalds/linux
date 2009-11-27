@@ -534,8 +534,8 @@ static int sd_probe(struct usb_interface *intf,
 		gspca_dev = usb_get_intfdata(intf);
 
 		PDEBUG(D_PROBE,
-			"Camera is now controlling video device /dev/video%d",
-			gspca_dev->vdev.minor);
+			"Camera is now controlling video device %s",
+			video_device_node_name(&gspca_dev->vdev));
 	}
 
 	return ret;

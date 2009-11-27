@@ -1296,8 +1296,8 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 		       dev->core->name);
 		return err;
 	}
-	printk(KERN_INFO "%s/2: registered device video%d [mpeg]\n",
-	       dev->core->name, dev->mpeg_dev->num);
+	printk(KERN_INFO "%s/2: registered device %s [mpeg]\n",
+	       dev->core->name, video_device_node_name(dev->mpeg_dev));
 	return 0;
 }
 

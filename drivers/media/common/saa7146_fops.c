@@ -543,15 +543,13 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 		return err;
 	}
 
-	if( VFL_TYPE_GRABBER == type ) {
+	if (VFL_TYPE_GRABBER == type)
 		vv->video_minor = vfd->minor;
-		INFO(("%s: registered device video%d [v4l2]\n",
-			dev->name, vfd->num));
-	} else {
+	else
 		vv->vbi_minor = vfd->minor;
-		INFO(("%s: registered device vbi%d [v4l2]\n",
-			dev->name, vfd->num));
-	}
+
+	INFO(("%s: registered device %s [v4l2]\n",
+		dev->name, video_device_node_name(vfd)));
 
 	*vid = vfd;
 	return 0;

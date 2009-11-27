@@ -987,7 +987,8 @@ static void gspca_release(struct video_device *vfd)
 {
 	struct gspca_dev *gspca_dev = container_of(vfd, struct gspca_dev, vdev);
 
-	PDEBUG(D_PROBE, "/dev/video%d released", gspca_dev->vdev.num);
+	PDEBUG(D_PROBE, "%s released",
+		video_device_node_name(&gspca_dev->vdev));
 
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
@@ -2073,7 +2074,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	}
 
 	usb_set_intfdata(intf, gspca_dev);
-	PDEBUG(D_PROBE, "/dev/video%d created", gspca_dev->vdev.num);
+	PDEBUG(D_PROBE, "%s created", video_device_node_name(&gspca_dev->vdev));
 	return 0;
 out:
 	kfree(gspca_dev->usb_buf);
@@ -2092,7 +2093,8 @@ void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
-	PDEBUG(D_PROBE, "/dev/video%d disconnect", gspca_dev->vdev.num);
+	PDEBUG(D_PROBE, "%s disconnect",
+		video_device_node_name(&gspca_dev->vdev));
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = 0;
 

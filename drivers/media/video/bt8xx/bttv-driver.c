@@ -4244,8 +4244,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->video_dev, VFL_TYPE_GRABBER,
 				  video_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device video%d\n",
-	       btv->c.nr, btv->video_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->video_dev));
 	if (device_create_file(&btv->video_dev->dev,
 				     &dev_attr_card)<0) {
 		printk(KERN_ERR "bttv%d: device_create_file 'card' "
@@ -4261,8 +4261,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->vbi_dev, VFL_TYPE_VBI,
 				  vbi_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device vbi%d\n",
-	       btv->c.nr, btv->vbi_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->vbi_dev));
 
 	if (!btv->has_radio)
 		return 0;
@@ -4273,8 +4273,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->radio_dev, VFL_TYPE_RADIO,
 				  radio_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device radio%d\n",
-	       btv->c.nr, btv->radio_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->radio_dev));
 
 	/* all done */
 	return 0;

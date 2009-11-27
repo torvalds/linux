@@ -2167,8 +2167,8 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 		dev->radio_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		em28xx_info("V4L2 device /dev/vbi%d deregistered\n",
-			    dev->vbi_dev->num);
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(dev->vbi_dev));
 		if (-1 != dev->vbi_dev->minor)
 			video_unregister_device(dev->vbi_dev);
 		else
@@ -2176,8 +2176,8 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 		dev->vbi_dev = NULL;
 	}
 	if (dev->vdev) {
-		em28xx_info("V4L2 device /dev/video%d deregistered\n",
-			    dev->vdev->num);
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(dev->vdev));
 		if (-1 != dev->vdev->minor)
 			video_unregister_device(dev->vdev);
 		else
@@ -2540,16 +2540,16 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			em28xx_errdev("can't register radio device\n");
 			return ret;
 		}
-		em28xx_info("Registered radio device as /dev/radio%d\n",
-			    dev->radio_dev->num);
+		em28xx_info("Registered radio device as %s\n",
+			    video_device_node_name(dev->radio_dev));
 	}
 
-	em28xx_info("V4L2 video device registered as /dev/video%d\n",
-				dev->vdev->num);
+	em28xx_info("V4L2 video device registered as %s\n",
+		    video_device_node_name(dev->vdev));
 
 	if (dev->vbi_dev)
-		em28xx_info("V4L2 VBI device registered as /dev/vbi%d\n",
-			    dev->vbi_dev->num);
+		em28xx_info("V4L2 VBI device registered as %s\n",
+			    video_device_node_name(dev->vbi_dev));
 
 	return 0;
 }

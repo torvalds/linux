@@ -1148,7 +1148,8 @@ static int vivi_open(struct file *file)
 		return -EBUSY;
 	}
 
-	dprintk(dev, 1, "open /dev/video%d type=%s users=%d\n", dev->vfd->num,
+	dprintk(dev, 1, "open %s type=%s users=%d\n",
+		video_device_node_name(dev->vfd),
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	/* allocate + initialize per filehandle data */
@@ -1317,8 +1318,8 @@ static int vivi_release(void)
 		list_del(list);
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
-		v4l2_info(&dev->v4l2_dev, "unregistering /dev/video%d\n",
-			dev->vfd->num);
+		v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+			video_device_node_name(dev->vfd));
 		video_unregister_device(dev->vfd);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
@@ -1379,8 +1380,8 @@ static int __init vivi_create_instance(int inst)
 		video_nr++;
 
 	dev->vfd = vfd;
-	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as /dev/video%d\n",
-			vfd->num);
+	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
+		  video_device_node_name(vfd));
 	return 0;
 
 rel_vdev:

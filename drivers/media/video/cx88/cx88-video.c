@@ -1916,8 +1916,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		       core->name);
 		goto fail_unreg;
 	}
-	printk(KERN_INFO "%s/0: registered device video%d [v4l2]\n",
-	       core->name, dev->video_dev->num);
+	printk(KERN_INFO "%s/0: registered device %s [v4l2]\n",
+	       core->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = cx88_vdev_init(core,dev->pci,&cx8800_vbi_template,"vbi");
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
@@ -1927,8 +1927,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		       core->name);
 		goto fail_unreg;
 	}
-	printk(KERN_INFO "%s/0: registered device vbi%d\n",
-	       core->name, dev->vbi_dev->num);
+	printk(KERN_INFO "%s/0: registered device %s\n",
+	       core->name, video_device_node_name(dev->vbi_dev));
 
 	if (core->board.radio.type == CX88_RADIO) {
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
@@ -1940,8 +1940,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			       core->name);
 			goto fail_unreg;
 		}
-		printk(KERN_INFO "%s/0: registered device radio%d\n",
-		       core->name, dev->radio_dev->num);
+		printk(KERN_INFO "%s/0: registered device %s\n",
+		       core->name, video_device_node_name(dev->radio_dev));
 	}
 
 	/* everything worked */

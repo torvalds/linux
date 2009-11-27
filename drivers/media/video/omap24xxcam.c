@@ -1678,7 +1678,8 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 
 	omap24xxcam_poweron_reset(cam);
 
-	dev_info(cam->dev, "registered device video%d\n", vfd->minor);
+	dev_info(cam->dev, "registered device %s\n",
+		 video_device_node_name(vfd));
 
 	return 0;
 

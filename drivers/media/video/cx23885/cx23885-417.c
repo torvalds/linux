@@ -1810,8 +1810,8 @@ int cx23885_417_register(struct cx23885_dev *dev)
 		return err;
 	}
 
-	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
-	       dev->name, dev->v4l_device->num);
+	printk(KERN_INFO "%s: registered device %s [mpeg]\n",
+	       dev->name, video_device_node_name(dev->v4l_device));
 
 	return 0;
 }

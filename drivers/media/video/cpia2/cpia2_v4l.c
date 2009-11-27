@@ -1967,9 +1967,9 @@ void cpia2_unregister_camera(struct camera_data *cam)
 	if (!cam->open_count) {
 		video_unregister_device(cam->vdev);
 	} else {
-		LOG("/dev/video%d removed while open, "
-		    "deferring video_unregister_device\n",
-		    cam->vdev->num);
+		LOG("%s removed while open, deferring "
+		    "video_unregister_device\n",
+		    video_device_node_name(cam->vdev));
 	}
 }
 

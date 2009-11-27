@@ -1327,8 +1327,8 @@ static int stk_register_video_device(struct stk_camera *dev)
 	if (err)
 		STK_ERROR("v4l registration failed\n");
 	else
-		STK_INFO("Syntek USB2.0 Camera is now controlling video device"
-			" /dev/video%d\n", dev->vdev.num);
+		STK_INFO("Syntek USB2.0 Camera is now controlling device %s\n",
+			 video_device_node_name(&dev->vdev));
 	return err;
 }
 
@@ -1418,8 +1418,8 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	wake_up_interruptible(&dev->wait_frame);
 	stk_remove_sysfs_files(&dev->vdev);
 
-	STK_INFO("Syntek USB2.0 Camera release resources "
-		"video device /dev/video%d\n", dev->vdev.num);
+	STK_INFO("Syntek USB2.0 Camera release resources device %s\n",
+		 video_device_node_name(&dev->vdev));
 
 	video_unregister_device(&dev->vdev);
 }
