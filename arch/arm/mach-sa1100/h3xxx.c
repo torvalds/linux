@@ -83,8 +83,10 @@ static void h3xxx_set_vpp(int vpp)
 static int h3xxx_flash_init(void)
 {
 	int err = gpio_request(H3XXX_EGPIO_VPP_ON, "Flash Vpp");
-	if (err)
+	if (err) {
+		pr_err("%s: can't request H3XXX_EGPIO_VPP_ON\n", __func__);
 		return err;
+	}
 
 	err = gpio_direction_output(H3XXX_EGPIO_VPP_ON, 0);
 	if (err)
@@ -143,11 +145,15 @@ static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
 
 static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
-	if (port->mapbase == _Ser3UTCR0)
+	if (port->mapbase == _Ser3UTCR0) {
 		if (!gpio_request(H3XXX_EGPIO_RS232_ON, "RS232 transceiver")) {
 			gpio_direction_output(H3XXX_EGPIO_RS232_ON, !state);
 			gpio_free(H3XXX_EGPIO_RS232_ON);
+		} else {
+			pr_err("%s: can't request H3XXX_EGPIO_RS232_ON\n",
+				__func__);
 		}
+	}
 }
 
 /*

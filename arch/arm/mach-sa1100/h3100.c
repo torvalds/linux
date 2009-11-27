@@ -31,6 +31,8 @@ static void h3100_lcd_power(int enable)
 		gpio_set_value(H3100_GPIO_LCD_3V_ON, enable);
 		gpio_direction_output(H3XXX_EGPIO_LCD_ON, enable);
 		gpio_free(H3XXX_EGPIO_LCD_ON);
+	} else {
+		pr_err("%s: can't request H3XXX_EGPIO_LCD_ON\n", __func__);
 	}
 }
 

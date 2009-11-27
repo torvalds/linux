@@ -27,14 +27,22 @@
  */
 static void h3600_lcd_power(int enable)
 {
-	if (gpio_request(H3XXX_EGPIO_LCD_ON, "LCD power"))
+	if (gpio_request(H3XXX_EGPIO_LCD_ON, "LCD power")) {
+		pr_err("%s: can't request H3XXX_EGPIO_LCD_ON\n", __func__);
 		goto err1;
-	if (gpio_request(H3600_EGPIO_LCD_PCI, "LCD control"))
+	}
+	if (gpio_request(H3600_EGPIO_LCD_PCI, "LCD control")) {
+		pr_err("%s: can't request H3XXX_EGPIO_LCD_PCI\n", __func__);
 		goto err2;
-	if (gpio_request(H3600_EGPIO_LCD_5V_ON, "LCD 5v"))
+	}
+	if (gpio_request(H3600_EGPIO_LCD_5V_ON, "LCD 5v")) {
+		pr_err("%s: can't request H3XXX_EGPIO_LCD_5V_ON\n", __func__);
 		goto err3;
-	if (gpio_request(H3600_EGPIO_LVDD_ON, "LCD 9v/-6.5v"))
+	}
+	if (gpio_request(H3600_EGPIO_LVDD_ON, "LCD 9v/-6.5v")) {
+		pr_err("%s: can't request H3600_EGPIO_LVDD_ON\n", __func__);
 		goto err4;
+	}
 
 	gpio_direction_output(H3XXX_EGPIO_LCD_ON, enable);
 	gpio_direction_output(H3600_EGPIO_LCD_PCI, enable);
