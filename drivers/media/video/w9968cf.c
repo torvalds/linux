@@ -2877,8 +2877,7 @@ static long w9968cf_v4l_ioctl(struct file *filp,
 			.minwidth = cam->minwidth,
 			.minheight = cam->minheight,
 		};
-		sprintf(cap.name, "W996[87]CF USB Camera #%d",
-			cam->v4ldev->num);
+		sprintf(cap.name, "W996[87]CF USB Camera");
 		cap.maxwidth = (cam->upscaling && w9968cf_vpp)
 			       ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth)
 				 : cam->maxwidth;
