@@ -297,20 +297,14 @@ static void __init h3xxx_map_io(void)
 	PCFR = PCFR_OPDE;
 	PSDR = 0;
 
+	GPCR = 0x0fffffff;	/* All outputs are set low by default */
+	GPDR = 0;		/* Configure all GPIOs as input */
 }
 
 /************************* H3100 *************************/
 
 #ifdef CONFIG_SA1100_H3100
 
-#define H3100_DIRECT_EGPIO (GPIO_H3100_BT_ON	  \
-			  | GPIO_H3100_GPIO3	  \
-			  | GPIO_H3100_QMUTE	  \
-			  | GPIO_H3100_LCD_3V_ON  \
-			  | GPIO_H3100_AUD_ON	  \
-			  | GPIO_H3100_AUD_PWR_ON \
-			  | GPIO_H3100_IR_ON	  \
-			  | GPIO_H3100_IR_FSEL)
 /*
  * helper for sa1100fb
  */
@@ -330,16 +324,9 @@ static void __init h3100_map_io(void)
 
 	sa1100fb_lcd_power = h3100_lcd_power;
 
-	/* Initialize h3100-specific values here */
-	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
-	GPDR = GPIO_H3600_L3_CLOCK |
-	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
-	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0 |
-	       H3100_DIRECT_EGPIO;
-
 	/* Older bootldrs put GPIO2-9 in alternate mode on the
 	   assumption that they are used for video */
-	GAFR &= ~H3100_DIRECT_EGPIO;
+	GAFR &= ~0x000001fb;
 }
 
 /*
@@ -424,13 +411,6 @@ static void __init h3600_map_io(void)
 	h3xxx_map_io();
 
 	sa1100fb_lcd_power = h3600_lcd_power;
-
-	/* Initialize h3600-specific values here */
-
-	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
-	GPDR = GPIO_H3600_L3_CLOCK |
-	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
-	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0;
 }
 
 /*
