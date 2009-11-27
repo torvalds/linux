@@ -414,8 +414,56 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 
 	return 0;
 }
+
+static int kfr2r09_serial_i2c_setup(void)
+{
+	struct i2c_adapter *a;
+	struct i2c_msg msg;
+	unsigned char buf[2];
+	int ret;
+
+	a = i2c_get_adapter(0);
+	if (!a)
+		return -ENODEV;
+
+	/* set bit 6 (the 7th bit) of chip at 0x09, register 0x13 */
+	buf[0] = 0x13;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 1;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	buf[0] = 0;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 1;
+	msg.flags = I2C_M_RD;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	buf[1] = buf[0] | (1 << 6);
+	buf[0] = 0x13;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 2;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	return 0;
+}
 #else
 static int kfr2r09_usb0_gadget_i2c_setup(void)
+{
+	return -ENODEV;
+}
+
+static int kfr2r09_serial_i2c_setup(void)
 {
 	return -ENODEV;
 }
@@ -463,6 +511,9 @@ static int __init kfr2r09_devices_setup(void)
 	/* enable SCIF1 serial port for YC401 console support */
 	gpio_request(GPIO_FN_SCIF1_RXD, NULL);
 	gpio_request(GPIO_FN_SCIF1_TXD, NULL);
+	kfr2r09_serial_i2c_setup(); /* ECONTMSK(bit6=L10ONEN) set 1 */
+	gpio_request(GPIO_PTG3, NULL); /* HPON_ON */
+	gpio_direction_output(GPIO_PTG3, 1); /* HPON_ON = H */
 
 	/* setup NOR flash at CS0 */
 	ctrl_outl(0x36db0400, BSC_CS0BCR);
