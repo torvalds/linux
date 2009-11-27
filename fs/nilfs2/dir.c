@@ -112,10 +112,8 @@ static void nilfs_commit_chunk(struct page *page,
 
 	nr_dirty = nilfs_page_count_clean_buffers(page, from, to);
 	copied = block_write_end(NULL, mapping, pos, len, len, page, NULL);
-	if (pos + copied > dir->i_size) {
+	if (pos + copied > dir->i_size)
 		i_size_write(dir, pos + copied);
-		mark_inode_dirty(dir);
-	}
 	if (IS_DIRSYNC(dir))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 	err = nilfs_set_file_dirty(sbi, dir, nr_dirty);

@@ -258,7 +258,6 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_mapping->a_ops = &nilfs_aops;
 
 	inc_nlink(inode);
-	mark_inode_dirty(inode);
 
 	err = nilfs_make_empty(inode, dir);
 	if (err)
@@ -268,6 +267,7 @@ static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (err)
 		goto out_fail;
 
+	mark_inode_dirty(inode);
 	d_instantiate(dentry, inode);
 out:
 	if (!err)
