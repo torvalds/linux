@@ -188,7 +188,7 @@ static int nilfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out_fail;
 
 	/* mark_inode_dirty(inode); */
-	/* nilfs_new_inode() and page_symlink() do this */
+	/* page_symlink() do this */
 
 	err = nilfs_add_nondir(dentry, inode);
 out:
