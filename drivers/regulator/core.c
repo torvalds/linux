@@ -390,7 +390,7 @@ static ssize_t regulator_total_uA_show(struct device *dev,
 
 	mutex_lock(&rdev->mutex);
 	list_for_each_entry(regulator, &rdev->consumer_list, list)
-	    uA += regulator->uA_load;
+		uA += regulator->uA_load;
 	mutex_unlock(&rdev->mutex);
 	return sprintf(buf, "%d\n", uA);
 }
@@ -565,7 +565,7 @@ static void drms_uA_update(struct regulator_dev *rdev)
 
 	/* calc total requested load */
 	list_for_each_entry(sibling, &rdev->consumer_list, list)
-	    current_uA += sibling->uA_load;
+		current_uA += sibling->uA_load;
 
 	/* now get the optimum mode for our new total regulator load */
 	mode = rdev->desc->ops->get_optimum_mode(rdev, input_uV,
@@ -1829,7 +1829,7 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 
 	/* calc total requested load for this regulator */
 	list_for_each_entry(consumer, &rdev->consumer_list, list)
-	    total_uA_load += consumer->uA_load;
+		total_uA_load += consumer->uA_load;
 
 	mode = rdev->desc->ops->get_optimum_mode(rdev,
 						 input_uV, output_uV,
@@ -1898,9 +1898,9 @@ static void _notifier_call_chain(struct regulator_dev *rdev,
 
 	/* now notify regulator we supply */
 	list_for_each_entry(_rdev, &rdev->supply_list, slist) {
-	  mutex_lock(&_rdev->mutex);
-	  _notifier_call_chain(_rdev, event, data);
-	  mutex_unlock(&_rdev->mutex);
+		mutex_lock(&_rdev->mutex);
+		_notifier_call_chain(_rdev, event, data);
+		mutex_unlock(&_rdev->mutex);
 	}
 }
 
