@@ -1249,6 +1249,8 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 
 	return 0;
 
+reset_err:
+	snd_soc_free_pcms(socdev);
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 
