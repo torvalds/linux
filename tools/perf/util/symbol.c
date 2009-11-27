@@ -43,7 +43,7 @@ static struct symbol_conf symbol_conf__defaults = {
 	.try_vmlinux_path = true,
 };
 
-static struct rb_root kernel_maps;
+static struct rb_root kernel_maps__functions;
 
 static void symbols__fixup_end(struct rb_root *self)
 {
@@ -71,7 +71,7 @@ static void symbols__fixup_end(struct rb_root *self)
 static void kernel_maps__fixup_end(void)
 {
 	struct map *prev, *curr;
-	struct rb_node *nd, *prevnd = rb_first(&kernel_maps);
+	struct rb_node *nd, *prevnd = rb_first(&kernel_maps__functions);
 
 	if (prevnd == NULL)
 		return;
@@ -325,7 +325,7 @@ static int kernel_maps__load_all_kallsyms(void)
 		 * kernel_maps__split_kallsyms, when we have split the
 		 * maps per module
 		 */
-		symbols__insert(&kernel_map->dso->functions, sym);
+		symbols__insert(&kernel_map__functions->dso->functions, sym);
 	}
 
 	free(line);
@@ -346,10 +346,10 @@ out_failure:
  */
 static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 {
-	struct map *map = kernel_map;
+	struct map *map = kernel_map__functions;
 	struct symbol *pos;
 	int count = 0;
-	struct rb_node *next = rb_first(&kernel_map->dso->functions);
+	struct rb_node *next = rb_first(&kernel_map__functions->dso->functions);
 	int kernel_range = 0;
 
 	while (next) {
@@ -376,7 +376,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 			 */
 			pos->start = map->map_ip(map, pos->start);
 			pos->end   = map->map_ip(map, pos->end);
-		} else if (map != kernel_map) {
+		} else if (map != kernel_map__functions) {
 			char dso_name[PATH_MAX];
 			struct dso *dso;
 
@@ -399,12 +399,12 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter)
 		}
 
 		if (filter && filter(map, pos)) {
-			rb_erase(&pos->rb_node, &kernel_map->dso->functions);
+			rb_erase(&pos->rb_node, &kernel_map__functions->dso->functions);
 			symbol__delete(pos);
 		} else {
-			if (map != kernel_map) {
+			if (map != kernel_map__functions) {
 				rb_erase(&pos->rb_node,
-					 &kernel_map->dso->functions);
+					 &kernel_map__functions->dso->functions);
 				symbols__insert(&map->dso->functions, pos);
 			}
 			count++;
@@ -420,8 +420,8 @@ static int kernel_maps__load_kallsyms(symbol_filter_t filter)
 	if (kernel_maps__load_all_kallsyms())
 		return -1;
 
-	symbols__fixup_end(&kernel_map->dso->functions);
-	kernel_map->dso->origin = DSO__ORIG_KERNEL;
+	symbols__fixup_end(&kernel_map__functions->dso->functions);
+	kernel_map__functions->dso->origin = DSO__ORIG_KERNEL;
 
 	return kernel_maps__split_kallsyms(filter);
 }
@@ -431,7 +431,7 @@ size_t kernel_maps__fprintf(FILE *fp)
 	size_t printed = fprintf(fp, "Kernel maps:\n");
 	struct rb_node *nd;
 
-	for (nd = rb_first(&kernel_maps); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&kernel_maps__functions); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 
 		printed += fprintf(fp, "Map:");
@@ -1159,17 +1159,17 @@ out:
 	return ret;
 }
 
-struct map *kernel_map;
+struct map *kernel_map__functions;
 
 static void kernel_maps__insert(struct map *map)
 {
-	maps__insert(&kernel_maps, map);
+	maps__insert(&kernel_maps__functions, map);
 }
 
 struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
 					  symbol_filter_t filter)
 {
-	struct map *map = maps__find(&kernel_maps, ip);
+	struct map *map = maps__find(&kernel_maps__functions, ip);
 
 	if (mapp)
 		*mapp = map;
@@ -1178,7 +1178,7 @@ struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
 		ip = map->map_ip(map, ip);
 		return map__find_function(map, ip, filter);
 	} else
-		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps),
+		WARN_ONCE(RB_EMPTY_ROOT(&kernel_maps__functions),
 			  "Empty kernel_maps, was symbol__init() called?\n");
 
 	return NULL;
@@ -1188,7 +1188,7 @@ struct map *kernel_maps__find_by_dso_name(const char *name)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&kernel_maps); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&kernel_maps__functions); nd; nd = rb_next(nd)) {
 		struct map *map = rb_entry(nd, struct map, rb_node);
 
 		if (map->dso && strcmp(map->dso->name, name) == 0)
@@ -1505,11 +1505,11 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 	if (kernel == NULL)
 		return -1;
 
-	kernel_map = map__new2(0, kernel);
-	if (kernel_map == NULL)
+	kernel_map__functions = map__new2(0, kernel);
+	if (kernel_map__functions == NULL)
 		goto out_delete_kernel_dso;
 
-	kernel_map->map_ip	 = kernel_map->unmap_ip = identity__map_ip;
+	kernel_map__functions->map_ip	 = kernel_map__functions->unmap_ip = identity__map_ip;
 	kernel->short_name	 = "[kernel]";
 	kernel->kernel		 = 1;
 
@@ -1522,15 +1522,15 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 				 sizeof(kernel->build_id)) == 0)
 		kernel->has_build_id = true;
 
-	kernel_maps__insert(kernel_map);
+	kernel_maps__insert(kernel_map__functions);
 	dsos__add(kernel);
 	dsos__add(vdso);
 
 	return 0;
 
 out_delete_kernel_map:
-	map__delete(kernel_map);
-	kernel_map = NULL;
+	map__delete(kernel_map__functions);
+	kernel_map__functions = NULL;
 out_delete_kernel_dso:
 	dso__delete(kernel);
 	return -1;

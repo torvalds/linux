@@ -184,7 +184,7 @@ got_map:
 			 * trick of looking in the whole kernel symbol list.
 			 */
 			if ((long long)ip < 0) {
-				map = kernel_map;
+				map = kernel_map__functions;
 				goto got_map;
 			}
 		}
