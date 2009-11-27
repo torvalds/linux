@@ -601,11 +601,6 @@ static __init void memory_setup(void)
 	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
 
-#if !defined(CONFIG_MTD_UCLINUX)
-	/*In case there is no valid CPLB behind memory_end make sure we don't get to close*/
-	memory_end -= SIZE_4K;
-#endif
-
 	init_mm.start_code = (unsigned long)_stext;
 	init_mm.end_code = (unsigned long)_etext;
 	init_mm.end_data = (unsigned long)_edata;
