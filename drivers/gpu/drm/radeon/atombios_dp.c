@@ -440,7 +440,7 @@ u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector)
 					 dig_connector->dp_i2c_bus->rec.i2c_id, 0);
 }
 
-void radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
+bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
 	u8 msg[25];
@@ -456,10 +456,10 @@ void radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 				printk("%02x ", msg[i]);
 			printk("\n");
 		}
-		return;
+		return true;
 	}
 	dig_connector->dpcd[0] = 0;
-	return;
+	return false;
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,

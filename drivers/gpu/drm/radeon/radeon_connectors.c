@@ -936,9 +936,10 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 
 	sink_type = radeon_dp_getsinktype(radeon_connector);
 	if (sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
-		radeon_dp_getdpcd(radeon_connector);
-		radeon_dig_connector->dp_sink_type = sink_type;
-		ret = connector_status_connected;
+		if (radeon_dp_getdpcd(radeon_connector)) {
+			radeon_dig_connector->dp_sink_type = sink_type;
+			ret = connector_status_connected;
+		}
 	} else {
 		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		if (radeon_ddc_probe(radeon_connector)) {
