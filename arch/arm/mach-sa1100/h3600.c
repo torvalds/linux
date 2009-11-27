@@ -155,11 +155,8 @@ static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
 
 static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
-	if (port->mapbase == _Ser2UTCR0) { /* TODO: REMOVE THIS */
-		assign_h3600_egpio(IPAQ_EGPIO_IR_ON, !state);
-	} else if (port->mapbase == _Ser3UTCR0) {
+	if (port->mapbase == _Ser3UTCR0)
 		assign_h3600_egpio(IPAQ_EGPIO_RS232_ON, !state);
-	}
 }
 
 /*
