@@ -593,6 +593,34 @@ static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 	return dr7;
 }
 
+static struct perf_event *
+ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
+			 struct task_struct *tsk)
+{
+	int err;
+	int gen_len, gen_type;
+	DEFINE_BREAKPOINT_ATTR(attr);
+
+	/*
+	 * We shoud have at least an inactive breakpoint at this
+	 * slot. It means the user is writing dr7 without having
+	 * written the address register first
+	 */
+	if (!bp)
+		return ERR_PTR(-EINVAL);
+
+	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
+	if (err)
+		return ERR_PTR(err);
+
+	attr = bp->attr;
+	attr.bp_len = gen_len;
+	attr.bp_type = gen_type;
+	attr.disabled = 0;
+
+	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+}
+
 /*
  * Handle ptrace writes to debug register 7.
  */
@@ -603,7 +631,6 @@ static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 	int i, orig_ret = 0, rc = 0;
 	int enabled, second_pass = 0;
 	unsigned len, type;
-	int gen_len, gen_type;
 	struct perf_event *bp;
 
 	data &= ~DR_CONTROL_RESERVED;
@@ -634,33 +661,12 @@ restore:
 			continue;
 		}
 
-		/*
-		 * We shoud have at least an inactive breakpoint at this
-		 * slot. It means the user is writing dr7 without having
-		 * written the address register first
-		 */
-		if (!bp) {
-			rc = -EINVAL;
-			break;
-		}
-
-		rc = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
-		if (rc)
-			break;
-
-		/*
-		 * This is a temporary thing as bp is unregistered/registered
-		 * to simulate modification
-		 */
-		bp = modify_user_hw_breakpoint(bp, bp->attr.bp_addr, gen_len,
-					       gen_type, bp->callback,
-					       tsk, true);
-		thread->ptrace_bps[i] = NULL;
+		bp = ptrace_modify_breakpoint(bp, len, type, tsk);
 
 		/* Incorrect bp, or we have a bug in bp API */
 		if (IS_ERR(bp)) {
 			rc = PTR_ERR(bp);
-			bp = NULL;
+			thread->ptrace_bps[i] = NULL;
 			break;
 		}
 		thread->ptrace_bps[i] = bp;
@@ -707,24 +713,26 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 {
 	struct perf_event *bp;
 	struct thread_struct *t = &tsk->thread;
+	DEFINE_BREAKPOINT_ATTR(attr);
 
 	if (!t->ptrace_bps[nr]) {
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
 		 */
-		bp = register_user_hw_breakpoint(addr, HW_BREAKPOINT_LEN_1,
-						 HW_BREAKPOINT_W,
-						 ptrace_triggered, tsk,
-						 false);
+		attr.bp_addr = addr;
+		attr.bp_len = HW_BREAKPOINT_LEN_1;
+		attr.bp_type = HW_BREAKPOINT_W;
+		attr.disabled = 1;
+
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
 	} else {
 		bp = t->ptrace_bps[nr];
 		t->ptrace_bps[nr] = NULL;
-		bp = modify_user_hw_breakpoint(bp, addr, bp->attr.bp_len,
-					       bp->attr.bp_type,
-					       bp->callback,
-					       tsk,
-					       bp->attr.disabled);
+
+		attr = bp->attr;
+		attr.bp_addr = addr;
+		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
 	}
 	/*
 	 * CHECKME: the previous code returned -EIO if the addr wasn't a

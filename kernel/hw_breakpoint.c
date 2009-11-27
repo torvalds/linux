@@ -289,90 +289,32 @@ int register_perf_hw_breakpoint(struct perf_event *bp)
 	return __register_perf_hw_breakpoint(bp);
 }
 
-/*
- * Register a breakpoint bound to a task and a given cpu.
- * If cpu is -1, the breakpoint is active for the task in every cpu
- * If the task is -1, the breakpoint is active for every tasks in the given
- * cpu.
- */
-static struct perf_event *
-register_user_hw_breakpoint_cpu(unsigned long addr,
-				int len,
-				int type,
-				perf_callback_t triggered,
-				pid_t pid,
-				int cpu,
-				bool active)
-{
-	struct perf_event_attr *attr;
-	struct perf_event *bp;
-
-	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
-	if (!attr)
-		return ERR_PTR(-ENOMEM);
-
-	attr->type = PERF_TYPE_BREAKPOINT;
-	attr->size = sizeof(*attr);
-	attr->bp_addr = addr;
-	attr->bp_len = len;
-	attr->bp_type = type;
-	/*
-	 * Such breakpoints are used by debuggers to trigger signals when
-	 * we hit the excepted memory op. We can't miss such events, they
-	 * must be pinned.
-	 */
-	attr->pinned = 1;
-
-	if (!active)
-		attr->disabled = 1;
-
-	bp = perf_event_create_kernel_counter(attr, cpu, pid, triggered);
-	kfree(attr);
-
-	return bp;
-}
-
 /**
  * register_user_hw_breakpoint - register a hardware breakpoint for user space
- * @addr: is the memory address that triggers the breakpoint
- * @len: the length of the access to the memory (1 byte, 2 bytes etc...)
- * @type: the type of the access to the memory (read/write/exec)
+ * @attr: breakpoint attributes
  * @triggered: callback to trigger when we hit the breakpoint
  * @tsk: pointer to 'task_struct' of the process to which the address belongs
- * @active: should we activate it while registering it
- *
  */
 struct perf_event *
-register_user_hw_breakpoint(unsigned long addr,
-			    int len,
-			    int type,
+register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_callback_t triggered,
-			    struct task_struct *tsk,
-			    bool active)
+			    struct task_struct *tsk)
 {
-	return register_user_hw_breakpoint_cpu(addr, len, type, triggered,
-					       tsk->pid, -1, active);
+	return perf_event_create_kernel_counter(attr, -1, tsk->pid, triggered);
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
 /**
  * modify_user_hw_breakpoint - modify a user-space hardware breakpoint
  * @bp: the breakpoint structure to modify
- * @addr: is the memory address that triggers the breakpoint
- * @len: the length of the access to the memory (1 byte, 2 bytes etc...)
- * @type: the type of the access to the memory (read/write/exec)
+ * @attr: new breakpoint attributes
  * @triggered: callback to trigger when we hit the breakpoint
  * @tsk: pointer to 'task_struct' of the process to which the address belongs
- * @active: should we activate it while registering it
  */
 struct perf_event *
-modify_user_hw_breakpoint(struct perf_event *bp,
-			  unsigned long addr,
-			  int len,
-			  int type,
+modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr,
 			  perf_callback_t triggered,
-			  struct task_struct *tsk,
-			  bool active)
+			  struct task_struct *tsk)
 {
 	/*
 	 * FIXME: do it without unregistering
@@ -381,8 +323,7 @@ modify_user_hw_breakpoint(struct perf_event *bp,
 	 */
 	unregister_hw_breakpoint(bp);
 
-	return register_user_hw_breakpoint(addr, len, type, triggered,
-					   tsk, active);
+	return perf_event_create_kernel_counter(attr, -1, tsk->pid, triggered);
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);
 
@@ -406,8 +347,16 @@ register_kernel_hw_breakpoint_cpu(unsigned long addr,
 				  int cpu,
 				  bool active)
 {
-	return register_user_hw_breakpoint_cpu(addr, len, type, triggered,
-					       -1, cpu, active);
+	DEFINE_BREAKPOINT_ATTR(attr);
+
+	attr.bp_addr = addr;
+	attr.bp_len = len;
+	attr.bp_type = type;
+
+	if (!active)
+		attr.disabled = 1;
+
+	return perf_event_create_kernel_counter(&attr, cpu, -1, triggered);
 }
 
 /**
