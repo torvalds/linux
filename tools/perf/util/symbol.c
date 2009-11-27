@@ -28,8 +28,7 @@ enum dso_origin {
 	DSO__ORIG_NOT_FOUND,
 };
 
-static void dsos__add(struct dso *dso);
-static struct dso *dsos__find(const char *name);
+static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso);
 static void kernel_maps__insert(struct map *map);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
@@ -855,7 +854,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				curr_map->unmap_ip = identity__map_ip;
 				curr_dso->origin = DSO__ORIG_KERNEL;
 				kernel_maps__insert(curr_map);
-				dsos__add(curr_dso);
+				dsos__add(&dsos__kernel, curr_dso);
 			} else
 				curr_dso = curr_map->dso;
 
@@ -907,12 +906,12 @@ static bool dso__build_id_equal(const struct dso *self, u8 *build_id)
 	return memcmp(self->build_id, build_id, sizeof(self->build_id)) == 0;
 }
 
-bool dsos__read_build_ids(void)
+static bool __dsos__read_build_ids(struct list_head *head)
 {
 	bool have_build_id = false;
 	struct dso *pos;
 
-	list_for_each_entry(pos, &dsos, node)
+	list_for_each_entry(pos, head, node)
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
@@ -920,6 +919,12 @@ bool dsos__read_build_ids(void)
 		}
 
 	return have_build_id;
+}
+
+bool dsos__read_build_ids(void)
+{
+	return __dsos__read_build_ids(&dsos__kernel) ||
+	       __dsos__read_build_ids(&dsos__user);
 }
 
 /*
@@ -1343,7 +1348,7 @@ static int kernel_maps__create_module_maps(void)
 
 		dso->origin = DSO__ORIG_KMODULE;
 		kernel_maps__insert(map);
-		dsos__add(dso);
+		dsos__add(&dsos__kernel, dso);
 	}
 
 	free(line);
@@ -1445,19 +1450,20 @@ out_fixup:
 	return err;
 }
 
-LIST_HEAD(dsos);
+LIST_HEAD(dsos__user);
+LIST_HEAD(dsos__kernel);
 struct dso *vdso;
 
-static void dsos__add(struct dso *dso)
+static void dsos__add(struct list_head *head, struct dso *dso)
 {
-	list_add_tail(&dso->node, &dsos);
+	list_add_tail(&dso->node, head);
 }
 
-static struct dso *dsos__find(const char *name)
+static struct dso *dsos__find(struct list_head *head, const char *name)
 {
 	struct dso *pos;
 
-	list_for_each_entry(pos, &dsos, node)
+	list_for_each_entry(pos, head, node)
 		if (strcmp(pos->name, name) == 0)
 			return pos;
 	return NULL;
@@ -1465,12 +1471,12 @@ static struct dso *dsos__find(const char *name)
 
 struct dso *dsos__findnew(const char *name)
 {
-	struct dso *dso = dsos__find(name);
+	struct dso *dso = dsos__find(&dsos__user, name);
 
 	if (!dso) {
 		dso = dso__new(name);
 		if (dso != NULL) {
-			dsos__add(dso);
+			dsos__add(&dsos__user, dso);
 			dso__set_basename(dso);
 		}
 	}
@@ -1478,24 +1484,36 @@ struct dso *dsos__findnew(const char *name)
 	return dso;
 }
 
-void dsos__fprintf(FILE *fp)
+static void __dsos__fprintf(struct list_head *head, FILE *fp)
 {
 	struct dso *pos;
 
-	list_for_each_entry(pos, &dsos, node)
+	list_for_each_entry(pos, head, node)
 		dso__fprintf(pos, fp);
 }
 
-size_t dsos__fprintf_buildid(FILE *fp)
+void dsos__fprintf(FILE *fp)
+{
+	__dsos__fprintf(&dsos__kernel, fp);
+	__dsos__fprintf(&dsos__user, fp);
+}
+
+static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp)
 {
 	struct dso *pos;
 	size_t ret = 0;
 
-	list_for_each_entry(pos, &dsos, node) {
+	list_for_each_entry(pos, head, node) {
 		ret += dso__fprintf_buildid(pos, fp);
 		ret += fprintf(fp, " %s\n", pos->long_name);
 	}
 	return ret;
+}
+
+size_t dsos__fprintf_buildid(FILE *fp)
+{
+	return (__dsos__fprintf_buildid(&dsos__kernel, fp) +
+		__dsos__fprintf_buildid(&dsos__user, fp));
 }
 
 static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
@@ -1523,8 +1541,8 @@ static int kernel_maps__create_kernel_map(const struct symbol_conf *conf)
 		kernel->has_build_id = true;
 
 	kernel_maps__insert(kernel_map__functions);
-	dsos__add(kernel);
-	dsos__add(vdso);
+	dsos__add(&dsos__kernel, kernel);
+	dsos__add(&dsos__user, vdso);
 
 	return 0;
 

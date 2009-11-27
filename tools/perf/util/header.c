@@ -185,11 +185,11 @@ static int do_write(int fd, const void *buf, size_t size)
 	return 0;
 }
 
-static int dsos__write_buildid_table(int fd)
+static int __dsos__write_buildid_table(struct list_head *head, int fd)
 {
 	struct dso *pos;
 
-	list_for_each_entry(pos, &dsos, node) {
+	list_for_each_entry(pos, head, node) {
 		int err;
 		struct build_id_event b;
 		size_t len;
@@ -210,6 +210,14 @@ static int dsos__write_buildid_table(int fd)
 	}
 
 	return 0;
+}
+
+static int dsos__write_buildid_table(int fd)
+{
+	int err = __dsos__write_buildid_table(&dsos__kernel, fd);
+	if (err == 0)
+		err = __dsos__write_buildid_table(&dsos__user, fd);
+	return err;
 }
 
 static int perf_header__adds_write(struct perf_header *self, int fd)
