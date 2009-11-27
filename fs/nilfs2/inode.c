@@ -97,7 +97,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 			nilfs_transaction_abort(inode->i_sb);
 			goto out;
 		}
-		mark_inode_dirty(inode);
+		nilfs_mark_inode_dirty(inode);
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
@@ -598,7 +598,7 @@ void nilfs_truncate(struct inode *inode)
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
-	mark_inode_dirty(inode);
+	nilfs_mark_inode_dirty(inode);
 	nilfs_set_file_dirty(NILFS_SB(sb), inode, 0);
 	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
@@ -623,7 +623,7 @@ void nilfs_delete_inode(struct inode *inode)
 		truncate_inode_pages(&inode->i_data, 0);
 
 	nilfs_truncate_bmap(ii, 0);
-	mark_inode_dirty(inode);
+	nilfs_mark_inode_dirty(inode);
 	nilfs_free_inode(inode);
 	/* nilfs_free_inode() marks inode buffer dirty */
 	if (IS_SYNC(inode))

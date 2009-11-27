@@ -548,7 +548,7 @@ got_it:
 	nilfs_commit_chunk(page, page->mapping, from, to);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 /*	NILFS_I(dir)->i_flags &= ~NILFS_BTREE_FL; */
-	mark_inode_dirty(dir);
+	nilfs_mark_inode_dirty(dir);
 	/* OFFSET_CACHE */
 out_put:
 	nilfs_put_page(page);
