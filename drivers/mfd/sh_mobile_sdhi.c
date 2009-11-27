@@ -24,6 +24,7 @@
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
@@ -49,6 +50,15 @@ static struct mfd_cell sh_mobile_sdhi_cell = {
 	.num_resources = ARRAY_SIZE(sh_mobile_sdhi_resources),
 	.resources     = sh_mobile_sdhi_resources,
 };
+
+static void sh_mobile_sdhi_set_pwr(struct platform_device *tmio, int state)
+{
+	struct platform_device *pdev = to_platform_device(tmio->dev.parent);
+	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
+
+	if (p && p->set_pwr)
+		p->set_pwr(pdev, state);
+}
 
 static int __init sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
@@ -87,6 +97,7 @@ static int __init sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	/* FIXME: silly const unsigned int hclk */
 	*(unsigned int *)&priv->mmc_data.hclk = clk_get_rate(priv->clk);
+	priv->mmc_data.set_pwr = sh_mobile_sdhi_set_pwr;
 
 	memcpy(&priv->cell_mmc, &sh_mobile_sdhi_cell, sizeof(priv->cell_mmc));
 	priv->cell_mmc.driver_data = &priv->mmc_data;
