@@ -14,20 +14,19 @@ struct callchain_param	callchain_param = {
  * histogram, sorted on item, collects counts
  */
 
-struct hist_entry *__hist_entry__add(struct thread *thread, struct map *map,
-				     struct symbol *sym,
+struct hist_entry *__hist_entry__add(struct addr_location *al,
 				     struct symbol *sym_parent,
-				     u64 ip, u64 count, char level, bool *hit)
+				     u64 count, bool *hit)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
 	struct hist_entry entry = {
-		.thread	= thread,
-		.map	= map,
-		.sym	= sym,
-		.ip	= ip,
-		.level	= level,
+		.thread	= al->thread,
+		.map	= al->map,
+		.sym	= al->sym,
+		.ip	= al->addr,
+		.level	= al->level,
 		.count	= count,
 		.parent = sym_parent,
 	};

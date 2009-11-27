@@ -249,3 +249,65 @@ int event__process_task(event_t *self)
 
 	return 0;
 }
+
+void thread__find_addr_location(struct thread *self, u8 cpumode,
+				enum map_type type, u64 addr,
+				struct addr_location *al,
+				symbol_filter_t filter)
+{
+	struct thread *thread = al->thread = self;
+
+	al->addr = addr;
+
+	if (cpumode & PERF_RECORD_MISC_KERNEL) {
+		al->level = 'k';
+		thread = kthread;
+	} else if (cpumode & PERF_RECORD_MISC_USER)
+		al->level = '.';
+	else {
+		al->level = 'H';
+		al->map = NULL;
+		al->sym = NULL;
+		return;
+	}
+try_again:
+	al->map = thread__find_map(thread, type, al->addr);
+	if (al->map == NULL) {
+		/*
+		 * If this is outside of all known maps, and is a negative
+		 * address, try to look it up in the kernel dso, as it might be
+		 * a vsyscall or vdso (which executes in user-mode).
+		 *
+		 * XXX This is nasty, we should have a symbol list in the
+		 * "[vdso]" dso, but for now lets use the old trick of looking
+		 * in the whole kernel symbol list.
+		 */
+		if ((long long)al->addr < 0 && thread != kthread) {
+			thread = kthread;
+			goto try_again;
+		}
+		al->sym = NULL;
+	} else {
+		al->addr = al->map->map_ip(al->map, al->addr);
+		al->sym = map__find_symbol(al->map, al->addr, filter);
+	}
+}
+
+int event__preprocess_sample(const event_t *self, struct addr_location *al,
+			     symbol_filter_t filter)
+{
+	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	struct thread *thread = threads__findnew(self->ip.pid);
+
+	if (thread == NULL)
+		return -1;
+
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+
+	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+				   self->ip.ip, al, filter);
+	dump_printf(" ...... dso: %s\n",
+		    al->map ? al->map->dso->long_name :
+			al->level == 'H' ? "[hypervisor]" : "<not found>");
+	return 0;
+}

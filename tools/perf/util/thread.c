@@ -285,3 +285,15 @@ size_t threads__fprintf(FILE *fp)
 
 	return ret;
 }
+
+struct symbol *thread__find_symbol(struct thread *self,
+				   enum map_type type, u64 addr,
+				   symbol_filter_t filter)
+{
+	struct map *map = thread__find_map(self, type, addr);
+
+	if (map != NULL)
+		return map__find_symbol(map, map->map_ip(map, addr), filter);
+
+	return NULL;
+}

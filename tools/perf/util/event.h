@@ -152,4 +152,8 @@ int event__process_lost(event_t *self);
 int event__process_mmap(event_t *self);
 int event__process_task(event_t *self);
 
+struct addr_location;
+int event__preprocess_sample(const event_t *self, struct addr_location *al,
+			     symbol_filter_t filter);
+
 #endif /* __PERF_RECORD_H */

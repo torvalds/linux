@@ -43,7 +43,8 @@ static struct symbol_conf symbol_conf__defaults = {
 	.try_vmlinux_path = true,
 };
 
-static struct thread kthread_mem, *kthread = &kthread_mem;
+static struct thread kthread_mem;
+struct thread *kthread = &kthread_mem;
 
 bool dso__loaded(const struct dso *self, enum map_type type)
 {
@@ -1176,29 +1177,6 @@ out:
 	if (ret < 0 && strstr(self->name, " (deleted)") != NULL)
 		return 0;
 	return ret;
-}
-
-static struct symbol *thread__find_symbol(struct thread *self, u64 ip,
-					  enum map_type type, struct map **mapp,
-					  symbol_filter_t filter)
-{
-	struct map *map = thread__find_map(self, type, ip);
-
-	if (mapp)
-		*mapp = map;
-
-	if (map) {
-		ip = map->map_ip(map, ip);
-		return map__find_symbol(map, ip, filter);
-	}
-
-	return NULL;
-}
-
-struct symbol *kernel_maps__find_function(u64 ip, struct map **mapp,
-					  symbol_filter_t filter)
-{
-	return thread__find_symbol(kthread, ip, MAP__FUNCTION, mapp, filter);
 }
 
 static struct map *thread__find_map_by_name(struct thread *self, char *name)

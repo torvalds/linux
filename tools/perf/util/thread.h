@@ -27,19 +27,30 @@ size_t thread__fprintf_maps(struct thread *self, FILE *fp);
 size_t threads__fprintf(FILE *fp);
 
 void maps__insert(struct rb_root *maps, struct map *map);
-struct map *maps__find(struct rb_root *maps, u64 ip);
-
-struct symbol *kernel_maps__find_function(const u64 ip, struct map **mapp,
-					  symbol_filter_t filter);
+struct map *maps__find(struct rb_root *maps, u64 addr);
 
 static inline struct map *thread__find_map(struct thread *self,
-					   enum map_type type, u64 ip)
+					   enum map_type type, u64 addr)
 {
-	return self ? maps__find(&self->maps[type], ip) : NULL;
+	return self ? maps__find(&self->maps[type], addr) : NULL;
 }
 
 static inline void __thread__insert_map(struct thread *self, struct map *map)
 {
 	 maps__insert(&self->maps[map->type], map);
+}
+
+void thread__find_addr_location(struct thread *self, u8 cpumode,
+				enum map_type type, u64 addr,
+				struct addr_location *al,
+				symbol_filter_t filter);
+struct symbol *thread__find_symbol(struct thread *self,
+				   enum map_type type, u64 addr,
+				   symbol_filter_t filter);
+
+static inline struct symbol *
+thread__find_function(struct thread *self, u64 addr, symbol_filter_t filter)
+{
+	return thread__find_symbol(self, MAP__FUNCTION, addr, filter);
 }
 #endif	/* __PERF_THREAD_H */

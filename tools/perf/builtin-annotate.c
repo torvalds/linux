@@ -124,71 +124,30 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 			h->ip[offset]);
 }
 
-static int hist_entry__add(struct thread *thread, struct map *map,
-			   struct symbol *sym, u64 ip, u64 count, char level)
+static int hist_entry__add(struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __hist_entry__add(thread, map, sym, NULL, ip,
-						  count, level, &hit);
+	struct hist_entry *he = __hist_entry__add(al, NULL, count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
-	hist_hit(he, ip);
+	hist_hit(he, al->addr);
 	return 0;
 }
 
 static int process_sample_event(event_t *event)
 {
-	char level;
-	u64 ip = event->ip.ip;
-	struct map *map = NULL;
-	struct symbol *sym = NULL;
-	struct thread *thread = threads__findnew(event->ip.pid);
+	struct addr_location al;
 
 	dump_printf("(IP, %d): %d: %p\n", event->header.misc,
-		    event->ip.pid, (void *)(long)ip);
+		    event->ip.pid, (void *)(long)event->ip.ip);
 
-	if (thread == NULL) {
+	if (event__preprocess_sample(event, &al, symbol_filter) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
-	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
-		level = 'k';
-		sym = kernel_maps__find_function(ip, &map, symbol_filter);
-		dump_printf(" ...... dso: %s\n",
-			    map ? map->dso->long_name : "<not found>");
-	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
-		level = '.';
-		map = thread__find_map(thread, MAP__FUNCTION, ip);
-		if (map != NULL) {
-			ip = map->map_ip(map, ip);
-			sym = map__find_symbol(map, ip, symbol_filter);
-		} else {
-			/*
-			 * If this is outside of all known maps,
-			 * and is a negative address, try to look it
-			 * up in the kernel dso, as it might be a
-			 * vsyscall or vdso (which executes in user-mode).
-			 *
-			 * XXX This is nasty, we should have a symbol list in
-			 * the "[vdso]" dso, but for now lets use the old
-			 * trick of looking in the whole kernel symbol list.
-			 */
-			if ((long long)ip < 0)
-				sym = kernel_maps__find_function(ip, &map,
-								 symbol_filter);
-		}
-		dump_printf(" ...... dso: %s\n",
-			    map ? map->dso->long_name : "<not found>");
-	} else {
-		level = 'H';
-		dump_printf(" ...... dso: [hypervisor]\n");
-	}
-
-	if (hist_entry__add(thread, map, sym, ip, 1, level)) {
+	if (hist_entry__add(&al, 1)) {
 		fprintf(stderr, "problem incrementing symbol count, "
 				"skipping event\n");
 		return -1;

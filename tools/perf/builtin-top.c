@@ -929,55 +929,28 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 static void event__process_sample(const event_t *self, int counter)
 {
 	u64 ip = self->ip.ip;
-	struct map *map;
 	struct sym_entry *syme;
-	struct symbol *sym;
+	struct addr_location al;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	switch (origin) {
-	case PERF_RECORD_MISC_USER: {
-		struct thread *thread;
-
+	case PERF_RECORD_MISC_USER:
 		if (hide_user_symbols)
 			return;
-
-		thread = threads__findnew(self->ip.pid);
-		if (thread == NULL)
-			return;
-
-		map = thread__find_map(thread, MAP__FUNCTION, ip);
-		if (map != NULL) {
-			ip = map->map_ip(map, ip);
-			sym = map__find_symbol(map, ip, symbol_filter);
-			if (sym == NULL)
-				return;
-			userspace_samples++;
-			break;
-		}
-	}
-		/*
-		 * If this is outside of all known maps,
-		 * and is a negative address, try to look it
-		 * up in the kernel dso, as it might be a
-		 * vsyscall or vdso (which executes in user-mode).
-		 */
-		if ((long long)ip >= 0)
-			return;
-		/* Fall thru */
+		break;
 	case PERF_RECORD_MISC_KERNEL:
 		if (hide_kernel_symbols)
-			return;
-
-		sym = kernel_maps__find_function(ip, &map, symbol_filter);
-		if (sym == NULL)
 			return;
 		break;
 	default:
 		return;
 	}
 
-	syme = symbol__priv(sym);
+	if (event__preprocess_sample(self, &al, symbol_filter) < 0 ||
+	    al.sym == NULL)
+		return;
 
+	syme = symbol__priv(al.sym);
 	if (!syme->skip) {
 		syme->count[counter]++;
 		syme->origin = origin;
@@ -986,8 +959,9 @@ static void event__process_sample(const event_t *self, int counter)
 		if (list_empty(&syme->node) || !syme->node.next)
 			__list_insert_active_sym(syme);
 		pthread_mutex_unlock(&active_symbols_lock);
+		if (origin == PERF_RECORD_MISC_USER)
+			++userspace_samples;
 		++samples;
-		return;
 	}
 }
 
