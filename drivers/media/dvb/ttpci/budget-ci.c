@@ -178,7 +178,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	if (budget_ci->ir.last_raw != raw || !timer_pending(&budget_ci->ir.timer_keyup)) {
 		ir_input_nokey(dev, &budget_ci->ir.state);
 		ir_input_keydown(dev, &budget_ci->ir.state,
-				 budget_ci->ir.ir_key, raw);
+				 budget_ci->ir.ir_key);
 		budget_ci->ir.last_raw = raw;
 	}
 

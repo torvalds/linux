@@ -62,8 +62,7 @@ struct ir_input_state {
 	IR_KEYTAB_TYPE     ir_codes[IR_KEYTAB_SIZE];
 
 	/* key info */
-	u32                ir_raw;      /* raw data */
-	u32                ir_key;      /* ir key code */
+	u32                ir_key;      /* ir scancode */
 	u32                keycode;     /* linux key code */
 	int                keypressed;  /* current state */
 };
@@ -112,7 +111,7 @@ void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key, u32 ir_raw);
+		      u32 ir_key);
 u32  ir_extract_bits(u32 data, u32 mask);
 int  ir_dump_samples(u32 *samples, int count);
 int  ir_decode_biphase(u32 *samples, int count, int low, int high);

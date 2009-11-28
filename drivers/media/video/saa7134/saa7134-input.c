@@ -102,14 +102,14 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			ir_input_nokey(ir->dev, &ir->ir);
 		else
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 		} else {
 			ir_input_nokey(ir->dev, &ir->ir);
 		}
@@ -117,7 +117,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 			ir_input_nokey(ir->dev, &ir->ir);
 		}
 	}
@@ -938,7 +938,7 @@ static void nec_task(unsigned long data)
 		dprintk("scancode = 0x%02x (code = 0x%02x, notcode= 0x%02x)\n",
 			 ir->code, ircode, not_code);
 
-		ir_input_keydown(ir->dev, &ir->ir, ir->code, ir->code);
+		ir_input_keydown(ir->dev, &ir->ir, ir->code);
 	} else
 		dprintk("Repeat last key\n");
 

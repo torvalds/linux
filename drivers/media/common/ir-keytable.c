@@ -118,7 +118,6 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 
 	return KEY_UNKNOWN;
 }
-EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
 
 /**
  * ir_set_keycode_table() - sets the IR keycode table and add the handlers
@@ -153,4 +152,3 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ir_set_keycode_table);

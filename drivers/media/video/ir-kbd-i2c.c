@@ -275,7 +275,7 @@ static void ir_key_poll(struct IR_i2c *ir)
 	if (0 == rc) {
 		ir_input_nokey(ir->input, &ir->ir);
 	} else {
-		ir_input_keydown(ir->input, &ir->ir, ir_key, ir_raw);
+		ir_input_keydown(ir->input, &ir->ir, ir_key);
 	}
 }
 

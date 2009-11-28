@@ -42,8 +42,8 @@ module_param_named(debug, media_ir_debug, int, 0644);
 static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 {
 	if (KEY_RESERVED == ir->keycode) {
-		printk(KERN_INFO "%s: unknown key: key=0x%02x raw=0x%02x down=%d\n",
-		       dev->name,ir->ir_key,ir->ir_raw,ir->keypressed);
+		printk(KERN_INFO "%s: unknown key: key=0x%02x down=%d\n",
+		       dev->name, ir->ir_key, ir->keypressed);
 		return;
 	}
 	IR_dprintk(1,"%s: key event code=%d down=%d\n",
@@ -57,28 +57,10 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes)
 {
-	int i;
-
 	ir->ir_type = ir_type;
 
-	memset(ir->ir_codes, 0, sizeof(ir->ir_codes));
+	ir_set_keycode_table(dev, ir_codes);
 
-	/*
-	 * FIXME: This is a temporary workaround to use the new IR tables
-	 * with the old approach. Later patches will replace this to a
-	 * proper method
-	 */
-
-	if (ir_codes)
-		for (i = 0; i < ir_codes->size; i++)
-			if (ir_codes->scan[i].scancode < IR_KEYTAB_SIZE)
-				ir->ir_codes[ir_codes->scan[i].scancode] = ir_codes->scan[i].keycode;
-
-	dev->keycode     = ir->ir_codes;
-	dev->keycodesize = sizeof(IR_KEYTAB_TYPE);
-	dev->keycodemax  = IR_KEYTAB_SIZE;
-	for (i = 0; i < IR_KEYTAB_SIZE; i++)
-		set_bit(ir->ir_codes[i], dev->keybit);
 	clear_bit(0, dev->keybit);
 
 	set_bit(EV_KEY, dev->evbit);
@@ -97,9 +79,9 @@ void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
 EXPORT_SYMBOL_GPL(ir_input_nokey);
 
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key, u32 ir_raw)
+		      u32 ir_key)
 {
-	u32 keycode = IR_KEYCODE(ir->ir_codes, ir_key);
+	u32 keycode = ir_g_keycode_from_table(dev, ir_key);
 
 	if (ir->keypressed && ir->keycode != keycode) {
 		ir->keypressed = 0;
@@ -107,7 +89,6 @@ void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 	}
 	if (!ir->keypressed) {
 		ir->ir_key  = ir_key;
-		ir->ir_raw  = ir_raw;
 		ir->keycode = keycode;
 		ir->keypressed = 1;
 		ir_input_key_event(dev,ir);
@@ -354,8 +335,7 @@ void ir_rc5_timer_end(unsigned long data)
 				IR_dprintk(1, "ir-common: instruction %x, toggle %x\n", instr,
 					toggle);
 				ir_input_nokey(ir->dev, &ir->ir);
-				ir_input_keydown(ir->dev, &ir->ir, instr,
-						 instr);
+				ir_input_keydown(ir->dev, &ir->ir, instr);
 			}
 
 			/* Set/reset key-up timer */

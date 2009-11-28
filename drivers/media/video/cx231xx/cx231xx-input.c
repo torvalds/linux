@@ -126,8 +126,7 @@ static void cx231xx_ir_handle_key(struct cx231xx_IR *ir)
 
 	if (do_sendkey) {
 		dprintk("sending keypress\n");
-		ir_input_keydown(ir->input, &ir->ir, poll_result.rc_data[0],
-				 poll_result.rc_data[0]);
+		ir_input_keydown(ir->input, &ir->ir, poll_result.rc_data[0]);
 		ir_input_nokey(ir->input, &ir->ir);
 	}
 

@@ -94,8 +94,7 @@ static void cx23885_input_process_raw_rc5(struct cx23885_dev *dev)
 	    RC5_START(ir_input->last_rc5) == 0) {
 		/* This keypress is differnet: not an auto repeat */
 		ir_input_nokey(ir_input->dev, &ir_input->ir);
-		ir_input_keydown(ir_input->dev, &ir_input->ir,
-				 command, ir_input->code);
+		ir_input_keydown(ir_input->dev, &ir_input->ir, command);
 	}
 	ir_input->last_rc5 = rc5;
 

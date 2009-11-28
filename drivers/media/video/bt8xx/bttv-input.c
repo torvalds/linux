@@ -73,12 +73,12 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-		ir_input_keydown(ir->dev,&ir->ir,data,data);
+		ir_input_keydown(ir->dev, &ir->ir, data);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 
 		ir_input_nokey(ir->dev,&ir->ir);
 	}
@@ -104,7 +104,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		ir_input_keydown(ir->dev, &ir->ir, data, data);
+		ir_input_keydown(ir->dev, &ir->ir, data);
 		if (keyup)
 			ir_input_nokey(ir->dev, &ir->ir);
 	} else {
@@ -118,7 +118,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 		if (keyup)
 			ir_input_nokey(ir->dev, &ir->ir);
 		else
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 	}
 
 	ir->last_gpio = data | keyup;

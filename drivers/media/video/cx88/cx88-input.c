@@ -118,13 +118,13 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
 
-		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_keydown(ir->input, &ir->ir, data);
 		ir_input_nokey(ir->input, &ir->ir);
 
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown) {
-			ir_input_keydown(ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data);
 		} else {
 			ir_input_nokey(ir->input, &ir->ir);
 		}
@@ -132,14 +132,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup)) {
-			ir_input_keydown(ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data);
 		} else {
 			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_keydown(ir->input, &ir->ir, data);
 		ir_input_nokey(ir->input, &ir->ir);
 	}
 }
@@ -487,7 +487,7 @@ void cx88_ir_irq(struct cx88_core *core)
 
 		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0x7f);
 
-		ir_input_keydown(ir->input, &ir->ir, (ircode >> 16) & 0x7f, (ircode >> 16) & 0xff);
+		ir_input_keydown(ir->input, &ir->ir, (ircode >> 16) & 0x7f);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	case CX88_BOARD_HAUPPAUGE:
@@ -524,7 +524,7 @@ void cx88_ir_irq(struct cx88_core *core)
 		if ( dev != 0x1e && dev != 0x1f )
 			/* not a hauppauge remote */
 			break;
-		ir_input_keydown(ir->input, &ir->ir, code, ircode);
+		ir_input_keydown(ir->input, &ir->ir, code);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
@@ -532,7 +532,7 @@ void cx88_ir_irq(struct cx88_core *core)
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)
 			break;
-		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f, ircode);
+		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	}

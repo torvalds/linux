@@ -510,7 +510,7 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	ir_input_keydown(ir->input_dev, &ir->ir, data, data);
+	ir_input_keydown(ir->input_dev, &ir->ir, data);
 	ir_input_nokey(ir->input_dev, &ir->ir);
 }
 
