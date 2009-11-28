@@ -70,6 +70,7 @@ struct em28xx_IR {
 	int polling;
 	struct delayed_work work;
 	unsigned int last_toggle:1;
+	unsigned int full_code:1;
 	unsigned int last_readcount;
 	unsigned int repeat_interval;
 
@@ -246,9 +247,10 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 		return;
 	}
 
-	dprintk("ir->get_key result tb=%02x rc=%02x lr=%02x data=%02x\n",
+	dprintk("ir->get_key result tb=%02x rc=%02x lr=%02x data=%02x%02x\n",
 		poll_result.toggle_bit, poll_result.read_count,
-		ir->last_readcount, poll_result.rc_data[0]);
+		ir->last_readcount, poll_result.rc_address,
+		poll_result.rc_data[0]);
 
 	if (ir->dev->chip_id == CHIP_ID_EM2874) {
 		/* The em2874 clears the readcount field every time the
@@ -282,7 +284,15 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 
 	if (do_sendkey) {
 		dprintk("sending keypress\n");
-		ir_input_keydown(ir->input, &ir->ir, poll_result.rc_data[0]);
+
+		if (ir->full_code)
+			ir_input_keydown(ir->input, &ir->ir,
+					 poll_result.rc_address << 8 |
+					 poll_result.rc_data[0]);
+		else
+			ir_input_keydown(ir->input, &ir->ir,
+					 poll_result.rc_data[0]);
+
 		ir_input_nokey(ir->input, &ir->ir);
 	}
 
@@ -332,6 +342,8 @@ int em28xx_ir_init(struct em28xx *dev)
 	switch (dev->chip_id) {
 	case CHIP_ID_EM2860:
 	case CHIP_ID_EM2883:
+		if (dev->model == EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950)
+			ir->full_code = 1;
 		ir->get_key = default_polling_getkey;
 		break;
 	case CHIP_ID_EM2874:
