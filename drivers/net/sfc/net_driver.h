@@ -866,9 +866,7 @@ struct efx_nic_type {
 	unsigned int buf_tbl_base;
 	unsigned int evq_ptr_tbl_base;
 	unsigned int evq_rptr_tbl_base;
-
 	u64 max_dma_mask;
-
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
