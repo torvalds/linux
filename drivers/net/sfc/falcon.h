@@ -145,7 +145,6 @@ extern int falcon_init_interrupt(struct efx_nic *efx);
 extern void falcon_enable_interrupts(struct efx_nic *efx);
 extern void falcon_generate_test_event(struct efx_channel *channel,
 				       unsigned int magic);
-extern void falcon_sim_phy_event(struct efx_nic *efx);
 extern void falcon_generate_interrupt(struct efx_nic *efx);
 extern void falcon_set_int_moderation(struct efx_channel *channel);
 extern void falcon_disable_interrupts(struct efx_nic *efx);

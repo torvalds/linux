@@ -503,6 +503,13 @@ struct efx_link_state {
 	unsigned int speed;
 };
 
+static inline bool efx_link_state_equal(const struct efx_link_state *left,
+					const struct efx_link_state *right)
+{
+	return left->up == right->up && left->fd == right->fd &&
+		left->fc == right->fc && left->speed == right->speed;
+}
+
 /**
  * struct efx_mac_operations - Efx MAC operations table
  * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
@@ -520,8 +527,8 @@ struct efx_mac_operations {
  * @init: Initialise PHY
  * @fini: Shut down PHY
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
- * @clear_interrupt: Clear down interrupt
- * @poll: Poll for hardware state. Serialised by the mac_lock.
+ * @poll: Update @link_state and report whether it changed.
+ *	Serialised by the mac_lock.
  * @get_settings: Get ethtool settings. Serialised by the mac_lock.
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
@@ -538,8 +545,7 @@ struct efx_phy_operations {
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
 	void (*reconfigure) (struct efx_nic *efx);
-	void (*clear_interrupt) (struct efx_nic *efx);
-	void (*poll) (struct efx_nic *efx);
+	bool (*poll) (struct efx_nic *efx);
 	void (*get_settings) (struct efx_nic *efx,
 			      struct ethtool_cmd *ecmd);
 	int (*set_settings) (struct efx_nic *efx,
@@ -700,10 +706,10 @@ union efx_multicast_hash {
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
- *	Serialises efx_stop_all(), efx_start_all(), efx_monitor(),
- *	efx_phy_work(), and efx_mac_work() with kernel interfaces. Safe to read
- *	under any one of the rtnl_lock, mac_lock, or netif_tx_lock, but all
- *	three must be held to modify it.
+ *	Serialises efx_stop_all(), efx_start_all(), efx_monitor() and
+ *	efx_mac_work() with kernel interfaces. Safe to read under any
+ *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
+ *	be held to modify it.
  * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
@@ -729,7 +735,6 @@ union efx_multicast_hash {
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
- * @phy_work: work item for dealing with PHY events
  * @mac_work: Work item for changing MAC promiscuity and multicast hash
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
@@ -802,7 +807,6 @@ struct efx_nic {
 
 	enum phy_type phy_type;
 	spinlock_t phy_lock;
-	struct work_struct phy_work;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mdio_if_info mdio;

@@ -503,7 +503,6 @@ static void tenxpress_low_power(struct efx_nic *efx)
 static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	struct efx_link_state *link_state = &efx->link_state;
 	struct ethtool_cmd ecmd;
 	bool phy_mode_change, loop_reset;
 
@@ -544,53 +543,41 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 
 	phy_data->loopback_mode = efx->loopback_mode;
 	phy_data->phy_mode = efx->phy_mode;
-
-	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		link_state->speed = 10000;
-		link_state->fd = true;
-		link_state->up = sfx7101_link_ok(efx);
-	} else {
-		efx->phy_op->get_settings(efx, &ecmd);
-		link_state->speed = ecmd.speed;
-		link_state->fd = ecmd.duplex == DUPLEX_FULL;
-		link_state->up = sft9001_link_ok(efx, &ecmd);
-	}
-	link_state->fc = efx_mdio_get_pause(efx);
 }
 
-/* Poll PHY for interrupt */
-static void tenxpress_phy_poll(struct efx_nic *efx)
+static void
+tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd);
+
+/* Poll for link state changes */
+static bool tenxpress_phy_poll(struct efx_nic *efx)
 {
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	struct efx_link_state *link_state = &efx->link_state;
-	bool change = false;
+	struct efx_link_state old_state = efx->link_state;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		bool link_ok = sfx7101_link_ok(efx);
-		if (link_ok != link_state->up) {
-			change = true;
-		} else {
-			unsigned int link_fc = efx_mdio_get_pause(efx);
-			if (link_fc != link_state->fc)
-				change = true;
-		}
-		sfx7101_check_bad_lp(efx, link_ok);
-	} else if (efx->loopback_mode) {
-		bool link_ok = sft9001_link_ok(efx, NULL);
-		if (link_ok != link_state->up)
-			change = true;
+		efx->link_state.up = sfx7101_link_ok(efx);
+		efx->link_state.speed = 10000;
+		efx->link_state.fd = true;
+		efx->link_state.fc = efx_mdio_get_pause(efx);
+
+		sfx7101_check_bad_lp(efx, efx->link_state.up);
 	} else {
-		int status = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
-					   MDIO_PMA_LASI_STAT);
-		if (status & MDIO_PMA_LASI_LSALARM)
-			change = true;
+		struct ethtool_cmd ecmd;
+
+		/* Check the LASI alarm first */
+		if (efx->loopback_mode == LOOPBACK_NONE &&
+		    !(efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT) &
+		      MDIO_PMA_LASI_LSALARM))
+			return false;
+
+		tenxpress_get_settings(efx, &ecmd);
+
+		efx->link_state.up = sft9001_link_ok(efx, &ecmd);
+		efx->link_state.speed = ecmd.speed;
+		efx->link_state.fd = (ecmd.duplex == DUPLEX_FULL);
+		efx->link_state.fc = efx_mdio_get_pause(efx);
 	}
 
-	if (change)
-		falcon_sim_phy_event(efx);
-
-	if (phy_data->phy_mode != PHY_MODE_NORMAL)
-		return;
+	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
 
 static void tenxpress_phy_fini(struct efx_nic *efx)
@@ -818,7 +805,6 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.reconfigure      = tenxpress_phy_reconfigure,
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
-	.clear_interrupt  = efx_port_dummy_op_void,
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
@@ -835,7 +821,6 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.reconfigure      = tenxpress_phy_reconfigure,
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
-	.clear_interrupt  = efx_port_dummy_op_void,
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sft9001_set_npage_adv,

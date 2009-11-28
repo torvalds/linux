@@ -90,6 +90,7 @@ extern int efx_port_dummy_op_int(struct efx_nic *efx);
 extern void efx_port_dummy_op_void(struct efx_nic *efx);
 extern void
 efx_port_dummy_op_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
+extern bool efx_port_dummy_op_poll(struct efx_nic *efx);
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD
@@ -112,5 +113,7 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 
 	napi_schedule(&channel->napi_str);
 }
+
+extern void efx_link_status_changed(struct efx_nic *efx);
 
 #endif /* EFX_EFX_H */

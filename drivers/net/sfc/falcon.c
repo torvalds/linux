@@ -893,8 +893,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 	if (EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XFP_PHY0_INTR)) {
-		efx->phy_op->clear_interrupt(efx);
-		queue_work(efx->workqueue, &efx->phy_work);
+		/* Ignored */
 		handled = true;
 	}
 
@@ -1138,20 +1137,6 @@ void falcon_generate_test_event(struct efx_channel *channel, unsigned int magic)
 			     FSE_AZ_EV_CODE_DRV_GEN_EV,
 			     FSF_AZ_DRV_GEN_EV_MAGIC, magic);
 	falcon_generate_event(channel, &test_event);
-}
-
-void falcon_sim_phy_event(struct efx_nic *efx)
-{
-	efx_qword_t phy_event;
-
-	EFX_POPULATE_QWORD_1(phy_event, FSF_AZ_EV_CODE,
-			     FSE_AZ_EV_CODE_GLOBAL_EV);
-	if (EFX_IS10G(efx))
-		EFX_SET_QWORD_FIELD(phy_event, FSF_AB_GLB_EV_XG_PHY0_INTR, 1);
-	else
-		EFX_SET_QWORD_FIELD(phy_event, FSF_AB_GLB_EV_G_PHY0_INTR, 1);
-
-	falcon_generate_event(&efx->channel[0], &phy_event);
 }
 
 /**************************************************************************
@@ -2063,6 +2048,25 @@ static void falcon_stats_timer_func(unsigned long context)
 	spin_unlock(&efx->stats_lock);
 }
 
+static bool falcon_loopback_link_poll(struct efx_nic *efx)
+{
+	struct efx_link_state old_state = efx->link_state;
+
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+	WARN_ON(!LOOPBACK_INTERNAL(efx));
+
+	efx->link_state.fd = true;
+	efx->link_state.fc = efx->wanted_fc;
+	efx->link_state.up = true;
+
+	if (efx->loopback_mode == LOOPBACK_GMAC)
+		efx->link_state.speed = 1000;
+	else
+		efx->link_state.speed = 10000;
+
+	return !efx_link_state_equal(&efx->link_state, &old_state);
+}
+
 /**************************************************************************
  *
  * PHY access via GMII
@@ -2224,15 +2228,6 @@ int falcon_switch_mac(struct efx_nic *efx)
 
 	/* Don't try to fetch MAC stats while we're switching MACs */
 	falcon_stop_nic_stats(efx);
-
-	/* Internal loopbacks override the phy speed setting */
-	if (efx->loopback_mode == LOOPBACK_GMAC) {
-		efx->link_state.speed = 1000;
-		efx->link_state.fd = true;
-	} else if (LOOPBACK_INTERNAL(efx)) {
-		efx->link_state.speed = 10000;
-		efx->link_state.fd = true;
-	}
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 	efx->mac_op = (EFX_IS10G(efx) ?
@@ -2610,16 +2605,36 @@ fail5:
 
 void falcon_monitor(struct efx_nic *efx)
 {
+	bool link_changed;
 	int rc;
+
+	BUG_ON(!mutex_is_locked(&efx->mac_lock));
 
 	rc = falcon_board(efx)->type->monitor(efx);
 	if (rc) {
 		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
 			(rc == -ERANGE) ? "reported fault" : "failed");
 		efx->phy_mode |= PHY_MODE_LOW_POWER;
-		falcon_sim_phy_event(efx);
+		__efx_reconfigure_port(efx);
 	}
-	efx->phy_op->poll(efx);
+
+	if (LOOPBACK_INTERNAL(efx))
+		link_changed = falcon_loopback_link_poll(efx);
+	else
+		link_changed = efx->phy_op->poll(efx);
+
+	if (link_changed) {
+		falcon_stop_nic_stats(efx);
+		falcon_deconfigure_mac_wrapper(efx);
+
+		falcon_switch_mac(efx);
+		efx->mac_op->reconfigure(efx);
+
+		falcon_start_nic_stats(efx);
+
+		efx_link_status_changed(efx);
+	}
+
 	if (EFX_IS10G(efx))
 		falcon_poll_xmac(efx);
 }
