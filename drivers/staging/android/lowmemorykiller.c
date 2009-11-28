@@ -100,15 +100,17 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	read_lock(&tasklist_lock);
 	for_each_process(p) {
 		struct mm_struct *mm;
+		struct signal_struct *sig;
 		int oom_adj;
 
 		task_lock(p);
 		mm = p->mm;
-		if (!mm) {
+		sig = p->signal;
+		if (!mm || !sig) {
 			task_unlock(p);
 			continue;
 		}
-		oom_adj = mm->oom_adj;
+		oom_adj = sig->oom_adj;
 		if (oom_adj < min_adj) {
 			task_unlock(p);
 			continue;
