@@ -2366,7 +2366,6 @@ static void ar9170_sta_notify(struct ieee80211_hw *hw,
 			sta_info->agg[i].state = AR9170_TID_STATE_SHUTDOWN;
 			sta_info->agg[i].active = false;
 			sta_info->agg[i].ssn = 0;
-			sta_info->agg[i].retry = 0;
 			sta_info->agg[i].tid = i;
 			INIT_LIST_HEAD(&sta_info->agg[i].list);
 			skb_queue_head_init(&sta_info->agg[i].queue);

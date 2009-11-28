@@ -109,7 +109,6 @@ struct ar9170_rxstream_mpdu_merge {
 	bool has_plcp;
 };
 
-#define AR9170_NUM_MAX_BA_RETRY	5
 #define AR9170_NUM_TID	16
 #define WME_BA_BMP_SIZE         64
 #define AR9170_NUM_MAX_AGG_LEN	(2 * WME_BA_BMP_SIZE)
@@ -143,7 +142,6 @@ struct ar9170_sta_tid {
 	u16 tid;
 	enum ar9170_tid_state state;
 	bool active;
-	u8 retry;
 };
 
 #define AR9170_QUEUE_TIMEOUT		64
