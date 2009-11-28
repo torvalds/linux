@@ -33,8 +33,6 @@
 #define EFX_WORKAROUND_10727 EFX_WORKAROUND_ALWAYS
 /* Transmit flow control may get disabled */
 #define EFX_WORKAROUND_11482 EFX_WORKAROUND_FALCON_AB
-/* Flush events can take a very long time to appear */
-#define EFX_WORKAROUND_11557 EFX_WORKAROUND_ALWAYS
 /* Truncated IPv4 packets can confuse the TX packet parser */
 #define EFX_WORKAROUND_15592 EFX_WORKAROUND_FALCON_AB
 
