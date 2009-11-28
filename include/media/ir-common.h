@@ -35,9 +35,6 @@ extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
 #define IR_TYPE_OTHER  99
 
-#define IR_KEYTAB_TYPE u32
-#define IR_KEYTAB_SIZE	128  /* enougth for rc5, probably need more some day */
-
 struct ir_scancode {
 	u16	scancode;
 	u32	keycode;
@@ -48,9 +45,6 @@ struct ir_scancode_table {
 	int size;
 };
 
-#define IR_KEYCODE(tab,code)	(((unsigned)code < IR_KEYTAB_SIZE) \
-				 ? tab[code] : KEY_RESERVED)
-
 #define RC5_START(x)	(((x)>>12)&3)
 #define RC5_TOGGLE(x)	(((x)>>11)&1)
 #define RC5_ADDR(x)	(((x)>>6)&31)
@@ -59,7 +53,6 @@ struct ir_scancode_table {
 struct ir_input_state {
 	/* configuration */
 	int                ir_type;
-	IR_KEYTAB_TYPE     ir_codes[IR_KEYTAB_SIZE];
 
 	/* key info */
 	u32                ir_key;      /* ir scancode */
