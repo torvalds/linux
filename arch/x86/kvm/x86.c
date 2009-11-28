@@ -201,6 +201,14 @@ void kvm_set_shared_msr(unsigned slot, u64 value)
 }
 EXPORT_SYMBOL_GPL(kvm_set_shared_msr);
 
+static void drop_user_return_notifiers(void *ignore)
+{
+	struct kvm_shared_msrs *smsr = &__get_cpu_var(shared_msrs);
+
+	if (smsr->registered)
+		kvm_on_user_return(&smsr->urn);
+}
+
 unsigned long segment_base(u16 selector)
 {
 	struct descriptor_table gdt;
@@ -5004,6 +5012,7 @@ int kvm_arch_hardware_enable(void *garbage)
 void kvm_arch_hardware_disable(void *garbage)
 {
 	kvm_x86_ops->hardware_disable(garbage);
+	drop_user_return_notifiers(garbage);
 }
 
 int kvm_arch_hardware_setup(void)
