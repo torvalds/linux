@@ -5,6 +5,8 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/exec_cmd.h"
+#include "util/trace-event.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
