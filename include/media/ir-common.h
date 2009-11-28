@@ -157,6 +157,7 @@ extern struct ir_scancode_table ir_codes_rc5_tv_table;
 extern struct ir_scancode_table ir_codes_winfast_table;
 extern struct ir_scancode_table ir_codes_pinnacle_color_table;
 extern struct ir_scancode_table ir_codes_hauppauge_new_table;
+extern struct ir_scancode_table ir_codes_rc5_hauppauge_new_table;
 extern struct ir_scancode_table ir_codes_npgtech_table;
 extern struct ir_scancode_table ir_codes_norwood_table;
 extern struct ir_scancode_table ir_codes_proteus_2309_table;
