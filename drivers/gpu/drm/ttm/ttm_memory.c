@@ -274,15 +274,16 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 				     const struct sysinfo *si)
 {
-	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	struct ttm_mem_zone *zone;
 	uint64_t mem;
 	int ret;
 
-	if (unlikely(!zone))
-		return -ENOMEM;
-
 	if (si->totalhigh == 0)
 		return 0;
+
+	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	if (unlikely(!zone))
+		return -ENOMEM;
 
 	mem = si->totalram;
 	mem *= si->mem_unit;
