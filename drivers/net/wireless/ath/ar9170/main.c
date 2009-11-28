@@ -194,12 +194,15 @@ static inline u16 ar9170_get_seq(struct sk_buff *skb)
 	return ar9170_get_seq_h((void *) txc->frame_data);
 }
 
+static inline u16 ar9170_get_tid_h(struct ieee80211_hdr *hdr)
+{
+	return (ieee80211_get_qos_ctl(hdr))[0] & IEEE80211_QOS_CTL_TID_MASK;
+}
+
 static inline u16 ar9170_get_tid(struct sk_buff *skb)
 {
 	struct ar9170_tx_control *txc = (void *) skb->data;
-	struct ieee80211_hdr *hdr = (void *) txc->frame_data;
-
-	return (ieee80211_get_qos_ctl(hdr))[0] & IEEE80211_QOS_CTL_TID_MASK;
+	return ar9170_get_tid_h((struct ieee80211_hdr *) txc->frame_data);
 }
 
 #define GET_NEXT_SEQ(seq)	((seq + 1) & 0x0fff)
@@ -1660,8 +1663,7 @@ static bool ar9170_tx_ampdu(struct ar9170 *ar)
 		 * tell the FW/HW that this is the last frame,
 		 * that way it will wait for the immediate block ack.
 		 */
-		if (likely(skb_peek_tail(&agg)))
-			ar9170_tx_indicate_immba(ar, skb_peek_tail(&agg));
+		ar9170_tx_indicate_immba(ar, skb_peek_tail(&agg));
 
 #ifdef AR9170_TXAGG_DEBUG
 		printk(KERN_DEBUG "%s: generated A-MPDU looks like this:\n",
