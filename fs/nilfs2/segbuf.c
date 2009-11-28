@@ -24,8 +24,20 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/crc32.h>
+#include <linux/backing-dev.h>
 #include "page.h"
 #include "segbuf.h"
+
+
+struct nilfs_write_info {
+	struct the_nilfs       *nilfs;
+	struct bio	       *bio;
+	int 			start, end; /* The region to be submitted */
+	int			rest_blocks;
+	int			max_pages;
+	int			nr_vecs;
+	sector_t		blocknr;
+};
 
 
 static struct kmem_cache *nilfs_segbuf_cachep;
@@ -271,7 +283,7 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 	struct bio *bio = wi->bio;
 	int err;
 
-	if (segbuf->sb_nbio > 0 && bdi_write_congested(wi->bdi)) {
+	if (segbuf->sb_nbio > 0 && bdi_write_congested(wi->nilfs->ns_bdi)) {
 		wait_for_completion(&segbuf->sb_bio_event);
 		segbuf->sb_nbio--;
 		if (unlikely(atomic_read(&segbuf->sb_err))) {
@@ -305,17 +317,15 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 }
 
 /**
- * nilfs_alloc_seg_bio - allocate a bio for writing segment.
- * @sb: super block
- * @start: beginning disk block number of this BIO.
+ * nilfs_alloc_seg_bio - allocate a new bio for writing log
+ * @nilfs: nilfs object
+ * @start: start block number of the bio
  * @nr_vecs: request size of page vector.
- *
- * alloc_seg_bio() allocates a new BIO structure and initialize it.
  *
  * Return Value: On success, pointer to the struct bio is returned.
  * On error, NULL is returned.
  */
-static struct bio *nilfs_alloc_seg_bio(struct super_block *sb, sector_t start,
+static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
 				       int nr_vecs)
 {
 	struct bio *bio;
@@ -326,18 +336,18 @@ static struct bio *nilfs_alloc_seg_bio(struct super_block *sb, sector_t start,
 			bio = bio_alloc(GFP_NOIO, nr_vecs);
 	}
 	if (likely(bio)) {
-		bio->bi_bdev = sb->s_bdev;
-		bio->bi_sector = (sector_t)start << (sb->s_blocksize_bits - 9);
+		bio->bi_bdev = nilfs->ns_bdev;
+		bio->bi_sector = start << (nilfs->ns_blocksize_bits - 9);
 	}
 	return bio;
 }
 
-void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
-				struct nilfs_write_info *wi)
+static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
+				       struct nilfs_write_info *wi)
 {
 	wi->bio = NULL;
 	wi->rest_blocks = segbuf->sb_sum.nblocks;
-	wi->max_pages = bio_get_nr_vecs(wi->sb->s_bdev);
+	wi->max_pages = bio_get_nr_vecs(wi->nilfs->ns_bdev);
 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
 	wi->start = wi->end = 0;
 	wi->blocknr = segbuf->sb_pseg_start;
@@ -352,7 +362,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 	BUG_ON(wi->nr_vecs <= 0);
  repeat:
 	if (!wi->bio) {
-		wi->bio = nilfs_alloc_seg_bio(wi->sb, wi->blocknr + wi->end,
+		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,
 					      wi->nr_vecs);
 		if (unlikely(!wi->bio))
 			return -ENOMEM;
@@ -371,31 +381,47 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 	return err;
 }
 
+/**
+ * nilfs_segbuf_write - submit write requests of a log
+ * @segbuf: buffer storing a log to be written
+ * @nilfs: nilfs object
+ *
+ * Return Value: On Success, 0 is returned. On Error, one of the following
+ * negative error code is returned.
+ *
+ * %-EIO - I/O error
+ *
+ * %-ENOMEM - Insufficient memory available.
+ */
 int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
-		       struct nilfs_write_info *wi)
+		       struct the_nilfs *nilfs)
 {
+	struct nilfs_write_info wi;
 	struct buffer_head *bh;
 	int res = 0, rw = WRITE;
 
+	wi.nilfs = nilfs;
+	nilfs_segbuf_prepare_write(segbuf, &wi);
+
 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
-		res = nilfs_segbuf_submit_bh(segbuf, wi, bh, rw);
+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
 		if (unlikely(res))
 			goto failed_bio;
 	}
 
 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
-		res = nilfs_segbuf_submit_bh(segbuf, wi, bh, rw);
+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, rw);
 		if (unlikely(res))
 			goto failed_bio;
 	}
 
-	if (wi->bio) {
+	if (wi.bio) {
 		/*
 		 * Last BIO is always sent through the following
 		 * submission.
 		 */
 		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
-		res = nilfs_segbuf_submit_bio(segbuf, wi, rw);
+		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
 	}
 
  failed_bio:

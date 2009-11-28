@@ -1784,19 +1784,13 @@ static int nilfs_segctor_prepare_write(struct nilfs_sc_info *sci,
 }
 
 static int nilfs_segctor_write(struct nilfs_sc_info *sci,
-			       struct backing_dev_info *bdi)
+			       struct the_nilfs *nilfs)
 {
 	struct nilfs_segment_buffer *segbuf;
-	struct nilfs_write_info wi;
 	int err, res;
 
-	wi.sb = sci->sc_super;
-	wi.bh_sr = sci->sc_super_root;
-	wi.bdi = bdi;
-
 	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list) {
-		nilfs_segbuf_prepare_write(segbuf, &wi);
-		err = nilfs_segbuf_write(segbuf, &wi);
+		err = nilfs_segbuf_write(segbuf, nilfs);
 
 		res = nilfs_segbuf_wait(segbuf);
 		err = err ? : res;
@@ -2170,7 +2164,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 		nilfs_segctor_fill_in_checksums(sci, nilfs->ns_crc_seed);
 
-		err = nilfs_segctor_write(sci, nilfs->ns_bdi);
+		err = nilfs_segctor_write(sci, nilfs);
 		if (unlikely(err))
 			goto failed_to_write;
 

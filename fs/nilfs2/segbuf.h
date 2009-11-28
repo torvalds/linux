@@ -27,7 +27,6 @@
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
 #include <linux/completion.h>
-#include <linux/backing-dev.h>
 
 /**
  * struct nilfs_segsum_info - On-memory segment summary
@@ -173,27 +172,8 @@ static inline void nilfs_segbuf_clear(struct nilfs_segment_buffer *segbuf)
 	nilfs_release_buffers(&segbuf->sb_payload_buffers);
 }
 
-struct nilfs_write_info {
-	struct bio	       *bio;
-	int 			start, end; /* The region to be submitted */
-	int			rest_blocks;
-	int			max_pages;
-	int			nr_vecs;
-	sector_t		blocknr;
-
-	/*
-	 * The following fields must be set explicitly
-	 */
-	struct super_block     *sb;
-	struct backing_dev_info *bdi; /* backing dev info */
-	struct buffer_head     *bh_sr;
-};
-
-
-void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *,
-				struct nilfs_write_info *);
-int nilfs_segbuf_write(struct nilfs_segment_buffer *,
-		       struct nilfs_write_info *);
+int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+		       struct the_nilfs *nilfs);
 int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
 
 #endif /* _NILFS_SEGBUF_H */
