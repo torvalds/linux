@@ -31,9 +31,7 @@ void __init prom_init(void)
 	prom_init_memory();
 
 	/*init the uart base address */
-#if defined(CONFIG_EARLY_PRINTK) || defined(CONFIG_SERIAL_8250)
 	prom_init_uart_base();
-#endif
 }
 
 void __init prom_free_prom_memory(void)
