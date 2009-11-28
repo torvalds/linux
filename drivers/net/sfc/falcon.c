@@ -2291,6 +2291,10 @@ int falcon_probe_port(struct efx_nic *efx)
 	efx->mdio.mdio_read = falcon_mdio_read;
 	efx->mdio.mdio_write = falcon_mdio_write;
 
+	/* Initial assumption */
+	efx->link_state.speed = 10000;
+	efx->link_state.fd = true;
+
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
 		efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
@@ -2809,6 +2813,10 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		return -ENODEV;
 
 	case FALCON_REV_A1:
+		if (EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_10G) == 0) {
+			EFX_ERR(efx, "Falcon rev A1 1G not supported\n");
+			return -ENODEV;
+		}
 		if (EFX_OWORD_FIELD(nic_stat, FRF_AA_STRAP_PCIE) == 0) {
 			EFX_ERR(efx, "Falcon rev A1 PCI-X not supported\n");
 			return -ENODEV;
@@ -2822,9 +2830,6 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 		EFX_ERR(efx, "Unknown Falcon rev %d\n", falcon_rev(efx));
 		return -ENODEV;
 	}
-
-	/* Initial assumed speed */
-	efx->link_state.speed = EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_10G) ? 10000 : 1000;
 
 	return 0;
 }
@@ -3238,6 +3243,8 @@ void falcon_stop_nic_stats(struct efx_nic *efx)
  */
 
 struct efx_nic_type falcon_a_nic_type = {
+	.default_mac_ops = &falcon_xmac_operations,
+
 	.mem_map_size = 0x20000,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
 	.rxd_ptr_tbl_base = FR_AA_RX_DESC_PTR_TBL_KER,
@@ -3251,6 +3258,8 @@ struct efx_nic_type falcon_a_nic_type = {
 };
 
 struct efx_nic_type falcon_b_nic_type = {
+	.default_mac_ops = &falcon_xmac_operations,
+
 	/* Map everything up to and including the RSS indirection
 	 * table.  Don't map MSI-X table, MSI-X PBA since Linux
 	 * requires that they not be mapped.  */
