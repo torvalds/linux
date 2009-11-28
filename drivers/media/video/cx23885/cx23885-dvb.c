@@ -542,6 +542,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg1 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg1 = {
@@ -558,6 +561,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg2 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg2 = {
