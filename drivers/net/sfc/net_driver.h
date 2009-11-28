@@ -350,9 +350,9 @@ enum efx_rx_alloc_method {
  * @rx_alloc_push_pages: RX allocation method currently in use for pushing
  *	descriptors
  * @n_rx_tobe_disc: Count of RX_TOBE_DISC errors
- * @n_rx_ip_frag_err: Count of RX IP fragment errors
  * @n_rx_ip_hdr_chksum_err: Count of RX IP header checksum errors
  * @n_rx_tcp_udp_chksum_err: Count of RX TCP and UDP checksum errors
+ * @n_rx_mcast_mismatch: Count of unmatched multicast frames
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
@@ -380,9 +380,9 @@ struct efx_channel {
 	int rx_alloc_push_pages;
 
 	unsigned n_rx_tobe_disc;
-	unsigned n_rx_ip_frag_err;
 	unsigned n_rx_ip_hdr_chksum_err;
 	unsigned n_rx_tcp_udp_chksum_err;
+	unsigned n_rx_mcast_mismatch;
 	unsigned n_rx_frm_trunc;
 	unsigned n_rx_overlength;
 	unsigned n_skbuff_leaks;

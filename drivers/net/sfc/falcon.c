@@ -734,7 +734,7 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	bool rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
 	bool rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
 	bool rx_ev_other_err, rx_ev_pause_frm;
-	bool rx_ev_ip_frag_err, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	bool rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned rx_ev_pkt_type;
 
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_HDR_TYPE);
@@ -743,7 +743,6 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	rx_ev_pkt_type = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_PKT_TYPE);
 	rx_ev_buf_owner_id_err = EFX_QWORD_FIELD(*event,
 						 FSF_AZ_RX_EV_BUF_OWNER_ID_ERR);
-	rx_ev_ip_frag_err = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_IP_FRAG_ERR);
 	rx_ev_ip_hdr_chksum_err = EFX_QWORD_FIELD(*event,
 						  FSF_AZ_RX_EV_IP_HDR_CHKSUM_ERR);
 	rx_ev_tcp_udp_chksum_err = EFX_QWORD_FIELD(*event,
@@ -771,8 +770,6 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 		else if (rx_ev_tcp_udp_chksum_err)
 			++rx_queue->channel->n_rx_tcp_udp_chksum_err;
 	}
-	if (rx_ev_ip_frag_err)
-		++rx_queue->channel->n_rx_ip_frag_err;
 
 	/* The frame must be discarded if any of these are true. */
 	*discard = (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
@@ -855,7 +852,7 @@ static void falcon_handle_rx_event(struct efx_channel *channel,
 		 * UDP/IPv4, then we can rely on the hardware checksum.
 		 */
 		checksummed =
-			efx->rx_checksum_enabled &&
+			likely(efx->rx_checksum_enabled) &&
 			(rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_TCP ||
 			 rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_UDP);
 	} else {
@@ -870,8 +867,10 @@ static void falcon_handle_rx_event(struct efx_channel *channel,
 		unsigned int rx_ev_mcast_hash_match =
 			EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_MCAST_HASH_MATCH);
 
-		if (unlikely(!rx_ev_mcast_hash_match))
+		if (unlikely(!rx_ev_mcast_hash_match)) {
+			++channel->n_rx_mcast_mismatch;
 			discard = true;
+		}
 	}
 
 	channel->irq_mod_score += 2;
