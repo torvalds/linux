@@ -45,11 +45,9 @@
  */
 #define TX_DC_ENTRIES 16
 #define TX_DC_ENTRIES_ORDER 1
-#define TX_DC_BASE 0x130000
 
 #define RX_DC_ENTRIES 64
 #define RX_DC_ENTRIES_ORDER 3
-#define RX_DC_BASE 0x100000
 
 static const unsigned int
 /* "Large" EEPROM device: Atmel AT25640 or similar
@@ -3043,9 +3041,11 @@ int falcon_init_nic(struct efx_nic *efx)
 		return rc;
 
 	/* Set positions of descriptor caches in SRAM. */
-	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_TX_DC_BASE_ADR, TX_DC_BASE / 8);
+	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_TX_DC_BASE_ADR,
+			     efx->type->tx_dc_base / 8);
 	efx_writeo(efx, &temp, FR_AZ_SRM_TX_DC_CFG);
-	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_RX_DC_BASE_ADR, RX_DC_BASE / 8);
+	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_RX_DC_BASE_ADR,
+			     efx->type->rx_dc_base / 8);
 	efx_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */
@@ -3248,6 +3248,8 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.rx_buffer_padding = 0x24,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
+	.tx_dc_base = 0x130000,
+	.rx_dc_base = 0x100000,
 };
 
 struct efx_nic_type falcon_b0_nic_type = {
@@ -3271,5 +3273,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
 				   * interrupt handler only supports 32
 				   * channels */
+	.tx_dc_base = 0x130000,
+	.rx_dc_base = 0x100000,
 };
 

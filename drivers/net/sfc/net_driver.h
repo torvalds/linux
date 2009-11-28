@@ -857,6 +857,8 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  *	from &enum efx_init_mode.
  * @phys_addr_channels: Number of channels with physically addressed
  *	descriptors
+ * @tx_dc_base: Base address in SRAM of TX queue descriptor caches
+ * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  */
 struct efx_nic_type {
 	struct efx_mac_operations *default_mac_ops;
@@ -872,6 +874,8 @@ struct efx_nic_type {
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
+	unsigned int tx_dc_base;
+	unsigned int rx_dc_base;
 };
 
 /**************************************************************************
