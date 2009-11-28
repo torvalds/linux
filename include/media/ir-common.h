@@ -106,6 +106,8 @@ struct card_ir {
 	struct tasklet_struct   tlet;
 };
 
+/* Routines from ir-functions.c */
+
 void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
@@ -120,7 +122,15 @@ u32  ir_rc5_decode(unsigned int code);
 void ir_rc5_timer_end(unsigned long data);
 void ir_rc5_timer_keyup(unsigned long data);
 
-/* Keymaps to be used by other modules */
+/* Routines from ir-keytable.c */
+
+u32 ir_g_keycode_from_table(struct input_dev *input_dev,
+			    u32 scancode);
+
+int ir_set_keycode_table(struct input_dev *input_dev,
+			 struct ir_scancode_table *rc_tab);
+
+/* scancode->keycode map tables from ir-keymaps.c */
 
 extern struct ir_scancode_table ir_codes_empty_table;
 extern struct ir_scancode_table ir_codes_avermedia_table;
