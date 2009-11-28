@@ -152,6 +152,8 @@ struct ar9170_sta_tid {
 
 #define AR9170_NUM_TX_STATUS		128
 #define AR9170_NUM_TX_AGG_MAX		30
+#define AR9170_NUM_TX_LIMIT_HARD       AR9170_TXQ_DEPTH
+#define AR9170_NUM_TX_LIMIT_SOFT       (AR9170_TXQ_DEPTH - 10)
 
 struct ar9170 {
 	struct ieee80211_hw *hw;

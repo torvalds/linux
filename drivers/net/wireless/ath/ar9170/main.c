@@ -430,7 +430,7 @@ void ar9170_tx_callback(struct ar9170 *ar, struct sk_buff *skb)
 	spin_lock_irqsave(&ar->tx_stats_lock, flags);
 	ar->tx_stats[queue].len--;
 
-	if (skb_queue_empty(&ar->tx_pending[queue])) {
+	if (ar->tx_stats[queue].len < AR9170_NUM_TX_LIMIT_SOFT) {
 #ifdef AR9170_QUEUE_STOP_DEBUG
 		printk(KERN_DEBUG "%s: wake queue %d\n",
 		       wiphy_name(ar->hw->wiphy), queue);
@@ -1716,6 +1716,21 @@ static void ar9170_tx(struct ar9170 *ar)
 
 	for (i = 0; i < __AR9170_NUM_TXQ; i++) {
 		spin_lock_irqsave(&ar->tx_stats_lock, flags);
+		frames = min(ar->tx_stats[i].limit - ar->tx_stats[i].len,
+			     skb_queue_len(&ar->tx_pending[i]));
+
+		if (remaining_space < frames) {
+#ifdef AR9170_QUEUE_DEBUG
+			printk(KERN_DEBUG "%s: tx quota reached queue:%d, "
+			       "remaining slots:%d, needed:%d\n",
+			       wiphy_name(ar->hw->wiphy), i, remaining_space,
+			       frames);
+#endif /* AR9170_QUEUE_DEBUG */
+			frames = remaining_space;
+		}
+
+		ar->tx_stats[i].len += frames;
+		ar->tx_stats[i].count += frames;
 		if (ar->tx_stats[i].len >= ar->tx_stats[i].limit) {
 #ifdef AR9170_QUEUE_DEBUG
 			printk(KERN_DEBUG "%s: queue %d full\n",
@@ -1733,25 +1748,8 @@ static void ar9170_tx(struct ar9170 *ar)
 			__ar9170_dump_txstats(ar);
 #endif /* AR9170_QUEUE_STOP_DEBUG */
 			ieee80211_stop_queue(ar->hw, i);
-			spin_unlock_irqrestore(&ar->tx_stats_lock, flags);
-			continue;
 		}
 
-		frames = min(ar->tx_stats[i].limit - ar->tx_stats[i].len,
-			     skb_queue_len(&ar->tx_pending[i]));
-
-		if (remaining_space < frames) {
-#ifdef AR9170_QUEUE_DEBUG
-			printk(KERN_DEBUG "%s: tx quota reached queue:%d, "
-			       "remaining slots:%d, needed:%d\n",
-			       wiphy_name(ar->hw->wiphy), i, remaining_space,
-			       frames);
-#endif /* AR9170_QUEUE_DEBUG */
-			frames = remaining_space;
-		}
-
-		ar->tx_stats[i].len += frames;
-		ar->tx_stats[i].count += frames;
 		spin_unlock_irqrestore(&ar->tx_stats_lock, flags);
 
 		if (!frames)
