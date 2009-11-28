@@ -28,8 +28,6 @@
 #define EFX_WORKAROUND_7575 EFX_WORKAROUND_ALWAYS
 /* Bit-bashed I2C reads cause performance drop */
 #define EFX_WORKAROUND_7884 EFX_WORKAROUND_10G
-/* TX pkt parser problem with <= 16 byte TXes */
-#define EFX_WORKAROUND_9141 EFX_WORKAROUND_ALWAYS
 /* TX_EV_PKT_ERR can be caused by a dangling TX descriptor
  * or a PCIe error (bug 11028) */
 #define EFX_WORKAROUND_10727 EFX_WORKAROUND_ALWAYS
