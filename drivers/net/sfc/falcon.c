@@ -2110,7 +2110,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 	EFX_REGDUMP(efx, "writing MDIO %d register %d.%d with 0x%04x\n",
 		    prtad, devad, addr, value);
 
-	spin_lock_bh(&efx->phy_lock);
+	mutex_lock(&efx->mdio_lock);
 
 	/* Check MDIO not currently being accessed */
 	rc = falcon_gmii_wait(efx);
@@ -2145,8 +2145,8 @@ static int falcon_mdio_write(struct net_device *net_dev,
 		udelay(10);
 	}
 
- out:
-	spin_unlock_bh(&efx->phy_lock);
+out:
+	mutex_unlock(&efx->mdio_lock);
 	return rc;
 }
 
@@ -2158,7 +2158,7 @@ static int falcon_mdio_read(struct net_device *net_dev,
 	efx_oword_t reg;
 	int rc;
 
-	spin_lock_bh(&efx->phy_lock);
+	mutex_lock(&efx->mdio_lock);
 
 	/* Check MDIO not currently being accessed */
 	rc = falcon_gmii_wait(efx);
@@ -2194,8 +2194,8 @@ static int falcon_mdio_read(struct net_device *net_dev,
 			prtad, devad, addr, rc);
 	}
 
- out:
-	spin_unlock_bh(&efx->phy_lock);
+out:
+	mutex_unlock(&efx->mdio_lock);
 	return rc;
 }
 

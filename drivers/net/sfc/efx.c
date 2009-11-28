@@ -1922,7 +1922,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	/* Initialise common structures */
 	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
-	spin_lock_init(&efx->phy_lock);
+	mutex_init(&efx->mdio_lock);
 	mutex_init(&efx->spi_lock);
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
