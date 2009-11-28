@@ -213,10 +213,10 @@ static void ar9170_print_txheader(struct ar9170 *ar, struct sk_buff *skb)
 	struct ar9170_tx_info *arinfo = (void *) txinfo->rate_driver_data;
 	struct ieee80211_hdr *hdr = (void *) txc->frame_data;
 
-	printk(KERN_DEBUG "%s: => FRAME [skb:%p, q:%d, DA:[%pM] flags:%x s:%d "
+	printk(KERN_DEBUG "%s: => FRAME [skb:%p, q:%d, DA:[%pM] s:%d "
 			  "mac_ctrl:%04x, phy_ctrl:%08x, timeout:[%d ms]]\n",
 	       wiphy_name(ar->hw->wiphy), skb, skb_get_queue_mapping(skb),
-	       ieee80211_get_DA(hdr), arinfo->flags, ar9170_get_seq_h(hdr),
+	       ieee80211_get_DA(hdr), ar9170_get_seq_h(hdr),
 	       le16_to_cpu(txc->mac_control), le32_to_cpu(txc->phy_control),
 	       jiffies_to_msecs(arinfo->timeout - jiffies));
 }
@@ -440,22 +440,17 @@ void ar9170_tx_callback(struct ar9170 *ar, struct sk_buff *skb)
 	}
 	spin_unlock_irqrestore(&ar->tx_stats_lock, flags);
 
-	if (arinfo->flags & AR9170_TX_FLAG_BLOCK_ACK) {
-		ar9170_tx_ampdu_callback(ar, skb);
-	} else if (arinfo->flags & AR9170_TX_FLAG_WAIT_FOR_ACK) {
-		arinfo->timeout = jiffies +
-				  msecs_to_jiffies(AR9170_TX_TIMEOUT);
-
-		skb_queue_tail(&ar->tx_status[queue], skb);
-	} else if (arinfo->flags & AR9170_TX_FLAG_NO_ACK) {
+	if (info->flags & IEEE80211_TX_CTL_NO_ACK) {
 		ar9170_tx_status(ar, skb, AR9170_TX_STATUS_FAILED);
 	} else {
-#ifdef AR9170_QUEUE_DEBUG
-		printk(KERN_DEBUG "%s: unsupported frame flags!\n",
-		       wiphy_name(ar->hw->wiphy));
-		ar9170_print_txheader(ar, skb);
-#endif /* AR9170_QUEUE_DEBUG */
-		dev_kfree_skb_any(skb);
+		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+			ar9170_tx_ampdu_callback(ar, skb);
+		} else {
+			arinfo->timeout = jiffies +
+				  msecs_to_jiffies(AR9170_TX_TIMEOUT);
+
+			skb_queue_tail(&ar->tx_status[queue], skb);
+		}
 	}
 
 	if (!ar->tx_stats[queue].len &&
@@ -1407,17 +1402,6 @@ static int ar9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
 	     (is_valid_ether_addr(ieee80211_get_DA(hdr)))) {
-		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			if (unlikely(!info->control.sta))
-				goto err_out;
-
-			txc->mac_control |= cpu_to_le16(AR9170_TX_MAC_AGGR);
-			arinfo->flags = AR9170_TX_FLAG_BLOCK_ACK;
-
-			goto out;
-		}
-
-		txc->mac_control |= cpu_to_le16(AR9170_TX_MAC_RATE_PROBE);
 		/*
 		 * WARNING:
 		 * Putting the QoS queue bits into an unexplored territory is
@@ -1431,12 +1415,17 @@ static int ar9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 		txc->phy_control |=
 			cpu_to_le32(queue << AR9170_TX_PHY_QOS_SHIFT);
-		arinfo->flags = AR9170_TX_FLAG_WAIT_FOR_ACK;
-	} else {
-		arinfo->flags = AR9170_TX_FLAG_NO_ACK;
+
+		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+			if (unlikely(!info->control.sta))
+				goto err_out;
+
+			txc->mac_control |= cpu_to_le16(AR9170_TX_MAC_AGGR);
+		} else {
+			txc->mac_control |= cpu_to_le16(AR9170_TX_MAC_RATE_PROBE);
+		}
 	}
 
-out:
 	return 0;
 
 err_out:
@@ -1771,7 +1760,7 @@ static void ar9170_tx(struct ar9170 *ar)
 			arinfo->timeout = jiffies +
 					  msecs_to_jiffies(AR9170_TX_TIMEOUT);
 
-			if (arinfo->flags == AR9170_TX_FLAG_BLOCK_ACK)
+			if (info->flags & IEEE80211_TX_CTL_AMPDU)
 				atomic_inc(&ar->tx_ampdu_pending);
 
 #ifdef AR9170_QUEUE_DEBUG
@@ -1782,7 +1771,7 @@ static void ar9170_tx(struct ar9170 *ar)
 
 			err = ar->tx(ar, skb);
 			if (unlikely(err)) {
-				if (arinfo->flags == AR9170_TX_FLAG_BLOCK_ACK)
+				if (info->flags & IEEE80211_TX_CTL_AMPDU)
 					atomic_dec(&ar->tx_ampdu_pending);
 
 				frames_failed++;

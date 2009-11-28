@@ -248,13 +248,8 @@ struct ar9170_sta_info {
 	unsigned int ampdu_max_len;
 };
 
-#define AR9170_TX_FLAG_WAIT_FOR_ACK	BIT(0)
-#define AR9170_TX_FLAG_NO_ACK		BIT(1)
-#define AR9170_TX_FLAG_BLOCK_ACK	BIT(2)
-
 struct ar9170_tx_info {
 	unsigned long timeout;
-	unsigned int flags;
 };
 
 #define IS_STARTED(a)		(((struct ar9170 *)a)->state >= AR9170_STARTED)
