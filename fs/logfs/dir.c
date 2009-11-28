@@ -133,17 +133,22 @@ static u32 hash_32(const char *s, int len, u32 seed)
  */
 static pgoff_t hash_index(u32 hash, int round)
 {
+	u32 i0_blocks = I0_BLOCKS;
+	u32 i1_blocks = I1_BLOCKS;
+	u32 i2_blocks = I2_BLOCKS;
+	u32 i3_blocks = I3_BLOCKS;
+
 	switch (round) {
 	case 0:
-		return hash % I0_BLOCKS;
+		return hash % i0_blocks;
 	case 1:
-		return I0_BLOCKS + hash % (I1_BLOCKS - I0_BLOCKS);
+		return i0_blocks + hash % (i1_blocks - i0_blocks);
 	case 2:
-		return I1_BLOCKS + hash % (I2_BLOCKS - I1_BLOCKS);
+		return i1_blocks + hash % (i2_blocks - i1_blocks);
 	case 3:
-		return I2_BLOCKS + hash % (I3_BLOCKS - I2_BLOCKS);
+		return i2_blocks + hash % (i3_blocks - i2_blocks);
 	case 4 ... 19:
-		return I3_BLOCKS + 16 * (hash % (((1<<31) - I3_BLOCKS) / 16))
+		return i3_blocks + 16 * (hash % (((1<<31) - i3_blocks) / 16))
 			+ round - 4;
 	}
 	BUG();
