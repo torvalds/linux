@@ -683,7 +683,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	 * and fix it be cycling transmit flow control on this end. */
 	reset = (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX);
 	if (EFX_WORKAROUND_11482(efx) && reset) {
-		if (falcon_rev(efx) == FALCON_REV_B0) {
+		if (efx_nic_rev(efx) == EFX_REV_FALCON_B0) {
 			/* Recover by resetting the EM block */
 			if (efx->link_state.up)
 				falcon_drain_tx_fifo(efx);

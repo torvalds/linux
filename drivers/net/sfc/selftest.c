@@ -125,7 +125,7 @@ static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 	int rc;
 
 	/* Not supported on A-series silicon */
-	if (falcon_rev(efx) < FALCON_REV_B0)
+	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
 		return 0;
 
 	rc = falcon_test_registers(efx);

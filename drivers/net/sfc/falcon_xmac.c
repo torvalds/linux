@@ -89,7 +89,7 @@ static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
 {
 	efx_oword_t reg;
 
-	if ((falcon_rev(efx) != FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
+	if ((efx_nic_rev(efx) != EFX_REV_FALCON_B0) || LOOPBACK_INTERNAL(efx))
 		return;
 
 	/* We expect xgmii faults if the wireside link is up */

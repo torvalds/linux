@@ -1863,9 +1863,9 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 /* PCI device ID table */
 static struct pci_device_id efx_pci_table[] __devinitdata = {
 	{PCI_DEVICE(EFX_VENDID_SFC, FALCON_A_P_DEVID),
-	 .driver_data = (unsigned long) &falcon_a_nic_type},
+	 .driver_data = (unsigned long) &falcon_a1_nic_type},
 	{PCI_DEVICE(EFX_VENDID_SFC, FALCON_B_P_DEVID),
-	 .driver_data = (unsigned long) &falcon_b_nic_type},
+	 .driver_data = (unsigned long) &falcon_b0_nic_type},
 	{0}			/* end of list */
 };
 
