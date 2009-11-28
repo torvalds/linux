@@ -2018,7 +2018,7 @@ static void nilfs_btree_lookup_dirty_buffers(struct nilfs_bmap *bmap,
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN;
 	     level < NILFS_BTREE_LEVEL_MAX;
 	     level++)
-		list_splice(&lists[level], listp->prev);
+		list_splice_tail(&lists[level], listp);
 }
 
 static int nilfs_btree_assign_p(struct nilfs_btree *btree,

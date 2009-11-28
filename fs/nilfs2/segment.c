@@ -1363,7 +1363,7 @@ static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
 		list_add_tail(&segbuf->sb_list, &list);
 		prev = segbuf;
 	}
-	list_splice(&list, sci->sc_segbufs.prev);
+	list_splice_tail(&list, &sci->sc_segbufs);
 	return 0;
 
  failed_segbuf:
@@ -2532,7 +2532,7 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 
 	sci->sc_freesegs = kbufs[4];
 	sci->sc_nfreesegs = argv[4].v_nmembs;
-	list_splice_init(&nilfs->ns_gc_inodes, sci->sc_gc_inodes.prev);
+	list_splice_tail_init(&nilfs->ns_gc_inodes, &sci->sc_gc_inodes);
 
 	for (;;) {
 		nilfs_segctor_accept(sci, &req);

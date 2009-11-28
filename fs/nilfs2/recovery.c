@@ -925,7 +925,7 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 
  super_root_found:
 	/* Updating pointers relating to the latest checkpoint */
-	list_splice(&segments, ri->ri_used_segments.prev);
+	list_splice_tail(&segments, &ri->ri_used_segments);
 	nilfs->ns_last_pseg = sr_pseg_start;
 	nilfs->ns_last_seq = nilfs->ns_seg_seq;
 	nilfs->ns_last_cno = ri->ri_cno;
