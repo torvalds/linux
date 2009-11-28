@@ -571,17 +571,11 @@ static int read_brightness(struct backlight_device *bd)
 
 static int set_brightness(struct backlight_device *bd, int value)
 {
-	int ret = 0;
-
-	value = (0 < value) ? ((15 < value) ? 15 : value) : 0;
-	/* 0 <= value <= 15 */
-
 	if (write_acpi_int(brightness_set_handle, NULL, value, NULL)) {
 		pr_warning("Error changing brightness\n");
-		ret = -EIO;
+		return -EIO;
 	}
-
-	return ret;
+	return 0;
 }
 
 static int update_bl_status(struct backlight_device *bd)
