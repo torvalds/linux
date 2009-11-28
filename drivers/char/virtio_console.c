@@ -163,7 +163,7 @@ static void hvc_handle_input(struct virtqueue *vq)
 }
 
 /* The operations for the console. */
-static struct hv_ops hv_ops = {
+static const struct hv_ops hv_ops = {
 	.get_chars = get_chars,
 	.put_chars = put_chars,
 	.notifier_add = notifier_add_vio,
