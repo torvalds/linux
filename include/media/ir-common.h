@@ -27,6 +27,10 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
+extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
+#define IR_dprintk(level, fmt, arg...)	if (media_ir_debug >= level) \
+	printk(KERN_DEBUG fmt , ## arg)
+
 #define IR_TYPE_RC5     1
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
 #define IR_TYPE_OTHER  99
