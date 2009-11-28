@@ -221,6 +221,13 @@ config SPARC64_SMP
 	default y
 	depends on SPARC64 && SMP
 
+config EARLYFB
+	bool "Support for early boot text console"
+	default y
+	depends on SPARC64
+	help
+	  Say Y here to enable a faster early framebuffer boot console.
+
 choice
 	prompt "Kernel page size" if SPARC64
 	default SPARC64_PAGE_SIZE_8KB

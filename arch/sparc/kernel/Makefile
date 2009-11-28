@@ -87,6 +87,7 @@ obj-$(CONFIG_KGDB)        += kgdb_$(BITS).o
 obj-$(CONFIG_DYNAMIC_FTRACE) += ftrace.o
 CFLAGS_REMOVE_ftrace.o := -pg
 
+obj-$(CONFIG_EARLYFB) += btext.o
 obj-$(CONFIG_STACKTRACE)     += stacktrace.o
 # sparc64 PCI
 obj-$(CONFIG_SPARC64_PCI)    += pci.o pci_common.o psycho_common.o
