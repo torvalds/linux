@@ -941,10 +941,6 @@ static void asus_hotk_notify(struct acpi_device *device, u32 event)
 	static struct key_entry *key;
 	u16 count;
 
-	/* TODO Find a better way to handle events count. */
-	if (!hotk)
-		return;
-
 	/*
 	 * We need to tell the backlight device when the backlight power is
 	 * switched
@@ -957,6 +953,7 @@ static void asus_hotk_notify(struct acpi_device *device, u32 event)
 		lcd_blank(FB_BLANK_POWERDOWN);
 	}
 
+	/* TODO Find a better way to handle events count. */
 	count = hotk->event_count[event % 128]++;
 	acpi_bus_generate_proc_event(hotk->device, event, count);
 	acpi_bus_generate_netlink_event(hotk->device->pnp.device_class,
