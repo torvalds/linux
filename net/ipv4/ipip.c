@@ -775,17 +775,8 @@ static void ipip_destroy_tunnels(struct ipip_net *ipn, struct list_head *head)
 
 static int ipip_init_net(struct net *net)
 {
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	int err;
-	struct ipip_net *ipn;
-
-	err = -ENOMEM;
-	ipn = kzalloc(sizeof(struct ipip_net), GFP_KERNEL);
-	if (ipn == NULL)
-		goto err_alloc;
-
-	err = net_assign_generic(net, ipip_net_id, ipn);
-	if (err < 0)
-		goto err_assign;
 
 	ipn->tunnels[0] = ipn->tunnels_wc;
 	ipn->tunnels[1] = ipn->tunnels_l;
@@ -812,29 +803,26 @@ err_reg_dev:
 	free_netdev(ipn->fb_tunnel_dev);
 err_alloc_dev:
 	/* nothing */
-err_assign:
-	kfree(ipn);
-err_alloc:
 	return err;
 }
 
 static void ipip_exit_net(struct net *net)
 {
-	struct ipip_net *ipn;
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	LIST_HEAD(list);
 
-	ipn = net_generic(net, ipip_net_id);
 	rtnl_lock();
 	ipip_destroy_tunnels(ipn, &list);
 	unregister_netdevice_queue(ipn->fb_tunnel_dev, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
-	kfree(ipn);
 }
 
 static struct pernet_operations ipip_net_ops = {
 	.init = ipip_init_net,
 	.exit = ipip_exit_net,
+	.id   = &ipip_net_id,
+	.size = sizeof(struct ipip_net),
 };
 
 static int __init ipip_init(void)
@@ -848,7 +836,7 @@ static int __init ipip_init(void)
 		return -EAGAIN;
 	}
 
-	err = register_pernet_gen_device(&ipip_net_id, &ipip_net_ops);
+	err = register_pernet_device(&ipip_net_ops);
 	if (err)
 		xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
 
@@ -860,7 +848,7 @@ static void __exit ipip_fini(void)
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
-	unregister_pernet_gen_device(ipip_net_id, &ipip_net_ops);
+	unregister_pernet_device(&ipip_net_ops);
 }
 
 module_init(ipip_init);
