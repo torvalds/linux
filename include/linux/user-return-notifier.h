@@ -26,6 +26,11 @@ static inline void propagate_user_return_notify(struct task_struct *prev,
 
 void fire_user_return_notifiers(void);
 
+static inline void clear_user_return_notifier(struct task_struct *p)
+{
+	clear_tsk_thread_flag(p, TIF_USER_RETURN_NOTIFY);
+}
+
 #else
 
 struct user_return_notifier {};
@@ -36,6 +41,8 @@ static inline void propagate_user_return_notify(struct task_struct *prev,
 }
 
 static inline void fire_user_return_notifiers(void) {}
+
+static inline void clear_user_return_notifier(struct task_struct *p) {}
 
 #endif
 
