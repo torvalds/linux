@@ -148,6 +148,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct net_device *prev_dev = NULL;
 	struct sta_info *sta;
 	int retry_count = -1, i;
+	bool injected;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		/* the HW cannot have attempted that rate */
@@ -297,6 +298,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/* for now report the total retry_count */
 	rthdr->data_retries = retry_count;
 
+	/* Need to make a copy before skb->cb gets cleared */
+	injected = !!(info->flags & IEEE80211_TX_CTL_INJECTED);
+
 	/* XXX: is this sufficient for BPF? */
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -311,7 +315,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				continue;
 
 			if ((sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) &&
-			    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
+			    !injected &&
 			    (type == IEEE80211_FTYPE_DATA))
 				continue;
 
