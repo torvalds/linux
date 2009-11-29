@@ -2048,9 +2048,6 @@ int gspca_dev_probe(struct usb_interface *intf,
 	ret = sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
-	ret = gspca_set_alt0(gspca_dev);
-	if (ret < 0)
-		goto out;
 	gspca_set_default_mode(gspca_dev);
 
 	mutex_init(&gspca_dev->usb_lock);
