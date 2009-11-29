@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2008 Solarflare Communications Inc.
+ * Copyright 2005-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -2453,8 +2453,8 @@ static void __exit efx_exit_module(void)
 module_init(efx_init_module);
 module_exit(efx_exit_module);
 
-MODULE_AUTHOR("Michael Brown <mbrown@fensystems.co.uk> and "
-	      "Solarflare Communications");
+MODULE_AUTHOR("Solarflare Communications and "
+	      "Michael Brown <mbrown@fensystems.co.uk>");
 MODULE_DESCRIPTION("Solarflare Communications network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
