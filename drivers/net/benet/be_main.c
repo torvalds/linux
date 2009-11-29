@@ -1951,6 +1951,8 @@ static void be_netdev_init(struct net_device *netdev)
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
 		NETIF_F_GRO;
 
+	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
+
 	netdev->flags |= IFF_MULTICAST;
 
 	adapter->rx_csum = true;
