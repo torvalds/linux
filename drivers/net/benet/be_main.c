@@ -125,6 +125,9 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 	int status = 0;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
 	status = be_cmd_pmac_del(adapter, adapter->if_handle, adapter->pmac_id);
 	if (status)
 		return status;
@@ -2146,6 +2149,10 @@ static int be_get_config(struct be_adapter *adapter)
 			MAC_ADDRESS_TYPE_NETWORK, true /*permanent */, 0);
 	if (status)
 		return status;
+
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
 	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 
