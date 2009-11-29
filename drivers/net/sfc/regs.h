@@ -3106,18 +3106,6 @@
 #define FALCON_STATS_NOT_DONE 0x00000000
 #define FALCON_STATS_DONE 0xffffffff
 
-/* Interrupt status register bits */
-#define FATAL_INT_LBN 64
-#define FATAL_INT_WIDTH 1
-#define INT_EVQS_LBN 40
-#define INT_EVQS_WIDTH 4
-#define INT_FLAG_LBN 32
-#define INT_FLAG_WIDTH 1
-#define EVQ_FIFO_HF_LBN 1
-#define EVQ_FIFO_HF_WIDTH 1
-#define EVQ_FIFO_AF_LBN 0
-#define EVQ_FIFO_AF_WIDTH 1
-
 /**************************************************************************
  *
  * Falcon non-volatile configuration
