@@ -175,12 +175,14 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 
 	/* check if the TID waits for addBA response */
 	spin_lock_bh(&sta->lock);
-	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
+	if ((*state & (HT_ADDBA_REQUESTED_MSK | HT_ADDBA_RECEIVED_MSK)) !=
+						HT_ADDBA_REQUESTED_MSK) {
 		spin_unlock_bh(&sta->lock);
 		*state = HT_AGG_STATE_IDLE;
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "timer expired on tid %d but we are not "
-				"expecting addBA response there", tid);
+				"(or no longer) expecting addBA response there",
+			tid);
 #endif
 		return;
 	}
@@ -649,20 +651,20 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
-	del_timer_sync(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
-
 	spin_lock_bh(&sta->lock);
 
 	if (!(*state & HT_ADDBA_REQUESTED_MSK))
-		goto timer_still_needed;
+		goto out;
 
 	if (mgmt->u.action.u.addba_resp.dialog_token !=
 		sta->ampdu_mlme.tid_tx[tid]->dialog_token) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "wrong addBA response token, tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		goto timer_still_needed;
+		goto out;
 	}
+
+	del_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "switched off addBA timer for tid %d \n", tid);
@@ -682,10 +684,6 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
 	}
 
-	goto out;
-
- timer_still_needed:
-	add_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
  out:
 	spin_unlock_bh(&sta->lock);
 }

@@ -284,13 +284,13 @@ static netdev_tx_t ieee802154_fake_xmit(struct sk_buff *skb,
 {
 	skb->skb_iif = dev->ifindex;
 	skb->dev = dev;
+
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	dev->trans_start = jiffies;
-
 	/* FIXME: do hardware work here ... */
 
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 

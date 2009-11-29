@@ -416,13 +416,8 @@ static void init_dma_desc_rings(struct net_device *dev)
 	unsigned int txsize = priv->dma_tx_size;
 	unsigned int rxsize = priv->dma_rx_size;
 	unsigned int bfsize = priv->dma_buf_sz;
-	int buff2_needed = 0;
-	int dis_ic = 0;
+	int buff2_needed = 0, dis_ic = 0;
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Using Timers disable interrupts on completion for the reception */
-	dis_ic = 1;
-#endif
 	/* Set the Buffer size according to the MTU;
 	 * indeed, in case of jumbo we need to bump-up the buffer sizes.
 	 */
@@ -437,6 +432,11 @@ static void init_dma_desc_rings(struct net_device *dev)
 	else
 		bfsize = DMA_BUFFER_SIZE;
 
+#ifdef CONFIG_STMMAC_TIMER
+	/* Disable interrupts on completion for the reception if timer is on */
+	if (likely(priv->tm->enable))
+		dis_ic = 1;
+#endif
 	/* If the MTU exceeds 8k so use the second buffer in the chain */
 	if (bfsize >= BUF_SIZE_8KiB)
 		buff2_needed = 1;
@@ -809,20 +809,22 @@ static void stmmac_tx(struct stmmac_priv *priv)
 
 static inline void stmmac_enable_irq(struct stmmac_priv *priv)
 {
-#ifndef CONFIG_STMMAC_TIMER
-	writel(DMA_INTR_DEFAULT_MASK, priv->dev->base_addr + DMA_INTR_ENA);
-#else
-	priv->tm->timer_start(tmrate);
+#ifdef CONFIG_STMMAC_TIMER
+	if (likely(priv->tm->enable))
+		priv->tm->timer_start(tmrate);
+	else
 #endif
+	writel(DMA_INTR_DEFAULT_MASK, priv->dev->base_addr + DMA_INTR_ENA);
 }
 
 static inline void stmmac_disable_irq(struct stmmac_priv *priv)
 {
-#ifndef CONFIG_STMMAC_TIMER
-	writel(0, priv->dev->base_addr + DMA_INTR_ENA);
-#else
-	priv->tm->timer_stop();
+#ifdef CONFIG_STMMAC_TIMER
+	if (likely(priv->tm->enable))
+		priv->tm->timer_stop();
+	else
 #endif
+	writel(0, priv->dev->base_addr + DMA_INTR_ENA);
 }
 
 static int stmmac_has_work(struct stmmac_priv *priv)
@@ -1031,22 +1033,23 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 #ifdef CONFIG_STMMAC_TIMER
-	priv->tm = kmalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
+	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
 	if (unlikely(priv->tm == NULL)) {
 		pr_err("%s: ERROR: timer memory alloc failed \n", __func__);
 		return -ENOMEM;
 	}
 	priv->tm->freq = tmrate;
 
-	/* Test if the HW timer can be actually used.
-	 * In case of failure continue with no timer. */
+	/* Test if the external timer can be actually used.
+	 * In case of failure continue without timer. */
 	if (unlikely((stmmac_open_ext_timer(dev, priv->tm)) < 0)) {
-		pr_warning("stmmaceth: cannot attach the HW timer\n");
+		pr_warning("stmmaceth: cannot attach the external timer.\n");
 		tmrate = 0;
 		priv->tm->freq = 0;
 		priv->tm->timer_start = stmmac_no_timer_started;
 		priv->tm->timer_stop = stmmac_no_timer_stopped;
-	}
+	} else
+		priv->tm->enable = 1;
 #endif
 
 	/* Create and initialize the TX/RX descriptors chains. */
@@ -1322,9 +1325,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Interrupt on completition only for the latest segment */
 	priv->mac_type->ops->close_tx_desc(desc);
+
 #ifdef CONFIG_STMMAC_TIMER
-	/* Clean IC while using timers */
-	priv->mac_type->ops->clear_tx_ic(desc);
+	/* Clean IC while using timer */
+	if (likely(priv->tm->enable))
+		priv->mac_type->ops->clear_tx_ic(desc);
 #endif
 	/* To avoid raise condition */
 	priv->mac_type->ops->set_tx_owner(first);
@@ -2028,7 +2033,8 @@ static int stmmac_suspend(struct platform_device *pdev, pm_message_t state)
 
 #ifdef CONFIG_STMMAC_TIMER
 		priv->tm->timer_stop();
-		dis_ic = 1;
+		if (likely(priv->tm->enable))
+			dis_ic = 1;
 #endif
 		napi_disable(&priv->napi);
 

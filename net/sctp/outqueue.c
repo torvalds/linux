@@ -423,16 +423,6 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		if ((reason == SCTP_RTXR_FAST_RTX  &&
 			    (chunk->fast_retransmit == SCTP_NEED_FRTX)) ||
 		    (reason != SCTP_RTXR_FAST_RTX  && !chunk->tsn_gap_acked)) {
-			/* If this chunk was sent less then 1 rto ago, do not
-			 * retransmit this chunk, but give the peer time
-			 * to acknowlege it.  Do this only when
-			 * retransmitting due to T3 timeout.
-			 */
-			if (reason == SCTP_RTXR_T3_RTX &&
-			    time_before(jiffies, chunk->sent_at +
-						 transport->last_rto))
-				continue;
-
 			/* RFC 2960 6.2.1 Processing a Received SACK
 			 *
 			 * C) Any time a DATA chunk is marked for
