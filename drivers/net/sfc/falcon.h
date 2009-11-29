@@ -154,7 +154,6 @@ extern int falcon_reset_xaui(struct efx_nic *efx);
 struct falcon_nvconfig;
 extern int falcon_read_nvram(struct efx_nic *efx,
 			     struct falcon_nvconfig *nvconfig);
-extern int falcon_test_registers(struct efx_nic *efx);
 
 /**************************************************************************
  *

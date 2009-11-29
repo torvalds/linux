@@ -122,14 +122,14 @@ static int efx_test_nvram(struct efx_nic *efx, struct efx_self_tests *tests)
 
 static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 {
-	int rc;
+	int rc = 0;
 
-	/* Not supported on A-series silicon */
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
-		return 0;
+	/* Test register access */
+	if (efx->type->test_registers) {
+		rc = efx->type->test_registers(efx);
+		tests->registers = rc ? -1 : 1;
+	}
 
-	rc = falcon_test_registers(efx);
-	tests->registers = rc ? -1 : 1;
 	return rc;
 }
 

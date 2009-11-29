@@ -2458,7 +2458,7 @@ static bool efx_masked_compare_oword(const efx_oword_t *a, const efx_oword_t *b,
 		((a->u64[1] ^ b->u64[1]) & mask->u64[1]);
 }
 
-int falcon_test_registers(struct efx_nic *efx)
+static int falcon_b0_test_registers(struct efx_nic *efx)
 {
 	unsigned address = 0, i, j;
 	efx_oword_t mask, imask, original, reg, buf;
@@ -3327,6 +3327,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
+	.test_registers = falcon_b0_test_registers,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,
