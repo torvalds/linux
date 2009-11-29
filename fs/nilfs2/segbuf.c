@@ -100,6 +100,22 @@ void nilfs_segbuf_map(struct nilfs_segment_buffer *segbuf, __u64 segnum,
 		segbuf->sb_fseg_end - segbuf->sb_pseg_start + 1;
 }
 
+/**
+ * nilfs_segbuf_map_cont - map a new log behind a given log
+ * @segbuf: new segment buffer
+ * @prev: segment buffer containing a log to be continued
+ */
+void nilfs_segbuf_map_cont(struct nilfs_segment_buffer *segbuf,
+			   struct nilfs_segment_buffer *prev)
+{
+	segbuf->sb_segnum = prev->sb_segnum;
+	segbuf->sb_fseg_start = prev->sb_fseg_start;
+	segbuf->sb_fseg_end = prev->sb_fseg_end;
+	segbuf->sb_pseg_start = prev->sb_pseg_start + prev->sb_sum.nblocks;
+	segbuf->sb_rest_blocks =
+		segbuf->sb_fseg_end - segbuf->sb_pseg_start + 1;
+}
+
 void nilfs_segbuf_set_next_segnum(struct nilfs_segment_buffer *segbuf,
 				  __u64 nextnum, struct the_nilfs *nilfs)
 {
