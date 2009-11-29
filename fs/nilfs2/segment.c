@@ -1276,7 +1276,7 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 					    struct the_nilfs *nilfs)
 {
-	struct nilfs_segment_buffer *segbuf, *n;
+	struct nilfs_segment_buffer *segbuf;
 	__u64 nextnum;
 	int err;
 
@@ -1313,18 +1313,14 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 	nilfs_segbuf_set_next_segnum(segbuf, nextnum, nilfs);
 
 	/* truncating segment buffers */
-	list_for_each_entry_safe_continue(segbuf, n, &sci->sc_segbufs,
-					  sb_list) {
-		list_del_init(&segbuf->sb_list);
-		nilfs_segbuf_free(segbuf);
-	}
+	nilfs_truncate_logs(&sci->sc_segbufs, segbuf);
 	return 0;
 }
 
 static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
 					 struct the_nilfs *nilfs, int nadd)
 {
-	struct nilfs_segment_buffer *segbuf, *prev, *n;
+	struct nilfs_segment_buffer *segbuf, *prev;
 	struct inode *sufile = nilfs->ns_sufile;
 	__u64 nextnextnum;
 	LIST_HEAD(list);
@@ -1369,12 +1365,11 @@ static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
  failed_segbuf:
 	nilfs_segbuf_free(segbuf);
  failed:
-	list_for_each_entry_safe(segbuf, n, &list, sb_list) {
+	list_for_each_entry(segbuf, &list, sb_list) {
 		ret = nilfs_sufile_free(sufile, segbuf->sb_nextnum);
 		WARN_ON(ret); /* never fails */
-		list_del_init(&segbuf->sb_list);
-		nilfs_segbuf_free(segbuf);
 	}
+	nilfs_destroy_logs(&list);
 	return err;
 }
 
@@ -1411,27 +1406,6 @@ static void nilfs_segctor_free_incomplete_segments(struct nilfs_sc_info *sci,
 	}
 }
 
-static void nilfs_segctor_clear_segment_buffers(struct nilfs_sc_info *sci)
-{
-	struct nilfs_segment_buffer *segbuf;
-
-	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list)
-		nilfs_segbuf_clear(segbuf);
-	sci->sc_super_root = NULL;
-}
-
-static void nilfs_segctor_destroy_segment_buffers(struct nilfs_sc_info *sci)
-{
-	struct nilfs_segment_buffer *segbuf;
-
-	while (!list_empty(&sci->sc_segbufs)) {
-		segbuf = NILFS_FIRST_SEGBUF(&sci->sc_segbufs);
-		list_del_init(&segbuf->sb_list);
-		nilfs_segbuf_free(segbuf);
-	}
-	/* sci->sc_curseg = NULL; */
-}
-
 static void nilfs_segctor_end_construction(struct nilfs_sc_info *sci,
 					   struct the_nilfs *nilfs, int err)
 {
@@ -1447,7 +1421,8 @@ static void nilfs_segctor_end_construction(struct nilfs_sc_info *sci,
 			WARN_ON(ret); /* do not happen */
 		}
 	}
-	nilfs_segctor_clear_segment_buffers(sci);
+	nilfs_clear_logs(&sci->sc_segbufs);
+	sci->sc_super_root = NULL;
 }
 
 static void nilfs_segctor_update_segusage(struct nilfs_sc_info *sci,
@@ -1490,17 +1465,15 @@ static void nilfs_segctor_truncate_segments(struct nilfs_sc_info *sci,
 					    struct nilfs_segment_buffer *last,
 					    struct inode *sufile)
 {
-	struct nilfs_segment_buffer *segbuf = last, *n;
+	struct nilfs_segment_buffer *segbuf = last;
 	int ret;
 
-	list_for_each_entry_safe_continue(segbuf, n, &sci->sc_segbufs,
-					  sb_list) {
-		list_del_init(&segbuf->sb_list);
+	list_for_each_entry_continue(segbuf, &sci->sc_segbufs, sb_list) {
 		sci->sc_segbuf_nblocks -= segbuf->sb_rest_blocks;
 		ret = nilfs_sufile_free(sufile, segbuf->sb_nextnum);
 		WARN_ON(ret);
-		nilfs_segbuf_free(segbuf);
 	}
+	nilfs_truncate_logs(&sci->sc_segbufs, last);
 }
 
 
@@ -1539,7 +1512,7 @@ static int nilfs_segctor_collect(struct nilfs_sc_info *sci,
 							NULL);
 			WARN_ON(err); /* do not happen */
 		}
-		nilfs_segctor_clear_segment_buffers(sci);
+		nilfs_clear_logs(&sci->sc_segbufs);
 
 		err = nilfs_segctor_extend_segments(sci, nilfs, nadd);
 		if (unlikely(err))
@@ -2179,7 +2152,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 	} while (sci->sc_stage.scnt != NILFS_ST_DONE);
 
  out:
-	nilfs_segctor_destroy_segment_buffers(sci);
+	nilfs_destroy_logs(&sci->sc_segbufs);
 	nilfs_segctor_check_out_files(sci, sbi);
 	return err;
 

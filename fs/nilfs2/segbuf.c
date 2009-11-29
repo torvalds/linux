@@ -234,7 +234,7 @@ void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *segbuf,
 	raw_sum->ss_datasum = cpu_to_le32(crc);
 }
 
-void nilfs_release_buffers(struct list_head *list)
+static void nilfs_release_buffers(struct list_head *list)
 {
 	struct buffer_head *bh, *n;
 
@@ -254,6 +254,49 @@ void nilfs_release_buffers(struct list_head *list)
 		}
 		brelse(bh);
 	}
+}
+
+static void nilfs_segbuf_clear(struct nilfs_segment_buffer *segbuf)
+{
+	nilfs_release_buffers(&segbuf->sb_segsum_buffers);
+	nilfs_release_buffers(&segbuf->sb_payload_buffers);
+}
+
+/*
+ * Iterators for segment buffers
+ */
+void nilfs_clear_logs(struct list_head *logs)
+{
+	struct nilfs_segment_buffer *segbuf;
+
+	list_for_each_entry(segbuf, logs, sb_list)
+		nilfs_segbuf_clear(segbuf);
+}
+
+void nilfs_truncate_logs(struct list_head *logs,
+			 struct nilfs_segment_buffer *last)
+{
+	struct nilfs_segment_buffer *n, *segbuf;
+
+	segbuf = list_prepare_entry(last, logs, sb_list);
+	list_for_each_entry_safe_continue(segbuf, n, logs, sb_list) {
+		list_del_init(&segbuf->sb_list);
+		nilfs_segbuf_clear(segbuf);
+		nilfs_segbuf_free(segbuf);
+	}
+}
+
+int nilfs_wait_on_logs(struct list_head *logs)
+{
+	struct nilfs_segment_buffer *segbuf;
+	int err;
+
+	list_for_each_entry(segbuf, logs, sb_list) {
+		err = nilfs_segbuf_wait(segbuf);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 /*
