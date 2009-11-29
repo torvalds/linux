@@ -7,6 +7,68 @@
 
 #include <media/ir-common.h>
 
+#define IR_TAB_MIN_SIZE	32
+
+/**
+ * ir_roundup_tablesize() - gets an optimum value for the table size
+ * @n_elems:		minimum number of entries to store keycodes
+ *
+ * This routine is used to choose the keycode table size.
+ *
+ * In order to have some empty space for new keycodes,
+ * and knowing in advance that kmalloc allocates only power of two
+ * segments, it optimizes the allocated space to have some spare space
+ * for those new keycodes by using the maximum number of entries that
+ * will be effectively be allocated by kmalloc.
+ * In order to reduce the quantity of table resizes, it has a minimum
+ * table size of IR_TAB_MIN_SIZE.
+ */
+int ir_roundup_tablesize(int n_elems)
+{
+	size_t size;
+
+	if (n_elems < IR_TAB_MIN_SIZE)
+		n_elems = IR_TAB_MIN_SIZE;
+
+	/*
+	 * As kmalloc only allocates sizes of power of two, get as
+	 * much entries as possible for the allocated memory segment
+	 */
+	size = roundup_pow_of_two(n_elems * sizeof(struct ir_scancode));
+	n_elems = size / sizeof(struct ir_scancode);
+
+	return n_elems;
+}
+
+/**
+ * ir_copy_table() - copies a keytable, discarding the unused entries
+ * @destin:	destin table
+ * @origin:	origin table
+ *
+ * Copies all entries where the keycode is not KEY_UNKNOWN/KEY_RESERVED
+ */
+
+int ir_copy_table(struct ir_scancode_table *destin,
+		 const struct ir_scancode_table *origin)
+{
+	int i, j = 0;
+
+	for (i = 0; i < origin->size; i++) {
+		if (origin->scan[i].keycode != KEY_UNKNOWN &&
+		   origin->scan[i].keycode != KEY_RESERVED) {
+			memcpy(&destin->scan[j], &origin->scan[i],
+			       sizeof(struct ir_scancode));
+			j++;
+		}
+	}
+	destin->size = j;
+
+	IR_dprintk(1, "Copied %d scancodes to the new keycode table\n", j);
+
+	return 0;
+}
+
+
 /**
  * ir_getkeycode() - get a keycode at the evdev scancode ->keycode table
  * @dev:	the struct input_dev device descriptor
@@ -152,3 +214,16 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 
 	return 0;
 }
+
+void ir_input_free(struct input_dev *dev)
+{
+	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
+
+	IR_dprintk(1, "Freed keycode table\n");
+
+	rc_tab->size = 0;
+	kfree(rc_tab->scan);
+	rc_tab->scan = NULL;
+}
+EXPORT_SYMBOL_GPL(ir_input_free);
+

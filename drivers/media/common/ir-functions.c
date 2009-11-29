@@ -59,12 +59,20 @@ int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 {
 	ir->ir_type = ir_type;
 
-	/* FIXME: Add the proper code to dynamically allocate IR table */
+	ir->keytable.size = ir_roundup_tablesize(ir_codes->size);
+	ir->keytable.scan = kzalloc(ir->keytable.size *
+				    sizeof(struct ir_scancode), GFP_KERNEL);
+	if (!ir->keytable.scan)
+		return -ENOMEM;
 
-	ir_set_keycode_table(dev, ir_codes);
+	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
+		ir->keytable.size,
+		ir->keytable.size * sizeof(ir->keytable.scan));
+
+	ir_copy_table(&ir->keytable, ir_codes);
+	ir_set_keycode_table(dev, &ir->keytable);
 
 	clear_bit(0, dev->keybit);
-
 	set_bit(EV_KEY, dev->evbit);
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
@@ -73,11 +81,6 @@ int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 }
 EXPORT_SYMBOL_GPL(ir_input_init);
 
-void ir_input_free(struct input_dev *input_dev)
-{
-	/* FIXME: Add the proper code to free allocated resources */
-}
-EXPORT_SYMBOL_GPL(ir_input_free);
 
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
 {
