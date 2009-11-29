@@ -843,6 +843,21 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 /**
  * struct efx_nic_type - Efx device type definition
+ * @probe: Probe the controller
+ * @remove: Free resources allocated by probe()
+ * @init: Initialise the controller
+ * @fini: Shut down the controller
+ * @monitor: Periodic function for polling link state and hardware monitor
+ * @reset: Reset the controller hardware and possibly the PHY.  This will
+ *	be called while the controller is uninitialised.
+ * @probe_port: Probe the MAC and PHY
+ * @remove_port: Free resources allocated by probe_port()
+ * @prepare_flush: Prepare the hardware for flushing the DMA queues
+ * @update_stats: Update statistics not provided by event handling
+ * @start_stats: Start the regular fetching of statistics
+ * @stop_stats: Stop the regular fetching of statistics
+ * @push_irq_moderation: Apply interrupt moderation value
+ * @push_multicast_hash: Apply multicast hash table
  * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
@@ -861,6 +876,20 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  */
 struct efx_nic_type {
+	int (*probe)(struct efx_nic *efx);
+	void (*remove)(struct efx_nic *efx);
+	int (*init)(struct efx_nic *efx);
+	void (*fini)(struct efx_nic *efx);
+	void (*monitor)(struct efx_nic *efx);
+	int (*reset)(struct efx_nic *efx, enum reset_type method);
+	int (*probe_port)(struct efx_nic *efx);
+	void (*remove_port)(struct efx_nic *efx);
+	void (*prepare_flush)(struct efx_nic *efx);
+	void (*update_stats)(struct efx_nic *efx);
+	void (*start_stats)(struct efx_nic *efx);
+	void (*stop_stats)(struct efx_nic *efx);
+	void (*push_irq_moderation)(struct efx_channel *channel);
+	void (*push_multicast_hash)(struct efx_nic *efx);
 	struct efx_mac_operations *default_mac_ops;
 
 	int revision;

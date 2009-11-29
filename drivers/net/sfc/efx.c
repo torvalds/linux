@@ -274,14 +274,14 @@ static int efx_poll(struct napi_struct *napi, int budget)
 				     irq_adapt_low_thresh)) {
 				if (channel->irq_moderation > 1) {
 					channel->irq_moderation -= 1;
-					falcon_set_int_moderation(channel);
+					efx->type->push_irq_moderation(channel);
 				}
 			} else if (unlikely(channel->irq_mod_score >
 					    irq_adapt_high_thresh)) {
 				if (channel->irq_moderation <
 				    efx->irq_rx_moderation) {
 					channel->irq_moderation += 1;
-					falcon_set_int_moderation(channel);
+					efx->type->push_irq_moderation(channel);
 				}
 			}
 			channel->irq_count = 0;
@@ -637,7 +637,7 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 		netif_addr_unlock_bh(efx->net_dev);
 	}
 
-	falcon_stop_nic_stats(efx);
+	efx->type->stop_stats(efx);
 	falcon_deconfigure_mac_wrapper(efx);
 
 	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
@@ -652,7 +652,7 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 
 	efx->mac_op->reconfigure(efx);
 
-	falcon_start_nic_stats(efx);
+	efx->type->start_stats(efx);
 
 	/* Inform kernel of loss/gain of carrier */
 	efx_link_status_changed(efx);
@@ -684,7 +684,7 @@ static void efx_mac_work(struct work_struct *data)
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled) {
-		falcon_push_multicast_hash(efx);
+		efx->type->push_multicast_hash(efx);
 		efx->mac_op->reconfigure(efx);
 	}
 	mutex_unlock(&efx->mac_lock);
@@ -696,8 +696,8 @@ static int efx_probe_port(struct efx_nic *efx)
 
 	EFX_LOG(efx, "create port\n");
 
-	/* Connect up MAC/PHY operations table and read MAC address */
-	rc = falcon_probe_port(efx);
+	/* Connect up MAC/PHY operations table */
+	rc = efx->type->probe_port(efx);
 	if (rc)
 		goto err;
 
@@ -765,7 +765,7 @@ static void efx_start_port(struct efx_nic *efx)
 
 	/* efx_mac_work() might have been scheduled after efx_stop_port(),
 	 * and then cancelled by efx_flush_all() */
-	falcon_push_multicast_hash(efx);
+	efx->type->push_multicast_hash(efx);
 	efx->mac_op->reconfigure(efx);
 
 	mutex_unlock(&efx->mac_lock);
@@ -805,7 +805,7 @@ static void efx_remove_port(struct efx_nic *efx)
 {
 	EFX_LOG(efx, "destroying port\n");
 
-	falcon_remove_port(efx);
+	efx->type->remove_port(efx);
 }
 
 /**************************************************************************
@@ -1042,7 +1042,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 	EFX_LOG(efx, "creating NIC\n");
 
 	/* Carry out hardware-type specific initialisation */
-	rc = falcon_probe_nic(efx);
+	rc = efx->type->probe(efx);
 	if (rc)
 		return rc;
 
@@ -1063,7 +1063,7 @@ static void efx_remove_nic(struct efx_nic *efx)
 	EFX_LOG(efx, "destroying NIC\n");
 
 	efx_remove_interrupts(efx);
-	falcon_remove_nic(efx);
+	efx->type->remove(efx);
 }
 
 /**************************************************************************
@@ -1145,12 +1145,12 @@ static void efx_start_all(struct efx_nic *efx)
 
 	falcon_enable_interrupts(efx);
 
-	/* Start hardware monitor if we're in RUNNING */
-	if (efx->state == STATE_RUNNING)
+	/* Start the hardware monitor (if there is one) if we're in RUNNING */
+	if (efx->state == STATE_RUNNING && efx->type->monitor != NULL)
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
 				   efx_monitor_interval);
 
-	falcon_start_nic_stats(efx);
+	efx->type->start_stats(efx);
 }
 
 /* Flush all delayed work. Should only be called when no more delayed work
@@ -1186,7 +1186,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	if (!efx->port_enabled)
 		return;
 
-	falcon_stop_nic_stats(efx);
+	efx->type->stop_stats(efx);
 
 	/* Disable interrupts and wait for ISR to complete */
 	falcon_disable_interrupts(efx);
@@ -1284,6 +1284,7 @@ static void efx_monitor(struct work_struct *data)
 
 	EFX_TRACE(efx, "hardware monitor executing on CPU %d\n",
 		  raw_smp_processor_id());
+	BUG_ON(efx->type->monitor == NULL);
 
 	/* If the mac_lock is already held then it is likely a port
 	 * reconfiguration is already in place, which will likely do
@@ -1292,7 +1293,7 @@ static void efx_monitor(struct work_struct *data)
 		goto out_requeue;
 	if (!efx->port_enabled)
 		goto out_unlock;
-	falcon_monitor(efx);
+	efx->type->monitor(efx);
 
 out_unlock:
 	mutex_unlock(&efx->mac_lock);
@@ -1430,7 +1431,7 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	struct net_device_stats *stats = &net_dev->stats;
 
 	spin_lock_bh(&efx->stats_lock);
-	falcon_update_nic_stats(efx);
+	efx->type->update_stats(efx);
 	spin_unlock_bh(&efx->stats_lock);
 
 	stats->rx_packets = mac_stats->rx_packets;
@@ -1695,6 +1696,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method,
 	efx_fini_channels(efx);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
+	efx->type->fini(efx);
 }
 
 /* This function will always ensure that the locks acquired in
@@ -1709,7 +1711,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	rc = falcon_init_nic(efx);
+	rc = efx->type->init(efx);
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise NIC\n");
 		ok = false;
@@ -1769,7 +1771,7 @@ static int efx_reset(struct efx_nic *efx)
 
 	efx_reset_down(efx, method, &ecmd);
 
-	rc = falcon_reset_hw(efx, method);
+	rc = efx->type->reset(efx, method);
 	if (rc) {
 		EFX_ERR(efx, "failed to reset hardware\n");
 		goto out_disable;
@@ -2005,6 +2007,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	falcon_fini_interrupt(efx);
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
+	efx->type->fini(efx);
 	efx_fini_napi(efx);
 	efx_remove_all(efx);
 }
@@ -2064,7 +2067,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail2;
 
-	rc = falcon_init_nic(efx);
+	rc = efx->type->init(efx);
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise NIC\n");
 		goto fail3;
@@ -2088,6 +2091,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
  fail4:
+	efx->type->fini(efx);
  fail3:
 	efx_fini_napi(efx);
  fail2:

@@ -649,7 +649,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 
 	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
 	efx_for_each_channel(channel, efx)
-		falcon_set_int_moderation(channel);
+		efx->type->push_irq_moderation(channel);
 
 	return 0;
 }

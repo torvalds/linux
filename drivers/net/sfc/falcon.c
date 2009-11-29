@@ -1041,7 +1041,7 @@ int falcon_process_eventq(struct efx_channel *channel, int rx_quota)
 	return rx_packets;
 }
 
-void falcon_set_int_moderation(struct efx_channel *channel)
+static void falcon_push_irq_moderation(struct efx_channel *channel)
 {
 	efx_dword_t timer_cmd;
 	struct efx_nic *efx = channel->efx;
@@ -1098,7 +1098,7 @@ void falcon_init_eventq(struct efx_channel *channel)
 	efx_writeo_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
 
-	falcon_set_int_moderation(channel);
+	falcon_push_irq_moderation(channel);
 }
 
 void falcon_fini_eventq(struct efx_channel *channel)
@@ -1212,7 +1212,8 @@ int falcon_flush_queues(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	int i, tx_pending, rx_pending;
 
-	falcon_prepare_flush(efx);
+	/* If necessary prepare the hardware for flushing */
+	efx->type->prepare_flush(efx);
 
 	/* Flush all tx queues in parallel */
 	efx_for_each_tx_queue(tx_queue, efx)
@@ -1825,6 +1826,16 @@ int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
  **************************************************************************
  */
 
+static void falcon_push_multicast_hash(struct efx_nic *efx)
+{
+	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
+
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
+	efx_writeo(efx, &mc_hash->oword[0], FR_AB_MAC_MC_HASH_REG0);
+	efx_writeo(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);
+}
+
 static int falcon_reset_macs(struct efx_nic *efx)
 {
 	efx_oword_t reg;
@@ -2240,7 +2251,7 @@ out:
 }
 
 /* This call is responsible for hooking in the MAC and PHY operations */
-int falcon_probe_port(struct efx_nic *efx)
+static int falcon_probe_port(struct efx_nic *efx)
 {
 	int rc;
 
@@ -2299,28 +2310,10 @@ int falcon_probe_port(struct efx_nic *efx)
 	return 0;
 }
 
-void falcon_remove_port(struct efx_nic *efx)
+static void falcon_remove_port(struct efx_nic *efx)
 {
 	falcon_free_buffer(efx, &efx->stats_buffer);
 }
-
-/**************************************************************************
- *
- * Multicast filtering
- *
- **************************************************************************
- */
-
-void falcon_push_multicast_hash(struct efx_nic *efx)
-{
-	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	efx_writeo(efx, &mc_hash->oword[0], FR_AB_MAC_MC_HASH_REG0);
-	efx_writeo(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);
-}
-
 
 /**************************************************************************
  *
@@ -2503,7 +2496,7 @@ fail:
 
 /* Resets NIC to known state.  This routine must be called in process
  * context and is allowed to sleep. */
-int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
+static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t glb_ctl_reg_ker;
@@ -2592,7 +2585,7 @@ fail5:
 	return rc;
 }
 
-void falcon_monitor(struct efx_nic *efx)
+static void falcon_monitor(struct efx_nic *efx)
 {
 	bool link_changed;
 	int rc;
@@ -2850,7 +2843,7 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 				       large_eeprom_type);
 }
 
-int falcon_probe_nic(struct efx_nic *efx)
+static int falcon_probe_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data;
 	struct falcon_board *board;
@@ -3006,7 +2999,7 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
  * defining the descriptor cache sizes and number of RSS channels.
  * It does not set up any buffers, descriptor rings or event queues.
  */
-int falcon_init_nic(struct efx_nic *efx)
+static int falcon_init_nic(struct efx_nic *efx)
 {
 	efx_oword_t temp;
 	int rc;
@@ -3139,7 +3132,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	return 0;
 }
 
-void falcon_remove_nic(struct efx_nic *efx)
+static void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_board *board = falcon_board(efx);
@@ -3168,7 +3161,7 @@ void falcon_remove_nic(struct efx_nic *efx)
 	efx->nic_data = NULL;
 }
 
-void falcon_update_nic_stats(struct efx_nic *efx)
+static void falcon_update_nic_stats(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t cnt;
@@ -3232,6 +3225,20 @@ void falcon_stop_nic_stats(struct efx_nic *efx)
  */
 
 struct efx_nic_type falcon_a1_nic_type = {
+	.probe = falcon_probe_nic,
+	.remove = falcon_remove_nic,
+	.init = falcon_init_nic,
+	.fini = efx_port_dummy_op_void,
+	.monitor = falcon_monitor,
+	.reset = falcon_reset_hw,
+	.probe_port = falcon_probe_port,
+	.remove_port = falcon_remove_port,
+	.prepare_flush = falcon_prepare_flush,
+	.update_stats = falcon_update_nic_stats,
+	.start_stats = falcon_start_nic_stats,
+	.stop_stats = falcon_stop_nic_stats,
+	.push_irq_moderation = falcon_push_irq_moderation,
+	.push_multicast_hash = falcon_push_multicast_hash,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
@@ -3250,6 +3257,20 @@ struct efx_nic_type falcon_a1_nic_type = {
 };
 
 struct efx_nic_type falcon_b0_nic_type = {
+	.probe = falcon_probe_nic,
+	.remove = falcon_remove_nic,
+	.init = falcon_init_nic,
+	.fini = efx_port_dummy_op_void,
+	.monitor = falcon_monitor,
+	.reset = falcon_reset_hw,
+	.probe_port = falcon_probe_port,
+	.remove_port = falcon_remove_port,
+	.prepare_flush = falcon_prepare_flush,
+	.update_stats = falcon_update_nic_stats,
+	.start_stats = falcon_start_nic_stats,
+	.stop_stats = falcon_stop_nic_stats,
+	.push_irq_moderation = falcon_push_irq_moderation,
+	.push_multicast_hash = falcon_push_multicast_hash,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,
