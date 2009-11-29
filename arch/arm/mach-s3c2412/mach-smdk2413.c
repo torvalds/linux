@@ -105,7 +105,6 @@ static struct s3c2410_udc_mach_info smdk2413_udc_cfg __initdata = {
 
 static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_ohci,
-	//&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
