@@ -1290,18 +1290,10 @@ static inline void falcon_interrupts(struct efx_nic *efx, int enabled,
 
 void falcon_enable_interrupts(struct efx_nic *efx)
 {
-	efx_oword_t int_adr_reg_ker;
 	struct efx_channel *channel;
 
 	EFX_ZERO_OWORD(*((efx_oword_t *) efx->irq_status.addr));
 	wmb(); /* Ensure interrupt vector is clear before interrupts enabled */
-
-	/* Program address */
-	EFX_POPULATE_OWORD_2(int_adr_reg_ker,
-			     FRF_AZ_NORM_INT_VEC_DIS_KER,
-			     EFX_INT_MODE_USE_MSI(efx),
-			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
-	efx_writeo(efx, &int_adr_reg_ker, FR_AZ_INT_ADR_KER);
 
 	/* Enable interrupts */
 	falcon_interrupts(efx, 1, 0);
@@ -3060,6 +3052,13 @@ int falcon_init_nic(struct efx_nic *efx)
 	efx_writeo(efx, &temp, FR_AZ_RX_DC_CFG);
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_PF_LWM, RX_DC_ENTRIES - 8);
 	efx_writeo(efx, &temp, FR_AZ_RX_DC_PF_WM);
+
+	/* Program INT_KER address */
+	EFX_POPULATE_OWORD_2(temp,
+			     FRF_AZ_NORM_INT_VEC_DIS_KER,
+			     EFX_INT_MODE_USE_MSI(efx),
+			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
+	efx_writeo(efx, &temp, FR_AZ_INT_ADR_KER);
 
 	/* Clear the parity enables on the TX data fifos as
 	 * they produce false parity errors because of timing issues
