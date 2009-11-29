@@ -213,7 +213,7 @@ static int efx_process_channel(struct efx_channel *channel, int rx_quota)
 		     !channel->enabled))
 		return 0;
 
-	rx_packets = falcon_process_eventq(channel, rx_quota);
+	rx_packets = efx_nic_process_eventq(channel, rx_quota);
 	if (rx_packets == 0)
 		return 0;
 
@@ -245,7 +245,7 @@ static inline void efx_channel_processed(struct efx_channel *channel)
 	channel->work_pending = false;
 	smp_wmb();
 
-	falcon_eventq_read_ack(channel);
+	efx_nic_eventq_read_ack(channel);
 }
 
 /* NAPI poll handler
@@ -316,7 +316,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	BUG_ON(!channel->enabled);
 
 	/* Disable interrupts and wait for ISRs to complete */
-	falcon_disable_interrupts(efx);
+	efx_nic_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
 	if (channel->irq)
@@ -333,7 +333,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	efx_channel_processed(channel);
 
 	napi_enable(&channel->napi_str);
-	falcon_enable_interrupts(efx);
+	efx_nic_enable_interrupts(efx);
 }
 
 /* Create event queue
@@ -345,7 +345,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 {
 	EFX_LOG(channel->efx, "chan %d create event queue\n", channel->channel);
 
-	return falcon_probe_eventq(channel);
+	return efx_nic_probe_eventq(channel);
 }
 
 /* Prepare channel's event queue */
@@ -355,21 +355,21 @@ static void efx_init_eventq(struct efx_channel *channel)
 
 	channel->eventq_read_ptr = 0;
 
-	falcon_init_eventq(channel);
+	efx_nic_init_eventq(channel);
 }
 
 static void efx_fini_eventq(struct efx_channel *channel)
 {
 	EFX_LOG(channel->efx, "chan %d fini event queue\n", channel->channel);
 
-	falcon_fini_eventq(channel);
+	efx_nic_fini_eventq(channel);
 }
 
 static void efx_remove_eventq(struct efx_channel *channel)
 {
 	EFX_LOG(channel->efx, "chan %d remove event queue\n", channel->channel);
 
-	falcon_remove_eventq(channel);
+	efx_nic_remove_eventq(channel);
 }
 
 /**************************************************************************
@@ -535,7 +535,7 @@ static void efx_fini_channels(struct efx_nic *efx)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
 
-	rc = falcon_flush_queues(efx);
+	rc = efx_nic_flush_queues(efx);
 	if (rc)
 		EFX_ERR(efx, "failed to flush queues\n");
 	else
@@ -1172,7 +1172,7 @@ static void efx_start_all(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx)
 		efx_start_channel(channel);
 
-	falcon_enable_interrupts(efx);
+	efx_nic_enable_interrupts(efx);
 
 	/* Start the hardware monitor if there is one. Otherwise (we're link
 	 * event driven), we have to poll the PHY because after an event queue
@@ -1226,7 +1226,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	efx->type->stop_stats(efx);
 
 	/* Disable interrupts and wait for ISR to complete */
-	falcon_disable_interrupts(efx);
+	efx_nic_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
 	efx_for_each_channel(channel, efx) {
@@ -1286,8 +1286,8 @@ void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	unsigned tx_ticks = irq_mod_ticks(tx_usecs, FALCON_IRQ_MOD_RESOLUTION);
-	unsigned rx_ticks = irq_mod_ticks(rx_usecs, FALCON_IRQ_MOD_RESOLUTION);
+	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);
+	unsigned rx_ticks = irq_mod_ticks(rx_usecs, EFX_IRQ_MOD_RESOLUTION);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -2042,7 +2042,7 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
-	falcon_fini_interrupt(efx);
+	efx_nic_fini_interrupt(efx);
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -2119,7 +2119,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 
 	efx_init_channels(efx);
 
-	rc = falcon_init_interrupt(efx);
+	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
 

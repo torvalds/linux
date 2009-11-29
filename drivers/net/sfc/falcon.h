@@ -30,6 +30,14 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 	return efx->type->revision;
 }
 
+extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
+
+/* NIC has two interlinked PCI functions for the same port. */
+static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
+{
+	return efx_nic_rev(efx) < EFX_REV_FALCON_B0;
+}
+
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
@@ -108,49 +116,65 @@ extern struct efx_nic_type falcon_b0_nic_type;
 extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
-extern int falcon_probe_tx(struct efx_tx_queue *tx_queue);
-extern void falcon_init_tx(struct efx_tx_queue *tx_queue);
-extern void falcon_fini_tx(struct efx_tx_queue *tx_queue);
-extern void falcon_remove_tx(struct efx_tx_queue *tx_queue);
-extern void falcon_push_buffers(struct efx_tx_queue *tx_queue);
+extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);
+extern void efx_nic_init_tx(struct efx_tx_queue *tx_queue);
+extern void efx_nic_fini_tx(struct efx_tx_queue *tx_queue);
+extern void efx_nic_remove_tx(struct efx_tx_queue *tx_queue);
+extern void efx_nic_push_buffers(struct efx_tx_queue *tx_queue);
 
 /* RX data path */
-extern int falcon_probe_rx(struct efx_rx_queue *rx_queue);
-extern void falcon_init_rx(struct efx_rx_queue *rx_queue);
-extern void falcon_fini_rx(struct efx_rx_queue *rx_queue);
-extern void falcon_remove_rx(struct efx_rx_queue *rx_queue);
-extern void falcon_notify_rx_desc(struct efx_rx_queue *rx_queue);
+extern int efx_nic_probe_rx(struct efx_rx_queue *rx_queue);
+extern void efx_nic_init_rx(struct efx_rx_queue *rx_queue);
+extern void efx_nic_fini_rx(struct efx_rx_queue *rx_queue);
+extern void efx_nic_remove_rx(struct efx_rx_queue *rx_queue);
+extern void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue);
 
 /* Event data path */
-extern int falcon_probe_eventq(struct efx_channel *channel);
-extern void falcon_init_eventq(struct efx_channel *channel);
-extern void falcon_fini_eventq(struct efx_channel *channel);
-extern void falcon_remove_eventq(struct efx_channel *channel);
-extern int falcon_process_eventq(struct efx_channel *channel, int rx_quota);
-extern void falcon_eventq_read_ack(struct efx_channel *channel);
+extern int efx_nic_probe_eventq(struct efx_channel *channel);
+extern void efx_nic_init_eventq(struct efx_channel *channel);
+extern void efx_nic_fini_eventq(struct efx_channel *channel);
+extern void efx_nic_remove_eventq(struct efx_channel *channel);
+extern int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota);
+extern void efx_nic_eventq_read_ack(struct efx_channel *channel);
 
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
+extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 
 /* Interrupts and test events */
-extern int falcon_init_interrupt(struct efx_nic *efx);
-extern void falcon_enable_interrupts(struct efx_nic *efx);
-extern void falcon_generate_test_event(struct efx_channel *channel,
-				       unsigned int magic);
-extern void falcon_generate_interrupt(struct efx_nic *efx);
-extern void falcon_disable_interrupts(struct efx_nic *efx);
-extern void falcon_fini_interrupt(struct efx_nic *efx);
+extern int efx_nic_init_interrupt(struct efx_nic *efx);
+extern void efx_nic_enable_interrupts(struct efx_nic *efx);
+extern void efx_nic_generate_test_event(struct efx_channel *channel,
+					unsigned int magic);
+extern void efx_nic_generate_interrupt(struct efx_nic *efx);
+extern void efx_nic_disable_interrupts(struct efx_nic *efx);
+extern void efx_nic_fini_interrupt(struct efx_nic *efx);
+extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
+extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
+extern void falcon_irq_ack_a1(struct efx_nic *efx);
 
-#define FALCON_IRQ_MOD_RESOLUTION 5
+#define EFX_IRQ_MOD_RESOLUTION 5
 
 /* Global Resources */
-extern int falcon_flush_queues(struct efx_nic *efx);
+extern int efx_nic_flush_queues(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
+extern void efx_nic_init_common(struct efx_nic *efx);
+
+int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
+			 unsigned int len);
+void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 
 /* Tests */
+struct efx_nic_register_test {
+	unsigned address;
+	efx_oword_t mask;
+};
+extern int efx_nic_test_registers(struct efx_nic *efx,
+				  const struct efx_nic_register_test *regs,
+				  size_t n_regs);
 
 /**************************************************************************
  *
@@ -186,8 +210,8 @@ extern int falcon_reset_xaui(struct efx_nic *efx);
 #define MAC_DATA_LBN 0
 #define MAC_DATA_WIDTH 32
 
-extern void falcon_generate_event(struct efx_channel *channel,
-				  efx_qword_t *event);
+extern void efx_nic_generate_event(struct efx_channel *channel,
+				   efx_qword_t *event);
 
 extern void falcon_poll_xmac(struct efx_nic *efx);
 

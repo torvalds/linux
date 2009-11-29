@@ -164,7 +164,7 @@ static int efx_test_interrupts(struct efx_nic *efx,
 			goto success;
 	}
 
-	falcon_generate_interrupt(efx);
+	efx_nic_generate_interrupt(efx);
 
 	/* Wait for arrival of test interrupt. */
 	EFX_LOG(efx, "waiting for test interrupt\n");
@@ -202,7 +202,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	channel->eventq_magic = 0;
 	smp_wmb();
 
-	falcon_generate_test_event(channel, magic);
+	efx_nic_generate_test_event(channel, magic);
 
 	/* Wait for arrival of interrupt */
 	count = 0;

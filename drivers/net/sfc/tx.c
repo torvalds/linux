@@ -278,7 +278,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	buffer->continuation = false;
 
 	/* Pass off to hardware */
-	falcon_push_buffers(tx_queue);
+	efx_nic_push_buffers(tx_queue);
 
 	return NETDEV_TX_OK;
 
@@ -426,7 +426,7 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		tx_queue->buffer[i].continuation = true;
 
 	/* Allocate hardware ring */
-	rc = falcon_probe_tx(tx_queue);
+	rc = efx_nic_probe_tx(tx_queue);
 	if (rc)
 		goto fail;
 
@@ -449,7 +449,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	BUG_ON(tx_queue->stopped);
 
 	/* Set up TX descriptor ring */
-	falcon_init_tx(tx_queue);
+	efx_nic_init_tx(tx_queue);
 }
 
 void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
@@ -475,7 +475,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 	EFX_LOG(tx_queue->efx, "shutting down TX queue %d\n", tx_queue->queue);
 
 	/* Flush TX queue, remove descriptor ring */
-	falcon_fini_tx(tx_queue);
+	efx_nic_fini_tx(tx_queue);
 
 	efx_release_tx_buffers(tx_queue);
 
@@ -492,7 +492,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	EFX_LOG(tx_queue->efx, "destroying TX queue %d\n", tx_queue->queue);
-	falcon_remove_tx(tx_queue);
+	efx_nic_remove_tx(tx_queue);
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
@@ -1078,7 +1078,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	}
 
 	/* Pass off to hardware */
-	falcon_push_buffers(tx_queue);
+	efx_nic_push_buffers(tx_queue);
 
 	tx_queue->tso_bursts++;
 	return NETDEV_TX_OK;

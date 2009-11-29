@@ -341,7 +341,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
  out:
 	/* Send write pointer to card. */
-	falcon_notify_rx_desc(rx_queue);
+	efx_nic_notify_rx_desc(rx_queue);
 
 	/* If the fast fill is running inside from the refill tasklet, then
 	 * for SMP systems it may be running on a different CPU to
@@ -640,7 +640,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	if (!rx_queue->buffer)
 		return -ENOMEM;
 
-	rc = falcon_probe_rx(rx_queue);
+	rc = efx_nic_probe_rx(rx_queue);
 	if (rc) {
 		kfree(rx_queue->buffer);
 		rx_queue->buffer = NULL;
@@ -671,7 +671,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->fast_fill_limit = limit;
 
 	/* Set up RX descriptor ring */
-	falcon_init_rx(rx_queue);
+	efx_nic_init_rx(rx_queue);
 }
 
 void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
@@ -681,7 +681,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 
 	EFX_LOG(rx_queue->efx, "shutting down RX queue %d\n", rx_queue->queue);
 
-	falcon_fini_rx(rx_queue);
+	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers NB start at index 0 not current HW ptr */
 	if (rx_queue->buffer) {
@@ -706,7 +706,7 @@ void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	EFX_LOG(rx_queue->efx, "destroying RX queue %d\n", rx_queue->queue);
 
-	falcon_remove_rx(rx_queue);
+	efx_nic_remove_rx(rx_queue);
 
 	kfree(rx_queue->buffer);
 	rx_queue->buffer = NULL;

@@ -611,8 +611,8 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	coalesce->use_adaptive_rx_coalesce = efx->irq_rx_adaptive;
 	coalesce->rx_coalesce_usecs_irq = efx->irq_rx_moderation;
 
-	coalesce->tx_coalesce_usecs_irq *= FALCON_IRQ_MOD_RESOLUTION;
-	coalesce->rx_coalesce_usecs_irq *= FALCON_IRQ_MOD_RESOLUTION;
+	coalesce->tx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
+	coalesce->rx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
 
 	return 0;
 }
