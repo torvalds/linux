@@ -2179,7 +2179,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	net_dev = alloc_etherdev(sizeof(*efx));
 	if (!net_dev)
 		return -ENOMEM;
-	net_dev->features |= (NETIF_F_IP_CSUM | NETIF_F_SG |
+	net_dev->features |= (type->offload_features | NETIF_F_SG |
 			      NETIF_F_HIGHDMA | NETIF_F_TSO |
 			      NETIF_F_GRO);
 	/* Mask for features that also apply to VLAN devices */

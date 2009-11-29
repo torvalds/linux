@@ -468,6 +468,19 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 }
 
+static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	unsigned long features = efx->type->offload_features & NETIF_F_ALL_CSUM;
+
+	if (enable)
+		net_dev->features |= features;
+	else
+		net_dev->features &= ~features;
+
+	return 0;
+}
+
 static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
@@ -813,7 +826,8 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rx_csum		= efx_ethtool_get_rx_csum,
 	.set_rx_csum		= efx_ethtool_set_rx_csum,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
+	/* Need to enable/disable IPv6 too */
+	.set_tx_csum		= efx_ethtool_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_tso		= ethtool_op_get_tso,
