@@ -12,9 +12,11 @@
  * stuff on the struct net without explicit struct net modification
  *
  * The rules are simple:
- * 1. register the ops with register_pernet_gen_device to get the id
- *    of your private pointer;
- * 2. call net_assign_generic() to put the private data on the struct
+ * 1. set pernet_operations->id.  After register_pernet_device you
+ *    will have the id of your private pointer.
+ * 2. Either set pernet_operations->size (to have the code allocate and
+ *    free a private structure pointed to from struct net ) or 
+ *    call net_assign_generic() to put the private data on the struct
  *    net (most preferably this should be done in the ->init callback
  *    of the ops registered);
  * 3. do not change this pointer while the net is alive;

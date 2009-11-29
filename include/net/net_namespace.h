@@ -264,28 +264,6 @@ extern void unregister_pernet_subsys(struct pernet_operations *);
 extern int register_pernet_device(struct pernet_operations *);
 extern void unregister_pernet_device(struct pernet_operations *);
 
-static inline int register_pernet_gen_subsys(int *id, struct pernet_operations *ops)
-{
-	ops->id = id;
-	return register_pernet_subsys(ops);
-}
-
-static inline void unregister_pernet_gen_subsys(int id, struct pernet_operations *ops)
-{
-	return unregister_pernet_subsys(ops);
-}
-
-static inline int register_pernet_gen_device(int *id, struct pernet_operations *ops)
-{
-	ops->id = id;
-	return register_pernet_device(ops);
-}
-
-static inline void unregister_pernet_gen_device(int id, struct pernet_operations *ops)
-{
-	return unregister_pernet_device(ops);
-}
-
 struct ctl_path;
 struct ctl_table;
 struct ctl_table_header;
