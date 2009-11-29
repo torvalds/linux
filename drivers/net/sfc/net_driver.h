@@ -865,6 +865,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @test_registers: Test read/write functionality of control registers
+ * @test_nvram: Test validity of NVRAM contents
  * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
@@ -904,6 +905,7 @@ struct efx_nic_type {
 	int (*set_wol)(struct efx_nic *efx, u32 type);
 	void (*resume_wol)(struct efx_nic *efx);
 	int (*test_registers)(struct efx_nic *efx);
+	int (*test_nvram)(struct efx_nic *efx);
 	struct efx_mac_operations *default_mac_ops;
 
 	int revision;

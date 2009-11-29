@@ -113,10 +113,13 @@ out:
 
 static int efx_test_nvram(struct efx_nic *efx, struct efx_self_tests *tests)
 {
-	int rc;
+	int rc = 0;
 
-	rc = falcon_read_nvram(efx, NULL);
-	tests->nvram = rc ? -1 : 1;
+	if (efx->type->test_nvram) {
+		rc = efx->type->test_nvram(efx);
+		tests->nvram = rc ? -1 : 1;
+	}
+
 	return rc;
 }
 

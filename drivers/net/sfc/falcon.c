@@ -2345,7 +2345,8 @@ static void falcon_remove_port(struct efx_nic *efx)
  *
  **************************************************************************/
 
-int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
+static int
+falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 {
 	struct falcon_nvconfig *nvconfig;
 	struct efx_spi_device *spi;
@@ -2406,6 +2407,11 @@ int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
  out:
 	kfree(region);
 	return rc;
+}
+
+static int falcon_test_nvram(struct efx_nic *efx)
+{
+	return falcon_read_nvram(efx, NULL);
 }
 
 /* Registers tested in the falcon register test */
@@ -3290,6 +3296,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
+	.test_nvram = falcon_test_nvram,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
@@ -3328,6 +3335,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_registers = falcon_b0_test_registers,
+	.test_nvram = falcon_test_nvram,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,
