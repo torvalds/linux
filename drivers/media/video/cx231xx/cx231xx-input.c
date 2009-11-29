@@ -197,7 +197,11 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER, dev->board.ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER,
+			    dev->board.ir_codes);
+	if (err < 0)
+		goto err_out_free;
+
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_USB;
@@ -222,6 +226,7 @@ err_out_stop:
 	cx231xx_ir_stop(ir);
 	dev->ir = NULL;
 err_out_free:
+	ir_input_free(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -236,6 +241,7 @@ int cx231xx_ir_fini(struct cx231xx *dev)
 		return 0;
 
 	cx231xx_ir_stop(ir);
+	ir_input_free(ir->input);
 	input_unregister_device(ir->input);
 	kfree(ir);
 

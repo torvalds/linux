@@ -54,10 +54,12 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 
 /* -------------------------------------------------------------------------- */
 
-void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
+int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes)
 {
 	ir->ir_type = ir_type;
+
+	/* FIXME: Add the proper code to dynamically allocate IR table */
 
 	ir_set_keycode_table(dev, ir_codes);
 
@@ -66,8 +68,16 @@ void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 	set_bit(EV_KEY, dev->evbit);
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ir_input_init);
+
+void ir_input_free(struct input_dev *input_dev)
+{
+	/* FIXME: Add the proper code to free allocated resources */
+}
+EXPORT_SYMBOL_GPL(ir_input_free);
 
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
 {

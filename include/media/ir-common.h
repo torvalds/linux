@@ -100,7 +100,7 @@ struct card_ir {
 
 /* Routines from ir-functions.c */
 
-void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
+int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
@@ -121,6 +121,7 @@ u32 ir_g_keycode_from_table(struct input_dev *input_dev,
 
 int ir_set_keycode_table(struct input_dev *input_dev,
 			 struct ir_scancode_table *rc_tab);
+void ir_input_free(struct input_dev *input_dev);
 
 /* scancode->keycode map tables from ir-keymaps.c */
 
