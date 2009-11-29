@@ -14,6 +14,7 @@
 #include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "mcdi.h"
 
 /*
  * Falcon hardware control
@@ -23,6 +24,7 @@ enum {
 	EFX_REV_FALCON_A0 = 0,
 	EFX_REV_FALCON_A1 = 1,
 	EFX_REV_FALCON_B0 = 2,
+	EFX_REV_SIENA_A0 = 3,
 };
 
 static inline int efx_nic_rev(struct efx_nic *efx)
@@ -32,6 +34,10 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 
 extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
 
+static inline bool efx_nic_has_mc(struct efx_nic *efx)
+{
+	return efx_nic_rev(efx) >= EFX_REV_SIENA_A0;
+}
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 {
@@ -123,8 +129,25 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 	return &data->board;
 }
 
+/**
+ * struct siena_nic_data - Siena NIC state
+ * @fw_version: Management controller firmware version
+ * @fw_build: Firmware build number
+ * @mcdi: Management-Controller-to-Driver Interface
+ * @wol_filter_id: Wake-on-LAN packet filter id
+ */
+struct siena_nic_data {
+	u64 fw_version;
+	u32 fw_build;
+	struct efx_mcdi_iface mcdi;
+	int wol_filter_id;
+};
+
+extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
+
 extern struct efx_nic_type falcon_a1_nic_type;
 extern struct efx_nic_type falcon_b0_nic_type;
+extern struct efx_nic_type siena_a0_nic_type;
 
 /**************************************************************************
  *

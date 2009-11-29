@@ -25,6 +25,8 @@
 #include "mdio_10g.h"
 #include "nic.h"
 
+#include "mcdi.h"
+
 /**************************************************************************
  *
  * Type name strings
@@ -84,6 +86,7 @@ const char *efx_reset_type_names[] = {
 	[RESET_TYPE_RX_DESC_FETCH] = "RX_DESC_FETCH",
 	[RESET_TYPE_TX_DESC_FETCH] = "TX_DESC_FETCH",
 	[RESET_TYPE_TX_SKIP]       = "TX_SKIP",
+	[RESET_TYPE_MC_FAILURE]    = "MC_FAILURE",
 };
 
 #define EFX_MAX_MTU (9 * 1024)
@@ -1191,6 +1194,15 @@ static void efx_start_all(struct efx_nic *efx)
 
 	efx_nic_enable_interrupts(efx);
 
+	/* Switch to event based MCDI completions after enabling interrupts.
+	 * If a reset has been scheduled, then we need to stay in polled mode.
+	 * Rather than serialising efx_mcdi_mode_event() [which sleeps] and
+	 * reset_pending [modified from an atomic context], we instead guarantee
+	 * that efx_mcdi_mode_poll() isn't reverted erroneously */
+	efx_mcdi_mode_event(efx);
+	if (efx->reset_pending != RESET_TYPE_NONE)
+		efx_mcdi_mode_poll(efx);
+
 	/* Start the hardware monitor if there is one. Otherwise (we're link
 	 * event driven), we have to poll the PHY because after an event queue
 	 * flush, we could have a missed a link state change */
@@ -1241,6 +1253,9 @@ static void efx_stop_all(struct efx_nic *efx)
 		return;
 
 	efx->type->stop_stats(efx);
+
+	/* Switch to MCDI polling on Siena before disabling interrupts */
+	efx_mcdi_mode_poll(efx);
 
 	/* Disable interrupts and wait for ISR to complete */
 	efx_nic_disable_interrupts(efx);
@@ -1445,6 +1460,8 @@ static int efx_net_open(struct net_device *net_dev)
 		return -EIO;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
+	if (efx_mcdi_poll_reboot(efx) && efx_reset(efx, RESET_TYPE_ALL))
+		return -EIO;
 
 	/* Notify the kernel of the link state polled during driver load,
 	 * before the monitor starts running */
@@ -1895,6 +1912,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_TX_SKIP:
 		method = RESET_TYPE_INVISIBLE;
 		break;
+	case RESET_TYPE_MC_FAILURE:
 	default:
 		method = RESET_TYPE_ALL;
 		break;
@@ -1907,6 +1925,10 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 		EFX_LOG(efx, "scheduling %s reset\n", RESET_TYPE(method));
 
 	efx->reset_pending = method;
+
+	/* efx_process_channel() will no longer read events once a
+	 * reset is scheduled. So switch back to poll'd MCDI completions. */
+	efx_mcdi_mode_poll(efx);
 
 	queue_work(reset_workqueue, &efx->reset_work);
 }
@@ -1923,6 +1945,10 @@ static struct pci_device_id efx_pci_table[] __devinitdata = {
 	 .driver_data = (unsigned long) &falcon_a1_nic_type},
 	{PCI_DEVICE(EFX_VENDID_SFC, FALCON_B_P_DEVID),
 	 .driver_data = (unsigned long) &falcon_b0_nic_type},
+	{PCI_DEVICE(EFX_VENDID_SFC, BETHPAGE_A_P_DEVID),
+	 .driver_data = (unsigned long) &siena_a0_nic_type},
+	{PCI_DEVICE(EFX_VENDID_SFC, SIENA_A_P_DEVID),
+	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{0}			/* end of list */
 };
 

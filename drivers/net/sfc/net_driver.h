@@ -706,6 +706,7 @@ union efx_multicast_hash {
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mdio: PHY MDIO interface
+ * @mdio_bus: PHY MDIO bus ID (only used by Siena)
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @xmac_poll_required: XMAC link state needs polling
  * @link_advertising: Autonegotiation advertising flags
@@ -756,6 +757,7 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	volatile signed int last_irq_cpu;
+	unsigned long irq_zero_count;
 
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
@@ -766,7 +768,7 @@ struct efx_nic {
 
 	unsigned n_rx_nodesc_drop_cnt;
 
-	struct falcon_nic_data *nic_data;
+	void *nic_data;
 
 	struct mutex mac_lock;
 	struct work_struct mac_work;
@@ -792,6 +794,7 @@ struct efx_nic {
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mdio_if_info mdio;
+	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
 	bool xmac_poll_required;
@@ -822,6 +825,11 @@ static inline int efx_dev_registered(struct efx_nic *efx)
 static inline const char *efx_dev_name(struct efx_nic *efx)
 {
 	return efx_dev_registered(efx) ? efx->name : "";
+}
+
+static inline unsigned int efx_port_num(struct efx_nic *efx)
+{
+	return PCI_FUNC(efx->pci_dev->devfn);
 }
 
 /**

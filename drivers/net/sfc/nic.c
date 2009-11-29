@@ -997,6 +997,9 @@ int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
 		case FSE_AZ_EV_CODE_DRIVER_EV:
 			efx_handle_driver_event(channel, &event);
 			break;
+		case FSE_CZ_EV_CODE_MCDI_EV:
+			efx_mcdi_process_event(channel, &event);
+			break;
 		default:
 			EFX_ERR(channel->efx, "channel %d unknown event type %d"
 				" (data " EFX_QWORD_FMT ")\n", channel->channel,
@@ -1025,12 +1028,20 @@ int efx_nic_probe_eventq(struct efx_channel *channel)
 
 void efx_nic_init_eventq(struct efx_channel *channel)
 {
-	efx_oword_t evq_ptr;
+	efx_oword_t reg;
 	struct efx_nic *efx = channel->efx;
 
 	EFX_LOG(efx, "channel %d event queue in special buffers %d-%d\n",
 		channel->channel, channel->eventq.index,
 		channel->eventq.index + channel->eventq.entries - 1);
+
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
+		EFX_POPULATE_OWORD_3(reg,
+				     FRF_CZ_TIMER_Q_EN, 1,
+				     FRF_CZ_HOST_NOTIFY_MODE, 0,
+				     FRF_CZ_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS);
+		efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
+	}
 
 	/* Pin event queue buffer */
 	efx_init_special_buffer(efx, &channel->eventq);
@@ -1039,11 +1050,11 @@ void efx_nic_init_eventq(struct efx_channel *channel)
 	memset(channel->eventq.addr, 0xff, channel->eventq.len);
 
 	/* Push event queue to card */
-	EFX_POPULATE_OWORD_3(evq_ptr,
+	EFX_POPULATE_OWORD_3(reg,
 			     FRF_AZ_EVQ_EN, 1,
 			     FRF_AZ_EVQ_SIZE, __ffs(channel->eventq.entries),
 			     FRF_AZ_EVQ_BUF_BASE_ID, channel->eventq.index);
-	efx_writeo_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
+	efx_writeo_table(efx, &reg, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
 
 	efx->type->push_irq_moderation(channel);
@@ -1051,13 +1062,15 @@ void efx_nic_init_eventq(struct efx_channel *channel)
 
 void efx_nic_fini_eventq(struct efx_channel *channel)
 {
-	efx_oword_t eventq_ptr;
+	efx_oword_t reg;
 	struct efx_nic *efx = channel->efx;
 
 	/* Remove event queue from card */
-	EFX_ZERO_OWORD(eventq_ptr);
-	efx_writeo_table(efx, &eventq_ptr, efx->type->evq_ptr_tbl_base,
+	EFX_ZERO_OWORD(reg);
+	efx_writeo_table(efx, &reg, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
+		efx_writeo_table(efx, &reg, FR_BZ_TIMER_TBL, channel->channel);
 
 	/* Unpin event queue */
 	efx_fini_special_buffer(efx, &channel->eventq);
@@ -1220,8 +1233,15 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 				      bool enabled, bool force)
 {
 	efx_oword_t int_en_reg_ker;
+	unsigned int level = 0;
 
-	EFX_POPULATE_OWORD_2(int_en_reg_ker,
+	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
+		/* Set the level always even if we're generating a test
+		 * interrupt, because our legacy interrupt handler is safe */
+		level = 0x1f;
+
+	EFX_POPULATE_OWORD_3(int_en_reg_ker,
+			     FRF_AZ_KER_INT_LEVE_SEL, level,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
 	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
@@ -1334,15 +1354,30 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	if (unlikely(syserr))
 		return efx_nic_fatal_interrupt(efx);
 
-	/* Schedule processing of any interrupting queues */
-	efx_for_each_channel(channel, efx) {
-		if ((queues & 1) ||
-		    efx_event_present(
-			    efx_event(channel, channel->eventq_read_ptr))) {
+	if (queues != 0) {
+		if (EFX_WORKAROUND_15783(efx))
+			efx->irq_zero_count = 0;
+
+		/* Schedule processing of any interrupting queues */
+		efx_for_each_channel(channel, efx) {
+			if (queues & 1)
 				efx_schedule_channel(channel);
-			result = IRQ_HANDLED;
+			queues >>= 1;
 		}
-		queues >>= 1;
+		result = IRQ_HANDLED;
+
+	} else if (EFX_WORKAROUND_15783(efx) &&
+		   efx->irq_zero_count++ == 0) {
+		efx_qword_t *event;
+
+		/* Ensure we rearm all event queues */
+		efx_for_each_channel(channel, efx) {
+			event = efx_event(channel, channel->eventq_read_ptr);
+			if (efx_event_present(event))
+				efx_schedule_channel(channel);
+		}
+
+		result = IRQ_HANDLED;
 	}
 
 	if (result == IRQ_HANDLED) {

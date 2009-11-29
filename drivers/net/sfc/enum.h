@@ -144,6 +144,7 @@ enum efx_loopback_mode {
  * @RESET_TYPE_RX_DESC_FETCH: pcie error during rx descriptor fetch
  * @RESET_TYPE_TX_DESC_FETCH: pcie error during tx descriptor fetch
  * @RESET_TYPE_TX_SKIP: hardware completed empty tx descriptors
+ * @RESET_TYPE_MC_FAILURE: MC reboot/assertion
  */
 enum reset_type {
 	RESET_TYPE_NONE = -1,
@@ -158,6 +159,7 @@ enum reset_type {
 	RESET_TYPE_RX_DESC_FETCH,
 	RESET_TYPE_TX_DESC_FETCH,
 	RESET_TYPE_TX_SKIP,
+	RESET_TYPE_MC_FAILURE,
 	RESET_TYPE_MAX,
 };
 

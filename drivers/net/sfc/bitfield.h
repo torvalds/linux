@@ -37,6 +37,8 @@
 #define EFX_DWORD_2_WIDTH 32
 #define EFX_DWORD_3_LBN 96
 #define EFX_DWORD_3_WIDTH 32
+#define EFX_QWORD_0_LBN 0
+#define EFX_QWORD_0_WIDTH 64
 
 /* Specified attribute (e.g. LBN) of the specified field */
 #define EFX_VAL(field, attribute) field ## _ ## attribute

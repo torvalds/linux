@@ -1,5 +1,5 @@
 config SFC
-	tristate "Solarflare Solarstorm SFC4000 support"
+	tristate "Solarflare Solarstorm SFC4000/SFC9000-family support"
 	depends on PCI && INET
 	select MDIO
 	select CRC32
@@ -7,15 +7,16 @@ config SFC
 	select I2C_ALGOBIT
 	help
 	  This driver supports 10-gigabit Ethernet cards based on
-	  the Solarflare Communications Solarstorm SFC4000 controller.
+	  the Solarflare Communications Solarstorm SFC4000 and
+	  SFC9000-family controllers.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
 config SFC_MTD
-	bool "Solarflare Solarstorm SFC4000 flash MTD support"
+	bool "Solarflare Solarstorm SFC4000/SFC9000-family MTD support"
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	help
-	  This exposes the on-board flash memory as an MTD device (e.g.
-          /dev/mtd1).  This makes it possible to upload new boot code
-          to the NIC.
+	  This exposes the on-board flash memory as MTD devices (e.g.
+	  /dev/mtd1).  This makes it possible to upload new firmware
+	  to the NIC.
