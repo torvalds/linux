@@ -212,15 +212,7 @@ out:
 	return err;
 }
 
-static __net_exit void loopback_net_exit(struct net *net)
-{
-	struct net_device *dev = net->loopback_dev;
-
-	unregister_netdev(dev);
-}
-
 /* Registered in net/core/dev.c */
 struct pernet_operations __net_initdata loopback_net_ops = {
        .init = loopback_net_init,
-       .exit = loopback_net_exit,
 };
