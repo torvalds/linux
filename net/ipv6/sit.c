@@ -1164,17 +1164,8 @@ static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 
 static int sit_init_net(struct net *net)
 {
+	struct sit_net *sitn = net_generic(net, sit_net_id);
 	int err;
-	struct sit_net *sitn;
-
-	err = -ENOMEM;
-	sitn = kzalloc(sizeof(struct sit_net), GFP_KERNEL);
-	if (sitn == NULL)
-		goto err_alloc;
-
-	err = net_assign_generic(net, sit_net_id, sitn);
-	if (err < 0)
-		goto err_assign;
 
 	sitn->tunnels[0] = sitn->tunnels_wc;
 	sitn->tunnels[1] = sitn->tunnels_l;
@@ -1201,37 +1192,33 @@ err_reg_dev:
 	dev_put(sitn->fb_tunnel_dev);
 	free_netdev(sitn->fb_tunnel_dev);
 err_alloc_dev:
-	/* nothing */
-err_assign:
-	kfree(sitn);
-err_alloc:
 	return err;
 }
 
 static void sit_exit_net(struct net *net)
 {
-	struct sit_net *sitn;
+	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);
 
-	sitn = net_generic(net, sit_net_id);
 	rtnl_lock();
 	sit_destroy_tunnels(sitn, &list);
 	unregister_netdevice_queue(sitn->fb_tunnel_dev, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
-	kfree(sitn);
 }
 
 static struct pernet_operations sit_net_ops = {
 	.init = sit_init_net,
 	.exit = sit_exit_net,
+	.id   = &sit_net_id,
+	.size = sizeof(struct sit_net),
 };
 
 static void __exit sit_cleanup(void)
 {
 	xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
 
-	unregister_pernet_gen_device(sit_net_id, &sit_net_ops);
+	unregister_pernet_device(&sit_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
@@ -1246,7 +1233,7 @@ static int __init sit_init(void)
 		return -EAGAIN;
 	}
 
-	err = register_pernet_gen_device(&sit_net_id, &sit_net_ops);
+	err = register_pernet_device(&sit_net_ops);
 	if (err < 0)
 		xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
 
