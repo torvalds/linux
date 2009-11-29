@@ -374,7 +374,7 @@ int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 		       struct nilfs_write_info *wi)
 {
 	struct buffer_head *bh;
-	int res, rw = WRITE;
+	int res = 0, rw = WRITE;
 
 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
 		res = nilfs_submit_bh(wi, bh, rw);
@@ -395,17 +395,10 @@ int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 		 */
 		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
 		res = nilfs_submit_seg_bio(wi, rw);
-		if (unlikely(res))
-			goto failed_bio;
 	}
 
-	res = 0;
- out:
-	return res;
-
  failed_bio:
-	atomic_inc(&wi->err);
-	goto out;
+	return res;
 }
 
 /**
