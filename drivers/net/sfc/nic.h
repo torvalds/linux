@@ -8,8 +8,8 @@
  * by the Free Software Foundation, incorporated herein by reference.
  */
 
-#ifndef EFX_FALCON_H
-#define EFX_FALCON_H
+#ifndef EFX_NIC_H
+#define EFX_NIC_H
 
 #include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
@@ -235,4 +235,4 @@ extern void efx_nic_generate_event(struct efx_channel *channel,
 
 extern void falcon_poll_xmac(struct efx_nic *efx);
 
-#endif /* EFX_FALCON_H */
+#endif /* EFX_NIC_H */

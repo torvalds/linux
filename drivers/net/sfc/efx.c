@@ -23,7 +23,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mdio_10g.h"
-#include "falcon.h"
+#include "nic.h"
 
 /**************************************************************************
  *

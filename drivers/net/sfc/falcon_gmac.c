@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "mac.h"
 #include "regs.h"
 #include "io.h"

@@ -15,7 +15,7 @@
 #include "net_driver.h"
 #include "mdio_10g.h"
 #include "workarounds.h"
-#include "falcon.h"
+#include "nic.h"
 
 unsigned efx_mdio_id_oui(u32 id)
 {

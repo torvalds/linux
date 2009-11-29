@@ -21,7 +21,7 @@
 #include <asm/io.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
 #include "spi.h"

@@ -17,7 +17,7 @@
 #include "net_driver.h"
 #include "spi.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 
 #define EFX_SPI_VERIFY_BUF_LEN 16
 

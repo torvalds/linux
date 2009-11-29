@@ -16,7 +16,7 @@
 #include <linux/highmem.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "workarounds.h"
 
 /*

@@ -12,7 +12,7 @@
 #include "net_driver.h"
 #include "phy.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "regs.h"
 #include "io.h"
 #include "workarounds.h"

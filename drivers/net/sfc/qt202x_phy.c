@@ -15,7 +15,7 @@
 #include "efx.h"
 #include "mdio_10g.h"
 #include "phy.h"
-#include "falcon.h"
+#include "nic.h"
 
 #define QT202X_REQUIRED_DEVS (MDIO_DEVS_PCS |		\
 			      MDIO_DEVS_PMAPMD |	\

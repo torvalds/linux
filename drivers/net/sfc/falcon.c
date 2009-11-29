@@ -20,7 +20,7 @@
 #include "efx.h"
 #include "mac.h"
 #include "spi.h"
-#include "falcon.h"
+#include "nic.h"
 #include "regs.h"
 #include "io.h"
 #include "mdio_10g.h"

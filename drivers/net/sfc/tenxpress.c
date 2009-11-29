@@ -12,7 +12,7 @@
 #include <linux/seq_file.h>
 #include "efx.h"
 #include "mdio_10g.h"
-#include "falcon.h"
+#include "nic.h"
 #include "phy.h"
 #include "regs.h"
 #include "workarounds.h"
