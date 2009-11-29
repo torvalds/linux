@@ -1939,7 +1939,6 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	struct efx_link_state *link_state = &efx->link_state;
 	efx_oword_t reg;
 	int link_speed;
-	bool tx_fc;
 
 	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;
@@ -1969,13 +1968,10 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	/* Restore the multicast hash registers. */
 	falcon_push_multicast_hash(efx);
 
-	/* Transmission of pause frames when RX crosses the threshold is
-	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
-	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
-	tx_fc = !!(efx->link_state.fc & EFX_FC_TX);
 	efx_reado(efx, &reg, FR_AZ_RX_CFG);
-	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, tx_fc);
-
+	/* Enable XOFF signal from RX FIFO (we enabled it during NIC
+	 * initialisation but it may read back as 0) */
+	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, 1);
 	/* Unisolate the MAC -> RX */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
@@ -3000,6 +2996,9 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_TX_TH, ctrl_xoff_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
 	}
+	/* Always enable XOFF signal from RX FIFO.  We enable
+	 * or disable transmission of pause frames at the MAC. */
+	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, 1);
 	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 }
 
