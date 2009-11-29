@@ -521,7 +521,7 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	else
 		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
 					params_channels(params),
-					aacirun->pcm->r[1].slots);
+					aacirun->pcm->r[0].slots);
 
 	if (err)
 		goto out;
