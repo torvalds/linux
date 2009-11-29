@@ -42,7 +42,7 @@ struct net {
 						 */
 #endif
 	struct list_head	list;		/* list of network namespaces */
-	struct work_struct	work;		/* work struct for freeing */
+	struct list_head	cleanup_list;	/* namespaces on death row */
 
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
