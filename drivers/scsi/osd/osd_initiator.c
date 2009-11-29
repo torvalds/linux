@@ -73,7 +73,8 @@ static const char *_osd_ver_desc(struct osd_request *or)
 
 #define ATTR_DEF_RI(id, len) ATTR_DEF(OSD_APAGE_ROOT_INFORMATION, id, len)
 
-static int _osd_print_system_info(struct osd_dev *od, void *caps)
+static int _osd_get_print_system_info(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi)
 {
 	struct osd_request *or;
 	struct osd_attr get_attrs[] = {
@@ -137,8 +138,12 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 	OSD_INFO("PRODUCT_SERIAL_NUMBER  [%s]\n",
 		(char *)pFirst);
 
-	pFirst = get_attrs[a].val_ptr;
-	OSD_INFO("OSD_NAME               [%s]\n", (char *)pFirst);
+	odi->osdname_len = get_attrs[a].len;
+	/* Avoid NULL for memcmp optimization 0-length is good enough */
+	odi->osdname = kzalloc(odi->osdname_len + 1, GFP_KERNEL);
+	if (odi->osdname_len)
+		memcpy(odi->osdname, get_attrs[a].val_ptr, odi->osdname_len);
+	OSD_INFO("OSD_NAME               [%s]\n", odi->osdname);
 	a++;
 
 	pFirst = get_attrs[a++].val_ptr;
@@ -171,6 +176,14 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 				   sid_dump, sizeof(sid_dump), true);
 		OSD_INFO("OSD_SYSTEM_ID(%d)\n"
 			 "        [%s]\n", len, sid_dump);
+
+		if (unlikely(len > sizeof(odi->systemid))) {
+			OSD_ERR("OSD Target error: OSD_SYSTEM_ID too long(%d). "
+				"device idetification might not work\n", len);
+			len = sizeof(odi->systemid);
+		}
+		odi->systemid_len = len;
+		memcpy(odi->systemid, get_attrs[a].val_ptr, len);
 		a++;
 	}
 out:
@@ -178,16 +191,17 @@ out:
 	return ret;
 }
 
-int osd_auto_detect_ver(struct osd_dev *od, void *caps)
+int osd_auto_detect_ver(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi)
 {
 	int ret;
 
 	/* Auto-detect the osd version */
-	ret = _osd_print_system_info(od, caps);
+	ret = _osd_get_print_system_info(od, caps, odi);
 	if (ret) {
 		osd_dev_set_ver(od, OSD_VER1);
 		OSD_DEBUG("converting to OSD1\n");
-		ret = _osd_print_system_info(od, caps);
+		ret = _osd_get_print_system_info(od, caps, odi);
 	}
 
 	return ret;

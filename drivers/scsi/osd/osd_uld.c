@@ -84,6 +84,7 @@ struct osd_uld_device {
 	struct device class_dev;
 	struct cdev cdev;
 	struct osd_dev od;
+	struct osd_dev_info odi;
 	struct gendisk *disk;
 };
 
@@ -225,6 +226,72 @@ free_od:
 }
 EXPORT_SYMBOL(osduld_path_lookup);
 
+static inline bool _the_same_or_null(const u8 *a1, unsigned a1_len,
+				     const u8 *a2, unsigned a2_len)
+{
+	if (!a2_len) /* User string is Empty means don't care */
+		return true;
+
+	if (a1_len != a2_len)
+		return false;
+
+	return 0 == memcmp(a1, a2, a1_len);
+}
+
+struct find_oud_t {
+	const struct osd_dev_info *odi;
+	struct device *dev;
+	struct osd_uld_device *oud;
+} ;
+
+int _mach_odi(struct device *dev, void *find_data)
+{
+	struct osd_uld_device *oud = container_of(dev, struct osd_uld_device,
+						  class_dev);
+	struct find_oud_t *fot = find_data;
+	const struct osd_dev_info *odi = fot->odi;
+
+	if (_the_same_or_null(oud->odi.systemid, oud->odi.systemid_len,
+			      odi->systemid, odi->systemid_len) &&
+	    _the_same_or_null(oud->odi.osdname, oud->odi.osdname_len,
+			      odi->osdname, odi->osdname_len)) {
+		OSD_DEBUG("found device sysid_len=%d osdname=%d\n",
+			  odi->systemid_len, odi->osdname_len);
+		fot->oud = oud;
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/* osduld_info_lookup - Loop through all devices, return the requested osd_dev.
+ *
+ * if @odi->systemid_len and/or @odi->osdname_len are zero, they act as a don't
+ * care. .e.g if they're both zero /dev/osd0 is returned.
+ */
+struct osd_dev *osduld_info_lookup(const struct osd_dev_info *odi)
+{
+	struct find_oud_t find = {.odi = odi};
+
+	find.dev = class_find_device(&osd_uld_class, NULL, &find, _mach_odi);
+	if (likely(find.dev)) {
+		struct osd_dev_handle *odh = kzalloc(sizeof(*odh), GFP_KERNEL);
+
+		if (unlikely(!odh)) {
+			put_device(find.dev);
+			return ERR_PTR(-ENOMEM);
+		}
+
+		odh->od = find.oud->od;
+		odh->oud = find.oud;
+
+		return &odh->od;
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL(osduld_info_lookup);
+
 void osduld_put_device(struct osd_dev *od)
 {
 	if (od && !IS_ERR(od)) {
@@ -240,13 +307,38 @@ void osduld_put_device(struct osd_dev *od)
 		 * is called after the fops->release. A get_/put_ pair makes
 		 * sure we have a cdev for the duration of fput
 		 */
-		get_device(&oud->class_dev);
-		fput(odh->file);
+		if (odh->file) {
+			get_device(&oud->class_dev);
+			fput(odh->file);
+		}
 		put_device(&oud->class_dev);
 		kfree(odh);
 	}
 }
 EXPORT_SYMBOL(osduld_put_device);
+
+const struct osd_dev_info *osduld_device_info(struct osd_dev *od)
+{
+	struct osd_dev_handle *odh =
+				container_of(od, struct osd_dev_handle, od);
+	return &odh->oud->odi;
+}
+EXPORT_SYMBOL(osduld_device_info);
+
+bool osduld_device_same(struct osd_dev *od, const struct osd_dev_info *odi)
+{
+	struct osd_dev_handle *odh =
+				container_of(od, struct osd_dev_handle, od);
+	struct osd_uld_device *oud = odh->oud;
+
+	return (oud->odi.systemid_len == odi->systemid_len) &&
+		_the_same_or_null(oud->odi.systemid, oud->odi.systemid_len,
+				 odi->systemid, odi->systemid_len) &&
+		(oud->odi.osdname_len == odi->osdname_len) &&
+		_the_same_or_null(oud->odi.osdname, oud->odi.osdname_len,
+				  odi->osdname, odi->osdname_len);
+}
+EXPORT_SYMBOL(osduld_device_same);
 
 /*
  * Scsi Device operations
@@ -268,7 +360,7 @@ static int __detect_osd(struct osd_uld_device *oud)
 		OSD_ERR("warning: scsi_test_unit_ready failed\n");
 
 	osd_sec_init_nosec_doall_caps(caps, &osd_root_object, false, true);
-	if (osd_auto_detect_ver(&oud->od, caps))
+	if (osd_auto_detect_ver(&oud->od, caps, &oud->odi))
 		return -ENODEV;
 
 	return 0;
@@ -279,6 +371,8 @@ static void __remove(struct device *dev)
 	struct osd_uld_device *oud = container_of(dev, struct osd_uld_device,
 						  class_dev);
 	struct scsi_device *scsi_device = oud->od.scsi_device;
+
+	kfree(oud->odi.osdname);
 
 	if (oud->cdev.owner)
 		cdev_del(&oud->cdev);

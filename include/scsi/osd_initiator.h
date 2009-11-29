@@ -55,9 +55,23 @@ struct osd_dev {
 #endif
 };
 
-/* Retrieve/return osd_dev(s) for use by Kernel clients */
-struct osd_dev *osduld_path_lookup(const char *dev_name); /*Use IS_ERR/ERR_PTR*/
+/* Unique Identification of an OSD device */
+struct osd_dev_info {
+	unsigned systemid_len;
+	u8 systemid[OSD_SYSTEMID_LEN];
+	unsigned osdname_len;
+	u8 *osdname;
+};
+
+/* Retrieve/return osd_dev(s) for use by Kernel clients
+ * Use IS_ERR/ERR_PTR on returned "osd_dev *".
+ */
+struct osd_dev *osduld_path_lookup(const char *dev_name);
+struct osd_dev *osduld_info_lookup(const struct osd_dev_info *odi);
 void osduld_put_device(struct osd_dev *od);
+
+const struct osd_dev_info *osduld_device_info(struct osd_dev *od);
+bool osduld_device_same(struct osd_dev *od, const struct osd_dev_info *odi);
 
 /* Add/remove test ioctls from external modules */
 typedef int (do_test_fn)(struct osd_dev *od, unsigned cmd, unsigned long arg);
@@ -68,8 +82,24 @@ void osduld_unregister_test(unsigned ioctl);
 void osd_dev_init(struct osd_dev *od, struct scsi_device *scsi_device);
 void osd_dev_fini(struct osd_dev *od);
 
-/* some hi level device operations */
-int osd_auto_detect_ver(struct osd_dev *od, void *caps);    /* GFP_KERNEL */
+/**
+ * osd_auto_detect_ver - Detect the OSD version, return Unique Identification
+ *
+ * @od:     OSD target lun handle
+ * @caps:   Capabilities authorizing OSD root read attributes access
+ * @odi:    Retrieved information uniquely identifying the osd target lun
+ *          Note: odi->osdname must be kfreed by caller.
+ *
+ * Auto detects the OSD version of the OSD target and sets the @od
+ * accordingly. Meanwhile also returns the "system id" and "osd name" root
+ * attributes which uniquely identify the OSD target. This member is usually
+ * called by the ULD. ULD users should call osduld_device_info().
+ * This rutine allocates osd requests and memory at GFP_KERNEL level and might
+ * sleep.
+ */
+int osd_auto_detect_ver(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi);
+
 static inline struct request_queue *osd_request_queue(struct osd_dev *od)
 {
 	return od->scsi_device->request_queue;
