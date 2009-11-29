@@ -3249,6 +3249,11 @@ void falcon_stop_nic_stats(struct efx_nic *efx)
 	spin_unlock_bh(&efx->stats_lock);
 }
 
+static void falcon_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+{
+	falcon_board(efx)->type->set_id_led(efx, mode);
+}
+
 /**************************************************************************
  *
  * Wake on LAN
@@ -3290,6 +3295,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,
+	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
@@ -3328,6 +3334,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
 	.stop_stats = falcon_stop_nic_stats,
+	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
