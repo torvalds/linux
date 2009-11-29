@@ -674,10 +674,11 @@ union efx_multicast_hash {
  *	interrupt is handled.  It is used by falcon_test_interrupt()
  *	to verify that an interrupt has occurred.
  * @spi_flash: SPI flash device
- *	This field will be %NULL if no flash device is present.
+ *	This field will be %NULL if no flash device is present (or for Siena).
  * @spi_eeprom: SPI EEPROM device
- *	This field will be %NULL if no EEPROM device is present.
+ *	This field will be %NULL if no EEPROM device is present (or for Siena).
  * @spi_lock: SPI bus lock
+ * @mtd_list: List of MTDs attached to the NIC
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -759,6 +760,9 @@ struct efx_nic {
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
 	struct mutex spi_lock;
+#ifdef CONFIG_SFC_MTD
+	struct list_head mtd_list;
+#endif
 
 	unsigned n_rx_nodesc_drop_cnt;
 

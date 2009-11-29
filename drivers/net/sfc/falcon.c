@@ -1640,11 +1640,10 @@ static int falcon_spi_wait(struct efx_nic *efx)
 	}
 }
 
-int falcon_spi_cmd(const struct efx_spi_device *spi,
+int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
 		   unsigned int command, int address,
 		   const void *in, void *out, size_t len)
 {
-	struct efx_nic *efx = spi->efx;
 	bool addressed = (address >= 0);
 	bool reading = (out != NULL);
 	efx_oword_t reg;
@@ -1713,15 +1712,15 @@ efx_spi_munge_command(const struct efx_spi_device *spi,
 }
 
 /* Wait up to 10 ms for buffered write completion */
-int falcon_spi_wait_write(const struct efx_spi_device *spi)
+int
+falcon_spi_wait_write(struct efx_nic *efx, const struct efx_spi_device *spi)
 {
-	struct efx_nic *efx = spi->efx;
 	unsigned long timeout = jiffies + 1 + DIV_ROUND_UP(HZ, 100);
 	u8 status;
 	int rc;
 
 	for (;;) {
-		rc = falcon_spi_cmd(spi, SPI_RDSR, -1, NULL,
+		rc = falcon_spi_cmd(efx, spi, SPI_RDSR, -1, NULL,
 				    &status, sizeof(status));
 		if (rc)
 			return rc;
@@ -1737,8 +1736,8 @@ int falcon_spi_wait_write(const struct efx_spi_device *spi)
 	}
 }
 
-int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
-		    size_t len, size_t *retlen, u8 *buffer)
+int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
+		    loff_t start, size_t len, size_t *retlen, u8 *buffer)
 {
 	size_t block_len, pos = 0;
 	unsigned int command;
@@ -1748,7 +1747,7 @@ int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 		block_len = min(len - pos, FALCON_SPI_MAX_LEN);
 
 		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
-		rc = falcon_spi_cmd(spi, command, start + pos, NULL,
+		rc = falcon_spi_cmd(efx, spi, command, start + pos, NULL,
 				    buffer + pos, block_len);
 		if (rc)
 			break;
@@ -1767,8 +1766,9 @@ int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 	return rc;
 }
 
-int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
-		     size_t len, size_t *retlen, const u8 *buffer)
+int
+falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
+		 loff_t start, size_t len, size_t *retlen, const u8 *buffer)
 {
 	u8 verify_buffer[FALCON_SPI_MAX_LEN];
 	size_t block_len, pos = 0;
@@ -1776,24 +1776,24 @@ int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
 	int rc = 0;
 
 	while (pos < len) {
-		rc = falcon_spi_cmd(spi, SPI_WREN, -1, NULL, NULL, 0);
+		rc = falcon_spi_cmd(efx, spi, SPI_WREN, -1, NULL, NULL, 0);
 		if (rc)
 			break;
 
 		block_len = min(len - pos,
 				falcon_spi_write_limit(spi, start + pos));
 		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
-		rc = falcon_spi_cmd(spi, command, start + pos,
+		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    buffer + pos, NULL, block_len);
 		if (rc)
 			break;
 
-		rc = falcon_spi_wait_write(spi);
+		rc = falcon_spi_wait_write(efx, spi);
 		if (rc)
 			break;
 
 		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
-		rc = falcon_spi_cmd(spi, command, start + pos,
+		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    NULL, verify_buffer, block_len);
 		if (memcmp(verify_buffer, buffer + pos, block_len)) {
 			rc = -EIO;
@@ -2352,7 +2352,7 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 	nvconfig = region + FALCON_NVCONFIG_OFFSET;
 
 	mutex_lock(&efx->spi_lock);
-	rc = falcon_spi_read(spi, 0, FALCON_NVCONFIG_END, NULL, region);
+	rc = falcon_spi_read(efx, spi, 0, FALCON_NVCONFIG_END, NULL, region);
 	mutex_unlock(&efx->spi_lock);
 	if (rc) {
 		EFX_ERR(efx, "Failed to read %s\n",
@@ -2710,8 +2710,6 @@ static int falcon_spi_device_init(struct efx_nic *efx,
 		spi_device->block_size =
 			1 << SPI_DEV_TYPE_FIELD(device_type,
 						SPI_DEV_TYPE_BLOCK_SIZE);
-
-		spi_device->efx = efx;
 	} else {
 		spi_device = NULL;
 	}
