@@ -824,7 +824,7 @@ struct efx_nic {
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;
-	unsigned int loopback_modes;
+	u64 loopback_modes;
 
 	void *loopback_selftest;
 };

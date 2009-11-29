@@ -30,13 +30,13 @@
 #define SFX7101_LOOPBACKS ((1 << LOOPBACK_PHYXS) |	\
 			   (1 << LOOPBACK_PCS) |	\
 			   (1 << LOOPBACK_PMAPMD) |	\
-			   (1 << LOOPBACK_NETWORK))
+			   (1 << LOOPBACK_PHYXS_WS))
 
 #define SFT9001_LOOPBACKS ((1 << LOOPBACK_GPHY) |	\
 			   (1 << LOOPBACK_PHYXS) |	\
 			   (1 << LOOPBACK_PCS) |	\
 			   (1 << LOOPBACK_PMAPMD) |	\
-			   (1 << LOOPBACK_NETWORK))
+			   (1 << LOOPBACK_PHYXS_WS))
 
 /* We complain if we fail to see the link partner as 10G capable this many
  * times in a row (must be > 1 as sampling the autoneg. registers is racy)

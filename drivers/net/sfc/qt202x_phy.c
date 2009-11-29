@@ -23,7 +23,7 @@
 
 #define QT202X_LOOPBACKS ((1 << LOOPBACK_PCS) |		\
 			  (1 << LOOPBACK_PMAPMD) |	\
-			  (1 << LOOPBACK_NETWORK))
+			  (1 << LOOPBACK_PHYXS_WS))
 
 /****************************************************************************/
 /* Quake-specific MDIO registers */

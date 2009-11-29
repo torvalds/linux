@@ -249,7 +249,7 @@ static bool falcon_check_xaui_link_up(struct efx_nic *efx, int tries)
 {
 	bool mac_up = falcon_xaui_link_ok(efx);
 
-	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
+	if (LOOPBACK_MASK(efx) & LOOPBACKS_EXTERNAL(efx) & LOOPBACKS_WS ||
 	    efx_phy_mode_disabled(efx->phy_mode))
 		/* XAUI link is expected to be down */
 		return mac_up;

@@ -173,7 +173,7 @@ bool efx_mdio_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 	 * of mmd's */
 	if (LOOPBACK_INTERNAL(efx))
 		return true;
-	else if (efx->loopback_mode == LOOPBACK_NETWORK)
+	else if (LOOPBACK_MASK(efx) & LOOPBACKS_WS)
 		return false;
 	else if (efx_phy_mode_disabled(efx->phy_mode))
 		return false;
@@ -210,7 +210,7 @@ void efx_mdio_phy_reconfigure(struct efx_nic *efx)
 			  efx->loopback_mode == LOOPBACK_PCS);
 	efx_mdio_set_flag(efx, MDIO_MMD_PHYXS,
 			  MDIO_CTRL1, MDIO_PHYXS_CTRL1_LOOPBACK,
-			  efx->loopback_mode == LOOPBACK_NETWORK);
+			  efx->loopback_mode == LOOPBACK_PHYXS_WS);
 }
 
 static void efx_mdio_set_mmd_lpower(struct efx_nic *efx,
