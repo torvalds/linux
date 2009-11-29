@@ -380,9 +380,6 @@ be_phys_id(struct net_device *netdev, u32 data)
 	int status;
 	u32 cur;
 
-	if (!netif_running(netdev))
-		return 0;
-
 	be_cmd_get_beacon_state(adapter, adapter->port_num, &cur);
 
 	if (cur == BEACON_STATE_ENABLED)
