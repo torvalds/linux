@@ -3245,6 +3245,27 @@ void falcon_stop_nic_stats(struct efx_nic *efx)
 
 /**************************************************************************
  *
+ * Wake on LAN
+ *
+ **************************************************************************
+ */
+
+static void falcon_get_wol(struct efx_nic *efx, struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+}
+
+static int falcon_set_wol(struct efx_nic *efx, u32 type)
+{
+	if (type != 0)
+		return -EINVAL;
+	return 0;
+}
+
+/**************************************************************************
+ *
  * Revision-dependent attributes used by efx.c
  *
  **************************************************************************
@@ -3266,6 +3287,9 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.get_wol = falcon_get_wol,
+	.set_wol = falcon_set_wol,
+	.resume_wol = efx_port_dummy_op_void,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
@@ -3299,6 +3323,9 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.get_wol = falcon_get_wol,
+	.set_wol = falcon_set_wol,
+	.resume_wol = efx_port_dummy_op_void,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,

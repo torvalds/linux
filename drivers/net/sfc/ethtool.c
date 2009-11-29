@@ -739,6 +739,21 @@ static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 }
 
 
+static void efx_ethtool_get_wol(struct net_device *net_dev,
+				struct ethtool_wolinfo *wol)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	return efx->type->get_wol(efx, wol);
+}
+
+
+static int efx_ethtool_set_wol(struct net_device *net_dev,
+			       struct ethtool_wolinfo *wol)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	return efx->type->set_wol(efx, wol->wolopts);
+}
+
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
 	.set_settings		= efx_ethtool_set_settings,
@@ -767,4 +782,6 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_strings		= efx_ethtool_get_strings,
 	.phys_id		= efx_ethtool_phys_id,
 	.get_ethtool_stats	= efx_ethtool_get_stats,
+	.get_wol                = efx_ethtool_get_wol,
+	.set_wol                = efx_ethtool_set_wol,
 };

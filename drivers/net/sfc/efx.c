@@ -2243,11 +2243,107 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	return rc;
 }
 
+static int efx_pm_freeze(struct device *dev)
+{
+	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+
+	efx->state = STATE_FINI;
+
+	netif_device_detach(efx->net_dev);
+
+	efx_stop_all(efx);
+	efx_fini_channels(efx);
+
+	return 0;
+}
+
+static int efx_pm_thaw(struct device *dev)
+{
+	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+
+	efx->state = STATE_INIT;
+
+	efx_init_channels(efx);
+
+	mutex_lock(&efx->mac_lock);
+	efx->phy_op->reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
+
+	efx_start_all(efx);
+
+	netif_device_attach(efx->net_dev);
+
+	efx->state = STATE_RUNNING;
+
+	efx->type->resume_wol(efx);
+
+	return 0;
+}
+
+static int efx_pm_poweroff(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct efx_nic *efx = pci_get_drvdata(pci_dev);
+
+	efx->type->fini(efx);
+
+	efx->reset_pending = RESET_TYPE_NONE;
+
+	pci_save_state(pci_dev);
+	return pci_set_power_state(pci_dev, PCI_D3hot);
+}
+
+/* Used for both resume and restore */
+static int efx_pm_resume(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct efx_nic *efx = pci_get_drvdata(pci_dev);
+	int rc;
+
+	rc = pci_set_power_state(pci_dev, PCI_D0);
+	if (rc)
+		return rc;
+	pci_restore_state(pci_dev);
+	rc = pci_enable_device(pci_dev);
+	if (rc)
+		return rc;
+	pci_set_master(efx->pci_dev);
+	rc = efx->type->reset(efx, RESET_TYPE_ALL);
+	if (rc)
+		return rc;
+	rc = efx->type->init(efx);
+	if (rc)
+		return rc;
+	efx_pm_thaw(dev);
+	return 0;
+}
+
+static int efx_pm_suspend(struct device *dev)
+{
+	int rc;
+
+	efx_pm_freeze(dev);
+	rc = efx_pm_poweroff(dev);
+	if (rc)
+		efx_pm_resume(dev);
+	return rc;
+}
+
+static struct dev_pm_ops efx_pm_ops = {
+	.suspend	= efx_pm_suspend,
+	.resume		= efx_pm_resume,
+	.freeze		= efx_pm_freeze,
+	.thaw		= efx_pm_thaw,
+	.poweroff	= efx_pm_poweroff,
+	.restore	= efx_pm_resume,
+};
+
 static struct pci_driver efx_pci_driver = {
 	.name		= EFX_DRIVER_NAME,
 	.id_table	= efx_pci_table,
 	.probe		= efx_pci_probe,
 	.remove		= efx_pci_remove,
+	.driver.pm	= &efx_pm_ops,
 };
 
 /**************************************************************************

@@ -861,6 +861,9 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @push_irq_moderation: Apply interrupt moderation value
  * @push_multicast_hash: Apply multicast hash table
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
+ * @get_wol: Get WoL configuration from driver state
+ * @set_wol: Push WoL configuration to the NIC
+ * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
@@ -894,6 +897,9 @@ struct efx_nic_type {
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	void (*push_multicast_hash)(struct efx_nic *efx);
 	int (*reconfigure_port)(struct efx_nic *efx);
+	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
+	int (*set_wol)(struct efx_nic *efx, u32 type);
+	void (*resume_wol)(struct efx_nic *efx);
 	struct efx_mac_operations *default_mac_ops;
 
 	int revision;
