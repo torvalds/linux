@@ -1174,10 +1174,18 @@ static void efx_start_all(struct efx_nic *efx)
 
 	falcon_enable_interrupts(efx);
 
-	/* Start the hardware monitor (if there is one) if we're in RUNNING */
-	if (efx->state == STATE_RUNNING && efx->type->monitor != NULL)
+	/* Start the hardware monitor if there is one. Otherwise (we're link
+	 * event driven), we have to poll the PHY because after an event queue
+	 * flush, we could have a missed a link state change */
+	if (efx->type->monitor != NULL) {
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
 				   efx_monitor_interval);
+	} else {
+		mutex_lock(&efx->mac_lock);
+		if (efx->phy_op->poll(efx))
+			efx_link_status_changed(efx);
+		mutex_unlock(&efx->mac_lock);
+	}
 
 	efx->type->start_stats(efx);
 }
@@ -1420,6 +1428,10 @@ static int efx_net_open(struct net_device *net_dev)
 		return -EIO;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
+
+	/* Notify the kernel of the link state polled during driver load,
+	 * before the monitor starts running */
+	efx_link_status_changed(efx);
 
 	efx_start_all(efx);
 	return 0;
