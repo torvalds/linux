@@ -352,7 +352,8 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);
-		efx_reconfigure_port(efx);
+		if (!err)
+			err = efx_reconfigure_port(efx);
 		if (!(new_mode & PHY_MODE_SPECIAL))
 			falcon_start_nic_stats(efx);
 	}

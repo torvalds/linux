@@ -22,7 +22,7 @@
  *
  *************************************************************************/
 
-static void falcon_reconfigure_gmac(struct efx_nic *efx)
+static int falcon_reconfigure_gmac(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
 	bool loopback, tx_fc, rx_fc, bytemode;
@@ -123,6 +123,8 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 	udelay(10);
 
 	falcon_reconfigure_mac_wrapper(efx);
+
+	return 0;
 }
 
 static void falcon_update_stats_gmac(struct efx_nic *efx)

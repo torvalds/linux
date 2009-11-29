@@ -620,16 +620,49 @@ void efx_link_status_changed(struct efx_nic *efx)
 
 }
 
+void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
+{
+	efx->link_advertising = advertising;
+	if (advertising) {
+		if (advertising & ADVERTISED_Pause)
+			efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
+		else
+			efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
+		if (advertising & ADVERTISED_Asym_Pause)
+			efx->wanted_fc ^= EFX_FC_TX;
+	}
+}
+
+void efx_link_set_wanted_fc(struct efx_nic *efx, enum efx_fc_type wanted_fc)
+{
+	efx->wanted_fc = wanted_fc;
+	if (efx->link_advertising) {
+		if (wanted_fc & EFX_FC_RX)
+			efx->link_advertising |= (ADVERTISED_Pause |
+						  ADVERTISED_Asym_Pause);
+		else
+			efx->link_advertising &= ~(ADVERTISED_Pause |
+						   ADVERTISED_Asym_Pause);
+		if (wanted_fc & EFX_FC_TX)
+			efx->link_advertising ^= ADVERTISED_Asym_Pause;
+	}
+}
+
 static void efx_fini_port(struct efx_nic *efx);
 
-/* This call reinitialises the MAC to pick up new PHY settings. The
- * caller must hold the mac_lock */
-void __efx_reconfigure_port(struct efx_nic *efx)
+/* Push loopback/power/transmit disable settings to the PHY, and reconfigure
+ * the MAC appropriately. All other PHY configuration changes are pushed
+ * through phy_op->set_settings(), and pushed asynchronously to the MAC
+ * through efx_monitor().
+ *
+ * Callers must hold the mac_lock
+ */
+int __efx_reconfigure_port(struct efx_nic *efx)
 {
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+	enum efx_phy_mode phy_mode;
+	int rc;
 
-	EFX_LOG(efx, "reconfiguring MAC from PHY settings on CPU %d\n",
-		raw_smp_processor_id());
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
 	/* Serialise the promiscuous flag with efx_set_multicast_list. */
 	if (efx_dev_registered(efx)) {
@@ -637,42 +670,34 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 		netif_addr_unlock_bh(efx->net_dev);
 	}
 
-	efx->type->stop_stats(efx);
-	falcon_deconfigure_mac_wrapper(efx);
-
-	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
+	/* Disable PHY transmit in mac level loopbacks */
+	phy_mode = efx->phy_mode;
 	if (LOOPBACK_INTERNAL(efx))
 		efx->phy_mode |= PHY_MODE_TX_DISABLED;
 	else
 		efx->phy_mode &= ~PHY_MODE_TX_DISABLED;
-	efx->phy_op->reconfigure(efx);
 
-	if (falcon_switch_mac(efx))
-		goto fail;
+	rc = efx->type->reconfigure_port(efx);
 
-	efx->mac_op->reconfigure(efx);
+	if (rc)
+		efx->phy_mode = phy_mode;
 
-	efx->type->start_stats(efx);
-
-	/* Inform kernel of loss/gain of carrier */
-	efx_link_status_changed(efx);
-	return;
-
-fail:
-	EFX_ERR(efx, "failed to reconfigure MAC\n");
-	efx->port_enabled = false;
-	efx_fini_port(efx);
+	return rc;
 }
 
 /* Reinitialise the MAC to pick up new PHY settings, even if the port is
  * disabled. */
-void efx_reconfigure_port(struct efx_nic *efx)
+int efx_reconfigure_port(struct efx_nic *efx)
 {
+	int rc;
+
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	mutex_lock(&efx->mac_lock);
-	__efx_reconfigure_port(efx);
+	rc = __efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
+
+	return rc;
 }
 
 /* Asynchronous work item for changing MAC promiscuity and multicast
@@ -737,13 +762,17 @@ static int efx_init_port(struct efx_nic *efx)
 	rc = efx->phy_op->init(efx);
 	if (rc)
 		goto fail1;
-	efx->phy_op->reconfigure(efx);
-	rc = falcon_switch_mac(efx);
-	if (rc)
-		goto fail2;
-	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
+
+	/* Reconfigure the MAC before creating dma queues (required for
+	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
+	efx->mac_op->reconfigure(efx);
+
+	/* Ensure the PHY advertises the correct flow control settings */
+	rc = efx->phy_op->reconfigure(efx);
+	if (rc)
+		goto fail2;
 
 	mutex_unlock(&efx->mac_lock);
 	return 0;
@@ -1209,12 +1238,6 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* Flush efx_mac_work(), refill_workqueue, monitor_work */
 	efx_flush_all(efx);
 
-	/* Isolate the MAC from the TX and RX engines, so that queue
-	 * flushes will complete in a timely fashion. */
-	falcon_deconfigure_mac_wrapper(efx);
-	msleep(10); /* Let the Rx FIFO drain */
-	falcon_drain_tx_fifo(efx);
-
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
 	if (efx_dev_registered(efx)) {
@@ -1491,7 +1514,14 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	EFX_LOG(efx, "changing MTU to %d\n", new_mtu);
 
 	efx_fini_channels(efx);
+
+	mutex_lock(&efx->mac_lock);
+	/* Reconfigure the MAC before enabling the dma queues so that
+	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
+	efx->mac_op->reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
+
 	efx_init_channels(efx);
 
 	efx_start_all(efx);
@@ -1515,7 +1545,9 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);
 
 	/* Reconfigure the MAC */
-	efx_reconfigure_port(efx);
+	mutex_lock(&efx->mac_lock);
+	efx->mac_op->reconfigure(efx);
+	mutex_unlock(&efx->mac_lock);
 
 	return 0;
 }
@@ -1682,16 +1714,13 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 /* Tears down the entire software state and most of the hardware state
  * before reset.  */
-void efx_reset_down(struct efx_nic *efx, enum reset_type method,
-		    struct ethtool_cmd *ecmd)
+void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 	mutex_lock(&efx->spi_lock);
-
-	efx->phy_op->get_settings(efx, ecmd);
 
 	efx_fini_channels(efx);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
@@ -1704,8 +1733,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method,
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
  * engines are not restarted, pending a RESET_DISABLE. */
-int efx_reset_up(struct efx_nic *efx, enum reset_type method,
-		 struct ethtool_cmd *ecmd, bool ok)
+int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 {
 	int rc;
 
@@ -1722,16 +1750,17 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
 			rc = efx->phy_op->init(efx);
 			if (rc)
 				ok = false;
+			if (efx->phy_op->reconfigure(efx))
+				EFX_ERR(efx, "could not restore PHY settings\n");
 		}
 		if (!ok)
 			efx->port_initialized = false;
 	}
 
 	if (ok) {
-		efx_init_channels(efx);
+		efx->mac_op->reconfigure(efx);
 
-		if (efx->phy_op->set_settings(efx, ecmd))
-			EFX_ERR(efx, "could not restore PHY settings\n");
+		efx_init_channels(efx);
 	}
 
 	mutex_unlock(&efx->spi_lock);
@@ -1753,7 +1782,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
  */
 static int efx_reset(struct efx_nic *efx)
 {
-	struct ethtool_cmd ecmd;
 	enum reset_type method = efx->reset_pending;
 	int rc = 0;
 
@@ -1769,7 +1797,7 @@ static int efx_reset(struct efx_nic *efx)
 
 	EFX_INFO(efx, "resetting (%s)\n", RESET_TYPE(method));
 
-	efx_reset_down(efx, method, &ecmd);
+	efx_reset_down(efx, method);
 
 	rc = efx->type->reset(efx, method);
 	if (rc) {
@@ -1788,10 +1816,10 @@ static int efx_reset(struct efx_nic *efx)
 
 	/* Leave device stopped if necessary */
 	if (method == RESET_TYPE_DISABLE) {
-		efx_reset_up(efx, method, &ecmd, false);
+		efx_reset_up(efx, method, false);
 		rc = -EIO;
 	} else {
-		rc = efx_reset_up(efx, method, &ecmd, true);
+		rc = efx_reset_up(efx, method, true);
 	}
 
 out_disable:
@@ -1895,7 +1923,7 @@ bool efx_port_dummy_op_poll(struct efx_nic *efx)
 
 static struct efx_phy_operations efx_dummy_phy_operations = {
 	.init		 = efx_port_dummy_op_int,
-	.reconfigure	 = efx_port_dummy_op_void,
+	.reconfigure	 = efx_port_dummy_op_int,
 	.poll		 = efx_port_dummy_op_poll,
 	.fini		 = efx_port_dummy_op_void,
 };

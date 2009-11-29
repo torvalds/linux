@@ -1193,6 +1193,8 @@ static void falcon_poll_flush_events(struct efx_nic *efx)
 	channel->eventq_read_ptr = read_ptr;
 }
 
+static void falcon_deconfigure_mac_wrapper(struct efx_nic *efx);
+
 static void falcon_prepare_flush(struct efx_nic *efx)
 {
 	falcon_deconfigure_mac_wrapper(efx);
@@ -1836,9 +1838,10 @@ static void falcon_push_multicast_hash(struct efx_nic *efx)
 	efx_writeo(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);
 }
 
-static int falcon_reset_macs(struct efx_nic *efx)
+static void falcon_reset_macs(struct efx_nic *efx)
 {
-	efx_oword_t reg;
+	struct falcon_nic_data *nic_data = efx->nic_data;
+	efx_oword_t reg, mac_ctrl;
 	int count;
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0) {
@@ -1853,7 +1856,7 @@ static int falcon_reset_macs(struct efx_nic *efx)
 			EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_SW_RST, 0);
 			efx_writeo(efx, &reg, FR_AB_GM_CFG1);
 			udelay(1000);
-			return 0;
+			return;
 		} else {
 			EFX_POPULATE_OWORD_1(reg, FRF_AB_XM_CORE_RST, 1);
 			efx_writeo(efx, &reg, FR_AB_XM_GLB_CFG);
@@ -1862,22 +1865,20 @@ static int falcon_reset_macs(struct efx_nic *efx)
 				efx_reado(efx, &reg, FR_AB_XM_GLB_CFG);
 				if (EFX_OWORD_FIELD(reg, FRF_AB_XM_CORE_RST) ==
 				    0)
-					return 0;
+					return;
 				udelay(10);
 			}
 
 			EFX_ERR(efx, "timed out waiting for XMAC core reset\n");
-			return -ETIMEDOUT;
 		}
 	}
 
-	/* MAC stats will fail whilst the TX fifo is draining. Serialise
-	 * the drain sequence with the statistics fetch */
-	falcon_stop_nic_stats(efx);
+	/* Mac stats will fail whist the TX fifo is draining */
+	WARN_ON(nic_data->stats_disable_count == 0);
 
-	efx_reado(efx, &reg, FR_AB_MAC_CTRL);
-	EFX_SET_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN, 1);
-	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
+	efx_reado(efx, &mac_ctrl, FR_AB_MAC_CTRL);
+	EFX_SET_OWORD_FIELD(mac_ctrl, FRF_BB_TXFIFO_DRAIN_EN, 1);
+	efx_writeo(efx, &mac_ctrl, FR_AB_MAC_CTRL);
 
 	efx_reado(efx, &reg, FR_AB_GLB_CTL);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_RST_XGTX, 1);
@@ -1903,14 +1904,9 @@ static int falcon_reset_macs(struct efx_nic *efx)
 		udelay(10);
 	}
 
-	/* If we've reset the EM block and the link is up, then
-	 * we'll have to kick the XAUI link so the PHY can recover */
-	if (efx->link_state.up && EFX_IS10G(efx) && EFX_WORKAROUND_5147(efx))
-		falcon_reset_xaui(efx);
-
-	falcon_start_nic_stats(efx);
-
-	return 0;
+	/* Ensure the correct MAC is selected before statistics
+	 * are re-enabled by the caller */
+	efx_writeo(efx, &mac_ctrl, FR_AB_MAC_CTRL);
 }
 
 void falcon_drain_tx_fifo(struct efx_nic *efx)
@@ -1929,7 +1925,7 @@ void falcon_drain_tx_fifo(struct efx_nic *efx)
 	falcon_reset_macs(efx);
 }
 
-void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
+static void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 
@@ -1941,8 +1937,8 @@ void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 0);
 	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 
-	if (!efx->link_state.up)
-		falcon_drain_tx_fifo(efx);
+	/* Isolate TX -> MAC */
+	falcon_drain_tx_fifo(efx);
 }
 
 void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
@@ -2044,6 +2040,8 @@ static void falcon_stats_timer_func(unsigned long context)
 	spin_unlock(&efx->stats_lock);
 }
 
+static void falcon_switch_mac(struct efx_nic *efx);
+
 static bool falcon_loopback_link_poll(struct efx_nic *efx)
 {
 	struct efx_link_state old_state = efx->link_state;
@@ -2061,6 +2059,38 @@ static bool falcon_loopback_link_poll(struct efx_nic *efx)
 		efx->link_state.speed = 10000;
 
 	return !efx_link_state_equal(&efx->link_state, &old_state);
+}
+
+static int falcon_reconfigure_port(struct efx_nic *efx)
+{
+	int rc;
+
+	WARN_ON(efx_nic_rev(efx) > EFX_REV_FALCON_B0);
+
+	/* Poll the PHY link state *before* reconfiguring it. This means we
+	 * will pick up the correct speed (in loopback) to select the correct
+	 * MAC.
+	 */
+	if (LOOPBACK_INTERNAL(efx))
+		falcon_loopback_link_poll(efx);
+	else
+		efx->phy_op->poll(efx);
+
+	falcon_stop_nic_stats(efx);
+	falcon_deconfigure_mac_wrapper(efx);
+
+	falcon_switch_mac(efx);
+
+	efx->phy_op->reconfigure(efx);
+	rc = efx->mac_op->reconfigure(efx);
+	BUG_ON(rc);
+
+	falcon_start_nic_stats(efx);
+
+	/* Synchronise efx->link_state with the kernel */
+	efx_link_status_changed(efx);
+
+	return 0;
 }
 
 /**************************************************************************
@@ -2215,17 +2245,15 @@ static void falcon_clock_mac(struct efx_nic *efx)
 	}
 }
 
-int falcon_switch_mac(struct efx_nic *efx)
+static void falcon_switch_mac(struct efx_nic *efx)
 {
 	struct efx_mac_operations *old_mac_op = efx->mac_op;
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	unsigned int stats_done_offset;
-	int rc = 0;
-
-	/* Don't try to fetch MAC stats while we're switching MACs */
-	falcon_stop_nic_stats(efx);
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+	WARN_ON(nic_data->stats_disable_count == 0);
+
 	efx->mac_op = (EFX_IS10G(efx) ?
 		       &falcon_xmac_operations : &falcon_gmac_operations);
 
@@ -2236,18 +2264,14 @@ int falcon_switch_mac(struct efx_nic *efx)
 	nic_data->stats_dma_done = efx->stats_buffer.addr + stats_done_offset;
 
 	if (old_mac_op == efx->mac_op)
-		goto out;
+		return;
 
 	falcon_clock_mac(efx);
 
 	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
 	/* Not all macs support a mac-level link state */
 	efx->xmac_poll_required = false;
-
-	rc = falcon_reset_macs(efx);
-out:
-	falcon_start_nic_stats(efx);
-	return rc;
+	falcon_reset_macs(efx);
 }
 
 /* This call is responsible for hooking in the MAC and PHY operations */
@@ -2597,7 +2621,8 @@ static void falcon_monitor(struct efx_nic *efx)
 		EFX_ERR(efx, "Board sensor %s; shutting down PHY\n",
 			(rc == -ERANGE) ? "reported fault" : "failed");
 		efx->phy_mode |= PHY_MODE_LOW_POWER;
-		__efx_reconfigure_port(efx);
+		rc = __efx_reconfigure_port(efx);
+		WARN_ON(rc);
 	}
 
 	if (LOOPBACK_INTERNAL(efx))
@@ -2610,7 +2635,8 @@ static void falcon_monitor(struct efx_nic *efx)
 		falcon_deconfigure_mac_wrapper(efx);
 
 		falcon_switch_mac(efx);
-		efx->mac_op->reconfigure(efx);
+		rc = efx->mac_op->reconfigure(efx);
+		BUG_ON(rc);
 
 		falcon_start_nic_stats(efx);
 
@@ -3239,6 +3265,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.stop_stats = falcon_stop_nic_stats,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
+	.reconfigure_port = falcon_reconfigure_port,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
@@ -3271,6 +3298,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.stop_stats = falcon_stop_nic_stats,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.push_multicast_hash = falcon_push_multicast_hash,
+	.reconfigure_port = falcon_reconfigure_port,
 	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,

@@ -517,7 +517,7 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
  * @check_fault: Check fault state. True if fault present.
  */
 struct efx_mac_operations {
-	void (*reconfigure) (struct efx_nic *efx);
+	int (*reconfigure) (struct efx_nic *efx);
 	void (*update_stats) (struct efx_nic *efx);
 	bool (*check_fault)(struct efx_nic *efx);
 };
@@ -544,7 +544,7 @@ struct efx_phy_operations {
 	enum efx_mac_type macs;
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
-	void (*reconfigure) (struct efx_nic *efx);
+	int (*reconfigure) (struct efx_nic *efx);
 	bool (*poll) (struct efx_nic *efx);
 	void (*get_settings) (struct efx_nic *efx,
 			      struct ethtool_cmd *ecmd);
@@ -730,6 +730,7 @@ union efx_multicast_hash {
  * @mdio: PHY MDIO interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @xmac_poll_required: XMAC link state needs polling
+ * @link_advertising: Autonegotiation advertising flags
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
@@ -813,6 +814,7 @@ struct efx_nic {
 	enum efx_phy_mode phy_mode;
 
 	bool xmac_poll_required;
+	u32 link_advertising;
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
@@ -858,6 +860,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @stop_stats: Stop the regular fetching of statistics
  * @push_irq_moderation: Apply interrupt moderation value
  * @push_multicast_hash: Apply multicast hash table
+ * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
  * @default_mac_ops: efx_mac_operations to set at startup
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
@@ -890,6 +893,7 @@ struct efx_nic_type {
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	void (*push_multicast_hash)(struct efx_nic *efx);
+	int (*reconfigure_port)(struct efx_nic *efx);
 	struct efx_mac_operations *default_mac_ops;
 
 	int revision;

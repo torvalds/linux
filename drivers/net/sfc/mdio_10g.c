@@ -248,8 +248,6 @@ void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
 int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
 	struct ethtool_cmd prev;
-	bool xnp;
-	int reg;
 
 	efx->phy_op->get_settings(efx, &prev);
 
@@ -269,30 +267,47 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	    (ecmd->advertising | SUPPORTED_Autoneg) & ~prev.supported)
 		return -EINVAL;
 
-	xnp = (ecmd->advertising & ADVERTISED_10000baseT_Full
-	       || EFX_WORKAROUND_13204(efx));
+	efx_link_set_advertising(efx, ecmd->advertising | ADVERTISED_Autoneg);
+	efx_mdio_an_reconfigure(efx);
+	return 0;
+}
+
+/**
+ * efx_mdio_an_reconfigure - Push advertising flags and restart autonegotiation
+ * @efx:		Efx NIC
+ */
+void efx_mdio_an_reconfigure(struct efx_nic *efx)
+{
+	bool xnp = (efx->link_advertising & ADVERTISED_10000baseT_Full
+		    || EFX_WORKAROUND_13204(efx));
+	int reg;
+
+	WARN_ON(!(efx->mdio.mmds & MDIO_DEVS_AN));
 
 	/* Set up the base page */
 	reg = ADVERTISE_CSMA;
-	if (ecmd->advertising & ADVERTISED_10baseT_Half)
+	if (efx->link_advertising & ADVERTISED_10baseT_Half)
 		reg |= ADVERTISE_10HALF;
-	if (ecmd->advertising & ADVERTISED_10baseT_Full)
+	if (efx->link_advertising & ADVERTISED_10baseT_Full)
 		reg |= ADVERTISE_10FULL;
-	if (ecmd->advertising & ADVERTISED_100baseT_Half)
+	if (efx->link_advertising & ADVERTISED_100baseT_Half)
 		reg |= ADVERTISE_100HALF;
-	if (ecmd->advertising & ADVERTISED_100baseT_Full)
+	if (efx->link_advertising & ADVERTISED_100baseT_Full)
 		reg |= ADVERTISE_100FULL;
 	if (xnp)
 		reg |= ADVERTISE_RESV;
-	else if (ecmd->advertising & (ADVERTISED_1000baseT_Half |
-				      ADVERTISED_1000baseT_Full))
+	else if (efx->link_advertising & (ADVERTISED_1000baseT_Half |
+					  ADVERTISED_1000baseT_Full))
 		reg |= ADVERTISE_NPAGE;
-	reg |= mii_advertise_flowctrl(efx->wanted_fc);
+	if (efx->link_advertising & ADVERTISED_Pause)
+		reg |= ADVERTISE_PAUSE_CAP;
+	if (efx->link_advertising & ADVERTISED_Asym_Pause)
+		reg |= ADVERTISE_PAUSE_ASYM;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 
 	/* Set up the (extended) next page if necessary */
 	if (efx->phy_op->set_npage_adv)
-		efx->phy_op->set_npage_adv(efx, ecmd->advertising);
+		efx->phy_op->set_npage_adv(efx, efx->link_advertising);
 
 	/* Enable and restart AN */
 	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_CTRL1);
@@ -305,8 +320,6 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	else
 		reg &= ~MDIO_AN_CTRL1_XNP;
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_CTRL1, reg);
-
-	return 0;
 }
 
 enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx)

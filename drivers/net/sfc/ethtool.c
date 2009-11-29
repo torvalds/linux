@@ -10,7 +10,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
-#include <linux/mdio.h>
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "workarounds.h"
@@ -191,6 +190,7 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 			     struct ethtool_cmd *ecmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_link_state *link_state = &efx->link_state;
 
 	mutex_lock(&efx->mac_lock);
 	efx->phy_op->get_settings(efx, ecmd);
@@ -198,6 +198,13 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 
 	/* Falcon GMAC does not support 1000Mbps HD */
 	ecmd->supported &= ~SUPPORTED_1000baseT_Half;
+	/* Both MACs support pause frames (bidirectional and respond-only) */
+	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	if (LOOPBACK_INTERNAL(efx)) {
+		ecmd->speed = link_state->speed;
+		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+	}
 
 	return 0;
 }
@@ -219,9 +226,6 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 	mutex_lock(&efx->mac_lock);
 	rc = efx->phy_op->set_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
-	if (!rc)
-		efx_reconfigure_port(efx);
-
 	return rc;
 }
 
@@ -658,8 +662,12 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_fc_type wanted_fc;
+	enum efx_fc_type wanted_fc, old_fc;
+	u32 old_adv;
 	bool reset;
+	int rc = 0;
+
+	mutex_lock(&efx->mac_lock);
 
 	wanted_fc = ((pause->rx_pause ? EFX_FC_RX : 0) |
 		     (pause->tx_pause ? EFX_FC_TX : 0) |
@@ -667,14 +675,14 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 
 	if ((wanted_fc & EFX_FC_TX) && !(wanted_fc & EFX_FC_RX)) {
 		EFX_LOG(efx, "Flow control unsupported: tx ON rx OFF\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
-	if (!(efx->phy_op->mmds & MDIO_DEVS_AN) &&
-	    (wanted_fc & EFX_FC_AUTO)) {
-		EFX_LOG(efx, "PHY does not support flow control "
-			"autonegotiation\n");
-		return -EINVAL;
+	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising) {
+		EFX_LOG(efx, "Autonegotiation is disabled\n");
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* TX flow control may automatically turn itself off if the
@@ -686,25 +694,38 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	if (EFX_WORKAROUND_11482(efx) && reset) {
 		if (efx_nic_rev(efx) == EFX_REV_FALCON_B0) {
 			/* Recover by resetting the EM block */
-			if (efx->link_state.up)
-				falcon_drain_tx_fifo(efx);
+			falcon_stop_nic_stats(efx);
+			falcon_drain_tx_fifo(efx);
+			efx->mac_op->reconfigure(efx);
+			falcon_start_nic_stats(efx);
 		} else {
 			/* Schedule a reset to recover */
 			efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
 		}
 	}
 
-	/* Try to push the pause parameters */
-	mutex_lock(&efx->mac_lock);
+	old_adv = efx->link_advertising;
+	old_fc = efx->wanted_fc;
+	efx_link_set_wanted_fc(efx, wanted_fc);
+	if (efx->link_advertising != old_adv ||
+	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
+		rc = efx->phy_op->reconfigure(efx);
+		if (rc) {
+			EFX_ERR(efx, "Unable to advertise requested flow "
+				"control setting\n");
+			goto out;
+		}
+	}
 
-	efx->wanted_fc = wanted_fc;
-	if (efx->phy_op->mmds & MDIO_DEVS_AN)
-		mdio45_ethtool_spauseparam_an(&efx->mdio, pause);
-	__efx_reconfigure_port(efx);
+	/* Reconfigure the MAC. The PHY *may* generate a link state change event
+	 * if the user just changed the advertised capabilities, but there's no
+	 * harm doing this twice */
+	efx->mac_op->reconfigure(efx);
 
+out:
 	mutex_unlock(&efx->mac_lock);
 
-	return 0;
+	return rc;
 }
 
 static void efx_ethtool_get_pauseparam(struct net_device *net_dev,

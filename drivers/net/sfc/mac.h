@@ -15,5 +15,6 @@
 
 extern struct efx_mac_operations falcon_gmac_operations;
 extern struct efx_mac_operations falcon_xmac_operations;
+extern void falcon_reconfigure_xmac_core(struct efx_nic *efx);
 
 #endif

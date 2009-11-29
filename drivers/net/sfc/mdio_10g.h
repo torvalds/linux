@@ -86,6 +86,9 @@ extern void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
 /* Set (some of) the PHY settings over MDIO */
 extern int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd);
 
+/* Push advertising flags and restart autonegotiation */
+extern void efx_mdio_an_reconfigure(struct efx_nic *efx);
+
 /* Get pause parameters from AN if available (otherwise return
  * requested pause parameters)
  */

@@ -130,10 +130,7 @@ extern int falcon_process_eventq(struct efx_channel *channel, int rx_quota);
 extern void falcon_eventq_read_ack(struct efx_channel *channel);
 
 /* MAC/PHY */
-extern int falcon_switch_mac(struct efx_nic *efx);
-extern bool falcon_xaui_link_ok(struct efx_nic *efx);
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
-extern void falcon_deconfigure_mac_wrapper(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
 
 /* Interrupts and test events */

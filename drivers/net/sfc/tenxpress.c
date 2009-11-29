@@ -199,15 +199,16 @@ static ssize_t set_phy_short_reach(struct device *dev,
 				   const char *buf, size_t count)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	int rc;
 
 	rtnl_lock();
 	efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_PMA_10GBT_TXPWR,
 			  MDIO_PMA_10GBT_TXPWR_SHORT,
 			  count != 0 && *buf != '0');
-	efx_reconfigure_port(efx);
+	rc = efx_reconfigure_port(efx);
 	rtnl_unlock();
 
-	return count;
+	return rc < 0 ? rc : (ssize_t)count;
 }
 
 static DEVICE_ATTR(phy_short_reach, 0644, show_phy_short_reach,
@@ -300,7 +301,6 @@ static int tenxpress_init(struct efx_nic *efx)
 static int tenxpress_phy_init(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data;
-	u16 old_adv, adv;
 	int rc = 0;
 
 	falcon_board(efx)->type->init_phy(efx);
@@ -335,14 +335,14 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	if (rc < 0)
 		goto fail;
 
-	/* Set pause advertising */
-	old_adv = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
-	adv = ((old_adv & ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM)) |
-	       mii_advertise_flowctrl(efx->wanted_fc));
-	if (adv != old_adv) {
-		efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, adv);
-		mdio45_nway_restart(&efx->mdio);
-	}
+	/* Initialise advertising flags */
+	efx->link_advertising = (ADVERTISED_TP | ADVERTISED_Autoneg |
+				  ADVERTISED_10000baseT_Full);
+	if (efx->phy_type != PHY_TYPE_SFX7101)
+		efx->link_advertising |= (ADVERTISED_1000baseT_Full |
+					   ADVERTISED_100baseT_Full);
+	efx_link_set_wanted_fc(efx, efx->wanted_fc);
+	efx_mdio_an_reconfigure(efx);
 
 	if (efx->phy_type == PHY_TYPE_SFT9001B) {
 		rc = device_create_file(&efx->pci_dev->dev,
@@ -500,18 +500,15 @@ static void tenxpress_low_power(struct efx_nic *efx)
 			!!(efx->phy_mode & PHY_MODE_LOW_POWER));
 }
 
-static void tenxpress_phy_reconfigure(struct efx_nic *efx)
+static int tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	struct ethtool_cmd ecmd;
 	bool phy_mode_change, loop_reset;
 
 	if (efx->phy_mode & (PHY_MODE_OFF | PHY_MODE_SPECIAL)) {
 		phy_data->phy_mode = efx->phy_mode;
-		return;
+		return 0;
 	}
-
-	tenxpress_low_power(efx);
 
 	phy_mode_change = (efx->phy_mode == PHY_MODE_NORMAL &&
 			   phy_data->phy_mode != PHY_MODE_NORMAL);
@@ -519,30 +516,25 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 		      LOOPBACK_CHANGED(phy_data, efx, 1 << LOOPBACK_GPHY));
 
 	if (loop_reset || phy_mode_change) {
-		int rc;
+		tenxpress_special_reset(efx);
 
-		efx->phy_op->get_settings(efx, &ecmd);
-
-		if (loop_reset || phy_mode_change) {
-			tenxpress_special_reset(efx);
-
-			/* Reset XAUI if we were in 10G, and are staying
-			 * in 10G. If we're moving into and out of 10G
-			 * then xaui will be reset anyway */
-			if (EFX_IS10G(efx))
-				falcon_reset_xaui(efx);
-		}
-
-		rc = efx->phy_op->set_settings(efx, &ecmd);
-		WARN_ON(rc);
+		/* Reset XAUI if we were in 10G, and are staying
+		 * in 10G. If we're moving into and out of 10G
+		 * then xaui will be reset anyway */
+		if (EFX_IS10G(efx))
+			falcon_reset_xaui(efx);
 	}
 
+	tenxpress_low_power(efx);
 	efx_mdio_transmit_disable(efx);
 	efx_mdio_phy_reconfigure(efx);
 	tenxpress_ext_loopback(efx);
+	efx_mdio_an_reconfigure(efx);
 
 	phy_data->loopback_mode = efx->loopback_mode;
 	phy_data->phy_mode = efx->phy_mode;
+
+	return 0;
 }
 
 static void
@@ -646,6 +638,9 @@ sfx7101_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 	/* BIST is automatically run after a special software reset */
 	rc = tenxpress_special_reset(efx);
 	results[0] = rc ? -1 : 1;
+
+	efx_mdio_an_reconfigure(efx);
+
 	return rc;
 }
 
@@ -663,11 +658,7 @@ static const char *const sft9001_test_names[] = {
 
 static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 {
-	struct ethtool_cmd ecmd;
 	int rc = 0, rc2, i, ctrl_reg, res_reg;
-
-	if (flags & ETH_TEST_FL_OFFLINE)
-		efx->phy_op->get_settings(efx, &ecmd);
 
 	/* Initialise cable diagnostic results to unknown failure */
 	for (i = 1; i < 9; ++i)
@@ -720,9 +711,7 @@ out:
 		if (!rc)
 			rc = rc2;
 
-		rc2 = efx->phy_op->set_settings(efx, &ecmd);
-		if (!rc)
-			rc = rc2;
+		efx_mdio_an_reconfigure(efx);
 	}
 
 	return rc;
@@ -753,7 +742,6 @@ tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 
 	mdio45_ethtool_gset_npage(&efx->mdio, ecmd, adv, lpa);
 
-	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 	if (efx->phy_type != PHY_TYPE_SFX7101) {
 		ecmd->supported |= (SUPPORTED_100baseT_Full |
 				    SUPPORTED_1000baseT_Full);

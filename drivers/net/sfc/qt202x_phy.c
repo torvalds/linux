@@ -178,7 +178,7 @@ static bool qt202x_phy_poll(struct efx_nic *efx)
 	return efx->link_state.up != was_up;
 }
 
-static void qt202x_phy_reconfigure(struct efx_nic *efx)
+static int qt202x_phy_reconfigure(struct efx_nic *efx)
 {
 	struct qt202x_phy_data *phy_data = efx->phy_data;
 
@@ -207,6 +207,8 @@ static void qt202x_phy_reconfigure(struct efx_nic *efx)
 	efx_mdio_phy_reconfigure(efx);
 
 	phy_data->phy_mode = efx->phy_mode;
+
+	return 0;
 }
 
 static void qt202x_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)

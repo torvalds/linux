@@ -659,7 +659,6 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	enum efx_loopback_mode loopback_mode = efx->loopback_mode;
 	int phy_mode = efx->phy_mode;
 	enum reset_type reset_method = RESET_TYPE_INVISIBLE;
-	struct ethtool_cmd ecmd;
 	struct efx_channel *channel;
 	int rc_test = 0, rc_reset = 0, rc;
 
@@ -712,7 +711,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	mutex_unlock(&efx->mac_lock);
 
 	/* free up all consumers of SRAM (including all the queues) */
-	efx_reset_down(efx, reset_method, &ecmd);
+	efx_reset_down(efx, reset_method);
 
 	rc = efx_test_chip(efx, tests);
 	if (rc && !rc_test)
@@ -726,7 +725,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	efx->phy_mode &= ~PHY_MODE_LOW_POWER;
 	efx->loopback_mode = LOOPBACK_NONE;
 
-	rc = efx_reset_up(efx, reset_method, &ecmd, rc_reset == 0);
+	rc = efx_reset_up(efx, reset_method, rc_reset == 0);
 	if (rc && !rc_reset)
 		rc_reset = rc;
 
@@ -745,10 +744,12 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 		rc_test = rc;
 
 	/* restore the PHY to the previous state */
-	efx->loopback_mode = loopback_mode;
+	mutex_lock(&efx->mac_lock);
 	efx->phy_mode = phy_mode;
 	efx->port_inhibited = false;
-	efx_ethtool_set_settings(efx->net_dev, &ecmd);
+	efx->loopback_mode = loopback_mode;
+	__efx_reconfigure_port(efx);
+	mutex_unlock(&efx->mac_lock);
 
 	return rc_test;
 }
