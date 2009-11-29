@@ -1381,6 +1381,7 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 	struct be_eth_rx_compl *rxcp;
 	u32 work_done;
 
+	adapter->stats.drvr_stats.be_rx_polls++;
 	for (work_done = 0; work_done < budget; work_done++) {
 		rxcp = be_rx_compl_get(adapter);
 		if (!rxcp)

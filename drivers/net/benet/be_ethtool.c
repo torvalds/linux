@@ -55,7 +55,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(be_tx_stops)},
 	{DRVSTAT_INFO(be_fwd_reqs)},
 	{DRVSTAT_INFO(be_tx_wrbs)},
-	{DRVSTAT_INFO(be_polls)},
+	{DRVSTAT_INFO(be_rx_polls)},
 	{DRVSTAT_INFO(be_tx_events)},
 	{DRVSTAT_INFO(be_rx_events)},
 	{DRVSTAT_INFO(be_tx_compl)},

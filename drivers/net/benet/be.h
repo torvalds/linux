@@ -170,7 +170,7 @@ struct be_drvr_stats {
 	u32 cache_barrier[16];
 
 	u32 be_ethrx_post_fail;/* number of ethrx buffer alloc failures */
-	u32 be_polls;		/* number of times NAPI called poll function */
+	u32 be_rx_polls;	/* number of times NAPI called poll function */
 	u32 be_rx_events;	/* number of ucast rx completion events  */
 	u32 be_rx_compl;	/* number of rx completion entries processed */
 	ulong be_rx_jiffies;
