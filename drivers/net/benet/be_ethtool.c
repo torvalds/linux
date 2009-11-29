@@ -297,36 +297,48 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	u8 mac_speed = 0, connector = 0;
 	u16 link_speed = 0;
 	bool link_up = false;
+	int status;
 
-	be_cmd_link_status_query(adapter, &link_up, &mac_speed, &link_speed);
+	if (adapter->link_speed < 0) {
+		status = be_cmd_link_status_query(adapter, &link_up,
+						&mac_speed, &link_speed);
 
-	/* link_speed is in units of 10 Mbps */
-	if (link_speed) {
-		ecmd->speed = link_speed*10;
-	} else {
-		switch (mac_speed) {
-		case PHY_LINK_SPEED_1GBPS:
-			ecmd->speed = SPEED_1000;
+		/* link_speed is in units of 10 Mbps */
+		if (link_speed) {
+			ecmd->speed = link_speed*10;
+		} else {
+			switch (mac_speed) {
+			case PHY_LINK_SPEED_1GBPS:
+				ecmd->speed = SPEED_1000;
+				break;
+			case PHY_LINK_SPEED_10GBPS:
+				ecmd->speed = SPEED_10000;
+				break;
+			}
+		}
+
+		status = be_cmd_read_port_type(adapter, adapter->port_num,
+						&connector);
+		switch (connector) {
+		case 7:
+			ecmd->port = PORT_FIBRE;
 			break;
-		case PHY_LINK_SPEED_10GBPS:
-			ecmd->speed = SPEED_10000;
+		default:
+			ecmd->port = PORT_TP;
 			break;
 		}
+
+		/* Save for future use */
+		adapter->link_speed = ecmd->speed;
+		adapter->port_type = ecmd->port;
+	} else {
+		ecmd->speed = adapter->link_speed;
+		ecmd->port = adapter->port_type;
 	}
+
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
-
-	be_cmd_read_port_type(adapter, adapter->port_num, &connector);
-	switch (connector) {
-	case 7:
-		ecmd->port = PORT_FIBRE;
-		break;
-	default:
-		ecmd->port = PORT_TP;
-		break;
-	}
-
 	ecmd->phy_address = adapter->port_num;
 	ecmd->transceiver = XCVR_INTERNAL;
 

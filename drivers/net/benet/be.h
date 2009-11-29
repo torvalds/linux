@@ -272,6 +272,8 @@ struct be_adapter {
 	u32 cap;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
+	int link_speed;
+	u8 port_type;
 };
 
 extern const struct ethtool_ops be_ethtool_ops;

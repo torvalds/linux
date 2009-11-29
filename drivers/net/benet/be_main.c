@@ -220,6 +220,7 @@ void be_link_status_update(struct be_adapter *adapter, bool link_up)
 
 	/* If link came up or went down */
 	if (adapter->link_up != link_up) {
+		adapter->link_speed = -1;
 		if (link_up) {
 			netif_start_queue(netdev);
 			netif_carrier_on(netdev);
@@ -1673,6 +1674,8 @@ static int be_setup(struct be_adapter *adapter)
 	status = be_mcc_queues_create(adapter);
 	if (status != 0)
 		goto rx_qs_destroy;
+
+	adapter->link_speed = -1;
 
 	return 0;
 
