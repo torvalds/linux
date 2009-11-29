@@ -1353,7 +1353,7 @@ rollback:
 				nb->notifier_call(nb, NETDEV_DOWN, dev);
 			}
 			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
-			nb->notifier_call(nb, NETDEV_UNREGISTER_PERNET, dev);
+			nb->notifier_call(nb, NETDEV_UNREGISTER_BATCH, dev);
 		}
 	}
 
@@ -4771,8 +4771,7 @@ static void net_set_todo(struct net_device *dev)
 
 static void rollback_registered_many(struct list_head *head)
 {
-	struct net_device *dev, *aux, *fdev;
-	LIST_HEAD(pernet_list);
+	struct net_device *dev;
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
@@ -4828,26 +4827,14 @@ static void rollback_registered_many(struct list_head *head)
 		netdev_unregister_kobject(dev);
 	}
 
+	/* Process any work delayed until the end of the batch */
+	dev = list_entry(head->next, struct net_device, unreg_list);
+	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, dev);
+
 	synchronize_net();
 
-	list_for_each_entry_safe(dev, aux, head, unreg_list) {
-		int new_net = 1;
-		list_for_each_entry(fdev, &pernet_list, unreg_list) {
-			if (net_eq(dev_net(dev), dev_net(fdev))) {
-				new_net = 0;
-				dev_put(dev);
-				break;
-			}
-		}
-		if (new_net)
-			list_move(&dev->unreg_list, &pernet_list);
-	}
-
-	list_for_each_entry_safe(dev, aux, &pernet_list, unreg_list) {
-		call_netdevice_notifiers(NETDEV_UNREGISTER_PERNET, dev);
-		list_move(&dev->unreg_list, head);
+	list_for_each_entry(dev, head, unreg_list)
 		dev_put(dev);
-	}
 }
 
 static void rollback_registered(struct net_device *dev)
@@ -5129,7 +5116,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 
 			/* Rebroadcast unregister notification */
 			call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-			/* don't resend NETDEV_UNREGISTER_PERNET, _PERNET users
+			/* don't resend NETDEV_UNREGISTER_BATCH, _BATCH users
 			 * should have already handle it the first time */
 
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
@@ -5442,11 +5429,6 @@ EXPORT_SYMBOL(unregister_netdevice_queue);
 /**
  *	unregister_netdevice_many - unregister many devices
  *	@head: list of devices
- *
- *	WARNING: Calling this modifies the given list
- *	(in rollback_registered_many). It may change the order of the elements
- *	in the list. However, you can assume it does not add or delete elements
- *	to/from the list.
  */
 void unregister_netdevice_many(struct list_head *head)
 {
@@ -5555,7 +5537,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	   this device. They should clean all the things.
 	*/
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-	call_netdevice_notifiers(NETDEV_UNREGISTER_PERNET, dev);
+	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, dev);
 
 	/*
 	 *	Flush the unicast and multicast chains

@@ -202,7 +202,7 @@ static inline int notifier_to_errno(int ret)
 #define NETDEV_BONDING_OLDTYPE  0x000E
 #define NETDEV_BONDING_NEWTYPE  0x000F
 #define NETDEV_POST_INIT	0x0010
-#define NETDEV_UNREGISTER_PERNET 0x0011
+#define NETDEV_UNREGISTER_BATCH 0x0011
 
 #define SYS_DOWN	0x0001	/* Notify of system down */
 #define SYS_RESTART	SYS_DOWN

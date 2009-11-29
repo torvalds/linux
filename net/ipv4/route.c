@@ -900,6 +900,12 @@ void rt_cache_flush(struct net *net, int delay)
 		rt_do_flush(!in_softirq());
 }
 
+/* Flush previous cache invalidated entries from the cache */
+void rt_cache_flush_batch(void)
+{
+	rt_do_flush(!in_softirq());
+}
+
 /*
  * We change rt_genid and let gc do the cleanup
  */

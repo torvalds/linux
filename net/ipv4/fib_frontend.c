@@ -959,8 +959,10 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
-	case NETDEV_UNREGISTER_PERNET:
 		rt_cache_flush(dev_net(dev), 0);
+		break;
+	case NETDEV_UNREGISTER_BATCH:
+		rt_cache_flush_batch();
 		break;
 	}
 	return NOTIFY_DONE;
