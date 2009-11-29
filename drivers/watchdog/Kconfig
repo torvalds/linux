@@ -289,6 +289,17 @@ config ADX_WATCHDOG
 	  Say Y here if you want support for the watchdog timer on Avionic
 	  Design Xanthos boards.
 
+config TS72XX_WATCHDOG
+	tristate "TS-72XX SBC Watchdog"
+	depends on MACH_TS72XX
+	help
+	  Technologic Systems TS-7200, TS-7250 and TS-7260 boards have
+	  watchdog timer implemented in a external CPLD chip. Say Y here
+	  if you want to support for the watchdog timer on TS-72XX boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ts72xx_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
