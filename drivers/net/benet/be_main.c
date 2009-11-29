@@ -2147,6 +2147,7 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 
 	return 0;
 }
