@@ -5103,42 +5103,28 @@ out_netdev:
 
 static int bond_net_init(struct net *net)
 {
-	struct bond_net *bn;
-	int err;
-
-	err = -ENOMEM;
-	bn = kzalloc(sizeof(struct bond_net), GFP_KERNEL);
-	if (bn == NULL)
-		goto out;
+	struct bond_net *bn = net_generic(net, bond_net_id);
 
 	bn->net = net;
 	INIT_LIST_HEAD(&bn->dev_list);
 
-	err = net_assign_generic(net, bond_net_id, bn);
-	if (err)
-		goto out_free;
-
 	bond_create_proc_dir(bn);
-out:
-	return err;
-out_free:
-	kfree(bn);
-	goto out;
+	
+	return 0;
 }
 
 static void bond_net_exit(struct net *net)
 {
-	struct bond_net *bn;
-
-	bn = net_generic(net, bond_net_id);
+	struct bond_net *bn = net_generic(net, bond_net_id);
 
 	bond_destroy_proc_dir(bn);
-	kfree(bn);
 }
 
 static struct pernet_operations bond_net_ops = {
 	.init = bond_net_init,
 	.exit = bond_net_exit,
+	.id   = &bond_net_id,
+	.size = sizeof(struct bond_net),
 };
 
 static int __init bonding_init(void)
@@ -5152,7 +5138,7 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
-	res = register_pernet_gen_subsys(&bond_net_id, &bond_net_ops);
+	res = register_pernet_subsys(&bond_net_ops);
 	if (res)
 		goto out;
 
@@ -5178,7 +5164,7 @@ out:
 err:
 	rtnl_link_unregister(&bond_link_ops);
 err_link:
-	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
+	unregister_pernet_subsys(&bond_net_ops);
 	goto out;
 
 }
@@ -5192,7 +5178,7 @@ static void __exit bonding_exit(void)
 	bond_destroy_sysfs();
 
 	rtnl_link_unregister(&bond_link_ops);
-	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
+	unregister_pernet_subsys(&bond_net_ops);
 }
 
 module_init(bonding_init);
