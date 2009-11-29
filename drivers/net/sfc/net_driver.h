@@ -428,19 +428,6 @@ enum efx_int_mode {
 };
 #define EFX_INT_MODE_USE_MSI(x) (((x)->interrupt_mode) <= EFX_INT_MODE_MSI)
 
-enum phy_type {
-	PHY_TYPE_NONE = 0,
-	PHY_TYPE_TXC43128 = 1,
-	PHY_TYPE_88E1111 = 2,
-	PHY_TYPE_SFX7101 = 3,
-	PHY_TYPE_QT2022C2 = 4,
-	PHY_TYPE_PM8358 = 6,
-	PHY_TYPE_SFT9001A = 8,
-	PHY_TYPE_QT2025C = 9,
-	PHY_TYPE_SFT9001B = 10,
-	PHY_TYPE_MAX	/* Insert any new items before this */
-};
-
 #define EFX_IS10G(efx) ((efx)->link_state.speed == 10000)
 
 enum nic_state {
@@ -483,12 +470,6 @@ enum efx_fc_type {
 	EFX_FC_AUTO = 4,
 };
 
-/* Supported MAC bit-mask */
-enum efx_mac_type {
-	EFX_GMAC = 1,
-	EFX_XMAC = 2,
-};
-
 /**
  * struct efx_link_state - Current state of the link
  * @up: Link is up
@@ -524,6 +505,8 @@ struct efx_mac_operations {
 
 /**
  * struct efx_phy_operations - Efx PHY operations table
+ * @probe: Probe PHY and initialise efx->mdio.mode_support, efx->mdio.mmds,
+ *	efx->loopback_modes.
  * @init: Initialise PHY
  * @fini: Shut down PHY
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
@@ -533,15 +516,12 @@ struct efx_mac_operations {
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
- * @num_tests: Number of PHY-specific tests/results
- * @test_names: Names of the tests/results
+ * @test_name: Get the name of a PHY-specific test/result
  * @run_tests: Run tests and record results as appropriate.
  *	Flags are the ethtool tests flags.
- * @mmds: MMD presence mask
- * @loopbacks: Supported loopback modes mask
  */
 struct efx_phy_operations {
-	enum efx_mac_type macs;
+	int (*probe) (struct efx_nic *efx);
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
 	int (*reconfigure) (struct efx_nic *efx);
@@ -551,11 +531,8 @@ struct efx_phy_operations {
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
 	void (*set_npage_adv) (struct efx_nic *efx, u32);
-	u32 num_tests;
-	const char *const *test_names;
+	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
 	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
-	int mmds;
-	unsigned loopbacks;
 };
 
 /**
@@ -806,7 +783,7 @@ struct efx_nic {
 	struct efx_mac_operations *mac_op;
 	unsigned char mac_address[ETH_ALEN];
 
-	enum phy_type phy_type;
+	unsigned int phy_type;
 	struct mutex mdio_lock;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;

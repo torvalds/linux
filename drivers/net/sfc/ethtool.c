@@ -365,9 +365,21 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	efx_fill_test(n++, strings, data, &tests->registers,
 		      "core", 0, "registers", NULL);
 
-	for (i = 0; i < efx->phy_op->num_tests; i++)
-		efx_fill_test(n++, strings, data, &tests->phy[i],
-			      "phy", 0, efx->phy_op->test_names[i], NULL);
+	if (efx->phy_op->run_tests != NULL) {
+		EFX_BUG_ON_PARANOID(efx->phy_op->test_name == NULL);
+
+		for (i = 0; true; ++i) {
+			const char *name;
+
+			EFX_BUG_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
+			name = efx->phy_op->test_name(efx, i);
+			if (name == NULL)
+				break;
+
+			efx_fill_test(n++, strings, data, &tests->phy[i],
+				      "phy", 0, name, NULL);
+		}
+	}
 
 	/* Loopback tests */
 	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {

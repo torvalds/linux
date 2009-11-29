@@ -38,6 +38,26 @@ static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 	return efx_nic_rev(efx) < EFX_REV_FALCON_B0;
 }
 
+enum {
+	PHY_TYPE_NONE = 0,
+	PHY_TYPE_TXC43128 = 1,
+	PHY_TYPE_88E1111 = 2,
+	PHY_TYPE_SFX7101 = 3,
+	PHY_TYPE_QT2022C2 = 4,
+	PHY_TYPE_PM8358 = 6,
+	PHY_TYPE_SFT9001A = 8,
+	PHY_TYPE_QT2025C = 9,
+	PHY_TYPE_SFT9001B = 10,
+};
+
+#define FALCON_XMAC_LOOPBACKS			\
+	((1 << LOOPBACK_XGMII) |		\
+	 (1 << LOOPBACK_XGXS) |			\
+	 (1 << LOOPBACK_XAUI))
+
+#define FALCON_GMAC_LOOPBACKS			\
+	(1 << LOOPBACK_GMAC)
+
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM

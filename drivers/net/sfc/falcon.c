@@ -2291,19 +2291,12 @@ static int falcon_probe_port(struct efx_nic *efx)
 		return -ENODEV;
 	}
 
-	if (efx->phy_op->macs & EFX_XMAC)
-		efx->loopback_modes |= ((1 << LOOPBACK_XGMII) |
-					(1 << LOOPBACK_XGXS) |
-					(1 << LOOPBACK_XAUI));
-	if (efx->phy_op->macs & EFX_GMAC)
-		efx->loopback_modes |= (1 << LOOPBACK_GMAC);
-	efx->loopback_modes |= efx->phy_op->loopbacks;
-
-	/* Set up MDIO structure for PHY */
-	efx->mdio.mmds = efx->phy_op->mmds;
-	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+	/* Fill out MDIO structure and loopback modes */
 	efx->mdio.mdio_read = falcon_mdio_read;
 	efx->mdio.mdio_write = falcon_mdio_write;
+	rc = efx->phy_op->probe(efx);
+	if (rc != 0)
+		return rc;
 
 	/* Initial assumption */
 	efx->link_state.speed = 10000;

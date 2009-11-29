@@ -15,6 +15,7 @@
 #include "net_driver.h"
 #include "mdio_10g.h"
 #include "workarounds.h"
+#include "falcon.h"
 
 unsigned efx_mdio_id_oui(u32 id)
 {
@@ -312,8 +313,7 @@ void efx_mdio_an_reconfigure(struct efx_nic *efx)
 	/* Enable and restart AN */
 	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_CTRL1);
 	reg |= MDIO_AN_CTRL1_ENABLE;
-	if (!(EFX_WORKAROUND_15195(efx) &&
-	      LOOPBACK_MASK(efx) & efx->phy_op->loopbacks))
+	if (!(EFX_WORKAROUND_15195(efx) && LOOPBACK_EXTERNAL(efx)))
 		reg |= MDIO_AN_CTRL1_RESTART;
 	if (xnp)
 		reg |= MDIO_AN_CTRL1_XNP;

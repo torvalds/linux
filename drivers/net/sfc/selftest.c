@@ -100,7 +100,7 @@ static int efx_test_mdio(struct efx_nic *efx, struct efx_self_tests *tests)
 	}
 
 	if (EFX_IS10G(efx)) {
-		rc = efx_mdio_check_mmds(efx, efx->phy_op->mmds, 0);
+		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds, 0);
 		if (rc)
 			goto out;
 	}
@@ -252,9 +252,6 @@ static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
 
 	if (!efx->phy_op->run_tests)
 		return 0;
-
-	EFX_BUG_ON_PARANOID(efx->phy_op->num_tests == 0 ||
-			    efx->phy_op->num_tests > EFX_MAX_PHY_TESTS);
 
 	mutex_lock(&efx->mac_lock);
 	rc = efx->phy_op->run_tests(efx, tests->phy, flags);
