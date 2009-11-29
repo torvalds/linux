@@ -71,6 +71,7 @@ extern int efx_ethtool_set_settings(struct net_device *net_dev,
 extern const struct ethtool_ops efx_ethtool_ops;
 
 /* Reset handling */
+extern int efx_reset(struct efx_nic *efx, enum reset_type method);
 extern void efx_reset_down(struct efx_nic *efx, enum reset_type method);
 extern int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok);
 

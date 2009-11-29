@@ -880,6 +880,8 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  *	descriptors
  * @tx_dc_base: Base address in SRAM of TX queue descriptor caches
  * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
+ * @reset_world_flags: Flags for additional components covered by
+ *	reset method RESET_TYPE_WORLD
  */
 struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
@@ -915,6 +917,7 @@ struct efx_nic_type {
 	unsigned int phys_addr_channels;
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
+	u32 reset_world_flags;
 };
 
 /**************************************************************************

@@ -754,6 +754,35 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 	return efx->type->set_wol(efx, wol->wolopts);
 }
 
+extern int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	enum reset_type method;
+	enum {
+		ETH_RESET_EFX_INVISIBLE = (ETH_RESET_DMA | ETH_RESET_FILTER |
+					   ETH_RESET_OFFLOAD | ETH_RESET_MAC)
+	};
+
+	/* Check for minimal reset flags */
+	if ((*flags & ETH_RESET_EFX_INVISIBLE) != ETH_RESET_EFX_INVISIBLE)
+		return -EINVAL;
+	*flags ^= ETH_RESET_EFX_INVISIBLE;
+	method = RESET_TYPE_INVISIBLE;
+
+	if (*flags & ETH_RESET_PHY) {
+		*flags ^= ETH_RESET_PHY;
+		method = RESET_TYPE_ALL;
+	}
+
+	if ((*flags & efx->type->reset_world_flags) ==
+	    efx->type->reset_world_flags) {
+		*flags ^= efx->type->reset_world_flags;
+		method = RESET_TYPE_WORLD;
+	}
+
+	return efx_reset(efx, method);
+}
+
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
 	.set_settings		= efx_ethtool_set_settings,
@@ -784,4 +813,5 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_ethtool_stats	= efx_ethtool_get_stats,
 	.get_wol                = efx_ethtool_get_wol,
 	.set_wol                = efx_ethtool_set_wol,
+	.reset			= efx_ethtool_reset,
 };

@@ -1754,58 +1754,49 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	rc = efx->type->init(efx);
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise NIC\n");
-		ok = false;
+		goto fail;
 	}
+
+	if (!ok)
+		goto fail;
 
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE) {
-		if (ok) {
-			rc = efx->phy_op->init(efx);
-			if (rc)
-				ok = false;
-			if (efx->phy_op->reconfigure(efx))
-				EFX_ERR(efx, "could not restore PHY settings\n");
-		}
-		if (!ok)
-			efx->port_initialized = false;
+		rc = efx->phy_op->init(efx);
+		if (rc)
+			goto fail;
+		if (efx->phy_op->reconfigure(efx))
+			EFX_ERR(efx, "could not restore PHY settings\n");
 	}
 
-	if (ok) {
-		efx->mac_op->reconfigure(efx);
+	efx->mac_op->reconfigure(efx);
 
-		efx_init_channels(efx);
-	}
+	efx_init_channels(efx);
 
 	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
-	if (ok)
-		efx_start_all(efx);
+	efx_start_all(efx);
+
+	return 0;
+
+fail:
+	efx->port_initialized = false;
+
+	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&efx->mac_lock);
+
 	return rc;
 }
 
-/* Reset the NIC as transparently as possible. Do not reset the PHY
- * Note that the reset may fail, in which case the card will be left
- * in a most-probably-unusable state.
+/* Reset the NIC using the specified method.  Note that the reset may
+ * fail, in which case the card will be left in an unusable state.
  *
- * This function will sleep.  You cannot reset from within an atomic
- * state; use efx_schedule_reset() instead.
- *
- * Grabs the rtnl_lock.
+ * Caller must hold the rtnl_lock.
  */
-static int efx_reset(struct efx_nic *efx)
+int efx_reset(struct efx_nic *efx, enum reset_type method)
 {
-	enum reset_type method = efx->reset_pending;
-	int rc = 0;
-
-	/* Serialise with kernel interfaces */
-	rtnl_lock();
-
-	/* If we're not RUNNING then don't reset. Leave the reset_pending
-	 * flag set so that efx_pci_probe_main will be retried */
-	if (efx->state != STATE_RUNNING) {
-		EFX_INFO(efx, "scheduled reset quenched. NIC not RUNNING\n");
-		goto out_unlock;
-	}
+	int rc, rc2;
+	bool disabled;
 
 	EFX_INFO(efx, "resetting (%s)\n", RESET_TYPE(method));
 
@@ -1814,7 +1805,7 @@ static int efx_reset(struct efx_nic *efx)
 	rc = efx->type->reset(efx, method);
 	if (rc) {
 		EFX_ERR(efx, "failed to reset hardware\n");
-		goto out_disable;
+		goto out;
 	}
 
 	/* Allow resets to be rescheduled. */
@@ -1826,25 +1817,22 @@ static int efx_reset(struct efx_nic *efx)
 	 * can respond to requests. */
 	pci_set_master(efx->pci_dev);
 
+out:
 	/* Leave device stopped if necessary */
-	if (method == RESET_TYPE_DISABLE) {
-		efx_reset_up(efx, method, false);
-		rc = -EIO;
-	} else {
-		rc = efx_reset_up(efx, method, true);
+	disabled = rc || method == RESET_TYPE_DISABLE;
+	rc2 = efx_reset_up(efx, method, !disabled);
+	if (rc2) {
+		disabled = true;
+		if (!rc)
+			rc = rc2;
 	}
 
-out_disable:
-	if (rc) {
+	if (disabled) {
 		EFX_ERR(efx, "has been disabled\n");
 		efx->state = STATE_DISABLED;
-		dev_close(efx->net_dev);
 	} else {
 		EFX_LOG(efx, "reset complete\n");
 	}
-
-out_unlock:
-	rtnl_unlock();
 	return rc;
 }
 
@@ -1853,9 +1841,19 @@ out_unlock:
  */
 static void efx_reset_work(struct work_struct *data)
 {
-	struct efx_nic *nic = container_of(data, struct efx_nic, reset_work);
+	struct efx_nic *efx = container_of(data, struct efx_nic, reset_work);
 
-	efx_reset(nic);
+	/* If we're not RUNNING then don't reset. Leave the reset_pending
+	 * flag set so that efx_pci_probe_main will be retried */
+	if (efx->state != STATE_RUNNING) {
+		EFX_INFO(efx, "scheduled reset quenched. NIC not RUNNING\n");
+		return;
+	}
+
+	rtnl_lock();
+	if (efx_reset(efx, efx->reset_pending))
+		dev_close(efx->net_dev);
+	rtnl_unlock();
 }
 
 void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
