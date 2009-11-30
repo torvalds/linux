@@ -3267,14 +3267,14 @@ enum {
 };
 
 static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
-	{
+	[MWL8687] = {
 		.part_name	= "88w8687",
 		.helper_image	= "mwl8k/helper_8687.fw",
 		.fw_image	= "mwl8k/fmimage_8687.fw",
 		.rxd_ops	= &rxd_8687_ops,
 		.modes		= BIT(NL80211_IFTYPE_STATION),
 	},
-	{
+	[MWL8366] = {
 		.part_name	= "88w8366",
 		.helper_image	= "mwl8k/helper_8366.fw",
 		.fw_image	= "mwl8k/fmimage_8366.fw",
