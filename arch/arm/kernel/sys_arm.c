@@ -28,10 +28,6 @@
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
 
-extern unsigned long do_mremap(unsigned long addr, unsigned long old_len,
-			       unsigned long new_len, unsigned long flags,
-			       unsigned long new_addr);
-
 /* common code for old and new mmaps */
 inline long do_mmap2(
 	unsigned long addr, unsigned long len,
@@ -42,9 +38,6 @@ inline long do_mmap2(
 	struct file * file = NULL;
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	if (flags & MAP_FIXED && addr < FIRST_USER_ADDRESS)
-		goto out;
 
 	error = -EBADF;
 	if (!(flags & MAP_ANONYMOUS)) {
@@ -87,24 +80,6 @@ asmlinkage int old_mmap(struct mmap_arg_struct __user *arg)
 	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT);
 out:
 	return error;
-}
-
-asmlinkage unsigned long
-sys_arm_mremap(unsigned long addr, unsigned long old_len,
-	       unsigned long new_len, unsigned long flags,
-	       unsigned long new_addr)
-{
-	unsigned long ret = -EINVAL;
-
-	if (flags & MREMAP_FIXED && new_addr < FIRST_USER_ADDRESS)
-		goto out;
-
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-
-out:
-	return ret;
 }
 
 /*
