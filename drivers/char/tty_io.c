@@ -1347,9 +1347,7 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	 * If we fail here just call release_tty to clean up.  No need
 	 * to decrement the use counts, as release_tty doesn't care.
 	 */
-	lock_kernel();
 	retval = tty_ldisc_setup(tty, tty->link);
-	unlock_kernel();
 	if (retval)
 		goto release_mem_out;
 	return tty;
