@@ -248,9 +248,25 @@ static void moxa_wait_finish(void __iomem *ofsAddr)
 
 static void moxafunc(void __iomem *ofsAddr, u16 cmd, u16 arg)
 {
+        unsigned long flags;
+        spin_lock_irqsave(&moxafunc_lock, flags);
 	writew(arg, ofsAddr + FuncArg);
 	writew(cmd, ofsAddr + FuncCode);
 	moxa_wait_finish(ofsAddr);
+	spin_unlock_irqrestore(&moxafunc_lock, flags);
+}
+
+static int moxafuncret(void __iomem *ofsAddr, u16 cmd, u16 arg)
+{
+        unsigned long flags;
+        u16 ret;
+        spin_lock_irqsave(&moxafunc_lock, flags);
+	writew(arg, ofsAddr + FuncArg);
+	writew(cmd, ofsAddr + FuncCode);
+	moxa_wait_finish(ofsAddr);
+	ret = readw(ofsAddr + FuncArg);
+	spin_unlock_irqrestore(&moxafunc_lock, flags);
+	return ret;
 }
 
 static void moxa_low_water_check(void __iomem *ofsAddr)
@@ -417,6 +433,7 @@ static const struct tty_port_operations moxa_port_ops = {
 static struct tty_driver *moxaDriver;
 static DEFINE_TIMER(moxaTimer, moxa_poll, 0, 0);
 static DEFINE_SPINLOCK(moxa_lock);
+static DEFINE_SPINLOCK(moxafunc_lock);
 
 /*
  * HW init
@@ -1823,10 +1840,12 @@ static int MoxaPortSetTermio(struct moxa_port *port, struct ktermios *termio,
 	baud = MoxaPortSetBaud(port, baud);
 
 	if (termio->c_iflag & (IXON | IXOFF | IXANY)) {
+	        spin_lock_irq(&moxafunc_lock);
 		writeb(termio->c_cc[VSTART], ofsAddr + FuncArg);
 		writeb(termio->c_cc[VSTOP], ofsAddr + FuncArg1);
 		writeb(FC_SetXonXoff, ofsAddr + FuncCode);
 		moxa_wait_finish(ofsAddr);
+		spin_unlock_irqrestore(&moxafunc_lock);
 
 	}
 	return baud;
@@ -1879,12 +1898,10 @@ static int MoxaPortLineStatus(struct moxa_port *port)
 	int val;
 
 	ofsAddr = port->tableAddr;
-	if (MOXA_IS_320(port->board)) {
-		moxafunc(ofsAddr, FC_LineStatus, 0);
-		val = readw(ofsAddr + FuncArg);
-	} else {
+	if (MOXA_IS_320(port->board))
+		val = moxafuncret(ofsAddr, FC_LineStatus, 0);
+	else
 		val = readw(ofsAddr + FlagStat) >> 4;
-	}
 	val &= 0x0B;
 	if (val & 8)
 		val |= 4;
