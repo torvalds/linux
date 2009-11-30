@@ -163,6 +163,7 @@ static struct mon_str moxaLog;
 static unsigned int moxaFuncTout = HZ / 2;
 static unsigned int moxaLowWaterChk;
 static DEFINE_MUTEX(moxa_openlock);
+static DEFINE_SPINLOCK(moxa_lock);
 /* Variables for insmod */
 #ifdef MODULE
 static unsigned long baseaddr[MAX_BOARDS];
@@ -313,22 +314,20 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 		struct moxa_port *p;
 		unsigned int i, j;
 
-		mutex_lock(&moxa_openlock);
 		for (i = 0; i < MAX_BOARDS; i++) {
 			p = moxa_boards[i].ports;
 			for (j = 0; j < MAX_PORTS_PER_BOARD; j++, p++, argm++) {
 				memset(&tmp, 0, sizeof(tmp));
+				spin_lock_bh(&moxa_lock);
 				if (moxa_boards[i].ready) {
 					tmp.inq = MoxaPortRxQueue(p);
 					tmp.outq = MoxaPortTxQueue(p);
 				}
-				if (copy_to_user(argm, &tmp, sizeof(tmp))) {
-					mutex_unlock(&moxa_openlock);
+				spin_unlock_bh(&moxa_lock);
+				if (copy_to_user(argm, &tmp, sizeof(tmp)))
 					return -EFAULT;
-				}
 			}
 		}
-		mutex_unlock(&moxa_openlock);
 		break;
 	} case MOXA_GET_OQUEUE:
 		status = MoxaPortTxQueue(ch);
@@ -344,16 +343,20 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 		struct moxa_port *p;
 		unsigned int i, j;
 
-		mutex_lock(&moxa_openlock);
 		for (i = 0; i < MAX_BOARDS; i++) {
 			p = moxa_boards[i].ports;
 			for (j = 0; j < MAX_PORTS_PER_BOARD; j++, p++, argm++) {
 				struct tty_struct *ttyp;
 				memset(&tmp, 0, sizeof(tmp));
-				if (!moxa_boards[i].ready)
+				spin_lock_bh(&moxa_lock);
+				if (!moxa_boards[i].ready) {
+				        spin_unlock_bh(&moxa_lock);
 					goto copy;
+                                }
 
 				status = MoxaPortLineStatus(p);
+				spin_unlock_bh(&moxa_lock);
+
 				if (status & 1)
 					tmp.cts = 1;
 				if (status & 2)
@@ -368,13 +371,10 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 					tmp.cflag = ttyp->termios->c_cflag;
 				tty_kref_put(tty);
 copy:
-				if (copy_to_user(argm, &tmp, sizeof(tmp))) {
-					mutex_unlock(&moxa_openlock);
+				if (copy_to_user(argm, &tmp, sizeof(tmp)))
 					return -EFAULT;
-				}
 			}
 		}
-		mutex_unlock(&moxa_openlock);
 		break;
 	}
 	case TIOCGSERIAL:
@@ -427,7 +427,6 @@ static const struct tty_port_operations moxa_port_ops = {
 
 static struct tty_driver *moxaDriver;
 static DEFINE_TIMER(moxaTimer, moxa_poll, 0, 0);
-static DEFINE_SPINLOCK(moxa_lock);
 
 /*
  * HW init
