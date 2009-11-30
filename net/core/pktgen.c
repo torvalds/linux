@@ -2052,9 +2052,8 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 				read_lock_bh(&idev->lock);
 				for (ifp = idev->addr_list; ifp;
 				     ifp = ifp->if_next) {
-					if (ifp->scope == IFA_LINK
-					    && !(ifp->
-						 flags & IFA_F_TENTATIVE)) {
+					if (ifp->scope == IFA_LINK &&
+					    !(ifp->flags & IFA_F_TENTATIVE)) {
 						ipv6_addr_copy(&pkt_dev->
 							       cur_in6_saddr,
 							       &ifp->addr);

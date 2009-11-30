@@ -230,8 +230,8 @@ int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	int ret = 0;
 	u32 pos;
 
-	while ((prefill || rds_conn_up(conn))
-			&& rds_ib_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
+	while ((prefill || rds_conn_up(conn)) &&
+	       rds_ib_ring_alloc(&ic->i_recv_ring, 1, &pos)) {
 		if (pos >= ic->i_recv_ring.w_nr) {
 			printk(KERN_NOTICE "Argh - ring alloc returned pos=%u\n",
 					pos);
@@ -771,10 +771,10 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		hdr = &ibinc->ii_inc.i_hdr;
 		/* We can't just use memcmp here; fragments of a
 		 * single message may carry different ACKs */
-		if (hdr->h_sequence != ihdr->h_sequence
-		 || hdr->h_len != ihdr->h_len
-		 || hdr->h_sport != ihdr->h_sport
-		 || hdr->h_dport != ihdr->h_dport) {
+		if (hdr->h_sequence != ihdr->h_sequence ||
+		    hdr->h_len != ihdr->h_len ||
+		    hdr->h_sport != ihdr->h_sport ||
+		    hdr->h_dport != ihdr->h_dport) {
 			rds_ib_conn_error(conn,
 				"fragment header mismatch; forcing reconnect\n");
 			return;

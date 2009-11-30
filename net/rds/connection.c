@@ -133,10 +133,8 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 
 	spin_lock_irqsave(&rds_conn_lock, flags);
 	conn = rds_conn_lookup(head, laddr, faddr, trans);
-	if (conn
-	 && conn->c_loopback
-	 && conn->c_trans != &rds_loop_transport
-	 && !is_outgoing) {
+	if (conn && conn->c_loopback && conn->c_trans != &rds_loop_transport &&
+	    !is_outgoing) {
 		/* This is a looped back IB connection, and we're
 		 * called by the code handling the incoming connect.
 		 * We need a second connection object into which we

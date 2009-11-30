@@ -631,8 +631,8 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	sta_info_stop(local);
 	rate_control_deinitialize(local);
 
-	if (skb_queue_len(&local->skb_queue)
-			|| skb_queue_len(&local->skb_queue_unreliable))
+	if (skb_queue_len(&local->skb_queue) ||
+	    skb_queue_len(&local->skb_queue_unreliable))
 		printk(KERN_WARNING "%s: skb_queue not empty\n",
 		       wiphy_name(local->hw.wiphy));
 	skb_queue_purge(&local->skb_queue);

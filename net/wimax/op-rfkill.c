@@ -107,8 +107,8 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 
 	if (state != wimax_dev->rf_hw) {
 		wimax_dev->rf_hw = state;
-		if (wimax_dev->rf_hw == WIMAX_RF_ON
-		    && wimax_dev->rf_sw == WIMAX_RF_ON)
+		if (wimax_dev->rf_hw == WIMAX_RF_ON &&
+		    wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
@@ -163,8 +163,8 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 
 	if (state != wimax_dev->rf_sw) {
 		wimax_dev->rf_sw = state;
-		if (wimax_dev->rf_hw == WIMAX_RF_ON
-		    && wimax_dev->rf_sw == WIMAX_RF_ON)
+		if (wimax_dev->rf_hw == WIMAX_RF_ON &&
+		    wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;

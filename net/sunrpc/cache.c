@@ -401,9 +401,8 @@ static int cache_clean(void)
 		for (; ch; cp= & ch->next, ch= *cp) {
 			if (current_detail->nextcheck > ch->expiry_time)
 				current_detail->nextcheck = ch->expiry_time+1;
-			if (ch->expiry_time >= get_seconds()
-			    && ch->last_refresh >= current_detail->flush_time
-				)
+			if (ch->expiry_time >= get_seconds() &&
+			    ch->last_refresh >= current_detail->flush_time)
 				continue;
 			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
 				cache_dequeue(current_detail, ch);

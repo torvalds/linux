@@ -332,9 +332,9 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 		list_add_tail(&new->cr_lru, &free);
 	spin_unlock(&cache->lock);
 found:
-	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags)
-			&& cred->cr_ops->cr_init != NULL
-			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
+	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags) &&
+	    cred->cr_ops->cr_init != NULL &&
+	    !(flags & RPCAUTH_LOOKUP_NEW)) {
 		int res = cred->cr_ops->cr_init(auth, cred);
 		if (res < 0) {
 			put_rpccred(cred);

@@ -202,9 +202,9 @@ static inline int expect_clash(const struct nf_conntrack_expect *a,
 static inline int expect_matches(const struct nf_conntrack_expect *a,
 				 const struct nf_conntrack_expect *b)
 {
-	return a->master == b->master && a->class == b->class
-		&& nf_ct_tuple_equal(&a->tuple, &b->tuple)
-		&& nf_ct_tuple_mask_equal(&a->mask, &b->mask);
+	return a->master == b->master && a->class == b->class &&
+		nf_ct_tuple_equal(&a->tuple, &b->tuple) &&
+		nf_ct_tuple_mask_equal(&a->mask, &b->mask);
 }
 
 /* Generally a bad idea to call this: could have matched already. */

@@ -174,8 +174,8 @@ static unsigned int rds_poll(struct file *file, struct socket *sock,
 			mask |= (POLLIN | POLLRDNORM);
 		spin_unlock(&rs->rs_lock);
 	}
-	if (!list_empty(&rs->rs_recv_queue)
-	 || !list_empty(&rs->rs_notify_queue))
+	if (!list_empty(&rs->rs_recv_queue) ||
+	    !list_empty(&rs->rs_notify_queue))
 		mask |= (POLLIN | POLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
 		mask |= (POLLOUT | POLLWRNORM);
@@ -308,8 +308,8 @@ static int rds_getsockopt(struct socket *sock, int level, int optname,
 		if (len < sizeof(int))
 			ret = -EINVAL;
 		else
-		if (put_user(rs->rs_recverr, (int __user *) optval)
-		 || put_user(sizeof(int), optlen))
+		if (put_user(rs->rs_recverr, (int __user *) optval) ||
+		    put_user(sizeof(int), optlen))
 			ret = -EFAULT;
 		else
 			ret = 0;

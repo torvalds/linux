@@ -911,8 +911,9 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
  */
 static int wext_permission_check(unsigned int cmd)
 {
-	if ((IW_IS_SET(cmd) || cmd == SIOCGIWENCODE || cmd == SIOCGIWENCODEEXT)
-	    && !capable(CAP_NET_ADMIN))
+	if ((IW_IS_SET(cmd) || cmd == SIOCGIWENCODE ||
+	     cmd == SIOCGIWENCODEEXT) &&
+	    !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	return 0;

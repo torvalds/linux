@@ -191,8 +191,8 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
 				 __u32 tsn)
 {
 	if (primary->cacc.changeover_active &&
-	    (sctp_cacc_skip_3_1(primary, transport, count_of_newacks)
-	     || sctp_cacc_skip_3_2(primary, tsn)))
+	    (sctp_cacc_skip_3_1(primary, transport, count_of_newacks) ||
+	     sctp_cacc_skip_3_2(primary, tsn)))
 		return 1;
 	return 0;
 }

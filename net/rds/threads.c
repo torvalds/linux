@@ -170,8 +170,8 @@ void rds_shutdown_worker(struct work_struct *work)
 		 * handler is supposed to check for state DISCONNECTING
 		 */
 		mutex_lock(&conn->c_cm_lock);
-		if (!rds_conn_transition(conn, RDS_CONN_UP, RDS_CONN_DISCONNECTING)
-		 && !rds_conn_transition(conn, RDS_CONN_ERROR, RDS_CONN_DISCONNECTING)) {
+		if (!rds_conn_transition(conn, RDS_CONN_UP, RDS_CONN_DISCONNECTING) &&
+		    !rds_conn_transition(conn, RDS_CONN_ERROR, RDS_CONN_DISCONNECTING)) {
 			rds_conn_error(conn, "shutdown called in state %d\n",
 					atomic_read(&conn->c_state));
 			mutex_unlock(&conn->c_cm_lock);

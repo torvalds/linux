@@ -1168,8 +1168,8 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 			     rx->key))
 			return -EACCES;
 		/* BIP does not use Protected field, so need to check MMIE */
-		if (unlikely(ieee80211_is_multicast_robust_mgmt_frame(rx->skb)
-			     && ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
+		if (unlikely(ieee80211_is_multicast_robust_mgmt_frame(rx->skb) &&
+			     ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
 			     rx->key))
 			return -EACCES;
 		/*

@@ -633,8 +633,8 @@ static void p9_poll_mux(struct p9_conn *m)
 	if (n & POLLOUT) {
 		set_bit(Wpending, &m->wsched);
 		P9_DPRINTK(P9_DEBUG_TRANS, "mux %p can write\n", m);
-		if ((m->wsize || !list_empty(&m->unsent_req_list))
-		    && !test_and_set_bit(Wworksched, &m->wsched)) {
+		if ((m->wsize || !list_empty(&m->unsent_req_list)) &&
+		    !test_and_set_bit(Wworksched, &m->wsched)) {
 			P9_DPRINTK(P9_DEBUG_TRANS, "sched write work %p\n", m);
 			queue_work(p9_mux_wq, &m->wq);
 		}

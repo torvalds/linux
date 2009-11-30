@@ -1136,13 +1136,11 @@ restart:
 
 	/* Loop around if more data is required */
 
-	if ((sz_copied < buf_len)    /* didn't get all requested data */
-	    && (!skb_queue_empty(&sk->sk_receive_queue) ||
-		(flags & MSG_WAITALL))
-				     /* ... and more is ready or required */
-	    && (!(flags & MSG_PEEK)) /* ... and aren't just peeking at data */
-	    && (!err)                /* ... and haven't reached a FIN */
-	    )
+	if ((sz_copied < buf_len) &&	/* didn't get all requested data */
+	    (!skb_queue_empty(&sk->sk_receive_queue) ||
+	     (flags & MSG_WAITALL)) &&	/* and more is ready or required */
+	    (!(flags & MSG_PEEK)) &&	/* and aren't just peeking at data */
+	    (!err))			/* and haven't reached a FIN */
 		goto restart;
 
 exit:

@@ -375,8 +375,8 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 		return &d->rx[RX_ALL];
 
 	/* extra filterlists for the subscription of a single non-RTR can_id */
-	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS)
-	    && !(*can_id & CAN_RTR_FLAG)) {
+	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS) &&
+	    !(*can_id & CAN_RTR_FLAG)) {
 
 		if (*can_id & CAN_EFF_FLAG) {
 			if (*mask == (CAN_EFF_MASK | CAN_EFF_RTR_FLAGS)) {
@@ -525,8 +525,8 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 	 */
 
 	hlist_for_each_entry_rcu(r, next, rl, list) {
-		if (r->can_id == can_id && r->mask == mask
-		    && r->func == func && r->data == data)
+		if (r->can_id == can_id && r->mask == mask &&
+		    r->func == func && r->data == data)
 			break;
 	}
 

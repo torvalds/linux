@@ -581,8 +581,9 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 		DN_FIB_SCAN_KEY(f, fp, key) {
 			if (fi->fib_priority != DN_FIB_INFO(f)->fib_priority)
 				break;
-			if (f->fn_type == type && f->fn_scope == r->rtm_scope
-					&& DN_FIB_INFO(f) == fi)
+			if (f->fn_type == type &&
+			    f->fn_scope == r->rtm_scope &&
+			    DN_FIB_INFO(f) == fi)
 				goto out;
 		}
 

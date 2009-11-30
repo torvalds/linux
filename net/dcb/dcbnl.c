@@ -1085,8 +1085,8 @@ static int dcbnl_bcn_setcfg(struct net_device *netdev, struct nlattr **tb,
 	u8 value_byte;
 	u32 value_int;
 
-	if (!tb[DCB_ATTR_BCN] || !netdev->dcbnl_ops->setbcncfg
-	    || !netdev->dcbnl_ops->setbcnrp)
+	if (!tb[DCB_ATTR_BCN] || !netdev->dcbnl_ops->setbcncfg ||
+	    !netdev->dcbnl_ops->setbcnrp)
 		return ret;
 
 	ret = nla_parse_nested(data, DCB_BCN_ATTR_MAX,

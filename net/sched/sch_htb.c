@@ -1344,8 +1344,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		};
 
 		/* check for valid classid */
-		if (!classid || TC_H_MAJ(classid ^ sch->handle)
-		    || htb_find(classid, sch))
+		if (!classid || TC_H_MAJ(classid ^ sch->handle) ||
+		    htb_find(classid, sch))
 			goto failure;
 
 		/* check maximal depth */

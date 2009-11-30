@@ -105,8 +105,8 @@ static int rsi_match(struct cache_head *a, struct cache_head *b)
 {
 	struct rsi *item = container_of(a, struct rsi, h);
 	struct rsi *tmp = container_of(b, struct rsi, h);
-	return netobj_equal(&item->in_handle, &tmp->in_handle)
-		&& netobj_equal(&item->in_token, &tmp->in_token);
+	return netobj_equal(&item->in_handle, &tmp->in_handle) &&
+	       netobj_equal(&item->in_token, &tmp->in_token);
 }
 
 static int dup_to_netobj(struct xdr_netobj *dst, char *src, int len)

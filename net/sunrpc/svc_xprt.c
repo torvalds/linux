@@ -129,8 +129,8 @@ static void svc_xprt_free(struct kref *kref)
 	struct svc_xprt *xprt =
 		container_of(kref, struct svc_xprt, xpt_ref);
 	struct module *owner = xprt->xpt_class->xcl_owner;
-	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags)
-	    && xprt->xpt_auth_cache != NULL)
+	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags) &&
+	    xprt->xpt_auth_cache != NULL)
 		svcauth_unix_info_release(xprt->xpt_auth_cache);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
@@ -846,8 +846,8 @@ static void svc_age_temp_xprts(unsigned long closure)
 		 * through, close it. */
 		if (!test_and_set_bit(XPT_OLD, &xprt->xpt_flags))
 			continue;
-		if (atomic_read(&xprt->xpt_ref.refcount) > 1
-		    || test_bit(XPT_BUSY, &xprt->xpt_flags))
+		if (atomic_read(&xprt->xpt_ref.refcount) > 1 ||
+		    test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
 		svc_xprt_get(xprt);
 		list_move(le, &to_be_aged);

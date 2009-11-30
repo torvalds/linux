@@ -936,17 +936,16 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 	}
 
 	if (mpath->flags & MESH_PATH_ACTIVE) {
-		if (time_after(jiffies, mpath->exp_time +
-			msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time))
-				&& !memcmp(sdata->dev->dev_addr, hdr->addr4,
-					   ETH_ALEN)
-				&& !(mpath->flags & MESH_PATH_RESOLVING)
-				&& !(mpath->flags & MESH_PATH_FIXED)) {
+		if (time_after(jiffies,
+			       mpath->exp_time +
+			       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
+		    !memcmp(sdata->dev->dev_addr, hdr->addr4, ETH_ALEN) &&
+		    !(mpath->flags & MESH_PATH_RESOLVING) &&
+		    !(mpath->flags & MESH_PATH_FIXED)) {
 			mesh_queue_preq(mpath,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
-		memcpy(hdr->addr1, mpath->next_hop->sta.addr,
-				ETH_ALEN);
+		memcpy(hdr->addr1, mpath->next_hop->sta.addr, ETH_ALEN);
 	} else {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {

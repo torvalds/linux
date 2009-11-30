@@ -2356,8 +2356,8 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	    pmtud_change     == SPP_PMTUD ||
 	    sackdelay_change == SPP_SACKDELAY ||
 	    params.spp_sackdelay > 500 ||
-	    (params.spp_pathmtu
-	    && params.spp_pathmtu < SCTP_DEFAULT_MINSEGMENT))
+	    (params.spp_pathmtu &&
+	     params.spp_pathmtu < SCTP_DEFAULT_MINSEGMENT))
 		return -EINVAL;
 
 	/* If an address other than INADDR_ANY is specified, and

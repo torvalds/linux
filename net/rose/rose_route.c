@@ -77,8 +77,9 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 
 	rose_neigh = rose_neigh_list;
 	while (rose_neigh != NULL) {
-		if (ax25cmp(&rose_route->neighbour, &rose_neigh->callsign) == 0
-		    && rose_neigh->dev == dev)
+		if (ax25cmp(&rose_route->neighbour,
+			    &rose_neigh->callsign) == 0 &&
+		    rose_neigh->dev == dev)
 			break;
 		rose_neigh = rose_neigh->next;
 	}
@@ -311,8 +312,9 @@ static int rose_del_node(struct rose_route_struct *rose_route,
 
 	rose_neigh = rose_neigh_list;
 	while (rose_neigh != NULL) {
-		if (ax25cmp(&rose_route->neighbour, &rose_neigh->callsign) == 0
-		    && rose_neigh->dev == dev)
+		if (ax25cmp(&rose_route->neighbour,
+			    &rose_neigh->callsign) == 0 &&
+		    rose_neigh->dev == dev)
 			break;
 		rose_neigh = rose_neigh->next;
 	}

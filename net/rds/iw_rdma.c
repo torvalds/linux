@@ -573,8 +573,8 @@ void rds_iw_free_mr(void *trans_private, int invalidate)
 	rds_iw_free_fastreg(pool, ibmr);
 
 	/* If we've pinned too many pages, request a flush */
-	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned
-	 || atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
+	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
 		queue_work(rds_wq, &pool->flush_worker);
 
 	if (invalidate) {

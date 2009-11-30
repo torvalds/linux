@@ -714,8 +714,8 @@ static int pep_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			return -EINVAL;
 
 		lock_sock(sk);
-		if (sock_flag(sk, SOCK_URGINLINE)
-		 && !skb_queue_empty(&pn->ctrlreq_queue))
+		if (sock_flag(sk, SOCK_URGINLINE) &&
+		    !skb_queue_empty(&pn->ctrlreq_queue))
 			answ = skb_peek(&pn->ctrlreq_queue)->len;
 		else if (!skb_queue_empty(&sk->sk_receive_queue))
 			answ = skb_peek(&sk->sk_receive_queue)->len;

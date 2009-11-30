@@ -377,8 +377,8 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 	}
 
 	/* Even if len is crap *now* I still want to check it. -ASG */
-	if (event->param.conn.private_data_len < sizeof (*dp)
-	    || dp->dp_protocol_major == 0)
+	if (event->param.conn.private_data_len < sizeof (*dp) ||
+	    dp->dp_protocol_major == 0)
 		return RDS_PROTOCOL_3_0;
 
 	common = be16_to_cpu(dp->dp_protocol_minor_mask) & RDS_IB_SUPPORTED_PROTOCOLS;

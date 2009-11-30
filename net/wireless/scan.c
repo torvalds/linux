@@ -937,8 +937,8 @@ ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
 		ie += ie[1] + 2;
 	}
 
-	if (bss->pub.capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)
-	    || ismesh) {
+	if (bss->pub.capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS) ||
+	    ismesh) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWMODE;
 		if (ismesh)
