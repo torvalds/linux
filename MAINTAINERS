@@ -2562,8 +2562,7 @@ S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
 F:	include/linux/i2c.h
-F:	include/linux/i2c-dev.h
-F:	include/linux/i2c-id.h
+F:	include/linux/i2c-*.h
 
 I2C-TINY-USB DRIVER
 M:	Till Harbaum <till@harbaum.org>
