@@ -34,7 +34,6 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -202,7 +201,6 @@ static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(unsigned long);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
-static void moxa_setup_empty_event(struct tty_struct *);
 static void moxa_shutdown(struct tty_port *);
 static int moxa_carrier_raised(struct tty_port *);
 static void moxa_dtr_rts(struct tty_port *, int);
@@ -1251,17 +1249,13 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 	struct moxa_port *ch = tty->driver_data;
 	int chars;
 
-	lock_kernel();
 	chars = MoxaPortTxQueue(ch);
-	if (chars) {
+	if (chars)
 		/*
 		 * Make it possible to wakeup anything waiting for output
 		 * in tty_ioctl.c, etc.
 		 */
-		if (!test_bit(EMPTYWAIT, &ch->statusflags))
-			moxa_setup_empty_event(tty);
-	}
-	unlock_kernel();
+        	set_bit(EMPTYWAIT, &ch->statusflags);
 	return chars;
 }
 
@@ -1501,12 +1495,6 @@ static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_term
 		baud = tty_termios_baud_rate(old_termios);
 	/* Not put the baud rate into the termios data */
 	tty_encode_baud_rate(tty, baud, baud);
-}
-
-static void moxa_setup_empty_event(struct tty_struct *tty)
-{
-	struct moxa_port *ch = tty->driver_data;
-	set_bit(EMPTYWAIT, &ch->statusflags);
 }
 
 /*****************************************************************************
