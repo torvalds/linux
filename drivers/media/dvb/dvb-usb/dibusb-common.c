@@ -142,8 +142,13 @@ static int dibusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		} else if ((msg[i].flags & I2C_M_RD) == 0) {
 			if (dibusb_i2c_msg(d, msg[i].addr, msg[i].buf,msg[i].len,NULL,0) < 0)
 				break;
-		} else
-			break;
+		} else if (msg[i].addr != 0x50) {
+			/* 0x50 is the address of the eeprom - we need to protect it
+			 * from dibusb's bad i2c implementation: reads without
+			 * writing the offset before are forbidden */
+			if (dibusb_i2c_msg(d, msg[i].addr, NULL, 0, msg[i].buf, msg[i].len) < 0)
+				break;
+		}
 	}
 
 	mutex_unlock(&d->i2c_mutex);
