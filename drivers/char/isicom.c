@@ -887,7 +887,6 @@ static void isicom_shutdown_port(struct isi_port *port)
 {
 	struct isi_board *card = port->card;
 
-	tty_port_free_xmit_buf(&port->port);
 	if (--card->count < 0) {
 		pr_dbg("isicom_shutdown_port: bad board(0x%lx) count %d.\n",
 			card->base, card->count);
@@ -927,6 +926,7 @@ static void isicom_shutdown(struct tty_port *port)
 	outw(card->port_status, card->base + 0x02);
 	isicom_shutdown_port(ip);
 	spin_unlock_irqrestore(&card->card_lock, flags);
+	tty_port_free_xmit_buf(port);
 }
 
 static void isicom_close(struct tty_struct *tty, struct file *filp)
