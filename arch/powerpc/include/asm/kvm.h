@@ -47,7 +47,23 @@ struct kvm_regs {
 
 struct kvm_sregs {
 	__u32 pvr;
-	char pad[1020];
+	union {
+		struct {
+			__u64 sdr1;
+			struct {
+				struct {
+					__u64 slbe;
+					__u64 slbv;
+				} slb[64];
+			} ppc64;
+			struct {
+				__u32 sr[16];
+				__u64 ibat[8]; 
+				__u64 dbat[8]; 
+			} ppc32;
+		} s;
+		__u8 pad[1020];
+	} u;
 };
 
 struct kvm_fpu {

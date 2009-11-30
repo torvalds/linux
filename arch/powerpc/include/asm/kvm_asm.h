@@ -87,6 +87,7 @@
 #define BOOK3S_IRQPRIO_MAX			16
 
 #define BOOK3S_HFLAG_DCBZ32			0x1
+#define BOOK3S_HFLAG_SLB			0x2
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */

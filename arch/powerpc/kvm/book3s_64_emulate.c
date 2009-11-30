@@ -185,7 +185,27 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return emulated;
 }
 
-static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u64 val)
+void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat, bool upper,
+                    u32 val)
+{
+	if (upper) {
+		/* Upper BAT */
+		u32 bl = (val >> 2) & 0x7ff;
+		bat->bepi_mask = (~bl << 17);
+		bat->bepi = val & 0xfffe0000;
+		bat->vs = (val & 2) ? 1 : 0;
+		bat->vp = (val & 1) ? 1 : 0;
+		bat->raw = (bat->raw & 0xffffffff00000000ULL) | val;
+	} else {
+		/* Lower BAT */
+		bat->brpn = val & 0xfffe0000;
+		bat->wimg = (val >> 3) & 0xf;
+		bat->pp = val & 3;
+		bat->raw = (bat->raw & 0x00000000ffffffffULL) | ((u64)val << 32);
+	}
+}
+
+static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u32 val)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	struct kvmppc_bat *bat;
@@ -207,19 +227,7 @@ static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u64 val)
 		BUG();
 	}
 
-	if (!(sprn % 2)) {
-		/* Upper BAT */
-		u32 bl = (val >> 2) & 0x7ff;
-		bat->bepi_mask = (~bl << 17);
-		bat->bepi = val & 0xfffe0000;
-		bat->vs = (val & 2) ? 1 : 0;
-		bat->vp = (val & 1) ? 1 : 0;
-	} else {
-		/* Lower BAT */
-		bat->brpn = val & 0xfffe0000;
-		bat->wimg = (val >> 3) & 0xf;
-		bat->pp = val & 3;
-	}
+	kvmppc_set_bat(vcpu, bat, !(sprn % 2), val);
 }
 
 int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
@@ -243,7 +251,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_IBAT4U ... SPRN_IBAT7L:
 	case SPRN_DBAT0U ... SPRN_DBAT3L:
 	case SPRN_DBAT4U ... SPRN_DBAT7L:
-		kvmppc_write_bat(vcpu, sprn, vcpu->arch.gpr[rs]);
+		kvmppc_write_bat(vcpu, sprn, (u32)vcpu->arch.gpr[rs]);
 		/* BAT writes happen so rarely that we're ok to flush
 		 * everything here */
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);

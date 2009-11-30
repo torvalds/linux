@@ -473,4 +473,6 @@ void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu)
 	mmu->esid_to_vsid = kvmppc_mmu_book3s_64_esid_to_vsid;
 	mmu->ea_to_vp = kvmppc_mmu_book3s_64_ea_to_vp;
 	mmu->is_dcbz32 = kvmppc_mmu_book3s_64_is_dcbz32;
+
+	vcpu->arch.hflags |= BOOK3S_HFLAG_SLB;
 }

@@ -436,6 +436,9 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_IOEVENTFD 36
 #define KVM_CAP_SET_IDENTITY_MAP_ADDR 37
+/* KVM upstream has more features, but we synched this number.
+   Linux, please remove this comment on rebase. */
+#define KVM_CAP_PPC_SEGSTATE 43
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

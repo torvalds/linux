@@ -281,6 +281,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 
 void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 {
+	vcpu->arch.hflags &= ~BOOK3S_HFLAG_SLB;
 	vcpu->arch.pvr = pvr;
 	if ((pvr >= 0x330000) && (pvr < 0x70330000)) {
 		kvmppc_mmu_book3s_64_init(vcpu);
@@ -762,14 +763,62 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
+	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
+	int i;
+
 	sregs->pvr = vcpu->arch.pvr;
+
+	sregs->u.s.sdr1 = to_book3s(vcpu)->sdr1;
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_SLB) {
+		for (i = 0; i < 64; i++) {
+			sregs->u.s.ppc64.slb[i].slbe = vcpu3s->slb[i].orige | i;
+			sregs->u.s.ppc64.slb[i].slbv = vcpu3s->slb[i].origv;
+		}
+	} else {
+		for (i = 0; i < 16; i++) {
+			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i].raw;
+			sregs->u.s.ppc32.sr[i] = vcpu3s->sr[i].raw;
+		}
+		for (i = 0; i < 8; i++) {
+			sregs->u.s.ppc32.ibat[i] = vcpu3s->ibat[i].raw;
+			sregs->u.s.ppc32.dbat[i] = vcpu3s->dbat[i].raw;
+		}
+	}
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
+	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
+	int i;
+
 	kvmppc_set_pvr(vcpu, sregs->pvr);
+
+	vcpu3s->sdr1 = sregs->u.s.sdr1;
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_SLB) {
+		for (i = 0; i < 64; i++) {
+			vcpu->arch.mmu.slbmte(vcpu, sregs->u.s.ppc64.slb[i].slbv,
+						    sregs->u.s.ppc64.slb[i].slbe);
+		}
+	} else {
+		for (i = 0; i < 16; i++) {
+			vcpu->arch.mmu.mtsrin(vcpu, i, sregs->u.s.ppc32.sr[i]);
+		}
+		for (i = 0; i < 8; i++) {
+			kvmppc_set_bat(vcpu, &(vcpu3s->ibat[i]), false,
+				       (u32)sregs->u.s.ppc32.ibat[i]);
+			kvmppc_set_bat(vcpu, &(vcpu3s->ibat[i]), true,
+				       (u32)(sregs->u.s.ppc32.ibat[i] >> 32));
+			kvmppc_set_bat(vcpu, &(vcpu3s->dbat[i]), false,
+				       (u32)sregs->u.s.ppc32.dbat[i]);
+			kvmppc_set_bat(vcpu, &(vcpu3s->dbat[i]), true,
+				       (u32)(sregs->u.s.ppc32.dbat[i] >> 32));
+		}
+	}
+
+	/* Flush the MMU after messing with the segments */
+	kvmppc_mmu_pte_flush(vcpu, 0, 0);
 	return 0;
 }
 
