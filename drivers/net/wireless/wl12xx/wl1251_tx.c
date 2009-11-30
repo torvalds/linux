@@ -219,6 +219,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			/* align the buffer on a 4-byte boundary */
 			skb_reserve(skb, offset);
 			memmove(skb->data, src, skb->len);
+			tx_hdr = (struct tx_double_buffer_desc *) skb->data;
 		} else {
 			wl1251_info("No handler, fixme!");
 			return -EINVAL;
