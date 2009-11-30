@@ -1166,6 +1166,36 @@ struct wl1251_acx_wr_tbtt_and_dtim {
 	u8  padding;
 } __attribute__ ((packed));
 
+struct wl1251_acx_ac_cfg {
+	struct acx_header header;
+
+	/*
+	 * Access Category - The TX queue's access category
+	 * (refer to AccessCategory_enum)
+	 */
+	u8 ac;
+
+	/*
+	 * The contention window minimum size (in slots) for
+	 * the access class.
+	 */
+	u8 cw_min;
+
+	/*
+	 * The contention window maximum size (in slots) for
+	 * the access class.
+	 */
+	u16 cw_max;
+
+	/* The AIF value (in slots) for the access class. */
+	u8 aifsn;
+
+	u8 reserved;
+
+	/* The TX Op Limit (in microseconds) for the access class. */
+	u16 txop_limit;
+} __attribute__ ((packed));
+
 /*************************************************************************
 
     Host Interrupt Register (WiLink -> Host)
@@ -1322,5 +1352,7 @@ int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
 int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
+int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifs, u16 txop);
 
 #endif /* __WL1251_ACX_H__ */

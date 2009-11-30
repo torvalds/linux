@@ -1285,6 +1285,32 @@ static struct ieee80211_channel wl1251_channels[] = {
 	{ .hw_value = 13, .center_freq = 2472},
 };
 
+static int wl1251_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			     const struct ieee80211_tx_queue_params *params)
+{
+	struct wl1251 *wl = hw->priv;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1251_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1251_acx_ac_cfg(wl, wl1251_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop);
+
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1251_band_2ghz = {
 	.channels = wl1251_channels,
@@ -1305,6 +1331,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.hw_scan = wl1251_op_hw_scan,
 	.bss_info_changed = wl1251_op_bss_info_changed,
 	.set_rts_threshold = wl1251_op_set_rts_threshold,
+	.conf_tx = wl1251_op_conf_tx,
 };
 
 static int wl1251_register_hw(struct wl1251 *wl)
