@@ -170,7 +170,7 @@ static u32 cvm_oct_get_link(struct net_device *dev)
 	return ret;
 }
 
-struct const ethtool_ops cvm_oct_ethtool_ops = {
+const struct ethtool_ops cvm_oct_ethtool_ops = {
 	.get_drvinfo = cvm_oct_get_drvinfo,
 	.get_settings = cvm_oct_get_settings,
 	.set_settings = cvm_oct_set_settings,
