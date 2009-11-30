@@ -1816,6 +1816,7 @@ static void cfs_rq_set_shares(struct cfs_rq *cfs_rq, unsigned long shares)
 
 static void calc_load_account_active(struct rq *this_rq);
 static void update_sysctl(void);
+static int get_update_sysctl_factor(void);
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {
@@ -7030,9 +7031,9 @@ cpumask_var_t nohz_cpu_mask;
  *
  * This idea comes from the SD scheduler of Con Kolivas:
  */
-static void update_sysctl(void)
+static int get_update_sysctl_factor(void)
 {
-	unsigned int cpus = min(num_online_cpus(), 8U);
+	unsigned int cpus = min(num_online_cpus(), 8);
 	unsigned int factor;
 
 	switch (sysctl_sched_tunable_scaling) {
@@ -7047,6 +7048,13 @@ static void update_sysctl(void)
 		factor = 1 + ilog2(cpus);
 		break;
 	}
+
+	return factor;
+}
+
+static void update_sysctl(void)
+{
+	unsigned int factor = get_update_sysctl_factor();
 
 #define SET_SYSCTL(name) \
 	(sysctl_##name = (factor) * normalized_sysctl_##name)
