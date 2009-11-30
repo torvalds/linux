@@ -849,7 +849,7 @@ no_csum:
 	return 0;
 }
 
-static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int queue;
