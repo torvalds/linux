@@ -707,6 +707,8 @@ void disassociate_ctty(int on_exit)
 	struct tty_struct *tty;
 	struct pid *tty_pgrp = NULL;
 
+	if (!current->signal->leader)
+		return;
 
 	tty = get_current_tty();
 	if (tty) {
@@ -772,8 +774,7 @@ void no_tty(void)
 {
 	struct task_struct *tsk = current;
 	lock_kernel();
-	if (tsk->signal->leader)
-		disassociate_ctty(0);
+	disassociate_ctty(0);
 	unlock_kernel();
 	proc_clear_tty(tsk);
 }
