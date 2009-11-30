@@ -473,7 +473,6 @@ struct dlm_ls {
 	int			ls_low_nodeid;
 	int			ls_total_weight;
 	int			*ls_node_array;
-	gfp_t			ls_allocation;
 
 	struct dlm_rsb		ls_stub_rsb;	/* for returning errors */
 	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */
