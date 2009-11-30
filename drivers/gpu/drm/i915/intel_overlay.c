@@ -842,11 +842,14 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
+	if (overlay->hw_wedged) {
+		ret = intel_overlay_recover_from_interrupt(overlay, 1);
+		if (ret != 0)
+			return ret;
+	}
+
 	if (!overlay->active)
 		return 0;
-
-	if (overlay->hw_wedged)
-		return -EBUSY;
 
 	ret = intel_overlay_release_old_vid(overlay);
 	if (ret != 0)
