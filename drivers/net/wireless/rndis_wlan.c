@@ -2594,23 +2594,9 @@ end:
 /*
  * driver/device initialization
  */
-static int bcm4320a_early_init(struct usbnet *usbdev)
-{
-	/* bcm4320a doesn't handle configuration parameters well. Try
-	 * set any and you get partially zeroed mac and broken device.
-	 */
-
-	return 0;
-}
-
-static int bcm4320b_early_init(struct usbnet *usbdev)
+static void rndis_copy_module_params(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
-	char buf[8];
-
-	/* Early initialization settings, setting these won't have effect
-	 * if called after generic_rndis_bind().
-	 */
 
 	priv->param_country[0] = modparam_country[0];
 	priv->param_country[1] = modparam_country[1];
@@ -2652,6 +2638,27 @@ static int bcm4320b_early_init(struct usbnet *usbdev)
 		priv->param_workaround_interval = 500;
 	else
 		priv->param_workaround_interval = modparam_workaround_interval;
+}
+
+static int bcm4320a_early_init(struct usbnet *usbdev)
+{
+	/* bcm4320a doesn't handle configuration parameters well. Try
+	 * set any and you get partially zeroed mac and broken device.
+	 */
+
+	return 0;
+}
+
+static int bcm4320b_early_init(struct usbnet *usbdev)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	char buf[8];
+
+	rndis_copy_module_params(usbdev);
+
+	/* Early initialization settings, setting these won't have effect
+	 * if called after generic_rndis_bind().
+	 */
 
 	rndis_set_config_parameter_str(usbdev, "Country", priv->param_country);
 	rndis_set_config_parameter_str(usbdev, "FrameBursting",
