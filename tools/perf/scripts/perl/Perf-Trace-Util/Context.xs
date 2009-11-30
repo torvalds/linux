@@ -28,14 +28,14 @@ MODULE = Perf::Trace::Context		PACKAGE = Perf::Trace::Context
 PROTOTYPES: ENABLE
 
 int
-get_common_pc(context)
+common_pc(context)
 	struct scripting_context * context
 
 int
-get_common_flags(context)
+common_flags(context)
 	struct scripting_context * context
 
 int
-get_common_lock_depth(context)
+common_lock_depth(context)
 	struct scripting_context * context
 

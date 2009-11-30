@@ -39,8 +39,8 @@
 
 #line 41 "Context.c"
 
-XS(XS_Perf__Trace__Context_get_common_pc); /* prototype to pass -Wmissing-prototypes */
-XS(XS_Perf__Trace__Context_get_common_pc)
+XS(XS_Perf__Trace__Context_common_pc); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Perf__Trace__Context_common_pc)
 {
 #ifdef dVAR
     dVAR; dXSARGS;
@@ -48,22 +48,22 @@ XS(XS_Perf__Trace__Context_get_common_pc)
     dXSARGS;
 #endif
     if (items != 1)
-       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::get_common_pc", "context");
+       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::common_pc", "context");
     PERL_UNUSED_VAR(cv); /* -W */
     {
 	struct scripting_context *	context = INT2PTR(struct scripting_context *,SvIV(ST(0)));
 	int	RETVAL;
 	dXSTARG;
 
-	RETVAL = get_common_pc(context);
+	RETVAL = common_pc(context);
 	XSprePUSH; PUSHi((IV)RETVAL);
     }
     XSRETURN(1);
 }
 
 
-XS(XS_Perf__Trace__Context_get_common_flags); /* prototype to pass -Wmissing-prototypes */
-XS(XS_Perf__Trace__Context_get_common_flags)
+XS(XS_Perf__Trace__Context_common_flags); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Perf__Trace__Context_common_flags)
 {
 #ifdef dVAR
     dVAR; dXSARGS;
@@ -71,22 +71,22 @@ XS(XS_Perf__Trace__Context_get_common_flags)
     dXSARGS;
 #endif
     if (items != 1)
-       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::get_common_flags", "context");
+       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::common_flags", "context");
     PERL_UNUSED_VAR(cv); /* -W */
     {
 	struct scripting_context *	context = INT2PTR(struct scripting_context *,SvIV(ST(0)));
 	int	RETVAL;
 	dXSTARG;
 
-	RETVAL = get_common_flags(context);
+	RETVAL = common_flags(context);
 	XSprePUSH; PUSHi((IV)RETVAL);
     }
     XSRETURN(1);
 }
 
 
-XS(XS_Perf__Trace__Context_get_common_lock_depth); /* prototype to pass -Wmissing-prototypes */
-XS(XS_Perf__Trace__Context_get_common_lock_depth)
+XS(XS_Perf__Trace__Context_common_lock_depth); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Perf__Trace__Context_common_lock_depth)
 {
 #ifdef dVAR
     dVAR; dXSARGS;
@@ -94,14 +94,14 @@ XS(XS_Perf__Trace__Context_get_common_lock_depth)
     dXSARGS;
 #endif
     if (items != 1)
-       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::get_common_lock_depth", "context");
+       Perl_croak(aTHX_ "Usage: %s(%s)", "Perf::Trace::Context::common_lock_depth", "context");
     PERL_UNUSED_VAR(cv); /* -W */
     {
 	struct scripting_context *	context = INT2PTR(struct scripting_context *,SvIV(ST(0)));
 	int	RETVAL;
 	dXSTARG;
 
-	RETVAL = get_common_lock_depth(context);
+	RETVAL = common_lock_depth(context);
 	XSprePUSH; PUSHi((IV)RETVAL);
     }
     XSRETURN(1);
@@ -124,9 +124,9 @@ XS(boot_Perf__Trace__Context)
     PERL_UNUSED_VAR(items); /* -W */
     XS_VERSION_BOOTCHECK ;
 
-        newXSproto("Perf::Trace::Context::get_common_pc", XS_Perf__Trace__Context_get_common_pc, file, "$");
-        newXSproto("Perf::Trace::Context::get_common_flags", XS_Perf__Trace__Context_get_common_flags, file, "$");
-        newXSproto("Perf::Trace::Context::get_common_lock_depth", XS_Perf__Trace__Context_get_common_lock_depth, file, "$");
+        newXSproto("Perf::Trace::Context::common_pc", XS_Perf__Trace__Context_common_pc, file, "$");
+        newXSproto("Perf::Trace::Context::common_flags", XS_Perf__Trace__Context_common_flags, file, "$");
+        newXSproto("Perf::Trace::Context::common_lock_depth", XS_Perf__Trace__Context_common_lock_depth, file, "$");
     if (PL_unitcheckav)
          call_list(PL_scopestack_ix, PL_unitcheckav);
     XSRETURN_YES;

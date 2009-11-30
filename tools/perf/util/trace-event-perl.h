@@ -44,8 +44,8 @@ struct scripting_context {
 	void *event_data;
 };
 
-int get_common_pc(struct scripting_context *context);
-int get_common_flags(struct scripting_context *context);
-int get_common_lock_depth(struct scripting_context *context);
+int common_pc(struct scripting_context *context);
+int common_flags(struct scripting_context *context);
+int common_lock_depth(struct scripting_context *context);
 
 #endif /* __PERF_TRACE_EVENT_PERL_H */
