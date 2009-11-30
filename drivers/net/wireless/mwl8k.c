@@ -1579,8 +1579,8 @@ static void mwl8k_fw_unlock(struct ieee80211_hw *hw)
  * Command processing.
  */
 
-/* Timeout firmware commands after 2000ms */
-#define MWL8K_CMD_TIMEOUT_MS	2000
+/* Timeout firmware commands after 10s */
+#define MWL8K_CMD_TIMEOUT_MS	10000
 
 static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 {
@@ -1631,12 +1631,21 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 		       MWL8K_CMD_TIMEOUT_MS);
 		rc = -ETIMEDOUT;
 	} else {
+		int ms;
+
+		ms = MWL8K_CMD_TIMEOUT_MS - jiffies_to_msecs(timeout);
+
 		rc = cmd->result ? -EINVAL : 0;
 		if (rc)
 			printk(KERN_ERR "%s: Command %s error 0x%x\n",
 			       wiphy_name(hw->wiphy),
 			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 			       le16_to_cpu(cmd->result));
+		else if (ms > 2000)
+			printk(KERN_NOTICE "%s: Command %s took %d ms\n",
+			       wiphy_name(hw->wiphy),
+			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
+			       ms);
 	}
 
 	return rc;
