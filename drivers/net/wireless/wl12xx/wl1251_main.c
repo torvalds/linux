@@ -645,20 +645,25 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * through the bss_info_changed() hook.
 		 */
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		if (ret < 0)
+			goto out_sleep;
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
 
-		if (wl->psm)
+		if (wl->psm) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			if (ret < 0)
+				goto out_sleep;
+		}
 	}
 
 	if (conf->power_level != wl->power_level) {
 		ret = wl1251_acx_tx_power(wl, conf->power_level);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		wl->power_level = conf->power_level;
 	}
