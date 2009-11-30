@@ -482,7 +482,7 @@ static ssize_t host_store_rescan(struct device *dev,
 
 	return count;
 }
-DEVICE_ATTR(rescan, S_IWUSR, NULL, host_store_rescan);
+static DEVICE_ATTR(rescan, S_IWUSR, NULL, host_store_rescan);
 
 static ssize_t dev_show_unique_id(struct device *dev,
 				 struct device_attribute *attr,
@@ -512,7 +512,7 @@ static ssize_t dev_show_unique_id(struct device *dev,
 				sn[8], sn[9], sn[10], sn[11],
 				sn[12], sn[13], sn[14], sn[15]);
 }
-DEVICE_ATTR(unique_id, S_IRUGO, dev_show_unique_id, NULL);
+static DEVICE_ATTR(unique_id, S_IRUGO, dev_show_unique_id, NULL);
 
 static ssize_t dev_show_vendor(struct device *dev,
 			       struct device_attribute *attr,
@@ -536,7 +536,7 @@ static ssize_t dev_show_vendor(struct device *dev,
 	else
 		return snprintf(buf, sizeof(vendor) + 1, "%s\n", drv->vendor);
 }
-DEVICE_ATTR(vendor, S_IRUGO, dev_show_vendor, NULL);
+static DEVICE_ATTR(vendor, S_IRUGO, dev_show_vendor, NULL);
 
 static ssize_t dev_show_model(struct device *dev,
 			      struct device_attribute *attr,
@@ -560,7 +560,7 @@ static ssize_t dev_show_model(struct device *dev,
 	else
 		return snprintf(buf, sizeof(model) + 1, "%s\n", drv->model);
 }
-DEVICE_ATTR(model, S_IRUGO, dev_show_model, NULL);
+static DEVICE_ATTR(model, S_IRUGO, dev_show_model, NULL);
 
 static ssize_t dev_show_rev(struct device *dev,
 			    struct device_attribute *attr,
@@ -584,7 +584,7 @@ static ssize_t dev_show_rev(struct device *dev,
 	else
 		return snprintf(buf, sizeof(rev) + 1, "%s\n", drv->rev);
 }
-DEVICE_ATTR(rev, S_IRUGO, dev_show_rev, NULL);
+static DEVICE_ATTR(rev, S_IRUGO, dev_show_rev, NULL);
 
 static ssize_t cciss_show_lunid(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -609,7 +609,7 @@ static ssize_t cciss_show_lunid(struct device *dev,
 		lunid[0], lunid[1], lunid[2], lunid[3],
 		lunid[4], lunid[5], lunid[6], lunid[7]);
 }
-DEVICE_ATTR(lunid, S_IRUGO, cciss_show_lunid, NULL);
+static DEVICE_ATTR(lunid, S_IRUGO, cciss_show_lunid, NULL);
 
 static ssize_t cciss_show_raid_level(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -632,7 +632,7 @@ static ssize_t cciss_show_raid_level(struct device *dev,
 	return snprintf(buf, strlen(raid_label[raid]) + 7, "RAID %s\n",
 			raid_label[raid]);
 }
-DEVICE_ATTR(raid_level, S_IRUGO, cciss_show_raid_level, NULL);
+static DEVICE_ATTR(raid_level, S_IRUGO, cciss_show_raid_level, NULL);
 
 static ssize_t cciss_show_usage_count(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -651,7 +651,7 @@ static ssize_t cciss_show_usage_count(struct device *dev,
 	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 	return snprintf(buf, 20, "%d\n", count);
 }
-DEVICE_ATTR(usage_count, S_IRUGO, cciss_show_usage_count, NULL);
+static DEVICE_ATTR(usage_count, S_IRUGO, cciss_show_usage_count, NULL);
 
 static struct attribute *cciss_host_attrs[] = {
 	&dev_attr_rescan.attr,
