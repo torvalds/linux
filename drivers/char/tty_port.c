@@ -122,8 +122,10 @@ void tty_port_hangup(struct tty_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 	port->count = 0;
 	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	if (port->tty)
+	if (port->tty) {
+		set_bit(TTY_IO_ERROR, &port->tty->flags);
 		tty_kref_put(port->tty);
+	}
 	port->tty = NULL;
 	spin_unlock_irqrestore(&port->lock, flags);
 	wake_up_interruptible(&port->open_wait);
@@ -383,6 +385,7 @@ void tty_port_close(struct tty_port *port, struct tty_struct *tty,
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
 	tty_port_shutdown(port);
+	set_bit(TTY_IO_ERROR, &tty->flags);
 	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
 }
@@ -414,6 +417,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 			}
 		}
 		set_bit(ASYNCB_INITIALIZED, &port->flags);
+		clear_bit(TTY_IO_ERROR, &tty->flags);
 	}
 	mutex_unlock(&port->mutex);
 	return tty_port_block_til_ready(port, tty, filp);
