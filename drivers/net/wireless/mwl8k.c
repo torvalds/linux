@@ -126,15 +126,6 @@ struct mwl8k_tx_queue {
 	struct sk_buff **skb;
 };
 
-/* Pointers to the firmware data and meta information about it.  */
-struct mwl8k_firmware {
-	/* Boot helper code */
-	struct firmware *helper;
-
-	/* Microcode */
-	struct firmware *ucode;
-};
-
 struct mwl8k_priv {
 	void __iomem *sram;
 	void __iomem *regs;
@@ -147,7 +138,8 @@ struct mwl8k_priv {
 	struct rxd_ops *rxd_ops;
 
 	/* firmware files and meta data */
-	struct mwl8k_firmware fw;
+	struct firmware *fw_helper;
+	struct firmware *fw_ucode;
 
 	/* firmware access */
 	struct mutex fw_mutex;
@@ -358,8 +350,8 @@ static void mwl8k_release_fw(struct firmware **fw)
 
 static void mwl8k_release_firmware(struct mwl8k_priv *priv)
 {
-	mwl8k_release_fw(&priv->fw.ucode);
-	mwl8k_release_fw(&priv->fw.helper);
+	mwl8k_release_fw(&priv->fw_ucode);
+	mwl8k_release_fw(&priv->fw_helper);
 }
 
 /* Request fw image */
@@ -380,7 +372,7 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 	int rc;
 
 	if (di->helper_image != NULL) {
-		rc = mwl8k_request_fw(priv, di->helper_image, &priv->fw.helper);
+		rc = mwl8k_request_fw(priv, di->helper_image, &priv->fw_helper);
 		if (rc) {
 			printk(KERN_ERR "%s: Error requesting helper "
 			       "firmware file %s\n", pci_name(priv->pdev),
@@ -389,11 +381,11 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 		}
 	}
 
-	rc = mwl8k_request_fw(priv, di->fw_image, &priv->fw.ucode);
+	rc = mwl8k_request_fw(priv, di->fw_image, &priv->fw_ucode);
 	if (rc) {
 		printk(KERN_ERR "%s: Error requesting firmware file %s\n",
 		       pci_name(priv->pdev), di->fw_image);
-		mwl8k_release_fw(&priv->fw.helper);
+		mwl8k_release_fw(&priv->fw_helper);
 		return rc;
 	}
 
@@ -554,13 +546,13 @@ static int mwl8k_feed_fw_image(struct mwl8k_priv *priv,
 static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct firmware *fw = priv->fw.ucode;
+	struct firmware *fw = priv->fw_ucode;
 	struct mwl8k_device_info *di = priv->device_info;
 	int rc;
 	int loops;
 
 	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4)) {
-		struct firmware *helper = priv->fw.helper;
+		struct firmware *helper = priv->fw_helper;
 
 		if (helper == NULL) {
 			printk(KERN_ERR "%s: helper image needed but none "
