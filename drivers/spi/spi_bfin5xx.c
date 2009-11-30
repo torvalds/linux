@@ -247,6 +247,8 @@ static void bfin_spi_restore_state(struct master_data *drv_data)
 	bfin_spi_disable(drv_data);
 	dev_dbg(&drv_data->pdev->dev, "restoring spi ctl state\n");
 
+	SSYNC();
+
 	/* Load the registers */
 	write_CTRL(drv_data, chip->ctl_reg);
 	write_BAUD(drv_data, chip->baud);
