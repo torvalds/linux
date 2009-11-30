@@ -1306,7 +1306,7 @@ static int wl1251_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		goto out_sleep;
 
 	ret = wl1251_acx_tid_cfg(wl, wl1251_tx_get_queue(queue),
-				 CHANNEL_TYPE_DCF,
+				 CHANNEL_TYPE_EDCF,
 				 wl1251_tx_get_queue(queue),
 				 WL1251_ACX_PS_SCHEME_LEGACY,
 				 WL1251_ACX_ACK_POLICY_LEGACY);
