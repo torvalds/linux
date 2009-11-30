@@ -603,10 +603,14 @@ static void uart_dtr_rts(struct tty_port *tport, int onoff)
 {
 	struct sdio_uart_port *port =
 			container_of(tport, struct sdio_uart_port, port);
+	int ret = sdio_uart_claim_func(port);
+	if (ret)
+		return;
 	if (onoff == 0)
 		sdio_uart_clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	else
 		sdio_uart_set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+	sdio_uart_release_func(port);
 }
 
 /**
