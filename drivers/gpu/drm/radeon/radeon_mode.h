@@ -385,6 +385,7 @@ struct drm_encoder *radeon_encoder_legacy_tv_dac_add(struct drm_device *dev, int
 struct drm_encoder *radeon_encoder_legacy_tmds_int_add(struct drm_device *dev, int bios_index);
 struct drm_encoder *radeon_encoder_legacy_tmds_ext_add(struct drm_device *dev, int bios_index);
 extern void atombios_external_tmds_setup(struct drm_encoder *encoder, int action);
+extern void atombios_digital_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 

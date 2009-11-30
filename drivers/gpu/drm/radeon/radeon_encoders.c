@@ -424,7 +424,7 @@ union lvds_encoder_control {
 	LVDS_ENCODER_CONTROL_PS_ALLOCATION_V2 v2;
 };
 
-static void
+void
 atombios_digital_setup(struct drm_encoder *encoder, int action)
 {
 	struct drm_device *dev = encoder->dev;

@@ -136,7 +136,14 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 	lvds_pll_cntl &= ~RADEON_LVDS_PLL_EN;
 
 	lvds_ss_gen_cntl = RREG32(RADEON_LVDS_SS_GEN_CNTL);
-	if ((!rdev->is_atom_bios)) {
+	if (rdev->is_atom_bios) {
+		/* LVDS_GEN_CNTL parameters are computed in LVDSEncoderControl
+		 * need to call that on resume to set up the reg properly.
+		 */
+		radeon_encoder->pixel_clock = adjusted_mode->clock;
+		atombios_digital_setup(encoder, PANEL_ENCODER_ACTION_ENABLE);
+		lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
+	} else {
 		struct radeon_encoder_lvds *lvds = (struct radeon_encoder_lvds *)radeon_encoder->enc_priv;
 		if (lvds) {
 			DRM_DEBUG("bios LVDS_GEN_CNTL: 0x%x\n", lvds->lvds_gen_cntl);
@@ -147,8 +154,7 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 					     (lvds->panel_blon_delay << RADEON_LVDS_PWRSEQ_DELAY2_SHIFT));
 		} else
 			lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
-	} else
-		lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
+	}
 	lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
 	lvds_gen_cntl &= ~(RADEON_LVDS_ON |
 			   RADEON_LVDS_BLON |
