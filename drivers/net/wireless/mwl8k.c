@@ -728,35 +728,36 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *wh;
-	u32 hdrlen, pktlen;
+	int hdrlen;
 	struct mwl8k_dma_data *tr;
 
-	wh = (struct ieee80211_hdr *)skb->data;
-	hdrlen = ieee80211_hdrlen(wh->frame_control);
-	pktlen = skb->len;
-
 	/*
-	 * Copy up/down the 802.11 header; the firmware requires
-	 * we present a 2-byte payload length followed by a
-	 * 4-address header (w/o QoS), followed (optionally) by
-	 * any WEP/ExtIV header (but only filled in for CCMP).
+	 * Add a firmware DMA header; the firmware requires that we
+	 * present a 2-byte payload length followed by a 4-address
+	 * header (without QoS field), followed (optionally) by any
+	 * WEP/ExtIV header (but only filled in for CCMP).
 	 */
-	if (hdrlen != sizeof(struct mwl8k_dma_data))
-		skb_push(skb, sizeof(struct mwl8k_dma_data) - hdrlen);
+	wh = (struct ieee80211_hdr *)skb->data;
+
+	hdrlen = ieee80211_hdrlen(wh->frame_control);
+	if (hdrlen != sizeof(*tr))
+		skb_push(skb, sizeof(*tr) - hdrlen);
+
+	if (ieee80211_is_data_qos(wh->frame_control))
+		hdrlen -= 2;
 
 	tr = (struct mwl8k_dma_data *)skb->data;
 	if (wh != &tr->wh)
 		memmove(&tr->wh, wh, hdrlen);
-
-	/* Clear addr4 */
-	memset(tr->wh.addr4, 0, ETH_ALEN);
+	if (hdrlen != sizeof(tr->wh))
+		memset(((void *)&tr->wh) + hdrlen, 0, sizeof(tr->wh) - hdrlen);
 
 	/*
 	 * Firmware length is the length of the fully formed "802.11
 	 * payload".  That is, everything except for the 802.11 header.
 	 * This includes all crypto material including the MIC.
 	 */
-	tr->fwlen = cpu_to_le16(pktlen - hdrlen);
+	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr));
 }
 
 
