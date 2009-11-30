@@ -139,6 +139,16 @@ show_devnum(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(devnum, S_IRUGO, show_devnum, NULL);
 
 static ssize_t
+show_devpath(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%s\n", udev->devpath);
+}
+static DEVICE_ATTR(devpath, S_IRUGO, show_devpath, NULL);
+
+static ssize_t
 show_version(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
@@ -538,8 +548,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bConfigurationValue.attr,
 	&dev_attr_bmAttributes.attr,
 	&dev_attr_bMaxPower.attr,
-	&dev_attr_urbnum.attr,
 	/* device attributes */
+	&dev_attr_urbnum.attr,
 	&dev_attr_idVendor.attr,
 	&dev_attr_idProduct.attr,
 	&dev_attr_bcdDevice.attr,
@@ -551,6 +561,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_speed.attr,
 	&dev_attr_busnum.attr,
 	&dev_attr_devnum.attr,
+	&dev_attr_devpath.attr,
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
 	&dev_attr_quirks.attr,
