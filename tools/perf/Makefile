@@ -490,8 +490,8 @@ else
 	LIB_OBJS += util/probe-finder.o
 endif
 
-PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts`
-PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts`
+PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts 2>/dev/null`
+PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`
 
 ifneq ($(shell sh -c "(echo '\#include <EXTERN.h>'; echo '\#include <perl.h>'; echo 'int main(void) { perl_alloc(); return 0; }') | $(CC) -x c - $(PERL_EMBED_CCOPTS) -o /dev/null $(PERL_EMBED_LDOPTS) > /dev/null 2>&1 && echo y"), y)
 	BASIC_CFLAGS += -DNO_LIBPERL
