@@ -395,6 +395,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * the queue here, otherwise the queue will get too long.
 	 */
 	if (skb_queue_len(&wl->tx_queue) >= WL1251_TX_QUEUE_MAX_LENGTH) {
+		wl1251_debug(DEBUG_TX, "op_tx: tx_queue full, stop queues");
 		ieee80211_stop_queues(wl->hw);
 
 		/*
