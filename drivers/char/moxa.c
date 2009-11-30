@@ -139,7 +139,7 @@ struct moxa_port {
 	int cflag;
 	unsigned long statusflags;
 
-	u8 DCDState;
+	u8 DCDState;		/* Protected by the port lock */
 	u8 lineCtrl;
 	u8 lowChkFlag;
 };
@@ -1141,9 +1141,9 @@ static int moxa_carrier_raised(struct tty_port *port)
 	struct moxa_port *ch = container_of(port, struct moxa_port, port);
 	int dcd;
 
-	spin_lock_bh(&moxa_lock);
+	spin_lock_irq(&port->lock);
 	dcd = ch->DCDState;
-	spin_unlock_bh(&moxa_lock);
+	spin_unlock_irq(&port->lock);
 	return dcd;
 }
 
@@ -1267,15 +1267,8 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 
 static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct moxa_port *ch;
+	struct moxa_port *ch = tty->driver_data;
 	int flag = 0, dtr, rts;
-
-	mutex_lock(&moxa_openlock);
-	ch = tty->driver_data;
-	if (!ch) {
-		mutex_unlock(&moxa_openlock);
-		return -EINVAL;
-	}
 
 	MoxaPortGetLineOut(ch, &dtr, &rts);
 	if (dtr)
@@ -1289,7 +1282,6 @@ static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
 		flag |= TIOCM_DSR;
 	if (dtr & 4)
 		flag |= TIOCM_CD;
-	mutex_unlock(&moxa_openlock);
 	return flag;
 }
 
@@ -1368,15 +1360,20 @@ static void moxa_hangup(struct tty_struct *tty)
 static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
 {
 	struct tty_struct *tty;
+	unsigned long flags;
 	dcd = !!dcd;
 
+	spin_lock_irqsave(&p->port.lock, flags);
 	if (dcd != p->DCDState) {
+        	p->DCDState = dcd;
+        	spin_unlock_irqrestore(&p->port.lock, flags);
 		tty = tty_port_tty_get(&p->port);
 		if (tty && C_CLOCAL(tty) && !dcd)
 			tty_hangup(tty);
 		tty_kref_put(tty);
 	}
-	p->DCDState = dcd;
+	else
+		spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
@@ -1878,9 +1875,7 @@ static int MoxaPortLineStatus(struct moxa_port *port)
 	val &= 0x0B;
 	if (val & 8)
 		val |= 4;
-	spin_lock_bh(&moxa_lock);
 	moxa_new_dcdstate(port, val & 8);
-	spin_unlock_bh(&moxa_lock);
 	val &= 7;
 	return val;
 }
