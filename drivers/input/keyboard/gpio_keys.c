@@ -37,10 +37,8 @@ struct gpio_keys_drvdata {
 	struct gpio_button_data data[0];
 };
 
-static void gpio_keys_report_event(struct work_struct *work)
+static void gpio_keys_report_event(struct gpio_button_data *bdata)
 {
-	struct gpio_button_data *bdata =
-		container_of(work, struct gpio_button_data, work);
 	struct gpio_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
@@ -48,6 +46,14 @@ static void gpio_keys_report_event(struct work_struct *work)
 
 	input_event(input, type, button->code, !!state);
 	input_sync(input);
+}
+
+static void gpio_keys_work_func(struct work_struct *work)
+{
+	struct gpio_button_data *bdata =
+		container_of(work, struct gpio_button_data, work);
+
+	gpio_keys_report_event(bdata);
 }
 
 static void gpio_keys_timer(unsigned long _data)
@@ -81,7 +87,7 @@ static int __devinit gpio_keys_setup_key(struct device *dev,
 	int irq, error;
 
 	setup_timer(&bdata->timer, gpio_keys_timer, (unsigned long)bdata);
-	INIT_WORK(&bdata->work, gpio_keys_report_event);
+	INIT_WORK(&bdata->work, gpio_keys_work_func);
 
 	error = gpio_request(button->gpio, desc);
 	if (error < 0) {
@@ -185,6 +191,11 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
+	/* get current state of buttons */
+	for (i = 0; i < pdata->nbuttons; i++)
+		gpio_keys_report_event(&ddata->data[i]);
+	input_sync(input);
+
 	device_init_wakeup(&pdev->dev, wakeup);
 
 	return 0;
@@ -253,18 +264,21 @@ static int gpio_keys_suspend(struct device *dev)
 static int gpio_keys_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct gpio_keys_drvdata *ddata = platform_get_drvdata(pdev);
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 
-	if (device_may_wakeup(&pdev->dev)) {
-		for (i = 0; i < pdata->nbuttons; i++) {
-			struct gpio_keys_button *button = &pdata->buttons[i];
-			if (button->wakeup) {
-				int irq = gpio_to_irq(button->gpio);
-				disable_irq_wake(irq);
-			}
+	for (i = 0; i < pdata->nbuttons; i++) {
+
+		struct gpio_keys_button *button = &pdata->buttons[i];
+		if (button->wakeup && device_may_wakeup(&pdev->dev)) {
+			int irq = gpio_to_irq(button->gpio);
+			disable_irq_wake(irq);
 		}
+
+		gpio_keys_report_event(&ddata->data[i]);
 	}
+	input_sync(ddata->input);
 
 	return 0;
 }
