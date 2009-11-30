@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched.h>
 #include <media/videobuf-dma-contig.h>
 
 struct videobuf_dma_contig_memory {
