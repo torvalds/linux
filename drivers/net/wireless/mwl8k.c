@@ -915,7 +915,6 @@ mwl8k_rxd_8687_process(void *_rxd, struct ieee80211_rx_status *status,
 
 	status->signal = -rxd->rssi;
 	status->noise = -rxd->noise_level;
-	status->qual = rxd->link_quality;
 	status->antenna = MWL8K_8687_RATE_INFO_ANTSELECT(rate_info);
 	status->rate_idx = MWL8K_8687_RATE_INFO_RATEID(rate_info);
 
