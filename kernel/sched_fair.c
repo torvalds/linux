@@ -1689,9 +1689,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 			pse->avg_overlap < sysctl_sched_migration_cost)
 		goto preempt;
 
-	if (sched_feat(WAKEUP_RUNNING) && pse->avg_running < se->avg_running)
-		goto preempt;
-
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
 
