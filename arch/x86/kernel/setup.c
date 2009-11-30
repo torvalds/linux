@@ -247,7 +247,7 @@ EXPORT_SYMBOL(edd);
  *              from boot_params into a safe place.
  *
  */
-static inline void copy_edd(void)
+static inline void __init copy_edd(void)
 {
      memcpy(edd.mbr_signature, boot_params.edd_mbr_sig_buffer,
 	    sizeof(edd.mbr_signature));
@@ -256,7 +256,7 @@ static inline void copy_edd(void)
      edd.edd_info_nr = boot_params.eddbuf_entries;
 }
 #else
-static inline void copy_edd(void)
+static inline void __init copy_edd(void)
 {
 }
 #endif
