@@ -3025,9 +3025,6 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
 	int rc;
 
-	if (changed & BSS_CHANGED_BSSID)
-		memcpy(mwl8k_vif->bssid, info->bssid, ETH_ALEN);
-
 	if ((changed & BSS_CHANGED_ASSOC) == 0)
 		return;
 
@@ -3040,6 +3037,8 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 	if (info->assoc) {
 		memcpy(&mwl8k_vif->bss_info, info,
 			sizeof(struct ieee80211_bss_conf));
+
+		memcpy(mwl8k_vif->bssid, info->bssid, ETH_ALEN);
 
 		/* Install rates */
 		rc = mwl8k_update_rateset(hw, vif);
