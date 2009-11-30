@@ -1047,12 +1047,29 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 
 static void radeon_crtc_prepare(struct drm_crtc *crtc)
 {
-	radeon_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *crtci;
+
+	/*
+	* The hardware wedges sometimes if you reconfigure one CRTC
+	* whilst another is running (see fdo bug #24611).
+	*/
+	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head)
+		radeon_crtc_dpms(crtci, DRM_MODE_DPMS_OFF);
 }
 
 static void radeon_crtc_commit(struct drm_crtc *crtc)
 {
-	radeon_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *crtci;
+
+	/*
+	* Reenable the CRTCs that should be running.
+	*/
+	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head) {
+		if (crtci->enabled)
+			radeon_crtc_dpms(crtci, DRM_MODE_DPMS_ON);
+	}
 }
 
 static const struct drm_crtc_helper_funcs legacy_helper_funcs = {
