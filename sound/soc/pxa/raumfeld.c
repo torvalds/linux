@@ -116,7 +116,7 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* setup the CPU DAI */
-	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, clk);
+	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, clk);
 	if (ret < 0)
 		return ret;
 
@@ -205,7 +205,7 @@ static int raumfeld_ak4104_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* setup the CPU DAI */
-	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, clk);
+	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, clk);
 	if (ret < 0)
 		return ret;
 
