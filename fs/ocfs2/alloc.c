@@ -1765,9 +1765,9 @@ set_and_inc:
  *
  * The array index of the subtree root is passed back.
  */
-static int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
-				   struct ocfs2_path *left,
-				   struct ocfs2_path *right)
+int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
+			    struct ocfs2_path *left,
+			    struct ocfs2_path *right)
 {
 	int i = 0;
 
@@ -2872,8 +2872,8 @@ out:
  * This looks similar, but is subtly different to
  * ocfs2_find_cpos_for_left_leaf().
  */
-static int ocfs2_find_cpos_for_right_leaf(struct super_block *sb,
-					  struct ocfs2_path *path, u32 *cpos)
+int ocfs2_find_cpos_for_right_leaf(struct super_block *sb,
+				   struct ocfs2_path *path, u32 *cpos)
 {
 	int i, j, ret = 0;
 	u64 blkno;

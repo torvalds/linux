@@ -969,6 +969,103 @@ out:
 }
 
 /*
+ * Find the end range for a leaf refcount block indicated by
+ * el->l_recs[index].e_blkno.
+ */
+static int ocfs2_get_refcount_cpos_end(struct ocfs2_caching_info *ci,
+				       struct buffer_head *ref_root_bh,
+				       struct ocfs2_extent_block *eb,
+				       struct ocfs2_extent_list *el,
+				       int index,  u32 *cpos_end)
+{
+	int ret, i, subtree_root;
+	u32 cpos;
+	u64 blkno;
+	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
+	struct ocfs2_path *left_path = NULL, *right_path = NULL;
+	struct ocfs2_extent_tree et;
+	struct ocfs2_extent_list *tmp_el;
+
+	if (index < le16_to_cpu(el->l_next_free_rec) - 1) {
+		/*
+		 * We have a extent rec after index, so just use the e_cpos
+		 * of the next extent rec.
+		 */
+		*cpos_end = le32_to_cpu(el->l_recs[index+1].e_cpos);
+		return 0;
+	}
+
+	if (!eb || (eb && !eb->h_next_leaf_blk)) {
+		/*
+		 * We are the last extent rec, so any high cpos should
+		 * be stored in this leaf refcount block.
+		 */
+		*cpos_end = UINT_MAX;
+		return 0;
+	}
+
+	/*
+	 * If the extent block isn't the last one, we have to find
+	 * the subtree root between this extent block and the next
+	 * leaf extent block and get the corresponding e_cpos from
+	 * the subroot. Otherwise we may corrupt the b-tree.
+	 */
+	ocfs2_init_refcount_extent_tree(&et, ci, ref_root_bh);
+
+	left_path = ocfs2_new_path_from_et(&et);
+	if (!left_path) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	cpos = le32_to_cpu(eb->h_list.l_recs[index].e_cpos);
+	ret = ocfs2_find_path(ci, left_path, cpos);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	right_path = ocfs2_new_path_from_path(left_path);
+	if (!right_path) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_find_cpos_for_right_leaf(sb, left_path, &cpos);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_find_path(ci, right_path, cpos);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	subtree_root = ocfs2_find_subtree_root(&et, left_path,
+					       right_path);
+
+	tmp_el = left_path->p_node[subtree_root].el;
+	blkno = left_path->p_node[subtree_root+1].bh->b_blocknr;
+	for (i = 0; i < le32_to_cpu(tmp_el->l_next_free_rec); i++) {
+		if (le64_to_cpu(tmp_el->l_recs[i].e_blkno) == blkno) {
+			*cpos_end = le32_to_cpu(tmp_el->l_recs[i+1].e_cpos);
+			break;
+		}
+	}
+
+	BUG_ON(i == le32_to_cpu(tmp_el->l_next_free_rec));
+
+out:
+	ocfs2_free_path(left_path);
+	ocfs2_free_path(right_path);
+	return ret;
+}
+
+/*
  * Given a cpos and len, try to find the refcount record which contains cpos.
  * 1. If cpos can be found in one refcount record, return the record.
  * 2. If cpos can't be found, return a fake record which start from cpos
@@ -983,10 +1080,10 @@ static int ocfs2_get_refcount_rec(struct ocfs2_caching_info *ci,
 				  struct buffer_head **ret_bh)
 {
 	int ret = 0, i, found;
-	u32 low_cpos;
+	u32 low_cpos, uninitialized_var(cpos_end);
 	struct ocfs2_extent_list *el;
-	struct ocfs2_extent_rec *tmp, *rec = NULL;
-	struct ocfs2_extent_block *eb;
+	struct ocfs2_extent_rec *rec = NULL;
+	struct ocfs2_extent_block *eb = NULL;
 	struct buffer_head *eb_bh = NULL, *ref_leaf_bh = NULL;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
 	struct ocfs2_refcount_block *rb =
@@ -1034,12 +1131,16 @@ static int ocfs2_get_refcount_rec(struct ocfs2_caching_info *ci,
 		}
 	}
 
-	/* adjust len when we have ocfs2_extent_rec after it. */
-	if (found && i < le16_to_cpu(el->l_next_free_rec) - 1) {
-		tmp = &el->l_recs[i+1];
+	if (found) {
+		ret = ocfs2_get_refcount_cpos_end(ci, ref_root_bh,
+						  eb, el, i, &cpos_end);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 
-		if (le32_to_cpu(tmp->e_cpos) < cpos + len)
-			len = le32_to_cpu(tmp->e_cpos) - cpos;
+		if (cpos_end < low_cpos + len)
+			len = cpos_end - low_cpos;
 	}
 
 	ret = ocfs2_read_refcount_block(ci, le64_to_cpu(rec->e_blkno),
