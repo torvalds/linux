@@ -240,6 +240,16 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 }
 EXPORT_SYMBOL_GPL(async_gen_syndrome);
 
+static inline struct dma_chan *
+pq_val_chan(struct async_submit_ctl *submit, struct page **blocks, int disks, size_t len)
+{
+	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	return NULL;
+	#endif
+	return async_tx_find_channel(submit, DMA_PQ_VAL, NULL, 0,  blocks,
+				     disks, len);
+}
+
 /**
  * async_syndrome_val - asynchronously validate a raid6 syndrome
  * @blocks: source blocks from idx 0..disks-3, P @ disks-2 and Q @ disks-1
@@ -260,9 +270,7 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 		   size_t len, enum sum_check_flags *pqres, struct page *spare,
 		   struct async_submit_ctl *submit)
 {
-	struct dma_chan *chan = async_tx_find_channel(submit, DMA_PQ_VAL,
-						      NULL, 0,  blocks, disks,
-						      len);
+	struct dma_chan *chan = pq_val_chan(submit, blocks, disks, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx;
 	unsigned char coefs[disks-2];
