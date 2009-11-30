@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/serial_reg.h>
@@ -86,6 +87,7 @@ struct sdio_uart_port {
 	struct uart_icount	icount;
 	unsigned int		uartclk;
 	unsigned int		mctrl;
+	unsigned int		rx_mctrl;
 	unsigned int		read_status_mask;
 	unsigned int		ignore_status_mask;
 	unsigned char		x_char;
@@ -220,6 +222,8 @@ static unsigned int sdio_uart_get_mctrl(struct sdio_uart_port *port)
 	unsigned char status;
 	unsigned int ret;
 
+	/* FIXME: What stops this losing the delta bits and breaking
+	   sdio_uart_check_modem_status ? */
 	status = sdio_in(port, UART_MSR);
 
 	ret = 0;
@@ -503,8 +507,20 @@ static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 		port->icount.rng++;
 	if (status & UART_MSR_DDSR)
 		port->icount.dsr++;
-	if (status & UART_MSR_DDCD)
+	if (status & UART_MSR_DDCD) {
 		port->icount.dcd++;
+		/* DCD raise - wake for open */
+		if (status & UART_MSR_DCD)
+			wake_up_interruptible(&port->port.open_wait);
+		else {
+			/* DCD drop - hang up if tty attached */
+			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
+		}
+	}
 	if (status & UART_MSR_DCTS) {
 		port->icount.cts++;
 		tty = tty_port_tty_get(&port->port);
@@ -558,6 +574,20 @@ static void sdio_uart_irq(struct sdio_func *func)
 	if (lsr & UART_LSR_THRE)
 		sdio_uart_transmit_chars(port);
 	port->in_sdio_uart_irq = NULL;
+}
+
+static int uart_carrier_raised(struct tty_port *tport)
+{
+	struct sdio_uart_port *port =
+			container_of(tport, struct sdio_uart_port, port);
+	unsigned int ret = sdio_uart_claim_func(port);
+	if (ret)	/* Missing hardware shoudn't block for carrier */
+		return 1;
+	ret = sdio_uart_get_mctrl(port);
+	sdio_uart_release_func(port);
+	if (ret & TIOCM_CAR)
+		return 1;
+	return 0;
 }
 
 /**
@@ -1044,6 +1074,7 @@ static const struct file_operations sdio_uart_proc_fops = {
 
 static const struct tty_port_operations sdio_uart_port_ops = {
 	.dtr_rts = uart_dtr_rts,
+	.carrier_raised = uart_carrier_raised,
 	.shutdown = sdio_uart_shutdown,
 	.activate = sdio_uart_activate,
 };
