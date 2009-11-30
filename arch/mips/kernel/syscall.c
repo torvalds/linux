@@ -129,31 +129,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 }
 
-/* common code for old and new mmaps */
-static inline unsigned long
-do_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
-        unsigned long flags, unsigned long fd, unsigned long pgoff)
-{
-	unsigned long error = -EBADF;
-	struct file * file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-
 SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
 	unsigned long, prot, unsigned long, flags, unsigned long,
 	fd, off_t, offset)
@@ -164,7 +139,7 @@ SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
 	if (offset & ~PAGE_MASK)
 		goto out;
 
-	result = do_mmap2(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
+	result = sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 
 out:
 	return result;
@@ -177,7 +152,7 @@ SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
 	if (pgoff & (~PAGE_MASK >> 12))
 		return -EINVAL;
 
-	return do_mmap2(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT-12));
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT-12));
 }
 
 save_static_function(sys_fork);

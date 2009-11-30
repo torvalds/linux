@@ -185,39 +185,6 @@ int ia64_mmap_check(unsigned long addr, unsigned long len,
 	return 0;
 }
 
-static inline unsigned long
-do_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, unsigned long pgoff)
-{
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return -EBADF;
-
-		if (!file->f_op || !file->f_op->mmap) {
-			addr = -ENODEV;
-			goto out;
-		}
-	}
-
-	/* Careful about overflows.. */
-	len = PAGE_ALIGN(len);
-	if (!len || len > TASK_SIZE) {
-		addr = -EINVAL;
-		goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-out:	if (file)
-		fput(file);
-	return addr;
-}
-
 /*
  * mmap2() is like mmap() except that the offset is expressed in units
  * of PAGE_SIZE (instead of bytes).  This allows to mmap2() (pieces
@@ -226,7 +193,7 @@ out:	if (file)
 asmlinkage unsigned long
 sys_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, long pgoff)
 {
-	addr = do_mmap2(addr, len, prot, flags, fd, pgoff);
+	addr = sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 	if (!IS_ERR((void *) addr))
 		force_successful_syscall_return();
 	return addr;
@@ -238,7 +205,7 @@ sys_mmap (unsigned long addr, unsigned long len, int prot, int flags, int fd, lo
 	if (offset_in_page(off) != 0)
 		return -EINVAL;
 
-	addr = do_mmap2(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	addr = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 	if (!IS_ERR((void *) addr))
 		force_successful_syscall_return();
 	return addr;

@@ -206,7 +206,7 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* streams2 */
 	.long SYMBOL_NAME(sys_vfork)            /* 190 */
 	.long SYMBOL_NAME(sys_getrlimit)
-	.long SYMBOL_NAME(sys_mmap2)
+	.long SYMBOL_NAME(sys_mmap_pgoff)
 	.long SYMBOL_NAME(sys_truncate64)
 	.long SYMBOL_NAME(sys_ftruncate64)
 	.long SYMBOL_NAME(sys_stat64)		/* 195 */

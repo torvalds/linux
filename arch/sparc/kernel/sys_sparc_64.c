@@ -572,23 +572,13 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, unsigned long, fd,
 		unsigned long, off)
 {
-	struct file * file = NULL;
-	unsigned long retval = -EBADF;
+	unsigned long retval = -EINVAL;
 
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	len = PAGE_ALIGN(len);
-
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap(file, addr, len, prot, flags, off);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
+	if ((off + PAGE_ALIGN(len)) < off)
+		goto out;
+	if (off & ~PAGE_MASK)
+		goto out;
+	retval = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 out:
 	return retval;
 }
