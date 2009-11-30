@@ -26,8 +26,11 @@
 #include <linux/utsname.h>
 
 
-#if defined CONFIG_USB_G_MULTI_RNDIS
-#  define CONFIG_USB_ETH_RNDIS y
+#if defined USB_ETH_RNDIS
+#  undef USB_ETH_RNDIS
+#endif
+#ifdef CONFIG_USB_ETH_RNDIS
+#  define USB_ETH_RNDIS y
 #endif
 
 
@@ -59,7 +62,7 @@
 
 #include "f_ecm.c"
 #include "f_subset.c"
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 #  include "f_rndis.c"
 #  include "rndis.c"
 #endif
@@ -150,7 +153,7 @@ FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 static struct fsg_common *fsg_common;
 
 
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 
 static int __init rndis_do_config(struct usb_configuration *c)
 {
@@ -292,7 +295,7 @@ static int __init multi_bind(struct usb_composite_dev *cdev)
 	strings_dev[STRING_PRODUCT_IDX].id = status;
 	device_desc.iProduct = status;
 
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 	/* register our first configuration */
 	status = usb_add_config(cdev, &rndis_config_driver);
 	if (status < 0)
