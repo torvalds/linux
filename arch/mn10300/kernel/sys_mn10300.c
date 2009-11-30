@@ -23,8 +23,6 @@
 
 #include <asm/uaccess.h>
 
-#define MIN_MAP_ADDR	PAGE_SIZE	/* minimum fixed mmap address */
-
 /*
  * memory mapping syscall
  */
@@ -36,9 +34,6 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	long error = -EINVAL;
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	if (flags & MAP_FIXED && addr < MIN_MAP_ADDR)
-		goto out;
 
 	error = -EBADF;
 	if (!(flags & MAP_ANONYMOUS)) {
