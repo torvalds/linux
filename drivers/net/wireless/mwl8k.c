@@ -1990,11 +1990,7 @@ static int mwl8k_cmd_radio_enable(struct ieee80211_hw *hw)
 static int
 mwl8k_set_radio_preamble(struct ieee80211_hw *hw, bool short_preamble)
 {
-	struct mwl8k_priv *priv;
-
-	if (hw == NULL || hw->priv == NULL)
-		return -EINVAL;
-	priv = hw->priv;
+	struct mwl8k_priv *priv = hw->priv;
 
 	priv->radio_short_preamble = short_preamble;
 
