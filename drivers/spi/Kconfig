@@ -240,6 +240,13 @@ config SPI_S3C24XX_GPIO
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
 
+config SPI_S3C64XX
+	tristate "Samsung S3C64XX series type SPI"
+	depends on ARCH_S3C64XX && EXPERIMENTAL
+	select S3C64XX_DMA
+	help
+	  SPI driver for Samsung S3C64XX and newer SoCs.
+
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
 	depends on SUPERH && HAVE_CLK
