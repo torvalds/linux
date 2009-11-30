@@ -528,6 +528,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 				continue;
 			if (off == (ROMUSB_GLB + 0x1c)) /* MS clock */
 				continue;
+			if ((off & 0x0ff00000) == NETXEN_CRB_DDR_NET)
+				continue;
 			if (off == (NETXEN_CRB_PEG_NET_1 + 0x18) &&
 				!NX_IS_REVISION_P3P(adapter->ahw.revision_id))
 				buf[i].data = 0x1020;
