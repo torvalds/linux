@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -105,7 +105,6 @@ struct fsi_priv {
 struct fsi_master {
 	void __iomem *base;
 	int irq;
-	struct clk *clk;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
 	struct sh_fsi_platform_info *info;
@@ -559,7 +558,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	int is_master;
 	int ret = 0;
 
-	clk_enable(master->clk);
+	pm_runtime_get_sync(dai->dev);
 
 	/* CKG1 */
 	data = is_play ? (1 << 0) : (1 << 4);
@@ -674,7 +673,7 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 	fsi_irq_disable(fsi, is_play);
 	fsi_clk_ctrl(fsi, 0);
 
-	clk_disable(master->clk);
+	pm_runtime_put_sync(dai->dev);
 }
 
 static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -872,7 +871,6 @@ EXPORT_SYMBOL_GPL(fsi_soc_platform);
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	char clk_name[8];
 	unsigned int irq;
 	int ret;
 
@@ -903,14 +901,8 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.base	= master->base;
 	master->fsib.base	= master->base + 0x40;
 
-	/* FSI is based on SPU mstp */
-	snprintf(clk_name, sizeof(clk_name), "spu%d", pdev->id);
-	master->clk = clk_get(NULL, clk_name);
-	if (IS_ERR(master->clk)) {
-		dev_err(&pdev->dev, "cannot get %s mstp\n", clk_name);
-		ret = -EIO;
-		goto exit_iounmap;
-	}
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_resume(&pdev->dev);
 
 	fsi_soc_dai[0].dev		= &pdev->dev;
 	fsi_soc_dai[1].dev		= &pdev->dev;
@@ -935,6 +927,7 @@ exit_free_irq:
 	free_irq(irq, master);
 exit_iounmap:
 	iounmap(master->base);
+	pm_runtime_disable(&pdev->dev);
 exit_kfree:
 	kfree(master);
 	master = NULL;
@@ -947,7 +940,7 @@ static int fsi_remove(struct platform_device *pdev)
 	snd_soc_unregister_dais(fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 	snd_soc_unregister_platform(&fsi_soc_platform);
 
-	clk_put(master->clk);
+	pm_runtime_disable(&pdev->dev);
 
 	free_irq(master->irq, master);
 
@@ -957,9 +950,27 @@ static int fsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int fsi_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static struct dev_pm_ops fsi_pm_ops = {
+	.runtime_suspend	= fsi_runtime_nop,
+	.runtime_resume		= fsi_runtime_nop,
+};
+
 static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "sh_fsi",
+		.pm	= &fsi_pm_ops,
 	},
 	.probe		= fsi_probe,
 	.remove		= fsi_remove,
