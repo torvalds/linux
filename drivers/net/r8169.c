@@ -3235,6 +3235,10 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 	flush_scheduled_work();
 
 	unregister_netdev(dev);
+
+	/* restore original MAC address */
+	rtl_rar_set(tp, dev->perm_addr);
+
 	rtl_disable_msi(pdev, tp);
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 	pci_set_drvdata(pdev, NULL);
@@ -4880,6 +4884,9 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	void __iomem *ioaddr = tp->mmio_addr;
 
 	rtl8169_net_suspend(dev);
+
+	/* restore original MAC address */
+	rtl_rar_set(tp, dev->perm_addr);
 
 	spin_lock_irq(&tp->lock);
 

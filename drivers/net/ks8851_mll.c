@@ -568,6 +568,16 @@ static inline void ks_outblk(struct ks_net *ks, u16 *wptr, u32 len)
 		iowrite16(*wptr++, ks->hw_addr);
 }
 
+static void ks_disable_int(struct ks_net *ks)
+{
+	ks_wrreg16(ks, KS_IER, 0x0000);
+}  /* ks_disable_int */
+
+static void ks_enable_int(struct ks_net *ks)
+{
+	ks_wrreg16(ks, KS_IER, ks->rc_ier);
+}  /* ks_enable_int */
+
 /**
  * ks_tx_fifo_space - return the available hardware buffer size.
  * @ks: The chip information
@@ -681,6 +691,47 @@ static void ks_soft_reset(struct ks_net *ks, unsigned op)
 }
 
 
+void ks_enable_qmu(struct ks_net *ks)
+{
+	u16 w;
+
+	w = ks_rdreg16(ks, KS_TXCR);
+	/* Enables QMU Transmit (TXCR). */
+	ks_wrreg16(ks, KS_TXCR, w | TXCR_TXE);
+
+	/*
+	 * RX Frame Count Threshold Enable and Auto-Dequeue RXQ Frame
+	 * Enable
+	 */
+
+	w = ks_rdreg16(ks, KS_RXQCR);
+	ks_wrreg16(ks, KS_RXQCR, w | RXQCR_RXFCTE);
+
+	/* Enables QMU Receive (RXCR1). */
+	w = ks_rdreg16(ks, KS_RXCR1);
+	ks_wrreg16(ks, KS_RXCR1, w | RXCR1_RXE);
+	ks->enabled = true;
+}  /* ks_enable_qmu */
+
+static void ks_disable_qmu(struct ks_net *ks)
+{
+	u16	w;
+
+	w = ks_rdreg16(ks, KS_TXCR);
+
+	/* Disables QMU Transmit (TXCR). */
+	w  &= ~TXCR_TXE;
+	ks_wrreg16(ks, KS_TXCR, w);
+
+	/* Disables QMU Receive (RXCR1). */
+	w = ks_rdreg16(ks, KS_RXCR1);
+	w &= ~RXCR1_RXE ;
+	ks_wrreg16(ks, KS_RXCR1, w);
+
+	ks->enabled = false;
+
+}  /* ks_disable_qmu */
+
 /**
  * ks_read_qmu - read 1 pkt data from the QMU.
  * @ks: The chip information
@@ -752,7 +803,7 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 			(frame_hdr->len < RX_BUF_SIZE) && frame_hdr->len)) {
 			skb_reserve(skb, 2);
 			/* read data block including CRC 4 bytes */
-			ks_read_qmu(ks, (u16 *)skb->data, frame_hdr->len + 4);
+			ks_read_qmu(ks, (u16 *)skb->data, frame_hdr->len);
 			skb_put(skb, frame_hdr->len);
 			skb->dev = netdev;
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -861,13 +912,22 @@ static int ks_net_open(struct net_device *netdev)
 		ks_dbg(ks, "%s - entry\n", __func__);
 
 	/* reset the HW */
-	err = request_irq(ks->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, ks);
+	err = request_irq(ks->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
 
 	if (err) {
 		printk(KERN_ERR "Failed to request IRQ: %d: %d\n",
 			ks->irq, err);
 		return err;
 	}
+
+	/* wake up powermode to normal mode */
+	ks_set_powermode(ks, PMECR_PM_NORMAL);
+	mdelay(1);	/* wait for normal mode to take effect */
+
+	ks_wrreg16(ks, KS_ISR, 0xffff);
+	ks_enable_int(ks);
+	ks_enable_qmu(ks);
+	netif_start_queue(ks->netdev);
 
 	if (netif_msg_ifup(ks))
 		ks_dbg(ks, "network device %s up\n", netdev->name);
@@ -892,19 +952,14 @@ static int ks_net_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 
-	kfree(ks->frame_head_info);
-
 	mutex_lock(&ks->lock);
 
 	/* turn off the IRQs and ack any outstanding */
 	ks_wrreg16(ks, KS_IER, 0x0000);
 	ks_wrreg16(ks, KS_ISR, 0xffff);
 
-	/* shutdown RX process */
-	ks_wrreg16(ks, KS_RXCR1, 0x0000);
-
-	/* shutdown TX process */
-	ks_wrreg16(ks, KS_TXCR, 0x0000);
+	/* shutdown RX/TX QMU */
+	ks_disable_qmu(ks);
 
 	/* set powermode to soft power down to save power */
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
@@ -929,17 +984,8 @@ static int ks_net_stop(struct net_device *netdev)
  */
 static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 {
-	unsigned fid = ks->fid;
-
-	fid = ks->fid;
-	ks->fid = (ks->fid + 1) & TXFR_TXFID_MASK;
-
-	/* reduce the tx interrupt occurrances. */
-	if (!fid)
-		fid |= TXFR_TXIC;       /* irq on completion */
-
 	/* start header at txb[0] to align txw entries */
-	ks->txh.txw[0] = cpu_to_le16(fid);
+	ks->txh.txw[0] = 0;
 	ks->txh.txw[1] = cpu_to_le16(len);
 
 	/* 1. set sudo-DMA mode */
@@ -956,16 +1002,6 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
 	while (ks_rdreg16(ks, KS_TXQCR) & TXQCR_METFE)
 		;
 }
-
-static void ks_disable_int(struct ks_net *ks)
-{
-	ks_wrreg16(ks, KS_IER, 0x0000);
-}  /* ks_disable_int */
-
-static void ks_enable_int(struct ks_net *ks)
-{
-	ks_wrreg16(ks, KS_IER, ks->rc_ier);
-}  /* ks_enable_int */
 
 /**
  * ks_start_xmit - transmit packet
@@ -1410,25 +1446,6 @@ static int ks_read_selftest(struct ks_net *ks)
 	return ret;
 }
 
-static void ks_disable(struct ks_net *ks)
-{
-	u16	w;
-
-	w = ks_rdreg16(ks, KS_TXCR);
-
-	/* Disables QMU Transmit (TXCR). */
-	w  &= ~TXCR_TXE;
-	ks_wrreg16(ks, KS_TXCR, w);
-
-	/* Disables QMU Receive (RXCR1). */
-	w = ks_rdreg16(ks, KS_RXCR1);
-	w &= ~RXCR1_RXE ;
-	ks_wrreg16(ks, KS_RXCR1, w);
-
-	ks->enabled = false;
-
-}  /* ks_disable */
-
 static void ks_setup(struct ks_net *ks)
 {
 	u16	w;
@@ -1463,7 +1480,7 @@ static void ks_setup(struct ks_net *ks)
 	w = TXCR_TXFCE | TXCR_TXPE | TXCR_TXCRC | TXCR_TCGIP;
 	ks_wrreg16(ks, KS_TXCR, w);
 
-	w = RXCR1_RXFCE | RXCR1_RXBE | RXCR1_RXUE;
+	w = RXCR1_RXFCE | RXCR1_RXBE | RXCR1_RXUE | RXCR1_RXME | RXCR1_RXIPFCC;
 
 	if (ks->promiscuous)         /* bPromiscuous */
 		w |= (RXCR1_RXAE | RXCR1_RXINVF);
@@ -1485,28 +1502,6 @@ static void ks_setup_int(struct ks_net *ks)
 	/* Enables the interrupts of the hardware. */
 	ks->rc_ier = (IRQ_LCI | IRQ_TXI | IRQ_RXI);
 }  /* ks_setup_int */
-
-void ks_enable(struct ks_net *ks)
-{
-	u16 w;
-
-	w = ks_rdreg16(ks, KS_TXCR);
-	/* Enables QMU Transmit (TXCR). */
-	ks_wrreg16(ks, KS_TXCR, w | TXCR_TXE);
-
-	/*
-	 * RX Frame Count Threshold Enable and Auto-Dequeue RXQ Frame
-	 * Enable
-	 */
-
-	w = ks_rdreg16(ks, KS_RXQCR);
-	ks_wrreg16(ks, KS_RXQCR, w | RXQCR_RXFCTE);
-
-	/* Enables QMU Receive (RXCR1). */
-	w = ks_rdreg16(ks, KS_RXCR1);
-	ks_wrreg16(ks, KS_RXCR1, w | RXCR1_RXE);
-	ks->enabled = true;
-}  /* ks_enable */
 
 static int ks_hw_init(struct ks_net *ks)
 {
@@ -1612,11 +1607,9 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 
 	ks_soft_reset(ks, GRR_GSR);
 	ks_hw_init(ks);
-	ks_disable(ks);
+	ks_disable_qmu(ks);
 	ks_setup(ks);
 	ks_setup_int(ks);
-	ks_enable_int(ks);
-	ks_enable(ks);
 	memcpy(netdev->dev_addr, ks->mac_addr, 6);
 
 	data = ks_rdreg16(ks, KS_OBCR);
@@ -1658,6 +1651,7 @@ static int __devexit ks8851_remove(struct platform_device *pdev)
 	struct ks_net *ks = netdev_priv(netdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
+	kfree(ks->frame_head_info);
 	unregister_netdev(netdev);
 	iounmap(ks->hw_addr);
 	free_netdev(netdev);

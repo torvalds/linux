@@ -662,6 +662,14 @@ struct ieee80211_local {
 	bool suspended;
 
 	/*
+	 * Resuming is true while suspended, but when we're reprogramming the
+	 * hardware -- at that time it's allowed to use ieee80211_queue_work()
+	 * again even though some other parts of the stack are still suspended
+	 * and we still drop received frames to avoid waking the stack.
+	 */
+	bool resuming;
+
+	/*
 	 * quiescing is true during the suspend process _only_ to
 	 * ease timer cancelling etc.
 	 */
