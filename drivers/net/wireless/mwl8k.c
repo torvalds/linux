@@ -2469,8 +2469,6 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 /*
  * CMD_FINALIZE_JOIN.
  */
-
-/* FJ beacon buffer size is compiled into the firmware.  */
 #define MWL8K_FJ_BEACON_MAXLEN	128
 
 struct mwl8k_cmd_finalize_join {
@@ -2480,16 +2478,12 @@ struct mwl8k_cmd_finalize_join {
 } __attribute__((packed));
 
 static int mwl8k_finalize_join(struct ieee80211_hw *hw, void *frame,
-				__u16 framelen, __u16 dtim)
+			       int framelen, int dtim)
 {
 	struct mwl8k_cmd_finalize_join *cmd;
 	struct ieee80211_mgmt *payload = frame;
-	u16 hdrlen;
-	u32 payload_len;
+	int payload_len;
 	int rc;
-
-	if (frame == NULL)
-		return -EINVAL;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
@@ -2499,24 +2493,17 @@ static int mwl8k_finalize_join(struct ieee80211_hw *hw, void *frame,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->sleep_interval = cpu_to_le32(dtim ? dtim : 1);
 
-	hdrlen = ieee80211_hdrlen(payload->frame_control);
-
-	payload_len = framelen > hdrlen ? framelen - hdrlen : 0;
-
-	/* XXX TBD Might just have to abort and return an error */
-	if (payload_len > MWL8K_FJ_BEACON_MAXLEN)
-		printk(KERN_ERR "%s(): WARNING: Incomplete beacon "
-		       "sent to firmware. Sz=%u MAX=%u\n", __func__,
-		       payload_len, MWL8K_FJ_BEACON_MAXLEN);
-
-	if (payload_len > MWL8K_FJ_BEACON_MAXLEN)
+	payload_len = framelen - ieee80211_hdrlen(payload->frame_control);
+	if (payload_len < 0)
+		payload_len = 0;
+	else if (payload_len > MWL8K_FJ_BEACON_MAXLEN)
 		payload_len = MWL8K_FJ_BEACON_MAXLEN;
 
-	if (payload && payload_len)
-		memcpy(cmd->beacon_data, &payload->u.beacon, payload_len);
+	memcpy(cmd->beacon_data, &payload->u.beacon, payload_len);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
+
 	return rc;
 }
 
