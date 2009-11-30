@@ -553,7 +553,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_agpmode == -1) {
+	if (rdev->flags & RADEON_IS_AGP && radeon_agpmode == -1) {
 		radeon_agp_disable(rdev);
 	}
 
