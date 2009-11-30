@@ -677,14 +677,6 @@ static inline u16 mwl8k_qos_setbit_ack(u16 qos, u8 ack_policy)
 	return (qos & qos_mask) | ((ack_policy & val_mask) << shift);
 }
 
-static inline u16 mwl8k_qos_setbit_amsdu(u16 qos)
-{
-	u16 val_mask = 1 << 7;
-
-	/* AMSDU present Bit 7 */
-	return qos | val_mask;
-}
-
 static inline u16 mwl8k_qos_setbit_qlen(u16 qos, u8 len)
 {
 	u16 val_mask = 0xff;
@@ -1474,9 +1466,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		else
 			qos = mwl8k_qos_setbit_ack(qos,
 				MWL8K_TXD_ACK_POLICY_NORMAL);
-
-		if (qos & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
-			qos = mwl8k_qos_setbit_amsdu(qos);
 	}
 
 	dma = pci_map_single(priv->pdev, skb->data,
