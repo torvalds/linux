@@ -512,9 +512,31 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
+ARM PRIMECELL AACI PL041 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	sound/arm/aaci.*
+
+ARM PRIMECELL CLCD PL110 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/video/amba-clcd.*
+
+ARM PRIMECELL KMI PL050 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/input/serio/ambakmi.*
+F:	include/linux/amba/kmi.h
+
 ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
+
+ARM PRIMECELL BUS SUPPORT
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/amba/
+F:	include/linux/amba/bus.h
 
 ARM/ADI ROADRUNNER MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
