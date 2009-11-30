@@ -199,6 +199,8 @@ struct tty_port_operations {
         /* FIXME: long term getting the tty argument *out* of this would be
            good for consoles */
 	int (*activate)(struct tty_port *port, struct tty_struct *tty);
+	/* Called on the final put of a port */
+	void (*destruct)(struct tty_port *port);
 };
 	
 struct tty_port {
@@ -219,6 +221,7 @@ struct tty_port {
 	int			drain_delay;	/* Set to zero if no pure time
 						   based drain is needed else
 						   set to size of fifo */
+	struct kref		kref;		/* Ref counter */
 };
 
 /*
@@ -461,6 +464,15 @@ extern int tty_write_lock(struct tty_struct *tty, int ndelay);
 extern void tty_port_init(struct tty_port *port);
 extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
+extern void tty_port_put(struct tty_port *port);
+
+extern inline struct tty_port *tty_port_get(struct tty_port *port)
+{
+	if (port)
+		kref_get(&port->kref);
+	return port;
+}
+
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
 extern int tty_port_carrier_raised(struct tty_port *port);

@@ -29,6 +29,7 @@ void tty_port_init(struct tty_port *port)
 	spin_lock_init(&port->lock);
 	port->close_delay = (50 * HZ) / 100;
 	port->closing_wait = (3000 * HZ) / 100;
+	kref_init(&port->kref);
 }
 EXPORT_SYMBOL(tty_port_init);
 
@@ -56,6 +57,23 @@ void tty_port_free_xmit_buf(struct tty_port *port)
 }
 EXPORT_SYMBOL(tty_port_free_xmit_buf);
 
+static void tty_port_destructor(struct kref *kref)
+{
+	struct tty_port *port = container_of(kref, struct tty_port, kref);
+	if (port->xmit_buf)
+		free_page((unsigned long)port->xmit_buf);
+	if (port->ops->destruct)
+		port->ops->destruct(port);
+	else
+		kfree(port);
+}
+
+void tty_port_put(struct tty_port *port)
+{
+	if (port)
+		kref_put(&port->kref, tty_port_destructor);
+}
+EXPORT_SYMBOL(tty_port_put);
 
 /**
  *	tty_port_tty_get	-	get a tty reference
