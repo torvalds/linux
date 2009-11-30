@@ -212,6 +212,7 @@ struct tty_port {
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
 	struct mutex		mutex;		/* Locking */
+	struct mutex		buf_mutex;	/* Buffer alloc lock */
 	unsigned char		*xmit_buf;	/* Optional buffer */
 	unsigned int		close_delay;	/* Close port delay */
 	unsigned int		closing_wait;	/* Delay for output */

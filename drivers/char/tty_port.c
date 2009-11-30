@@ -25,6 +25,7 @@ void tty_port_init(struct tty_port *port)
 	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->delta_msr_wait);
 	mutex_init(&port->mutex);
+	mutex_init(&port->buf_mutex);
 	spin_lock_init(&port->lock);
 	port->close_delay = (50 * HZ) / 100;
 	port->closing_wait = (3000 * HZ) / 100;
@@ -34,10 +35,10 @@ EXPORT_SYMBOL(tty_port_init);
 int tty_port_alloc_xmit_buf(struct tty_port *port)
 {
 	/* We may sleep in get_zeroed_page() */
-	mutex_lock(&port->mutex);
+	mutex_lock(&port->buf_mutex);
 	if (port->xmit_buf == NULL)
 		port->xmit_buf = (unsigned char *)get_zeroed_page(GFP_KERNEL);
-	mutex_unlock(&port->mutex);
+	mutex_unlock(&port->buf_mutex);
 	if (port->xmit_buf == NULL)
 		return -ENOMEM;
 	return 0;
@@ -46,12 +47,12 @@ EXPORT_SYMBOL(tty_port_alloc_xmit_buf);
 
 void tty_port_free_xmit_buf(struct tty_port *port)
 {
-	mutex_lock(&port->mutex);
+	mutex_lock(&port->buf_mutex);
 	if (port->xmit_buf != NULL) {
 		free_page((unsigned long)port->xmit_buf);
 		port->xmit_buf = NULL;
 	}
-	mutex_unlock(&port->mutex);
+	mutex_unlock(&port->buf_mutex);
 }
 EXPORT_SYMBOL(tty_port_free_xmit_buf);
 
