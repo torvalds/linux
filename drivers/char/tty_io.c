@@ -505,8 +505,6 @@ static void do_tty_hangup(struct work_struct *work)
 	if (!tty)
 		return;
 
-	/* inuse_filps is protected by the single kernel lock */
-	lock_kernel();
 
 	spin_lock(&redirect_lock);
 	if (redirect && redirect->private_data == tty) {
@@ -515,6 +513,8 @@ static void do_tty_hangup(struct work_struct *work)
 	}
 	spin_unlock(&redirect_lock);
 
+	/* inuse_filps is protected by the single kernel lock */
+	lock_kernel();
 	check_tty_count(tty, "do_tty_hangup");
 	file_list_lock();
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
