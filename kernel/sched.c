@@ -7033,7 +7033,20 @@ cpumask_var_t nohz_cpu_mask;
 static void update_sysctl(void)
 {
 	unsigned int cpus = min(num_online_cpus(), 8U);
-	unsigned int factor = 1 + ilog2(cpus);
+	unsigned int factor;
+
+	switch (sysctl_sched_tunable_scaling) {
+	case SCHED_TUNABLESCALING_NONE:
+		factor = 1;
+		break;
+	case SCHED_TUNABLESCALING_LINEAR:
+		factor = cpus;
+		break;
+	case SCHED_TUNABLESCALING_LOG:
+	default:
+		factor = 1 + ilog2(cpus);
+		break;
+	}
 
 #define SET_SYSCTL(name) \
 	(sysctl_##name = (factor) * normalized_sysctl_##name)
