@@ -495,7 +495,7 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 	uint16_t sclk, mclk;
 
 	if (rdev->bios == NULL)
-		return NULL;
+		return false;
 
 	pll_info = combios_get_table_offset(dev, COMBIOS_PLL_INFO_TABLE);
 	if (pll_info) {

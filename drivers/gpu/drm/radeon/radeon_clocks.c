@@ -44,6 +44,10 @@ uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
 
 	ref_div =
 	    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) & RADEON_M_SPLL_REF_DIV_MASK;
+
+	if (ref_div == 0)
+		return 0;
+
 	sclk = fb_div / ref_div;
 
 	post_div = RREG32_PLL(RADEON_SCLK_CNTL) & RADEON_SCLK_SRC_SEL_MASK;
@@ -70,6 +74,10 @@ static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 
 	ref_div =
 	    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) & RADEON_M_SPLL_REF_DIV_MASK;
+
+	if (ref_div == 0)
+		return 0;
+
 	mclk = fb_div / ref_div;
 
 	post_div = RREG32_PLL(RADEON_MCLK_CNTL) & 0x7;
