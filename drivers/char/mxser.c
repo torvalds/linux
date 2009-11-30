@@ -856,9 +856,9 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	}
 }
 
-static int mxser_startup(struct tty_struct *tty)
+static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct mxser_port *info = tty->driver_data;
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long page;
 	unsigned long flags;
 
@@ -868,22 +868,13 @@ static int mxser_startup(struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->slock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
-		free_page(page);
-		spin_unlock_irqrestore(&info->slock, flags);
-		return 0;
-	}
-
 	if (!info->ioaddr || !info->type) {
 		set_bit(TTY_IO_ERROR, &tty->flags);
 		free_page(page);
 		spin_unlock_irqrestore(&info->slock, flags);
 		return 0;
 	}
-	if (info->port.xmit_buf)
-		free_page(page);
-	else
-		info->port.xmit_buf = (unsigned char *) page;
+	info->port.xmit_buf = (unsigned char *) page;
 
 	/*
 	 * Clear the FIFO buffers and disable them
@@ -951,23 +942,18 @@ static int mxser_startup(struct tty_struct *tty)
 	 * and set the speed of the serial port
 	 */
 	mxser_change_speed(tty, NULL);
-	info->port.flags |= ASYNC_INITIALIZED;
 	spin_unlock_irqrestore(&info->slock, flags);
 
 	return 0;
 }
 
 /*
- * This routine will shutdown a serial port; interrupts maybe disabled, and
- * DTR is dropped if the hangup on close termio flag is on.
+ * This routine will shutdown a serial port
  */
-static void mxser_shutdown(struct tty_struct *tty)
+static void mxser_shutdown_port(struct tty_port *port)
 {
-	struct mxser_port *info = tty->driver_data;
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long flags;
-
-	if (!(info->port.flags & ASYNC_INITIALIZED))
-		return;
 
 	spin_lock_irqsave(&info->slock, flags);
 
@@ -978,7 +964,7 @@ static void mxser_shutdown(struct tty_struct *tty)
 	wake_up_interruptible(&info->port.delta_msr_wait);
 
 	/*
-	 * Free the IRQ, if necessary
+	 * Free the xmit buffer, if necessary
 	 */
 	if (info->port.xmit_buf) {
 		free_page((unsigned long) info->port.xmit_buf);
@@ -987,10 +973,6 @@ static void mxser_shutdown(struct tty_struct *tty)
 
 	info->IER = 0;
 	outb(0x00, info->ioaddr + UART_IER);
-
-	if (tty->termios->c_cflag & HUPCL)
-		info->MCR &= ~(UART_MCR_DTR | UART_MCR_RTS);
-	outb(info->MCR, info->ioaddr + UART_MCR);
 
 	/* clear Rx/Tx FIFO's */
 	if (info->board->chip_flag)
@@ -1004,9 +986,6 @@ static void mxser_shutdown(struct tty_struct *tty)
 	/* read data port to reset things */
 	(void) inb(info->ioaddr + UART_RX);
 
-	set_bit(TTY_IO_ERROR, &tty->flags);
-
-	info->port.flags &= ~ASYNC_INITIALIZED;
 
 	if (info->board->chip_flag)
 		SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(info->ioaddr);
@@ -1023,8 +1002,7 @@ static void mxser_shutdown(struct tty_struct *tty)
 static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_port *info;
-	unsigned long flags;
-	int retval, line;
+	int line;
 
 	line = tty->index;
 	if (line == MXSER_PORTS)
@@ -1035,23 +1013,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (!info->ioaddr)
 		return -ENODEV;
 
-	tty->driver_data = info;
-	tty_port_tty_set(&info->port, tty);
-	/*
-	 * Start up serial port
-	 */
-	spin_lock_irqsave(&info->port.lock, flags);
-	info->port.count++;
-	spin_unlock_irqrestore(&info->port.lock, flags);
-	retval = mxser_startup(tty);
-	if (retval)
-		return retval;
-
-	retval = tty_port_block_til_ready(&info->port, tty, filp);
-	if (retval)
-		return retval;
-
-	return 0;
+	return tty_port_open(&info->port, tty, filp);
 }
 
 static void mxser_flush_buffer(struct tty_struct *tty)
@@ -1075,18 +1037,10 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 }
 
 
-static void mxser_close_port(struct tty_struct *tty, struct tty_port *port)
+static void mxser_close_port(struct tty_port *port)
 {
 	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long timeout;
-	/*
-	 * Save the termios structure, since this port may have
-	 * separate termios for callout and dialin.
-	 *
-	 * FIXME: Can this go ?
-	 */
-	if (port->flags & ASYNC_NORMAL_ACTIVE)
-		info->normal_termios = *tty->termios;
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1097,22 +1051,18 @@ static void mxser_close_port(struct tty_struct *tty, struct tty_port *port)
 	if (info->board->chip_flag)
 		info->IER &= ~MOXA_MUST_RECV_ISR;
 
-	if (port->flags & ASYNC_INITIALIZED) {
-		outb(info->IER, info->ioaddr + UART_IER);
-		/*
-		 * Before we drop DTR, make sure the UART transmitter
-		 * has completely drained; this is especially
-		 * important if there is a transmit FIFO!
-		 */
-		timeout = jiffies + HZ;
-		while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
-			schedule_timeout_interruptible(5);
-			if (time_after(jiffies, timeout))
-				break;
-		}
+	outb(info->IER, info->ioaddr + UART_IER);
+	/*
+	 * Before we drop DTR, make sure the UART transmitter
+	 * has completely drained; this is especially
+	 * important if there is a transmit FIFO!
+	 */
+	timeout = jiffies + HZ;
+	while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
+		schedule_timeout_interruptible(5);
+		if (time_after(jiffies, timeout))
+			break;
 	}
-	mxser_shutdown(tty);
-
 }
 
 /*
@@ -1130,8 +1080,12 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-	mxser_close_port(tty, port);
+	mutex_lock(&port->mutex);
+	mxser_close_port(port);
 	mxser_flush_buffer(tty);
+	mxser_shutdown_port(port);
+	clear_bit(ASYNCB_INITIALIZED, &port->flags);
+	mutex_unlock(&port->mutex);
 	/* Right now the tty_port set is done outside of the close_end helper
 	   as we don't yet have everyone using refcounts */	
 	tty_port_close_end(port, tty);
@@ -1329,9 +1283,13 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 			mxser_change_speed(tty, NULL);
 			spin_unlock_irqrestore(&info->slock, sl_flags);
 		}
-	} else
-		retval = mxser_startup(tty);
-
+	} else {
+		mutex_lock(&info->port.mutex);
+		retval = mxser_activate(&info->port, tty);
+		if (retval == 0)
+			set_bit(ASYNCB_INITIALIZED, &info->port.flags);
+		mutex_unlock(&info->port.mutex);
+	}
 	return retval;
 }
 
@@ -2059,7 +2017,6 @@ static void mxser_hangup(struct tty_struct *tty)
 	struct mxser_port *info = tty->driver_data;
 
 	mxser_flush_buffer(tty);
-	mxser_shutdown(tty);
 	tty_port_hangup(&info->port);
 }
 
@@ -2363,6 +2320,8 @@ static const struct tty_operations mxser_ops = {
 struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
 	.dtr_rts = mxser_dtr_rts,
+	.activate = mxser_activate,
+	.shutdown = mxser_shutdown_port,
 };
 
 /*
