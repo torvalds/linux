@@ -204,9 +204,6 @@ struct mwl8k_priv {
 
 /* Per interface specific private data */
 struct mwl8k_vif {
-	/* backpointer to parent config block */
-	struct mwl8k_priv *priv;
-
 	/* BSS config of AP or IBSS from mac80211*/
 	struct ieee80211_bss_conf bss_info;
 
@@ -2876,9 +2873,6 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	/* Set and save the mac address */
 	mwl8k_cmd_set_mac_addr(hw, conf->mac_addr);
 	memcpy(mwl8k_vif->mac_addr, conf->mac_addr, ETH_ALEN);
-
-	/* Back pointer to parent config block */
-	mwl8k_vif->priv = priv;
 
 	/* Set Initial sequence number to zero */
 	mwl8k_vif->seqno = 0;
