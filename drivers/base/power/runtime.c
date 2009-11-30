@@ -328,11 +328,11 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 		 * necessary.
 		 */
 		parent = dev->parent;
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock(&dev->power.lock);
 
 		pm_runtime_get_noresume(parent);
 
-		spin_lock_irq(&parent->power.lock);
+		spin_lock(&parent->power.lock);
 		/*
 		 * We can resume if the parent's run-time PM is disabled or it
 		 * is set to ignore children.
@@ -343,9 +343,9 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 			if (parent->power.runtime_status != RPM_ACTIVE)
 				retval = -EBUSY;
 		}
-		spin_unlock_irq(&parent->power.lock);
+		spin_unlock(&parent->power.lock);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock(&dev->power.lock);
 		if (retval)
 			goto out;
 		goto repeat;
@@ -777,7 +777,7 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 	}
 
 	if (parent) {
-		spin_lock_irq(&parent->power.lock);
+		spin_lock(&parent->power.lock);
 
 		/*
 		 * It is invalid to put an active child under a parent that is
@@ -793,7 +793,7 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 				atomic_inc(&parent->power.child_count);
 		}
 
-		spin_unlock_irq(&parent->power.lock);
+		spin_unlock(&parent->power.lock);
 
 		if (error)
 			goto out;
