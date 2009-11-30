@@ -4052,8 +4052,13 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	dev_priv->busy = true;
-	intel_increase_renderclock(dev, true);
+	if (!dev_priv->busy) {
+		dev_priv->busy = true;
+		intel_increase_renderclock(dev, true);
+	} else {
+		mod_timer(&dev_priv->idle_timer, jiffies +
+			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
+	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
