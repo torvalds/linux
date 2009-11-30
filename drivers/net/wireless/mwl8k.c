@@ -242,6 +242,9 @@ static const struct ieee80211_channel mwl8k_channels[] = {
 	{ .center_freq = 2452, .hw_value = 9, },
 	{ .center_freq = 2457, .hw_value = 10, },
 	{ .center_freq = 2462, .hw_value = 11, },
+	{ .center_freq = 2467, .hw_value = 12, },
+	{ .center_freq = 2472, .hw_value = 13, },
+	{ .center_freq = 2484, .hw_value = 14, },
 };
 
 static const struct ieee80211_rate mwl8k_rates[] = {
