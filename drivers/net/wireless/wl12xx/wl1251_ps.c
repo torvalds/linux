@@ -26,7 +26,8 @@
 #include "wl1251_cmd.h"
 #include "wl1251_io.h"
 
-#define WL1251_WAKEUP_TIMEOUT 2000
+/* in ms */
+#define WL1251_WAKEUP_TIMEOUT 100
 
 void wl1251_elp_work(struct work_struct *work)
 {
