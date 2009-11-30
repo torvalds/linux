@@ -2083,29 +2083,31 @@ static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 
 	*stat = 0;
 
-	if ((lock >> 14) & 1)	// AGC
+	if ((lock >> 13) & 1)
 		*stat |= FE_HAS_SIGNAL;
 
-	if ((lock >> 8) & 1)	// Equal
+	if ((lock >> 8) & 1) /* Equal */
 		*stat |= FE_HAS_CARRIER;
 
-	if ((lock >> 3) & 1)	// TMCC_SYNC
+	if (((lock >> 1) & 0xf) == 0xf) /* TMCC_SYNC */
 		*stat |= FE_HAS_SYNC;
 
-	if ((lock >> 5) & 7)	// FEC MPEG
+	if (((lock >> 12) & 1) && ((lock >> 5) & 7)) /* FEC MPEG */
 		*stat |= FE_HAS_LOCK;
 
-	lock = dib8000_read_word(state, 554);	// Viterbi Layer A
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+	if ((lock >> 12) & 1) {
+		lock = dib8000_read_word(state, 554); /* Viterbi Layer A */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
 
-	lock = dib8000_read_word(state, 555);	// Viterbi Layer B
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+		lock = dib8000_read_word(state, 555); /* Viterbi Layer B */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
 
-	lock = dib8000_read_word(state, 556);	// Viterbi Layer C
-	if (lock & 0x01)
-		*stat |= FE_HAS_VITERBI;
+		lock = dib8000_read_word(state, 556); /* Viterbi Layer C */
+		if (lock & 0x01)
+			*stat |= FE_HAS_VITERBI;
+	}
 
 	return 0;
 }
