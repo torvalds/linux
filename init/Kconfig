@@ -1098,6 +1098,16 @@ config SLOW_WORK
 
 	  See Documentation/slow-work.txt.
 
+config SLOW_WORK_PROC
+	bool "Slow work debugging through /proc"
+	default n
+	depends on SLOW_WORK && PROC_FS
+	help
+	  Display the contents of the slow work run queue through /proc,
+	  including items currently executing.
+
+	  See Documentation/slow-work.txt.
+
 endmenu		# General setup
 
 config HAVE_GENERIC_DMA_COHERENT
