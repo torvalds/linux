@@ -634,7 +634,6 @@ struct ewc_ht_info {
 #define MWL8K_PEER_TYPE_ACCESSPOINT	2
 
 #define MWL8K_IEEE_LEGACY_DATA_RATES	13
-#define MWL8K_MCS_BITMAP_SIZE		16
 
 struct peer_capability_info {
 	/* Peer type - AP vs. STA.  */
@@ -655,7 +654,7 @@ struct peer_capability_info {
 	__u8	legacy_rates[MWL8K_IEEE_LEGACY_DATA_RATES];
 
 	/* HT rate table. Intersection of our rates and peer rates.  */
-	__u8	ht_rates[MWL8K_MCS_BITMAP_SIZE];
+	__u8	ht_rates[16];
 	__u8	pad[16];
 
 	/* If set, interoperability mode, no proprietary extensions.  */
@@ -2638,8 +2637,8 @@ struct mwl8k_cmd_update_rateset {
 	__u8	legacy_rates[MWL8K_RATE_INDEX_MAX_ARRAY];
 
 	/* Bitmap for supported MCS codes.  */
-	__u8	mcs_set[MWL8K_IEEE_LEGACY_DATA_RATES];
-	__u8	reserved[MWL8K_IEEE_LEGACY_DATA_RATES];
+	__u8	mcs_set[16];
+	__u8	reserved[16];
 } __attribute__((packed));
 
 static int mwl8k_update_rateset(struct ieee80211_hw *hw,
