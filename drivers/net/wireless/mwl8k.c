@@ -571,7 +571,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 			       "helper image\n", pci_name(priv->pdev));
 			return rc;
 		}
-		msleep(1);
+		msleep(5);
 
 		rc = mwl8k_feed_fw_image(priv, fw->data, fw->size);
 	} else {
@@ -588,9 +588,8 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 		iowrite32(MWL8K_MODE_AP, priv->regs + MWL8K_HIU_GEN_PTR);
 	else
 		iowrite32(MWL8K_MODE_STA, priv->regs + MWL8K_HIU_GEN_PTR);
-	msleep(1);
 
-	loops = 200000;
+	loops = 500000;
 	do {
 		u32 ready_code;
 
