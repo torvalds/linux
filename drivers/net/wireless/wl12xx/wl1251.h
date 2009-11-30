@@ -247,6 +247,7 @@ struct wl1251_debugfs {
 	struct dentry *rxpipe_tx_xfr_host_int_trig_rx_data;
 
 	struct dentry *tx_queue_len;
+	struct dentry *tx_queue_status;
 
 	struct dentry *retry_count;
 	struct dentry *excessive_retries;
