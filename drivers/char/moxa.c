@@ -154,7 +154,6 @@ struct mon_str {
 #define TXSTOPPED	1
 #define LOWWAIT 	2
 #define EMPTYWAIT	3
-#define THROTTLE	4
 
 #define SERIAL_DO_RESTART
 
@@ -194,8 +193,6 @@ static int moxa_write(struct tty_struct *, const unsigned char *, int);
 static int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static int moxa_chars_in_buffer(struct tty_struct *);
-static void moxa_throttle(struct tty_struct *);
-static void moxa_unthrottle(struct tty_struct *);
 static void moxa_set_termios(struct tty_struct *, struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
@@ -415,8 +412,6 @@ static const struct tty_operations moxa_ops = {
 	.flush_buffer = moxa_flush_buffer,
 	.chars_in_buffer = moxa_chars_in_buffer,
 	.ioctl = moxa_ioctl,
-	.throttle = moxa_throttle,
-	.unthrottle = moxa_unthrottle,
 	.set_termios = moxa_set_termios,
 	.stop = moxa_stop,
 	.start = moxa_start,
@@ -1327,20 +1322,6 @@ static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static void moxa_throttle(struct tty_struct *tty)
-{
-	struct moxa_port *ch = tty->driver_data;
-
-	set_bit(THROTTLE, &ch->statusflags);
-}
-
-static void moxa_unthrottle(struct tty_struct *tty)
-{
-	struct moxa_port *ch = tty->driver_data;
-
-	clear_bit(THROTTLE, &ch->statusflags);
-}
-
 static void moxa_set_termios(struct tty_struct *tty,
 		struct ktermios *old_termios)
 {
@@ -1418,7 +1399,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 			tty_wakeup(tty);
 		}
 
-		if (inited && !test_bit(THROTTLE, &p->statusflags) &&
+		if (inited && !test_bit(TTY_THROTTLED, &tty->flags) &&
 				MoxaPortRxQueue(p) > 0) { /* RX */
 			MoxaPortReadData(p);
 			tty_schedule_flip(tty);
