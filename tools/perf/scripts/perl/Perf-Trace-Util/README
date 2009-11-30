@@ -36,8 +36,8 @@ INSTALLATION
 Building perf with perf trace Perl scripting should install this
 module in the right place.
 
-You should make sure libperl is installed first e.g. apt-get install
-libperl-dev.
+You should make sure libperl and ExtUtils/Embed.pm are installed first
+e.g. apt-get install libperl-dev or yum install perl-ExtUtils-Embed.
 
 DEPENDENCIES
 

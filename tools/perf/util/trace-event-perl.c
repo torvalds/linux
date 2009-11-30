@@ -577,7 +577,9 @@ struct scripting_ops perl_scripting_ops = {
 void setup_perl_scripting(void)
 {
 	fprintf(stderr, "Perl scripting not supported."
-		"  Install libperl-dev[el] and rebuild perf to get it.\n");
+		"  Install libperl and rebuild perf to enable it.  e.g. "
+		"apt-get install libperl-dev (ubuntu), yum install "
+		"perl-ExtUtils-Embed (Fedora), etc.\n");
 }
 #else
 void setup_perl_scripting(void)
