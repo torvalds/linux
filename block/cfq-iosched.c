@@ -609,15 +609,11 @@ cfq_find_next_rq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 static unsigned long cfq_slice_offset(struct cfq_data *cfqd,
 				      struct cfq_queue *cfqq)
 {
-	struct cfq_rb_root *service_tree;
-
-	service_tree = service_tree_for(cfqq_prio(cfqq), cfqq_type(cfqq), cfqd);
-
 	/*
 	 * just an approximation, should be ok.
 	 */
-	return  service_tree->count * (cfq_prio_slice(cfqd, 1, 0) -
-		   cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio));
+	return (cfqd->busy_queues - 1) * (cfq_prio_slice(cfqd, 1, 0) -
+		       cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio));
 }
 
 /*
