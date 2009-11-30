@@ -667,6 +667,15 @@ config PATA_SIS
 
 	  If unsure, say N.
 
+config PATA_TOSHIBA
+	tristate "Toshiba Piccolo support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  Support for the Toshiba Piccolo controllers. Currently only the
+	  primary channel is supported by this driver.
+
+	  If unsure, say N.
+
 config PATA_VIA
 	tristate "VIA PATA support"
 	depends on PCI
