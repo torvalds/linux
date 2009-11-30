@@ -212,9 +212,6 @@ struct tx_result {
 
 static inline int wl1251_tx_get_queue(int queue)
 {
-	/* FIXME: use best effort until WMM is enabled */
-	return QOS_AC_BE;
-
 	switch (queue) {
 	case 0:
 		return QOS_AC_VO;

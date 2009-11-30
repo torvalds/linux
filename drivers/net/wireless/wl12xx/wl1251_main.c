@@ -1388,6 +1388,8 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
+	wl->hw->queues = 4;
+
 	ret = wl1251_register_hw(wl);
 	if (ret)
 		goto out;
