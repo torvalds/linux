@@ -799,8 +799,8 @@ static void sci_free_irq(struct sci_port *port)
 
 static unsigned int sci_tx_empty(struct uart_port *port)
 {
-	/* Can't detect */
-	return TIOCSER_TEMT;
+	unsigned short status = sci_in(port, SCxSR);
+	return status & SCxSR_TEND(port) ? TIOCSER_TEMT : 0;
 }
 
 static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
