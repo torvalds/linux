@@ -12,4 +12,7 @@ extern int synthesize_trace_kprobe_event(struct probe_point *pp);
 extern void add_trace_kprobe_events(struct probe_point *probes, int nr_probes);
 extern void show_perf_probe_events(void);
 
+/* Maximum index number of event-name postfix */
+#define MAX_EVENT_INDEX	1024
+
 #endif /*_PROBE_EVENT_H */

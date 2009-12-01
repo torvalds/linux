@@ -403,6 +403,29 @@ void show_perf_probe_events(void)
 	strlist__delete(rawlist);
 }
 
+/* Get current perf-probe event names */
+static struct strlist *get_perf_event_names(int fd)
+{
+	unsigned int i;
+	char *group, *event;
+	struct strlist *sl, *rawlist;
+	struct str_node *ent;
+
+	rawlist = get_trace_kprobe_event_rawlist(fd);
+
+	sl = strlist__new(false, NULL);
+	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
+		ent = strlist__entry(rawlist, i);
+		parse_trace_kprobe_event(ent->s, &group, &event, NULL);
+		strlist__add(sl, event);
+		free(group);
+	}
+
+	strlist__delete(rawlist);
+
+	return sl;
+}
+
 static int write_trace_kprobe_event(int fd, const char *buf)
 {
 	int ret;
@@ -416,30 +439,46 @@ static int write_trace_kprobe_event(int fd, const char *buf)
 	return ret;
 }
 
+static void get_new_event_name(char *buf, size_t len, const char *base,
+			       struct strlist *namelist)
+{
+	int i, ret;
+	for (i = 0; i < MAX_EVENT_INDEX; i++) {
+		ret = e_snprintf(buf, len, "%s_%d", base, i);
+		if (ret < 0)
+			die("snprintf() failed: %s", strerror(-ret));
+		if (!strlist__has_entry(namelist, buf))
+			break;
+	}
+	if (i == MAX_EVENT_INDEX)
+		die("Too many events are on the same function.");
+}
+
 void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 {
 	int i, j, fd;
 	struct probe_point *pp;
 	char buf[MAX_CMDLEN];
+	char event[64];
+	struct strlist *namelist;
 
-	fd = open_kprobe_events(O_WRONLY, O_APPEND);
+	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	/* Get current event names */
+	namelist = get_perf_event_names(fd);
 
 	for (j = 0; j < nr_probes; j++) {
 		pp = probes + j;
-		if (pp->found == 1) {
-			snprintf(buf, MAX_CMDLEN, "%c:%s/%s_%x %s\n",
-				pp->retprobe ? 'r' : 'p', PERFPROBE_GROUP,
-				pp->function, pp->offset, pp->probes[0]);
+		for (i = 0; i < pp->found; i++) {
+			/* Get an unused new event name */
+			get_new_event_name(event, 64, pp->function, namelist);
+			snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s\n",
+				 pp->retprobe ? 'r' : 'p',
+				 PERFPROBE_GROUP, event,
+				 pp->probes[i]);
 			write_trace_kprobe_event(fd, buf);
-		} else
-			for (i = 0; i < pp->found; i++) {
-				snprintf(buf, MAX_CMDLEN, "%c:%s/%s_%x_%d %s\n",
-					pp->retprobe ? 'r' : 'p',
-					PERFPROBE_GROUP,
-					pp->function, pp->offset, i,
-					pp->probes[i]);
-				write_trace_kprobe_event(fd, buf);
-			}
+			/* Add added event name to namelist */
+			strlist__add(namelist, event);
+		}
 	}
 	close(fd);
 }
