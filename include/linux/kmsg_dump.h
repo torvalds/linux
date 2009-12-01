@@ -35,10 +35,26 @@ struct kmsg_dumper {
 	int registered;
 };
 
+#ifdef CONFIG_PRINTK
 void kmsg_dump(enum kmsg_dump_reason reason);
 
 int kmsg_dump_register(struct kmsg_dumper *dumper);
 
 int kmsg_dump_unregister(struct kmsg_dumper *dumper);
+#else
+static inline void kmsg_dump(enum kmsg_dump_reason reason)
+{
+}
+
+static inline int kmsg_dump_register(struct kmsg_dumper *dumper)
+{
+	return -EINVAL;
+}
+
+static inline int kmsg_dump_unregister(struct kmsg_dumper *dumper)
+{
+	return -EINVAL;
+}
+#endif
 
 #endif /* _LINUX_KMSG_DUMP_H */
