@@ -204,7 +204,7 @@ static struct resource veu0_resources[] = {
 	[0] = {
 		.name	= "VEU3F0",
 		.start	= 0xfe920000,
-		.end	= 0xfe9200cb - 1,
+		.end	= 0xfe9200cb,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -236,7 +236,7 @@ static struct resource veu1_resources[] = {
 	[0] = {
 		.name	= "VEU3F1",
 		.start	= 0xfe924000,
-		.end	= 0xfe9240cb - 1,
+		.end	= 0xfe9240cb,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
