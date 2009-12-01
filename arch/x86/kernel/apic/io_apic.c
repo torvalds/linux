@@ -2586,6 +2586,19 @@ static void ack_apic_level(unsigned int irq)
 	 * level-triggered interrupt.  We mask the source for the time of the
 	 * operation to prevent an edge-triggered interrupt escaping meanwhile.
 	 * The idea is from Manfred Spraul.  --macro
+	 *
+	 * Also in the case when cpu goes offline, fixup_irqs() will forward
+	 * any unhandled interrupt on the offlined cpu to the new cpu
+	 * destination that is handling the corresponding interrupt. This
+	 * interrupt forwarding is done via IPI's. Hence, in this case also
+	 * level-triggered io-apic interrupt will be seen as an edge
+	 * interrupt in the IRR. And we can't rely on the cpu's EOI
+	 * to be broadcasted to the IO-APIC's which will clear the remoteIRR
+	 * corresponding to the level-triggered interrupt. Hence on IO-APIC's
+	 * supporting EOI register, we do an explicit EOI to clear the
+	 * remote IRR and on IO-APIC's which don't have an EOI register,
+	 * we use the above logic (mask+edge followed by unmask+level) from
+	 * Manfred Spraul to clear the remote IRR.
 	 */
 	cfg = desc->chip_data;
 	i = cfg->vector;
@@ -2597,7 +2610,13 @@ static void ack_apic_level(unsigned int irq)
 	 */
 	ack_APIC_irq();
 
-	/* Tail end of version 0x11 I/O APIC bug workaround */
+	/*
+	 * Tail end of clearing remote IRR bit (either by delivering the EOI
+	 * message via io-apic EOI register write or simulating it using
+	 * mask+edge followed by unnask+level logic) manually when the
+	 * level triggered interrupt is seen as the edge triggered interrupt
+	 * at the cpu.
+	 */
 	if (!(v & (1 << (i & 0x1f)))) {
 		atomic_inc(&irq_mis_count);
 
