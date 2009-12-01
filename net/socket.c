@@ -2144,6 +2144,7 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 	int fput_needed, err, datagrams;
 	struct socket *sock;
 	struct mmsghdr __user *entry;
+	struct compat_mmsghdr __user *compat_entry;
 	struct msghdr msg_sys;
 	struct timespec end_time;
 
@@ -2163,19 +2164,30 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		goto out_put;
 
 	entry = mmsg;
+	compat_entry = (struct compat_mmsghdr __user *)mmsg;
 
 	while (datagrams < vlen) {
 		/*
 		 * No need to ask LSM for more than the first datagram.
 		 */
-		err = __sys_recvmsg(sock, (struct msghdr __user *)entry,
-				    &msg_sys, flags, datagrams);
-		if (err < 0)
-			break;
-		err = put_user(err, &entry->msg_len);
+		if (MSG_CMSG_COMPAT & flags) {
+			err = __sys_recvmsg(sock, (struct msghdr __user *)compat_entry,
+					    &msg_sys, flags, datagrams);
+			if (err < 0)
+				break;
+			err = __put_user(err, &compat_entry->msg_len);
+			++compat_entry;
+		} else {
+			err = __sys_recvmsg(sock, (struct msghdr __user *)entry,
+					    &msg_sys, flags, datagrams);
+			if (err < 0)
+				break;
+			err = put_user(err, &entry->msg_len);
+			++entry;
+		}
+
 		if (err)
 			break;
-		++entry;
 		++datagrams;
 
 		if (timeout) {
