@@ -433,6 +433,17 @@ config ARCH_L7200
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
 
+config ARCH_DOVE
+	bool "Marvell Dove"
+	select PCI
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
+	help
+	  Support for the Marvell Dove SoC 88AP510
+
 config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
 	select CPU_FEROCEON
@@ -746,6 +757,8 @@ source "arch/arm/mach-omap2/Kconfig"
 source "arch/arm/mach-orion5x/Kconfig"
 
 source "arch/arm/mach-kirkwood/Kconfig"
+
+source "arch/arm/mach-dove/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"

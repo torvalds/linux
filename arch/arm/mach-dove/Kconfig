@@ -1,0 +1,14 @@
+if ARCH_DOVE
+
+menu "Marvell Dove Implementations"
+
+config MACH_DOVE_DB
+	bool "Marvell DB-MV88AP510 Development Board"
+	select I2C_BOARDINFO
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-MV88AP510 Development Board.
+
+endmenu
+
+endif
