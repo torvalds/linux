@@ -358,6 +358,10 @@ repeat:
 
 		jbd_unlock_bh_state(bh_in);
 		tmp = jbd2_alloc(bh_in->b_size, GFP_NOFS);
+		if (!tmp) {
+			jbd2_journal_put_journal_head(new_jh);
+			return -ENOMEM;
+		}
 		jbd_lock_bh_state(bh_in);
 		if (jh_in->b_frozen_data) {
 			jbd2_free(tmp, bh_in->b_size);
