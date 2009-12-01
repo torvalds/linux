@@ -17,7 +17,6 @@
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
 #include <asm/mcfdma.h>
-#include <asm/mcfuart.h>
 
 /***************************************************************************/
 

@@ -36,8 +36,7 @@
 #define DRIVER_DESC "USB HandSpring Visor / Palm OS driver"
 
 /* function prototypes for a handspring visor */
-static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void visor_close(struct usb_serial_port *port);
 static int  visor_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
@@ -273,8 +272,7 @@ static int stats;
 /******************************************************************************
  * Handspring Visor specific driver functions
  ******************************************************************************/
-static int visor_open(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp)
+static int visor_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct visor_private *priv = usb_get_serial_port_data(port);
@@ -515,7 +513,8 @@ static void visor_read_bulk_callback(struct urb *urb)
 			tty_kref_put(tty);
 		}
 		spin_lock(&priv->lock);
-		priv->bytes_in += available_room;
+		if (tty)
+			priv->bytes_in += available_room;
 
 	} else {
 		spin_lock(&priv->lock);
@@ -584,12 +583,11 @@ static void visor_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 	priv->throttled = 1;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 }
 
 
@@ -597,21 +595,23 @@ static void visor_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	int result;
+	int result, was_throttled;
 
 	dbg("%s - port %d", __func__, port->number);
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 	priv->throttled = 0;
+	was_throttled = priv->actually_throttled;
 	priv->actually_throttled = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 
-	port->read_urb->dev = port->serial->dev;
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
+	if (was_throttled) {
+		port->read_urb->dev = port->serial->dev;
+		result = usb_submit_urb(port->read_urb, GFP_KERNEL);
+		if (result)
+			dev_err(&port->dev,
+				"%s - failed submitting read urb, error %d\n",
 							__func__, result);
+	}
 }
 
 static int palm_os_3_probe(struct usb_serial *serial,

@@ -68,11 +68,16 @@ int eventfd_signal(struct eventfd_ctx *ctx, int n)
 }
 EXPORT_SYMBOL_GPL(eventfd_signal);
 
+static void eventfd_free_ctx(struct eventfd_ctx *ctx)
+{
+	kfree(ctx);
+}
+
 static void eventfd_free(struct kref *kref)
 {
 	struct eventfd_ctx *ctx = container_of(kref, struct eventfd_ctx, kref);
 
-	kfree(ctx);
+	eventfd_free_ctx(ctx);
 }
 
 /**
@@ -298,9 +303,23 @@ struct eventfd_ctx *eventfd_ctx_fileget(struct file *file)
 }
 EXPORT_SYMBOL_GPL(eventfd_ctx_fileget);
 
-SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
+/**
+ * eventfd_file_create - Creates an eventfd file pointer.
+ * @count: Initial eventfd counter value.
+ * @flags: Flags for the eventfd file.
+ *
+ * This function creates an eventfd file pointer, w/out installing it into
+ * the fd table. This is useful when the eventfd file is used during the
+ * initialization of data structures that require extra setup after the eventfd
+ * creation. So the eventfd creation is split into the file pointer creation
+ * phase, and the file descriptor installation phase.
+ * In this way races with userspace closing the newly installed file descriptor
+ * can be avoided.
+ * Returns an eventfd file pointer, or a proper error pointer.
+ */
+struct file *eventfd_file_create(unsigned int count, int flags)
 {
-	int fd;
+	struct file *file;
 	struct eventfd_ctx *ctx;
 
 	/* Check the EFD_* constants for consistency.  */
@@ -308,26 +327,48 @@ SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
 	BUILD_BUG_ON(EFD_NONBLOCK != O_NONBLOCK);
 
 	if (flags & ~EFD_FLAGS_SET)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ctx->kref);
 	init_waitqueue_head(&ctx->wqh);
 	ctx->count = count;
 	ctx->flags = flags;
 
-	/*
-	 * When we call this, the initialization must be complete, since
-	 * anon_inode_getfd() will install the fd.
-	 */
-	fd = anon_inode_getfd("[eventfd]", &eventfd_fops, ctx,
-			      flags & EFD_SHARED_FCNTL_FLAGS);
-	if (fd < 0)
-		kfree(ctx);
+	file = anon_inode_getfile("[eventfd]", &eventfd_fops, ctx,
+				  flags & EFD_SHARED_FCNTL_FLAGS);
+	if (IS_ERR(file))
+		eventfd_free_ctx(ctx);
+
+	return file;
+}
+
+SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
+{
+	int fd, error;
+	struct file *file;
+
+	error = get_unused_fd_flags(flags & EFD_SHARED_FCNTL_FLAGS);
+	if (error < 0)
+		return error;
+	fd = error;
+
+	file = eventfd_file_create(count, flags);
+	if (IS_ERR(file)) {
+		error = PTR_ERR(file);
+		goto err_put_unused_fd;
+	}
+	fd_install(fd, file);
+
 	return fd;
+
+err_put_unused_fd:
+	put_unused_fd(fd);
+
+	return error;
 }
 
 SYSCALL_DEFINE1(eventfd, unsigned int, count)

@@ -203,11 +203,11 @@ static struct i2c_algorithm anysee_i2c_algo = {
 
 static int anysee_mt352_demod_init(struct dvb_frontend *fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
-	static u8 reset []         = { RESET,      0x80 };
-	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
-	static u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static u8 clock_config[]   = { CLOCK_CTL,  0x38, 0x28 };
+	static u8 reset[]          = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg[]  = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg[]        = { AGC_TARGET, 0x28, 0x20 };
+	static u8 gpp_ctl_cfg[]    = { GPP_CTL,    0x33 };
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -485,7 +485,7 @@ static int anysee_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static struct usb_device_id anysee_table [] = {
+static struct usb_device_id anysee_table[] = {
 	{ USB_DEVICE(USB_VID_CYPRESS, USB_PID_ANYSEE) },
 	{ USB_DEVICE(USB_VID_AMT,     USB_PID_ANYSEE) },
 	{ }		/* Terminating entry */
@@ -511,7 +511,7 @@ static struct dvb_usb_device_properties anysee_properties = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = 512,
+						.buffersize = (16*512),
 					}
 				}
 			},

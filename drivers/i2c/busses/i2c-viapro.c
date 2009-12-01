@@ -365,7 +365,7 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 found:
 	error = acpi_check_region(vt596_smba, 8, vt596_driver.name);
 	if (error)
-		return error;
+		return -ENODEV;
 
 	if (!request_region(vt596_smba, 8, vt596_driver.name)) {
 		dev_err(&pdev->dev, "SMBus region 0x%x already in use!\n",

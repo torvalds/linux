@@ -79,3 +79,5 @@ tuner=78 - Philips FMD1216MEX MK3 Hybrid Tuner
 tuner=79 - Philips PAL/SECAM multi (FM1216 MK5)
 tuner=80 - Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough
 tuner=81 - Partsnic (Daewoo) PTI-5NF05
+tuner=82 - Philips CU1216L
+tuner=83 - NXP TDA18271

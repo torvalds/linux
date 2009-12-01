@@ -4,10 +4,11 @@
 #include "symbol.h"
 
 struct thread {
-	struct rb_node	 rb_node;
-	struct list_head maps;
-	pid_t		 pid;
-	char		 *comm;
+	struct rb_node		rb_node;
+	struct list_head	maps;
+	pid_t			pid;
+	char			shortname[3];
+	char			*comm;
 };
 
 int thread__set_comm(struct thread *self, const char *comm);

@@ -135,6 +135,13 @@
 /* The key is always at the same position in all keyed nodes */
 #define UBIFS_KEY_OFFSET offsetof(struct ubifs_ino_node, key)
 
+/* Garbage collector journal head number */
+#define UBIFS_GC_HEAD   0
+/* Base journal head number */
+#define UBIFS_BASE_HEAD 1
+/* Data journal head number */
+#define UBIFS_DATA_HEAD 2
+
 /*
  * LEB Properties Tree node types.
  *

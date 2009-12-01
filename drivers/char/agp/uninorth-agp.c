@@ -270,7 +270,7 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 
 	if ((uninorth_rev >= 0x30) && (uninorth_rev <= 0x33)) {
 		/*
-		 * We need to to set REQ_DEPTH to 7 for U3 versions 1.0, 2.1,
+		 * We need to set REQ_DEPTH to 7 for U3 versions 1.0, 2.1,
 		 * 2.2 and 2.3, Darwin do so.
 		 */
 		if ((command >> AGPSTAT_RQ_DEPTH_SHIFT) > 7)

@@ -102,7 +102,7 @@ static int dst_request(struct request_queue *q, struct bio *bio)
 	struct dst_node *n = q->queuedata;
 	int err = -EIO;
 
-	if (bio_empty_barrier(bio) && !q->prepare_discard_fn) {
+	if (bio_empty_barrier(bio) && !blk_queue_discard(q)) {
 		/*
 		 * This is a dirty^Wnice hack, but if we complete this
 		 * operation with -EOPNOTSUPP like intended, XFS
@@ -847,13 +847,18 @@ static dst_command_func dst_commands[] = {
 /*
  * Configuration parser.
  */
-static void cn_dst_callback(struct cn_msg *msg)
+static void cn_dst_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct dst_ctl *ctl;
 	int err;
 	struct dst_ctl_ack ack;
 	struct dst_node *n = NULL, *tmp;
 	unsigned int hash;
+
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
 
 	if (msg->len < sizeof(struct dst_ctl)) {
 		err = -EBADMSG;

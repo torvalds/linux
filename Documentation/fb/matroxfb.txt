@@ -186,9 +186,7 @@ noinverse - show true colors on screen. It is default.
 dev:X    - bind driver to device X. Driver numbers device from 0 up to N,
            where device 0 is first `known' device found, 1 second and so on.
 	   lspci lists devices in this order.
-	   Default is `every' known device for driver with multihead support
-	   and first working device (usually dev:0) for driver without
-	   multihead support.
+	   Default is `every' known device.
 nohwcursor - disables hardware cursor (use software cursor instead).
 hwcursor - enables hardware cursor. It is default. If you are using
            non-accelerated mode (`noaccel' or `fbset -accel false'), software

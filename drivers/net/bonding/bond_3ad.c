@@ -1987,7 +1987,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			// find new aggregator for the related port(s)
 			new_aggregator = __get_first_agg(port);
 			for (; new_aggregator; new_aggregator = __get_next_agg(new_aggregator)) {
-				// if the new aggregator is empty, or it connected to to our port only
+				// if the new aggregator is empty, or it is connected to our port only
 				if (!new_aggregator->lag_ports || ((new_aggregator->lag_ports == port) && !new_aggregator->lag_ports->next_port_in_aggregator)) {
 					break;
 				}

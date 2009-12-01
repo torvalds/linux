@@ -24,8 +24,6 @@ LC_EXT_INT_CODE		= 0x86			# addr of ext int code
 #   R3	= external interruption parameter if R2=0
 #
 
-.section ".init.text","ax"
-
 _sclp_wait_int:
 	stm	%r6,%r15,24(%r15)		# save registers
 	basr	%r13,0				# get base register
@@ -318,9 +316,8 @@ _sclp_print_early:
 	.long	_sclp_work_area
 .Lascebc:
 	.long	_ascebc
-.previous
 
-.section ".init.data","a"
+.section .data,"aw",@progbits
 	.balign 4096
 _sclp_work_area:
 	.fill	4096

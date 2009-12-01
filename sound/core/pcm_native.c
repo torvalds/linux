@@ -1387,11 +1387,6 @@ static struct action_ops snd_pcm_action_drain_init = {
 	.post_action = snd_pcm_post_drain_init
 };
 
-struct drain_rec {
-	struct snd_pcm_substream *substream;
-	wait_queue_t wait;
-};
-
 static int snd_pcm_drop(struct snd_pcm_substream *substream);
 
 /*
@@ -1407,10 +1402,9 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 	struct snd_card *card;
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *s;
+	wait_queue_t wait;
 	int result = 0;
-	int i, num_drecs;
 	int nonblock = 0;
-	struct drain_rec *drec, drec_tmp, *d;
 
 	card = substream->pcm->card;
 	runtime = substream->runtime;
@@ -1433,38 +1427,10 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 	} else if (substream->f_flags & O_NONBLOCK)
 		nonblock = 1;
 
-	if (nonblock)
-		goto lock; /* no need to allocate waitqueues */
-
-	/* allocate temporary record for drain sync */
 	down_read(&snd_pcm_link_rwsem);
-	if (snd_pcm_stream_linked(substream)) {
-		drec = kmalloc(substream->group->count * sizeof(*drec), GFP_KERNEL);
-		if (! drec) {
-			up_read(&snd_pcm_link_rwsem);
-			snd_power_unlock(card);
-			return -ENOMEM;
-		}
-	} else
-		drec = &drec_tmp;
-
-	/* count only playback streams */
-	num_drecs = 0;
-	snd_pcm_group_for_each_entry(s, substream) {
-		runtime = s->runtime;
-		if (s->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			d = &drec[num_drecs++];
-			d->substream = s;
-			init_waitqueue_entry(&d->wait, current);
-			add_wait_queue(&runtime->sleep, &d->wait);
-		}
-	}
-	up_read(&snd_pcm_link_rwsem);
-
- lock:
 	snd_pcm_stream_lock_irq(substream);
 	/* resume pause */
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_PAUSED)
+	if (runtime->status->state == SNDRV_PCM_STATE_PAUSED)
 		snd_pcm_pause(substream, 0);
 
 	/* pre-start/stop - all running streams are changed to DRAINING state */
@@ -1479,25 +1445,35 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 
 	for (;;) {
 		long tout;
+		struct snd_pcm_runtime *to_check;
 		if (signal_pending(current)) {
 			result = -ERESTARTSYS;
 			break;
 		}
-		/* all finished? */
-		for (i = 0; i < num_drecs; i++) {
-			runtime = drec[i].substream->runtime;
-			if (runtime->status->state == SNDRV_PCM_STATE_DRAINING)
+		/* find a substream to drain */
+		to_check = NULL;
+		snd_pcm_group_for_each_entry(s, substream) {
+			if (s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+				continue;
+			runtime = s->runtime;
+			if (runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
+				to_check = runtime;
 				break;
+			}
 		}
-		if (i == num_drecs)
-			break; /* yes, all drained */
-
+		if (!to_check)
+			break; /* all drained */
+		init_waitqueue_entry(&wait, current);
+		add_wait_queue(&to_check->sleep, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		snd_pcm_stream_unlock_irq(substream);
+		up_read(&snd_pcm_link_rwsem);
 		snd_power_unlock(card);
 		tout = schedule_timeout(10 * HZ);
 		snd_power_lock(card);
+		down_read(&snd_pcm_link_rwsem);
 		snd_pcm_stream_lock_irq(substream);
+		remove_wait_queue(&to_check->sleep, &wait);
 		if (tout == 0) {
 			if (substream->runtime->status->state == SNDRV_PCM_STATE_SUSPENDED)
 				result = -ESTRPIPE;
@@ -1512,16 +1488,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 
  unlock:
 	snd_pcm_stream_unlock_irq(substream);
-
-	if (!nonblock) {
-		for (i = 0; i < num_drecs; i++) {
-			d = &drec[i];
-			runtime = d->substream->runtime;
-			remove_wait_queue(&runtime->sleep, &d->wait);
-		}
-		if (drec != &drec_tmp)
-			kfree(drec);
-	}
+	up_read(&snd_pcm_link_rwsem);
 	snd_power_unlock(card);
 
 	return result;
@@ -3018,7 +2985,7 @@ static int snd_pcm_mmap_status_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_status =
+static const struct vm_operations_struct snd_pcm_vm_ops_status =
 {
 	.fault =	snd_pcm_mmap_status_fault,
 };
@@ -3057,7 +3024,7 @@ static int snd_pcm_mmap_control_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_control =
+static const struct vm_operations_struct snd_pcm_vm_ops_control =
 {
 	.fault =	snd_pcm_mmap_control_fault,
 };
@@ -3127,7 +3094,7 @@ static int snd_pcm_mmap_data_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_data =
+static const struct vm_operations_struct snd_pcm_vm_ops_data =
 {
 	.open =		snd_pcm_mmap_data_open,
 	.close =	snd_pcm_mmap_data_close,
@@ -3151,7 +3118,7 @@ static int snd_pcm_default_mmap(struct snd_pcm_substream *substream,
  * mmap the DMA buffer on I/O memory area
  */
 #if SNDRV_PCM_INFO_MMAP_IOMEM
-static struct vm_operations_struct snd_pcm_vm_ops_data_mmio =
+static const struct vm_operations_struct snd_pcm_vm_ops_data_mmio =
 {
 	.open =		snd_pcm_mmap_data_open,
 	.close =	snd_pcm_mmap_data_close,

@@ -182,7 +182,7 @@ static struct notifier_block __refdata cpuid_class_cpu_notifier =
 	.notifier_call = cpuid_class_cpu_callback,
 };
 
-static char *cpuid_nodename(struct device *dev)
+static char *cpuid_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
 }
@@ -203,7 +203,7 @@ static int __init cpuid_init(void)
 		err = PTR_ERR(cpuid_class);
 		goto out_chrdev;
 	}
-	cpuid_class->nodename = cpuid_nodename;
+	cpuid_class->devnode = cpuid_devnode;
 	for_each_online_cpu(i) {
 		err = cpuid_device_create(i);
 		if (err != 0)

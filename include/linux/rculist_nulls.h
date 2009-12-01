@@ -102,7 +102,7 @@ static inline void hlist_nulls_add_head_rcu(struct hlist_nulls_node *n,
  */
 #define hlist_nulls_for_each_entry_rcu(tpos, pos, head, member) \
 	for (pos = rcu_dereference((head)->first);			 \
-		(!is_a_nulls(pos)) && 			\
+		(!is_a_nulls(pos)) &&			\
 		({ tpos = hlist_nulls_entry(pos, typeof(*tpos), member); 1; }); \
 		pos = rcu_dereference(pos->next))
 

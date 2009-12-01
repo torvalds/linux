@@ -138,16 +138,6 @@ int dm_exception_store_type_unregister(struct dm_exception_store_type *type)
 }
 EXPORT_SYMBOL(dm_exception_store_type_unregister);
 
-/*
- * Round a number up to the nearest 'size' boundary.  size must
- * be a power of 2.
- */
-static ulong round_up(ulong n, ulong size)
-{
-	size--;
-	return (n + size) & ~size;
-}
-
 static int set_chunk_size(struct dm_exception_store *store,
 			  const char *chunk_size_arg, char **error)
 {
@@ -155,7 +145,8 @@ static int set_chunk_size(struct dm_exception_store *store,
 	char *value;
 
 	chunk_size_ulong = simple_strtoul(chunk_size_arg, &value, 10);
-	if (*chunk_size_arg == '\0' || *value != '\0') {
+	if (*chunk_size_arg == '\0' || *value != '\0' ||
+	    chunk_size_ulong > UINT_MAX) {
 		*error = "Invalid chunk size";
 		return -EINVAL;
 	}
@@ -165,40 +156,35 @@ static int set_chunk_size(struct dm_exception_store *store,
 		return 0;
 	}
 
-	/*
-	 * Chunk size must be multiple of page size.  Silently
-	 * round up if it's not.
-	 */
-	chunk_size_ulong = round_up(chunk_size_ulong, PAGE_SIZE >> 9);
-
-	return dm_exception_store_set_chunk_size(store, chunk_size_ulong,
+	return dm_exception_store_set_chunk_size(store,
+						 (unsigned) chunk_size_ulong,
 						 error);
 }
 
 int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
-				      unsigned long chunk_size_ulong,
+				      unsigned chunk_size,
 				      char **error)
 {
 	/* Check chunk_size is a power of 2 */
-	if (!is_power_of_2(chunk_size_ulong)) {
+	if (!is_power_of_2(chunk_size)) {
 		*error = "Chunk size is not a power of 2";
 		return -EINVAL;
 	}
 
 	/* Validate the chunk size against the device block size */
-	if (chunk_size_ulong % (bdev_logical_block_size(store->cow->bdev) >> 9)) {
+	if (chunk_size % (bdev_logical_block_size(store->cow->bdev) >> 9)) {
 		*error = "Chunk size is not a multiple of device blocksize";
 		return -EINVAL;
 	}
 
-	if (chunk_size_ulong > INT_MAX >> SECTOR_SHIFT) {
+	if (chunk_size > INT_MAX >> SECTOR_SHIFT) {
 		*error = "Chunk size is too high";
 		return -EINVAL;
 	}
 
-	store->chunk_size = chunk_size_ulong;
-	store->chunk_mask = chunk_size_ulong - 1;
-	store->chunk_shift = ffs(chunk_size_ulong) - 1;
+	store->chunk_size = chunk_size;
+	store->chunk_mask = chunk_size - 1;
+	store->chunk_shift = ffs(chunk_size) - 1;
 
 	return 0;
 }
@@ -251,7 +237,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 
 	r = set_chunk_size(tmp_store, argv[2], &ti->error);
 	if (r)
-		goto bad_cow;
+		goto bad_ctr;
 
 	r = type->ctr(tmp_store, 0, NULL);
 	if (r) {

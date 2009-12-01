@@ -13,10 +13,14 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/sfi_acpi.h>
 #include <linux/bitmap.h>
 #include <linux/sort.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
+#include <asm/acpi.h>
+
+#define PREFIX "PCI: "
 
 /* aperture is up to 256MB but BIOS may reserve less */
 #define MMCONFIG_APER_MIN	(2 * 1024*1024)
@@ -491,7 +495,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 		       (unsigned int)cfg->start_bus_number,
 		       (unsigned int)cfg->end_bus_number);
 
-		if (!early)
+		if (!early && !acpi_disabled)
 			valid = is_mmconf_reserved(is_acpi_reserved, addr, size, i, cfg, 0);
 
 		if (valid)
@@ -606,7 +610,7 @@ static void __init __pci_mmcfg_init(int early)
 	}
 
 	if (!known_bridge)
-		acpi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
+		acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
 
 	pci_mmcfg_reject_broken(early);
 

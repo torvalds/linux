@@ -138,6 +138,11 @@ static int put_int(unsigned long arg, int val)
 	return put_user(val, (int __user *)arg);
 }
 
+static int put_uint(unsigned long arg, unsigned int val)
+{
+	return put_user(val, (unsigned int __user *)arg);
+}
+
 static int put_long(unsigned long arg, long val)
 {
 	return put_user(val, (long __user *)arg);
@@ -263,10 +268,18 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
 	case BLKROGET:
 		return put_int(arg, bdev_read_only(bdev) != 0);
-	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
+	case BLKBSZGET: /* get block device soft block size (cf. BLKSSZGET) */
 		return put_int(arg, block_size(bdev));
-	case BLKSSZGET: /* get block device hardware sector size */
+	case BLKSSZGET: /* get block device logical block size */
 		return put_int(arg, bdev_logical_block_size(bdev));
+	case BLKPBSZGET: /* get block device physical block size */
+		return put_uint(arg, bdev_physical_block_size(bdev));
+	case BLKIOMIN:
+		return put_uint(arg, bdev_io_min(bdev));
+	case BLKIOOPT:
+		return put_uint(arg, bdev_io_opt(bdev));
+	case BLKALIGNOFF:
+		return put_int(arg, bdev_alignment_offset(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
 	case BLKRASET:

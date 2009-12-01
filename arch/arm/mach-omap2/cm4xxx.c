@@ -22,7 +22,6 @@
 #include <asm/atomic.h>
 
 #include "cm.h"
-#include "cm-regbits-4xxx.h"
 
 /* XXX move this to cm.h */
 /* MAX_MODULE_READY_TIME: max milliseconds for module to leave idle */
@@ -50,19 +49,7 @@
  */
 int omap4_cm_wait_idlest_ready(u32 prcm_mod, u8 prcm_dev_offs)
 {
-	int i = 0;
-	u8 cm_id;
-	u16 prcm_mod_offs;
-	u32 mask = OMAP4_PRCM_CM_CLKCTRL_IDLEST_MASK;
-
-	cm_id = prcm_mod >> OMAP4_PRCM_MOD_CM_ID_SHIFT;
-	prcm_mod_offs = prcm_mod & OMAP4_PRCM_MOD_OFFS_MASK;
-
-	while (((omap4_cm_read_mod_reg(cm_id, prcm_mod_offs, prcm_dev_offs,
-				       OMAP4_CM_CLKCTRL_DREG) & mask) != 0) &&
-	       (i++ < MAX_MODULE_READY_TIME))
-		udelay(1);
-
-	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+	/* FIXME: Add clock manager related code */
+	return 0;
 }
 

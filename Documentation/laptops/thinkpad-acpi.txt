@@ -199,18 +199,22 @@ kind to allow it (and it often doesn't!).
 
 Not all bits in the mask can be modified.  Not all bits that can be
 modified do anything.  Not all hot keys can be individually controlled
-by the mask.  Some models do not support the mask at all, and in those
-models, hot keys cannot be controlled individually.  The behaviour of
-the mask is, therefore, highly dependent on the ThinkPad model.
+by the mask.  Some models do not support the mask at all.  The behaviour
+of the mask is, therefore, highly dependent on the ThinkPad model.
+
+The driver will filter out any unmasked hotkeys, so even if the firmware
+doesn't allow disabling an specific hotkey, the driver will not report
+events for unmasked hotkeys.
 
 Note that unmasking some keys prevents their default behavior.  For
 example, if Fn+F5 is unmasked, that key will no longer enable/disable
-Bluetooth by itself.
+Bluetooth by itself in firmware.
 
-Note also that not all Fn key combinations are supported through ACPI.
-For example, on the X40, the brightness, volume and "Access IBM" buttons
-do not generate ACPI events even with this driver.  They *can* be used
-through the "ThinkPad Buttons" utility, see http://www.nongnu.org/tpb/
+Note also that not all Fn key combinations are supported through ACPI
+depending on the ThinkPad model and firmware version.  On those
+ThinkPads, it is still possible to support some extra hotkeys by
+polling the "CMOS NVRAM" at least 10 times per second.  The driver
+attempts to enables this functionality automatically when required.
 
 procfs notes:
 
@@ -219,7 +223,7 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
 	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
 	... any other 8-hex-digit mask ...
-	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+	echo reset > /proc/acpi/ibm/hotkey -- restore the recommended mask
 
 The following commands have been deprecated and will cause the kernel
 to log a warning:
@@ -240,9 +244,13 @@ sysfs notes:
 		Returns 0.
 
 	hotkey_bios_mask:
+		DEPRECATED, DON'T USE, WILL BE REMOVED IN THE FUTURE.
+
 		Returns the hot keys mask when thinkpad-acpi was loaded.
 		Upon module unload, the hot keys mask will be restored
-		to this value.
+		to this value.   This is always 0x80c, because those are
+		the hotkeys that were supported by ancient firmware
+		without mask support.
 
 	hotkey_enable:
 		DEPRECATED, WILL BE REMOVED SOON.
@@ -251,17 +259,10 @@ sysfs notes:
 		1: does nothing
 
 	hotkey_mask:
-		bit mask to enable driver-handling (and depending on
+		bit mask to enable reporting (and depending on
 		the firmware, ACPI event generation) for each hot key
 		(see above).  Returns the current status of the hot keys
 		mask, and allows one to modify it.
-
-		Note: when NVRAM polling is active, the firmware mask
-		will be different from the value returned by
-		hotkey_mask.  The driver will retain enabled bits for
-		hotkeys that are under NVRAM polling even if the
-		firmware refuses them, and will not set these bits on
-		the firmware hot key mask.
 
 	hotkey_all_mask:
 		bit mask that should enable event reporting for all
@@ -275,7 +276,8 @@ sysfs notes:
 		bit mask that should enable event reporting for all
 		supported hot keys, except those which are always
 		handled by the firmware anyway.  Echo it to
-		hotkey_mask above, to use.
+		hotkey_mask above, to use.  This is the default mask
+		used by the driver.
 
 	hotkey_source_mask:
 		bit mask that selects which hot keys will the driver
@@ -283,9 +285,10 @@ sysfs notes:
 		based on the capabilities reported by the ACPI firmware,
 		but it can be overridden at runtime.
 
-		Hot keys whose bits are set in both hotkey_source_mask
-		and also on hotkey_mask are polled for in NVRAM.  Only a
-		few hot keys are available through CMOS NVRAM polling.
+		Hot keys whose bits are set in hotkey_source_mask are
+		polled for in NVRAM, and reported as hotkey events if
+		enabled in hotkey_mask.  Only a few hot keys are
+		available through CMOS NVRAM polling.
 
 		Warning: when in NVRAM mode, the volume up/down/mute
 		keys are synthesized according to changes in the mixer,
@@ -521,6 +524,7 @@ compatibility purposes when hotkey_report_mode is set to 1.
 0x2305		System is waking up from suspend to eject bay
 0x2404		System is waking up from hibernation to undock
 0x2405		System is waking up from hibernation to eject bay
+0x5010		Brightness level changed/control event
 
 The above events are never propagated by the driver.
 
@@ -528,7 +532,6 @@ The above events are never propagated by the driver.
 0x4003		Undocked (see 0x2x04), can sleep again
 0x500B		Tablet pen inserted into its storage bay
 0x500C		Tablet pen removed from its storage bay
-0x5010		Brightness level changed (newer Lenovo BIOSes)
 
 The above events are propagated by the driver.
 
@@ -617,6 +620,8 @@ For Lenovo models *with* ACPI backlight control:
 2. Do *NOT* load up ACPI video, enable the hotkeys in thinkpad-acpi,
    and map them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN.  Process
    these keys on userspace somehow (e.g. by calling xbacklight).
+   The driver will do this automatically if it detects that ACPI video
+   has been disabled.
 
 
 Bluetooth
@@ -1455,3 +1460,8 @@ Sysfs interface changelog:
 0x020400:	Marker for 16 LEDs support.  Also, LEDs that are known
 		to not exist in a given model are not registered with
 		the LED sysfs class anymore.
+
+0x020500:	Updated hotkey driver, hotkey_mask is always available
+		and it is always able to disable hot keys.  Very old
+		thinkpads are properly supported.  hotkey_bios_mask
+		is deprecated and marked for removal.

@@ -308,14 +308,18 @@ int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
 	struct inode *inode = (struct inode*)mapping->host;
 	char *kaddr = page_address(page);
 	loff_t pos = page_offset(page) + (char*)de - kaddr;
-	unsigned len = minix_sb(inode->i_sb)->s_dirsize;
+	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
+	unsigned len = sbi->s_dirsize;
 	int err;
 
 	lock_page(page);
 	err = __minix_write_begin(NULL, mapping, pos, len,
 					AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
 	if (err == 0) {
-		de->inode = 0;
+		if (sbi->s_version == MINIX_V3)
+			((minix3_dirent *) de)->inode = 0;
+		else
+			de->inode = 0;
 		err = dir_commit_chunk(page, pos, len);
 	} else {
 		unlock_page(page);
@@ -440,7 +444,10 @@ void minix_set_link(struct minix_dir_entry *de, struct page *page,
 	err = __minix_write_begin(NULL, mapping, pos, sbi->s_dirsize,
 					AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
 	if (err == 0) {
-		de->inode = inode->i_ino;
+		if (sbi->s_version == MINIX_V3)
+			((minix3_dirent *) de)->inode = inode->i_ino;
+		else
+			de->inode = inode->i_ino;
 		err = dir_commit_chunk(page, pos, sbi->s_dirsize);
 	} else {
 		unlock_page(page);
@@ -470,7 +477,14 @@ ino_t minix_inode_by_name(struct dentry *dentry)
 	ino_t res = 0;
 
 	if (de) {
-		res = de->inode;
+		struct address_space *mapping = page->mapping;
+		struct inode *inode = mapping->host;
+		struct minix_sb_info *sbi = minix_sb(inode->i_sb);
+
+		if (sbi->s_version == MINIX_V3)
+			res = ((minix3_dirent *) de)->inode;
+		else
+			res = de->inode;
 		dir_put_page(page);
 	}
 	return res;

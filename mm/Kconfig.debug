@@ -6,7 +6,7 @@ config DEBUG_PAGEALLOC
 	---help---
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types
-	  of memory corruptions.
+	  of memory corruption.
 
 config WANT_PAGE_DEBUG_FLAGS
 	bool
@@ -17,11 +17,11 @@ config PAGE_POISONING
 	depends on !HIBERNATION
 	select DEBUG_PAGEALLOC
 	select WANT_PAGE_DEBUG_FLAGS
-	help
+	---help---
 	   Fill the pages with poison patterns after free_pages() and verify
 	   the patterns before alloc_pages(). This results in a large slowdown,
-	   but helps to find certain types of memory corruptions.
+	   but helps to find certain types of memory corruption.
 
-	   This option cannot enalbe with hibernation. Otherwise, it will get
-	   wrong messages for memory corruption because the free pages are not
-	   saved to the suspend image.
+	   This option cannot be enabled in combination with hibernation as
+	   that would result in incorrect warnings of memory corruption after
+	   a resume because free pages are not saved to the suspend image.

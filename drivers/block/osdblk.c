@@ -125,7 +125,7 @@ static struct class *class_osdblk;		/* /sys/class/osdblk */
 static DEFINE_MUTEX(ctl_mutex);	/* Serialize open/close/setup/teardown */
 static LIST_HEAD(osdblkdev_list);
 
-static struct block_device_operations osdblk_bd_ops = {
+static const struct block_device_operations osdblk_bd_ops = {
 	.owner		= THIS_MODULE,
 };
 

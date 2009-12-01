@@ -135,43 +135,43 @@ static inline int irqs_disabled_flags(unsigned long flags)
  */
 struct irq_chip;
 
-#ifdef CONFIG_PERF_COUNTERS
+#ifdef CONFIG_PERF_EVENTS
 
 #ifdef CONFIG_PPC64
-static inline unsigned long test_perf_counter_pending(void)
+static inline unsigned long test_perf_event_pending(void)
 {
 	unsigned long x;
 
 	asm volatile("lbz %0,%1(13)"
 		: "=r" (x)
-		: "i" (offsetof(struct paca_struct, perf_counter_pending)));
+		: "i" (offsetof(struct paca_struct, perf_event_pending)));
 	return x;
 }
 
-static inline void set_perf_counter_pending(void)
+static inline void set_perf_event_pending(void)
 {
 	asm volatile("stb %0,%1(13)" : :
 		"r" (1),
-		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+		"i" (offsetof(struct paca_struct, perf_event_pending)));
 }
 
-static inline void clear_perf_counter_pending(void)
+static inline void clear_perf_event_pending(void)
 {
 	asm volatile("stb %0,%1(13)" : :
 		"r" (0),
-		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+		"i" (offsetof(struct paca_struct, perf_event_pending)));
 }
 #endif /* CONFIG_PPC64 */
 
-#else  /* CONFIG_PERF_COUNTERS */
+#else  /* CONFIG_PERF_EVENTS */
 
-static inline unsigned long test_perf_counter_pending(void)
+static inline unsigned long test_perf_event_pending(void)
 {
 	return 0;
 }
 
-static inline void clear_perf_counter_pending(void) {}
-#endif /* CONFIG_PERF_COUNTERS */
+static inline void clear_perf_event_pending(void) {}
+#endif /* CONFIG_PERF_EVENTS */
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */

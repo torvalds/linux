@@ -56,7 +56,7 @@ static int output_records(int outfd);
 static int sort_records = 0;
 static int wide_records = 0;
 
-int usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "ihex2fw: Convert ihex files into binary "
 		"representation for use by Linux kernel\n");

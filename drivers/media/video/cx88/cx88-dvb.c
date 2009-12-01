@@ -1350,7 +1350,7 @@ static struct cx8802_driver cx8802_dvb_driver = {
 	.advise_release = cx8802_dvb_advise_release,
 };
 
-static int dvb_init(void)
+static int __init dvb_init(void)
 {
 	printk(KERN_INFO "cx88/2: cx2388x dvb driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -1363,7 +1363,7 @@ static int dvb_init(void)
 	return cx8802_register_driver(&cx8802_dvb_driver);
 }
 
-static void dvb_fini(void)
+static void __exit dvb_fini(void)
 {
 	cx8802_unregister_driver(&cx8802_dvb_driver);
 }

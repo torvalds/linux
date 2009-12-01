@@ -36,12 +36,12 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 	tmp1 = -256UL;
 	asm volatile(
 		"0: mvcp  0(%0,%2),0(%1),%3\n"
-		"   jz    8f\n"
+		"10:jz    8f\n"
 		"1:"ALR"  %0,%3\n"
 		"   la    %1,256(%1)\n"
 		"   la    %2,256(%2)\n"
 		"2: mvcp  0(%0,%2),0(%1),%3\n"
-		"   jnz   1b\n"
+		"11:jnz   1b\n"
 		"   j     8f\n"
 		"3: la    %4,255(%1)\n"	/* %4 = ptr + 255 */
 		"  "LHI"  %3,-4096\n"
@@ -50,7 +50,7 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
 		"   jnh   5f\n"
 		"4: mvcp  0(%4,%2),0(%1),%3\n"
-		"  "SLR"  %0,%4\n"
+		"12:"SLR"  %0,%4\n"
 		"  "ALR"  %2,%4\n"
 		"5:"LHI"  %4,-1\n"
 		"  "ALR"  %4,%0\n"	/* copy remaining size, subtract 1 */
@@ -65,6 +65,7 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 		"8:"SLR"  %0,%0\n"
 		"9: \n"
 		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,5b)
+		EX_TABLE(10b,3b) EX_TABLE(11b,3b) EX_TABLE(12b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
 	return size;
@@ -85,12 +86,12 @@ size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
 	tmp1 = -256UL;
 	asm volatile(
 		"0: mvcs  0(%0,%1),0(%2),%3\n"
-		"   jz    5f\n"
+		"7: jz    5f\n"
 		"1:"ALR"  %0,%3\n"
 		"   la    %1,256(%1)\n"
 		"   la    %2,256(%2)\n"
 		"2: mvcs  0(%0,%1),0(%2),%3\n"
-		"   jnz   1b\n"
+		"8: jnz   1b\n"
 		"   j     5f\n"
 		"3: la    %4,255(%1)\n" /* %4 = ptr + 255 */
 		"  "LHI"  %3,-4096\n"
@@ -99,11 +100,12 @@ size_t copy_to_user_std(size_t size, void __user *ptr, const void *x)
 		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
 		"   jnh   6f\n"
 		"4: mvcs  0(%4,%1),0(%2),%3\n"
-		"  "SLR"  %0,%4\n"
+		"9:"SLR"  %0,%4\n"
 		"   j     6f\n"
 		"5:"SLR"  %0,%0\n"
 		"6: \n"
 		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,6b)
+		EX_TABLE(7b,3b) EX_TABLE(8b,3b) EX_TABLE(9b,6b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
 	return size;

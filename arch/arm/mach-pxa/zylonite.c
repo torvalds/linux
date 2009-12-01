@@ -290,6 +290,9 @@ static struct pxamci_platform_data zylonite_mci_platform_data = {
 	.init 		= zylonite_mci_init,
 	.exit		= zylonite_mci_exit,
 	.get_ro		= zylonite_mci_ro,
+	.gpio_card_detect = -1,
+	.gpio_card_ro	= -1,
+	.gpio_power	= -1,
 };
 
 static struct pxamci_platform_data zylonite_mci2_platform_data = {

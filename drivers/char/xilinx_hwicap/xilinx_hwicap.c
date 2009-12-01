@@ -559,7 +559,7 @@ static int hwicap_release(struct inode *inode, struct file *file)
 	return status;
 }
 
-static struct file_operations hwicap_fops = {
+static const struct file_operations hwicap_fops = {
 	.owner = THIS_MODULE,
 	.write = hwicap_write,
 	.read = hwicap_read,

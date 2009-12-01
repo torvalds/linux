@@ -222,7 +222,7 @@ static unsigned decode_sessionid(struct xdr_stream *xdr,
 
 	p = read_buf(xdr, len);
 	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);;
+		return htonl(NFS4ERR_RESOURCE);
 
 	memcpy(sid->data, p, len);
 	return 0;

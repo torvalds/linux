@@ -299,7 +299,6 @@ struct spcp8x5_private {
 	wait_queue_head_t	delta_msr_wait;
 	u8 			line_control;
 	u8 			line_status;
-	u8 			termios_initialized;
 };
 
 /* desc : when device plug in,this function would be called.
@@ -498,6 +497,15 @@ static void spcp8x5_close(struct usb_serial_port *port)
 		dev_dbg(&port->dev, "usb_unlink_urb(read_urb) = %d\n", result);
 }
 
+static void spcp8x5_init_termios(struct tty_struct *tty)
+{
+	/* for the 1st time call this function */
+	*(tty->termios) = tty_std_termios;
+	tty->termios->c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty->termios->c_ispeed = 115200;
+	tty->termios->c_ospeed = 115200;
+}
+
 /* set the serial param for transfer. we should check if we really need to
  * transfer. if we set flow control we should do this too. */
 static void spcp8x5_set_termios(struct tty_struct *tty,
@@ -514,16 +522,6 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	int i;
 	u8 control;
 
-	/* for the 1st time call this function */
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!priv->termios_initialized) {
-		*(tty->termios) = tty_std_termios;
-		tty->termios->c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
-		tty->termios->c_ispeed = 115200;
-		tty->termios->c_ospeed = 115200;
-		priv->termios_initialized = 1;
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* check that they really want us to change something */
 	if (!tty_termios_hw_change(tty->termios, old_termios))
@@ -546,7 +544,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	}
 
 	/* Set Baud Rate */
-	baud = tty_get_baud_rate(tty);;
+	baud = tty_get_baud_rate(tty);
 	switch (baud) {
 	case 300:	buf[0] = 0x00;	break;
 	case 600:	buf[0] = 0x01;	break;
@@ -623,8 +621,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 /* open the serial port. do some usb system call. set termios and get the line
  * status of the device. then submit the read urb */
-static int spcp8x5_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -657,8 +654,6 @@ static int spcp8x5_open(struct tty_struct *tty,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = status & 0xf0 ;
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* FIXME: need to assert RTS and DTR if CRTSCTS off */
 
 	dbg("%s - submitting read urb", __func__);
 	port->read_urb->dev = serial->dev;
@@ -1011,6 +1006,7 @@ static struct usb_serial_driver spcp8x5_device = {
 	.carrier_raised		= spcp8x5_carrier_raised,
 	.write 			= spcp8x5_write,
 	.set_termios 		= spcp8x5_set_termios,
+	.init_termios		= spcp8x5_init_termios,
 	.ioctl 			= spcp8x5_ioctl,
 	.tiocmget 		= spcp8x5_tiocmget,
 	.tiocmset 		= spcp8x5_tiocmset,

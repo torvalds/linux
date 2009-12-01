@@ -66,7 +66,49 @@ static struct device_attribute video_device_attrs[] = {
  */
 static struct video_device *video_device[VIDEO_NUM_DEVICES];
 static DEFINE_MUTEX(videodev_lock);
-static DECLARE_BITMAP(video_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
+static DECLARE_BITMAP(devnode_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
+
+/* Device node utility functions */
+
+/* Note: these utility functions all assume that vfl_type is in the range
+   [0, VFL_TYPE_MAX-1]. */
+
+#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+/* Return the bitmap corresponding to vfl_type. */
+static inline unsigned long *devnode_bits(int vfl_type)
+{
+	/* Any types not assigned to fixed minor ranges must be mapped to
+	   one single bitmap for the purposes of finding a free node number
+	   since all those unassigned types use the same minor range. */
+	int idx = (vfl_type > VFL_TYPE_VTX) ? VFL_TYPE_MAX - 1 : vfl_type;
+
+	return devnode_nums[idx];
+}
+#else
+/* Return the bitmap corresponding to vfl_type. */
+static inline unsigned long *devnode_bits(int vfl_type)
+{
+	return devnode_nums[vfl_type];
+}
+#endif
+
+/* Mark device node number vdev->num as used */
+static inline void devnode_set(struct video_device *vdev)
+{
+	set_bit(vdev->num, devnode_bits(vdev->vfl_type));
+}
+
+/* Mark device node number vdev->num as unused */
+static inline void devnode_clear(struct video_device *vdev)
+{
+	clear_bit(vdev->num, devnode_bits(vdev->vfl_type));
+}
+
+/* Try to find a free device node number in the range [from, to> */
+static inline int devnode_find(struct video_device *vdev, int from, int to)
+{
+	return find_next_zero_bit(devnode_bits(vdev->vfl_type), to, from);
+}
 
 struct video_device *video_device_alloc(void)
 {
@@ -119,8 +161,8 @@ static void v4l2_device_release(struct device *cd)
 	   the release() callback. */
 	vdev->cdev = NULL;
 
-	/* Mark minor as free */
-	clear_bit(vdev->num, video_nums[vdev->vfl_type]);
+	/* Mark device node number as free */
+	devnode_clear(vdev);
 
 	mutex_unlock(&videodev_lock);
 
@@ -299,32 +341,28 @@ static const struct file_operations v4l2_fops = {
 };
 
 /**
- * get_index - assign stream number based on parent device
+ * get_index - assign stream index number based on parent device
  * @vdev: video_device to assign index number to, vdev->parent should be assigned
- * @num:  -1 if auto assign, requested number otherwise
  *
  * Note that when this is called the new device has not yet been registered
- * in the video_device array.
+ * in the video_device array, but it was able to obtain a minor number.
  *
- * Returns -ENFILE if num is already in use, a free index number if
- * successful.
+ * This means that we can always obtain a free stream index number since
+ * the worst case scenario is that there are VIDEO_NUM_DEVICES - 1 slots in
+ * use of the video_device array.
+ *
+ * Returns a free index number.
  */
-static int get_index(struct video_device *vdev, int num)
+static int get_index(struct video_device *vdev)
 {
 	/* This can be static since this function is called with the global
 	   videodev_lock held. */
 	static DECLARE_BITMAP(used, VIDEO_NUM_DEVICES);
 	int i;
 
-	if (num >= VIDEO_NUM_DEVICES) {
-		printk(KERN_ERR "videodev: %s num is too large\n", __func__);
-		return -EINVAL;
-	}
-
-	/* Some drivers do not set the parent. In that case always return
-	   num or 0. */
+	/* Some drivers do not set the parent. In that case always return 0. */
 	if (vdev->parent == NULL)
-		return num >= 0 ? num : 0;
+		return 0;
 
 	bitmap_zero(used, VIDEO_NUM_DEVICES);
 
@@ -335,35 +373,23 @@ static int get_index(struct video_device *vdev, int num)
 		}
 	}
 
-	if (num >= 0) {
-		if (test_bit(num, used))
-			return -ENFILE;
-		return num;
-	}
-
-	i = find_first_zero_bit(used, VIDEO_NUM_DEVICES);
-	return i == VIDEO_NUM_DEVICES ? -ENFILE : i;
+	return find_first_zero_bit(used, VIDEO_NUM_DEVICES);
 }
-
-int video_register_device(struct video_device *vdev, int type, int nr)
-{
-	return video_register_device_index(vdev, type, nr, -1);
-}
-EXPORT_SYMBOL(video_register_device);
 
 /**
- *	video_register_device_index - register video4linux devices
+ *	video_register_device - register video4linux devices
  *	@vdev: video device structure we want to register
  *	@type: type of device to register
- *	@nr:   which device number (0 == /dev/video0, 1 == /dev/video1, ...
+ *	@nr:   which device node number (0 == /dev/video0, 1 == /dev/video1, ...
  *             -1 == first free)
- *	@index: stream number based on parent device;
- *		-1 if auto assign, requested number otherwise
+ *	@warn_if_nr_in_use: warn if the desired device node number
+ *	       was already in use and another number was chosen instead.
  *
- *	The registration code assigns minor numbers based on the type
- *	requested. -ENFILE is returned in all the device slots for this
- *	category are full. If not then the minor field is set and the
- *	driver initialize function is called (if non %NULL).
+ *	The registration code assigns minor numbers and device node numbers
+ *	based on the requested type and registers the new device node with
+ *	the kernel.
+ *	An error is returned if no free minor or device node number could be
+ *	found, or if the registration of the device node failed.
  *
  *	Zero is returned on success.
  *
@@ -377,8 +403,8 @@ EXPORT_SYMBOL(video_register_device);
  *
  *	%VFL_TYPE_RADIO - A radio card
  */
-int video_register_device_index(struct video_device *vdev, int type, int nr,
-					int index)
+static int __video_register_device(struct video_device *vdev, int type, int nr,
+		int warn_if_nr_in_use)
 {
 	int i = 0;
 	int ret;
@@ -421,7 +447,7 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 	if (vdev->v4l2_dev && vdev->v4l2_dev->dev)
 		vdev->parent = vdev->v4l2_dev->dev;
 
-	/* Part 2: find a free minor, kernel number and device index. */
+	/* Part 2: find a free minor, device node number and device index. */
 #ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
 	/* Keep the ranges for the first four types for historical
 	 * reasons.
@@ -452,21 +478,22 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 	}
 #endif
 
-	/* Pick a minor number */
+	/* Pick a device node number */
 	mutex_lock(&videodev_lock);
-	nr = find_next_zero_bit(video_nums[type], minor_cnt, nr == -1 ? 0 : nr);
+	nr = devnode_find(vdev, nr == -1 ? 0 : nr, minor_cnt);
 	if (nr == minor_cnt)
-		nr = find_first_zero_bit(video_nums[type], minor_cnt);
+		nr = devnode_find(vdev, 0, minor_cnt);
 	if (nr == minor_cnt) {
-		printk(KERN_ERR "could not get a free kernel number\n");
+		printk(KERN_ERR "could not get a free device node number\n");
 		mutex_unlock(&videodev_lock);
 		return -ENFILE;
 	}
 #ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
-	/* 1-on-1 mapping of kernel number to minor number */
+	/* 1-on-1 mapping of device node number to minor number */
 	i = nr;
 #else
-	/* The kernel number and minor numbers are independent */
+	/* The device node number and minor numbers are independent, so
+	   we just find the first free minor number. */
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++)
 		if (video_device[i] == NULL)
 			break;
@@ -478,16 +505,12 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 #endif
 	vdev->minor = i + minor_offset;
 	vdev->num = nr;
-	set_bit(nr, video_nums[type]);
+	devnode_set(vdev);
+
 	/* Should not happen since we thought this minor was free */
 	WARN_ON(video_device[vdev->minor] != NULL);
-	ret = vdev->index = get_index(vdev, index);
+	vdev->index = get_index(vdev);
 	mutex_unlock(&videodev_lock);
-
-	if (ret < 0) {
-		printk(KERN_ERR "%s: get_index failed\n", __func__);
-		goto cleanup;
-	}
 
 	/* Part 3: Initialize the character device */
 	vdev->cdev = cdev_alloc();
@@ -517,7 +540,7 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 	vdev->dev.devt = MKDEV(VIDEO_MAJOR, vdev->minor);
 	if (vdev->parent)
 		vdev->dev.parent = vdev->parent;
-	dev_set_name(&vdev->dev, "%s%d", name_base, nr);
+	dev_set_name(&vdev->dev, "%s%d", name_base, vdev->num);
 	ret = device_register(&vdev->dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: device_register failed\n", __func__);
@@ -526,6 +549,10 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 	/* Register the release callback that will be called when the last
 	   reference to the device goes away. */
 	vdev->dev.release = v4l2_device_release;
+
+	if (nr != -1 && nr != vdev->num && warn_if_nr_in_use)
+		printk(KERN_WARNING "%s: requested %s%d, got %s%d\n",
+				__func__, name_base, nr, name_base, vdev->num);
 
 	/* Part 5: Activate this minor. The char device can now be used. */
 	mutex_lock(&videodev_lock);
@@ -537,13 +564,24 @@ cleanup:
 	mutex_lock(&videodev_lock);
 	if (vdev->cdev)
 		cdev_del(vdev->cdev);
-	clear_bit(vdev->num, video_nums[type]);
+	devnode_clear(vdev);
 	mutex_unlock(&videodev_lock);
 	/* Mark this video device as never having been registered. */
 	vdev->minor = -1;
 	return ret;
 }
-EXPORT_SYMBOL(video_register_device_index);
+
+int video_register_device(struct video_device *vdev, int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 1);
+}
+EXPORT_SYMBOL(video_register_device);
+
+int video_register_device_no_warn(struct video_device *vdev, int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 0);
+}
+EXPORT_SYMBOL(video_register_device_no_warn);
 
 /**
  *	video_unregister_device - unregister a video4linux device

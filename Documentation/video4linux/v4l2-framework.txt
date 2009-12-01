@@ -370,19 +370,20 @@ from the remove() callback ensures that this is always done correctly.
 The bridge driver also has some helper functions it can use:
 
 struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
-	       "module_foo", "chipid", 0x36);
+	       "module_foo", "chipid", 0x36, NULL);
 
 This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
 If all goes well, then it registers the subdev with the v4l2_device.
 
-You can also use v4l2_i2c_new_probed_subdev() which is very similar to
-v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses
-that it should probe. Internally it calls i2c_new_probed_device().
+You can also use the last argument of v4l2_i2c_new_subdev() to pass an array
+of possible I2C addresses that it should probe. These probe addresses are
+only used if the previous argument is 0. A non-zero argument means that you
+know the exact i2c address so in that case no probing will take place.
 
 Both functions return NULL if something went wrong.
 
-Note that the chipid you pass to v4l2_i2c_new_(probed_)subdev() is usually
+Note that the chipid you pass to v4l2_i2c_new_subdev() is usually
 the same as the module name. It allows you to specify a chip variant, e.g.
 "saa7114" or "saa7115". In general though the i2c driver autodetects this.
 The use of chipid is something that needs to be looked at more closely at a
@@ -409,11 +410,6 @@ If the subdev supports the s_config core ops, then that op is called with
 the irq and platform_data arguments after the subdev was setup. The older
 v4l2_i2c_new_(probed_)subdev functions will call s_config as well, but with
 irq set to 0 and platform_data set to NULL.
-
-Note that in the next kernel release the functions v4l2_i2c_new_subdev,
-v4l2_i2c_new_probed_subdev and v4l2_i2c_new_probed_subdev_addr will all be
-replaced by a single v4l2_i2c_new_subdev that is identical to
-v4l2_i2c_new_subdev_cfg but without the irq and platform_data arguments.
 
 struct video_device
 -------------------
@@ -490,31 +486,35 @@ VFL_TYPE_RADIO: radioX for radio tuners
 VFL_TYPE_VTX: vtxX for teletext devices (deprecated, don't use)
 
 The last argument gives you a certain amount of control over the device
-kernel number used (i.e. the X in videoX). Normally you will pass -1 to
-let the v4l2 framework pick the first free number. But if a driver creates
-many devices, then it can be useful to have different video devices in
-separate ranges. For example, video capture devices start at 0, video
-output devices start at 16.
+device node number used (i.e. the X in videoX). Normally you will pass -1
+to let the v4l2 framework pick the first free number. But sometimes users
+want to select a specific node number. It is common that drivers allow
+the user to select a specific device node number through a driver module
+option. That number is then passed to this function and video_register_device
+will attempt to select that device node number. If that number was already
+in use, then the next free device node number will be selected and it
+will send a warning to the kernel log.
 
-So you can use the last argument to specify a minimum kernel number and
-the v4l2 framework will try to pick the first free number that is equal
+Another use-case is if a driver creates many devices. In that case it can
+be useful to place different video devices in separate ranges. For example,
+video capture devices start at 0, video output devices start at 16.
+So you can use the last argument to specify a minimum device node number
+and the v4l2 framework will try to pick the first free number that is equal
 or higher to what you passed. If that fails, then it will just pick the
 first free number.
+
+Since in this case you do not care about a warning about not being able
+to select the specified device node number, you can call the function
+video_register_device_no_warn() instead.
 
 Whenever a device node is created some attributes are also created for you.
 If you look in /sys/class/video4linux you see the devices. Go into e.g.
 video0 and you will see 'name' and 'index' attributes. The 'name' attribute
-is the 'name' field of the video_device struct. The 'index' attribute is
-a device node index that can be assigned by the driver, or that is calculated
-for you.
+is the 'name' field of the video_device struct.
 
-If you call video_register_device(), then the index is just increased by
-1 for each device node you register. The first video device node you register
-always starts off with 0.
-
-Alternatively you can call video_register_device_index() which is identical
-to video_register_device(), but with an extra index argument. Here you can
-pass a specific index value (between 0 and 31) that should be used.
+The 'index' attribute is the index of the device node: for each call to
+video_register_device() the index is just increased by 1. The first video
+device node you register always starts with index 0.
 
 Users can setup udev rules that utilize the index attribute to make fancy
 device names (e.g. 'mpegX' for MPEG video capture device nodes).
@@ -523,9 +523,8 @@ After the device was successfully registered, then you can use these fields:
 
 - vfl_type: the device type passed to video_register_device.
 - minor: the assigned device minor number.
-- num: the device kernel number (i.e. the X in videoX).
-- index: the device index number (calculated or set explicitly using
-  video_register_device_index).
+- num: the device node number (i.e. the X in videoX).
+- index: the device index number.
 
 If the registration failed, then you need to call video_device_release()
 to free the allocated video_device struct, or free your own struct if the

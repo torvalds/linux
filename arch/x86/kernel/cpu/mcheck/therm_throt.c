@@ -34,20 +34,31 @@
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
 
-static DEFINE_PER_CPU(__u64, next_check) = INITIAL_JIFFIES;
-static DEFINE_PER_CPU(unsigned long, thermal_throttle_count);
-static DEFINE_PER_CPU(bool, thermal_throttle_active);
+/*
+ * Current thermal throttling state:
+ */
+struct thermal_state {
+	bool			is_throttled;
 
-static atomic_t therm_throt_en		= ATOMIC_INIT(0);
+	u64			next_check;
+	unsigned long		throttle_count;
+	unsigned long		last_throttle_count;
+};
+
+static DEFINE_PER_CPU(struct thermal_state, thermal_state);
+
+static atomic_t therm_throt_en	= ATOMIC_INIT(0);
 
 #ifdef CONFIG_SYSFS
 #define define_therm_throt_sysdev_one_ro(_name)				\
 	static SYSDEV_ATTR(_name, 0444, therm_throt_sysdev_show_##_name, NULL)
 
 #define define_therm_throt_sysdev_show_func(name)			\
-static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,	\
-					struct sysdev_attribute *attr,	\
-					      char *buf)		\
+									\
+static ssize_t therm_throt_sysdev_show_##name(				\
+			struct sys_device *dev,				\
+			struct sysdev_attribute *attr,			\
+			char *buf)					\
 {									\
 	unsigned int cpu = dev->id;					\
 	ssize_t ret;							\
@@ -55,7 +66,7 @@ static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,	\
 	preempt_disable();	/* CPU hotplug */			\
 	if (cpu_online(cpu))						\
 		ret = sprintf(buf, "%lu\n",				\
-			      per_cpu(thermal_throttle_##name, cpu));	\
+			      per_cpu(thermal_state, cpu).name);	\
 	else								\
 		ret = 0;						\
 	preempt_enable();						\
@@ -63,11 +74,11 @@ static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,	\
 	return ret;							\
 }
 
-define_therm_throt_sysdev_show_func(count);
-define_therm_throt_sysdev_one_ro(count);
+define_therm_throt_sysdev_show_func(throttle_count);
+define_therm_throt_sysdev_one_ro(throttle_count);
 
 static struct attribute *thermal_throttle_attrs[] = {
-	&attr_count.attr,
+	&attr_throttle_count.attr,
 	NULL
 };
 
@@ -93,33 +104,39 @@ static struct attribute_group thermal_throttle_attr_group = {
  *          1 : Event should be logged further, and a message has been
  *              printed to the syslog.
  */
-static int therm_throt_process(int curr)
+static int therm_throt_process(bool is_throttled)
 {
-	unsigned int cpu = smp_processor_id();
-	__u64 tmp_jiffs = get_jiffies_64();
-	bool was_throttled = __get_cpu_var(thermal_throttle_active);
-	bool is_throttled = __get_cpu_var(thermal_throttle_active) = curr;
+	struct thermal_state *state;
+	unsigned int this_cpu;
+	bool was_throttled;
+	u64 now;
+
+	this_cpu = smp_processor_id();
+	now = get_jiffies_64();
+	state = &per_cpu(thermal_state, this_cpu);
+
+	was_throttled = state->is_throttled;
+	state->is_throttled = is_throttled;
 
 	if (is_throttled)
-		__get_cpu_var(thermal_throttle_count)++;
+		state->throttle_count++;
 
-	if (!(was_throttled ^ is_throttled) &&
-	    time_before64(tmp_jiffs, __get_cpu_var(next_check)))
+	if (time_before64(now, state->next_check) &&
+			state->throttle_count != state->last_throttle_count)
 		return 0;
 
-	__get_cpu_var(next_check) = tmp_jiffs + CHECK_INTERVAL;
+	state->next_check = now + CHECK_INTERVAL;
+	state->last_throttle_count = state->throttle_count;
 
 	/* if we just entered the thermal event */
 	if (is_throttled) {
-		printk(KERN_CRIT "CPU%d: Temperature above threshold, "
-		       "cpu clock throttled (total events = %lu)\n",
-		       cpu, __get_cpu_var(thermal_throttle_count));
+		printk(KERN_CRIT "CPU%d: Temperature above threshold, cpu clock throttled (total events = %lu)\n", this_cpu, state->throttle_count);
 
 		add_taint(TAINT_MACHINE_CHECK);
 		return 1;
 	}
 	if (was_throttled) {
-		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", cpu);
+		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", this_cpu);
 		return 1;
 	}
 
@@ -213,7 +230,7 @@ static void intel_thermal_interrupt(void)
 	__u64 msr_val;
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
+	if (therm_throt_process((msr_val & THERM_STATUS_PROCHOT) != 0))
 		mce_log_therm_throt_event(msr_val);
 }
 

@@ -361,6 +361,17 @@ out:
 }
 
 /**
+ * zfcp_fc_trigger_did_lookup - trigger the d_id lookup using a GID_PN request
+ * @port: The zfcp_port to lookup the d_id for.
+ */
+void zfcp_fc_trigger_did_lookup(struct zfcp_port *port)
+{
+	zfcp_port_get(port);
+	if (!queue_work(port->adapter->work_queue, &port->gid_pn_work))
+		zfcp_port_put(port);
+}
+
+/**
  * zfcp_fc_plogi_evaluate - evaluate PLOGI playload
  * @port: zfcp_port structure
  * @plogi: plogi payload

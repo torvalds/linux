@@ -117,7 +117,7 @@ static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-struct vm_operations_struct nilfs_file_vm_ops = {
+static const struct vm_operations_struct nilfs_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= nilfs_page_mkwrite,
 };
@@ -134,7 +134,7 @@ static int nilfs_file_mmap(struct file *file, struct vm_area_struct *vma)
  * We have mostly NULL's here: the current defaults are ok for
  * the nilfs filesystem.
  */
-struct file_operations nilfs_file_operations = {
+const struct file_operations nilfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
@@ -151,7 +151,7 @@ struct file_operations nilfs_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-struct inode_operations nilfs_file_inode_operations = {
+const struct inode_operations nilfs_file_inode_operations = {
 	.truncate	= nilfs_truncate,
 	.setattr	= nilfs_setattr,
 	.permission     = nilfs_permission,

@@ -506,7 +506,7 @@ static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 	if (c->need_recovery)
 		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, jhead != GCHD);
 	else
-		sleb = ubifs_scan(c, lnum, offs, c->sbuf);
+		sleb = ubifs_scan(c, lnum, offs, c->sbuf, 0);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 
@@ -836,8 +836,8 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 	const struct ubifs_cs_node *node;
 
 	dbg_mnt("replay log LEB %d:%d", lnum, offs);
-	sleb = ubifs_scan(c, lnum, offs, sbuf);
-	if (IS_ERR(sleb) ) {
+	sleb = ubifs_scan(c, lnum, offs, sbuf, c->need_recovery);
+	if (IS_ERR(sleb)) {
 		if (PTR_ERR(sleb) != -EUCLEAN || !c->need_recovery)
 			return PTR_ERR(sleb);
 		sleb = ubifs_recover_log_leb(c, lnum, offs, sbuf);

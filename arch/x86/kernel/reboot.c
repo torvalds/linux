@@ -4,6 +4,7 @@
 #include <linux/pm.h>
 #include <linux/efi.h>
 #include <linux/dmi.h>
+#include <linux/sched.h>
 #include <linux/tboot.h>
 #include <acpi/reboot.h>
 #include <asm/io.h>
@@ -433,6 +434,14 @@ static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5"),
+		},
+	},
+	{	/* Handle problems with rebooting on Apple Macmini3,1 */
+		.callback = set_pci_reboot,
+		.ident = "Apple Macmini3,1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini3,1"),
 		},
 	},
 	{ }

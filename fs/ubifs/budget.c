@@ -715,7 +715,7 @@ long long ubifs_get_free_space_nolock(struct ubifs_info *c)
  * ubifs_get_free_space - return amount of free space.
  * @c: UBIFS file-system description object
  *
- * This function calculates and retuns amount of free space to report to
+ * This function calculates and returns amount of free space to report to
  * user-space.
  */
 long long ubifs_get_free_space(struct ubifs_info *c)

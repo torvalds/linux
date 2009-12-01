@@ -112,7 +112,7 @@ static bool limit_mt_check(const struct xt_mtchk_param *par)
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return false;
 
 	/* For SMP, we only want to use one set of state. */
 	r->master = priv;

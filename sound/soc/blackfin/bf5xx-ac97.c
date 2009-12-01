@@ -277,7 +277,11 @@ static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 	if (!dai->active)
 		return 0;
 
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+	ret = sport_set_multichannel(sport, 16, 0x3FF, 1);
+#else
 	ret = sport_set_multichannel(sport, 16, 0x1F, 1);
+#endif
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
@@ -334,7 +338,11 @@ static int bf5xx_ac97_probe(struct platform_device *pdev,
 		goto sport_err;
 	}
 	/*SPORT works in TDM mode to simulate AC97 transfers*/
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+	ret = sport_set_multichannel(sport_handle, 16, 0x3FF, 1);
+#else
 	ret = sport_set_multichannel(sport_handle, 16, 0x1F, 1);
+#endif
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		ret = -EBUSY;

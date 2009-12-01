@@ -603,6 +603,9 @@ int __init intr_remapping_supported(void)
 	if (disable_intremap)
 		return 0;
 
+	if (!dmar_ir_support())
+		return 0;
+
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;
 
@@ -617,6 +620,11 @@ int __init enable_intr_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
+
+	if (parse_ioapics_under_ir() != 1) {
+		printk(KERN_INFO "Not enable interrupt remapping\n");
+		return -1;
+	}
 
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;

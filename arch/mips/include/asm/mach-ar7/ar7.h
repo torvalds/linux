@@ -78,6 +78,9 @@
 #define AR7_REF_CLOCK	25000000
 #define AR7_XTAL_CLOCK	24000000
 
+/* DCL */
+#define AR7_WDT_HW_ENA	0x10
+
 struct plat_cpmac_data {
 	int reset_bit;
 	int power_bit;

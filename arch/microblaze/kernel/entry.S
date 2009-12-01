@@ -308,44 +308,92 @@ C_ENTRY(_user_exception):
 	swi	r12, r1, PTO+PT_R0;
 	tovirt(r1,r1)
 
-	la	r15, r0, ret_from_trap-8
 /* where the trap should return need -8 to adjust for rtsd r15, 8*/
 /* Jump to the appropriate function for the system call number in r12
  * (r12 is not preserved), or return an error if r12 is not valid. The LP
  * register should point to the location where
  * the called function should return.  [note that MAKE_SYS_CALL uses label 1] */
-	/* See if the system call number is valid.  */
+
+	# Step into virtual mode.
+	set_vms;
+	addik	r11, r0, 3f
+	rtid	r11, 0
+	nop
+3:
+	add	r11, r0, CURRENT_TASK	 /* Get current task ptr into r11 */
+	lwi	r11, r11, TS_THREAD_INFO /* get thread info */
+	lwi	r11, r11, TI_FLAGS	 /* get flags in thread info */
+	andi	r11, r11, _TIF_WORK_SYSCALL_MASK
+	beqi	r11, 4f
+
+	addik	r3, r0, -ENOSYS
+	swi	r3, r1, PTO + PT_R3
+	brlid	r15, do_syscall_trace_enter
+	addik	r5, r1, PTO + PT_R0
+
+	# do_syscall_trace_enter returns the new syscall nr.
+	addk	r12, r0, r3
+	lwi	r5, r1, PTO+PT_R5;
+	lwi	r6, r1, PTO+PT_R6;
+	lwi	r7, r1, PTO+PT_R7;
+	lwi	r8, r1, PTO+PT_R8;
+	lwi	r9, r1, PTO+PT_R9;
+	lwi	r10, r1, PTO+PT_R10;
+4:
+/* Jump to the appropriate function for the system call number in r12
+ * (r12 is not preserved), or return an error if r12 is not valid.
+ * The LP register should point to the location where the called function
+ * should return.  [note that MAKE_SYS_CALL uses label 1] */
+	/* See if the system call number is valid */
 	addi	r11, r12, -__NR_syscalls;
-	bgei	r11,1f;
+	bgei	r11,5f;
 	/* Figure out which function to use for this system call.  */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
 	add	r12, r12, r12;
 
 	/* Trac syscalls and stored them to r0_ram */
-	lwi	r3, r12, 0x400 + TOPHYS(r0_ram)
+	lwi	r3, r12, 0x400 + r0_ram
 	addi	r3, r3, 1
-	swi	r3, r12, 0x400 + TOPHYS(r0_ram)
+	swi	r3, r12, 0x400 + r0_ram
 
-	lwi	r12, r12, TOPHYS(sys_call_table); /* Function ptr */
-	/* Make the system call.  to r12*/
-	set_vms;
-	rtid	r12, 0;
-	nop;
+	# Find and jump into the syscall handler.
+	lwi	r12, r12, sys_call_table
+	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
+	la	r15, r0, ret_from_trap-8
+	bra	r12
+
 	/* The syscall number is invalid, return an error.  */
-1:	VM_ON;	/* RETURN() expects virtual mode*/
+5:
 	addi	r3, r0, -ENOSYS;
 	rtsd	r15,8;		/* looks like a normal subroutine return */
 	or 	r0, r0, r0
 
 
-/* Entry point used to return from a syscall/trap.  */
+/* Entry point used to return from a syscall/trap */
 /* We re-enable BIP bit before state restore */
 C_ENTRY(ret_from_trap):
 	set_bip;			/*  Ints masked for state restore*/
 	lwi	r11, r1, PTO+PT_MODE;
 /* See if returning to kernel mode, if so, skip resched &c.  */
 	bnei	r11, 2f;
+
+	/* We're returning to user mode, so check for various conditions that
+	 * trigger rescheduling. */
+	# FIXME: Restructure all these flag checks.
+	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
+	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	lwi	r11, r11, TI_FLAGS;		/* get flags in thread info */
+	andi	r11, r11, _TIF_WORK_SYSCALL_MASK
+	beqi	r11, 1f
+
+	swi	r3, r1, PTO + PT_R3
+	swi	r4, r1, PTO + PT_R4
+	brlid	r15, do_syscall_trace_leave
+	addik	r5, r1, PTO + PT_R0
+	lwi	r3, r1, PTO + PT_R3
+	lwi	r4, r1, PTO + PT_R4
+1:
 
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
@@ -543,6 +591,8 @@ C_ENTRY(full_exception_trap):
 	mfs	r6, resr
 	nop
 	mfs	r7, rfsr;		/* save FSR */
+	nop
+	mts	rfsr, r0;	/* Clear sticky fsr */
 	nop
 	la	r12, r0, full_exception
 	set_vms;

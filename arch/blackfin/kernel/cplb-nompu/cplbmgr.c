@@ -1,26 +1,14 @@
 /*
- * File:         arch/blackfin/kernel/cplb-nompu-c/cplbmgr.c
  * Based on:     arch/blackfin/kernel/cplb-mpu/cplbmgr.c
  * Author:       Michael McTernan <mmcternan@airvana.com>
  *
- * Created:      01Nov2008
  * Description:  CPLB miss handler.
  *
  * Modified:
  *               Copyright 2008 Airvana Inc.
- *               Copyright 2004-2007 Analog Devices Inc.
+ *               Copyright 2008-2009 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/kernel.h>

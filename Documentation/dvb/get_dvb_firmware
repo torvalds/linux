@@ -25,7 +25,8 @@ use IO::Handle;
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
-		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718" );
+		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
+		"af9015");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -512,6 +513,40 @@ sub bluebird {
 	verify($outfile,$hash);
 
 	$outfile;
+}
+
+sub af9015 {
+	my $sourcefile = "download.ashx?file=57";
+	my $url = "http://www.ite.com.tw/EN/Services/$sourcefile";
+	my $hash = "ff5b096ed47c080870eacdab2de33ad6";
+	my $outfile = "dvb-usb-af9015.fw";
+	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+	my $fwoffset = 0x22708;
+	my $fwlength = 18225;
+	my ($chunklength, $buf, $rcount);
+
+	checkstandard();
+
+	wgetfile($sourcefile, $url);
+	unzip($sourcefile, $tmpdir);
+	verify("$tmpdir/Driver/Files/AF15BDA.sys", $hash);
+
+	open INFILE, '<', "$tmpdir/Driver/Files/AF15BDA.sys";
+	open OUTFILE, '>', $outfile;
+
+	sysseek(INFILE, $fwoffset, SEEK_SET);
+	while($fwlength > 0) {
+		$chunklength = 55;
+		$chunklength = $fwlength if ($chunklength > $fwlength);
+		$rcount = sysread(INFILE, $buf, $chunklength);
+		die "Ran out of data\n" if ($rcount != $chunklength);
+		syswrite(OUTFILE, $buf);
+		sysread(INFILE, $buf, 8);
+		$fwlength -= $rcount + 8;
+	}
+
+	close OUTFILE;
+	close INFILE;
 }
 
 # ---------------------------------------------------------------

@@ -16,11 +16,7 @@
 
   . = ALIGN(4096);
   .note : { *(.note.*) }
-  __ex_table : {
-	__start___ex_table = .;
-	*(__ex_table)
-	__stop___ex_table = .;
-  }
+  EXCEPTION_TABLE(0)
 
   BUG_TABLE
 
@@ -43,28 +39,17 @@
   }
 	
   .init.setup : {
-	__setup_start = .;
-	*(.init.setup)
-	__setup_end = .;
+	INIT_SETUP(0)
   }
 
-  . = ALIGN(32);
-  .data.percpu : {
-	__per_cpu_start = . ;
-	*(.data.percpu)
-	__per_cpu_end = . ;
-  }
+  PERCPU(32)
 	
   .initcall.init : {
-	__initcall_start = .;
-	INITCALLS
-	__initcall_end = .;
+	INIT_CALLS
   }
 
   .con_initcall.init : {
-	__con_initcall_start = .;
-	*(.con_initcall.init)
-	__con_initcall_end = .;
+	CON_INITCALL
   }
 
   .uml.initcall.init : {
@@ -118,8 +103,6 @@
 
    . = ALIGN(4096);
   .init.ramfs : {
-	__initramfs_start = .;
-	*(.init.ramfs)
-	__initramfs_end = .;
+	INIT_RAM_FS
   }
 

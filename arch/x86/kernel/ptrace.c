@@ -325,16 +325,6 @@ static int putreg(struct task_struct *child,
 		return set_flags(child, value);
 
 #ifdef CONFIG_X86_64
-	/*
-	 * Orig_ax is really just a flag with small positive and
-	 * negative values, so make sure to always sign-extend it
-	 * from 32 bits so that it works correctly regardless of
-	 * whether we come from a 32-bit environment or not.
-	 */
-	case offsetof(struct user_regs_struct, orig_ax):
-		value = (long) (s32) value;
-		break;
-
 	case offsetof(struct user_regs_struct,fs_base):
 		if (value >= TASK_SIZE_OF(child))
 			return -EIO;
@@ -1126,10 +1116,15 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 
 	case offsetof(struct user32, regs.orig_eax):
 		/*
-		 * Sign-extend the value so that orig_eax = -1
-		 * causes (long)orig_ax < 0 tests to fire correctly.
+		 * A 32-bit debugger setting orig_eax means to restore
+		 * the state of the task restarting a 32-bit syscall.
+		 * Make sure we interpret the -ERESTART* codes correctly
+		 * in case the task is not actually still sitting at the
+		 * exit from a 32-bit syscall with TS_COMPAT still set.
 		 */
-		regs->orig_ax = (long) (s32) value;
+		regs->orig_ax = value;
+		if (syscall_get_nr(child, regs) >= 0)
+			task_thread_info(child)->status |= TS_COMPAT;
 		break;
 
 	case offsetof(struct user32, regs.eflags):

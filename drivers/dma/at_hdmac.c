@@ -87,6 +87,7 @@ static struct at_desc *atc_alloc_descriptor(struct dma_chan *chan,
 	desc = dma_pool_alloc(atdma->dma_desc_pool, gfp_flags, &phys);
 	if (desc) {
 		memset(desc, 0, sizeof(struct at_desc));
+		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		/* txd.flags will be overwritten in prep functions */
 		desc->txd.flags = DMA_CTRL_ACK;
@@ -150,11 +151,11 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 		struct at_desc *child;
 
 		spin_lock_bh(&atchan->lock);
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			dev_vdbg(chan2dev(&atchan->chan_common),
 					"moving child desc %p to freelist\n",
 					child);
-		list_splice_init(&desc->txd.tx_list, &atchan->free_list);
+		list_splice_init(&desc->tx_list, &atchan->free_list);
 		dev_vdbg(chan2dev(&atchan->chan_common),
 			 "moving desc %p to freelist\n", desc);
 		list_add(&desc->desc_node, &atchan->free_list);
@@ -247,30 +248,33 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	param = txd->callback_param;
 
 	/* move children to free_list */
-	list_splice_init(&txd->tx_list, &atchan->free_list);
+	list_splice_init(&desc->tx_list, &atchan->free_list);
 	/* move myself to free_list */
 	list_move(&desc->desc_node, &atchan->free_list);
 
 	/* unmap dma addresses */
-	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			dma_unmap_single(chan2parent(&atchan->chan_common),
-					desc->lli.daddr,
-					desc->len, DMA_FROM_DEVICE);
-		else
-			dma_unmap_page(chan2parent(&atchan->chan_common),
-					desc->lli.daddr,
-					desc->len, DMA_FROM_DEVICE);
-	}
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			dma_unmap_single(chan2parent(&atchan->chan_common),
-					desc->lli.saddr,
-					desc->len, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(chan2parent(&atchan->chan_common),
-					desc->lli.saddr,
-					desc->len, DMA_TO_DEVICE);
+	if (!atchan->chan_common.private) {
+		struct device *parent = chan2parent(&atchan->chan_common);
+		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(parent,
+						desc->lli.daddr,
+						desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(parent,
+						desc->lli.daddr,
+						desc->len, DMA_FROM_DEVICE);
+		}
+		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(parent,
+						desc->lli.saddr,
+						desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(parent,
+						desc->lli.saddr,
+						desc->len, DMA_TO_DEVICE);
+		}
 	}
 
 	/*
@@ -334,7 +338,7 @@ static void atc_cleanup_descriptors(struct at_dma_chan *atchan)
 			/* This one is currently in progress */
 			return;
 
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			if (!(child->lli.ctrla & ATC_DONE))
 				/* Currently in progress */
 				return;
@@ -407,7 +411,7 @@ static void atc_handle_error(struct at_dma_chan *atchan)
 	dev_crit(chan2dev(&atchan->chan_common),
 			"  cookie: %d\n", bad_desc->txd.cookie);
 	atc_dump_lli(atchan, &bad_desc->lli);
-	list_for_each_entry(child, &bad_desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		atc_dump_lli(atchan, &child->lli);
 
 	/* Pretend the descriptor completed successfully */
@@ -587,7 +591,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			prev->lli.dscr = desc->txd.phys;
 			/* insert the link descriptor to the LD ring */
 			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+					&first->tx_list);
 		}
 		prev = desc;
 	}
@@ -646,8 +650,6 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	reg_width = atslave->reg_width;
 
-	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
-
 	ctrla = ATC_DEFAULT_CTRLA | atslave->ctrla;
 	ctrlb = ATC_DEFAULT_CTRLB | ATC_IEN;
 
@@ -687,7 +689,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				prev->lli.dscr = desc->txd.phys;
 				/* insert the link descriptor to the LD ring */
 				list_add_tail(&desc->desc_node,
-						&first->txd.tx_list);
+						&first->tx_list);
 			}
 			prev = desc;
 			total_len += len;
@@ -729,7 +731,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				prev->lli.dscr = desc->txd.phys;
 				/* insert the link descriptor to the LD ring */
 				list_add_tail(&desc->desc_node,
-						&first->txd.tx_list);
+						&first->tx_list);
 			}
 			prev = desc;
 			total_len += len;

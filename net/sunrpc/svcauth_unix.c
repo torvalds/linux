@@ -668,6 +668,7 @@ static int unix_gid_find(uid_t uid, struct group_info **gip,
 	case 0:
 		*gip = ug->gi;
 		get_group_info(*gip);
+		cache_put(&ug->h, &unix_gid_cache);
 		return 0;
 	default:
 		return -EAGAIN;

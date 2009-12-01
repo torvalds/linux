@@ -100,7 +100,7 @@ acpi_status acpi_get_timer(u32 * ticks)
 	}
 
 	status =
-	    acpi_hw_low_level_read(32, ticks, &acpi_gbl_FADT.xpm_timer_block);
+	    acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
 
 	return_ACPI_STATUS(status);
 }

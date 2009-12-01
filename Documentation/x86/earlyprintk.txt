@@ -7,7 +7,7 @@ and two USB cables, connected like this:
 
   [host/target] <-------> [USB debug key] <-------> [client/console]
 
-1. There are three specific hardware requirements:
+1. There are a number of specific hardware requirements:
 
  a.) Host/target system needs to have USB debug port capability.
 
@@ -42,7 +42,35 @@ and two USB cables, connected like this:
      This is a small blue plastic connector with two USB connections,
      it draws power from its USB connections.
 
- c.) Thirdly, you need a second client/console system with a regular USB port.
+ c.) You need a second client/console system with a high speed USB 2.0
+     port.
+
+ d.) The Netchip device must be plugged directly into the physical
+     debug port on the "host/target" system.  You cannot use a USB hub in
+     between the physical debug port and the "host/target" system.
+
+     The EHCI debug controller is bound to a specific physical USB
+     port and the Netchip device will only work as an early printk
+     device in this port.  The EHCI host controllers are electrically
+     wired such that the EHCI debug controller is hooked up to the
+     first physical and there is no way to change this via software.
+     You can find the physical port through experimentation by trying
+     each physical port on the system and rebooting.  Or you can try
+     and use lsusb or look at the kernel info messages emitted by the
+     usb stack when you plug a usb device into various ports on the
+     "host/target" system.
+
+     Some hardware vendors do not expose the usb debug port with a
+     physical connector and if you find such a device send a complaint
+     to the hardware vendor, because there is no reason not to wire
+     this port into one of the physically accessible ports.
+
+ e.) It is also important to note, that many versions of the Netchip
+     device require the "client/console" system to be plugged into the
+     right and side of the device (with the product logo facing up and
+     readable left to right).  The reason being is that the 5 volt
+     power supply is taken from only one side of the device and it
+     must be the side that does not get rebooted.
 
 2. Software requirements:
 
@@ -55,6 +83,13 @@ and two USB cables, connected like this:
     And you need to add the boot command line: "earlyprintk=dbgp".
     (If you are using Grub, append it to the 'kernel' line in
      /etc/grub.conf)
+
+    On systems with more than one EHCI debug controller you must
+    specify the correct EHCI debug controller number.  The ordering
+    comes from the PCI bus enumeration of the EHCI controllers.  The
+    default with no number argument is "0" the first EHCI debug
+    controller.  To use the second EHCI debug controller, you would
+    use the command line: "earlyprintk=dbgp1"
 
     NOTE: normally earlyprintk console gets turned off once the
     regular console is alive - use "earlyprintk=dbgp,keep" to keep

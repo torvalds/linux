@@ -232,10 +232,9 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
 	struct trace_parser parser;
-	size_t read = 0;
-	ssize_t ret;
+	ssize_t read, ret;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	ret = tracing_update_buffers();
@@ -247,7 +246,7 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 
 	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	if (trace_parser_loaded((&parser))) {
+	if (read >= 0 && trace_parser_loaded((&parser))) {
 		int set = 1;
 
 		if (*parser.buffer == '!')
@@ -271,42 +270,32 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct list_head *list = m->private;
-	struct ftrace_event_call *call;
+	struct ftrace_event_call *call = v;
 
 	(*pos)++;
 
-	for (;;) {
-		if (list == &ftrace_events)
-			return NULL;
-
-		call = list_entry(list, struct ftrace_event_call, list);
-
+	list_for_each_entry_continue(call, &ftrace_events, list) {
 		/*
 		 * The ftrace subsystem is for showing formats only.
 		 * They can not be enabled or disabled via the event files.
 		 */
 		if (call->regfunc)
-			break;
-
-		list = list->next;
+			return call;
 	}
 
-	m->private = list->next;
-
-	return call;
+	return NULL;
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_call *call = NULL;
+	struct ftrace_event_call *call;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	m->private = ftrace_events.next;
+	call = list_entry(&ftrace_events, struct ftrace_event_call, list);
 	for (l = 0; l <= *pos; ) {
-		call = t_next(m, NULL, &l);
+		call = t_next(m, call, &l);
 		if (!call)
 			break;
 	}
@@ -316,37 +305,28 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 static void *
 s_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct list_head *list = m->private;
-	struct ftrace_event_call *call;
+	struct ftrace_event_call *call = v;
 
 	(*pos)++;
 
- retry:
-	if (list == &ftrace_events)
-		return NULL;
-
-	call = list_entry(list, struct ftrace_event_call, list);
-
-	if (!call->enabled) {
-		list = list->next;
-		goto retry;
+	list_for_each_entry_continue(call, &ftrace_events, list) {
+		if (call->enabled)
+			return call;
 	}
 
-	m->private = list->next;
-
-	return call;
+	return NULL;
 }
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_call *call = NULL;
+	struct ftrace_event_call *call;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	m->private = ftrace_events.next;
+	call = list_entry(&ftrace_events, struct ftrace_event_call, list);
 	for (l = 0; l <= *pos; ) {
-		call = s_next(m, NULL, &l);
+		call = s_next(m, call, &l);
 		if (!call)
 			break;
 	}

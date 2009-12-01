@@ -321,11 +321,14 @@ static void pcm990_mci_exit(struct device *dev, void *data)
 #define MSECS_PER_JIFFY (1000/HZ)
 
 static struct pxamci_platform_data pcm990_mci_platform_data = {
-	.detect_delay	= 250 / MSECS_PER_JIFFY,
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init 		= pcm990_mci_init,
-	.setpower 	= pcm990_mci_setpower,
-	.exit		= pcm990_mci_exit,
+	.detect_delay		= 250 / MSECS_PER_JIFFY,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.init 			= pcm990_mci_init,
+	.setpower 		= pcm990_mci_setpower,
+	.exit			= pcm990_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 static struct pxaohci_platform_data pcm990_ohci_platform_data = {
@@ -427,25 +430,56 @@ static void pcm990_camera_free_bus(struct soc_camera_link *link)
 	gpio_bus_switch = -EINVAL;
 }
 
-static struct soc_camera_link iclink = {
-	.bus_id	= 0, /* Must match with the camera ID above */
-	.query_bus_param = pcm990_camera_query_bus_param,
-	.set_bus_param = pcm990_camera_set_bus_param,
-	.free_bus = pcm990_camera_free_bus,
-};
-
 /* Board I2C devices. */
 static struct i2c_board_info __initdata pcm990_i2c_devices[] = {
 	{
 		/* Must initialize before the camera(s) */
 		I2C_BOARD_INFO("pca9536", 0x41),
 		.platform_data = &pca9536_data,
-	}, {
+	},
+};
+
+static struct i2c_board_info pcm990_camera_i2c[] = {
+	{
 		I2C_BOARD_INFO("mt9v022", 0x48),
-		.platform_data = &iclink, /* With extender */
 	}, {
 		I2C_BOARD_INFO("mt9m001", 0x5d),
-		.platform_data = &iclink, /* With extender */
+	},
+};
+
+static struct soc_camera_link iclink[] = {
+	{
+		.bus_id			= 0, /* Must match with the camera ID */
+		.board_info		= &pcm990_camera_i2c[0],
+		.i2c_adapter_id		= 0,
+		.query_bus_param	= pcm990_camera_query_bus_param,
+		.set_bus_param		= pcm990_camera_set_bus_param,
+		.free_bus		= pcm990_camera_free_bus,
+		.module_name		= "mt9v022",
+	}, {
+		.bus_id			= 0, /* Must match with the camera ID */
+		.board_info		= &pcm990_camera_i2c[1],
+		.i2c_adapter_id		= 0,
+		.query_bus_param	= pcm990_camera_query_bus_param,
+		.set_bus_param		= pcm990_camera_set_bus_param,
+		.free_bus		= pcm990_camera_free_bus,
+		.module_name		= "mt9m001",
+	},
+};
+
+static struct platform_device pcm990_camera[] = {
+	{
+		.name	= "soc-camera-pdrv",
+		.id	= 0,
+		.dev	= {
+			.platform_data = &iclink[0],
+		},
+	}, {
+		.name	= "soc-camera-pdrv",
+		.id	= 1,
+		.dev	= {
+			.platform_data = &iclink[1],
+		},
 	},
 };
 #endif /* CONFIG_VIDEO_PXA27x ||CONFIG_VIDEO_PXA27x_MODULE */
@@ -501,6 +535,9 @@ void __init pcm990_baseboard_init(void)
 	pxa_set_camera_info(&pcm990_pxacamera_platform_data);
 
 	i2c_register_board_info(0, ARRAY_AND_SIZE(pcm990_i2c_devices));
+
+	platform_device_register(&pcm990_camera[0]);
+	platform_device_register(&pcm990_camera[1]);
 #endif
 
 	printk(KERN_INFO "PCM-990 Evaluation baseboard initialized\n");

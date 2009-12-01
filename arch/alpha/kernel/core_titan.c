@@ -680,7 +680,7 @@ titan_agp_bind_memory(alpha_agp_info *agp, off_t pg_start, struct agp_memory *me
 {
 	struct titan_agp_aperture *aper = agp->aperture.sysdata;
 	return iommu_bind(aper->arena, aper->pg_start + pg_start, 
-			  mem->page_count, mem->memory);
+			  mem->page_count, mem->pages);
 }
 
 static int 

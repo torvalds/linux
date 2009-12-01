@@ -3,6 +3,7 @@
 
 #include <asm/scatterlist.h>
 #include <asm/cache.h>
+#include <asm-generic/dma-coherent.h>
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag);
@@ -72,15 +73,5 @@ extern int dma_is_consistent(struct device *dev, dma_addr_t dma_addr);
 
 extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction);
-
-#if 0
-#define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
-
-extern int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
-	dma_addr_t device_addr, size_t size, int flags);
-extern void dma_release_declared_memory(struct device *dev);
-extern void * dma_mark_declared_memory_occupied(struct device *dev,
-	dma_addr_t device_addr, size_t size);
-#endif
 
 #endif /* _ASM_DMA_MAPPING_H */

@@ -172,20 +172,34 @@ enum radeon_connector_table {
 
 struct radeon_mode_info {
 	struct atom_context *atom_context;
+	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[2];
+	/* DVI-I properties */
+	struct drm_property *coherent_mode_property;
+	/* DAC enable load detect */
+	struct drm_property *load_detect_property;
+	/* TV standard load detect */
+	struct drm_property *tv_std_property;
+	/* legacy TMDS PLL detect */
+	struct drm_property *tmds_pll_property;
+
 };
 
-struct radeon_native_mode {
-	/* preferred mode */
-	uint32_t panel_xres, panel_yres;
-	uint32_t hoverplus, hsync_width;
-	uint32_t hblank;
-	uint32_t voverplus, vsync_width;
-	uint32_t vblank;
-	uint32_t dotclock;
-	uint32_t flags;
+#define MAX_H_CODE_TIMING_LEN 32
+#define MAX_V_CODE_TIMING_LEN 32
+
+/* need to store these as reading
+   back code tables is excessive */
+struct radeon_tv_regs {
+	uint32_t tv_uv_adr;
+	uint32_t timing_cntl;
+	uint32_t hrestart;
+	uint32_t vrestart;
+	uint32_t frestart;
+	uint16_t h_code_timing[MAX_H_CODE_TIMING_LEN];
+	uint16_t v_code_timing[MAX_V_CODE_TIMING_LEN];
 };
 
 struct radeon_crtc {
@@ -195,8 +209,6 @@ struct radeon_crtc {
 	bool enabled;
 	bool can_tile;
 	uint32_t crtc_offset;
-	struct radeon_framebuffer *fbdev_fb;
-	struct drm_mode_set mode_set;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
 	int cursor_width;
@@ -204,10 +216,9 @@ struct radeon_crtc {
 	uint32_t legacy_display_base_addr;
 	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
-	uint32_t devices;
 	fixed20_12 vsc;
 	fixed20_12 hsc;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_primary_dac {
@@ -227,7 +238,7 @@ struct radeon_encoder_lvds {
 	bool     use_bios_dividers;
 	uint32_t lvds_gen_cntl;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_tv_dac {
@@ -236,12 +247,28 @@ struct radeon_encoder_tv_dac {
 	uint32_t ntsc_tvdac_adj;
 	uint32_t pal_tvdac_adj;
 
+	int               h_pos;
+	int               v_pos;
+	int               h_size;
+	int               supported_tv_stds;
+	bool              tv_on;
 	enum radeon_tv_std tv_std;
+	struct radeon_tv_regs tv;
 };
 
 struct radeon_encoder_int_tmds {
 	/* legacy int tmds */
 	struct radeon_tmds_pll tmds_pll[4];
+};
+
+/* spread spectrum */
+struct radeon_atom_ss {
+	uint16_t percentage;
+	uint8_t type;
+	uint8_t step;
+	uint8_t delay;
+	uint8_t range;
+	uint8_t refdiv;
 };
 
 struct radeon_encoder_atom_dig {
@@ -251,18 +278,24 @@ struct radeon_encoder_atom_dig {
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
+	struct radeon_atom_ss *ss;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
+};
+
+struct radeon_encoder_atom_dac {
+	enum radeon_tv_std tv_std;
 };
 
 struct radeon_encoder {
 	struct drm_encoder base;
 	uint32_t encoder_id;
 	uint32_t devices;
+	uint32_t active_device;
 	uint32_t flags;
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 	void *enc_priv;
 };
 
@@ -276,8 +309,15 @@ struct radeon_connector {
 	uint32_t connector_id;
 	uint32_t devices;
 	struct radeon_i2c_chan *ddc_bus;
-	int use_digital;
+	/* some systems have a an hdmi and vga port with a shared ddc line */
+	bool shared_ddc;
+	bool use_digital;
+	/* we need to mind the EDID between detect
+	   and get modes due to analog/digital/tvencoder */
+	struct edid *edid;
 	void *con_priv;
+	bool dac_load_detect;
+	uint16_t connector_object_id;
 };
 
 struct radeon_framebuffer {
@@ -310,6 +350,7 @@ struct drm_encoder *radeon_encoder_legacy_tmds_int_add(struct drm_device *dev, i
 struct drm_encoder *radeon_encoder_legacy_tmds_ext_add(struct drm_device *dev, int bios_index);
 extern void atombios_external_tmds_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
+extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
 extern int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
@@ -337,16 +378,18 @@ extern bool radeon_atom_get_clock_info(struct drm_device *dev);
 extern bool radeon_combios_get_clock_info(struct drm_device *dev);
 extern struct radeon_encoder_atom_dig *
 radeon_atombios_get_lvds_info(struct radeon_encoder *encoder);
-extern struct radeon_encoder_int_tmds *
-radeon_atombios_get_tmds_info(struct radeon_encoder *encoder);
+bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
+				   struct radeon_encoder_int_tmds *tmds);
+bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
+					   struct radeon_encoder_int_tmds *tmds);
+bool radeon_legacy_get_tmds_info_from_table(struct radeon_encoder *encoder,
+					    struct radeon_encoder_int_tmds *tmds);
 extern struct radeon_encoder_primary_dac *
 radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_lvds *
 radeon_combios_get_lvds_info(struct radeon_encoder *encoder);
-extern struct radeon_encoder_int_tmds *
-radeon_combios_get_tmds_info(struct radeon_encoder *encoder);
 extern void radeon_combios_get_ext_tmds_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_combios_get_tv_dac_info(struct radeon_encoder *encoder);
@@ -356,6 +399,8 @@ extern void radeon_combios_output_lock(struct drm_encoder *encoder, bool lock);
 extern void radeon_combios_initialize_bios_scratch_regs(struct drm_device *dev);
 extern void radeon_atom_output_lock(struct drm_encoder *encoder, bool lock);
 extern void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev);
+extern void radeon_save_bios_scratch_regs(struct radeon_device *rdev);
+extern void radeon_restore_bios_scratch_regs(struct radeon_device *rdev);
 extern void
 radeon_atombios_encoder_crtc_scratch_regs(struct drm_encoder *encoder, int crtc);
 extern void
@@ -366,6 +411,8 @@ extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
 extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				     u16 blue, int regno);
+extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+				     u16 *blue, int regno);
 struct drm_framebuffer *radeon_framebuffer_create(struct drm_device *dev,
 						  struct drm_mode_fb_cmd *mode_cmd,
 						  struct drm_gem_object *obj);
@@ -396,6 +443,19 @@ extern int radeon_static_clocks_init(struct drm_device *dev);
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);
-void atom_rv515_force_tv_scaler(struct radeon_device *rdev);
+void atom_rv515_force_tv_scaler(struct radeon_device *rdev, struct radeon_crtc *radeon_crtc);
 
+/* legacy tv */
+void radeon_legacy_tv_adjust_crtc_reg(struct drm_encoder *encoder,
+				      uint32_t *h_total_disp, uint32_t *h_sync_strt_wid,
+				      uint32_t *v_total_disp, uint32_t *v_sync_strt_wid);
+void radeon_legacy_tv_adjust_pll1(struct drm_encoder *encoder,
+				  uint32_t *htotal_cntl, uint32_t *ppll_ref_div,
+				  uint32_t *ppll_div_3, uint32_t *pixclks_cntl);
+void radeon_legacy_tv_adjust_pll2(struct drm_encoder *encoder,
+				  uint32_t *htotal2_cntl, uint32_t *p2pll_ref_div,
+				  uint32_t *p2pll_div_0, uint32_t *pixclks_cntl);
+void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode);
 #endif

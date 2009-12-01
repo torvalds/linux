@@ -41,7 +41,7 @@ static int matroxfb_read_gpio(struct matrox_fb_info* minfo) {
 	int v;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	v = matroxfb_DAC_in(PMINFO DAC_XGENIODATA);
+	v = matroxfb_DAC_in(minfo, DAC_XGENIODATA);
 	matroxfb_DAC_unlock_irqrestore(flags);
 	return v;
 }
@@ -51,10 +51,10 @@ static void matroxfb_set_gpio(struct matrox_fb_info* minfo, int mask, int val) {
 	int v;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	v = (matroxfb_DAC_in(PMINFO DAC_XGENIOCTRL) & mask) | val;
-	matroxfb_DAC_out(PMINFO DAC_XGENIOCTRL, v);
+	v = (matroxfb_DAC_in(minfo, DAC_XGENIOCTRL) & mask) | val;
+	matroxfb_DAC_out(minfo, DAC_XGENIOCTRL, v);
 	/* We must reset GENIODATA very often... XFree plays with this register */
-	matroxfb_DAC_out(PMINFO DAC_XGENIODATA, 0x00);
+	matroxfb_DAC_out(minfo, DAC_XGENIODATA, 0x00);
 	matroxfb_DAC_unlock_irqrestore(flags);
 }
 
@@ -112,7 +112,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 	i2c_set_adapdata(&b->adapter, b);
 	b->adapter.class = class;
 	b->adapter.algo_data = &b->bac;
-	b->adapter.dev.parent = &ACCESS_FBINFO(pcidev)->dev;
+	b->adapter.dev.parent = &minfo->pcidev->dev;
 	b->bac = matrox_i2c_algo_template;
 	b->bac.data = b;
 	err = i2c_bit_add_bus(&b->adapter);
@@ -149,11 +149,11 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 		return NULL;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	matroxfb_DAC_out(PMINFO DAC_XGENIODATA, 0xFF);
-	matroxfb_DAC_out(PMINFO DAC_XGENIOCTRL, 0x00);
+	matroxfb_DAC_out(minfo, DAC_XGENIODATA, 0xFF);
+	matroxfb_DAC_out(minfo, DAC_XGENIOCTRL, 0x00);
 	matroxfb_DAC_unlock_irqrestore(flags);
 
-	switch (ACCESS_FBINFO(chip)) {
+	switch (minfo->chip) {
 		case MGA_2064:
 		case MGA_2164:
 			err = i2c_bus_reg(&m2info->ddc1, minfo,
@@ -168,7 +168,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	}
 	if (err)
 		goto fail_ddc1;
-	if (ACCESS_FBINFO(devflags.dualhead)) {
+	if (minfo->devflags.dualhead) {
 		err = i2c_bus_reg(&m2info->ddc2, minfo,
 				  DDC2_DATA, DDC2_CLK,
 				  "DDC:fb%u #1", I2C_CLASS_DDC);

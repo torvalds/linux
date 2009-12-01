@@ -105,7 +105,7 @@ static int ce6230_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int i = 0;
 	struct req_t req;
 	int ret = 0;
-	memset(&req, 0, sizeof(&req));
+	memset(&req, 0, sizeof(req));
 
 	if (num > 2)
 		return -EINVAL;
@@ -274,7 +274,7 @@ static struct dvb_usb_device_properties ce6230_properties = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = 512,
+						.buffersize = (16*512),
 					}
 				}
 			},

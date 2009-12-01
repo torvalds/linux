@@ -55,7 +55,7 @@ struct compat_timeval;
 struct robust_list_head;
 struct getcpu_cache;
 struct old_linux_dirent;
-struct perf_counter_attr;
+struct perf_event_attr;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -100,33 +100,25 @@ struct perf_counter_attr;
 
 #ifdef CONFIG_EVENT_PROFILE
 #define TRACE_SYS_ENTER_PROFILE(sname)					       \
-static int prof_sysenter_enable_##sname(struct ftrace_event_call *event_call)  \
+static int prof_sysenter_enable_##sname(void)				       \
 {									       \
-	int ret = 0;							       \
-	if (!atomic_inc_return(&event_enter_##sname.profile_count))	       \
-		ret = reg_prof_syscall_enter("sys"#sname);		       \
-	return ret;							       \
+	return reg_prof_syscall_enter("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysenter_disable_##sname(struct ftrace_event_call *event_call)\
+static void prof_sysenter_disable_##sname(void)				       \
 {									       \
-	if (atomic_add_negative(-1, &event_enter_##sname.profile_count))       \
-		unreg_prof_syscall_enter("sys"#sname);			       \
+	unreg_prof_syscall_enter("sys"#sname);				       \
 }
 
 #define TRACE_SYS_EXIT_PROFILE(sname)					       \
-static int prof_sysexit_enable_##sname(struct ftrace_event_call *event_call)   \
+static int prof_sysexit_enable_##sname(void)				       \
 {									       \
-	int ret = 0;							       \
-	if (!atomic_inc_return(&event_exit_##sname.profile_count))	       \
-		ret = reg_prof_syscall_exit("sys"#sname);		       \
-	return ret;							       \
+	return reg_prof_syscall_exit("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
+static void prof_sysexit_disable_##sname(void)				       \
 {                                                                              \
-	if (atomic_add_negative(-1, &event_exit_##sname.profile_count))	       \
-		unreg_prof_syscall_exit("sys"#sname);			       \
+	unreg_prof_syscall_exit("sys"#sname);				       \
 }
 
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
@@ -468,8 +460,7 @@ asmlinkage long sys_mount(char __user *dev_name, char __user *dir_name,
 				void __user *data);
 asmlinkage long sys_umount(char __user *name, int flags);
 asmlinkage long sys_oldumount(char __user *name);
-asmlinkage long sys_truncate(const char __user *path,
-				unsigned long length);
+asmlinkage long sys_truncate(const char __user *path, long length);
 asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length);
 asmlinkage long sys_stat(char __user *filename,
 			struct __old_kernel_stat __user *statbuf);
@@ -885,7 +876,7 @@ asmlinkage long sys_ppoll(struct pollfd __user *, unsigned int,
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 
-asmlinkage long sys_perf_counter_open(
-		struct perf_counter_attr __user *attr_uptr,
+asmlinkage long sys_perf_event_open(
+		struct perf_event_attr __user *attr_uptr,
 		pid_t pid, int cpu, int group_fd, unsigned long flags);
 #endif

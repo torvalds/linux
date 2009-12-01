@@ -150,8 +150,12 @@ ENTRY(tme_handler)
 
 	; pmd = pmd_offset(pgd, address);
 	ld	r3, @r3			; r3: pmd data
-	ldi	r2, #-4096
 	beqz	r3, 3f			; pmd_none(*pmd) ?
+
+	and3	r2, r3, #0xfff
+	add3	r2, r2, #-355		; _KERNPG_TABLE(=0x163)
+	bnez	r2, 3f			; pmd_bad(*pmd) ?
+	ldi	r2, #-4096
 
 	; pte = pte_offset(pmd, address);
 	and	r2, r3			; r2: pte base addr
@@ -263,9 +267,9 @@ ENTRY(tme_handler)
 	ld	r1, @r3			; r1: pmd
 	beqz	r1, 3f			; pmd_none(*pmd) ?
 ;
-	and3	r1, r1, #0xeff
-	ldi	r4, #611		; _KERNPG_TABLE(=611)
-	bne	r1, r4, 3f		; !pmd_bad(*pmd) ?
+	and3	r1, r1, #0x3ff
+	ldi	r4, #0x163		; _KERNPG_TABLE(=0x163)
+	bne	r1, r4, 3f		; pmd_bad(*pmd) ?
 
 	.fillinsn
 4:

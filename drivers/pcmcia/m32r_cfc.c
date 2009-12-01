@@ -537,8 +537,9 @@ static int _pcc_set_io_map(u_short sock, struct pccard_io_map *io)
 	u_char map;
 
 	debug(3, "m32r_cfc: SetIOMap(%d, %d, %#2.2x, %d ns, "
-		  "%#lx-%#lx)\n", sock, io->map, io->flags,
-		  io->speed, io->start, io->stop);
+		  "%#llx-%#llx)\n", sock, io->map, io->flags,
+		  io->speed, (unsigned long long)io->start,
+		  (unsigned long long)io->stop);
 	map = io->map;
 
 	return 0;
@@ -554,8 +555,9 @@ static int _pcc_set_mem_map(u_short sock, struct pccard_mem_map *mem)
 	pcc_socket_t *t = &socket[sock];
 
 	debug(3, "m32r_cfc: SetMemMap(%d, %d, %#2.2x, %d ns, "
-		 "%#lx, %#x)\n", sock, map, mem->flags,
-		 mem->speed, mem->static_start, mem->card_start);
+		 "%#llx, %#x)\n", sock, map, mem->flags,
+		 mem->speed, (unsigned long long)mem->static_start,
+		 mem->card_start);
 
 	/*
 	 * sanity check
@@ -699,7 +701,7 @@ static struct pccard_operations pcc_operations = {
 static int cfc_drv_pcmcia_suspend(struct platform_device *dev,
 				     pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int cfc_drv_pcmcia_resume(struct platform_device *dev)

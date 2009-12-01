@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched.h>
 #include <media/videobuf-dma-contig.h>
 
 struct videobuf_dma_contig_memory {
@@ -105,7 +106,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	}
 }
 
-static struct vm_operations_struct videobuf_vm_ops = {
+static const struct vm_operations_struct videobuf_vm_ops = {
 	.open     = videobuf_vm_open,
 	.close    = videobuf_vm_close,
 };

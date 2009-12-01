@@ -54,6 +54,16 @@ ENTRY(_start)
 	mfs	r1, rmsr
 	andi	r1, r1, ~2
 	mts	rmsr, r1
+/*
+ * Here is checking mechanism which check if Microblaze has msr instructions
+ * We load msr and compare it with previous r1 value - if is the same,
+ * msr instructions works if not - cpu don't have them.
+ */
+	/* r8=0 - I have msr instr, 1 - I don't have them */
+	rsubi	r0, r0, 1	/* set the carry bit */
+	msrclr	r0, 0x4		/* try to clear it */
+	/* read the carry bit, r8 will be '0' if msrclr exists */
+	addik	r8, r0, 0
 
 /* r7 may point to an FDT, or there may be one linked in.
    if it's in r7, we've got to save it away ASAP.
@@ -209,8 +219,8 @@ start_here:
 	 * Please see $(ARCH)/mach-$(SUBARCH)/setup.c for
 	 * the function.
 	 */
-	la	r8, r0, machine_early_init
-	brald	r15, r8
+	la	r9, r0, machine_early_init
+	brald	r15, r9
 	nop
 
 #ifndef CONFIG_MMU

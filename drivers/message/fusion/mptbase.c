@@ -6821,7 +6821,7 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 	*size = y;
 }
 /**
- *	mpt_set_taskmgmt_in_progress_flag - set flags associated with task managment
+ *	mpt_set_taskmgmt_in_progress_flag - set flags associated with task management
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
  *	Returns 0 for SUCCESS or -1 if FAILED.
@@ -6854,7 +6854,7 @@ mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
 EXPORT_SYMBOL(mpt_set_taskmgmt_in_progress_flag);
 
 /**
- *	mpt_clear_taskmgmt_in_progress_flag - clear flags associated with task managment
+ *	mpt_clear_taskmgmt_in_progress_flag - clear flags associated with task management
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
  **/

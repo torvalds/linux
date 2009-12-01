@@ -48,8 +48,8 @@ config TOUCHSCREEN_AD7879_I2C
 	select TOUCHSCREEN_AD7879
 	help
 	  Say Y here if you have a touchscreen interface using the
-	  AD7879-1 controller, and your board-specific initialization
-	  code includes that in its table of I2C devices.
+	  AD7879-1/AD7889-1 controller, and your board-specific
+	  initialization code includes that in its table of I2C devices.
 
 	  If unsure, say N (but it's safe to say "Y").
 
@@ -62,7 +62,7 @@ config TOUCHSCREEN_AD7879_SPI
 	select TOUCHSCREEN_AD7879
 	help
 	  Say Y here if you have a touchscreen interface using the
-	  AD7879 controller, and your board-specific initialization
+	  AD7879/AD7889 controller, and your board-specific initialization
 	  code includes that in its table of SPI devices.
 
 	  If unsure, say N (but it's safe to say "Y").
@@ -169,6 +169,17 @@ config TOUCHSCREEN_WACOM_W8001
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
 
+config TOUCHSCREEN_MCS5000
+	tristate "MELFAS MCS-5000 touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the MELFAS MCS-5000 touchscreen controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcs5000_ts.
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"

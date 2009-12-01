@@ -177,7 +177,7 @@ static int viocd_blk_media_changed(struct gendisk *disk)
 	return cdrom_media_changed(&di->viocd_info);
 }
 
-struct block_device_operations viocd_fops = {
+static const struct block_device_operations viocd_fops = {
 	.owner =		THIS_MODULE,
 	.open =			viocd_blk_open,
 	.release =		viocd_blk_release,

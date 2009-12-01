@@ -511,7 +511,7 @@ xscale_crval:
 	.type	xscale_processor_functions, #object
 ENTRY(xscale_processor_functions)
 	.word	v5t_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_xscale_proc_init
 	.word	cpu_xscale_proc_fin
 	.word	cpu_xscale_reset

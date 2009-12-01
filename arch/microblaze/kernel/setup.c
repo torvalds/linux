@@ -94,7 +94,7 @@ inline unsigned get_romfs_len(unsigned *addr)
 #endif	/* CONFIG_MTD_UCLINUX_EBSS */
 
 void __init machine_early_init(const char *cmdline, unsigned int ram,
-		unsigned int fdt)
+		unsigned int fdt, unsigned int msr)
 {
 	unsigned long *src, *dst = (unsigned long *)0x0;
 
@@ -155,6 +155,16 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 			romfs_size, romfs_base, (unsigned)&_ebss);
 
 	early_printk("New klimit: 0x%08x\n", (unsigned)klimit);
+#endif
+
+#if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
+	if (msr)
+		early_printk("!!!Your kernel has setup MSR instruction but "
+				"CPU don't have it %d\n", msr);
+#else
+	if (!msr)
+		early_printk("!!!Your kernel not setup MSR instruction but "
+				"CPU have it %d\n", msr);
 #endif
 
 	for (src = __ivt_start; src < __ivt_end; src++, dst++)

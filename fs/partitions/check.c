@@ -581,7 +581,7 @@ try_scan:
 		}
 
 		if (from + size > get_capacity(disk)) {
-			struct block_device_operations *bdops = disk->fops;
+			const struct block_device_operations *bdops = disk->fops;
 			unsigned long long capacity;
 
 			printk(KERN_WARNING

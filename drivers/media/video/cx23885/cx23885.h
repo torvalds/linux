@@ -78,6 +78,7 @@
 #define CX23885_BOARD_MYGICA_X8506             22
 #define CX23885_BOARD_MAGICPRO_PROHDTVE2       23
 #define CX23885_BOARD_HAUPPAUGE_HVR1850        24
+#define CX23885_BOARD_COMPRO_VIDEOMATE_E800    25
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -325,6 +326,7 @@ struct cx23885_dev {
 
 	int                        nr;
 	struct mutex               lock;
+	struct mutex               gpio_lock;
 
 	/* board details */
 	unsigned int               board;

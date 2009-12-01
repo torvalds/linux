@@ -116,7 +116,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	return;
 }
 
-static struct vm_operations_struct videobuf_vm_ops =
+static const struct vm_operations_struct videobuf_vm_ops =
 {
 	.open     = videobuf_vm_open,
 	.close    = videobuf_vm_close,

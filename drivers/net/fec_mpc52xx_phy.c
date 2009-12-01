@@ -155,6 +155,7 @@ static struct of_device_id mpc52xx_fec_mdio_match[] = {
 	{ .compatible = "mpc5200b-fec-phy", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mpc52xx_fec_mdio_match);
 
 struct of_platform_driver mpc52xx_fec_mdio_driver = {
 	.name = "mpc5200b-fec-phy",

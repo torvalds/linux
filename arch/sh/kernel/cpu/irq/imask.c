@@ -68,7 +68,7 @@ static void unmask_imask_irq(unsigned int irq)
 }
 
 static struct irq_chip imask_irq_chip = {
-	.typename	= "SR.IMASK",
+	.name		= "SR.IMASK",
 	.mask		= mask_imask_irq,
 	.unmask		= unmask_imask_irq,
 	.mask_ack	= mask_imask_irq,

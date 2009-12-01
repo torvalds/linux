@@ -244,7 +244,7 @@ static int xpram_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations xpram_devops =
+static const struct block_device_operations xpram_devops =
 {
 	.owner	= THIS_MODULE,
 	.getgeo	= xpram_getgeo,

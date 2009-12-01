@@ -96,7 +96,13 @@ static struct {
 	{ 0x3169, KEY_PAUSE, },
 };
 
-/* runs in an IRQ thread -- can (and will!) sleep */
+/*
+ * Because we communicate with the MSP430 using I2C, and all I2C calls
+ * in Linux sleep, we use a threaded IRQ handler.  The IRQ itself is
+ * active low, but we go through the GPIO controller so we can trigger
+ * on falling edges and not worry about enabling/disabling the IRQ in
+ * the keypress handling path.
+ */
 static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 {
 	struct dm355evm_keys	*keys = _keys;
@@ -169,18 +175,6 @@ static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 		input_sync(keys->input);
 	}
 	return IRQ_HANDLED;
-}
-
-/*
- * Because we communicate with the MSP430 using I2C, and all I2C calls
- * in Linux sleep, we use a threaded IRQ handler.  The IRQ itself is
- * active low, but we go through the GPIO controller so we can trigger
- * on falling edges and not worry about enabling/disabling the IRQ in
- * the keypress handling path.
- */
-static irqreturn_t dm355evm_keys_hardirq(int irq, void *_keys)
-{
-	return IRQ_WAKE_THREAD;
 }
 
 static int dm355evm_setkeycode(struct input_dev *dev, int index, int keycode)
@@ -257,10 +251,8 @@ static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
 
 	/* REVISIT:  flush the event queue? */
 
-	status = request_threaded_irq(keys->irq,
-			dm355evm_keys_hardirq, dm355evm_keys_irq,
-			IRQF_TRIGGER_FALLING,
-			dev_name(&pdev->dev), keys);
+	status = request_threaded_irq(keys->irq, NULL, dm355evm_keys_irq,
+			IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), keys);
 	if (status < 0)
 		goto fail1;
 

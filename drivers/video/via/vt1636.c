@@ -27,7 +27,7 @@ u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 {
 	u8 data;
 
-	viaparinfo->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
+	viaparinfo->shared->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
 	viafb_i2c_readbyte(plvds_chip_info->lvds_chip_slave_addr, index, &data);
 
 	return data;
@@ -39,7 +39,7 @@ void viafb_gpio_i2c_write_mask_lvds(struct lvds_setting_information
 {
 	int index, data;
 
-	viaparinfo->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
+	viaparinfo->shared->i2c_stuff.i2c_port = plvds_chip_info->i2c_port;
 
 	index = io_data.Index;
 	data = viafb_gpio_i2c_read_lvds(plvds_setting_info, plvds_chip_info,

@@ -380,6 +380,39 @@ TRACE_EVENT(sched_stat_wait,
 );
 
 /*
+ * Tracepoint for accounting runtime (time the task is executing
+ * on a CPU).
+ */
+TRACE_EVENT(sched_stat_runtime,
+
+	TP_PROTO(struct task_struct *tsk, u64 runtime, u64 vruntime),
+
+	TP_ARGS(tsk, runtime, vruntime),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( u64,	runtime			)
+		__field( u64,	vruntime			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->runtime	= runtime;
+		__entry->vruntime	= vruntime;
+	)
+	TP_perf_assign(
+		__perf_count(runtime);
+	),
+
+	TP_printk("task: %s:%d runtime: %Lu [ns], vruntime: %Lu [ns]",
+			__entry->comm, __entry->pid,
+			(unsigned long long)__entry->runtime,
+			(unsigned long long)__entry->vruntime)
+);
+
+/*
  * Tracepoint for accounting sleep time (time the task is not runnable,
  * including iowait, see below).
  */

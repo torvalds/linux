@@ -416,7 +416,7 @@
 	ENTRY_COMP(preadv)		/* 315 */
 	ENTRY_COMP(pwritev)
 	ENTRY_COMP(rt_tgsigqueueinfo)
-	ENTRY_SAME(perf_counter_open)
+	ENTRY_SAME(perf_event_open)
 
 	/* Nothing yet */
 

@@ -686,6 +686,8 @@ static void handle_keypress(int c)
 	switch (c) {
 		case 'd':
 			prompt_integer(&delay_secs, "Enter display delay");
+			if (delay_secs < 1)
+				delay_secs = 1;
 			break;
 		case 'e':
 			prompt_integer(&print_entries, "Enter display entries (lines)");
@@ -782,6 +784,7 @@ static const char *skip_symbols[] = {
 	"exit_idle",
 	"mwait_idle",
 	"mwait_idle_with_hints",
+	"poll_idle",
 	"ppc64_runlatch_off",
 	"pseries_dedicated_idle_sleep",
 	NULL
@@ -901,7 +904,7 @@ struct mmap_data {
 
 static unsigned int mmap_read_head(struct mmap_data *md)
 {
-	struct perf_counter_mmap_page *pc = md->base;
+	struct perf_event_mmap_page *pc = md->base;
 	int head;
 
 	head = pc->data_head;
@@ -977,9 +980,9 @@ static void mmap_read_counter(struct mmap_data *md)
 
 		old += size;
 
-		if (event->header.type == PERF_EVENT_SAMPLE) {
+		if (event->header.type == PERF_RECORD_SAMPLE) {
 			int user =
-	(event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK) == PERF_EVENT_MISC_USER;
+	(event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK) == PERF_RECORD_MISC_USER;
 			process_event(event->ip.ip, md->counter, user);
 		}
 	}
@@ -1005,7 +1008,7 @@ int group_fd;
 
 static void start_counter(int i, int counter)
 {
-	struct perf_counter_attr *attr;
+	struct perf_event_attr *attr;
 	int cpu;
 
 	cpu = profile_cpu;
@@ -1019,12 +1022,12 @@ static void start_counter(int i, int counter)
 	attr->inherit		= (cpu < 0) && inherit;
 
 try_again:
-	fd[i][counter] = sys_perf_counter_open(attr, target_pid, cpu, group_fd, 0);
+	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
 
 	if (fd[i][counter] < 0) {
 		int err = errno;
 
-		if (err == EPERM)
+		if (err == EPERM || err == EACCES)
 			die("No permission - are you root?\n");
 		/*
 		 * If it's cycles then fall back to hrtimer
@@ -1044,7 +1047,7 @@ try_again:
 		printf("\n");
 		error("perfcounter syscall returned with %d (%s)\n",
 			fd[i][counter], strerror(err));
-		die("No CONFIG_PERF_COUNTERS=y kernel support configured?\n");
+		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		exit(-1);
 	}
 	assert(fd[i][counter] >= 0);

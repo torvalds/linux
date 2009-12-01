@@ -26,7 +26,6 @@
 #include <linux/completion.h>
 #include <linux/list.h>
 #include <scsi/scsi.h>
-#include <linux/kref.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/cdev.h>
 #include <net/netlink.h>

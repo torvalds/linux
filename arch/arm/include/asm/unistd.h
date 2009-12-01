@@ -390,7 +390,7 @@
 #define __NR_preadv			(__NR_SYSCALL_BASE+361)
 #define __NR_pwritev			(__NR_SYSCALL_BASE+362)
 #define __NR_rt_tgsigqueueinfo		(__NR_SYSCALL_BASE+363)
-#define __NR_perf_counter_open		(__NR_SYSCALL_BASE+364)
+#define __NR_perf_event_open		(__NR_SYSCALL_BASE+364)
 
 /*
  * The following SWIs are ARM private.
@@ -401,6 +401,15 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
+
+/*
+ * *NOTE*: This is a ghost syscall private to the kernel.  Only the
+ * __kuser_cmpxchg code in entry-armv.S should be aware of its
+ * existence.  Don't ever use this from user code.
+ */
+#ifdef __KERNEL__
+#define __ARM_NR_cmpxchg		(__ARM_NR_BASE+0x00fff0)
+#endif
 
 /*
  * The following syscalls are obsolete and no longer available for EABI.
@@ -456,6 +465,7 @@
  * Unimplemented (or alternatively implemented) syscalls
  */
 #define __IGNORE_fadvise64_64		1
+#define __IGNORE_migrate_pages		1
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

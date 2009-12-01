@@ -82,5 +82,5 @@ sys_call_table:
 /*310*/	.long sys_utimensat, sys_signalfd, sys_timerfd_create, sys_eventfd, sys_fallocate
 /*315*/	.long sys_timerfd_settime, sys_timerfd_gettime, sys_signalfd4, sys_eventfd2, sys_epoll_create1
 /*320*/	.long sys_dup3, sys_pipe2, sys_inotify_init1, sys_accept4, sys_preadv
-/*325*/	.long sys_pwritev, sys_rt_tgsigqueueinfo, sys_perf_counter_open
+/*325*/	.long sys_pwritev, sys_rt_tgsigqueueinfo, sys_perf_event_open
 

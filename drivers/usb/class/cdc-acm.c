@@ -59,6 +59,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
+#include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
@@ -608,8 +609,9 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	acm->throttle = 0;
 
-	tasklet_schedule(&acm->urb_task);
+	set_bit(ASYNCB_INITIALIZED, &acm->port.flags);
 	rv = tty_port_block_til_ready(&acm->port, tty, filp);
+	tasklet_schedule(&acm->urb_task);
 done:
 	mutex_unlock(&acm->mutex);
 err_out:
@@ -684,15 +686,21 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	/* Perform the closing process and see if we need to do the hardware
 	   shutdown */
-	if (!acm || tty_port_close_start(&acm->port, tty, filp) == 0)
+	if (!acm)
 		return;
+	if (tty_port_close_start(&acm->port, tty, filp) == 0) {
+		mutex_lock(&open_mutex);
+		if (!acm->dev) {
+			tty_port_tty_set(&acm->port, NULL);
+			acm_tty_unregister(acm);
+			tty->driver_data = NULL;
+		}
+		mutex_unlock(&open_mutex);
+		return;
+	}
 	acm_port_down(acm, 0);
 	tty_port_close_end(&acm->port, tty);
-	mutex_lock(&open_mutex);
 	tty_port_tty_set(&acm->port, NULL);
-	if (!acm->dev)
-		acm_tty_unregister(acm);
-	mutex_unlock(&open_mutex);
 }
 
 static int acm_tty_write(struct tty_struct *tty,
@@ -858,10 +866,7 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 	if (!ACM_READY(acm))
 		return;
 
-	/* FIXME: Needs to support the tty_baud interface */
-	/* FIXME: Broken on sparc */
-	newline.dwDTERate = cpu_to_le32p(acm_tty_speed +
-		(termios->c_cflag & CBAUD & ~CBAUDEX) + (termios->c_cflag & CBAUDEX ? 15 : 0));
+	newline.dwDTERate = cpu_to_le32(tty_get_baud_rate(tty));
 	newline.bCharFormat = termios->c_cflag & CSTOPB ? 2 : 0;
 	newline.bParityType = termios->c_cflag & PARENB ?
 				(termios->c_cflag & PARODD ? 1 : 2) +

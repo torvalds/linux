@@ -56,11 +56,7 @@ Graphics Problems?
 ------------------
 If you encounter issues with graphics devices, you can try adding
 option intel_iommu=igfx_off to turn off the integrated graphics engine.
-
-If it happens to be a PCI device included in the INCLUDE_ALL Engine,
-then try enabling CONFIG_DMAR_GFX_WA to setup a 1-1 map. We hear
-graphics drivers may be in process of using DMA api's in the near
-future and at that time this option can be yanked out.
+If this fixes anything, please ensure you file a bug reporting the problem.
 
 Some exceptions to IOVA
 -----------------------

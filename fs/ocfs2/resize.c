@@ -106,8 +106,8 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 	mlog_entry("(new_clusters=%d, first_new_cluster = %u)\n",
 		   new_clusters, first_new_cluster);
 
-	ret = ocfs2_journal_access_gd(handle, bm_inode, group_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(bm_inode),
+				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -141,7 +141,7 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 	}
 
 	/* update the inode accordingly. */
-	ret = ocfs2_journal_access_di(handle, bm_inode, bm_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(bm_inode), bm_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -514,7 +514,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_unlock;
 	}
 
-	ocfs2_set_new_buffer_uptodate(inode, group_bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), group_bh);
 
 	ret = ocfs2_verify_group_and_input(main_bm_inode, fe, input, group_bh);
 	if (ret) {
@@ -536,8 +536,8 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	cl = &fe->id2.i_chain;
 	cr = &cl->cl_recs[input->chain];
 
-	ret = ocfs2_journal_access_gd(handle, main_bm_inode, group_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(main_bm_inode),
+				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -552,8 +552,8 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_commit;
 	}
 
-	ret = ocfs2_journal_access_di(handle, main_bm_inode, main_bm_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(main_bm_inode),
+				      main_bm_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_commit;

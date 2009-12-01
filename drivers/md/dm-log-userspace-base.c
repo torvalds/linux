@@ -156,7 +156,7 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	}
 
 	/* The ptr value is sufficient for local unique id */
-	lc->luid = (uint64_t)lc;
+	lc->luid = (unsigned long)lc;
 
 	lc->ti = ti;
 

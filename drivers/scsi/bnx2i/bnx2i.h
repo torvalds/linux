@@ -100,6 +100,8 @@
 #define CTX_OFFSET 			0x10000
 #define MAX_CID_CNT			0x4000
 
+#define BNX2I_570X_PAGE_SIZE_DEFAULT	4096
+
 /* 5709 context registers */
 #define BNX2_MQ_CONFIG2			0x00003d00
 #define BNX2_MQ_CONFIG2_CONT_SZ		(0x7L<<4)

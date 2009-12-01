@@ -7,6 +7,15 @@
 #define KU_USER	0x08
 #define KU_KERN	0x00
 
+#include <asm/page.h>
+#include <linux/const.h>
+
+/* thread information allocation */
+#define THREAD_SIZE_ORDER 	(1)
+#define THREAD_SIZE 		(PAGE_SIZE << THREAD_SIZE_ORDER)
+#define THREAD_MASK 		(THREAD_SIZE - _AC(1,UL))
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 #ifndef __ASSEMBLY__
 
 #include <asm/processor.h>
@@ -61,12 +70,6 @@ struct thread_info {
 /* How to get the thread information struct from C. */
 register struct thread_info *__current_thread_info __asm__("r28");
 #define current_thread_info()	__current_thread_info
-
-/* thread information allocation */
-#define THREAD_SIZE_ORDER 	(1)
-#define THREAD_SIZE 		(PAGE_SIZE << THREAD_SIZE_ORDER)
-#define THREAD_MASK 		(THREAD_SIZE - 1UL)
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 #define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
 #define free_thread_info(info) kfree(info)

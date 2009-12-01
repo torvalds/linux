@@ -484,6 +484,14 @@ config DVB_S921
 	  AN ISDB-T DQPSK, QPSK, 16QAM and 64QAM 1seg tuner module.
 	  Say Y when you want to support this frontend.
 
+config DVB_DIB8000
+	tristate "DiBcom 8000MB/MC"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for DiBcom's DiB8000 ISDB-T/ISDB-Tsb demodulator.
+	  Say Y when you want to support this frontend.
+
 comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE
 

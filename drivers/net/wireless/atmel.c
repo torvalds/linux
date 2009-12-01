@@ -3330,7 +3330,7 @@ static void atmel_smooth_qual(struct atmel_private *priv)
 	priv->wstats.qual.updated &= ~IW_QUAL_QUAL_INVALID;
 }
 
-/* deals with incoming managment frames. */
+/* deals with incoming management frames. */
 static void atmel_management_frame(struct atmel_private *priv,
 				   struct ieee80211_hdr *header,
 				   u16 frame_len, u8 rssi)

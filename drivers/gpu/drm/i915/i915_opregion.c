@@ -148,6 +148,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 	u32 blc_pwm_ctl, blc_pwm_ctl2;
+	u32 max_backlight, level, shift;
 
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLE_BACKLIGHT_FAIL;
@@ -157,14 +158,25 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 		return ASLE_BACKLIGHT_FAIL;
 
 	blc_pwm_ctl = I915_READ(BLC_PWM_CTL);
-	blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
 	blc_pwm_ctl2 = I915_READ(BLC_PWM_CTL2);
 
-	if (blc_pwm_ctl2 & BLM_COMBINATION_MODE)
+	if (IS_I965G(dev) && (blc_pwm_ctl2 & BLM_COMBINATION_MODE))
 		pci_write_config_dword(dev->pdev, PCI_LBPC, bclp);
-	else
-		I915_WRITE(BLC_PWM_CTL, blc_pwm_ctl | ((bclp * 0x101)-1));
-
+	else {
+		if (IS_IGD(dev)) {
+			blc_pwm_ctl &= ~(BACKLIGHT_DUTY_CYCLE_MASK - 1);
+			max_backlight = (blc_pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >> 
+					BACKLIGHT_MODULATION_FREQ_SHIFT;
+			shift = BACKLIGHT_DUTY_CYCLE_SHIFT + 1;
+		} else {
+			blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
+			max_backlight = ((blc_pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >> 
+					BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+			shift = BACKLIGHT_DUTY_CYCLE_SHIFT;
+		}
+		level = (bclp * max_backlight) / 255;
+		I915_WRITE(BLC_PWM_CTL, blc_pwm_ctl | (level << shift));
+	}
 	asle->cblv = (bclp*0x64)/0xff | ASLE_CBLV_VALID;
 
 	return 0;

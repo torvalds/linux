@@ -290,7 +290,7 @@ static void keyspan_pda_rx_unthrottle(struct tty_struct *tty)
 	/* just restart the receive interrupt URB */
 	dbg("keyspan_pda_rx_unthrottle port %d", port->number);
 	port->interrupt_in_urb->dev = port->serial->dev;
-	if (usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC))
+	if (usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL))
 		dbg(" usb_submit_urb(read urb) failed");
 	return;
 }
@@ -681,7 +681,7 @@ static int keyspan_pda_carrier_raised(struct usb_serial_port *port)
 
 
 static int keyspan_pda_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+					struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned char room;

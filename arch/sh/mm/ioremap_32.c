@@ -83,7 +83,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	 *
 	 * PMB entries are all pre-faulted.
 	 */
-	if (unlikely(size >= 0x1000000)) {
+	if (unlikely(phys_addr >= P1SEG)) {
 		unsigned long mapped = pmb_remap(addr, phys_addr, size, flags);
 
 		if (likely(mapped)) {

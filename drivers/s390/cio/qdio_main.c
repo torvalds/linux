@@ -401,7 +401,7 @@ static void announce_buffer_error(struct qdio_q *q, int count)
 	if ((!q->is_input_q &&
 	    (q->sbal[q->first_to_check]->element[15].flags & 0xff) == 0x10)) {
 		qdio_perf_stat_inc(&perf_stats.outbound_target_full);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%3d",
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
 		return;
 	}
@@ -418,7 +418,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 {
 	int new;
 
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %3d", count);
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %02x", count);
 
 	/* for QEBSM the ACK was already set by EQBS */
 	if (is_qebsm(q)) {
@@ -455,6 +455,8 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	count--;
 	if (!count)
 		return;
+	/* need to change ALL buffers to get more interrupts */
+	set_buf_states(q, q->first_to_check, SLSB_P_INPUT_NOT_INIT, count);
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q)
@@ -545,7 +547,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
 	if (get_usecs() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%3d",
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
 			      q->first_to_check);
 		return 1;
 	} else
@@ -565,11 +567,10 @@ static void qdio_kick_handler(struct qdio_q *q)
 
 	if (q->is_input_q) {
 		qdio_perf_stat_inc(&perf_stats.inbound_handler);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%3d c:%3d", start, count);
-	} else {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: nr:%1d", q->nr);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "s:%3d c:%3d", start, count);
-	}
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%02x c:%02x", start, count);
+	} else
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
+			      start, count);
 
 	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
 		   q->irq_ptr->int_parm);
@@ -633,7 +634,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	switch (state) {
 	case SLSB_P_OUTPUT_EMPTY:
 		/* the adapter got it */
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out empty:%1d %3d", q->nr, count);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out empty:%1d %02x", q->nr, count);
 
 		atomic_sub(count, &q->nr_buf_used);
 		q->first_to_check = add_buf(q->first_to_check, count);
@@ -1481,10 +1482,9 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	get_buf_state(q, prev_buf(bufnr), &state, 0);
 	if (state != SLSB_CU_OUTPUT_PRIMED)
 		rc = qdio_kick_outbound_q(q);
-	else {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "fast-req");
+	else
 		qdio_perf_stat_inc(&perf_stats.fast_requeue);
-	}
+
 out:
 	tasklet_schedule(&q->tasklet);
 	return rc;
@@ -1510,12 +1510,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	if (!irq_ptr)
 		return -ENODEV;
 
-	if (callflags & QDIO_FLAG_SYNC_INPUT)
-		DBF_DEV_EVENT(DBF_INFO, irq_ptr, "doQDIO input");
-	else
-		DBF_DEV_EVENT(DBF_INFO, irq_ptr, "doQDIO output");
-	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "q:%1d flag:%4x", q_nr, callflags);
-	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "buf:%2d cnt:%3d", bufnr, count);
+	DBF_DEV_EVENT(DBF_INFO, irq_ptr,
+		      "do%02x b:%02x c:%02x", callflags, bufnr, count);
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;

@@ -51,7 +51,7 @@ static void register_buffer(void)
 
 	sg_init_one(&sg, random_data+data_left, RANDOM_DATA_SIZE-data_left);
 	/* There should always be room for one buffer. */
-	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, random_data) != 0)
+	if (vq->vq_ops->add_buf(vq, &sg, 0, 1, random_data) < 0)
 		BUG();
 	vq->vq_ops->kick(vq);
 }
@@ -116,7 +116,7 @@ static int virtrng_probe(struct virtio_device *vdev)
 	return 0;
 }
 
-static void virtrng_remove(struct virtio_device *vdev)
+static void __devexit virtrng_remove(struct virtio_device *vdev)
 {
 	vdev->config->reset(vdev);
 	hwrng_unregister(&virtio_hwrng);

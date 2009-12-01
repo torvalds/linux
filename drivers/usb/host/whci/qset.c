@@ -103,7 +103,6 @@ static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
 void qset_clear(struct whc *whc, struct whc_qset *qset)
 {
 	qset->td_start = qset->td_end = qset->ntds = 0;
-	qset->remove = 0;
 
 	qset->qh.link = cpu_to_le32(QH_LINK_NTDS(8) | QH_LINK_T);
 	qset->qh.status = qset->qh.status & QH_STATUS_SEQ_MASK;
@@ -125,7 +124,7 @@ void qset_clear(struct whc *whc, struct whc_qset *qset)
  */
 void qset_reset(struct whc *whc, struct whc_qset *qset)
 {
-	wait_for_completion(&qset->remove_complete);
+	qset->reset = 0;
 
 	qset->qh.status &= ~QH_STATUS_SEQ_MASK;
 	qset->qh.cur_window = cpu_to_le32((1 << qset->max_burst) - 1);
@@ -156,6 +155,7 @@ struct whc_qset *get_qset(struct whc *whc, struct urb *urb,
 
 void qset_remove_complete(struct whc *whc, struct whc_qset *qset)
 {
+	qset->remove = 0;
 	list_del_init(&qset->list_node);
 	complete(&qset->remove_complete);
 }

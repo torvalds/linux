@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 
 #include "ipath_verbs.h"

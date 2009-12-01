@@ -232,7 +232,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	for (try = 0; try < 5; try++) {
 		/* Load the send data into the aux channel data registers */
 		for (i = 0; i < send_bytes; i += 4) {
-			uint32_t    d = pack_aux(send + i, send_bytes - i);;
+			uint32_t    d = pack_aux(send + i, send_bytes - i);
 	
 			I915_WRITE(ch_data + i, d);
 		}
@@ -400,7 +400,7 @@ intel_dp_i2c_init(struct intel_output *intel_output, const char *name)
 {
 	struct intel_dp_priv   *dp_priv = intel_output->dev_priv;
 
-	DRM_ERROR("i2c_init %s\n", name);
+	DRM_DEBUG_KMS("i2c_init %s\n", name);
 	dp_priv->algo.running = false;
 	dp_priv->algo.address = 0;
 	dp_priv->algo.aux_ch = intel_dp_i2c_aux_ch;

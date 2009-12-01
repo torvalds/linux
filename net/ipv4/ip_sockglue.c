@@ -440,7 +440,7 @@ out:
  */
 
 static int do_ip_setsockopt(struct sock *sk, int level,
-			    int optname, char __user *optval, int optlen)
+			    int optname, char __user *optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val = 0, err;
@@ -611,6 +611,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		 *	Check the arguments are allowable
 		 */
 
+		if (optlen < sizeof(struct in_addr))
+			goto e_inval;
+
 		err = -EFAULT;
 		if (optlen >= sizeof(struct ip_mreqn)) {
 			if (copy_from_user(&mreq, optval, sizeof(mreq)))
@@ -631,17 +634,16 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				break;
 			}
 			dev = ip_dev_find(sock_net(sk), mreq.imr_address.s_addr);
-			if (dev) {
+			if (dev)
 				mreq.imr_ifindex = dev->ifindex;
-				dev_put(dev);
-			}
 		} else
-			dev = __dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
+			dev = dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;
 		if (!dev)
 			break;
+		dev_put(dev);
 
 		err = -EINVAL;
 		if (sk->sk_bound_dev_if &&
@@ -947,7 +949,7 @@ e_inval:
 }
 
 int ip_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+		int optname, char __user *optval, unsigned int optlen)
 {
 	int err;
 
@@ -972,7 +974,7 @@ EXPORT_SYMBOL(ip_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ip_setsockopt(struct sock *sk, int level, int optname,
-			 char __user *optval, int optlen)
+			 char __user *optval, unsigned int optlen)
 {
 	int err;
 

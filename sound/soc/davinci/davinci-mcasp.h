@@ -39,10 +39,15 @@ enum {
 };
 
 struct davinci_audio_dev {
+	/*
+	 * dma_params must be first because rtd->dai->cpu_dai->private_data
+	 * is cast to a pointer of an array of struct davinci_pcm_dma_params in
+	 * davinci_pcm_open.
+	 */
+	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
 	int sample_rate;
 	struct clk *clk;
-	struct davinci_pcm_dma_params *dma_params[2];
 	unsigned int codec_fmt;
 
 	/* McASP specific data */

@@ -34,5 +34,5 @@ Fan rotation speeds are reported as 14-bit values from a gated clock
 signal. Speeds down to 83 RPM can be measured.
 
 An alarm is triggered if the rotation speed drops below a programmable
-limit. Another alarm is triggered if the speed is too low to to be measured
+limit. Another alarm is triggered if the speed is too low to be measured
 (including stalled or missing fan).

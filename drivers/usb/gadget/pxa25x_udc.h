@@ -128,6 +128,7 @@ struct pxa25x_udc {
 	struct device				*dev;
 	struct clk				*clk;
 	struct pxa2xx_udc_mach_info		*mach;
+	struct otg_transceiver			*transceiver;
 	u64					dma_mask;
 	struct pxa25x_ep			ep [PXA_UDC_NUM_ENDPOINTS];
 

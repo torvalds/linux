@@ -1,32 +1,11 @@
 /*
- * File:         arch/blackfin/mach-common/entry.S
- * Based on:
- * Author:       Linus Torvalds
+ * Contains the system-call and fault low-level handling routines.
+ * This also contains the timer-interrupt handler, as well as all
+ * interrupts and faults that can result in a task-switch.
  *
- * Created:      ?
- * Description:  contains the system-call and fault low-level handling routines.
- *               This also contains the timer-interrupt handler, as well as all
- *               interrupts and faults that can result in a task-switch.
+ * Copyright 2005-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 /* NOTE: This code handles signal-recognition, which happens every time
@@ -1620,7 +1599,7 @@ ENTRY(_sys_call_table)
 	.long _sys_preadv
 	.long _sys_pwritev
 	.long _sys_rt_tgsigqueueinfo
-	.long _sys_perf_counter_open
+	.long _sys_perf_event_open
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

@@ -84,6 +84,7 @@
 #include <linux/kernel.h>	/* printk(), and other useful stuff */
 #include <linux/module.h>
 #include <linux/string.h>	/* inline memset(), etc. */
+#include <linux/sched.h>
 #include <linux/slab.h>		/* kmalloc(), kfree() */
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/wanrouter.h>	/* WAN router definitions */

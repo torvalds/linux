@@ -139,7 +139,7 @@ out:
 	return NULL;
 }
 
-static void __devinit mdio_gpio_bus_deinit(struct device *dev)
+static void mdio_gpio_bus_deinit(struct device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(dev);
 	struct mdio_gpio_info *bitbang = bus->priv;
@@ -238,6 +238,7 @@ static struct of_device_id mdio_ofgpio_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mdio_ofgpio_match);
 
 static struct of_platform_driver mdio_ofgpio_driver = {
 	.name = "mdio-gpio",

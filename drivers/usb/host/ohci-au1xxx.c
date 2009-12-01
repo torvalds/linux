@@ -248,10 +248,9 @@ static int ohci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ohci_hcd_au1xxx_drv_suspend(struct platform_device *pdev,
-					pm_message_t message)
+static int ohci_hcd_au1xxx_drv_suspend(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 	unsigned long flags;
 	int rc;
@@ -274,10 +273,6 @@ static int ohci_hcd_au1xxx_drv_suspend(struct platform_device *pdev,
 	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	(void)ohci_readl(ohci, &ohci->regs->intrdisable);
 
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW)
-		ohci_usb_reset(ohci);
-
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	au1xxx_stop_ohc();
@@ -287,9 +282,9 @@ bail:
 	return rc;
 }
 
-static int ohci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
+static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	au1xxx_start_ohc();
 
@@ -298,20 +293,26 @@ static int ohci_hcd_au1xxx_drv_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static struct dev_pm_ops au1xxx_ohci_pmops = {
+	.suspend	= ohci_hcd_au1xxx_drv_suspend,
+	.resume		= ohci_hcd_au1xxx_drv_resume,
+};
+
+#define AU1XXX_OHCI_PMOPS &au1xxx_ohci_pmops
+
 #else
-#define ohci_hcd_au1xxx_drv_suspend NULL
-#define ohci_hcd_au1xxx_drv_resume NULL
+#define AU1XXX_OHCI_PMOPS NULL
 #endif
 
 static struct platform_driver ohci_hcd_au1xxx_driver = {
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-	.suspend	= ohci_hcd_au1xxx_drv_suspend,
-	.resume		= ohci_hcd_au1xxx_drv_resume,
 	.driver		= {
 		.name	= "au1xxx-ohci",
 		.owner	= THIS_MODULE,
+		.pm	= AU1XXX_OHCI_PMOPS,
 	},
 };
 

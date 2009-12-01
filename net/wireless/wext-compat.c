@@ -834,7 +834,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 		return 0;
 	}
 
-	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);;
+	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
 

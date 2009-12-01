@@ -1325,7 +1325,7 @@ static void cafe_v4l_vm_close(struct vm_area_struct *vma)
 	mutex_unlock(&sbuf->cam->s_mutex);
 }
 
-static struct vm_operations_struct cafe_v4l_vm_ops = {
+static const struct vm_operations_struct cafe_v4l_vm_ops = {
 	.open = cafe_v4l_vm_open,
 	.close = cafe_v4l_vm_close
 };
@@ -1955,7 +1955,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 	cam->sensor_addr = 0x42;
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", "ov7670", cam->sensor_addr);
+			"ov7670", "ov7670", cam->sensor_addr, NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

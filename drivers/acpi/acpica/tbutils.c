@@ -49,6 +49,12 @@
 ACPI_MODULE_NAME("tbutils")
 
 /* Local prototypes */
+static void acpi_tb_fix_string(char *string, acpi_size length);
+
+static void
+acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
+			     struct acpi_table_header *header);
+
 static acpi_physical_address
 acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
@@ -161,6 +167,59 @@ u8 acpi_tb_tables_loaded(void)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_fix_string
+ *
+ * PARAMETERS:  String              - String to be repaired
+ *              Length              - Maximum length
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Replace every non-printable or non-ascii byte in the string
+ *              with a question mark '?'.
+ *
+ ******************************************************************************/
+
+static void acpi_tb_fix_string(char *string, acpi_size length)
+{
+
+	while (length && *string) {
+		if (!ACPI_IS_PRINT(*string)) {
+			*string = '?';
+		}
+		string++;
+		length--;
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_cleanup_table_header
+ *
+ * PARAMETERS:  out_header          - Where the cleaned header is returned
+ *              Header              - Input ACPI table header
+ *
+ * RETURN:      Returns the cleaned header in out_header
+ *
+ * DESCRIPTION: Copy the table header and ensure that all "string" fields in
+ *              the header consist of printable characters.
+ *
+ ******************************************************************************/
+
+static void
+acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
+			     struct acpi_table_header *header)
+{
+
+	ACPI_MEMCPY(out_header, header, sizeof(struct acpi_table_header));
+
+	acpi_tb_fix_string(out_header->signature, ACPI_NAME_SIZE);
+	acpi_tb_fix_string(out_header->oem_id, ACPI_OEM_ID_SIZE);
+	acpi_tb_fix_string(out_header->oem_table_id, ACPI_OEM_TABLE_ID_SIZE);
+	acpi_tb_fix_string(out_header->asl_compiler_id, ACPI_NAME_SIZE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_print_table_header
  *
  * PARAMETERS:  Address             - Table physical address
@@ -176,6 +235,7 @@ void
 acpi_tb_print_table_header(acpi_physical_address address,
 			   struct acpi_table_header *header)
 {
+	struct acpi_table_header local_header;
 
 	/*
 	 * The reason that the Address is cast to a void pointer is so that we
@@ -192,6 +252,11 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 		/* RSDP has no common fields */
 
+		ACPI_MEMCPY(local_header.oem_id,
+			    ACPI_CAST_PTR(struct acpi_table_rsdp,
+					  header)->oem_id, ACPI_OEM_ID_SIZE);
+		acpi_tb_fix_string(local_header.oem_id, ACPI_OEM_ID_SIZE);
+
 		ACPI_INFO((AE_INFO, "RSDP %p %05X (v%.2d %6.6s)",
 			   ACPI_CAST_PTR (void, address),
 			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
@@ -200,18 +265,21 @@ acpi_tb_print_table_header(acpi_physical_address address,
 					       header)->length : 20,
 			   ACPI_CAST_PTR(struct acpi_table_rsdp,
 					 header)->revision,
-			   ACPI_CAST_PTR(struct acpi_table_rsdp,
-					 header)->oem_id));
+			   local_header.oem_id));
 	} else {
 		/* Standard ACPI table with full common header */
 
+		acpi_tb_cleanup_table_header(&local_header, header);
+
 		ACPI_INFO((AE_INFO,
 			   "%4.4s %p %05X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
-			   header->signature, ACPI_CAST_PTR (void, address),
-			   header->length, header->revision, header->oem_id,
-			   header->oem_table_id, header->oem_revision,
-			   header->asl_compiler_id,
-			   header->asl_compiler_revision));
+			   local_header.signature, ACPI_CAST_PTR(void, address),
+			   local_header.length, local_header.revision,
+			   local_header.oem_id, local_header.oem_table_id,
+			   local_header.oem_revision,
+			   local_header.asl_compiler_id,
+			   local_header.asl_compiler_revision));
+
 	}
 }
 

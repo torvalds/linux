@@ -143,6 +143,7 @@ extern unsigned long node_remap_size[];
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_BALANCE_WAKE			\
 				| 1*SD_WAKE_AFFINE			\
+				| 0*SD_PREFER_LOCAL			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_POWERSAVINGS_BALANCE		\
 				| 0*SD_SHARE_PKG_RESOURCES		\
@@ -165,19 +166,9 @@ static inline int numa_node_id(void)
 	return 0;
 }
 
-static inline int cpu_to_node(int cpu)
-{
-	return 0;
-}
-
 static inline int early_cpu_to_node(int cpu)
 {
 	return 0;
-}
-
-static inline const struct cpumask *cpumask_of_node(int node)
-{
-	return cpu_online_mask;
 }
 
 static inline void setup_node_to_cpumask_map(void) { }

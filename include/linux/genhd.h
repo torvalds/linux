@@ -142,7 +142,7 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *(*nodename)(struct gendisk *gd);
+	char *(*devnode)(struct gendisk *gd, mode_t *mode);
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
 	 * non-critical accesses use RCU.  Always access through
@@ -151,7 +151,7 @@ struct gendisk {
 	struct disk_part_tbl *part_tbl;
 	struct hd_struct part0;
 
-	struct block_device_operations *fops;
+	const struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
 

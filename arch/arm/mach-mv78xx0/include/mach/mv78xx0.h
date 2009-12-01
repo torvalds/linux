@@ -112,6 +112,7 @@
 
 #define MV78100_DEV_ID		0x7810
 #define MV78100_REV_A0		1
+#define MV78100_REV_A1		2
 
 #define MV78200_DEV_ID		0x7820
 #define MV78200_REV_A0		1

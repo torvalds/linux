@@ -676,8 +676,9 @@
 #define AR_RC_HOSTIF         0x00000100
 
 #define AR_WA                		0x4004
+#define AR_WA_D3_L1_DISABLE		(1 << 14)
 #define AR9285_WA_DEFAULT 		0x004a05cb
-#define AR9280_WA_DEFAULT           	0x0040073f
+#define AR9280_WA_DEFAULT           	0x0040073b
 #define AR_WA_DEFAULT               	0x0000073f
 
 

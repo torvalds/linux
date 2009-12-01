@@ -84,7 +84,7 @@ static int qdio_perf_seq_open(struct inode *inode, struct file *filp)
 	return single_open(filp, qdio_perf_proc_show, NULL);
 }
 
-static struct file_operations qdio_perf_proc_fops = {
+static const struct file_operations qdio_perf_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = qdio_perf_seq_open,
 	.read	 = seq_read,

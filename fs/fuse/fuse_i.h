@@ -606,8 +606,6 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 				   u64 attr_valid);
 
-void fuse_truncate(struct address_space *mapping, loff_t offset);
-
 /**
  * Initialize the client device
  */

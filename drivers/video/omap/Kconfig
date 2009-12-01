@@ -7,6 +7,69 @@ config FB_OMAP
 	help
           Frame buffer driver for OMAP based boards.
 
+config FB_OMAP_LCD_VGA
+        bool "Use LCD in VGA mode"
+	        depends on MACH_OMAP_3430SDP || MACH_OMAP_LDP
+
+choice
+	depends on FB_OMAP && MACH_OVERO
+	prompt "Screen resolution"
+	default FB_OMAP_079M3R
+	help
+	  Selected desired screen resolution
+
+config FB_OMAP_031M3R
+	boolean "640 x 480 @ 60 Hz Reduced blanking"
+
+config FB_OMAP_048M3R
+	boolean "800 x 600 @ 60 Hz Reduced blanking"
+
+config FB_OMAP_079M3R
+	boolean "1024 x 768 @ 60 Hz Reduced blanking"
+
+config FB_OMAP_092M9R
+	boolean "1280 x 720 @ 60 Hz Reduced blanking"
+
+endchoice
+
+config FB_OMAP_LCDC_EXTERNAL
+	bool "External LCD controller support"
+	depends on FB_OMAP
+	help
+	  Say Y here, if you want to have support for boards with an
+	  external LCD controller connected to the SoSSI/RFBI interface.
+
+config FB_OMAP_LCDC_HWA742
+	bool "Epson HWA742 LCD controller support"
+	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
+	help
+	  Say Y here if you want to have support for the external
+	  Epson HWA742 LCD controller.
+
+config FB_OMAP_LCDC_BLIZZARD
+	bool "Epson Blizzard LCD controller support"
+	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
+	help
+	  Say Y here if you want to have support for the external
+	  Epson Blizzard LCD controller.
+
+config FB_OMAP_MANUAL_UPDATE
+	bool "Default to manual update mode"
+	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
+	help
+	  Say Y here, if your user-space applications are capable of
+	  notifying the frame buffer driver when a change has occured in
+	  the frame buffer content and thus a reload of the image data to
+	  the external frame buffer is required. If unsure, say N.
+
+config FB_OMAP_LCD_MIPID
+	bool "MIPI DBI-C/DCS compatible LCD support"
+	depends on FB_OMAP && SPI_MASTER
+	help
+	  Say Y here if you want to have support for LCDs compatible with
+	  the Mobile Industry Processor Interface DBI-C/DCS
+	  specification. (Supported LCDs: Philips LPH8923, Sharp LS041Y3)
+
 config FB_OMAP_BOOTLOADER_INIT
 	bool "Check bootloader initialization"
 	depends on FB_OMAP
@@ -36,23 +99,4 @@ config FB_OMAP_DMA_TUNE
           answer yes. Answer no if you have a dedicated video
           memory, or don't use any of the accelerated features.
 
-config FB_OMAP_LCDC_EXTERNAL
-	bool "External LCD controller support"
-	depends on FB_OMAP
-	help
-	  Say Y here, if you want to have support for boards with an
-	  external LCD controller connected to the SoSSI/RFBI interface.
 
-config FB_OMAP_LCDC_HWA742
-	bool "Epson HWA742 LCD controller support"
-	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
-	help
-	  Say Y here if you want to have support for the external
-	  Epson HWA742 LCD controller.
-
-config FB_OMAP_LCDC_BLIZZARD
-	bool "Epson Blizzard LCD controller support"
-	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
-	help
-	  Say Y here if you want to have support for the external
-	  Epson Blizzard LCD controller.

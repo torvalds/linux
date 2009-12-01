@@ -25,16 +25,19 @@ static inline unsigned int g450_f2vco(unsigned char p, unsigned int fin) {
 	return (p & 0x40) ? fin : fin << ((p & 3) + 1);
 }
 
-static unsigned int g450_mnp2vco(CPMINFO unsigned int mnp) {
+static unsigned int g450_mnp2vco(const struct matrox_fb_info *minfo,
+				 unsigned int mnp)
+{
 	unsigned int m, n;
 
 	m = ((mnp >> 16) & 0x0FF) + 1;
 	n = ((mnp >>  7) & 0x1FE) + 4;
-	return (ACCESS_FBINFO(features).pll.ref_freq * n + (m >> 1)) / m;
+	return (minfo->features.pll.ref_freq * n + (m >> 1)) / m;
 }
 
-unsigned int g450_mnp2f(CPMINFO unsigned int mnp) {
-	return g450_vco2f(mnp, g450_mnp2vco(PMINFO mnp));
+unsigned int g450_mnp2f(const struct matrox_fb_info *minfo, unsigned int mnp)
+{
+	return g450_vco2f(mnp, g450_mnp2vco(minfo, mnp));
 }
 
 static inline unsigned int pll_freq_delta(unsigned int f1, unsigned int f2) {
@@ -49,7 +52,10 @@ static inline unsigned int pll_freq_delta(unsigned int f1, unsigned int f2) {
 #define NO_MORE_MNP	0x01FFFFFF
 #define G450_MNP_FREQBITS	(0xFFFFFF43)	/* do not mask high byte so we'll catch NO_MORE_MNP */
 
-static unsigned int g450_nextpll(CPMINFO const struct matrox_pll_limits* pi, unsigned int* fvco, unsigned int mnp) {
+static unsigned int g450_nextpll(const struct matrox_fb_info *minfo,
+				 const struct matrox_pll_limits *pi,
+				 unsigned int *fvco, unsigned int mnp)
+{
 	unsigned int m, n, p;
 	unsigned int tvco = *fvco;
 
@@ -90,12 +96,15 @@ static unsigned int g450_nextpll(CPMINFO const struct matrox_pll_limits* pi, uns
 		} else {
 			m--;
 		}
-        	n = ((tvco * (m+1) + ACCESS_FBINFO(features).pll.ref_freq) / (ACCESS_FBINFO(features).pll.ref_freq * 2)) - 2;
+		n = ((tvco * (m+1) + minfo->features.pll.ref_freq) / (minfo->features.pll.ref_freq * 2)) - 2;
 	} while (n < 0x03 || n > 0x7A);
 	return (m << 16) | (n << 8) | p;
 }
 
-static unsigned int g450_firstpll(CPMINFO const struct matrox_pll_limits* pi, unsigned int* vco, unsigned int fout) {
+static unsigned int g450_firstpll(const struct matrox_fb_info *minfo,
+				  const struct matrox_pll_limits *pi,
+				  unsigned int *vco, unsigned int fout)
+{
 	unsigned int p;
 	unsigned int vcomax;
 
@@ -121,88 +130,94 @@ static unsigned int g450_firstpll(CPMINFO const struct matrox_pll_limits* pi, un
 		}
 		*vco = tvco;
 	}
-	return g450_nextpll(PMINFO pi, vco, 0xFF0000 | p);
+	return g450_nextpll(minfo, pi, vco, 0xFF0000 | p);
 }
 
-static inline unsigned int g450_setpll(CPMINFO unsigned int mnp, unsigned int pll) {
+static inline unsigned int g450_setpll(const struct matrox_fb_info *minfo,
+				       unsigned int mnp, unsigned int pll)
+{
 	switch (pll) {
 		case M_PIXEL_PLL_A:
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLAM, mnp >> 16);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLAN, mnp >> 8);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLAP, mnp);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLAM, mnp >> 16);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLAN, mnp >> 8);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLAP, mnp);
 			return M1064_XPIXPLLSTAT;
 
 		case M_PIXEL_PLL_B:
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLBM, mnp >> 16);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLBN, mnp >> 8);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLBP, mnp);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLBM, mnp >> 16);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLBN, mnp >> 8);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLBP, mnp);
 			return M1064_XPIXPLLSTAT;
 
 		case M_PIXEL_PLL_C:
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLCM, mnp >> 16);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLCN, mnp >> 8);
-			matroxfb_DAC_out(PMINFO M1064_XPIXPLLCP, mnp);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLCM, mnp >> 16);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLCN, mnp >> 8);
+			matroxfb_DAC_out(minfo, M1064_XPIXPLLCP, mnp);
 			return M1064_XPIXPLLSTAT;
 
 		case M_SYSTEM_PLL:
-			matroxfb_DAC_out(PMINFO DAC1064_XSYSPLLM, mnp >> 16);
-			matroxfb_DAC_out(PMINFO DAC1064_XSYSPLLN, mnp >> 8);
-			matroxfb_DAC_out(PMINFO DAC1064_XSYSPLLP, mnp);
+			matroxfb_DAC_out(minfo, DAC1064_XSYSPLLM, mnp >> 16);
+			matroxfb_DAC_out(minfo, DAC1064_XSYSPLLN, mnp >> 8);
+			matroxfb_DAC_out(minfo, DAC1064_XSYSPLLP, mnp);
 			return DAC1064_XSYSPLLSTAT;
 
 		case M_VIDEO_PLL:
-			matroxfb_DAC_out(PMINFO M1064_XVIDPLLM, mnp >> 16);
-			matroxfb_DAC_out(PMINFO M1064_XVIDPLLN, mnp >> 8);
-			matroxfb_DAC_out(PMINFO M1064_XVIDPLLP, mnp);
+			matroxfb_DAC_out(minfo, M1064_XVIDPLLM, mnp >> 16);
+			matroxfb_DAC_out(minfo, M1064_XVIDPLLN, mnp >> 8);
+			matroxfb_DAC_out(minfo, M1064_XVIDPLLP, mnp);
 			return M1064_XVIDPLLSTAT;
 	}
 	return 0;
 }
 
-static inline unsigned int g450_cmppll(CPMINFO unsigned int mnp, unsigned int pll) {
+static inline unsigned int g450_cmppll(const struct matrox_fb_info *minfo,
+				       unsigned int mnp, unsigned int pll)
+{
 	unsigned char m = mnp >> 16;
 	unsigned char n = mnp >> 8;
 	unsigned char p = mnp;
 
 	switch (pll) {
 		case M_PIXEL_PLL_A:
-			return (matroxfb_DAC_in(PMINFO M1064_XPIXPLLAM) != m ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLAN) != n ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLAP) != p);
+			return (matroxfb_DAC_in(minfo, M1064_XPIXPLLAM) != m ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLAN) != n ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLAP) != p);
 
 		case M_PIXEL_PLL_B:
-			return (matroxfb_DAC_in(PMINFO M1064_XPIXPLLBM) != m ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLBN) != n ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLBP) != p);
+			return (matroxfb_DAC_in(minfo, M1064_XPIXPLLBM) != m ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLBN) != n ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLBP) != p);
 
 		case M_PIXEL_PLL_C:
-			return (matroxfb_DAC_in(PMINFO M1064_XPIXPLLCM) != m ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLCN) != n ||
-				matroxfb_DAC_in(PMINFO M1064_XPIXPLLCP) != p);
+			return (matroxfb_DAC_in(minfo, M1064_XPIXPLLCM) != m ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLCN) != n ||
+				matroxfb_DAC_in(minfo, M1064_XPIXPLLCP) != p);
 
 		case M_SYSTEM_PLL:
-			return (matroxfb_DAC_in(PMINFO DAC1064_XSYSPLLM) != m ||
-				matroxfb_DAC_in(PMINFO DAC1064_XSYSPLLN) != n ||
-				matroxfb_DAC_in(PMINFO DAC1064_XSYSPLLP) != p);
+			return (matroxfb_DAC_in(minfo, DAC1064_XSYSPLLM) != m ||
+				matroxfb_DAC_in(minfo, DAC1064_XSYSPLLN) != n ||
+				matroxfb_DAC_in(minfo, DAC1064_XSYSPLLP) != p);
 
 		case M_VIDEO_PLL:
-			return (matroxfb_DAC_in(PMINFO M1064_XVIDPLLM) != m ||
-				matroxfb_DAC_in(PMINFO M1064_XVIDPLLN) != n ||
-				matroxfb_DAC_in(PMINFO M1064_XVIDPLLP) != p);
+			return (matroxfb_DAC_in(minfo, M1064_XVIDPLLM) != m ||
+				matroxfb_DAC_in(minfo, M1064_XVIDPLLN) != n ||
+				matroxfb_DAC_in(minfo, M1064_XVIDPLLP) != p);
 	}
 	return 1;
 }
 
-static inline int g450_isplllocked(CPMINFO unsigned int regidx) {
+static inline int g450_isplllocked(const struct matrox_fb_info *minfo,
+				   unsigned int regidx)
+{
 	unsigned int j;
 
 	for (j = 0; j < 1000; j++) {
-		if (matroxfb_DAC_in(PMINFO regidx) & 0x40) {
+		if (matroxfb_DAC_in(minfo, regidx) & 0x40) {
 			unsigned int r = 0;
 			int i;
 
 			for (i = 0; i < 100; i++) {
-				r += matroxfb_DAC_in(PMINFO regidx) & 0x40;
+				r += matroxfb_DAC_in(minfo, regidx) & 0x40;
 			}
 			return r >= (90 * 0x40);
 		}
@@ -211,8 +226,10 @@ static inline int g450_isplllocked(CPMINFO unsigned int regidx) {
 	return 0;
 }
 
-static int g450_testpll(CPMINFO unsigned int mnp, unsigned int pll) {
-	return g450_isplllocked(PMINFO g450_setpll(PMINFO mnp, pll));
+static int g450_testpll(const struct matrox_fb_info *minfo, unsigned int mnp,
+			unsigned int pll)
+{
+	return g450_isplllocked(minfo, g450_setpll(minfo, mnp, pll));
 }
 
 static void updatehwstate_clk(struct matrox_hw_state* hw, unsigned int mnp, unsigned int pll) {
@@ -225,13 +242,19 @@ static void updatehwstate_clk(struct matrox_hw_state* hw, unsigned int mnp, unsi
 	}
 }
 
-void matroxfb_g450_setpll_cond(WPMINFO unsigned int mnp, unsigned int pll) {
-	if (g450_cmppll(PMINFO mnp, pll)) {
-		g450_setpll(PMINFO mnp, pll);
+void matroxfb_g450_setpll_cond(struct matrox_fb_info *minfo, unsigned int mnp,
+			       unsigned int pll)
+{
+	if (g450_cmppll(minfo, mnp, pll)) {
+		g450_setpll(minfo, mnp, pll);
 	}
 }
 
-static inline unsigned int g450_findworkingpll(WPMINFO unsigned int pll, unsigned int* mnparray, unsigned int mnpcount) {
+static inline unsigned int g450_findworkingpll(struct matrox_fb_info *minfo,
+					       unsigned int pll,
+					       unsigned int *mnparray,
+					       unsigned int mnpcount)
+{
 	unsigned int found = 0;
 	unsigned int idx;
 	unsigned int mnpfound = mnparray[0];
@@ -255,22 +278,22 @@ static inline unsigned int g450_findworkingpll(WPMINFO unsigned int pll, unsigne
 		while (sptr >= sarray) {
 			unsigned int mnp = *sptr--;
 		
-			if (g450_testpll(PMINFO mnp - 0x0300, pll) &&
-			    g450_testpll(PMINFO mnp + 0x0300, pll) &&
-			    g450_testpll(PMINFO mnp - 0x0200, pll) &&
-			    g450_testpll(PMINFO mnp + 0x0200, pll) &&
-			    g450_testpll(PMINFO mnp - 0x0100, pll) &&
-			    g450_testpll(PMINFO mnp + 0x0100, pll)) {
-				if (g450_testpll(PMINFO mnp, pll)) {
+			if (g450_testpll(minfo, mnp - 0x0300, pll) &&
+			    g450_testpll(minfo, mnp + 0x0300, pll) &&
+			    g450_testpll(minfo, mnp - 0x0200, pll) &&
+			    g450_testpll(minfo, mnp + 0x0200, pll) &&
+			    g450_testpll(minfo, mnp - 0x0100, pll) &&
+			    g450_testpll(minfo, mnp + 0x0100, pll)) {
+				if (g450_testpll(minfo, mnp, pll)) {
 					return mnp;
 				}
-			} else if (!found && g450_testpll(PMINFO mnp, pll)) {
+			} else if (!found && g450_testpll(minfo, mnp, pll)) {
 				mnpfound = mnp;
 				found = 1;
 			}
 		}
 	}
-	g450_setpll(PMINFO mnpfound, pll);
+	g450_setpll(minfo, mnpfound, pll);
 	return mnpfound;
 }
 
@@ -283,7 +306,9 @@ static void g450_addcache(struct matrox_pll_cache* ci, unsigned int mnp_key, uns
 	ci->data[0].mnp_value = mnp_value;
 }
 
-static int g450_checkcache(WPMINFO struct matrox_pll_cache* ci, unsigned int mnp_key) {
+static int g450_checkcache(struct matrox_fb_info *minfo,
+			   struct matrox_pll_cache *ci, unsigned int mnp_key)
+{
 	unsigned int i;
 	
 	mnp_key &= G450_MNP_FREQBITS;
@@ -303,8 +328,10 @@ static int g450_checkcache(WPMINFO struct matrox_pll_cache* ci, unsigned int mnp
 	return NO_MORE_MNP;
 }
 
-static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll, 
-		unsigned int* mnparray, unsigned int* deltaarray) {
+static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
+			 unsigned int pll, unsigned int *mnparray,
+			 unsigned int *deltaarray)
+{
 	unsigned int mnpcount;
 	unsigned int pixel_vco;
 	const struct matrox_pll_limits* pi;
@@ -321,19 +348,19 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				
 				matroxfb_DAC_lock_irqsave(flags);
 
-				xpwrctrl = matroxfb_DAC_in(PMINFO M1064_XPWRCTRL);
-				matroxfb_DAC_out(PMINFO M1064_XPWRCTRL, xpwrctrl & ~M1064_XPWRCTRL_PANELPDN);
+				xpwrctrl = matroxfb_DAC_in(minfo, M1064_XPWRCTRL);
+				matroxfb_DAC_out(minfo, M1064_XPWRCTRL, xpwrctrl & ~M1064_XPWRCTRL_PANELPDN);
 				mga_outb(M_SEQ_INDEX, M_SEQ1);
 				mga_outb(M_SEQ_DATA, mga_inb(M_SEQ_DATA) | M_SEQ1_SCROFF);
-				tmp = matroxfb_DAC_in(PMINFO M1064_XPIXCLKCTRL);
+				tmp = matroxfb_DAC_in(minfo, M1064_XPIXCLKCTRL);
 				tmp |= M1064_XPIXCLKCTRL_DIS;
 				if (!(tmp & M1064_XPIXCLKCTRL_PLL_UP)) {
 					tmp |= M1064_XPIXCLKCTRL_PLL_UP;
 				}
-				matroxfb_DAC_out(PMINFO M1064_XPIXCLKCTRL, tmp);
+				matroxfb_DAC_out(minfo, M1064_XPIXCLKCTRL, tmp);
 				/* DVI PLL preferred for frequencies up to
 				   panel link max, standard PLL otherwise */
-				if (fout >= MINFO->max_pixel_clock_panellink)
+				if (fout >= minfo->max_pixel_clock_panellink)
 					tmp = 0;
 				else tmp =
 					M1064_XDVICLKCTRL_DVIDATAPATHSEL |
@@ -341,8 +368,8 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 					M1064_XDVICLKCTRL_C1DVICLKEN |
 					M1064_XDVICLKCTRL_DVILOOPCTL |
 					M1064_XDVICLKCTRL_P1LOOPBWDTCTL;
-				matroxfb_DAC_out(PMINFO M1064_XDVICLKCTRL,tmp);
-				matroxfb_DAC_out(PMINFO M1064_XPWRCTRL,
+				matroxfb_DAC_out(minfo, M1064_XDVICLKCTRL, tmp);
+				matroxfb_DAC_out(minfo, M1064_XPWRCTRL,
 						 xpwrctrl);
 
 				matroxfb_DAC_unlock_irqrestore(flags);
@@ -363,20 +390,20 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				}
 				mga_outb(M_MISC_REG, misc);
 			}
-			pi = &ACCESS_FBINFO(limits.pixel);
-			ci = &ACCESS_FBINFO(cache.pixel);
+			pi = &minfo->limits.pixel;
+			ci = &minfo->cache.pixel;
 			break;
 		case M_SYSTEM_PLL:
 			{
 				u_int32_t opt;
 
-				pci_read_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, &opt);
+				pci_read_config_dword(minfo->pcidev, PCI_OPTION_REG, &opt);
 				if (!(opt & 0x20)) {
-					pci_write_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, opt | 0x20);
+					pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, opt | 0x20);
 				}
 			}
-			pi = &ACCESS_FBINFO(limits.system);
-			ci = &ACCESS_FBINFO(cache.system);
+			pi = &minfo->limits.system;
+			ci = &minfo->cache.system;
 			break;
 		case M_VIDEO_PLL:
 			{
@@ -385,18 +412,18 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				unsigned long flags;
 				
 				matroxfb_DAC_lock_irqsave(flags);
-				tmp = matroxfb_DAC_in(PMINFO M1064_XPWRCTRL);
+				tmp = matroxfb_DAC_in(minfo, M1064_XPWRCTRL);
 				if (!(tmp & 2)) {
-					matroxfb_DAC_out(PMINFO M1064_XPWRCTRL, tmp | 2);
+					matroxfb_DAC_out(minfo, M1064_XPWRCTRL, tmp | 2);
 				}
 				
-				mnp = matroxfb_DAC_in(PMINFO M1064_XPIXPLLCM) << 16;
-				mnp |= matroxfb_DAC_in(PMINFO M1064_XPIXPLLCN) << 8;
-				pixel_vco = g450_mnp2vco(PMINFO mnp);
+				mnp = matroxfb_DAC_in(minfo, M1064_XPIXPLLCM) << 16;
+				mnp |= matroxfb_DAC_in(minfo, M1064_XPIXPLLCN) << 8;
+				pixel_vco = g450_mnp2vco(minfo, mnp);
 				matroxfb_DAC_unlock_irqrestore(flags);
 			}
-			pi = &ACCESS_FBINFO(limits.video);
-			ci = &ACCESS_FBINFO(cache.video);
+			pi = &minfo->limits.video;
+			ci = &minfo->cache.video;
 			break;
 		default:
 			return -EINVAL;
@@ -407,12 +434,12 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 		unsigned int mnp;
 		unsigned int xvco;
 
-		for(mnp = g450_firstpll(PMINFO pi, &xvco, fout); mnp != NO_MORE_MNP; mnp = g450_nextpll(PMINFO pi, &xvco, mnp)) {
+		for (mnp = g450_firstpll(minfo, pi, &xvco, fout); mnp != NO_MORE_MNP; mnp = g450_nextpll(minfo, pi, &xvco, mnp)) {
 			unsigned int idx;
 			unsigned int vco;
 			unsigned int delta;
 
-			vco = g450_mnp2vco(PMINFO mnp);
+			vco = g450_mnp2vco(minfo, mnp);
 #if 0			
 			if (pll == M_VIDEO_PLL) {
 				unsigned int big, small;
@@ -444,7 +471,7 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 					 * (freqs near VCOmin aren't as stable)
 					 */
 					if (delta == deltaarray[idx-1]
-					    && vco != g450_mnp2vco(PMINFO mnparray[idx-1])
+					    && vco != g450_mnp2vco(minfo, mnparray[idx-1])
 					    && vco < (pi->vcomin * 17 / 16)) {
 						break;
 					}
@@ -468,14 +495,14 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 		unsigned int mnp;
 		
 		matroxfb_DAC_lock_irqsave(flags);
-		mnp = g450_checkcache(PMINFO ci, mnparray[0]);
+		mnp = g450_checkcache(minfo, ci, mnparray[0]);
 		if (mnp != NO_MORE_MNP) {
-			matroxfb_g450_setpll_cond(PMINFO mnp, pll);
+			matroxfb_g450_setpll_cond(minfo, mnp, pll);
 		} else {
-			mnp = g450_findworkingpll(PMINFO pll, mnparray, mnpcount);
+			mnp = g450_findworkingpll(minfo, pll, mnparray, mnpcount);
 			g450_addcache(ci, mnparray[0], mnp);
 		}
-		updatehwstate_clk(&ACCESS_FBINFO(hw), mnp, pll);
+		updatehwstate_clk(&minfo->hw, mnp, pll);
 		matroxfb_DAC_unlock_irqrestore(flags);
 		return mnp;
 	}
@@ -485,14 +512,16 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
  * Currently there is 5(p) * 10(m) = 50 possible values. */
 #define MNP_TABLE_SIZE  64
 
-int matroxfb_g450_setclk(WPMINFO unsigned int fout, unsigned int pll) {
+int matroxfb_g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
+			 unsigned int pll)
+{
 	unsigned int* arr;
 	
 	arr = kmalloc(sizeof(*arr) * MNP_TABLE_SIZE * 2, GFP_KERNEL);
 	if (arr) {
 		int r;
 
-		r = __g450_setclk(PMINFO fout, pll, arr, arr + MNP_TABLE_SIZE);
+		r = __g450_setclk(minfo, fout, pll, arr, arr + MNP_TABLE_SIZE);
 		kfree(arr);
 		return r;
 	}

@@ -679,7 +679,7 @@ static int check_qos(const struct atm_qos *qos)
 }
 
 int vcc_setsockopt(struct socket *sock, int level, int optname,
-		   char __user *optval, int optlen)
+		   char __user *optval, unsigned int optlen)
 {
 	struct atm_vcc *vcc;
 	unsigned long value;

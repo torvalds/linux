@@ -29,6 +29,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
@@ -2272,8 +2273,10 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		return -EFAULT;
 	}
 
-	if (!mutex_trylock(&fi->state_mutex))
+	if (!mutex_trylock(&fi->state_mutex)) {
+		free_pending_request(req);
 		return -EAGAIN;
+	}
 
 	switch (fi->state) {
 	case opened:

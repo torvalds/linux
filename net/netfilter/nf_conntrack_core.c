@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
@@ -1245,9 +1246,9 @@ static int nf_conntrack_init_init_net(void)
 	 * machine has 512 buckets. >= 1GB machines have 16384 buckets. */
 	if (!nf_conntrack_htable_size) {
 		nf_conntrack_htable_size
-			= (((num_physpages << PAGE_SHIFT) / 16384)
+			= (((totalram_pages << PAGE_SHIFT) / 16384)
 			   / sizeof(struct hlist_head));
-		if (num_physpages > (1024 * 1024 * 1024 / PAGE_SIZE))
+		if (totalram_pages > (1024 * 1024 * 1024 / PAGE_SIZE))
 			nf_conntrack_htable_size = 16384;
 		if (nf_conntrack_htable_size < 32)
 			nf_conntrack_htable_size = 32;
@@ -1350,6 +1351,11 @@ err_stat:
 	return ret;
 }
 
+s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
+			enum ip_conntrack_dir dir,
+			u32 seq);
+EXPORT_SYMBOL_GPL(nf_ct_nat_offset);
+
 int nf_conntrack_init(struct net *net)
 {
 	int ret;
@@ -1367,6 +1373,9 @@ int nf_conntrack_init(struct net *net)
 		/* For use by REJECT target */
 		rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
 		rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
+
+		/* Howto get NAT offsets */
+		rcu_assign_pointer(nf_ct_nat_offset, NULL);
 	}
 	return 0;
 

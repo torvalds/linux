@@ -166,13 +166,16 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (MAJOR(dev->devt)) {
 		const char *tmp;
 		const char *name;
+		mode_t mode = 0;
 
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
-		name = device_get_nodename(dev, &tmp);
+		name = device_get_devnode(dev, &mode, &tmp);
 		if (name) {
 			add_uevent_var(env, "DEVNAME=%s", name);
 			kfree(tmp);
+			if (mode)
+				add_uevent_var(env, "DEVMODE=%#o", mode & 0777);
 		}
 	}
 
@@ -1148,8 +1151,9 @@ static struct device *next_device(struct klist_iter *i)
 }
 
 /**
- * device_get_nodename - path of device node file
+ * device_get_devnode - path of device node file
  * @dev: device
+ * @mode: returned file access mode
  * @tmp: possibly allocated string
  *
  * Return the relative path of a possible device node.
@@ -1157,21 +1161,22 @@ static struct device *next_device(struct klist_iter *i)
  * a name. This memory is returned in tmp and needs to be
  * freed by the caller.
  */
-const char *device_get_nodename(struct device *dev, const char **tmp)
+const char *device_get_devnode(struct device *dev,
+			       mode_t *mode, const char **tmp)
 {
 	char *s;
 
 	*tmp = NULL;
 
 	/* the device type may provide a specific name */
-	if (dev->type && dev->type->nodename)
-		*tmp = dev->type->nodename(dev);
+	if (dev->type && dev->type->devnode)
+		*tmp = dev->type->devnode(dev, mode);
 	if (*tmp)
 		return *tmp;
 
 	/* the class may provide a specific name */
-	if (dev->class && dev->class->nodename)
-		*tmp = dev->class->nodename(dev);
+	if (dev->class && dev->class->devnode)
+		*tmp = dev->class->devnode(dev, mode);
 	if (*tmp)
 		return *tmp;
 

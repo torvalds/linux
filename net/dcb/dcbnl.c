@@ -194,7 +194,7 @@ static int dcbnl_reply(u8 value, u8 event, u8 cmd, u8 attr, u32 pid,
 	nlmsg_end(dcbnl_skb, nlh);
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		return -EINVAL;
 
 	return 0;
 nlmsg_failure:
@@ -275,7 +275,7 @@ static int dcbnl_getpfccfg(struct net_device *netdev, struct nlattr **tb,
 
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		goto err_out;
 
 	return 0;
 nlmsg_failure:
@@ -316,12 +316,11 @@ static int dcbnl_getperm_hwaddr(struct net_device *netdev, struct nlattr **tb,
 
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		goto err_out;
 
 	return 0;
 
 nlmsg_failure:
-err:
 	kfree_skb(dcbnl_skb);
 err_out:
 	return -EINVAL;
@@ -383,7 +382,7 @@ static int dcbnl_getcap(struct net_device *netdev, struct nlattr **tb,
 
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		goto err_out;
 
 	return 0;
 nlmsg_failure:
@@ -460,7 +459,7 @@ static int dcbnl_getnumtcs(struct net_device *netdev, struct nlattr **tb,
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret) {
 		ret = -EINVAL;
-		goto err;
+		goto err_out;
 	}
 
 	return 0;
@@ -799,7 +798,7 @@ static int __dcbnl_pg_getcfg(struct net_device *netdev, struct nlattr **tb,
 
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		goto err_out;
 
 	return 0;
 
@@ -1063,7 +1062,7 @@ static int dcbnl_bcn_getcfg(struct net_device *netdev, struct nlattr **tb,
 
 	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
 	if (ret)
-		goto err;
+		goto err_out;
 
 	return 0;
 

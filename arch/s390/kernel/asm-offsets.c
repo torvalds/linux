@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/kbuild.h>
 #include <asm/vdso.h>
+#include <asm/sigp.h>
 
 int main(void)
 {
@@ -59,6 +60,10 @@ int main(void)
 	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
 	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
 	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
-
+	/* constants for SIGP */
+	DEFINE(__SIGP_STOP, sigp_stop);
+	DEFINE(__SIGP_RESTART, sigp_restart);
+	DEFINE(__SIGP_SENSE, sigp_sense);
+	DEFINE(__SIGP_INITIAL_CPU_RESET, sigp_initial_cpu_reset);
 	return 0;
 }

@@ -213,11 +213,11 @@ static struct attribute *mtd_attrs[] = {
 	NULL,
 };
 
-struct attribute_group mtd_group = {
+static struct attribute_group mtd_group = {
 	.attrs		= mtd_attrs,
 };
 
-const struct attribute_group *mtd_groups[] = {
+static const struct attribute_group *mtd_groups[] = {
 	&mtd_group,
 	NULL,
 };

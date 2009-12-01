@@ -209,6 +209,8 @@ extern int __must_check iwl3945_send_cmd(struct iwl_priv *priv,
 					 struct iwl_host_cmd *cmd);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
+extern void iwl3945_dump_nic_event_log(struct iwl_priv *priv);
+extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 
 /*
  * Currently used by iwl-3945-rs... look at restructuring so that it doesn't

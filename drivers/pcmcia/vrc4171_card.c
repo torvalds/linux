@@ -707,7 +707,7 @@ __setup("vrc4171_card=", vrc4171_card_setup);
 static int vrc4171_card_suspend(struct platform_device *dev,
 				     pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int vrc4171_card_resume(struct platform_device *dev)

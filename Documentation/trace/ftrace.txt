@@ -133,7 +133,7 @@ of ftrace. Here is a list of some of the key files:
 	than requested, the rest of the page will be used,
 	making the actual allocation bigger than requested.
 	( Note, the size may not be a multiple of the page size
-	  due to buffer managment overhead. )
+	  due to buffer management overhead. )
 
 	This can only be updated when the current_tracer
 	is set to "nop".
@@ -1231,6 +1231,7 @@ something like this simple program:
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -1265,6 +1266,7 @@ const char *find_debugfs(void)
                return NULL;
        }
 
+       strcat(debugfs, "/tracing/");
        debugfs_found = 1;
 
        return debugfs;

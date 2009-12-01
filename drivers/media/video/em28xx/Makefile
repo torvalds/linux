@@ -1,5 +1,5 @@
 em28xx-objs     := em28xx-video.o em28xx-i2c.o em28xx-cards.o em28xx-core.o \
-		   em28xx-input.o
+		   em28xx-input.o em28xx-vbi.o
 
 em28xx-alsa-objs := em28xx-audio.o
 

@@ -341,6 +341,23 @@ struct dtv_frontend_properties {
 	fe_rolloff_t		rolloff;
 
 	fe_delivery_system_t	delivery_system;
+
+	/* ISDB-T specifics */
+	u8			isdbt_partial_reception;
+	u8			isdbt_sb_mode;
+	u8			isdbt_sb_subchannel;
+	u32			isdbt_sb_segment_idx;
+	u32			isdbt_sb_segment_count;
+	u8			isdbt_layer_enabled;
+	struct {
+	    u8			segment_count;
+	    fe_code_rate_t	fec;
+	    fe_modulation_t	modulation;
+	    u8			interleaving;
+	} layer[3];
+
+	/* ISDB-T specifics */
+	u32			isdbs_ts_id;
 };
 
 struct dvb_frontend {

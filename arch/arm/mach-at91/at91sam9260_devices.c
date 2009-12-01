@@ -278,6 +278,102 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
 #endif
 
+/* --------------------------------------------------------------------
+ *  MMC / SD Slot for Atmel MCI Driver
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
+static u64 mmc_dmamask = DMA_BIT_MASK(32);
+static struct mci_platform_data mmc_data;
+
+static struct resource mmc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9260_BASE_MCI,
+		.end	= AT91SAM9260_BASE_MCI + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9260_ID_MCI,
+		.end	= AT91SAM9260_ID_MCI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9260_mmc_device = {
+	.name		= "atmel_mci",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &mmc_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &mmc_data,
+	},
+	.resource	= mmc_resources,
+	.num_resources	= ARRAY_SIZE(mmc_resources),
+};
+
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
+{
+	unsigned int i;
+	unsigned int slot_count = 0;
+
+	if (!data)
+		return;
+
+	for (i = 0; i < ATMEL_MCI_MAX_NR_SLOTS; i++) {
+		if (data->slot[i].bus_width) {
+			/* input/irq */
+			if (data->slot[i].detect_pin) {
+				at91_set_gpio_input(data->slot[i].detect_pin, 1);
+				at91_set_deglitch(data->slot[i].detect_pin, 1);
+			}
+			if (data->slot[i].wp_pin)
+				at91_set_gpio_input(data->slot[i].wp_pin, 1);
+
+			switch (i) {
+			case 0:
+				/* CMD */
+				at91_set_A_periph(AT91_PIN_PA7, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_A_periph(AT91_PIN_PA6, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_A_periph(AT91_PIN_PA9, 1);
+					at91_set_A_periph(AT91_PIN_PA10, 1);
+					at91_set_A_periph(AT91_PIN_PA11, 1);
+				}
+				slot_count++;
+				break;
+			case 1:
+				/* CMD */
+				at91_set_B_periph(AT91_PIN_PA1, 1);
+				/* DAT0, maybe DAT1..DAT3 */
+				at91_set_B_periph(AT91_PIN_PA0, 1);
+				if (data->slot[i].bus_width == 4) {
+					at91_set_B_periph(AT91_PIN_PA5, 1);
+					at91_set_B_periph(AT91_PIN_PA4, 1);
+					at91_set_B_periph(AT91_PIN_PA3, 1);
+				}
+				slot_count++;
+				break;
+			default:
+				printk(KERN_ERR
+					"AT91: SD/MMC slot %d not available\n", i);
+				break;
+			}
+		}
+	}
+
+	if (slot_count) {
+		/* CLK */
+		at91_set_A_periph(AT91_PIN_PA8, 0);
+
+		mmc_data = *data;
+		platform_device_register(&at91sam9260_mmc_device);
+	}
+}
+#else
+void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data) {}
+#endif
+
 
 /* --------------------------------------------------------------------
  *  NAND / SmartMedia

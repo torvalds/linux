@@ -25,6 +25,8 @@
 
 #include "generic.h"
 
+#define MAX_INTERNAL_IRQS	128
+
 #define IRQ_BIT(n)	(((n) - PXA_IRQ(0)) & 0x1f)
 #define _ICMR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICMR2 : &ICMR))
 #define _ICLR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICLR2 : &ICLR))
@@ -120,13 +122,21 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 
 void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 {
-	int irq;
+	int irq, i;
+
+	BUG_ON(irq_nr > MAX_INTERNAL_IRQS);
 
 	pxa_internal_irq_nr = irq_nr;
 
 	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq += 32) {
 		_ICMR(irq) = 0;	/* disable all IRQs */
 		_ICLR(irq) = 0;	/* all IRQs are IRQ, not FIQ */
+	}
+
+	/* initialize interrupt priority */
+	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+		for (i = 0; i < irq_nr; i++)
+			IPR(i) = i | (1 << 31);
 	}
 
 	/* only unmasked interrupts kick us out of idle */
@@ -143,7 +153,8 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 }
 
 #ifdef CONFIG_PM
-static unsigned long saved_icmr[2];
+static unsigned long saved_icmr[MAX_INTERNAL_IRQS/32];
+static unsigned long saved_ipr[MAX_INTERNAL_IRQS];
 
 static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 {
@@ -153,6 +164,8 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 		saved_icmr[i] = _ICMR(irq);
 		_ICMR(irq) = 0;
 	}
+	for (i = 0; i < pxa_internal_irq_nr; i++)
+		saved_ipr[i] = IPR(i);
 
 	return 0;
 }
@@ -165,6 +178,8 @@ static int pxa_irq_resume(struct sys_device *dev)
 		_ICMR(irq) = saved_icmr[i];
 		_ICLR(irq) = 0;
 	}
+	for (i = 0; i < pxa_internal_irq_nr; i++)
+		IPR(i) = saved_ipr[i];
 
 	ICCR = 1;
 	return 0;

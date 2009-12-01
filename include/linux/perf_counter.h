@@ -1,5 +1,9 @@
 /*
- *  Performance counters:
+ *  NOTE: this file will be removed in a future kernel release, it is
+ *  provided as a courtesy copy of user-space code that relies on the
+ *  old (pre-rename) symbols and constants.
+ *
+ *  Performance events:
  *
  *    Copyright (C) 2008-2009, Thomas Gleixner <tglx@linutronix.de>
  *    Copyright (C) 2008-2009, Red Hat, Inc., Ingo Molnar
@@ -131,19 +135,19 @@ enum perf_counter_sample_format {
  * as specified by attr.read_format:
  *
  * struct read_format {
- * 	{ u64		value;
- * 	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
- * 	  { u64		time_running; } && PERF_FORMAT_RUNNING
- * 	  { u64		id;           } && PERF_FORMAT_ID
- * 	} && !PERF_FORMAT_GROUP
+ *	{ u64		value;
+ *	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
+ *	  { u64		time_running; } && PERF_FORMAT_RUNNING
+ *	  { u64		id;           } && PERF_FORMAT_ID
+ *	} && !PERF_FORMAT_GROUP
  *
- * 	{ u64		nr;
- * 	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
- * 	  { u64		time_running; } && PERF_FORMAT_RUNNING
- * 	  { u64		value;
- * 	    { u64	id;           } && PERF_FORMAT_ID
- * 	  }		cntr[nr];
- * 	} && PERF_FORMAT_GROUP
+ *	{ u64		nr;
+ *	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
+ *	  { u64		time_running; } && PERF_FORMAT_RUNNING
+ *	  { u64		value;
+ *	    { u64	id;           } && PERF_FORMAT_ID
+ *	  }		cntr[nr];
+ *	} && PERF_FORMAT_GROUP
  * };
  */
 enum perf_counter_read_format {
@@ -199,10 +203,14 @@ struct perf_counter_attr {
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
+				watermark      :  1, /* wakeup_watermark      */
 
-				__reserved_1   : 50;
+				__reserved_1   : 49;
 
-	__u32			wakeup_events;	/* wakeup every n events */
+	union {
+		__u32		wakeup_events;	  /* wakeup every n events */
+		__u32		wakeup_watermark; /* bytes before wakeup   */
+	};
 	__u32			__reserved_2;
 
 	__u64			__reserved_3;
@@ -310,9 +318,9 @@ enum perf_event_type {
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
-	 * 	u64				id;
-	 * 	u64				lost;
+	 *	struct perf_event_header	header;
+	 *	u64				id;
+	 *	u64				lost;
 	 * };
 	 */
 	PERF_EVENT_LOST			= 2,
@@ -332,6 +340,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
+	 *	u64				time;
 	 * };
 	 */
 	PERF_EVENT_EXIT			= 4,
@@ -352,16 +361,17 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
+	 *	u64				time;
 	 * };
 	 */
 	PERF_EVENT_FORK			= 7,
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
-	 * 	u32				pid, tid;
+	 *	struct perf_event_header	header;
+	 *	u32				pid, tid;
 	 *
-	 * 	struct read_format		values;
+	 *	struct read_format		values;
 	 * };
 	 */
 	PERF_EVENT_READ			= 8,
@@ -377,23 +387,23 @@ enum perf_event_type {
 	 *	{ u64			id;	  } && PERF_SAMPLE_ID
 	 *	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
 	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
-	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
+	 *	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
 	 *	{ struct read_format	values;	  } && PERF_SAMPLE_READ
 	 *
 	 *	{ u64			nr,
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 *
-	 * 	#
-	 * 	# The RAW record below is opaque data wrt the ABI
-	 * 	#
-	 * 	# That is, the ABI doesn't make any promises wrt to
-	 * 	# the stability of its content, it may vary depending
-	 * 	# on event, hardware, kernel version and phase of
-	 * 	# the moon.
-	 * 	#
-	 * 	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
-	 * 	#
+	 *	#
+	 *	# The RAW record below is opaque data wrt the ABI
+	 *	#
+	 *	# That is, the ABI doesn't make any promises wrt to
+	 *	# the stability of its content, it may vary depending
+	 *	# on event, hardware, kernel version and phase of
+	 *	# the moon.
+	 *	#
+	 *	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
+	 *	#
 	 *
 	 *	{ u32			size;
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
@@ -416,392 +426,16 @@ enum perf_callchain_context {
 	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
-#define PERF_FLAG_FD_NO_GROUP	(1U << 0)
-#define PERF_FLAG_FD_OUTPUT	(1U << 1)
-
-#ifdef __KERNEL__
-/*
- * Kernel-internal data types and definitions:
- */
-
-#ifdef CONFIG_PERF_COUNTERS
-# include <asm/perf_counter.h>
-#endif
-
-#include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
-#include <linux/spinlock.h>
-#include <linux/hrtimer.h>
-#include <linux/fs.h>
-#include <linux/pid_namespace.h>
-#include <asm/atomic.h>
-
-#define PERF_MAX_STACK_DEPTH		255
-
-struct perf_callchain_entry {
-	__u64				nr;
-	__u64				ip[PERF_MAX_STACK_DEPTH];
-};
-
-struct perf_raw_record {
-	u32				size;
-	void				*data;
-};
-
-struct task_struct;
-
-/**
- * struct hw_perf_counter - performance counter hardware details:
- */
-struct hw_perf_counter {
-#ifdef CONFIG_PERF_COUNTERS
-	union {
-		struct { /* hardware */
-			u64		config;
-			unsigned long	config_base;
-			unsigned long	counter_base;
-			int		idx;
-		};
-		union { /* software */
-			atomic64_t	count;
-			struct hrtimer	hrtimer;
-		};
-	};
-	atomic64_t			prev_count;
-	u64				sample_period;
-	u64				last_period;
-	atomic64_t			period_left;
-	u64				interrupts;
-
-	u64				freq_count;
-	u64				freq_interrupts;
-	u64				freq_stamp;
-#endif
-};
-
-struct perf_counter;
-
-/**
- * struct pmu - generic performance monitoring unit
- */
-struct pmu {
-	int (*enable)			(struct perf_counter *counter);
-	void (*disable)			(struct perf_counter *counter);
-	void (*read)			(struct perf_counter *counter);
-	void (*unthrottle)		(struct perf_counter *counter);
-};
-
-/**
- * enum perf_counter_active_state - the states of a counter
- */
-enum perf_counter_active_state {
-	PERF_COUNTER_STATE_ERROR	= -2,
-	PERF_COUNTER_STATE_OFF		= -1,
-	PERF_COUNTER_STATE_INACTIVE	=  0,
-	PERF_COUNTER_STATE_ACTIVE	=  1,
-};
-
-struct file;
-
-struct perf_mmap_data {
-	struct rcu_head			rcu_head;
-	int				nr_pages;	/* nr of data pages  */
-	int				writable;	/* are we writable   */
-	int				nr_locked;	/* nr pages mlocked  */
-
-	atomic_t			poll;		/* POLL_ for wakeups */
-	atomic_t			events;		/* event limit       */
-
-	atomic_long_t			head;		/* write position    */
-	atomic_long_t			done_head;	/* completed head    */
-
-	atomic_t			lock;		/* concurrent writes */
-	atomic_t			wakeup;		/* needs a wakeup    */
-	atomic_t			lost;		/* nr records lost   */
-
-	struct perf_counter_mmap_page   *user_page;
-	void				*data_pages[0];
-};
-
-struct perf_pending_entry {
-	struct perf_pending_entry *next;
-	void (*func)(struct perf_pending_entry *);
-};
-
-/**
- * struct perf_counter - performance counter kernel representation:
- */
-struct perf_counter {
-#ifdef CONFIG_PERF_COUNTERS
-	struct list_head		list_entry;
-	struct list_head		event_entry;
-	struct list_head		sibling_list;
-	int				nr_siblings;
-	struct perf_counter		*group_leader;
-	struct perf_counter		*output;
-	const struct pmu		*pmu;
-
-	enum perf_counter_active_state	state;
-	atomic64_t			count;
-
-	/*
-	 * These are the total time in nanoseconds that the counter
-	 * has been enabled (i.e. eligible to run, and the task has
-	 * been scheduled in, if this is a per-task counter)
-	 * and running (scheduled onto the CPU), respectively.
-	 *
-	 * They are computed from tstamp_enabled, tstamp_running and
-	 * tstamp_stopped when the counter is in INACTIVE or ACTIVE state.
-	 */
-	u64				total_time_enabled;
-	u64				total_time_running;
-
-	/*
-	 * These are timestamps used for computing total_time_enabled
-	 * and total_time_running when the counter is in INACTIVE or
-	 * ACTIVE state, measured in nanoseconds from an arbitrary point
-	 * in time.
-	 * tstamp_enabled: the notional time when the counter was enabled
-	 * tstamp_running: the notional time when the counter was scheduled on
-	 * tstamp_stopped: in INACTIVE state, the notional time when the
-	 *	counter was scheduled off.
-	 */
-	u64				tstamp_enabled;
-	u64				tstamp_running;
-	u64				tstamp_stopped;
-
-	struct perf_counter_attr	attr;
-	struct hw_perf_counter		hw;
-
-	struct perf_counter_context	*ctx;
-	struct file			*filp;
-
-	/*
-	 * These accumulate total time (in nanoseconds) that children
-	 * counters have been enabled and running, respectively.
-	 */
-	atomic64_t			child_total_time_enabled;
-	atomic64_t			child_total_time_running;
-
-	/*
-	 * Protect attach/detach and child_list:
-	 */
-	struct mutex			child_mutex;
-	struct list_head		child_list;
-	struct perf_counter		*parent;
-
-	int				oncpu;
-	int				cpu;
-
-	struct list_head		owner_entry;
-	struct task_struct		*owner;
-
-	/* mmap bits */
-	struct mutex			mmap_mutex;
-	atomic_t			mmap_count;
-	struct perf_mmap_data		*data;
-
-	/* poll related */
-	wait_queue_head_t		waitq;
-	struct fasync_struct		*fasync;
-
-	/* delayed work for NMIs and such */
-	int				pending_wakeup;
-	int				pending_kill;
-	int				pending_disable;
-	struct perf_pending_entry	pending;
-
-	atomic_t			event_limit;
-
-	void (*destroy)(struct perf_counter *);
-	struct rcu_head			rcu_head;
-
-	struct pid_namespace		*ns;
-	u64				id;
-#endif
-};
-
-/**
- * struct perf_counter_context - counter context structure
- *
- * Used as a container for task counters and CPU counters as well:
- */
-struct perf_counter_context {
-	/*
-	 * Protect the states of the counters in the list,
-	 * nr_active, and the list:
-	 */
-	spinlock_t			lock;
-	/*
-	 * Protect the list of counters.  Locking either mutex or lock
-	 * is sufficient to ensure the list doesn't change; to change
-	 * the list you need to lock both the mutex and the spinlock.
-	 */
-	struct mutex			mutex;
-
-	struct list_head		counter_list;
-	struct list_head		event_list;
-	int				nr_counters;
-	int				nr_active;
-	int				is_active;
-	int				nr_stat;
-	atomic_t			refcount;
-	struct task_struct		*task;
-
-	/*
-	 * Context clock, runs when context enabled.
-	 */
-	u64				time;
-	u64				timestamp;
-
-	/*
-	 * These fields let us detect when two contexts have both
-	 * been cloned (inherited) from a common ancestor.
-	 */
-	struct perf_counter_context	*parent_ctx;
-	u64				parent_gen;
-	u64				generation;
-	int				pin_count;
-	struct rcu_head			rcu_head;
-};
-
-/**
- * struct perf_counter_cpu_context - per cpu counter context structure
- */
-struct perf_cpu_context {
-	struct perf_counter_context	ctx;
-	struct perf_counter_context	*task_ctx;
-	int				active_oncpu;
-	int				max_pertask;
-	int				exclusive;
-
-	/*
-	 * Recursion avoidance:
-	 *
-	 * task, softirq, irq, nmi context
-	 */
-	int				recursion[4];
-};
-
-#ifdef CONFIG_PERF_COUNTERS
+#define PERF_FLAG_FD_NO_GROUP		(1U << 0)
+#define PERF_FLAG_FD_OUTPUT		(1U << 1)
 
 /*
- * Set by architecture code:
+ * In case some app still references the old symbols:
  */
-extern int perf_max_counters;
 
-extern const struct pmu *hw_perf_counter_init(struct perf_counter *counter);
+#define __NR_perf_counter_open		__NR_perf_event_open
 
-extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
-extern void perf_counter_task_sched_out(struct task_struct *task,
-					struct task_struct *next, int cpu);
-extern void perf_counter_task_tick(struct task_struct *task, int cpu);
-extern int perf_counter_init_task(struct task_struct *child);
-extern void perf_counter_exit_task(struct task_struct *child);
-extern void perf_counter_free_task(struct task_struct *task);
-extern void set_perf_counter_pending(void);
-extern void perf_counter_do_pending(void);
-extern void perf_counter_print_debug(void);
-extern void __perf_disable(void);
-extern bool __perf_enable(void);
-extern void perf_disable(void);
-extern void perf_enable(void);
-extern int perf_counter_task_disable(void);
-extern int perf_counter_task_enable(void);
-extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
-	       struct perf_cpu_context *cpuctx,
-	       struct perf_counter_context *ctx, int cpu);
-extern void perf_counter_update_userpage(struct perf_counter *counter);
+#define PR_TASK_PERF_COUNTERS_DISABLE	PR_TASK_PERF_EVENTS_DISABLE
+#define PR_TASK_PERF_COUNTERS_ENABLE	PR_TASK_PERF_EVENTS_ENABLE
 
-struct perf_sample_data {
-	struct pt_regs			*regs;
-	u64				addr;
-	u64				period;
-	struct perf_raw_record		*raw;
-};
-
-extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
-				 struct perf_sample_data *data);
-extern void perf_counter_output(struct perf_counter *counter, int nmi,
-				struct perf_sample_data *data);
-
-/*
- * Return 1 for a software counter, 0 for a hardware counter
- */
-static inline int is_software_counter(struct perf_counter *counter)
-{
-	return (counter->attr.type != PERF_TYPE_RAW) &&
-		(counter->attr.type != PERF_TYPE_HARDWARE) &&
-		(counter->attr.type != PERF_TYPE_HW_CACHE);
-}
-
-extern atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
-
-extern void __perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
-
-static inline void
-perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
-{
-	if (atomic_read(&perf_swcounter_enabled[event]))
-		__perf_swcounter_event(event, nr, nmi, regs, addr);
-}
-
-extern void __perf_counter_mmap(struct vm_area_struct *vma);
-
-static inline void perf_counter_mmap(struct vm_area_struct *vma)
-{
-	if (vma->vm_flags & VM_EXEC)
-		__perf_counter_mmap(vma);
-}
-
-extern void perf_counter_comm(struct task_struct *tsk);
-extern void perf_counter_fork(struct task_struct *tsk);
-
-extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
-
-extern int sysctl_perf_counter_paranoid;
-extern int sysctl_perf_counter_mlock;
-extern int sysctl_perf_counter_sample_rate;
-
-extern void perf_counter_init(void);
-extern void perf_tpcounter_event(int event_id, u64 addr, u64 count,
-				 void *record, int entry_size);
-
-#ifndef perf_misc_flags
-#define perf_misc_flags(regs)	(user_mode(regs) ? PERF_EVENT_MISC_USER : \
-				 PERF_EVENT_MISC_KERNEL)
-#define perf_instruction_pointer(regs)	instruction_pointer(regs)
-#endif
-
-#else
-static inline void
-perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
-static inline void
-perf_counter_task_sched_out(struct task_struct *task,
-			    struct task_struct *next, int cpu)		{ }
-static inline void
-perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
-static inline int perf_counter_init_task(struct task_struct *child)	{ return 0; }
-static inline void perf_counter_exit_task(struct task_struct *child)	{ }
-static inline void perf_counter_free_task(struct task_struct *task)	{ }
-static inline void perf_counter_do_pending(void)			{ }
-static inline void perf_counter_print_debug(void)			{ }
-static inline void perf_disable(void)					{ }
-static inline void perf_enable(void)					{ }
-static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
-static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
-
-static inline void
-perf_swcounter_event(u32 event, u64 nr, int nmi,
-		     struct pt_regs *regs, u64 addr)			{ }
-
-static inline void perf_counter_mmap(struct vm_area_struct *vma)	{ }
-static inline void perf_counter_comm(struct task_struct *tsk)		{ }
-static inline void perf_counter_fork(struct task_struct *tsk)		{ }
-static inline void perf_counter_init(void)				{ }
-#endif
-
-#endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_COUNTER_H */

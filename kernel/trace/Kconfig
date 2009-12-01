@@ -83,7 +83,7 @@ config RING_BUFFER_ALLOW_SWAP
 # This allows those options to appear when no other tracer is selected. But the
 # options do not appear when something else selects it. We need the two options
 # GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
-# hidding of the automatic options options.
+# hidding of the automatic options.
 
 config TRACING
 	bool

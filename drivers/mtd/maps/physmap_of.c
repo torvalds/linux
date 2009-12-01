@@ -190,6 +190,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	const u32 *p;
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
+	resource_size_t res_size;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
 
@@ -204,7 +205,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
 				dev->node->full_name);
 		err = -EINVAL;
-		goto err_out;
+		goto err_flash_remove;
 	}
 	count /= reg_tuple_size;
 
@@ -212,13 +213,13 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	info = kzalloc(sizeof(struct of_flash) +
 		       sizeof(struct of_flash_list) * count, GFP_KERNEL);
 	if (!info)
-		goto err_out;
-
-	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
-	if (!info)
-		goto err_out;
+		goto err_flash_remove;
 
 	dev_set_drvdata(&dev->dev, info);
+
+	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
+	if (!mtd_list)
+		goto err_flash_remove;
 
 	for (i = 0; i < count; i++) {
 		err = -ENXIO;
@@ -233,8 +234,8 @@ static int __devinit of_flash_probe(struct of_device *dev,
 			(unsigned long long)res.end);
 
 		err = -EBUSY;
-		info->list[i].res = request_mem_region(res.start, res.end -
-						       res.start + 1,
+		res_size = resource_size(&res);
+		info->list[i].res = request_mem_region(res.start, res_size,
 						       dev_name(&dev->dev));
 		if (!info->list[i].res)
 			goto err_out;
@@ -249,7 +250,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 		info->list[i].map.name = dev_name(&dev->dev);
 		info->list[i].map.phys = res.start;
-		info->list[i].map.size = res.end - res.start + 1;
+		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = *width;
 
 		err = -ENOMEM;
@@ -338,6 +339,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 err_out:
 	kfree(mtd_list);
+err_flash_remove:
 	of_flash_remove(dev);
 
 	return err;
@@ -358,6 +360,10 @@ static struct of_device_id of_flash_match[] = {
 		 * :(. */
 		.compatible	= "jedec-flash",
 		.data		= (void *)"jedec_probe",
+	},
+	{
+		.compatible     = "mtd-ram",
+		.data           = (void *)"map_ram",
 	},
 	{
 		.type		= "rom",

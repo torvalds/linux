@@ -19,7 +19,7 @@ SYSCALL(sys_restart_syscall,sys_restart_syscall,sys_restart_syscall)
 SYSCALL(sys_creat,sys_creat,sys32_creat_wrapper)
 SYSCALL(sys_link,sys_link,sys32_link_wrapper)
 SYSCALL(sys_unlink,sys_unlink,sys32_unlink_wrapper)		/* 10 */
-SYSCALL(sys_execve,sys_execve,sys32_execve)
+SYSCALL(sys_execve,sys_execve,sys32_execve_wrapper)
 SYSCALL(sys_chdir,sys_chdir,sys32_chdir_wrapper)
 SYSCALL(sys_time,sys_ni_syscall,sys32_time_wrapper)		/* old time syscall */
 SYSCALL(sys_mknod,sys_mknod,sys32_mknod_wrapper)
@@ -128,7 +128,7 @@ SYSCALL(sys_sysinfo,sys_sysinfo,compat_sys_sysinfo_wrapper)
 SYSCALL(sys_ipc,sys_ipc,sys32_ipc_wrapper)
 SYSCALL(sys_fsync,sys_fsync,sys32_fsync_wrapper)
 SYSCALL(sys_sigreturn,sys_sigreturn,sys32_sigreturn)
-SYSCALL(sys_clone,sys_clone,sys32_clone)			/* 120 */
+SYSCALL(sys_clone,sys_clone,sys_clone_wrapper)			/* 120 */
 SYSCALL(sys_setdomainname,sys_setdomainname,sys32_setdomainname_wrapper)
 SYSCALL(sys_newuname,sys_s390_newuname,sys32_newuname_wrapper)
 NI_SYSCALL							/* modify_ldt for i386 */
@@ -136,8 +136,8 @@ SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
 SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */
 SYSCALL(sys_sigprocmask,sys_sigprocmask,compat_sys_sigprocmask_wrapper)
 NI_SYSCALL							/* old "create module" */
-SYSCALL(sys_init_module,sys_init_module,sys32_init_module_wrapper)
-SYSCALL(sys_delete_module,sys_delete_module,sys32_delete_module_wrapper)
+SYSCALL(sys_init_module,sys_init_module,sys_init_module_wrapper)
+SYSCALL(sys_delete_module,sys_delete_module,sys_delete_module_wrapper)
 NI_SYSCALL							/* 130: old get_kernel_syms */
 SYSCALL(sys_quotactl,sys_quotactl,sys32_quotactl_wrapper)
 SYSCALL(sys_getpgid,sys_getpgid,sys32_getpgid_wrapper)
@@ -339,4 +339,4 @@ SYSCALL(sys_epoll_create1,sys_epoll_create1,sys_epoll_create1_wrapper)
 SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv_wrapper)
 SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev_wrapper)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo_wrapper) /* 330 */
-SYSCALL(sys_perf_counter_open,sys_perf_counter_open,sys_perf_counter_open_wrapper)
+SYSCALL(sys_perf_event_open,sys_perf_event_open,sys_perf_event_open_wrapper)

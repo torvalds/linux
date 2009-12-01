@@ -219,7 +219,7 @@ static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 /*
  * Our file operations table
  */
-static struct block_device_operations viodasd_fops = {
+static const struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
 	.open = viodasd_open,
 	.release = viodasd_release,

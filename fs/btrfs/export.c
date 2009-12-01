@@ -28,7 +28,7 @@ static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
-	fid->objectid = BTRFS_I(inode)->location.objectid;
+	fid->objectid = inode->i_ino;
 	fid->root_objectid = BTRFS_I(inode)->root->objectid;
 	fid->gen = inode->i_generation;
 
@@ -60,34 +60,61 @@ static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 }
 
 static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
-				       u64 root_objectid, u32 generation)
+				       u64 root_objectid, u32 generation,
+				       int check_generation)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb)->fs_info;
 	struct btrfs_root *root;
+	struct dentry *dentry;
 	struct inode *inode;
 	struct btrfs_key key;
+	int index;
+	int err = 0;
+
+	if (objectid < BTRFS_FIRST_FREE_OBJECTID)
+		return ERR_PTR(-ESTALE);
 
 	key.objectid = root_objectid;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 	key.offset = (u64)-1;
 
-	root = btrfs_read_fs_root_no_name(btrfs_sb(sb)->fs_info, &key);
-	if (IS_ERR(root))
-		return ERR_CAST(root);
+	index = srcu_read_lock(&fs_info->subvol_srcu);
+
+	root = btrfs_read_fs_root_no_name(fs_info, &key);
+	if (IS_ERR(root)) {
+		err = PTR_ERR(root);
+		goto fail;
+	}
+
+	if (btrfs_root_refs(&root->root_item) == 0) {
+		err = -ENOENT;
+		goto fail;
+	}
 
 	key.objectid = objectid;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
 
 	inode = btrfs_iget(sb, &key, root);
-	if (IS_ERR(inode))
-		return (void *)inode;
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		goto fail;
+	}
 
-	if (generation != inode->i_generation) {
+	srcu_read_unlock(&fs_info->subvol_srcu, index);
+
+	if (check_generation && generation != inode->i_generation) {
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
 
-	return d_obtain_alias(inode);
+	dentry = d_obtain_alias(inode);
+	if (!IS_ERR(dentry))
+		dentry->d_op = &btrfs_dentry_operations;
+	return dentry;
+fail:
+	srcu_read_unlock(&fs_info->subvol_srcu, index);
+	return ERR_PTR(err);
 }
 
 static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
@@ -111,7 +138,7 @@ static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	objectid = fid->parent_objectid;
 	generation = fid->parent_gen;
 
-	return btrfs_get_dentry(sb, objectid, root_objectid, generation);
+	return btrfs_get_dentry(sb, objectid, root_objectid, generation, 1);
 }
 
 static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
@@ -133,66 +160,76 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 	root_objectid = fid->root_objectid;
 	generation = fid->gen;
 
-	return btrfs_get_dentry(sb, objectid, root_objectid, generation);
+	return btrfs_get_dentry(sb, objectid, root_objectid, generation, 1);
 }
 
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
 	struct inode *dir = child->d_inode;
+	static struct dentry *dentry;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	int slot;
-	u64 objectid;
+	struct btrfs_root_ref *ref;
+	struct btrfs_key key;
+	struct btrfs_key found_key;
 	int ret;
 
 	path = btrfs_alloc_path();
 
-	key.objectid = dir->i_ino;
-	btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
-	key.offset = (u64)-1;
+	if (dir->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
+		key.objectid = root->root_key.objectid;
+		key.type = BTRFS_ROOT_BACKREF_KEY;
+		key.offset = (u64)-1;
+		root = root->fs_info->tree_root;
+	} else {
+		key.objectid = dir->i_ino;
+		key.type = BTRFS_INODE_REF_KEY;
+		key.offset = (u64)-1;
+	}
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0) {
-		/* Error */
-		btrfs_free_path(path);
-		return ERR_PTR(ret);
-	}
-	leaf = path->nodes[0];
-	slot = path->slots[0];
-	if (ret) {
-		/* btrfs_search_slot() returns the slot where we'd want to
-		   insert a backref for parent inode #0xFFFFFFFFFFFFFFFF.
-		   The _real_ backref, telling us what the parent inode
-		   _actually_ is, will be in the slot _before_ the one
-		   that btrfs_search_slot() returns. */
-		if (!slot) {
-			/* Unless there is _no_ key in the tree before... */
-			btrfs_free_path(path);
-			return ERR_PTR(-EIO);
-		}
-		slot--;
+	if (ret < 0)
+		goto fail;
+
+	BUG_ON(ret == 0);
+	if (path->slots[0] == 0) {
+		ret = -ENOENT;
+		goto fail;
 	}
 
-	btrfs_item_key_to_cpu(leaf, &key, slot);
+	path->slots[0]--;
+	leaf = path->nodes[0];
+
+	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+	if (found_key.objectid != key.objectid || found_key.type != key.type) {
+		ret = -ENOENT;
+		goto fail;
+	}
+
+	if (found_key.type == BTRFS_ROOT_BACKREF_KEY) {
+		ref = btrfs_item_ptr(leaf, path->slots[0],
+				     struct btrfs_root_ref);
+		key.objectid = btrfs_root_ref_dirid(leaf, ref);
+	} else {
+		key.objectid = found_key.offset;
+	}
 	btrfs_free_path(path);
 
-	if (key.objectid != dir->i_ino || key.type != BTRFS_INODE_REF_KEY)
-		return ERR_PTR(-EINVAL);
+	if (found_key.type == BTRFS_ROOT_BACKREF_KEY) {
+		return btrfs_get_dentry(root->fs_info->sb, key.objectid,
+					found_key.offset, 0, 0);
+	}
 
-	objectid = key.offset;
-
-	/* If we are already at the root of a subvol, return the real root */
-	if (objectid == dir->i_ino)
-		return dget(dir->i_sb->s_root);
-
-	/* Build a new key for the inode item */
-	key.objectid = objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
-
-	return d_obtain_alias(btrfs_iget(root->fs_info->sb, &key, root));
+	dentry = d_obtain_alias(btrfs_iget(root->fs_info->sb, &key, root));
+	if (!IS_ERR(dentry))
+		dentry->d_op = &btrfs_dentry_operations;
+	return dentry;
+fail:
+	btrfs_free_path(path);
+	return ERR_PTR(ret);
 }
 
 const struct export_operations btrfs_export_ops = {

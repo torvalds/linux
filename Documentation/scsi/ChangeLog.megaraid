@@ -514,7 +514,7 @@ iv.	Remove yield() while mailbox handshake in synchronous commands
 
 v.	Remove redundant __megaraid_busywait_mbox routine
 
-vi.	Fix bug in the managment module, which causes a system lockup when the
+vi.	Fix bug in the management module, which causes a system lockup when the
 	IO module is loaded and then unloaded, followed by executing any
 	management utility. The current version of management module does not
 	handle the adapter unregister properly.

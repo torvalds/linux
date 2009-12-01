@@ -42,6 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#define ACPI_CREATE_PREDEFINED_TABLE
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -72,30 +74,31 @@ ACPI_MODULE_NAME("nspredef")
  ******************************************************************************/
 /* Local prototypes */
 static acpi_status
-acpi_ns_check_package(char *pathname,
-		      union acpi_operand_object **return_object_ptr,
-		      const union acpi_predefined_info *predefined);
+acpi_ns_check_package(struct acpi_predefined_data *data,
+		      union acpi_operand_object **return_object_ptr);
 
 static acpi_status
-acpi_ns_check_package_elements(char *pathname,
+acpi_ns_check_package_list(struct acpi_predefined_data *data,
+			   const union acpi_predefined_info *package,
+			   union acpi_operand_object **elements, u32 count);
+
+static acpi_status
+acpi_ns_check_package_elements(struct acpi_predefined_data *data,
 			       union acpi_operand_object **elements,
 			       u8 type1,
 			       u32 count1,
 			       u8 type2, u32 count2, u32 start_index);
 
 static acpi_status
-acpi_ns_check_object_type(char *pathname,
+acpi_ns_check_object_type(struct acpi_predefined_data *data,
 			  union acpi_operand_object **return_object_ptr,
 			  u32 expected_btypes, u32 package_index);
 
 static acpi_status
-acpi_ns_check_reference(char *pathname,
+acpi_ns_check_reference(struct acpi_predefined_data *data,
 			union acpi_operand_object *return_object);
 
-static acpi_status
-acpi_ns_repair_object(u32 expected_btypes,
-		      u32 package_index,
-		      union acpi_operand_object **return_object_ptr);
+static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes);
 
 /*
  * Names for the types that can be returned by the predefined objects.
@@ -109,13 +112,13 @@ static const char *acpi_rtype_names[] = {
 	"/Reference",
 };
 
-#define ACPI_NOT_PACKAGE    ACPI_UINT32_MAX
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_check_predefined_names
  *
  * PARAMETERS:  Node            - Namespace node for the method/object
+ *              user_param_count - Number of parameters actually passed
+ *              return_status   - Status from the object evaluation
  *              return_object_ptr - Pointer to the object returned from the
  *                                evaluation of a method or object
  *
@@ -135,12 +138,13 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	acpi_status status = AE_OK;
 	const union acpi_predefined_info *predefined;
 	char *pathname;
+	struct acpi_predefined_data *data;
 
 	/* Match the name for this method/object against the predefined list */
 
 	predefined = acpi_ns_check_for_predefined_name(node);
 
-	/* Get the full pathname to the object, for use in error messages */
+	/* Get the full pathname to the object, for use in warning messages */
 
 	pathname = acpi_ns_get_external_pathname(node);
 	if (!pathname) {
@@ -158,27 +162,16 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	/* If not a predefined name, we cannot validate the return object */
 
 	if (!predefined) {
-		goto exit;
-	}
-
-	/* If the method failed, we cannot validate the return object */
-
-	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
-		goto exit;
+		goto cleanup;
 	}
 
 	/*
-	 * Only validate the return value on the first successful evaluation of
-	 * the method. This ensures that any warnings will only be emitted during
-	 * the very first evaluation of the method/object.
+	 * If the method failed or did not actually return an object, we cannot
+	 * validate the return object
 	 */
-	if (node->flags & ANOBJ_EVALUATED) {
-		goto exit;
+	if ((return_status != AE_OK) && (return_status != AE_CTRL_RETURN_VALUE)) {
+		goto cleanup;
 	}
-
-	/* Mark the node as having been successfully evaluated */
-
-	node->flags |= ANOBJ_EVALUATED;
 
 	/*
 	 * If there is no return value, check if we require a return value for
@@ -190,46 +183,67 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	if (!return_object) {
 		if ((predefined->info.expected_btypes) &&
 		    (!(predefined->info.expected_btypes & ACPI_RTYPE_NONE))) {
-			ACPI_ERROR((AE_INFO,
-				    "%s: Missing expected return value",
-				    pathname));
+			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
+					      ACPI_WARN_ALWAYS,
+					      "Missing expected return value"));
 
 			status = AE_AML_NO_RETURN_VALUE;
 		}
-		goto exit;
+		goto cleanup;
 	}
 
 	/*
-	 * We have a return value, but if one wasn't expected, just exit, this is
-	 * not a problem
+	 * 1) We have a return value, but if one wasn't expected, just exit, this is
+	 * not a problem. For example, if the "Implicit Return" feature is
+	 * enabled, methods will always return a value.
 	 *
-	 * For example, if the "Implicit Return" feature is enabled, methods will
-	 * always return a value
+	 * 2) If the return value can be of any type, then we cannot perform any
+	 * validation, exit.
 	 */
-	if (!predefined->info.expected_btypes) {
-		goto exit;
+	if ((!predefined->info.expected_btypes) ||
+	    (predefined->info.expected_btypes == ACPI_RTYPE_ALL)) {
+		goto cleanup;
 	}
+
+	/* Create the parameter data block for object validation */
+
+	data = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_predefined_data));
+	if (!data) {
+		goto cleanup;
+	}
+	data->predefined = predefined;
+	data->node_flags = node->flags;
+	data->pathname = pathname;
 
 	/*
 	 * Check that the type of the return object is what is expected for
 	 * this predefined name
 	 */
-	status = acpi_ns_check_object_type(pathname, return_object_ptr,
+	status = acpi_ns_check_object_type(data, return_object_ptr,
 					   predefined->info.expected_btypes,
-					   ACPI_NOT_PACKAGE);
+					   ACPI_NOT_PACKAGE_ELEMENT);
 	if (ACPI_FAILURE(status)) {
-		goto exit;
+		goto check_validation_status;
 	}
 
 	/* For returned Package objects, check the type of all sub-objects */
 
 	if (return_object->common.type == ACPI_TYPE_PACKAGE) {
-		status =
-		    acpi_ns_check_package(pathname, return_object_ptr,
-					  predefined);
+		status = acpi_ns_check_package(data, return_object_ptr);
 	}
 
-      exit:
+check_validation_status:
+	/*
+	 * If the object validation failed or if we successfully repaired one
+	 * or more objects, mark the parent node to suppress further warning
+	 * messages during the next evaluation of the same method/object.
+	 */
+	if (ACPI_FAILURE(status) || (data->flags & ACPI_OBJECT_REPAIRED)) {
+		node->flags |= ANOBJ_EVALUATED;
+	}
+	ACPI_FREE(data);
+
+cleanup:
 	ACPI_FREE(pathname);
 	return (status);
 }
@@ -268,64 +282,58 @@ acpi_ns_check_parameter_count(char *pathname,
 		param_count = node->object->method.param_count;
 	}
 
-	/* Argument count check for non-predefined methods/objects */
-
 	if (!predefined) {
 		/*
+		 * Check the parameter count for non-predefined methods/objects.
+		 *
 		 * Warning if too few or too many arguments have been passed by the
 		 * caller. An incorrect number of arguments may not cause the method
 		 * to fail. However, the method will fail if there are too few
 		 * arguments and the method attempts to use one of the missing ones.
 		 */
 		if (user_param_count < param_count) {
-			ACPI_WARNING((AE_INFO,
-				      "%s: Insufficient arguments - needs %d, found %d",
-				      pathname, param_count, user_param_count));
+			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
+					      ACPI_WARN_ALWAYS,
+					      "Insufficient arguments - needs %u, found %u",
+					      param_count, user_param_count));
 		} else if (user_param_count > param_count) {
-			ACPI_WARNING((AE_INFO,
-				      "%s: Excess arguments - needs %d, found %d",
-				      pathname, param_count, user_param_count));
+			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
+					      ACPI_WARN_ALWAYS,
+					      "Excess arguments - needs %u, found %u",
+					      param_count, user_param_count));
 		}
 		return;
 	}
 
-	/* Allow two different legal argument counts (_SCP, etc.) */
-
+	/*
+	 * Validate the user-supplied parameter count.
+	 * Allow two different legal argument counts (_SCP, etc.)
+	 */
 	required_params_current = predefined->info.param_count & 0x0F;
 	required_params_old = predefined->info.param_count >> 4;
 
 	if (user_param_count != ACPI_UINT32_MAX) {
-
-		/* Validate the user-supplied parameter count */
-
 		if ((user_param_count != required_params_current) &&
 		    (user_param_count != required_params_old)) {
-			ACPI_WARNING((AE_INFO,
-				      "%s: Parameter count mismatch - "
-				      "caller passed %d, ACPI requires %d",
-				      pathname, user_param_count,
-				      required_params_current));
+			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
+					      ACPI_WARN_ALWAYS,
+					      "Parameter count mismatch - "
+					      "caller passed %u, ACPI requires %u",
+					      user_param_count,
+					      required_params_current));
 		}
 	}
 
 	/*
-	 * Only validate the argument count on the first successful evaluation of
-	 * the method. This ensures that any warnings will only be emitted during
-	 * the very first evaluation of the method/object.
-	 */
-	if (node->flags & ANOBJ_EVALUATED) {
-		return;
-	}
-
-	/*
 	 * Check that the ASL-defined parameter count is what is expected for
-	 * this predefined name.
+	 * this predefined name (parameter count as defined by the ACPI
+	 * specification)
 	 */
 	if ((param_count != required_params_current) &&
 	    (param_count != required_params_old)) {
-		ACPI_WARNING((AE_INFO,
-			      "%s: Parameter count mismatch - ASL declared %d, ACPI requires %d",
-			      pathname, param_count, required_params_current));
+		ACPI_WARN_PREDEFINED((AE_INFO, pathname, node->flags,
+				      "Parameter count mismatch - ASL declared %u, ACPI requires %u",
+				      param_count, required_params_current));
 	}
 }
 
@@ -358,9 +366,6 @@ const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
 	this_name = predefined_names;
 	while (this_name->info.name[0]) {
 		if (ACPI_COMPARE_NAME(node->name.ascii, this_name->info.name)) {
-
-			/* Return pointer to this table entry */
-
 			return (this_name);
 		}
 
@@ -375,17 +380,16 @@ const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
 		this_name++;
 	}
 
-	return (NULL);
+	return (NULL);		/* Not found */
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_check_package
  *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
+ * PARAMETERS:  Data            - Pointer to validation data structure
  *              return_object_ptr - Pointer to the object returned from the
  *                                evaluation of a method or object
- *              Predefined      - Pointer to entry in predefined name table
  *
  * RETURN:      Status
  *
@@ -395,30 +399,26 @@ const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_package(char *pathname,
-		      union acpi_operand_object **return_object_ptr,
-		      const union acpi_predefined_info *predefined)
+acpi_ns_check_package(struct acpi_predefined_data *data,
+		      union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	const union acpi_predefined_info *package;
-	union acpi_operand_object *sub_package;
 	union acpi_operand_object **elements;
-	union acpi_operand_object **sub_elements;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	u32 expected_count;
 	u32 count;
 	u32 i;
-	u32 j;
 
 	ACPI_FUNCTION_NAME(ns_check_package);
 
 	/* The package info for this name is in the next table entry */
 
-	package = predefined + 1;
+	package = data->predefined + 1;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 			  "%s Validating return Package of Type %X, Count %X\n",
-			  pathname, package->ret_info.type,
+			  data->pathname, package->ret_info.type,
 			  return_object->package.count));
 
 	/* Extract package count and elements array */
@@ -429,9 +429,8 @@ acpi_ns_check_package(char *pathname,
 	/* The package must have at least one element, else invalid */
 
 	if (!count) {
-		ACPI_WARNING((AE_INFO,
-			      "%s: Return Package has no elements (empty)",
-			      pathname));
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Return Package has no elements (empty)"));
 
 		return (AE_AML_OPERAND_VALUE);
 	}
@@ -456,15 +455,16 @@ acpi_ns_check_package(char *pathname,
 		if (count < expected_count) {
 			goto package_too_small;
 		} else if (count > expected_count) {
-			ACPI_WARNING((AE_INFO,
-				      "%s: Return Package is larger than needed - "
-				      "found %u, expected %u", pathname, count,
-				      expected_count));
+			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
+					      data->node_flags,
+					      "Return Package is larger than needed - "
+					      "found %u, expected %u", count,
+					      expected_count));
 		}
 
 		/* Validate all elements of the returned package */
 
-		status = acpi_ns_check_package_elements(pathname, elements,
+		status = acpi_ns_check_package_elements(data, elements,
 							package->ret_info.
 							object_type1,
 							package->ret_info.
@@ -473,9 +473,6 @@ acpi_ns_check_package(char *pathname,
 							object_type2,
 							package->ret_info.
 							count2, 0);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
 		break;
 
 	case ACPI_PTYPE1_VAR:
@@ -485,7 +482,7 @@ acpi_ns_check_package(char *pathname,
 		 * elements must be of the same type
 		 */
 		for (i = 0; i < count; i++) {
-			status = acpi_ns_check_object_type(pathname, elements,
+			status = acpi_ns_check_object_type(data, elements,
 							   package->ret_info.
 							   object_type1, i);
 			if (ACPI_FAILURE(status)) {
@@ -517,8 +514,7 @@ acpi_ns_check_package(char *pathname,
 				/* These are the required package elements (0, 1, or 2) */
 
 				status =
-				    acpi_ns_check_object_type(pathname,
-							      elements,
+				    acpi_ns_check_object_type(data, elements,
 							      package->
 							      ret_info3.
 							      object_type[i],
@@ -530,8 +526,7 @@ acpi_ns_check_package(char *pathname,
 				/* These are the optional package elements */
 
 				status =
-				    acpi_ns_check_object_type(pathname,
-							      elements,
+				    acpi_ns_check_object_type(data, elements,
 							      package->
 							      ret_info3.
 							      tail_object_type,
@@ -544,11 +539,30 @@ acpi_ns_check_package(char *pathname,
 		}
 		break;
 
+	case ACPI_PTYPE2_REV_FIXED:
+
+		/* First element is the (Integer) revision */
+
+		status = acpi_ns_check_object_type(data, elements,
+						   ACPI_RTYPE_INTEGER, 0);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		elements++;
+		count--;
+
+		/* Examine the sub-packages */
+
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
+		break;
+
 	case ACPI_PTYPE2_PKG_COUNT:
 
 		/* First element is the (Integer) count of sub-packages to follow */
 
-		status = acpi_ns_check_object_type(pathname, elements,
+		status = acpi_ns_check_object_type(data, elements,
 						   ACPI_RTYPE_INTEGER, 0);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -566,9 +580,11 @@ acpi_ns_check_package(char *pathname,
 		count = expected_count;
 		elements++;
 
-		/* Now we can walk the sub-packages */
+		/* Examine the sub-packages */
 
-		/*lint -fallthrough */
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
+		break;
 
 	case ACPI_PTYPE2:
 	case ACPI_PTYPE2_FIXED:
@@ -576,176 +592,240 @@ acpi_ns_check_package(char *pathname,
 	case ACPI_PTYPE2_COUNT:
 
 		/*
-		 * These types all return a single package that consists of a variable
-		 * number of sub-packages
+		 * These types all return a single Package that consists of a
+		 * variable number of sub-Packages.
+		 *
+		 * First, ensure that the first element is a sub-Package. If not,
+		 * the BIOS may have incorrectly returned the object as a single
+		 * package instead of a Package of Packages (a common error if
+		 * there is only one entry). We may be able to repair this by
+		 * wrapping the returned Package with a new outer Package.
 		 */
-		for (i = 0; i < count; i++) {
-			sub_package = *elements;
-			sub_elements = sub_package->package.elements;
+		if ((*elements)->common.type != ACPI_TYPE_PACKAGE) {
 
-			/* Each sub-object must be of type Package */
+			/* Create the new outer package and populate it */
 
 			status =
-			    acpi_ns_check_object_type(pathname, &sub_package,
-						      ACPI_RTYPE_PACKAGE, i);
+			    acpi_ns_repair_package_list(data,
+							return_object_ptr);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
 
-			/* Examine the different types of sub-packages */
+			/* Update locals to point to the new package (of 1 element) */
 
-			switch (package->ret_info.type) {
-			case ACPI_PTYPE2:
-			case ACPI_PTYPE2_PKG_COUNT:
-
-				/* Each subpackage has a fixed number of elements */
-
-				expected_count =
-				    package->ret_info.count1 +
-				    package->ret_info.count2;
-				if (sub_package->package.count !=
-				    expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				status =
-				    acpi_ns_check_package_elements(pathname,
-								   sub_elements,
-								   package->
-								   ret_info.
-								   object_type1,
-								   package->
-								   ret_info.
-								   count1,
-								   package->
-								   ret_info.
-								   object_type2,
-								   package->
-								   ret_info.
-								   count2, 0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			case ACPI_PTYPE2_FIXED:
-
-				/* Each sub-package has a fixed length */
-
-				expected_count = package->ret_info2.count;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				for (j = 0; j < expected_count; j++) {
-					status =
-					    acpi_ns_check_object_type(pathname,
-						&sub_elements[j],
-						package->ret_info2.object_type[j], j);
-					if (ACPI_FAILURE(status)) {
-						return (status);
-					}
-				}
-				break;
-
-			case ACPI_PTYPE2_MIN:
-
-				/* Each sub-package has a variable but minimum length */
-
-				expected_count = package->ret_info.count1;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				status =
-				    acpi_ns_check_package_elements(pathname,
-								   sub_elements,
-								   package->
-								   ret_info.
-								   object_type1,
-								   sub_package->
-								   package.
-								   count, 0, 0,
-								   0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			case ACPI_PTYPE2_COUNT:
-
-				/* First element is the (Integer) count of elements to follow */
-
-				status =
-				    acpi_ns_check_object_type(pathname,
-							      sub_elements,
-							      ACPI_RTYPE_INTEGER,
-							      0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-
-				/* Make sure package is large enough for the Count */
-
-				expected_count =
-				    (u32) (*sub_elements)->integer.value;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				status =
-				    acpi_ns_check_package_elements(pathname,
-								   (sub_elements
-								    + 1),
-								   package->
-								   ret_info.
-								   object_type1,
-								   (expected_count
-								    - 1), 0, 0,
-								   1);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			default:
-				break;
-			}
-
-			elements++;
+			return_object = *return_object_ptr;
+			elements = return_object->package.elements;
+			count = 1;
 		}
+
+		/* Examine the sub-packages */
+
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
 		break;
 
 	default:
 
 		/* Should not get here if predefined info table is correct */
 
-		ACPI_WARNING((AE_INFO,
-			      "%s: Invalid internal return type in table entry: %X",
-			      pathname, package->ret_info.type));
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Invalid internal return type in table entry: %X",
+				      package->ret_info.type));
 
 		return (AE_AML_INTERNAL);
 	}
 
-	return (AE_OK);
+	return (status);
 
-      package_too_small:
+package_too_small:
 
 	/* Error exit for the case with an incorrect package count */
 
-	ACPI_WARNING((AE_INFO, "%s: Return Package is too small - "
-		      "found %u, expected %u", pathname, count,
-		      expected_count));
+	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Return Package is too small - found %u elements, expected %u",
+			      count, expected_count));
+
+	return (AE_AML_OPERAND_VALUE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_check_package_list
+ *
+ * PARAMETERS:  Data            - Pointer to validation data structure
+ *              Package         - Pointer to package-specific info for method
+ *              Elements        - Element list of parent package. All elements
+ *                                of this list should be of type Package.
+ *              Count           - Count of subpackages
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Examine a list of subpackages
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_check_package_list(struct acpi_predefined_data *data,
+			   const union acpi_predefined_info *package,
+			   union acpi_operand_object **elements, u32 count)
+{
+	union acpi_operand_object *sub_package;
+	union acpi_operand_object **sub_elements;
+	acpi_status status;
+	u32 expected_count;
+	u32 i;
+	u32 j;
+
+	/* Validate each sub-Package in the parent Package */
+
+	for (i = 0; i < count; i++) {
+		sub_package = *elements;
+		sub_elements = sub_package->package.elements;
+
+		/* Each sub-object must be of type Package */
+
+		status = acpi_ns_check_object_type(data, &sub_package,
+						   ACPI_RTYPE_PACKAGE, i);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		/* Examine the different types of expected sub-packages */
+
+		switch (package->ret_info.type) {
+		case ACPI_PTYPE2:
+		case ACPI_PTYPE2_PKG_COUNT:
+		case ACPI_PTYPE2_REV_FIXED:
+
+			/* Each subpackage has a fixed number of elements */
+
+			expected_count =
+			    package->ret_info.count1 + package->ret_info.count2;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			status =
+			    acpi_ns_check_package_elements(data, sub_elements,
+							   package->ret_info.
+							   object_type1,
+							   package->ret_info.
+							   count1,
+							   package->ret_info.
+							   object_type2,
+							   package->ret_info.
+							   count2, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		case ACPI_PTYPE2_FIXED:
+
+			/* Each sub-package has a fixed length */
+
+			expected_count = package->ret_info2.count;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			for (j = 0; j < expected_count; j++) {
+				status =
+				    acpi_ns_check_object_type(data,
+							      &sub_elements[j],
+							      package->
+							      ret_info2.
+							      object_type[j],
+							      j);
+				if (ACPI_FAILURE(status)) {
+					return (status);
+				}
+			}
+			break;
+
+		case ACPI_PTYPE2_MIN:
+
+			/* Each sub-package has a variable but minimum length */
+
+			expected_count = package->ret_info.count1;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			status =
+			    acpi_ns_check_package_elements(data, sub_elements,
+							   package->ret_info.
+							   object_type1,
+							   sub_package->package.
+							   count, 0, 0, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		case ACPI_PTYPE2_COUNT:
+
+			/*
+			 * First element is the (Integer) count of elements, including
+			 * the count field.
+			 */
+			status = acpi_ns_check_object_type(data, sub_elements,
+							   ACPI_RTYPE_INTEGER,
+							   0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+
+			/*
+			 * Make sure package is large enough for the Count and is
+			 * is as large as the minimum size
+			 */
+			expected_count = (u32)(*sub_elements)->integer.value;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+			if (sub_package->package.count <
+			    package->ret_info.count1) {
+				expected_count = package->ret_info.count1;
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			status =
+			    acpi_ns_check_package_elements(data,
+							   (sub_elements + 1),
+							   package->ret_info.
+							   object_type1,
+							   (expected_count - 1),
+							   0, 0, 1);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		default:	/* Should not get here, type was validated by caller */
+
+			return (AE_AML_INTERNAL);
+		}
+
+		elements++;
+	}
+
+	return (AE_OK);
+
+package_too_small:
+
+	/* The sub-package count was smaller than required */
+
+	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Return Sub-Package[%u] is too small - found %u elements, expected %u",
+			      i, sub_package->package.count, expected_count));
 
 	return (AE_AML_OPERAND_VALUE);
 }
@@ -754,7 +834,7 @@ acpi_ns_check_package(char *pathname,
  *
  * FUNCTION:    acpi_ns_check_package_elements
  *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
+ * PARAMETERS:  Data            - Pointer to validation data structure
  *              Elements        - Pointer to the package elements array
  *              Type1           - Object type for first group
  *              Count1          - Count for first group
@@ -770,7 +850,7 @@ acpi_ns_check_package(char *pathname,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_package_elements(char *pathname,
+acpi_ns_check_package_elements(struct acpi_predefined_data *data,
 			       union acpi_operand_object **elements,
 			       u8 type1,
 			       u32 count1,
@@ -786,7 +866,7 @@ acpi_ns_check_package_elements(char *pathname,
 	 * The second group can have a count of zero.
 	 */
 	for (i = 0; i < count1; i++) {
-		status = acpi_ns_check_object_type(pathname, this_element,
+		status = acpi_ns_check_object_type(data, this_element,
 						   type1, i + start_index);
 		if (ACPI_FAILURE(status)) {
 			return (status);
@@ -795,7 +875,7 @@ acpi_ns_check_package_elements(char *pathname,
 	}
 
 	for (i = 0; i < count2; i++) {
-		status = acpi_ns_check_object_type(pathname, this_element,
+		status = acpi_ns_check_object_type(data, this_element,
 						   type2,
 						   (i + count1 + start_index));
 		if (ACPI_FAILURE(status)) {
@@ -811,12 +891,13 @@ acpi_ns_check_package_elements(char *pathname,
  *
  * FUNCTION:    acpi_ns_check_object_type
  *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
+ * PARAMETERS:  Data            - Pointer to validation data structure
  *              return_object_ptr - Pointer to the object returned from the
  *                                evaluation of a method or object
  *              expected_btypes - Bitmap of expected return type(s)
  *              package_index   - Index of object within parent package (if
- *                                applicable - ACPI_NOT_PACKAGE otherwise)
+ *                                applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                otherwise)
  *
  * RETURN:      Status
  *
@@ -826,7 +907,7 @@ acpi_ns_check_package_elements(char *pathname,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_object_type(char *pathname,
+acpi_ns_check_object_type(struct acpi_predefined_data *data,
 			  union acpi_operand_object **return_object_ptr,
 			  u32 expected_btypes, u32 package_index)
 {
@@ -834,9 +915,6 @@ acpi_ns_check_object_type(char *pathname,
 	acpi_status status = AE_OK;
 	u32 return_btype;
 	char type_buffer[48];	/* Room for 5 types */
-	u32 this_rtype;
-	u32 i;
-	u32 j;
 
 	/*
 	 * If we get a NULL return_object here, it is a NULL package element,
@@ -849,10 +927,11 @@ acpi_ns_check_object_type(char *pathname,
 	/* A Namespace node should not get here, but make sure */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(return_object) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_WARNING((AE_INFO,
-			      "%s: Invalid return type - Found a Namespace node [%4.4s] type %s",
-			      pathname, return_object->node.name.ascii,
-			      acpi_ut_get_type_name(return_object->node.type)));
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Invalid return type - Found a Namespace node [%4.4s] type %s",
+				      return_object->node.name.ascii,
+				      acpi_ut_get_type_name(return_object->node.
+							    type)));
 		return (AE_AML_OPERAND_TYPE);
 	}
 
@@ -897,10 +976,11 @@ acpi_ns_check_object_type(char *pathname,
 
 		/* Type mismatch -- attempt repair of the returned object */
 
-		status = acpi_ns_repair_object(expected_btypes, package_index,
+		status = acpi_ns_repair_object(data, expected_btypes,
+					       package_index,
 					       return_object_ptr);
 		if (ACPI_SUCCESS(status)) {
-			return (status);
+			return (AE_OK);	/* Repair was successful */
 		}
 		goto type_error_exit;
 	}
@@ -908,7 +988,7 @@ acpi_ns_check_object_type(char *pathname,
 	/* For reference objects, check that the reference type is correct */
 
 	if (return_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
-		status = acpi_ns_check_reference(pathname, return_object);
+		status = acpi_ns_check_reference(data, return_object);
 	}
 
 	return (status);
@@ -917,33 +997,19 @@ acpi_ns_check_object_type(char *pathname,
 
 	/* Create a string with all expected types for this predefined object */
 
-	j = 1;
-	type_buffer[0] = 0;
-	this_rtype = ACPI_RTYPE_INTEGER;
+	acpi_ns_get_expected_types(type_buffer, expected_btypes);
 
-	for (i = 0; i < ACPI_NUM_RTYPES; i++) {
-
-		/* If one of the expected types, concatenate the name of this type */
-
-		if (expected_btypes & this_rtype) {
-			ACPI_STRCAT(type_buffer, &acpi_rtype_names[i][j]);
-			j = 0;	/* Use name separator from now on */
-		}
-		this_rtype <<= 1;	/* Next Rtype */
-	}
-
-	if (package_index == ACPI_NOT_PACKAGE) {
-		ACPI_WARNING((AE_INFO,
-			      "%s: Return type mismatch - found %s, expected %s",
-			      pathname,
-			      acpi_ut_get_object_type_name(return_object),
-			      type_buffer));
+	if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Return type mismatch - found %s, expected %s",
+				      acpi_ut_get_object_type_name
+				      (return_object), type_buffer));
 	} else {
-		ACPI_WARNING((AE_INFO,
-			      "%s: Return Package type mismatch at index %u - "
-			      "found %s, expected %s", pathname, package_index,
-			      acpi_ut_get_object_type_name(return_object),
-			      type_buffer));
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Return Package type mismatch at index %u - "
+				      "found %s, expected %s", package_index,
+				      acpi_ut_get_object_type_name
+				      (return_object), type_buffer));
 	}
 
 	return (AE_AML_OPERAND_TYPE);
@@ -953,7 +1019,7 @@ acpi_ns_check_object_type(char *pathname,
  *
  * FUNCTION:    acpi_ns_check_reference
  *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
+ * PARAMETERS:  Data            - Pointer to validation data structure
  *              return_object   - Object returned from the evaluation of a
  *                                method or object
  *
@@ -966,7 +1032,7 @@ acpi_ns_check_object_type(char *pathname,
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_check_reference(char *pathname,
+acpi_ns_check_reference(struct acpi_predefined_data *data,
 			union acpi_operand_object *return_object)
 {
 
@@ -979,94 +1045,46 @@ acpi_ns_check_reference(char *pathname,
 		return (AE_OK);
 	}
 
-	ACPI_WARNING((AE_INFO,
-		      "%s: Return type mismatch - "
-		      "unexpected reference object type [%s] %2.2X",
-		      pathname, acpi_ut_get_reference_name(return_object),
-		      return_object->reference.class));
+	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Return type mismatch - unexpected reference object type [%s] %2.2X",
+			      acpi_ut_get_reference_name(return_object),
+			      return_object->reference.class));
 
 	return (AE_AML_OPERAND_TYPE);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_repair_object
+ * FUNCTION:    acpi_ns_get_expected_types
  *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
- *              package_index   - Used to determine if target is in a package
- *              return_object_ptr - Pointer to the object returned from the
- *                                evaluation of a method or object
+ * PARAMETERS:  Buffer          - Pointer to where the string is returned
+ *              expected_btypes - Bitmap of expected return type(s)
  *
- * RETURN:      Status. AE_OK if repair was successful.
+ * RETURN:      Buffer is populated with type names.
  *
- * DESCRIPTION: Attempt to repair/convert a return object of a type that was
- *              not expected.
+ * DESCRIPTION: Translate the expected types bitmap into a string of ascii
+ *              names of expected types, for use in warning messages.
  *
  ******************************************************************************/
 
-static acpi_status
-acpi_ns_repair_object(u32 expected_btypes,
-		      u32 package_index,
-		      union acpi_operand_object **return_object_ptr)
+static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes)
 {
-	union acpi_operand_object *return_object = *return_object_ptr;
-	union acpi_operand_object *new_object;
-	acpi_size length;
+	u32 this_rtype;
+	u32 i;
+	u32 j;
 
-	switch (return_object->common.type) {
-	case ACPI_TYPE_BUFFER:
+	j = 1;
+	buffer[0] = 0;
+	this_rtype = ACPI_RTYPE_INTEGER;
 
-		if (!(expected_btypes & ACPI_RTYPE_STRING)) {
-			return (AE_AML_OPERAND_TYPE);
+	for (i = 0; i < ACPI_NUM_RTYPES; i++) {
+
+		/* If one of the expected types, concatenate the name of this type */
+
+		if (expected_btypes & this_rtype) {
+			ACPI_STRCAT(buffer, &acpi_rtype_names[i][j]);
+			j = 0;	/* Use name separator from now on */
 		}
-
-		/*
-		 * Have a Buffer, expected a String, convert. Use a to_string
-		 * conversion, no transform performed on the buffer data. The best
-		 * example of this is the _BIF method, where the string data from
-		 * the battery is often (incorrectly) returned as buffer object(s).
-		 */
-		length = 0;
-		while ((length < return_object->buffer.length) &&
-		       (return_object->buffer.pointer[length])) {
-			length++;
-		}
-
-		/* Allocate a new string object */
-
-		new_object = acpi_ut_create_string_object(length);
-		if (!new_object) {
-			return (AE_NO_MEMORY);
-		}
-
-		/*
-		 * Copy the raw buffer data with no transform. String is already NULL
-		 * terminated at Length+1.
-		 */
-		ACPI_MEMCPY(new_object->string.pointer,
-			    return_object->buffer.pointer, length);
-
-		/* Install the new return object */
-
-		acpi_ut_remove_reference(return_object);
-		*return_object_ptr = new_object;
-
-		/*
-		 * If the object is a package element, we need to:
-		 * 1. Decrement the reference count of the orignal object, it was
-		 *    incremented when building the package
-		 * 2. Increment the reference count of the new object, it will be
-		 *    decremented when releasing the package
-		 */
-		if (package_index != ACPI_NOT_PACKAGE) {
-			acpi_ut_remove_reference(return_object);
-			acpi_ut_add_reference(new_object);
-		}
-		return (AE_OK);
-
-	default:
-		break;
+		this_rtype <<= 1;	/* Next Rtype */
 	}
-
-	return (AE_AML_OPERAND_TYPE);
 }

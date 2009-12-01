@@ -74,7 +74,7 @@ static void ipath_vma_close(struct vm_area_struct *vma)
 	kref_put(&ip->ref, ipath_release_mmap_info);
 }
 
-static struct vm_operations_struct ipath_vm_ops = {
+static const struct vm_operations_struct ipath_vm_ops = {
 	.open =     ipath_vma_open,
 	.close =    ipath_vma_close,
 };

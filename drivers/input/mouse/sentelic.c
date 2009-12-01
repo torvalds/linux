@@ -92,7 +92,8 @@ static int fsp_reg_read(struct psmouse *psmouse, int reg_addr, int *reg_val)
 	 */
 	ps2_command(ps2dev, NULL, PSMOUSE_CMD_DISABLE);
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
-	mutex_lock(&ps2dev->cmd_mutex);
+
+	ps2_begin_command(ps2dev);
 
 	if (ps2_sendbyte(ps2dev, 0xf3, FSP_CMD_TIMEOUT) < 0)
 		goto out;
@@ -126,7 +127,7 @@ static int fsp_reg_read(struct psmouse *psmouse, int reg_addr, int *reg_val)
 	rc = 0;
 
  out:
-	mutex_unlock(&ps2dev->cmd_mutex);
+	ps2_end_command(ps2dev);
 	ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
 	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
 	dev_dbg(&ps2dev->serio->dev, "READ REG: 0x%02x is 0x%02x (rc = %d)\n",
@@ -140,7 +141,7 @@ static int fsp_reg_write(struct psmouse *psmouse, int reg_addr, int reg_val)
 	unsigned char v;
 	int rc = -1;
 
-	mutex_lock(&ps2dev->cmd_mutex);
+	ps2_begin_command(ps2dev);
 
 	if (ps2_sendbyte(ps2dev, 0xf3, FSP_CMD_TIMEOUT) < 0)
 		goto out;
@@ -179,7 +180,7 @@ static int fsp_reg_write(struct psmouse *psmouse, int reg_addr, int reg_val)
 	rc = 0;
 
  out:
-	mutex_unlock(&ps2dev->cmd_mutex);
+	ps2_end_command(ps2dev);
 	dev_dbg(&ps2dev->serio->dev, "WRITE REG: 0x%02x to 0x%02x (rc = %d)\n",
 		reg_addr, reg_val, rc);
 	return rc;
@@ -214,7 +215,8 @@ static int fsp_page_reg_read(struct psmouse *psmouse, int *reg_val)
 
 	ps2_command(ps2dev, NULL, PSMOUSE_CMD_DISABLE);
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
-	mutex_lock(&ps2dev->cmd_mutex);
+
+	ps2_begin_command(ps2dev);
 
 	if (ps2_sendbyte(ps2dev, 0xf3, FSP_CMD_TIMEOUT) < 0)
 		goto out;
@@ -236,7 +238,7 @@ static int fsp_page_reg_read(struct psmouse *psmouse, int *reg_val)
 	rc = 0;
 
  out:
-	mutex_unlock(&ps2dev->cmd_mutex);
+	ps2_end_command(ps2dev);
 	ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
 	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
 	dev_dbg(&ps2dev->serio->dev, "READ PAGE REG: 0x%02x (rc = %d)\n",
@@ -250,7 +252,7 @@ static int fsp_page_reg_write(struct psmouse *psmouse, int reg_val)
 	unsigned char v;
 	int rc = -1;
 
-	mutex_lock(&ps2dev->cmd_mutex);
+	ps2_begin_command(ps2dev);
 
 	if (ps2_sendbyte(ps2dev, 0xf3, FSP_CMD_TIMEOUT) < 0)
 		goto out;
@@ -275,7 +277,7 @@ static int fsp_page_reg_write(struct psmouse *psmouse, int reg_val)
 	rc = 0;
 
  out:
-	mutex_unlock(&ps2dev->cmd_mutex);
+	ps2_end_command(ps2dev);
 	dev_dbg(&ps2dev->serio->dev, "WRITE PAGE REG: to 0x%02x (rc = %d)\n",
 		reg_val, rc);
 	return rc;

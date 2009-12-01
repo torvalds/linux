@@ -1754,7 +1754,6 @@ static int __init at91udc_probe(struct platform_device *pdev)
 				IRQF_DISABLED, driver_name, udc)) {
 			DBG("request vbus irq %d failed\n",
 					udc->board.vbus_pin);
-			free_irq(udc->udp_irq, udc);
 			retval = -EBUSY;
 			goto fail3;
 		}

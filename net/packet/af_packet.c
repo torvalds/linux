@@ -982,10 +982,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		goto out_put;
 
 	size_max = po->tx_ring.frame_size
-		- sizeof(struct skb_shared_info)
-		- po->tp_hdrlen
-		- LL_ALLOCATED_SPACE(dev)
-		- sizeof(struct sockaddr_ll);
+		- (po->tp_hdrlen - sizeof(struct sockaddr_ll));
 
 	if (size_max > dev->mtu + reserve)
 		size_max = dev->mtu + reserve;
@@ -1701,7 +1698,7 @@ static void packet_flush_mclist(struct sock *sk)
 }
 
 static int
-packet_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+packet_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
@@ -2084,7 +2081,7 @@ static void packet_mm_close(struct vm_area_struct *vma)
 		atomic_dec(&pkt_sk(sk)->mapped);
 }
 
-static struct vm_operations_struct packet_mmap_ops = {
+static const struct vm_operations_struct packet_mmap_ops = {
 	.open	=	packet_mm_open,
 	.close	=	packet_mm_close,
 };

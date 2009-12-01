@@ -68,10 +68,10 @@ DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
  */
 static struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
 {
-	{ DRM_MODE_SCALE_NON_GPU, "Non-GPU" },
-	{ DRM_MODE_SCALE_FULLSCREEN, "Fullscreen" },
-	{ DRM_MODE_SCALE_NO_SCALE, "No scale" },
-	{ DRM_MODE_SCALE_ASPECT, "Aspect" },
+	{ DRM_MODE_SCALE_NONE, "None" },
+	{ DRM_MODE_SCALE_FULLSCREEN, "Full" },
+	{ DRM_MODE_SCALE_CENTER, "Center" },
+	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
 static struct drm_prop_enum_list drm_dithering_mode_enum_list[] =
@@ -108,6 +108,7 @@ static struct drm_prop_enum_list drm_tv_select_enum_list[] =
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
+	{ DRM_MODE_SUBCONNECTOR_SCART,     "SCART"     }, /* TV-out */
 };
 
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
@@ -118,6 +119,7 @@ static struct drm_prop_enum_list drm_tv_subconnector_enum_list[] =
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
+	{ DRM_MODE_SUBCONNECTOR_SCART,     "SCART"     }, /* TV-out */
 };
 
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
@@ -146,6 +148,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_DisplayPort, "DisplayPort", 0 },
 	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI Type A", 0 },
 	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI Type B", 0 },
+	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -165,6 +168,7 @@ char *drm_get_encoder_name(struct drm_encoder *encoder)
 		 encoder->base.id);
 	return buf;
 }
+EXPORT_SYMBOL(drm_get_encoder_name);
 
 char *drm_get_connector_name(struct drm_connector *connector)
 {
@@ -478,6 +482,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->user_modes, head)
 		drm_mode_remove(connector, mode);
 
+	kfree(connector->fb_helper_private);
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
@@ -698,6 +703,42 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 	for (i = 0; i < num_modes; i++)
 		drm_property_add_enum(dev->mode_config.tv_mode_property, i,
 				      i, modes[i]);
+
+	dev->mode_config.tv_brightness_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "brightness", 2);
+	dev->mode_config.tv_brightness_property->values[0] = 0;
+	dev->mode_config.tv_brightness_property->values[1] = 100;
+
+	dev->mode_config.tv_contrast_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "contrast", 2);
+	dev->mode_config.tv_contrast_property->values[0] = 0;
+	dev->mode_config.tv_contrast_property->values[1] = 100;
+
+	dev->mode_config.tv_flicker_reduction_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "flicker reduction", 2);
+	dev->mode_config.tv_flicker_reduction_property->values[0] = 0;
+	dev->mode_config.tv_flicker_reduction_property->values[1] = 100;
+
+	dev->mode_config.tv_overscan_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "overscan", 2);
+	dev->mode_config.tv_overscan_property->values[0] = 0;
+	dev->mode_config.tv_overscan_property->values[1] = 100;
+
+	dev->mode_config.tv_saturation_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "saturation", 2);
+	dev->mode_config.tv_saturation_property->values[0] = 0;
+	dev->mode_config.tv_saturation_property->values[1] = 100;
+
+	dev->mode_config.tv_hue_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "hue", 2);
+	dev->mode_config.tv_hue_property->values[0] = 0;
+	dev->mode_config.tv_hue_property->values[1] = 100;
 
 	return 0;
 }
@@ -1044,7 +1085,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
 			list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 					    head) {
-				DRM_DEBUG("CRTC ID is %d\n", crtc->base.id);
+				DRM_DEBUG_KMS("CRTC ID is %d\n", crtc->base.id);
 				if (put_user(crtc->base.id, crtc_id + copied)) {
 					ret = -EFAULT;
 					goto out;
@@ -1072,7 +1113,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			list_for_each_entry(encoder,
 					    &dev->mode_config.encoder_list,
 					    head) {
-				DRM_DEBUG("ENCODER ID is %d\n",
+				DRM_DEBUG_KMS("ENCODER ID is %d\n",
 					  encoder->base.id);
 				if (put_user(encoder->base.id, encoder_id +
 					     copied)) {
@@ -1103,7 +1144,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			list_for_each_entry(connector,
 					    &dev->mode_config.connector_list,
 					    head) {
-				DRM_DEBUG("CONNECTOR ID is %d\n",
+				DRM_DEBUG_KMS("CONNECTOR ID is %d\n",
 					  connector->base.id);
 				if (put_user(connector->base.id,
 					     connector_id + copied)) {
@@ -1127,7 +1168,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	}
 	card_res->count_connectors = connector_count;
 
-	DRM_DEBUG("Counted %d %d %d\n", card_res->count_crtcs,
+	DRM_DEBUG_KMS("Counted %d %d %d\n", card_res->count_crtcs,
 		  card_res->count_connectors, card_res->count_encoders);
 
 out:
@@ -1230,7 +1271,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	DRM_DEBUG("connector id %d:\n", out_resp->connector_id);
+	DRM_DEBUG_KMS("connector id %d:\n", out_resp->connector_id);
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -1406,7 +1447,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, crtc_req->crtc_id,
 				   DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		DRM_DEBUG("Unknown CRTC ID %d\n", crtc_req->crtc_id);
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1419,7 +1460,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			list_for_each_entry(crtcfb,
 					    &dev->mode_config.crtc_list, head) {
 				if (crtcfb == crtc) {
-					DRM_DEBUG("Using current fb for setmode\n");
+					DRM_DEBUG_KMS("Using current fb for "
+							"setmode\n");
 					fb = crtc->fb;
 				}
 			}
@@ -1427,7 +1469,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			obj = drm_mode_object_find(dev, crtc_req->fb_id,
 						   DRM_MODE_OBJECT_FB);
 			if (!obj) {
-				DRM_DEBUG("Unknown FB ID%d\n", crtc_req->fb_id);
+				DRM_DEBUG_KMS("Unknown FB ID%d\n",
+						crtc_req->fb_id);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1440,13 +1483,13 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	}
 
 	if (crtc_req->count_connectors == 0 && mode) {
-		DRM_DEBUG("Count connectors is 0 but mode set\n");
+		DRM_DEBUG_KMS("Count connectors is 0 but mode set\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (crtc_req->count_connectors > 0 && (!mode || !fb)) {
-		DRM_DEBUG("Count connectors is %d but no mode or fb set\n",
+		DRM_DEBUG_KMS("Count connectors is %d but no mode or fb set\n",
 			  crtc_req->count_connectors);
 		ret = -EINVAL;
 		goto out;
@@ -1479,7 +1522,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			obj = drm_mode_object_find(dev, out_id,
 						   DRM_MODE_OBJECT_CONNECTOR);
 			if (!obj) {
-				DRM_DEBUG("Connector id %d unknown\n", out_id);
+				DRM_DEBUG_KMS("Connector id %d unknown\n",
+						out_id);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1512,8 +1556,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int ret = 0;
 
-	DRM_DEBUG("\n");
-
 	if (!req->flags) {
 		DRM_ERROR("no operation set\n");
 		return -EINVAL;
@@ -1522,7 +1564,7 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		DRM_DEBUG("Unknown CRTC ID %d\n", req->crtc_id);
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
 		ret = -EINVAL;
 		goto out;
 	}

@@ -2862,7 +2862,7 @@ static int ia_getsockopt(struct atm_vcc *vcc, int level, int optname,
 }  
   
 static int ia_setsockopt(struct atm_vcc *vcc, int level, int optname,   
-	void __user *optval, int optlen)  
+	void __user *optval, unsigned int optlen)  
 {  
 	IF_EVENT(printk(">ia_setsockopt\n");)  
 	return -EINVAL;  

@@ -946,8 +946,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		char *name;
 		unsigned long flags = 0;
 
-		err = -EINVAL;
-
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		err = security_tun_dev_create();
@@ -964,7 +962,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			flags |= TUN_TAP_DEV;
 			name = "tap%d";
 		} else
-			goto failed;
+			return -EINVAL;
 
 		if (*ifr->ifr_name)
 			name = ifr->ifr_name;
@@ -1370,7 +1368,7 @@ static const struct file_operations tun_fops = {
 static struct miscdevice tun_miscdev = {
 	.minor = TUN_MINOR,
 	.name = "tun",
-	.devnode = "net/tun",
+	.nodename = "net/tun",
 	.fops = &tun_fops,
 };
 

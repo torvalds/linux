@@ -91,7 +91,7 @@ static int misc_seq_show(struct seq_file *seq, void *v)
 }
 
 
-static struct seq_operations misc_seq_ops = {
+static const struct seq_operations misc_seq_ops = {
 	.start = misc_seq_start,
 	.next  = misc_seq_next,
 	.stop  = misc_seq_stop,
@@ -263,12 +263,14 @@ int misc_deregister(struct miscdevice *misc)
 EXPORT_SYMBOL(misc_register);
 EXPORT_SYMBOL(misc_deregister);
 
-static char *misc_nodename(struct device *dev)
+static char *misc_devnode(struct device *dev, mode_t *mode)
 {
 	struct miscdevice *c = dev_get_drvdata(dev);
 
-	if (c->devnode)
-		return kstrdup(c->devnode, GFP_KERNEL);
+	if (mode && c->mode)
+		*mode = c->mode;
+	if (c->nodename)
+		return kstrdup(c->nodename, GFP_KERNEL);
 	return NULL;
 }
 
@@ -287,7 +289,7 @@ static int __init misc_init(void)
 	err = -EIO;
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops))
 		goto fail_printk;
-	misc_class->nodename = misc_nodename;
+	misc_class->devnode = misc_devnode;
 	return 0;
 
 fail_printk:

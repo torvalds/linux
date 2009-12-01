@@ -301,7 +301,7 @@ static inline int private_mapping_ok(struct vm_area_struct *vma)
 }
 #endif
 
-static struct vm_operations_struct mmap_mem_ops = {
+static const struct vm_operations_struct mmap_mem_ops = {
 #ifdef CONFIG_HAVE_IOREMAP_PROT
 	.access = generic_access_phys
 #endif
@@ -690,7 +690,7 @@ static ssize_t read_zero(struct file * file, char __user * buf,
 
 		if (chunk > PAGE_SIZE)
 			chunk = PAGE_SIZE;	/* Just for latency reasons */
-		unwritten = clear_user(buf, chunk);
+		unwritten = __clear_user(buf, chunk);
 		written += chunk - unwritten;
 		if (unwritten)
 			break;
@@ -866,24 +866,25 @@ static const struct file_operations kmsg_fops = {
 
 static const struct memdev {
 	const char *name;
+	mode_t mode;
 	const struct file_operations *fops;
 	struct backing_dev_info *dev_info;
 } devlist[] = {
-	[ 1] = { "mem", &mem_fops, &directly_mappable_cdev_bdi },
+	 [1] = { "mem", 0, &mem_fops, &directly_mappable_cdev_bdi },
 #ifdef CONFIG_DEVKMEM
-	[ 2] = { "kmem", &kmem_fops, &directly_mappable_cdev_bdi },
+	 [2] = { "kmem", 0, &kmem_fops, &directly_mappable_cdev_bdi },
 #endif
-	[ 3] = {"null", &null_fops, NULL },
+	 [3] = { "null", 0666, &null_fops, NULL },
 #ifdef CONFIG_DEVPORT
-	[ 4] = { "port", &port_fops, NULL },
+	 [4] = { "port", 0, &port_fops, NULL },
 #endif
-	[ 5] = { "zero", &zero_fops, &zero_bdi },
-	[ 7] = { "full", &full_fops, NULL },
-	[ 8] = { "random", &random_fops, NULL },
-	[ 9] = { "urandom", &urandom_fops, NULL },
-	[11] = { "kmsg", &kmsg_fops, NULL },
+	 [5] = { "zero", 0666, &zero_fops, &zero_bdi },
+	 [7] = { "full", 0666, &full_fops, NULL },
+	 [8] = { "random", 0666, &random_fops, NULL },
+	 [9] = { "urandom", 0666, &urandom_fops, NULL },
+	[11] = { "kmsg", 0, &kmsg_fops, NULL },
 #ifdef CONFIG_CRASH_DUMP
-	[12] = { "oldmem", &oldmem_fops, NULL },
+	[12] = { "oldmem", 0, &oldmem_fops, NULL },
 #endif
 };
 
@@ -920,6 +921,13 @@ static const struct file_operations memory_fops = {
 	.open		= memory_open,
 };
 
+static char *mem_devnode(struct device *dev, mode_t *mode)
+{
+	if (mode && devlist[MINOR(dev->devt)].mode)
+		*mode = devlist[MINOR(dev->devt)].mode;
+	return NULL;
+}
+
 static struct class *mem_class;
 
 static int __init chr_dev_init(void)
@@ -935,6 +943,7 @@ static int __init chr_dev_init(void)
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
 	mem_class = class_create(THIS_MODULE, "mem");
+	mem_class->devnode = mem_devnode;
 	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
 		if (!devlist[minor].name)
 			continue;

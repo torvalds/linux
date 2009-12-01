@@ -15,7 +15,7 @@ quiet_cmd_syscall = SYSCALL $@
 export CPPFLAGS_vsyscall.lds += -P -C -Ush
 
 vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 \
-		$(call ld-option, -Wl$(comma)--hash-style=sysv)
+		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
 SYSCFLAGS_vsyscall-trapa.so	= $(vsyscall-flags)
 

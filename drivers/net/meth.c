@@ -828,7 +828,7 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= __devexit_p(meth_remove),
+	.remove	= __exit_p(meth_remove),
 	.driver = {
 		.name	= "meth",
 		.owner	= THIS_MODULE,

@@ -346,7 +346,7 @@ config RADIO_SI4713
 	---help---
 	  Say Y here if you want support to Si4713 FM Radio Transmitter.
 	  This device can transmit audio through FM. It can transmit
-	  EDS and EBDS signals as well. This module is the v4l2 radio
+	  RDS and RBDS signals as well. This module is the v4l2 radio
 	  interface for the i2c driver of this device.
 
 	  To compile this driver as a module, choose M here: the

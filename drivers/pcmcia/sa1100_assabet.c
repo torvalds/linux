@@ -130,7 +130,7 @@ static struct pcmcia_low_level assabet_pcmcia_ops = {
 	.socket_suspend		= assabet_pcmcia_socket_suspend,
 };
 
-int __init pcmcia_assabet_init(struct device *dev)
+int pcmcia_assabet_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

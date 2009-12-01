@@ -120,12 +120,13 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	}
 
 	/*
-	 * Exit now for SMBus address space, it has a non-linear address space
+	 * Exit now for SMBus or IPMI address space, it has a non-linear address space
 	 * and the request cannot be directly validated
 	 */
-	if (rgn_desc->region.space_id == ACPI_ADR_SPACE_SMBUS) {
+	if (rgn_desc->region.space_id == ACPI_ADR_SPACE_SMBUS ||
+	    rgn_desc->region.space_id == ACPI_ADR_SPACE_IPMI) {
 
-		/* SMBus has a non-linear address space */
+		/* SMBus or IPMI has a non-linear address space */
 
 		return_ACPI_STATUS(AE_OK);
 	}

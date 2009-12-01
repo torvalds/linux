@@ -464,9 +464,9 @@ struct handle_s
  */
 struct transaction_chp_stats_s {
 	unsigned long		cs_chp_time;
-	unsigned long		cs_forced_to_close;
-	unsigned long		cs_written;
-	unsigned long		cs_dropped;
+	__u32			cs_forced_to_close;
+	__u32			cs_written;
+	__u32			cs_dropped;
 };
 
 /* The transaction_t type is the guts of the journaling mechanism.  It
@@ -668,22 +668,15 @@ struct transaction_run_stats_s {
 	unsigned long		rs_flushing;
 	unsigned long		rs_logging;
 
-	unsigned long		rs_handle_count;
-	unsigned long		rs_blocks;
-	unsigned long		rs_blocks_logged;
+	__u32			rs_handle_count;
+	__u32			rs_blocks;
+	__u32			rs_blocks_logged;
 };
 
 struct transaction_stats_s {
-	int 			ts_type;
 	unsigned long		ts_tid;
-	union {
-		struct transaction_run_stats_s run;
-		struct transaction_chp_stats_s chp;
-	} u;
+	struct transaction_run_stats_s run;
 };
-
-#define JBD2_STATS_RUN		1
-#define JBD2_STATS_CHECKPOINT	2
 
 static inline unsigned long
 jbd2_time_diff(unsigned long start, unsigned long end)
@@ -987,12 +980,6 @@ struct journal_s
 
 	/*
 	 * Journal statistics
-	 */
-	struct transaction_stats_s *j_history;
-	int			j_history_max;
-	int			j_history_cur;
-	/*
-	 * Protect the transactions statistics history
 	 */
 	spinlock_t		j_history_lock;
 	struct proc_dir_entry	*j_proc_entry;

@@ -10,7 +10,7 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -306,7 +306,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int write)
 	 * interrupts again and then search the VMAs
 	 */
 	local_irq_enable();
-	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 	down_read(&mm->mmap_sem);
 
 	si_code = SEGV_MAPERR;
@@ -366,11 +366,11 @@ good_area:
 	}
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
         up_read(&mm->mmap_sem);

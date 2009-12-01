@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/kernel/process.c
- * Based on:
- * Author:
+ * Blackfin architecture-dependent process handling
  *
- * Created:
- * Description:  Blackfin architecture-dependent process handling.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/module.h>
@@ -172,7 +151,7 @@ void start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_
 	regs->pc = new_ip;
 	if (current->mm)
 		regs->p5 = current->mm->start_data;
-#ifdef CONFIG_SMP
+#ifndef CONFIG_SMP
 	task_thread_info(current)->l1_task_info.stack_start =
 		(void *)current->mm->context.stack_start;
 	task_thread_info(current)->l1_task_info.lowest_sp = (void *)new_sp;

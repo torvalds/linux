@@ -247,7 +247,7 @@ static int dma_region_pagefault(struct vm_area_struct *vma,
 	return 0;
 }
 
-static struct vm_operations_struct dma_region_vm_ops = {
+static const struct vm_operations_struct dma_region_vm_ops = {
 	.fault = dma_region_pagefault,
 };
 

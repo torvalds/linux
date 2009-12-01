@@ -245,9 +245,9 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	video_set_drvdata(s->video_dev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
-	ret = video_register_device(s->video_dev, vfl_type, num);
+	ret = video_register_device_no_warn(s->video_dev, vfl_type, num);
 	if (ret < 0) {
-		CX18_ERR("Couldn't register v4l2 device for %s kernel number %d\n",
+		CX18_ERR("Couldn't register v4l2 device for %s (device node number %d)\n",
 			s->name, num);
 		video_device_release(s->video_dev);
 		s->video_dev = NULL;

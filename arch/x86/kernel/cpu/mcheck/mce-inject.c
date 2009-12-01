@@ -98,8 +98,9 @@ static struct notifier_block mce_raise_nb = {
 };
 
 /* Inject mce on current CPU */
-static int raise_local(struct mce *m)
+static int raise_local(void)
 {
+	struct mce *m = &__get_cpu_var(injectm);
 	int context = MCJ_CTX(m->inject_flags);
 	int ret = 0;
 	int cpu = m->extcpu;
@@ -167,12 +168,12 @@ static void raise_mce(struct mce *m)
 			}
 			cpu_relax();
 		}
-		raise_local(m);
+		raise_local();
 		put_cpu();
 		put_online_cpus();
 	} else
 #endif
-		raise_local(m);
+		raise_local();
 }
 
 /* Error injection interface */

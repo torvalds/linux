@@ -433,8 +433,9 @@ static int corgi_bl_update_status(struct backlight_device *bd)
 
 	if (corgibl_flags & CORGIBL_SUSPENDED)
 		intensity = 0;
-	if (corgibl_flags & CORGIBL_BATTLOW)
-		intensity &= lcd->limit_mask;
+
+	if ((corgibl_flags & CORGIBL_BATTLOW) && intensity > lcd->limit_mask)
+		intensity = lcd->limit_mask;
 
 	return corgi_bl_set_intensity(lcd, intensity);
 }
@@ -639,3 +640,4 @@ module_exit(corgi_lcd_exit);
 MODULE_DESCRIPTION("LCD and backlight driver for SHARP C7x0/Cxx00");
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:corgi-lcd");

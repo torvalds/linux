@@ -117,7 +117,7 @@ static void sa1100_mctrl_check(struct sa1100_port *sport)
 	if (changed & TIOCM_CTS)
 		uart_handle_cts_change(&sport->port, status & TIOCM_CTS);
 
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -129,7 +129,7 @@ static void sa1100_timeout(unsigned long data)
 	struct sa1100_port *sport = (struct sa1100_port *)data;
 	unsigned long flags;
 
-	if (sport->port.info) {
+	if (sport->port.state) {
 		spin_lock_irqsave(&sport->port.lock, flags);
 		sa1100_mctrl_check(sport);
 		spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -189,7 +189,7 @@ static void sa1100_enable_ms(struct uart_port *port)
 static void
 sa1100_rx_chars(struct sa1100_port *sport)
 {
-	struct tty_struct *tty = sport->port.info->port.tty;
+	struct tty_struct *tty = sport->port.state->port.tty;
 	unsigned int status, ch, flg;
 
 	status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
@@ -239,7 +239,7 @@ sa1100_rx_chars(struct sa1100_port *sport)
 
 static void sa1100_tx_chars(struct sa1100_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 
 	if (sport->port.x_char) {
 		UART_PUT_CHAR(sport, sport->port.x_char);
@@ -638,7 +638,7 @@ static void __init sa1100_init_ports(void)
 	PPSR |= PPC_TXD1 | PPC_TXD3;
 }
 
-void __init sa1100_register_uart_fns(struct sa1100_port_fns *fns)
+void __devinit sa1100_register_uart_fns(struct sa1100_port_fns *fns)
 {
 	if (fns->get_mctrl)
 		sa1100_pops.get_mctrl = fns->get_mctrl;

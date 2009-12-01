@@ -117,8 +117,8 @@ receive_chars(struct uart_sunsab_port *up,
 	int count = 0;
 	int i;
 
-	if (up->port.info != NULL)		/* Unopened serial console */
-		tty = up->port.info->port.tty;
+	if (up->port.state != NULL)		/* Unopened serial console */
+		tty = up->port.state->port.tty;
 
 	/* Read number of BYTES (Character + Status) available. */
 	if (stat->sreg.isr0 & SAB82532_ISR0_RPF) {
@@ -229,7 +229,7 @@ static void sunsab_tx_idle(struct uart_sunsab_port *);
 static void transmit_chars(struct uart_sunsab_port *up,
 			   union sab82532_irq_status *stat)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int i;
 
 	if (stat->sreg.isr1 & SAB82532_ISR1_ALLS) {
@@ -297,7 +297,7 @@ static void check_status(struct uart_sunsab_port *up,
 		up->port.icount.dsr++;
 	}
 
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t sunsab_interrupt(int irq, void *dev_id)
@@ -429,7 +429,7 @@ static void sunsab_tx_idle(struct uart_sunsab_port *up)
 static void sunsab_start_tx(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 	int i;
 
 	up->interrupt_mask1 &= ~(SAB82532_IMR1_ALLS|SAB82532_IMR1_XPR);
@@ -883,7 +883,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
 
-	sunserial_console_termios(con);
+	sunserial_console_termios(con, to_of_device(up->port.dev)->node);
 
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
@@ -1027,10 +1027,12 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 		goto out1;
 
 	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
-				&sunsab_reg, up[0].port.line);
+				&sunsab_reg, up[0].port.line,
+				false);
 
 	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
-				&sunsab_reg, up[1].port.line);
+				&sunsab_reg, up[1].port.line,
+				false);
 
 	err = uart_add_one_port(&sunsab_reg, &up[0].port);
 	if (err)
@@ -1116,7 +1118,6 @@ static int __init sunsab_init(void)
 		if (!sunsab_ports)
 			return -ENOMEM;
 
-		sunsab_reg.cons = SUNSAB_CONSOLE();
 		err = sunserial_register_minors(&sunsab_reg, num_channels);
 		if (err) {
 			kfree(sunsab_ports);

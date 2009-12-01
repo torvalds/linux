@@ -14,6 +14,8 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
+#include "internal.h"
+
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("event");
 

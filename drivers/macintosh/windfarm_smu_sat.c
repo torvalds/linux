@@ -194,6 +194,8 @@ static struct wf_sensor_ops wf_sat_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static struct i2c_driver wf_sat_driver;
+
 static void wf_sat_create(struct i2c_adapter *adapter, struct device_node *dev)
 {
 	struct i2c_board_info info;
@@ -222,7 +224,7 @@ static void wf_sat_create(struct i2c_adapter *adapter, struct device_node *dev)
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &wf_sat_driver.clients);
 }
 
 static int wf_sat_probe(struct i2c_client *client,

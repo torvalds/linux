@@ -123,7 +123,7 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 }
 
 static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net *net = sock_net(sk);
@@ -496,13 +496,17 @@ done:
 			goto e_inval;
 
 		if (val) {
+			struct net_device *dev;
+
 			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
 				goto e_inval;
 
-			if (__dev_get_by_index(net, val) == NULL) {
+			dev = dev_get_by_index(net, val);
+			if (!dev) {
 				retv = -ENODEV;
 				break;
 			}
+			dev_put(dev);
 		}
 		np->mcast_oif = val;
 		retv = 0;
@@ -773,7 +777,7 @@ e_inval:
 }
 
 int ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	int err;
 
@@ -801,7 +805,7 @@ EXPORT_SYMBOL(ipv6_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	int err;
 

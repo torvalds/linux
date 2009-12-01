@@ -10,7 +10,6 @@
 #include <linux/irqreturn.h>
 #include <linux/irqnr.h>
 #include <linux/hardirq.h>
-#include <linux/sched.h>
 #include <linux/irqflags.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
@@ -84,7 +83,6 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * struct irqaction - per interrupt action descriptor
  * @handler:	interrupt handler function
  * @flags:	flags (see IRQF_* above)
- * @mask:	no comment as it is useless and about to be removed
  * @name:	name of the device
  * @dev_id:	cookie to identify the device
  * @next:	pointer to the next irqaction for shared interrupts
@@ -97,7 +95,6 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
 struct irqaction {
 	irq_handler_t handler;
 	unsigned long flags;
-	cpumask_t mask;
 	const char *name;
 	void *dev_id;
 	struct irqaction *next;
@@ -612,6 +609,7 @@ extern void debug_poll_all_shared_irqs(void);
 static inline void debug_poll_all_shared_irqs(void) { }
 #endif
 
+struct seq_file;
 int show_interrupts(struct seq_file *p, void *v);
 
 struct irq_desc;

@@ -181,12 +181,10 @@ static void gemtek_pci_mute(struct gemtek_pci *card)
 
 static void gemtek_pci_unmute(struct gemtek_pci *card)
 {
-	mutex_lock(&card->lock);
 	if (card->mute) {
 		gemtek_pci_setfrequency(card, card->current_frequency);
 		card->mute = false;
 	}
-	mutex_unlock(&card->lock);
 }
 
 static int gemtek_pci_getsignal(struct gemtek_pci *card)

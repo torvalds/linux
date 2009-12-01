@@ -1,18 +1,7 @@
 There are several classic problems related to memory on Linux
 systems.
 
-	1) There are some buggy motherboards which cannot properly 
-	   deal with the memory above 16MB.  Consider exchanging
-	   your motherboard.
-
-	2) You cannot do DMA on the ISA bus to addresses above
-	   16M.  Most device drivers under Linux allow the use
-           of bounce buffers which work around this problem.  Drivers
-	   that don't use bounce buffers will be unstable with
-	   more than 16M installed.  Drivers that use bounce buffers
-	   will be OK, but may have slightly higher overhead.
-	
-	3) There are some motherboards that will not cache above
+	1) There are some motherboards that will not cache above
 	   a certain quantity of memory.  If you have one of these
 	   motherboards, your system will be SLOWER, not faster
 	   as you add more memory.  Consider exchanging your 
@@ -24,7 +13,7 @@ It can also tell Linux to use less memory than is actually installed.
 If you use "mem=" on a machine with PCI, consider using "memmap=" to avoid
 physical address space collisions.
 
-See the documentation of your boot loader (LILO, loadlin, etc.) about
+See the documentation of your boot loader (LILO, grub, loadlin, etc.) about
 how to pass options to the kernel.
 
 There are other memory problems which Linux cannot deal with.  Random
@@ -42,19 +31,3 @@ Try:
 	  with the vendor. Consider testing it with memtest86 yourself.
 	
 	* Exchanging your CPU, cache, or motherboard for one that works.
-
-	* Disabling the cache from the BIOS.
-
-	* Try passing the "mem=4M" option to the kernel to limit
-	  Linux to using a very small amount of memory. Use "memmap="-option
-	  together with "mem=" on systems with PCI to avoid physical address
-	  space collisions.
-
-
-Other tricks:
-
-	* Try passing the "no-387" option to the kernel to ignore
-	  a buggy FPU.
-
-	* Try passing the "no-hlt" option to disable the potentially
-          buggy HLT instruction in your CPU.

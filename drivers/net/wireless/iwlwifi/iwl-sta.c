@@ -520,7 +520,7 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_WEPKEY,
 		.data = wep_cmd,
-		.flags = CMD_SYNC,
+		.flags = CMD_ASYNC,
 	};
 
 	memset(wep_cmd, 0, cmd_size +

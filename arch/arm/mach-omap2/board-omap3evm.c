@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/leds.h>
 
 #include <linux/spi/spi.h>
@@ -37,7 +38,6 @@
 #include <mach/usb.h>
 #include <mach/common.h>
 #include <mach/mcspi.h>
-#include <mach/keypad.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
@@ -159,7 +159,7 @@ static struct twl4030_usb_data omap3evm_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int omap3evm_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
 	KEY(0, 2, KEY_A),
@@ -178,11 +178,15 @@ static int omap3evm_keymap[] = {
 	KEY(3, 3, KEY_P)
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data omap3evm_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 4,
 	.cols		= 4,
-	.keymap		= omap3evm_keymap,
-	.keymapsize	= ARRAY_SIZE(omap3evm_keymap),
 	.rep		= 1,
 };
 

@@ -169,9 +169,9 @@ static void key_garbage_collector(struct work_struct *work)
 
 	/* trawl through the keys looking for keyrings */
 	for (;;) {
-		if (key->expiry > now && key->expiry < new_timer) {
+		if (key->expiry > limit && key->expiry < new_timer) {
 			kdebug("will expire %x in %ld",
-			       key_serial(key), key->expiry - now);
+			       key_serial(key), key->expiry - limit);
 			new_timer = key->expiry;
 		}
 

@@ -300,20 +300,23 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 					return 0;
 			}
 
-			crc = get_unaligned_le32(skb2->data
-					+ len - ETH_FCS_LEN);
-			skb_trim(skb2, len - ETH_FCS_LEN);
-
 			/*
 			 * The bmCRC helps to denote when the CRC field in
 			 * the Ethernet frame contains a calculated CRC:
 			 *	bmCRC = 1	: CRC is calculated
 			 *	bmCRC = 0	: CRC = 0xDEADBEEF
 			 */
-			if (header & BIT(14))
-				crc2 = ~crc32_le(~0, skb2->data, skb2->len);
-			else
+			if (header & BIT(14)) {
+				crc = get_unaligned_le32(skb2->data
+						+ len - ETH_FCS_LEN);
+				crc2 = ~crc32_le(~0, skb2->data, skb2->len
+						- ETH_FCS_LEN);
+			} else {
+				crc = get_unaligned_be32(skb2->data
+						+ len - ETH_FCS_LEN);
 				crc2 = 0xdeadbeef;
+			}
+			skb_trim(skb2, len - ETH_FCS_LEN);
 
 			if (is_last)
 				return crc == crc2;

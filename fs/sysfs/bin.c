@@ -40,7 +40,7 @@ struct bin_buffer {
 	struct mutex			mutex;
 	void				*buffer;
 	int				mmapped;
-	struct vm_operations_struct 	*vm_ops;
+	const struct vm_operations_struct *vm_ops;
 	struct file			*file;
 	struct hlist_node		list;
 };
@@ -331,7 +331,7 @@ static int bin_migrate(struct vm_area_struct *vma, const nodemask_t *from,
 }
 #endif
 
-static struct vm_operations_struct bin_vm_ops = {
+static const struct vm_operations_struct bin_vm_ops = {
 	.open		= bin_vma_open,
 	.close		= bin_vma_close,
 	.fault		= bin_fault,

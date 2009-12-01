@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>

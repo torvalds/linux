@@ -1,34 +1,8 @@
 /*
- * File:        include/asm/system.h
- * Based on:
- * Author:      Tony Kou (tonyko@lineo.ca)
- *              Copyright (c) 2002 Arcturus Networks Inc.
- *                    (www.arcturusnetworks.com)
- *              Copyright (c) 2003 Metrowerks (www.metrowerks.com)
- *              Copyright (c) 2004 Analog Device Inc.
- * Created:     25Jan2001 - Tony Kou
- * Description: system.h include file
+ * Copyright 2004-2009 Analog Devices Inc.
+ *               Tony Kou (tonyko@lineo.ca)
  *
- * Modified:     22Sep2006 - Robin Getz
- *                - move include blackfin.h down, so I can get access to
- *                   irq functions in other include files.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the GPL-2 or later
  */
 
 #ifndef _BLACKFIN_SYSTEM_H

@@ -40,8 +40,8 @@ extern int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 
 extern int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *, unsigned char *, int);
 
-extern int compat_mc_setsockopt(struct sock *, int, int, char __user *, int,
-	int (*)(struct sock *, int, int, char __user *, int));
+extern int compat_mc_setsockopt(struct sock *, int, int, char __user *, unsigned int,
+	int (*)(struct sock *, int, int, char __user *, unsigned int));
 extern int compat_mc_getsockopt(struct sock *, int, int, char __user *,
 	int __user *, int (*)(struct sock *, int, int, char __user *,
 				int __user *));

@@ -330,23 +330,6 @@ FTRACE_ENTRY(hw_branch, hw_branch_entry,
 	F_printk("from: %llx to: %llx", __entry->from, __entry->to)
 );
 
-FTRACE_ENTRY(power, trace_power,
-
-	TRACE_POWER,
-
-	F_STRUCT(
-		__field_struct(	struct power_trace,	state_data	)
-		__field_desc(	s64,	state_data,	stamp		)
-		__field_desc(	s64,	state_data,	end		)
-		__field_desc(	int,	state_data,	type		)
-		__field_desc(	int,	state_data,	state		)
-	),
-
-	F_printk("%llx->%llx type:%u state:%u",
-		 __entry->stamp, __entry->end,
-		 __entry->type, __entry->state)
-);
-
 FTRACE_ENTRY(kmem_alloc, kmemtrace_alloc_entry,
 
 	TRACE_KMEM_ALLOC,
