@@ -78,12 +78,15 @@ struct oxygen_model {
 	void (*resume)(struct oxygen *chip);
 	void (*pcm_hardware_filter)(unsigned int channel,
 				    struct snd_pcm_hardware *hardware);
+	unsigned int (*get_i2s_mclk)(struct oxygen *chip, unsigned int channel,
+				     struct snd_pcm_hw_params *hw_params);
 	void (*set_dac_params)(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params);
 	void (*set_adc_params)(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params);
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
+	void (*update_center_lfe_mix)(struct oxygen *chip, bool mixed);
 	void (*gpio_changed)(struct oxygen *chip);
 	void (*uart_input)(struct oxygen *chip);
 	void (*ac97_switch)(struct oxygen *chip,
@@ -162,6 +165,8 @@ void oxygen_update_spdif_source(struct oxygen *chip);
 /* oxygen_pcm.c */
 
 int oxygen_pcm_init(struct oxygen *chip);
+unsigned int oxygen_default_i2s_mclk(struct oxygen *chip, unsigned int channel,
+				     struct snd_pcm_hw_params *hw_params);
 
 /* oxygen_io.c */
 
