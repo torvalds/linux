@@ -130,20 +130,22 @@ static int clk_pwm_scaler_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static struct clk_ops clk_pwm_scaler_ops = {
+	.get_rate	= clk_pwm_scaler_get_rate,
+	.set_rate	= clk_pwm_scaler_set_rate,
+	.round_rate	= clk_pwm_scaler_round_rate,
+};
+
 static struct clk clk_timer_scaler[] = {
 	[0]	= {
 		.name		= "pwm-scaler0",
 		.id		= -1,
-		.get_rate	= clk_pwm_scaler_get_rate,
-		.set_rate	= clk_pwm_scaler_set_rate,
-		.round_rate	= clk_pwm_scaler_round_rate,
+		.ops		= &clk_pwm_scaler_ops,
 	},
 	[1]	= {
 		.name		= "pwm-scaler1",
 		.id		= -1,
-		.get_rate	= clk_pwm_scaler_get_rate,
-		.set_rate	= clk_pwm_scaler_set_rate,
-		.round_rate	= clk_pwm_scaler_round_rate,
+		.ops		= &clk_pwm_scaler_ops,
 	},
 };
 
@@ -256,50 +258,46 @@ static int clk_pwm_tdiv_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static struct clk_ops clk_tdiv_ops = {
+	.get_rate	= clk_pwm_tdiv_get_rate,
+	.set_rate	= clk_pwm_tdiv_set_rate,
+	.round_rate	= clk_pwm_tdiv_round_rate,
+};
+
 static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[0]	= {
 		.clk	= {
-			.name		= "pwm-tdiv",
-			.parent		= &clk_timer_scaler[0],
-			.get_rate	= clk_pwm_tdiv_get_rate,
-			.set_rate	= clk_pwm_tdiv_set_rate,
-			.round_rate	= clk_pwm_tdiv_round_rate,
+			.name	= "pwm-tdiv",
+			.ops	= &clk_tdiv_ops,
+			.parent	= &clk_timer_scaler[0],
 		},
 	},
 	[1]	= {
 		.clk	= {
-			.name		= "pwm-tdiv",
-			.parent		= &clk_timer_scaler[0],
-			.get_rate	= clk_pwm_tdiv_get_rate,
-			.set_rate	= clk_pwm_tdiv_set_rate,
-			.round_rate	= clk_pwm_tdiv_round_rate,
+			.name	= "pwm-tdiv",
+			.ops	= &clk_tdiv_ops,
+			.parent	= &clk_timer_scaler[0],
 		}
 	},
 	[2]	= {
 		.clk	= {
-			.name		= "pwm-tdiv",
-			.parent		= &clk_timer_scaler[1],
-			.get_rate	= clk_pwm_tdiv_get_rate,
-			.set_rate	= clk_pwm_tdiv_set_rate,
-			.round_rate	= clk_pwm_tdiv_round_rate,
+			.name	= "pwm-tdiv",
+			.ops	= &clk_tdiv_ops,
+			.parent	= &clk_timer_scaler[1],
 		},
 	},
 	[3]	= {
 		.clk	= {
-			.name		= "pwm-tdiv",
-			.parent		= &clk_timer_scaler[1],
-			.get_rate	= clk_pwm_tdiv_get_rate,
-			.set_rate	= clk_pwm_tdiv_set_rate,
-			.round_rate	= clk_pwm_tdiv_round_rate,
+			.name	= "pwm-tdiv",
+			.ops	= &clk_tdiv_ops,
+			.parent	= &clk_timer_scaler[1],
 		},
 	},
 	[4]	= {
 		.clk	= {
-			.name		= "pwm-tdiv",
-			.parent		= &clk_timer_scaler[1],
-			.get_rate	= clk_pwm_tdiv_get_rate,
-			.set_rate	= clk_pwm_tdiv_set_rate,
-			.round_rate	= clk_pwm_tdiv_round_rate,
+			.name	= "pwm-tdiv",
+			.ops	= &clk_tdiv_ops,
+			.parent	= &clk_timer_scaler[1],
 		},
 	},
 };
@@ -356,31 +354,35 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
+static struct clk_ops clk_tin_ops = {
+	.set_parent	= clk_pwm_tin_set_parent,
+};
+
 static struct clk clk_tin[] = {
 	[0]	= {
-		.name		= "pwm-tin",
-		.id		= 0,
-		.set_parent	= clk_pwm_tin_set_parent,
+		.name	= "pwm-tin",
+		.id	= 0,
+		.ops	= &clk_tin_ops,
 	},
 	[1]	= {
-		.name		= "pwm-tin",
-		.id		= 1,
-		.set_parent	= clk_pwm_tin_set_parent,
+		.name	= "pwm-tin",
+		.id	= 1,
+		.ops	= &clk_tin_ops,
 	},
 	[2]	= {
-		.name		= "pwm-tin",
-		.id		= 2,
-		.set_parent	= clk_pwm_tin_set_parent,
+		.name	= "pwm-tin",
+		.id	= 2,
+		.ops	= &clk_tin_ops,
 	},
 	[3]	= {
-		.name		= "pwm-tin",
-		.id		= 3,
-		.set_parent	= clk_pwm_tin_set_parent,
+		.name	= "pwm-tin",
+		.id	= 3,
+		.ops	= &clk_tin_ops,
 	},
 	[4]	= {
-		.name		= "pwm-tin",
-		.id		= 4,
-		.set_parent	= clk_pwm_tin_set_parent,
+		.name	= "pwm-tin",
+		.id	= 4,
+		.ops	= &clk_tin_ops,
 	},
 };
 

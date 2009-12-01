@@ -150,20 +150,21 @@ void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk)
 	       clk_get_rate(&clk->clk));
 }
 
+static struct clk_ops clksrc_ops = {
+	.set_parent	= s3c_setparent_clksrc,
+	.get_rate	= s3c_getrate_clksrc,
+	.set_rate	= s3c_setrate_clksrc,
+	.round_rate	= s3c_roundrate_clksrc,
+};
+
 void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 {
 	int ret;
 
 	for (; size > 0; size--, clksrc++) {
 		/* fill in the default functions */
-		if (!clksrc->clk.set_parent)
-			clksrc->clk.set_parent = s3c_setparent_clksrc;
-		if (!clksrc->clk.get_rate)
-			clksrc->clk.get_rate = s3c_getrate_clksrc;
-		if (!clksrc->clk.set_rate)
-			clksrc->clk.set_rate = s3c_setrate_clksrc;
-		if (!clksrc->clk.round_rate)
-			clksrc->clk.round_rate = s3c_roundrate_clksrc;
+		if (!clksrc->clk.ops)
+			clksrc->clk.ops = &clksrc_ops;
 
 		s3c_set_clksrc(clksrc);
 

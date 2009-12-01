@@ -165,9 +165,11 @@ static struct clk clk_arm = {
 	.name		= "armclk",
 	.id		= -1,
 	.parent		= &clk_mout_apll.clk,
-	.get_rate	= s3c64xx_clk_arm_get_rate,
-	.set_rate	= s3c64xx_clk_arm_set_rate,
-	.round_rate	= s3c64xx_clk_arm_round_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c64xx_clk_arm_get_rate,
+		.set_rate	= s3c64xx_clk_arm_set_rate,
+		.round_rate	= s3c64xx_clk_arm_round_rate,
+	},
 };
 
 static unsigned long s3c64xx_clk_doutmpll_get_rate(struct clk *clk)
@@ -182,11 +184,15 @@ static unsigned long s3c64xx_clk_doutmpll_get_rate(struct clk *clk)
 	return rate;
 }
 
+static struct clk_ops clk_dout_ops = {
+	.get_rate	= s3c64xx_clk_doutmpll_get_rate,
+};
+
 static struct clk clk_dout_mpll = {
 	.name		= "dout_mpll",
 	.id		= -1,
 	.parent		= &clk_mout_mpll.clk,
-	.get_rate	= s3c64xx_clk_doutmpll_get_rate,
+	.ops		= &clk_dout_ops,
 };
 
 static struct clk *clkset_spi_mmc_list[] = {

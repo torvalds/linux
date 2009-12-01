@@ -111,7 +111,9 @@ static struct clk clk_dout_apll = {
 	.name		= "dout_apll",
 	.id		= -1,
 	.parent		= &clk_mout_apll.clk,
-	.get_rate	= s5pc100_clk_dout_apll_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_apll_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_arm_get_rate(struct clk *clk)
@@ -165,9 +167,11 @@ static struct clk clk_arm = {
 	.name		= "armclk",
 	.id		= -1,
 	.parent		= &clk_dout_apll,
-	.get_rate	= s5pc100_clk_arm_get_rate,
-	.set_rate	= s5pc100_clk_arm_set_rate,
-	.round_rate	= s5pc100_clk_arm_round_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_arm_get_rate,
+		.set_rate	= s5pc100_clk_arm_set_rate,
+		.round_rate	= s5pc100_clk_arm_round_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_d0_bus_get_rate(struct clk *clk)
@@ -185,7 +189,9 @@ static struct clk clk_dout_d0_bus = {
 	.name		= "dout_d0_bus",
 	.id		= -1,
 	.parent		= &clk_arm,
-	.get_rate	= s5pc100_clk_dout_d0_bus_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_d0_bus_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_pclkd0_get_rate(struct clk *clk)
@@ -203,7 +209,9 @@ static struct clk clk_dout_pclkd0 = {
 	.name		= "dout_pclkd0",
 	.id		= -1,
 	.parent		= &clk_dout_d0_bus,
-	.get_rate	= s5pc100_clk_dout_pclkd0_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_pclkd0_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_apll2_get_rate(struct clk *clk)
@@ -221,7 +229,9 @@ static struct clk clk_dout_apll2 = {
 	.name		= "dout_apll2",
 	.id		= -1,
 	.parent		= &clk_mout_apll.clk,
-	.get_rate	= s5pc100_clk_dout_apll2_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_apll2_get_rate,
+	},
 };
 
 /* MPLL */
@@ -284,7 +294,9 @@ static struct clk clk_dout_d1_bus = {
 	.name		= "dout_d1_bus",
 	.id		= -1,
 	.parent		= &clk_mout_am.clk,
-	.get_rate	= s5pc100_clk_dout_d1_bus_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_d1_bus_get_rate,
+	},
 };
 
 static struct clk *clkset_onenand_list[] = {
@@ -325,7 +337,9 @@ static struct clk clk_dout_pclkd1 = {
 	.name		= "dout_pclkd1",
 	.id		= -1,
 	.parent		= &clk_dout_d1_bus,
-	.get_rate	= s5pc100_clk_dout_pclkd1_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_pclkd1_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_mpll2_get_rate(struct clk *clk)
@@ -345,7 +359,9 @@ static struct clk clk_dout_mpll2 = {
 	.name		= "dout_mpll2",
 	.id		= -1,
 	.parent		= &clk_mout_am.clk,
-	.get_rate	= s5pc100_clk_dout_mpll2_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_mpll2_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_cam_get_rate(struct clk *clk)
@@ -365,7 +381,9 @@ static struct clk clk_dout_cam = {
 	.name		= "dout_cam",
 	.id		= -1,
 	.parent		= &clk_dout_mpll2,
-	.get_rate	= s5pc100_clk_dout_cam_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_cam_get_rate,
+	},
 };
 
 static unsigned long s5pc100_clk_dout_mpll_get_rate(struct clk *clk)
@@ -385,7 +403,9 @@ static struct clk clk_dout_mpll = {
 	.name		= "dout_mpll",
 	.id		= -1,
 	.parent		= &clk_mout_am.clk,
-	.get_rate	= s5pc100_clk_dout_mpll_get_rate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s5pc100_clk_dout_mpll_get_rate,
+	},
 };
 
 /* EPLL */
@@ -540,6 +560,13 @@ static unsigned long s5pc100_roundrate_clksrc(struct clk *clk,
 	return rate;
 }
 
+static struct clk_ops s5pc100_clksrc_ops = {
+	.set_parent	= s5pc100_setparent_clksrc,
+	.get_rate	= s5pc100_getrate_clksrc,
+	.set_rate	= s5pc100_setrate_clksrc,
+	.round_rate	= s5pc100_roundrate_clksrc,
+};
+
 static struct clk *clkset_spi_list[] = {
 	&clk_mout_epll.clk,
 	&clk_dout_mpll2,
@@ -558,10 +585,7 @@ static struct clksrc_clk clk_spi0 = {
 		.id		= 0,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI0,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+
 	},
 	.shift		= S5PC100_CLKSRC1_SPI0_SHIFT,
 	.mask		= S5PC100_CLKSRC1_SPI0_MASK,
@@ -577,10 +601,7 @@ static struct clksrc_clk clk_spi1 = {
 		.id		= 1,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI1,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC1_SPI1_SHIFT,
 	.mask		= S5PC100_CLKSRC1_SPI1_MASK,
@@ -596,10 +617,7 @@ static struct clksrc_clk clk_spi2 = {
 		.id		= 2,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI2,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC1_SPI2_SHIFT,
 	.mask		= S5PC100_CLKSRC1_SPI2_MASK,
@@ -625,10 +643,7 @@ static struct clksrc_clk clk_uart_uclk1 = {
 		.id		= -1,
 		.ctrlbit        = S5PC100_CLKGATE_SCLK0_UART,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC1_UART_SHIFT,
 	.mask		= S5PC100_CLKSRC1_UART_MASK,
@@ -683,10 +698,7 @@ static struct clksrc_clk clk_audio0 = {
 		.id		= 0,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO0,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC3_AUDIO0_SHIFT,
 	.mask		= S5PC100_CLKSRC3_AUDIO0_MASK,
@@ -716,10 +728,7 @@ static struct clksrc_clk clk_audio1 = {
 		.id		= 1,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO1,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC3_AUDIO1_SHIFT,
 	.mask		= S5PC100_CLKSRC3_AUDIO1_MASK,
@@ -748,10 +757,7 @@ static struct clksrc_clk clk_audio2 = {
 		.id		= 2,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO2,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC3_AUDIO2_SHIFT,
 	.mask		= S5PC100_CLKSRC3_AUDIO2_MASK,
@@ -801,10 +807,7 @@ static struct clksrc_clk clk_lcd = {
 		.id		= -1,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_LCD,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_LCD_SHIFT,
 	.mask		= S5PC100_CLKSRC2_LCD_MASK,
@@ -820,10 +823,7 @@ static struct clksrc_clk clk_fimc0 = {
 		.id		= 0,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_FIMC0,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_FIMC0_SHIFT,
 	.mask		= S5PC100_CLKSRC2_FIMC0_MASK,
@@ -839,10 +839,7 @@ static struct clksrc_clk clk_fimc1 = {
 		.id		= 1,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_FIMC1,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_FIMC1_SHIFT,
 	.mask		= S5PC100_CLKSRC2_FIMC1_MASK,
@@ -858,10 +855,7 @@ static struct clksrc_clk clk_fimc2 = {
 		.id		= 2,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK1_FIMC2,
 		.enable		= s5pc100_sclk1_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_FIMC2_SHIFT,
 	.mask		= S5PC100_CLKSRC2_FIMC2_MASK,
@@ -889,10 +883,7 @@ static struct clksrc_clk clk_mmc0 = {
 		.id		= 0,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_MMC0,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_MMC0_SHIFT,
 	.mask		= S5PC100_CLKSRC2_MMC0_MASK,
@@ -908,10 +899,7 @@ static struct clksrc_clk clk_mmc1 = {
 		.id		= 1,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_MMC1,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_MMC1_SHIFT,
 	.mask		= S5PC100_CLKSRC2_MMC1_MASK,
@@ -927,10 +915,7 @@ static struct clksrc_clk clk_mmc2 = {
 		.id		= 2,
 		.ctrlbit	= S5PC100_CLKGATE_SCLK0_MMC2,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC2_MMC2_SHIFT,
 	.mask		= S5PC100_CLKSRC2_MMC2_MASK,
@@ -959,10 +944,7 @@ static struct clksrc_clk clk_usbhost = {
 		.id		= -1,
 		.ctrlbit        = S5PC100_CLKGATE_SCLK0_USBHOST,
 		.enable		= s5pc100_sclk0_ctrl,
-		.set_parent	= s5pc100_setparent_clksrc,
-		.get_rate	= s5pc100_getrate_clksrc,
-		.set_rate	= s5pc100_setrate_clksrc,
-		.round_rate	= s5pc100_roundrate_clksrc,
+		.ops		= &s5pc100_clksrc_ops,
 	},
 	.shift		= S5PC100_CLKSRC1_UHOST_SHIFT,
 	.mask		= S5PC100_CLKSRC1_UHOST_MASK,
