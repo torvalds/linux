@@ -4253,7 +4253,6 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct intel_crtc *intel_crtc;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	intel_crtc = kzalloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), GFP_KERNEL);
