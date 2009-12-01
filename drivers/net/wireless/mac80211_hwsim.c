@@ -841,6 +841,31 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 }
 #endif
 
+static int mac80211_hwsim_ampdu_action(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       enum ieee80211_ampdu_mlme_action action,
+				       struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+{
+	switch (action) {
+	case IEEE80211_AMPDU_TX_START:
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_STOP:
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		break;
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+
 static const struct ieee80211_ops mac80211_hwsim_ops =
 {
 	.tx = mac80211_hwsim_tx,
@@ -855,6 +880,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.set_tim = mac80211_hwsim_set_tim,
 	.conf_tx = mac80211_hwsim_conf_tx,
 	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)
+	.ampdu_action = mac80211_hwsim_ampdu_action,
 };
 
 
