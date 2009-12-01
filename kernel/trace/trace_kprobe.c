@@ -483,7 +483,8 @@ static int parse_probe_vars(char *arg, struct fetch_func *ff, int is_return)
 	return ret;
 }
 
-static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
+/* Recursive argument parser */
+static int __parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 {
 	int ret = 0;
 	unsigned long param;
@@ -543,7 +544,7 @@ static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 			if (!id)
 				return -ENOMEM;
 			id->offset = offset;
-			ret = parse_probe_arg(arg, &id->orig, is_return);
+			ret = __parse_probe_arg(arg, &id->orig, is_return);
 			if (ret)
 				kfree(id);
 			else {
@@ -558,6 +559,16 @@ static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 		ret = -EINVAL;
 	}
 	return ret;
+}
+
+/* String length checking wrapper */
+static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
+{
+	if (strlen(arg) > MAX_ARGSTR_LEN) {
+		pr_info("Argument is too long.: %s\n",  arg);
+		return -ENOSPC;
+	}
+	return __parse_probe_arg(arg, ff, is_return);
 }
 
 /* Return 1 if name is reserved or already used by another argument */
@@ -698,13 +709,14 @@ static int create_trace_probe(int argc, char **argv)
 		}
 
 		tp->args[i].name = kstrdup(argv[i], GFP_KERNEL);
-
-		/* Parse fetch argument */
-		if (strlen(arg) > MAX_ARGSTR_LEN) {
-			pr_info("Argument%d(%s) is too long.\n", i, arg);
-			ret = -ENOSPC;
+		if (!tp->args[i].name) {
+			pr_info("Failed to allocate argument%d name '%s'.\n",
+				i, argv[i]);
+			ret = -ENOMEM;
 			goto error;
 		}
+
+		/* Parse fetch argument */
 		ret = parse_probe_arg(arg, &tp->args[i].fetch, is_return);
 		if (ret) {
 			pr_info("Parse error at argument%d. (%d)\n", i, ret);
