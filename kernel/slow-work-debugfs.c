@@ -57,7 +57,7 @@ static void slow_work_print_mark(struct seq_file *m, struct slow_work *work)
 }
 
 /*
- * Describe a slow work item for /proc
+ * Describe a slow work item for debugfs
  */
 static int slow_work_runqueue_show(struct seq_file *m, void *v)
 {
@@ -211,7 +211,7 @@ static const struct seq_operations slow_work_runqueue_ops = {
 };
 
 /*
- * open "/proc/slow_work_rq" to list queue contents
+ * open "/sys/kernel/debug/slow_work/runqueue" to list queue contents
  */
 static int slow_work_runqueue_open(struct inode *inode, struct file *file)
 {

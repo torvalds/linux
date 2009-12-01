@@ -279,9 +279,9 @@ The slow-work thread pool has a number of configurables:
 VIEWING EXECUTING AND QUEUED ITEMS
 ==================================
 
-If CONFIG_SLOW_WORK_PROC is enabled, a proc file is made available:
+If CONFIG_SLOW_WORK_DEBUG is enabled, a debugfs file is made available:
 
-	/proc/slow_work_rq
+	/sys/kernel/debug/slow_work/runqueue
 
 through which the list of work items being executed and the queues of items to
 be executed may be viewed.  The owner of a work item is given the chance to

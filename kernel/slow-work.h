@@ -19,7 +19,7 @@
 /*
  * slow-work.c
  */
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 extern struct slow_work *slow_work_execs[];
 extern pid_t slow_work_pids[];
 extern rwlock_t slow_work_execs_lock;
@@ -30,9 +30,9 @@ extern struct list_head vslow_work_queue;
 extern spinlock_t slow_work_queue_lock;
 
 /*
- * slow-work-proc.c
+ * slow-work-debugfs.c
  */
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 extern const struct file_operations slow_work_runqueue_fops;
 
 extern void slow_work_new_thread_desc(struct slow_work *, struct seq_file *);
