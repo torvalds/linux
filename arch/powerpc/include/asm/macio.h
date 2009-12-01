@@ -134,6 +134,9 @@ struct macio_driver
 	int	(*resume)(struct macio_dev* dev);
 	int	(*shutdown)(struct macio_dev* dev);
 
+#ifdef CONFIG_PMAC_MEDIABAY
+	void	(*mediabay_event)(struct macio_dev* dev, int mb_state);
+#endif
 	struct device_driver	driver;
 };
 #define	to_macio_driver(drv) container_of(drv,struct macio_driver, driver)
