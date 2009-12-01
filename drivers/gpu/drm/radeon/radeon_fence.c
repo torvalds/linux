@@ -193,14 +193,18 @@ retry:
 	}
 
 	if (intr) {
+		radeon_irq_kms_sw_irq_get(rdev);
 		r = wait_event_interruptible_timeout(rdev->fence_drv.queue,
 				radeon_fence_signaled(fence), timeout);
+		radeon_irq_kms_sw_irq_put(rdev);
 		if (unlikely(r == -ERESTARTSYS)) {
 			return -EBUSY;
 		}
 	} else {
+		radeon_irq_kms_sw_irq_get(rdev);
 		r = wait_event_timeout(rdev->fence_drv.queue,
 			 radeon_fence_signaled(fence), timeout);
+		radeon_irq_kms_sw_irq_put(rdev);
 	}
 	if (unlikely(!radeon_fence_signaled(fence))) {
 		if (unlikely(r == 0)) {

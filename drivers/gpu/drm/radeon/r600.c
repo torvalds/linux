@@ -1571,7 +1571,6 @@ int r600_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	r = r600_irq_init(rdev);
 	if (r) {
 		DRM_ERROR("radeon: IH init failed (%d).\n", r);

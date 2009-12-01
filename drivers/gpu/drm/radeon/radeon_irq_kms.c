@@ -87,7 +87,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		num_crtc = 1;
-
+	spin_lock_init(&rdev->irq.sw_lock);
 	r = drm_vblank_init(rdev->ddev, num_crtc);
 	if (r) {
 		return r;
@@ -122,3 +122,29 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 			pci_disable_msi(rdev->pdev);
 	}
 }
+
+void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
+	if (rdev->ddev->irq_enabled && (++rdev->irq.sw_refcount == 1)) {
+		rdev->irq.sw_int = true;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
+}
+
+void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
+	BUG_ON(rdev->ddev->irq_enabled && rdev->irq.sw_refcount <= 0);
+	if (rdev->ddev->irq_enabled && (--rdev->irq.sw_refcount == 0)) {
+		rdev->irq.sw_int = false;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
+}
+

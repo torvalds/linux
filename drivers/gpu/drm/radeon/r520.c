@@ -185,7 +185,6 @@ static int r520_startup(struct radeon_device *rdev)
 			return r;
 	}
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);

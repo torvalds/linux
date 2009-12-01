@@ -352,11 +352,14 @@ struct radeon_irq {
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
 	bool		crtc_vblank_int[2];
+	spinlock_t sw_lock;
+	int sw_refcount;
 };
 
 int radeon_irq_kms_init(struct radeon_device *rdev);
 void radeon_irq_kms_fini(struct radeon_device *rdev);
-
+void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev);
+void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
 
 /*
  * CP & ring.
