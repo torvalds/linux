@@ -2472,7 +2472,7 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 	/* Gig must be disabled for MDIO accesses to page 800 */
 	if ((hw->mac.type == e1000_pchlan) &&
 	   (!(er32(PHY_CTRL) & E1000_PHY_CTRL_GBE_DISABLE)))
-		e_dbg("Attempting to access page 800 while gig enabled\n");
+		e_dbg("Attempting to access page 800 while gig enabled.\n");
 
 	/* All operations in this function are phy address 1 */
 	hw->phy.addr = 1;
@@ -2482,20 +2482,26 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 	                          (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
 
 	ret_val = e1000e_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &phy_reg);
-	if (ret_val)
+	if (ret_val) {
+		e_dbg("Could not read PHY page 769\n");
 		goto out;
+	}
 
 	/* First clear bit 4 to avoid a power state change */
 	phy_reg &= ~(BM_WUC_HOST_WU_BIT);
 	ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, phy_reg);
-	if (ret_val)
+	if (ret_val) {
+		e_dbg("Could not clear PHY page 769 bit 4\n");
 		goto out;
+	}
 
 	/* Write bit 2 = 1, and clear bit 4 to 769_17 */
 	ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG,
 	                                    phy_reg | BM_WUC_ENABLE_BIT);
-	if (ret_val)
+	if (ret_val) {
+		e_dbg("Could not write PHY page 769 bit 2\n");
 		goto out;
+	}
 
 	/* Select page 800 */
 	ret_val = e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
@@ -2503,8 +2509,10 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 
 	/* Write the page 800 offset value using opcode 0x11 */
 	ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_ADDRESS_OPCODE, reg);
-	if (ret_val)
+	if (ret_val) {
+		e_dbg("Could not write address opcode to page 800\n");
 		goto out;
+	}
 
 	if (read) {
 	        /* Read the page 800 value using opcode 0x12 */
@@ -2516,8 +2524,10 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 						    *data);
 	}
 
-	if (ret_val)
+	if (ret_val) {
+		e_dbg("Could not access data value from page 800\n");
 		goto out;
+	}
 
 	/*
 	 * Restore 769_17.2 to its original value
@@ -2528,6 +2538,10 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 
 	/* Clear 769_17.2 */
 	ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, phy_reg);
+	if (ret_val) {
+		e_dbg("Could not clear PHY page 769 bit 2\n");
+		goto out;
+	}
 
 out:
 	return ret_val;

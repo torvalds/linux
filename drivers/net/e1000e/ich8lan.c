@@ -314,8 +314,10 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 		phy->ops.write_reg = e1000e_write_phy_reg_bm;
 		phy->ops.read_reg  = e1000e_read_phy_reg_bm;
 		ret_val = e1000e_determine_phy_address(hw);
-		if (ret_val)
+		if (ret_val) {
+			e_dbg("Cannot determine PHY addr. Erroring out\n");
 			return ret_val;
+		}
 	}
 
 	phy->id = 0;
