@@ -480,6 +480,7 @@ struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev)
 	if (!ret)
 		return pd;
 
+	platform_device_put(pd);
 out:
 	kfree(res);
 	return NULL;
