@@ -2210,6 +2210,7 @@ static void perf_mmap_data_free(struct perf_mmap_data *data)
 	perf_mmap_free_page((unsigned long)data->user_page);
 	for (i = 0; i < data->nr_pages; i++)
 		perf_mmap_free_page((unsigned long)data->data_pages[i]);
+	kfree(data);
 }
 
 #else
@@ -2250,6 +2251,7 @@ static void perf_mmap_data_free_work(struct work_struct *work)
 		perf_mmap_unmark_page(base + (i * PAGE_SIZE));
 
 	vfree(base);
+	kfree(data);
 }
 
 static void perf_mmap_data_free(struct perf_mmap_data *data)
@@ -2355,7 +2357,6 @@ static void perf_mmap_data_free_rcu(struct rcu_head *rcu_head)
 
 	data = container_of(rcu_head, struct perf_mmap_data, rcu_head);
 	perf_mmap_data_free(data);
-	kfree(data);
 }
 
 static void perf_mmap_data_release(struct perf_event *event)
