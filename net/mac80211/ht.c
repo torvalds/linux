@@ -141,7 +141,6 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 			     struct sta_info *sta,
 			     struct ieee80211_mgmt *mgmt, size_t len)
 {
-	struct ieee80211_local *local = sdata->local;
 	u16 tid, params;
 	u16 initiator;
 
@@ -161,10 +160,9 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 						 WLAN_BACK_INITIATOR, 0);
 	else { /* WLAN_BACK_RECIPIENT */
 		spin_lock_bh(&sta->lock);
-		sta->ampdu_mlme.tid_state_tx[tid] =
-				HT_AGG_STATE_OPERATIONAL;
+		if (sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK)
+			___ieee80211_stop_tx_ba_session(sta, tid,
+							WLAN_BACK_RECIPIENT);
 		spin_unlock_bh(&sta->lock);
-		ieee80211_stop_tx_ba_session(&local->hw, sta->sta.addr, tid,
-					     WLAN_BACK_RECIPIENT);
 	}
 }

@@ -1098,6 +1098,16 @@ config SLOW_WORK
 
 	  See Documentation/slow-work.txt.
 
+config SLOW_WORK_DEBUG
+	bool "Slow work debugging through debugfs"
+	default n
+	depends on SLOW_WORK && DEBUG_FS
+	help
+	  Display the contents of the slow work run queue through debugfs,
+	  including items currently executing.
+
+	  See Documentation/slow-work.txt.
+
 endmenu		# General setup
 
 config HAVE_GENERIC_DMA_COHERENT

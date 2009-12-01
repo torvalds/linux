@@ -114,7 +114,7 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_unregister;
 
-	error = slow_work_register_user();
+	error = slow_work_register_user(THIS_MODULE);
 	if (error)
 		goto fail_slow;
 
@@ -163,7 +163,7 @@ static void __exit exit_gfs2_fs(void)
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
-	slow_work_unregister_user();
+	slow_work_unregister_user(THIS_MODULE);
 
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

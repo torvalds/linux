@@ -66,7 +66,7 @@ ruffian_init_irq(void)
 	common_init_isa_dma();
 }
 
-#define RUFFIAN_LATCH	((PIT_TICK_RATE + HZ / 2) / HZ)
+#define RUFFIAN_LATCH	DIV_ROUND_CLOSEST(PIT_TICK_RATE, HZ)
 
 static void __init
 ruffian_init_rtc(void)

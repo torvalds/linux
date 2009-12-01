@@ -430,6 +430,14 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	},
 	{
 	.callback = init_set_sci_en_on_resume,
+	.ident = "Hewlett-Packard Compaq Presario C700 Notebook PC",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Compaq Presario C700 Notebook PC"),
+		},
+	},
+	{
+	.callback = init_set_sci_en_on_resume,
 	.ident = "Hewlett-Packard Compaq Presario CQ40 Notebook PC",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),

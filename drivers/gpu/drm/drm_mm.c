@@ -103,6 +103,11 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 	return child;
 }
 
+/* drm_mm_pre_get() - pre allocate drm_mm_node structure
+ * drm_mm:	memory manager struct we are pre-allocating for
+ *
+ * Returns 0 on success or -ENOMEM if allocation fails.
+ */
 int drm_mm_pre_get(struct drm_mm *mm)
 {
 	struct drm_mm_node *node;
@@ -253,12 +258,14 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 				prev_node->size += next_node->size;
 				list_del(&next_node->ml_entry);
 				list_del(&next_node->fl_entry);
+				spin_lock(&mm->unused_lock);
 				if (mm->num_unused < MM_UNUSED_TARGET) {
 					list_add(&next_node->fl_entry,
 						 &mm->unused_nodes);
 					++mm->num_unused;
 				} else
 					kfree(next_node);
+				spin_unlock(&mm->unused_lock);
 			} else {
 				next_node->size += cur->size;
 				next_node->start = cur->start;
@@ -271,11 +278,13 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 		list_add(&cur->fl_entry, &mm->fl_entry);
 	} else {
 		list_del(&cur->ml_entry);
+		spin_lock(&mm->unused_lock);
 		if (mm->num_unused < MM_UNUSED_TARGET) {
 			list_add(&cur->fl_entry, &mm->unused_nodes);
 			++mm->num_unused;
 		} else
 			kfree(cur);
+		spin_unlock(&mm->unused_lock);
 	}
 }
 

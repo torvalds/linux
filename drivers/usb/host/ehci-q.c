@@ -487,8 +487,20 @@ halt:
 			 * we must clear the TT buffer (11.17.5).
 			 */
 			if (unlikely(last_status != -EINPROGRESS &&
-					last_status != -EREMOTEIO))
-				ehci_clear_tt_buffer(ehci, qh, urb, token);
+					last_status != -EREMOTEIO)) {
+				/* The TT's in some hubs malfunction when they
+				 * receive this request following a STALL (they
+				 * stop sending isochronous packets).  Since a
+				 * STALL can't leave the TT buffer in a busy
+				 * state (if you believe Figures 11-48 - 11-51
+				 * in the USB 2.0 spec), we won't clear the TT
+				 * buffer in this case.  Strictly speaking this
+				 * is a violation of the spec.
+				 */
+				if (last_status != -EPIPE)
+					ehci_clear_tt_buffer(ehci, qh, urb,
+							token);
+			}
 		}
 
 		/* if we're removing something not at the queue head,

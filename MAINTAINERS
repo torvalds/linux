@@ -512,9 +512,31 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
+ARM PRIMECELL AACI PL041 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	sound/arm/aaci.*
+
+ARM PRIMECELL CLCD PL110 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/video/amba-clcd.*
+
+ARM PRIMECELL KMI PL050 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/input/serio/ambakmi.*
+F:	include/linux/amba/kmi.h
+
 ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
+
+ARM PRIMECELL BUS SUPPORT
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/amba/
+F:	include/linux/amba/bus.h
 
 ARM/ADI ROADRUNNER MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1027,7 +1049,7 @@ F:	drivers/serial/atmel_serial.c
 
 ATMEL LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/atmel_lcdfb.c
 F:	include/video/atmel_lcdc.h
@@ -2113,7 +2135,7 @@ F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 W:	http://linux-fbdev.sourceforge.net/
 S:	Orphan
 F:	Documentation/fb/
@@ -2136,7 +2158,7 @@ F:	drivers/i2c/busses/i2c-cpm.c
 
 FREESCALE IMX / MXC FRAMEBUFFER DRIVER
 M:	Sascha Hauer <kernel@pengutronix.de>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/plat-mxc/include/mach/imxfb.h
@@ -2311,6 +2333,13 @@ L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	drivers/media/video/gspca/finepix.c
+
+GSPCA GL860 SUBDRIVER
+M:	Olivier Lorin <o.lorin@laposte.net>
+L:	linux-media@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
+S:	Maintained
+F:	drivers/media/video/gspca/gl860/
 
 GSPCA M5602 SUBDRIVER
 M:	Erik Andren <erik.andren@gmail.com>
@@ -2533,8 +2562,7 @@ S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
 F:	include/linux/i2c.h
-F:	include/linux/i2c-dev.h
-F:	include/linux/i2c-id.h
+F:	include/linux/i2c-*.h
 
 I2C-TINY-USB DRIVER
 M:	Till Harbaum <till@harbaum.org>
@@ -2635,7 +2663,7 @@ S:	Supported
 F:	security/integrity/ima/
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/imsttfb.c
 
@@ -2670,14 +2698,14 @@ F:	drivers/input/
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 M:	Sylvain Meyer <sylvain.meyer@worldonline.fr>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/fb/intelfb.txt
 F:	drivers/video/intelfb/
 
 INTEL 810/815 FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/i810/
 
@@ -3391,7 +3419,7 @@ S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
 M:	Petr Vandrovec <vandrove@vc.cvut.cz>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
@@ -3778,7 +3806,7 @@ F:	fs/ntfs/
 
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
@@ -3813,7 +3841,7 @@ F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
 M:	Imre Deak <imre.deak@nokia.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
@@ -4319,14 +4347,14 @@ F:	include/linux/qnxtypes.h
 
 RADEON FRAMEBUFFER DISPLAY DRIVER
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/aty/radeon*
 F:	include/linux/radeonfb.h
 
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 M:	Paul Mackerras <paulus@samba.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/aty/aty128fb.c
 
@@ -4465,7 +4493,7 @@ F:	drivers/net/wireless/rtl818x/rtl8187*
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/savage/
 
@@ -5628,7 +5656,7 @@ S:	Maintained
 
 UVESAFB DRIVER
 M:	Michal Januszewski <spock@gentoo.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 W:	http://dev.gentoo.org/~spock/projects/uvesafb/
 S:	Maintained
 F:	Documentation/fb/uvesafb.txt
@@ -5661,7 +5689,7 @@ F:	drivers/mmc/host/via-sdmmc.c
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
 M:	Joseph Chan <JosephChan@via.com.tw>
 M:	Scott Fang <ScottFang@viatech.com.cn>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/via/
 

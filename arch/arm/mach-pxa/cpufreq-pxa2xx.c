@@ -447,6 +447,7 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		pxa27x_freq_table[i].frequency = freq;
 		pxa27x_freq_table[i].index = i;
 	}
+	pxa27x_freq_table[i].index = i;
 	pxa27x_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	/*
