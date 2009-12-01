@@ -379,6 +379,11 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dev->ofdev.dev.parent = parent;
 	dev->ofdev.dev.bus = &macio_bus_type;
 	dev->ofdev.dev.release = macio_release_dev;
+	dev->ofdev.dev.dma_parms = &dev->dma_parms;
+
+	/* Standard DMA paremeters */
+	dma_set_max_seg_size(&dev->ofdev.dev, 65536);
+	dma_set_seg_boundary(&dev->ofdev.dev, 0xffffffff);
 
 #ifdef CONFIG_PCI
 	/* Set the DMA ops to the ones from the PCI device, this could be
