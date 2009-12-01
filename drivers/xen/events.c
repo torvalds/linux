@@ -474,6 +474,9 @@ static void unbind_from_irq(unsigned int irq)
 		bind_evtchn_to_cpu(evtchn, 0);
 
 		evtchn_to_irq[evtchn] = -1;
+	}
+
+	if (irq_info[irq].type != IRQT_UNBOUND) {
 		irq_info[irq] = mk_unbound_info();
 
 		dynamic_irq_cleanup(irq);
