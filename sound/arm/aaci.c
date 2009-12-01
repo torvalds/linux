@@ -511,15 +511,9 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto out;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-	else
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-
+	err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
+				params_channels(params),
+				aacirun->pcm->r[0].slots);
 	if (err)
 		goto out;
 
