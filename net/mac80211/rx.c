@@ -1541,16 +1541,10 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->sdata->dev;
-	struct ieee80211_local *local = rx->local;
-	u16 ethertype;
-	u8 *payload;
-	struct sk_buff *skb = rx->skb, *frame = NULL;
+	struct sk_buff *skb = rx->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
-	const struct ethhdr *eth;
-	int remaining, err;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN];
+	struct sk_buff_head frame_list;
 
 	if (unlikely(!ieee80211_is_data(fc)))
 		return RX_CONTINUE;
@@ -1561,94 +1555,34 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 	if (!(rx->flags & IEEE80211_RX_AMSDU))
 		return RX_CONTINUE;
 
-	err = __ieee80211_data_to_8023(rx);
-	if (unlikely(err))
+	if (ieee80211_has_a4(hdr->frame_control) &&
+	    rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+	    !rx->sdata->u.vlan.sta)
+		return RX_DROP_UNUSABLE;
+
+	if (is_multicast_ether_addr(hdr->addr1) &&
+	    ((rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+	      rx->sdata->u.vlan.sta) ||
+	     (rx->sdata->vif.type == NL80211_IFTYPE_STATION &&
+	      rx->sdata->u.mgd.use_4addr)))
 		return RX_DROP_UNUSABLE;
 
 	skb->dev = dev;
+	__skb_queue_head_init(&frame_list);
 
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += skb->len;
+	ieee80211_amsdu_to_8023s(skb, &frame_list, dev->dev_addr,
+				 rx->sdata->vif.type,
+				 rx->local->hw.extra_tx_headroom);
 
-	/* skip the wrapping header */
-	eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
-	if (!eth)
-		return RX_DROP_UNUSABLE;
-
-	while (skb != frame) {
-		u8 padding;
-		__be16 len = eth->h_proto;
-		unsigned int subframe_len = sizeof(struct ethhdr) + ntohs(len);
-
-		remaining = skb->len;
-		memcpy(dst, eth->h_dest, ETH_ALEN);
-		memcpy(src, eth->h_source, ETH_ALEN);
-
-		padding = ((4 - subframe_len) & 0x3);
-		/* the last MSDU has no padding */
-		if (subframe_len > remaining)
-			return RX_DROP_UNUSABLE;
-
-		skb_pull(skb, sizeof(struct ethhdr));
-		/* if last subframe reuse skb */
-		if (remaining <= subframe_len + padding)
-			frame = skb;
-		else {
-			/*
-			 * Allocate and reserve two bytes more for payload
-			 * alignment since sizeof(struct ethhdr) is 14.
-			 */
-			frame = dev_alloc_skb(
-				ALIGN(local->hw.extra_tx_headroom, 4) +
-				subframe_len + 2);
-
-			if (frame == NULL)
-				return RX_DROP_UNUSABLE;
-
-			skb_reserve(frame,
-				    ALIGN(local->hw.extra_tx_headroom, 4) +
-				    sizeof(struct ethhdr) + 2);
-			memcpy(skb_put(frame, ntohs(len)), skb->data,
-				ntohs(len));
-
-			eth = (struct ethhdr *) skb_pull(skb, ntohs(len) +
-							padding);
-			if (!eth) {
-				dev_kfree_skb(frame);
-				return RX_DROP_UNUSABLE;
-			}
-		}
-
-		skb_reset_network_header(frame);
-		frame->dev = dev;
-		frame->priority = skb->priority;
-		rx->skb = frame;
-
-		payload = frame->data;
-		ethertype = (payload[6] << 8) | payload[7];
-
-		if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
-			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
-			   compare_ether_addr(payload,
-					      bridge_tunnel_header) == 0)) {
-			/* remove RFC1042 or Bridge-Tunnel
-			 * encapsulation and replace EtherType */
-			skb_pull(frame, 6);
-			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
-			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
-		} else {
-			memcpy(skb_push(frame, sizeof(__be16)),
-			       &len, sizeof(__be16));
-			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
-			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
-		}
+	while (!skb_queue_empty(&frame_list)) {
+		rx->skb = __skb_dequeue(&frame_list);
 
 		if (!ieee80211_frame_allowed(rx, fc)) {
-			if (skb == frame) /* last frame */
-				return RX_DROP_UNUSABLE;
-			dev_kfree_skb(frame);
+			dev_kfree_skb(rx->skb);
 			continue;
 		}
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += rx->skb->len;
 
 		ieee80211_deliver_skb(rx);
 	}
