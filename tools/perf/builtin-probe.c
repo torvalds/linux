@@ -428,7 +428,7 @@ end_dwarf:
 					pp->retprobe ? 'r' : 'p',
 					PERFPROBE_GROUP,
 					pp->function, pp->offset, i,
-					pp->probes[0]);
+					pp->probes[i]);
 				write_new_event(fd, buf);
 			}
 	}
