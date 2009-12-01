@@ -79,6 +79,12 @@ static void do_suspend(void)
 
 	shutting_down = SHUTDOWN_SUSPEND;
 
+	err = stop_machine_create();
+	if (err) {
+		printk(KERN_ERR "xen suspend: failed to setup stop_machine %d\n", err);
+		goto out;
+	}
+
 #ifdef CONFIG_PREEMPT
 	/* If the kernel is preemptible, we need to freeze all the processes
 	   to prevent them from being in the middle of a pagetable update
@@ -86,7 +92,7 @@ static void do_suspend(void)
 	err = freeze_processes();
 	if (err) {
 		printk(KERN_ERR "xen suspend: freeze failed %d\n", err);
-		goto out;
+		goto out_destroy_sm;
 	}
 #endif
 
@@ -129,7 +135,11 @@ out_resume:
 out_thaw:
 #ifdef CONFIG_PREEMPT
 	thaw_processes();
+
+out_destroy_sm:
 #endif
+	stop_machine_destroy();
+
 out:
 	shutting_down = SHUTDOWN_INVALID;
 }
