@@ -90,7 +90,7 @@ alcor_end_irq(unsigned int irq)
 }
 
 static struct irq_chip alcor_irq_type = {
-	.typename	= "ALCOR",
+	.name		= "ALCOR",
 	.startup	= alcor_startup_irq,
 	.shutdown	= alcor_disable_irq,
 	.enable		= alcor_enable_irq,
