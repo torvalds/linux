@@ -67,16 +67,6 @@ int syscall_name_to_nr(const char *name)
 	return -1;
 }
 
-void set_syscall_enter_id(int num, int id)
-{
-	syscalls_metadata[num]->enter_id = id;
-}
-
-void set_syscall_exit_id(int num, int id)
-{
-	syscalls_metadata[num]->exit_id = id;
-}
-
 enum print_line_t
 print_syscall_enter(struct trace_iterator *iter, int flags)
 {
@@ -93,7 +83,7 @@ print_syscall_enter(struct trace_iterator *iter, int flags)
 	if (!entry)
 		goto end;
 
-	if (entry->enter_id != ent->type) {
+	if (entry->enter_event->id != ent->type) {
 		WARN_ON_ONCE(1);
 		goto end;
 	}
@@ -148,7 +138,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags)
 		return TRACE_TYPE_HANDLED;
 	}
 
-	if (entry->exit_id != ent->type) {
+	if (entry->exit_event->id != ent->type) {
 		WARN_ON_ONCE(1);
 		return TRACE_TYPE_UNHANDLED;
 	}
@@ -302,8 +292,8 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
-	event = trace_current_buffer_lock_reserve(&buffer, sys_data->enter_id,
-						  size, 0, 0);
+	event = trace_current_buffer_lock_reserve(&buffer,
+			sys_data->enter_event->id, size, 0, 0);
 	if (!event)
 		return;
 
@@ -334,8 +324,8 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	event = trace_current_buffer_lock_reserve(&buffer, sys_data->exit_id,
-				sizeof(*entry), 0, 0);
+	event = trace_current_buffer_lock_reserve(&buffer,
+			sys_data->exit_event->id, sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 
@@ -510,11 +500,11 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 
 	rec = (struct syscall_trace_enter *) raw_data;
 	tracing_generic_entry_update(&rec->ent, 0, 0);
-	rec->ent.type = sys_data->enter_id;
+	rec->ent.type = sys_data->enter_event->id;
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
+	perf_tp_event(sys_data->enter_event->id, 0, 1, rec, size);
 
 end:
 	perf_swevent_put_recursion_context(rctx);
@@ -615,11 +605,11 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	rec = (struct syscall_trace_exit *)raw_data;
 
 	tracing_generic_entry_update(&rec->ent, 0, 0);
-	rec->ent.type = sys_data->exit_id;
+	rec->ent.type = sys_data->exit_event->id;
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
+	perf_tp_event(sys_data->exit_event->id, 0, 1, rec, size);
 
 end:
 	perf_swevent_put_recursion_context(rctx);

@@ -168,7 +168,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		if (!id)						\
 			return -ENODEV;					\
 		event_enter_##sname.id = id;				\
-		set_syscall_enter_id(num, id);				\
 		INIT_LIST_HEAD(&event_enter_##sname.fields);		\
 		return 0;						\
 	}								\
@@ -205,7 +204,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		if (!id)						\
 			return -ENODEV;					\
 		event_exit_##sname.id = id;				\
-		set_syscall_exit_id(num, id);				\
 		INIT_LIST_HEAD(&event_exit_##sname.fields);		\
 		return 0;						\
 	}								\

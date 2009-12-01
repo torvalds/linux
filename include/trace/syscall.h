@@ -15,8 +15,6 @@
  * @nb_args: number of parameters it takes
  * @types: list of types as strings
  * @args: list of args as strings (args[i] matches types[i])
- * @enter_id: associated ftrace enter event id
- * @exit_id: associated ftrace exit event id
  * @enter_event: associated syscall_enter trace event
  * @exit_event: associated syscall_exit trace event
  */
@@ -25,8 +23,6 @@ struct syscall_metadata {
 	int		nb_args;
 	const char	**types;
 	const char	**args;
-	int		enter_id;
-	int		exit_id;
 
 	struct ftrace_event_call *enter_event;
 	struct ftrace_event_call *exit_event;
@@ -35,8 +31,6 @@ struct syscall_metadata {
 #ifdef CONFIG_FTRACE_SYSCALLS
 extern unsigned long arch_syscall_addr(int nr);
 extern int syscall_name_to_nr(const char *name);
-void set_syscall_enter_id(int num, int id);
-void set_syscall_exit_id(int num, int id);
 
 extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
