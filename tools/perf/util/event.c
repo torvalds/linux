@@ -186,8 +186,7 @@ int event__process_comm(event_t *self)
 {
 	struct thread *thread = threads__findnew(self->comm.pid);
 
-	dump_printf("PERF_RECORD_COMM: %s:%d\n",
-		    self->comm.comm, self->comm.pid);
+	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
 
 	if (thread == NULL || thread__set_comm(thread, self->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
