@@ -538,6 +538,42 @@ void macio_unregister_driver(struct macio_driver *drv)
 	driver_unregister(&drv->driver);
 }
 
+/* Managed MacIO resources */
+struct macio_devres {
+	u32	res_mask;
+};
+
+static void maciom_release(struct device *gendev, void *res)
+{
+	struct macio_dev *dev = to_macio_device(gendev);
+	struct macio_devres *dr = res;
+	int i, max;
+
+	max = min(dev->n_resources, 32);
+	for (i = 0; i < max; i++) {
+		if (dr->res_mask & (1 << i))
+			macio_release_resource(dev, i);
+	}
+}
+
+int macio_enable_devres(struct macio_dev *dev)
+{
+	struct macio_devres *dr;
+
+	dr = devres_find(&dev->ofdev.dev, maciom_release, NULL, NULL);
+	if (!dr) {
+		dr = devres_alloc(maciom_release, sizeof(*dr), GFP_KERNEL);
+		if (!dr)
+			return -ENOMEM;
+	}
+	return devres_get(&dev->ofdev.dev, dr, NULL, NULL) != NULL;
+}
+
+static struct macio_devres * find_macio_dr(struct macio_dev *dev)
+{
+	return devres_find(&dev->ofdev.dev, maciom_release, NULL, NULL);
+}
+
 /**
  *	macio_request_resource - Request an MMIO resource
  * 	@dev: pointer to the device holding the resource
@@ -555,6 +591,8 @@ void macio_unregister_driver(struct macio_driver *drv)
 int macio_request_resource(struct macio_dev *dev, int resource_no,
 			   const char *name)
 {
+	struct macio_devres *dr = find_macio_dr(dev);
+
 	if (macio_resource_len(dev, resource_no) == 0)
 		return 0;
 		
@@ -562,6 +600,9 @@ int macio_request_resource(struct macio_dev *dev, int resource_no,
 				macio_resource_len(dev, resource_no),
 				name))
 		goto err_out;
+
+	if (dr && resource_no < 32)
+		dr->res_mask |= 1 << resource_no;
 	
 	return 0;
 
@@ -582,10 +623,14 @@ err_out:
  */
 void macio_release_resource(struct macio_dev *dev, int resource_no)
 {
+	struct macio_devres *dr = find_macio_dr(dev);
+
 	if (macio_resource_len(dev, resource_no) == 0)
 		return;
 	release_mem_region(macio_resource_start(dev, resource_no),
 			   macio_resource_len(dev, resource_no));
+	if (dr && resource_no < 32)
+		dr->res_mask &= ~(1 << resource_no);
 }
 
 /**
@@ -744,3 +789,5 @@ EXPORT_SYMBOL(macio_request_resource);
 EXPORT_SYMBOL(macio_release_resource);
 EXPORT_SYMBOL(macio_request_resources);
 EXPORT_SYMBOL(macio_release_resources);
+EXPORT_SYMBOL(macio_enable_devres);
+

@@ -78,6 +78,8 @@ static inline unsigned long macio_resource_len(struct macio_dev *dev, int resour
 	return res->end - res->start + 1;
 }
 
+extern int macio_enable_devres(struct macio_dev *dev);
+
 extern int macio_request_resource(struct macio_dev *dev, int resource_no, const char *name);
 extern void macio_release_resource(struct macio_dev *dev, int resource_no);
 extern int macio_request_resources(struct macio_dev *dev, const char *name);
