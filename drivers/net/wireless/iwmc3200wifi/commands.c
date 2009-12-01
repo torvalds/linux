@@ -970,8 +970,10 @@ int iwm_send_pmkid_update(struct iwm_priv *iwm,
 	memset(&update, 0, sizeof(struct iwm_umac_pmkid_update));
 
 	update.command = cpu_to_le32(command);
-	memcpy(&update.bssid, pmksa->bssid, ETH_ALEN);
-	memcpy(&update.pmkid, pmksa->pmkid, WLAN_PMKID_LEN);
+	if (pmksa->bssid)
+		memcpy(&update.bssid, pmksa->bssid, ETH_ALEN);
+	if (pmksa->pmkid)
+		memcpy(&update.pmkid, pmksa->pmkid, WLAN_PMKID_LEN);
 
 	ret = iwm_send_wifi_if_cmd(iwm, &update,
 				   sizeof(struct iwm_umac_pmkid_update), 0);
