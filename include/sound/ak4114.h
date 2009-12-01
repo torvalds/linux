@@ -95,13 +95,13 @@
 
 /* AK4114_REG_IO0 */
 #define AK4114_TX1E		(1<<7)	/* TX1 Output Enable (1 = enable) */
-#define AK4114_OPS12		(1<<2)	/* Output Though Data Selector for TX1 pin */
-#define AK4114_OPS11		(1<<1)	/* Output Though Data Selector for TX1 pin */
-#define AK4114_OPS10		(1<<0)	/* Output Though Data Selector for TX1 pin */
+#define AK4114_OPS12		(1<<6)	/* Output Data Selector for TX1 pin */
+#define AK4114_OPS11		(1<<5)	/* Output Data Selector for TX1 pin */
+#define AK4114_OPS10		(1<<4)	/* Output Data Selector for TX1 pin */
 #define AK4114_TX0E		(1<<3)	/* TX0 Output Enable (1 = enable) */
-#define AK4114_OPS02		(1<<2)	/* Output Though Data Selector for TX0 pin */
-#define AK4114_OPS01		(1<<1)	/* Output Though Data Selector for TX0 pin */
-#define AK4114_OPS00		(1<<0)	/* Output Though Data Selector for TX0 pin */
+#define AK4114_OPS02		(1<<2)	/* Output Data Selector for TX0 pin */
+#define AK4114_OPS01		(1<<1)	/* Output Data Selector for TX0 pin */
+#define AK4114_OPS00		(1<<0)	/* Output Data Selector for TX0 pin */
 
 /* AK4114_REG_IO1 */
 #define AK4114_EFH1		(1<<7)	/* Interrupt 0 pin Hold */

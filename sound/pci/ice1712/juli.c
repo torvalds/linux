@@ -412,25 +412,6 @@ static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
 	},
 };
 
-
-static void ak4358_proc_regs_read(struct snd_info_entry *entry,
-		struct snd_info_buffer *buffer)
-{
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
-	int reg, val;
-	for (reg = 0; reg <= 0xf; reg++) {
-		val =  snd_akm4xxx_get(ice->akm, 0, reg);
-		snd_iprintf(buffer, "0x%02x = 0x%02x\n", reg, val);
-	}
-}
-
-static void ak4358_proc_init(struct snd_ice1712 *ice)
-{
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ice->card, "ak4358_codec", &entry))
-		snd_info_set_text_ops(entry, ice, ak4358_proc_regs_read);
-}
-
 static char *slave_vols[] __devinitdata = {
 	PCM_VOLUME,
 	MONITOR_AN_IN_VOLUME,
@@ -496,8 +477,6 @@ static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 	/* only capture SPDIF over AK4114 */
 	err = snd_ak4114_build(spec->ak4114, NULL,
 			ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
-
-	ak4358_proc_init(ice);
 	if (err < 0)
 		return err;
 	return 0;
@@ -550,13 +529,14 @@ static inline unsigned char juli_set_mclk(struct snd_ice1712 *ice,
 }
 
 /* setting clock to external - SPDIF */
-static void juli_set_spdif_clock(struct snd_ice1712 *ice)
+static int juli_set_spdif_clock(struct snd_ice1712 *ice, int type)
 {
 	unsigned int old;
 	old = ice->gpio.get_data(ice);
 	/* external clock (= 0), multiply 1x, 48kHz */
 	ice->gpio.set_data(ice, (old & ~GPIO_RATE_MASK) | GPIO_MULTI_1X |
 			GPIO_FREQ_48KHZ);
+	return 0;
 }
 
 /* Called when ak4114 detects change in the input SPDIF stream */
