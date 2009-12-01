@@ -1053,6 +1053,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.tv_std_property,
+						      1);
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1192,6 +1195,9 @@ radeon_add_legacy_connector(struct drm_device *dev,
 				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
+						      1);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.tv_std_property,
 						      1);
 		}
 		break;
