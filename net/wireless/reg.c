@@ -1931,7 +1931,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_freq_range *freq_range = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 
-	printk(KERN_INFO "\t(start_freq - end_freq @ bandwidth), "
+	printk(KERN_INFO "    (start_freq - end_freq @ bandwidth), "
 		"(max_antenna_gain, max_eirp)\n");
 
 	for (i = 0; i < rd->n_reg_rules; i++) {
@@ -1944,7 +1944,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 		 * in certain regions
 		 */
 		if (power_rule->max_antenna_gain)
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(%d mBi, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
@@ -1952,7 +1952,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 				power_rule->max_antenna_gain,
 				power_rule->max_eirp);
 		else
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(N/A, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
