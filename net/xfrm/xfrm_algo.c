@@ -365,6 +365,7 @@ static struct xfrm_algo_desc ealg_list[] = {
 },
 {
 	.name = "cbc(camellia)",
+	.compat = "camellia",
 
 	.uinfo = {
 		.encr = {
