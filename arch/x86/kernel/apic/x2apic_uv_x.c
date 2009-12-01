@@ -39,7 +39,7 @@ static u64 gru_start_paddr, gru_end_paddr;
 
 static inline bool is_GRU_range(u64 start, u64 end)
 {
-	return start >= gru_start_paddr && end < gru_end_paddr;
+	return start >= gru_start_paddr && end <= gru_end_paddr;
 }
 
 static bool uv_is_untracked_pat_range(u64 start, u64 end)
