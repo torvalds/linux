@@ -109,6 +109,30 @@ static struct module *slow_work_unreg_module;
 static struct slow_work *slow_work_unreg_work_item;
 static DECLARE_WAIT_QUEUE_HEAD(slow_work_unreg_wq);
 static DEFINE_MUTEX(slow_work_unreg_sync_lock);
+
+static void slow_work_set_thread_processing(int id, struct slow_work *work)
+{
+	if (work)
+		slow_work_thread_processing[id] = work->owner;
+}
+static void slow_work_done_thread_processing(int id, struct slow_work *work)
+{
+	struct module *module = slow_work_thread_processing[id];
+
+	slow_work_thread_processing[id] = NULL;
+	smp_mb();
+	if (slow_work_unreg_work_item == work ||
+	    slow_work_unreg_module == module)
+		wake_up_all(&slow_work_unreg_wq);
+}
+static void slow_work_clear_thread_processing(int id)
+{
+	slow_work_thread_processing[id] = NULL;
+}
+#else
+static void slow_work_set_thread_processing(int id, struct slow_work *work) {}
+static void slow_work_done_thread_processing(int id, struct slow_work *work) {}
+static void slow_work_clear_thread_processing(int id) {}
 #endif
 
 /*
@@ -197,9 +221,6 @@ static unsigned slow_work_calc_vsmax(void)
  */
 static noinline bool slow_work_execute(int id)
 {
-#ifdef CONFIG_MODULES
-	struct module *module;
-#endif
 	struct slow_work *work = NULL;
 	unsigned vsmax;
 	bool very_slow;
@@ -236,10 +257,7 @@ static noinline bool slow_work_execute(int id)
 		very_slow = false; /* avoid the compiler warning */
 	}
 
-#ifdef CONFIG_MODULES
-	if (work)
-		slow_work_thread_processing[id] = work->owner;
-#endif
+	slow_work_set_thread_processing(id, work);
 	if (work) {
 		slow_work_mark_time(work);
 		slow_work_begin_exec(id, work);
@@ -287,15 +305,7 @@ static noinline bool slow_work_execute(int id)
 
 	/* sort out the race between module unloading and put_ref() */
 	slow_work_put_ref(work);
-
-#ifdef CONFIG_MODULES
-	module = slow_work_thread_processing[id];
-	slow_work_thread_processing[id] = NULL;
-	smp_mb();
-	if (slow_work_unreg_work_item == work ||
-	    slow_work_unreg_module == module)
-		wake_up_all(&slow_work_unreg_wq);
-#endif
+	slow_work_done_thread_processing(id, work);
 
 	return true;
 
@@ -310,7 +320,7 @@ auto_requeue:
 	else
 		list_add_tail(&work->link, &slow_work_queue);
 	spin_unlock_irq(&slow_work_queue_lock);
-	slow_work_thread_processing[id] = NULL;
+	slow_work_clear_thread_processing(id);
 	return true;
 }
 
@@ -943,6 +953,7 @@ EXPORT_SYMBOL(slow_work_register_user);
  */
 static void slow_work_wait_for_items(struct module *module)
 {
+#ifdef CONFIG_MODULES
 	DECLARE_WAITQUEUE(myself, current);
 	struct slow_work *work;
 	int loop;
@@ -989,6 +1000,7 @@ static void slow_work_wait_for_items(struct module *module)
 
 	remove_wait_queue(&slow_work_unreg_wq, &myself);
 	mutex_unlock(&slow_work_unreg_sync_lock);
+#endif /* CONFIG_MODULES */
 }
 
 /**
