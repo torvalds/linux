@@ -1525,8 +1525,8 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
 	switch (phy->type) {
 	case e1000_phy_m88:
 	case e1000_phy_gg82563:
+	case e1000_phy_bm:
 	case e1000_phy_82578:
-	case e1000_phy_82577:
 		offset	= M88E1000_PHY_SPEC_STATUS;
 		mask	= M88E1000_PSSR_DOWNSHIFT;
 		break;
