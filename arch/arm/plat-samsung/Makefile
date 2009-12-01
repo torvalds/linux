@@ -9,3 +9,4 @@ obj-m				:=
 obj-n				:= dummy.o
 obj-				:=
 
+obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o

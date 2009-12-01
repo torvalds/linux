@@ -13,5 +13,10 @@ config PLAT_SAMSUNG
 
 if PLAT_SAMSUNG
 
+config SAMSUNG_CLKSRC
+	bool
+	help
+	  Select the clock code for the clksrc implementation
+	  used by newer systems such as the S3C64XX.
 
 endif
