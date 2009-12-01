@@ -292,8 +292,9 @@ static int __devinit pcf50633_rtc_probe(struct platform_device *pdev)
 				&pcf50633_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc->rtc_dev)) {
+		int ret =  PTR_ERR(rtc->rtc_dev);
 		kfree(rtc);
-		return PTR_ERR(rtc->rtc_dev);
+		return ret;
 	}
 
 	pcf50633_register_irq(rtc->pcf, PCF50633_IRQ_ALARM,
