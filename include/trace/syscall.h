@@ -50,10 +50,10 @@ enum print_line_t print_syscall_enter(struct trace_iterator *iter, int flags);
 enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif
 #ifdef CONFIG_EVENT_PROFILE
-int reg_prof_syscall_enter(char *name);
-void unreg_prof_syscall_enter(char *name);
-int reg_prof_syscall_exit(char *name);
-void unreg_prof_syscall_exit(char *name);
+int prof_sysenter_enable(struct ftrace_event_call *call);
+void prof_sysenter_disable(struct ftrace_event_call *call);
+int prof_sysexit_enable(struct ftrace_event_call *call);
+void prof_sysexit_disable(struct ftrace_event_call *call);
 
 #endif
 

@@ -99,37 +99,16 @@ struct perf_event_attr;
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
 #ifdef CONFIG_EVENT_PROFILE
-#define TRACE_SYS_ENTER_PROFILE(sname)					       \
-static int prof_sysenter_enable_##sname(struct ftrace_event_call *unused)      \
-{									       \
-	return reg_prof_syscall_enter("sys"#sname);			       \
-}									       \
-									       \
-static void prof_sysenter_disable_##sname(struct ftrace_event_call *unused)    \
-{									       \
-	unreg_prof_syscall_enter("sys"#sname);				       \
-}
-
-#define TRACE_SYS_EXIT_PROFILE(sname)					       \
-static int prof_sysexit_enable_##sname(struct ftrace_event_call *unused)       \
-{									       \
-	return reg_prof_syscall_exit("sys"#sname);			       \
-}									       \
-									       \
-static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
-{                                                                              \
-	unreg_prof_syscall_exit("sys"#sname);				       \
-}
 
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
 	.profile_count = ATOMIC_INIT(-1),				       \
-	.profile_enable = prof_sysenter_enable_##sname,			       \
-	.profile_disable = prof_sysenter_disable_##sname,
+	.profile_enable = prof_sysenter_enable,				       \
+	.profile_disable = prof_sysenter_disable,
 
 #define TRACE_SYS_EXIT_PROFILE_INIT(sname)				       \
 	.profile_count = ATOMIC_INIT(-1),				       \
-	.profile_enable = prof_sysexit_enable_##sname,			       \
-	.profile_disable = prof_sysexit_disable_##sname,
+	.profile_enable = prof_sysexit_enable,				       \
+	.profile_disable = prof_sysexit_disable,
 #else
 #define TRACE_SYS_ENTER_PROFILE(sname)
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)
@@ -158,7 +137,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	struct trace_event enter_syscall_print_##sname = {		\
 		.trace                  = print_syscall_enter,		\
 	};								\
-	TRACE_SYS_ENTER_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\
@@ -181,7 +159,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	struct trace_event exit_syscall_print_##sname = {		\
 		.trace                  = print_syscall_exit,		\
 	};								\
-	TRACE_SYS_EXIT_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\

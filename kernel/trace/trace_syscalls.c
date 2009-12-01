@@ -520,14 +520,12 @@ end_recursion:
 	local_irq_restore(flags);
 }
 
-int reg_prof_syscall_enter(char *name)
+int prof_sysenter_enable(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
 
-	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= NR_syscalls)
-		return -ENOSYS;
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
 	if (!sys_prof_refcount_enter)
@@ -543,13 +541,11 @@ int reg_prof_syscall_enter(char *name)
 	return ret;
 }
 
-void unreg_prof_syscall_enter(char *name)
+void prof_sysenter_disable(struct ftrace_event_call *call)
 {
 	int num;
 
-	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= NR_syscalls)
-		return;
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
 	sys_prof_refcount_enter--;
@@ -625,14 +621,12 @@ end_recursion:
 	local_irq_restore(flags);
 }
 
-int reg_prof_syscall_exit(char *name)
+int prof_sysexit_enable(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
 
-	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= NR_syscalls)
-		return -ENOSYS;
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
 	if (!sys_prof_refcount_exit)
@@ -648,13 +642,11 @@ int reg_prof_syscall_exit(char *name)
 	return ret;
 }
 
-void unreg_prof_syscall_exit(char *name)
+void prof_sysexit_disable(struct ftrace_event_call *call)
 {
 	int num;
 
-	num = syscall_name_to_nr(name);
-	if (num < 0 || num >= NR_syscalls)
-		return;
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
 	sys_prof_refcount_exit--;
