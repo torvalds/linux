@@ -539,23 +539,41 @@ static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
 	add_pin_to_irq_node(cfg, node, newapic, newpin);
 }
 
+static void __io_apic_modify_irq(struct irq_pin_list *entry,
+				 int mask_and, int mask_or,
+				 void (*final)(struct irq_pin_list *entry))
+{
+	unsigned int reg, pin;
+
+	pin = entry->pin;
+	reg = io_apic_read(entry->apic, 0x10 + pin * 2);
+	reg &= mask_and;
+	reg |= mask_or;
+	io_apic_modify(entry->apic, 0x10 + pin * 2, reg);
+	if (final)
+		final(entry);
+}
+
 static void io_apic_modify_irq(struct irq_cfg *cfg,
 			       int mask_and, int mask_or,
 			       void (*final)(struct irq_pin_list *entry))
 {
-	int pin;
 	struct irq_pin_list *entry;
 
-	for_each_irq_pin(entry, cfg->irq_2_pin) {
-		unsigned int reg;
-		pin = entry->pin;
-		reg = io_apic_read(entry->apic, 0x10 + pin * 2);
-		reg &= mask_and;
-		reg |= mask_or;
-		io_apic_modify(entry->apic, 0x10 + pin * 2, reg);
-		if (final)
-			final(entry);
-	}
+	for_each_irq_pin(entry, cfg->irq_2_pin)
+		__io_apic_modify_irq(entry, mask_and, mask_or, final);
+}
+
+static void __mask_and_edge_IO_APIC_irq(struct irq_pin_list *entry)
+{
+	__io_apic_modify_irq(entry, ~IO_APIC_REDIR_LEVEL_TRIGGER,
+			     IO_APIC_REDIR_MASKED, NULL);
+}
+
+static void __unmask_and_level_IO_APIC_irq(struct irq_pin_list *entry)
+{
+	__io_apic_modify_irq(entry, ~IO_APIC_REDIR_MASKED,
+			     IO_APIC_REDIR_LEVEL_TRIGGER, NULL);
 }
 
 static void __unmask_IO_APIC_irq(struct irq_cfg *cfg)
@@ -577,18 +595,6 @@ static void io_apic_sync(struct irq_pin_list *entry)
 static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
 {
 	io_apic_modify_irq(cfg, ~0, IO_APIC_REDIR_MASKED, &io_apic_sync);
-}
-
-static void __mask_and_edge_IO_APIC_irq(struct irq_cfg *cfg)
-{
-	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_LEVEL_TRIGGER,
-			IO_APIC_REDIR_MASKED, NULL);
-}
-
-static void __unmask_and_level_IO_APIC_irq(struct irq_cfg *cfg)
-{
-	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_MASKED,
-			IO_APIC_REDIR_LEVEL_TRIGGER, NULL);
 }
 
 static void mask_IO_APIC_irq_desc(struct irq_desc *desc)
@@ -2492,17 +2498,42 @@ static void ack_apic_edge(unsigned int irq)
 
 atomic_t irq_mis_count;
 
-static int use_eoi_reg __read_mostly;
-
+/*
+ * IO-APIC versions below 0x20 don't support EOI register.
+ * For the record, here is the information about various versions:
+ *     0Xh     82489DX
+ *     1Xh     I/OAPIC or I/O(x)APIC which are not PCI 2.2 Compliant
+ *     2Xh     I/O(x)APIC which is PCI 2.2 Compliant
+ *     30h-FFh Reserved
+ *
+ * Some of the Intel ICH Specs (ICH2 to ICH5) documents the io-apic
+ * version as 0x2. This is an error with documentation and these ICH chips
+ * use io-apic's of version 0x20.
+ *
+ * For IO-APIC's with EOI register, we use that to do an explicit EOI.
+ * Otherwise, we simulate the EOI message manually by changing the trigger
+ * mode to edge and then back to level, with RTE being masked during this.
+*/
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
 	struct irq_pin_list *entry;
 
 	for_each_irq_pin(entry, cfg->irq_2_pin) {
-		if (irq_remapped(irq))
-			io_apic_eoi(entry->apic, entry->pin);
-		else
-			io_apic_eoi(entry->apic, cfg->vector);
+		if (mp_ioapics[entry->apic].apicver >= 0x20) {
+			/*
+			 * Intr-remapping uses pin number as the virtual vector
+			 * in the RTE. Actual vector is programmed in
+			 * intr-remapping table entry. Hence for the io-apic
+			 * EOI we use the pin number.
+			 */
+			if (irq_remapped(irq))
+				io_apic_eoi(entry->apic, entry->pin);
+			else
+				io_apic_eoi(entry->apic, cfg->vector);
+		} else {
+			__mask_and_edge_IO_APIC_irq(entry);
+			__unmask_and_level_IO_APIC_irq(entry);
+		}
 	}
 }
 
@@ -2519,23 +2550,6 @@ static void eoi_ioapic_irq(struct irq_desc *desc)
 	__eoi_ioapic_irq(irq, cfg);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
-
-static int ioapic_supports_eoi(void)
-{
-	struct pci_dev *root;
-
-	root = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
-	if (root && root->vendor == PCI_VENDOR_ID_INTEL &&
-	    mp_ioapics[0].apicver >= 0x2) {
-		use_eoi_reg = 1;
-		printk(KERN_INFO "IO-APIC supports EOI register\n");
-	} else
-		printk(KERN_INFO "IO-APIC doesn't support EOI\n");
-
-	return 0;
-}
-
-fs_initcall(ioapic_supports_eoi);
 
 static void ack_apic_level(unsigned int irq)
 {
@@ -2587,14 +2601,7 @@ static void ack_apic_level(unsigned int irq)
 	if (!(v & (1 << (i & 0x1f)))) {
 		atomic_inc(&irq_mis_count);
 
-		if (use_eoi_reg)
-			eoi_ioapic_irq(desc);
-		else {
-			spin_lock(&ioapic_lock);
-			__mask_and_edge_IO_APIC_irq(cfg);
-			__unmask_and_level_IO_APIC_irq(cfg);
-			spin_unlock(&ioapic_lock);
-		}
+		eoi_ioapic_irq(desc);
 	}
 
 	/* Now we can move and renable the irq */
