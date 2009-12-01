@@ -739,6 +739,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		req->r_got_reply = 1;
 	} else if ((flags & CEPH_OSD_FLAG_ONDISK) == 0) {
 		dout("handle_reply tid %llu dup ack\n", tid);
+		mutex_unlock(&osdc->request_mutex);
 		goto done;
 	}
 
