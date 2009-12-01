@@ -1170,3 +1170,77 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	return 0;
 }
 
+static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
+			  enum ieee80211_smps_mode *smps_mode)
+{
+	if (ifmgd->associated) {
+		*smps_mode = ifmgd->ap_smps;
+
+		if (*smps_mode == IEEE80211_SMPS_AUTOMATIC) {
+			if (ifmgd->powersave)
+				*smps_mode = IEEE80211_SMPS_DYNAMIC;
+			else
+				*smps_mode = IEEE80211_SMPS_OFF;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+/* must hold iflist_mtx */
+void ieee80211_recalc_smps(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *forsdata)
+{
+	struct ieee80211_sub_if_data *sdata;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
+	int count = 0;
+
+	if (forsdata)
+		WARN_ON(!mutex_is_locked(&forsdata->u.mgd.mtx));
+
+	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+
+	/*
+	 * This function could be improved to handle multiple
+	 * interfaces better, but right now it makes any
+	 * non-station interfaces force SM PS to be turned
+	 * off. If there are multiple station interfaces it
+	 * could also use the best possible mode, e.g. if
+	 * one is in static and the other in dynamic then
+	 * dynamic is ok.
+	 */
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			goto set;
+		if (sdata != forsdata) {
+			/*
+			 * This nested is ok -- we are holding the iflist_mtx
+			 * so can't get here twice or so. But it's required
+			 * since normally we acquire it first and then the
+			 * iflist_mtx.
+			 */
+			mutex_lock_nested(&sdata->u.mgd.mtx, SINGLE_DEPTH_NESTING);
+			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
+			mutex_unlock(&sdata->u.mgd.mtx);
+		} else
+			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
+
+		if (count > 1) {
+			smps_mode = IEEE80211_SMPS_OFF;
+			break;
+		}
+	}
+
+	if (smps_mode == local->smps_mode)
+		return;
+
+ set:
+	local->smps_mode = smps_mode;
+	/* changed flag is auto-detected for this */
+	ieee80211_hw_config(local, 0);
+}

@@ -597,8 +597,10 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
+ * @IEEE80211_CONF_CHANGE_SMPS: Spatial multiplexing powersave mode changed
  */
 enum ieee80211_conf_changed {
+	IEEE80211_CONF_CHANGE_SMPS		= BIT(1),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_MONITOR		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -606,6 +608,21 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
+};
+
+/**
+ * enum ieee80211_smps_mode - spatial multiplexing power save mode
+ *
+ * @
+ */
+enum ieee80211_smps_mode {
+	IEEE80211_SMPS_AUTOMATIC,
+	IEEE80211_SMPS_OFF,
+	IEEE80211_SMPS_STATIC,
+	IEEE80211_SMPS_DYNAMIC,
+
+	/* keep last */
+	IEEE80211_SMPS_NUM_MODES,
 };
 
 /**
@@ -636,6 +653,10 @@ enum ieee80211_conf_changed {
  * @short_frame_max_tx_count: Maximum number of transmissions for a "short"
  *    frame, called "dot11ShortRetryLimit" in 802.11, but actually means the
  *    number of transmissions not the number of retries
+ *
+ * @smps_mode: spatial multiplexing powersave mode; note that
+ *	%IEEE80211_SMPS_STATIC is used when the device is not
+ *	configured for an HT channel
  */
 struct ieee80211_conf {
 	u32 flags;
@@ -648,6 +669,7 @@ struct ieee80211_conf {
 
 	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type;
+	enum ieee80211_smps_mode smps_mode;
 };
 
 /**
@@ -930,6 +952,16 @@ enum ieee80211_tkip_key_type {
  * @IEEE80211_HW_BEACON_FILTER:
  *	Hardware supports dropping of irrelevant beacon frames to
  *	avoid waking up cpu.
+ *
+ * @IEEE80211_HW_SUPPORTS_STATIC_SMPS:
+ *	Hardware supports static spatial multiplexing powersave,
+ *	ie. can turn off all but one chain even on HT connections
+ *	that should be using more chains.
+ *
+ * @IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS:
+ *	Hardware supports dynamic spatial multiplexing powersave,
+ *	ie. can turn off all but one chain and then wake the rest
+ *	up as required after, for example, rts/cts handshake.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -947,6 +979,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
 	IEEE80211_HW_BEACON_FILTER			= 1<<14,
+	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
+	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 };
 
 /**
@@ -1212,6 +1246,31 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * If the hardware cannot implement this, the driver should ask it to
  * periodically pass beacon frames to the host so that software can do the
  * signal strength threshold checking.
+ */
+
+/**
+ * DOC: Spatial multiplexing power save
+ *
+ * SMPS (Spatial multiplexing power save) is a mechanism to conserve
+ * power in an 802.11n implementation. For details on the mechanism
+ * and rationale, please refer to 802.11 (as amended by 802.11n-2009)
+ * "11.2.3 SM power save".
+ *
+ * The mac80211 implementation is capable of sending action frames
+ * to update the AP about the station's SMPS mode, and will instruct
+ * the driver to enter the specific mode. It will also announce the
+ * requested SMPS mode during the association handshake. Hardware
+ * support for this feature is required, and can be indicated by
+ * hardware flags.
+ *
+ * The default mode will be "automatic", which nl80211/cfg80211
+ * defines to be dynamic SMPS in (regular) powersave, and SMPS
+ * turned off otherwise.
+ *
+ * To support this feature, the driver must set the appropriate
+ * hardware support flags, and handle the SMPS flag to the config()
+ * operation. It will then with this mechanism be instructed to
+ * enter the requested SMPS mode while associated to an HT AP.
  */
 
 /**

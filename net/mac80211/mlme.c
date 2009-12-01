@@ -398,6 +398,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		__le16 tmp;
 		u32 flags = local->hw.conf.channel->flags;
 
+		/* determine capability flags */
+
 		switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 			if (flags & IEEE80211_CHAN_NO_HT40PLUS) {
@@ -413,17 +415,64 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 			break;
 		}
 
-		tmp = cpu_to_le16(cap);
-		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap)+2);
+		/* set SM PS mode properly */
+		cap &= ~IEEE80211_HT_CAP_SM_PS;
+		/* new association always uses requested smps mode */
+		if (ifmgd->req_smps == IEEE80211_SMPS_AUTOMATIC) {
+			if (ifmgd->powersave)
+				ifmgd->ap_smps = IEEE80211_SMPS_DYNAMIC;
+			else
+				ifmgd->ap_smps = IEEE80211_SMPS_OFF;
+		} else
+			ifmgd->ap_smps = ifmgd->req_smps;
+
+		switch (ifmgd->ap_smps) {
+		case IEEE80211_SMPS_AUTOMATIC:
+		case IEEE80211_SMPS_NUM_MODES:
+			WARN_ON(1);
+		case IEEE80211_SMPS_OFF:
+			cap |= WLAN_HT_CAP_SM_PS_DISABLED <<
+				IEEE80211_HT_CAP_SM_PS_SHIFT;
+			break;
+		case IEEE80211_SMPS_STATIC:
+			cap |= WLAN_HT_CAP_SM_PS_STATIC <<
+				IEEE80211_HT_CAP_SM_PS_SHIFT;
+			break;
+		case IEEE80211_SMPS_DYNAMIC:
+			cap |= WLAN_HT_CAP_SM_PS_DYNAMIC <<
+				IEEE80211_HT_CAP_SM_PS_SHIFT;
+			break;
+		}
+
+		/* reserve and fill IE */
+
+		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
 		memset(pos, 0, sizeof(struct ieee80211_ht_cap));
+
+		/* capability flags */
+		tmp = cpu_to_le16(cap);
 		memcpy(pos, &tmp, sizeof(u16));
 		pos += sizeof(u16);
-		/* TODO: needs a define here for << 2 */
+
+		/* AMPDU parameters */
 		*pos++ = sband->ht_cap.ampdu_factor |
-			 (sband->ht_cap.ampdu_density << 2);
+			 (sband->ht_cap.ampdu_density <<
+				IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT);
+
+		/* MCS set */
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
+		pos += sizeof(sband->ht_cap.mcs);
+
+		/* extended capabilities */
+		pos += sizeof(__le16);
+
+		/* BF capabilities */
+		pos += sizeof(__le32);
+
+		/* antenna selection */
+		pos += sizeof(u8);
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
@@ -932,6 +981,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&local->iflist_mtx);
 	ieee80211_recalc_ps(local, -1);
+	ieee80211_recalc_smps(local, sdata);
 	mutex_unlock(&local->iflist_mtx);
 
 	netif_start_queue(sdata->dev);
@@ -2327,6 +2377,11 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		ifmgd->flags |= IEEE80211_STA_WMM_ENABLED;
 
 	mutex_init(&ifmgd->mtx);
+
+	if (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS)
+		ifmgd->req_smps = IEEE80211_SMPS_AUTOMATIC;
+	else
+		ifmgd->req_smps = IEEE80211_SMPS_OFF;
 }
 
 /* scan finished notification */

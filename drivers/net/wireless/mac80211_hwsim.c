@@ -618,12 +618,26 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
+	static const char *chantypes[4] = {
+		[NL80211_CHAN_NO_HT] = "noht",
+		[NL80211_CHAN_HT20] = "ht20",
+		[NL80211_CHAN_HT40MINUS] = "ht40-",
+		[NL80211_CHAN_HT40PLUS] = "ht40+",
+	};
+	static const char *smps_modes[IEEE80211_SMPS_NUM_MODES] = {
+		[IEEE80211_SMPS_AUTOMATIC] = "auto",
+		[IEEE80211_SMPS_OFF] = "off",
+		[IEEE80211_SMPS_STATIC] = "static",
+		[IEEE80211_SMPS_DYNAMIC] = "dynamic",
+	};
 
-	printk(KERN_DEBUG "%s:%s (freq=%d idle=%d ps=%d)\n",
+	printk(KERN_DEBUG "%s:%s (freq=%d/%s idle=%d ps=%d smps=%s)\n",
 	       wiphy_name(hw->wiphy), __func__,
 	       conf->channel->center_freq,
+	       chantypes[conf->channel_type],
 	       !!(conf->flags & IEEE80211_CONF_IDLE),
-	       !!(conf->flags & IEEE80211_CONF_PS));
+	       !!(conf->flags & IEEE80211_CONF_PS),
+	       smps_modes[conf->smps_mode]);
 
 	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
@@ -1082,7 +1096,9 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_MESH_POINT);
 
 		hw->flags = IEEE80211_HW_MFP_CAPABLE |
-			    IEEE80211_HW_SIGNAL_DBM;
+			    IEEE80211_HW_SIGNAL_DBM |
+			    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
+			    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);

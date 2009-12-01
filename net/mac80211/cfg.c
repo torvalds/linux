@@ -1318,6 +1318,50 @@ static int ieee80211_testmode_cmd(struct wiphy *wiphy, void *data, int len)
 }
 #endif
 
+int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_smps_mode smps_mode)
+{
+	const u8 *ap;
+	enum ieee80211_smps_mode old_req;
+	int err;
+
+	old_req = sdata->u.mgd.req_smps;
+	sdata->u.mgd.req_smps = smps_mode;
+
+	if (old_req == smps_mode &&
+	    smps_mode != IEEE80211_SMPS_AUTOMATIC)
+		return 0;
+
+	/*
+	 * If not associated, or current association is not an HT
+	 * association, there's no need to send an action frame.
+	 */
+	if (!sdata->u.mgd.associated ||
+	    sdata->local->oper_channel_type == NL80211_CHAN_NO_HT) {
+		mutex_lock(&sdata->local->iflist_mtx);
+		ieee80211_recalc_smps(sdata->local, sdata);
+		mutex_unlock(&sdata->local->iflist_mtx);
+		return 0;
+	}
+
+	ap = sdata->u.mgd.associated->cbss.bssid;
+
+	if (smps_mode == IEEE80211_SMPS_AUTOMATIC) {
+		if (sdata->u.mgd.powersave)
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
+		else
+			smps_mode = IEEE80211_SMPS_OFF;
+	}
+
+	/* send SM PS frame to AP */
+	err = ieee80211_send_smps_action(sdata, smps_mode,
+					 ap, ap);
+	if (err)
+		sdata->u.mgd.req_smps = old_req;
+
+	return err;
+}
+
 static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 				    bool enabled, int timeout)
 {
@@ -1334,6 +1378,11 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata->u.mgd.powersave = enabled;
 	conf->dynamic_ps_timeout = timeout;
+
+	/* no change, but if automatic follow powersave */
+	mutex_lock(&sdata->u.mgd.mtx);
+	__ieee80211_request_smps(sdata, sdata->u.mgd.req_smps);
+	mutex_unlock(&sdata->u.mgd.mtx);
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);

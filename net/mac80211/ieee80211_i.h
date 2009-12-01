@@ -297,6 +297,8 @@ struct ieee80211_if_managed {
 
 	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
+	enum ieee80211_smps_mode req_smps, /* requested smps mode */
+				 ap_smps; /* smps mode AP thinks we're in */
 
 	unsigned long request;
 
@@ -587,6 +589,9 @@ struct ieee80211_local {
 	/* used for uploading changed mc list */
 	struct work_struct reconfig_filter;
 
+	/* used to reconfigure hardware SM PS */
+	struct work_struct recalc_smps;
+
 	/* aggregated multicast list */
 	struct dev_addr_list *mc_list;
 	int mc_count;
@@ -759,6 +764,8 @@ struct ieee80211_local {
 
 	int user_power_level; /* in dBm */
 	int power_constr_level; /* in dBm */
+
+	enum ieee80211_smps_mode smps_mode;
 
 	struct work_struct restart_work;
 
@@ -978,6 +985,9 @@ void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u1
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
 			  u16 initiator, u16 reason_code);
+int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
+			       enum ieee80211_smps_mode smps, const u8 *da,
+			       const u8 *bssid);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
@@ -1088,6 +1098,10 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
+int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_smps_mode smps_mode);
+void ieee80211_recalc_smps(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *forsdata);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

@@ -140,6 +140,7 @@ TRACE_EVENT(drv_config,
 		__field(u8, short_frame_max_tx_count)
 		__field(int, center_freq)
 		__field(int, channel_type)
+		__field(int, smps)
 	),
 
 	TP_fast_assign(
@@ -155,6 +156,7 @@ TRACE_EVENT(drv_config,
 		__entry->short_frame_max_tx_count = local->hw.conf.short_frame_max_tx_count;
 		__entry->center_freq = local->hw.conf.channel->center_freq;
 		__entry->channel_type = local->hw.conf.channel_type;
+		__entry->smps = local->hw.conf.smps_mode;
 	),
 
 	TP_printk(
