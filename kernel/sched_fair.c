@@ -1403,7 +1403,6 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 		new_cpu = prev_cpu;
 	}
 
-	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
 		/*
 		 * If power savings logic is enabled for a domain, see if we
@@ -1484,10 +1483,8 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 			update_shares(tmp);
 	}
 
-	if (affine_sd && wake_affine(affine_sd, p, sync)) {
-		new_cpu = cpu;
-		goto out;
-	}
+	if (affine_sd && wake_affine(affine_sd, p, sync))
+		return cpu;
 
 	while (sd) {
 		int load_idx = sd->forkexec_idx;
@@ -1528,8 +1525,6 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 		/* while loop will break here if sd == NULL */
 	}
 
-out:
-	rcu_read_unlock();
 	return new_cpu;
 }
 #endif /* CONFIG_SMP */
