@@ -95,11 +95,11 @@ static void gelic_card_get_ether_port_status(struct gelic_card *card,
 
 	lv1_net_control(bus_id(card), dev_id(card),
 			GELIC_LV1_GET_ETH_PORT_STATUS,
-			GELIC_LV1_VLAN_TX_ETHERNET, 0, 0,
+			GELIC_LV1_VLAN_TX_ETHERNET_0, 0, 0,
 			&card->ether_port_status, &v2);
 
 	if (inform) {
-		ether_netdev = card->netdev[GELIC_PORT_ETHERNET];
+		ether_netdev = card->netdev[GELIC_PORT_ETHERNET_0];
 		if (card->ether_port_status & GELIC_LV1_ETHER_LINK_UP)
 			netif_carrier_on(ether_netdev);
 		else
@@ -451,14 +451,14 @@ static void gelic_descr_release_tx(struct gelic_card *card,
 
 static void gelic_card_stop_queues(struct gelic_card *card)
 {
-	netif_stop_queue(card->netdev[GELIC_PORT_ETHERNET]);
+	netif_stop_queue(card->netdev[GELIC_PORT_ETHERNET_0]);
 
 	if (card->netdev[GELIC_PORT_WIRELESS])
 		netif_stop_queue(card->netdev[GELIC_PORT_WIRELESS]);
 }
 static void gelic_card_wake_queues(struct gelic_card *card)
 {
-	netif_wake_queue(card->netdev[GELIC_PORT_ETHERNET]);
+	netif_wake_queue(card->netdev[GELIC_PORT_ETHERNET_0]);
 
 	if (card->netdev[GELIC_PORT_WIRELESS])
 		netif_wake_queue(card->netdev[GELIC_PORT_WIRELESS]);
@@ -999,7 +999,7 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 			goto refill;
 		}
 	} else
-		netdev = card->netdev[GELIC_PORT_ETHERNET];
+		netdev = card->netdev[GELIC_PORT_ETHERNET_0];
 
 	if ((status == GELIC_DESCR_DMA_RESPONSE_ERROR) ||
 	    (status == GELIC_DESCR_DMA_PROTECTION_ERROR) ||
@@ -1369,7 +1369,7 @@ static void gelic_net_tx_timeout_task(struct work_struct *work)
 {
 	struct gelic_card *card =
 		container_of(work, struct gelic_card, tx_timeout_task);
-	struct net_device *netdev = card->netdev[GELIC_PORT_ETHERNET];
+	struct net_device *netdev = card->netdev[GELIC_PORT_ETHERNET_0];
 
 	dev_info(ctodev(card), "%s:Timed out. Restarting... \n", __func__);
 
@@ -1531,10 +1531,10 @@ static struct gelic_card * __devinit gelic_alloc_card_net(struct net_device **ne
 	/* gelic_port */
 	port->netdev = *netdev;
 	port->card = card;
-	port->type = GELIC_PORT_ETHERNET;
+	port->type = GELIC_PORT_ETHERNET_0;
 
 	/* gelic_card */
-	card->netdev[GELIC_PORT_ETHERNET] = *netdev;
+	card->netdev[GELIC_PORT_ETHERNET_0] = *netdev;
 
 	INIT_WORK(&card->tx_timeout_task, gelic_net_tx_timeout_task);
 	init_waitqueue_head(&card->waitq);
@@ -1554,9 +1554,9 @@ static void __devinit gelic_card_get_vlan_info(struct gelic_card *card)
 		int tx;
 		int rx;
 	} vlan_id_ix[2] = {
-		[GELIC_PORT_ETHERNET] = {
-			.tx = GELIC_LV1_VLAN_TX_ETHERNET,
-			.rx = GELIC_LV1_VLAN_RX_ETHERNET
+		[GELIC_PORT_ETHERNET_0] = {
+			.tx = GELIC_LV1_VLAN_TX_ETHERNET_0,
+			.rx = GELIC_LV1_VLAN_RX_ETHERNET_0
 		},
 		[GELIC_PORT_WIRELESS] = {
 			.tx = GELIC_LV1_VLAN_TX_WIRELESS,
@@ -1601,7 +1601,7 @@ static void __devinit gelic_card_get_vlan_info(struct gelic_card *card)
 			i, card->vlan[i].tx, card->vlan[i].rx);
 	}
 
-	if (card->vlan[GELIC_PORT_ETHERNET].tx) {
+	if (card->vlan[GELIC_PORT_ETHERNET_0].tx) {
 		BUG_ON(!card->vlan[GELIC_PORT_WIRELESS].tx);
 		card->vlan_required = 1;
 	} else
@@ -1790,7 +1790,7 @@ static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 	gelic_card_free_chain(card, card->tx_top);
 	gelic_card_free_chain(card, card->rx_top);
 
-	netdev0 = card->netdev[GELIC_PORT_ETHERNET];
+	netdev0 = card->netdev[GELIC_PORT_ETHERNET_0];
 	/* disconnect event port */
 	free_irq(card->irq, card);
 	netdev0->irq = NO_IRQ;
