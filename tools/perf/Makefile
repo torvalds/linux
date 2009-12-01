@@ -369,6 +369,7 @@ LIB_H += util/sort.h
 LIB_H += util/hist.h
 LIB_H += util/thread.h
 LIB_H += util/data_map.h
+LIB_H += util/probe-finder.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
@@ -485,7 +486,6 @@ ifneq ($(shell sh -c "(echo '\#include <libdwarf/dwarf.h>'; echo '\#include <lib
 	BASIC_CFLAGS += -DNO_LIBDWARF
 else
 	EXTLIBS += -lelf -ldwarf
-	LIB_H += util/probe-finder.h
 	LIB_OBJS += util/probe-finder.o
 endif
 
