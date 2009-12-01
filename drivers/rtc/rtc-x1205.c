@@ -195,7 +195,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		/* year, since the rtc epoch*/
 		buf[CCR_YEAR] = bin2bcd(tm->tm_year % 100);
 		buf[CCR_WDAY] = tm->tm_wday & 0x07;
-		buf[CCR_Y2K] = bin2bcd(tm->tm_year / 100);
+		buf[CCR_Y2K] = bin2bcd((tm->tm_year + 1900) / 100);
 	}
 
 	/* If writing alarm registers, set compare bits on registers 0-4 */
