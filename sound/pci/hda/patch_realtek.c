@@ -14543,6 +14543,27 @@ static struct alc_config_preset alc861_presets[] = {
 	},
 };
 
+/* Pin config fixes */
+enum {
+	PINFIX_FSC_AMILO_PI1505,
+};
+
+static struct alc_pincfg alc861_fsc_amilo_pi1505_pinfix[] = {
+	{ 0x0b, 0x0221101f }, /* HP */
+	{ 0x0f, 0x90170310 }, /* speaker */
+	{ }
+};
+
+static const struct alc_fixup alc861_fixups[] = {
+	[PINFIX_FSC_AMILO_PI1505] = {
+		.pins = alc861_fsc_amilo_pi1505_pinfix
+	},
+};
+
+static struct snd_pci_quirk alc861_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
+	{}
+};
 
 static int patch_alc861(struct hda_codec *codec)
 {
@@ -14565,6 +14586,8 @@ static int patch_alc861(struct hda_codec *codec)
 		       codec->chip_name);
 		board_config = ALC861_AUTO;
 	}
+
+	alc_pick_fixup(codec, alc861_fixup_tbl, alc861_fixups);
 
 	if (board_config == ALC861_AUTO) {
 		/* automatic parse from the BIOS config */
