@@ -32,6 +32,7 @@
 
 #undef _GNU_SOURCE
 #include "event.h"
+#include "string.h"
 #include "debug.h"
 #include "parse-events.h"  /* For debugfs_path */
 #include "probe-event.h"
@@ -132,62 +133,36 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 /* Parse perf-probe event definition */
 int parse_perf_probe_event(const char *str, struct probe_point *pp)
 {
-	char *argv[MAX_PROBE_ARGS + 1];	/* probe + args */
+	char **argv;
 	int argc, i, need_dwarf = 0;
 
-	/* Separate arguments, similar to argv_split */
-	argc = 0;
-	do {
-		/* Skip separators */
-		while (isspace(*str))
-			str++;
-
-		/* Add an argument */
-		if (*str != '\0') {
-			const char *s = str;
-			/* Check the limit number of arguments */
-			if (argc == MAX_PROBE_ARGS + 1)
-				semantic_error("Too many arguments");
-
-			/* Skip the argument */
-			while (!isspace(*str) && *str != '\0')
-				str++;
-
-			/* Duplicate the argument */
-			argv[argc] = strndup(s, str - s);
-			if (argv[argc] == NULL)
-				die("strndup");
-			pr_debug("argv[%d]=%s\n", argc, argv[argc]);
-			argc++;
-		}
-	} while (*str != '\0');
-	if (!argc)
-		semantic_error("An empty argument.");
+	argv = argv_split(str, &argc);
+	if (!argv)
+		die("argv_split failed.");
+	if (argc > MAX_PROBE_ARGS + 1)
+		semantic_error("Too many arguments");
 
 	/* Parse probe point */
 	parse_perf_probe_probepoint(argv[0], pp);
-	free(argv[0]);
 	if (pp->file || pp->line)
 		need_dwarf = 1;
 
-	/* Copy arguments */
+	/* Copy arguments and ensure return probe has no C argument */
 	pp->nr_args = argc - 1;
-	if (pp->nr_args > 0) {
-		pp->args = (char **)malloc(sizeof(char *) * pp->nr_args);
-		if (!pp->args)
-			die("malloc");
-		memcpy(pp->args, &argv[1], sizeof(char *) * pp->nr_args);
-	}
-
-	/* Ensure return probe has no C argument */
-	for (i = 0; i < pp->nr_args; i++)
+	pp->args = zalloc(sizeof(char *) * pp->nr_args);
+	for (i = 0; i < pp->nr_args; i++) {
+		pp->args[i] = strdup(argv[i + 1]);
+		if (!pp->args[i])
+			die("Failed to copy argument.");
 		if (is_c_varname(pp->args[i])) {
 			if (pp->retprobe)
 				semantic_error("You can't specify local"
 						" variable for kretprobe");
 			need_dwarf = 1;
 		}
+	}
 
+	argv_free(argv);
 	return need_dwarf;
 }
 
