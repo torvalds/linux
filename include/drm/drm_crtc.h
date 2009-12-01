@@ -290,6 +290,7 @@ struct drm_property {
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
+struct drm_pending_vblank_event;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
@@ -333,6 +334,19 @@ struct drm_crtc_funcs {
 	void (*destroy)(struct drm_crtc *crtc);
 
 	int (*set_config)(struct drm_mode_set *set);
+
+	/*
+	 * Flip to the given framebuffer.  This implements the page
+	 * flip ioctl descibed in drm_mode.h, specifically, the
+	 * implementation must return immediately and block all
+	 * rendering to the current fb until the flip has completed.
+	 * If userspace set the event flag in the ioctl, the event
+	 * argument will point to an event to send back when the flip
+	 * completes, otherwise it will be NULL.
+	 */
+	int (*page_flip)(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 struct drm_pending_vblank_event *event);
 };
 
 /**
@@ -757,6 +771,8 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
+extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool reduced, bool interlaced, bool margins);

@@ -317,6 +317,7 @@ struct radeon_connector {
 	struct edid *edid;
 	void *con_priv;
 	bool dac_load_detect;
+	uint16_t connector_object_id;
 };
 
 struct radeon_framebuffer {

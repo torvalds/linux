@@ -2221,7 +2221,7 @@ void emac_poll_controller(struct net_device *ndev)
 	struct emac_priv *priv = netdev_priv(ndev);
 
 	emac_int_disable(priv);
-	emac_irq(ndev->irq, priv);
+	emac_irq(ndev->irq, ndev);
 	emac_int_enable(priv);
 }
 #endif

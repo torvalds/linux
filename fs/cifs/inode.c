@@ -512,13 +512,10 @@ int cifs_get_inode_info(struct inode **pinode,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc1) {
+			if (rc1 || !fattr.cf_uniqueid) {
 				cFYI(1, ("GetSrvInodeNum rc %d", rc1));
 				fattr.cf_uniqueid = iunique(sb, ROOT_I);
-				/* disable serverino if call not supported */
-				if (rc1 == -EINVAL)
-					cifs_sb->mnt_cifs_flags &=
-							~CIFS_MOUNT_SERVER_INUM;
+				cifs_autodisable_serverino(cifs_sb);
 			}
 		} else {
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);

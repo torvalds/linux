@@ -722,14 +722,17 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
 
 	args.v1.ucAction = action;
-
+	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
+		args.v1.usInitInfo = radeon_connector->connector_object_id;
+	} else {
+		if (radeon_encoder->pixel_clock > 165000)
+			args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
+		else
+			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+	}
 	if (ASIC_IS_DCE32(rdev)) {
-		if (radeon_encoder->pixel_clock > 165000) {
-			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock * 10 * 2) / 100);
-			args.v2.acConfig.fDualLinkConnector = 1;
-		} else {
-			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock * 10 * 4) / 100);
-		}
+		if (radeon_encoder->pixel_clock > 165000)
+			args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 		if (dig->dig_block)
 			args.v2.acConfig.ucEncoderSel = 1;
 
@@ -754,7 +757,6 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 		}
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-		args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock) / 10);
 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -1137,6 +1139,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 		/* setup and enable the encoder and transmitter */
 		atombios_dig_encoder_setup(encoder, ATOM_ENABLE);
+		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_INIT);
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_SETUP);
 		atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE);
 		break;
