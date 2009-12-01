@@ -1666,41 +1666,6 @@ static int atl1e_tso_csum(struct atl1e_adapter *adapter,
 			}
 			return 0;
 		}
-
-		if (offload_type & SKB_GSO_TCPV6) {
-			real_len = (((unsigned char *)ipv6_hdr(skb) - skb->data)
-					+ ntohs(ipv6_hdr(skb)->payload_len));
-			if (real_len < skb->len)
-				pskb_trim(skb, real_len);
-
-			/* check payload == 0 byte ? */
-			hdr_len = (skb_transport_offset(skb) + tcp_hdrlen(skb));
-			if (unlikely(skb->len == hdr_len)) {
-				/* only xsum need */
-				dev_warn(&pdev->dev,
-					"IPV6 tso with zero data??\n");
-				goto check_sum;
-			} else {
-				tcp_hdr(skb)->check = ~csum_ipv6_magic(
-						&ipv6_hdr(skb)->saddr,
-						&ipv6_hdr(skb)->daddr,
-						0, IPPROTO_TCP, 0);
-				tpd->word3 |= 1 << TPD_IP_VERSION_SHIFT;
-				hdr_len >>= 1;
-				tpd->word3 |= (hdr_len & TPD_V6_IPHLLO_MASK) <<
-					TPD_V6_IPHLLO_SHIFT;
-				tpd->word3 |= ((hdr_len >> 3) &
-					TPD_V6_IPHLHI_MASK) <<
-					TPD_V6_IPHLHI_SHIFT;
-				tpd->word3 |= (tcp_hdrlen(skb) >> 2 &
-					TPD_TCPHDRLEN_MASK) <<
-					TPD_TCPHDRLEN_SHIFT;
-				tpd->word3 |= ((skb_shinfo(skb)->gso_size) &
-					TPD_MSS_MASK) << TPD_MSS_SHIFT;
-					tpd->word3 |= 1 << TPD_SEGMENT_EN_SHIFT;
-			}
-		}
-		return 0;
 	}
 
 check_sum:
@@ -2289,7 +2254,6 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	netdev->features |= NETIF_F_LLTX;
 	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
 
 	return 0;
 }
