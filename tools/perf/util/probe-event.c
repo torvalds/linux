@@ -29,10 +29,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <limits.h>
 
 #undef _GNU_SOURCE
 #include "event.h"
 #include "string.h"
+#include "strlist.h"
 #include "debug.h"
 #include "parse-events.h"  /* For debugfs_path */
 #include "probe-event.h"
@@ -42,6 +45,19 @@
 #define PERFPROBE_GROUP "probe"
 
 #define semantic_error(msg ...) die("Semantic error :" msg)
+
+/* If there is no space to write, returns -E2BIG. */
+static int e_snprintf(char *str, size_t size, const char *format, ...)
+{
+	int ret;
+	va_list ap;
+	va_start(ap, format);
+	ret = vsnprintf(str, size, format, ap);
+	va_end(ap);
+	if (ret >= (int)size)
+		ret = -E2BIG;
+	return ret;
+}
 
 /* Parse probepoint definition. */
 static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
@@ -166,23 +182,91 @@ int parse_perf_probe_event(const char *str, struct probe_point *pp)
 	return need_dwarf;
 }
 
-int synthesize_trace_kprobe_event(struct probe_point *pp)
+/* Parse kprobe_events event into struct probe_point */
+void parse_trace_kprobe_event(const char *str, char **group, char **event,
+			      struct probe_point *pp)
+{
+	char pr;
+	char *p;
+	int ret, i, argc;
+	char **argv;
+
+	pr_debug("Parsing kprobe_events: %s\n", str);
+	argv = argv_split(str, &argc);
+	if (!argv)
+		die("argv_split failed.");
+	if (argc < 2)
+		semantic_error("Too less arguments.");
+
+	/* Scan event and group name. */
+	ret = sscanf(argv[0], "%c:%m[^/ \t]/%m[^ \t]",
+		     &pr, group, event);
+	if (ret != 3)
+		semantic_error("Failed to parse event name: %s", argv[0]);
+	pr_debug("Group:%s Event:%s probe:%c\n", *group, *event, pr);
+
+	if (!pp)
+		goto end;
+
+	pp->retprobe = (pr == 'r');
+
+	/* Scan function name and offset */
+	ret = sscanf(argv[1], "%m[^+]+%d", &pp->function, &pp->offset);
+	if (ret == 1)
+		pp->offset = 0;
+
+	/* kprobe_events doesn't have this information */
+	pp->line = 0;
+	pp->file = NULL;
+
+	pp->nr_args = argc - 2;
+	pp->args = zalloc(sizeof(char *) * pp->nr_args);
+	for (i = 0; i < pp->nr_args; i++) {
+		p = strchr(argv[i + 2], '=');
+		if (p)	/* We don't need which register is assigned. */
+			*p = '\0';
+		pp->args[i] = strdup(argv[i + 2]);
+		if (!pp->args[i])
+			die("Failed to copy argument.");
+	}
+
+end:
+	argv_free(argv);
+}
+
+int synthesize_perf_probe_event(struct probe_point *pp)
 {
 	char *buf;
+	char offs[64] = "", line[64] = "";
 	int i, len, ret;
 
 	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
 	if (!buf)
 		die("Failed to allocate memory by zalloc.");
-	ret = snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
-	if (ret <= 0 || ret >= MAX_CMDLEN)
+	if (pp->offset) {
+		ret = e_snprintf(offs, 64, "+%d", pp->offset);
+		if (ret <= 0)
+			goto error;
+	}
+	if (pp->line) {
+		ret = e_snprintf(line, 64, ":%d", pp->line);
+		if (ret <= 0)
+			goto error;
+	}
+
+	if (pp->function)
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s", pp->function,
+				 offs, pp->retprobe ? "%return" : "", line);
+	else
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s", pp->file, line);
+	if (ret <= 0)
 		goto error;
 	len = ret;
 
 	for (i = 0; i < pp->nr_args; i++) {
-		ret = snprintf(&buf[len], MAX_CMDLEN - len, " %s",
-			       pp->args[i]);
-		if (ret <= 0 || ret >= MAX_CMDLEN - len)
+		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
+				 pp->args[i]);
+		if (ret <= 0)
 			goto error;
 		len += ret;
 	}
@@ -191,10 +275,132 @@ int synthesize_trace_kprobe_event(struct probe_point *pp)
 	return pp->found;
 error:
 	free(pp->probes[0]);
-	if (ret > 0)
-		ret = -E2BIG;
 
 	return ret;
+}
+
+int synthesize_trace_kprobe_event(struct probe_point *pp)
+{
+	char *buf;
+	int i, len, ret;
+
+	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
+	if (!buf)
+		die("Failed to allocate memory by zalloc.");
+	ret = e_snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
+	if (ret <= 0)
+		goto error;
+	len = ret;
+
+	for (i = 0; i < pp->nr_args; i++) {
+		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
+				 pp->args[i]);
+		if (ret <= 0)
+			goto error;
+		len += ret;
+	}
+	pp->found = 1;
+
+	return pp->found;
+error:
+	free(pp->probes[0]);
+
+	return ret;
+}
+
+static int open_kprobe_events(int flags, int mode)
+{
+	char buf[PATH_MAX];
+	int ret;
+
+	ret = e_snprintf(buf, PATH_MAX, "%s/../kprobe_events", debugfs_path);
+	if (ret < 0)
+		die("Failed to make kprobe_events path.");
+
+	ret = open(buf, flags, mode);
+	if (ret < 0) {
+		if (errno == ENOENT)
+			die("kprobe_events file does not exist -"
+			    " please rebuild with CONFIG_KPROBE_TRACER.");
+		else
+			die("Could not open kprobe_events file: %s",
+			    strerror(errno));
+	}
+	return ret;
+}
+
+/* Get raw string list of current kprobe_events */
+static struct strlist *get_trace_kprobe_event_rawlist(int fd)
+{
+	int ret, idx;
+	FILE *fp;
+	char buf[MAX_CMDLEN];
+	char *p;
+	struct strlist *sl;
+
+	sl = strlist__new(true, NULL);
+
+	fp = fdopen(dup(fd), "r");
+	while (!feof(fp)) {
+		p = fgets(buf, MAX_CMDLEN, fp);
+		if (!p)
+			break;
+
+		idx = strlen(p) - 1;
+		if (p[idx] == '\n')
+			p[idx] = '\0';
+		ret = strlist__add(sl, buf);
+		if (ret < 0)
+			die("strlist__add failed: %s", strerror(-ret));
+	}
+	fclose(fp);
+
+	return sl;
+}
+
+/* Free and zero clear probe_point */
+static void clear_probe_point(struct probe_point *pp)
+{
+	int i;
+
+	if (pp->function)
+		free(pp->function);
+	if (pp->file)
+		free(pp->file);
+	for (i = 0; i < pp->nr_args; i++)
+		free(pp->args[i]);
+	if (pp->args)
+		free(pp->args);
+	for (i = 0; i < pp->found; i++)
+		free(pp->probes[i]);
+	memset(pp, 0, sizeof(pp));
+}
+
+/* List up current perf-probe events */
+void show_perf_probe_events(void)
+{
+	unsigned int i;
+	int fd;
+	char *group, *event;
+	struct probe_point pp;
+	struct strlist *rawlist;
+	struct str_node *ent;
+
+	fd = open_kprobe_events(O_RDONLY, 0);
+	rawlist = get_trace_kprobe_event_rawlist(fd);
+	close(fd);
+
+	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
+		ent = strlist__entry(rawlist, i);
+		parse_trace_kprobe_event(ent->s, &group, &event, &pp);
+		synthesize_perf_probe_event(&pp);
+		printf("[%s:%s]\t%s\n", group, event, pp.probes[0]);
+		free(group);
+		free(event);
+		clear_probe_point(&pp);
+	}
+
+	strlist__delete(rawlist);
 }
 
 static int write_trace_kprobe_event(int fd, const char *buf)
@@ -216,16 +422,7 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 	struct probe_point *pp;
 	char buf[MAX_CMDLEN];
 
-	snprintf(buf, MAX_CMDLEN, "%s/../kprobe_events", debugfs_path);
-	fd = open(buf, O_WRONLY, O_APPEND);
-	if (fd < 0) {
-		if (errno == ENOENT)
-			die("kprobe_events file does not exist -"
-			    " please rebuild with CONFIG_KPROBE_TRACER.");
-		else
-			die("Could not open kprobe_events file: %s",
-			    strerror(errno));
-	}
+	fd = open_kprobe_events(O_WRONLY, O_APPEND);
 
 	for (j = 0; j < nr_probes; j++) {
 		pp = probes + j;

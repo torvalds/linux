@@ -62,6 +62,8 @@ static struct {
 	struct probe_point probes[MAX_PROBES];
 } session;
 
+static bool listing;
+
 /* Parse an event definition. Note that any error must die. */
 static void parse_probe_event(const char *str)
 {
@@ -119,6 +121,7 @@ static int open_default_vmlinux(void)
 static const char * const probe_usage[] = {
 	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
+	"perf probe --list",
 	NULL
 };
 
@@ -129,6 +132,7 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
 #endif
+	OPT_BOOLEAN('l', "list", &listing, "list up current probes"),
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_LIBDWARF
 		"FUNC[+OFFS|%return] [ARG ...]",
@@ -164,8 +168,14 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	for (i = 0; i < argc; i++)
 		parse_probe_event(argv[i]);
 
-	if (session.nr_probe == 0)
+	if ((session.nr_probe == 0 && !listing) ||
+	    (session.nr_probe != 0 && listing))
 		usage_with_options(probe_usage, options);
+
+	if (listing) {
+		show_perf_probe_events();
+		return 0;
+	}
 
 	if (session.need_dwarf)
 #ifdef NO_LIBDWARF
