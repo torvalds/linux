@@ -240,7 +240,7 @@ static int select_rom(unsigned int pitch)
 	} else if (pitch == 0x02000000) {
 		/* pitch == 2 */
 		return 3;
-	} else if (pitch >= 0x0 && pitch <= 0x08000000) {
+	} else if (pitch <= 0x08000000) {
 		/* 0 <= pitch <= 8 */
 		return 0;
 	} else {

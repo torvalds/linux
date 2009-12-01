@@ -905,7 +905,7 @@ static struct snd_kcontrol_new tumbler_hp_sw __devinitdata = {
 };
 static struct snd_kcontrol_new tumbler_speaker_sw __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "PC Speaker Playback Switch",
+	.name = "Speaker Playback Switch",
 	.info = snd_pmac_boolean_mono_info,
 	.get = tumbler_get_mute_switch,
 	.put = tumbler_put_mute_switch,

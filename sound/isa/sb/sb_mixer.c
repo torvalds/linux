@@ -631,7 +631,7 @@ static struct sbmix_elem snd_sb16_ctl_mic_play_switch =
 static struct sbmix_elem snd_sb16_ctl_mic_play_vol =
 	SB_SINGLE("Mic Playback Volume", SB_DSP4_MIC_DEV, 3, 31);
 static struct sbmix_elem snd_sb16_ctl_pc_speaker_vol =
-	SB_SINGLE("PC Speaker Volume", SB_DSP4_SPEAKER_DEV, 6, 3);
+	SB_SINGLE("Beep Volume", SB_DSP4_SPEAKER_DEV, 6, 3);
 static struct sbmix_elem snd_sb16_ctl_capture_vol =
 	SB_DOUBLE("Capture Volume", SB_DSP4_IGAIN_DEV, (SB_DSP4_IGAIN_DEV + 1), 6, 6, 3);
 static struct sbmix_elem snd_sb16_ctl_play_vol =
@@ -689,7 +689,7 @@ static struct sbmix_elem snd_dt019x_ctl_cd_play_vol =
 static struct sbmix_elem snd_dt019x_ctl_mic_play_vol =
 	SB_SINGLE("Mic Playback Volume", SB_DT019X_MIC_DEV, 4, 7);
 static struct sbmix_elem snd_dt019x_ctl_pc_speaker_vol =
-	SB_SINGLE("PC Speaker Volume", SB_DT019X_SPKR_DEV, 0,  7);
+	SB_SINGLE("Beep Volume", SB_DT019X_SPKR_DEV, 0,  7);
 static struct sbmix_elem snd_dt019x_ctl_line_play_vol =
 	SB_DOUBLE("Line Playback Volume", SB_DT019X_LINE_DEV, SB_DT019X_LINE_DEV, 4,0, 15);
 static struct sbmix_elem snd_dt019x_ctl_pcm_play_switch =
