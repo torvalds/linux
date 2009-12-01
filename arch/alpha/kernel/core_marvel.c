@@ -1103,6 +1103,8 @@ marvel_agp_info(void)
 	 * Allocate the info structure.
 	 */
 	agp = kmalloc(sizeof(*agp), GFP_KERNEL);
+	if (!agp)
+		return NULL;
 
 	/*
 	 * Fill it in.
