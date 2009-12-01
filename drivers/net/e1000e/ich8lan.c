@@ -1747,7 +1747,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 	if (hsfsts.hsf_status.flcinprog == 0) {
 		/*
 		 * There is no cycle running at present,
-		 * so we can start a cycle
+		 * so we can start a cycle.
 		 * Begin by setting Flash Cycle Done.
 		 */
 		hsfsts.hsf_status.flcdone = 1;
@@ -1755,7 +1755,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		ret_val = 0;
 	} else {
 		/*
-		 * otherwise poll for sometime so the current
+		 * Otherwise poll for sometime so the current
 		 * cycle has a chance to end before giving up.
 		 */
 		for (i = 0; i < ICH_FLASH_READ_COMMAND_TIMEOUT; i++) {
@@ -2645,7 +2645,6 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		ctrl |= E1000_CTRL_PHY_RST;
 	}
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
-	/* Whether or not the swflag was acquired, we need to reset the part */
 	e_dbg("Issuing a global reset to ich8lan\n");
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
 	msleep(20);

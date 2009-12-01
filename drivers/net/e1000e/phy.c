@@ -153,10 +153,10 @@ s32 e1000e_get_phy_id(struct e1000_hw *hw)
 			goto out;
 
 		/*
-		 * If the PHY ID is still unknown, we may have an 82577i
-		 * without link.  We will try again after setting Slow
-		 * MDIC mode. No harm in trying again in this case since
-		 * the PHY ID is unknown at this point anyway
+		 * If the PHY ID is still unknown, we may have an 82577
+		 * without link.  We will try again after setting Slow MDIC
+		 * mode. No harm in trying again in this case since the PHY
+		 * ID is unknown at this point anyway.
 		 */
 		ret_val = phy->ops.acquire(hw);
 		if (ret_val)
@@ -1744,7 +1744,7 @@ out:
  *  The automatic gain control (agc) normalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
  *  cable.  By reading the AGC registers, which represent the
- *  combination of course and fine gain value, the value can be put
+ *  combination of coarse and fine gain value, the value can be put
  *  into a lookup table to obtain the approximate cable length
  *  for each channel.
  **/
@@ -1769,7 +1769,7 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 
 		/*
 		 * Getting bits 15:9, which represent the combination of
-		 * course and fine gain values.  The result is a number
+		 * coarse and fine gain values.  The result is a number
 		 * that can be put into the lookup table to obtain the
 		 * approximate cable length.
 		 */
@@ -2511,7 +2511,7 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 		ret_val = e1000e_read_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
 		                                   data);
 	} else {
-	        /* Read the page 800 value using opcode 0x12 */
+	        /* Write the page 800 value using opcode 0x12 */
 		ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
 						    *data);
 	}

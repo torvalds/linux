@@ -1086,7 +1086,6 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 *   1   |    1    |   0   |    0    | e1000_fc_none
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
 		 *
-		 *
 		 * Are both PAUSE bits set to 1?  If so, this implies
 		 * Symmetric Flow Control is enabled at both ends.  The
 		 * ASM_DIR bits are irrelevant per the spec.
@@ -1124,7 +1123,6 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
 		 *-------|---------|-------|---------|--------------------
 		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
-		 *
 		 */
 		else if (!(mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 			  (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
@@ -1140,7 +1138,6 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
 		 *-------|---------|-------|---------|--------------------
 		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
-		 *
 		 */
 		else if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
@@ -2363,7 +2360,7 @@ static s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
 }
 
 /**
- *  e1000_mng_host_if_write - Writes to the manageability host interface
+ *  e1000_mng_host_if_write - Write to the manageability host interface
  *  @hw: pointer to the HW structure
  *  @buffer: pointer to the host interface buffer
  *  @length: size of the buffer
