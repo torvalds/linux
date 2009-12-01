@@ -107,6 +107,24 @@ static void gelic_card_get_ether_port_status(struct gelic_card *card,
 	}
 }
 
+static int gelic_card_set_link_mode(struct gelic_card *card, int mode)
+{
+	int status;
+	u64 v1, v2;
+
+	status = lv1_net_control(bus_id(card), dev_id(card),
+				 GELIC_LV1_SET_NEGOTIATION_MODE,
+				 GELIC_LV1_PHY_ETHERNET_0, mode, 0, &v1, &v2);
+	if (status) {
+		pr_info("%s: failed setting negotiation mode %d\n", __func__,
+			status);
+		return -EBUSY;
+	}
+
+	card->link_mode = mode;
+	return 0;
+}
+
 void gelic_card_up(struct gelic_card *card)
 {
 	pr_debug("%s: called\n", __func__);
@@ -1244,10 +1262,54 @@ static int gelic_ether_get_settings(struct net_device *netdev,
 	cmd->supported = SUPPORTED_TP | SUPPORTED_Autoneg |
 			SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
-			SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full;
+			SUPPORTED_1000baseT_Full;
 	cmd->advertising = cmd->supported;
-	cmd->autoneg = AUTONEG_ENABLE; /* always enabled */
+	if (card->link_mode & GELIC_LV1_ETHER_AUTO_NEG) {
+		cmd->autoneg = AUTONEG_ENABLE;
+	} else {
+		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->advertising &= ~ADVERTISED_Autoneg;
+	}
 	cmd->port = PORT_TP;
+
+	return 0;
+}
+
+static int gelic_ether_set_settings(struct net_device *netdev,
+				    struct ethtool_cmd *cmd)
+{
+	struct gelic_card *card = netdev_card(netdev);
+	u64 mode;
+	int ret;
+
+	if (cmd->autoneg == AUTONEG_ENABLE) {
+		mode = GELIC_LV1_ETHER_AUTO_NEG;
+	} else {
+		switch (cmd->speed) {
+		case SPEED_10:
+			mode = GELIC_LV1_ETHER_SPEED_10;
+			break;
+		case SPEED_100:
+			mode = GELIC_LV1_ETHER_SPEED_100;
+			break;
+		case SPEED_1000:
+			mode = GELIC_LV1_ETHER_SPEED_1000;
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (cmd->duplex == DUPLEX_FULL)
+			mode |= GELIC_LV1_ETHER_FULL_DUPLEX;
+		else if (cmd->speed == SPEED_1000) {
+			pr_info("1000 half duplex is not supported.\n");
+			return -EINVAL;
+		}
+	}
+
+	ret = gelic_card_set_link_mode(card, mode);
+
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1349,6 +1411,7 @@ done:
 static const struct ethtool_ops gelic_ether_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_settings	= gelic_ether_get_settings,
+	.set_settings	= gelic_ether_set_settings,
 	.get_link	= ethtool_op_get_link,
 	.get_tx_csum	= ethtool_op_get_tx_csum,
 	.set_tx_csum	= ethtool_op_set_tx_csum,
@@ -1657,6 +1720,8 @@ static int __devinit ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 	/* get internal vlan info */
 	gelic_card_get_vlan_info(card);
 
+	card->link_mode = GELIC_LV1_ETHER_AUTO_NEG;
+
 	/* setup interrupt */
 	result = lv1_net_set_interrupt_status_indicator(bus_id(card),
 							dev_id(card),
@@ -1772,6 +1837,9 @@ static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 	struct gelic_card *card = ps3_system_bus_get_drvdata(dev);
 	struct net_device *netdev0;
 	pr_debug("%s: called\n", __func__);
+
+	/* set auto-negotiation */
+	gelic_card_set_link_mode(card, GELIC_LV1_ETHER_AUTO_NEG);
 
 #ifdef CONFIG_GELIC_WIRELESS
 	gelic_wl_driver_remove(card);

@@ -307,6 +307,8 @@ struct gelic_card {
 	atomic_t users;
 
 	u64 ether_port_status;
+	int link_mode;
+
 	/* original address returned by kzalloc */
 	void *unalign;
 
