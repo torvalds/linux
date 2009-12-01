@@ -158,19 +158,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	struct trace_event enter_syscall_print_##sname = {		\
 		.trace                  = print_syscall_enter,		\
 	};								\
-	static int init_enter_##sname(struct ftrace_event_call *call)	\
-	{								\
-		int num, id;						\
-		num = __syscall_meta_##sname.syscall_nr;		\
-		if (num < 0)						\
-			return -ENOSYS;					\
-		id = register_ftrace_event(&enter_syscall_print_##sname);\
-		if (!id)						\
-			return -ENODEV;					\
-		event_enter_##sname.id = id;				\
-		INIT_LIST_HEAD(&event_enter_##sname.fields);		\
-		return 0;						\
-	}								\
 	TRACE_SYS_ENTER_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
@@ -179,7 +166,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		.name                   = "sys_enter"#sname,		\
 		.system                 = "syscalls",			\
 		.event                  = &enter_syscall_print_##sname,	\
-		.raw_init		= init_enter_##sname,		\
+		.raw_init		= init_syscall_trace,		\
 		.show_format		= syscall_enter_format,		\
 		.define_fields		= syscall_enter_define_fields,	\
 		.regfunc		= reg_event_syscall_enter,	\
@@ -194,19 +181,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	struct trace_event exit_syscall_print_##sname = {		\
 		.trace                  = print_syscall_exit,		\
 	};								\
-	static int init_exit_##sname(struct ftrace_event_call *call)	\
-	{								\
-		int num, id;						\
-		num = __syscall_meta_##sname.syscall_nr;		\
-		if (num < 0)						\
-			return -ENOSYS;					\
-		id = register_ftrace_event(&exit_syscall_print_##sname);\
-		if (!id)						\
-			return -ENODEV;					\
-		event_exit_##sname.id = id;				\
-		INIT_LIST_HEAD(&event_exit_##sname.fields);		\
-		return 0;						\
-	}								\
 	TRACE_SYS_EXIT_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
@@ -215,7 +189,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		.name                   = "sys_exit"#sname,		\
 		.system                 = "syscalls",			\
 		.event                  = &exit_syscall_print_##sname,	\
-		.raw_init		= init_exit_##sname,		\
+		.raw_init		= init_syscall_trace,		\
 		.show_format		= syscall_exit_format,		\
 		.define_fields		= syscall_exit_define_fields,	\
 		.regfunc		= reg_event_syscall_exit,	\

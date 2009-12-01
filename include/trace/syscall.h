@@ -32,6 +32,7 @@ struct syscall_metadata {
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 extern unsigned long arch_syscall_addr(int nr);
+extern int init_syscall_trace(struct ftrace_event_call *call);
 
 extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);

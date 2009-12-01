@@ -412,6 +412,18 @@ void unreg_event_syscall_exit(struct ftrace_event_call *call)
 	mutex_unlock(&syscall_trace_lock);
 }
 
+int init_syscall_trace(struct ftrace_event_call *call)
+{
+	int id;
+
+	id = register_ftrace_event(call->event);
+	if (!id)
+		return -ENODEV;
+	call->id = id;
+	INIT_LIST_HEAD(&call->fields);
+	return 0;
+}
+
 int __init init_ftrace_syscalls(void)
 {
 	struct syscall_metadata *meta;
