@@ -69,6 +69,7 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
+static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
@@ -87,6 +88,9 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	phy->addr			 = 1;
 	phy->autoneg_mask		 = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 	phy->reset_delay_us		 = 100;
+
+	phy->ops.power_up		 = e1000_power_up_phy_copper;
+	phy->ops.power_down		 = e1000_power_down_phy_copper_82571;
 
 	switch (hw->mac.type) {
 	case e1000_82571:
@@ -1598,6 +1602,28 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 	}
 
 	return 0;
+}
+
+/**
+ * e1000_power_down_phy_copper_82571 - Remove link during PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, remove the link.
+ **/
+static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	struct e1000_mac_info *mac = &hw->mac;
+
+	if (!(phy->ops.check_reset_block))
+		return;
+
+	/* If the management interface is not enabled, then power down */
+	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
+		e1000_power_down_phy_copper(hw);
+
+	return;
 }
 
 /**

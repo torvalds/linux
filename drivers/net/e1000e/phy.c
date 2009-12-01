@@ -2534,6 +2534,43 @@ out:
 }
 
 /**
+ * e1000_power_up_phy_copper - Restore copper link in case of PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, restore the link to previous
+ * settings.
+ **/
+void e1000_power_up_phy_copper(struct e1000_hw *hw)
+{
+	u16 mii_reg = 0;
+
+	/* The PHY will retain its settings across a power down/up cycle */
+	e1e_rphy(hw, PHY_CONTROL, &mii_reg);
+	mii_reg &= ~MII_CR_POWER_DOWN;
+	e1e_wphy(hw, PHY_CONTROL, mii_reg);
+}
+
+/**
+ * e1000_power_down_phy_copper - Restore copper link in case of PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, restore the link to previous
+ * settings.
+ **/
+void e1000_power_down_phy_copper(struct e1000_hw *hw)
+{
+	u16 mii_reg = 0;
+
+	/* The PHY will retain its settings across a power down/up cycle */
+	e1e_rphy(hw, PHY_CONTROL, &mii_reg);
+	mii_reg |= MII_CR_POWER_DOWN;
+	e1e_wphy(hw, PHY_CONTROL, mii_reg);
+	msleep(1);
+}
+
+/**
  *  e1000e_commit_phy - Soft PHY reset
  *  @hw: pointer to the HW structure
  *

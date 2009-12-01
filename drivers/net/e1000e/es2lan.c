@@ -114,6 +114,7 @@ static s32  e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
                                             u16 *data);
 static s32  e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
                                              u16 data);
+static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_80003es2lan - Init ESB2 PHY func ptrs.
@@ -127,6 +128,9 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 	if (hw->phy.media_type != e1000_media_type_copper) {
 		phy->type	= e1000_phy_none;
 		return 0;
+	} else {
+		phy->ops.power_up = e1000_power_up_phy_copper;
+		phy->ops.power_down = e1000_power_down_phy_copper_80003es2lan;
 	}
 
 	phy->addr		= 1;
@@ -1300,6 +1304,23 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 	e1000_release_mac_csr_80003es2lan(hw);
 
 	return ret_val;
+}
+
+/**
+ * e1000_power_down_phy_copper_80003es2lan - Remove link during PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, remove the link.
+ **/
+static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw)
+{
+	/* If the management interface is not enabled, then power down */
+	if (!(hw->mac.ops.check_mng_mode(hw) ||
+	      hw->phy.ops.check_reset_block(hw)))
+		e1000_power_down_phy_copper(hw);
+
+	return;
 }
 
 /**
