@@ -37,8 +37,6 @@ extern unsigned long arch_syscall_addr(int nr);
 extern int syscall_name_to_nr(char *name);
 void set_syscall_enter_id(int num, int id);
 void set_syscall_exit_id(int num, int id);
-extern struct trace_event event_syscall_enter;
-extern struct trace_event event_syscall_exit;
 
 extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
