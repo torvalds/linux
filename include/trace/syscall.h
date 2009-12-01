@@ -12,6 +12,7 @@
  * A syscall entry in the ftrace syscalls array.
  *
  * @name: name of the syscall
+ * @syscall_nr: number of the syscall
  * @nb_args: number of parameters it takes
  * @types: list of types as strings
  * @args: list of args as strings (args[i] matches types[i])
@@ -20,6 +21,7 @@
  */
 struct syscall_metadata {
 	const char	*name;
+	int		syscall_nr;
 	int		nb_args;
 	const char	**types;
 	const char	**args;
@@ -30,7 +32,6 @@ struct syscall_metadata {
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 extern unsigned long arch_syscall_addr(int nr);
-extern int syscall_name_to_nr(const char *name);
 
 extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);

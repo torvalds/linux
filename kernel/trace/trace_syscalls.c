@@ -51,7 +51,7 @@ static struct syscall_metadata *syscall_nr_to_meta(int nr)
 	return syscalls_metadata[nr];
 }
 
-int syscall_name_to_nr(const char *name)
+static int syscall_name_to_nr(const char *name)
 {
 	int i;
 
@@ -342,10 +342,8 @@ int reg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
-	const char *name;
 
-	name = ((struct syscall_metadata *)call->data)->name;
-	num = syscall_name_to_nr(name);
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
@@ -365,10 +363,8 @@ int reg_event_syscall_enter(struct ftrace_event_call *call)
 void unreg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int num;
-	const char *name;
 
-	name = ((struct syscall_metadata *)call->data)->name;
-	num = syscall_name_to_nr(name);
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls)
 		return;
 	mutex_lock(&syscall_trace_lock);
@@ -383,10 +379,8 @@ int reg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
-	const char *name;
 
-	name = ((struct syscall_metadata *)call->data)->name;
-	num = syscall_name_to_nr(name);
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
 	mutex_lock(&syscall_trace_lock);
@@ -406,10 +400,8 @@ int reg_event_syscall_exit(struct ftrace_event_call *call)
 void unreg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int num;
-	const char *name;
 
-	name = ((struct syscall_metadata *)call->data)->name;
-	num = syscall_name_to_nr(name);
+	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls)
 		return;
 	mutex_lock(&syscall_trace_lock);
@@ -436,6 +428,10 @@ int __init init_ftrace_syscalls(void)
 	for (i = 0; i < NR_syscalls; i++) {
 		addr = arch_syscall_addr(i);
 		meta = find_syscall_meta(addr);
+		if (!meta)
+			continue;
+
+		meta->syscall_nr = i;
 		syscalls_metadata[i] = meta;
 	}
 

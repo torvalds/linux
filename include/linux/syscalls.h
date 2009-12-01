@@ -161,7 +161,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	static int init_enter_##sname(struct ftrace_event_call *call)	\
 	{								\
 		int num, id;						\
-		num = syscall_name_to_nr("sys"#sname);			\
+		num = __syscall_meta_##sname.syscall_nr;		\
 		if (num < 0)						\
 			return -ENOSYS;					\
 		id = register_ftrace_event(&enter_syscall_print_##sname);\
@@ -197,7 +197,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	static int init_exit_##sname(struct ftrace_event_call *call)	\
 	{								\
 		int num, id;						\
-		num = syscall_name_to_nr("sys"#sname);			\
+		num = __syscall_meta_##sname.syscall_nr;		\
 		if (num < 0)						\
 			return -ENOSYS;					\
 		id = register_ftrace_event(&exit_syscall_print_##sname);\
