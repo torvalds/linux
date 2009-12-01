@@ -280,9 +280,9 @@ static int x1205_fix_osc(struct i2c_client *client)
 	int err;
 	struct rtc_time tm;
 
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+	memset(&tm, 0, sizeof(tm));
 
-	err = x1205_set_datetime(client, &tm, 0, X1205_CCR_BASE, 0);
+	err = x1205_set_datetime(client, &tm, 1, X1205_CCR_BASE, 0);
 	if (err < 0)
 		dev_err(&client->dev, "unable to restart the oscillator\n");
 
