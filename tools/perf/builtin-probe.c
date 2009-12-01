@@ -351,7 +351,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 #ifdef NO_LIBDWARF
 		semantic_error("Debuginfo-analysis is not supported");
 #else	/* !NO_LIBDWARF */
-		pr_info("Some probes require debuginfo.\n");
+		pr_debug("Some probes require debuginfo.\n");
 
 	if (session.vmlinux)
 		fd = open(session.vmlinux, O_RDONLY);
