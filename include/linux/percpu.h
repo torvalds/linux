@@ -180,6 +180,11 @@ static inline void free_percpu(void *p)
 	kfree(p);
 }
 
+static inline phys_addr_t per_cpu_ptr_to_phys(void *addr)
+{
+	return __pa(addr);
+}
+
 static inline void __init setup_per_cpu_areas(void) { }
 
 static inline void *pcpu_lpage_remapped(void *kaddr)
