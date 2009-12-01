@@ -279,7 +279,7 @@ void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc)
 }
 
 /*
- * 
+ *
  */
 int ceph_monc_open_session(struct ceph_mon_client *monc)
 {

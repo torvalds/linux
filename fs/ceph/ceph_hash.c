@@ -82,14 +82,14 @@ unsigned ceph_str_hash_rjenkins(const char *str, unsigned length)
  */
 unsigned ceph_str_hash_linux(const char *str, unsigned length)
 {
-        unsigned long hash = 0;
+	unsigned long hash = 0;
 	unsigned char c;
 
-        while (length--) {
+	while (length--) {
 		c = *str++;
 		hash = (hash + (c << 4) + (c >> 4)) * 11;
 	}
-        return hash;
+	return hash;
 }
 
 
@@ -105,7 +105,7 @@ unsigned ceph_str_hash(int type, const char *s, unsigned len)
 	}
 }
 
-const char *ceph_str_hash_name(int type) 
+const char *ceph_str_hash_name(int type)
 {
 	switch (type) {
 	case CEPH_STR_HASH_LINUX:
