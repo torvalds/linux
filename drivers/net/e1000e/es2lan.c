@@ -99,6 +99,8 @@
  */
 static const u16 e1000_gg82563_cable_length_table[] =
 	 { 0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
+#define GG82563_CABLE_LENGTH_TABLE_SIZE \
+		ARRAY_SIZE(e1000_gg82563_cable_length_table)
 
 static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw);
 static s32 e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask);
@@ -694,20 +696,27 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
+	s32 ret_val = 0;
 	u16 phy_data, index;
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_DSP_DISTANCE, &phy_data);
 	if (ret_val)
-		return ret_val;
+		goto out;
 
 	index = phy_data & GG82563_DSPD_CABLE_LENGTH;
+
+	if (index >= GG82563_CABLE_LENGTH_TABLE_SIZE - 5) {
+		ret_val = -E1000_ERR_PHY;
+		goto out;
+	}
+
 	phy->min_cable_length = e1000_gg82563_cable_length_table[index];
-	phy->max_cable_length = e1000_gg82563_cable_length_table[index+5];
+	phy->max_cable_length = e1000_gg82563_cable_length_table[index + 5];
 
 	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
