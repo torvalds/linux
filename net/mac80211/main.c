@@ -33,6 +33,12 @@
 #include "cfg.h"
 #include "debugfs.h"
 
+
+bool ieee80211_disable_40mhz_24ghz;
+module_param(ieee80211_disable_40mhz_24ghz, bool, 0644);
+MODULE_PARM_DESC(ieee80211_disable_40mhz_24ghz,
+		 "Disable 40MHz support in the 2.4GHz band");
+
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
 	u64 mc;

@@ -908,16 +908,24 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	}
 
 	if (sband->ht_cap.ht_supported) {
-		__le16 tmp = cpu_to_le16(sband->ht_cap.cap);
+		u16 cap = sband->ht_cap.cap;
+		__le16 tmp;
+
+		if (ieee80211_disable_40mhz_24ghz &&
+		    sband->band == IEEE80211_BAND_2GHZ) {
+			cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			cap &= ~IEEE80211_HT_CAP_SGI_40;
+		}
 
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
 		memset(pos, 0, sizeof(struct ieee80211_ht_cap));
+		tmp = cpu_to_le16(cap);
 		memcpy(pos, &tmp, sizeof(u16));
 		pos += sizeof(u16);
-		/* TODO: needs a define here for << 2 */
 		*pos++ = sband->ht_cap.ampdu_factor |
-			 (sband->ht_cap.ampdu_density << 2);
+			 (sband->ht_cap.ampdu_density <<
+				IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT);
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 		pos += sizeof(sband->ht_cap.mcs);
 		pos += 2 + 4 + 1; /* ext info, BF cap, antsel */
