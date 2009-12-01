@@ -24,9 +24,9 @@
  * Also makes sure that the subpage_prot_table structure is
  * reinitialized for the next user.
  */
-void subpage_prot_free(struct mm_struct *mm)
+void subpage_prot_free(pgd_t *pgd)
 {
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = pgd_subpage_prot(pgd);
 	unsigned long i, j, addr;
 	u32 **p;
 
@@ -49,13 +49,6 @@ void subpage_prot_free(struct mm_struct *mm)
 		free_page((unsigned long)p);
 	}
 	spt->maxaddr = 0;
-}
-
-void subpage_prot_init_new_context(struct mm_struct *mm)
-{
-	struct subpage_prot_table *spt = &mm->context.spt;
-
-	memset(spt, 0, sizeof(*spt));
 }
 
 static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
@@ -94,7 +87,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 static void subpage_prot_clear(unsigned long addr, unsigned long len)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = pgd_subpage_prot(mm->pgd);
 	u32 **spm, *spp;
 	int i, nw;
 	unsigned long next, limit;
@@ -143,7 +136,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = pgd_subpage_prot(mm->pgd);
 	u32 **spm, *spp;
 	int i, nw;
 	unsigned long next, limit;

@@ -835,9 +835,9 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
  * Result is 0: full permissions, _PAGE_RW: read-only,
  * _PAGE_USER or _PAGE_USER|_PAGE_RW: no access.
  */
-static int subpage_protection(struct mm_struct *mm, unsigned long ea)
+static int subpage_protection(pgd_t *pgdir, unsigned long ea)
 {
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = pgd_subpage_prot(pgdir);
 	u32 spp = 0;
 	u32 **sbpm, *sbpp;
 
@@ -865,7 +865,7 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 }
 
 #else /* CONFIG_PPC_SUBPAGE_PROT */
-static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
+static inline int subpage_protection(pgd_t *pgdir, unsigned long ea)
 {
 	return 0;
 }

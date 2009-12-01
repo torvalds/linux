@@ -28,6 +28,10 @@
  */
 #define MAX_PGTABLE_INDEX_SIZE	0xf
 
+#ifndef CONFIG_PPC_SUBPAGE_PROT
+static inline void subpage_prot_free(pgd_t *pgd) {}
+#endif
+
 extern struct kmem_cache *pgtable_cache[];
 #define PGT_CACHE(shift) (pgtable_cache[(shift)-1])
 
@@ -38,6 +42,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
+	subpage_prot_free(pgd);
 	kmem_cache_free(PGT_CACHE(PGD_INDEX_SIZE), pgd);
 }
 
