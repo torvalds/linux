@@ -1937,10 +1937,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
 	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
 	{ USB_DEVICE(USB_VID_EVOLUTEPC, USB_PID_TVWAY_PLUS) },
-/* 65 */{ USB_DEVICE(USB_VID_PCTV,	USB_PID_PINNACLE_PCTV74E) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
+/* 65 */{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV73ESE) },
 	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV282E) },
-	{ USB_DEVICE(USB_VID_PINNACLE,	USB_PID_PINNACLE_PCTV74E) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -2235,22 +2233,18 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 4,
+		.num_device_descs = 3,
 		.devices = {
 			{   "Pinnacle PCTV 73A",
 				{ &dib0700_usb_id_table[56], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 73e SE",
-				{ &dib0700_usb_id_table[57], &dib0700_usb_id_table[66], NULL },
+				{ &dib0700_usb_id_table[57], &dib0700_usb_id_table[65], NULL },
 				{ NULL },
 			},
 			{   "Pinnacle PCTV 282e",
-				{ &dib0700_usb_id_table[58], &dib0700_usb_id_table[67], NULL },
-				{ NULL },
-			},
-			{   "Pinnacle PCTV 74e",
-				{ &dib0700_usb_id_table[65], &dib0700_usb_id_table[68], NULL },
+				{ &dib0700_usb_id_table[58], &dib0700_usb_id_table[66], NULL },
 				{ NULL },
 			},
 		},
