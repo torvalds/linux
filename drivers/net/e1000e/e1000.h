@@ -509,7 +509,7 @@ extern s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw);
 extern s32 e1000e_setup_link(struct e1000_hw *hw);
-extern void e1000e_clear_vfta(struct e1000_hw *hw);
+extern void e1000_clear_vfta_generic(struct e1000_hw *hw);
 extern void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 extern void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
 					       u8 *mc_addr_list,
@@ -525,7 +525,7 @@ extern void e1000e_config_collision_dist(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led(struct e1000_hw *hw);
-extern void e1000e_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);
+extern void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
 extern void e1000e_reset_adaptive(struct e1000_hw *hw);
 extern void e1000e_update_adaptive(struct e1000_hw *hw);
 

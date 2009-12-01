@@ -2031,11 +2031,14 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
 	    (vid == adapter->mng_vlan_id))
 		return;
+
 	/* add VID to filter table */
-	index = (vid >> 5) & 0x7F;
-	vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
-	vfta |= (1 << (vid & 0x1F));
-	e1000e_write_vfta(hw, index, vfta);
+	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
+		index = (vid >> 5) & 0x7F;
+		vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
+		vfta |= (1 << (vid & 0x1F));
+		hw->mac.ops.write_vfta(hw, index, vfta);
+	}
 }
 
 static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -2060,10 +2063,12 @@ static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	}
 
 	/* remove VID from filter table */
-	index = (vid >> 5) & 0x7F;
-	vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
-	vfta &= ~(1 << (vid & 0x1F));
-	e1000e_write_vfta(hw, index, vfta);
+	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
+		index = (vid >> 5) & 0x7F;
+		vfta = E1000_READ_REG_ARRAY(hw, E1000_VFTA, index);
+		vfta &= ~(1 << (vid & 0x1F));
+		hw->mac.ops.write_vfta(hw, index, vfta);
+	}
 }
 
 static void e1000_update_mng_vlan(struct e1000_adapter *adapter)

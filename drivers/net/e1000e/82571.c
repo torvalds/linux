@@ -65,6 +65,7 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
 static s32 e1000_setup_link_82571(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
+static void e1000_clear_vfta_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
@@ -949,7 +950,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	e_dbg("Initializing the IEEE VLAN\n");
-	e1000e_clear_vfta(hw);
+	mac->ops.clear_vfta(hw);
 
 	/* Setup the receive address. */
 	/*
@@ -1128,13 +1129,13 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_clear_vfta - Clear VLAN filter table
+ *  e1000_clear_vfta_82571 - Clear VLAN filter table
  *  @hw: pointer to the HW structure
  *
  *  Clears the register array which contains the VLAN filter table by
  *  setting all the values to 0.
  **/
-void e1000e_clear_vfta(struct e1000_hw *hw)
+static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 {
 	u32 offset;
 	u32 vfta_value = 0;
@@ -1656,6 +1657,8 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,
 	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
+	.write_vfta		= e1000_write_vfta_generic,
+	.clear_vfta		= e1000_clear_vfta_82571,
 	.reset_hw		= e1000_reset_hw_82571,
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,

@@ -807,7 +807,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	e_dbg("Initializing the IEEE VLAN\n");
-	e1000e_clear_vfta(hw);
+	mac->ops.clear_vfta(hw);
 
 	/* Setup the receive address. */
 	e1000e_init_rx_addrs(hw, mac->rar_entry_count);
@@ -1350,6 +1350,8 @@ static struct e1000_mac_operations es2_mac_ops = {
 	.led_on			= e1000e_led_on_generic,
 	.led_off		= e1000e_led_off_generic,
 	.update_mc_addr_list	= e1000e_update_mc_addr_list_generic,
+	.write_vfta		= e1000_write_vfta_generic,
+	.clear_vfta		= e1000_clear_vfta_generic,
 	.reset_hw		= e1000_reset_hw_80003es2lan,
 	.init_hw		= e1000_init_hw_80003es2lan,
 	.setup_link		= e1000e_setup_link,

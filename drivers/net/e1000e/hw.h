@@ -741,6 +741,7 @@ struct e1000_mac_operations {
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);
 	void (*clear_hw_cntrs)(struct e1000_hw *);
+	void (*clear_vfta)(struct e1000_hw *);
 	s32  (*get_bus_info)(struct e1000_hw *);
 	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*led_on)(struct e1000_hw *);
@@ -751,6 +752,7 @@ struct e1000_mac_operations {
 	s32  (*setup_link)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
+	void (*write_vfta)(struct e1000_hw *, u32, u32);
 };
 
 /* Function pointers for the PHY. */
