@@ -488,11 +488,8 @@ EXPORT_SYMBOL_GPL(au1xpsc_pcm_add);
 
 void au1xpsc_pcm_destroy(struct platform_device *dmapd)
 {
-	if (dmapd) {
-		kfree(dmapd->resource);
-		dmapd->resource = NULL;
+	if (dmapd)
 		platform_device_unregister(dmapd);
-	}
 }
 EXPORT_SYMBOL_GPL(au1xpsc_pcm_destroy);
 
