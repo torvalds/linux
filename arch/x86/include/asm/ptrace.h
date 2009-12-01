@@ -227,8 +227,8 @@ extern const char *regs_query_register_name(unsigned int offset);
  * @regs:	pt_regs from which register value is gotten.
  * @offset:	offset number of the register.
  *
- * regs_get_register returns the value of a register whose offset from @regs
- * is @offset. The @offset is the offset of the register in struct pt_regs.
+ * regs_get_register returns the value of a register. The @offset is the
+ * offset of the register in struct pt_regs address which specified by @regs.
  * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
  */
 static inline unsigned long regs_get_register(struct pt_regs *regs,
@@ -244,7 +244,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @regs:	pt_regs which contains kernel stack pointer.
  * @addr:	address which is checked.
  *
- * regs_within_kenel_stack() checks @addr is within the kernel stack page(s).
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
  * If @addr is within the kernel stack, it returns true. If not, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
@@ -260,7 +260,7 @@ static inline int regs_within_kernel_stack(struct pt_regs *regs,
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specifined by @regs. If the @n th entry is NOT in the kernel stack,
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
  * this returns 0.
  */
 static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
