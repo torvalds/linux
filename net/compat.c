@@ -758,9 +758,13 @@ asmlinkage long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
 {
 	int datagrams;
 	struct timespec ktspec;
-	struct compat_timespec __user *utspec =
-			(struct compat_timespec __user *)timeout;
+	struct compat_timespec __user *utspec;
 
+	if (timeout == NULL)
+		return __sys_recvmmsg(fd, (struct mmsghdr __user *)mmsg, vlen,
+				      flags | MSG_CMSG_COMPAT, NULL);
+
+	utspec = (struct compat_timespec __user *)timeout;
 	if (get_user(ktspec.tv_sec, &utspec->tv_sec) ||
 	    get_user(ktspec.tv_nsec, &utspec->tv_nsec))
 		return -EFAULT;
