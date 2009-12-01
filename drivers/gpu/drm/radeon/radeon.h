@@ -399,6 +399,23 @@ struct radeon_cp {
 	bool			ready;
 };
 
+/*
+ * R6xx+ IH ring
+ */
+struct r600_ih {
+	struct radeon_object	*ring_obj;
+	volatile uint32_t	*ring;
+	unsigned		rptr;
+	unsigned		wptr;
+	unsigned		wptr_old;
+	unsigned		ring_size;
+	uint64_t		gpu_addr;
+	uint32_t		align_mask;
+	uint32_t		ptr_mask;
+	spinlock_t              lock;
+	bool                    enabled;
+};
+
 struct r600_blit {
 	struct radeon_object	*shader_obj;
 	u64 shader_gpu_addr;
@@ -792,8 +809,10 @@ struct radeon_device {
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
+	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	struct r600_blit r600_blit;
 	int msi_enabled; /* msi enabled */
+	struct r600_ih ih; /* r6/700 interrupt ring */
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1108,7 +1127,12 @@ extern void r600_wb_disable(struct radeon_device *rdev);
 extern void r600_scratch_init(struct radeon_device *rdev);
 extern int r600_blit_init(struct radeon_device *rdev);
 extern void r600_blit_fini(struct radeon_device *rdev);
-extern int r600_cp_init_microcode(struct radeon_device *rdev);
+extern int r600_init_microcode(struct radeon_device *rdev);
 extern int r600_gpu_reset(struct radeon_device *rdev);
+/* r600 irq */
+extern int r600_irq_init(struct radeon_device *rdev);
+extern void r600_irq_fini(struct radeon_device *rdev);
+extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
+extern int r600_irq_set(struct radeon_device *rdev);
 
 #endif

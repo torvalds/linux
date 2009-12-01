@@ -887,6 +887,16 @@ static int rv770_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	/* Enable IRQ */
+	rdev->irq.sw_int = true;
+	r = r600_irq_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: IH init failed (%d).\n", r);
+		radeon_irq_kms_fini(rdev);
+		return r;
+	}
+	r600_irq_set(rdev);
+
 	r = radeon_ring_init(rdev, rdev->cp.ring_size);
 	if (r)
 		return r;
@@ -1005,11 +1015,19 @@ int rv770_init(struct radeon_device *rdev)
 	r = radeon_object_init(rdev);
 	if (r)
 		return r;
+
+	r = radeon_irq_kms_init(rdev);
+	if (r)
+		return r;
+
 	rdev->cp.ring_obj = NULL;
 	r600_ring_init(rdev, 1024 * 1024);
 
-	if (!rdev->me_fw || !rdev->pfp_fw) {
-		r = r600_cp_init_microcode(rdev);
+	rdev->ih.ring_obj = NULL;
+	r600_ih_ring_init(rdev, 64 * 1024);
+
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		r = r600_init_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load firmware!\n");
 			return r;
@@ -1055,6 +1073,8 @@ void rv770_fini(struct radeon_device *rdev)
 	rv770_suspend(rdev);
 
 	r600_blit_fini(rdev);
+	r600_irq_fini(rdev);
+	radeon_irq_kms_fini(rdev);
 	radeon_ring_fini(rdev);
 	r600_wb_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
