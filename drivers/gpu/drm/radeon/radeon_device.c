@@ -208,6 +208,24 @@ bool radeon_card_posted(struct radeon_device *rdev)
 
 }
 
+bool radeon_boot_test_post_card(struct radeon_device *rdev)
+{
+	if (radeon_card_posted(rdev))
+		return true;
+
+	if (rdev->bios) {
+		DRM_INFO("GPU not posted. posting now...\n");
+		if (rdev->is_atom_bios)
+			atom_asic_init(rdev->mode_info.atom_context);
+		else
+			radeon_combios_asic_init(rdev->ddev);
+		return true;
+	} else {
+		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+		return false;
+	}
+}
+
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);

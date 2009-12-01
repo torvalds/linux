@@ -1309,10 +1309,8 @@ int r300_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
 	/* Set asic errata */
 	r300_errata(rdev);
 	/* Initialize clocks */

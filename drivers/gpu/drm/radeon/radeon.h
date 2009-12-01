@@ -979,6 +979,7 @@ extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
+extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern int radeon_clocks_init(struct radeon_device *rdev);
 extern void radeon_clocks_fini(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
