@@ -151,7 +151,7 @@ static void parse_probe_point(char *arg, struct probe_point *pp)
 /* Parse an event definition. Note that any error must die. */
 static void parse_probe_event(const char *str)
 {
-	char *argv[MAX_PROBE_ARGS + 2];	/* Event + probe + args */
+	char *argv[MAX_PROBE_ARGS + 1];	/* probe + args */
 	int argc, i;
 	struct probe_point *pp = &session.probes[session.nr_probe];
 
@@ -169,6 +169,9 @@ static void parse_probe_event(const char *str)
 		/* Add an argument */
 		if (*str != '\0') {
 			const char *s = str;
+			/* Check the limit number of arguments */
+			if (argc == MAX_PROBE_ARGS + 1)
+				semantic_error("Too many arguments");
 
 			/* Skip the argument */
 			while (!isspace(*str) && *str != '\0')
@@ -178,9 +181,9 @@ static void parse_probe_event(const char *str)
 			argv[argc] = strndup(s, str - s);
 			if (argv[argc] == NULL)
 				die("strndup");
-			if (++argc == MAX_PROBE_ARGS)
-				semantic_error("Too many arguments");
-			pr_debug("argv[%d]=%s\n", argc, argv[argc - 1]);
+			pr_debug("argv[%d]=%s\n", argc, argv[argc]);
+			argc++;
+
 		}
 	} while (*str != '\0');
 	if (!argc)
