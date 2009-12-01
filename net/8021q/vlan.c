@@ -281,8 +281,11 @@ out_uninit_applicant:
 	if (ngrp)
 		vlan_gvrp_uninit_applicant(real_dev);
 out_free_group:
-	if (ngrp)
-		vlan_group_free(ngrp);
+	if (ngrp) {
+		hlist_del_rcu(&ngrp->hlist);
+		/* Free the group, after all cpu's are done. */
+		call_rcu(&ngrp->rcu, vlan_rcu_free);
+	}
 	return err;
 }
 

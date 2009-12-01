@@ -85,7 +85,7 @@ static void mask_and_ack_intc(unsigned int);
 static void end_intc_irq(unsigned int irq);
 
 static struct irq_chip intc_irq_type = {
-	.typename = "INTC",
+	.name = "INTC",
 	.startup = startup_intc_irq,
 	.shutdown = shutdown_intc_irq,
 	.enable = enable_intc_irq,

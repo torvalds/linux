@@ -322,6 +322,7 @@ static inline __u32 ext4_mask_flags(umode_t mode, __u32 flags)
 #define EXT4_STATE_NO_EXPAND		0x00000008 /* No space for expansion */
 #define EXT4_STATE_DA_ALLOC_CLOSE	0x00000010 /* Alloc DA blks on close */
 #define EXT4_STATE_EXT_MIGRATE		0x00000020 /* Inode is migrating */
+#define EXT4_STATE_DIO_UNWRITTEN	0x00000040 /* need convert on dio done*/
 
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {

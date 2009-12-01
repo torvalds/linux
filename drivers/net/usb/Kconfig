@@ -174,7 +174,7 @@ config USB_NET_CDCETHER
 	    * Ericsson Mobile Broadband Module (all variants)
  	    * Motorola (DM100 and SB4100)
  	    * Broadcom Cable Modem (reference design)
-	    * Toshiba (PCX1100U and F3507g)
+	    * Toshiba (PCX1100U and F3507g/F3607gw)
 	    * ...
 
 	  This driver creates an interface named "ethX", where X depends on

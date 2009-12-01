@@ -3916,6 +3916,8 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
+	/* Set PCIe reset type for EEH to fundamental. */
+	pdev->needs_freset = 1;
 	pci_save_state(pdev);
 	qdev->reg_base =
 	    ioremap_nocache(pci_resource_start(pdev, 1),

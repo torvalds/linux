@@ -943,6 +943,7 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
     clock.m = 5 * (clock.m1 + 2) + (clock.m2 + 2);
     clock.p = (clock.p1 * clock.p2);
     clock.dot = 96000 * clock.m / (clock.n + 2) / clock.p;
+    clock.vco = 0;
     memcpy(best_clock, &clock, sizeof(intel_clock_t));
     return true;
 }
@@ -1260,9 +1261,11 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	/* Pre-i965 needs to install a fence for tiled scan-out */
-	if (!IS_I965G(dev) &&
-	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	/* Install a fence for tiled scan-out. Pre-i965 always needs a fence,
+	 * whereas 965+ only requires a fence if using framebuffer compression.
+	 * For simplicity, we always install a fence as the cost is not that onerous.
+	 */
+	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
@@ -1513,7 +1516,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Enable panel fitting for LVDS */
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 			temp = I915_READ(pf_ctl_reg);
-			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE);
+			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
 
 			/* currently full aspect */
 			I915_WRITE(pf_win_pos, 0);
@@ -1801,6 +1804,8 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
+		intel_update_watermarks(dev);
+
 		/* Enable the DPLL */
 		temp = I915_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) == 0) {
@@ -1838,7 +1843,6 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Give the overlay scaler a chance to enable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, true); TODO
-		intel_update_watermarks(dev);
 	break;
 	case DRM_MODE_DPMS_OFF:
 		intel_update_watermarks(dev);
@@ -2082,7 +2086,7 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 #define LINK_N 0x80000
 
 static void
-igdng_compute_m_n(int bytes_per_pixel, int nlanes,
+igdng_compute_m_n(int bits_per_pixel, int nlanes,
 		int pixel_clock, int link_clock,
 		struct fdi_m_n *m_n)
 {
@@ -2092,7 +2096,8 @@ igdng_compute_m_n(int bytes_per_pixel, int nlanes,
 
 	temp = (u64) DATA_N * pixel_clock;
 	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = div_u64(temp * bytes_per_pixel, nlanes);
+	m_n->gmch_m = div_u64(temp * bits_per_pixel, nlanes);
+	m_n->gmch_m >>= 3; /* convert to bytes_per_pixel */
 	m_n->gmch_n = DATA_N;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
@@ -2139,6 +2144,13 @@ static struct intel_watermark_params igd_cursor_hplloff_wm = {
 	IGD_CURSOR_DFT_WM,
 	IGD_CURSOR_GUARD_WM,
 	IGD_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params g4x_wm_info = {
+	G4X_FIFO_SIZE,
+	G4X_MAX_WM,
+	G4X_MAX_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
 };
 static struct intel_watermark_params i945_wm_info = {
 	I945_FIFO_SIZE,
@@ -2430,17 +2442,74 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static void g4x_update_wm(struct drm_device *dev, int unused, int unused2,
-			  int unused3, int unused4)
+static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
+			  int planeb_clock, int sr_hdisplay, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 fw_blc_self = I915_READ(FW_BLC_SELF);
+	int total_size, cacheline_size;
+	int planea_wm, planeb_wm, cursora_wm, cursorb_wm, cursor_sr;
+	struct intel_watermark_params planea_params, planeb_params;
+	unsigned long line_time_us;
+	int sr_clock, sr_entries = 0, entries_required;
 
-	if (i915_powersave)
-		fw_blc_self |= FW_BLC_SELF_EN;
-	else
-		fw_blc_self &= ~FW_BLC_SELF_EN;
-	I915_WRITE(FW_BLC_SELF, fw_blc_self);
+	/* Create copies of the base settings for each pipe */
+	planea_params = planeb_params = g4x_wm_info;
+
+	/* Grab a couple of global values before we overwrite them */
+	total_size = planea_params.fifo_size;
+	cacheline_size = planea_params.cacheline_size;
+
+	/*
+	 * Note: we need to make sure we don't overflow for various clock &
+	 * latency values.
+	 * clocks go from a few thousand to several hundred thousand.
+	 * latency is usually a few thousand
+	 */
+	entries_required = ((planea_clock / 1000) * pixel_size * latency_ns) /
+		1000;
+	entries_required /= G4X_FIFO_LINE_SIZE;
+	planea_wm = entries_required + planea_params.guard_size;
+
+	entries_required = ((planeb_clock / 1000) * pixel_size * latency_ns) /
+		1000;
+	entries_required /= G4X_FIFO_LINE_SIZE;
+	planeb_wm = entries_required + planeb_params.guard_size;
+
+	cursora_wm = cursorb_wm = 16;
+	cursor_sr = 32;
+
+	DRM_DEBUG("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
+
+	/* Calc sr entries for one plane configs */
+	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
+		/* self-refresh has much higher latency */
+		const static int sr_latency_ns = 12000;
+
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+
+		/* Use ns/us then divide to preserve precision */
+		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
+			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = roundup(sr_entries / cacheline_size, 1);
+		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	}
+
+	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, SR %d\n",
+		  planea_wm, planeb_wm, sr_entries);
+
+	planea_wm &= 0x3f;
+	planeb_wm &= 0x3f;
+
+	I915_WRITE(DSPFW1, (sr_entries << DSPFW_SR_SHIFT) |
+		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) | planea_wm);
+	I915_WRITE(DSPFW2, (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+	/* HPLL off in SR has some issues on G4x... disable it */
+	I915_WRITE(DSPFW3, (I915_READ(DSPFW3) & ~DSPFW_HPLL_SR_EN) |
+		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
 static void i965_update_wm(struct drm_device *dev, int unused, int unused2,
@@ -2585,6 +2654,9 @@ static void intel_update_watermarks(struct drm_device *dev)
 	int sr_hdisplay = 0;
 	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
 	int enabled = 0, pixel_size = 0;
+
+	if (!dev_priv->display.update_wm)
+		return;
 
 	/* Get the clock config from both planes */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -2763,7 +2835,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (IS_IGDNG(dev)) {
-		int lane, link_bw;
+		int lane, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
 		if (is_edp) {
@@ -2782,8 +2854,70 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			lane = 4;
 			link_bw = 270000;
 		}
-		igdng_compute_m_n(3, lane, target_clock,
+
+		/* determine panel color depth */
+		temp = I915_READ(pipeconf_reg);
+
+		switch (temp & PIPE_BPC_MASK) {
+		case PIPE_8BPC:
+			bpp = 24;
+			break;
+		case PIPE_10BPC:
+			bpp = 30;
+			break;
+		case PIPE_6BPC:
+			bpp = 18;
+			break;
+		case PIPE_12BPC:
+			bpp = 36;
+			break;
+		default:
+			DRM_ERROR("unknown pipe bpc value\n");
+			bpp = 24;
+		}
+
+		igdng_compute_m_n(bpp, lane, target_clock,
 				  link_bw, &m_n);
+	}
+
+	/* Ironlake: try to setup display ref clock before DPLL
+	 * enabling. This is only under driver's control after
+	 * PCH B stepping, previous chipset stepping should be
+	 * ignoring this setting.
+	 */
+	if (IS_IGDNG(dev)) {
+		temp = I915_READ(PCH_DREF_CONTROL);
+		/* Always enable nonspread source */
+		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
+		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+
+		temp &= ~DREF_SSC_SOURCE_MASK;
+		temp |= DREF_SSC_SOURCE_ENABLE;
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+
+		udelay(200);
+
+		if (is_edp) {
+			if (dev_priv->lvds_use_ssc) {
+				temp |= DREF_SSC1_ENABLE;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+
+				udelay(200);
+
+				temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+			} else {
+				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+			}
+		}
 	}
 
 	if (IS_IGD(dev)) {
@@ -2936,6 +3070,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		lvds = I915_READ(lvds_reg);
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
+		/* set the corresponsding LVDS_BORDER bit */
+		lvds |= dev_priv->lvds_border_bits;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
 		 * set the DPLLs for dual-channel mode or not.
 		 */
@@ -4124,7 +4260,9 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * Disable clock gating reported to work incorrectly according to the
 	 * specs, but enable as much else as we can.
 	 */
-	if (IS_G4X(dev)) {
+	if (IS_IGDNG(dev)) {
+		return;
+	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
 		I915_WRITE(RENCLK_GATE_D1, 0);
 		I915_WRITE(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
@@ -4212,7 +4350,9 @@ static void intel_init_display(struct drm_device *dev)
 			i830_get_display_clock_speed;
 
 	/* For FIFO watermark updates */
-	if (IS_G4X(dev))
+	if (IS_IGDNG(dev))
+		dev_priv->display.update_wm = NULL;
+	else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
 	else if (IS_I965G(dev))
 		dev_priv->display.update_wm = i965_update_wm;

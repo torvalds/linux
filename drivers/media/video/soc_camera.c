@@ -1160,13 +1160,15 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 		if (icd->iface == ici->nr) {
 			/* The bus->remove will be called */
 			device_unregister(&icd->dev);
-			/* Not before device_unregister(), .remove
-			 * needs parent to call ici->ops->remove() */
-			icd->dev.parent = NULL;
-
-			/* If the host module is loaded again, device_register()
-			 * would complain "already initialised" */
-			memset(&icd->dev.kobj, 0, sizeof(icd->dev.kobj));
+			/*
+			 * Not before device_unregister(), .remove
+			 * needs parent to call ici->ops->remove().
+			 * If the host module is loaded again, device_register()
+			 * would complain "already initialised," since 2.6.32
+			 * this is also needed to prevent use-after-free of the
+			 * device private data.
+			 */
+			memset(&icd->dev, 0, sizeof(icd->dev));
 		}
 	}
 
