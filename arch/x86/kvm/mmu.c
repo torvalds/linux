@@ -662,6 +662,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 			prev_desc = desc;
 			desc = desc->more;
 		}
+		pr_err("rmap_remove: %p %llx many->many\n", spte, *spte);
 		BUG();
 	}
 }
