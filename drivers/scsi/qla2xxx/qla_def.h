@@ -1570,9 +1570,6 @@ typedef struct fc_port {
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
-	unsigned long last_queue_full;
-	unsigned long last_ramp_up;
-
 	uint16_t vp_idx;
 } fc_port_t;
 
