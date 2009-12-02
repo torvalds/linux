@@ -6573,6 +6573,16 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 }
 #endif
 
+static void ipw2100_shutdown(struct pci_dev *pci_dev)
+{
+	struct ipw2100_priv *priv = pci_get_drvdata(pci_dev);
+
+	/* Take down the device; powers it off, etc. */
+	ipw2100_down(priv);
+
+	pci_disable_device(pci_dev);
+}
+
 #define IPW2100_DEV_ID(x) { PCI_VENDOR_ID_INTEL, 0x1043, 0x8086, x }
 
 static struct pci_device_id ipw2100_pci_id_table[] __devinitdata = {
@@ -6636,6 +6646,7 @@ static struct pci_driver ipw2100_pci_driver = {
 	.suspend = ipw2100_suspend,
 	.resume = ipw2100_resume,
 #endif
+	.shutdown = ipw2100_shutdown,
 };
 
 /**
