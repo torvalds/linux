@@ -46,11 +46,20 @@ void lbs_mesh_set_txpd(struct lbs_private *priv,
 /* Command handling */
 
 struct cmd_ds_command;
+struct cmd_ds_mesh_access;
+struct cmd_ds_mesh_config;
 
 int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
 	u16 cmd_action, void *pdata_buf);
 int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
 	u16 cmd_action, void *pdata_buf);
+int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
+		    struct cmd_ds_mesh_access *cmd);
+int lbs_mesh_config_send(struct lbs_private *priv,
+			 struct cmd_ds_mesh_config *cmd,
+			 uint16_t action, uint16_t type);
+int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
+
 
 
 /* Persistent configuration */
