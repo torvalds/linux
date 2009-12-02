@@ -300,6 +300,18 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 				goto out_free;
 			}
 		}
+		mutex_lock(&dev->struct_mutex);
+		if (dev->driver->master_set) {
+			ret = dev->driver->master_set(dev, priv, true);
+			if (ret) {
+				/* drop both references if this fails */
+				drm_master_put(&priv->minor->master);
+				drm_master_put(&priv->master);
+				mutex_unlock(&dev->struct_mutex);
+				goto out_free;
+			}
+		}
+		mutex_unlock(&dev->struct_mutex);
 	} else {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
@@ -533,6 +545,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 		if (file_priv->minor->master == file_priv->master) {
 			/* drop the reference held my the minor */
+			if (dev->driver->master_drop)
+				dev->driver->master_drop(dev, file_priv, true);
 			drm_master_put(&file_priv->minor->master);
 		}
 	}
