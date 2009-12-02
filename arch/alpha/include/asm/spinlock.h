@@ -17,13 +17,13 @@
 #define __raw_spin_unlock_wait(x) \
 		do { cpu_relax(); } while ((x)->lock)
 
-static inline void __raw_spin_unlock(raw_spinlock_t * lock)
+static inline void __raw_spin_unlock(arch_spinlock_t * lock)
 {
 	mb();
 	lock->lock = 0;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t * lock)
+static inline void __raw_spin_lock(arch_spinlock_t * lock)
 {
 	long tmp;
 
@@ -43,7 +43,7 @@ static inline void __raw_spin_lock(raw_spinlock_t * lock)
 	: "m"(lock->lock) : "memory");
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	return !test_and_set_bit(0, &lock->lock);
 }

@@ -15,7 +15,7 @@
 
 typedef struct {
 	volatile unsigned int lock;
-} raw_spinlock_t;
+} arch_spinlock_t;
 
 #define __RAW_SPIN_LOCK_UNLOCKED	{ 0 }
 

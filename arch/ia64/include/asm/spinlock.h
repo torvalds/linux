@@ -38,7 +38,7 @@
 #define TICKET_BITS	15
 #define	TICKET_MASK	((1 << TICKET_BITS) - 1)
 
-static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_lock(arch_spinlock_t *lock)
 {
 	int	*p = (int *)&lock->lock, ticket, serve;
 
@@ -58,7 +58,7 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 	}
 }
 
-static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
 {
 	int tmp = ACCESS_ONCE(lock->lock);
 
@@ -67,7 +67,7 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 	return 0;
 }
 
-static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 {
 	unsigned short	*p = (unsigned short *)&lock->lock + 1, tmp;
 
@@ -75,7 +75,7 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
 }
 
-static __always_inline void __ticket_spin_unlock_wait(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_unlock_wait(arch_spinlock_t *lock)
 {
 	int	*p = (int *)&lock->lock, ticket;
 
@@ -89,53 +89,53 @@ static __always_inline void __ticket_spin_unlock_wait(raw_spinlock_t *lock)
 	}
 }
 
-static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
+static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
 
 	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK);
 }
 
-static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
+static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
 
 	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
 }
 
-static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+static inline int __raw_spin_is_locked(arch_spinlock_t *lock)
 {
 	return __ticket_spin_is_locked(lock);
 }
 
-static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+static inline int __raw_spin_is_contended(arch_spinlock_t *lock)
 {
 	return __ticket_spin_is_contended(lock);
 }
 #define __raw_spin_is_contended	__raw_spin_is_contended
 
-static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	__ticket_spin_lock(lock);
 }
 
-static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	return __ticket_spin_trylock(lock);
 }
 
-static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	__ticket_spin_unlock(lock);
 }
 
-static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
+static __always_inline void __raw_spin_lock_flags(arch_spinlock_t *lock,
 						  unsigned long flags)
 {
 	__raw_spin_lock(lock);
 }
 
-static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock_wait(arch_spinlock_t *lock)
 {
 	__ticket_spin_unlock_wait(lock);
 }

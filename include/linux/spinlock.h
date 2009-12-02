@@ -8,7 +8,7 @@
  *
  * on SMP builds:
  *
- *  asm/spinlock_types.h: contains the raw_spinlock_t/raw_rwlock_t and the
+ *  asm/spinlock_types.h: contains the arch_spinlock_t/raw_rwlock_t and the
  *                        initializers
  *
  *  linux/spinlock_types.h:
@@ -75,7 +75,7 @@
 #define __lockfunc __attribute__((section(".spinlock.text")))
 
 /*
- * Pull the raw_spinlock_t and raw_rwlock_t definitions:
+ * Pull the arch_spinlock_t and raw_rwlock_t definitions:
  */
 #include <linux/spinlock_types.h>
 

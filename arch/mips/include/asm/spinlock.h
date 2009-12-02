@@ -34,7 +34,7 @@
  * becomes equal to the the initial value of the tail.
  */
 
-static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+static inline int __raw_spin_is_locked(arch_spinlock_t *lock)
 {
 	unsigned int counters = ACCESS_ONCE(lock->lock);
 
@@ -45,7 +45,7 @@ static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 #define __raw_spin_unlock_wait(x) \
 	while (__raw_spin_is_locked(x)) { cpu_relax(); }
 
-static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+static inline int __raw_spin_is_contended(arch_spinlock_t *lock)
 {
 	unsigned int counters = ACCESS_ONCE(lock->lock);
 
@@ -53,7 +53,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 }
 #define __raw_spin_is_contended	__raw_spin_is_contended
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	int my_ticket;
 	int tmp;
@@ -134,7 +134,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	smp_llsc_mb();
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	int tmp;
 
@@ -174,7 +174,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 	}
 }
 
-static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline unsigned int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	int tmp, tmp2, tmp3;
 

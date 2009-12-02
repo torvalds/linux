@@ -23,7 +23,7 @@
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -43,7 +43,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	smp_mb();
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -63,7 +63,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	}
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	smp_mb();
 

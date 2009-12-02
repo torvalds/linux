@@ -54,7 +54,7 @@
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
  */
-static inline unsigned long arch_spin_trylock(raw_spinlock_t *lock)
+static inline unsigned long arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned long tmp, token;
 
@@ -73,7 +73,7 @@ static inline unsigned long arch_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	return arch_spin_trylock(lock) == 0;
@@ -96,7 +96,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)
 /* We only yield to the hypervisor if we are in shared processor mode */
 #define SHARED_PROCESSOR (get_lppaca()->shared_proc)
-extern void __spin_yield(raw_spinlock_t *lock);
+extern void __spin_yield(arch_spinlock_t *lock);
 extern void __rw_yield(raw_rwlock_t *lock);
 #else /* SPLPAR || ISERIES */
 #define __spin_yield(x)	barrier()
@@ -104,7 +104,7 @@ extern void __rw_yield(raw_rwlock_t *lock);
 #define SHARED_PROCESSOR	0
 #endif
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	while (1) {
@@ -120,7 +120,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 }
 
 static inline
-void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+void __raw_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	unsigned long flags_dis;
 
@@ -140,7 +140,7 @@ void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 	}
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	SYNC_IO;
 	__asm__ __volatile__("# __raw_spin_unlock\n\t"
@@ -149,7 +149,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 }
 
 #ifdef CONFIG_PPC64
-extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
+extern void __raw_spin_unlock_wait(arch_spinlock_t *lock);
 #else
 #define __raw_spin_unlock_wait(lock) \
 	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)

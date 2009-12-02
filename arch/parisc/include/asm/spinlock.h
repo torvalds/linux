@@ -5,7 +5,7 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
-static inline int __raw_spin_is_locked(raw_spinlock_t *x)
+static inline int __raw_spin_is_locked(arch_spinlock_t *x)
 {
 	volatile unsigned int *a = __ldcw_align(x);
 	return *a == 0;
@@ -15,7 +15,7 @@ static inline int __raw_spin_is_locked(raw_spinlock_t *x)
 #define __raw_spin_unlock_wait(x) \
 		do { cpu_relax(); } while (__raw_spin_is_locked(x))
 
-static inline void __raw_spin_lock_flags(raw_spinlock_t *x,
+static inline void __raw_spin_lock_flags(arch_spinlock_t *x,
 					 unsigned long flags)
 {
 	volatile unsigned int *a;
@@ -33,7 +33,7 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *x,
 	mb();
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *x)
+static inline void __raw_spin_unlock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
 	mb();
@@ -42,7 +42,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *x)
 	mb();
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *x)
+static inline int __raw_spin_trylock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
 	int ret;

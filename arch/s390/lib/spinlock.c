@@ -39,7 +39,7 @@ static inline void _raw_yield_cpu(int cpu)
 		_raw_yield();
 }
 
-void _raw_spin_lock_wait(raw_spinlock_t *lp)
+void _raw_spin_lock_wait(arch_spinlock_t *lp)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
@@ -59,7 +59,7 @@ void _raw_spin_lock_wait(raw_spinlock_t *lp)
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait);
 
-void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
+void _raw_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
@@ -82,7 +82,7 @@ void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait_flags);
 
-int _raw_spin_trylock_retry(raw_spinlock_t *lp)
+int _raw_spin_trylock_retry(arch_spinlock_t *lp)
 {
 	unsigned int cpu = ~smp_processor_id();
 	int count;
@@ -97,7 +97,7 @@ int _raw_spin_trylock_retry(raw_spinlock_t *lp)
 }
 EXPORT_SYMBOL(_raw_spin_trylock_retry);
 
-void _raw_spin_relax(raw_spinlock_t *lock)
+void _raw_spin_relax(arch_spinlock_t *lock)
 {
 	unsigned int cpu = lock->owner_cpu;
 	if (cpu != 0)

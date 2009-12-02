@@ -36,7 +36,7 @@
  * __raw_spin_trylock() tries to get the lock and returns a result.
  * On the m32r, the result value is 1 (= Success) or 0 (= Failure).
  */
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	int oldval;
 	unsigned long tmp1, tmp2;
@@ -69,7 +69,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return (oldval > 0);
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp0, tmp1;
 
@@ -111,7 +111,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	);
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	mb();
 	lock->slock = 1;

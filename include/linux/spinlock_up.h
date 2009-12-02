@@ -20,19 +20,19 @@
 #ifdef CONFIG_DEBUG_SPINLOCK
 #define __raw_spin_is_locked(x)		((x)->slock == 0)
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(arch_spinlock_t *lock)
 {
 	lock->slock = 0;
 }
 
 static inline void
-__raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+__raw_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	local_irq_save(flags);
 	lock->slock = 0;
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 {
 	char oldval = lock->slock;
 
@@ -41,7 +41,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return oldval > 0;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 {
 	lock->slock = 1;
 }

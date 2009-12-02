@@ -978,7 +978,7 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	return 1;
 }
 
-static raw_spinlock_t timebase_lock;
+static arch_spinlock_t timebase_lock;
 static u64 timebase = 0;
 
 void __cpuinit rtas_give_timebase(void)

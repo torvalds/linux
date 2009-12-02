@@ -71,7 +71,7 @@ static void pas_restart(char *cmd)
 }
 
 #ifdef CONFIG_SMP
-static raw_spinlock_t timebase_lock;
+static arch_spinlock_t timebase_lock;
 static unsigned long timebase;
 
 static void __devinit pas_give_timebase(void)

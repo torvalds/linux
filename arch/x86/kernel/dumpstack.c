@@ -188,7 +188,7 @@ void dump_stack(void)
 }
 EXPORT_SYMBOL(dump_stack);
 
-static raw_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
 
