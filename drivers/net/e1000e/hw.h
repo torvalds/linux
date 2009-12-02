@@ -219,7 +219,7 @@ enum e1e_registers {
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
-/* RSS registers */
+#define E1000_MAX_PHY_ADDR		4
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG	0x10 /* Port Config */

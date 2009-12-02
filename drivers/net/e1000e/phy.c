@@ -2197,28 +2197,34 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 s32 e1000e_determine_phy_address(struct e1000_hw *hw)
 {
 	s32 ret_val = -E1000_ERR_PHY_TYPE;
-	u32 phy_addr= 0;
-	u32 i = 0;
+	u32 phy_addr = 0;
+	u32 i;
 	enum e1000_phy_type phy_type = e1000_phy_unknown;
 
-	do {
-		for (phy_addr = 0; phy_addr < 4; phy_addr++) {
-			hw->phy.addr = phy_addr;
+	hw->phy.id = phy_type;
+
+	for (phy_addr = 0; phy_addr < E1000_MAX_PHY_ADDR; phy_addr++) {
+		hw->phy.addr = phy_addr;
+		i = 0;
+
+		do {
 			e1000e_get_phy_id(hw);
 			phy_type = e1000e_get_phy_type_from_id(hw->phy.id);
 
-			/* 
+			/*
 			 * If phy_type is valid, break - we found our
 			 * PHY address
 			 */
 			if (phy_type  != e1000_phy_unknown) {
 				ret_val = 0;
-				break;
+				goto out;
 			}
-		}
-		i++;
-	} while ((ret_val != 0) && (i < 100));
+			msleep(1);
+			i++;
+		} while (i < 10);
+	}
 
+out:
 	return ret_val;
 }
 
