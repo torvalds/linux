@@ -134,7 +134,7 @@ struct perf_event_attr;
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
 	static struct ftrace_event_call event_enter_##sname;		\
-	struct trace_event enter_syscall_print_##sname = {		\
+	static struct trace_event enter_syscall_print_##sname = {	\
 		.trace                  = print_syscall_enter,		\
 	};								\
 	static struct ftrace_event_call __used				\
@@ -156,7 +156,7 @@ struct perf_event_attr;
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
 	static struct ftrace_event_call event_exit_##sname;		\
-	struct trace_event exit_syscall_print_##sname = {		\
+	static struct trace_event exit_syscall_print_##sname = {	\
 		.trace                  = print_syscall_exit,		\
 	};								\
 	static struct ftrace_event_call __used				\
