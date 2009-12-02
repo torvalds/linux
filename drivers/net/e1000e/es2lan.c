@@ -1391,6 +1391,7 @@ static struct e1000_mac_operations es2_mac_ops = {
 
 static struct e1000_phy_operations es2_phy_ops = {
 	.acquire		= e1000_acquire_phy_80003es2lan,
+	.check_polarity		= e1000_check_polarity_m88,
 	.check_reset_block	= e1000e_check_reset_block_generic,
 	.commit		 	= e1000e_phy_sw_reset,
 	.force_speed_duplex 	= e1000_phy_force_speed_duplex_80003es2lan,
