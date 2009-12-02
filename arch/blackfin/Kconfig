@@ -896,6 +896,12 @@ config DMA_UNCACHED_2M
 	bool "Enable 2M DMA region"
 config DMA_UNCACHED_1M
 	bool "Enable 1M DMA region"
+config DMA_UNCACHED_512K
+	bool "Enable 512K DMA region"
+config DMA_UNCACHED_256K
+	bool "Enable 256K DMA region"
+config DMA_UNCACHED_128K
+	bool "Enable 128K DMA region"
 config DMA_UNCACHED_NONE
 	bool "Disable DMA region"
 endchoice
