@@ -655,48 +655,77 @@ static unsigned tcp_synack_options(struct sock *sk,
 				   struct request_sock *req,
 				   unsigned mss, struct sk_buff *skb,
 				   struct tcp_out_options *opts,
-				   struct tcp_md5sig_key **md5) {
-	unsigned size = 0;
+				   struct tcp_md5sig_key **md5,
+				   struct tcp_extend_values *xvp)
+{
 	struct inet_request_sock *ireq = inet_rsk(req);
-	char doing_ts;
+	unsigned remaining = MAX_TCP_OPTION_SPACE;
+	u8 cookie_plus = (xvp != NULL && !xvp->cookie_out_never) ?
+			 xvp->cookie_plus :
+			 0;
+	bool doing_ts = ireq->tstamp_ok;
 
 #ifdef CONFIG_TCP_MD5SIG
 	*md5 = tcp_rsk(req)->af_specific->md5_lookup(sk, req);
 	if (*md5) {
 		opts->options |= OPTION_MD5;
-		size += TCPOLEN_MD5SIG_ALIGNED;
+		remaining -= TCPOLEN_MD5SIG_ALIGNED;
+
+		/* We can't fit any SACK blocks in a packet with MD5 + TS
+		 * options. There was discussion about disabling SACK
+		 * rather than TS in order to fit in better with old,
+		 * buggy kernels, but that was deemed to be unnecessary.
+		 */
+		doing_ts &= !ireq->sack_ok;
 	}
 #else
 	*md5 = NULL;
 #endif
 
-	/* we can't fit any SACK blocks in a packet with MD5 + TS
-	   options. There was discussion about disabling SACK rather than TS in
-	   order to fit in better with old, buggy kernels, but that was deemed
-	   to be unnecessary. */
-	doing_ts = ireq->tstamp_ok && !(*md5 && ireq->sack_ok);
-
+	/* We always send an MSS option. */
 	opts->mss = mss;
-	size += TCPOLEN_MSS_ALIGNED;
+	remaining -= TCPOLEN_MSS_ALIGNED;
 
 	if (likely(ireq->wscale_ok)) {
 		opts->ws = ireq->rcv_wscale;
 		opts->options |= OPTION_WSCALE;
-		size += TCPOLEN_WSCALE_ALIGNED;
+		remaining -= TCPOLEN_WSCALE_ALIGNED;
 	}
 	if (likely(doing_ts)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = TCP_SKB_CB(skb)->when;
 		opts->tsecr = req->ts_recent;
-		size += TCPOLEN_TSTAMP_ALIGNED;
+		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
 	if (likely(ireq->sack_ok)) {
 		opts->options |= OPTION_SACK_ADVERTISE;
 		if (unlikely(!doing_ts))
-			size += TCPOLEN_SACKPERM_ALIGNED;
+			remaining -= TCPOLEN_SACKPERM_ALIGNED;
 	}
 
-	return size;
+	/* Similar rationale to tcp_syn_options() applies here, too.
+	 * If the <SYN> options fit, the same options should fit now!
+	 */
+	if (*md5 == NULL &&
+	    doing_ts &&
+	    cookie_plus > TCPOLEN_COOKIE_BASE) {
+		int need = cookie_plus; /* has TCPOLEN_COOKIE_BASE */
+
+		if (0x2 & need) {
+			/* 32-bit multiple */
+			need += 2; /* NOPs */
+		}
+		if (need <= remaining) {
+			opts->options |= OPTION_COOKIE_EXTENSION;
+			opts->hash_size = cookie_plus - TCPOLEN_COOKIE_BASE;
+			remaining -= need;
+		} else {
+			/* There's no error return, so flag it. */
+			xvp->cookie_out_never = 1; /* true */
+			opts->hash_size = 0;
+		}
+	}
+	return MAX_TCP_OPTION_SPACE - remaining;
 }
 
 /* Compute TCP options for ESTABLISHED sockets. This is not the
@@ -2365,6 +2394,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 				struct request_values *rvp)
 {
 	struct tcp_out_options opts;
+	struct tcp_extend_values *xvp = tcp_xv(rvp);
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcphdr *th;
@@ -2408,8 +2438,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 #endif
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	tcp_header_size = tcp_synack_options(sk, req, mss,
-					     skb, &opts, &md5) +
-			  sizeof(struct tcphdr);
+					     skb, &opts, &md5, xvp)
+			+ sizeof(*th);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
@@ -2426,6 +2456,45 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	 */
 	tcp_init_nondata_skb(skb, tcp_rsk(req)->snt_isn,
 			     TCPCB_FLAG_SYN | TCPCB_FLAG_ACK);
+
+	if (OPTION_COOKIE_EXTENSION & opts.options) {
+		const struct tcp_cookie_values *cvp = tp->cookie_values;
+
+		if (cvp != NULL &&
+		    cvp->s_data_constant &&
+		    cvp->s_data_desired > 0) {
+			u8 *buf = skb_put(skb, cvp->s_data_desired);
+
+			/* copy data directly from the listening socket. */
+			memcpy(buf, cvp->s_data_payload, cvp->s_data_desired);
+			TCP_SKB_CB(skb)->end_seq += cvp->s_data_desired;
+		}
+
+		if (opts.hash_size > 0) {
+			__u32 workspace[SHA_WORKSPACE_WORDS];
+			u32 *mess = &xvp->cookie_bakery[COOKIE_DIGEST_WORDS];
+			u32 *tail = &mess[COOKIE_MESSAGE_WORDS-1];
+
+			/* Secret recipe depends on the Timestamp, (future)
+			 * Sequence and Acknowledgment Numbers, Initiator
+			 * Cookie, and others handled by IP variant caller.
+			 */
+			*tail-- ^= opts.tsval;
+			*tail-- ^= tcp_rsk(req)->rcv_isn + 1;
+			*tail-- ^= TCP_SKB_CB(skb)->seq + 1;
+
+			/* recommended */
+			*tail-- ^= ((th->dest << 16) | th->source);
+			*tail-- ^= (u32)cvp; /* per sockopt */
+
+			sha_transform((__u32 *)&xvp->cookie_bakery[0],
+				      (char *)mess,
+				      &workspace[0]);
+			opts.hash_location =
+				(__u8 *)&xvp->cookie_bakery[0];
+		}
+	}
+
 	th->seq = htonl(TCP_SKB_CB(skb)->seq);
 	th->ack_seq = htonl(tcp_rsk(req)->rcv_isn + 1);
 

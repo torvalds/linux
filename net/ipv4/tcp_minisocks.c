@@ -90,13 +90,14 @@ enum tcp_tw_status
 tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			   const struct tcphdr *th)
 {
-	struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
 	struct tcp_options_received tmp_opt;
+	u8 *hash_location;
+	struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
 	int paws_reject = 0;
 
 	if (th->doff > (sizeof(*th) >> 2) && tcptw->tw_ts_recent_stamp) {
 		tmp_opt.tstamp_ok = 1;
-		tcp_parse_options(skb, &tmp_opt, 1, NULL);
+		tcp_parse_options(skb, &tmp_opt, &hash_location, 1, NULL);
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent	= tcptw->tw_ts_recent;
@@ -518,15 +519,16 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
 			   struct request_sock **prev)
 {
+	struct tcp_options_received tmp_opt;
+	u8 *hash_location;
+	struct sock *child;
 	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	int paws_reject = 0;
-	struct tcp_options_received tmp_opt;
-	struct sock *child;
 
-	if ((th->doff > (sizeof(struct tcphdr)>>2)) && (req->ts_recent)) {
+	if ((th->doff > (sizeof(*th) >> 2)) && (req->ts_recent)) {
 		tmp_opt.tstamp_ok = 1;
-		tcp_parse_options(skb, &tmp_opt, 1, NULL);
+		tcp_parse_options(skb, &tmp_opt, &hash_location, 1, NULL);
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent = req->ts_recent;
