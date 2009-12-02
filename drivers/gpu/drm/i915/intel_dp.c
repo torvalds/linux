@@ -1247,11 +1247,11 @@ int dp_is_present_in_vbt(struct drm_device *dev, int dp_reg)
 		return 1;
 
 	dp_port = 0;
-	if (dp_reg == DP_B || PCH_DP_B)
+	if (dp_reg == DP_B || dp_reg == PCH_DP_B)
 		dp_port = PORT_IDPB;
-	else if (dp_reg == DP_C || PCH_DP_C)
+	else if (dp_reg == DP_C || dp_reg == PCH_DP_C)
 		dp_port = PORT_IDPC;
-	else if (dp_reg == DP_D || PCH_DP_D)
+	else if (dp_reg == DP_D || dp_reg == PCH_DP_D)
 		dp_port = PORT_IDPD;
 
 	ret = 0;
