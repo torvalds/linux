@@ -1928,7 +1928,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 
 	vha = qla25xx_get_host(rsp);
 	qla24xx_process_response_queue(vha, rsp);
-	if (!ha->mqenable) {
+	if (!ha->flags.disable_msix_handshake) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 		RD_REG_DWORD_RELAXED(&reg->hccr);
 	}
@@ -1942,6 +1942,7 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 {
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
+	struct device_reg_24xx __iomem *reg;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -1951,6 +1952,14 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 	}
 	ha = rsp->hw;
 
+	/* Clear the interrupt, if enabled, for this response queue */
+	if (rsp->options & ~BIT_6) {
+		reg = &ha->iobase->isp24;
+		spin_lock_irq(&ha->hardware_lock);
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+		RD_REG_DWORD_RELAXED(&reg->hccr);
+		spin_unlock_irq(&ha->hardware_lock);
+	}
 	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
 
 	return IRQ_HANDLED;
