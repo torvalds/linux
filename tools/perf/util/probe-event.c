@@ -199,8 +199,8 @@ void parse_trace_kprobe_event(const char *str, char **group, char **event,
 		semantic_error("Too less arguments.");
 
 	/* Scan event and group name. */
-	ret = sscanf(argv[0], "%c:%m[^/ \t]/%m[^ \t]",
-		     &pr, group, event);
+	ret = sscanf(argv[0], "%c:%a[^/ \t]/%a[^ \t]",
+		     &pr, (float *)(void *)group, (float *)(void *)event);
 	if (ret != 3)
 		semantic_error("Failed to parse event name: %s", argv[0]);
 	pr_debug("Group:%s Event:%s probe:%c\n", *group, *event, pr);
@@ -211,7 +211,7 @@ void parse_trace_kprobe_event(const char *str, char **group, char **event,
 	pp->retprobe = (pr == 'r');
 
 	/* Scan function name and offset */
-	ret = sscanf(argv[1], "%m[^+]+%d", &pp->function, &pp->offset);
+	ret = sscanf(argv[1], "%a[^+]+%d", (float *)(void *)&pp->function, &pp->offset);
 	if (ret == 1)
 		pp->offset = 0;
 
