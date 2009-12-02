@@ -796,18 +796,20 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 				pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
 			if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
-				struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-				struct radeon_encoder_lvds *lvds = (struct radeon_encoder_lvds *)radeon_encoder->enc_priv;
-				if (lvds) {
-					if (lvds->use_bios_dividers) {
-						pll_ref_div = lvds->panel_ref_divider;
-						pll_fb_post_div   = (lvds->panel_fb_divider |
-								     (lvds->panel_post_divider << 16));
-						htotal_cntl  = 0;
-						use_bios_divs = true;
+				if (!rdev->is_atom_bios) {
+					struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+					struct radeon_encoder_lvds *lvds = (struct radeon_encoder_lvds *)radeon_encoder->enc_priv;
+					if (lvds) {
+						if (lvds->use_bios_dividers) {
+							pll_ref_div = lvds->panel_ref_divider;
+							pll_fb_post_div   = (lvds->panel_fb_divider |
+									     (lvds->panel_post_divider << 16));
+							htotal_cntl  = 0;
+							use_bios_divs = true;
+						}
 					}
+					pll_flags |= RADEON_PLL_USE_REF_DIV;
 				}
-				pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 		}
 	}
