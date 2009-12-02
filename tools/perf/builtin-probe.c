@@ -160,7 +160,10 @@ static const struct option options[] = {
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, fd, ret;
+	int i, j, ret;
+#ifndef NO_LIBDWARF
+	int fd;
+#endif
 	struct probe_point *pp;
 
 	argc = parse_options(argc, argv, options, probe_usage,
