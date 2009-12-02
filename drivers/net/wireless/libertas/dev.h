@@ -42,7 +42,6 @@ struct lbs_private {
 	u32 mesh_connect_status;
 	struct lbs_mesh_stats mstats;
 	int mesh_open;
-	int mesh_fw_ver;
 	int mesh_autostart_enabled;
 	uint16_t mesh_tlv;
 	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
