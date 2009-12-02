@@ -4131,22 +4131,20 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		cnic_init_bnx2_rx_ring(dev);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
 		struct cnic_local *cp = dev->cnic_priv;
-		struct cnic_eth_dev *ethdev = cp->ethdev;
 		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
 		union l5cm_specific_data l5_data;
 		struct ustorm_eth_rx_producers rx_prods = {0};
-		void __iomem *doorbell;
-		int i;
+		u32 off, i;
 
 		rx_prods.bd_prod = 0;
 		rx_prods.cqe_prod = BNX2X_MAX_RCQ_DESC_CNT;
 		barrier();
 
-		doorbell = ethdev->io_base2 + BAR_USTRORM_INTMEM +
+		off = BAR_USTRORM_INTMEM +
 			USTORM_RX_PRODS_OFFSET(CNIC_PORT(cp), cli);
 
 		for (i = 0; i < sizeof(struct ustorm_eth_rx_producers) / 4; i++)
-			writel(((u32 *) &rx_prods)[i], doorbell + i * 4);
+			CNIC_WR(dev, off + i * 4, ((u32 *) &rx_prods)[i]);
 
 		cnic_init_bnx2x_tx_ring(dev);
 		cnic_init_bnx2x_rx_ring(dev);
