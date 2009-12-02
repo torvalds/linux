@@ -76,11 +76,9 @@
 #define VS
 #endif
 
-#define IWL39_VERSION "1.2.26k" VD VS
+#define DRV_VERSION  IWLWIFI_VERSION VD VS
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2009 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
-#define DRV_VERSION     IWL39_VERSION
-
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
