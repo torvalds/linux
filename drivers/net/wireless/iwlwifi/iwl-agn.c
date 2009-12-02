@@ -1662,7 +1662,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
+		IWL_ERR(priv,
+			"Not valid error log pointer 0x%08X for %s uCode\n",
+			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
 		return;
 	}
 
@@ -1807,7 +1809,9 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
+		IWL_ERR(priv,
+			"Invalid event log pointer 0x%08X for %s uCode\n",
+			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
 		return;
 	}
 
