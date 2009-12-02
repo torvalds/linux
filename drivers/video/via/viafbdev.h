@@ -24,6 +24,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/fb.h>
+#include <linux/spinlock.h>
 
 #include "ioctl.h"
 #include "share.h"
@@ -41,9 +42,6 @@
 
 struct viafb_shared {
 	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
-
-	/* I2C stuff */
-	struct via_i2c_stuff i2c_stuff[VIAFB_NUM_I2C];
 
 	/* All the information will be needed to set engine */
 	struct tmds_setting_information tmds_setting_info;
@@ -74,6 +72,14 @@ struct viafb_par {
 
 	struct viafb_shared *shared;
 
+	/*
+	 * (jc) I believe one should use locking to protect against
+	 * concurrent access to the device ports and registers.  Thus,
+	 * this lock.  Use of it is *far* from universal, though...
+	 * someday...
+	 */
+	spinlock_t reg_lock;
+
 	/* All the information will be needed to set engine */
 	/* depreciated, use the ones in shared directly */
 	struct tmds_setting_information *tmds_setting_info;
@@ -101,4 +107,9 @@ u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 void viafb_gpio_i2c_write_mask_lvds(struct lvds_setting_information
 			      *plvds_setting_info, struct lvds_chip_information
 			      *plvds_chip_info, struct IODATA io_data);
+int via_fb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
+void via_fb_pci_remove(struct pci_dev *pdev);
+/* Temporary */
+int viafb_init(void);
+void viafb_exit(void);
 #endif /* __VIAFBDEV_H__ */

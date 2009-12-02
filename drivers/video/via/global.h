@@ -35,6 +35,7 @@
 
 #include "debug.h"
 
+#include "via-core.h"
 #include "viafbdev.h"
 #include "chip.h"
 #include "accel.h"

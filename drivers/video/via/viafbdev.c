@@ -1731,8 +1731,9 @@ static int parse_mode(const char *str, u32 *xres, u32 *yres)
 	return 0;
 }
 
-static int __devinit via_pci_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+
+int __devinit via_fb_pci_probe(struct pci_dev *pdev,
+		const struct pci_device_id *ent)
 {
 	u32 default_xres, default_yres;
 	struct VideoModeTable *vmode_entry;
@@ -1764,6 +1765,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 		&viaparinfo->shared->lvds_setting_info2;
 	viaparinfo->crt_setting_info = &viaparinfo->shared->crt_setting_info;
 	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
+	spin_lock_init(&viaparinfo->reg_lock);
 
 	if (viafb_dual_fb)
 		viafb_SAMM_ON = 1;
@@ -1774,26 +1776,21 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	if (!viafb_SAMM_ON)
 		viafb_dual_fb = 0;
 
-	/* Set up I2C bus stuff */
-	rc = viafb_create_i2c_busses(viaparinfo);
-	if (rc)
-		goto out_fb_release;
-
 	viafb_init_chip_info(pdev, ent);
 	viaparinfo->fbmem = pci_resource_start(pdev, 0);
 	viaparinfo->memsize = viafb_get_fb_size_from_pci();
 	if (viaparinfo->memsize < 0) {
 		rc = viaparinfo->memsize;
-		goto out_delete_i2c;
+		goto out_fb_release;
 	}
 	viaparinfo->fbmem_free = viaparinfo->memsize;
 	viaparinfo->fbmem_used = 0;
 	viafbinfo->screen_base = ioremap_nocache(viaparinfo->fbmem,
 		viaparinfo->memsize);
 	if (!viafbinfo->screen_base) {
-		printk(KERN_INFO "ioremap failed\n");
+		printk(KERN_ERR "ioremap of fbmem failed\n");
 		rc = -ENOMEM;
-		goto out_delete_i2c;
+		goto out_fb_release;
 	}
 
 	viafbinfo->fix.mmio_start = pci_resource_start(pdev, 1);
@@ -1963,14 +1960,12 @@ out_fb1_release:
 		framebuffer_release(viafbinfo1);
 out_unmap_screen:
 	iounmap(viafbinfo->screen_base);
-out_delete_i2c:
-	viafb_delete_i2c_busses(viaparinfo);
 out_fb_release:
 	framebuffer_release(viafbinfo);
 	return rc;
 }
 
-static void __devexit via_pci_remove(struct pci_dev *pdev)
+void __devexit via_fb_pci_remove(struct pci_dev *pdev)
 {
 	DEBUG_MSG(KERN_INFO "via_pci_remove!\n");
 	fb_dealloc_cmap(&viafbinfo->cmap);
@@ -1979,8 +1974,6 @@ static void __devexit via_pci_remove(struct pci_dev *pdev)
 		unregister_framebuffer(viafbinfo1);
 	iounmap((void *)viafbinfo->screen_base);
 	iounmap(viaparinfo->shared->engine_mmio);
-
-	viafb_delete_i2c_busses(viaparinfo);
 
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)
@@ -2062,41 +2055,10 @@ static int __init viafb_setup(char *options)
 }
 #endif
 
-static struct pci_device_id viafb_pci_table[] __devinitdata = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CLE266_DID),
-	  .driver_data = UNICHROME_CLE266 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_PM800_DID),
-	  .driver_data = UNICHROME_PM800 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K400_DID),
-	  .driver_data = UNICHROME_K400 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K800_DID),
-	  .driver_data = UNICHROME_K800 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M890_DID),
-	  .driver_data = UNICHROME_CN700 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_K8M890_DID),
-	  .driver_data = UNICHROME_K8M890 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CX700_DID),
-	  .driver_data = UNICHROME_CX700 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_P4M900_DID),
-	  .driver_data = UNICHROME_P4M900 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_CN750_DID),
-	  .driver_data = UNICHROME_CN750 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX800_DID),
-	  .driver_data = UNICHROME_VX800 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX855_DID),
-	  .driver_data = UNICHROME_VX855 },
-	{ }
-};
-MODULE_DEVICE_TABLE(pci, viafb_pci_table);
-
-static struct pci_driver viafb_driver = {
-	.name		= "viafb",
-	.id_table	= viafb_pci_table,
-	.probe		= via_pci_probe,
-	.remove		= __devexit_p(via_pci_remove),
-};
-
-static int __init viafb_init(void)
+/*
+ * These are called out of via-core for now.
+ */
+int __init viafb_init(void)
 {
 	u32 dummy;
 #ifndef MODULE
@@ -2115,13 +2077,12 @@ static int __init viafb_init(void)
 	printk(KERN_INFO
        "VIA Graphics Intergration Chipset framebuffer %d.%d initializing\n",
 	       VERSION_MAJOR, VERSION_MINOR);
-	return pci_register_driver(&viafb_driver);
+	return 0;
 }
 
-static void __exit viafb_exit(void)
+void __exit viafb_exit(void)
 {
 	DEBUG_MSG(KERN_INFO "viafb_exit!\n");
-	pci_unregister_driver(&viafb_driver);
 }
 
 static struct fb_ops viafb_ops = {
@@ -2141,8 +2102,6 @@ static struct fb_ops viafb_ops = {
 	.fb_sync = viafb_sync,
 };
 
-module_init(viafb_init);
-module_exit(viafb_exit);
 
 #ifdef MODULE
 module_param(viafb_mode, charp, S_IRUSR);

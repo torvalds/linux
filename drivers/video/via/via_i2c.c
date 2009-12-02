@@ -21,13 +21,18 @@
 
 #include "global.h"
 
+/*
+ * There can only be one set of these, so there's no point in having
+ * them be dynamically allocated...
+ */
+#define VIAFB_NUM_I2C		5
+static struct via_i2c_stuff via_i2c_par[VIAFB_NUM_I2C];
+
 static void via_i2c_setscl(void *data, int state)
 {
 	u8 val;
-	struct via_i2c_adap_cfg *adap_data = data;
+	struct via_port_cfg *adap_data = data;
 
-	DEBUG_MSG(KERN_DEBUG "reading index 0x%02x from IO 0x%x\n",
-		adap_data->ioport_index, adap_data->io_port);
 	val = viafb_read_reg(adap_data->io_port,
 			     adap_data->ioport_index) & 0xF0;
 	if (state)
@@ -35,10 +40,10 @@ static void via_i2c_setscl(void *data, int state)
 	else
 		val &= ~0x20;
 	switch (adap_data->type) {
-	case VIA_I2C_I2C:
+	case VIA_PORT_I2C:
 		val |= 0x01;
 		break;
-	case VIA_I2C_GPIO:
+	case VIA_PORT_GPIO:
 		val |= 0x80;
 		break;
 	default:
@@ -50,7 +55,7 @@ static void via_i2c_setscl(void *data, int state)
 
 static int via_i2c_getscl(void *data)
 {
-	struct via_i2c_adap_cfg *adap_data = data;
+	struct via_port_cfg *adap_data = data;
 
 	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x08)
 		return 1;
@@ -59,7 +64,7 @@ static int via_i2c_getscl(void *data)
 
 static int via_i2c_getsda(void *data)
 {
-	struct via_i2c_adap_cfg *adap_data = data;
+	struct via_port_cfg *adap_data = data;
 
 	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x04)
 		return 1;
@@ -69,7 +74,7 @@ static int via_i2c_getsda(void *data)
 static void via_i2c_setsda(void *data, int state)
 {
 	u8 val;
-	struct via_i2c_adap_cfg *adap_data = data;
+	struct via_port_cfg *adap_data = data;
 
 	val = viafb_read_reg(adap_data->io_port,
 			     adap_data->ioport_index) & 0xF0;
@@ -78,10 +83,10 @@ static void via_i2c_setsda(void *data, int state)
 	else
 		val &= ~0x10;
 	switch (adap_data->type) {
-	case VIA_I2C_I2C:
+	case VIA_PORT_I2C:
 		val |= 0x01;
 		break;
-	case VIA_I2C_GPIO:
+	case VIA_PORT_GPIO:
 		val |= 0x40;
 		break;
 	default:
@@ -103,8 +108,7 @@ int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = 1;
 	msgs[0].buf = mm1; msgs[1].buf = pdata;
-	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
-			msgs, 2);
+	return i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
 }
 
 int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
@@ -116,8 +120,7 @@ int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
 	msgs.buf = msg;
-	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
-			&msgs, 1);
+	return i2c_transfer(&via_i2c_par[adap].adapter, &msgs, 1);
 }
 
 int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len)
@@ -131,13 +134,12 @@ int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = buff_len;
 	msgs[0].buf = mm1; msgs[1].buf = buff;
-	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
-			msgs, 2);
+	return i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
 }
 
 static int create_i2c_bus(struct i2c_adapter *adapter,
 			  struct i2c_algo_bit_data *algo,
-			  struct via_i2c_adap_cfg *adap_cfg,
+			  struct via_port_cfg *adap_cfg,
 			  struct pci_dev *pdev)
 {
 	DEBUG_MSG(KERN_DEBUG "viafb: creating bus adap=0x%p, algo_bit_data=0x%p, adap_cfg=0x%p\n", adapter, algo, adap_cfg);
@@ -170,31 +172,15 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	return i2c_bit_add_bus(adapter);
 }
 
-/*
- * By default, we only activate busses on ports 2c and 31 to avoid
- * conflicts with other possible users; that default can be changed
- * below.
- */
-static struct via_i2c_adap_cfg adap_configs[] = {
-	[VIA_I2C_ADAP_26]	= { VIA_I2C_I2C,  VIASR, 0x26, 0 },
-	[VIA_I2C_ADAP_31]	= { VIA_I2C_I2C,  VIASR, 0x31, 1 },
-	[VIA_I2C_ADAP_25]	= { VIA_I2C_GPIO, VIASR, 0x25, 0 },
-	[VIA_I2C_ADAP_2C]	= { VIA_I2C_GPIO, VIASR, 0x2c, 1 },
-	[VIA_I2C_ADAP_3D]	= { VIA_I2C_GPIO, VIASR, 0x3d, 0 },
-	{ 0, 0, 0, 0 }
-};
-
-int viafb_create_i2c_busses(struct viafb_par *viapar)
+int viafb_create_i2c_busses(struct via_port_cfg *configs)
 {
 	int i, ret;
 
-	for (i = 0; i < VIAFB_NUM_I2C; i++) {
-		struct via_i2c_adap_cfg *adap_cfg = &adap_configs[i];
-		struct via_i2c_stuff *i2c_stuff = &viapar->shared->i2c_stuff[i];
+	for (i = 0; i < VIAFB_NUM_PORTS; i++) {
+		struct via_port_cfg *adap_cfg = configs++;
+		struct via_i2c_stuff *i2c_stuff = &via_i2c_par[i];
 
-		if (adap_cfg->type == 0)
-			break;
-		if (!adap_cfg->is_active)
+		if (adap_cfg->type == 0 || adap_cfg->mode != VIA_MODE_I2C)
 			continue;
 
 		ret = create_i2c_bus(&i2c_stuff->adapter,
@@ -211,14 +197,16 @@ int viafb_create_i2c_busses(struct viafb_par *viapar)
 	return 0;
 }
 
-void viafb_delete_i2c_busses(struct viafb_par *par)
+void viafb_delete_i2c_busses(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(par->shared->i2c_stuff); i++) {
-		struct via_i2c_stuff *i2c_stuff = &par->shared->i2c_stuff[i];
-		/* only remove those entries in the array that we've
-		 * actually used (and thus initialized algo_data) */
+	for (i = 0; i < VIAFB_NUM_PORTS; i++) {
+		struct via_i2c_stuff *i2c_stuff = &via_i2c_par[i];
+		/*
+		 * Only remove those entries in the array that we've
+		 * actually used (and thus initialized algo_data)
+		 */
 		if (i2c_stuff->adapter.algo_data == &i2c_stuff->algo)
 			i2c_del_adapter(&i2c_stuff->adapter);
 	}

@@ -96,7 +96,7 @@ int viafb_tmds_trasmitter_identify(void)
 	viaparinfo->chip_info->tmds_chip_info.tmds_chip_name = VT1632_TMDS;
 	viaparinfo->chip_info->
 		tmds_chip_info.tmds_chip_slave_addr = VT1632_TMDS_I2C_ADDR;
-	viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_I2C_ADAP_31;
+	viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_31;
 	if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID) != FAIL) {
 		/*
 		 * Currently only support 12bits,dual edge,add 24bits mode later
@@ -110,7 +110,7 @@ int viafb_tmds_trasmitter_identify(void)
 			  viaparinfo->chip_info->tmds_chip_info.i2c_port);
 		return OK;
 	} else {
-		viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_I2C_ADAP_2C;
+		viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_2C;
 		if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)
 		    != FAIL) {
 			tmds_register_write(0x08, 0x3b);
