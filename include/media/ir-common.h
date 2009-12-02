@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/spinlock.h>
 
 extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
 #define IR_dprintk(level, fmt, arg...)	if (media_ir_debug >= level) \
@@ -43,6 +44,7 @@ struct ir_scancode {
 struct ir_scancode_table {
 	struct ir_scancode *scan;
 	int size;
+	spinlock_t lock;
 };
 
 #define RC5_START(x)	(((x)>>12)&3)

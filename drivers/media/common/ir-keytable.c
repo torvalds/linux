@@ -10,6 +10,38 @@
 #define IR_TAB_MIN_SIZE	32
 
 /**
+ * ir_seek_table() - returns the element order on the table
+ * @rc_tab:	the ir_scancode_table with the keymap to be used
+ * @scancode:	the scancode that we're seeking
+ *
+ * This routine is used by the input routines when a key is pressed at the
+ * IR. The scancode is received and needs to be converted into a keycode.
+ * If the key is not found, it returns KEY_UNKNOWN. Otherwise, returns the
+ * corresponding keycode from the table.
+ */
+static int ir_seek_table(struct ir_scancode_table *rc_tab, u32 scancode)
+{
+	int rc;
+	unsigned long flags;
+	struct ir_scancode *keymap = rc_tab->scan;
+
+	spin_lock_irqsave(&rc_tab->lock, flags);
+
+	/* FIXME: replace it by a binary search */
+
+	for (rc = 0; rc < rc_tab->size; rc++)
+		if (keymap[rc].scancode == scancode)
+			goto exit;
+
+	/* Not found */
+	rc = -EINVAL;
+
+exit:
+	spin_unlock_irqrestore(&rc_tab->lock, flags);
+	return rc;
+}
+
+/**
  * ir_roundup_tablesize() - gets an optimum value for the table size
  * @n_elems:		minimum number of entries to store keycodes
  *
@@ -54,20 +86,19 @@ int ir_copy_table(struct ir_scancode_table *destin,
 	int i, j = 0;
 
 	for (i = 0; i < origin->size; i++) {
-		if (origin->scan[i].keycode != KEY_UNKNOWN &&
-		   origin->scan[i].keycode != KEY_RESERVED) {
-			memcpy(&destin->scan[j], &origin->scan[i],
-			       sizeof(struct ir_scancode));
-			j++;
-		}
+		if (origin->scan[i].keycode == KEY_UNKNOWN ||
+		   origin->scan[i].keycode == KEY_RESERVED)
+			continue;
+
+		memcpy(&destin->scan[j], &origin->scan[i], sizeof(struct ir_scancode));
+		j++;
 	}
 	destin->size = j;
 
-	IR_dprintk(1, "Copied %d scancodes to the new keycode table\n", j);
+	IR_dprintk(1, "Copied %d scancodes to the new keycode table\n", destin->size);
 
 	return 0;
 }
-
 
 /**
  * ir_getkeycode() - get a keycode at the evdev scancode ->keycode table
@@ -81,28 +112,14 @@ int ir_copy_table(struct ir_scancode_table *destin,
 static int ir_getkeycode(struct input_dev *dev,
 			 int scancode, int *keycode)
 {
-	int i;
+	int elem;
 	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
-	struct ir_scancode *keymap = rc_tab->scan;
 
-	/* See if we can match the raw key code. */
-	for (i = 0; i < rc_tab->size; i++)
-		if (keymap[i].scancode == scancode) {
-			*keycode = keymap[i].keycode;
-			return 0;
-		}
-
-	/*
-	 * If is there extra space, returns KEY_RESERVED,
-	 * otherwise, input core won't let ir_setkeycode
-	 * to work
-	 */
-	for (i = 0; i < rc_tab->size; i++)
-		if (keymap[i].keycode == KEY_RESERVED ||
-		    keymap[i].keycode == KEY_UNKNOWN) {
-			*keycode = KEY_RESERVED;
-			return 0;
-		}
+	elem = ir_seek_table(rc_tab, scancode);
+	if (elem >= 0) {
+		*keycode = rc_tab->scan[elem].keycode;
+		return 0;
+	}
 
 	return -EINVAL;
 }
@@ -120,40 +137,33 @@ static int ir_getkeycode(struct input_dev *dev,
 static int ir_setkeycode(struct input_dev *dev,
 			 int scancode, int keycode)
 {
-	int i;
+	int rc = 0;
 	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
 	struct ir_scancode *keymap = rc_tab->scan;
+	unsigned long flags;
 
 	/* Search if it is replacing an existing keycode */
-	for (i = 0; i < rc_tab->size; i++)
-		if (keymap[i].scancode == scancode) {
-			keymap[i].keycode = keycode;
-			return 0;
-		}
+	rc = ir_seek_table(rc_tab, scancode);
+	if (rc <0)
+		return rc;
 
-	/* Search if is there a clean entry. If so, use it */
-	for (i = 0; i < rc_tab->size; i++)
-		if (keymap[i].keycode == KEY_RESERVED ||
-		    keymap[i].keycode == KEY_UNKNOWN) {
-			keymap[i].scancode = scancode;
-			keymap[i].keycode = keycode;
-			return 0;
-		}
+	IR_dprintk(1, "#%d: Replacing scan 0x%04x with key 0x%04x\n",
+		rc, scancode, keycode);
 
-	/*
-	 * FIXME: Currently, it is not possible to increase the size of
-	 * scancode table. For it to happen, one possibility
-	 * would be to allocate a table with key_map_size + 1,
-	 * copying data, appending the new key on it, and freeing
-	 * the old one - or maybe just allocating some spare space
-	 */
+	clear_bit(keymap[rc].keycode, dev->keybit);
 
-	return -EINVAL;
+	spin_lock_irqsave(&rc_tab->lock, flags);
+	keymap[rc].keycode = keycode;
+	spin_unlock_irqrestore(&rc_tab->lock, flags);
+
+	set_bit(keycode, dev->keybit);
+
+	return 0;
 }
 
 /**
  * ir_g_keycode_from_table() - gets the keycode that corresponds to a scancode
- * @rc_tab:	the ir_scancode_table with the keymap to be used
+ * @input_dev:	the struct input_dev descriptor of the device
  * @scancode:	the scancode that we're seeking
  *
  * This routine is used by the input routines when a key is pressed at the
@@ -163,22 +173,23 @@ static int ir_setkeycode(struct input_dev *dev,
  */
 u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 {
-	int i;
 	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
 	struct ir_scancode *keymap = rc_tab->scan;
+	int elem;
 
-	for (i = 0; i < rc_tab->size; i++)
-		if (keymap[i].scancode == scancode) {
-			IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
-				dev->name, scancode, keymap[i].keycode);
+	elem = ir_seek_table(rc_tab, scancode);
+	if (elem >= 0) {
+		IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
+			   dev->name, scancode, keymap[elem].keycode);
 
-			return keymap[i].keycode;
-		}
+		return rc_tab->scan[elem].keycode;
+	}
 
 	printk(KERN_INFO "%s: unknown key for scancode 0x%04x\n",
 	       dev->name, scancode);
 
-	return KEY_UNKNOWN;
+	/* Reports userspace that an unknown keycode were got */
+	return KEY_RESERVED;
 }
 
 /**
@@ -188,14 +199,16 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
  * @rc_tab:	the struct ir_scancode_table table of scancode/keymap
  *
  * This routine is used to initialize the input infrastructure to work with
- * an IR. It requires that the caller initializes the input_dev struct with
- * some fields: name,
+ * an IR.
+ * It should be called before registering the IR device.
  */
 int ir_set_keycode_table(struct input_dev *input_dev,
 			 struct ir_scancode_table *rc_tab)
 {
 	struct ir_scancode *keymap = rc_tab->scan;
 	int i;
+
+	spin_lock_init(&rc_tab->lock);
 
 	if (rc_tab->scan == NULL || !rc_tab->size)
 		return -EINVAL;
