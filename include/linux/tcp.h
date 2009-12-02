@@ -102,7 +102,9 @@ enum {
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
 #define TCP_CONGESTION		13	/* Congestion control algorithm */
 #define TCP_MD5SIG		14	/* TCP MD5 Signature (RFC2385) */
+#define TCP_COOKIE_TRANSACTIONS	15	/* TCP Cookie Transactions */
 
+/* for TCP_INFO socket option */
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
 #define TCPI_OPT_WSCALE		4
@@ -174,6 +176,30 @@ struct tcp_md5sig {
 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
 };
 
+/* for TCP_COOKIE_TRANSACTIONS (TCPCT) socket option */
+#define TCP_COOKIE_MIN		 8		/*  64-bits */
+#define TCP_COOKIE_MAX		16		/* 128-bits */
+#define TCP_COOKIE_PAIR_SIZE	(2*TCP_COOKIE_MAX)
+
+/* Flags for both getsockopt and setsockopt */
+#define TCP_COOKIE_IN_ALWAYS	(1 << 0)	/* Discard SYN without cookie */
+#define TCP_COOKIE_OUT_NEVER	(1 << 1)	/* Prohibit outgoing cookies,
+						 * supercedes everything. */
+
+/* Flags for getsockopt */
+#define TCP_S_DATA_IN		(1 << 2)	/* Was data received? */
+#define TCP_S_DATA_OUT		(1 << 3)	/* Was data sent? */
+
+/* TCP_COOKIE_TRANSACTIONS data */
+struct tcp_cookie_transactions {
+	__u16	tcpct_flags;			/* see above */
+	__u8	__tcpct_pad1;			/* zero */
+	__u8	tcpct_cookie_desired;		/* bytes */
+	__u16	tcpct_s_data_desired;		/* bytes of variable data */
+	__u16	tcpct_used;			/* bytes in value */
+	__u8	tcpct_value[TCP_MSS_DEFAULT];
+};
+
 #ifdef __KERNEL__
 
 #include <linux/skbuff.h>
@@ -226,6 +252,11 @@ struct tcp_options_received {
 	u16	user_mss;  	/* mss requested by user in ioctl */
 	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
+
+static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
+{
+	rx_opt->tstamp_ok = rx_opt->sack_ok = rx_opt->wscale_ok = rx_opt->snd_wscale = 0;
+}
 
 /* This is the max number of SACKS that we'll generate and process. It's safe
  * to increse this, although since:
@@ -435,6 +466,6 @@ static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
 	return (struct tcp_timewait_sock *)sk;
 }
 
-#endif
+#endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_TCP_H */
