@@ -12,18 +12,18 @@
  * We make no fairness assumptions. They have a cost.
  */
 
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
-#define __raw_spin_is_locked(x)	((x)->lock != 0)
-#define __raw_spin_unlock_wait(x) \
+#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
+#define arch_spin_is_locked(x)	((x)->lock != 0)
+#define arch_spin_unlock_wait(x) \
 		do { cpu_relax(); } while ((x)->lock)
 
-static inline void __raw_spin_unlock(arch_spinlock_t * lock)
+static inline void arch_spin_unlock(arch_spinlock_t * lock)
 {
 	mb();
 	lock->lock = 0;
 }
 
-static inline void __raw_spin_lock(arch_spinlock_t * lock)
+static inline void arch_spin_lock(arch_spinlock_t * lock)
 {
 	long tmp;
 
@@ -43,7 +43,7 @@ static inline void __raw_spin_lock(arch_spinlock_t * lock)
 	: "m"(lock->lock) : "memory");
 }
 
-static inline int __raw_spin_trylock(arch_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	return !test_and_set_bit(0, &lock->lock);
 }
@@ -169,8 +169,8 @@ static inline void __raw_write_unlock(raw_rwlock_t * lock)
 #define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
 #define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* _ALPHA_SPINLOCK_H */

@@ -555,13 +555,13 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	__raw_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&ftrace_max_lock);
 
 	tr->buffer = max_tr.buffer;
 	max_tr.buffer = buf;
 
 	__update_max_tr(tr, tsk, cpu);
-	__raw_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&ftrace_max_lock);
 }
 
 /**
@@ -581,7 +581,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	__raw_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&ftrace_max_lock);
 
 	ftrace_disable_cpu();
 
@@ -603,7 +603,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	WARN_ON_ONCE(ret && ret != -EAGAIN && ret != -EBUSY);
 
 	__update_max_tr(tr, tsk, cpu);
-	__raw_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&ftrace_max_lock);
 }
 #endif /* CONFIG_TRACER_MAX_TRACE */
 
@@ -915,7 +915,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 	 * nor do we want to disable interrupts,
 	 * so if we miss here, then better luck next time.
 	 */
-	if (!__raw_spin_trylock(&trace_cmdline_lock))
+	if (!arch_spin_trylock(&trace_cmdline_lock))
 		return;
 
 	idx = map_pid_to_cmdline[tsk->pid];
@@ -940,7 +940,7 @@ static void trace_save_cmdline(struct task_struct *tsk)
 
 	memcpy(&saved_cmdlines[idx], tsk->comm, TASK_COMM_LEN);
 
-	__raw_spin_unlock(&trace_cmdline_lock);
+	arch_spin_unlock(&trace_cmdline_lock);
 }
 
 void trace_find_cmdline(int pid, char comm[])
@@ -958,14 +958,14 @@ void trace_find_cmdline(int pid, char comm[])
 	}
 
 	preempt_disable();
-	__raw_spin_lock(&trace_cmdline_lock);
+	arch_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
 	if (map != NO_CMDLINE_MAP)
 		strcpy(comm, saved_cmdlines[map]);
 	else
 		strcpy(comm, "<...>");
 
-	__raw_spin_unlock(&trace_cmdline_lock);
+	arch_spin_unlock(&trace_cmdline_lock);
 	preempt_enable();
 }
 
@@ -1283,7 +1283,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 
 	/* Lockdep uses trace_printk for lock tracing */
 	local_irq_save(flags);
-	__raw_spin_lock(&trace_buf_lock);
+	arch_spin_lock(&trace_buf_lock);
 	len = vbin_printf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	if (len > TRACE_BUF_SIZE || len < 0)
@@ -1304,7 +1304,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 		ring_buffer_unlock_commit(buffer, event);
 
 out_unlock:
-	__raw_spin_unlock(&trace_buf_lock);
+	arch_spin_unlock(&trace_buf_lock);
 	local_irq_restore(flags);
 
 out:
@@ -1360,7 +1360,7 @@ int trace_array_vprintk(struct trace_array *tr,
 
 	pause_graph_tracing();
 	raw_local_irq_save(irq_flags);
-	__raw_spin_lock(&trace_buf_lock);
+	arch_spin_lock(&trace_buf_lock);
 	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	size = sizeof(*entry) + len + 1;
@@ -1378,7 +1378,7 @@ int trace_array_vprintk(struct trace_array *tr,
 		ring_buffer_unlock_commit(buffer, event);
 
  out_unlock:
-	__raw_spin_unlock(&trace_buf_lock);
+	arch_spin_unlock(&trace_buf_lock);
 	raw_local_irq_restore(irq_flags);
 	unpause_graph_tracing();
  out:
@@ -2279,7 +2279,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 	mutex_lock(&tracing_cpumask_update_lock);
 
 	local_irq_disable();
-	__raw_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&ftrace_max_lock);
 	for_each_tracing_cpu(cpu) {
 		/*
 		 * Increase/decrease the disabled counter if we are
@@ -2294,7 +2294,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 			atomic_dec(&global_trace.data[cpu]->disabled);
 		}
 	}
-	__raw_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&ftrace_max_lock);
 	local_irq_enable();
 
 	cpumask_copy(tracing_cpumask, tracing_cpumask_new);
@@ -4318,7 +4318,7 @@ static void __ftrace_dump(bool disable_tracing)
 
 	/* only one dump */
 	local_irq_save(flags);
-	__raw_spin_lock(&ftrace_dump_lock);
+	arch_spin_lock(&ftrace_dump_lock);
 	if (dump_ran)
 		goto out;
 
@@ -4393,7 +4393,7 @@ static void __ftrace_dump(bool disable_tracing)
 	}
 
  out:
-	__raw_spin_unlock(&ftrace_dump_lock);
+	arch_spin_unlock(&ftrace_dump_lock);
 	local_irq_restore(flags);
 }
 

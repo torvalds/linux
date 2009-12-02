@@ -5,17 +5,17 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
-static inline int __raw_spin_is_locked(arch_spinlock_t *x)
+static inline int arch_spin_is_locked(arch_spinlock_t *x)
 {
 	volatile unsigned int *a = __ldcw_align(x);
 	return *a == 0;
 }
 
-#define __raw_spin_lock(lock) __raw_spin_lock_flags(lock, 0)
-#define __raw_spin_unlock_wait(x) \
-		do { cpu_relax(); } while (__raw_spin_is_locked(x))
+#define arch_spin_lock(lock) arch_spin_lock_flags(lock, 0)
+#define arch_spin_unlock_wait(x) \
+		do { cpu_relax(); } while (arch_spin_is_locked(x))
 
-static inline void __raw_spin_lock_flags(arch_spinlock_t *x,
+static inline void arch_spin_lock_flags(arch_spinlock_t *x,
 					 unsigned long flags)
 {
 	volatile unsigned int *a;
@@ -33,7 +33,7 @@ static inline void __raw_spin_lock_flags(arch_spinlock_t *x,
 	mb();
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *x)
+static inline void arch_spin_unlock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
 	mb();
@@ -42,7 +42,7 @@ static inline void __raw_spin_unlock(arch_spinlock_t *x)
 	mb();
 }
 
-static inline int __raw_spin_trylock(arch_spinlock_t *x)
+static inline int arch_spin_trylock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
 	int ret;
@@ -73,9 +73,9 @@ static  __inline__ void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	__raw_spin_lock_flags(&rw->lock, flags);
+	arch_spin_lock_flags(&rw->lock, flags);
 	rw->counter++;
-	__raw_spin_unlock(&rw->lock);
+	arch_spin_unlock(&rw->lock);
 	local_irq_restore(flags);
 }
 
@@ -85,9 +85,9 @@ static  __inline__ void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	__raw_spin_lock_flags(&rw->lock, flags);
+	arch_spin_lock_flags(&rw->lock, flags);
 	rw->counter--;
-	__raw_spin_unlock(&rw->lock);
+	arch_spin_unlock(&rw->lock);
 	local_irq_restore(flags);
 }
 
@@ -98,9 +98,9 @@ static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
 	unsigned long flags;
  retry:
 	local_irq_save(flags);
-	if (__raw_spin_trylock(&rw->lock)) {
+	if (arch_spin_trylock(&rw->lock)) {
 		rw->counter++;
-		__raw_spin_unlock(&rw->lock);
+		arch_spin_unlock(&rw->lock);
 		local_irq_restore(flags);
 		return 1;
 	}
@@ -111,7 +111,7 @@ static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
 		return 0;
 
 	/* Wait until we have a realistic chance at the lock */
-	while (__raw_spin_is_locked(&rw->lock) && rw->counter >= 0)
+	while (arch_spin_is_locked(&rw->lock) && rw->counter >= 0)
 		cpu_relax();
 
 	goto retry;
@@ -124,10 +124,10 @@ static __inline__ void __raw_write_lock(raw_rwlock_t *rw)
 	unsigned long flags;
 retry:
 	local_irq_save(flags);
-	__raw_spin_lock_flags(&rw->lock, flags);
+	arch_spin_lock_flags(&rw->lock, flags);
 
 	if (rw->counter != 0) {
-		__raw_spin_unlock(&rw->lock);
+		arch_spin_unlock(&rw->lock);
 		local_irq_restore(flags);
 
 		while (rw->counter != 0)
@@ -144,7 +144,7 @@ retry:
 static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 {
 	rw->counter = 0;
-	__raw_spin_unlock(&rw->lock);
+	arch_spin_unlock(&rw->lock);
 }
 
 /* Note that we have to ensure interrupts are disabled in case we're
@@ -155,13 +155,13 @@ static __inline__ int __raw_write_trylock(raw_rwlock_t *rw)
 	int result = 0;
 
 	local_irq_save(flags);
-	if (__raw_spin_trylock(&rw->lock)) {
+	if (arch_spin_trylock(&rw->lock)) {
 		if (rw->counter == 0) {
 			rw->counter = -1;
 			result = 1;
 		} else {
 			/* Read-locked.  Oh well. */
-			__raw_spin_unlock(&rw->lock);
+			arch_spin_unlock(&rw->lock);
 		}
 	}
 	local_irq_restore(flags);
@@ -190,8 +190,8 @@ static __inline__ int __raw_write_can_lock(raw_rwlock_t *rw)
 #define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
 #define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

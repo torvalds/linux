@@ -34,33 +34,33 @@
  * becomes equal to the the initial value of the tail.
  */
 
-static inline int __raw_spin_is_locked(arch_spinlock_t *lock)
+static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
 	unsigned int counters = ACCESS_ONCE(lock->lock);
 
 	return ((counters >> 14) ^ counters) & 0x1fff;
 }
 
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
-#define __raw_spin_unlock_wait(x) \
-	while (__raw_spin_is_locked(x)) { cpu_relax(); }
+#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
+#define arch_spin_unlock_wait(x) \
+	while (arch_spin_is_locked(x)) { cpu_relax(); }
 
-static inline int __raw_spin_is_contended(arch_spinlock_t *lock)
+static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 {
 	unsigned int counters = ACCESS_ONCE(lock->lock);
 
 	return (((counters >> 14) - counters) & 0x1fff) > 1;
 }
-#define __raw_spin_is_contended	__raw_spin_is_contended
+#define arch_spin_is_contended	arch_spin_is_contended
 
-static inline void __raw_spin_lock(arch_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	int my_ticket;
 	int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
-		"	.set push		# __raw_spin_lock	\n"
+		"	.set push		# arch_spin_lock	\n"
 		"	.set noreorder					\n"
 		"							\n"
 		"1:	ll	%[ticket], %[ticket_ptr]		\n"
@@ -94,7 +94,7 @@ static inline void __raw_spin_lock(arch_spinlock_t *lock)
 		  [my_ticket] "=&r" (my_ticket));
 	} else {
 		__asm__ __volatile__ (
-		"	.set push		# __raw_spin_lock	\n"
+		"	.set push		# arch_spin_lock	\n"
 		"	.set noreorder					\n"
 		"							\n"
 		"	ll	%[ticket], %[ticket_ptr]		\n"
@@ -134,7 +134,7 @@ static inline void __raw_spin_lock(arch_spinlock_t *lock)
 	smp_llsc_mb();
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	int tmp;
 
@@ -142,7 +142,7 @@ static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
-		"				# __raw_spin_unlock	\n"
+		"				# arch_spin_unlock	\n"
 		"1:	ll	%[ticket], %[ticket_ptr]		\n"
 		"	addiu	%[ticket], %[ticket], 1			\n"
 		"	ori	%[ticket], %[ticket], 0x2000		\n"
@@ -153,7 +153,7 @@ static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 		  [ticket] "=&r" (tmp));
 	} else {
 		__asm__ __volatile__ (
-		"	.set push		# __raw_spin_unlock	\n"
+		"	.set push		# arch_spin_unlock	\n"
 		"	.set noreorder					\n"
 		"							\n"
 		"	ll	%[ticket], %[ticket_ptr]		\n"
@@ -174,13 +174,13 @@ static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 	}
 }
 
-static inline unsigned int __raw_spin_trylock(arch_spinlock_t *lock)
+static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	int tmp, tmp2, tmp3;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
-		"	.set push		# __raw_spin_trylock	\n"
+		"	.set push		# arch_spin_trylock	\n"
 		"	.set noreorder					\n"
 		"							\n"
 		"1:	ll	%[ticket], %[ticket_ptr]		\n"
@@ -204,7 +204,7 @@ static inline unsigned int __raw_spin_trylock(arch_spinlock_t *lock)
 		  [now_serving] "=&r" (tmp3));
 	} else {
 		__asm__ __volatile__ (
-		"	.set push		# __raw_spin_trylock	\n"
+		"	.set push		# arch_spin_trylock	\n"
 		"	.set noreorder					\n"
 		"							\n"
 		"	ll	%[ticket], %[ticket_ptr]		\n"
@@ -483,8 +483,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 #define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
 #define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* _ASM_SPINLOCK_H */

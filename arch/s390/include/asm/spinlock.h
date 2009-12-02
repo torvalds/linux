@@ -52,27 +52,27 @@ _raw_compare_and_swap(volatile unsigned int *lock,
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-#define __raw_spin_is_locked(x) ((x)->owner_cpu != 0)
-#define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) \
-		 _raw_spin_relax(lock); } while (0)
+#define arch_spin_is_locked(x) ((x)->owner_cpu != 0)
+#define arch_spin_unlock_wait(lock) \
+	do { while (arch_spin_is_locked(lock)) \
+		 arch_spin_relax(lock); } while (0)
 
-extern void _raw_spin_lock_wait(arch_spinlock_t *);
-extern void _raw_spin_lock_wait_flags(arch_spinlock_t *, unsigned long flags);
-extern int _raw_spin_trylock_retry(arch_spinlock_t *);
-extern void _raw_spin_relax(arch_spinlock_t *lock);
+extern void arch_spin_lock_wait(arch_spinlock_t *);
+extern void arch_spin_lock_wait_flags(arch_spinlock_t *, unsigned long flags);
+extern int arch_spin_trylock_retry(arch_spinlock_t *);
+extern void arch_spin_relax(arch_spinlock_t *lock);
 
-static inline void __raw_spin_lock(arch_spinlock_t *lp)
+static inline void arch_spin_lock(arch_spinlock_t *lp)
 {
 	int old;
 
 	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
 	if (likely(old == 0))
 		return;
-	_raw_spin_lock_wait(lp);
+	arch_spin_lock_wait(lp);
 }
 
-static inline void __raw_spin_lock_flags(arch_spinlock_t *lp,
+static inline void arch_spin_lock_flags(arch_spinlock_t *lp,
 					 unsigned long flags)
 {
 	int old;
@@ -80,20 +80,20 @@ static inline void __raw_spin_lock_flags(arch_spinlock_t *lp,
 	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
 	if (likely(old == 0))
 		return;
-	_raw_spin_lock_wait_flags(lp, flags);
+	arch_spin_lock_wait_flags(lp, flags);
 }
 
-static inline int __raw_spin_trylock(arch_spinlock_t *lp)
+static inline int arch_spin_trylock(arch_spinlock_t *lp)
 {
 	int old;
 
 	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
 	if (likely(old == 0))
 		return 1;
-	return _raw_spin_trylock_retry(lp);
+	return arch_spin_trylock_retry(lp);
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *lp)
+static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	_raw_compare_and_swap(&lp->owner_cpu, lp->owner_cpu, 0);
 }
@@ -188,7 +188,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	return _raw_write_trylock_retry(rw);
 }
 
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

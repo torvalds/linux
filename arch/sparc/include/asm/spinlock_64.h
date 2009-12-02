@@ -21,13 +21,13 @@
  * the spinner sections must be pre-V9 branches.
  */
 
-#define __raw_spin_is_locked(lp)	((lp)->lock != 0)
+#define arch_spin_is_locked(lp)	((lp)->lock != 0)
 
-#define __raw_spin_unlock_wait(lp)	\
+#define arch_spin_unlock_wait(lp)	\
 	do {	rmb();			\
 	} while((lp)->lock)
 
-static inline void __raw_spin_lock(arch_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -46,7 +46,7 @@ static inline void __raw_spin_lock(arch_spinlock_t *lock)
 	: "memory");
 }
 
-static inline int __raw_spin_trylock(arch_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned long result;
 
@@ -59,7 +59,7 @@ static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 	return (result == 0UL);
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	__asm__ __volatile__(
 "	stb		%%g0, [%0]"
@@ -68,7 +68,7 @@ static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 	: "memory");
 }
 
-static inline void __raw_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
+static inline void arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	unsigned long tmp1, tmp2;
 
@@ -222,9 +222,9 @@ static int inline arch_write_trylock(raw_rwlock_t *lock)
 #define __raw_read_can_lock(rw)		(!((rw)->lock & 0x80000000UL))
 #define __raw_write_can_lock(rw)	(!(rw)->lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* !(__ASSEMBLY__) */
 

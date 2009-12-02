@@ -2834,7 +2834,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	int ret;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
  again:
 	/*
@@ -2923,7 +2923,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	goto again;
 
  out:
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 
 	return reader;
@@ -3286,9 +3286,9 @@ ring_buffer_read_start(struct ring_buffer *buffer, int cpu)
 	synchronize_sched();
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 	rb_iter_reset(iter);
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	return iter;
@@ -3408,11 +3408,11 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (RB_WARN_ON(cpu_buffer, local_read(&cpu_buffer->committing)))
 		goto out;
 
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);

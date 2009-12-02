@@ -24,19 +24,19 @@
  * We make no fairness assumptions. They have a cost.
  */
 
-#define __raw_spin_is_locked(x)		(*(volatile int *)(&(x)->slock) <= 0)
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
-#define __raw_spin_unlock_wait(x) \
-		do { cpu_relax(); } while (__raw_spin_is_locked(x))
+#define arch_spin_is_locked(x)		(*(volatile int *)(&(x)->slock) <= 0)
+#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
+#define arch_spin_unlock_wait(x) \
+		do { cpu_relax(); } while (arch_spin_is_locked(x))
 
 /**
- * __raw_spin_trylock - Try spin lock and return a result
+ * arch_spin_trylock - Try spin lock and return a result
  * @lock: Pointer to the lock variable
  *
- * __raw_spin_trylock() tries to get the lock and returns a result.
+ * arch_spin_trylock() tries to get the lock and returns a result.
  * On the m32r, the result value is 1 (= Success) or 0 (= Failure).
  */
-static inline int __raw_spin_trylock(arch_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	int oldval;
 	unsigned long tmp1, tmp2;
@@ -50,7 +50,7 @@ static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 	 * }
 	 */
 	__asm__ __volatile__ (
-		"# __raw_spin_trylock		\n\t"
+		"# arch_spin_trylock		\n\t"
 		"ldi	%1, #0;			\n\t"
 		"mvfc	%2, psw;		\n\t"
 		"clrpsw	#0x40 -> nop;		\n\t"
@@ -69,7 +69,7 @@ static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 	return (oldval > 0);
 }
 
-static inline void __raw_spin_lock(arch_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp0, tmp1;
 
@@ -84,7 +84,7 @@ static inline void __raw_spin_lock(arch_spinlock_t *lock)
 	 * }
 	 */
 	__asm__ __volatile__ (
-		"# __raw_spin_lock		\n\t"
+		"# arch_spin_lock		\n\t"
 		".fillinsn			\n"
 		"1:				\n\t"
 		"mvfc	%1, psw;		\n\t"
@@ -111,7 +111,7 @@ static inline void __raw_spin_lock(arch_spinlock_t *lock)
 	);
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	mb();
 	lock->slock = 1;
@@ -319,8 +319,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 #define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
 #define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif	/* _ASM_M32R_SPINLOCK_H */

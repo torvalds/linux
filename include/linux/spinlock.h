@@ -14,7 +14,7 @@
  *  linux/spinlock_types.h:
  *                        defines the generic type and initializers
  *
- *  asm/spinlock.h:       contains the __raw_spin_*()/etc. lowlevel
+ *  asm/spinlock.h:       contains the arch_spin_*()/etc. lowlevel
  *                        implementations, mostly inline assembly code
  *
  *   (also included on UP-debug builds:)
@@ -34,7 +34,7 @@
  *                        defines the generic type and initializers
  *
  *  linux/spinlock_up.h:
- *                        contains the __raw_spin_*()/etc. version of UP
+ *                        contains the arch_spin_*()/etc. version of UP
  *                        builds. (which are NOPs on non-debug, non-preempt
  *                        builds)
  *
@@ -103,17 +103,17 @@ do {								\
 	do { *(lock) = __SPIN_LOCK_UNLOCKED(lock); } while (0)
 #endif
 
-#define spin_is_locked(lock)	__raw_spin_is_locked(&(lock)->raw_lock)
+#define spin_is_locked(lock)	arch_spin_is_locked(&(lock)->raw_lock)
 
 #ifdef CONFIG_GENERIC_LOCKBREAK
 #define spin_is_contended(lock) ((lock)->break_lock)
 #else
 
-#ifdef __raw_spin_is_contended
-#define spin_is_contended(lock)	__raw_spin_is_contended(&(lock)->raw_lock)
+#ifdef arch_spin_is_contended
+#define spin_is_contended(lock)	arch_spin_is_contended(&(lock)->raw_lock)
 #else
 #define spin_is_contended(lock)	(((void)(lock), 0))
-#endif /*__raw_spin_is_contended*/
+#endif /*arch_spin_is_contended*/
 #endif
 
 /* The lock does not imply full memory barrier. */
@@ -125,7 +125,7 @@ static inline void smp_mb__after_lock(void) { smp_mb(); }
  * spin_unlock_wait - wait until the spinlock gets unlocked
  * @lock: the spinlock in question.
  */
-#define spin_unlock_wait(lock)	__raw_spin_unlock_wait(&(lock)->raw_lock)
+#define spin_unlock_wait(lock)	arch_spin_unlock_wait(&(lock)->raw_lock)
 
 #ifdef CONFIG_DEBUG_SPINLOCK
  extern void _raw_spin_lock(spinlock_t *lock);
@@ -133,11 +133,11 @@ static inline void smp_mb__after_lock(void) { smp_mb(); }
  extern int _raw_spin_trylock(spinlock_t *lock);
  extern void _raw_spin_unlock(spinlock_t *lock);
 #else
-# define _raw_spin_lock(lock)		__raw_spin_lock(&(lock)->raw_lock)
+# define _raw_spin_lock(lock)		arch_spin_lock(&(lock)->raw_lock)
 # define _raw_spin_lock_flags(lock, flags) \
-		__raw_spin_lock_flags(&(lock)->raw_lock, *(flags))
-# define _raw_spin_trylock(lock)	__raw_spin_trylock(&(lock)->raw_lock)
-# define _raw_spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
+		arch_spin_lock_flags(&(lock)->raw_lock, *(flags))
+# define _raw_spin_trylock(lock)	arch_spin_trylock(&(lock)->raw_lock)
+# define _raw_spin_unlock(lock)		arch_spin_unlock(&(lock)->raw_lock)
 #endif
 
 /*

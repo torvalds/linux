@@ -62,13 +62,13 @@ static __cpuinit void check_tsc_warp(void)
 		 * previous TSC that was measured (possibly on
 		 * another CPU) and update the previous TSC timestamp.
 		 */
-		__raw_spin_lock(&sync_lock);
+		arch_spin_lock(&sync_lock);
 		prev = last_tsc;
 		rdtsc_barrier();
 		now = get_cycles();
 		rdtsc_barrier();
 		last_tsc = now;
-		__raw_spin_unlock(&sync_lock);
+		arch_spin_unlock(&sync_lock);
 
 		/*
 		 * Be nice every now and then (and also check whether
@@ -87,10 +87,10 @@ static __cpuinit void check_tsc_warp(void)
 		 * we saw a time-warp of the TSC going backwards:
 		 */
 		if (unlikely(prev > now)) {
-			__raw_spin_lock(&sync_lock);
+			arch_spin_lock(&sync_lock);
 			max_warp = max(max_warp, prev - now);
 			nr_warps++;
-			__raw_spin_unlock(&sync_lock);
+			arch_spin_unlock(&sync_lock);
 		}
 	}
 	WARN(!(now-start),

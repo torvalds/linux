@@ -39,7 +39,7 @@ static inline void _raw_yield_cpu(int cpu)
 		_raw_yield();
 }
 
-void _raw_spin_lock_wait(arch_spinlock_t *lp)
+void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
@@ -51,15 +51,15 @@ void _raw_spin_lock_wait(arch_spinlock_t *lp)
 				_raw_yield_cpu(~owner);
 			count = spin_retry;
 		}
-		if (__raw_spin_is_locked(lp))
+		if (arch_spin_is_locked(lp))
 			continue;
 		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
 			return;
 	}
 }
-EXPORT_SYMBOL(_raw_spin_lock_wait);
+EXPORT_SYMBOL(arch_spin_lock_wait);
 
-void _raw_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
+void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
@@ -72,7 +72,7 @@ void _raw_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 				_raw_yield_cpu(~owner);
 			count = spin_retry;
 		}
-		if (__raw_spin_is_locked(lp))
+		if (arch_spin_is_locked(lp))
 			continue;
 		local_irq_disable();
 		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
@@ -80,30 +80,30 @@ void _raw_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 		local_irq_restore(flags);
 	}
 }
-EXPORT_SYMBOL(_raw_spin_lock_wait_flags);
+EXPORT_SYMBOL(arch_spin_lock_wait_flags);
 
-int _raw_spin_trylock_retry(arch_spinlock_t *lp)
+int arch_spin_trylock_retry(arch_spinlock_t *lp)
 {
 	unsigned int cpu = ~smp_processor_id();
 	int count;
 
 	for (count = spin_retry; count > 0; count--) {
-		if (__raw_spin_is_locked(lp))
+		if (arch_spin_is_locked(lp))
 			continue;
 		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
 			return 1;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(_raw_spin_trylock_retry);
+EXPORT_SYMBOL(arch_spin_trylock_retry);
 
-void _raw_spin_relax(arch_spinlock_t *lock)
+void arch_spin_relax(arch_spinlock_t *lock)
 {
 	unsigned int cpu = lock->owner_cpu;
 	if (cpu != 0)
 		_raw_yield_cpu(~cpu);
 }
-EXPORT_SYMBOL(_raw_spin_relax);
+EXPORT_SYMBOL(arch_spin_relax);
 
 void _raw_read_lock_wait(raw_rwlock_t *rw)
 {

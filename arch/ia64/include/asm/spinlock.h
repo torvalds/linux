@@ -17,7 +17,7 @@
 #include <asm/intrinsics.h>
 #include <asm/system.h>
 
-#define __raw_spin_lock_init(x)			((x)->lock = 0)
+#define arch_spin_lock_init(x)			((x)->lock = 0)
 
 /*
  * Ticket locks are conceptually two parts, one indicating the current head of
@@ -103,39 +103,39 @@ static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
 }
 
-static inline int __raw_spin_is_locked(arch_spinlock_t *lock)
+static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
 	return __ticket_spin_is_locked(lock);
 }
 
-static inline int __raw_spin_is_contended(arch_spinlock_t *lock)
+static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 {
 	return __ticket_spin_is_contended(lock);
 }
-#define __raw_spin_is_contended	__raw_spin_is_contended
+#define arch_spin_is_contended	arch_spin_is_contended
 
-static __always_inline void __raw_spin_lock(arch_spinlock_t *lock)
+static __always_inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	__ticket_spin_lock(lock);
 }
 
-static __always_inline int __raw_spin_trylock(arch_spinlock_t *lock)
+static __always_inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	return __ticket_spin_trylock(lock);
 }
 
-static __always_inline void __raw_spin_unlock(arch_spinlock_t *lock)
+static __always_inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	__ticket_spin_unlock(lock);
 }
 
-static __always_inline void __raw_spin_lock_flags(arch_spinlock_t *lock,
+static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
 						  unsigned long flags)
 {
-	__raw_spin_lock(lock);
+	arch_spin_lock(lock);
 }
 
-static inline void __raw_spin_unlock_wait(arch_spinlock_t *lock)
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
 	__ticket_spin_unlock_wait(lock);
 }
@@ -285,8 +285,8 @@ static inline int __raw_read_trylock(raw_rwlock_t *x)
 	return (u32)ia64_cmpxchg4_acq((__u32 *)(x), new.word, old.word) == old.word;
 }
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /*  _ASM_IA64_SPINLOCK_H */

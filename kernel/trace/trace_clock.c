@@ -94,7 +94,7 @@ u64 notrace trace_clock_global(void)
 	if (unlikely(in_nmi()))
 		goto out;
 
-	__raw_spin_lock(&trace_clock_struct.lock);
+	arch_spin_lock(&trace_clock_struct.lock);
 
 	/*
 	 * TODO: if this happens often then maybe we should reset
@@ -106,7 +106,7 @@ u64 notrace trace_clock_global(void)
 
 	trace_clock_struct.prev_time = now;
 
-	__raw_spin_unlock(&trace_clock_struct.lock);
+	arch_spin_unlock(&trace_clock_struct.lock);
 
  out:
 	raw_local_irq_restore(flags);

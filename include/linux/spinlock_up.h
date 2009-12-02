@@ -18,21 +18,21 @@
  */
 
 #ifdef CONFIG_DEBUG_SPINLOCK
-#define __raw_spin_is_locked(x)		((x)->slock == 0)
+#define arch_spin_is_locked(x)		((x)->slock == 0)
 
-static inline void __raw_spin_lock(arch_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	lock->slock = 0;
 }
 
 static inline void
-__raw_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
+arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	local_irq_save(flags);
 	lock->slock = 0;
 }
 
-static inline int __raw_spin_trylock(arch_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	char oldval = lock->slock;
 
@@ -41,7 +41,7 @@ static inline int __raw_spin_trylock(arch_spinlock_t *lock)
 	return oldval > 0;
 }
 
-static inline void __raw_spin_unlock(arch_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	lock->slock = 1;
 }
@@ -57,20 +57,20 @@ static inline void __raw_spin_unlock(arch_spinlock_t *lock)
 #define __raw_write_unlock(lock)	do { (void)(lock); } while (0)
 
 #else /* DEBUG_SPINLOCK */
-#define __raw_spin_is_locked(lock)	((void)(lock), 0)
+#define arch_spin_is_locked(lock)	((void)(lock), 0)
 /* for sched.c and kernel_lock.c: */
-# define __raw_spin_lock(lock)		do { (void)(lock); } while (0)
-# define __raw_spin_lock_flags(lock, flags)	do { (void)(lock); } while (0)
-# define __raw_spin_unlock(lock)	do { (void)(lock); } while (0)
-# define __raw_spin_trylock(lock)	({ (void)(lock); 1; })
+# define arch_spin_lock(lock)		do { (void)(lock); } while (0)
+# define arch_spin_lock_flags(lock, flags)	do { (void)(lock); } while (0)
+# define arch_spin_unlock(lock)	do { (void)(lock); } while (0)
+# define arch_spin_trylock(lock)	({ (void)(lock); 1; })
 #endif /* DEBUG_SPINLOCK */
 
-#define __raw_spin_is_contended(lock)	(((void)(lock), 0))
+#define arch_spin_is_contended(lock)	(((void)(lock), 0))
 
 #define __raw_read_can_lock(lock)	(((void)(lock), 1))
 #define __raw_write_can_lock(lock)	(((void)(lock), 1))
 
-#define __raw_spin_unlock_wait(lock) \
-		do { cpu_relax(); } while (__raw_spin_is_locked(lock))
+#define arch_spin_unlock_wait(lock) \
+		do { cpu_relax(); } while (arch_spin_is_locked(lock))
 
 #endif /* __LINUX_SPINLOCK_UP_H */

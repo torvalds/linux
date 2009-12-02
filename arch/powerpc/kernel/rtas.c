@@ -80,13 +80,13 @@ static unsigned long lock_rtas(void)
 
 	local_irq_save(flags);
 	preempt_disable();
-	__raw_spin_lock_flags(&rtas.lock, flags);
+	arch_spin_lock_flags(&rtas.lock, flags);
 	return flags;
 }
 
 static void unlock_rtas(unsigned long flags)
 {
-	__raw_spin_unlock(&rtas.lock);
+	arch_spin_unlock(&rtas.lock);
 	local_irq_restore(flags);
 	preempt_enable();
 }
@@ -987,10 +987,10 @@ void __cpuinit rtas_give_timebase(void)
 
 	local_irq_save(flags);
 	hard_irq_disable();
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	rtas_call(rtas_token("freeze-time-base"), 0, 1, NULL);
 	timebase = get_tb();
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 
 	while (timebase)
 		barrier();
@@ -1002,8 +1002,8 @@ void __cpuinit rtas_take_timebase(void)
 {
 	while (!timebase)
 		barrier();
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	set_tb(timebase >> 32, timebase & 0xffffffff);
 	timebase = 0;
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 }
