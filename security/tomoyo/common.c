@@ -842,52 +842,27 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
 		if (ptr->type & TOMOYO_ACL_DELETED)
 			continue;
 		switch (tomoyo_acl_type2(ptr)) {
-			struct tomoyo_single_path_acl_record *acl1;
-			struct tomoyo_double_path_acl_record *acl2;
-			u16 perm;
+			struct tomoyo_single_path_acl_record *acl;
+			u32 perm;
+			u8 i;
 		case TOMOYO_TYPE_SINGLE_PATH_ACL:
-			acl1 = container_of(ptr,
-				    struct tomoyo_single_path_acl_record,
-					    head);
-			perm = acl1->perm;
-			if (perm & (1 << TOMOYO_TYPE_EXECUTE_ACL))
-				count++;
-			if (perm &
-			    ((1 << TOMOYO_TYPE_READ_ACL) |
-			     (1 << TOMOYO_TYPE_WRITE_ACL)))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_CREATE_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_UNLINK_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_MKDIR_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_RMDIR_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_MKFIFO_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_MKSOCK_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_MKBLOCK_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_MKCHAR_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_TRUNCATE_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_SYMLINK_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_REWRITE_ACL))
-				count++;
+			acl = container_of(ptr,
+					   struct tomoyo_single_path_acl_record,
+					   head);
+			perm = acl->perm | (((u32) acl->perm_high) << 16);
+			for (i = 0; i < TOMOYO_MAX_SINGLE_PATH_OPERATION; i++)
+				if (perm & (1 << i))
+					count++;
+			if (perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+				count -= 2;
 			break;
 		case TOMOYO_TYPE_DOUBLE_PATH_ACL:
-			acl2 = container_of(ptr,
+			perm = container_of(ptr,
 				    struct tomoyo_double_path_acl_record,
-					    head);
-			perm = acl2->perm;
-			if (perm & (1 << TOMOYO_TYPE_LINK_ACL))
-				count++;
-			if (perm & (1 << TOMOYO_TYPE_RENAME_ACL))
-				count++;
+					    head)->perm;
+			for (i = 0; i < TOMOYO_MAX_DOUBLE_PATH_OPERATION; i++)
+				if (perm & (1 << i))
+					count++;
 			break;
 		}
 	}
@@ -1426,7 +1401,7 @@ static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
 	u8 bit;
 	const char *atmark = "";
 	const char *filename;
-	const u16 perm = ptr->perm;
+	const u32 perm = ptr->perm | (((u32) ptr->perm_high) << 16);
 
 	filename = ptr->filename->name;
 	for (bit = head->read_bit; bit < TOMOYO_MAX_SINGLE_PATH_OPERATION;

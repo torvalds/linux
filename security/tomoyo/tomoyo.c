@@ -271,6 +271,60 @@ static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path, flags);
 }
 
+static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
+			     unsigned long arg)
+{
+	return tomoyo_check_1path_perm(tomoyo_domain(), TOMOYO_TYPE_IOCTL_ACL,
+				       &file->f_path);
+}
+
+static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			     mode_t mode)
+{
+	struct path path = { mnt, dentry };
+	return tomoyo_check_1path_perm(tomoyo_domain(), TOMOYO_TYPE_CHMOD_ACL,
+				       &path);
+}
+
+static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
+{
+	int error = 0;
+	if (uid != (uid_t) -1)
+		error = tomoyo_check_1path_perm(tomoyo_domain(),
+						TOMOYO_TYPE_CHOWN_ACL, path);
+	if (!error && gid != (gid_t) -1)
+		error = tomoyo_check_1path_perm(tomoyo_domain(),
+						TOMOYO_TYPE_CHGRP_ACL, path);
+	return error;
+}
+
+static int tomoyo_path_chroot(struct path *path)
+{
+	return tomoyo_check_1path_perm(tomoyo_domain(), TOMOYO_TYPE_CHROOT_ACL,
+				       path);
+}
+
+static int tomoyo_sb_mount(char *dev_name, struct path *path,
+			   char *type, unsigned long flags, void *data)
+{
+	return tomoyo_check_1path_perm(tomoyo_domain(), TOMOYO_TYPE_MOUNT_ACL,
+				       path);
+}
+
+static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
+{
+	struct path path = { mnt, mnt->mnt_root };
+	return tomoyo_check_1path_perm(tomoyo_domain(), TOMOYO_TYPE_UMOUNT_ACL,
+				       &path);
+}
+
+static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
+{
+	return tomoyo_check_2path_perm(tomoyo_domain(),
+				       TOMOYO_TYPE_PIVOT_ROOT_ACL,
+				       new_path, old_path);
+}
+
 /*
  * tomoyo_security_ops is a "struct security_operations" which is used for
  * registering TOMOYO.
@@ -295,6 +349,13 @@ static struct security_operations tomoyo_security_ops = {
 	.path_mknod          = tomoyo_path_mknod,
 	.path_link           = tomoyo_path_link,
 	.path_rename         = tomoyo_path_rename,
+	.file_ioctl          = tomoyo_file_ioctl,
+	.path_chmod          = tomoyo_path_chmod,
+	.path_chown          = tomoyo_path_chown,
+	.path_chroot         = tomoyo_path_chroot,
+	.sb_mount            = tomoyo_sb_mount,
+	.sb_umount           = tomoyo_sb_umount,
+	.sb_pivotroot        = tomoyo_sb_pivotroot,
 };
 
 static int __init tomoyo_init(void)

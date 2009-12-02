@@ -108,7 +108,7 @@ struct tomoyo_path_info_with_data {
  *      (b) type & 0x80 : whether the entry is marked as "deleted".
  *
  * Packing "struct tomoyo_acl_info" allows
- * "struct tomoyo_single_path_acl_record" to embed "u16" and
+ * "struct tomoyo_single_path_acl_record" to embed "u8" + "u16" and
  * "struct tomoyo_double_path_acl_record" to embed "u8"
  * without enlarging their structure size.
  */
@@ -184,10 +184,13 @@ struct tomoyo_domain_info {
  * Directives held by this structure are "allow_read/write", "allow_execute",
  * "allow_read", "allow_write", "allow_create", "allow_unlink", "allow_mkdir",
  * "allow_rmdir", "allow_mkfifo", "allow_mksock", "allow_mkblock",
- * "allow_mkchar", "allow_truncate", "allow_symlink" and "allow_rewrite".
+ * "allow_mkchar", "allow_truncate", "allow_symlink", "allow_rewrite",
+ * "allow_chmod", "allow_chown", "allow_chgrp", "allow_chroot", "allow_mount"
+ * and "allow_unmount".
  */
 struct tomoyo_single_path_acl_record {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_SINGLE_PATH_ACL */
+	u8 perm_high;
 	u16 perm;
 	/* Pointer to single pathname. */
 	const struct tomoyo_path_info *filename;
@@ -195,7 +198,7 @@ struct tomoyo_single_path_acl_record {
 
 /*
  * tomoyo_double_path_acl_record is a structure which is used for holding an
- * entry with two pathnames operation (i.e. link() and rename()).
+ * entry with two pathnames operation (i.e. link(), rename() and pivot_root()).
  * It has following fields.
  *
  *  (1) "head" which is a "struct tomoyo_acl_info".
@@ -203,7 +206,8 @@ struct tomoyo_single_path_acl_record {
  *  (3) "filename1" is the source/old pathname.
  *  (4) "filename2" is the destination/new pathname.
  *
- * Directives held by this structure are "allow_rename" and "allow_link".
+ * Directives held by this structure are "allow_rename", "allow_link" and
+ * "allow_pivot_root".
  */
 struct tomoyo_double_path_acl_record {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_DOUBLE_PATH_ACL */
