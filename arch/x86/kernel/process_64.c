@@ -406,10 +406,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * This won't pick up thread selector changes, but I guess that is ok.
 	 */
 	savesegment(es, prev->es);
-	if (next->es | prev->es)
+	if (unlikely(next->es | prev->es))
 		loadsegment(es, next->es);
+
 	savesegment(ds, prev->ds);
-	if (next->ds | prev->ds)
+	if (unlikely(next->ds | prev->ds))
 		loadsegment(ds, next->ds);
 
 
