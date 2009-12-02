@@ -27,11 +27,11 @@
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
+#include "drm.h"
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  */
-#include <linux/types.h>
-#include "drm.h"
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */

@@ -36,17 +36,27 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#include <linux/types.h>
-#include <asm/ioctl.h>		/* For _IO* macros */
-#define DRM_IOCTL_NR(n)		_IOC_NR(n)
-#define DRM_IOC_VOID		_IOC_NONE
-#define DRM_IOC_READ		_IOC_READ
-#define DRM_IOC_WRITE		_IOC_WRITE
-#define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
-#define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
+#if defined(__linux__)
 
-#define DRM_MAJOR       226
-#define DRM_MAX_MINOR   15
+#include <linux/types.h>
+#include <asm/ioctl.h>
+typedef unsigned int drm_handle_t;
+
+#else /* One of the BSDs */
+
+#include <sys/ioccom.h>
+#include <sys/types.h>
+typedef int8_t   __s8;
+typedef uint8_t  __u8;
+typedef int16_t  __s16;
+typedef uint16_t __u16;
+typedef int32_t  __s32;
+typedef uint32_t __u32;
+typedef int64_t  __s64;
+typedef uint64_t __u64;
+typedef unsigned long drm_handle_t;
+
+#endif
 
 #define DRM_NAME	"drm"	  /**< Name in kernel, /dev, and /proc */
 #define DRM_MIN_ORDER	5	  /**< At least 2^5 bytes = 32 bytes */
@@ -59,7 +69,6 @@
 #define _DRM_LOCK_IS_CONT(lock)	   ((lock) & _DRM_LOCK_CONT)
 #define _DRM_LOCKING_CONTEXT(lock) ((lock) & ~(_DRM_LOCK_HELD|_DRM_LOCK_CONT))
 
-typedef unsigned int drm_handle_t;
 typedef unsigned int drm_context_t;
 typedef unsigned int drm_drawable_t;
 typedef unsigned int drm_magic_t;
