@@ -104,8 +104,12 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
+	unsigned long expmask;	/* Groups that have ->blocked_tasks[] */
+				/*  elements that need to drain to allow the */
+				/*  current expedited grace period to */
+				/*  complete (only for TREE_PREEMPT_RCU). */
 	unsigned long qsmaskinit;
-				/* Per-GP initialization for qsmask. */
+				/* Per-GP initial value for qsmask & expmask. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -113,7 +117,7 @@ struct rcu_node {
 	u8	grpnum;		/* CPU/group number for next level up. */
 	u8	level;		/* root is at level 0. */
 	struct rcu_node *parent;
-	struct list_head blocked_tasks[2];
+	struct list_head blocked_tasks[4];
 				/* Tasks blocked in RCU read-side critsect. */
 				/*  Grace period number (->gpnum) x blocked */
 				/*  by tasks on the (x & 0x1) element of the */
@@ -128,6 +132,21 @@ struct rcu_node {
 	for ((rnp) = &(rsp)->node[0]; \
 	     (rnp) < &(rsp)->node[NUM_RCU_NODES]; (rnp)++)
 
+/*
+ * Do a breadth-first scan of the non-leaf rcu_node structures for the
+ * specified rcu_state structure.  Note that if there is a singleton
+ * rcu_node tree with but one rcu_node structure, this loop is a no-op.
+ */
+#define rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < (rsp)->level[NUM_RCU_LVLS - 1]; (rnp)++)
+
+/*
+ * Scan the leaves of the rcu_node hierarchy for the specified rcu_state
+ * structure.  Note that if there is a singleton rcu_node tree with but
+ * one rcu_node structure, this loop -will- visit the rcu_node structure.
+ * It is still a leaf node, even if it is also the root node.
+ */
 #define rcu_for_each_leaf_node(rsp, rnp) \
 	for ((rnp) = (rsp)->level[NUM_RCU_LVLS - 1]; \
 	     (rnp) < &(rsp)->node[NUM_RCU_NODES]; (rnp)++)
@@ -261,7 +280,7 @@ struct rcu_state {
 	long	gpnum;				/* Current gp number. */
 	long	completed;			/* # of last completed gp. */
 
-	/* End  of fields guarded by root rcu_node's lock. */
+	/* End of fields guarded by root rcu_node's lock. */
 
 	spinlock_t onofflock;			/* exclude on/offline and */
 						/*  starting new GP.  Also */
@@ -292,6 +311,13 @@ struct rcu_state {
 						/*  for CPU stalls. */
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 };
+
+/* Return values for rcu_preempt_offline_tasks(). */
+
+#define RCU_OFL_TASKS_NORM_GP	0x1		/* Tasks blocking normal */
+						/*  GP were moved to root. */
+#define RCU_OFL_TASKS_EXP_GP	0x2		/* Tasks blocking expedited */
+						/*  GP were moved to root. */
 
 #ifdef RCU_TREE_NONCORE
 
@@ -333,6 +359,9 @@ static void rcu_preempt_offline_cpu(int cpu);
 static void rcu_preempt_check_callbacks(int cpu);
 static void rcu_preempt_process_callbacks(void);
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU)
+static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp);
+#endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU) */
 static int rcu_preempt_pending(int cpu);
 static int rcu_preempt_needs_cpu(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);

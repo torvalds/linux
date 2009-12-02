@@ -327,6 +327,11 @@ rcu_torture_cb(struct rcu_head *p)
 		cur_ops->deferred_free(rp);
 }
 
+static int rcu_no_completed(void)
+{
+	return 0;
+}
+
 static void rcu_torture_deferred_free(struct rcu_torture *p)
 {
 	call_rcu(&p->rtort_rcu, rcu_torture_cb);
@@ -386,6 +391,21 @@ static struct rcu_torture_ops rcu_sync_ops = {
 	.stats		= NULL,
 	.irq_capable	= 1,
 	.name		= "rcu_sync"
+};
+
+static struct rcu_torture_ops rcu_expedited_ops = {
+	.init		= rcu_sync_torture_init,
+	.cleanup	= NULL,
+	.readlock	= rcu_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_torture_read_unlock,
+	.completed	= rcu_no_completed,
+	.deferred_free	= rcu_sync_torture_deferred_free,
+	.sync		= synchronize_rcu_expedited,
+	.cb_barrier	= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "rcu_expedited"
 };
 
 /*
@@ -581,11 +601,6 @@ static void sched_torture_read_unlock(int idx)
 	preempt_enable();
 }
 
-static int sched_torture_completed(void)
-{
-	return 0;
-}
-
 static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
 {
 	call_rcu_sched(&p->rtort_rcu, rcu_torture_cb);
@@ -602,7 +617,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= sched_torture_synchronize,
 	.cb_barrier	= rcu_barrier_sched,
@@ -617,7 +632,7 @@ static struct rcu_torture_ops sched_sync_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
 	.sync		= sched_torture_synchronize,
 	.cb_barrier	= NULL,
@@ -631,7 +646,7 @@ static struct rcu_torture_ops sched_expedited_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
 	.sync		= synchronize_sched_expedited,
 	.cb_barrier	= NULL,
@@ -1116,7 +1131,8 @@ rcu_torture_init(void)
 	int cpu;
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] =
-		{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops,
+		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
+		  &rcu_bh_ops, &rcu_bh_sync_ops,
 		  &srcu_ops, &srcu_expedited_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 

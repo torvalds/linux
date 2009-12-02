@@ -948,7 +948,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	unsigned long mask;
-	int need_quiet = 0;
+	int need_report = 0;
 	struct rcu_data *rdp = rsp->rda[cpu];
 	struct rcu_node *rnp;
 
@@ -967,7 +967,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 			break;
 		}
 		if (rnp == rdp->mynode)
-			need_quiet = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+			need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
 		else
 			spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		mask = rnp->grpmask;
@@ -982,10 +982,12 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	 */
 	spin_unlock(&rsp->onofflock); /* irqs remain disabled. */
 	rnp = rdp->mynode;
-	if (need_quiet)
+	if (need_report & RCU_OFL_TASKS_NORM_GP)
 		rcu_report_unblock_qs_rnp(rnp, flags);
 	else
 		spin_unlock_irqrestore(&rnp->lock, flags);
+	if (need_report & RCU_OFL_TASKS_EXP_GP)
+		rcu_report_exp_rnp(rsp, rnp);
 
 	rcu_adopt_orphan_cbs(rsp);
 }
@@ -1843,6 +1845,8 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 			rnp->level = i;
 			INIT_LIST_HEAD(&rnp->blocked_tasks[0]);
 			INIT_LIST_HEAD(&rnp->blocked_tasks[1]);
+			INIT_LIST_HEAD(&rnp->blocked_tasks[2]);
+			INIT_LIST_HEAD(&rnp->blocked_tasks[3]);
 		}
 	}
 }

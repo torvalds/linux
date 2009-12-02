@@ -24,11 +24,14 @@
  *	   Paul E. McKenney <paulmck@linux.vnet.ibm.com>
  */
 
+#include <linux/delay.h>
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 struct rcu_state rcu_preempt_state = RCU_STATE_INITIALIZER(rcu_preempt_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_preempt_data);
+
+static int rcu_preempted_readers_exp(struct rcu_node *rnp);
 
 /*
  * Tell them what RCU they are running.
@@ -157,7 +160,10 @@ EXPORT_SYMBOL_GPL(__rcu_read_lock);
  */
 static int rcu_preempted_readers(struct rcu_node *rnp)
 {
-	return !list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
+	int phase = rnp->gpnum & 0x1;
+
+	return !list_empty(&rnp->blocked_tasks[phase]) ||
+	       !list_empty(&rnp->blocked_tasks[phase + 2]);
 }
 
 /*
@@ -204,6 +210,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 static void rcu_read_unlock_special(struct task_struct *t)
 {
 	int empty;
+	int empty_exp;
 	unsigned long flags;
 	struct rcu_node *rnp;
 	int special;
@@ -247,6 +254,8 @@ static void rcu_read_unlock_special(struct task_struct *t)
 			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
 		}
 		empty = !rcu_preempted_readers(rnp);
+		empty_exp = !rcu_preempted_readers_exp(rnp);
+		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
 		list_del_init(&t->rcu_node_entry);
 		t->rcu_blocked_node = NULL;
 
@@ -259,6 +268,13 @@ static void rcu_read_unlock_special(struct task_struct *t)
 			spin_unlock_irqrestore(&rnp->lock, flags);
 		else
 			rcu_report_unblock_qs_rnp(rnp, flags);
+
+		/*
+		 * If this was the last task on the expedited lists,
+		 * then we need to report up the rcu_node hierarchy.
+		 */
+		if (!empty_exp && !rcu_preempted_readers_exp(rnp))
+			rcu_report_exp_rnp(&rcu_preempt_state, rnp);
 	} else {
 		local_irq_restore(flags);
 	}
@@ -343,7 +359,7 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	int i;
 	struct list_head *lp;
 	struct list_head *lp_root;
-	int retval;
+	int retval = 0;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	struct task_struct *tp;
 
@@ -353,7 +369,9 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	}
 	WARN_ON_ONCE(rnp != rdp->mynode &&
 		     (!list_empty(&rnp->blocked_tasks[0]) ||
-		      !list_empty(&rnp->blocked_tasks[1])));
+		      !list_empty(&rnp->blocked_tasks[1]) ||
+		      !list_empty(&rnp->blocked_tasks[2]) ||
+		      !list_empty(&rnp->blocked_tasks[3])));
 
 	/*
 	 * Move tasks up to root rcu_node.  Rely on the fact that the
@@ -361,8 +379,11 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	 * rcu_nodes in terms of gp_num value.  This fact allows us to
 	 * move the blocked_tasks[] array directly, element by element.
 	 */
-	retval = rcu_preempted_readers(rnp);
-	for (i = 0; i < 2; i++) {
+	if (rcu_preempted_readers(rnp))
+		retval |= RCU_OFL_TASKS_NORM_GP;
+	if (rcu_preempted_readers_exp(rnp))
+		retval |= RCU_OFL_TASKS_EXP_GP;
+	for (i = 0; i < 4; i++) {
 		lp = &rnp->blocked_tasks[i];
 		lp_root = &rnp_root->blocked_tasks[i];
 		while (!list_empty(lp)) {
@@ -449,14 +470,159 @@ void synchronize_rcu(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
+static DECLARE_WAIT_QUEUE_HEAD(sync_rcu_preempt_exp_wq);
+static long sync_rcu_preempt_exp_count;
+static DEFINE_MUTEX(sync_rcu_preempt_exp_mutex);
+
 /*
- * Wait for an rcu-preempt grace period.  We are supposed to expedite the
- * grace period, but this is the crude slow compatability hack, so just
- * invoke synchronize_rcu().
+ * Return non-zero if there are any tasks in RCU read-side critical
+ * sections blocking the current preemptible-RCU expedited grace period.
+ * If there is no preemptible-RCU expedited grace period currently in
+ * progress, returns zero unconditionally.
+ */
+static int rcu_preempted_readers_exp(struct rcu_node *rnp)
+{
+	return !list_empty(&rnp->blocked_tasks[2]) ||
+	       !list_empty(&rnp->blocked_tasks[3]);
+}
+
+/*
+ * return non-zero if there is no RCU expedited grace period in progress
+ * for the specified rcu_node structure, in other words, if all CPUs and
+ * tasks covered by the specified rcu_node structure have done their bit
+ * for the current expedited grace period.  Works only for preemptible
+ * RCU -- other RCU implementation use other means.
+ *
+ * Caller must hold sync_rcu_preempt_exp_mutex.
+ */
+static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
+{
+	return !rcu_preempted_readers_exp(rnp) &&
+	       ACCESS_ONCE(rnp->expmask) == 0;
+}
+
+/*
+ * Report the exit from RCU read-side critical section for the last task
+ * that queued itself during or before the current expedited preemptible-RCU
+ * grace period.  This event is reported either to the rcu_node structure on
+ * which the task was queued or to one of that rcu_node structure's ancestors,
+ * recursively up the tree.  (Calm down, calm down, we do the recursion
+ * iteratively!)
+ *
+ * Caller must hold sync_rcu_preempt_exp_mutex.
+ */
+static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	unsigned long flags;
+	unsigned long mask;
+
+	spin_lock_irqsave(&rnp->lock, flags);
+	for (;;) {
+		if (!sync_rcu_preempt_exp_done(rnp))
+			break;
+		if (rnp->parent == NULL) {
+			wake_up(&sync_rcu_preempt_exp_wq);
+			break;
+		}
+		mask = rnp->grpmask;
+		spin_unlock(&rnp->lock); /* irqs remain disabled */
+		rnp = rnp->parent;
+		spin_lock(&rnp->lock); /* irqs already disabled */
+		rnp->expmask &= ~mask;
+	}
+	spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+/*
+ * Snapshot the tasks blocking the newly started preemptible-RCU expedited
+ * grace period for the specified rcu_node structure.  If there are no such
+ * tasks, report it up the rcu_node hierarchy.
+ *
+ * Caller must hold sync_rcu_preempt_exp_mutex and rsp->onofflock.
+ */
+static void
+sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	int must_wait;
+
+	spin_lock(&rnp->lock); /* irqs already disabled */
+	list_splice_init(&rnp->blocked_tasks[0], &rnp->blocked_tasks[2]);
+	list_splice_init(&rnp->blocked_tasks[1], &rnp->blocked_tasks[3]);
+	must_wait = rcu_preempted_readers_exp(rnp);
+	spin_unlock(&rnp->lock); /* irqs remain disabled */
+	if (!must_wait)
+		rcu_report_exp_rnp(rsp, rnp);
+}
+
+/*
+ * Wait for an rcu-preempt grace period, but expedite it.  The basic idea
+ * is to invoke synchronize_sched_expedited() to push all the tasks to
+ * the ->blocked_tasks[] lists, move all entries from the first set of
+ * ->blocked_tasks[] lists to the second set, and finally wait for this
+ * second set to drain.
  */
 void synchronize_rcu_expedited(void)
 {
-	synchronize_rcu();
+	unsigned long flags;
+	struct rcu_node *rnp;
+	struct rcu_state *rsp = &rcu_preempt_state;
+	long snap;
+	int trycount = 0;
+
+	smp_mb(); /* Caller's modifications seen first by other CPUs. */
+	snap = ACCESS_ONCE(sync_rcu_preempt_exp_count) + 1;
+	smp_mb(); /* Above access cannot bleed into critical section. */
+
+	/*
+	 * Acquire lock, falling back to synchronize_rcu() if too many
+	 * lock-acquisition failures.  Of course, if someone does the
+	 * expedited grace period for us, just leave.
+	 */
+	while (!mutex_trylock(&sync_rcu_preempt_exp_mutex)) {
+		if (trycount++ < 10)
+			udelay(trycount * num_online_cpus());
+		else {
+			synchronize_rcu();
+			return;
+		}
+		if ((ACCESS_ONCE(sync_rcu_preempt_exp_count) - snap) > 0)
+			goto mb_ret; /* Others did our work for us. */
+	}
+	if ((ACCESS_ONCE(sync_rcu_preempt_exp_count) - snap) > 0)
+		goto unlock_mb_ret; /* Others did our work for us. */
+
+	/* force all RCU readers onto blocked_tasks[]. */
+	synchronize_sched_expedited();
+
+	spin_lock_irqsave(&rsp->onofflock, flags);
+
+	/* Initialize ->expmask for all non-leaf rcu_node structures. */
+	rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) {
+		spin_lock(&rnp->lock); /* irqs already disabled. */
+		rnp->expmask = rnp->qsmaskinit;
+		spin_unlock(&rnp->lock); /* irqs remain disabled. */
+	}
+
+	/* Snapshot current state of ->blocked_tasks[] lists. */
+	rcu_for_each_leaf_node(rsp, rnp)
+		sync_rcu_preempt_exp_init(rsp, rnp);
+	if (NUM_RCU_NODES > 1)
+		sync_rcu_preempt_exp_init(rsp, rcu_get_root(rsp));
+
+	spin_unlock_irqrestore(&rsp->onofflock, flags);
+
+	/* Wait for snapshotted ->blocked_tasks[] lists to drain. */
+	rnp = rcu_get_root(rsp);
+	wait_event(sync_rcu_preempt_exp_wq,
+		   sync_rcu_preempt_exp_done(rnp));
+
+	/* Clean up and exit. */
+	smp_mb(); /* ensure expedited GP seen before counter increment. */
+	ACCESS_ONCE(sync_rcu_preempt_exp_count)++;
+unlock_mb_ret:
+	mutex_unlock(&sync_rcu_preempt_exp_mutex);
+mb_ret:
+	smp_mb(); /* ensure subsequent action seen after grace period. */
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
@@ -654,6 +820,20 @@ void synchronize_rcu_expedited(void)
 	synchronize_sched_expedited();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Because preemptable RCU does not exist, there is never any need to
+ * report on tasks preempted in RCU read-side critical sections during
+ * expedited RCU grace periods.
+ */
+static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
+{
+	return;
+}
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Because preemptable RCU does not exist, it never has any work to do.
