@@ -75,6 +75,9 @@ enum rx_mgmt_action {
 	/* caller must call cfg80211_send_disassoc() */
 	RX_MGMT_CFG80211_DISASSOC,
 
+	/* caller must tell cfg80211 about internal error */
+	RX_MGMT_CFG80211_ASSOC_ERROR,
+
 	/* caller must call cfg80211_auth_timeout() & free work */
 	RX_MGMT_CFG80211_AUTH_TO,
 
@@ -1479,8 +1482,8 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u8 *pos;
 	u32 changed = 0;
-	int i, j;
-	bool have_higher_than_11mbit = false, newsta = false;
+	int i, j, err;
+	bool have_higher_than_11mbit = false;
 	u16 ap_ht_cap_flags;
 
 	/*
@@ -1542,29 +1545,17 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: associated\n", sdata->name);
 	ifmgd->aid = aid;
 
-	rcu_read_lock();
-
-	/* Add STA entry for the AP */
-	sta = sta_info_get(sdata, wk->bss->cbss.bssid);
+	sta = sta_info_alloc(sdata, wk->bss->cbss.bssid, GFP_KERNEL);
 	if (!sta) {
-		newsta = true;
-
-		rcu_read_unlock();
-
-		sta = sta_info_alloc(sdata, wk->bss->cbss.bssid, GFP_KERNEL);
-		if (!sta) {
-			printk(KERN_DEBUG "%s: failed to alloc STA entry for"
-			       " the AP\n", sdata->name);
-			return RX_MGMT_NONE;
-		}
-
-		set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC |
-				   WLAN_STA_ASSOC_AP);
-		if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-			set_sta_flags(sta, WLAN_STA_AUTHORIZED);
-
-		rcu_read_lock();
+		printk(KERN_DEBUG "%s: failed to alloc STA entry for"
+		       " the AP\n", sdata->name);
+		return RX_MGMT_CFG80211_ASSOC_ERROR;
 	}
+
+	set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC |
+			   WLAN_STA_ASSOC_AP);
+	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
+		set_sta_flags(sta, WLAN_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
@@ -1628,17 +1619,13 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (elems.wmm_param)
 		set_sta_flags(sta, WLAN_STA_WME);
 
-	if (newsta) {
-		int err = sta_info_insert(sta);
-		if (err) {
-			printk(KERN_DEBUG "%s: failed to insert STA entry for"
-			       " the AP (error %d)\n", sdata->name, err);
-			rcu_read_unlock();
-			return RX_MGMT_NONE;
-		}
+	err = sta_info_insert(sta);
+	sta = NULL;
+	if (err) {
+		printk(KERN_DEBUG "%s: failed to insert STA entry for"
+		       " the AP (error %d)\n", sdata->name, err);
+		return RX_MGMT_CFG80211_ASSOC_ERROR;
 	}
-
-	rcu_read_unlock();
 
 	if (elems.wmm_param)
 		ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
@@ -2083,6 +2070,10 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		break;
 	case RX_MGMT_CFG80211_DEAUTH:
 		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+		break;
+	case RX_MGMT_CFG80211_ASSOC_ERROR:
+		/* an internal error -- pretend timeout for now */
+		cfg80211_send_assoc_timeout(sdata->dev, mgmt->bssid);
 		break;
 	default:
 		WARN(1, "unexpected: %d", rma);
