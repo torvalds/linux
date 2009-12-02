@@ -9,6 +9,8 @@
 #include <net/lib80211.h>
 
 
+#ifdef CONFIG_LIBERTAS_MESH
+
 /* Mesh statistics */
 struct lbs_mesh_stats {
 	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
@@ -88,6 +90,21 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 
 #define lbs_mesh_open(priv) (priv->mesh_open)
 #define lbs_mesh_connected(priv) (priv->mesh_connect_status == LBS_CONNECTED)
+
+#else
+
+#define lbs_init_mesh(priv)
+#define lbs_deinit_mesh(priv)
+#define lbs_add_mesh(priv)
+#define lbs_remove_mesh(priv)
+#define lbs_mesh_set_dev(priv, dev, rxpd) (dev)
+#define lbs_mesh_set_txpd(priv, dev, txpd)
+#define lbs_mesh_config(priv, enable, chan)
+#define lbs_mesh_open(priv) (0)
+#define lbs_mesh_connected(priv) (0)
+
+#endif
+
 
 
 #endif

@@ -39,12 +39,14 @@ struct lbs_private {
 
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */
+#ifdef CONFIG_LIBERTAS_MESH
 	u32 mesh_connect_status;
 	struct lbs_mesh_stats mstats;
 	int mesh_open;
 	uint16_t mesh_tlv;
 	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 mesh_ssid_len;
+#endif
 
 	/* Monitor mode */
 	struct net_device *rtap_net_dev;

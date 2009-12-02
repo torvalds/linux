@@ -298,6 +298,7 @@ static int lbs_get_nick(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
@@ -321,6 +322,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+#endif
 
 static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
@@ -422,6 +424,7 @@ static int lbs_get_mode(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int mesh_wlan_get_mode(struct net_device *dev,
 		              struct iw_request_info *info, u32 * uwrq,
 			      char *extra)
@@ -433,6 +436,7 @@ static int mesh_wlan_get_mode(struct net_device *dev,
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+#endif
 
 static int lbs_get_txpow(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -1010,6 +1014,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int lbs_mesh_set_freq(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_freq *fwrq, char *extra)
@@ -1061,6 +1066,7 @@ out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
+#endif
 
 static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
@@ -2110,6 +2116,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int lbs_mesh_get_essid(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
@@ -2163,6 +2170,7 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
+#endif
 
 /**
  *  @brief Connect to the AP or Ad-hoc Network with specific bssid
@@ -2269,7 +2277,13 @@ static const iw_handler lbs_handler[] = {
 	(iw_handler) lbs_get_encodeext,/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
+struct iw_handler_def lbs_handler_def = {
+	.num_standard	= ARRAY_SIZE(lbs_handler),
+	.standard	= (iw_handler *) lbs_handler,
+	.get_wireless_stats = lbs_get_wireless_stats,
+};
 
+#ifdef CONFIG_LIBERTAS_MESH
 static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) NULL,	/* SIOCSIWCOMMIT */
 	(iw_handler) lbs_get_name,	/* SIOCGIWNAME */
@@ -2327,14 +2341,10 @@ static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) lbs_get_encodeext,/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
-struct iw_handler_def lbs_handler_def = {
-	.num_standard	= ARRAY_SIZE(lbs_handler),
-	.standard	= (iw_handler *) lbs_handler,
-	.get_wireless_stats = lbs_get_wireless_stats,
-};
 
 struct iw_handler_def mesh_handler_def = {
 	.num_standard	= ARRAY_SIZE(mesh_wlan_handler),
 	.standard	= (iw_handler *) mesh_wlan_handler,
 	.get_wireless_stats = lbs_get_wireless_stats,
 };
+#endif
