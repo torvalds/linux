@@ -741,6 +741,14 @@ ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
 
+ARM/NOMADIK ARCHITECTURE
+M:     Alessandro Rubini <rubini@unipv.it>
+M:     STEricsson <STEricsson_nomadik_linux@list.st.com>
+L:     linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:     Maintained
+F:     arch/arm/mach-nomadik/
+F:     arch/arm/plat-nomadik/
+
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 M:	Nelson Castillo <arhuaco@freaks-unidos.net>
 L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
