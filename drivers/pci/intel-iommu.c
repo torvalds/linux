@@ -3247,6 +3247,9 @@ static int device_notifier(struct notifier_block *nb,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dmar_domain *domain;
 
+	if (iommu_no_mapping(dev))
+		return 0;
+
 	domain = find_domain(pdev);
 	if (!domain)
 		return 0;
