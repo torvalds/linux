@@ -2283,7 +2283,7 @@ static int __devinit smc_drv_probe(struct platform_device *pdev)
 
 	ndev->irq = ires->start;
 
-	if (ires->flags & IRQF_TRIGGER_MASK)
+	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
 		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);

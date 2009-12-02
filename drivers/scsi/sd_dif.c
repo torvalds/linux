@@ -418,7 +418,7 @@ error:
 		  __func__, virt, phys, be32_to_cpu(sdt->ref_tag),
 		  be16_to_cpu(sdt->app_tag));
 
-	return -EIO;
+	return -EILSEQ;
 }
 
 /*

@@ -566,8 +566,9 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 		radeon_i2c_do_lock(radeon_connector, 0);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("DDC responded but not EDID found for %s\n",
-				  drm_get_connector_name(connector));
+			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+					drm_get_connector_name(connector));
+			ret = connector_status_connected;
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
@@ -720,8 +721,8 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 		radeon_i2c_do_lock(radeon_connector, 0);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("DDC responded but not EDID found for %s\n",
-				  drm_get_connector_name(connector));
+			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+					drm_get_connector_name(connector));
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
@@ -1149,6 +1150,13 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			if (ret)
 				goto failed;
 			radeon_connector->dac_load_detect = true;
+			/* RS400,RC410,RS480 chipset seems to report a lot
+			 * of false positive on load detect, we haven't yet
+			 * found a way to make load detect reliable on those
+			 * chipset, thus just disable it for TV.
+			 */
+			if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480)
+				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);

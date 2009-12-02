@@ -632,11 +632,21 @@ static bool device_has_all_tx_types(struct dma_device *device)
 	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
 	if (!dma_has_cap(DMA_XOR, device->cap_mask))
 		return false;
+
+	#ifndef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
+	if (!dma_has_cap(DMA_XOR_VAL, device->cap_mask))
+		return false;
+	#endif
 	#endif
 
 	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
 	if (!dma_has_cap(DMA_PQ, device->cap_mask))
 		return false;
+
+	#ifndef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	if (!dma_has_cap(DMA_PQ_VAL, device->cap_mask))
+		return false;
+	#endif
 	#endif
 
 	return true;

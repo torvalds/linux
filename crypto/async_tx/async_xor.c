@@ -234,6 +234,17 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
 		memcmp(a, a + 4, len - 4) == 0);
 }
 
+static inline struct dma_chan *
+xor_val_chan(struct async_submit_ctl *submit, struct page *dest,
+		 struct page **src_list, int src_cnt, size_t len)
+{
+	#ifdef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
+	return NULL;
+	#endif
+	return async_tx_find_channel(submit, DMA_XOR_VAL, &dest, 1, src_list,
+				     src_cnt, len);
+}
+
 /**
  * async_xor_val - attempt a xor parity check with a dma engine.
  * @dest: destination page used if the xor is performed synchronously
@@ -255,9 +266,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	      int src_cnt, size_t len, enum sum_check_flags *result,
 	      struct async_submit_ctl *submit)
 {
-	struct dma_chan *chan = async_tx_find_channel(submit, DMA_XOR_VAL,
-						      &dest, 1, src_list,
-						      src_cnt, len);
+	struct dma_chan *chan = xor_val_chan(submit, dest, src_list, src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 	dma_addr_t *dma_src = NULL;
