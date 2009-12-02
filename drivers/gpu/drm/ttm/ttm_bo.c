@@ -465,6 +465,8 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 		spin_unlock(&bo->lock);
 
 		spin_lock(&glob->lru_lock);
+		put_count = ttm_bo_del_from_lru(bo);
+
 		ret = ttm_bo_reserve_locked(bo, false, false, false, 0);
 		BUG_ON(ret);
 		if (bo->ttm)
@@ -472,20 +474,19 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 
 		if (!list_empty(&bo->ddestroy)) {
 			list_del_init(&bo->ddestroy);
-			kref_put(&bo->list_kref, ttm_bo_ref_bug);
+			++put_count;
 		}
 		if (bo->mem.mm_node) {
 			bo->mem.mm_node->private = NULL;
 			drm_mm_put_block(bo->mem.mm_node);
 			bo->mem.mm_node = NULL;
 		}
-		put_count = ttm_bo_del_from_lru(bo);
 		spin_unlock(&glob->lru_lock);
 
 		atomic_set(&bo->reserved, 0);
 
 		while (put_count--)
-			kref_put(&bo->list_kref, ttm_bo_release_list);
+			kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
 		return 0;
 	}
