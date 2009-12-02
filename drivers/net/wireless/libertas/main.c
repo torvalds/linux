@@ -986,10 +986,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
 
-	priv->mesh_open = 0;
-	sprintf(priv->mesh_ssid, "mesh");
-	priv->mesh_ssid_len = 4;
-
 	priv->wol_criteria = 0xffffffff;
 	priv->wol_gpio = 0xff;
 

@@ -237,6 +237,9 @@ int lbs_init_mesh(struct lbs_private *priv)
 
 
 	if (priv->mesh_tlv) {
+		sprintf(priv->mesh_ssid, "mesh");
+		priv->mesh_ssid_len = 4;
+
 		lbs_add_mesh(priv);
 
 		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
