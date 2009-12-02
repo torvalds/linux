@@ -1990,7 +1990,7 @@ void __init poke_leonsparc(void)
 void __init init_leon(void)
 {
 
-	srmmu_name = "Leon";
+	srmmu_name = "LEON";
 
 	BTFIXUPSET_CALL(flush_cache_all, leon_flush_cache_all,
 			BTFIXUPCALL_NORM);
@@ -2037,8 +2037,6 @@ static void __init get_srmmu_type(void)
 
 	/* First, check for sparc-leon. */
 	if (sparc_cpu_model == sparc_leon) {
-		psr_typ = 0xf;	/* hardcoded ids for older models/simulators */
-		psr_vers = 2;
 		init_leon();
 		return;
 	}
