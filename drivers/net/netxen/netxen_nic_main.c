@@ -819,7 +819,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	if (err < 0)
 		goto err_out;
 	if (err == 0)
-		goto ready;
+		goto wait_init;
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
@@ -862,9 +862,6 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
-ready:
-	NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_READY);
-
 wait_init:
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
@@ -872,6 +869,8 @@ wait_init:
 		netxen_free_dummy_dma(adapter);
 		goto err_out;
 	}
+
+	NXWR32(adapter, NX_CRB_DEV_STATE, NX_DEV_READY);
 
 	nx_update_dma_mask(adapter);
 
@@ -1282,7 +1281,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = netxen_start_firmware(adapter);
 	if (err)
-		goto err_out_iounmap;
+		goto err_out_decr_ref;
 
 	/*
 	 * See if the firmware gave us a virtual-physical port mapping.
@@ -1326,6 +1325,7 @@ err_out_disable_msi:
 
 	netxen_free_dummy_dma(adapter);
 
+err_out_decr_ref:
 	nx_decr_dev_ref_cnt(adapter);
 
 err_out_iounmap:
@@ -2189,14 +2189,13 @@ netxen_fwinit_work(struct work_struct *work)
 					netxen_fwinit_work, 2 * FW_POLL_DELAY);
 			return;
 		}
-		break;
 
 	case NX_DEV_FAILED:
 	default:
+		nx_incr_dev_ref_cnt(adapter);
 		break;
 	}
 
-	nx_incr_dev_ref_cnt(adapter);
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
@@ -2218,18 +2217,23 @@ netxen_detach_work(struct work_struct *work)
 
 	status = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
 
-	ref_cnt = nx_decr_dev_ref_cnt(adapter);
-
 	if (status & NX_RCODE_FATAL_ERROR)
-		return;
+		goto err_ret;
 
 	if (adapter->temp == NX_TEMP_PANIC)
-		return;
+		goto err_ret;
+
+	ref_cnt = nx_decr_dev_ref_cnt(adapter);
 
 	delay = (ref_cnt == 0) ? 0 : (2 * FW_POLL_DELAY);
 
 	adapter->fw_wait_cnt = 0;
 	netxen_schedule_work(adapter, netxen_fwinit_work, delay);
+
+	return;
+
+err_ret:
+	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
 static int
