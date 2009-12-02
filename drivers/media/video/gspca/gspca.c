@@ -982,6 +982,34 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	return -EINVAL;
 }
 
+static int vidioc_enum_frameintervals(struct file *filp, void *priv,
+				      struct v4l2_frmivalenum *fival)
+{
+	struct gspca_dev *gspca_dev = priv;
+	int mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	__u32 i;
+
+	if (gspca_dev->cam.mode_framerates == NULL ||
+			gspca_dev->cam.mode_framerates[mode].nrates == 0)
+		return -EINVAL;
+
+	if (fival->pixel_format !=
+			gspca_dev->cam.cam_mode[mode].pixelformat)
+		return -EINVAL;
+
+	for (i = 0; i < gspca_dev->cam.mode_framerates[mode].nrates; i++) {
+		if (fival->index == i) {
+			fival->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fival->discrete.numerator = 1;
+			fival->discrete.denominator =
+				gspca_dev->cam.mode_framerates[mode].rates[i];
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static void gspca_release(struct video_device *vfd)
 {
 	struct gspca_dev *gspca_dev = container_of(vfd, struct gspca_dev, vdev);
@@ -1973,6 +2001,7 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_g_parm		= vidioc_g_parm,
 	.vidioc_s_parm		= vidioc_s_parm,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	= vidioc_g_register,
 	.vidioc_s_register	= vidioc_s_register,

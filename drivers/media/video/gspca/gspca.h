@@ -45,11 +45,20 @@ extern int gspca_debug;
 /* image transfers */
 #define MAX_NURBS 4		/* max number of URBs */
 
+
+/* used to list framerates supported by a camera mode (resolution) */
+struct framerates {
+	int *rates;
+	int nrates;
+};
+
 /* device information - set at probe time */
 struct cam {
 	int bulk_size;		/* buffer size when image transfer by bulk */
 	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
+	const struct framerates *mode_framerates; /* must have size nmode,
+						   * just like cam_mode */
 	__u8 bulk_nurbs;	/* number of URBs in bulk mode
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
