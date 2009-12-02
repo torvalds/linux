@@ -440,7 +440,8 @@ extern int			tcp_connect(struct sock *sk);
 
 extern struct sk_buff *		tcp_make_synack(struct sock *sk,
 						struct dst_entry *dst,
-						struct request_sock *req);
+						struct request_sock *req,
+						struct request_values *rvp);
 
 extern int			tcp_disconnect(struct sock *sk, int flags);
 

@@ -531,7 +531,7 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 					       &expire, &resend);
 				if (!expire &&
 				    (!resend ||
-				     !req->rsk_ops->rtx_syn_ack(parent, req) ||
+				     !req->rsk_ops->rtx_syn_ack(parent, req, NULL) ||
 				     inet_rsk(req)->acked)) {
 					unsigned long timeo;
 
