@@ -632,6 +632,9 @@ int __init check_zero_address(void)
 		}
 
 		if (entry_header->type == ACPI_DMAR_TYPE_HARDWARE_UNIT) {
+			void __iomem *addr;
+			u64 cap, ecap;
+
 			drhd = (void *)entry_header;
 			if (!drhd->address) {
 				/* Promote an attitude of violence to a BIOS engineer today */
@@ -640,17 +643,38 @@ int __init check_zero_address(void)
 				     dmi_get_system_info(DMI_BIOS_VENDOR),
 				     dmi_get_system_info(DMI_BIOS_VERSION),
 				     dmi_get_system_info(DMI_PRODUCT_VERSION));
-#ifdef CONFIG_DMAR
-				dmar_disabled = 1;
-#endif
-				return 0;
+				goto failed;
 			}
-			break;
+
+			addr = early_ioremap(drhd->address, VTD_PAGE_SIZE);
+			if (!addr ) {
+				printk("IOMMU: can't validate: %llx\n", drhd->address);
+				goto failed;
+			}
+			cap = dmar_readq(addr + DMAR_CAP_REG);
+			ecap = dmar_readq(addr + DMAR_ECAP_REG);
+			early_iounmap(addr, VTD_PAGE_SIZE);
+			if (cap == (uint64_t)-1 && ecap == (uint64_t)-1) {
+				/* Promote an attitude of violence to a BIOS engineer today */
+				WARN(1, "Your BIOS is broken; DMAR reported at address %llx returns all ones!\n"
+				     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+				      drhd->address,
+				      dmi_get_system_info(DMI_BIOS_VENDOR),
+				      dmi_get_system_info(DMI_BIOS_VERSION),
+				      dmi_get_system_info(DMI_PRODUCT_VERSION));
+				goto failed;
+			}
 		}
 
 		entry_header = ((void *)entry_header + entry_header->length);
 	}
 	return 1;
+
+failed:
+#ifdef CONFIG_DMAR
+	dmar_disabled = 1;
+#endif
+	return 0;
 }
 
 void __init detect_intel_iommu(void)
