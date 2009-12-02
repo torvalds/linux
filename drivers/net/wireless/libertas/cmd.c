@@ -1304,7 +1304,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 		if ((priv->psmode != LBS802_11POWERMODECAM) &&
 		    (priv->psstate == PS_STATE_FULL_POWER) &&
 		    ((priv->connect_status == LBS_CONNECTED) ||
-		    (priv->mesh_connect_status == LBS_CONNECTED))) {
+		    lbs_mesh_connected(priv))) {
 			if (priv->secinfo.WPAenabled ||
 			    priv->secinfo.WPA2enabled) {
 				/* check for valid WPA group keys */

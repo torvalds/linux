@@ -84,4 +84,10 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 	uint32_t stringset, uint8_t *s);
 
 
+/* Accessors */
+
+#define lbs_mesh_open(priv) (priv->mesh_open)
+#define lbs_mesh_connected(priv) (priv->mesh_connect_status == LBS_CONNECTED)
+
+
 #endif

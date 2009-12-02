@@ -192,7 +192,7 @@ static void copy_active_data_rates(struct lbs_private *priv, u8 *rates)
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if ((priv->connect_status != LBS_CONNECTED) &&
-		(priv->mesh_connect_status != LBS_CONNECTED))
+		!lbs_mesh_connected(priv))
 		memcpy(rates, lbs_bg_rates, MAX_RATES);
 	else
 		memcpy(rates, priv->curbssparams.rates, MAX_RATES);
@@ -307,7 +307,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	/* Use nickname to indicate that mesh is on */
 
-	if (priv->mesh_connect_status == LBS_CONNECTED) {
+	if (lbs_mesh_connected(priv)) {
 		strncpy(extra, "Mesh", 12);
 		extra[12] = '\0';
 		dwrq->length = strlen(extra);
@@ -863,7 +863,7 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 
 	/* If we're not associated, all quality values are meaningless */
 	if ((priv->connect_status != LBS_CONNECTED) &&
-	    (priv->mesh_connect_status != LBS_CONNECTED))
+	    !lbs_mesh_connected(priv))
 		goto out;
 
 	/* Quality by RSSI */

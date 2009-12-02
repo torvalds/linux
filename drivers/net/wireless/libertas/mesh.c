@@ -1,4 +1,3 @@
-#include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -195,6 +194,8 @@ int lbs_init_mesh(struct lbs_private *priv)
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_MESH);
+
+	priv->mesh_connect_status = LBS_DISCONNECTED;
 
 	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
 	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
