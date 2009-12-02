@@ -884,7 +884,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 {
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
-	rq->lock.owner = current;
+	rq->lock.rlock.owner = current;
 #endif
 	/*
 	 * If we are tracking spinlock dependencies then we have to

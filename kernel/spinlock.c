@@ -32,6 +32,8 @@
  * include/linux/spinlock_api_smp.h
  */
 #else
+#define raw_read_can_lock(l)	read_can_lock(l)
+#define raw_write_can_lock(l)	write_can_lock(l)
 /*
  * We build the __lock_function inlines here. They are too large for
  * inlining all over the place, but here is only one user per function
@@ -52,7 +54,7 @@ void __lockfunc __##op##_lock(locktype##_t *lock)			\
 									\
 		if (!(lock)->break_lock)				\
 			(lock)->break_lock = 1;				\
-		while (!op##_can_lock(lock) && (lock)->break_lock)	\
+		while (!raw_##op##_can_lock(lock) && (lock)->break_lock)\
 			arch_##op##_relax(&lock->raw_lock);		\
 	}								\
 	(lock)->break_lock = 0;						\
@@ -72,7 +74,7 @@ unsigned long __lockfunc __##op##_lock_irqsave(locktype##_t *lock)	\
 									\
 		if (!(lock)->break_lock)				\
 			(lock)->break_lock = 1;				\
-		while (!op##_can_lock(lock) && (lock)->break_lock)	\
+		while (!raw_##op##_can_lock(lock) && (lock)->break_lock)\
 			arch_##op##_relax(&lock->raw_lock);		\
 	}								\
 	(lock)->break_lock = 0;						\
@@ -107,14 +109,14 @@ void __lockfunc __##op##_lock_bh(locktype##_t *lock)			\
  *         __[spin|read|write]_lock_irqsave()
  *         __[spin|read|write]_lock_bh()
  */
-BUILD_LOCK_OPS(spin, spinlock);
+BUILD_LOCK_OPS(spin, raw_spinlock);
 BUILD_LOCK_OPS(read, rwlock);
 BUILD_LOCK_OPS(write, rwlock);
 
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_TRYLOCK
-int __lockfunc _spin_trylock(spinlock_t *lock)
+int __lockfunc _spin_trylock(raw_spinlock_t *lock)
 {
 	return __spin_trylock(lock);
 }
@@ -122,7 +124,7 @@ EXPORT_SYMBOL(_spin_trylock);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_TRYLOCK_BH
-int __lockfunc _spin_trylock_bh(spinlock_t *lock)
+int __lockfunc _spin_trylock_bh(raw_spinlock_t *lock)
 {
 	return __spin_trylock_bh(lock);
 }
@@ -130,7 +132,7 @@ EXPORT_SYMBOL(_spin_trylock_bh);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_LOCK
-void __lockfunc _spin_lock(spinlock_t *lock)
+void __lockfunc _spin_lock(raw_spinlock_t *lock)
 {
 	__spin_lock(lock);
 }
@@ -138,7 +140,7 @@ EXPORT_SYMBOL(_spin_lock);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_LOCK_IRQSAVE
-unsigned long __lockfunc _spin_lock_irqsave(spinlock_t *lock)
+unsigned long __lockfunc _spin_lock_irqsave(raw_spinlock_t *lock)
 {
 	return __spin_lock_irqsave(lock);
 }
@@ -146,7 +148,7 @@ EXPORT_SYMBOL(_spin_lock_irqsave);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_LOCK_IRQ
-void __lockfunc _spin_lock_irq(spinlock_t *lock)
+void __lockfunc _spin_lock_irq(raw_spinlock_t *lock)
 {
 	__spin_lock_irq(lock);
 }
@@ -154,7 +156,7 @@ EXPORT_SYMBOL(_spin_lock_irq);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_LOCK_BH
-void __lockfunc _spin_lock_bh(spinlock_t *lock)
+void __lockfunc _spin_lock_bh(raw_spinlock_t *lock)
 {
 	__spin_lock_bh(lock);
 }
@@ -162,7 +164,7 @@ EXPORT_SYMBOL(_spin_lock_bh);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK
-void __lockfunc _spin_unlock(spinlock_t *lock)
+void __lockfunc _spin_unlock(raw_spinlock_t *lock)
 {
 	__spin_unlock(lock);
 }
@@ -170,7 +172,7 @@ EXPORT_SYMBOL(_spin_unlock);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK_IRQRESTORE
-void __lockfunc _spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
+void __lockfunc _spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned long flags)
 {
 	__spin_unlock_irqrestore(lock, flags);
 }
@@ -178,7 +180,7 @@ EXPORT_SYMBOL(_spin_unlock_irqrestore);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK_IRQ
-void __lockfunc _spin_unlock_irq(spinlock_t *lock)
+void __lockfunc _spin_unlock_irq(raw_spinlock_t *lock)
 {
 	__spin_unlock_irq(lock);
 }
@@ -186,7 +188,7 @@ EXPORT_SYMBOL(_spin_unlock_irq);
 #endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK_BH
-void __lockfunc _spin_unlock_bh(spinlock_t *lock)
+void __lockfunc _spin_unlock_bh(raw_spinlock_t *lock)
 {
 	__spin_unlock_bh(lock);
 }
@@ -339,7 +341,7 @@ EXPORT_SYMBOL(_write_unlock_bh);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
+void __lockfunc _spin_lock_nested(raw_spinlock_t *lock, int subclass)
 {
 	preempt_disable();
 	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
@@ -347,7 +349,7 @@ void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
 }
 EXPORT_SYMBOL(_spin_lock_nested);
 
-unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock,
+unsigned long __lockfunc _spin_lock_irqsave_nested(raw_spinlock_t *lock,
 						   int subclass)
 {
 	unsigned long flags;
@@ -361,7 +363,7 @@ unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock,
 }
 EXPORT_SYMBOL(_spin_lock_irqsave_nested);
 
-void __lockfunc _spin_lock_nest_lock(spinlock_t *lock,
+void __lockfunc _spin_lock_nest_lock(raw_spinlock_t *lock,
 				     struct lockdep_map *nest_lock)
 {
 	preempt_disable();
