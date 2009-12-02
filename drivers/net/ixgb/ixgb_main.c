@@ -892,10 +892,18 @@ static void
 ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
                                 struct ixgb_buffer *buffer_info)
 {
-	buffer_info->dma = 0;
+	if (buffer_info->dma) {
+		if (buffer_info->mapped_as_page)
+			pci_unmap_page(adapter->pdev, buffer_info->dma,
+				       buffer_info->length, PCI_DMA_TODEVICE);
+		else
+			pci_unmap_single(adapter->pdev, buffer_info->dma,
+					 buffer_info->length,
+					 PCI_DMA_TODEVICE);
+		buffer_info->dma = 0;
+	}
+
 	if (buffer_info->skb) {
-		skb_dma_unmap(&adapter->pdev->dev, buffer_info->skb,
-		              DMA_TO_DEVICE);
 		dev_kfree_skb_any(buffer_info->skb);
 		buffer_info->skb = NULL;
 	}
@@ -1272,23 +1280,15 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	    unsigned int first)
 {
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
+	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_buffer *buffer_info;
 	int len = skb_headlen(skb);
 	unsigned int offset = 0, size, count = 0, i;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
-
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
-	dma_addr_t *map;
 
 	i = tx_ring->next_to_use;
-
-	if (skb_dma_map(&adapter->pdev->dev, skb, DMA_TO_DEVICE)) {
-		dev_err(&adapter->pdev->dev, "TX DMA map failed\n");
-		return 0;
-	}
-
-	map = skb_shinfo(skb)->dma_maps;
 
 	while (len) {
 		buffer_info = &tx_ring->buffer_info[i];
@@ -1301,11 +1301,11 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		buffer_info->length = size;
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
-			pci_map_single(adapter->pdev,
-				skb->data + offset,
-				size,
-				PCI_DMA_TODEVICE);
+		buffer_info->mapped_as_page = false;
+		buffer_info->dma = pci_map_single(pdev, skb->data + offset,
+						  size, PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+			goto dma_error;
 		buffer_info->next_to_watch = 0;
 
 		len -= size;
@@ -1323,7 +1323,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 		frag = &skb_shinfo(skb)->frags[f];
 		len = frag->size;
-		offset = 0;
+		offset = frag->page_offset;
 
 		while (len) {
 			i++;
@@ -1341,7 +1341,13 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
-			buffer_info->dma = map[f] + offset;
+			buffer_info->mapped_as_page = true;
+			buffer_info->dma =
+				pci_map_page(pdev, frag->page,
+					     offset, size,
+					     PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+				goto dma_error;
 			buffer_info->next_to_watch = 0;
 
 			len -= size;
@@ -1353,6 +1359,22 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return count;
+
+dma_error:
+	dev_err(&pdev->dev, "TX DMA map failed\n");
+	buffer_info->dma = 0;
+	count--;
+
+	while (count >= 0) {
+		count--;
+		i--;
+		if (i < 0)
+			i += tx_ring->count;
+		buffer_info = &tx_ring->buffer_info[i];
+		ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
+	}
+
+	return 0;
 }
 
 static void
