@@ -24,6 +24,8 @@ static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 		l.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
 		l.object_size = ceph_file_layout_object_size(ci->i_layout);
 		l.data_pool = le32_to_cpu(ci->i_layout.fl_pg_pool);
+		l.preferred_osd =
+			(s32)le32_to_cpu(ci->i_layout.fl_pg_preferred);
 		if (copy_to_user(arg, &l, sizeof(l)))
 			return -EFAULT;
 	}
@@ -79,7 +81,8 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 	req->r_args.setlayout.layout.fl_object_size =
 		cpu_to_le32(l.object_size);
 	req->r_args.setlayout.layout.fl_pg_pool = cpu_to_le32(l.data_pool);
-	req->r_args.setlayout.layout.fl_pg_preferred = cpu_to_le32((s32)-1);
+	req->r_args.setlayout.layout.fl_pg_preferred =
+		cpu_to_le32(l.preferred_osd);
 
 	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
 	ceph_mdsc_put_request(req);
