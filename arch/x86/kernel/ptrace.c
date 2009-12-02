@@ -595,7 +595,7 @@ static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 
 static struct perf_event *
 ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
-			 struct task_struct *tsk)
+			 struct task_struct *tsk, int disabled)
 {
 	int err;
 	int gen_len, gen_type;
@@ -616,7 +616,7 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	attr = bp->attr;
 	attr.bp_len = gen_len;
 	attr.bp_type = gen_type;
-	attr.disabled = 0;
+	attr.disabled = disabled;
 
 	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
 }
@@ -655,13 +655,21 @@ restore:
 				 */
 				if (!second_pass)
 					continue;
+
 				thread->ptrace_bps[i] = NULL;
-				unregister_hw_breakpoint(bp);
+				bp = ptrace_modify_breakpoint(bp, len, type,
+							      tsk, 1);
+				if (IS_ERR(bp)) {
+					rc = PTR_ERR(bp);
+					thread->ptrace_bps[i] = NULL;
+					break;
+				}
+				thread->ptrace_bps[i] = bp;
 			}
 			continue;
 		}
 
-		bp = ptrace_modify_breakpoint(bp, len, type, tsk);
+		bp = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
 
 		/* Incorrect bp, or we have a bug in bp API */
 		if (IS_ERR(bp)) {
