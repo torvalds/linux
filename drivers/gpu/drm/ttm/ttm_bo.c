@@ -685,19 +685,45 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_buffer_object *bo;
 	int ret, put_count = 0;
 
+retry:
 	spin_lock(&glob->lru_lock);
+	if (list_empty(&man->lru)) {
+		spin_unlock(&glob->lru_lock);
+		return -EBUSY;
+	}
+
 	bo = list_first_entry(&man->lru, struct ttm_buffer_object, lru);
 	kref_get(&bo->list_kref);
-	ret = ttm_bo_reserve_locked(bo, interruptible, no_wait, false, 0);
-	if (likely(ret == 0))
-		put_count = ttm_bo_del_from_lru(bo);
+
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+
+	if (unlikely(ret == -EBUSY)) {
+		spin_unlock(&glob->lru_lock);
+		if (likely(!no_wait))
+			ret = ttm_bo_wait_unreserved(bo, interruptible);
+
+		kref_put(&bo->list_kref, ttm_bo_release_list);
+
+		/**
+		 * We *need* to retry after releasing the lru lock.
+		 */
+
+		if (unlikely(ret != 0))
+			return ret;
+		goto retry;
+	}
+
+	put_count = ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
-	if (unlikely(ret != 0))
-		return ret;
+
+	BUG_ON(ret != 0);
+
 	while (put_count--)
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+
 	ret = ttm_bo_evict(bo, interruptible, no_wait);
 	ttm_bo_unreserve(bo);
+
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
