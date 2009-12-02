@@ -1062,6 +1062,17 @@ void lbs_remove_card(struct lbs_private *priv)
 EXPORT_SYMBOL_GPL(lbs_remove_card);
 
 
+static int lbs_rtap_supported(struct lbs_private *priv)
+{
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5)
+		return 1;
+
+	/* newer firmware use a capability mask */
+	return ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK));
+}
+
+
 int lbs_start_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
@@ -1081,12 +1092,14 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_update_channel(priv);
 
+	lbs_init_mesh(priv);
+
 	/*
 	 * While rtap isn't related to mesh, only mesh-enabled
 	 * firmware implements the rtap functionality via
 	 * CMD_802_11_MONITOR_MODE.
 	 */
-	if (lbs_init_mesh(priv)) {
+	if (lbs_rtap_supported(priv)) {
 		if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
 			lbs_pr_err("cannot register lbs_rtap attribute\n");
 	}
@@ -1120,7 +1133,9 @@ void lbs_stop_card(struct lbs_private *priv)
 	netif_carrier_off(dev);
 
 	lbs_debugfs_remove_one(priv);
-	if (lbs_deinit_mesh(priv))
+	lbs_deinit_mesh(priv);
+
+	if (lbs_rtap_supported(priv))
 		device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 
 	/* Delete the timeout of the currently processing command */
