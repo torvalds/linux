@@ -666,8 +666,8 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTR1, 0);
 	gpio_direction_output(GPIO_PTA2, 0);
 
-	/* I/O buffer drive ability is low */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0040 , IODRIVEA);
+	/* I/O buffer drive ability is high */
+	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
 
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
