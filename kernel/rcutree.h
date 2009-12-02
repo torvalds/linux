@@ -306,7 +306,8 @@ long rcu_batches_completed(void);
 static void rcu_preempt_note_context_switch(int cpu);
 static int rcu_preempted_readers(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
-static void task_quiet(struct rcu_node *rnp, unsigned long flags);
+static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
+				      unsigned long flags);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 static void rcu_print_task_stall(struct rcu_node *rnp);
