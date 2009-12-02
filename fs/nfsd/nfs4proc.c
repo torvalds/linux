@@ -171,7 +171,7 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		accmode |= NFSD_MAY_READ;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
 		accmode |= (NFSD_MAY_WRITE | NFSD_MAY_TRUNC);
-	if (open->op_share_deny & NFS4_SHARE_DENY_WRITE)
+	if (open->op_share_deny & NFS4_SHARE_DENY_READ)
 		accmode |= NFSD_MAY_WRITE;
 
 	status = fh_verify(rqstp, current_fh, S_IFREG, accmode);
