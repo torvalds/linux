@@ -767,6 +767,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = gspca_dev->sd_desc->get_register(gspca_dev, reg);
 	else
@@ -790,6 +791,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = gspca_dev->sd_desc->set_register(gspca_dev, reg);
 	else
@@ -811,6 +813,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = gspca_dev->sd_desc->get_chip_ident(gspca_dev, chip);
 	else
@@ -1081,6 +1084,7 @@ static int dev_close(struct file *file)
 	if (gspca_dev->capt_file == file) {
 		if (gspca_dev->streaming) {
 			mutex_lock(&gspca_dev->usb_lock);
+			gspca_dev->usb_err = 0;
 			gspca_stream_off(gspca_dev);
 			mutex_unlock(&gspca_dev->usb_lock);
 		}
@@ -1200,6 +1204,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = ctrls->set(gspca_dev, ctrl->value);
 	else
@@ -1221,6 +1226,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = ctrls->get(gspca_dev, &ctrl->value);
 	else
@@ -1335,6 +1341,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	/* stop streaming */
 	if (gspca_dev->streaming) {
 		mutex_lock(&gspca_dev->usb_lock);
+		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
@@ -1426,6 +1433,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		ret = -ERESTARTSYS;
 		goto out;
 	}
+	gspca_dev->usb_err = 0;
 	gspca_stream_off(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
 
@@ -1451,6 +1459,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 		return -EINVAL;
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = gspca_dev->sd_desc->get_jcomp(gspca_dev, jpegcomp);
 	else
@@ -1469,6 +1478,7 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 		return -EINVAL;
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->present)
 		ret = gspca_dev->sd_desc->set_jcomp(gspca_dev, jpegcomp);
 	else
@@ -1489,6 +1499,7 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
+		gspca_dev->usb_err = 0;
 		if (gspca_dev->present)
 			ret = gspca_dev->sd_desc->get_streamparm(gspca_dev,
 								 parm);
@@ -1518,6 +1529,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
+		gspca_dev->usb_err = 0;
 		if (gspca_dev->present)
 			ret = gspca_dev->sd_desc->set_streamparm(gspca_dev,
 								 parm);
@@ -1689,6 +1701,7 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->sd_desc->dq_callback) {
 		mutex_lock(&gspca_dev->usb_lock);
+		gspca_dev->usb_err = 0;
 		if (gspca_dev->present)
 			gspca_dev->sd_desc->dq_callback(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
