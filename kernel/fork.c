@@ -884,6 +884,9 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
 	sig->gtime = cputime_zero;
 	sig->cgtime = cputime_zero;
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
+	sig->prev_utime = sig->prev_stime = cputime_zero;
+#endif
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;

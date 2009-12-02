@@ -405,7 +405,6 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 		/* add up live thread stats at the group level */
 		if (whole) {
-			struct task_cputime cputime;
 			struct task_struct *t = task;
 			do {
 				min_flt += t->min_flt;
@@ -416,9 +415,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
-			thread_group_cputime(task, &cputime);
-			utime = cputime.utime;
-			stime = cputime.stime;
+			thread_group_times(task, &utime, &stime);
 			gtime = cputime_add(gtime, sig->gtime);
 		}
 
