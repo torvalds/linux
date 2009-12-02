@@ -3103,6 +3103,11 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	} else {
 		STATS_INC_ALLOCMISS(cachep);
 		objp = cache_alloc_refill(cachep, flags);
+		/*
+		 * the 'ac' may be updated by cache_alloc_refill(),
+		 * and kmemleak_erase() requires its correct value.
+		 */
+		ac = cpu_cache_get(cachep);
 	}
 	/*
 	 * To avoid a false negative, if an object that is in one of the
