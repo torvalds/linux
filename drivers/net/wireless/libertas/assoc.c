@@ -390,10 +390,8 @@ int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	cmd.enablehwauto = cpu_to_le16(priv->enablehwauto);
 	cmd.bitmap = lbs_rate_to_fw_bitmap(priv->cur_rate, priv->enablehwauto);
 	ret = lbs_cmd_with_response(priv, CMD_802_11_RATE_ADAPT_RATESET, &cmd);
-	if (!ret && cmd_action == CMD_ACT_GET) {
-		priv->ratebitmap = le16_to_cpu(cmd.bitmap);
+	if (!ret && cmd_action == CMD_ACT_GET)
 		priv->enablehwauto = le16_to_cpu(cmd.enablehwauto);
-	}
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;

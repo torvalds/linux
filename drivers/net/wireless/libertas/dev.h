@@ -176,7 +176,6 @@ struct lbs_private {
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;
 	uint16_t enablehwauto;
-	uint16_t ratebitmap;
 
 	/* ADHOC */
 	u16 beacon_period;
