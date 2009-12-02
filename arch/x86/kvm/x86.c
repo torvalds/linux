@@ -185,11 +185,11 @@ static void kvm_shared_msr_cpu_online(void)
 		locals->current_value[i] = shared_msrs_global.msrs[i].value;
 }
 
-void kvm_set_shared_msr(unsigned slot, u64 value)
+void kvm_set_shared_msr(unsigned slot, u64 value, u64 mask)
 {
 	struct kvm_shared_msrs *smsr = &__get_cpu_var(shared_msrs);
 
-	if (value == smsr->current_value[slot])
+	if (((value ^ smsr->current_value[slot]) & mask) == 0)
 		return;
 	smsr->current_value[slot] = value;
 	wrmsrl(shared_msrs_global.msrs[slot].msr, value);

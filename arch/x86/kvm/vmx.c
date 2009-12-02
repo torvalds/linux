@@ -89,6 +89,7 @@ struct vmcs {
 struct shared_msr_entry {
 	unsigned index;
 	u64 data;
+	u64 mask;
 };
 
 struct vcpu_vmx {
@@ -601,12 +602,10 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	if (guest_efer & EFER_LMA)
 		ignore_bits &= ~(u64)EFER_SCE;
 #endif
-	if ((guest_efer & ~ignore_bits) == (host_efer & ~ignore_bits))
-		return false;
-
 	guest_efer &= ~ignore_bits;
 	guest_efer |= host_efer & ignore_bits;
 	vmx->guest_msrs[efer_offset].data = guest_efer;
+	vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
 	return true;
 }
 
@@ -657,7 +656,8 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 #endif
 	for (i = 0; i < vmx->save_nmsrs; ++i)
 		kvm_set_shared_msr(vmx->guest_msrs[i].index,
-				   vmx->guest_msrs[i].data);
+				   vmx->guest_msrs[i].data,
+				   vmx->guest_msrs[i].mask);
 }
 
 static void __vmx_load_host_state(struct vcpu_vmx *vmx)
@@ -2394,6 +2394,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		data = data_low | ((u64)data_high << 32);
 		vmx->guest_msrs[j].index = i;
 		vmx->guest_msrs[j].data = 0;
+		vmx->guest_msrs[j].mask = -1ull;
 		++vmx->nmsrs;
 	}
 

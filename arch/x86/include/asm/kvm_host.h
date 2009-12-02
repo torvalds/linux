@@ -812,6 +812,6 @@ int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 
 void kvm_define_shared_msr(unsigned index, u32 msr);
-void kvm_set_shared_msr(unsigned index, u64 val);
+void kvm_set_shared_msr(unsigned index, u64 val, u64 mask);
 
 #endif /* _ASM_X86_KVM_HOST_H */
