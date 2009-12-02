@@ -590,6 +590,12 @@ extern s32 e1000_get_phy_info_82577(struct e1000_hw *hw);
 extern s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw);
 extern s32 e1000_get_cable_length_82577(struct e1000_hw *hw);
 
+extern s32 e1000_check_polarity_m88(struct e1000_hw *hw);
+extern s32 e1000_get_phy_info_ife(struct e1000_hw *hw);
+extern s32 e1000_check_polarity_ife(struct e1000_hw *hw);
+extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
+extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
+
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
 	return hw->phy.ops.reset(hw);

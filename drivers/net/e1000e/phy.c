@@ -1322,17 +1322,22 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!link) {
-			/*
-			 * We didn't get link.
-			 * Reset the DSP and cross our fingers.
-			 */
-			ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT,
-					   0x001d);
-			if (ret_val)
-				return ret_val;
-			ret_val = e1000e_phy_reset_dsp(hw);
-			if (ret_val)
-				return ret_val;
+			if (hw->phy.type != e1000_phy_m88) {
+				e_dbg("Link taking longer than expected.\n");
+			} else {
+				/*
+				 * We didn't get link.
+				 * Reset the DSP and cross our fingers.
+				 */
+				ret_val = e1e_wphy(hw,
+						M88E1000_PHY_PAGE_SELECT,
+						0x001d);
+				if (ret_val)
+					return ret_val;
+				ret_val = e1000e_phy_reset_dsp(hw);
+				if (ret_val)
+					return ret_val;
+			}
 		}
 
 		/* Try once more */
@@ -1341,6 +1346,9 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 	}
+
+	if (hw->phy.type != e1000_phy_m88)
+		return 0;
 
 	ret_val = e1e_rphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
@@ -1367,6 +1375,73 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 	ret_val = e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 
+	return ret_val;
+}
+
+/**
+ *  e1000_phy_force_speed_duplex_ife - Force PHY speed & duplex
+ *  @hw: pointer to the HW structure
+ *
+ *  Forces the speed and duplex settings of the PHY.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	bool link;
+
+	ret_val = e1e_rphy(hw, PHY_CONTROL, &data);
+	if (ret_val)
+		goto out;
+
+	e1000e_phy_force_speed_duplex_setup(hw, &data);
+
+	ret_val = e1e_wphy(hw, PHY_CONTROL, data);
+	if (ret_val)
+		goto out;
+
+	/* Disable MDI-X support for 10/100 */
+	ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &data);
+	if (ret_val)
+		goto out;
+
+	data &= ~IFE_PMC_AUTO_MDIX;
+	data &= ~IFE_PMC_FORCE_MDIX;
+
+	ret_val = e1e_wphy(hw, IFE_PHY_MDIX_CONTROL, data);
+	if (ret_val)
+		goto out;
+
+	e_dbg("IFE PMC: %X\n", data);
+
+	udelay(1);
+
+	if (phy->autoneg_wait_to_complete) {
+		e_dbg("Waiting for forced speed/duplex link on IFE phy.\n");
+
+		ret_val = e1000e_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+
+		if (!link)
+			e_dbg("Link taking longer than expected.\n");
+
+		/* Try once more */
+		ret_val = e1000e_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+	}
+
+out:
 	return ret_val;
 }
 
@@ -1557,7 +1632,7 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
  *
  *  Polarity is determined based on the PHY specific status register.
  **/
-static s32 e1000_check_polarity_m88(struct e1000_hw *hw)
+s32 e1000_check_polarity_m88(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
@@ -1582,7 +1657,7 @@ static s32 e1000_check_polarity_m88(struct e1000_hw *hw)
  *  Polarity is determined based on the PHY port status register, and the
  *  current speed (since there is no polarity at 100Mbps).
  **/
-static s32 e1000_check_polarity_igp(struct e1000_hw *hw)
+s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
@@ -1615,6 +1690,39 @@ static s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 		phy->cable_polarity = (data & mask)
 				      ? e1000_rev_polarity_reversed
 				      : e1000_rev_polarity_normal;
+
+	return ret_val;
+}
+
+/**
+ *  e1000_check_polarity_ife - Check cable polarity for IFE PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Polarity is determined on the polarity reversal feature being enabled.
+ **/
+s32 e1000_check_polarity_ife(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data, offset, mask;
+
+	/*
+	 * Polarity is determined based on the reversal feature being enabled.
+	 */
+	if (phy->polarity_correction) {
+		offset = IFE_PHY_EXTENDED_STATUS_CONTROL;
+		mask = IFE_PESC_POLARITY_REVERSED;
+	} else {
+		offset = IFE_PHY_SPECIAL_CONTROL;
+		mask = IFE_PSC_FORCE_POLARITY;
+	}
+
+	ret_val = e1e_rphy(hw, offset, &phy_data);
+
+	if (!ret_val)
+		phy->cable_polarity = (phy_data & mask)
+		                       ? e1000_rev_polarity_reversed
+		                       : e1000_rev_polarity_normal;
 
 	return ret_val;
 }
@@ -1823,7 +1931,7 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	if (hw->phy.media_type != e1000_media_type_copper) {
+	if (phy->media_type != e1000_media_type_copper) {
 		e_dbg("Phy info is only valid for copper media\n");
 		return -E1000_ERR_CONFIG;
 	}
@@ -1940,6 +2048,61 @@ s32 e1000e_get_phy_info_igp(struct e1000_hw *hw)
 		phy->remote_rx = e1000_1000t_rx_status_undefined;
 	}
 
+	return ret_val;
+}
+
+/**
+ *  e1000_get_phy_info_ife - Retrieves various IFE PHY states
+ *  @hw: pointer to the HW structure
+ *
+ *  Populates "phy" structure with various feature states.
+ **/
+s32 e1000_get_phy_info_ife(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	bool link;
+
+	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
+	if (ret_val)
+		goto out;
+
+	if (!link) {
+		e_dbg("Phy info is only valid if link is up\n");
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
+	}
+
+	ret_val = e1e_rphy(hw, IFE_PHY_SPECIAL_CONTROL, &data);
+	if (ret_val)
+		goto out;
+	phy->polarity_correction = (data & IFE_PSC_AUTO_POLARITY_DISABLE)
+	                           ? false : true;
+
+	if (phy->polarity_correction) {
+		ret_val = e1000_check_polarity_ife(hw);
+		if (ret_val)
+			goto out;
+	} else {
+		/* Polarity is forced */
+		phy->cable_polarity = (data & IFE_PSC_FORCE_POLARITY)
+		                      ? e1000_rev_polarity_reversed
+		                      : e1000_rev_polarity_normal;
+	}
+
+	ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &data);
+	if (ret_val)
+		goto out;
+
+	phy->is_mdix = (data & IFE_PMC_MDIX_STATUS) ? true : false;
+
+	/* The following parameters are undefined for 10/100 operation. */
+	phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
+	phy->local_rx = e1000_1000t_rx_status_undefined;
+	phy->remote_rx = e1000_1000t_rx_status_undefined;
+
+out:
 	return ret_val;
 }
 

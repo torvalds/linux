@@ -195,7 +195,6 @@ union ich8_flash_protected_range {
 static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw);
-static s32 e1000_check_polarity_ife_ich8lan(struct e1000_hw *hw);
 static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank);
 static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw,
 						u32 offset, u8 byte);
@@ -260,7 +259,6 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->addr                     = 1;
 	phy->reset_delay_us           = 100;
 
-	phy->ops.check_polarity       = e1000_check_polarity_ife_ich8lan;
 	phy->ops.read_reg             = e1000_read_phy_reg_hv;
 	phy->ops.read_reg_locked      = e1000_read_phy_reg_hv_locked;
 	phy->ops.set_d0_lplu_state    = e1000_set_lplu_state_pchlan;
@@ -275,13 +273,23 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	e1000e_get_phy_id(hw);
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
 
-	if (phy->type == e1000_phy_82577) {
+	switch (phy->type) {
+	case e1000_phy_82577:
 		phy->ops.check_polarity = e1000_check_polarity_82577;
 		phy->ops.force_speed_duplex =
 			e1000_phy_force_speed_duplex_82577;
-		phy->ops.get_cable_length   = e1000_get_cable_length_82577;
+		phy->ops.get_cable_length = e1000_get_cable_length_82577;
 		phy->ops.get_info = e1000_get_phy_info_82577;
 		phy->ops.commit = e1000e_phy_sw_reset;
+	case e1000_phy_82578:
+		phy->ops.check_polarity = e1000_check_polarity_m88;
+		phy->ops.force_speed_duplex = e1000e_phy_force_speed_duplex_m88;
+		phy->ops.get_cable_length = e1000e_get_cable_length_m88;
+		phy->ops.get_info = e1000e_get_phy_info_m88;
+		break;
+	default:
+		ret_val = -E1000_ERR_PHY;
+		break;
 	}
 
 	return ret_val;
@@ -336,12 +344,18 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 		phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 		phy->ops.read_reg_locked = e1000e_read_phy_reg_igp_locked;
 		phy->ops.write_reg_locked = e1000e_write_phy_reg_igp_locked;
+		phy->ops.get_info = e1000e_get_phy_info_igp;
+		phy->ops.check_polarity = e1000_check_polarity_igp;
+		phy->ops.force_speed_duplex = e1000e_phy_force_speed_duplex_igp;
 		break;
 	case IFE_E_PHY_ID:
 	case IFE_PLUS_E_PHY_ID:
 	case IFE_C_E_PHY_ID:
 		phy->type = e1000_phy_ife;
 		phy->autoneg_mask = E1000_ALL_NOT_GIG;
+		phy->ops.get_info = e1000_get_phy_info_ife;
+		phy->ops.check_polarity = e1000_check_polarity_ife;
+		phy->ops.force_speed_duplex = e1000_phy_force_speed_duplex_ife;
 		break;
 	case BME1000_E_PHY_ID:
 		phy->type = e1000_phy_bm;
@@ -349,13 +363,14 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 		phy->ops.read_reg = e1000e_read_phy_reg_bm;
 		phy->ops.write_reg = e1000e_write_phy_reg_bm;
 		phy->ops.commit = e1000e_phy_sw_reset;
+		phy->ops.get_info = e1000e_get_phy_info_m88;
+		phy->ops.check_polarity = e1000_check_polarity_m88;
+		phy->ops.force_speed_duplex = e1000e_phy_force_speed_duplex_m88;
 		break;
 	default:
 		return -E1000_ERR_PHY;
 		break;
 	}
-
-	phy->ops.check_polarity = e1000_check_polarity_ife_ich8lan;
 
 	return 0;
 }
@@ -737,77 +752,6 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 	fwsm = er32(FWSM);
 
 	return (fwsm & E1000_ICH_FWSM_RSPCIPHY) ? 0 : E1000_BLK_PHY_RESET;
-}
-
-/**
- *  e1000_phy_force_speed_duplex_ich8lan - Force PHY speed & duplex
- *  @hw: pointer to the HW structure
- *
- *  Forces the speed and duplex settings of the PHY.
- *  This is a function pointer entry point only called by
- *  PHY setup routines.
- **/
-static s32 e1000_phy_force_speed_duplex_ich8lan(struct e1000_hw *hw)
-{
-	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
-	u16 data;
-	bool link;
-
-	if (phy->type != e1000_phy_ife) {
-		ret_val = e1000e_phy_force_speed_duplex_igp(hw);
-		return ret_val;
-	}
-
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &data);
-	if (ret_val)
-		return ret_val;
-
-	e1000e_phy_force_speed_duplex_setup(hw, &data);
-
-	ret_val = e1e_wphy(hw, PHY_CONTROL, data);
-	if (ret_val)
-		return ret_val;
-
-	/* Disable MDI-X support for 10/100 */
-	ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &data);
-	if (ret_val)
-		return ret_val;
-
-	data &= ~IFE_PMC_AUTO_MDIX;
-	data &= ~IFE_PMC_FORCE_MDIX;
-
-	ret_val = e1e_wphy(hw, IFE_PHY_MDIX_CONTROL, data);
-	if (ret_val)
-		return ret_val;
-
-	e_dbg("IFE PMC: %X\n", data);
-
-	udelay(1);
-
-	if (phy->autoneg_wait_to_complete) {
-		e_dbg("Waiting for forced speed/duplex link on IFE phy.\n");
-
-		ret_val = e1000e_phy_has_link_generic(hw,
-						     PHY_FORCE_LIMIT,
-						     100000,
-						     &link);
-		if (ret_val)
-			return ret_val;
-
-		if (!link)
-			e_dbg("Link taking longer than expected.\n");
-
-		/* Try once more */
-		ret_val = e1000e_phy_has_link_generic(hw,
-						     PHY_FORCE_LIMIT,
-						     100000,
-						     &link);
-		if (ret_val)
-			return ret_val;
-	}
-
-	return 0;
 }
 
 /**
@@ -1259,122 +1203,6 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 
 out:
 	return 0;
-}
-
-/**
- *  e1000_get_phy_info_ife_ich8lan - Retrieves various IFE PHY states
- *  @hw: pointer to the HW structure
- *
- *  Populates "phy" structure with various feature states.
- *  This function is only called by other family-specific
- *  routines.
- **/
-static s32 e1000_get_phy_info_ife_ich8lan(struct e1000_hw *hw)
-{
-	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
-	u16 data;
-	bool link;
-
-	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
-	if (ret_val)
-		return ret_val;
-
-	if (!link) {
-		e_dbg("Phy info is only valid if link is up\n");
-		return -E1000_ERR_CONFIG;
-	}
-
-	ret_val = e1e_rphy(hw, IFE_PHY_SPECIAL_CONTROL, &data);
-	if (ret_val)
-		return ret_val;
-	phy->polarity_correction = (!(data & IFE_PSC_AUTO_POLARITY_DISABLE));
-
-	if (phy->polarity_correction) {
-		ret_val = phy->ops.check_polarity(hw);
-		if (ret_val)
-			return ret_val;
-	} else {
-		/* Polarity is forced */
-		phy->cable_polarity = (data & IFE_PSC_FORCE_POLARITY)
-				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
-	}
-
-	ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &data);
-	if (ret_val)
-		return ret_val;
-
-	phy->is_mdix = (data & IFE_PMC_MDIX_STATUS);
-
-	/* The following parameters are undefined for 10/100 operation. */
-	phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
-	phy->local_rx = e1000_1000t_rx_status_undefined;
-	phy->remote_rx = e1000_1000t_rx_status_undefined;
-
-	return 0;
-}
-
-/**
- *  e1000_get_phy_info_ich8lan - Calls appropriate PHY type get_phy_info
- *  @hw: pointer to the HW structure
- *
- *  Wrapper for calling the get_phy_info routines for the appropriate phy type.
- *  This is a function pointer entry point called by drivers
- *  or other shared routines.
- **/
-static s32 e1000_get_phy_info_ich8lan(struct e1000_hw *hw)
-{
-	switch (hw->phy.type) {
-	case e1000_phy_ife:
-		return e1000_get_phy_info_ife_ich8lan(hw);
-		break;
-	case e1000_phy_igp_3:
-	case e1000_phy_bm:
-	case e1000_phy_82578:
-	case e1000_phy_82577:
-		return e1000e_get_phy_info_igp(hw);
-		break;
-	default:
-		break;
-	}
-
-	return -E1000_ERR_PHY_TYPE;
-}
-
-/**
- *  e1000_check_polarity_ife_ich8lan - Check cable polarity for IFE PHY
- *  @hw: pointer to the HW structure
- *
- *  Polarity is determined on the polarity reversal feature being enabled.
- *  This function is only called by other family-specific
- *  routines.
- **/
-static s32 e1000_check_polarity_ife_ich8lan(struct e1000_hw *hw)
-{
-	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
-	u16 phy_data, offset, mask;
-
-	/*
-	 * Polarity is determined based on the reversal feature being enabled.
-	 */
-	if (phy->polarity_correction) {
-		offset	= IFE_PHY_EXTENDED_STATUS_CONTROL;
-		mask	= IFE_PESC_POLARITY_REVERSED;
-	} else {
-		offset	= IFE_PHY_SPECIAL_CONTROL;
-		mask	= IFE_PSC_FORCE_POLARITY;
-	}
-
-	ret_val = e1e_rphy(hw, offset, &phy_data);
-
-	if (!ret_val)
-		phy->cable_polarity = (phy_data & mask)
-				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
-
-	return ret_val;
 }
 
 /**
@@ -3485,10 +3313,8 @@ static struct e1000_phy_operations ich8_phy_ops = {
 	.acquire		= e1000_acquire_swflag_ich8lan,
 	.check_reset_block	= e1000_check_reset_block_ich8lan,
 	.commit			= NULL,
-	.force_speed_duplex	= e1000_phy_force_speed_duplex_ich8lan,
 	.get_cfg_done		= e1000_get_cfg_done_ich8lan,
 	.get_cable_length	= e1000e_get_cable_length_igp_2,
-	.get_info		= e1000_get_phy_info_ich8lan,
 	.read_reg		= e1000e_read_phy_reg_igp,
 	.release		= e1000_release_swflag_ich8lan,
 	.reset			= e1000_phy_hw_reset_ich8lan,
