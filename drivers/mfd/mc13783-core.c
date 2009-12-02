@@ -462,8 +462,8 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 
 	switch (mode) {
 	case MC13783_ADC_MODE_TS:
-		adc0 |= MC13783_ADC0_ADREFEN | MC13783_ADC0_ADREFMODE
-			| MC13783_ADC0_TSMOD0 | MC13783_ADC0_TSMOD1;
+		adc0 |= MC13783_ADC0_ADREFEN | MC13783_ADC0_TSMOD0 |
+			MC13783_ADC0_TSMOD1;
 		adc1 |= 4 << MC13783_ADC1_CHAN1_SHIFT;
 		break;
 
