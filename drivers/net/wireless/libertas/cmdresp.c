@@ -485,20 +485,8 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
-		/* Ignore spurious autostart events if autostart is disabled */
-		if (!priv->mesh_autostart_enabled) {
-			lbs_pr_info("EVENT: MESH_AUTO_STARTED (ignoring)\n");
-			break;
-		}
-		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
-		priv->mesh_connect_status = LBS_CONNECTED;
-		if (priv->mesh_open) {
-			netif_carrier_on(priv->mesh_dev);
-			if (!priv->tx_pending_len)
-				netif_wake_queue(priv->mesh_dev);
-		}
-		priv->mode = IW_MODE_ADHOC;
-		schedule_work(&priv->sync_channel);
+		/* Ignore spurious autostart events */
+		lbs_pr_info("EVENT: MESH_AUTO_STARTED (ignoring)\n");
 		break;
 
 	default:
