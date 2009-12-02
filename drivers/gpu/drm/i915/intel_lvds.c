@@ -977,7 +977,7 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
  * Note: The addin_offset should also be checked for LVDS panel.
  * Only when it is non-zero, it is assumed that it is present.
  */
-int lvds_is_present_in_vbt(struct drm_device *dev)
+static int lvds_is_present_in_vbt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct child_device_config *p_child;

@@ -1706,7 +1706,7 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
  * If it is not present, return false.
  * If no child dev is parsed from VBT, it assumes that the TV is present.
  */
-int tv_is_present_in_vbt(struct drm_device *dev)
+static int tv_is_present_in_vbt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct child_device_config *p_child;

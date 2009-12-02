@@ -1237,7 +1237,7 @@ intel_dp_hot_plug(struct intel_output *intel_output)
  * If no child dev is parsed from VBT, it is assumed that the given
  * DP is present.
  */
-int dp_is_present_in_vbt(struct drm_device *dev, int dp_reg)
+static int dp_is_present_in_vbt(struct drm_device *dev, int dp_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct child_device_config *p_child;

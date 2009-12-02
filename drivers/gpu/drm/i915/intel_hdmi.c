@@ -233,7 +233,7 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
  * If no child dev is parsed from VBT, it assumes that the given
  * HDMI is present.
  */
-int hdmi_is_present_in_vbt(struct drm_device *dev, int hdmi_reg)
+static int hdmi_is_present_in_vbt(struct drm_device *dev, int hdmi_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct child_device_config *p_child;
