@@ -132,6 +132,7 @@ more:
 		}
 		if (!d_unhashed(dentry) && dentry->d_inode &&
 		    ceph_snap(dentry->d_inode) != CEPH_SNAPDIR &&
+		    ceph_ino(dentry->d_inode) != CEPH_INO_CEPH &&
 		    filp->f_pos <= di->offset)
 			break;
 		dout(" skipping %p %.*s at %llu (%llu)%s%s\n", dentry,
@@ -512,6 +513,12 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 	return dentry;
 }
 
+static int is_root_ceph_dentry(struct inode *inode, struct dentry *dentry)
+{
+	return ceph_ino(inode) == CEPH_INO_ROOT &&
+		strncmp(dentry->d_name.name, ".ceph", 5) == 0;
+}
+
 /*
  * Look up a single dir entry.  If there is a lookup intent, inform
  * the MDS so that it gets our 'caps wanted' value in a single op.
@@ -554,6 +561,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		if (strncmp(dentry->d_name.name,
 			    client->mount_args->snapdir_name,
 			    dentry->d_name.len) &&
+		    !is_root_ceph_dentry(dir, dentry) &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
 			di->offset = ci->i_max_offset++;
