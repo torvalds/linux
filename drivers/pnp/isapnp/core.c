@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/isapnp.h>
 #include <linux/mutex.h>
+#include <linux/async.h>
 #include <asm/io.h>
 
 #include "../base.h"
@@ -987,7 +988,7 @@ struct pnp_protocol isapnp_protocol = {
 	.disable = isapnp_disable_resources,
 };
 
-static int __init isapnp_init(void)
+static int __init real_isapnp_init(void)
 {
 	int cards;
 	struct pnp_card *card;
@@ -1081,6 +1082,16 @@ static int __init isapnp_init(void)
 	return 0;
 }
 
+static void __init async_isapnp_init(void *unused, async_cookie_t cookie)
+{
+	(void)real_isapnp_init();
+}
+
+static int __init isapnp_init(void)
+{
+	async_schedule(async_isapnp_init, NULL);
+	return 0;
+}
 device_initcall(isapnp_init);
 
 /* format is: noisapnp */
