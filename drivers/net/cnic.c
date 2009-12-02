@@ -4164,8 +4164,15 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
 		struct cnic_local *cp = dev->cnic_priv;
 		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
+		union l5cm_specific_data l5_data;
 
 		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 0);
+
+		l5_data.phy_address.lo = cli;
+		l5_data.phy_address.hi = 0;
+		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_HALT,
+			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE, &l5_data);
+		msleep(10);
 	}
 }
 
