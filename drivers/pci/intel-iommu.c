@@ -1530,12 +1530,15 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 
 		/* Skip top levels of page tables for
 		 * iommu which has less agaw than default.
+		 * Unnecessary for PT mode.
 		 */
-		for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
-			pgd = phys_to_virt(dma_pte_addr(pgd));
-			if (!dma_pte_present(pgd)) {
-				spin_unlock_irqrestore(&iommu->lock, flags);
-				return -ENOMEM;
+		if (translation != CONTEXT_TT_PASS_THROUGH) {
+			for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
+				pgd = phys_to_virt(dma_pte_addr(pgd));
+				if (!dma_pte_present(pgd)) {
+					spin_unlock_irqrestore(&iommu->lock, flags);
+					return -ENOMEM;
+				}
 			}
 		}
 	}
