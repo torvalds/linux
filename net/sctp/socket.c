@@ -2088,7 +2088,7 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
 		return -EFAULT;
 	/* make sure it won't exceed MAX_SCHEDULE_TIMEOUT */
 	if (sp->autoclose > (MAX_SCHEDULE_TIMEOUT / HZ) )
-		sp->autoclose = MAX_SCHEDULE_TIMEOUT / HZ ;
+		sp->autoclose = (__u32)(MAX_SCHEDULE_TIMEOUT / HZ) ;
 
 	return 0;
 }
