@@ -92,6 +92,7 @@
 struct fsi_priv {
 	void __iomem *base;
 	struct snd_pcm_substream *substream;
+	struct fsi_master *master;
 
 	int fifo_max;
 	int chan;
@@ -109,8 +110,6 @@ struct fsi_master {
 	struct fsi_priv fsib;
 	struct sh_fsi_platform_info *info;
 };
-
-static struct fsi_master *master;
 
 /************************************************************************
 
@@ -166,7 +165,7 @@ static int fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
 	return __fsi_reg_mask_set((u32)(fsi->base + reg), mask, data);
 }
 
-static int fsi_master_write(u32 reg, u32 data)
+static int fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
 {
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
@@ -175,7 +174,7 @@ static int fsi_master_write(u32 reg, u32 data)
 	return __fsi_reg_write((u32)(master->base + reg), data);
 }
 
-static u32 fsi_master_read(u32 reg)
+static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 {
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
@@ -184,7 +183,8 @@ static u32 fsi_master_read(u32 reg)
 	return __fsi_reg_read((u32)(master->base + reg));
 }
 
-static int fsi_master_mask_set(u32 reg, u32 mask, u32 data)
+static int fsi_master_mask_set(struct fsi_master *master,
+			       u32 reg, u32 mask, u32 data)
 {
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
@@ -200,43 +200,29 @@ static int fsi_master_mask_set(u32 reg, u32 mask, u32 data)
 
 
 ************************************************************************/
-static struct fsi_priv *fsi_get(struct snd_pcm_substream *substream)
+static struct fsi_master *fsi_get_master(struct fsi_priv *fsi)
 {
-	struct snd_soc_pcm_runtime *rtd;
-	struct fsi_priv *fsi = NULL;
-
-	if (!substream || !master)
-		return NULL;
-
-	rtd = substream->private_data;
-	switch (rtd->dai->cpu_dai->id) {
-	case 0:
-		fsi = &master->fsia;
-		break;
-	case 1:
-		fsi = &master->fsib;
-		break;
-	}
-
-	return fsi;
+	return fsi->master;
 }
 
 static int fsi_is_port_a(struct fsi_priv *fsi)
 {
-	/* return
-	 * 1 : port a
-	 * 0 : port b
-	 */
+	return fsi->master->base == fsi->base;
+}
 
-	if (fsi == &master->fsia)
-		return 1;
+static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *dai = machine->cpu_dai;
 
-	return 0;
+	return dai->private_data;
 }
 
 static u32 fsi_get_info_flags(struct fsi_priv *fsi)
 {
 	int is_porta = fsi_is_port_a(fsi);
+	struct fsi_master *master = fsi_get_master(fsi);
 
 	return is_porta ? master->info->porta_flags :
 		master->info->portb_flags;
@@ -314,27 +300,30 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 {
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
+	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(IMSK,  data, data);
-	fsi_master_mask_set(IEMSK, data, data);
+	fsi_master_mask_set(master, IMSK,  data, data);
+	fsi_master_mask_set(master, IEMSK, data, data);
 }
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 {
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
+	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(IMSK,  data, 0);
-	fsi_master_mask_set(IEMSK, data, 0);
+	fsi_master_mask_set(master, IMSK,  data, 0);
+	fsi_master_mask_set(master, IEMSK, data, 0);
 }
 
 static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 {
 	u32 val = fsi_is_port_a(fsi) ? (1 << 0) : (1 << 4);
+	struct fsi_master *master = fsi_get_master(fsi);
 
 	if (enable)
-		fsi_master_mask_set(CLK_RST, val, val);
+		fsi_master_mask_set(master, CLK_RST, val, val);
 	else
-		fsi_master_mask_set(CLK_RST, val, 0);
+		fsi_master_mask_set(master, CLK_RST, val, 0);
 }
 
 static void fsi_irq_init(struct fsi_priv *fsi, int is_play)
@@ -355,23 +344,23 @@ static void fsi_irq_init(struct fsi_priv *fsi, int is_play)
 	fsi_reg_mask_set(fsi, ctrl, FIFO_CLR, FIFO_CLR);
 
 	/* clear interrupt factor */
-	fsi_master_mask_set(INT_ST, data, 0);
+	fsi_master_mask_set(fsi_get_master(fsi), INT_ST, data, 0);
 }
 
-static void fsi_soft_all_reset(void)
+static void fsi_soft_all_reset(struct fsi_master *master)
 {
-	u32 status = fsi_master_read(SOFT_RST);
+	u32 status = fsi_master_read(master, SOFT_RST);
 
 	/* port AB reset */
 	status &= 0x000000ff;
-	fsi_master_write(SOFT_RST, status);
+	fsi_master_write(master, SOFT_RST, status);
 	mdelay(10);
 
 	/* soft reset */
 	status &= 0x000000f0;
-	fsi_master_write(SOFT_RST, status);
+	fsi_master_write(master, SOFT_RST, status);
 	status |= 0x00000001;
-	fsi_master_write(SOFT_RST, status);
+	fsi_master_write(master, SOFT_RST, status);
 	mdelay(10);
 }
 
@@ -517,12 +506,13 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
-	u32 status = fsi_master_read(SOFT_RST) & ~0x00000010;
-	u32 int_st = fsi_master_read(INT_ST);
+	struct fsi_master *master = data;
+	u32 status = fsi_master_read(master, SOFT_RST) & ~0x00000010;
+	u32 int_st = fsi_master_read(master, INT_ST);
 
 	/* clear irq status */
-	fsi_master_write(SOFT_RST, status);
-	fsi_master_write(SOFT_RST, status | 0x00000010);
+	fsi_master_write(master, SOFT_RST, status);
+	fsi_master_write(master, SOFT_RST, status | 0x00000010);
 
 	if (int_st & INT_A_OUT)
 		fsi_data_push(&master->fsia);
@@ -533,7 +523,7 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	if (int_st & INT_B_IN)
 		fsi_data_pop(&master->fsib);
 
-	fsi_master_write(INT_ST, 0x0000000);
+	fsi_master_write(master, INT_ST, 0x0000000);
 
 	return IRQ_HANDLED;
 }
@@ -548,7 +538,7 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	struct fsi_priv *fsi = fsi_get(substream);
+	struct fsi_priv *fsi = fsi_get_priv(substream);
 	const char *msg;
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 fmt;
@@ -667,7 +657,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
-	struct fsi_priv *fsi = fsi_get(substream);
+	struct fsi_priv *fsi = fsi_get_priv(substream);
 	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	fsi_irq_disable(fsi, is_play);
@@ -679,7 +669,7 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
-	struct fsi_priv *fsi = fsi_get(substream);
+	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
@@ -760,7 +750,7 @@ static int fsi_hw_free(struct snd_pcm_substream *substream)
 static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct fsi_priv *fsi = fsi_get(substream);
+	struct fsi_priv *fsi = fsi_get_priv(substream);
 	long location;
 
 	location = (fsi->byte_offset - 1);
@@ -870,9 +860,15 @@ EXPORT_SYMBOL_GPL(fsi_soc_platform);
 ************************************************************************/
 static int fsi_probe(struct platform_device *pdev)
 {
+	struct fsi_master *master;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
+
+	if (0 != pdev->id) {
+		dev_err(&pdev->dev, "current fsi support id 0 only now\n");
+		return -ENODEV;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -899,15 +895,19 @@ static int fsi_probe(struct platform_device *pdev)
 	master->irq		= irq;
 	master->info		= pdev->dev.platform_data;
 	master->fsia.base	= master->base;
+	master->fsia.master	= master;
 	master->fsib.base	= master->base + 0x40;
+	master->fsib.master	= master;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
 
 	fsi_soc_dai[0].dev		= &pdev->dev;
+	fsi_soc_dai[0].private_data	= &master->fsia;
 	fsi_soc_dai[1].dev		= &pdev->dev;
+	fsi_soc_dai[1].private_data	= &master->fsib;
 
-	fsi_soft_all_reset();
+	fsi_soft_all_reset(master);
 
 	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED, "fsi", master);
 	if (ret) {
@@ -937,6 +937,10 @@ exit:
 
 static int fsi_remove(struct platform_device *pdev)
 {
+	struct fsi_master *master;
+
+	master = fsi_get_master(fsi_soc_dai[0].private_data);
+
 	snd_soc_unregister_dais(fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 	snd_soc_unregister_platform(&fsi_soc_platform);
 
@@ -946,7 +950,12 @@ static int fsi_remove(struct platform_device *pdev)
 
 	iounmap(master->base);
 	kfree(master);
-	master = NULL;
+
+	fsi_soc_dai[0].dev		= NULL;
+	fsi_soc_dai[0].private_data	= NULL;
+	fsi_soc_dai[1].dev		= NULL;
+	fsi_soc_dai[1].private_data	= NULL;
+
 	return 0;
 }
 
