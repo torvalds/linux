@@ -9,6 +9,7 @@
  */
 #include "via-core.h"
 #include "via_i2c.h"
+#include "via-gpio.h"
 #include "global.h"
 
 #include <linux/module.h>
@@ -221,6 +222,11 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	ret = via_fb_pci_probe(&global_dev);
 	if (ret)
 		goto out_i2c;
+	/*
+	 * Create the GPIOs.  We continue whether or not this succeeds;
+	 * the framebuffer might be useful even without GPIO ports.
+	 */
+	ret = viafb_create_gpios(&global_dev, adap_configs);
 	return 0;
 
 out_i2c:
@@ -234,6 +240,7 @@ out_disable:
 
 static void __devexit via_pci_remove(struct pci_dev *pdev)
 {
+	viafb_destroy_gpios();
 	viafb_delete_i2c_busses();
 	via_fb_pci_remove(pdev);
 	via_pci_teardown_mmio(&global_dev);
