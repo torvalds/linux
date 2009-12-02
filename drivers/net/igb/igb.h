@@ -137,12 +137,13 @@ struct igb_buffer {
 			unsigned long time_stamp;
 			u16 length;
 			u16 next_to_watch;
+			u16 mapped_as_page;
 		};
 		/* RX */
 		struct {
 			struct page *page;
-			u64 page_dma;
-			unsigned int page_offset;
+			dma_addr_t page_dma;
+			u16 page_offset;
 		};
 	};
 };
