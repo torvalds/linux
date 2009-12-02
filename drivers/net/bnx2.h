@@ -6559,6 +6559,7 @@ struct sw_pg {
 
 struct sw_tx_bd {
 	struct sk_buff		*skb;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
 	unsigned short		is_gso;
 	unsigned short		nr_frags;
 };
