@@ -1175,30 +1175,55 @@ netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong off)
 	adapter->ahw.crb_win = window;
 }
 
+static void __iomem *
+netxen_nic_map_indirect_address_128M(struct netxen_adapter *adapter,
+		ulong win_off, void __iomem **mem_ptr)
+{
+	ulong off = win_off;
+	void __iomem *addr;
+	resource_size_t mem_base;
+
+	if (ADDR_IN_WINDOW1(win_off))
+		off = NETXEN_CRB_NORMAL(win_off);
+
+	addr = pci_base_offset(adapter, off);
+	if (addr)
+		return addr;
+
+	if (adapter->ahw.pci_len0 == 0)
+		off -= NETXEN_PCI_CRBSPACE;
+
+	mem_base = pci_resource_start(adapter->pdev, 0);
+	*mem_ptr = ioremap(mem_base + (off & PAGE_MASK), PAGE_SIZE);
+	if (*mem_ptr)
+		addr = *mem_ptr + (off & (PAGE_SIZE - 1));
+
+	return addr;
+}
+
 static int
 netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter, ulong off, u32 data)
 {
 	unsigned long flags;
-	void __iomem *addr;
+	void __iomem *addr, *mem_ptr = NULL;
 
-	if (ADDR_IN_WINDOW1(off))
-		addr = NETXEN_CRB_NORMALIZE(adapter, off);
-	else
-		addr = pci_base_offset(adapter, off);
+	addr = netxen_nic_map_indirect_address_128M(adapter, off, &mem_ptr);
+	if (!addr)
+		return -EIO;
 
-	BUG_ON(!addr);
-
-	if (ADDR_IN_WINDOW1(off)) {	/* Window 1 */
+	if (ADDR_IN_WINDOW1(off)) { /* Window 1 */
 		netxen_nic_io_write_128M(adapter, addr, data);
-	} else {		/* Window 0 */
+	} else {        /* Window 0 */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
-		addr = pci_base_offset(adapter, off);
 		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		writel(data, addr);
 		netxen_nic_pci_set_crbwindow_128M(adapter,
 				NETXEN_WINDOW_ONE);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	}
+
+	if (mem_ptr)
+		iounmap(mem_ptr);
 
 	return 0;
 }
@@ -1207,19 +1232,16 @@ static u32
 netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
 {
 	unsigned long flags;
-	void __iomem *addr;
+	void __iomem *addr, *mem_ptr = NULL;
 	u32 data;
 
-	if (ADDR_IN_WINDOW1(off))
-		addr = NETXEN_CRB_NORMALIZE(adapter, off);
-	else
-		addr = pci_base_offset(adapter, off);
+	addr = netxen_nic_map_indirect_address_128M(adapter, off, &mem_ptr);
+	if (!addr)
+		return -EIO;
 
-	BUG_ON(!addr);
-
-	if (ADDR_IN_WINDOW1(off)) {	/* Window 1 */
+	if (ADDR_IN_WINDOW1(off)) { /* Window 1 */
 		data = netxen_nic_io_read_128M(adapter, addr);
-	} else {		/* Window 0 */
+	} else {        /* Window 0 */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		data = readl(addr);
@@ -1227,6 +1249,9 @@ netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
 				NETXEN_WINDOW_ONE);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	}
+
+	if (mem_ptr)
+		iounmap(mem_ptr);
 
 	return data;
 }
