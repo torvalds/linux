@@ -1213,7 +1213,6 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 		BUG();
 	}
 
-	alignment = 256 * 1024;
 	ret = i915_gem_object_pin(obj, alignment);
 	if (ret != 0)
 		return ret;
@@ -4227,8 +4226,13 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	OUT_RING(fb->pitch);
-	OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
-	OUT_RING((fb->width << 16) | fb->height);
+	if (IS_I965G(dev)) {
+		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
+		OUT_RING((fb->width << 16) | fb->height);
+	} else {
+		OUT_RING(obj_priv->gtt_offset);
+		OUT_RING(MI_NOOP);
+	}
 	ADVANCE_LP_RING();
 
 	mutex_unlock(&dev->struct_mutex);
@@ -4258,6 +4262,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
 	int i;
 
@@ -4283,6 +4288,11 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = ((pipe == 0) ? 1 : 0);
 	}
+
+	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
+	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
+	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
+	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	intel_crtc->cursor_addr = 0;
 	intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
