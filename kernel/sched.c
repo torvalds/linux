@@ -5184,10 +5184,8 @@ void account_idle_ticks(unsigned long ticks)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
-	if (ut)
-		*ut = p->utime;
-	if (st)
-		*st = p->stime;
+	*ut = p->utime;
+	*st = p->stime;
 }
 #else
 
@@ -5197,7 +5195,7 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 
 void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
-	cputime_t rtime, utime = p->utime, total = utime + p->stime;
+	cputime_t rtime, utime = p->utime, total = cputime_add(utime, p->stime);
 
 	/*
 	 * Use CFS's precise accounting:
@@ -5217,12 +5215,10 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	 * Compare with previous values, to keep monotonicity:
 	 */
 	p->prev_utime = max(p->prev_utime, utime);
-	p->prev_stime = max(p->prev_stime, rtime - p->prev_utime);
+	p->prev_stime = max(p->prev_stime, cputime_sub(rtime, p->prev_utime));
 
-	if (ut)
-		*ut = p->prev_utime;
-	if (st)
-		*st = p->prev_stime;
+	*ut = p->prev_utime;
+	*st = p->prev_stime;
 }
 #endif
 
