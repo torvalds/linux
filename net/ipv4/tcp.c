@@ -2085,8 +2085,9 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	int val;
 	int err = 0;
 
-	/* This is a string value all the others are int's */
-	if (optname == TCP_CONGESTION) {
+	/* These are data/string values, all the others are ints */
+	switch (optname) {
+	case TCP_CONGESTION: {
 		char name[TCP_CA_NAME_MAX];
 
 		if (optlen < 1)
@@ -2103,6 +2104,93 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		release_sock(sk);
 		return err;
 	}
+	case TCP_COOKIE_TRANSACTIONS: {
+		struct tcp_cookie_transactions ctd;
+		struct tcp_cookie_values *cvp = NULL;
+
+		if (sizeof(ctd) > optlen)
+			return -EINVAL;
+		if (copy_from_user(&ctd, optval, sizeof(ctd)))
+			return -EFAULT;
+
+		if (ctd.tcpct_used > sizeof(ctd.tcpct_value) ||
+		    ctd.tcpct_s_data_desired > TCP_MSS_DESIRED)
+			return -EINVAL;
+
+		if (ctd.tcpct_cookie_desired == 0) {
+			/* default to global value */
+		} else if ((0x1 & ctd.tcpct_cookie_desired) ||
+			   ctd.tcpct_cookie_desired > TCP_COOKIE_MAX ||
+			   ctd.tcpct_cookie_desired < TCP_COOKIE_MIN) {
+			return -EINVAL;
+		}
+
+		if (TCP_COOKIE_OUT_NEVER & ctd.tcpct_flags) {
+			/* Supercedes all other values */
+			lock_sock(sk);
+			if (tp->cookie_values != NULL) {
+				kref_put(&tp->cookie_values->kref,
+					 tcp_cookie_values_release);
+				tp->cookie_values = NULL;
+			}
+			tp->rx_opt.cookie_in_always = 0; /* false */
+			tp->rx_opt.cookie_out_never = 1; /* true */
+			release_sock(sk);
+			return err;
+		}
+
+		/* Allocate ancillary memory before locking.
+		 */
+		if (ctd.tcpct_used > 0 ||
+		    (tp->cookie_values == NULL &&
+		     (sysctl_tcp_cookie_size > 0 ||
+		      ctd.tcpct_cookie_desired > 0 ||
+		      ctd.tcpct_s_data_desired > 0))) {
+			cvp = kzalloc(sizeof(*cvp) + ctd.tcpct_used,
+				      GFP_KERNEL);
+			if (cvp == NULL)
+				return -ENOMEM;
+		}
+		lock_sock(sk);
+		tp->rx_opt.cookie_in_always =
+			(TCP_COOKIE_IN_ALWAYS & ctd.tcpct_flags);
+		tp->rx_opt.cookie_out_never = 0; /* false */
+
+		if (tp->cookie_values != NULL) {
+			if (cvp != NULL) {
+				/* Changed values are recorded by a changed
+				 * pointer, ensuring the cookie will differ,
+				 * without separately hashing each value later.
+				 */
+				kref_put(&tp->cookie_values->kref,
+					 tcp_cookie_values_release);
+				kref_init(&cvp->kref);
+				tp->cookie_values = cvp;
+			} else {
+				cvp = tp->cookie_values;
+			}
+		}
+		if (cvp != NULL) {
+			cvp->cookie_desired = ctd.tcpct_cookie_desired;
+
+			if (ctd.tcpct_used > 0) {
+				memcpy(cvp->s_data_payload, ctd.tcpct_value,
+				       ctd.tcpct_used);
+				cvp->s_data_desired = ctd.tcpct_used;
+				cvp->s_data_constant = 1; /* true */
+			} else {
+				/* No constant payload data. */
+				cvp->s_data_desired = ctd.tcpct_s_data_desired;
+				cvp->s_data_constant = 0; /* false */
+			}
+		}
+		release_sock(sk);
+		return err;
+	}
+	default:
+		/* fallthru */
+		break;
+	};
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -2427,6 +2515,47 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		if (copy_to_user(optval, icsk->icsk_ca_ops->name, len))
 			return -EFAULT;
 		return 0;
+
+	case TCP_COOKIE_TRANSACTIONS: {
+		struct tcp_cookie_transactions ctd;
+		struct tcp_cookie_values *cvp = tp->cookie_values;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+		if (len < sizeof(ctd))
+			return -EINVAL;
+
+		memset(&ctd, 0, sizeof(ctd));
+		ctd.tcpct_flags = (tp->rx_opt.cookie_in_always ?
+				   TCP_COOKIE_IN_ALWAYS : 0)
+				| (tp->rx_opt.cookie_out_never ?
+				   TCP_COOKIE_OUT_NEVER : 0);
+
+		if (cvp != NULL) {
+			ctd.tcpct_flags |= (cvp->s_data_in ?
+					    TCP_S_DATA_IN : 0)
+					 | (cvp->s_data_out ?
+					    TCP_S_DATA_OUT : 0);
+
+			ctd.tcpct_cookie_desired = cvp->cookie_desired;
+			ctd.tcpct_s_data_desired = cvp->s_data_desired;
+
+			/* Cookie(s) saved, return as nonce */
+			if (sizeof(ctd.tcpct_value) < cvp->cookie_pair_size) {
+				/* impossible? */
+				return -EINVAL;
+			}
+			memcpy(&ctd.tcpct_value[0], &cvp->cookie_pair[0],
+			       cvp->cookie_pair_size);
+			ctd.tcpct_used = cvp->cookie_pair_size;
+		}
+
+		if (put_user(sizeof(ctd), optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, &ctd, sizeof(ctd)))
+			return -EFAULT;
+		return 0;
+	}
 	default:
 		return -ENOPROTOOPT;
 	}
