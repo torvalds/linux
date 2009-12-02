@@ -175,7 +175,6 @@ struct lbs_private {
 	struct bss_descriptor *networks;
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;
-	u16 capability;
 	uint16_t enablehwauto;
 	uint16_t ratebitmap;
 
