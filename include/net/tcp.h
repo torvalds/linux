@@ -1478,6 +1478,14 @@ struct tcp_request_sock_ops {
 #endif
 };
 
+/* Using SHA1 for now, define some constants.
+ */
+#define COOKIE_DIGEST_WORDS (SHA_DIGEST_WORDS)
+#define COOKIE_MESSAGE_WORDS (SHA_MESSAGE_BYTES / 4)
+#define COOKIE_WORKSPACE_WORDS (COOKIE_DIGEST_WORDS + COOKIE_MESSAGE_WORDS)
+
+extern int tcp_cookie_generator(u32 *bakery);
+
 extern void tcp_v4_init(void);
 extern void tcp_init(void);
 
