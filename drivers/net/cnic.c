@@ -3997,14 +3997,18 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 	if (base < 0xa0000 || base >= 0xc0000)
 		return;
 
-	val = BNX2X_SHMEM_ADDR(base,
+	addr = BNX2X_SHMEM_ADDR(base,
 		dev_info.port_hw_config[port].iscsi_mac_upper);
+
+	val = CNIC_RD(dev, addr);
 
 	dev->mac_addr[0] = (u8) (val >> 8);
 	dev->mac_addr[1] = (u8) val;
 
-	val = BNX2X_SHMEM_ADDR(base,
+	addr = BNX2X_SHMEM_ADDR(base,
 		dev_info.port_hw_config[port].iscsi_mac_lower);
+
+	val = CNIC_RD(dev, addr);
 
 	dev->mac_addr[2] = (u8) (val >> 24);
 	dev->mac_addr[3] = (u8) (val >> 16);
