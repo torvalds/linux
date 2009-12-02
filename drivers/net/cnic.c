@@ -1500,9 +1500,9 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	ictx->timers_context.flags |= ISCSI_TIMERS_BLOCK_CONTEXT_CONN_VALID_FLG;
 
 	ictx->ustorm_st_context.ring.rq.pbl_base.lo =
-		req2->rq_page_table_addr_lo & 0xffffffff;
+		req2->rq_page_table_addr_lo;
 	ictx->ustorm_st_context.ring.rq.pbl_base.hi =
-		(u64) req2->rq_page_table_addr_hi >> 32;
+		req2->rq_page_table_addr_hi;
 	ictx->ustorm_st_context.ring.rq.curr_pbe.lo = req3->qp_first_pte[0].hi;
 	ictx->ustorm_st_context.ring.rq.curr_pbe.hi = req3->qp_first_pte[0].lo;
 	ictx->ustorm_st_context.ring.r2tq.pbl_base.lo =
