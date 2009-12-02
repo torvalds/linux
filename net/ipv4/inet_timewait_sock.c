@@ -14,22 +14,33 @@
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
 
+
+/*
+ * unhash a timewait socket from established hash
+ * lock must be hold by caller
+ */
+int inet_twsk_unhash(struct inet_timewait_sock *tw)
+{
+	if (hlist_nulls_unhashed(&tw->tw_node))
+		return 0;
+
+	hlist_nulls_del_rcu(&tw->tw_node);
+	sk_nulls_node_init(&tw->tw_node);
+	return 1;
+}
+
 /* Must be called with locally disabled BHs. */
 static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 			     struct inet_hashinfo *hashinfo)
 {
 	struct inet_bind_hashbucket *bhead;
 	struct inet_bind_bucket *tb;
+	int refcnt;
 	/* Unlink from established hashes. */
 	spinlock_t *lock = inet_ehash_lockp(hashinfo, tw->tw_hash);
 
 	spin_lock(lock);
-	if (hlist_nulls_unhashed(&tw->tw_node)) {
-		spin_unlock(lock);
-		return;
-	}
-	hlist_nulls_del_rcu(&tw->tw_node);
-	sk_nulls_node_init(&tw->tw_node);
+	refcnt = inet_twsk_unhash(tw);
 	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
@@ -37,9 +48,12 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 			hashinfo->bhash_size)];
 	spin_lock(&bhead->lock);
 	tb = tw->tw_tb;
-	__hlist_del(&tw->tw_bind_node);
-	tw->tw_tb = NULL;
-	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+	if (tb) {
+		__hlist_del(&tw->tw_bind_node);
+		tw->tw_tb = NULL;
+		inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+		refcnt++;
+	}
 	spin_unlock(&bhead->lock);
 #ifdef SOCK_REFCNT_DEBUG
 	if (atomic_read(&tw->tw_refcnt) != 1) {
@@ -47,7 +61,10 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 		       tw->tw_prot->name, tw, atomic_read(&tw->tw_refcnt));
 	}
 #endif
-	inet_twsk_put(tw);
+	while (refcnt) {
+		inet_twsk_put(tw);
+		refcnt--;
+	}
 }
 
 static noinline void inet_twsk_free(struct inet_timewait_sock *tw)
@@ -92,6 +109,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
 	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
+	atomic_inc(&tw->tw_refcnt);
 	spin_unlock(&bhead->lock);
 
 	spin_lock(lock);

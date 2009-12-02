@@ -199,6 +199,8 @@ static inline __be32 inet_rcv_saddr(const struct sock *sk)
 
 extern void inet_twsk_put(struct inet_timewait_sock *tw);
 
+extern int inet_twsk_unhash(struct inet_timewait_sock *tw);
+
 extern struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 						  const int state);
 
