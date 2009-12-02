@@ -738,8 +738,8 @@ rp_filter - INTEGER
 	to prevent IP spoofing from DDos attacks. If using asymmetric routing
 	or other complicated routing, then loose mode is recommended.
 
-	conf/all/rp_filter must also be set to non-zero to do source validation
-	on the interface
+	The max value from conf/{all,interface}/rp_filter is used
+	when doing source validation on the {interface}.
 
 	Default value is 0. Note that some distributions enable it
 	in startup scripts.
