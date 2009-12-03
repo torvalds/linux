@@ -74,7 +74,7 @@ static struct {
 	arch_spinlock_t lock;
 } trace_clock_struct ____cacheline_aligned_in_smp =
 	{
-		.lock = (arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED,
+		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
 	};
 
 u64 notrace trace_clock_global(void)

@@ -23,7 +23,7 @@ void __spin_lock_init(spinlock_t *lock, const char *name,
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
 	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
-	lock->raw_lock = (arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	lock->raw_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 	lock->magic = SPINLOCK_MAGIC;
 	lock->owner = SPINLOCK_OWNER_INIT;
 	lock->owner_cpu = -1;

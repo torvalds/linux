@@ -43,14 +43,14 @@ typedef struct {
 
 #ifdef CONFIG_DEBUG_SPINLOCK
 # define __SPIN_LOCK_UNLOCKED(lockname)					\
-	(spinlock_t)	{	.raw_lock = __RAW_SPIN_LOCK_UNLOCKED,	\
+	(spinlock_t)	{	.raw_lock = __ARCH_SPIN_LOCK_UNLOCKED,	\
 				.magic = SPINLOCK_MAGIC,		\
 				.owner = SPINLOCK_OWNER_INIT,		\
 				.owner_cpu = -1,			\
 				SPIN_DEP_MAP_INIT(lockname) }
 #else
 # define __SPIN_LOCK_UNLOCKED(lockname) \
-	(spinlock_t)	{	.raw_lock = __RAW_SPIN_LOCK_UNLOCKED,	\
+	(spinlock_t)	{	.raw_lock = __ARCH_SPIN_LOCK_UNLOCKED,	\
 				SPIN_DEP_MAP_INIT(lockname) }
 #endif
 

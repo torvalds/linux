@@ -42,7 +42,7 @@
 #include <asm/mmu.h>
 
 struct rtas_t rtas = {
-	.lock = __RAW_SPIN_LOCK_UNLOCKED
+	.lock = __ARCH_SPIN_LOCK_UNLOCKED
 };
 EXPORT_SYMBOL(rtas);
 

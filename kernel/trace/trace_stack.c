@@ -28,7 +28,7 @@ static struct stack_trace max_stack_trace = {
 
 static unsigned long max_stack_size;
 static arch_spinlock_t max_stack_lock =
-	(arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int stack_trace_disabled __read_mostly;
 static DEFINE_PER_CPU(int, trace_active);

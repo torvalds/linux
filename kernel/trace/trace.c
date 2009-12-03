@@ -501,7 +501,7 @@ static ssize_t trace_seq_to_buffer(struct trace_seq *s, void *buf, size_t cnt)
  * CONFIG_TRACER_MAX_TRACE.
  */
 static arch_spinlock_t ftrace_max_lock =
-	(arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 unsigned long __read_mostly	tracing_max_latency;
@@ -802,7 +802,7 @@ static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
 static unsigned map_cmdline_to_pid[SAVED_CMDLINES];
 static char saved_cmdlines[SAVED_CMDLINES][TASK_COMM_LEN];
 static int cmdline_idx;
-static arch_spinlock_t trace_cmdline_lock = __RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t trace_cmdline_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 /* temporary disable recording */
 static atomic_t trace_record_cmdline_disabled __read_mostly;
@@ -1252,7 +1252,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static arch_spinlock_t trace_buf_lock =
-		(arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+		(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 	static u32 trace_buf[TRACE_BUF_SIZE];
 
 	struct ftrace_event_call *call = &event_bprint;
@@ -1334,7 +1334,7 @@ int trace_array_printk(struct trace_array *tr,
 int trace_array_vprintk(struct trace_array *tr,
 			unsigned long ip, const char *fmt, va_list args)
 {
-	static arch_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
+	static arch_spinlock_t trace_buf_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
 
 	struct ftrace_event_call *call = &event_print;
@@ -4308,7 +4308,7 @@ trace_printk_seq(struct trace_seq *s)
 static void __ftrace_dump(bool disable_tracing)
 {
 	static arch_spinlock_t ftrace_dump_lock =
-		(arch_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+		(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
 	unsigned int old_userobj;
