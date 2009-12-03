@@ -105,11 +105,20 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 #ifdef CONFIG_PM
 static int rz1000_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	/* If this fails on resume (which is a "cant happen" case), we
 	   must stop as any progress risks data loss */
 	if (rz1000_fifo_disable(pdev))
 		panic("rz1000 fifo");
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 
