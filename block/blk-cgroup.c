@@ -11,6 +11,8 @@
  * 	              Nauman Rafique <nauman@google.com>
  */
 #include <linux/ioprio.h>
+#include <linux/seq_file.h>
+#include <linux/kdev_t.h>
 #include "blk-cgroup.h"
 
 extern void cfq_unlink_blkio_group(void *, struct blkio_group *);
@@ -23,8 +25,15 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 			    struct blkio_cgroup, css);
 }
 
+void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
+			unsigned long time, unsigned long sectors)
+{
+	blkg->time += time;
+	blkg->sectors += sectors;
+}
+
 void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-				struct blkio_group *blkg, void *key)
+			struct blkio_group *blkg, void *key, dev_t dev)
 {
 	unsigned long flags;
 
@@ -37,6 +46,7 @@ void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 	/* Need to take css reference ? */
 	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
 #endif
+	blkg->dev = dev;
 }
 
 static void __blkiocg_del_blkio_group(struct blkio_group *blkg)
@@ -115,12 +125,64 @@ blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	return 0;
 }
 
+#define SHOW_FUNCTION_PER_GROUP(__VAR)					\
+static int blkiocg_##__VAR##_read(struct cgroup *cgroup,		\
+			struct cftype *cftype, struct seq_file *m)	\
+{									\
+	struct blkio_cgroup *blkcg;					\
+	struct blkio_group *blkg;					\
+	struct hlist_node *n;						\
+									\
+	if (!cgroup_lock_live_group(cgroup))				\
+		return -ENODEV;						\
+									\
+	blkcg = cgroup_to_blkio_cgroup(cgroup);				\
+	rcu_read_lock();						\
+	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node) {\
+		if (blkg->dev)						\
+			seq_printf(m, "%u:%u %lu\n", MAJOR(blkg->dev),	\
+				 MINOR(blkg->dev), blkg->__VAR);	\
+	}								\
+	rcu_read_unlock();						\
+	cgroup_unlock();						\
+	return 0;							\
+}
+
+SHOW_FUNCTION_PER_GROUP(time);
+SHOW_FUNCTION_PER_GROUP(sectors);
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+SHOW_FUNCTION_PER_GROUP(dequeue);
+#endif
+#undef SHOW_FUNCTION_PER_GROUP
+
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+void blkiocg_update_blkio_group_dequeue_stats(struct blkio_group *blkg,
+			unsigned long dequeue)
+{
+	blkg->dequeue += dequeue;
+}
+#endif
+
 struct cftype blkio_files[] = {
 	{
 		.name = "weight",
 		.read_u64 = blkiocg_weight_read,
 		.write_u64 = blkiocg_weight_write,
 	},
+	{
+		.name = "time",
+		.read_seq_string = blkiocg_time_read,
+	},
+	{
+		.name = "sectors",
+		.read_seq_string = blkiocg_sectors_read,
+	},
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+       {
+		.name = "dequeue",
+		.read_seq_string = blkiocg_dequeue_read,
+       },
+#endif
 };
 
 static int blkiocg_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)

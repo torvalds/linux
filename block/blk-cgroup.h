@@ -30,7 +30,15 @@ struct blkio_group {
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Store cgroup path */
 	char path[128];
+	/* How many times this group has been removed from service tree */
+	unsigned long dequeue;
 #endif
+	/* The device MKDEV(major, minor), this group has been created for */
+	dev_t   dev;
+
+	/* total disk time and nr sectors dispatched by this group */
+	unsigned long time;
+	unsigned long sectors;
 };
 
 #define BLKIO_WEIGHT_MIN	100
@@ -42,24 +50,30 @@ static inline char *blkg_path(struct blkio_group *blkg)
 {
 	return blkg->path;
 }
+void blkiocg_update_blkio_group_dequeue_stats(struct blkio_group *blkg,
+				unsigned long dequeue);
 #else
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
+static inline void blkiocg_update_blkio_group_dequeue_stats(
+			struct blkio_group *blkg, unsigned long dequeue) {}
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-				struct blkio_group *blkg, void *key);
+			struct blkio_group *blkg, void *key, dev_t dev);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
+void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
+			unsigned long time, unsigned long sectors);
 #else
 static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key)
+			struct blkio_group *blkg, void *key, dev_t dev)
 {
 }
 
@@ -68,5 +82,9 @@ blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
 
 static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
+static inline void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
+			unsigned long time, unsigned long sectors)
+{
+}
 #endif
 #endif /* _BLK_CGROUP_H */

@@ -143,6 +143,8 @@ struct cfq_queue {
 	struct cfq_rb_root *service_tree;
 	struct cfq_queue *new_cfqq;
 	struct cfq_group *cfqg;
+	/* Sectors dispatched in current dispatch round */
+	unsigned long nr_sectors;
 };
 
 /*
@@ -852,6 +854,7 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
 	cfqg->saved_workload_slice = 0;
+	blkiocg_update_blkio_group_dequeue_stats(&cfqg->blkg, 1);
 }
 
 static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
@@ -878,7 +881,8 @@ static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
 			slice_used = allocated_slice;
 	}
 
-	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u", slice_used);
+	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u sect=%lu", slice_used,
+				cfqq->nr_sectors);
 	return slice_used;
 }
 
@@ -906,6 +910,8 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
+	blkiocg_update_blkio_group_stats(&cfqg->blkg, used_sl,
+						cfqq->nr_sectors);
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
@@ -924,6 +930,8 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	void *key = cfqd;
 	int i, j;
 	struct cfq_rb_root *st;
+	struct backing_dev_info *bdi = &cfqd->queue->backing_dev_info;
+	unsigned int major, minor;
 
 	/* Do we need to take this reference */
 	if (!css_tryget(&blkcg->css))
@@ -951,7 +959,9 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	atomic_set(&cfqg->ref, 1);
 
 	/* Add group onto cgroup list */
-	blkiocg_add_blkio_group(blkcg, &cfqg->blkg, (void *)cfqd);
+	sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+	blkiocg_add_blkio_group(blkcg, &cfqg->blkg, (void *)cfqd,
+					MKDEV(major, minor));
 
 	/* Add group on cfqd list */
 	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
@@ -1478,6 +1488,7 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 		cfqq->dispatch_start = jiffies;
 		cfqq->slice_end = 0;
 		cfqq->slice_dispatch = 0;
+		cfqq->nr_sectors = 0;
 
 		cfq_clear_cfqq_wait_request(cfqq);
 		cfq_clear_cfqq_must_dispatch(cfqq);
@@ -1801,6 +1812,7 @@ static void cfq_dispatch_insert(struct request_queue *q, struct request *rq)
 
 	if (cfq_cfqq_sync(cfqq))
 		cfqd->sync_flight++;
+	cfqq->nr_sectors += blk_rq_sectors(rq);
 }
 
 /*
@@ -3513,7 +3525,8 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * to make sure that cfq_put_cfqg() does not try to kfree root group
 	 */
 	atomic_set(&cfqg->ref, 1);
-	blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg, (void *)cfqd);
+	blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg, (void *)cfqd,
+					0);
 #endif
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
