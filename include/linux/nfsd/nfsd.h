@@ -11,13 +11,9 @@
 #define LINUX_NFSD_NFSD_H
 
 #include <linux/types.h>
-#include <linux/unistd.h>
-#include <linux/fs.h>
-#include <linux/posix_acl.h>
 #include <linux/mount.h>
 
 #include <linux/nfsd/debug.h>
-#include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/export.h>
 #include <linux/nfsd/stats.h>
 /*

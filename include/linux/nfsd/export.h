@@ -12,7 +12,7 @@
 
 # include <linux/types.h>
 #ifdef __KERNEL__
-# include <linux/in.h>
+# include <linux/nfsd/nfsfh.h>
 #endif
 
 /*

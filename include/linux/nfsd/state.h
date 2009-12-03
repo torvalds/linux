@@ -37,9 +37,7 @@
 #ifndef _NFSD4_STATE_H
 #define _NFSD4_STATE_H
 
-#include <linux/list.h>
-#include <linux/kref.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/nfsd/nfsfh.h>
 
 typedef struct {
 	u32             cl_boot;

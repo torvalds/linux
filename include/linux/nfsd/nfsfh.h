@@ -16,8 +16,7 @@
 
 # include <linux/types.h>
 #ifdef __KERNEL__
-# include <linux/string.h>
-# include <linux/fs.h>
+# include <linux/sunrpc/svc.h>
 #endif
 #include <linux/nfsd/const.h>
 

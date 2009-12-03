@@ -10,8 +10,7 @@
 #ifndef NFSCACHE_H
 #define NFSCACHE_H
 
-#include <linux/in.h>
-#include <linux/uio.h>
+#include <linux/sunrpc/svc.h>
 
 /*
  * Representation of a reply cache entry.
