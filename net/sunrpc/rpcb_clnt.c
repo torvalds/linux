@@ -176,7 +176,7 @@ static DEFINE_MUTEX(rpcb_create_local_mutex);
 static int rpcb_create_local(void)
 {
 	struct rpc_create_args args = {
-		.protocol	= XPRT_TRANSPORT_UDP,
+		.protocol	= XPRT_TRANSPORT_TCP,
 		.address	= (struct sockaddr *)&rpcb_inaddr_loopback,
 		.addrsize	= sizeof(rpcb_inaddr_loopback),
 		.servername	= "localhost",
@@ -258,7 +258,7 @@ static int rpcb_register_call(struct rpc_clnt *clnt, struct rpc_message *msg)
 
 	msg->rpc_resp = &result;
 
-	error = rpc_call_sync(clnt, msg, 0);
+	error = rpc_call_sync(clnt, msg, RPC_TASK_SOFTCONN);
 	if (error < 0) {
 		dprintk("RPC:       failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
