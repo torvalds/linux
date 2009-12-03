@@ -6263,8 +6263,11 @@ bnx2_reset_task(struct work_struct *work)
 {
 	struct bnx2 *bp = container_of(work, struct bnx2, reset_task);
 
-	if (!netif_running(bp->dev))
+	rtnl_lock();
+	if (!netif_running(bp->dev)) {
+		rtnl_unlock();
 		return;
+	}
 
 	bnx2_netif_stop(bp);
 
@@ -6272,6 +6275,7 @@ bnx2_reset_task(struct work_struct *work)
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
+	rtnl_unlock();
 }
 
 static void
