@@ -20,7 +20,6 @@
 # include <linux/fs.h>
 #endif
 #include <linux/nfsd/const.h>
-#include <linux/nfsd/debug.h>
 
 /*
  * This is the old "dentry style" Linux NFSv2 file handle.
@@ -328,9 +327,6 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 {
 	struct dentry	*dentry = fhp->fh_dentry;
 	struct inode	*inode;
-
-	dfprintk(FILEOP, "nfsd: fh_lock(%s) locked = %d\n",
-			SVCFH_fmt(fhp), fhp->fh_locked);
 
 	BUG_ON(!dentry);
 
