@@ -2058,7 +2058,7 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 	int r;
 
 	if (dsi.debug_read)
-		DSSDBG("dsi_vc_dcs_read(ch%d, dcs_cmd %u)\n", channel, dcs_cmd);
+		DSSDBG("dsi_vc_dcs_read(ch%d, dcs_cmd %x)\n", channel, dcs_cmd);
 
 	r = dsi_vc_send_short(channel, DSI_DT_DCS_READ, dcs_cmd, 0);
 	if (r)
