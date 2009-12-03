@@ -144,6 +144,7 @@ struct cfq_queue {
 	struct cfq_rb_root *service_tree;
 	struct cfq_queue *new_cfqq;
 	struct cfq_group *cfqg;
+	struct cfq_group *orig_cfqg;
 	/* Sectors dispatched in current dispatch round */
 	unsigned long nr_sectors;
 };
@@ -273,6 +274,7 @@ struct cfq_data {
 	unsigned int cfq_slice_async_rq;
 	unsigned int cfq_slice_idle;
 	unsigned int cfq_latency;
+	unsigned int cfq_group_isolation;
 
 	struct list_head cic_list;
 
@@ -1120,6 +1122,33 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct cfq_rb_root *service_tree;
 	int left;
 	int new_cfqq = 1;
+	int group_changed = 0;
+
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	if (!cfqd->cfq_group_isolation
+	    && cfqq_type(cfqq) == SYNC_NOIDLE_WORKLOAD
+	    && cfqq->cfqg && cfqq->cfqg != &cfqd->root_group) {
+		/* Move this cfq to root group */
+		cfq_log_cfqq(cfqd, cfqq, "moving to root group");
+		if (!RB_EMPTY_NODE(&cfqq->rb_node))
+			cfq_group_service_tree_del(cfqd, cfqq->cfqg);
+		cfqq->orig_cfqg = cfqq->cfqg;
+		cfqq->cfqg = &cfqd->root_group;
+		atomic_inc(&cfqd->root_group.ref);
+		group_changed = 1;
+	} else if (!cfqd->cfq_group_isolation
+		   && cfqq_type(cfqq) == SYNC_WORKLOAD && cfqq->orig_cfqg) {
+		/* cfqq is sequential now needs to go to its original group */
+		BUG_ON(cfqq->cfqg != &cfqd->root_group);
+		if (!RB_EMPTY_NODE(&cfqq->rb_node))
+			cfq_group_service_tree_del(cfqd, cfqq->cfqg);
+		cfq_put_cfqg(cfqq->cfqg);
+		cfqq->cfqg = cfqq->orig_cfqg;
+		cfqq->orig_cfqg = NULL;
+		group_changed = 1;
+		cfq_log_cfqq(cfqd, cfqq, "moved to origin group");
+	}
+#endif
 
 	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
 						cfqq_type(cfqq), cfqd);
@@ -1190,7 +1219,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	rb_link_node(&cfqq->rb_node, parent, p);
 	rb_insert_color(&cfqq->rb_node, &service_tree->rb);
 	service_tree->count++;
-	if (add_front || !new_cfqq)
+	if ((add_front || !new_cfqq) && !group_changed)
 		return;
 	cfq_group_service_tree_add(cfqd, cfqq->cfqg);
 }
@@ -2357,6 +2386,8 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	kmem_cache_free(cfq_pool, cfqq);
 	cfq_put_cfqg(cfqg);
+	if (cfqq->orig_cfqg)
+		cfq_put_cfqg(cfqq->orig_cfqg);
 }
 
 /*
@@ -3670,6 +3701,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
 	cfqd->cfq_slice_idle = cfq_slice_idle;
 	cfqd->cfq_latency = 1;
+	cfqd->cfq_group_isolation = 0;
 	cfqd->hw_tag = -1;
 	cfqd->last_end_sync_rq = jiffies;
 	return cfqd;
@@ -3740,6 +3772,7 @@ SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
 SHOW_FUNCTION(cfq_slice_async_rq_show, cfqd->cfq_slice_async_rq, 0);
 SHOW_FUNCTION(cfq_low_latency_show, cfqd->cfq_latency, 0);
+SHOW_FUNCTION(cfq_group_isolation_show, cfqd->cfq_group_isolation, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -3772,6 +3805,7 @@ STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1,
 		UINT_MAX, 0);
 STORE_FUNCTION(cfq_low_latency_store, &cfqd->cfq_latency, 0, 1, 0);
+STORE_FUNCTION(cfq_group_isolation_store, &cfqd->cfq_group_isolation, 0, 1, 0);
 #undef STORE_FUNCTION
 
 #define CFQ_ATTR(name) \
@@ -3788,6 +3822,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 	CFQ_ATTR(slice_async_rq),
 	CFQ_ATTR(slice_idle),
 	CFQ_ATTR(low_latency),
+	CFQ_ATTR(group_isolation),
 	__ATTR_NULL
 };
 
