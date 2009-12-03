@@ -670,8 +670,6 @@ struct perf_event {
 
 	perf_callback_t			callback;
 
-	perf_callback_t			event_callback;
-
 #endif /* CONFIG_PERF_EVENTS */
 };
 
