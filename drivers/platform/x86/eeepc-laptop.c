@@ -1248,8 +1248,10 @@ static int eeepc_led_init(struct device *dev)
 		return -ENOMEM;
 
 	rv = led_classdev_register(dev, &tpd_led);
-	if (rv)
+	if (rv) {
+		destroy_workqueue(led_workqueue);
 		return rv;
+	}
 
 	return 0;
 }
