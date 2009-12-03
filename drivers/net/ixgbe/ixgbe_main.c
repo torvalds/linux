@@ -5286,10 +5286,19 @@ static int ixgbe_maybe_stop_tx(struct net_device *netdev,
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int txq = smp_processor_id();
 
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
-		return smp_processor_id();
+		return txq;
 
+#ifdef IXGBE_FCOE
+	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	    (skb->protocol == htons(ETH_P_FCOE))) {
+		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+		txq += adapter->ring_feature[RING_F_FCOE].mask;
+		return txq;
+	}
+#endif
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
 		return (skb->vlan_tci & IXGBE_TX_FLAGS_VLAN_PRIO_MASK) >> 13;
 
@@ -5304,7 +5313,7 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	unsigned int first;
 	unsigned int tx_flags = 0;
 	u8 hdr_len = 0;
-	int r_idx = 0, tso;
+	int tso;
 	int count = 0;
 	unsigned int f;
 
@@ -5312,13 +5321,13 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		tx_flags |= vlan_tx_tag_get(skb);
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 			tx_flags &= ~IXGBE_TX_FLAGS_VLAN_PRIO_MASK;
-			tx_flags |= (skb->queue_mapping << 13);
+			tx_flags |= ((skb->queue_mapping & 0x7) << 13);
 		}
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		if (skb->priority != TC_PRIO_CONTROL) {
-			tx_flags |= (skb->queue_mapping << 13);
+			tx_flags |= ((skb->queue_mapping & 0x7) << 13);
 			tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 			tx_flags |= IXGBE_TX_FLAGS_VLAN;
 		} else {
@@ -5327,8 +5336,7 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		}
 	}
 
-	r_idx = skb->queue_mapping;
-	tx_ring = &adapter->tx_ring[r_idx];
+	tx_ring = &adapter->tx_ring[skb->queue_mapping];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
 	    (skb->protocol == htons(ETH_P_FCOE))) {
@@ -5340,10 +5348,6 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		tx_flags |= ((adapter->fcoe.up << 13)
 			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
 #endif
-		r_idx = smp_processor_id();
-		r_idx &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
-		r_idx += adapter->ring_feature[RING_F_FCOE].mask;
-		tx_ring = &adapter->tx_ring[r_idx];
 #endif
 	}
 	/* four things can cause us to need a context descriptor */
