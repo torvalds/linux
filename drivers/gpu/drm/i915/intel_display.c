@@ -102,32 +102,32 @@ struct intel_limit {
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
 #define I9XX_VCO_MAX		2800000
-#define IGD_VCO_MIN		1700000
-#define IGD_VCO_MAX		3500000
+#define PINEVIEW_VCO_MIN		1700000
+#define PINEVIEW_VCO_MAX		3500000
 #define I9XX_N_MIN		      1
 #define I9XX_N_MAX		      6
-/* IGD's Ncounter is a ring counter */
-#define IGD_N_MIN		      3
-#define IGD_N_MAX		      6
+/* Pineview's Ncounter is a ring counter */
+#define PINEVIEW_N_MIN		      3
+#define PINEVIEW_N_MAX		      6
 #define I9XX_M_MIN		     70
 #define I9XX_M_MAX		    120
-#define IGD_M_MIN		      2
-#define IGD_M_MAX		    256
+#define PINEVIEW_M_MIN		      2
+#define PINEVIEW_M_MAX		    256
 #define I9XX_M1_MIN		     10
 #define I9XX_M1_MAX		     22
 #define I9XX_M2_MIN		      5
 #define I9XX_M2_MAX		      9
-/* IGD M1 is reserved, and must be 0 */
-#define IGD_M1_MIN		      0
-#define IGD_M1_MAX		      0
-#define IGD_M2_MIN		      0
-#define IGD_M2_MAX		      254
+/* Pineview M1 is reserved, and must be 0 */
+#define PINEVIEW_M1_MIN		      0
+#define PINEVIEW_M1_MAX		      0
+#define PINEVIEW_M2_MIN		      0
+#define PINEVIEW_M2_MAX		      254
 #define I9XX_P_SDVO_DAC_MIN	      5
 #define I9XX_P_SDVO_DAC_MAX	     80
 #define I9XX_P_LVDS_MIN		      7
 #define I9XX_P_LVDS_MAX		     98
-#define IGD_P_LVDS_MIN		      7
-#define IGD_P_LVDS_MAX		     112
+#define PINEVIEW_P_LVDS_MIN		      7
+#define PINEVIEW_P_LVDS_MAX		     112
 #define I9XX_P1_MIN		      1
 #define I9XX_P1_MAX		      8
 #define I9XX_P2_SDVO_DAC_SLOW		     10
@@ -234,33 +234,33 @@ struct intel_limit {
 #define G4X_P2_DISPLAY_PORT_FAST           10
 #define G4X_P2_DISPLAY_PORT_LIMIT          0
 
-/* IGDNG */
+/* Ironlake */
 /* as we calculate clock using (register_value + 2) for
    N/M1/M2, so here the range value for them is (actual_value-2).
  */
-#define IGDNG_DOT_MIN         25000
-#define IGDNG_DOT_MAX         350000
-#define IGDNG_VCO_MIN         1760000
-#define IGDNG_VCO_MAX         3510000
-#define IGDNG_N_MIN           1
-#define IGDNG_N_MAX           5
-#define IGDNG_M_MIN           79
-#define IGDNG_M_MAX           118
-#define IGDNG_M1_MIN          12
-#define IGDNG_M1_MAX          23
-#define IGDNG_M2_MIN          5
-#define IGDNG_M2_MAX          9
-#define IGDNG_P_SDVO_DAC_MIN  5
-#define IGDNG_P_SDVO_DAC_MAX  80
-#define IGDNG_P_LVDS_MIN      28
-#define IGDNG_P_LVDS_MAX      112
-#define IGDNG_P1_MIN          1
-#define IGDNG_P1_MAX          8
-#define IGDNG_P2_SDVO_DAC_SLOW 10
-#define IGDNG_P2_SDVO_DAC_FAST 5
-#define IGDNG_P2_LVDS_SLOW    14 /* single channel */
-#define IGDNG_P2_LVDS_FAST    7  /* double channel */
-#define IGDNG_P2_DOT_LIMIT    225000 /* 225Mhz */
+#define IRONLAKE_DOT_MIN         25000
+#define IRONLAKE_DOT_MAX         350000
+#define IRONLAKE_VCO_MIN         1760000
+#define IRONLAKE_VCO_MAX         3510000
+#define IRONLAKE_N_MIN           1
+#define IRONLAKE_N_MAX           5
+#define IRONLAKE_M_MIN           79
+#define IRONLAKE_M_MAX           118
+#define IRONLAKE_M1_MIN          12
+#define IRONLAKE_M1_MAX          23
+#define IRONLAKE_M2_MIN          5
+#define IRONLAKE_M2_MAX          9
+#define IRONLAKE_P_SDVO_DAC_MIN  5
+#define IRONLAKE_P_SDVO_DAC_MAX  80
+#define IRONLAKE_P_LVDS_MIN      28
+#define IRONLAKE_P_LVDS_MAX      112
+#define IRONLAKE_P1_MIN          1
+#define IRONLAKE_P1_MAX          8
+#define IRONLAKE_P2_SDVO_DAC_SLOW 10
+#define IRONLAKE_P2_SDVO_DAC_FAST 5
+#define IRONLAKE_P2_LVDS_SLOW    14 /* single channel */
+#define IRONLAKE_P2_LVDS_FAST    7  /* double channel */
+#define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
@@ -272,15 +272,15 @@ static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
 static bool
-intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock);
+intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
+			     int target, int refclk, intel_clock_t *best_clock);
 
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
 		      int target, int refclk, intel_clock_t *best_clock);
 static bool
-intel_find_pll_igdng_dp(const intel_limit_t *, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock);
+intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
+			   int target, int refclk, intel_clock_t *best_clock);
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
@@ -453,13 +453,13 @@ static const intel_limit_t intel_limits_g4x_display_port = {
         .find_pll = intel_find_pll_g4x_dp,
 };
 
-static const intel_limit_t intel_limits_igd_sdvo = {
+static const intel_limit_t intel_limits_pineview_sdvo = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
-        .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
-        .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
-        .m   = { .min = IGD_M_MIN,		.max = IGD_M_MAX },
-        .m1  = { .min = IGD_M1_MIN,		.max = IGD_M1_MAX },
-        .m2  = { .min = IGD_M2_MIN,		.max = IGD_M2_MAX },
+        .vco = { .min = PINEVIEW_VCO_MIN,		.max = PINEVIEW_VCO_MAX },
+        .n   = { .min = PINEVIEW_N_MIN,		.max = PINEVIEW_N_MAX },
+        .m   = { .min = PINEVIEW_M_MIN,		.max = PINEVIEW_M_MAX },
+        .m1  = { .min = PINEVIEW_M1_MIN,		.max = PINEVIEW_M1_MAX },
+        .m2  = { .min = PINEVIEW_M2_MIN,		.max = PINEVIEW_M2_MAX },
         .p   = { .min = I9XX_P_SDVO_DAC_MIN,    .max = I9XX_P_SDVO_DAC_MAX },
         .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
@@ -468,59 +468,59 @@ static const intel_limit_t intel_limits_igd_sdvo = {
 	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
-static const intel_limit_t intel_limits_igd_lvds = {
+static const intel_limit_t intel_limits_pineview_lvds = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
-        .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
-        .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
-        .m   = { .min = IGD_M_MIN,		.max = IGD_M_MAX },
-        .m1  = { .min = IGD_M1_MIN,		.max = IGD_M1_MAX },
-        .m2  = { .min = IGD_M2_MIN,		.max = IGD_M2_MAX },
-        .p   = { .min = IGD_P_LVDS_MIN,	.max = IGD_P_LVDS_MAX },
+        .vco = { .min = PINEVIEW_VCO_MIN,		.max = PINEVIEW_VCO_MAX },
+        .n   = { .min = PINEVIEW_N_MIN,		.max = PINEVIEW_N_MAX },
+        .m   = { .min = PINEVIEW_M_MIN,		.max = PINEVIEW_M_MAX },
+        .m1  = { .min = PINEVIEW_M1_MIN,		.max = PINEVIEW_M1_MAX },
+        .m2  = { .min = PINEVIEW_M2_MIN,		.max = PINEVIEW_M2_MAX },
+        .p   = { .min = PINEVIEW_P_LVDS_MIN,	.max = PINEVIEW_P_LVDS_MAX },
         .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
-	/* IGD only supports single-channel mode. */
+	/* Pineview only supports single-channel mode. */
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
 	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
-static const intel_limit_t intel_limits_igdng_sdvo = {
-	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
-	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
-	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
-	.m   = { .min = IGDNG_M_MIN,            .max = IGDNG_M_MAX },
-	.m1  = { .min = IGDNG_M1_MIN,           .max = IGDNG_M1_MAX },
-	.m2  = { .min = IGDNG_M2_MIN,           .max = IGDNG_M2_MAX },
-	.p   = { .min = IGDNG_P_SDVO_DAC_MIN,   .max = IGDNG_P_SDVO_DAC_MAX },
-	.p1  = { .min = IGDNG_P1_MIN,           .max = IGDNG_P1_MAX },
-	.p2  = { .dot_limit = IGDNG_P2_DOT_LIMIT,
-		 .p2_slow = IGDNG_P2_SDVO_DAC_SLOW,
-		 .p2_fast = IGDNG_P2_SDVO_DAC_FAST },
-	.find_pll = intel_igdng_find_best_PLL,
+static const intel_limit_t intel_limits_ironlake_sdvo = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
+	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_P_SDVO_DAC_MIN,   .max = IRONLAKE_P_SDVO_DAC_MAX },
+	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_P2_SDVO_DAC_SLOW,
+		 .p2_fast = IRONLAKE_P2_SDVO_DAC_FAST },
+	.find_pll = intel_ironlake_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_igdng_lvds = {
-	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
-	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
-	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
-	.m   = { .min = IGDNG_M_MIN,            .max = IGDNG_M_MAX },
-	.m1  = { .min = IGDNG_M1_MIN,           .max = IGDNG_M1_MAX },
-	.m2  = { .min = IGDNG_M2_MIN,           .max = IGDNG_M2_MAX },
-	.p   = { .min = IGDNG_P_LVDS_MIN,       .max = IGDNG_P_LVDS_MAX },
-	.p1  = { .min = IGDNG_P1_MIN,           .max = IGDNG_P1_MAX },
-	.p2  = { .dot_limit = IGDNG_P2_DOT_LIMIT,
-		 .p2_slow = IGDNG_P2_LVDS_SLOW,
-		 .p2_fast = IGDNG_P2_LVDS_FAST },
-	.find_pll = intel_igdng_find_best_PLL,
+static const intel_limit_t intel_limits_ironlake_lvds = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
+	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_P_LVDS_MIN,       .max = IRONLAKE_P_LVDS_MAX },
+	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_P2_LVDS_SLOW,
+		 .p2_fast = IRONLAKE_P2_LVDS_FAST },
+	.find_pll = intel_ironlake_find_best_PLL,
 };
 
-static const intel_limit_t *intel_igdng_limit(struct drm_crtc *crtc)
+static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
 {
 	const intel_limit_t *limit;
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &intel_limits_igdng_lvds;
+		limit = &intel_limits_ironlake_lvds;
 	else
-		limit = &intel_limits_igdng_sdvo;
+		limit = &intel_limits_ironlake_sdvo;
 
 	return limit;
 }
@@ -557,20 +557,20 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	const intel_limit_t *limit;
 
-	if (IS_IGDNG(dev))
-		limit = intel_igdng_limit(crtc);
+	if (IS_IRONLAKE(dev))
+		limit = intel_ironlake_limit(crtc);
 	else if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc);
-	} else if (IS_I9XX(dev) && !IS_IGD(dev)) {
+	} else if (IS_I9XX(dev) && !IS_PINEVIEW(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i9xx_lvds;
 		else
 			limit = &intel_limits_i9xx_sdvo;
-	} else if (IS_IGD(dev)) {
+	} else if (IS_PINEVIEW(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits_igd_lvds;
+			limit = &intel_limits_pineview_lvds;
 		else
-			limit = &intel_limits_igd_sdvo;
+			limit = &intel_limits_pineview_sdvo;
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i8xx_lvds;
@@ -580,8 +580,8 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-/* m1 is reserved as 0 in IGD, n is a ring counter */
-static void igd_clock(int refclk, intel_clock_t *clock)
+/* m1 is reserved as 0 in Pineview, n is a ring counter */
+static void pineview_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
@@ -591,8 +591,8 @@ static void igd_clock(int refclk, intel_clock_t *clock)
 
 static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock)
 {
-	if (IS_IGD(dev)) {
-		igd_clock(refclk, clock);
+	if (IS_PINEVIEW(dev)) {
+		pineview_clock(refclk, clock);
 		return;
 	}
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
@@ -657,7 +657,7 @@ static bool intel_PLL_is_valid(struct drm_crtc *crtc, intel_clock_t *clock)
 		INTELPllInvalid ("m2 out of range\n");
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
 		INTELPllInvalid ("m1 out of range\n");
-	if (clock->m1 <= clock->m2 && !IS_IGD(dev))
+	if (clock->m1 <= clock->m2 && !IS_PINEVIEW(dev))
 		INTELPllInvalid ("m1 <= m2\n");
 	if (clock->m   < limit->m.min   || limit->m.max   < clock->m)
 		INTELPllInvalid ("m out of range\n");
@@ -710,8 +710,8 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	     clock.m1++) {
 		for (clock.m2 = limit->m2.min;
 		     clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in IGD */
-			if (clock.m2 >= clock.m1 && !IS_IGD(dev))
+			/* m1 is always 0 in Pineview */
+			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
 				break;
 			for (clock.n = limit->n.min;
 			     clock.n <= limit->n.max; clock.n++) {
@@ -752,8 +752,8 @@ intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
 		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in IGD */
-			if (clock.m2 >= clock.m1 && !IS_IGD(dev))
+			/* m1 is always 0 in Pineview */
+			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
 				break;
 			for (clock.n = limit->n.min; clock.n <= limit->n.max;
 			     clock.n++) {
@@ -834,8 +834,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
-intel_find_pll_igdng_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock)
+intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
+			   int target, int refclk, intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -858,8 +858,8 @@ intel_find_pll_igdng_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
-intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock)
+intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
+			     int target, int refclk, intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -872,7 +872,7 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		return true;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
-		return intel_find_pll_igdng_dp(limit, crtc, target,
+		return intel_find_pll_ironlake_dp(limit, crtc, target,
 					       refclk, best_clock);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -1322,7 +1322,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			dspcntr &= ~DISPPLANE_TILED;
 	}
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		/* must disable */
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
@@ -1383,7 +1383,7 @@ static void i915_disable_vga (struct drm_device *dev)
 	u8 sr1;
 	u32 vga_reg;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		vga_reg = CPU_VGACNTRL;
 	else
 		vga_reg = VGACNTRL;
@@ -1399,7 +1399,7 @@ static void i915_disable_vga (struct drm_device *dev)
 	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
 }
 
-static void igdng_disable_pll_edp (struct drm_crtc *crtc)
+static void ironlake_disable_pll_edp (struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1411,7 +1411,7 @@ static void igdng_disable_pll_edp (struct drm_crtc *crtc)
 	I915_WRITE(DP_A, dpa_ctl);
 }
 
-static void igdng_enable_pll_edp (struct drm_crtc *crtc)
+static void ironlake_enable_pll_edp (struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1424,7 +1424,7 @@ static void igdng_enable_pll_edp (struct drm_crtc *crtc)
 }
 
 
-static void igdng_set_pll_edp (struct drm_crtc *crtc, int clock)
+static void ironlake_set_pll_edp (struct drm_crtc *crtc, int clock)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1460,7 +1460,7 @@ static void igdng_set_pll_edp (struct drm_crtc *crtc, int clock)
 	udelay(500);
 }
 
-static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1513,7 +1513,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		if (HAS_eDP) {
 			/* enable eDP PLL */
-			igdng_enable_pll_edp(crtc);
+			ironlake_enable_pll_edp(crtc);
 		} else {
 			/* enable PCH DPLL */
 			temp = I915_READ(pch_dpll_reg);
@@ -1530,7 +1530,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(fdi_rx_reg);
 			udelay(200);
 
-			/* Enable CPU FDI TX PLL, always on for IGDNG */
+			/* Enable CPU FDI TX PLL, always on for Ironlake */
 			temp = I915_READ(fdi_tx_reg);
 			if ((temp & FDI_TX_PLL_ENABLE) == 0) {
 				I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
@@ -1800,7 +1800,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		if (HAS_eDP) {
-			igdng_disable_pll_edp(crtc);
+			ironlake_disable_pll_edp(crtc);
 		}
 
 		temp = I915_READ(fdi_rx_reg);
@@ -2042,7 +2042,7 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		/* FDI link clock is fixed at 2.7G */
 		if (mode->clock * 3 > 27000 * 4)
 			return MODE_CLOCK_HIGH;
@@ -2162,9 +2162,8 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 #define LINK_N 0x80000
 
 static void
-igdng_compute_m_n(int bits_per_pixel, int nlanes,
-		int pixel_clock, int link_clock,
-		struct fdi_m_n *m_n)
+ironlake_compute_m_n(int bits_per_pixel, int nlanes, int pixel_clock,
+		     int link_clock, struct fdi_m_n *m_n)
 {
 	u64 temp;
 
@@ -2192,34 +2191,34 @@ struct intel_watermark_params {
 	unsigned long cacheline_size;
 };
 
-/* IGD has different values for various configs */
-static struct intel_watermark_params igd_display_wm = {
-	IGD_DISPLAY_FIFO,
-	IGD_MAX_WM,
-	IGD_DFT_WM,
-	IGD_GUARD_WM,
-	IGD_FIFO_LINE_SIZE
+/* Pineview has different values for various configs */
+static struct intel_watermark_params pineview_display_wm = {
+	PINEVIEW_DISPLAY_FIFO,
+	PINEVIEW_MAX_WM,
+	PINEVIEW_DFT_WM,
+	PINEVIEW_GUARD_WM,
+	PINEVIEW_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params igd_display_hplloff_wm = {
-	IGD_DISPLAY_FIFO,
-	IGD_MAX_WM,
-	IGD_DFT_HPLLOFF_WM,
-	IGD_GUARD_WM,
-	IGD_FIFO_LINE_SIZE
+static struct intel_watermark_params pineview_display_hplloff_wm = {
+	PINEVIEW_DISPLAY_FIFO,
+	PINEVIEW_MAX_WM,
+	PINEVIEW_DFT_HPLLOFF_WM,
+	PINEVIEW_GUARD_WM,
+	PINEVIEW_FIFO_LINE_SIZE
 };
-static struct intel_watermark_params igd_cursor_wm = {
-	IGD_CURSOR_FIFO,
-	IGD_CURSOR_MAX_WM,
-	IGD_CURSOR_DFT_WM,
-	IGD_CURSOR_GUARD_WM,
-	IGD_FIFO_LINE_SIZE,
+static struct intel_watermark_params pineview_cursor_wm = {
+	PINEVIEW_CURSOR_FIFO,
+	PINEVIEW_CURSOR_MAX_WM,
+	PINEVIEW_CURSOR_DFT_WM,
+	PINEVIEW_CURSOR_GUARD_WM,
+	PINEVIEW_FIFO_LINE_SIZE,
 };
-static struct intel_watermark_params igd_cursor_hplloff_wm = {
-	IGD_CURSOR_FIFO,
-	IGD_CURSOR_MAX_WM,
-	IGD_CURSOR_DFT_WM,
-	IGD_CURSOR_GUARD_WM,
-	IGD_FIFO_LINE_SIZE
+static struct intel_watermark_params pineview_cursor_hplloff_wm = {
+	PINEVIEW_CURSOR_FIFO,
+	PINEVIEW_CURSOR_MAX_WM,
+	PINEVIEW_CURSOR_DFT_WM,
+	PINEVIEW_CURSOR_GUARD_WM,
+	PINEVIEW_FIFO_LINE_SIZE
 };
 static struct intel_watermark_params g4x_wm_info = {
 	G4X_FIFO_SIZE,
@@ -2363,36 +2362,36 @@ static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
 	return NULL;
 }
 
-static void igd_disable_cxsr(struct drm_device *dev)
+static void pineview_disable_cxsr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 
 	/* deactivate cxsr */
 	reg = I915_READ(DSPFW3);
-	reg &= ~(IGD_SELF_REFRESH_EN);
+	reg &= ~(PINEVIEW_SELF_REFRESH_EN);
 	I915_WRITE(DSPFW3, reg);
 	DRM_INFO("Big FIFO is disabled\n");
 }
 
-static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
-			    int pixel_size)
+static void pineview_enable_cxsr(struct drm_device *dev, unsigned long clock,
+				 int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 	unsigned long wm;
 	struct cxsr_latency *latency;
 
-	latency = intel_get_cxsr_latency(IS_IGDG(dev), dev_priv->fsb_freq,
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
 		dev_priv->mem_freq);
 	if (!latency) {
 		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
-		igd_disable_cxsr(dev);
+		pineview_disable_cxsr(dev);
 		return;
 	}
 
 	/* Display SR */
-	wm = intel_calculate_wm(clock, &igd_display_wm, pixel_size,
+	wm = intel_calculate_wm(clock, &pineview_display_wm, pixel_size,
 				latency->display_sr);
 	reg = I915_READ(DSPFW1);
 	reg &= 0x7fffff;
@@ -2401,7 +2400,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
 	/* cursor SR */
-	wm = intel_calculate_wm(clock, &igd_cursor_wm, pixel_size,
+	wm = intel_calculate_wm(clock, &pineview_cursor_wm, pixel_size,
 				latency->cursor_sr);
 	reg = I915_READ(DSPFW3);
 	reg &= ~(0x3f << 24);
@@ -2409,7 +2408,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	I915_WRITE(DSPFW3, reg);
 
 	/* Display HPLL off SR */
-	wm = intel_calculate_wm(clock, &igd_display_hplloff_wm,
+	wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
 		latency->display_hpll_disable, I915_FIFO_LINE_SIZE);
 	reg = I915_READ(DSPFW3);
 	reg &= 0xfffffe00;
@@ -2417,7 +2416,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	I915_WRITE(DSPFW3, reg);
 
 	/* cursor HPLL off SR */
-	wm = intel_calculate_wm(clock, &igd_cursor_hplloff_wm, pixel_size,
+	wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm, pixel_size,
 				latency->cursor_hpll_disable);
 	reg = I915_READ(DSPFW3);
 	reg &= ~(0x3f << 16);
@@ -2427,7 +2426,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 
 	/* activate cxsr */
 	reg = I915_READ(DSPFW3);
-	reg |= IGD_SELF_REFRESH_EN;
+	reg |= PINEVIEW_SELF_REFRESH_EN;
 	I915_WRITE(DSPFW3, reg);
 
 	DRM_INFO("Big FIFO is enabled\n");
@@ -2786,10 +2785,10 @@ static void intel_update_watermarks(struct drm_device *dev)
 		return;
 
 	/* Single plane configs can enable self refresh */
-	if (enabled == 1 && IS_IGD(dev))
-		igd_enable_cxsr(dev, sr_clock, pixel_size);
-	else if (IS_IGD(dev))
-		igd_disable_cxsr(dev);
+	if (enabled == 1 && IS_PINEVIEW(dev))
+		pineview_enable_cxsr(dev, sr_clock, pixel_size);
+	else if (IS_PINEVIEW(dev))
+		pineview_disable_cxsr(dev);
 
 	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
 				    sr_hdisplay, pixel_size);
@@ -2887,7 +2886,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 					refclk / 1000);
 	} else if (IS_I9XX(dev)) {
 		refclk = 96000;
-		if (IS_IGDNG(dev))
+		if (IS_IRONLAKE(dev))
 			refclk = 120000; /* 120Mhz refclk */
 	} else {
 		refclk = 48000;
@@ -2947,7 +2946,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* FDI link */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		int lane, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
@@ -2989,8 +2988,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			bpp = 24;
 		}
 
-		igdng_compute_m_n(bpp, lane, target_clock,
-				  link_bw, &m_n);
+		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
 	}
 
 	/* Ironlake: try to setup display ref clock before DPLL
@@ -2998,7 +2996,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	 * PCH B stepping, previous chipset stepping should be
 	 * ignoring this setting.
 	 */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		temp = I915_READ(PCH_DREF_CONTROL);
 		/* Always enable nonspread source */
 		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
@@ -3033,7 +3031,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (IS_IGD(dev)) {
+	if (IS_PINEVIEW(dev)) {
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
 		if (has_reduced_clock)
 			fp2 = (1 << reduced_clock.n) << 16 |
@@ -3045,7 +3043,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				reduced_clock.m2;
 	}
 
-	if (!IS_IGDNG(dev))
+	if (!IS_IRONLAKE(dev))
 		dpll = DPLL_VGA_MODE_DIS;
 
 	if (IS_I9XX(dev)) {
@@ -3058,19 +3056,19 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
 			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-			else if (IS_IGDNG(dev))
+			else if (IS_IRONLAKE(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
 		if (is_dp)
 			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
-		if (IS_IGD(dev))
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_IGD;
+		if (IS_PINEVIEW(dev))
+			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
 		else {
 			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 			/* also FPA1 */
-			if (IS_IGDNG(dev))
+			if (IS_IRONLAKE(dev))
 				dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 			if (IS_G4X(dev) && has_reduced_clock)
 				dpll |= (1 << (reduced_clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
@@ -3089,7 +3087,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 			break;
 		}
-		if (IS_I965G(dev) && !IS_IGDNG(dev))
+		if (IS_I965G(dev) && !IS_IRONLAKE(dev))
 			dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
 	} else {
 		if (is_lvds) {
@@ -3121,9 +3119,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
-	/* IGDNG's plane is forced to pipe, bit 24 is to
+	/* Ironlake's plane is forced to pipe, bit 24 is to
 	   enable color space conversion */
-	if (!IS_IGDNG(dev)) {
+	if (!IS_IRONLAKE(dev)) {
 		if (pipe == 0)
 			dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
 		else
@@ -3150,20 +3148,20 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	/* Disable the panel fitter if it was on our pipe */
-	if (!IS_IGDNG(dev) && intel_panel_fitter_pipe(dev) == pipe)
+	if (!IS_IRONLAKE(dev) && intel_panel_fitter_pipe(dev) == pipe)
 		I915_WRITE(PFIT_CONTROL, 0);
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	/* assign to IGDNG registers */
-	if (IS_IGDNG(dev)) {
+	/* assign to Ironlake registers */
+	if (IS_IRONLAKE(dev)) {
 		fp_reg = pch_fp_reg;
 		dpll_reg = pch_dpll_reg;
 	}
 
 	if (is_edp) {
-		igdng_disable_pll_edp(crtc);
+		ironlake_disable_pll_edp(crtc);
 	} else if ((dpll & DPLL_VCO_ENABLE)) {
 		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
@@ -3178,7 +3176,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds) {
 		u32 lvds;
 
-		if (IS_IGDNG(dev))
+		if (IS_IRONLAKE(dev))
 			lvds_reg = PCH_LVDS;
 
 		lvds = I915_READ(lvds_reg);
@@ -3211,7 +3209,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* Wait for the clocks to stabilize. */
 		udelay(150);
 
-		if (IS_I965G(dev) && !IS_IGDNG(dev)) {
+		if (IS_I965G(dev) && !IS_IRONLAKE(dev)) {
 			if (is_sdvo) {
 				sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
 				I915_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
@@ -3258,21 +3256,21 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* pipesrc and dspsize control the size that is scaled from, which should
 	 * always be the user's requested size.
 	 */
-	if (!IS_IGDNG(dev)) {
+	if (!IS_IRONLAKE(dev)) {
 		I915_WRITE(dspsize_reg, ((mode->vdisplay - 1) << 16) |
 				(mode->hdisplay - 1));
 		I915_WRITE(dsppos_reg, 0);
 	}
 	I915_WRITE(pipesrc_reg, ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(data_m1_reg, TU_SIZE(m_n.tu) | m_n.gmch_m);
 		I915_WRITE(data_n1_reg, TU_SIZE(m_n.tu) | m_n.gmch_n);
 		I915_WRITE(link_m1_reg, m_n.link_m);
 		I915_WRITE(link_n1_reg, m_n.link_n);
 
 		if (is_edp) {
-			igdng_set_pll_edp(crtc, adjusted_mode->clock);
+			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 		} else {
 			/* enable FDI RX PLL too */
 			temp = I915_READ(fdi_rx_reg);
@@ -3286,7 +3284,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_wait_for_vblank(dev);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		/* enable address swizzle for tiling buffer */
 		temp = I915_READ(DISP_ARB_CTL);
 		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
@@ -3320,8 +3318,8 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->enabled)
 		return;
 
-	/* use legacy palette for IGDNG */
-	if (IS_IGDNG(dev))
+	/* use legacy palette for Ironlake */
+	if (IS_IRONLAKE(dev))
 		palreg = (intel_crtc->pipe == 0) ? LGC_PALETTE_A :
 						   LGC_PALETTE_B;
 
@@ -3662,18 +3660,18 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		fp = I915_READ((pipe == 0) ? FPA1 : FPB1);
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
-	if (IS_IGD(dev)) {
-		clock.n = ffs((fp & FP_N_IGD_DIV_MASK) >> FP_N_DIV_SHIFT) - 1;
-		clock.m2 = (fp & FP_M2_IGD_DIV_MASK) >> FP_M2_DIV_SHIFT;
+	if (IS_PINEVIEW(dev)) {
+		clock.n = ffs((fp & FP_N_PINEVIEW_DIV_MASK) >> FP_N_DIV_SHIFT) - 1;
+		clock.m2 = (fp & FP_M2_PINEVIEW_DIV_MASK) >> FP_M2_DIV_SHIFT;
 	} else {
 		clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
 		clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
 	}
 
 	if (IS_I9XX(dev)) {
-		if (IS_IGD(dev))
-			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_IGD) >>
-				DPLL_FPA01_P1_POST_DIV_SHIFT_IGD);
+		if (IS_PINEVIEW(dev))
+			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW) >>
+				DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW);
 		else
 			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
 			       DPLL_FPA01_P1_POST_DIV_SHIFT);
@@ -3785,7 +3783,7 @@ void intel_increase_renderclock(struct drm_device *dev, bool schedule)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
@@ -3810,7 +3808,7 @@ void intel_decrease_renderclock(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
@@ -3882,7 +3880,7 @@ void intel_decrease_renderclock(struct drm_device *dev)
  */
 void intel_decrease_displayclock(struct drm_device *dev)
 {
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		return;
 
 	if (IS_I945G(dev) || IS_I945GM(dev) || IS_I915G(dev) ||
@@ -3924,7 +3922,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 	int dpll = I915_READ(dpll_reg);
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		return;
 
 	if (!dev_priv->lvds_downclock_avail)
@@ -3963,7 +3961,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 	int dpll = I915_READ(dpll_reg);
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		return;
 
 	if (!dev_priv->lvds_downclock_avail)
@@ -4370,7 +4368,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		intel_lvds_init(dev);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		int found;
 
 		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
@@ -4537,7 +4535,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * Disable clock gating reported to work incorrectly according to the
 	 * specs, but enable as much else as we can.
 	 */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
@@ -4620,8 +4618,8 @@ static void intel_init_display(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* We always want a DPMS function */
-	if (IS_IGDNG(dev))
-		dev_priv->display.dpms = igdng_crtc_dpms;
+	if (IS_IRONLAKE(dev))
+		dev_priv->display.dpms = ironlake_crtc_dpms;
 	else
 		dev_priv->display.dpms = i9xx_crtc_dpms;
 
@@ -4640,13 +4638,13 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_I945G(dev) || (IS_G33(dev) && ! IS_IGDGM(dev)))
+	if (IS_I945G(dev) || (IS_G33(dev) && ! IS_PINEVIEW_M(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_I915G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i915_get_display_clock_speed;
-	else if (IS_I945GM(dev) || IS_845G(dev) || IS_IGDGM(dev))
+	else if (IS_I945GM(dev) || IS_845G(dev) || IS_PINEVIEW_M(dev))
 		dev_priv->display.get_display_clock_speed =
 			i9xx_misc_get_display_clock_speed;
 	else if (IS_I915GM(dev))
@@ -4663,7 +4661,7 @@ static void intel_init_display(struct drm_device *dev)
 			i830_get_display_clock_speed;
 
 	/* For FIFO watermark updates */
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		dev_priv->display.update_wm = NULL;
 	else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
@@ -4741,9 +4739,9 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
-	if (IS_IGD(dev) && !intel_get_cxsr_latency(IS_IGDG(dev),
-						   dev_priv->fsb_freq,
-						   dev_priv->mem_freq))
+	if (IS_PINEVIEW(dev) && !intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
+							dev_priv->fsb_freq,
+							dev_priv->mem_freq))
 		DRM_INFO("failed to find known CxSR latency "
 			 "(found fsb freq %d, mem freq %d), disabling CxSR\n",
 			 dev_priv->fsb_freq, dev_priv->mem_freq);

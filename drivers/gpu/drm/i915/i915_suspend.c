@@ -34,7 +34,7 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32	dpll_reg;
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dpll_reg = (pipe == PIPE_A) ? PCH_DPLL_A: PCH_DPLL_B;
 	} else {
 		dpll_reg = (pipe == PIPE_A) ? DPLL_A: DPLL_B;
@@ -53,7 +53,7 @@ static void i915_save_palette(struct drm_device *dev, enum pipe pipe)
 	if (!i915_pipe_enabled(dev, pipe))
 		return;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		reg = (pipe == PIPE_A) ? LGC_PALETTE_A : LGC_PALETTE_B;
 
 	if (pipe == PIPE_A)
@@ -75,7 +75,7 @@ static void i915_restore_palette(struct drm_device *dev, enum pipe pipe)
 	if (!i915_pipe_enabled(dev, pipe))
 		return;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		reg = (pipe == PIPE_A) ? LGC_PALETTE_A : LGC_PALETTE_B;
 
 	if (pipe == PIPE_A)
@@ -242,7 +242,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
 	dev_priv->savePIPEASRC = I915_READ(PIPEASRC);
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveFPA0 = I915_READ(PCH_FPA0);
 		dev_priv->saveFPA1 = I915_READ(PCH_FPA1);
 		dev_priv->saveDPLL_A = I915_READ(PCH_DPLL_A);
@@ -251,7 +251,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveFPA1 = I915_READ(FPA1);
 		dev_priv->saveDPLL_A = I915_READ(DPLL_A);
 	}
-	if (IS_I965G(dev) && !IS_IGDNG(dev))
+	if (IS_I965G(dev) && !IS_IRONLAKE(dev))
 		dev_priv->saveDPLL_A_MD = I915_READ(DPLL_A_MD);
 	dev_priv->saveHTOTAL_A = I915_READ(HTOTAL_A);
 	dev_priv->saveHBLANK_A = I915_READ(HBLANK_A);
@@ -259,10 +259,10 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	dev_priv->saveVTOTAL_A = I915_READ(VTOTAL_A);
 	dev_priv->saveVBLANK_A = I915_READ(VBLANK_A);
 	dev_priv->saveVSYNC_A = I915_READ(VSYNC_A);
-	if (!IS_IGDNG(dev))
+	if (!IS_IRONLAKE(dev))
 		dev_priv->saveBCLRPAT_A = I915_READ(BCLRPAT_A);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveFDI_TXA_CTL = I915_READ(FDI_TXA_CTL);
 		dev_priv->saveFDI_RXA_CTL = I915_READ(FDI_RXA_CTL);
 
@@ -293,7 +293,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	/* Pipe & plane B info */
 	dev_priv->savePIPEBCONF = I915_READ(PIPEBCONF);
 	dev_priv->savePIPEBSRC = I915_READ(PIPEBSRC);
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveFPB0 = I915_READ(PCH_FPB0);
 		dev_priv->saveFPB1 = I915_READ(PCH_FPB1);
 		dev_priv->saveDPLL_B = I915_READ(PCH_DPLL_B);
@@ -302,7 +302,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveFPB1 = I915_READ(FPB1);
 		dev_priv->saveDPLL_B = I915_READ(DPLL_B);
 	}
-	if (IS_I965G(dev) && !IS_IGDNG(dev))
+	if (IS_I965G(dev) && !IS_IRONLAKE(dev))
 		dev_priv->saveDPLL_B_MD = I915_READ(DPLL_B_MD);
 	dev_priv->saveHTOTAL_B = I915_READ(HTOTAL_B);
 	dev_priv->saveHBLANK_B = I915_READ(HBLANK_B);
@@ -310,10 +310,10 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	dev_priv->saveVTOTAL_B = I915_READ(VTOTAL_B);
 	dev_priv->saveVBLANK_B = I915_READ(VBLANK_B);
 	dev_priv->saveVSYNC_B = I915_READ(VSYNC_B);
-	if (!IS_IGDNG(dev))
+	if (!IS_IRONLAKE(dev))
 		dev_priv->saveBCLRPAT_B = I915_READ(BCLRPAT_B);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveFDI_TXB_CTL = I915_READ(FDI_TXB_CTL);
 		dev_priv->saveFDI_RXB_CTL = I915_READ(FDI_RXB_CTL);
 
@@ -352,7 +352,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dpll_a_reg = PCH_DPLL_A;
 		dpll_b_reg = PCH_DPLL_B;
 		fpa0_reg = PCH_FPA0;
@@ -380,7 +380,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	/* Actually enable it */
 	I915_WRITE(dpll_a_reg, dev_priv->saveDPLL_A);
 	DRM_UDELAY(150);
-	if (IS_I965G(dev) && !IS_IGDNG(dev))
+	if (IS_I965G(dev) && !IS_IRONLAKE(dev))
 		I915_WRITE(DPLL_A_MD, dev_priv->saveDPLL_A_MD);
 	DRM_UDELAY(150);
 
@@ -391,10 +391,10 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(VTOTAL_A, dev_priv->saveVTOTAL_A);
 	I915_WRITE(VBLANK_A, dev_priv->saveVBLANK_A);
 	I915_WRITE(VSYNC_A, dev_priv->saveVSYNC_A);
-	if (!IS_IGDNG(dev))
+	if (!IS_IRONLAKE(dev))
 		I915_WRITE(BCLRPAT_A, dev_priv->saveBCLRPAT_A);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(FDI_RXA_CTL, dev_priv->saveFDI_RXA_CTL);
 		I915_WRITE(FDI_TXA_CTL, dev_priv->saveFDI_TXA_CTL);
 
@@ -450,10 +450,10 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(VTOTAL_B, dev_priv->saveVTOTAL_B);
 	I915_WRITE(VBLANK_B, dev_priv->saveVBLANK_B);
 	I915_WRITE(VSYNC_B, dev_priv->saveVSYNC_B);
-	if (!IS_IGDNG(dev))
+	if (!IS_IRONLAKE(dev))
 		I915_WRITE(BCLRPAT_B, dev_priv->saveBCLRPAT_B);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(FDI_RXB_CTL, dev_priv->saveFDI_RXB_CTL);
 		I915_WRITE(FDI_TXB_CTL, dev_priv->saveFDI_TXB_CTL);
 
@@ -512,14 +512,14 @@ void i915_save_display(struct drm_device *dev)
 		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
 
 	/* CRT state */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveADPA = I915_READ(PCH_ADPA);
 	} else {
 		dev_priv->saveADPA = I915_READ(ADPA);
 	}
 
 	/* LVDS state */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->savePP_CONTROL = I915_READ(PCH_PP_CONTROL);
 		dev_priv->saveBLC_PWM_CTL = I915_READ(BLC_PWM_PCH_CTL1);
 		dev_priv->saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_PCH_CTL2);
@@ -537,10 +537,10 @@ void i915_save_display(struct drm_device *dev)
 			dev_priv->saveLVDS = I915_READ(LVDS);
 	}
 
-	if (!IS_I830(dev) && !IS_845G(dev) && !IS_IGDNG(dev))
+	if (!IS_I830(dev) && !IS_845G(dev) && !IS_IRONLAKE(dev))
 		dev_priv->savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->savePP_ON_DELAYS = I915_READ(PCH_PP_ON_DELAYS);
 		dev_priv->savePP_OFF_DELAYS = I915_READ(PCH_PP_OFF_DELAYS);
 		dev_priv->savePP_DIVISOR = I915_READ(PCH_PP_DIVISOR);
@@ -580,7 +580,7 @@ void i915_save_display(struct drm_device *dev)
 	dev_priv->saveVGA0 = I915_READ(VGA0);
 	dev_priv->saveVGA1 = I915_READ(VGA1);
 	dev_priv->saveVGA_PD = I915_READ(VGA_PD);
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		dev_priv->saveVGACNTRL = I915_READ(CPU_VGACNTRL);
 	else
 		dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
@@ -622,24 +622,24 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
 
 	/* CRT state */
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		I915_WRITE(PCH_ADPA, dev_priv->saveADPA);
 	else
 		I915_WRITE(ADPA, dev_priv->saveADPA);
 
 	/* LVDS state */
-	if (IS_I965G(dev) && !IS_IGDNG(dev))
+	if (IS_I965G(dev) && !IS_IRONLAKE(dev))
 		I915_WRITE(BLC_PWM_CTL2, dev_priv->saveBLC_PWM_CTL2);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(PCH_LVDS, dev_priv->saveLVDS);
 	} else if (IS_MOBILE(dev) && !IS_I830(dev))
 		I915_WRITE(LVDS, dev_priv->saveLVDS);
 
-	if (!IS_I830(dev) && !IS_845G(dev) && !IS_IGDNG(dev))
+	if (!IS_I830(dev) && !IS_845G(dev) && !IS_IRONLAKE(dev))
 		I915_WRITE(PFIT_CONTROL, dev_priv->savePFIT_CONTROL);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(BLC_PWM_PCH_CTL1, dev_priv->saveBLC_PWM_CTL);
 		I915_WRITE(BLC_PWM_PCH_CTL2, dev_priv->saveBLC_PWM_CTL2);
 		I915_WRITE(BLC_PWM_CPU_CTL, dev_priv->saveBLC_CPU_PWM_CTL);
@@ -679,7 +679,7 @@ void i915_restore_display(struct drm_device *dev)
 	}
 
 	/* VGA state */
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		I915_WRITE(CPU_VGACNTRL, dev_priv->saveVGACNTRL);
 	else
 		I915_WRITE(VGACNTRL, dev_priv->saveVGACNTRL);
@@ -710,7 +710,7 @@ int i915_save_state(struct drm_device *dev)
 	i915_save_display(dev);
 
 	/* Interrupt state */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		dev_priv->saveDEIER = I915_READ(DEIER);
 		dev_priv->saveDEIMR = I915_READ(DEIMR);
 		dev_priv->saveGTIER = I915_READ(GTIER);
@@ -787,7 +787,7 @@ int i915_restore_state(struct drm_device *dev)
 	i915_restore_display(dev);
 
 	/* Interrupt state */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(DEIER, dev_priv->saveDEIER);
 		I915_WRITE(DEIMR, dev_priv->saveDEIMR);
 		I915_WRITE(GTIER, dev_priv->saveGTIER);

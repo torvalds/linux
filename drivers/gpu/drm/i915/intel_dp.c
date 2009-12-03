@@ -224,8 +224,8 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 */
 	if (IS_eDP(intel_output))
 		aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	else if (IS_IGDNG(dev))
-		aux_clock_divider = 62; /* IGDNG: input clock fixed at 125Mhz */
+	else if (IS_IRONLAKE(dev))
+		aux_clock_divider = 62; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
 
@@ -516,7 +516,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_dp_compute_m_n(3, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		if (intel_crtc->pipe == 0) {
 			I915_WRITE(TRANSA_DATA_M1,
 				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
@@ -608,7 +608,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
-static void igdng_edp_backlight_on (struct drm_device *dev)
+static void ironlake_edp_backlight_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
@@ -619,7 +619,7 @@ static void igdng_edp_backlight_on (struct drm_device *dev)
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
 
-static void igdng_edp_backlight_off (struct drm_device *dev)
+static void ironlake_edp_backlight_off (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
@@ -643,13 +643,13 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (dp_reg & DP_PORT_EN) {
 			intel_dp_link_down(intel_output, dp_priv->DP);
 			if (IS_eDP(intel_output))
-				igdng_edp_backlight_off(dev);
+				ironlake_edp_backlight_off(dev);
 		}
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
 			if (IS_eDP(intel_output))
-				igdng_edp_backlight_on(dev);
+				ironlake_edp_backlight_on(dev);
 		}
 	}
 	dp_priv->dpms_mode = mode;
@@ -1073,7 +1073,7 @@ intel_dp_check_link_status(struct intel_output *intel_output)
 }
 
 static enum drm_connector_status
-igdng_dp_detect(struct drm_connector *connector)
+ironlake_dp_detect(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
@@ -1108,8 +1108,8 @@ intel_dp_detect(struct drm_connector *connector)
 
 	dp_priv->has_audio = false;
 
-	if (IS_IGDNG(dev))
-		return igdng_dp_detect(connector);
+	if (IS_IRONLAKE(dev))
+		return ironlake_dp_detect(connector);
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 

@@ -167,7 +167,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (IS_I965G(dev) && (blc_pwm_ctl2 & BLM_COMBINATION_MODE))
 		pci_write_config_dword(dev->pdev, PCI_LBPC, bclp);
 	else {
-		if (IS_IGD(dev)) {
+		if (IS_PINEVIEW(dev)) {
 			blc_pwm_ctl &= ~(BACKLIGHT_DUTY_CYCLE_MASK - 1);
 			max_backlight = (blc_pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >> 
 					BACKLIGHT_MODULATION_FREQ_SHIFT;

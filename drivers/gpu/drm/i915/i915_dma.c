@@ -968,7 +968,7 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev) || IS_IGD(dev) || IS_IGDNG(dev))
+	if (IS_G4X(dev) || IS_PINEVIEW(dev) || IS_IRONLAKE(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
@@ -1054,7 +1054,7 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 	int gtt_offset, gtt_size;
 
 	if (IS_I965G(dev)) {
-		if (IS_G4X(dev) || IS_IGDNG(dev)) {
+		if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
 			gtt_offset = 2*1024*1024;
 			gtt_size = 2*1024*1024;
 		} else {
@@ -1312,7 +1312,7 @@ static void i915_get_mem_freq(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 tmp;
 
-	if (!IS_IGD(dev))
+	if (!IS_PINEVIEW(dev))
 		return;
 
 	tmp = I915_READ(CLKCFG);
@@ -1440,7 +1440,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_IGDNG(dev)) {
+	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}

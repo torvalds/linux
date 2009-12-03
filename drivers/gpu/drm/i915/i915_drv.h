@@ -209,7 +209,7 @@ typedef struct drm_i915_private {
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
 	u32 pipestat[2];
-	/** splitted irq regs for graphics and display engine on IGDNG,
+	/** splitted irq regs for graphics and display engine on Ironlake,
 	    irq_mask_reg is still used for display irq. */
 	u32 gt_irq_mask_reg;
 	u32 gt_irq_enable_reg;
@@ -1010,51 +1010,51 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		     (dev)->pci_device == 0x2E42 || \
 		     IS_GM45(dev))
 
-#define IS_IGDG(dev) ((dev)->pci_device == 0xa001)
-#define IS_IGDGM(dev) ((dev)->pci_device == 0xa011)
-#define IS_IGD(dev) (IS_IGDG(dev) || IS_IGDGM(dev))
+#define IS_PINEVIEW_G(dev) ((dev)->pci_device == 0xa001)
+#define IS_PINEVIEW_M(dev) ((dev)->pci_device == 0xa011)
+#define IS_PINEVIEW(dev) (IS_PINEVIEW_G(dev) || IS_PINEVIEW_M(dev))
 
 #define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
 			(dev)->pci_device == 0x29B2 ||	\
 			(dev)->pci_device == 0x29D2 ||  \
-			(IS_IGD(dev)))
+			(IS_PINEVIEW(dev)))
 
-#define IS_IGDNG_D(dev)	((dev)->pci_device == 0x0042)
-#define IS_IGDNG_M(dev)	((dev)->pci_device == 0x0046)
-#define IS_IGDNG(dev)	(IS_IGDNG_D(dev) || IS_IGDNG_M(dev))
+#define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
+#define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_IRONLAKE(dev)	(IS_IRONLAKE_D(dev) || IS_IRONLAKE_M(dev))
 
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
 		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev) || \
-		      IS_IGDNG(dev))
+		      IS_IRONLAKE(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
-			IS_IGD(dev) || IS_IGDNG_M(dev))
+			IS_PINEVIEW(dev) || IS_IRONLAKE_M(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev) || \
-				IS_IGDNG(dev))
+				IS_IRONLAKE(dev))
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
 #define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
-#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(IS_I9XX(dev) && !IS_IGD(dev))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
-#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
-#define SUPPORTS_EDP(dev)		(IS_IGDNG_M(dev))
+#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(IS_I9XX(dev) && !IS_PINEVIEW(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
+#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
+#define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(IS_I9XX(dev) && IS_MOBILE(dev) && \
-					!IS_IGDNG(dev) && !IS_IGD(dev))
+					!IS_IRONLAKE(dev) && !IS_PINEVIEW(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev) || IS_I965G(dev))
 /* dsparb controlled by hw only */
-#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
 
-#define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
-#define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+#define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IRONLAKE(dev))
+#define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
 #define I915_HAS_FBC(dev) (IS_MOBILE(dev) && \
 			   (IS_I9XX(dev) || IS_GM45(dev)) && \
-			   !IS_IGD(dev) && \
-			   !IS_IGDNG(dev))
-#define I915_HAS_RC6(dev) (IS_I965GM(dev) || IS_GM45(dev) || IS_IGDNG_M(dev))
+			   !IS_PINEVIEW(dev) && \
+			   !IS_IRONLAKE(dev))
+#define I915_HAS_RC6(dev) (IS_I965GM(dev) || IS_GM45(dev) || IS_IRONLAKE_M(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

@@ -451,7 +451,7 @@
 #define   DPLLB_LVDS_P2_CLOCK_DIV_7	(1 << 24) /* i915 */
 #define   DPLL_P2_CLOCK_DIV_MASK	0x03000000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000 /* i915 */
-#define   DPLL_FPA01_P1_POST_DIV_MASK_IGD	0x00ff8000 /* IGD */
+#define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
 
 #define I915_FIFO_UNDERRUN_STATUS		(1UL<<31)
 #define I915_CRC_ERROR_ENABLE			(1UL<<29)
@@ -528,7 +528,7 @@
  */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 #define   DPLL_FPA01_P1_POST_DIV_SHIFT	16
-#define   DPLL_FPA01_P1_POST_DIV_SHIFT_IGD 15
+#define   DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW 15
 /* i830, required in DVO non-gang */
 #define   PLL_P2_DIVIDE_BY_4		(1 << 23)
 #define   PLL_P1_DIVIDE_BY_TWO		(1 << 21) /* i830 */
@@ -538,7 +538,7 @@
 #define   PLLB_REF_INPUT_SPREADSPECTRUMIN (3 << 13)
 #define   PLL_REF_INPUT_MASK		(3 << 13)
 #define   PLL_LOAD_PULSE_PHASE_SHIFT		9
-/* IGDNG */
+/* Ironlake */
 # define PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT     9
 # define PLL_REF_SDVO_HDMI_MULTIPLIER_MASK      (7 << 9)
 # define PLL_REF_SDVO_HDMI_MULTIPLIER(x)	(((x)-1) << 9)
@@ -602,12 +602,12 @@
 #define FPB0	0x06048
 #define FPB1	0x0604c
 #define   FP_N_DIV_MASK		0x003f0000
-#define   FP_N_IGD_DIV_MASK	0x00ff0000
+#define   FP_N_PINEVIEW_DIV_MASK	0x00ff0000
 #define   FP_N_DIV_SHIFT		16
 #define   FP_M1_DIV_MASK	0x00003f00
 #define   FP_M1_DIV_SHIFT		 8
 #define   FP_M2_DIV_MASK	0x0000003f
-#define   FP_M2_IGD_DIV_MASK	0x000000ff
+#define   FP_M2_PINEVIEW_DIV_MASK	0x000000ff
 #define   FP_M2_DIV_SHIFT		 0
 #define DPLL_TEST	0x606c
 #define   DPLLB_TEST_SDVO_DIV_1		(0 << 22)
@@ -1634,7 +1634,7 @@
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
-#define   DP_SCRAMBLING_DISABLE_IGDNG	(1 << 7)
+#define   DP_SCRAMBLING_DISABLE_IRONLAKE	(1 << 7)
 
 /** limit RGB values to avoid confusing TVs */
 #define   DP_COLOR_RANGE_16_235		(1 << 8)
@@ -1822,7 +1822,7 @@
 #define DSPFW3			0x7003c
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24
-#define   IGD_SELF_REFRESH_EN	(1<<30)
+#define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
@@ -1838,16 +1838,16 @@
 #define G4X_MAX_WM		0x3f
 #define I915_MAX_WM		0x3f
 
-#define IGD_DISPLAY_FIFO	512 /* in 64byte unit */
-#define IGD_FIFO_LINE_SIZE	64
-#define IGD_MAX_WM		0x1ff
-#define IGD_DFT_WM		0x3f
-#define IGD_DFT_HPLLOFF_WM	0
-#define IGD_GUARD_WM		10
-#define IGD_CURSOR_FIFO		64
-#define IGD_CURSOR_MAX_WM	0x3f
-#define IGD_CURSOR_DFT_WM	0
-#define IGD_CURSOR_GUARD_WM	5
+#define PINEVIEW_DISPLAY_FIFO	512 /* in 64byte unit */
+#define PINEVIEW_FIFO_LINE_SIZE	64
+#define PINEVIEW_MAX_WM		0x1ff
+#define PINEVIEW_DFT_WM		0x3f
+#define PINEVIEW_DFT_HPLLOFF_WM	0
+#define PINEVIEW_GUARD_WM		10
+#define PINEVIEW_CURSOR_FIFO		64
+#define PINEVIEW_CURSOR_MAX_WM	0x3f
+#define PINEVIEW_CURSOR_DFT_WM	0
+#define PINEVIEW_CURSOR_GUARD_WM	5
 
 /*
  * The two pipe frame counter registers are not synchronized, so
@@ -1933,7 +1933,7 @@
 #define   DISPPLANE_NO_LINE_DOUBLE		0
 #define   DISPPLANE_STEREO_POLARITY_FIRST	0
 #define   DISPPLANE_STEREO_POLARITY_SECOND	(1<<18)
-#define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* IGDNG */
+#define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* Ironlake */
 #define   DISPPLANE_TILED			(1<<10)
 #define DSPAADDR		0x70184
 #define DSPASTRIDE		0x70188
@@ -1986,7 +1986,7 @@
 # define VGA_2X_MODE				(1 << 30)
 # define VGA_PIPE_B_SELECT			(1 << 29)
 
-/* IGDNG */
+/* Ironlake */
 
 #define CPU_VGACNTRL	0x41000
 
@@ -2315,7 +2315,7 @@
 #define  FDI_DP_PORT_WIDTH_X3           (2<<19)
 #define  FDI_DP_PORT_WIDTH_X4           (3<<19)
 #define  FDI_TX_ENHANCE_FRAME_ENABLE    (1<<18)
-/* IGDNG: hardwired to 1 */
+/* Ironlake: hardwired to 1 */
 #define  FDI_TX_PLL_ENABLE              (1<<14)
 /* both Tx and Rx */
 #define  FDI_SCRAMBLING_ENABLE          (0<<7)
