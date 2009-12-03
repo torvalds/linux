@@ -11,7 +11,6 @@ struct fib_rule {
 	struct list_head	list;
 	atomic_t		refcnt;
 	int			ifindex;
-	char			ifname[IFNAMSIZ];
 	u32			mark;
 	u32			mark_mask;
 	u32			pref;
@@ -20,6 +19,7 @@ struct fib_rule {
 	u8			action;
 	u32			target;
 	struct fib_rule *	ctarget;
+	char			ifname[IFNAMSIZ];
 	struct rcu_head		rcu;
 	struct net *		fr_net;
 };
