@@ -1329,8 +1329,7 @@ static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
 		                      r_idx + 1);
 	}
 
-	/* disable interrupts on this vector only */
-	ixgbe_irq_disable_queues(adapter, ((u64)1 << q_vector->v_idx));
+	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -1362,7 +1361,7 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 		return IRQ_HANDLED;
 
 	/* disable interrupts on this vector only */
-	ixgbe_irq_disable_queues(adapter, ((u64)1 << q_vector->v_idx));
+	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -1397,8 +1396,7 @@ static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
 		                      r_idx + 1);
 	}
 
-	/* disable interrupts on this vector only */
-	ixgbe_irq_disable_queues(adapter, ((u64)1 << q_vector->v_idx));
+	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -2716,7 +2714,22 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
 	}
 
-	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+		/*
+		 * use EIAM to auto-mask when MSI-X interrupt is asserted
+		 * this saves a register write for every interrupt
+		 */
+		switch (hw->mac.type) {
+		case ixgbe_mac_82598EB:
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
+			break;
+		default:
+		case ixgbe_mac_82599EB:
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(0), 0xFFFFFFFF);
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(1), 0xFFFFFFFF);
+			break;
+		}
+	} else {
 		/* legacy interrupts, use EIAM to auto-mask when reading EICR,
 		 * specifically only auto mask tx and rx interrupts */
 		IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
