@@ -68,6 +68,10 @@ struct io_context {
 	unsigned short ioprio;
 	unsigned short ioprio_changed;
 
+#ifdef CONFIG_BLK_CGROUP
+	unsigned short cgroup_changed;
+#endif
+
 	/*
 	 * For request batching
 	 */

@@ -23,6 +23,7 @@ config IOSCHED_DEADLINE
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
+	select BLK_CGROUP
 	default y
 	---help---
 	  The CFQ I/O scheduler tries to distribute bandwidth equally
