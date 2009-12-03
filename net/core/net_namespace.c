@@ -413,8 +413,11 @@ again:
 		}
 	}
 	error = __register_pernet_operations(list, ops);
-	if (error && ops->id)
-		ida_remove(&net_generic_ids, *ops->id);
+	if (error) {
+		rcu_barrier();
+		if (ops->id)
+			ida_remove(&net_generic_ids, *ops->id);
+	}
 
 	return error;
 }
@@ -423,6 +426,7 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 {
 	
 	__unregister_pernet_operations(ops);
+	rcu_barrier();
 	if (ops->id)
 		ida_remove(&net_generic_ids, *ops->id);
 }
