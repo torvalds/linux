@@ -411,6 +411,12 @@ static int cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	return 0;
 }
 
+static int cdc_manage_power(struct usbnet *dev, int on)
+{
+	dev->intf->needs_remote_wakeup = on;
+	return 0;
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_LINK_INTR,
@@ -418,6 +424,7 @@ static const struct driver_info	cdc_info = {
 	.bind =		cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	cdc_status,
+	.manage_power =	cdc_manage_power,
 };
 
 static const struct driver_info mbm_info = {
@@ -619,6 +626,7 @@ static struct usb_driver cdc_driver = {
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
 	.reset_resume =	usbnet_resume,
+	.supports_autosuspend = 1,
 };
 
 
