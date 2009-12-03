@@ -541,8 +541,8 @@ int mls_compute_sid(struct context *scontext,
 	case AVTAB_MEMBER:
 		/* Use the process effective MLS attributes. */
 		return mls_context_cpy_low(newcontext, scontext);
-	default:
-		return -EINVAL;
+
+	/* fall through */
 	}
 	return -EINVAL;
 }
