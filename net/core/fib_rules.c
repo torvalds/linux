@@ -72,7 +72,7 @@ static void flush_route_cache(struct fib_rules_ops *ops)
 		ops->flush_cache(ops);
 }
 
-int fib_rules_register(struct fib_rules_ops *ops)
+static int __fib_rules_register(struct fib_rules_ops *ops)
 {
 	int err = -EEXIST;
 	struct fib_rules_ops *o;
@@ -102,6 +102,28 @@ errout:
 	return err;
 }
 
+struct fib_rules_ops *
+fib_rules_register(struct fib_rules_ops *tmpl, struct net *net)
+{
+	struct fib_rules_ops *ops;
+	int err;
+
+	ops = kmemdup(tmpl, sizeof (*ops), GFP_KERNEL);
+	if (ops == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&ops->rules_list);
+	ops->fro_net = net;
+
+	err = __fib_rules_register(ops);
+	if (err) {
+		kfree(ops);
+		ops = ERR_PTR(err);
+	}
+
+	return ops;
+}
+
 EXPORT_SYMBOL_GPL(fib_rules_register);
 
 void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
@@ -115,6 +137,15 @@ void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 }
 EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
+static void fib_rules_put_rcu(struct rcu_head *head)
+{
+	struct fib_rules_ops *ops = container_of(head, struct fib_rules_ops, rcu);
+	struct net *net = ops->fro_net;
+
+	release_net(net);
+	kfree(ops);
+}
+
 void fib_rules_unregister(struct fib_rules_ops *ops)
 {
 	struct net *net = ops->fro_net;
@@ -124,8 +155,7 @@ void fib_rules_unregister(struct fib_rules_ops *ops)
 	fib_rules_cleanup_ops(ops);
 	spin_unlock(&net->rules_mod_lock);
 
-	synchronize_rcu();
-	release_net(net);
+	call_rcu(&ops->rcu, fib_rules_put_rcu);
 }
 
 EXPORT_SYMBOL_GPL(fib_rules_unregister);

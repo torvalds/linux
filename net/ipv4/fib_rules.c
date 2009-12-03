@@ -301,13 +301,9 @@ int __net_init fib4_rules_init(struct net *net)
 	int err;
 	struct fib_rules_ops *ops;
 
-	ops = kmemdup(&fib4_rules_ops_template, sizeof(*ops), GFP_KERNEL);
-	if (ops == NULL)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&ops->rules_list);
-	ops->fro_net = net;
-
-	fib_rules_register(ops);
+	ops = fib_rules_register(&fib4_rules_ops_template, net);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
 	err = fib_default_rules_init(ops);
 	if (err < 0)
@@ -318,12 +314,10 @@ int __net_init fib4_rules_init(struct net *net)
 fail:
 	/* also cleans all rules already added */
 	fib_rules_unregister(ops);
-	kfree(ops);
 	return err;
 }
 
 void __net_exit fib4_rules_exit(struct net *net)
 {
 	fib_rules_unregister(net->ipv4.rules_ops);
-	kfree(net->ipv4.rules_ops);
 }
