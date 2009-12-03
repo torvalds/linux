@@ -791,12 +791,10 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 		 */
 		if (!parent->power.disable_depth
 		    && !parent->power.ignore_children
-		    && parent->power.runtime_status != RPM_ACTIVE) {
+		    && parent->power.runtime_status != RPM_ACTIVE)
 			error = -EBUSY;
-		} else {
-			if (dev->power.runtime_status == RPM_SUSPENDED)
-				atomic_inc(&parent->power.child_count);
-		}
+		else if (dev->power.runtime_status == RPM_SUSPENDED)
+			atomic_inc(&parent->power.child_count);
 
 		spin_unlock(&parent->power.lock);
 
