@@ -609,7 +609,7 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 	 * it would never exet if it is currently stuck in the refrigerator.
 	 */
 	list_for_each_entry(wb, &bdi->wb_list, list) {
-		wb->task->flags &= ~PF_FROZEN;
+		thaw_process(wb->task);
 		kthread_stop(wb->task);
 	}
 }
