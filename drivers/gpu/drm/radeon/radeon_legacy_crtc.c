@@ -292,8 +292,7 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	uint32_t mask;
 
 	if (radeon_crtc->crtc_id)
-		mask = (RADEON_CRTC2_EN |
-			RADEON_CRTC2_DISP_DIS |
+		mask = (RADEON_CRTC2_DISP_DIS |
 			RADEON_CRTC2_VSYNC_DIS |
 			RADEON_CRTC2_HSYNC_DIS |
 			RADEON_CRTC2_DISP_REQ_EN_B);
@@ -305,7 +304,7 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		if (radeon_crtc->crtc_id)
-			WREG32_P(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_EN, ~mask);
+			WREG32_P(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_EN, ~(RADEON_CRTC2_EN | mask));
 		else {
 			WREG32_P(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_EN, ~(RADEON_CRTC_EN |
 									 RADEON_CRTC_DISP_REQ_EN_B));
@@ -319,7 +318,7 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
 		if (radeon_crtc->crtc_id)
-			WREG32_P(RADEON_CRTC2_GEN_CNTL, mask, ~mask);
+			WREG32_P(RADEON_CRTC2_GEN_CNTL, mask, ~(RADEON_CRTC2_EN | mask));
 		else {
 			WREG32_P(RADEON_CRTC_GEN_CNTL, RADEON_CRTC_DISP_REQ_EN_B, ~(RADEON_CRTC_EN |
 										    RADEON_CRTC_DISP_REQ_EN_B));
