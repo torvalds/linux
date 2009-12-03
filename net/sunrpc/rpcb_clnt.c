@@ -163,13 +163,12 @@ static const struct sockaddr_in rpcb_inaddr_loopback = {
 	.sin_port		= htons(RPCBIND_PORT),
 };
 
-static struct rpc_clnt *rpcb_create_local(struct sockaddr *addr,
-					  size_t addrlen, u32 version)
+static struct rpc_clnt *rpcb_create_local(u32 version)
 {
 	struct rpc_create_args args = {
 		.protocol	= XPRT_TRANSPORT_UDP,
-		.address	= addr,
-		.addrsize	= addrlen,
+		.address	= (struct sockaddr *)&rpcb_inaddr_loopback,
+		.addrsize	= sizeof(rpcb_inaddr_loopback),
 		.servername	= "localhost",
 		.program	= &rpcb_program,
 		.version	= version,
@@ -211,14 +210,12 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 
 static int rpcb_register_call(const u32 version, struct rpc_message *msg)
 {
-	struct sockaddr *addr = (struct sockaddr *)&rpcb_inaddr_loopback;
-	size_t addrlen = sizeof(rpcb_inaddr_loopback);
 	struct rpc_clnt *rpcb_clnt;
 	int result, error = 0;
 
 	msg->rpc_resp = &result;
 
-	rpcb_clnt = rpcb_create_local(addr, addrlen, version);
+	rpcb_clnt = rpcb_create_local(version);
 	if (!IS_ERR(rpcb_clnt)) {
 		error = rpc_call_sync(rpcb_clnt, msg, 0);
 		rpc_shutdown_client(rpcb_clnt);
