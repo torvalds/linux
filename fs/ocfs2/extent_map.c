@@ -786,6 +786,8 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		fe_flags = 0;
 		if (rec.e_flags & OCFS2_EXT_UNWRITTEN)
 			fe_flags |= FIEMAP_EXTENT_UNWRITTEN;
+		if (rec.e_flags & OCFS2_EXT_REFCOUNTED)
+			fe_flags |= FIEMAP_EXTENT_SHARED;
 		if (is_last)
 			fe_flags |= FIEMAP_EXTENT_LAST;
 		len_bytes = (u64)le16_to_cpu(rec.e_leaf_clusters) << osb->s_clustersize_bits;
