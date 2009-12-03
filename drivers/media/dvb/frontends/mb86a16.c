@@ -1036,8 +1036,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 
 	dprintk(verbose, MB86A16_INFO, 1, "freq=%d Mhz, symbrt=%d Ksps", state->frequency, state->srate);
 
-	fcp = 5000;	// (carrier recovery [kHz])
-//	fcp = 3000;
+	fcp = 3000;
 	swp_ofs = state->srate / 4;
 
 	for (i = 0; i < 60; i++)
