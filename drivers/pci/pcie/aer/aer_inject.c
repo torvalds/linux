@@ -484,5 +484,5 @@ static void __exit aer_inject_exit(void)
 module_init(aer_inject_init);
 module_exit(aer_inject_exit);
 
-MODULE_DESCRIPTION("PCIE AER software error injector");
+MODULE_DESCRIPTION("PCIe AER software error injector");
 MODULE_LICENSE("GPL");
