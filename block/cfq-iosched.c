@@ -1618,9 +1618,9 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 			return false;
 
 		/*
-		 * Sole queue user, allow bigger slice
+		 * Sole queue user, no limit
 		 */
-		max_dispatch *= 4;
+		max_dispatch = -1;
 	}
 
 	/*
