@@ -1334,9 +1334,6 @@ static int asus_hotk_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	int result;
 
-	if (!device)
-		return -EINVAL;
-
 	printk(KERN_NOTICE "Asus Laptop ACPI Extras version %s\n",
 	       ASUS_ACPI_VERSION);
 
@@ -1392,9 +1389,6 @@ end:
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
-
 	asus_hotk_remove_fs(device);
 
 	kfree(hotk);
