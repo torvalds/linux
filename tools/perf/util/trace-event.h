@@ -29,6 +29,8 @@ enum format_flags {
 	FIELD_IS_SIGNED		= 4,
 	FIELD_IS_STRING		= 8,
 	FIELD_IS_DYNAMIC	= 16,
+	FIELD_IS_FLAG		= 32,
+	FIELD_IS_SYMBOLIC	= 64,
 };
 
 struct format_field {
@@ -243,10 +245,17 @@ extern int latency_format;
 
 int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
+int trace_parse_common_pid(void *data);
+int parse_common_pc(void *data);
+int parse_common_flags(void *data);
+int parse_common_lock_depth(void *data);
 struct event *trace_find_event(int id);
+struct event *trace_find_next_event(struct event *event);
+unsigned long long read_size(void *ptr, int size);
 unsigned long long
 raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
+unsigned long long eval_flag(const char *flag);
 
 int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
 
@@ -258,5 +267,19 @@ enum trace_flag_type {
 	TRACE_FLAG_HARDIRQ		= 0x08,
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
+
+struct scripting_ops {
+	const char *name;
+	int (*start_script) (const char *);
+	int (*stop_script) (void);
+	void (*process_event) (int cpu, void *data, int size,
+			       unsigned long long nsecs, char *comm);
+	int (*generate_script) (const char *outfile);
+};
+
+int script_spec_register(const char *spec, struct scripting_ops *ops);
+
+extern struct scripting_ops perl_scripting_ops;
+void setup_perl_scripting(void);
 
 #endif /* __PERF_TRACE_EVENTS_H */

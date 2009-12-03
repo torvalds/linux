@@ -48,6 +48,11 @@ static unsigned long long input_buf_siz;
 
 static int cpus;
 static int long_size;
+static int is_flag_field;
+static int is_symbolic_field;
+
+static struct format_field *
+find_any_field(struct event *event, const char *name);
 
 static void init_input_buf(char *buf, unsigned long long size)
 {
@@ -1301,6 +1306,16 @@ process_entry(struct event *event __unused, struct print_arg *arg,
 	arg->type = PRINT_FIELD;
 	arg->field.name = field;
 
+	if (is_flag_field) {
+		arg->field.field = find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_FLAG;
+		is_flag_field = 0;
+	} else if (is_symbolic_field) {
+		arg->field.field = find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_SYMBOLIC;
+		is_symbolic_field = 0;
+	}
+
 	type = read_token(&token);
 	*tok = token;
 
@@ -1668,9 +1683,11 @@ process_arg_token(struct event *event, struct print_arg *arg,
 			type = process_entry(event, arg, &token);
 		} else if (strcmp(token, "__print_flags") == 0) {
 			free_token(token);
+			is_flag_field = 1;
 			type = process_flags(event, arg, &token);
 		} else if (strcmp(token, "__print_symbolic") == 0) {
 			free_token(token);
+			is_symbolic_field = 1;
 			type = process_symbols(event, arg, &token);
 		} else if (strcmp(token, "__get_str") == 0) {
 			free_token(token);
@@ -1871,7 +1888,7 @@ find_any_field(struct event *event, const char *name)
 	return find_field(event, name);
 }
 
-static unsigned long long read_size(void *ptr, int size)
+unsigned long long read_size(void *ptr, int size)
 {
 	switch (size) {
 	case 1:
@@ -1956,7 +1973,7 @@ int trace_parse_common_type(void *data)
 			      "common_type");
 }
 
-static int parse_common_pid(void *data)
+int trace_parse_common_pid(void *data)
 {
 	static int pid_offset;
 	static int pid_size;
@@ -1965,7 +1982,7 @@ static int parse_common_pid(void *data)
 			      "common_pid");
 }
 
-static int parse_common_pc(void *data)
+int parse_common_pc(void *data)
 {
 	static int pc_offset;
 	static int pc_size;
@@ -1974,7 +1991,7 @@ static int parse_common_pc(void *data)
 			      "common_preempt_count");
 }
 
-static int parse_common_flags(void *data)
+int parse_common_flags(void *data)
 {
 	static int flags_offset;
 	static int flags_size;
@@ -1983,7 +2000,7 @@ static int parse_common_flags(void *data)
 			      "common_flags");
 }
 
-static int parse_common_lock_depth(void *data)
+int parse_common_lock_depth(void *data)
 {
 	static int ld_offset;
 	static int ld_size;
@@ -2006,6 +2023,14 @@ struct event *trace_find_event(int id)
 			break;
 	}
 	return event;
+}
+
+struct event *trace_find_next_event(struct event *event)
+{
+	if (!event)
+		return event_list;
+
+	return event->next;
 }
 
 static unsigned long long eval_num_arg(void *data, int size,
@@ -2147,7 +2172,7 @@ static const struct flag flags[] = {
 	{ "HRTIMER_RESTART", 1 },
 };
 
-static unsigned long long eval_flag(const char *flag)
+unsigned long long eval_flag(const char *flag)
 {
 	int i;
 
@@ -2677,7 +2702,7 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 	if (!(event->flags & EVENT_FL_ISFUNCRET))
 		return NULL;
 
-	pid = parse_common_pid(next->data);
+	pid = trace_parse_common_pid(next->data);
 	field = find_field(event, "func");
 	if (!field)
 		die("function return does not have field func");
@@ -2963,7 +2988,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		return;
 	}
 
-	pid = parse_common_pid(data);
+	pid = trace_parse_common_pid(data);
 
 	if (event->flags & (EVENT_FL_ISFUNCENT | EVENT_FL_ISFUNCRET))
 		return pretty_print_func_graph(data, size, event, cpu,
