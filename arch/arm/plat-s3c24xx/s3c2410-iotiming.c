@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/s3c2410-iotiming.c
  *
- * Copyright (c) 2006,2008,2009 Simtec Electronics
+ * Copyright (c) 2006-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

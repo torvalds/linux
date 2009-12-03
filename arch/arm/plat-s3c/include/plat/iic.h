@@ -1,6 +1,6 @@
 /* arch/arm/plat-s3c/include/plat/iic.h
  *
- * Copyright 2004,2009 Simtec Electronics
+ * Copyright 2004-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C - I2C Controller platform_device info

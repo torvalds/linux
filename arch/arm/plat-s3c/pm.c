@@ -1,7 +1,7 @@
 /* linux/arch/arm/plat-s3c/pm.c
  *
  * Copyright 2008 Openmoko, Inc.
- * Copyright 2004,2006,2008 Simtec Electronics
+ * Copyright 2004-2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *

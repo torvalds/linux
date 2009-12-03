@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/mach-bast.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright 2003-2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -61,11 +61,12 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
 
-#define COPYRIGHT ", (c) 2004-2005 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2004-2008 Simtec Electronics"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
@@ -608,6 +609,11 @@ static struct s3c_cpufreq_board __initdata bast_cpufreq = {
 	.need_io	= 1,
 };
 
+static struct s3c24xx_audio_simtec_pdata __initdata bast_audio = {
+	.have_mic	= 1,
+	.have_lout	= 1,
+};
+
 static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
@@ -647,6 +653,7 @@ static void __init bast_init(void)
 
 	usb_simtec_init();
 	nor_simtec_init();
+	simtec_audio_add(NULL, true, &bast_audio);
 
 	s3c_cpufreq_setboard(&bast_cpufreq);
 }

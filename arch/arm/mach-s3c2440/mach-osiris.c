@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-osiris.c
  *
- * Copyright (c) 2005,2008 Simtec Electronics
+ * Copyright (c) 2005-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -22,6 +22,8 @@
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+
+#include <linux/i2c/tps65010.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -326,12 +328,44 @@ static struct sys_device osiris_pm_sysdev = {
 	.cls		= &osiris_pm_sysclass,
 };
 
+/* Link for DVS driver to TPS65011 */
+
+static void osiris_tps_release(struct device *dev)
+{
+	/* static device, do not need to release anything */
+}
+
+static struct platform_device osiris_tps_device = {
+	.name	= "osiris-dvs",
+	.id	= -1,
+	.dev.release = osiris_tps_release,
+};
+
+static int osiris_tps_setup(struct i2c_client *client, void *context)
+{
+	osiris_tps_device.dev.parent = &client->dev;
+	return platform_device_register(&osiris_tps_device);
+}
+
+static int osiris_tps_remove(struct i2c_client *client, void *context)
+{
+	platform_device_unregister(&osiris_tps_device);
+	return 0;
+}
+
+static struct tps65010_board osiris_tps_board = {
+	.base		= -1,	/* GPIO can go anywhere at the moment */
+	.setup		= osiris_tps_setup,
+	.teardown	= osiris_tps_remove,
+};
+
 /* I2C devices fitted. */
 
 static struct i2c_board_info osiris_i2c_devs[] __initdata = {
 	{
 		I2C_BOARD_INFO("tps65011", 0x48),
 		.irq	= IRQ_EINT20,
+		.platform_data = &osiris_tps_board,
 	},
 };
 

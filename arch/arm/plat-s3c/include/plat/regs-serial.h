@@ -6,7 +6,7 @@
  *
  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
  *
- *  Additional defines, (c) 2003 Simtec Electronics (linux@simtec.co.uk)
+ *  Additional defines, Copyright 2003 Simtec Electronics (linux@simtec.co.uk)
  *
  *  Adapted from:
  *

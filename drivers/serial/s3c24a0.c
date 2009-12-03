@@ -6,7 +6,7 @@
  *
  * Author: Sandeep Patil <sandeep.patil@azingo.com>
  *
- * Ben Dooks, Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *
  * This program is free software; you can redistribute it and/or modify

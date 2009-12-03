@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/bast-pmu.h
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	Vincent Sanders <vince@simtec.co.uk>
  *
