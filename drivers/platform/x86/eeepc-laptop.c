@@ -326,7 +326,6 @@ static int read_brightness(struct backlight_device *bd)
 
 static int set_brightness(struct backlight_device *bd, int value)
 {
-	value = max(0, min(15, value));
 	return set_acpi(CM_ASL_PANELBRIGHT, value);
 }
 
