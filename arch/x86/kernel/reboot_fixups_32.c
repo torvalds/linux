@@ -80,6 +80,7 @@ void mach_reboot_fixups(void)
 			continue;
 
 		cur->reboot_fixup(dev);
+		pci_dev_put(dev);
 	}
 }
 
