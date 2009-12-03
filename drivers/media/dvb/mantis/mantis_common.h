@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -109,6 +110,7 @@ struct mantis_pci {
 	struct i2c_adapter	adapter;
 	int			i2c_rc;
 	wait_queue_head_t	i2c_wq;
+	struct mutex		i2c_lock;
 
 	/*	DVB stuff		*/
 	struct dvb_adapter	dvb_adapter;

@@ -125,6 +125,7 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 	struct mantis_pci *mantis;
 
 	mantis = i2c_get_adapdata(adapter);
+	mutex_lock(&mantis->i2c_lock);
 	for (i = 0; i < num; i++) {
 		if (msgs[i].flags & I2C_M_RD)
 			ret = mantis_i2c_read(mantis, &msgs[i]);
@@ -134,6 +135,7 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 		if (ret < 0)
 			return ret;
 	}
+	mutex_unlock(&mantis->i2c_lock);
 
 	return num;
 }
@@ -160,6 +162,7 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 {
 	u32 intstat, intmask;
 
+	mutex_init(&mantis->i2c_lock);
 	memcpy(&mantis->adapter, &mantis_i2c_adapter, sizeof (mantis_i2c_adapter));
 	i2c_set_adapdata(&mantis->adapter, mantis);
 	mantis->i2c_rc = i2c_add_adapter(&mantis->adapter);
