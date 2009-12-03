@@ -1581,7 +1581,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	/*
 	 * To prevent any new references to the target during the rename,
-	 * we unhash the dentry and free the inode in advance.
+	 * we unhash the dentry in advance.
 	 */
 	if (!d_unhashed(new_dentry)) {
 		d_drop(new_dentry);
@@ -1594,12 +1594,10 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 atomic_read(&new_dentry->d_count));
 
 	/*
-	 * First check whether the target is busy ... we can't
-	 * safely do _any_ rename if the target is in use.
-	 *
-	 * For files, make a copy of the dentry and then do a 
-	 * silly-rename. If the silly-rename succeeds, the
-	 * copied dentry is hashed and becomes the new target.
+	 * For non-directories, check whether the target is busy and if so,
+	 * make a copy of the dentry and then do a silly-rename. If the
+	 * silly-rename succeeds, the copied dentry is hashed and becomes
+	 * the new target.
 	 */
 	if (new_inode && !S_ISDIR(new_inode->i_mode) &&
 	    atomic_read(&new_dentry->d_count) > 2) {
