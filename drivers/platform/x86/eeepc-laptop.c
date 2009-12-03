@@ -1230,27 +1230,35 @@ static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
 					dev_name(&device->dev), event,
 					count);
 
+	/* Brightness events are special */
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX) {
-		int old_brightness, new_brightness;
 
-		/* Update backlight device. */
-		old_brightness = eeepc_backlight_notify(eeepc);
+		/* Ignore them completely if the acpi video driver is used */
+		if (eeepc->backlight_device != NULL) {
+			int old_brightness, new_brightness;
 
-		/* Convert brightness event to keypress (obsolescent hack). */
-		new_brightness = event - NOTIFY_BRN_MIN;
+			/* Update the backlight device. */
+			old_brightness = eeepc_backlight_notify(eeepc);
 
-		if (new_brightness < old_brightness) {
-			event = NOTIFY_BRN_MIN; /* brightness down */
-		} else if (new_brightness > old_brightness) {
-			event = NOTIFY_BRN_MAX; /* brightness up */
-		} else {
-			/*
-			 * no change in brightness - already at min/max,
-			 * event will be desired value (or else ignored).
-			 */
+			/* Convert event to keypress (obsolescent hack) */
+			new_brightness = event - NOTIFY_BRN_MIN;
+
+			if (new_brightness < old_brightness) {
+				event = NOTIFY_BRN_MIN; /* brightness down */
+			} else if (new_brightness > old_brightness) {
+				event = NOTIFY_BRN_MAX; /* brightness up */
+			} else {
+				/*
+				* no change in brightness - already at min/max,
+				* event will be desired value (or else ignored)
+				*/
+			}
+			eeepc_input_notify(eeepc, event);
 		}
+	} else {
+		/* Everything else is a bona-fide keypress event */
+		eeepc_input_notify(eeepc, event);
 	}
-	eeepc_input_notify(eeepc, event);
 }
 
 static void cmsg_quirk(struct eeepc_laptop *eeepc, int cm, const char *name)
