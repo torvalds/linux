@@ -276,6 +276,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vhci_fops = {
+	.owner		= THIS_MODULE,
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
