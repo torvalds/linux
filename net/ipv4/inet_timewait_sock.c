@@ -427,31 +427,40 @@ void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
 	struct inet_timewait_sock *tw;
 	struct sock *sk;
 	struct hlist_nulls_node *node;
-	int h;
+	unsigned int slot;
 
-	local_bh_disable();
-	for (h = 0; h <= hashinfo->ehash_mask; h++) {
-		struct inet_ehash_bucket *head =
-			inet_ehash_bucket(hashinfo, h);
-		spinlock_t *lock = inet_ehash_lockp(hashinfo, h);
+	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
+		struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
+restart_rcu:
+		rcu_read_lock();
 restart:
-		spin_lock(lock);
-		sk_nulls_for_each(sk, node, &head->twchain) {
-
+		sk_nulls_for_each_rcu(sk, node, &head->twchain) {
 			tw = inet_twsk(sk);
 			if (!net_eq(twsk_net(tw), net) ||
 			    tw->tw_family != family)
 				continue;
 
-			atomic_inc(&tw->tw_refcnt);
-			spin_unlock(lock);
+			if (unlikely(!atomic_inc_not_zero(&tw->tw_refcnt)))
+				continue;
+
+			if (unlikely(!net_eq(twsk_net(tw), net) ||
+				     tw->tw_family != family)) {
+				inet_twsk_put(tw);
+				goto restart;
+			}
+
+			rcu_read_unlock();
 			inet_twsk_deschedule(tw, twdr);
 			inet_twsk_put(tw);
-
-			goto restart;
+			goto restart_rcu;
 		}
-		spin_unlock(lock);
+		/* If the nulls value we got at the end of this lookup is
+		 * not the expected one, we must restart lookup.
+		 * We probably met an item that was moved to another chain.
+		 */
+		if (get_nulls_value(node) != slot)
+			goto restart;
+		rcu_read_unlock();
 	}
-	local_bh_enable();
 }
 EXPORT_SYMBOL_GPL(inet_twsk_purge);
