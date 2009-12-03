@@ -70,8 +70,8 @@ struct vt_event {
 #define VT_EVENT_UNBLANK	0x0004	/* Screen unblank */
 #define VT_EVENT_RESIZE		0x0008	/* Resize display */
 #define VT_MAX_EVENT		0x000F
-	unsigned int old;		/* Old console */
-	unsigned int new;		/* New console (if changing) */
+	unsigned int oldev;		/* Old console */
+	unsigned int newev;		/* New console (if changing) */
 	unsigned int pad[4];		/* Padding for expansion */
 };
 

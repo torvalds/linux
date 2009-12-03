@@ -3428,6 +3428,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_config   = 3,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.ts_type	= SAA7134_MPEG_TS_SERIAL,
+		.ts_force_val   = 1,
 		.gpiomask       = 0x0800100, /* GPIO 21 is an INPUT */
 		.inputs         = {{
 			.name = name_tv,

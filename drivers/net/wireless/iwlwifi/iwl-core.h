@@ -213,6 +213,7 @@ struct iwl_mod_params {
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
+ * @use_rts_for_ht: use rts/cts protection for HT traffic
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -255,6 +256,7 @@ struct iwl_cfg {
 	const bool shadow_ram_support;
 	const bool ht_greenfield_support;
 	const bool broken_powersave;
+	bool use_rts_for_ht;
 };
 
 /***************************

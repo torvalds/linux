@@ -196,6 +196,7 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_slice_new,	/* no requests dispatched in slice */
 	CFQ_CFQQ_FLAG_sync,		/* synchronous queue */
 	CFQ_CFQQ_FLAG_coop,		/* has done a coop jump of the queue */
+	CFQ_CFQQ_FLAG_coop_preempt,	/* coop preempt */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -222,6 +223,7 @@ CFQ_CFQQ_FNS(prio_changed);
 CFQ_CFQQ_FNS(slice_new);
 CFQ_CFQQ_FNS(sync);
 CFQ_CFQQ_FNS(coop);
+CFQ_CFQQ_FNS(coop_preempt);
 #undef CFQ_CFQQ_FNS
 
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
@@ -945,9 +947,12 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd,
 {
 	if (!cfqq) {
 		cfqq = cfq_get_next_queue(cfqd);
-		if (cfqq)
+		if (cfqq && !cfq_cfqq_coop_preempt(cfqq))
 			cfq_clear_cfqq_coop(cfqq);
 	}
+
+	if (cfqq)
+		cfq_clear_cfqq_coop_preempt(cfqq);
 
 	__cfq_set_active_queue(cfqd, cfqq);
 	return cfqq;
@@ -2051,7 +2056,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * it's a metadata request and the current queue is doing regular IO.
 	 */
 	if (rq_is_meta(rq) && !cfqq->meta_pending)
-		return false;
+		return true;
 
 	/*
 	 * Allow an RT request to pre-empt an ongoing non-RT cfqq timeslice.
@@ -2066,8 +2071,16 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, rq))
+	if (cfq_rq_close(cfqd, rq) && (!cfq_cfqq_coop(new_cfqq) ||
+	    cfqd->busy_queues == 1)) {
+		/*
+		 * Mark new queue coop_preempt, so its coop flag will not be
+		 * cleared when new queue gets scheduled at the very first time
+		 */
+		cfq_mark_cfqq_coop_preempt(new_cfqq);
+		cfq_mark_cfqq_coop(new_cfqq);
 		return true;
+	}
 
 	return false;
 }

@@ -182,7 +182,7 @@ M:	Ron Minnich <rminnich@sandia.gov>
 M:	Latchesar Ionkov <lucho@ionkov.net>
 L:	v9fs-developer@lists.sourceforge.net
 W:	http://swik.net/v9fs
-T:	git git://git.kernel.org/pub/scm/linux/kernel/ericvh/v9fs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ericvh/v9fs.git
 S:	Maintained
 F:	Documentation/filesystems/9p.txt
 F:	fs/9p/
@@ -512,9 +512,31 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
+ARM PRIMECELL AACI PL041 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	sound/arm/aaci.*
+
+ARM PRIMECELL CLCD PL110 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/video/amba-clcd.*
+
+ARM PRIMECELL KMI PL050 DRIVER
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/input/serio/ambakmi.*
+F:	include/linux/amba/kmi.h
+
 ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
+
+ARM PRIMECELL BUS SUPPORT
+M:	Russell King <linux@arm.linux.org.uk>
+S:	Maintained
+F:	drivers/amba/
+F:	include/linux/amba/bus.h
 
 ARM/ADI ROADRUNNER MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -906,7 +928,6 @@ M:	Karol Kozimor <sziwan@users.sourceforge.net>
 L:	acpi4asus-user@lists.sourceforge.net
 W:	http://acpi4asus.sf.net
 S:	Maintained
-F:	arch/x86/kernel/acpi/boot.c
 F:	drivers/platform/x86/asus_acpi.c
 
 ASUS ASB100 HARDWARE MONITOR DRIVER
@@ -1028,7 +1049,7 @@ F:	drivers/serial/atmel_serial.c
 
 ATMEL LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/atmel_lcdfb.c
 F:	include/video/atmel_lcdc.h
@@ -1245,11 +1266,10 @@ S:	Supported
 F:	drivers/net/tg3.*
 
 BROCADE BFA FC SCSI DRIVER
-P:      Jing Huang
-M:      huangj@brocade.com
-L:      linux-scsi@vger.kernel.org
-S:      Supported
-F:      drivers/scsi/bfa/
+M:	Jing Huang <huangj@brocade.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/bfa/
 
 BSG (block layer generic sg v4 driver)
 M:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
@@ -2115,7 +2135,7 @@ F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 W:	http://linux-fbdev.sourceforge.net/
 S:	Orphan
 F:	Documentation/fb/
@@ -2138,7 +2158,7 @@ F:	drivers/i2c/busses/i2c-cpm.c
 
 FREESCALE IMX / MXC FRAMEBUFFER DRIVER
 M:	Sascha Hauer <kernel@pengutronix.de>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/plat-mxc/include/mach/imxfb.h
@@ -2313,6 +2333,13 @@ L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	drivers/media/video/gspca/finepix.c
+
+GSPCA GL860 SUBDRIVER
+M:	Olivier Lorin <o.lorin@laposte.net>
+L:	linux-media@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
+S:	Maintained
+F:	drivers/media/video/gspca/gl860/
 
 GSPCA M5602 SUBDRIVER
 M:	Erik Andren <erik.andren@gmail.com>
@@ -2535,8 +2562,7 @@ S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
 F:	include/linux/i2c.h
-F:	include/linux/i2c-dev.h
-F:	include/linux/i2c-id.h
+F:	include/linux/i2c-*.h
 
 I2C-TINY-USB DRIVER
 M:	Till Harbaum <till@harbaum.org>
@@ -2637,7 +2663,7 @@ S:	Supported
 F:	security/integrity/ima/
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/imsttfb.c
 
@@ -2672,14 +2698,14 @@ F:	drivers/input/
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 M:	Sylvain Meyer <sylvain.meyer@worldonline.fr>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/fb/intelfb.txt
 F:	drivers/video/intelfb/
 
 INTEL 810/815 FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/i810/
 
@@ -2825,7 +2851,7 @@ F:	drivers/infiniband/hw/ipath/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
-L:	openipmi-developer@lists.sourceforge.net
+L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://openipmi.sourceforge.net/
 S:	Supported
 F:	Documentation/IPMI.txt
@@ -2989,11 +3015,8 @@ S:	Maintained
 F:	fs/autofs4/
 
 KERNEL BUILD
-M:	Sam Ravnborg <sam@ravnborg.org>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sam/kbuild-next.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sam/kbuild-fixes.git
 L:	linux-kbuild@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	Documentation/kbuild/
 F:	Makefile
 F:	scripts/Makefile.*
@@ -3086,9 +3109,13 @@ F:	kernel/kgdb.c
 
 KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
-P	Pekka Enberg
-M:	penberg@cs.helsinki.fi
+M:	Pekka Enberg <penberg@cs.helsinki.fi>
 S:	Maintained
+F:	Documentation/kmemcheck.txt
+F:	arch/x86/include/asm/kmemcheck.h
+F:	arch/x86/mm/kmemcheck/
+F:	include/linux/kmemcheck.h
+F:	mm/kmemcheck.c
 
 KMEMLEAK
 M:	Catalin Marinas <catalin.marinas@arm.com>
@@ -3389,7 +3416,7 @@ S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
 M:	Petr Vandrovec <vandrove@vc.cvut.cz>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
@@ -3618,7 +3645,7 @@ L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-T:	git://git.kernel.org/pub/scm/linux/kernel/git/kaber/nf-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kaber/nf-2.6.git
 S:	Supported
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
@@ -3665,6 +3692,7 @@ L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 W:	http://patchwork.ozlabs.org/project/netdev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
@@ -3775,7 +3803,7 @@ F:	fs/ntfs/
 
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
@@ -3810,7 +3838,7 @@ F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
 M:	Imre Deak <imre.deak@nokia.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
@@ -4316,19 +4344,21 @@ F:	include/linux/qnxtypes.h
 
 RADEON FRAMEBUFFER DISPLAY DRIVER
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/aty/radeon*
 F:	include/linux/radeonfb.h
 
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 M:	Paul Mackerras <paulus@samba.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/aty/aty128fb.c
 
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
+M:	Ivo van Doorn <IvDoorn@gmail.com>
+M:	Gertjan van Wingerde <gwingerde@gmail.com>
 L:	linux-wireless@vger.kernel.org
 L:	users@rt2x00.serialmonkey.com (moderated for non-subscribers)
 W:	http://rt2x00.serialmonkey.com/
@@ -4416,7 +4446,7 @@ RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F	Documentation/rfkill.txt
+F:	Documentation/rfkill.txt
 F:	net/rfkill/
 
 RISCOM8 DRIVER
@@ -4460,7 +4490,7 @@ F:	drivers/net/wireless/rtl818x/rtl8187*
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/savage/
 
@@ -4636,7 +4666,7 @@ F:	drivers/mmc/host/sdhci-s3c.c
 SECURITY SUBSYSTEM
 M:	James Morris <jmorris@namei.org>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
-T:	git git://www.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
 W:	http://security.wiki.kernel.org/
 S:	Supported
 F:	security/
@@ -4672,12 +4702,11 @@ F:	include/linux/ata.h
 F:	include/linux/libata.h
 
 SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
-P:     Jayamohan Kallickal
-M:     jayamohank@serverengines.com
-L:     linux-scsi@vger.kernel.org
-W:     http://www.serverengines.com
-S:     Supported
-F:     drivers/scsi/be2iscsi/
+M:	Jayamohan Kallickal <jayamohank@serverengines.com>
+L:	linux-scsi@vger.kernel.org
+W:	http://www.serverengines.com
+S:	Supported
+F:	drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
 M:	Sathya Perla <sathyap@serverengines.com>
@@ -5624,7 +5653,7 @@ S:	Maintained
 
 UVESAFB DRIVER
 M:	Michal Januszewski <spock@gentoo.org>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 W:	http://dev.gentoo.org/~spock/projects/uvesafb/
 S:	Maintained
 F:	Documentation/fb/uvesafb.txt
@@ -5657,7 +5686,7 @@ F:	drivers/mmc/host/via-sdmmc.c
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
 M:	Joseph Chan <JosephChan@via.com.tw>
 M:	Scott Fang <ScottFang@viatech.com.cn>
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/via/
 
@@ -5683,11 +5712,11 @@ F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
-M:     Shreyas Bhatewara <sbhatewara@vmware.com>
-M:     VMware, Inc. <pv-drivers@vmware.com>
-L:     netdev@vger.kernel.org
-S:     Maintained
-F:     drivers/net/vmxnet3/
+M:	Shreyas Bhatewara <sbhatewara@vmware.com>
+M:	"VMware, Inc." <pv-drivers@vmware.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/vmxnet3/
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>

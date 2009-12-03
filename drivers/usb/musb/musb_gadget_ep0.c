@@ -511,7 +511,8 @@ static void ep0_txstate(struct musb *musb)
 
 	/* update the flags */
 	if (fifo_count < MUSB_MAX_END0_PACKET
-			|| request->actual == request->length) {
+			|| (request->actual == request->length
+				&& !request->zero)) {
 		musb->ep0_state = MUSB_EP0_STAGE_STATUSOUT;
 		csr |= MUSB_CSR0_P_DATAEND;
 	} else

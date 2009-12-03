@@ -160,7 +160,15 @@ typedef unsigned int flex_uint32_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -802,7 +810,7 @@ static int last_ts, first_ts;
 static void zconf_endhelp(void);
 static void zconf_endfile(void);
 
-void new_string(void)
+static void new_string(void)
 {
 	text = malloc(START_STRSIZE);
 	text_asize = START_STRSIZE;
@@ -810,7 +818,7 @@ void new_string(void)
 	*text = 0;
 }
 
-void append_string(const char *str, int size)
+static void append_string(const char *str, int size)
 {
 	int new_size = text_size + size + 1;
 	if (new_size > text_asize) {
@@ -824,7 +832,7 @@ void append_string(const char *str, int size)
 	text[text_size] = 0;
 }
 
-void alloc_string(const char *str, int size)
+static void alloc_string(const char *str, int size)
 {
 	text = malloc(size + 1);
 	memcpy(text, str, size);
@@ -914,7 +922,12 @@ static int input (void );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -922,7 +935,7 @@ static int input (void );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO fwrite( zconftext, zconfleng, 1, zconfout )
+#define ECHO do { if (fwrite( zconftext, zconfleng, 1, zconfout )) {} } while (0)
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -2060,8 +2073,8 @@ YY_BUFFER_STATE zconf_scan_string (yyconst char * yystr )
 
 /** Setup the input buffer state to scan the given bytes. The next call to zconflex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * 
  * @return the newly allocated buffer state object.
  */

@@ -62,6 +62,7 @@
 #define PCI_DEVICE_ID_INTEL_IGDNG_D_IG	    0x0042
 #define PCI_DEVICE_ID_INTEL_IGDNG_M_HB	    0x0044
 #define PCI_DEVICE_ID_INTEL_IGDNG_MA_HB	    0x0062
+#define PCI_DEVICE_ID_INTEL_IGDNG_MC2_HB    0x006a
 #define PCI_DEVICE_ID_INTEL_IGDNG_M_IG	    0x0046
 
 /* cover 915 and 945 variants */
@@ -96,7 +97,8 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_D_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MC2_HB)
 
 extern int agp_memory_reserved;
 
@@ -1161,12 +1163,6 @@ static int intel_i915_configure(void)
 
 	intel_i9xx_setup_flush();
 
-#ifdef USE_PCI_DMA_API 
-	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
-		dev_err(&intel_private.pcidev->dev,
-			"set gfx device dma mask 36bit failed!\n");
-#endif
-
 	return 0;
 }
 
@@ -1364,6 +1360,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_IGDNG_D_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_M_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_MA_HB:
+	case PCI_DEVICE_ID_INTEL_IGDNG_MC2_HB:
 		*gtt_offset = *gtt_size = MB(2);
 		break;
 	default:
@@ -2365,6 +2362,8 @@ static const struct intel_driver_description {
 	    "IGDNG/M", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGDNG_MA_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
 	    "IGDNG/MA", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IGDNG_MC2_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
+	    "IGDNG/MC2", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2455,6 +2454,11 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				bridge->capndx+PCI_AGP_STATUS,
 				&bridge->mode);
 	}
+
+	if (bridge->driver->mask_memory == intel_i965_mask_memory)
+		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
+			dev_err(&intel_private.pcidev->dev,
+				"set gfx device dma mask 36bit failed!\n");
 
 	pci_set_drvdata(pdev, bridge);
 	return agp_add_bridge(bridge);
@@ -2561,6 +2565,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_D_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_MA_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGDNG_MC2_HB),
 	{ }
 };
 

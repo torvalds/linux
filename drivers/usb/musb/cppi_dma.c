@@ -1442,11 +1442,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		musb_writew(regs, MUSB_TXCSR, value);
 		musb_writew(regs, MUSB_TXCSR, value);
 
-		/* re-enable interrupt */
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
-					(1 << cppi_ch->index));
-
 		/* While we scrub the TX state RAM, ensure that we clean
 		 * up any interrupt that's currently asserted:
 		 * 1. Write to completion Ptr value 0x1(bit 0 set)
@@ -1458,6 +1453,11 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		 */
 		cppi_reset_tx(tx_ram, 1);
 		musb_writel(&tx_ram->tx_complete, 0, 0);
+
+		/* re-enable interrupt */
+		if (enabled)
+			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
+					(1 << cppi_ch->index));
 
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 

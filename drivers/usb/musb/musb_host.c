@@ -1301,8 +1301,11 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		return;
 	} else	if (usb_pipeisoc(pipe) && dma) {
 		if (musb_tx_dma_program(musb->dma_controller, hw_ep, qh, urb,
-				offset, length))
+				offset, length)) {
+			if (is_cppi_enabled() || tusb_dma_omap())
+				musb_h_tx_dma_start(hw_ep);
 			return;
+		}
 	} else	if (tx_csr & MUSB_TXCSR_DMAENAB) {
 		DBG(1, "not complete, but DMA enabled?\n");
 		return;
