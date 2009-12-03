@@ -2721,22 +2721,24 @@ static int __net_init xfrm_user_net_init(struct net *net)
 				     xfrm_netlink_rcv, NULL, THIS_MODULE);
 	if (nlsk == NULL)
 		return -ENOMEM;
+	net->xfrm.nlsk_stash = nlsk; /* Don't set to NULL */
 	rcu_assign_pointer(net->xfrm.nlsk, nlsk);
 	return 0;
 }
 
-static void __net_exit xfrm_user_net_exit(struct net *net)
+static void __net_exit xfrm_user_net_exit(struct list_head *net_exit_list)
 {
-	struct sock *nlsk = net->xfrm.nlsk;
-
-	rcu_assign_pointer(net->xfrm.nlsk, NULL);
-	synchronize_rcu();
-	netlink_kernel_release(nlsk);
+	struct net *net;
+	list_for_each_entry(net, net_exit_list, exit_list)
+		rcu_assign_pointer(net->xfrm.nlsk, NULL);
+	synchronize_net();
+	list_for_each_entry(net, net_exit_list, exit_list)
+		netlink_kernel_release(net->xfrm.nlsk_stash);
 }
 
 static struct pernet_operations xfrm_user_net_ops = {
-	.init = xfrm_user_net_init,
-	.exit = xfrm_user_net_exit,
+	.init	    = xfrm_user_net_init,
+	.exit_batch = xfrm_user_net_exit,
 };
 
 static int __init xfrm_user_init(void)
