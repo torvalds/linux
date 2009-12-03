@@ -1475,7 +1475,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 						SEQ_set(state, 1);
 					}
 				} else {
-					dprintk(verbose, MB86A16_INFO, 1, "NO  -- SIGNAL");
+					dprintk(verbose, MB86A16_INFO, 1, "NO  -- SYNC");
 					SEQ_set(state, 1);
 				}
 			}
