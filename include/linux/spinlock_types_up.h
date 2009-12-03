@@ -30,8 +30,8 @@ typedef struct { } arch_spinlock_t;
 
 typedef struct {
 	/* no debug version on UP */
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED { }
+#define __ARCH_RW_LOCK_UNLOCKED { }
 
 #endif /* __LINUX_SPINLOCK_TYPES_UP_H */

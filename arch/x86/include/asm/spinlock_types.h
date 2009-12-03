@@ -13,8 +13,8 @@ typedef struct arch_spinlock {
 
 typedef struct {
 	unsigned int lock;
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
+#define __ARCH_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 
 #endif /* _ASM_X86_SPINLOCK_TYPES_H */

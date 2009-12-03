@@ -146,7 +146,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-__raw_read_lock_flags(raw_rwlock_t *lock, unsigned long flags)
+__raw_read_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 {
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1,%2\n"
@@ -177,7 +177,7 @@ __raw_read_lock_flags(raw_rwlock_t *lock, unsigned long flags)
 
 #define __raw_read_lock(rw)								\
 do {											\
-	raw_rwlock_t *__read_lock_ptr = (rw);						\
+	arch_rwlock_t *__read_lock_ptr = (rw);						\
 											\
 	while (unlikely(ia64_fetchadd(1, (int *) __read_lock_ptr, acq) < 0)) {		\
 		ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);			\
@@ -190,14 +190,14 @@ do {											\
 
 #define __raw_read_unlock(rw)					\
 do {								\
-	raw_rwlock_t *__read_lock_ptr = (rw);			\
+	arch_rwlock_t *__read_lock_ptr = (rw);			\
 	ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);	\
 } while (0)
 
 #ifdef ASM_SUPPORTED
 
 static __always_inline void
-__raw_write_lock_flags(raw_rwlock_t *lock, unsigned long flags)
+__raw_write_lock_flags(arch_rwlock_t *lock, unsigned long flags)
 {
 	__asm__ __volatile__ (
 		"tbit.nz p6, p0 = %1, %2\n"
@@ -235,7 +235,7 @@ __raw_write_lock_flags(raw_rwlock_t *lock, unsigned long flags)
 	(result == 0);								\
 })
 
-static inline void __raw_write_unlock(raw_rwlock_t *x)
+static inline void __raw_write_unlock(arch_rwlock_t *x)
 {
 	u8 *y = (u8 *)x;
 	barrier();
@@ -265,7 +265,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 	(ia64_val == 0);						\
 })
 
-static inline void __raw_write_unlock(raw_rwlock_t *x)
+static inline void __raw_write_unlock(arch_rwlock_t *x)
 {
 	barrier();
 	x->write_lock = 0;
@@ -273,10 +273,10 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 
 #endif /* !ASM_SUPPORTED */
 
-static inline int __raw_read_trylock(raw_rwlock_t *x)
+static inline int __raw_read_trylock(arch_rwlock_t *x)
 {
 	union {
-		raw_rwlock_t lock;
+		arch_rwlock_t lock;
 		__u32 word;
 	} old, new;
 	old.lock = new.lock = *x;

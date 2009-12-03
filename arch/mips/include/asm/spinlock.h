@@ -256,7 +256,7 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
  */
 #define __raw_write_can_lock(rw)	(!(rw)->lock)
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
@@ -301,7 +301,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 /* Note the use of sub, not subu which will make the kernel die with an
    overflow exception if we ever try to unlock an rwlock that is already
    unlocked or is being held by a writer.  */
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
@@ -335,7 +335,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
@@ -377,7 +377,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	smp_llsc_mb();
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
@@ -389,7 +389,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	: "memory");
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 	int ret;
@@ -433,7 +433,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 	return ret;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 	int ret;

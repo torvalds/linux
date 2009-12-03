@@ -232,7 +232,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
  * read_can_lock - would read_trylock() succeed?
  * @lock: the rwlock in question.
  */
-static inline int __raw_read_can_lock(raw_rwlock_t *lock)
+static inline int __raw_read_can_lock(arch_rwlock_t *lock)
 {
 	return (int)(lock)->lock > 0;
 }
@@ -241,12 +241,12 @@ static inline int __raw_read_can_lock(raw_rwlock_t *lock)
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-static inline int __raw_write_can_lock(raw_rwlock_t *lock)
+static inline int __raw_write_can_lock(arch_rwlock_t *lock)
 {
 	return (lock)->lock == RW_LOCK_BIAS;
 }
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	asm volatile(LOCK_PREFIX " subl $1,(%0)\n\t"
 		     "jns 1f\n"
@@ -255,7 +255,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		     ::LOCK_PTR_REG (rw) : "memory");
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	asm volatile(LOCK_PREFIX " subl %1,(%0)\n\t"
 		     "jz 1f\n"
@@ -264,7 +264,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		     ::LOCK_PTR_REG (rw), "i" (RW_LOCK_BIAS) : "memory");
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *lock)
+static inline int __raw_read_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 
@@ -274,7 +274,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *lock)
 	return 0;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *lock)
+static inline int __raw_write_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 
@@ -284,12 +284,12 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 	return 0;
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	asm volatile(LOCK_PREFIX "incl %0" :"+m" (rw->lock) : : "memory");
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	asm volatile(LOCK_PREFIX "addl %1, %0"
 		     : "+m" (rw->lock) : "i" (RW_LOCK_BIAS) : "memory");

@@ -86,7 +86,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * just write zero since the lock is exclusively held.
  */
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -106,7 +106,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -126,7 +126,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
@@ -156,7 +156,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
  * currently active.  However, we know we won't have any write
  * locks.
  */
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -176,7 +176,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -198,7 +198,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	: "cc");
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2 = 1;
 

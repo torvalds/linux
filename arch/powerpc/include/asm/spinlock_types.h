@@ -13,8 +13,8 @@ typedef struct {
 
 typedef struct {
 	volatile signed int lock;
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ 0 }
+#define __ARCH_RW_LOCK_UNLOCKED		{ 0 }
 
 #endif

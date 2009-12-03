@@ -50,17 +50,17 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 
 /***********************************************************/
 
-static inline int __raw_read_can_lock(raw_rwlock_t *lock)
+static inline int __raw_read_can_lock(arch_rwlock_t *lock)
 {
 	return (lock->lock & 1) == 0;
 }
 
-static inline int __raw_write_can_lock(raw_rwlock_t *lock)
+static inline int __raw_write_can_lock(arch_rwlock_t *lock)
 {
 	return lock->lock == 0;
 }
 
-static inline void __raw_read_lock(raw_rwlock_t *lock)
+static inline void __raw_read_lock(arch_rwlock_t *lock)
 {
 	long regx;
 
@@ -80,7 +80,7 @@ static inline void __raw_read_lock(raw_rwlock_t *lock)
 	: "m" (*lock) : "memory");
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *lock)
+static inline void __raw_write_lock(arch_rwlock_t *lock)
 {
 	long regx;
 
@@ -100,7 +100,7 @@ static inline void __raw_write_lock(raw_rwlock_t *lock)
 	: "m" (*lock) : "memory");
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t * lock)
+static inline int __raw_read_trylock(arch_rwlock_t * lock)
 {
 	long regx;
 	int success;
@@ -122,7 +122,7 @@ static inline int __raw_read_trylock(raw_rwlock_t * lock)
 	return success;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t * lock)
+static inline int __raw_write_trylock(arch_rwlock_t * lock)
 {
 	long regx;
 	int success;
@@ -144,7 +144,7 @@ static inline int __raw_write_trylock(raw_rwlock_t * lock)
 	return success;
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t * lock)
+static inline void __raw_read_unlock(arch_rwlock_t * lock)
 {
 	long regx;
 	__asm__ __volatile__(
@@ -160,7 +160,7 @@ static inline void __raw_read_unlock(raw_rwlock_t * lock)
 	: "m" (*lock) : "memory");
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t * lock)
+static inline void __raw_write_unlock(arch_rwlock_t * lock)
 {
 	mb();
 	lock->lock = 0;

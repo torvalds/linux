@@ -97,7 +97,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 /* We only yield to the hypervisor if we are in shared processor mode */
 #define SHARED_PROCESSOR (get_lppaca()->shared_proc)
 extern void __spin_yield(arch_spinlock_t *lock);
-extern void __rw_yield(raw_rwlock_t *lock);
+extern void __rw_yield(arch_rwlock_t *lock);
 #else /* SPLPAR || ISERIES */
 #define __spin_yield(x)	barrier()
 #define __rw_yield(x)	barrier()
@@ -181,7 +181,7 @@ extern void arch_spin_unlock_wait(arch_spinlock_t *lock);
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
  */
-static inline long arch_read_trylock(raw_rwlock_t *rw)
+static inline long arch_read_trylock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -205,7 +205,7 @@ static inline long arch_read_trylock(raw_rwlock_t *rw)
  * This returns the old value in the lock,
  * so we got the write lock if the return value is 0.
  */
-static inline long arch_write_trylock(raw_rwlock_t *rw)
+static inline long arch_write_trylock(arch_rwlock_t *rw)
 {
 	long tmp, token;
 
@@ -225,7 +225,7 @@ static inline long arch_write_trylock(raw_rwlock_t *rw)
 	return tmp;
 }
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	while (1) {
 		if (likely(arch_read_trylock(rw) > 0))
@@ -239,7 +239,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	while (1) {
 		if (likely(arch_write_trylock(rw) == 0))
@@ -253,17 +253,17 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	}
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	return arch_read_trylock(rw) > 0;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	return arch_write_trylock(rw) == 0;
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -280,7 +280,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	: "cr0", "xer", "memory");
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	__asm__ __volatile__("# write_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");

@@ -65,7 +65,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * Sort of like atomic_t's on Sparc, but even more clever.
  *
  *	------------------------------------
- *	| 24-bit counter           | wlock |  raw_rwlock_t
+ *	| 24-bit counter           | wlock |  arch_rwlock_t
  *	------------------------------------
  *	 31                       8 7     0
  *
@@ -76,9 +76,9 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  *
  * Unfortunately this scheme limits us to ~16,000,000 cpus.
  */
-static inline void arch_read_lock(raw_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	register raw_rwlock_t *lp asm("g1");
+	register arch_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -96,9 +96,9 @@ do {	unsigned long flags; \
 	local_irq_restore(flags); \
 } while(0)
 
-static inline void arch_read_unlock(raw_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
-	register raw_rwlock_t *lp asm("g1");
+	register arch_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -116,9 +116,9 @@ do {	unsigned long flags; \
 	local_irq_restore(flags); \
 } while(0)
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
-	register raw_rwlock_t *lp asm("g1");
+	register arch_rwlock_t *lp asm("g1");
 	lp = rw;
 	__asm__ __volatile__(
 	"mov	%%o7, %%g4\n\t"
@@ -130,7 +130,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	*(volatile __u32 *)&lp->lock = ~0U;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned int val;
 
@@ -150,9 +150,9 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	return (val == 0);
 }
 
-static inline int arch_read_trylock(raw_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
-	register raw_rwlock_t *lp asm("g1");
+	register arch_rwlock_t *lp asm("g1");
 	register int res asm("o0");
 	lp = rw;
 	__asm__ __volatile__(

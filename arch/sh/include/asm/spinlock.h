@@ -108,7 +108,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
  */
 #define __raw_write_can_lock(x)	((x)->lock == RW_LOCK_BIAS)
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -126,7 +126,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -142,7 +142,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -160,7 +160,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	__asm__ __volatile__ (
 		"mov.l		%1, @%0 ! __raw_write_unlock	\n\t"
@@ -170,7 +170,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	);
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, oldval;
 
@@ -193,7 +193,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 	return (oldval > 0);
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, oldval;
 

@@ -21,8 +21,8 @@ typedef struct {
 
 typedef struct {
 	volatile unsigned int lock;
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
+#define __ARCH_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 
 #endif

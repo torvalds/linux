@@ -148,7 +148,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  */
 #define __raw_write_can_lock(x) ((x)->lock == RW_LOCK_BIAS)
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1;
 
@@ -199,7 +199,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1, tmp2;
 
@@ -252,7 +252,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1;
 
@@ -274,7 +274,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1, tmp2;
 
@@ -298,7 +298,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	);
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *lock)
+static inline int __raw_read_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t*)lock;
 	if (atomic_dec_return(count) >= 0)
@@ -307,7 +307,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *lock)
 	return 0;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *lock)
+static inline int __raw_write_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 	if (atomic_sub_and_test(RW_LOCK_BIAS, count))

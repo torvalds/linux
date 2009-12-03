@@ -69,7 +69,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *x)
 
 /* Note that we have to ensure interrupts are disabled in case we're
  * interrupted by some other code that wants to grab the same read lock */
-static  __inline__ void __raw_read_lock(raw_rwlock_t *rw)
+static  __inline__ void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
@@ -81,7 +81,7 @@ static  __inline__ void __raw_read_lock(raw_rwlock_t *rw)
 
 /* Note that we have to ensure interrupts are disabled in case we're
  * interrupted by some other code that wants to grab the same read lock */
-static  __inline__ void __raw_read_unlock(raw_rwlock_t *rw)
+static  __inline__ void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long flags;
 	local_irq_save(flags);
@@ -93,7 +93,7 @@ static  __inline__ void __raw_read_unlock(raw_rwlock_t *rw)
 
 /* Note that we have to ensure interrupts are disabled in case we're
  * interrupted by some other code that wants to grab the same read lock */
-static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
+static __inline__ int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned long flags;
  retry:
@@ -119,7 +119,7 @@ static __inline__ int __raw_read_trylock(raw_rwlock_t *rw)
 
 /* Note that we have to ensure interrupts are disabled in case we're
  * interrupted by some other code that wants to read_trylock() this lock */
-static __inline__ void __raw_write_lock(raw_rwlock_t *rw)
+static __inline__ void __raw_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long flags;
 retry:
@@ -141,7 +141,7 @@ retry:
 	local_irq_restore(flags);
 }
 
-static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
+static __inline__ void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	rw->counter = 0;
 	arch_spin_unlock(&rw->lock);
@@ -149,7 +149,7 @@ static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 
 /* Note that we have to ensure interrupts are disabled in case we're
  * interrupted by some other code that wants to read_trylock() this lock */
-static __inline__ int __raw_write_trylock(raw_rwlock_t *rw)
+static __inline__ int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned long flags;
 	int result = 0;
@@ -173,7 +173,7 @@ static __inline__ int __raw_write_trylock(raw_rwlock_t *rw)
  * read_can_lock - would read_trylock() succeed?
  * @lock: the rwlock in question.
  */
-static __inline__ int __raw_read_can_lock(raw_rwlock_t *rw)
+static __inline__ int __raw_read_can_lock(arch_rwlock_t *rw)
 {
 	return rw->counter >= 0;
 }
@@ -182,7 +182,7 @@ static __inline__ int __raw_read_can_lock(raw_rwlock_t *rw)
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-static __inline__ int __raw_write_can_lock(raw_rwlock_t *rw)
+static __inline__ int __raw_write_can_lock(arch_rwlock_t *rw)
 {
 	return !rw->counter;
 }

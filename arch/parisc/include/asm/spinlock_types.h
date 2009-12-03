@@ -14,8 +14,8 @@ typedef struct {
 typedef struct {
 	arch_spinlock_t lock;
 	volatile int counter;
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ __ARCH_SPIN_LOCK_UNLOCKED, 0 }
+#define __ARCH_RW_LOCK_UNLOCKED		{ __ARCH_SPIN_LOCK_UNLOCKED, 0 }
 
 #endif

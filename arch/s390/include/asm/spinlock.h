@@ -121,14 +121,14 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  */
 #define __raw_write_can_lock(x) ((x)->lock == 0)
 
-extern void _raw_read_lock_wait(raw_rwlock_t *lp);
-extern void _raw_read_lock_wait_flags(raw_rwlock_t *lp, unsigned long flags);
-extern int _raw_read_trylock_retry(raw_rwlock_t *lp);
-extern void _raw_write_lock_wait(raw_rwlock_t *lp);
-extern void _raw_write_lock_wait_flags(raw_rwlock_t *lp, unsigned long flags);
-extern int _raw_write_trylock_retry(raw_rwlock_t *lp);
+extern void _raw_read_lock_wait(arch_rwlock_t *lp);
+extern void _raw_read_lock_wait_flags(arch_rwlock_t *lp, unsigned long flags);
+extern int _raw_read_trylock_retry(arch_rwlock_t *lp);
+extern void _raw_write_lock_wait(arch_rwlock_t *lp);
+extern void _raw_write_lock_wait_flags(arch_rwlock_t *lp, unsigned long flags);
+extern int _raw_write_trylock_retry(arch_rwlock_t *lp);
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void __raw_read_lock(arch_rwlock_t *rw)
 {
 	unsigned int old;
 	old = rw->lock & 0x7fffffffU;
@@ -136,7 +136,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		_raw_read_lock_wait(rw);
 }
 
-static inline void __raw_read_lock_flags(raw_rwlock_t *rw, unsigned long flags)
+static inline void __raw_read_lock_flags(arch_rwlock_t *rw, unsigned long flags)
 {
 	unsigned int old;
 	old = rw->lock & 0x7fffffffU;
@@ -144,7 +144,7 @@ static inline void __raw_read_lock_flags(raw_rwlock_t *rw, unsigned long flags)
 		_raw_read_lock_wait_flags(rw, flags);
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void __raw_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int old, cmp;
 
@@ -155,24 +155,24 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	} while (cmp != old);
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(arch_rwlock_t *rw)
 {
 	if (unlikely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000) != 0))
 		_raw_write_lock_wait(rw);
 }
 
-static inline void __raw_write_lock_flags(raw_rwlock_t *rw, unsigned long flags)
+static inline void __raw_write_lock_flags(arch_rwlock_t *rw, unsigned long flags)
 {
 	if (unlikely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000) != 0))
 		_raw_write_lock_wait_flags(rw, flags);
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void __raw_write_unlock(arch_rwlock_t *rw)
 {
 	_raw_compare_and_swap(&rw->lock, 0x80000000, 0);
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int __raw_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned int old;
 	old = rw->lock & 0x7fffffffU;
@@ -181,7 +181,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 	return _raw_read_trylock_retry(rw);
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int __raw_write_trylock(arch_rwlock_t *rw)
 {
 	if (likely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0))
 		return 1;

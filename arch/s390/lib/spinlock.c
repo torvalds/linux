@@ -105,7 +105,7 @@ void arch_spin_relax(arch_spinlock_t *lock)
 }
 EXPORT_SYMBOL(arch_spin_relax);
 
-void _raw_read_lock_wait(raw_rwlock_t *rw)
+void _raw_read_lock_wait(arch_rwlock_t *rw)
 {
 	unsigned int old;
 	int count = spin_retry;
@@ -124,7 +124,7 @@ void _raw_read_lock_wait(raw_rwlock_t *rw)
 }
 EXPORT_SYMBOL(_raw_read_lock_wait);
 
-void _raw_read_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
+void _raw_read_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 {
 	unsigned int old;
 	int count = spin_retry;
@@ -145,7 +145,7 @@ void _raw_read_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 }
 EXPORT_SYMBOL(_raw_read_lock_wait_flags);
 
-int _raw_read_trylock_retry(raw_rwlock_t *rw)
+int _raw_read_trylock_retry(arch_rwlock_t *rw)
 {
 	unsigned int old;
 	int count = spin_retry;
@@ -161,7 +161,7 @@ int _raw_read_trylock_retry(raw_rwlock_t *rw)
 }
 EXPORT_SYMBOL(_raw_read_trylock_retry);
 
-void _raw_write_lock_wait(raw_rwlock_t *rw)
+void _raw_write_lock_wait(arch_rwlock_t *rw)
 {
 	int count = spin_retry;
 
@@ -178,7 +178,7 @@ void _raw_write_lock_wait(raw_rwlock_t *rw)
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
 
-void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
+void _raw_write_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 {
 	int count = spin_retry;
 
@@ -197,7 +197,7 @@ void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 }
 EXPORT_SYMBOL(_raw_write_lock_wait_flags);
 
-int _raw_write_trylock_retry(raw_rwlock_t *rw)
+int _raw_write_trylock_retry(arch_rwlock_t *rw)
 {
 	int count = spin_retry;
 
