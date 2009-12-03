@@ -40,16 +40,6 @@
 #define DRV_NAME "alim15x3"
 
 /*
- * Allow UDMA on M1543C-E chipset for WDC disks that ignore CRC checking
- * (this is DANGEROUS and could result in data corruption).
- */
-static int wdc_udma;
-
-module_param(wdc_udma, bool, 0);
-MODULE_PARM_DESC(wdc_udma,
-		 "allow UDMA on M1543C-E chipset for WDC disks (DANGEROUS)");
-
-/*
  *	ALi devices are not plug in. Otherwise these static values would
  *	need to go. They ought to go away anyway
  */
@@ -132,7 +122,7 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 	if (m5229_revision > 0x20 && m5229_revision < 0xC2) {
 		if (drive->media != ide_disk)
 			return 0;
-		if (wdc_udma == 0 && chip_is_1543c_e &&
+		if (chip_is_1543c_e &&
 		    strstr((char *)&drive->id[ATA_ID_PROD], "WDC "))
 			return 0;
 	}

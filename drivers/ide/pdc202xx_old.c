@@ -21,8 +21,6 @@
 
 #define DRV_NAME "pdc202xx_old"
 
-#define PDC202XX_DEBUG_DRIVE_INFO	0
-
 static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 
 static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
@@ -33,11 +31,6 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 
 	u8			AP = 0, BP = 0, CP = 0;
 	u8			TA = 0, TB = 0, TC = 0;
-
-#if PDC202XX_DEBUG_DRIVE_INFO
-	u32			drive_conf = 0;
-	pci_read_config_dword(dev, drive_pci, &drive_conf);
-#endif
 
 	/*
 	 * TODO: do this once per channel
@@ -89,14 +82,6 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 		pci_write_config_byte(dev, drive_pci + 1, BP | TB);
 		pci_write_config_byte(dev, drive_pci + 2, CP | TC);
 	}
-
-#if PDC202XX_DEBUG_DRIVE_INFO
-	printk(KERN_DEBUG "%s: %s drive%d 0x%08x ",
-		drive->name, ide_xfer_verbose(speed),
-		drive->dn, drive_conf);
-	pci_read_config_dword(dev, drive_pci, &drive_conf);
-	printk("0x%08x\n", drive_conf);
-#endif
 }
 
 static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
