@@ -27,6 +27,7 @@
 struct mantis_hwconfig vp2033_mantis_config = {
 	.model_name	= MANTIS_MODEL_NAME,
 	.dev_type	= MANTIS_DEV_TYPE,
+	.ts_size	= MANTIS_TS_188,
 };
 
 struct cu1216_config philips_cu1216_config = {

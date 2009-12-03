@@ -64,12 +64,14 @@
 #define mmor(dat, addr)		mmwrite((dat) | mmread(addr), addr)
 #define mmaor(dat, addr)	mmwrite((dat) | ((mask) & mmread(addr)), addr)
 
+#define MANTIS_TS_188		0
+#define MANTIS_TS_204		1
 
 struct mantis_hwconfig {
 	char			*model_name;
 	char			*dev_type;
+	u32			ts_size;
 };
-
 
 struct mantis_pci {
 	/*	PCI stuff		*/

@@ -87,6 +87,7 @@ struct stv0299_config lgtdqcs001f_config = {
 struct mantis_hwconfig vp1033_mantis_config = {
 	.model_name		= MANTIS_MODEL_NAME,
 	.dev_type		= MANTIS_DEV_TYPE,
+	.ts_size		= MANTIS_TS_204,
 };
 
 int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,

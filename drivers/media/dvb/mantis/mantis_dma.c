@@ -154,8 +154,6 @@ err:
 	return err;
 }
 
-
-
 static inline void mantis_risc_program(struct mantis_pci *mantis)
 {
 	u32 buf_pos = 0;

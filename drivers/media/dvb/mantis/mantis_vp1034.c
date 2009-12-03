@@ -32,6 +32,7 @@ struct mb86a16_config vp1034_config = {
 struct mantis_hwconfig vp1034_mantis_config = {
 	.model_name	= MANTIS_MODEL_NAME,
 	.dev_type	= MANTIS_DEV_TYPE,
+	.ts_size	= MANTIS_TS_204,
 };
 
 int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
