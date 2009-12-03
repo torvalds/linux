@@ -4740,6 +4740,13 @@ void intel_modeset_init(struct drm_device *dev)
 		    (unsigned long)dev);
 
 	intel_setup_overlay(dev);
+
+	if (IS_IGD(dev) && !intel_get_cxsr_latency(IS_IGDG(dev),
+						   dev_priv->fsb_freq,
+						   dev_priv->mem_freq))
+		DRM_INFO("failed to find known CxSR latency "
+			 "(found fsb freq %d, mem freq %d), disabling CxSR\n",
+			 dev_priv->fsb_freq, dev_priv->mem_freq);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
