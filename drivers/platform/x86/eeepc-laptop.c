@@ -289,26 +289,30 @@ static int read_acpi_int(acpi_handle handle, const char *method, int *val)
 
 static int set_acpi(int cm, int value)
 {
-	if (ehotk->cm_supported & (0x1 << cm)) {
-		const char *method = cm_setv[cm];
-		if (method == NULL)
-			return -ENODEV;
-		if (write_acpi_int(ehotk->handle, method, value, NULL))
-			pr_warning("Error writing %s\n", method);
-	}
+	const char *method = cm_setv[cm];
+
+	if (method == NULL)
+		return -ENODEV;
+	if ((ehotk->cm_supported & (0x1 << cm)) == 0)
+		return -ENODEV;
+
+	if (write_acpi_int(ehotk->handle, method, value, NULL))
+		pr_warning("Error writing %s\n", method);
 	return 0;
 }
 
 static int get_acpi(int cm)
 {
-	int value = -ENODEV;
-	if ((ehotk->cm_supported & (0x1 << cm))) {
-		const char *method = cm_getv[cm];
-		if (method == NULL)
-			return -ENODEV;
-		if (read_acpi_int(ehotk->handle, method, &value))
-			pr_warning("Error reading %s\n", method);
-	}
+	const char *method = cm_getv[cm];
+	int value;
+
+	if (method == NULL)
+		return -ENODEV;
+	if ((ehotk->cm_supported & (0x1 << cm)) == 0)
+		return -ENODEV;
+
+	if (read_acpi_int(ehotk->handle, method, &value))
+		pr_warning("Error reading %s\n", method);
 	return value;
 }
 
