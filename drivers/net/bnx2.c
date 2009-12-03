@@ -7722,6 +7722,93 @@ bnx2_get_pci_speed(struct bnx2 *bp)
 
 }
 
+static void __devinit
+bnx2_read_vpd_fw_ver(struct bnx2 *bp)
+{
+	int rc, i, v0_len = 0;
+	u8 *data;
+	u8 *v0_str = NULL;
+	bool mn_match = false;
+
+#define BNX2_MAX_VER_SLEN	30
+
+	data = kmalloc(256, GFP_KERNEL);
+	if (!data)
+		return;
+
+	rc = bnx2_nvram_read(bp, 0x300, data + 128, 128);
+	if (rc)
+		goto vpd_done;
+
+	for (i = 0; i < 128; i += 4) {
+		data[i] = data[i + 131];
+		data[i + 1] = data[i + 130];
+		data[i + 2] = data[i + 129];
+		data[i + 3] = data[i + 128];
+	}
+
+	for (i = 0; i < 128; ) {
+		unsigned char val = data[i];
+		unsigned int block_end;
+
+		if (val == 0x82 || val == 0x91) {
+			i = (i + 3 + (data[i + 1] + (data[i + 2] << 8)));
+			continue;
+		}
+
+		if (val != 0x90)
+			goto vpd_done;
+
+		block_end = (i + 3 + (data[i + 1] + (data[i + 2] << 8)));
+		i += 3;
+
+		if (block_end > 128)
+			goto vpd_done;
+
+		while (i < (block_end - 2)) {
+			if (data[i] == 'M' && data[i + 1] == 'N') {
+				int mn_len = data[i + 2];
+
+				if (mn_len != 4)
+					goto vpd_done;
+
+				i += 3;
+				if (memcmp(&data[i], "1028", 4))
+					goto vpd_done;
+				mn_match = true;
+				i += 4;
+
+			} else if (data[i] == 'V' && data[i + 1] == '0') {
+				v0_len = data[i + 2];
+
+				i += 3;
+				if (v0_len > BNX2_MAX_VER_SLEN ||
+				    (v0_len + i) > 128)
+					goto vpd_done;
+
+				if (v0_len > BNX2_MAX_VER_SLEN)
+					v0_len = BNX2_MAX_VER_SLEN;
+
+				v0_str = &data[i];
+				i += data[i + 2];
+
+			} else {
+				i += 3 + data[i + 2];
+			}
+
+			if (mn_match && v0_str) {
+				memcpy(bp->fw_version, v0_str, v0_len);
+				bp->fw_version[v0_len] = ' ';
+				goto vpd_done;
+			}
+		}
+		goto vpd_done;
+	}
+
+vpd_done:
+	kfree(data);
+}
+
 static int __devinit
 bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
@@ -7895,10 +7982,18 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_unmap;
 	}
 
+	bnx2_read_vpd_fw_ver(bp);
+
+	j = strlen(bp->fw_version);
 	reg = bnx2_shmem_rd(bp, BNX2_DEV_INFO_BC_REV);
-	for (i = 0, j = 0; i < 3; i++) {
+	for (i = 0; i < 3 && j < 24; i++) {
 		u8 num, k, skip0;
 
+		if (i == 0) {
+			bp->fw_version[j++] = 'b';
+			bp->fw_version[j++] = 'c';
+			bp->fw_version[j++] = ' ';
+		}
 		num = (u8) (reg >> (24 - (i * 8)));
 		for (k = 100, skip0 = 1; k >= 1; num %= k, k /= 10) {
 			if (num >= k || !skip0 || k == 1) {
@@ -7929,8 +8024,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	    reg != BNX2_CONDITION_MFW_RUN_NONE) {
 		u32 addr = bnx2_shmem_rd(bp, BNX2_MFW_VER_PTR);
 
-		bp->fw_version[j++] = ' ';
-		for (i = 0; i < 3; i++) {
+		if (j < 32)
+			bp->fw_version[j++] = ' ';
+		for (i = 0; i < 3 && j < 28; i++) {
 			reg = bnx2_reg_rd_ind(bp, addr + i * 4);
 			reg = swab32(reg);
 			memcpy(&bp->fw_version[j], &reg, 4);
