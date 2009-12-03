@@ -161,10 +161,12 @@ struct ixgbe_ring {
 	unsigned long reinit_state;
 	u64 rsc_count;			/* stat for coalesced packets */
 	u64 rsc_flush;			/* stats for flushed packets */
+	u32 restart_queue;		/* track tx queue restarts */
+	u32 non_eop_descs;		/* track hardware descriptor chaining */
 
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
-};
+} ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
 	RING_F_NONE = 0,
@@ -189,7 +191,7 @@ enum ixgbe_ring_f_enum {
 struct ixgbe_ring_feature {
 	int indices;
 	int mask;
-};
+} ____cacheline_internodealigned_in_smp;
 
 #define MAX_RX_QUEUES 128
 #define MAX_TX_QUEUES 128
@@ -275,29 +277,25 @@ struct ixgbe_adapter {
 	u16 eitr_high;
 
 	/* TX */
-	struct ixgbe_ring *tx_ring;	/* One per active queue */
+	struct ixgbe_ring *tx_ring ____cacheline_aligned_in_smp; /* One per active queue */
 	int num_tx_queues;
-	u64 restart_queue;
-	u64 hw_csum_tx_good;
-	u64 lsc_int;
-	u64 hw_tso_ctxt;
-	u64 hw_tso6_ctxt;
 	u32 tx_timeout_count;
 	bool detect_tx_hung;
 
+	u64 restart_queue;
+	u64 lsc_int;
+
 	/* RX */
-	struct ixgbe_ring *rx_ring;	/* One per active queue */
+	struct ixgbe_ring *rx_ring ____cacheline_aligned_in_smp; /* One per active queue */
 	int num_rx_queues;
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
-	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
 	int max_msix_q_vectors;         /* true count of q_vectors for device */
 	struct ixgbe_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 	struct msix_entry *msix_entries;
 
-	u64 rx_hdr_split;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 

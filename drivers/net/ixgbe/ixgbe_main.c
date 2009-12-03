@@ -413,7 +413,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
 			netif_wake_subqueue(netdev, tx_ring->queue_index);
-			++adapter->restart_queue;
+			++tx_ring->restart_queue;
 		}
 	}
 
@@ -624,7 +624,6 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 
 	/* It must be a TCP or UDP packet with a valid checksum */
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	adapter->hw_csum_rx_good++;
 }
 
 static inline void ixgbe_release_rx_desc(struct ixgbe_hw *hw,
@@ -681,13 +680,18 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 
 		if (!bi->skb) {
 			struct sk_buff *skb;
-			skb = netdev_alloc_skb_ip_align(adapter->netdev,
-							rx_ring->rx_buf_len);
+			/* netdev_alloc_skb reserves 32 bytes up front!! */
+			uint bufsz = rx_ring->rx_buf_len + SMP_CACHE_BYTES;
+			skb = netdev_alloc_skb(adapter->netdev, bufsz);
 
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
+
+			/* advance the data pointer to the next cache line */
+			skb_reserve(skb, (PTR_ALIGN(skb->data, SMP_CACHE_BYTES)
+			                  - skb->data));
 
 			bi->skb = skb;
 			bi->dma = pci_map_single(pdev, skb->data,
@@ -801,8 +805,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			hdr_info = le16_to_cpu(ixgbe_get_hdr_info(rx_desc));
 			len = (hdr_info & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
 			       IXGBE_RXDADV_HDRBUFLEN_SHIFT;
-			if (hdr_info & IXGBE_RXDADV_SPH)
-				adapter->rx_hdr_split++;
 			if (len > IXGBE_RX_HDR_SIZE)
 				len = IXGBE_RX_HDR_SIZE;
 			upper_len = le16_to_cpu(rx_desc->wb.upper.length);
@@ -812,7 +814,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 		cleaned = true;
 		skb = rx_buffer_info->skb;
-		prefetch(skb->data - NET_IP_ALIGN);
+		prefetch(skb->data);
 		rx_buffer_info->skb = NULL;
 
 		if (rx_buffer_info->dma) {
@@ -884,7 +886,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 				skb->next = next_buffer->skb;
 				skb->next->prev = skb;
 			}
-			adapter->non_eop_descs++;
+			rx_ring->non_eop_descs++;
 			goto next_desc;
 		}
 
@@ -4511,6 +4513,13 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		adapter->rsc_total_flush = rsc_flush;
 	}
 
+	/* gather some stats to the adapter struct that are per queue */
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		adapter->restart_queue += adapter->tx_ring[i].restart_queue;
+
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		adapter->non_eop_descs += adapter->tx_ring[i].non_eop_descs;
+
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	for (i = 0; i < 8; i++) {
 		/* for packet buffers not used, the register should read 0 */
@@ -4893,14 +4902,12 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 			                                         iph->daddr, 0,
 			                                         IPPROTO_TCP,
 			                                         0);
-			adapter->hw_tso_ctxt++;
 		} else if (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6) {
 			ipv6_hdr(skb)->payload_len = 0;
 			tcp_hdr(skb)->check =
 			    ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 			                     &ipv6_hdr(skb)->daddr,
 			                     0, IPPROTO_TCP, 0);
-			adapter->hw_tso6_ctxt++;
 		}
 
 		i = tx_ring->next_to_use;
@@ -5019,7 +5026,6 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 		tx_buffer_info->time_stamp = jiffies;
 		tx_buffer_info->next_to_watch = i;
 
-		adapter->hw_csum_tx_good++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -5256,8 +5262,6 @@ static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
                                  struct ixgbe_ring *tx_ring, int size)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
 	netif_stop_subqueue(netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
@@ -5271,7 +5275,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
 	netif_start_subqueue(netdev, tx_ring->queue_index);
-	++adapter->restart_queue;
+	++tx_ring->restart_queue;
 	return 0;
 }
 
