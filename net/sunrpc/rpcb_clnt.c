@@ -537,7 +537,7 @@ static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbi
 		.rpc_message = &msg,
 		.callback_ops = &rpcb_getport_ops,
 		.callback_data = map,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_SOFTCONN,
 	};
 
 	return rpc_run_task(&task_setup_data);
