@@ -38,7 +38,7 @@ struct dev_pm_ops {
 	...
 	int (*runtime_suspend)(struct device *dev);
 	int (*runtime_resume)(struct device *dev);
-	void (*runtime_idle)(struct device *dev);
+	int (*runtime_idle)(struct device *dev);
 	...
 };
 
@@ -114,7 +114,8 @@ The action performed by a bus type's ->runtime_idle() callback is totally
 dependent on the bus type in question, but the expected and recommended action
 is to check if the device can be suspended (i.e. if all of the conditions
 necessary for suspending the device are satisfied) and to queue up a suspend
-request for the device in that case.
+request for the device in that case.  The value returned by this callback is
+ignored by the PM core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
 that the following constraints are met with respect to the bus type's run-time
