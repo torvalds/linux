@@ -7730,24 +7730,27 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 	u8 *v0_str = NULL;
 	bool mn_match = false;
 
+#define BNX2_VPD_NVRAM_OFFSET	0x300
+#define BNX2_VPD_LEN		128
 #define BNX2_MAX_VER_SLEN	30
 
 	data = kmalloc(256, GFP_KERNEL);
 	if (!data)
 		return;
 
-	rc = bnx2_nvram_read(bp, 0x300, data + 128, 128);
+	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data + BNX2_VPD_LEN,
+			     BNX2_VPD_LEN);
 	if (rc)
 		goto vpd_done;
 
-	for (i = 0; i < 128; i += 4) {
-		data[i] = data[i + 131];
-		data[i + 1] = data[i + 130];
-		data[i + 2] = data[i + 129];
-		data[i + 3] = data[i + 128];
+	for (i = 0; i < BNX2_VPD_LEN; i += 4) {
+		data[i] = data[i + BNX2_VPD_LEN + 3];
+		data[i + 1] = data[i + BNX2_VPD_LEN + 2];
+		data[i + 2] = data[i + BNX2_VPD_LEN + 1];
+		data[i + 3] = data[i + BNX2_VPD_LEN];
 	}
 
-	for (i = 0; i < 128; ) {
+	for (i = 0; i <= BNX2_VPD_LEN - 3; ) {
 		unsigned char val = data[i];
 		unsigned int block_end;
 
@@ -7762,39 +7765,29 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 		block_end = (i + 3 + (data[i + 1] + (data[i + 2] << 8)));
 		i += 3;
 
-		if (block_end > 128)
+		if (block_end > BNX2_VPD_LEN)
 			goto vpd_done;
 
 		while (i < (block_end - 2)) {
+			int len = data[i + 2];
+
+			if (i + 3 + len > block_end)
+				goto vpd_done;
+
 			if (data[i] == 'M' && data[i + 1] == 'N') {
-				int mn_len = data[i + 2];
-
-				if (mn_len != 4)
-					goto vpd_done;
-
-				i += 3;
-				if (memcmp(&data[i], "1028", 4))
+				if (len != 4 ||
+				    memcmp(&data[i + 3], "1028", 4))
 					goto vpd_done;
 				mn_match = true;
-				i += 4;
 
 			} else if (data[i] == 'V' && data[i + 1] == '0') {
-				v0_len = data[i + 2];
-
-				i += 3;
-				if (v0_len > BNX2_MAX_VER_SLEN ||
-				    (v0_len + i) > 128)
+				if (len > BNX2_MAX_VER_SLEN)
 					goto vpd_done;
 
-				if (v0_len > BNX2_MAX_VER_SLEN)
-					v0_len = BNX2_MAX_VER_SLEN;
-
-				v0_str = &data[i];
-				i += data[i + 2];
-
-			} else {
-				i += 3 + data[i + 2];
+				v0_len = len;
+				v0_str = &data[i + 3];
 			}
+			i += 3 + len;
 
 			if (mn_match && v0_str) {
 				memcpy(bp->fw_version, v0_str, v0_len);
