@@ -136,6 +136,7 @@ static const struct key_entry eeepc_keymap[] = {
 	{KE_KEY, 0x13, KEY_MUTE },
 	{KE_KEY, 0x14, KEY_VOLUMEDOWN },
 	{KE_KEY, 0x15, KEY_VOLUMEUP },
+	{KE_KEY, 0x16, KEY_DISPLAY_OFF },
 	{KE_KEY, 0x1a, KEY_COFFEE },
 	{KE_KEY, 0x1b, KEY_ZOOM },
 	{KE_KEY, 0x1c, KEY_PROG2 },
@@ -145,6 +146,8 @@ static const struct key_entry eeepc_keymap[] = {
 	{KE_KEY, 0x30, KEY_SWITCHVIDEOMODE },
 	{KE_KEY, 0x31, KEY_SWITCHVIDEOMODE },
 	{KE_KEY, 0x32, KEY_SWITCHVIDEOMODE },
+	{KE_KEY, 0x37, KEY_F13 }, /* Disable Touchpad */
+	{KE_KEY, 0x38, KEY_F14 },
 	{KE_END, 0},
 };
 
