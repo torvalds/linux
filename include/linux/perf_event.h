@@ -220,6 +220,8 @@ struct perf_event_attr {
 			__u64		bp_addr;
 			__u32		bp_type;
 			__u32		bp_len;
+			__u64		__bp_reserved_1;
+			__u64		__bp_reserved_2;
 		};
 	};
 
