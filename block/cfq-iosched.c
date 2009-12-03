@@ -408,6 +408,13 @@ static inline int cfq_group_busy_queues_wl(enum wl_prio_t wl,
 		+ cfqg->service_trees[wl][SYNC_WORKLOAD].count;
 }
 
+static inline int cfqg_busy_async_queues(struct cfq_data *cfqd,
+					struct cfq_group *cfqg)
+{
+	return cfqg->service_trees[RT_WORKLOAD][ASYNC_WORKLOAD].count
+		+ cfqg->service_trees[BE_WORKLOAD][ASYNC_WORKLOAD].count;
+}
+
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *, bool,
 				       struct io_context *, gfp_t);
@@ -895,13 +902,19 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 				struct cfq_queue *cfqq)
 {
 	struct cfq_rb_root *st = &cfqd->grp_service_tree;
-	unsigned int used_sl;
+	unsigned int used_sl, charge_sl;
+	int nr_sync = cfqg->nr_cfqq - cfqg_busy_async_queues(cfqd, cfqg)
+			- cfqg->service_tree_idle.count;
 
-	used_sl = cfq_cfqq_slice_usage(cfqq);
+	BUG_ON(nr_sync < 0);
+	used_sl = charge_sl = cfq_cfqq_slice_usage(cfqq);
+
+	if (!cfq_cfqq_sync(cfqq) && !nr_sync)
+		charge_sl = cfqq->allocated_slice;
 
 	/* Can't update vdisktime while group is on service tree */
 	cfq_rb_erase(&cfqg->rb_node, st);
-	cfqg->vdisktime += cfq_scale_slice(used_sl, cfqg);
+	cfqg->vdisktime += cfq_scale_slice(charge_sl, cfqg);
 	__cfq_group_service_tree_add(st, cfqg);
 
 	/* This group is being expired. Save the context */
@@ -2016,11 +2029,24 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 		max_t(unsigned, cfqg->busy_queues_avg[cfqd->serving_prio],
 		      cfq_group_busy_queues_wl(cfqd->serving_prio, cfqd, cfqg));
 
-	if (cfqd->serving_type == ASYNC_WORKLOAD)
+	if (cfqd->serving_type == ASYNC_WORKLOAD) {
+		unsigned int tmp;
+
+		/*
+		 * Async queues are currently system wide. Just taking
+		 * proportion of queues with-in same group will lead to higher
+		 * async ratio system wide as generally root group is going
+		 * to have higher weight. A more accurate thing would be to
+		 * calculate system wide asnc/sync ratio.
+		 */
+		tmp = cfq_target_latency * cfqg_busy_async_queues(cfqd, cfqg);
+		tmp = tmp/cfqd->busy_queues;
+		slice = min_t(unsigned, slice, tmp);
+
 		/* async workload slice is scaled down according to
 		 * the sync/async slice ratio. */
 		slice = slice * cfqd->cfq_slice[0] / cfqd->cfq_slice[1];
-	else
+	} else
 		/* sync workload slice is at least 2 * cfq_slice_idle */
 		slice = max(slice, 2 * cfqd->cfq_slice_idle);
 
