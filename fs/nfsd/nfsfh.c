@@ -12,7 +12,7 @@
 #include <linux/exportfs.h>
 
 #include <linux/sunrpc/svcauth_gss.h>
-#include <linux/nfsd/nfsd.h>
+#include "nfsd.h"
 #include "vfs.h"
 #include "auth.h"
 

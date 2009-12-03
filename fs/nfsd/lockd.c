@@ -9,8 +9,8 @@
  */
 
 #include <linux/file.h>
-#include <linux/nfsd/nfsd.h>
 #include <linux/lockd/bind.h>
+#include "nfsd.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_LOCKD

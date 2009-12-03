@@ -15,11 +15,11 @@
 
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
 #include <linux/lockd/bind.h>
 #include <linux/nfsacl.h>
 #include <linux/seq_file.h>
+#include "nfsd.h"
+#include "cache.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC

@@ -11,11 +11,12 @@
 
 #include <linux/nfsd_idmap.h>
 #include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
+
+#include "nfsd.h"
+#include "cache.h"
 
 /*
  *	We have a single directory with 9 nodes in it.

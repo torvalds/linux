@@ -9,8 +9,8 @@
 
 #include <linux/namei.h>
 
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
+#include "cache.h"
+#include "xdr.h"
 #include "vfs.h"
 
 typedef struct svc_rqst	svc_rqst;

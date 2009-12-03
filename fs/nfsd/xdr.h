@@ -8,7 +8,7 @@
 #define LINUX_NFSD_H
 
 #include <linux/vfs.h>
-#include <linux/nfsd/nfsd.h>
+#include "nfsd.h"
 
 struct nfsd_fhandle {
 	struct svc_fh		fh;

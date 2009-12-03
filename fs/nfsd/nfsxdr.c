@@ -6,7 +6,7 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/nfsd/xdr.h>
+#include "xdr.h"
 #include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR

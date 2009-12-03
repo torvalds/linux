@@ -22,23 +22,25 @@
 #include <linux/fcntl.h>
 #include <linux/namei.h>
 #include <linux/delay.h>
-#include <linux/nfsd/nfsd.h>
-#ifdef CONFIG_NFSD_V3
-#include <linux/nfsd/xdr3.h>
-#endif /* CONFIG_NFSD_V3 */
 #include <linux/quotaops.h>
 #include <linux/fsnotify.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
+#include <linux/jhash.h>
+#include <linux/ima.h>
+#include <asm/uaccess.h>
+
+#ifdef CONFIG_NFSD_V3
+#include "xdr3.h"
+#endif /* CONFIG_NFSD_V3 */
+
 #ifdef CONFIG_NFSD_V4
 #include <linux/nfs4_acl.h>
 #include <linux/nfsd_idmap.h>
 #endif /* CONFIG_NFSD_V4 */
-#include <linux/jhash.h>
-#include <linux/ima.h>
-#include "vfs.h"
 
-#include <asm/uaccess.h>
+#include "nfsd.h"
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
 

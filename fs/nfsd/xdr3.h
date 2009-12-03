@@ -9,7 +9,7 @@
 #ifndef _LINUX_NFSD_XDR3_H
 #define _LINUX_NFSD_XDR3_H
 
-#include <linux/nfsd/xdr.h>
+#include "xdr.h"
 
 struct nfsd3_sattrargs {
 	struct svc_fh		fh;

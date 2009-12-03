@@ -36,8 +36,8 @@
  */
 #include <linux/file.h>
 
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr4.h>
+#include "cache.h"
+#include "xdr4.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC

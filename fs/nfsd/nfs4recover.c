@@ -33,12 +33,13 @@
 *
 */
 
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/state.h>
 #include <linux/file.h>
 #include <linux/namei.h>
 #include <linux/crypto.h>
 #include <linux/sched.h>
+
+#include "nfsd.h"
+#include "state.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC

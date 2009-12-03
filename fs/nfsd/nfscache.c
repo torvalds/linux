@@ -10,8 +10,8 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
+#include "nfsd.h"
+#include "cache.h"
 
 /* Size of reply cache. Common values are:
  * 4.3BSD:	128

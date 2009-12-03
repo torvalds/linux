@@ -10,8 +10,8 @@
 #include <linux/ext2_fs.h>
 #include <linux/magic.h>
 
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr3.h>
+#include "cache.h"
+#include "xdr3.h"
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC

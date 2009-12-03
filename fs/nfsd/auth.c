@@ -5,7 +5,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/nfsd/nfsd.h>
+#include "nfsd.h"
 #include "auth.h"
 
 int nfsexp_flags(struct svc_rqst *rqstp, struct svc_export *exp)

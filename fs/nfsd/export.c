@@ -18,9 +18,10 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 
-#include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/syscall.h>
 #include <net/ipv6.h>
+
+#include "nfsd.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 

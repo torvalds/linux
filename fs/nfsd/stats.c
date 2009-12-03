@@ -25,10 +25,10 @@
 
 #include <linux/seq_file.h>
 #include <linux/module.h>
-
 #include <linux/sunrpc/stats.h>
-#include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/stats.h>
+
+#include "nfsd.h"
 
 struct nfsd_stats	nfsdstats;
 struct svc_stat		nfsd_svcstats = {

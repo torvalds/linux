@@ -34,8 +34,8 @@
  */
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/state.h>
+#include "nfsd.h"
+#include "state.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

@@ -9,7 +9,7 @@
  */
 
 #include <linux/namei.h>
-#include <linux/nfsd/xdr3.h>
+#include "xdr3.h"
 #include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
