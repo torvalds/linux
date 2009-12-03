@@ -1060,6 +1060,7 @@ static void nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_LEASE_MOVED:
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			nfs4_state_end_reclaim_reboot(clp);
 			nfs4_state_start_reclaim_reboot(clp);
 			break;
 		case -NFS4ERR_EXPIRED:
@@ -1263,7 +1264,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			}
 		}
 		/* First recover reboot state... */
-		if (test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
+		if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
 			status = nfs4_do_reclaim(clp,
 				nfs4_reboot_recovery_ops[clp->cl_minorversion]);
 			if (status == -NFS4ERR_STALE_CLIENTID)
@@ -1309,8 +1310,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 out_error:
 	printk(KERN_WARNING "Error: state manager failed on NFSv4 server %s"
 			" with error %d\n", clp->cl_hostname, -status);
-	if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
-		nfs4_state_end_reclaim_reboot(clp);
 	nfs4_clear_state_manager_bit(clp);
 }
 
