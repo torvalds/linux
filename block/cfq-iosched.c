@@ -922,6 +922,12 @@ static inline struct cfq_group *cfqg_of_blkg(struct blkio_group *blkg)
 	return NULL;
 }
 
+void
+cfq_update_blkio_group_weight(struct blkio_group *blkg, unsigned int weight)
+{
+	cfqg_of_blkg(blkg)->weight = weight;
+}
+
 static struct cfq_group *
 cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 {

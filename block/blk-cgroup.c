@@ -16,6 +16,7 @@
 #include "blk-cgroup.h"
 
 extern void cfq_unlink_blkio_group(void *, struct blkio_group *);
+extern void cfq_update_blkio_group_weight(struct blkio_group *, unsigned int);
 
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 
@@ -116,12 +117,18 @@ static int
 blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 {
 	struct blkio_cgroup *blkcg;
+	struct blkio_group *blkg;
+	struct hlist_node *n;
 
 	if (val < BLKIO_WEIGHT_MIN || val > BLKIO_WEIGHT_MAX)
 		return -EINVAL;
 
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
+	spin_lock_irq(&blkcg->lock);
 	blkcg->weight = (unsigned int)val;
+	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
+		cfq_update_blkio_group_weight(blkg, blkcg->weight);
+	spin_unlock_irq(&blkcg->lock);
 	return 0;
 }
 
