@@ -662,12 +662,11 @@ static int notify_brn(void)
 {
 	/* returns the *previous* brightness, or -1 */
 	struct backlight_device *bd = eeepc_backlight_device;
-	if (bd) {
-		int old = bd->props.brightness;
-		backlight_force_update(bd, BACKLIGHT_UPDATE_HOTKEY);
-		return old;
-	}
-	return -1;
+	int old = bd->props.brightness;
+
+	backlight_force_update(bd, BACKLIGHT_UPDATE_HOTKEY);
+
+	return old;
 }
 
 static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
@@ -741,8 +740,6 @@ static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
 	u16 count;
 	int brn = -ENODEV;
 
-	if (!ehotk)
-		return;
 	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
@@ -753,21 +750,20 @@ static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
 					dev_name(&ehotk->device->dev), event,
 					count);
 	if (ehotk->inputdev) {
-		if (brn != -ENODEV) {
-			/* brightness-change events need special
-			 * handling for conversion to key events
-			 */
-			if (brn < 0)
-				brn = event;
-			else
-				brn += NOTIFY_BRN_MIN;
-			if (event < brn)
-				event = NOTIFY_BRN_MIN; /* brightness down */
-			else if (event > brn)
-				event = NOTIFY_BRN_MIN + 2; /* ... up */
-			else
-				event = NOTIFY_BRN_MIN + 1; /* ... unchanged */
-		}
+		/* brightness-change events need special
+		 * handling for conversion to key events
+		 */
+		if (brn < 0)
+			brn = event;
+		else
+			brn += NOTIFY_BRN_MIN;
+		if (event < brn)
+			event = NOTIFY_BRN_MIN; /* brightness down */
+		else if (event > brn)
+			event = NOTIFY_BRN_MIN + 2; /* ... up */
+		else
+			event = NOTIFY_BRN_MIN + 1; /* ... unchanged */
+
 		key = eepc_get_entry_by_scancode(event);
 		if (key) {
 			switch (key->type) {
