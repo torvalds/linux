@@ -595,6 +595,7 @@ static int mb86a16_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct mb86a16_state *state = fe->demodulator_priv;
 
+	*status = 0;
 	if (state->signal & 0x02)
 		*status |= FE_HAS_VITERBI;
 	if (state->signal & 0x01)
@@ -1693,6 +1694,7 @@ static int mb86a16_read_snr(struct dvb_frontend *fe, u16 *snr)
 	int low_tide = 2, high_tide = 30, q_level;
 	u8  cn;
 
+	*snr = 0;
 	if (mb86a16_read(state, 0x26, &cn) != 2) {
 		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
 		return -EREMOTEIO;
