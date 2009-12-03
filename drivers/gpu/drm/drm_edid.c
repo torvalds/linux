@@ -897,6 +897,51 @@ static int drm_gtf_modes_for_range(struct drm_connector *connector,
 	return modes;
 }
 
+static int drm_cvt_modes(struct drm_connector *connector,
+			 struct detailed_timing *timing)
+{
+	int i, j, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+	struct cvt_timing *cvt;
+	const int rates[] = { 60, 85, 75, 60, 50 };
+
+	for (i = 0; i < 4; i++) {
+		int width, height;
+		cvt = &(timing->data.other_data.data.cvt[i]);
+
+		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 8) + 1) * 2;
+		switch (cvt->code[1] & 0xc0) {
+		case 0x00:
+			width = height * 4 / 3;
+			break;
+		case 0x40:
+			width = height * 16 / 9;
+			break;
+		case 0x80:
+			width = height * 16 / 10;
+			break;
+		case 0xc0:
+			width = height * 15 / 9;
+			break;
+		}
+
+		for (j = 1; j < 5; j++) {
+			if (cvt->code[2] & (1 << j)) {
+				newmode = drm_cvt_mode(dev, width, height,
+						       rates[j], j == 0,
+						       false, false);
+				if (newmode) {
+					drm_mode_probed_add(connector, newmode);
+					modes++;
+				}
+			}
+		}
+	}
+
+	return modes;
+}
+
 static int add_detailed_modes(struct drm_connector *connector,
 			      struct detailed_timing *timing,
 			      struct edid *edid, u32 quirks, int preferred)
@@ -940,6 +985,9 @@ static int add_detailed_modes(struct drm_connector *connector,
 				modes++;
 			}
 		}
+		break;
+	case EDID_DETAIL_CVT_3BYTE:
+		modes += drm_cvt_modes(connector, timing);
 		break;
 	default:
 		break;
