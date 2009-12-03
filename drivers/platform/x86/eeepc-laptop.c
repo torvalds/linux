@@ -1074,10 +1074,10 @@ static void eeepc_hwmon_exit(void)
 
 static void eeepc_led_exit(void)
 {
-	if (led_workqueue)
-		destroy_workqueue(led_workqueue);
 	if (tpd_led.dev)
 		led_classdev_unregister(&tpd_led);
+	if (led_workqueue)
+		destroy_workqueue(led_workqueue);
 }
 
 static int eeepc_new_rfkill(struct rfkill **rfkill,
@@ -1243,13 +1243,13 @@ static int eeepc_led_init(struct device *dev)
 	if (get_acpi(CM_ASL_TPD) == -ENODEV)
 		return 0;
 
-	rv = led_classdev_register(dev, &tpd_led);
-	if (rv)
-		return rv;
-
 	led_workqueue = create_singlethread_workqueue("led_workqueue");
 	if (!led_workqueue)
 		return -ENOMEM;
+
+	rv = led_classdev_register(dev, &tpd_led);
+	if (rv)
+		return rv;
 
 	return 0;
 }
