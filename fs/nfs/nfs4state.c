@@ -1057,6 +1057,9 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_CB_PATH_DOWN:
 			nfs_handle_cb_pathdown(clp);
 			return 0;
+		case -NFS4ERR_NO_GRACE:
+			nfs4_state_end_reclaim_reboot(clp);
+			return 0;
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_LEASE_MOVED:
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
