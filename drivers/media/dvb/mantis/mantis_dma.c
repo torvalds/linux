@@ -190,7 +190,8 @@ void mantis_dma_start(struct mantis_pci *mantis)
 
 	mantis_risc_program(mantis);
 	mmwrite(cpu_to_le32(mantis->risc_dma), MANTIS_RISC_START);
-	mmwrite(MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
+//	mmwrite(MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
+	mmwrite(mmread(MANTIS_GPIF_ADDR) | MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
 
 	mmwrite(0, MANTIS_DMA_CTL);
 	mantis->last_block = mantis->finished_block = 0;
@@ -209,6 +210,8 @@ void mantis_dma_stop(struct mantis_pci *mantis)
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis Stop DMA engine");
+
+	mmwrite((mmread(MANTIS_GPIF_ADDR) & (~(MANTIS_GPIF_RDWRN))), MANTIS_GPIF_ADDR);
 
 	mmwrite((mmread(MANTIS_DMA_CTL) & ~(MANTIS_FIFO_EN |
 					    MANTIS_DCAP_EN |
