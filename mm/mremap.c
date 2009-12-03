@@ -27,10 +27,6 @@
 
 #include "internal.h"
 
-#ifndef arch_mmap_check
-#define arch_mmap_check(addr, len, flags)	(0)
-#endif
-
 static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
@@ -366,9 +362,7 @@ static unsigned long mremap_to(unsigned long addr,
 	map_flags = MAP_FIXED;
 	if (vma->vm_flags & VM_MAYSHARE)
 		map_flags |= MAP_SHARED;
-	ret = arch_mmap_check(new_addr, new_len, map_flags);
-	if (ret)
-		goto out1;
+
 	ret = get_unmapped_area(vma->vm_file, new_addr, new_len, vma->vm_pgoff +
 				((addr - vma->vm_start) >> PAGE_SHIFT),
 				map_flags);
@@ -388,12 +382,9 @@ out:
 static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
 {
 	unsigned long end = vma->vm_end + delta;
-	unsigned long max_addr = TASK_SIZE;
-	if (vma->vm_next)
-		max_addr = vma->vm_next->vm_start;
-	if (max_addr < end || end < vma->vm_end)
+	if (end < vma->vm_end) /* overflow */
 		return 0;
-	if (arch_mmap_check(vma->vm_start, end - vma->vm_start, MAP_FIXED))
+	if (vma->vm_next && vma->vm_next->vm_start < end) /* intersection */
 		return 0;
 	if (get_unmapped_area(NULL, vma->vm_start, end - vma->vm_start,
 			      0, MAP_FIXED) & ~PAGE_MASK)
