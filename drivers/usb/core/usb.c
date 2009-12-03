@@ -64,6 +64,43 @@ MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
 
 
 /**
+ * usb_find_alt_setting() - Given a configuration, find the alternate setting
+ * for the given interface.
+ * @config - the configuration to search (not necessarily the current config).
+ * @iface_num - interface number to search in
+ * @alt_num - alternate interface setting number to search for.
+ *
+ * Search the configuration's interface cache for the given alt setting.
+ */
+struct usb_host_interface *usb_find_alt_setting(
+		struct usb_host_config *config,
+		unsigned int iface_num,
+		unsigned int alt_num)
+{
+	struct usb_interface_cache *intf_cache = NULL;
+	int i;
+
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		if (config->intf_cache[i]->altsetting[0].desc.bInterfaceNumber
+				== iface_num) {
+			intf_cache = config->intf_cache[i];
+			break;
+		}
+	}
+	if (!intf_cache)
+		return NULL;
+	for (i = 0; i < intf_cache->num_altsetting; i++)
+		if (intf_cache->altsetting[i].desc.bAlternateSetting == alt_num)
+			return &intf_cache->altsetting[i];
+
+	printk(KERN_DEBUG "Did not find alt setting %u for intf %u, "
+			"config %u\n", alt_num, iface_num,
+			config->desc.bConfigurationValue);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(usb_find_alt_setting);
+
+/**
  * usb_ifnum_to_if - get the interface object with a given interface number
  * @dev: the device whose current configuration is considered
  * @ifnum: the desired interface

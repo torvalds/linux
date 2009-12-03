@@ -1606,7 +1606,6 @@ int usb_hcd_check_bandwidth(struct usb_device *udev,
 		struct usb_interface *new_intf)
 {
 	int num_intfs, i, j;
-	struct usb_interface_cache *intf_cache;
 	struct usb_host_interface *alt = NULL;
 	int ret = 0;
 	struct usb_hcd *hcd;
@@ -1654,15 +1653,8 @@ int usb_hcd_check_bandwidth(struct usb_device *udev,
 			}
 		}
 		for (i = 0; i < num_intfs; ++i) {
-
-			/* Dig the endpoints for alt setting 0 out of the
-			 * interface cache for this interface
-			 */
-			intf_cache = new_config->intf_cache[i];
-			for (j = 0; j < intf_cache->num_altsetting; j++) {
-				if (intf_cache->altsetting[j].desc.bAlternateSetting == 0)
-					alt = &intf_cache->altsetting[j];
-			}
+			/* Set up endpoints for alternate interface setting 0 */
+			alt = usb_find_alt_setting(new_config, i, 0);
 			if (!alt) {
 				printk(KERN_DEBUG "Did not find alt setting 0 for intf %d\n", i);
 				continue;

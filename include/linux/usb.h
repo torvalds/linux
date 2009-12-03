@@ -619,6 +619,10 @@ extern struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
 		unsigned ifnum);
 extern struct usb_host_interface *usb_altnum_to_altsetting(
 		const struct usb_interface *intf, unsigned int altnum);
+extern struct usb_host_interface *usb_find_alt_setting(
+		struct usb_host_config *config,
+		unsigned int iface_num,
+		unsigned int alt_num);
 
 
 /**
