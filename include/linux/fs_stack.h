@@ -8,9 +8,7 @@
 #include <linux/fs.h>
 
 /* externs for fs/stack.c */
-extern void fsstack_copy_attr_all(struct inode *dest, const struct inode *src,
-				int (*get_nlinks)(struct inode *));
-
+extern void fsstack_copy_attr_all(struct inode *dest, const struct inode *src);
 extern void fsstack_copy_inode_size(struct inode *dst, const struct inode *src);
 
 /* inlines */
