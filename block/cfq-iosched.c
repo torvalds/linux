@@ -1461,6 +1461,9 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	struct cfq_io_context *cic;
 	struct cfq_queue *cfqq;
 
+	/* Deny merge if bio and rq don't belong to same cfq group */
+	if ((RQ_CFQQ(rq))->cfqg != cfq_get_cfqg(cfqd, 0))
+		return false;
 	/*
 	 * Disallow merge of a sync bio into an async request.
 	 */
@@ -1696,6 +1699,10 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 	 */
 	cfqq = cfqq_close(cfqd, cur_cfqq);
 	if (!cfqq)
+		return NULL;
+
+	/* If new queue belongs to different cfq_group, don't choose it */
+	if (cur_cfqq->cfqg != cfqq->cfqg)
 		return NULL;
 
 	/*
@@ -2950,20 +2957,10 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (!cfqq)
 		return false;
 
-	if (cfq_slice_used(cfqq))
-		return true;
-
 	if (cfq_class_idle(new_cfqq))
 		return false;
 
 	if (cfq_class_idle(cfqq))
-		return true;
-
-	/* Allow preemption only if we are idling on sync-noidle tree */
-	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
-	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
-	    new_cfqq->service_tree->count == 2 &&
-	    RB_EMPTY_ROOT(&cfqq->sort_list))
 		return true;
 
 	/*
@@ -2971,6 +2968,19 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * not, let the sync request have priority.
 	 */
 	if (rq_is_sync(rq) && !cfq_cfqq_sync(cfqq))
+		return true;
+
+	if (new_cfqq->cfqg != cfqq->cfqg)
+		return false;
+
+	if (cfq_slice_used(cfqq))
+		return true;
+
+	/* Allow preemption only if we are idling on sync-noidle tree */
+	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
+	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
+	    new_cfqq->service_tree->count == 2 &&
+	    RB_EMPTY_ROOT(&cfqq->sort_list))
 		return true;
 
 	/*
