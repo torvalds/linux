@@ -130,8 +130,8 @@ static int __devinit sonic_probe1(struct net_device *dev)
 		printk("SONIC Silicon Revision = 0x%04x\n",silicon_revision);
 
 	i = 0;
-	while (known_revisions[i] != 0xffff
-	       && known_revisions[i] != silicon_revision)
+	while (known_revisions[i] != 0xffff &&
+	       known_revisions[i] != silicon_revision)
 		i++;
 
 	if (known_revisions[i] == 0xffff) {

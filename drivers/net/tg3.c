@@ -4621,13 +4621,12 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		len = ((desc->idx_len & RXD_LEN_MASK) >> RXD_LEN_SHIFT) -
 		      ETH_FCS_LEN;
 
-		if (len > RX_COPY_THRESHOLD
-			&& tp->rx_offset == NET_IP_ALIGN
-			/* rx_offset will likely not equal NET_IP_ALIGN
-			 * if this is a 5701 card running in PCI-X mode
-			 * [see tg3_get_invariants()]
-			 */
-		) {
+		if (len > RX_COPY_THRESHOLD &&
+		    tp->rx_offset == NET_IP_ALIGN) {
+		    /* rx_offset will likely not equal NET_IP_ALIGN
+		     * if this is a 5701 card running in PCI-X mode
+		     * [see tg3_get_invariants()]
+		     */
 			int skb_size;
 
 			skb_size = tg3_alloc_rx_skb(tp, tpr, opaque_key,

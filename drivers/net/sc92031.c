@@ -428,9 +428,9 @@ static void _sc92031_set_mar(struct net_device *dev)
 	void __iomem *port_base = priv->port_base;
 	u32 mar0 = 0, mar1 = 0;
 
-	if ((dev->flags & IFF_PROMISC)
-			|| dev->mc_count > multicast_filter_limit
-			|| (dev->flags & IFF_ALLMULTI))
+	if ((dev->flags & IFF_PROMISC) ||
+	    dev->mc_count > multicast_filter_limit ||
+	    (dev->flags & IFF_ALLMULTI))
 		mar0 = mar1 = 0xffffffff;
 	else if (dev->flags & IFF_MULTICAST) {
 		struct dev_mc_list *mc_list;
@@ -777,10 +777,10 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 
 		rx_ring_offset = (rx_ring_offset + 4) % RX_BUF_LEN;
 
-		if (unlikely(rx_status == 0
-				|| rx_size > (MAX_ETH_FRAME_SIZE + 4)
-				|| rx_size < 16
-				|| !(rx_status & RxStatesOK))) {
+		if (unlikely(rx_status == 0 ||
+			     rx_size > (MAX_ETH_FRAME_SIZE + 4) ||
+			     rx_size < 16 ||
+			     !(rx_status & RxStatesOK))) {
 			_sc92031_rx_tasklet_error(dev, rx_status, rx_size);
 			break;
 		}

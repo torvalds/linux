@@ -1784,9 +1784,9 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	}
 #endif
 
-	if (unlikely(netif_queue_stopped(priv->ndev)
-		     && netif_carrier_ok(priv->ndev)
-		     && (priv->tx_level >= BDX_MIN_TX_LEVEL))) {
+	if (unlikely(netif_queue_stopped(priv->ndev) &&
+		     netif_carrier_ok(priv->ndev) &&
+		     (priv->tx_level >= BDX_MIN_TX_LEVEL))) {
 		DBG("%s: %s: TX Q WAKE level %d\n",
 		    BDX_DRV_NAME, priv->ndev->name, priv->tx_level);
 		netif_wake_queue(priv->ndev);
@@ -2273,8 +2273,8 @@ bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
 	    (((tx_max_coal * BDX_TXF_DESC_SZ) + PCK_TH_MULT - 1)
 	     / PCK_TH_MULT);
 
-	if ((rx_coal > 0x7FFF) || (tx_coal > 0x7FFF)
-	    || (rx_max_coal > 0xF) || (tx_max_coal > 0xF))
+	if ((rx_coal > 0x7FFF) || (tx_coal > 0x7FFF) ||
+	    (rx_max_coal > 0xF) || (tx_max_coal > 0xF))
 		return -EINVAL;
 
 	rdintcm = INT_REG_VAL(rx_coal, GET_INT_COAL_RC(priv->rdintcm),
@@ -2347,8 +2347,8 @@ bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		tx_size = 3;
 
 	/*Is there anything to do? */
-	if ((rx_size == priv->rxf_size)
-	    && (tx_size == priv->txd_size))
+	if ((rx_size == priv->rxf_size) &&
+	    (tx_size == priv->txd_size))
 		return 0;
 
 	priv->rxf_size = rx_size;

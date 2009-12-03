@@ -4717,8 +4717,8 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 				      0xc809, &val1);
 
 			DP(NETIF_MSG_LINK, "8705 1.c809 val=0x%x\n", val1);
-			ext_phy_link_up = ((rx_sd & 0x1) && (val1 & (1<<9))
-					   && ((val1 & (1<<8)) == 0));
+			ext_phy_link_up = ((rx_sd & 0x1) && (val1 & (1<<9)) &&
+					   ((val1 & (1<<8)) == 0));
 			if (ext_phy_link_up)
 				vars->line_speed = SPEED_10000;
 			break;

@@ -697,8 +697,8 @@ static void znet_rx(struct net_device *dev)
 	   the same area of the backwards links we now have.  This allows us to
 	   pass packets to the upper layers in the order they were received --
 	   important for fast-path sequential operations. */
-	 while (znet->rx_start + cur_frame_end_offset != znet->rx_cur
-			&& ++boguscount < 5) {
+	while (znet->rx_start + cur_frame_end_offset != znet->rx_cur &&
+	       ++boguscount < 5) {
 		unsigned short hi_cnt, lo_cnt, hi_status, lo_status;
 		int count, status;
 

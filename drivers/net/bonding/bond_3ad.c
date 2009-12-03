@@ -561,12 +561,12 @@ static void __update_selected(struct lacpdu *lacpdu, struct port *port)
 		const struct port_params *partner = &port->partner_oper;
 
 		// check if any parameter is different
-		if (ntohs(lacpdu->actor_port) != partner->port_number
-		    || ntohs(lacpdu->actor_port_priority) != partner->port_priority
-		    || MAC_ADDRESS_COMPARE(&lacpdu->actor_system, &partner->system)
-		    || ntohs(lacpdu->actor_system_priority) != partner->system_priority
-		    || ntohs(lacpdu->actor_key) != partner->key
-		    || (lacpdu->actor_state & AD_STATE_AGGREGATION) != (partner->port_state & AD_STATE_AGGREGATION)) {
+		if (ntohs(lacpdu->actor_port) != partner->port_number ||
+		    ntohs(lacpdu->actor_port_priority) != partner->port_priority ||
+		    MAC_ADDRESS_COMPARE(&lacpdu->actor_system, &partner->system) ||
+		    ntohs(lacpdu->actor_system_priority) != partner->system_priority ||
+		    ntohs(lacpdu->actor_key) != partner->key ||
+		    (lacpdu->actor_state & AD_STATE_AGGREGATION) != (partner->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
 		}
@@ -592,12 +592,12 @@ static void __update_default_selected(struct port *port)
 		const struct port_params *oper = &port->partner_oper;
 
 		// check if any parameter is different
-		if (admin->port_number != oper->port_number
-		    || admin->port_priority != oper->port_priority
-		    || MAC_ADDRESS_COMPARE(&admin->system, &oper->system)
-		    || admin->system_priority != oper->system_priority
-		    || admin->key != oper->key
-		    || (admin->port_state & AD_STATE_AGGREGATION)
+		if (admin->port_number != oper->port_number ||
+		    admin->port_priority != oper->port_priority ||
+		    MAC_ADDRESS_COMPARE(&admin->system, &oper->system) ||
+		    admin->system_priority != oper->system_priority ||
+		    admin->key != oper->key ||
+		    (admin->port_state & AD_STATE_AGGREGATION)
 			!= (oper->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;

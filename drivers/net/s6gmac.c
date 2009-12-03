@@ -373,9 +373,9 @@ struct s6gmac {
 static void s6gmac_rx_fillfifo(struct s6gmac *pd)
 {
 	struct sk_buff *skb;
-	while ((((u8)(pd->rx_skb_i - pd->rx_skb_o)) < S6_NUM_RX_SKB)
-			&& (!s6dmac_fifo_full(pd->rx_dma, pd->rx_chan))
-			&& (skb = dev_alloc_skb(S6_MAX_FRLEN + 2))) {
+	while ((((u8)(pd->rx_skb_i - pd->rx_skb_o)) < S6_NUM_RX_SKB) &&
+	       (!s6dmac_fifo_full(pd->rx_dma, pd->rx_chan)) &&
+	       (skb = dev_alloc_skb(S6_MAX_FRLEN + 2))) {
 		pd->rx_skb[(pd->rx_skb_i++) % S6_NUM_RX_SKB] = skb;
 		s6dmac_put_fifo_cache(pd->rx_dma, pd->rx_chan,
 			pd->io, (u32)skb->data, S6_MAX_FRLEN);

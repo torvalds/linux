@@ -1780,8 +1780,8 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_LRO);
 		devRead->misc.maxNumRxSG = cpu_to_le16(1 + MAX_SKB_FRAGS);
 	}
-	if ((adapter->netdev->features & NETIF_F_HW_VLAN_RX)
-			&& adapter->vlan_grp) {
+	if ((adapter->netdev->features & NETIF_F_HW_VLAN_RX) &&
+	    adapter->vlan_grp) {
 		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_RXVLAN);
 	}
 

@@ -254,8 +254,8 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return bond->params.mode == BOND_MODE_TLB
-		|| bond->params.mode == BOND_MODE_ALB;
+	return (bond->params.mode == BOND_MODE_TLB ||
+		bond->params.mode == BOND_MODE_ALB);
 }
 
 #define BOND_PRI_RESELECT_ALWAYS	0

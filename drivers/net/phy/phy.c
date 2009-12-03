@@ -254,12 +254,12 @@ int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_ENABLE && cmd->advertising == 0)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_DISABLE
-			&& ((cmd->speed != SPEED_1000
-					&& cmd->speed != SPEED_100
-					&& cmd->speed != SPEED_10)
-				|| (cmd->duplex != DUPLEX_HALF
-					&& cmd->duplex != DUPLEX_FULL)))
+	if (cmd->autoneg == AUTONEG_DISABLE &&
+	    ((cmd->speed != SPEED_1000 &&
+	      cmd->speed != SPEED_100 &&
+	      cmd->speed != SPEED_10) ||
+	     (cmd->duplex != DUPLEX_HALF &&
+	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
 	phydev->autoneg = cmd->autoneg;
@@ -353,9 +353,9 @@ int phy_mii_ioctl(struct phy_device *phydev,
 
 		phy_write(phydev, mii_data->reg_num, val);
 		
-		if (mii_data->reg_num == MII_BMCR 
-				&& val & BMCR_RESET
-				&& phydev->drv->config_init) {
+		if (mii_data->reg_num == MII_BMCR &&
+		    val & BMCR_RESET &&
+		    phydev->drv->config_init) {
 			phy_scan_fixups(phydev);
 			phydev->drv->config_init(phydev);
 		}

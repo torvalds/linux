@@ -421,9 +421,9 @@ PrintRegisters(struct net_device *dev)
 	    printk("\n");
 	}
 	for (page=0x40 ; page <= 0x5f; page++) {
-	    if (page == 0x43 || (page >= 0x46 && page <= 0x4f)
-		|| (page >= 0x51 && page <=0x5e))
-		continue;
+		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
+		    (page >= 0x51 && page <=0x5e))
+			continue;
 	    printk(KDBG_XIRC "Register page %2x: ", page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
@@ -834,9 +834,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	/* Once I saw two CISTPL_FUNCE_LAN_NODE_ID entries:
 	 * the first one with a length of zero the second correct -
 	 * so I skip all entries with length 0 */
-	if (parse.funce.type == CISTPL_FUNCE_LAN_NODE_ID
-	    && ((cistpl_lan_node_id_t *)parse.funce.data)->nb)
-	    break;
+	    if (parse.funce.type == CISTPL_FUNCE_LAN_NODE_ID &&
+		((cistpl_lan_node_id_t *)parse.funce.data)->nb)
+		    break;
     }
     if (err) { /* not found: try to get the node-id from tuple 0x89 */
 	tuple.DesiredTuple = 0x89;  /* data layout looks like tuple 0x22 */
@@ -852,8 +852,8 @@ xirc2ps_config(struct pcmcia_device * link)
 	tuple.DesiredTuple = CISTPL_FUNCE;
 	for (err = first_tuple(link, &tuple, &parse); !err;
 				 err = next_tuple(link, &tuple, &parse)) {
-	    if (parse.funce.type == 0x02 && parse.funce.data[0] == 1
-		&& parse.funce.data[1] == 6 && tuple.TupleDataLen == 13) {
+		if (parse.funce.type == 0x02 && parse.funce.data[0] == 1 &&
+		    parse.funce.data[1] == 6 && tuple.TupleDataLen == 13) {
 		buf[1] = 4;
 		memcpy(&parse, buf+1, 8);
 		break;

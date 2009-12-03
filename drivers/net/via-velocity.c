@@ -895,8 +895,8 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 
 	/*
 	   Check if new status is consisent with current status
-	   if (((mii_status & curr_status) & VELOCITY_AUTONEG_ENABLE)
-	   || (mii_status==curr_status)) {
+	   if (((mii_status & curr_status) & VELOCITY_AUTONEG_ENABLE) ||
+	       (mii_status==curr_status)) {
 	   vptr->mii_status=mii_check_media_mode(vptr->mac_regs);
 	   vptr->mii_status=check_connection_type(vptr->mac_regs);
 	   VELOCITY_PRT(MSG_LEVEL_INFO, "Velocity link no change\n");
@@ -1132,8 +1132,8 @@ static void velocity_set_multi(struct net_device *dev)
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
 		rx_mode = (RCR_AM | RCR_AB | RCR_PROM);
-	} else if ((dev->mc_count > vptr->multicast_limit)
-		   || (dev->flags & IFF_ALLMULTI)) {
+	} else if ((dev->mc_count > vptr->multicast_limit) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
 		rx_mode = (RCR_AM | RCR_AB);
@@ -1936,8 +1936,8 @@ static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
 	 *	Look to see if we should kick the transmit network
 	 *	layer for more work.
 	 */
-	if (netif_queue_stopped(vptr->dev) && (full == 0)
-	    && (!(vptr->mii_status & VELOCITY_LINK_FAIL))) {
+	if (netif_queue_stopped(vptr->dev) && (full == 0) &&
+	    (!(vptr->mii_status & VELOCITY_LINK_FAIL))) {
 		netif_wake_queue(vptr->dev);
 	}
 	return works;
@@ -2584,8 +2584,8 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	/*
 	 *	Handle hardware checksum
 	 */
-	if ( (dev->features & NETIF_F_IP_CSUM)
-				 && (skb->ip_summed == CHECKSUM_PARTIAL)) {
+	if ((dev->features & NETIF_F_IP_CSUM) &&
+	    (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		const struct iphdr *ip = ip_hdr(skb);
 		if (ip->protocol == IPPROTO_TCP)
 			td_ptr->tdesc1.TCR |= TCR0_TCPCK;

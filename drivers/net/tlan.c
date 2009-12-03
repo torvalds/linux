@@ -1755,8 +1755,8 @@ static u32 TLan_HandleStatusCheck( struct net_device *dev, u16 host_int )
 			     ! ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl |= TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
-        		} else if ( ( tlphy_sts & TLAN_TS_POLOK )
-				    && ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
+			} else if ( ( tlphy_sts & TLAN_TS_POLOK ) &&
+				    ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl &= ~TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
         		}

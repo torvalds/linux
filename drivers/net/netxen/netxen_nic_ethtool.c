@@ -257,18 +257,18 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	/* read which mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		/* autonegotiation */
-		if (adapter->phy_write
-		    && adapter->phy_write(adapter,
-					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  ecmd->autoneg) != 0)
+		if (adapter->phy_write &&
+		    adapter->phy_write(adapter,
+				       NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
+				       ecmd->autoneg) != 0)
 			return -EIO;
 		else
 			adapter->link_autoneg = ecmd->autoneg;
 
-		if (adapter->phy_read
-		    && adapter->phy_read(adapter,
-					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					 &status) != 0)
+		if (adapter->phy_read &&
+		    adapter->phy_read(adapter,
+				      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				      &status) != 0)
 			return -EIO;
 
 		/* speed */
@@ -288,10 +288,10 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			netxen_clear_phy_duplex(status);
 		if (ecmd->duplex == DUPLEX_FULL)
 			netxen_set_phy_duplex(status);
-		if (adapter->phy_write
-		    && adapter->phy_write(adapter,
-					  NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					  *((int *)&status)) != 0)
+		if (adapter->phy_write &&
+		    adapter->phy_write(adapter,
+				       NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				       *((int *)&status)) != 0)
 			return -EIO;
 		else {
 			adapter->link_speed = ecmd->speed;
@@ -442,10 +442,10 @@ static u32 netxen_nic_test_link(struct net_device *dev)
 
 	/* read which mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		if (adapter->phy_read
-		    && adapter->phy_read(adapter,
-					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					 &status) != 0)
+		if (adapter->phy_read &&
+		    adapter->phy_read(adapter,
+				      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				      &status) != 0)
 			return -EIO;
 		else {
 			val = netxen_get_phy_link(status);

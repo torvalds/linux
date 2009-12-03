@@ -189,8 +189,8 @@ static void ehea_update_firmware_handles(void)
 		for (k = 0; k < EHEA_MAX_PORTS; k++) {
 			struct ehea_port *port = adapter->port[k];
 
-			if (!port || (port->state != EHEA_PORT_UP)
-				|| (num_ports == 0))
+			if (!port || (port->state != EHEA_PORT_UP) ||
+			    (num_ports == 0))
 				continue;
 
 			for (l = 0;
@@ -657,8 +657,8 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
 			  struct sk_buff *skb)
 {
-	int vlan_extracted = (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
-		&& pr->port->vgrp;
+	int vlan_extracted = ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT) &&
+			      pr->port->vgrp);
 
 	if (use_lro) {
 		if (vlan_extracted)
@@ -1389,8 +1389,8 @@ out:
 
 int ehea_rem_smrs(struct ehea_port_res *pr)
 {
-	if ((ehea_rem_mr(&pr->send_mr))
-	    || (ehea_rem_mr(&pr->recv_mr)))
+	if ((ehea_rem_mr(&pr->send_mr)) ||
+	    (ehea_rem_mr(&pr->recv_mr)))
 		return -EIO;
 	else
 		return 0;
@@ -2031,8 +2031,8 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 		write_ip_start_end(swqe, skb);
 
 		if (iph->protocol == IPPROTO_UDP) {
-			if ((iph->frag_off & IP_MF)
-			    || (iph->frag_off & IP_OFFSET))
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control &= ~EHEA_SWQE_TCP_CHECKSUM;
 			else
@@ -2077,8 +2077,8 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 			write_tcp_offset_end(swqe, skb);
 
 		} else if (iph->protocol == IPPROTO_UDP) {
-			if ((iph->frag_off & IP_MF)
-			    || (iph->frag_off & IP_OFFSET))
+			if ((iph->frag_off & IP_MF) ||
+			    (iph->frag_off & IP_OFFSET))
 				/* IP fragment, so don't change cs */
 				swqe->tx_control |= EHEA_SWQE_CRC
 						 | EHEA_SWQE_IMM_DATA_PRESENT;

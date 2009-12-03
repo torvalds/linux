@@ -121,8 +121,8 @@ static struct sk_buff *eem_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 		int	headroom = skb_headroom(skb);
 		int	tailroom = skb_tailroom(skb);
 
-		if ((tailroom >= ETH_FCS_LEN + padlen)
-				&& (headroom >= EEM_HEAD))
+		if ((tailroom >= ETH_FCS_LEN + padlen) &&
+		    (headroom >= EEM_HEAD))
 			goto done;
 
 		if ((headroom + tailroom)

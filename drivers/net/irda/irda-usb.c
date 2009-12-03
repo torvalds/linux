@@ -1124,11 +1124,11 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                  * The actual image starts after the "STMP" keyword
                  * so forward to the firmware header tag
                  */
-                for (i = 0; (fw->data[i] != STIR421X_PATCH_END_OF_HDR_TAG)
-			     && (i < fw->size); i++) ;
+                for (i = 0; (fw->data[i] != STIR421X_PATCH_END_OF_HDR_TAG) &&
+			     (i < fw->size); i++) ;
                 /* here we check for the out of buffer case */
-                if ((STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i])
-                    && (i < STIR421X_PATCH_CODE_OFFSET)) {
+                if ((STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i]) &&
+                    (i < STIR421X_PATCH_CODE_OFFSET)) {
                         if (!memcmp(fw->data + i + 1, STIR421X_PATCH_STMP_TAG,
                                     sizeof(STIR421X_PATCH_STMP_TAG) - 1)) {
 

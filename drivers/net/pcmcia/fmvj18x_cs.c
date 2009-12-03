@@ -371,9 +371,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	switch (link->manf_id) {
 	case MANFID_TDK:
 	    cardtype = TDK;
-	    if (link->card_id == PRODID_TDK_GN3410
-			|| link->card_id == PRODID_TDK_NP9610
-			|| link->card_id == PRODID_TDK_MN3200) {
+	    if (link->card_id == PRODID_TDK_GN3410 ||
+		link->card_id == PRODID_TDK_NP9610 ||
+		link->card_id == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
@@ -590,11 +590,11 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     */ 
     for (i = 0; i < 0x200; i++) {
 	if (readb(base+i*2) == 0x22) {	
-	    if (readb(base+(i-1)*2) == 0xff
-	     && readb(base+(i+5)*2) == 0x04
-	     && readb(base+(i+6)*2) == 0x06
-	     && readb(base+(i+13)*2) == 0xff) 
-		break;
+		if (readb(base+(i-1)*2) == 0xff &&
+		    readb(base+(i+5)*2) == 0x04 &&
+		    readb(base+(i+6)*2) == 0x06 &&
+		    readb(base+(i+13)*2) == 0xff)
+			break;
 	}
     }
 
@@ -1219,8 +1219,8 @@ static void set_rx_mode(struct net_device *dev)
     if (dev->flags & IFF_PROMISC) {
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
-    } else if (dev->mc_count > MC_FILTERBREAK
-	       ||  (dev->flags & IFF_ALLMULTI)) {
+    } else if (dev->mc_count > MC_FILTERBREAK ||
+	       (dev->flags & IFF_ALLMULTI)) {
 	/* Too many to filter perfectly -- accept all multicasts. */
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

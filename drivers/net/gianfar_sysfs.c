@@ -62,8 +62,8 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 	/* Find out the new setting */
 	if (!strncmp("on", buf, count - 1) || !strncmp("1", buf, count - 1))
 		new_setting = 1;
-	else if (!strncmp("off", buf, count - 1)
-		 || !strncmp("0", buf, count - 1))
+	else if (!strncmp("off", buf, count - 1) ||
+		 !strncmp("0", buf, count - 1))
 		new_setting = 0;
 	else
 		return count;

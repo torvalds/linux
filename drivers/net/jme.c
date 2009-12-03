@@ -1050,8 +1050,8 @@ jme_dynamic_pcc(struct jme_adapter *jme)
 
 	if ((NET_STAT(jme).rx_bytes - dpi->last_bytes) > PCC_P3_THRESHOLD)
 		jme_attempt_pcc(dpi, PCC_P3);
-	else if ((NET_STAT(jme).rx_packets - dpi->last_pkts) > PCC_P2_THRESHOLD
-	|| dpi->intr_cnt > PCC_INTR_THRESHOLD)
+	else if ((NET_STAT(jme).rx_packets - dpi->last_pkts) > PCC_P2_THRESHOLD ||
+		 dpi->intr_cnt > PCC_INTR_THRESHOLD)
 		jme_attempt_pcc(dpi, PCC_P2);
 	else
 		jme_attempt_pcc(dpi, PCC_P1);
@@ -2199,8 +2199,8 @@ jme_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
 	if (netif_running(netdev))
 		return -EBUSY;
 
-	if (ecmd->use_adaptive_rx_coalesce
-	&& test_bit(JME_FLAG_POLL, &jme->flags)) {
+	if (ecmd->use_adaptive_rx_coalesce &&
+	    test_bit(JME_FLAG_POLL, &jme->flags)) {
 		clear_bit(JME_FLAG_POLL, &jme->flags);
 		jme->jme_rx = netif_rx;
 		jme->jme_vlan_rx = vlan_hwaccel_rx;
@@ -2209,8 +2209,8 @@ jme_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
 		dpi->cnt		= 0;
 		jme_set_rx_pcc(jme, PCC_P1);
 		jme_interrupt_mode(jme);
-	} else if (!(ecmd->use_adaptive_rx_coalesce)
-	&& !(test_bit(JME_FLAG_POLL, &jme->flags))) {
+	} else if (!(ecmd->use_adaptive_rx_coalesce) &&
+		   !(test_bit(JME_FLAG_POLL, &jme->flags))) {
 		set_bit(JME_FLAG_POLL, &jme->flags);
 		jme->jme_rx = netif_receive_skb;
 		jme->jme_vlan_rx = vlan_hwaccel_receive_skb;

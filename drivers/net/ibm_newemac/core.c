@@ -1976,27 +1976,27 @@ static int emac_ethtool_set_settings(struct net_device *ndev,
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		switch (cmd->speed) {
 		case SPEED_10:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_10baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_10baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_10baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_10baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_100:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_100baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_100baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_100baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_100baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_1000:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_1000baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_1000baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_1000baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_1000baseT_Full))
 				return -EINVAL;
 			break;
 		default:

@@ -827,8 +827,8 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
-		               (adapter->tx_timeout_factor * HZ))
-		    && !(er32(STATUS) & E1000_STATUS_TXOFF)) {
+		               (adapter->tx_timeout_factor * HZ)) &&
+		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
 
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
 			/* detected Tx unit hang */

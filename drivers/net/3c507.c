@@ -836,8 +836,8 @@ static void el16_rx(struct net_device *dev)
 		void __iomem *data_frame = lp->base + data_buffer_addr;
 		ushort pkt_len = readw(data_frame);
 
-		if (rfd_cmd != 0 || data_buffer_addr != rx_head + 22
-			|| (pkt_len & 0xC000) != 0xC000) {
+		if (rfd_cmd != 0 || data_buffer_addr != rx_head + 22 ||
+		    (pkt_len & 0xC000) != 0xC000) {
 			pr_err("%s: Rx frame at %#x corrupted, "
 			       "status %04x cmd %04x next %04x "
 			       "data-buf @%04x %04x.\n",

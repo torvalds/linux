@@ -2382,8 +2382,8 @@ static struct pci_driver be_driver = {
 
 static int __init be_init_module(void)
 {
-	if (rx_frag_size != 8192 && rx_frag_size != 4096
-		&& rx_frag_size != 2048) {
+	if (rx_frag_size != 8192 && rx_frag_size != 4096 &&
+	    rx_frag_size != 2048) {
 		printk(KERN_WARNING DRV_NAME
 			" : Module param rx_frag_size must be 2048/4096/8192."
 			" Using 2048\n");

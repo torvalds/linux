@@ -1942,8 +1942,8 @@ vortex_error(struct net_device *dev, int status)
 	if (status & TxComplete) {			/* Really "TxError" for us. */
 		tx_status = ioread8(ioaddr + TxStatus);
 		/* Presumably a tx-timeout. We must merely re-enable. */
-		if (vortex_debug > 2
-			|| (tx_status != 0x88 && vortex_debug > 0)) {
+		if (vortex_debug > 2 ||
+		    (tx_status != 0x88 && vortex_debug > 0)) {
 			pr_err("%s: Transmit error, Tx status register %2.2x.\n",
 				   dev->name, tx_status);
 			if (tx_status == 0x82) {

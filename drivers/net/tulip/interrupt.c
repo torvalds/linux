@@ -170,8 +170,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
 				      RxDescCollisionSeen |
 				      RxDescRunt |
 				      RxDescDescErr |
-				      RxWholePkt)) != RxWholePkt
-			   || pkt_len > 1518) {
+				      RxWholePkt)) != RxWholePkt ||
+			   pkt_len > 1518) {
 			       if ((status & (RxLengthOver2047 |
 					      RxWholePkt)) != RxWholePkt) {
                                 /* Ingore earlier buffers. */
@@ -201,8 +201,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
                                /* Check if the packet is long enough to accept without copying
                                   to a minimally-sized skbuff. */
-                               if (pkt_len < tulip_rx_copybreak
-                                   && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+                               if (pkt_len < tulip_rx_copybreak &&
+                                   (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
                                        skb_reserve(skb, 2);    /* 16 byte align the IP header */
                                        pci_dma_sync_single_for_cpu(tp->pdev,
 								   tp->rx_buffers[entry].mapping,
@@ -395,8 +395,8 @@ static int tulip_rx(struct net_device *dev)
 			       RxDescCollisionSeen |
 			       RxDescRunt |
 			       RxDescDescErr |
-			       RxWholePkt))        != RxWholePkt
-		     || pkt_len > 1518) {
+			       RxWholePkt))        != RxWholePkt ||
+		    pkt_len > 1518) {
 			if ((status & (RxLengthOver2047 |
 			     RxWholePkt))         != RxWholePkt) {
 				/* Ingore earlier buffers. */
@@ -425,8 +425,8 @@ static int tulip_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
-			if (pkt_len < tulip_rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < tulip_rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(tp->pdev,
 							    tp->rx_buffers[entry].mapping,

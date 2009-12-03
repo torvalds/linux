@@ -64,9 +64,9 @@ const char * const medianame[32] = {
 };
 
 /* Set the copy breakpoint for the copy-only-tiny-buffer Rx structure. */
-#if defined(__alpha__) || defined(__arm__) || defined(__hppa__) \
-	|| defined(CONFIG_SPARC) || defined(__ia64__) \
-	|| defined(__sh__) || defined(__mips__)
+#if defined(__alpha__) || defined(__arm__) || defined(__hppa__) || \
+	defined(CONFIG_SPARC) || defined(__ia64__) || \
+	defined(__sh__) || defined(__mips__)
 static int rx_copybreak = 1518;
 #else
 static int rx_copybreak = 100;
@@ -449,8 +449,8 @@ media_picked:
 			iowrite32(0x0201B078, ioaddr + 0xB8);
 			next_tick = 1*HZ;
 		}
-	} else if ((tp->chip_id == MX98713 || tp->chip_id == COMPEX9881)
-			   && ! tp->medialock) {
+	} else if ((tp->chip_id == MX98713 || tp->chip_id == COMPEX9881) &&
+		   ! tp->medialock) {
 		dev->if_port = 0;
 		tp->csr6 = 0x01880000 | (tp->full_duplex ? 0x0200 : 0);
 		iowrite32(0x0f370000 | ioread16(ioaddr + 0x80), ioaddr + 0x80);
@@ -535,9 +535,9 @@ static void tulip_tx_timeout(struct net_device *dev)
 		if (tulip_debug > 1)
 			printk(KERN_WARNING "%s: Transmit timeout using MII device.\n",
 				   dev->name);
-	} else if (tp->chip_id == DC21140 || tp->chip_id == DC21142
-			   || tp->chip_id == MX98713 || tp->chip_id == COMPEX9881
-			   || tp->chip_id == DM910X) {
+	} else if (tp->chip_id == DC21140 || tp->chip_id == DC21142 ||
+		   tp->chip_id == MX98713 || tp->chip_id == COMPEX9881 ||
+		   tp->chip_id == DM910X) {
 		printk(KERN_WARNING "%s: 21140 transmit timed out, status %8.8x, "
 			   "SIA %8.8x %8.8x %8.8x %8.8x, resetting...\n",
 			   dev->name, ioread32(ioaddr + CSR5), ioread32(ioaddr + CSR12),
@@ -1538,8 +1538,10 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		}
 	}
 	/* Lite-On boards have the address byte-swapped. */
-	if ((dev->dev_addr[0] == 0xA0  ||  dev->dev_addr[0] == 0xC0 || dev->dev_addr[0] == 0x02)
-		&&  dev->dev_addr[1] == 0x00)
+	if ((dev->dev_addr[0] == 0xA0 ||
+	     dev->dev_addr[0] == 0xC0 ||
+	     dev->dev_addr[0] == 0x02) &&
+	    dev->dev_addr[1] == 0x00)
 		for (i = 0; i < 6; i+=2) {
 			char tmp = dev->dev_addr[i];
 			dev->dev_addr[i] = dev->dev_addr[i+1];

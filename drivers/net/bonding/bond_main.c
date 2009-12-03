@@ -1852,8 +1852,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	if (!bond->params.fail_over_mac) {
-		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr)
-		    && bond->slave_cnt > 1)
+		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr) &&
+		    bond->slave_cnt > 1)
 			pr_warning(DRV_NAME
 			       ": %s: Warning: the permanent HWaddr of %s - "
 			       "%pM - is still in use by %s. "

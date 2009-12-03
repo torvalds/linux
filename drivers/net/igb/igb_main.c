@@ -4974,9 +4974,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		tx_ring->detect_tx_hung = false;
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
-			       (adapter->tx_timeout_factor * HZ))
-		    && !(rd32(E1000_STATUS) &
-			 E1000_STATUS_TXOFF)) {
+			       (adapter->tx_timeout_factor * HZ)) &&
+		    !(rd32(E1000_STATUS) & E1000_STATUS_TXOFF)) {
 
 			/* detected Tx unit hang */
 			dev_err(&tx_ring->pdev->dev,

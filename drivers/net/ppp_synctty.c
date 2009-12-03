@@ -662,8 +662,8 @@ ppp_sync_push(struct syncppp *ap)
 		}
 		/* haven't made any progress */
 		spin_unlock_bh(&ap->xmit_lock);
-		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags)
-		      || (!tty_stuffed && ap->tpkt)))
+		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags) ||
+		      (!tty_stuffed && ap->tpkt)))
 			break;
 		if (!spin_trylock_bh(&ap->xmit_lock))
 			break;

@@ -222,8 +222,8 @@ struct net_device * __init mac89x0_probe(int unit)
 		int card_present;
 
 		local_irq_save(flags);
-		card_present = hwreg_present((void*) ioaddr+4)
-		  && hwreg_present((void*) ioaddr + DATA_PORT);
+		card_present = (hwreg_present((void*) ioaddr+4) &&
+				hwreg_present((void*) ioaddr + DATA_PORT));
 		local_irq_restore(flags);
 
 		if (!card_present)

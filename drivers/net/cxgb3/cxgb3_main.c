@@ -2117,19 +2117,19 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		if (t.qset_idx >= SGE_QSETS)
 			return -EINVAL;
 		if (!in_range(t.intr_lat, 0, M_NEWTIMER) ||
-			!in_range(t.cong_thres, 0, 255) ||
-			!in_range(t.txq_size[0], MIN_TXQ_ENTRIES,
-				MAX_TXQ_ENTRIES) ||
-			!in_range(t.txq_size[1], MIN_TXQ_ENTRIES,
-				MAX_TXQ_ENTRIES) ||
-			!in_range(t.txq_size[2], MIN_CTRL_TXQ_ENTRIES,
-				MAX_CTRL_TXQ_ENTRIES) ||
-			!in_range(t.fl_size[0], MIN_FL_ENTRIES,
-				MAX_RX_BUFFERS)
-			|| !in_range(t.fl_size[1], MIN_FL_ENTRIES,
-					MAX_RX_JUMBO_BUFFERS)
-			|| !in_range(t.rspq_size, MIN_RSPQ_ENTRIES,
-					MAX_RSPQ_ENTRIES))
+		    !in_range(t.cong_thres, 0, 255) ||
+		    !in_range(t.txq_size[0], MIN_TXQ_ENTRIES,
+			      MAX_TXQ_ENTRIES) ||
+		    !in_range(t.txq_size[1], MIN_TXQ_ENTRIES,
+			      MAX_TXQ_ENTRIES) ||
+		    !in_range(t.txq_size[2], MIN_CTRL_TXQ_ENTRIES,
+			      MAX_CTRL_TXQ_ENTRIES) ||
+		    !in_range(t.fl_size[0], MIN_FL_ENTRIES,
+			      MAX_RX_BUFFERS) ||
+		    !in_range(t.fl_size[1], MIN_FL_ENTRIES,
+			      MAX_RX_JUMBO_BUFFERS) ||
+		    !in_range(t.rspq_size, MIN_RSPQ_ENTRIES,
+			      MAX_RSPQ_ENTRIES))
 			return -EINVAL;
 
 		if ((adapter->flags & FULL_INIT_DONE) && t.lro > 0)

@@ -163,8 +163,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 			    strcmp (media[card_idx], "4") == 0) {
 				np->speed = 100;
 				np->full_duplex = 1;
-			} else if (strcmp (media[card_idx], "100mbps_hd") == 0
-				   || strcmp (media[card_idx], "3") == 0) {
+			} else if (strcmp (media[card_idx], "100mbps_hd") == 0 ||
+				   strcmp (media[card_idx], "3") == 0) {
 				np->speed = 100;
 				np->full_duplex = 0;
 			} else if (strcmp (media[card_idx], "10mbps_fd") == 0 ||

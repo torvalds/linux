@@ -374,8 +374,8 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			ctrl |= PHY_M_PC_MDI_XMODE(PHY_M_PC_ENA_AUTO);
 
 			/* downshift on PHY 88E1112 and 88E1149 is changed */
-			if ( (sky2->flags & SKY2_FLAG_AUTO_SPEED)
-			    && (hw->flags & SKY2_HW_NEWER_PHY)) {
+			if ( (sky2->flags & SKY2_FLAG_AUTO_SPEED) &&
+			     (hw->flags & SKY2_HW_NEWER_PHY)) {
 				/* set downshift counter to 3x and enable downshift */
 				ctrl &= ~PHY_M_PC_DSC_MSK;
 				ctrl |= PHY_M_PC_DSC(2) | PHY_M_PC_DOWN_S_ENA;
@@ -619,8 +619,8 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		/* no effect on Yukon-XL */
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 
-		if ( !(sky2->flags & SKY2_FLAG_AUTO_SPEED)
-		     || sky2->speed == SPEED_100) {
+		if (!(sky2->flags & SKY2_FLAG_AUTO_SPEED) ||
+		    sky2->speed == SPEED_100) {
 			/* turn on 100 Mbps LED (LED_LINK100) */
 			ledover |= PHY_M_LED_MO_100(MO_LED_ON);
 		}
@@ -937,8 +937,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* On chips without ram buffer, pause is controled by MAC level */
 	if (!(hw->flags & SKY2_HW_RAM_BUFFER)) {
 		/* Pause threshold is scaled by 8 in bytes */
-		if (hw->chip_id == CHIP_ID_YUKON_FE_P
-			&& hw->chip_rev == CHIP_REV_YU_FE2_A0)
+		if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
+		    hw->chip_rev == CHIP_REV_YU_FE2_A0)
 			reg = 1568 / 8;
 		else
 			reg = 1024 / 8;
@@ -1353,8 +1353,8 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	/* These chips have no ram buffer?
 	 * MAC Rx RAM Read is controlled by hardware */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1
-	     || hw->chip_rev == CHIP_REV_YU_EC_U_B0))
+	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1 ||
+	     hw->chip_rev == CHIP_REV_YU_EC_U_B0))
 		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
@@ -1560,8 +1560,8 @@ static int sky2_up(struct net_device *dev)
 		sky2_write32(hw, Q_ADDR(txqaddr[port], Q_TEST), F_TX_CHK_AUTO_OFF);
 
 	/* Set almost empty threshold */
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U
-	    && hw->chip_rev == CHIP_REV_YU_EC_U_A0)
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
+	    hw->chip_rev == CHIP_REV_YU_EC_U_A0)
 		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), ECU_TXFF_LEV);
 
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
@@ -1907,8 +1907,8 @@ static int sky2_down(struct net_device *dev)
 	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
 
 	/* Workaround shared GMAC reset */
-	if (!(hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0
-	      && port == 0 && hw->dev[1] && netif_running(hw->dev[1])))
+	if (!(hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0 &&
+	      port == 0 && hw->dev[1] && netif_running(hw->dev[1])))
 		sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
 
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
@@ -2085,8 +2085,8 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 			sky2->flow_status = FC_TX;
 	}
 
-	if (sky2->duplex == DUPLEX_HALF && sky2->speed < SPEED_1000
-	    && !(hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX))
+	if (sky2->duplex == DUPLEX_HALF && sky2->speed < SPEED_1000 &&
+	    !(hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX))
 		sky2->flow_status = FC_NONE;
 
 	if (sky2->flow_status & FC_TX)
@@ -3244,8 +3244,8 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 
-	if ((wol->wolopts & ~sky2_wol_supported(sky2->hw))
-	    || !device_can_wakeup(&hw->pdev->dev))
+	if ((wol->wolopts & ~sky2_wol_supported(sky2->hw)) ||
+	    !device_can_wakeup(&hw->pdev->dev))
 		return -EOPNOTSUPP;
 
 	sky2->wol = wol->wolopts;

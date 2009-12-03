@@ -140,8 +140,8 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 	if (!alt || !in || !out)
 		return -EINVAL;
 
-	if (alt->desc.bAlternateSetting != 0
-			|| !(dev->driver_info->flags & FLAG_NO_SETINT)) {
+	if (alt->desc.bAlternateSetting != 0 ||
+	    !(dev->driver_info->flags & FLAG_NO_SETINT)) {
 		tmp = usb_set_interface (dev->udev, alt->desc.bInterfaceNumber,
 				alt->desc.bAlternateSetting);
 		if (tmp < 0)
@@ -351,9 +351,9 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 
 	spin_lock_irqsave (&dev->rxq.lock, lockflags);
 
-	if (netif_running (dev->net)
-			&& netif_device_present (dev->net)
-			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
+	if (netif_running (dev->net) &&
+	    netif_device_present (dev->net) &&
+	    !test_bit (EVENT_RX_HALT, &dev->flags)) {
 		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)) {
 		case -EPIPE:
 			usbnet_defer_kevent (dev, EVENT_RX_HALT);
@@ -391,8 +391,8 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 
 static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 {
-	if (dev->driver_info->rx_fixup
-			&& !dev->driver_info->rx_fixup (dev, skb))
+	if (dev->driver_info->rx_fixup &&
+	    !dev->driver_info->rx_fixup (dev, skb))
 		goto error;
 	// else network stack removes extra byte if we forced a short packet
 
@@ -484,8 +484,8 @@ block:
 	defer_bh(dev, skb, &dev->rxq);
 
 	if (urb) {
-		if (netif_running (dev->net)
-				&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
+		if (netif_running (dev->net) &&
+		    !test_bit (EVENT_RX_HALT, &dev->flags)) {
 			rx_submit (dev, urb, GFP_ATOMIC);
 			return;
 		}
@@ -649,9 +649,9 @@ int usbnet_stop (struct net_device *net)
 			unlink_urbs(dev, &dev->rxq);
 
 		/* maybe wait for deletions to finish. */
-		while (!skb_queue_empty(&dev->rxq)
-				&& !skb_queue_empty(&dev->txq)
-				&& !skb_queue_empty(&dev->done)) {
+		while (!skb_queue_empty(&dev->rxq) &&
+		       !skb_queue_empty(&dev->txq) &&
+		       !skb_queue_empty(&dev->done)) {
 			msleep(UNLINK_TIMEOUT_MS);
 			if (netif_msg_ifdown(dev))
 				devdbg(dev, "waited for %d urb completions",
@@ -882,9 +882,9 @@ kevent (struct work_struct *work)
 	if (test_bit (EVENT_TX_HALT, &dev->flags)) {
 		unlink_urbs (dev, &dev->txq);
 		status = usb_clear_halt (dev->udev, dev->out);
-		if (status < 0
-				&& status != -EPIPE
-				&& status != -ESHUTDOWN) {
+		if (status < 0 &&
+		    status != -EPIPE &&
+		    status != -ESHUTDOWN) {
 			if (netif_msg_tx_err (dev))
 				deverr (dev, "can't clear tx halt, status %d",
 					status);
@@ -897,9 +897,9 @@ kevent (struct work_struct *work)
 	if (test_bit (EVENT_RX_HALT, &dev->flags)) {
 		unlink_urbs (dev, &dev->rxq);
 		status = usb_clear_halt (dev->udev, dev->in);
-		if (status < 0
-				&& status != -EPIPE
-				&& status != -ESHUTDOWN) {
+		if (status < 0 &&
+		    status != -EPIPE &&
+		    status != -ESHUTDOWN) {
 			if (netif_msg_rx_err (dev))
 				deverr (dev, "can't clear rx halt, status %d",
 					status);
@@ -1126,10 +1126,10 @@ static void usbnet_bh (unsigned long param)
 		}
 
 	// or are we maybe short a few urbs?
-	} else if (netif_running (dev->net)
-			&& netif_device_present (dev->net)
-			&& !timer_pending (&dev->delay)
-			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
+	} else if (netif_running (dev->net) &&
+		   netif_device_present (dev->net) &&
+		   !timer_pending (&dev->delay) &&
+		   !test_bit (EVENT_RX_HALT, &dev->flags)) {
 		int	temp = dev->rxq.qlen;
 		int	qlen = RX_QLEN (dev);
 
@@ -1297,8 +1297,8 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		// heuristic:  "usb%d" for links we know are two-host,
 		// else "eth%d" when there's reasonable doubt.  userspace
 		// can rename the link if it knows better.
-		if ((dev->driver_info->flags & FLAG_ETHER) != 0
-				&& (net->dev_addr [0] & 0x02) == 0)
+		if ((dev->driver_info->flags & FLAG_ETHER) != 0 &&
+		    (net->dev_addr [0] & 0x02) == 0)
 			strcpy (net->name, "eth%d");
 		/* WLAN devices should always be named "wlan%d" */
 		if ((dev->driver_info->flags & FLAG_WLAN) != 0)

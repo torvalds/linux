@@ -214,9 +214,9 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 	 * contains the manufacturer's unique code. That might be a good probe
 	 * method. Ideally you would add additional checks.
 	 */
-	if (inb(ioaddr + 0) != SA_ADDR0
-		||	 inb(ioaddr + 1) != SA_ADDR1
-		||	 inb(ioaddr + 2) != SA_ADDR2)
+	if (inb(ioaddr + 0) != SA_ADDR0 ||
+	    inb(ioaddr + 1) != SA_ADDR1 ||
+	    inb(ioaddr + 2) != SA_ADDR2)
 		goto out;
 
 	if (net_debug  &&  version_printed++ == 0)

@@ -956,8 +956,8 @@ static void slip_unesc(struct slip *sl, unsigned char s)
 			clear_bit(SLF_KEEPTEST, &sl->flags);
 #endif
 
-		if (!test_and_clear_bit(SLF_ERROR, &sl->flags)
-							&& (sl->rcount > 2))
+		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
+		    (sl->rcount > 2))
 			sl_bump(sl);
 		clear_bit(SLF_ESCAPE, &sl->flags);
 		sl->rcount = 0;
@@ -1039,8 +1039,8 @@ static void slip_unesc6(struct slip *sl, unsigned char s)
 			clear_bit(SLF_KEEPTEST, &sl->flags);
 #endif
 
-		if (!test_and_clear_bit(SLF_ERROR, &sl->flags)
-							&& (sl->rcount > 2))
+		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
+		    (sl->rcount > 2))
 			sl_bump(sl);
 		sl->rcount = 0;
 		sl->xbits = 0;

@@ -1963,14 +1963,14 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 			val64 = readq(&vp_reg->asic_ntwk_vp_err_reg);
 
 			if (((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
-			    (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK))) ||
 			    ((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
-				&& (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
-			))) {
+				     ))) {
 				sw_stats->error_stats.network_sustained_fault++;
 
 				writeq(
@@ -1983,14 +1983,14 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 			}
 
 			if (((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
-			    (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT))) ||
 			    ((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
-				&& (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
-			))) {
+				     ))) {
 
 				sw_stats->error_stats.network_sustained_ok++;
 
