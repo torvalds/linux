@@ -190,7 +190,6 @@ void mantis_dma_start(struct mantis_pci *mantis)
 
 	mantis_risc_program(mantis);
 	mmwrite(cpu_to_le32(mantis->risc_dma), MANTIS_RISC_START);
-//	mmwrite(MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
 	mmwrite(mmread(MANTIS_GPIF_ADDR) | MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
 
 	mmwrite(0, MANTIS_DMA_CTL);
@@ -227,12 +226,13 @@ void mantis_dma_stop(struct mantis_pci *mantis)
 void mantis_dma_xfer(unsigned long data)
 {
 	struct mantis_pci *mantis = (struct mantis_pci *) data;
+	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	while (mantis->last_block != mantis->finished_block) {
 		dprintk(verbose, MANTIS_DEBUG, 1, "last block=[%d] finished block=[%d]",
 			mantis->last_block, mantis->finished_block);
 
-		(mantis->ts_size ? dvb_dmx_swfilter_204: dvb_dmx_swfilter)
+		(config->ts_size ? dvb_dmx_swfilter_204: dvb_dmx_swfilter)
 		(&mantis->demux, &mantis->buf_cpu[mantis->last_block * MANTIS_BLOCK_BYTES], MANTIS_BLOCK_BYTES);
 		mantis->last_block = (mantis->last_block + 1) % MANTIS_BLOCK_COUNT;
 	}

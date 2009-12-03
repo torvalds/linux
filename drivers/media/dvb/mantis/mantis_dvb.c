@@ -142,7 +142,6 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 	mantis->demux.start_feed = mantis_dvb_start_feed;
 	mantis->demux.stop_feed = mantis_dvb_stop_feed;
 	mantis->demux.write_to_decoder = NULL;
-	mantis->ts_size = 1; //188
 	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_dmx_init");
 	if ((result = dvb_dmx_init(&mantis->demux)) < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1,

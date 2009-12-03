@@ -92,7 +92,6 @@ struct mantis_pci {
 	u8			revision;
 
 	unsigned int		num;
-	u16			ts_size;
 
 	/*	RISC Core		*/
 	u32			finished_block;
