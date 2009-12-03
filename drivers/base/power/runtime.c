@@ -185,6 +185,7 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 	}
 
 	dev->power.runtime_status = RPM_SUSPENDING;
+	dev->power.deferred_resume = false;
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend) {
 		spin_unlock_irq(&dev->power.lock);
@@ -200,7 +201,6 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 	if (retval) {
 		dev->power.runtime_status = RPM_ACTIVE;
 		pm_runtime_cancel_pending(dev);
-		dev->power.deferred_resume = false;
 
 		if (retval == -EAGAIN || retval == -EBUSY) {
 			notify = true;
@@ -217,7 +217,6 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 	wake_up_all(&dev->power.wait_queue);
 
 	if (dev->power.deferred_resume) {
-		dev->power.deferred_resume = false;
 		__pm_runtime_resume(dev, false);
 		retval = -EAGAIN;
 		goto out;
@@ -659,13 +658,17 @@ static int __pm_request_resume(struct device *dev)
 
 	pm_runtime_deactivate_timer(dev);
 
+	if (dev->power.runtime_status == RPM_SUSPENDING) {
+		dev->power.deferred_resume = true;
+		return retval;
+	}
 	if (dev->power.request_pending) {
 		/* If non-resume request is pending, we can overtake it. */
 		dev->power.request = retval ? RPM_REQ_NONE : RPM_REQ_RESUME;
 		return retval;
-	} else if (retval) {
-		return retval;
 	}
+	if (retval)
+		return retval;
 
 	dev->power.request = RPM_REQ_RESUME;
 	dev->power.request_pending = true;
