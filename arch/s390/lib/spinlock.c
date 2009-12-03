@@ -115,7 +115,7 @@ void _raw_read_lock_wait(arch_rwlock_t *rw)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_read_can_lock(rw))
+		if (!arch_read_can_lock(rw))
 			continue;
 		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
@@ -135,7 +135,7 @@ void _raw_read_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_read_can_lock(rw))
+		if (!arch_read_can_lock(rw))
 			continue;
 		old = rw->lock & 0x7fffffffU;
 		local_irq_disable();
@@ -151,7 +151,7 @@ int _raw_read_trylock_retry(arch_rwlock_t *rw)
 	int count = spin_retry;
 
 	while (count-- > 0) {
-		if (!__raw_read_can_lock(rw))
+		if (!arch_read_can_lock(rw))
 			continue;
 		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
@@ -170,7 +170,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_write_can_lock(rw))
+		if (!arch_write_can_lock(rw))
 			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
 			return;
@@ -188,7 +188,7 @@ void _raw_write_lock_wait_flags(arch_rwlock_t *rw, unsigned long flags)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_write_can_lock(rw))
+		if (!arch_write_can_lock(rw))
 			continue;
 		local_irq_disable();
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
@@ -202,7 +202,7 @@ int _raw_write_trylock_retry(arch_rwlock_t *rw)
 	int count = spin_retry;
 
 	while (count-- > 0) {
-		if (!__raw_write_can_lock(rw))
+		if (!arch_write_can_lock(rw))
 			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
 			return 1;

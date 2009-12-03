@@ -140,15 +140,15 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * read_can_lock - would read_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define __raw_read_can_lock(x) ((int)(x)->lock > 0)
+#define arch_read_can_lock(x) ((int)(x)->lock > 0)
 
 /**
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define __raw_write_can_lock(x) ((x)->lock == RW_LOCK_BIAS)
+#define arch_write_can_lock(x) ((x)->lock == RW_LOCK_BIAS)
 
-static inline void __raw_read_lock(arch_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1;
 
@@ -199,7 +199,7 @@ static inline void __raw_read_lock(arch_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_lock(arch_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1, tmp2;
 
@@ -252,7 +252,7 @@ static inline void __raw_write_lock(arch_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_read_unlock(arch_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1;
 
@@ -274,7 +274,7 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 	);
 }
 
-static inline void __raw_write_unlock(arch_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp0, tmp1, tmp2;
 
@@ -298,7 +298,7 @@ static inline void __raw_write_unlock(arch_rwlock_t *rw)
 	);
 }
 
-static inline int __raw_read_trylock(arch_rwlock_t *lock)
+static inline int arch_read_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t*)lock;
 	if (atomic_dec_return(count) >= 0)
@@ -307,7 +307,7 @@ static inline int __raw_read_trylock(arch_rwlock_t *lock)
 	return 0;
 }
 
-static inline int __raw_write_trylock(arch_rwlock_t *lock)
+static inline int arch_write_trylock(arch_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 	if (atomic_sub_and_test(RW_LOCK_BIAS, count))
@@ -316,8 +316,8 @@ static inline int __raw_write_trylock(arch_rwlock_t *lock)
 	return 0;
 }
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()

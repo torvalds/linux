@@ -248,21 +248,21 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
  * read_can_lock - would read_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define __raw_read_can_lock(rw)	((rw)->lock >= 0)
+#define arch_read_can_lock(rw)	((rw)->lock >= 0)
 
 /*
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define __raw_write_can_lock(rw)	(!(rw)->lock)
+#define arch_write_can_lock(rw)	(!(rw)->lock)
 
-static inline void __raw_read_lock(arch_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_read_lock	\n"
+		"	.set	noreorder	# arch_read_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bltz	%1, 1b					\n"
 		"	 addu	%1, 1					\n"
@@ -275,7 +275,7 @@ static inline void __raw_read_lock(arch_rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_read_lock	\n"
+		"	.set	noreorder	# arch_read_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bltz	%1, 2f					\n"
 		"	 addu	%1, 1					\n"
@@ -301,7 +301,7 @@ static inline void __raw_read_lock(arch_rwlock_t *rw)
 /* Note the use of sub, not subu which will make the kernel die with an
    overflow exception if we ever try to unlock an rwlock that is already
    unlocked or is being held by a writer.  */
-static inline void __raw_read_unlock(arch_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
@@ -309,7 +309,7 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"1:	ll	%1, %2		# __raw_read_unlock	\n"
+		"1:	ll	%1, %2		# arch_read_unlock	\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
@@ -318,7 +318,7 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_read_unlock	\n"
+		"	.set	noreorder	# arch_read_unlock	\n"
 		"1:	ll	%1, %2					\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
@@ -335,13 +335,13 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_lock(arch_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_write_lock	\n"
+		"	.set	noreorder	# arch_write_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 1b					\n"
 		"	 lui	%1, 0x8000				\n"
@@ -354,7 +354,7 @@ static inline void __raw_write_lock(arch_rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_write_lock	\n"
+		"	.set	noreorder	# arch_write_lock	\n"
 		"1:	ll	%1, %2					\n"
 		"	bnez	%1, 2f					\n"
 		"	 lui	%1, 0x8000				\n"
@@ -377,26 +377,26 @@ static inline void __raw_write_lock(arch_rwlock_t *rw)
 	smp_llsc_mb();
 }
 
-static inline void __raw_write_unlock(arch_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
 	__asm__ __volatile__(
-	"				# __raw_write_unlock	\n"
+	"				# arch_write_unlock	\n"
 	"	sw	$0, %0					\n"
 	: "=m" (rw->lock)
 	: "m" (rw->lock)
 	: "memory");
 }
 
-static inline int __raw_read_trylock(arch_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 	int ret;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_read_trylock	\n"
+		"	.set	noreorder	# arch_read_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bltz	%1, 2f					\n"
@@ -413,7 +413,7 @@ static inline int __raw_read_trylock(arch_rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_read_trylock	\n"
+		"	.set	noreorder	# arch_read_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bltz	%1, 2f					\n"
@@ -433,14 +433,14 @@ static inline int __raw_read_trylock(arch_rwlock_t *rw)
 	return ret;
 }
 
-static inline int __raw_write_trylock(arch_rwlock_t *rw)
+static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 	int ret;
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_write_trylock	\n"
+		"	.set	noreorder	# arch_write_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bnez	%1, 2f					\n"
@@ -457,7 +457,7 @@ static inline int __raw_write_trylock(arch_rwlock_t *rw)
 		: "memory");
 	} else {
 		__asm__ __volatile__(
-		"	.set	noreorder	# __raw_write_trylock	\n"
+		"	.set	noreorder	# arch_write_trylock	\n"
 		"	li	%2, 0					\n"
 		"1:	ll	%1, %3					\n"
 		"	bnez	%1, 2f					\n"
@@ -480,8 +480,8 @@ static inline int __raw_write_trylock(arch_rwlock_t *rw)
 	return ret;
 }
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()

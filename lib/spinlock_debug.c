@@ -176,7 +176,7 @@ static void __read_lock_debug(rwlock_t *lock)
 
 	for (;;) {
 		for (i = 0; i < loops; i++) {
-			if (__raw_read_trylock(&lock->raw_lock))
+			if (arch_read_trylock(&lock->raw_lock))
 				return;
 			__delay(1);
 		}
@@ -196,12 +196,12 @@ static void __read_lock_debug(rwlock_t *lock)
 void _raw_read_lock(rwlock_t *lock)
 {
 	RWLOCK_BUG_ON(lock->magic != RWLOCK_MAGIC, lock, "bad magic");
-	__raw_read_lock(&lock->raw_lock);
+	arch_read_lock(&lock->raw_lock);
 }
 
 int _raw_read_trylock(rwlock_t *lock)
 {
-	int ret = __raw_read_trylock(&lock->raw_lock);
+	int ret = arch_read_trylock(&lock->raw_lock);
 
 #ifndef CONFIG_SMP
 	/*
@@ -215,7 +215,7 @@ int _raw_read_trylock(rwlock_t *lock)
 void _raw_read_unlock(rwlock_t *lock)
 {
 	RWLOCK_BUG_ON(lock->magic != RWLOCK_MAGIC, lock, "bad magic");
-	__raw_read_unlock(&lock->raw_lock);
+	arch_read_unlock(&lock->raw_lock);
 }
 
 static inline void debug_write_lock_before(rwlock_t *lock)
@@ -251,7 +251,7 @@ static void __write_lock_debug(rwlock_t *lock)
 
 	for (;;) {
 		for (i = 0; i < loops; i++) {
-			if (__raw_write_trylock(&lock->raw_lock))
+			if (arch_write_trylock(&lock->raw_lock))
 				return;
 			__delay(1);
 		}
@@ -271,13 +271,13 @@ static void __write_lock_debug(rwlock_t *lock)
 void _raw_write_lock(rwlock_t *lock)
 {
 	debug_write_lock_before(lock);
-	__raw_write_lock(&lock->raw_lock);
+	arch_write_lock(&lock->raw_lock);
 	debug_write_lock_after(lock);
 }
 
 int _raw_write_trylock(rwlock_t *lock)
 {
-	int ret = __raw_write_trylock(&lock->raw_lock);
+	int ret = arch_write_trylock(&lock->raw_lock);
 
 	if (ret)
 		debug_write_lock_after(lock);
@@ -293,5 +293,5 @@ int _raw_write_trylock(rwlock_t *lock)
 void _raw_write_unlock(rwlock_t *lock)
 {
 	debug_write_unlock(lock);
-	__raw_write_unlock(&lock->raw_lock);
+	arch_write_unlock(&lock->raw_lock);
 }

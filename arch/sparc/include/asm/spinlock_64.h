@@ -210,17 +210,17 @@ static int inline arch_write_trylock(arch_rwlock_t *lock)
 	return result;
 }
 
-#define __raw_read_lock(p)	arch_read_lock(p)
-#define __raw_read_lock_flags(p, f) arch_read_lock(p)
-#define __raw_read_trylock(p)	arch_read_trylock(p)
-#define __raw_read_unlock(p)	arch_read_unlock(p)
-#define __raw_write_lock(p)	arch_write_lock(p)
-#define __raw_write_lock_flags(p, f) arch_write_lock(p)
-#define __raw_write_unlock(p)	arch_write_unlock(p)
-#define __raw_write_trylock(p)	arch_write_trylock(p)
+#define arch_read_lock(p)	arch_read_lock(p)
+#define arch_read_lock_flags(p, f) arch_read_lock(p)
+#define arch_read_trylock(p)	arch_read_trylock(p)
+#define arch_read_unlock(p)	arch_read_unlock(p)
+#define arch_write_lock(p)	arch_write_lock(p)
+#define arch_write_lock_flags(p, f) arch_write_lock(p)
+#define arch_write_unlock(p)	arch_write_unlock(p)
+#define arch_write_trylock(p)	arch_write_trylock(p)
 
-#define __raw_read_can_lock(rw)		(!((rw)->lock & 0x80000000UL))
-#define __raw_write_can_lock(rw)	(!(rw)->lock)
+#define arch_read_can_lock(rw)		(!((rw)->lock & 0x80000000UL))
+#define arch_write_can_lock(rw)	(!(rw)->lock)
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()

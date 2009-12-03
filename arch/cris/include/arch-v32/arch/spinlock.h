@@ -56,17 +56,17 @@ arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
  *
  */
 
-static inline int __raw_read_can_lock(arch_rwlock_t *x)
+static inline int arch_read_can_lock(arch_rwlock_t *x)
 {
 	return (int)(x)->lock > 0;
 }
 
-static inline int __raw_write_can_lock(arch_rwlock_t *x)
+static inline int arch_write_can_lock(arch_rwlock_t *x)
 {
 	return (x)->lock == RW_LOCK_BIAS;
 }
 
-static  inline void __raw_read_lock(arch_rwlock_t *rw)
+static  inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	arch_spin_lock(&rw->slock);
 	while (rw->lock == 0);
@@ -74,7 +74,7 @@ static  inline void __raw_read_lock(arch_rwlock_t *rw)
 	arch_spin_unlock(&rw->slock);
 }
 
-static  inline void __raw_write_lock(arch_rwlock_t *rw)
+static  inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	arch_spin_lock(&rw->slock);
 	while (rw->lock != RW_LOCK_BIAS);
@@ -82,14 +82,14 @@ static  inline void __raw_write_lock(arch_rwlock_t *rw)
 	arch_spin_unlock(&rw->slock);
 }
 
-static  inline void __raw_read_unlock(arch_rwlock_t *rw)
+static  inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	arch_spin_lock(&rw->slock);
 	rw->lock++;
 	arch_spin_unlock(&rw->slock);
 }
 
-static  inline void __raw_write_unlock(arch_rwlock_t *rw)
+static  inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	arch_spin_lock(&rw->slock);
 	while (rw->lock != RW_LOCK_BIAS);
@@ -97,7 +97,7 @@ static  inline void __raw_write_unlock(arch_rwlock_t *rw)
 	arch_spin_unlock(&rw->slock);
 }
 
-static  inline int __raw_read_trylock(arch_rwlock_t *rw)
+static  inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	int ret = 0;
 	arch_spin_lock(&rw->slock);
@@ -109,7 +109,7 @@ static  inline int __raw_read_trylock(arch_rwlock_t *rw)
 	return ret;
 }
 
-static  inline int __raw_write_trylock(arch_rwlock_t *rw)
+static  inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	int ret = 0;
 	arch_spin_lock(&rw->slock);

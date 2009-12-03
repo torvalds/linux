@@ -166,8 +166,8 @@ extern void arch_spin_unlock_wait(arch_spinlock_t *lock);
  * read-locks.
  */
 
-#define __raw_read_can_lock(rw)		((rw)->lock >= 0)
-#define __raw_write_can_lock(rw)	(!(rw)->lock)
+#define arch_read_can_lock(rw)		((rw)->lock >= 0)
+#define arch_write_can_lock(rw)	(!(rw)->lock)
 
 #ifdef CONFIG_PPC64
 #define __DO_SIGN_EXTEND	"extsw	%0,%0\n"
@@ -181,7 +181,7 @@ extern void arch_spin_unlock_wait(arch_spinlock_t *lock);
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
  */
-static inline long arch_read_trylock(arch_rwlock_t *rw)
+static inline long __arch_read_trylock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -205,7 +205,7 @@ static inline long arch_read_trylock(arch_rwlock_t *rw)
  * This returns the old value in the lock,
  * so we got the write lock if the return value is 0.
  */
-static inline long arch_write_trylock(arch_rwlock_t *rw)
+static inline long __arch_write_trylock(arch_rwlock_t *rw)
 {
 	long tmp, token;
 
@@ -225,10 +225,10 @@ static inline long arch_write_trylock(arch_rwlock_t *rw)
 	return tmp;
 }
 
-static inline void __raw_read_lock(arch_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(arch_read_trylock(rw) > 0))
+		if (likely(__arch_read_trylock(rw) > 0))
 			break;
 		do {
 			HMT_low();
@@ -239,10 +239,10 @@ static inline void __raw_read_lock(arch_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_lock(arch_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(arch_write_trylock(rw) == 0))
+		if (likely(__arch_write_trylock(rw) == 0))
 			break;
 		do {
 			HMT_low();
@@ -253,17 +253,17 @@ static inline void __raw_write_lock(arch_rwlock_t *rw)
 	}
 }
 
-static inline int __raw_read_trylock(arch_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
-	return arch_read_trylock(rw) > 0;
+	return __arch_read_trylock(rw) > 0;
 }
 
-static inline int __raw_write_trylock(arch_rwlock_t *rw)
+static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
-	return arch_write_trylock(rw) == 0;
+	return __arch_write_trylock(rw) == 0;
 }
 
-static inline void __raw_read_unlock(arch_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -280,15 +280,15 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 	: "cr0", "xer", "memory");
 }
 
-static inline void __raw_write_unlock(arch_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	__asm__ __volatile__("# write_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");
 	rw->lock = 0;
 }
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #define arch_spin_relax(lock)	__spin_yield(lock)
 #define arch_read_relax(lock)	__rw_yield(lock)

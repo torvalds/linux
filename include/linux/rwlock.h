@@ -38,20 +38,20 @@ do {								\
  extern int _raw_write_trylock(rwlock_t *lock);
  extern void _raw_write_unlock(rwlock_t *lock);
 #else
-# define _raw_read_lock(rwlock)		__raw_read_lock(&(rwlock)->raw_lock)
+# define _raw_read_lock(rwlock)		arch_read_lock(&(rwlock)->raw_lock)
 # define _raw_read_lock_flags(lock, flags) \
-		__raw_read_lock_flags(&(lock)->raw_lock, *(flags))
-# define _raw_read_trylock(rwlock)	__raw_read_trylock(&(rwlock)->raw_lock)
-# define _raw_read_unlock(rwlock)	__raw_read_unlock(&(rwlock)->raw_lock)
-# define _raw_write_lock(rwlock)	__raw_write_lock(&(rwlock)->raw_lock)
+		arch_read_lock_flags(&(lock)->raw_lock, *(flags))
+# define _raw_read_trylock(rwlock)	arch_read_trylock(&(rwlock)->raw_lock)
+# define _raw_read_unlock(rwlock)	arch_read_unlock(&(rwlock)->raw_lock)
+# define _raw_write_lock(rwlock)	arch_write_lock(&(rwlock)->raw_lock)
 # define _raw_write_lock_flags(lock, flags) \
-		__raw_write_lock_flags(&(lock)->raw_lock, *(flags))
-# define _raw_write_trylock(rwlock)	__raw_write_trylock(&(rwlock)->raw_lock)
-# define _raw_write_unlock(rwlock)	__raw_write_unlock(&(rwlock)->raw_lock)
+		arch_write_lock_flags(&(lock)->raw_lock, *(flags))
+# define _raw_write_trylock(rwlock)	arch_write_trylock(&(rwlock)->raw_lock)
+# define _raw_write_unlock(rwlock)	arch_write_unlock(&(rwlock)->raw_lock)
 #endif
 
-#define read_can_lock(rwlock)		__raw_read_can_lock(&(rwlock)->raw_lock)
-#define write_can_lock(rwlock)		__raw_write_can_lock(&(rwlock)->raw_lock)
+#define read_can_lock(rwlock)		arch_read_can_lock(&(rwlock)->raw_lock)
+#define write_can_lock(rwlock)		arch_write_can_lock(&(rwlock)->raw_lock)
 
 /*
  * Define the various rw_lock methods.  Note we define these

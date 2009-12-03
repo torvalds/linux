@@ -86,7 +86,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
  * just write zero since the lock is exclusively held.
  */
 
-static inline void __raw_write_lock(arch_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -106,7 +106,7 @@ static inline void __raw_write_lock(arch_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline int __raw_write_trylock(arch_rwlock_t *rw)
+static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -126,7 +126,7 @@ static inline int __raw_write_trylock(arch_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_unlock(arch_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
@@ -142,7 +142,7 @@ static inline void __raw_write_unlock(arch_rwlock_t *rw)
 }
 
 /* write_can_lock - would write_trylock() succeed? */
-#define __raw_write_can_lock(x)		((x)->lock == 0)
+#define arch_write_can_lock(x)		((x)->lock == 0)
 
 /*
  * Read locks are a bit more hairy:
@@ -156,7 +156,7 @@ static inline void __raw_write_unlock(arch_rwlock_t *rw)
  * currently active.  However, we know we won't have any write
  * locks.
  */
-static inline void __raw_read_lock(arch_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -176,7 +176,7 @@ static inline void __raw_read_lock(arch_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline void __raw_read_unlock(arch_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -198,7 +198,7 @@ static inline void __raw_read_unlock(arch_rwlock_t *rw)
 	: "cc");
 }
 
-static inline int __raw_read_trylock(arch_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2 = 1;
 
@@ -215,10 +215,10 @@ static inline int __raw_read_trylock(arch_rwlock_t *rw)
 }
 
 /* read_can_lock - would read_trylock() succeed? */
-#define __raw_read_can_lock(x)		((x)->lock < 0x80000000)
+#define arch_read_can_lock(x)		((x)->lock < 0x80000000)
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()
