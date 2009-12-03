@@ -34,6 +34,7 @@
 #include <linux/rfkill.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/leds.h>
 
 #define EEEPC_LAPTOP_VERSION	"0.1"
 
@@ -504,6 +505,39 @@ static struct attribute *platform_attributes[] = {
 
 static struct attribute_group platform_attribute_group = {
 	.attrs = platform_attributes
+};
+
+/*
+ * LEDs
+ */
+/*
+ * These functions actually update the LED's, and are called from a
+ * workqueue. By doing this as separate work rather than when the LED
+ * subsystem asks, we avoid messing with the Asus ACPI stuff during a
+ * potentially bad time, such as a timer interrupt.
+ */
+static int tpd_led_wk;
+
+static void tpd_led_update(struct work_struct *ignored)
+{
+	int value = tpd_led_wk;
+	set_acpi(CM_ASL_TPD, value);
+}
+
+static struct workqueue_struct *led_workqueue;
+static DECLARE_WORK(tpd_led_work, tpd_led_update);
+
+static void tpd_led_set(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	tpd_led_wk = (value > 0) ? 1 : 0;
+	queue_work(led_workqueue, &tpd_led_work);
+}
+
+static struct led_classdev tpd_led = {
+	.name           = "eeepc::touchpad",
+	.brightness_set = tpd_led_set,
+	.max_brightness = 1
 };
 
 /*
@@ -1034,6 +1068,14 @@ static void eeepc_hwmon_exit(void)
 	eeepc_hwmon_device = NULL;
 }
 
+static void eeepc_led_exit(void)
+{
+	if (led_workqueue)
+		destroy_workqueue(led_workqueue);
+	if (tpd_led.dev)
+		led_classdev_unregister(&tpd_led);
+}
+
 static int eeepc_new_rfkill(struct rfkill **rfkill,
 			    const char *name, struct device *dev,
 			    enum rfkill_type type, int cm)
@@ -1190,6 +1232,24 @@ static int eeepc_input_init(struct device *dev)
 	return 0;
 }
 
+static int eeepc_led_init(struct device *dev)
+{
+	int rv;
+
+	if (get_acpi(CM_ASL_TPD) == -ENODEV)
+		return 0;
+
+	rv = led_classdev_register(dev, &tpd_led);
+	if (rv)
+		return rv;
+
+	led_workqueue = create_singlethread_workqueue("led_workqueue");
+	if (!led_workqueue)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int __devinit eeepc_hotk_add(struct acpi_device *device)
 {
 	struct device *dev;
@@ -1248,6 +1308,10 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 	if (result)
 		goto fail_hwmon;
 
+	result = eeepc_led_init(dev);
+	if (result)
+		goto fail_led;
+
 	result = eeepc_rfkill_init(dev);
 	if (result)
 		goto fail_rfkill;
@@ -1255,6 +1319,8 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 	return 0;
 
 fail_rfkill:
+	eeepc_led_exit();
+fail_led:
 	eeepc_hwmon_exit();
 fail_hwmon:
 	eeepc_input_exit();
@@ -1284,6 +1350,7 @@ static int eeepc_hotk_remove(struct acpi_device *device, int type)
 	eeepc_rfkill_exit();
 	eeepc_input_exit();
 	eeepc_hwmon_exit();
+	eeepc_led_exit();
 	sysfs_remove_group(&platform_device->dev.kobj,
 			   &platform_attribute_group);
 	platform_device_unregister(platform_device);

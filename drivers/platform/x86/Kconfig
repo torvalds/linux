@@ -334,6 +334,8 @@ config EEEPC_LAPTOP
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select LEDS_CLASS
+	select NEW_LEDS
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
