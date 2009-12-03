@@ -2490,9 +2490,9 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
 			    cfqd->busy_queues > 1) {
 				del_timer(&cfqd->idle_slice_timer);
-			__blk_run_queue(cfqd->queue);
-			}
-			cfq_mark_cfqq_must_dispatch(cfqq);
+				__blk_run_queue(cfqd->queue);
+			} else
+				cfq_mark_cfqq_must_dispatch(cfqq);
 		}
 	} else if (cfq_should_preempt(cfqd, cfqq, rq)) {
 		/*
