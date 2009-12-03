@@ -53,7 +53,8 @@ static struct hwrng *current_rng;
 static LIST_HEAD(rng_list);
 static DEFINE_MUTEX(rng_mutex);
 static int data_avail;
-static u8 rng_buffer[SMP_CACHE_BYTES] __cacheline_aligned;
+static u8 rng_buffer[SMP_CACHE_BYTES < 32 ? 32 : SMP_CACHE_BYTES]
+	__cacheline_aligned;
 
 static inline int hwrng_init(struct hwrng *rng)
 {
