@@ -903,28 +903,32 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 				virt_dev->in_ctx);
 		/* Input ctx add_flags are the endpoint index plus one */
 		ep_index = xhci_last_valid_endpoint(ctrl_ctx->add_flags) - 1;
-		ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
-		if (!ep_ring) {
-			/* This must have been an initial configure endpoint */
-			xhci->devs[slot_id]->cmd_status =
-				GET_COMP_CODE(event->status);
-			complete(&xhci->devs[slot_id]->cmd_completion);
-			break;
-		}
-		ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
-		xhci_dbg(xhci, "Completed config ep cmd - last ep index = %d, "
-				"state = %d\n", ep_index, ep_state);
+		/* A usb_set_interface() call directly after clearing a halted
+		 * condition may race on this quirky hardware.
+		 * Not worth worrying about, since this is prototype hardware.
+		 */
 		if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
-				ep_state & EP_HALTED) {
+				ep_index != (unsigned int) -1 &&
+				ctrl_ctx->add_flags - SLOT_FLAG ==
+					ctrl_ctx->drop_flags) {
+			ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
+			ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
+			if (!(ep_state & EP_HALTED))
+				goto bandwidth_change;
+			xhci_dbg(xhci, "Completed config ep cmd - "
+					"last ep index = %d, state = %d\n",
+					ep_index, ep_state);
 			/* Clear our internal halted state and restart ring */
 			xhci->devs[slot_id]->eps[ep_index].ep_state &=
 				~EP_HALTED;
 			ring_ep_doorbell(xhci, slot_id, ep_index);
-		} else {
-			xhci->devs[slot_id]->cmd_status =
-				GET_COMP_CODE(event->status);
-			complete(&xhci->devs[slot_id]->cmd_completion);
+			break;
 		}
+bandwidth_change:
+		xhci_dbg(xhci, "Completed config ep cmd\n");
+		xhci->devs[slot_id]->cmd_status =
+			GET_COMP_CODE(event->status);
+		complete(&xhci->devs[slot_id]->cmd_completion);
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
 		virt_dev = xhci->devs[slot_id];
