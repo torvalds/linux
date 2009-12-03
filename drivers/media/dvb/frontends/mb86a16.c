@@ -243,11 +243,16 @@ static int initial_set(struct mb86a16_state *state)
 {
 	if (stlp_set(state, 5, 7))
 		goto err;
+
+	udelay(100);
 	if (afcex_data_set(state, 0, 0))
 		goto err;
+
+	udelay(100);
 	if (afcofs_data_set(state, 0, 0))
 		goto err;
 
+	udelay(100);
 	if (mb86a16_write(state, MB86A16_CRLFILTCOEF1, 0x16) < 0)
 		goto err;
 	if (mb86a16_write(state, 0x2f, 0x21) < 0)
@@ -1149,11 +1154,12 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				     v, R, swp_ofs, &fOSC,
 				     &afcex_freq, &AFCEX_L, &AFCEX_H);
 
+			udelay(100);
 			if (rf_val_set(state, fOSC, state->srate, R) < 0) {
 				dprintk(verbose, MB86A16_ERROR, 1, "rf val set error");
 				return -1;
 			}
-
+			udelay(100);
 			if (afcex_data_set(state, AFCEX_L, AFCEX_H) < 0) {
 				dprintk(verbose, MB86A16_ERROR, 1, "afcex data set error");
 				return -1;
