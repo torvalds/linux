@@ -125,6 +125,23 @@ void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	kfree(ring);
 }
 
+static void xhci_initialize_ring_info(struct xhci_ring *ring)
+{
+	/* The ring is empty, so the enqueue pointer == dequeue pointer */
+	ring->enqueue = ring->first_seg->trbs;
+	ring->enq_seg = ring->first_seg;
+	ring->dequeue = ring->enqueue;
+	ring->deq_seg = ring->first_seg;
+	/* The ring is initialized to 0. The producer must write 1 to the cycle
+	 * bit to handover ownership of the TRB, so PCS = 1.  The consumer must
+	 * compare CCS to the cycle bit to check ownership, so CCS = 1.
+	 */
+	ring->cycle_state = 1;
+	/* Not necessary for new rings, but needed for re-initialized rings */
+	ring->enq_updates = 0;
+	ring->deq_updates = 0;
+}
+
 /**
  * Create a new ring with zero or more segments.
  *
@@ -173,22 +190,33 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 				" segment %p (virtual), 0x%llx (DMA)\n",
 				prev, (unsigned long long)prev->dma);
 	}
-	/* The ring is empty, so the enqueue pointer == dequeue pointer */
-	ring->enqueue = ring->first_seg->trbs;
-	ring->enq_seg = ring->first_seg;
-	ring->dequeue = ring->enqueue;
-	ring->deq_seg = ring->first_seg;
-	/* The ring is initialized to 0. The producer must write 1 to the cycle
-	 * bit to handover ownership of the TRB, so PCS = 1.  The consumer must
-	 * compare CCS to the cycle bit to check ownership, so CCS = 1.
-	 */
-	ring->cycle_state = 1;
-
+	xhci_initialize_ring_info(ring);
 	return ring;
 
 fail:
 	xhci_ring_free(xhci, ring);
 	return 0;
+}
+
+/* Zero an endpoint ring (except for link TRBs) and move the enqueue and dequeue
+ * pointers to the beginning of the ring.
+ */
+static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
+		struct xhci_ring *ring)
+{
+	struct xhci_segment	*seg = ring->first_seg;
+	do {
+		memset(seg->trbs, 0,
+				sizeof(union xhci_trb)*TRBS_PER_SEGMENT);
+		/* All endpoint rings have link TRBs */
+		xhci_link_segments(xhci, seg, seg->next, 1);
+		seg = seg->next;
+	} while (seg != ring->first_seg);
+	xhci_initialize_ring_info(ring);
+	/* td list should be empty since all URBs have been cancelled,
+	 * but just in case...
+	 */
+	INIT_LIST_HEAD(&ring->td_list);
 }
 
 #define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
@@ -276,6 +304,12 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		if (dev->eps[i].ring)
 			xhci_ring_free(xhci, dev->eps[i].ring);
 
+	if (dev->ring_cache) {
+		for (i = 0; i < dev->num_rings_cached; i++)
+			xhci_ring_free(xhci, dev->ring_cache[i]);
+		kfree(dev->ring_cache);
+	}
+
 	if (dev->in_ctx)
 		xhci_free_container_ctx(xhci, dev->in_ctx);
 	if (dev->out_ctx)
@@ -328,6 +362,14 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, flags);
 	if (!dev->eps[0].ring)
 		goto fail;
+
+	/* Allocate pointers to the ring cache */
+	dev->ring_cache = kzalloc(
+			sizeof(struct xhci_ring *)*XHCI_MAX_RINGS_CACHED,
+			flags);
+	if (!dev->ring_cache)
+		goto fail;
+	dev->num_rings_cached = 0;
 
 	init_completion(&dev->cmd_completion);
 	INIT_LIST_HEAD(&dev->cmd_list);
@@ -555,8 +597,16 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	/* Set up the endpoint ring */
 	virt_dev->eps[ep_index].new_ring =
 		xhci_ring_alloc(xhci, 1, true, mem_flags);
-	if (!virt_dev->eps[ep_index].new_ring)
-		return -ENOMEM;
+	if (!virt_dev->eps[ep_index].new_ring) {
+		/* Attempt to use the ring cache */
+		if (virt_dev->num_rings_cached == 0)
+			return -ENOMEM;
+		virt_dev->eps[ep_index].new_ring =
+			virt_dev->ring_cache[virt_dev->num_rings_cached];
+		virt_dev->ring_cache[virt_dev->num_rings_cached] = NULL;
+		virt_dev->num_rings_cached--;
+		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring);
+	}
 	ep_ring = virt_dev->eps[ep_index].new_ring;
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
