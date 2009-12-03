@@ -117,6 +117,7 @@ struct cfq_queue {
 
 	/* time when queue got scheduled in to dispatch first request. */
 	unsigned long dispatch_start;
+	unsigned int allocated_slice;
 	/* time when first request from queue completed and slice started. */
 	unsigned long slice_start;
 	unsigned long slice_end;
@@ -314,6 +315,8 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_sync,		/* synchronous queue */
 	CFQ_CFQQ_FLAG_coop,		/* cfqq is shared */
 	CFQ_CFQQ_FLAG_deep,		/* sync cfqq experienced large depth */
+	CFQ_CFQQ_FLAG_wait_busy,	/* Waiting for next request */
+	CFQ_CFQQ_FLAG_wait_busy_done,	/* Got new request. Expire the queue */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -341,6 +344,8 @@ CFQ_CFQQ_FNS(slice_new);
 CFQ_CFQQ_FNS(sync);
 CFQ_CFQQ_FNS(coop);
 CFQ_CFQQ_FNS(deep);
+CFQ_CFQQ_FNS(wait_busy);
+CFQ_CFQQ_FNS(wait_busy_done);
 #undef CFQ_CFQQ_FNS
 
 #ifdef CONFIG_DEBUG_CFQ_IOSCHED
@@ -578,6 +583,7 @@ cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	}
 	cfqq->slice_start = jiffies;
 	cfqq->slice_end = jiffies + slice;
+	cfqq->allocated_slice = slice;
 	cfq_log_cfqq(cfqd, cfqq, "set_slice=%lu", cfqq->slice_end - jiffies);
 }
 
@@ -859,7 +865,7 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
 {
-	unsigned int slice_used, allocated_slice;
+	unsigned int slice_used;
 
 	/*
 	 * Queue got expired before even a single request completed or
@@ -876,9 +882,8 @@ static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
 					1);
 	} else {
 		slice_used = jiffies - cfqq->slice_start;
-		allocated_slice = cfqq->slice_end - cfqq->slice_start;
-		if (slice_used > allocated_slice)
-			slice_used = allocated_slice;
+		if (slice_used > cfqq->allocated_slice)
+			slice_used = cfqq->allocated_slice;
 	}
 
 	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u sect=%lu", slice_used,
@@ -1495,6 +1500,7 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 		cfq_log_cfqq(cfqd, cfqq, "set_active");
 		cfqq->slice_start = 0;
 		cfqq->dispatch_start = jiffies;
+		cfqq->allocated_slice = 0;
 		cfqq->slice_end = 0;
 		cfqq->slice_dispatch = 0;
 		cfqq->nr_sectors = 0;
@@ -1524,6 +1530,8 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		del_timer(&cfqd->idle_slice_timer);
 
 	cfq_clear_cfqq_wait_request(cfqq);
+	cfq_clear_cfqq_wait_busy(cfqq);
+	cfq_clear_cfqq_wait_busy_done(cfqq);
 
 	/*
 	 * store what was left of this slice, if the queue idled/timed out
@@ -2066,7 +2074,8 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
-	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq))
+	if ((cfq_slice_used(cfqq) || cfq_cfqq_wait_busy_done(cfqq))
+	     && !cfq_cfqq_must_dispatch(cfqq))
 		goto expire;
 
 	/*
@@ -3096,6 +3105,10 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
+		if (cfq_cfqq_wait_busy(cfqq)) {
+			cfq_clear_cfqq_wait_busy(cfqq);
+			cfq_mark_cfqq_wait_busy_done(cfqq);
+		}
 		/*
 		 * Remember that we saw a request from this process, but
 		 * don't start queuing just yet. Otherwise we risk seeing lots
@@ -3214,6 +3227,17 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 			cfq_set_prio_slice(cfqd, cfqq);
 			cfq_clear_cfqq_slice_new(cfqq);
 		}
+
+		/*
+		 * If this queue consumed its slice and this is last queue
+		 * in the group, wait for next request before we expire
+		 * the queue
+		 */
+		if (cfq_slice_used(cfqq) && cfqq->cfqg->nr_cfqq == 1) {
+			cfqq->slice_end = jiffies + cfqd->cfq_slice_idle;
+			cfq_mark_cfqq_wait_busy(cfqq);
+		}
+
 		/*
 		 * Idling is not enabled on:
 		 * - expired queues
