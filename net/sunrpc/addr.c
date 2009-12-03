@@ -55,16 +55,8 @@ static size_t rpc_ntop6_noscopeid(const struct sockaddr *sap,
 
 	/*
 	 * RFC 4291, Section 2.2.1
-	 *
-	 * To keep the result as short as possible, especially
-	 * since we don't shorthand, we don't want leading zeros
-	 * in each halfword, so avoid %pI6.
 	 */
-	return snprintf(buf, buflen, "%x:%x:%x:%x:%x:%x:%x:%x",
-		ntohs(addr->s6_addr16[0]), ntohs(addr->s6_addr16[1]),
-		ntohs(addr->s6_addr16[2]), ntohs(addr->s6_addr16[3]),
-		ntohs(addr->s6_addr16[4]), ntohs(addr->s6_addr16[5]),
-		ntohs(addr->s6_addr16[6]), ntohs(addr->s6_addr16[7]));
+	return snprintf(buf, buflen, "%pI6c", addr);
 }
 
 static size_t rpc_ntop6(const struct sockaddr *sap,
