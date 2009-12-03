@@ -82,7 +82,6 @@ static struct iwm_conf def_iwm_conf = {
 	.roam_timeout		= 10,
 	.wireless_mode		= WIRELESS_MODE_11A | WIRELESS_MODE_11G |
 				  WIRELESS_MODE_11N,
-	.coexist_mode		= COEX_MODE_CM,
 
 	/* IBSS */
 	.ibss_band		= UMAC_BAND_2GHZ,

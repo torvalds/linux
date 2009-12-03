@@ -81,7 +81,6 @@ struct iwm_conf {
 	u32 assoc_timeout;
 	u32 roam_timeout;
 	u32 wireless_mode;
-	u32 coexist_mode;
 
 	u8 ibss_band;
 	u8 ibss_channel;

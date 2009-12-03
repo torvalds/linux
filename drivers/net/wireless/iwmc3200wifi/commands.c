@@ -99,6 +99,10 @@ int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 	return ret;
 }
 
+static int modparam_wiwi = COEX_MODE_CM;
+module_param_named(wiwi, modparam_wiwi, int, 0644);
+MODULE_PARM_DESC(wiwi, "Wifi-WiMAX coexistence: 1=SA, 2=XOR, 3=CM (default)");
+
 static struct coex_event iwm_sta_xor_prio_tbl[COEX_EVENTS_NUM] =
 {
 	{4, 3, 0, COEX_UNASSOC_IDLE_FLAGS},
@@ -148,7 +152,7 @@ int iwm_send_prio_table(struct iwm_priv *iwm)
 
 	coex_table_cmd.flags = COEX_FLAGS_STA_TABLE_VALID_MSK;
 
-	switch (iwm->conf.coexist_mode) {
+	switch (modparam_wiwi) {
 	case COEX_MODE_XOR:
 	case COEX_MODE_CM:
 		coex_enabled = 1;
@@ -173,7 +177,7 @@ int iwm_send_prio_table(struct iwm_priv *iwm)
 					COEX_FLAGS_ASSOC_WAKEUP_UMASK_MSK |
 					COEX_FLAGS_UNASSOC_WAKEUP_UMASK_MSK;
 
-		switch (iwm->conf.coexist_mode) {
+		switch (modparam_wiwi) {
 		case COEX_MODE_XOR:
 			memcpy(coex_table_cmd.sta_prio, iwm_sta_xor_prio_tbl,
 			       sizeof(iwm_sta_xor_prio_tbl));
@@ -184,7 +188,7 @@ int iwm_send_prio_table(struct iwm_priv *iwm)
 			break;
 		default:
 			IWM_ERR(iwm, "Invalid coex_mode 0x%x\n",
-				iwm->conf.coexist_mode);
+				modparam_wiwi);
 			break;
 		}
 	} else
@@ -396,7 +400,7 @@ int iwm_send_umac_config(struct iwm_priv *iwm, __le32 reset_flags)
 		return ret;
 
 	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
-				      CFG_COEX_MODE, iwm->conf.coexist_mode);
+				      CFG_COEX_MODE, modparam_wiwi);
 	if (ret < 0)
 		return ret;
 
