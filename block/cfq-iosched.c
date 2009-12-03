@@ -393,7 +393,7 @@ static int cfq_queue_empty(struct request_queue *q)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 
-	return !cfqd->busy_queues;
+	return !cfqd->rq_queued;
 }
 
 /*
@@ -842,7 +842,6 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static void cfq_del_rq_rb(struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
-	struct cfq_data *cfqd = cfqq->cfqd;
 	const int sync = rq_is_sync(rq);
 
 	BUG_ON(!cfqq->queued[sync]);
@@ -850,8 +849,17 @@ static void cfq_del_rq_rb(struct request *rq)
 
 	elv_rb_del(&cfqq->sort_list, rq);
 
-	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY_ROOT(&cfqq->sort_list))
-		cfq_del_cfqq_rr(cfqd, cfqq);
+	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY_ROOT(&cfqq->sort_list)) {
+		/*
+		 * Queue will be deleted from service tree when we actually
+		 * expire it later. Right now just remove it from prio tree
+		 * as it is empty.
+		 */
+		if (cfqq->p_root) {
+			rb_erase(&cfqq->p_node, cfqq->p_root);
+			cfqq->p_root = NULL;
+		}
+	}
 }
 
 static void cfq_add_rq_rb(struct request *rq)
@@ -1065,6 +1073,9 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfq_log_cfqq(cfqd, cfqq, "resid=%ld", cfqq->slice_resid);
 	}
 
+	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY_ROOT(&cfqq->sort_list))
+		cfq_del_cfqq_rr(cfqd, cfqq);
+
 	cfq_resort_rr_list(cfqd, cfqq);
 
 	if (cfqq == cfqd->active_queue)
@@ -1094,9 +1105,28 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
 					cfqd->serving_type, cfqd);
 
+	if (!cfqd->rq_queued)
+		return NULL;
+
 	if (RB_EMPTY_ROOT(&service_tree->rb))
 		return NULL;
 	return cfq_rb_first(service_tree);
+}
+
+static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
+{
+	struct cfq_group *cfqg = &cfqd->root_group;
+	struct cfq_queue *cfqq;
+	int i, j;
+	struct cfq_rb_root *st;
+
+	if (!cfqd->rq_queued)
+		return NULL;
+
+	for_each_cfqg_st(cfqg, i, j, st)
+		if ((cfqq = cfq_rb_first(st)) != NULL)
+			return cfqq;
+	return NULL;
 }
 
 /*
@@ -1231,6 +1261,9 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	enum wl_prio_t prio = cfqq_prio(cfqq);
 	struct cfq_rb_root *service_tree = cfqq->service_tree;
 
+	BUG_ON(!service_tree);
+	BUG_ON(!service_tree->count);
+
 	/* We never do for idle class queues. */
 	if (prio == IDLE_WORKLOAD)
 		return false;
@@ -1243,14 +1276,7 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	if (!service_tree)
-		service_tree = service_tree_for(cfqq->cfqg, prio,
-						cfqq_type(cfqq), cfqd);
-
-	if (service_tree->count == 0)
-		return true;
-
-	return (service_tree->count == 1 && cfq_rb_first(service_tree) == cfqq);
+	return service_tree->count == 1;
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -1527,6 +1553,8 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	if (!cfqq)
 		goto new_queue;
 
+	if (!cfqd->rq_queued)
+		return NULL;
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
@@ -1589,6 +1617,9 @@ static int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
 	}
 
 	BUG_ON(!list_empty(&cfqq->fifo));
+
+	/* By default cfqq is not expired if it is empty. Do it explicitly */
+	__cfq_slice_expired(cfqq->cfqd, cfqq, 0);
 	return dispatched;
 }
 
@@ -1600,14 +1631,9 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 {
 	struct cfq_queue *cfqq;
 	int dispatched = 0;
-	int i, j;
-	struct cfq_group *cfqg = &cfqd->root_group;
-	struct cfq_rb_root *st;
 
-	for_each_cfqg_st(cfqg, i, j, st) {
-		while ((cfqq = cfq_rb_first(st)) != NULL)
-			dispatched += __cfq_forced_dispatch_cfqq(cfqq);
-	}
+	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL)
+		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
 
 	cfq_slice_expired(cfqd, 0);
 	BUG_ON(cfqd->busy_queues);
@@ -1776,13 +1802,13 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	cfq_log_cfqq(cfqd, cfqq, "put_queue");
 	BUG_ON(rb_first(&cfqq->sort_list));
 	BUG_ON(cfqq->allocated[READ] + cfqq->allocated[WRITE]);
-	BUG_ON(cfq_cfqq_on_rr(cfqq));
 
 	if (unlikely(cfqd->active_queue == cfqq)) {
 		__cfq_slice_expired(cfqd, cfqq, 0);
 		cfq_schedule_dispatch(cfqd);
 	}
 
+	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	kmem_cache_free(cfq_pool, cfqq);
 }
 
@@ -2444,9 +2470,11 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (cfq_class_idle(cfqq))
 		return true;
 
+	/* Allow preemption only if we are idling on sync-noidle tree */
 	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
 	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
-	    new_cfqq->service_tree->count == 1)
+	    new_cfqq->service_tree->count == 2 &&
+	    RB_EMPTY_ROOT(&cfqq->sort_list))
 		return true;
 
 	/*
