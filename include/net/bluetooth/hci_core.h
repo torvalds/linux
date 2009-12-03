@@ -367,22 +367,6 @@ static inline void hci_conn_put(struct hci_conn *conn)
 	}
 }
 
-/* ----- HCI tasks ----- */
-static inline void hci_sched_cmd(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->cmd_task);
-}
-
-static inline void hci_sched_rx(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->rx_task);
-}
-
-static inline void hci_sched_tx(struct hci_dev *hdev)
-{
-	tasklet_schedule(&hdev->tx_task);
-}
-
 /* ----- HCI Devices ----- */
 static inline void __hci_dev_put(struct hci_dev *d)
 {
@@ -437,28 +421,7 @@ int hci_inquiry(void __user *arg);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
-/* Receive frame from HCI drivers */
-static inline int hci_recv_frame(struct sk_buff *skb)
-{
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	if (!hdev || (!test_bit(HCI_UP, &hdev->flags) 
-			&& !test_bit(HCI_INIT, &hdev->flags))) {
-		kfree_skb(skb);
-		return -ENXIO;
-	}
-
-	/* Incomming skb */
-	bt_cb(skb)->incoming = 1;
-
-	/* Time stamp */
-	__net_timestamp(skb);
-
-	/* Queue frame for rx task */
-	skb_queue_tail(&hdev->rx_q, skb);
-	hci_sched_rx(hdev);
-	return 0;
-}
-
+int hci_recv_frame(struct sk_buff *skb);
 int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count);
 
 int hci_register_sysfs(struct hci_dev *hdev);
