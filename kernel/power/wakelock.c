@@ -40,8 +40,6 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
 
-#define TOO_MAY_LOCKS_WARNING		"\n\ntoo many wakelocks!!!\n"
-
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
 static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
@@ -83,14 +81,13 @@ int get_expired_time(struct wake_lock *lock, ktime_t *expire_time)
 }
 
 
-static int print_lock_stat(char *buf, int len, struct wake_lock *lock)
+static int print_lock_stat(struct seq_file *m, struct wake_lock *lock)
 {
 	int lock_count = lock->stat.count;
 	int expire_count = lock->stat.expire_count;
 	ktime_t active_time = ktime_set(0, 0);
 	ktime_t total_time = lock->stat.total_time;
 	ktime_t max_time = lock->stat.max_time;
-	int n;
 
 	ktime_t prevent_suspend_time = lock->stat.prevent_suspend_time;
 	if (lock->flags & WAKE_LOCK_ACTIVE) {
@@ -112,48 +109,34 @@ static int print_lock_stat(char *buf, int len, struct wake_lock *lock)
 			max_time = add_time;
 	}
 
-	n = snprintf(buf, len,
+	return seq_printf(m,
 		     "\"%s\"\t%d\t%d\t%d\t%lld\t%lld\t%lld\t%lld\t%lld\n",
 		     lock->name, lock_count, expire_count,
 		     lock->stat.wakeup_count, ktime_to_ns(active_time),
 		     ktime_to_ns(total_time),
 		     ktime_to_ns(prevent_suspend_time), ktime_to_ns(max_time),
 		     ktime_to_ns(lock->stat.last_time));
-
-	return n > len ? len : n;
 }
 
-
-static int wakelocks_read_proc(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int wakelock_stats_show(struct seq_file *m, void *unused)
 {
 	unsigned long irqflags;
 	struct wake_lock *lock;
-	int len = 0;
+	int ret;
 	int type;
 
 	spin_lock_irqsave(&list_lock, irqflags);
 
-	len += snprintf(page + len, count - len,
-			"name\tcount\texpire_count\twake_count\tactive_since"
+	ret = seq_puts(m, "name\tcount\texpire_count\twake_count\tactive_since"
 			"\ttotal_time\tsleep_time\tmax_time\tlast_change\n");
-	list_for_each_entry(lock, &inactive_locks, link) {
-		len += print_lock_stat(page + len, count - len, lock);
-	}
+	list_for_each_entry(lock, &inactive_locks, link)
+		ret = print_lock_stat(m, lock);
 	for (type = 0; type < WAKE_LOCK_TYPE_COUNT; type++) {
 		list_for_each_entry(lock, &active_wake_locks[type], link)
-			len += print_lock_stat(page + len, count - len, lock);
+			ret = print_lock_stat(m, lock);
 	}
 	spin_unlock_irqrestore(&list_lock, irqflags);
-
-	if (len == count)
-		memcpy(page + len - strlen(TOO_MAY_LOCKS_WARNING),
-		       TOO_MAY_LOCKS_WARNING,
-		       strlen(TOO_MAY_LOCKS_WARNING));
-
-	*eof = 1;
-
-	return len;
+	return 0;
 }
 
 static void wake_unlock_stat_locked(struct wake_lock *lock, int expired)
@@ -535,6 +518,19 @@ int wake_lock_active(struct wake_lock *lock)
 }
 EXPORT_SYMBOL(wake_lock_active);
 
+static int wakelock_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wakelock_stats_show, NULL);
+}
+
+static const struct file_operations wakelock_stats_fops = {
+	.owner = THIS_MODULE,
+	.open = wakelock_stats_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int __init wakelocks_init(void)
 {
 	int ret;
@@ -569,8 +565,7 @@ static int __init wakelocks_init(void)
 	}
 
 #ifdef CONFIG_WAKELOCK_STAT
-	create_proc_read_entry("wakelocks", S_IRUGO, NULL,
-				wakelocks_read_proc, NULL);
+	proc_create("wakelocks", S_IRUGO, NULL, &wakelock_stats_fops);
 #endif
 
 	return 0;
