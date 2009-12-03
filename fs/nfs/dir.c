@@ -1579,15 +1579,6 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *dentry = NULL, *rehash = NULL;
 	int error = -EBUSY;
 
-	/*
-	 * To prevent any new references to the target during the rename,
-	 * we unhash the dentry in advance.
-	 */
-	if (!d_unhashed(new_dentry)) {
-		d_drop(new_dentry);
-		rehash = new_dentry;
-	}
-
 	dfprintk(VFS, "NFS: rename(%s/%s -> %s/%s, ct=%d)\n",
 		 old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		 new_dentry->d_parent->d_name.name, new_dentry->d_name.name,
@@ -1599,25 +1590,36 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * silly-rename succeeds, the copied dentry is hashed and becomes
 	 * the new target.
 	 */
-	if (new_inode && !S_ISDIR(new_inode->i_mode) &&
-	    atomic_read(&new_dentry->d_count) > 2) {
-		int err;
-		/* copy the target dentry's name */
-		dentry = d_alloc(new_dentry->d_parent,
-				 &new_dentry->d_name);
-		if (!dentry)
-			goto out;
+	if (new_inode && !S_ISDIR(new_inode->i_mode)) {
+		/*
+		 * To prevent any new references to the target during the
+		 * rename, we unhash the dentry in advance.
+		 */
+		if (!d_unhashed(new_dentry)) {
+			d_drop(new_dentry);
+			rehash = new_dentry;
+		}
 
-		/* silly-rename the existing target ... */
-		err = nfs_sillyrename(new_dir, new_dentry);
-		if (!err) {
-			new_dentry = rehash = dentry;
-			new_inode = NULL;
-			/* instantiate the replacement target */
-			d_instantiate(new_dentry, NULL);
-		} else if (atomic_read(&new_dentry->d_count) > 1)
-			/* dentry still busy? */
-			goto out;
+		if (atomic_read(&new_dentry->d_count) > 2) {
+			int err;
+
+			/* copy the target dentry's name */
+			dentry = d_alloc(new_dentry->d_parent,
+					 &new_dentry->d_name);
+			if (!dentry)
+				goto out;
+
+			/* silly-rename the existing target ... */
+			err = nfs_sillyrename(new_dir, new_dentry);
+			if (!err) {
+				new_dentry = rehash = dentry;
+				new_inode = NULL;
+				/* instantiate the replacement target */
+				d_instantiate(new_dentry, NULL);
+			} else if (atomic_read(&new_dentry->d_count) > 1)
+				/* dentry still busy? */
+				goto out;
+		}
 	}
 
 	/*
