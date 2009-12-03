@@ -6,41 +6,16 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/module.h>
-
-#include <linux/linkage.h>
-#include <linux/time.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/syscalls.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
-#include <linux/inet.h>
-#include <linux/string.h>
 #include <linux/ctype.h>
 
-#include <linux/nfs.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/lockd/bind.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
-
-#include <asm/uaccess.h>
-#include <net/ipv6.h>
 
 /*
  *	We have a single directory with 9 nodes in it.

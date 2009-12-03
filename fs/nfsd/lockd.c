@@ -8,12 +8,7 @@
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/types.h>
-#include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/lockd/bind.h>
 #include "vfs.h"

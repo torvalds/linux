@@ -34,26 +34,11 @@
 *
 */
 
-#include <linux/param.h>
-#include <linux/major.h>
-#include <linux/slab.h>
-
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
 #include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/workqueue.h>
 #include <linux/smp_lock.h>
-#include <linux/kthread.h>
-#include <linux/nfs4.h>
-#include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
 #include <linux/namei.h>
 #include <linux/swap.h>
-#include <linux/mutex.h>
-#include <linux/lockd/bind.h>
-#include <linux/module.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/clnt.h>
 #include "vfs.h"

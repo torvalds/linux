@@ -6,12 +6,9 @@
  * Copyright (C) 2002-2003 Andreas Gruenbacher <agruen@suse.de>
  */
 
-#include <linux/sunrpc/svc.h>
-#include <linux/nfs3.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr3.h>
-#include <linux/posix_acl.h>
 #include <linux/nfsacl.h>
 #include "vfs.h"
 

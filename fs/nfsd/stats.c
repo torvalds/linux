@@ -23,14 +23,9 @@
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/kernel.h>
-#include <linux/time.h>
-#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/stat.h>
 #include <linux/module.h>
 
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/stats.h>

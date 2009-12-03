@@ -33,20 +33,12 @@
 *
 */
 
-#include <linux/err.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
-#include <linux/nfs4.h>
 #include <linux/nfsd/state.h>
-#include <linux/nfsd/xdr4.h>
-#include <linux/param.h>
 #include <linux/file.h>
 #include <linux/namei.h>
-#include <asm/uaccess.h>
-#include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/sched.h>
-#include <linux/mount.h>
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC

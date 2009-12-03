@@ -10,14 +10,6 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/kernel.h>
-#include <linux/time.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-
-#include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
 

@@ -6,25 +6,12 @@
  * Copyright (C) 1996, 1997, 1998 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/linkage.h>
-#include <linux/time.h>
-#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/ext2_fs.h>
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/major.h>
 #include <linux/magic.h>
 
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr3.h>
-#include <linux/nfs3.h>
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC

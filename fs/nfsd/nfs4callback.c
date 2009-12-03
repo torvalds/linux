@@ -33,22 +33,9 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/module.h>
-#include <linux/list.h>
-#include <linux/inet.h>
-#include <linux/errno.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/kthread.h>
-#include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svcsock.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/state.h>
-#include <linux/sunrpc/sched.h>
-#include <linux/nfs4.h>
-#include <linux/sunrpc/xprtsock.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

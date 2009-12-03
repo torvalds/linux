@@ -9,17 +9,8 @@
  * ... and again Southern-Winter 2001 to support export_operations
  */
 
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/unistd.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/dcache.h>
 #include <linux/exportfs.h>
-#include <linux/mount.h>
 
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/nfsd/nfsd.h>
 #include "vfs.h"

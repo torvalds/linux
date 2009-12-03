@@ -16,43 +16,23 @@
  * Zerocpy NFS support (C) 2002 Hirokazu Takahashi <taka@valinux.co.jp>
  */
 
-#include <linux/string.h>
-#include <linux/time.h>
-#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/major.h>
 #include <linux/splice.h>
-#include <linux/proc_fs.h>
-#include <linux/stat.h>
 #include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/pagemap.h>
-#include <linux/in.h>
-#include <linux/module.h>
 #include <linux/namei.h>
-#include <linux/vfs.h>
 #include <linux/delay.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #ifdef CONFIG_NFSD_V3
-#include <linux/nfs3.h>
 #include <linux/nfsd/xdr3.h>
 #endif /* CONFIG_NFSD_V3 */
-#include <linux/nfsd/nfsfh.h>
 #include <linux/quotaops.h>
 #include <linux/fsnotify.h>
-#include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 #ifdef CONFIG_NFSD_V4
-#include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/security.h>
 #endif /* CONFIG_NFSD_V4 */
 #include <linux/jhash.h>
 #include <linux/ima.h>

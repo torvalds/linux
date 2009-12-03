@@ -14,27 +14,12 @@
  * Copyright (C) 1995, 1996 Olaf Kirch, <okir@monad.swb.de>
  */
 
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/in.h>
-#include <linux/seq_file.h>
-#include <linux/syscalls.h>
-#include <linux/rwsem.h>
-#include <linux/dcache.h>
 #include <linux/namei.h>
-#include <linux/mount.h>
-#include <linux/hash.h>
 #include <linux/module.h>
 #include <linux/exportfs.h>
 
-#include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/syscall.h>
-#include <linux/lockd/bind.h>
-#include <linux/sunrpc/msg_prot.h>
-#include <linux/sunrpc/gss_api.h>
 #include <net/ipv6.h>
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT

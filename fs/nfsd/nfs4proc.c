@@ -34,20 +34,10 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <linux/param.h>
-#include <linux/major.h>
-#include <linux/slab.h>
 #include <linux/file.h>
 
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
-#include <linux/nfs4.h>
-#include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
-#include <linux/nfs4_acl.h>
-#include <linux/sunrpc/gss_api.h>
 #include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
