@@ -1380,6 +1380,10 @@ call_timeout(struct rpc_task *task)
 	dprintk("RPC: %5u call_timeout (major)\n", task->tk_pid);
 	task->tk_timeouts++;
 
+	if (RPC_IS_SOFTCONN(task)) {
+		rpc_exit(task, -ETIMEDOUT);
+		return;
+	}
 	if (RPC_IS_SOFT(task)) {
 		if (clnt->cl_chatty)
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
