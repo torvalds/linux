@@ -15,6 +15,8 @@
 
 #include <linux/cgroup.h>
 
+#ifdef CONFIG_BLK_CGROUP
+
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
@@ -40,6 +42,13 @@ struct blkio_group {
 	unsigned long time;
 	unsigned long sectors;
 };
+
+#else
+
+struct blkio_group {
+};
+
+#endif
 
 #define BLKIO_WEIGHT_MIN	100
 #define BLKIO_WEIGHT_MAX	1000
@@ -69,6 +78,7 @@ extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
 			unsigned long time, unsigned long sectors);
 #else
+struct cgroup;
 static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
