@@ -380,7 +380,7 @@ static ssize_t store_sys_acpi(int cm, const char *buf, size_t count)
 	if (rv > 0)
 		value = set_acpi(cm, value);
 	if (value < 0)
-		return value;
+		return -EIO;
 	return rv;
 }
 
@@ -389,11 +389,11 @@ static ssize_t show_sys_acpi(int cm, char *buf)
 	int value = get_acpi(cm);
 
 	if (value < 0)
-		return value;
+		return -EIO;
 	return sprintf(buf, "%d\n", value);
 }
 
-#define EEEPC_CREATE_DEVICE_ATTR(_name, _cm)				\
+#define EEEPC_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
 	static ssize_t show_##_name(struct device *dev,			\
 				    struct device_attribute *attr,	\
 				    char *buf)				\
@@ -409,14 +409,14 @@ static ssize_t show_sys_acpi(int cm, char *buf)
 	static struct device_attribute dev_attr_##_name = {		\
 		.attr = {						\
 			.name = __stringify(_name),			\
-			.mode = 0644 },					\
+			.mode = _mode },				\
 		.show   = show_##_name,					\
 		.store  = store_##_name,				\
 	}
 
-EEEPC_CREATE_DEVICE_ATTR(camera, CM_ASL_CAMERA);
-EEEPC_CREATE_DEVICE_ATTR(cardr, CM_ASL_CARDREADER);
-EEEPC_CREATE_DEVICE_ATTR(disp, CM_ASL_DISPLAYSWITCH);
+EEEPC_CREATE_DEVICE_ATTR(camera, 0644, CM_ASL_CAMERA);
+EEEPC_CREATE_DEVICE_ATTR(cardr, 0644, CM_ASL_CARDREADER);
+EEEPC_CREATE_DEVICE_ATTR(disp, 0200, CM_ASL_DISPLAYSWITCH);
 
 struct eeepc_cpufv {
 	int num;
