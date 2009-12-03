@@ -29,25 +29,25 @@ do {								\
 #endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK
- extern void _raw_read_lock(rwlock_t *lock);
-#define _raw_read_lock_flags(lock, flags) _raw_read_lock(lock)
- extern int _raw_read_trylock(rwlock_t *lock);
- extern void _raw_read_unlock(rwlock_t *lock);
- extern void _raw_write_lock(rwlock_t *lock);
-#define _raw_write_lock_flags(lock, flags) _raw_write_lock(lock)
- extern int _raw_write_trylock(rwlock_t *lock);
- extern void _raw_write_unlock(rwlock_t *lock);
+ extern void do_raw_read_lock(rwlock_t *lock);
+#define do_raw_read_lock_flags(lock, flags) do_raw_read_lock(lock)
+ extern int do_raw_read_trylock(rwlock_t *lock);
+ extern void do_raw_read_unlock(rwlock_t *lock);
+ extern void do_raw_write_lock(rwlock_t *lock);
+#define do_raw_write_lock_flags(lock, flags) do_raw_write_lock(lock)
+ extern int do_raw_write_trylock(rwlock_t *lock);
+ extern void do_raw_write_unlock(rwlock_t *lock);
 #else
-# define _raw_read_lock(rwlock)		arch_read_lock(&(rwlock)->raw_lock)
-# define _raw_read_lock_flags(lock, flags) \
+# define do_raw_read_lock(rwlock)		arch_read_lock(&(rwlock)->raw_lock)
+# define do_raw_read_lock_flags(lock, flags) \
 		arch_read_lock_flags(&(lock)->raw_lock, *(flags))
-# define _raw_read_trylock(rwlock)	arch_read_trylock(&(rwlock)->raw_lock)
-# define _raw_read_unlock(rwlock)	arch_read_unlock(&(rwlock)->raw_lock)
-# define _raw_write_lock(rwlock)	arch_write_lock(&(rwlock)->raw_lock)
-# define _raw_write_lock_flags(lock, flags) \
+# define do_raw_read_trylock(rwlock)	arch_read_trylock(&(rwlock)->raw_lock)
+# define do_raw_read_unlock(rwlock)	arch_read_unlock(&(rwlock)->raw_lock)
+# define do_raw_write_lock(rwlock)	arch_write_lock(&(rwlock)->raw_lock)
+# define do_raw_write_lock_flags(lock, flags) \
 		arch_write_lock_flags(&(lock)->raw_lock, *(flags))
-# define _raw_write_trylock(rwlock)	arch_write_trylock(&(rwlock)->raw_lock)
-# define _raw_write_unlock(rwlock)	arch_write_unlock(&(rwlock)->raw_lock)
+# define do_raw_write_trylock(rwlock)	arch_write_trylock(&(rwlock)->raw_lock)
+# define do_raw_write_unlock(rwlock)	arch_write_unlock(&(rwlock)->raw_lock)
 #endif
 
 #define read_can_lock(rwlock)		arch_read_can_lock(&(rwlock)->raw_lock)

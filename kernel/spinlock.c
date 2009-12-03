@@ -48,7 +48,7 @@ void __lockfunc __##op##_lock(locktype##_t *lock)			\
 {									\
 	for (;;) {							\
 		preempt_disable();					\
-		if (likely(_raw_##op##_trylock(lock)))			\
+		if (likely(do_raw_##op##_trylock(lock)))		\
 			break;						\
 		preempt_enable();					\
 									\
@@ -67,7 +67,7 @@ unsigned long __lockfunc __##op##_lock_irqsave(locktype##_t *lock)	\
 	for (;;) {							\
 		preempt_disable();					\
 		local_irq_save(flags);					\
-		if (likely(_raw_##op##_trylock(lock)))			\
+		if (likely(do_raw_##op##_trylock(lock)))		\
 			break;						\
 		local_irq_restore(flags);				\
 		preempt_enable();					\
@@ -345,7 +345,7 @@ void __lockfunc _spin_lock_nested(raw_spinlock_t *lock, int subclass)
 {
 	preempt_disable();
 	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
+	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 EXPORT_SYMBOL(_spin_lock_nested);
 
@@ -357,8 +357,8 @@ unsigned long __lockfunc _spin_lock_irqsave_nested(raw_spinlock_t *lock,
 	local_irq_save(flags);
 	preempt_disable();
 	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
-	LOCK_CONTENDED_FLAGS(lock, _raw_spin_trylock, _raw_spin_lock,
-				_raw_spin_lock_flags, &flags);
+	LOCK_CONTENDED_FLAGS(lock, do_raw_spin_trylock, do_raw_spin_lock,
+				do_raw_spin_lock_flags, &flags);
 	return flags;
 }
 EXPORT_SYMBOL(_spin_lock_irqsave_nested);
@@ -368,7 +368,7 @@ void __lockfunc _spin_lock_nest_lock(raw_spinlock_t *lock,
 {
 	preempt_disable();
 	spin_acquire_nest(&lock->dep_map, 0, 0, nest_lock, _RET_IP_);
-	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
+	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 EXPORT_SYMBOL(_spin_lock_nest_lock);
 
