@@ -4901,6 +4901,33 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 EXPORT_SYMBOL(netdev_fix_features);
 
 /**
+ *	netif_stacked_transfer_operstate -	transfer operstate
+ *	@rootdev: the root or lower level device to transfer state from
+ *	@dev: the device to transfer operstate to
+ *
+ *	Transfer operational state from root to device. This is normally
+ *	called when a stacking relationship exists between the root
+ *	device and the device(a leaf device).
+ */
+void netif_stacked_transfer_operstate(const struct net_device *rootdev,
+					struct net_device *dev)
+{
+	if (rootdev->operstate == IF_OPER_DORMANT)
+		netif_dormant_on(dev);
+	else
+		netif_dormant_off(dev);
+
+	if (netif_carrier_ok(rootdev)) {
+		if (!netif_carrier_ok(dev))
+			netif_carrier_on(dev);
+	} else {
+		if (netif_carrier_ok(dev))
+			netif_carrier_off(dev);
+	}
+}
+EXPORT_SYMBOL(netif_stacked_transfer_operstate);
+
+/**
  *	register_netdevice	- register a network device
  *	@dev: device to register
  *

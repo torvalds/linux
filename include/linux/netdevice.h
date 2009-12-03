@@ -1981,6 +1981,9 @@ unsigned long netdev_increment_features(unsigned long all, unsigned long one,
 					unsigned long mask);
 unsigned long netdev_fix_features(unsigned long features, const char *name);
 
+void netif_stacked_transfer_operstate(const struct net_device *rootdev,
+					struct net_device *dev);
+
 static inline int net_gso_ok(int features, int gso_type)
 {
 	int feature = gso_type << NETIF_F_GSO_SHIFT;
