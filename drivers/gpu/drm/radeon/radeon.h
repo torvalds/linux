@@ -339,6 +339,8 @@ struct radeon_irq {
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
 	bool		crtc_vblank_int[2];
+	/* FIXME: use defines for max hpd/dacs */
+	bool            hpd[6];
 	spinlock_t sw_lock;
 	int sw_refcount;
 };
