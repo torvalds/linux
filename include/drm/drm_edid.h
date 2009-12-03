@@ -120,6 +120,9 @@ struct detailed_non_pixel {
 	} data;
 } __attribute__((packed));
 
+#define EDID_DETAIL_EST_TIMINGS 0xf7
+#define EDID_DETAIL_CVT_3BYTE 0xf8
+#define EDID_DETAIL_COLOR_MGMT_DATA 0xf9
 #define EDID_DETAIL_STD_MODES 0xfa
 #define EDID_DETAIL_MONITOR_CPDATA 0xfb
 #define EDID_DETAIL_MONITOR_NAME 0xfc
