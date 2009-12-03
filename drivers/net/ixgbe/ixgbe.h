@@ -51,11 +51,11 @@
 		__func__ , ## args)))
 
 /* TX/RX descriptor defines */
-#define IXGBE_DEFAULT_TXD		   1024
+#define IXGBE_DEFAULT_TXD		    512
 #define IXGBE_MAX_TXD			   4096
 #define IXGBE_MIN_TXD			     64
 
-#define IXGBE_DEFAULT_RXD		   1024
+#define IXGBE_DEFAULT_RXD		    512
 #define IXGBE_MAX_RXD			   4096
 #define IXGBE_MIN_RXD			     64
 
