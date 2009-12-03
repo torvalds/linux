@@ -284,7 +284,7 @@ static int fib_default_rules_init(struct fib_rules_ops *ops)
 {
 	int err;
 
-	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL, FIB_RULE_PERMANENT);
+	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL, 0);
 	if (err < 0)
 		return err;
 	err = fib_default_rule_add(ops, 0x7FFE, RT_TABLE_MAIN, 0);

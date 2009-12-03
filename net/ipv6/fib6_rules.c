@@ -276,7 +276,7 @@ static int fib6_rules_net_init(struct net *net)
 	INIT_LIST_HEAD(&net->ipv6.fib6_rules_ops->rules_list);
 
 	err = fib_default_rule_add(net->ipv6.fib6_rules_ops, 0,
-				   RT6_TABLE_LOCAL, FIB_RULE_PERMANENT);
+				   RT6_TABLE_LOCAL, 0);
 	if (err)
 		goto out_fib6_rules_ops;
 
