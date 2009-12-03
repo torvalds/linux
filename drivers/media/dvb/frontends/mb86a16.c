@@ -417,7 +417,8 @@ static int signal_det(struct mb86a16_state *state,
 	int ret ;
 	int smrtd ;
 	int wait_sym ;
-	int wait_t ;
+
+	u32 wait_t;
 	unsigned char S[3] ;
 	int i ;
 
@@ -1429,6 +1430,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 					S2T = 7; S4T = 2; S5T = 8; ETH = 7; VIA = 2;
 					wait_t = 7 + (2097152 + state->srate / 2) / state->srate;
 				}
+				wait_t *= 2; /*		FOS	*/
 				S2T_set(state, S2T);
 				S45T_set(state, S4T, S5T);
 				Vi_set(state, ETH, VIA);
