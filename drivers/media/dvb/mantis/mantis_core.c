@@ -48,7 +48,6 @@ static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 
 		return err;
 	}
-//	msleep_interruptible(2);
 
 	return 0;
 }
@@ -74,7 +73,6 @@ static int write_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 
 	return 0;
 }
-
 
 static int get_mac_address(struct mantis_pci *mantis)
 {

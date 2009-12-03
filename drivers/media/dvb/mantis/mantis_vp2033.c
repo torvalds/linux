@@ -21,17 +21,6 @@
 #include "mantis_common.h"
 #include "mantis_vp2033.h"
 
-struct tda10021_state {
-	struct i2c_adapter *i2c;
-	struct dvb_frontend_ops ops;
-	/* configuration settings */
-	const struct tda10021_config *config;
-	struct dvb_frontend frontend;
-
-	u8 pwm;
-	u8 reg0;
-};
-
 #define MANTIS_MODEL_NAME	"VP-2033"
 #define MANTIS_DEV_TYPE		"DVB-C"
 
@@ -49,7 +38,6 @@ struct cu1216_config philips_cu1216_config = {
 int philips_cu1216_tuner_set(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *params)
 {
-//	struct tda10021_state *state = fe->demodulator_priv;
 	struct mantis_pci *mantis = fe->dvb->priv;
 
 	u8 buf[4];
@@ -71,11 +59,11 @@ int philips_cu1216_tuner_set(struct dvb_frontend *fe,
 	buf[3] = (params->frequency < 150000000 ? 0xA1 :
 		  params->frequency < 445000000 ? 0x92 : 0x34);
 
-//	if (i2c_transfer(state->i2c, &msg, 1) < 0) {
 	if (i2c_transfer(&mantis->adapter, &msg, 1) < 0) {
 		printk("%s tuner not ack!\n", __FUNCTION__);
 		return -EIO;
 	}
 	msleep(100);
+
 	return 0;
 }

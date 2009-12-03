@@ -74,7 +74,6 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_I2CRACK) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* I2C R-ACK *");
-//		wake_up(&mantis->i2c_wq);
 	}
 	if (stat & MANTIS_INT_PCMCIA7) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-07 *");
