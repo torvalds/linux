@@ -546,7 +546,7 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	}
 	case AF_INET6: {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
-		seq_printf(m, ",mountaddr=%pI6", &sin6->sin6_addr);
+		seq_printf(m, ",mountaddr=%pI6c", &sin6->sin6_addr);
 		break;
 	}
 	default:
