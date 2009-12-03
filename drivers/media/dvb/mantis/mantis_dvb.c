@@ -206,22 +206,13 @@ err0:
 	return result;
 }
 
-#define MANTIS_VP_1027_DVB_S	0x0013
-#define MANTIS_VP_1033_DVB_S	0x0016
-#define MANTIS_VP_1034_DVB_S	0x0014
-#define MANTIS_VP_1040_DVB_S2
-#define MANTIS_VP_1041_DVB_S2
-#define MANTIS_VP_2033_DVB_C	0x0008
-#define MANTIS_VP_3024_DVB_T	0x0009
-#define MANTIS_VP_3030_DVB_T	0x0024
-
 int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 {
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis frontend Init");
 	mantis_fe_powerup(mantis);
 	mantis_frontend_reset(mantis);
-	dprintk(verbose, MANTIS_DEBUG, 1, "Device ID=%02x", mantis->sub_device_id);
-	switch (mantis->sub_device_id) {
+	dprintk(verbose, MANTIS_DEBUG, 1, "Device ID=%02x", mantis->subsystem_device);
+	switch (mantis->subsystem_device) {
 	case MANTIS_VP_1033_DVB_S:	// VP-1033
 		dprintk(verbose, MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
 		mantis->fe = stv0299_attach(&lgtdqcs001f_config,

@@ -20,7 +20,10 @@
 
 #include "mantis_common.h"
 #include "mantis_core.h"
-
+#include "mantis_vp1033.h"
+#include "mantis_vp1034.h"
+#include "mantis_vp2033.h"
+#include "mantis_vp3030.h"
 
 static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 {
@@ -45,7 +48,7 @@ static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 
 		return err;
 	}
-	msleep_interruptible(2);
+//	msleep_interruptible(2);
 
 	return 0;
 }
@@ -72,41 +75,6 @@ static int write_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 	return 0;
 }
 
-static int get_subdevice_id(struct mantis_pci *mantis)
-{
-	int err;
-	static u8 sub_device_id[2];
-
-	mantis->sub_device_id = 0;
-	sub_device_id[0] = 0xfc;
-	if ((err = read_eeprom_byte(mantis, &sub_device_id[0], 2)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Mantis EEPROM read error");
-		return err;
-	}
-	mantis->sub_device_id = (sub_device_id[0] << 8) | sub_device_id[1];
-	dprintk(verbose, MANTIS_ERROR, 1, "Sub Device ID=[0x%04x]",
-		mantis->sub_device_id);
-
-	return 0;
-}
-
-static int get_subvendor_id(struct mantis_pci *mantis)
-{
-	int err;
-	static u8 sub_vendor_id[2];
-
-	mantis->sub_vendor_id = 0;
-	sub_vendor_id[0] = 0xfe;
-	if ((err = read_eeprom_byte(mantis, &sub_vendor_id[0], 2)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Mantis EEPROM read error");
-		return err;
-	}
-	mantis->sub_vendor_id = (sub_vendor_id[0] << 8) | sub_vendor_id[1];
-	dprintk(verbose, MANTIS_ERROR, 1, "Sub Vendor ID=[0x%04x]",
-		mantis->sub_vendor_id);
-
-	return 0;
-}
 
 static int get_mac_address(struct mantis_pci *mantis)
 {
@@ -118,8 +86,8 @@ static int get_mac_address(struct mantis_pci *mantis)
 
 		return err;
 	}
-	dprintk(verbose, MANTIS_ERROR, 1,
-		"MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]",
+	dprintk(verbose, MANTIS_ERROR, 0,
+		"    MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]\n",
 		mantis->mac_address[0], mantis->mac_address[1],
 		mantis->mac_address[2],	mantis->mac_address[3],
 		mantis->mac_address[4], mantis->mac_address[5]);
@@ -127,10 +95,50 @@ static int get_mac_address(struct mantis_pci *mantis)
 	return 0;
 }
 
+#define MANTIS_MODEL_UNKNOWN	"UNKNOWN"
+#define MANTIS_DEV_UNKNOWN	"UNKNOWN"
+
+struct mantis_hwconfig unknown_device = {
+	.model_name	= MANTIS_MODEL_UNKNOWN,
+	.dev_type	= MANTIS_DEV_UNKNOWN,
+};
+
+static void mantis_load_config(struct mantis_pci *mantis)
+{
+	switch (mantis->subsystem_device) {
+	case MANTIS_VP_1033_DVB_S:	// VP-1033
+		mantis->hwconfig = &vp1033_mantis_config;
+		break;
+	case MANTIS_VP_1034_DVB_S:	// VP-1034
+		mantis->hwconfig = &vp1034_mantis_config;
+		break;
+	case MANTIS_VP_2033_DVB_C:	// VP-2033
+		mantis->hwconfig = &vp2033_mantis_config;
+		break;
+	case MANTIS_VP_3030_DVB_T:	// VP-3030
+		mantis->hwconfig = &vp3030_mantis_config;
+		break;
+	default:
+		mantis->hwconfig = &unknown_device;
+		break;
+	}
+}
 
 int mantis_core_init(struct mantis_pci *mantis)
 {
 	int err = 0;
+
+	mantis_load_config(mantis);
+	dprintk(verbose, MANTIS_ERROR, 0, "found a %s PCI %s device on (%02x:%02x.%x),\n",
+		mantis->hwconfig->model_name, mantis->hwconfig->dev_type,
+		mantis->pdev->bus->number, PCI_SLOT(mantis->pdev->devfn), PCI_FUNC(mantis->pdev->devfn));
+	dprintk(verbose, MANTIS_ERROR, 0, "    Mantis Rev %d [%04x:%04x], ",
+		mantis->revision,
+		mantis->subsystem_vendor, mantis->subsystem_device);
+	dprintk(verbose, MANTIS_ERROR, 0,
+		"irq: %d, latency: %d\n    memory: 0x%lx, mmio: 0x%p\n",
+		mantis->pdev->irq, mantis->latency,
+		mantis->mantis_addr, mantis->mantis_mmio);
 
 	if ((err = mantis_i2c_init(mantis)) < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis I2C init failed");
@@ -138,14 +146,6 @@ int mantis_core_init(struct mantis_pci *mantis)
 	}
 	if ((err = get_mac_address(mantis)) < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "get MAC address failed");
-		return err;
-	}
-	if ((err = get_subvendor_id(mantis)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "get Sub vendor ID failed");
-		return err;
-	}
-	if ((err = get_subdevice_id(mantis)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "get Sub device ID failed");
 		return err;
 	}
 	if ((err = mantis_dma_init(mantis)) < 0) {
@@ -162,7 +162,6 @@ int mantis_core_init(struct mantis_pci *mantis)
 
 int mantis_core_exit(struct mantis_pci *mantis)
 {
-
 	mantis_dma_stop(mantis);
 	dprintk(verbose, MANTIS_ERROR, 1, "DMA engine stopping");
 	if (mantis_dma_exit(mantis) < 0)

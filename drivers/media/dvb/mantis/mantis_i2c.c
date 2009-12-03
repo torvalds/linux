@@ -33,32 +33,27 @@
 static int mantis_ack_wait(struct mantis_pci *mantis)
 {
 	int rc = 0;
+	u32 timeout = 0;
 
 	if (wait_event_interruptible_timeout(mantis->i2c_wq,
-					     mantis->mantis_int_stat & MANTIS_INT_I2CRACK,
-					     msecs_to_jiffies(50)) == -ERESTARTSYS)
+					     mantis->mantis_int_stat & MANTIS_INT_I2CDONE,
+					     msecs_to_jiffies(50)) == -ERESTARTSYS) {
 
+		dprintk(verbose, MANTIS_DEBUG, 1, "I2C Transfer failed, Master !I2CDONE");
 		rc = -EREMOTEIO;
-/*
-	// Wait till we are done
-	while (mantis->mantis_int_stat & MANTIS_INT_I2CRACK){
-		if (mantis->mantis_int_stat & MANTIS_INT_I2CDONE) {
-			mantis->mantis_int_stat &= ~MANTIS_INT_I2CRACK;
-//			dprintk(verbose, MANTIS_DEBUG, 1, "SLAVE RACK 'ed .. Waiting for I2CDONE");
+	}
+	while (!(mantis->mantis_int_stat & MANTIS_INT_I2CRACK)) {
+		dprintk(verbose, MANTIS_DEBUG, 1, "Waiting for Slave RACK");
+		mantis->mantis_int_stat = mmread(MANTIS_INT_STAT);
+		msleep(5);
+		timeout++;
+		if (timeout > 500) {
+			dprintk(verbose, MANTIS_ERROR, 1, "Slave RACK Fail !");
+			rc = -EREMOTEIO;
 			break;
 		}
 	}
-
-	if (mantis->mantis_int_stat & MANTIS_INT_I2CDONE) {
-//		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis Int I2CDONE");
-		rc = 1;
-	}
-
-	mantis->mantis_int_stat &= ~MANTIS_INT_I2CDONE;
-*/
-	// ..
-	if (mantis->mantis_int_stat & MANTIS_INT_I2CRACK)
-		msleep_interruptible(10);
+	udelay(350);
 
 	return rc;
 }
@@ -67,7 +62,7 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 {
 	u32 rxd, i;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Address=[0x%02x]", msg->addr);
+	dprintk(verbose, MANTIS_INFO, 0, "        %s:  Address=[0x%02x] <R>[ ", __func__, msg->addr);
 	for (i = 0; i < msg->len; i++) {
 		rxd = (msg->addr << 25) | (1 << 24)
 					| MANTIS_I2C_RATE_3
@@ -77,18 +72,17 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 		if (i == (msg->len - 1))
 			rxd &= ~MANTIS_I2C_STOP;
 
+		mmwrite(MANTIS_INT_I2CDONE, MANTIS_INT_STAT);
 		mmwrite(rxd, MANTIS_I2CDATA_CTL);
-		if (mantis_ack_wait(mantis) < 0) {
+		if (mantis_ack_wait(mantis) != 0) {
 			dprintk(verbose, MANTIS_DEBUG, 1, "ACK failed<R>");
-			return -EIO;
+			return -EREMOTEIO;
 		}
 		rxd = mmread(MANTIS_I2CDATA_CTL);
 		msg->buf[i] = (u8)((rxd >> 8) & 0xFF);
-		dprintk(verbose, MANTIS_DEBUG, 1,
-			"Data<R[%d]>=[0x%02x]", i, msg->buf[i]);
-
-		msleep_interruptible(2);
+		dprintk(verbose, MANTIS_INFO, 0, "%02x ", msg->buf[i]);
 	}
+	dprintk(verbose, MANTIS_INFO, 0, "]\n");
 
 	return 0;
 }
@@ -98,9 +92,9 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 	int i;
 	u32 txd = 0;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Address=[0x%02x]", msg->addr);
+	dprintk(verbose, MANTIS_INFO, 0, "        %s: Address=[0x%02x] <W>[ ", __func__, msg->addr);
 	for (i = 0; i < msg->len; i++) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "Data<W[%d]>=[0x%02x]", i, msg->buf[i]);
+		dprintk(verbose, MANTIS_INFO, 0, "%02x ", msg->buf[i]);
 		txd = (msg->addr << 25) | (msg->buf[i] << 8)
 					| MANTIS_I2C_RATE_3
 					| MANTIS_I2C_STOP
@@ -109,13 +103,14 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 		if (i == (msg->len - 1))
 			txd &= ~MANTIS_I2C_STOP;
 
+		mmwrite(MANTIS_INT_I2CDONE, MANTIS_INT_STAT);
 		mmwrite(txd, MANTIS_I2CDATA_CTL);
-		if (mantis_ack_wait(mantis) < 0) {
+		if (mantis_ack_wait(mantis) != 0) {
 			dprintk(verbose, MANTIS_DEBUG, 1, "ACK failed<W>");
-			return -1;
+			return -EREMOTEIO;
 		}
-		udelay(500);
 	}
+	dprintk(verbose, MANTIS_INFO, 0, "]\n");
 
 	return 0;
 }
@@ -159,7 +154,7 @@ static struct i2c_adapter mantis_i2c_adapter = {
 
 int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 {
-	u32 intstat;
+	u32 intstat, intmask;
 
 	memcpy(&mantis->adapter, &mantis_i2c_adapter, sizeof (mantis_i2c_adapter));
 	i2c_set_adapdata(&mantis->adapter, mantis);
@@ -169,15 +164,12 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Initializing I2C ..");
 
-	// Clear all interrupts
 	intstat = mmread(MANTIS_INT_STAT);
+	intmask = mmread(MANTIS_INT_MASK);
 	mmwrite(intstat, MANTIS_INT_STAT);
+	mmwrite(intmask | MANTIS_INT_I2CDONE, MANTIS_INT_MASK);
 
-	mmwrite(mmread(MANTIS_INT_MASK) | MANTIS_INT_I2CDONE,
-					  MANTIS_INT_MASK);
-
-	dprintk(verbose, MANTIS_DEBUG, 1, "[0x%08x/%08x]",
-		mmread(MANTIS_INT_STAT), mmread(MANTIS_INT_MASK));
+	dprintk(verbose, MANTIS_DEBUG, 1, "[0x%08x/%08x]", intstat, intmask);
 
 	return 0;
 }

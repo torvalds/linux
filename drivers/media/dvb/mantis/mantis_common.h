@@ -65,10 +65,19 @@
 #define mmaor(dat, addr)	mmwrite((dat) | ((mask) & mmread(addr)), addr)
 
 
+struct mantis_hwconfig {
+	char			*model_name;
+	char			*dev_type;
+};
+
+
 struct mantis_pci {
 	/*	PCI stuff		*/
 	u16			vendor_id;
 	u16			device_id;
+	u16			subsystem_vendor;
+	u16			subsystem_device;
+
 	u8			latency;
 
 	struct			pci_dev *pdev;
@@ -110,7 +119,7 @@ struct mantis_pci {
 
 	u8			feeds;
 
-	struct mantis_config	*config;
+	struct mantis_hwconfig	*hwconfig;
 
 	u32 			mantis_int_stat;
 	u32 			mantis_int_mask;
@@ -121,7 +130,8 @@ struct mantis_pci {
 	u32			sub_device_id;
 
 	 /*	A12 A13 A14		*/
-	int			gpio_status;};
+	int			gpio_status;
+};
 
 extern unsigned int verbose;
 extern unsigned int devs;

@@ -26,6 +26,14 @@ struct mb86a16_config vp1034_config = {
 	.set_voltage	= vp1034_set_voltage,
 };
 
+#define MANTIS_MODEL_NAME	"VP-1034"
+#define MANTIS_DEV_TYPE		"DVB-S/DSS"
+
+struct mantis_hwconfig vp1034_mantis_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
+};
+
 int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct mantis_pci *mantis = fe->dvb->priv;

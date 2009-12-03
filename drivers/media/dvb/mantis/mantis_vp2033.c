@@ -32,9 +32,17 @@ struct tda10021_state {
 	u8 reg0;
 };
 
+#define MANTIS_MODEL_NAME	"VP-2033"
+#define MANTIS_DEV_TYPE		"DVB-C"
+
+struct mantis_hwconfig vp2033_mantis_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
+};
+
 struct cu1216_config philips_cu1216_config = {
-	.demod_address = 0x18 >> 1,
-	.pll_set = philips_cu1216_tuner_set,
+	.demod_address	= 0x18 >> 1,
+	.pll_set	= philips_cu1216_tuner_set,
 //	.fe_reset = mantis_fe_reset,
 };
 
@@ -47,10 +55,10 @@ int philips_cu1216_tuner_set(struct dvb_frontend *fe,
 	u8 buf[4];
 
 	struct i2c_msg msg = {
-		.addr = 0xc0 >> 1,
-		.flags = 0,
-		.buf = buf,
-		.len = sizeof (buf)
+		.addr	= 0xc0 >> 1,
+		.flags	= 0,
+		.buf	= buf,
+		.len	= sizeof (buf)
 	};
 
 #define TUNER_MUL 62500

@@ -22,7 +22,15 @@
 #include "mantis_vp3030.h"
 
 struct zl10353_config mantis_vp3030_config = {
-	.demod_address = 0x0f,
+	.demod_address	= 0x0f,
+};
+
+#define MANTIS_MODEL_NAME	"VP-3030"
+#define MANTIS_DEV_TYPE		"DVB-T"
+
+struct mantis_hwconfig vp3030_mantis_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
 };
 
 int panasonic_en57h12d5_set_params(struct dvb_frontend *fe,

@@ -52,7 +52,6 @@ MODULE_DEVICE_TABLE(pci, mantis_pci_table);
 
 static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 {
-	int i = 0, interrupts = 0;
 	u32 stat = 0, mask = 0, lstat = 0, mstat = 0;
 	struct mantis_pci *mantis;
 
@@ -64,109 +63,67 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
 	mstat = lstat = stat & ~MANTIS_INT_RISCSTAT;
-
-	if (!(stat & mask)) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "Not ours !");
+	if (!(stat & mask))
 		return IRQ_NONE;
+
+	mantis->mantis_int_stat = stat;
+	mantis->mantis_int_mask = mask;
+	dprintk(verbose, MANTIS_DEBUG, 0, "=== Interrupts[%04x/%04x]= [", stat, mask);
+	if (stat & MANTIS_INT_RISCEN) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* DMA enabl *");
 	}
-	mmwrite(lstat, MANTIS_INT_STAT);
-	interrupts = hweight32(stat);
-	dprintk(verbose, MANTIS_DEBUG, 0, "=== Interrupts[%04x/%04x]=%d [", stat, mask, interrupts);
-
-	while (lstat) {
-		if (lstat & MANTIS_INT_RISCEN) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* DMA enabl *");
-			lstat &= ~MANTIS_INT_RISCEN;
-
-		} else if (lstat & MANTIS_INT_I2CRACK) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* I2C R-ACK *");
-			mantis->mantis_int_stat = stat;
-			mantis->mantis_int_mask = mask;
-			wake_up(&mantis->i2c_wq);
-			lstat &= ~MANTIS_INT_I2CRACK;
-
-		} else if (lstat & MANTIS_INT_PCMCIA7) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-07 *");
-			lstat &= ~MANTIS_INT_PCMCIA7;
-
-		} else if (lstat & MANTIS_INT_PCMCIA6) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-06 *");
-			lstat &= ~MANTIS_INT_PCMCIA6;
-
-		} else if (lstat & MANTIS_INT_PCMCIA5) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-05 *");
-			lstat &= ~MANTIS_INT_PCMCIA5;
-
-		} else if (lstat & MANTIS_INT_PCMCIA4) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-04 *");
-			lstat &= ~MANTIS_INT_PCMCIA4;
-
-		} else if (lstat & MANTIS_INT_PCMCIA3) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-03 *");
-			lstat &= ~MANTIS_INT_PCMCIA3;
-
-		} else if (lstat & MANTIS_INT_PCMCIA2) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-02 *");
-			lstat &= ~MANTIS_INT_PCMCIA2;
-
-		} else if (lstat & MANTIS_INT_PCMCIA1) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-01 *");
-			lstat &= ~MANTIS_INT_PCMCIA1;
-
-		} else if (lstat & MANTIS_INT_PCMCIA0) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-00 *");
-			lstat &= ~MANTIS_INT_PCMCIA0;
-
-		} else if (lstat & MANTIS_INT_IRQ0) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
-			lstat &= ~MANTIS_INT_IRQ0;
-
-		} else if (lstat & MANTIS_INT_IRQ1) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-1 *");
-			lstat &= ~MANTIS_INT_IRQ1;
-
-		} else if (lstat & MANTIS_INT_OCERR) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT OCERR *");
-			lstat &= ~MANTIS_INT_OCERR;
-
-		} else if (lstat & MANTIS_INT_PABORT) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT PABRT *");
-			lstat &= ~MANTIS_INT_PABORT;
-
-		} else if (lstat & MANTIS_INT_RIPERR) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT RIPRR *");
-			lstat &= ~MANTIS_INT_RIPERR;
-
-		} else if (lstat & MANTIS_INT_PPERR) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT PPERR *");
-			lstat &= ~MANTIS_INT_PPERR;
-
-		} else if (lstat & MANTIS_INT_FTRGT) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT FTRGT *");
-			lstat &= ~MANTIS_INT_FTRGT;
-
-		} else if (lstat & MANTIS_INT_RISCI) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* INT RISCI *");
-			mantis->finished_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
-			tasklet_schedule(&mantis->tasklet);
-			lstat &= ~MANTIS_INT_RISCI;
-
-		} else if (lstat & MANTIS_INT_I2CDONE) {
-			dprintk(verbose, MANTIS_DEBUG, 0, "* I2C DONE  *");
-			mantis->mantis_int_stat = stat;
-			mantis->mantis_int_mask = mask;
-			lstat &= ~MANTIS_INT_I2CDONE;
-		} else {
-			dprintk(verbose, MANTIS_DEBUG, 0,
-				"* Unknown [%04x/%04x] *", stat, mask);
-			break;
-		}
-		i++;
-		if (i > interrupts) {
-			dprintk(verbose, MANTIS_ERROR, 1, "going Loopy ! -- BREAK --");
-			break;
-		}
+	if (stat & MANTIS_INT_I2CRACK) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* I2C R-ACK *");
+//		wake_up(&mantis->i2c_wq);
 	}
+	if (stat & MANTIS_INT_PCMCIA7) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-07 *");
+	}
+	if (stat & MANTIS_INT_IRQ0) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
+	}
+	if (stat & MANTIS_INT_IRQ1) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-1 *");
+	}
+	if (stat & MANTIS_INT_OCERR) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT OCERR *");
+	}
+	if (stat & MANTIS_INT_PABORT) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT PABRT *");
+	}
+	if (stat & MANTIS_INT_RIPERR) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT RIPRR *");
+	}
+	if (stat & MANTIS_INT_PPERR) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT PPERR *");
+	}
+	if (stat & MANTIS_INT_FTRGT) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT FTRGT *");
+	}
+	if (stat & MANTIS_INT_RISCI) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* INT RISCI *");
+		mantis->finished_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
+		tasklet_schedule(&mantis->tasklet);
+	}
+	if (stat & MANTIS_INT_I2CDONE) {
+		dprintk(verbose, MANTIS_DEBUG, 0, "* I2C DONE  *");
+		wake_up(&mantis->i2c_wq);
+	}
+	mmwrite(stat, MANTIS_INT_STAT);
+	stat &= ~(MANTIS_INT_RISCEN   | MANTIS_INT_I2CDONE |
+		  MANTIS_INT_I2CRACK  | MANTIS_INT_PCMCIA7 |
+		  MANTIS_INT_PCMCIA6  | MANTIS_INT_PCMCIA5 |
+		  MANTIS_INT_PCMCIA4  | MANTIS_INT_PCMCIA3 |
+		  MANTIS_INT_PCMCIA2  | MANTIS_INT_PCMCIA1 |
+		  MANTIS_INT_PCMCIA0  | MANTIS_INT_IRQ1	   |
+		  MANTIS_INT_IRQ0     | MANTIS_INT_OCERR   |
+		  MANTIS_INT_PABORT   | MANTIS_INT_RIPERR  |
+		  MANTIS_INT_PPERR    | MANTIS_INT_FTRGT   |
+		  MANTIS_INT_RISCI);
+
+	if (stat)
+		dprintk(verbose, MANTIS_DEBUG, 0, "* Unknown [%04x] *", stat);
+
 	dprintk(verbose, MANTIS_DEBUG, 0, "] ===\n");
 
 	return IRQ_HANDLED;
@@ -180,8 +137,6 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	struct mantis_pci *mantis;
 	int ret = 0;
 
-	devs++;
-
 	mantis = kmalloc(sizeof (struct mantis_pci), GFP_KERNEL);
 	if (mantis == NULL) {
 		printk("%s: Out of memory\n", __func__);
@@ -190,6 +145,8 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	}
 	memset(mantis, 0, sizeof (struct mantis_pci));
 	mantis->num = devs;
+	devs++;
+
 	if (pci_enable_device(pdev)) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis PCI enable failed");
 		ret = -ENODEV;
@@ -225,11 +182,13 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	mantis->latency = latency;
 	mantis->revision = revision;
 	mantis->pdev = pdev;
+	mantis->subsystem_vendor = pdev->subsystem_vendor;
+	mantis->subsystem_device = pdev->subsystem_device;
 	init_waitqueue_head(&mantis->i2c_wq);
 
 	// CAM bypass
 	//mmwrite(mmread(MANTIS_INT_MASK) | MANTIS_INT_IRQ1, MANTIS_INT_MASK);
-	dprintk(verbose, MANTIS_INFO, 1, "gpif status: %04x  irqcfg: %04x", mmread(0x9c), mmread(0x98));
+	dprintk(verbose, MANTIS_INFO, 0, "\ngpif status: %04x  irqcfg: %04x\n", mmread(0x9c), mmread(0x98));
 	if ((mmread(0x9c) & 0x200) != 0) { //CAM inserted
 		msleep_interruptible(1);
 		if ((mmread(0x9c) & 0x200) != 0)
@@ -242,11 +201,8 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	}
 	mantis_set_direction(mantis, 0);
 
-	// default latency if none specified
 	if (!latency)
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 32);
-	dprintk(verbose, MANTIS_ERROR, 0, "Mantis Rev %d, ",
-		mantis->revision);
 
 	dprintk(verbose, MANTIS_ERROR, 0,
 		"irq: %d, latency: %d\n memory: 0x%lx, mmio: 0x%p\n",

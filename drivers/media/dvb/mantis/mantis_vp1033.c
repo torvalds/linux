@@ -81,6 +81,14 @@ struct stv0299_config lgtdqcs001f_config = {
 //	.pll_set		= lgtdqcs001f_pll_set,
 };
 
+#define MANTIS_MODEL_NAME	"VP-1033"
+#define MANTIS_DEV_TYPE		"DVB-S/DSS"
+
+struct mantis_hwconfig vp1033_mantis_config = {
+	.model_name		= MANTIS_MODEL_NAME,
+	.dev_type		= MANTIS_DEV_TYPE,
+};
+
 int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 			  struct dvb_frontend_parameters *params)
 {
