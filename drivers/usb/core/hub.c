@@ -3599,6 +3599,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 {
 	struct usb_device		*parent_hdev = udev->parent;
 	struct usb_hub			*parent_hub;
+	struct usb_hcd			*hcd = bus_to_hcd(udev->bus);
 	struct usb_device_descriptor	descriptor = udev->descriptor;
 	int 				i, ret = 0;
 	int				port1 = udev->portnum;
@@ -3642,6 +3643,16 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	/* Restore the device's previous configuration */
 	if (!udev->actconfig)
 		goto done;
+
+	mutex_lock(&hcd->bandwidth_mutex);
+	ret = usb_hcd_alloc_bandwidth(udev, udev->actconfig, NULL, NULL);
+	if (ret < 0) {
+		dev_warn(&udev->dev,
+				"Busted HC?  Not enough HCD resources for "
+				"old configuration.\n");
+		mutex_unlock(&hcd->bandwidth_mutex);
+		goto re_enumerate;
+	}
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			USB_REQ_SET_CONFIGURATION, 0,
 			udev->actconfig->desc.bConfigurationValue, 0,
@@ -3650,8 +3661,10 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		dev_err(&udev->dev,
 			"can't restore configuration #%d (error=%d)\n",
 			udev->actconfig->desc.bConfigurationValue, ret);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		goto re_enumerate;
   	}
+	mutex_unlock(&hcd->bandwidth_mutex);
 	usb_set_device_state(udev, USB_STATE_CONFIGURED);
 
 	/* Put interfaces back into the same altsettings as before.
@@ -3661,7 +3674,8 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	 * endpoint state.
 	 */
 	for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-		struct usb_interface *intf = udev->actconfig->interface[i];
+		struct usb_host_config *config = udev->actconfig;
+		struct usb_interface *intf = config->interface[i];
 		struct usb_interface_descriptor *desc;
 
 		desc = &intf->cur_altsetting->desc;
@@ -3670,6 +3684,17 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 			usb_enable_interface(udev, intf, true);
 			ret = 0;
 		} else {
+			/* We've just reset the device, so it will think alt
+			 * setting 0 is installed.  For usb_set_interface() to
+			 * work properly, we need to set the current alternate
+			 * interface setting to 0 (or the first alt setting, if
+			 * the device doesn't have alt setting 0).
+			 */
+			intf->cur_altsetting =
+				usb_find_alt_setting(config, i, 0);
+			if (!intf->cur_altsetting)
+				intf->cur_altsetting =
+					&config->intf_cache[i]->altsetting[0];
 			ret = usb_set_interface(udev, desc->bInterfaceNumber,
 					desc->bAlternateSetting);
 		}

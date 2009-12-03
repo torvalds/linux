@@ -38,6 +38,7 @@
 #include <asm/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 #include <linux/usb.h>
 
@@ -1595,15 +1596,29 @@ rescan:
 	}
 }
 
-/* Check whether a new configuration or alt setting for an interface
- * will exceed the bandwidth for the bus (or the host controller resources).
- * Only pass in a non-NULL config or interface, not both!
- * Passing NULL for both new_config and new_intf means the device will be
- * de-configured by issuing a set configuration 0 command.
+/**
+ * Check whether a new bandwidth setting exceeds the bus bandwidth.
+ * @new_config: new configuration to install
+ * @cur_alt: the current alternate interface setting
+ * @new_alt: alternate interface setting that is being installed
+ *
+ * To change configurations, pass in the new configuration in new_config,
+ * and pass NULL for cur_alt and new_alt.
+ *
+ * To reset a device's configuration (put the device in the ADDRESSED state),
+ * pass in NULL for new_config, cur_alt, and new_alt.
+ *
+ * To change alternate interface settings, pass in NULL for new_config,
+ * pass in the current alternate interface setting in cur_alt,
+ * and pass in the new alternate interface setting in new_alt.
+ *
+ * Returns an error if the requested bandwidth change exceeds the
+ * bus bandwidth or host controller internal resources.
  */
-int usb_hcd_check_bandwidth(struct usb_device *udev,
+int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_host_config *new_config,
-		struct usb_interface *new_intf)
+		struct usb_host_interface *cur_alt,
+		struct usb_host_interface *new_alt)
 {
 	int num_intfs, i, j;
 	struct usb_host_interface *alt = NULL;
@@ -1616,7 +1631,7 @@ int usb_hcd_check_bandwidth(struct usb_device *udev,
 		return 0;
 
 	/* Configuration is being removed - set configuration 0 */
-	if (!new_config && !new_intf) {
+	if (!new_config && !cur_alt) {
 		for (i = 1; i < 16; ++i) {
 			ep = udev->ep_out[i];
 			if (ep)
@@ -1655,15 +1670,31 @@ int usb_hcd_check_bandwidth(struct usb_device *udev,
 		for (i = 0; i < num_intfs; ++i) {
 			/* Set up endpoints for alternate interface setting 0 */
 			alt = usb_find_alt_setting(new_config, i, 0);
-			if (!alt) {
-				printk(KERN_DEBUG "Did not find alt setting 0 for intf %d\n", i);
-				continue;
-			}
+			if (!alt)
+				/* No alt setting 0? Pick the first setting. */
+				alt = &new_config->intf_cache[i]->altsetting[0];
+
 			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
 				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
 				if (ret < 0)
 					goto reset;
 			}
+		}
+	}
+	if (cur_alt && new_alt) {
+		/* Drop all the endpoints in the current alt setting */
+		for (i = 0; i < cur_alt->desc.bNumEndpoints; i++) {
+			ret = hcd->driver->drop_endpoint(hcd, udev,
+					&cur_alt->endpoint[i]);
+			if (ret < 0)
+				goto reset;
+		}
+		/* Add all the endpoints in the new alt setting */
+		for (i = 0; i < new_alt->desc.bNumEndpoints; i++) {
+			ret = hcd->driver->add_endpoint(hcd, udev,
+					&new_alt->endpoint[i]);
+			if (ret < 0)
+				goto reset;
 		}
 	}
 	ret = hcd->driver->check_bandwidth(hcd, udev);
@@ -1982,6 +2013,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 #ifdef CONFIG_PM
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif
+	mutex_init(&hcd->bandwidth_mutex);
 
 	hcd->driver = driver;
 	hcd->product_desc = (driver->product_desc) ? driver->product_desc :
