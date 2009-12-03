@@ -347,13 +347,8 @@ usbtmc_abort_bulk_out_check_status:
 	goto exit;
 
 usbtmc_abort_bulk_out_clear_halt:
-	rv = usb_control_msg(data->usb_dev,
-			     usb_sndctrlpipe(data->usb_dev, 0),
-			     USB_REQ_CLEAR_FEATURE,
-			     USB_DIR_OUT | USB_TYPE_STANDARD |
-			     USB_RECIP_ENDPOINT,
-			     USB_ENDPOINT_HALT, data->bulk_out, buffer,
-			     0, USBTMC_TIMEOUT);
+	rv = usb_clear_halt(data->usb_dev,
+			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
@@ -708,14 +703,8 @@ usbtmc_clear_check_status:
 
 usbtmc_clear_bulk_out_halt:
 
-	rv = usb_control_msg(data->usb_dev,
-			     usb_sndctrlpipe(data->usb_dev, 0),
-			     USB_REQ_CLEAR_FEATURE,
-			     USB_DIR_OUT | USB_TYPE_STANDARD |
-			     USB_RECIP_ENDPOINT,
-			     USB_ENDPOINT_HALT,
-			     data->bulk_out, buffer, 0,
-			     USBTMC_TIMEOUT);
+	rv = usb_clear_halt(data->usb_dev,
+			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
 		goto exit;
@@ -736,13 +725,8 @@ static int usbtmc_ioctl_clear_out_halt(struct usbtmc_device_data *data)
 	if (!buffer)
 		return -ENOMEM;
 
-	rv = usb_control_msg(data->usb_dev,
-			     usb_sndctrlpipe(data->usb_dev, 0),
-			     USB_REQ_CLEAR_FEATURE,
-			     USB_DIR_OUT | USB_TYPE_STANDARD |
-			     USB_RECIP_ENDPOINT,
-			     USB_ENDPOINT_HALT, data->bulk_out,
-			     buffer, 0, USBTMC_TIMEOUT);
+	rv = usb_clear_halt(data->usb_dev,
+			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
 
 	if (rv < 0) {
 		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
@@ -765,12 +749,8 @@ static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 	if (!buffer)
 		return -ENOMEM;
 
-	rv = usb_control_msg(data->usb_dev, usb_sndctrlpipe(data->usb_dev, 0),
-			     USB_REQ_CLEAR_FEATURE,
-			     USB_DIR_OUT | USB_TYPE_STANDARD |
-			     USB_RECIP_ENDPOINT,
-			     USB_ENDPOINT_HALT, data->bulk_in, buffer, 0,
-			     USBTMC_TIMEOUT);
+	rv = usb_clear_halt(data->usb_dev,
+			    usb_rcvbulkpipe(data->usb_dev, data->bulk_in));
 
 	if (rv < 0) {
 		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
