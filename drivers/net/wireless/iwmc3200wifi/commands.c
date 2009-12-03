@@ -192,7 +192,7 @@ int iwm_send_prio_table(struct iwm_priv *iwm)
 
 	return iwm_send_lmac_ptrough_cmd(iwm, COEX_PRIORITY_TABLE_CMD,
 				&coex_table_cmd,
-				sizeof(struct iwm_coex_prio_table_cmd), 1);
+				sizeof(struct iwm_coex_prio_table_cmd), 0);
 }
 
 int iwm_send_init_calib_cfg(struct iwm_priv *iwm, u8 calib_requested)
