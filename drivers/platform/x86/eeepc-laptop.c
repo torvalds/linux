@@ -1359,8 +1359,6 @@ static int __init eeepc_laptop_init(void)
 {
 	int result;
 
-	if (acpi_disabled)
-		return -ENODEV;
 	result = acpi_bus_register_driver(&eeepc_hotk_driver);
 	if (result < 0)
 		return result;
