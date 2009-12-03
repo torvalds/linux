@@ -98,17 +98,17 @@ static int dca_enabled_in_bios(struct pci_dev *pdev)
 	cpuid_level_9 = cpuid_eax(9);
 	res = test_bit(0, &cpuid_level_9);
 	if (!res)
-		dev_err(&pdev->dev, "DCA is disabled in BIOS\n");
+		dev_dbg(&pdev->dev, "DCA is disabled in BIOS\n");
 
 	return res;
 }
 
-static int system_has_dca_enabled(struct pci_dev *pdev)
+int system_has_dca_enabled(struct pci_dev *pdev)
 {
 	if (boot_cpu_has(X86_FEATURE_DCA))
 		return dca_enabled_in_bios(pdev);
 
-	dev_err(&pdev->dev, "boot cpu doesn't have X86_FEATURE_DCA\n");
+	dev_dbg(&pdev->dev, "boot cpu doesn't have X86_FEATURE_DCA\n");
 	return 0;
 }
 

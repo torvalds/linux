@@ -121,6 +121,9 @@ config SYS_SUPPORTS_APM_EMULATION
 	bool
 	select ARCH_SUSPEND_POSSIBLE
 
+config SYS_SUPPORTS_HUGETLBFS
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -195,6 +198,7 @@ config CPU_SH4
 	select CPU_HAS_SR_RB
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
 	select SYS_SUPPORTS_TMU
+	select SYS_SUPPORTS_HUGETLBFS if MMU
 
 config CPU_SH4A
 	bool
@@ -209,6 +213,7 @@ config CPU_SH5
 	bool
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_TMU
+	select SYS_SUPPORTS_HUGETLBFS if MMU
 
 config CPU_SHX2
 	bool

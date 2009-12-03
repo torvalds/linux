@@ -1445,7 +1445,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 				if (tmp_sdata->vif.type != NL80211_IFTYPE_AP)
 					continue;
 				if (compare_ether_addr(tmp_sdata->dev->dev_addr,
-						       hdr->addr2)) {
+						       hdr->addr2) == 0) {
 					dev_hold(tmp_sdata->dev);
 					dev_put(sdata->dev);
 					sdata = tmp_sdata;

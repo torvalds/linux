@@ -276,10 +276,9 @@ void smp_send_reschedule(int cpu)
 	if (cpu_is_offline(cpu))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_RESCHEDULE;
 
@@ -305,10 +304,9 @@ void smp_send_stop(void)
 	if (cpus_empty(callmap))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_CPU_STOP;
 

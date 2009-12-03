@@ -846,7 +846,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 	sort(range, nr_range, sizeof(struct res_range), cmp_range, NULL);
 
 	range_sums = sum_ranges(range, nr_range);
-	printk(KERN_INFO "total RAM coverred: %ldM\n",
+	printk(KERN_INFO "total RAM covered: %ldM\n",
 	       range_sums >> (20 - PAGE_SHIFT));
 
 	if (mtrr_chunk_size && mtrr_gran_size) {

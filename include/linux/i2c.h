@@ -361,6 +361,24 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 	dev_set_drvdata(&dev->dev, data);
 }
 
+/**
+ * i2c_lock_adapter - Prevent access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ */
+static inline void i2c_lock_adapter(struct i2c_adapter *adapter)
+{
+	mutex_lock(&adapter->bus_lock);
+}
+
+/**
+ * i2c_unlock_adapter - Reauthorize access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ */
+static inline void i2c_unlock_adapter(struct i2c_adapter *adapter)
+{
+	mutex_unlock(&adapter->bus_lock);
+}
+
 /*flags for the client struct: */
 #define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */
 #define I2C_CLIENT_TEN	0x10		/* we have a ten bit chip address */

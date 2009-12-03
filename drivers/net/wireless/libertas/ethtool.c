@@ -169,16 +169,19 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 	struct lbs_private *priv = dev->ml_priv;
 	uint32_t criteria = 0;
 
-	if (priv->wol_criteria == 0xffffffff && wol->wolopts)
-		return -EOPNOTSUPP;
-
 	if (wol->wolopts & ~(WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY))
 		return -EOPNOTSUPP;
 
-	if (wol->wolopts & WAKE_UCAST) criteria |= EHS_WAKE_ON_UNICAST_DATA;
-	if (wol->wolopts & WAKE_MCAST) criteria |= EHS_WAKE_ON_MULTICAST_DATA;
-	if (wol->wolopts & WAKE_BCAST) criteria |= EHS_WAKE_ON_BROADCAST_DATA;
-	if (wol->wolopts & WAKE_PHY)   criteria |= EHS_WAKE_ON_MAC_EVENT;
+	if (wol->wolopts & WAKE_UCAST)
+		criteria |= EHS_WAKE_ON_UNICAST_DATA;
+	if (wol->wolopts & WAKE_MCAST)
+		criteria |= EHS_WAKE_ON_MULTICAST_DATA;
+	if (wol->wolopts & WAKE_BCAST)
+		criteria |= EHS_WAKE_ON_BROADCAST_DATA;
+	if (wol->wolopts & WAKE_PHY)
+		criteria |= EHS_WAKE_ON_MAC_EVENT;
+	if (wol->wolopts == 0)
+		criteria |= EHS_REMOVE_WAKEUP;
 
 	return lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
 }

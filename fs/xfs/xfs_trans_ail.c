@@ -467,6 +467,7 @@ xfs_trans_ail_update(
 {
 	xfs_log_item_t		*dlip = NULL;
 	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
+	xfs_lsn_t		tail_lsn;
 
 	mlip = xfs_ail_min(ailp);
 
@@ -483,8 +484,16 @@ xfs_trans_ail_update(
 
 	if (mlip == dlip) {
 		mlip = xfs_ail_min(ailp);
+		/*
+		 * It is not safe to access mlip after the AIL lock is
+		 * dropped, so we must get a copy of li_lsn before we do
+		 * so.  This is especially important on 32-bit platforms
+		 * where accessing and updating 64-bit values like li_lsn
+		 * is not atomic.
+		 */
+		tail_lsn = mlip->li_lsn;
 		spin_unlock(&ailp->xa_lock);
-		xfs_log_move_tail(ailp->xa_mount, mlip->li_lsn);
+		xfs_log_move_tail(ailp->xa_mount, tail_lsn);
 	} else {
 		spin_unlock(&ailp->xa_lock);
 	}
@@ -514,6 +523,7 @@ xfs_trans_ail_delete(
 {
 	xfs_log_item_t		*dlip;
 	xfs_log_item_t		*mlip;
+	xfs_lsn_t		tail_lsn;
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
 		mlip = xfs_ail_min(ailp);
@@ -527,9 +537,16 @@ xfs_trans_ail_delete(
 
 		if (mlip == dlip) {
 			mlip = xfs_ail_min(ailp);
+			/*
+			 * It is not safe to access mlip after the AIL lock
+			 * is dropped, so we must get a copy of li_lsn
+			 * before we do so.  This is especially important
+			 * on 32-bit platforms where accessing and updating
+			 * 64-bit values like li_lsn is not atomic.
+			 */
+			tail_lsn = mlip ? mlip->li_lsn : 0;
 			spin_unlock(&ailp->xa_lock);
-			xfs_log_move_tail(ailp->xa_mount,
-						(mlip ? mlip->li_lsn : 0));
+			xfs_log_move_tail(ailp->xa_mount, tail_lsn);
 		} else {
 			spin_unlock(&ailp->xa_lock);
 		}

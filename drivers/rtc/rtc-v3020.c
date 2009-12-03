@@ -96,7 +96,7 @@ static void v3020_mmio_write_bit(struct v3020 *chip, unsigned char bit)
 
 static unsigned char v3020_mmio_read_bit(struct v3020 *chip)
 {
-	return readl(chip->ioaddress) & (1 << chip->leftshift);
+	return !!(readl(chip->ioaddress) & (1 << chip->leftshift));
 }
 
 static struct v3020_chip_ops v3020_mmio_ops = {

@@ -15,6 +15,7 @@
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Authors:
+ *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>
@@ -1052,7 +1053,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 	 */
 	spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 	while (!list_empty(&netDevice->ReceivePacketList)) {
-		list_move_tail(&netDevice->ReceivePacketList, &listHead);
+		list_move_tail(netDevice->ReceivePacketList.next, &listHead);
 		if (++count == vmxferpagePacket->RangeCount + 1)
 			break;
 	}
@@ -1071,7 +1072,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 		/* Return it to the freelist */
 		spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 		for (i = count; i != 0; i--) {
-			list_move_tail(&listHead,
+			list_move_tail(listHead.next,
 				       &netDevice->ReceivePacketList);
 		}
 		spin_unlock_irqrestore(&netDevice->receive_packet_list_lock,
@@ -1085,8 +1086,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 	}
 
 	/* Remove the 1st packet to represent the xfer page packet itself */
-	xferpagePacket = list_entry(&listHead, struct xferpage_packet,
-				    ListEntry);
+	xferpagePacket = (struct xferpage_packet*)listHead.next;
 	list_del(&xferpagePacket->ListEntry);
 
 	/* This is how much we can satisfy */
@@ -1102,8 +1102,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < (count - 1); i++) {
-		netvscPacket = list_entry(&listHead, struct hv_netvsc_packet,
-					  ListEntry);
+		netvscPacket = (struct hv_netvsc_packet*)listHead.next;
 		list_del(&netvscPacket->ListEntry);
 
 		/* Initialize the netvsc packet */

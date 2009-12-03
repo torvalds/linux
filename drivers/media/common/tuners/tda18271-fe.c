@@ -616,13 +616,13 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 		case RF2:
 			map[i].rf_a1 = (prog_cal[RF2] - prog_tab[RF2] -
 					prog_cal[RF1] + prog_tab[RF1]) /
-				((rf_freq[RF2] - rf_freq[RF1]) / 1000);
+				(s32)((rf_freq[RF2] - rf_freq[RF1]) / 1000);
 			map[i].rf2   = rf_freq[RF2] / 1000;
 			break;
 		case RF3:
 			map[i].rf_a2 = (prog_cal[RF3] - prog_tab[RF3] -
 					prog_cal[RF2] + prog_tab[RF2]) /
-				((rf_freq[RF3] - rf_freq[RF2]) / 1000);
+				(s32)((rf_freq[RF3] - rf_freq[RF2]) / 1000);
 			map[i].rf_b2 = prog_cal[RF2] - prog_tab[RF2];
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
@@ -1000,12 +1000,12 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	struct tda18271_std_map_item *map;
 	char *mode;
 	int ret;
-	u32 freq = params->frequency * 62500;
+	u32 freq = params->frequency * 125 *
+		((params->mode == V4L2_TUNER_RADIO) ? 1 : 1000) / 2;
 
 	priv->mode = TDA18271_ANALOG;
 
 	if (params->mode == V4L2_TUNER_RADIO) {
-		freq = freq / 1000;
 		map = &std_map->fm_radio;
 		mode = "fm";
 	} else if (params->std & V4L2_STD_MN) {

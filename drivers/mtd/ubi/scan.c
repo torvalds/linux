@@ -794,16 +794,15 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		 * number.
 		 */
 		image_seq = be32_to_cpu(ech->image_seq);
-		if (!si->image_seq_set) {
+		if (!ubi->image_seq && image_seq)
 			ubi->image_seq = image_seq;
-			si->image_seq_set = 1;
-		} else if (ubi->image_seq && ubi->image_seq != image_seq) {
+		if (ubi->image_seq && image_seq &&
+		    ubi->image_seq != image_seq) {
 			ubi_err("bad image sequence number %d in PEB %d, "
 				"expected %d", image_seq, pnum, ubi->image_seq);
 			ubi_dbg_dump_ec_hdr(ech);
 			return -EINVAL;
 		}
-
 	}
 
 	/* OK, we've done with the EC header, let's look at the VID header */

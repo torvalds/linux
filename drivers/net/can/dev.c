@@ -589,6 +589,22 @@ static int can_changelink(struct net_device *dev,
 	return 0;
 }
 
+static size_t can_get_size(const struct net_device *dev)
+{
+	struct can_priv *priv = netdev_priv(dev);
+	size_t size;
+
+	size = nla_total_size(sizeof(u32));   /* IFLA_CAN_STATE */
+	size += sizeof(struct can_ctrlmode);  /* IFLA_CAN_CTRLMODE */
+	size += nla_total_size(sizeof(u32));  /* IFLA_CAN_RESTART_MS */
+	size += sizeof(struct can_bittiming); /* IFLA_CAN_BITTIMING */
+	size += sizeof(struct can_clock);     /* IFLA_CAN_CLOCK */
+	if (priv->bittiming_const)	      /* IFLA_CAN_BITTIMING_CONST */
+		size += sizeof(struct can_bittiming_const);
+
+	return size;
+}
+
 static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -611,6 +627,11 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 nla_put_failure:
 	return -EMSGSIZE;
+}
+
+static size_t can_get_xstats_size(const struct net_device *dev)
+{
+	return sizeof(struct can_device_stats);
 }
 
 static int can_fill_xstats(struct sk_buff *skb, const struct net_device *dev)
@@ -639,7 +660,9 @@ static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.setup		= can_setup,
 	.newlink	= can_newlink,
 	.changelink	= can_changelink,
+	.get_size	= can_get_size,
 	.fill_info	= can_fill_info,
+	.get_xstats_size = can_get_xstats_size,
 	.fill_xstats	= can_fill_xstats,
 };
 

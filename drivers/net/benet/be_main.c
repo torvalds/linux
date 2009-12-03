@@ -1610,11 +1610,21 @@ static int be_open(struct net_device *netdev)
 
 	status = be_cmd_link_status_query(adapter, &link_up);
 	if (status)
-		return status;
+		goto ret_sts;
 	be_link_status_update(adapter, link_up);
 
+	status = be_vid_config(adapter);
+	if (status)
+		goto ret_sts;
+
+	status = be_cmd_set_flow_control(adapter,
+					adapter->tx_fc, adapter->rx_fc);
+	if (status)
+		goto ret_sts;
+
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
-	return 0;
+ret_sts:
+	return status;
 }
 
 static int be_setup(struct be_adapter *adapter)
@@ -1648,17 +1658,8 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
-	status = be_vid_config(adapter);
-	if (status != 0)
-		goto mccqs_destroy;
-
-	status = be_cmd_set_flow_control(adapter, true, true);
-	if (status != 0)
-		goto mccqs_destroy;
 	return 0;
 
-mccqs_destroy:
-	be_mcc_queues_destroy(adapter);
 rx_qs_destroy:
 	be_rx_queues_destroy(adapter);
 tx_qs_destroy:
@@ -1908,6 +1909,10 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->flags |= IFF_MULTICAST;
 
 	adapter->rx_csum = true;
+
+	/* Default settings for Rx and Tx flow control */
+	adapter->rx_fc = true;
+	adapter->tx_fc = true;
 
 	netif_set_gso_max_size(netdev, 65535);
 
@@ -2171,6 +2176,7 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 		be_close(netdev);
 		rtnl_unlock();
 	}
+	be_cmd_get_flow_control(adapter, &adapter->tx_fc, &adapter->rx_fc);
 	be_clear(adapter);
 
 	pci_save_state(pdev);

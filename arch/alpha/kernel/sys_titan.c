@@ -195,7 +195,7 @@ init_titan_irqs(struct irq_chip * ops, int imin, int imax)
 }
 
 static struct irq_chip titan_irq_type = {
-       .typename       = "TITAN",
+       .name	       = "TITAN",
        .startup        = titan_startup_irq,
        .shutdown       = titan_disable_irq,
        .enable         = titan_enable_irq,

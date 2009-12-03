@@ -834,6 +834,9 @@ EXPORT_SYMBOL_GPL(snd_soc_resume_device);
 #define soc_resume	NULL
 #endif
 
+static struct snd_soc_dai_ops null_dai_ops = {
+};
+
 static void snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct platform_device *pdev = container_of(card->dev,
@@ -875,6 +878,11 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 
 		if (card->dai_link[i].cpu_dai->ac97_control)
 			ac97 = 1;
+	}
+
+	for (i = 0; i < card->num_links; i++) {
+		if (!card->dai_link[i].codec_dai->ops)
+			card->dai_link[i].codec_dai->ops = &null_dai_ops;
 	}
 
 	/* If we have AC97 in the system then don't wait for the
@@ -2328,9 +2336,6 @@ static int snd_soc_unregister_card(struct snd_soc_card *card)
 
 	return 0;
 }
-
-static struct snd_soc_dai_ops null_dai_ops = {
-};
 
 /**
  * snd_soc_register_dai - Register a DAI with the ASoC core

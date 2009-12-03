@@ -134,7 +134,7 @@ static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
  *  |P| <--- TWL4030 <--------- Line In and MICs
  */
 static const struct snd_soc_dapm_widget omap3pandora_out_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("PCM DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("PCM DAC", "HiFi Playback", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_PGA_E("Headphone Amplifier", SND_SOC_NOPM,
 			   0, 0, NULL, 0, omap3pandora_hp_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -181,6 +181,7 @@ static int omap3pandora_out_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "CARKITR");
 	snd_soc_dapm_nc_pin(codec, "HFL");
 	snd_soc_dapm_nc_pin(codec, "HFR");
+	snd_soc_dapm_nc_pin(codec, "VIBRA");
 
 	ret = snd_soc_dapm_new_controls(codec, omap3pandora_out_dapm_widgets,
 				ARRAY_SIZE(omap3pandora_out_dapm_widgets));

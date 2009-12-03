@@ -765,17 +765,38 @@ static void draw_wakeups(void)
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
 						if (p->pid == we->waker) {
 							from = c->Y;
-							task_from = c->comm;
+							task_from = strdup(c->comm);
 						}
 						if (p->pid == we->wakee) {
 							to = c->Y;
-							task_to = c->comm;
+							task_to = strdup(c->comm);
 						}
+					}
+					c = c->next;
+				}
+				c = p->all;
+				while (c) {
+					if (p->pid == we->waker && !from) {
+						from = c->Y;
+						task_from = strdup(c->comm);
+					}
+					if (p->pid == we->wakee && !to) {
+						to = c->Y;
+						task_to = strdup(c->comm);
 					}
 					c = c->next;
 				}
 			}
 			p = p->next;
+		}
+
+		if (!task_from) {
+			task_from = malloc(40);
+			sprintf(task_from, "[%i]", we->waker);
+		}
+		if (!task_to) {
+			task_to = malloc(40);
+			sprintf(task_to, "[%i]", we->wakee);
 		}
 
 		if (we->waker == -1)
@@ -785,6 +806,9 @@ static void draw_wakeups(void)
 		else
 			svg_partial_wakeline(we->time, from, task_from, to, task_to);
 		we = we->next;
+
+		free(task_from);
+		free(task_to);
 	}
 }
 
