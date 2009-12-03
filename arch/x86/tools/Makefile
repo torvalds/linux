@@ -1,13 +1,22 @@
 PHONY += posttest
 
 ifeq ($(KBUILD_VERBOSE),1)
-  postest_verbose = -v
+  posttest_verbose = -v
 else
-  postest_verbose =
+  posttest_verbose =
 endif
 
+ifeq ($(CONFIG_64BIT),y)
+  posttest_64bit = -y
+else
+  posttest_64bit = -n
+endif
+
+distill_awk = $(srctree)/arch/x86/tools/distill.awk
+chkobjdump = $(srctree)/arch/x86/tools/chkobjdump.awk
+
 quiet_cmd_posttest = TEST    $@
-      cmd_posttest = $(OBJDUMP) -d -j .text $(objtree)/vmlinux | awk -f $(srctree)/arch/x86/tools/distill.awk | $(obj)/test_get_len -$(CONFIG_64BIT) $(posttest_verbose)
+      cmd_posttest = ($(OBJDUMP) -v | $(AWK) -f $(chkobjdump)) || $(OBJDUMP) -d -j .text $(objtree)/vmlinux | $(AWK) -f $(distill_awk) | $(obj)/test_get_len $(posttest_64bit) $(posttest_verbose)
 
 posttest: $(obj)/test_get_len vmlinux
 	$(call cmd,posttest)
