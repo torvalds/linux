@@ -192,7 +192,8 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 		.revision	= 0,
 		.family		= NFPROTO_IPV4,
 		.match		= socket_mt_v0,
-		.hooks		= 1 << NF_INET_PRE_ROUTING,
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -201,7 +202,8 @@ static struct xt_match socket_mt_reg[] __read_mostly = {
 		.family		= NFPROTO_IPV4,
 		.match		= socket_mt_v1,
 		.matchsize	= sizeof(struct xt_socket_mtinfo1),
-		.hooks		= 1 << NF_INET_PRE_ROUTING,
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
 		.me		= THIS_MODULE,
 	},
 };

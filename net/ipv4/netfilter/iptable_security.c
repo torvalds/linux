@@ -94,8 +94,8 @@ ipt_local_out_hook(unsigned int hook,
 		   int (*okfn)(struct sk_buff *))
 {
 	/* Somebody is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr)
-	    || ip_hdrlen(skb) < sizeof(struct iphdr))
+	if (skb->len < sizeof(struct iphdr) ||
+	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 	return ipt_do_table(skb, hook, in, out,
 			    dev_net(out)->ipv4.iptable_security);

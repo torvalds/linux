@@ -89,9 +89,9 @@ ip_packet_match(const struct iphdr *ip,
 #define FWINV(bool, invflg) ((bool) ^ !!(ipinfo->invflags & (invflg)))
 
 	if (FWINV((ip->saddr&ipinfo->smsk.s_addr) != ipinfo->src.s_addr,
-		  IPT_INV_SRCIP)
-	    || FWINV((ip->daddr&ipinfo->dmsk.s_addr) != ipinfo->dst.s_addr,
-		     IPT_INV_DSTIP)) {
+		  IPT_INV_SRCIP) ||
+	    FWINV((ip->daddr&ipinfo->dmsk.s_addr) != ipinfo->dst.s_addr,
+		  IPT_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 
 		dprintf("SRC: %pI4. Mask: %pI4. Target: %pI4.%s\n",
@@ -122,8 +122,8 @@ ip_packet_match(const struct iphdr *ip,
 	}
 
 	/* Check specific protocol */
-	if (ipinfo->proto
-	    && FWINV(ip->protocol != ipinfo->proto, IPT_INV_PROTO)) {
+	if (ipinfo->proto &&
+	    FWINV(ip->protocol != ipinfo->proto, IPT_INV_PROTO)) {
 		dprintf("Packet protocol %hi does not match %hi.%s\n",
 			ip->protocol, ipinfo->proto,
 			ipinfo->invflags&IPT_INV_PROTO ? " (INV)":"");
@@ -246,11 +246,11 @@ get_chainname_rulenum(struct ipt_entry *s, struct ipt_entry *e,
 	} else if (s == e) {
 		(*rulenum)++;
 
-		if (s->target_offset == sizeof(struct ipt_entry)
-		   && strcmp(t->target.u.kernel.target->name,
-			     IPT_STANDARD_TARGET) == 0
-		   && t->verdict < 0
-		   && unconditional(&s->ip)) {
+		if (s->target_offset == sizeof(struct ipt_entry) &&
+		    strcmp(t->target.u.kernel.target->name,
+			   IPT_STANDARD_TARGET) == 0 &&
+		   t->verdict < 0 &&
+		   unconditional(&s->ip)) {
 			/* Tail of chains: STANDARD target (return/policy) */
 			*comment = *chainname == hookname
 				? comments[NF_IP_TRACE_COMMENT_POLICY]
@@ -388,8 +388,8 @@ ipt_do_table(struct sk_buff *skb,
 				back = get_entry(table_base, back->comefrom);
 				continue;
 			}
-			if (table_base + v != ipt_next_entry(e)
-			    && !(e->ip.flags & IPT_F_GOTO)) {
+			if (table_base + v != ipt_next_entry(e) &&
+			    !(e->ip.flags & IPT_F_GOTO)) {
 				/* Save old back ptr in next entry */
 				struct ipt_entry *next = ipt_next_entry(e);
 				next->comefrom = (void *)back - table_base;
@@ -473,11 +473,11 @@ mark_source_chains(struct xt_table_info *newinfo,
 			e->comefrom |= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if ((e->target_offset == sizeof(struct ipt_entry)
-			    && (strcmp(t->target.u.user.name,
-				       IPT_STANDARD_TARGET) == 0)
-			    && t->verdict < 0
-			    && unconditional(&e->ip)) || visited) {
+			if ((e->target_offset == sizeof(struct ipt_entry) &&
+			     (strcmp(t->target.u.user.name,
+				     IPT_STANDARD_TARGET) == 0) &&
+			     t->verdict < 0 && unconditional(&e->ip)) ||
+			    visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
@@ -524,8 +524,8 @@ mark_source_chains(struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   IPT_STANDARD_TARGET) == 0
-				    && newpos >= 0) {
+					   IPT_STANDARD_TARGET) == 0 &&
+				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct ipt_entry)) {
 						duprintf("mark_source_chains: "
@@ -735,8 +735,8 @@ check_entry_size_and_hooks(struct ipt_entry *e,
 {
 	unsigned int h;
 
-	if ((unsigned long)e % __alignof__(struct ipt_entry) != 0
-	    || (unsigned char *)e + sizeof(struct ipt_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct ipt_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct ipt_entry) >= limit) {
 		duprintf("Bad offset %p\n", e);
 		return -EINVAL;
 	}
@@ -1548,8 +1548,8 @@ check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
-	if ((unsigned long)e % __alignof__(struct compat_ipt_entry) != 0
-	    || (unsigned char *)e + sizeof(struct compat_ipt_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct compat_ipt_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct compat_ipt_entry) >= limit) {
 		duprintf("Bad offset %p, limit = %p\n", e, limit);
 		return -EINVAL;
 	}

@@ -499,8 +499,7 @@ ipq_rcv_nl_event(struct notifier_block *this,
 {
 	struct netlink_notify *n = ptr;
 
-	if (event == NETLINK_URELEASE &&
-	    n->protocol == NETLINK_IP6_FW && n->pid) {
+	if (event == NETLINK_URELEASE && n->protocol == NETLINK_IP6_FW) {
 		write_lock_bh(&queue_lock);
 		if ((net_eq(n->net, &init_net)) && (n->pid == peer_pid))
 			__ipq_reset();
@@ -625,7 +624,7 @@ cleanup_netlink_notifier:
 static void __exit ip6_queue_fini(void)
 {
 	nf_unregister_queue_handlers(&nfqh);
-	synchronize_net();
+
 	ipq_flush(NULL, 0);
 
 #ifdef CONFIG_SYSCTL
