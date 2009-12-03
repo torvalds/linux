@@ -322,6 +322,7 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		no_cluster;
+	signed char		discard_zeroes_data;
 };
 
 struct request_queue
@@ -1148,6 +1149,19 @@ static inline int queue_sector_discard_alignment(struct request_queue *q,
 {
 	return ((sector << 9) - q->limits.discard_alignment)
 		& (q->limits.discard_granularity - 1);
+}
+
+static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)
+{
+	if (q->limits.discard_zeroes_data == 1)
+		return 1;
+
+	return 0;
+}
+
+static inline unsigned int bdev_discard_zeroes_data(struct block_device *bdev)
+{
+	return queue_discard_zeroes_data(bdev_get_queue(bdev));
 }
 
 static inline int queue_dma_alignment(struct request_queue *q)

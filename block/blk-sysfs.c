@@ -136,6 +136,11 @@ static ssize_t queue_discard_max_show(struct request_queue *q, char *page)
 	return queue_var_show(q->limits.max_discard_sectors << 9, page);
 }
 
+static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_discard_zeroes_data(q), page);
+}
+
 static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
@@ -313,6 +318,11 @@ static struct queue_sysfs_entry queue_discard_max_entry = {
 	.show = queue_discard_max_show,
 };
 
+static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
+	.attr = {.name = "discard_zeroes_data", .mode = S_IRUGO },
+	.show = queue_discard_zeroes_data_show,
+};
+
 static struct queue_sysfs_entry queue_nonrot_entry = {
 	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_nonrot_show,
@@ -350,6 +360,7 @@ static struct attribute *default_attrs[] = {
 	&queue_io_opt_entry.attr,
 	&queue_discard_granularity_entry.attr,
 	&queue_discard_max_entry.attr,
+	&queue_discard_zeroes_data_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
