@@ -241,16 +241,17 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			    .iif = oif };
 
 	struct fib_result res;
-	int no_addr, rpf;
+	int no_addr, rpf, accept_local;
 	int ret;
 	struct net *net;
 
-	no_addr = rpf = 0;
+	no_addr = rpf = accept_local = 0;
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		no_addr = in_dev->ifa_list == NULL;
 		rpf = IN_DEV_RPFILTER(in_dev);
+		accept_local = IN_DEV_ACCEPT_LOCAL(in_dev);
 	}
 	rcu_read_unlock();
 
@@ -260,8 +261,10 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl, &res))
 		goto last_resort;
-	if (res.type != RTN_UNICAST)
-		goto e_inval_res;
+	if (res.type != RTN_UNICAST) {
+		if (res.type != RTN_LOCAL || !accept_local)
+			goto e_inval_res;
+	}
 	*spec_dst = FIB_RES_PREFSRC(res);
 	fib_combine_itag(itag, &res);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
