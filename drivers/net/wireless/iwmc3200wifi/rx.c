@@ -868,36 +868,35 @@ static int iwm_mlme_mgt_frame(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_umac_notif_mgt_frame *mgt_frame =
 			(struct iwm_umac_notif_mgt_frame *)buf;
 	struct ieee80211_mgmt *mgt = (struct ieee80211_mgmt *)mgt_frame->frame;
-	u8 *ie;
 
 	IWM_HEXDUMP(iwm, DBG, MLME, "MGT: ", mgt_frame->frame,
 		    le16_to_cpu(mgt_frame->len));
 
 	if (ieee80211_is_assoc_req(mgt->frame_control)) {
-		ie = mgt->u.assoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.assoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.assoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_req(mgt->frame_control)) {
-		ie = mgt->u.reassoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.reassoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.reassoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_assoc_resp(mgt->frame_control)) {
-		ie = mgt->u.assoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.assoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.assoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_resp(mgt->frame_control)) {
-		ie = mgt->u.reassoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.reassoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.reassoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
