@@ -98,23 +98,6 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
 
-#if 0
-int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
-{
-	int pos;
-	u32 status;
-
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
-	if (!pos)
-		return -EIO;
-
-	pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
-	pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS, status);
-
-	return 0;
-}
-#endif  /*  0  */
-
 static int set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
