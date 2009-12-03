@@ -39,7 +39,7 @@ static int mantis_ack_wait(struct mantis_pci *mantis)
 					     mantis->mantis_int_stat & MANTIS_INT_I2CDONE,
 					     msecs_to_jiffies(50)) == -ERESTARTSYS) {
 
-		dprintk(verbose, MANTIS_DEBUG, 1, "I2C Transfer failed, Master !I2CDONE");
+		dprintk(verbose, MANTIS_DEBUG, 1, "Master !I2CDONE");
 		rc = -EREMOTEIO;
 	}
 	while (!(mantis->mantis_int_stat & MANTIS_INT_I2CRACK)) {
@@ -62,7 +62,9 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 {
 	u32 rxd, i;
 
-	dprintk(verbose, MANTIS_INFO, 0, "        %s:  Address=[0x%02x] <R>[ ", __func__, msg->addr);
+	dprintk(verbose, MANTIS_INFO, 0, "        %s:  Address=[0x%02x] <R>[ ",
+		__func__, msg->addr);
+
 	for (i = 0; i < msg->len; i++) {
 		rxd = (msg->addr << 25) | (1 << 24)
 					| MANTIS_I2C_RATE_3
@@ -92,7 +94,9 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 	int i;
 	u32 txd = 0;
 
-	dprintk(verbose, MANTIS_INFO, 0, "        %s: Address=[0x%02x] <W>[ ", __func__, msg->addr);
+	dprintk(verbose, MANTIS_INFO, 0, "        %s: Address=[0x%02x] <W>[ ",
+		__func__, msg->addr);
+
 	for (i = 0; i < msg->len; i++) {
 		dprintk(verbose, MANTIS_INFO, 0, "%02x ", msg->buf[i]);
 		txd = (msg->addr << 25) | (msg->buf[i] << 8)
