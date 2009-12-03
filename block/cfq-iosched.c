@@ -341,8 +341,21 @@ CFQ_CFQQ_FNS(coop);
 CFQ_CFQQ_FNS(deep);
 #undef CFQ_CFQQ_FNS
 
+#ifdef CONFIG_DEBUG_CFQ_IOSCHED
+#define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
+	blk_add_trace_msg((cfqd)->queue, "cfq%d%c %s " fmt, (cfqq)->pid, \
+			cfq_cfqq_sync((cfqq)) ? 'S' : 'A', \
+			blkg_path(&(cfqq)->cfqg->blkg), ##args);
+
+#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)				\
+	blk_add_trace_msg((cfqd)->queue, "%s " fmt,			\
+				blkg_path(&(cfqg)->blkg), ##args);      \
+
+#else
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
+#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0);
+#endif
 #define cfq_log(cfqd, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq " fmt, ##args)
 
@@ -832,6 +845,7 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	if (cfqg->nr_cfqq)
 		return;
 
+	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfqg->on_st = false;
 	cfqd->nr_groups--;
 	st->total_weight -= cfqg->weight;
@@ -889,6 +903,9 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 		cfqg->saved_serving_prio = cfqd->serving_prio;
 	} else
 		cfqg->saved_workload_slice = 0;
+
+	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
+					st->min_vdisktime);
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
@@ -3102,7 +3119,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	unsigned long now;
 
 	now = jiffies;
-	cfq_log_cfqq(cfqd, cfqq, "complete");
+	cfq_log_cfqq(cfqd, cfqq, "complete rqnoidle %d", !!rq_noidle(rq));
 
 	cfq_update_hw_tag(cfqd);
 

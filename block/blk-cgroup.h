@@ -27,11 +27,24 @@ struct blkio_group {
 	void *key;
 	struct hlist_node blkcg_node;
 	unsigned short blkcg_id;
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	/* Store cgroup path */
+	char path[128];
+#endif
 };
 
 #define BLKIO_WEIGHT_MIN	100
 #define BLKIO_WEIGHT_MAX	1000
 #define BLKIO_WEIGHT_DEFAULT	500
+
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+static inline char *blkg_path(struct blkio_group *blkg)
+{
+	return blkg->path;
+}
+#else
+static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
+#endif
 
 #ifdef CONFIG_BLK_CGROUP
 extern struct blkio_cgroup blkio_root_cgroup;
