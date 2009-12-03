@@ -2,6 +2,7 @@
 #define _LINUX_NFS_XDR_H
 
 #include <linux/nfsacl.h>
+#include <linux/nfs3.h>
 
 /*
  * To change the maximum rsize and wsize supported by the NFS client, adjust
