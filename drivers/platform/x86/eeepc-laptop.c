@@ -244,7 +244,8 @@ static int get_acpi(struct eeepc_laptop *eeepc, int cm)
 	return value;
 }
 
-static int acpi_setter_handle(struct eeepc_laptop *eeepc, int cm, acpi_handle *handle)
+static int acpi_setter_handle(struct eeepc_laptop *eeepc, int cm,
+			      acpi_handle *handle)
 {
 	const char *method = cm_setv[cm];
 	acpi_status status;
@@ -255,7 +256,7 @@ static int acpi_setter_handle(struct eeepc_laptop *eeepc, int cm, acpi_handle *h
 		return -ENODEV;
 
 	status = acpi_get_handle(eeepc->handle, (char *)method,
-			         handle);
+				 handle);
 	if (status != AE_OK) {
 		pr_warning("Error finding %s\n", method);
 		return -ENODEV;
@@ -1274,7 +1275,8 @@ static void cmsg_quirks(struct eeepc_laptop *eeepc)
 	cmsg_quirk(eeepc, CM_ASL_TPD, "TPD");
 }
 
-static int eeepc_acpi_init(struct eeepc_laptop *eeepc, struct acpi_device *device)
+static int eeepc_acpi_init(struct eeepc_laptop *eeepc,
+			   struct acpi_device *device)
 {
 	unsigned int init_flags;
 	int result;
