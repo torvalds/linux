@@ -2968,8 +2968,13 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		break;
 
 	case CHIP_ID_YUKON_UL_2:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	case CHIP_ID_YUKON_OPT:
 		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_NEW_LE
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
 
