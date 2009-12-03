@@ -877,6 +877,10 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 			case -NFS4ERR_EXPIRED:
 			case -NFS4ERR_NO_GRACE:
 			case -NFS4ERR_STALE_CLIENTID:
+			case -NFS4ERR_BADSESSION:
+			case -NFS4ERR_BADSLOT:
+			case -NFS4ERR_BAD_HIGH_SLOT:
+			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 				goto out;
 			default:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
@@ -959,6 +963,10 @@ restart:
 			case -NFS4ERR_NO_GRACE:
 				nfs4_state_mark_reclaim_nograce(sp->so_client, state);
 			case -NFS4ERR_STALE_CLIENTID:
+			case -NFS4ERR_BADSESSION:
+			case -NFS4ERR_BADSLOT:
+			case -NFS4ERR_BAD_HIGH_SLOT:
+			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 				goto out_err;
 		}
 		nfs4_put_open_state(state);
