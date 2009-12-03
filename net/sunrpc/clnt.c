@@ -1197,6 +1197,8 @@ call_transmit_status(struct rpc_task *task)
 	default:
 		dprint_status(task);
 		xprt_end_transmit(task);
+		rpc_task_force_reencode(task);
+		break;
 		/*
 		 * Special cases: if we've been waiting on the
 		 * socket's write_space() callback, or if the
@@ -1204,11 +1206,16 @@ call_transmit_status(struct rpc_task *task)
 		 * then hold onto the transport lock.
 		 */
 	case -ECONNREFUSED:
-	case -ECONNRESET:
-	case -ENOTCONN:
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task)) {
+			xprt_end_transmit(task);
+			rpc_exit(task, task->tk_status);
+			break;
+		}
+	case -ECONNRESET:
+	case -ENOTCONN:
 	case -EPIPE:
 		rpc_task_force_reencode(task);
 	}

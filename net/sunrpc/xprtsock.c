@@ -2033,7 +2033,7 @@ static void xs_connect(struct rpc_task *task)
 	if (xprt_test_and_set_connecting(xprt))
 		return;
 
-	if (transport->sock != NULL) {
+	if (transport->sock != NULL && !RPC_IS_SOFTCONN(task)) {
 		dprintk("RPC:       xs_connect delayed xprt %p for %lu "
 				"seconds\n",
 				xprt, xprt->reestablish_timeout / HZ);
