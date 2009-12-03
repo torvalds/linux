@@ -19,70 +19,71 @@ int in_lock_functions(unsigned long addr);
 
 #define assert_raw_spin_locked(x)	BUG_ON(!raw_spin_is_locked(x))
 
-void __lockfunc _spin_lock(raw_spinlock_t *lock)	__acquires(lock);
-void __lockfunc _spin_lock_nested(raw_spinlock_t *lock, int subclass)
-							__acquires(lock);
+void __lockfunc _raw_spin_lock(raw_spinlock_t *lock)		__acquires(lock);
+void __lockfunc _raw_spin_lock_nested(raw_spinlock_t *lock, int subclass)
+								__acquires(lock);
 void __lockfunc
-_spin_lock_nest_lock(raw_spinlock_t *lock, struct lockdep_map *map)
-							__acquires(lock);
-void __lockfunc _spin_lock_bh(raw_spinlock_t *lock)	__acquires(lock);
-void __lockfunc _spin_lock_irq(raw_spinlock_t *lock)	__acquires(lock);
+_raw_spin_lock_nest_lock(raw_spinlock_t *lock, struct lockdep_map *map)
+								__acquires(lock);
+void __lockfunc _raw_spin_lock_bh(raw_spinlock_t *lock)		__acquires(lock);
+void __lockfunc _raw_spin_lock_irq(raw_spinlock_t *lock)
+								__acquires(lock);
 
-unsigned long __lockfunc _spin_lock_irqsave(raw_spinlock_t *lock)
-							__acquires(lock);
+unsigned long __lockfunc _raw_spin_lock_irqsave(raw_spinlock_t *lock)
+								__acquires(lock);
 unsigned long __lockfunc
-_spin_lock_irqsave_nested(raw_spinlock_t *lock, int subclass)
-							__acquires(lock);
-int __lockfunc _spin_trylock(raw_spinlock_t *lock);
-int __lockfunc _spin_trylock_bh(raw_spinlock_t *lock);
-void __lockfunc _spin_unlock(raw_spinlock_t *lock)	__releases(lock);
-void __lockfunc _spin_unlock_bh(raw_spinlock_t *lock)	__releases(lock);
-void __lockfunc _spin_unlock_irq(raw_spinlock_t *lock)	__releases(lock);
+_raw_spin_lock_irqsave_nested(raw_spinlock_t *lock, int subclass)
+								__acquires(lock);
+int __lockfunc _raw_spin_trylock(raw_spinlock_t *lock);
+int __lockfunc _raw_spin_trylock_bh(raw_spinlock_t *lock);
+void __lockfunc _raw_spin_unlock(raw_spinlock_t *lock)		__releases(lock);
+void __lockfunc _raw_spin_unlock_bh(raw_spinlock_t *lock)	__releases(lock);
+void __lockfunc _raw_spin_unlock_irq(raw_spinlock_t *lock)	__releases(lock);
 void __lockfunc
-_spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned long flags)
-							__releases(lock);
+_raw_spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned long flags)
+								__releases(lock);
 
 #ifdef CONFIG_INLINE_SPIN_LOCK
-#define _spin_lock(lock) __spin_lock(lock)
+#define _raw_spin_lock(lock) __raw_spin_lock(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_LOCK_BH
-#define _spin_lock_bh(lock) __spin_lock_bh(lock)
+#define _raw_spin_lock_bh(lock) __raw_spin_lock_bh(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_LOCK_IRQ
-#define _spin_lock_irq(lock) __spin_lock_irq(lock)
+#define _raw_spin_lock_irq(lock) __raw_spin_lock_irq(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_LOCK_IRQSAVE
-#define _spin_lock_irqsave(lock) __spin_lock_irqsave(lock)
+#define _raw_spin_lock_irqsave(lock) __raw_spin_lock_irqsave(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_TRYLOCK
-#define _spin_trylock(lock) __spin_trylock(lock)
+#define _raw_spin_trylock(lock) __raw_spin_trylock(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_TRYLOCK_BH
-#define _spin_trylock_bh(lock) __spin_trylock_bh(lock)
+#define _raw_spin_trylock_bh(lock) __raw_spin_trylock_bh(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_UNLOCK
-#define _spin_unlock(lock) __spin_unlock(lock)
+#define _raw_spin_unlock(lock) __raw_spin_unlock(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_UNLOCK_BH
-#define _spin_unlock_bh(lock) __spin_unlock_bh(lock)
+#define _raw_spin_unlock_bh(lock) __raw_spin_unlock_bh(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQ
-#define _spin_unlock_irq(lock) __spin_unlock_irq(lock)
+#define _raw_spin_unlock_irq(lock) __raw_spin_unlock_irq(lock)
 #endif
 
 #ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQRESTORE
-#define _spin_unlock_irqrestore(lock, flags) __spin_unlock_irqrestore(lock, flags)
+#define _raw_spin_unlock_irqrestore(lock, flags) __raw_spin_unlock_irqrestore(lock, flags)
 #endif
 
-static inline int __spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	preempt_disable();
 	if (do_raw_spin_trylock(lock)) {
@@ -100,7 +101,7 @@ static inline int __spin_trylock(raw_spinlock_t *lock)
  */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 
-static inline unsigned long __spin_lock_irqsave(raw_spinlock_t *lock)
+static inline unsigned long __raw_spin_lock_irqsave(raw_spinlock_t *lock)
 {
 	unsigned long flags;
 
@@ -120,7 +121,7 @@ static inline unsigned long __spin_lock_irqsave(raw_spinlock_t *lock)
 	return flags;
 }
 
-static inline void __spin_lock_irq(raw_spinlock_t *lock)
+static inline void __raw_spin_lock_irq(raw_spinlock_t *lock)
 {
 	local_irq_disable();
 	preempt_disable();
@@ -128,7 +129,7 @@ static inline void __spin_lock_irq(raw_spinlock_t *lock)
 	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 
-static inline void __spin_lock_bh(raw_spinlock_t *lock)
+static inline void __raw_spin_lock_bh(raw_spinlock_t *lock)
 {
 	local_bh_disable();
 	preempt_disable();
@@ -136,7 +137,7 @@ static inline void __spin_lock_bh(raw_spinlock_t *lock)
 	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 
-static inline void __spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	preempt_disable();
 	spin_acquire(&lock->dep_map, 0, 0, _RET_IP_);
@@ -145,14 +146,14 @@ static inline void __spin_lock(raw_spinlock_t *lock)
 
 #endif /* CONFIG_PREEMPT */
 
-static inline void __spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	spin_release(&lock->dep_map, 1, _RET_IP_);
 	do_raw_spin_unlock(lock);
 	preempt_enable();
 }
 
-static inline void __spin_unlock_irqrestore(raw_spinlock_t *lock,
+static inline void __raw_spin_unlock_irqrestore(raw_spinlock_t *lock,
 					    unsigned long flags)
 {
 	spin_release(&lock->dep_map, 1, _RET_IP_);
@@ -161,7 +162,7 @@ static inline void __spin_unlock_irqrestore(raw_spinlock_t *lock,
 	preempt_enable();
 }
 
-static inline void __spin_unlock_irq(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock_irq(raw_spinlock_t *lock)
 {
 	spin_release(&lock->dep_map, 1, _RET_IP_);
 	do_raw_spin_unlock(lock);
@@ -169,7 +170,7 @@ static inline void __spin_unlock_irq(raw_spinlock_t *lock)
 	preempt_enable();
 }
 
-static inline void __spin_unlock_bh(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock_bh(raw_spinlock_t *lock)
 {
 	spin_release(&lock->dep_map, 1, _RET_IP_);
 	do_raw_spin_unlock(lock);
@@ -177,7 +178,7 @@ static inline void __spin_unlock_bh(raw_spinlock_t *lock)
 	local_bh_enable_ip((unsigned long)__builtin_return_address(0));
 }
 
-static inline int __spin_trylock_bh(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock_bh(raw_spinlock_t *lock)
 {
 	local_bh_disable();
 	preempt_disable();

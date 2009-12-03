@@ -161,20 +161,22 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock)
  * various methods are defined as nops in the case they are not
  * required.
  */
-#define raw_spin_trylock(lock)		__cond_lock(lock, _spin_trylock(lock))
+#define raw_spin_trylock(lock)	__cond_lock(lock, _raw_spin_trylock(lock))
 
-#define raw_spin_lock(lock)		_spin_lock(lock)
+#define raw_spin_lock(lock)	_raw_spin_lock(lock)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define raw_spin_lock_nested(lock, subclass) _spin_lock_nested(lock, subclass)
+# define raw_spin_lock_nested(lock, subclass) \
+	_raw_spin_lock_nested(lock, subclass)
+
 # define raw_spin_lock_nest_lock(lock, nest_lock)			\
 	 do {								\
 		 typecheck(struct lockdep_map *, &(nest_lock)->dep_map);\
-		 _spin_lock_nest_lock(lock, &(nest_lock)->dep_map);	\
+		 _raw_spin_lock_nest_lock(lock, &(nest_lock)->dep_map);	\
 	 } while (0)
 #else
-# define raw_spin_lock_nested(lock, subclass)		_spin_lock(lock)
-# define raw_spin_lock_nest_lock(lock, nest_lock)	_spin_lock(lock)
+# define raw_spin_lock_nested(lock, subclass)		_raw_spin_lock(lock)
+# define raw_spin_lock_nest_lock(lock, nest_lock)	_raw_spin_lock(lock)
 #endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
@@ -182,20 +184,20 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock)
 #define raw_spin_lock_irqsave(lock, flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		flags = _spin_lock_irqsave(lock);	\
+		flags = _raw_spin_lock_irqsave(lock);	\
 	} while (0)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define raw_spin_lock_irqsave_nested(lock, flags, subclass)		\
 	do {								\
 		typecheck(unsigned long, flags);			\
-		flags = _spin_lock_irqsave_nested(lock, subclass);	\
+		flags = _raw_spin_lock_irqsave_nested(lock, subclass);	\
 	} while (0)
 #else
 #define raw_spin_lock_irqsave_nested(lock, flags, subclass)		\
 	do {								\
 		typecheck(unsigned long, flags);			\
-		flags = _spin_lock_irqsave(lock);			\
+		flags = _raw_spin_lock_irqsave(lock);			\
 	} while (0)
 #endif
 
@@ -204,7 +206,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock)
 #define raw_spin_lock_irqsave(lock, flags)		\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		_spin_lock_irqsave(lock, flags);	\
+		_raw_spin_lock_irqsave(lock, flags);	\
 	} while (0)
 
 #define raw_spin_lock_irqsave_nested(lock, flags, subclass)	\
@@ -212,19 +214,20 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock)
 
 #endif
 
-#define raw_spin_lock_irq(lock)	_spin_lock_irq(lock)
-#define raw_spin_lock_bh(lock)		_spin_lock_bh(lock)
-#define raw_spin_unlock(lock)		_spin_unlock(lock)
-#define raw_spin_unlock_irq(lock)	_spin_unlock_irq(lock)
+#define raw_spin_lock_irq(lock)		_raw_spin_lock_irq(lock)
+#define raw_spin_lock_bh(lock)		_raw_spin_lock_bh(lock)
+#define raw_spin_unlock(lock)		_raw_spin_unlock(lock)
+#define raw_spin_unlock_irq(lock)	_raw_spin_unlock_irq(lock)
 
 #define raw_spin_unlock_irqrestore(lock, flags)		\
 	do {							\
 		typecheck(unsigned long, flags);		\
-		_spin_unlock_irqrestore(lock, flags);	\
+		_raw_spin_unlock_irqrestore(lock, flags);	\
 	} while (0)
-#define raw_spin_unlock_bh(lock)	_spin_unlock_bh(lock)
+#define raw_spin_unlock_bh(lock)	_raw_spin_unlock_bh(lock)
 
-#define raw_spin_trylock_bh(lock)	__cond_lock(lock, _spin_trylock_bh(lock))
+#define raw_spin_trylock_bh(lock) \
+	__cond_lock(lock, _raw_spin_trylock_bh(lock))
 
 #define raw_spin_trylock_irq(lock) \
 ({ \

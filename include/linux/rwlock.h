@@ -38,7 +38,7 @@ do {								\
  extern int do_raw_write_trylock(rwlock_t *lock);
  extern void do_raw_write_unlock(rwlock_t *lock);
 #else
-# define do_raw_read_lock(rwlock)		arch_read_lock(&(rwlock)->raw_lock)
+# define do_raw_read_lock(rwlock)	arch_read_lock(&(rwlock)->raw_lock)
 # define do_raw_read_lock_flags(lock, flags) \
 		arch_read_lock_flags(&(lock)->raw_lock, *(flags))
 # define do_raw_read_trylock(rwlock)	arch_read_trylock(&(rwlock)->raw_lock)
@@ -58,23 +58,23 @@ do {								\
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The various
  * methods are defined as nops in the case they are not required.
  */
-#define read_trylock(lock)		__cond_lock(lock, _read_trylock(lock))
-#define write_trylock(lock)		__cond_lock(lock, _write_trylock(lock))
+#define read_trylock(lock)	__cond_lock(lock, _raw_read_trylock(lock))
+#define write_trylock(lock)	__cond_lock(lock, _raw_write_trylock(lock))
 
-#define write_lock(lock)		_write_lock(lock)
-#define read_lock(lock)			_read_lock(lock)
+#define write_lock(lock)	_raw_write_lock(lock)
+#define read_lock(lock)		_raw_read_lock(lock)
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
 
 #define read_lock_irqsave(lock, flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		flags = _read_lock_irqsave(lock);	\
+		flags = _raw_read_lock_irqsave(lock);	\
 	} while (0)
 #define write_lock_irqsave(lock, flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		flags = _write_lock_irqsave(lock);	\
+		flags = _raw_write_lock_irqsave(lock);	\
 	} while (0)
 
 #else
@@ -82,38 +82,38 @@ do {								\
 #define read_lock_irqsave(lock, flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		_read_lock_irqsave(lock, flags);	\
+		_raw_read_lock_irqsave(lock, flags);	\
 	} while (0)
 #define write_lock_irqsave(lock, flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		_write_lock_irqsave(lock, flags);	\
+		_raw_write_lock_irqsave(lock, flags);	\
 	} while (0)
 
 #endif
 
-#define read_lock_irq(lock)		_read_lock_irq(lock)
-#define read_lock_bh(lock)		_read_lock_bh(lock)
-#define write_lock_irq(lock)		_write_lock_irq(lock)
-#define write_lock_bh(lock)		_write_lock_bh(lock)
-#define read_unlock(lock)		_read_unlock(lock)
-#define write_unlock(lock)		_write_unlock(lock)
-#define read_unlock_irq(lock)		_read_unlock_irq(lock)
-#define write_unlock_irq(lock)		_write_unlock_irq(lock)
+#define read_lock_irq(lock)		_raw_read_lock_irq(lock)
+#define read_lock_bh(lock)		_raw_read_lock_bh(lock)
+#define write_lock_irq(lock)		_raw_write_lock_irq(lock)
+#define write_lock_bh(lock)		_raw_write_lock_bh(lock)
+#define read_unlock(lock)		_raw_read_unlock(lock)
+#define write_unlock(lock)		_raw_write_unlock(lock)
+#define read_unlock_irq(lock)		_raw_read_unlock_irq(lock)
+#define write_unlock_irq(lock)		_raw_write_unlock_irq(lock)
 
-#define read_unlock_irqrestore(lock, flags)		\
-	do {						\
-		typecheck(unsigned long, flags);	\
-		_read_unlock_irqrestore(lock, flags);	\
+#define read_unlock_irqrestore(lock, flags)			\
+	do {							\
+		typecheck(unsigned long, flags);		\
+		_raw_read_unlock_irqrestore(lock, flags);	\
 	} while (0)
-#define read_unlock_bh(lock)		_read_unlock_bh(lock)
+#define read_unlock_bh(lock)		_raw_read_unlock_bh(lock)
 
 #define write_unlock_irqrestore(lock, flags)		\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		_write_unlock_irqrestore(lock, flags);	\
+		_raw_write_unlock_irqrestore(lock, flags);	\
 	} while (0)
-#define write_unlock_bh(lock)		_write_unlock_bh(lock)
+#define write_unlock_bh(lock)		_raw_write_unlock_bh(lock)
 
 #define write_trylock_irqsave(lock, flags) \
 ({ \
