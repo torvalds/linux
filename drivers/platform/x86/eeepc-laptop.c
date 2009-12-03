@@ -1276,13 +1276,10 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 
 	result = eeepc_hotk_init();
 	if (result)
-		goto fail_platform_driver;
+		goto fail_platform_device1;
 	eeepc_enable_camera();
 
 	/* Register platform stuff */
-	result = platform_driver_register(&platform_driver);
-	if (result)
-		goto fail_platform_driver;
 	platform_device = platform_device_alloc(EEEPC_HOTK_FILE, -1);
 	if (!platform_device) {
 		result = -ENOMEM;
@@ -1340,8 +1337,6 @@ fail_sysfs:
 fail_platform_device2:
 	platform_device_put(platform_device);
 fail_platform_device1:
-	platform_driver_unregister(&platform_driver);
-fail_platform_driver:
 	kfree(ehotk);
 
 	return result;
@@ -1357,7 +1352,6 @@ static int eeepc_hotk_remove(struct acpi_device *device, int type)
 	sysfs_remove_group(&platform_device->dev.kobj,
 			   &platform_attribute_group);
 	platform_device_unregister(platform_device);
-	platform_driver_unregister(&platform_driver);
 
 	kfree(ehotk);
 	return 0;
@@ -1367,19 +1361,30 @@ static int __init eeepc_laptop_init(void)
 {
 	int result;
 
-	result = acpi_bus_register_driver(&eeepc_hotk_driver);
+	result = platform_driver_register(&platform_driver);
 	if (result < 0)
 		return result;
+
+	result = acpi_bus_register_driver(&eeepc_hotk_driver);
+	if (result < 0)
+		goto fail_acpi_driver;
 	if (!ehotk) {
-		acpi_bus_unregister_driver(&eeepc_hotk_driver);
-		return -ENODEV;
+		result = -ENODEV;
+		goto fail_no_device;
 	}
 	return 0;
+
+fail_no_device:
+	acpi_bus_unregister_driver(&eeepc_hotk_driver);
+fail_acpi_driver:
+	platform_driver_unregister(&platform_driver);
+	return result;
 }
 
 static void __exit eeepc_laptop_exit(void)
 {
 	acpi_bus_unregister_driver(&eeepc_hotk_driver);
+	platform_driver_unregister(&platform_driver);
 }
 
 module_init(eeepc_laptop_init);
