@@ -2485,7 +2485,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 
 			/* recommended */
 			*tail-- ^= ((th->dest << 16) | th->source);
-			*tail-- ^= (u32)cvp; /* per sockopt */
+			*tail-- ^= (u32)(unsigned long)cvp; /* per sockopt */
 
 			sha_transform((__u32 *)&xvp->cookie_bakery[0],
 				      (char *)mess,
