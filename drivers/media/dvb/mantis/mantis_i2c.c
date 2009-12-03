@@ -161,11 +161,15 @@ static struct i2c_adapter mantis_i2c_adapter = {
 int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 {
 	u32 intstat, intmask;
+	struct i2c_adapter *i2c_adapter = &mantis->adapter;
+	struct pci_dev *pdev		= mantis->pdev;
 
 	mutex_init(&mantis->i2c_lock);
-	memcpy(&mantis->adapter, &mantis_i2c_adapter, sizeof (mantis_i2c_adapter));
-	i2c_set_adapdata(&mantis->adapter, mantis);
-	mantis->i2c_rc = i2c_add_adapter(&mantis->adapter);
+	memcpy(i2c_adapter, &mantis_i2c_adapter, sizeof (mantis_i2c_adapter));
+	i2c_set_adapdata(i2c_adapter, mantis);
+
+	i2c_adapter->dev.parent = &pdev->dev;
+	mantis->i2c_rc		= i2c_add_adapter(i2c_adapter);
 	if (mantis->i2c_rc < 0)
 		return mantis->i2c_rc;
 

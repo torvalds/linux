@@ -83,7 +83,7 @@ struct mantis_pci {
 
 	u8			latency;
 
-	struct			pci_dev *pdev;
+	struct pci_dev		*pdev;
 
 	unsigned long		mantis_addr;
 	volatile void __iomem	*mantis_mmio;
