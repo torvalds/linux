@@ -459,24 +459,10 @@ int __init davinci_clk_init(struct davinci_clk *clocks)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
+#ifdef CONFIG_DEBUG_FS
+
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
-
-static void *davinci_ck_start(struct seq_file *m, loff_t *pos)
-{
-	return *pos < 1 ? (void *)1 : NULL;
-}
-
-static void *davinci_ck_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return NULL;
-}
-
-static void davinci_ck_stop(struct seq_file *m, void *v)
-{
-}
 
 #define CLKNAME_MAX	10		/* longest clock name */
 #define NEST_DELTA	2
@@ -530,30 +516,24 @@ static int davinci_ck_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations davinci_ck_op = {
-	.start	= davinci_ck_start,
-	.next	= davinci_ck_next,
-	.stop	= davinci_ck_stop,
-	.show	= davinci_ck_show
-};
-
 static int davinci_ck_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &davinci_ck_op);
+	return single_open(file, davinci_ck_show, NULL);
 }
 
-static const struct file_operations proc_davinci_ck_operations = {
+static const struct file_operations davinci_ck_operations = {
 	.open		= davinci_ck_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
-static int __init davinci_ck_proc_init(void)
+static int __init davinci_clk_debugfs_init(void)
 {
-	proc_create("davinci_clocks", 0, NULL, &proc_davinci_ck_operations);
+	debugfs_create_file("davinci_clocks", S_IFREG | S_IRUGO, NULL, NULL,
+						&davinci_ck_operations);
 	return 0;
 
 }
-__initcall(davinci_ck_proc_init);
-#endif /* CONFIG_DEBUG_PROC_FS */
+device_initcall(davinci_clk_debugfs_init);
+#endif /* CONFIG_DEBUG_FS */
