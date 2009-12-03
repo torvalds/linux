@@ -62,7 +62,10 @@ struct ixgbe_fcoe_ddp {
 };
 
 struct ixgbe_fcoe {
+#ifdef CONFIG_IXGBE_DCB
 	u8 tc;
+	u8 up;
+#endif
 	spinlock_t lock;
 	struct pci_pool *pool;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];

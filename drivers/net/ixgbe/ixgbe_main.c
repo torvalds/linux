@@ -3958,8 +3958,10 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
 		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 		adapter->ring_feature[RING_F_FCOE].indices = 0;
+#ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
 		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
+#endif
 #endif /* IXGBE_FCOE */
 	}
 
@@ -5332,6 +5334,12 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	    (skb->protocol == htons(ETH_P_FCOE))) {
 		tx_flags |= IXGBE_TX_FLAGS_FCOE;
 #ifdef IXGBE_FCOE
+#ifdef CONFIG_IXGBE_DCB
+		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= ((adapter->fcoe.up << 13)
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+#endif
 		r_idx = smp_processor_id();
 		r_idx &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
 		r_idx += adapter->ring_feature[RING_F_FCOE].mask;
