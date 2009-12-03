@@ -1394,6 +1394,17 @@ static void alc_pick_fixup(struct hda_codec *codec,
 		add_verb(codec->spec, fix->verbs);
 }
 
+static int alc_read_coef_idx(struct hda_codec *codec,
+			unsigned int coef_idx)
+{
+	unsigned int val;
+	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX,
+		    		coef_idx);
+	val = snd_hda_codec_read(codec, 0x20, 0,
+			 	AC_VERB_GET_PROC_COEF, 0);
+	return val;
+}
+
 /*
  * ALC888
  */
@@ -3472,7 +3483,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	snprintf(spec->stream_name_analog, sizeof(spec->stream_name_analog),
 		 "%s Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
-	
+
 	if (spec->stream_analog_playback) {
 		if (snd_BUG_ON(!spec->multiout.dac_nids))
 			return -EINVAL;
@@ -13445,6 +13456,13 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
+	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
+		kfree(codec->chip_name);
+		codec->chip_name = kstrdup("ALC259", GFP_KERNEL);
+		if (!codec->chip_name)
+			return -ENOMEM;
+	}
+
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,
 						  alc269_cfg_tbl);
@@ -17444,6 +17462,13 @@ static int patch_alc662(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
+	if (alc_read_coef_idx(codec, 0)==0x8020){
+		kfree(codec->chip_name);
+		codec->chip_name = kstrdup("ALC661", GFP_KERNEL);
+		if (!codec->chip_name)
+			return -ENOMEM;
+	}
+
 	board_config = snd_hda_check_board_config(codec, ALC662_MODEL_LAST,
 						  alc662_models,
 			  	                  alc662_cfg_tbl);
@@ -17510,6 +17535,20 @@ static int patch_alc662(struct hda_codec *codec)
 	return 0;
 }
 
+static int patch_alc888(struct hda_codec *codec)
+{
+	if ((alc_read_coef_idx(codec, 0) & 0x00f0)==0x0030){
+		kfree(codec->chip_name);
+		codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
+		if (!codec->chip_name)
+			return -ENOMEM;
+		patch_alc662(codec);
+	} else {
+		patch_alc882(codec);
+	}
+	return 0;
+}
+
 /*
  * patch entries
  */
@@ -17541,8 +17580,9 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .rev = 0x100101, .name = "ALC1200",
 	  .patch = patch_alc882 },
-	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc882 },
+	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc888 },
 	{ .id = 0x10ec0889, .name = "ALC889", .patch = patch_alc882 },
+	{ .id = 0x10ec0892, .name = "ALC892", .patch = patch_alc662 },
 	{} /* terminator */
 };
 
