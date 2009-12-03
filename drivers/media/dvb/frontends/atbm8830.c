@@ -19,6 +19,7 @@
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <asm/div64.h>
 #include "dvb_frontend.h"
 
 #include "atbm8830.h"
@@ -102,8 +103,12 @@ static inline int atbm8830_reglatch_lock(struct atbm_state *priv, int lock)
 static int set_osc_freq(struct atbm_state *priv, u32 freq /*in kHz*/)
 {
 	u32 val;
+	u64 t;
 
-	val = (u64)0x100000 * freq / 30400;
+	/* 0x100000 * freq / 30.4MHz */
+	t = (u64)0x100000 * freq;
+	do_div(t, 30400);
+	val = t;
 
 	atbm8830_write_reg(priv, REG_OSC_CLK, val);
 	atbm8830_write_reg(priv, REG_OSC_CLK + 1, val >> 8);
@@ -116,14 +121,18 @@ static int set_if_freq(struct atbm_state *priv, u32 freq /*in kHz*/)
 {
 
 	u32 fs = priv->config->osc_clk_freq;
-	double t;
+	u64 t;
 	u32 val;
 	u8 dat;
 
-	t = 2 * 3.141593 * (freq - fs) / fs * (1 << 22);
-	val = t;
-
 	if (freq != 0) {
+		/* 2 * PI * (freq - fs) / fs * (2 ^ 22) */
+		t = (u64) 2 * 31416 * (freq - fs);
+		t <<= 22;
+		do_div(t, fs);
+		do_div(t, 1000);
+		val = t;
+
 		atbm8830_write_reg(priv, REG_TUNER_BASEBAND, 1);
 		atbm8830_write_reg(priv, REG_IF_FREQ, val);
 		atbm8830_write_reg(priv, REG_IF_FREQ+1, val >> 8);
