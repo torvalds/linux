@@ -36,7 +36,6 @@ struct mb86a16_state {
 	struct i2c_adapter		*i2c_adap;
 	const struct mb86a16_config	*config;
 	struct dvb_frontend		frontend;
-	u8				signal;
 
 	// tuning parameters
 	int				frequency;
@@ -593,17 +592,39 @@ err:
 
 static int mb86a16_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
+	u8 stat, stat2;
 	struct mb86a16_state *state = fe->demodulator_priv;
 
 	*status = 0;
-	if (state->signal & 0x02)
-		*status |= FE_HAS_VITERBI;
-	if (state->signal & 0x01)
+
+	if (mb86a16_read(state, MB86A16_SIG1, &stat) != 2)
+		goto err;
+	if (mb86a16_read(state, MB86A16_SIG2, &stat2) != 2)
+		goto err;
+	if ((stat > 25) && (stat2 > 25))
+		*status |= FE_HAS_SIGNAL;
+	if ((stat > 45) && (stat2 > 45))
+		*status |= FE_HAS_CARRIER;
+
+	if (mb86a16_read(state, MB86A16_STATUS, &stat) != 2)
+		goto err;
+
+	if (stat & 0x01)
 		*status |= FE_HAS_SYNC;
-	if (state->signal & 0x03)
+	if (stat & 0x01)
+		*status |= FE_HAS_VITERBI;
+
+	if (mb86a16_read(state, MB86A16_FRAMESYNC, &stat) != 2)
+		goto err;
+
+	if ((stat & 0x0f) && (*status & FE_HAS_VITERBI))
 		*status |= FE_HAS_LOCK;
 
 	return 0;
+
+err:
+	dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+	return -EREMOTEIO;
 }
 
 static int sync_chk(struct mb86a16_state *state,
@@ -1439,10 +1460,6 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				msleep_interruptible(wait_t);
 				sync = sync_chk(state, &VIRM);
 				dprintk(verbose, MB86A16_INFO, 1, "-------- Viterbi=[%d] SYNC=[%d] ---------", VIRM, sync);
-				if (mb86a16_read(state, 0x0d, &state->signal) != 2) {
-					dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
-					return -EREMOTEIO;
-				}
 				if (VIRM) {
 					if (VIRM == 4) { // 5/6
 						if (SIG1 > 110)
@@ -1459,22 +1476,14 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 							iq_vt_set(state, 1);
 							FEC_srst(state);
 						}
-						if (SIG1 > 110)
-							wait_t = ( 786432 + state->srate / 2) / state->srate;
-						else
-							wait_t = (1572864 + state->srate / 2) / state->srate;
-
-						msleep_interruptible(wait_t);
-						SEQ_set(state, 1);
-					} else { // 1/2, 2/3, 3/4, 7/8
-						if (SIG1 > 110)
-							wait_t = ( 786432 + state->srate / 2) / state->srate;
-						else
-							wait_t = (1572864 + state->srate / 2) / state->srate;
-
-						msleep_interruptible(wait_t);
-						SEQ_set(state, 1);
 					}
+					// 1/2, 2/3, 3/4, 7/8
+					if (SIG1 > 110)
+						wait_t = ( 786432 + state->srate / 2) / state->srate;
+					else
+						wait_t = (1572864 + state->srate / 2) / state->srate;
+					msleep_interruptible(wait_t);
+					SEQ_set(state, 1);
 				} else {
 					dprintk(verbose, MB86A16_INFO, 1, "NO  -- SYNC");
 					SEQ_set(state, 1);
@@ -1648,12 +1657,85 @@ static int mb86a16_sleep(struct dvb_frontend *fe)
 
 static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
+	u8 ber_mon, ber_tab, ber_lsb, ber_mid, ber_msb, ber_tim, ber_rst;
+	u32 timer;
+
+	struct mb86a16_state *state = fe->demodulator_priv;
+
+	*ber = 0;
+	if (mb86a16_read(state, MB86A16_BERMON, &ber_mon) != 2)
+		goto err;
+	if (mb86a16_read(state, MB86A16_BERTAB, &ber_tab) != 2)
+		goto err;
+	if (mb86a16_read(state, MB86A16_BERLSB, &ber_lsb) != 2)
+		goto err;
+	if (mb86a16_read(state, MB86A16_BERMID, &ber_mid) != 2)
+		goto err;
+	if (mb86a16_read(state, MB86A16_BERMSB, &ber_msb) != 2)
+		goto err;
+	/* BER monitor invalid when BER_EN = 0	*/
+	if (ber_mon & 0x04) {
+		/* coarse, fast calculation	*/
+		*ber = ber_tab & 0x1f;
+		dprintk(verbose, MB86A16_DEBUG, 1, "BER coarse=[0x%02x]", *ber);
+		if (ber_mon & 0x01) {
+			/*
+			 * BER_SEL = 1, The monitored BER is the estimated
+			 * value with a Reed-Solomon decoder error amount at
+			 * the deinterleaver output.
+			 * monitored BER is expressed as a 20 bit output in total
+			 */
+			ber_rst = ber_mon >> 3;
+			*ber = (((ber_msb << 8) | ber_mid) << 8) | ber_lsb;
+			if (ber_rst == 0)
+				timer =  12500000;
+			if (ber_rst == 1)
+				timer =  25000000;
+			if (ber_rst == 2)
+				timer =  50000000;
+			if (ber_rst == 3)
+				timer = 100000000;
+
+			*ber /= timer;
+			dprintk(verbose, MB86A16_DEBUG, 1, "BER fine=[0x%02x]", *ber);
+		} else {
+			/*
+			 * BER_SEL = 0, The monitored BER is the estimated
+			 * value with a Viterbi decoder error amount at the
+			 * QPSK demodulator output.
+			 * monitored BER is expressed as a 24 bit output in total
+			 */
+			ber_tim = ber_mon >> 1;
+			*ber = (((ber_msb << 8) | ber_mid) << 8) | ber_lsb;
+			if (ber_tim == 0)
+				timer = 16;
+			if (ber_tim == 1)
+				timer = 24;
+
+			*ber /= 2 ^ timer;
+			dprintk(verbose, MB86A16_DEBUG, 1, "BER fine=[0x%02x]", *ber);
+		}
+	}
 	return 0;
+err:
+	dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+	return -EREMOTEIO;
 }
 
 static int mb86a16_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
+	u8 agcm = 0;
+	struct mb86a16_state *state = fe->demodulator_priv;
+
 	*strength = 0;
+	if (mb86a16_read(state, MB86A16_AGCM, &agcm) != 2) {
+		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+		return -EREMOTEIO;
+	}
+
+	*strength = ((0xff - agcm) * 100) / 256;
+	dprintk(verbose, MB86A16_DEBUG, 1, "Signal strength=[%d %%]", (u8) *strength);
+	*strength = (0xffff - 0xff) + agcm;
 
 	return 0;
 }
@@ -1708,12 +1790,22 @@ static int mb86a16_read_snr(struct dvb_frontend *fe, u16 *snr)
 	}
 	q_level = (*snr * 100) / (high_tide - low_tide);
 	dprintk(verbose, MB86A16_ERROR, 1, "SNR (Quality) = [%d dB], Level=%d %%", *snr, q_level);
+	*snr = (0xffff - 0xff) + *snr;
 
 	return 0;
 }
 
 static int mb86a16_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
+	u8 dist;
+	struct mb86a16_state *state = fe->demodulator_priv;
+
+	if (mb86a16_read(state, MB86A16_DISTMON, &dist) != 2) {
+		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+		return -EREMOTEIO;
+	}
+	*ucblocks = dist;
+
 	return 0;
 }
 
@@ -1723,7 +1815,7 @@ static struct dvb_frontend_ops mb86a16_ops = {
 		.type			= FE_QPSK,
 		.frequency_min		= 950000,
 		.frequency_max		= 2150000,
-		.frequency_stepsize	= 125,
+		.frequency_stepsize	= 3000,
 		.frequency_tolerance	= 0,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
