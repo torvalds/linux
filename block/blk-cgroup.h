@@ -26,6 +26,7 @@ struct blkio_group {
 	/* An rcu protected unique identifier for the group */
 	void *key;
 	struct hlist_node blkcg_node;
+	unsigned short blkcg_id;
 };
 
 #define BLKIO_WEIGHT_MIN	100
