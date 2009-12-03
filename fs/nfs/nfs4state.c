@@ -1051,12 +1051,12 @@ static void nfs4_state_end_reclaim_nograce(struct nfs_client *clp)
 	clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state);
 }
 
-static void nfs4_recovery_handle_error(struct nfs_client *clp, int error)
+static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 {
 	switch (error) {
 		case -NFS4ERR_CB_PATH_DOWN:
 			nfs_handle_cb_pathdown(clp);
-			break;
+			return 0;
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_LEASE_MOVED:
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
@@ -1075,6 +1075,7 @@ static void nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_SEQ_MISORDERED:
 			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
 	}
+	return error;
 }
 
 static int nfs4_do_reclaim(struct nfs_client *clp, const struct nfs4_state_recovery_ops *ops)
@@ -1094,8 +1095,7 @@ restart:
 		if (status < 0) {
 			set_bit(ops->owner_flag_bit, &sp->so_flags);
 			nfs4_put_state_owner(sp);
-			nfs4_recovery_handle_error(clp, status);
-			return status;
+			return nfs4_recovery_handle_error(clp, status);
 		}
 		nfs4_put_state_owner(sp);
 		goto restart;
@@ -1125,8 +1125,7 @@ static int nfs4_check_lease(struct nfs_client *clp)
 	status = ops->renew_lease(clp, cred);
 	put_rpccred(cred);
 out:
-	nfs4_recovery_handle_error(clp, status);
-	return status;
+	return nfs4_recovery_handle_error(clp, status);
 }
 
 static int nfs4_reclaim_lease(struct nfs_client *clp)
