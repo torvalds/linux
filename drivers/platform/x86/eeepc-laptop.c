@@ -935,7 +935,10 @@ static int eeepc_get_fan_ctrl(void)
 	int value = 0;
 
 	read_acpi_int(NULL, EEEPC_EC_FAN_CTRL, &value);
-	return ((value & 0x02 ? 1 : 0));
+	if (value & 0x02)
+		return 1; /* manual */
+	else
+		return 2; /* automatic */
 }
 
 static void eeepc_set_fan_ctrl(int manual)
@@ -943,7 +946,7 @@ static void eeepc_set_fan_ctrl(int manual)
 	int value = 0;
 
 	read_acpi_int(NULL, EEEPC_EC_FAN_CTRL, &value);
-	if (manual)
+	if (manual == 1)
 		value |= 0x02;
 	else
 		value &= ~0x02;
