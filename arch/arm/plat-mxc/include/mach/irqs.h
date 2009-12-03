@@ -12,9 +12,13 @@
 #define __ASM_ARCH_MXC_IRQS_H__
 
 /*
- * So far all i.MX SoCs have 64 internal interrupts
+ * SoCs with TZIC interrupt controller have 128 IRQs, those with AVIC have 64
  */
+#ifdef CONFIG_MXC_TZIC
+#define MXC_INTERNAL_IRQS	128
+#else
 #define MXC_INTERNAL_IRQS	64
+#endif
 
 #define MXC_GPIO_IRQ_START	MXC_INTERNAL_IRQS
 

@@ -22,6 +22,7 @@ extern void mx31_map_io(void);
 extern void mx35_map_io(void);
 extern void mxc91231_map_io(void);
 extern void mxc_init_irq(void __iomem *);
+extern void tzic_init_irq(void __iomem *);
 extern void mx1_init_irq(void);
 extern void mx21_init_irq(void);
 extern void mx25_init_irq(void);
