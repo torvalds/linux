@@ -1611,14 +1611,11 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 			/* silly-rename the existing target ... */
 			err = nfs_sillyrename(new_dir, new_dentry);
-			if (!err) {
-				new_dentry = rehash = dentry;
-				new_inode = NULL;
-				/* instantiate the replacement target */
-				d_instantiate(new_dentry, NULL);
-			} else if (atomic_read(&new_dentry->d_count) > 1)
-				/* dentry still busy? */
+			if (err)
 				goto out;
+
+			new_dentry = dentry;
+			new_inode = NULL;
 		}
 	}
 
