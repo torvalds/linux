@@ -1298,7 +1298,7 @@ CEPH DISTRIBUTED FILE SYSTEM CLIENT
 M:	Sage Weil <sage@newdream.net>
 L:	ceph-devel@lists.sourceforge.net
 W:	http://ceph.newdream.net/
-T:	git git://ceph.newdream.net/linux-ceph-client.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph
