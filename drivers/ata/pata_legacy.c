@@ -672,7 +672,7 @@ static void qdi6580dp_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	outb(timing, ld_qdi->timing + 2 * ap->port_no);
 	/* Clear the FIFO */
 	if (adev->class != ATA_DEV_ATA)
-		outb(0x5F, ld_qdi->timing + 3);
+		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
 }
 
 /**
@@ -707,7 +707,7 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	outb(timing, ld_qdi->timing + 2 * adev->devno);
 	/* Clear the FIFO */
 	if (adev->class != ATA_DEV_ATA)
-		outb(0x5F, ld_qdi->timing + 3);
+		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
 }
 
 /**
