@@ -421,7 +421,7 @@ out:
 
 EXPORT_SYMBOL_GPL(inet_twdr_twcal_tick);
 
-void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
+void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 		     struct inet_timewait_death_row *twdr, int family)
 {
 	struct inet_timewait_sock *tw;
@@ -436,15 +436,15 @@ restart_rcu:
 restart:
 		sk_nulls_for_each_rcu(sk, node, &head->twchain) {
 			tw = inet_twsk(sk);
-			if (!net_eq(twsk_net(tw), net) ||
-			    tw->tw_family != family)
+			if ((tw->tw_family != family) ||
+				atomic_read(&twsk_net(tw)->count))
 				continue;
 
 			if (unlikely(!atomic_inc_not_zero(&tw->tw_refcnt)))
 				continue;
 
-			if (unlikely(!net_eq(twsk_net(tw), net) ||
-				     tw->tw_family != family)) {
+			if (unlikely((tw->tw_family != family) ||
+				     atomic_read(&twsk_net(tw)->count))) {
 				inet_twsk_put(tw);
 				goto restart;
 			}

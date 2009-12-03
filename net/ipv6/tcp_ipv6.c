@@ -2184,12 +2184,17 @@ static int tcpv6_net_init(struct net *net)
 static void tcpv6_net_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv6.tcp_sk);
-	inet_twsk_purge(net, &tcp_hashinfo, &tcp_death_row, AF_INET6);
+}
+
+static void tcpv6_net_exit_batch(struct list_head *net_exit_list)
+{
+	inet_twsk_purge(&tcp_hashinfo, &tcp_death_row, AF_INET6);
 }
 
 static struct pernet_operations tcpv6_net_ops = {
-	.init = tcpv6_net_init,
-	.exit = tcpv6_net_exit,
+	.init	    = tcpv6_net_init,
+	.exit	    = tcpv6_net_exit,
+	.exit_batch = tcpv6_net_exit_batch,
 };
 
 int __init tcpv6_init(void)
