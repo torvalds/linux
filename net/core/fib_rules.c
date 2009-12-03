@@ -138,6 +138,9 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 	if (rule->iifindex && (rule->iifindex != fl->iif))
 		goto out;
 
+	if (rule->oifindex && (rule->oifindex != fl->oif))
+		goto out;
+
 	if ((rule->mark ^ fl->mark) & rule->mark_mask)
 		goto out;
 
@@ -256,6 +259,16 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		dev = __dev_get_by_name(net, rule->iifname);
 		if (dev)
 			rule->iifindex = dev->ifindex;
+	}
+
+	if (tb[FRA_OIFNAME]) {
+		struct net_device *dev;
+
+		rule->oifindex = -1;
+		nla_strlcpy(rule->oifname, tb[FRA_OIFNAME], IFNAMSIZ);
+		dev = __dev_get_by_name(net, rule->oifname);
+		if (dev)
+			rule->oifindex = dev->ifindex;
 	}
 
 	if (tb[FRA_FWMARK]) {
@@ -392,6 +405,10 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		    nla_strcmp(tb[FRA_IIFNAME], rule->iifname))
 			continue;
 
+		if (tb[FRA_OIFNAME] &&
+		    nla_strcmp(tb[FRA_OIFNAME], rule->oifname))
+			continue;
+
 		if (tb[FRA_FWMARK] &&
 		    (rule->mark != nla_get_u32(tb[FRA_FWMARK])))
 			continue;
@@ -448,6 +465,7 @@ static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
 {
 	size_t payload = NLMSG_ALIGN(sizeof(struct fib_rule_hdr))
 			 + nla_total_size(IFNAMSIZ) /* FRA_IIFNAME */
+			 + nla_total_size(IFNAMSIZ) /* FRA_OIFNAME */
 			 + nla_total_size(4) /* FRA_PRIORITY */
 			 + nla_total_size(4) /* FRA_TABLE */
 			 + nla_total_size(4) /* FRA_FWMARK */
@@ -486,6 +504,13 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 
 		if (rule->iifindex == -1)
 			frh->flags |= FIB_RULE_IIF_DETACHED;
+	}
+
+	if (rule->oifname[0]) {
+		NLA_PUT_STRING(skb, FRA_OIFNAME, rule->oifname);
+
+		if (rule->oifindex == -1)
+			frh->flags |= FIB_RULE_OIF_DETACHED;
 	}
 
 	if (rule->pref)
@@ -603,6 +628,9 @@ static void attach_rules(struct list_head *rules, struct net_device *dev)
 		if (rule->iifindex == -1 &&
 		    strcmp(dev->name, rule->iifname) == 0)
 			rule->iifindex = dev->ifindex;
+		if (rule->oifindex == -1 &&
+		    strcmp(dev->name, rule->oifname) == 0)
+			rule->oifindex = dev->ifindex;
 	}
 }
 
@@ -610,9 +638,12 @@ static void detach_rules(struct list_head *rules, struct net_device *dev)
 {
 	struct fib_rule *rule;
 
-	list_for_each_entry(rule, rules, list)
+	list_for_each_entry(rule, rules, list) {
 		if (rule->iifindex == dev->ifindex)
 			rule->iifindex = -1;
+		if (rule->oifindex == dev->ifindex)
+			rule->oifindex = -1;
+	}
 }
 
 

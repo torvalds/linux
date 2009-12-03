@@ -10,6 +10,7 @@
 #define FIB_RULE_UNRESOLVED	0x00000004
 #define FIB_RULE_IIF_DETACHED	0x00000008
 #define FIB_RULE_DEV_DETACHED	FIB_RULE_IIF_DETACHED
+#define FIB_RULE_OIF_DETACHED	0x00000010
 
 /* try to find source address in routing lookups */
 #define FIB_RULE_FIND_SADDR	0x00010000
@@ -47,6 +48,7 @@ enum {
 	FRA_UNUSED8,
 	FRA_TABLE,	/* Extended table id */
 	FRA_FWMASK,	/* mask for netfilter mark */
+	FRA_OIFNAME,
 	__FRA_MAX
 };
 

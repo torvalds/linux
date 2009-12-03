@@ -11,6 +11,7 @@ struct fib_rule {
 	struct list_head	list;
 	atomic_t		refcnt;
 	int			iifindex;
+	int			oifindex;
 	u32			mark;
 	u32			mark_mask;
 	u32			pref;
@@ -20,6 +21,7 @@ struct fib_rule {
 	u32			target;
 	struct fib_rule *	ctarget;
 	char			iifname[IFNAMSIZ];
+	char			oifname[IFNAMSIZ];
 	struct rcu_head		rcu;
 	struct net *		fr_net;
 };
@@ -68,6 +70,7 @@ struct fib_rules_ops {
 
 #define FRA_GENERIC_POLICY \
 	[FRA_IIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
+	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
 	[FRA_FWMARK]	= { .type = NLA_U32 }, \
 	[FRA_FWMASK]	= { .type = NLA_U32 }, \
