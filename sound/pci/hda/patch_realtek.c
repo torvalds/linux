@@ -13459,8 +13459,10 @@ static int patch_alc269(struct hda_codec *codec)
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
 		kfree(codec->chip_name);
 		codec->chip_name = kstrdup("ALC259", GFP_KERNEL);
-		if (!codec->chip_name)
+		if (!codec->chip_name) {
+			alc_free(codec);
 			return -ENOMEM;
+		}
 	}
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
@@ -17465,8 +17467,10 @@ static int patch_alc662(struct hda_codec *codec)
 	if (alc_read_coef_idx(codec, 0)==0x8020){
 		kfree(codec->chip_name);
 		codec->chip_name = kstrdup("ALC661", GFP_KERNEL);
-		if (!codec->chip_name)
+		if (!codec->chip_name) {
+			alc_free(codec);
 			return -ENOMEM;
+		}
 	}
 
 	board_config = snd_hda_check_board_config(codec, ALC662_MODEL_LAST,
@@ -17540,13 +17544,13 @@ static int patch_alc888(struct hda_codec *codec)
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0)==0x0030){
 		kfree(codec->chip_name);
 		codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
-		if (!codec->chip_name)
+		if (!codec->chip_name) {
+			alc_free(codec);
 			return -ENOMEM;
-		patch_alc662(codec);
-	} else {
-		patch_alc882(codec);
+		}
+		return patch_alc662(codec);
 	}
-	return 0;
+	return patch_alc882(codec);
 }
 
 /*
