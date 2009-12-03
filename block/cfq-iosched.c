@@ -140,9 +140,9 @@ struct cfq_queue {
  * IDLE is handled separately, so it has negative index
  */
 enum wl_prio_t {
-	IDLE_WORKLOAD = -1,
 	BE_WORKLOAD = 0,
-	RT_WORKLOAD = 1
+	RT_WORKLOAD = 1,
+	IDLE_WORKLOAD = 2,
 };
 
 /*
@@ -302,6 +302,17 @@ CFQ_CFQQ_FNS(deep);
 	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
 #define cfq_log(cfqd, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq " fmt, ##args)
+
+/* Traverses through cfq group service trees */
+#define for_each_cfqg_st(cfqg, i, j, st) \
+	for (i = 0; i <= IDLE_WORKLOAD; i++) \
+		for (j = 0, st = i < IDLE_WORKLOAD ? &cfqg->service_trees[i][j]\
+			: &cfqg->service_tree_idle; \
+			(i < IDLE_WORKLOAD && j <= SYNC_WORKLOAD) || \
+			(i == IDLE_WORKLOAD && j == 0); \
+			j++, st = i < IDLE_WORKLOAD ? \
+			&cfqg->service_trees[i][j]: NULL) \
+
 
 static inline enum wl_prio_t cfqq_prio(struct cfq_queue *cfqq)
 {
@@ -565,6 +576,10 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2, 
  */
 static struct cfq_queue *cfq_rb_first(struct cfq_rb_root *root)
 {
+	/* Service tree is empty */
+	if (!root->count)
+		return NULL;
+
 	if (!root->left)
 		root->left = rb_first(&root->rb);
 
@@ -1587,18 +1602,14 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	int dispatched = 0;
 	int i, j;
 	struct cfq_group *cfqg = &cfqd->root_group;
+	struct cfq_rb_root *st;
 
-	for (i = 0; i < 2; ++i)
-		for (j = 0; j < 3; ++j)
-			while ((cfqq = cfq_rb_first(&cfqg->service_trees[i][j]))
-				!= NULL)
-				dispatched += __cfq_forced_dispatch_cfqq(cfqq);
-
-	while ((cfqq = cfq_rb_first(&cfqg->service_tree_idle)) != NULL)
-		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
+	for_each_cfqg_st(cfqg, i, j, st) {
+		while ((cfqq = cfq_rb_first(st)) != NULL)
+			dispatched += __cfq_forced_dispatch_cfqq(cfqq);
+	}
 
 	cfq_slice_expired(cfqd, 0);
-
 	BUG_ON(cfqd->busy_queues);
 
 	cfq_log(cfqd, "forced_dispatch=%d", dispatched);
@@ -2969,6 +2980,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	struct cfq_data *cfqd;
 	int i, j;
 	struct cfq_group *cfqg;
+	struct cfq_rb_root *st;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (!cfqd)
@@ -2976,11 +2988,8 @@ static void *cfq_init_queue(struct request_queue *q)
 
 	/* Init root group */
 	cfqg = &cfqd->root_group;
-
-	for (i = 0; i < 2; ++i)
-		for (j = 0; j < 3; ++j)
-			cfqg->service_trees[i][j] = CFQ_RB_ROOT;
-	cfqg->service_tree_idle = CFQ_RB_ROOT;
+	for_each_cfqg_st(cfqg, i, j, st)
+		*st = CFQ_RB_ROOT;
 
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
