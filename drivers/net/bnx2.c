@@ -5158,8 +5158,12 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 
 	ring_prod = prod = rxr->rx_pg_prod;
 	for (i = 0; i < bp->rx_pg_ring_size; i++) {
-		if (bnx2_alloc_rx_page(bp, rxr, ring_prod) < 0)
+		if (bnx2_alloc_rx_page(bp, rxr, ring_prod) < 0) {
+			printk(KERN_WARNING PFX "%s: init'ed rx page ring %d "
+						"with %d/%d pages only\n",
+			       bp->dev->name, ring_num, i, bp->rx_pg_ring_size);
 			break;
+		}
 		prod = NEXT_RX_BD(prod);
 		ring_prod = RX_PG_RING_IDX(prod);
 	}
@@ -5167,8 +5171,12 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 
 	ring_prod = prod = rxr->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
-		if (bnx2_alloc_rx_skb(bp, rxr, ring_prod) < 0)
+		if (bnx2_alloc_rx_skb(bp, rxr, ring_prod) < 0) {
+			printk(KERN_WARNING PFX "%s: init'ed rx ring %d with "
+						"%d/%d skbs only\n",
+			       bp->dev->name, ring_num, i, bp->rx_ring_size);
 			break;
+		}
 		prod = NEXT_RX_BD(prod);
 		ring_prod = RX_RING_IDX(prod);
 	}
