@@ -1240,9 +1240,6 @@ static int asus_hotk_add(struct acpi_device *device)
 {
 	int result;
 
-	if (!device)
-		return -EINVAL;
-
 	pr_notice("Asus Laptop Support version %s\n",
 	       ASUS_LAPTOP_VERSION);
 
@@ -1306,9 +1303,6 @@ end:
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
-
 	kfree(hotk->name);
 	kfree(hotk);
 
