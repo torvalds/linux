@@ -275,6 +275,13 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			/* FALLTHROUGH */
 #endif /* !defined(CONFIG_NFS_V4_1) */
 		case -NFS4ERR_FILE_OPEN:
+			if (exception->timeout > HZ) {
+				/* We have retried a decent amount, time to
+				 * fail
+				 */
+				ret = -EBUSY;
+				break;
+			}
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
 			ret = nfs4_delay(server->client, &exception->timeout);
