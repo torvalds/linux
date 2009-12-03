@@ -12433,7 +12433,7 @@ skip_phy_reset:
 
 static void __devinit tg3_read_partno(struct tg3 *tp)
 {
-	unsigned char vpd_data[256];   /* in little-endian format */
+	unsigned char vpd_data[TG3_NVM_VPD_LEN];   /* in little-endian format */
 	unsigned int i;
 	u32 magic;
 
@@ -12442,14 +12442,14 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		goto out_not_found;
 
 	if (magic == TG3_EEPROM_MAGIC) {
-		for (i = 0; i < 256; i += 4) {
+		for (i = 0; i < TG3_NVM_VPD_LEN; i += 4) {
 			u32 tmp;
 
 			/* The data is in little-endian format in NVRAM.
 			 * Use the big-endian read routines to preserve
 			 * the byte order as it exists in NVRAM.
 			 */
-			if (tg3_nvram_read_be32(tp, 0x100 + i, &tmp))
+			if (tg3_nvram_read_be32(tp, TG3_NVM_VPD_OFF + i, &tmp))
 				goto out_not_found;
 
 			memcpy(&vpd_data[i], &tmp, sizeof(tmp));
@@ -12458,7 +12458,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		int vpd_cap;
 
 		vpd_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_VPD);
-		for (i = 0; i < 256; i += 4) {
+		for (i = 0; i < TG3_NVM_VPD_LEN; i += 4) {
 			u32 tmp, j = 0;
 			__le32 v;
 			u16 tmp16;
@@ -12483,7 +12483,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 	}
 
 	/* Now parse and find the part number. */
-	for (i = 0; i < 254; ) {
+	for (i = 0; i < TG3_NVM_VPD_LEN - 2; ) {
 		unsigned char val = vpd_data[i];
 		unsigned int block_end;
 
@@ -12502,7 +12502,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 			      (vpd_data[i + 2] << 8)));
 		i += 3;
 
-		if (block_end > 256)
+		if (block_end > TG3_NVM_VPD_LEN)
 			goto out_not_found;
 
 		while (i < (block_end - 2)) {
@@ -12511,7 +12511,8 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 				int partno_len = vpd_data[i + 2];
 
 				i += 3;
-				if (partno_len > 24 || (partno_len + i) > 256)
+				if (partno_len > TG3_BPN_SIZE ||
+				    (partno_len + i) > TG3_NVM_VPD_LEN)
 					goto out_not_found;
 
 				memcpy(tp->board_part_number,

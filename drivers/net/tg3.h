@@ -1821,6 +1821,11 @@
 
 #define TG3_OTP_DEFAULT			0x286c1640
 
+
+/* Hardware Legacy NVRAM layout */
+#define TG3_NVM_VPD_OFF			0x100
+#define TG3_NVM_VPD_LEN			256
+
 /* Hardware Selfboot NVRAM layout */
 #define TG3_NVM_HWSB_CFG1		0x00000004
 #define  TG3_NVM_HWSB_CFG1_MAJMSK	0xf8000000
@@ -2893,8 +2898,9 @@ struct tg3 {
 	u32				led_ctrl;
 	u32				phy_otp;
 
-	char				board_part_number[24];
-#define TG3_VER_SIZE 32
+#define TG3_BPN_SIZE			24
+	char				board_part_number[TG3_BPN_SIZE];
+#define TG3_VER_SIZE			ETHTOOL_FWVERS_LEN
 	char				fw_ver[TG3_VER_SIZE];
 	u32				nic_sram_data_cfg;
 	u32				pci_clock_ctrl;
