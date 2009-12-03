@@ -655,9 +655,8 @@ static int eeepc_hotk_init(void)
 	return 0;
 }
 
-static int notify_brn(void)
+static int eeepc_backlight_notify(void)
 {
-	/* returns the *previous* brightness, or -1 */
 	struct backlight_device *bd = eeepc_backlight_device;
 	int old = bd->props.brightness;
 
@@ -731,50 +730,58 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	eeepc_rfkill_hotplug();
 }
 
-static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
+static void eeepc_input_notify(int event)
 {
 	static struct key_entry *key;
+
+	key = eepc_get_entry_by_scancode(event);
+	if (key) {
+		switch (key->type) {
+		case KE_KEY:
+			input_report_key(ehotk->inputdev, key->keycode,
+						1);
+			input_sync(ehotk->inputdev);
+			input_report_key(ehotk->inputdev, key->keycode,
+						0);
+			input_sync(ehotk->inputdev);
+			break;
+		}
+	}
+}
+
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
+{
 	u16 count;
-	int brn = -ENODEV;
 
 	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
-	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
-		brn = notify_brn();
 	count = ehotk->event_count[event % 128]++;
 	acpi_bus_generate_proc_event(ehotk->device, event, count);
 	acpi_bus_generate_netlink_event(ehotk->device->pnp.device_class,
 					dev_name(&ehotk->device->dev), event,
 					count);
-	if (ehotk->inputdev) {
-		/* brightness-change events need special
-		 * handling for conversion to key events
-		 */
-		if (brn < 0)
-			brn = event;
-		else
-			brn += NOTIFY_BRN_MIN;
-		if (event < brn)
-			event = NOTIFY_BRN_MIN; /* brightness down */
-		else if (event > brn)
-			event = NOTIFY_BRN_MIN + 2; /* ... up */
-		else
-			event = NOTIFY_BRN_MIN + 1; /* ... unchanged */
 
-		key = eepc_get_entry_by_scancode(event);
-		if (key) {
-			switch (key->type) {
-			case KE_KEY:
-				input_report_key(ehotk->inputdev, key->keycode,
-						 1);
-				input_sync(ehotk->inputdev);
-				input_report_key(ehotk->inputdev, key->keycode,
-						 0);
-				input_sync(ehotk->inputdev);
-				break;
-			}
+	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX) {
+		int old_brightness, new_brightness;
+
+		/* Update backlight device. */
+		old_brightness = eeepc_backlight_notify();
+
+		/* Convert brightness event to keypress (obsolescent hack). */
+		new_brightness = event - NOTIFY_BRN_MIN;
+
+		if (new_brightness < old_brightness) {
+			event = NOTIFY_BRN_MIN; /* brightness down */
+		} else if (new_brightness > old_brightness) {
+			event = NOTIFY_BRN_MAX; /* brightness up */
+		} else {
+			/*
+			 * no change in brightness - already at min/max,
+			 * event will be desired value (or else ignored).
+			 */
 		}
 	}
+	eeepc_input_notify(event);
 }
 
 static int eeepc_register_rfkill_notifier(char *node)
