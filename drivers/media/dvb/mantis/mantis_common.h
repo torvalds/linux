@@ -83,7 +83,7 @@ struct mantis_pci {
 	struct			pci_dev *pdev;
 
 	unsigned long		mantis_addr;
-	volatile void __iomem 	*mantis_mmio;
+	volatile void __iomem	*mantis_mmio;
 
 	u8			irq;
 	u8			revision;
@@ -121,8 +121,8 @@ struct mantis_pci {
 
 	struct mantis_hwconfig	*hwconfig;
 
-	u32 			mantis_int_stat;
-	u32 			mantis_int_mask;
+	u32			mantis_int_stat;
+	u32			mantis_int_mask;
 
 	/*	board specific		*/
 	u8			mac_address[8];
