@@ -3314,7 +3314,8 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 			 * only if we processed at least one !rq_noidle request
 			 */
 			if (cfqd->serving_type == SYNC_WORKLOAD
-			    || cfqd->noidle_tree_requires_idle)
+			    || cfqd->noidle_tree_requires_idle
+			    || cfqq->cfqg->nr_cfqq == 1)
 				cfq_arm_slice_timer(cfqd);
 		}
 	}
