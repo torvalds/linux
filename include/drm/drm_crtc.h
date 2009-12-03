@@ -242,6 +242,21 @@ struct drm_framebuffer_funcs {
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
 			     unsigned int *handle);
+	/**
+	 * Optinal callback for the dirty fb ioctl.
+	 *
+	 * Userspace can notify the driver via this callback
+	 * that a area of the framebuffer has changed and should
+	 * be flushed to the display hardware.
+	 *
+	 * See documentation in drm_mode.h for the struct
+	 * drm_mode_fb_dirty_cmd for more information as all
+	 * the semantics and arguments have a one to one mapping
+	 * on this function.
+	 */
+	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+		     unsigned color, struct drm_clip_rect *clips,
+		     unsigned num_clips);
 };
 
 struct drm_framebuffer {
@@ -610,6 +625,7 @@ struct drm_mode_config {
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
+	struct drm_property *dirty_info_property;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -718,6 +734,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dithering_property(struct drm_device *dev);
+extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern char *drm_get_encoder_name(struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
@@ -745,6 +762,8 @@ extern int drm_mode_rmfb(struct drm_device *dev,
 			 void *data, struct drm_file *file_priv);
 extern int drm_mode_getfb(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
+extern int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
+				  void *data, struct drm_file *file_priv);
 extern int drm_mode_addmode_ioctl(struct drm_device *dev,
 				  void *data, struct drm_file *file_priv);
 extern int drm_mode_rmmode_ioctl(struct drm_device *dev,

@@ -125,6 +125,15 @@ static struct drm_prop_enum_list drm_tv_subconnector_enum_list[] =
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
+static struct drm_prop_enum_list drm_dirty_info_enum_list[] = {
+	{ DRM_MODE_DIRTY_OFF,      "Off"      },
+	{ DRM_MODE_DIRTY_ON,       "On"       },
+	{ DRM_MODE_DIRTY_ANNOTATE, "Annotate" },
+};
+
+DRM_ENUM_NAME_FN(drm_get_dirty_info_name,
+		 drm_dirty_info_enum_list)
+
 struct drm_conn_prop_enum_list {
 	int type;
 	char *name;
@@ -800,6 +809,36 @@ int drm_mode_create_dithering_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_dithering_property);
+
+/**
+ * drm_mode_create_dirty_property - create dirty property
+ * @dev: DRM device
+ *
+ * Called by a driver the first time it's needed, must be attached to desired
+ * connectors.
+ */
+int drm_mode_create_dirty_info_property(struct drm_device *dev)
+{
+	struct drm_property *dirty_info;
+	int i;
+
+	if (dev->mode_config.dirty_info_property)
+		return 0;
+
+	dirty_info =
+		drm_property_create(dev, DRM_MODE_PROP_ENUM |
+				    DRM_MODE_PROP_IMMUTABLE,
+				    "dirty",
+				    ARRAY_SIZE(drm_dirty_info_enum_list));
+	for (i = 0; i < ARRAY_SIZE(drm_dirty_info_enum_list); i++)
+		drm_property_add_enum(dirty_info, i,
+				      drm_dirty_info_enum_list[i].type,
+				      drm_dirty_info_enum_list[i].name);
+	dev->mode_config.dirty_info_property = dirty_info;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_dirty_info_property);
 
 /**
  * drm_mode_config_init - initialize DRM mode_configuration structure
@@ -1752,6 +1791,71 @@ out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
+
+int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
+			   void *data, struct drm_file *file_priv)
+{
+	struct drm_clip_rect __user *clips_ptr;
+	struct drm_clip_rect *clips = NULL;
+	struct drm_mode_fb_dirty_cmd *r = data;
+	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb;
+	unsigned flags;
+	int num_clips;
+	int ret = 0;
+
+	mutex_lock(&dev->mode_config.mutex);
+	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
+	if (!obj) {
+		DRM_ERROR("invalid framebuffer id\n");
+		ret = -EINVAL;
+		goto out_err1;
+	}
+	fb = obj_to_fb(obj);
+
+	num_clips = r->num_clips;
+	clips_ptr = (struct drm_clip_rect *)(unsigned long)r->clips_ptr;
+
+	if (!num_clips != !clips_ptr) {
+		ret = -EINVAL;
+		goto out_err1;
+	}
+
+	flags = DRM_MODE_FB_DIRTY_FLAGS & r->flags;
+
+	/* If userspace annotates copy, clips must come in pairs */
+	if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY && (num_clips % 2)) {
+		ret = -EINVAL;
+		goto out_err1;
+	}
+
+	if (num_clips && clips_ptr) {
+		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+		if (!clips) {
+			ret = -ENOMEM;
+			goto out_err1;
+		}
+
+		ret = copy_from_user(clips, clips_ptr,
+				     num_clips * sizeof(*clips));
+		if (ret)
+			goto out_err2;
+	}
+
+	if (fb->funcs->dirty) {
+		ret = fb->funcs->dirty(fb, flags, r->color, clips, num_clips);
+	} else {
+		ret = -ENOSYS;
+		goto out_err2;
+	}
+
+out_err2:
+	kfree(clips);
+out_err1:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
 
 /**
  * drm_fb_release - remove and free the FBs on this file

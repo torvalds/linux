@@ -75,6 +75,11 @@
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1
 
+/* Dirty info options */
+#define DRM_MODE_DIRTY_OFF      0
+#define DRM_MODE_DIRTY_ON       1
+#define DRM_MODE_DIRTY_ANNOTATE 2
+
 struct drm_mode_modeinfo {
 	__u32 clock;
 	__u16 hdisplay, hsync_start, hsync_end, htotal, hskew;
@@ -220,6 +225,45 @@ struct drm_mode_fb_cmd {
 	__u32 depth;
 	/* driver specific handle */
 	__u32 handle;
+};
+
+#define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
+#define DRM_MODE_FB_DIRTY_ANNOTATE_FILL 0x02
+#define DRM_MODE_FB_DIRTY_FLAGS         0x03
+
+/*
+ * Mark a region of a framebuffer as dirty.
+ *
+ * Some hardware does not automatically update display contents
+ * as a hardware or software draw to a framebuffer. This ioctl
+ * allows userspace to tell the kernel and the hardware what
+ * regions of the framebuffer have changed.
+ *
+ * The kernel or hardware is free to update more then just the
+ * region specified by the clip rects. The kernel or hardware
+ * may also delay and/or coalesce several calls to dirty into a
+ * single update.
+ *
+ * Userspace may annotate the updates, the annotates are a
+ * promise made by the caller that the change is either a copy
+ * of pixels or a fill of a single color in the region specified.
+ *
+ * If the DRM_MODE_FB_DIRTY_ANNOTATE_COPY flag is given then
+ * the number of updated regions are half of num_clips given,
+ * where the clip rects are paired in src and dst. The width and
+ * height of each one of the pairs must match.
+ *
+ * If the DRM_MODE_FB_DIRTY_ANNOTATE_FILL flag is given the caller
+ * promises that the region specified of the clip rects is filled
+ * completely with a single color as given in the color argument.
+ */
+
+struct drm_mode_fb_dirty_cmd {
+	__u32 fb_id;
+	__u32 flags;
+	__u32 color;
+	__u32 num_clips;
+	__u64 clips_ptr;
 };
 
 struct drm_mode_mode_cmd {
