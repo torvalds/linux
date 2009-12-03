@@ -516,12 +516,15 @@ dump_clock(struct seq_file *s, unsigned nest, struct clk *parent)
 
 static int davinci_ck_show(struct seq_file *m, void *v)
 {
-	/* Show clock tree; we know the main oscillator is first.
-	 * We trust nonzero usecounts equate to PSC enables...
+	struct clk *clk;
+
+	/*
+	 * Show clock tree; We trust nonzero usecounts equate to PSC enables...
 	 */
 	mutex_lock(&clocks_mutex);
-	if (!list_empty(&clocks))
-		dump_clock(m, 0, list_first_entry(&clocks, struct clk, node));
+	list_for_each_entry(clk, &clocks, node)
+		if (!clk->parent)
+			dump_clock(m, 0, clk);
 	mutex_unlock(&clocks_mutex);
 
 	return 0;
