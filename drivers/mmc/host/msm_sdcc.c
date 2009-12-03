@@ -177,17 +177,18 @@ msmsdcc_start_command_exec(struct msmsdcc_host *host, u32 arg, u32 c) {
 static void
 msmsdcc_dma_exec_func(struct msm_dmov_cmd *cmd)
 {
-       struct msmsdcc_host *host = (struct msmsdcc_host *)cmd->data;
+	struct msmsdcc_host *host = (struct msmsdcc_host *)cmd->data;
 
-       writel(host->cmd_timeout, host->base + MMCIDATATIMER);
-       writel((unsigned int)host->curr.xfer_size, host->base + MMCIDATALENGTH);
-       writel(host->cmd_pio_irqmask, host->base + MMCIMASK1);
-       writel(host->cmd_datactrl, host->base + MMCIDATACTRL);
+	msmsdcc_writel(host, host->cmd_timeout, MMCIDATATIMER);
+	msmsdcc_writel(host, (unsigned int)host->curr.xfer_size, MMCIDATALENGTH);
+	msmsdcc_writel(host, host->cmd_pio_irqmask, MMCIMASK1);
+	msmsdcc_writel(host, host->cmd_datactrl, MMCIDATACTRL);
 
-       if (host->cmd_cmd) {
-               msmsdcc_start_command_exec(host,
-                       (u32)host->cmd_cmd->arg, (u32)host->cmd_c);
-       }
+	if (host->cmd_cmd) {
+		msmsdcc_start_command_exec(host,
+					   (u32) host->cmd_cmd->arg,
+					   (u32) host->cmd_c);
+	}
 	host->dma.active = 1;
 }
 
