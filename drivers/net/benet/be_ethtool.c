@@ -411,6 +411,36 @@ be_phys_id(struct net_device *netdev, u32 data)
 	return status;
 }
 
+static void
+be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	wol->supported = WAKE_MAGIC;
+	if (adapter->wol)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+	return;
+}
+
+static int
+be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol = true;
+	else
+		adapter->wol = false;
+
+	return 0;
+}
+
 static int
 be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
@@ -428,6 +458,8 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
+	.get_wol = be_get_wol,
+	.set_wol = be_set_wol,
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = be_get_coalesce,
 	.set_coalesce = be_set_coalesce,

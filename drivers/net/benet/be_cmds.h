@@ -150,6 +150,7 @@ struct be_mcc_mailbox {
 #define OPCODE_ETH_RX_CREATE            		8
 #define OPCODE_ETH_TX_DESTROY           		9
 #define OPCODE_ETH_RX_DESTROY           		10
+#define OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG		12
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -788,6 +789,14 @@ struct be_cmd_write_flashrom {
 	struct flashrom_params params;
 };
 
+/************************ WOL *******************************/
+struct be_cmd_req_acpi_wol_magic_config{
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd0[145];
+	u8 magic_mac[6];
+	u8 rsvd2[2];
+} __packed;
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -851,5 +860,7 @@ extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
 extern int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc);
+extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
+				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_fw_init(struct be_adapter *adapter);
 extern int be_cmd_fw_clean(struct be_adapter *adapter);
