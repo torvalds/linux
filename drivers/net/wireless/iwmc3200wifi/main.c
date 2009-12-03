@@ -68,7 +68,6 @@ static struct iwm_conf def_iwm_conf = {
 	.ct_kill_exit		= 110,
 	.reset_on_fatal_err	= 1,
 	.auto_connect		= 1,
-	.wimax_not_present	= 0,
 	.enable_qos		= 1,
 	.mode			= UMAC_MODE_BSS,
 
@@ -93,6 +92,10 @@ static struct iwm_conf def_iwm_conf = {
 static int modparam_reset;
 module_param_named(reset, modparam_reset, bool, 0644);
 MODULE_PARM_DESC(reset, "reset on firmware errors (default 0 [not reset])");
+
+static int modparam_wimax_enable = 1;
+module_param_named(wimax_enable, modparam_wimax_enable, bool, 0644);
+MODULE_PARM_DESC(wimax_enable, "Enable wimax core (default 1 [wimax enabled])");
 
 int iwm_mode_to_nl80211_iftype(int mode)
 {
@@ -486,7 +489,7 @@ static int iwm_config_boot_params(struct iwm_priv *iwm)
 	int ret;
 
 	/* check Wimax is off and config debug monitor */
-	if (iwm->conf.wimax_not_present) {
+	if (!modparam_wimax_enable) {
 		u32 data1 = 0x1f;
 		u32 addr1 = 0x606BE258;
 
