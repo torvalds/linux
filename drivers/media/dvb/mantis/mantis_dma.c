@@ -189,7 +189,7 @@ void mantis_dma_start(struct mantis_pci *mantis)
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis Start DMA engine");
 
 	mantis_risc_program(mantis);
-	mmwrite(cpu_to_le32(mantis->risc_dma), MANTIS_RISC_START);
+	mmwrite(mantis->risc_dma, MANTIS_RISC_START);
 	mmwrite(mmread(MANTIS_GPIF_ADDR) | MANTIS_GPIF_RDWRN, MANTIS_GPIF_ADDR);
 
 	mmwrite(0, MANTIS_DMA_CTL);
