@@ -79,7 +79,7 @@ static void	call_connect_status(struct rpc_task *task);
 
 static __be32	*rpc_encode_header(struct rpc_task *task);
 static __be32	*rpc_verify_header(struct rpc_task *task);
-static int	rpc_ping(struct rpc_clnt *clnt, int flags);
+static int	rpc_ping(struct rpc_clnt *clnt);
 
 static void rpc_register_client(struct rpc_clnt *clnt)
 {
@@ -340,7 +340,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		return clnt;
 
 	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
-		int err = rpc_ping(clnt, RPC_TASK_SOFT);
+		int err = rpc_ping(clnt);
 		if (err != 0) {
 			rpc_shutdown_client(clnt);
 			return ERR_PTR(err);
@@ -528,7 +528,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 	clnt->cl_prog     = program->number;
 	clnt->cl_vers     = version->number;
 	clnt->cl_stats    = program->stats;
-	err = rpc_ping(clnt, RPC_TASK_SOFT);
+	err = rpc_ping(clnt);
 	if (err != 0) {
 		rpc_shutdown_client(clnt);
 		clnt = ERR_PTR(err);
@@ -1709,14 +1709,14 @@ static struct rpc_procinfo rpcproc_null = {
 	.p_decode = rpcproc_decode_null,
 };
 
-static int rpc_ping(struct rpc_clnt *clnt, int flags)
+static int rpc_ping(struct rpc_clnt *clnt)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &rpcproc_null,
 	};
 	int err;
 	msg.rpc_cred = authnull_ops.lookup_cred(NULL, NULL, 0);
-	err = rpc_call_sync(clnt, &msg, flags);
+	err = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN);
 	put_rpccred(msg.rpc_cred);
 	return err;
 }
