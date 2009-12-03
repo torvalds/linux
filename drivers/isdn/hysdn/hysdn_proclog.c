@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/smp_lock.h>
 
 #include "hysdn_defs.h"

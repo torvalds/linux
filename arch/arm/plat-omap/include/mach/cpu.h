@@ -303,32 +303,21 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_is_omap2430()		0
 #define cpu_is_omap3430()		0
 
-#if defined(MULTI_OMAP1)
-# if defined(CONFIG_ARCH_OMAP730)
-#  undef  cpu_is_omap730
-#  define cpu_is_omap730()		is_omap730()
-# endif
-# if defined(CONFIG_ARCH_OMAP850)
-#  undef  cpu_is_omap850
-#  define cpu_is_omap850()		is_omap850()
-# endif
-#else
-# if defined(CONFIG_ARCH_OMAP730)
-#  undef  cpu_is_omap730
-#  define cpu_is_omap730()		1
-# endif
-#endif
-#else
-# if defined(CONFIG_ARCH_OMAP850)
-#  undef  cpu_is_omap850
-#  define cpu_is_omap850()		1
-# endif
-#endif
-
 /*
  * Whether we have MULTI_OMAP1 or not, we still need to distinguish
- * between 330 vs. 1510 and 1611B/5912 vs. 1710.
+ * between 730 vs 850, 330 vs. 1510 and 1611B/5912 vs. 1710.
  */
+
+#if defined(CONFIG_ARCH_OMAP730)
+# undef  cpu_is_omap730
+# define cpu_is_omap730()		is_omap730()
+#endif
+
+#if defined(CONFIG_ARCH_OMAP850)
+# undef  cpu_is_omap850
+# define cpu_is_omap850()		is_omap850()
+#endif
+
 #if defined(CONFIG_ARCH_OMAP15XX)
 # undef  cpu_is_omap310
 # undef  cpu_is_omap1510
@@ -433,3 +422,5 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
+
+#endif

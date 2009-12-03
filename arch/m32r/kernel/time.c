@@ -33,6 +33,15 @@
 
 #include <asm/hw_irq.h>
 
+#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
+/* this needs a better home */
+DEFINE_SPINLOCK(rtc_lock);
+
+#ifdef CONFIG_RTC_DRV_CMOS_MODULE
+EXPORT_SYMBOL(rtc_lock);
+#endif
+#endif  /* pc-style 'CMOS' RTC support */
+
 #ifdef CONFIG_SMP
 extern void smp_local_timer_interrupt(void);
 #endif
@@ -66,7 +75,7 @@ u32 arch_gettimeoffset(void)
 		count = 0;
 
 	count = (latch - count) * TICK_SIZE;
-	elapsed_time = (count + latch / 2) / latch;
+	elapsed_time = DIV_ROUND_CLOSEST(count, latch);
 	/* NOTE: LATCH is equal to the "interval" value (= reload count). */
 
 #else /* CONFIG_SMP */
@@ -84,7 +93,7 @@ u32 arch_gettimeoffset(void)
 	p_count = count;
 
 	count = (latch - count) * TICK_SIZE;
-	elapsed_time = (count + latch / 2) / latch;
+	elapsed_time = DIV_ROUND_CLOSEST(count, latch);
 	/* NOTE: LATCH is equal to the "interval" value (= reload count). */
 #endif /* CONFIG_SMP */
 #elif defined(CONFIG_CHIP_M32310)
@@ -202,7 +211,7 @@ void __init time_init(void)
 
 		bus_clock = boot_cpu_data.bus_clock;
 		divide = boot_cpu_data.timer_divide;
-		latch = (bus_clock/divide + HZ / 2) / HZ;
+		latch = DIV_ROUND_CLOSEST(bus_clock/divide, HZ);
 
 		printk("Timer start : latch = %ld\n", latch);
 

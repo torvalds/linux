@@ -37,6 +37,11 @@
  */
 #define SD_LAST_BUGGY_SECTORS	8
 
+enum {
+	SD_EXT_CDB_SIZE = 32,	/* Extended CDB size */
+	SD_MEMPOOL_SIZE = 2,	/* CDB pool size */
+};
+
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
@@ -101,16 +106,12 @@ struct sd_dif_tuple {
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 
-extern void sd_dif_op(struct scsi_cmnd *, unsigned int, unsigned int, unsigned int);
 extern void sd_dif_config_host(struct scsi_disk *);
 extern int sd_dif_prepare(struct request *rq, sector_t, unsigned int);
 extern void sd_dif_complete(struct scsi_cmnd *, unsigned int);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-static inline void sd_dif_op(struct scsi_cmnd *cmd, unsigned int a, unsigned int b, unsigned int c)
-{
-}
 static inline void sd_dif_config_host(struct scsi_disk *disk)
 {
 }

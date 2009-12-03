@@ -57,13 +57,4 @@
 #define	VGA_RENDER_CONTROL				0x0300
 #define		VGA_VSTATUS_CNTL_MASK				0x00030000
 
-/* AVIVO disable VGA rendering */
-static inline void radeon_avivo_vga_render_disable(struct radeon_device *rdev)
-{
-	u32 vga_render;
-	vga_render = RREG32(VGA_RENDER_CONTROL);
-	vga_render &= ~VGA_VSTATUS_CNTL_MASK;
-	WREG32(VGA_RENDER_CONTROL, vga_render);
-}
-
 #endif

@@ -158,7 +158,12 @@ static int smsg_pm_restore_thaw(struct device *dev)
 		smsg_path->flags = 0;
 		rc = iucv_path_connect(smsg_path, &smsg_handler, "*MSG    ",
 				       NULL, NULL, NULL);
-		printk(KERN_ERR "iucv_path_connect returned with rc %i\n", rc);
+#ifdef CONFIG_PM_DEBUG
+		if (rc)
+			printk(KERN_ERR
+			       "iucv_path_connect returned with rc %i\n", rc);
+#endif
+		cpcmd("SET SMSG IUCV", NULL, 0, NULL);
 	}
 	return 0;
 }

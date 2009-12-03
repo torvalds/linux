@@ -875,7 +875,7 @@ printer_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 }
 
 /* used after endpoint configuration */
-static struct file_operations printer_io_operations = {
+static const struct file_operations printer_io_operations = {
 	.owner =	THIS_MODULE,
 	.open =		printer_open,
 	.read =		printer_read,

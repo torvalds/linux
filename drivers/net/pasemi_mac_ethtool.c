@@ -71,6 +71,9 @@ pasemi_mac_ethtool_get_settings(struct net_device *netdev,
 	struct pasemi_mac *mac = netdev_priv(netdev);
 	struct phy_device *phydev = mac->phydev;
 
+	if (!phydev)
+		return -EOPNOTSUPP;
+
 	return phy_ethtool_gset(phydev, cmd);
 }
 

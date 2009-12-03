@@ -1292,7 +1292,7 @@ const char *ipx_device_name(struct ipx_interface *intrfc)
  * socket object. */
 
 static int ipx_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int opt;

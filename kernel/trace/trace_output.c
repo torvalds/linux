@@ -69,6 +69,9 @@ enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
  * @s: trace sequence descriptor
  * @fmt: printf format string
  *
+ * It returns 0 if the trace oversizes the buffer's free
+ * space, 1 otherwise.
+ *
  * The tracer may use either sequence operations or its own
  * copy to user routines. To simplify formating of a trace
  * trace_seq_printf is used to store strings into a special
@@ -95,7 +98,7 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 
 	s->len += ret;
 
-	return len;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(trace_seq_printf);
 
@@ -486,16 +489,18 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 				hardirq ? 'h' : softirq ? 's' : '.'))
 		return 0;
 
-	if (entry->lock_depth < 0)
-		ret = trace_seq_putc(s, '.');
+	if (entry->preempt_count)
+		ret = trace_seq_printf(s, "%x", entry->preempt_count);
 	else
-		ret = trace_seq_printf(s, "%d", entry->lock_depth);
+		ret = trace_seq_putc(s, '.');
+
 	if (!ret)
 		return 0;
 
-	if (entry->preempt_count)
-		return trace_seq_printf(s, "%x", entry->preempt_count);
-	return trace_seq_putc(s, '.');
+	if (entry->lock_depth < 0)
+		return trace_seq_putc(s, '.');
+
+	return trace_seq_printf(s, "%d", entry->lock_depth);
 }
 
 static int
@@ -883,7 +888,7 @@ static int trace_ctxwake_raw(struct trace_iterator *iter, char S)
 	trace_assign_type(field, iter->ent);
 
 	if (!S)
-		task_state_char(field->prev_state);
+		S = task_state_char(field->prev_state);
 	T = task_state_char(field->next_state);
 	if (!trace_seq_printf(&iter->seq, "%d %d %c %d %d %d %c\n",
 			      field->prev_pid,
@@ -918,7 +923,7 @@ static int trace_ctxwake_hex(struct trace_iterator *iter, char S)
 	trace_assign_type(field, iter->ent);
 
 	if (!S)
-		task_state_char(field->prev_state);
+		S = task_state_char(field->prev_state);
 	T = task_state_char(field->next_state);
 
 	SEQ_PUT_HEX_FIELD_RET(s, field->prev_pid);

@@ -77,12 +77,12 @@ static struct sport_param sport_params[2] = {
  * TFS. When Port G is selected and EMAC then there is a conflict between
  * the PHY interrupt line and TFS.  Current settings prevent the conflict
  * by ignoring the TFS pin when Port G is selected. This allows both
- * ssm2602 using Port G and EMAC concurrently.
+ * codecs and EMAC using Port G concurrently.
  */
-#ifdef CONFIG_BF527_SPORT0_PORTF
-#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
-#else
+#ifdef CONFIG_BF527_SPORT0_PORTG
 #define LOCAL_SPORT0_TFS (0)
+#else
+#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
 #endif
 
 static u16 sport_req[][7] = { {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,

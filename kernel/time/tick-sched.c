@@ -231,6 +231,13 @@ void tick_nohz_stop_sched_tick(int inidle)
 	if (!inidle && !ts->inidle)
 		goto end;
 
+	/*
+	 * Set ts->inidle unconditionally. Even if the system did not
+	 * switch to NOHZ mode the cpu frequency governers rely on the
+	 * update of the idle time accounting in tick_nohz_start_idle().
+	 */
+	ts->inidle = 1;
+
 	now = tick_nohz_start_idle(ts);
 
 	/*
@@ -247,8 +254,6 @@ void tick_nohz_stop_sched_tick(int inidle)
 
 	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE))
 		goto end;
-
-	ts->inidle = 1;
 
 	if (need_resched())
 		goto end;

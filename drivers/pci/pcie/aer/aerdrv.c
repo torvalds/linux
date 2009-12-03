@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
@@ -52,7 +53,7 @@ static struct pci_error_handlers aer_error_handlers = {
 
 static struct pcie_port_service_driver aerdriver = {
 	.name		= "aer",
-	.port_type	= PCIE_ANY_PORT,
+	.port_type	= PCIE_RC_PORT,
 	.service	= PCIE_PORT_SERVICE_AER,
 
 	.probe		= aer_probe,

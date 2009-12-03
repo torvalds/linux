@@ -36,6 +36,7 @@ void fscache_cookie_init_once(void *_cookie)
 
 	memset(cookie, 0, sizeof(*cookie));
 	spin_lock_init(&cookie->lock);
+	spin_lock_init(&cookie->stores_lock);
 	INIT_HLIST_HEAD(&cookie->backing_objects);
 }
 
@@ -102,7 +103,9 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	cookie->netfs_data	= netfs_data;
 	cookie->flags		= 0;
 
-	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS);
+	/* radix tree insertion won't use the preallocation pool unless it's
+	 * told it may not wait */
+	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_WAIT);
 
 	switch (cookie->def->type) {
 	case FSCACHE_COOKIE_TYPE_INDEX:
@@ -249,7 +252,9 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 	/* ask the cache to allocate an object (we may end up with duplicate
 	 * objects at this stage, but we sort that out later) */
+	fscache_stat(&fscache_n_cop_alloc_object);
 	object = cache->ops->alloc_object(cache, cookie);
+	fscache_stat_d(&fscache_n_cop_alloc_object);
 	if (IS_ERR(object)) {
 		fscache_stat(&fscache_n_object_no_alloc);
 		ret = PTR_ERR(object);
@@ -270,8 +275,11 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 	/* only attach if we managed to allocate all we needed, otherwise
 	 * discard the object we just allocated and instead use the one
 	 * attached to the cookie */
-	if (fscache_attach_object(cookie, object) < 0)
+	if (fscache_attach_object(cookie, object) < 0) {
+		fscache_stat(&fscache_n_cop_put_object);
 		cache->ops->put_object(object);
+		fscache_stat_d(&fscache_n_cop_put_object);
+	}
 
 	_leave(" = 0");
 	return 0;
@@ -287,7 +295,9 @@ object_already_extant:
 	return 0;
 
 error_put:
+	fscache_stat(&fscache_n_cop_put_object);
 	cache->ops->put_object(object);
+	fscache_stat_d(&fscache_n_cop_put_object);
 error:
 	_leave(" = %d", ret);
 	return ret;
@@ -349,6 +359,8 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	object->cookie = cookie;
 	atomic_inc(&cookie->usage);
 	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
+
+	fscache_objlist_add(object);
 	ret = 0;
 
 cant_attach_object:
@@ -403,6 +415,8 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 	unsigned long event;
 
 	fscache_stat(&fscache_n_relinquishes);
+	if (retire)
+		fscache_stat(&fscache_n_relinquishes_retire);
 
 	if (!cookie) {
 		fscache_stat(&fscache_n_relinquishes_null);
@@ -428,11 +442,7 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 
 	event = retire ? FSCACHE_OBJECT_EV_RETIRE : FSCACHE_OBJECT_EV_RELEASE;
 
-	/* detach pointers back to the netfs */
 	spin_lock(&cookie->lock);
-
-	cookie->netfs_data	= NULL;
-	cookie->def		= NULL;
 
 	/* break links with all the active objects */
 	while (!hlist_empty(&cookie->backing_objects)) {
@@ -455,6 +465,10 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 			/* the cookie refcount shouldn't be reduced to 0 yet */
 			BUG();
 	}
+
+	/* detach pointers back to the netfs */
+	cookie->netfs_data	= NULL;
+	cookie->def		= NULL;
 
 	spin_unlock(&cookie->lock);
 

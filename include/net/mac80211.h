@@ -1283,6 +1283,12 @@ enum ieee80211_filter_flags {
  *
  * These flags are used with the ampdu_action() callback in
  * &struct ieee80211_ops to indicate which action is needed.
+ *
+ * Note that drivers MUST be able to deal with a TX aggregation
+ * session being stopped even before they OK'ed starting it by
+ * calling ieee80211_start_tx_ba_cb(_irqsafe), because the peer
+ * might receive the addBA frame and send a delBA right away!
+ *
  * @IEEE80211_AMPDU_RX_START: start Rx aggregation
  * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  * @IEEE80211_AMPDU_TX_START: start Tx aggregation
@@ -1668,6 +1674,8 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * for a single hardware must be synchronized against each other. Calls
  * to this function and ieee80211_rx_irqsafe() may not be mixed for a
  * single hardware.
+ *
+ * Note that right now, this function must be called with softirqs disabled.
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call

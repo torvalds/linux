@@ -201,55 +201,6 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 
 
 /*
- * For multiple master (like multiple X).
- */
-struct drm_radeon_master_private {
-	drm_local_map_t *sarea;
-	drm_radeon_sarea_t *sarea_priv;
-};
-
-int radeon_master_create_kms(struct drm_device *dev, struct drm_master *master)
-{
-	struct drm_radeon_master_private *master_priv;
-	unsigned long sareapage;
-	int ret;
-
-	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
-	if (master_priv == NULL) {
-		return -ENOMEM;
-	}
-	/* prebuild the SAREA */
-	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
-	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM,
-			 _DRM_CONTAINS_LOCK,
-			 &master_priv->sarea);
-	if (ret) {
-		DRM_ERROR("SAREA setup failed\n");
-		return ret;
-	}
-	master_priv->sarea_priv = master_priv->sarea->handle + sizeof(struct drm_sarea);
-	master_priv->sarea_priv->pfCurrentPage = 0;
-	master->driver_priv = master_priv;
-	return 0;
-}
-
-void radeon_master_destroy_kms(struct drm_device *dev,
-			       struct drm_master *master)
-{
-	struct drm_radeon_master_private *master_priv = master->driver_priv;
-
-	if (master_priv == NULL) {
-		return;
-	}
-	if (master_priv->sarea) {
-		drm_rmmap_locked(dev, master_priv->sarea);
-	}
-	kfree(master_priv);
-	master->driver_priv = NULL;
-}
-
-
-/*
  * IOCTL.
  */
 int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,

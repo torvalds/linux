@@ -39,6 +39,7 @@
 
 #include <linux/fb.h>
 
+#include "drm_fb_helper.h"
 struct drm_crtc_helper_funcs {
 	/*
 	 * Control power levels on the CRTC.  If the mode passed in is
@@ -60,6 +61,9 @@ struct drm_crtc_helper_funcs {
 	/* Move the crtc on the current fb to the given position *optional* */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+
+	/* reload the current crtc LUT */
+	void (*load_lut)(struct drm_crtc *crtc);
 };
 
 struct drm_encoder_helper_funcs {
@@ -119,10 +123,11 @@ static inline void drm_encoder_helper_add(struct drm_encoder *encoder,
 	encoder->helper_private = (void *)funcs;
 }
 
-static inline void drm_connector_helper_add(struct drm_connector *connector,
+static inline int drm_connector_helper_add(struct drm_connector *connector,
 					    const struct drm_connector_helper_funcs *funcs)
 {
 	connector->helper_private = (void *)funcs;
+	return drm_fb_helper_add_connector(connector);
 }
 
 extern int drm_helper_resume_force_mode(struct drm_device *dev);

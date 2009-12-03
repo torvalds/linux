@@ -355,29 +355,60 @@ static struct platform_device omap2_mcspi4 = {
 };
 #endif
 
-static void omap_init_mcspi(void)
+#ifdef CONFIG_ARCH_OMAP4
+static inline void omap4_mcspi_fixup(void)
 {
-	if (cpu_is_omap44xx()) {
-		omap2_mcspi1_resources[0].start	= OMAP4_MCSPI1_BASE;
-		omap2_mcspi1_resources[0].end	= OMAP4_MCSPI1_BASE + 0xff;
-		omap2_mcspi2_resources[0].start	= OMAP4_MCSPI2_BASE;
-		omap2_mcspi2_resources[0].end	= OMAP4_MCSPI2_BASE + 0xff;
-		omap2_mcspi3_resources[0].start	= OMAP4_MCSPI3_BASE;
-		omap2_mcspi3_resources[0].end	= OMAP4_MCSPI3_BASE + 0xff;
-		omap2_mcspi4_resources[0].start	= OMAP4_MCSPI4_BASE;
-		omap2_mcspi4_resources[0].end	= OMAP4_MCSPI4_BASE + 0xff;
-	}
-	platform_device_register(&omap2_mcspi1);
-	platform_device_register(&omap2_mcspi2);
+	omap2_mcspi1_resources[0].start	= OMAP4_MCSPI1_BASE;
+	omap2_mcspi1_resources[0].end	= OMAP4_MCSPI1_BASE + 0xff;
+	omap2_mcspi2_resources[0].start	= OMAP4_MCSPI2_BASE;
+	omap2_mcspi2_resources[0].end	= OMAP4_MCSPI2_BASE + 0xff;
+	omap2_mcspi3_resources[0].start	= OMAP4_MCSPI3_BASE;
+	omap2_mcspi3_resources[0].end	= OMAP4_MCSPI3_BASE + 0xff;
+	omap2_mcspi4_resources[0].start	= OMAP4_MCSPI4_BASE;
+	omap2_mcspi4_resources[0].end	= OMAP4_MCSPI4_BASE + 0xff;
+}
+#else
+static inline void omap4_mcspi_fixup(void)
+{
+}
+#endif
+
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4)
-	if (cpu_is_omap2430() || cpu_is_omap343x() || cpu_is_omap44xx())
-		platform_device_register(&omap2_mcspi3);
+static inline void omap2_mcspi3_init(void)
+{
+	platform_device_register(&omap2_mcspi3);
+}
+#else
+static inline void omap2_mcspi3_init(void)
+{
+}
 #endif
+
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
-	if (cpu_is_omap343x() || cpu_is_omap44xx())
-		platform_device_register(&omap2_mcspi4);
+static inline void omap2_mcspi4_init(void)
+{
+	platform_device_register(&omap2_mcspi4);
+}
+#else
+static inline void omap2_mcspi4_init(void)
+{
+}
 #endif
+
+static void omap_init_mcspi(void)
+{
+	if (cpu_is_omap44xx())
+		omap4_mcspi_fixup();
+
+	platform_device_register(&omap2_mcspi1);
+	platform_device_register(&omap2_mcspi2);
+
+	if (cpu_is_omap2430() || cpu_is_omap343x() || cpu_is_omap44xx())
+		omap2_mcspi3_init();
+
+	if (cpu_is_omap343x() || cpu_is_omap44xx())
+		omap2_mcspi4_init();
 }
 
 #else

@@ -1173,7 +1173,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
 			pci_read_config_word(pvt->branch_1, where,
 					&pvt->b1_mtr[slot_row]);
 			debugf2("MTR%d where=0x%x B1 value=0x%x\n", slot_row,
-				where, pvt->b0_mtr[slot_row]);
+				where, pvt->b1_mtr[slot_row]);
 		} else {
 			pvt->b1_mtr[slot_row] = 0;
 		}
@@ -1232,7 +1232,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 	struct csrow_info *p_csrow;
 	int empty, channel_count;
 	int max_csrows;
-	int mtr;
+	int mtr, mtr1;
 	int csrow_megs;
 	int channel;
 	int csrow;
@@ -1251,9 +1251,10 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 
 		/* use branch 0 for the basis */
 		mtr = pvt->b0_mtr[csrow >> 1];
+		mtr1 = pvt->b1_mtr[csrow >> 1];
 
 		/* if no DIMMS on this row, continue */
-		if (!MTR_DIMMS_PRESENT(mtr))
+		if (!MTR_DIMMS_PRESENT(mtr) && !MTR_DIMMS_PRESENT(mtr1))
 			continue;
 
 		/* FAKE OUT VALUES, FIXME */

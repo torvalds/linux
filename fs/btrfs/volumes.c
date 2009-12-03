@@ -446,8 +446,10 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 			goto error;
 
 		device->name = kstrdup(orig_dev->name, GFP_NOFS);
-		if (!device->name)
+		if (!device->name) {
+			kfree(device);
 			goto error;
+		}
 
 		device->devid = orig_dev->devid;
 		device->work.func = pending_bios_fn;

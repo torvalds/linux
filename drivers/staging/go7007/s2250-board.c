@@ -261,7 +261,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 
 	memset(buf, 0xcd, 6);
 	usb = go->hpi_context;
-	if (down_interruptible(&usb->i2c_lock) != 0) {
+	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
@@ -270,7 +270,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 		kfree(buf);
 		return -EFAULT;
 	}
-	up(&usb->i2c_lock);
+	mutex_unlock(&usb->i2c_lock);
 
 	*val = (buf[0] << 8) | buf[1];
 	kfree(buf);

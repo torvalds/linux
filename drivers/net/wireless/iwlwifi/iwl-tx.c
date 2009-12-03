@@ -28,6 +28,7 @@
  *****************************************************************************/
 
 #include <linux/etherdevice.h>
+#include <linux/sched.h>
 #include <net/mac80211.h>
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
@@ -196,6 +197,12 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	if (txq->q.n_bd)
 		pci_free_consistent(dev, priv->hw_params.tfd_size *
 				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
+
+	/* deallocate arrays */
+	kfree(txq->cmd);
+	kfree(txq->meta);
+	txq->cmd = NULL;
+	txq->meta = NULL;
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
@@ -1270,8 +1277,16 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 		return -ENXIO;
 	}
 
+	if (priv->stations[sta_id].tid[tid].agg.state ==
+				IWL_EMPTYING_HW_QUEUE_ADDBA) {
+		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
+		ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
+		return 0;
+	}
+
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
-		IWL_WARN(priv, "Stopping AGG while state not IWL_AGG_ON\n");
+		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
 
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;

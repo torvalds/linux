@@ -433,7 +433,7 @@ static const struct address_space_operations def_mdt_aops = {
 };
 
 static const struct inode_operations def_mdt_iops;
-static struct file_operations def_mdt_fops;
+static const struct file_operations def_mdt_fops;
 
 /*
  * NILFS2 uses pseudo inodes for meta data files such as DAT, cpfile, sufile,

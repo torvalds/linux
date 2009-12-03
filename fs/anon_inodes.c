@@ -8,8 +8,10 @@
  *
  */
 
+#include <linux/cred.h>
 #include <linux/file.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>

@@ -29,6 +29,8 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 	unsigned i, nr_strings;
 	char **buffer, *string;
 
+	/* Find all null-terminated (including zero length) strings in
+	   the TPLLV1_INFO field. Trailing garbage is ignored. */
 	buf += 2;
 	size -= 2;
 
@@ -39,11 +41,8 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 		if (buf[i] == 0)
 			nr_strings++;
 	}
-
-	if (nr_strings < 4) {
-		printk(KERN_WARNING "SDIO: ignoring broken CISTPL_VERS_1\n");
+	if (nr_strings == 0)
 		return 0;
-	}
 
 	size = i;
 
@@ -98,6 +97,22 @@ static const unsigned char speed_val[16] =
 static const unsigned int speed_unit[8] =
 	{ 10000, 100000, 1000000, 10000000, 0, 0, 0, 0 };
 
+/* FUNCE tuples with these types get passed to SDIO drivers */
+static const unsigned char funce_type_whitelist[] = {
+	4 /* CISTPL_FUNCE_LAN_NODE_ID used in Broadcom cards */
+};
+
+static int cistpl_funce_whitelisted(unsigned char type)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(funce_type_whitelist); i++) {
+		if (funce_type_whitelist[i] == type)
+			return 1;
+	}
+	return 0;
+}
+
 static int cistpl_funce_common(struct mmc_card *card,
 			       const unsigned char *buf, unsigned size)
 {
@@ -119,6 +134,10 @@ static int cistpl_funce_func(struct sdio_func *func,
 {
 	unsigned vsn;
 	unsigned min_size;
+
+	/* let SDIO drivers take care of whitelisted FUNCE tuples */
+	if (cistpl_funce_whitelisted(buf[0]))
+		return -EILSEQ;
 
 	vsn = func->card->cccr.sdio_vsn;
 	min_size = (vsn == SDIO_SDIO_REV_1_00) ? 28 : 42;
@@ -154,13 +173,12 @@ static int cistpl_funce(struct mmc_card *card, struct sdio_func *func,
 	else
 		ret = cistpl_funce_common(card, buf, size);
 
-	if (ret) {
+	if (ret && ret != -EILSEQ) {
 		printk(KERN_ERR "%s: bad CISTPL_FUNCE size %u "
 		       "type %u\n", mmc_hostname(card->host), size, buf[0]);
-		return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
 typedef int (tpl_parse_t)(struct mmc_card *, struct sdio_func *,
@@ -253,8 +271,33 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 		for (i = 0; i < ARRAY_SIZE(cis_tpl_list); i++)
 			if (cis_tpl_list[i].code == tpl_code)
 				break;
-		if (i >= ARRAY_SIZE(cis_tpl_list)) {
-			/* this tuple is unknown to the core */
+		if (i < ARRAY_SIZE(cis_tpl_list)) {
+			const struct cis_tpl *tpl = cis_tpl_list + i;
+			if (tpl_link < tpl->min_size) {
+				printk(KERN_ERR
+				       "%s: bad CIS tuple 0x%02x"
+				       " (length = %u, expected >= %u)\n",
+				       mmc_hostname(card->host),
+				       tpl_code, tpl_link, tpl->min_size);
+				ret = -EINVAL;
+			} else if (tpl->parse) {
+				ret = tpl->parse(card, func,
+						 this->data, tpl_link);
+			}
+			/*
+			 * We don't need the tuple anymore if it was
+			 * successfully parsed by the SDIO core or if it is
+			 * not going to be parsed by SDIO drivers.
+			 */
+			if (!ret || ret != -EILSEQ)
+				kfree(this);
+		} else {
+			/* unknown tuple */
+			ret = -EILSEQ;
+		}
+
+		if (ret == -EILSEQ) {
+			/* this tuple is unknown to the core or whitelisted */
 			this->next = NULL;
 			this->code = tpl_code;
 			this->size = tpl_link;
@@ -263,19 +306,8 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			printk(KERN_DEBUG
 			       "%s: queuing CIS tuple 0x%02x length %u\n",
 			       mmc_hostname(card->host), tpl_code, tpl_link);
-		} else {
-			const struct cis_tpl *tpl = cis_tpl_list + i;
-			if (tpl_link < tpl->min_size) {
-				printk(KERN_ERR
-				       "%s: bad CIS tuple 0x%02x (length = %u, expected >= %u)\n",
-				       mmc_hostname(card->host),
-				       tpl_code, tpl_link, tpl->min_size);
-				ret = -EINVAL;
-			} else if (tpl->parse) {
-				ret = tpl->parse(card, func,
-						 this->data, tpl_link);
-			}
-			kfree(this);
+			/* keep on analyzing tuples */
+			ret = 0;
 		}
 
 		ptr += tpl_link;

@@ -26,6 +26,7 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 
@@ -48,6 +49,7 @@ config SPARC64
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
 	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 
 config ARCH_DEFCONFIG
 	string
@@ -100,6 +102,9 @@ config HAVE_SETUP_PER_CPU_AREA
 	def_bool y if SPARC64
 
 config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool y if SPARC64
+
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y if SPARC64
 
 config GENERIC_HARDIRQS_NO__DO_IRQ

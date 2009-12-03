@@ -38,6 +38,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>

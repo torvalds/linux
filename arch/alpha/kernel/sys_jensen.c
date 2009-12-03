@@ -119,7 +119,7 @@ jensen_local_end(unsigned int irq)
 }
 
 static struct irq_chip jensen_local_irq_type = {
-	.typename	= "LOCAL",
+	.name		= "LOCAL",
 	.startup	= jensen_local_startup,
 	.shutdown	= jensen_local_shutdown,
 	.enable		= jensen_local_enable,

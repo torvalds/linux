@@ -237,6 +237,18 @@ int radeon_agp_init(struct radeon_device *rdev)
 #endif
 }
 
+void radeon_agp_resume(struct radeon_device *rdev)
+{
+#if __OS_HAS_AGP
+	int r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			dev_warn(rdev->dev, "radeon AGP reinit failed\n");
+	}
+#endif
+}
+
 void radeon_agp_fini(struct radeon_device *rdev)
 {
 #if __OS_HAS_AGP

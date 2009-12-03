@@ -62,8 +62,6 @@ ieee754sp ieee754sp_neg(ieee754sp x)
 		return ieee754sp_nanxcpt(y, "neg");
 	}
 
-	if (ieee754sp_isnan(x))	/* but not infinity */
-		return ieee754sp_nanxcpt(x, "neg", x);
 	return x;
 }
 
@@ -76,15 +74,12 @@ ieee754sp ieee754sp_abs(ieee754sp x)
 	CLEARCX;
 	FLUSHXSP;
 
+	/* Clear sign ALWAYS, irrespective of NaN */
+	SPSIGN(x) = 0;
+
 	if (xc == IEEE754_CLASS_SNAN) {
-		SETCX(IEEE754_INVALID_OPERATION);
 		return ieee754sp_nanxcpt(ieee754sp_indef(), "abs");
 	}
 
-	if (ieee754sp_isnan(x))	/* but not infinity */
-		return ieee754sp_nanxcpt(x, "abs", x);
-
-	/* quick fix up */
-	SPSIGN(x) = 0;
 	return x;
 }

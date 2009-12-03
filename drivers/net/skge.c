@@ -37,6 +37,7 @@
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/mii.h>
 #include <asm/irq.h>
@@ -3935,11 +3936,14 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 #endif
 
 	err = -ENOMEM;
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	/* space for skge@pci:0000:04:00.0 */
+	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:" )
+		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
 	if (!hw) {
 		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
 		goto err_out_free_regions;
 	}
+	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
 	hw->pdev = pdev;
 	spin_lock_init(&hw->hw_lock);
@@ -3974,7 +3978,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	err = request_irq(pdev->irq, skge_intr, IRQF_SHARED, dev->name, hw);
+	err = request_irq(pdev->irq, skge_intr, IRQF_SHARED, hw->irq_name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "%s: cannot assign irq %d\n",
 		       dev->name, pdev->irq);
@@ -3982,14 +3986,17 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	}
 	skge_show_addr(dev);
 
-	if (hw->ports > 1 && (dev1 = skge_devinit(hw, 1, using_dac))) {
-		if (register_netdev(dev1) == 0)
+	if (hw->ports > 1) {
+		dev1 = skge_devinit(hw, 1, using_dac);
+		if (dev1 && register_netdev(dev1) == 0)
 			skge_show_addr(dev1);
 		else {
 			/* Failure to register second port need not be fatal */
 			dev_warn(&pdev->dev, "register of second port failed\n");
 			hw->dev[1] = NULL;
-			free_netdev(dev1);
+			hw->ports = 1;
+			if (dev1)
+				free_netdev(dev1);
 		}
 	}
 	pci_set_drvdata(pdev, hw);

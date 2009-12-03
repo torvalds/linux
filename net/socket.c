@@ -2098,12 +2098,17 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 	unsigned long a[6];
 	unsigned long a0, a1;
 	int err;
+	unsigned int len;
 
 	if (call < 1 || call > SYS_ACCEPT4)
 		return -EINVAL;
 
+	len = nargs[call];
+	if (len > sizeof(a))
+		return -EINVAL;
+
 	/* copy_from_user should be SMP safe. */
-	if (copy_from_user(a, args, nargs[call]))
+	if (copy_from_user(a, args, len))
 		return -EFAULT;
 
 	audit_socketcall(nargs[call] / sizeof(unsigned long), a);
@@ -2386,7 +2391,7 @@ int kernel_getsockopt(struct socket *sock, int level, int optname,
 }
 
 int kernel_setsockopt(struct socket *sock, int level, int optname,
-			char *optval, int optlen)
+			char *optval, unsigned int optlen)
 {
 	mm_segment_t oldfs = get_fs();
 	int err;

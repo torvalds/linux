@@ -239,7 +239,13 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 index = 0;
 	unsigned long nr = 1;
 
-	ret = btrfs_check_metadata_free_space(root);
+	/*
+	 * 1 - inode item
+	 * 2 - refs
+	 * 1 - root item
+	 * 2 - dir items
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
 	if (ret)
 		return ret;
 
@@ -340,6 +346,9 @@ fail:
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
+
+	btrfs_unreserve_metadata_space(root, 6);
+	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
@@ -355,19 +364,27 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	ret = btrfs_check_metadata_free_space(root);
+	/*
+	 * 1 - inode item
+	 * 2 - refs
+	 * 1 - root item
+	 * 2 - dir items
+	 */
+	ret = btrfs_reserve_metadata_space(root, 6);
 	if (ret)
 		goto fail_unlock;
 
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot) {
 		ret = -ENOMEM;
+		btrfs_unreserve_metadata_space(root, 6);
 		goto fail_unlock;
 	}
 	pending_snapshot->name = kmalloc(namelen + 1, GFP_NOFS);
 	if (!pending_snapshot->name) {
 		ret = -ENOMEM;
 		kfree(pending_snapshot);
+		btrfs_unreserve_metadata_space(root, 6);
 		goto fail_unlock;
 	}
 	memcpy(pending_snapshot->name, name, namelen);
@@ -813,6 +830,7 @@ out_up_write:
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
 	if (!err) {
+		shrink_dcache_sb(root->fs_info->sb);
 		btrfs_invalidate_inodes(dest);
 		d_delete(dentry);
 	}
@@ -1105,8 +1123,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					datao += off - key.offset;
 					datal -= off - key.offset;
 				}
-				if (key.offset + datao + datal > off + len)
-					datal = off + len - key.offset - datao;
+
+				if (key.offset + datal > off + len)
+					datal = off + len - key.offset;
+
 				/* disko == 0 means it's a hole */
 				if (!disko)
 					datao = 0;
@@ -1215,15 +1235,15 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	int ret = 0;
+	int ret;
 
+	ret = -EPERM;
 	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	if (file->private_data) {
-		ret = -EINPROGRESS;
 		goto out;
-	}
+
+	ret = -EINPROGRESS;
+	if (file->private_data)
+		goto out;
 
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
@@ -1233,12 +1253,19 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	root->fs_info->open_ioctl_trans++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 
+	ret = -ENOMEM;
 	trans = btrfs_start_ioctl_transaction(root, 0);
-	if (trans)
-		file->private_data = trans;
-	else
-		ret = -ENOMEM;
-	/*printk(KERN_INFO "btrfs_ioctl_trans_start on %p\n", file);*/
+	if (!trans)
+		goto out_drop;
+
+	file->private_data = trans;
+	return 0;
+
+out_drop:
+	mutex_lock(&root->fs_info->trans_mutex);
+	root->fs_info->open_ioctl_trans--;
+	mutex_unlock(&root->fs_info->trans_mutex);
+	mnt_drop_write(file->f_path.mnt);
 out:
 	return ret;
 }
@@ -1254,24 +1281,20 @@ long btrfs_ioctl_trans_end(struct file *file)
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	int ret = 0;
 
 	trans = file->private_data;
-	if (!trans) {
-		ret = -EINVAL;
-		goto out;
-	}
-	btrfs_end_transaction(trans, root);
+	if (!trans)
+		return -EINVAL;
 	file->private_data = NULL;
+
+	btrfs_end_transaction(trans, root);
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	root->fs_info->open_ioctl_trans--;
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	mnt_drop_write(file->f_path.mnt);
-
-out:
-	return ret;
+	return 0;
 }
 
 long btrfs_ioctl(struct file *file, unsigned int

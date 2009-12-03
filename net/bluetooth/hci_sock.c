@@ -466,7 +466,7 @@ drop:
 	goto done;
 }
 
-static int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int len)
+static int hci_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int len)
 {
 	struct hci_ufilter uf = { .opcode = 0 };
 	struct sock *sk = sock->sk;

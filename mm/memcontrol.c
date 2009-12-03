@@ -313,7 +313,8 @@ soft_limit_tree_from_page(struct page *page)
 static void
 __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
 				struct mem_cgroup_per_zone *mz,
-				struct mem_cgroup_tree_per_zone *mctz)
+				struct mem_cgroup_tree_per_zone *mctz,
+				unsigned long long new_usage_in_excess)
 {
 	struct rb_node **p = &mctz->rb_root.rb_node;
 	struct rb_node *parent = NULL;
@@ -322,7 +323,9 @@ __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
 	if (mz->on_tree)
 		return;
 
-	mz->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
+	mz->usage_in_excess = new_usage_in_excess;
+	if (!mz->usage_in_excess)
+		return;
 	while (*p) {
 		parent = *p;
 		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,
@@ -350,16 +353,6 @@ __mem_cgroup_remove_exceeded(struct mem_cgroup *mem,
 		return;
 	rb_erase(&mz->tree_node, &mctz->rb_root);
 	mz->on_tree = false;
-}
-
-static void
-mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
-				struct mem_cgroup_per_zone *mz,
-				struct mem_cgroup_tree_per_zone *mctz)
-{
-	spin_lock(&mctz->lock);
-	__mem_cgroup_insert_exceeded(mem, mz, mctz);
-	spin_unlock(&mctz->lock);
 }
 
 static void
@@ -392,34 +385,36 @@ static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
 
 static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
 {
-	unsigned long long prev_usage_in_excess, new_usage_in_excess;
-	bool updated_tree = false;
+	unsigned long long excess;
 	struct mem_cgroup_per_zone *mz;
 	struct mem_cgroup_tree_per_zone *mctz;
-
-	mz = mem_cgroup_zoneinfo(mem, page_to_nid(page), page_zonenum(page));
+	int nid = page_to_nid(page);
+	int zid = page_zonenum(page);
 	mctz = soft_limit_tree_from_page(page);
 
 	/*
-	 * We do updates in lazy mode, mem's are removed
-	 * lazily from the per-zone, per-node rb tree
+	 * Necessary to update all ancestors when hierarchy is used.
+	 * because their event counter is not touched.
 	 */
-	prev_usage_in_excess = mz->usage_in_excess;
-
-	new_usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-	if (prev_usage_in_excess) {
-		mem_cgroup_remove_exceeded(mem, mz, mctz);
-		updated_tree = true;
-	}
-	if (!new_usage_in_excess)
-		goto done;
-	mem_cgroup_insert_exceeded(mem, mz, mctz);
-
-done:
-	if (updated_tree) {
-		spin_lock(&mctz->lock);
-		mz->usage_in_excess = new_usage_in_excess;
-		spin_unlock(&mctz->lock);
+	for (; mem; mem = parent_mem_cgroup(mem)) {
+		mz = mem_cgroup_zoneinfo(mem, nid, zid);
+		excess = res_counter_soft_limit_excess(&mem->res);
+		/*
+		 * We have to update the tree if mz is on RB-tree or
+		 * mem is over its softlimit.
+		 */
+		if (excess || mz->on_tree) {
+			spin_lock(&mctz->lock);
+			/* if on-tree, remove it */
+			if (mz->on_tree)
+				__mem_cgroup_remove_exceeded(mem, mz, mctz);
+			/*
+			 * Insert again. mz->usage_in_excess will be updated.
+			 * If excess is 0, no tree ops.
+			 */
+			__mem_cgroup_insert_exceeded(mem, mz, mctz, excess);
+			spin_unlock(&mctz->lock);
+		}
 	}
 }
 
@@ -447,9 +442,10 @@ static struct mem_cgroup_per_zone *
 __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 {
 	struct rb_node *rightmost = NULL;
-	struct mem_cgroup_per_zone *mz = NULL;
+	struct mem_cgroup_per_zone *mz;
 
 retry:
+	mz = NULL;
 	rightmost = rb_last(&mctz->rb_root);
 	if (!rightmost)
 		goto done;		/* Nothing to reclaim from */
@@ -1270,9 +1266,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			gfp_t gfp_mask, struct mem_cgroup **memcg,
 			bool oom, struct page *page)
 {
-	struct mem_cgroup *mem, *mem_over_limit, *mem_over_soft_limit;
+	struct mem_cgroup *mem, *mem_over_limit;
 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-	struct res_counter *fail_res, *soft_fail_res = NULL;
+	struct res_counter *fail_res;
 
 	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
 		/* Don't account this! */
@@ -1304,17 +1300,16 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 
 		if (mem_cgroup_is_root(mem))
 			goto done;
-		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res,
-						&soft_fail_res);
+		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
 		if (likely(!ret)) {
 			if (!do_swap_account)
 				break;
 			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
-							&fail_res, NULL);
+							&fail_res);
 			if (likely(!ret))
 				break;
 			/* mem+swap counter fails */
-			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
 			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
 									memsw);
@@ -1353,16 +1348,11 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		}
 	}
 	/*
-	 * Insert just the ancestor, we should trickle down to the correct
-	 * cgroup for reclaim, since the other nodes will be below their
-	 * soft limit
+	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+	 * if they exceeds softlimit.
 	 */
-	if (soft_fail_res) {
-		mem_over_soft_limit =
-			mem_cgroup_from_res_counter(soft_fail_res, res);
-		if (mem_cgroup_soft_limit_check(mem_over_soft_limit))
-			mem_cgroup_update_tree(mem_over_soft_limit, page);
-	}
+	if (mem_cgroup_soft_limit_check(mem))
+		mem_cgroup_update_tree(mem, page);
 done:
 	return 0;
 nomem:
@@ -1437,10 +1427,9 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
 		if (!mem_cgroup_is_root(mem)) {
-			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			if (do_swap_account)
-				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
-							NULL);
+				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
 		}
 		css_put(&mem->css);
 		return;
@@ -1519,7 +1508,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		goto out;
 
 	if (!mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
+		res_counter_uncharge(&from->res, PAGE_SIZE);
 	mem_cgroup_charge_statistics(from, pc, false);
 
 	page = pc->page;
@@ -1539,7 +1528,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	}
 
 	if (do_swap_account && !mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->memsw, PAGE_SIZE, NULL);
+		res_counter_uncharge(&from->memsw, PAGE_SIZE);
 	css_put(&from->css);
 
 	css_get(&to->css);
@@ -1610,9 +1599,9 @@ uncharge:
 	css_put(&parent->css);
 	/* uncharge if move fails */
 	if (!mem_cgroup_is_root(parent)) {
-		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
+		res_counter_uncharge(&parent->res, PAGE_SIZE);
 		if (do_swap_account)
-			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+			res_counter_uncharge(&parent->memsw, PAGE_SIZE);
 	}
 	return ret;
 }
@@ -1803,8 +1792,7 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
 			 * calling css_tryget
 			 */
 			if (!mem_cgroup_is_root(memcg))
-				res_counter_uncharge(&memcg->memsw, PAGE_SIZE,
-							NULL);
+				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
 			mem_cgroup_swap_statistics(memcg, false);
 			mem_cgroup_put(memcg);
 		}
@@ -1831,9 +1819,9 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 	if (!mem)
 		return;
 	if (!mem_cgroup_is_root(mem)) {
-		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		if (do_swap_account)
-			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
 	}
 	css_put(&mem->css);
 }
@@ -1848,7 +1836,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
 	struct mem_cgroup_per_zone *mz;
-	bool soft_limit_excess = false;
 
 	if (mem_cgroup_disabled())
 		return NULL;
@@ -1888,10 +1875,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	}
 
 	if (!mem_cgroup_is_root(mem)) {
-		res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		if (do_swap_account &&
 				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
-			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
 	}
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		mem_cgroup_swap_statistics(mem, true);
@@ -1908,7 +1895,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
 
-	if (soft_limit_excess && mem_cgroup_soft_limit_check(mem))
+	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
 	/* at swapout, this memcg will be accessed to record to swap */
 	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
@@ -1986,7 +1973,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
 		 * This memcg can be obsolete one. We avoid calling css_tryget
 		 */
 		if (!mem_cgroup_is_root(memcg))
-			res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
+			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
 		mem_cgroup_swap_statistics(memcg, false);
 		mem_cgroup_put(memcg);
 	}
@@ -2233,6 +2220,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 	unsigned long reclaimed;
 	int loop = 0;
 	struct mem_cgroup_tree_per_zone *mctz;
+	unsigned long long excess;
 
 	if (order > 0)
 		return 0;
@@ -2284,9 +2272,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 					break;
 			} while (1);
 		}
-		mz->usage_in_excess =
-			res_counter_soft_limit_excess(&mz->mem->res);
 		__mem_cgroup_remove_exceeded(mz->mem, mz, mctz);
+		excess = res_counter_soft_limit_excess(&mz->mem->res);
 		/*
 		 * One school of thought says that we should not add
 		 * back the node to the tree if reclaim returns 0.
@@ -2295,8 +2282,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 		 * memory to reclaim from. Consider this as a longer
 		 * term TODO.
 		 */
-		if (mz->usage_in_excess)
-			__mem_cgroup_insert_exceeded(mz->mem, mz, mctz);
+		/* If excess == 0, no tree ops */
+		__mem_cgroup_insert_exceeded(mz->mem, mz, mctz, excess);
 		spin_unlock(&mctz->lock);
 		css_put(&mz->mem->css);
 		loop++;

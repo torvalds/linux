@@ -1,6 +1,7 @@
 #ifndef _ASM_GENERIC_GPIO_H
 #define _ASM_GENERIC_GPIO_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 

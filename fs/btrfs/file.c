@@ -123,7 +123,10 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-	btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	if (err)
+		return err;
+
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
 		SetPageUptodate(p);
@@ -875,7 +878,8 @@ again:
 			btrfs_put_ordered_extent(ordered);
 
 		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
-				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC,
+				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
+				  EXTENT_DO_ACCOUNTING,
 				  GFP_NOFS);
 		unlock_extent(&BTRFS_I(inode)->io_tree,
 			      start_pos, last_pos - 1, GFP_NOFS);
@@ -917,21 +921,35 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	start_pos = pos;
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+
+	/* do the reserve before the mutex lock in case we have to do some
+	 * flushing.  We wouldn't deadlock, but this is more polite.
+	 */
+	err = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
+	if (err)
+		goto out_nolock;
+
+	mutex_lock(&inode->i_mutex);
+
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
-		goto out_nolock;
+		goto out;
+
 	if (count == 0)
-		goto out_nolock;
+		goto out;
 
 	err = file_remove_suid(file);
 	if (err)
-		goto out_nolock;
+		goto out;
+
 	file_update_time(file);
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
-	mutex_lock(&inode->i_mutex);
+	/* generic_write_checks can change our pos */
+	start_pos = pos;
+
 	BTRFS_I(inode)->sequence++;
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
@@ -1005,9 +1023,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		}
 
 		if (will_write) {
-			btrfs_fdatawrite_range(inode->i_mapping, pos,
-					       pos + write_bytes - 1,
-					       WB_SYNC_ALL);
+			filemap_fdatawrite_range(inode->i_mapping, pos,
+						 pos + write_bytes - 1);
 		} else {
 			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
 							   num_pages);
@@ -1028,6 +1045,7 @@ out:
 	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		err = ret;
+	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 
 out_nolock:
 	kfree(pages);
@@ -1068,8 +1086,10 @@ out_nolock:
 					btrfs_end_transaction(trans, root);
 				else
 					btrfs_commit_transaction(trans, root);
-			} else {
+			} else if (ret != BTRFS_NO_LOG_SYNC) {
 				btrfs_commit_transaction(trans, root);
+			} else {
+				btrfs_end_transaction(trans, root);
 			}
 		}
 		if (file->f_flags & O_DIRECT) {
@@ -1119,6 +1139,13 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	int ret = 0;
 	struct btrfs_trans_handle *trans;
 
+
+	/* we wait first, since the writeback may change the inode */
+	root->log_batch++;
+	/* the VFS called filemap_fdatawrite for us */
+	btrfs_wait_ordered_range(inode, 0, (u64)-1);
+	root->log_batch++;
+
 	/*
 	 * check the transaction that last modified this inode
 	 * and see if its already been committed
@@ -1126,6 +1153,11 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	if (!BTRFS_I(inode)->last_trans)
 		goto out;
 
+	/*
+	 * if the last transaction that changed this file was before
+	 * the current transaction, we can bail out now without any
+	 * syncing
+	 */
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
@@ -1135,13 +1167,6 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
 
-	root->log_batch++;
-	filemap_fdatawrite(inode->i_mapping);
-	btrfs_wait_ordered_range(inode, 0, (u64)-1);
-	root->log_batch++;
-
-	if (datasync && !(inode->i_state & I_DIRTY_PAGES))
-		goto out;
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
@@ -1170,14 +1195,18 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	 */
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
-	if (ret > 0) {
-		ret = btrfs_commit_transaction(trans, root);
-	} else {
-		ret = btrfs_sync_log(trans, root);
-		if (ret == 0)
-			ret = btrfs_end_transaction(trans, root);
-		else
+	if (ret != BTRFS_NO_LOG_SYNC) {
+		if (ret > 0) {
 			ret = btrfs_commit_transaction(trans, root);
+		} else {
+			ret = btrfs_sync_log(trans, root);
+			if (ret == 0)
+				ret = btrfs_end_transaction(trans, root);
+			else
+				ret = btrfs_commit_transaction(trans, root);
+		}
+	} else {
+		ret = btrfs_end_transaction(trans, root);
 	}
 	mutex_lock(&dentry->d_inode->i_mutex);
 out:
@@ -1196,7 +1225,7 @@ static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct file_operations btrfs_file_operations = {
+const struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.aio_read       = generic_file_aio_read,

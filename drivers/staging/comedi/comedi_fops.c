@@ -2337,7 +2337,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 	}
 
 	DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-		dev->minor, s - dev->subdevices, async->prealloc_bufsz);
+		dev->minor, (int)(s - dev->subdevices), async->prealloc_bufsz);
 	return 0;
 }
 

@@ -482,6 +482,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->user_modes, head)
 		drm_mode_remove(connector, mode);
 
+	kfree(connector->fb_helper_private);
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
@@ -1554,8 +1555,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	int ret = 0;
-
-	DRM_DEBUG_KMS("\n");
 
 	if (!req->flags) {
 		DRM_ERROR("no operation set\n");

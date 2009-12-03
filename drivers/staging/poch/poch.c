@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 
 #include "poch.h"
 

@@ -770,7 +770,7 @@ static struct notifier_block acpi_cpu_notifier =
 	    .notifier_call = acpi_cpu_soft_notify,
 };
 
-static int acpi_processor_add(struct acpi_device *device)
+static int __cpuinit acpi_processor_add(struct acpi_device *device)
 {
 	struct acpi_processor *pr = NULL;
 	int result = 0;
@@ -861,13 +861,6 @@ static int acpi_processor_add(struct acpi_device *device)
 	if (result) {
 		printk(KERN_ERR PREFIX "Create sysfs link\n");
 		goto err_remove_sysfs;
-	}
-
-	if (pr->flags.throttling) {
-		printk(KERN_INFO PREFIX "%s [%s] (supports",
-		       acpi_device_name(device), acpi_device_bid(device));
-		printk(" %d throttling states", pr->throttling.state_count);
-		printk(")\n");
 	}
 
 	return 0;

@@ -452,6 +452,7 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret) {
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
+		blk_trace_remove_sysfs(disk_to_dev(disk));
 		return ret;
 	}
 
@@ -465,11 +466,11 @@ void blk_unregister_queue(struct gendisk *disk)
 	if (WARN_ON(!q))
 		return;
 
-	if (q->request_fn) {
+	if (q->request_fn)
 		elv_unregister_queue(q);
 
-		kobject_uevent(&q->kobj, KOBJ_REMOVE);
-		kobject_del(&q->kobj);
-		kobject_put(&disk_to_dev(disk)->kobj);
-	}
+	kobject_uevent(&q->kobj, KOBJ_REMOVE);
+	kobject_del(&q->kobj);
+	blk_trace_remove_sysfs(disk_to_dev(disk));
+	kobject_put(&disk_to_dev(disk)->kobj);
 }

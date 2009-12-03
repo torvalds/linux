@@ -1333,7 +1333,7 @@ static int __kprobes kprobes_open(struct inode *inode, struct file *filp)
 	return seq_open(filp, &kprobes_seq_ops);
 }
 
-static struct file_operations debugfs_kprobes_operations = {
+static const struct file_operations debugfs_kprobes_operations = {
 	.open           = kprobes_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
@@ -1515,7 +1515,7 @@ static ssize_t write_enabled_file_bool(struct file *file,
 	return count;
 }
 
-static struct file_operations fops_kp = {
+static const struct file_operations fops_kp = {
 	.read =         read_enabled_file_bool,
 	.write =        write_enabled_file_bool,
 };

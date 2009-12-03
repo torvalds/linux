@@ -380,7 +380,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				adjusted_mode->crtc_vblank_start + vsync_pos;
 		/* keep the vsync width constant */
 		adjusted_mode->crtc_vsync_end =
-				adjusted_mode->crtc_vblank_start + vsync_width;
+				adjusted_mode->crtc_vsync_start + vsync_width;
 		border = 1;
 		break;
 	case DRM_MODE_SCALE_ASPECT:
@@ -526,6 +526,14 @@ out:
 	lvds_priv->pfit_control = pfit_control;
 	lvds_priv->pfit_pgm_ratios = pfit_pgm_ratios;
 	/*
+	 * When there exists the border, it means that the LVDS_BORDR
+	 * should be enabled.
+	 */
+	if (border)
+		dev_priv->lvds_border_bits |= LVDS_BORDER_ENABLE;
+	else
+		dev_priv->lvds_border_bits &= ~(LVDS_BORDER_ENABLE);
+	/*
 	 * XXX: It would be nice to support lower refresh rates on the
 	 * panels to reduce power consumption, and perhaps match the
 	 * user's requested refresh rate.
@@ -656,6 +664,15 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+/*
+ * Lid events. Note the use of 'modeset_on_lid':
+ *  - we set it on lid close, and reset it on open
+ *  - we use it as a "only once" bit (ie we ignore
+ *    duplicate events where it was already properly
+ *    set/reset)
+ *  - the suspend/resume paths will also set it to
+ *    zero, since they restore the mode ("lid open").
+ */
 static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 			    void *unused)
 {
@@ -663,13 +680,19 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 		container_of(nb, struct drm_i915_private, lid_notifier);
 	struct drm_device *dev = dev_priv->dev;
 
-	if (acpi_lid_open() && !dev_priv->suspended) {
-		mutex_lock(&dev->mode_config.mutex);
-		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
+	if (!acpi_lid_open()) {
+		dev_priv->modeset_on_lid = 1;
+		return NOTIFY_OK;
 	}
 
-	drm_sysfs_hotplug_event(dev_priv->dev);
+	if (!dev_priv->modeset_on_lid)
+		return NOTIFY_OK;
+
+	dev_priv->modeset_on_lid = 0;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_helper_resume_force_mode(dev);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	return NOTIFY_OK;
 }

@@ -129,6 +129,9 @@ struct scsi_cmnd;
 #define MI_REPORT_TARGET_PGS  0x0a
 /* values for maintenance out */
 #define MO_SET_TARGET_PGS     0x0a
+/* values for variable length command */
+#define READ_32		      0x09
+#define WRITE_32	      0x0b
 
 /* Values for T10/04-262r7 */
 #define	ATA_16		      0x85	/* 16-byte pass-thru */

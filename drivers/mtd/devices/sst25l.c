@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>

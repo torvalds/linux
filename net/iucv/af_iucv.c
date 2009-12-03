@@ -1387,7 +1387,7 @@ static int iucv_sock_release(struct socket *sock)
 
 /* getsockopt and setsockopt */
 static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);

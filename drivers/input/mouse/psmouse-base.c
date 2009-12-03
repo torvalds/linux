@@ -581,7 +581,7 @@ static int cortron_detect(struct psmouse *psmouse, bool set_properties)
 static int psmouse_extensions(struct psmouse *psmouse,
 			      unsigned int max_proto, bool set_properties)
 {
-	bool synaptics_hardware = true;
+	bool synaptics_hardware = false;
 
 /*
  * We always check for lifebook because it does not disturb mouse
@@ -1673,7 +1673,7 @@ static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)
 {
 	int type = *((unsigned int *)kp->arg);
 
-	return sprintf(buffer, "%s\n", psmouse_protocol_by_type(type)->name);
+	return sprintf(buffer, "%s", psmouse_protocol_by_type(type)->name);
 }
 
 static int __init psmouse_init(void)

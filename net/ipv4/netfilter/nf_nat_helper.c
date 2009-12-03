@@ -73,6 +73,28 @@ adjust_tcp_sequence(u32 seq,
 	DUMP_OFFSET(this_way);
 }
 
+/* Get the offset value, for conntrack */
+s16 nf_nat_get_offset(const struct nf_conn *ct,
+		      enum ip_conntrack_dir dir,
+		      u32 seq)
+{
+	struct nf_conn_nat *nat = nfct_nat(ct);
+	struct nf_nat_seq *this_way;
+	s16 offset;
+
+	if (!nat)
+		return 0;
+
+	this_way = &nat->seq[dir];
+	spin_lock_bh(&nf_nat_seqofs_lock);
+	offset = after(seq, this_way->correction_pos)
+		 ? this_way->offset_after : this_way->offset_before;
+	spin_unlock_bh(&nf_nat_seqofs_lock);
+
+	return offset;
+}
+EXPORT_SYMBOL_GPL(nf_nat_get_offset);
+
 /* Frobs data inside this packet, which is linear. */
 static void mangle_contents(struct sk_buff *skb,
 			    unsigned int dataoff,
@@ -189,11 +211,6 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 		adjust_tcp_sequence(ntohl(tcph->seq),
 				    (int)rep_len - (int)match_len,
 				    ct, ctinfo);
-		/* Tell TCP window tracking about seq change */
-		nf_conntrack_tcp_update(skb, ip_hdrlen(skb),
-					ct, CTINFO2DIR(ctinfo),
-					(int)rep_len - (int)match_len);
-
 		nf_conntrack_event_cache(IPCT_NATSEQADJ, ct);
 	}
 	return 1;
@@ -415,12 +432,7 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	tcph->seq = newseq;
 	tcph->ack_seq = newack;
 
-	if (!nf_nat_sack_adjust(skb, tcph, ct, ctinfo))
-		return 0;
-
-	nf_conntrack_tcp_update(skb, ip_hdrlen(skb), ct, dir, seqoff);
-
-	return 1;
+	return nf_nat_sack_adjust(skb, tcph, ct, ctinfo);
 }
 
 /* Setup NAT on this expected conntrack so it follows master. */

@@ -306,6 +306,7 @@ static inline int mips_atomic_set(struct pt_regs *regs,
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
+		"	.set	mips3					\n"
 		"	li	%[err], 0				\n"
 		"1:	ll	%[old], (%[addr])			\n"
 		"	move	%[tmp], %[new]				\n"
@@ -320,6 +321,7 @@ static inline int mips_atomic_set(struct pt_regs *regs,
 		"	"STR(PTR)"	1b, 4b				\n"
 		"	"STR(PTR)"	2b, 4b				\n"
 		"	.previous					\n"
+		"	.set	mips0					\n"
 		: [old] "=&r" (old),
 		  [err] "=&r" (err),
 		  [tmp] "=&r" (tmp)
@@ -329,6 +331,7 @@ static inline int mips_atomic_set(struct pt_regs *regs,
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__ (
+		"	.set	mips3					\n"
 		"	li	%[err], 0				\n"
 		"1:	ll	%[old], (%[addr])			\n"
 		"	move	%[tmp], %[new]				\n"
@@ -347,6 +350,7 @@ static inline int mips_atomic_set(struct pt_regs *regs,
 		"	"STR(PTR)"	1b, 5b				\n"
 		"	"STR(PTR)"	2b, 5b				\n"
 		"	.previous					\n"
+		"	.set	mips0					\n"
 		: [old] "=&r" (old),
 		  [err] "=&r" (err),
 		  [tmp] "=&r" (tmp)

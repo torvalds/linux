@@ -529,6 +529,12 @@ struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_SIANO_NICE },
 	{ USB_DEVICE(0x187f, 0x0301),
 		.driver_info = SMS1XXX_BOARD_SIANO_VENICE },
+	{ USB_DEVICE(0x2040, 0xb900),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0xb910),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0xc000),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
 	{ } /* Terminating entry */
 	};
 

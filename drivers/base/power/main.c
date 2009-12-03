@@ -511,6 +511,7 @@ static void dpm_complete(pm_message_t state)
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
+	transition_started = false;
 	while (!list_empty(&dpm_list)) {
 		struct device *dev = to_device(dpm_list.prev);
 

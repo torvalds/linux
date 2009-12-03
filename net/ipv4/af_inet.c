@@ -1119,6 +1119,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 {
 	struct flowi fl = {
 		.oif = sk->sk_bound_dev_if,
+		.mark = sk->sk_mark,
 		.nl_u = {
 			.ip4_u = {
 				.daddr	= daddr,

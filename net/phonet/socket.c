@@ -407,7 +407,6 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 	return -EADDRINUSE;
 
 found:
-	mutex_unlock(&port_mutex);
 	pn->sobject = pn_object(pn_addr(pn->sobject), sport);
 	return 0;
 }

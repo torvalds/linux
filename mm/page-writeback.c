@@ -566,7 +566,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (pages_written >= write_chunk)
 			break;		/* We've done our duty */
 
-		schedule_timeout_interruptible(pause);
+		__set_current_state(TASK_INTERRUPTIBLE);
+		io_schedule_timeout(pause);
 
 		/*
 		 * Increase the delay for each loop, up to our previous

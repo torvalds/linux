@@ -1,23 +1,8 @@
 /*
- * File:         arch/blackfin/mach-bf561/atomic.S
- * Author:       Philippe Gerum <rpm@xenomai.org>
+ * Copyright 2007-2008 Analog Devices Inc.
+ *              Philippe Gerum <rpm@xenomai.org>
  *
- *               Copyright 2007 Analog Devices Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/linkage.h>
@@ -34,6 +19,16 @@
 	\reg\().h = _corelock;
 .endm
 
+.macro safe_testset addr:req, scratch:req
+#if ANOMALY_05000477
+	cli \scratch;
+	testset (\addr);
+	sti \scratch;
+#else
+	testset (\addr);
+#endif
+.endm
+
 /*
  * r0 = address of atomic data to flush and invalidate (32bit).
  *
@@ -48,7 +43,7 @@ ENTRY(_get_core_lock)
 	cli r0;
 	coreslot_loadaddr p0;
 .Lretry_corelock:
-	testset (p0);
+	safe_testset p0, r2;
 	if cc jump .Ldone_corelock;
 	SSYNC(r2);
 	jump .Lretry_corelock
@@ -71,7 +66,7 @@ ENTRY(_get_core_lock_noflush)
 	cli r0;
 	coreslot_loadaddr p0;
 .Lretry_corelock_noflush:
-	testset (p0);
+	safe_testset p0, r2;
 	if cc jump .Ldone_corelock_noflush;
 	SSYNC(r2);
 	jump .Lretry_corelock_noflush

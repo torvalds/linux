@@ -137,6 +137,14 @@ struct ext3_inode_info {
 	 * by other means, so we have truncate_mutex.
 	 */
 	struct mutex truncate_mutex;
+
+	/*
+	 * Transactions that contain inode's metadata needed to complete
+	 * fsync and fdatasync, respectively.
+	 */
+	atomic_t i_sync_tid;
+	atomic_t i_datasync_tid;
+
 	struct inode vfs_inode;
 };
 

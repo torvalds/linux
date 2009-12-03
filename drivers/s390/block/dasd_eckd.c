@@ -2338,6 +2338,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	/* Calculate number of blocks/records per track. */
 	blksize = block->bp_block;
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
+	if (blk_per_trk == 0)
+		return ERR_PTR(-EINVAL);
 	/* Calculate record id of first and last block. */
 	first_rec = first_trk = blk_rq_pos(req) >> block->s2b_shift;
 	first_offs = sector_div(first_trk, blk_per_trk);
@@ -3211,8 +3213,10 @@ int dasd_eckd_pm_freeze(struct dasd_device *device)
 int dasd_eckd_restore_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
+	struct dasd_eckd_characteristics temp_rdc_data;
 	int is_known, rc;
 	struct dasd_uid temp_uid;
+	unsigned long flags;
 
 	private = (struct dasd_eckd_private *) device->private;
 
@@ -3225,7 +3229,8 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	rc = dasd_eckd_generate_uid(device, &private->uid);
 	dasd_get_uid(device->cdev, &temp_uid);
 	if (memcmp(&private->uid, &temp_uid, sizeof(struct dasd_uid)) != 0)
-		dev_err(&device->cdev->dev, "The UID of the DASD has changed\n");
+		dev_err(&device->cdev->dev, "The UID of the DASD has "
+			"changed\n");
 	if (rc)
 		goto out_err;
 	dasd_set_uid(device->cdev, &private->uid);
@@ -3245,15 +3250,17 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	dasd_eckd_read_features(device);
 
 	/* Read Device Characteristics */
-	memset(&private->rdc_data, 0, sizeof(private->rdc_data));
 	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
-					 &private->rdc_data, 64);
+					 &temp_rdc_data, 64);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING,
 			  "Read device characteristics failed, rc=%d for "
 			  "device: %s", rc, dev_name(&device->cdev->dev));
 		goto out_err;
 	}
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+	memcpy(&private->rdc_data, &temp_rdc_data, sizeof(temp_rdc_data));
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 
 	/* add device to alias management */
 	dasd_alias_add_device(device);

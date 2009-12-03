@@ -88,7 +88,7 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
 #define HV_FACTOR			1000
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 				      int vdisplay, int vrefresh,
-				      bool reduced, bool interlaced)
+				      bool reduced, bool interlaced, bool margins)
 {
 	/* 1) top/bottom margin size (% of height) - default: 1.8, */
 #define	CVT_MARGIN_PERCENTAGE		18
@@ -101,7 +101,6 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	/* Pixel Clock step (kHz) */
 #define CVT_CLOCK_STEP			250
 	struct drm_display_mode *drm_mode;
-	bool margins = false;
 	unsigned int vfieldrate, hperiod;
 	int hdisplay_rnd, hmargin, vdisplay_rnd, vmargin, vsync;
 	int interlace;

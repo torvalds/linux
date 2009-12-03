@@ -90,6 +90,11 @@ Examples:
  pgset "dstmac 00:00:00:00:00:00"    sets MAC destination address
  pgset "srcmac 00:00:00:00:00:00"    sets MAC source address
 
+ pgset "queue_map_min 0" Sets the min value of tx queue interval
+ pgset "queue_map_max 7" Sets the max value of tx queue interval, for multiqueue devices
+                         To select queue 1 of a given device,
+                         use queue_map_min=1 and queue_map_max=1
+
  pgset "src_mac_count 1" Sets the number of MACs we'll range through.  
                          The 'minimum' MAC is what you set with srcmac.
 
@@ -101,6 +106,9 @@ Examples:
                               IPDST_RND, UDPSRC_RND,
                               UDPDST_RND, MACSRC_RND, MACDST_RND 
                               MPLS_RND, VID_RND, SVID_RND
+                              QUEUE_MAP_RND # queue map random
+                              QUEUE_MAP_CPU # queue map mirrors smp_processor_id()
+
 
  pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
                          cycle through the port range.

@@ -921,9 +921,9 @@ out_free_rbpq_base:
 			he_dev->rbrq_phys);
 	i = CONFIG_RBPL_SIZE;
 out_free_rbpl_virt:
-	while (--i)
-		pci_pool_free(he_dev->rbps_pool, he_dev->rbpl_virt[i].virt,
-				he_dev->rbps_base[i].phys);
+	while (i--)
+		pci_pool_free(he_dev->rbpl_pool, he_dev->rbpl_virt[i].virt,
+				he_dev->rbpl_base[i].phys);
 	kfree(he_dev->rbpl_virt);
 
 out_free_rbpl_base:
@@ -933,11 +933,11 @@ out_free_rbpl_base:
 out_destroy_rbpl_pool:
 	pci_pool_destroy(he_dev->rbpl_pool);
 
-	i = CONFIG_RBPL_SIZE;
+	i = CONFIG_RBPS_SIZE;
 out_free_rbps_virt:
-	while (--i)
-		pci_pool_free(he_dev->rbpl_pool, he_dev->rbps_virt[i].virt,
-				he_dev->rbpl_base[i].phys);
+	while (i--)
+		pci_pool_free(he_dev->rbps_pool, he_dev->rbps_virt[i].virt,
+				he_dev->rbps_base[i].phys);
 	kfree(he_dev->rbps_virt);
 
 out_free_rbps_base:

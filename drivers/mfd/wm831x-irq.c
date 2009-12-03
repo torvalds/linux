@@ -507,6 +507,8 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 {
 	int i, ret;
 
+	mutex_init(&wm831x->irq_lock);
+
 	if (!irq) {
 		dev_warn(wm831x->dev,
 			 "No interrupt specified - functionality limited\n");
@@ -521,7 +523,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	wm831x->irq = irq;
-	mutex_init(&wm831x->irq_lock);
 	INIT_WORK(&wm831x->irq_work, wm831x_irq_worker);
 
 	/* Mask the individual interrupt sources */

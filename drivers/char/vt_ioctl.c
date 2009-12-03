@@ -103,8 +103,8 @@ void vt_event_post(unsigned int event, unsigned int old, unsigned int new)
 		ve->event.event = event;
 		/* kernel view is consoles 0..n-1, user space view is
 		   console 1..n with 0 meaning current, so we must bias */
-		ve->event.old = old + 1;
-		ve->event.new = new + 1;
+		ve->event.oldev = old + 1;
+		ve->event.newev = new + 1;
 		wake = 1;
 		ve->done = 1;
 	}
@@ -186,7 +186,7 @@ int vt_waitactive(int n)
 		vt_event_wait(&vw);
 		if (vw.done == 0)
 			return -EINTR;
-	} while (vw.event.new != n);
+	} while (vw.event.newev != n);
 	return 0;
 }
 
@@ -981,8 +981,10 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 			goto eperm;
 
 		if (copy_from_user(&vsa, (struct vt_setactivate __user *)arg,
-						sizeof(struct vt_setactivate)))
-			return -EFAULT;
+					sizeof(struct vt_setactivate))) {
+			ret = -EFAULT;
+			goto out;
+		}
 		if (vsa.console == 0 || vsa.console > MAX_NR_CONSOLES)
 			ret = -ENXIO;
 		else {
@@ -1530,7 +1532,7 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
-		ret = do_unimap_ioctl(cmd, up, perm, vc);
+		ret = compat_unimap_ioctl(cmd, up, perm, vc);
 		break;
 
 	/*

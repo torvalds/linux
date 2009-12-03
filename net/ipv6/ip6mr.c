@@ -1281,7 +1281,7 @@ int ip6mr_sk_done(struct sock *sk)
  *	MOSPF/PIM router set up we can clean this up.
  */
 
-int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int optlen)
+int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsigned int optlen)
 {
 	int ret;
 	struct mif6ctl vif;

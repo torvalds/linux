@@ -53,6 +53,10 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_packets", IXGBE_STAT(net_stats.tx_packets)},
 	{"rx_bytes", IXGBE_STAT(net_stats.rx_bytes)},
 	{"tx_bytes", IXGBE_STAT(net_stats.tx_bytes)},
+	{"rx_pkts_nic", IXGBE_STAT(stats.gprc)},
+	{"tx_pkts_nic", IXGBE_STAT(stats.gptc)},
+	{"rx_bytes_nic", IXGBE_STAT(stats.gorc)},
+	{"tx_bytes_nic", IXGBE_STAT(stats.gotc)},
 	{"lsc_int", IXGBE_STAT(lsc_int)},
 	{"tx_busy", IXGBE_STAT(tx_busy)},
 	{"non_eop_descs", IXGBE_STAT(non_eop_descs)},
@@ -794,7 +798,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *temp_tx_ring, *temp_rx_ring;
-	int i, err;
+	int i, err = 0;
 	u32 new_rx_count, new_tx_count;
 	bool need_update = false;
 
@@ -817,6 +821,16 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		msleep(1);
+
+	if (!netif_running(adapter->netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			adapter->tx_ring[i].count = new_tx_count;
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i].count = new_rx_count;
+		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto err_setup;
+	}
 
 	temp_tx_ring = kcalloc(adapter->num_tx_queues,
 	                       sizeof(struct ixgbe_ring), GFP_KERNEL);
@@ -875,8 +889,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 
 	/* if rings need to be updated, here's the place to do it in one shot */
 	if (need_update) {
-		if (netif_running(netdev))
-			ixgbe_down(adapter);
+		ixgbe_down(adapter);
 
 		/* tx */
 		if (new_tx_count != adapter->tx_ring_count) {
@@ -893,13 +906,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			temp_rx_ring = NULL;
 			adapter->rx_ring_count = new_rx_count;
 		}
-	}
-
-	/* success! */
-	err = 0;
-	if (netif_running(netdev))
 		ixgbe_up(adapter);
-
+	}
 err_setup:
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;

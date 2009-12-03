@@ -437,6 +437,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 		netdev->dev_addr[i] = *(p + 5 - i);
 
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
+	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */
 
@@ -459,6 +460,7 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p)
 		netxen_napi_disable(adapter);
 	}
 
+	memcpy(adapter->mac_addr, addr->sa_data, netdev->addr_len);
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	adapter->macaddr_set(adapter, addr->sa_data);
 
@@ -595,7 +597,8 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	void __iomem *mem_ptr2 = NULL;
 	void __iomem *db_ptr = NULL;
 
-	unsigned long mem_base, mem_len, db_base, db_len = 0, pci_len0 = 0;
+	resource_size_t mem_base, db_base;
+	unsigned long mem_len, db_len = 0, pci_len0 = 0;
 
 	struct pci_dev *pdev = adapter->pdev;
 	int pci_func = adapter->ahw.pci_func;
@@ -955,7 +958,7 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 		return err;
 	}
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		adapter->macaddr_set(adapter, netdev->dev_addr);
+		adapter->macaddr_set(adapter, adapter->mac_addr);
 
 	adapter->set_multi(netdev);
 	adapter->set_mtu(adapter, netdev->mtu);
@@ -1714,7 +1717,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2) > netxen_tx_avail(tx_ring)) {
+	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -1918,6 +1921,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 
 request_reset:
 	adapter->need_fw_reset = 1;
+	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)

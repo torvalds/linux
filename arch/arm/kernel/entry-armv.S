@@ -21,6 +21,7 @@
 #include <mach/entry-macro.S>
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
+#include <asm/unistd.h>
 
 #include "entry-header.S"
 
@@ -311,22 +312,16 @@ __pabt_svc:
 	tst	r3, #PSR_I_BIT
 	biceq	r9, r9, #PSR_I_BIT
 
-	@
-	@ set args, then call main handler
-	@
-	@  r0 - address of faulting instruction
-	@  r1 - pointer to registers on stack
-	@
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	msr	cpsr_c, r9			@ Maybe enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
 	@
@@ -614,33 +609,33 @@ call_fpe:
  THUMB(	add	pc, r8			)
 	nop
 
-	W(mov)	pc, lr				@ CP#0
+	movw_pc	lr				@ CP#0
 	W(b)	do_fpe				@ CP#1 (FPE)
 	W(b)	do_fpe				@ CP#2 (FPE)
-	W(mov)	pc, lr				@ CP#3
+	movw_pc	lr				@ CP#3
 #ifdef CONFIG_CRUNCH
 	b	crunch_task_enable		@ CP#4 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#5 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#6 (MaverickCrunch)
 #else
-	W(mov)	pc, lr				@ CP#4
-	W(mov)	pc, lr				@ CP#5
-	W(mov)	pc, lr				@ CP#6
+	movw_pc	lr				@ CP#4
+	movw_pc	lr				@ CP#5
+	movw_pc	lr				@ CP#6
 #endif
-	W(mov)	pc, lr				@ CP#7
-	W(mov)	pc, lr				@ CP#8
-	W(mov)	pc, lr				@ CP#9
+	movw_pc	lr				@ CP#7
+	movw_pc	lr				@ CP#8
+	movw_pc	lr				@ CP#9
 #ifdef CONFIG_VFP
 	W(b)	do_vfp				@ CP#10 (VFP)
 	W(b)	do_vfp				@ CP#11 (VFP)
 #else
-	W(mov)	pc, lr				@ CP#10 (VFP)
-	W(mov)	pc, lr				@ CP#11 (VFP)
+	movw_pc	lr				@ CP#10 (VFP)
+	movw_pc	lr				@ CP#11 (VFP)
 #endif
-	W(mov)	pc, lr				@ CP#12
-	W(mov)	pc, lr				@ CP#13
-	W(mov)	pc, lr				@ CP#14 (Debug)
-	W(mov)	pc, lr				@ CP#15 (Control)
+	movw_pc	lr				@ CP#12
+	movw_pc	lr				@ CP#13
+	movw_pc	lr				@ CP#14 (Debug)
+	movw_pc	lr				@ CP#15 (Control)
 
 #ifdef CONFIG_NEON
 	.align	6
@@ -701,16 +696,16 @@ ENDPROC(__und_usr_unknown)
 __pabt_usr:
 	usr_entry
 
-#ifdef MULTI_PABORT
 	mov	r0, r2			@ pass address of aborted instruction.
+#ifdef MULTI_PABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
 #else
-	CPU_PABORT_HANDLER(r0, r2)
+	bl	CPU_PABORT_HANDLER
 #endif
 	enable_irq				@ Enable interrupts
-	mov	r1, sp				@ regs
+	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
  UNWIND(.fnend		)
 	/* fall through */
@@ -914,10 +909,10 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
 	stmfd	sp!, {r7, lr}
-	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
-	orr	r7, r7, #0xf0
-	swi	#0x9ffff0
+	ldr	r7, =1f			@ it's 20 bits
+	swi	__ARM_NR_cmpxchg
 	ldmfd	sp!, {r7, pc}
+1:	.word	__ARM_NR_cmpxchg
 
 #elif __LINUX_ARM_ARCH__ < 6
 

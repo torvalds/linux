@@ -217,7 +217,7 @@ static long bfin_otp_ioctl(struct file *filp, unsigned cmd, unsigned long arg)
 # define bfin_otp_ioctl NULL
 #endif
 
-static struct file_operations bfin_otp_fops = {
+static const struct file_operations bfin_otp_fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = bfin_otp_ioctl,
 	.read           = bfin_otp_read,

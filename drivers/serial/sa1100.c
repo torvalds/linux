@@ -638,7 +638,7 @@ static void __init sa1100_init_ports(void)
 	PPSR |= PPC_TXD1 | PPC_TXD3;
 }
 
-void __init sa1100_register_uart_fns(struct sa1100_port_fns *fns)
+void __devinit sa1100_register_uart_fns(struct sa1100_port_fns *fns)
 {
 	if (fns->get_mctrl)
 		sa1100_pops.get_mctrl = fns->get_mctrl;

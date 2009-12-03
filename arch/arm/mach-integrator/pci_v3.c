@@ -31,6 +31,7 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/signal.h>
 #include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
@@ -486,7 +487,7 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 	return ret;
 }
 
-struct pci_bus *pci_v3_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus * __init pci_v3_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	return pci_scan_bus(sys->busnr, &pci_v3_ops, sys);
 }

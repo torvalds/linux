@@ -1426,7 +1426,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 	struct vpif_display_config *config;
 	int i, j = 0, k, q, m, err = 0;
 	struct i2c_adapter *i2c_adap;
-	struct vpif_config *config;
 	struct common_obj *common;
 	struct channel_obj *ch;
 	struct video_device *vfd;

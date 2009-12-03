@@ -555,11 +555,11 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 
 	conn->feat_mask = 0;
 
-	setup_timer(&conn->info_timer, l2cap_info_timeout,
-						(unsigned long) conn);
-
 	spin_lock_init(&conn->lock);
 	rwlock_init(&conn->chan_list.lock);
+
+	setup_timer(&conn->info_timer, l2cap_info_timeout,
+						(unsigned long) conn);
 
 	conn->disc_reason = 0x13;
 
@@ -783,6 +783,9 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	/* Default config options */
 	pi->conf_len = 0;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+	skb_queue_head_init(TX_QUEUE(sk));
+	skb_queue_head_init(SREJ_QUEUE(sk));
+	INIT_LIST_HEAD(SREJ_LIST(sk));
 }
 
 static struct proto l2cap_proto = {
@@ -1698,7 +1701,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
 }
 
-static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, int optlen)
+static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_options opts;
@@ -1755,7 +1758,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 	return err;
 }
 
-static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct bt_security sec;
@@ -2202,7 +2205,7 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct l2cap_conf_req *req = data;
-	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_ERTM };
+	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
 	void *ptr = req->data;
 
 	BT_DBG("sk %p", sk);
@@ -2391,6 +2394,10 @@ done:
 			rfc.monitor_timeout = L2CAP_DEFAULT_MONITOR_TO;
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
+					sizeof(rfc), (unsigned long) &rfc);
+
 			break;
 
 		case L2CAP_MODE_STREAMING:
@@ -2398,6 +2405,10 @@ done:
 			pi->max_pdu_size = rfc.max_pdu_size;
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
+					sizeof(rfc), (unsigned long) &rfc);
+
 			break;
 
 		default:
@@ -2406,9 +2417,6 @@ done:
 			memset(&rfc, 0, sizeof(rfc));
 			rfc.mode = pi->mode;
 		}
-
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
-					sizeof(rfc), (unsigned long) &rfc);
 
 		if (result == L2CAP_CONF_SUCCESS)
 			pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;

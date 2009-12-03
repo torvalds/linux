@@ -1113,7 +1113,6 @@ Table 1-12: Files in /proc/fs/ext4/<devname>
 ..............................................................................
  File            Content                                        
  mb_groups       details of multiblock allocator buddy cache of free blocks
- mb_history      multiblock allocation history
 ..............................................................................
 
 

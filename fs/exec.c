@@ -623,10 +623,8 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	/* Move stack pages down in memory. */
 	if (stack_shift) {
 		ret = shift_arg_pages(vma, stack_shift);
-		if (ret) {
-			up_write(&mm->mmap_sem);
-			return ret;
-		}
+		if (ret)
+			goto out_unlock;
 	}
 
 #ifdef CONFIG_STACK_GROWSUP
@@ -640,7 +638,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 
 out_unlock:
 	up_write(&mm->mmap_sem);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(setup_arg_pages);
 

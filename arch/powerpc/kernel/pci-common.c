@@ -1190,7 +1190,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  * Reparent resource children of pr that conflict with res
  * under res, and make res replace those children.
  */
-static int __init reparent_resources(struct resource *parent,
+static int reparent_resources(struct resource *parent,
 				     struct resource *res)
 {
 	struct resource *p, **pp;
