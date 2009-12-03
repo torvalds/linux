@@ -189,6 +189,10 @@ struct cfq_group {
 	unsigned long saved_workload_slice;
 	enum wl_type_t saved_workload;
 	enum wl_prio_t saved_serving_prio;
+	struct blkio_group blkg;
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	struct hlist_node cfqd_node;
+#endif
 };
 
 /*
@@ -274,7 +278,12 @@ struct cfq_data {
 	struct cfq_queue oom_cfqq;
 
 	unsigned long last_end_sync_rq;
+
+	/* List of cfq groups being managed on this device*/
+	struct hlist_head cfqg_list;
 };
+
+static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
 					    enum wl_prio_t prio,
@@ -881,6 +890,89 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 		cfqg->saved_workload_slice = 0;
 }
 
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+static inline struct cfq_group *cfqg_of_blkg(struct blkio_group *blkg)
+{
+	if (blkg)
+		return container_of(blkg, struct cfq_group, blkg);
+	return NULL;
+}
+
+static struct cfq_group *
+cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
+	struct cfq_group *cfqg = NULL;
+	void *key = cfqd;
+	int i, j;
+	struct cfq_rb_root *st;
+
+	/* Do we need to take this reference */
+	if (!css_tryget(&blkcg->css))
+		return NULL;;
+
+	cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, key));
+	if (cfqg || !create)
+		goto done;
+
+	cfqg = kzalloc_node(sizeof(*cfqg), GFP_ATOMIC, cfqd->queue->node);
+	if (!cfqg)
+		goto done;
+
+	cfqg->weight = blkcg->weight;
+	for_each_cfqg_st(cfqg, i, j, st)
+		*st = CFQ_RB_ROOT;
+	RB_CLEAR_NODE(&cfqg->rb_node);
+
+	/* Add group onto cgroup list */
+	blkiocg_add_blkio_group(blkcg, &cfqg->blkg, (void *)cfqd);
+
+	/* Add group on cfqd list */
+	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
+
+done:
+	css_put(&blkcg->css);
+	return cfqg;
+}
+
+/*
+ * Search for the cfq group current task belongs to. If create = 1, then also
+ * create the cfq group if it does not exist. request_queue lock must be held.
+ */
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
+{
+	struct cgroup *cgroup;
+	struct cfq_group *cfqg = NULL;
+
+	rcu_read_lock();
+	cgroup = task_cgroup(current, blkio_subsys_id);
+	cfqg = cfq_find_alloc_cfqg(cfqd, cgroup, create);
+	if (!cfqg && create)
+		cfqg = &cfqd->root_group;
+	rcu_read_unlock();
+	return cfqg;
+}
+
+static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
+{
+	/* Currently, all async queues are mapped to root group */
+	if (!cfq_cfqq_sync(cfqq))
+		cfqg = &cfqq->cfqd->root_group;
+
+	cfqq->cfqg = cfqg;
+}
+#else /* GROUP_IOSCHED */
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
+{
+	return &cfqd->root_group;
+}
+static inline void
+cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg) {
+	cfqq->cfqg = cfqg;
+}
+
+#endif /* GROUP_IOSCHED */
+
 /*
  * The cfqd->service_trees holds all pending cfq_queue's that have
  * requests waiting to be processed. It is sorted in the order that
@@ -1372,12 +1464,16 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 
 static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
 {
-	struct cfq_group *cfqg = &cfqd->root_group;
+	struct cfq_group *cfqg;
 	struct cfq_queue *cfqq;
 	int i, j;
 	struct cfq_rb_root *st;
 
 	if (!cfqd->rq_queued)
+		return NULL;
+
+	cfqg = cfq_get_next_cfqg(cfqd);
+	if (!cfqg)
 		return NULL;
 
 	for_each_cfqg_st(cfqg, i, j, st)
@@ -2390,16 +2486,6 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfqq->pid = pid;
 }
 
-static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
-{
-	cfqq->cfqg = cfqg;
-}
-
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
-{
-	return &cfqd->root_group;
-}
-
 static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 		     struct io_context *ioc, gfp_t gfp_mask)
@@ -3314,6 +3400,9 @@ static void *cfq_init_queue(struct request_queue *q)
 	/* Give preference to root group over other groups */
 	cfqg->weight = 2*BLKIO_WEIGHT_DEFAULT;
 
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg, (void *)cfqd);
+#endif
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
 	 * zeroed cfqd on alloc), but better be safe in case someone decides
