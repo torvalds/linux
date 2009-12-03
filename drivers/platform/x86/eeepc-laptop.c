@@ -509,6 +509,38 @@ static struct attribute_group platform_attribute_group = {
 	.attrs = platform_attributes
 };
 
+static int eeepc_platform_init(void)
+{
+	int result;
+
+	platform_device = platform_device_alloc(EEEPC_HOTK_FILE, -1);
+	if (!platform_device)
+		return -ENOMEM;
+
+	result = platform_device_add(platform_device);
+	if (result)
+		goto fail_platform_device;
+
+	result = sysfs_create_group(&platform_device->dev.kobj,
+				    &platform_attribute_group);
+	if (result)
+		goto fail_sysfs;
+	return 0;
+
+fail_sysfs:
+	platform_device_del(platform_device);
+fail_platform_device:
+	platform_device_put(platform_device);
+	return result;
+}
+
+static void eeepc_platform_exit(void)
+{
+	sysfs_remove_group(&platform_device->dev.kobj,
+			   &platform_attribute_group);
+	platform_device_unregister(platform_device);
+}
+
 /*
  * LEDs
  */
@@ -1276,22 +1308,12 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 
 	result = eeepc_hotk_init();
 	if (result)
-		goto fail_platform_device1;
+		goto fail_platform;
 	eeepc_enable_camera();
 
-	/* Register platform stuff */
-	platform_device = platform_device_alloc(EEEPC_HOTK_FILE, -1);
-	if (!platform_device) {
-		result = -ENOMEM;
-		goto fail_platform_device1;
-	}
-	result = platform_device_add(platform_device);
+	result = eeepc_platform_init();
 	if (result)
-		goto fail_platform_device2;
-	result = sysfs_create_group(&platform_device->dev.kobj,
-				    &platform_attribute_group);
-	if (result)
-		goto fail_sysfs;
+		goto fail_platform;
 
 	dev = &platform_device->dev;
 
@@ -1300,8 +1322,7 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 		if (result)
 			goto fail_backlight;
 	} else
-		pr_info("Backlight controlled by ACPI video "
-			"driver\n");
+		pr_info("Backlight controlled by ACPI video driver\n");
 
 	result = eeepc_input_init(dev);
 	if (result)
@@ -1330,13 +1351,8 @@ fail_hwmon:
 fail_input:
 	eeepc_backlight_exit();
 fail_backlight:
-	sysfs_remove_group(&platform_device->dev.kobj,
-			   &platform_attribute_group);
-fail_sysfs:
-	platform_device_del(platform_device);
-fail_platform_device2:
-	platform_device_put(platform_device);
-fail_platform_device1:
+	eeepc_platform_exit();
+fail_platform:
 	kfree(ehotk);
 
 	return result;
@@ -1349,9 +1365,7 @@ static int eeepc_hotk_remove(struct acpi_device *device, int type)
 	eeepc_input_exit();
 	eeepc_hwmon_exit();
 	eeepc_led_exit();
-	sysfs_remove_group(&platform_device->dev.kobj,
-			   &platform_attribute_group);
-	platform_device_unregister(platform_device);
+	eeepc_platform_exit();
 
 	kfree(ehotk);
 	return 0;
