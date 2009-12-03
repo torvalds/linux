@@ -4351,7 +4351,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	struct netdev_queue *txq;
 	int index = tnapi - tp->napi;
 
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSIX)
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
 		index--;
 
 	txq = netdev_get_tx_queue(tp->dev, index);
@@ -5435,7 +5435,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
 
 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 	tnapi = &tp->napi[skb_get_queue_mapping(skb)];
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSIX)
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
 		tnapi++;
 
 	/* We are running in BH disabled context with netif_tx_lock
@@ -5639,7 +5639,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 
 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 	tnapi = &tp->napi[skb_get_queue_mapping(skb)];
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSIX)
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
 		tnapi++;
 
 	/* We are running in BH disabled context with netif_tx_lock
@@ -6278,6 +6278,24 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 		sblk = tnapi->hw_status;
 
+		/* If multivector TSS is enabled, vector 0 does not handle
+		 * tx interrupts.  Don't allocate any resources for it.
+		 */
+		if ((!i && !(tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)) ||
+		    (i && (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS))) {
+			tnapi->tx_buffers = kzalloc(sizeof(struct ring_info) *
+						    TG3_TX_RING_SIZE,
+						    GFP_KERNEL);
+			if (!tnapi->tx_buffers)
+				goto err_out;
+
+			tnapi->tx_ring = pci_alloc_consistent(tp->pdev,
+							      TG3_TX_RING_BYTES,
+						       &tnapi->tx_desc_mapping);
+			if (!tnapi->tx_ring)
+				goto err_out;
+		}
+
 		/*
 		 * When RSS is enabled, the status block format changes
 		 * slightly.  The "rx_jumbo_consumer", "reserved",
@@ -6318,17 +6336,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 			goto err_out;
 
 		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
-
-		tnapi->tx_buffers = kzalloc(sizeof(struct ring_info) *
-					    TG3_TX_RING_SIZE, GFP_KERNEL);
-		if (!tnapi->tx_buffers)
-			goto err_out;
-
-		tnapi->tx_ring = pci_alloc_consistent(tp->pdev,
-						      TG3_TX_RING_BYTES,
-						      &tnapi->tx_desc_mapping);
-		if (!tnapi->tx_ring)
-			goto err_out;
 	}
 
 	return 0;
@@ -7316,19 +7323,21 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
 	int i;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_USING_MSIX)) {
+	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)) {
 		tw32(HOSTCC_TXCOL_TICKS, ec->tx_coalesce_usecs);
 		tw32(HOSTCC_TXMAX_FRAMES, ec->tx_max_coalesced_frames);
 		tw32(HOSTCC_TXCOAL_MAXF_INT, ec->tx_max_coalesced_frames_irq);
-
-		tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
-		tw32(HOSTCC_RXMAX_FRAMES, ec->rx_max_coalesced_frames);
-		tw32(HOSTCC_RXCOAL_MAXF_INT, ec->rx_max_coalesced_frames_irq);
 	} else {
 		tw32(HOSTCC_TXCOL_TICKS, 0);
 		tw32(HOSTCC_TXMAX_FRAMES, 0);
 		tw32(HOSTCC_TXCOAL_MAXF_INT, 0);
+	}
 
+	if (!(tp->tg3_flags2 & TG3_FLG2_USING_MSIX)) {
+		tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
+		tw32(HOSTCC_RXMAX_FRAMES, ec->rx_max_coalesced_frames);
+		tw32(HOSTCC_RXCOAL_MAXF_INT, ec->rx_max_coalesced_frames_irq);
+	} else {
 		tw32(HOSTCC_RXCOL_TICKS, 0);
 		tw32(HOSTCC_RXMAX_FRAMES, 0);
 		tw32(HOSTCC_RXCOAL_MAXF_INT, 0);
@@ -7351,25 +7360,31 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 
 		reg = HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18;
 		tw32(reg, ec->rx_coalesce_usecs);
-		reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
-		tw32(reg, ec->tx_coalesce_usecs);
 		reg = HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18;
 		tw32(reg, ec->rx_max_coalesced_frames);
-		reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
-		tw32(reg, ec->tx_max_coalesced_frames);
 		reg = HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18;
 		tw32(reg, ec->rx_max_coalesced_frames_irq);
-		reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
-		tw32(reg, ec->tx_max_coalesced_frames_irq);
+
+		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS) {
+			reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_coalesce_usecs);
+			reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames);
+			reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames_irq);
+		}
 	}
 
 	for (; i < tp->irq_max - 1; i++) {
 		tw32(HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
 		tw32(HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
 		tw32(HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+
+		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS) {
+			tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
+			tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
+			tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+		}
 	}
 }
 
@@ -7470,17 +7485,19 @@ static void tg3_rings_reset(struct tg3 *tp)
 		/* Clear status block in ram. */
 		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 
-		tg3_set_bdinfo(tp, txrcb, tnapi->tx_desc_mapping,
-			       (TG3_TX_RING_SIZE <<
-				BDINFO_FLAGS_MAXLEN_SHIFT),
-			       NIC_SRAM_TX_BUFFER_DESC);
+		if (tnapi->tx_ring) {
+			tg3_set_bdinfo(tp, txrcb, tnapi->tx_desc_mapping,
+				       (TG3_TX_RING_SIZE <<
+					BDINFO_FLAGS_MAXLEN_SHIFT),
+				       NIC_SRAM_TX_BUFFER_DESC);
+			txrcb += TG3_BDINFO_SIZE;
+		}
 
 		tg3_set_bdinfo(tp, rxrcb, tnapi->rx_rcb_mapping,
 			       (TG3_RX_RCB_RING_SIZE(tp) <<
 				BDINFO_FLAGS_MAXLEN_SHIFT), 0);
 
 		stblk += 8;
-		txrcb += TG3_BDINFO_SIZE;
 		rxrcb += TG3_BDINFO_SIZE;
 	}
 }
@@ -8023,7 +8040,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		tw32(SNDDATAI_MODE, SNDDATAI_MODE_ENABLE | 0x8);
 	val = SNDBDI_MODE_ENABLE | SNDBDI_MODE_ATTN_ENABLE;
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSIX)
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
 		val |= SNDBDI_MODE_MULTI_TXQ_EN;
 	tw32(SNDBDI_MODE, val);
 	tw32(SNDBDS_MODE, SNDBDS_MODE_ENABLE | SNDBDS_MODE_ATTN_ENABLE);
@@ -8631,7 +8648,11 @@ static bool tg3_enable_msix(struct tg3 *tp)
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
-	tp->dev->real_num_tx_queues = tp->irq_cnt - 1;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
+		tp->tg3_flags3 |= TG3_FLG3_ENABLE_TSS;
+		tp->dev->real_num_tx_queues = tp->irq_cnt - 1;
+	} else
+		tp->dev->real_num_tx_queues = 1;
 
 	return true;
 }
