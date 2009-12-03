@@ -61,7 +61,7 @@ static unsigned int msmsdcc_sdioirq;
 #define CMD_SPINMAX 20
 
 
-static inline void 
+static inline void
 msmsdcc_disable_clocks(struct msmsdcc_host *host, int deferr)
 {
 	WARN_ON(!host->clks_on);
@@ -72,9 +72,14 @@ msmsdcc_disable_clocks(struct msmsdcc_host *host, int deferr)
 		mod_timer(&host->busclk_timer, jiffies + BUSCLK_TIMEOUT);
 	} else {
 		del_timer_sync(&host->busclk_timer);
-		clk_disable(host->clk);
-		clk_disable(host->pclk);
-		host->clks_on = 0;
+		/* Need to check clks_on again in case the busclk
+		 * timer fired
+		 */
+		if (host->clks_on) {
+			clk_disable(host->clk);
+			clk_disable(host->pclk);
+			host->clks_on = 0;
+		}
 	}
 }
 
@@ -83,21 +88,21 @@ msmsdcc_enable_clocks(struct msmsdcc_host *host)
 {
 	int rc;
 
-	WARN_ON(host->clks_on);
-
 	del_timer_sync(&host->busclk_timer);
 
-	rc = clk_enable(host->pclk);
-	if (rc)
-		return rc;
-	rc = clk_enable(host->clk);
-	if (rc) {
-		clk_disable(host->pclk);
-		return rc;
+	if (!host->clks_on) {
+		rc = clk_enable(host->pclk);
+		if (rc)
+			return rc;
+		rc = clk_enable(host->clk);
+		if (rc) {
+			clk_disable(host->pclk);
+			return rc;
+		}
+		udelay(1 + ((3 * USEC_PER_SEC) /
+		       (host->clk_rate ? host->clk_rate : msmsdcc_fmin)));
+		host->clks_on = 1;
 	}
-	udelay(1 + ((3 * USEC_PER_SEC) /
-	       (host->clk_rate ? host->clk_rate : msmsdcc_fmin)));
-	host->clks_on = 1;
 	return 0;
 }
 
@@ -180,7 +185,8 @@ msmsdcc_dma_exec_func(struct msm_dmov_cmd *cmd)
 	struct msmsdcc_host *host = (struct msmsdcc_host *)cmd->data;
 
 	msmsdcc_writel(host, host->cmd_timeout, MMCIDATATIMER);
-	msmsdcc_writel(host, (unsigned int)host->curr.xfer_size, MMCIDATALENGTH);
+	msmsdcc_writel(host, (unsigned int)host->curr.xfer_size,
+		       MMCIDATALENGTH);
 	msmsdcc_writel(host, host->cmd_pio_irqmask, MMCIMASK1);
 	msmsdcc_writel(host, host->cmd_datactrl, MMCIDATACTRL);
 
@@ -854,13 +860,7 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	/* Need to drop the host lock here in case
-	 * the busclk wd fires 
-	 */
-	spin_unlock_irqrestore(&host->lock, flags);
-	if (!host->clks_on)
-		msmsdcc_enable_clocks(host);
-	spin_lock_irqsave(&host->lock, flags);
+	msmsdcc_enable_clocks(host);
 
 	host->curr.mrq = mrq;
 
@@ -893,10 +893,9 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	int rc;
 	unsigned long flags;
 
-	if (!host->clks_on)
-		msmsdcc_enable_clocks(host);
-
 	spin_lock_irqsave(&host->lock, flags);
+
+	msmsdcc_enable_clocks(host);
 
 	if (ios->clock) {
 		if (ios->clock != host->clk_rate) {
@@ -1026,13 +1025,9 @@ static void
 msmsdcc_busclk_expired(unsigned long _data)
 {
 	struct msmsdcc_host	*host = (struct msmsdcc_host *) _data;
-	unsigned long 		flags;
 
-	spin_lock_irqsave(&host->lock, flags);
-	dev_info(mmc_dev(host->mmc), "Bus clock timer expired\n");
 	if (host->clks_on)
 		msmsdcc_disable_clocks(host, 0);
-	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static int
@@ -1324,10 +1319,8 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 
 		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
 			rc = mmc_suspend_host(mmc, state);
-		if (!rc) {
+		if (!rc)
 			msmsdcc_writel(host, 0, MMCIMASK0);
-
-		}
 		if (host->clks_on)
 			msmsdcc_disable_clocks(host, 0);
 	}
