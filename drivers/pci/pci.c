@@ -2140,7 +2140,7 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 	int i;
 	int pos;
 	u32 cap;
-	u16 status;
+	u16 status, control;
 
 	pos = pci_pcie_cap(dev);
 	if (!pos)
@@ -2167,8 +2167,10 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 			"proceeding with reset anyway\n");
 
 clear:
-	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL,
-				PCI_EXP_DEVCTL_BCR_FLR);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &control);
+	control |= PCI_EXP_DEVCTL_BCR_FLR;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, control);
+
 	msleep(100);
 
 	return 0;
