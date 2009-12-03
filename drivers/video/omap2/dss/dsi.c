@@ -1999,7 +1999,7 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 		return -EINVAL;
 	}
 
-	data_id = data_type | channel << 6;
+	data_id = data_type | dsi.vc[channel].dest_per << 6;
 
 	r = (data_id << 0) | (data << 8) | (ecc << 24);
 
@@ -2011,7 +2011,7 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 int dsi_vc_send_null(int channel)
 {
 	u8 nullpkg[] = {0, 0, 0, 0};
-	return dsi_vc_send_long(0, DSI_DT_NULL_PACKET, nullpkg, 4, 0);
+	return dsi_vc_send_long(channel, DSI_DT_NULL_PACKET, nullpkg, 4, 0);
 }
 EXPORT_SYMBOL(dsi_vc_send_null);
 
