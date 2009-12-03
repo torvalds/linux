@@ -1487,6 +1487,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 		if (sync) {
 			dprintk(verbose, MB86A16_INFO, 1, "******* SYNC *******");
 			freqerr_chk(state, state->frequency, state->srate, 1);
+			break;
 		}
 	}
 
