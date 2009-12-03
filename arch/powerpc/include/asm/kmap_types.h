@@ -29,5 +29,16 @@ enum km_type {
 	KM_TYPE_NR
 };
 
+/*
+ * This is a temporary build fix that (so they say on lkml....) should no longer
+ * be required after 2.6.33, because of changes planned to the kmap code.
+ * Let's try to remove this cruft then.
+ */
+#ifdef CONFIG_DEBUG_HIGHMEM
+#define KM_NMI		(-1)
+#define KM_NMI_PTE	(-1)
+#define KM_IRQ_PTE	(-1)
+#endif
+
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KMAP_TYPES_H */

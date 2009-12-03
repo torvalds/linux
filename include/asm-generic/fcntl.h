@@ -73,14 +73,23 @@
 #define F_SETSIG	10	/* for sockets. */
 #define F_GETSIG	11	/* for sockets. */
 #endif
+
+#ifndef CONFIG_64BIT
+#ifndef F_GETLK64
+#define F_GETLK64	12	/*  using 'struct flock64' */
+#define F_SETLK64	13
+#define F_SETLKW64	14
+#endif
+#endif
+
 #ifndef F_SETOWN_EX
-#define F_SETOWN_EX	12
-#define F_GETOWN_EX	13
+#define F_SETOWN_EX	15
+#define F_GETOWN_EX	16
 #endif
 
 #define F_OWNER_TID	0
 #define F_OWNER_PID	1
-#define F_OWNER_GID	2
+#define F_OWNER_PGRP	2
 
 struct f_owner_ex {
 	int	type;
@@ -138,12 +147,6 @@ struct flock {
 #endif
 
 #ifndef CONFIG_64BIT
-
-#ifndef F_GETLK64
-#define F_GETLK64	12	/*  using 'struct flock64' */
-#define F_SETLK64	13
-#define F_SETLKW64	14
-#endif
 
 #ifndef HAVE_ARCH_STRUCT_FLOCK64
 #ifndef __ARCH_FLOCK64_PAD

@@ -201,9 +201,10 @@ struct rcu_data {
 };
 
 /* Values for signaled field in struct rcu_state. */
-#define RCU_GP_INIT		0	/* Grace period being initialized. */
-#define RCU_SAVE_DYNTICK	1	/* Need to scan dyntick state. */
-#define RCU_FORCE_QS		2	/* Need to force quiescent state. */
+#define RCU_GP_IDLE		0	/* No grace period in progress. */
+#define RCU_GP_INIT		1	/* Grace period being initialized. */
+#define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
+#define RCU_FORCE_QS		3	/* Need to force quiescent state. */
 #ifdef CONFIG_NO_HZ
 #define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
 #else /* #ifdef CONFIG_NO_HZ */

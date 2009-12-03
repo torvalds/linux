@@ -483,8 +483,10 @@ static int vif_add(struct net *net, struct vifctl *vifc, int mrtsock)
 		return -EINVAL;
 	}
 
-	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL)
+	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL) {
+		dev_put(dev);
 		return -EADDRNOTAVAIL;
+	}
 	IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)++;
 	ip_rt_multicast_event(in_dev);
 

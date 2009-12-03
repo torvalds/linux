@@ -322,6 +322,7 @@ static inline __u32 ext4_mask_flags(umode_t mode, __u32 flags)
 #define EXT4_STATE_NO_EXPAND		0x00000008 /* No space for expansion */
 #define EXT4_STATE_DA_ALLOC_CLOSE	0x00000010 /* Alloc DA blks on close */
 #define EXT4_STATE_EXT_MIGRATE		0x00000020 /* Inode is migrating */
+#define EXT4_STATE_DIO_UNWRITTEN	0x00000040 /* need convert on dio done*/
 
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {
@@ -743,6 +744,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_QUOTA		0x80000 /* Some quota option set */
 #define EXT4_MOUNT_USRQUOTA		0x100000 /* "old" user quota */
 #define EXT4_MOUNT_GRPQUOTA		0x200000 /* "old" group quota */
+#define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 #define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
 #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */

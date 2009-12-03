@@ -320,6 +320,9 @@ static int __init smdk6410_wm8350_init(struct wm8350 *wm8350)
 {
 	int i;
 
+	/* Configure the IRQ line */
+	s3c_gpio_setpull(S3C64XX_GPN(12), S3C_GPIO_PULL_UP);
+
 	/* Instantiate the regulators */
 	for (i = 0; i < ARRAY_SIZE(wm1190_regulators); i++)
 		wm8350_register_regulator(wm8350,

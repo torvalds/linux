@@ -196,7 +196,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 	 * Now, initiate the vsc/vsp initialization protocol on the open
 	 * channel
 	 */
-	memset(request, sizeof(struct storvsc_request_extension), 0);
+	memset(request, 0, sizeof(struct storvsc_request_extension));
 	request->WaitEvent = osd_WaitEventCreate();
 
 	vstorPacket->Operation = VStorOperationBeginInitialization;
@@ -233,7 +233,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 	DPRINT_INFO(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION...");
 
 	/* reuse the packet for version range supported */
-	memset(vstorPacket, sizeof(struct vstor_packet), 0);
+	memset(vstorPacket, 0, sizeof(struct vstor_packet));
 	vstorPacket->Operation = VStorOperationQueryProtocolVersion;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 
@@ -266,7 +266,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 	/* Query channel properties */
 	DPRINT_INFO(STORVSC, "QUERY_PROPERTIES_OPERATION...");
 
-	memset(vstorPacket, sizeof(struct vstor_packet), 0);
+	memset(vstorPacket, 0, sizeof(struct vstor_packet));
 	vstorPacket->Operation = VStorOperationQueryProperties;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 	vstorPacket->StorageChannelProperties.PortNumber =
@@ -305,7 +305,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 
 	DPRINT_INFO(STORVSC, "END_INITIALIZATION_OPERATION...");
 
-	memset(vstorPacket, sizeof(struct vstor_packet), 0);
+	memset(vstorPacket, 0, sizeof(struct vstor_packet));
 	vstorPacket->Operation = VStorOperationEndInitialization;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 
@@ -508,7 +508,7 @@ static int StorVscConnectToVsp(struct hv_device *Device)
 	int ret;
 
 	storDriver = (struct storvsc_driver_object *)Device->Driver;
-	memset(&props, sizeof(struct vmstorage_channel_properties), 0);
+	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
 	ret = Device->Driver->VmbusChannelInterface.Open(Device,

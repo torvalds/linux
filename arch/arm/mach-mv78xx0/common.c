@@ -845,6 +845,8 @@ static char * __init mv78xx0_id(void)
 	} else if (dev == MV78100_DEV_ID) {
 		if (rev == MV78100_REV_A0)
 			return "MV78100-A0";
+		else if (rev == MV78100_REV_A1)
+			return "MV78100-A1";
 		else
 			return "MV78100-Rev-Unsupported";
 	} else if (dev == MV78200_DEV_ID) {

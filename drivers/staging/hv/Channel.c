@@ -611,7 +611,7 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 
 	/* Stop callback and cancel the timer asap */
 	Channel->OnChannelCallback = NULL;
-	del_timer(&Channel->poll_timer);
+	del_timer_sync(&Channel->poll_timer);
 
 	/* Send a closing message */
 	info = kmalloc(sizeof(*info) +
@@ -978,14 +978,10 @@ void VmbusChannelOnChannelEvent(struct vmbus_channel *Channel)
 {
 	DumpVmbusChannel(Channel);
 	ASSERT(Channel->OnChannelCallback);
-#ifdef ENABLE_POLLING
-	del_timer(&Channel->poll_timer);
+
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
-	channel->poll_timer.expires(jiffies + usecs_to_jiffies(100);
-	add_timer(&channel->poll_timer);
-#else
-	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
-#endif
+
+	mod_timer(&Channel->poll_timer, jiffies + usecs_to_jiffies(100));
 }
 
 /**
@@ -997,10 +993,6 @@ void VmbusChannelOnTimer(unsigned long data)
 
 	if (channel->OnChannelCallback) {
 		channel->OnChannelCallback(channel->ChannelCallbackContext);
-#ifdef ENABLE_POLLING
-		channel->poll_timer.expires(jiffies + usecs_to_jiffies(100);
-		add_timer(&channel->poll_timer);
-#endif
 	}
 }
 

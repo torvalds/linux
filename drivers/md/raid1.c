@@ -1650,11 +1650,12 @@ static void raid1d(mddev_t *mddev)
 					       r1_bio->sector,
 					       r1_bio->sectors);
 				unfreeze_array(conf);
-			}
+			} else
+				md_error(mddev,
+					 conf->mirrors[r1_bio->read_disk].rdev);
 
 			bio = r1_bio->bios[r1_bio->read_disk];
-			if ((disk=read_balance(conf, r1_bio)) == -1 ||
-			    disk == r1_bio->read_disk) {
+			if ((disk=read_balance(conf, r1_bio)) == -1) {
 				printk(KERN_ALERT "raid1: %s: unrecoverable I/O"
 				       " read error for block %llu\n",
 				       bdevname(bio->bi_bdev,b),

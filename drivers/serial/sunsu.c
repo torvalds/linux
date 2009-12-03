@@ -1329,11 +1329,9 @@ static void sunsu_console_write(struct console *co, const char *s,
  */
 static int __init sunsu_console_setup(struct console *co, char *options)
 {
+	static struct ktermios dummy;
+	struct ktermios termios;
 	struct uart_port *port;
-	int baud = 9600;
-	int bits = 8;
-	int parity = 'n';
-	int flow = 'n';
 
 	printk("Console: ttyS%d (SU)\n",
 	       (sunsu_reg.minor - 64) + co->index);
@@ -1352,10 +1350,15 @@ static int __init sunsu_console_setup(struct console *co, char *options)
 	 */
 	spin_lock_init(&port->lock);
 
-	if (options)
-		uart_parse_options(options, &baud, &parity, &bits, &flow);
+	/* Get firmware console settings.  */
+	sunserial_console_termios(co, to_of_device(port->dev)->node);
 
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	memset(&termios, 0, sizeof(struct ktermios));
+	termios.c_cflag = co->cflag;
+	port->mctrl |= TIOCM_DTR;
+	port->ops->set_termios(port, &termios, &dummy);
+
+	return 0;
 }
 
 static struct console sunsu_console = {
@@ -1409,6 +1412,7 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	struct uart_sunsu_port *up;
 	struct resource *rp;
 	enum su_type type;
+	bool ignore_line;
 	int err;
 
 	type = su_get_type(dp);
@@ -1467,8 +1471,14 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 
 	up->port.ops = &sunsu_pops;
 
+	ignore_line = false;
+	if (!strcmp(dp->name, "rsc-console") ||
+	    !strcmp(dp->name, "lom-console"))
+		ignore_line = true;
+
 	sunserial_console_match(SUNSU_CONSOLE(), dp,
-				&sunsu_reg, up->port.line);
+				&sunsu_reg, up->port.line,
+				ignore_line);
 	err = uart_add_one_port(&sunsu_reg, &up->port);
 	if (err)
 		goto out_unmap;
@@ -1517,6 +1527,10 @@ static const struct of_device_id su_match[] = {
 		.name = "serial",
 		.compatible = "su",
 	},
+	{
+		.type = "serial",
+		.compatible = "su",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, su_match);
@@ -1543,6 +1557,12 @@ static int __init sunsu_init(void)
 			num_uart++;
 	}
 	for_each_node_by_name(dp, "serial") {
+		if (of_device_is_compatible(dp, "su")) {
+			if (su_get_type(dp) == SU_PORT_PORT)
+				num_uart++;
+		}
+	}
+	for_each_node_by_type(dp, "serial") {
 		if (of_device_is_compatible(dp, "su")) {
 			if (su_get_type(dp) == SU_PORT_PORT)
 				num_uart++;

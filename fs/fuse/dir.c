@@ -385,6 +385,9 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (fc->no_create)
 		return -ENOSYS;
 
+	if (flags & O_DIRECT)
+		return -EINVAL;
+
 	forget_req = fuse_get_req(fc);
 	if (IS_ERR(forget_req))
 		return PTR_ERR(forget_req);
@@ -712,8 +715,10 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 			fuse_invalidate_attr(newdir);
 
 		/* newent will end up negative */
-		if (newent->d_inode)
+		if (newent->d_inode) {
+			fuse_invalidate_attr(newent->d_inode);
 			fuse_invalidate_entry_cache(newent);
+		}
 	} else if (err == -EINTR) {
 		/* If request was interrupted, DEITY only knows if the
 		   rename actually took place.  If the invalidation

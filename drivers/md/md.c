@@ -944,6 +944,14 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			    desc->raid_disk < mddev->raid_disks */) {
 			set_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = desc->raid_disk;
+		} else if (desc->state & (1<<MD_DISK_ACTIVE)) {
+			/* active but not in sync implies recovery up to
+			 * reshape position.  We don't know exactly where
+			 * that is, so set to zero for now */
+			if (mddev->minor_version >= 91) {
+				rdev->recovery_offset = 0;
+				rdev->raid_disk = desc->raid_disk;
+			}
 		}
 		if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
@@ -1032,8 +1040,19 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	list_for_each_entry(rdev2, &mddev->disks, same_set) {
 		mdp_disk_t *d;
 		int desc_nr;
-		if (rdev2->raid_disk >= 0 && test_bit(In_sync, &rdev2->flags)
-		    && !test_bit(Faulty, &rdev2->flags))
+		int is_active = test_bit(In_sync, &rdev2->flags);
+
+		if (rdev2->raid_disk >= 0 &&
+		    sb->minor_version >= 91)
+			/* we have nowhere to store the recovery_offset,
+			 * but if it is not below the reshape_position,
+			 * we can piggy-back on that.
+			 */
+			is_active = 1;
+		if (rdev2->raid_disk < 0 ||
+		    test_bit(Faulty, &rdev2->flags))
+			is_active = 0;
+		if (is_active)
 			desc_nr = rdev2->raid_disk;
 		else
 			desc_nr = next_spare++;
@@ -1043,16 +1062,16 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		d->number = rdev2->desc_nr;
 		d->major = MAJOR(rdev2->bdev->bd_dev);
 		d->minor = MINOR(rdev2->bdev->bd_dev);
-		if (rdev2->raid_disk >= 0 && test_bit(In_sync, &rdev2->flags)
-		    && !test_bit(Faulty, &rdev2->flags))
+		if (is_active)
 			d->raid_disk = rdev2->raid_disk;
 		else
 			d->raid_disk = rdev2->desc_nr; /* compatibility */
 		if (test_bit(Faulty, &rdev2->flags))
 			d->state = (1<<MD_DISK_FAULTY);
-		else if (test_bit(In_sync, &rdev2->flags)) {
+		else if (is_active) {
 			d->state = (1<<MD_DISK_ACTIVE);
-			d->state |= (1<<MD_DISK_SYNC);
+			if (test_bit(In_sync, &rdev2->flags))
+				d->state |= (1<<MD_DISK_SYNC);
 			active++;
 			working++;
 		} else {
@@ -1382,8 +1401,6 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (rdev->raid_disk >= 0 &&
 	    !test_bit(In_sync, &rdev->flags)) {
-		if (mddev->curr_resync_completed > rdev->recovery_offset)
-			rdev->recovery_offset = mddev->curr_resync_completed;
 		if (rdev->recovery_offset > 0) {
 			sb->feature_map |=
 				cpu_to_le32(MD_FEATURE_RECOVERY_OFFSET);
@@ -1917,6 +1934,14 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 	 */
 	mdk_rdev_t *rdev;
 
+	/* First make sure individual recovery_offsets are correct */
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk >= 0 &&
+		    !test_bit(In_sync, &rdev->flags) &&
+		    mddev->curr_resync_completed > rdev->recovery_offset)
+				rdev->recovery_offset = mddev->curr_resync_completed;
+
+	}	
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->sb_events == mddev->events ||
 		    (nospares &&
@@ -6504,8 +6529,9 @@ void md_do_sync(mddev_t *mddev)
  skip:
 	mddev->curr_resync = 0;
 	mddev->curr_resync_completed = 0;
-	mddev->resync_min = 0;
-	mddev->resync_max = MaxSector;
+	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+		/* We completed so max setting can be forgotten. */
+		mddev->resync_max = MaxSector;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	wake_up(&resync_wait);
 	set_bit(MD_RECOVERY_DONE, &mddev->recovery);

@@ -489,9 +489,9 @@ static struct clk core_ck = {
 static struct clk dpll3_m2x2_ck = {
 	.name		= "dpll3_m2x2_ck",
 	.ops		= &clkops_null,
-	.parent		= &dpll3_x2_ck,
+	.parent		= &dpll3_m2_ck,
 	.clkdm_name	= "dpll3_clkdm",
-	.recalc		= &followparent_recalc,
+	.recalc		= &omap3_clkoutx2_recalc,
 };
 
 /* The PWRDN bit is apparently only available on 3430ES2 and above */

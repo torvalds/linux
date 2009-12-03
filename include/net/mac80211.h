@@ -1283,6 +1283,12 @@ enum ieee80211_filter_flags {
  *
  * These flags are used with the ampdu_action() callback in
  * &struct ieee80211_ops to indicate which action is needed.
+ *
+ * Note that drivers MUST be able to deal with a TX aggregation
+ * session being stopped even before they OK'ed starting it by
+ * calling ieee80211_start_tx_ba_cb(_irqsafe), because the peer
+ * might receive the addBA frame and send a delBA right away!
+ *
  * @IEEE80211_AMPDU_RX_START: start Rx aggregation
  * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  * @IEEE80211_AMPDU_TX_START: start Tx aggregation

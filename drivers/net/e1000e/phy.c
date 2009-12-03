@@ -71,7 +71,6 @@ static const u16 e1000_igp_2_cable_length_table[] =
 #define I82577_CFG_ASSERT_CRS_ON_TX       (1 << 15)
 #define I82577_CFG_ENABLE_DOWNSHIFT       (3 << 10) /* auto downshift 100/10 */
 #define I82577_CTRL_REG                   23
-#define I82577_CTRL_DOWNSHIFT_MASK        (7 << 10)
 
 /* 82577 specific PHY registers */
 #define I82577_PHY_CTRL_2            18
@@ -94,13 +93,6 @@ static const u16 e1000_igp_2_cable_length_table[] =
 
 /* BM PHY Copper Specific Control 1 */
 #define BM_CS_CTRL1                       16
-
-/* BM PHY Copper Specific Status */
-#define BM_CS_STATUS                      17
-#define BM_CS_STATUS_LINK_UP              0x0400
-#define BM_CS_STATUS_RESOLVED             0x0800
-#define BM_CS_STATUS_SPEED_MASK           0xC000
-#define BM_CS_STATUS_SPEED_1000           0x8000
 
 #define HV_MUX_DATA_CTRL               PHY_REG(776, 16)
 #define HV_MUX_DATA_CTRL_GEN_TO_MAC    0x0400
@@ -563,7 +555,7 @@ s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 }
 
 /**
- *  e1000_read_kmrn_reg_locked -  Read kumeran register
+ *  e1000e_read_kmrn_reg_locked -  Read kumeran register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -572,7 +564,7 @@ s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
  *  information retrieved is stored in data.
  *  Assumes semaphore already acquired.
  **/
-s32 e1000_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 e1000e_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	return __e1000_read_kmrn_reg(hw, offset, data, true);
 }
@@ -631,7 +623,7 @@ s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
- *  e1000_write_kmrn_reg_locked -  Write kumeran register
+ *  e1000e_write_kmrn_reg_locked -  Write kumeran register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write at register offset
@@ -639,7 +631,7 @@ s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
  *  Write the data to PHY register at the offset using the kumeran interface.
  *  Assumes semaphore already acquired.
  **/
-s32 e1000_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
+s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	return __e1000_write_kmrn_reg(hw, offset, data, true);
 }
@@ -667,15 +659,6 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = phy->ops.write_phy_reg(hw, I82577_CFG_REG, phy_data);
-	if (ret_val)
-		goto out;
-
-	/* Set number of link attempts before downshift */
-	ret_val = phy->ops.read_phy_reg(hw, I82577_CTRL_REG, &phy_data);
-	if (ret_val)
-		goto out;
-	phy_data &= ~I82577_CTRL_DOWNSHIFT_MASK;
-	ret_val = phy->ops.write_phy_reg(hw, I82577_CTRL_REG, phy_data);
 
 out:
 	return ret_val;
@@ -2665,19 +2648,18 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 		page = 0;
 
 	if (reg > MAX_PHY_MULTI_PAGE_REG) {
-		if ((hw->phy.type != e1000_phy_82578) ||
-		    ((reg != I82578_ADDR_REG) &&
-		     (reg != I82578_ADDR_REG + 1))) {
-			u32 phy_addr = hw->phy.addr;
+		u32 phy_addr = hw->phy.addr;
 
-			hw->phy.addr = 1;
+		hw->phy.addr = 1;
 
-			/* Page is shifted left, PHY expects (page x 32) */
-			ret_val = e1000e_write_phy_reg_mdic(hw,
-			                             IGP01E1000_PHY_PAGE_SELECT,
-			                             (page << IGP_PAGE_SHIFT));
-			hw->phy.addr = phy_addr;
-		}
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+					     IGP01E1000_PHY_PAGE_SELECT,
+					     (page << IGP_PAGE_SHIFT));
+		hw->phy.addr = phy_addr;
+
+		if (ret_val)
+			goto out;
 	}
 
 	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
@@ -2685,7 +2667,7 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 out:
 	/* Revert to MDIO fast mode, if applicable */
 	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, false);
+		ret_val |= e1000_set_mdio_slow_mode_hv(hw, false);
 
 	if (!locked)
 		hw->phy.ops.release_phy(hw);
@@ -2791,19 +2773,18 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	}
 
 	if (reg > MAX_PHY_MULTI_PAGE_REG) {
-		if ((hw->phy.type != e1000_phy_82578) ||
-		    ((reg != I82578_ADDR_REG) &&
-		     (reg != I82578_ADDR_REG + 1))) {
-			u32 phy_addr = hw->phy.addr;
+		u32 phy_addr = hw->phy.addr;
 
-			hw->phy.addr = 1;
+		hw->phy.addr = 1;
 
-			/* Page is shifted left, PHY expects (page x 32) */
-			ret_val = e1000e_write_phy_reg_mdic(hw,
-			                             IGP01E1000_PHY_PAGE_SELECT,
-			                             (page << IGP_PAGE_SHIFT));
-			hw->phy.addr = phy_addr;
-		}
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+					     IGP01E1000_PHY_PAGE_SELECT,
+					     (page << IGP_PAGE_SHIFT));
+		hw->phy.addr = phy_addr;
+
+		if (ret_val)
+			goto out;
 	}
 
 	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
@@ -2812,7 +2793,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 out:
 	/* Revert to MDIO fast mode, if applicable */
 	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, false);
+		ret_val |= e1000_set_mdio_slow_mode_hv(hw, false);
 
 	if (!locked)
 		hw->phy.ops.release_phy(hw);

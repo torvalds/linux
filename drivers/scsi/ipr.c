@@ -4189,6 +4189,25 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
+ * ipr_isr_eh - Interrupt service routine error handler
+ * @ioa_cfg:	ioa config struct
+ * @msg:	message to log
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_isr_eh(struct ipr_ioa_cfg *ioa_cfg, char *msg)
+{
+	ioa_cfg->errors_logged++;
+	dev_err(&ioa_cfg->pdev->dev, "%s\n", msg);
+
+	if (WAIT_FOR_DUMP == ioa_cfg->sdt_state)
+		ioa_cfg->sdt_state = GET_DUMP;
+
+	ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+}
+
+/**
  * ipr_isr - Interrupt service routine
  * @irq:	irq number
  * @devp:	pointer to ioa config struct
@@ -4203,6 +4222,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	volatile u32 int_reg, int_mask_reg;
 	u32 ioasc;
 	u16 cmd_index;
+	int num_hrrq = 0;
 	struct ipr_cmnd *ipr_cmd;
 	irqreturn_t rc = IRQ_NONE;
 
@@ -4233,13 +4253,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 				     IPR_HRRQ_REQ_RESP_HANDLE_MASK) >> IPR_HRRQ_REQ_RESP_HANDLE_SHIFT;
 
 			if (unlikely(cmd_index >= IPR_NUM_CMD_BLKS)) {
-				ioa_cfg->errors_logged++;
-				dev_err(&ioa_cfg->pdev->dev, "Invalid response handle from IOA\n");
-
-				if (WAIT_FOR_DUMP == ioa_cfg->sdt_state)
-					ioa_cfg->sdt_state = GET_DUMP;
-
-				ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+				ipr_isr_eh(ioa_cfg, "Invalid response handle from IOA");
 				spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 				return IRQ_HANDLED;
 			}
@@ -4266,8 +4280,18 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 
 		if (ipr_cmd != NULL) {
 			/* Clear the PCI interrupt */
-			writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg);
-			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+			do {
+				writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg);
+				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+			} while (int_reg & IPR_PCII_HRRQ_UPDATED &&
+					num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
+
+			if (int_reg & IPR_PCII_HRRQ_UPDATED) {
+				ipr_isr_eh(ioa_cfg, "Error clearing HRRQ");
+				spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+				return IRQ_HANDLED;
+			}
+
 		} else
 			break;
 	}

@@ -1565,7 +1565,7 @@ static int savagefb_blank(int blank, struct fb_info *info)
 		vga_out8(0x3c5, sr8, par);
 		vga_out8(0x3c4, 0x0d, par);
 		srd = vga_in8(0x3c5, par);
-		srd &= 0x03;
+		srd &= 0x50;
 
 		switch (blank) {
 		case FB_BLANK_UNBLANK:
@@ -1604,22 +1604,6 @@ static int savagefb_blank(int blank, struct fb_info *info)
 	}
 
 	return (blank == FB_BLANK_NORMAL) ? 1 : 0;
-}
-
-static void savagefb_save_state(struct fb_info *info)
-{
-	struct savagefb_par *par = info->par;
-
-	savage_get_default_par(par, &par->save);
-}
-
-static void savagefb_restore_state(struct fb_info *info)
-{
-	struct savagefb_par *par = info->par;
-
-	savagefb_blank(FB_BLANK_POWERDOWN, info);
-	savage_set_default_par(par, &par->save);
-	savagefb_blank(FB_BLANK_UNBLANK, info);
 }
 
 static int savagefb_open(struct fb_info *info, int user)
@@ -1667,8 +1651,6 @@ static struct fb_ops savagefb_ops = {
 	.fb_setcolreg   = savagefb_setcolreg,
 	.fb_pan_display = savagefb_pan_display,
 	.fb_blank       = savagefb_blank,
-	.fb_save_state  = savagefb_save_state,
-	.fb_restore_state = savagefb_restore_state,
 #if defined(CONFIG_FB_SAVAGE_ACCEL)
 	.fb_fillrect    = savagefb_fillrect,
 	.fb_copyarea    = savagefb_copyarea,
