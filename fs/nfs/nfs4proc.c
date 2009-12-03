@@ -1987,7 +1987,7 @@ out_drop:
 	return 0;
 }
 
-void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
+static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 {
 	if (ctx->state == NULL)
 		return;
