@@ -625,6 +625,8 @@ int pm_schedule_suspend(struct device *dev, unsigned int delay)
 		goto out;
 
 	dev->power.timer_expires = jiffies + msecs_to_jiffies(delay);
+	if (!dev->power.timer_expires)
+		dev->power.timer_expires = 1;
 	mod_timer(&dev->power.suspend_timer, dev->power.timer_expires);
 
  out:
