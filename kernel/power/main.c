@@ -220,6 +220,7 @@ static struct attribute_group attr_group = {
 
 #ifdef CONFIG_PM_RUNTIME
 struct workqueue_struct *pm_wq;
+EXPORT_SYMBOL_GPL(pm_wq);
 
 static int __init pm_start_workqueue(void)
 {
