@@ -1601,13 +1601,8 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * silly-rename. If the silly-rename succeeds, the
 	 * copied dentry is hashed and becomes the new target.
 	 */
-	if (!new_inode)
-		goto go_ahead;
-	if (S_ISDIR(new_inode->i_mode)) {
-		error = -EISDIR;
-		if (!S_ISDIR(old_inode->i_mode))
-			goto out;
-	} else if (atomic_read(&new_dentry->d_count) > 2) {
+	if (new_inode && !S_ISDIR(new_inode->i_mode) &&
+	    atomic_read(&new_dentry->d_count) > 2) {
 		int err;
 		/* copy the target dentry's name */
 		dentry = d_alloc(new_dentry->d_parent,
@@ -1627,7 +1622,6 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out;
 	}
 
-go_ahead:
 	/*
 	 * ... prune child dentries and writebacks if needed.
 	 */
