@@ -1633,7 +1633,7 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
  *
  * See usb_queue_reset_device() for more details
  */
-void __usb_queue_reset_device(struct work_struct *ws)
+static void __usb_queue_reset_device(struct work_struct *ws)
 {
 	int rc;
 	struct usb_interface *iface =
