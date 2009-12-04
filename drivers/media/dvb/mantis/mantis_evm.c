@@ -31,8 +31,6 @@ static void mantis_hifevm_work(struct work_struct *work)
 
 	gpif_stat = mmread(MANTIS_GPIF_STATUS);
 	gpif_mask = mmread(MANTIS_GPIF_IRQCFG);
-	if (!((gpif_stat & 0xff) & (gpif_mask & 0xff)))
-		return;
 
 	if (gpif_stat & MANTIS_GPIF_DETSTAT) {
 		if (gpif_stat & MANTIS_CARD_PLUGIN) {
