@@ -31,6 +31,8 @@ enum mantis_sbuf_status {
 
 struct mantis_slot {
 	u32				timeout;
+	u32				slave_cfg;
+	u32				bar;
 };
 
 /* Physical layer */
@@ -40,7 +42,7 @@ enum mantis_slot_state {
 };
 
 struct mantis_ca {
-	struct mantis_slot		slot;
+	struct mantis_slot		slot[4];
 
 	struct work_struct		hif_evm_work;
 
@@ -65,5 +67,11 @@ extern int mantis_pcmcia_init(struct mantis_ca *ca);
 extern void mantis_pcmcia_exit(struct mantis_ca *ca);
 extern int mantis_evmgr_init(struct mantis_ca *ca);
 extern void mantis_evmgr_exit(struct mantis_ca *ca);
+
+/* HIF */
+extern int mantis_hif_init(struct mantis_ca *ca);
+extern void mantis_hif_exit(struct mantis_ca *ca);
+extern int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr);
+extern int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data);
 
 #endif // __MANTIS_LINK_H

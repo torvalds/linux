@@ -147,16 +147,16 @@
 #define MANTIS_CARD_RESET		0xac
 
 #define MANTIS_GPIF_ADDR		0xb0
-#define MANTIS_GPIF_RDWRN		(0x01		<< 31)
+#define MANTIS_GPIF_HIFRDWRN		(0x01		<< 31)
 #define MANTIS_GPIF_PCMCIAREG		(0x01		<< 27)
 #define MANTIS_GPIF_PCMCIAIOM		(0x01		<< 26)
-#define MANTIS_GPIF_HIF_ADDR		(0xfffffff	<<  0)
+#define MANTIS_GPIF_HIFADDR		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_DOUT		0xb4
-#define MANTIS_GPIF_HIF_DOUT		(0xfffffff	<<  0)
+#define MANTIS_GPIF_HIFDOUT		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_DIN			0xb8
-#define MANTIS_GPIF_HIF_DIN		(0xfffffff	<<  0)
+#define MANTIS_GPIF_HIFDIN		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_SPARE		0xbc
 #define MANTIS_GPIF_LOGICRD		(0xffff		<< 16)

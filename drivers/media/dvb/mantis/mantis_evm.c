@@ -92,7 +92,7 @@ int mantis_evmgr_init(struct mantis_ca *ca)
 	INIT_WORK(&ca->hif_evm_work, mantis_hifevm_work);
 	mantis_pcmcia_init(ca);
 	schedule_work(&ca->hif_evm_work);
-
+	mantis_hif_init(ca);
 	return 0;
 }
 
@@ -102,5 +102,6 @@ void mantis_evmgr_exit(struct mantis_ca *ca)
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis Host I/F Event manager exiting");
 	flush_scheduled_work();
+	mantis_hif_exit(ca);
 	mantis_pcmcia_exit(ca);
 }
