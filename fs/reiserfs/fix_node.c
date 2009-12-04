@@ -834,7 +834,7 @@ static int get_empty_nodes(struct tree_balance *tb, int h)
 		RFALSE(buffer_dirty(new_bh) ||
 		       buffer_journaled(new_bh) ||
 		       buffer_journal_dirty(new_bh),
-		       "PAP-8140: journlaled or dirty buffer %b for the new block",
+		       "PAP-8140: journaled or dirty buffer %b for the new block",
 		       new_bh);
 
 		/* Put empty buffers into the array. */
