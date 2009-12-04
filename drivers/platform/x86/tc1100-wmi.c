@@ -194,7 +194,8 @@ static int __devexit tc1100_remove(struct platform_device *device)
 	return 0;
 }
 
-static int tc1100_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM
+static int tc1100_suspend(struct device *dev)
 {
 	int ret;
 
@@ -206,10 +207,10 @@ static int tc1100_suspend(struct platform_device *dev, pm_message_t state)
 	if (ret)
 		return ret;
 
-	return ret;
+	return 0;
 }
 
-static int tc1100_resume(struct platform_device *dev)
+static int tc1100_resume(struct device *dev)
 {
 	int ret;
 
@@ -221,17 +222,26 @@ static int tc1100_resume(struct platform_device *dev)
 	if (ret)
 		return ret;
 
-	return ret;
+	return 0;
 }
+
+static const struct dev_pm_ops tc1100_pm_ops = {
+	.suspend	= tc1100_suspend,
+	.resume		= tc1100_resume,
+	.freeze		= tc1100_suspend,
+	.restore	= tc1100_resume,
+};
+#endif
 
 static struct platform_driver tc1100_driver = {
 	.driver = {
 		.name = "tc1100-wmi",
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm = &tc1100_pm_ops,
+#endif
 	},
 	.remove = __devexit_p(tc1100_remove),
-	.suspend = tc1100_suspend,
-	.resume = tc1100_resume,
 };
 
 static int __init tc1100_init(void)
