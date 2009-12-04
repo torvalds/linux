@@ -4,6 +4,7 @@ mantis-objs = 	mantis_core.o	\
 		mantis_i2c.o	\
 		mantis_dvb.o	\
 		mantis_evm.o	\
+		mantis_ca.o	\
 		mantis_pcmcia.o	\
 		mantis_vp1033.o	\
 		mantis_vp1034.o	\

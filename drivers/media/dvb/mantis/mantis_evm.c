@@ -90,6 +90,8 @@ int mantis_evmgr_init(struct mantis_ca *ca)
 	dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Initializing Mantis Host I/F Event manager");
 	tasklet_init(&ca->hif_evm_tasklet, mantis_hifevm_tasklet, (unsigned long) ca);
 
+	mantis_pcmcia_init(ca);
+
 	return 0;
 }
 
@@ -99,4 +101,6 @@ void mantis_evmgr_exit(struct mantis_ca *ca)
 
 	dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Mantis Host I/F Event manager exiting");
 	tasklet_kill(&ca->hif_evm_tasklet);
+
+	mantis_pcmcia_exit(ca);
 }

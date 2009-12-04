@@ -56,4 +56,12 @@ struct mantis_ca {
 	void				*ca_priv;
 };
 
+/* CA */
+extern void mantis_event_cam_plugin(struct mantis_ca *ca);
+extern void mantis_event_cam_unplug(struct mantis_ca *ca);
+extern int mantis_pcmcia_init(struct mantis_ca *ca);
+extern void mantis_pcmcia_exit(struct mantis_ca *ca);
+extern int mantis_evmgr_init(struct mantis_ca *ca);
+extern void mantis_evmgr_exit(struct mantis_ca *ca);
+
 #endif // __MANTIS_LINK_H
