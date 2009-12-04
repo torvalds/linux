@@ -635,21 +635,21 @@ static bool impaired_toshiba_kbc;
 static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		.ident = "Toshiba Satellite",
+		/* Toshiba Satellite */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite"),
 		},
 	},
 	{
-		.ident = "Toshiba Dynabook",
+		/* Toshiba Dynabook */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "dynabook"),
 		},
 	},
 	{
-		.ident = "Toshiba Portege M300",
+		/* Toshiba Portege M300 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M300"),
@@ -657,7 +657,7 @@ static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
 
 	},
 	{
-		.ident = "Toshiba Portege M300",
+		/* Toshiba Portege M300 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Portable PC"),

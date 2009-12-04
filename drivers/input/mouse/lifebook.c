@@ -46,50 +46,50 @@ static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		.ident = "FLORA-ie 55mi",
+		/* FLORA-ie 55mi */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "FLORA-ie 55mi"),
 		},
 	},
 	{
-		.ident = "LifeBook B",
+		/* LifeBook B */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B Series"),
 		},
 	},
 	{
-		.ident = "Lifebook B",
+		/* Lifebook B */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK B Series"),
 		},
 	},
 	{
-		.ident = "Lifebook B-2130",
+		/* Lifebook B-2130 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "ZEPHYR"),
 		},
 	},
 	{
-		.ident = "Lifebook B213x/B2150",
+		/* Lifebook B213x/B2150 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B2131/B2133/B2150"),
 		},
 	},
 	{
-		.ident = "Zephyr",
+		/* Zephyr */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPHYR"),
 		},
 	},
 	{
-		.ident = "CF-18",
+		/* Panasonic CF-18 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
 		},
 		.callback = lifebook_limit_serio3,
 	},
 	{
-		.ident = "Panasonic CF-28",
+		/* Panasonic CF-28 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-28"),
@@ -97,7 +97,7 @@ static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 		.callback = lifebook_set_6byte_proto,
 	},
 	{
-		.ident = "Panasonic CF-29",
+		/* Panasonic CF-29 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-29"),
@@ -105,14 +105,14 @@ static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 		.callback = lifebook_set_6byte_proto,
 	},
 	{
-		.ident = "CF-72",
+		/* Panasonic CF-72 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-72"),
 		},
 		.callback = lifebook_set_6byte_proto,
 	},
 	{
-		.ident = "Lifebook B142",
+		/* Lifebook B142 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B142"),
 		},
