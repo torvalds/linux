@@ -90,6 +90,9 @@ int mantis_pcmcia_init(struct mantis_ca *ca)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Empty Slot on Adapter(%d) Slot(0)", mantis->num);
 		mmwrite(card_stat | MANTIS_MASK_PLUGIN, MANTIS_GPIF_IRQCFG);
 		ca->slot_state = MODULE_XTRACTED;
+		dvb_ca_en50221_camchange_irq(&ca->en50221,
+					     0,
+					     DVB_CA_EN50221_CAMCHANGE_REMOVED);
 	}
 
 	return 0;
