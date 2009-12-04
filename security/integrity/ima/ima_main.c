@@ -161,7 +161,7 @@ int ima_path_check(struct path *path, int mask, int update_counts)
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
-	iint = ima_iint_find_insert_get(inode);
+	iint = ima_iint_find_get(inode);
 	if (!iint)
 		return 0;
 
@@ -219,7 +219,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
-	iint = ima_iint_find_insert_get(inode);
+	iint = ima_iint_find_get(inode);
 	if (!iint)
 		return -ENOMEM;
 
@@ -255,7 +255,7 @@ void ima_counts_put(struct path *path, int mask)
 	 */
 	if (!ima_initialized || !inode || !S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_insert_get(inode);
+	iint = ima_iint_find_get(inode);
 	if (!iint)
 		return;
 
@@ -286,7 +286,7 @@ void ima_counts_get(struct file *file)
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_insert_get(inode);
+	iint = ima_iint_find_get(inode);
 	if (!iint)
 		return;
 	mutex_lock(&iint->mutex);

@@ -45,22 +45,21 @@ out:
 	return iint;
 }
 
-/* Allocate memory for the iint associated with the inode
- * from the iint_cache slab, initialize the iint, and
- * insert it into the radix tree.
- *
- * On success return a pointer to the iint; on failure return NULL.
+/**
+ * ima_inode_alloc - allocate an iint associated with an inode
+ * @inode: pointer to the inode
  */
-struct ima_iint_cache *ima_iint_insert(struct inode *inode)
+int ima_inode_alloc(struct inode *inode)
 {
 	struct ima_iint_cache *iint = NULL;
 	int rc = 0;
 
 	if (!ima_initialized)
-		return iint;
+		return 0;
+
 	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
 	if (!iint)
-		return iint;
+		return -ENOMEM;
 
 	rc = radix_tree_preload(GFP_NOFS);
 	if (rc < 0)
@@ -70,63 +69,13 @@ struct ima_iint_cache *ima_iint_insert(struct inode *inode)
 	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
 	spin_unlock(&ima_iint_lock);
 out:
-	if (rc < 0) {
+	if (rc < 0)
 		kmem_cache_free(iint_cache, iint);
-		if (rc == -EEXIST) {
-			spin_lock(&ima_iint_lock);
-			iint = radix_tree_lookup(&ima_iint_store,
-						 (unsigned long)inode);
-			spin_unlock(&ima_iint_lock);
-		} else
-			iint = NULL;
-	}
+
 	radix_tree_preload_end();
-	return iint;
+
+	return rc;
 }
-
-/**
- * ima_inode_alloc - allocate an iint associated with an inode
- * @inode: pointer to the inode
- */
-int ima_inode_alloc(struct inode *inode)
-{
-	struct ima_iint_cache *iint;
-
-	if (!ima_initialized)
-		return 0;
-
-	iint = ima_iint_insert(inode);
-	if (!iint)
-		return -ENOMEM;
-	return 0;
-}
-
-/* ima_iint_find_insert_get - get the iint associated with an inode
- *
- * Most insertions are done at inode_alloc, except those allocated
- * before late_initcall. When the iint does not exist, allocate it,
- * initialize and insert it, and increment the iint refcount.
- *
- * (Can't initialize at security_initcall before any inodes are
- * allocated, got to wait at least until proc_init.)
- *
- *  Return the iint.
- */
-struct ima_iint_cache *ima_iint_find_insert_get(struct inode *inode)
-{
-	struct ima_iint_cache *iint = NULL;
-
-	iint = ima_iint_find_get(inode);
-	if (iint)
-		return iint;
-
-	iint = ima_iint_insert(inode);
-	if (iint)
-		kref_get(&iint->refcount);
-
-	return iint;
-}
-EXPORT_SYMBOL_GPL(ima_iint_find_insert_get);
 
 /* iint_free - called when the iint refcount goes to zero */
 void iint_free(struct kref *kref)
