@@ -28,6 +28,7 @@
 #include "lnbp21.h"
 
 #define MANTIS_VP_1041_DVB_S2	0x0031
+#define TECHNISAT_SKYSTAR_HD2	0x0001
 
 extern struct mantis_hwconfig vp1041_mantis_config;
 extern struct stb0899_config vp1041_config;

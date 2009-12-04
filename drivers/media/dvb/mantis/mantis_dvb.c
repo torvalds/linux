@@ -240,6 +240,7 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 		}
 		break;
 	case MANTIS_VP_1041_DVB_S2:
+	case TECHNISAT_SKYSTAR_HD2:
 		mantis->fe = stb0899_attach(&vp1041_config, &mantis->adapter);
 		if (mantis->fe) {
 			dprintk(verbose, MANTIS_ERROR, 1,

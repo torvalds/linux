@@ -113,6 +113,7 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		mantis->hwconfig = &vp1034_mantis_config;
 		break;
 	case MANTIS_VP_1041_DVB_S2:	// VP-1041
+	case TECHNISAT_SKYSTAR_HD2:
 		mantis->hwconfig = &vp1041_mantis_config;
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
