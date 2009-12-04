@@ -65,6 +65,95 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
 
+/* hpd for digital panel detect/disconnect */
+bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
+{
+	bool connected = false;
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		if (RREG32(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_2:
+		if (RREG32(RADEON_FP2_GEN_CNTL) & RADEON_FP2_DETECT_SENSE)
+			connected = true;
+		break;
+	default:
+		break;
+	}
+	return connected;
+}
+
+void r100_hpd_set_polarity(struct radeon_device *rdev,
+			   enum radeon_hpd_id hpd)
+{
+	u32 tmp;
+	bool connected = r100_hpd_sense(rdev, hpd);
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		tmp = RREG32(RADEON_FP_GEN_CNTL);
+		if (connected)
+			tmp &= ~RADEON_FP_DETECT_INT_POL;
+		else
+			tmp |= RADEON_FP_DETECT_INT_POL;
+		WREG32(RADEON_FP_GEN_CNTL, tmp);
+		break;
+	case RADEON_HPD_2:
+		tmp = RREG32(RADEON_FP2_GEN_CNTL);
+		if (connected)
+			tmp &= ~RADEON_FP2_DETECT_INT_POL;
+		else
+			tmp |= RADEON_FP2_DETECT_INT_POL;
+		WREG32(RADEON_FP2_GEN_CNTL, tmp);
+		break;
+	default:
+		break;
+	}
+}
+
+void r100_hpd_init(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			rdev->irq.hpd[0] = true;
+			break;
+		case RADEON_HPD_2:
+			rdev->irq.hpd[1] = true;
+			break;
+		default:
+			break;
+		}
+	}
+	r100_irq_set(rdev);
+}
+
+void r100_hpd_fini(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			rdev->irq.hpd[0] = false;
+			break;
+		case RADEON_HPD_2:
+			rdev->irq.hpd[1] = false;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 /*
  * PCI GART
  */
@@ -163,6 +252,12 @@ int r100_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.crtc_vblank_int[1]) {
 		tmp |= RADEON_CRTC2_VBLANK_MASK;
 	}
+	if (rdev->irq.hpd[0]) {
+		tmp |= RADEON_FP_DETECT_MASK;
+	}
+	if (rdev->irq.hpd[1]) {
+		tmp |= RADEON_FP2_DETECT_MASK;
+	}
 	WREG32(RADEON_GEN_INT_CNTL, tmp);
 	return 0;
 }
@@ -181,8 +276,9 @@ void r100_irq_disable(struct radeon_device *rdev)
 static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 {
 	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
-	uint32_t irq_mask = RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT |
-		RADEON_CRTC2_VBLANK_STAT;
+	uint32_t irq_mask = RADEON_SW_INT_TEST |
+		RADEON_CRTC_VBLANK_STAT | RADEON_CRTC2_VBLANK_STAT |
+		RADEON_FP_DETECT_STAT | RADEON_FP2_DETECT_STAT;
 
 	if (irqs) {
 		WREG32(RADEON_GEN_INT_STATUS, irqs);
@@ -212,6 +308,12 @@ int r100_irq_process(struct radeon_device *rdev)
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
 			drm_handle_vblank(rdev->ddev, 1);
+		}
+		if (status & RADEON_FP_DETECT_STAT) {
+			DRM_INFO("HPD1\n");
+		}
+		if (status & RADEON_FP2_DETECT_STAT) {
+			DRM_INFO("HPD2\n");
 		}
 		status = r100_irq_ack(rdev);
 	}
