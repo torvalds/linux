@@ -144,7 +144,7 @@ struct mantis_pci {
 	struct mantis_ca	*mantis_ca;
 };
 
-#define MANTIS_HIF_STATUS	(mantis->gpio_status << 12)
+#define MANTIS_HIF_STATUS	(mantis->gpio_status)
 
 extern unsigned int verbose;
 extern unsigned int devs;
