@@ -56,6 +56,7 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 	return rc;
 }
 
+
 int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 {
 	struct mantis_pci *mantis = ca->ca_priv;
@@ -67,7 +68,7 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr, MANTIS_GPIF_BRADDR);
+	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_BRADDR);
 	mmwrite(count, MANTIS_GPIF_BRBYTES);
 
 	udelay(20);
@@ -100,7 +101,7 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 
 	mmwrite(slot->slave_cfg, MANTIS_GPIF_CFGSLA); /* Slot0 alone for now */
 
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 	ca->hif_job_queue = MANTIS_HIF_MEMWR;
 
@@ -124,7 +125,7 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	ca->hif_job_queue = MANTIS_HIF_IOMRD;
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
@@ -152,7 +153,7 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
 	ca->hif_job_queue = MANTIS_HIF_IOMWR;
