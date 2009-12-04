@@ -19,8 +19,6 @@
 #include <linux/radix-tree.h>
 #include "ima.h"
 
-#define ima_iint_delete ima_inode_free
-
 RADIX_TREE(ima_iint_store, GFP_ATOMIC);
 DEFINE_SPINLOCK(ima_iint_lock);
 
@@ -111,12 +109,12 @@ void iint_rcu_free(struct rcu_head *rcu_head)
 }
 
 /**
- * ima_iint_delete - called on integrity_inode_free
+ * ima_inode_free - called on security_inode_free
  * @inode: pointer to the inode
  *
  * Free the integrity information(iint) associated with an inode.
  */
-void ima_iint_delete(struct inode *inode)
+void ima_inode_free(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
