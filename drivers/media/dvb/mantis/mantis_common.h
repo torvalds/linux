@@ -139,6 +139,8 @@ struct mantis_pci {
 	 /*	A12 A13 A14		*/
 	u32			gpio_status;
 
+	u32			gpif_status;
+
 	struct mantis_ca	*mantis_ca;
 };
 

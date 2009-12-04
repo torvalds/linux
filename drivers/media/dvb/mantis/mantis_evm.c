@@ -27,18 +27,10 @@ static void mantis_hifevm_work(struct work_struct *work)
 	struct mantis_ca *ca = container_of(work, struct mantis_ca, hif_evm_work);
 	struct mantis_pci *mantis = ca->ca_priv;
 
-	u32 gpif_stat, gpif_mask, rst_mask, rst_stat;
-
-	rst_mask  = MANTIS_GPIF_WRACK  |
-		    MANTIS_GPIF_OTHERR |
-		    MANTIS_SBUF_WSTO   |
-		    MANTIS_GPIF_EXTIRQ;
+	u32 gpif_stat, gpif_mask;
 
 	gpif_stat = mmread(MANTIS_GPIF_STATUS);
 	gpif_mask = mmread(MANTIS_GPIF_IRQCFG);
-
-	rst_stat = gpif_stat & rst_mask;
-	mmwrite(rst_stat, MANTIS_GPIF_STATUS);
 
 	if (gpif_stat & MANTIS_GPIF_DETSTAT) {
 		if (gpif_stat & MANTIS_CARD_PLUGIN) {
@@ -60,13 +52,13 @@ static void mantis_hifevm_work(struct work_struct *work)
 		}
 	}
 
-	if (gpif_stat & MANTIS_GPIF_EXTIRQ)
+	if (mantis->gpif_status & MANTIS_GPIF_EXTIRQ)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Ext IRQ", mantis->num);
 
-	if (gpif_stat & MANTIS_SBUF_WSTO)
+	if (mantis->gpif_status & MANTIS_SBUF_WSTO)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Timeout", mantis->num);
 
-	if (gpif_stat & MANTIS_GPIF_OTHERR)
+	if (mantis->gpif_status & MANTIS_GPIF_OTHERR)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Alignment Error", mantis->num);
 
 	if (gpif_stat & MANTIS_SBUF_OVFLW)
@@ -75,7 +67,7 @@ static void mantis_hifevm_work(struct work_struct *work)
 	if (gpif_stat & MANTIS_GPIF_BRRDY)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Read Ready", mantis->num);
 
-	if (gpif_stat & MANTIS_GPIF_WRACK)
+	if (mantis->gpif_status & MANTIS_GPIF_WRACK)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Slave Write ACK", mantis->num);
 
 	if (gpif_stat & MANTIS_GPIF_INTSTAT)

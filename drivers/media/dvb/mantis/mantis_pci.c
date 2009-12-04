@@ -53,6 +53,8 @@ MODULE_DEVICE_TABLE(pci, mantis_pci_table);
 static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 {
 	u32 stat = 0, mask = 0, lstat = 0, mstat = 0;
+	u32 rst_stat = 0, rst_mask = 0;
+
 	struct mantis_pci *mantis;
 	struct mantis_ca *ca;
 
@@ -69,6 +71,15 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	if (!(stat & mask))
 		return IRQ_NONE;
 
+	rst_mask  = MANTIS_GPIF_WRACK  |
+		    MANTIS_GPIF_OTHERR |
+		    MANTIS_SBUF_WSTO   |
+		    MANTIS_GPIF_EXTIRQ;
+
+	rst_stat  = mmread(MANTIS_GPIF_STATUS);
+	rst_stat &= rst_mask;
+	mmwrite(rst_stat, MANTIS_GPIF_STATUS);
+
 	mantis->mantis_int_stat = stat;
 	mantis->mantis_int_mask = mask;
 	dprintk(verbose, MANTIS_DEBUG, 0, "=== Interrupts[%04x/%04x]= [", stat, mask);
@@ -77,6 +88,7 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_IRQ0) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
+		mantis->gpif_status = rst_stat;
 		schedule_work(&ca->hif_evm_work);
 	}
 	if (stat & MANTIS_INT_IRQ1) {
