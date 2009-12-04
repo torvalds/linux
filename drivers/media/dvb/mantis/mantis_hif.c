@@ -61,6 +61,7 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0, data, count = 4;
 
+	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Read", mantis->num);
 	hif_addr |=  MANTIS_GPIF_HIFRDWRN;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
@@ -91,6 +92,7 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0;
 
+	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Write", mantis->num);
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
@@ -116,6 +118,7 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 data, hif_addr = 0;
 
+	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Read", mantis->num);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr |=  MANTIS_GPIF_HIFRDWRN;
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
@@ -143,6 +146,7 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0;
 
+	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Write", mantis->num);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
