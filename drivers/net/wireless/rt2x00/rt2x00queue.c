@@ -181,7 +181,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 	unsigned int frame_length = skb->len;
 	unsigned int header_align = ALIGN_SIZE(skb, 0);
 	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
-	unsigned int l2pad = 4 - (payload_align - header_align);
+	unsigned int l2pad = L2PAD_SIZE(header_length);
 
 	if (header_align == payload_align) {
 		/*
@@ -216,6 +216,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 		memmove(skb->data + header_length + l2pad,
 			skb->data + header_length + l2pad + payload_align,
 			frame_length - header_length);
+		skb_trim(skb, frame_length + l2pad);
 		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
 }
@@ -223,7 +224,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int l2pad = 4 - (header_length & 3);
+	unsigned int l2pad = L2PAD_SIZE(header_length);
 
 	if (!l2pad || (skbdesc->flags & SKBDESC_L2_PADDED))
 		return;
@@ -346,7 +347,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Header and alignment information.
 	 */
 	txdesc->header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	txdesc->l2pad = ALIGN_SIZE(entry->skb, txdesc->header_length);
+	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+		txdesc->l2pad = L2PAD_SIZE(txdesc->header_length);
 
 	/*
 	 * Check whether this frame is to be acked.
