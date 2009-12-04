@@ -180,7 +180,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 	unsigned int payload_length = skb->len - header_length;
 	unsigned int header_align = ALIGN_SIZE(skb, 0);
 	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
-	unsigned int l2pad = L2PAD_SIZE(header_length);
+	unsigned int l2pad = payload_length ? L2PAD_SIZE(header_length) : 0;
 
 	/*
 	 * Adjust the header alignment if the payload needs to be moved more
