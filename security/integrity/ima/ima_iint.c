@@ -87,8 +87,6 @@ out:
 /**
  * ima_inode_alloc - allocate an iint associated with an inode
  * @inode: pointer to the inode
- *
- * Return 0 on success, 1 on failure.
  */
 int ima_inode_alloc(struct inode *inode)
 {
@@ -99,7 +97,7 @@ int ima_inode_alloc(struct inode *inode)
 
 	iint = ima_iint_insert(inode);
 	if (!iint)
-		return 1;
+		return -ENOMEM;
 	return 0;
 }
 
