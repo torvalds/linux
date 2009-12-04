@@ -272,7 +272,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 				errorcode);
 			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 			exception->retry = 1;
-			/* FALLTHROUGH */
+			break;
 #endif /* !defined(CONFIG_NFS_V4_1) */
 		case -NFS4ERR_FILE_OPEN:
 			if (exception->timeout > HZ) {
