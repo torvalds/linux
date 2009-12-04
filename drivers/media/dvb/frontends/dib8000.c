@@ -28,18 +28,6 @@ MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
 #define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "DiB8000: "); printk(args); printk("\n"); } } while (0)
 
-enum frontend_tune_state {
-	CT_AGC_START = 20,
-	CT_AGC_STEP_0,
-	CT_AGC_STEP_1,
-	CT_AGC_STEP_2,
-	CT_AGC_STEP_3,
-	CT_AGC_STEP_4,
-	CT_AGC_STOP,
-
-	CT_DEMOD_START = 30,
-};
-
 #define FE_STATUS_TUNE_FAILED 0
 
 struct i2c_device {
@@ -852,6 +840,14 @@ static int dib8000_set_agc_config(struct dib8000_state *state, u8 band)
 	return 0;
 }
 
+void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	dib8000_set_adc_state(state, DIBX000_ADC_ON);
+	dib8000_set_agc_config(state, (unsigned char)(BAND_OF_FREQUENCY(fe->dtv_property_cache.frequency / 1000)));
+}
+EXPORT_SYMBOL(dib8000_pwm_agc_reset);
+
 static int dib8000_agc_soft_split(struct dib8000_state *state)
 {
 	u16 agc, split_offset;
@@ -938,6 +934,32 @@ static int dib8000_agc_startup(struct dvb_frontend *fe)
 	return ret;
 
 }
+
+static const int32_t lut_1000ln_mant[] =
+{
+	908,7003,7090,7170,7244,7313,7377,7438,7495,7549,7600
+};
+
+int32_t dib8000_get_adc_power(struct dvb_frontend *fe, uint8_t mode)
+{
+    struct dib8000_state *state = fe->demodulator_priv;
+    uint32_t ix =0, tmp_val =0, exp = 0, mant = 0;
+    int32_t val;
+
+    val = dib8000_read32(state, 384);
+    /* mode = 1 : ln_agcpower calc using mant-exp conversion and mantis look up table */
+    if(mode) {
+	tmp_val = val;
+	while(tmp_val>>=1)
+	    exp++;
+	mant = (val * 1000 / (1<<exp));
+	ix = (uint8_t)((mant-1000)/100); /* index of the LUT */
+	val = (lut_1000ln_mant[ix] + 693*(exp-20) - 6908); /* 1000 * ln(adcpower_real) ; 693 = 1000ln(2) ; 6908 = 1000*ln(1000) ; 20 comes from adc_real = adc_pow_int / 2**20 */
+	val = (val*256)/1000;
+    }
+    return val;
+}
+EXPORT_SYMBOL(dib8000_get_adc_power);
 
 static void dib8000_update_timf(struct dib8000_state *state)
 {
@@ -1853,6 +1875,24 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 		return 0;
 	}
 }
+
+enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend* fe)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	return state->tune_state;
+}
+EXPORT_SYMBOL(dib8000_get_tune_state);
+
+int dib8000_set_tune_state(struct dvb_frontend* fe, enum frontend_tune_state tune_state)
+{
+	struct dib8000_state *state = fe->demodulator_priv;
+	state->tune_state = tune_state;
+	return 0;
+}
+EXPORT_SYMBOL(dib8000_set_tune_state);
+
+
+
 
 static int dib8000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
