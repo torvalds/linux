@@ -14,9 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
 #include "blk-cgroup.h"
-
-extern void cfq_unlink_blkio_group(void *, struct blkio_group *);
-extern void cfq_update_blkio_group_weight(struct blkio_group *, unsigned int);
+#include "cfq-iosched.h"
 
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 

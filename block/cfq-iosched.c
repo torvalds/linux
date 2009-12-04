@@ -14,6 +14,7 @@
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
 #include "blk-cgroup.h"
+#include "cfq-iosched.h"
 
 /*
  * tunables
