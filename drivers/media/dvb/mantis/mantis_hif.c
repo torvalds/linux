@@ -44,9 +44,9 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 	int rc = 0;
 
-	if (wait_event_interruptible_timeout(ca->hif_opdone_wq,
-					     ca->hif_event & MANTIS_SBUF_OPDONE,
-					     msecs_to_jiffies(500)) == -ERESTARTSYS) {
+	if (wait_event_timeout(ca->hif_opdone_wq,
+			       ca->hif_event & MANTIS_SBUF_OPDONE,
+			       msecs_to_jiffies(500)) == -ERESTARTSYS) {
 
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Smart buffer operation timeout !", mantis->num);
 		rc = -EREMOTEIO;
