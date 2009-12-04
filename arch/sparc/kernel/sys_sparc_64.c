@@ -403,18 +403,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	}
 }
 
-SYSCALL_DEFINE1(sparc_brk, unsigned long, brk)
-{
-	/* People could try to be nasty and use ta 0x6d in 32bit programs */
-	if (test_thread_flag(TIF_32BIT) && brk >= STACK_TOP32)
-		return current->mm->brk;
-
-	if (unlikely(straddles_64bit_va_hole(current->mm->brk, brk)))
-		return current->mm->brk;
-
-	return sys_brk(brk);
-}
-                                                                
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.

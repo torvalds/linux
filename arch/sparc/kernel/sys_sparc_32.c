@@ -79,15 +79,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	}
 }
 
-asmlinkage unsigned long sparc_brk(unsigned long brk)
-{
-	if(ARCH_SUN4C) {
-		if ((brk & 0xe0000000) != (current->mm->brk & 0xe0000000))
-			return current->mm->brk;
-	}
-	return sys_brk(brk);
-}
-
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
