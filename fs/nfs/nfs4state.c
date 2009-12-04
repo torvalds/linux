@@ -1094,6 +1094,8 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_SEQ_FALSE_RETRY:
 		case -NFS4ERR_SEQ_MISORDERED:
 			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+			/* Zero session reset errors */
+			return 0;
 	}
 	return error;
 }
@@ -1191,7 +1193,6 @@ static int nfs4_reset_session(struct nfs_client *clp)
 		set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 		spin_unlock(&tbl->slot_tbl_lock);
 		status = wait_for_completion_interruptible(&ses->complete);
-		clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 		if (status) /* -ERESTARTSYS */
 			goto out;
 	} else {
@@ -1212,6 +1213,7 @@ static int nfs4_reset_session(struct nfs_client *clp)
 		/* fall through*/
 out:
 	/* Wake up the next rpc task even on error */
+	clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 	rpc_wake_up_next(&clp->cl_session->fc_slot_table.slot_tbl_waitq);
 	return status;
 }
