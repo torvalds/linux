@@ -436,6 +436,38 @@ static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
 }
 
 
+struct mac80211_hwsim_addr_match_data {
+	bool ret;
+	const u8 *addr;
+};
+
+static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct mac80211_hwsim_addr_match_data *md = data;
+	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
+		md->ret = true;
+}
+
+
+static bool mac80211_hwsim_addr_match(struct mac80211_hwsim_data *data,
+				      const u8 *addr)
+{
+	struct mac80211_hwsim_addr_match_data md;
+
+	if (memcmp(addr, data->hw->wiphy->perm_addr, ETH_ALEN) == 0)
+		return true;
+
+	md.ret = false;
+	md.addr = addr;
+	ieee80211_iterate_active_interfaces_atomic(data->hw,
+						   mac80211_hwsim_addr_iter,
+						   &md);
+
+	return md.ret;
+}
+
+
 static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 				    struct sk_buff *skb)
 {
@@ -488,8 +520,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (nskb == NULL)
 			continue;
 
-		if (memcmp(hdr->addr1, data2->hw->wiphy->perm_addr,
-			   ETH_ALEN) == 0)
+		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
 		ieee80211_rx_irqsafe(data2->hw, nskb);
