@@ -27,10 +27,18 @@ static void mantis_hifevm_work(struct work_struct *work)
 	struct mantis_ca *ca = container_of(work, struct mantis_ca, hif_evm_work);
 	struct mantis_pci *mantis = ca->ca_priv;
 
-	u32 gpif_stat, gpif_mask;
+	u32 gpif_stat, gpif_mask, rst_mask, rst_stat;
+
+	rst_mask  = MANTIS_GPIF_WRACK  |
+		    MANTIS_GPIF_OTHERR |
+		    MANTIS_SBUF_WSTO   |
+		    MANTIS_GPIF_EXTIRQ;
 
 	gpif_stat = mmread(MANTIS_GPIF_STATUS);
 	gpif_mask = mmread(MANTIS_GPIF_IRQCFG);
+
+	rst_stat = gpif_stat & rst_mask;
+	mmwrite(rst_stat, MANTIS_GPIF_STATUS);
 
 	if (gpif_stat & MANTIS_GPIF_DETSTAT) {
 		if (gpif_stat & MANTIS_CARD_PLUGIN) {

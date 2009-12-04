@@ -188,6 +188,7 @@ int mantis_hif_init(struct mantis_ca *ca)
 
 	irqcfg  = mmread(MANTIS_GPIF_IRQCFG);
 	irqcfg |= MANTIS_MASK_BRRDY;
+	irqcfg |= MANTIS_MASK_WRACK;
 	mmwrite(irqcfg, MANTIS_GPIF_IRQCFG);
 
 	return 0;
