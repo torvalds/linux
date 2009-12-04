@@ -161,7 +161,6 @@ err:
 void mantis_ca_exit(struct mantis_pci *mantis)
 {
 	struct mantis_ca *ca = mantis->mantis_ca;
-	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis CA exit");
 
