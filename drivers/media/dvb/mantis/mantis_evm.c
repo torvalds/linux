@@ -39,12 +39,18 @@ static void mantis_hifevm_work(struct work_struct *work)
 			dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Plugin", mantis->num);
 			mmwrite(0xdada0000, MANTIS_CARD_RESET);
 			mantis_event_cam_plugin(ca);
+			dvb_ca_en50221_camchange_irq(&ca->en50221,
+						     0,
+						     DVB_CA_EN50221_CAMCHANGE_INSERTED);
 		}
 	} else {
 		if (gpif_stat & MANTIS_CARD_PLUGOUT) {
 			dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Unplug", mantis->num);
 			mmwrite(0xdada0000, MANTIS_CARD_RESET);
 			mantis_event_cam_unplug(ca);
+			dvb_ca_en50221_camchange_irq(&ca->en50221,
+						     0,
+						     DVB_CA_EN50221_CAMCHANGE_REMOVED);
 		}
 	}
 
