@@ -20,8 +20,8 @@
  * OF THIS SOFTWARE.
  */
 
-#ifndef _INTEL_DP_H_
-#define _INTEL_DP_H_
+#ifndef _DRM_DP_HELPER_H_
+#define _DRM_DP_HELPER_H_
 
 /* From the VESA DisplayPort spec */
 
@@ -130,15 +130,20 @@
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 #define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
+#define MODE_I2C_START	1
+#define MODE_I2C_WRITE	2
+#define MODE_I2C_READ	4
+#define MODE_I2C_STOP	8
+
 struct i2c_algo_dp_aux_data {
 	bool running;
 	u16 address;
 	int (*aux_ch) (struct i2c_adapter *adapter,
-		       uint8_t *send, int send_bytes,
-		       uint8_t *recv, int recv_bytes);
+		       int mode, uint8_t write_byte,
+		       uint8_t *read_byte);
 };
 
 int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
 
-#endif /* _INTEL_DP_H_ */
+#endif /* _DRM_DP_HELPER_H_ */

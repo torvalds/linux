@@ -33,7 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
 
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
@@ -382,17 +382,77 @@ intel_dp_aux_native_read(struct intel_output *intel_output,
 }
 
 static int
-intel_dp_i2c_aux_ch(struct i2c_adapter *adapter,
-		    uint8_t *send, int send_bytes,
-		    uint8_t *recv, int recv_bytes)
+intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+		    uint8_t write_byte, uint8_t *read_byte)
 {
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	struct intel_dp_priv *dp_priv = container_of(adapter,
 						     struct intel_dp_priv,
 						     adapter);
 	struct intel_output *intel_output = dp_priv->intel_output;
+	uint16_t address = algo_data->address;
+	uint8_t msg[5];
+	uint8_t reply[2];
+	int msg_bytes;
+	int reply_bytes;
+	int ret;
 
-	return intel_dp_aux_ch(intel_output,
-			       send, send_bytes, recv, recv_bytes);
+	/* Set up the command byte */
+	if (mode & MODE_I2C_READ)
+		msg[0] = AUX_I2C_READ << 4;
+	else
+		msg[0] = AUX_I2C_WRITE << 4;
+
+	if (!(mode & MODE_I2C_STOP))
+		msg[0] |= AUX_I2C_MOT << 4;
+
+	msg[1] = address >> 8;
+	msg[2] = address;
+
+	switch (mode) {
+	case MODE_I2C_WRITE:
+		msg[3] = 0;
+		msg[4] = write_byte;
+		msg_bytes = 5;
+		reply_bytes = 1;
+		break;
+	case MODE_I2C_READ:
+		msg[3] = 0;
+		msg_bytes = 4;
+		reply_bytes = 2;
+		break;
+	default:
+		msg_bytes = 3;
+		reply_bytes = 1;
+		break;
+	}
+
+	for (;;) {
+	  ret = intel_dp_aux_ch(intel_output,
+				msg, msg_bytes,
+				reply, reply_bytes);
+		if (ret < 0) {
+			DRM_DEBUG("aux_ch failed %d\n", ret);
+			return ret;
+		}
+		switch (reply[0] & AUX_I2C_REPLY_MASK) {
+		case AUX_I2C_REPLY_ACK:
+			if (mode == MODE_I2C_READ) {
+				*read_byte = reply[1];
+			}
+			return reply_bytes - 1;
+		case AUX_I2C_REPLY_NACK:
+			DRM_DEBUG("aux_ch nack\n");
+			return -EREMOTEIO;
+		case AUX_I2C_REPLY_DEFER:
+			DRM_DEBUG("aux_ch defer\n");
+			udelay(100);
+			break;
+		default:
+			DRM_ERROR("aux_ch invalid reply 0x%02x\n", reply[0]);
+			return -EREMOTEIO;
+		}
+	}
 }
 
 static int
