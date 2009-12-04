@@ -21,19 +21,10 @@
 #ifndef __MANTIS_VP1033_H
 #define __MANTIS_VP1033_H
 
-#include "dvb_frontend.h"
 #include "mantis_common.h"
-#include "stv0299.h"
 
 #define MANTIS_VP_1033_DVB_S	0x0016
 
-extern struct stv0299_config lgtdqcs001f_config;
-extern struct mantis_hwconfig vp1033_mantis_config;
+extern struct mantis_hwconfig vp1033_config;
 
-extern int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *params);
-
-extern int lgtdqcs001f_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 ratio);
-
-
-#endif // __MANTIS_VP1033_H
+#endif /* __MANTIS_VP1033_H */

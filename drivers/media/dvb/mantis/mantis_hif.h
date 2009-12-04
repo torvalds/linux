@@ -26,4 +26,4 @@
 #define MANTIS_HIF_IOMRD		3
 #define MANTIS_HIF_IOMWR		4
 
-#endif // __MANTIS_HIF_H
+#endif /* __MANTIS_HIF_H */

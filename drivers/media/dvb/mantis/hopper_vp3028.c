@@ -1,5 +1,5 @@
 /*
-	Mantis VP-3030 driver
+	Mantis VP-3028 driver
 
 	Copyright (C) 2005, 2006 Manu Abraham (abraham.manu@gmail.com)
 
@@ -31,59 +31,37 @@
 
 #include "zl10353.h"
 #include "mantis_common.h"
-#include "mantis_vp3030.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
+#include "hopper_vp3028.h"
 
-struct zl10353_config mantis_vp3030_config = {
+struct zl10353_config hopper_vp3028_config = {
 	.demod_address	= 0x0f,
 };
 
-#define MANTIS_MODEL_NAME	"VP-3030"
+#define MANTIS_MODEL_NAME	"VP-3028"
 #define MANTIS_DEV_TYPE		"DVB-T"
 
-int panasonic_en57h12d5_set_params(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	int rc;
-	struct mantis_pci *mantis = fe->dvb->priv;
-
-	struct i2c_msg tuner_msg = {
-		.addr = 0x60,
-		.flags = 0,
-		.buf = buf,
-		.len = sizeof (buf)
-	};
-
-	if ((params->frequency < 950000) || (params->frequency > 2150000))
-		return -EINVAL;
-	rc = i2c_transfer(&mantis->adapter, &tuner_msg, 1);
-	if (rc != 1) {
-		printk("%s: I2C Transfer returned [%d]\n", __func__, rc);
-		return -EIO;
-	}
-	msleep_interruptible(1);
-	printk("%s: Send params to tuner ok!!!\n", __func__);
-
-	return 0;
-}
-
-static int vp3030_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
+static int vp3028_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
 {
 	struct i2c_adapter *adapter	= &mantis->adapter;
+	int err = 0;
+
+	err = mantis_frontend_power(mantis, POWER_ON);
+	mantis_frontend_soft_reset(mantis);
 
 	dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
-	fe = zl10353_attach(&mantis_vp3030_config, adapter);
+	fe = zl10353_attach(&hopper_vp3028_config, adapter);
 
 	if (!fe)
 		return -1;
 
-	mantis->fe = fe;
 	dprintk(MANTIS_ERROR, 1, "Done!");
 
 	return 0;
 }
 
-struct mantis_hwconfig vp3030_config = {
+struct mantis_hwconfig vp3028_config = {
 	.model_name	= MANTIS_MODEL_NAME,
 	.dev_type	= MANTIS_DEV_TYPE,
 	.ts_size	= MANTIS_TS_188,
@@ -92,5 +70,7 @@ struct mantis_hwconfig vp3030_config = {
 	.parity		= MANTIS_PARITY_NONE,
 	.bytes		= 0,
 
-	.frontend_init	= vp3030_frontend_init,
+	.frontend_init	= vp3028_frontend_init,
+	.power		= GPIF_A00,
+	.reset		= GPIF_A03,
 };

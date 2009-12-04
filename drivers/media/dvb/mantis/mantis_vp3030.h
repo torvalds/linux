@@ -21,14 +21,10 @@
 #ifndef __MANTIS_VP3030_H
 #define __MANTIS_VP3030_H
 
-#include "dvb_frontend.h"
 #include "mantis_common.h"
-#include "dvb-pll.h"
-#include "zl10353.h"
 
 #define MANTIS_VP_3030_DVB_T	0x0024
 
-extern struct zl10353_config mantis_vp3030_config;
-extern struct mantis_hwconfig vp3030_mantis_config;
+extern struct mantis_hwconfig vp3030_config;
 
-#endif // __MANTIS_VP3030_H
+#endif /* __MANTIS_VP3030_H */

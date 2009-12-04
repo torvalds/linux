@@ -18,23 +18,30 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
 #include "mantis_common.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
 #include "mantis_vp1041.h"
 #include "stb0899_reg.h"
+#include "stb0899_drv.h"
 #include "stb0899_cfg.h"
 #include "stb6100_cfg.h"
+#include "stb6100.h"
+#include "lnbp21.h"
 
 #define MANTIS_MODEL_NAME	"VP-1041"
 #define MANTIS_DEV_TYPE		"DSS/DVB-S/DVB-S2"
-
-struct mantis_hwconfig vp1041_mantis_config = {
-	.model_name	= MANTIS_MODEL_NAME,
-	.dev_type	= MANTIS_DEV_TYPE,
-	.ts_size	= MANTIS_TS_188,
-	.baud_rate	= MANTIS_BAUD_9600,
-	.parity		= MANTIS_PARITY_NONE,
-	.bytes		= 0,
-};
 
 static const struct stb0899_s1_reg vp1041_stb0899_s1_init_1[] = {
 
@@ -258,7 +265,7 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_3[] = {
 	{ 0xffff			, 0xff },
 };
 
-struct stb0899_config vp1041_config = {
+struct stb0899_config vp1041_stb0899_config = {
 	.init_dev		= vp1041_stb0899_s1_init_1,
 	.init_s2_demod		= stb0899_s2_init_2,
 	.init_s1_demod		= vp1041_stb0899_s1_init_3,
@@ -298,4 +305,56 @@ struct stb0899_config vp1041_config = {
 struct stb6100_config vp1041_stb6100_config = {
 	.tuner_address	= 0x60,
 	.refclock	= 27000000,
+};
+
+static int vp1041_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
+{
+	struct i2c_adapter *adapter	= &mantis->adapter;
+
+	int err = 0;
+
+	err = mantis_frontend_power(mantis, POWER_ON);
+	if (err == 0) {
+		mantis_frontend_soft_reset(mantis);
+		msleep(250);
+		mantis->fe = stb0899_attach(&vp1041_stb0899_config, adapter);
+		if (mantis->fe) {
+			dprintk(MANTIS_ERROR, 1,
+				"found STB0899 DVB-S/DVB-S2 frontend @0x%02x",
+				vp1041_stb0899_config.demod_address);
+
+			if (stb6100_attach(mantis->fe, &vp1041_stb6100_config, adapter)) {
+				if (!lnbp21_attach(mantis->fe, adapter, 0, 0)) {
+					printk("%s: No LNBP21 found!\n", __func__);
+				}
+			}
+		} else {
+			return -EREMOTEIO;
+		}
+	} else {
+		dprintk(MANTIS_ERROR, 1, "Frontend on <%s> POWER ON failed! <%d>",
+			adapter->name,
+			err);
+
+		return -EIO;
+	}
+
+
+	dprintk(MANTIS_ERROR, 1, "Done!");
+
+	return 0;
+}
+
+struct mantis_hwconfig vp1041_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
+	.ts_size	= MANTIS_TS_188,
+
+	.baud_rate	= MANTIS_BAUD_9600,
+	.parity		= MANTIS_PARITY_NONE,
+	.bytes		= 0,
+
+	.frontend_init	= vp1041_frontend_init,
+	.power		= GPIF_A12,
+	.reset		= GPIF_A13,
 };

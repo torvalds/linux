@@ -21,15 +21,12 @@
 #ifndef __MANTIS_VP2040_H
 #define __MANTIS_VP2040_H
 
-#include "dvb_frontend.h"
 #include "mantis_common.h"
-#include "tda1002x.h"
 
 #define MANTIS_VP_2040_DVB_C	0x0043
-#define TERRATEC_CINERGY_C_PCI	0x1178
-#define TECHNISAT_CABLESTAR_HD2	0x0002
+#define CINERGY_C		0x1178
+#define CABLESTAR_HD2		0x0002
 
-extern struct tda10023_config tda10023_cu1216_config;
-extern struct mantis_hwconfig vp2040_mantis_config;
+extern struct mantis_hwconfig vp2040_config;
 
-#endif //__MANTIS_VP2040_H
+#endif /* __MANTIS_VP2040_H */

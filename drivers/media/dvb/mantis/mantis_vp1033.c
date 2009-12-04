@@ -18,6 +18,18 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
+#include "stv0299.h"
 #include "mantis_common.h"
 #include "mantis_vp1033.h"
 
@@ -66,47 +78,21 @@ u8 lgtdqcs001f_inittab[] = {
 	0xff, 0xff,
 };
 
-struct stv0299_config lgtdqcs001f_config = {
-	.demod_address		= 0x68,
-	.inittab		= lgtdqcs001f_inittab,
-	.mclk			= 88000000UL,
-//	.invert = 0,
-	.invert			= 1,
-//	.enhanced_tuning = 0,
-	.skip_reinit		= 0,
-//	.lock_output		= STV0229_LOCKOUTPUT_0,
-	.volt13_op0_op1		= STV0299_VOLT13_OP0,
-	.min_delay_ms		= 100,
-	.set_symbol_rate	= lgtdqcs001f_set_symbol_rate,
-//	.pll_set		= lgtdqcs001f_pll_set,
-};
-
 #define MANTIS_MODEL_NAME	"VP-1033"
 #define MANTIS_DEV_TYPE		"DVB-S/DSS"
-
-struct mantis_hwconfig vp1033_mantis_config = {
-	.model_name		= MANTIS_MODEL_NAME,
-	.dev_type		= MANTIS_DEV_TYPE,
-	.ts_size		= MANTIS_TS_204,
-	.baud_rate		= MANTIS_BAUD_9600,
-	.parity			= MANTIS_PARITY_NONE,
-	.bytes			= 0,
-};
 
 int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 			  struct dvb_frontend_parameters *params)
 {
+	struct mantis_pci *mantis	= fe->dvb->priv;
+	struct i2c_adapter *adapter	= &mantis->adapter;
+
 	u8 buf[4];
 	u32 div;
 
-	struct mantis_pci *mantis = fe->dvb->priv;
 
-	struct i2c_msg msg = {
-		.addr = 0x61,
-		.flags = 0,
-		.buf = buf,
-		.len = sizeof (buf)
-	};
+	struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof (buf) };
+
 	div = params->frequency / 250;
 
 	buf[0] = (div >> 8) & 0x7f;
@@ -118,8 +104,8 @@ int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 		buf[3] |= 0x04;
 	else
 		buf[3] &= ~0x04;
-	if (i2c_transfer(&mantis->adapter, &msg, 1) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Write: I2C Transfer failed");
+	if (i2c_transfer(adapter, &msg, 1) < 0) {
+		dprintk(MANTIS_ERROR, 1, "Write: I2C Transfer failed");
 		return -EIO;
 	}
 	msleep_interruptible(100);
@@ -161,3 +147,49 @@ int lgtdqcs001f_set_symbol_rate(struct dvb_frontend *fe,
 
 	return 0;
 }
+
+struct stv0299_config lgtdqcs001f_config = {
+	.demod_address		= 0x68,
+	.inittab		= lgtdqcs001f_inittab,
+	.mclk			= 88000000UL,
+	.invert			= 0,
+	.skip_reinit		= 0,
+	.volt13_op0_op1		= STV0299_VOLT13_OP0,
+	.min_delay_ms		= 100,
+	.set_symbol_rate	= lgtdqcs001f_set_symbol_rate,
+};
+
+static int vp1033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
+{
+	struct i2c_adapter *adapter	= &mantis->adapter;
+
+	dprintk(MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
+	fe = stv0299_attach(&lgtdqcs001f_config, adapter);
+
+	if (fe) {
+		fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;
+		dprintk(MANTIS_ERROR, 1, "found STV0299 DVB-S frontend @ 0x%02x",
+			lgtdqcs001f_config.demod_address);
+
+		dprintk(MANTIS_ERROR, 1, "Mantis DVB-S STV0299 frontend attach success");
+	} else {
+		return -1;
+	}
+
+	mantis->fe = fe;
+	dprintk(MANTIS_ERROR, 1, "Done!");
+
+	return 0;
+}
+
+struct mantis_hwconfig vp1033_config = {
+	.model_name		= MANTIS_MODEL_NAME,
+	.dev_type		= MANTIS_DEV_TYPE,
+	.ts_size		= MANTIS_TS_204,
+
+	.baud_rate		= MANTIS_BAUD_9600,
+	.parity			= MANTIS_PARITY_NONE,
+	.bytes			= 0,
+
+	.frontend_init		= vp1033_frontend_init,
+};

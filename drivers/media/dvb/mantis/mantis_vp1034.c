@@ -18,10 +18,24 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include "mantis_common.h"
-#include "mantis_vp1034.h"
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 
-struct mb86a16_config vp1034_config = {
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
+#include "mb86a16.h"
+#include "mantis_common.h"
+#include "mantis_ioc.h"
+#include "mantis_vp1034.h"
+#include "mantis_reg.h"
+
+struct mb86a16_config vp1034_mb86a16_config = {
 	.demod_address	= 0x08,
 	.set_voltage	= vp1034_set_voltage,
 };
@@ -29,38 +43,62 @@ struct mb86a16_config vp1034_config = {
 #define MANTIS_MODEL_NAME	"VP-1034"
 #define MANTIS_DEV_TYPE		"DVB-S/DSS"
 
-struct mantis_hwconfig vp1034_mantis_config = {
-	.model_name	= MANTIS_MODEL_NAME,
-	.dev_type	= MANTIS_DEV_TYPE,
-	.ts_size	= MANTIS_TS_204,
-	.baud_rate	= MANTIS_BAUD_9600,
-	.parity		= MANTIS_PARITY_NONE,
-	.bytes		= 0,
-};
-
 int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct mantis_pci *mantis = fe->dvb->priv;
 
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
-		dprintk(verbose, MANTIS_ERROR, 1, "Polarization=[13V]");
+		dprintk(MANTIS_ERROR, 1, "Polarization=[13V]");
 		gpio_set_bits(mantis, 13, 1);
 		gpio_set_bits(mantis, 14, 0);
 		break;
 	case SEC_VOLTAGE_18:
-		dprintk(verbose, MANTIS_ERROR, 1, "Polarization=[18V]");
+		dprintk(MANTIS_ERROR, 1, "Polarization=[18V]");
 		gpio_set_bits(mantis, 13, 1);
 		gpio_set_bits(mantis, 14, 1);
 		break;
 	case SEC_VOLTAGE_OFF:
-		dprintk(verbose, MANTIS_ERROR, 1, "Frontend (dummy) POWERDOWN");
+		dprintk(MANTIS_ERROR, 1, "Frontend (dummy) POWERDOWN");
 		break;
 	default:
-		dprintk(verbose, MANTIS_ERROR, 1, "Invalid = (%d)", (u32 ) voltage);
+		dprintk(MANTIS_ERROR, 1, "Invalid = (%d)", (u32 ) voltage);
 		return -EINVAL;
 	}
 	mmwrite(0x00, MANTIS_GPIF_DOUT);
 
 	return 0;
 }
+
+static int vp1034_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
+{
+	struct i2c_adapter *adapter	= &mantis->adapter;
+
+	dprintk(MANTIS_ERROR, 1, "Probing for MB86A16 (DVB-S/DSS)");
+	fe = mb86a16_attach(&vp1034_mb86a16_config, adapter);
+	if (fe) {
+		dprintk(MANTIS_ERROR, 1,
+		"found MB86A16 DVB-S/DSS frontend @0x%02x",
+		vp1034_mb86a16_config.demod_address);
+
+	} else {
+		return -1;
+	}
+
+	mantis->fe = fe;
+	dprintk(MANTIS_ERROR, 1, "Done!");
+
+	return 0;
+}
+
+struct mantis_hwconfig vp1034_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
+	.ts_size	= MANTIS_TS_204,
+
+	.baud_rate	= MANTIS_BAUD_9600,
+	.parity		= MANTIS_PARITY_NONE,
+	.bytes		= 0,
+
+	.frontend_init	= vp1034_frontend_init,
+};

@@ -17,65 +17,86 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <linux/kernel.h>
 #include <linux/bitops.h>
-#include "mantis_common.h"
-#include "mantis_core.h"
+
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/i2c.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
-#include "mantis_vp1033.h"
-#include "mantis_vp1034.h"
-#include "mantis_vp1041.h"
-#include "mantis_vp2033.h"
-#include "mantis_vp2040.h"
-#include "mantis_vp3030.h"
+#include "dvb_net.h"
+
+#include "mantis_common.h"
+#include "mantis_dma.h"
+#include "mantis_ca.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-/*	Tuner power supply control	*/
-void mantis_fe_powerup(struct mantis_pci *mantis)
+int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 {
-	dprintk(verbose, MANTIS_DEBUG, 1, "Frontend Power ON");
-	gpio_set_bits(mantis, 0x0c, 1);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 0x0c, 1);
-	msleep_interruptible(100);
-}
+	struct mantis_hwconfig *config = mantis->hwconfig;
 
-void mantis_fe_powerdown(struct mantis_pci *mantis)
-{
-	dprintk(verbose, MANTIS_DEBUG, 1, "Frontend Power OFF");
-	gpio_set_bits(mantis, 0x0c, 0);
-}
+	switch (power) {
+	case POWER_ON:
+		dprintk(MANTIS_DEBUG, 1, "Power ON");
+		gpio_set_bits(mantis, config->power, POWER_ON);
+		msleep(100);
+		gpio_set_bits(mantis, config->power, POWER_ON);
+		msleep(100);
+		break;
 
-static int mantis_fe_reset(struct dvb_frontend *fe)
-{
-	struct mantis_pci *mantis = fe->dvb->priv;
+	case POWER_OFF:
+		dprintk(MANTIS_DEBUG, 1, "Power OFF");
+		gpio_set_bits(mantis, config->power, POWER_OFF);
+		msleep(100);
+		break;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Frontend Reset");
-	gpio_set_bits(mantis, 13, 0);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 0);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 1);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 1);
+	default:
+		dprintk(MANTIS_DEBUG, 1, "Unknown state <%02x>", power);
+		return -1;
+	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mantis_frontend_power);
 
-static int mantis_frontend_reset(struct mantis_pci *mantis)
+void mantis_frontend_soft_reset(struct mantis_pci *mantis)
 {
-	dprintk(verbose, MANTIS_DEBUG, 1, "Frontend Reset");
-	gpio_set_bits(mantis, 13, 0);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 0);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 1);
-	msleep_interruptible(100);
-	gpio_set_bits(mantis, 13, 1);
+	struct mantis_hwconfig *config = mantis->hwconfig;
+
+	dprintk(MANTIS_DEBUG, 1, "Frontend RESET");
+	gpio_set_bits(mantis, config->reset, 0);
+	msleep(100);
+	gpio_set_bits(mantis, config->reset, 0);
+	msleep(100);
+	gpio_set_bits(mantis, config->reset, 1);
+	msleep(100);
+	gpio_set_bits(mantis, config->reset, 1);
+	msleep(100);
+
+	return;
+}
+EXPORT_SYMBOL_GPL(mantis_frontend_soft_reset);
+
+static int mantis_frontend_shutdown(struct mantis_pci *mantis)
+{
+	int err;
+
+	mantis_frontend_soft_reset(mantis);
+	err = mantis_frontend_power(mantis, POWER_OFF);
+	if (err != 0) {
+		dprintk(MANTIS_ERROR, 1, "Frontend POWER OFF failed! <%d>", err);
+		return 1;
+	}
 
 	return 0;
 }
@@ -85,18 +106,17 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct mantis_pci *mantis = dvbdmx->priv;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis DVB Start feed");
+	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Start feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
 		return -EINVAL;
 	}
+
 	mantis->feeds++;
-	dprintk(verbose, MANTIS_DEBUG, 1,
-		"mantis start feed, feeds=%d",
-		mantis->feeds);
+	dprintk(MANTIS_DEBUG, 1, "mantis start feed, feeds=%d",	mantis->feeds);
 
 	if (mantis->feeds == 1)	 {
-		dprintk(verbose, MANTIS_DEBUG, 1, "mantis start feed & dma");
+		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
 		printk("mantis start feed & dma\n");
 		mantis_dma_start(mantis);
 	}
@@ -109,95 +129,129 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct mantis_pci *mantis = dvbdmx->priv;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis DVB Stop feed");
+	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Stop feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
 		return -EINVAL;
 	}
+
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "mantis stop feed and dma");
+		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
 		printk("mantis stop feed and dma\n");
 		mantis_dma_stop(mantis);
 	}
+
 	return 0;
 }
 
 int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 {
-	int result;
+	struct mantis_hwconfig *config = mantis->hwconfig;
+	int result = -1;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_register_adapter");
-	if (dvb_register_adapter(&mantis->dvb_adapter,
-				 "Mantis dvb adapter", THIS_MODULE,
-				 &mantis->pdev->dev,
-				 adapter_nr) < 0) {
+	dprintk(MANTIS_DEBUG, 1, "dvb_register_adapter");
 
-		dprintk(verbose, MANTIS_ERROR, 1, "Error registering adapter");
+	result = dvb_register_adapter(&mantis->dvb_adapter,
+				      "Mantis DVB adapter",
+				      THIS_MODULE,
+				      &mantis->pdev->dev,
+				      adapter_nr);
+
+	if (result < 0) {
+
+		dprintk(MANTIS_ERROR, 1, "Error registering adapter");
 		return -ENODEV;
 	}
-	mantis->dvb_adapter.priv = mantis;
-	mantis->demux.dmx.capabilities = DMX_TS_FILTERING	|
+
+	mantis->dvb_adapter.priv	= mantis;
+	mantis->demux.dmx.capabilities	= DMX_TS_FILTERING	|
 					 DMX_SECTION_FILTERING	|
 					 DMX_MEMORY_BASED_FILTERING;
 
-	mantis->demux.priv = mantis;
-	mantis->demux.filternum = 256;
-	mantis->demux.feednum = 256;
-	mantis->demux.start_feed = mantis_dvb_start_feed;
-	mantis->demux.stop_feed = mantis_dvb_stop_feed;
-	mantis->demux.write_to_decoder = NULL;
-	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_dmx_init");
-	if ((result = dvb_dmx_init(&mantis->demux)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"dvb_dmx_init failed, ERROR=%d", result);
+	mantis->demux.priv		= mantis;
+	mantis->demux.filternum		= 256;
+	mantis->demux.feednum		= 256;
+	mantis->demux.start_feed	= mantis_dvb_start_feed;
+	mantis->demux.stop_feed		= mantis_dvb_stop_feed;
+	mantis->demux.write_to_decoder	= NULL;
+
+	dprintk(MANTIS_DEBUG, 1, "dvb_dmx_init");
+	result = dvb_dmx_init(&mantis->demux);
+	if (result < 0) {
+		dprintk(MANTIS_ERROR, 1, "dvb_dmx_init failed, ERROR=%d", result);
 
 		goto err0;
 	}
-	mantis->dmxdev.filternum = 256;
-	mantis->dmxdev.demux = &mantis->demux.dmx;
-	mantis->dmxdev.capabilities = 0;
-	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_dmxdev_init");
-	if ((result = dvb_dmxdev_init(&mantis->dmxdev,
-				      &mantis->dvb_adapter)) < 0) {
 
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"dvb_dmxdev_init failed, ERROR=%d", result);
+	mantis->dmxdev.filternum	= 256;
+	mantis->dmxdev.demux		= &mantis->demux.dmx;
+	mantis->dmxdev.capabilities	= 0;
+	dprintk(MANTIS_DEBUG, 1, "dvb_dmxdev_init");
+
+	result = dvb_dmxdev_init(&mantis->dmxdev, &mantis->dvb_adapter);
+	if (result < 0) {
+
+		dprintk(MANTIS_ERROR, 1, "dvb_dmxdev_init failed, ERROR=%d", result);
 		goto err1;
 	}
-	mantis->fe_hw.source = DMX_FRONTEND_0;
-	if ((result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx,
-						     &mantis->fe_hw)) < 0) {
 
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"dvb_dmx_init failed, ERROR=%d", result);
+	mantis->fe_hw.source		= DMX_FRONTEND_0;
+	result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx, &mantis->fe_hw);
+	if (result < 0) {
 
+		dprintk(MANTIS_ERROR, 1, "dvb_dmx_init failed, ERROR=%d", result);
 		goto err2;
 	}
-	mantis->fe_mem.source = DMX_MEMORY_FE;
-	if ((result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx,
-						     &mantis->fe_mem)) < 0) {
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"dvb_dmx_init failed, ERROR=%d", result);
 
+	mantis->fe_mem.source		= DMX_MEMORY_FE;
+	result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx,&mantis->fe_mem);
+	if (result < 0) {
+		dprintk(MANTIS_ERROR, 1,"dvb_dmx_init failed, ERROR=%d", result);
 		goto err3;
 	}
-	if ((result = mantis->demux.dmx.connect_frontend(&mantis->demux.dmx,
-							 &mantis->fe_hw)) < 0) {
 
-		dprintk(verbose, MANTIS_ERROR, 1,
-			"dvb_dmx_init failed, ERROR=%d", result);
-
+	result = mantis->demux.dmx.connect_frontend(&mantis->demux.dmx, &mantis->fe_hw);
+	if (result < 0) {
+		dprintk(MANTIS_ERROR, 1, "dvb_dmx_init failed, ERROR=%d", result);
 		goto err4;
 	}
+
 	dvb_net_init(&mantis->dvb_adapter, &mantis->dvbnet, &mantis->demux.dmx);
 	tasklet_init(&mantis->tasklet, mantis_dma_xfer, (unsigned long) mantis);
-	mantis_frontend_init(mantis);
-	mantis_ca_init(mantis);
+	if (mantis->hwconfig) {
+		result = config->frontend_init(mantis, mantis->fe);
+		if (result < 0) {
+			dprintk(MANTIS_ERROR, 1, "!!! NO Frontends found !!!");
+			goto err5;
+		} else {
+//			if (mantis->dvb_adapter == NULL) {
+//				dprintk(MANTIS_ERROR, 1, "DVB adapter <NULL>");
+//				goto err5;
+//			}
+			if (mantis->fe == NULL) {
+				dprintk(MANTIS_ERROR, 1, "FE <NULL>");
+				goto err5;
+			}
+
+			if (dvb_register_frontend(&mantis->dvb_adapter, mantis->fe)) {
+				dprintk(MANTIS_ERROR, 1, "ERROR: Frontend registration failed");
+
+				if (mantis->fe->ops.release)
+					mantis->fe->ops.release(mantis->fe);
+
+				mantis->fe = NULL;
+				goto err5;
+			}
+		}
+	}
 
 	return 0;
 
-	/*	Error conditions ..	*/
+	/* Error conditions ..	*/
+err5:
+	tasklet_kill(&mantis->tasklet);
+	dvb_net_release(&mantis->dvbnet);
 err4:
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);
 err3:
@@ -211,115 +265,17 @@ err0:
 
 	return result;
 }
-
-int __devinit mantis_frontend_init(struct mantis_pci *mantis)
-{
-	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis frontend Init");
-	mantis_fe_powerup(mantis);
-	mantis_frontend_reset(mantis);
-	dprintk(verbose, MANTIS_DEBUG, 1, "Device ID=%02x", mantis->subsystem_device);
-	switch (mantis->subsystem_device) {
-	case MANTIS_VP_1033_DVB_S:	// VP-1033
-		dprintk(verbose, MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
-		mantis->fe = stv0299_attach(&lgtdqcs001f_config,
-					    &mantis->adapter);
-
-		if (mantis->fe) {
-			mantis->fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"found STV0299 DVB-S frontend @ 0x%02x",
-				lgtdqcs001f_config.demod_address);
-
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"Mantis DVB-S STV0299 frontend attach success");
-		}
-		break;
-	case MANTIS_VP_1034_DVB_S:	// VP-1034
-		dprintk(verbose, MANTIS_ERROR, 1, "Probing for MB86A16 (DVB-S/DSS)");
-		mantis->fe = mb86a16_attach(&vp1034_config, &mantis->adapter);
-		if (mantis->fe) {
-			dprintk(verbose, MANTIS_ERROR, 1,
-			"found MB86A16 DVB-S/DSS frontend @0x%02x",
-			vp1034_config.demod_address);
-
-		}
-		break;
-	case MANTIS_VP_1041_DVB_S2:
-	case TECHNISAT_SKYSTAR_HD2:
-		mantis->fe = stb0899_attach(&vp1041_config, &mantis->adapter);
-		if (mantis->fe) {
-			dprintk(verbose, MANTIS_ERROR, 1,
-			"found STB0899 DVB-S/DVB-S2 frontend @0x%02x",
-			vp1041_config.demod_address);
-
-			if (stb6100_attach(mantis->fe, &vp1041_stb6100_config, &mantis->adapter)) {
-				if (!lnbp21_attach(mantis->fe, &mantis->adapter, 0, 0)) {
-					printk("%s: No LNBP21 found!\n", __FUNCTION__);
-					mantis->fe = NULL;
-				}
-			} else {
-				mantis->fe = NULL;
-			}
-		}
-		break;
-	case MANTIS_VP_2033_DVB_C:	// VP-2033
-	case MANTIS_VP_2040_DVB_C:	// VP-2040
-	case TERRATEC_CINERGY_C_PCI:
-	case TECHNISAT_CABLESTAR_HD2:
-		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-		mantis->fe = tda10021_attach(&philips_cu1216_config,
-					     &mantis->adapter,
-					     read_pwm(mantis));
-
-		if (mantis->fe) {
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
-				philips_cu1216_config.demod_address);
-		} else {
-			mantis->fe = tda10023_attach(&tda10023_cu1216_config,
-						     &mantis->adapter,
-						     read_pwm(mantis));
-
-			if (mantis->fe) {
-				dprintk(verbose, MANTIS_ERROR, 1,
-					"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
-					philips_cu1216_config.demod_address);
-			}
-		}
-		if (mantis->fe) {
-			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"Mantis DVB-C Philips CU1216 frontend attach success");
-		}
-		break;
-	default:
-		dprintk(verbose, MANTIS_DEBUG, 1, "Unknown frontend:[0x%02x]",
-			mantis->sub_device_id);
-
-		return -ENODEV;
-	}
-	if (mantis->fe == NULL) {
-		dprintk(verbose, MANTIS_ERROR, 1, "!!! NO Frontends found !!!");
-		return -ENODEV;
-	} else {
-		if (dvb_register_frontend(&mantis->dvb_adapter, mantis->fe)) {
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"ERROR: Frontend registration failed");
-
-			if (mantis->fe->ops.release)
-				mantis->fe->ops.release(mantis->fe);
-
-			mantis->fe = NULL;
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
+EXPORT_SYMBOL_GPL(mantis_dvb_init);
 
 int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
 {
-	mantis_ca_exit(mantis);
+	int err;
+
+	err = mantis_frontend_shutdown(mantis);
+	if (err != 0)
+		dprintk(MANTIS_ERROR, 1, "Frontend exit while POWER ON! <%d>", err);
+
+//	mantis_ca_exit(mantis);
 	tasklet_kill(&mantis->tasklet);
 	dvb_net_release(&mantis->dvbnet);
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);
@@ -329,8 +285,10 @@ int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
 
 	if (mantis->fe)
 		dvb_unregister_frontend(mantis->fe);
-	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_unregister_adapter");
+
+	dprintk(MANTIS_DEBUG, 1, "dvb_unregister_adapter");
 	dvb_unregister_adapter(&mantis->dvb_adapter);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mantis_dvb_exit);

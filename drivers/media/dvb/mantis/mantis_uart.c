@@ -1,5 +1,20 @@
+#include <linux/kernel.h>
 #include <linux/spinlock.h>
+
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
 #include "mantis_common.h"
+#include "mantis_reg.h"
+#include "mantis_uart.h"
 
 struct mantis_uart_params {
 	enum mantis_baud	baud_rate;
@@ -18,20 +33,20 @@ int mantis_uart_read(struct mantis_pci *mantis, u8 *data)
 	for (i = 0; i < (config->bytes + 1); i++) {
 
 		if (stat & MANTIS_UART_RXFIFO_FULL) {
-			dprintk(verbose, MANTIS_ERROR, 1, "RX Fifo FULL");
+			dprintk(MANTIS_ERROR, 1, "RX Fifo FULL");
 		}
 		data[i] = mmread(MANTIS_UART_RXD) & 0x3f;
 
 		stat = mmread(MANTIS_UART_STAT);
 
-		dprintk(verbose, MANTIS_DEBUG, 1, "Reading ... <%02x>", data[i] & 0x3f);
+		dprintk(MANTIS_DEBUG, 1, "Reading ... <%02x>", data[i] & 0x3f);
 
 		if (data[i] & (1 << 7)) {
-			dprintk(verbose, MANTIS_ERROR, 1, "UART framing error");
+			dprintk(MANTIS_ERROR, 1, "UART framing error");
 			return -EINVAL;
 		}
 		if (data[i] & (1 << 6)) {
-			dprintk(verbose, MANTIS_ERROR, 1, "UART parity error");
+			dprintk(MANTIS_ERROR, 1, "UART parity error");
 			return -EINVAL;
 		}
 	}
@@ -46,14 +61,14 @@ static void mantis_uart_work(struct work_struct *work)
 	u8 buf[16];
 	int i;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "UART read");
+	dprintk(MANTIS_DEBUG, 1, "UART read");
 	mantis_uart_read(mantis, buf);
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "UART: ");
+	dprintk(MANTIS_DEBUG, 1, "UART: ");
 	for (i = 0; i < (config->bytes + 1); i++)
-		dprintk(verbose, MANTIS_DEBUG, 0, "<%02x> ", buf[i]);
+		dprintk(MANTIS_DEBUG, 0, "<%02x> ", buf[i]);
 
-	dprintk(verbose, MANTIS_DEBUG, 0, "\n");
+	dprintk(MANTIS_DEBUG, 0, "\n");
 }
 
 static int mantis_uart_setup(struct mantis_pci *mantis,
@@ -64,7 +79,7 @@ static int mantis_uart_setup(struct mantis_pci *mantis,
 
 	u32 reg;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Set Parity <%s> Baud Rate <%s>",
+	dprintk(MANTIS_DEBUG, 1, "Set Parity <%s> Baud Rate <%s>",
 		parity[params->parity],
 		rates[params->baud_rate]);
 
@@ -102,7 +117,7 @@ int mantis_uart_init(struct mantis_pci *mantis)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 	struct mantis_uart_params params;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Initializing UART ..");
+	dprintk(MANTIS_DEBUG, 1, "Initializing UART ..");
 	/* default parity: */
 	params.baud_rate = config->baud_rate;
 	params.parity = config->parity;
@@ -131,9 +146,11 @@ int mantis_uart_init(struct mantis_pci *mantis)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mantis_uart_init);
 
 void mantis_uart_exit(struct mantis_pci *mantis)
 {
 	/* disable interrupt */
 	mmwrite(mmread(MANTIS_UART_CTL) & 0xffef, MANTIS_UART_CTL);
 }
+EXPORT_SYMBOL_GPL(mantis_uart_exit);

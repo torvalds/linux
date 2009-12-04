@@ -18,48 +18,59 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
+#include "tda1002x.h"
 #include "mantis_common.h"
 #include "mantis_vp2033.h"
 
 #define MANTIS_MODEL_NAME	"VP-2033"
 #define MANTIS_DEV_TYPE		"DVB-C"
 
-struct mantis_hwconfig vp2033_mantis_config = {
-	.model_name	= MANTIS_MODEL_NAME,
-	.dev_type	= MANTIS_DEV_TYPE,
-	.ts_size	= MANTIS_TS_204,
-	.baud_rate	= MANTIS_BAUD_9600,
-	.parity		= MANTIS_PARITY_NONE,
-	.bytes		= 0,
-};
-
-struct tda1002x_config philips_cu1216_config = {
+struct tda1002x_config vp2033_tda1002x_cu1216_config = {
 	.demod_address = 0x18 >> 1,
 	.invert = 1,
 };
 
-u8 read_pwm(struct mantis_pci *mantis)
+struct tda10023_config vp2033_tda10023_cu1216_config = {
+	.demod_address = 0x18 >> 1,
+	.invert = 1,
+};
+
+static u8 read_pwm(struct mantis_pci *mantis)
 {
+	struct i2c_adapter *adapter = &mantis->adapter;
+
 	u8 b = 0xff;
 	u8 pwm;
 	struct i2c_msg msg[] = {
-		{.addr = 0x50,.flags = 0,.buf = &b,.len = 1},
-		{.addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1}
+		{.addr = 0x50, .flags = 0, .buf = &b, .len = 1},
+		{.addr = 0x50, .flags = I2C_M_RD, .buf = &pwm, .len = 1}
 	};
 
-	if ((i2c_transfer(&mantis->adapter, msg, 2) != 2)
+	if ((i2c_transfer(adapter, msg, 2) != 2)
 	    || (pwm == 0xff))
 		pwm = 0x48;
 
 	return pwm;
 }
 
-int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int tda1002x_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct mantis_pci *mantis = fe->dvb->priv;
+	struct i2c_adapter *adapter = &mantis->adapter;
 
 	u8 buf[6];
-	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	struct i2c_msg msg = {.addr = 0x60, .flags = 0, .buf = buf, .len = sizeof (buf) };
 	int i;
 
 #define CU1216_IF 36125000
@@ -78,7 +89,7 @@ int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parame
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (i2c_transfer(&mantis->adapter, &msg, 1) != 1)
+	if (i2c_transfer(adapter, &msg, 1) != 1)
 		return -EIO;
 
 	/* wait for the pll lock */
@@ -88,7 +99,7 @@ int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parame
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
-		if (i2c_transfer(&mantis->adapter, &msg, 1) == 1 && (buf[0] & 0x40))
+		if (i2c_transfer(adapter, &msg, 1) == 1 && (buf[0] & 0x40))
 			break;
 
 		msleep(10);
@@ -102,8 +113,58 @@ int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parame
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (i2c_transfer(&mantis->adapter, &msg, 1) != 1)
+	if (i2c_transfer(adapter, &msg, 1) != 1)
 		return -EIO;
 
 	return 0;
 }
+
+static int vp2033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
+{
+	struct i2c_adapter *adapter = &mantis->adapter;
+
+	dprintk(MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
+	fe = tda10021_attach(&vp2033_tda1002x_cu1216_config,
+			     adapter,
+			     read_pwm(mantis));
+
+	if (fe) {
+		dprintk(MANTIS_ERROR, 1,
+			"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
+			vp2033_tda1002x_cu1216_config.demod_address);
+	} else {
+		fe = tda10023_attach(&vp2033_tda10023_cu1216_config,
+				     adapter,
+				     read_pwm(mantis));
+
+		if (fe) {
+			dprintk(MANTIS_ERROR, 1,
+				"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
+				vp2033_tda1002x_cu1216_config.demod_address);
+		}
+	}
+
+	if (fe) {
+		fe->ops.tuner_ops.set_params = tda1002x_cu1216_tuner_set;
+		dprintk(MANTIS_ERROR, 1, "Mantis DVB-C Philips CU1216 frontend attach success");
+	} else {
+		return -1;
+	}
+
+	mantis->fe = fe;
+	dprintk(MANTIS_DEBUG, 1, "Done!");
+
+	return 0;
+}
+
+struct mantis_hwconfig vp2033_config = {
+	.model_name	= MANTIS_MODEL_NAME,
+	.dev_type	= MANTIS_DEV_TYPE,
+	.ts_size	= MANTIS_TS_204,
+
+	.baud_rate	= MANTIS_BAUD_9600,
+	.parity		= MANTIS_PARITY_NONE,
+	.bytes		= 0,
+
+	.frontend_init	= vp2033_frontend_init,
+};

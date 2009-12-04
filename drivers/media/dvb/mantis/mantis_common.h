@@ -21,20 +21,9 @@
 #ifndef __MANTIS_COMMON_H
 #define __MANTIS_COMMON_H
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dmxdev.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include <linux/i2c.h>
-#include "mantis_reg.h"
 #include "mantis_uart.h"
 
 #include "mantis_link.h"
@@ -44,18 +33,18 @@
 #define MANTIS_INFO		2
 #define MANTIS_DEBUG		3
 
-#define dprintk(x, y, z, format, arg...) do {								\
+#define dprintk(y, z, format, arg...) do {								\
 	if (z) {											\
-		if	((x > MANTIS_ERROR) && (x > y))							\
+		if	((mantis->verbose > MANTIS_ERROR) && (mantis->verbose > y))			\
 			printk(KERN_ERR "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
-		else if	((x > MANTIS_NOTICE) && (x > y))						\
+		else if	((mantis->verbose > MANTIS_NOTICE) && (mantis->verbose > y))			\
 			printk(KERN_NOTICE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
-		else if ((x > MANTIS_INFO) && (x > y))							\
+		else if ((mantis->verbose > MANTIS_INFO) && (mantis->verbose > y))			\
 			printk(KERN_INFO "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
-		else if ((x > MANTIS_DEBUG) && (x > y))							\
+		else if ((mantis->verbose > MANTIS_DEBUG) && (mantis->verbose > y))			\
 			printk(KERN_DEBUG "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 	} else {											\
-		if (x > y)										\
+		if (mantis->verbose > y)								\
 			printk(format , ##arg);								\
 	}												\
 } while(0)
@@ -63,14 +52,30 @@
 #define mwrite(dat, addr)	writel((dat), addr)
 #define mread(addr)		readl(addr)
 
-#define mmwrite(dat, addr)	mwrite((dat), (mantis->mantis_mmio + (addr)))
-#define mmread(addr)		mread(mantis->mantis_mmio + (addr))
+#define mmwrite(dat, addr)	mwrite((dat), (mantis->mmio + (addr)))
+#define mmread(addr)		mread(mantis->mmio + (addr))
 #define mmand(dat, addr)	mmwrite((dat) & mmread(addr), addr)
 #define mmor(dat, addr)		mmwrite((dat) | mmread(addr), addr)
 #define mmaor(dat, addr)	mmwrite((dat) | ((mask) & mmread(addr)), addr)
 
 #define MANTIS_TS_188		0
 #define MANTIS_TS_204		1
+
+#define TWINHAN_TECHNOLOGIES	0x1822
+#define MANTIS			0x4e35
+
+#define TECHNISAT		0x1ae4
+#define TERRATEC		0x153b
+
+#define MAKE_ENTRY(__subven, __subdev, __configptr) {			\
+		.vendor		= TWINHAN_TECHNOLOGIES,			\
+		.device		= MANTIS,				\
+		.subvendor	= (__subven),				\
+		.subdevice	= (__subdev),				\
+		.driver_data	= (unsigned long) (__configptr)		\
+}
+
+struct mantis_pci;
 
 struct mantis_hwconfig {
 	char			*model_name;
@@ -80,6 +85,12 @@ struct mantis_hwconfig {
 	enum mantis_baud	baud_rate;
 	enum mantis_parity	parity;
 	u32			bytes;
+
+	irqreturn_t (*irq_handler)(int irq, void *dev_id);
+	int (*frontend_init)(struct mantis_pci *mantis, struct dvb_frontend *fe);
+
+	u8			power;
+	u8			reset;
 };
 
 struct mantis_pci {
@@ -96,7 +107,7 @@ struct mantis_pci {
 	struct pci_dev		*pdev;
 
 	unsigned long		mantis_addr;
-	volatile void __iomem	*mantis_mmio;
+	void __iomem		*mmio;
 
 	u8			irq;
 	u8			revision;
@@ -156,19 +167,4 @@ struct mantis_pci {
 
 #define MANTIS_HIF_STATUS	(mantis->gpio_status)
 
-extern unsigned int verbose;
-extern unsigned int devs;
-extern unsigned int i2c;
-extern int mantis_dvb_init(struct mantis_pci *mantis);
-extern int mantis_frontend_init(struct mantis_pci *mantis);
-extern int mantis_dvb_exit(struct mantis_pci *mantis);
-extern void mantis_dma_xfer(unsigned long data);
-extern void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value);
-
-extern void mantis_set_direction(struct mantis_pci *mantis, int direction);
-
-extern int mantis_ca_init(struct mantis_pci *mantis);
-extern void mantis_ca_exit(struct mantis_pci *mantis);
-
-
-#endif //__MANTIS_COMMON_H
+#endif /* __MANTIS_COMMON_H */

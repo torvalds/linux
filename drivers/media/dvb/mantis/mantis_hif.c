@@ -18,9 +18,27 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include <linux/kernel.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+
+#include <asm/irq.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dvb_net.h"
+
 #include "mantis_common.h"
+
 #include "mantis_hif.h"
 #include "mantis_link.h" /* temporary due to physical layer stuff */
+
+#include "mantis_reg.h"
 
 static int mantis_hif_data_available(struct mantis_ca *ca)
 {
@@ -31,7 +49,7 @@ static int mantis_hif_data_available(struct mantis_ca *ca)
 					     ca->sbuf_status & MANTIS_SBUF_DATA_AVAIL,
 					     msecs_to_jiffies(500)) == -ERESTARTSYS) {
 
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Read wait event timeout !", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Read wait event timeout !", mantis->num);
 		rc = -EREMOTEIO;
 	}
 	ca->sbuf_status &= ~MANTIS_SBUF_DATA_AVAIL;
@@ -48,10 +66,10 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 			       ca->hif_event & MANTIS_SBUF_OPDONE,
 			       msecs_to_jiffies(500)) == -ERESTARTSYS) {
 
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Smart buffer operation timeout !", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Smart buffer operation timeout !", mantis->num);
 		rc = -EREMOTEIO;
 	}
-	dprintk(verbose, MANTIS_DEBUG, 1, "Smart Buffer Operation complete");
+	dprintk(MANTIS_DEBUG, 1, "Smart Buffer Operation complete");
 	ca->hif_event &= ~MANTIS_SBUF_OPDONE;
 	return rc;
 }
@@ -66,22 +84,22 @@ static int mantis_hif_write_wait(struct mantis_ca *ca)
 			       mantis->gpif_status & MANTIS_GPIF_WRACK,
 			       msecs_to_jiffies(500)) == -ERESTARTSYS) {
 
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Write ACK timed out !", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Write ACK timed out !", mantis->num);
 		rc = -EREMOTEIO;
 	}
-	dprintk(verbose, MANTIS_DEBUG, 1, "Write Acknowledged");
+	dprintk(MANTIS_DEBUG, 1, "Write Acknowledged");
 	mantis->gpif_status &= ~MANTIS_GPIF_WRACK;
 	while (!opdone) {
 		opdone = (mmread(MANTIS_GPIF_STATUS) & MANTIS_SBUF_OPDONE);
 		udelay(500);
 		timeout++;
 		if (timeout > 100) {
-			dprintk(verbose, MANTIS_ERROR, 1, "Adater(%d) Slot(0): Write operation timed out!", mantis->num);
+			dprintk(MANTIS_ERROR, 1, "Adater(%d) Slot(0): Write operation timed out!", mantis->num);
 			rc = -ETIMEDOUT;
 			break;
 		}
 	}
-	dprintk(verbose, MANTIS_DEBUG, 1, "HIF Write success");
+	dprintk(MANTIS_DEBUG, 1, "HIF Write success");
 	return rc;
 }
 
@@ -91,7 +109,7 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0, data, count = 4;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Read", mantis->num);
+	dprintk(MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Read", mantis->num);
 	mutex_lock(&ca->ca_lock);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
@@ -104,13 +122,13 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	mmwrite(hif_addr | MANTIS_GPIF_HIFRDWRN, MANTIS_GPIF_ADDR);
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): GPIF Smart Buffer operation failed", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): GPIF Smart Buffer operation failed", mantis->num);
 		mutex_unlock(&ca->ca_lock);
 		return -EREMOTEIO;
 	}
 	data = mmread(MANTIS_GPIF_DIN);
 	mutex_unlock(&ca->ca_lock);
-	dprintk(verbose, MANTIS_DEBUG, 1, "Mem Read: 0x%02x", data);
+	dprintk(MANTIS_DEBUG, 1, "Mem Read: 0x%02x", data);
 	return (data >> 24) & 0xff;
 }
 
@@ -120,7 +138,7 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Write", mantis->num);
+	dprintk(MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Write", mantis->num);
 	mutex_lock(&ca->ca_lock);
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
@@ -133,11 +151,11 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
 	if (mantis_hif_write_wait(ca) != 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		mutex_unlock(&ca->ca_lock);
 		return -EREMOTEIO;
 	}
-	dprintk(verbose, MANTIS_DEBUG, 1, "Mem Write: (0x%02x to 0x%02x)", data, addr);
+	dprintk(MANTIS_DEBUG, 1, "Mem Write: (0x%02x to 0x%02x)", data, addr);
 	mutex_unlock(&ca->ca_lock);
 
 	return 0;
@@ -148,7 +166,7 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 data, hif_addr = 0;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Read", mantis->num);
+	dprintk(MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Read", mantis->num);
 	mutex_lock(&ca->ca_lock);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
@@ -161,12 +179,12 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	mmwrite(hif_addr | MANTIS_GPIF_HIFRDWRN, MANTIS_GPIF_ADDR);
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		mutex_unlock(&ca->ca_lock);
 		return -EREMOTEIO;
 	}
 	data = mmread(MANTIS_GPIF_DIN);
-	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Read: 0x%02x", data);
+	dprintk(MANTIS_DEBUG, 1, "I/O Read: 0x%02x", data);
 	udelay(50);
 	mutex_unlock(&ca->ca_lock);
 
@@ -178,7 +196,7 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0;
 
-	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Write", mantis->num);
+	dprintk(MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Write", mantis->num);
 	mutex_lock(&ca->ca_lock);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
@@ -190,11 +208,11 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
 	if (mantis_hif_write_wait(ca) != 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
+		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		mutex_unlock(&ca->ca_lock);
 		return -EREMOTEIO;
 	}
-	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Write: (0x%02x to 0x%02x)", data, addr);
+	dprintk(MANTIS_DEBUG, 1, "I/O Write: (0x%02x to 0x%02x)", data, addr);
 	mutex_unlock(&ca->ca_lock);
 	udelay(50);
 
@@ -208,7 +226,7 @@ int mantis_hif_init(struct mantis_ca *ca)
 	u32 irqcfg;
 
 	slot[0].slave_cfg = 0x70773028;
-	dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Initializing Mantis Host Interface", mantis->num);
+	dprintk(MANTIS_ERROR, 1, "Adapter(%d) Initializing Mantis Host Interface", mantis->num);
 
 	mutex_lock(&ca->ca_lock);
 	irqcfg = mmread(MANTIS_GPIF_IRQCFG);
@@ -230,7 +248,7 @@ void mantis_hif_exit(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 irqcfg;
 
-	dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Exiting Mantis Host Interface", mantis->num);
+	dprintk(MANTIS_ERROR, 1, "Adapter(%d) Exiting Mantis Host Interface", mantis->num);
 	mutex_lock(&ca->ca_lock);
 	irqcfg = mmread(MANTIS_GPIF_IRQCFG);
 	irqcfg &= ~MANTIS_MASK_BRRDY;

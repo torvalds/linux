@@ -21,17 +21,10 @@
 #ifndef __MANTIS_VP2033_H
 #define __MANTIS_VP2033_H
 
-#include "dvb_frontend.h"
 #include "mantis_common.h"
-#include "tda1002x.h"
 
 #define MANTIS_VP_2033_DVB_C	0x0008
 
-extern struct tda1002x_config philips_cu1216_config;
-extern struct mantis_hwconfig vp2033_mantis_config;
+extern struct mantis_hwconfig vp2033_config;
 
-extern int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params);
-
-extern u8 read_pwm(struct mantis_pci *mantis);
-
-#endif // __MANTIS_VP2033_H
+#endif /* __MANTIS_VP2033_H */
