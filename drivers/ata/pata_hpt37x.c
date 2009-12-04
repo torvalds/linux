@@ -461,24 +461,25 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u8 dma_stat = ioread8(ap->ioaddr.bmdma_addr + 2);
-	u8 dma_cmd;
 	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
+	u8 dma_stat = ioread8(bmdma + ATA_DMA_STATUS);
+	u8 dma_cmd;
 
-	if (dma_stat & 0x01) {
+	if (dma_stat & ATA_DMA_ACTIVE) {
 		udelay(20);
-		dma_stat = ioread8(bmdma + 2);
+		dma_stat = ioread8(bmdma + ATA_DMA_STATUS);
 	}
-	if (dma_stat & 0x01) {
+	if (dma_stat & ATA_DMA_ACTIVE) {
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
 		/* Stop DMA */
-		dma_cmd = ioread8(bmdma );
-		iowrite8(dma_cmd & 0xFE, bmdma);
+		dma_cmd = ioread8(bmdma + ATA_DMA_CMD);
+		iowrite8(dma_cmd & ~ATA_DMA_START, bmdma + ATA_DMA_CMD);
 		/* Clear Error */
-		dma_stat = ioread8(bmdma + 2);
-		iowrite8(dma_stat | 0x06 , bmdma + 2);
+		dma_stat = ioread8(bmdma + ATA_DMA_STATUS);
+		iowrite8(dma_stat | ATA_DMA_INTR | ATA_DMA_ERR,
+			 bmdma + ATA_DMA_STATUS);
 		/* Clear the engine */
 		pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 		udelay(10);
