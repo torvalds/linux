@@ -369,6 +369,7 @@ void input_ff_destroy(struct input_dev *dev)
 		if (ff->destroy)
 			ff->destroy(ff);
 		kfree(ff->private);
+		kfree(ff->effects);
 		kfree(ff);
 		dev->ff = NULL;
 	}
