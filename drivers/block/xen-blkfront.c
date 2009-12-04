@@ -651,7 +651,7 @@ fail:
 
 
 /* Common code used when first setting up, and when resuming. */
-static int talk_to_backend(struct xenbus_device *dev,
+static int talk_to_blkback(struct xenbus_device *dev,
 			   struct blkfront_info *info)
 {
 	const char *message = NULL;
@@ -756,7 +756,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
 	dev_set_drvdata(&dev->dev, info);
 
-	err = talk_to_backend(dev, info);
+	err = talk_to_blkback(dev, info);
 	if (err) {
 		kfree(info);
 		dev_set_drvdata(&dev->dev, NULL);
@@ -851,7 +851,7 @@ static int blkfront_resume(struct xenbus_device *dev)
 
 	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
 
-	err = talk_to_backend(dev, info);
+	err = talk_to_blkback(dev, info);
 	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		err = blkif_recover(info);
 
@@ -955,13 +955,13 @@ static void blkfront_closing(struct xenbus_device *dev)
 /**
  * Callback received when the backend's state changes.
  */
-static void backend_changed(struct xenbus_device *dev,
+static void blkback_changed(struct xenbus_device *dev,
 			    enum xenbus_state backend_state)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	struct block_device *bd;
 
-	dev_dbg(&dev->dev, "blkfront:backend_changed.\n");
+	dev_dbg(&dev->dev, "blkfront:blkback_changed to state %d.\n", backend_state);
 
 	switch (backend_state) {
 	case XenbusStateInitialising:
@@ -1068,7 +1068,7 @@ static struct xenbus_driver blkfront = {
 	.probe = blkfront_probe,
 	.remove = blkfront_remove,
 	.resume = blkfront_resume,
-	.otherend_changed = backend_changed,
+	.otherend_changed = blkback_changed,
 	.is_ready = blkfront_is_ready,
 };
 
