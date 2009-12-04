@@ -741,6 +741,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (!ret) {
 		return ret;
 	}
+	/* initialize hpd */
+	radeon_hpd_init(rdev);
 	drm_helper_initial_config(rdev->ddev);
 	return 0;
 }
@@ -748,6 +750,7 @@ int radeon_modeset_init(struct radeon_device *rdev)
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
 	if (rdev->mode_info.mode_config_initialized) {
+		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}

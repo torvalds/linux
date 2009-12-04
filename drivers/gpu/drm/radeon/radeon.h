@@ -809,6 +809,8 @@ struct radeon_device {
 	struct r600_blit r600_blit;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
+	struct workqueue_struct *wq;
+	struct work_struct hotplug_work;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

@@ -388,6 +388,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 {
 	uint32_t status, msi_rearm;
 	uint32_t r500_disp_int;
+	bool queue_hotplug = false;
 
 	status = rs600_irq_ack(rdev, &r500_disp_int);
 	if (!status && !r500_disp_int) {
@@ -403,13 +404,17 @@ int rs600_irq_process(struct radeon_device *rdev)
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(r500_disp_int))
 			drm_handle_vblank(rdev->ddev, 1);
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(r500_disp_int)) {
-			DRM_INFO("HPD1\n");
+			queue_hotplug = true;
+			DRM_DEBUG("HPD1\n");
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(r500_disp_int)) {
-			DRM_INFO("HPD2\n");
+			queue_hotplug = true;
+			DRM_DEBUG("HPD2\n");
 		}
 		status = rs600_irq_ack(rdev, &r500_disp_int);
 	}
+	if (queue_hotplug)
+		queue_work(rdev->wq, &rdev->hotplug_work);
 	if (rdev->msi_enabled) {
 		switch (rdev->family) {
 		case CHIP_RS600:

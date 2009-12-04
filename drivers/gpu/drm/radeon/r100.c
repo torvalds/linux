@@ -289,6 +289,7 @@ static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 int r100_irq_process(struct radeon_device *rdev)
 {
 	uint32_t status, msi_rearm;
+	bool queue_hotplug = false;
 
 	status = r100_irq_ack(rdev);
 	if (!status) {
@@ -310,13 +311,17 @@ int r100_irq_process(struct radeon_device *rdev)
 			drm_handle_vblank(rdev->ddev, 1);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
-			DRM_INFO("HPD1\n");
+			queue_hotplug = true;
+			DRM_DEBUG("HPD1\n");
 		}
 		if (status & RADEON_FP2_DETECT_STAT) {
-			DRM_INFO("HPD2\n");
+			queue_hotplug = true;
+			DRM_DEBUG("HPD2\n");
 		}
 		status = r100_irq_ack(rdev);
 	}
+	if (queue_hotplug)
+		queue_work(rdev->wq, &rdev->hotplug_work);
 	if (rdev->msi_enabled) {
 		switch (rdev->family) {
 		case CHIP_RS400:

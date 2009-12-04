@@ -570,6 +570,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 
+	/* setup workqueue */
+	rdev->wq = create_workqueue("radeon");
+	if (rdev->wq == NULL)
+		return -ENOMEM;
+
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r) {
@@ -643,6 +648,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 	DRM_INFO("radeon: finishing device.\n");
 	rdev->shutdown = true;
 	radeon_fini(rdev);
+	destroy_workqueue(rdev->wq);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
@@ -689,6 +695,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	radeon_save_bios_scratch_regs(rdev);
 
 	radeon_suspend(rdev);
+	radeon_hpd_fini(rdev);
 	/* evict remaining vram memory */
 	radeon_bo_evict_vram(rdev);
 
@@ -723,6 +730,8 @@ int radeon_resume_kms(struct drm_device *dev)
 	fb_set_suspend(rdev->fbdev_info, 0);
 	release_console_sem();
 
+	/* reset hpd state */
+	radeon_hpd_init(rdev);
 	/* blat the mode back in */
 	drm_helper_resume_force_mode(dev);
 	return 0;

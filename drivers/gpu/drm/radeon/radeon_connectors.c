@@ -40,6 +40,26 @@ radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
 				       struct drm_encoder *encoder,
 				       bool connected);
 
+void radeon_connector_hotplug(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
+	if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		if (radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+			if (radeon_dp_needs_link_train(radeon_connector)) {
+				if (connector->encoder)
+					dp_link_train(connector->encoder, connector);
+			}
+		}
+	}
+
+}
+
 static void radeon_property_change_mode(struct drm_encoder *encoder)
 {
 	struct drm_crtc *crtc = encoder->crtc;

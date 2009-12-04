@@ -2674,6 +2674,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 last_entry = rdev->ih.ring_size - 16;
 	u32 ring_index, disp_int, disp_int_cont, disp_int_cont2;
 	unsigned long flags;
+	bool queue_hotplug = false;
 
 	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
@@ -2745,37 +2746,43 @@ restart_ih:
 			case 0:
 				if (disp_int & DC_HPD1_INTERRUPT) {
 					disp_int &= ~DC_HPD1_INTERRUPT;
-					DRM_INFO("IH: HPD1\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD1\n");
 				}
 				break;
 			case 1:
 				if (disp_int & DC_HPD2_INTERRUPT) {
 					disp_int &= ~DC_HPD2_INTERRUPT;
-					DRM_INFO("IH: HPD2\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD2\n");
 				}
 				break;
 			case 4:
 				if (disp_int_cont & DC_HPD3_INTERRUPT) {
 					disp_int_cont &= ~DC_HPD3_INTERRUPT;
-					DRM_INFO("IH: HPD3\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD3\n");
 				}
 				break;
 			case 5:
 				if (disp_int_cont & DC_HPD4_INTERRUPT) {
 					disp_int_cont &= ~DC_HPD4_INTERRUPT;
-					DRM_INFO("IH: HPD4\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD4\n");
 				}
 				break;
 			case 10:
 				if (disp_int_cont2 & DC_HPD5_INTERRUPT) {
 					disp_int_cont &= ~DC_HPD5_INTERRUPT;
-					DRM_INFO("IH: HPD5\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD5\n");
 				}
 				break;
 			case 12:
 				if (disp_int_cont2 & DC_HPD6_INTERRUPT) {
 					disp_int_cont &= ~DC_HPD6_INTERRUPT;
-					DRM_INFO("IH: HPD6\n");
+					queue_hotplug = true;
+					DRM_DEBUG("IH: HPD6\n");
 				}
 				break;
 			default:
@@ -2807,6 +2814,8 @@ restart_ih:
 	wptr = r600_get_ih_wptr(rdev);
 	if (wptr != rdev->ih.wptr)
 		goto restart_ih;
+	if (queue_hotplug)
+		queue_work(rdev->wq, &rdev->hotplug_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);
