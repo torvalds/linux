@@ -31,6 +31,12 @@ struct mantis_slot {
 	u32				timeout;
 };
 
+/* Physical layer */
+enum mantis_slot_state {
+	MODULE_INSERTED			= 3,
+	MODULE_XTRACTED			= 4
+};
+
 struct mantis_ca {
 	struct mantis_slot		slot;
 
@@ -43,6 +49,8 @@ struct mantis_ca {
 	u32				hif_job_queue;
 
 	enum mantis_sbuf_status		sbuf_status;
+
+	enum mantis_slot_state		slot_state;
 
 	struct dvb_device		*ca_dev;
 	void				*ca_priv;
