@@ -22,6 +22,7 @@
 #include "mantis_core.h"
 #include "mantis_vp1033.h"
 #include "mantis_vp1034.h"
+#include "mantis_vp1041.h"
 #include "mantis_vp2033.h"
 #include "mantis_vp2040.h"
 #include "mantis_vp3030.h"
@@ -110,6 +111,9 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		break;
 	case MANTIS_VP_1034_DVB_S:	// VP-1034
 		mantis->hwconfig = &vp1034_mantis_config;
+		break;
+	case MANTIS_VP_1041_DVB_S2:	// VP-1041
+		mantis->hwconfig = &vp1041_mantis_config;
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
 		mantis->hwconfig = &vp2033_mantis_config;

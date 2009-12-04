@@ -5,6 +5,7 @@ mantis-objs = 	mantis_core.o \
 		mantis_dvb.o \
 		mantis_vp1033.o \
 		mantis_vp1034.o \
+		mantis_vp1041.o \
 		mantis_vp2033.o	\
 		mantis_vp2040.o	\
 		mantis_vp3030.o

@@ -27,6 +27,7 @@
 #include "dvb_frontend.h"
 #include "mantis_vp1033.h"
 #include "mantis_vp1034.h"
+#include "mantis_vp1041.h"
 #include "mantis_vp2033.h"
 #include "mantis_vp2040.h"
 #include "mantis_vp3030.h"
@@ -236,6 +237,23 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 			"found MB86A16 DVB-S/DSS frontend @0x%02x",
 			vp1034_config.demod_address);
 
+		}
+		break;
+	case MANTIS_VP_1041_DVB_S2:
+		mantis->fe = stb0899_attach(&vp1041_config, &mantis->adapter);
+		if (mantis->fe) {
+			dprintk(verbose, MANTIS_ERROR, 1,
+			"found STB0899 DVB-S/DVB-S2 frontend @0x%02x",
+			vp1041_config.demod_address);
+
+			if (stb6100_attach(mantis->fe, &vp1041_stb6100_config, &mantis->adapter)) {
+				if (!lnbp21_attach(mantis->fe, &mantis->adapter, 0, 0)) {
+					printk("%s: No LNBP21 found!\n", __FUNCTION__);
+					mantis->fe = NULL;
+				}
+			} else {
+				mantis->fe = NULL;
+			}
 		}
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
