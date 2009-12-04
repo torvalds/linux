@@ -69,8 +69,7 @@ static void mantis_hifevm_work(struct work_struct *work)
 	if (gpif_stat & MANTIS_GPIF_BRRDY) {
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Read Ready", mantis->num);
 		ca->sbuf_status = MANTIS_SBUF_DATA_AVAIL;
-		if (ca->hif_job_queue & MANTIS_HIF_MEMRD)
-			wake_up(&ca->hif_brrdyw_wq);
+		dvb_ca_en50221_frda_irq(&ca->en50221, 0);
 	}
 	if (gpif_stat & MANTIS_GPIF_WRACK)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Slave Write ACK", mantis->num);
