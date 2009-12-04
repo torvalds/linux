@@ -60,6 +60,107 @@ int rs600_mc_init(struct radeon_device *rdev)
 		return r;
 	return 0;
 }
+
+/* hpd for digital panel detect/disconnect */
+bool rs600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
+{
+	u32 tmp;
+	bool connected = false;
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		tmp = RREG32(R_007D04_DC_HOT_PLUG_DETECT1_INT_STATUS);
+		if (G_007D04_DC_HOT_PLUG_DETECT1_SENSE(tmp))
+			connected = true;
+		break;
+	case RADEON_HPD_2:
+		tmp = RREG32(R_007D14_DC_HOT_PLUG_DETECT2_INT_STATUS);
+		if (G_007D14_DC_HOT_PLUG_DETECT2_SENSE(tmp))
+			connected = true;
+		break;
+	default:
+		break;
+	}
+	return connected;
+}
+
+void rs600_hpd_set_polarity(struct radeon_device *rdev,
+			    enum radeon_hpd_id hpd)
+{
+	u32 tmp;
+	bool connected = rs600_hpd_sense(rdev, hpd);
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		tmp = RREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL);
+		if (connected)
+			tmp &= ~S_007D08_DC_HOT_PLUG_DETECT1_INT_POLARITY(1);
+		else
+			tmp |= S_007D08_DC_HOT_PLUG_DETECT1_INT_POLARITY(1);
+		WREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL, tmp);
+		break;
+	case RADEON_HPD_2:
+		tmp = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL);
+		if (connected)
+			tmp &= ~S_007D18_DC_HOT_PLUG_DETECT2_INT_POLARITY(1);
+		else
+			tmp |= S_007D18_DC_HOT_PLUG_DETECT2_INT_POLARITY(1);
+		WREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
+		break;
+	default:
+		break;
+	}
+}
+
+void rs600_hpd_init(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			WREG32(R_007D00_DC_HOT_PLUG_DETECT1_CONTROL,
+			       S_007D00_DC_HOT_PLUG_DETECT1_EN(1));
+			rdev->irq.hpd[0] = true;
+			break;
+		case RADEON_HPD_2:
+			WREG32(R_007D10_DC_HOT_PLUG_DETECT2_CONTROL,
+			       S_007D10_DC_HOT_PLUG_DETECT2_EN(1));
+			rdev->irq.hpd[1] = true;
+			break;
+		default:
+			break;
+		}
+	}
+	rs600_irq_set(rdev);
+}
+
+void rs600_hpd_fini(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			WREG32(R_007D00_DC_HOT_PLUG_DETECT1_CONTROL,
+			       S_007D00_DC_HOT_PLUG_DETECT1_EN(0));
+			rdev->irq.hpd[0] = false;
+			break;
+		case RADEON_HPD_2:
+			WREG32(R_007D10_DC_HOT_PLUG_DETECT2_CONTROL,
+			       S_007D10_DC_HOT_PLUG_DETECT2_EN(0));
+			rdev->irq.hpd[1] = false;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 /*
  * GART.
  */
@@ -209,6 +310,10 @@ int rs600_irq_set(struct radeon_device *rdev)
 {
 	uint32_t tmp = 0;
 	uint32_t mode_int = 0;
+	u32 hpd1 = RREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL) &
+		~S_007D08_DC_HOT_PLUG_DETECT1_INT_EN(1);
+	u32 hpd2 = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL) &
+		~S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
 
 	if (rdev->irq.sw_int) {
 		tmp |= S_000040_SW_INT_EN(1);
@@ -219,8 +324,16 @@ int rs600_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.crtc_vblank_int[1]) {
 		mode_int |= S_006540_D2MODE_VBLANK_INT_MASK(1);
 	}
+	if (rdev->irq.hpd[0]) {
+		hpd1 |= S_007D08_DC_HOT_PLUG_DETECT1_INT_EN(1);
+	}
+	if (rdev->irq.hpd[1]) {
+		hpd2 |= S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
+	}
 	WREG32(R_000040_GEN_INT_CNTL, tmp);
 	WREG32(R_006540_DxMODE_INT_MASK, mode_int);
+	WREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL, hpd1);
+	WREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL, hpd2);
 	return 0;
 }
 
@@ -228,6 +341,7 @@ static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_
 {
 	uint32_t irqs = RREG32(R_000044_GEN_INT_STATUS);
 	uint32_t irq_mask = ~C_000044_SW_INT;
+	u32 tmp;
 
 	if (G_000044_DISPLAY_INT_STAT(irqs)) {
 		*r500_disp_int = RREG32(R_007EDC_DISP_INTERRUPT_STATUS);
@@ -238,6 +352,16 @@ static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(*r500_disp_int)) {
 			WREG32(R_006D34_D2MODE_VBLANK_STATUS,
 				S_006D34_D2MODE_VBLANK_ACK(1));
+		}
+		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(*r500_disp_int)) {
+			tmp = RREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL);
+			tmp |= S_007D08_DC_HOT_PLUG_DETECT1_INT_ACK(1);
+			WREG32(R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL, tmp);
+		}
+		if (G_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(*r500_disp_int)) {
+			tmp = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL);
+			tmp |= S_007D18_DC_HOT_PLUG_DETECT2_INT_ACK(1);
+			WREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		}
 	} else {
 		*r500_disp_int = 0;
@@ -278,6 +402,12 @@ int rs600_irq_process(struct radeon_device *rdev)
 			drm_handle_vblank(rdev->ddev, 0);
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(r500_disp_int))
 			drm_handle_vblank(rdev->ddev, 1);
+		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(r500_disp_int)) {
+			DRM_INFO("HPD1\n");
+		}
+		if (G_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(r500_disp_int)) {
+			DRM_INFO("HPD2\n");
+		}
 		status = rs600_irq_ack(rdev, &r500_disp_int);
 	}
 	if (rdev->msi_enabled) {
