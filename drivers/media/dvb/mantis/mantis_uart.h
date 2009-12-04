@@ -1,0 +1,18 @@
+#ifndef __MANTIS_UART_H
+#define __MANTIS_UART_H
+
+enum mantis_baud {
+	MANTIS_BAUD_9600	= 0,
+	MANTIS_BAUD_19200,
+	MANTIS_BAUD_38400,
+	MANTIS_BAUD_57600,
+	MANTIS_BAUD_115200
+};
+
+enum mantis_parity {
+	MANTIS_PARITY_NONE	= 0,
+	MANTIS_PARITY_EVEN,
+	MANTIS_PARITY_ODD
+};
+
+#endif // __MANTIS_UART_H
