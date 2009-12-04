@@ -38,9 +38,20 @@ config SND_HDA_INPUT_BEEP
 	  Say Y here to build a digital beep interface for HD-audio
 	  driver. This interface is used to generate digital beeps.
 
+config SND_HDA_INPUT_BEEP_MODE
+	int "Digital beep registration mode (0=off, 1=on, 2=mute sw on/off)"
+	depends on SND_HDA_INPUT_BEEP=y
+	default "1"
+	range 0 2
+	help
+	  Set 0 to disable the digital beep interface for HD-audio by default.
+	  Set 1 to always enable the digital beep interface for HD-audio by
+	  default. Set 2 to control the beep device registration to input
+	  layer using a "Beep Switch" in mixer applications.
+
 config SND_HDA_INPUT_JACK
 	bool "Support jack plugging notification via input layer"
-	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	depends on INPUT=y || INPUT=SND
 	select SND_JACK
 	help
 	  Say Y here to enable the jack plugging notification via

@@ -23,6 +23,15 @@
 #ifndef __SOUND_HDA_LOCAL_H
 #define __SOUND_HDA_LOCAL_H
 
+/* We abuse kcontrol_new.subdev field to pass the NID corresponding to
+ * the given new control.  If id.subdev has a bit flag HDA_SUBDEV_NID_FLAG,
+ * snd_hda_ctl_add() takes the lower-bit subdev value as a valid NID.
+ * 
+ * Note that the subdevice field is cleared again before the real registration
+ * in snd_hda_ctl_add(), so that this value won't appear in the outside.
+ */
+#define HDA_SUBDEV_NID_FLAG	(1U << 31)
+
 /*
  * for mixer controls
  */
@@ -33,6 +42,7 @@
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
 	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
@@ -53,6 +63,7 @@
 /* mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put, \
@@ -66,6 +77,28 @@
 /* stereo mute switch */
 #define HDA_CODEC_MUTE(xname, nid, xindex, direction) \
 	HDA_CODEC_MUTE_MONO(xname, nid, 3, xindex, direction)
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+/* special beep mono mute switch with index (index=0,1,...) (channel=1,2) */
+#define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
+	  .info = snd_hda_mixer_amp_switch_info, \
+	  .get = snd_hda_mixer_amp_switch_get, \
+	  .put = snd_hda_mixer_amp_switch_put_beep, \
+	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
+#else
+/* no digital beep - just the standard one */
+#define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, ch, xidx, dir) \
+	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, ch, xidx, dir)
+#endif /* CONFIG_SND_HDA_INPUT_BEEP */
+/* special beep mono mute switch */
+#define HDA_CODEC_MUTE_BEEP_MONO(xname, nid, channel, xindex, direction) \
+	HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+/* special beep stereo mute switch */
+#define HDA_CODEC_MUTE_BEEP(xname, nid, xindex, direction) \
+	HDA_CODEC_MUTE_BEEP_MONO(xname, nid, 3, xindex, direction)
+
+extern const char *snd_hda_pcm_type_name[];
 
 int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo);
@@ -81,6 +114,10 @@ int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol);
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol);
+#endif
 /* lowlevel accessor with caching; use carefully */
 int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
 			   int direction, int index);
@@ -424,8 +461,16 @@ u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
+u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
+int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
 
-int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
+struct hda_nid_item {
+	struct snd_kcontrol *kctl;
+	hda_nid_t nid;
+};
+
+int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
+		    struct snd_kcontrol *kctl);
 void snd_hda_ctls_clear(struct hda_codec *codec);
 
 /*
@@ -435,6 +480,15 @@ void snd_hda_ctls_clear(struct hda_codec *codec);
 int snd_hda_create_hwdep(struct hda_codec *codec);
 #else
 static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
+#endif
+
+#if defined(CONFIG_SND_HDA_POWER_SAVE) && defined(CONFIG_SND_HDA_HWDEP)
+int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec);
+#else
+static inline int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_SND_HDA_RECONFIG
@@ -490,7 +544,8 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
  * AMP control callbacks
  */
 /* retrieve parameters from private_value */
-#define get_amp_nid(kc)		((kc)->private_value & 0xffff)
+#define get_amp_nid_(pv)	((pv) & 0xffff)
+#define get_amp_nid(kc)		get_amp_nid_((kc)->private_value)
 #define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
@@ -516,9 +571,11 @@ struct cea_sad {
  * ELD: EDID Like Data
  */
 struct hdmi_eld {
+	bool	monitor_present;
+	bool	eld_valid;
 	int	eld_size;
 	int	baseline_len;
-	int	eld_ver;	/* (eld_ver == 0) indicates invalid ELD */
+	int	eld_ver;
 	int	cea_edid_ver;
 	char	monitor_name[ELD_MAX_MNL + 1];
 	int	manufacture_id;
@@ -541,11 +598,13 @@ int snd_hdmi_get_eld(struct hdmi_eld *, struct hda_codec *, hda_nid_t);
 void snd_hdmi_show_eld(struct hdmi_eld *eld);
 
 #ifdef CONFIG_PROC_FS
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld);
+int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
+			 int index);
 void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld);
 #else
 static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
-				       struct hdmi_eld *eld)
+				       struct hdmi_eld *eld,
+				       int index)
 {
 	return 0;
 }
