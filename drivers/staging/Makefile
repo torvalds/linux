@@ -47,6 +47,7 @@ obj-$(CONFIG_RAMZSWAP)		+= ramzswap/
 obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
 obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
 obj-$(CONFIG_BATMAN_ADV)	+= batman-adv/
+obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop/
 obj-$(CONFIG_STRIP)		+= strip/
 obj-$(CONFIG_ARLAN)		+= arlan/
 obj-$(CONFIG_WAVELAN)		+= wavelan/
