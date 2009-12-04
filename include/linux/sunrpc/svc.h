@@ -273,10 +273,6 @@ struct svc_rqst {
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
-	struct knfsd_fh *	rq_reffh;	/* Referrence filehandle, used to
-						 * determine what device number
-						 * to report (real or virtual)
-						 */
 	int			rq_splice_ok;   /* turned off in gss privacy
 						 * to prevent encrypting page
 						 * cache pages */
