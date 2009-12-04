@@ -53,9 +53,5 @@ extern int mantis_i2c_init(struct mantis_pci *mantis);
 extern int mantis_i2c_exit(struct mantis_pci *mantis);
 extern int mantis_core_init(struct mantis_pci *mantis);
 extern int mantis_core_exit(struct mantis_pci *mantis);
-//extern void mantis_fe_powerup(struct mantis_pci *mantis);
-//extern void mantis_fe_powerdown(struct mantis_pci *mantis);
-//extern void mantis_fe_reset(struct dvb_frontend *fe);
-extern void mantis_set_direction(struct mantis_pci *mantis, int direction);
 
 #endif //__MANTIS_CORE_H
