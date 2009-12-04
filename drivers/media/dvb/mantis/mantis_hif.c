@@ -53,7 +53,6 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 	}
 	dprintk(verbose, MANTIS_DEBUG, 1, "Smart Buffer Operation complete");
 	ca->hif_event &= ~MANTIS_SBUF_OPDONE;
-	udelay(5);
 	return rc;
 }
 
@@ -93,17 +92,16 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	u32 hif_addr = 0, data, count = 4;
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF Mem Read", mantis->num);
-	hif_addr |=  MANTIS_GPIF_HIFRDWRN;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
+	hif_addr |=  MANTIS_HIF_STATUS;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_BRADDR);
+	mmwrite(hif_addr, MANTIS_GPIF_BRADDR);
 	mmwrite(count, MANTIS_GPIF_BRBYTES);
-
 	udelay(20);
+	mmwrite(hif_addr | MANTIS_GPIF_HIFRDWRN, MANTIS_GPIF_ADDR);
 
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): GPIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
@@ -123,10 +121,11 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_PCMCIAIOM;
-	hif_addr |= addr;
+	hif_addr |=  MANTIS_HIF_STATUS;
+	hif_addr |=  addr;
 
 	mmwrite(slot->slave_cfg, MANTIS_GPIF_CFGSLA); /* Slot0 alone for now */
-	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
 	if (mantis_hif_write_wait(ca) != 0) {
@@ -145,16 +144,14 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Adapter(%d) Slot(0): Request HIF I/O Read", mantis->num);
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
-	hif_addr |=  MANTIS_GPIF_HIFRDWRN;
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
+	hif_addr |=  MANTIS_HIF_STATUS;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_BRADDR);
+	mmwrite(hif_addr, MANTIS_GPIF_BRADDR);
 	mmwrite(1, MANTIS_GPIF_BRBYTES);
-
 	udelay(20);
-
-	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr | MANTIS_GPIF_HIFRDWRN, MANTIS_GPIF_ADDR);
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
@@ -176,9 +173,10 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr &= ~MANTIS_GPIF_HIFRDWRN;
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
+	hif_addr |=  MANTIS_HIF_STATUS;
 	hif_addr |=  addr;
 
-	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
+	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
 	if (mantis_hif_write_wait(ca) != 0) {
