@@ -117,7 +117,6 @@ static int wm8523_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -448,17 +447,9 @@ static int wm8523_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm8523_snd_controls,
 			     ARRAY_SIZE(wm8523_snd_controls));
 	wm8523_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
@@ -638,21 +629,6 @@ static __devexit int wm8523_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8523_i2c_suspend(struct i2c_client *i2c, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&i2c->dev);
-}
-
-static int wm8523_i2c_resume(struct i2c_client *i2c)
-{
-	return snd_soc_resume_device(&i2c->dev);
-}
-#else
-#define wm8523_i2c_suspend NULL
-#define wm8523_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8523_i2c_id[] = {
 	{ "wm8523", 0 },
 	{ }
@@ -666,8 +642,6 @@ static struct i2c_driver wm8523_i2c_driver = {
 	},
 	.probe =    wm8523_i2c_probe,
 	.remove =   __devexit_p(wm8523_i2c_remove),
-	.suspend =  wm8523_i2c_suspend,
-	.resume =   wm8523_i2c_resume,
 	.id_table = wm8523_i2c_id,
 };
 #endif

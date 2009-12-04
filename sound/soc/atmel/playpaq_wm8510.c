@@ -268,7 +268,7 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 #endif /* CONFIG_SND_AT32_SOC_PLAYPAQ_SLAVE */
 
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0,
+	ret = snd_soc_dai_set_pll(codec_dai, 0, 0,
 					 clk_get_rate(CODEC_CLK), pll_out);
 	if (ret < 0) {
 		pr_warning("playpaq_wm8510: Failed to set CODEC DAI PLL (%d)\n",

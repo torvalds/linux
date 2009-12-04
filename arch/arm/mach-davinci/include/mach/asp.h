@@ -51,6 +51,14 @@ struct snd_platform_data {
 	u32 rx_dma_offset;
 	enum dma_event_q eventq_no;	/* event queue number */
 	unsigned int codec_fmt;
+	/*
+	 * Allowing this is more efficient and eliminates left and right swaps
+	 * caused by underruns, but will swap the left and right channels
+	 * when compared to previous behavior.
+	 */
+	unsigned enable_channel_combine:1;
+	unsigned sram_size_playback;
+	unsigned sram_size_capture;
 
 	/* McASP specific fields */
 	int tdm_slots;

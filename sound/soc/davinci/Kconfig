@@ -13,9 +13,9 @@ config SND_DAVINCI_SOC_MCASP
 	tristate
 
 config SND_DAVINCI_SOC_EVM
-	tristate "SoC Audio support for DaVinci DM6446 or DM355 EVM"
+	tristate "SoC Audio support for DaVinci DM6446, DM355 or DM365 EVM"
 	depends on SND_DAVINCI_SOC
-	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM
+	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM  || MACH_DAVINCI_DM365_EVM
 	select SND_DAVINCI_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	help

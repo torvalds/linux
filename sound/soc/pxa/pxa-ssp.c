@@ -305,8 +305,8 @@ static int pxa_ssp_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 /*
  * Configure the PLL frequency pxa27x and (afaik - pxa320 only)
  */
-static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai,
-	int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
+	int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
 	struct ssp_device *ssp = priv->dev.ssp;
@@ -760,13 +760,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			 .channels_min = 1,
-			 .channels_max = 2,
+			 .channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -780,13 +780,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -801,13 +801,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -822,13 +822,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },

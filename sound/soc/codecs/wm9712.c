@@ -436,7 +436,6 @@ static int wm9712_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -695,17 +694,11 @@ static int wm9712_soc_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm9712_snd_ac97_controls,
 				ARRAY_SIZE(wm9712_snd_ac97_controls));
 	wm9712_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm9712: failed to register card\n");
-		goto reset_err;
-	}
 
 	return 0;
 
 reset_err:
 	snd_soc_free_pcms(socdev);
-
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 

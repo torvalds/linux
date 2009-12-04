@@ -205,7 +205,6 @@ static int wm9705_add_widgets(struct snd_soc_codec *codec)
 	snd_soc_dapm_new_controls(codec, wm9705_dapm_widgets,
 					ARRAY_SIZE(wm9705_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_new_widgets(codec);
 
 	return 0;
 }
@@ -402,12 +401,6 @@ static int wm9705_soc_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm9705_snd_ac97_controls,
 				ARRAY_SIZE(wm9705_snd_ac97_controls));
 	wm9705_add_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm9705: failed to register card\n");
-		goto reset_err;
-	}
 
 	return 0;
 

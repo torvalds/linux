@@ -117,9 +117,6 @@ static int ac97_soc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto bus_err;
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto bus_err;
 	return 0;
 
 bus_err:

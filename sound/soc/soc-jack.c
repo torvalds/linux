@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_new);
  */
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 {
-	struct snd_soc_codec *codec = jack->card->codec;
+	struct snd_soc_codec *codec;
 	struct snd_soc_jack_pin *pin;
 	int enable;
 	int oldstatus;
@@ -67,6 +67,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 		WARN_ON_ONCE(!jack);
 		return;
 	}
+	codec = jack->card->codec;
 
 	mutex_lock(&codec->mutex);
 
@@ -161,6 +162,9 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 		report = gpio->report;
 	else
 		report = 0;
+
+	if (gpio->jack_status_check)
+		report = gpio->jack_status_check();
 
 	snd_soc_jack_report(jack, report, gpio->report);
 }

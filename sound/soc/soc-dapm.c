@@ -719,6 +719,10 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 
 	/* Check if one of our outputs is connected */
 	list_for_each_entry(path, &w->sinks, list_source) {
+		if (path->connected &&
+		    !path->connected(path->source, path->sink))
+			continue;
+
 		if (path->sink && path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
@@ -1152,6 +1156,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
+		if (p->connected && !p->connected(w, p->sink))
+			continue;
+
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					" in  %s %s\n",
@@ -1159,6 +1166,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 					p->source->name);
 	}
 	list_for_each_entry(p, &w->sinks, list_source) {
+		if (p->connected && !p->connected(w, p->sink))
+			continue;
+
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					" out %s %s\n",
@@ -1206,8 +1216,8 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_codec *codec)
 
 /* test and update the power status of a mux widget */
 static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
-				 struct snd_kcontrol *kcontrol, int mask,
-				 int mux, int val, struct soc_enum *e)
+				 struct snd_kcontrol *kcontrol, int change,
+				 int mux, struct soc_enum *e)
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
@@ -1216,7 +1226,7 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	    widget->id != snd_soc_dapm_value_mux)
 		return -ENODEV;
 
-	if (!snd_soc_test_bits(widget->codec, e->reg, mask, val))
+	if (!change)
 		return 0;
 
 	/* find dapm widget path assoc with kcontrol */
@@ -1401,10 +1411,13 @@ int snd_soc_dapm_sync(struct snd_soc_codec *codec)
 EXPORT_SYMBOL_GPL(snd_soc_dapm_sync);
 
 static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
-	const char *sink, const char *control, const char *source)
+				  const struct snd_soc_dapm_route *route)
 {
 	struct snd_soc_dapm_path *path;
 	struct snd_soc_dapm_widget *wsource = NULL, *wsink = NULL, *w;
+	const char *sink = route->sink;
+	const char *control = route->control;
+	const char *source = route->source;
 	int ret = 0;
 
 	/* find src and dest widgets */
@@ -1428,6 +1441,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 
 	path->source = wsource;
 	path->sink = wsink;
+	path->connected = route->connected;
 	INIT_LIST_HEAD(&path->list);
 	INIT_LIST_HEAD(&path->list_source);
 	INIT_LIST_HEAD(&path->list_sink);
@@ -1528,8 +1542,7 @@ int snd_soc_dapm_add_routes(struct snd_soc_codec *codec,
 	int i, ret;
 
 	for (i = 0; i < num; i++) {
-		ret = snd_soc_dapm_add_route(codec, route->sink,
-					     route->control, route->source);
+		ret = snd_soc_dapm_add_route(codec, route);
 		if (ret < 0) {
 			printk(KERN_ERR "Failed to add route %s->%s\n",
 			       route->source,
@@ -1766,7 +1779,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, mux;
+	unsigned int val, mux, change;
 	unsigned int mask, bitmask;
 	int ret = 0;
 
@@ -1786,26 +1799,75 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
-	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
-	if (widget->event) {
-		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_PRE_REG);
-			if (ret < 0)
-				goto out;
-		}
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_POST_REG);
-	} else
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+	dapm_mux_update_power(widget, kcontrol, change, mux, e);
+
+	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_PRE_REG);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_POST_REG);
 
 out:
 	mutex_unlock(&widget->codec->mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
+
+/**
+ * snd_soc_dapm_get_enum_virt - Get virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_get_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = widget->value;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_virt);
+
+/**
+ * snd_soc_dapm_put_enum_virt - Set virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e =
+		(struct soc_enum *)kcontrol->private_value;
+	int change;
+	int ret = 0;
+
+	if (ucontrol->value.enumerated.item[0] >= e->max)
+		return -EINVAL;
+
+	mutex_lock(&widget->codec->mutex);
+
+	change = widget->value != ucontrol->value.enumerated.item[0];
+	widget->value = ucontrol->value.enumerated.item[0];
+	dapm_mux_update_power(widget, kcontrol, change, widget->value, e);
+
+	mutex_unlock(&widget->codec->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_virt);
 
 /**
  * snd_soc_dapm_get_value_enum_double - dapm semi enumerated double mixer get
@@ -1865,7 +1927,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, mux;
+	unsigned int val, mux, change;
 	unsigned int mask;
 	int ret = 0;
 
@@ -1883,20 +1945,21 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
-	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
-	if (widget->event) {
-		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_PRE_REG);
-			if (ret < 0)
-				goto out;
-		}
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_POST_REG);
-	} else
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+	dapm_mux_update_power(widget, kcontrol, change, mux, e);
+
+	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_PRE_REG);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_POST_REG);
 
 out:
 	mutex_unlock(&widget->codec->mutex);

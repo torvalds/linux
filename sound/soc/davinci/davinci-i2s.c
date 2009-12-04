@@ -97,12 +97,24 @@ enum {
 	DAVINCI_MCBSP_WORD_32,
 };
 
+static const unsigned char data_type[SNDRV_PCM_FORMAT_S32_LE + 1] = {
+	[SNDRV_PCM_FORMAT_S8]		= 1,
+	[SNDRV_PCM_FORMAT_S16_LE]	= 2,
+	[SNDRV_PCM_FORMAT_S32_LE]	= 4,
+};
+
+static const unsigned char asp_word_length[SNDRV_PCM_FORMAT_S32_LE + 1] = {
+	[SNDRV_PCM_FORMAT_S8]		= DAVINCI_MCBSP_WORD_8,
+	[SNDRV_PCM_FORMAT_S16_LE]	= DAVINCI_MCBSP_WORD_16,
+	[SNDRV_PCM_FORMAT_S32_LE]	= DAVINCI_MCBSP_WORD_32,
+};
+
+static const unsigned char double_fmt[SNDRV_PCM_FORMAT_S32_LE + 1] = {
+	[SNDRV_PCM_FORMAT_S8]		= SNDRV_PCM_FORMAT_S16_LE,
+	[SNDRV_PCM_FORMAT_S16_LE]	= SNDRV_PCM_FORMAT_S32_LE,
+};
+
 struct davinci_mcbsp_dev {
-	/*
-	 * dma_params must be first because rtd->dai->cpu_dai->private_data
-	 * is cast to a pointer of an array of struct davinci_pcm_dma_params in
-	 * davinci_pcm_open.
-	 */
 	struct davinci_pcm_dma_params	dma_params[2];
 	void __iomem			*base;
 #define MOD_DSP_A	0
@@ -110,6 +122,27 @@ struct davinci_mcbsp_dev {
 	int				mode;
 	u32				pcr;
 	struct clk			*clk;
+	/*
+	 * Combining both channels into 1 element will at least double the
+	 * amount of time between servicing the dma channel, increase
+	 * effiency, and reduce the chance of overrun/underrun. But,
+	 * it will result in the left & right channels being swapped.
+	 *
+	 * If relabeling the left and right channels is not possible,
+	 * you may want to let the codec know to swap them back.
+	 *
+	 * It may allow x10 the amount of time to service dma requests,
+	 * if the codec is master and is using an unnecessarily fast bit clock
+	 * (ie. tlvaic23b), independent of the sample rate. So, having an
+	 * entire frame at once means it can be serviced at the sample rate
+	 * instead of the bit clock rate.
+	 *
+	 * In the now unlikely case that an underrun still
+	 * occurs, both the left and right samples will be repeated
+	 * so that no pops are heard, and the left and right channels
+	 * won't end up being swapped because of the underrun.
+	 */
+	unsigned enable_channel_combine:1;
 };
 
 static inline void davinci_mcbsp_write_reg(struct davinci_mcbsp_dev *dev,
@@ -349,6 +382,8 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	int mcbsp_word_length;
 	unsigned int rcr, xcr, srgr;
 	u32 spcr;
+	snd_pcm_format_t fmt;
+	unsigned element_cnt = 1;
 
 	/* general line settings */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
@@ -378,27 +413,24 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(1);
 	}
 	/* Determine xfer data type */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
-		dma_params->data_type = 1;
-		mcbsp_word_length = DAVINCI_MCBSP_WORD_8;
-		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-		dma_params->data_type = 2;
-		mcbsp_word_length = DAVINCI_MCBSP_WORD_16;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		dma_params->data_type = 4;
-		mcbsp_word_length = DAVINCI_MCBSP_WORD_32;
-		break;
-	default:
+	fmt = params_format(params);
+	if ((fmt > SNDRV_PCM_FORMAT_S32_LE) || !data_type[fmt]) {
 		printk(KERN_WARNING "davinci-i2s: unsupported PCM format\n");
 		return -EINVAL;
 	}
 
-	dma_params->acnt  = dma_params->data_type;
-	rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(1);
-	xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(1);
+	if (params_channels(params) == 2) {
+		element_cnt = 2;
+		if (double_fmt[fmt] && dev->enable_channel_combine) {
+			element_cnt = 1;
+			fmt = double_fmt[fmt];
+		}
+	}
+	dma_params->acnt = dma_params->data_type = data_type[fmt];
+	dma_params->fifo_level = 0;
+	mcbsp_word_length = asp_word_length[fmt];
+	rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(element_cnt - 1);
+	xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(element_cnt - 1);
 
 	rcr |= DAVINCI_MCBSP_RCR_RWDLEN1(mcbsp_word_length) |
 		DAVINCI_MCBSP_RCR_RWDLEN2(mcbsp_word_length);
@@ -513,7 +545,13 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_release_region;
 	}
-
+	if (pdata) {
+		dev->enable_channel_combine = pdata->enable_channel_combine;
+		dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].sram_size =
+			pdata->sram_size_playback;
+		dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].sram_size =
+			pdata->sram_size_capture;
+	}
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		ret = -ENODEV;
@@ -547,6 +585,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].channel = res->start;
 
 	davinci_i2s_dai.private_data = dev;
+	davinci_i2s_dai.dma_data = dev->dma_params;
 	ret = snd_soc_register_dai(&davinci_i2s_dai);
 	if (ret != 0)
 		goto err_free_mem;

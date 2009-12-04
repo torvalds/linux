@@ -276,41 +276,42 @@ static int wm8974_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
 struct pll_ {
-	unsigned int pre_div:4; /* prescale - 1 */
+	unsigned int pre_div:1;
 	unsigned int n:4;
 	unsigned int k;
 };
-
-static struct pll_ pll_div;
 
 /* The size in bits of the pll divide multiplied by 10
  * to allow rounding later */
 #define FIXED_PLL_SIZE ((1 << 24) * 10)
 
-static void pll_factors(unsigned int target, unsigned int source)
+static void pll_factors(struct pll_ *pll_div,
+			unsigned int target, unsigned int source)
 {
 	unsigned long long Kpart;
 	unsigned int K, Ndiv, Nmod;
 
+	/* There is a fixed divide by 4 in the output path */
+	target *= 4;
+
 	Ndiv = target / source;
 	if (Ndiv < 6) {
-		source >>= 1;
-		pll_div.pre_div = 1;
+		source /= 2;
+		pll_div->pre_div = 1;
 		Ndiv = target / source;
 	} else
-		pll_div.pre_div = 0;
+		pll_div->pre_div = 0;
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
 			"WM8974 N value %u outwith recommended range!\n",
 			Ndiv);
 
-	pll_div.n = Ndiv;
+	pll_div->n = Ndiv;
 	Nmod = target % source;
 	Kpart = FIXED_PLL_SIZE * (long long)Nmod;
 
@@ -325,13 +326,14 @@ static void pll_factors(unsigned int target, unsigned int source)
 	/* Move down to proper range now rounding is done */
 	K /= 10;
 
-	pll_div.k = K;
+	pll_div->k = K;
 }
 
-static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct pll_ pll_div;
 	u16 reg;
 
 	if (freq_in == 0 || freq_out == 0) {
@@ -345,7 +347,7 @@ static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
 		return 0;
 	}
 
-	pll_factors(freq_out*4, freq_in);
+	pll_factors(&pll_div, freq_out, freq_in);
 
 	snd_soc_write(codec, WM8974_PLLN, (pll_div.pre_div << 4) | pll_div.n);
 	snd_soc_write(codec, WM8974_PLLK1, pll_div.k >> 18);
@@ -638,17 +640,9 @@ static int wm8974_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm8974_snd_controls,
 			     ARRAY_SIZE(wm8974_snd_controls));
 	wm8974_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

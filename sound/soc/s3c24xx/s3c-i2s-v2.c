@@ -32,11 +32,10 @@
 
 #include <plat/regs-s3c2412-iis.h>
 
-#include <plat/audio.h>
 #include <mach/dma.h>
 
 #include "s3c-i2s-v2.h"
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 
@@ -312,12 +311,15 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
+		iismod |= S3C2412_IISMOD_LR_RLOW;
 		iismod |= S3C2412_IISMOD_SDF_MSB;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
+		iismod |= S3C2412_IISMOD_LR_RLOW;
 		iismod |= S3C2412_IISMOD_SDF_LSB;
 		break;
 	case SND_SOC_DAIFMT_I2S:
+		iismod &= ~S3C2412_IISMOD_LR_RLOW;
 		iismod |= S3C2412_IISMOD_SDF_IIS;
 		break;
 	default:
@@ -392,7 +394,7 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
 	int ret = 0;
-	int channel = ((struct s3c24xx_pcm_dma_params *)
+	int channel = ((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	pr_debug("Entered %s\n", __func__);
@@ -467,6 +469,31 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 
 	switch (div_id) {
 	case S3C_I2SV2_DIV_BCLK:
+		if (div > 3) {
+			/* convert value to bit field */
+
+			switch (div) {
+			case 16:
+				div = S3C2412_IISMOD_BCLK_16FS;
+				break;
+
+			case 32:
+				div = S3C2412_IISMOD_BCLK_32FS;
+				break;
+
+			case 24:
+				div = S3C2412_IISMOD_BCLK_24FS;
+				break;
+
+			case 48:
+				div = S3C2412_IISMOD_BCLK_48FS;
+				break;
+
+			default:
+				return -EINVAL;
+			}
+		}
+
 		reg = readl(i2s->regs + S3C2412_IISMOD);
 		reg &= ~S3C2412_IISMOD_BCLK_MASK;
 		writel(reg | div, i2s->regs + S3C2412_IISMOD);
@@ -626,7 +653,7 @@ int s3c_i2sv2_probe(struct platform_device *pdev,
 	}
 
 	i2s->iis_pclk = clk_get(dev, "iis");
-	if (i2s->iis_pclk == NULL) {
+	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
 		iounmap(i2s->regs);
 		return -ENOENT;

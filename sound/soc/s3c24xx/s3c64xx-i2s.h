@@ -25,6 +25,7 @@ struct clk;
 
 #define S3C64XX_CLKSRC_PCLK	(0)
 #define S3C64XX_CLKSRC_MUX	(1)
+#define S3C64XX_CLKSRC_CDCLK    (2)
 
 extern struct snd_soc_dai s3c64xx_i2s_dai[];
 

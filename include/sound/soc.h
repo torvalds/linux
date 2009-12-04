@@ -223,15 +223,15 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control);
 
-#ifdef CONFIG_PM
-int snd_soc_suspend_device(struct device *dev);
-int snd_soc_resume_device(struct device *dev);
-#endif
-
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
 int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid);
-int snd_soc_init_card(struct snd_soc_device *socdev);
+
+/* Utility functions to get clock rates from various things */
+int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
+int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
+int snd_soc_calc_bclk(int fs, int sample_size, int channels, int tdm_slots);
+int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
 
 /* set runtime hw params */
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
@@ -333,6 +333,8 @@ struct snd_soc_jack_gpio {
 	int debounce_time;
 	struct snd_soc_jack *jack;
 	struct work_struct work;
+
+	int (*jack_status_check)(void);
 };
 #endif
 
@@ -413,6 +415,7 @@ struct snd_soc_codec {
 	unsigned int num_dai;
 
 #ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_codec_root;
 	struct dentry *debugfs_reg;
 	struct dentry *debugfs_pop_time;
 	struct dentry *debugfs_dapm;

@@ -49,8 +49,8 @@ struct s3c_i2sv2_info {
 
 	unsigned char	 master;
 
-	struct s3c24xx_pcm_dma_params	*dma_playback;
-	struct s3c24xx_pcm_dma_params	*dma_capture;
+	struct s3c_dma_params	*dma_playback;
+	struct s3c_dma_params	*dma_capture;
 
 	u32		 suspend_iismod;
 	u32		 suspend_iiscon;

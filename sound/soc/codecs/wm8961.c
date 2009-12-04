@@ -986,19 +986,9 @@ static int wm8961_probe(struct platform_device *pdev)
 	snd_soc_dapm_new_controls(codec, wm8961_dapm_widgets,
 				  ARRAY_SIZE(wm8961_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
 
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }
@@ -1206,21 +1196,6 @@ static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8961_i2c_suspend(struct i2c_client *client, pm_message_t state)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8961_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8961_i2c_suspend NULL
-#define wm8961_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8961_i2c_id[] = {
 	{ "wm8961", 0 },
 	{ }
@@ -1234,8 +1209,6 @@ static struct i2c_driver wm8961_i2c_driver = {
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   __devexit_p(wm8961_i2c_remove),
-	.suspend =  wm8961_i2c_suspend,
-	.resume =   wm8961_i2c_resume,
 	.id_table = wm8961_i2c_id,
 };
 
