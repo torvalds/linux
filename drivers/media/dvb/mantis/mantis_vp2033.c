@@ -27,44 +27,80 @@
 struct mantis_hwconfig vp2033_mantis_config = {
 	.model_name	= MANTIS_MODEL_NAME,
 	.dev_type	= MANTIS_DEV_TYPE,
-	.ts_size	= MANTIS_TS_188,
+	.ts_size	= MANTIS_TS_204,
 };
 
-struct cu1216_config philips_cu1216_config = {
-	.demod_address	= 0x18 >> 1,
-	.pll_set	= philips_cu1216_tuner_set,
-//	.fe_reset = mantis_fe_reset,
+struct tda1002x_config philips_cu1216_config = {
+	.demod_address = 0x18 >> 1,
+	.invert = 1,
 };
 
-int philips_cu1216_tuner_set(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+u8 read_pwm(struct mantis_pci *mantis)
+{
+	u8 b = 0xff;
+	u8 pwm;
+	struct i2c_msg msg[] = {
+		{.addr = 0x50,.flags = 0,.buf = &b,.len = 1},
+		{.addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1}
+	};
+
+	if ((i2c_transfer(&mantis->adapter, msg, 2) != 2)
+	    || (pwm == 0xff))
+		pwm = 0x48;
+
+	return pwm;
+}
+
+int philips_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct mantis_pci *mantis = fe->dvb->priv;
 
-	u8 buf[4];
+	u8 buf[6];
+	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	int i;
 
-	struct i2c_msg msg = {
-		.addr	= 0xc0 >> 1,
-		.flags	= 0,
-		.buf	= buf,
-		.len	= sizeof (buf)
-	};
-
+#define CU1216_IF 36125000
 #define TUNER_MUL 62500
 
-	u32 div = (params->frequency + 36125000 + TUNER_MUL / 2) / TUNER_MUL;
+	u32 div = (params->frequency + CU1216_IF + TUNER_MUL / 2) / TUNER_MUL;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
-	buf[2] = 0x86;
-	buf[3] = (params->frequency < 150000000 ? 0xA1 :
-		  params->frequency < 445000000 ? 0x92 : 0x34);
+	buf[2] = 0xce;
+	buf[3] = (params->frequency < 150000000 ? 0x01 :
+		  params->frequency < 445000000 ? 0x02 : 0x04);
+	buf[4] = 0xde;
+	buf[5] = 0x20;
 
-	if (i2c_transfer(&mantis->adapter, &msg, 1) < 0) {
-		printk("%s tuner not ack!\n", __FUNCTION__);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	if (i2c_transfer(&mantis->adapter, &msg, 1) != 1)
 		return -EIO;
+
+	/* wait for the pll lock */
+	msg.flags = I2C_M_RD;
+	msg.len = 1;
+	for (i = 0; i < 20; i++) {
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		if (i2c_transfer(&mantis->adapter, &msg, 1) == 1 && (buf[0] & 0x40))
+			break;
+
+		msleep(10);
 	}
-	msleep(100);
+
+	/* switch the charge pump to the lower current */
+	msg.flags = 0;
+	msg.len = 2;
+	msg.buf = &buf[2];
+	buf[2] &= ~0x40;
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	if (i2c_transfer(&mantis->adapter, &msg, 1) != 1)
+		return -EIO;
 
 	return 0;
 }

@@ -239,7 +239,7 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
 		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-		mantis->fe = cu1216_attach(&philips_cu1216_config, &mantis->adapter);
+		mantis->fe = tda10021_attach(&philips_cu1216_config, &mantis->adapter, read_pwm(mantis));
 		if (mantis->fe) {
 			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
 			dprintk(verbose, MANTIS_ERROR, 1,
