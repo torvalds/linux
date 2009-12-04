@@ -1675,6 +1675,17 @@ int r100_gpu_reset(struct radeon_device *rdev)
 	return 0;
 }
 
+void r100_set_common_regs(struct radeon_device *rdev)
+{
+	/* set these so they don't interfere with anything */
+	WREG32(RADEON_OV0_SCALE_CNTL, 0);
+	WREG32(RADEON_SUBPIC_CNTL, 0);
+	WREG32(RADEON_VIPH_CONTROL, 0);
+	WREG32(RADEON_I2C_CNTL_1, 0);
+	WREG32(RADEON_DVI_I2C_CNTL_1, 0);
+	WREG32(RADEON_CAP0_TRIG_CNTL, 0);
+	WREG32(RADEON_CAP1_TRIG_CNTL, 0);
+}
 
 /*
  * VRAM info
@@ -3129,6 +3140,9 @@ static int r100_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	/* set common regs */
+	r100_set_common_regs(rdev);
+	/* program mc */
 	r100_mc_program(rdev);
 	/* Resume clock */
 	r100_clock_startup(rdev);

@@ -1186,6 +1186,9 @@ static int r300_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	/* set common regs */
+	r100_set_common_regs(rdev);
+	/* program mc */
 	r300_mc_program(rdev);
 	/* Resume clock */
 	r300_clock_startup(rdev);

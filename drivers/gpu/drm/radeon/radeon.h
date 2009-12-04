@@ -1046,6 +1046,7 @@ extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt,
 				unsigned idx);
 extern void r100_enable_bm(struct radeon_device *rdev);
+extern void r100_set_common_regs(struct radeon_device *rdev);
 
 /* rv200,rv250,rv280 */
 extern void r200_set_safe_registers(struct radeon_device *rdev);
