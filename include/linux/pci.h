@@ -1328,5 +1328,7 @@ static inline bool pci_is_pcie(struct pci_dev *dev)
 	return !!pci_pcie_cap(dev);
 }
 
+void pci_request_acs(void);
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

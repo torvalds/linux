@@ -1330,6 +1330,8 @@ void __init amd_iommu_detect(void)
 		gart_iommu_aperture_disabled = 1;
 		gart_iommu_aperture = 0;
 #endif
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
 }
 
