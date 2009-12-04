@@ -57,6 +57,35 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 	return rc;
 }
 
+static int mantis_hif_write_wait(struct mantis_ca *ca)
+{
+	struct mantis_pci *mantis = ca->ca_priv;
+	u32 opdone = 0, timeout = 0;
+	int rc = 0;
+
+	if (wait_event_timeout(ca->hif_write_wq,
+			       mantis->gpif_status & MANTIS_GPIF_WRACK,
+			       msecs_to_jiffies(500)) == -ERESTARTSYS) {
+
+		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Write ACK timed out !", mantis->num);
+		rc = -EREMOTEIO;
+	}
+	dprintk(verbose, MANTIS_DEBUG, 1, "Write Acknowledged");
+	mantis->gpif_status &= ~MANTIS_GPIF_WRACK;
+	while (!opdone) {
+		opdone = (mmread(MANTIS_GPIF_STATUS) & MANTIS_SBUF_OPDONE);
+		udelay(500);
+		timeout++;
+		if (timeout > 100) {
+			dprintk(verbose, MANTIS_ERROR, 1, "Adater(%d) Slot(0): Write operation timed out!", mantis->num);
+			rc = -ETIMEDOUT;
+			break;
+		}
+	}
+	dprintk(verbose, MANTIS_DEBUG, 1, "HIF Write success");
+	return rc;
+}
+
 
 int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 {
@@ -100,7 +129,7 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
-	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
+	if (mantis_hif_write_wait(ca) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
 	}
@@ -147,7 +176,7 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
-	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
+	if (mantis_hif_write_wait(ca) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
 	}
@@ -167,6 +196,7 @@ int mantis_hif_init(struct mantis_ca *ca)
 	dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Initializing Mantis Host Interface", mantis->num);
 	init_waitqueue_head(&ca->hif_data_wq);
 	init_waitqueue_head(&ca->hif_opdone_wq);
+	init_waitqueue_head(&ca->hif_write_wq);
 
 	irqcfg = mmread(MANTIS_GPIF_IRQCFG);
 	irqcfg = MANTIS_MASK_BRRDY	|
