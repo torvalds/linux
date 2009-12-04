@@ -28,6 +28,7 @@
 #include "mantis_vp1033.h"
 #include "mantis_vp1034.h"
 #include "mantis_vp2033.h"
+#include "mantis_vp2040.h"
 #include "mantis_vp3030.h"
 
 /*	Tuner power supply control	*/
@@ -243,12 +244,25 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 		if (mantis->fe) {
 			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
 			dprintk(verbose, MANTIS_ERROR, 1,
-				"found Philips CU1216 DVB-C frontend @ 0x%02x",
+				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
 				philips_cu1216_config.demod_address);
 
 			dprintk(verbose, MANTIS_ERROR, 1,
 				"Mantis DVB-C Philips CU1216 frontend attach success");
 
+		}
+		break;
+	case TERRATEC_CINERGY_C_PCI:
+		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
+		mantis->fe = tda10023_attach(&tda10023_cu1216_config, &mantis->adapter, read_pwm(mantis));
+		if (mantis->fe) {
+			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
+			dprintk(verbose, MANTIS_ERROR, 1,
+				"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
+				philips_cu1216_config.demod_address);
+
+			dprintk(verbose, MANTIS_ERROR, 1,
+				"Mantis DVB-C Philips CU1216 frontend attach success");
 		}
 		break;
 	default:

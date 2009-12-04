@@ -23,6 +23,7 @@
 #include "mantis_vp1033.h"
 #include "mantis_vp1034.h"
 #include "mantis_vp2033.h"
+#include "mantis_vp2040.h"
 #include "mantis_vp3030.h"
 
 static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
@@ -112,6 +113,9 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
 		mantis->hwconfig = &vp2033_mantis_config;
+		break;
+	case TERRATEC_CINERGY_C_PCI:	// VP-2040 clone
+		mantis->hwconfig = &vp2040_mantis_config;
 		break;
 	case MANTIS_VP_3030_DVB_T:	// VP-3030
 		mantis->hwconfig = &vp3030_mantis_config;
