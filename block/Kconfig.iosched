@@ -34,7 +34,7 @@ config IOSCHED_CFQ
 
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
-	depends on IOSCHED_CFQ=y && CGROUPS
+	depends on IOSCHED_CFQ && CGROUPS
 	select BLK_CGROUP
 	default n
 	---help---
