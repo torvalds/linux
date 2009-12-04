@@ -139,7 +139,7 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	hif_addr |= MANTIS_GPIF_PCMCIAREG;
 	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 
-	return data;
+	return (u8) data;
 }
 
 int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
