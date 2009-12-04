@@ -534,7 +534,7 @@ int nfs4_setup_sequence(struct nfs_client *clp,
 		goto out;
 	ret = nfs41_setup_sequence(clp->cl_session, args, res, cache_reply,
 				   task);
-	if (ret != -EAGAIN) {
+	if (ret && ret != -EAGAIN) {
 		/* terminate rpc task */
 		task->tk_status = ret;
 		task->tk_action = NULL;
