@@ -133,11 +133,15 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 			ret = mantis_i2c_write(mantis, &msgs[i]);
 
 		if (ret < 0)
-			return ret;
+			goto bail_out;
 	}
 	mutex_unlock(&mantis->i2c_lock);
 
 	return num;
+
+bail_out:
+	mutex_unlock(&mantis->i2c_lock);
+	return ret;
 }
 
 static u32 mantis_i2c_func(struct i2c_adapter *adapter)
