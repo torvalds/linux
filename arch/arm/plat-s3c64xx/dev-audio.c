@@ -118,7 +118,7 @@ static struct resource s3c64xx_pcm0_resource[] = {
 	},
 };
 
-struct s3c_audio_pdata s3c_pcm0_pdata = {
+static struct s3c_audio_pdata s3c_pcm0_pdata = {
 	.cfg_gpio = s3c64xx_pcm_cfg_gpio,
 };
 
@@ -151,7 +151,7 @@ static struct resource s3c64xx_pcm1_resource[] = {
 	},
 };
 
-struct s3c_audio_pdata s3c_pcm1_pdata = {
+static struct s3c_audio_pdata s3c_pcm1_pdata = {
 	.cfg_gpio = s3c64xx_pcm_cfg_gpio,
 };
 

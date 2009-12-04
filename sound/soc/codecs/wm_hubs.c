@@ -438,11 +438,11 @@ static const struct snd_soc_dapm_widget analogue_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("IN1LN"),
 SND_SOC_DAPM_INPUT("IN1LP"),
 SND_SOC_DAPM_INPUT("IN2LN"),
-SND_SOC_DAPM_INPUT("IN2LP/VXRN"),
+SND_SOC_DAPM_INPUT("IN2LP:VXRN"),
 SND_SOC_DAPM_INPUT("IN1RN"),
 SND_SOC_DAPM_INPUT("IN1RP"),
 SND_SOC_DAPM_INPUT("IN2RN"),
-SND_SOC_DAPM_INPUT("IN2RP/VXRP"),
+SND_SOC_DAPM_INPUT("IN2RP:VXRP"),
 
 SND_SOC_DAPM_MICBIAS("MICBIAS2", WM8993_POWER_MANAGEMENT_1, 5, 0),
 SND_SOC_DAPM_MICBIAS("MICBIAS1", WM8993_POWER_MANAGEMENT_1, 4, 0),
@@ -537,14 +537,14 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "IN1R PGA", "IN1RP Switch", "IN1RP" },
 	{ "IN1R PGA", "IN1RN Switch", "IN1RN" },
 
-	{ "IN2L PGA", "IN2LP Switch", "IN2LP/VXRN" },
+	{ "IN2L PGA", "IN2LP Switch", "IN2LP:VXRN" },
 	{ "IN2L PGA", "IN2LN Switch", "IN2LN" },
 
-	{ "IN2R PGA", "IN2RP Switch", "IN2RP/VXRP" },
+	{ "IN2R PGA", "IN2RP Switch", "IN2RP:VXRP" },
 	{ "IN2R PGA", "IN2RN Switch", "IN2RN" },
 
-	{ "Direct Voice", NULL, "IN2LP/VXRN" },
-	{ "Direct Voice", NULL, "IN2RP/VXRP" },
+	{ "Direct Voice", NULL, "IN2LP:VXRN" },
+	{ "Direct Voice", NULL, "IN2RP:VXRP" },
 
 	{ "MIXINL", "IN1L Switch", "IN1L PGA" },
 	{ "MIXINL", "IN2L Switch", "IN2L PGA" },
@@ -565,7 +565,7 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "Left Output Mixer", "Right Input Switch", "MIXINR" },
 	{ "Left Output Mixer", "IN2RN Switch", "IN2RN" },
 	{ "Left Output Mixer", "IN2LN Switch", "IN2LN" },
-	{ "Left Output Mixer", "IN2LP Switch", "IN2LP/VXRN" },
+	{ "Left Output Mixer", "IN2LP Switch", "IN2LP:VXRN" },
 	{ "Left Output Mixer", "IN1L Switch", "IN1L PGA" },
 	{ "Left Output Mixer", "IN1R Switch", "IN1R PGA" },
 
@@ -573,7 +573,7 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "Right Output Mixer", "Right Input Switch", "MIXINR" },
 	{ "Right Output Mixer", "IN2LN Switch", "IN2LN" },
 	{ "Right Output Mixer", "IN2RN Switch", "IN2RN" },
-	{ "Right Output Mixer", "IN2RP Switch", "IN2RP/VXRP" },
+	{ "Right Output Mixer", "IN2RP Switch", "IN2RP:VXRP" },
 	{ "Right Output Mixer", "IN1L Switch", "IN1L PGA" },
 	{ "Right Output Mixer", "IN1R Switch", "IN1R PGA" },
 
