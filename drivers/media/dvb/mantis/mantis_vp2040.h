@@ -29,7 +29,7 @@
 #define TERRATEC_CINERGY_C_PCI	0x1178
 #define TECHNISAT_CABLESTAR_HD2	0x0002
 
-extern struct tda1002x_config tda10023_cu1216_config;
+extern struct tda10023_config tda10023_cu1216_config;
 extern struct mantis_hwconfig vp2040_mantis_config;
 
 #endif //__MANTIS_VP2040_H

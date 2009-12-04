@@ -30,7 +30,7 @@ struct mantis_hwconfig vp2040_mantis_config = {
 	.ts_size	= MANTIS_TS_204,
 };
 
-struct tda1002x_config tda10023_cu1216_config = {
+struct tda10023_config tda10023_cu1216_config = {
 	.demod_address = 0x18 >> 1,
 	.invert = 1,
 };

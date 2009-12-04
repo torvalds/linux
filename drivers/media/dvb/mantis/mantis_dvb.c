@@ -32,6 +32,8 @@
 #include "mantis_vp2040.h"
 #include "mantis_vp3030.h"
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /*	Tuner power supply control	*/
 void mantis_fe_powerup(struct mantis_pci *mantis)
 {
@@ -128,7 +130,8 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 	dprintk(verbose, MANTIS_DEBUG, 1, "dvb_register_adapter");
 	if (dvb_register_adapter(&mantis->dvb_adapter,
 				 "Mantis dvb adapter", THIS_MODULE,
-				 &mantis->pdev->dev) < 0) {
+				 &mantis->pdev->dev,
+				 adapter_nr) < 0) {
 
 		dprintk(verbose, MANTIS_ERROR, 1, "Error registering adapter");
 		return -ENODEV;
