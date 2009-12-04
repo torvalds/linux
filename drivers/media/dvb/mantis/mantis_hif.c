@@ -171,9 +171,11 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 
 int mantis_hif_init(struct mantis_ca *ca)
 {
+	struct mantis_slot *slot = ca->slot;
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 irqcfg;
 
+	slot[0].slave_cfg = 0x70773028;
 	dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Initializing Mantis Host Interface", mantis->num);
 	init_waitqueue_head(&ca->hif_data_wq);
 	init_waitqueue_head(&ca->hif_opdone_wq);
