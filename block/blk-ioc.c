@@ -80,8 +80,8 @@ void exit_io_context(void)
 			ioc->aic->exit(ioc->aic);
 		cfq_exit(ioc);
 
-		put_io_context(ioc);
 	}
+	put_io_context(ioc);
 }
 
 struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
