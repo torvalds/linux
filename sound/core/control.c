@@ -1119,7 +1119,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	    	goto __kctl_end;
 	}
 	if (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
-		if (file && vd->owner != NULL && vd->owner != file) {
+		if (vd->owner != NULL && vd->owner != file) {
 			err = -EPERM;
 			goto __kctl_end;
 		}

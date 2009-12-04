@@ -18,10 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -513,15 +510,9 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto out;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-	else
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-
+	err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
+				params_channels(params),
+				aacirun->pcm->r[0].slots);
 	if (err)
 		goto out;
 
@@ -537,7 +528,7 @@ static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 	struct aaci_runtime *aacirun = runtime->private_data;
 
 	aacirun->start	= (void *)runtime->dma_area;
-	aacirun->end	= aacirun->start + runtime->dma_bytes;
+	aacirun->end	= aacirun->start + snd_pcm_lib_buffer_bytes(substream);
 	aacirun->ptr	= aacirun->start;
 	aacirun->period	=
 	aacirun->bytes	= frames_to_bytes(runtime, runtime->period_size);
