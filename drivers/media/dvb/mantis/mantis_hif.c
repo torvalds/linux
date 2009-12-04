@@ -182,9 +182,14 @@ int mantis_hif_init(struct mantis_ca *ca)
 	init_waitqueue_head(&ca->hif_data_wq);
 	init_waitqueue_head(&ca->hif_opdone_wq);
 
-	irqcfg  = mmread(MANTIS_GPIF_IRQCFG);
-	irqcfg |= MANTIS_MASK_BRRDY;
-	irqcfg |= MANTIS_MASK_WRACK;
+	irqcfg = mmread(MANTIS_GPIF_IRQCFG);
+	irqcfg = MANTIS_MASK_BRRDY	|
+		 MANTIS_MASK_WRACK	|
+		 MANTIS_MASK_EXTIRQ	|
+		 MANTIS_MASK_WSTO	|
+		 MANTIS_MASK_OTHERR	|
+		 MANTIS_MASK_OVFLW;
+
 	mmwrite(irqcfg, MANTIS_GPIF_IRQCFG);
 
 	return 0;
