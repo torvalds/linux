@@ -149,6 +149,11 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	hif_addr |=  MANTIS_GPIF_PCMCIAIOM;
 	hif_addr |=  addr;
 
+	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_BRADDR);
+	mmwrite(1, MANTIS_GPIF_BRBYTES);
+
+	udelay(20);
+
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
