@@ -263,30 +263,31 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 		}
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
-		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-		mantis->fe = tda10021_attach(&philips_cu1216_config, &mantis->adapter, read_pwm(mantis));
-		if (mantis->fe) {
-			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
-				philips_cu1216_config.demod_address);
-
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"Mantis DVB-C Philips CU1216 frontend attach success");
-
-		}
-		break;
 	case MANTIS_VP_2040_DVB_C:	// VP-2040
 	case TERRATEC_CINERGY_C_PCI:
 	case TECHNISAT_CABLESTAR_HD2:
 		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-		mantis->fe = tda10023_attach(&tda10023_cu1216_config, &mantis->adapter, read_pwm(mantis));
+		mantis->fe = tda10021_attach(&philips_cu1216_config,
+					     &mantis->adapter,
+					     read_pwm(mantis));
+
+		if (mantis->fe) {
+			dprintk(verbose, MANTIS_ERROR, 1,
+				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
+				philips_cu1216_config.demod_address);
+		} else {
+			mantis->fe = tda10023_attach(&tda10023_cu1216_config,
+						     &mantis->adapter,
+						     read_pwm(mantis));
+
+			if (mantis->fe) {
+				dprintk(verbose, MANTIS_ERROR, 1,
+					"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
+					philips_cu1216_config.demod_address);
+			}
+		}
 		if (mantis->fe) {
 			mantis->fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set;
-			dprintk(verbose, MANTIS_ERROR, 1,
-				"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
-				philips_cu1216_config.demod_address);
-
 			dprintk(verbose, MANTIS_ERROR, 1,
 				"Mantis DVB-C Philips CU1216 frontend attach success");
 		}
