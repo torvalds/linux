@@ -4408,7 +4408,7 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 		dprintk("%s Retry: tk_status %d\n", __func__, task->tk_status);
 		rpc_delay(task, NFS4_POLL_RETRY_MIN);
 		task->tk_status = 0;
-		nfs4_restart_rpc(task, data->clp);
+		rpc_restart_call(task);
 		return;
 	}
 	nfs41_sequence_free_slot(data->clp, &data->res->lr_seq_res);
