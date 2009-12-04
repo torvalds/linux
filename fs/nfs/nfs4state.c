@@ -116,6 +116,19 @@ struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
 
 #if defined(CONFIG_NFS_V4_1)
 
+int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
+{
+	int status;
+
+	status = nfs4_proc_exchange_id(clp, cred);
+	if (status == 0)
+		/* create session schedules state renewal upon success */
+		status = nfs4_proc_create_session(clp, 0);
+	if (status == 0)
+		nfs_mark_client_ready(clp, NFS_CS_READY);
+	return status;
+}
+
 struct rpc_cred *nfs4_get_exchange_id_cred(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
@@ -1162,7 +1175,6 @@ static void nfs4_session_recovery_handle_error(struct nfs_client *clp, int err)
 	switch (err) {
 	case -NFS4ERR_STALE_CLIENTID:
 		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
 	}
 }
 
@@ -1188,24 +1200,8 @@ out:
 	return status;
 }
 
-static int nfs4_initialize_session(struct nfs_client *clp)
-{
-	int status;
-
-	status = nfs4_proc_create_session(clp, 0);
-	if (!status) {
-		nfs_mark_client_ready(clp, NFS_CS_READY);
-	} else if (status == -NFS4ERR_STALE_CLIENTID) {
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
-	} else {
-		nfs_mark_client_ready(clp, status);
-	}
-	return status;
-}
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-static int nfs4_initialize_session(struct nfs_client *clp) { return 0; }
 #endif /* CONFIG_NFS_V4_1 */
 
 /* Set NFS4CLNT_LEASE_EXPIRED for all v4.0 errors and for recoverable errors
@@ -1262,10 +1258,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
-			if (clp->cl_cons_state == NFS_CS_SESSION_INITING)
-				status = nfs4_initialize_session(clp);
-			else
-				status = nfs4_reset_session(clp);
+			status = nfs4_reset_session(clp);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 				continue;
 			if (status < 0)

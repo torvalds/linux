@@ -4315,7 +4315,7 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
  * NFS4ERR_BADSESSION in the sequence operation, and will therefore
  * be in some phase of session reset.
  */
-static int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	nfs4_verifier verifier;
 	struct nfs41_exchange_id_args args = {
@@ -4601,7 +4601,6 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	if (!session)
 		return NULL;
 
-	set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
 	/*
 	 * The create session reply races with the server back
 	 * channel probe. Mark the client NFS_CS_SESSION_INITING
@@ -4967,7 +4966,7 @@ struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
 	.recover_lock	= nfs4_lock_reclaim,
-	.establish_clid = nfs4_proc_exchange_id,
+	.establish_clid = nfs41_init_clientid,
 	.get_clid_cred	= nfs4_get_exchange_id_cred,
 };
 #endif /* CONFIG_NFS_V4_1 */
@@ -4987,7 +4986,7 @@ struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs4_open_expired,
 	.recover_lock	= nfs4_lock_expired,
-	.establish_clid = nfs4_proc_exchange_id,
+	.establish_clid = nfs41_init_clientid,
 	.get_clid_cred	= nfs4_get_exchange_id_cred,
 };
 #endif /* CONFIG_NFS_V4_1 */
