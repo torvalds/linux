@@ -177,45 +177,38 @@ void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
 
 void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
-	unsigned int frame_length = skb->len;
+	unsigned int payload_length = skb->len - header_length;
 	unsigned int header_align = ALIGN_SIZE(skb, 0);
 	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
 	unsigned int l2pad = L2PAD_SIZE(header_length);
 
-	if (header_align == payload_align) {
-		/*
-		 * Both header and payload must be moved the same
-		 * amount of bytes to align them properly. This means
-		 * we don't use the L2 padding but just move the entire
-		 * frame.
-		 */
-		rt2x00queue_align_frame(skb);
-	} else if (!payload_align) {
-		/*
-		 * Simple L2 padding, only the header needs to be moved,
-		 * the payload is already properly aligned.
-		 */
-		skb_push(skb, header_align);
-		memmove(skb->data, skb->data + header_align, header_length);
-	} else {
-		/*
-		 *
-		 * Complicated L2 padding, both header and payload need
-		 * to be moved. By default we only move to the start
-		 * of the buffer, so our header alignment needs to be
-		 * increased if there is not enough room for the header
-		 * to be moved.
-		 */
-		if (payload_align > header_align)
-			header_align += 4;
+	/*
+	 * Adjust the header alignment if the payload needs to be moved more
+	 * than the header.
+	 */
+	if (payload_align > header_align)
+		header_align += 4;
 
-		skb_push(skb, header_align);
-		memmove(skb->data, skb->data + header_align, header_length);
+	/* There is nothing to do if no alignment is needed */
+	if (!header_align)
+		return;
+
+	/* Reserve the amount of space needed in front of the frame */
+	skb_push(skb, header_align);
+
+	/*
+	 * Move the header.
+	 */
+	memmove(skb->data, skb->data + header_align, header_length);
+
+	/* Move the payload, if present and if required */
+	if (payload_length && payload_align)
 		memmove(skb->data + header_length + l2pad,
 			skb->data + header_length + l2pad + payload_align,
-			frame_length - header_length);
-		skb_trim(skb, frame_length + l2pad);
-	}
+			payload_length);
+
+	/* Trim the skb to the correct size */
+	skb_trim(skb, header_length + l2pad + payload_length);
 }
 
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
@@ -343,7 +336,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Header and alignment information.
 	 */
 	txdesc->header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags) &&
+	    (entry->skb->len > txdesc->header_length))
 		txdesc->l2pad = L2PAD_SIZE(txdesc->header_length);
 
 	/*
