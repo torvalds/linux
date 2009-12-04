@@ -36,13 +36,14 @@
 #include "mantis_reg.h"
 #include "mantis_ioc.h"
 
-static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
+static int read_eeprom_bytes(struct mantis_pci *mantis, u8 reg, u8 *data, u8 length)
 {
 	struct i2c_adapter *adapter = &mantis->adapter;
-
 	int err;
+	u8 buf = reg;
+
 	struct i2c_msg msg[] = {
-		{ .addr = 0x50, .flags = 0, .buf = data, .len = 1 },
+		{ .addr = 0x50, .flags = 0, .buf = &buf, .len = 1 },
 		{ .addr = 0x50, .flags = I2C_M_RD, .buf = data, .len = length },
 	};
 
@@ -56,32 +57,12 @@ static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 
 	return 0;
 }
-
-static int write_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
-{
-	struct i2c_adapter *adapter = &mantis->adapter;
-	int err;
-
-	struct i2c_msg msg = { .addr = 0x50, .flags = 0, .buf = data, .len = length };
-
-	err = i2c_transfer(adapter, &msg, 1);
-	if (err < 0) {
-		dprintk(MANTIS_ERROR, 1, "ERROR: i2c write: < err=%i length=0x%02x d0=0x%02x, d1=0x%02x >",
-			err, length, data[0], data[1]);
-
-		return err;
-	}
-
-	return 0;
-}
-
 int mantis_get_mac(struct mantis_pci *mantis)
 {
 	int err;
+	u8 mac_addr[6] = {0};
 
-	mantis->mac_address[0] = 0x08;
-
-	err = read_eeprom_byte(mantis, &mantis->mac_address[0], 6);
+	err = read_eeprom_bytes(mantis, 0x08, mac_addr, 6);
 	if (err < 0) {
 		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis EEPROM read error <%d>", err);
 
@@ -90,9 +71,12 @@ int mantis_get_mac(struct mantis_pci *mantis)
 
 	dprintk(MANTIS_ERROR, 0,
 		"    MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-		mantis->mac_address[0], mantis->mac_address[1],
-		mantis->mac_address[2],	mantis->mac_address[3],
-		mantis->mac_address[4], mantis->mac_address[5]);
+		mac_addr[0],
+		mac_addr[1],
+		mac_addr[2],
+		mac_addr[3],
+		mac_addr[4],
+		mac_addr[5]);
 
 	return 0;
 }
@@ -103,12 +87,14 @@ void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 {
 	u32 cur;
 
+	dprintk(MANTIS_DEBUG, 1, "Set Bit <%d> to <%d>", bitpos, value);
 	cur = mmread(MANTIS_GPIF_ADDR);
 	if (value)
 		mantis->gpio_status = cur | (1 << bitpos);
 	else
 		mantis->gpio_status = cur & (~(1 << bitpos));
 
+	dprintk(MANTIS_DEBUG, 1, "GPIO Value <%02x>", mantis->gpio_status);
 	mmwrite(mantis->gpio_status, MANTIS_GPIF_ADDR);
 	mmwrite(0x00, MANTIS_GPIF_DOUT);
 }

@@ -587,6 +587,17 @@ config DVB_ATBM8830
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
+config DVB_TDA665x
+	tristate "TDA665x tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Support for tuner modules based on Philips TDA6650/TDA6651 chips.
+	  Say Y when you want to support this chip.
+
+	  Currently supported tuners:
+	  * Panasonic ENV57H12D5 (ET-50DT)
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE

@@ -219,7 +219,6 @@ static void __devexit hopper_pci_remove(struct pci_dev *pdev)
 	struct mantis_pci *mantis = pci_get_drvdata(pdev);
 
 	if (mantis) {
-//		mantis_uart_exit(mantis);
 		mantis_dvb_exit(mantis);
 		mantis_dma_exit(mantis);
 		mantis_i2c_exit(mantis);

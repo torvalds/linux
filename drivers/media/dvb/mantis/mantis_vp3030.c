@@ -30,46 +30,41 @@
 #include "dvb_net.h"
 
 #include "zl10353.h"
+#include "tda665x.h"
 #include "mantis_common.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
 #include "mantis_vp3030.h"
 
 struct zl10353_config mantis_vp3030_config = {
-	.demod_address	= 0x0f,
+	.demod_address		= 0x0f,
+};
+
+struct tda665x_config env57h12d5_config = {
+	.name			= "ENV57H12D5 (ET-50DT)",
+	.addr			= 0x60,
+	.frequency_min		=  47000000,
+	.frequency_max		= 862000000,
+	.frequency_offst	=   3616667,
+	.ref_multiplier		= 6, /* 1/6 MHz */
+	.ref_divider		= 100000, /* 1/6 MHz */
 };
 
 #define MANTIS_MODEL_NAME	"VP-3030"
 #define MANTIS_DEV_TYPE		"DVB-T"
 
-int panasonic_en57h12d5_set_params(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	int rc;
-	struct mantis_pci *mantis = fe->dvb->priv;
-
-	struct i2c_msg tuner_msg = {
-		.addr = 0x60,
-		.flags = 0,
-		.buf = buf,
-		.len = sizeof (buf)
-	};
-
-	if ((params->frequency < 950000) || (params->frequency > 2150000))
-		return -EINVAL;
-	rc = i2c_transfer(&mantis->adapter, &tuner_msg, 1);
-	if (rc != 1) {
-		printk("%s: I2C Transfer returned [%d]\n", __func__, rc);
-		return -EIO;
-	}
-	msleep_interruptible(1);
-	printk("%s: Send params to tuner ok!!!\n", __func__);
-
-	return 0;
-}
 
 static int vp3030_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *fe)
 {
 	struct i2c_adapter *adapter	= &mantis->adapter;
+	struct mantis_hwconfig *config	= mantis->hwconfig;
+	int err = 0;
+
+	gpio_set_bits(mantis, config->reset, 0);
+	msleep(100);
+	err = mantis_frontend_power(mantis, POWER_ON);
+	msleep(100);
+	gpio_set_bits(mantis, config->reset, 1);
 
 	dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
 	fe = zl10353_attach(&mantis_vp3030_config, adapter);
@@ -77,6 +72,7 @@ static int vp3030_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	if (!fe)
 		return -1;
 
+	tda665x_attach(fe, &env57h12d5_config, adapter);
 	mantis->fe = fe;
 	dprintk(MANTIS_ERROR, 1, "Done!");
 
@@ -93,4 +89,6 @@ struct mantis_hwconfig vp3030_config = {
 	.bytes		= 0,
 
 	.frontend_init	= vp3030_frontend_init,
+	.power		= GPIF_A12,
+	.reset		= GPIF_A13,
 };

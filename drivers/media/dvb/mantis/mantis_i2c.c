@@ -35,38 +35,9 @@
 
 #define I2C_HW_B_MANTIS		0x1c
 
-static int mantis_ack_wait(struct mantis_pci *mantis)
-{
-	int rc = 0;
-	u32 timeout = 0;
-
-	if (wait_event_timeout(mantis->i2c_wq,
-			       mantis->mantis_int_stat & MANTIS_INT_I2CDONE,
-			       msecs_to_jiffies(50)) == -ERESTARTSYS) {
-
-		dprintk(MANTIS_DEBUG, 1, "Master !I2CDONE");
-		rc = -EREMOTEIO;
-	}
-
-	while (!(mantis->mantis_int_stat & MANTIS_INT_I2CRACK)) {
-		dprintk(MANTIS_DEBUG, 1, "Waiting for Slave RACK");
-		mantis->mantis_int_stat = mmread(MANTIS_INT_STAT);
-		msleep(5);
-		timeout++;
-		if (timeout > 500) {
-			dprintk(MANTIS_ERROR, 1, "Slave RACK Fail !");
-			rc = -EREMOTEIO;
-			break;
-		}
-	}
-	udelay(350);
-
-	return rc;
-}
-
 static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 {
-	u32 rxd, i;
+	u32 rxd, i, stat, trials;
 
 	dprintk(MANTIS_INFO, 0, "        %s:  Address=[0x%02x] <R>[ ",
 		__func__, msg->addr);
@@ -82,10 +53,15 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 
 		mmwrite(MANTIS_INT_I2CDONE, MANTIS_INT_STAT);
 		mmwrite(rxd, MANTIS_I2CDATA_CTL);
-		if (mantis_ack_wait(mantis) != 0) {
-			dprintk(MANTIS_DEBUG, 1, "ACK failed<R>");
-			return -EREMOTEIO;
+
+		/* wait for xfer completion */
+		for (trials = 0; trials < 100; trials++) {
+			udelay(500);
+			stat = mmread(MANTIS_INT_STAT);
+			if (stat & MANTIS_INT_I2CDONE)
+				break;
 		}
+
 		rxd = mmread(MANTIS_I2CDATA_CTL);
 		msg->buf[i] = (u8)((rxd >> 8) & 0xFF);
 		dprintk(MANTIS_INFO, 0, "%02x ", msg->buf[i]);
@@ -98,7 +74,7 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg)
 {
 	int i;
-	u32 txd = 0;
+	u32 txd = 0, stat, trials;
 
 	dprintk(MANTIS_INFO, 0, "        %s: Address=[0x%02x] <W>[ ",
 		__func__, msg->addr);
@@ -115,9 +91,13 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 
 		mmwrite(MANTIS_INT_I2CDONE, MANTIS_INT_STAT);
 		mmwrite(txd, MANTIS_I2CDATA_CTL);
-		if (mantis_ack_wait(mantis) != 0) {
-			dprintk(MANTIS_DEBUG, 1, "ACK failed<W>");
-			return -EREMOTEIO;
+
+		/* wait for xfer completion */
+		for (trials = 0; trials < 100; trials++) {
+			udelay(500);
+			stat = mmread(MANTIS_INT_STAT);
+			if (stat & MANTIS_INT_I2CDONE)
+				break;
 		}
 	}
 	dprintk(MANTIS_INFO, 0, "]\n");
@@ -127,20 +107,77 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 
 static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	int ret = 0, i;
+	int ret = 0, i = 0, trials;
+	u32 stat, data, txd;
 	struct mantis_pci *mantis;
+	struct mantis_hwconfig *config;
 
 	mantis = i2c_get_adapdata(adapter);
-	mutex_lock(&mantis->i2c_lock);
-	for (i = 0; i < num; i++) {
-		if (msgs[i].flags & I2C_M_RD)
-			ret = mantis_i2c_read(mantis, &msgs[i]);
-		else
-			ret = mantis_i2c_write(mantis, &msgs[i]);
+	BUG_ON(!mantis);
+	config = mantis->hwconfig;
+	BUG_ON(!config);
 
-		if (ret < 0)
-			goto bail_out;
+	dprintk(MANTIS_DEBUG, 1, "Messages:%d", num);
+	mutex_lock(&mantis->i2c_lock);
+
+	while (i < num) {
+		/* Byte MODE */
+		if (((i + 1) < num)		&&
+			(msgs[i].len < 2)	&&
+			(msgs[i + 1].len < 2)	&&
+			(msgs[i + 1].flags & I2C_M_RD)) {
+
+			dprintk(MANTIS_DEBUG, 0, "        Byte MODE:\n");
+
+			/* Read operation */
+			txd = msgs[i].addr << 25 | (0x1 << 24)
+						 | (msgs[i].buf[0] << 16)
+						 | MANTIS_I2C_RATE_3;
+
+			mmwrite(txd, MANTIS_I2CDATA_CTL);
+			/* wait for xfer completion */
+			for (trials = 0; trials < 100; trials++) {
+				udelay(500);
+				stat = mmread(MANTIS_INT_STAT);
+				if (stat & MANTIS_INT_I2CDONE)
+					break;
+			}
+
+			/* check for xfer completion */
+			if (stat & MANTIS_INT_I2CDONE) {
+				/* check xfer was acknowledged */
+				if (stat & MANTIS_INT_I2CRACK) {
+					data = mmread(MANTIS_I2CDATA_CTL);
+					msgs[i + 1].buf[0] = (data >> 8) & 0xff;
+					dprintk(MANTIS_DEBUG, 0, "        Byte <%d> RXD=0x%02x  [%02x]\n", 0x0, data, msgs[i + 1].buf[0]);
+				} else {
+					/* I/O error */
+					dprintk(MANTIS_ERROR, 1, "        I/O error, LINE:%d", __LINE__);
+					ret = -EIO;
+					break;
+				}
+			} else {
+				/* I/O error */
+				dprintk(MANTIS_ERROR, 1, "        I/O error, LINE:%d", __LINE__);
+				ret = -EIO;
+				break;
+			}
+			i += 2; /* Write/Read operation in one go */
+		}
+
+		if (i < num) {
+			if (msgs[i].flags & I2C_M_RD)
+				ret = mantis_i2c_read(mantis, &msgs[i]);
+			else
+				ret = mantis_i2c_write(mantis, &msgs[i]);
+
+			i++;
+			if (ret < 0)
+				goto bail_out;
+		}
+
 	}
+
 	mutex_unlock(&mantis->i2c_lock);
 
 	return num;
@@ -189,9 +226,9 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 	intstat = mmread(MANTIS_INT_STAT);
 	intmask = mmread(MANTIS_INT_MASK);
 	mmwrite(intstat, MANTIS_INT_STAT);
-	mmwrite(intmask | MANTIS_INT_I2CDONE, MANTIS_INT_MASK);
-
-	dprintk(MANTIS_DEBUG, 1, "Status=<%02x> Mask=<%02x>", intstat, intmask);
+	dprintk(MANTIS_DEBUG, 1, "Disabling I2C interrupt");
+	intmask = mmread(MANTIS_INT_MASK);
+	mmwrite((intmask & ~MANTIS_INT_I2CDONE), MANTIS_INT_MASK);
 
 	return 0;
 }
@@ -199,6 +236,12 @@ EXPORT_SYMBOL_GPL(mantis_i2c_init);
 
 int __devexit mantis_i2c_exit(struct mantis_pci *mantis)
 {
+	u32 intmask;
+
+	dprintk(MANTIS_DEBUG, 1, "Disabling I2C interrupt");
+	intmask = mmread(MANTIS_INT_MASK);
+	mmwrite((intmask & ~MANTIS_INT_I2CDONE), MANTIS_INT_MASK);
+
 	dprintk(MANTIS_DEBUG, 1, "Removing I2C adapter");
 	return i2c_del_adapter(&mantis->adapter);
 }

@@ -252,14 +252,19 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 err5:
 	tasklet_kill(&mantis->tasklet);
 	dvb_net_release(&mantis->dvbnet);
+
 err4:
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);
+
 err3:
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_hw);
+
 err2:
 	dvb_dmxdev_release(&mantis->dmxdev);
+
 err1:
 	dvb_dmx_release(&mantis->demux);
+
 err0:
 	dvb_unregister_adapter(&mantis->dvb_adapter);
 
@@ -271,20 +276,23 @@ int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
 {
 	int err;
 
-	err = mantis_frontend_shutdown(mantis);
-	if (err != 0)
-		dprintk(MANTIS_ERROR, 1, "Frontend exit while POWER ON! <%d>", err);
+	if (mantis->fe) {
+//		mantis_ca_exit(mantis);
+		err = mantis_frontend_shutdown(mantis);
+		if (err != 0)
+			dprintk(MANTIS_ERROR, 1, "Frontend exit while POWER ON! <%d>", err);
 
-//	mantis_ca_exit(mantis);
+		dvb_unregister_frontend(mantis->fe);
+	}
+
 	tasklet_kill(&mantis->tasklet);
 	dvb_net_release(&mantis->dvbnet);
+
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_hw);
+
 	dvb_dmxdev_release(&mantis->dmxdev);
 	dvb_dmx_release(&mantis->demux);
-
-	if (mantis->fe)
-		dvb_unregister_frontend(mantis->fe);
 
 	dprintk(MANTIS_DEBUG, 1, "dvb_unregister_adapter");
 	dvb_unregister_adapter(&mantis->dvb_adapter);

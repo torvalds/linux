@@ -50,7 +50,6 @@ static char *label[10] = {
 	"RACK"
 };
 
-
 static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 {
 	u32 stat = 0, mask = 0, lstat = 0, mstat = 0;
@@ -199,6 +198,14 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev, const struct pci_dev
 
 	return err;
 
+fail7:
+	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis UART exit! <%d>", err);
+	mantis_uart_exit(mantis);
+
+fail6:
+	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis CA exit! <%d>", err);
+	mantis_ca_exit(mantis);
+
 fail5:
 	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB exit! <%d>", err);
 	mantis_dvb_exit(mantis);
@@ -228,8 +235,6 @@ static void __devexit mantis_pci_remove(struct pci_dev *pdev)
 	struct mantis_pci *mantis = pci_get_drvdata(pdev);
 
 	if (mantis) {
-		mantis_uart_exit(mantis);
-//		mantis_ca_exit(mantis);
 		mantis_dvb_exit(mantis);
 		mantis_dma_exit(mantis);
 		mantis_i2c_exit(mantis);
