@@ -1366,6 +1366,9 @@
 #define RADEON_OVR_CLR                      0x0230
 #define RADEON_OVR_WID_LEFT_RIGHT           0x0234
 #define RADEON_OVR_WID_TOP_BOTTOM           0x0238
+#define RADEON_OVR2_CLR                     0x0330
+#define RADEON_OVR2_WID_LEFT_RIGHT          0x0334
+#define RADEON_OVR2_WID_TOP_BOTTOM          0x0338
 
 /* first capture unit */
 

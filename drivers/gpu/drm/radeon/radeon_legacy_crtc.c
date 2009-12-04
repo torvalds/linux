@@ -30,6 +30,18 @@
 #include "radeon.h"
 #include "atom.h"
 
+static void radeon_overscan_setup(struct drm_crtc *crtc,
+				  struct drm_display_mode *mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	WREG32(RADEON_OVR_CLR + radeon_crtc->crtc_offset, 0);
+	WREG32(RADEON_OVR_WID_LEFT_RIGHT + radeon_crtc->crtc_offset, 0);
+	WREG32(RADEON_OVR_WID_TOP_BOTTOM + radeon_crtc->crtc_offset, 0);
+}
+
 static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 				       struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
@@ -1045,6 +1057,7 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 	radeon_crtc_set_base(crtc, x, y, old_fb);
 	radeon_set_crtc_timing(crtc, adjusted_mode);
 	radeon_set_pll(crtc, adjusted_mode);
+	radeon_overscan_setup(crtc, adjusted_mode);
 	if (radeon_crtc->crtc_id == 0) {
 		radeon_legacy_rmx_mode_set(crtc, mode, adjusted_mode);
 	} else {
