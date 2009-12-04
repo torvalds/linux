@@ -89,6 +89,7 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	if (stat & MANTIS_INT_IRQ0) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
 		mantis->gpif_status = rst_stat;
+		wake_up(&ca->hif_write_wq);
 		schedule_work(&ca->hif_evm_work);
 	}
 	if (stat & MANTIS_INT_IRQ1) {
