@@ -1141,7 +1141,7 @@ typedef struct _LVDS_ENCODER_CONTROL_PARAMETERS {
 /* ucTableFormatRevision=1,ucTableContentRevision=2 */
 typedef struct _LVDS_ENCODER_CONTROL_PARAMETERS_V2 {
 	USHORT usPixelClock;	/*  in 10KHz; for bios convenient */
-	UCHAR ucMisc;		/*  see PANEL_ENCODER_MISC_xx defintions below */
+	UCHAR ucMisc;		/*  see PANEL_ENCODER_MISC_xx definitions below */
 	UCHAR ucAction;		/*  0: turn off encoder */
 	/*  1: setup and turn on encoder */
 	UCHAR ucTruncate;	/*  bit0=0: Disable truncate */
@@ -1424,7 +1424,7 @@ typedef struct _ATOM_MULTIMEDIA_CONFIG_INFO {
 /*  Structures used in FirmwareInfoTable */
 /****************************************************************************/
 
-/*  usBIOSCapability Defintion: */
+/*  usBIOSCapability Definition: */
 /*  Bit 0 = 0: Bios image is not Posted, =1:Bios image is Posted; */
 /*  Bit 1 = 0: Dual CRTC is not supported, =1: Dual CRTC is supported; */
 /*  Bit 2 = 0: Extended Desktop is not supported, =1: Extended Desktop is supported; */
@@ -2386,7 +2386,7 @@ typedef struct _ATOM_ANALOG_TV_INFO_V1_2 {
 } ATOM_ANALOG_TV_INFO_V1_2;
 
 /**************************************************************************/
-/*  VRAM usage and their defintions */
+/*  VRAM usage and their definitions */
 
 /*  One chunk of VRAM used by Bios are for HWICON surfaces,EDID data. */
 /*  Current Mode timing and Dail Timing and/or STD timing data EACH device. They can be broken down as below. */
@@ -3046,7 +3046,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO {
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_DC     2
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_LITEAC 3
 
-/* Byte aligned defintion for BIOS usage */
+/* Byte aligned definition for BIOS usage */
 #define ATOM_S0_CRT1_MONOb0             0x01
 #define ATOM_S0_CRT1_COLORb0            0x02
 #define ATOM_S0_CRT1_MASKb0             (ATOM_S0_CRT1_MONOb0+ATOM_S0_CRT1_COLORb0)
@@ -3131,7 +3131,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO {
 #define ATOM_S2_DISPLAY_ROTATION_DEGREE_SHIFT 30
 #define ATOM_S2_DISPLAY_ROTATION_ANGLE_MASK   0xC0000000L
 
-/* Byte aligned defintion for BIOS usage */
+/* Byte aligned definition for BIOS usage */
 #define ATOM_S2_TV1_STANDARD_MASKb0     0x0F
 #define ATOM_S2_CURRENT_BL_LEVEL_MASKb1 0xFF
 #define ATOM_S2_CRT1_DPMS_STATEb2       0x01
@@ -3190,7 +3190,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO {
 #define ATOM_S3_ALLOW_FAST_PWR_SWITCH   0x40000000L
 #define ATOM_S3_RQST_GPU_USE_MIN_PWR    0x80000000L
 
-/* Byte aligned defintion for BIOS usage */
+/* Byte aligned definition for BIOS usage */
 #define ATOM_S3_CRT1_ACTIVEb0           0x01
 #define ATOM_S3_LCD1_ACTIVEb0           0x02
 #define ATOM_S3_TV1_ACTIVEb0            0x04
@@ -3230,7 +3230,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO {
 #define ATOM_S4_LCD1_REFRESH_MASK       0x0000FF00L
 #define ATOM_S4_LCD1_REFRESH_SHIFT      8
 
-/* Byte aligned defintion for BIOS usage */
+/* Byte aligned definition for BIOS usage */
 #define ATOM_S4_LCD1_PANEL_ID_MASKb0	  0x0FF
 #define ATOM_S4_LCD1_REFRESH_MASKb1		  ATOM_S4_LCD1_PANEL_ID_MASKb0
 #define ATOM_S4_VRAM_INFO_MASKb2        ATOM_S4_LCD1_PANEL_ID_MASKb0
@@ -3310,7 +3310,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO {
 #define ATOM_S6_VRI_BRIGHTNESS_CHANGE       0x40000000L
 #define ATOM_S6_CONFIG_DISPLAY_CHANGE_MASK  0x80000000L
 
-/* Byte aligned defintion for BIOS usage */
+/* Byte aligned definition for BIOS usage */
 #define ATOM_S6_DEVICE_CHANGEb0         0x01
 #define ATOM_S6_SCALER_CHANGEb0         0x02
 #define ATOM_S6_LID_CHANGEb0            0x04

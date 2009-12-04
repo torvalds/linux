@@ -1,5 +1,5 @@
 /*
- * Aic94xx SAS/SATA driver hardware registers defintions.
+ * Aic94xx SAS/SATA driver hardware registers definitions.
  *
  * Copyright (C) 2004 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2004 David Chaw <david_chaw@adaptec.com>

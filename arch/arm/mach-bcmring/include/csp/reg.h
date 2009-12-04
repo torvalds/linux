@@ -16,7 +16,7 @@
 /**
 *  @file    reg.h
 *
-*  @brief   Generic register defintions used in CSP
+*  @brief   Generic register definitions used in CSP
 */
 /****************************************************************************/
 

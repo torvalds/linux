@@ -41,7 +41,7 @@ struct cx18;
 /*
  * This structure is used by CPU to provide completed buffers information
  * Its structure is dictrated by the layout of the SCB, required by the
- * firmware, but its defintion needs to be here, instead of in cx18-scb.h,
+ * firmware, but its definition needs to be here, instead of in cx18-scb.h,
  * for mailbox work order scheduling
  */
 struct cx18_mdl_ack {

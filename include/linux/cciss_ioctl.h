@@ -39,7 +39,7 @@ typedef __u32 DriverVer_type;
 #ifndef CCISS_CMD_H
 // This defines are duplicated in cciss_cmd.h in the driver directory 
 
-//general boundary defintions
+//general boundary definitions
 #define SENSEINFOBYTES          32//note that this value may vary between host implementations
 
 //Command Status value
