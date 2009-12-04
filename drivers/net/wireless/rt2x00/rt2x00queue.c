@@ -177,7 +177,6 @@ void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
 
 void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	unsigned int frame_length = skb->len;
 	unsigned int header_align = ALIGN_SIZE(skb, 0);
 	unsigned int payload_align = ALIGN_SIZE(skb, header_length);
@@ -198,7 +197,6 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 		 */
 		skb_push(skb, header_align);
 		memmove(skb->data, skb->data + header_align, header_length);
-		skbdesc->flags |= SKBDESC_L2_PADDED;
 	} else {
 		/*
 		 *
@@ -217,16 +215,14 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 			skb->data + header_length + l2pad + payload_align,
 			frame_length - header_length);
 		skb_trim(skb, frame_length + l2pad);
-		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
 }
 
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	unsigned int l2pad = L2PAD_SIZE(header_length);
 
-	if (!l2pad || (skbdesc->flags & SKBDESC_L2_PADDED))
+	if (!l2pad)
 		return;
 
 	memmove(skb->data + l2pad, skb->data, header_length);

@@ -835,7 +835,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *rxd = entry_priv->desc;
 	__le32 *rxwi = (__le32 *)entry->skb->data;
@@ -883,10 +882,8 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd3, RXD_W3_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_L2PAD)) {
+	if (rt2x00_get_field32(rxd3, RXD_W3_L2PAD))
 		rxdesc->dev_flags |= RXDONE_L2PAD;
-		skbdesc->flags |= SKBDESC_L2_PADDED;
-	}
 
 	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
 		rxdesc->flags |= RX_FLAG_SHORT_GI;
