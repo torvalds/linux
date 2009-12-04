@@ -73,5 +73,7 @@ extern int mantis_hif_init(struct mantis_ca *ca);
 extern void mantis_hif_exit(struct mantis_ca *ca);
 extern int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr);
 extern int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data);
+extern int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr, u32 count, u32 *data);
+extern int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u32 data);
 
 #endif // __MANTIS_LINK_H
