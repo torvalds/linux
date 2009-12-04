@@ -97,7 +97,6 @@ static inline unsigned long ima_hash_key(u8 *digest)
 
 /* iint cache flags */
 #define IMA_MEASURED		1
-#define IMA_IINT_DUMP_STACK	512
 
 /* integrity data associated with an inode */
 struct ima_iint_cache {
