@@ -46,10 +46,34 @@ struct blkio_group {
 extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
 extern void blkiocg_css_put(struct blkio_cgroup *blkcg);
 
+typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
+typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
+						unsigned int weight);
+
+struct blkio_policy_ops {
+	blkio_unlink_group_fn *blkio_unlink_group_fn;
+	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
+};
+
+struct blkio_policy_type {
+	struct list_head list;
+	struct blkio_policy_ops ops;
+};
+
+/* Blkio controller policy registration */
+extern void blkio_policy_register(struct blkio_policy_type *);
+extern void blkio_policy_unregister(struct blkio_policy_type *);
+
 #else
 
 struct blkio_group {
 };
+
+struct blkio_policy_type {
+};
+
+static inline void blkio_policy_register(struct blkio_policy_type *blkiop) { }
+static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 
 #endif
 

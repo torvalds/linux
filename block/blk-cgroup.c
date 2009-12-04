@@ -15,7 +15,9 @@
 #include <linux/kdev_t.h>
 #include <linux/module.h>
 #include "blk-cgroup.h"
-#include "cfq-iosched.h"
+
+static DEFINE_SPINLOCK(blkio_list_lock);
+static LIST_HEAD(blkio_list);
 
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
@@ -138,6 +140,7 @@ blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	struct blkio_cgroup *blkcg;
 	struct blkio_group *blkg;
 	struct hlist_node *n;
+	struct blkio_policy_type *blkiop;
 
 	if (val < BLKIO_WEIGHT_MIN || val > BLKIO_WEIGHT_MAX)
 		return -EINVAL;
@@ -145,8 +148,13 @@ blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
 	spin_lock_irq(&blkcg->lock);
 	blkcg->weight = (unsigned int)val;
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
-		cfq_update_blkio_group_weight(blkg, blkcg->weight);
+	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+		spin_lock(&blkio_list_lock);
+		list_for_each_entry(blkiop, &blkio_list, list)
+			blkiop->ops.blkio_update_group_weight_fn(blkg,
+					blkcg->weight);
+		spin_unlock(&blkio_list_lock);
+	}
 	spin_unlock_irq(&blkcg->lock);
 	return 0;
 }
@@ -224,6 +232,7 @@ static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 	unsigned long flags;
 	struct blkio_group *blkg;
 	void *key;
+	struct blkio_policy_type *blkiop;
 
 	rcu_read_lock();
 remove_entry:
@@ -249,7 +258,10 @@ remove_entry:
 	 * we have more policies in place, we need some dynamic registration
 	 * of callback function.
 	 */
-	cfq_unlink_blkio_group(key, blkg);
+	spin_lock(&blkio_list_lock);
+	list_for_each_entry(blkiop, &blkio_list, list)
+		blkiop->ops.blkio_unlink_group_fn(key, blkg);
+	spin_unlock(&blkio_list_lock);
 	goto remove_entry;
 done:
 	free_css_id(&blkio_subsys, &blkcg->css);
@@ -330,3 +342,19 @@ struct cgroup_subsys blkio_subsys = {
 	.subsys_id = blkio_subsys_id,
 	.use_id = 1,
 };
+
+void blkio_policy_register(struct blkio_policy_type *blkiop)
+{
+	spin_lock(&blkio_list_lock);
+	list_add_tail(&blkiop->list, &blkio_list);
+	spin_unlock(&blkio_list_lock);
+}
+EXPORT_SYMBOL_GPL(blkio_policy_register);
+
+void blkio_policy_unregister(struct blkio_policy_type *blkiop)
+{
+	spin_lock(&blkio_list_lock);
+	list_del_init(&blkiop->list);
+	spin_unlock(&blkio_list_lock);
+}
+EXPORT_SYMBOL_GPL(blkio_policy_unregister);

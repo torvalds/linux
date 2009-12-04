@@ -14,7 +14,6 @@
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
 #include "blk-cgroup.h"
-#include "cfq-iosched.h"
 
 /*
  * tunables
@@ -3855,6 +3854,17 @@ static struct elevator_type iosched_cfq = {
 	.elevator_owner =	THIS_MODULE,
 };
 
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+static struct blkio_policy_type blkio_policy_cfq = {
+	.ops = {
+		.blkio_unlink_group_fn =	cfq_unlink_blkio_group,
+		.blkio_update_group_weight_fn =	cfq_update_blkio_group_weight,
+	},
+};
+#else
+static struct blkio_policy_type blkio_policy_cfq;
+#endif
+
 static int __init cfq_init(void)
 {
 	/*
@@ -3869,6 +3879,7 @@ static int __init cfq_init(void)
 		return -ENOMEM;
 
 	elv_register(&iosched_cfq);
+	blkio_policy_register(&blkio_policy_cfq);
 
 	return 0;
 }
@@ -3876,6 +3887,7 @@ static int __init cfq_init(void)
 static void __exit cfq_exit(void)
 {
 	DECLARE_COMPLETION_ONSTACK(all_gone);
+	blkio_policy_unregister(&blkio_policy_cfq);
 	elv_unregister(&iosched_cfq);
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */
