@@ -156,6 +156,8 @@ int mantis_ca_init(struct mantis_pci *mantis)
 	ca->en50221.poll_slot_status	= mantis_slot_status;
 	ca->en50221.data		= ca;
 
+	mutex_init(&ca->ca_lock);
+
 	dprintk(verbose, MANTIS_ERROR, 1, "Registering EN50221 device");
 	if ((result = dvb_ca_en50221_init(dvb_adapter, &ca->en50221, ca_flags, 1)) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "EN50221: Initialization failed");
