@@ -644,10 +644,10 @@ static struct key_entry keymap_prestigio[] __initdata = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static struct dmi_system_id dmi_ids[] __initdata = {
+static const struct dmi_system_id __initconst dmi_ids[] = {
 	{
+		/* Fujitsu-Siemens Amilo Pro V2000 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu-Siemens Amilo Pro V2000",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro V2000"),
@@ -655,8 +655,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_pro_v2000
 	},
 	{
+		/* Fujitsu-Siemens Amilo Pro Edition V3505 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu-Siemens Amilo Pro Edition V3505",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro Edition V3505"),
@@ -664,8 +664,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_pro_v3505
 	},
 	{
+		/* Fujitsu-Siemens Amilo M7400 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu-Siemens Amilo M7400",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO M        "),
@@ -673,8 +673,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_pro_v2000
 	},
 	{
+		/* Maxdata Pro 7000 DX */
 		.callback = dmi_matched,
-		.ident = "Maxdata Pro 7000 DX",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MAXDATA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pro 7000"),
@@ -682,8 +682,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_pro_v2000
 	},
 	{
+		/* Fujitsu N3510 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu N3510",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N3510"),
@@ -691,8 +691,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fujitsu_n3510
 	},
 	{
+		/* Acer Aspire 1500 */
 		.callback = dmi_matched,
-		.ident = "Acer Aspire 1500",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1500"),
@@ -700,8 +700,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_aspire_1500
 	},
 	{
+		/* Acer Aspire 1600 */
 		.callback = dmi_matched,
-		.ident = "Acer Aspire 1600",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1600"),
@@ -709,8 +709,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_aspire_1600
 	},
 	{
+		/* Acer Aspire 3020 */
 		.callback = dmi_matched,
-		.ident = "Acer Aspire 3020",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 3020"),
@@ -718,8 +718,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_aspire_5020
 	},
 	{
+		/* Acer Aspire 5020 */
 		.callback = dmi_matched,
-		.ident = "Acer Aspire 5020",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5020"),
@@ -727,8 +727,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_aspire_5020
 	},
 	{
+		/* Acer TravelMate 2100 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 2100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2100"),
@@ -736,8 +736,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_aspire_5020
 	},
 	{
+		/* Acer TravelMate 2410 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 2410",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2410"),
@@ -745,8 +745,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_2410
 	},
 	{
+		/* Acer TravelMate C300 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate C300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate C300"),
@@ -754,8 +754,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_300
 	},
 	{
+		/* Acer TravelMate C100 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate C100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate C100"),
@@ -763,8 +763,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_300
 	},
 	{
+		/* Acer TravelMate C110 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate C110",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate C110"),
@@ -772,8 +772,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_110
 	},
 	{
+		/* Acer TravelMate 380 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 380",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 380"),
@@ -781,8 +781,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_380
 	},
 	{
+		/* Acer TravelMate 370 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 370",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 370"),
@@ -790,8 +790,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_380 /* keyboard minus 1 key */
 	},
 	{
+		/* Acer TravelMate 220 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 220",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 220"),
@@ -799,8 +799,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_220
 	},
 	{
+		/* Acer TravelMate 260 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 260",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 260"),
@@ -808,8 +808,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_220
 	},
 	{
+		/* Acer TravelMate 230 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 230",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 230"),
@@ -818,8 +818,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_230
 	},
 	{
+		/* Acer TravelMate 280 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 280",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 280"),
@@ -827,8 +827,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_230
 	},
 	{
+		/* Acer TravelMate 240 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 240",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 240"),
@@ -836,8 +836,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_240
 	},
 	{
+		/* Acer TravelMate 250 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 250",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 250"),
@@ -845,8 +845,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_240
 	},
 	{
+		/* Acer TravelMate 2424NWXCi */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 2424NWXCi",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2420"),
@@ -854,8 +854,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_240
 	},
 	{
+		/* Acer TravelMate 350 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 350",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 350"),
@@ -863,8 +863,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_350
 	},
 	{
+		/* Acer TravelMate 360 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 360",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
@@ -872,8 +872,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_360
 	},
 	{
+		/* Acer TravelMate 610 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 610",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 610"),
@@ -881,8 +881,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_610
 	},
 	{
+		/* Acer TravelMate 620 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 620",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 620"),
@@ -890,8 +890,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_630
 	},
 	{
+		/* Acer TravelMate 630 */
 		.callback = dmi_matched,
-		.ident = "Acer TravelMate 630",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 630"),
@@ -899,8 +899,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_acer_travelmate_630
 	},
 	{
+		/* AOpen 1559AS */
 		.callback = dmi_matched,
-		.ident = "AOpen 1559AS",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "E2U"),
 			DMI_MATCH(DMI_BOARD_NAME, "E2U"),
@@ -908,8 +908,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_aopen_1559as
 	},
 	{
+		/* Medion MD 9783 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 9783",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONNB"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MD 9783"),
@@ -917,8 +917,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_wistron_ms2111
 	},
 	{
+		/* Medion MD 40100 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 40100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONNB"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "WID2000"),
@@ -926,8 +926,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_wistron_md40100
 	},
 	{
+		/* Medion MD 2900 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 2900",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONNB"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "WIM 2000"),
@@ -935,8 +935,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_wistron_md2900
 	},
 	{
+		/* Medion MD 42200 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 42200",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Medion"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "WIM 2030"),
@@ -944,8 +944,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_pro_v2000
 	},
 	{
+		/* Medion MD 96500 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 96500",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONPC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "WIM 2040"),
@@ -953,8 +953,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_wistron_md96500
 	},
 	{
+		/* Medion MD 95400 */
 		.callback = dmi_matched,
-		.ident = "Medion MD 95400",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIONPC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "WIM 2050"),
@@ -962,8 +962,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_wistron_md96500
 	},
 	{
+		/* Fujitsu Siemens Amilo D7820 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu Siemens Amilo D7820",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"), /* not sure */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Amilo D"),
@@ -971,8 +971,8 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		.driver_data = keymap_fs_amilo_d88x0
 	},
 	{
+		/* Fujitsu Siemens Amilo D88x0 */
 		.callback = dmi_matched,
-		.ident = "Fujitsu Siemens Amilo D88x0",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO D"),
