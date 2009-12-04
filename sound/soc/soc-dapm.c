@@ -1147,8 +1147,15 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	out = is_connected_output_ep(w);
 	dapm_clear_walk(w->codec);
 
-	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d",
 		       w->name, w->power ? "On" : "Off", in, out);
+
+	if (w->reg >= 0)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret,
+				" - R%d(0x%x) bit %d",
+				w->reg, w->reg, w->shift);
+
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
 	if (w->sname)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, " stream %s %s\n",
