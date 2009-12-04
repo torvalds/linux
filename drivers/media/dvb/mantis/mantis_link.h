@@ -51,7 +51,6 @@ struct mantis_ca {
 	wait_queue_head_t		hif_opdone_wq;
 	wait_queue_head_t		hif_brrdyw_wq;
 	wait_queue_head_t		hif_data_wq;
-	u32				hif_job_queue;
 
 	enum mantis_sbuf_status		sbuf_status;
 

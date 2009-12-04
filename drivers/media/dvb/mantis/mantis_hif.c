@@ -97,17 +97,13 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	hif_addr |= addr;
 
 	mmwrite(slot->slave_cfg, MANTIS_GPIF_CFGSLA); /* Slot0 alone for now */
-
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
-	ca->hif_job_queue = MANTIS_HIF_MEMWR;
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
-		ca->hif_job_queue &= ~MANTIS_HIF_MEMWR;
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
 	}
-	ca->hif_job_queue &= ~MANTIS_HIF_MEMWR;
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mem Write: (0x%02x to 0x%02x)", data, addr);
 
 	return 0;
@@ -125,14 +121,11 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	hif_addr |=  addr;
 
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
-	ca->hif_job_queue = MANTIS_HIF_IOMRD;
 
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
-		ca->hif_job_queue &= ~MANTIS_HIF_IOMRD;
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
 	}
-	ca->hif_job_queue &= ~MANTIS_HIF_IOMRD;
 	data = mmread(MANTIS_GPIF_DIN);
 	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Read: 0x%02x", data);
 	udelay(50);
@@ -154,13 +147,10 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	mmwrite(hif_addr | MANTIS_HIF_STATUS, MANTIS_GPIF_ADDR);
 	mmwrite(data, MANTIS_GPIF_DOUT);
 
-	ca->hif_job_queue = MANTIS_HIF_IOMWR;
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
-		ca->hif_job_queue &= ~MANTIS_HIF_IOMWR;
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
 	}
-	ca->hif_job_queue &= ~MANTIS_HIF_IOMWR;
 	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Write: (0x%02x to 0x%02x)", data, addr);
 	udelay(50);
 
