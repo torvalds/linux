@@ -1216,7 +1216,8 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 				 */
 				argp->stable = NFS_FILE_SYNC;
 			}
-			nfs4_restart_rpc(task, server->nfs_client);
+			nfs4_restart_rpc(task, server->nfs_client,
+					 &data->res.seq_res);
 			return -EAGAIN;
 		}
 		if (time_before(complain, jiffies)) {

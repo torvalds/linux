@@ -81,9 +81,11 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_unlinkdata *data = calldata;
 	struct inode *dir = data->dir;
+	struct nfs_removeres *res = task->tk_msg.rpc_resp;
 
 	if (!NFS_PROTO(dir)->unlink_done(task, dir))
-		nfs4_restart_rpc(task, NFS_SERVER(dir)->nfs_client);
+		nfs4_restart_rpc(task, NFS_SERVER(dir)->nfs_client,
+				 &res->seq_res);
 }
 
 /**
