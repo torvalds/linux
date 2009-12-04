@@ -1,5 +1,5 @@
 /*
- * SCSI RDAM Protocol lib functions
+ * SCSI RDMA Protocol lib functions
  *
  * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
  *
@@ -440,6 +440,6 @@ int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
 }
 EXPORT_SYMBOL_GPL(srp_cmd_queue);
 
-MODULE_DESCRIPTION("SCSI RDAM Protocol lib functions");
+MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
 MODULE_AUTHOR("FUJITA Tomonori");
 MODULE_LICENSE("GPL");
