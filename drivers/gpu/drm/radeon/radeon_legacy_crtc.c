@@ -819,8 +819,8 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 							use_bios_divs = true;
 						}
 					}
-					pll_flags |= RADEON_PLL_USE_REF_DIV;
 				}
+				pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 		}
 	}

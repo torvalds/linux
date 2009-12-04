@@ -457,9 +457,8 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 				if (encoder->encoder_type !=
 				    DRM_MODE_ENCODER_DAC)
 					pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
-				if (!ASIC_IS_AVIVO(rdev)
-				    && (encoder->encoder_type ==
-					DRM_MODE_ENCODER_LVDS))
+				if (encoder->encoder_type ==
+					DRM_MODE_ENCODER_LVDS)
 					pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 			radeon_encoder = to_radeon_encoder(encoder);

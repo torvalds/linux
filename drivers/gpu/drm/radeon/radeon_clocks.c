@@ -106,8 +106,19 @@ void radeon_get_clock_info(struct drm_device *dev)
 		ret = radeon_combios_get_clock_info(dev);
 
 	if (ret) {
-		if (p1pll->reference_div < 2)
-			p1pll->reference_div = 12;
+		if (p1pll->reference_div < 2) {
+			if (!ASIC_IS_AVIVO(rdev)) {
+				u32 tmp = RREG32_PLL(RADEON_PPLL_REF_DIV);
+				if (ASIC_IS_R300(rdev))
+					p1pll->reference_div =
+						(tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
+				else
+					p1pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
+				if (p1pll->reference_div < 2)
+					p1pll->reference_div = 12;
+			} else
+				p1pll->reference_div = 12;
+		}
 		if (p2pll->reference_div < 2)
 			p2pll->reference_div = 12;
 		if (rdev->family < CHIP_RS600) {
