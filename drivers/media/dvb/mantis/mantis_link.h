@@ -21,6 +21,7 @@
 #ifndef __MANTIS_LINK_H
 #define __MANTIS_LINK_H
 
+#include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include "dvb_ca_en50221.h"
 
@@ -61,6 +62,7 @@ struct mantis_ca {
 	void				*ca_priv;
 
 	struct dvb_ca_en50221		en50221;
+	struct mutex			ca_lock;
 };
 
 /* CA */
