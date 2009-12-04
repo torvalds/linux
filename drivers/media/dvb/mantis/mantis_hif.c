@@ -111,10 +111,10 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 	return 0;
 }
 
-int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr, u32 count, u32 *data)
+int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 {
 	struct mantis_pci *mantis = ca->ca_priv;
-	u32 hif_addr = 0;
+	u32 data, hif_addr = 0;
 
 	hif_addr &= ~MANTIS_GPIF_PCMCIAREG;
 	hif_addr |=  MANTIS_GPIF_HIFRDWRN;
@@ -131,14 +131,14 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr, u32 count, u32 *data)
 	}
 	udelay(50);
 	ca->hif_job_queue &= ~MANTIS_HIF_IOMRD;
-	*data = mmread(MANTIS_GPIF_HIFDIN);
+	data = mmread(MANTIS_GPIF_HIFDIN);
 	hif_addr |= MANTIS_GPIF_PCMCIAREG;
 	mmwrite(hif_addr, MANTIS_GPIF_HIFADDR);
 
-	return 0;
+	return data;
 }
 
-int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u32 data)
+int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 {
 	struct mantis_pci *mantis = ca->ca_priv;
 	u32 hif_addr = 0;

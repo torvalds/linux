@@ -22,96 +22,104 @@
 #include "mantis_link.h"
 #include "mantis_hif.h"
 
+static int mantis_ca_read_attr_mem(struct dvb_ca_en50221 *en50221, int slot, int addr)
+{
+	struct mantis_ca *ca = en50221->data;
 
-static int mantis_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long parg)
+	if (slot != 0)
+		return -EINVAL;
+
+	return mantis_hif_read_mem(ca, addr);
+}
+
+static int mantis_ca_write_attr_mem(struct dvb_ca_en50221 *en50221, int slot, int addr, u8 data)
+{
+	struct mantis_ca *ca = en50221->data;
+
+	if (slot != 0)
+		return -EINVAL;
+
+	return mantis_hif_write_mem(ca, addr, data);
+}
+
+static int mantis_ca_read_cam_ctl(struct dvb_ca_en50221 *en50221, int slot, u8 addr)
+{
+	struct mantis_ca *ca = en50221->data;
+
+	if (slot != 0)
+		return -EINVAL;
+
+	return mantis_hif_read_iom(ca, addr);
+}
+
+static int mantis_ca_write_cam_ctl(struct dvb_ca_en50221 *en50221, int slot, u8 addr, u8 data)
+{
+	struct mantis_ca *ca = en50221->data;
+
+	if (slot != 0)
+		return -EINVAL;
+
+	return mantis_hif_write_iom(ca, addr, data);
+}
+
+static int mantis_ca_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 {
 	return 0;
 }
 
-static int mantis_ca_open(struct inode *inode, struct file *file)
+static int mantis_ca_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 {
 	return 0;
 }
 
-static int mantis_ca_release(struct inode *inode, struct file *file)
+static int mantis_ts_control(struct dvb_ca_en50221 *en50221, int slot)
 {
 	return 0;
 }
 
-static ssize_t mantis_ca_read(struct file *file, char __user *buffer, size_t count, loff_t *ofset)
+static int mantis_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open)
 {
-	struct dvb_device *dvbdev	= file->private_data;
-	struct mantis_ca *ca		= dvbdev->priv;
-
-	int status;
-
 	return 0;
-error:
-	return status;
 }
 
-static ssize_t mantis_ca_write(struct file *file, const char __user *buffer, size_t count, loff_t *offset)
+int mantis_ca_init(struct mantis_pci *mantis)
 {
-	struct dvb_device *dvbdev	= file->private_data;
-	struct mantis_ca *ca		= dvbdev->priv;
-
-	int status;
-
-	return 0;
-error:
-	return status;
-}
-
-static struct file_operations mantis_fops = {
-	.owner		= THIS_MODULE,
-	.ioctl		= mantis_ca_ioctl,
-	.open		= mantis_ca_open,
-	.release	= mantis_ca_release,
-	.read		= mantis_ca_read,
-	.write		= mantis_ca_write,
-};
-
-static struct dvb_device mantis_ca = {
-	.priv		= NULL,
-	.users		= 1,
-	.readers	= 1,
-	.writers	= 1,
-	.fops		= &mantis_fops,
-};
-
-struct dvb_device *mantis_ca_init(struct mantis_pci *mantis)
-{
-	int ret;
-
-	struct dvb_device *dvbdev;
 	struct dvb_adapter *dvb_adapter = &mantis->dvb_adapter;
 	struct mantis_ca *ca;
+	int ca_flags = 0, result;
 
 	if (!(ca = kzalloc(sizeof (struct mantis_ca), GFP_KERNEL))) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Out of memory!, exiting ..");
-		return NULL;
+		result = -ENOMEM;
+		goto err;
 	}
 
 	ca->ca_priv = mantis;
+	mantis->mantis_ca = ca;
 
-	dprintk(verbose, MANTIS_ERROR, 0, "CA: Registering Mantis Adapter(%d) Slot(0)\n", mantis->num);
-	if (dvb_register_device(dvb_adapter, &dvbdev, &mantis_ca, ca, DVB_DEVICE_CA) == 0) {
-		ca->ca_dev = dvbdev;
-		mantis->mantis_ca = ca;
-		mantis_evmgr_init(ca);
-		return ca->ca_dev;
+	/* register CA interface */
+	ca->en50221.owner		= THIS_MODULE;
+	ca->en50221.read_attribute_mem	= mantis_ca_read_attr_mem;
+	ca->en50221.write_attribute_mem	= mantis_ca_write_attr_mem;
+	ca->en50221.read_cam_control	= mantis_ca_read_cam_ctl;
+	ca->en50221.write_cam_control	= mantis_ca_write_cam_ctl;
+	ca->en50221.slot_reset		= mantis_ca_slot_reset;
+	ca->en50221.slot_shutdown	= mantis_ca_slot_shutdown;
+	ca->en50221.slot_ts_enable	= mantis_ts_control;
+	ca->en50221.poll_slot_status	= mantis_slot_status;
+	ca->en50221.data		= ca;
+
+	dprintk(verbose, MANTIS_ERROR, 1, "Registering EN50221 device");
+	if ((result = dvb_ca_en50221_init(dvb_adapter, &ca->en50221, ca_flags, 1)) != 0) {
+		dprintk(verbose, MANTIS_ERROR, 1, "EN50221: Initialization failed");
+		goto err;
 	}
+	dprintk(verbose, MANTIS_ERROR, 1, "Registered EN50221 device");
+	mantis_evmgr_init(ca);
 	return 0;
-
-error:
-	if (ca != NULL) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Error ..");
-		if (ca->ca_dev != NULL)
-			dvb_unregister_device(ca->ca_dev);
-
-		kfree(ca);
-	}
-	return NULL;
+err:
+	kfree(ca);
+	return result;
 }
 
 void mantis_ca_exit(struct mantis_pci *mantis)
@@ -119,9 +127,8 @@ void mantis_ca_exit(struct mantis_pci *mantis)
 	struct mantis_ca *ca = mantis->mantis_ca;
 
 	mantis_evmgr_exit(ca);
-	dprintk(verbose, MANTIS_ERROR, 0, "CA: Unregister Mantis Adapter(%d) Slot(0)\n", mantis->num);
-	if (ca->ca_dev)
-		dvb_unregister_device(ca->ca_dev);
+	dprintk(verbose, MANTIS_ERROR, 1, "Unregistering EN50221 device");
+	dvb_ca_en50221_release(&ca->en50221);
 
 	kfree(ca);
 }

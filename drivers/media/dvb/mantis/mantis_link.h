@@ -22,6 +22,7 @@
 #define __MANTIS_LINK_H
 
 #include <linux/workqueue.h>
+#include "dvb_ca_en50221.h"
 
 enum mantis_sbuf_status {
 	MANTIS_SBUF_DATA_AVAIL		= 1,
@@ -56,8 +57,10 @@ struct mantis_ca {
 
 	enum mantis_slot_state		slot_state;
 
-	struct dvb_device		*ca_dev;
+//	struct dvb_device		*ca_dev;
 	void				*ca_priv;
+
+	struct dvb_ca_en50221		en50221;
 };
 
 /* CA */
@@ -73,7 +76,7 @@ extern int mantis_hif_init(struct mantis_ca *ca);
 extern void mantis_hif_exit(struct mantis_ca *ca);
 extern int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr);
 extern int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data);
-extern int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr, u32 count, u32 *data);
-extern int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u32 data);
+extern int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr);
+extern int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data);
 
 #endif // __MANTIS_LINK_H
