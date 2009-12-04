@@ -19,3 +19,4 @@ obj-$(CONFIG_MACH_QONG)		+= qong.o
 obj-$(CONFIG_MACH_PCM043)	+= pcm043.o
 obj-$(CONFIG_MACH_ARMADILLO5X0) += armadillo5x0.o
 obj-$(CONFIG_MACH_MX35_3DS)	+= mx35pdk.o
+obj-$(CONFIG_MACH_KZM_ARM11_01)	+= kzmarm11.o

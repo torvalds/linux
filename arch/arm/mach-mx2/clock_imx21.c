@@ -1000,7 +1000,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_enable(&per_clk[0]);
 	clk_enable(&gpio_clk);
 
-#ifdef CONFIG_DEBUG_LL_CONSOLE
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	clk_enable(&uart_clk[0]);
 #endif
 

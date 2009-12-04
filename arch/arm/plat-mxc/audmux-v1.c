@@ -28,7 +28,9 @@
 
 static void __iomem *audmux_base;
 
-#define MXC_AUDMUX_V1_PCR(x)	((x) * 4)
+static unsigned char port_mapping[] = {
+	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
+};
 
 int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 {
@@ -37,7 +39,10 @@ int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 		return -ENOSYS;
 	}
 
-	writel(pcr, audmux_base + MXC_AUDMUX_V1_PCR(port));
+	if (port >= ARRAY_SIZE(port_mapping))
+		return -EINVAL;
+
+	writel(pcr, audmux_base + port_mapping[port]);
 
 	return 0;
 }

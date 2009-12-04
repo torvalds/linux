@@ -387,6 +387,8 @@ DEFINE_CLOCK(csi_clk,    0, CCM_CGR3,  0, get_rate_csi, NULL);
 DEFINE_CLOCK(iim_clk,    0, CCM_CGR3,  2, NULL, NULL);
 DEFINE_CLOCK(gpu2d_clk,  0, CCM_CGR3,  4, NULL, NULL);
 
+DEFINE_CLOCK(usbahb_clk, 0, 0,         0, get_rate_ahb, NULL);
+
 static int clk_dummy_enable(struct clk *clk)
 {
 	return 0;
@@ -471,6 +473,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.1", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc-ehci.2", "usb", usbotg_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usbotg_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usbahb_clk)
 	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "max", max_clk)
 	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
@@ -485,7 +488,7 @@ int __init mx35_clocks_init()
 	int i;
 	unsigned int ll = 0;
 
-#ifdef CONFIG_DEBUG_LL_CONSOLE
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	ll = (3 << 16);
 #endif
 

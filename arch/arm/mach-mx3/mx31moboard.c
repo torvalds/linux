@@ -226,7 +226,7 @@ static struct mc13783_regulator_init_data moboard_regulators[] = {
 static struct mc13783_platform_data moboard_pmic = {
 	.regulators = moboard_regulators,
 	.num_regulators = ARRAY_SIZE(moboard_regulators),
-	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC,
+	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC |
 		MC13783_USE_ADC,
 };
 
