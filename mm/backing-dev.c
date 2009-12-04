@@ -604,15 +604,36 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 
 	/*
 	 * Finally, kill the kernel threads. We don't need to be RCU
-	 * safe anymore, since the bdi is gone from visibility.
+	 * safe anymore, since the bdi is gone from visibility. Force
+	 * unfreeze of the thread before calling kthread_stop(), otherwise
+	 * it would never exet if it is currently stuck in the refrigerator.
 	 */
-	list_for_each_entry(wb, &bdi->wb_list, list)
+	list_for_each_entry(wb, &bdi->wb_list, list) {
+		wb->task->flags &= ~PF_FROZEN;
 		kthread_stop(wb->task);
+	}
+}
+
+/*
+ * This bdi is going away now, make sure that no super_blocks point to it
+ */
+static void bdi_prune_sb(struct backing_dev_info *bdi)
+{
+	struct super_block *sb;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_bdi == bdi)
+			sb->s_bdi = NULL;
+	}
+	spin_unlock(&sb_lock);
 }
 
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
+		bdi_prune_sb(bdi);
+
 		if (!bdi_cap_flush_forker(bdi))
 			bdi_wb_shutdown(bdi);
 		bdi_debug_unregister(bdi);

@@ -446,6 +446,28 @@ extern int sysctl_tcp_synack_retries;
 
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
+/* Decide when to expire the request and when to resend SYN-ACK */
+static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
+				  const int max_retries,
+				  const u8 rskq_defer_accept,
+				  int *expire, int *resend)
+{
+	if (!rskq_defer_accept) {
+		*expire = req->retrans >= thresh;
+		*resend = 1;
+		return;
+	}
+	*expire = req->retrans >= thresh &&
+		  (!inet_rsk(req)->acked || req->retrans >= max_retries);
+	/*
+	 * Do not resend while waiting for data after ACK,
+	 * start to resend on end of deferring period to give
+	 * last chance for data or ACK to create established socket.
+	 */
+	*resend = !inet_rsk(req)->acked ||
+		  req->retrans >= rskq_defer_accept - 1;
+}
+
 void inet_csk_reqsk_queue_prune(struct sock *parent,
 				const unsigned long interval,
 				const unsigned long timeout,
@@ -501,9 +523,15 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 		reqp=&lopt->syn_table[i];
 		while ((req = *reqp) != NULL) {
 			if (time_after_eq(now, req->expires)) {
-				if ((req->retrans < thresh ||
-				     (inet_rsk(req)->acked && req->retrans < max_retries))
-				    && !req->rsk_ops->rtx_syn_ack(parent, req)) {
+				int expire = 0, resend = 0;
+
+				syn_ack_recalc(req, thresh, max_retries,
+					       queue->rskq_defer_accept,
+					       &expire, &resend);
+				if (!expire &&
+				    (!resend ||
+				     !req->rsk_ops->rtx_syn_ack(parent, req) ||
+				     inet_rsk(req)->acked)) {
 					unsigned long timeo;
 
 					if (req->retrans++ == 0)

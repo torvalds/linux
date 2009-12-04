@@ -3284,17 +3284,14 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		goto skip_host_crypt;
 
 	ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
-		request_module("ieee80211_crypt_wep");
+	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-		//set WEP40 first, it will be modified according to WEP104 or WEP40 at other place
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0) {
-		request_module("ieee80211_crypt_tkip");
+		/* set WEP40 first, it will be modified according to WEP104 or
+		 * WEP40 at other place */
+	else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0) {
-		request_module("ieee80211_crypt_ccmp");
+	else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	}
 	if (ops == NULL) {
 		printk("unknown crypto alg '%s'\n", param->u.crypt.alg);
 		param->u.crypt.err = IEEE_CRYPT_ERR_UNKNOWN_ALG;
@@ -3315,11 +3312,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		}
 		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ops;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
-#else
-		if (new_crypt->ops && try_inc_mod_count(new_crypt->ops->owner))
-#endif
+		if (new_crypt->ops)
 			new_crypt->priv =
 				new_crypt->ops->init(param->u.crypt.idx);
 

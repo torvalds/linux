@@ -418,6 +418,14 @@ When:	2.6.33
 Why:	Should be implemented in userspace, policy daemon.
 Who:	Johannes Berg <johannes@sipsolutions.net>
 
+---------------------------
+
+What:	CONFIG_INOTIFY
+When:	2.6.33
+Why:	last user (audit) will be converted to the newer more generic
+	and more easily maintained fsnotify subsystem
+Who:	Eric Paris <eparis@redhat.com>
+
 ----------------------------
 
 What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be

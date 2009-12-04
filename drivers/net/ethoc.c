@@ -223,24 +223,25 @@ struct ethoc_bd {
 	u32 addr;
 };
 
-static u32 ethoc_read(struct ethoc *dev, loff_t offset)
+static inline u32 ethoc_read(struct ethoc *dev, loff_t offset)
 {
 	return ioread32(dev->iobase + offset);
 }
 
-static void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
+static inline void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
 {
 	iowrite32(data, dev->iobase + offset);
 }
 
-static void ethoc_read_bd(struct ethoc *dev, int index, struct ethoc_bd *bd)
+static inline void ethoc_read_bd(struct ethoc *dev, int index,
+		struct ethoc_bd *bd)
 {
 	loff_t offset = ETHOC_BD_BASE + (index * sizeof(struct ethoc_bd));
 	bd->stat = ethoc_read(dev, offset + 0);
 	bd->addr = ethoc_read(dev, offset + 4);
 }
 
-static void ethoc_write_bd(struct ethoc *dev, int index,
+static inline void ethoc_write_bd(struct ethoc *dev, int index,
 		const struct ethoc_bd *bd)
 {
 	loff_t offset = ETHOC_BD_BASE + (index * sizeof(struct ethoc_bd));
@@ -248,33 +249,33 @@ static void ethoc_write_bd(struct ethoc *dev, int index,
 	ethoc_write(dev, offset + 4, bd->addr);
 }
 
-static void ethoc_enable_irq(struct ethoc *dev, u32 mask)
+static inline void ethoc_enable_irq(struct ethoc *dev, u32 mask)
 {
 	u32 imask = ethoc_read(dev, INT_MASK);
 	imask |= mask;
 	ethoc_write(dev, INT_MASK, imask);
 }
 
-static void ethoc_disable_irq(struct ethoc *dev, u32 mask)
+static inline void ethoc_disable_irq(struct ethoc *dev, u32 mask)
 {
 	u32 imask = ethoc_read(dev, INT_MASK);
 	imask &= ~mask;
 	ethoc_write(dev, INT_MASK, imask);
 }
 
-static void ethoc_ack_irq(struct ethoc *dev, u32 mask)
+static inline void ethoc_ack_irq(struct ethoc *dev, u32 mask)
 {
 	ethoc_write(dev, INT_SOURCE, mask);
 }
 
-static void ethoc_enable_rx_and_tx(struct ethoc *dev)
+static inline void ethoc_enable_rx_and_tx(struct ethoc *dev)
 {
 	u32 mode = ethoc_read(dev, MODER);
 	mode |= MODER_RXEN | MODER_TXEN;
 	ethoc_write(dev, MODER, mode);
 }
 
-static void ethoc_disable_rx_and_tx(struct ethoc *dev)
+static inline void ethoc_disable_rx_and_tx(struct ethoc *dev)
 {
 	u32 mode = ethoc_read(dev, MODER);
 	mode &= ~(MODER_RXEN | MODER_TXEN);
@@ -508,7 +509,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	ethoc_ack_irq(priv, INT_MASK_ALL);
+	ethoc_ack_irq(priv, pending);
 
 	if (pending & INT_MASK_BUSY) {
 		dev_err(&dev->dev, "packet dropped\n");

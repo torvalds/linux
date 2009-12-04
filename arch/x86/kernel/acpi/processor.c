@@ -79,7 +79,8 @@ void arch_acpi_processor_init_pdc(struct acpi_processor *pr)
 	struct cpuinfo_x86 *c = &cpu_data(pr->id);
 
 	pr->pdc = NULL;
-	if (c->x86_vendor == X86_VENDOR_INTEL)
+	if (c->x86_vendor == X86_VENDOR_INTEL ||
+	    c->x86_vendor == X86_VENDOR_CENTAUR)
 		init_intel_pdc(pr, c);
 
 	return;

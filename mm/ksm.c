@@ -1012,6 +1012,7 @@ static struct rmap_item *unstable_tree_search_insert(struct page *page,
 		struct rmap_item *tree_rmap_item;
 		int ret;
 
+		cond_resched();
 		tree_rmap_item = rb_entry(*new, struct rmap_item, node);
 		page2[0] = get_mergeable_page(tree_rmap_item);
 		if (!page2[0])

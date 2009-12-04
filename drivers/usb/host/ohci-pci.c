@@ -177,6 +177,13 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 		return 0;
 
 	pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
+
+	/* SB800 needs pre-fetch fix */
+	if ((rev >= 0x40) && (rev <= 0x4f)) {
+		ohci->flags |= OHCI_QUIRK_AMD_PREFETCH;
+		ohci_dbg(ohci, "enabled AMD prefetch quirk\n");
+	}
+
 	if ((rev > 0x3b) || (rev < 0x30)) {
 		pci_dev_put(amd_smbus_dev);
 		amd_smbus_dev = NULL;
@@ -260,6 +267,19 @@ static void amd_iso_dev_put(void)
 		}
 	}
 
+}
+
+static void sb800_prefetch(struct ohci_hcd *ohci, int on)
+{
+	struct pci_dev *pdev;
+	u16 misc;
+
+	pdev = to_pci_dev(ohci_to_hcd(ohci)->self.controller);
+	pci_read_config_word(pdev, 0x50, &misc);
+	if (on == 0)
+		pci_write_config_word(pdev, 0x50, misc & 0xfcff);
+	else
+		pci_write_config_word(pdev, 0x50, misc | 0x0300);
 }
 
 /* List of quirks for OHCI */

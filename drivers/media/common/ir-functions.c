@@ -64,7 +64,7 @@ void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 
 	ir->ir_type = ir_type;
 
-	memset(ir->ir_codes, sizeof(ir->ir_codes), 0);
+	memset(ir->ir_codes, 0, sizeof(ir->ir_codes));
 
 	/*
 	 * FIXME: This is a temporary workaround to use the new IR tables

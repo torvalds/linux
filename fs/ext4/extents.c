@@ -2807,6 +2807,8 @@ fix_extent_len:
  * into three uninitialized extent(at most). After IO complete, the part
  * being filled will be convert to initialized by the end_io callback function
  * via ext4_convert_unwritten_extents().
+ *
+ * Returns the size of uninitialized extent to be written on success.
  */
 static int ext4_split_unwritten_extents(handle_t *handle,
 					struct inode *inode,
@@ -2824,7 +2826,6 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 	unsigned int allocated, ee_len, depth;
 	ext4_fsblk_t newblock;
 	int err = 0;
-	int ret = 0;
 
 	ext_debug("ext4_split_unwritten_extents: inode %lu,"
 		  "iblock %llu, max_blocks %u\n", inode->i_ino,
@@ -2842,12 +2843,12 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 	ext4_ext_store_pblock(&orig_ex, ext_pblock(ex));
 
 	/*
- 	 * if the entire unintialized extent length less than
- 	 * the size of extent to write, there is no need to split
- 	 * uninitialized extent
+ 	 * If the uninitialized extent begins at the same logical
+ 	 * block where the write begins, and the write completely
+ 	 * covers the extent, then we don't need to split it.
  	 */
- 	if (allocated <= max_blocks)
-		return ret;
+	if ((iblock == ee_block) && (allocated <= max_blocks))
+		return allocated;
 
 	err = ext4_ext_get_access(handle, inode, path + depth);
 	if (err)
@@ -3048,12 +3049,18 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		ret = ext4_split_unwritten_extents(handle,
 						inode, path, iblock,
 						max_blocks, flags);
-		/* flag the io_end struct that we need convert when IO done */
+		/*
+		 * Flag the inode(non aio case) or end_io struct (aio case)
+		 * that this IO needs to convertion to written when IO is
+		 * completed
+		 */
 		if (io)
 			io->flag = DIO_AIO_UNWRITTEN;
+		else
+			EXT4_I(inode)->i_state |= EXT4_STATE_DIO_UNWRITTEN;
 		goto out;
 	}
-	/* DIO end_io complete, convert the filled extent to written */
+	/* async DIO end_io complete, convert the filled extent to written */
 	if (flags == EXT4_GET_BLOCKS_DIO_CONVERT_EXT) {
 		ret = ext4_convert_unwritten_extents_dio(handle, inode,
 							path);
@@ -3295,10 +3302,16 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 * To avoid unecessary convertion for every aio dio rewrite
 		 * to the mid of file, here we flag the IO that is really
 		 * need the convertion.
-		 *
+		 * For non asycn direct IO case, flag the inode state
+		 * that we need to perform convertion when IO is done.
 		 */
-		if (io && flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT)
-			io->flag = DIO_AIO_UNWRITTEN;
+		if (flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
+			if (io)
+				io->flag = DIO_AIO_UNWRITTEN;
+			else
+				EXT4_I(inode)->i_state |=
+					EXT4_STATE_DIO_UNWRITTEN;;
+		}
 	}
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err) {
@@ -3519,6 +3532,7 @@ retry:
  *
  * This function is called from the direct IO end io call back
  * function, to convert the fallocated extents after IO is completed.
+ * Returns 0 on success.
  */
 int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 				    loff_t len)

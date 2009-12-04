@@ -1584,8 +1584,8 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2870_BOARD_REDDO_DVB_C_USB_BOX] = {
 		.name          = "Reddo DVB-C USB TV Box",
 		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = reddo_dvb_c_usb_box,
 		.has_dvb       = 1,
-		.dvb_gpio      = reddo_dvb_c_usb_box,
 	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);

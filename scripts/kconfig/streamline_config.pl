@@ -43,7 +43,6 @@
 #    make oldconfig
 #
 my $config = ".config";
-my $linuxpath = ".";
 
 my $uname = `uname -r`;
 chomp $uname;
@@ -111,16 +110,17 @@ sub find_config {
 
 find_config;
 
-my @makefiles = `find $linuxpath -name Makefile`;
+# Get the build source and top level Kconfig file (passed in)
+my $ksource = $ARGV[0];
+my $kconfig = $ARGV[1];
+
+my @makefiles = `find $ksource -name Makefile`;
 my %depends;
 my %selects;
 my %prompts;
 my %objects;
 my $var;
 my $cont = 0;
-
-# Get the top level Kconfig file (passed in)
-my $kconfig = $ARGV[0];
 
 # prevent recursion
 my %read_kconfigs;
@@ -132,7 +132,7 @@ sub read_kconfig {
     my $config;
     my @kconfigs;
 
-    open(KIN, $kconfig) || die "Can't open $kconfig";
+    open(KIN, "$ksource/$kconfig") || die "Can't open $kconfig";
     while (<KIN>) {
 	chomp;
 

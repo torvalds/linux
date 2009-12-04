@@ -689,15 +689,19 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
 			__func__, drv->name);
 	}
-	error = add_bind_files(drv);
-	if (error) {
-		/* Ditto */
-		printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
-			__func__, drv->name);
+
+	if (!drv->suppress_bind_attrs) {
+		error = add_bind_files(drv);
+		if (error) {
+			/* Ditto */
+			printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
+				__func__, drv->name);
+		}
 	}
 
 	kobject_uevent(&priv->kobj, KOBJ_ADD);
 	return 0;
+
 out_unregister:
 	kfree(drv->p);
 	drv->p = NULL;
@@ -720,7 +724,8 @@ void bus_remove_driver(struct device_driver *drv)
 	if (!drv->bus)
 		return;
 
-	remove_bind_files(drv);
+	if (!drv->suppress_bind_attrs)
+		remove_bind_files(drv);
 	driver_remove_attrs(drv->bus, drv);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);

@@ -25,61 +25,82 @@
  * by atomically noting the tail and incrementing it by one (thus adding
  * ourself to the queue and noting our position), then waiting until the head
  * becomes equal to the the initial value of the tail.
+ * The pad bits in the middle are used to prevent the next_ticket number
+ * overflowing into the now_serving number.
  *
- *   63                     32  31                      0
+ *   31             17  16    15  14                    0
  *  +----------------------------------------------------+
- *  |  next_ticket_number      |     now_serving         |
+ *  |  now_serving     | padding |   next_ticket         |
  *  +----------------------------------------------------+
  */
 
-#define TICKET_SHIFT	32
+#define TICKET_SHIFT	17
+#define TICKET_BITS	15
+#define	TICKET_MASK	((1 << TICKET_BITS) - 1)
 
 static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 {
-	int	*p = (int *)&lock->lock, turn, now_serving;
+	int	*p = (int *)&lock->lock, ticket, serve;
 
-	now_serving = *p;
-	turn = ia64_fetchadd(1, p+1, acq);
+	ticket = ia64_fetchadd(1, p, acq);
 
-	if (turn == now_serving)
+	if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
 		return;
 
-	do {
+	ia64_invala();
+
+	for (;;) {
+		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(serve) : "r"(p) : "memory");
+
+		if (!(((serve >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+			return;
 		cpu_relax();
-	} while (ACCESS_ONCE(*p) != turn);
+	}
 }
 
 static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 {
-	long tmp = ACCESS_ONCE(lock->lock), try;
+	int tmp = ACCESS_ONCE(lock->lock);
 
-	if (!(((tmp >> TICKET_SHIFT) ^ tmp) & ((1L << TICKET_SHIFT) - 1))) {
-		try = tmp + (1L << TICKET_SHIFT);
-
-		return ia64_cmpxchg(acq, &lock->lock, tmp, try, sizeof (tmp)) == tmp;
-	}
+	if (!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK))
+		return ia64_cmpxchg(acq, &lock->lock, tmp, tmp + 1, sizeof (tmp)) == tmp;
 	return 0;
 }
 
 static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 {
-	int	*p = (int *)&lock->lock;
+	unsigned short	*p = (unsigned short *)&lock->lock + 1, tmp;
 
-	(void)ia64_fetchadd(1, p, rel);
+	asm volatile ("ld2.bias %0=[%1]" : "=r"(tmp) : "r"(p));
+	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
+}
+
+static __always_inline void __ticket_spin_unlock_wait(raw_spinlock_t *lock)
+{
+	int	*p = (int *)&lock->lock, ticket;
+
+	ia64_invala();
+
+	for (;;) {
+		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(ticket) : "r"(p) : "memory");
+		if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+			return;
+		cpu_relax();
+	}
 }
 
 static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
 
-	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & ((1L << TICKET_SHIFT) - 1));
+	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & TICKET_MASK);
 }
 
 static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
 
-	return (((tmp >> TICKET_SHIFT) - tmp) & ((1L << TICKET_SHIFT) - 1)) > 1;
+	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
 }
 
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
@@ -116,8 +137,7 @@ static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
-	while (__raw_spin_is_locked(lock))
-		cpu_relax();
+	__ticket_spin_unlock_wait(lock);
 }
 
 #define __raw_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
