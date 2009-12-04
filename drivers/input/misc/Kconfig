@@ -80,6 +80,7 @@ config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
 	select INPUT_POLLDEV
+	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
 	select CHECK_SIGNATURE
