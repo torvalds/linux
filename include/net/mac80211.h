@@ -1737,6 +1737,12 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
 	local_bh_enable();
 }
 
+/*
+ * The TX headroom reserved by mac80211 for its own tx_status functions.
+ * This is enough for the radiotap header.
+ */
+#define IEEE80211_TX_STATUS_HEADROOM	13
+
 /**
  * ieee80211_tx_status - transmit status callback
  *
