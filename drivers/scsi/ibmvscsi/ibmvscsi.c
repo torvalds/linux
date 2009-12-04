@@ -40,7 +40,7 @@
  * (CRQ), which is just a buffer of 16 byte entries in the receiver's 
  * Senders cannot access the buffer directly, but send messages by
  * making a hypervisor call and passing in the 16 bytes.  The hypervisor
- * puts the message in the next 16 byte space in round-robbin fashion,
+ * puts the message in the next 16 byte space in round-robin fashion,
  * turns on the high order bit of the message (the valid bit), and 
  * generates an interrupt to the receiver (if interrupts are turned on.) 
  * The receiver just turns off the valid bit when they have copied out
