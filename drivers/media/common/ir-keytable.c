@@ -8,6 +8,7 @@
 #include <media/ir-common.h>
 
 #define IR_TAB_MIN_SIZE	32
+#define IR_TAB_MAX_SIZE	1024
 
 /**
  * ir_seek_table() - returns the element order on the table
@@ -121,7 +122,154 @@ static int ir_getkeycode(struct input_dev *dev,
 		return 0;
 	}
 
-	return -EINVAL;
+	/*
+	 * Scancode not found and table can't be expanded
+	 */
+	if (elem < 0 && rc_tab->size == IR_TAB_MAX_SIZE)
+		return -EINVAL;
+
+	/*
+	 * If is there extra space, returns KEY_RESERVED,
+	 * otherwise, input core won't let ir_setkeycode to work
+	 */
+	*keycode = KEY_RESERVED;
+	return 0;
+}
+
+
+/**
+ * ir_is_resize_needed() - Check if the table needs rezise
+ * @table:		keycode table that may need to resize
+ * @n_elems:		minimum number of entries to store keycodes
+ *
+ * Considering that kmalloc uses power of two storage areas, this
+ * routine detects if the real alloced size will change. If not, it
+ * just returns without doing nothing. Otherwise, it will extend or
+ * reduce the table size to meet the new needs.
+ *
+ * It returns 0 if no resize is needed, 1 otherwise.
+ */
+static int ir_is_resize_needed(struct ir_scancode_table *table, int n_elems)
+{
+	int cur_size = ir_roundup_tablesize(table->size);
+	int new_size = ir_roundup_tablesize(n_elems);
+
+	if (cur_size == new_size)
+		return 0;
+
+	/* Resize is needed */
+	return 1;
+}
+
+/**
+ * ir_delete_key() - remove a keycode from the table
+ * @rc_tab:		keycode table
+ * @elem:		element to be removed
+ *
+ */
+static void ir_delete_key(struct ir_scancode_table *rc_tab, int elem)
+{
+	unsigned long flags = 0;
+	int newsize = rc_tab->size - 1;
+	int resize = ir_is_resize_needed(rc_tab, newsize);
+	struct ir_scancode *oldkeymap = rc_tab->scan;
+	struct ir_scancode *newkeymap;
+
+	if (resize) {
+		newkeymap = kzalloc(ir_roundup_tablesize(newsize) *
+				    sizeof(*newkeymap), GFP_ATOMIC);
+
+		/* There's no memory for resize. Keep the old table */
+		if (!newkeymap)
+			resize = 0;
+	}
+
+	if (!resize) {
+		newkeymap = oldkeymap;
+
+		/* We'll modify the live table. Lock it */
+		spin_lock_irqsave(&rc_tab->lock, flags);
+	}
+
+	/*
+	 * Copy the elements before the one that will be deleted
+	 * if (!resize), both oldkeymap and newkeymap points
+	 * to the same place, so, there's no need to copy
+	 */
+	if (resize && elem > 0)
+		memcpy(newkeymap, oldkeymap,
+		       elem * sizeof(*newkeymap));
+
+	/*
+	 * Copy the other elements overwriting the element to be removed
+	 * This operation applies to both resize and non-resize case
+	 */
+	if (elem < newsize)
+		memcpy(&newkeymap[elem], &oldkeymap[elem + 1],
+		       (newsize - elem) * sizeof(*newkeymap));
+
+	if (resize) {
+		/*
+		 * As the copy happened to a temporary table, only here
+		 * it needs to lock while replacing the table pointers
+		 * to use the new table
+		 */
+		spin_lock_irqsave(&rc_tab->lock, flags);
+		rc_tab->size = newsize;
+		rc_tab->scan = newkeymap;
+		spin_unlock_irqrestore(&rc_tab->lock, flags);
+
+		/* Frees the old keytable */
+		kfree(oldkeymap);
+	} else {
+		rc_tab->size = newsize;
+		spin_unlock_irqrestore(&rc_tab->lock, flags);
+	}
+}
+
+/**
+ * ir_insert_key() - insert a keycode at the table
+ * @rc_tab:		keycode table
+ * @scancode:	the desired scancode
+ * @keycode:	the keycode to be retorned.
+ *
+ */
+static int ir_insert_key(struct ir_scancode_table *rc_tab,
+			  int scancode, int keycode)
+{
+	unsigned long flags;
+	int elem = rc_tab->size;
+	int newsize = rc_tab->size + 1;
+	int resize = ir_is_resize_needed(rc_tab, newsize);
+	struct ir_scancode *oldkeymap = rc_tab->scan;
+	struct ir_scancode *newkeymap;
+
+	if (resize) {
+		newkeymap = kzalloc(ir_roundup_tablesize(newsize) *
+				    sizeof(*newkeymap), GFP_ATOMIC);
+		if (!newkeymap)
+			return -ENOMEM;
+
+		memcpy(newkeymap, oldkeymap,
+		       rc_tab->size * sizeof(*newkeymap));
+	} else
+		newkeymap  = oldkeymap;
+
+	/* Stores the new code at the table */
+	IR_dprintk(1, "#%d: New scan 0x%04x with key 0x%04x\n",
+		   rc_tab->size, scancode, keycode);
+
+	spin_lock_irqsave(&rc_tab->lock, flags);
+	rc_tab->size = newsize;
+	if (resize) {
+		rc_tab->scan = newkeymap;
+		kfree(oldkeymap);
+	}
+	newkeymap[elem].scancode = scancode;
+	newkeymap[elem].keycode  = keycode;
+	spin_unlock_irqrestore(&rc_tab->lock, flags);
+
+	return 0;
 }
 
 /**
@@ -142,20 +290,59 @@ static int ir_setkeycode(struct input_dev *dev,
 	struct ir_scancode *keymap = rc_tab->scan;
 	unsigned long flags;
 
-	/* Search if it is replacing an existing keycode */
+	/*
+	 * Handle keycode table deletions
+	 *
+	 * If userspace is adding a KEY_UNKNOWN or KEY_RESERVED,
+	 * deal as a trial to remove an existing scancode attribution
+	 * if table become too big, reduce it to save space
+	 */
+	if (keycode == KEY_UNKNOWN || keycode == KEY_RESERVED) {
+		rc = ir_seek_table(rc_tab, scancode);
+		if (rc < 0)
+			return 0;
+
+		IR_dprintk(1, "#%d: Deleting scan 0x%04x\n", rc, scancode);
+		clear_bit(keymap[rc].keycode, dev->keybit);
+		ir_delete_key(rc_tab, rc);
+
+		return 0;
+	}
+
+	/*
+	 * Handle keycode replacements
+	 *
+	 * If the scancode exists, just replace by the new value
+	 */
 	rc = ir_seek_table(rc_tab, scancode);
-	if (rc <0)
+	if (rc >= 0) {
+		IR_dprintk(1, "#%d: Replacing scan 0x%04x with key 0x%04x\n",
+			rc, scancode, keycode);
+
+		clear_bit(keymap[rc].keycode, dev->keybit);
+
+		spin_lock_irqsave(&rc_tab->lock, flags);
+		keymap[rc].keycode = keycode;
+		spin_unlock_irqrestore(&rc_tab->lock, flags);
+
+		set_bit(keycode, dev->keybit);
+
+		return 0;
+	}
+
+	/*
+	 * Handle new scancode inserts
+	 *
+	 * reallocate table if needed and insert a new keycode
+	 */
+
+	/* Avoid growing the table indefinitely */
+	if (rc_tab->size + 1 > IR_TAB_MAX_SIZE)
+		return -EINVAL;
+
+	rc = ir_insert_key(rc_tab, scancode, keycode);
+	if (rc < 0)
 		return rc;
-
-	IR_dprintk(1, "#%d: Replacing scan 0x%04x with key 0x%04x\n",
-		rc, scancode, keycode);
-
-	clear_bit(keymap[rc].keycode, dev->keybit);
-
-	spin_lock_irqsave(&rc_tab->lock, flags);
-	keymap[rc].keycode = keycode;
-	spin_unlock_irqrestore(&rc_tab->lock, flags);
-
 	set_bit(keycode, dev->keybit);
 
 	return 0;
