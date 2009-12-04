@@ -170,8 +170,8 @@ struct nfs4_sequence_args {
 struct nfs4_sequence_res {
 	struct nfs4_session	*sr_session;
 	u8			sr_slotid;	/* slot used to send request */
-	unsigned long		sr_renewal_time;
 	int			sr_status;	/* sequence operation status */
+	unsigned long		sr_renewal_time;
 };
 
 struct nfs4_get_lease_time_args {
