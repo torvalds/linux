@@ -75,16 +75,11 @@ static void __init expmask_init(void)
 	/*
 	 * Future proofing.
 	 *
-	 * Disable support for slottable sleep instruction
-	 * and non-nop instructions in the rte delay slot.
+	 * Disable support for slottable sleep instruction, non-nop
+	 * instructions in the rte delay slot, and associative writes to
+	 * the memory-mapped cache array.
 	 */
-	expmask &= ~(EXPMASK_RTEDS | EXPMASK_BRDSSLP);
-
-	/*
-	 * Enable associative writes to the memory-mapped cache array
-	 * until the cache flush ops have been rewritten.
-	 */
-	expmask |= EXPMASK_MMCAW;
+	expmask &= ~(EXPMASK_RTEDS | EXPMASK_BRDSSLP | EXPMASK_MMCAW);
 
 	__raw_writel(expmask, EXPMASK);
 	ctrl_barrier();
