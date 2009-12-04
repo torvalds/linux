@@ -212,7 +212,7 @@ EXPORT_SYMBOL(input_allocate_polled_device);
  * @dev: device to free
  *
  * The function frees memory allocated for polling device and drops
- * reference to the associated input device (if present).
+ * reference to the associated input device.
  */
 void input_free_polled_device(struct input_polled_dev *dev)
 {
@@ -258,6 +258,15 @@ int input_register_polled_device(struct input_polled_dev *dev)
 		return error;
 	}
 
+	/*
+	 * Take extra reference to the underlying input device so
+	 * that it survives call to input_unregister_polled_device()
+	 * and is deleted only after input_free_polled_device()
+	 * has been invoked. This is needed to ease task of freeing
+	 * sparse keymaps.
+	 */
+	input_get_device(input);
+
 	return 0;
 }
 EXPORT_SYMBOL(input_register_polled_device);
@@ -269,8 +278,6 @@ EXPORT_SYMBOL(input_register_polled_device);
  * The function unregisters previously registered polled input
  * device from input layer. Polling is stopped and device is
  * ready to be freed with call to input_free_polled_device().
- * Callers should not attempt to access dev->input pointer
- * after calling this function.
  */
 void input_unregister_polled_device(struct input_polled_dev *dev)
 {
@@ -278,7 +285,6 @@ void input_unregister_polled_device(struct input_polled_dev *dev)
 			   &input_polldev_attribute_group);
 
 	input_unregister_device(dev->input);
-	dev->input = NULL;
 }
 EXPORT_SYMBOL(input_unregister_polled_device);
 
