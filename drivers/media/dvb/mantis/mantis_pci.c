@@ -183,20 +183,7 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	mantis->subsystem_device = pdev->subsystem_device;
 	init_waitqueue_head(&mantis->i2c_wq);
 
-	// CAM bypass
-	//mmwrite(mmread(MANTIS_INT_MASK) | MANTIS_INT_IRQ1, MANTIS_INT_MASK);
-	dprintk(verbose, MANTIS_INFO, 0, "\ngpif status: %04x  irqcfg: %04x\n", mmread(0x9c), mmread(0x98));
-	if ((mmread(0x9c) & 0x200) != 0) { //CAM inserted
-		msleep_interruptible(1);
-		if ((mmread(0x9c) & 0x200) != 0)
-			mmwrite(((mmread(0x98) | 0x01) & ~0x02), 0x98);
-		else
-			mmwrite(((mmread(0x98) | 0x02) & ~0x01), 0x98);
-
-	} else {
-		mmwrite(((mmread(0x98) | 0x02) & ~0x01), 0x98);
-	}
-	mantis_set_direction(mantis, 0);
+	mantis_set_direction(mantis, 0); /* CAM bypass */
 
 	if (!latency)
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 32);
