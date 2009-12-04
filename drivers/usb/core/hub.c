@@ -1676,7 +1676,7 @@ static int usb_configure_device_otg(struct usb_device *udev)
 	if (!udev->bus->is_b_host
 			&& udev->config
 			&& udev->parent == udev->bus->root_hub) {
-		struct usb_otg_descriptor	*desc = 0;
+		struct usb_otg_descriptor	*desc = NULL;
 		struct usb_bus			*bus = udev->bus;
 
 		/* descriptor may appear anywhere in config */
