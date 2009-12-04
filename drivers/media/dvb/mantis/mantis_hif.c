@@ -138,8 +138,6 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	}
 	ca->hif_job_queue &= ~MANTIS_HIF_IOMRD;
 	data = mmread(MANTIS_GPIF_DIN);
-	hif_addr |= MANTIS_GPIF_PCMCIAREG;
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Read: 0x%02x", data);
 	udelay(50);
 
@@ -167,8 +165,6 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 		return -EREMOTEIO;
 	}
 	ca->hif_job_queue &= ~MANTIS_HIF_IOMWR;
-	hif_addr |= MANTIS_GPIF_PCMCIAREG;
-	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
 	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Write: (0x%02x to 0x%02x)", data, addr);
 	udelay(50);
 
