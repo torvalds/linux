@@ -43,6 +43,9 @@ struct blkio_group {
 	unsigned long sectors;
 };
 
+extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
+extern void blkiocg_css_put(struct blkio_cgroup *blkcg);
+
 #else
 
 struct blkio_group {

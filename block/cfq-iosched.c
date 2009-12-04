@@ -961,7 +961,7 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	unsigned int major, minor;
 
 	/* Do we need to take this reference */
-	if (!css_tryget(&blkcg->css))
+	if (!blkiocg_css_tryget(blkcg))
 		return NULL;;
 
 	cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, key));
@@ -994,7 +994,7 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
 
 done:
-	css_put(&blkcg->css);
+	blkiocg_css_put(blkcg);
 	return cfqg;
 }
 

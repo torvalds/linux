@@ -13,16 +13,33 @@
 #include <linux/ioprio.h>
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
+#include <linux/module.h>
 #include "blk-cgroup.h"
 #include "cfq-iosched.h"
 
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
+EXPORT_SYMBOL_GPL(blkio_root_cgroup);
+
+bool blkiocg_css_tryget(struct blkio_cgroup *blkcg)
+{
+	if (!css_tryget(&blkcg->css))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_GPL(blkiocg_css_tryget);
+
+void blkiocg_css_put(struct blkio_cgroup *blkcg)
+{
+	css_put(&blkcg->css);
+}
+EXPORT_SYMBOL_GPL(blkiocg_css_put);
 
 struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 {
 	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
 			    struct blkio_cgroup, css);
 }
+EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
 void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
 			unsigned long time, unsigned long sectors)
@@ -30,6 +47,7 @@ void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
 	blkg->time += time;
 	blkg->sectors += sectors;
 }
+EXPORT_SYMBOL_GPL(blkiocg_update_blkio_group_stats);
 
 void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 			struct blkio_group *blkg, void *key, dev_t dev)
@@ -47,6 +65,7 @@ void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 #endif
 	blkg->dev = dev;
 }
+EXPORT_SYMBOL_GPL(blkiocg_add_blkio_group);
 
 static void __blkiocg_del_blkio_group(struct blkio_group *blkg)
 {
@@ -81,6 +100,7 @@ out:
 	rcu_read_unlock();
 	return ret;
 }
+EXPORT_SYMBOL_GPL(blkiocg_del_blkio_group);
 
 /* called under rcu_read_lock(). */
 struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key)
@@ -97,6 +117,7 @@ struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(blkiocg_lookup_group);
 
 #define SHOW_FUNCTION(__VAR)						\
 static u64 blkiocg_##__VAR##_read(struct cgroup *cgroup,		\
@@ -166,6 +187,7 @@ void blkiocg_update_blkio_group_dequeue_stats(struct blkio_group *blkg,
 {
 	blkg->dequeue += dequeue;
 }
+EXPORT_SYMBOL_GPL(blkiocg_update_blkio_group_dequeue_stats);
 #endif
 
 struct cftype blkio_files[] = {
