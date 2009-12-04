@@ -35,6 +35,8 @@
 #include <linux/i2c.h>
 #include "mantis_reg.h"
 
+#include "mantis_link.h"
+
 #define MANTIS_ERROR		0
 #define MANTIS_NOTICE		1
 #define MANTIS_INFO		2
@@ -134,6 +136,8 @@ struct mantis_pci {
 
 	 /*	A12 A13 A14		*/
 	int			gpio_status;
+
+	struct mantis_ca	*mantis_ca;
 };
 
 extern unsigned int verbose;

@@ -18,34 +18,17 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef __MANTIS_LINK_H
-#define __MANTIS_LINK_H
+#include "mantis_common.h"
 
-enum mantis_sbuf_status {
-	MANTIS_SBUF_DATA_AVAIL		= 1,
-	MANTIS_SBUF_DATA_EMPTY		= 2,
-	MANTIS_SBUF_DATA_OVFLW		= 3
-};
+int mantis_pcmcia_init(struct mantis_ca *ca)
+{
+	struct mantis_pci *mantis = ca->ca_priv;
 
-struct mantis_slot {
-	u32				timeout;
-};
+	return 0;
+}
 
-struct mantis_ca {
-	struct mantis_slot		slot;
+void mantis_pcmcia_exit(struct mantis_ca *ca)
+{
+	struct mantis_pci *mantis = ca->ca_priv;
 
-	struct tasklet_struct		hif_evm_tasklet;
-
-	u32				hif_event;
-	wait_queue_head_t		hif_opdone_wq;
-	wait_queue_head_t		hif_brrdyw_wq;
-	wait_queue_head_t		hif_data_wq;
-	u32				hif_job_queue;
-
-	enum mantis_sbuf_status		sbuf_status;
-
-	struct dvb_device		*ca_dev;
-	void				*ca_priv;
-};
-
-#endif // __MANTIS_LINK_H
+}
