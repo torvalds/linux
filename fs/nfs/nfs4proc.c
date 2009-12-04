@@ -3009,6 +3009,9 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	nfs_invalidate_atime(data->inode);
 	if (task->tk_status > 0)
 		renew_lease(server, data->timestamp);
+	else if (task->tk_status < 0)
+		nfs4_sequence_free_slot(server->nfs_client, &data->res.seq_res);
+
 	return 0;
 }
 
