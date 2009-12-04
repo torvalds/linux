@@ -73,6 +73,40 @@
 #define MANTIS_I2C_STOP			(0x01 <<  5)
 #define MANTIS_I2C_PGMODE		(0x01 <<  3)
 
+#define MANTIS_GPIF_CFGSLA		0x84
+#define MANTIS_GPIF_WAITSMPL		(0x07 << 28)
+#define MANTIS_GPIF_BYTEADDRSUB		(0x01 << 25)
+#define MANTIS_GPIF_WAITPOL		(0x01 << 24)
+#define MANTIS_GPIF_NCDELAY		(0x07 << 20)
+#define MANTIS_GPIF_RW2CSDELAY		(0x07 << 16)
+#define MANTIS_GPIF_SLFTIMEDMODE	(0x01 << 15)
+#define MANTIS_GPIF_SLFTIMEDDELY	(0x7f <<  8)
+#define MANTIS_GPIF_DEVTYPE		(0x07 <<  4)
+#define MANTIS_GPIF_BIGENDIAN		(0x01 <<  3)
+#define MANTIS_GPIF_FETCHCMD		(0x03 <<  1)
+#define MANTIS_GPIF_HWORDDEV		(0x01 <<  0)
+
+#define MANTIS_GPIF_WSTOPER		0x90
+#define MANTIS_GPIF_WSTOPERWREN3	(0x01 << 31)
+#define MANTIS_GPIF_PARBOOTN		(0x01 << 29)
+#define MANTIS_GPIF_WSTOPERSLID3	(0x1f << 24)
+#define MANTIS_GPIF_WSTOPERWREN2	(0x01 << 23)
+#define MANTIS_GPIF_WSTOPERSLID2	(0x1f << 16)
+#define MANTIS_GPIF_WSTOPERWREN1	(0x01 << 15)
+#define MANTIS_GPIF_WSTOPERSLID1	(0x1f <<  8)
+#define MANTIS_GPIF_WSTOPERWREN0	(0x01 <<  7)
+#define MANTIS_GPIF_WSTOPERSLID0	(0x1f <<  0)
+
+#define MANTIS_GPIF_CS2RW		0x94
+#define MANTIS_GPIF_CS2RWWREN3		(0x01 << 31)
+#define MANTIS_GPIF_CS2RWDELY3		(0x3f << 24)
+#define MANTIS_GPIF_CS2RWWREN2		(0x01 << 23)
+#define MANTIS_GPIF_CS2RWDELY2		(0x3f << 16)
+#define MANTIS_GPIF_CS2RWWREN1		(0x01 << 15)
+#define MANTIS_GPIF_CS2RWDELY1		(0x3f <<  8)
+#define MANTIS_GPIF_CS2RWWREN0		(0x01 <<  7)
+#define MANTIS_GPIF_CS2RWDELY0		(0x3f <<  0)
+
 #define MANTIS_GPIF_IRQCFG		0x98
 #define MANTIS_GPIF_IRQPOL		(0x01 <<  8)
 #define MANTIS_MASK_WRACK		(0x01 <<  7)
@@ -99,11 +133,33 @@
 #define MANTIS_CARD_PLUGIN		(0x01 <<  1)
 #define MANTIS_CARD_PLUGOUT		(0x01 <<  0)
 
+#define MANTIS_GPIF_BRADDR		0xa0
+#define MANTIS_GPIF_PCMCIAREG		(0x01 		<< 27)
+#define MANTIS_GPIF_PCMCIAIOM		(0x01 		<< 26)
+#define MANTIS_GPIF_BR_ADDR		(0xfffffff	<<  0)
+
+#define MANTIS_GPIF_BRBYTES		0xa4
+#define MANTIS_GPIF_BRCNT		(0xfff 		<<  0)
+
+#define MANTIS_PCMCIA_RESET		0xa8
+#define MANTIS_PCMCIA_RSTVAL		(0xff << 0)
+
+#define MANTIS_CARD_RESET		0xac
+
 #define MANTIS_GPIF_ADDR		0xb0
-#define MANTIS_GPIF_RDWRN		(0x01 << 31)
+#define MANTIS_GPIF_RDWRN		(0x01		<< 31)
+#define MANTIS_GPIF_PCMCIAREG		(0x01		<< 27)
+#define MANTIS_GPIF_PCMCIAIOM		(0x01		<< 26)
+#define MANTIS_GPIF_HIF_ADDR		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_DOUT		0xb4
-#define MANTIS_GPIF_DIN			0xb8
+#define MANTIS_GPIF_HIF_DOUT		(0xfffffff	<<  0)
 
+#define MANTIS_GPIF_DIN			0xb8
+#define MANTIS_GPIF_HIF_DIN		(0xfffffff	<<  0)
+
+#define MANTIS_GPIF_SPARE		0xbc
+#define MANTIS_GPIF_LOGICRD		(0xffff		<< 16)
+#define MANTIS_GPIF_LOGICRW		(0xffff		<<  0)
 
 #endif //__MANTIS_REG_H

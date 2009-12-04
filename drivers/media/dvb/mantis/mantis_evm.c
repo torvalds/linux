@@ -20,12 +20,76 @@
 
 #include "mantis_common.h"
 #include "mantis_link.h"
+#include "mantis_hif.h"
+
+void mantis_hifevm_tasklet(unsigned long data)
+{
+	struct mantis_ca *ca = (struct mantis_ca *) data;
+	struct mantis_pci *mantis = ca->ca_priv;
+
+	u32 gpif_stat;
+
+	gpif_stat = mmread(MANTIS_GPIF_STATUS);
+
+	if (gpif_stat & MANTIS_GPIF_DETSTAT) {
+		if (gpif_stat & MANTIS_CARD_PLUGIN) {
+			dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Plugin", mantis->num);
+			mmwrite(0xdada0000, MANTIS_CARD_RESET);
+			// Plugin call here
+			gpif_stat = 0; // crude !
+		}
+	} else {
+		if (gpif_stat & MANTIS_CARD_PLUGOUT) {
+			dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Unplug", mantis->num);
+			mmwrite(0xdada0000, MANTIS_CARD_RESET);
+			// Unplug call here
+			gpif_stat = 0; // crude !
+		}
+	}
+
+	if (gpif_stat & MANTIS_GPIF_EXTIRQ)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Ext IRQ", mantis->num);
+
+	if (gpif_stat & MANTIS_SBUF_WSTO)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Timeout", mantis->num);
+
+	if (gpif_stat & MANTIS_GPIF_OTHERR)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Alignment Error", mantis->num);
+
+	if (gpif_stat & MANTIS_SBUF_OVFLW)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Overflow", mantis->num);
+
+	if (gpif_stat & MANTIS_GPIF_BRRDY) {
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Read Ready", mantis->num);
+		ca->sbuf_status = MANTIS_SBUF_DATA_AVAIL;
+		if (ca->hif_job_queue & MANTIS_HIF_MEMRD)
+			wake_up(&ca->hif_brrdyw_wq);
+	}
+	if (gpif_stat & MANTIS_GPIF_WRACK)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Slave Write ACK", mantis->num);
+
+	if (gpif_stat & MANTIS_GPIF_INTSTAT)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): GPIF IRQ", mantis->num);
+
+	if (gpif_stat & MANTIS_SBUF_EMPTY)
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Empty", mantis->num);
+
+	if (gpif_stat & MANTIS_SBUF_OPDONE) {
+		dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer operation complete", mantis->num);
+		if (ca->hif_job_queue) {
+			wake_up(&ca->hif_opdone_wq);
+			ca->hif_event = MANTIS_SBUF_OPDONE;
+		}
+	}
+}
 
 int mantis_evmgr_init(struct mantis_ca *ca)
 {
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Initializing Mantis Host I/F Event manager");
+	tasklet_init(&ca->hif_evm_tasklet, mantis_hifevm_tasklet, (unsigned long) ca);
+
 	return 0;
 }
 
@@ -34,4 +98,5 @@ void mantis_evmgr_exit(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(mantis->verbose, MANTIS_DEBUG, 1, "Mantis Host I/F Event manager exiting");
+	tasklet_kill(&ca->hif_evm_tasklet);
 }
