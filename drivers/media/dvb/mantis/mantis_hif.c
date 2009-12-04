@@ -75,10 +75,6 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 	udelay(20);
 
 	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
-	if (mantis_hif_data_available(ca) != 0) {
-		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): GPIF Smart Buffer burst read failed", mantis->num);
-		return -EREMOTEIO;
-	}
 	if (mantis_hif_sbuf_opdone_wait(ca) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): GPIF Smart Buffer operation failed", mantis->num);
 		return -EREMOTEIO;
