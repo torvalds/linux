@@ -270,7 +270,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR: %d Reset session\n", __func__,
 				errorcode);
-			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 			exception->retry = 1;
 			/* FALLTHROUGH */
 #endif /* !defined(CONFIG_NFS_V4_1) */
@@ -446,7 +446,7 @@ static int nfs4_recover_session(struct nfs4_session *session)
 		ret = nfs4_wait_clnt_recover(clp);
 		if (ret != 0)
 			break;
-		if (!test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state))
+		if (!test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
 			break;
 		nfs4_schedule_state_manager(clp);
 		ret = -EIO;
@@ -475,7 +475,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	tbl = &session->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	if (test_bit(NFS4CLNT_SESSION_SETUP, &session->clp->cl_state)) {
+	if (test_bit(NFS4CLNT_SESSION_RESET, &session->clp->cl_state)) {
 		if (tbl->highest_used_slotid != -1) {
 			rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 			spin_unlock(&tbl->slot_tbl_lock);
@@ -3363,7 +3363,7 @@ _nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server,
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR %d, Reset session\n", __func__,
 				task->tk_status);
-			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 			task->tk_status = 0;
 			return -EAGAIN;
 #endif /* CONFIG_NFS_V4_1 */

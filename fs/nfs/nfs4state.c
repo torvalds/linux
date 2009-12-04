@@ -1092,7 +1092,7 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 		case -NFS4ERR_SEQ_FALSE_RETRY:
 		case -NFS4ERR_SEQ_MISORDERED:
-			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 	}
 	return error;
 }
@@ -1256,7 +1256,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		/* Initialize or reset the session */
-		if (test_and_clear_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)
+		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
 			status = nfs4_reset_session(clp);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
@@ -1270,7 +1270,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			status = nfs4_do_reclaim(clp,
 				nfs4_reboot_recovery_ops[clp->cl_minorversion]);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
-			    test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state))
+			    test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
 				continue;
 			nfs4_state_end_reclaim_reboot(clp);
 			if (test_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state))
@@ -1284,7 +1284,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			status = nfs4_do_reclaim(clp,
 				nfs4_nograce_recovery_ops[clp->cl_minorversion]);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
-			    test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state) ||
+			    test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state) ||
 			    test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
 				continue;
 			if (status < 0)

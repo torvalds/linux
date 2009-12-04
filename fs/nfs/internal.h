@@ -183,7 +183,7 @@ static inline void nfs4_restart_rpc(struct rpc_task *task,
 {
 #ifdef CONFIG_NFS_V4_1
 	if (nfs4_has_session(clp) &&
-	    test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)) {
+	    test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)) {
 		rpc_restart_call_prepare(task);
 		return;
 	}
