@@ -35,7 +35,6 @@ int __init pci_legacy_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pci_legacy_init);
 
 void pcibios_scan_specific_bus(int busn)
 {
