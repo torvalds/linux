@@ -58,7 +58,6 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 
 		/* wait for xfer completion */
 		for (trials = 0; trials < TRIALS; trials++) {
-			msleep(1);
 			stat = mmread(MANTIS_INT_STAT);
 			if (stat & MANTIS_INT_I2CDONE)
 				break;
@@ -71,7 +70,6 @@ static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
 			stat = mmread(MANTIS_INT_STAT);
 			if (stat & MANTIS_INT_I2CRACK)
 				break;
-			msleep(1);
 		}
 
 		dprintk(MANTIS_TMG, 0, "I2CRACK: trials=%d\n", trials);
@@ -108,7 +106,6 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 
 		/* wait for xfer completion */
 		for (trials = 0; trials < TRIALS; trials++) {
-			msleep(1);
 			stat = mmread(MANTIS_INT_STAT);
 			if (stat & MANTIS_INT_I2CDONE)
 				break;
@@ -121,7 +118,6 @@ static int mantis_i2c_write(struct mantis_pci *mantis, const struct i2c_msg *msg
 			stat = mmread(MANTIS_INT_STAT);
 			if (stat & MANTIS_INT_I2CRACK)
 				break;
-			msleep(1);
 		}
 
 		dprintk(MANTIS_TMG, 0, "I2CRACK: trials=%d\n", trials);
@@ -164,7 +160,6 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 			mmwrite(txd, MANTIS_I2CDATA_CTL);
 			/* wait for xfer completion */
 			for (trials = 0; trials < TRIALS; trials++) {
-				msleep(1);
 				stat = mmread(MANTIS_INT_STAT);
 				if (stat & MANTIS_INT_I2CDONE)
 					break;
