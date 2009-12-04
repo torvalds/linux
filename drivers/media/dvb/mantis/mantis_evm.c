@@ -27,9 +27,12 @@ void mantis_hifevm_tasklet(unsigned long data)
 	struct mantis_ca *ca = (struct mantis_ca *) data;
 	struct mantis_pci *mantis = ca->ca_priv;
 
-	u32 gpif_stat;
+	u32 gpif_stat, gpif_mask;
 
 	gpif_stat = mmread(MANTIS_GPIF_STATUS);
+	gpif_mask = mmread(MANTIS_GPIF_IRQCFG);
+	if (!((gpif_stat & 0xff) & (gpif_mask & 0xff)))
+		return;
 
 	if (gpif_stat & MANTIS_GPIF_DETSTAT) {
 		if (gpif_stat & MANTIS_CARD_PLUGIN) {

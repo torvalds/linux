@@ -313,6 +313,7 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 
 int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
 {
+	mantis_ca_exit(mantis);
 	tasklet_kill(&mantis->tasklet);
 	dvb_net_release(&mantis->dvbnet);
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);
