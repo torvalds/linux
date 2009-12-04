@@ -104,25 +104,6 @@ static int antenna = CFG_SYS_ANTENNA_BOTH;
 static int rtap_iface = 0;     /* def: 0 -- do not create rtap interface */
 #endif
 
-static struct ieee80211_rate ipw2200_rates[] = {
-	{ .bitrate = 10 },
-	{ .bitrate = 20, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-	{ .bitrate = 55, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-	{ .bitrate = 110, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-	{ .bitrate = 60 },
-	{ .bitrate = 90 },
-	{ .bitrate = 120 },
-	{ .bitrate = 180 },
-	{ .bitrate = 240 },
-	{ .bitrate = 360 },
-	{ .bitrate = 480 },
-	{ .bitrate = 540 }
-};
-
-#define ipw2200_a_rates		(ipw2200_rates + 4)
-#define ipw2200_num_a_rates	8
-#define ipw2200_bg_rates	(ipw2200_rates + 0)
-#define ipw2200_num_bg_rates	12
 
 #ifdef CONFIG_IPW2200_QOS
 static int qos_enable = 0;
@@ -8674,6 +8655,24 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
  *
  */
 
+static int ipw_wx_get_name(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
+{
+	struct ipw_priv *priv = libipw_priv(dev);
+	mutex_lock(&priv->mutex);
+	if (priv->status & STATUS_RF_KILL_MASK)
+		strcpy(wrqu->name, "radio off");
+	else if (!(priv->status & STATUS_ASSOCIATED))
+		strcpy(wrqu->name, "unassociated");
+	else
+		snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11%c",
+			 ipw_modes[priv->assoc_request.ieee_mode]);
+	IPW_DEBUG_WX("Name: %s\n", wrqu->name);
+	mutex_unlock(&priv->mutex);
+	return 0;
+}
+
 static int ipw_set_channel(struct ipw_priv *priv, u8 channel)
 {
 	if (channel == 0) {
@@ -9973,7 +9972,7 @@ static int ipw_wx_sw_reset(struct net_device *dev,
 /* Rebase the WE IOCTLs to zero for the handler array */
 #define IW_IOCTL(x) [(x)-SIOCSIWCOMMIT]
 static iw_handler ipw_wx_handlers[] = {
-	IW_IOCTL(SIOCGIWNAME) = (iw_handler) cfg80211_wext_giwname,
+	IW_IOCTL(SIOCGIWNAME) = ipw_wx_get_name,
 	IW_IOCTL(SIOCSIWFREQ) = ipw_wx_set_freq,
 	IW_IOCTL(SIOCGIWFREQ) = ipw_wx_get_freq,
 	IW_IOCTL(SIOCSIWMODE) = ipw_wx_set_mode,
@@ -11417,100 +11416,16 @@ static void ipw_bg_down(struct work_struct *work)
 /* Called by register_netdev() */
 static int ipw_net_init(struct net_device *dev)
 {
-	int i, rc = 0;
 	struct ipw_priv *priv = libipw_priv(dev);
-	const struct libipw_geo *geo = libipw_get_geo(priv->ieee);
-	struct wireless_dev *wdev = &priv->ieee->wdev;
 	mutex_lock(&priv->mutex);
 
 	if (ipw_up(priv)) {
-		rc = -EIO;
-		goto out;
+		mutex_unlock(&priv->mutex);
+		return -EIO;
 	}
 
-	memcpy(wdev->wiphy->perm_addr, priv->mac_addr, ETH_ALEN);
-
-	/* fill-out priv->ieee->bg_band */
-	if (geo->bg_channels) {
-		struct ieee80211_supported_band *bg_band = &priv->ieee->bg_band;
-
-		bg_band->band = IEEE80211_BAND_2GHZ;
-		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels =
-			kzalloc(geo->bg_channels *
-				sizeof(struct ieee80211_channel), GFP_KERNEL);
-		/* translate geo->bg to bg_band.channels */
-		for (i = 0; i < geo->bg_channels; i++) {
-			bg_band->channels[i].band = IEEE80211_BAND_2GHZ;
-			bg_band->channels[i].center_freq = geo->bg[i].freq;
-			bg_band->channels[i].hw_value = geo->bg[i].channel;
-			bg_band->channels[i].max_power = geo->bg[i].max_power;
-			if (geo->bg[i].flags & LIBIPW_CH_PASSIVE_ONLY)
-				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_PASSIVE_SCAN;
-			if (geo->bg[i].flags & LIBIPW_CH_NO_IBSS)
-				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_NO_IBSS;
-			if (geo->bg[i].flags & LIBIPW_CH_RADAR_DETECT)
-				bg_band->channels[i].flags |=
-					IEEE80211_CHAN_RADAR;
-			/* No equivalent for LIBIPW_CH_80211H_RULES,
-			   LIBIPW_CH_UNIFORM_SPREADING, or
-			   LIBIPW_CH_B_ONLY... */
-		}
-		/* point at bitrate info */
-		bg_band->bitrates = ipw2200_bg_rates;
-		bg_band->n_bitrates = ipw2200_num_bg_rates;
-
-		wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = bg_band;
-	}
-
-	/* fill-out priv->ieee->a_band */
-	if (geo->a_channels) {
-		struct ieee80211_supported_band *a_band = &priv->ieee->a_band;
-
-		a_band->band = IEEE80211_BAND_5GHZ;
-		a_band->n_channels = geo->a_channels;
-		a_band->channels =
-			kzalloc(geo->a_channels *
-				sizeof(struct ieee80211_channel), GFP_KERNEL);
-		/* translate geo->bg to a_band.channels */
-		for (i = 0; i < geo->a_channels; i++) {
-			a_band->channels[i].band = IEEE80211_BAND_2GHZ;
-			a_band->channels[i].center_freq = geo->a[i].freq;
-			a_band->channels[i].hw_value = geo->a[i].channel;
-			a_band->channels[i].max_power = geo->a[i].max_power;
-			if (geo->a[i].flags & LIBIPW_CH_PASSIVE_ONLY)
-				a_band->channels[i].flags |=
-					IEEE80211_CHAN_PASSIVE_SCAN;
-			if (geo->a[i].flags & LIBIPW_CH_NO_IBSS)
-				a_band->channels[i].flags |=
-					IEEE80211_CHAN_NO_IBSS;
-			if (geo->a[i].flags & LIBIPW_CH_RADAR_DETECT)
-				a_band->channels[i].flags |=
-					IEEE80211_CHAN_RADAR;
-			/* No equivalent for LIBIPW_CH_80211H_RULES,
-			   LIBIPW_CH_UNIFORM_SPREADING, or
-			   LIBIPW_CH_B_ONLY... */
-		}
-		/* point at bitrate info */
-		a_band->bitrates = ipw2200_a_rates;
-		a_band->n_bitrates = ipw2200_num_a_rates;
-
-		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = a_band;
-	}
-
-	set_wiphy_dev(wdev->wiphy, &priv->pci_dev->dev);
-
-	/* With that information in place, we can now register the wiphy... */
-	if (wiphy_register(wdev->wiphy)) {
-		rc = -EIO;
-		goto out;
-	}
-
-out:
 	mutex_unlock(&priv->mutex);
-	return rc;
+	return 0;
 }
 
 /* PCI driver stuff */
@@ -11641,7 +11556,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 	if (priv->prom_net_dev)
 		return -EPERM;
 
-	priv->prom_net_dev = alloc_ieee80211(sizeof(struct ipw_prom_priv), 1);
+	priv->prom_net_dev = alloc_ieee80211(sizeof(struct ipw_prom_priv));
 	if (priv->prom_net_dev == NULL)
 		return -ENOMEM;
 
@@ -11660,7 +11575,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 
 	rc = register_netdev(priv->prom_net_dev);
 	if (rc) {
-		free_ieee80211(priv->prom_net_dev, 1);
+		free_ieee80211(priv->prom_net_dev);
 		priv->prom_net_dev = NULL;
 		return rc;
 	}
@@ -11674,7 +11589,7 @@ static void ipw_prom_free(struct ipw_priv *priv)
 		return;
 
 	unregister_netdev(priv->prom_net_dev);
-	free_ieee80211(priv->prom_net_dev, 1);
+	free_ieee80211(priv->prom_net_dev);
 
 	priv->prom_net_dev = NULL;
 }
@@ -11702,7 +11617,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	struct ipw_priv *priv;
 	int i;
 
-	net_dev = alloc_ieee80211(sizeof(struct ipw_priv), 0);
+	net_dev = alloc_ieee80211(sizeof(struct ipw_priv));
 	if (net_dev == NULL) {
 		err = -ENOMEM;
 		goto out;
@@ -11822,7 +11737,6 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		if (err) {
 			IPW_ERROR("Failed to register promiscuous network "
 				  "device (error %d).\n", err);
-			unregister_ieee80211(priv->ieee);
 			unregister_netdev(priv->net_dev);
 			goto out_remove_sysfs;
 		}
@@ -11851,7 +11765,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
       out_free_ieee80211:
-	free_ieee80211(priv->net_dev, 0);
+	free_ieee80211(priv->net_dev);
       out:
 	return err;
 }
@@ -11873,7 +11787,6 @@ static void __devexit ipw_pci_remove(struct pci_dev *pdev)
 
 	mutex_unlock(&priv->mutex);
 
-	unregister_ieee80211(priv->ieee);
 	unregister_netdev(priv->net_dev);
 
 	if (priv->rxq) {
@@ -11919,7 +11832,7 @@ static void __devexit ipw_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-	free_ieee80211(priv->net_dev, 0);
+	free_ieee80211(priv->net_dev);
 	free_firmware();
 }
 

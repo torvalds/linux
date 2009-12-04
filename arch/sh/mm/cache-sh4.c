@@ -72,6 +72,7 @@ static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
 
 	for (v = start; v < end; v += L1_CACHE_BYTES) {
 		unsigned long icacheaddr;
+		int j, n;
 
 		__ocbwb(v);
 
@@ -79,8 +80,10 @@ static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
 				cpu_data->icache.entry_mask);
 
 		/* Clear i-cache line valid-bit */
+		n = boot_cpu_data.icache.n_aliases;
 		for (i = 0; i < cpu_data->icache.ways; i++) {
-			__raw_writel(0, icacheaddr);
+			for (j = 0; j < n; j++)
+				__raw_writel(0, icacheaddr + (j * PAGE_SIZE));
 			icacheaddr += cpu_data->icache.way_incr;
 		}
 	}

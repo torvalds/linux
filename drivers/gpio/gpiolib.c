@@ -661,7 +661,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 
 		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
 				desc, ioname ? ioname : "gpio%d", gpio);
-		if (dev) {
+		if (!IS_ERR(dev)) {
 			if (direction_may_change)
 				status = sysfs_create_group(&dev->kobj,
 						&gpio_attr_group);
@@ -679,7 +679,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 			if (status != 0)
 				device_unregister(dev);
 		} else
-			status = -ENODEV;
+			status = PTR_ERR(dev);
 		if (status == 0)
 			set_bit(FLAG_EXPORT, &desc->flags);
 	}
@@ -800,11 +800,11 @@ static int gpiochip_export(struct gpio_chip *chip)
 	mutex_lock(&sysfs_lock);
 	dev = device_create(&gpio_class, chip->dev, MKDEV(0, 0), chip,
 				"gpiochip%d", chip->base);
-	if (dev) {
+	if (!IS_ERR(dev)) {
 		status = sysfs_create_group(&dev->kobj,
 				&gpiochip_attr_group);
 	} else
-		status = -ENODEV;
+		status = PTR_ERR(dev);
 	chip->exported = (status == 0);
 	mutex_unlock(&sysfs_lock);
 

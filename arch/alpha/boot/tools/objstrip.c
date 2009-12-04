@@ -35,7 +35,7 @@
 const char * prog_name;
 
 
-void
+static void
 usage (void)
 {
     fprintf(stderr,

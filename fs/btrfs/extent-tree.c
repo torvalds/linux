@@ -2977,10 +2977,10 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 
 	free_space = btrfs_super_total_bytes(disk_super);
 	/*
-	 * we allow the metadata to grow to a max of either 5gb or 5% of the
+	 * we allow the metadata to grow to a max of either 10gb or 5% of the
 	 * space in the volume.
 	 */
-	min_metadata = min((u64)5 * 1024 * 1024 * 1024,
+	min_metadata = min((u64)10 * 1024 * 1024 * 1024,
 			     div64_u64(free_space * 5, 100));
 	if (info->total_bytes >= min_metadata) {
 		spin_unlock(&info->lock);
@@ -4102,7 +4102,7 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 }
 
 enum btrfs_loop_type {
-	LOOP_CACHED_ONLY = 0,
+	LOOP_FIND_IDEAL = 0,
 	LOOP_CACHING_NOWAIT = 1,
 	LOOP_CACHING_WAIT = 2,
 	LOOP_ALLOC_CHUNK = 3,
@@ -4131,12 +4131,15 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *block_group = NULL;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
+	int done_chunk_alloc = 0;
 	struct btrfs_space_info *space_info;
 	int last_ptr_loop = 0;
 	int loop = 0;
 	bool found_uncached_bg = false;
 	bool failed_cluster_refill = false;
 	bool failed_alloc = false;
+	u64 ideal_cache_percent = 0;
+	u64 ideal_cache_offset = 0;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -4172,14 +4175,19 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 		empty_cluster = 0;
 
 	if (search_start == hint_byte) {
+ideal_cache:
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
 		/*
 		 * we don't want to use the block group if it doesn't match our
 		 * allocation bits, or if its not cached.
+		 *
+		 * However if we are re-searching with an ideal block group
+		 * picked out then we don't care that the block group is cached.
 		 */
 		if (block_group && block_group_bits(block_group, data) &&
-		    block_group_cache_done(block_group)) {
+		    (block_group->cached != BTRFS_CACHE_NO ||
+		     search_start == ideal_cache_offset)) {
 			down_read(&space_info->groups_sem);
 			if (list_empty(&block_group->list) ||
 			    block_group->ro) {
@@ -4191,13 +4199,13 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 				 */
 				btrfs_put_block_group(block_group);
 				up_read(&space_info->groups_sem);
-			} else
+			} else {
 				goto have_block_group;
+			}
 		} else if (block_group) {
 			btrfs_put_block_group(block_group);
 		}
 	}
-
 search:
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups, list) {
@@ -4209,27 +4217,44 @@ search:
 
 have_block_group:
 		if (unlikely(block_group->cached == BTRFS_CACHE_NO)) {
+			u64 free_percent;
+
+			free_percent = btrfs_block_group_used(&block_group->item);
+			free_percent *= 100;
+			free_percent = div64_u64(free_percent,
+						 block_group->key.offset);
+			free_percent = 100 - free_percent;
+			if (free_percent > ideal_cache_percent &&
+			    likely(!block_group->ro)) {
+				ideal_cache_offset = block_group->key.objectid;
+				ideal_cache_percent = free_percent;
+			}
+
 			/*
-			 * we want to start caching kthreads, but not too many
-			 * right off the bat so we don't overwhelm the system,
-			 * so only start them if there are less than 2 and we're
-			 * in the initial allocation phase.
+			 * We only want to start kthread caching if we are at
+			 * the point where we will wait for caching to make
+			 * progress, or if our ideal search is over and we've
+			 * found somebody to start caching.
 			 */
 			if (loop > LOOP_CACHING_NOWAIT ||
-			    atomic_read(&space_info->caching_threads) < 2) {
+			    (loop > LOOP_FIND_IDEAL &&
+			     atomic_read(&space_info->caching_threads) < 2)) {
 				ret = cache_block_group(block_group);
 				BUG_ON(ret);
 			}
+			found_uncached_bg = true;
+
+			/*
+			 * If loop is set for cached only, try the next block
+			 * group.
+			 */
+			if (loop == LOOP_FIND_IDEAL)
+				goto loop;
 		}
 
 		cached = block_group_cache_done(block_group);
-		if (unlikely(!cached)) {
+		if (unlikely(!cached))
 			found_uncached_bg = true;
-
-			/* if we only want cached bgs, loop */
-			if (loop == LOOP_CACHED_ONLY)
-				goto loop;
-		}
 
 		if (unlikely(block_group->ro))
 			goto loop;
@@ -4410,9 +4435,11 @@ loop:
 	}
 	up_read(&space_info->groups_sem);
 
-	/* LOOP_CACHED_ONLY, only search fully cached block groups
-	 * LOOP_CACHING_NOWAIT, search partially cached block groups, but
-	 *			dont wait foR them to finish caching
+	/* LOOP_FIND_IDEAL, only search caching/cached bg's, and don't wait for
+	 *			for them to make caching progress.  Also
+	 *			determine the best possible bg to cache
+	 * LOOP_CACHING_NOWAIT, search partially cached block groups, kicking
+	 *			caching kthreads as we move along
 	 * LOOP_CACHING_WAIT, search everything, and wait if our bg is caching
 	 * LOOP_ALLOC_CHUNK, force a chunk allocation and try again
 	 * LOOP_NO_EMPTY_SIZE, set empty_size and empty_cluster to 0 and try
@@ -4421,12 +4448,47 @@ loop:
 	if (!ins->objectid && loop < LOOP_NO_EMPTY_SIZE &&
 	    (found_uncached_bg || empty_size || empty_cluster ||
 	     allowed_chunk_alloc)) {
-		if (found_uncached_bg) {
+		if (loop == LOOP_FIND_IDEAL && found_uncached_bg) {
 			found_uncached_bg = false;
-			if (loop < LOOP_CACHING_WAIT) {
-				loop++;
+			loop++;
+			if (!ideal_cache_percent &&
+			    atomic_read(&space_info->caching_threads))
 				goto search;
-			}
+
+			/*
+			 * 1 of the following 2 things have happened so far
+			 *
+			 * 1) We found an ideal block group for caching that
+			 * is mostly full and will cache quickly, so we might
+			 * as well wait for it.
+			 *
+			 * 2) We searched for cached only and we didn't find
+			 * anything, and we didn't start any caching kthreads
+			 * either, so chances are we will loop through and
+			 * start a couple caching kthreads, and then come back
+			 * around and just wait for them.  This will be slower
+			 * because we will have 2 caching kthreads reading at
+			 * the same time when we could have just started one
+			 * and waited for it to get far enough to give us an
+			 * allocation, so go ahead and go to the wait caching
+			 * loop.
+			 */
+			loop = LOOP_CACHING_WAIT;
+			search_start = ideal_cache_offset;
+			ideal_cache_percent = 0;
+			goto ideal_cache;
+		} else if (loop == LOOP_FIND_IDEAL) {
+			/*
+			 * Didn't find a uncached bg, wait on anything we find
+			 * next.
+			 */
+			loop = LOOP_CACHING_WAIT;
+			goto search;
+		}
+
+		if (loop < LOOP_CACHING_WAIT) {
+			loop++;
+			goto search;
 		}
 
 		if (loop == LOOP_ALLOC_CHUNK) {
@@ -4438,7 +4500,8 @@ loop:
 			ret = do_chunk_alloc(trans, root, num_bytes +
 					     2 * 1024 * 1024, data, 1);
 			allowed_chunk_alloc = 0;
-		} else {
+			done_chunk_alloc = 1;
+		} else if (!done_chunk_alloc) {
 			space_info->force_alloc = 1;
 		}
 

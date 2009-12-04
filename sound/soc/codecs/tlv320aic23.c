@@ -85,7 +85,7 @@ static int tlv320aic23_write(struct snd_soc_codec *codec, unsigned int reg,
 	 * of data into val
 	 */
 
-	if ((reg < 0 || reg > 9) && (reg != 15)) {
+	if (reg > 9 && reg != 15) {
 		printk(KERN_WARNING "%s Invalid register R%u\n", __func__, reg);
 		return -1;
 	}

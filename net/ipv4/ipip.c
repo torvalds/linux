@@ -438,25 +438,27 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_error;
 	}
 
-	if (tiph->frag_off)
+	df |= old_iph->frag_off & htons(IP_DF);
+
+	if (df) {
 		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
-	else
-		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
-	if (mtu < 68) {
-		stats->collisions++;
-		ip_rt_put(rt);
-		goto tx_error;
-	}
-	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
+		if (mtu < 68) {
+			stats->collisions++;
+			ip_rt_put(rt);
+			goto tx_error;
+		}
 
-	df |= (old_iph->frag_off&htons(IP_DF));
+		if (skb_dst(skb))
+			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
-	if ((old_iph->frag_off&htons(IP_DF)) && mtu < ntohs(old_iph->tot_len)) {
-		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
-		ip_rt_put(rt);
-		goto tx_error;
+		if ((old_iph->frag_off & htons(IP_DF)) &&
+		    mtu < ntohs(old_iph->tot_len)) {
+			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+				  htonl(mtu));
+			ip_rt_put(rt);
+			goto tx_error;
+		}
 	}
 
 	if (tunnel->err_count > 0) {

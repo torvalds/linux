@@ -555,7 +555,7 @@ struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
 	 * NOTE: the return address is guaranteed to be setup by the
 	 * time this function makes its first function call.
 	 */
-	if (!pc && !prev)
+	if (!pc || !prev)
 		pc = (unsigned long)current_text_addr();
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

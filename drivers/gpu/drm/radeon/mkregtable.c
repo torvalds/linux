@@ -561,7 +561,7 @@ struct table {
 	char *gpu_prefix;
 };
 
-struct offset *offset_new(unsigned o)
+static struct offset *offset_new(unsigned o)
 {
 	struct offset *offset;
 
@@ -573,12 +573,12 @@ struct offset *offset_new(unsigned o)
 	return offset;
 }
 
-void table_offset_add(struct table *t, struct offset *offset)
+static void table_offset_add(struct table *t, struct offset *offset)
 {
 	list_add_tail(&offset->list, &t->offsets);
 }
 
-void table_init(struct table *t)
+static void table_init(struct table *t)
 {
 	INIT_LIST_HEAD(&t->offsets);
 	t->offset_max = 0;
@@ -586,7 +586,7 @@ void table_init(struct table *t)
 	t->table = NULL;
 }
 
-void table_print(struct table *t)
+static void table_print(struct table *t)
 {
 	unsigned nlloop, i, j, n, c, id;
 
@@ -611,7 +611,7 @@ void table_print(struct table *t)
 	printf("};\n");
 }
 
-int table_build(struct table *t)
+static int table_build(struct table *t)
 {
 	struct offset *offset;
 	unsigned i, m;
@@ -631,7 +631,7 @@ int table_build(struct table *t)
 }
 
 static char gpu_name[10];
-int parser_auth(struct table *t, const char *filename)
+static int parser_auth(struct table *t, const char *filename)
 {
 	FILE *file;
 	regex_t mask_rex;

@@ -727,11 +727,12 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		cifs_dir_info_to_fattr(&fattr, (FILE_DIRECTORY_INFO *)
 					pfindEntry, cifs_sb);
 
-	/* FIXME: make _to_fattr functions fill this out */
-	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_ID_FULL_DIR_INFO)
+	if (inum && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		fattr.cf_uniqueid = inum;
-	else
+	} else {
 		fattr.cf_uniqueid = iunique(sb, ROOT_I);
+		cifs_autodisable_serverino(cifs_sb);
+	}
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring, &fattr);

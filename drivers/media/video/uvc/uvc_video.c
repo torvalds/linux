@@ -90,7 +90,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		ctrl->dwMaxVideoFrameSize =
 			frame->dwMaxVideoFrameBufferSize;
 
-	if (stream->dev->quirks & UVC_QUIRK_FIX_BANDWIDTH &&
+	if (!(format->flags & UVC_FMT_FLAG_COMPRESSED) &&
+	    stream->dev->quirks & UVC_QUIRK_FIX_BANDWIDTH &&
 	    stream->intf->num_altsetting > 1) {
 		u32 interval;
 		u32 bandwidth;
