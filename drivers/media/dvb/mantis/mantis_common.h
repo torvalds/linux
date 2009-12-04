@@ -32,6 +32,7 @@
 #define MANTIS_NOTICE		1
 #define MANTIS_INFO		2
 #define MANTIS_DEBUG		3
+#define MANTIS_TMG		9
 
 #define dprintk(y, z, format, arg...) do {								\
 	if (z) {											\
@@ -42,6 +43,8 @@
 		else if ((mantis->verbose > MANTIS_INFO) && (mantis->verbose > y))			\
 			printk(KERN_INFO "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 		else if ((mantis->verbose > MANTIS_DEBUG) && (mantis->verbose > y))			\
+			printk(KERN_DEBUG "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
+		else if ((mantis->verbose > MANTIS_TMG) && (mantis->verbose > y))			\
 			printk(KERN_DEBUG "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 	} else {											\
 		if (mantis->verbose > y)								\
@@ -54,9 +57,6 @@
 
 #define mmwrite(dat, addr)	mwrite((dat), (mantis->mmio + (addr)))
 #define mmread(addr)		mread(mantis->mmio + (addr))
-#define mmand(dat, addr)	mmwrite((dat) & mmread(addr), addr)
-#define mmor(dat, addr)		mmwrite((dat) | mmread(addr), addr)
-#define mmaor(dat, addr)	mmwrite((dat) | ((mask) & mmread(addr)), addr)
 
 #define MANTIS_TS_188		0
 #define MANTIS_TS_204		1
@@ -75,6 +75,11 @@
 		.driver_data	= (unsigned long) (__configptr)		\
 }
 
+enum mantis_i2c_mode {
+	MANTIS_PAGE_MODE = 0,
+	MANTIS_BYTE_MODE,
+};
+
 struct mantis_pci;
 
 struct mantis_hwconfig {
@@ -91,6 +96,8 @@ struct mantis_hwconfig {
 
 	u8			power;
 	u8			reset;
+
+	enum mantis_i2c_mode	i2c_mode;
 };
 
 struct mantis_pci {

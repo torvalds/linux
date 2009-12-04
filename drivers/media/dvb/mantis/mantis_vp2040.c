@@ -31,6 +31,8 @@
 
 #include "tda1002x.h"
 #include "mantis_common.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
 #include "mantis_vp2040.h"
 
 #define MANTIS_MODEL_NAME	"VP-2040"
@@ -123,34 +125,47 @@ static int vp2040_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 {
 	struct i2c_adapter *adapter = &mantis->adapter;
 
-	dprintk(MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-	fe = tda10021_attach(&vp2040_tda1002x_cu1216_config,
-			     adapter,
-			     read_pwm(mantis));
+	int err = 0;
 
-	if (fe) {
-		dprintk(MANTIS_ERROR, 1,
-			"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
-			vp2040_tda1002x_cu1216_config.demod_address);
-	} else {
-		fe = tda10023_attach(&vp2040_tda10023_cu1216_config,
+	err = mantis_frontend_power(mantis, POWER_ON);
+	if (err == 0) {
+		mantis_frontend_soft_reset(mantis);
+		msleep(250);
+
+		dprintk(MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
+		fe = tda10021_attach(&vp2040_tda1002x_cu1216_config,
 				     adapter,
 				     read_pwm(mantis));
 
 		if (fe) {
 			dprintk(MANTIS_ERROR, 1,
-				"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
+				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
 				vp2040_tda1002x_cu1216_config.demod_address);
+		} else {
+			fe = tda10023_attach(&vp2040_tda10023_cu1216_config,
+					     adapter,
+					     read_pwm(mantis));
+
+			if (fe) {
+				dprintk(MANTIS_ERROR, 1,
+					"found Philips CU1216 DVB-C frontend (TDA10023) @ 0x%02x",
+					vp2040_tda1002x_cu1216_config.demod_address);
+			}
 		}
-	}
 
-	if (fe) {
-		fe->ops.tuner_ops.set_params = tda1002x_cu1216_tuner_set;
-		dprintk(MANTIS_ERROR, 1, "Mantis DVB-C Philips CU1216 frontend attach success");
+		if (fe) {
+			fe->ops.tuner_ops.set_params = tda1002x_cu1216_tuner_set;
+			dprintk(MANTIS_ERROR, 1, "Mantis DVB-C Philips CU1216 frontend attach success");
+		} else {
+			return -1;
+		}
 	} else {
-		return -1;
-	}
+		dprintk(MANTIS_ERROR, 1, "Frontend on <%s> POWER ON failed! <%d>",
+			adapter->name,
+			err);
 
+		return -EIO;
+	}
 	mantis->fe = fe;
 	dprintk(MANTIS_DEBUG, 1, "Done!");
 
@@ -167,4 +182,6 @@ struct mantis_hwconfig vp2040_config = {
 	.bytes		= 0,
 
 	.frontend_init	= vp2040_frontend_init,
+	.power		= GPIF_A12,
+	.reset		= GPIF_A13,
 };

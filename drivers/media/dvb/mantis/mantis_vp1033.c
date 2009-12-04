@@ -31,7 +31,10 @@
 
 #include "stv0299.h"
 #include "mantis_common.h"
+#include "mantis_ioc.h"
+#include "mantis_dvb.h"
 #include "mantis_vp1033.h"
+#include "mantis_reg.h"
 
 u8 lgtdqcs001f_inittab[] = {
 	0x01, 0x15,
@@ -163,19 +166,32 @@ static int vp1033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 {
 	struct i2c_adapter *adapter	= &mantis->adapter;
 
-	dprintk(MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
-	fe = stv0299_attach(&lgtdqcs001f_config, adapter);
+	int err = 0;
 
-	if (fe) {
-		fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;
-		dprintk(MANTIS_ERROR, 1, "found STV0299 DVB-S frontend @ 0x%02x",
-			lgtdqcs001f_config.demod_address);
+	err = mantis_frontend_power(mantis, POWER_ON);
+	if (err == 0) {
+		mantis_frontend_soft_reset(mantis);
+		msleep(250);
 
-		dprintk(MANTIS_ERROR, 1, "Mantis DVB-S STV0299 frontend attach success");
+		dprintk(MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
+		fe = stv0299_attach(&lgtdqcs001f_config, adapter);
+
+		if (fe) {
+			fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;
+			dprintk(MANTIS_ERROR, 1, "found STV0299 DVB-S frontend @ 0x%02x",
+				lgtdqcs001f_config.demod_address);
+
+			dprintk(MANTIS_ERROR, 1, "Mantis DVB-S STV0299 frontend attach success");
+		} else {
+			return -1;
+		}
 	} else {
-		return -1;
-	}
+		dprintk(MANTIS_ERROR, 1, "Frontend on <%s> POWER ON failed! <%d>",
+			adapter->name,
+			err);
 
+		return -EIO;
+	}
 	mantis->fe = fe;
 	dprintk(MANTIS_ERROR, 1, "Done!");
 
@@ -192,4 +208,6 @@ struct mantis_hwconfig vp1033_config = {
 	.bytes			= 0,
 
 	.frontend_init		= vp1033_frontend_init,
+	.power			= GPIF_A12,
+	.reset			= GPIF_A13,
 };

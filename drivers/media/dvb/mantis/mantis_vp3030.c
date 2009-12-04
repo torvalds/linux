@@ -66,13 +66,23 @@ static int vp3030_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	msleep(100);
 	gpio_set_bits(mantis, config->reset, 1);
 
-	dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
-	fe = zl10353_attach(&mantis_vp3030_config, adapter);
+	if (err == 0) {
+		msleep(250);
+		dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
+		fe = zl10353_attach(&mantis_vp3030_config, adapter);
 
-	if (!fe)
-		return -1;
+		if (!fe)
+			return -1;
 
-	tda665x_attach(fe, &env57h12d5_config, adapter);
+		tda665x_attach(fe, &env57h12d5_config, adapter);
+	} else {
+		dprintk(MANTIS_ERROR, 1, "Frontend on <%s> POWER ON failed! <%d>",
+			adapter->name,
+			err);
+
+		return -EIO;
+
+	}
 	mantis->fe = fe;
 	dprintk(MANTIS_ERROR, 1, "Done!");
 
@@ -91,4 +101,6 @@ struct mantis_hwconfig vp3030_config = {
 	.frontend_init	= vp3030_frontend_init,
 	.power		= GPIF_A12,
 	.reset		= GPIF_A13,
+
+	.i2c_mode	= MANTIS_BYTE_MODE
 };
