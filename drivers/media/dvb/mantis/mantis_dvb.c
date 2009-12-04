@@ -190,6 +190,8 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 	dvb_net_init(&mantis->dvb_adapter, &mantis->dvbnet, &mantis->demux.dmx);
 	tasklet_init(&mantis->tasklet, mantis_dma_xfer, (unsigned long) mantis);
 	mantis_frontend_init(mantis);
+	mantis_ca_init(mantis);
+
 	return 0;
 
 	/*	Error conditions ..	*/

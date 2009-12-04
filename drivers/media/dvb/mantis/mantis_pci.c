@@ -54,12 +54,15 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 {
 	u32 stat = 0, mask = 0, lstat = 0, mstat = 0;
 	struct mantis_pci *mantis;
+	struct mantis_ca *ca;
 
 	mantis = (struct mantis_pci *) dev_id;
 	if (unlikely(mantis == NULL)) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis == NULL");
 		return IRQ_NONE;
 	}
+	ca = mantis->mantis_ca;
+
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
 	mstat = lstat = stat & ~MANTIS_INT_RISCSTAT;
@@ -72,14 +75,9 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	if (stat & MANTIS_INT_RISCEN) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* DMA enabl *");
 	}
-	if (stat & MANTIS_INT_I2CRACK) {
-		dprintk(verbose, MANTIS_DEBUG, 0, "* I2C R-ACK *");
-	}
-	if (stat & MANTIS_INT_PCMCIA7) {
-		dprintk(verbose, MANTIS_DEBUG, 0, "* PCMCIA-07 *");
-	}
 	if (stat & MANTIS_INT_IRQ0) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
+		tasklet_schedule(&ca->hif_evm_tasklet);
 	}
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-1 *");

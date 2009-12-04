@@ -93,12 +93,12 @@ struct dvb_device *mantis_ca_init(struct mantis_pci *mantis)
 	}
 
 	ca->ca_priv = mantis;
-	mantis->mantis_ca = ca;
-	mantis_evmgr_init(ca);
 
 	dprintk(verbose, MANTIS_ERROR, 0, "CA: Registering Mantis Adapter(%d) Slot(0)\n", mantis->num);
 	if (dvb_register_device(dvb_adapter, &dvbdev, &mantis_ca, ca, DVB_DEVICE_CA) == 0) {
 		ca->ca_dev = dvbdev;
+		mantis->mantis_ca = ca;
+		mantis_evmgr_init(ca);
 		return ca->ca_dev;
 	}
 	return 0;
