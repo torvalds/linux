@@ -131,17 +131,35 @@ TRACE_EVENT(drv_config,
 		LOCAL_ENTRY
 		__field(u32, changed)
 		__field(int, ret)
+		__field(u32, flags)
+		__field(int, power_level)
+		__field(int, dynamic_ps_timeout)
+		__field(int, max_sleep_period)
+		__field(u16, listen_interval)
+		__field(u8, long_frame_max_tx_count)
+		__field(u8, short_frame_max_tx_count)
+		__field(int, center_freq)
+		__field(int, channel_type)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->changed = changed;
 		__entry->ret = ret;
+		__entry->flags = local->hw.conf.flags;
+		__entry->power_level = local->hw.conf.power_level;
+		__entry->dynamic_ps_timeout = local->hw.conf.dynamic_ps_timeout;
+		__entry->max_sleep_period = local->hw.conf.max_sleep_period;
+		__entry->listen_interval = local->hw.conf.listen_interval;
+		__entry->long_frame_max_tx_count = local->hw.conf.long_frame_max_tx_count;
+		__entry->short_frame_max_tx_count = local->hw.conf.short_frame_max_tx_count;
+		__entry->center_freq = local->hw.conf.channel->center_freq;
+		__entry->channel_type = local->hw.conf.channel_type;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " ch:%#x ret:%d",
-		LOCAL_PR_ARG, __entry->changed, __entry->ret
+		LOCAL_PR_FMT " ch:%#x freq:%d ret:%d",
+		LOCAL_PR_ARG, __entry->changed, __entry->center_freq, __entry->ret
 	)
 );
 
@@ -167,6 +185,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u64, timestamp)
 		__field(u32, basic_rates)
 		__field(u32, changed)
+		__field(bool, enable_beacon)
+		__field(u16, ht_operation_mode)
 	),
 
 	TP_fast_assign(
@@ -183,6 +203,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->assoc_cap = info->assoc_capability;
 		__entry->timestamp = info->timestamp;
 		__entry->basic_rates = info->basic_rates;
+		__entry->enable_beacon = info->enable_beacon;
+		__entry->ht_operation_mode = info->ht_operation_mode;
 	),
 
 	TP_printk(

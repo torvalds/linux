@@ -23,11 +23,12 @@
  *  the operating mode of the station (AP or AdHoc).  Parameters are AIFS
  *  settings and channel width min/max
 */
-static int ath_beaconq_config(struct ath_softc *sc)
+int ath_beaconq_config(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_tx_queue_info qi;
+	struct ath9k_tx_queue_info qi, qi_be;
+	int qnum;
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
@@ -37,9 +38,12 @@ static int ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmax = 0;
 	} else {
 		/* Adhoc mode; important thing is to use 2x cwmin. */
-		qi.tqi_aifs = sc->beacon.beacon_qi.tqi_aifs;
-		qi.tqi_cwmin = 2*sc->beacon.beacon_qi.tqi_cwmin;
-		qi.tqi_cwmax = sc->beacon.beacon_qi.tqi_cwmax;
+		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA,
+				       ATH9K_WME_AC_BE);
+		ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+		qi.tqi_aifs = qi_be.tqi_aifs;
+		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+		qi.tqi_cwmax = qi_be.tqi_cwmax;
 	}
 
 	if (!ath9k_hw_set_txq_props(ah, sc->beacon.beaconq, &qi)) {
@@ -65,9 +69,9 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
-	const struct ath_rate_table *rt;
 	int flags, antenna, ctsrate = 0, ctsduration = 0;
-	u8 rate;
+	struct ieee80211_supported_band *sband;
+	u8 rate = 0;
 
 	ds = bf->bf_desc;
 	flags = ATH9K_TXDESC_NOACK;
@@ -91,10 +95,10 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	ds->ds_data = bf->bf_buf_addr;
 
-	rt = sc->cur_rate_table;
-	rate = rt->info[0].ratecode;
+	sband = &sc->sbands[common->hw->conf.channel->band];
+	rate = sband->bitrates[0].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		rate |= rt->info[0].short_preamble;
+		rate |= sband->bitrates[0].hw_value_short;
 
 	ath9k_hw_set11n_txdesc(ah, ds, skb->len + FCS_LEN,
 			       ATH9K_PKT_TYPE_BEACON,

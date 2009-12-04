@@ -163,8 +163,8 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 /* frame is destined to interface currently processed (incl. multicast frames) */
 #define IEEE80211_RX_RA_MATCH		BIT(1)
 #define IEEE80211_RX_AMSDU		BIT(2)
-#define IEEE80211_RX_CMNTR_REPORTED	BIT(3)
-#define IEEE80211_RX_FRAGMENTED		BIT(4)
+#define IEEE80211_RX_FRAGMENTED		BIT(3)
+/* only add flags here that do not change with subframes of an aMPDU */
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;

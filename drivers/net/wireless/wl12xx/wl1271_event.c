@@ -78,12 +78,16 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
+		if (!wl->psm) {
+			wl->psm_entry_retry = 0;
+			break;
+		}
+
 		if (wl->psm_entry_retry < wl->conf.conn.psm_entry_retries) {
 			wl->psm_entry_retry++;
-			wl1271_error("PSM entry failed, retrying %d\n",
-				     wl->psm_entry_retry);
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		} else {
+			wl1271_error("PSM entry failed, giving up.\n");
 			wl->psm_entry_retry = 0;
 			*beacon_loss = true;
 		}

@@ -21,7 +21,6 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 
-#include "rc.h"
 #include "debug.h"
 #include "common.h"
 
@@ -330,6 +329,7 @@ void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
 int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
+int ath_beaconq_config(struct ath_softc *sc);
 
 /*******/
 /* ANI */
@@ -421,8 +421,11 @@ struct ath_led {
 #define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
 #define SC_OP_BEACON_SYNC       BIT(19)
 #define SC_OP_BT_PRIORITY_DETECTED BIT(21)
+#define SC_OP_NULLFUNC_COMPLETED BIT(22)
+#define SC_OP_PS_ENABLED	BIT(23)
 
 struct ath_wiphy;
+struct ath_rate_table;
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
@@ -467,9 +470,8 @@ struct ath_softc {
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
-	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
-	const struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	const struct ath_rate_table *cur_rate_table;
+	enum wireless_mode cur_rate_mode;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	struct ath_led radio_led;
@@ -484,7 +486,7 @@ struct ath_softc {
 
 	int beacon_interval;
 
-#ifdef CONFIG_ATH9K_DEBUG
+#ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
 #endif
 	struct ath_beacon_config cur_beacon_conf;

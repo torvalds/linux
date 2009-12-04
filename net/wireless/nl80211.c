@@ -139,6 +139,8 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
 	[NL80211_ATTR_PID] = { .type = NLA_U32 },
 	[NL80211_ATTR_4ADDR] = { .type = NLA_U8 },
+	[NL80211_ATTR_PMKID] = { .type = NLA_BINARY,
+				 .len = WLAN_PMKID_LEN },
 };
 
 /* policy for the attributes */
@@ -450,6 +452,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		sizeof(u32) * dev->wiphy.n_cipher_suites,
 		dev->wiphy.cipher_suites);
 
+	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_PMKIDS,
+		   dev->wiphy.max_num_pmkids);
+
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
 		goto nla_put_failure;
@@ -561,6 +566,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(deauth, DEAUTHENTICATE);
 	CMD(disassoc, DISASSOCIATE);
 	CMD(join_ibss, JOIN_IBSS);
+	CMD(set_pmksa, SET_PMKSA);
+	CMD(del_pmksa, DEL_PMKSA);
+	CMD(flush_pmksa, FLUSH_PMKSA);
 	if (dev->wiphy.flags & WIPHY_FLAG_NETNS_OK) {
 		i++;
 		NLA_PUT_U32(msg, i, NL80211_CMD_SET_WIPHY_NETNS);
@@ -4221,6 +4229,99 @@ static int nl80211_wiphy_netns(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	int (*rdev_ops)(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_pmksa *pmksa) = NULL;
+	int err;
+	struct net_device *dev;
+	struct cfg80211_pmksa pmksa;
+
+	memset(&pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_PMKID])
+		return -EINVAL;
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto out_rtnl;
+
+	pmksa.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
+	pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	switch (info->genlhdr->cmd) {
+	case NL80211_CMD_SET_PMKSA:
+		rdev_ops = rdev->ops->set_pmksa;
+		break;
+	case NL80211_CMD_DEL_PMKSA:
+		rdev_ops = rdev->ops->del_pmksa;
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	if (!rdev_ops) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	err = rdev_ops(&rdev->wiphy, dev, &pmksa);
+
+ out:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+ out_rtnl:
+	rtnl_unlock();
+
+	return err;
+}
+
+static int nl80211_flush_pmksa(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	int err;
+	struct net_device *dev;
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto out_rtnl;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!rdev->ops->flush_pmksa) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	err = rdev->ops->flush_pmksa(&rdev->wiphy, dev);
+
+ out:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+ out_rtnl:
+	rtnl_unlock();
+
+	return err;
+
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -4465,6 +4566,25 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.dumpit = nl80211_dump_survey,
 	},
+	{
+		.cmd = NL80211_CMD_SET_PMKSA,
+		.doit = nl80211_setdel_pmksa,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_DEL_PMKSA,
+		.doit = nl80211_setdel_pmksa,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_FLUSH_PMKSA,
+		.doit = nl80211_flush_pmksa,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+
 };
 static struct genl_multicast_group nl80211_mlme_mcgrp = {
 	.name = "mlme",

@@ -76,11 +76,9 @@
 #define VS
 #endif
 
-#define IWL39_VERSION "1.2.26k" VD VS
+#define DRV_VERSION  IWLWIFI_VERSION VD VS
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2009 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
-#define DRV_VERSION     IWL39_VERSION
-
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
@@ -1700,15 +1698,6 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 
 	IWL_ERR(priv, "Start IWL Event Log Dump: display last %d count\n",
 		  size);
-
-	/* if uCode has wrapped back to top of log, start at the oldest entry,
-	 * i.e the next one that uCode would fill. */
-	if (num_wraps)
-		iwl3945_print_event_log(priv, next_entry,
-				    capacity - next_entry, mode);
-
-	/* (then/else) start at top of log */
-	iwl3945_print_event_log(priv, 0, next_entry, mode);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {

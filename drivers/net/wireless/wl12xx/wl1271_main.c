@@ -222,7 +222,7 @@ static struct conf_drv_settings default_conf = {
 			.snr_pkt_avg_weight  = 10
 		},
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
-		.bet_max_consecutive         = 100,
+		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 3
 	},
 	.init = {
@@ -251,14 +251,7 @@ static struct conf_drv_settings default_conf = {
 		},
 		.sr_enable                   = 1,
 		.genparam                    = {
-			/*
-			 * FIXME: The correct value CONF_REF_CLK_38_4_E
-			 *        causes the firmware to crash on boot.
-			 *        The value 5 apparently is an
-			 *        unnoficial XTAL configuration of the
-			 *        same frequency, which appears to work.
-			 */
-			.ref_clk             = 5,
+			.ref_clk             = CONF_REF_CLK_38_4_E,
 			.settling_time       = 5,
 			.clk_valid_on_wakeup = 0,
 			.dc2dcmode           = 0,
@@ -353,6 +346,14 @@ static void wl1271_conf_init(struct wl1271 *wl)
 static int wl1271_plt_init(struct wl1271 *wl)
 {
 	int ret;
+
+	ret = wl1271_cmd_general_parms(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_cmd_radio_parms(wl);
+	if (ret < 0)
+		return ret;
 
 	ret = wl1271_acx_init_mem_config(wl);
 	if (ret < 0)
@@ -815,15 +816,15 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 
 	wdev = dev->ieee80211_ptr;
 	if (wdev == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	wiphy = wdev->wiphy;
 	if (wiphy == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	hw = wiphy_priv(wiphy);
 	if (hw == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	/* Check that the interface is one supported by this driver. */
 	wl_temp = hw->priv;
@@ -832,7 +833,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 			break;
 	}
 	if (wl == NULL)
-		return -ENODEV;
+		return NOTIFY_DONE;
 
 	/* Get the interface IP address for the device. "ifa" will become
 	   NULL if:
@@ -868,7 +869,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 out:
 	mutex_unlock(&wl->mutex);
 
-	return ret;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block wl1271_dev_notifier = {
@@ -1753,7 +1754,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM |
-		IEEE80211_HW_BEACON_FILTER;
+		IEEE80211_HW_BEACON_FILTER |
+		IEEE80211_HW_SUPPORTS_PS;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	wl->hw->wiphy->max_scan_ssids = 1;

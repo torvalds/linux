@@ -181,8 +181,6 @@ static void ath9k_process_rssi(struct ath_common *common,
 					      ATH_RSSI_EP_MULTIPLIER);
 	if (rx_stats->rs_rssi < 0)
 		rx_stats->rs_rssi = 0;
-	else if (rx_stats->rs_rssi > 127)
-		rx_stats->rs_rssi = 127;
 
 	/* Update Beacon RSSI, this is used by ANI. */
 	if (ieee80211_is_beacon(fc))
@@ -238,16 +236,8 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 	/* see if any padding is done by the hw and remove it */
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	padpos = 24;
 	fc = hdr->frame_control;
-	if ((fc & cpu_to_le16(IEEE80211_FCTL_FROMDS|IEEE80211_FCTL_TODS)) ==
-	    cpu_to_le16(IEEE80211_FCTL_FROMDS|IEEE80211_FCTL_TODS)) {
-	  padpos += 6; /* ETH_ALEN */
-	}
-	if ((fc & cpu_to_le16(IEEE80211_STYPE_QOS_DATA|IEEE80211_FCTL_FTYPE)) ==
-	    cpu_to_le16(IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA)) {
-	  padpos += 2;
-	}
+	padpos = ath9k_cmn_padpos(hdr->frame_control);
 
 	/* The MAC header is padded to have 32-bit boundary if the
 	 * packet payload is non-zero. The general calculation for
@@ -281,6 +271,20 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 		rxs->flag &= ~RX_FLAG_DECRYPTED;
 }
 EXPORT_SYMBOL(ath9k_cmn_rx_skb_postprocess);
+
+int ath9k_cmn_padpos(__le16 frame_control)
+{
+	int padpos = 24;
+	if (ieee80211_has_a4(frame_control)) {
+		padpos += ETH_ALEN;
+	}
+	if (ieee80211_is_data_qos(frame_control)) {
+		padpos += IEEE80211_QOS_CTL_LEN;
+	}
+
+	return padpos;
+}
+EXPORT_SYMBOL(ath9k_cmn_padpos);
 
 static int __init ath9k_cmn_init(void)
 {

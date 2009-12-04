@@ -193,125 +193,16 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_general_parms(struct wl1271 *wl)
-{
-	struct wl1271_general_parms *gen_parms;
-	struct conf_general_parms *g = &wl->conf.init.genparam;
-	int ret;
-
-	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
-	if (!gen_parms)
-		return -ENOMEM;
-
-	gen_parms->id = TEST_CMD_INI_FILE_GENERAL_PARAM;
-
-	gen_parms->ref_clk = g->ref_clk;
-	gen_parms->settling_time = g->settling_time;
-	gen_parms->clk_valid_on_wakeup = g->clk_valid_on_wakeup;
-	gen_parms->dc2dcmode = g->dc2dcmode;
-	gen_parms->single_dual_band = g->single_dual_band;
-	gen_parms->tx_bip_fem_autodetect = g->tx_bip_fem_autodetect;
-	gen_parms->tx_bip_fem_manufacturer = g->tx_bip_fem_manufacturer;
-	gen_parms->settings = g->settings;
-
-	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
-	if (ret < 0) {
-		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
-		return ret;
-	}
-
-	kfree(gen_parms);
-	return 0;
-}
-
-static int wl1271_init_radio_parms(struct wl1271 *wl)
-{
-	struct wl1271_radio_parms *radio_parms;
-	struct conf_radio_parms *r = &wl->conf.init.radioparam;
-	int i, ret;
-
-	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
-	if (!radio_parms)
-		return -ENOMEM;
-
-	radio_parms->id = TEST_CMD_INI_FILE_RADIO_PARAM;
-
-	/* Static radio parameters */
-	radio_parms->rx_trace_loss = r->rx_trace_loss;
-	radio_parms->tx_trace_loss = r->tx_trace_loss;
-	memcpy(radio_parms->rx_rssi_and_proc_compens,
-	       r->rx_rssi_and_proc_compens,
-	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
-
-	memcpy(radio_parms->rx_trace_loss_5, r->rx_trace_loss_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_trace_loss_5, r->tx_trace_loss_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->rx_rssi_and_proc_compens_5,
-	       r->rx_rssi_and_proc_compens_5,
-	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
-
-	/* Dynamic radio parameters */
-	radio_parms->tx_ref_pd_voltage = cpu_to_le16(r->tx_ref_pd_voltage);
-	radio_parms->tx_ref_power = r->tx_ref_power;
-	radio_parms->tx_offset_db = r->tx_offset_db;
-
-	memcpy(radio_parms->tx_rate_limits_normal, r->tx_rate_limits_normal,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_degraded, r->tx_rate_limits_degraded,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-
-	memcpy(radio_parms->tx_channel_limits_11b, r->tx_channel_limits_11b,
-	       CONF_NUMBER_OF_CHANNELS_2_4);
-	memcpy(radio_parms->tx_channel_limits_ofdm, r->tx_channel_limits_ofdm,
-	       CONF_NUMBER_OF_CHANNELS_2_4);
-	memcpy(radio_parms->tx_pdv_rate_offsets, r->tx_pdv_rate_offsets,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_ibias, r->tx_ibias, CONF_NUMBER_OF_RATE_GROUPS);
-
-	radio_parms->rx_fem_insertion_loss = r->rx_fem_insertion_loss;
-
-	for (i = 0; i < CONF_NUMBER_OF_SUB_BANDS_5; i++)
-		radio_parms->tx_ref_pd_voltage_5[i] =
-			cpu_to_le16(r->tx_ref_pd_voltage_5[i]);
-	memcpy(radio_parms->tx_ref_power_5, r->tx_ref_power_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_offset_db_5, r->tx_offset_db_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_rate_limits_normal_5,
-	       r->tx_rate_limits_normal_5, CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_degraded_5,
-	       r->tx_rate_limits_degraded_5, CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_channel_limits_ofdm_5,
-	       r->tx_channel_limits_ofdm_5, CONF_NUMBER_OF_CHANNELS_5);
-	memcpy(radio_parms->tx_pdv_rate_offsets_5, r->tx_pdv_rate_offsets_5,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_ibias_5, r->tx_ibias_5,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->rx_fem_insertion_loss_5,
-	       r->rx_fem_insertion_loss_5, CONF_NUMBER_OF_SUB_BANDS_5);
-
-	ret = wl1271_cmd_test(wl, radio_parms, sizeof(*radio_parms), 0);
-	if (ret < 0)
-		wl1271_warning("CMD_INI_FILE_RADIO_PARAM failed");
-
-	kfree(radio_parms);
-	return ret;
-}
-
 int wl1271_hw_init(struct wl1271 *wl)
 {
 	int ret;
 
-	/* FIXME: the following parameter setting functions return error
-	 * codes - the reason is so far unknown. The -EIO is therefore
-	 * ignored for the time being. */
-	ret = wl1271_init_general_parms(wl);
-	if (ret < 0 && ret != -EIO)
+	ret = wl1271_cmd_general_parms(wl);
+	if (ret < 0)
 		return ret;
 
-	ret = wl1271_init_radio_parms(wl);
-	if (ret < 0 && ret != -EIO)
+	ret = wl1271_cmd_radio_parms(wl);
+	if (ret < 0)
 		return ret;
 
 	/* Template settings */

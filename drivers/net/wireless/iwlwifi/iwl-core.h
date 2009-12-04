@@ -63,6 +63,8 @@
 #ifndef __iwl_core_h__
 #define __iwl_core_h__
 
+#include <linux/utsrelease.h>
+
 /************************
  * forward declarations *
  ************************/
@@ -70,7 +72,7 @@ struct iwl_host_cmd;
 struct iwl_cmd;
 
 
-#define IWLWIFI_VERSION "1.3.27k"
+#define IWLWIFI_VERSION UTS_RELEASE "-k"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2009 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 

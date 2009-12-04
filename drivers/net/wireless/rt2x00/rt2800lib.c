@@ -217,14 +217,12 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	if (rt2x00_intf_is_pci(rt2x00dev)) {
-		/*
-		* RT2880 and RT3052 don't support MCU requests.
-		*/
-		if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
-		    rt2x00_rt(&rt2x00dev->chip, RT3052))
-			return;
-	}
+	/*
+	 * RT2880 and RT3052 don't support MCU requests.
+	 */
+	if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
+	    rt2x00_rt(&rt2x00dev->chip, RT3052))
+		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -1482,8 +1480,7 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
 	}
 
-	if (rt2x00_intf_is_pci(rt2x00dev) &&
-	    rt2x00_rt(&rt2x00dev->chip, RT3052)) {
+	if (rt2x00_rt(&rt2x00dev->chip, RT3052)) {
 		rt2800_bbp_write(rt2x00dev, 31, 0x08);
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
@@ -2033,12 +2030,6 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
 
-	if (rt2x00_intf_is_usb(rt2x00dev))
-		rt2x00dev->hw->extra_tx_headroom =
-			TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
-	else if (rt2x00_intf_is_pci(rt2x00dev))
-		rt2x00dev->hw->extra_tx_headroom = TXWI_DESC_SIZE;
-
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
 				rt2x00_eeprom_addr(rt2x00dev,
@@ -2072,7 +2063,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize HT information.
 	 */
-	spec->ht.ht_supported = true;
+	if (!rt2x00_rf(chip, RF2020))
+		spec->ht.ht_supported = true;
+	else
+		spec->ht.ht_supported = false;
+
 	spec->ht.cap =
 	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 	    IEEE80211_HT_CAP_GRN_FLD |

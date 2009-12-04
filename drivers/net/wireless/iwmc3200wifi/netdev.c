@@ -76,6 +76,14 @@ static int iwm_stop(struct net_device *ndev)
  */
 static const u16 iwm_1d_to_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
 
+u16 iwm_tid_to_queue(u16 tid)
+{
+	if (tid > IWM_UMAC_TID_NR - 2)
+		return -EINVAL;
+
+	return iwm_1d_to_queue[tid];
+}
+
 static u16 iwm_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	skb->priority = cfg80211_classify8021d(skb);

@@ -70,12 +70,37 @@ u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q)
 }
 EXPORT_SYMBOL(ath9k_hw_numtxpending);
 
+/**
+ * ath9k_hw_updatetxtriglevel - adjusts the frame trigger level
+ *
+ * @ah: atheros hardware struct
+ * @bIncTrigLevel: whether or not the frame trigger level should be updated
+ *
+ * The frame trigger level specifies the minimum number of bytes,
+ * in units of 64 bytes, that must be DMA'ed into the PCU TX FIFO
+ * before the PCU will initiate sending the frame on the air. This can
+ * mean we initiate transmit before a full frame is on the PCU TX FIFO.
+ * Resets to 0x1 (meaning 64 bytes or a full frame, whichever occurs
+ * first)
+ *
+ * Caution must be taken to ensure to set the frame trigger level based
+ * on the DMA request size. For example if the DMA request size is set to
+ * 128 bytes the trigger level cannot exceed 6 * 64 = 384. This is because
+ * there need to be enough space in the tx FIFO for the requested transfer
+ * size. Hence the tx FIFO will stop with 512 - 128 = 384 bytes. If we set
+ * the threshold to a value beyond 6, then the transmit will hang.
+ *
+ * Current dual   stream devices have a PCU TX FIFO size of 8 KB.
+ * Current single stream devices have a PCU TX FIFO size of 4 KB, however,
+ * there is a hardware issue which forces us to use 2 KB instead so the
+ * frame trigger level must not exceed 2 KB for these chipsets.
+ */
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 {
 	u32 txcfg, curLevel, newLevel;
 	enum ath9k_int omask;
 
-	if (ah->tx_trig_level >= MAX_TX_FIFO_THRESHOLD)
+	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
 	omask = ath9k_hw_set_interrupts(ah, ah->mask_reg & ~ATH9K_INT_GLOBAL);
@@ -84,7 +109,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 	curLevel = MS(txcfg, AR_FTRIG);
 	newLevel = curLevel;
 	if (bIncTrigLevel) {
-		if (curLevel < MAX_TX_FIFO_THRESHOLD)
+		if (curLevel < ah->config.max_txtrig_level)
 			newLevel++;
 	} else if (curLevel > MIN_TX_FIFO_THRESHOLD)
 		newLevel--;
@@ -231,6 +256,8 @@ int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
 	ds->ds_txstat.ts_status = 0;
 	ds->ds_txstat.ts_flags = 0;
 
+	if (ads->ds_txstatus1 & AR_FrmXmitOK)
+		ds->ds_txstat.ts_status |= ATH9K_TX_ACKED;
 	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
 		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
 	if (ads->ds_txstatus1 & AR_Filtered)
@@ -926,6 +953,13 @@ void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 }
 EXPORT_SYMBOL(ath9k_hw_setuprxdesc);
 
+/*
+ * This can stop or re-enables RX.
+ *
+ * If bool is set this will kill any frame which is currently being
+ * transferred between the MAC and baseband and also prevent any new
+ * frames from getting started.
+ */
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 {
 	u32 reg;

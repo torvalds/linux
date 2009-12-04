@@ -652,7 +652,7 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txd = skbdesc->desc;
-	__le32 *txwi = (__le32 *)(skb->data - rt2x00dev->hw->extra_tx_headroom);
+	__le32 *txwi = (__le32 *)(skb->data - rt2x00dev->ops->extra_tx_headroom);
 	u32 word;
 
 	/*
@@ -725,14 +725,14 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W1_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_SD_LEN0,
-			   rt2x00dev->hw->extra_tx_headroom);
+			   rt2x00dev->ops->extra_tx_headroom);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC0, 0);
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
-			   skbdesc->skb_dma + rt2x00dev->hw->extra_tx_headroom);
+			   skbdesc->skb_dma + rt2x00dev->ops->extra_tx_headroom);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
@@ -1201,19 +1201,20 @@ static const struct data_queue_desc rt2800pci_queue_bcn = {
 };
 
 static const struct rt2x00_ops rt2800pci_ops = {
-	.name		= KBUILD_MODNAME,
-	.max_sta_intf	= 1,
-	.max_ap_intf	= 8,
-	.eeprom_size	= EEPROM_SIZE,
-	.rf_size	= RF_SIZE,
-	.tx_queues	= NUM_TX_QUEUES,
-	.rx		= &rt2800pci_queue_rx,
-	.tx		= &rt2800pci_queue_tx,
-	.bcn		= &rt2800pci_queue_bcn,
-	.lib		= &rt2800pci_rt2x00_ops,
-	.hw		= &rt2800_mac80211_ops,
+	.name			= KBUILD_MODNAME,
+	.max_sta_intf		= 1,
+	.max_ap_intf		= 8,
+	.eeprom_size		= EEPROM_SIZE,
+	.rf_size		= RF_SIZE,
+	.tx_queues		= NUM_TX_QUEUES,
+	.extra_tx_headroom	= TXWI_DESC_SIZE,
+	.rx			= &rt2800pci_queue_rx,
+	.tx			= &rt2800pci_queue_tx,
+	.bcn			= &rt2800pci_queue_bcn,
+	.lib			= &rt2800pci_rt2x00_ops,
+	.hw			= &rt2800_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs	= &rt2800_rt2x00debug,
+	.debugfs		= &rt2800_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 };
 

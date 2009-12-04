@@ -78,6 +78,7 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
 	bool bf_stale;
+	bool bf_isnullfunc;
 	u16 bf_flags;
 	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
@@ -122,3 +123,5 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 				  struct ath_rx_status *rx_stats,
 				  struct ieee80211_rx_status *rxs,
 				  bool decrypt_error);
+
+int ath9k_cmn_padpos(__le16 frame_control);

@@ -1401,6 +1401,47 @@ int cfg80211_wext_giwessid(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwessid);
 
+int cfg80211_wext_siwpmksa(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_pmksa cfg_pmksa;
+	struct iw_pmksa *pmksa = (struct iw_pmksa *)extra;
+
+	memset(&cfg_pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	cfg_pmksa.bssid = pmksa->bssid.sa_data;
+	cfg_pmksa.pmkid = pmksa->pmkid;
+
+	switch (pmksa->cmd) {
+	case IW_PMKSA_ADD:
+		if (!rdev->ops->set_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->set_pmksa(&rdev->wiphy, dev, &cfg_pmksa);
+
+	case IW_PMKSA_REMOVE:
+		if (!rdev->ops->del_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->del_pmksa(&rdev->wiphy, dev, &cfg_pmksa);
+
+	case IW_PMKSA_FLUSH:
+		if (!rdev->ops->flush_pmksa)
+			return -EOPNOTSUPP;
+
+		return rdev->ops->flush_pmksa(&rdev->wiphy, dev);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,
 	[IW_IOCTL_IDX(SIOCSIWFREQ)]	= (iw_handler) cfg80211_wext_siwfreq,
@@ -1433,6 +1474,7 @@ static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCSIWAUTH)]	= (iw_handler) cfg80211_wext_siwauth,
 	[IW_IOCTL_IDX(SIOCGIWAUTH)]	= (iw_handler) cfg80211_wext_giwauth,
 	[IW_IOCTL_IDX(SIOCSIWENCODEEXT)]= (iw_handler) cfg80211_wext_siwencodeext,
+	[IW_IOCTL_IDX(SIOCSIWPMKSA)]	= (iw_handler) cfg80211_wext_siwpmksa,
 };
 
 const struct iw_handler_def cfg80211_wext_handler = {

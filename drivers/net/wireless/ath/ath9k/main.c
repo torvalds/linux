@@ -104,37 +104,55 @@ static struct ieee80211_channel ath9k_5ghz_chantable[] = {
 	CHAN5G(5825, 37), /* Channel 165 */
 };
 
+/* Atheros hardware rate code addition for short premble */
+#define SHPCHECK(__hw_rate, __flags) \
+	((__flags & IEEE80211_RATE_SHORT_PREAMBLE) ? (__hw_rate | 0x04 ) : 0)
+
+#define RATE(_bitrate, _hw_rate, _flags) {              \
+	.bitrate        = (_bitrate),                   \
+	.flags          = (_flags),                     \
+	.hw_value       = (_hw_rate),                   \
+	.hw_value_short = (SHPCHECK(_hw_rate, _flags))  \
+}
+
+static struct ieee80211_rate ath9k_legacy_rates[] = {
+	RATE(10, 0x1b, 0),
+	RATE(20, 0x1a, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(55, 0x19, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(110, 0x18, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATE(60, 0x0b, 0),
+	RATE(90, 0x0f, 0),
+	RATE(120, 0x0a, 0),
+	RATE(180, 0x0e, 0),
+	RATE(240, 0x09, 0),
+	RATE(360, 0x0d, 0),
+	RATE(480, 0x08, 0),
+	RATE(540, 0x0c, 0),
+};
+
 static void ath_cache_conf_rate(struct ath_softc *sc,
 				struct ieee80211_conf *conf)
 {
 	switch (conf->channel->band) {
 	case IEEE80211_BAND_2GHZ:
 		if (conf_is_ht20(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT20];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT20;
 		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40MINUS;
 		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NG_HT40PLUS;
 		else
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11G];
+			sc->cur_rate_mode = ATH9K_MODE_11G;
 		break;
 	case IEEE80211_BAND_5GHZ:
 		if (conf_is_ht20(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT20];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT20;
 		else if (conf_is_ht40_minus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40MINUS;
 		else if (conf_is_ht40_plus(conf))
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS];
+			sc->cur_rate_mode = ATH9K_MODE_11NA_HT40PLUS;
 		else
-			sc->cur_rate_table =
-			  sc->hw_rate_table[ATH9K_MODE_11A];
+			sc->cur_rate_mode = ATH9K_MODE_11A;
 		break;
 	default:
 		BUG_ON(1);
@@ -187,51 +205,6 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 		return 16;
 	default:
 		return 0;
-	}
-}
-
-static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
-{
-	const struct ath_rate_table *rate_table = NULL;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
-	int i, maxrates;
-
-	switch (band) {
-	case IEEE80211_BAND_2GHZ:
-		rate_table = sc->hw_rate_table[ATH9K_MODE_11G];
-		break;
-	case IEEE80211_BAND_5GHZ:
-		rate_table = sc->hw_rate_table[ATH9K_MODE_11A];
-		break;
-	default:
-		break;
-	}
-
-	if (rate_table == NULL)
-		return;
-
-	sband = &sc->sbands[band];
-	rate = sc->rates[band];
-
-	if (rate_table->rate_cnt > ATH_RATE_MAX)
-		maxrates = ATH_RATE_MAX;
-	else
-		maxrates = rate_table->rate_cnt;
-
-	for (i = 0; i < maxrates; i++) {
-		rate[i].bitrate = rate_table->info[i].ratekbps / 100;
-		rate[i].hw_value = rate_table->info[i].ratecode;
-		if (rate_table->info[i].short_preamble) {
-			rate[i].hw_value_short = rate_table->info[i].ratecode |
-				rate_table->info[i].short_preamble;
-			rate[i].flags = IEEE80211_RATE_SHORT_PREAMBLE;
-		}
-		sband->n_bitrates++;
-
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
-			  "Rate: %2dMbps, ratecode: %2d\n",
-			  rate[i].bitrate / 10, rate[i].hw_value);
 	}
 }
 
@@ -1701,12 +1674,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* default to MONITOR mode */
 	sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
 
-	/* Setup rate tables */
-
-	ath_rate_attach(sc);
-	ath_setup_rates(sc, IEEE80211_BAND_2GHZ);
-	ath_setup_rates(sc, IEEE80211_BAND_5GHZ);
-
 	/*
 	 * Allocate hardware transmit queues: one queue for
 	 * beacon frames and one data queue for each QoS
@@ -1826,20 +1793,25 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	/* setup channels and rates */
 
-	sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
-	sc->sbands[IEEE80211_BAND_2GHZ].bitrates =
-		sc->rates[IEEE80211_BAND_2GHZ];
-	sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
-	sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
-		ARRAY_SIZE(ath9k_2ghz_chantable);
+	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes)) {
+		sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
+		sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
+		sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
+			ARRAY_SIZE(ath9k_2ghz_chantable);
+		sc->sbands[IEEE80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
+		sc->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
+			ARRAY_SIZE(ath9k_legacy_rates);
+	}
 
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes)) {
 		sc->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_chantable;
-		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
-			sc->rates[IEEE80211_BAND_5GHZ];
 		sc->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		sc->sbands[IEEE80211_BAND_5GHZ].n_channels =
 			ARRAY_SIZE(ath9k_5ghz_chantable);
+		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
+			ath9k_legacy_rates + 4;
+		sc->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
+			ARRAY_SIZE(ath9k_legacy_rates) - 4;
 	}
 
 	switch (ah->btcoex_hw.scheme) {
@@ -1906,8 +1878,9 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->rate_control_algorithm = "ath9k_rate_control";
 
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-		&sc->sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes))
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&sc->sbands[IEEE80211_BAND_2GHZ];
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
@@ -1946,9 +1919,12 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	reg = &common->regulatory;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		if (test_bit(ATH9K_MODE_11G, ah->caps.wireless_modes))
+			setup_ht_cap(sc,
+				     &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 		if (test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes))
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+			setup_ht_cap(sc,
+				     &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
 	/* initialize tx/rx engine */
@@ -2394,7 +2370,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
-	int hdrlen, padsize;
+	int padpos, padsize;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
 		ath_print(common, ATH_DBG_XMIT,
@@ -2404,7 +2381,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	if (sc->ps_enabled) {
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		/*
 		 * mac80211 does not set PM field for normal data frames, so we
 		 * need to update that based on the current PS mode.
@@ -2424,7 +2400,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		 * power save mode. Need to wake up hardware for the TX to be
 		 * completed and if needed, also for RX of buffered frames.
 		 */
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
@@ -2452,7 +2427,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	 * BSSes.
 	 */
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 			sc->tx.seq_no += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
@@ -2460,13 +2434,13 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	/* Add the padding after the header if this is not already done */
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	if (hdrlen & 3) {
-		padsize = hdrlen % 4;
+	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padsize = padpos & 3;
+	if (padsize && skb->len>padpos) {
 		if (skb_headroom(skb) < padsize)
 			return -1;
 		skb_push(skb, padsize);
-		memmove(skb->data, skb->data + padsize, hdrlen);
+		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
 	/* Check if a tx queue is available */
@@ -2731,8 +2705,15 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	/*
+	 * We just prepare to enable PS. We have to wait until our AP has
+	 * ACK'd our null data frame to disable RX otherwise we'll ignore
+	 * those ACKs and end up retransmitting the same null data frames.
+	 * IEEE80211_CONF_CHANGE_PS is only passed by mac80211 for STA mode.
+	 */
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
+			sc->sc_flags |= SC_OP_PS_ENABLED;
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
@@ -2740,11 +2721,20 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 					ath9k_hw_set_interrupts(sc->sc_ah,
 							sc->imask);
 				}
-				ath9k_hw_setrxabort(sc->sc_ah, 1);
 			}
-			sc->ps_enabled = true;
+			/*
+			 * At this point we know hardware has received an ACK
+			 * of a previously sent null data frame.
+			 */
+			if ((sc->sc_flags & SC_OP_NULLFUNC_COMPLETED)) {
+				sc->sc_flags &= ~SC_OP_NULLFUNC_COMPLETED;
+				sc->ps_enabled = true;
+				ath9k_hw_setrxabort(sc->sc_ah, 1);
+                        }
 		} else {
 			sc->ps_enabled = false;
+			sc->sc_flags &= ~(SC_OP_PS_ENABLED |
+					  SC_OP_NULLFUNC_COMPLETED);
 			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
@@ -2897,6 +2887,10 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	ret = ath_txq_update(sc, qnum, &qi);
 	if (ret)
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
+
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
+		if ((qnum == sc->tx.hwq_map[ATH9K_WME_AC_BE]) && !ret)
+			ath_beaconq_config(sc);
 
 	mutex_unlock(&sc->mutex);
 

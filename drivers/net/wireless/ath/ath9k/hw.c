@@ -148,22 +148,19 @@ bool ath9k_get_channel_edges(struct ath_hw *ah,
 }
 
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
-			   const struct ath_rate_table *rates,
+			   u8 phy, int kbps,
 			   u32 frameLen, u16 rateix,
 			   bool shortPreamble)
 {
 	u32 bitsPerSymbol, numBits, numSymbols, phyTime, txTime;
-	u32 kbps;
-
-	kbps = rates->info[rateix].ratekbps;
 
 	if (kbps == 0)
 		return 0;
 
-	switch (rates->info[rateix].phy) {
+	switch (phy) {
 	case WLAN_RC_PHY_CCK:
 		phyTime = CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
-		if (shortPreamble && rates->info[rateix].short_preamble)
+		if (shortPreamble)
 			phyTime >>= 1;
 		numBits = frameLen << 3;
 		txTime = CCK_SIFS_TIME + phyTime + ((numBits * 1000) / kbps);
@@ -194,8 +191,7 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		break;
 	default:
 		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unknown phy %u (rate ix %u)\n",
-			  rates->info[rateix].phy, rateix);
+			  "Unknown phy %u (rate ix %u)\n", phy, rateix);
 		txTime = 0;
 		break;
 	}
@@ -922,6 +918,11 @@ int ath9k_hw_init(struct ath_hw *ah)
 	ath_print(common, ATH_DBG_RESET, "serialize_regmode is %d\n",
 		ah->config.serialize_regmode);
 
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
+	else
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
+
 	if (!ath9k_hw_macversion_supported(ah->hw_version.macVersion)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Mac Chip Rev 0x%02x.%x is not supported by "
@@ -975,7 +976,10 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return r;
 
 	ath9k_hw_init_mode_gain_regs(ah);
-	ath9k_hw_fill_cap_info(ah);
+	r = ath9k_hw_fill_cap_info(ah);
+	if (r)
+		return r;
+
 	ath9k_hw_init_11a_eeprom_fix(ah);
 
 	r = ath9k_hw_init_macaddr(ah);
@@ -3111,7 +3115,7 @@ EXPORT_SYMBOL(ath9k_hw_set_sta_beacon_timers);
 /* HW Capabilities */
 /*******************/
 
-void ath9k_hw_fill_cap_info(struct ath_hw *ah)
+int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
@@ -3142,6 +3146,12 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
+	if ((eeval & (AR5416_OPFLAGS_11G | AR5416_OPFLAGS_11A)) == 0) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "no band has been marked as supported in EEPROM.\n");
+		return -EINVAL;
+	}
+
 	bitmap_zero(pCap->wireless_modes, ATH9K_MODE_MAX);
 
 	if (eeval & AR5416_OPFLAGS_11A) {
@@ -3228,7 +3238,11 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->keycache_size = AR_KEYTABLE_SIZE;
 
 	pCap->hw_caps |= ATH9K_HW_CAP_FASTCC;
-	pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD >> 1;
+	else
+		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
 	if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
@@ -3301,6 +3315,8 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	} else {
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
 	}
+
+	return 0;
 }
 
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,

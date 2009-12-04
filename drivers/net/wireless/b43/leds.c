@@ -246,6 +246,7 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 			*behaviour = B43_LED_OFF;
 			break;
 		default:
+			*behaviour = B43_LED_OFF;
 			B43_WARN_ON(1);
 			return;
 		}

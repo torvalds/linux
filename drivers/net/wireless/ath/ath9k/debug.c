@@ -31,6 +31,8 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_ATH_DEBUG
+
 static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -70,6 +72,8 @@ static const struct file_operations fops_debug = {
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE
 };
+
+#endif
 
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -255,21 +259,11 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
-void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
+void ath_debug_stat_rc(struct ath_softc *sc, int final_rate)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_rate *rates = tx_info->status.rates;
-	int final_ts_idx = 0, idx, i;
 	struct ath_rc_stats *stats;
 
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (!rates[i].count)
-			break;
-
-		final_ts_idx = i;
-	}
-	idx = rates[final_ts_idx].idx;
-	stats = &sc->debug.stats.rcstats[idx];
+	stats = &sc->debug.stats.rcstats[final_rate];
 	stats->success++;
 }
 
@@ -573,10 +567,12 @@ int ath9k_init_debug(struct ath_hw *ah)
 	if (!sc->debug.debugfs_phy)
 		goto err;
 
+#ifdef CONFIG_ATH_DEBUG
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
 		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
 	if (!sc->debug.debugfs_debug)
 		goto err;
+#endif
 
 	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
 				       sc->debug.debugfs_phy, sc, &fops_dma);

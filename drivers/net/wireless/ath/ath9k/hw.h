@@ -60,7 +60,7 @@
 
 #define	ATH_DEFAULT_NOISE_FLOOR -95
 
-#define ATH9K_RSSI_BAD			0x80
+#define ATH9K_RSSI_BAD			-128
 
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
@@ -226,6 +226,7 @@ struct ath9k_ops_config {
 #define AR_SPUR_FEEQ_BOUND_HT20 10
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
+	u8 max_txtrig_level;
 };
 
 enum ath9k_int {
@@ -619,7 +620,7 @@ void ath9k_hw_detach(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
-void ath9k_hw_fill_cap_info(struct ath_hw *ah);
+int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result);
 bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
@@ -647,7 +648,7 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
-			   const struct ath_rate_table *rates,
+			   u8 phy, int kbps,
 			   u32 frameLen, u16 rateix, bool shortPreamble);
 void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
