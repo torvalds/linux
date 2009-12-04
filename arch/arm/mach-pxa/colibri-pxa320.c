@@ -199,6 +199,10 @@ static void __init colibri_pxa320_init_uart(void)
 
 void __init colibri_pxa320_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	colibri_pxa320_init_eth();
 	colibri_pxa320_init_ohci();
 	colibri_pxa3xx_init_nand();
