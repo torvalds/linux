@@ -347,6 +347,29 @@ struct radeon_connector_atom_dig {
 	int dp_lane_count;
 };
 
+struct radeon_gpio_rec {
+	bool valid;
+	u8 id;
+	u32 reg;
+	u32 mask;
+};
+
+enum radeon_hpd_id {
+	RADEON_HPD_NONE = 0,
+	RADEON_HPD_1,
+	RADEON_HPD_2,
+	RADEON_HPD_3,
+	RADEON_HPD_4,
+	RADEON_HPD_5,
+	RADEON_HPD_6,
+};
+
+struct radeon_hpd {
+	enum radeon_hpd_id hpd;
+	u8 plugged_state;
+	struct radeon_gpio_rec gpio;
+};
+
 struct radeon_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
@@ -361,6 +384,7 @@ struct radeon_connector {
 	void *con_priv;
 	bool dac_load_detect;
 	uint16_t connector_object_id;
+	struct radeon_hpd hpd;
 };
 
 struct radeon_framebuffer {

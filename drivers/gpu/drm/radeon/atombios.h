@@ -2680,7 +2680,7 @@ typedef struct _ATOM_I2C_RECORD {
 typedef struct _ATOM_HPD_INT_RECORD {
 	ATOM_COMMON_RECORD_HEADER sheader;
 	UCHAR ucHPDIntGPIOID;	/* Corresponding block in GPIO_PIN_INFO table gives the pin info */
-	UCHAR ucPluggged_PinState;
+	UCHAR ucPlugged_PinState;
 } ATOM_HPD_INT_RECORD;
 
 typedef struct _ATOM_OUTPUT_PROTECTION_RECORD {

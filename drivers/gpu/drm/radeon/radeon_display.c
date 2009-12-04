@@ -250,6 +250,16 @@ static const char *connector_names[13] = {
 	"HDMI-B",
 };
 
+static const char *hpd_names[7] = {
+	"NONE",
+	"HPD1",
+	"HPD2",
+	"HPD3",
+	"HPD4",
+	"HPD5",
+	"HPD6",
+};
+
 static void radeon_print_display_setup(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -264,6 +274,8 @@ static void radeon_print_display_setup(struct drm_device *dev)
 		radeon_connector = to_radeon_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
 		DRM_INFO("  %s\n", connector_names[connector->connector_type]);
+		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
 		if (radeon_connector->ddc_bus)
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
