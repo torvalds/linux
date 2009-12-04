@@ -64,7 +64,8 @@ static struct clocksource bfin_cs_cycles = {
 
 static inline unsigned long long bfin_cs_cycles_sched_clock(void)
 {
-	return cyc2ns(&bfin_cs_cycles, bfin_read_cycles(&bfin_cs_cycles));
+	return clocksource_cyc2ns(bfin_read_cycles(&bfin_cs_cycles),
+		bfin_cs_cycles.mult, bfin_cs_cycles.shift);
 }
 
 static int __init bfin_cs_cycles_init(void)
@@ -111,7 +112,8 @@ static struct clocksource bfin_cs_gptimer0 = {
 
 static inline unsigned long long bfin_cs_gptimer0_sched_clock(void)
 {
-	return cyc2ns(&bfin_cs_gptimer0, bfin_read_TIMER0_COUNTER());
+	return clocksource_cyc2ns(bfin_read_TIMER0_COUNTER(),
+		bfin_cs_gptimer0.mult, bfin_cs_gptimer0.shift);
 }
 
 static int __init bfin_cs_gptimer0_init(void)
