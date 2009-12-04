@@ -663,7 +663,6 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * Remove RXWI descriptor from start of buffer.
 	 */
 	skb_pull(entry->skb, skbdesc->desc_len);
-	skb_trim(entry->skb, rxdesc->size);
 }
 
 /*
