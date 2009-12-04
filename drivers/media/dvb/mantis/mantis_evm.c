@@ -82,10 +82,7 @@ static void mantis_hifevm_work(struct work_struct *work)
 
 	if (gpif_stat & MANTIS_SBUF_OPDONE) {
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer operation complete", mantis->num);
-		if (ca->hif_job_queue) {
-			wake_up(&ca->hif_opdone_wq);
-			ca->hif_event = MANTIS_SBUF_OPDONE;
-		}
+
 	}
 }
 

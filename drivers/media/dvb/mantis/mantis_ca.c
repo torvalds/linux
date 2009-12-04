@@ -85,6 +85,7 @@ static int mantis_ca_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 	udelay(500);
 	mmwrite(0x00, MANTIS_PCMCIA_RESET); /* Trailing edge deassert */
 	msleep(1000);
+	dvb_ca_en50221_camready_irq(&ca->en50221, 0);
 
 	return 0;
 }
