@@ -1427,9 +1427,9 @@ EXPORT_SYMBOL_GPL(snd_soc_update_bits);
  *
  * Returns 1 for change else 0.
  */
-static int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-				unsigned short reg, unsigned int mask,
-				unsigned int value)
+int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
+			       unsigned short reg, unsigned int mask,
+			       unsigned int value)
 {
 	int change;
 
@@ -1439,6 +1439,7 @@ static int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
 
 	return change;
 }
+EXPORT_SYMBOL_GPL(snd_soc_update_bits_locked);
 
 /**
  * snd_soc_test_bits - test register for change
