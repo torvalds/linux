@@ -25,6 +25,7 @@
 #include "mantis_common.h"
 #include "tda1002x.h"
 
+#define MANTIS_VP_2040_DVB_C	0x0043
 #define TERRATEC_CINERGY_C_PCI	0x1178
 
 extern struct tda1002x_config tda10023_cu1216_config;

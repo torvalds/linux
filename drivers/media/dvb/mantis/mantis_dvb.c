@@ -273,6 +273,7 @@ int __devinit mantis_frontend_init(struct mantis_pci *mantis)
 
 		}
 		break;
+	case MANTIS_VP_2040_DVB_C:	// VP-2040
 	case TERRATEC_CINERGY_C_PCI:
 		dprintk(verbose, MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
 		mantis->fe = tda10023_attach(&tda10023_cu1216_config, &mantis->adapter, read_pwm(mantis));
