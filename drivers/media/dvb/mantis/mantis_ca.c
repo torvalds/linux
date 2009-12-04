@@ -79,6 +79,11 @@ static int mantis_ts_control(struct dvb_ca_en50221 *en50221, int slot)
 
 static int mantis_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open)
 {
+	struct mantis_ca *ca = en50221->data;
+
+	if (ca->slot_state == MODULE_INSERTED)
+		return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
+
 	return 0;
 }
 
